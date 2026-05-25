@@ -1,0 +1,44 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# typescript build info
+*.tsbuildinfo
+
+# production
+/build
+
+# testing
+/coverage
+/test-results
+/playwright-report
+/blob-report
+/.playwright
+
+# env
+.env
+.env*.local
+
+# database (local sqlite)
+*.db
+*.db-journal
+/prisma/*.db
+/prisma/*.db-journal
+
+# uploaded documents (never commit private docs)
+/storage/
+/uploads/
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+.idea

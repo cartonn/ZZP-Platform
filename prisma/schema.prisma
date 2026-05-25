@@ -1,0 +1,465 @@
+// ZZP Platform — Prisma schema
+//
+// PORTABILITEIT (zie CLAUDE.md regel 6): één schema draait op SQLite (lokaal)
+// én PostgreSQL (productie). Daarom:
+//   - GEEN native db-enums  -> alle "enums" zijn String + Zod-validatie (src/lib/enums.ts)
+//   - GEEN scalar lijsten   -> meervoud via join-tabellen of JSON-string
+//   - GEEN Json scalar      -> JSON wordt als String opgeslagen en met Zod geparsed
+// Productie-switch: zet provider hieronder op "postgresql" (Sessie 10).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth & gebruikers
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("FREELANCER") // UserRole: FREELANCER | CLIENT | ADMIN
+  status       String   @default("ACTIVE") //       UserStatus: ACTIVE | SUSPENDED | PENDING
+  emailVerified DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  freelancerProfile FreelancerProfile?
+  company           Company?
+  documents         Document[]
+  sentMessages      Message[]              @relation("MessageSender")
+  participations    ConversationParticipant[]
+  notifications     Notification[]
+  subscription      Subscription?
+  verifications     CredentialVerification[] @relation("Verifier")
+  auditLogs         AuditLog[]             @relation("AuditActor")
+
+  @@index([role])
+  @@index([status])
+}
+
+// NextAuth-modellen (toekomstige OAuth/sessies; credentials+JWT gebruikt ze nu niet).
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Profielen
+// ---------------------------------------------------------------------------
+
+model FreelancerProfile {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  headline     String?
+  bio          String?
+  hourlyRate   Int? //   euro per uur
+  availability String  @default("UNKNOWN") // Availability: AVAILABLE | LIMITED | UNAVAILABLE | UNKNOWN
+  location     String?
+  workMode     String  @default("HYBRID") //  WorkMode: REMOTE | ONSITE | HYBRID
+  languages    String? //                      JSON-string array, bv. ["nl","en"]
+  kvkNumber    String?
+  btwNumber    String?
+  visibility   String  @default("PUBLIC") //   Visibility: PUBLIC | PRIVATE
+  completeness Int     @default(0) //           0-100, server-berekend
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills       FreelancerSkill[]
+  industries   FreelancerIndustry[]
+  credentials  Credential[]
+  applications Application[]
+  collaborations Collaboration[]
+}
+
+model Company {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  name        String
+  logoKey     String?
+  industryId  String?
+  description String?
+  website     String?
+  location    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  industry       Industry?       @relation(fields: [industryId], references: [id])
+  jobs           Job[]
+  collaborations Collaboration[]
+}
+
+model Skill {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  freelancers FreelancerSkill[]
+  jobs        JobSkill[]
+}
+
+model Industry {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  freelancers FreelancerIndustry[]
+  companies   Company[]
+  jobs        Job[]
+}
+
+model FreelancerSkill {
+  freelancerProfileId String
+  skillId             String
+  freelancerProfile   FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+  skill               Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([freelancerProfileId, skillId])
+}
+
+model FreelancerIndustry {
+  freelancerProfileId String
+  industryId          String
+  freelancerProfile   FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+  industry            Industry          @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@id([freelancerProfileId, industryId])
+}
+
+// ---------------------------------------------------------------------------
+// Opdrachten
+// ---------------------------------------------------------------------------
+
+model Job {
+  id          String   @id @default(cuid())
+  companyId   String
+  title       String
+  description String
+  status      String   @default("DRAFT") // JobStatus: DRAFT | PUBLISHED | CLOSED
+  industryId  String?
+  rateMin     Int?
+  rateMax     Int?
+  location    String?
+  workMode    String   @default("HYBRID") // WorkMode
+  startDate   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  publishedAt DateTime?
+
+  company              Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  industry             Industry?                  @relation(fields: [industryId], references: [id])
+  skills               JobSkill[]
+  credentialRequirements JobCredentialRequirement[]
+  applications         Application[]
+  conversations        Conversation[]
+  collaborations       Collaboration[]
+
+  @@index([status])
+  @@index([companyId])
+}
+
+model JobSkill {
+  jobId    String
+  skillId  String
+  required Boolean @default(true)
+  job      Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skill    Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([jobId, skillId])
+}
+
+model JobCredentialRequirement {
+  id             String  @id @default(cuid())
+  jobId          String
+  credentialType String //  CredentialType (string)
+  required       Boolean @default(true)
+  job            Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, credentialType])
+}
+
+// ---------------------------------------------------------------------------
+// Reacties
+// ---------------------------------------------------------------------------
+
+model Application {
+  id                 String   @id @default(cuid())
+  jobId              String
+  freelancerId       String //  FreelancerProfile.id
+  status             String   @default("NEW") // ApplicationStatus: NEW | VIEWED | SHORTLIST | REJECTED | ACCEPTED
+  motivation         String
+  proposedRate       Int?
+  availability       String?
+  attachmentId       String?
+  matchScore         Int? //                            server-berekende snapshot 0-100
+  complianceSnapshot String? //                         JSON-string, server-berekend
+  note               String? //                         interne notitie opdrachtgever
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  collaboration Collaboration?
+
+  @@unique([jobId, freelancerId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Berichten
+// ---------------------------------------------------------------------------
+
+model Conversation {
+  id        String   @id @default(cuid())
+  jobId     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  job          Job?                      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+// ---------------------------------------------------------------------------
+// Documenten & credentials (kerndifferentiatie)
+// ---------------------------------------------------------------------------
+
+model Document {
+  id         String   @id @default(cuid())
+  ownerId    String
+  kind       String   @default("OTHER") // DocumentKind: CREDENTIAL | VOG | INSURANCE | CONTRACT | OTHER
+  filename   String
+  mimeType   String
+  size       Int
+  storageKey String   @unique //            verwijst naar storage-abstractie, nooit publiek pad
+  createdAt  DateTime @default(now())
+
+  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  credentials Credential[]
+
+  @@index([ownerId])
+}
+
+model Credential {
+  id                  String   @id @default(cuid())
+  freelancerProfileId String
+  type                String //   CredentialType: VOG | DIPLOMA | CERTIFICATE | INSURANCE | LICENSE | OTHER
+  title               String
+  issuer              String?
+  issuedAt            DateTime?
+  expiresAt           DateTime?
+  status              String   @default("DRAFT") // CredentialStatus: DRAFT | SUBMITTED | VERIFIED | REJECTED | EXPIRED
+  documentId          String?
+  visibility          String   @default("PRIVATE") // Visibility: PUBLIC | PRIVATE
+  verifiedAt          DateTime?
+  rejectionReason     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  freelancerProfile FreelancerProfile        @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+  document          Document?                @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  verifications     CredentialVerification[]
+  requests          VerificationRequest[]
+
+  @@index([status])
+  @@index([freelancerProfileId])
+}
+
+// Historie: elke verificatiebeslissing is een onveranderlijke regel (audit-grade).
+model CredentialVerification {
+  id           String   @id @default(cuid())
+  credentialId String
+  verifierId   String
+  decision     String //  VerificationDecision: VERIFIED | REJECTED
+  reason       String? //  verplicht bij REJECTED (server-side afgedwongen)
+  createdAt    DateTime @default(now())
+
+  credential Credential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  verifier   User       @relation("Verifier", fields: [verifierId], references: [id], onDelete: Cascade)
+
+  @@index([credentialId])
+}
+
+model VerificationRequest {
+  id           String   @id @default(cuid())
+  credentialId String
+  status       String   @default("PENDING") // RequestStatus: PENDING | RESOLVED
+  createdAt    DateTime @default(now())
+  resolvedAt   DateTime?
+
+  credential Credential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Samenwerkingen, facturatie, abonnementen
+// ---------------------------------------------------------------------------
+
+model Collaboration {
+  id             String   @id @default(cuid())
+  jobId          String
+  applicationId  String   @unique
+  freelancerId   String
+  companyId      String
+  status         String   @default("PROPOSED") // CollaborationStatus: PROPOSED | ACTIVE | COMPLETED | CANCELLED
+  contractStatus String   @default("DRAFT") //    ContractStatus: DRAFT | SENT | SIGNED
+  rate           Int?
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  job         Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  application Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  freelancer  FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices    Invoice[]
+}
+
+model Invoice {
+  id              String   @id @default(cuid())
+  collaborationId String?
+  number          String   @unique
+  status          String   @default("DRAFT") // InvoiceStatus: DRAFT | SENT | PAID | OVERDUE | CANCELLED
+  issuedAt        DateTime?
+  dueAt           DateTime?
+  totalCents      Int      @default(0) //        som van regels, server-berekend
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  collaboration Collaboration? @relation(fields: [collaborationId], references: [id], onDelete: SetNull)
+  lines         InvoiceLine[]
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Int     @default(1)
+  unitCents   Int
+  amountCents Int //     quantity * unitCents, server-berekend
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String //   NotificationType (string)
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Plan {
+  id              String   @id @default(cuid())
+  key             String   @unique // PlanKey: FREE | PRO | BUSINESS
+  name            String
+  maxApplications Int //                -1 = onbeperkt
+  maxJobs         Int
+  priceCents      Int      @default(0)
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  planId           String
+  status           String   @default("ACTIVE") // SubscriptionStatus: ACTIVE | PAST_DUE | CANCELLED
+  currentPeriodEnd DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Audit (alles wat telt — zie CLAUDE.md regel 5)
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String? //   null = systeemactie
+  action     String //     bv. CREDENTIAL_VERIFIED, ROLE_CHANGED
+  entityType String
+  entityId   String
+  metadata   String? //   JSON-string
+  createdAt  DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([action])
+}
