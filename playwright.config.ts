@@ -11,7 +11,9 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    // Edge (chromium-gebaseerd) via systeem-install: de Playwright-browser-CDN staat
+    // niet in de netwerk-allowlist van deze omgeving, msedge wel (packages.microsoft.com).
+    { name: "edge", use: { ...devices["Desktop Edge"], channel: "msedge" } },
   ],
   webServer: {
     command: "npm run dev",
