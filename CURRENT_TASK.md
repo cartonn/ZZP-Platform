@@ -3,41 +3,40 @@
 > Eén taak tegelijk. Lees CLAUDE.md en PROGRESS.md voordat je begint.
 > Werk dit bestand bij wanneer je naar de volgende taak gaat.
 
-## NU: Sessie 9 — Polish, performance, a11y, e2e
+## NU: Sessie 10 — Productie-voorbereiding (code-kant)
 
 ### Doel
-Het hele product strakker, sneller en toegankelijker maken; losse eindjes uit eerdere sessies
-opruimen. Geen nieuwe features — kwaliteit verhogen.
+De codebasis productieklaar maken voor zover dat code is — niet de infra zelf. Infra (echte
+Postgres/S3/mailprovider/domein/secrets/backups) en de security-/AVG-review zijn mensenwerk.
 
-### Bekende punten uit eerdere sessies (oppakken)
-- **Post-save controlled-select flits** (Sessie 1): direct na een server-action-save toont een
-  `<select>` kort de oude waarde tot de RSC-refresh; nette toast/refresh-afhandeling gewenst.
-- **Berichtenlijst perf** (Sessie 6): `/berichten` haalt álle messages per conversatie op om
-  ongelezen te tellen; vervang door `_count`/`take:1` of een aparte count-query.
-- **Dubbel-gesprek-race** (Sessie 6): geen unieke index op (jobId, deelnemerspaar) — overweeg een
-  guard of accepteer bewust.
-- **SQLite case-sensitieve zoek** (Sessie 2): documenteer/abstraheer; op Postgres insensitive.
+### Context / kaders (CLAUDE.md)
+- Provider-switch is al voorbereid (SQLite lokaal, Postgres prod via env). Storage-abstractie
+  bestaat; de S3-driver is bewust nog niet geïmplementeerd (`src/lib/services/storage.ts`).
+- Auth.js JWT-strategie; bekende trade-off: schorsing werkt pas na JWT-refresh (Sessie 8).
+- Geen geheimen in git; uploads nooit op publiek pad.
 
-### Stappen (kies pragmatisch, hou diffs behapbaar)
-1. **A11y-pass:** focus-states overal, `aria-label`s op icon-only knoppen, form-labels, landmark-
-   structuur, kleurcontrast, toetsenbordnavigatie door de belangrijkste flows.
-2. **Loading/empty/error-states:** controleer elke route op alle drie; voeg `loading.tsx`/skeletons
-   toe waar nuttig; consistente lege-staat-teksten.
-3. **Performance:** N+1/over-fetching wegwerken (berichtenlijst, dashboards), `select` minimaliseren,
-   indexen benutten; meet build-output.
-4. **Consistentie:** statuschips, spacing, knop-varianten, Nederlandse microcopy uniform; mobiele
-   weergave (sidebar/`max-md`) controleren.
-5. **e2e:** een doorlopende "golden path"-test per rol; a11y-smoke (bijv. axe) optioneel.
+### Stappen (code-kant; hou diffs behapbaar)
+1. **S3-storage-driver implementeren** achter de bestaande `StorageDriver`-interface (AWS SDK of
+   S3-compatible), geactiveerd via `STORAGE_DRIVER=s3` + env. Lokaal blijft default. Unit-test de
+   key/validatie-logica; de echte bucket is infra/mens.
+2. **Security headers** (CSP waar haalbaar, `X-Content-Type-Options`, `Referrer-Policy`,
+   `X-Frame-Options`/frame-ancestors) via `next.config` headers of middleware.
+3. **Env-validatie**: één plek die vereiste env-vars valideert bij boot (bv. `src/lib/env.ts` met
+   Zod) en duidelijk faalt als iets ontbreekt in productie.
+4. **Robuustheid**: globale `error.tsx`/`not-found.tsx` (nette UI), health-check route
+   (`/api/health`), en documenteer de Postgres-switch + benodigde env in een `.env.example`/README-sectie.
+5. **Optioneel**: eenvoudige rate-limiting op auth/mutaties (in-memory of doc-only als infra nodig is).
 
 ### Definition of Done (deze sessie)
-- [ ] A11y-knelpunten in de hoofdflows verholpen
-- [ ] Elke route heeft loading/empty/error; geen console-errors
-- [ ] Berichtenlijst-perf gefixt; geen onnodige over-fetching in lijsten
+- [ ] S3-driver geïmplementeerd (achter de abstractie, env-geschakeld) + tests voor de pure logica
+- [ ] Security headers actief; env-validatie aanwezig; health-check + nette error/not-found UI
+- [ ] `.env.example` + korte deploy/Postgres-sectie gedocumenteerd
 - [ ] typecheck + lint + test + build groen; e2e groen + screenshots gecontroleerd
-- [ ] Commit, PROGRESS.md bij, CURRENT_TASK.md naar Sessie 10
+- [ ] Commit, PROGRESS.md bij. Laatste codesessie: markeer wat nog mensenwerk is.
 
 ### Niet nu doen
-Geen nieuwe features. Geen productie-infra (S3/Postgres/mail) — dat is Sessie 10 (code-kant) + mens.
+Geen echte infra opzetten (bucket/DB/mail/domein/secrets). Geen betaalprovider. De finale
+security-/AVG-review vóór livegang met echte documenten blijft expliciet mensenwerk.
 
 ---
 

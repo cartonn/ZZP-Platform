@@ -4,6 +4,7 @@ import { type Session } from "next-auth";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { MobileNav } from "@/components/mobile-nav";
 import { navForRole, ROLE_LABEL } from "@/lib/nav";
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
@@ -65,6 +66,7 @@ export async function AppShell({
       <div className="flex min-w-0 flex-col">
         <header className="flex h-14 items-center justify-between gap-3 border-b border-border px-4 md:px-6">
           <div className="flex items-center gap-2 md:hidden">
+            <MobileNav items={navForRole(role)} />
             <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
               Z
             </div>

@@ -21,7 +21,7 @@
 - [x] **Sessie 6** — Berichten, notificaties, samenwerkingen
 - [x] **Sessie 7** — Facturatie + billing
 - [x] **Sessie 8** — Admin-paneel afronden
-- [ ] **Sessie 9** — Polish, performance, a11y, e2e
+- [x] **Sessie 9** — Polish, performance, a11y, e2e
 - [ ] **Sessie 10** — Productie-voorbereiding (code-kant)
 
 ---
@@ -268,5 +268,26 @@
 - Checks: typecheck ✓, lint ✓, test ✓ (101), build ✓ (27 routes), e2e ✓ (21, via Edge).
 - Visueel gecontroleerd (screenshots 28-29): gebruikersbeheer, audit log.
 - Volgende stap: Sessie 9 — Polish, performance, a11y, e2e.
+
+### Sessie 9 — 2026-05-26
+- Wat gedaan: polish, performance, a11y — geen nieuwe features.
+  - **Mobiele navigatie (echte gap, gevonden via mobiele browserverificatie):** sidebar was
+    `hidden md:flex` zonder mobiel alternatief → géén navigatie op telefoon. Toegevoegd:
+    toegankelijke drawer (`role="dialog"` aria-modal, Escape/overlay sluiten, auto-sluiten bij
+    routewissel) via `components/mobile-nav.tsx`.
+  - **Berichtenlijst perf:** niet meer álle messages laden; laatste bericht via `take:1` +
+    ongelezen via goedkope per-conversatie COUNT.
+  - **Dashboard:** verouderde Sessie-0-placeholder weg; nu live, ownership-gescopte stats per
+    rol (klikbaar) — sluit aan op "dashboard-first" designregel.
+  - Console-smoke over álle routes × 3 rollen: 0 errors/404's. `lang="nl"` aanwezig.
+- Verifieer→fix-loop (les toegepast): een toegevoegde `(protected)/loading.tsx` bleek
+  `notFound()` app-breed naar HTTP 200 te duwen (Suspense-streaming sluit de header te vroeg).
+  Gevangen door de jobs-e2e (depubliceren → 404). Bewust teruggedraaid: correcte 404-semantiek
+  weegt zwaarder dan een skeleton.
+- Tests: 101 unit-tests + 21 e2e groen (incl. mobiel menu in tijdelijke check geverifieerd).
+  Reviewzwerm: CLEAN (geen authz-regressie, counts correct, drawer-a11y in orde).
+- Checks: typecheck ✓, lint ✓, test ✓ (101), build ✓ (27 routes), e2e ✓ (21, via Edge).
+- Visueel gecontroleerd: mobiel menu (screenshot 30), eerdere schermen ongewijzigd.
+- Volgende stap: Sessie 10 — Productie-voorbereiding (code-kant).
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

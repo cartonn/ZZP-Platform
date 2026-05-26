@@ -2,7 +2,6 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { unreadCount } from "@/lib/messaging";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -11,15 +10,33 @@ export const metadata: Metadata = { title: "Berichten · ZZP Platform" };
 export default async function BerichtenPage() {
   const actor = await requireActor();
 
+  // Alleen het laatste bericht meeladen; ongelezen tellen we per conversatie met een
+  // goedkope COUNT (niet alle berichten ophalen) — perf-fix Sessie 9.
   const conversations = await prisma.conversation.findMany({
     where: { participants: { some: { userId: actor.id } } },
     orderBy: { updatedAt: "desc" },
     include: {
       job: { select: { title: true } },
       participants: { include: { user: { select: { id: true, name: true } } } },
-      messages: { orderBy: { createdAt: "asc" }, select: { senderId: true, createdAt: true, body: true } },
+      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true } },
     },
   });
+
+  const unreadByConversation = new Map(
+    await Promise.all(
+      conversations.map(async (c) => {
+        const me = c.participants.find((p) => p.user.id === actor.id);
+        const count = await prisma.message.count({
+          where: {
+            conversationId: c.id,
+            senderId: { not: actor.id },
+            ...(me?.lastReadAt ? { createdAt: { gt: me.lastReadAt } } : {}),
+          },
+        });
+        return [c.id, count] as const;
+      }),
+    ),
+  );
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -37,10 +54,9 @@ export default async function BerichtenPage() {
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {conversations.map((c) => {
-            const me = c.participants.find((p) => p.user.id === actor.id);
             const other = c.participants.find((p) => p.user.id !== actor.id);
-            const last = c.messages[c.messages.length - 1];
-            const unread = unreadCount(c.messages, me?.lastReadAt ?? null, actor.id);
+            const last = c.messages[0];
+            const unread = unreadByConversation.get(c.id) ?? 0;
             return (
               <Link key={c.id} href={`/berichten/${c.id}`} className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-muted/50">
                 <div className="min-w-0">
