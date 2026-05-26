@@ -4,9 +4,11 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { ROLE_LABEL } from "@/lib/nav";
 import { type UserRole } from "@/lib/enums";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cancelDeletionRequest, requestAccountDeletion } from "./actions";
+import { IdentityForm } from "./identity-form";
 
 export const metadata: Metadata = { title: "Account & privacy · ZZP Platform" };
 
@@ -14,7 +16,7 @@ export default async function AccountPage() {
   const actor = await requireActor();
   const user = await prisma.user.findUnique({
     where: { id: actor.id },
-    select: { email: true, name: true, role: true, createdAt: true, deletionRequestedAt: true },
+    select: { email: true, name: true, role: true, createdAt: true, deletionRequestedAt: true, identityVerifiedAt: true, verifiedLegalName: true },
   });
   if (!user) return null;
 
@@ -31,6 +33,29 @@ export default async function AccountPage() {
           <div><p className="text-xs text-muted-foreground">E-mail</p><p className="truncate">{user.email}</p></div>
           <div><p className="text-xs text-muted-foreground">Rol</p><p>{ROLE_LABEL[user.role as UserRole]}</p></div>
           <div><p className="text-xs text-muted-foreground">Lid sinds</p><p>{user.createdAt.toISOString().slice(0, 10)}</p></div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-medium">Identiteitsverificatie</h2>
+            {user.identityVerifiedAt && <Badge variant="success">Geverifieerd</Badge>}
+          </div>
+          {user.identityVerifiedAt ? (
+            <p className="text-sm text-muted-foreground">
+              Geverifieerd op {user.identityVerifiedAt.toISOString().slice(0, 10)}
+              {user.verifiedLegalName ? ` · ${user.verifiedLegalName}` : ""}. Dit verhoogt je vertrouwensniveau.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Verifieer je identiteit (iDIN/eIDAS) zodat opdrachtgevers zien dat jij echt de houder van je
+                certificaten bent. Verhoogt je vertrouwensniveau.
+              </p>
+              <IdentityForm />
+            </>
+          )}
         </CardContent>
       </Card>
 

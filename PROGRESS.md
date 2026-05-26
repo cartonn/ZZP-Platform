@@ -469,4 +469,22 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Reviewzwerm: CLEAN (geen IDOR, DUO-refactor gedragsbehoudend, transitiemap intact, geen fake-data).
 - Productie-onboarding BIG-register = mensenwerk (zelfde als DUO).
 
+### Increment: Identiteitsverificatie + zichtbaar vertrouwensniveau — 2026-05-26
+- Slimme differentiator: concurrenten verifiëren losse documenten; wij binden **identiteit +
+  geverifieerde certificaten** tot één uitlegbaar **trust-signaal** dat opdrachtgevers zien.
+- `src/lib/services/identity-verifier.ts` (getest): `IdentityVerifier` + **MockIdentityVerifier**
+  (naam-match met account, verzint niets) + **IdinIdentityVerifier** (env `IDENTITY_VERIFIER=idin`;
+  faalt helder zonder config — iDIN/eIDAS-onboarding = mensenwerk).
+- `src/lib/trust.ts` (getest): `computeTrustLevel` → BASIS/DEELS/VOLLEDIG + reden/ontbrekend.
+- `/account`: identiteit verifiëren (eigen account, naam-match) → `identityVerifiedAt` +
+  `verifiedLegalName` opgeslagen + audit (IP/UA). Trust-badge op **publiek profiel** en
+  **kandidaten** (alleen het niveau, niet de juridische naam). Dashboard-nudge bij geen identiteit.
+- Schema: User.identityVerifiedAt + verifiedLegalName.
+- Tests: 8 unit (trust+identity) + e2e (mismatch faalt, match slaagt, trust-badge op profiel).
+  29 e2e + units groen. Reviewzwerm: één MEDIUM gefixt — kandidaten telde verlopen-maar-VERIFIED
+  credentials mee voor trust (inflatie); nu non-expired gefilterd, gelijk aan het publieke profiel.
+- E2e-hardening: lokaal `retries: 1` + ruimere timeouts op bericht-bubbels (de zware multi-context
+  tests flaken soms op één gedeelde dev-server; een echte bug faalt ook na retry).
+- Echte iDIN/eIDAS-koppeling = mensenwerk (zelfde patroon als DUO/BIG).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

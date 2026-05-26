@@ -29,6 +29,8 @@ model User {
   status       String   @default("ACTIVE") //       UserStatus: ACTIVE | SUSPENDED | PENDING
   emailVerified DateTime?
   deletionRequestedAt DateTime? //                   AVG: door gebruiker aangevraagde verwijdering
+  identityVerifiedAt  DateTime? //                   iDIN/eIDAS-identiteitsverificatie
+  verifiedLegalName   String? //                     door de bron bevestigde juridische naam
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

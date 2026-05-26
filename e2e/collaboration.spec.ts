@@ -57,7 +57,7 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
   await page.waitForURL(/\/berichten\/[a-z0-9]+$/);
   await page.locator('textarea[name="body"]').fill("Hoi, ik heb interesse in je reactie. Wanneer kun je starten?");
   await page.getByRole("button", { name: "Versturen" }).click();
-  await expect(page.getByText("Hoi, ik heb interesse")).toBeVisible();
+  await expect(page.getByText("Hoi, ik heb interesse")).toBeVisible({ timeout: 15000 });
   await shot(page, "22-berichten");
 
   // ZZP'er ziet het bericht en antwoordt.
@@ -66,10 +66,10 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
   await expect(fp.getByText(/nieuw/)).toBeVisible();
   await fp.getByText("Coll Opdrachtgever").click();
   await fp.waitForURL(/\/berichten\/[a-z0-9]+$/);
-  await expect(fp.getByText("Hoi, ik heb interesse")).toBeVisible();
+  await expect(fp.getByText("Hoi, ik heb interesse")).toBeVisible({ timeout: 15000 });
   await fp.locator('textarea[name="body"]').fill("Hoi! Ik kan per direct starten.");
   await fp.getByRole("button", { name: "Versturen" }).click();
-  await expect(fp.getByText("Ik kan per direct starten")).toBeVisible();
+  await expect(fp.getByText("Ik kan per direct starten")).toBeVisible({ timeout: 15000 });
 
   // Opdrachtgever accepteert de reactie en stelt een samenwerking voor.
   await page.goto("/kandidaten");

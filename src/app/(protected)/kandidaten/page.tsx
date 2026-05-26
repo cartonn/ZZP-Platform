@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { APPLICATION_TRANSITIONS } from "@/lib/applications";
 import { type ComplianceStatus } from "@/lib/matching";
 import { summarizeAvailability } from "@/lib/availability";
+import { computeTrustLevel } from "@/lib/trust";
+import { TrustBadge } from "@/components/trust/trust-badge";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import { type ApplicationStatus, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
@@ -46,8 +48,10 @@ export default async function KandidatenPage() {
       job: { select: { id: true, title: true } },
       freelancer: {
         select: {
-          id: true, headline: true, visibility: true, user: { select: { name: true } },
+          id: true, headline: true, visibility: true,
+          user: { select: { name: true, identityVerifiedAt: true } },
           availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
+          credentials: { where: { status: "VERIFIED" }, select: { id: true, expiresAt: true } },
         },
       },
       collaboration: { select: { id: true } },
@@ -73,6 +77,11 @@ export default async function KandidatenPage() {
             const status = app.status as ApplicationStatus;
             const compliance = complianceStatus(app.complianceSnapshot);
             const isPublic = (app.freelancer.visibility as Visibility) === "PUBLIC";
+            const nowMs = Date.now();
+            const trust = computeTrustLevel({
+              identityVerified: !!app.freelancer.user.identityVerifiedAt,
+              verifiedCredentialCount: app.freelancer.credentials.filter((c) => !c.expiresAt || c.expiresAt.getTime() > nowMs).length,
+            });
             return (
               <Card key={app.id}>
                 <CardContent className="space-y-3">
@@ -87,6 +96,7 @@ export default async function KandidatenPage() {
                           <span className="font-medium">{app.freelancer.user.name}</span>
                         )}
                         <ApplicationStatusBadge status={status} />
+                        <TrustBadge level={trust.level} />
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {app.freelancer.headline ?? "—"} · op{" "}

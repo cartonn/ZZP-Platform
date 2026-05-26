@@ -6,9 +6,11 @@ import { currentActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { profileVisibleTo } from "@/lib/profile";
 import { summarizeAvailability } from "@/lib/availability";
+import { computeTrustLevel } from "@/lib/trust";
 import { type Availability, type AvailabilityWindowType, type Visibility, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { TrustBadge } from "@/components/trust/trust-badge";
 
 export const metadata: Metadata = { title: "ZZP-profiel · ZZP Platform" };
 
@@ -35,7 +37,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const profile = await prisma.freelancerProfile.findUnique({
     where: { id },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, identityVerifiedAt: true } },
       skills: { include: { skill: { select: { name: true } } } },
       industries: { include: { industry: { select: { name: true } } } },
       credentials: {
@@ -63,6 +65,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const verifiedCredentials = profile.credentials.filter(
     (c) => !c.expiresAt || c.expiresAt.getTime() > now,
   );
+  const trust = computeTrustLevel({
+    identityVerified: !!profile.user.identityVerifiedAt,
+    verifiedCredentialCount: verifiedCredentials.length,
+  });
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -85,7 +91,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h1 className="text-xl font-semibold tracking-tight">{profile.user.name}</h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl font-semibold tracking-tight">{profile.user.name}</h1>
+                  <TrustBadge level={trust.level} />
+                </div>
                 {profile.headline && (
                   <p className="text-sm text-muted-foreground">{profile.headline}</p>
                 )}

@@ -58,12 +58,14 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
     const pid = profile?.id;
     const soon = new Date(Date.now() + 30 * 86400_000);
     const now = new Date();
-    const [applications, verified, rejected, expiring] = await Promise.all([
+    const [applications, verified, rejected, expiring, account] = await Promise.all([
       pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
       pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED" } }) : Promise.resolve(0),
       pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "REJECTED" } }) : Promise.resolve(0),
       pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED", expiresAt: { gt: now, lte: soon } } }) : Promise.resolve(0),
+      prisma.user.findUnique({ where: { id: userId }, select: { identityVerifiedAt: true } }),
     ]);
+    if (!account?.identityVerifiedAt) attention.push({ label: "Verifieer je identiteit voor een hoger vertrouwensniveau", href: "/account" });
     if ((profile?.completeness ?? 0) < 100) attention.push({ label: `Profiel is ${profile?.completeness ?? 0}% compleet — vul aan`, href: "/profiel" });
     if (rejected > 0) attention.push({ label: `${rejected} certificaat/certificaten afgewezen — opnieuw indienen`, href: "/certificaten" });
     if (expiring > 0) attention.push({ label: `${expiring} certificaat verloopt binnenkort — vernieuw`, href: "/certificaten" });
