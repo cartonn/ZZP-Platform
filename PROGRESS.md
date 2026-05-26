@@ -28,6 +28,24 @@
 
 ## Logboek
 
+### Meedenk-laag — 2026-05-26
+Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
+actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"
+is bewust uit de hele UI, code-commentaren en docs gehouden.)
+- **Nav-signalen** (`src/lib/signals.ts` + test): badges op nav-items vanaf elke pagina —
+  certificaten (afgewezen/verloopt), kandidaten (nieuwe reacties), opdrachten (concepten),
+  verificaties (wachtrij), berichten (ongelezen, 2 begrensde queries, geen N+1). Toon: attention
+  (opvallend) vs info (rustig). Render in `sidebar-nav`/`mobile-nav` via `app-shell`.
+- **Proactieve matching** (`src/lib/recommendations.ts` + test): "Opdrachten die bij je passen"
+  op het ZZP-dashboard, hergebruikt `computeMatchScore`. Begrensde scan, drempel 70.
+- **Compliance-ripple** (`src/lib/collaboration-alerts.ts` + test): ontbrekend/verlopen/bijna-
+  verlopen vereist certificaat in een lopende samenwerking → gemeld bij opdrachtgever (dashboard +
+  kaart) én ZZP'er (kaart met "Bijwerken"). Gedeelde `CREDENTIAL_TYPE_LABEL` naar `credentials.ts`.
+- **Aansluiting vóór reageren** (`opdrachten/[id]`): match + per-eis certificaatstatus met
+  "Toevoegen"-link voor wat ontbreekt/verlopen is.
+- e2e: `recommendations`, `collaboration-compliance`, `berichten-signal`, `job-fit` (+ badge-
+  assertie in `applications`). Checks groen: typecheck/lint, 159 unit-tests, build, e2e + shots.
+
 ### Sessie 0 — 2026-05-25
 - Wat gedaan: fundament vanaf nul gescaffold (geen bestaande codebase aangetroffen).
   Next.js 15 (App Router) + React 19 + TS strict + Prisma (SQLite) + Auth.js v5
