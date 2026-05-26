@@ -6,7 +6,7 @@
 > Dit document beschrijft ze en legt de component- en kwaliteitscontracten vast.
 
 ## Grondregels (niet-onderhandelbaar)
-- **Geen AI-slop, geen dode knoppen.** Elke knop/actie doet iets echt of bestaat niet. Nog niet
+- **Geen slop, geen dode knoppen.** Elke knop/actie doet iets echt of bestaat niet. Nog niet
   gebouwde nav-items tonen als uitgegrijsde "soon", niet als kapotte link.
 - **Geen kaart-in-kaart, geen decoratieve gradients, geen hero's.** Full-width secties, lijsten,
   tabellen, panelen. Kaarten alleen voor herhaalde items (kandidaat, document, factuur).
@@ -86,7 +86,7 @@ dichte lijstrijen. Screenshots controleren op **desktop én mobiel**.
 
 ## Copy-stijl
 Kort Nederlands, functioneel. Voorbeelden: "Geverifieerd", "Review nodig", "Verloopt binnenkort",
-"Publiceren met waarschuwing". Geen hype ("revolutionair", "magisch", "AI-powered" zonder concrete actie).
+"Publiceren met waarschuwing". Geen hype ("revolutionair", "magisch", "slim" zonder concrete actie).
 
 ## Design-acceptatiecriteria (een feature is pas "design-af" als)
 - [ ] Gebruikt uitsluitend tokens (geen losse hex/spacing-magie).

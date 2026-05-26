@@ -1,5 +1,5 @@
 // Wet DBA — deterministische risico-inschatting op schijnzelfstandigheid.
-// Regels beslissen en leggen uit; geen AI, geen "black box". Dit is geen juridisch advies,
+// Regels beslissen en leggen uit; geen "black box". Dit is geen juridisch advies,
 // maar een hulpmiddel: het maakt risicosignalen zichtbaar en reviewbaar (CLAUDE.md regel 1 & 5).
 //
 // Gewogen indicatoren uit de holistische toets (gezag, inbedding, ondernemerschap):

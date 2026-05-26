@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
+import { clientCredentialAlerts, describeCredentialAlert } from "@/lib/collaboration-alerts";
 import { Badge } from "@/components/ui/badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 
@@ -85,12 +86,17 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
   if (role === "CLIENT") {
     const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
     const cid = company?.id;
-    const [openJobs, newApps, drafts, activeCollabs] = await Promise.all([
+    const [openJobs, newApps, drafts, activeCollabs, credentialAlerts] = await Promise.all([
       cid ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } }) : Promise.resolve(0),
       cid ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } }) : Promise.resolve(0),
       cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
       cid ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } }) : Promise.resolve(0),
+      clientCredentialAlerts(userId),
     ]);
+    // Compliance van een lopende samenwerking weegt het zwaarst — bovenaan.
+    for (const a of credentialAlerts) {
+      attention.push({ label: describeCredentialAlert(a.freelancerName, a.jobTitle, a.alert), href: "/samenwerkingen" });
+    }
     if (newApps > 0) attention.push({ label: `${newApps} nieuwe reactie(s) — beoordeel kandidaten`, href: "/kandidaten" });
     if (drafts > 0) attention.push({ label: `${drafts} concept-opdracht(en) — publiceren?`, href: "/opdrachten" });
     return {

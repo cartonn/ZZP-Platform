@@ -1,6 +1,6 @@
 // Vertrouwensniveau: deterministisch en uitlegbaar. Combineert identiteitsverificatie en
 // geverifieerde certificaten tot één signaal dat opdrachtgevers vertrouwen geeft.
-// Server-side waarheid; geen AI. Pure functie, getest.
+// Server-side waarheid; regels beslissen, geen black box. Pure functie, getest.
 
 export const TRUST_LEVELS = ["BASIS", "DEELS", "VOLLEDIG"] as const;
 export type TrustLevel = (typeof TRUST_LEVELS)[number];

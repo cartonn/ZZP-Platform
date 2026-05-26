@@ -1,6 +1,6 @@
 # MENSENWERK — wat een mens moet doen vóór livegang
 
-> Dit platform is grotendeels door AI/agents gebouwd én getest. **Alles wat softwarematig kan,
+> Dit platform is grotendeels geautomatiseerd gebouwd én getest. **Alles wat softwarematig kan,
 > is gedaan.** Dit bestand bevat **alleen** wat een mens écht moet doen: dingen waarvoor een
 > handtekening, een account, een betaalmethode, een geheim (wachtwoord/sleutel), een juridisch
 > oordeel of een afspraak met een externe partij nodig is. Een agent mag/kan dat niet voor je doen.
@@ -250,7 +250,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 
 ---
 
-## §8. Wat de AI/agents al hebben gedaan (zodat je dit NIET handmatig hoeft)
+## §8. Wat al automatisch is gebouwd (zodat je dit NIET handmatig hoeft)
 - De hele applicatie: profielen, opdrachten, reacties met match + compliance, documenten/
   certificaten, admin-verificatie, berichten/notificaties, samenwerkingen, facturen, admin-paneel,
   beschikbaarheid, dashboard.

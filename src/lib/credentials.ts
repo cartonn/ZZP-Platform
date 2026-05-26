@@ -4,8 +4,19 @@
 import {
   CREDENTIAL_TRANSITIONS,
   type CredentialStatus,
+  type CredentialType,
   type VerificationDecision,
 } from "@/lib/enums";
+
+/** Nederlandse labels per certificaattype — één bron voor de hele UI. */
+export const CREDENTIAL_TYPE_LABEL: Record<CredentialType, string> = {
+  VOG: "VOG",
+  DIPLOMA: "Diploma",
+  CERTIFICATE: "Certificaat",
+  INSURANCE: "Verzekering",
+  LICENSE: "Licentie",
+  OTHER: "Overig",
+};
 
 export class TransitionError extends Error {
   readonly from: CredentialStatus;

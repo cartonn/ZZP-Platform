@@ -345,10 +345,10 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   - **Security-scripts**: `scripts/scan-secrets.sh` (hoog-signaal secret-patronen + geen getrackte
     .env) en `scripts/check-env-docs.mjs` (elke gebruikte `process.env.X` staat in .env.example).
 - Bewust NIET overgenomen (scope-creep / andere productrichting):
-  - AI-governance-laag + Wet-DBA-risico-engine: krachtig domein-idee, maar nieuwe scope. **Aanbeveling
+  - Governance-laag + Wet-DBA-risico-engine: krachtig domein-idee, maar nieuwe scope. **Aanbeveling
     aan eigenaar**: voor zzp-zorg is Wet-DBA-compliance (schijnzelfstandigheid: inbedding, directe
     aansturing, vervangbaarheid, terugkerende patronen) dé differentiator — overweeg dit als
-    expliciete volgende epic, deterministic-first (regels beslissen, AI formuleert hooguit).
+    expliciete volgende epic, deterministic-first (regels beslissen en leggen uit).
   - k6 load/stress + Sentry: zinvol, maar vragen infra/keuze van de eigenaar; genoteerd.
 - Sterkten van deze build t.o.v. de vergeleken aanpak (ter info): echte auth (Auth.js + RBAC) en
   persistente DB + audit (Prisma) zijn hier wél gebouwd; docs (PROGRESS/CURRENT_TASK) lopen niet
@@ -370,7 +370,7 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 
 ### Wet DBA — deterministische compliance — 2026-05-26 (eigenaar-richting: "conform geldende wetgeving")
 - Wat gedaan: deterministische schijnzelfstandigheid-check op opdrachten. Regels beslissen en
-  leggen uit; **geen AI, geen dode knoppen**. `src/lib/dba.ts` (gewogen indicatoren: gezag/inbedding =
+  leggen uit; **geen black box, geen dode knoppen**. `src/lib/dba.ts` (gewogen indicatoren: gezag/inbedding =
   kern, vrije vervanging/vaste uren = medium, exclusiviteit/duur = licht) → LAAG/MIDDEN/HOOG met
   uitleg per indicator + handelingsadvies. Volledig unit-getest.
 - Opdrachtformulier: DBA-sectie met **live preview** (zelfde pure functie client-side, single source).
@@ -386,7 +386,7 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 
 ### ReOS-corpus leerpunten toegepast — 2026-05-26
 - Aanleiding: volledige ReOS-planningscorpus gelezen (visie/roadmap/doelgroep/concurrentie,
-  RLS-plan, privacy-matrix, DBA-case-log, incident/AI-change templates). Selectief toegepast:
+  RLS-plan, privacy-matrix, DBA-case-log, incident/change templates). Selectief toegepast:
 - **DBA-model completer + golden cases:** hun DBA-reviewlog (DBA-001 pass / -002 review / -003
   blocked / -004 zwak ondernemerschap=review) legde een gat bloot — ik miste een ondernemerschap-
   signaal. Toegevoegd: `weakEntrepreneurship` (gewicht 2) in `src/lib/dba.ts`, Job-veld
@@ -430,7 +430,7 @@ een productiewaardige MVP voor de NL ZZP-marktplaats: echte auth + RBAC, persist
 verificatie, berichten/notificaties/samenwerkingen, facturatie/abonnement, admin-paneel,
 **Wet DBA-check** (deterministisch + golden cases), **AVG-gegevensrechten**, **beschikbaarheid**,
 CI/security-scripts, design-systeem (tokens), mobiel + desktop. ~130 unit-tests + 26 e2e groen;
-elke increment ge-reviewd (CLEAN); geen AI-slop, geen dode knoppen.
+elke increment ge-reviewd (CLEAN); geen slop, geen dode knoppen.
 
 Bewust NIET in deze MVP (post-MVP epic, eigen sessie): **multi-member-organisaties + subrollen**
 (owner/manager/recruiter/viewer). Dit raakt elke ownership-check (Company 1:1 user → org+members)

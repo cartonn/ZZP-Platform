@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Download, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { daysUntilExpiry, isExpiringSoon } from "@/lib/credentials";
+import { CREDENTIAL_TYPE_LABEL, daysUntilExpiry, isExpiringSoon } from "@/lib/credentials";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,6 @@ import { DuoVerifyForm } from "./duo-verify-form";
 import { BigVerifyForm } from "./big-verify-form";
 
 export const metadata: Metadata = { title: "Certificaten · ZZP Platform" };
-
-const TYPE_LABEL: Record<CredentialType, string> = {
-  VOG: "VOG", DIPLOMA: "Diploma", CERTIFICATE: "Certificaat", INSURANCE: "Verzekering", LICENSE: "Licentie", OTHER: "Overig",
-};
 
 function fmt(d: Date | null) {
   return d ? d.toISOString().slice(0, 10) : null;
@@ -77,7 +73,7 @@ export default async function CertificatenPage() {
                         <Badge variant="muted">{isPublic ? "Openbaar" : "Privé"}</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {TYPE_LABEL[c.type as CredentialType]}
+                        {CREDENTIAL_TYPE_LABEL[c.type as CredentialType]}
                         {c.issuer ? ` · ${c.issuer}` : ""}
                         {fmt(c.issuedAt) ? ` · uitgegeven ${fmt(c.issuedAt)}` : ""}
                       </p>
