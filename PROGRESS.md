@@ -455,4 +455,18 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Reviewzwerm: CLEAN (geen IDOR, transitiemap gerespecteerd, schema niet-breekend, geen fake-data).
 - Productie-onboarding (DUO-contract/endpoint/cert) = mensenwerk; idem BIG-register voor zorg (apart).
 
+### Increment: BIG-registerverificatie (zorg-beroepsregistratie) — 2026-05-26
+- Zelfde service-grens-patroon als DUO. `src/lib/services/big-verifier.ts` (getest):
+  `BigVerifier` + **MockBigVerifier** (valideert alleen het 11-cijferige BIG-nummerformaat,
+  verzint geen registratiegegevens) + **BigRegisterVerifier** (env `BIG_VERIFIER=bigregister`;
+  faalt helder zonder config — onboarding/webservice = mensenwerk). Factory `getBigVerifier()`.
+- Gedeelde helper `applyExternalVerification(source: DUO|BIG)` in certificaten/actions.ts (DRY):
+  asserts beide transitiehops (→SUBMITTED→VERIFIED) vóór de transactie; DUO-actie gerefactord,
+  `verifyCredentialViaBig` toegevoegd (geldt voor type **Licentie**). `CredentialVerification.source`
+  krijgt nu ook "BIG" (String, geen migratie). UI: BIG-formulier op niet-geverifieerde licenties;
+  historie toont "via BIG-register".
+- Tests: 5 unit (BIG) + e2e (ongeldig nummer faalt, geldig → Geverifieerd). 28 e2e + units groen.
+- Reviewzwerm: CLEAN (geen IDOR, DUO-refactor gedragsbehoudend, transitiemap intact, geen fake-data).
+- Productie-onboarding BIG-register = mensenwerk (zelfde als DUO).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

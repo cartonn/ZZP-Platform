@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
 import { deleteCredential, requestVerification, toggleCredentialVisibility } from "./actions";
 import { DuoVerifyForm } from "./duo-verify-form";
+import { BigVerifyForm } from "./big-verify-form";
 
 export const metadata: Metadata = { title: "Certificaten · ZZP Platform" };
 
@@ -105,7 +106,7 @@ export default async function CertificatenPage() {
                         {c.verifications.map((v) => (
                           <li key={v.id} className="text-xs text-muted-foreground">
                             {v.createdAt.toISOString().slice(0, 10)} — {v.decision === "VERIFIED" ? "Goedgekeurd" : "Afgewezen"}
-                            {v.source === "DUO" ? " via DUO" : v.verifier?.name ? ` door ${v.verifier.name}` : ""}
+                            {v.source === "DUO" ? " via DUO" : v.source === "BIG" ? " via BIG-register" : v.verifier?.name ? ` door ${v.verifier.name}` : ""}
                             {v.reason ? `: ${v.reason}` : ""}
                           </li>
                         ))}
@@ -147,6 +148,13 @@ export default async function CertificatenPage() {
                         Vul de verificatiecode in van je gewaarmerkte uittreksel uit het DUO-diplomaregister.
                       </p>
                       <DuoVerifyForm credentialId={c.id} />
+                    </div>
+                  )}
+                  {c.type === "LICENSE" && status !== "VERIFIED" && (
+                    <div className="space-y-1 border-t border-border pt-3">
+                      <p className="text-xs font-medium">Beroepsregistratie verifiëren via BIG-register</p>
+                      <p className="text-xs text-muted-foreground">Vul je BIG-nummer in (11 cijfers).</p>
+                      <BigVerifyForm credentialId={c.id} />
                     </div>
                   )}
                 </CardContent>

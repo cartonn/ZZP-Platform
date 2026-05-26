@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { assertTransition, TransitionError } from "@/lib/credentials";
 import { documentKindForCredential } from "@/lib/documents";
 import { getDiplomaVerifier } from "@/lib/services/diploma-verifier";
+import { getBigVerifier } from "@/lib/services/big-verifier";
 import {
   generateStorageKey,
   getStorage,
@@ -199,10 +200,40 @@ export async function deleteCredential(credentialId: string): Promise<void> {
   revalidatePath("/certificaten");
 }
 
-export type DuoVerifyState = { ok?: true; error?: string } | undefined;
+export type ExternalVerifyState = { ok?: true; error?: string } | undefined;
+export type DuoVerifyState = ExternalVerifyState;
 
-/** Verifieer een diploma/certificaat via de DUO-koppeling (verificatiecode uit het
- *  DUO-diplomaregister). Bij succes wordt de credential systeem-geverifieerd (bron DUO). */
+/** Gedeeld: zet een credential systeem-geverifieerd (bron DUO/BIG) via de transitiemap. */
+async function applyExternalVerification(opts: {
+  actorId: string;
+  credentialId: string;
+  fromStatus: CredentialStatus;
+  source: "DUO" | "BIG";
+  reason: string;
+}): Promise<ExternalVerifyState> {
+  try {
+    if (opts.fromStatus !== "SUBMITTED") assertTransition(opts.fromStatus, "SUBMITTED");
+    assertTransition("SUBMITTED", "VERIFIED");
+  } catch (e) {
+    if (e instanceof TransitionError) return { error: e.message };
+    throw e;
+  }
+  const meta = await requestMeta();
+  await prisma.$transaction([
+    prisma.credential.update({ where: { id: opts.credentialId }, data: { status: "VERIFIED", verifiedAt: new Date(), rejectionReason: null } }),
+    prisma.credentialVerification.create({
+      data: { credentialId: opts.credentialId, verifierId: null, source: opts.source, decision: "VERIFIED", reason: opts.reason },
+    }),
+    prisma.verificationRequest.updateMany({ where: { credentialId: opts.credentialId, status: "PENDING" }, data: { status: "RESOLVED", resolvedAt: new Date() } }),
+    prisma.auditLog.create({
+      data: auditData({ actorId: opts.actorId, action: "CREDENTIAL_VERIFIED", entityType: "Credential", entityId: opts.credentialId, metadata: { source: opts.source }, ...meta }),
+    }),
+  ]);
+  revalidatePath("/certificaten");
+  return { ok: true };
+}
+
+/** Verifieer een diploma via de DUO-koppeling (verificatiecode uit het DUO-diplomaregister). */
 export async function verifyCredentialViaDuo(credentialId: string, _prev: DuoVerifyState, formData: FormData): Promise<DuoVerifyState> {
   let actor;
   try {
@@ -228,25 +259,46 @@ export async function verifyCredentialViaDuo(credentialId: string, _prev: DuoVer
   }
   if (!result.verified) return { error: result.message };
 
-  // Naar VERIFIED via SUBMITTED (respecteert CREDENTIAL_TRANSITIONS).
+  return applyExternalVerification({
+    actorId: actor.id,
+    credentialId,
+    fromStatus: status,
+    source: "DUO",
+    reason: `DUO-verificatie (${result.source}): ${result.message}`,
+  });
+}
+
+/** Verifieer een beroepsregistratie via het BIG-register (BIG-nummer). Geldt voor type Licentie. */
+export async function verifyCredentialViaBig(credentialId: string, _prev: ExternalVerifyState, formData: FormData): Promise<ExternalVerifyState> {
+  let actor;
   try {
-    if (status !== "SUBMITTED") assertTransition(status, "SUBMITTED");
-    assertTransition("SUBMITTED", "VERIFIED");
+    actor = await requireRole("FREELANCER");
   } catch (e) {
-    if (e instanceof TransitionError) return { error: e.message };
+    if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
   }
+  const profile = await requireProfile(actor.id);
+  const credential = await loadOwnedCredential(profile.id, credentialId);
+  const status = credential.status as CredentialStatus;
+  if (status === "VERIFIED") return { error: "Dit certificaat is al geverifieerd." };
 
-  await prisma.$transaction([
-    prisma.credential.update({ where: { id: credentialId }, data: { status: "VERIFIED", verifiedAt: new Date(), rejectionReason: null } }),
-    prisma.credentialVerification.create({
-      data: { credentialId, verifierId: null, source: "DUO", decision: "VERIFIED", reason: `DUO-verificatie (${result.source}): ${result.message}` },
-    }),
-    prisma.verificationRequest.updateMany({ where: { credentialId, status: "PENDING" }, data: { status: "RESOLVED", resolvedAt: new Date() } }),
-    prisma.auditLog.create({
-      data: auditData({ actorId: actor.id, action: "CREDENTIAL_VERIFIED", entityType: "Credential", entityId: credentialId, metadata: { source: "DUO" }, ...(await requestMeta()) }),
-    }),
-  ]);
-  revalidatePath("/certificaten");
-  return { ok: true };
+  const bigNumber = String(formData.get("bigNumber") ?? "").trim();
+  if (!bigNumber) return { error: "Voer een BIG-nummer in." };
+
+  const user = await prisma.user.findUnique({ where: { id: actor.id }, select: { name: true } });
+  let result;
+  try {
+    result = await getBigVerifier().verify({ bigNumber, holderName: user?.name ?? "" });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Verificatie mislukt." };
+  }
+  if (!result.verified) return { error: result.message };
+
+  return applyExternalVerification({
+    actorId: actor.id,
+    credentialId,
+    fromStatus: status,
+    source: "BIG",
+    reason: `BIG-registerverificatie (${result.source}): ${result.message}`,
+  });
 }
