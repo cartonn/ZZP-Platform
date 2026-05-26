@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Download, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { canTransition, daysUntilExpiry, isExpiringSoon } from "@/lib/credentials";
+import { daysUntilExpiry, isExpiringSoon } from "@/lib/credentials";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,9 @@ export default async function CertificatenPage() {
             const status = c.status as CredentialStatus;
             const days = daysUntilExpiry(c.expiresAt);
             const expiringSoon = isExpiringSoon({ status, expiresAt: c.expiresAt });
-            const canSubmit = !!c.documentId && canTransition(status, "SUBMITTED");
+            // Losse verificatie-aanvraag alleen vanuit concept/afgewezen/verlopen.
+            // (VERIFIED->SUBMITTED bestaat wél in de map, maar uitsluitend bij document-vervangen.)
+            const canSubmit = !!c.documentId && (status === "DRAFT" || status === "REJECTED" || status === "EXPIRED");
             const isPublic = (c.visibility as Visibility) === "PUBLIC";
             return (
               <Card key={c.id}>

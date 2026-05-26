@@ -17,7 +17,10 @@ export const authConfig = {
         pathname.startsWith("/zzp/") ||
         pathname.startsWith("/api/auth");
       if (isPublic) return true;
-      return isLoggedIn;
+      if (!isLoggedIn) return false;
+      // Defense-in-depth: /admin alleen voor ADMIN (pagina's + actions checken óók).
+      if (pathname.startsWith("/admin")) return auth!.user!.role === "ADMIN";
+      return true;
     },
     jwt({ token, user }) {
       if (user) {

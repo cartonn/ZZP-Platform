@@ -3,47 +3,45 @@
 > Eén taak tegelijk. Lees CLAUDE.md en PROGRESS.md voordat je begint.
 > Werk dit bestand bij wanneer je naar de volgende taak gaat.
 
-## NU: Sessie 5 — Admin-verificatiequeue + expiry (kerndifferentiatie demo-klaar)
+## NU: Sessie 6 — Berichten, notificaties, samenwerkingen
 
 ### Doel
-Admins beoordelen ingediende certificaten (goedkeuren/afwijzen met verplichte reden) en
-verlopen credentials worden server-side EXPIRED. Hierna is de hele keten demo-klaar:
-opdracht → reactie → verificatie → compliance.
+Opdrachtgevers en ZZP'ers communiceren in-app (na een match), zien hun notificaties, en
+kunnen een samenwerking vastleggen met een expliciete statusflow.
 
-### Context uit Sessie 0-4 (staat al)
-- Modellen `Credential`, `CredentialVerification` (decision + reason), `VerificationRequest`
-  (PENDING/RESOLVED), `Notification`.
-- `src/lib/credentials.ts` (getest): `statusForDecision(current, decision, reason)` dwingt
-  af dat REJECTED een reden heeft en valideert de overgang; `expiryTransition` geeft
-  VERIFIED→EXPIRED. **Gebruik deze; geen losse status-updates.**
-- ZZP-kant dient in via `SUBMITTED` + maakt een `VerificationRequest` (zie certificaten/actions).
-- Mutatieketen via authz (`requireRole("ADMIN")`) + `src/lib/audit.ts`. Notificaties: `Notification`.
-- Compliance/publiek profiel lezen al VERIFIED+niet-verlopen (matching.ts, zzp/[id]).
+### Context uit Sessie 0-5 (staat al)
+- Modellen `Conversation`, `Message`, `Notification`, `Collaboration` (PROPOSED/ACTIVE/
+  COMPLETED/CANCELLED — `COLLABORATION_STATUSES` in enums).
+- Notificaties worden al aangemaakt (verificatiebeslissingen); er is nog GEEN UI om ze te
+  zien. `Notification`: userId, type, title, body?, link?, readAt?.
+- Mutatieketen via authz + audit; statusovergangen via expliciete map (vgl. JOB_/APPLICATION_
+  /CREDENTIAL_TRANSITIONS) — maak `COLLABORATION_TRANSITIONS` + assert in een `src/lib/*.ts`.
+- Patronen: server actions + Zod + role-aware pages; nav-items "Berichten" (beide rollen)
+  staan op enabled:false in `src/lib/nav.ts`.
 
 ### Stappen
-1. **Verificatiequeue (`/admin/verificaties`):** lijst van openstaande aanvragen (SUBMITTED /
-   PENDING request), met credential-info + bewijsstuk-download (admin mag via document-route).
-2. **Goedkeuren:** status → VERIFIED, `verifiedAt`, `CredentialVerification`-record,
-   `VerificationRequest` → RESOLVED, audit, notificatie naar ZZP'er. Via `statusForDecision`.
-3. **Afwijzen:** status → REJECTED, **reden verplicht** (server-side afgedwongen), record +
-   `rejectionReason`, request RESOLVED, audit, notificatie + herstelactie voor de ZZP'er.
-4. **Expiry:** server-side route/actie die VERIFIED-credentials met verstreken `expiresAt`
-   naar EXPIRED zet via `expiryTransition` (alleen VERIFIED kan verlopen) + audit.
-   Geen cron-infra (mens/infra); lever een idempotente actie/route die dit uitvoert.
-5. **Tests:** beslis-logica (bestaat deels), reden-verplichting, queue-filtering,
-   expiry-transitie; e2e: admin keurt goed/af, ZZP'er ziet de uitkomst.
+1. **Berichten:** een `Conversation` tussen een CLIENT en een FREELANCER (1-op-1, eventueel
+   gekoppeld aan een opdracht/reactie). Berichtenlijst + detailthread; bericht versturen
+   (Zod, ownership: alleen de twee deelnemers). Geen realtime — server-render + revalidate.
+   Start een gesprek vanuit een kandidaat (SHORTLIST/ACCEPTED) of geaccepteerde reactie.
+2. **Notificaties:** notificatiecentrum (lijst + ongelezen-badge in de shell), markeer als
+   gelezen (per item + alles). Maak notificaties aan bij relevante events (nieuw bericht,
+   reactie geaccepteerd/afgewezen) — server-side, naast de bestaande verificatie-notificaties.
+3. **Samenwerkingen:** `Collaboration` met expliciete statusovergangen (voorstellen → actief →
+   afgerond/geannuleerd), ownership server-side, audit.
+4. **Tests:** collaboration-statusovergangen (pure functie + assert), bericht-validatie,
+   ownership op conversatie-toegang; e2e: client en freelancer wisselen berichten uit.
 
 ### Definition of Done (deze sessie)
-- [ ] Admin-queue toont openstaande aanvragen + bewijsstuk
-- [ ] Goedkeuren/afwijzen via statusForDecision (reden verplicht bij afwijzen) + audit + notificatie
-- [ ] Expiry-actie zet verlopen VERIFIED → EXPIRED (idempotent, server-side)
-- [ ] Publiek profiel/compliance reflecteren VERIFIED-uitkomst end-to-end
+- [ ] 1-op-1 berichten met thread + versturen (alleen deelnemers, server-side)
+- [ ] Notificatiecentrum met ongelezen-badge + markeer-als-gelezen
+- [ ] Samenwerking met expliciete statusflow (assert) + audit
 - [ ] typecheck + lint + test + build groen; e2e uitgebreid + screenshots gecontroleerd
-- [ ] Commit, PROGRESS.md bij, CURRENT_TASK.md naar Sessie 6
+- [ ] Commit, PROGRESS.md bij, CURRENT_TASK.md naar Sessie 7
 
 ### Niet nu doen
-Geen berichten/samenwerkingen/facturen/abonnementen-UI (latere sessies). Geen echte
-e-mailverzending (alleen in-app `Notification`). Geen productie-infra/cron.
+Geen facturatie/billing (Sessie 7), geen admin-gebruikersbeheer (Sessie 8). Geen echte
+e-mail/push — alleen in-app `Notification`. Geen websockets/realtime.
 
 ---
 

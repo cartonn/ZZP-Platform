@@ -146,6 +146,8 @@ export async function requestVerification(credentialId: string): Promise<void> {
 
   if (!credential.documentId) throw new Error("Upload eerst een bewijsstuk.");
   const status = credential.status as CredentialStatus;
+  // VERIFIED->SUBMITTED is alleen bedoeld bij document-vervangen, niet als losse aanvraag.
+  if (status === "VERIFIED") throw new Error("Dit certificaat is al geverifieerd.");
   try {
     assertTransition(status, "SUBMITTED");
   } catch (e) {

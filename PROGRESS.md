@@ -17,7 +17,7 @@
 - [x] **Sessie 2** — Opdrachten CRUD + zoeken/filteren
 - [x] **Sessie 3** — Reacties & kandidatenflow
 - [x] **Sessie 4** — Documenten + credentials (ZZP)
-- [ ] **Sessie 5** — Verificatie (admin) + compliance afronden
+- [x] **Sessie 5** — Verificatie (admin) + compliance afronden
 - [ ] **Sessie 6** — Berichten, notificaties, samenwerkingen
 - [ ] **Sessie 7** — Facturatie + billing
 - [ ] **Sessie 8** — Admin-paneel afronden
@@ -167,5 +167,32 @@
 - Visueel gecontroleerd (screenshots 17-19): certificaten (concept + in beoordeling), documenten.
 - Volgende stap: Sessie 5 — Admin-verificatiequeue (goedkeuren/afwijzen met verplichte reden,
   expiry-job VERIFIED→EXPIRED). Hierna is de kerndifferentiatie demo-klaar.
+
+### Sessie 5 — 2026-05-26  (MIJLPAAL: kerndifferentiatie demo-klaar)
+- Wat gedaan: admin-verificatiequeue + expiry. ADMIN beoordeelt ingediende certificaten
+  op `/admin/verificaties`: goedkeuren (→VERIFIED, verifiedAt, CredentialVerification-record,
+  VerificationRequest→RESOLVED) en afwijzen (→REJECTED, **reden verplicht** server-side,
+  herstelactie voor ZZP'er) via `statusForDecision`. In-app notificatie + audit per beslissing.
+  Idempotente expiry-actie zet verlopen VERIFIED → EXPIRED via `expiryTransition`.
+  ZZP'er ziet de uitkomst op /certificaten; geverifieerde+openbare certs op publiek profiel;
+  compliance (matching.ts) reflecteert VERIFIED+niet-verlopen. Hele keten werkt end-to-end:
+  opdracht → reactie → verificatie → compliance.
+- Bestanden:
+  - `src/app/(protected)/admin/verificaties/{page,actions,expiry-button}.tsx`
+  - `src/app/icon.svg` (favicon; loste /favicon.ico 404 op — Next dev "1 Issue")
+  - nav.ts: admin Verificaties enabled; auth.config: route-gate /admin → ADMIN
+  - audit.ts: `auditData()` zodat audit atomair in een $transaction kan
+- Reviewzwerm (2 agents) + fix-loop:
+  - FIX (security, defense-in-depth): route-gate `/admin/*` → alleen ADMIN (pagina + actions
+    checkten al; nu ook routelaag) + e2e die non-admin-toegang weert.
+  - FIX (CLAUDE.md regel 5): audit-regel nu binnen de $transaction van elke beslissing/expiry.
+  - FIX (visueel gevonden): geverifieerd certificaat toonde nog "Verificatie aanvragen"
+    (VERIFIED→SUBMITTED bestaat in de map voor doc-vervangen, niet als losse actie) →
+    knop + server-actie beperkt tot DRAFT/REJECTED/EXPIRED.
+- Tests: 84 unit-tests + 17 e2e groen (goedkeuren/afwijzen + reden, expiry→EXPIRED,
+  route-gate non-admin, privé-download eigenaar/ander). Console schoon (geen 404/errors).
+- Checks: typecheck ✓, lint ✓, test ✓ (84), build ✓ (18 routes), e2e ✓ (17, via Edge).
+- Visueel gecontroleerd (screenshots 20-21): admin-queue, ZZP-uitkomst (verified/afgewezen).
+- Volgende stap: Sessie 6 — Berichten, notificaties, samenwerkingen.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
