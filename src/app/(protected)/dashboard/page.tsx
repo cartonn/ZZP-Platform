@@ -4,6 +4,9 @@ import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
+import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
+import { Badge } from "@/components/ui/badge";
+import { ComplianceBadge } from "@/components/compliance-badge";
 
 export const metadata: Metadata = { title: "Dashboard · ZZP Platform" };
 
@@ -123,7 +126,10 @@ export default async function DashboardPage() {
   const intro = INTRO[role];
   const firstName = (user.name ?? "").split(" ")[0] || "daar";
   const today = new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
-  const { stats, attention } = await dashboardData(role, user.id!);
+  const [{ stats, attention }, matches] = await Promise.all([
+    dashboardData(role, user.id!),
+    role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -179,6 +185,37 @@ export default async function DashboardPage() {
           </ul>
         )}
       </section>
+
+      {matches.length > 0 && (
+        <section className="rounded-lg border border-border bg-card">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
+            <h2 className="text-sm font-medium">Opdrachten die bij je passen</h2>
+            <Link href="/opdrachten" className="text-xs text-muted-foreground hover:text-foreground focus-ring">
+              Alle opdrachten
+            </Link>
+          </div>
+          <ul className="divide-y divide-border">
+            {matches.map((m) => (
+              <li key={m.jobId}>
+                <Link
+                  href={`/opdrachten/${m.jobId}`}
+                  className="flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/40 focus-ring"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{m.title}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{m.companyName}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <ComplianceBadge status={m.compliance} />
+                    <Badge variant="muted">Match {m.score}%</Badge>
+                    <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-medium">Volgende stappen</h2>
