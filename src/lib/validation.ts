@@ -157,3 +157,11 @@ export const collaborationProposalSchema = z
     path: ["endDate"],
   });
 export type CollaborationProposalInput = z.infer<typeof collaborationProposalSchema>;
+
+// --- Factuurregel (unitCents wordt server-side uit euro's berekend) ---
+export const invoiceLineSchema = z.object({
+  description: trimmed(200).min(1, "Omschrijving is verplicht."),
+  quantity: z.coerce.number().int().min(1, "Aantal minstens 1.").max(100000),
+  unitCents: z.coerce.number().int().min(0).max(100_000_000),
+});
+export type InvoiceLineInput = z.infer<typeof invoiceLineSchema>;

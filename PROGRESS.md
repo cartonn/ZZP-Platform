@@ -19,7 +19,7 @@
 - [x] **Sessie 4** — Documenten + credentials (ZZP)
 - [x] **Sessie 5** — Verificatie (admin) + compliance afronden
 - [x] **Sessie 6** — Berichten, notificaties, samenwerkingen
-- [ ] **Sessie 7** — Facturatie + billing
+- [x] **Sessie 7** — Facturatie + billing
 - [ ] **Sessie 8** — Admin-paneel afronden
 - [ ] **Sessie 9** — Polish, performance, a11y, e2e
 - [ ] **Sessie 10** — Productie-voorbereiding (code-kant)
@@ -222,5 +222,29 @@
 - Checks: typecheck ✓, lint ✓, test ✓ (91), build ✓ (21 routes), e2e ✓ (18, via Edge).
 - Visueel gecontroleerd (screenshots 22-24): berichtenthread, samenwerkingen, notificatiecentrum + bel-badge.
 - Volgende stap: Sessie 7 — Facturatie + billing.
+
+### Sessie 7 — 2026-05-26
+- Wat gedaan: facturatie + billing.
+  - **Facturen (FREELANCER):** opstellen vanuit een ACTIVE/COMPLETED samenwerking (dynamische
+    regels: omschrijving/aantal/tarief). Bedragen server-berekend in centen (euro's→centen,
+    regel- en totaalbedrag). Concept → versturen (issuedAt + standaard 14 dagen vervaldatum),
+    annuleren. Oplopend jaargebonden factuurnummer (uniek). Statusflow via `INVOICE_TRANSITIONS`.
+  - **Facturen (CLIENT):** ontvangen facturen, als betaald markeren; OVERDUE server-afgeleid
+    (SENT + vervaldatum gepasseerd). Print-vriendelijke detailweergave met regels + totaal.
+  - **Abonnement:** plan-overzicht (FREE/PRO/BUSINESS) + huidig plan; (mock) wisselen zonder
+    echte betaling. Gating-melding in reageren verwijst naar upgrade.
+- Bestanden:
+  - `src/lib/invoices.ts` (+ tests: transities, bedragen, isOverdue, nummer, euro's→centen)
+  - validation.ts (invoiceLineSchema); `components/invoices/invoice-status-badge.tsx`
+  - `facturen/{page,actions,invoice-form,nieuw/page,[id]/page}.tsx`
+  - `abonnement/{page,actions}.tsx`; nav + sidebar: Facturen + Abonnement enabled (creditCard-icoon)
+  - samenwerkingen: "Factuur opstellen" voor freelancer; gating-melding → upgrade
+- Tests: 97 unit-tests (invoices 13) + 20 e2e groen (factuur opstellen→versturen→betaald,
+  abonnement upgraden). Reviewzwerm (2 agents): security CLEAN (ownership op alle factuur-
+  acties, bedragen server-berekend, abonnement alleen eigen userId). Gefixt: factuurnummer-race
+  (P2002-retry i.p.v. crash) + dueAt einde-van-de-dag (niet een dag te vroeg "verlopen").
+- Checks: typecheck ✓, lint ✓, test ✓ (97), build ✓ (24 routes), e2e ✓ (20, via Edge).
+- Visueel gecontroleerd (screenshots 25-27): factuur opstellen, betaalde factuur, abonnement.
+- Volgende stap: Sessie 8 — Admin-paneel afronden (gebruikers, opdrachten, audit log).
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

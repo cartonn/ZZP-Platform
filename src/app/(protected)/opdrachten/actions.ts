@@ -193,7 +193,7 @@ export async function createApplication(
   const activePlanMax = subscription?.status === "ACTIVE" ? subscription.plan.maxApplications : undefined;
   const maxApplications = activePlanMax ?? freePlan?.maxApplications ?? 5;
   if (!canApply(maxApplications, count)) {
-    return { error: `Je hebt het maximum aantal reacties (${maxApplications}) van je plan bereikt.` };
+    return { error: `Je hebt het maximum aantal reacties (${maxApplications}) van je plan bereikt. Upgrade je abonnement voor meer reacties.` };
   }
 
   const parsed = applicationSchema.safeParse({

@@ -80,8 +80,8 @@ export default async function SamenwerkingenPage() {
                     {fmt(c.endDate) && <span>Eind: {fmt(c.endDate)}</span>}
                   </div>
 
-                  {COLLABORATION_TRANSITIONS[status].length > 0 && (
-                    <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+                  {(COLLABORATION_TRANSITIONS[status].length > 0 || (!isClient && (status === "ACTIVE" || status === "COMPLETED"))) && (
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                       {COLLABORATION_TRANSITIONS[status].map((to) => (
                         <form key={to} action={changeCollaborationStatus.bind(null, c.id, to)}>
                           <Button type="submit" size="sm" variant={to === "CANCELLED" ? "danger" : to === "ACTIVE" ? "primary" : "secondary"}>
@@ -89,6 +89,9 @@ export default async function SamenwerkingenPage() {
                           </Button>
                         </form>
                       ))}
+                      {!isClient && (status === "ACTIVE" || status === "COMPLETED") && (
+                        <Button asChild variant="secondary" size="sm"><Link href="/facturen/nieuw">Factuur opstellen</Link></Button>
+                      )}
                     </div>
                   )}
                 </CardContent>
