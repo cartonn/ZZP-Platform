@@ -60,6 +60,7 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
   await expect(fp.getByText(title)).toBeVisible();
   await expect(fp.getByText("Nieuw")).toBeVisible();
   await expect(fp.getByText(/Match \d+%/)).toBeVisible();
+  await expect(fp.getByText("De opdrachtgever heeft je reactie nog niet bekeken.")).toBeVisible();
   await shot(fp, "15-reacties");
 
   // Tweede reactie op dezelfde opdracht is niet mogelijk.

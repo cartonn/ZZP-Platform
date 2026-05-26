@@ -11,6 +11,15 @@ import { type ApplicationStatus } from "@/lib/enums";
 
 export const metadata: Metadata = { title: "Mijn reacties · ZZP Platform" };
 
+// Korte uitleg per status: wat betekent het en wat kun je verwachten.
+const STATUS_HINT: Record<ApplicationStatus, string> = {
+  NEW: "De opdrachtgever heeft je reactie nog niet bekeken.",
+  VIEWED: "De opdrachtgever heeft je reactie bekeken.",
+  SHORTLIST: "Je staat op de shortlist — je wordt mogelijk benaderd.",
+  ACCEPTED: "Geaccepteerd! Houd je berichten in de gaten voor een samenwerkingsvoorstel.",
+  REJECTED: "Deze keer niet geselecteerd. Reageer gerust op andere opdrachten.",
+};
+
 function complianceStatus(raw: string | null): ComplianceStatus | null {
   if (!raw) return null;
   try {
@@ -66,6 +75,7 @@ export default async function ReactiesPage() {
                   {app.matchScore != null && <Badge variant="muted">Match {app.matchScore}%</Badge>}
                   {compliance && <ComplianceBadge status={compliance} />}
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">{STATUS_HINT[app.status as ApplicationStatus]}</p>
               </Link>
             );
           })}
