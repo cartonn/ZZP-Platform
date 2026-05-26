@@ -111,3 +111,41 @@ export async function startConversationForApplication(applicationId: string): Pr
 
   redirect(`/berichten/${conversationId}`);
 }
+
+/** CLIENT start (of heropent) een gesprek met een voorgestelde ZZP'er bij een opdracht. */
+export async function startConversationWithFreelancer(jobId: string, freelancerId: string): Promise<void> {
+  const actor = await requireRole("CLIENT");
+
+  const [job, freelancer] = await Promise.all([
+    prisma.job.findUnique({ where: { id: jobId }, select: { id: true, status: true, company: { select: { userId: true } } } }),
+    prisma.freelancerProfile.findUnique({ where: { id: freelancerId }, select: { userId: true, visibility: true } }),
+  ]);
+  if (!job || job.company.userId !== actor.id) throw new Error("Opdracht niet gevonden.");
+  if (job.status !== "PUBLISHED") throw new Error("Je kunt alleen bij een gepubliceerde opdracht iemand benaderen.");
+  if (!freelancer || freelancer.visibility !== "PUBLIC") throw new Error("ZZP'er niet gevonden.");
+
+  const freelancerUserId = freelancer.userId;
+  const existing = await prisma.conversation.findFirst({
+    where: {
+      jobId: job.id,
+      AND: [
+        { participants: { some: { userId: actor.id } } },
+        { participants: { some: { userId: freelancerUserId } } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  let conversationId = existing?.id;
+  if (!conversationId) {
+    const created = await prisma.conversation.create({
+      data: {
+        jobId: job.id,
+        participants: { create: [{ userId: actor.id }, { userId: freelancerUserId }] },
+      },
+    });
+    conversationId = created.id;
+  }
+
+  redirect(`/berichten/${conversationId}`);
+}

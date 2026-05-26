@@ -12,10 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
+import { TrustBadge } from "@/components/trust/trust-badge";
 import { computeMatchScore, type ComplianceResult, type ComplianceStatus, type FreelancerCredential } from "@/lib/matching";
+import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { changeJobStatus, createApplication } from "../actions";
+import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import { ApplicationForm } from "./application-form";
 
 export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
@@ -104,6 +107,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
     }
   }
   const myCompliance = parseComplianceStatus(myApplication?.complianceSnapshot);
+
+  // Spiegelbeeld voor de opdrachtgever: openbare ZZP'ers die passen en nog niet reageerden.
+  const suggestions = isOwner && status === "PUBLISHED" ? await suggestedFreelancersForJob(job.id) : [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -203,6 +209,34 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             </ul>
           )}
           <p className="text-[11px] text-muted-foreground/70">Hulpmiddel, geen juridisch advies.</p>
+        </section>
+      )}
+
+      {isOwner && suggestions.length > 0 && (
+        <section className="rounded-lg border border-border bg-card">
+          <div className="border-b border-border px-5 py-3">
+            <h2 className="text-sm font-medium">Geschikte ZZP&apos;ers</h2>
+            <p className="text-xs text-muted-foreground">Openbare profielen die bij deze opdracht passen en nog niet reageerden.</p>
+          </div>
+          <ul className="divide-y divide-border">
+            {suggestions.map((f) => (
+              <li key={f.freelancerId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <Link href={`/zzp/${f.freelancerId}`} target="_blank" className="font-medium underline-offset-4 hover:underline">
+                    {f.name}
+                  </Link>
+                  <TrustBadge level={f.trustLevel} />
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <ComplianceBadge status={f.compliance} />
+                  <Badge variant="muted">Match {f.score}%</Badge>
+                  <form action={startConversationWithFreelancer.bind(null, job.id, f.freelancerId)}>
+                    <Button type="submit" variant="secondary" size="sm">Bericht sturen</Button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
