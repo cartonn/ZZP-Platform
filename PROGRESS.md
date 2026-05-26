@@ -384,4 +384,21 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 - Aanbeveling vervolg (eigenaar): AVG/privacy-evidence (verwerkingsregister, bewaartermijnen,
   DPIA-light) en modelovereenkomst-koppeling bij HOOG; beide deels mensenwerk.
 
+### ReOS-corpus leerpunten toegepast — 2026-05-26
+- Aanleiding: volledige ReOS-planningscorpus gelezen (visie/roadmap/doelgroep/concurrentie,
+  RLS-plan, privacy-matrix, DBA-case-log, incident/AI-change templates). Selectief toegepast:
+- **DBA-model completer + golden cases:** hun DBA-reviewlog (DBA-001 pass / -002 review / -003
+  blocked / -004 zwak ondernemerschap=review) legde een gat bloot — ik miste een ondernemerschap-
+  signaal. Toegevoegd: `weakEntrepreneurship` (gewicht 2) in `src/lib/dba.ts`, Job-veld
+  `dbaWeakEntrepreneurship`, formulier-checkbox + live preview, en **4 golden-case tests** als
+  regressie-anker (LAAG/MIDDEN/HOOG).
+- **Negatieve autorisatietests (RLS-intent op app-laag):** `e2e/authorization.spec.ts` — opdrachtgever
+  B kan opdracht/concept + bewerk-pagina van A niet zien (404, server-side ownership). Vult de
+  bestaande document-403- en /admin-route-gate-tests aan.
+- Tests: 113 unit + 23 e2e groen; typecheck/lint/build groen.
+- Aanbevelingen genoteerd (eigenaar-keuze, niet zelf verzonnen): AVG-gebruikersrechten +
+  verwerkingsregister/bewaartermijnen (privacy-matrix), RLS-first als defense-in-depth op Postgres-
+  prod, multi-member-organisaties + subrollen, beschikbaarheid als workflow-stap, audit van
+  login/securityevents + IP/UA.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

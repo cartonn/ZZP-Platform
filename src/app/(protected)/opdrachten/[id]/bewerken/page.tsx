@@ -56,6 +56,7 @@ export default async function OpdrachtBewerkenPage({ params }: { params: Promise
             dbaFixedSchedule: job.dbaFixedSchedule,
             dbaNoSubstitution: job.dbaNoSubstitution,
             dbaExclusive: job.dbaExclusive,
+            dbaWeakEntrepreneurship: job.dbaWeakEntrepreneurship,
             dbaDurationMonths: job.dbaDurationMonths?.toString() ?? "",
           },
         }}

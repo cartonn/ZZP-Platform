@@ -42,6 +42,7 @@ export default async function NieuweOpdrachtPage() {
             dbaFixedSchedule: false,
             dbaNoSubstitution: false,
             dbaExclusive: false,
+            dbaWeakEntrepreneurship: false,
             dbaDurationMonths: "",
           },
         }}

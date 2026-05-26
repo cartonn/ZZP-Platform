@@ -7,6 +7,7 @@ const base: DbaInput = {
   fixedSchedule: false,
   noSubstitution: false,
   exclusive: false,
+  weakEntrepreneurship: false,
   durationMonths: null,
 };
 
@@ -45,6 +46,23 @@ describe("assessDbaRisk", () => {
     const r = assessDbaRisk({ ...base, directSupervision: true, fixedSchedule: true, durationMonths: 24 });
     expect(r.reasons).toHaveLength(3);
     expect(r.reasons.every((x) => x.message.length > 0)).toBe(true);
+  });
+});
+
+// Golden cases uit de DBA-reviewlog (representatieve pilotcases), als regressie-anker.
+describe("DBA golden cases", () => {
+  it("DBA-001 losse nachtdiensten, kort → LAAG (pass)", () => {
+    expect(assessDbaRisk({ ...base, durationMonths: 1 }).level).toBe("LAAG");
+  });
+  it("DBA-002 wekelijkse inzet, teaminbedding, ~2,5 maand → MIDDEN (review)", () => {
+    expect(assessDbaRisk({ ...base, embedded: true, durationMonths: 2 }).level).toBe("MIDDEN");
+  });
+  it("DBA-003 16 weken, dagelijkse aansturing, structureel rooster → HOOG (blocked)", () => {
+    const r = assessDbaRisk({ ...base, directSupervision: true, embedded: true, fixedSchedule: true, noSubstitution: true, durationMonths: 4 });
+    expect(r.level).toBe("HOOG");
+  });
+  it("DBA-004 zwak ondernemerschap (laag tarief) → MIDDEN (review)", () => {
+    expect(assessDbaRisk({ ...base, weakEntrepreneurship: true }).level).toBe("MIDDEN");
   });
 });
 

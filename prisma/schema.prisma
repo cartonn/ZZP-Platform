@@ -193,6 +193,7 @@ model Job {
   dbaFixedSchedule     Boolean @default(false)
   dbaNoSubstitution    Boolean @default(false)
   dbaExclusive         Boolean @default(false)
+  dbaWeakEntrepreneurship Boolean @default(false)
   dbaDurationMonths    Int?
   dbaRisk              String? //  DbaRisk: LAAG | MIDDEN | HOOG (server-berekend)
   dbaReasons           String? //  JSON-string met uitleg per indicator

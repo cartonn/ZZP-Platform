@@ -35,6 +35,7 @@ function parseJobForm(formData: FormData) {
     dbaFixedSchedule: formData.get("dbaFixedSchedule") === "on",
     dbaNoSubstitution: formData.get("dbaNoSubstitution") === "on",
     dbaExclusive: formData.get("dbaExclusive") === "on",
+    dbaWeakEntrepreneurship: formData.get("dbaWeakEntrepreneurship") === "on",
     dbaDurationMonths: formData.get("dbaDurationMonths") ?? "",
   });
 }
@@ -79,6 +80,7 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
     fixedSchedule: data.dbaFixedSchedule,
     noSubstitution: data.dbaNoSubstitution,
     exclusive: data.dbaExclusive,
+    weakEntrepreneurship: data.dbaWeakEntrepreneurship,
     durationMonths: data.dbaDurationMonths ?? null,
   });
 
@@ -96,6 +98,7 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
     dbaFixedSchedule: data.dbaFixedSchedule,
     dbaNoSubstitution: data.dbaNoSubstitution,
     dbaExclusive: data.dbaExclusive,
+    dbaWeakEntrepreneurship: data.dbaWeakEntrepreneurship,
     dbaDurationMonths: data.dbaDurationMonths ?? null,
     dbaRisk: dba.level,
     dbaReasons: JSON.stringify(dba.reasons),

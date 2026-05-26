@@ -11,11 +11,12 @@ export const DBA_RISK_LEVELS = ["LAAG", "MIDDEN", "HOOG"] as const;
 export type DbaRisk = (typeof DBA_RISK_LEVELS)[number];
 
 export interface DbaInput {
-  directSupervision: boolean; // directe aansturing / gezag
-  embedded: boolean; //          structureel ingebed in de organisatie
-  fixedSchedule: boolean; //     vaste uren/rooster zoals een werknemer
-  noSubstitution: boolean; //    geen vrije vervanging toegestaan
-  exclusive: boolean; //         werkt exclusief voor deze opdrachtgever
+  directSupervision: boolean; //    directe aansturing / gezag
+  embedded: boolean; //             structureel ingebed in de organisatie
+  fixedSchedule: boolean; //        vaste uren/rooster zoals een werknemer
+  noSubstitution: boolean; //       geen vrije vervanging toegestaan
+  exclusive: boolean; //            werkt exclusief voor deze opdrachtgever
+  weakEntrepreneurship: boolean; // zwak ondernemerschap: tarief onder marktconform / nauwelijks andere opdrachtgevers
   durationMonths?: number | null;
 }
 
@@ -35,6 +36,7 @@ const WEIGHTS = {
   embedded: 3,
   noSubstitution: 2,
   fixedSchedule: 2,
+  weakEntrepreneurship: 2,
   exclusive: 1,
 } as const;
 
@@ -43,6 +45,7 @@ const MESSAGES: Record<keyof typeof WEIGHTS, string> = {
   embedded: "Structurele inbedding in de organisatie wijst richting een dienstverband.",
   noSubstitution: "Geen vrije vervanging beperkt het zelfstandig ondernemerschap.",
   fixedSchedule: "Vaste uren/rooster lijkt op een dienstverband.",
+  weakEntrepreneurship: "Zwak ondernemerschap (laag tarief / nauwelijks andere opdrachtgevers) duidt op afhankelijkheid.",
   exclusive: "Exclusief voor één opdrachtgever vermindert het ondernemersrisico.",
 };
 

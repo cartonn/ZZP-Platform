@@ -110,6 +110,7 @@ export const jobSchema = z
     dbaFixedSchedule: z.boolean().default(false),
     dbaNoSubstitution: z.boolean().default(false),
     dbaExclusive: z.boolean().default(false),
+    dbaWeakEntrepreneurship: z.boolean().default(false),
     dbaDurationMonths: optionalInt(240),
   })
   .refine((d) => d.rateMin == null || d.rateMax == null || d.rateMin <= d.rateMax, {

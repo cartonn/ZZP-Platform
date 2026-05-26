@@ -18,6 +18,7 @@ const DBA_FACTORS = [
   ["dbaFixedSchedule", "Vaste uren/rooster zoals een werknemer"],
   ["dbaNoSubstitution", "Vrije vervanging is niet toegestaan"],
   ["dbaExclusive", "De ZZP'er werkt exclusief voor dit bedrijf"],
+  ["dbaWeakEntrepreneurship", "Tarief onder marktconform / nauwelijks andere opdrachtgevers"],
 ] as const;
 
 const WORK_MODE = [
@@ -55,6 +56,7 @@ export interface JobFormInitial {
     dbaFixedSchedule: boolean;
     dbaNoSubstitution: boolean;
     dbaExclusive: boolean;
+    dbaWeakEntrepreneurship: boolean;
     dbaDurationMonths: string;
   };
 }
@@ -81,6 +83,7 @@ export function JobForm({
     fixedSchedule: dba.dbaFixedSchedule,
     noSubstitution: dba.dbaNoSubstitution,
     exclusive: dba.dbaExclusive,
+    weakEntrepreneurship: dba.dbaWeakEntrepreneurship,
     durationMonths: dba.dbaDurationMonths ? Number(dba.dbaDurationMonths) : null,
   });
 
