@@ -1,17 +1,18 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, Pencil } from "lucide-react";
+import { ArrowLeft, Check, MapPin, Pencil, TriangleAlert } from "lucide-react";
 import { owns, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { JOB_TRANSITIONS } from "@/lib/jobs";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType, type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
-import { type ComplianceStatus } from "@/lib/matching";
+import { computeMatchScore, type ComplianceResult, type ComplianceStatus, type FreelancerCredential } from "@/lib/matching";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { changeJobStatus, createApplication } from "../actions";
@@ -20,15 +21,26 @@ import { ApplicationForm } from "./application-form";
 export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
 
 const WORK_MODE: Record<WorkMode, string> = { REMOTE: "Remote", ONSITE: "Op locatie", HYBRID: "Hybride" };
-const CREDENTIAL_LABELS: Record<CredentialType, string> = {
-  VOG: "VOG", DIPLOMA: "Diploma", CERTIFICATE: "Certificaat", INSURANCE: "Verzekering", LICENSE: "Licentie", OTHER: "Overig",
-};
 
 function transitionLabel(from: JobStatus, to: JobStatus): string {
   if (to === "PUBLISHED") return from === "CLOSED" ? "Heropenen" : "Publiceren";
   if (to === "CLOSED") return "Sluiten";
   return "Terug naar concept";
 }
+
+type CredState = "satisfied" | "inReview" | "expired" | "missing";
+function credState(type: CredentialType, c: ComplianceResult): CredState {
+  if (c.satisfied.includes(type)) return "satisfied";
+  if (c.inReview.includes(type)) return "inReview";
+  if (c.expired.includes(type)) return "expired";
+  return "missing";
+}
+const CRED_STATE_LABEL: Record<CredState, string> = {
+  satisfied: "in orde",
+  inReview: "in beoordeling",
+  expired: "verlopen",
+  missing: "ontbreekt",
+};
 
 export default async function OpdrachtDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requireActor();
@@ -55,15 +67,40 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   const requiredCreds = job.credentialRequirements.filter((c) => c.required);
   const optionalCreds = job.credentialRequirements.filter((c) => !c.required);
 
-  // Bestaande reactie van de huidige ZZP'er (voor de reageer-sectie).
+  // Bestaande reactie van de huidige ZZP'er (voor de reageer-sectie), plus — als hij nog
+  // niet reageerde — een persoonlijke aansluiting (match + welke eisen hij al haalt).
   let myApplication: { status: string; matchScore: number | null; complianceSnapshot: string | null } | null = null;
+  let myFit: { score: number; compliance: ComplianceResult } | null = null;
   if (actor.role === "FREELANCER") {
-    const profile = await prisma.freelancerProfile.findUnique({ where: { userId: actor.id }, select: { id: true } });
+    const profile = await prisma.freelancerProfile.findUnique({
+      where: { userId: actor.id },
+      include: {
+        skills: { select: { skillId: true } },
+        credentials: { select: { type: true, status: true, expiresAt: true } },
+      },
+    });
     if (profile) {
       myApplication = await prisma.application.findUnique({
         where: { jobId_freelancerId: { jobId: job.id, freelancerId: profile.id } },
         select: { status: true, matchScore: true, complianceSnapshot: true },
       });
+      if (!myApplication && status === "PUBLISHED") {
+        const credentials: FreelancerCredential[] = profile.credentials.map((c) => ({
+          type: c.type as CredentialType,
+          status: c.status as FreelancerCredential["status"],
+          expiresAt: c.expiresAt,
+        }));
+        const match = computeMatchScore({
+          requiredSkillIds: requiredSkills.map((s) => s.skillId),
+          optionalSkillIds: optionalSkills.map((s) => s.skillId),
+          freelancerSkillIds: profile.skills.map((s) => s.skillId),
+          requiredCredentialTypes: requiredCreds.map((c) => c.credentialType as CredentialType),
+          credentials,
+          job: { rateMin: job.rateMin, rateMax: job.rateMax, workMode: job.workMode as WorkMode, location: job.location },
+          freelancer: { hourlyRate: profile.hourlyRate, workMode: profile.workMode as WorkMode, location: profile.location },
+        });
+        myFit = { score: match.score, compliance: match.compliance };
+      }
     }
   }
   const myCompliance = parseComplianceStatus(myApplication?.complianceSnapshot);
@@ -136,7 +173,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             <div className="space-y-2">
               <h2 className="text-sm font-medium">Vereiste certificaten</h2>
               <div className="flex flex-wrap gap-2">
-                {requiredCreds.map((c) => <Badge key={c.id} variant="warning">{CREDENTIAL_LABELS[c.credentialType as CredentialType]}</Badge>)}
+                {requiredCreds.map((c) => <Badge key={c.id} variant="warning">{CREDENTIAL_TYPE_LABEL[c.credentialType as CredentialType]}</Badge>)}
               </div>
             </div>
           )}
@@ -144,7 +181,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             <div className="space-y-2">
               <h2 className="text-sm font-medium">Gewenste certificaten</h2>
               <div className="flex flex-wrap gap-2">
-                {optionalCreds.map((c) => <Badge key={c.id} variant="muted">{CREDENTIAL_LABELS[c.credentialType as CredentialType]}</Badge>)}
+                {optionalCreds.map((c) => <Badge key={c.id} variant="muted">{CREDENTIAL_TYPE_LABEL[c.credentialType as CredentialType]}</Badge>)}
               </div>
             </div>
           )}
@@ -191,7 +228,46 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             </div>
           </div>
         ) : status === "PUBLISHED" ? (
-          <div className="border-t border-border pt-4">
+          <div className="space-y-4 border-t border-border pt-4">
+            {myFit && (
+              <section className="space-y-3 rounded-lg border border-border bg-card p-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm font-medium">Jouw aansluiting</h2>
+                  <Badge variant="muted">Match {myFit.score}%</Badge>
+                  <ComplianceBadge status={myFit.compliance.status} />
+                </div>
+                {requiredCreds.length > 0 && (
+                  <ul className="space-y-1.5 text-sm">
+                    {requiredCreds.map((c) => {
+                      const type = c.credentialType as CredentialType;
+                      const state = credState(type, myFit!.compliance);
+                      const urgent = state === "missing" || state === "expired";
+                      return (
+                        <li key={c.id} className="flex flex-wrap items-center gap-2">
+                          {state === "satisfied" ? (
+                            <Check className="size-4 shrink-0 text-success" aria-hidden />
+                          ) : (
+                            <TriangleAlert className={`size-4 shrink-0 ${urgent ? "text-danger" : "text-warning"}`} aria-hidden />
+                          )}
+                          <span>{CREDENTIAL_TYPE_LABEL[type]}</span>
+                          <span className="text-xs text-muted-foreground">{CRED_STATE_LABEL[state]}</span>
+                          {urgent && (
+                            <Link href="/certificaten" className="text-xs font-medium underline underline-offset-2">
+                              Toevoegen
+                            </Link>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {myFit.compliance.status === "NON_COMPLIANT" && (
+                  <p className="text-xs text-muted-foreground">
+                    Je kunt nog reageren, maar je voldoet nog niet aan alle vereisten.
+                  </p>
+                )}
+              </section>
+            )}
             <ApplicationForm action={createApplication.bind(null, job.id)} />
           </div>
         ) : null)
