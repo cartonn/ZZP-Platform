@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Briefcase,
   Building2,
+  CalendarDays,
   CreditCard,
   FileCheck2,
   Files,
@@ -33,6 +34,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   building: Building2,
   handshake: Handshake,
   creditCard: CreditCard,
+  calendar: CalendarDays,
 };
 
 export function SidebarNav({ items }: { items: NavItem[] }) {

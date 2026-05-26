@@ -4,6 +4,7 @@
 import { z } from "zod";
 import {
   availabilitySchema,
+  availabilityWindowTypeSchema,
   credentialTypeSchema,
   documentKindSchema,
   visibilitySchema,
@@ -142,6 +143,21 @@ export const credentialSchema = z
     path: ["expiresAt"],
   });
 export type CredentialInput = z.infer<typeof credentialSchema>;
+
+// --- Beschikbaarheidsvenster ---
+export const availabilityWindowSchema = z
+  .object({
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    type: availabilityWindowTypeSchema,
+    hoursPerWeek: optionalInt(168),
+    note: optionalText(200),
+  })
+  .refine((d) => d.endDate >= d.startDate, {
+    message: "Einddatum mag niet vóór de startdatum liggen.",
+    path: ["endDate"],
+  });
+export type AvailabilityWindowInput = z.infer<typeof availabilityWindowSchema>;
 
 // --- Document (standalone upload) ---
 export const documentSchema = z.object({ kind: documentKindSchema });

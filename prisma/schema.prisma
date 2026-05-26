@@ -111,6 +111,22 @@ model FreelancerProfile {
   credentials  Credential[]
   applications Application[]
   collaborations Collaboration[]
+  availabilityWindows AvailabilityWindow[]
+}
+
+model AvailabilityWindow {
+  id                  String   @id @default(cuid())
+  freelancerProfileId String
+  startDate           DateTime
+  endDate             DateTime
+  type                String   @default("AVAILABLE") // AvailabilityWindowType: AVAILABLE | LIMITED | UNAVAILABLE
+  hoursPerWeek        Int?
+  note                String?
+  createdAt           DateTime @default(now())
+
+  freelancerProfile FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([freelancerProfileId])
 }
 
 model Company {

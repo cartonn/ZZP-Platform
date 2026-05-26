@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { APPLICATION_TRANSITIONS } from "@/lib/applications";
 import { type ComplianceStatus } from "@/lib/matching";
+import { summarizeAvailability } from "@/lib/availability";
+import { type AvailabilityWindowType } from "@/lib/enums";
 import { type ApplicationStatus, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,7 +44,12 @@ export default async function KandidatenPage() {
     orderBy: [{ status: "asc" }, { matchScore: "desc" }],
     include: {
       job: { select: { id: true, title: true } },
-      freelancer: { select: { id: true, headline: true, visibility: true, user: { select: { name: true } } } },
+      freelancer: {
+        select: {
+          id: true, headline: true, visibility: true, user: { select: { name: true } },
+          availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
+        },
+      },
       collaboration: { select: { id: true } },
     },
   });
@@ -98,6 +105,10 @@ export default async function KandidatenPage() {
                   <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground">
                     {app.proposedRate != null && <span>Tariefvoorstel: € {app.proposedRate}/uur</span>}
                     {app.availability && <span>Beschikbaarheid: {app.availability}</span>}
+                    {(() => {
+                      const s = summarizeAvailability(app.freelancer.availabilityWindows.map((w) => ({ ...w, type: w.type as AvailabilityWindowType })));
+                      return s ? <span>Agenda: {s}</span> : null;
+                    })()}
                   </div>
 
                   <div className="flex flex-wrap gap-2 border-t border-border pt-3">

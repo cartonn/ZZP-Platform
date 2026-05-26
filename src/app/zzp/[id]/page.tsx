@@ -5,7 +5,8 @@ import { MapPin } from "lucide-react";
 import { currentActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { profileVisibleTo } from "@/lib/profile";
-import { type Availability, type Visibility, type WorkMode } from "@/lib/enums";
+import { summarizeAvailability } from "@/lib/availability";
+import { type Availability, type AvailabilityWindowType, type Visibility, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -42,6 +43,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         select: { id: true, title: true, type: true, expiresAt: true },
         orderBy: { title: "asc" },
       },
+      availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
     },
   });
 
@@ -54,6 +56,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
   const availability = AVAILABILITY[profile.availability as Availability];
   const languages = parseLanguages(profile.languages);
+  const availabilitySummary = summarizeAvailability(
+    profile.availabilityWindows.map((w) => ({ ...w, type: w.type as AvailabilityWindowType })),
+  );
   const now = Date.now();
   const verifiedCredentials = profile.credentials.filter(
     (c) => !c.expiresAt || c.expiresAt.getTime() > now,
@@ -97,6 +102,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
               <span>{WORK_MODE[profile.workMode as WorkMode]}</span>
               {profile.hourlyRate != null && <span>€ {profile.hourlyRate}/uur</span>}
               {languages.length > 0 && <span>Talen: {languages.join(", ")}</span>}
+              {availabilitySummary && <span>{availabilitySummary}</span>}
             </div>
 
             {profile.bio && <p className="whitespace-pre-line text-sm leading-relaxed">{profile.bio}</p>}

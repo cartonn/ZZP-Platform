@@ -63,6 +63,10 @@ export const VERIFICATION_DECISIONS = ["VERIFIED", "REJECTED"] as const;
 export type VerificationDecision = (typeof VERIFICATION_DECISIONS)[number];
 export const verificationDecisionSchema = z.enum(VERIFICATION_DECISIONS);
 
+export const AVAILABILITY_WINDOW_TYPES = ["AVAILABLE", "LIMITED", "UNAVAILABLE"] as const;
+export type AvailabilityWindowType = (typeof AVAILABILITY_WINDOW_TYPES)[number];
+export const availabilityWindowTypeSchema = z.enum(AVAILABILITY_WINDOW_TYPES);
+
 export const DOCUMENT_KINDS = [
   "CREDENTIAL",
   "VOG",

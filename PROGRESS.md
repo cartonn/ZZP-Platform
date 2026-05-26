@@ -414,4 +414,28 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 - Reviewzwerm: CLEAN (geen cross-user-PII-lek, geen hard-delete van fiscale data, geen
   login-enumeratie in de response, bcrypt-short-circuit correct). Checks groen.
 
+### Increment: Beschikbaarheid als workflow-stap — 2026-05-26
+- `AvailabilityWindow`-model (periodes met type AVAILABLE/LIMITED/UNAVAILABLE + uren + notitie).
+  `/beschikbaarheid` (FREELANCER): periodes toevoegen/verwijderen (ownership + audit).
+- `src/lib/availability.ts` (getest): upcomingWindows, currentOrNextAvailable (negeert
+  UNAVAILABLE), summarizeAvailability. Samenvatting getoond op het publieke profiel
+  (zichtbaarheid-gated) en bij kandidaten (alleen eigen-opdracht-sollicitanten).
+- Nav: "Beschikbaarheid" (FREELANCER, calendar-icoon). Tests: 7 unit + e2e (toevoegen/zien/
+  verwijderen). 26 e2e + units groen. Reviewzwerm: CLEAN (geen IDOR op delete, geen datalek).
+
+### STATUS: productiewaardig MVP (code-kant) bereikt — 2026-05-26
+Na de eigenaar-richtingen (design-tokens, ReOS-werkbank, Wet DBA, AVG, beschikbaarheid) is dit
+een productiewaardige MVP voor de NL ZZP-marktplaats: echte auth + RBAC, persistente DB + audit
+(incl. login/IP/UA), opdrachten→reacties (match+compliance), documenten/certificaten + admin-
+verificatie, berichten/notificaties/samenwerkingen, facturatie/abonnement, admin-paneel,
+**Wet DBA-check** (deterministisch + golden cases), **AVG-gegevensrechten**, **beschikbaarheid**,
+CI/security-scripts, design-systeem (tokens), mobiel + desktop. ~130 unit-tests + 26 e2e groen;
+elke increment ge-reviewd (CLEAN); geen AI-slop, geen dode knoppen.
+
+Bewust NIET in deze MVP (post-MVP epic, eigen sessie): **multi-member-organisaties + subrollen**
+(owner/manager/recruiter/viewer). Dit raakt elke ownership-check (Company 1:1 user → org+members)
+en is in de referentiedocs zelf nog een open MVP-vraag — een grote, risicovolle refactor die niet
+aan het eind van een lange sessie thuishoort. Overige open punten: RLS-first op Postgres-prod,
+echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
