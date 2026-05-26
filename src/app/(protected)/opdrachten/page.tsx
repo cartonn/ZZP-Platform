@@ -2,10 +2,12 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { MapPin, Plus } from "lucide-react";
 import type { Prisma } from "@prisma/client";
-import { requireActor } from "@/lib/authz";
+import { type Actor, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
-import { type JobStatus, type WorkMode } from "@/lib/enums";
+import { computeMatchScore, type FreelancerCredential } from "@/lib/matching";
+import { type CredentialType, type JobStatus, type WorkMode } from "@/lib/enums";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { JobFilters } from "@/components/jobs/job-filters";
@@ -20,7 +22,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function OpdrachtenPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await requireActor();
   if (actor.role === "CLIENT") return <ClientJobs userId={actor.id} />;
-  return <BrowseJobs searchParams={await searchParams} />;
+  return <BrowseJobs searchParams={await searchParams} actor={actor} />;
 }
 
 // --- CLIENT: beheeroverzicht van eigen opdrachten ---
@@ -70,7 +72,13 @@ async function ClientJobs({ userId }: { userId: string }) {
 }
 
 // --- FREELANCER/ADMIN: gepubliceerde opdrachten zoeken/filteren ---
-async function BrowseJobs({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+async function BrowseJobs({
+  searchParams,
+  actor,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+  actor: Actor;
+}) {
   const f = normalizeJobFilters(searchParams);
 
   const where: Prisma.JobWhereInput = { status: "PUBLISHED" };
@@ -87,18 +95,52 @@ async function BrowseJobs({ searchParams }: { searchParams: Record<string, strin
   const orderBy: Prisma.JobOrderByWithRelationInput =
     f.sort === "rate_desc" ? { rateMax: "desc" } : f.sort === "rate_asc" ? { rateMin: "asc" } : { publishedAt: "desc" };
 
-  const [total, jobs, industries, skills] = await Promise.all([
+  const [total, jobs, industries, skills, profile] = await Promise.all([
     prisma.job.count({ where }),
     prisma.job.findMany({
       where,
       orderBy,
       skip: (f.page - 1) * JOBS_PER_PAGE,
       take: JOBS_PER_PAGE,
-      include: { company: { select: { name: true } }, industry: { select: { name: true } } },
+      include: {
+        company: { select: { name: true } },
+        industry: { select: { name: true } },
+        skills: true,
+        credentialRequirements: true,
+      },
     }),
     prisma.industry.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    actor.role === "FREELANCER"
+      ? prisma.freelancerProfile.findUnique({
+          where: { userId: actor.id },
+          include: { skills: { select: { skillId: true } }, credentials: { select: { type: true, status: true, expiresAt: true } } },
+        })
+      : Promise.resolve(null),
   ]);
+
+  // Persoonlijke matchscore per opdracht zodat de ZZP'er ziet waar te reageren loont.
+  const matchByJob = new Map<string, number>();
+  if (profile) {
+    const credentials: FreelancerCredential[] = profile.credentials.map((c) => ({
+      type: c.type as CredentialType,
+      status: c.status as FreelancerCredential["status"],
+      expiresAt: c.expiresAt,
+    }));
+    const freelancerSkillIds = profile.skills.map((s) => s.skillId);
+    for (const job of jobs) {
+      const m = computeMatchScore({
+        requiredSkillIds: job.skills.filter((s) => s.required).map((s) => s.skillId),
+        optionalSkillIds: job.skills.filter((s) => !s.required).map((s) => s.skillId),
+        freelancerSkillIds,
+        requiredCredentialTypes: job.credentialRequirements.filter((c) => c.required).map((c) => c.credentialType as CredentialType),
+        credentials,
+        job: { rateMin: job.rateMin, rateMax: job.rateMax, workMode: job.workMode as WorkMode, location: job.location },
+        freelancer: { hourlyRate: profile.hourlyRate, workMode: profile.workMode as WorkMode, location: profile.location },
+      });
+      matchByJob.set(job.id, m.score);
+    }
+  }
 
   const totalPages = Math.max(1, Math.ceil(total / JOBS_PER_PAGE));
   const mkPageHref = (page: number) => {
@@ -137,11 +179,14 @@ async function BrowseJobs({ searchParams }: { searchParams: Record<string, strin
                     <p className="font-medium">{job.title}</p>
                     <p className="text-sm text-muted-foreground">{job.company.name}</p>
                   </div>
-                  {(job.rateMin != null || job.rateMax != null) && (
-                    <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-                      € {job.rateMin ?? "?"}{job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
-                    </span>
-                  )}
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {(job.rateMin != null || job.rateMax != null) && (
+                      <span className="text-sm tabular-nums text-muted-foreground">
+                        € {job.rateMin ?? "?"}{job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
+                      </span>
+                    )}
+                    {matchByJob.has(job.id) && <Badge variant="muted">Match {matchByJob.get(job.id)}%</Badge>}
+                  </div>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   {job.location && (
