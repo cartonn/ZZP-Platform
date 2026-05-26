@@ -334,4 +334,24 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 - SQLite-zoek is hoofdlettergevoelig; op Postgres `mode: "insensitive"` aanzetten.
 - Geen unieke index op (jobId, deelnemerspaar) voor conversaties (theoretische dubbel-race).
 
+### Hardening — 2026-05-26 (geleerd van een parallelle Codex-bouw, selectief overgenomen)
+- Aanleiding: vergelijking met een andere aanpak (Codex, branch `zzp-production-quality-control-system`).
+  Niet klakkeloos overgenomen — alleen wat echt waarde toevoegt en binnen scope past.
+- Toegepast (in-scope productie-hardening):
+  - **CI/CD ontbrak volledig** → toegevoegd: `.github/workflows/ci.yml` (npm run check: lint +
+    typecheck + test + build op elke push/PR) en `security.yml` (npm audit high/critical +
+    secret-scan + env-doc-check, ook wekelijks).
+  - **`npm run check`** als één commando (lint+typecheck+test+build).
+  - **Security-scripts**: `scripts/scan-secrets.sh` (hoog-signaal secret-patronen + geen getrackte
+    .env) en `scripts/check-env-docs.mjs` (elke gebruikte `process.env.X` staat in .env.example).
+- Bewust NIET overgenomen (scope-creep / andere productrichting):
+  - AI-governance-laag + Wet-DBA-risico-engine: krachtig domein-idee, maar nieuwe scope. **Aanbeveling
+    aan eigenaar**: voor zzp-zorg is Wet-DBA-compliance (schijnzelfstandigheid: inbedding, directe
+    aansturing, vervangbaarheid, terugkerende patronen) dé differentiator — overweeg dit als
+    expliciete volgende epic, deterministic-first (regels beslissen, AI formuleert hooguit).
+  - k6 load/stress + Sentry: zinvol, maar vragen infra/keuze van de eigenaar; genoteerd.
+- Sterkten van deze build t.o.v. de vergeleken aanpak (ter info): echte auth (Auth.js + RBAC) en
+  persistente DB + audit (Prisma) zijn hier wél gebouwd; docs (PROGRESS/CURRENT_TASK) lopen niet
+  achter op de code. Checks: `npm run check` groen (104 unit + build); scan:secrets + check:env OK.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
