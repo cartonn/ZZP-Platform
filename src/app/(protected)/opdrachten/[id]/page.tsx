@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Check, MapPin, Pencil, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, MapPin, Pencil, TriangleAlert } from "lucide-react";
 import { owns, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { JOB_TRANSITIONS } from "@/lib/jobs";
@@ -52,7 +52,16 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   const job = await prisma.job.findUnique({
     where: { id },
     include: {
-      company: { select: { name: true, userId: true } },
+      company: {
+        select: {
+          name: true,
+          userId: true,
+          description: true,
+          website: true,
+          location: true,
+          industry: { select: { name: true } },
+        },
+      },
       industry: { select: { name: true } },
       skills: { include: { skill: { select: { name: true } } } },
       credentialRequirements: true,
@@ -224,6 +233,24 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {!isOwner && (job.company.description || job.company.location || job.company.website || job.company.industry) && (
+        <section className="space-y-2 rounded-lg border border-border bg-card p-5">
+          <h2 className="text-sm font-medium">Over de opdrachtgever</h2>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            {job.company.location && (
+              <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {job.company.location}</span>
+            )}
+            {job.company.industry && <span>{job.company.industry.name}</span>}
+            {job.company.website && (
+              <a href={job.company.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline-offset-4 hover:underline">
+                Website <ExternalLink className="size-3.5" aria-hidden />
+              </a>
+            )}
+          </div>
+          {job.company.description && <p className="whitespace-pre-line text-sm leading-relaxed">{job.company.description}</p>}
         </section>
       )}
 
