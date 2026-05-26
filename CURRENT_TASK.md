@@ -3,44 +3,42 @@
 > Eén taak tegelijk. Lees CLAUDE.md en PROGRESS.md voordat je begint.
 > Werk dit bestand bij wanneer je naar de volgende taak gaat.
 
-## NU: Sessie 3 — Reacties & kandidatenflow
+## NU: Sessie 4 — Documenten + credentials (ZZP-kant)
 
 ### Doel
-ZZP'ers reageren op opdrachten met een server-berekende matchscore + compliance-snapshot;
-opdrachtgevers beheren kandidaten per opdracht. Feature-gating (max reacties per plan).
+ZZP'ers beheren documenten en credentials veilig: uploaden, metadata, verificatie
+aanvragen, status volgen, zichtbaarheid beheren, document vervangen, historie.
 
-### Context uit Sessie 0-2 (staat al)
-- Modellen `Application` (uniek [jobId, freelancerId], status, matchScore, complianceSnapshot,
-  note), `Job`, `FreelancerProfile`, `Plan`, `Subscription`.
-- `src/lib/matching.ts` (getest): `computeMatchScore` + `computeCompliance` — gebruik dit
-  server-side bij het aanmaken van een reactie en sla de snapshot op.
-- Enums: `APPLICATION_STATUSES` (NEW/VIEWED/SHORTLIST/REJECTED/ACCEPTED). Maak een
-  expliciete overgangsmap (vgl. JOB_TRANSITIONS) + assert.
-- Mutatieketen via authz + audit. Patronen: `src/app/(protected)/opdrachten/*`.
-- Plannen zijn geseed (FREE/PRO/BUSINESS met maxApplications). Gating server-side.
+### Context uit Sessie 0-3 (staat al)
+- Modellen `Document`, `Credential`, `CredentialVerification`, `VerificationRequest`.
+- Storage-abstractie `src/lib/services/storage.ts` (getest): `validateUpload`,
+  `generateStorageKey`, `getStorage()` (local/S3). Bewijs van werking: bedrijfslogo +
+  `src/app/api/media/[...key]/route.ts` (auth-gated). Documenten zijn PRIVÉ → ownership-route.
+- Credential-logica `src/lib/credentials.ts` (getest): `assertTransition` op
+  `CREDENTIAL_TRANSITIONS`, `statusForDecision`, expiry-helpers. Gebruik dit; geen losse updates.
+- Mutatieketen via authz + audit. Compliance gebruikt VERIFIED+niet-verlopen (matching.ts).
 
 ### Stappen
-1. **Reageren (FREELANCER):** motivatie, tariefvoorstel, beschikbaarheid, optionele bijlage.
-   Server berekent matchscore + compliance-snapshot (matching.ts) bij aanmaken en slaat op.
-   Eén reactie per opdracht (unieke constraint). Alleen op PUBLISHED opdrachten.
-2. **Feature-gating:** max reacties per plan, server-side afgedwongen (FREE-limiet).
-3. **Kandidatenoverzicht (CLIENT) per opdracht:** statussen (NEW/VIEWED/SHORTLIST/REJECTED/
-   ACCEPTED) via expliciete overgangsmap, interne notities, compliance-overzicht per kandidaat.
-4. **"Mijn reacties" (FREELANCER):** overzicht van eigen reacties + status.
-5. **Tests:** applicatie-validatie, statusovergangen, gating-grens, matchscore-snapshot.
+1. **Documenten-upload-UI** op de storage-abstractie: type/grootte-validatie, ownership,
+   download via een signed/auth-gated route (alleen eigenaar + admin). Nooit publiek pad.
+2. **Credentials (FREELANCER):** uploaden (type, titel, uitgever, datums, document),
+   metadata bewerken, **verificatie aanvragen** (status DRAFT → SUBMITTED via assertTransition),
+   status volgen, zichtbaarheid (PUBLIC/PRIVATE), document vervangen (terug naar SUBMITTED),
+   verificatiehistorie tonen.
+3. **Koppeling:** credentials voeden de compliance-snapshot (Sessie 3) en het publieke profiel.
+4. **Tests:** upload-validatie (bestaat), ownership-checks op document-download,
+   credential-statusovergangen vanuit de UI-actie.
 
 ### Definition of Done (deze sessie)
-- [ ] FREELANCER kan reageren; matchscore + compliance server-berekend en opgeslagen
-- [ ] Gating: reactielimiet per plan server-side afgedwongen
-- [ ] CLIENT kandidatenoverzicht met statusbeheer + notities + compliance
-- [ ] FREELANCER "Mijn reacties"-overzicht
+- [ ] Document upload + ownership-gecontroleerde download (privé)
+- [ ] Credentials CRUD + verificatie aanvragen (DRAFT→SUBMITTED) + zichtbaarheid + historie
+- [ ] Statusovergangen uitsluitend via assertTransition; verplichte velden server-side
 - [ ] typecheck + lint + test + build groen; e2e uitgebreid + screenshots gecontroleerd
-- [ ] Commit, PROGRESS.md bij, CURRENT_TASK.md naar Sessie 4
+- [ ] Commit, PROGRESS.md bij, CURRENT_TASK.md naar Sessie 5
 
 ### Niet nu doen
-Geen documenten/credentials-upload-UI (Sessie 4), geen verificatiequeue (Sessie 5),
-geen berichten/samenwerkingen/facturen (later). Echte bijlage-opslag mag de bestaande
-storage-abstractie gebruiken, maar de volledige document-UI is Sessie 4.
+Geen admin-verificatiequeue / goedkeuren-afwijzen (dat is Sessie 5). Alleen de ZZP-kant:
+indienen en status volgen. Geen berichten/samenwerkingen/facturen.
 
 ---
 

@@ -5,9 +5,11 @@ import { redirect } from "next/navigation";
 import { assertOwnership, AuthorizationError, requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { canApply } from "@/lib/applications";
 import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs";
-import { type JobStatus, jobStatusSchema } from "@/lib/enums";
-import { jobSchema } from "@/lib/validation";
+import { computeMatchScore, type FreelancerCredential } from "@/lib/matching";
+import { type CredentialType, type JobStatus, jobStatusSchema, type WorkMode } from "@/lib/enums";
+import { applicationSchema, jobSchema } from "@/lib/validation";
 
 export type JobFormState =
   | { error?: string; fieldErrors?: Record<string, string> }
@@ -145,4 +147,104 @@ export async function changeJobStatus(jobId: string, target: string): Promise<vo
 
   revalidatePath("/opdrachten");
   revalidatePath(`/opdrachten/${jobId}`);
+}
+
+export type ApplyState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
+
+export async function createApplication(
+  jobId: string,
+  _prev: ApplyState,
+  formData: FormData,
+): Promise<ApplyState> {
+  let actor;
+  try {
+    actor = await requireRole("FREELANCER");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
+
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { userId: actor.id },
+    include: { skills: true, credentials: { select: { type: true, status: true, expiresAt: true } } },
+  });
+  if (!profile) return { error: "Maak eerst je profiel aan." };
+
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: { skills: true, credentialRequirements: true },
+  });
+  if (!job) return { error: "Opdracht niet gevonden." };
+  if (job.status !== "PUBLISHED") return { error: "Je kunt alleen op gepubliceerde opdrachten reageren." };
+
+  const existing = await prisma.application.findUnique({
+    where: { jobId_freelancerId: { jobId, freelancerId: profile.id } },
+    select: { id: true },
+  });
+  if (existing) return { error: "Je hebt al op deze opdracht gereageerd." };
+
+  // Plan-gating (server-side). Zonder abonnement geldt het FREE-plan.
+  const [count, subscription, freePlan] = await Promise.all([
+    prisma.application.count({ where: { freelancerId: profile.id } }),
+    prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
+    prisma.plan.findUnique({ where: { key: "FREE" } }),
+  ]);
+  const maxApplications = subscription?.plan.maxApplications ?? freePlan?.maxApplications ?? 5;
+  if (!canApply(maxApplications, count)) {
+    return { error: `Je hebt het maximum aantal reacties (${maxApplications}) van je plan bereikt.` };
+  }
+
+  const parsed = applicationSchema.safeParse({
+    motivation: formData.get("motivation"),
+    proposedRate: formData.get("proposedRate") ?? "",
+    availability: formData.get("availability") || undefined,
+  });
+  if (!parsed.success) {
+    const flat = parsed.error.flatten().fieldErrors;
+    const fieldErrors: Record<string, string> = {};
+    for (const [k, v] of Object.entries(flat)) if (v && v[0]) fieldErrors[k] = v[0];
+    return { error: "Controleer de ingevoerde gegevens.", fieldErrors };
+  }
+  const data = parsed.data;
+
+  // Server-berekende matchscore + compliance-snapshot (CLAUDE.md regel 1).
+  const credentials: FreelancerCredential[] = profile.credentials.map((c) => ({
+    type: c.type as CredentialType,
+    status: c.status as FreelancerCredential["status"],
+    expiresAt: c.expiresAt,
+  }));
+  const match = computeMatchScore({
+    requiredSkillIds: job.skills.filter((s) => s.required).map((s) => s.skillId),
+    optionalSkillIds: job.skills.filter((s) => !s.required).map((s) => s.skillId),
+    freelancerSkillIds: profile.skills.map((s) => s.skillId),
+    requiredCredentialTypes: job.credentialRequirements.filter((c) => c.required).map((c) => c.credentialType as CredentialType),
+    credentials,
+    job: { rateMin: job.rateMin, rateMax: job.rateMax, workMode: job.workMode as WorkMode, location: job.location },
+    freelancer: { hourlyRate: profile.hourlyRate, workMode: profile.workMode as WorkMode, location: profile.location },
+  });
+
+  const application = await prisma.application.create({
+    data: {
+      jobId,
+      freelancerId: profile.id,
+      status: "NEW",
+      motivation: data.motivation,
+      proposedRate: data.proposedRate ?? null,
+      availability: data.availability ?? null,
+      matchScore: match.score,
+      complianceSnapshot: JSON.stringify(match.compliance),
+    },
+  });
+
+  await audit({
+    actorId: actor.id,
+    action: "APPLICATION_CREATED",
+    entityType: "Application",
+    entityId: application.id,
+    metadata: { jobId, matchScore: match.score, compliance: match.compliance.status },
+  });
+
+  revalidatePath("/reacties");
+  revalidatePath(`/opdrachten/${jobId}`);
+  redirect("/reacties");
 }

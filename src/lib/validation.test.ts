@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applicationSchema,
   companyProfileSchema,
   freelancerProfileSchema,
   jobSchema,
@@ -115,5 +116,17 @@ describe("jobSchema", () => {
       expect(r.data.rateMin).toBeUndefined();
       expect(r.data.startDate).toBeInstanceOf(Date);
     }
+  });
+});
+
+describe("applicationSchema", () => {
+  it("accepteert een geldige reactie", () => {
+    const r = applicationSchema.safeParse({ motivation: "Ik pas hier goed bij omdat...", proposedRate: "80" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.proposedRate).toBe(80);
+  });
+
+  it("weigert een te korte motivatie", () => {
+    expect(applicationSchema.safeParse({ motivation: "kort" }).success).toBe(false);
   });
 });

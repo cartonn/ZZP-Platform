@@ -77,7 +77,8 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
   // Niet-gepubliceerde opdracht is niet zichtbaar voor anderen: depubliceer en check 404.
   await page.goto(detailUrl);
   await page.getByRole("button", { name: "Terug naar concept" }).click();
-  await expect(page.getByText("Concept")).toBeVisible();
+  // Status is nu concept zodra de "Publiceren"-actie weer verschijnt (eenduidig).
+  await expect(page.getByRole("button", { name: "Publiceren" })).toBeVisible();
   const resp = await fp.goto(detailUrl);
   expect(resp?.status()).toBe(404);
 

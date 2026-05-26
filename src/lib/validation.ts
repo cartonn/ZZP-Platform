@@ -104,3 +104,11 @@ export const jobSchema = z
     path: ["rateMax"],
   });
 export type JobInput = z.infer<typeof jobSchema>;
+
+// --- Reactie op een opdracht ---
+export const applicationSchema = z.object({
+  motivation: trimmed(2000).min(10, "Geef een korte motivatie (min. 10 tekens)."),
+  proposedRate: optionalInt(2000),
+  availability: optionalText(200),
+});
+export type ApplicationInput = z.infer<typeof applicationSchema>;

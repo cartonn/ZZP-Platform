@@ -15,7 +15,7 @@
 - [x] **Sessie 0** — Inventarisatie & fundament
 - [x] **Sessie 1** — Onboarding & profielen
 - [x] **Sessie 2** — Opdrachten CRUD + zoeken/filteren
-- [ ] **Sessie 3** — Reacties & kandidatenflow
+- [x] **Sessie 3** — Reacties & kandidatenflow
 - [ ] **Sessie 4** — Documenten + credentials (ZZP)
 - [ ] **Sessie 5** — Verificatie (admin) + compliance afronden
 - [ ] **Sessie 6** — Berichten, notificaties, samenwerkingen
@@ -111,5 +111,29 @@
   `mode:insensitive`, niet ondersteund op SQLite). Op Postgres (prod) insensitive maken.
 - Volgende stap: Sessie 3 — Reacties & kandidatenflow (matchscore + compliance-snapshot,
   gebruik `src/lib/matching.ts`; feature-gating per plan).
+
+### Sessie 3 — 2026-05-26
+- Wat gedaan: reacties & kandidatenflow. FREELANCER reageert op een PUBLISHED opdracht
+  (motivatie/tariefvoorstel/beschikbaarheid); server berekent matchscore + compliance-
+  snapshot via `matching.ts` en slaat ze op. Eén reactie per opdracht. Plan-gating
+  (max reacties, FREE-plan) server-side afgedwongen. CLIENT-kandidatenoverzicht met
+  statusbeheer (NEW/VIEWED/SHORTLIST/REJECTED/ACCEPTED via expliciete overgangsmap),
+  interne notities en compliance/match per kandidaat. FREELANCER "Mijn reacties".
+- Bestanden:
+  - `src/lib/applications.ts` (+ test) — APPLICATION_TRANSITIONS, canApply (gating)
+  - `src/lib/validation.ts` — applicationSchema (+ test)
+  - opdrachten/actions.ts: `createApplication` (match+compliance+gating)
+  - `opdrachten/[id]/application-form.tsx` + detailpagina-integratie (reageren/gereageerd)
+  - `reacties/page.tsx` (FREELANCER), `kandidaten/{page,actions}.tsx` (CLIENT)
+  - `components/{compliance-badge,applications/application-status-badge}.tsx`
+  - nav.ts: Mijn reacties + Kandidaten op enabled
+- Tests: 78 unit-tests (applications 5, applicatie-validatie 2 extra) + 12 e2e groen
+  (reageren → matchscore, dubbel reageren geblokkeerd, kandidaat shortlisten + notitie).
+- Checks: typecheck ✓, lint ✓, test ✓ (78), build ✓ (17 routes), e2e ✓ (12, via Edge).
+- Visueel gecontroleerd (screenshots 14-16): reactieformulier, mijn reacties, kandidaten.
+- Mijlpaal: na Sessie 5 is de volledige kerndifferentiatie (opdracht → reactie →
+  verificatie → compliance) demo-klaar. Nu staat opdracht → reactie → match/compliance.
+- Volgende stap: Sessie 4 — Documenten + credentials (ZZP-kant): upload-UI op de
+  storage-abstractie, credentials uploaden/metadata/verificatie aanvragen/zichtbaarheid.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

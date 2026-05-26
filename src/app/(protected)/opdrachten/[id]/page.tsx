@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
-import { changeJobStatus } from "../actions";
+import { ComplianceBadge } from "@/components/compliance-badge";
+import { type ComplianceStatus } from "@/lib/matching";
+import { changeJobStatus, createApplication } from "../actions";
+import { ApplicationForm } from "./application-form";
 
 export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
 
@@ -49,6 +52,19 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   const optionalSkills = job.skills.filter((s) => !s.required);
   const requiredCreds = job.credentialRequirements.filter((c) => c.required);
   const optionalCreds = job.credentialRequirements.filter((c) => !c.required);
+
+  // Bestaande reactie van de huidige ZZP'er (voor de reageer-sectie).
+  let myApplication: { status: string; matchScore: number | null; complianceSnapshot: string | null } | null = null;
+  if (actor.role === "FREELANCER") {
+    const profile = await prisma.freelancerProfile.findUnique({ where: { userId: actor.id }, select: { id: true } });
+    if (profile) {
+      myApplication = await prisma.application.findUnique({
+        where: { jobId_freelancerId: { jobId: job.id, freelancerId: profile.id } },
+        select: { status: true, matchScore: true, complianceSnapshot: true },
+      });
+    }
+  }
+  const myCompliance = parseComplianceStatus(myApplication?.complianceSnapshot);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -144,12 +160,32 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           ))}
         </div>
       ) : (
-        actor.role === "FREELANCER" && (
-          <div className="border-t border-border pt-4">
-            <Button variant="secondary" disabled>Reageren (binnenkort)</Button>
+        actor.role === "FREELANCER" &&
+        (myApplication ? (
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="text-sm font-medium">Je hebt op deze opdracht gereageerd.</p>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              {myApplication.matchScore != null && <Badge variant="muted">Match {myApplication.matchScore}%</Badge>}
+              {myCompliance && <ComplianceBadge status={myCompliance} />}
+              <Link href="/reacties" className="underline-offset-4 hover:underline">Bekijk mijn reacties</Link>
+            </div>
           </div>
-        )
+        ) : status === "PUBLISHED" ? (
+          <div className="border-t border-border pt-4">
+            <ApplicationForm action={createApplication.bind(null, job.id)} />
+          </div>
+        ) : null)
       )}
     </div>
   );
+}
+
+function parseComplianceStatus(raw: string | null | undefined): ComplianceStatus | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw);
+    return (v?.status as ComplianceStatus) ?? null;
+  } catch {
+    return null;
+  }
 }

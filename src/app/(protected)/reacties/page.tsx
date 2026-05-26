@@ -1,0 +1,76 @@
+import { type Metadata } from "next";
+import Link from "next/link";
+import { requireRole } from "@/lib/authz";
+import { prisma } from "@/lib/db";
+import { type ComplianceStatus } from "@/lib/matching";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
+import { ComplianceBadge } from "@/components/compliance-badge";
+import { type ApplicationStatus } from "@/lib/enums";
+
+export const metadata: Metadata = { title: "Mijn reacties · ZZP Platform" };
+
+function complianceStatus(raw: string | null): ComplianceStatus | null {
+  if (!raw) return null;
+  try {
+    return (JSON.parse(raw)?.status as ComplianceStatus) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export default async function ReactiesPage() {
+  const actor = await requireRole("FREELANCER");
+  const profile = await prisma.freelancerProfile.findUnique({ where: { userId: actor.id }, select: { id: true } });
+
+  const applications = profile
+    ? await prisma.application.findMany({
+        where: { freelancerId: profile.id },
+        orderBy: { createdAt: "desc" },
+        include: { job: { select: { id: true, title: true, company: { select: { name: true } } } } },
+      })
+    : [];
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <header>
+        <h1 className="text-xl font-semibold tracking-tight">Mijn reacties</h1>
+        <p className="text-sm text-muted-foreground">Je reacties op opdrachten en hun status.</p>
+      </header>
+
+      {applications.length === 0 ? (
+        <Card>
+          <CardContent className="text-center text-sm text-muted-foreground">
+            Je hebt nog niet gereageerd. Bekijk de opdrachten en reageer op een passende opdracht.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {applications.map((app) => {
+            const compliance = complianceStatus(app.complianceSnapshot);
+            return (
+              <Link
+                key={app.id}
+                href={`/opdrachten/${app.job.id}`}
+                className="block rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/40"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{app.job.title}</p>
+                    <p className="text-sm text-muted-foreground">{app.job.company.name}</p>
+                  </div>
+                  <ApplicationStatusBadge status={app.status as ApplicationStatus} />
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {app.matchScore != null && <Badge variant="muted">Match {app.matchScore}%</Badge>}
+                  {compliance && <ComplianceBadge status={compliance} />}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
