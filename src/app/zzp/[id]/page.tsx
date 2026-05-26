@@ -37,6 +37,11 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       user: { select: { name: true } },
       skills: { include: { skill: { select: { name: true } } } },
       industries: { include: { industry: { select: { name: true } } } },
+      credentials: {
+        where: { visibility: "PUBLIC", status: "VERIFIED" },
+        select: { id: true, title: true, type: true, expiresAt: true },
+        orderBy: { title: "asc" },
+      },
     },
   });
 
@@ -49,6 +54,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
   const availability = AVAILABILITY[profile.availability as Availability];
   const languages = parseLanguages(profile.languages);
+  const now = Date.now();
+  const verifiedCredentials = profile.credentials.filter(
+    (c) => !c.expiresAt || c.expiresAt.getTime() > now,
+  );
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -111,6 +120,17 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <div className="flex flex-wrap gap-2">
               {profile.industries.map((i) => (
                 <Badge key={i.industryId} variant="muted">{i.industry.name}</Badge>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {verifiedCredentials.length > 0 && (
+          <section className="space-y-2">
+            <h2 className="text-sm font-medium">Geverifieerde certificaten</h2>
+            <div className="flex flex-wrap gap-2">
+              {verifiedCredentials.map((c) => (
+                <Badge key={c.id} variant="success">{c.title}</Badge>
               ))}
             </div>
           </section>

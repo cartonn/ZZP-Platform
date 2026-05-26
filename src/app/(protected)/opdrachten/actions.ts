@@ -189,7 +189,9 @@ export async function createApplication(
     prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
     prisma.plan.findUnique({ where: { key: "FREE" } }),
   ]);
-  const maxApplications = subscription?.plan.maxApplications ?? freePlan?.maxApplications ?? 5;
+  // Alleen een ACTIEF abonnement telt; anders geldt het FREE-plan (CLAUDE.md regel 1).
+  const activePlanMax = subscription?.status === "ACTIVE" ? subscription.plan.maxApplications : undefined;
+  const maxApplications = activePlanMax ?? freePlan?.maxApplications ?? 5;
   if (!canApply(maxApplications, count)) {
     return { error: `Je hebt het maximum aantal reacties (${maxApplications}) van je plan bereikt.` };
   }

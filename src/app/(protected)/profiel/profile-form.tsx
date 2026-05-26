@@ -2,11 +2,11 @@
 
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { CheckChip } from "@/components/ui/check-chip";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { updateFreelancerProfile, type ProfileState } from "./actions";
 
 const AVAILABILITY = [
@@ -154,29 +154,5 @@ export function ProfileForm({
         )}
       </div>
     </form>
-  );
-}
-
-function CheckChip({
-  name,
-  value,
-  label,
-  defaultChecked,
-}: {
-  name: string;
-  value: string;
-  label: string;
-  defaultChecked: boolean;
-}) {
-  return (
-    <label
-      className={cn(
-        "cursor-pointer select-none rounded-full border px-3 py-1 text-sm transition-colors",
-        "border-border hover:bg-muted has-[:checked]:border-primary has-[:checked]:bg-accent",
-      )}
-    >
-      <input type="checkbox" name={name} value={value} defaultChecked={defaultChecked} className="sr-only" />
-      {label}
-    </label>
   );
 }

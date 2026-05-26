@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   availabilitySchema,
   credentialTypeSchema,
+  documentKindSchema,
   visibilitySchema,
   workModeSchema,
 } from "@/lib/enums";
@@ -14,6 +15,11 @@ const optionalInt = (max: number) =>
     .union([z.literal(""), z.coerce.number().int().min(0).max(max)])
     .optional()
     .transform((v) => (v === "" || v === undefined ? undefined : Number(v)));
+
+const optionalDate = z
+  .union([z.literal(""), z.coerce.date()])
+  .optional()
+  .transform((v) => (v === "" || v === undefined ? undefined : (v as Date)));
 
 const trimmed = (max: number) => z.string().trim().max(max);
 const optionalText = (max: number) =>
@@ -112,3 +118,23 @@ export const applicationSchema = z.object({
   availability: optionalText(200),
 });
 export type ApplicationInput = z.infer<typeof applicationSchema>;
+
+// --- Credential (metadata; het bewijsdocument wordt los gevalideerd via storage) ---
+export const credentialSchema = z
+  .object({
+    type: credentialTypeSchema,
+    title: trimmed(160).min(2, "Titel is te kort."),
+    issuer: optionalText(160),
+    issuedAt: optionalDate,
+    expiresAt: optionalDate,
+    visibility: visibilitySchema,
+  })
+  .refine((d) => !d.issuedAt || !d.expiresAt || d.expiresAt >= d.issuedAt, {
+    message: "Vervaldatum mag niet vóór de uitgiftedatum liggen.",
+    path: ["expiresAt"],
+  });
+export type CredentialInput = z.infer<typeof credentialSchema>;
+
+// --- Document (standalone upload) ---
+export const documentSchema = z.object({ kind: documentKindSchema });
+export type DocumentInput = z.infer<typeof documentSchema>;

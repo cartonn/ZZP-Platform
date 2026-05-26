@@ -17,6 +17,7 @@ export function CheckChip({
       className={cn(
         "cursor-pointer select-none rounded-full border px-3 py-1 text-sm transition-colors",
         "border-border hover:bg-muted has-[:checked]:border-primary has-[:checked]:bg-accent",
+        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background",
       )}
     >
       <input type="checkbox" name={name} value={value} defaultChecked={defaultChecked} className="sr-only" />

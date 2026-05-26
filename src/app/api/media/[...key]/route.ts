@@ -35,6 +35,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string[] 
     ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : ext === "pdf" ? "application/pdf" : "image/jpeg";
 
   return new NextResponse(new Uint8Array(data), {
-    headers: { "Content-Type": type, "Cache-Control": "private, max-age=60" },
+    headers: { "Content-Type": type, "Cache-Control": "private, max-age=60", "X-Content-Type-Options": "nosniff" },
   });
 }

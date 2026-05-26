@@ -30,6 +30,7 @@ export function RegisterForm() {
               key={r.value}
               className={cn(
                 "cursor-pointer rounded-md border p-3 text-sm transition-colors",
+                "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background",
                 role === r.value
                   ? "border-primary bg-accent"
                   : "border-border hover:bg-muted",

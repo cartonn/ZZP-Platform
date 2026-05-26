@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applicationSchema,
   companyProfileSchema,
+  credentialSchema,
   freelancerProfileSchema,
   jobSchema,
   registerSchema,
@@ -128,5 +129,29 @@ describe("applicationSchema", () => {
 
   it("weigert een te korte motivatie", () => {
     expect(applicationSchema.safeParse({ motivation: "kort" }).success).toBe(false);
+  });
+});
+
+describe("credentialSchema", () => {
+  const base = { type: "VOG", title: "Verklaring Omtrent Gedrag", visibility: "PRIVATE" };
+
+  it("accepteert geldige metadata en coerceert datums", () => {
+    const r = credentialSchema.safeParse({ ...base, issuedAt: "2025-01-01", expiresAt: "2026-01-01" });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.issuedAt).toBeInstanceOf(Date);
+      expect(r.data.expiresAt).toBeInstanceOf(Date);
+    }
+  });
+
+  it("weigert vervaldatum vóór uitgiftedatum", () => {
+    const r = credentialSchema.safeParse({ ...base, issuedAt: "2026-01-01", expiresAt: "2025-01-01" });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.path).toContain("expiresAt");
+  });
+
+  it("weigert onbekend type en te korte titel", () => {
+    expect(credentialSchema.safeParse({ ...base, type: "ONZIN" }).success).toBe(false);
+    expect(credentialSchema.safeParse({ ...base, title: "X" }).success).toBe(false);
   });
 });

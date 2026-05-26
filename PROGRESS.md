@@ -16,7 +16,7 @@
 - [x] **Sessie 1** — Onboarding & profielen
 - [x] **Sessie 2** — Opdrachten CRUD + zoeken/filteren
 - [x] **Sessie 3** — Reacties & kandidatenflow
-- [ ] **Sessie 4** — Documenten + credentials (ZZP)
+- [x] **Sessie 4** — Documenten + credentials (ZZP)
 - [ ] **Sessie 5** — Verificatie (admin) + compliance afronden
 - [ ] **Sessie 6** — Berichten, notificaties, samenwerkingen
 - [ ] **Sessie 7** — Facturatie + billing
@@ -135,5 +135,37 @@
   verificatie → compliance) demo-klaar. Nu staat opdracht → reactie → match/compliance.
 - Volgende stap: Sessie 4 — Documenten + credentials (ZZP-kant): upload-UI op de
   storage-abstractie, credentials uploaden/metadata/verificatie aanvragen/zichtbaarheid.
+
+### Sessie 4 — 2026-05-26
+- Wat gedaan: documenten + credentials (ZZP-kant). FREELANCER uploadt certificaten
+  (type/titel/uitgever/datums + bewijsstuk via storage-abstractie), bewerkt metadata,
+  vraagt verificatie aan (DRAFT/REJECTED/EXPIRED → SUBMITTED via assertTransition), vervangt
+  bewijsstuk (reeds beoordeeld → terug naar SUBMITTED), beheert zichtbaarheid (PUBLIC/PRIVATE),
+  ziet verificatiehistorie + afwijzingsreden + expiry-indicator. Aparte documenten-pagina
+  (upload + privé download). Document-download via ownership-gated route (eigenaar/admin).
+  Geverifieerde + openbare credentials verschijnen op het publieke profiel.
+- Bestanden:
+  - `src/lib/documents.ts` (+ test) — canAccessDocument, documentKindForCredential
+  - `src/lib/validation.ts` — credentialSchema, documentSchema (+ tests)
+  - `src/app/api/documents/[id]/route.ts` — privé download (ownership, nosniff)
+  - `certificaten/{page,actions,credential-form}.tsx`, `nieuw/`, `[id]/bewerken/`
+  - `documenten/{page,actions,document-form}.tsx`
+  - `components/credentials/credential-status-badge.tsx`; zzp/[id] toont verified certs
+  - nav.ts: Documenten + Certificaten op enabled
+- Reviewzwerm (3 parallelle agents) + fix-loop:
+  - FIX: plan-gating telde ook niet-actieve abonnementen → alleen status ACTIVE telt.
+  - FIX: credential-opslag nu atomair ($transaction / nested create); latente bug verholpen
+    (document vervangen terwijl status SUBMITTED gooide assertTransition).
+  - FIX a11y: zichtbare focus-ring op CheckChip + rol-radio's; CheckChip ontdubbeld.
+  - FIX: kandidaten-actions gebruiken de echte Actor; nosniff-headers; logo shrink-0;
+    consistente term "certificaat" i.p.v. "credential" in UI.
+  - Verificatie-agent: alle fixes correct, geen regressies.
+- Tests: 84 unit-tests (documents 3, credential-validatie 3 extra) + 14 e2e groen
+  (credential uploaden → verificatie aanvragen, privé-download 200 eigenaar / 403 ander,
+  document uploaden/downloaden).
+- Checks: typecheck ✓, lint ✓, test ✓ (84), build ✓ (19 routes), e2e ✓ (14, via Edge).
+- Visueel gecontroleerd (screenshots 17-19): certificaten (concept + in beoordeling), documenten.
+- Volgende stap: Sessie 5 — Admin-verificatiequeue (goedkeuren/afwijzen met verplichte reden,
+  expiry-job VERIFIED→EXPIRED). Hierna is de kerndifferentiatie demo-klaar.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

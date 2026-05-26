@@ -74,7 +74,7 @@ export function CompanyForm({
             <img
               src={`/api/media/${initial.logoKey}`}
               alt="Huidig logo"
-              className="size-12 rounded-md border border-border object-cover"
+              className="size-12 shrink-0 rounded-md border border-border object-cover"
             />
           )}
           <Input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" className="h-auto py-1.5" />
