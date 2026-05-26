@@ -40,7 +40,7 @@ export async function AppShell({
           <SidebarNav items={navForRole(role)} />
         </div>
         <div className="border-t border-border p-3">
-          <div className="flex items-center gap-3 px-1 py-1">
+          <Link href="/account" className="flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted focus-ring" aria-label="Account & privacy">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
               {initials}
             </div>
@@ -48,7 +48,7 @@ export async function AppShell({
               <p className="truncate text-sm font-medium">{user.name}</p>
               <p className="truncate text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>
             </div>
-          </div>
+          </Link>
           <form
             action={async () => {
               "use server";

@@ -401,4 +401,17 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   prod, multi-member-organisaties + subrollen, beschikbaarheid als workflow-stap, audit van
   login/securityevents + IP/UA.
 
+### Increment: AVG-gegevensrechten + audit-hardening — 2026-05-26
+- **Inzage/portabiliteit:** `/account` + `/api/account/export` — JSON-export van uitsluitend de
+  eigen persoonsgegevens (profiel, credential-metadata, bedrijf, reacties, document-metadata,
+  notificaties, eigen berichten); geen documentinhoud, geen data van derden, auth vereist.
+- **Recht op verwijdering:** verwijderverzoek (`deletionRequestedAt`) + intrekken; account blijft
+  actief tot beheer afhandelt (fiscale bewaarplicht), notificatie naar admins + audit.
+- **Audithardening:** login/uitlog/mislukte-login geaudit via Auth.js (USER_LOGIN/LOGOUT/
+  LOGIN_FAILED) + **IP/user-agent** (`request-meta.ts`, AuditLog uitgebreid). Account-link in de
+  shell-footer.
+- Tests: e2e (export 200+JSON, verwijderverzoek/intrekken, admin ziet USER_LOGIN). 25 e2e + units groen.
+- Reviewzwerm: CLEAN (geen cross-user-PII-lek, geen hard-delete van fiscale data, geen
+  login-enumeratie in de response, bcrypt-short-circuit correct). Checks groen.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

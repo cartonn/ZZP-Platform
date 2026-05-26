@@ -10,6 +10,8 @@ export interface AuditEntry {
   entityType: string;
   entityId: string;
   metadata?: Record<string, unknown> | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 /** De `data`-payload voor een auditregel. Handig om een audit binnen een `$transaction`
@@ -21,6 +23,8 @@ export function auditData(entry: AuditEntry) {
     entityType: entry.entityType,
     entityId: entry.entityId,
     metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
+    ipAddress: entry.ipAddress ?? null,
+    userAgent: entry.userAgent ?? null,
   };
 }
 
