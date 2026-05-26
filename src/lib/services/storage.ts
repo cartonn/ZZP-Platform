@@ -105,22 +105,63 @@ class LocalStorageDriver implements StorageDriver {
   }
 }
 
+// Productie-driver. AWS SDK wordt lazy geïmporteerd zodat lokaal/tests 'm niet laden.
+// Werkt met AWS S3 én S3-compatible (STORAGE_S3_ENDPOINT, path-style). Credentials via de
+// standaard AWS-provider-chain (AWS_ACCESS_KEY_ID/SECRET of IAM-rol). De bucket/IAM zelf is infra.
 class S3StorageDriver implements StorageDriver {
-  // Implementatie in Sessie 10 (productie). Bewust nog niet geïmplementeerd.
-  private fail(): never {
-    throw new Error("S3-storage is nog niet geïmplementeerd (zie Sessie 10).");
+  private svcPromise?: Promise<{
+    client: import("@aws-sdk/client-s3").S3Client;
+    bucket: string;
+    lib: typeof import("@aws-sdk/client-s3");
+  }>;
+
+  private svc() {
+    if (!this.svcPromise) {
+      this.svcPromise = (async () => {
+        const lib = await import("@aws-sdk/client-s3");
+        const bucket = process.env.STORAGE_S3_BUCKET;
+        if (!bucket) throw new Error("STORAGE_S3_BUCKET ontbreekt voor S3-storage.");
+        const client = new lib.S3Client({
+          region: process.env.STORAGE_S3_REGION,
+          ...(process.env.STORAGE_S3_ENDPOINT
+            ? { endpoint: process.env.STORAGE_S3_ENDPOINT, forcePathStyle: true }
+            : {}),
+        });
+        return { client, bucket, lib };
+      })();
+    }
+    return this.svcPromise;
   }
-  async put(): Promise<StoredObject> {
-    return this.fail();
+
+  async put(key: string, data: Buffer, mimeType: string): Promise<StoredObject> {
+    const { client, bucket, lib } = await this.svc();
+    await client.send(new lib.PutObjectCommand({ Bucket: bucket, Key: key, Body: data, ContentType: mimeType }));
+    return { key, size: data.byteLength };
   }
-  async get(): Promise<Buffer> {
-    return this.fail();
+
+  async get(key: string): Promise<Buffer> {
+    const { client, bucket, lib } = await this.svc();
+    const res = await client.send(new lib.GetObjectCommand({ Bucket: bucket, Key: key }));
+    const body = res.Body as { transformToByteArray(): Promise<Uint8Array> } | undefined;
+    if (!body) throw new Error("Leeg S3-antwoord.");
+    return Buffer.from(await body.transformToByteArray());
   }
-  async delete(): Promise<void> {
-    return this.fail();
+
+  async delete(key: string): Promise<void> {
+    const { client, bucket, lib } = await this.svc();
+    await client.send(new lib.DeleteObjectCommand({ Bucket: bucket, Key: key }));
   }
-  async exists(): Promise<boolean> {
-    return this.fail();
+
+  async exists(key: string): Promise<boolean> {
+    const { client, bucket, lib } = await this.svc();
+    try {
+      await client.send(new lib.HeadObjectCommand({ Bucket: bucket, Key: key }));
+      return true;
+    } catch (e: unknown) {
+      const err = e as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (err?.name === "NotFound" || err?.$metadata?.httpStatusCode === 404) return false;
+      throw e;
+    }
   }
 }
 

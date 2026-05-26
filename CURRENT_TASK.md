@@ -3,40 +3,16 @@
 > Eén taak tegelijk. Lees CLAUDE.md en PROGRESS.md voordat je begint.
 > Werk dit bestand bij wanneer je naar de volgende taak gaat.
 
-## NU: Sessie 10 — Productie-voorbereiding (code-kant)
+## STATUS: alle 10 sessies afgerond (code-kant compleet)
 
-### Doel
-De codebasis productieklaar maken voor zover dat code is — niet de infra zelf. Infra (echte
-Postgres/S3/mailprovider/domein/secrets/backups) en de security-/AVG-review zijn mensenwerk.
+Het ZZP-platform is functioneel compleet en getest. Er is geen volgende **code**taak in de
+bouwvolgorde. Zie PROGRESS.md ("PROJECT COMPLEET — handover") voor wat nog **mensenwerk** is
+(productie-infra, betaalprovider, security-/AVG-review, e-mail).
 
-### Context / kaders (CLAUDE.md)
-- Provider-switch is al voorbereid (SQLite lokaal, Postgres prod via env). Storage-abstractie
-  bestaat; de S3-driver is bewust nog niet geïmplementeerd (`src/lib/services/storage.ts`).
-- Auth.js JWT-strategie; bekende trade-off: schorsing werkt pas na JWT-refresh (Sessie 8).
-- Geen geheimen in git; uploads nooit op publiek pad.
-
-### Stappen (code-kant; hou diffs behapbaar)
-1. **S3-storage-driver implementeren** achter de bestaande `StorageDriver`-interface (AWS SDK of
-   S3-compatible), geactiveerd via `STORAGE_DRIVER=s3` + env. Lokaal blijft default. Unit-test de
-   key/validatie-logica; de echte bucket is infra/mens.
-2. **Security headers** (CSP waar haalbaar, `X-Content-Type-Options`, `Referrer-Policy`,
-   `X-Frame-Options`/frame-ancestors) via `next.config` headers of middleware.
-3. **Env-validatie**: één plek die vereiste env-vars valideert bij boot (bv. `src/lib/env.ts` met
-   Zod) en duidelijk faalt als iets ontbreekt in productie.
-4. **Robuustheid**: globale `error.tsx`/`not-found.tsx` (nette UI), health-check route
-   (`/api/health`), en documenteer de Postgres-switch + benodigde env in een `.env.example`/README-sectie.
-5. **Optioneel**: eenvoudige rate-limiting op auth/mutaties (in-memory of doc-only als infra nodig is).
-
-### Definition of Done (deze sessie)
-- [ ] S3-driver geïmplementeerd (achter de abstractie, env-geschakeld) + tests voor de pure logica
-- [ ] Security headers actief; env-validatie aanwezig; health-check + nette error/not-found UI
-- [ ] `.env.example` + korte deploy/Postgres-sectie gedocumenteerd
-- [ ] typecheck + lint + test + build groen; e2e groen + screenshots gecontroleerd
-- [ ] Commit, PROGRESS.md bij. Laatste codesessie: markeer wat nog mensenwerk is.
-
-### Niet nu doen
-Geen echte infra opzetten (bucket/DB/mail/domein/secrets). Geen betaalprovider. De finale
-security-/AVG-review vóór livegang met echte documenten blijft expliciet mensenwerk.
+Bij hervatten: kies een verbeterpunt uit de "Bekende, bewust uitgestelde code-punten" in
+PROGRESS.md, of een nieuwe wens van de eigenaar. Werk dan opnieuw één taak tegelijk:
+testbare kern eerst → UI → checks (typecheck/lint/test/build) → e2e + screenshots →
+reviewzwerm + bug-loop → commit.
 
 ---
 

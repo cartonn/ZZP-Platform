@@ -22,7 +22,7 @@
 - [x] **Sessie 7** — Facturatie + billing
 - [x] **Sessie 8** — Admin-paneel afronden
 - [x] **Sessie 9** — Polish, performance, a11y, e2e
-- [ ] **Sessie 10** — Productie-voorbereiding (code-kant)
+- [x] **Sessie 10** — Productie-voorbereiding (code-kant)
 
 ---
 
@@ -289,5 +289,49 @@
 - Checks: typecheck ✓, lint ✓, test ✓ (101), build ✓ (27 routes), e2e ✓ (21, via Edge).
 - Visueel gecontroleerd: mobiel menu (screenshot 30), eerdere schermen ongewijzigd.
 - Volgende stap: Sessie 10 — Productie-voorbereiding (code-kant).
+
+### Sessie 10 — 2026-05-26  (laatste codesessie)
+- Wat gedaan: productie-voorbereiding (code-kant).
+  - **S3-storage-driver** achter de bestaande `StorageDriver`-interface (`@aws-sdk/client-s3`,
+    lazy import, env-geschakeld via `STORAGE_DRIVER=s3`; lokaal blijft default). Werkt met AWS S3
+    én S3-compatible (endpoint/path-style). Credentials via de AWS-provider-chain.
+  - **Env-validatie** (`src/lib/env.ts`, Zod) die bij server-boot draait via
+    `src/instrumentation.ts` — faalt helder bij ontbrekende/zwakke config (+ unit-tests).
+  - **Security headers** (`next.config.mjs`): CSP (strenger in prod, dev-allowances voor HMR),
+    nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy, HSTS.
+  - **Robuustheid**: `/api/health` (publiek, DB-ping, geen datalek), nette `not-found.tsx` +
+    `error.tsx`. `.env.example` uitgebreid met Postgres-switch + S3-vars.
+- Tests: 104 unit-tests (env 3) + 21 e2e groen; health + headers geverifieerd (tijdelijke check).
+  Reviewzwerm: CLEAN — S3-driver correct, health veilig publiek, CSP breekt prod niet, alleen
+  /api/health toegevoegd aan publieke routes. Advies (bewuste trade-offs): CSP `script-src
+  'unsafe-inline'` en JWT-staleness bij rol/status-wijziging → voor de menselijke securityreview.
+- Checks: typecheck ✓, lint ✓, test ✓ (104), build ✓ (28 routes), e2e ✓ (21, via Edge).
+
+---
+
+## PROJECT COMPLEET (code-kant) — handover
+
+Alle 10 sessies af. De volledige keten werkt end-to-end en is getest:
+onboarding → profielen → opdrachten → reacties (match + compliance) → documenten/certificaten →
+admin-verificatie → berichten/notificaties/samenwerkingen → facturatie/abonnement → admin-paneel,
+met polish + productie-voorbereiding. **104 unit-tests + 21 Playwright-e2e groen**;
+typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
+
+### Nog te doen door een mens (NIET door een agent — bewust, zie CLAUDE.md):
+1. **Productie-infra**: PostgreSQL provisionen (en `prisma/schema.prisma` datasource provider
+   op `postgresql` zetten + migratie draaien), S3-bucket + IAM, mailprovider, domein/HTTPS,
+   secrets (`AUTH_SECRET`, DB, AWS) via de hosting-secretstore, backups.
+2. **Accounts & betaling**: echte betaalprovider koppelen (Stripe/Mollie) i.p.v. de mock-
+   abonnementsflow; betaalmethoden/facturatie-juridisch.
+3. **Security-/AVG-review vóór livegang met echte gevoelige documenten** (VOG/diploma's).
+   Aandachtspunten uit de reviews: CSP `script-src 'unsafe-inline'` (overweeg nonce-pipeline),
+   JWT-staleness bij schorsing/rol-wijziging (overweeg DB-statuscheck in `currentActor` of korte
+   token-TTL), rate-limiting op auth/mutaties, pen-test.
+4. **E-mail/notificaties**: in-app `Notification` bestaat; echte e-mail/push koppelen.
+
+### Bekende, bewust uitgestelde code-punten (kandidaten voor later):
+- Berichten-ongelezen telt per conversatie met een COUNT (prima voor nu; denormaliseren bij schaal).
+- SQLite-zoek is hoofdlettergevoelig; op Postgres `mode: "insensitive"` aanzetten.
+- Geen unieke index op (jobId, deelnemerspaar) voor conversaties (theoretische dubbel-race).
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

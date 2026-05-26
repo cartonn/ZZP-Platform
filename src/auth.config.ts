@@ -14,6 +14,7 @@ export const authConfig = {
       const isPublic =
         pathname === "/login" ||
         pathname === "/register" ||
+        pathname === "/api/health" ||
         pathname.startsWith("/zzp/") ||
         pathname.startsWith("/api/auth");
       if (isPublic) return true;
