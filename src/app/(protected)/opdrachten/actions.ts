@@ -8,8 +8,8 @@ import { prisma } from "@/lib/db";
 import { canApply } from "@/lib/applications";
 import { assessDbaRisk } from "@/lib/dba";
 import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs";
-import { computeMatchScore, type FreelancerCredential } from "@/lib/matching";
-import { type CredentialType, type JobStatus, jobStatusSchema, type WorkMode } from "@/lib/enums";
+import { scoreJobForFreelancer } from "@/lib/matching";
+import { type JobStatus, jobStatusSchema } from "@/lib/enums";
 import { applicationSchema, jobSchema } from "@/lib/validation";
 
 export type JobFormState =
@@ -238,20 +238,7 @@ export async function createApplication(
   const data = parsed.data;
 
   // Server-berekende matchscore + compliance-snapshot (CLAUDE.md regel 1).
-  const credentials: FreelancerCredential[] = profile.credentials.map((c) => ({
-    type: c.type as CredentialType,
-    status: c.status as FreelancerCredential["status"],
-    expiresAt: c.expiresAt,
-  }));
-  const match = computeMatchScore({
-    requiredSkillIds: job.skills.filter((s) => s.required).map((s) => s.skillId),
-    optionalSkillIds: job.skills.filter((s) => !s.required).map((s) => s.skillId),
-    freelancerSkillIds: profile.skills.map((s) => s.skillId),
-    requiredCredentialTypes: job.credentialRequirements.filter((c) => c.required).map((c) => c.credentialType as CredentialType),
-    credentials,
-    job: { rateMin: job.rateMin, rateMax: job.rateMax, workMode: job.workMode as WorkMode, location: job.location },
-    freelancer: { hourlyRate: profile.hourlyRate, workMode: profile.workMode as WorkMode, location: profile.location },
-  });
+  const match = scoreJobForFreelancer(job, profile);
 
   const application = await prisma.application.create({
     data: {

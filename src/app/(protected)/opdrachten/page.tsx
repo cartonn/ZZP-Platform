@@ -5,8 +5,8 @@ import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
-import { computeMatchScore, type FreelancerCredential } from "@/lib/matching";
-import { type CredentialType, type JobStatus, type WorkMode } from "@/lib/enums";
+import { scoreJobForFreelancer } from "@/lib/matching";
+import { type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -122,23 +122,8 @@ async function BrowseJobs({
   // Persoonlijke matchscore per opdracht zodat de ZZP'er ziet waar te reageren loont.
   const matchByJob = new Map<string, number>();
   if (profile) {
-    const credentials: FreelancerCredential[] = profile.credentials.map((c) => ({
-      type: c.type as CredentialType,
-      status: c.status as FreelancerCredential["status"],
-      expiresAt: c.expiresAt,
-    }));
-    const freelancerSkillIds = profile.skills.map((s) => s.skillId);
     for (const job of jobs) {
-      const m = computeMatchScore({
-        requiredSkillIds: job.skills.filter((s) => s.required).map((s) => s.skillId),
-        optionalSkillIds: job.skills.filter((s) => !s.required).map((s) => s.skillId),
-        freelancerSkillIds,
-        requiredCredentialTypes: job.credentialRequirements.filter((c) => c.required).map((c) => c.credentialType as CredentialType),
-        credentials,
-        job: { rateMin: job.rateMin, rateMax: job.rateMax, workMode: job.workMode as WorkMode, location: job.location },
-        freelancer: { hourlyRate: profile.hourlyRate, workMode: profile.workMode as WorkMode, location: profile.location },
-      });
-      matchByJob.set(job.id, m.score);
+      matchByJob.set(job.id, scoreJobForFreelancer(job, profile).score);
     }
   }
 

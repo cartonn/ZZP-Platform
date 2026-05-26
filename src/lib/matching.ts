@@ -127,6 +127,48 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
   return { score, breakdown, compliance };
 }
 
+// Brontypes die direct overeenkomen met de Prisma-includes op de aanroepplekken, zodat
+// alle schermen dezelfde mapping naar MatchInput delen (één bron van waarheid).
+export interface JobMatchSource {
+  skills: readonly { skillId: string; required: boolean }[];
+  credentialRequirements: readonly { credentialType: string; required: boolean }[];
+  rateMin: number | null;
+  rateMax: number | null;
+  workMode: string;
+  location: string | null;
+}
+export interface FreelancerMatchSource {
+  skills: readonly { skillId: string }[];
+  credentials: readonly { type: string; status: string; expiresAt: Date | null }[];
+  hourlyRate: number | null;
+  workMode: string;
+  location: string | null;
+}
+
+/** Scoort een opdracht voor een ZZP'er vanuit de ruwe Prisma-vormen. */
+export function scoreJobForFreelancer(
+  job: JobMatchSource,
+  freelancer: FreelancerMatchSource,
+  now: Date = new Date(),
+): MatchResult {
+  return computeMatchScore(
+    {
+      requiredSkillIds: job.skills.filter((s) => s.required).map((s) => s.skillId),
+      optionalSkillIds: job.skills.filter((s) => !s.required).map((s) => s.skillId),
+      freelancerSkillIds: freelancer.skills.map((s) => s.skillId),
+      requiredCredentialTypes: job.credentialRequirements.filter((c) => c.required).map((c) => c.credentialType as CredentialType),
+      credentials: freelancer.credentials.map((c) => ({
+        type: c.type as CredentialType,
+        status: c.status as CredentialStatus,
+        expiresAt: c.expiresAt,
+      })),
+      job: { rateMin: job.rateMin, rateMax: job.rateMax, workMode: job.workMode as WorkMode, location: job.location },
+      freelancer: { hourlyRate: freelancer.hourlyRate, workMode: freelancer.workMode as WorkMode, location: freelancer.location },
+    },
+    now,
+  );
+}
+
 function rateFit(min: number | null | undefined, max: number | null | undefined, rate: number | null | undefined): number {
   if (rate == null || (min == null && max == null)) return WEIGHTS.rate * 0.66; // onbekend -> neutraal
   if (max != null && rate > max) {

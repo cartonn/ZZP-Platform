@@ -4,12 +4,7 @@
 // staat op de achtergrond; de gebruiker ziet alleen de beste, relevante uitkomsten.
 
 import { prisma } from "@/lib/db";
-import {
-  computeMatchScore,
-  type ComplianceStatus,
-  type FreelancerCredential,
-} from "@/lib/matching";
-import { type CredentialType, type WorkMode } from "@/lib/enums";
+import { scoreJobForFreelancer, type ComplianceStatus } from "@/lib/matching";
 
 export interface JobMatch {
   jobId: string;
@@ -59,27 +54,10 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
     take: SCAN_LIMIT,
   });
 
-  const credentials: FreelancerCredential[] = profile.credentials.map((c) => ({
-    type: c.type as CredentialType,
-    status: c.status as FreelancerCredential["status"],
-    expiresAt: c.expiresAt,
-  }));
-  const freelancerSkillIds = profile.skills.map((s) => s.skillId);
-
   const scored: JobMatch[] = jobs
     .filter((j) => !appliedJobIds.has(j.id))
     .map((j) => {
-      const match = computeMatchScore({
-        requiredSkillIds: j.skills.filter((s) => s.required).map((s) => s.skillId),
-        optionalSkillIds: j.skills.filter((s) => !s.required).map((s) => s.skillId),
-        freelancerSkillIds,
-        requiredCredentialTypes: j.credentialRequirements
-          .filter((c) => c.required)
-          .map((c) => c.credentialType as CredentialType),
-        credentials,
-        job: { rateMin: j.rateMin, rateMax: j.rateMax, workMode: j.workMode as WorkMode, location: j.location },
-        freelancer: { hourlyRate: profile.hourlyRate, workMode: profile.workMode as WorkMode, location: profile.location },
-      });
+      const match = scoreJobForFreelancer(j, profile);
       return {
         jobId: j.id,
         title: j.title,

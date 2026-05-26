@@ -3,9 +3,8 @@
 // recommendations.ts. Hergebruikt de server-berekende matchscore + compliance + vertrouwensniveau.
 
 import { prisma } from "@/lib/db";
-import { computeMatchScore, type ComplianceStatus, type FreelancerCredential } from "@/lib/matching";
+import { scoreJobForFreelancer, type ComplianceStatus } from "@/lib/matching";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
-import { type CredentialType, type WorkMode } from "@/lib/enums";
 
 export interface FreelancerSuggestion {
   freelancerId: string;
@@ -51,30 +50,12 @@ export async function suggestedFreelancersForJob(jobId: string, limit = 4): Prom
     },
   });
 
-  const requiredSkillIds = job.skills.filter((s) => s.required).map((s) => s.skillId);
-  const optionalSkillIds = job.skills.filter((s) => !s.required).map((s) => s.skillId);
-  const requiredCredentialTypes = job.credentialRequirements
-    .filter((c) => c.required)
-    .map((c) => c.credentialType as CredentialType);
   const now = Date.now();
 
   const scored: FreelancerSuggestion[] = profiles
     .filter((p) => !applied.has(p.id))
     .map((p) => {
-      const credentials: FreelancerCredential[] = p.credentials.map((c) => ({
-        type: c.type as CredentialType,
-        status: c.status as FreelancerCredential["status"],
-        expiresAt: c.expiresAt,
-      }));
-      const match = computeMatchScore({
-        requiredSkillIds,
-        optionalSkillIds,
-        freelancerSkillIds: p.skills.map((s) => s.skillId),
-        requiredCredentialTypes,
-        credentials,
-        job: { rateMin: job.rateMin, rateMax: job.rateMax, workMode: job.workMode as WorkMode, location: job.location },
-        freelancer: { hourlyRate: p.hourlyRate, workMode: p.workMode as WorkMode, location: p.location },
-      });
+      const match = scoreJobForFreelancer(job, p);
       const verifiedCredentialCount = p.credentials.filter(
         (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > now),
       ).length;

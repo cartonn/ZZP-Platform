@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { TrustBadge } from "@/components/trust/trust-badge";
-import { computeMatchScore, type ComplianceResult, type ComplianceStatus, type FreelancerCredential } from "@/lib/matching";
+import { scoreJobForFreelancer, type ComplianceResult, type ComplianceStatus } from "@/lib/matching";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
@@ -88,20 +88,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         select: { status: true, matchScore: true, complianceSnapshot: true },
       });
       if (!myApplication && status === "PUBLISHED") {
-        const credentials: FreelancerCredential[] = profile.credentials.map((c) => ({
-          type: c.type as CredentialType,
-          status: c.status as FreelancerCredential["status"],
-          expiresAt: c.expiresAt,
-        }));
-        const match = computeMatchScore({
-          requiredSkillIds: requiredSkills.map((s) => s.skillId),
-          optionalSkillIds: optionalSkills.map((s) => s.skillId),
-          freelancerSkillIds: profile.skills.map((s) => s.skillId),
-          requiredCredentialTypes: requiredCreds.map((c) => c.credentialType as CredentialType),
-          credentials,
-          job: { rateMin: job.rateMin, rateMax: job.rateMax, workMode: job.workMode as WorkMode, location: job.location },
-          freelancer: { hourlyRate: profile.hourlyRate, workMode: profile.workMode as WorkMode, location: profile.location },
-        });
+        const match = scoreJobForFreelancer(job, profile);
         myFit = { score: match.score, compliance: match.compliance };
       }
     }
