@@ -25,7 +25,7 @@ export interface NavItem {
 const NAV: Record<UserRole, NavItem[]> = {
   FREELANCER: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
-    { label: "Mijn profiel", href: "/profiel", icon: "user", enabled: false },
+    { label: "Mijn profiel", href: "/profiel", icon: "user", enabled: true },
     { label: "Opdrachten", href: "/opdrachten", icon: "briefcase", enabled: false },
     { label: "Mijn reacties", href: "/reacties", icon: "files", enabled: false },
     { label: "Documenten", href: "/documenten", icon: "files", enabled: false },
@@ -35,7 +35,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   ],
   CLIENT: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
-    { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", enabled: false },
+    { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", enabled: true },
     { label: "Mijn opdrachten", href: "/opdrachten", icon: "briefcase", enabled: false },
     { label: "Kandidaten", href: "/kandidaten", icon: "users", enabled: false },
     { label: "Berichten", href: "/berichten", icon: "messages", enabled: false },

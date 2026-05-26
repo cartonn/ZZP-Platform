@@ -13,7 +13,7 @@
 ## Status per sessie
 
 - [x] **Sessie 0** — Inventarisatie & fundament
-- [ ] **Sessie 1** — Onboarding & profielen
+- [x] **Sessie 1** — Onboarding & profielen
 - [ ] **Sessie 2** — Opdrachten CRUD + zoeken/filteren
 - [ ] **Sessie 3** — Reacties & kandidatenflow
 - [ ] **Sessie 4** — Documenten + credentials (ZZP)
@@ -59,5 +59,32 @@
     migratie naar `prisma.config.ts` kan later).
   - E2e vereist een geïnstalleerde Edge/Chrome (system). In deze omgeving via apt-repo
     `packages.microsoft.com` → `microsoft-edge-stable`. Niet via Playwright's eigen CDN.
+
+### Sessie 1 — 2026-05-26
+- Wat gedaan: onboarding & profielen. Registratie met rolkeuze (FREELANCER/CLIENT)
+  maakt account + leeg profiel/bedrijf aan en logt direct in. Freelancer- en
+  bedrijfsprofiel bewerkbaar via beschermde routes (mutatieketen rol→ownership→Zod→
+  actie→audit). Server-berekende profiel-compleetheid met indicator. Publiek ZZP-profiel
+  (/zzp/[id]) dat zichtbaarheid server-side afdwingt (PRIVATE → 404, ook anoniem).
+  Bedrijfslogo-upload via de storage-abstractie + auth-gated media-route.
+- Bestanden:
+  - `src/lib/validation.ts` (+ test) — register/freelancer/company Zod-schema's
+  - `src/lib/profile.ts` (+ test) — compleetheid + zichtbaarheidsregel
+  - `src/app/register/*` — registratie (server action + signin)
+  - `src/app/(protected)/profiel/*` — freelancerprofiel bewerken + compleetheid
+  - `src/app/(protected)/bedrijf/*` — bedrijfsprofiel bewerken + logo-upload
+  - `src/app/zzp/[id]/page.tsx` — publiek profiel (zichtbaarheid afgedwongen)
+  - `src/app/api/media/[...key]/route.ts` — auth-gated logo-serving via storage
+  - `src/components/ui/*` — input, textarea, select, field, card, progress, badge
+  - nav.ts: /profiel + /bedrijf op enabled; auth.config: /register + /zzp/* publiek
+- Tests: 58 unit-tests (incl. validation 8, profile 6) + 10 Playwright e2e groen
+  (registratie, profiel publiceren, PUBLIC→PRIVATE 404, bedrijfsprofiel).
+- Checks: typecheck ✓, lint ✓, test ✓ (58), build ✓ (10 routes), e2e ✓ (10, via Edge).
+- Visueel gecontroleerd (screenshots 06-09): register, profiel + compleetheid,
+  publiek profiel, bedrijfsprofiel. Geen overflow; states correct.
+- Bekende minor: controlled <select> toont kort de oude waarde in de sub-seconde ná
+  een server-action save (RSC-refresh), zelfherstellend bij navigatie; data is correct
+  (DB + reload-assertie bevestigd). Nette toast/refresh-afhandeling: Sessie 9 (polish).
+- Volgende stap: Sessie 2 — Opdrachten CRUD + zoeken/filteren.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

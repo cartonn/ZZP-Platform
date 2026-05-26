@@ -12,7 +12,10 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
       const { pathname } = request.nextUrl;
       const isPublic =
-        pathname === "/login" || pathname.startsWith("/api/auth");
+        pathname === "/login" ||
+        pathname === "/register" ||
+        pathname.startsWith("/zzp/") ||
+        pathname.startsWith("/api/auth");
       if (isPublic) return true;
       return isLoggedIn;
     },

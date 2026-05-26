@@ -1,4 +1,5 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LoginForm } from "./login-form";
@@ -29,6 +30,12 @@ export default async function LoginPage() {
           <div className="mt-5">
             <LoginForm />
           </div>
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            Nog geen account?{" "}
+            <Link href="/register" className="font-medium text-foreground underline-offset-4 hover:underline">
+              Registreren
+            </Link>
+          </p>
         </div>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
