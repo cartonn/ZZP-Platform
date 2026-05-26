@@ -53,6 +53,10 @@ test("admin keurt goed en wijst af; ZZP'er ziet de uitkomst", async ({ page, bro
   await admin.goto("/admin/verificaties");
   await expect(admin.getByText(approveTitle)).toBeVisible();
   await expect(admin.getByText(rejectTitle)).toBeVisible();
+  // Wachttijd zichtbaar zodat de beheerder kan prioriteren (net ingediend = vandaag).
+  await expect(
+    admin.locator("div.bg-card", { hasText: approveTitle }).getByText("vandaag ingediend"),
+  ).toBeVisible();
   await shot(admin, "20-admin-queue");
 
   await admin.locator("div.bg-card", { hasText: approveTitle }).getByRole("button", { name: "Goedkeuren" }).click();

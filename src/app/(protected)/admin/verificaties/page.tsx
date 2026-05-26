@@ -2,7 +2,9 @@ import { type Metadata } from "next";
 import { Download } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,9 +13,15 @@ import { rejectCredential, verifyCredential } from "./actions";
 
 export const metadata: Metadata = { title: "Verificaties · ZZP Platform" };
 
-const TYPE_LABEL: Record<CredentialType, string> = {
-  VOG: "VOG", DIPLOMA: "Diploma", CERTIFICATE: "Certificaat", INSURANCE: "Verzekering", LICENSE: "Licentie", OTHER: "Overig",
-};
+/** Aantal hele dagen dat een aanvraag al wacht (sinds indienen). */
+const STALE_DAYS = 5;
+function daysWaiting(since: Date, now: number): number {
+  return Math.max(0, Math.floor((now - since.getTime()) / 86_400_000));
+}
+function waitingLabel(days: number): string {
+  if (days === 0) return "vandaag ingediend";
+  return `${days} dag${days === 1 ? "" : "en"} wachtend`;
+}
 
 function fmt(d: Date | null) {
   return d ? d.toISOString().slice(0, 10) : null;
@@ -31,13 +39,18 @@ export default async function VerificatiesPage() {
     },
   });
 
+  const now = Date.now();
+  const oldest = queue[0];
+  const oldestDays = oldest ? daysWaiting(oldest.updatedAt, now) : 0;
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Verificaties</h1>
           <p className="text-sm text-muted-foreground">
-            Beoordeel ingediende certificaten. {queue.length} in de wachtrij.
+            Beoordeel ingediende certificaten. {queue.length} in de wachtrij
+            {oldestDays >= STALE_DAYS ? `, langst wachtend ${oldestDays} dagen` : ""}.
           </p>
         </div>
         <ExpiryButton />
@@ -55,9 +68,15 @@ export default async function VerificatiesPage() {
             <Card key={c.id}>
               <CardContent className="space-y-3">
                 <div>
-                  <p className="font-medium">{c.title}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{c.title}</p>
+                    {(() => {
+                      const days = daysWaiting(c.updatedAt, now);
+                      return <Badge variant={days >= STALE_DAYS ? "warning" : "muted"}>{waitingLabel(days)}</Badge>;
+                    })()}
+                  </div>
                   <p className="text-sm text-muted-foreground">
-                    {TYPE_LABEL[c.type as CredentialType]}
+                    {CREDENTIAL_TYPE_LABEL[c.type as CredentialType]}
                     {c.issuer ? ` · ${c.issuer}` : ""}
                     {fmt(c.issuedAt) ? ` · uitgegeven ${fmt(c.issuedAt)}` : ""}
                     {fmt(c.expiresAt) ? ` · vervalt ${fmt(c.expiresAt)}` : ""}
