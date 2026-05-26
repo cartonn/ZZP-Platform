@@ -1,14 +1,20 @@
 import { type Metadata } from "next";
 import Link from "next/link";
+import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
 
 export const metadata: Metadata = { title: "Dashboard · ZZP Platform" };
 
-const INTRO: Record<UserRole, { title: string; lead: string; next: string[] }> = {
+const WERKPLEK: Record<UserRole, string> = {
+  FREELANCER: "ZZP-werkplek",
+  CLIENT: "Opdrachtgever-werkplek",
+  ADMIN: "Beheerwerkplek",
+};
+
+const INTRO: Record<UserRole, { lead: string; next: string[] }> = {
   FREELANCER: {
-    title: "Welkom terug",
     lead: "Beheer je profiel, certificaten en reacties op opdrachten op één plek.",
     next: [
       "Maak je profiel compleet zodat opdrachtgevers je vinden.",
@@ -17,7 +23,6 @@ const INTRO: Record<UserRole, { title: string; lead: string; next: string[] }> =
     ],
   },
   CLIENT: {
-    title: "Welkom terug",
     lead: "Plaats opdrachten en zie in één oogopslag welke kandidaten geverifieerd zijn.",
     next: [
       "Vul je bedrijfsprofiel aan.",
@@ -26,7 +31,6 @@ const INTRO: Record<UserRole, { title: string; lead: string; next: string[] }> =
     ],
   },
   ADMIN: {
-    title: "Beheeroverzicht",
     lead: "Verifieer certificaten, beheer gebruikers en bewaak de kwaliteit van het platform.",
     next: [
       "Werk de verificatiequeue bij.",
@@ -41,43 +45,73 @@ interface Stat {
   value: string | number;
   href: string;
 }
+interface Attention {
+  label: string;
+  href: string;
+}
 
-async function statsForRole(role: UserRole, userId: string): Promise<Stat[]> {
+async function dashboardData(role: UserRole, userId: string): Promise<{ stats: Stat[]; attention: Attention[] }> {
+  const attention: Attention[] = [];
+
   if (role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({ where: { userId }, select: { id: true, completeness: true } });
-    const [applications, verified] = await Promise.all([
-      profile ? prisma.application.count({ where: { freelancerId: profile.id } }) : Promise.resolve(0),
-      profile ? prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "VERIFIED" } }) : Promise.resolve(0),
+    const pid = profile?.id;
+    const soon = new Date(Date.now() + 30 * 86400_000);
+    const now = new Date();
+    const [applications, verified, rejected, expiring] = await Promise.all([
+      pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
+      pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED" } }) : Promise.resolve(0),
+      pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "REJECTED" } }) : Promise.resolve(0),
+      pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED", expiresAt: { gt: now, lte: soon } } }) : Promise.resolve(0),
     ]);
-    return [
-      { label: "Profiel compleet", value: `${profile?.completeness ?? 0}%`, href: "/profiel" },
-      { label: "Geverifieerde certificaten", value: verified, href: "/certificaten" },
-      { label: "Mijn reacties", value: applications, href: "/reacties" },
-    ];
+    if ((profile?.completeness ?? 0) < 100) attention.push({ label: `Profiel is ${profile?.completeness ?? 0}% compleet — vul aan`, href: "/profiel" });
+    if (rejected > 0) attention.push({ label: `${rejected} certificaat/certificaten afgewezen — opnieuw indienen`, href: "/certificaten" });
+    if (expiring > 0) attention.push({ label: `${expiring} certificaat verloopt binnenkort — vernieuw`, href: "/certificaten" });
+    return {
+      stats: [
+        { label: "Profiel compleet", value: `${profile?.completeness ?? 0}%`, href: "/profiel" },
+        { label: "Geverifieerde certificaten", value: verified, href: "/certificaten" },
+        { label: "Mijn reacties", value: applications, href: "/reacties" },
+      ],
+      attention,
+    };
   }
+
   if (role === "CLIENT") {
     const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
-    const [openJobs, newApps, activeCollabs] = await Promise.all([
-      company ? prisma.job.count({ where: { companyId: company.id, status: "PUBLISHED" } }) : Promise.resolve(0),
-      company ? prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }) : Promise.resolve(0),
-      company ? prisma.collaboration.count({ where: { companyId: company.id, status: "ACTIVE" } }) : Promise.resolve(0),
+    const cid = company?.id;
+    const [openJobs, newApps, drafts, activeCollabs] = await Promise.all([
+      cid ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } }) : Promise.resolve(0),
+      cid ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } }) : Promise.resolve(0),
+      cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
+      cid ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } }) : Promise.resolve(0),
     ]);
-    return [
-      { label: "Gepubliceerde opdrachten", value: openJobs, href: "/opdrachten" },
-      { label: "Nieuwe reacties", value: newApps, href: "/kandidaten" },
-      { label: "Actieve samenwerkingen", value: activeCollabs, href: "/samenwerkingen" },
-    ];
+    if (newApps > 0) attention.push({ label: `${newApps} nieuwe reactie(s) — beoordeel kandidaten`, href: "/kandidaten" });
+    if (drafts > 0) attention.push({ label: `${drafts} concept-opdracht(en) — publiceren?`, href: "/opdrachten" });
+    return {
+      stats: [
+        { label: "Gepubliceerde opdrachten", value: openJobs, href: "/opdrachten" },
+        { label: "Nieuwe reacties", value: newApps, href: "/kandidaten" },
+        { label: "Actieve samenwerkingen", value: activeCollabs, href: "/samenwerkingen" },
+      ],
+      attention,
+    };
   }
+
   const [pending, users, jobs] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.user.count(),
     prisma.job.count(),
   ]);
-  return [
-    { label: "Openstaande verificaties", value: pending, href: "/admin/verificaties" },
-    { label: "Gebruikers", value: users, href: "/admin/gebruikers" },
-    { label: "Opdrachten", value: jobs, href: "/admin/opdrachten" },
-  ];
+  if (pending > 0) attention.push({ label: `${pending} certificaat/certificaten wachten op verificatie`, href: "/admin/verificaties" });
+  return {
+    stats: [
+      { label: "Openstaande verificaties", value: pending, href: "/admin/verificaties" },
+      { label: "Gebruikers", value: users, href: "/admin/gebruikers" },
+      { label: "Opdrachten", value: jobs, href: "/admin/opdrachten" },
+    ],
+    attention,
+  };
 }
 
 export default async function DashboardPage() {
@@ -86,15 +120,23 @@ export default async function DashboardPage() {
   const role = user.role as UserRole;
   const intro = INTRO[role];
   const firstName = (user.name ?? "").split(" ")[0] || "daar";
-  const stats = await statsForRole(role, user.id!);
+  const today = new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
+  const { stats, attention } = await dashboardData(role, user.id!);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">
-          {intro.title}, {firstName}
-        </h1>
-        <p className="text-sm text-muted-foreground">{intro.lead}</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {WERKPLEK[role]} · {today}
+        </p>
+        <h1 className="text-xl font-semibold tracking-tight">Welkom terug, {firstName}</h1>
+        <p className="text-sm text-muted-foreground">
+          {attention.length === 0
+            ? intro.lead
+            : attention.length === 1
+              ? "Er is 1 punt dat je aandacht vraagt."
+              : `Er zijn ${attention.length} punten die je aandacht vragen.`}
+        </p>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-3">
@@ -108,6 +150,32 @@ export default async function DashboardPage() {
             <p className="mt-1 text-2xl font-semibold tabular-nums">{s.value}</p>
           </Link>
         ))}
+      </section>
+
+      <section className="rounded-lg border border-border bg-card">
+        <div className="border-b border-border px-5 py-3">
+          <h2 className="text-sm font-medium">Vraagt aandacht</h2>
+        </div>
+        {attention.length === 0 ? (
+          <div className="flex items-center gap-2 px-5 py-6 text-sm text-muted-foreground">
+            <CheckCircle2 className="size-4 text-success" aria-hidden />
+            Niets dat nu aandacht vraagt. Goed bezig.
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {attention.map((a) => (
+              <li key={a.label}>
+                <Link href={a.href} className="flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/40 focus-ring">
+                  <span className="flex items-center gap-2">
+                    <AlertTriangle className="size-4 shrink-0 text-warning" aria-hidden />
+                    {a.label}
+                  </span>
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="rounded-lg border border-border bg-card p-5">

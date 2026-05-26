@@ -354,4 +354,18 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   persistente DB + audit (Prisma) zijn hier wél gebouwd; docs (PROGRESS/CURRENT_TASK) lopen niet
   achter op de code. Checks: `npm run check` groen (104 unit + build); scan:secrets + check:env OK.
 
+### Design-systeem + ReOS-leerpunten — 2026-05-26 (eigenaar-richting)
+- Aanleiding: eigenaar vindt het light Linear-thema mooier en wil het in **tokens** vastgelegd;
+  leer ook van de eerdere ReOS-werkplek-UX.
+- `design.md` toegevoegd: token-tabel (uit globals.css), statuskleur-mapping, component-contracten,
+  layout/a11y/responsive, copy-stijl, **design-acceptatiecriteria**, en een **ReOS-leerpunten**-sectie
+  (werkbank-gevoel, dag-context, metric-strip, "Vraagt aandacht", dichte items, split login) vertaald
+  naar het light thema — niet de donkere ReOS-look gekopieerd.
+- Dashboard herbouwd als werkbank: dag-context-header ("{Rol}-werkplek · datum" + groet + operationele
+  samenvatting), klikbare metric-strip, en een **"Vraagt aandacht"-paneel** met echte, deterministische
+  uitzonderingen per rol (profiel-compleetheid, afgewezen/verlopen certificaten, nieuwe reacties,
+  concept-opdrachten, openstaande verificaties) — reden + volgende actie, geen verzonnen meldingen,
+  rustige lege staat. Desktop + mobiel geverifieerd (screenshots 31-32).
+- Checks: typecheck ✓, lint ✓, build ✓, e2e ✓ (21). Smoke-admin assert aangepast op de nieuwe header.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
