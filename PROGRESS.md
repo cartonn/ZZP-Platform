@@ -20,7 +20,7 @@
 - [x] **Sessie 5** — Verificatie (admin) + compliance afronden
 - [x] **Sessie 6** — Berichten, notificaties, samenwerkingen
 - [x] **Sessie 7** — Facturatie + billing
-- [ ] **Sessie 8** — Admin-paneel afronden
+- [x] **Sessie 8** — Admin-paneel afronden
 - [ ] **Sessie 9** — Polish, performance, a11y, e2e
 - [ ] **Sessie 10** — Productie-voorbereiding (code-kant)
 
@@ -246,5 +246,27 @@
 - Checks: typecheck ✓, lint ✓, test ✓ (97), build ✓ (24 routes), e2e ✓ (20, via Edge).
 - Visueel gecontroleerd (screenshots 25-27): factuur opstellen, betaalde factuur, abonnement.
 - Volgende stap: Sessie 8 — Admin-paneel afronden (gebruikers, opdrachten, audit log).
+
+### Sessie 8 — 2026-05-26
+- Wat gedaan: admin-paneel afgerond.
+  - **Gebruikers (`/admin/gebruikers`):** zoeken/filteren (naam/e-mail, rol, status); schorsen/
+    activeren via `setUserStatus` met server-side self-guard (`canModerateUser`) + Zod-status +
+    notificatie + audit (in $transaction). Rol wordt nooit gewijzigd.
+  - **Opdrachten (`/admin/opdrachten`):** alle opdrachten overzien/filteren; `adminCloseJob`
+    sluit via de bestaande `assertJobTransition` + audit.
+  - **Audit log (`/admin/audit`):** doorzoekbaar (actie/entiteit) + paginatie, read-only, met
+    actor-naam en metadata.
+- Bestanden:
+  - `src/lib/admin.ts` (+ tests: self-guard, suspension-toggle, audit-filters)
+  - `admin/{gebruikers,opdrachten,audit}/{page,actions}.tsx`; nav: admin-items enabled
+- Tests: 101 unit-tests (admin 6) + 21 e2e groen (admin schorst gebruiker + self-guard,
+  sluit opdracht, ziet auditregel). Reviewzwerm: CLEAN — elke admin-actie checkt requireRole,
+  self-guard server-side, geen rol-escalatie, filters parameterized, paginatie correct.
+- Bekend (productie-securityreview): JWT-strategie betekent dat een net-geschorste gebruiker
+  toegang houdt tot de JWT ververst; voor directe lockout zou `currentActor` de status uit de
+  DB moeten herlezen. Bewuste trade-off uit Sessie 0.
+- Checks: typecheck ✓, lint ✓, test ✓ (101), build ✓ (27 routes), e2e ✓ (21, via Edge).
+- Visueel gecontroleerd (screenshots 28-29): gebruikersbeheer, audit log.
+- Volgende stap: Sessie 9 — Polish, performance, a11y, e2e.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
