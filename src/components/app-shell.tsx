@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { MobileNav } from "@/components/mobile-nav";
 import { navForRole, ROLE_LABEL } from "@/lib/nav";
+import { navBadges } from "@/lib/signals";
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
 
@@ -17,9 +18,12 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   const role = user.role as UserRole;
-  const unread = user.id
-    ? await prisma.notification.count({ where: { userId: user.id, readAt: null } })
-    : 0;
+  const [unread, badges] = await Promise.all([
+    user.id
+      ? prisma.notification.count({ where: { userId: user.id, readAt: null } })
+      : Promise.resolve(0),
+    user.id ? navBadges(role, user.id) : Promise.resolve({}),
+  ]);
   const initials = (user.name ?? user.email ?? "?")
     .split(" ")
     .map((p) => p[0])
@@ -37,7 +41,7 @@ export async function AppShell({
           <span className="text-sm font-semibold">ZZP Platform</span>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
-          <SidebarNav items={navForRole(role)} />
+          <SidebarNav items={navForRole(role)} badges={badges} />
         </div>
         <div className="border-t border-border p-3">
           <Link href="/account" className="flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted focus-ring" aria-label="Account & privacy">
@@ -66,7 +70,7 @@ export async function AppShell({
       <div className="flex min-w-0 flex-col">
         <header className="flex h-14 items-center justify-between gap-3 border-b border-border px-4 md:px-6">
           <div className="flex items-center gap-2 md:hidden">
-            <MobileNav items={navForRole(role)} />
+            <MobileNav items={navForRole(role)} badges={badges} />
             <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
               Z
             </div>

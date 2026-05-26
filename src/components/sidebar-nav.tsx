@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { type NavIcon, type NavItem } from "@/lib/nav";
+import { type NavBadges } from "@/lib/signals";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<NavIcon, LucideIcon> = {
@@ -37,7 +38,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   calendar: CalendarDays,
 };
 
-export function SidebarNav({ items }: { items: NavItem[] }) {
+export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBadges }) {
   const pathname = usePathname();
 
   return (
@@ -45,6 +46,7 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
       {items.map((item) => {
         const Icon = ICONS[item.icon];
         const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        const badge = badges?.[item.href];
 
         if (!item.enabled) {
           return (
@@ -77,6 +79,19 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
           >
             <Icon className="size-4 shrink-0" aria-hidden />
             <span className="truncate">{item.label}</span>
+            {badge && (
+              <span
+                className={cn(
+                  "ml-auto flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium leading-5 tabular-nums",
+                  badge.tone === "attention"
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-background text-muted-foreground",
+                )}
+                aria-label={`${badge.count} ${badge.tone === "attention" ? "vraagt actie" : "open"}`}
+              >
+                {badge.count > 99 ? "99+" : badge.count}
+              </span>
+            )}
           </Link>
         );
       })}

@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { type NavItem } from "@/lib/nav";
+import { type NavBadges } from "@/lib/signals";
 
 /** Mobiel navigatiemenu (drawer). Sluit automatisch bij routewissel en op Escape. */
-export function MobileNav({ items }: { items: NavItem[] }) {
+export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBadges }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -53,7 +54,7 @@ export function MobileNav({ items }: { items: NavItem[] }) {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-3">
-              <SidebarNav items={items} />
+              <SidebarNav items={items} badges={badges} />
             </div>
           </div>
         </div>
