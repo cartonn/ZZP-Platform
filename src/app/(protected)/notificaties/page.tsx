@@ -1,0 +1,84 @@
+import { type Metadata } from "next";
+import Link from "next/link";
+import { requireActor } from "@/lib/authz";
+import { prisma } from "@/lib/db";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { markAllNotificationsRead, markNotificationRead } from "./actions";
+
+export const metadata: Metadata = { title: "Notificaties · ZZP Platform" };
+
+function relativeTime(d: Date): string {
+  const diff = Date.now() - d.getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "zojuist";
+  if (min < 60) return `${min} min geleden`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} uur geleden`;
+  return d.toISOString().slice(0, 10);
+}
+
+export default async function NotificatiesPage() {
+  const actor = await requireActor();
+  const notifications = await prisma.notification.findMany({
+    where: { userId: actor.id },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  const hasUnread = notifications.some((n) => !n.readAt);
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <header className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Notificaties</h1>
+          <p className="text-sm text-muted-foreground">Updates over je certificaten, reacties en berichten.</p>
+        </div>
+        {hasUnread && (
+          <form action={markAllNotificationsRead}>
+            <Button type="submit" variant="secondary" size="sm">Alles als gelezen markeren</Button>
+          </form>
+        )}
+      </header>
+
+      {notifications.length === 0 ? (
+        <Card>
+          <CardContent className="text-center text-sm text-muted-foreground">Geen notificaties.</CardContent>
+        </Card>
+      ) : (
+        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+          {notifications.map((n) => {
+            const unread = !n.readAt;
+            const inner = (
+              <>
+                <div className="flex items-start gap-3">
+                  <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", unread ? "bg-primary" : "bg-transparent")} aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("text-sm", unread ? "font-medium" : "")}>{n.title}</p>
+                    {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}
+                    <p className="mt-0.5 text-xs text-muted-foreground">{relativeTime(n.createdAt)}</p>
+                  </div>
+                  {unread && (
+                    <form action={markNotificationRead.bind(null, n.id)}>
+                      <Button type="submit" variant="ghost" size="sm">Gelezen</Button>
+                    </form>
+                  )}
+                </div>
+              </>
+            );
+            return (
+              <div key={n.id} className={cn("px-4 py-3", unread && "bg-muted/30")}>
+                {n.link ? (
+                  <Link href={n.link} className="block hover:opacity-80">{inner}</Link>
+                ) : (
+                  inner
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

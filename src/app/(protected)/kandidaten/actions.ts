@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { assertOwnership, type Actor, requireRole } from "@/lib/authz";
-import { audit } from "@/lib/audit";
+import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { assertApplicationTransition, ApplicationTransitionError } from "@/lib/applications";
 import { type ApplicationStatus, applicationStatusSchema } from "@/lib/enums";
@@ -10,7 +10,10 @@ import { type ApplicationStatus, applicationStatusSchema } from "@/lib/enums";
 async function loadOwnedApplication(actor: Actor, appId: string) {
   const app = await prisma.application.findUnique({
     where: { id: appId },
-    include: { job: { select: { company: { select: { userId: true } } } } },
+    include: {
+      job: { select: { title: true, company: { select: { userId: true } } } },
+      freelancer: { select: { userId: true } },
+    },
   });
   if (!app) throw new Error("Reactie niet gevonden.");
   assertOwnership(actor, app.job.company.userId);
@@ -30,14 +33,23 @@ export async function changeApplicationStatus(appId: string, target: string): Pr
     throw e;
   }
 
-  await prisma.application.update({ where: { id: appId }, data: { status: targetStatus } });
-  await audit({
-    actorId: actor.id,
-    action: "APPLICATION_STATUS_CHANGED",
-    entityType: "Application",
-    entityId: appId,
-    metadata: { from, to: targetStatus },
-  });
+  // Notificeer de ZZP'er bij een definitieve uitkomst.
+  const notify =
+    targetStatus === "ACCEPTED"
+      ? { title: "Je reactie is geaccepteerd", body: `Voor "${app.job.title}".` }
+      : targetStatus === "REJECTED"
+        ? { title: "Je reactie is afgewezen", body: `Voor "${app.job.title}".` }
+        : null;
+
+  await prisma.$transaction([
+    prisma.application.update({ where: { id: appId }, data: { status: targetStatus } }),
+    prisma.auditLog.create({
+      data: auditData({ actorId: actor.id, action: "APPLICATION_STATUS_CHANGED", entityType: "Application", entityId: appId, metadata: { from, to: targetStatus } }),
+    }),
+    ...(notify
+      ? [prisma.notification.create({ data: { userId: app.freelancer.userId, type: `APPLICATION_${targetStatus}`, title: notify.title, body: notify.body, link: "/reacties" } })]
+      : []),
+  ]);
   revalidatePath("/kandidaten");
 }
 

@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { changeApplicationStatus, saveApplicationNote } from "./actions";
+import { startConversationForApplication } from "@/app/(protected)/berichten/actions";
+import { ProposeCollaboration } from "./propose-collaboration";
 
 export const metadata: Metadata = { title: "Kandidaten · ZZP Platform" };
 
@@ -41,6 +43,7 @@ export default async function KandidatenPage() {
     include: {
       job: { select: { id: true, title: true } },
       freelancer: { select: { id: true, headline: true, visibility: true, user: { select: { name: true } } } },
+      collaboration: { select: { id: true } },
     },
   });
 
@@ -115,6 +118,16 @@ export default async function KandidatenPage() {
                     <Textarea name="note" rows={2} defaultValue={app.note ?? ""} placeholder="Interne notitie (alleen voor jou)…" maxLength={2000} />
                     <Button type="submit" variant="secondary" size="sm">Notitie opslaan</Button>
                   </form>
+
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                    <form action={startConversationForApplication.bind(null, app.id)}>
+                      <Button type="submit" variant="secondary" size="sm">Bericht sturen</Button>
+                    </form>
+                    {app.collaboration && (
+                      <Button asChild variant="secondary" size="sm"><Link href="/samenwerkingen">Bekijk samenwerking</Link></Button>
+                    )}
+                  </div>
+                  {status === "ACCEPTED" && !app.collaboration && <ProposeCollaboration applicationId={app.id} />}
                 </CardContent>
               </Card>
             );

@@ -138,3 +138,22 @@ export type CredentialInput = z.infer<typeof credentialSchema>;
 // --- Document (standalone upload) ---
 export const documentSchema = z.object({ kind: documentKindSchema });
 export type DocumentInput = z.infer<typeof documentSchema>;
+
+// --- Bericht ---
+export const messageSchema = z.object({
+  body: trimmed(5000).min(1, "Bericht mag niet leeg zijn."),
+});
+export type MessageInput = z.infer<typeof messageSchema>;
+
+// --- Samenwerking voorstellen ---
+export const collaborationProposalSchema = z
+  .object({
+    rate: optionalInt(2000),
+    startDate: optionalDate,
+    endDate: optionalDate,
+  })
+  .refine((d) => !d.startDate || !d.endDate || d.endDate >= d.startDate, {
+    message: "Einddatum mag niet vóór de startdatum liggen.",
+    path: ["endDate"],
+  });
+export type CollaborationProposalInput = z.infer<typeof collaborationProposalSchema>;

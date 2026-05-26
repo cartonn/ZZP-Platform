@@ -7,6 +7,7 @@ import {
   Building2,
   FileCheck2,
   Files,
+  Handshake,
   LayoutDashboard,
   MessagesSquare,
   Receipt,
@@ -29,6 +30,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   shield: ShieldCheck,
   user: User,
   building: Building2,
+  handshake: Handshake,
 };
 
 export function SidebarNav({ items }: { items: NavItem[] }) {

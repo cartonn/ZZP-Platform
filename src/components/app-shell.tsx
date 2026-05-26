@@ -1,11 +1,14 @@
+import Link from "next/link";
+import { Bell } from "lucide-react";
 import { type Session } from "next-auth";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { navForRole, ROLE_LABEL } from "@/lib/nav";
+import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
 
-export function AppShell({
+export async function AppShell({
   user,
   children,
 }: {
@@ -13,6 +16,9 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const role = user.role as UserRole;
+  const unread = user.id
+    ? await prisma.notification.count({ where: { userId: user.id, readAt: null } })
+    : 0;
   const initials = (user.name ?? user.email ?? "?")
     .split(" ")
     .map((p) => p[0])
@@ -65,6 +71,18 @@ export function AppShell({
             <span className="text-sm font-semibold">ZZP Platform</span>
           </div>
           <div className="ml-auto flex items-center gap-3">
+            <Link
+              href="/notificaties"
+              aria-label={`Notificaties${unread > 0 ? ` (${unread} ongelezen)` : ""}`}
+              className="relative rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-ring"
+            >
+              <Bell className="size-5" aria-hidden />
+              {unread > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-medium leading-4 text-white">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </Link>
             <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
               {ROLE_LABEL[role]}
             </span>

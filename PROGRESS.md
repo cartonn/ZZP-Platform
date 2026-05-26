@@ -18,7 +18,7 @@
 - [x] **Sessie 3** — Reacties & kandidatenflow
 - [x] **Sessie 4** — Documenten + credentials (ZZP)
 - [x] **Sessie 5** — Verificatie (admin) + compliance afronden
-- [ ] **Sessie 6** — Berichten, notificaties, samenwerkingen
+- [x] **Sessie 6** — Berichten, notificaties, samenwerkingen
 - [ ] **Sessie 7** — Facturatie + billing
 - [ ] **Sessie 8** — Admin-paneel afronden
 - [ ] **Sessie 9** — Polish, performance, a11y, e2e
@@ -194,5 +194,33 @@
 - Checks: typecheck ✓, lint ✓, test ✓ (84), build ✓ (18 routes), e2e ✓ (17, via Edge).
 - Visueel gecontroleerd (screenshots 20-21): admin-queue, ZZP-uitkomst (verified/afgewezen).
 - Volgende stap: Sessie 6 — Berichten, notificaties, samenwerkingen.
+
+### Sessie 6 — 2026-05-26
+- Wat gedaan: berichten, notificaties, samenwerkingen.
+  - **Berichten:** 1-op-1 gesprek (Conversation + ConversationParticipant) tussen CLIENT en
+    ZZP'er, gestart vanuit een reactie (`startConversationForApplication`). Thread + composer;
+    toegang server-side op deelnemerschap (`isParticipant`); ongelezen-telling (`unreadCount`).
+  - **Notificaties:** centrum (`/notificaties`) + ongelezen-bel met badge in de AppShell;
+    markeer-als-gelezen (per item + alles). Notificaties bij nieuw bericht, reactie
+    geaccepteerd/afgewezen, samenwerking voorgesteld/bijgewerkt — alle ownership-scoped.
+  - **Samenwerkingen:** Collaboration met expliciete statusflow (`COLLABORATION_TRANSITIONS`:
+    PROPOSED→ACTIVE/CANCELLED, ACTIVE→COMPLETED/CANCELLED), voorgesteld door CLIENT vanuit een
+    ACCEPTED reactie, bevestigd/afgerond/geannuleerd door een van beide partijen; audit + notify.
+- Bestanden:
+  - `src/lib/{messaging,collaborations}.ts` (+ tests), validation.ts (message/collab schemas)
+  - `berichten/{page,actions,[id]/page,[id]/message-composer,[id]/mark-read}.tsx`
+  - `notificaties/{page,actions}.tsx`; `app-shell.tsx` (bel + telling)
+  - `samenwerkingen/{page,actions}.tsx`; `kandidaten/propose-collaboration.tsx`
+  - kandidaten: "Bericht sturen" + voorstel/link + notify bij accept/reject (in $transaction)
+  - nav.ts + sidebar-nav.tsx: Berichten + Samenwerkingen enabled (nieuw "handshake"-icoon)
+- Tests: 91 unit-tests (messaging 5, collaborations 2) + 18 e2e groen (volledige journey:
+  reageren → bericht heen/weer → accepteren → samenwerking voorstellen/activeren → notificaties).
+- Reviewzwerm (2 agents): security CLEAN (geen IDOR; conversatie/notificatie/samenwerking
+  allemaal ownership-/deelnemer-gescoped), correctheid geen bugs. Genoteerd voor later:
+  berichtenlijst haalt nu alle messages op (perf → Sessie 9); geen unieke index op
+  (conversatie-paar) → theoretische dubbel-aanmaak-race (laag risico).
+- Checks: typecheck ✓, lint ✓, test ✓ (91), build ✓ (21 routes), e2e ✓ (18, via Edge).
+- Visueel gecontroleerd (screenshots 22-24): berichtenthread, samenwerkingen, notificatiecentrum + bel-badge.
+- Volgende stap: Sessie 7 — Facturatie + billing.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

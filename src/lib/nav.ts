@@ -10,7 +10,8 @@ export type NavIcon =
   | "receipt"
   | "shield"
   | "user"
-  | "building";
+  | "building"
+  | "handshake";
 
 export interface NavItem {
   label: string;
@@ -30,7 +31,8 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Mijn reacties", href: "/reacties", icon: "files", enabled: true },
     { label: "Documenten", href: "/documenten", icon: "files", enabled: true },
     { label: "Certificaten", href: "/certificaten", icon: "fileCheck", enabled: true },
-    { label: "Berichten", href: "/berichten", icon: "messages", enabled: false },
+    { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", enabled: true },
+    { label: "Berichten", href: "/berichten", icon: "messages", enabled: true },
     { label: "Facturen", href: "/facturen", icon: "receipt", enabled: false },
   ],
   CLIENT: [
@@ -38,7 +40,8 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", enabled: true },
     { label: "Mijn opdrachten", href: "/opdrachten", icon: "briefcase", enabled: true },
     { label: "Kandidaten", href: "/kandidaten", icon: "users", enabled: true },
-    { label: "Berichten", href: "/berichten", icon: "messages", enabled: false },
+    { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", enabled: true },
+    { label: "Berichten", href: "/berichten", icon: "messages", enabled: true },
     { label: "Facturen", href: "/facturen", icon: "receipt", enabled: false },
   ],
   ADMIN: [

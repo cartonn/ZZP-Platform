@@ -3,45 +3,45 @@
 > Eén taak tegelijk. Lees CLAUDE.md en PROGRESS.md voordat je begint.
 > Werk dit bestand bij wanneer je naar de volgende taak gaat.
 
-## NU: Sessie 6 — Berichten, notificaties, samenwerkingen
+## NU: Sessie 7 — Facturatie + billing
 
 ### Doel
-Opdrachtgevers en ZZP'ers communiceren in-app (na een match), zien hun notificaties, en
-kunnen een samenwerking vastleggen met een expliciete statusflow.
+Vanuit een samenwerking kan een ZZP'er facturen opstellen en versturen; opdrachtgever ziet
+ze en kan ze als betaald markeren. Plannen/abonnementen (FREE/PRO/BUSINESS) worden zichtbaar
+en de bestaande feature-gating (reactielimiet) krijgt een upgrade-pad.
 
-### Context uit Sessie 0-5 (staat al)
-- Modellen `Conversation`, `Message`, `Notification`, `Collaboration` (PROPOSED/ACTIVE/
-  COMPLETED/CANCELLED — `COLLABORATION_STATUSES` in enums).
-- Notificaties worden al aangemaakt (verificatiebeslissingen); er is nog GEEN UI om ze te
-  zien. `Notification`: userId, type, title, body?, link?, readAt?.
-- Mutatieketen via authz + audit; statusovergangen via expliciete map (vgl. JOB_/APPLICATION_
-  /CREDENTIAL_TRANSITIONS) — maak `COLLABORATION_TRANSITIONS` + assert in een `src/lib/*.ts`.
-- Patronen: server actions + Zod + role-aware pages; nav-items "Berichten" (beide rollen)
-  staan op enabled:false in `src/lib/nav.ts`.
+### Context uit Sessie 0-6 (staat al)
+- Modellen `Invoice`, `InvoiceLine`, `Plan`, `Subscription` (zie prisma/schema.prisma).
+  Enums: `INVOICE_STATUSES` (DRAFT/SENT/PAID/OVERDUE/CANCELLED), `CONTRACT_STATUSES`,
+  `PLAN_KEYS` (FREE/PRO/BUSINESS), `SUBSCRIPTION_STATUSES` (ACTIVE/PAST_DUE/CANCELLED).
+- Plannen zijn geseed; gating zit al in `createApplication` (alleen ACTIVE-abonnement telt,
+  anders FREE). `Collaboration` koppelt job/company/freelancer + heeft `invoices`.
+- Maak `INVOICE_TRANSITIONS` + assert (vgl. de andere transitie-maps). Bedragen server-side
+  herberekenen (regels → subtotaal/btw/totaal); nooit client-side bedragen vertrouwen.
+- Mutatieketen via authz + audit; nav-item "Facturen" (beide rollen) staat op enabled:false.
+- GEEN echte betaalprovider/Stripe — dit is mensenwerk/infra. Alleen status + (mock) flow.
 
 ### Stappen
-1. **Berichten:** een `Conversation` tussen een CLIENT en een FREELANCER (1-op-1, eventueel
-   gekoppeld aan een opdracht/reactie). Berichtenlijst + detailthread; bericht versturen
-   (Zod, ownership: alleen de twee deelnemers). Geen realtime — server-render + revalidate.
-   Start een gesprek vanuit een kandidaat (SHORTLIST/ACCEPTED) of geaccepteerde reactie.
-2. **Notificaties:** notificatiecentrum (lijst + ongelezen-badge in de shell), markeer als
-   gelezen (per item + alles). Maak notificaties aan bij relevante events (nieuw bericht,
-   reactie geaccepteerd/afgewezen) — server-side, naast de bestaande verificatie-notificaties.
-3. **Samenwerkingen:** `Collaboration` met expliciete statusovergangen (voorstellen → actief →
-   afgerond/geannuleerd), ownership server-side, audit.
-4. **Tests:** collaboration-statusovergangen (pure functie + assert), bericht-validatie,
-   ownership op conversatie-toegang; e2e: client en freelancer wisselen berichten uit.
+1. **Facturen (FREELANCER):** factuur opstellen vanuit een samenwerking (regels: omschrijving,
+   aantal, tarief; btw-percentage). Server berekent subtotaal/btw/totaal. Concept → versturen.
+   Invoice-statusflow via expliciete map. Factuurnummer server-side (uniek, oplopend).
+2. **Facturen (CLIENT):** ontvangen facturen zien, als betaald markeren; OVERDUE-afleiding
+   (server-side, op vervaldatum). PDF/print-vriendelijke detailweergave (geen externe lib nodig).
+3. **Plannen/abonnementen:** plan-overzicht + huidige plan; (mock) upgraden/downgraden zonder
+   echte betaling (Subscription ACTIVE). Gating-melding linkt naar de upgrade-pagina.
+4. **Tests:** invoice-statusovergangen, bedrag-/btw-berekening (pure functie), nummer-generatie,
+   ownership op factuurtoegang; e2e: ZZP'er stuurt factuur, client markeert betaald.
 
 ### Definition of Done (deze sessie)
-- [ ] 1-op-1 berichten met thread + versturen (alleen deelnemers, server-side)
-- [ ] Notificatiecentrum met ongelezen-badge + markeer-als-gelezen
-- [ ] Samenwerking met expliciete statusflow (assert) + audit
+- [ ] Factuur opstellen/versturen (server-berekende bedragen) + statusflow via assert
+- [ ] CLIENT ziet facturen + markeert betaald; OVERDUE server-afgeleid
+- [ ] Plan-overzicht + (mock) abonnement; gating verwijst naar upgrade
 - [ ] typecheck + lint + test + build groen; e2e uitgebreid + screenshots gecontroleerd
-- [ ] Commit, PROGRESS.md bij, CURRENT_TASK.md naar Sessie 7
+- [ ] Commit, PROGRESS.md bij, CURRENT_TASK.md naar Sessie 8
 
 ### Niet nu doen
-Geen facturatie/billing (Sessie 7), geen admin-gebruikersbeheer (Sessie 8). Geen echte
-e-mail/push — alleen in-app `Notification`. Geen websockets/realtime.
+Geen echte betaalintegratie (Stripe/Mollie) — mensenwerk/infra. Geen admin-paneel (Sessie 8).
+Geen e-mailverzending van facturen — alleen in-app + (later) download.
 
 ---
 
