@@ -43,8 +43,23 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
   kaart) én ZZP'er (kaart met "Bijwerken"). Gedeelde `CREDENTIAL_TYPE_LABEL` naar `credentials.ts`.
 - **Aansluiting vóór reageren** (`opdrachten/[id]`): match + per-eis certificaatstatus met
   "Toevoegen"-link voor wat ontbreekt/verlopen is.
-- e2e: `recommendations`, `collaboration-compliance`, `berichten-signal`, `job-fit` (+ badge-
-  assertie in `applications`). Checks groen: typecheck/lint, 159 unit-tests, build, e2e + shots.
+- **Geschikte ZZP'ers** (`src/lib/suggestions.ts` + test): spiegelbeeld voor de opdrachtgever bij
+  een gepubliceerde opdracht — openbare profielen die passen, met "Bericht sturen" (echt gesprek
+  via `startConversationWithFreelancer`).
+- **Match per opdracht in de lijst** (`opdrachten` browse): persoonlijke matchscore per kaart.
+- **Verificatie-wachttijd** (`admin/verificaties`): dagen-in-wachtrij + amber na 5 dagen.
+- **Status-uitleg** (`reacties`): per reactie wat de status betekent en de volgende stap.
+- **Verlopen facturen**: dashboard-attentie + nav-badge voor ZZP'er (herinneren) en opdrachtgever
+  (betalen) via `overdueInvoiceCount`.
+- **Privéprofiel-waarschuwing** (dashboard): meldt dat opdrachtgevers je niet kunnen vinden.
+- **Over de opdrachtgever** (`opdrachten/[id]`): bedrijfsinfo voor ZZP'ers.
+- **Refactor**: één `scoreJobForFreelancer` in `matching.ts` i.p.v. 5× dezelfde mapping.
+- **Railway-deploy**: `Dockerfile`, `railway.json`, `scripts/{use-db-provider,start}.mjs`
+  (PostgreSQL in productie, schema-push + seed bij eerste start).
+- e2e: `recommendations`, `collaboration-compliance`, `berichten-signal`, `job-fit`,
+  `suggested-freelancers`, `browse-match`, `overdue-invoice`, `profile-visibility`, `company-info`
+  (+ asserties in `applications`/`verification`). Checks groen: typecheck/lint, 163 unit-tests,
+  build, e2e + shots.
 
 ### Sessie 0 — 2026-05-25
 - Wat gedaan: fundament vanaf nul gescaffold (geen bestaande codebase aangetroffen).
