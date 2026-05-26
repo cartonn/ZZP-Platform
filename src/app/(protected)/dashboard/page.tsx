@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { clientCredentialAlerts, describeCredentialAlert } from "@/lib/collaboration-alerts";
+import { overdueInvoiceCount } from "@/lib/signals";
 import { Badge } from "@/components/ui/badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 
@@ -62,17 +63,19 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
     const pid = profile?.id;
     const soon = new Date(Date.now() + 30 * 86400_000);
     const now = new Date();
-    const [applications, verified, rejected, expiring, account] = await Promise.all([
+    const [applications, verified, rejected, expiring, account, overdue] = await Promise.all([
       pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
       pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED" } }) : Promise.resolve(0),
       pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "REJECTED" } }) : Promise.resolve(0),
       pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED", expiresAt: { gt: now, lte: soon } } }) : Promise.resolve(0),
       prisma.user.findUnique({ where: { id: userId }, select: { identityVerifiedAt: true } }),
+      overdueInvoiceCount("FREELANCER", userId),
     ]);
     if (!account?.identityVerifiedAt) attention.push({ label: "Verifieer je identiteit voor een hoger vertrouwensniveau", href: "/account" });
     if ((profile?.completeness ?? 0) < 100) attention.push({ label: `Profiel is ${profile?.completeness ?? 0}% compleet — vul aan`, href: "/profiel" });
     if (rejected > 0) attention.push({ label: `${rejected} certificaat/certificaten afgewezen — opnieuw indienen`, href: "/certificaten" });
     if (expiring > 0) attention.push({ label: `${expiring} certificaat verloopt binnenkort — vernieuw`, href: "/certificaten" });
+    if (overdue > 0) attention.push({ label: `${overdue} factu(u)r(en) over de vervaldatum — stuur een herinnering`, href: "/facturen" });
     return {
       stats: [
         { label: "Profiel compleet", value: `${profile?.completeness ?? 0}%`, href: "/profiel" },
@@ -86,12 +89,13 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
   if (role === "CLIENT") {
     const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
     const cid = company?.id;
-    const [openJobs, newApps, drafts, activeCollabs, credentialAlerts] = await Promise.all([
+    const [openJobs, newApps, drafts, activeCollabs, credentialAlerts, overdue] = await Promise.all([
       cid ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } }) : Promise.resolve(0),
       cid ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } }) : Promise.resolve(0),
       cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
       cid ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } }) : Promise.resolve(0),
       clientCredentialAlerts(userId),
+      overdueInvoiceCount("CLIENT", userId),
     ]);
     // Compliance van een lopende samenwerking weegt het zwaarst — bovenaan.
     for (const a of credentialAlerts) {
@@ -99,6 +103,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
     }
     if (newApps > 0) attention.push({ label: `${newApps} nieuwe reactie(s) — beoordeel kandidaten`, href: "/kandidaten" });
     if (drafts > 0) attention.push({ label: `${drafts} concept-opdracht(en) — publiceren?`, href: "/opdrachten" });
+    if (overdue > 0) attention.push({ label: `${overdue} openstaande factu(u)r(en) over de vervaldatum — betaal`, href: "/facturen" });
     return {
       stats: [
         { label: "Gepubliceerde opdrachten", value: openJobs, href: "/opdrachten" },

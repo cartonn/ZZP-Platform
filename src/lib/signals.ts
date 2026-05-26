@@ -24,6 +24,7 @@ interface SignalCounts {
   draftJobs?: number; // CLIENT: concept-opdrachten
   pendingVerifications?: number; // ADMIN: wacht op verificatie
   unreadMessages?: number; // FREELANCER + CLIENT: gesprekken met ongelezen berichten
+  overdueInvoices?: number; // FREELANCER + CLIENT: facturen over de vervaldatum
 }
 
 const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
@@ -32,6 +33,7 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   draftJobs: "/opdrachten",
   pendingVerifications: "/admin/verificaties",
   unreadMessages: "/berichten",
+  overdueInvoices: "/facturen",
 };
 
 const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
@@ -40,6 +42,7 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   draftJobs: "info",
   pendingVerifications: "attention",
   unreadMessages: "info",
+  overdueInvoices: "attention",
 };
 
 const EXPIRY_WINDOW_MS = 30 * 86_400_000; // 30 dagen, gelijk aan het dashboard
@@ -76,6 +79,21 @@ export function countUnreadConversations(
   return unread;
 }
 
+/**
+ * Facturen die actie vragen: expliciet OVERDUE óf verzonden en over de vervaldatum.
+ * Vanuit de ZZP'er (herinneren) of de opdrachtgever (betalen). Eén indexed count.
+ */
+export async function overdueInvoiceCount(role: UserRole, userId: string): Promise<number> {
+  if (role === "ADMIN") return 0;
+  const party = role === "FREELANCER" ? { freelancer: { userId } } : { company: { userId } };
+  return prisma.invoice.count({
+    where: {
+      collaboration: party,
+      OR: [{ status: "OVERDUE" }, { status: "SENT", dueAt: { lt: new Date() } }],
+    },
+  });
+}
+
 /** Twee begrensde queries (geen N+1): deelnemerschap + laatste vreemde bericht per gesprek. */
 async function unreadConversationCount(userId: string): Promise<number> {
   const participants = await prisma.conversationParticipant.findMany({
@@ -102,25 +120,27 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     if (!profile) return {};
     const now = new Date();
     const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
-    const [rejected, expiring, unreadMessages] = await Promise.all([
+    const [rejected, expiring, unreadMessages, overdueInvoices] = await Promise.all([
       prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
       prisma.credential.count({
         where: { freelancerProfileId: profile.id, status: "VERIFIED", expiresAt: { gt: now, lte: soon } },
       }),
       unreadConversationCount(userId),
+      overdueInvoiceCount("FREELANCER", userId),
     ]);
-    return buildBadges({ credentialAlerts: rejected + expiring, unreadMessages });
+    return buildBadges({ credentialAlerts: rejected + expiring, unreadMessages, overdueInvoices });
   }
 
   if (role === "CLIENT") {
     const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
     if (!company) return {};
-    const [newApplications, draftJobs, unreadMessages] = await Promise.all([
+    const [newApplications, draftJobs, unreadMessages, overdueInvoices] = await Promise.all([
       prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
       prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
       unreadConversationCount(userId),
+      overdueInvoiceCount("CLIENT", userId),
     ]);
-    return buildBadges({ newApplications, draftJobs, unreadMessages });
+    return buildBadges({ newApplications, draftJobs, unreadMessages, overdueInvoices });
   }
 
   const pendingVerifications = await prisma.credential.count({ where: { status: "SUBMITTED" } });

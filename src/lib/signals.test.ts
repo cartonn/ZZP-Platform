@@ -31,6 +31,12 @@ describe("buildBadges", () => {
       "/berichten": { count: 2, tone: "info" },
     });
   });
+
+  it("mapt verlopen facturen naar /facturen met attention-toon", () => {
+    expect(buildBadges({ overdueInvoices: 1 })).toEqual({
+      "/facturen": { count: 1, tone: "attention" },
+    });
+  });
 });
 
 describe("countUnreadConversations", () => {
