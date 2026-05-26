@@ -36,6 +36,14 @@ export default async function NieuweOpdrachtPage() {
           optionalSkillIds: [],
           requiredCredentialTypes: [],
           optionalCredentialTypes: [],
+          dba: {
+            dbaDirectSupervision: false,
+            dbaEmbedded: false,
+            dbaFixedSchedule: false,
+            dbaNoSubstitution: false,
+            dbaExclusive: false,
+            dbaDurationMonths: "",
+          },
         }}
         skills={skills}
         industries={industries}

@@ -6,6 +6,7 @@ import { assertOwnership, AuthorizationError, requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { canApply } from "@/lib/applications";
+import { assessDbaRisk } from "@/lib/dba";
 import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs";
 import { computeMatchScore, type FreelancerCredential } from "@/lib/matching";
 import { type CredentialType, type JobStatus, jobStatusSchema, type WorkMode } from "@/lib/enums";
@@ -29,6 +30,12 @@ function parseJobForm(formData: FormData) {
     optionalSkillIds: formData.getAll("optionalSkillIds").map(String),
     requiredCredentialTypes: formData.getAll("requiredCredentialTypes").map(String),
     optionalCredentialTypes: formData.getAll("optionalCredentialTypes").map(String),
+    dbaDirectSupervision: formData.get("dbaDirectSupervision") === "on",
+    dbaEmbedded: formData.get("dbaEmbedded") === "on",
+    dbaFixedSchedule: formData.get("dbaFixedSchedule") === "on",
+    dbaNoSubstitution: formData.get("dbaNoSubstitution") === "on",
+    dbaExclusive: formData.get("dbaExclusive") === "on",
+    dbaDurationMonths: formData.get("dbaDurationMonths") ?? "",
   });
 }
 
@@ -65,6 +72,16 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
   const credReqs = credTypes.map((credentialType) => ({ credentialType, required: requiredCreds.has(credentialType) }));
 
   const jobId = (formData.get("jobId") as string) || null;
+  // Wet DBA: server-berekende (gezaghebbende) risico-snapshot — niet de client vertrouwen.
+  const dba = assessDbaRisk({
+    directSupervision: data.dbaDirectSupervision,
+    embedded: data.dbaEmbedded,
+    fixedSchedule: data.dbaFixedSchedule,
+    noSubstitution: data.dbaNoSubstitution,
+    exclusive: data.dbaExclusive,
+    durationMonths: data.dbaDurationMonths ?? null,
+  });
+
   const fields = {
     title: data.title,
     description: data.description,
@@ -74,6 +91,14 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
     location: data.location ?? null,
     workMode: data.workMode,
     startDate: data.startDate ?? null,
+    dbaDirectSupervision: data.dbaDirectSupervision,
+    dbaEmbedded: data.dbaEmbedded,
+    dbaFixedSchedule: data.dbaFixedSchedule,
+    dbaNoSubstitution: data.dbaNoSubstitution,
+    dbaExclusive: data.dbaExclusive,
+    dbaDurationMonths: data.dbaDurationMonths ?? null,
+    dbaRisk: dba.level,
+    dbaReasons: JSON.stringify(dba.reasons),
   };
 
   let savedId: string;

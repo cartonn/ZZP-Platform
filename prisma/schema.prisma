@@ -187,6 +187,16 @@ model Job {
   updatedAt   DateTime @updatedAt
   publishedAt DateTime?
 
+  // Wet DBA-check (schijnzelfstandigheid) — invoer + server-berekende snapshot.
+  dbaDirectSupervision Boolean @default(false)
+  dbaEmbedded          Boolean @default(false)
+  dbaFixedSchedule     Boolean @default(false)
+  dbaNoSubstitution    Boolean @default(false)
+  dbaExclusive         Boolean @default(false)
+  dbaDurationMonths    Int?
+  dbaRisk              String? //  DbaRisk: LAAG | MIDDEN | HOOG (server-berekend)
+  dbaReasons           String? //  JSON-string met uitleg per indicator
+
   company              Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   industry             Industry?                  @relation(fields: [industryId], references: [id])
   skills               JobSkill[]

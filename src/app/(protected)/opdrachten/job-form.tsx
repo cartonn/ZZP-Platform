@@ -7,8 +7,18 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
+import { assessDbaRisk, dbaAdvice } from "@/lib/dba";
 import { type CredentialType } from "@/lib/enums";
 import { saveJob, type JobFormState } from "./actions";
+
+const DBA_FACTORS = [
+  ["dbaDirectSupervision", "De ZZP'er werkt onder directe aansturing/instructies"],
+  ["dbaEmbedded", "De rol is structureel ingebed in de organisatie/het team"],
+  ["dbaFixedSchedule", "Vaste uren/rooster zoals een werknemer"],
+  ["dbaNoSubstitution", "Vrije vervanging is niet toegestaan"],
+  ["dbaExclusive", "De ZZP'er werkt exclusief voor dit bedrijf"],
+] as const;
 
 const WORK_MODE = [
   ["REMOTE", "Remote"],
@@ -39,6 +49,14 @@ export interface JobFormInitial {
   optionalSkillIds: string[];
   requiredCredentialTypes: string[];
   optionalCredentialTypes: string[];
+  dba: {
+    dbaDirectSupervision: boolean;
+    dbaEmbedded: boolean;
+    dbaFixedSchedule: boolean;
+    dbaNoSubstitution: boolean;
+    dbaExclusive: boolean;
+    dbaDurationMonths: string;
+  };
 }
 
 export function JobForm({
@@ -54,6 +72,17 @@ export function JobForm({
   const fe = state?.fieldErrors ?? {};
   const [workMode, setWorkMode] = useState(initial.workMode);
   const [industryId, setIndustryId] = useState(initial.industryId);
+  const [dba, setDba] = useState(initial.dba);
+
+  // Live, deterministische DBA-inschatting (zelfde pure functie als de server gebruikt).
+  const dbaResult = assessDbaRisk({
+    directSupervision: dba.dbaDirectSupervision,
+    embedded: dba.dbaEmbedded,
+    fixedSchedule: dba.dbaFixedSchedule,
+    noSubstitution: dba.dbaNoSubstitution,
+    exclusive: dba.dbaExclusive,
+    durationMonths: dba.dbaDurationMonths ? Number(dba.dbaDurationMonths) : null,
+  });
 
   return (
     <form action={formAction} className="space-y-6">
@@ -123,6 +152,57 @@ export function JobForm({
         options={Object.entries(CREDENTIAL_LABELS).map(([value, label]) => ({ value, label }))}
         selected={initial.optionalCredentialTypes}
       />
+
+      <fieldset className="space-y-3 rounded-lg border border-border bg-card p-5">
+        <div>
+          <legend className="text-sm font-medium">Wet DBA — risicocheck</legend>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Vink aan wat van toepassing is. We tonen direct het risico op schijnzelfstandigheid met uitleg.
+            Dit is een hulpmiddel, geen juridisch advies.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {DBA_FACTORS.map(([name, label]) => (
+            <label key={name} className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                name={name}
+                checked={dba[name]}
+                onChange={(e) => setDba((d) => ({ ...d, [name]: e.target.checked }))}
+                className="mt-0.5"
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+        <Field label="Verwachte duur (maanden)" htmlFor="dbaDurationMonths">
+          <Input
+            id="dbaDurationMonths"
+            name="dbaDurationMonths"
+            type="number"
+            min={0}
+            max={240}
+            value={dba.dbaDurationMonths}
+            onChange={(e) => setDba((d) => ({ ...d, dbaDurationMonths: e.target.value }))}
+            className="max-w-32"
+          />
+        </Field>
+
+        <div className="rounded-md border border-border bg-muted/40 p-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Inschatting:</span>
+            <DbaRiskBadge level={dbaResult.level} />
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">{dbaAdvice(dbaResult.level)}</p>
+          {dbaResult.reasons.length > 0 && (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+              {dbaResult.reasons.map((r) => (
+                <li key={r.factor}>{r.message}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </fieldset>
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={isPending}>

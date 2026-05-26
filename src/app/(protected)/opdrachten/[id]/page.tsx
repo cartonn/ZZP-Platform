@@ -12,6 +12,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { type ComplianceStatus } from "@/lib/matching";
+import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
+import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { changeJobStatus, createApplication } from "../actions";
 import { ApplicationForm } from "./application-form";
 
@@ -149,6 +151,24 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         </section>
       )}
 
+      {isOwner && job.dbaRisk && (
+        <section className="space-y-2 rounded-lg border border-border bg-card p-5">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-medium">Wet DBA — risico</h2>
+            <DbaRiskBadge level={job.dbaRisk as DbaRisk} />
+          </div>
+          <p className="text-xs text-muted-foreground">{dbaAdvice(job.dbaRisk as DbaRisk)}</p>
+          {parseDbaReasons(job.dbaReasons).length > 0 && (
+            <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+              {parseDbaReasons(job.dbaReasons).map((r) => (
+                <li key={r.factor}>{r.message}</li>
+              ))}
+            </ul>
+          )}
+          <p className="text-[11px] text-muted-foreground/70">Hulpmiddel, geen juridisch advies.</p>
+        </section>
+      )}
+
       {isOwner ? (
         <div className="flex flex-wrap gap-2 border-t border-border pt-4">
           {JOB_TRANSITIONS[status].map((to) => (
@@ -187,5 +207,15 @@ function parseComplianceStatus(raw: string | null | undefined): ComplianceStatus
     return (v?.status as ComplianceStatus) ?? null;
   } catch {
     return null;
+  }
+}
+
+function parseDbaReasons(raw: string | null | undefined): DbaReason[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? (v as DbaReason[]) : [];
+  } catch {
+    return [];
   }
 }

@@ -368,4 +368,20 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   rustige lege staat. Desktop + mobiel geverifieerd (screenshots 31-32).
 - Checks: typecheck ✓, lint ✓, build ✓, e2e ✓ (21). Smoke-admin assert aangepast op de nieuwe header.
 
+### Wet DBA — deterministische compliance — 2026-05-26 (eigenaar-richting: "conform geldende wetgeving")
+- Wat gedaan: deterministische schijnzelfstandigheid-check op opdrachten. Regels beslissen en
+  leggen uit; **geen AI, geen dode knoppen**. `src/lib/dba.ts` (gewogen indicatoren: gezag/inbedding =
+  kern, vrije vervanging/vaste uren = medium, exclusiviteit/duur = licht) → LAAG/MIDDEN/HOOG met
+  uitleg per indicator + handelingsadvies. Volledig unit-getest.
+- Opdrachtformulier: DBA-sectie met **live preview** (zelfde pure functie client-side, single source).
+  Server **herberekent gezaghebbend** bij opslaan en bewaart snapshot (`dbaRisk` + `dbaReasons` JSON +
+  de booleans) — client-waarde wordt nooit vertrouwd. Detailpagina toont risico + uitleg + advies
+  **alleen aan eigenaar/admin** (niet aan kandidaten). Disclaimer: hulpmiddel, geen juridisch advies.
+- Schema: Job uitgebreid met dba*-velden (db push). validation: jobSchema uitgebreid.
+- Tests: 111 unit-tests (dba 7) + 22 e2e groen (hoog-risico live + op detail). Reviewzwerm: CLEAN
+  (server-gezaghebbend, geen lek naar non-owners, drempels kloppen, JSON-guard).
+- Checks: typecheck ✓, lint ✓, build ✓, e2e ✓ (22). Desktop + mobiel-patroon ongewijzigd.
+- Aanbeveling vervolg (eigenaar): AVG/privacy-evidence (verwerkingsregister, bewaartermijnen,
+  DPIA-light) en modelovereenkomst-koppeling bij HOOG; beide deels mensenwerk.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

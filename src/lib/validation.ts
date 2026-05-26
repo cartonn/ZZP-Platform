@@ -104,6 +104,13 @@ export const jobSchema = z
     optionalSkillIds: z.array(z.string().cuid()).max(50).default([]),
     requiredCredentialTypes: z.array(credentialTypeSchema).max(20).default([]),
     optionalCredentialTypes: z.array(credentialTypeSchema).max(20).default([]),
+    // Wet DBA-indicatoren (booleans uit checkboxes; durationMonths in maanden).
+    dbaDirectSupervision: z.boolean().default(false),
+    dbaEmbedded: z.boolean().default(false),
+    dbaFixedSchedule: z.boolean().default(false),
+    dbaNoSubstitution: z.boolean().default(false),
+    dbaExclusive: z.boolean().default(false),
+    dbaDurationMonths: optionalInt(240),
   })
   .refine((d) => d.rateMin == null || d.rateMax == null || d.rateMin <= d.rateMax, {
     message: "Minimumtarief mag niet hoger zijn dan maximumtarief.",
