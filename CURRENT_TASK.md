@@ -3,42 +3,44 @@
 > Eén taak tegelijk. Lees CLAUDE.md en PROGRESS.md voordat je begint.
 > Werk dit bestand bij wanneer je naar de volgende taak gaat.
 
-## NU: Sessie 2 — Opdrachten CRUD + zoeken/filteren
+## NU: Sessie 3 — Reacties & kandidatenflow
 
 ### Doel
-Opdrachtgevers beheren opdrachten (concept → publiceren → sluiten); ZZP'ers vinden ze
-via zoeken/filteren. Alle statusovergangen en filters server-side.
+ZZP'ers reageren op opdrachten met een server-berekende matchscore + compliance-snapshot;
+opdrachtgevers beheren kandidaten per opdracht. Feature-gating (max reacties per plan).
 
-### Context uit Sessie 0/1 (staat al)
-- Modellen `Job`, `JobSkill`, `JobCredentialRequirement`, `Company`, `Skill`, `Industry`.
-- Mutatieketen via `src/lib/authz.ts` (`requireRole("CLIENT")`, `assertOwnership`) + `audit`.
-- Patroon voor server actions + Zod + controlled forms: zie `src/app/(protected)/bedrijf/*`.
-- Enums in `src/lib/enums.ts`: `JOB_STATUSES` (DRAFT/PUBLISHED/CLOSED), `WORK_MODES`.
-- Role-aware nav: zet `Opdrachten`/`Mijn opdrachten` op `enabled` in `src/lib/nav.ts`.
+### Context uit Sessie 0-2 (staat al)
+- Modellen `Application` (uniek [jobId, freelancerId], status, matchScore, complianceSnapshot,
+  note), `Job`, `FreelancerProfile`, `Plan`, `Subscription`.
+- `src/lib/matching.ts` (getest): `computeMatchScore` + `computeCompliance` — gebruik dit
+  server-side bij het aanmaken van een reactie en sla de snapshot op.
+- Enums: `APPLICATION_STATUSES` (NEW/VIEWED/SHORTLIST/REJECTED/ACCEPTED). Maak een
+  expliciete overgangsmap (vgl. JOB_TRANSITIONS) + assert.
+- Mutatieketen via authz + audit. Patronen: `src/app/(protected)/opdrachten/*`.
+- Plannen zijn geseed (FREE/PRO/BUSINESS met maxApplications). Gating server-side.
 
 ### Stappen
-1. **Job aanmaken/bewerken (CLIENT):** alle velden uit het model. Concept opslaan,
-   publiceren, sluiten — via een expliciete statusovergangsmap (vgl. `CREDENTIAL_TRANSITIONS`),
-   server-side afgedwongen. Ownership op de eigen Company.
-2. **Skills & credentials koppelen:** vereiste/gewenste skills (JobSkill.required) en
-   vereiste/gewenste credential-types (JobCredentialRequirement).
-3. **Opdrachtenoverzicht (ZZP-kant):** zoeken (debounced), filters (branche, skills, tarief,
-   locatie, werkmodus, startdatum, vereiste certificaten), sorteren, paginatie. Alleen
-   PUBLISHED opdrachten zichtbaar; filterlogica server-side.
-4. **Opdracht-detailpagina** (publiek/voor ingelogde ZZP'ers) + **beheeroverzicht (CLIENT)**.
-5. **Tests:** job-validatie (Zod), statusovergangen (pure functie + assert), filterlogica.
+1. **Reageren (FREELANCER):** motivatie, tariefvoorstel, beschikbaarheid, optionele bijlage.
+   Server berekent matchscore + compliance-snapshot (matching.ts) bij aanmaken en slaat op.
+   Eén reactie per opdracht (unieke constraint). Alleen op PUBLISHED opdrachten.
+2. **Feature-gating:** max reacties per plan, server-side afgedwongen (FREE-limiet).
+3. **Kandidatenoverzicht (CLIENT) per opdracht:** statussen (NEW/VIEWED/SHORTLIST/REJECTED/
+   ACCEPTED) via expliciete overgangsmap, interne notities, compliance-overzicht per kandidaat.
+4. **"Mijn reacties" (FREELANCER):** overzicht van eigen reacties + status.
+5. **Tests:** applicatie-validatie, statusovergangen, gating-grens, matchscore-snapshot.
 
 ### Definition of Done (deze sessie)
-- [ ] CLIENT kan job aanmaken/bewerken/publiceren/sluiten (overgangen server-side afgedwongen)
-- [ ] Skills + credential-eisen koppelbaar
-- [ ] ZZP-overzicht met zoeken/filteren/sorteren/paginatie (alleen PUBLISHED)
-- [ ] Opdracht-detail + CLIENT-beheeroverzicht
+- [ ] FREELANCER kan reageren; matchscore + compliance server-berekend en opgeslagen
+- [ ] Gating: reactielimiet per plan server-side afgedwongen
+- [ ] CLIENT kandidatenoverzicht met statusbeheer + notities + compliance
+- [ ] FREELANCER "Mijn reacties"-overzicht
 - [ ] typecheck + lint + test + build groen; e2e uitgebreid + screenshots gecontroleerd
-- [ ] Commit, PROGRESS.md bij, CURRENT_TASK.md naar Sessie 3
+- [ ] Commit, PROGRESS.md bij, CURRENT_TASK.md naar Sessie 4
 
 ### Niet nu doen
-Geen reacties/kandidatenflow (Sessie 3), geen documenten/credentials-upload (Sessie 4),
-geen berichten/facturen/admin (later).
+Geen documenten/credentials-upload-UI (Sessie 4), geen verificatiequeue (Sessie 5),
+geen berichten/samenwerkingen/facturen (later). Echte bijlage-opslag mag de bestaande
+storage-abstractie gebruiken, maar de volledige document-UI is Sessie 4.
 
 ---
 

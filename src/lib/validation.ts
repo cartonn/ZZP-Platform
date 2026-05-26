@@ -4,9 +4,16 @@
 import { z } from "zod";
 import {
   availabilitySchema,
+  credentialTypeSchema,
   visibilitySchema,
   workModeSchema,
 } from "@/lib/enums";
+
+const optionalInt = (max: number) =>
+  z
+    .union([z.literal(""), z.coerce.number().int().min(0).max(max)])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? undefined : Number(v)));
 
 const trimmed = (max: number) => z.string().trim().max(max);
 const optionalText = (max: number) =>
@@ -69,3 +76,31 @@ export const companyProfileSchema = z.object({
     .transform((v) => (v ? v : undefined)),
 });
 export type CompanyProfileInput = z.infer<typeof companyProfileSchema>;
+
+// --- Opdracht (aanmaken/bewerken) ---
+export const jobSchema = z
+  .object({
+    title: trimmed(160).min(3, "Titel is te kort."),
+    description: trimmed(5000).min(10, "Geef een duidelijke omschrijving."),
+    industryId: z
+      .union([z.string().cuid(), z.literal("")])
+      .optional()
+      .transform((v) => (v ? v : undefined)),
+    rateMin: optionalInt(2000),
+    rateMax: optionalInt(2000),
+    location: optionalText(120),
+    workMode: workModeSchema,
+    startDate: z
+      .union([z.literal(""), z.coerce.date()])
+      .optional()
+      .transform((v) => (v === "" || v === undefined ? undefined : (v as Date))),
+    requiredSkillIds: z.array(z.string().cuid()).max(50).default([]),
+    optionalSkillIds: z.array(z.string().cuid()).max(50).default([]),
+    requiredCredentialTypes: z.array(credentialTypeSchema).max(20).default([]),
+    optionalCredentialTypes: z.array(credentialTypeSchema).max(20).default([]),
+  })
+  .refine((d) => d.rateMin == null || d.rateMax == null || d.rateMin <= d.rateMax, {
+    message: "Minimumtarief mag niet hoger zijn dan maximumtarief.",
+    path: ["rateMax"],
+  });
+export type JobInput = z.infer<typeof jobSchema>;

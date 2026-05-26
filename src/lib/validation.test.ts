@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   companyProfileSchema,
   freelancerProfileSchema,
+  jobSchema,
   registerSchema,
 } from "@/lib/validation";
 
@@ -81,5 +82,38 @@ describe("companyProfileSchema", () => {
   it("weigert ongeldige website-URL en te korte naam", () => {
     expect(companyProfileSchema.safeParse({ name: "Acme", website: "geen-url" }).success).toBe(false);
     expect(companyProfileSchema.safeParse({ name: "A" }).success).toBe(false);
+  });
+});
+
+describe("jobSchema", () => {
+  const base = { title: "Frontend Developer", description: "Bouw onze nieuwe app.", workMode: "HYBRID" };
+
+  it("accepteert een geldige opdracht en defaultt arrays", () => {
+    const r = jobSchema.safeParse(base);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.requiredSkillIds).toEqual([]);
+      expect(r.data.requiredCredentialTypes).toEqual([]);
+    }
+  });
+
+  it("weigert te korte titel/omschrijving", () => {
+    expect(jobSchema.safeParse({ ...base, title: "X" }).success).toBe(false);
+    expect(jobSchema.safeParse({ ...base, description: "kort" }).success).toBe(false);
+  });
+
+  it("weigert rateMin > rateMax", () => {
+    const r = jobSchema.safeParse({ ...base, rateMin: "90", rateMax: "50" });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.path).toContain("rateMax");
+  });
+
+  it("coerceert startDate en lege rate naar undefined", () => {
+    const r = jobSchema.safeParse({ ...base, rateMin: "", startDate: "2026-09-01" });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.rateMin).toBeUndefined();
+      expect(r.data.startDate).toBeInstanceOf(Date);
+    }
   });
 });

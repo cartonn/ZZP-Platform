@@ -14,7 +14,7 @@
 
 - [x] **Sessie 0** — Inventarisatie & fundament
 - [x] **Sessie 1** — Onboarding & profielen
-- [ ] **Sessie 2** — Opdrachten CRUD + zoeken/filteren
+- [x] **Sessie 2** — Opdrachten CRUD + zoeken/filteren
 - [ ] **Sessie 3** — Reacties & kandidatenflow
 - [ ] **Sessie 4** — Documenten + credentials (ZZP)
 - [ ] **Sessie 5** — Verificatie (admin) + compliance afronden
@@ -86,5 +86,30 @@
   een server-action save (RSC-refresh), zelfherstellend bij navigatie; data is correct
   (DB + reload-assertie bevestigd). Nette toast/refresh-afhandeling: Sessie 9 (polish).
 - Volgende stap: Sessie 2 — Opdrachten CRUD + zoeken/filteren.
+
+### Sessie 2 — 2026-05-26
+- Wat gedaan: opdrachten CRUD + zoeken/filteren. CLIENT maakt/bewerkt opdrachten
+  (concept → publiceren → sluiten/heropenen → depubliceren) met server-side afgedwongen
+  statusovergangen (`JOB_TRANSITIONS`/`assertJobTransition`) + ownership + audit. Vereiste/
+  gewenste skills en certificaat-eisen koppelbaar. ZZP-overzicht met debounced zoeken,
+  filters (branche, skills, tarief, werkmodus, vereist certificaat), sorteren, paginatie —
+  alleen PUBLISHED. Detailpagina role-aware (eigenaar: statusacties + bewerken; ZZP'er:
+  read-only + "Reageren (binnenkort)"). Niet-gepubliceerde opdrachten server-side verborgen.
+- Bestanden:
+  - `src/lib/jobs.ts` (+ test) — JOB_TRANSITIONS, canPublish, normalizeJobFilters
+  - `src/lib/validation.ts` — jobSchema (+ tests)
+  - `src/app/(protected)/opdrachten/{page,actions,job-form}.tsx`,
+    `nieuw/`, `[id]/page.tsx`, `[id]/bewerken/page.tsx`
+  - `src/components/jobs/{job-filters,job-status-badge}.tsx`, `ui/check-chip.tsx`
+  - nav.ts: Opdrachten / Mijn opdrachten op enabled
+- Tests: 71 unit-tests (jobs 9, job-validatie 4 extra) + 11 e2e groen (incl. aanmaken,
+  publiceren, zoeken, detail, depubliceren → 404 voor anderen).
+- Checks: typecheck ✓, lint ✓, test ✓ (71), build ✓ (15 routes), e2e ✓ (11, via Edge).
+- Visueel gecontroleerd (screenshots 10-13): client-overzicht, detail (concept/gepubliceerd),
+  browse met filters, ZZP-detail met vereiste skills/certificaten.
+- Let op (SQLite-beperking): vrije-tekst-zoek is hoofdlettergevoelig (`contains` zonder
+  `mode:insensitive`, niet ondersteund op SQLite). Op Postgres (prod) insensitive maken.
+- Volgende stap: Sessie 3 — Reacties & kandidatenflow (matchscore + compliance-snapshot,
+  gebruik `src/lib/matching.ts`; feature-gating per plan).
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

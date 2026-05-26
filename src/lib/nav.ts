@@ -26,7 +26,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   FREELANCER: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
     { label: "Mijn profiel", href: "/profiel", icon: "user", enabled: true },
-    { label: "Opdrachten", href: "/opdrachten", icon: "briefcase", enabled: false },
+    { label: "Opdrachten", href: "/opdrachten", icon: "briefcase", enabled: true },
     { label: "Mijn reacties", href: "/reacties", icon: "files", enabled: false },
     { label: "Documenten", href: "/documenten", icon: "files", enabled: false },
     { label: "Certificaten", href: "/certificaten", icon: "fileCheck", enabled: false },
@@ -36,7 +36,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   CLIENT: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
     { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", enabled: true },
-    { label: "Mijn opdrachten", href: "/opdrachten", icon: "briefcase", enabled: false },
+    { label: "Mijn opdrachten", href: "/opdrachten", icon: "briefcase", enabled: true },
     { label: "Kandidaten", href: "/kandidaten", icon: "users", enabled: false },
     { label: "Berichten", href: "/berichten", icon: "messages", enabled: false },
     { label: "Facturen", href: "/facturen", icon: "receipt", enabled: false },
