@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBadges } from "./signals";
+import { buildBadges, countUnreadConversations } from "./signals";
 
 describe("buildBadges", () => {
   it("laat items met telling 0 of ontbrekend weg", () => {
@@ -24,5 +24,42 @@ describe("buildBadges", () => {
     expect(buildBadges({ pendingVerifications: 5 })).toEqual({
       "/admin/verificaties": { count: 5, tone: "attention" },
     });
+  });
+
+  it("mapt ongelezen berichten naar /berichten met info-toon", () => {
+    expect(buildBadges({ unreadMessages: 2 })).toEqual({
+      "/berichten": { count: 2, tone: "info" },
+    });
+  });
+});
+
+describe("countUnreadConversations", () => {
+  const t = (iso: string) => new Date(iso);
+
+  it("telt een gesprek als er een vreemd bericht ná lastReadAt is", () => {
+    const participants = [{ conversationId: "a", lastReadAt: t("2026-05-01T10:00:00Z") }];
+    const latest = new Map([["a", t("2026-05-01T12:00:00Z")]]);
+    expect(countUnreadConversations(participants, latest)).toBe(1);
+  });
+
+  it("telt niet als het laatste vreemde bericht al gelezen is", () => {
+    const participants = [{ conversationId: "a", lastReadAt: t("2026-05-01T12:00:00Z") }];
+    const latest = new Map([["a", t("2026-05-01T10:00:00Z")]]);
+    expect(countUnreadConversations(participants, latest)).toBe(0);
+  });
+
+  it("telt een nooit-gelezen gesprek met een vreemd bericht", () => {
+    const participants = [{ conversationId: "a", lastReadAt: null }];
+    const latest = new Map([["a", t("2026-05-01T10:00:00Z")]]);
+    expect(countUnreadConversations(participants, latest)).toBe(1);
+  });
+
+  it("negeert gesprekken zonder bericht van de andere partij", () => {
+    const participants = [
+      { conversationId: "a", lastReadAt: null },
+      { conversationId: "b", lastReadAt: null },
+    ];
+    const latest = new Map<string, Date | null>([["a", null]]);
+    expect(countUnreadConversations(participants, latest)).toBe(0);
   });
 });

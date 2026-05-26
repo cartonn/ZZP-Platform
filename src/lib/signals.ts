@@ -23,6 +23,7 @@ interface SignalCounts {
   newApplications?: number; // CLIENT: nieuwe reacties
   draftJobs?: number; // CLIENT: concept-opdrachten
   pendingVerifications?: number; // ADMIN: wacht op verificatie
+  unreadMessages?: number; // FREELANCER + CLIENT: gesprekken met ongelezen berichten
 }
 
 const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
@@ -30,6 +31,7 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   newApplications: "/kandidaten",
   draftJobs: "/opdrachten",
   pendingVerifications: "/admin/verificaties",
+  unreadMessages: "/berichten",
 };
 
 const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
@@ -37,6 +39,7 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   newApplications: "attention",
   draftJobs: "info",
   pendingVerifications: "attention",
+  unreadMessages: "info",
 };
 
 const EXPIRY_WINDOW_MS = 30 * 86_400_000; // 30 dagen, gelijk aan het dashboard
@@ -51,6 +54,45 @@ export function buildBadges(counts: SignalCounts): NavBadges {
   return out;
 }
 
+interface ParticipantRead {
+  conversationId: string;
+  lastReadAt: Date | null;
+}
+
+/**
+ * Aantal gesprekken met een ongelezen bericht van de andere partij. Pure functie:
+ * `latestForeign` geeft per gesprek de tijd van het laatste bericht van iemand anders.
+ */
+export function countUnreadConversations(
+  participants: readonly ParticipantRead[],
+  latestForeign: ReadonlyMap<string, Date | null>,
+): number {
+  let unread = 0;
+  for (const p of participants) {
+    const at = latestForeign.get(p.conversationId);
+    if (!at) continue;
+    if (!p.lastReadAt || at.getTime() > p.lastReadAt.getTime()) unread++;
+  }
+  return unread;
+}
+
+/** Twee begrensde queries (geen N+1): deelnemerschap + laatste vreemde bericht per gesprek. */
+async function unreadConversationCount(userId: string): Promise<number> {
+  const participants = await prisma.conversationParticipant.findMany({
+    where: { userId },
+    select: { conversationId: true, lastReadAt: true },
+  });
+  if (participants.length === 0) return 0;
+
+  const grouped = await prisma.message.groupBy({
+    by: ["conversationId"],
+    where: { conversationId: { in: participants.map((p) => p.conversationId) }, senderId: { not: userId } },
+    _max: { createdAt: true },
+  });
+  const latestForeign = new Map<string, Date | null>(grouped.map((g) => [g.conversationId, g._max.createdAt]));
+  return countUnreadConversations(participants, latestForeign);
+}
+
 export async function navBadges(role: UserRole, userId: string): Promise<NavBadges> {
   if (role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
@@ -60,23 +102,25 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     if (!profile) return {};
     const now = new Date();
     const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
-    const [rejected, expiring] = await Promise.all([
+    const [rejected, expiring, unreadMessages] = await Promise.all([
       prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
       prisma.credential.count({
         where: { freelancerProfileId: profile.id, status: "VERIFIED", expiresAt: { gt: now, lte: soon } },
       }),
+      unreadConversationCount(userId),
     ]);
-    return buildBadges({ credentialAlerts: rejected + expiring });
+    return buildBadges({ credentialAlerts: rejected + expiring, unreadMessages });
   }
 
   if (role === "CLIENT") {
     const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
     if (!company) return {};
-    const [newApplications, draftJobs] = await Promise.all([
+    const [newApplications, draftJobs, unreadMessages] = await Promise.all([
       prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
       prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
+      unreadConversationCount(userId),
     ]);
-    return buildBadges({ newApplications, draftJobs });
+    return buildBadges({ newApplications, draftJobs, unreadMessages });
   }
 
   const pendingVerifications = await prisma.credential.count({ where: { status: "SUBMITTED" } });
