@@ -59,7 +59,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
   const attention: Attention[] = [];
 
   if (role === "FREELANCER") {
-    const profile = await prisma.freelancerProfile.findUnique({ where: { userId }, select: { id: true, completeness: true } });
+    const profile = await prisma.freelancerProfile.findUnique({ where: { userId }, select: { id: true, completeness: true, visibility: true } });
     const pid = profile?.id;
     const soon = new Date(Date.now() + 30 * 86400_000);
     const now = new Date();
@@ -71,6 +71,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
       prisma.user.findUnique({ where: { id: userId }, select: { identityVerifiedAt: true } }),
       overdueInvoiceCount("FREELANCER", userId),
     ]);
+    if (profile?.visibility === "PRIVATE") attention.push({ label: "Je profiel staat op privé — opdrachtgevers kunnen je niet vinden", href: "/profiel" });
     if (!account?.identityVerifiedAt) attention.push({ label: "Verifieer je identiteit voor een hoger vertrouwensniveau", href: "/account" });
     if ((profile?.completeness ?? 0) < 100) attention.push({ label: `Profiel is ${profile?.completeness ?? 0}% compleet — vul aan`, href: "/profiel" });
     if (rejected > 0) attention.push({ label: `${rejected} certificaat/certificaten afgewezen — opnieuw indienen`, href: "/certificaten" });
