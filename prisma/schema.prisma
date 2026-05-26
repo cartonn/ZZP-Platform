@@ -361,13 +361,14 @@ model Credential {
 model CredentialVerification {
   id           String   @id @default(cuid())
   credentialId String
-  verifierId   String
+  verifierId   String? //  null = systeem/extern (bv. DUO)
+  source       String   @default("ADMIN") // VerificationSource: ADMIN | DUO
   decision     String //  VerificationDecision: VERIFIED | REJECTED
   reason       String? //  verplicht bij REJECTED (server-side afgedwongen)
   createdAt    DateTime @default(now())
 
   credential Credential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
-  verifier   User       @relation("Verifier", fields: [verifierId], references: [id], onDelete: Cascade)
+  verifier   User?      @relation("Verifier", fields: [verifierId], references: [id], onDelete: SetNull)
 
   @@index([credentialId])
 }

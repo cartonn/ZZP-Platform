@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AuthorizationError, requireRole } from "@/lib/authz";
-import { audit } from "@/lib/audit";
+import { audit, auditData } from "@/lib/audit";
+import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
 import { assertTransition, TransitionError } from "@/lib/credentials";
 import { documentKindForCredential } from "@/lib/documents";
+import { getDiplomaVerifier } from "@/lib/services/diploma-verifier";
 import {
   generateStorageKey,
   getStorage,
@@ -195,4 +197,56 @@ export async function deleteCredential(credentialId: string): Promise<void> {
   await deleteDocumentById(credential.documentId);
   await audit({ actorId: actor.id, action: "CREDENTIAL_DELETED", entityType: "Credential", entityId: credentialId });
   revalidatePath("/certificaten");
+}
+
+export type DuoVerifyState = { ok?: true; error?: string } | undefined;
+
+/** Verifieer een diploma/certificaat via de DUO-koppeling (verificatiecode uit het
+ *  DUO-diplomaregister). Bij succes wordt de credential systeem-geverifieerd (bron DUO). */
+export async function verifyCredentialViaDuo(credentialId: string, _prev: DuoVerifyState, formData: FormData): Promise<DuoVerifyState> {
+  let actor;
+  try {
+    actor = await requireRole("FREELANCER");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
+  const profile = await requireProfile(actor.id);
+  const credential = await loadOwnedCredential(profile.id, credentialId);
+  const status = credential.status as CredentialStatus;
+  if (status === "VERIFIED") return { error: "Dit certificaat is al geverifieerd." };
+
+  const code = String(formData.get("verificationCode") ?? "").trim();
+  if (!code) return { error: "Voer een DUO-verificatiecode in." };
+
+  const user = await prisma.user.findUnique({ where: { id: actor.id }, select: { name: true } });
+  let result;
+  try {
+    result = await getDiplomaVerifier().verify({ verificationCode: code, holderName: user?.name ?? "" });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Verificatie mislukt." };
+  }
+  if (!result.verified) return { error: result.message };
+
+  // Naar VERIFIED via SUBMITTED (respecteert CREDENTIAL_TRANSITIONS).
+  try {
+    if (status !== "SUBMITTED") assertTransition(status, "SUBMITTED");
+    assertTransition("SUBMITTED", "VERIFIED");
+  } catch (e) {
+    if (e instanceof TransitionError) return { error: e.message };
+    throw e;
+  }
+
+  await prisma.$transaction([
+    prisma.credential.update({ where: { id: credentialId }, data: { status: "VERIFIED", verifiedAt: new Date(), rejectionReason: null } }),
+    prisma.credentialVerification.create({
+      data: { credentialId, verifierId: null, source: "DUO", decision: "VERIFIED", reason: `DUO-verificatie (${result.source}): ${result.message}` },
+    }),
+    prisma.verificationRequest.updateMany({ where: { credentialId, status: "PENDING" }, data: { status: "RESOLVED", resolvedAt: new Date() } }),
+    prisma.auditLog.create({
+      data: auditData({ actorId: actor.id, action: "CREDENTIAL_VERIFIED", entityType: "Credential", entityId: credentialId, metadata: { source: "DUO" }, ...(await requestMeta()) }),
+    }),
+  ]);
+  revalidatePath("/certificaten");
+  return { ok: true };
 }

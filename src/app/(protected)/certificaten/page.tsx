@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
 import { deleteCredential, requestVerification, toggleCredentialVisibility } from "./actions";
+import { DuoVerifyForm } from "./duo-verify-form";
 
 export const metadata: Metadata = { title: "Certificaten · ZZP Platform" };
 
@@ -31,7 +32,7 @@ export default async function CertificatenPage() {
         orderBy: { createdAt: "desc" },
         include: {
           document: { select: { id: true, filename: true } },
-          verifications: { orderBy: { createdAt: "desc" }, include: { verifier: { select: { name: true } } } },
+          verifications: { orderBy: { createdAt: "desc" }, select: { id: true, decision: true, reason: true, source: true, createdAt: true, verifier: { select: { name: true } } } },
         },
       })
     : [];
@@ -104,7 +105,7 @@ export default async function CertificatenPage() {
                         {c.verifications.map((v) => (
                           <li key={v.id} className="text-xs text-muted-foreground">
                             {v.createdAt.toISOString().slice(0, 10)} — {v.decision === "VERIFIED" ? "Goedgekeurd" : "Afgewezen"}
-                            {v.verifier?.name ? ` door ${v.verifier.name}` : ""}
+                            {v.source === "DUO" ? " via DUO" : v.verifier?.name ? ` door ${v.verifier.name}` : ""}
                             {v.reason ? `: ${v.reason}` : ""}
                           </li>
                         ))}
@@ -138,6 +139,16 @@ export default async function CertificatenPage() {
                       <Button type="submit" variant="danger" size="sm"><Trash2 className="size-3.5" aria-hidden /> Verwijderen</Button>
                     </form>
                   </div>
+
+                  {c.type === "DIPLOMA" && status !== "VERIFIED" && (
+                    <div className="space-y-1 border-t border-border pt-3">
+                      <p className="text-xs font-medium">Diploma verifiëren via DUO</p>
+                      <p className="text-xs text-muted-foreground">
+                        Vul de verificatiecode in van je gewaarmerkte uittreksel uit het DUO-diplomaregister.
+                      </p>
+                      <DuoVerifyForm credentialId={c.id} />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );

@@ -438,4 +438,21 @@ en is in de referentiedocs zelf nog een open MVP-vraag — een grote, risicovoll
 aan het eind van een lange sessie thuishoort. Overige open punten: RLS-first op Postgres-prod,
 echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 
+### Increment: DUO-diplomaverificatie (API-koppeling achter service-grens) — 2026-05-26
+- Eerlijke aanpak: er is geen open DUO-lookup-API; de echte route is de **verificatiecode** uit het
+  DUO-diplomaregister. Geïmplementeerd achter een schone interface (zoals de S3-driver):
+  - `src/lib/services/diploma-verifier.ts` (getest): `DiplomaVerifier` + **MockDiplomaVerifier**
+    (deterministisch, valideert alleen het codeformaat, verzint géén diplomagegevens) +
+    **DuoDiplomaVerifier** (env-geschakeld `DIPLOMA_VERIFIER=duo`; faalt helder zonder config —
+    echte onboarding = mensenwerk). Factory `getDiplomaVerifier()`.
+  - Actie `verifyCredentialViaDuo` (FREELANCER, eigen DIPLOMA): bij geldige code wordt de credential
+    **systeem-geverifieerd** (bron DUO) via de transitiemap (→ SUBMITTED → VERIFIED), met
+    `CredentialVerification{verifierId:null, source:"DUO"}` + audit (IP/UA). Bron MOCK staat
+    transparant in de auditregel.
+  - UI: DUO-verificatieformulier op niet-geverifieerde diploma's; historie toont "via DUO".
+  - Schema: `CredentialVerification.verifierId` nullable + `source` (ADMIN|DUO), SetNull.
+- Tests: 5 unit (verifier) + e2e (ongeldige code faalt, geldige code → Geverifieerd). 27 e2e + units groen.
+- Reviewzwerm: CLEAN (geen IDOR, transitiemap gerespecteerd, schema niet-breekend, geen fake-data).
+- Productie-onboarding (DUO-contract/endpoint/cert) = mensenwerk; idem BIG-register voor zorg (apart).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
