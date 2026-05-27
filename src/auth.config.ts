@@ -8,21 +8,6 @@ export const authConfig = {
   session: { strategy: "jwt" },
   trustHost: true,
   callbacks: {
-    authorized({ auth, request }) {
-      const isLoggedIn = !!auth?.user;
-      const { pathname } = request.nextUrl;
-      const isPublic =
-        pathname === "/login" ||
-        pathname === "/register" ||
-        pathname === "/api/health" ||
-        pathname.startsWith("/zzp/") ||
-        pathname.startsWith("/api/auth");
-      if (isPublic) return true;
-      if (!isLoggedIn) return false;
-      // Defense-in-depth: /admin alleen voor ADMIN (pagina's + actions checken óók).
-      if (pathname.startsWith("/admin")) return auth!.user!.role === "ADMIN";
-      return true;
-    },
     jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
