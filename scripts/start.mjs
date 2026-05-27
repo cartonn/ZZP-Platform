@@ -1,5 +1,5 @@
 // Productie-start (Railway). Idempotent en veilig bij elke (her)start:
-//  1. zorg dat de Prisma-provider op postgresql staat;
+//  1. zorg dat de Prisma-provider past bij DATABASE_URL;
 //  2. zet het schema op de database (db push, geen migraties nodig);
 //  3. seed demo-data alleen als de database nog leeg is;
 //  4. start de Next.js-server op de door Railway aangereikte PORT.
@@ -8,7 +8,11 @@ import { PrismaClient } from "@prisma/client";
 
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
 
-run("node scripts/use-db-provider.mjs postgresql");
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = "file:./dev.db";
+}
+
+run("node scripts/use-db-provider.mjs");
 run("npx prisma db push --skip-generate --accept-data-loss");
 
 const prisma = new PrismaClient();

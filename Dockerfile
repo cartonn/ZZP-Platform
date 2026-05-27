@@ -21,13 +21,13 @@ RUN npm install --no-audit --no-fund
 # Broncode.
 COPY . .
 
-# Placeholder-env zodat env-validatie tijdens de build slaagt; Railway levert
-# de echte waarden bij het draaien (die overschrijven deze defaults).
-ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public"
-ENV AUTH_SECRET="build-time-placeholder-secret-32chars-min"
-
 # Productie draait op PostgreSQL: provider omzetten en bouwen.
-RUN node scripts/use-db-provider.mjs postgresql && npm run build
+RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public" \
+  AUTH_SECRET="build-time-placeholder-secret-32chars-min" \
+  node scripts/use-db-provider.mjs postgresql \
+  && DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public" \
+  AUTH_SECRET="build-time-placeholder-secret-32chars-min" \
+  npm run build
 
 ENV NODE_ENV=production
 EXPOSE 3000
