@@ -13,8 +13,9 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Dependencies incl. dev: nodig voor de build, de Prisma CLI en de seed (tsx).
+# `npm install` (i.p.v. `npm ci`) is toleranter als de lockfile licht afwijkt.
 COPY package.json package-lock.json* ./
-RUN npm ci --include=dev
+RUN npm install --no-audit --no-fund
 
 # Broncode.
 COPY . .
