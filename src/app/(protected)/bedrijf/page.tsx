@@ -1,7 +1,9 @@
 import { type Metadata } from "next";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { computeCompanyCompleteness } from "@/lib/profile";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { CompanyForm } from "./company-form";
 
 export const metadata: Metadata = { title: "Bedrijfsprofiel · ZZP Platform" };
@@ -28,6 +30,14 @@ export default async function BedrijfPage() {
     );
   }
 
+  const { score, missing } = computeCompanyCompleteness({
+    description: company.description,
+    location: company.location,
+    website: company.website,
+    hasIndustry: !!company.industryId,
+    hasLogo: !!company.logoKey,
+  });
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header>
@@ -36,6 +46,23 @@ export default async function BedrijfPage() {
           Een compleet profiel wekt vertrouwen bij ZZP&apos;ers die op je opdrachten reageren.
         </p>
       </header>
+
+      <Card>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Profiel-compleetheid</span>
+            <span className="text-sm tabular-nums text-muted-foreground">{score}%</span>
+          </div>
+          <Progress value={score} />
+          {missing.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Nog aan te vullen: {missing.map((m) => m.label).join(", ")}.
+            </p>
+          ) : (
+            <p className="text-xs text-success">Je bedrijfsprofiel is compleet.</p>
+          )}
+        </CardContent>
+      </Card>
 
       <CompanyForm
         initial={{

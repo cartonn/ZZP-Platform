@@ -7,6 +7,7 @@ import { type UserRole } from "@/lib/enums";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { clientCredentialAlerts, describeCredentialAlert } from "@/lib/collaboration-alerts";
 import { overdueInvoiceCount } from "@/lib/signals";
+import { computeCompanyCompleteness } from "@/lib/profile";
 import { Badge } from "@/components/ui/badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 
@@ -88,8 +89,20 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
   }
 
   if (role === "CLIENT") {
-    const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
+    const company = await prisma.company.findUnique({
+      where: { userId },
+      select: { id: true, description: true, location: true, website: true, industryId: true, logoKey: true },
+    });
     const cid = company?.id;
+    const companyCompleteness = company
+      ? computeCompanyCompleteness({
+          description: company.description,
+          location: company.location,
+          website: company.website,
+          hasIndustry: !!company.industryId,
+          hasLogo: !!company.logoKey,
+        }).score
+      : 0;
     const [openJobs, newApps, drafts, activeCollabs, credentialAlerts, overdue] = await Promise.all([
       cid ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } }) : Promise.resolve(0),
       cid ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } }) : Promise.resolve(0),
@@ -102,6 +115,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
     for (const a of credentialAlerts) {
       attention.push({ label: describeCredentialAlert(a.freelancerName, a.jobTitle, a.alert), href: "/samenwerkingen" });
     }
+    if (companyCompleteness < 100) attention.push({ label: `Bedrijfsprofiel is ${companyCompleteness}% compleet — vul aan`, href: "/bedrijf" });
     if (newApps > 0) attention.push({ label: `${newApps} nieuwe reactie(s) — beoordeel kandidaten`, href: "/kandidaten" });
     if (drafts > 0) attention.push({ label: `${drafts} concept-opdracht(en) — publiceren?`, href: "/opdrachten" });
     if (overdue > 0) attention.push({ label: `${overdue} openstaande factu(u)r(en) over de vervaldatum — betaal`, href: "/facturen" });

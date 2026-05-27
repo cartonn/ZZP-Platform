@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeCompanyCompleteness,
   computeFreelancerCompleteness,
   profileVisibleTo,
   type CompletenessInput,
@@ -51,6 +52,34 @@ describe("computeFreelancerCompleteness", () => {
   it("negeert lege/whitespace-strings en niet-positief tarief", () => {
     const r = computeFreelancerCompleteness({ ...empty, headline: "   ", hourlyRate: 0 });
     expect(r.score).toBe(0);
+  });
+});
+
+describe("computeCompanyCompleteness", () => {
+  const empty = { description: null, location: null, website: null, hasIndustry: false, hasLogo: false };
+
+  it("is 0% en somt alles op bij een leeg bedrijfsprofiel", () => {
+    const r = computeCompanyCompleteness(empty);
+    expect(r.score).toBe(0);
+    expect(r.missing.map((m) => m.key)).toEqual(["description", "location", "industry", "website", "logo"]);
+  });
+
+  it("is 100% en zonder ontbrekende velden bij een compleet profiel", () => {
+    const r = computeCompanyCompleteness({
+      description: "Wij bouwen software.",
+      location: "Utrecht",
+      website: "https://x.nl",
+      hasIndustry: true,
+      hasLogo: true,
+    });
+    expect(r.score).toBe(100);
+    expect(r.missing).toEqual([]);
+  });
+
+  it("telt de gewichten per ingevuld onderdeel", () => {
+    const r = computeCompanyCompleteness({ ...empty, description: "x", hasIndustry: true });
+    expect(r.score).toBe(55); // 35 + 20
+    expect(r.missing.map((m) => m.key)).toEqual(["location", "website", "logo"]);
   });
 });
 

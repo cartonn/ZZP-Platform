@@ -53,6 +53,38 @@ export function computeFreelancerCompleteness(input: CompletenessInput): Complet
   return { score: Math.min(100, score), missing };
 }
 
+export interface CompanyCompletenessInput {
+  description?: string | null;
+  location?: string | null;
+  website?: string | null;
+  hasIndustry: boolean;
+  hasLogo: boolean;
+}
+
+const COMPANY_CRITERIA: readonly {
+  key: string;
+  label: string;
+  weight: number;
+  done: (i: CompanyCompletenessInput) => boolean;
+}[] = [
+  { key: "description", label: "Omschrijving", weight: 35, done: (i) => !!i.description?.trim() },
+  { key: "location", label: "Locatie", weight: 20, done: (i) => !!i.location?.trim() },
+  { key: "industry", label: "Branche", weight: 20, done: (i) => i.hasIndustry },
+  { key: "website", label: "Website", weight: 15, done: (i) => !!i.website?.trim() },
+  { key: "logo", label: "Logo", weight: 10, done: (i) => i.hasLogo },
+];
+
+/** Server-berekende bedrijfsprofiel-compleetheid (0-100) + lijst ontbrekende onderdelen. */
+export function computeCompanyCompleteness(input: CompanyCompletenessInput): CompletenessResult {
+  let score = 0;
+  const missing: { key: string; label: string }[] = [];
+  for (const c of COMPANY_CRITERIA) {
+    if (c.done(input)) score += c.weight;
+    else missing.push({ key: c.key, label: c.label });
+  }
+  return { score: Math.min(100, score), missing };
+}
+
 /**
  * Mag `viewer` dit (freelancer)profiel zien?
  * - Eigenaar en admin: altijd.
