@@ -9,6 +9,38 @@ van elke sessie. Het beschrijft wat we bouwen, hoe, en welke regels niet-onderha
 
 ---
 
+## AUTO-MODE — continu doorbouwen (niet-onderhandelbaar)
+
+De eigenaar wil dat agents **continu doorbouwen zonder te vragen**. Elke sessie/agent
+werkt volgens dit contract:
+
+1. **Doorgaan zonder te vragen.** Pak de volgende taak uit de backlog in `CURRENT_TASK.md`.
+   Stop niet voor goedkeuring; lever af, commit, pak de volgende. Vraag alleen bij
+   échte tweesprongen (data-verlies, risicovolle git-acties, juridische keuzes).
+2. **Eén bron, automatische deploy.** Ontwikkel en push naar branch
+   **`claude/dazzling-carson-v9Qwk`**. Railway bouwt **deze** branch automatisch
+   (Dockerfile → PostgreSQL) en zet hem live op `zzp-platform-production-*.up.railway.app`.
+   `main` is oud/kapot — niet gebruiken. Push nooit naar een andere branch zonder
+   expliciete toestemming.
+3. **Meerdere agents tegelijk.** Er pushen mogelijk meerdere agents naar dezelfde branch.
+   **Altijd `git fetch` + rebase/pull vóór elke commit én vóór elke push.** Bij
+   non-fast-forward: rebasen, niet force-pushen. Gebruik subagents (Explore/parallel)
+   voor research en onafhankelijk werk; integreer en commit zelf.
+4. **Definition of Done per increment (geen uitzonderingen):** testbare kern + unit-tests →
+   UI → `npm run typecheck` + `npm run lint` + `npm run test` + `npm run build` groen →
+   e2e + screenshot in de browser → commit → push. Nooit afvinken op "ziet er goed uit".
+5. **Productiekwaliteit, geen slop.** Deterministisch, server-side waarheid. Geen dode
+   knoppen. **Het woord "AI" komt nergens in de UI, teksten, comments of docs voor.**
+6. **Houd het geheugen actueel.** Werk `PROGRESS.md` (wat af is) en `CURRENT_TASK.md`
+   (huidige taak + backlog) bij na elke increment, zodat de volgende sessie/agent
+   naadloos verderkan.
+
+> Echt 24/7 draaien gebeurt via de scheduler/automation van de eigenaar (bv. de
+> "Swarm Coordinator" of `/loop`); een enkele sessie is eindig. Dit contract zorgt dat
+> elke sessie/agent hetzelfde, autonoom, in dezelfde richting doorbouwt.
+
+---
+
 ## Wat we bouwen
 
 **ZZP Platform** — een productiegericht SaaS-platform voor de Nederlandse markt waar

@@ -3,16 +3,26 @@
 > Eén taak tegelijk. Lees CLAUDE.md en PROGRESS.md voordat je begint.
 > Werk dit bestand bij wanneer je naar de volgende taak gaat.
 
-## STATUS: alle 10 sessies afgerond (code-kant compleet)
+## STATUS: AUTO-MODE — continu doorbouwen (live op Railway)
 
-Het ZZP-platform is functioneel compleet en getest. Er is geen volgende **code**taak in de
-bouwvolgorde. Zie PROGRESS.md ("PROJECT COMPLEET — handover") voor wat nog **mensenwerk** is
-(productie-infra, betaalprovider, security-/AVG-review, e-mail).
+MVP + meedenk-laag staan **live** op Railway (branch `claude/dazzling-carson-v9Qwk`,
+auto-deploy). Geen "klaar"-moment: pak de bovenste open taak uit de backlog, lever af
+volgens de Definition of Done (zie CLAUDE.md → AUTO-MODE), commit + push, pak de volgende.
+Altijd `git fetch`/rebase vóór commit én push (meerdere agents pushen naar dezelfde branch).
 
-Bij hervatten: kies een verbeterpunt uit de "Bekende, bewust uitgestelde code-punten" in
-PROGRESS.md, of een nieuwe wens van de eigenaar. Werk dan opnieuw één taak tegelijk:
-testbare kern eerst → UI → checks (typecheck/lint/test/build) → e2e + screenshots →
-reviewzwerm + bug-loop → commit.
+### Backlog (bovenste eerst — houd deze lijst levend)
+1. Bedrijfsprofiel symmetrisch "ontzorgen": concrete aanvul-suggesties + completeness-meter
+   voor de opdrachtgever (zoals bij de ZZP'er).
+2. Admin `gebruikers`-pagina: filteren/zoeken + "vraagt aandacht" (bv. nieuwe/inactieve users).
+3. Notificaties bij sleutelmomenten die er nog niet zijn (uitnodiging, samenwerking voorgesteld,
+   factuur verzonden) — controleer dekking en vul aan.
+4. Beschikbaarheid laten meewegen/zichtbaar in matching-uitleg.
+5. Verloop-detectie als geplande taak (cron/automation = mensenwerk) → echte expiry-notificaties.
+6. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
+
+### Per increment (geen uitzonderingen)
+testbare kern + unit-tests → UI → typecheck/lint/test/build groen → e2e + screenshot →
+commit → push naar `claude/dazzling-carson-v9Qwk` → werk PROGRESS.md + deze backlog bij.
 
 ---
 
