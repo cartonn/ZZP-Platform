@@ -11,14 +11,14 @@ volgens de Definition of Done (zie CLAUDE.md → AUTO-MODE), commit + push, pak 
 Altijd `git fetch`/rebase vóór commit én push (meerdere agents pushen naar dezelfde branch).
 
 ### Backlog (bovenste eerst — houd deze lijst levend)
-1. Admin `gebruikers`-pagina: filteren/zoeken + "vraagt aandacht" (bv. nieuwe/inactieve users).
-2. Notificaties bij sleutelmomenten die er nog niet zijn (uitnodiging, samenwerking voorgesteld,
+1. Notificaties bij sleutelmomenten die er nog niet zijn (uitnodiging, samenwerking voorgesteld,
    factuur verzonden) — controleer dekking en vul aan.
-3. Beschikbaarheid laten meewegen/zichtbaar in matching-uitleg.
-4. Verloop-detectie als geplande taak (cron/automation = mensenwerk) → echte expiry-notificaties.
-5. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
+2. Beschikbaarheid laten meewegen/zichtbaar in matching-uitleg.
+3. Verloop-detectie als geplande taak (cron/automation = mensenwerk) → echte expiry-notificaties.
+4. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
 
-Gereed: bedrijfsprofiel-compleetheid (meter + aanvulpunten + dashboard-attentie).
+Gereed: bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht"
+(AVG-verwijderverzoeken + in-afwachting, met dashboard-attentie).
 
 ### Per increment (geen uitzonderingen)
 testbare kern + unit-tests → UI → typecheck/lint/test/build groen → e2e + screenshot →

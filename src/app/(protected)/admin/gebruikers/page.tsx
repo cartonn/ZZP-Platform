@@ -1,4 +1,6 @@
 import { type Metadata } from "next";
+import Link from "next/link";
+import { AlertTriangle } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -29,18 +31,24 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
   const q = first(sp.q).trim();
   const role = first(sp.role);
   const status = first(sp.status);
+  const deletion = first(sp.deletion);
 
   const where: Prisma.UserWhereInput = {};
   if (q) where.OR = [{ name: { contains: q } }, { email: { contains: q } }];
   if (role) where.role = role;
   if (status) where.status = status;
+  if (deletion === "1") where.deletionRequestedAt = { not: null };
 
-  const users = await prisma.user.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    select: { id: true, name: true, email: true, role: true, status: true },
-  });
+  const [users, deletionRequests, pendingUsers] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, name: true, email: true, role: true, status: true, deletionRequestedAt: true },
+    }),
+    prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
+    prisma.user.count({ where: { status: "PENDING" } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -48,6 +56,29 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
         <h1 className="text-xl font-semibold tracking-tight">Gebruikers</h1>
         <p className="text-sm text-muted-foreground">Beheer accounts: rol, status en schorsing.</p>
       </header>
+
+      {(deletionRequests > 0 || pendingUsers > 0) && (
+        <div className="flex flex-wrap gap-2">
+          {deletionRequests > 0 && (
+            <Link
+              href="/admin/gebruikers?deletion=1"
+              className="inline-flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger focus-ring"
+            >
+              <AlertTriangle className="size-4 shrink-0" aria-hidden />
+              {deletionRequests} AVG-verwijderverzoek(en) — beoordeel
+            </Link>
+          )}
+          {pendingUsers > 0 && (
+            <Link
+              href="/admin/gebruikers?status=PENDING"
+              className="inline-flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1.5 text-sm text-warning focus-ring"
+            >
+              <AlertTriangle className="size-4 shrink-0" aria-hidden />
+              {pendingUsers} in afwachting — activeer
+            </Link>
+          )}
+        </div>
+      )}
 
       <form method="get" className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto_auto_auto]">
         <Input name="q" defaultValue={q} placeholder="Zoek op naam of e-mail…" aria-label="Zoeken" />
@@ -82,6 +113,7 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
                     {isSelf && <span className="text-xs text-muted-foreground">(jij)</span>}
                     <Badge variant="muted">{ROLE_LABEL[u.role as UserRole]}</Badge>
                     <Badge variant={st.variant}>{st.label}</Badge>
+                    {u.deletionRequestedAt && <Badge variant="danger">Verwijderverzoek</Badge>}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                 </div>

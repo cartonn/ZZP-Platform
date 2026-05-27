@@ -129,11 +129,13 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
     };
   }
 
-  const [pending, users, jobs] = await Promise.all([
+  const [pending, users, jobs, deletionRequests] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.user.count(),
     prisma.job.count(),
+    prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
   ]);
+  if (deletionRequests > 0) attention.push({ label: `${deletionRequests} AVG-verwijderverzoek(en) — beoordeel`, href: "/admin/gebruikers?deletion=1" });
   if (pending > 0) attention.push({ label: `${pending} certificaat/certificaten wachten op verificatie`, href: "/admin/verificaties" });
   return {
     stats: [
