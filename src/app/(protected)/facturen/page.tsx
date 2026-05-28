@@ -29,6 +29,12 @@ export default async function FacturenPage() {
     },
   });
 
+  const paidCents = invoices.reduce((sum, inv) => (inv.status === "PAID" ? sum + inv.totalCents : sum), 0);
+  const openCents = invoices.reduce(
+    (sum, inv) => (inv.status === "SENT" || inv.status === "OVERDUE" ? sum + inv.totalCents : sum),
+    0,
+  );
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header className="flex items-center justify-between gap-4">
@@ -44,6 +50,23 @@ export default async function FacturenPage() {
           </Button>
         )}
       </header>
+
+      {invoices.length > 0 && (
+        <div className="flex gap-3">
+          <Card className="flex-1">
+            <CardContent className="space-y-1 p-4">
+              <p className="text-xs text-muted-foreground">Betaald</p>
+              <p className="text-lg font-semibold tabular-nums">{formatEuro(paidCents)}</p>
+            </CardContent>
+          </Card>
+          <Card className="flex-1">
+            <CardContent className="space-y-1 p-4">
+              <p className="text-xs text-muted-foreground">Openstaand</p>
+              <p className="text-lg font-semibold tabular-nums">{formatEuro(openCents)}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {invoices.length === 0 ? (
         <Card>

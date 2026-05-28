@@ -77,7 +77,7 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
 
   // Opdrachtgever markeert als betaald.
   await page.goto("/facturen");
-  await expect(page.getByText("€ 900,00")).toBeVisible();
+  await expect(page.getByText("€ 900,00").first()).toBeVisible();
   await page.getByRole("link", { name: /Fact Freelancer|2026-/ }).first().click();
   await page.waitForURL(/\/facturen\/[a-z0-9]+$/);
   await page.getByRole("button", { name: "Markeer als betaald" }).click();

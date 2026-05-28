@@ -19,6 +19,60 @@ function relativeTime(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+type NotificationItem = Awaited<ReturnType<typeof prisma.notification.findMany>>[number];
+
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function NotificationRow({ n }: { n: NotificationItem }) {
+  const unread = !n.readAt;
+  const inner = (
+    <>
+      <div className="flex items-start gap-3">
+        <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", unread ? "bg-primary" : "bg-transparent")} aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className={cn("text-sm", unread ? "font-medium" : "")}>{n.title}</p>
+          {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}
+          <p className="mt-0.5 text-xs text-muted-foreground">{relativeTime(n.createdAt)}</p>
+        </div>
+        {unread && (
+          <form action={markNotificationRead.bind(null, n.id)}>
+            <Button type="submit" variant="ghost" size="sm">Gelezen</Button>
+          </form>
+        )}
+      </div>
+    </>
+  );
+  return (
+    <div className={cn("px-4 py-3", unread && "bg-muted/30")}>
+      {n.link ? (
+        <Link href={n.link} className="block hover:opacity-80">{inner}</Link>
+      ) : (
+        inner
+      )}
+    </div>
+  );
+}
+
+function NotificationGroup({ heading, items }: { heading: string; items: NotificationItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <section className="space-y-2">
+      <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{heading}</h2>
+      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+        {items.map((n) => (
+          <NotificationRow key={n.id} n={n} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function NotificatiesPage() {
   const actor = await requireActor();
   const notifications = await prisma.notification.findMany({
@@ -27,6 +81,10 @@ export default async function NotificatiesPage() {
     take: 100,
   });
   const hasUnread = notifications.some((n) => !n.readAt);
+
+  const now = new Date();
+  const today = notifications.filter((n) => isSameDay(n.createdAt, now));
+  const earlier = notifications.filter((n) => !isSameDay(n.createdAt, now));
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -47,36 +105,9 @@ export default async function NotificatiesPage() {
           <CardContent className="text-center text-sm text-muted-foreground">Geen notificaties.</CardContent>
         </Card>
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {notifications.map((n) => {
-            const unread = !n.readAt;
-            const inner = (
-              <>
-                <div className="flex items-start gap-3">
-                  <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", unread ? "bg-primary" : "bg-transparent")} aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <p className={cn("text-sm", unread ? "font-medium" : "")}>{n.title}</p>
-                    {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}
-                    <p className="mt-0.5 text-xs text-muted-foreground">{relativeTime(n.createdAt)}</p>
-                  </div>
-                  {unread && (
-                    <form action={markNotificationRead.bind(null, n.id)}>
-                      <Button type="submit" variant="ghost" size="sm">Gelezen</Button>
-                    </form>
-                  )}
-                </div>
-              </>
-            );
-            return (
-              <div key={n.id} className={cn("px-4 py-3", unread && "bg-muted/30")}>
-                {n.link ? (
-                  <Link href={n.link} className="block hover:opacity-80">{inner}</Link>
-                ) : (
-                  inner
-                )}
-              </div>
-            );
-          })}
+        <div className="space-y-6">
+          <NotificationGroup heading="Vandaag" items={today} />
+          <NotificationGroup heading="Eerder" items={earlier} />
         </div>
       )}
     </div>

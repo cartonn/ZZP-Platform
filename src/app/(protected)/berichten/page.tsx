@@ -7,6 +7,16 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Berichten · ZZP Platform" };
 
+function relativeTime(d: Date): string {
+  const diff = Date.now() - d.getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "zojuist";
+  if (min < 60) return `${min} min geleden`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} uur geleden`;
+  return d.toISOString().slice(0, 10);
+}
+
 export default async function BerichtenPage() {
   const actor = await requireActor();
 
@@ -18,7 +28,7 @@ export default async function BerichtenPage() {
     include: {
       job: { select: { title: true } },
       participants: { include: { user: { select: { id: true, name: true } } } },
-      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true } },
+      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true, createdAt: true } },
     },
   });
 
@@ -65,7 +75,12 @@ export default async function BerichtenPage() {
                     {unread > 0 && <Badge variant="default">{unread} nieuw</Badge>}
                   </div>
                   {c.job && <p className="text-xs text-muted-foreground">Over: {c.job.title}</p>}
-                  {last && <p className="truncate text-sm text-muted-foreground">{last.body}</p>}
+                  {last && (
+                    <>
+                      <p className="truncate text-xs text-muted-foreground">{last.body}</p>
+                      <p className="text-xs text-muted-foreground">{relativeTime(last.createdAt)}</p>
+                    </>
+                  )}
                 </div>
               </Link>
             );
