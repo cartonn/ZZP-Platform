@@ -24,6 +24,7 @@ test("opdrachtgever ziet passende ZZP'ers bij de opdracht en kan ze benaderen", 
   await fp.goto("/profiel");
   await fp.fill("#hourlyRate", "80");
   await fp.selectOption("#workMode", "REMOTE");
+  await fp.selectOption("#availability", "AVAILABLE");
   await fp.locator("fieldset", { hasText: "Skills" }).getByText("TypeScript", { exact: true }).click();
   await fp.getByRole("button", { name: "Profiel opslaan" }).click();
   await expect(fp.getByText(/opgeslagen|bijgewerkt/i).first()).toBeVisible({ timeout: 15000 });
@@ -55,6 +56,7 @@ test("opdrachtgever ziet passende ZZP'ers bij de opdracht en kan ze benaderen", 
   const row = page.locator("li", { hasText: freelancerName });
   await expect(row).toBeVisible();
   await expect(row.getByText(/Match \d+%/)).toBeVisible();
+  await expect(row.getByText("Beschikbaar", { exact: true })).toBeVisible();
   await shot(page, "29-suggested-freelancers");
 
   // "Bericht sturen" opent een echt gesprek (geen dode knop).

@@ -7,6 +7,7 @@ const m = (jobId: string, score: number): JobMatch => ({
   companyName: "Co",
   score,
   compliance: "COMPLIANT",
+  availability: "AVAILABLE",
 });
 
 describe("topMatches", () => {
@@ -25,5 +26,10 @@ describe("topMatches", () => {
 
   it("geeft lege lijst als niets de drempel haalt", () => {
     expect(topMatches([m("a", 10), m("b", 69)], { minScore: 70, limit: 4 })).toEqual([]);
+  });
+
+  it("draagt de beschikbaarheidsstatus mee door de rangschikking", () => {
+    const out = topMatches([{ ...m("a", 80), availability: "LIMITED" }], { minScore: 70, limit: 10 });
+    expect(out.map((x) => x.availability)).toEqual(["LIMITED"]);
   });
 });

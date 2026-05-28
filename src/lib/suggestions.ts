@@ -3,6 +3,7 @@
 // recommendations.ts. Hergebruikt de server-berekende matchscore + compliance + vertrouwensniveau.
 
 import { prisma } from "@/lib/db";
+import { type Availability } from "@/lib/enums";
 import { scoreJobForFreelancer, type ComplianceStatus } from "@/lib/matching";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 
@@ -12,6 +13,7 @@ export interface FreelancerSuggestion {
   score: number;
   compliance: ComplianceStatus;
   trustLevel: TrustLevel;
+  availability: Availability;
 }
 
 /** Drempel waaronder een ZZP'er niet relevant genoeg is om voor te stellen. */
@@ -47,6 +49,7 @@ export async function suggestedFreelancersForJob(jobId: string, limit = 4): Prom
       user: { select: { name: true, identityVerifiedAt: true } },
       skills: { select: { skillId: true } },
       credentials: { select: { type: true, status: true, expiresAt: true } },
+      availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
     },
   });
 
@@ -69,6 +72,7 @@ export async function suggestedFreelancersForJob(jobId: string, limit = 4): Prom
         score: match.score,
         compliance: match.compliance.status,
         trustLevel: trust.level,
+        availability: match.availability.status,
       };
     });
 

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
+import { AvailabilityBadge } from "@/components/availability-badge";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { scoreJobForFreelancer, type ComplianceResult, type ComplianceStatus, type MatchReason } from "@/lib/matching";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
@@ -224,6 +225,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                   <TrustBadge level={f.trustLevel} />
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  <AvailabilityBadge status={f.availability} />
                   <ComplianceBadge status={f.compliance} />
                   <Badge variant="muted">Match {f.score}%</Badge>
                   <form action={startConversationWithFreelancer.bind(null, job.id, f.freelancerId)}>

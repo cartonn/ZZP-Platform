@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/db";
 import { scoreJobForFreelancer, type ComplianceStatus } from "@/lib/matching";
+import { type Availability } from "@/lib/enums";
 
 export interface JobMatch {
   jobId: string;
@@ -12,6 +13,7 @@ export interface JobMatch {
   companyName: string;
   score: number;
   compliance: ComplianceStatus;
+  availability: Availability;
 }
 
 /** Drempel waaronder een opdracht niet relevant genoeg is om proactief te tonen. */
@@ -38,6 +40,7 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
       skills: { select: { skillId: true } },
       credentials: { select: { type: true, status: true, expiresAt: true } },
       applications: { select: { jobId: true } },
+      availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
     },
   });
   if (!profile) return [];
@@ -64,6 +67,7 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
         companyName: j.company.name,
         score: match.score,
         compliance: match.compliance.status,
+        availability: match.availability.status,
       };
     });
 

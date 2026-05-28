@@ -7,6 +7,7 @@ const s = (freelancerId: string, score: number): FreelancerSuggestion => ({
   score,
   compliance: "COMPLIANT",
   trustLevel: "BASIS",
+  availability: "AVAILABLE",
 });
 
 describe("topSuggestions", () => {
@@ -22,5 +23,10 @@ describe("topSuggestions", () => {
 
   it("geeft een lege lijst als niets de drempel haalt", () => {
     expect(topSuggestions([s("a", 10), s("b", 69)], { minScore: 70, limit: 4 })).toEqual([]);
+  });
+
+  it("draagt het beschikbaarheidsstatusveld ongewijzigd mee", () => {
+    const out = topSuggestions([{ ...s("a", 80), availability: "LIMITED" }], { minScore: 70, limit: 10 });
+    expect(out[0]?.availability).toBe("LIMITED");
   });
 });
