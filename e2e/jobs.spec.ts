@@ -71,7 +71,7 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
   await card.click();
   await fp.waitForURL(detailUrl);
   await expect(fp.getByRole("heading", { name: title })).toBeVisible({ timeout: 15000 });
-  await expect(fp.getByText("VOG")).toBeVisible(); // vereist certificaat zichtbaar
+  await expect(fp.locator("section", { hasText: "Vereiste certificaten" }).getByText("VOG", { exact: true })).toBeVisible();
   await shot(fp, "13-job-detail-freelancer");
 
   // Niet-gepubliceerde opdracht is niet zichtbaar voor anderen: depubliceer en check 404.

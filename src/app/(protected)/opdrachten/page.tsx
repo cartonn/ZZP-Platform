@@ -6,10 +6,11 @@ import { type Actor, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
 import { scoreJobForFreelancer } from "@/lib/matching";
-import { type JobStatus, type WorkMode } from "@/lib/enums";
+import { JOB_STATUSES, type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 
@@ -17,18 +18,35 @@ export const metadata: Metadata = { title: "Opdrachten · ZZP Platform" };
 
 const WORK_MODE: Record<WorkMode, string> = { REMOTE: "Remote", ONSITE: "Op locatie", HYBRID: "Hybride" };
 
+const JOB_STATUS_LABEL: Record<JobStatus, string> = {
+  DRAFT: "Concept",
+  PUBLISHED: "Gepubliceerd",
+  CLOSED: "Gesloten",
+};
+
+const isJobStatus = (v: string): v is JobStatus => (JOB_STATUSES as readonly string[]).includes(v);
+
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function OpdrachtenPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await requireActor();
-  if (actor.role === "CLIENT") return <ClientJobs userId={actor.id} />;
-  return <BrowseJobs searchParams={await searchParams} actor={actor} />;
+  const sp = await searchParams;
+  if (actor.role === "CLIENT") {
+    const statusParam = first(sp.status);
+    const status = isJobStatus(statusParam) ? statusParam : undefined;
+    return <ClientJobs userId={actor.id} status={status} />;
+  }
+  return <BrowseJobs searchParams={sp} actor={actor} />;
 }
 
 // --- CLIENT: beheeroverzicht van eigen opdrachten ---
-async function ClientJobs({ userId }: { userId: string }) {
+async function ClientJobs({ userId, status }: { userId: string; status?: JobStatus }) {
+  const where: Prisma.JobWhereInput = { company: { userId } };
+  if (status) where.status = status;
+
   const jobs = await prisma.job.findMany({
-    where: { company: { userId } },
+    where,
     orderBy: { updatedAt: "desc" },
     include: { _count: { select: { applications: true } } },
   });
@@ -44,6 +62,16 @@ async function ClientJobs({ userId }: { userId: string }) {
           <Link href="/opdrachten/nieuw"><Plus className="size-4" aria-hidden /> Nieuwe opdracht</Link>
         </Button>
       </header>
+
+      <form method="get" className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto]">
+        <Select name="status" defaultValue={status ?? ""} aria-label="Status">
+          <option value="">Alle statussen</option>
+          {JOB_STATUSES.map((s) => (
+            <option key={s} value={s}>{JOB_STATUS_LABEL[s]}</option>
+          ))}
+        </Select>
+        <Button type="submit" variant="secondary">Filteren</Button>
+      </form>
 
       {jobs.length === 0 ? (
         <Card>

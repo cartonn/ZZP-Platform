@@ -78,7 +78,7 @@ test("admin schorst gebruiker (self-guard), sluit opdracht en ziet auditregel", 
 
   // Auditregel zichtbaar.
   await page.goto("/admin/audit");
-  await page.getByLabel("Actie").fill("USER_STATUS_CHANGED");
+  await page.locator('input[name="action"]').fill("USER_STATUS_CHANGED");
   await page.getByRole("button", { name: "Filteren" }).click();
   await expect(page.getByText("USER_STATUS_CHANGED").first()).toBeVisible();
   await shot(page, "29-admin-audit");

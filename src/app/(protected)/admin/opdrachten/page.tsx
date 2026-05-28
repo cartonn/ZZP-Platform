@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
+import { AlertTriangle } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -26,12 +27,15 @@ export default async function AdminOpdrachtenPage({ searchParams }: { searchPara
   if (q) where.title = { contains: q };
   if (status) where.status = status;
 
-  const jobs = await prisma.job.findMany({
-    where,
-    orderBy: { updatedAt: "desc" },
-    take: 100,
-    include: { company: { select: { name: true } }, _count: { select: { applications: true } } },
-  });
+  const [jobs, draftJobs] = await Promise.all([
+    prisma.job.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+      include: { company: { select: { name: true } }, _count: { select: { applications: true } } },
+    }),
+    prisma.job.count({ where: { status: "DRAFT" } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -39,6 +43,18 @@ export default async function AdminOpdrachtenPage({ searchParams }: { searchPara
         <h1 className="text-xl font-semibold tracking-tight">Opdrachten (beheer)</h1>
         <p className="text-sm text-muted-foreground">Alle opdrachten op het platform. Sluit ongepaste opdrachten.</p>
       </header>
+
+      {draftJobs > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/opdrachten?status=DRAFT"
+            className="inline-flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1.5 text-sm text-warning focus-ring"
+          >
+            <AlertTriangle className="size-4 shrink-0" aria-hidden />
+            {draftJobs} concept(en) — bekijk
+          </Link>
+        </div>
+      )}
 
       <form method="get" className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto_auto]">
         <Input name="q" defaultValue={q} placeholder="Zoek op titel…" aria-label="Zoeken" />
