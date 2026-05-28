@@ -200,7 +200,7 @@ export async function createApplication(
 
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    include: { skills: true, credentialRequirements: true },
+    include: { skills: true, credentialRequirements: true, company: { select: { userId: true } } },
   });
   if (!job) return { error: "Opdracht niet gevonden." };
   if (job.status !== "PUBLISHED") return { error: "Je kunt alleen op gepubliceerde opdrachten reageren." };
@@ -259,6 +259,17 @@ export async function createApplication(
     entityType: "Application",
     entityId: application.id,
     metadata: { jobId, matchScore: match.score, compliance: match.compliance.status },
+  });
+
+  // Meld de nieuwe reactie aan de opdrachtgever.
+  await prisma.notification.create({
+    data: {
+      userId: job.company.userId,
+      type: "APPLICATION_RECEIVED",
+      title: "Nieuwe reactie",
+      body: `Nieuwe reactie op "${job.title}".`,
+      link: "/kandidaten",
+    },
   });
 
   revalidatePath("/reacties");

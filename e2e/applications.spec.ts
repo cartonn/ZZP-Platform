@@ -27,6 +27,7 @@ async function registerFreelancer(page: Page, email: string) {
 }
 
 test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, browser }) => {
+  test.slow();
   const title = `Reactie Opdracht ${uniq()}`;
   await registerClient(page, `reclient-${uniq()}@test.local`);
 
@@ -66,6 +67,10 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
   // Tweede reactie op dezelfde opdracht is niet mogelijk.
   await fp.goto(detailUrl);
   await expect(fp.getByText("Je hebt op deze opdracht gereageerd.")).toBeVisible();
+
+  // Opdrachtgever krijgt een melding van de nieuwe reactie.
+  await page.goto("/notificaties");
+  await expect(page.getByText("Nieuwe reactie").first()).toBeVisible();
 
   // Opdrachtgever beheert de kandidaat.
   await page.goto("/kandidaten");
