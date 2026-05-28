@@ -2,8 +2,15 @@
 // snapshot, maar berekent nooit zelf. Pure functies op platte objecten zodat ze
 // los van Prisma te unit-testen en te hergebruiken zijn (Sessie 3 reactie-snapshot).
 
+import { currentOrNextAvailable } from "@/lib/availability";
 import { isExpired } from "@/lib/credentials";
-import { type CredentialStatus, type CredentialType, type WorkMode } from "@/lib/enums";
+import {
+  type Availability,
+  type AvailabilityWindowType,
+  type CredentialStatus,
+  type CredentialType,
+  type WorkMode,
+} from "@/lib/enums";
 
 export type ComplianceStatus = "COMPLIANT" | "WARNING" | "NON_COMPLIANT";
 
@@ -79,7 +86,13 @@ export interface MatchInput {
   requiredCredentialTypes: readonly CredentialType[];
   credentials: readonly FreelancerCredential[];
   job: { rateMin?: number | null; rateMax?: number | null; workMode: WorkMode; location?: string | null };
-  freelancer: { hourlyRate?: number | null; workMode: WorkMode; location?: string | null };
+  freelancer: {
+    hourlyRate?: number | null;
+    workMode: WorkMode;
+    location?: string | null;
+    availability: Availability;
+    availabilityWindows?: readonly { startDate: Date; endDate: Date; type: AvailabilityWindowType }[];
+  };
 }
 
 export interface MatchResult {
@@ -93,6 +106,25 @@ export interface MatchResult {
   };
   compliance: ComplianceResult;
   reasons: MatchReason[];
+  availability: { status: Availability; reason: MatchReason | null };
+}
+
+/**
+ * Vertaalt een beschikbaarheidsstatus naar een verklarende reason (of `null` bij UNKNOWN).
+ * Pure functie: geen invloed op `score` of `breakdown`, alleen op de uitleg.
+ */
+export function availabilityReason(status: Availability): MatchReason | null {
+  switch (status) {
+    case "AVAILABLE":
+      return { kind: "positive", label: "Direct beschikbaar" };
+    case "LIMITED":
+      return { kind: "positive", label: "Beperkt beschikbaar" };
+    case "UNAVAILABLE":
+      return { kind: "gap", label: "Momenteel niet beschikbaar" };
+    case "UNKNOWN":
+    default:
+      return null;
+  }
 }
 
 const WEIGHTS = { requiredSkills: 35, optionalSkills: 15, compliance: 25, rate: 15, workMode: 5, location: 5 };
@@ -177,9 +209,31 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     gaps.push({ kind: "gap", label: "Werkmodus sluit niet aan" });
   }
 
+  // Beschikbaarheid: een venster dat nu of als eerstvolgende inzetbaar is, overschrijft
+  // de losse status. Dit beïnvloedt alleen de uitleg, niet de score of breakdown.
+  const windows = input.freelancer.availabilityWindows;
+  const activeWindow = windows && windows.length > 0 ? currentOrNextAvailable(windows, now) : null;
+  const effectiveStatus: Availability = activeWindow
+    ? activeWindow.type
+    : input.freelancer.availability ?? "UNKNOWN";
+  const availReason = availabilityReason(effectiveStatus);
+  if (availReason) {
+    if (availReason.kind === "positive") {
+      positives.push(availReason);
+    } else {
+      gaps.push(availReason);
+    }
+  }
+
   const reasons: MatchReason[] = [...positives, ...gaps];
 
-  return { score, breakdown, compliance, reasons };
+  return {
+    score,
+    breakdown,
+    compliance,
+    reasons,
+    availability: { status: effectiveStatus, reason: availReason },
+  };
 }
 
 // Brontypes die direct overeenkomen met de Prisma-includes op de aanroepplekken, zodat
@@ -198,6 +252,8 @@ export interface FreelancerMatchSource {
   hourlyRate: number | null;
   workMode: string;
   location: string | null;
+  availability: string;
+  availabilityWindows?: readonly { startDate: Date; endDate: Date; type: string }[];
 }
 
 /** Scoort een opdracht voor een ZZP'er vanuit de ruwe Prisma-vormen. */
@@ -218,7 +274,17 @@ export function scoreJobForFreelancer(
         expiresAt: c.expiresAt,
       })),
       job: { rateMin: job.rateMin, rateMax: job.rateMax, workMode: job.workMode as WorkMode, location: job.location },
-      freelancer: { hourlyRate: freelancer.hourlyRate, workMode: freelancer.workMode as WorkMode, location: freelancer.location },
+      freelancer: {
+        hourlyRate: freelancer.hourlyRate,
+        workMode: freelancer.workMode as WorkMode,
+        location: freelancer.location,
+        availability: freelancer.availability as Availability,
+        availabilityWindows: freelancer.availabilityWindows?.map((w) => ({
+          startDate: w.startDate,
+          endDate: w.endDate,
+          type: w.type as AvailabilityWindowType,
+        })),
+      },
     },
     now,
   );
