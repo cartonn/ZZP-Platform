@@ -11,14 +11,14 @@ volgens de Definition of Done (zie CLAUDE.md → AUTO-MODE), commit + push, pak 
 Altijd `git fetch`/rebase vóór commit én push (meerdere agents pushen naar dezelfde branch).
 
 ### Backlog (bovenste eerst — houd deze lijst levend)
-1. Notificaties bij sleutelmomenten die er nog niet zijn (uitnodiging, samenwerking voorgesteld,
-   factuur verzonden) — controleer dekking en vul aan.
-2. Beschikbaarheid laten meewegen/zichtbaar in matching-uitleg.
-3. Verloop-detectie als geplande taak (cron/automation = mensenwerk) → echte expiry-notificaties.
-4. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
+1. Design-polish-pass: lege/laad/fout-staten + micro-interacties naar het strakke, rustige niveau
+   (Noord-ster: Uber/SaaS, complexiteit op de achtergrond).
+2. Verloop-detectie als geplande taak (cron/automation = mensenwerk) → echte expiry-notificaties.
+3. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
 
-Gereed: bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht"
-(AVG-verwijderverzoeken + in-afwachting, met dashboard-attentie).
+Gereed: bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
+nieuwe-reactie-notificatie · uitlegbare matching (match-reasons) · next-action-engine
+(dashboard draait erop) · beschikbaarheid in matching (score onveranderd, reden + badges).
 
 ### Per increment (geen uitzonderingen)
 testbare kern + unit-tests → UI → typecheck/lint/test/build groen → e2e + screenshot →
