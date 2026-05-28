@@ -1,0 +1,44 @@
+name: PR review (reviewer + security)
+
+# Reviewpoort: op elke PR draait een review-agent (correctheid + security). Hij ADVISEERT —
+# merget nooit. Samen met CI (ci.yml) en menselijke goedkeuring vormt dit de gate vóór merge.
+#
+# MENSENWERK (eenmalig): repo-secret ANTHROPIC_API_KEY. Zonder dit secret slaat de stap over.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Review deze PR-diff tegen de basis-branch. Volg de rollen in .claude/agents/reviewer.md
+            en .claude/agents/security.md en de regels in CLAUDE.md.
+            Geef beknopte, gegroepeerde bevindingen (blocker / should-fix / nit) met file:line en de
+            concrete fix. Controleer expliciet: de mutatie-keten (auth/rol/ownership/Zod/audit),
+            RBAC op /admin, geen secrets, geen injectie/XSS, documentprivacy, en dat het woord "AI"
+            nergens in product-UI/teksten/comments staat. Merge niet en wijzig geen code — plaats
+            alleen een review-comment. Hou het kort en hoog-signaal.
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 30

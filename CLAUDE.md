@@ -41,6 +41,23 @@ werkt volgens dit contract:
 
 ---
 
+## Rolverdeling, veiligheid & geheugen (zwerm)
+
+- **Gespecialiseerde subagents** staan in `.claude/agents/` (planner, builder, tester,
+  reviewer, security, devops, docs). De lopende sessie is de **orchestrator**: splitst werk,
+  delegeert naar 2–4 workers op niet-overlappende bestanden, integreert en draait de checks.
+  Zie `SWARM.md` voor het volledige contract en `docs/decisions/0002-agent-architecture.md`.
+- **Pijplijn:** Taak → Plan → Build → Test → Review → (Draft) PR → menselijke goedkeuring → Deploy.
+  CI (`ci.yml`) + `pr-review.yml` (reviewer + security) vormen de poort; **agents mergen nooit zelf**.
+- **Veiligheidsregels (hard):** nooit naar `main` pushen zonder toestemming; geen secrets in
+  git/log/code; auth nooit uitschakelen; **geen automatische productie-deploy** (zie
+  `docs/decisions/0001-deploy-gating.md`); **stop na 2 mislukte herstelpogingen** en meld de blocker.
+- **Kleine PR's** (richtlijn 100–300 regels), één taak per branch/worker.
+- **Geheugen:** leg betekenisvolle keuzes vast als ADR in `docs/decisions/` (`0000-template.md`).
+  Naast CLAUDE.md / SWARM.md / CURRENT_TASK.md / PROGRESS.md / MENSENWERK.md.
+
+---
+
 ## Wat we bouwen
 
 **ZZP Platform** — een productiegericht SaaS-platform voor de Nederlandse markt waar
