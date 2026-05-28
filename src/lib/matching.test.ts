@@ -108,4 +108,28 @@ describe("computeMatchScore", () => {
     );
     expect(pricey.breakdown.rate).toBeLessThan(cheap.breakdown.rate);
   });
+
+  it("geeft alleen positieve reasons bij een perfecte match", () => {
+    const r = computeMatchScore(base, now);
+    expect(r.reasons.every((re) => re.kind === "positive")).toBe(true);
+    expect(r.reasons.map((re) => re.label)).toContain("Alle vereiste skills aanwezig");
+    expect(r.reasons.map((re) => re.label)).toContain("Voldoet aan de certificaateisen");
+    expect(r.reasons.map((re) => re.label)).toContain("Tarief past binnen het budget");
+    expect(r.reasons.map((re) => re.label)).toContain("Werkmodus komt overeen");
+  });
+
+  it("geeft een gap-reason met correct X/Y bij ontbrekende vereiste skills", () => {
+    const r = computeMatchScore({ ...base, freelancerSkillIds: ["react"] }, now);
+    const gap = r.reasons.find((re) => re.kind === "gap" && re.label.includes("vereiste skills"));
+    expect(gap).toBeDefined();
+    // base has 2 required skills; freelancer has 1, so missing = 1 of 2
+    expect(gap?.label).toBe("Mist 1 van 2 vereiste skills");
+  });
+
+  it("geeft een compliance gap-reason bij ontbrekend vereist credential", () => {
+    const r = computeMatchScore({ ...base, credentials: [] }, now);
+    const gap = r.reasons.find((re) => re.kind === "gap" && re.label.includes("certificaat"));
+    expect(gap).toBeDefined();
+    expect(gap?.label).toBe("Mist vereist certificaat");
+  });
 });

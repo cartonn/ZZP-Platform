@@ -1,0 +1,215 @@
+// Unified, deterministic "next best action" engine. Pure logic: no Prisma, no I/O.
+// Takes plain typed inputs of primitive counts/flags (server computes these upstream)
+// and produces a ranked list of actions. Thresholds mirror the dashboard exactly so a
+// later swap is behaviour-preserving. Higher priority = more urgent = shown first.
+
+export type NextActionTone = "attention" | "info" | "success";
+
+export interface NextAction {
+  id: string;
+  title: string;
+  href: string;
+  tone: NextActionTone;
+  /** Higher = more urgent. Equal priority preserves input order (stable). */
+  priority: number;
+}
+
+/**
+ * Stable sort by priority descending: equal priorities keep their input order.
+ * `Array.prototype.sort` is stable in modern engines, but we guard order
+ * explicitly via the original index so the contract holds regardless.
+ */
+export function rankNextActions(actions: NextAction[]): NextAction[] {
+  return actions
+    .map((action, index) => ({ action, index }))
+    .sort((a, b) => b.action.priority - a.action.priority || a.index - b.index)
+    .map(({ action }) => action);
+}
+
+// Priority bands. Compliance/blocking items outrank cosmetic ones. Gaps leave
+// room for future items without renumbering.
+const P = {
+  blocking: 100, // profiel privé, AVG-verwijderverzoek
+  identity: 90, // identiteit niet geverifieerd
+  complianceRipple: 85, // lopende samenwerking met certificaat-alert
+  credentialRejected: 80, // afgewezen certificaat — opnieuw indienen
+  credentialExpiring: 70, // certificaat verloopt binnenkort
+  verificationQueue: 70, // wacht op verificatie (admin)
+  overdueInvoice: 60, // factuur over de vervaldatum
+  pendingUsers: 60, // gebruikers met PENDING-status (admin)
+  applications: 50, // nieuwe reacties
+  completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)
+  drafts: 20, // concept-opdrachten
+} as const;
+
+export interface FreelancerActionInput {
+  profilePrivate: boolean;
+  identityVerified: boolean;
+  completeness: number;
+  rejectedCredentials: number;
+  expiringCredentials: number;
+  overdueInvoices: number;
+}
+
+export function freelancerNextActions(input: FreelancerActionInput): NextAction[] {
+  const actions: NextAction[] = [];
+
+  if (input.profilePrivate) {
+    actions.push({
+      id: "freelancer-profile-private",
+      title: "Je profiel staat op privé — opdrachtgevers kunnen je niet vinden",
+      href: "/profiel",
+      tone: "attention",
+      priority: P.blocking,
+    });
+  }
+  if (!input.identityVerified) {
+    actions.push({
+      id: "freelancer-identity-unverified",
+      title: "Verifieer je identiteit voor een hoger vertrouwensniveau",
+      href: "/account",
+      tone: "attention",
+      priority: P.identity,
+    });
+  }
+  if (input.completeness < 100) {
+    actions.push({
+      id: "freelancer-completeness",
+      title: `Profiel is ${input.completeness}% compleet — vul aan`,
+      href: "/profiel",
+      tone: "info",
+      priority: P.completeness,
+    });
+  }
+  if (input.rejectedCredentials > 0) {
+    actions.push({
+      id: "freelancer-credentials-rejected",
+      title: `${input.rejectedCredentials} certificaat/certificaten afgewezen — opnieuw indienen`,
+      href: "/certificaten",
+      tone: "attention",
+      priority: P.credentialRejected,
+    });
+  }
+  if (input.expiringCredentials > 0) {
+    actions.push({
+      id: "freelancer-credentials-expiring",
+      title: `${input.expiringCredentials} certificaat verloopt binnenkort — vernieuw`,
+      href: "/certificaten",
+      tone: "attention",
+      priority: P.credentialExpiring,
+    });
+  }
+  if (input.overdueInvoices > 0) {
+    actions.push({
+      id: "freelancer-overdue-invoices",
+      title: `${input.overdueInvoices} factu(u)r(en) over de vervaldatum — stuur een herinnering`,
+      href: "/facturen",
+      tone: "attention",
+      priority: P.overdueInvoice,
+    });
+  }
+
+  return rankNextActions(actions);
+}
+
+export interface ClientActionInput {
+  companyCompleteness: number;
+  newApplications: number;
+  draftJobs: number;
+  overdueInvoices: number;
+  /** Pre-rendered descriptions of credential alerts for active collaborations. */
+  collaborationCredentialAlerts: string[];
+}
+
+export function clientNextActions(input: ClientActionInput): NextAction[] {
+  const actions: NextAction[] = [];
+
+  // Compliance van een lopende samenwerking weegt het zwaarst — bovenaan.
+  input.collaborationCredentialAlerts.forEach((description, i) => {
+    actions.push({
+      id: `client-collaboration-alert-${i}`,
+      title: description,
+      href: "/samenwerkingen",
+      tone: "attention",
+      priority: P.complianceRipple,
+    });
+  });
+  if (input.companyCompleteness < 100) {
+    actions.push({
+      id: "client-company-completeness",
+      title: `Bedrijfsprofiel is ${input.companyCompleteness}% compleet — vul aan`,
+      href: "/bedrijf",
+      tone: "info",
+      priority: P.completeness,
+    });
+  }
+  if (input.newApplications > 0) {
+    actions.push({
+      id: "client-new-applications",
+      title: `${input.newApplications} nieuwe reactie(s) — beoordeel kandidaten`,
+      href: "/kandidaten",
+      tone: "attention",
+      priority: P.applications,
+    });
+  }
+  if (input.draftJobs > 0) {
+    actions.push({
+      id: "client-draft-jobs",
+      title: `${input.draftJobs} concept-opdracht(en) — publiceren?`,
+      href: "/opdrachten",
+      tone: "info",
+      priority: P.drafts,
+    });
+  }
+  if (input.overdueInvoices > 0) {
+    actions.push({
+      id: "client-overdue-invoices",
+      title: `${input.overdueInvoices} openstaande factu(u)r(en) over de vervaldatum — betaal`,
+      href: "/facturen",
+      tone: "attention",
+      priority: P.overdueInvoice,
+    });
+  }
+
+  return rankNextActions(actions);
+}
+
+export interface AdminActionInput {
+  deletionRequests: number;
+  pendingVerifications: number;
+  pendingUsers: number;
+}
+
+export function adminNextActions(input: AdminActionInput): NextAction[] {
+  const actions: NextAction[] = [];
+
+  if (input.deletionRequests > 0) {
+    actions.push({
+      id: "admin-deletion-requests",
+      title: `${input.deletionRequests} AVG-verwijderverzoek(en) — beoordeel`,
+      href: "/admin/gebruikers?deletion=1",
+      tone: "attention",
+      priority: P.blocking,
+    });
+  }
+  if (input.pendingVerifications > 0) {
+    actions.push({
+      id: "admin-pending-verifications",
+      title: `${input.pendingVerifications} certificaat/certificaten wachten op verificatie`,
+      href: "/admin/verificaties",
+      tone: "attention",
+      priority: P.verificationQueue,
+    });
+  }
+  if (input.pendingUsers > 0) {
+    actions.push({
+      id: "admin-pending-users",
+      title: `${input.pendingUsers} gebruiker(s) wachten op goedkeuring`,
+      href: "/admin/gebruikers?status=PENDING",
+      tone: "info",
+      priority: P.pendingUsers,
+    });
+  }
+
+  return rankNextActions(actions);
+}

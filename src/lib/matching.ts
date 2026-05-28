@@ -7,6 +7,12 @@ import { type CredentialStatus, type CredentialType, type WorkMode } from "@/lib
 
 export type ComplianceStatus = "COMPLIANT" | "WARNING" | "NON_COMPLIANT";
 
+export type MatchReasonKind = "positive" | "gap";
+export interface MatchReason {
+  kind: MatchReasonKind;
+  label: string;
+}
+
 export interface FreelancerCredential {
   type: CredentialType;
   status: CredentialStatus;
@@ -86,6 +92,7 @@ export interface MatchResult {
     location: number;
   };
   compliance: ComplianceResult;
+  reasons: MatchReason[];
 }
 
 const WEIGHTS = { requiredSkills: 35, optionalSkills: 15, compliance: 25, rate: 15, workMode: 5, location: 5 };
@@ -124,7 +131,55 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     100,
   );
 
-  return { score, breakdown, compliance };
+  const positives: MatchReason[] = [];
+  const gaps: MatchReason[] = [];
+
+  // Skills reasons
+  if (required.length > 0) {
+    if (requiredCoverage === 1) {
+      positives.push({ kind: "positive", label: "Alle vereiste skills aanwezig" });
+    } else {
+      const matched = required.filter((s) => freelancerSkills.has(s)).length;
+      const missing = required.length - matched;
+      gaps.push({ kind: "gap", label: `Mist ${missing} van ${required.length} vereiste skills` });
+    }
+  }
+
+  // Compliance reasons
+  if (reqCredCount > 0) {
+    if (compliance.status === "COMPLIANT") {
+      positives.push({ kind: "positive", label: "Voldoet aan de certificaateisen" });
+    } else if (compliance.status === "WARNING") {
+      gaps.push({ kind: "gap", label: "Certificaat in beoordeling of verloopt binnenkort" });
+    } else {
+      if (compliance.missing.length > 0) {
+        gaps.push({ kind: "gap", label: "Mist vereist certificaat" });
+      }
+    }
+  }
+
+  // Rate reasons
+  const { hourlyRate } = input.freelancer;
+  const { rateMin, rateMax } = input.job;
+  if (hourlyRate != null && (rateMin != null || rateMax != null)) {
+    if (rateMax != null && hourlyRate > rateMax) {
+      gaps.push({ kind: "gap", label: "Tarief ligt boven het budget" });
+    } else {
+      positives.push({ kind: "positive", label: "Tarief past binnen het budget" });
+    }
+  }
+
+  // WorkMode reasons
+  const wmFit = workModeFit(input.job.workMode, input.freelancer.workMode);
+  if (wmFit === WEIGHTS.workMode) {
+    positives.push({ kind: "positive", label: "Werkmodus komt overeen" });
+  } else if (wmFit === 0) {
+    gaps.push({ kind: "gap", label: "Werkmodus sluit niet aan" });
+  }
+
+  const reasons: MatchReason[] = [...positives, ...gaps];
+
+  return { score, breakdown, compliance, reasons };
 }
 
 // Brontypes die direct overeenkomen met de Prisma-includes op de aanroepplekken, zodat
