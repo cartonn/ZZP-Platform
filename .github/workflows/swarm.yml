@@ -1,0 +1,86 @@
+name: Swarm (parallel fan-out)
+
+# Handmatige zwerm: meerdere worker-agents tegelijk, elk op een EIGEN branch met een
+# EIGEN PR (branch-per-agent voorkomt push-conflicten). Elke worker pakt het backlog-item
+# op de regel die overeenkomt met zijn lane-index. Houd het op 2-4 lanes (zie SWARM.md:
+# meer agents loont niet voor code en kost ~15x tokens).
+#
+# MENSENWERK (eenmalig): repo-secret ANTHROPIC_API_KEY. Draai via "Run workflow"; review
+# en merge daarna de geopende PR's (de verificatiepoort blijft menselijk/CI).
+
+on:
+  workflow_dispatch:
+    inputs:
+      lanes:
+        description: "Aantal parallelle workers (2-4 aanbevolen)"
+        default: "3"
+        type: choice
+        options: ["2", "3", "4"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - id: set
+        run: |
+          N=${{ github.event.inputs.lanes }}
+          echo "matrix={\"index\":[$(seq -s, 1 $N)]}" >> "$GITHUB_OUTPUT"
+
+  worker:
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/dazzling-carson-v9Qwk
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci || npm install
+
+      - name: Maak worker-branch
+        run: |
+          git config user.name "zzp-swarm"
+          git config user.email "swarm@users.noreply.github.com"
+          git checkout -b "swarm/lane-${{ matrix.index }}-${{ github.run_id }}"
+
+      - name: Worker-bouwronde
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Je bent worker-agent in een zwerm (lane ${{ matrix.index }}). Volg CLAUDE.md en SWARM.md.
+            1. Lees CLAUDE.md, CURRENT_TASK.md en PROGRESS.md.
+            2. Pak UITSLUITEND backlog-item nummer ${{ matrix.index }} uit CURRENT_TASK.md
+               (tel van boven af). Negeer de andere items — die doen andere workers.
+            3. Implementeer alleen die taak volgens de Definition of Done; raak geen bestanden
+               aan buiten je taak (voorkom conflicten). `npm run typecheck`+`lint`+`test`+`build` groen.
+            4. Commit op je huidige branch. Push NIET naar claude/dazzling-carson-v9Qwk.
+            Geen "AI" in de UI/teksten. Geen goedkeuring vragen.
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 50
+
+      - name: Push branch + open PR
+        run: |
+          BRANCH="swarm/lane-${{ matrix.index }}-${{ github.run_id }}"
+          git push -u origin "$BRANCH" || exit 0
+          gh pr create --base claude/dazzling-carson-v9Qwk --head "$BRANCH" \
+            --title "swarm: lane ${{ matrix.index }} (run ${{ github.run_id }})" \
+            --body "Automatisch door zwerm-worker. Review + merge na groene checks." || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

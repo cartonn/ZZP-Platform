@@ -1,0 +1,55 @@
+name: Auto-build (scheduled)
+
+# Continu doorbouwen zonder dat er een sessie open hoeft te staan.
+# Op een schema (en handmatig) pakt één agent het bovenste backlog-item op,
+# levert af volgens de Definition of Done, en pusht naar de werkbranch.
+#
+# MENSENWERK (eenmalig): voeg repo-secret ANTHROPIC_API_KEY toe
+# (Settings -> Secrets and variables -> Actions). Draai daarna 1x via "Run workflow".
+
+on:
+  schedule:
+    - cron: "0 */3 * * *" # elke 3 uur
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/dazzling-carson-v9Qwk
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci || npm install
+
+      - name: Autonome bouwronde
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Autonome bouwmodus. Volg CLAUDE.md (sectie AUTO-MODE) en SWARM.md exact.
+            1. Lees CLAUDE.md, CURRENT_TASK.md en PROGRESS.md.
+            2. Pak het bovenste open item uit de backlog in CURRENT_TASK.md.
+            3. Implementeer het volgens de Definition of Done: testbare kern + unit-tests,
+               dan `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` groen.
+            4. Commit met een duidelijke message en push naar claude/dazzling-carson-v9Qwk.
+            5. Werk PROGRESS.md en de backlog in CURRENT_TASK.md bij; commit en push opnieuw.
+            Vraag niet om goedkeuring. Geen "AI" in de UI/teksten. Stop alleen bij een blocker.
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 60
