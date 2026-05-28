@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { TrustBadge } from "@/components/trust/trust-badge";
-import { scoreJobForFreelancer, type ComplianceResult, type ComplianceStatus } from "@/lib/matching";
+import { scoreJobForFreelancer, type ComplianceResult, type ComplianceStatus, type MatchReason } from "@/lib/matching";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
@@ -82,7 +82,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   // Bestaande reactie van de huidige ZZP'er (voor de reageer-sectie), plus — als hij nog
   // niet reageerde — een persoonlijke aansluiting (match + welke eisen hij al haalt).
   let myApplication: { status: string; matchScore: number | null; complianceSnapshot: string | null } | null = null;
-  let myFit: { score: number; compliance: ComplianceResult } | null = null;
+  let myFit: { score: number; compliance: ComplianceResult; reasons: MatchReason[] } | null = null;
   if (actor.role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
       where: { userId: actor.id },
@@ -98,7 +98,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       });
       if (!myApplication && status === "PUBLISHED") {
         const match = scoreJobForFreelancer(job, profile);
-        myFit = { score: match.score, compliance: match.compliance };
+        myFit = { score: match.score, compliance: match.compliance, reasons: match.reasons };
       }
     }
   }
@@ -284,6 +284,20 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                   <Badge variant="muted">Match {myFit.score}%</Badge>
                   <ComplianceBadge status={myFit.compliance.status} />
                 </div>
+                {myFit.reasons.length > 0 && (
+                  <ul className="space-y-1.5 text-sm">
+                    {myFit.reasons.map((r, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        {r.kind === "positive" ? (
+                          <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+                        ) : (
+                          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+                        )}
+                        <span className={r.kind === "gap" ? "text-muted-foreground" : ""}>{r.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {requiredCreds.length > 0 && (
                   <ul className="space-y-1.5 text-sm">
                     {requiredCreds.map((c) => {

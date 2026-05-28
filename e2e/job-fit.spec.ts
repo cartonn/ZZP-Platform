@@ -48,6 +48,8 @@ test("ZZP'er ziet vóór reageren z'n aansluiting en welke eis ontbreekt", async
   await expect(fit.getByText("VOG")).toBeVisible();
   await expect(fit.getByText("ontbreekt")).toBeVisible();
   await expect(fit.getByRole("link", { name: "Toevoegen" })).toBeVisible();
+  // Uitlegbare match-redenen: de ontbrekende VOG is een certificaat-gap.
+  await expect(fit.getByText("Mist vereist certificaat")).toBeVisible();
   await shot(fp, "28-job-fit-freelancer");
 
   await fctx.close();
