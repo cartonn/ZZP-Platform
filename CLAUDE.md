@@ -70,6 +70,13 @@ veilig, onderhoudbaar. Geen demo, geen slop.
 
 Drie rollen: **FREELANCER** (ZZP'er), **CLIENT** (opdrachtgever), **ADMIN**.
 
+**Noord-ster (kwaliteitslat).** Benchmark: platforms als **Pidz** (zorg-ZZP) — maar op elk vlak
+beter: UX/UI, matching, design, architectuur. Uber/SaaS-niveau: **alle complexiteit verdwijnt
+naar de achtergrond**, het systeem toont alleen wat telt en wat actie vraagt, ziet er clean/strak
+uit en werkt foutloos. Differentiatie = verklaarbare matching (`matching.ts` reasons), de
+next-action-engine (`next-actions.ts`), verificatie + vertrouwensniveau, en Wet-DBA/AVG-compliance.
+Elke increment brengt ons dichter bij die lat; nooit eronder zakken.
+
 ---
 
 ## Tech stack (vast — niet wijzigen zonder reden)
