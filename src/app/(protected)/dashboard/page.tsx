@@ -8,6 +8,7 @@ import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { clientCredentialAlerts, describeCredentialAlert } from "@/lib/collaboration-alerts";
 import { overdueInvoiceCount } from "@/lib/signals";
 import { computeCompanyCompleteness } from "@/lib/profile";
+import { adminNextActions, clientNextActions, freelancerNextActions } from "@/lib/next-actions";
 import { Badge } from "@/components/ui/badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 
@@ -72,12 +73,16 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
       prisma.user.findUnique({ where: { id: userId }, select: { identityVerifiedAt: true } }),
       overdueInvoiceCount("FREELANCER", userId),
     ]);
-    if (profile?.visibility === "PRIVATE") attention.push({ label: "Je profiel staat op privé — opdrachtgevers kunnen je niet vinden", href: "/profiel" });
-    if (!account?.identityVerifiedAt) attention.push({ label: "Verifieer je identiteit voor een hoger vertrouwensniveau", href: "/account" });
-    if ((profile?.completeness ?? 0) < 100) attention.push({ label: `Profiel is ${profile?.completeness ?? 0}% compleet — vul aan`, href: "/profiel" });
-    if (rejected > 0) attention.push({ label: `${rejected} certificaat/certificaten afgewezen — opnieuw indienen`, href: "/certificaten" });
-    if (expiring > 0) attention.push({ label: `${expiring} certificaat verloopt binnenkort — vernieuw`, href: "/certificaten" });
-    if (overdue > 0) attention.push({ label: `${overdue} factu(u)r(en) over de vervaldatum — stuur een herinnering`, href: "/facturen" });
+    for (const a of freelancerNextActions({
+      profilePrivate: profile?.visibility === "PRIVATE",
+      identityVerified: !!account?.identityVerifiedAt,
+      completeness: profile?.completeness ?? 0,
+      rejectedCredentials: rejected,
+      expiringCredentials: expiring,
+      overdueInvoices: overdue,
+    })) {
+      attention.push({ label: a.title, href: a.href });
+    }
     return {
       stats: [
         { label: "Profiel compleet", value: `${profile?.completeness ?? 0}%`, href: "/profiel" },
@@ -111,14 +116,15 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
       clientCredentialAlerts(userId),
       overdueInvoiceCount("CLIENT", userId),
     ]);
-    // Compliance van een lopende samenwerking weegt het zwaarst — bovenaan.
-    for (const a of credentialAlerts) {
-      attention.push({ label: describeCredentialAlert(a.freelancerName, a.jobTitle, a.alert), href: "/samenwerkingen" });
+    for (const a of clientNextActions({
+      companyCompleteness,
+      newApplications: newApps,
+      draftJobs: drafts,
+      overdueInvoices: overdue,
+      collaborationCredentialAlerts: credentialAlerts.map((a) => describeCredentialAlert(a.freelancerName, a.jobTitle, a.alert)),
+    })) {
+      attention.push({ label: a.title, href: a.href });
     }
-    if (companyCompleteness < 100) attention.push({ label: `Bedrijfsprofiel is ${companyCompleteness}% compleet — vul aan`, href: "/bedrijf" });
-    if (newApps > 0) attention.push({ label: `${newApps} nieuwe reactie(s) — beoordeel kandidaten`, href: "/kandidaten" });
-    if (drafts > 0) attention.push({ label: `${drafts} concept-opdracht(en) — publiceren?`, href: "/opdrachten" });
-    if (overdue > 0) attention.push({ label: `${overdue} openstaande factu(u)r(en) over de vervaldatum — betaal`, href: "/facturen" });
     return {
       stats: [
         { label: "Gepubliceerde opdrachten", value: openJobs, href: "/opdrachten" },
@@ -129,14 +135,16 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
     };
   }
 
-  const [pending, users, jobs, deletionRequests] = await Promise.all([
+  const [pending, users, jobs, deletionRequests, pendingUsers] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.user.count(),
     prisma.job.count(),
     prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
+    prisma.user.count({ where: { status: "PENDING" } }),
   ]);
-  if (deletionRequests > 0) attention.push({ label: `${deletionRequests} AVG-verwijderverzoek(en) — beoordeel`, href: "/admin/gebruikers?deletion=1" });
-  if (pending > 0) attention.push({ label: `${pending} certificaat/certificaten wachten op verificatie`, href: "/admin/verificaties" });
+  for (const a of adminNextActions({ deletionRequests, pendingVerifications: pending, pendingUsers })) {
+    attention.push({ label: a.title, href: a.href });
+  }
   return {
     stats: [
       { label: "Openstaande verificaties", value: pending, href: "/admin/verificaties" },
