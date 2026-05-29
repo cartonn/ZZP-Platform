@@ -6,12 +6,25 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
+import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { cancelInvoice, markInvoicePaid, sendInvoice } from "../actions";
 
 export const metadata: Metadata = { title: "Factuur · ZZP Platform" };
+
+const CASCADE_LABEL: Record<InvoiceLifecycleState, { label: string; variant: "muted" | "warning" | "success" | "danger" }> = {
+  DRAFT: { label: "Concept", variant: "muted" },
+  SUBMITTED: { label: "Ingediend", variant: "warning" },
+  APPROVED: { label: "Goedgekeurd", variant: "success" },
+  PAID: { label: "Betaald", variant: "success" },
+  PROCESSED: { label: "Verwerkt", variant: "muted" },
+  REJECTED: { label: "Afgekeurd", variant: "danger" },
+  OVERDUE: { label: "Te laat", variant: "danger" },
+  CREDITED: { label: "Gecrediteerd", variant: "danger" },
+};
 
 function fmt(d: Date | null) {
   return d ? d.toISOString().slice(0, 10) : "—";
@@ -25,8 +38,10 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
     where: { id },
     include: {
       lines: true,
+      performance: { select: { id: true, type: true, description: true, hours: true, rateCents: true, amountCents: true, milestoneTitle: true, approvedAt: true } },
       collaboration: {
         select: {
+          id: true,
           job: { select: { title: true } },
           company: { select: { name: true, userId: true } },
           freelancer: { select: { userId: true, user: { select: { name: true } } } },
@@ -41,9 +56,12 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   if (!isFreelancerOwner && !isClient) notFound();
 
   const status = invoice.status as InvoiceStatus;
-  const canSend = isFreelancerOwner && status === "DRAFT";
-  const canCancel = isFreelancerOwner && (status === "DRAFT" || status === "SENT" || status === "OVERDUE");
-  const canPay = isClient && (status === "SENT" || status === "OVERDUE");
+  // Cascade-facturen worden via het werkproces afgehandeld; de legacy-acties verbergen we daar.
+  const cascade = invoice.lifecycleStatus != null;
+  const cascadeMeta = cascade ? CASCADE_LABEL[invoice.lifecycleStatus as InvoiceLifecycleState] : null;
+  const canSend = !cascade && isFreelancerOwner && status === "DRAFT";
+  const canCancel = !cascade && isFreelancerOwner && (status === "DRAFT" || status === "SENT" || status === "OVERDUE");
+  const canPay = !cascade && isClient && (status === "SENT" || status === "OVERDUE");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -55,10 +73,12 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
         <CardContent className="space-y-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-lg font-semibold tracking-tight tabular-nums">Factuur {invoice.number}</h1>
+              <h1 className="text-lg font-semibold tracking-tight tabular-nums">
+                Factuur {cascade ? invoice.partyInvoiceNumber ?? "(concept)" : invoice.number}
+              </h1>
               <p className="text-sm text-muted-foreground">{invoice.collaboration.job.title}</p>
             </div>
-            <InvoiceStatusBadge status={status} dueAt={invoice.dueAt} />
+            {cascadeMeta ? <Badge variant={cascadeMeta.variant}>{cascadeMeta.label}</Badge> : <InvoiceStatusBadge status={status} dueAt={invoice.dueAt} />}
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -80,32 +100,41 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
             </div>
           </div>
 
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="py-2 font-medium">Omschrijving</th>
-                <th className="py-2 text-right font-medium">Aantal</th>
-                <th className="py-2 text-right font-medium">Per stuk</th>
-                <th className="py-2 text-right font-medium">Bedrag</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.lines.map((l) => (
-                <tr key={l.id} className="border-b border-border/60">
-                  <td className="py-2">{l.description}</td>
-                  <td className="py-2 text-right tabular-nums">{l.quantity}</td>
-                  <td className="py-2 text-right tabular-nums">{formatEuro(l.unitCents)}</td>
-                  <td className="py-2 text-right tabular-nums">{formatEuro(l.amountCents)}</td>
+          {invoice.lines.length > 0 && (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <th className="py-2 font-medium">Omschrijving</th>
+                  <th className="py-2 text-right font-medium">Aantal</th>
+                  <th className="py-2 text-right font-medium">Per stuk</th>
+                  <th className="py-2 text-right font-medium">Bedrag</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={3} className="py-2 text-right text-sm font-medium">Totaal</td>
-                <td className="py-2 text-right font-semibold tabular-nums">{formatEuro(invoice.totalCents)}</td>
-              </tr>
-            </tfoot>
-          </table>
+              </thead>
+              <tbody>
+                {invoice.lines.map((l) => (
+                  <tr key={l.id} className="border-b border-border/60">
+                    <td className="py-2">{l.description}</td>
+                    <td className="py-2 text-right tabular-nums">{l.quantity}</td>
+                    <td className="py-2 text-right tabular-nums">{formatEuro(l.unitCents)}</td>
+                    <td className="py-2 text-right tabular-nums">{formatEuro(l.amountCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {/* Bedragen: BTW-uitsplitsing voor cascade-facturen, anders enkel totaal. */}
+          <div className="space-y-1 border-t border-border pt-3 text-sm">
+            {cascade && invoice.subtotalCents != null && invoice.vatCents != null ? (
+              <>
+                <div className="flex justify-between"><span className="text-muted-foreground">Subtotaal (excl. btw)</span><span className="tabular-nums">{formatEuro(invoice.subtotalCents)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Btw{invoice.vatRegime ? ` (${invoice.vatRegime})` : ""}</span><span className="tabular-nums">{formatEuro(invoice.vatCents)}</span></div>
+                <div className="flex justify-between font-semibold"><span>Totaal (incl. btw)</span><span className="tabular-nums">{formatEuro(invoice.totalCents)}</span></div>
+              </>
+            ) : (
+              <div className="flex justify-between font-semibold"><span>Totaal</span><span className="tabular-nums">{formatEuro(invoice.totalCents)}</span></div>
+            )}
+          </div>
 
           {(canSend || canCancel || canPay) && (
             <div className="flex flex-wrap gap-2 border-t border-border pt-4">
@@ -128,6 +157,31 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           )}
         </CardContent>
       </Card>
+
+      {/* Herleidbaarheid (§5): factuur → goedgekeurde prestatie → samenwerking/werkproces */}
+      {cascade && (
+        <Card>
+          <CardContent className="space-y-2 py-4 text-sm">
+            <p className="font-medium">Herkomst</p>
+            <p className="text-muted-foreground">
+              Deze factuur volgt uit een goedgekeurde prestatie binnen een samenwerking. Betaling verloopt
+              rechtstreeks; het platform registreert alleen de status.
+            </p>
+            {invoice.performance && (
+              <p className="text-muted-foreground">
+                Prestatie:{" "}
+                {invoice.performance.type === "HOURS"
+                  ? `${invoice.performance.hours ?? 0} uur${invoice.performance.rateCents ? ` × ${formatEuro(invoice.performance.rateCents)}` : ""}`
+                  : invoice.performance.milestoneTitle || "Oplevering"}
+                {invoice.performance.description ? ` · ${invoice.performance.description}` : ""}
+              </p>
+            )}
+            <Link href={`/samenwerkingen/${invoice.collaboration.id}`} className="inline-flex items-center gap-1 font-medium underline underline-offset-4">
+              Open het werkproces →
+            </Link>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
