@@ -54,6 +54,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   ADMIN: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
     { label: "Verificaties", href: "/admin/verificaties", icon: "fileCheck", enabled: true },
+    { label: "Disputen", href: "/admin/disputen", icon: "handshake", enabled: true },
     { label: "Gebruikers", href: "/admin/gebruikers", icon: "users", enabled: true },
     { label: "Opdrachten", href: "/admin/opdrachten", icon: "briefcase", enabled: true },
     { label: "Audit log", href: "/admin/audit", icon: "shield", enabled: true },

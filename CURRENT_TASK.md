@@ -43,9 +43,12 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
 - [x] **Fase 4 — Zijpaden & DBA-monitoring** — DBA-monitoring ✓, administratie-overzichten ✓,
       te-late-betaling/aanmaningen ✓, creditfactuur ✓, dispuut/escalatie (cascade-freeze) ✓.
       (Exports CSV/PDF horen bij Fase 6.)
-- [ ] Fase 5 — Rol-workspaces & UX/UI (eerst dark-first-beslissing, zie DESIGN.md).
-- [ ] Fase 6 — Notificaties, reminders, exports.
-- [ ] Fase 7 — Hardening & end-to-end.
+- [~] **Fase 5 — Rol-workspaces & UX/UI** — werkproces-UI, cascade op /facturen + dashboard
+      "aan zet", cascade-factuurdetail, admin-disputenoverzicht. Open: dark-first-keuze (DESIGN.md).
+- [~] **Fase 6 — Notificaties, reminders, exports** — reminder-engines (expiry/betaling/DBA),
+      CSV-exports (grootboek + BTW), notificatie-categorieën+iconen. Open: e-mailkanaal, PDF.
+- [~] **Fase 7 — Hardening & end-to-end** — zijpad-integratietests, loading-states. Open: Playwright-
+      e2e (interactieve sessie mét browser).
 
 ### Gap-analyse (Fase 0)
 **Herbruikbaar:** enums+Zod-patroon; `assert*Transition`-maps (credential/invoice/collaboration);

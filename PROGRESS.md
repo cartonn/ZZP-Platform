@@ -106,7 +106,10 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
 - Cascade-factuurdetail (`/facturen/[id]`): lifecycle-badge, partij-nummer, BTW-uitsplitsing, herkomst-blok.
 - CSV-export administratie: `administration/csv.ts` (pure) + `GET /api/administratie/export` + knop.
 - Cascade-dashboardtaken in geteste pure helpers (`cascade/next-actions.ts`); dashboard gebruikt ze.
-- Tests doorlopend groen (300). Volgende: notificatie-teksten/centrum, idempotentie-edge-cases, polish.
+- BTW-kwartaal CSV-export; notificatie-categorieën+iconen; zijpad-integratietests (resubmit, credit-
+  netting); loading-states; DBA gevoed door Job-indicatoren; admin-disputenoverzicht (/admin/disputen)
+  + dashboardsignaal. Tests doorlopend groen (309). Open: e-mailkanaal, PDF-export, Playwright-e2e,
+  dark-first-beslissing.
 
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /

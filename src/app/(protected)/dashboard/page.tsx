@@ -153,16 +153,18 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
     };
   }
 
-  const [pending, users, jobs, deletionRequests, pendingUsers] = await Promise.all([
+  const [pending, users, jobs, deletionRequests, pendingUsers, openDisputes] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.user.count(),
     prisma.job.count(),
     prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
     prisma.user.count({ where: { status: "PENDING" } }),
+    prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
   ]);
   for (const a of adminNextActions({ deletionRequests, pendingVerifications: pending, pendingUsers })) {
     attention.push({ label: a.title, href: a.href });
   }
+  if (openDisputes > 0) attention.push({ label: `${openDisputes} open dispuut(en) wachten op bemiddeling`, href: "/admin/disputen" });
   return {
     stats: [
       { label: "Openstaande verificaties", value: pending, href: "/admin/verificaties" },
