@@ -16,6 +16,7 @@ import {
   planInvoiceApproved,
   planInvoiceSubmitted,
   planPaymentConfirmed,
+  planInvoiceCredited,
 } from "@/lib/administration/ledger";
 import { computeVat, hourlySubtotalCents } from "@/lib/administration/vat";
 import { PLATFORM_FEE, type VatRegime } from "@/lib/config";
@@ -448,5 +449,52 @@ export function planPaymentConfirmedEvent(ctx: PaymentConfirmedCtx): CascadeEffe
       payload: { sourceInvoiceId: ctx.invoice.id },
     });
   }
+  return fx;
+}
+
+// --- Zijpad — Creditfactuur ------------------------------------------------
+export interface InvoiceCreditedCtx {
+  invoice: {
+    id: string;
+    lifecycleStatus: InvoiceLifecycleState;
+    subtotalCents: number;
+    vatCents: number;
+    totalCents: number;
+    partyInvoiceNumber: string | null;
+  };
+  freelancerUserId: string;
+  clientUserId: string;
+  reason: string;
+  actorId: string | null;
+}
+
+/** ZZP'er crediteert een factuur: tegenboeking bij beide partijen, BTW gecorrigeerd. */
+export function planInvoiceCreditedEvent(ctx: InvoiceCreditedCtx): CascadeEffects {
+  if (!ctx.reason?.trim()) throw new Error("Een creditfactuur vereist een reden.");
+  invoiceLifecycleMachine.assert(ctx.invoice.lifecycleStatus, "CREDITED");
+  const fx = emptyEffects();
+  fx.statusChanges.push({
+    entity: "Invoice",
+    id: ctx.invoice.id,
+    field: "lifecycleStatus",
+    from: ctx.invoice.lifecycleStatus,
+    to: "CREDITED",
+    set: { status: "CANCELLED", rejectionReason: ctx.reason.trim() },
+  });
+  fx.postings.push(
+    ...planInvoiceCredited({
+      issuer: "FREELANCER",
+      counterparty: "CLIENT",
+      subtotalCents: ctx.invoice.subtotalCents,
+      vatCents: ctx.invoice.vatCents,
+      totalCents: ctx.invoice.totalCents,
+    }),
+  );
+  const num = ctx.invoice.partyInvoiceNumber ?? "concept";
+  fx.notifications.push(
+    { userId: ctx.freelancerUserId, type: "INVOICE_CREDITED", title: "Factuur gecrediteerd", body: `Factuur ${num} is gecrediteerd. Reden: ${ctx.reason.trim()}.`, link: "/facturen" },
+    { userId: ctx.clientUserId, type: "INVOICE_CREDITED", title: "Factuur gecrediteerd", body: `Factuur ${num} is gecrediteerd door de ZZP'er. Reden: ${ctx.reason.trim()}.`, link: "/facturen" },
+  );
+  fx.audits.push({ actorId: ctx.actorId, action: "INVOICE_CREDITED", entityType: "Invoice", entityId: ctx.invoice.id, metadata: { reason: ctx.reason.trim() } });
   return fx;
 }

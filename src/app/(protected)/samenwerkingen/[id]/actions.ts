@@ -12,6 +12,7 @@ import {
   approveInvoice,
   rejectInvoice,
   confirmPayment,
+  creditInvoice,
   CascadeError,
 } from "@/lib/cascade/commands";
 import { prisma } from "@/lib/db";
@@ -120,6 +121,16 @@ export async function confirmPaymentAction(invoiceId: string, collaborationId: s
   const actor = await requireActor();
   try {
     await confirmPayment(actor, invoiceId);
+  } catch (e) {
+    toMessage(e);
+  }
+  refresh(collaborationId);
+}
+
+export async function creditInvoiceAction(invoiceId: string, collaborationId: string, formData: FormData): Promise<void> {
+  const actor = await requireActor();
+  try {
+    await creditInvoice(actor, invoiceId, String(formData.get("reason") ?? ""));
   } catch (e) {
     toMessage(e);
   }

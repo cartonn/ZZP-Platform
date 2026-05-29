@@ -20,6 +20,7 @@ import {
   planInvoiceApprovedEvent,
   planInvoiceRejectedEvent,
   planPaymentConfirmedEvent,
+  planInvoiceCreditedEvent,
 } from "@/lib/cascade/handlers";
 import { type CollaborationStatus } from "@/lib/enums";
 import {
@@ -337,6 +338,26 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
   });
   await persistEventAndEffects(
     { type: "PAYMENT_CONFIRMED", actorRole: actor.role, actorId: actor.id, subjectType: "Invoice", subjectId: invoiceId, correlationId: inv.correlationId, dedupeKey: `payment-confirmed-${invoiceId}` },
+    effects,
+    { owners: { FREELANCER: inv.issuerUserId, CLIENT: inv.counterpartyUserId }, correlationId: inv.correlationId, invoiceId },
+  );
+}
+
+// --- Zijpad — Creditfactuur ------------------------------------------------
+export async function creditInvoice(actor: Actor, invoiceId: string, reason: string): Promise<void> {
+  const inv = await loadCascadeInvoice(invoiceId);
+  if (actor.role !== "ADMIN" && actor.id !== inv.issuerUserId) {
+    throw new CascadeError("Alleen de uitschrijver kan een creditfactuur maken.");
+  }
+  const effects = planInvoiceCreditedEvent({
+    invoice: { id: invoiceId, lifecycleStatus: inv.lifecycleStatus, subtotalCents: inv.subtotalCents, vatCents: inv.vatCents, totalCents: inv.totalCents, partyInvoiceNumber: inv.partyInvoiceNumber },
+    freelancerUserId: inv.issuerUserId,
+    clientUserId: inv.counterpartyUserId,
+    reason,
+    actorId: actor.id,
+  });
+  await persistEventAndEffects(
+    { type: "INVOICE_CREDITED", actorRole: actor.role, actorId: actor.id, subjectType: "Invoice", subjectId: invoiceId, correlationId: inv.correlationId },
     effects,
     { owners: { FREELANCER: inv.issuerUserId, CLIENT: inv.counterpartyUserId }, correlationId: inv.correlationId, invoiceId },
   );

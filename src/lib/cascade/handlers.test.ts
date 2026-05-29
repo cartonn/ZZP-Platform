@@ -10,6 +10,7 @@ import {
   planInvoiceApprovedEvent,
   planInvoiceRejectedEvent,
   planPaymentConfirmedEvent,
+  planInvoiceCreditedEvent,
   performanceSubtotalCents,
 } from "@/lib/cascade/handlers";
 
@@ -164,6 +165,24 @@ describe("Event D — planInvoiceApprovedEvent", () => {
     expect(due.getTime()).toBe(new Date("2026-06-28T10:00:00Z").getTime());
     expect(fx.postings.some((p) => p.party === "CLIENT" && p.account === "CREDITEUREN")).toBe(true);
     expect(fx.notifications[0]?.userId).toBe("f1");
+  });
+});
+
+describe("Zijpad — planInvoiceCreditedEvent", () => {
+  it("crediteert met reden: status CREDITED + tegenboekingen (negatief)", () => {
+    const fx = planInvoiceCreditedEvent({
+      invoice: { id: "i1", lifecycleStatus: "PAID", subtotalCents: 600_00, vatCents: 126_00, totalCents: 726_00, partyInvoiceNumber: "2026-0001" },
+      freelancerUserId: "f1", clientUserId: "c1", reason: "Verkeerd bedrag", actorId: "f1",
+    });
+    expect(fx.statusChanges[0]?.to).toBe("CREDITED");
+    // Tegenboeking: debiteuren negatief bij de ZZP'er.
+    expect(fx.postings.some((p) => p.party === "FREELANCER" && p.account === "DEBITEUREN" && p.debitCents < 0)).toBe(true);
+    expect(fx.notifications.map((n) => n.userId).sort()).toEqual(["c1", "f1"]);
+  });
+  it("weigert crediteren zonder reden", () => {
+    expect(() =>
+      planInvoiceCreditedEvent({ invoice: { id: "i1", lifecycleStatus: "PAID", subtotalCents: 1, vatCents: 0, totalCents: 1, partyInvoiceNumber: null }, freelancerUserId: "f1", clientUserId: "c1", reason: " ", actorId: "f1" }),
+    ).toThrow(/reden/);
   });
 });
 

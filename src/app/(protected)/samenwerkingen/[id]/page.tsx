@@ -20,6 +20,7 @@ import {
   approveInvoiceAction,
   rejectInvoiceAction,
   confirmPaymentAction,
+  creditInvoiceAction,
 } from "./actions";
 
 export const metadata: Metadata = { title: "Werkproces · ZZP Platform" };
@@ -286,6 +287,12 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                       )}
                       {(inv.lifecycleStatus === "PAID" || inv.lifecycleStatus === "PROCESSED") && (
                         <span className="text-xs text-muted-foreground">Betaling geregistreerd.</span>
+                      )}
+                      {isFreelancer && ["APPROVED", "PAID", "PROCESSED", "OVERDUE"].includes(inv.lifecycleStatus ?? "") && (
+                        <form action={creditInvoiceAction.bind(null, inv.id, col.id)} className="flex items-center gap-2">
+                          <input name="reason" required placeholder="Reden creditering" className="rounded-md border border-input bg-background px-2 py-1.5 text-xs" />
+                          <Button type="submit" size="sm" variant="secondary">Crediteren</Button>
+                        </form>
                       )}
                     </div>
                   </CardContent>

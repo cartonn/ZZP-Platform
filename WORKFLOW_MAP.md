@@ -22,8 +22,8 @@
 ## Zijpaden (verplicht)
 | Zijpad | Trigger | Effect | Status |
 |---|---|---|---|
-| Betaling te laat | Betaaltermijn verstreken | Factuur `→ te_laat`; betaling `te_laat`; herinnering 1 → 2 → aanmaning-sjabloon (ZZP'er) → escalatie-flag platform; admin-item per stap | ⬜ |
-| Correctie/creditfactuur | ZZP'er crediteert | Tegenboekingen bij ZZP'er én OG; BTW gecorrigeerd; evt. nieuwe factuur | ⬜ |
+| Betaling te laat | Betaaltermijn verstreken | Factuur `→ OVERDUE`; herinnering 5/1 dag vóór + te-laat-signaal bij beide partijen; ZZP'er kan aanmaning sturen | ✅ reminder-engine + task |
+| Correctie/creditfactuur | ZZP'er crediteert | Tegenboekingen bij ZZP'er én OG; BTW gecorrigeerd (negatief) | ✅ command + UI |
 | Dispuut/escalatie | Partij of platform opent dispuut | Platform-taak; statussen bevriezen tot opgelost | ⬜ |
 | DBA-signalen | Tijd/patroon over looptijd (6/12 mnd, 80% omzet, zelfde functie, vast rooster, leiding/toezicht) | Notificatie/taak bij ZZP'er én OG, zichtbaar voor platform; gedocumenteerd in audittrail; **altijd disclaimer** | ✅ engine+task+UI |
 | Periodieke administratie | Tijdgestuurd | BTW-kwartaaloverzicht per partij; debiteuren-/crediteurenoverzicht; jaaroverzicht/IB-voorbereiding ZZP'er | ✅ overzicht + /administratie |

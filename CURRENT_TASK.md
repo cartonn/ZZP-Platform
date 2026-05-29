@@ -40,7 +40,8 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
 - [x] **Fase 2 — Datamodel administratie & administratiemotor** (additief). Zie verslag onder.
 - [x] **Fase 3 — Hoofdcascade (Events A–E)** — logica + applier + command-laag + UI
       (`/samenwerkingen/[id]`) + demo-seed; end-to-end geverifieerd tegen de DB. Zie verslag.
-- [ ] Fase 4 — Zijpaden & DBA-monitoring.
+- [~] **Fase 4 — Zijpaden & DBA-monitoring** — DBA-monitoring ✓, administratie-overzichten ✓,
+      te-late-betaling/aanmaningen ✓, creditfactuur ✓; rest: dispuut/escalatie + exports (Fase 6).
 - [ ] Fase 5 — Rol-workspaces & UX/UI (eerst dark-first-beslissing, zie DESIGN.md).
 - [ ] Fase 6 — Notificaties, reminders, exports.
 - [ ] Fase 7 — Hardening & end-to-end.

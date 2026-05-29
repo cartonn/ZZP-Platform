@@ -87,7 +87,11 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
 - `administration/overview.ts` (pure: BTW per kwartaal, debiteuren/crediteuren-saldo, jaaromzet) +
   `/administratie`-pagina (ZZP'er/opdrachtgever) met nav-item.
 - Tests: 13 nieuw (dba-monitor 9 / overview 4). Gate groen (typecheck/lint/test 283/build).
-- Nog open in Fase 4: te late betaling + aanmaningen (reminder-engine), creditfactuur, dispuut.
+- Te-late-betaling + aanmaningen: `payment-reminders.ts` (pure) + task + /api/tasks/payment-reminders;
+  herinnering 5/1 dag vóór, OVERDUE-transitie + signaal bij beide partijen. Tests: 6.
+- Creditfactuur: `planInvoiceCreditedEvent` + `creditInvoice`-command + UI-knop in het werkproces;
+  tegenboekingen + BTW-correctie. Tests: +2.
+- Nog open in Fase 4: dispuut/escalatie. Exports (CSV/PDF) horen bij Fase 6.
 
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
