@@ -3,8 +3,9 @@ import Link from "next/link";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { type ComplianceStatus } from "@/lib/matching";
+import { Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { type ApplicationStatus } from "@/lib/enums";
@@ -49,11 +50,12 @@ export default async function ReactiesPage() {
       </header>
 
       {applications.length === 0 ? (
-        <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Je hebt nog niet gereageerd. Bekijk de opdrachten en reageer op een passende opdracht.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Send}
+          title="Nog geen reacties"
+          description="Je hebt nog niet gereageerd. Bekijk de opdrachten en reageer op een passende opdracht."
+          action={{ label: "Opdrachten bekijken", href: "/opdrachten" }}
+        />
       ) : (
         <div className="space-y-3">
           {applications.map((app) => {

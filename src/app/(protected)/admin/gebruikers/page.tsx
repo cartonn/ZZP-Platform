@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Users } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -9,7 +9,7 @@ import { ROLE_LABEL } from "@/lib/nav";
 import { type UserRole, type UserStatus } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { setUserStatus } from "./actions";
@@ -98,7 +98,7 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
       </form>
 
       {users.length === 0 ? (
-        <Card><CardContent className="text-center text-sm text-muted-foreground">Geen gebruikers gevonden.</CardContent></Card>
+        <EmptyState icon={Users} title="Geen gebruikers gevonden" description="Pas je zoekopdracht of filters aan." />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {users.map((u) => {

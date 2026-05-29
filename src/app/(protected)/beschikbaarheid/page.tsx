@@ -1,12 +1,12 @@
 import { type Metadata } from "next";
-import { Trash2 } from "lucide-react";
+import { CalendarClock, Trash2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { summarizeAvailability, upcomingWindows } from "@/lib/availability";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AvailabilityForm } from "./availability-form";
 import { deleteAvailabilityWindow } from "./actions";
 
@@ -41,7 +41,11 @@ export default async function BeschikbaarheidPage() {
       <AvailabilityForm />
 
       {upcoming.length === 0 ? (
-        <Card><CardContent className="text-center text-sm text-muted-foreground">Nog geen (aankomende) periodes.</CardContent></Card>
+        <EmptyState
+          icon={CalendarClock}
+          title="Nog geen periodes"
+          description="Nog geen (aankomende) periodes."
+        />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {upcoming.map((w) => {

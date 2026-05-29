@@ -4,8 +4,9 @@ import type { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { AUDIT_PAGE_SIZE, normalizeAuditFilters } from "@/lib/admin";
+import { ScrollText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 
 export const metadata: Metadata = { title: "Audit log · ZZP Platform" };
@@ -55,7 +56,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
       </form>
 
       {entries.length === 0 ? (
-        <Card><CardContent className="text-center text-sm text-muted-foreground">Geen gebeurtenissen gevonden.</CardContent></Card>
+        <EmptyState icon={ScrollText} title="Geen gebeurtenissen" description="Geen gebeurtenissen die aan je filters voldoen." />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {entries.map((e) => (

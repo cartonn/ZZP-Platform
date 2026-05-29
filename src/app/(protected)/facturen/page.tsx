@@ -1,12 +1,13 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Receipt } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 
 export const metadata: Metadata = { title: "Facturen · ZZP Platform" };
@@ -69,11 +70,12 @@ export default async function FacturenPage() {
       )}
 
       {invoices.length === 0 ? (
-        <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            {isFreelancer ? "Nog geen facturen. Stel er een op vanuit een samenwerking." : "Nog geen facturen ontvangen."}
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Receipt}
+          title="Nog geen facturen"
+          description={isFreelancer ? "Stel er een op vanuit een samenwerking." : "Je hebt nog geen facturen ontvangen."}
+          action={isFreelancer ? { label: "Naar samenwerkingen", href: "/samenwerkingen" } : undefined}
+        />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {invoices.map((inv) => (

@@ -1,11 +1,11 @@
 import { type Metadata } from "next";
-import { Download, Trash2 } from "lucide-react";
+import { Download, FileText, Trash2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { type DocumentKind } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { DocumentForm } from "./document-form";
 import { deleteDocument } from "./actions";
 
@@ -39,9 +39,11 @@ export default async function DocumentenPage() {
       <DocumentForm />
 
       {documents.length === 0 ? (
-        <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">Nog geen documenten geüpload.</CardContent>
-        </Card>
+        <EmptyState
+          icon={FileText}
+          title="Nog geen documenten"
+          description="Upload hieronder je eerste document."
+        />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {documents.map((doc) => {

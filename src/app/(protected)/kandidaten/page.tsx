@@ -9,9 +9,11 @@ import { computeTrustLevel } from "@/lib/trust";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import { type ApplicationStatus, type Visibility } from "@/lib/enums";
+import { Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Textarea } from "@/components/ui/textarea";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
@@ -66,11 +68,11 @@ export default async function KandidatenPage() {
       </header>
 
       {applications.length === 0 ? (
-        <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Nog geen reacties. Zodra ZZP&apos;ers reageren, zie je ze hier.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Users}
+          title="Nog geen reacties"
+          description="Zodra ZZP'ers reageren, zie je ze hier."
+        />
       ) : (
         <div className="space-y-4">
           {applications.map((app) => {

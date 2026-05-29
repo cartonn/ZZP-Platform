@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { MapPin, Plus } from "lucide-react";
+import { Briefcase, MapPin, Plus, SearchX } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -9,7 +9,7 @@ import { scoreJobForFreelancer } from "@/lib/matching";
 import { JOB_STATUSES, type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Select } from "@/components/ui/select";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -74,11 +74,12 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
       </form>
 
       {jobs.length === 0 ? (
-        <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Je hebt nog geen opdrachten. Maak je eerste opdracht aan.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Briefcase}
+          title="Nog geen opdrachten"
+          description="Maak je eerste opdracht aan om kandidaten te bereiken."
+          action={{ label: "Opdracht plaatsen", href: "/opdrachten/nieuw" }}
+        />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {jobs.map((job) => (
@@ -176,11 +177,11 @@ async function BrowseJobs({
       <JobFilters industries={industries} skills={skills} />
 
       {jobs.length === 0 ? (
-        <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Geen opdrachten gevonden. Pas je filters aan.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={SearchX}
+          title="Geen opdrachten gevonden"
+          description="Pas je filters aan om meer resultaten te zien."
+        />
       ) : (
         <>
           <p className="text-xs text-muted-foreground">{total} opdracht(en) gevonden</p>

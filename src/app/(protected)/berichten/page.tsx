@@ -1,9 +1,10 @@
 import { type Metadata } from "next";
 import Link from "next/link";
+import { MessagesSquare } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = { title: "Berichten · ZZP Platform" };
 
@@ -56,11 +57,11 @@ export default async function BerichtenPage() {
       </header>
 
       {conversations.length === 0 ? (
-        <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Nog geen gesprekken. Een opdrachtgever start een gesprek vanuit een reactie.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={MessagesSquare}
+          title="Nog geen gesprekken"
+          description="Een opdrachtgever start een gesprek vanuit een reactie."
+        />
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {conversations.map((c) => {

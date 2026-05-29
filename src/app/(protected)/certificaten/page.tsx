@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Download, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import { BadgeCheck, Download, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { CREDENTIAL_TYPE_LABEL, daysUntilExpiry, isExpiringSoon } from "@/lib/credentials";
@@ -8,6 +8,7 @@ import { type CredentialStatus, type CredentialType, type Visibility } from "@/l
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
 import { deleteCredential, requestVerification, toggleCredentialVisibility } from "./actions";
 import { DuoVerifyForm } from "./duo-verify-form";
@@ -47,11 +48,12 @@ export default async function CertificatenPage() {
       </header>
 
       {credentials.length === 0 ? (
-        <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Nog geen certificaten. Voeg je eerste bewijsstuk toe (bijv. VOG of diploma).
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={BadgeCheck}
+          title="Nog geen certificaten"
+          description="Voeg je eerste bewijsstuk toe (bijv. VOG of diploma)."
+          action={{ label: "Certificaat toevoegen", href: "/certificaten/nieuw" }}
+        />
       ) : (
         <div className="space-y-4">
           {credentials.map((c) => {
