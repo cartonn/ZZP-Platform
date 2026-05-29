@@ -9,6 +9,7 @@ import { clientCredentialAlerts, describeCredentialAlert } from "@/lib/collabora
 import { overdueInvoiceCount } from "@/lib/signals";
 import { computeCompanyCompleteness } from "@/lib/profile";
 import { adminNextActions, clientNextActions, freelancerNextActions } from "@/lib/next-actions";
+import { cascadeClientActions, cascadeFreelancerActions } from "@/lib/cascade/next-actions";
 import { Badge } from "@/components/ui/badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { AvailabilityBadge } from "@/components/availability-badge";
@@ -89,8 +90,9 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
       prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "DRAFT" } }),
       prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "APPROVED" } }),
     ]);
-    if (cascadeDraft > 0) attention.push({ label: `${cascadeDraft} concept-factuur(en) klaar om in te dienen`, href: "/facturen" });
-    if (cascadeApproved > 0) attention.push({ label: `${cascadeApproved} goedgekeurde factuur(en): markeer de betaling`, href: "/facturen" });
+    for (const a of cascadeFreelancerActions({ draftInvoices: cascadeDraft, approvedInvoices: cascadeApproved })) {
+      attention.push({ label: a.title, href: a.href });
+    }
     return {
       stats: [
         { label: "Profiel compleet", value: `${profile?.completeness ?? 0}%`, href: "/profiel" },
@@ -138,8 +140,9 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
       prisma.performance.count({ where: { status: "SUBMITTED", collaboration: { company: { userId } } } }),
       prisma.invoice.count({ where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" } }),
     ]);
-    if (perfToApprove > 0) attention.push({ label: `${perfToApprove} ingediende uren/opleveringen wachten op je goedkeuring`, href: "/samenwerkingen" });
-    if (invToApprove > 0) attention.push({ label: `${invToApprove} factuur(en) wachten op je goedkeuring`, href: "/facturen" });
+    for (const a of cascadeClientActions({ performancesToApprove: perfToApprove, invoicesToApprove: invToApprove })) {
+      attention.push({ label: a.title, href: a.href });
+    }
     return {
       stats: [
         { label: "Gepubliceerde opdrachten", value: openJobs, href: "/opdrachten" },

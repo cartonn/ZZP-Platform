@@ -102,6 +102,12 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
   prestaties & facturen goedkeuren bij opdrachtgever) verschijnen in "Vraagt aandacht".
 - Gate groen (typecheck/lint/test 291/build). Open in Fase 5: dark-first-keuze (stop-and-confirm).
 
+### Platform Overhaul — nacht-build increments — 2026-05-29/30
+- Cascade-factuurdetail (`/facturen/[id]`): lifecycle-badge, partij-nummer, BTW-uitsplitsing, herkomst-blok.
+- CSV-export administratie: `administration/csv.ts` (pure) + `GET /api/administratie/export` + knop.
+- Cascade-dashboardtaken in geteste pure helpers (`cascade/next-actions.ts`); dashboard gebruikt ze.
+- Tests doorlopend groen (300). Volgende: notificatie-teksten/centrum, idempotentie-edge-cases, polish.
+
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"
