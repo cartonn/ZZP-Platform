@@ -21,6 +21,8 @@ import {
   rejectInvoiceAction,
   confirmPaymentAction,
   creditInvoiceAction,
+  openDisputeAction,
+  resolveDisputeAction,
 } from "./actions";
 
 export const metadata: Metadata = { title: "Werkproces · ZZP Platform" };
@@ -114,6 +116,35 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             </ul>
           </CardContent>
         </Card>
+      )}
+
+      {/* Dispuut: bevroren cascade tot opgelost (§4 zijpad) */}
+      {col.disputedAt ? (
+        <Card>
+          <CardContent className="space-y-2 py-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-danger">Dispuut open — werkproces bevroren</span>
+              <Badge variant="danger">Bevroren</Badge>
+            </div>
+            {col.disputeReason && <p className="text-sm text-muted-foreground">{col.disputeReason}</p>}
+            <p className="text-xs text-muted-foreground">Het platform bemiddelt. Acties zijn geblokkeerd tot het dispuut is opgelost.</p>
+            {actor.role === "ADMIN" && (
+              <form action={resolveDisputeAction.bind(null, col.id)}>
+                <Button type="submit" size="sm">Dispuut oplossen</Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        active && (
+          <details className="text-sm">
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Probleem melden / dispuut openen</summary>
+            <form action={openDisputeAction.bind(null, col.id)} className="mt-2 flex items-center gap-2">
+              <input name="reason" required placeholder="Toelichting" className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs" />
+              <Button type="submit" size="sm" variant="secondary">Dispuut openen</Button>
+            </form>
+          </details>
+        )
       )}
 
       {/* DBA-signalering — rustig, niet-alarmerend, altijd met disclaimer */}

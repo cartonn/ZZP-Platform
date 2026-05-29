@@ -403,6 +403,8 @@ model Collaboration {
   rate           Int?
   startDate      DateTime?
   endDate        DateTime?
+  disputedAt     DateTime? // dispuut open → cascade bevroren tot opgelost (§4 zijpad)
+  disputeReason  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

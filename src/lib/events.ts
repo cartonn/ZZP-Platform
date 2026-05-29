@@ -25,6 +25,7 @@ export const DOMAIN_EVENT_TYPES = [
   "PAYMENT_REMINDER", //         herinnering vóór de vervaldag (reminder-engine)
   "INVOICE_CREDITED", //         zijpad: creditfactuur
   "DISPUTE_OPENED", //           zijpad: dispuut/escalatie
+  "DISPUTE_RESOLVED", //         dispuut opgelost (cascade weer vrij)
   "PLATFORM_FEE_INVOICED", //    F  (optioneel, default uit)
   "DBA_SIGNAL_RAISED", //        DBA-monitoring (§6)
 ] as const;

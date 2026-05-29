@@ -13,6 +13,8 @@ import {
   rejectInvoice,
   confirmPayment,
   creditInvoice,
+  openDispute,
+  resolveDispute,
   CascadeError,
 } from "@/lib/cascade/commands";
 import { prisma } from "@/lib/db";
@@ -131,6 +133,26 @@ export async function creditInvoiceAction(invoiceId: string, collaborationId: st
   const actor = await requireActor();
   try {
     await creditInvoice(actor, invoiceId, String(formData.get("reason") ?? ""));
+  } catch (e) {
+    toMessage(e);
+  }
+  refresh(collaborationId);
+}
+
+export async function openDisputeAction(collaborationId: string, formData: FormData): Promise<void> {
+  const actor = await requireActor();
+  try {
+    await openDispute(actor, collaborationId, String(formData.get("reason") ?? ""));
+  } catch (e) {
+    toMessage(e);
+  }
+  refresh(collaborationId);
+}
+
+export async function resolveDisputeAction(collaborationId: string): Promise<void> {
+  const actor = await requireActor();
+  try {
+    await resolveDispute(actor, collaborationId);
   } catch (e) {
     toMessage(e);
   }

@@ -91,7 +91,10 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
   herinnering 5/1 dag vóór, OVERDUE-transitie + signaal bij beide partijen. Tests: 6.
 - Creditfactuur: `planInvoiceCreditedEvent` + `creditInvoice`-command + UI-knop in het werkproces;
   tegenboekingen + BTW-correctie. Tests: +2.
-- Nog open in Fase 4: dispuut/escalatie. Exports (CSV/PDF) horen bij Fase 6.
+- Dispuut/escalatie: `openDispute`/`resolveDispute`-commands + Collaboration.disputedAt;
+  `assertNotDisputed` bevriest alle cascade-commands; admin-notificatie + oplossen; UI in werkproces.
+- **Fase 4 afgerond.** Exports (CSV/PDF) verschuiven naar Fase 6. Volgende: Fase 5/6 polish +
+  cascade-facturen op /facturen + dashboard "aan zet".
 
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
