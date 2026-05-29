@@ -7,26 +7,15 @@ import { prisma } from "@/lib/db";
 import { statusForDecision, TransitionError } from "@/lib/credentials";
 import { runExpiryTask } from "@/lib/expiry-task";
 import { type CredentialStatus } from "@/lib/enums";
-import { getMailSender } from "@/lib/services/mail-sender";
-import {
-  buildCredentialVerifiedEmail,
-  buildCredentialRejectedEmail,
-} from "@/lib/services/reminder-emails";
 
 async function loadCredentialForDecision(credentialId: string) {
   const credential = await prisma.credential.findUnique({
     where: { id: credentialId },
-    include: {
-      freelancerProfile: {
-        select: { userId: true, user: { select: { email: true, name: true } } },
-      },
-    },
+    include: { freelancerProfile: { select: { userId: true } } },
   });
   if (!credential) throw new Error("Credential niet gevonden.");
   return credential;
 }
-
-const LOGIN_URL = () => process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
 
 /** Goedkeuren: SUBMITTED -> VERIFIED. Verificatieflow stap 3 (audit + notificatie). */
 export async function verifyCredential(credentialId: string): Promise<void> {
@@ -73,23 +62,6 @@ export async function verifyCredential(credentialId: string): Promise<void> {
       }),
     }),
   ]);
-
-  // E-mail buiten de transactie — falen rolt de DB-actie niet terug.
-  const u = credential.freelancerProfile.user;
-  if (u) {
-    try {
-      await getMailSender().send(
-        buildCredentialVerifiedEmail({
-          name: u.name ?? u.email,
-          email: u.email,
-          credentialTitle: credential.title,
-          loginUrl: LOGIN_URL(),
-        }),
-      );
-    } catch (err) {
-      console.error("[verificaties] e-mail credential-verified mislukt:", err);
-    }
-  }
 
   revalidatePath("/admin/verificaties");
 }
@@ -140,24 +112,6 @@ export async function rejectCredential(credentialId: string, formData: FormData)
       }),
     }),
   ]);
-
-  // E-mail buiten de transactie — falen rolt de DB-actie niet terug.
-  const u = credential.freelancerProfile.user;
-  if (u) {
-    try {
-      await getMailSender().send(
-        buildCredentialRejectedEmail({
-          name: u.name ?? u.email,
-          email: u.email,
-          credentialTitle: credential.title,
-          reason,
-          loginUrl: LOGIN_URL(),
-        }),
-      );
-    } catch (err) {
-      console.error("[verificaties] e-mail credential-rejected mislukt:", err);
-    }
-  }
 
   revalidatePath("/admin/verificaties");
 }

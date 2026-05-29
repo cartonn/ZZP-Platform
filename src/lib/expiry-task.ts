@@ -7,11 +7,6 @@ import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { planExpiryRun, EXPIRY_REMINDER_WINDOW_DAYS, type ExpiryCandidate } from "@/lib/expiry";
 import { type CredentialStatus } from "@/lib/enums";
-import { getMailSender } from "@/lib/services/mail-sender";
-import {
-  buildCredentialExpiredEmail,
-  buildCredentialExpiryWarningEmail,
-} from "@/lib/services/reminder-emails";
 
 export interface ExpiryRunResult {
   expired: number;
@@ -42,9 +37,7 @@ export async function runExpiryTask(opts: {
       expiresAt: { not: null, lte: upperBound },
     },
     include: {
-      freelancerProfile: {
-        select: { userId: true, user: { select: { email: true, name: true } } },
-      },
+      freelancerProfile: { select: { userId: true } },
     },
   });
 
@@ -150,47 +143,6 @@ export async function runExpiryTask(opts: {
   }
 
   await prisma.$transaction(ops);
-
-  // E-mails buiten de transactie — falen mag de DB-actie niet terugdraaien.
-  const loginUrl = process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
-  const mail = getMailSender();
-
-  for (const item of plan.toExpire) {
-    const row = rows.find((r) => r.id === item.id);
-    const u = row?.freelancerProfile?.user;
-    if (!u) continue;
-    try {
-      await mail.send(
-        buildCredentialExpiredEmail({
-          name: u.name ?? u.email,
-          email: u.email,
-          credentialTitle: item.title,
-          loginUrl,
-        }),
-      );
-    } catch (err) {
-      console.error("[expiry-task] e-mail credential-expired mislukt:", err);
-    }
-  }
-
-  for (const item of plan.toRemind) {
-    const row = rows.find((r) => r.id === item.id);
-    const u = row?.freelancerProfile?.user;
-    if (!u) continue;
-    try {
-      await mail.send(
-        buildCredentialExpiryWarningEmail({
-          name: u.name ?? u.email,
-          email: u.email,
-          credentialTitle: item.title,
-          daysLeft: item.daysLeft,
-          loginUrl,
-        }),
-      );
-    } catch (err) {
-      console.error("[expiry-task] e-mail credential-expiry-warning mislukt:", err);
-    }
-  }
 
   return { expired: plan.toExpire.length, reminded: plan.toRemind.length };
 }
