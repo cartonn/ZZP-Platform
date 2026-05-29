@@ -24,17 +24,51 @@
 
 ---
 
-## STATUS: AUTO-MODE — continu doorbouwen (live op Railway)
+## STATUS: PLATFORM OVERHAUL — event-driven cascade (`prompts/PLATFORM_OVERHAUL.md`)
 
-MVP + meedenk-laag staan **live** op Railway (branch `claude/dazzling-carson-v9Qwk`,
-auto-deploy). Geen "klaar"-moment: pak de bovenste open taak uit de backlog, lever af
-volgens de Definition of Done (zie CLAUDE.md → AUTO-MODE), commit + push, pak de volgende.
-Altijd `git fetch`/rebase vóór commit én push (meerdere agents pushen naar dezelfde branch).
+Grote, gefaseerde verbouwing naar een event-driven systeem met de volledige facturatie- en
+administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A besluiten hard,
+§0B open). Werkdocumenten: `ARCHITECTURE.md`, `DECISIONS.md`, `WORKFLOW_MAP.md`, `DESIGN.md`.
 
-### Backlog (bovenste eerst — houd deze lijst levend)
+> **Branch deze sessie:** `claude/modest-babbage-08jYa` (harness-instructie). Niet naar
+> `claude/dazzling-carson-v9Qwk` pushen zonder toestemming.
+
+### Fasevoortgang
+- [x] **Fase 0 — Inventarisatie & fundering.** Docs aangemaakt (ARCHITECTURE/DECISIONS/
+      WORKFLOW_MAP/DESIGN), gap-analyse hieronder, Fase 1 voorgesteld.
+- [ ] **Fase 1 — Event-bus, state machines, audit/event store** (in aanbouw).
+- [ ] Fase 2 — Datamodel administratie & administratiemotor.
+- [ ] Fase 3 — Hoofdcascade (Events A–E) + reminders, Event F als uitgeschakelde module.
+- [ ] Fase 4 — Zijpaden & DBA-monitoring.
+- [ ] Fase 5 — Rol-workspaces & UX/UI (eerst dark-first-beslissing, zie DESIGN.md).
+- [ ] Fase 6 — Notificaties, reminders, exports.
+- [ ] Fase 7 — Hardening & end-to-end.
+
+### Gap-analyse (Fase 0)
+**Herbruikbaar:** enums+Zod-patroon; `assert*Transition`-maps (credential/invoice/collaboration);
+plan/apply-splitsing (`planExpiryRun`/`runExpiryTask`) als blauwdruk voor handlers; `audit()`
+één-schrijfpunt; authz-keten (`authz.ts`); server-side snapshots (matchScore, DBA op Job);
+next-action-engine; Invoice/InvoiceLine/Collaboration-modellen.
+**Moet wijken/uitbreiden:** korte Job/Invoice/Collaboration-enums → rijkere lifecycles (Fase 2/3);
+losse factuur → afgeleid uit goedgekeurde prestatie + reeks per partij + BTW.
+**Ontbreekt volledig:** centrale event-laag; Urenstaat/Oplevering-entiteit + verplichte
+goedkeuringsstap; administratie-items (debiteur/crediteur) + betaalstatus-registratie; doorlopende
+DBA-monitoring; reminder-engine voor de facturatie-cascade; Event F (fee, default uit).
+**Grootste risico's:** (1) lifecycle-migratie zonder de live demo te breken (additief in Fase 1);
+(2) idempotentie bij dubbele events; (3) dark-first vs. light thema (stop-and-confirm vóór Fase 5);
+(4) BTW/nummering-correctheid (echte administratie, geen mock).
+
+### Fase 1 — voorstel (zie ARCHITECTURE.md §2)
+`state-machine.ts` (generieke `defineStateMachine`), `lifecycles.ts` (overgangsmaps voor
+Opdracht/Contract/Urenstaat/Factuur/Betaling), `events.ts` (DomainEvent-types + Zod-shape),
+`event-bus.ts` (in-process bus + persistente `DomainEvent`-store, injecteerbare store voor pure
+tests, prisma-store voor runtime), idempotentie via `dedupeKey` + `EventHandlerRun`. Schema:
+`DomainEvent` + `EventHandlerRun` additief toevoegen. Alles unit-getest zonder DB.
+
+### Backlog (na de overhaul-fasen)
 1. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
 
-Gereed: bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
+Gereed (pre-overhaul): bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
 nieuwe-reactie-notificatie · uitlegbare matching (match-reasons) · next-action-engine
 (dashboard draait erop) · beschikbaarheid in matching (score onveranderd, reden + badges) ·
 design-polish-pass (gedeelde EmptyState + Skeleton, route-skeletten, reduced-motion) ·

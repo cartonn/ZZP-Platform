@@ -1,0 +1,34 @@
+# WORKFLOW_MAP.md — Event → effect (de cascade)
+
+> Eén bron van waarheid voor "welke actie triggert wat bij wie". Elke rij = een domain-event of
+> zijpad. Geen knop is een doodlopend einde. Houd dit gelijk met de handlers in `src/lib/cascade/`
+> en met `WORKFLOW_MAP`-tests. Status per event: ⬜ nog niet · 🟦 in aanbouw · ✅ geïmplementeerd+getest.
+>
+> Geldstroom loopt **altijd direct** opdrachtgever → ZZP'er (Besluit 1). Platform registreert
+> alleen status en raakt het geld nooit aan.
+
+| # | Event | Actor (rol) | Trigger | Gevolg bij ZZP'er | Gevolg bij opdrachtgever | Gevolg bij platform | Administratie-item(s) | Status-overgang(en) | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| A | Contract getekend | OG + ZZP | Beide partijen tekenen | Opdracht in "Lopende opdrachten"; uren-/milestone-tracking aan | Opdracht in "Actieve inhuur" | Contractdossier actief; DBA-monitoring start; compliance-checklist | Contractdossier in audit log | Contract `getekend → actief`; Opdracht `gecontracteerd → in_uitvoering` | ⬜ |
+| B1 | Prestatie ingediend ter goedkeuring | ZZP'er | Urenstaat (uurtarief) of oplevering (milestone) gereed | Urenstaat/oplevering `concept → ingediend_ter_goedkeuring` | Notificatie + **verplichte goedkeurtaak** | Teller "openstaande goedkeuringen" +1; DBA leest mee | — | Urenstaat/Oplevering `concept → ingediend_ter_goedkeuring` | ⬜ |
+| B2 | Uren/oplevering goedgekeurd | Opdrachtgever | OG accordeert | Notificatie "concept-factuur klaar"; taak; reminder-cascade dag 0/3/7 | — | Teller "openstaande concept-facturen" +1 | Concept-factuur gegenereerd (uren×tarief óf milestone; +BTW) | Urenstaat/Oplevering `→ goedgekeurd`; Factuur `(nieuw) concept` | ⬜ |
+| B2′ | Uren/oplevering afgekeurd (zijpad) | Opdrachtgever | OG keurt af (reden verplicht) | Taak "aanpassen en opnieuw indienen" → terug naar B1 | — | Audit houdt keten vast | — | Urenstaat/Oplevering `→ afgekeurd` | ⬜ |
+| C | ZZP'er keurt concept-factuur goed & dient in | ZZP'er | ZZP'er bevestigt concept-factuur | Factuur op "Uitstaand/Debiteuren"; af te dragen BTW geregistreerd; reminder B2 stopt | Factuur ter goedkeuring + taak | — | Debiteurenpost (ZZP'er); BTW af te dragen | Factuur `concept → ingediend`; **factuurnummer uit ZZP'er-reeks**, PDF | ⬜ |
+| D | Opdrachtgever keurt factuur goed | Opdrachtgever | OG accordeert | Notificatie "goedgekeurd — betaling verwacht binnen X dagen, rechtstreeks" | Crediteurenpost; kosten geboekt; BTW als voorbelasting | Betaling `verwacht`; betaalstatus-monitoring | Crediteurenpost (OG); voorbelasting | Factuur `ingediend → goedgekeurd`; betaaltermijn-timer start | ⬜ |
+| D′ | Factuur afgekeurd (zijpad) | Opdrachtgever | OG keurt af (reden) | Taak "corrigeren en opnieuw indienen" → terug naar C | — | Audit houdt keten vast | — | Factuur `→ afgekeurd` | ⬜ |
+| E | Betaling rechtstreeks + geregistreerd | OG en/of ZZP'er | OG markeert "betaald" en/of ZZP'er markeert "ontvangen" (default: ZZP'er bevestigt) | Debiteurenpost afgeboekt; omzet gerealiseerd | Crediteurenpost afgeboekt; betaling vastgelegd | Betaalstatus `bevestigd`; opdracht → `afgerond → gearchiveerd`; indien fee actief → Event F | Afboeking debiteur (ZZP'er) + crediteur (OG) | Factuur `goedgekeurd → betaald`; Betaling `gemarkeerd_betaald → bevestigd` | ⬜ |
+| F | Platform factureert fee (OPTIONEEL, default UIT) | Platform | Fee verschuldigd (na Event E of bij contract — config) | — | (Indien OG de betalende partij) kostenpost + voorbelasting | Eigen, aparte fee-factuur (eigen reeks); omzet + af te dragen BTW | Fee-factuur (platformreeks), gescheiden van hoofdstroom | Fee-factuur eigen lifecycle (zelfde als hoofdfactuur) | ⬜ |
+
+## Zijpaden (verplicht)
+| Zijpad | Trigger | Effect | Status |
+|---|---|---|---|
+| Betaling te laat | Betaaltermijn verstreken | Factuur `→ te_laat`; betaling `te_laat`; herinnering 1 → 2 → aanmaning-sjabloon (ZZP'er) → escalatie-flag platform; admin-item per stap | ⬜ |
+| Correctie/creditfactuur | ZZP'er crediteert | Tegenboekingen bij ZZP'er én OG; BTW gecorrigeerd; evt. nieuwe factuur | ⬜ |
+| Dispuut/escalatie | Partij of platform opent dispuut | Platform-taak; statussen bevriezen tot opgelost | ⬜ |
+| DBA-signalen | Tijd/patroon over looptijd (6/12 mnd, 80% omzet, zelfde functie, vast rooster, leiding/toezicht) | Notificatie/taak bij ZZP'er én OG, zichtbaar voor platform; gedocumenteerd in audittrail; **altijd disclaimer** | ⬜ |
+| Periodieke administratie | Tijdgestuurd | BTW-kwartaaloverzicht per partij; debiteuren-/crediteurenoverzicht; jaaroverzicht/IB-voorbereiding ZZP'er | ⬜ |
+
+## Reminder-cascades (tijden configureerbaar)
+- **Concept-factuur (ZZP'er) na B2:** dag 0 → dag 3 → dag 7 → escalatie-flag platform.
+- **Betaaltermijn (opdrachtgever) na D:** termijn-5d → termijn-1d → op vervaldag → te laat.
+</content>
