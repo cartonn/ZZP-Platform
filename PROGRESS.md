@@ -520,4 +520,21 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   tests flaken soms op één gedeelde dev-server; een echte bug faalt ook na retry).
 - Echte iDIN/eIDAS-koppeling = mensenwerk (zelfde patroon als DUO/BIG).
 
+### Increment: Design-polish-pass — lege/laad-staten (Linear ZZP2-2) — 2026-05-29
+- Gedeelde `EmptyState` (`src/components/ui/empty-state.tsx`): icoon + titel + beschrijving +
+  optionele primaire actie; token-gebaseerd, toegankelijk. Vervangt het ad-hoc
+  `<Card><CardContent>…tekst…</CardContent></Card>`-patroon op alle ~15 lijstpagina's.
+- Gedeelde `Skeleton` + herbruikbare `ListSkeleton` (`src/components/ui/skeleton.tsx`).
+- Elke lege staat kreeg een passend Lucide-icoon, strakkere copy (titel-echo uit de beschrijving
+  verwijderd) en een vervolgactie waar dat helpt (opdracht plaatsen, certificaat toevoegen,
+  opdrachten bekijken, naar samenwerkingen). Browse/filter-lege-staten zonder actie.
+- `loading.tsx`-skeletons toegevoegd aan elke beschermde lijstroute (14 nieuw, totaal 15);
+  dashboard-`loading.tsx` hergebruikt nu de gedeelde `Skeleton`. Geen layout-shift bij laden.
+- Presentatielaag alleen — geen wijziging aan server-logica, queries of auth.
+- Bouw: orchestrator (Opus) maakte de gedeelde componenten + integreerde; 4 Sonnet-builders
+  deden de paginarefactors op niet-overlappende bestandsgroepen.
+- Checks: typecheck ✓, lint ✓, test ✓ (192 unit), build ✓. e2e niet als blokkade (geen
+  browser-channel in deze omgeving, zoals CI); geen e2e-spec assert op de gewijzigde copy.
+- Commit `a0915a0` op `claude/epic-lovelace-Kd59a`.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

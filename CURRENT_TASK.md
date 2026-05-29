@@ -11,14 +11,15 @@ volgens de Definition of Done (zie CLAUDE.md → AUTO-MODE), commit + push, pak 
 Altijd `git fetch`/rebase vóór commit én push (meerdere agents pushen naar dezelfde branch).
 
 ### Backlog (bovenste eerst — houd deze lijst levend)
-1. Design-polish-pass: lege/laad/fout-staten + micro-interacties naar het strakke, rustige niveau
-   (Noord-ster: Uber/SaaS, complexiteit op de achtergrond).
-2. Verloop-detectie als geplande taak (cron/automation = mensenwerk) → echte expiry-notificaties.
-3. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
+1. Verloop-detectie als geplande taak (cron/automation = mensenwerk) → echte expiry-notificaties.
+2. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
+3. Polish-vervolg: detailpagina's + formulieren langs dezelfde lat (consistente lege/laad-staten,
+   micro-interacties) — voortbouwend op `EmptyState`/`Skeleton`.
 
 Gereed: bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
 nieuwe-reactie-notificatie · uitlegbare matching (match-reasons) · next-action-engine
-(dashboard draait erop) · beschikbaarheid in matching (score onveranderd, reden + badges).
+(dashboard draait erop) · beschikbaarheid in matching (score onveranderd, reden + badges) ·
+design-polish-pass lege/laad-staten (gedeelde `EmptyState` + `Skeleton`, alle lijstpagina's, ZZP2-2).
 
 ### Per increment (geen uitzonderingen)
 testbare kern + unit-tests → UI → typecheck/lint/test/build groen → e2e + screenshot →
