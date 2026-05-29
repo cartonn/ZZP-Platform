@@ -28,7 +28,10 @@ werkt volgens dit contract:
    voor research en onafhankelijk werk; integreer en commit zelf.
 4. **Definition of Done per increment (geen uitzonderingen):** testbare kern + unit-tests →
    UI → `npm run typecheck` + `npm run lint` + `npm run test` + `npm run build` groen →
-   e2e + screenshot in de browser → commit → push. Nooit afvinken op "ziet er goed uit".
+   commit → push. **E2e is GEEN gate in CI/routine** (die omgevingen hebben geen
+   browser-channel — zie `ci.yml`): doe e2e + screenshot alléén in een interactieve sessie
+   mét browser; in een routine/CI sla je e2e over (en vermeld dat kort). Nooit afvinken op
+   "ziet er goed uit".
 5. **Productiekwaliteit, geen slop.** Deterministisch, server-side waarheid. Geen dode
    knoppen. **Het woord "AI" komt nergens in de UI, teksten, comments of docs voor.**
 6. **Houd het geheugen actueel.** Werk `PROGRESS.md` (wat af is) en `CURRENT_TASK.md`
@@ -151,7 +154,9 @@ Een taak is pas af als:
 - `npm run typecheck` slaagt (geen TS-fouten)
 - `npm run lint` slaagt
 - `npm run test` groen (relevante unit-tests geschreven én slagend)
-- De flow is in de browser doorgeklikt (Claude Code: start dev, controleer)
+- De flow is in de browser doorgeklikt (interactieve sessie mét browser). **In CI/routine
+  zonder browser-channel: e2e overslaan** — net als `ci.yml`; de headless-gate
+  (typecheck/lint/test/build) is dan leidend.
 - Loading/error/empty-states aanwezig
 - `PROGRESS.md` bijgewerkt, `CURRENT_TASK.md` doorgeschoven naar de volgende taak
 

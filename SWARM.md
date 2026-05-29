@@ -18,7 +18,9 @@ orchestrator-worker-vorm. Dit is de werkafspraak; zie ook `CLAUDE.md` → AUTO-M
   op een eigen branch → dunne PR's → de lead merget. Voor 2–3 onafhankelijke bestanden kan ook
   in dezelfde werkboom, mits niet-overlappend en de workers geen git/build draaien.
 - **Verificatiepoort (niet-onderhandelbaar)**: de lead draait `typecheck`+`lint`+`test`+`build`
-  (+ e2e waar relevant) ná integratie en **gooit zwakke output weg**. Nooit mergen op
+  ná integratie en **gooit zwakke output weg**. E2e alléén waar een browser beschikbaar is
+  (interactieve sessie); in CI/routine zónder browser-channel e2e overslaan (zie `ci.yml`).
+  Nooit mergen op
   "ziet er goed uit".
 
 ## Werkwijze van de lead (per ronde)
