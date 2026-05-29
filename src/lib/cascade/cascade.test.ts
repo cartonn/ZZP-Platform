@@ -8,9 +8,11 @@ import {
   planContractSigned,
   planPerformanceSubmitted,
   planPerformanceApproved,
+  planPerformanceRejected,
   planInvoiceSubmittedEvent,
   planInvoiceApprovedEvent,
   planPaymentConfirmedEvent,
+  planInvoiceCreditedEvent,
 } from "@/lib/cascade/handlers";
 import { summarizeByParty, vatPosition, type Posting } from "@/lib/administration/ledger";
 import { type CascadeEffects, type NotificationDraft } from "@/lib/cascade/types";
@@ -137,5 +139,46 @@ describe("hoofdcascade A->E (uurtarief)", () => {
       freelancerUserId: "f1", clientUserId: "c1", issuerKey: "f1", vatRegime: "STANDARD_HIGH", correlationId: "corr2", now, actorId: "c1",
     });
     expect(b2.newInvoice).toMatchObject({ subtotalCents: 5000_00, vatCents: 1050_00, totalCents: 6050_00 });
+  });
+});
+
+describe("zijpad — afgekeurde prestatie opnieuw indienen", () => {
+  it("REJECTED -> SUBMITTED -> APPROVED levert alsnog een concept-factuur", () => {
+    // Afgekeurde urenstaat mag opnieuw worden ingediend (performanceMachine REJECTED->SUBMITTED).
+    const resubmit = planPerformanceSubmitted({
+      performanceId: "p1", status: "REJECTED", performanceType: "HOURS",
+      collaborationId: "col1", clientUserId: "c1", now, actorId: "f1",
+    });
+    expect(resubmit.statusChanges[0]?.to).toBe("SUBMITTED");
+
+    const approved = planPerformanceApproved({
+      performance: { id: "p1", status: "SUBMITTED", type: "HOURS", hours: 4, rateCents: 75_00, collaborationId: "col1" },
+      freelancerUserId: "f1", clientUserId: "c1", issuerKey: "f1", vatRegime: "STANDARD_HIGH", correlationId: "col1", now, actorId: "c1",
+    });
+    expect(approved.newInvoice).toMatchObject({ subtotalCents: 300_00, vatCents: 63_00, totalCents: 363_00 });
+  });
+
+  it("een rejectie vereist een reden (B2')", () => {
+    expect(() =>
+      planPerformanceRejected({ performanceId: "p1", status: "SUBMITTED", freelancerUserId: "f1", reason: "", now, actorId: "c1" }),
+    ).toThrow(/reden/);
+  });
+});
+
+describe("zijpad — creditfactuur maakt de administratie netto nul", () => {
+  it("A->E gevolgd door creditering nuleert omzet, kosten en BTW", () => {
+    const fin = { subtotalCents: 600_00, vatCents: 126_00, totalCents: 726_00 };
+    const postings: Posting[] = [
+      ...planInvoiceSubmittedEvent({ invoice: { id: "i1", lifecycleStatus: "DRAFT", ...fin }, partyInvoiceNumber: "2026-0001", clientUserId: "c1", now, actorId: "f1" }).postings,
+      ...planInvoiceApprovedEvent({ invoice: { id: "i1", lifecycleStatus: "SUBMITTED", ...fin }, paymentTermDays: 30, freelancerUserId: "f1", now, actorId: "c1" }).postings,
+      ...planPaymentConfirmedEvent({ invoice: { id: "i1", lifecycleStatus: "APPROVED", ...fin, partyInvoiceNumber: "2026-0001" }, collaboration: { id: "col1", status: "ACTIVE" }, freelancerUserId: "f1", clientUserId: "c1", now, actorId: "f1" }).postings,
+      ...planInvoiceCreditedEvent({ invoice: { id: "i1", lifecycleStatus: "PAID", ...fin, partyInvoiceNumber: "2026-0001" }, freelancerUserId: "f1", clientUserId: "c1", reason: "Correctie", actorId: "f1" }).postings,
+    ];
+    const summary = summarizeByParty(postings);
+    expect(summary.FREELANCER.OMZET).toBe(0);
+    expect(summary.FREELANCER.BTW_AF_TE_DRAGEN).toBe(0);
+    expect(summary.CLIENT.KOSTEN).toBe(0);
+    expect(summary.CLIENT.BTW_VOORBELASTING).toBe(0);
+    expect(vatPosition(postings).FREELANCER).toBe(0);
   });
 });
