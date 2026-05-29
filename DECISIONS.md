@@ -66,4 +66,3 @@ tweemaal verwerken nooit dubbele facturen/administratie-items oplevert.
 *Keuze:* `defineStateMachine()` generaliseert het bestaande `assertTransition`-patroon; de nieuwe
 lifecycles (Opdracht/Contract/Urenstaat/Factuur/Betaling) komen in `lifecycles.ts`. De werkende
 korte enums migreren pas in Fase 2/3 (additief in Fase 1, geen breuk).
-</content>

@@ -35,4 +35,3 @@ blijft. De tokens zijn semantisch (CSS-variabelen) → een latere thema-omslag r
 | goedgekeurd / actief / getekend / bevestigd / betaald | `success` |
 | afgekeurd / te laat / gecrediteerd | `danger` |
 | afgerond / gearchiveerd | `muted-foreground` |
-</content>

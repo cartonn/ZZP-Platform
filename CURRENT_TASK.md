@@ -36,7 +36,7 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
 ### Fasevoortgang
 - [x] **Fase 0 — Inventarisatie & fundering.** Docs aangemaakt (ARCHITECTURE/DECISIONS/
       WORKFLOW_MAP/DESIGN), gap-analyse hieronder, Fase 1 voorgesteld.
-- [ ] **Fase 1 — Event-bus, state machines, audit/event store** (in aanbouw).
+- [x] **Fase 1 — Event-bus, state machines, event store.** Zie verslag onder.
 - [ ] Fase 2 — Datamodel administratie & administratiemotor.
 - [ ] Fase 3 — Hoofdcascade (Events A–E) + reminders, Event F als uitgeschakelde module.
 - [ ] Fase 4 — Zijpaden & DBA-monitoring.
@@ -58,12 +58,30 @@ DBA-monitoring; reminder-engine voor de facturatie-cascade; Event F (fee, defaul
 (2) idempotentie bij dubbele events; (3) dark-first vs. light thema (stop-and-confirm vóór Fase 5);
 (4) BTW/nummering-correctheid (echte administratie, geen mock).
 
-### Fase 1 — voorstel (zie ARCHITECTURE.md §2)
-`state-machine.ts` (generieke `defineStateMachine`), `lifecycles.ts` (overgangsmaps voor
-Opdracht/Contract/Urenstaat/Factuur/Betaling), `events.ts` (DomainEvent-types + Zod-shape),
-`event-bus.ts` (in-process bus + persistente `DomainEvent`-store, injecteerbare store voor pure
-tests, prisma-store voor runtime), idempotentie via `dedupeKey` + `EventHandlerRun`. Schema:
-`DomainEvent` + `EventHandlerRun` additief toevoegen. Alles unit-getest zonder DB.
+### Fase 1 — verslag (afgerond 2026-05-29)
+Geleverd:
+- `src/lib/state-machine.ts` — generieke `defineStateMachine(entity, transitions)` →
+  `{ can, assert, next, isTerminal, isState }`; valideert overgangen naar onbekende toestanden
+  bij definitie; `StateTransitionError`.
+- `src/lib/lifecycles.ts` — doel-lifecycles als state machines: WorkOrder (opdracht), Contract,
+  Performance (urenstaat/oplevering), InvoiceLifecycle, Payment (registratie, geen geldverwerking).
+- `src/lib/events.ts` — `DomainEventType` (Events A–F + zijpaden) + Zod, `DomainEventInput`/
+  `StoredEvent`-vorm, `EventStore`-interface + `InMemoryEventStore` (pure tests).
+- `src/lib/event-bus.ts` — `EventBus`: handlerregistratie + idempotente `publish` (claim per
+  handler, claim-teruggave bij fout → self-healing replay).
+- `src/lib/event-store.ts` — `PrismaEventStore` + proces-singleton `eventBus`.
+- Schema: `DomainEvent` (append-only, unieke `dedupeKey`) + `EventHandlerRun` (handler-dedup).
+- Tests: state-machine (7), lifecycles (14), event-bus (7). **Gate groen:** typecheck ✓, lint ✓,
+  test 230 ✓, build ✓. (e2e niet gedraaid — geen browser-channel in routine, zie CLAUDE.md.)
+
+DoD Fase 1 ✓: events publiceren/consumeren werkt; ongeldige statusovergangen worden geweigerd;
+idempotentie aangetoond (dubbele publish = één event + één handlerrun).
+
+### Volgende: Fase 2 — Datamodel administratie & administratiemotor
+Urenstaten/opleveringen (Performance-entiteit), facturen afgeleid uit goedgekeurde prestatie,
+administratie-items (ZZP'er debiteur / opdrachtgever crediteur), BTW, factuurnummering per partij,
+betaalstatus-registratie + administratiemotor die op events boekt. **Stop-and-confirm vóór** een
+destructieve migratie van de live `Invoice`/`Collaboration`-modellen.
 
 ### Backlog (na de overhaul-fasen)
 1. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).

@@ -125,5 +125,4 @@ src/lib/
 - Geen geld via het platform (Besluit 1). DBA signaleert, adviseert niet (Besluit 2).
 - Geen factuur zonder goedgekeurde prestatie (Besluit 3). Fee = configureerbaar, default UIT (Besluit 4).
 - Eén schema op SQLite én Postgres. Geen statuswijziging buiten de state machine/event-laag om.
-</content>
 </invoke>

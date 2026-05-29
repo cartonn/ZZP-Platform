@@ -497,3 +497,39 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([action])
 }
+
+// ---------------------------------------------------------------------------
+// Event-laag (ARCHITECTURE.md §2.1) — append-only event store + idempotentie.
+// Naast AuditLog (mens-leesbaar gevolg) is dit de machine-trigger voor de cascade.
+// ---------------------------------------------------------------------------
+
+model DomainEvent {
+  id            String   @id @default(cuid())
+  type          String //   DomainEventType (src/lib/events.ts)
+  actorRole     String //   ActorRole: FREELANCER | CLIENT | ADMIN | SYSTEM
+  actorId       String? //  null = systeemactie
+  subjectType   String //   bv. "Contract", "Invoice", "Performance"
+  subjectId     String
+  payload       String   @default("{}") // JSON-string (geen Json scalar — portabiliteit)
+  correlationId String? //  bindt een hele cascade aaneen
+  dedupeKey     String?  @unique // publicatie-idempotentie; meerdere NULLs toegestaan
+  occurredAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  handlerRuns EventHandlerRun[]
+
+  @@index([type])
+  @@index([subjectType, subjectId])
+  @@index([correlationId])
+}
+
+// Idempotentie-marker: een handler draait per event hooguit één keer.
+model EventHandlerRun {
+  eventId   String
+  handler   String
+  createdAt DateTime @default(now())
+
+  event DomainEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, handler])
+}

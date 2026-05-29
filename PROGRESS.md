@@ -28,6 +28,22 @@
 
 ## Logboek
 
+### Platform Overhaul — Fase 0 + 1 — 2026-05-29
+Start van de event-driven overhaul (`prompts/PLATFORM_OVERHAUL.md`). Branch deze sessie:
+`claude/modest-babbage-08jYa`.
+- **Fase 0 (docs):** `ARCHITECTURE.md` (huidig + event-driven doel), `DECISIONS.md` (besluiten 0A
+  hard + 0B open + sessie-besluiten), `WORKFLOW_MAP.md` (event→effect-tabel, Events A–F + zijpaden),
+  `DESIGN.md` (UX-principes + open dark-first-keuze), gap-analyse + fasevoortgang in `CURRENT_TASK.md`.
+- **Fase 1 (event-laag, getest):** `state-machine.ts` (generieke `defineStateMachine`),
+  `lifecycles.ts` (WorkOrder/Contract/Performance/InvoiceLifecycle/Payment), `events.ts`
+  (`DomainEventType` + `EventStore` + `InMemoryEventStore`), `event-bus.ts` (`EventBus`, idempotente
+  `publish` met handler-claim + self-healing replay), `event-store.ts` (`PrismaEventStore` + singleton).
+  Schema: `DomainEvent` (append-only, unieke `dedupeKey`) + `EventHandlerRun`. Tests: 28 nieuw
+  (state-machine 7 / lifecycles 14 / event-bus 7). Gate groen: typecheck, lint, test (230), build.
+  Idempotentie aangetoond: dubbele publish = één event, handler draait één keer.
+- Volgende: Fase 2 (administratiemotor) — stop-and-confirm vóór destructieve migratie van de live
+  Invoice/Collaboration-modellen.
+
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"

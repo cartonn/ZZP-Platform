@@ -31,4 +31,3 @@
 ## Reminder-cascades (tijden configureerbaar)
 - **Concept-factuur (ZZP'er) na B2:** dag 0 → dag 3 → dag 7 → escalatie-flag platform.
 - **Betaaltermijn (opdrachtgever) na D:** termijn-5d → termijn-1d → op vervaldag → te laat.
-</content>
