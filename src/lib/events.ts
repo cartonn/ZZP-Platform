@@ -22,6 +22,7 @@ export const DOMAIN_EVENT_TYPES = [
   "PAYMENT_MARKED", //           E  (gemarkeerd betaald)
   "PAYMENT_CONFIRMED", //        E  (ontvangst bevestigd)
   "PAYMENT_OVERDUE", //          zijpad: betaling te laat
+  "PAYMENT_REMINDER", //         herinnering vóór de vervaldag (reminder-engine)
   "INVOICE_CREDITED", //         zijpad: creditfactuur
   "DISPUTE_OPENED", //           zijpad: dispuut/escalatie
   "PLATFORM_FEE_INVOICED", //    F  (optioneel, default uit)
