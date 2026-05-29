@@ -41,12 +41,19 @@ export default async function AdministratiePage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Administratie {year}</h1>
-        <p className="text-sm text-muted-foreground">
-          Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt rechtstreeks;
-          het platform houdt alleen de status bij.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold tracking-tight">Administratie {year}</h1>
+          <p className="text-sm text-muted-foreground">
+            Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt rechtstreeks;
+            het platform houdt alleen de status bij.
+          </p>
+        </div>
+        {entries.length > 0 && (
+          <a href="/api/administratie/export" className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+            Exporteer CSV
+          </a>
+        )}
       </header>
 
       {entries.length === 0 ? (
