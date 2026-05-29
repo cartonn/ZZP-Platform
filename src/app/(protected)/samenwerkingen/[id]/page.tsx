@@ -5,7 +5,7 @@ import { ArrowLeft, FileText, ClipboardList, Banknote } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
-import { assessCollaborationDba, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
+import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,7 +56,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const col = await prisma.collaboration.findUnique({
     where: { id },
     include: {
-      job: { select: { id: true, title: true } },
+      job: { select: { id: true, title: true, dbaDirectSupervision: true, dbaEmbedded: true, dbaFixedSchedule: true } },
       company: { select: { name: true, userId: true } },
       freelancer: { select: { userId: true, user: { select: { name: true } } } },
       performances: { orderBy: { createdAt: "desc" } },
@@ -73,7 +73,10 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const active = col.status === "ACTIVE";
 
   // DBA-monitoring (§6): rustig signaleren, mét disclaimer; geen juridisch oordeel (Besluit 2).
-  const dba = assessCollaborationDba({ collaborationId: col.id, startDate: col.startDate }, new Date());
+  const dba = assessCollaborationDba(
+    { collaborationId: col.id, startDate: col.startDate, ...jobDbaIndicators(col.job) },
+    new Date(),
+  );
 
   // "Aan zet": wat moet déze rol nu doen?
   const todo: string[] = [];

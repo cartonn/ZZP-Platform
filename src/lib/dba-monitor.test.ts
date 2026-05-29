@@ -3,6 +3,7 @@ import {
   monthsBetween,
   assessCollaborationDba,
   planDbaMonitorRun,
+  jobDbaIndicators,
   DBA_LEVEL_LABEL,
   type DbaMonitorCandidate,
 } from "@/lib/dba-monitor";
@@ -55,6 +56,25 @@ describe("assessCollaborationDba", () => {
 
   it("labels zijn niet-alarmerend Nederlands", () => {
     expect(DBA_LEVEL_LABEL.HOOG).toBe("Hoog risico");
+  });
+});
+
+describe("jobDbaIndicators", () => {
+  it("vertaalt Job-DBA-vlaggen naar monitor-indicatoren", () => {
+    expect(jobDbaIndicators({ dbaDirectSupervision: true, dbaEmbedded: true, dbaFixedSchedule: false })).toEqual({
+      directionAndSupervision: true,
+      fixedSchedule: false,
+      sameFunctionAsEmployees: true,
+    });
+  });
+
+  it("gecombineerd met assessCollaborationDba levert een hoog signaal bij gezag", () => {
+    const a = assessCollaborationDba(
+      { collaborationId: "c1", startDate: new Date("2026-05-01"), ...jobDbaIndicators({ dbaDirectSupervision: true, dbaEmbedded: false, dbaFixedSchedule: false }) },
+      now,
+    );
+    expect(a.level).toBe("HOOG");
+    expect(a.signals.some((s) => s.key === "supervision")).toBe(true);
   });
 });
 

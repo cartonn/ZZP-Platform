@@ -42,6 +42,24 @@ export interface DbaAssessment {
   disclaimer: string;
 }
 
+/** De DBA-indicatoren die al bij plaatsing op de opdracht zijn vastgelegd (Job.dba*). */
+export interface JobDbaFlags {
+  dbaDirectSupervision: boolean;
+  dbaEmbedded: boolean;
+  dbaFixedSchedule: boolean;
+}
+
+/** Vertaalt de opgeslagen Job-DBA-vlaggen naar doorlopende monitor-indicatoren. */
+export function jobDbaIndicators(
+  job: JobDbaFlags,
+): Pick<DbaMonitorInput, "directionAndSupervision" | "fixedSchedule" | "sameFunctionAsEmployees"> {
+  return {
+    directionAndSupervision: job.dbaDirectSupervision,
+    fixedSchedule: job.dbaFixedSchedule,
+    sameFunctionAsEmployees: job.dbaEmbedded,
+  };
+}
+
 /** Aantal volledige maanden tussen `start` en `now` (kalendermaanden, dag-gecorrigeerd). */
 export function monthsBetween(start: Date, now: Date): number {
   let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());

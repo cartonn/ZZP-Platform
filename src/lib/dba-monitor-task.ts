@@ -5,7 +5,7 @@
 
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
-import { planDbaMonitorRun, type DbaMonitorCandidate, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
+import { planDbaMonitorRun, jobDbaIndicators, type DbaMonitorCandidate, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { DBA_DISCLAIMER } from "@/lib/config";
 
 export interface DbaMonitorResult {
@@ -22,6 +22,7 @@ export async function runDbaMonitorTask(opts: { actorId?: string | null; now?: D
       startDate: true,
       freelancer: { select: { userId: true } },
       company: { select: { userId: true } },
+      job: { select: { dbaDirectSupervision: true, dbaEmbedded: true, dbaFixedSchedule: true } },
     },
   });
 
@@ -30,6 +31,7 @@ export async function runDbaMonitorTask(opts: { actorId?: string | null; now?: D
     startDate: c.startDate,
     freelancerUserId: c.freelancer.userId,
     clientUserId: c.company.userId,
+    ...jobDbaIndicators(c.job),
   }));
 
   const plan = planDbaMonitorRun(candidates, now);
