@@ -37,7 +37,7 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
 - [x] **Fase 0 — Inventarisatie & fundering.** Docs aangemaakt (ARCHITECTURE/DECISIONS/
       WORKFLOW_MAP/DESIGN), gap-analyse hieronder, Fase 1 voorgesteld.
 - [x] **Fase 1 — Event-bus, state machines, event store.** Zie verslag onder.
-- [ ] Fase 2 — Datamodel administratie & administratiemotor.
+- [x] **Fase 2 — Datamodel administratie & administratiemotor** (additief). Zie verslag onder.
 - [ ] Fase 3 — Hoofdcascade (Events A–E) + reminders, Event F als uitgeschakelde module.
 - [ ] Fase 4 — Zijpaden & DBA-monitoring.
 - [ ] Fase 5 — Rol-workspaces & UX/UI (eerst dark-first-beslissing, zie DESIGN.md).
@@ -77,11 +77,34 @@ Geleverd:
 DoD Fase 1 ✓: events publiceren/consumeren werkt; ongeldige statusovergangen worden geweigerd;
 idempotentie aangetoond (dubbele publish = één event + één handlerrun).
 
-### Volgende: Fase 2 — Datamodel administratie & administratiemotor
-Urenstaten/opleveringen (Performance-entiteit), facturen afgeleid uit goedgekeurde prestatie,
-administratie-items (ZZP'er debiteur / opdrachtgever crediteur), BTW, factuurnummering per partij,
-betaalstatus-registratie + administratiemotor die op events boekt. **Stop-and-confirm vóór** een
-destructieve migratie van de live `Invoice`/`Collaboration`-modellen.
+### Fase 2 — verslag (afgerond 2026-05-29)
+Gekozen richting (met eigenaar afgestemd): **additief naast elkaar** — nieuwe modellen + pure
+motor, live `Invoice`/`Collaboration`-flow blijft werken; cutover volgt in Fase 3.
+- `src/lib/config.ts` — configureerbare bedrijfsregels: BTW-regimes + tarieven (bps), platformfee
+  (default UIT), reminder-tijden, DBA-drempels + disclaimer, betaalbevestiging.
+- `src/lib/administration/vat.ts` — pure BTW-berekening (integer-centen, 21/9/0/verlegd/vrijgesteld,
+  commerciële afronding, creditregels).
+- `src/lib/administration/numbering.ts` — doorlopende nummering **per uitschrijvende partij**
+  (geen platform-brede reeks), gatenvrij-check.
+- `src/lib/administration/ledger.ts` — administratiemotor: pure dubbel-boekhoud-postings per
+  cascade-event (C/D/E + creditfactuur), per-partij saldo, BTW-positie, sluitcontrole.
+- `src/lib/administration/persist.ts` — dunne prisma-schrijvers: postings → AdministrationEntry +
+  transactionele factuurnummer-toewijzing per partij (voor Fase 3-handlers).
+- Schema (additief): `Performance` (urenstaat/oplevering), `InvoiceSequence` (reeks per partij),
+  `AdministrationEntry` (grootboek); `Invoice` uitgebreid met nullable cascade/BTW/partij-velden
+  + `@@unique([issuerKey, partyInvoiceNumber])`. Live flow ongemoeid.
+- Tests: 24 nieuw (vat 8 / numbering 7 / ledger 9). **Gate groen:** typecheck ✓, lint ✓, test 254 ✓,
+  build ✓. Proeftransactie A–E aangetoond: debiteuren/crediteuren afgeboekt na betaling, omzet/kosten
+  correct, BTW (ZZP'er draagt af, OG vordert terug), **geen enkele platform-boeking** (Besluit 1).
+
+DoD Fase 2 ✓: proeftransactie genereert correcte administratie bij ZZP'er én opdrachtgever;
+BTW klopt; nummering uniek per partij; geen geldverwerking aanwezig.
+
+### Volgende: Fase 3 — Hoofdcascade (Events A–E) + reminders
+Cascade-handlers registreren op de event-bus (`event-store.ts` singleton), die binnen één
+`$transaction` de statusovergang + administratie-postings (`persist.ts`) + factuurnummer +
+notificaties + audit schrijven. Event F (fee) als uitgeschakelde module meebouwen. **Stop-and-confirm**
+bij de cutover van de live `Invoice`-UI naar de nieuwe lifecycle.
 
 ### Backlog (na de overhaul-fasen)
 1. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).

@@ -406,11 +406,78 @@ model Collaboration {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  job         Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  application Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  freelancer  FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
-  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoices    Invoice[]
+  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  application  Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices     Invoice[]
+  performances Performance[]
+}
+
+// ---------------------------------------------------------------------------
+// Overhaul Fase 2 — administratie & cascade (PLATFORM_OVERHAUL.md §4 & §5).
+// Additief: de bestaande Invoice/Collaboration-flow blijft werken; de cutover volgt in Fase 3.
+// ---------------------------------------------------------------------------
+
+// Urenstaat (HOURS) of oplevering/milestone (MILESTONE) — de verplichte goedkeuringsstap
+// vóór facturatie (Besluit 3). Status volgt PERFORMANCE_STATES (src/lib/lifecycles.ts).
+model Performance {
+  id              String    @id @default(cuid())
+  collaborationId String
+  type            String    @default("HOURS") // PerformanceType: HOURS | MILESTONE
+  status          String    @default("DRAFT") // PerformanceState
+  periodStart     DateTime? //                    bij HOURS: begin van de periode
+  periodEnd       DateTime? //                    bij HOURS: einde van de periode
+  hours           Float? //                        gewerkte uren (mag kwartieren), bij HOURS
+  rateCents       Int? //                          snapshot uurtarief in centen, bij HOURS
+  milestoneTitle  String? //                       bij MILESTONE
+  amountCents     Int? //                          milestonebedrag in centen, bij MILESTONE
+  description     String    @default("")
+  rejectionReason String? //                       verplicht bij afkeuren (server-side)
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  correlationId   String? //                        bindt de cascade aaneen
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  invoice       Invoice? //                          de afgeleide concept-factuur (na goedkeuring)
+
+  @@index([collaborationId])
+  @@index([status])
+}
+
+// Doorlopende factuurnummer-reeks PER UITSCHRIJVENDE PARTIJ (geen platform-brede nummering).
+// issuerKey = userId van de ZZP'er, of "PLATFORM" voor de fee-reeks.
+model InvoiceSequence {
+  issuerKey String
+  year      Int
+  lastSeq   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@id([issuerKey, year])
+}
+
+// Persistente boekingsregel (dubbel boekhouden) — de neerslag van de administratiemotor.
+// Herleidbaar naar event -> factuur -> prestatie -> contract -> opdracht (§5).
+model AdministrationEntry {
+  id            String   @id @default(cuid())
+  party         String //   LedgerParty: FREELANCER | CLIENT | PLATFORM
+  ownerUserId   String? //  wiens administratie dit is (per-partij views)
+  account       String //   LedgerAccount (src/lib/administration/ledger.ts)
+  debitCents    Int      @default(0)
+  creditCents   Int      @default(0)
+  invoiceId     String?
+  performanceId String?
+  correlationId String?
+  eventId       String? //  herleidbaar naar het DomainEvent
+  occurredAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([ownerUserId])
+  @@index([invoiceId])
+  @@index([correlationId])
 }
 
 model Invoice {
@@ -424,8 +491,27 @@ model Invoice {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // --- Overhaul-cascade (Fase 2, additief) ---------------------------------
+  // De live flow gebruikt status/number/totalCents hierboven; deze velden voeden de nieuwe
+  // event-driven facturatie. Reconciliatie/cutover gebeurt in Fase 3.
+  lifecycleStatus    String? //   InvoiceLifecycleState (concept->ingediend->goedgekeurd->betaald->verwerkt)
+  performanceId      String?  @unique //  afgeleid uit deze goedgekeurde prestatie
+  issuerUserId       String? //  uitschrijver (ZZP'er); null = platform-fee
+  counterpartyUserId String? //  opdrachtgever
+  issuerKey          String? //  reekssleutel: userId of "PLATFORM"
+  partyInvoiceNumber String? //  nummer binnen de partij-reeks (uniek per issuerKey)
+  subtotalCents      Int? //     bedrag excl. BTW
+  vatCents           Int? //     BTW-bedrag
+  vatRegime          String? //  VatRegime (config.ts)
+  correlationId      String?
+
   collaboration Collaboration? @relation(fields: [collaborationId], references: [id], onDelete: SetNull)
   lines         InvoiceLine[]
+  performance   Performance?   @relation(fields: [performanceId], references: [id], onDelete: SetNull)
+
+  @@unique([issuerKey, partyInvoiceNumber])
+  @@index([lifecycleStatus])
+  @@index([correlationId])
 }
 
 model InvoiceLine {

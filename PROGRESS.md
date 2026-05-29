@@ -41,8 +41,20 @@ Start van de event-driven overhaul (`prompts/PLATFORM_OVERHAUL.md`). Branch deze
   Schema: `DomainEvent` (append-only, unieke `dedupeKey`) + `EventHandlerRun`. Tests: 28 nieuw
   (state-machine 7 / lifecycles 14 / event-bus 7). Gate groen: typecheck, lint, test (230), build.
   Idempotentie aangetoond: dubbele publish = één event, handler draait één keer.
-- Volgende: Fase 2 (administratiemotor) — stop-and-confirm vóór destructieve migratie van de live
-  Invoice/Collaboration-modellen.
+### Platform Overhaul — Fase 2 (administratie, additief) — 2026-05-29
+Richting met eigenaar afgestemd: **additief naast elkaar** (live Invoice-flow blijft werken,
+cutover in Fase 3). Pure administratiemotor, volledig getest zonder DB.
+- `config.ts` (BTW-regimes/tarieven in bps, platformfee default UIT, reminder-tijden, DBA-drempels
+  + disclaimer, betaalbevestiging) · `administration/vat.ts` (BTW integer-centen) ·
+  `administration/numbering.ts` (nummering per uitschrijvende partij, gatenvrij) ·
+  `administration/ledger.ts` (dubbel-boekhoud-postings per event C/D/E + creditfactuur, saldo's,
+  BTW-positie, sluitcontrole) · `administration/persist.ts` (prisma-schrijvers + transactionele
+  nummer-toewijzing).
+- Schema additief: `Performance`, `InvoiceSequence`, `AdministrationEntry`; `Invoice` uitgebreid met
+  nullable cascade/BTW/partij-velden + unique(issuerKey, partyInvoiceNumber).
+- Tests: 24 nieuw (vat 8 / numbering 7 / ledger 9). Gate groen: typecheck, lint, test (254), build.
+  Proeftransactie A–E: debiteuren/crediteuren afgeboekt, BTW correct, geen platform-boeking (Besluit 1).
+- Volgende: Fase 3 (cascade-handlers op de event-bus) — stop-and-confirm bij cutover live Invoice-UI.
 
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
