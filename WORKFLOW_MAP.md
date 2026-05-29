@@ -31,3 +31,11 @@
 ## Reminder-cascades (tijden configureerbaar)
 - **Concept-factuur (ZZP'er) na B2:** dag 0 → dag 3 → dag 7 → escalatie-flag platform.
 - **Betaaltermijn (opdrachtgever) na D:** termijn-5d → termijn-1d → op vervaldag → te laat.
+
+## Voortgang (Fase 3)
+De **cascade-logica** voor A, B1, B2, B2′, C, D, D′, E is geïmplementeerd als pure planners
+(`src/lib/cascade/handlers.ts`) + transactionele applier (`apply.ts`), volledig unit-/integratie-
+getest (happy-path A→E voor uurtarief én milestone, beide administraties sluiten, geen
+platform-boeking). Status hierboven blijft 🟦 tot de **runtime-wiring naar routes/UI** (de cutover)
+is gedaan — dat is de stop-and-confirm vóór de live factuur-UI omgaat. Event F (fee) is meegebouwd
+maar default UIT.

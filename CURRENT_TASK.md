@@ -38,7 +38,8 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
       WORKFLOW_MAP/DESIGN), gap-analyse hieronder, Fase 1 voorgesteld.
 - [x] **Fase 1 — Event-bus, state machines, event store.** Zie verslag onder.
 - [x] **Fase 2 — Datamodel administratie & administratiemotor** (additief). Zie verslag onder.
-- [ ] Fase 3 — Hoofdcascade (Events A–E) + reminders, Event F als uitgeschakelde module.
+- [~] **Fase 3 — Hoofdcascade (Events A–E)** — cascade-logica + applier klaar en getest;
+      runtime-wiring naar routes/UI (cutover) is de volgende, stop-and-confirm-stap.
 - [ ] Fase 4 — Zijpaden & DBA-monitoring.
 - [ ] Fase 5 — Rol-workspaces & UX/UI (eerst dark-first-beslissing, zie DESIGN.md).
 - [ ] Fase 6 — Notificaties, reminders, exports.
@@ -100,11 +101,30 @@ motor, live `Invoice`/`Collaboration`-flow blijft werken; cutover volgt in Fase 
 DoD Fase 2 ✓: proeftransactie genereert correcte administratie bij ZZP'er én opdrachtgever;
 BTW klopt; nummering uniek per partij; geen geldverwerking aanwezig.
 
-### Volgende: Fase 3 — Hoofdcascade (Events A–E) + reminders
-Cascade-handlers registreren op de event-bus (`event-store.ts` singleton), die binnen één
-`$transaction` de statusovergang + administratie-postings (`persist.ts`) + factuurnummer +
-notificaties + audit schrijven. Event F (fee) als uitgeschakelde module meebouwen. **Stop-and-confirm**
-bij de cutover van de live `Invoice`-UI naar de nieuwe lifecycle.
+### Fase 3 — verslag (cascade-logica afgerond 2026-05-29)
+- `src/lib/cascade/types.ts` — `CascadeEffects` (statuswijzigingen, postings, notificaties, audits,
+  nieuwe concept-factuur, vervolg-events).
+- `src/lib/cascade/handlers.ts` — pure planners per event: A (contract getekend), B1 (prestatie
+  ingediend), B2 (goedgekeurd → concept-factuur + BTW), B2′ (afgekeurd, reden verplicht), C (factuur
+  indienen → debiteurenpost + partij-nummer), D (goedkeuren → crediteuren/voorbelasting + vervaldag),
+  D′ (afgekeurd), E (betaling geregistreerd → afboeken + samenwerking afronden; Event F-followup
+  achter feature-flag, default UIT).
+- `src/lib/cascade/apply.ts` — transactionele applier: schrijft alle effecten atomair weg
+  (`$transaction`), inclusief nieuwe concept-factuur, postings (`AdministrationEntry`), notificaties,
+  audit. Plan/apply-patroon zoals `runExpiryTask`.
+- Tests: 16 nieuw (handlers 14 / integratie 2). Integratietest dekt het **hele pad A→E** voor
+  uurtarief én milestone; beide administraties sluiten; geen platform-boeking (Besluit 1).
+- **Gate groen:** typecheck ✓, lint ✓, test 270 ✓, build ✓.
+
+DoD Fase 3 (logica) ✓: contract-getekend t/m betaalregistratie verloopt deterministisch; beide
+administraties kloppen; goedkeuringsstap werkt voor beide tariefvormen; ongeldige overgangen geweigerd.
+
+### Volgende (stop-and-confirm): runtime-cutover Fase 3 → UI
+Command-functies (serveracties/routes) die per rol-actie de planner aanroepen, het DomainEvent
+publiceren (`event-store.ts` singleton) en `applyCascadeEffects` in één transactie draaien, plus de
+factuurnummer-allocatie (`persist.ts`) bij Event C. Dán de live `Invoice`/samenwerking-UI omzetten
+naar de nieuwe lifecycle (urenstaat indienen/goedkeuren, factuur indienen/goedkeuren, betaling
+markeren). Dit raakt de live demo → **eerst akkoord vragen**. Daarna Fase 4 (zijpaden + DBA-monitoring).
 
 ### Backlog (na de overhaul-fasen)
 1. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).

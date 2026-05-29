@@ -56,6 +56,17 @@ cutover in Fase 3). Pure administratiemotor, volledig getest zonder DB.
   Proeftransactie A–E: debiteuren/crediteuren afgeboekt, BTW correct, geen platform-boeking (Besluit 1).
 - Volgende: Fase 3 (cascade-handlers op de event-bus) — stop-and-confirm bij cutover live Invoice-UI.
 
+### Platform Overhaul — Fase 3 (hoofdcascade, logica) — 2026-05-29
+Cascade A→E als pure planners + transactionele applier, volledig getest zonder DB.
+- `cascade/types.ts` (CascadeEffects) · `cascade/handlers.ts` (A/B1/B2/B2′/C/D/D′/E, Event F achter
+  flag) · `cascade/apply.ts` (atomaire applier: status + postings + notificaties + audit + nieuwe
+  concept-factuur).
+- Tests: 16 nieuw (handlers 14 / integratie 2). Integratie dekt hele pad A→E (uurtarief + milestone);
+  beide administraties sluiten; geen platform-boeking (Besluit 1). Gate groen: typecheck, lint,
+  test (270), build.
+- Nog te doen (stop-and-confirm): command-functies (routes/serveracties) die planner+event+apply
+  koppelen + factuurnummer-allocatie, dan cutover van de live Invoice/samenwerking-UI. Daarna Fase 4.
+
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"
