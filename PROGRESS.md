@@ -96,6 +96,12 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
 - **Fase 4 afgerond.** Exports (CSV/PDF) verschuiven naar Fase 6. Volgende: Fase 5/6 polish +
   cascade-facturen op /facturen + dashboard "aan zet".
 
+### Platform Overhaul — Fase 5 (koppeling) — 2026-05-29
+- Cascade-facturen tonen op `/facturen` met lifecycle-badge + partij-nummer, link naar het werkproces.
+- Dashboard "aan zet": cascade-taken (concept-factuur indienen / betaling markeren bij ZZP'er;
+  prestaties & facturen goedkeuren bij opdrachtgever) verschijnen in "Vraagt aandacht".
+- Gate groen (typecheck/lint/test 291/build). Open in Fase 5: dark-first-keuze (stop-and-confirm).
+
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"

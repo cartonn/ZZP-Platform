@@ -84,6 +84,13 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
     })) {
       attention.push({ label: a.title, href: a.href });
     }
+    // Werkproces "aan zet" (cascade): concept-facturen indienen, betaling markeren.
+    const [cascadeDraft, cascadeApproved] = await Promise.all([
+      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "DRAFT" } }),
+      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "APPROVED" } }),
+    ]);
+    if (cascadeDraft > 0) attention.push({ label: `${cascadeDraft} concept-factuur(en) klaar om in te dienen`, href: "/facturen" });
+    if (cascadeApproved > 0) attention.push({ label: `${cascadeApproved} goedgekeurde factuur(en): markeer de betaling`, href: "/facturen" });
     return {
       stats: [
         { label: "Profiel compleet", value: `${profile?.completeness ?? 0}%`, href: "/profiel" },
@@ -126,6 +133,13 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
     })) {
       attention.push({ label: a.title, href: a.href });
     }
+    // Werkproces "aan zet" (cascade): prestaties en facturen die op goedkeuring wachten.
+    const [perfToApprove, invToApprove] = await Promise.all([
+      prisma.performance.count({ where: { status: "SUBMITTED", collaboration: { company: { userId } } } }),
+      prisma.invoice.count({ where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" } }),
+    ]);
+    if (perfToApprove > 0) attention.push({ label: `${perfToApprove} ingediende uren/opleveringen wachten op je goedkeuring`, href: "/samenwerkingen" });
+    if (invToApprove > 0) attention.push({ label: `${invToApprove} factuur(en) wachten op je goedkeuring`, href: "/facturen" });
     return {
       stats: [
         { label: "Gepubliceerde opdrachten", value: openJobs, href: "/opdrachten" },
