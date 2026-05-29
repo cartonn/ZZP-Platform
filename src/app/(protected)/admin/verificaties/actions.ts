@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { expiryTransition, statusForDecision, TransitionError } from "@/lib/credentials";
+import { statusForDecision, TransitionError } from "@/lib/credentials";
+import { runExpiryTask } from "@/lib/expiry-task";
 import { type CredentialStatus } from "@/lib/enums";
 
 async function loadCredentialForDecision(credentialId: string) {
@@ -103,40 +104,20 @@ export async function rejectCredential(credentialId: string, formData: FormData)
   revalidatePath("/admin/verificaties");
 }
 
-export type ExpiryState = { ran?: true; expired?: number } | undefined;
+export type ExpiryState = { ran?: true; expired?: number; reminded?: number } | undefined;
 
-/** Idempotent: zet verlopen VERIFIED-credentials op EXPIRED (verificatieflow stap 5). */
+/**
+ * Idempotent: zet verlopen VERIFIED-credentials op EXPIRED en stuurt "verloopt binnenkort"-
+ * herinneringen (verificatieflow stap 5). Deelt één bron van waarheid met de geplande taak:
+ * de admin-knop en `POST /api/tasks/expiry` roepen beide `runExpiryTask` aan.
+ */
 export async function runExpiryCheck(_prev: ExpiryState, _formData: FormData): Promise<ExpiryState> {
   const actor = await requireRole("ADMIN");
-  const now = new Date();
+  const { expired, reminded } = await runExpiryTask({ actorId: actor.id });
 
-  const candidates = await prisma.credential.findMany({
-    where: { status: "VERIFIED", expiresAt: { not: null, lte: now } },
-    include: { freelancerProfile: { select: { userId: true } } },
-  });
-  // Dubbele zekerheid: alleen via expiryTransition (alleen VERIFIED kan verlopen).
-  const toExpire = candidates.filter((c) => expiryTransition({ status: "VERIFIED", expiresAt: c.expiresAt }, now) === "EXPIRED");
-
-  if (toExpire.length > 0) {
-    await prisma.$transaction([
-      prisma.credential.updateMany({ where: { id: { in: toExpire.map((c) => c.id) } }, data: { status: "EXPIRED" } }),
-      ...toExpire.map((c) =>
-        prisma.notification.create({
-          data: {
-            userId: c.freelancerProfile.userId,
-            type: "CREDENTIAL_EXPIRED",
-            title: "Certificaat verlopen",
-            body: `Je certificaat "${c.title}" is verlopen. Vernieuw het en vraag opnieuw verificatie aan.`,
-            link: "/certificaten",
-          },
-        }),
-      ),
-      prisma.auditLog.create({
-        data: auditData({ actorId: actor.id, action: "CREDENTIALS_EXPIRED", entityType: "Credential", entityId: "batch", metadata: { count: toExpire.length, ids: toExpire.map((c) => c.id) } }),
-      }),
-    ]);
+  if (expired > 0 || reminded > 0) {
     revalidatePath("/admin/verificaties");
   }
 
-  return { ran: true, expired: toExpire.length };
+  return { ran: true, expired, reminded };
 }

@@ -22,7 +22,8 @@ function isPublicPath(pathname: string) {
     pathname === "/register" ||
     pathname === "/api/health" ||
     pathname.startsWith("/zzp/") ||
-    pathname.startsWith("/api/auth")
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/tasks/") // eigen token-guard (CRON_SECRET), geen sessie
   );
 }
 
