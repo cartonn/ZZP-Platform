@@ -10,6 +10,9 @@ const schema = z
     STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
     STORAGE_S3_BUCKET: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    // Beveiligt POST /api/tasks/expiry (verloopdetectie + herinneringen). Optioneel;
+    // zonder waarde is het endpoint uitgeschakeld (503).
+    CRON_SECRET: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     if (v.STORAGE_DRIVER === "s3" && !v.STORAGE_S3_BUCKET) {

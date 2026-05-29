@@ -1,0 +1,39 @@
+name: Verloopdetectie certificaten
+
+# Geplande taak (code-kant). Roept het beveiligde endpoint POST /api/tasks/expiry aan,
+# dat verlopen VERIFIED-certificaten op EXPIRED zet en "verloopt binnenkort"-herinneringen
+# verstuurt. De runner is idempotent: meermaals draaien stuurt geen dubbele herinneringen.
+#
+# Mensenwerk (eenmalig, anders draait dit niet):
+#   - Repo-secret EXPIRY_TASK_URL = https://<productie-host>/api/tasks/expiry
+#   - Repo-secret CRON_SECRET     = dezelfde waarde als de CRON_SECRET van de server
+# Zonder deze secrets stopt de job vroegtijdig zonder te falen.
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # elke dag om 06:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Endpoint aanroepen
+        env:
+          EXPIRY_TASK_URL: ${{ secrets.EXPIRY_TASK_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$EXPIRY_TASK_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "EXPIRY_TASK_URL of CRON_SECRET ontbreekt — taak overgeslagen (configureer de repo-secrets)."
+            exit 0
+          fi
+          status=$(curl -sS -o /tmp/expiry-response.json -w "%{http_code}" \
+            -X POST "$EXPIRY_TASK_URL" \
+            -H "Authorization: Bearer $CRON_SECRET")
+          echo "HTTP $status"
+          cat /tmp/expiry-response.json || true
+          echo
+          if [ "$status" != "200" ]; then
+            echo "Verloopdetectie faalde (HTTP $status)."
+            exit 1
+          fi

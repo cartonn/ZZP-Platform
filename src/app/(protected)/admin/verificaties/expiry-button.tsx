@@ -14,7 +14,14 @@ export function ExpiryButton() {
       </Button>
       {state?.ran && (
         <span className="text-sm text-muted-foreground">
-          {state.expired === 0 ? "Geen verlopen certificaten." : `${state.expired} certificaat(en) op verlopen gezet.`}
+          {(state.expired ?? 0) === 0 && (state.reminded ?? 0) === 0
+            ? "Niets te doen: geen verlopen of bijna-verlopen certificaten."
+            : [
+                (state.expired ?? 0) > 0 ? `${state.expired} op verlopen gezet` : null,
+                (state.reminded ?? 0) > 0 ? `${state.reminded} herinnering(en) verstuurd` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ") + "."}
         </span>
       )}
     </form>

@@ -347,6 +347,7 @@ model Credential {
   visibility          String   @default("PRIVATE") // Visibility: PUBLIC | PRIVATE
   verifiedAt          DateTime?
   rejectionReason     String?
+  expiryReminderFor   DateTime? // vervaldatum waarvoor al een "verloopt binnenkort"-herinnering is verstuurd (dedup, idempotent)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
