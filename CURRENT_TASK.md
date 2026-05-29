@@ -38,8 +38,8 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
       WORKFLOW_MAP/DESIGN), gap-analyse hieronder, Fase 1 voorgesteld.
 - [x] **Fase 1 — Event-bus, state machines, event store.** Zie verslag onder.
 - [x] **Fase 2 — Datamodel administratie & administratiemotor** (additief). Zie verslag onder.
-- [~] **Fase 3 — Hoofdcascade (Events A–E)** — cascade-logica + applier klaar en getest;
-      runtime-wiring naar routes/UI (cutover) is de volgende, stop-and-confirm-stap.
+- [x] **Fase 3 — Hoofdcascade (Events A–E)** — logica + applier + command-laag + UI
+      (`/samenwerkingen/[id]`) + demo-seed; end-to-end geverifieerd tegen de DB. Zie verslag.
 - [ ] Fase 4 — Zijpaden & DBA-monitoring.
 - [ ] Fase 5 — Rol-workspaces & UX/UI (eerst dark-first-beslissing, zie DESIGN.md).
 - [ ] Fase 6 — Notificaties, reminders, exports.
@@ -119,12 +119,24 @@ BTW klopt; nummering uniek per partij; geen geldverwerking aanwezig.
 DoD Fase 3 (logica) ✓: contract-getekend t/m betaalregistratie verloopt deterministisch; beide
 administraties kloppen; goedkeuringsstap werkt voor beide tariefvormen; ongeldige overgangen geweigerd.
 
-### Volgende (stop-and-confirm): runtime-cutover Fase 3 → UI
-Command-functies (serveracties/routes) die per rol-actie de planner aanroepen, het DomainEvent
-publiceren (`event-store.ts` singleton) en `applyCascadeEffects` in één transactie draaien, plus de
-factuurnummer-allocatie (`persist.ts`) bij Event C. Dán de live `Invoice`/samenwerking-UI omzetten
-naar de nieuwe lifecycle (urenstaat indienen/goedkeuren, factuur indienen/goedkeuren, betaling
-markeren). Dit raakt de live demo → **eerst akkoord vragen**. Daarna Fase 4 (zijpaden + DBA-monitoring).
+### Fase 3 — runtime-cutover (afgerond 2026-05-29)
+- `src/lib/cascade/commands.ts` — command-laag: ownership-check → pure planner → DomainEvent +
+  effecten + EventHandlerRun-marker atomair in één interactieve transactie; Event C kent het
+  factuurnummer per partij toe (allocator in dezelfde tx). Idempotent via dedupeKey + state-asserts.
+- `src/app/(protected)/samenwerkingen/[id]/{actions,page}.tsx` — cascade-workspace: "Aan zet"-
+  banner, contract ondertekenen, uren/oplevering indienen (ZZP'er), goedkeuren/afkeuren
+  (opdrachtgever), factuur indienen/goedkeuren/afkeuren, betaling markeren. Link vanaf de lijst.
+- `prisma/seed.ts` — cascade-demo: voorgestelde samenwerking (collab-3), ingediende urenstaat
+  (perf-1), goedgekeurde urenstaat + concept-factuur (perf-2/inv-c1).
+- **Geverifieerd:** smoke tegen de echte DB liep de hele keten door; administratie sluit, BTW klopt,
+  nummer per partij (2026-0001), geen platform-boeking. Gate groen: typecheck/lint/test 270/build.
+
+### Volgende: Fase 4 — Zijpaden & DBA-monitoring
+Te late betaling + aanmaningen (reminder-engine, plan/apply zoals `runExpiryTask`), creditfactuur,
+dispuut/escalatie, periodieke overzichten (BTW-kwartaal, debiteuren/crediteuren), én de doorlopende
+DBA-monitoring (§6) met configureerbare drempels + disclaimer. Daarnaast (additief, niet-blokkerend):
+cascade-facturen tonen op `/facturen`, en de oude handmatige factuuraanmaak uitfaseren ná
+in-browser-verificatie (interactieve sessie).
 
 ### Backlog (na de overhaul-fasen)
 1. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).

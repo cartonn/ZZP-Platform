@@ -124,6 +124,12 @@ export default async function SamenwerkingenPage() {
                     {fmt(c.endDate) && <span>Eind: {fmt(c.endDate)}</span>}
                   </div>
 
+                  <div>
+                    <Link href={`/samenwerkingen/${c.id}`} className="text-sm font-medium underline underline-offset-4">
+                      Werkproces openen →
+                    </Link>
+                  </div>
+
                   {showAlert && alert && (
                     <div
                       className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${

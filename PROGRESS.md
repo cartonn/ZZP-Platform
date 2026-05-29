@@ -67,6 +67,18 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
 - Nog te doen (stop-and-confirm): command-functies (routes/serveracties) die planner+event+apply
   koppelen + factuurnummer-allocatie, dan cutover van de live Invoice/samenwerking-UI. Daarna Fase 4.
 
+### Platform Overhaul — Fase 3 runtime-cutover (command-laag + UI) — 2026-05-29
+- `cascade/commands.ts` (signContract, create/submit/approve/rejectPerformance,
+  submit/approve/rejectInvoice, confirmPayment) — atomair: DomainEvent + effecten + idempotentie-
+  marker in één transactie; factuurnummer per partij via allocator.
+- `/samenwerkingen/[id]` werkproces-UI met "Aan zet"-banner en alle rol-acties (additief naast de
+  live factuur-flow). Link vanaf de samenwerkingenlijst.
+- seed: cascade-demo (voorgestelde samenwerking + ingediende/goedgekeurde prestaties + concept-factuur).
+- Geverifieerd met een DB-smoke: hele keten A→E loopt door, administratie sluit, BTW + nummer per
+  partij kloppen, geen platform-boeking. Gate groen (typecheck/lint/test 270/build).
+- Volgende: Fase 4 (zijpaden + DBA-monitoring); cascade-facturen op /facturen tonen; oude
+  factuuraanmaak uitfaseren ná browserverificatie.
+
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"

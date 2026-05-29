@@ -68,6 +68,7 @@ async function main() {
   ];
 
   const pid: Record<string, string> = {};
+  const uid: Record<string, string> = {};
   for (const f of freelancers) {
     const idFields = f.identityVerified ? { identityVerifiedAt: daysFromNow(-40), verifiedLegalName: f.name } : {};
     const user = await prisma.user.upsert({
@@ -83,6 +84,7 @@ async function main() {
     });
     const profileId = user.freelancerProfile!.id;
     pid[f.key] = profileId;
+    uid[f.key] = user.id;
     for (const slug of f.skills) {
       await prisma.freelancerSkill.upsert({ where: { freelancerProfileId_skillId: { freelancerProfileId: profileId, skillId: skillId[slug]! } }, update: {}, create: { freelancerProfileId: profileId, skillId: skillId[slug]! } });
     }
@@ -187,6 +189,37 @@ async function main() {
       create: { id: inv.id, collaborationId: inv.collab, number: inv.number, status: inv.status, issuedAt: daysFromNow(inv.dueDays - 14), dueAt: daysFromNow(inv.dueDays), totalCents: amount, lines: { create: [{ description: inv.desc, quantity: inv.qty, unitCents: inv.unit, amountCents: amount }] } },
     });
   }
+
+  // --- Cascade-demo (event-driven werkproces, Fase 3) ---
+  // Voorgestelde samenwerking zodat "Contract ondertekenen" demonstreerbaar is.
+  await prisma.application.upsert({
+    where: { id: "app-9" }, update: {},
+    create: { id: "app-9", jobId: "job-1", freelancerId: pid.youssef!, status: "ACCEPTED", motivation: "Beschikbaar voor het zorgplatform; sterk in geteste, toegankelijke code.", proposedRate: 90, availability: "In overleg", matchScore: 88 },
+  });
+  await prisma.collaboration.upsert({
+    where: { id: "collab-3" }, update: {},
+    create: { id: "collab-3", jobId: "job-1", applicationId: "app-9", freelancerId: pid.youssef!, companyId, status: "PROPOSED", contractStatus: "DRAFT", rate: 90, startDate: daysFromNow(5) },
+  });
+
+  // Op de lopende samenwerking (collab-1: Sanne ↔ Jansen): een ingediende urenstaat (wacht op
+  // goedkeuring door de opdrachtgever) en een goedgekeurde urenstaat met een concept-factuur
+  // (wacht op indienen door de ZZP'er). Bedragen in centen; uurtarief €105 = 10500.
+  await prisma.performance.upsert({
+    where: { id: "perf-1" }, update: {},
+    create: { id: "perf-1", collaborationId: "collab-1", type: "HOURS", status: "SUBMITTED", hours: 16, rateCents: 10500, description: "Sprint 3 — week 1 en 2", submittedAt: daysFromNow(-2), correlationId: "collab-1" },
+  });
+  await prisma.performance.upsert({
+    where: { id: "perf-2" }, update: {},
+    create: { id: "perf-2", collaborationId: "collab-1", type: "HOURS", status: "APPROVED", hours: 8, rateCents: 10500, description: "Sprint 2 — extra werkdag", submittedAt: daysFromNow(-6), approvedAt: daysFromNow(-5), correlationId: "collab-1" },
+  });
+  await prisma.invoice.upsert({
+    where: { id: "inv-c1" }, update: {},
+    create: {
+      id: "inv-c1", collaborationId: "collab-1", number: "CONCEPT-perf-2", status: "DRAFT", totalCents: 101640,
+      lifecycleStatus: "DRAFT", performanceId: "perf-2", issuerUserId: uid.sanne!, counterpartyUserId: client.id,
+      issuerKey: uid.sanne!, subtotalCents: 84000, vatCents: 17640, vatRegime: "STANDARD_HIGH", correlationId: "collab-1",
+    },
+  });
 
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");

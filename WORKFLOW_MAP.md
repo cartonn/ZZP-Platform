@@ -33,9 +33,11 @@
 - **Betaaltermijn (opdrachtgever) na D:** termijn-5d → termijn-1d → op vervaldag → te laat.
 
 ## Voortgang (Fase 3)
-De **cascade-logica** voor A, B1, B2, B2′, C, D, D′, E is geïmplementeerd als pure planners
-(`src/lib/cascade/handlers.ts`) + transactionele applier (`apply.ts`), volledig unit-/integratie-
-getest (happy-path A→E voor uurtarief én milestone, beide administraties sluiten, geen
-platform-boeking). Status hierboven blijft 🟦 tot de **runtime-wiring naar routes/UI** (de cutover)
-is gedaan — dat is de stop-and-confirm vóór de live factuur-UI omgaat. Event F (fee) is meegebouwd
-maar default UIT.
+A, B1, B2, B2′, C, D, D′, E zijn **geïmplementeerd, gewired én end-to-end geverifieerd**:
+pure planners (`cascade/handlers.ts`) → transactionele applier (`apply.ts`) → command-laag
+(`cascade/commands.ts`) → server-acties + UI (`/samenwerkingen/[id]`). Een smoke tegen de echte DB
+liep contract→uren→goedkeuren→factuur→indienen→goedkeuren→betaling volledig door: beide
+administraties sluiten, BTW klopt, factuurnummer per partij (2026-0001), géén platform-boeking.
+Demo-seed bevat een voorgestelde samenwerking + ingediende/goedgekeurde prestaties + concept-factuur.
+Status-cellen hierboven mogen op ✅ voor de cascade; de **live `/facturen`-UI** toont cascade-facturen
+nog niet apart (volgende stap, additief). Event F (fee) meegebouwd, default UIT.
