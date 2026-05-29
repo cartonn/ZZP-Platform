@@ -541,4 +541,28 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   weer 404-correct; overige losse failures zijn de bekende multi-context-load-flakiness op de
   gedeelde dev-server (elk slaagt los/na retry). Lokale dev-db opnieuw geseed (schone staat).
 
+### Increment: Geplande verloopdetectie + "verloopt binnenkort"-herinneringen — 2026-05-29
+- Orchestrator (Opus) + 2 Sonnet-builders, contract-first op niet-overlappende bestanden
+  (pure planner vs. runner/endpoint/env); orchestrator deed schema + integratie + poort.
+- **Pure planner** `src/lib/expiry.ts` (+ 10 unit-tests): `planExpiryRun(candidates, now, windowDays)`
+  → `toExpire` (VERIFIED + verlopen, via bestaande `expiryTransition`) en `toRemind`
+  (VERIFIED, niet verlopen, binnen 30 dagen). **Idempotent**: dedup-anker `expiryReminderFor`
+  (de vervaldatum waarvoor al herinnerd is) voorkomt dubbele herinneringen; bij vernieuwing
+  (nieuwe `expiresAt`) volgt automatisch een nieuwe herinnering. Lijsten zijn nooit overlappend.
+- **Taak-runner** `src/lib/expiry-task.ts`: `runExpiryTask({ actorId, now })` laadt begrensd
+  (VERIFIED + `expiresAt ≤ now+30d`), past het plan in één `$transaction` toe (EXPIRED zetten +
+  notificaties + herinnering-notificaties + `expiryReminderFor` markeren + audit per batch).
+  Eén bron van waarheid voor admin-knop én geplande ingang.
+- **Geplande ingang** `POST /api/tasks/expiry`: beveiligd met `CRON_SECRET` (Bearer/`?token=`);
+  zonder secret → 503 (nooit per ongeluk open), bij token-mismatch → 401 (lekt niets).
+  Middleware-publiek gemaakt (eigen token-guard, geen sessie). `actorId: null` = systeemactie.
+  `.github/workflows/expiry-check.yml` roept het dagelijks aan via repo-secrets
+  `EXPIRY_TASK_URL` + `CRON_SECRET` (de scheduler-koppeling zelf = mensenwerk).
+- **Admin** `runExpiryCheck` gerefactord naar `runExpiryTask`; knop rapporteert nu verlopen
+  + herinneringen. Schema: `Credential.expiryReminderFor` (db push). env: `CRON_SECRET` optioneel.
+- Checks: typecheck ✓, lint ✓, **202 unit-tests** ✓ (+10 planner), build ✓ (route geregistreerd),
+  `check:env` ✓. E2e overgeslagen (geen browser-channel in deze routine-omgeving; net als CI).
+- Notificaties verschijnen automatisch in het bestaande notificatiecentrum + bel; signals.ts
+  badget bijna-verlopen al. Geen "AI" in teksten/comments/docs.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
