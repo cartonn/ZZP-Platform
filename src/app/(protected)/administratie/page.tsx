@@ -1,0 +1,119 @@
+import { type Metadata } from "next";
+import { Receipt } from "lucide-react";
+import { requireActor } from "@/lib/authz";
+import { prisma } from "@/lib/db";
+import { formatEuro } from "@/lib/invoices";
+import { type LedgerParty } from "@/lib/administration/ledger";
+import {
+  vatYear,
+  openReceivablesCents,
+  openPayablesCents,
+  revenueCents,
+  type LedgerEntry,
+} from "@/lib/administration/overview";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+
+export const metadata: Metadata = { title: "Administratie · ZZP Platform" };
+
+const QUARTER_LABEL = ["1e kwartaal", "2e kwartaal", "3e kwartaal", "4e kwartaal"];
+
+export default async function AdministratiePage() {
+  const actor = await requireActor();
+  // Admin heeft geen eigen administratie (alleen ZZP'er/opdrachtgever); toon dan leeg.
+  const party: LedgerParty = actor.role === "CLIENT" ? "CLIENT" : "FREELANCER";
+  const year = new Date().getFullYear();
+
+  const rows = await prisma.administrationEntry.findMany({ where: { ownerUserId: actor.id } });
+  const entries: LedgerEntry[] = rows.map((r) => ({
+    party: r.party as LedgerParty,
+    account: r.account as LedgerEntry["account"],
+    debitCents: r.debitCents,
+    creditCents: r.creditCents,
+    occurredAt: r.occurredAt,
+  }));
+
+  const isFreelancer = party === "FREELANCER";
+  const open = isFreelancer ? openReceivablesCents(entries, party) : openPayablesCents(entries, party);
+  const revenue = isFreelancer ? revenueCents(entries, party, year) : 0;
+  const quarters = vatYear(entries, party, year);
+  const vatTotal = quarters.reduce((s, q) => s + q.balanceCents, 0);
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight">Administratie {year}</h1>
+        <p className="text-sm text-muted-foreground">
+          Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt rechtstreeks;
+          het platform houdt alleen de status bij.
+        </p>
+      </header>
+
+      {entries.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={Receipt}
+            title="Nog geen administratie"
+            description="Zodra er facturen via het werkproces lopen, verschijnen hier je BTW- en debiteuren-/crediteurenoverzichten."
+          />
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Card>
+              <CardContent className="py-4">
+                <p className="text-xs text-muted-foreground">{isFreelancer ? "Openstaand (debiteuren)" : "Openstaand (crediteuren)"}</p>
+                <p className="text-lg font-semibold">{formatEuro(open)}</p>
+              </CardContent>
+            </Card>
+            {isFreelancer && (
+              <Card>
+                <CardContent className="py-4">
+                  <p className="text-xs text-muted-foreground">Omzet {year}</p>
+                  <p className="text-lg font-semibold">{formatEuro(revenue)}</p>
+                </CardContent>
+              </Card>
+            )}
+            <Card>
+              <CardContent className="py-4">
+                <p className="text-xs text-muted-foreground">{isFreelancer ? "Af te dragen BTW" : "Voorbelasting (terug)"} {year}</p>
+                <p className="text-lg font-semibold">{formatEuro(isFreelancer ? vatTotal : -vatTotal)}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold">BTW per kwartaal</h2>
+            <Card>
+              <CardContent className="py-2">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted-foreground">
+                      <th className="py-2 font-medium">Periode</th>
+                      <th className="py-2 text-right font-medium">Af te dragen</th>
+                      <th className="py-2 text-right font-medium">Voorbelasting</th>
+                      <th className="py-2 text-right font-medium">Saldo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {quarters.map((q) => (
+                      <tr key={q.quarter} className="border-t border-border">
+                        <td className="py-2">{QUARTER_LABEL[q.quarter - 1]}</td>
+                        <td className="py-2 text-right">{formatEuro(q.payableCents)}</td>
+                        <td className="py-2 text-right">{formatEuro(q.deductibleCents)}</td>
+                        <td className="py-2 text-right font-medium">{formatEuro(q.balanceCents)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+            <p className="text-xs text-muted-foreground">
+              Saldo positief = af te dragen aan de Belastingdienst; negatief = terug te ontvangen. Indicatief overzicht.
+            </p>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}

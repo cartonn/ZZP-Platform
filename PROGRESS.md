@@ -79,6 +79,16 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
 - Volgende: Fase 4 (zijpaden + DBA-monitoring); cascade-facturen op /facturen tonen; oude
   factuuraanmaak uitfaseren ná browserverificatie.
 
+### Platform Overhaul — Fase 4 (DBA-monitoring + administratie-overzichten) — 2026-05-29
+- `dba-monitor.ts` (pure engine: duur 6/12 mnd, omzetconcentratie, patroon-indicatoren; niveau
+  Laag/Verhoogd/Hoog; altijd disclaimer — Besluit 2) + `dba-monitor-task.ts` (geplande runner,
+  idempotent via DomainEvent dedupeKey; notificatie bij beide partijen + audit) + POST
+  /api/tasks/dba-monitor (CRON_SECRET). Werkproces-UI toont het signaal rustig met disclaimer.
+- `administration/overview.ts` (pure: BTW per kwartaal, debiteuren/crediteuren-saldo, jaaromzet) +
+  `/administratie`-pagina (ZZP'er/opdrachtgever) met nav-item.
+- Tests: 13 nieuw (dba-monitor 9 / overview 4). Gate groen (typecheck/lint/test 283/build).
+- Nog open in Fase 4: te late betaling + aanmaningen (reminder-engine), creditfactuur, dispuut.
+
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"

@@ -25,8 +25,8 @@
 | Betaling te laat | Betaaltermijn verstreken | Factuur `→ te_laat`; betaling `te_laat`; herinnering 1 → 2 → aanmaning-sjabloon (ZZP'er) → escalatie-flag platform; admin-item per stap | ⬜ |
 | Correctie/creditfactuur | ZZP'er crediteert | Tegenboekingen bij ZZP'er én OG; BTW gecorrigeerd; evt. nieuwe factuur | ⬜ |
 | Dispuut/escalatie | Partij of platform opent dispuut | Platform-taak; statussen bevriezen tot opgelost | ⬜ |
-| DBA-signalen | Tijd/patroon over looptijd (6/12 mnd, 80% omzet, zelfde functie, vast rooster, leiding/toezicht) | Notificatie/taak bij ZZP'er én OG, zichtbaar voor platform; gedocumenteerd in audittrail; **altijd disclaimer** | ⬜ |
-| Periodieke administratie | Tijdgestuurd | BTW-kwartaaloverzicht per partij; debiteuren-/crediteurenoverzicht; jaaroverzicht/IB-voorbereiding ZZP'er | ⬜ |
+| DBA-signalen | Tijd/patroon over looptijd (6/12 mnd, 80% omzet, zelfde functie, vast rooster, leiding/toezicht) | Notificatie/taak bij ZZP'er én OG, zichtbaar voor platform; gedocumenteerd in audittrail; **altijd disclaimer** | ✅ engine+task+UI |
+| Periodieke administratie | Tijdgestuurd | BTW-kwartaaloverzicht per partij; debiteuren-/crediteurenoverzicht; jaaroverzicht/IB-voorbereiding ZZP'er | ✅ overzicht + /administratie |
 
 ## Reminder-cascades (tijden configureerbaar)
 - **Concept-factuur (ZZP'er) na B2:** dag 0 → dag 3 → dag 7 → escalatie-flag platform.
