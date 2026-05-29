@@ -520,4 +520,25 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   tests flaken soms op één gedeelde dev-server; een echte bug faalt ook na retry).
 - Echte iDIN/eIDAS-koppeling = mensenwerk (zelfde patroon als DUO/BIG).
 
+### Increment: Design-polish-pass — lege/laad/fout-staten + micro-interacties — 2026-05-29
+- Orchestrator (Opus) + 3 Sonnet-builders op niet-overlappende paginagroepen (lijst-/admin-/berichten-vlakken).
+- **Gedeelde `EmptyState`** (`src/components/ui/empty-state.tsx`): icoon-in-zachte-cirkel + titel +
+  omschrijving + optionele actieknop (echte route, geen dode knop). Vervangt overal de ad-hoc
+  `text-sm text-muted-foreground`-lege-staten (opdrachten, kandidaten, certificaten, facturen,
+  samenwerkingen, reacties, notificaties, berichten (+thread), documenten, beschikbaarheid,
+  admin opdrachten/audit/gebruikers/verificaties, profiel, bedrijf).
+- **Gedeelde `Skeleton`-primitives** (`src/components/ui/skeleton.tsx`): `Skeleton`,
+  `PageHeaderSkeleton`, `ListSkeleton`. Nieuwe route-`loading.tsx` voor de zware lijstroutes;
+  dashboard-`loading.tsx` hergebruikt nu de primitive.
+- **Micro-interacties** (`globals.css`): `prefers-reduced-motion`-guard (a11y) + subtiele
+  `.card-interactive` hover op klikbare lijstrijen (opdrachten/reacties/berichten/facturen).
+- **404-semantiek bewaard (les uit Sessie 9 toegepast):** een `loading.tsx` op een segment wikkelt
+  ook z'n dynamische kinderen in Suspense → `notFound()` lekt als HTTP 200. Opgevangen door de
+  jobs-/authorization-e2e. Oplossing: lijst + `loading.tsx` van segmenten met `notFound()`-kinderen
+  (opdrachten, facturen, berichten, certificaten) in een **`(index)` route-group** geplaatst
+  (URL ongewijzigd), zodat de Suspense-grens de `[id]`/`bewerken`-zusjes niet meer omvat.
+- Checks: typecheck ✓, lint ✓, **192 unit-tests** ✓, build ✓ (31 routes). E2e: jobs + authorization
+  weer 404-correct; overige losse failures zijn de bekende multi-context-load-flakiness op de
+  gedeelde dev-server (elk slaagt los/na retry). Lokale dev-db opnieuw geseed (schone staat).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
