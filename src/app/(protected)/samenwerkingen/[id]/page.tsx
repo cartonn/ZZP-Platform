@@ -5,6 +5,7 @@ import { ArrowLeft, FileText, ClipboardList, Banknote } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
+import { assessCollaborationDba, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const counterparty = isClient ? col.freelancer.user.name : col.company.name;
   const active = col.status === "ACTIVE";
 
+  // DBA-monitoring (§6): rustig signaleren, mét disclaimer; geen juridisch oordeel (Besluit 2).
+  const dba = assessCollaborationDba({ collaborationId: col.id, startDate: col.startDate }, new Date());
+
   // "Aan zet": wat moet déze rol nu doen?
   const todo: string[] = [];
   if (col.status === "PROPOSED") todo.push("Onderteken het contract om de opdracht te starten.");
@@ -107,6 +111,22 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             <ul className="list-inside list-disc text-sm text-muted-foreground">
               {todo.map((t, i) => <li key={i}>{t}</li>)}
             </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* DBA-signalering — rustig, niet-alarmerend, altijd met disclaimer */}
+      {active && dba.signals.length > 0 && (
+        <Card>
+          <CardContent className="space-y-2 py-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Aandachtspunt inzet</span>
+              <Badge variant={dba.level === "HOOG" ? "warning" : "muted"}>{DBA_LEVEL_LABEL[dba.level]}</Badge>
+            </div>
+            <ul className="list-inside list-disc text-sm text-muted-foreground">
+              {dba.signals.map((s) => <li key={s.key}>{s.message}</li>)}
+            </ul>
+            <p className="text-xs text-muted-foreground">{dba.disclaimer}</p>
           </CardContent>
         </Card>
       )}
