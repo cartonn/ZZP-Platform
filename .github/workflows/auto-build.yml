@@ -11,6 +11,12 @@ on:
   schedule:
     - cron: "0 */3 * * *" # elke 3 uur
   workflow_dispatch:
+  # Git-trigger: bump .swarm-trigger en push om een ronde af te vuren zonder de UI
+  # (handig als workflow_dispatch/schedule niet bereikbaar is). Eigen agent-commits
+  # (via GITHUB_TOKEN) hertriggeren dit niet, dus geen loop.
+  push:
+    branches: ["claude/dazzling-carson-v9Qwk"]
+    paths: [".swarm-trigger"]
 
 permissions:
   contents: write
