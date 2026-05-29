@@ -1,11 +1,12 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageSquare } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { isParticipant } from "@/lib/messaging";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 import { MessageComposer } from "./message-composer";
 import { MarkRead } from "./mark-read";
 
@@ -50,9 +51,13 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
 
       <div className="space-y-3">
         {conversation.messages.length === 0 ? (
-          <p className="rounded-lg border border-border bg-card p-4 text-center text-sm text-muted-foreground">
-            Nog geen berichten. Stuur het eerste bericht.
-          </p>
+          <div className="rounded-lg border border-border bg-card">
+            <EmptyState
+              icon={MessageSquare}
+              title="Nog geen berichten"
+              description="Stuur het eerste bericht om het gesprek te starten."
+            />
+          </div>
         ) : (
           conversation.messages.map((m) => {
             const mine = m.sender.id === actor.id;

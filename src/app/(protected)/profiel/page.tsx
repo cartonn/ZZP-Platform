@@ -1,11 +1,12 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, UserX } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { computeFreelancerCompleteness } from "@/lib/profile";
 import { type Availability } from "@/lib/enums";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { ProfileForm } from "./profile-form";
 
@@ -37,10 +38,12 @@ export default async function ProfielPage() {
     return (
       <div className="mx-auto max-w-3xl">
         <Card>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Geen freelancerprofiel gevonden voor dit account.
-            </p>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={UserX}
+              title="Geen freelancerprofiel gevonden"
+              description="Er is nog geen profiel gekoppeld aan dit account."
+            />
           </CardContent>
         </Card>
       </div>

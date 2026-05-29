@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
+import { Users } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { APPLICATION_TRANSITIONS } from "@/lib/applications";
@@ -12,6 +13,7 @@ import { type ApplicationStatus, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Textarea } from "@/components/ui/textarea";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
@@ -67,9 +69,11 @@ export default async function KandidatenPage() {
 
       {applications.length === 0 ? (
         <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Nog geen reacties. Zodra ZZP&apos;ers reageren, zie je ze hier.
-          </CardContent>
+          <EmptyState
+            icon={Users}
+            title="Nog geen reacties"
+            description="Zodra ZZP'ers reageren op je opdrachten, zie je ze hier."
+          />
         </Card>
       ) : (
         <div className="space-y-4">

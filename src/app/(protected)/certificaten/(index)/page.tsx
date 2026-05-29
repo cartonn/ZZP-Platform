@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Download, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import { Award, Download, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { CREDENTIAL_TYPE_LABEL, daysUntilExpiry, isExpiringSoon } from "@/lib/credentials";
@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
-import { deleteCredential, requestVerification, toggleCredentialVisibility } from "./actions";
-import { DuoVerifyForm } from "./duo-verify-form";
-import { BigVerifyForm } from "./big-verify-form";
+import { EmptyState } from "@/components/ui/empty-state";
+import { deleteCredential, requestVerification, toggleCredentialVisibility } from "../actions";
+import { DuoVerifyForm } from "../duo-verify-form";
+import { BigVerifyForm } from "../big-verify-form";
 
 export const metadata: Metadata = { title: "Certificaten · ZZP Platform" };
 
@@ -48,9 +49,12 @@ export default async function CertificatenPage() {
 
       {credentials.length === 0 ? (
         <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Nog geen certificaten. Voeg je eerste bewijsstuk toe (bijv. VOG of diploma).
-          </CardContent>
+          <EmptyState
+            icon={Award}
+            title="Nog geen certificaten"
+            description="Voeg je eerste bewijsstuk toe, zoals een VOG of diploma."
+            action={{ label: "Certificaat toevoegen", href: "/certificaten/nieuw" }}
+          />
         </Card>
       ) : (
         <div className="space-y-4">

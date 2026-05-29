@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Handshake } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { COLLABORATION_TRANSITIONS } from "@/lib/collaborations";
@@ -11,6 +11,7 @@ import { type CollaborationStatus, type CredentialType } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { changeCollaborationStatus } from "./actions";
 
 export const metadata: Metadata = { title: "Samenwerkingen · ZZP Platform" };
@@ -79,9 +80,11 @@ export default async function SamenwerkingenPage() {
 
       {collaborations.length === 0 ? (
         <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Nog geen samenwerkingen. Een opdrachtgever stelt er een voor vanuit een geaccepteerde reactie.
-          </CardContent>
+          <EmptyState
+            icon={Handshake}
+            title="Nog geen samenwerkingen"
+            description="Een opdrachtgever stelt een samenwerking voor vanuit een geaccepteerde reactie."
+          />
         </Card>
       ) : (
         <div className="space-y-4">

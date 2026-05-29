@@ -1,11 +1,13 @@
 import { type Metadata } from "next";
 import Link from "next/link";
+import { ScrollText } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { AUDIT_PAGE_SIZE, normalizeAuditFilters } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 
 export const metadata: Metadata = { title: "Audit log · ZZP Platform" };
@@ -55,7 +57,15 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
       </form>
 
       {entries.length === 0 ? (
-        <Card><CardContent className="text-center text-sm text-muted-foreground">Geen gebeurtenissen gevonden.</CardContent></Card>
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={ScrollText}
+              title="Geen gebeurtenissen gevonden"
+              description="Er zijn geen logregels die overeenkomen met de huidige filters."
+            />
+          </CardContent>
+        </Card>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {entries.map((e) => (

@@ -1,9 +1,11 @@
 import { type Metadata } from "next";
 import Link from "next/link";
+import { MessageSquare } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = { title: "Berichten · ZZP Platform" };
 
@@ -57,9 +59,11 @@ export default async function BerichtenPage() {
 
       {conversations.length === 0 ? (
         <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Nog geen gesprekken. Een opdrachtgever start een gesprek vanuit een reactie.
-          </CardContent>
+          <EmptyState
+            icon={MessageSquare}
+            title="Nog geen gesprekken"
+            description="Een opdrachtgever start een gesprek vanuit een reactie op een opdracht."
+          />
         </Card>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
@@ -68,7 +72,7 @@ export default async function BerichtenPage() {
             const last = c.messages[0];
             const unread = unreadByConversation.get(c.id) ?? 0;
             return (
-              <Link key={c.id} href={`/berichten/${c.id}`} className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-muted/50">
+              <Link key={c.id} href={`/berichten/${c.id}`} className="card-interactive flex items-center justify-between gap-4 px-4 py-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium">{other?.user.name ?? "Onbekend"}</p>

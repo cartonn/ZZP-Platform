@@ -1,5 +1,5 @@
 import { type Metadata } from "next";
-import { Download } from "lucide-react";
+import { CheckCircle2, Download } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
@@ -7,6 +7,7 @@ import { type CredentialType } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Textarea } from "@/components/ui/textarea";
 import { ExpiryButton } from "./expiry-button";
 import { rejectCredential, verifyCredential } from "./actions";
@@ -58,8 +59,12 @@ export default async function VerificatiesPage() {
 
       {queue.length === 0 ? (
         <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Geen openstaande verificatieaanvragen.
+          <CardContent className="p-0">
+            <EmptyState
+              icon={CheckCircle2}
+              title="Alles afgehandeld"
+              description="Er zijn geen openstaande verificatieaanvragen. Goed bezig."
+            />
           </CardContent>
         </Card>
       ) : (

@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Receipt } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
@@ -8,6 +8,7 @@ import { type InvoiceStatus } from "@/lib/enums";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = { title: "Facturen · ZZP Platform" };
 
@@ -70,14 +71,16 @@ export default async function FacturenPage() {
 
       {invoices.length === 0 ? (
         <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            {isFreelancer ? "Nog geen facturen. Stel er een op vanuit een samenwerking." : "Nog geen facturen ontvangen."}
-          </CardContent>
+          <EmptyState
+            icon={Receipt}
+            title={isFreelancer ? "Nog geen facturen" : "Nog geen facturen ontvangen"}
+            description={isFreelancer ? "Stel een factuur op vanuit een actieve samenwerking." : undefined}
+          />
         </Card>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {invoices.map((inv) => (
-            <Link key={inv.id} href={`/facturen/${inv.id}`} className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-muted/50">
+            <Link key={inv.id} href={`/facturen/${inv.id}`} className="card-interactive flex items-center justify-between gap-4 px-4 py-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium tabular-nums">{inv.number}</p>

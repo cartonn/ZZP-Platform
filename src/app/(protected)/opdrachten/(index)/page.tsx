@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { MapPin, Plus } from "lucide-react";
+import { Briefcase, MapPin, Plus, SearchX } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -9,7 +9,8 @@ import { scoreJobForFreelancer } from "@/lib/matching";
 import { JOB_STATUSES, type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Select } from "@/components/ui/select";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -75,14 +76,17 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
 
       {jobs.length === 0 ? (
         <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Je hebt nog geen opdrachten. Maak je eerste opdracht aan.
-          </CardContent>
+          <EmptyState
+            icon={Briefcase}
+            title="Nog geen opdrachten"
+            description="Maak je eerste opdracht aan en vind de juiste ZZP'er."
+            action={{ label: "Nieuwe opdracht", href: "/opdrachten/nieuw" }}
+          />
         </Card>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {jobs.map((job) => (
-            <Link key={job.id} href={`/opdrachten/${job.id}`} className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-muted/50">
+            <Link key={job.id} href={`/opdrachten/${job.id}`} className="card-interactive flex items-center justify-between gap-4 px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{job.title}</p>
                 <p className="text-xs text-muted-foreground">
@@ -177,16 +181,18 @@ async function BrowseJobs({
 
       {jobs.length === 0 ? (
         <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Geen opdrachten gevonden. Pas je filters aan.
-          </CardContent>
+          <EmptyState
+            icon={SearchX}
+            title="Geen opdrachten gevonden"
+            description="Pas je filters aan om meer resultaten te zien."
+          />
         </Card>
       ) : (
         <>
           <p className="text-xs text-muted-foreground">{total} opdracht(en) gevonden</p>
           <div className="space-y-3">
             {jobs.map((job) => (
-              <Link key={job.id} href={`/opdrachten/${job.id}`} className="block rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/40">
+              <Link key={job.id} href={`/opdrachten/${job.id}`} className="card-interactive block rounded-lg border border-border bg-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium">{job.title}</p>

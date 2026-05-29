@@ -1,9 +1,11 @@
 import { type Metadata } from "next";
 import Link from "next/link";
+import { Bell } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { markAllNotificationsRead, markNotificationRead } from "./actions";
 
@@ -102,7 +104,11 @@ export default async function NotificatiesPage() {
 
       {notifications.length === 0 ? (
         <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">Geen notificaties.</CardContent>
+          <EmptyState
+            icon={Bell}
+            title="Geen notificaties"
+            description="Je hebt op dit moment geen nieuwe meldingen."
+          />
         </Card>
       ) : (
         <div className="space-y-6">

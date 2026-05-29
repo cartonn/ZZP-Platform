@@ -1,10 +1,12 @@
 import { type Metadata } from "next";
 import Link from "next/link";
+import { FileText } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { type ComplianceStatus } from "@/lib/matching";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { type ApplicationStatus } from "@/lib/enums";
@@ -50,9 +52,12 @@ export default async function ReactiesPage() {
 
       {applications.length === 0 ? (
         <Card>
-          <CardContent className="text-center text-sm text-muted-foreground">
-            Je hebt nog niet gereageerd. Bekijk de opdrachten en reageer op een passende opdracht.
-          </CardContent>
+          <EmptyState
+            icon={FileText}
+            title="Nog geen reacties"
+            description="Je hebt nog niet gereageerd op een opdracht."
+            action={{ label: "Bekijk opdrachten", href: "/opdrachten" }}
+          />
         </Card>
       ) : (
         <div className="space-y-3">
@@ -62,7 +67,7 @@ export default async function ReactiesPage() {
               <Link
                 key={app.id}
                 href={`/opdrachten/${app.job.id}`}
-                className="block rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/40"
+                className="card-interactive block rounded-lg border border-border bg-card p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">

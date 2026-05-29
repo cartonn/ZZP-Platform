@@ -1,12 +1,13 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Briefcase } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { type JobStatus } from "@/lib/enums";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -68,7 +69,15 @@ export default async function AdminOpdrachtenPage({ searchParams }: { searchPara
       </form>
 
       {jobs.length === 0 ? (
-        <Card><CardContent className="text-center text-sm text-muted-foreground">Geen opdrachten gevonden.</CardContent></Card>
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={Briefcase}
+              title="Geen opdrachten gevonden"
+              description="Er zijn geen opdrachten die overeenkomen met de huidige filters."
+            />
+          </CardContent>
+        </Card>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {jobs.map((job) => {

@@ -41,4 +41,21 @@ body {
   .focus-ring {
     @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring;
   }
+
+  /* Klikbare lijstrij/card: subtiele, rustige hover. Premium, geen drukte. */
+  .card-interactive {
+    @apply transition-colors hover:border-foreground/20 hover:bg-muted/40;
+  }
+}
+
+/* Respecteer prefers-reduced-motion: zet animaties/overgangen uit voor wie dat instelt. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

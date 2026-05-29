@@ -1,8 +1,10 @@
 import { type Metadata } from "next";
+import { Building2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { computeCompanyCompleteness } from "@/lib/profile";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { CompanyForm } from "./company-form";
 
@@ -20,10 +22,12 @@ export default async function BedrijfPage() {
     return (
       <div className="mx-auto max-w-3xl">
         <Card>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Geen bedrijfsprofiel gevonden voor dit account.
-            </p>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={Building2}
+              title="Geen bedrijfsprofiel gevonden"
+              description="Er is nog geen bedrijfsprofiel gekoppeld aan dit account."
+            />
           </CardContent>
         </Card>
       </div>
