@@ -29,6 +29,10 @@ export function regimeChargesVat(regime: VatRegime): boolean {
   return VAT_RATE_BPS[regime] > 0;
 }
 
+// --- Facturatie-defaults (configureerbaar) ---------------------------------
+export const DEFAULT_VAT_REGIME: VatRegime = "STANDARD_HIGH";
+export const DEFAULT_PAYMENT_TERM_DAYS = 30;
+
 // --- Platformfee (Besluit 4 — OPEN, default UIT) ---------------------------
 export const FEE_PAYERS = ["CLIENT", "FREELANCER"] as const;
 export type FeePayer = (typeof FEE_PAYERS)[number];
