@@ -23,6 +23,27 @@ export function centsToEuroPlain(cents: number): string {
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
 }
 
+export interface VatReturnCsvRow {
+  year: number;
+  quarter: number;
+  payableCents: number;
+  deductibleCents: number;
+  balanceCents: number;
+}
+
+/** BTW-kwartaaloverzicht → CSV met vaste kop. */
+export function vatReturnsCsv(rows: readonly VatReturnCsvRow[]): string {
+  const header = ["jaar", "kwartaal", "af_te_dragen", "voorbelasting", "saldo"];
+  const body = rows.map((r) => [
+    r.year,
+    `Q${r.quarter}`,
+    centsToEuroPlain(r.payableCents),
+    centsToEuroPlain(r.deductibleCents),
+    centsToEuroPlain(r.balanceCents),
+  ]);
+  return toCsv([header, ...body]);
+}
+
 export interface AdministrationCsvRow {
   occurredAt: Date;
   account: string;

@@ -50,9 +50,14 @@ export default async function AdministratiePage() {
           </p>
         </div>
         {entries.length > 0 && (
-          <a href="/api/administratie/export" className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
-            Exporteer CSV
-          </a>
+          <div className="flex shrink-0 gap-2">
+            <a href="/api/administratie/export" className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+              Grootboek CSV
+            </a>
+            <a href="/api/administratie/btw" className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+              BTW-overzicht CSV
+            </a>
+          </div>
         )}
       </header>
 

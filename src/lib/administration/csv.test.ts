@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeCsvField, toCsv, centsToEuroPlain, administrationCsv } from "@/lib/administration/csv";
+import { escapeCsvField, toCsv, centsToEuroPlain, administrationCsv, vatReturnsCsv } from "@/lib/administration/csv";
 
 describe("escapeCsvField", () => {
   it("laat gewone tekst ongemoeid", () => {
@@ -24,6 +24,19 @@ describe("centsToEuroPlain", () => {
 describe("toCsv", () => {
   it("voegt rijen samen met ; en CRLF", () => {
     expect(toCsv([["a", "b"], [1, 2]])).toBe("a;b\r\n1;2");
+  });
+});
+
+describe("vatReturnsCsv", () => {
+  it("bouwt een kop + kwartaalregels", () => {
+    const csv = vatReturnsCsv([
+      { year: 2026, quarter: 1, payableCents: 12600, deductibleCents: 0, balanceCents: 12600 },
+      { year: 2026, quarter: 2, payableCents: 0, deductibleCents: 0, balanceCents: 0 },
+    ]);
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toBe("jaar;kwartaal;af_te_dragen;voorbelasting;saldo");
+    expect(lines[1]).toBe("2026;Q1;126.00;0.00;126.00");
+    expect(lines[2]).toBe("2026;Q2;0.00;0.00;0.00");
   });
 });
 
