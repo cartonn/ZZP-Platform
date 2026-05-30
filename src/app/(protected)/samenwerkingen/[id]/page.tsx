@@ -1,7 +1,8 @@
 import { type Metadata } from "next";
+import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText, ClipboardList, Banknote } from "lucide-react";
+import { ArrowLeft, FileText, ClipboardList, Banknote, CheckCircle2, Circle, Clock, XCircle } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
@@ -47,6 +48,95 @@ const INV_STATUS: Record<InvoiceLifecycleState, { label: string; variant: "muted
 
 function fmt(d: Date | null) {
   return d ? d.toISOString().slice(0, 10) : null;
+}
+
+type ChainStepStatus = "done" | "active" | "waiting" | "error";
+
+interface ChainStep {
+  label: string;
+  status: ChainStepStatus;
+  detail?: string;
+}
+
+const STEP_ICON: Record<ChainStepStatus, React.ReactNode> = {
+  done: <CheckCircle2 className="size-4 text-success" aria-hidden />,
+  active: <Clock className="size-4 text-warning" aria-hidden />,
+  waiting: <Circle className="size-4 text-muted-foreground" aria-hidden />,
+  error: <XCircle className="size-4 text-danger" aria-hidden />,
+};
+
+function buildChainSteps(col: {
+  status: string;
+  performances: Array<{ status: string }>;
+  invoices: Array<{ lifecycleStatus: string | null }>;
+}): ChainStep[] {
+  const steps: ChainStep[] = [];
+
+  // Stap 1: Contract
+  const contractDone = col.status !== "PROPOSED";
+  steps.push({
+    label: "Contract",
+    status: contractDone ? "done" : (col.status === "CANCELLED" ? "waiting" : "active"),
+    detail: contractDone ? "Getekend" : "Wachten op ondertekening",
+  });
+
+  // Stap 2: Prestatie (uren / oplevering)
+  const perfs = col.performances;
+  let perfStatus: ChainStepStatus = "waiting";
+  let perfDetail = "Nog geen uren of oplevering ingediend";
+  if (!contractDone) {
+    perfStatus = "waiting";
+    perfDetail = "Volgt na contract";
+  } else if (perfs.some((p) => p.status === "APPROVED")) {
+    perfStatus = "done";
+    perfDetail = "Goedgekeurd";
+  } else if (perfs.some((p) => p.status === "SUBMITTED")) {
+    perfStatus = "active";
+    perfDetail = "Ter goedkeuring";
+  } else if (perfs.some((p) => p.status === "REJECTED")) {
+    perfStatus = "error";
+    perfDetail = "Afgekeurd — nieuw indienen";
+  } else if (perfs.length > 0) {
+    perfStatus = "active";
+    perfDetail = "Concept aangemaakt";
+  }
+  steps.push({ label: "Prestatie", status: perfStatus, detail: perfDetail });
+
+  // Stap 3: Factuur
+  const invs = col.invoices.filter((i) => i.lifecycleStatus);
+  let invStatus: ChainStepStatus = "waiting";
+  let invDetail = "Volgt na goedkeuring prestatie";
+  if (invs.some((i) => ["PAID", "PROCESSED"].includes(i.lifecycleStatus!))) {
+    invStatus = "done";
+    invDetail = "Betaald";
+  } else if (invs.some((i) => i.lifecycleStatus === "APPROVED")) {
+    invStatus = "active";
+    invDetail = "Goedgekeurd — wachten op betaling";
+  } else if (invs.some((i) => i.lifecycleStatus === "SUBMITTED")) {
+    invStatus = "active";
+    invDetail = "Ter goedkeuring";
+  } else if (invs.some((i) => i.lifecycleStatus === "REJECTED")) {
+    invStatus = "error";
+    invDetail = "Afgekeurd";
+  } else if (invs.some((i) => i.lifecycleStatus === "OVERDUE")) {
+    invStatus = "error";
+    invDetail = "Vervallen — betaling te laat";
+  } else if (invs.some((i) => i.lifecycleStatus === "DRAFT")) {
+    invStatus = "active";
+    invDetail = "Concept — nog niet ingediend";
+  }
+  steps.push({ label: "Factuur", status: invStatus, detail: invDetail });
+
+  // Stap 4: Betaling
+  const paid = invs.some((i) => ["PAID", "PROCESSED"].includes(i.lifecycleStatus!));
+  const invApproved = invs.some((i) => i.lifecycleStatus === "APPROVED");
+  steps.push({
+    label: "Betaling",
+    status: paid ? "done" : invApproved ? "active" : "waiting",
+    detail: paid ? "Ontvangen" : invApproved ? "Wachten op betaling" : "Volgt na factuurgoedkeuring",
+  });
+
+  return steps;
 }
 
 export default async function WerkprocesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -109,6 +199,36 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         </div>
         <p className="text-sm text-muted-foreground">Werkproces met {counterparty} · betaling verloopt rechtstreeks; het platform houdt alleen de status bij.</p>
       </header>
+
+      {/* Cascade-keten: visuele voortgang van contract t/m betaling */}
+      {col.status !== "CANCELLED" && (() => {
+        const steps = buildChainSteps(col);
+        return (
+          <Card>
+            <CardContent className="py-4">
+              <p className="mb-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Voortgang</p>
+              <ol className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-0">
+                {steps.map((step, i) => (
+                  <li key={step.label} className="flex items-start gap-2 sm:flex-1 sm:flex-col sm:items-center sm:text-center">
+                    <div className="flex items-center gap-2 sm:flex-col sm:gap-1">
+                      {STEP_ICON[step.status]}
+                      <span className={`text-xs font-medium ${step.status === "waiting" ? "text-muted-foreground" : "text-foreground"}`}>
+                        {step.label}
+                      </span>
+                    </div>
+                    {step.detail && (
+                      <span className="text-xs text-muted-foreground sm:mt-0.5">{step.detail}</span>
+                    )}
+                    {i < steps.length - 1 && (
+                      <span className="hidden sm:block sm:absolute" aria-hidden />
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {todo.length > 0 && (
         <Card>

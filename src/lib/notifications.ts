@@ -40,6 +40,8 @@ const META: Record<string, NotificationMeta> = {
   CREDENTIAL_EXPIRING: { category: "credential", tone: "info" },
   COLLABORATION_PROPOSED: { category: "collaboration", tone: "info" },
   COLLABORATION_STATUS: { category: "collaboration", tone: "info" },
+  VAT_REMINDER: { category: "system", tone: "info" },
+  INVOICE_DRAFT_ESCALATION: { category: "invoice", tone: "attention" },
 };
 
 /** Categorie + toon voor een notificatietype; valt terug op een neutrale systeem-categorie. */
