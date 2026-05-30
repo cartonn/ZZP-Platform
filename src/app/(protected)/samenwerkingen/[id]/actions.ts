@@ -19,6 +19,8 @@ import {
 } from "@/lib/cascade/commands";
 import { prisma } from "@/lib/db";
 import { eurosToCents } from "@/lib/invoices";
+import { type OrtSegment } from "@/lib/ort";
+import { type OrtCategory } from "@/lib/config";
 
 /** Vertaalt een CascadeError/transitiefout naar een leesbare melding; hergooit de rest. */
 function toMessage(e: unknown): never {
@@ -48,6 +50,20 @@ export async function logAndSubmitPerformanceAction(collaborationId: string, for
   const type = formData.get("type") === "MILESTONE" ? "MILESTONE" : "HOURS";
   const description = String(formData.get("description") ?? "").slice(0, 500);
 
+  // ORT-segmenten (zorg): uren per tijdscategorie. Leeg/0 → geen segment.
+  const ortFields: Array<["NORMAL" | OrtCategory, string]> = [
+    ["NORMAL", "ort_normal"],
+    ["EVENING", "ort_evening"],
+    ["NIGHT", "ort_night"],
+    ["SATURDAY", "ort_saturday"],
+    ["SUNDAY", "ort_sunday"],
+    ["HOLIDAY", "ort_holiday"],
+  ];
+  const ortSegments: OrtSegment[] = ortFields
+    .map(([category, field]) => ({ category, hours: Number(formData.get(field) ?? 0) }))
+    .filter((s) => s.hours > 0);
+  const useOrt = type === "HOURS" && ortSegments.length > 0;
+
   try {
     // Snapshot het uurtarief uit de samenwerking (server-side waarheid).
     const col = await prisma.collaboration.findUnique({ where: { id: collaborationId }, select: { rate: true } });
@@ -56,8 +72,10 @@ export async function logAndSubmitPerformanceAction(collaborationId: string, for
     const id = await createPerformance(actor, {
       collaborationId,
       type,
-      hours: type === "HOURS" ? Number(formData.get("hours") ?? 0) : null,
+      // Bij ORT is het totaal de som van de segment-uren; anders het ingevoerde urenveld.
+      hours: type === "HOURS" ? (useOrt ? ortSegments.reduce((s, x) => s + x.hours, 0) : Number(formData.get("hours") ?? 0)) : null,
       rateCents: type === "HOURS" ? rateCents : null,
+      ortSegments: useOrt ? ortSegments : null,
       amountCents: type === "MILESTONE" ? eurosToCents(Number(formData.get("amount") ?? 0)) : null,
       milestoneTitle: type === "MILESTONE" ? String(formData.get("milestoneTitle") ?? "") : null,
       description,
