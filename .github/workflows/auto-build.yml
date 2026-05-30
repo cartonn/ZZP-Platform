@@ -2,8 +2,9 @@ name: Auto-build (scheduled)
 
 # 24/7 doorbouwen zonder open sessie.
 # Elke 15 min pakt één agent het bovenste backlog-item op, levert af en pusht.
+# Draait op Claude Max (OAuth) — geen API-kosten per token.
 #
-# Vereist repo-secret: ANTHROPIC_API_KEY
+# Vereist repo-secret: CLAUDE_OAUTH_TOKEN (van claude.ai/settings/api)
 # Optioneel: BUILD_PAT (fine-grained PAT met contents:write + actions:write)
 #   — met BUILD_PAT triggert de agent na afloop meteen een nieuwe ronde via
 #     workflow_dispatch (sneller dan wachten op het 15-min schedule).
@@ -50,7 +51,7 @@ jobs:
       - name: Autonome bouwronde
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
           github_token: ${{ secrets.BUILD_PAT || secrets.GITHUB_TOKEN }}
           prompt: |
             Autonome bouwmodus voor de ZZP Platform-overhaul. Werk op branch ${{ env.WORK_BRANCH }}.
@@ -69,8 +70,6 @@ jobs:
             --model claude-sonnet-4-6
             --allowedTools Edit,Read,Write,Bash
             --max-turns 60
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Re-arm (trigger volgende ronde direct)
         if: always()
