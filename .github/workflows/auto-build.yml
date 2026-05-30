@@ -1,39 +1,44 @@
 name: Auto-build (scheduled)
 
-# Continu doorbouwen zonder dat er een sessie open hoeft te staan.
-# Op een schema (en handmatig) pakt één agent het bovenste backlog-item op,
-# levert af volgens de Definition of Done, en pusht naar de werkbranch.
+# 24/7 doorbouwen zonder open sessie.
+# Elke 15 min pakt één agent het bovenste backlog-item op, levert af en pusht.
 #
-# MENSENWERK (eenmalig): voeg repo-secret ANTHROPIC_API_KEY toe
-# (Settings -> Secrets and variables -> Actions). Draai daarna 1x via "Run workflow".
+# Vereist repo-secret: ANTHROPIC_API_KEY
+# Optioneel: BUILD_PAT (fine-grained PAT met contents:write + actions:write)
+#   — met BUILD_PAT triggert de agent na afloop meteen een nieuwe ronde via
+#     workflow_dispatch (sneller dan wachten op het 15-min schedule).
+# STOPPEN: zet de workflow uit in het Actions-tabblad.
 
 on:
   schedule:
-    - cron: "0 */3 * * *" # elke 3 uur
-  workflow_dispatch:
-  # Git-trigger: bump .swarm-trigger en push om een ronde af te vuren zonder de UI
-  # (handig als workflow_dispatch/schedule niet bereikbaar is). Eigen agent-commits
-  # (via GITHUB_TOKEN) hertriggeren dit niet, dus geen loop.
-  push:
-    branches: ["claude/dazzling-carson-v9Qwk"]
-    paths: [".swarm-trigger"]
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
 
 permissions:
   contents: write
-  pull-requests: write
+  actions: write
 
 concurrency:
   group: auto-build
   cancel-in-progress: false
 
+env:
+  WORK_BRANCH: claude/dazzling-carson-v9Qwk
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: "file:./ci.db"
+      AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
+      STORAGE_DRIVER: "local"
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/dazzling-carson-v9Qwk
+          ref: ${{ env.WORK_BRANCH }}
           fetch-depth: 0
+          token: ${{ secrets.BUILD_PAT || secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -46,18 +51,34 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.BUILD_PAT || secrets.GITHUB_TOKEN }}
           prompt: |
             Autonome bouwmodus. Volg CLAUDE.md (sectie AUTO-MODE) en SWARM.md exact.
             1. Lees CLAUDE.md, CURRENT_TASK.md en PROGRESS.md.
-            2. Pak het bovenste open item uit de backlog in CURRENT_TASK.md.
-            3. Implementeer het volgens de Definition of Done: testbare kern + unit-tests,
+            2. git fetch origin && git rebase origin/${{ env.WORK_BRANCH }}.
+            3. Pak het bovenste open item uit de backlog in CURRENT_TASK.md.
+            4. Implementeer het volgens de Definition of Done: testbare kern + unit-tests,
                dan `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` groen.
-            4. Commit met een duidelijke message en push naar claude/dazzling-carson-v9Qwk.
-            5. Werk PROGRESS.md en de backlog in CURRENT_TASK.md bij; commit en push opnieuw.
+               E2e overslaan (geen browser-channel).
+            5. Commit met een duidelijke message en push naar ${{ env.WORK_BRANCH }}.
+            6. Werk PROGRESS.md en de backlog in CURRENT_TASK.md bij; commit en push opnieuw.
             Vraag niet om goedkeuring. Geen "AI" in de UI/teksten. Stop alleen bij een blocker.
           claude_args: |
             --model claude-sonnet-4-6
+            --allowedTools Edit,Read,Write,Bash
             --max-turns 60
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Re-arm (trigger volgende ronde direct)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.BUILD_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$GH_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" ]; then
+            echo "Geen BUILD_PAT — volgende ronde via schedule (max 15 min)"
+            exit 0
+          fi
+          echo "BUILD_PAT aanwezig — trigger volgende ronde via workflow_dispatch"
+          sleep 60
+          gh workflow run auto-build.yml --ref "${WORK_BRANCH}"
