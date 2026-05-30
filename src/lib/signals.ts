@@ -25,6 +25,8 @@ interface SignalCounts {
   pendingVerifications?: number; // ADMIN: wacht op verificatie
   unreadMessages?: number; // FREELANCER + CLIENT: gesprekken met ongelezen berichten
   overdueInvoices?: number; // FREELANCER + CLIENT: facturen over de vervaldatum
+  cascadeWork?: number; // FREELANCER + CLIENT: cascade-acties "aan zet" in werkproces
+  openDisputes?: number; // ADMIN: open disputen die bemiddeling vragen
 }
 
 const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
@@ -34,6 +36,8 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   pendingVerifications: "/admin/verificaties",
   unreadMessages: "/berichten",
   overdueInvoices: "/facturen",
+  cascadeWork: "/samenwerkingen",
+  openDisputes: "/admin/disputen",
 };
 
 const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
@@ -43,6 +47,8 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   pendingVerifications: "attention",
   unreadMessages: "info",
   overdueInvoices: "attention",
+  cascadeWork: "attention",
+  openDisputes: "attention",
 };
 
 const EXPIRY_WINDOW_MS = 30 * 86_400_000; // 30 dagen, gelijk aan het dashboard
@@ -120,29 +126,42 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     if (!profile) return {};
     const now = new Date();
     const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
-    const [rejected, expiring, unreadMessages, overdueInvoices] = await Promise.all([
+    const [rejected, expiring, unreadMessages, overdueInvoices, cascadeDraft, cascadeApproved] = await Promise.all([
       prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
       prisma.credential.count({
         where: { freelancerProfileId: profile.id, status: "VERIFIED", expiresAt: { gt: now, lte: soon } },
       }),
       unreadConversationCount(userId),
       overdueInvoiceCount("FREELANCER", userId),
+      // cascade: concept-facturen indienen
+      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "DRAFT" } }),
+      // cascade: betaling registreren na goedkeuring
+      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "APPROVED" } }),
     ]);
-    return buildBadges({ credentialAlerts: rejected + expiring, unreadMessages, overdueInvoices });
+    const cascadeWork = cascadeDraft + cascadeApproved;
+    return buildBadges({ credentialAlerts: rejected + expiring, unreadMessages, overdueInvoices, cascadeWork });
   }
 
   if (role === "CLIENT") {
     const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
     if (!company) return {};
-    const [newApplications, draftJobs, unreadMessages, overdueInvoices] = await Promise.all([
+    const [newApplications, draftJobs, unreadMessages, overdueInvoices, cascadePerf, cascadeInv] = await Promise.all([
       prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
       prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
       unreadConversationCount(userId),
       overdueInvoiceCount("CLIENT", userId),
+      // cascade: prestaties goedkeuren
+      prisma.performance.count({ where: { status: "SUBMITTED", collaboration: { company: { userId } } } }),
+      // cascade: facturen goedkeuren
+      prisma.invoice.count({ where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" } }),
     ]);
-    return buildBadges({ newApplications, draftJobs, unreadMessages, overdueInvoices });
+    const cascadeWork = cascadePerf + cascadeInv;
+    return buildBadges({ newApplications, draftJobs, unreadMessages, overdueInvoices, cascadeWork });
   }
 
-  const pendingVerifications = await prisma.credential.count({ where: { status: "SUBMITTED" } });
-  return buildBadges({ pendingVerifications });
+  const [pendingVerifications, openDisputes] = await Promise.all([
+    prisma.credential.count({ where: { status: "SUBMITTED" } }),
+    prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
+  ]);
+  return buildBadges({ pendingVerifications, openDisputes });
 }

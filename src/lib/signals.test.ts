@@ -37,6 +37,24 @@ describe("buildBadges", () => {
       "/facturen": { count: 1, tone: "attention" },
     });
   });
+
+  it("mapt cascade-werkproces-acties naar /samenwerkingen met attention-toon", () => {
+    expect(buildBadges({ cascadeWork: 3 })).toEqual({
+      "/samenwerkingen": { count: 3, tone: "attention" },
+    });
+  });
+
+  it("mapt open disputen naar /admin/disputen met attention-toon", () => {
+    expect(buildBadges({ openDisputes: 2 })).toEqual({
+      "/admin/disputen": { count: 2, tone: "attention" },
+    });
+  });
+
+  it("combineert cascade-acties en verlopen facturen op aparte hrefs", () => {
+    const badges = buildBadges({ cascadeWork: 2, overdueInvoices: 1 });
+    expect(badges["/samenwerkingen"]).toEqual({ count: 2, tone: "attention" });
+    expect(badges["/facturen"]).toEqual({ count: 1, tone: "attention" });
+  });
 });
 
 describe("countUnreadConversations", () => {

@@ -244,4 +244,36 @@ describe("validatePerformanceForm", () => {
   it("MILESTONE: geldig bedrag en titel geeft null", () => {
     expect(validatePerformanceForm(milestoneBase)).toBeNull();
   });
+
+  it("HOURS ORT: geldige ORT + periodedata geeft null", () => {
+    expect(
+      validatePerformanceForm({
+        ...hoursBase,
+        hasOrt: true,
+        ortTotal: 8,
+        hours: 8,
+        periodStartRaw: "2026-05-01",
+        periodEndRaw: "2026-05-31",
+      }),
+    ).toBeNull();
+  });
+
+  it("HOURS ORT: periodStart > periodEnd geeft een fout (ook bij ORT)", () => {
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      hasOrt: true,
+      ortTotal: 8,
+      hours: 8,
+      periodStartRaw: "2026-05-31",
+      periodEndRaw: "2026-05-01",
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("begindatum");
+  });
+
+  it("HOURS: alleen periodStart zonder periodEnd: geen fout (gedeeltelijke invoer toegestaan)", () => {
+    expect(
+      validatePerformanceForm({ ...hoursBase, periodStartRaw: "2026-05-01", periodEndRaw: "" }),
+    ).toBeNull();
+  });
 });

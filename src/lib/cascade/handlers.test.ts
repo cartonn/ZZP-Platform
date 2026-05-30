@@ -105,6 +105,25 @@ describe("performanceSubtotalCents", () => {
       }),
     ).toThrow();
   });
+
+  it("lege ortSegments array valt terug op uren × tarief (geen ORT-pad)", () => {
+    // ortSegments = [] is falsy-length → condition `length > 0` is false → hourlySubtotalCents
+    const sub = performanceSubtotalCents({
+      id: "p", status: "SUBMITTED", type: "HOURS", hours: 8, rateCents: 50_00,
+      collaborationId: "c",
+      ortSegments: [],
+    });
+    expect(sub).toBe(400_00); // 8 × 50 = 400,00
+  });
+
+  it("HOLIDAY-toeslag via performanceSubtotalCents: +100% op het basisuurtarief", () => {
+    // 4 feestdag-uren × €50/uur = 200 basis + 100% = 400 toeslag → 400 subtotaal
+    const sub = performanceSubtotalCents({
+      id: "p-hol", status: "SUBMITTED", type: "HOURS", rateCents: 50_00, collaborationId: "c",
+      ortSegments: [{ category: "HOLIDAY", hours: 4 }],
+    });
+    expect(sub).toBe(400_00); // 200 basis + 200 toeslag
+  });
 });
 
 describe("Event B2 — planPerformanceApproved", () => {

@@ -58,3 +58,42 @@ describe("ortSubtotalCents", () => {
     expect(ortSubtotalCents([{ category: "NIGHT", hours: 8 }], RATE)).toBe(357_60);
   });
 });
+
+describe("ORT-categorie validatie — alle categorieën", () => {
+  it("SATURDAY: +52% toeslag op de basis", () => {
+    const r = computeOrt([{ category: "SATURDAY", hours: 8 }], RATE);
+    expect(r.baseCents).toBe(240_00);
+    // 52% van 240,00 = 124,80
+    expect(r.surchargeCents).toBe(124_80);
+    expect(r.subtotalCents).toBe(364_80);
+    expect(r.lines[0]?.surchargeBps).toBe(DEFAULT_ORT_RATES_BPS.SATURDAY);
+  });
+
+  it("HOLIDAY: +100% toeslag (verdubbeling van de basis)", () => {
+    const r = computeOrt([{ category: "HOLIDAY", hours: 4 }], RATE);
+    expect(r.baseCents).toBe(120_00);
+    // 100% van 120,00 = 120,00
+    expect(r.surchargeCents).toBe(120_00);
+    expect(r.subtotalCents).toBe(240_00);
+    expect(r.lines[0]?.surchargeBps).toBe(DEFAULT_ORT_RATES_BPS.HOLIDAY);
+  });
+
+  it("volledig gemengde dienst: alle vijf ORT-categorieën tegelijk", () => {
+    // EVENING 1u + NIGHT 2u + SATURDAY 1u + SUNDAY 1u + HOLIDAY 0,5u × €30/uur
+    const segs: OrtSegment[] = [
+      { category: "EVENING", hours: 1 },
+      { category: "NIGHT", hours: 2 },
+      { category: "SATURDAY", hours: 1 },
+      { category: "SUNDAY", hours: 1 },
+      { category: "HOLIDAY", hours: 0.5 },
+    ];
+    const r = computeOrt(segs, RATE);
+    // basis: (1+2+1+1+0,5)×30 = 5,5×30 = 165,00
+    expect(r.baseCents).toBe(165_00);
+    // toeslagen: 30×22% + 60×49% + 30×52% + 30×72% + 15×100%
+    //           = 6,60  + 29,40  + 15,60  + 21,60  + 15,00  = 88,20
+    expect(r.surchargeCents).toBe(88_20);
+    expect(r.subtotalCents).toBe(253_20);
+    expect(r.lines).toHaveLength(5);
+  });
+});
