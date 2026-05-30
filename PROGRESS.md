@@ -111,6 +111,12 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
   + dashboardsignaal. Tests doorlopend groen (309). Open: e-mailkanaal, PDF-export, Playwright-e2e,
   dark-first-beslissing.
 
+### Platform Overhaul — concept-factuur-reminders (§4 B2) — 2026-05-30
+- `concept-invoice-reminders.ts` (pure): herinnert de ZZP'er aan niet-ingediende concept-facturen op
+  dag 3 en 7; escaleert daarna naar het platform (admins). `concept-invoice-reminders-task.ts`
+  (plan/apply, idempotent via DomainEvent dedupeKey) + `POST /api/tasks/concept-invoice-reminders`.
+- Tests: 5 nieuw (325 totaal). Gate groen. Vult de B2-reminder-cascade uit §4 aan.
+
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"
