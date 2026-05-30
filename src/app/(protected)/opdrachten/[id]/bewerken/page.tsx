@@ -61,6 +61,7 @@ export default async function OpdrachtBewerkenPage({
           optionalCredentialTypes: job.credentialRequirements
             .filter((c) => !c.required)
             .map((c) => c.credentialType),
+          modelAgreementType: job.modelAgreementType ?? "",
           dba: {
             dbaDirectSupervision: job.dbaDirectSupervision,
             dbaEmbedded: job.dbaEmbedded,

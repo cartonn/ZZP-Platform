@@ -9,6 +9,11 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { assessDbaRisk, dbaAdvice } from "@/lib/dba";
+import {
+  recommendModelAgreement,
+  MODEL_AGREEMENT_LABELS,
+  MODEL_AGREEMENT_TYPES,
+} from "@/lib/model-agreement";
 import { type CredentialType } from "@/lib/enums";
 import { saveJob, type JobFormState } from "./actions";
 
@@ -50,6 +55,7 @@ export interface JobFormInitial {
   optionalSkillIds: string[];
   requiredCredentialTypes: string[];
   optionalCredentialTypes: string[];
+  modelAgreementType: string;
   dba: {
     dbaDirectSupervision: boolean;
     dbaEmbedded: boolean;
@@ -75,9 +81,20 @@ export function JobForm({
   const [workMode, setWorkMode] = useState(initial.workMode);
   const [industryId, setIndustryId] = useState(initial.industryId);
   const [dba, setDba] = useState(initial.dba);
+  const [modelAgreementType, setModelAgreementType] = useState(initial.modelAgreementType);
 
   // Live, deterministische DBA-inschatting (zelfde pure functie als de server gebruikt).
   const dbaResult = assessDbaRisk({
+    directSupervision: dba.dbaDirectSupervision,
+    embedded: dba.dbaEmbedded,
+    fixedSchedule: dba.dbaFixedSchedule,
+    noSubstitution: dba.dbaNoSubstitution,
+    exclusive: dba.dbaExclusive,
+    weakEntrepreneurship: dba.dbaWeakEntrepreneurship,
+    durationMonths: dba.dbaDurationMonths ? Number(dba.dbaDurationMonths) : null,
+  });
+
+  const modelRec = recommendModelAgreement({
     directSupervision: dba.dbaDirectSupervision,
     embedded: dba.dbaEmbedded,
     fixedSchedule: dba.dbaFixedSchedule,
@@ -251,6 +268,36 @@ export function JobForm({
             </ul>
           )}
         </div>
+
+        {modelRec.recommended && (
+          <div className="rounded-md border border-border bg-muted/40 p-3">
+            <p className="text-sm font-medium">Aanbevolen modelovereenkomst: {modelRec.label}</p>
+            {modelRec.reasons.length > 0 && (
+              <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                {modelRec.reasons.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-1.5 text-[11px] text-muted-foreground/70">{modelRec.note}</p>
+          </div>
+        )}
+
+        <Field label="Vastgelegde modelovereenkomst" htmlFor="modelAgreementType">
+          <Select
+            id="modelAgreementType"
+            name="modelAgreementType"
+            value={modelAgreementType}
+            onChange={(e) => setModelAgreementType(e.target.value)}
+          >
+            <option value="">Geen modelovereenkomst</option>
+            {MODEL_AGREEMENT_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {MODEL_AGREEMENT_LABELS[t]}
+              </option>
+            ))}
+          </Select>
+        </Field>
       </fieldset>
 
       <div className="flex items-center gap-3">

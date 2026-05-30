@@ -39,6 +39,7 @@ export default async function NieuweOpdrachtPage() {
           optionalSkillIds: [],
           requiredCredentialTypes: [],
           optionalCredentialTypes: [],
+          modelAgreementType: "",
           dba: {
             dbaDirectSupervision: false,
             dbaEmbedded: false,
