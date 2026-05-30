@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Clock, Upload } from "lucide-react";
+import { Clock, Download, Upload } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { getDienstenForFreelancer } from "@/lib/diensten";
 import { formatEuro } from "@/lib/invoices";
@@ -63,12 +63,22 @@ export default async function DienstenPage({ searchParams }: { searchParams: Pro
             Alle urenstaaten en opleveringen die je hebt ingediend of in concept hebt staan.
           </p>
         </div>
-        <Button asChild size="sm" variant="secondary">
-          <Link href="/diensten/importeer">
-            <Upload className="mr-1.5 size-4" aria-hidden />
-            Importeren
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          {allDiensten.length > 0 && (
+            <Button asChild size="sm" variant="secondary">
+              <a href="/diensten/export">
+                <Download className="mr-1.5 size-4" aria-hidden />
+                Exporteren
+              </a>
+            </Button>
+          )}
+          <Button asChild size="sm" variant="secondary">
+            <Link href="/diensten/importeer">
+              <Upload className="mr-1.5 size-4" aria-hidden />
+              Importeren
+            </Link>
+          </Button>
+        </div>
       </header>
 
       {/* Statusfilter */}

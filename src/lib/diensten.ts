@@ -83,6 +83,75 @@ export async function getDienstenForFreelancer(userId: string): Promise<DienstSu
 }
 
 // ---------------------------------------------------------------------------
+// CSV-export
+// ---------------------------------------------------------------------------
+
+function fmtDate(d: Date | null): string {
+  if (!d) return "";
+  return d.toISOString().slice(0, 10);
+}
+
+function fmtEur(cents: number | null): string {
+  if (cents == null) return "";
+  return (cents / 100).toFixed(2).replace(".", ",");
+}
+
+const STATUS_LABEL_EXPORT: Record<string, string> = {
+  DRAFT: "Concept",
+  SUBMITTED: "Ter goedkeuring",
+  APPROVED: "Goedgekeurd",
+  REJECTED: "Afgekeurd",
+};
+
+const TYPE_LABEL_EXPORT: Record<string, string> = {
+  HOURS: "Uren",
+  MILESTONE: "Milestone",
+};
+
+/** Genereert een semikolon-gescheiden CSV van de diensten. Puur — geen DB-aanroepen. */
+export function exportDienstenCsv(diensten: DienstSummary[]): string {
+  const header = [
+    "Opdracht",
+    "Opdrachtgever",
+    "Type",
+    "Status",
+    "Periode start",
+    "Periode eind",
+    "Uren",
+    "ORT",
+    "Subtotaal (EUR)",
+    "Ingediend op",
+    "Goedgekeurd op",
+    "Afgekeurd op",
+    "Reden afkeuring",
+    "Omschrijving",
+  ].join(";");
+
+  const rows = diensten.map((d) =>
+    [
+      d.jobTitle,
+      d.companyName,
+      TYPE_LABEL_EXPORT[d.type] ?? d.type,
+      STATUS_LABEL_EXPORT[d.status] ?? d.status,
+      fmtDate(d.periodStart),
+      fmtDate(d.periodEnd),
+      d.hours != null ? d.hours.toString().replace(".", ",") : "",
+      d.hasOrt ? "Ja" : "Nee",
+      fmtEur(d.subtotalCents),
+      fmtDate(d.submittedAt),
+      fmtDate(d.approvedAt),
+      fmtDate(d.rejectedAt),
+      d.rejectionReason ?? "",
+      d.description,
+    ]
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .join(";"),
+  );
+
+  return [header, ...rows].join("\r\n");
+}
+
+// ---------------------------------------------------------------------------
 // CSV-import helpers
 // ---------------------------------------------------------------------------
 

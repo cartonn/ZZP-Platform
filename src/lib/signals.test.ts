@@ -55,6 +55,18 @@ describe("buildBadges", () => {
     expect(badges["/samenwerkingen"]).toEqual({ count: 2, tone: "attention" });
     expect(badges["/facturen"]).toEqual({ count: 1, tone: "attention" });
   });
+
+  it("mapt openstaande prestaties naar /prestaties met attention-toon", () => {
+    expect(buildBadges({ pendingPerformances: 4 })).toEqual({
+      "/prestaties": { count: 4, tone: "attention" },
+    });
+  });
+
+  it("toont prestaties-badge naast cascade-badge als beide niet-nul zijn", () => {
+    const badges = buildBadges({ pendingPerformances: 2, cascadeWork: 3 });
+    expect(badges["/prestaties"]).toEqual({ count: 2, tone: "attention" });
+    expect(badges["/samenwerkingen"]).toEqual({ count: 3, tone: "attention" });
+  });
 });
 
 describe("countUnreadConversations", () => {

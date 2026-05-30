@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCsvShifts } from "./diensten";
+import { parseCsvShifts, exportDienstenCsv, type DienstSummary } from "./diensten";
 
 describe("parseCsvShifts", () => {
   it("parses a single valid row (ISO-8601)", () => {
@@ -93,5 +93,75 @@ describe("parseCsvShifts", () => {
     const longDesc = "x".repeat(600);
     const { shifts } = parseCsvShifts(`2024-01-15T08:00;2024-01-15T16:00;${longDesc}`);
     expect(shifts[0]!.description.length).toBe(500);
+  });
+});
+
+describe("exportDienstenCsv", () => {
+  const base: DienstSummary = {
+    id: "d1",
+    collaborationId: "c1",
+    jobTitle: "Nachtzorg Jansen",
+    companyName: "Zorgbureau XYZ",
+    type: "HOURS",
+    status: "APPROVED",
+    periodStart: new Date("2026-01-01"),
+    periodEnd: new Date("2026-01-31"),
+    hours: 80,
+    subtotalCents: 16000_00,
+    hasOrt: true,
+    description: "Januari nachtzorg",
+    submittedAt: new Date("2026-02-01"),
+    approvedAt: new Date("2026-02-02"),
+    rejectedAt: null,
+    rejectionReason: null,
+  };
+
+  it("genereert een koptekstregel", () => {
+    const csv = exportDienstenCsv([]);
+    expect(csv).toContain("Opdracht");
+    expect(csv).toContain("Periode start");
+    expect(csv).toContain("Subtotaal (EUR)");
+  });
+
+  it("bevat opdrachttitel en opdrachtgeversnaam", () => {
+    const csv = exportDienstenCsv([base]);
+    expect(csv).toContain("Nachtzorg Jansen");
+    expect(csv).toContain("Zorgbureau XYZ");
+  });
+
+  it("toont ORT-indicator correct", () => {
+    const csv = exportDienstenCsv([base]);
+    expect(csv).toContain('"Ja"');
+    const noOrt = exportDienstenCsv([{ ...base, hasOrt: false }]);
+    expect(noOrt).toContain('"Nee"');
+  });
+
+  it("formatteert bedragen als EUR met komma", () => {
+    const csv = exportDienstenCsv([base]);
+    expect(csv).toContain("16000,00");
+  });
+
+  it("escapet aanhalingstekens", () => {
+    const d: DienstSummary = { ...base, description: 'Avond "nacht" dienst' };
+    const csv = exportDienstenCsv([d]);
+    expect(csv).toContain('""nacht""');
+  });
+
+  it("vertaalt status naar Nederlands label", () => {
+    expect(exportDienstenCsv([{ ...base, status: "SUBMITTED" }])).toContain("Ter goedkeuring");
+    expect(exportDienstenCsv([{ ...base, status: "REJECTED" }])).toContain("Afgekeurd");
+  });
+
+  it("verwerkt lege lijst — alleen koptekst", () => {
+    const lines = exportDienstenCsv([]).split("\r\n").filter(Boolean);
+    expect(lines).toHaveLength(1);
+  });
+
+  it("exporteert meerdere rijen in volgorde", () => {
+    const d2: DienstSummary = { ...base, id: "d2", jobTitle: "Dagzorg Pietersen" };
+    const lines = exportDienstenCsv([base, d2]).split("\r\n").filter(Boolean);
+    expect(lines).toHaveLength(3);
+    expect(lines[1]).toContain("Nachtzorg Jansen");
+    expect(lines[2]).toContain("Dagzorg Pietersen");
   });
 });
