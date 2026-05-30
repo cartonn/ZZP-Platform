@@ -45,10 +45,30 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
       (Exports CSV/PDF horen bij Fase 6.)
 - [~] **Fase 5 — Rol-workspaces & UX/UI** — werkproces-UI, cascade op /facturen + dashboard
       "aan zet", cascade-factuurdetail, admin-disputenoverzicht. Open: dark-first-keuze (DESIGN.md).
-- [~] **Fase 6 — Notificaties, reminders, exports** — reminder-engines (expiry/betaling/DBA),
-      CSV-exports (grootboek + BTW), notificatie-categorieën+iconen. Open: e-mailkanaal, PDF.
+- [~] **Fase 6 — Notificaties, reminders, exports** — reminder-engines (expiry/betaling/DBA/
+      concept-factuur), CSV-exports (grootboek + BTW), jaaroverzicht/IB, notificatie-categorieën,
+      print/PDF-factuur, e-mailkanaal-abstractie (MailSender). Open: e-mail echt versturen, PDF-styling.
 - [~] **Fase 7 — Hardening & end-to-end** — zijpad-integratietests, loading-states. Open: Playwright-
       e2e (interactieve sessie mét browser).
+
+### 24/7-bouw actief — coördinatie (lees dit, auto-build-agent)
+De GitHub Actions-workflow `auto-build.yml` bouwt elke ~15 min op deze branch. Meerdere agents pushen
+hier; **altijd `git fetch` + rebase vóór commit én push**. Kies een increment dat **niet overlapt**
+met de laatste commits. **Geen dark-first re-theme** zonder akkoord eigenaar (open beslissing).
+
+**Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
+1. E-mail echt versturen via `MailSender` bij sleutel-notificaties (factuur ingediend/goedgekeurd,
+   betaling, DBA-signaal) — achter de bestaande abstractie; NoopMailSender blijft default.
+2. PDF/print-styling van het BTW-/jaaroverzicht op `/administratie` (print-knop + `@media print`).
+3. Eén cron-orchestratie `/api/tasks/run-all` die expiry + betaling + DBA + concept-factuur draait,
+   zodat de host maar één cron hoeft.
+4. Cascade-herleidbaarheid uitbreiden: op `/samenwerkingen/[id]` de keten tonen
+   (contract → prestatie → factuur → betaling) met statusiconen.
+5. Hardening: idempotentie-integratietest voor een command (dubbele submit/approve → één effect).
+6. Periodieke administratie-notificatie: kwartaal-BTW-herinnering aan de ZZP'er.
+
+> Reeds gedaan (niet opnieuw): print/PDF-factuurknop, MailSender-abstractie, concept-factuur-
+> reminders, jaaroverzicht/IB, grootboek-/BTW-CSV, DBA-omzetconcentratie, admin-disputen.
 
 ### Gap-analyse (Fase 0)
 **Herbruikbaar:** enums+Zod-patroon; `assert*Transition`-maps (credential/invoice/collaboration);
