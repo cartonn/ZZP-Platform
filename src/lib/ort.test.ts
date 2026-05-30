@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { computeOrt, ortSubtotalCents, type OrtSegment } from "@/lib/ort";
-import { DEFAULT_ORT_RATES_BPS } from "@/lib/config";
+import { computeOrt, ortSubtotalCents, ortRatesForSector, type OrtSegment } from "@/lib/ort";
+import { DEFAULT_ORT_RATES_BPS, ORT_SECTOR_PROFILES, ORT_SECTORS } from "@/lib/config";
 
 const RATE = 30_00; // €30/uur
 
@@ -56,6 +56,40 @@ describe("computeOrt", () => {
 describe("ortSubtotalCents", () => {
   it("geeft het subtotaal voor de cascade (basis + toeslagen)", () => {
     expect(ortSubtotalCents([{ category: "NIGHT", hours: 8 }], RATE)).toBe(357_60);
+  });
+});
+
+describe("ortRatesForSector — sector-/klantprofielen", () => {
+  it("bekende sector geeft het bijbehorende profiel", () => {
+    expect(ortRatesForSector("VVT")).toBe(ORT_SECTOR_PROFILES.VVT);
+    expect(ortRatesForSector("GGZ")).toBe(ORT_SECTOR_PROFILES.GGZ);
+    expect(ortRatesForSector("JEUGD")).toBe(ORT_SECTOR_PROFILES.JEUGD);
+  });
+
+  it("DEFAULT/onbekend/leeg valt terug op DEFAULT_ORT_RATES_BPS", () => {
+    expect(ortRatesForSector("DEFAULT")).toBe(DEFAULT_ORT_RATES_BPS);
+    expect(ortRatesForSector(null)).toBe(DEFAULT_ORT_RATES_BPS);
+    expect(ortRatesForSector(undefined)).toBe(DEFAULT_ORT_RATES_BPS);
+    expect(ortRatesForSector("ONZIN")).toBe(DEFAULT_ORT_RATES_BPS);
+  });
+
+  it("elk sectorprofiel dekt alle vijf categorieën met geldige bps", () => {
+    for (const sector of ORT_SECTORS) {
+      const rates = ortRatesForSector(sector);
+      for (const cat of ["EVENING", "NIGHT", "SATURDAY", "SUNDAY", "HOLIDAY"] as const) {
+        expect(rates[cat]).toBeGreaterThan(0);
+        expect(Number.isInteger(rates[cat])).toBe(true);
+      }
+    }
+  });
+
+  it("sectorprofiel beïnvloedt het subtotaal van de cascade", () => {
+    const segs: OrtSegment[] = [{ category: "SUNDAY", hours: 8 }];
+    const vvt = ortSubtotalCents(segs, RATE, ortRatesForSector("VVT"));
+    const def = ortSubtotalCents(segs, RATE, ortRatesForSector("DEFAULT"));
+    // VVT zondag (+60%) is lager dan DEFAULT zondag (+72%).
+    expect(vvt).toBeLessThan(def);
+    expect(vvt).toBe(240_00 + Math.round((240_00 * ORT_SECTOR_PROFILES.VVT.SUNDAY) / 10000));
   });
 });
 

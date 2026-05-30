@@ -712,4 +712,19 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Tests: 415 → 426 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
   E2e overgeslagen (geen browser-channel in routine).
 
+### ORT — sector-/klantprofielen (van rekenmotor naar verkoopbaar) — 2026-05-30
+- **Config** (`config.ts`): `ORT_SECTORS` (DEFAULT/VVT/GGZ/GHZ/JEUGD) + `ORT_SECTOR_LABEL`
+  + `ORT_SECTOR_PROFILES` (toeslag-bps per categorie per zorg-CAO). DEFAULT verwijst naar
+  `DEFAULT_ORT_RATES_BPS` (één bron van waarheid). Waarden zijn richtwaarden — per CAO valideren.
+- **Resolver** (`ort.ts`): `ortRatesForSector(sector?)` → profiel of DEFAULT-fallback bij
+  onbekend/leeg. Server-side waarheid: de samenwerking bepaalt het profiel, niet de client.
+- **Schema**: `Collaboration.ortProfile String?` (nullable, additief — db push veilig).
+- **Cascade-koppeling**: `PerformanceApprovedCtx.performance.ortRates`; `approvePerformance`
+  resolvt `ortProfile` → bps en geeft die mee aan `performanceSubtotalCents`/`ortSubtotalCents`.
+- **UI**: sectorkeuze op de samenwerking (opdrachtgever/admin stelt in via `setOrtProfileAction`);
+  ORT-uitsplitsing op samenwerking- én factuurpagina rekent met het gekozen sectorprofiel.
+- **Tests**: `ortRatesForSector` (bekend/onbekend/leeg, alle profielen dekken 5 categorieën,
+  sectorprofiel beïnvloedt subtotaal). Tests: 426 → 430 groen.
+  Gate: typecheck ✓ lint ✓ test ✓ build ✓. E2e overgeslagen (geen browser-channel in routine).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

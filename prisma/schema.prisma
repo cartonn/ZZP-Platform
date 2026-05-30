@@ -401,6 +401,7 @@ model Collaboration {
   status         String   @default("PROPOSED") // CollaborationStatus: PROPOSED | ACTIVE | COMPLETED | CANCELLED
   contractStatus String   @default("DRAFT") //    ContractStatus: DRAFT | SENT | SIGNED
   rate           Int?
+  ortProfile     String? // OrtSector: DEFAULT | VVT | GGZ | GHZ | JEUGD — bepaalt ORT-toeslagen (zorg)
   startDate      DateTime?
   endDate        DateTime?
   disputedAt     DateTime? // dispuut open → cascade bevroren tot opgelost (§4 zijpad)

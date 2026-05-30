@@ -4,7 +4,13 @@
 // Plugt in op de cascade: het subtotaal van een goedgekeurde prestatie = basis + toeslagen,
 // daarna pas BTW (vat.ts). Geld loopt nooit via het platform (Besluit 1) — dit is enkel berekening.
 
-import { type OrtCategory, DEFAULT_ORT_RATES_BPS } from "@/lib/config";
+import {
+  type OrtCategory,
+  type OrtSector,
+  DEFAULT_ORT_RATES_BPS,
+  ORT_SECTOR_PROFILES,
+  ORT_SECTORS,
+} from "@/lib/config";
 
 /** Een gewerkte categorie; "NORMAL" = geen toeslag. */
 export type OrtSegmentCategory = OrtCategory | "NORMAL";
@@ -74,4 +80,17 @@ export function ortSubtotalCents(
   rates?: Record<OrtCategory, number>,
 ): number {
   return computeOrt(segments, hourlyRateCents, rates).subtotalCents;
+}
+
+/**
+ * Resolvt het ORT-tarievenprofiel voor een sector/klant. Onbekend of leeg → DEFAULT.
+ * Server-side waarheid: de samenwerking bepaalt het profiel (Collaboration.ortProfile),
+ * niet de client. Een opdrachtgever kan een maatwerkprofiel afspreken; dat slaat het
+ * sectorprofiel over en wordt als expliciete `rates` aan computeOrt gegeven.
+ */
+export function ortRatesForSector(sector?: string | null): Record<OrtCategory, number> {
+  if (sector && (ORT_SECTORS as readonly string[]).includes(sector)) {
+    return ORT_SECTOR_PROFILES[sector as OrtSector];
+  }
+  return DEFAULT_ORT_RATES_BPS;
 }

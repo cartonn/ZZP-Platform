@@ -20,7 +20,7 @@ import {
 } from "@/lib/administration/ledger";
 import { computeVat, hourlySubtotalCents } from "@/lib/administration/vat";
 import { ortSubtotalCents, type OrtSegment } from "@/lib/ort";
-import { PLATFORM_FEE, type VatRegime } from "@/lib/config";
+import { PLATFORM_FEE, type VatRegime, type OrtCategory } from "@/lib/config";
 import { type CascadeEffects, emptyEffects } from "@/lib/cascade/types";
 
 // --- Event A — Contract getekend -------------------------------------------
@@ -119,6 +119,8 @@ export interface PerformanceApprovedCtx {
     amountCents?: number | null;
     /** Optionele ORT-segmenten (zorg): uren per tijdscategorie met toeslag. */
     ortSegments?: OrtSegment[] | null;
+    /** Toeslagprofiel (bps per categorie) uit de sector/klant; leeg = DEFAULT. */
+    ortRates?: Record<OrtCategory, number> | null;
     collaborationId: string;
   };
   freelancerUserId: string;
@@ -136,7 +138,7 @@ export function performanceSubtotalCents(p: PerformanceApprovedCtx["performance"
     if (p.rateCents == null) throw new Error("Urenstaat mist een uurtarief.");
     // ORT (zorg): zijn er tijdscategorie-segmenten, dan basis + toeslagen; anders uren × tarief.
     if (p.ortSegments && p.ortSegments.length > 0) {
-      return ortSubtotalCents(p.ortSegments, p.rateCents);
+      return ortSubtotalCents(p.ortSegments, p.rateCents, p.ortRates ?? undefined);
     }
     if (p.hours == null) throw new Error("Urenstaat mist uren.");
     return hourlySubtotalCents(p.hours, p.rateCents);

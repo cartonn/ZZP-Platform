@@ -108,3 +108,58 @@ export const DEFAULT_ORT_RATES_BPS: Record<OrtCategory, number> = {
   HOLIDAY: 10000, //  +100%
 };
 
+// --- ORT sector-/klantprofielen (rulesets) ----------------------------------
+// ORT verschilt per zorg-CAO: VVT, GGZ, GHZ (gehandicaptenzorg) en Jeugdzorg hanteren elk
+// eigen toeslagen. Een samenwerking kiest een profiel (Collaboration.ortProfile); ontbreekt dat,
+// dan valt de berekening terug op DEFAULT. Een opdrachtgever kan altijd een MAATWERK-profiel met
+// eigen percentages afspreken — dat overschrijft het sectorprofiel op contractniveau.
+// LET OP: dit zijn VOORBEELDWAARDEN per CAO-categorie. Vóór livegang valideren met de klant tegen
+// de geldende CAO; het platform claimt geen juridische juistheid van deze percentages.
+export const ORT_SECTORS = ["DEFAULT", "VVT", "GGZ", "GHZ", "JEUGD"] as const;
+export type OrtSector = (typeof ORT_SECTORS)[number];
+
+/** Nederlandse labels voor de UI (sectorkeuze in de samenwerking). */
+export const ORT_SECTOR_LABEL: Record<OrtSector, string> = {
+  DEFAULT: "Standaard (geen specifieke CAO)",
+  VVT: "VVT — Verpleeg-, Verzorgingshuizen & Thuiszorg",
+  GGZ: "GGZ — Geestelijke gezondheidszorg",
+  GHZ: "GHZ — Gehandicaptenzorg",
+  JEUGD: "Jeugdzorg",
+};
+
+/**
+ * Toeslagpercentages (bps) per sector. VOORBEELDWAARDEN — per CAO valideren met de klant.
+ * DEFAULT = DEFAULT_ORT_RATES_BPS, zodat er één bron van waarheid blijft voor de fallback.
+ */
+export const ORT_SECTOR_PROFILES: Record<OrtSector, Record<OrtCategory, number>> = {
+  DEFAULT: DEFAULT_ORT_RATES_BPS,
+  VVT: {
+    EVENING: 2200, //   +22%
+    NIGHT: 4400, //     +44%
+    SATURDAY: 4900, //  +49%
+    SUNDAY: 6000, //    +60%
+    HOLIDAY: 10000, //  +100%
+  },
+  GGZ: {
+    EVENING: 2200,
+    NIGHT: 5200, //     +52%
+    SATURDAY: 5200,
+    SUNDAY: 7500, //    +75%
+    HOLIDAY: 10000,
+  },
+  GHZ: {
+    EVENING: 2200,
+    NIGHT: 4900, //     +49%
+    SATURDAY: 4900,
+    SUNDAY: 7200, //    +72%
+    HOLIDAY: 10000,
+  },
+  JEUGD: {
+    EVENING: 2500, //   +25%
+    NIGHT: 5000, //     +50%
+    SATURDAY: 5000,
+    SUNDAY: 7500,
+    HOLIDAY: 10000,
+  },
+};
+

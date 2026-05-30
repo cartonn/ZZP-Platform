@@ -8,8 +8,8 @@ import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { computeOrt, type OrtSegment } from "@/lib/ort";
-import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
+import { computeOrt, ortRatesForSector, type OrtSegment } from "@/lib/ort";
+import { ORT_CATEGORY_LABEL, ORT_SECTORS, ORT_SECTOR_LABEL, type OrtCategory } from "@/lib/config";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import {
   creditInvoiceAction,
   openDisputeAction,
   resolveDisputeAction,
+  setOrtProfileAction,
 } from "./actions";
 import { PerformanceForm } from "./performance-form";
 
@@ -57,8 +58,8 @@ function parseOrtSegments(json: string | null | undefined): OrtSegment[] {
   try { return JSON.parse(json) as OrtSegment[]; } catch { return []; }
 }
 
-function OrtBreakdown({ ortSegments, rateCents }: { ortSegments: OrtSegment[]; rateCents: number }) {
-  const result = computeOrt(ortSegments, rateCents);
+function OrtBreakdown({ ortSegments, rateCents, ortProfile }: { ortSegments: OrtSegment[]; rateCents: number; ortProfile?: string | null }) {
+  const result = computeOrt(ortSegments, rateCents, ortRatesForSector(ortProfile));
   if (result.lines.length === 0) return null;
   return (
     <div className="mt-2 space-y-1">
@@ -348,6 +349,43 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         </Card>
       )}
 
+      {/* ORT-sectorprofiel — bepaalt de onregelmatigheidstoeslagen (zorg). Opdrachtgever/admin stelt in. */}
+      {(active || col.status === "PROPOSED") && (
+        (isClient || actor.role === "ADMIN") ? (
+          <Card>
+            <CardContent className="space-y-2 py-4">
+              <div>
+                <p className="text-sm font-medium">ORT-profiel (onregelmatigheidstoeslagen)</p>
+                <p className="text-xs text-muted-foreground">
+                  Bepaalt de toeslagen voor avond/nacht/weekend/feestdag. Kies de CAO-sector; standaard = geen specifieke CAO.
+                </p>
+              </div>
+              <form action={setOrtProfileAction.bind(null, col.id)} className="flex flex-wrap items-center gap-2">
+                <select
+                  name="ortProfile"
+                  defaultValue={col.ortProfile ?? "DEFAULT"}
+                  className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                >
+                  {ORT_SECTORS.map((s) => (
+                    <option key={s} value={s}>{ORT_SECTOR_LABEL[s]}</option>
+                  ))}
+                </select>
+                <Button type="submit" size="sm" variant="secondary">Opslaan</Button>
+              </form>
+              <p className="text-xs text-muted-foreground">
+                De percentages zijn richtwaarden per CAO-categorie; controleer ze met de geldende CAO van de opdrachtgever.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          col.ortProfile && (
+            <p className="text-xs text-muted-foreground">
+              ORT-profiel: <span className="font-medium text-foreground">{ORT_SECTOR_LABEL[col.ortProfile as (typeof ORT_SECTORS)[number]] ?? col.ortProfile}</span>
+            </p>
+          )
+        )
+      )}
+
       {/* Prestaties: urenstaat / oplevering */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
@@ -385,7 +423,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         )}
                         {p.type === "HOURS" && p.rateCents && (() => {
                           const segs = parseOrtSegments(p.ortSegments);
-                          return segs.length > 0 ? <OrtBreakdown ortSegments={segs} rateCents={p.rateCents} /> : null;
+                          return segs.length > 0 ? <OrtBreakdown ortSegments={segs} rateCents={p.rateCents} ortProfile={col.ortProfile} /> : null;
                         })()}
                       </div>
                     </div>

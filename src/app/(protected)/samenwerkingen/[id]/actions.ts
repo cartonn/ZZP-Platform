@@ -20,7 +20,7 @@ import {
 import { prisma } from "@/lib/db";
 import { eurosToCents } from "@/lib/invoices";
 import { type OrtSegment } from "@/lib/ort";
-import { type OrtCategory } from "@/lib/config";
+import { type OrtCategory, ORT_SECTORS, type OrtSector } from "@/lib/config";
 import { validatePerformanceForm, type PerformanceFormData } from "@/lib/validation";
 
 /** Vertaalt een CascadeError/transitiefout naar een leesbare melding; hergooit de rest. */
@@ -115,6 +115,32 @@ export async function logAndSubmitPerformanceAction(
   }
   refresh(collaborationId);
   return null;
+}
+
+/**
+ * Stelt het ORT-sectorprofiel van de samenwerking in (zorg-CAO). Alleen de opdrachtgever of
+ * admin bepaalt de toeslagen (server-side waarheid); de ZZP'er kan ze niet zelf wijzigen.
+ * "DEFAULT" wordt als null opgeslagen zodat de berekening op de standaardtarieven terugvalt.
+ */
+export async function setOrtProfileAction(collaborationId: string, formData: FormData): Promise<void> {
+  const actor = await requireActor();
+  const raw = String(formData.get("ortProfile") ?? "DEFAULT");
+  const sector: OrtSector = (ORT_SECTORS as readonly string[]).includes(raw) ? (raw as OrtSector) : "DEFAULT";
+
+  const col = await prisma.collaboration.findUnique({
+    where: { id: collaborationId },
+    select: { company: { select: { userId: true } } },
+  });
+  if (!col) throw new Error("Samenwerking niet gevonden.");
+  if (actor.role !== "ADMIN" && actor.id !== col.company.userId) {
+    throw new Error("Alleen de opdrachtgever kan het ORT-profiel instellen.");
+  }
+
+  await prisma.collaboration.update({
+    where: { id: collaborationId },
+    data: { ortProfile: sector === "DEFAULT" ? null : sector },
+  });
+  refresh(collaborationId);
 }
 
 export async function approvePerformanceAction(performanceId: string, collaborationId: string): Promise<void> {

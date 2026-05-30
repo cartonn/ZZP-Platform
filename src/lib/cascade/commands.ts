@@ -24,7 +24,7 @@ import {
   planInvoiceCreditedEvent,
 } from "@/lib/cascade/handlers";
 import { type CollaborationStatus } from "@/lib/enums";
-import { type OrtSegment } from "@/lib/ort";
+import { type OrtSegment, ortRatesForSector } from "@/lib/ort";
 import {
   type InvoiceLifecycleState,
   type PerformanceState,
@@ -234,6 +234,7 @@ export async function approvePerformance(actor: Actor, performanceId: string): P
       rateCents: perf.rateCents,
       amountCents: perf.amountCents,
       ortSegments: perf.ortSegments,
+      ortRates: perf.ortSegments?.length ? ortRatesForSector(perf.ortProfile) : null,
       collaborationId: perf.collaborationId,
     },
     freelancerUserId: perf.freelancerUserId,
@@ -437,6 +438,7 @@ interface LoadedPerformance {
   rateCents: number | null;
   amountCents: number | null;
   ortSegments: OrtSegment[] | null;
+  ortProfile: string | null;
   collaborationId: string;
   freelancerUserId: string;
   clientUserId: string;
@@ -470,6 +472,7 @@ async function loadPerformance(performanceId: string): Promise<LoadedPerformance
     rateCents: perf.rateCents,
     amountCents: perf.amountCents,
     ortSegments: parseOrtSegments(perf.ortSegments),
+    ortProfile: perf.collaboration.ortProfile,
     collaborationId: perf.collaborationId,
     freelancerUserId: perf.collaboration.freelancer.userId,
     clientUserId: perf.collaboration.company.userId,
