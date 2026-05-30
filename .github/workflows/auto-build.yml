@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  WORK_BRANCH: claude/dazzling-carson-v9Qwk
+  WORK_BRANCH: claude/modest-babbage-08jYa
 
 jobs:
   build:
