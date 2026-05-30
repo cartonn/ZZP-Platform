@@ -87,6 +87,23 @@ body {
 /* Print / PDF (Afdrukken-knop op factuurdetail). Verberg navigatie en actiebalk;
    toon alleen de factuurinhoud schoon op papier. */
 @media print {
+  /* Paginagrootte en marges: A4, 2 cm rondom. */
+  @page {
+    size: A4 portrait;
+    margin: 2cm;
+  }
+
+  /* Altijd lichte achtergrond en donkere tekst, ook bij donker thema. */
+  *,
+  *::before,
+  *::after {
+    color: #111 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* Verberg navigatie-elementen en knoppen die niet op papier thuishoren. */
   aside,
   header,
@@ -103,17 +120,46 @@ body {
   main {
     overflow: visible !important;
     padding: 0 !important;
+    max-width: 100% !important;
   }
 
-  /* Haal schermspecifieke achtergrondkleuren weg voor een schone afdruk. */
-  body {
-    background: #fff !important;
+  /* Max-breedte van de factuurcontainer opheffen. */
+  .max-w-2xl {
+    max-width: 100% !important;
   }
 
-  /* Vermijd paginabreuken midden in de factuurkaart. */
-  .card,
-  table,
+  /* Kaarten: kader zichtbaar maar subtiel. */
+  .card {
+    border: 1px solid #d1d5db !important;
+    border-radius: 4px !important;
+    page-break-inside: avoid;
+  }
+
+  /* Tabellen: leesbare borders op cellen. */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th,
+  td {
+    border-bottom: 1px solid #e5e7eb !important;
+  }
+
   tr {
     page-break-inside: avoid;
+  }
+
+  /* Dempe subtekst iets maar zorg dat het leesbaar blijft. */
+  .text-muted-foreground {
+    color: #6b7280 !important;
+  }
+
+  /* Badges: platte rand in plaats van gekleurde achtergrond. */
+  .badge,
+  [class*="badge"] {
+    border: 1px solid #d1d5db !important;
+    background: #fff !important;
+    color: #111 !important;
   }
 }

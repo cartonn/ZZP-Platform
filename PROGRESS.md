@@ -144,6 +144,24 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
 - Tests: +19 (platform-config 10, onboarding 9); totaal 384 groen.
 - Gate groen: typecheck/lint/test/build. E2e overgeslagen (geen browser).
 
+### Platform Overhaul — dark mode + cutover-voorbereiding — 2026-05-30
+- Dark mode als gebruikerskeuze: `src/lib/theme.ts` (pure, server-safe) + `ThemeProvider` +
+  `ThemeToggle`-knop (header + loginpagina); persistentie via cookie; tests (4). DESIGN.md
+  en DECISIONS.md bijgewerkt: keuze vastgelegd als "gebruikerskeuze", geen geforceerde dark-first.
+- **Cutover-migratiescript** `scripts/migrate-legacy-invoices.mjs` (idempotent, --dry-run):
+  vult `lifecycleStatus`, `issuerUserId`, `counterpartyUserId`, `issuerKey`, `partyInvoiceNumber`
+  (per-partij doorlopend, chronologisch), `subtotalCents`, `vatCents` en `vatRegime` in op alle
+  facturen die vóór de overhaul-cascade zijn aangemaakt. Atomaire transactie; werkt
+  `InvoiceSequence` bij. Statusmapping: SENT→SUBMITTED, OVERDUE→OVERDUE, PAID→PROCESSED,
+  CANCELLED→CREDITED. BTW-regime EXEMPT (legacy-facturen bevatten geen BTW-splitsing).
+  Na migratie zijn alle facturen zichtbaar én actieerbaar in het cascade-werkproces.
+- Unit-tests `src/lib/migrate-legacy-invoices.test.ts`: statusmapping + per-partij-nummering
+  (chronologisch, gatenvrij, jaar-scheiding). 6 tests.
+- **Print/PDF-factuur-styling verbeterd** (`globals.css`): `@page` A4-marges, geforceerd licht
+  thema bij afdrukken (ook bij donker thema actief), `max-w-2xl` opgeheven zodat factuur
+  pagina-breed is, subtiele kaartborders, leesbare tabelcellen, dempte subtekst.
+- Gate groen: typecheck ✓ lint ✓ test 394 ✓ build ✓. E2e overgeslagen (geen browser).
+
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"

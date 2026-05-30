@@ -43,13 +43,16 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
 - [x] **Fase 4 — Zijpaden & DBA-monitoring** — DBA-monitoring ✓, administratie-overzichten ✓,
       te-late-betaling/aanmaningen ✓, creditfactuur ✓, dispuut/escalatie (cascade-freeze) ✓.
       (Exports CSV/PDF horen bij Fase 6.)
-- [~] **Fase 5 — Rol-workspaces & UX/UI** — werkproces-UI, cascade op /facturen + dashboard
-      "aan zet", cascade-factuurdetail, admin-disputenoverzicht. Open: dark-first-keuze (DESIGN.md).
-- [~] **Fase 6 — Notificaties, reminders, exports** — reminder-engines (expiry/betaling/DBA/
+- [x] **Fase 5 — Rol-workspaces & UX/UI** — werkproces-UI, cascade op /facturen + dashboard
+      "aan zet", cascade-factuurdetail, admin-disputenoverzicht, dark mode als gebruikerskeuze
+      (toggle in header + loginpagina; DESIGN.md + DECISIONS.md bijgewerkt).
+- [x] **Fase 6 — Notificaties, reminders, exports** — reminder-engines (expiry/betaling/DBA/
       concept-factuur), CSV-exports (grootboek + BTW), jaaroverzicht/IB, notificatie-categorieën,
-      print/PDF-factuur, e-mailkanaal-abstractie (MailSender). Open: e-mail echt versturen, PDF-styling.
-- [~] **Fase 7 — Hardening & end-to-end** — zijpad-integratietests, loading-states. Open: Playwright-
-      e2e (interactieve sessie mét browser).
+      print/PDF-factuur + A4-styling, e-mailkanaal-abstractie (MailSender). Open (mensenwerk):
+      SMTP-koppeling productie.
+- [~] **Fase 7 — Hardening & end-to-end** — zijpad-integratietests, loading-states,
+      cutover-migratiescript (legacy-facturen → cascade-velden; getest, idempotent). Open:
+      Playwright-e2e (interactieve sessie mét browser).
 
 ### 24/7-bouw actief — coördinatie (lees dit, auto-build-agent)
 De GitHub Actions-workflow `auto-build.yml` bouwt elke ~15 min op deze branch. Meerdere agents pushen
@@ -67,27 +70,30 @@ disclaimer; fee-module bestaat en staat default UIT; UX consistent + toegankelij
 gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 
 **Cutover-checklist (UITVOEREN als bovenstaande klaar is — vraag eigenaar bij twijfel):**
-1. Volledige gate groen + **e2e in een interactieve sessie mét browser** (kan niet in CI/routine).
-2. Dark-first-beslissing verwerkt (Fase 5).
-3. Migratiescript voor bestaande demo-/livefacturen (de tijdelijke dubbele `status`/`number`-brug
-   netjes afronden) — getest op een kopie.
-4. `modest-babbage` → deploy-branch brengen: of merge naar de default branch, of `modest-babbage`
-   de **default** maken; **Railway op die branch richten** en deploy + seed verifiëren.
-5. **Juridisch/AVG-review** (MENSENWERK) vóór livegang met echte gevoelige documenten.
+1. [x] Dark-first-beslissing verwerkt (toggle + DESIGN.md + DECISIONS.md).
+2. [x] Migratiescript getest (`scripts/migrate-legacy-invoices.mjs --dry-run` + live run +
+       idempotentiecheck). Werkt op SQLite; testen op een Postgres-kopie = aanbevolen vóór prod.
+3. [ ] **e2e in een interactieve sessie mét browser** (cascade-flow A→E, migrated invoices in
+       werkproces, PDF-afdruk). Kan niet in CI/routine.
+4. [ ] `modest-babbage` → deploy-branch brengen: of merge naar de default branch, of
+       `modest-babbage` de **default** maken; **Railway op die branch richten** en deploy + seed.
+5. [ ] **Juridisch/AVG-review** (MENSENWERK) vóór livegang met echte gevoelige documenten.
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
-1. Dark-first-beslissing verwerken (DESIGN.md open punt) — keuze vastleggen, tokens aanpassen,
-   visueel verifiëren. Blokkeert de cutover-checklist.
-2. Cutover-voorbereiding: migratiescript voor bestaande demo-/livefacturen (tijdelijke `status`/
-   `number`-brug afronden) + DB-smoke op een kopie.
-3. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
-   routines, doe in een interactieve sessie.
+1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
+   routines, doe in een interactieve sessie mét browser-channel.
+2. Postgres-smoke van het migratiescript (optioneel, aanbevolen vóór cutover) — draai
+   `migrate-legacy-invoices.mjs` op een Postgres-kopie van de demo-DB.
+3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
+   sessie mét browser.
 
-> Reeds gedaan (niet opnieuw): print/PDF-factuurknop, MailSender-abstractie, concept-factuur-
-> reminders, jaaroverzicht/IB, grootboek-/BTW-CSV, DBA-omzetconcentratie, admin-disputen,
-> run-all cron, BTW-herinnering, cascade-keten op werkprocespagina, idempotentie-test,
-> cascade-factuurdetail herleidingsbewijs, admin-kwartaaloverzicht, DBA-drempels configureerbaar
-> (PlatformConfig + /admin/configuratie), onboarding-checklist ZZP'er (4 stappen, dashboard).
+> Reeds gedaan (niet opnieuw): print/PDF-factuurknop + A4-afdruk-styling, MailSender-abstractie,
+> concept-factuur-reminders, jaaroverzicht/IB, grootboek-/BTW-CSV, DBA-omzetconcentratie,
+> admin-disputen, run-all cron, BTW-herinnering, cascade-keten op werkprocespagina,
+> idempotentie-test, cascade-factuurdetail herleidingsbewijs, admin-kwartaaloverzicht,
+> DBA-drempels configureerbaar (PlatformConfig + /admin/configuratie), onboarding-checklist
+> ZZP'er (4 stappen, dashboard), dark-mode toggle (gebruikerskeuze), cutover-migratiescript
+> legacy-facturen (scripts/migrate-legacy-invoices.mjs, getest, idempotent).
 
 ### Gap-analyse (Fase 0)
 **Herbruikbaar:** enums+Zod-patroon; `assert*Transition`-maps (credential/invoice/collaboration);
