@@ -8,6 +8,8 @@ import {
   openReceivablesCents,
   openPayablesCents,
   revenueCents,
+  costCents,
+  annualSummary,
   type LedgerEntry,
 } from "@/lib/administration/overview";
 
@@ -68,5 +70,36 @@ describe("revenueCents", () => {
     const entries = entriesFrom(planInvoiceSubmitted(fin), new Date("2026-03-01"));
     expect(revenueCents(entries, "FREELANCER", 2026)).toBe(600_00);
     expect(revenueCents(entries, "FREELANCER", 2025)).toBe(0);
+  });
+});
+
+describe("annualSummary (IB-voorbereiding)", () => {
+  it("aggregeert omzet/kosten + BTW-jaarsaldo per partij", () => {
+    const entries = [
+      ...entriesFrom(planInvoiceSubmitted(fin), new Date("2026-02-01")), // ZZP'er: omzet + af te dragen
+      ...entriesFrom(planInvoiceApproved(fin), new Date("2026-08-01")),  // OG: kosten + voorbelasting
+    ];
+    const zzp = annualSummary(entries, "FREELANCER", 2026);
+    expect(zzp.revenueCents).toBe(600_00);
+    expect(zzp.vatPayableCents).toBe(126_00);
+    expect(zzp.vatBalanceCents).toBe(126_00);
+
+    const og = annualSummary(entries, "CLIENT", 2026);
+    expect(og.costCents).toBe(600_00);
+    expect(og.vatDeductibleCents).toBe(126_00);
+    expect(og.vatBalanceCents).toBe(-126_00);
+  });
+
+  it("leeg jaar levert nullen", () => {
+    const s = annualSummary([], "FREELANCER", 2025);
+    expect(s).toMatchObject({ revenueCents: 0, costCents: 0, vatPayableCents: 0, vatDeductibleCents: 0, vatBalanceCents: 0 });
+  });
+});
+
+describe("costCents", () => {
+  it("telt geboekte kosten in het jaar", () => {
+    const entries = entriesFrom(planInvoiceApproved(fin), new Date("2026-04-01"));
+    expect(costCents(entries, "CLIENT", 2026)).toBe(600_00);
+    expect(costCents(entries, "CLIENT", 2025)).toBe(0);
   });
 });

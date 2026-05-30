@@ -9,6 +9,7 @@ import {
   openReceivablesCents,
   openPayablesCents,
   revenueCents,
+  annualSummary,
   type LedgerEntry,
 } from "@/lib/administration/overview";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +39,7 @@ export default async function AdministratiePage() {
   const revenue = isFreelancer ? revenueCents(entries, party, year) : 0;
   const quarters = vatYear(entries, party, year);
   const vatTotal = quarters.reduce((s, q) => s + q.balanceCents, 0);
+  const annual = annualSummary(entries, party, year);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -122,6 +124,25 @@ export default async function AdministratiePage() {
             </Card>
             <p className="text-xs text-muted-foreground">
               Saldo positief = af te dragen aan de Belastingdienst; negatief = terug te ontvangen. Indicatief overzicht.
+            </p>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold">Jaaroverzicht {year} (IB-voorbereiding)</h2>
+            <Card>
+              <CardContent className="space-y-1 py-3 text-sm">
+                {isFreelancer ? (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Omzet</span><span className="tabular-nums">{formatEuro(annual.revenueCents)}</span></div>
+                ) : (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Kosten (inhuur)</span><span className="tabular-nums">{formatEuro(annual.costCents)}</span></div>
+                )}
+                <div className="flex justify-between"><span className="text-muted-foreground">Af te dragen BTW</span><span className="tabular-nums">{formatEuro(annual.vatPayableCents)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Voorbelasting</span><span className="tabular-nums">{formatEuro(annual.vatDeductibleCents)}</span></div>
+                <div className="flex justify-between border-t border-border pt-1 font-medium"><span>BTW-saldo {year}</span><span className="tabular-nums">{formatEuro(annual.vatBalanceCents)}</span></div>
+              </CardContent>
+            </Card>
+            <p className="text-xs text-muted-foreground">
+              Indicatief jaaroverzicht ter voorbereiding op je aangifte. Geen fiscaal advies; raadpleeg je boekhouder.
             </p>
           </section>
         </>

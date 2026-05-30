@@ -47,6 +47,11 @@ export function revenueCents(entries: readonly LedgerEntry[], party: LedgerParty
   return norm(-netDebit(entries.filter((e) => e.occurredAt.getFullYear() === year), party, "OMZET"));
 }
 
+/** Geboekte kosten van een partij in een jaar: netto debet op KOSTEN. */
+export function costCents(entries: readonly LedgerEntry[], party: LedgerParty, year: number): number {
+  return norm(netDebit(entries.filter((e) => e.occurredAt.getFullYear() === year), party, "KOSTEN"));
+}
+
 export interface VatReturn {
   year: number;
   quarter: Quarter;
@@ -72,4 +77,30 @@ export function vatReturn(
 /** Alle vier de kwartalen van een jaar voor een partij. */
 export function vatYear(entries: readonly LedgerEntry[], party: LedgerParty, year: number): VatReturn[] {
   return ([1, 2, 3, 4] as Quarter[]).map((q) => vatReturn(entries, party, year, q));
+}
+
+export interface AnnualSummary {
+  year: number;
+  party: LedgerParty;
+  revenueCents: number; //        omzet (uitschrijver)
+  costCents: number; //           kosten (ontvanger)
+  vatPayableCents: number; //     af te dragen BTW over het jaar
+  vatDeductibleCents: number; //  voorbelasting over het jaar
+  vatBalanceCents: number; //     saldo (af te dragen − terug te ontvangen)
+}
+
+/** Jaaroverzicht voor IB-voorbereiding (§5): omzet/kosten + BTW-jaarsaldo. Indicatief. */
+export function annualSummary(entries: readonly LedgerEntry[], party: LedgerParty, year: number): AnnualSummary {
+  const quarters = vatYear(entries, party, year);
+  const vatPayableCents = norm(quarters.reduce((s, q) => s + q.payableCents, 0));
+  const vatDeductibleCents = norm(quarters.reduce((s, q) => s + q.deductibleCents, 0));
+  return {
+    year,
+    party,
+    revenueCents: revenueCents(entries, party, year),
+    costCents: costCents(entries, party, year),
+    vatPayableCents,
+    vatDeductibleCents,
+    vatBalanceCents: norm(vatPayableCents - vatDeductibleCents),
+  };
 }
