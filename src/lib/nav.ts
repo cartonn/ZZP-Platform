@@ -50,6 +50,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Mijn opdrachten", href: "/opdrachten", icon: "briefcase", enabled: true },
     { label: "Kandidaten", href: "/kandidaten", icon: "users", enabled: true },
     { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", enabled: true },
+    { label: "Prestaties", href: "/prestaties", icon: "fileCheck", enabled: true },
     { label: "Berichten", href: "/berichten", icon: "messages", enabled: true },
     { label: "Facturen", href: "/facturen", icon: "receipt", enabled: true },
     { label: "Administratie", href: "/administratie", icon: "receipt", enabled: true },

@@ -27,6 +27,7 @@ interface SignalCounts {
   overdueInvoices?: number; // FREELANCER + CLIENT: facturen over de vervaldatum
   cascadeWork?: number; // FREELANCER + CLIENT: cascade-acties "aan zet" in werkproces
   openDisputes?: number; // ADMIN: open disputen die bemiddeling vragen
+  pendingPerformances?: number; // CLIENT: ingediende prestaties wachten op goedkeuring
 }
 
 const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
@@ -38,6 +39,7 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   overdueInvoices: "/facturen",
   cascadeWork: "/samenwerkingen",
   openDisputes: "/admin/disputen",
+  pendingPerformances: "/prestaties",
 };
 
 const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
@@ -49,6 +51,7 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   overdueInvoices: "attention",
   cascadeWork: "attention",
   openDisputes: "attention",
+  pendingPerformances: "attention",
 };
 
 const EXPIRY_WINDOW_MS = 30 * 86_400_000; // 30 dagen, gelijk aan het dashboard
@@ -150,13 +153,20 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
       unreadConversationCount(userId),
       overdueInvoiceCount("CLIENT", userId),
-      // cascade: prestaties goedkeuren
+      // cascade: prestaties goedkeuren (telt ook mee in pendingPerformances voor /prestaties-badge)
       prisma.performance.count({ where: { status: "SUBMITTED", collaboration: { company: { userId } } } }),
       // cascade: facturen goedkeuren
       prisma.invoice.count({ where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" } }),
     ]);
     const cascadeWork = cascadePerf + cascadeInv;
-    return buildBadges({ newApplications, draftJobs, unreadMessages, overdueInvoices, cascadeWork });
+    return buildBadges({
+      newApplications,
+      draftJobs,
+      unreadMessages,
+      overdueInvoices,
+      cascadeWork,
+      pendingPerformances: cascadePerf,
+    });
   }
 
   const [pendingVerifications, openDisputes] = await Promise.all([
