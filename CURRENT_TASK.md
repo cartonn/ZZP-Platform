@@ -32,14 +32,20 @@ volgens de Definition of Done (zie CLAUDE.md → AUTO-MODE), commit + push, pak 
 Altijd `git fetch`/rebase vóór commit én push (meerdere agents pushen naar dezelfde branch).
 
 ### Backlog (bovenste eerst — houd deze lijst levend)
-1. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
+1. AVG-evidence: verwerkingsregister + bewaartermijnen (admin-overzicht, deterministisch;
+   DPIA-light kandidaat). Sluit aan op de AVG-gegevensrechten die al staan.
+2. Semantisch matchen met pgvector — **geblokkeerd in deze routine-omgeving**: vereist de
+   Postgres `pgvector`-extensie én een embedding-bron (niet deterministisch/zelfstandig hier,
+   en infra-afhankelijk). Oppakken zodra productie-Postgres + extensie beschikbaar zijn.
 
 Gereed: bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
 nieuwe-reactie-notificatie · uitlegbare matching (match-reasons) · next-action-engine
 (dashboard draait erop) · beschikbaarheid in matching (score onveranderd, reden + badges) ·
 design-polish-pass (gedeelde EmptyState + Skeleton, route-skeletten, reduced-motion) ·
 verloopdetectie als geplande taak (runExpiryTask + POST /api/tasks/expiry met CRON_SECRET,
-"verloopt binnenkort"-herinneringen, idempotent via expiryReminderFor).
+"verloopt binnenkort"-herinneringen, idempotent via expiryReminderFor) ·
+modelovereenkomst-aanbeveling + vastlegging bij DBA-risico (model-agreement.ts, server-afgeleide
+aanbeveling, Job.modelAgreementType, eigenaar/admin-only op detail).
 
 ### Per increment (geen uitzonderingen)
 testbare kern + unit-tests → UI → typecheck/lint/test/build groen → e2e + screenshot →

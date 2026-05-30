@@ -565,4 +565,23 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Notificaties verschijnen automatisch in het bestaande notificatiecentrum + bel; signals.ts
   badget bijna-verlopen al. Geen "AI" in teksten/comments/docs.
 
+### Increment: Modelovereenkomst-aanbeveling + vastlegging bij DBA-risico — 2026-05-30
+- Orchestrator (Opus) + 2 Sonnet-builders, contract-first op niet-overlappende bestanden
+  (pure module vs. wiring). Linear-issue ZZP2-19 (In Progress → Done, commit `cfec7b8`).
+- **Pure module** `src/lib/model-agreement.ts` (+ 9 unit-tests): `recommendModelAgreement(DbaInput)`
+  leidt deterministisch de best passende Belastingdienst-modelovereenkomst af (Geen werkgeversgezag /
+  Vrije vervanging / Tussenkomst) met uitleg per getriggerde indicator en een vaste kanttekening
+  (beschermt alleen bij conforme werkwijze). Hergebruikt `assessDbaRisk` — één bron van waarheid voor
+  server én client (zoals `dba.ts`). LAAG → geen aanbeveling; gezag/inbedding-cluster → Geen
+  werkgeversgezag; alleen geen-vervanging → Vrije vervanging; algemeen vangnet → Geen werkgeversgezag.
+- **Vastlegging:** `Job.modelAgreementType` (nullable, db push). Opdrachtgever kiest in het
+  opdrachtformulier (Select); Zod-enum-validatie in `jobSchema`; opgeslagen binnen de bestaande
+  mutatieketen in `saveJob`. De aanbeveling wordt server-side afgeleid uit de opgeslagen indicatoren —
+  alleen de keuze is gebruikersinvoer (geen client-waarheid).
+- **UI:** live aanbeveling naast de DBA-inschatting in het formulier; op de detailpagina aanbeveling +
+  vastgelegde keuze **uitsluitend voor eigenaar/admin** (binnen de bestaande `isOwner`-guard, geen lek
+  naar kandidaten). Geen dode knoppen, geen "AI" in teksten/code.
+- Checks: typecheck ✓, lint ✓, **211 unit-tests** ✓ (+9), build ✓. E2e overgeslagen (geen
+  browser-channel in deze routine-omgeving; net als CI).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
