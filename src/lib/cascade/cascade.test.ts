@@ -184,6 +184,59 @@ describe("zijpad — creditfactuur maakt de administratie netto nul", () => {
   });
 });
 
+describe("hoofdcascade A->E (ORT — zorg)", () => {
+  it("ORT-subtotaal (basis + toeslag) stroomt correct door naar de factuur en administratie", () => {
+    // 4 normale uren + 4 nachturen × €30/uur; nacht = +49% toeslag.
+    // basis 4×30=120 + 4×30=120 = 240; toeslag 120×49%=58,80; subtotaal 298,80
+    // BTW 21% → 62,75 (afgerond); totaal 361,55
+    const b2 = planPerformanceApproved({
+      performance: {
+        id: "p-ort",
+        status: "SUBMITTED",
+        type: "HOURS",
+        rateCents: 30_00,
+        collaborationId: "col-ort",
+        ortSegments: [
+          { category: "NORMAL", hours: 4 },
+          { category: "NIGHT", hours: 4 },
+        ],
+      },
+      freelancerUserId: "f1", clientUserId: "c1", issuerKey: "f1",
+      vatRegime: "STANDARD_HIGH", correlationId: "corr-ort", now, actorId: "c1",
+    });
+
+    // Subtotaal = 4×30 + (4×30 + 49% van 4×30) = 120 + 120 + 58,80 = 298,80
+    expect(b2.newInvoice?.subtotalCents).toBe(298_80);
+    expect(b2.newInvoice?.vatCents).toBe(62_75);   // Math.round(298_80 × 21/100)
+    expect(b2.newInvoice?.totalCents).toBe(361_55);
+
+    // Factuur C→D→E met het ORT-subtotaal
+    const fin = b2.newInvoice!;
+    const postings = [
+      ...planInvoiceSubmittedEvent({
+        invoice: { id: "i-ort", lifecycleStatus: "DRAFT", ...fin },
+        partyInvoiceNumber: "2026-0003", clientUserId: "c1", now, actorId: "f1",
+      }).postings,
+      ...planInvoiceApprovedEvent({
+        invoice: { id: "i-ort", lifecycleStatus: "SUBMITTED", ...fin },
+        paymentTermDays: 14, freelancerUserId: "f1", now, actorId: "c1",
+      }).postings,
+      ...planPaymentConfirmedEvent({
+        invoice: { id: "i-ort", lifecycleStatus: "APPROVED", ...fin, partyInvoiceNumber: "2026-0003" },
+        collaboration: { id: "col-ort", status: "ACTIVE" },
+        freelancerUserId: "f1", clientUserId: "c1", now, actorId: "f1",
+      }).postings,
+    ];
+
+    const summary = summarizeByParty(postings);
+    expect(summary.FREELANCER.DEBITEUREN).toBe(0);
+    expect(summary.FREELANCER.OMZET).toBe(-298_80); // ORT-subtotaal gerealiseerd
+    expect(summary.CLIENT.KOSTEN).toBe(298_80);
+    expect(summary.CLIENT.CREDITEUREN).toBe(0);
+    expect(Object.keys(summary.PLATFORM)).toHaveLength(0); // geen platformboeking (Besluit 1)
+  });
+});
+
 describe("zijpad D' — factuur afgekeurd en opnieuw ingediend (Fase 7)", () => {
   it("REJECTED -> SUBMITTED -> APPROVED doorloopt correct met sluitende administratie", () => {
     const fin = { subtotalCents: 480_00, vatCents: 100_80, totalCents: 580_80 };

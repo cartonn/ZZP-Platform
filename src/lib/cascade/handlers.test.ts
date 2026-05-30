@@ -97,6 +97,14 @@ describe("performanceSubtotalCents", () => {
     expect(() => performanceSubtotalCents({ id: "p", status: "SUBMITTED", type: "HOURS", collaborationId: "c" })).toThrow();
     expect(() => performanceSubtotalCents({ id: "p", status: "SUBMITTED", type: "MILESTONE", collaborationId: "c" })).toThrow();
   });
+  it("ORT zonder uurtarief (rateCents null) werpt een duidelijke foutmelding", () => {
+    expect(() =>
+      performanceSubtotalCents({
+        id: "p", status: "SUBMITTED", type: "HOURS", rateCents: null, collaborationId: "c",
+        ortSegments: [{ category: "NIGHT", hours: 4 }],
+      }),
+    ).toThrow();
+  });
 });
 
 describe("Event B2 — planPerformanceApproved", () => {
