@@ -53,16 +53,18 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.BUILD_PAT || secrets.GITHUB_TOKEN }}
           prompt: |
-            Autonome bouwmodus. Volg CLAUDE.md (sectie AUTO-MODE) en SWARM.md exact.
-            1. Lees CLAUDE.md, CURRENT_TASK.md en PROGRESS.md.
+            Autonome bouwmodus voor de ZZP Platform-overhaul. Werk op branch ${{ env.WORK_BRANCH }}.
+            1. Lees CLAUDE.md, CURRENT_TASK.md, PROGRESS.md en prompts/PLATFORM_OVERHAUL.md.
             2. git fetch origin && git rebase origin/${{ env.WORK_BRANCH }}.
-            3. Pak het bovenste open item uit de backlog in CURRENT_TASK.md.
-            4. Implementeer het volgens de Definition of Done: testbare kern + unit-tests,
-               dan `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` groen.
-               E2e overslaan (geen browser-channel).
-            5. Commit met een duidelijke message en push naar ${{ env.WORK_BRANCH }}.
-            6. Werk PROGRESS.md en de backlog in CURRENT_TASK.md bij; commit en push opnieuw.
-            Vraag niet om goedkeuring. Geen "AI" in de UI/teksten. Stop alleen bij een blocker.
+            3. Pak de volgende afgebakende overhaul-increment (Fase 5/6/7: o.a. PDF/print-factuur,
+               e-mailkanaal-abstractie, extra exports, edge cases/hardening). VERMIJD een dark-first
+               re-theme (open beslissing van de eigenaar). Geen geld via het platform; DBA blijft
+               signaleren met disclaimer.
+            4. Definition of Done: testbare kern + unit-tests, dan npm run typecheck, npm run lint,
+               npm run test en npm run build — allemaal groen. E2e overslaan (geen browser-channel).
+            5. Commit met duidelijke message en push naar ${{ env.WORK_BRANCH }}. Geen PR.
+            6. Werk PROGRESS.md en CURRENT_TASK.md bij; commit en push opnieuw.
+            Vraag niet om goedkeuring. Geen "AI" in UI/teksten/commits. Stop alleen bij een echte blocker.
           claude_args: |
             --model claude-sonnet-4-6
             --allowedTools Edit,Read,Write,Bash
