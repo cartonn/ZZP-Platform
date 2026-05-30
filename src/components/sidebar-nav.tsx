@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart,
   Briefcase,
   Building2,
   CalendarDays,
@@ -36,6 +37,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   handshake: Handshake,
   creditCard: CreditCard,
   calendar: CalendarDays,
+  barChart: BarChart,
 };
 
 export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBadges }) {

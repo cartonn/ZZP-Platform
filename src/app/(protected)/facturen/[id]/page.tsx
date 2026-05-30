@@ -39,7 +39,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
     where: { id },
     include: {
       lines: true,
-      performance: { select: { id: true, type: true, description: true, hours: true, rateCents: true, amountCents: true, milestoneTitle: true, approvedAt: true } },
+      performance: { select: { id: true, type: true, description: true, hours: true, rateCents: true, amountCents: true, milestoneTitle: true, approvedAt: true, periodStart: true, periodEnd: true, submittedAt: true, status: true } },
       collaboration: {
         select: {
           id: true,
@@ -162,24 +162,64 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
         </CardContent>
       </Card>
 
-      {/* Herleidbaarheid (§5): factuur → goedgekeurde prestatie → samenwerking/werkproces */}
+      {/* Herleidingsbewijs (§5): factuur → goedgekeurde prestatie → samenwerking/werkproces */}
       {cascade && (
         <Card>
-          <CardContent className="space-y-2 py-4 text-sm">
-            <p className="font-medium">Herkomst</p>
-            <p className="text-muted-foreground">
-              Deze factuur volgt uit een goedgekeurde prestatie binnen een samenwerking. Betaling verloopt
-              rechtstreeks; het platform registreert alleen de status.
+          <CardContent className="space-y-3 py-4 text-sm">
+            <p className="font-medium">Herleidingsbewijs</p>
+
+            {invoice.performance ? (
+              <div className="space-y-2">
+                {invoice.performance.type === "HOURS" ? (
+                  <>
+                    <Badge variant="muted">Urenstaat</Badge>
+                    {invoice.performance.periodStart && invoice.performance.periodEnd && (
+                      <p className="text-muted-foreground">
+                        Periode:{" "}
+                        <span className="tabular-nums">{fmt(invoice.performance.periodStart)}</span>
+                        {" t/m "}
+                        <span className="tabular-nums">{fmt(invoice.performance.periodEnd)}</span>
+                      </p>
+                    )}
+                    <p className="text-muted-foreground tabular-nums">
+                      {invoice.performance.hours ?? 0} uur
+                      {invoice.performance.rateCents ? ` × ${formatEuro(invoice.performance.rateCents)}` : ""}
+                      {invoice.performance.amountCents ? ` = ${formatEuro(invoice.performance.amountCents)}` : ""}
+                    </p>
+                    {invoice.performance.description && (
+                      <p className="text-muted-foreground">{invoice.performance.description}</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Badge variant="muted">Oplevering</Badge>
+                    {invoice.performance.milestoneTitle && (
+                      <p className="text-muted-foreground">{invoice.performance.milestoneTitle}</p>
+                    )}
+                    {invoice.performance.amountCents && (
+                      <p className="text-muted-foreground tabular-nums">{formatEuro(invoice.performance.amountCents)}</p>
+                    )}
+                    {invoice.performance.description && (
+                      <p className="text-muted-foreground">{invoice.performance.description}</p>
+                    )}
+                  </>
+                )}
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {invoice.performance.submittedAt && (
+                    <span>Ingediend: <span className="tabular-nums">{fmt(invoice.performance.submittedAt)}</span></span>
+                  )}
+                  {invoice.performance.approvedAt && (
+                    <span>Goedgekeurd: <span className="tabular-nums">{fmt(invoice.performance.approvedAt)}</span></span>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            <p className="text-xs text-muted-foreground">
+              Betaling verloopt rechtstreeks; het platform registreert alleen de status.
             </p>
-            {invoice.performance && (
-              <p className="text-muted-foreground">
-                Prestatie:{" "}
-                {invoice.performance.type === "HOURS"
-                  ? `${invoice.performance.hours ?? 0} uur${invoice.performance.rateCents ? ` × ${formatEuro(invoice.performance.rateCents)}` : ""}`
-                  : invoice.performance.milestoneTitle || "Oplevering"}
-                {invoice.performance.description ? ` · ${invoice.performance.description}` : ""}
-              </p>
-            )}
+
             <Link href={`/samenwerkingen/${invoice.collaboration.id}`} className="inline-flex items-center gap-1 font-medium underline underline-offset-4">
               Open het werkproces →
             </Link>
