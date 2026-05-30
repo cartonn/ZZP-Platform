@@ -117,6 +117,20 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
   (plan/apply, idempotent via DomainEvent dedupeKey) + `POST /api/tasks/concept-invoice-reminders`.
 - Tests: 5 nieuw (325 totaal). Gate groen. Vult de B2-reminder-cascade uit §4 aan.
 
+### Platform Overhaul — §6 run-all, BTW-herinnering, cascade-keten, idempotentie-test — 2026-05-30
+- `/api/tasks/run-all`: enkelvoudig cron-eindpunt dat alle vijf geplande taken (expiry, betaling,
+  DBA, concept-factuur, BTW-herinnering) achtereenvolgens uitvoert; per-taak fouten breken de rest
+  niet af; host hoeft nog maar één cron te configureren.
+- `vat-reminder.ts` (pure): kwartaal-BTW-herinnering aan alle actieve ZZP'ers in de laatste 7
+  dagen van elk kwartaal; dedupeKey per gebruiker/kwartaal/jaar (idempotent). `vat-reminder-task.ts`
+  + `POST /api/tasks/vat-reminder`. `notifications.ts` uitgebreid met VAT_REMINDER en
+  INVOICE_DRAFT_ESCALATION.
+- `/samenwerkingen/[id]`: cascade-keten (contract → prestatie → factuur → betaling) met
+  statusiconen bovenaan; afgeleid van bestaande data, geen extra DB-query.
+- `cascade/idempotency.test.ts`: pure-planner determinisme (3 planners) + mock-DB dedupeKey-guard
+  (eerste aanroep → transactie; tweede aanroep → early return zonder dubbel effect).
+- Tests: 352 (was 328). Gate groen: typecheck/lint/test/build. E2e overgeslagen (geen browser).
+
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"
