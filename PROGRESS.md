@@ -752,4 +752,14 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - **Tests**: `segmentShifts` (3) — optellen gelijke categorieën, combineren verschillende, leeg.
   Tests: 444 → 447 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
 
+### ORT — live preview in de urenstaat-form — 2026-05-30
+- **`performance-form.tsx`**: dienstrijen zijn nu gecontroleerd (React-state). Terwijl je de
+  diensten typt, leidt de form live de ORT-segmenten + subtotaal af met dezelfde motor als de
+  server (`segmentShifts` + `computeOrt` + `ortRatesForSector` + `dutchHolidays`). Toont een
+  voorbeeldtabel (categorie/uren/toeslag/totaal) zodat de ZZP'er vóór indienen ziet wat klopt
+  ("kan ik dit vertrouwen?"). Server blijft de waarheid; de opdrachtgever keurt definitief goed.
+- **`page.tsx`**: `rateCents` + `ortProfile` als props doorgegeven aan de form.
+- Gate: typecheck ✓ lint ✓ test ✓ build ✓ (447 groen). Geen nieuwe units (UI-preview hergebruikt
+  de al-geteste motoren); e2e overgeslagen (geen browser-channel in routine).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

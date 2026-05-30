@@ -394,7 +394,11 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         </div>
 
         {active && isFreelancer && (
-          <PerformanceForm collaborationId={col.id} />
+          <PerformanceForm
+            collaborationId={col.id}
+            rateCents={col.rate != null ? col.rate * 100 : null}
+            ortProfile={col.ortProfile}
+          />
         )}
 
         {col.performances.length === 0 ? (

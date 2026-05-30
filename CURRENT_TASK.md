@@ -81,6 +81,17 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
        `modest-babbage` de **default** maken; **Railway op die branch richten** en deploy + seed.
 5. [ ] **Juridisch/AVG-review** (MENSENWERK) vóór livegang met echte gevoelige documenten.
 
+**ORT / zorg — voortgang (zorgbureau zonder Excel, doel september):**
+- [x] ORT-rekenmotor (`ort.ts`) + cascade-koppeling + handmatige urenverdeling-UI.
+- [x] ORT sector-/klantprofielen (`config.ts ORT_SECTOR_PROFILES`, VVT/GGZ/GHZ/JEUGD + maatwerk
+      via `Collaboration.ortProfile`); resolver `ortRatesForSector`; selector op de samenwerking.
+- [x] Automatische ORT-categorisatie uit diensttijden (`shift.ts segmentShift`) +
+      NL-feestdagen (`dutchHolidays`) + tijdvensters (`ORT_TIME_WINDOWS`).
+- [x] Meerdere diensten per urenstaat (`segmentShifts`) + dynamische dienstrijen-UI.
+- [ ] **Volgende ORT-stappen:** live ORT-preview in de form (toon afgeleide segmenten + subtotaal
+      vóór indienen); maatwerk-percentages per klant (eigen bps i.p.v. alleen sectorkeuze);
+      import/onboarding-tool (bestaande ZZP'ers + diensten zonder Excel); rooster/diensten-overzicht.
+
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
    routines, doe in een interactieve sessie mét browser-channel.
