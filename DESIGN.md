@@ -5,12 +5,13 @@
 > **overhaul-specifieke UX-principes** (§7) vast en de open thema-beslissing. In Fase 5 wordt dit
 > verder ingevuld bovenop de cascade.
 
-## ⚠️ Open beslissing — dark-first vs. het huidige light-thema
-De overhaul §7 vraagt **dark-first**; het bestaande design-systeem (`design.md`) is bewust
-**light** (Linear/Vercel/Stripe-stijl). Dit is een fundamentele richtingskeuze die het hele
-platform raakt → **stop-and-confirm vóór Fase 5** (zie `DECISIONS.md`). Tot die keuze is gemaakt:
-geen visuele ombouw; nieuwe schermen volgen het huidige (light) tokensysteem zodat alles consistent
-blijft. De tokens zijn semantisch (CSS-variabelen) → een latere thema-omslag raakt geen componenten.
+## ✅ Beslist — dark mode als gebruikerskeuze (toggle)
+De eigenaar koos: **dark mode is een keuze op het platform**, geen geforceerde dark-first re-theme.
+Het light-thema blijft de standaard; gebruikers kunnen wisselen via de **ThemeToggle** in de header.
+Implementatie: Tailwind `darkMode: "class"`, donkere tokenwaarden in `globals.css` (`.dark { … }`),
+een no-flash-script in `src/app/layout.tsx` (leest `localStorage`/systeemvoorkeur vóór de paint), en
+pure logica in `src/lib/theme.ts` (getest). Omdat de tokens semantisch zijn, werken alle bestaande
+componenten in beide thema's zonder wijziging.
 
 ## UX-principes (hard, §7)
 - **"Aan zet"-principe.** Elke rol ziet bovenaan glashelder wat er nú van hém/haar wordt verwacht

@@ -25,6 +25,30 @@
   --radius: 0.5rem;
 }
 
+/* Donker thema — gebruikerskeuze (toggle), niet geforceerd. Zelfde semantische tokens met
+   donkere waarden; status-tinten iets lichter zodat ze leesbaar blijven op donker. */
+.dark {
+  --background: 240 10% 6%;
+  --foreground: 0 0% 96%;
+  --muted: 240 5% 14%;
+  --muted-foreground: 240 5% 64%;
+  --card: 240 8% 9%;
+  --card-foreground: 0 0% 96%;
+  --border: 240 5% 18%;
+  --input: 240 5% 20%;
+  --ring: 240 5% 50%;
+  --primary: 0 0% 96%;
+  --primary-foreground: 240 8% 9%;
+  --accent: 240 5% 16%;
+  --accent-foreground: 0 0% 96%;
+  --success: 142 60% 50%;
+  --warning: 35 92% 58%;
+  --danger: 0 72% 62%;
+}
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
 * {
   border-color: hsl(var(--border));
 }

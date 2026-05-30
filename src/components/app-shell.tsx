@@ -5,6 +5,7 @@ import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { MobileNav } from "@/components/mobile-nav";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { navForRole, ROLE_LABEL } from "@/lib/nav";
 import { navBadges } from "@/lib/signals";
 import { prisma } from "@/lib/db";
@@ -77,6 +78,7 @@ export async function AppShell({
             <span className="text-sm font-semibold">ZZP Platform</span>
           </div>
           <div className="ml-auto flex items-center gap-3">
+            <ThemeToggle />
             <Link
               href="/notificaties"
               aria-label={`Notificaties${unread > 0 ? ` (${unread} ongelezen)` : ""}`}
