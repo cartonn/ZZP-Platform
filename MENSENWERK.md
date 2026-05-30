@@ -265,3 +265,24 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 
 **Kortom:** jij regelt accounts, contracten, geheimen en juridische akkoorden (dit document). De
 software en koppelingen zijn klaar om die in te pluggen.
+
+---
+
+## §9. 24/7 autonoom doorbouwen (GitHub Actions `auto-build.yml`)
+De duurzame motor die blijft draaien — óók als er geen sessie/container leeft — is de scheduled
+workflow `.github/workflows/auto-build.yml`. Die draait op GitHub-infra (overleeft container-reclaims,
+anders dan een sessie-heartbeat) en bouwt de overhaul-branch `claude/modest-babbage-08jYa`.
+
+**Eenmalig (repo → Settings → Secrets and variables → Actions):**
+1. **`ANTHROPIC_API_KEY`** *(verplicht)* — zonder dit kan de bouwagent niets. (Volgens eerdere notities
+   al gezet; controleer dit.)
+2. **`BUILD_PAT`** *(nodig voor de zelf-herstartende loop)* — een fijnmazige PAT met `Contents: write`
+   op deze repo. Een push door de workflow met de standaard `GITHUB_TOKEN` her-triggert bewust géén
+   vervolgronde (anti-recursie van GitHub). Met `BUILD_PAT` her-armt de loop zichzelf en stopt dus niet.
+3. *(Optioneel — echte cron)* `schedule` vuurt alleen vanaf de **default branch**. Die is nu
+   `claude/dazzling-carson-v9Qwk` (oude code). Wil je de cron óók laten lopen: maak
+   `claude/modest-babbage-08jYa` de default (Settings → Branches), of zet de "ZZP auto-build"-Routine
+   in claude.ai/code/routines aan.
+
+**Starten/stoppen:** start via Actions → "Run workflow", of bump `.swarm-trigger` en push. Stoppen:
+verwijder `BUILD_PAT` of zet de workflow uit (Actions-tabblad). **Validatie:** `npm run validate:ci`.

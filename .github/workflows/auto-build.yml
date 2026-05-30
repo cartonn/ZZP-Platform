@@ -1,21 +1,24 @@
-name: Auto-build (scheduled)
+name: Auto-build (overhaul, continu)
 
-# Continu doorbouwen zonder dat er een sessie open hoeft te staan.
-# Op een schema (en handmatig) pakt één agent het bovenste backlog-item op,
-# levert af volgens de Definition of Done, en pusht naar de werkbranch.
+# 24/7 doorbouwen aan de overhaul ZONDER dat er een sessie open hoeft te staan.
+# Eén agent pakt het bovenste open item uit CURRENT_TASK.md, levert af volgens de Definition of
+# Done en pusht naar de werkbranch. De ronde "her-armt" zichzelf (zie stap "Re-arm"), zodat het
+# niet stopt. Draait op GitHub-infra en overleeft container-reclaims (anders dan een sessie-heartbeat).
 #
-# MENSENWERK (eenmalig): voeg repo-secret ANTHROPIC_API_KEY toe
-# (Settings -> Secrets and variables -> Actions). Draai daarna 1x via "Run workflow".
+# MENSENWERK (eenmalig, in repo-Settings -> Secrets and variables -> Actions):
+#   - ANTHROPIC_API_KEY  (verplicht) — anders kan de agent niet bouwen.
+#   - BUILD_PAT          (optioneel maar nodig voor de ZELF-HERSTARTENDE loop): een fijnmazige PAT
+#                        met 'contents: write' op deze repo. Met GITHUB_TOKEN alléén her-triggert
+#                        GitHub geen vervolgronde (bewust, tegen recursie). Met BUILD_PAT wél.
+# Zonder BUILD_PAT loopt het op het 'schedule' (mits deze branch de default is) of via 'Run workflow'.
+# STOPPEN: verwijder BUILD_PAT, of zet deze workflow uit in het Actions-tabblad.
 
 on:
   schedule:
-    - cron: "0 */3 * * *" # elke 3 uur
-  workflow_dispatch:
-  # Git-trigger: bump .swarm-trigger en push om een ronde af te vuren zonder de UI
-  # (handig als workflow_dispatch/schedule niet bereikbaar is). Eigen agent-commits
-  # (via GITHUB_TOKEN) hertriggeren dit niet, dus geen loop.
+    - cron: "*/30 * * * *" # elke 30 min (alleen actief als deze branch de default is)
+  workflow_dispatch: {}
   push:
-    branches: ["claude/dazzling-carson-v9Qwk"]
+    branches: ["claude/modest-babbage-08jYa"]
     paths: [".swarm-trigger"]
 
 permissions:
@@ -23,17 +26,25 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: auto-build
+  group: auto-build-overhaul
   cancel-in-progress: false
+
+env:
+  WORK_BRANCH: claude/modest-babbage-08jYa
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "file:./ci.db"
+      AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
+      STORAGE_DRIVER: "local"
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/dazzling-carson-v9Qwk
+          ref: claude/modest-babbage-08jYa
           fetch-depth: 0
+          token: ${{ secrets.BUILD_PAT || secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -42,22 +53,59 @@ jobs:
 
       - run: npm ci || npm install
 
+      - name: Preflight (informatief — basis moet groen zijn)
+        continue-on-error: true
+        run: |
+          npx prisma generate
+          npm run check
+
+      - name: Detecteer PAT (voor zelf-herstart)
+        id: pat
+        env:
+          BUILD_PAT: ${{ secrets.BUILD_PAT }}
+        run: |
+          if [ -n "${BUILD_PAT}" ]; then echo "has=true" >> "$GITHUB_OUTPUT"; else echo "has=false" >> "$GITHUB_OUTPUT"; fi
+
       - name: Autonome bouwronde
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.BUILD_PAT || secrets.GITHUB_TOKEN }}
           prompt: |
-            Autonome bouwmodus. Volg CLAUDE.md (sectie AUTO-MODE) en SWARM.md exact.
-            1. Lees CLAUDE.md, CURRENT_TASK.md en PROGRESS.md.
-            2. Pak het bovenste open item uit de backlog in CURRENT_TASK.md.
-            3. Implementeer het volgens de Definition of Done: testbare kern + unit-tests,
-               dan `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` groen.
-            4. Commit met een duidelijke message en push naar claude/dazzling-carson-v9Qwk.
-            5. Werk PROGRESS.md en de backlog in CURRENT_TASK.md bij; commit en push opnieuw.
-            Vraag niet om goedkeuring. Geen "AI" in de UI/teksten. Stop alleen bij een blocker.
+            Autonome bouwmodus voor de ZZP Platform-overhaul. Werk op branch claude/modest-babbage-08jYa.
+            1. Lees CLAUDE.md, CURRENT_TASK.md, PROGRESS.md en prompts/PLATFORM_OVERHAUL.md.
+            2. git fetch origin + rebase op origin/claude/modest-babbage-08jYa.
+            3. Pak de volgende afgebakende overhaul-increment (Fase 5/6/7: o.a. PDF/print-factuur,
+               e-mailkanaal-abstractie, extra exports, edge cases/hardening). VERMIJD een dark-first
+               re-theme (open beslissing van de eigenaar). Geen geld via het platform; DBA blijft
+               signaleren met disclaimer.
+            4. Definition of Done: testbare kern + unit-tests, dan npm run typecheck, npm run lint,
+               npm run test en npm run build — allemaal groen. e2e overslaan (geen browser-channel).
+            5. Commit met duidelijke message en push naar claude/modest-babbage-08jYa. Geen PR.
+            6. Werk PROGRESS.md en CURRENT_TASK.md bij; commit en push opnieuw.
+            Vraag niet om goedkeuring. Geen "AI" in UI/teksten/commits. Stop alleen bij een echte blocker.
           claude_args: |
             --model claude-sonnet-4-6
-            --max-turns 60
+            --max-turns 80
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Re-arm de loop (zelf-herstart, alleen met BUILD_PAT)
+        if: ${{ always() && steps.pat.outputs.has == 'true' }}
+        env:
+          BUILD_PAT: ${{ secrets.BUILD_PAT }}
+        run: |
+          set -e
+          git config user.name "zzp-autobuild"
+          git config user.email "autobuild@users.noreply.github.com"
+          git fetch origin "${WORK_BRANCH}"
+          git checkout "${WORK_BRANCH}"
+          git rebase "origin/${WORK_BRANCH}" || git rebase --abort
+          # Gentle pace zodat de loop niet hamert (kost API-budget). Pas aan naar wens.
+          sleep 120
+          n=$(grep -oE '[0-9]+' .swarm-trigger | head -n1 || echo 0)
+          n=$((n + 1))
+          printf 'run: %s\n# Bump dit getal + push om een Auto-build-ronde af te vuren (git-trigger).\n' "$n" > .swarm-trigger
+          git add .swarm-trigger
+          git commit -m "chore(loop): re-arm auto-build (#${n})"
+          git push "https://x-access-token:${BUILD_PAT}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${WORK_BRANCH}"

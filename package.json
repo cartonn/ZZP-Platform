@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "validate:ci": "node scripts/validate-workflows.mjs",
     "scan:secrets": "bash scripts/scan-secrets.sh",
     "check:env": "node scripts/check-env-docs.mjs",
     "db:push": "prisma db push",
