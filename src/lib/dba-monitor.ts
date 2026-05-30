@@ -60,6 +60,17 @@ export function jobDbaIndicators(
   };
 }
 
+/**
+ * Aandeel (0–100, afgerond) van de omzet bij één opdrachtgever t.o.v. de totale omzet van de ZZP'er.
+ * `null` als er (nog) geen omzet is — dan geen signaal.
+ */
+export function revenueConcentrationPct(totalByClient: Record<string, number>, clientId: string): number | null {
+  const total = Object.values(totalByClient).reduce((sum, v) => sum + v, 0);
+  if (total <= 0) return null;
+  const here = totalByClient[clientId] ?? 0;
+  return Math.round((here / total) * 100);
+}
+
 /** Aantal volledige maanden tussen `start` en `now` (kalendermaanden, dag-gecorrigeerd). */
 export function monthsBetween(start: Date, now: Date): number {
   let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());

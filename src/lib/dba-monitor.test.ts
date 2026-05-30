@@ -4,6 +4,7 @@ import {
   assessCollaborationDba,
   planDbaMonitorRun,
   jobDbaIndicators,
+  revenueConcentrationPct,
   DBA_LEVEL_LABEL,
   type DbaMonitorCandidate,
 } from "@/lib/dba-monitor";
@@ -56,6 +57,17 @@ describe("assessCollaborationDba", () => {
 
   it("labels zijn niet-alarmerend Nederlands", () => {
     expect(DBA_LEVEL_LABEL.HOOG).toBe("Hoog risico");
+  });
+});
+
+describe("revenueConcentrationPct", () => {
+  it("berekent het afgeronde aandeel per opdrachtgever", () => {
+    expect(revenueConcentrationPct({ a: 80000, b: 20000 }, "a")).toBe(80);
+    expect(revenueConcentrationPct({ a: 1, b: 2 }, "a")).toBe(33);
+  });
+  it("null zonder omzet", () => {
+    expect(revenueConcentrationPct({}, "a")).toBeNull();
+    expect(revenueConcentrationPct({ a: 0 }, "a")).toBeNull();
   });
 });
 

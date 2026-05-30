@@ -5,7 +5,7 @@
 
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
-import { planDbaMonitorRun, jobDbaIndicators, type DbaMonitorCandidate, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
+import { planDbaMonitorRun, jobDbaIndicators, revenueConcentrationPct, type DbaMonitorCandidate, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { DBA_DISCLAIMER } from "@/lib/config";
 
 export interface DbaMonitorResult {
@@ -26,11 +26,36 @@ export async function runDbaMonitorTask(opts: { actorId?: string | null; now?: D
     },
   });
 
+  // Omzet per ZZP'er gesplitst per opdrachtgever, uit de gerealiseerde OMZET-boekingen.
+  const freelancerIds = [...new Set(collaborations.map((c) => c.freelancer.userId))];
+  const revenueRows = await prisma.administrationEntry.findMany({
+    where: { account: "OMZET", ownerUserId: { in: freelancerIds }, invoiceId: { not: null } },
+    select: { ownerUserId: true, creditCents: true, debitCents: true, invoiceId: true },
+  });
+  // Resolve de opdrachtgever per factuur (AdministrationEntry heeft geen invoice-relatie).
+  const invoiceIds = [...new Set(revenueRows.map((r) => r.invoiceId).filter((x): x is string => !!x))];
+  const invoices = invoiceIds.length
+    ? await prisma.invoice.findMany({ where: { id: { in: invoiceIds } }, select: { id: true, counterpartyUserId: true } })
+    : [];
+  const invoiceClient = new Map(invoices.map((i) => [i.id, i.counterpartyUserId]));
+
+  // revenueByFreelancer[freelancerUserId][clientUserId] = omzet in centen (credit-saldo).
+  const revenueByFreelancer = new Map<string, Record<string, number>>();
+  for (const r of revenueRows) {
+    const fid = r.ownerUserId;
+    const cid = r.invoiceId ? invoiceClient.get(r.invoiceId) : null;
+    if (!fid || !cid) continue;
+    const map = revenueByFreelancer.get(fid) ?? {};
+    map[cid] = (map[cid] ?? 0) + r.creditCents - r.debitCents;
+    revenueByFreelancer.set(fid, map);
+  }
+
   const candidates: DbaMonitorCandidate[] = collaborations.map((c) => ({
     collaborationId: c.id,
     startDate: c.startDate,
     freelancerUserId: c.freelancer.userId,
     clientUserId: c.company.userId,
+    revenueConcentrationPct: revenueConcentrationPct(revenueByFreelancer.get(c.freelancer.userId) ?? {}, c.company.userId),
     ...jobDbaIndicators(c.job),
   }));
 
