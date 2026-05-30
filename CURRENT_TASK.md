@@ -56,6 +56,25 @@ De GitHub Actions-workflow `auto-build.yml` bouwt elke ~15 min op deze branch. M
 hier; **altijd `git fetch` + rebase vóór commit én push**. Kies een increment dat **niet overlapt**
 met de laatste commits. **Geen dark-first re-theme** zonder akkoord eigenaar (open beslissing).
 
+### Deploy-afspraak: additief tot "klaar", dan cutover
+Alles accumuleert op `claude/modest-babbage-08jYa`. **Railway raakt de overhaul pas bij de cutover**
+(default branch is nu `dazzling-carson` = oude code). Niet eerder pushen naar de deploy-branch.
+
+**Definition of Done (wanneer is de overhaul "klaar" — bron: PLATFORM_OVERHAUL.md §9):**
+cascade A–E + verplichte goedkeuring (B) + alle zijpaden werken end-to-end (uurtarief én milestone);
+beide administraties kloppen (BTW, nummering per partij, onveranderlijkheid); DBA signaleert met
+disclaimer; fee-module bestaat en staat default UIT; UX consistent + toegankelijk; **dark-first-keuze
+gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
+
+**Cutover-checklist (UITVOEREN als bovenstaande klaar is — vraag eigenaar bij twijfel):**
+1. Volledige gate groen + **e2e in een interactieve sessie mét browser** (kan niet in CI/routine).
+2. Dark-first-beslissing verwerkt (Fase 5).
+3. Migratiescript voor bestaande demo-/livefacturen (de tijdelijke dubbele `status`/`number`-brug
+   netjes afronden) — getest op een kopie.
+4. `modest-babbage` → deploy-branch brengen: of merge naar de default branch, of `modest-babbage`
+   de **default** maken; **Railway op die branch richten** en deploy + seed verifiëren.
+5. **Juridisch/AVG-review** (MENSENWERK) vóór livegang met echte gevoelige documenten.
+
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 1. E-mail echt versturen via `MailSender` bij sleutel-notificaties (factuur ingediend/goedgekeurd,
    betaling, DBA-signaal) — achter de bestaande abstractie; NoopMailSender blijft default.
