@@ -125,4 +125,22 @@ src/lib/
 - Geen geld via het platform (Besluit 1). DBA signaleert, adviseert niet (Besluit 2).
 - Geen factuur zonder goedgekeurde prestatie (Besluit 3). Fee = configureerbaar, default UIT (Besluit 4).
 - Eén schema op SQLite én Postgres. Geen statuswijziging buiten de state machine/event-laag om.
+
+---
+
+## 5. Bouwstatus (gerealiseerd — Fases 0–4 + koppeling 5/6/7)
+Wat hierboven als "doel" staat is grotendeels **gebouwd en getest** (311 unit-tests):
+- **Event-laag:** `state-machine.ts`, `lifecycles.ts`, `events.ts`, `event-bus.ts`, `event-store.ts`
+  (`DomainEvent` + `EventHandlerRun`).
+- **Administratiemotor:** `administration/{vat,numbering,ledger,persist,overview,csv}.ts` — BTW,
+  nummering per partij, dubbel grootboek, kwartaaloverzichten, CSV-export.
+- **Cascade A–E + zijpaden:** `cascade/{types,handlers,apply,commands,next-actions}.ts`, gewired via
+  serveracties + werkproces-UI (`/samenwerkingen/[id]`); cascade zichtbaar op `/facturen`,
+  `/administratie` en het dashboard ("aan zet").
+- **Reminder-/monitortaken (plan/apply):** `expiry-task`, `payment-reminders-task`, `dba-monitor-task`
+  met beveiligde `/api/tasks/*`-routes (CRON_SECRET), idempotent via DomainEvent dedupeKey.
+- **DBA-monitoring:** `dba-monitor.ts` (duur, omzetconcentratie, Job-indicatoren) — altijd disclaimer.
+- **Live `Invoice`/`Collaboration`-flow** bleef additief intact; cutover van de oude factuur-UI volgt
+  na browser-verificatie (interactieve sessie).
+- **Open:** e-mailkanaal, PDF-export, Playwright-e2e, en de dark-first-thema-keuze (DESIGN.md).
 </invoke>
