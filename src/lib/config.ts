@@ -108,6 +108,15 @@ export const DEFAULT_ORT_RATES_BPS: Record<OrtCategory, number> = {
   HOLIDAY: 10000, //  +100%
 };
 
+// Tijdvensters voor automatische ORT-categorisatie uit diensttijden (uur, lokale tijd).
+// Avond = [eveningStartHour, nightStartHour); Nacht = [nightStartHour, 24) ∪ [0, nightEndHour).
+// Configureerbaar per CAO; dit zijn gangbare zorg-grenzen. Weekend/feestdag gaan via de datum.
+export const ORT_TIME_WINDOWS = {
+  eveningStartHour: 18, // avondtoeslag vanaf 18:00
+  nightStartHour: 22, //  nachttoeslag vanaf 22:00
+  nightEndHour: 6, //     nacht loopt door tot 06:00
+} as const;
+
 // --- ORT sector-/klantprofielen (rulesets) ----------------------------------
 // ORT verschilt per zorg-CAO: VVT, GGZ, GHZ (gehandicaptenzorg) en Jeugdzorg hanteren elk
 // eigen toeslagen. Een samenwerking kiest een profiel (Collaboration.ortProfile); ontbreekt dat,

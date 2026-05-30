@@ -727,4 +727,19 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   sectorprofiel beïnvloedt subtotaal). Tests: 426 → 430 groen.
   Gate: typecheck ✓ lint ✓ test ✓ build ✓. E2e overgeslagen (geen browser-channel in routine).
 
+### ORT — automatische categorisatie uit diensttijden (geen Excel) — 2026-05-30
+- **Dienstmotor** (`shift.ts`): `segmentShift(start, end, opts)` zet een dienst (begin/eind)
+  automatisch om in ORT-segmenten (uren per categorie). Loopt de dienst in kwartierstappen door,
+  classificeert elk moment en telt per categorie op. Precedentie = **hoogste toeslag wint** (de
+  rates uit het sectorprofiel bepalen de keuze, bv. zaterdagnacht → zaterdag of nacht).
+- **Feestdagen** (`dutchHolidays(year)`): officiële NL-feestdagen incl. Pasen-afgeleiden
+  (Meeus/Jones/Butcher) en Koningsdag-verschuiving bij zondag. Overschrijfbaar per CAO.
+- **Tijdvensters** (`config.ts ORT_TIME_WINDOWS`): avond 18:00, nacht 22:00–06:00 — configureerbaar.
+- **UI**: dienst-invoer (begin/eind, datetime-local) in `performance-form.tsx`; de server leidt de
+  ORT-categorieën af met het sectorprofiel + feestdagen. Handmatige urenverdeling blijft als fallback.
+- **Tests**: `shift.test.ts` (14) — dag/avond/nacht over middernacht, weekend/feestdag-precedentie,
+  sectorprofiel-precedentie, kwartierresolutie, feestdagberekening. Tests: 430 → 444 groen.
+  Gate: typecheck ✓ lint ✓ test ✓ build ✓. E2e overgeslagen (geen browser-channel in routine).
+  Let op: tijden in lokale TZ — zet TZ=Europe/Amsterdam in productie.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

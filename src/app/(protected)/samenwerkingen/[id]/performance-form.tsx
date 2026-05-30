@@ -49,9 +49,23 @@ export function PerformanceForm({ collaborationId }: { collaborationId: string }
               <input name="milestoneTitle" type="text" maxLength={120} placeholder="bv. Mijlpaal 1" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
             </label>
           </div>
+          <details className="text-sm" open>
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Dienst (begin/eind) — ORT wordt automatisch berekend</summary>
+            <p className="mt-1 text-xs text-muted-foreground">Vul de begin- en eindtijd van de dienst in; de avond-/nacht-/weekend-/feestdagtoeslag wordt automatisch afgeleid. Dit overschrijft de handmatige urenverdeling hieronder.</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <label className="text-xs">
+                <span className="mb-1 block text-muted-foreground">Begin dienst</span>
+                <input name="shiftStart" type="datetime-local" className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" />
+              </label>
+              <label className="text-xs">
+                <span className="mb-1 block text-muted-foreground">Einde dienst</span>
+                <input name="shiftEnd" type="datetime-local" className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" />
+              </label>
+            </div>
+          </details>
           <details className="text-sm">
-            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Onregelmatige uren (ORT) — avond/nacht/weekend/feestdag</summary>
-            <p className="mt-1 text-xs text-muted-foreground">Vul uren per categorie in; de toeslag wordt automatisch op de factuur berekend. Laat leeg als alles regulier is.</p>
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Of: onregelmatige uren handmatig — avond/nacht/weekend/feestdag</summary>
+            <p className="mt-1 text-xs text-muted-foreground">Vul uren per categorie in; de toeslag wordt automatisch op de factuur berekend. Laat leeg als je hierboven al een dienst hebt ingevuld of als alles regulier is.</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
               {[
                 ["ort_normal", "Regulier"],

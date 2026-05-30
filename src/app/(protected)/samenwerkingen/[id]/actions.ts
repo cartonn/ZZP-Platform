@@ -19,7 +19,8 @@ import {
 } from "@/lib/cascade/commands";
 import { prisma } from "@/lib/db";
 import { eurosToCents } from "@/lib/invoices";
-import { type OrtSegment } from "@/lib/ort";
+import { type OrtSegment, ortRatesForSector } from "@/lib/ort";
+import { segmentShift, dutchHolidays } from "@/lib/shift";
 import { type OrtCategory, ORT_SECTORS, type OrtSector } from "@/lib/config";
 import { validatePerformanceForm, type PerformanceFormData } from "@/lib/validation";
 
@@ -60,22 +61,39 @@ export async function logAndSubmitPerformanceAction(
   const periodStart = periodStartRaw ? new Date(periodStartRaw) : null;
   const periodEnd = periodEndRaw ? new Date(periodEndRaw) : null;
 
-  const ortFields: Array<["NORMAL" | OrtCategory, string]> = [
-    ["NORMAL", "ort_normal"],
-    ["EVENING", "ort_evening"],
-    ["NIGHT", "ort_night"],
-    ["SATURDAY", "ort_saturday"],
-    ["SUNDAY", "ort_sunday"],
-    ["HOLIDAY", "ort_holiday"],
-  ];
-  const ortSegments: OrtSegment[] = ortFields
-    .map(([category, field]) => ({ category, hours: Number(formData.get(field) ?? 0) }))
-    .filter((s) => s.hours > 0);
-  const useOrt = type === "HOURS" && ortSegments.length > 0;
-
-  // Snapshot het uurtarief uit de samenwerking (server-side waarheid).
-  const col = await prisma.collaboration.findUnique({ where: { id: collaborationId }, select: { rate: true } });
+  // Snapshot het uurtarief én het ORT-profiel uit de samenwerking (server-side waarheid).
+  const col = await prisma.collaboration.findUnique({ where: { id: collaborationId }, select: { rate: true, ortProfile: true } });
   const rateCents = col?.rate != null ? col.rate * 100 : null;
+
+  // Dienstmodus: vul je begin/eind van de dienst in, dan leidt de server de ORT-categorieën
+  // (avond/nacht/weekend/feestdag) automatisch af — geen handmatige urenverdeling.
+  const shiftStartRaw = type === "HOURS" ? String(formData.get("shiftStart") ?? "").trim() : "";
+  const shiftEndRaw = type === "HOURS" ? String(formData.get("shiftEnd") ?? "").trim() : "";
+  let ortSegments: OrtSegment[] = [];
+  if (shiftStartRaw && shiftEndRaw) {
+    const shiftStart = new Date(shiftStartRaw);
+    const shiftEnd = new Date(shiftEndRaw);
+    if (isNaN(shiftStart.getTime()) || isNaN(shiftEnd.getTime())) return "Ongeldige diensttijden.";
+    if (shiftEnd.getTime() <= shiftStart.getTime()) return "Het einde van de dienst moet na het begin liggen.";
+    const holidays = dutchHolidays(shiftStart.getFullYear());
+    if (shiftEnd.getFullYear() !== shiftStart.getFullYear()) {
+      for (const k of dutchHolidays(shiftEnd.getFullYear())) holidays.add(k);
+    }
+    ortSegments = segmentShift(shiftStart, shiftEnd, { rates: ortRatesForSector(col?.ortProfile), holidays });
+  } else {
+    const ortFields: Array<["NORMAL" | OrtCategory, string]> = [
+      ["NORMAL", "ort_normal"],
+      ["EVENING", "ort_evening"],
+      ["NIGHT", "ort_night"],
+      ["SATURDAY", "ort_saturday"],
+      ["SUNDAY", "ort_sunday"],
+      ["HOLIDAY", "ort_holiday"],
+    ];
+    ortSegments = ortFields
+      .map(([category, field]) => ({ category, hours: Number(formData.get(field) ?? 0) }))
+      .filter((s) => s.hours > 0);
+  }
+  const useOrt = type === "HOURS" && ortSegments.length > 0;
 
   const hours = type === "HOURS" ? (useOrt ? ortSegments.reduce((s, x) => s + x.hours, 0) : Number(formData.get("hours") ?? 0)) : 0;
   const amount = Number(formData.get("amount") ?? 0);
