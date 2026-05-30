@@ -7,11 +7,12 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Inloggen · ZZP Platform" };
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ changed?: string }> }) {
   const session = await auth();
   if (session?.user) {
     redirect("/dashboard");
   }
+  const changed = (await searchParams).changed === "1";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
@@ -29,6 +30,11 @@ export default async function LoginPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Log in om verder te gaan naar je dashboard.
           </p>
+          {changed && (
+            <p className="mt-3 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+              Je wachtwoord is gewijzigd. Log in met je nieuwe wachtwoord.
+            </p>
+          )}
           <div className="mt-5">
             <LoginForm />
           </div>

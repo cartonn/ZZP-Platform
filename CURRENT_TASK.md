@@ -88,9 +88,13 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 - [x] Automatische ORT-categorisatie uit diensttijden (`shift.ts segmentShift`) +
       NL-feestdagen (`dutchHolidays`) + tijdvensters (`ORT_TIME_WINDOWS`).
 - [x] Meerdere diensten per urenstaat (`segmentShifts`) + dynamische dienstrijen-UI.
-- [ ] **Volgende ORT-stappen:** live ORT-preview in de form (toon afgeleide segmenten + subtotaal
-      vóór indienen); maatwerk-percentages per klant (eigen bps i.p.v. alleen sectorkeuze);
-      import/onboarding-tool (bestaande ZZP'ers + diensten zonder Excel); rooster/diensten-overzicht.
+- [x] Live ORT-preview in de form (afgeleide segmenten + subtotaal vóór indienen).
+- [x] Maatwerk-percentages per klant (eigen bps die het sectorprofiel overschrijven).
+- [x] **Onboarding-import (CSV)**: ZZP'ers + opdrachtgevers in bulk met dry-run preview, validatie,
+      transactionele aanmaak + audit, tijdelijke wachtwoorden. (`/admin/import`)
+- [ ] **Volgende stappen:** diensten/uren-import via CSV (leunt op de shift-motor → urenstaten zonder
+      overtypen); rooster/diensten-overzicht per klant; e-mail-uitnodiging i.p.v. tijdelijk wachtwoord
+      (mensenwerk: SMTP); PWA + push.
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in

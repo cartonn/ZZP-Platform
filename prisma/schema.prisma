@@ -27,6 +27,7 @@ model User {
   name         String
   role         String   @default("FREELANCER") // UserRole: FREELANCER | CLIENT | ADMIN
   status       String   @default("ACTIVE") //       UserStatus: ACTIVE | SUSPENDED | PENDING
+  mustChangePassword Boolean @default(false) //      true = geforceerde wachtwoordwijziging (bv. na bulk-import)
   emailVerified DateTime?
   deletionRequestedAt DateTime? //                   AVG: door gebruiker aangevraagde verwijdering
   identityVerifiedAt  DateTime? //                   iDIN/eIDAS-identiteitsverificatie

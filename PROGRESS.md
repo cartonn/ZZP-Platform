@@ -774,4 +774,31 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - **Tests**: `parseOrtCustomRates` + `resolveOrtRates` (precedentie/validatie). 447 → 452 groen.
   Gate: typecheck ✓ lint ✓ test ✓ build ✓.
 
+### Onboarding — CSV bulk-import van ZZP'ers & opdrachtgevers — 2026-05-30
+- **Pure kern** (`onboarding/import.ts`): eigen RFC4180-achtige CSV-parser (`;`/`,`/tab-autodetectie,
+  gequote velden met `""`, BOM, CRLF/LF), kolomherkenning met NL/EN-aliassen, rolherkenning
+  (ZZP'er/opdrachtgever-synoniemen), per-rij Zod-validatie met duidelijke meldingen, dubbele
+  e-mails binnen het bestand markeren, en een samenvatting. Voorbeeld-CSV-generator.
+- **Tijdelijke wachtwoorden** (`onboarding/password.ts`): crypto-random, leesbaar (geen 0/O/1/l/I),
+  gegarandeerd elke tekensoort, geschud.
+- **Server** (`admin/import/actions.ts`): `previewImport` (dry-run + DB-annotaties: bestaat e-mail
+  al, onbekende vaardigheden) en `commitImport` (transactioneel User+profiel+notificatie+audit per
+  rij; bestaande overslaan; rol kan nooit ADMIN worden; max 500 rijen; 2 MB-limiet). Voorbeeld-CSV
+  via admin-only route. Samenvattende audit `USERS_IMPORTED`.
+- **UI** (`admin/import`): twee-staps wizard — upload → controle-overzicht (per rij status
+  OK/Let op/Fout/Bestaat al + opmerkingen) → bevestigen → resultaat met eenmalig getoonde
+  tijdelijke inloggegevens (kopieerbaar). Link + nav-item bij Gebruikers.
+- **Tests**: `import.test.ts` (16: parser, aliassen, rol, validatie, dubbele e-mail, template) +
+  `password.test.ts` (4). Gate: typecheck ✓ lint ✓ test ✓ build ✓.
+  Vervolg (mensenwerk): e-mail-uitnodiging i.p.v. tijdelijk wachtwoord zodra SMTP staat.
+- **Security-review verwerkt** (subagent): (1) **geforceerde wachtwoordwijziging** — geïmporteerde
+  accounts krijgen `User.mustChangePassword=true`; middleware blokkeert alle routes behalve
+  `/account/wachtwoord` tot de gebruiker zelf een wachtwoord instelt; daarna uitloggen + opnieuw
+  inloggen (verse JWT). Vlag door schema → JWT/sessie → `Actor`. Nieuwe wachtwoord-wijzigpagina
+  (ook vrijwillig via /account). (2) bcrypt-hashing parallel (`Promise.all`) i.p.v. sequentieel.
+  (3) geen interne foutmeldingen naar client (generiek + server-side log). (4) MIME-check
+  aangescherpt (`.csv`-extensie leidend). Open (mensenwerk, MENSENWERK §5): privacy-sign-off op de
+  one-time-reveal van tijdelijke wachtwoorden vóór livegang.
+- Tests totaal: 485 groen (incl. door auto-build toegevoegde diensten-tests).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

@@ -9,6 +9,9 @@ export interface Actor {
   id: string;
   role: UserRole;
   status: string;
+  /** true = geforceerde wachtwoordwijziging vereist (bv. na bulk-import). Optioneel: testliterals
+   *  hoeven dit niet te zetten; de middleware leest de vlag uit de sessie. */
+  mustChangePassword?: boolean;
 }
 
 export class AuthorizationError extends Error {
@@ -77,7 +80,12 @@ export async function currentActor(): Promise<Actor | null> {
   const session = await auth();
   const user = session?.user;
   if (!user?.id || !user.role) return null;
-  return { id: user.id, role: user.role as UserRole, status: user.status ?? "ACTIVE" };
+  return {
+    id: user.id,
+    role: user.role as UserRole,
+    status: user.status ?? "ACTIVE",
+    mustChangePassword: user.mustChangePassword ?? false,
+  };
 }
 
 /** Huidige actor of werpt 401. Eerste stap van elke mutatie. */
