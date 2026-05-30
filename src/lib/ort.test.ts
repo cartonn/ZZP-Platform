@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeOrt, ortSubtotalCents, ortRatesForSector, type OrtSegment } from "@/lib/ort";
+import { computeOrt, ortSubtotalCents, ortRatesForSector, resolveOrtRates, parseOrtCustomRates, type OrtSegment } from "@/lib/ort";
 import { DEFAULT_ORT_RATES_BPS, ORT_SECTOR_PROFILES, ORT_SECTORS } from "@/lib/config";
 
 const RATE = 30_00; // €30/uur
@@ -90,6 +90,39 @@ describe("ortRatesForSector — sector-/klantprofielen", () => {
     // VVT zondag (+60%) is lager dan DEFAULT zondag (+72%).
     expect(vvt).toBeLessThan(def);
     expect(vvt).toBe(240_00 + Math.round((240_00 * ORT_SECTOR_PROFILES.VVT.SUNDAY) / 10000));
+  });
+});
+
+describe("parseOrtCustomRates — maatwerk JSON", () => {
+  const valid = JSON.stringify({ EVENING: 2000, NIGHT: 4000, SATURDAY: 5000, SUNDAY: 6000, HOLIDAY: 10000 });
+
+  it("parse geldige maatwerk-bps", () => {
+    expect(parseOrtCustomRates(valid)).toEqual({ EVENING: 2000, NIGHT: 4000, SATURDAY: 5000, SUNDAY: 6000, HOLIDAY: 10000 });
+  });
+
+  it("weigert onvolledige, niet-gehele, negatieve of kapotte JSON", () => {
+    expect(parseOrtCustomRates(null)).toBeNull();
+    expect(parseOrtCustomRates("{")).toBeNull();
+    expect(parseOrtCustomRates(JSON.stringify({ EVENING: 2000 }))).toBeNull(); // mist categorieën
+    expect(parseOrtCustomRates(JSON.stringify({ ...JSON.parse(valid), NIGHT: -1 }))).toBeNull();
+    expect(parseOrtCustomRates(JSON.stringify({ ...JSON.parse(valid), NIGHT: 1.5 }))).toBeNull();
+  });
+});
+
+describe("resolveOrtRates — maatwerk vóór sector vóór default", () => {
+  const custom = JSON.stringify({ EVENING: 1000, NIGHT: 1000, SATURDAY: 1000, SUNDAY: 1000, HOLIDAY: 1000 });
+
+  it("maatwerk wint van het sectorprofiel", () => {
+    const rates = resolveOrtRates({ ortProfile: "VVT", ortCustomRates: custom });
+    expect(rates.NIGHT).toBe(1000);
+  });
+
+  it("zonder maatwerk → sectorprofiel", () => {
+    expect(resolveOrtRates({ ortProfile: "VVT", ortCustomRates: null })).toBe(ortRatesForSector("VVT"));
+  });
+
+  it("ongeldig maatwerk → val terug op sector/default", () => {
+    expect(resolveOrtRates({ ortProfile: null, ortCustomRates: "{" })).toBe(DEFAULT_ORT_RATES_BPS);
   });
 });
 

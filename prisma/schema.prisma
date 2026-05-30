@@ -402,6 +402,7 @@ model Collaboration {
   contractStatus String   @default("DRAFT") //    ContractStatus: DRAFT | SENT | SIGNED
   rate           Int?
   ortProfile     String? // OrtSector: DEFAULT | VVT | GGZ | GHZ | JEUGD — bepaalt ORT-toeslagen (zorg)
+  ortCustomRates String? // JSON Record<OrtCategory, bps> — maatwerk per klant, overschrijft het sectorprofiel
   startDate      DateTime?
   endDate        DateTime?
   disputedAt     DateTime? // dispuut open → cascade bevroren tot opgelost (§4 zijpad)

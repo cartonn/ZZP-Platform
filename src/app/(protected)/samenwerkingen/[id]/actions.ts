@@ -19,9 +19,9 @@ import {
 } from "@/lib/cascade/commands";
 import { prisma } from "@/lib/db";
 import { eurosToCents } from "@/lib/invoices";
-import { type OrtSegment, ortRatesForSector } from "@/lib/ort";
+import { type OrtSegment, resolveOrtRates } from "@/lib/ort";
 import { segmentShifts, dutchHolidays, type Shift } from "@/lib/shift";
-import { type OrtCategory, ORT_SECTORS, type OrtSector } from "@/lib/config";
+import { type OrtCategory, ORT_SECTORS, ORT_CATEGORIES, type OrtSector } from "@/lib/config";
 import { validatePerformanceForm, type PerformanceFormData } from "@/lib/validation";
 
 /** Vertaalt een CascadeError/transitiefout naar een leesbare melding; hergooit de rest. */
@@ -62,7 +62,7 @@ export async function logAndSubmitPerformanceAction(
   const periodEnd = periodEndRaw ? new Date(periodEndRaw) : null;
 
   // Snapshot het uurtarief én het ORT-profiel uit de samenwerking (server-side waarheid).
-  const col = await prisma.collaboration.findUnique({ where: { id: collaborationId }, select: { rate: true, ortProfile: true } });
+  const col = await prisma.collaboration.findUnique({ where: { id: collaborationId }, select: { rate: true, ortProfile: true, ortCustomRates: true } });
   const rateCents = col?.rate != null ? col.rate * 100 : null;
 
   // Dienstmodus: vul één of meer diensten (begin/eind) in, dan leidt de server de ORT-categorieën
@@ -88,7 +88,8 @@ export async function logAndSubmitPerformanceAction(
   if (shifts.length > 0) {
     const holidays = new Set<string>();
     for (const y of holidayYears) for (const k of dutchHolidays(y)) holidays.add(k);
-    ortSegments = segmentShifts(shifts, { rates: ortRatesForSector(col?.ortProfile), holidays });
+    const rates = resolveOrtRates({ ortProfile: col?.ortProfile, ortCustomRates: col?.ortCustomRates });
+    ortSegments = segmentShifts(shifts, { rates, holidays });
   } else {
     const ortFields: Array<["NORMAL" | OrtCategory, string]> = [
       ["NORMAL", "ort_normal"],
@@ -145,13 +146,15 @@ export async function logAndSubmitPerformanceAction(
 }
 
 /**
- * Stelt het ORT-sectorprofiel van de samenwerking in (zorg-CAO). Alleen de opdrachtgever of
- * admin bepaalt de toeslagen (server-side waarheid); de ZZP'er kan ze niet zelf wijzigen.
- * "DEFAULT" wordt als null opgeslagen zodat de berekening op de standaardtarieven terugvalt.
+ * Stelt het ORT-sectorprofiel + optioneel maatwerk-toeslagen van de samenwerking in (zorg-CAO).
+ * Alleen de opdrachtgever of admin bepaalt de toeslagen (server-side waarheid); de ZZP'er niet.
+ * "DEFAULT" wordt als null opgeslagen. Bij sector "MAATWERK" worden de ingevoerde percentages
+ * (per categorie) als JSON-bps opgeslagen en gaan vóór het sectorprofiel; anders wordt maatwerk gewist.
  */
 export async function setOrtProfileAction(collaborationId: string, formData: FormData): Promise<void> {
   const actor = await requireActor();
   const raw = String(formData.get("ortProfile") ?? "DEFAULT");
+  const isCustom = raw === "MAATWERK";
   const sector: OrtSector = (ORT_SECTORS as readonly string[]).includes(raw) ? (raw as OrtSector) : "DEFAULT";
 
   const col = await prisma.collaboration.findUnique({
@@ -163,9 +166,23 @@ export async function setOrtProfileAction(collaborationId: string, formData: For
     throw new Error("Alleen de opdrachtgever kan het ORT-profiel instellen.");
   }
 
+  let customRates: string | null = null;
+  if (isCustom) {
+    const rates = {} as Record<OrtCategory, number>;
+    for (const cat of ORT_CATEGORIES) {
+      const pct = Number(formData.get(`custom_${cat}`) ?? 0);
+      if (!Number.isFinite(pct) || pct < 0) throw new Error("Maatwerkpercentages moeten 0 of hoger zijn.");
+      rates[cat] = Math.round(pct * 100); // procent → bps
+    }
+    customRates = JSON.stringify(rates);
+  }
+
   await prisma.collaboration.update({
     where: { id: collaborationId },
-    data: { ortProfile: sector === "DEFAULT" ? null : sector },
+    data: {
+      ortProfile: isCustom ? null : sector === "DEFAULT" ? null : sector,
+      ortCustomRates: customRates,
+    },
   });
   refresh(collaborationId);
 }

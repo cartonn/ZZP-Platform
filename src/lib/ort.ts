@@ -10,6 +10,7 @@ import {
   DEFAULT_ORT_RATES_BPS,
   ORT_SECTOR_PROFILES,
   ORT_SECTORS,
+  ORT_CATEGORIES,
 } from "@/lib/config";
 
 /** Een gewerkte categorie; "NORMAL" = geen toeslag. */
@@ -93,4 +94,38 @@ export function ortRatesForSector(sector?: string | null): Record<OrtCategory, n
     return ORT_SECTOR_PROFILES[sector as OrtSector];
   }
   return DEFAULT_ORT_RATES_BPS;
+}
+
+/**
+ * Parse maatwerk-toeslagen (JSON Record<OrtCategory, bps>) veilig. Geldig = elke categorie een
+ * niet-negatief geheel getal; anders null (dan valt de resolver terug op het sectorprofiel).
+ */
+export function parseOrtCustomRates(raw?: string | null): Record<OrtCategory, number> | null {
+  if (!raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const obj = parsed as Record<string, unknown>;
+  const out = {} as Record<OrtCategory, number>;
+  for (const cat of ORT_CATEGORIES) {
+    const v = obj[cat];
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0) return null;
+    out[cat] = v;
+  }
+  return out;
+}
+
+/**
+ * Resolvt de definitieve ORT-tarieven: maatwerk per klant gaat vóór het sectorprofiel, dat weer
+ * vóór de standaardtarieven. Server-side waarheid (de samenwerking levert beide velden).
+ */
+export function resolveOrtRates(opts: {
+  ortProfile?: string | null;
+  ortCustomRates?: string | null;
+}): Record<OrtCategory, number> {
+  return parseOrtCustomRates(opts.ortCustomRates) ?? ortRatesForSector(opts.ortProfile);
 }

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { computeOrt, ortRatesForSector, type OrtSegment } from "@/lib/ort";
+import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +51,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
         select: {
           id: true,
           ortProfile: true,
+          ortCustomRates: true,
           job: { select: { title: true } },
           company: { select: { name: true, userId: true } },
           freelancer: { select: { userId: true, user: { select: { name: true } } } },
@@ -197,7 +198,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
                     {(() => {
                       const segs = parseOrtSegments(invoice.performance?.ortSegments);
                       if (segs.length === 0 || !invoice.performance?.rateCents) return null;
-                      const ort = computeOrt(segs, invoice.performance.rateCents, ortRatesForSector(invoice.collaboration.ortProfile));
+                      const ort = computeOrt(segs, invoice.performance.rateCents, resolveOrtRates({ ortProfile: invoice.collaboration.ortProfile, ortCustomRates: invoice.collaboration.ortCustomRates }));
                       return (
                         <div className="mt-2 space-y-1">
                           <p className="text-xs font-medium text-muted-foreground">ORT-uitsplitsing</p>

@@ -5,7 +5,7 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { segmentShifts, dutchHolidays, type Shift } from "@/lib/shift";
-import { computeOrt, ortRatesForSector } from "@/lib/ort";
+import { computeOrt, resolveOrtRates } from "@/lib/ort";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { formatEuro } from "@/lib/invoices";
 import { logAndSubmitPerformanceAction } from "./actions";
@@ -20,10 +20,12 @@ export function PerformanceForm({
   collaborationId,
   rateCents,
   ortProfile,
+  ortCustomRates,
 }: {
   collaborationId: string;
   rateCents: number | null;
   ortProfile: string | null;
+  ortCustomRates: string | null;
 }) {
   const [error, formAction, isPending] = useActionState(
     logAndSubmitPerformanceAction.bind(null, collaborationId),
@@ -52,12 +54,12 @@ export function PerformanceForm({
     if (shifts.length === 0) return null;
     const holidays = new Set<string>();
     for (const y of years) for (const k of dutchHolidays(y)) holidays.add(k);
-    const rates = ortRatesForSector(ortProfile);
+    const rates = resolveOrtRates({ ortProfile, ortCustomRates });
     const segments = segmentShifts(shifts, { rates, holidays });
     if (segments.length === 0) return null;
     const ort = rateCents != null ? computeOrt(segments, rateCents, rates) : null;
     return { segments, ort };
-  }, [rows, rateCents, ortProfile]);
+  }, [rows, rateCents, ortProfile, ortCustomRates]);
 
   return (
     <Card>

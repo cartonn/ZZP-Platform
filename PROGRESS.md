@@ -762,4 +762,16 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Gate: typecheck ✓ lint ✓ test ✓ build ✓ (447 groen). Geen nieuwe units (UI-preview hergebruikt
   de al-geteste motoren); e2e overgeslagen (geen browser-channel in routine).
 
+### ORT — maatwerk-percentages per klant — 2026-05-30
+- **Engine** (`ort.ts`): `parseOrtCustomRates(json)` (valideert 5 categorieën, niet-negatieve
+  gehele bps) + `resolveOrtRates({ortProfile, ortCustomRates})` met precedentie
+  **maatwerk → sectorprofiel → default**. Eén resolver, overal hergebruikt.
+- **Schema**: `Collaboration.ortCustomRates String?` (JSON bps, nullable, additief).
+- **UI** (`ort-profile-form.tsx`, client): keuze "Maatwerk" toont 5 percentage-velden (procent →
+  bps), voorgevuld uit de huidige maatwerkwaarden; opdrachtgever/admin stelt in (server dwingt af).
+- **Threading**: cascade (`approvePerformance`), urenstaat-afleiding (action), én alle
+  weergaven (samenwerking-uitsplitsing, factuurpagina, live preview) gebruiken `resolveOrtRates`.
+- **Tests**: `parseOrtCustomRates` + `resolveOrtRates` (precedentie/validatie). 447 → 452 groen.
+  Gate: typecheck ✓ lint ✓ test ✓ build ✓.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
