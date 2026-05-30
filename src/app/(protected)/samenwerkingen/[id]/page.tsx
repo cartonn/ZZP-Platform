@@ -8,6 +8,8 @@ import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
+import { computeOrt, type OrtSegment } from "@/lib/ort";
+import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,6 +50,51 @@ const INV_STATUS: Record<InvoiceLifecycleState, { label: string; variant: "muted
 
 function fmt(d: Date | null) {
   return d ? d.toISOString().slice(0, 10) : null;
+}
+
+function parseOrtSegments(json: string | null | undefined): OrtSegment[] {
+  if (!json) return [];
+  try { return JSON.parse(json) as OrtSegment[]; } catch { return []; }
+}
+
+function OrtBreakdown({ ortSegments, rateCents }: { ortSegments: OrtSegment[]; rateCents: number }) {
+  const result = computeOrt(ortSegments, rateCents);
+  if (result.lines.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-1">
+      <p className="text-xs font-medium text-muted-foreground">ORT-uitsplitsing</p>
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-left text-muted-foreground">
+            <th className="py-0.5 font-normal">Categorie</th>
+            <th className="py-0.5 text-right font-normal">Uren</th>
+            <th className="py-0.5 text-right font-normal">Basis</th>
+            <th className="py-0.5 text-right font-normal">Toeslag</th>
+            <th className="py-0.5 text-right font-normal">Totaal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {result.lines.map((line, i) => (
+            <tr key={i} className="border-t border-border/40">
+              <td className="py-0.5">{line.category === "NORMAL" ? "Regulier" : ORT_CATEGORY_LABEL[line.category as OrtCategory]}</td>
+              <td className="py-0.5 text-right tabular-nums">{line.hours}</td>
+              <td className="py-0.5 text-right tabular-nums">{formatEuro(line.baseCents)}</td>
+              <td className="py-0.5 text-right tabular-nums">
+                {line.surchargeCents > 0 ? `+${formatEuro(line.surchargeCents)} (${Math.round(line.surchargeBps / 100)}%)` : "—"}
+              </td>
+              <td className="py-0.5 text-right tabular-nums font-medium">{formatEuro(line.totalCents)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t border-border">
+            <td colSpan={4} className="py-0.5 font-medium">Subtotaal excl. btw</td>
+            <td className="py-0.5 text-right tabular-nums font-semibold">{formatEuro(result.subtotalCents)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
 }
 
 type ChainStepStatus = "done" | "active" | "waiting" | "error";
@@ -386,6 +433,10 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         {p.status === "REJECTED" && p.rejectionReason && (
                           <p className="text-xs text-danger">Afgekeurd: {p.rejectionReason}</p>
                         )}
+                        {p.type === "HOURS" && p.rateCents && (() => {
+                          const segs = parseOrtSegments(p.ortSegments);
+                          return segs.length > 0 ? <OrtBreakdown ortSegments={segs} rateCents={p.rateCents} /> : null;
+                        })()}
                       </div>
                     </div>
                     {isClient && p.status === "SUBMITTED" && (

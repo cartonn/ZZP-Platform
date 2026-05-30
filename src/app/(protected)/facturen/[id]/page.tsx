@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
+import { computeOrt, type OrtSegment } from "@/lib/ort";
+import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +33,11 @@ function fmt(d: Date | null) {
   return d ? d.toISOString().slice(0, 10) : "—";
 }
 
+function parseOrtSegments(json: string | null | undefined): OrtSegment[] {
+  if (!json) return [];
+  try { return JSON.parse(json) as OrtSegment[]; } catch { return []; }
+}
+
 export default async function FactuurDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requireActor();
   const { id } = await params;
@@ -39,7 +46,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
     where: { id },
     include: {
       lines: true,
-      performance: { select: { id: true, type: true, description: true, hours: true, rateCents: true, amountCents: true, milestoneTitle: true, approvedAt: true, periodStart: true, periodEnd: true, submittedAt: true, status: true } },
+      performance: { select: { id: true, type: true, description: true, hours: true, rateCents: true, amountCents: true, milestoneTitle: true, approvedAt: true, periodStart: true, periodEnd: true, submittedAt: true, status: true, ortSegments: true } },
       collaboration: {
         select: {
           id: true,
@@ -186,6 +193,46 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
                       {invoice.performance.rateCents ? ` × ${formatEuro(invoice.performance.rateCents)}` : ""}
                       {invoice.performance.amountCents ? ` = ${formatEuro(invoice.performance.amountCents)}` : ""}
                     </p>
+                    {(() => {
+                      const segs = parseOrtSegments(invoice.performance?.ortSegments);
+                      if (segs.length === 0 || !invoice.performance?.rateCents) return null;
+                      const ort = computeOrt(segs, invoice.performance.rateCents);
+                      return (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs font-medium text-muted-foreground">ORT-uitsplitsing</p>
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-left text-muted-foreground">
+                                <th className="py-0.5 font-normal">Categorie</th>
+                                <th className="py-0.5 text-right font-normal">Uren</th>
+                                <th className="py-0.5 text-right font-normal">Basis</th>
+                                <th className="py-0.5 text-right font-normal">Toeslag</th>
+                                <th className="py-0.5 text-right font-normal">Totaal</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ort.lines.map((line, i) => (
+                                <tr key={i} className="border-t border-border/40">
+                                  <td className="py-0.5">{line.category === "NORMAL" ? "Regulier" : ORT_CATEGORY_LABEL[line.category as OrtCategory]}</td>
+                                  <td className="py-0.5 text-right tabular-nums">{line.hours}</td>
+                                  <td className="py-0.5 text-right tabular-nums">{formatEuro(line.baseCents)}</td>
+                                  <td className="py-0.5 text-right tabular-nums">
+                                    {line.surchargeCents > 0 ? `+${formatEuro(line.surchargeCents)} (${Math.round(line.surchargeBps / 100)}%)` : "—"}
+                                  </td>
+                                  <td className="py-0.5 text-right tabular-nums font-medium">{formatEuro(line.totalCents)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="border-t border-border">
+                                <td colSpan={4} className="py-0.5 font-medium">Subtotaal excl. btw</td>
+                                <td className="py-0.5 text-right tabular-nums font-semibold">{formatEuro(ort.subtotalCents)}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      );
+                    })()}
                     {invoice.performance.description && (
                       <p className="text-muted-foreground">{invoice.performance.description}</p>
                     )}
