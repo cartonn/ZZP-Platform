@@ -621,3 +621,17 @@ model EventHandlerRun {
 
   @@id([eventId, handler])
 }
+
+// ---------------------------------------------------------------------------
+// Platform-configuratie (singleton, id = "singleton")
+// DBA-drempelwaarden configureerbaar via /admin/configuratie.
+// ---------------------------------------------------------------------------
+
+model PlatformConfig {
+  id                         String   @id @default("singleton")
+  dbaMinDurationMonths       Int      @default(6)
+  dbaStrongDurationMonths    Int      @default(12)
+  dbaRevenueConcentrationPct Int      @default(80)
+  updatedAt                  DateTime @updatedAt
+  updatedBy                  String?
+}

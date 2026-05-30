@@ -4,6 +4,7 @@
 // configureerbaar (config.ts), niet hardcoded. Pure functies, getest; de scheduled runner past toe.
 
 import { DBA_THRESHOLDS, DBA_DISCLAIMER } from "@/lib/config";
+import { type DbaThresholds } from "@/lib/platform-config";
 
 export const DBA_SIGNAL_LEVELS = ["LAAG", "VERHOOGD", "HOOG"] as const;
 export type DbaSignalLevel = (typeof DBA_SIGNAL_LEVELS)[number];
@@ -88,20 +89,26 @@ function highestLevel(signals: readonly DbaSignal[]): DbaSignalLevel {
 /**
  * Beoordeelt één samenwerking op DBA-risicosignalen. Deterministisch en verklaarbaar:
  * elk signaal heeft een eigen reden. Geen oordeel — slechts signalering met disclaimer.
+ * Optionele `thresholds` overschrijven de statische standaarden uit config.ts.
  */
-export function assessCollaborationDba(input: DbaMonitorInput, now: Date = new Date()): DbaAssessment {
+export function assessCollaborationDba(
+  input: DbaMonitorInput,
+  now: Date = new Date(),
+  thresholds?: DbaThresholds,
+): DbaAssessment {
+  const t = thresholds ?? DBA_THRESHOLDS;
   const signals: DbaSignal[] = [];
   let durationMonths: number | null = null;
 
   if (input.startDate) {
     durationMonths = monthsBetween(input.startDate, now);
-    if (durationMonths >= DBA_THRESHOLDS.durationStrongSignalMonths) {
+    if (durationMonths >= t.durationStrongSignalMonths) {
       signals.push({
         key: "duration-12m",
         level: "HOOG",
         message: `Deze opdracht loopt inmiddels ${durationMonths} maanden. Langdurige onafgebroken inzet kan een verhoogd risico op schijnzelfstandigheid opleveren. Overweeg een interne beoordeling.`,
       });
-    } else if (durationMonths >= DBA_THRESHOLDS.durationSignalMonths) {
+    } else if (durationMonths >= t.durationSignalMonths) {
       signals.push({
         key: "duration-6m",
         level: "VERHOOGD",
@@ -110,11 +117,11 @@ export function assessCollaborationDba(input: DbaMonitorInput, now: Date = new D
     }
   }
 
-  if (input.revenueConcentrationPct != null && input.revenueConcentrationPct >= DBA_THRESHOLDS.revenueConcentrationPct) {
+  if (input.revenueConcentrationPct != null && input.revenueConcentrationPct >= t.revenueConcentrationPct) {
     signals.push({
       key: "revenue-concentration",
       level: "VERHOOGD",
-      message: `Meer dan ${DBA_THRESHOLDS.revenueConcentrationPct}% van de omzet van de ZZP'er komt bij deze opdrachtgever vandaan. Beperkte spreiding kan op afhankelijkheid wijzen.`,
+      message: `Meer dan ${t.revenueConcentrationPct}% van de omzet van de ZZP'er komt bij deze opdrachtgever vandaan. Beperkte spreiding kan op afhankelijkheid wijzen.`,
     });
   }
   if (input.sameFunctionAsEmployees) {
@@ -159,11 +166,16 @@ export interface DbaMonitorPlan {
 /**
  * Bepaalt welke DBA-signalen gevuurd moeten worden over de actieve samenwerkingen. Idempotentie
  * regelt de runner via `dedupeKey` (DomainEvent). Pure functie: geen I/O.
+ * Optionele `thresholds` overschrijven de statische standaarden uit config.ts.
  */
-export function planDbaMonitorRun(candidates: readonly DbaMonitorCandidate[], now: Date = new Date()): DbaMonitorPlan {
+export function planDbaMonitorRun(
+  candidates: readonly DbaMonitorCandidate[],
+  now: Date = new Date(),
+  thresholds?: DbaThresholds,
+): DbaMonitorPlan {
   const toRaise: DbaRaiseItem[] = [];
   for (const c of candidates) {
-    const assessment = assessCollaborationDba(c, now);
+    const assessment = assessCollaborationDba(c, now, thresholds);
     for (const signal of assessment.signals) {
       toRaise.push({
         collaborationId: c.collaborationId,

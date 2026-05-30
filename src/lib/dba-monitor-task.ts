@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { planDbaMonitorRun, jobDbaIndicators, revenueConcentrationPct, type DbaMonitorCandidate, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { DBA_DISCLAIMER } from "@/lib/config";
+import { getDbaThresholds } from "@/lib/platform-config";
 
 export interface DbaMonitorResult {
   raised: number;
@@ -59,7 +60,8 @@ export async function runDbaMonitorTask(opts: { actorId?: string | null; now?: D
     ...jobDbaIndicators(c.job),
   }));
 
-  const plan = planDbaMonitorRun(candidates, now);
+  const thresholds = await getDbaThresholds();
+  const plan = planDbaMonitorRun(candidates, now, thresholds);
   if (plan.toRaise.length === 0) return { raised: 0 };
 
   // Filter de al-gevuurde signalen weg (idempotent via DomainEvent dedupeKey).

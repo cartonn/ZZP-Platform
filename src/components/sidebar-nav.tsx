@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   MessagesSquare,
   Receipt,
+  Settings,
   ShieldCheck,
   User,
   Users,
@@ -38,6 +39,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   creditCard: CreditCard,
   calendar: CalendarDays,
   barChart: BarChart,
+  settings: Settings,
 };
 
 export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBadges }) {

@@ -14,7 +14,8 @@ export type NavIcon =
   | "handshake"
   | "creditCard"
   | "calendar"
-  | "barChart";
+  | "barChart"
+  | "settings";
 
 export interface NavItem {
   label: string;
@@ -60,6 +61,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Gebruikers", href: "/admin/gebruikers", icon: "users", enabled: true },
     { label: "Opdrachten", href: "/admin/opdrachten", icon: "briefcase", enabled: true },
     { label: "Audit log", href: "/admin/audit", icon: "shield", enabled: true },
+    { label: "Configuratie", href: "/admin/configuratie", icon: "settings", enabled: true },
   ],
 };
 
