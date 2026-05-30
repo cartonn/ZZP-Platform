@@ -85,6 +85,14 @@ describe("performanceSubtotalCents", () => {
   it("milestone: vast bedrag", () => {
     expect(performanceSubtotalCents({ id: "p", status: "SUBMITTED", type: "MILESTONE", amountCents: 2500_00, collaborationId: "c" })).toBe(2500_00);
   });
+  it("ORT (zorg): basis + toeslag per categorie i.p.v. enkel uren × tarief", () => {
+    // 8 nacht-uren × €30 = 240 basis + 49% = 357,60.
+    const sub = performanceSubtotalCents({
+      id: "p", status: "SUBMITTED", type: "HOURS", rateCents: 30_00, collaborationId: "c",
+      ortSegments: [{ category: "NIGHT", hours: 8 }],
+    });
+    expect(sub).toBe(357_60);
+  });
   it("werpt als verplichte velden ontbreken", () => {
     expect(() => performanceSubtotalCents({ id: "p", status: "SUBMITTED", type: "HOURS", collaborationId: "c" })).toThrow();
     expect(() => performanceSubtotalCents({ id: "p", status: "SUBMITTED", type: "MILESTONE", collaborationId: "c" })).toThrow();

@@ -24,6 +24,7 @@ import {
   planInvoiceCreditedEvent,
 } from "@/lib/cascade/handlers";
 import { type CollaborationStatus } from "@/lib/enums";
+import { type OrtSegment } from "@/lib/ort";
 import {
   type InvoiceLifecycleState,
   type PerformanceState,
@@ -155,6 +156,8 @@ export interface CreatePerformanceInput {
   hours?: number | null;
   rateCents?: number | null;
   amountCents?: number | null;
+  /** ORT-segmenten (zorg): uren per tijdscategorie; bepaalt het factuursubtotaal met toeslag. */
+  ortSegments?: OrtSegment[] | null;
   milestoneTitle?: string | null;
   periodStart?: Date | null;
   periodEnd?: Date | null;
@@ -180,6 +183,7 @@ export async function createPerformance(actor: Actor, input: CreatePerformanceIn
       status: "DRAFT",
       hours: input.type === "HOURS" ? input.hours ?? null : null,
       rateCents: input.type === "HOURS" ? input.rateCents ?? null : null,
+      ortSegments: input.type === "HOURS" && input.ortSegments?.length ? JSON.stringify(input.ortSegments) : null,
       amountCents: input.type === "MILESTONE" ? input.amountCents ?? null : null,
       milestoneTitle: input.type === "MILESTONE" ? input.milestoneTitle ?? null : null,
       periodStart: input.periodStart ?? null,
@@ -229,6 +233,7 @@ export async function approvePerformance(actor: Actor, performanceId: string): P
       hours: perf.hours,
       rateCents: perf.rateCents,
       amountCents: perf.amountCents,
+      ortSegments: perf.ortSegments,
       collaborationId: perf.collaborationId,
     },
     freelancerUserId: perf.freelancerUserId,
@@ -431,9 +436,21 @@ interface LoadedPerformance {
   hours: number | null;
   rateCents: number | null;
   amountCents: number | null;
+  ortSegments: OrtSegment[] | null;
   collaborationId: string;
   freelancerUserId: string;
   clientUserId: string;
+}
+
+/** Parse de opgeslagen ORT-segmenten (JSON-string) veilig terug naar een array. */
+function parseOrtSegments(raw: string | null): OrtSegment[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as OrtSegment[]) : null;
+  } catch {
+    return null;
+  }
 }
 
 async function loadPerformance(performanceId: string): Promise<LoadedPerformance> {
@@ -452,6 +469,7 @@ async function loadPerformance(performanceId: string): Promise<LoadedPerformance
     hours: perf.hours,
     rateCents: perf.rateCents,
     amountCents: perf.amountCents,
+    ortSegments: parseOrtSegments(perf.ortSegments),
     collaborationId: perf.collaborationId,
     freelancerUserId: perf.collaboration.freelancer.userId,
     clientUserId: perf.collaboration.company.userId,

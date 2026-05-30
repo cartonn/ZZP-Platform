@@ -19,6 +19,7 @@ import {
   planInvoiceCredited,
 } from "@/lib/administration/ledger";
 import { computeVat, hourlySubtotalCents } from "@/lib/administration/vat";
+import { ortSubtotalCents, type OrtSegment } from "@/lib/ort";
 import { PLATFORM_FEE, type VatRegime } from "@/lib/config";
 import { type CascadeEffects, emptyEffects } from "@/lib/cascade/types";
 
@@ -116,6 +117,8 @@ export interface PerformanceApprovedCtx {
     hours?: number | null;
     rateCents?: number | null;
     amountCents?: number | null;
+    /** Optionele ORT-segmenten (zorg): uren per tijdscategorie met toeslag. */
+    ortSegments?: OrtSegment[] | null;
     collaborationId: string;
   };
   freelancerUserId: string;
@@ -130,9 +133,12 @@ export interface PerformanceApprovedCtx {
 /** Berekent het factuursubtotaal uit de goedgekeurde prestatie. */
 export function performanceSubtotalCents(p: PerformanceApprovedCtx["performance"]): number {
   if (p.type === "HOURS") {
-    if (p.hours == null || p.rateCents == null) {
-      throw new Error("Urenstaat mist uren of uurtarief.");
+    if (p.rateCents == null) throw new Error("Urenstaat mist een uurtarief.");
+    // ORT (zorg): zijn er tijdscategorie-segmenten, dan basis + toeslagen; anders uren × tarief.
+    if (p.ortSegments && p.ortSegments.length > 0) {
+      return ortSubtotalCents(p.ortSegments, p.rateCents);
     }
+    if (p.hours == null) throw new Error("Urenstaat mist uren.");
     return hourlySubtotalCents(p.hours, p.rateCents);
   }
   if (p.amountCents == null) throw new Error("Oplevering mist een milestonebedrag.");

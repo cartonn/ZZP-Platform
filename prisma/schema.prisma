@@ -432,6 +432,7 @@ model Performance {
   periodEnd       DateTime? //                    bij HOURS: einde van de periode
   hours           Float? //                        gewerkte uren (mag kwartieren), bij HOURS
   rateCents       Int? //                          snapshot uurtarief in centen, bij HOURS
+  ortSegments     String? //                        JSON-string: ORT-segmenten [{category,hours}] (zorg)
   milestoneTitle  String? //                       bij MILESTONE
   amountCents     Int? //                          milestonebedrag in centen, bij MILESTONE
   description     String    @default("")
