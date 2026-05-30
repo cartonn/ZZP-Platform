@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Inloggen · ZZP Platform" };
@@ -20,6 +21,7 @@ export default async function LoginPage() {
             Z
           </div>
           <span className="text-base font-semibold">ZZP Platform</span>
+          <div className="ml-auto"><ThemeToggle /></div>
         </div>
 
         <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
