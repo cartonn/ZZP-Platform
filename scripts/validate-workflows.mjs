@@ -61,6 +61,13 @@ try {
   // De Anthropic-actie + API-key moeten erin zitten.
   if (!raw.includes("anthropic")) errors.push("auto-build.yml: geen Anthropic-actie/sleutel gevonden");
   else ok("Anthropic-bouwstap aanwezig");
+
+  // De agent MOET files mogen wijzigen + bash draaien, anders pusht hij niets (geleerde les).
+  if (!raw.includes("allowedTools") || !/Edit|Write|Bash/.test(raw)) {
+    errors.push("auto-build.yml: --allowedTools (Edit,Read,Write,Bash) ontbreekt — agent kan dan niets schrijven/pushen");
+  } else {
+    ok("agent mag files wijzigen + bash draaien (--allowedTools)");
+  }
 } catch (e) {
   errors.push(`auto-build.yml ontbreekt of is onleesbaar — ${e.message}`);
 }

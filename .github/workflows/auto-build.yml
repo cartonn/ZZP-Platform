@@ -85,8 +85,8 @@ jobs:
             6. Werk PROGRESS.md en CURRENT_TASK.md bij; commit en push opnieuw.
             Vraag niet om goedkeuring. Geen "AI" in UI/teksten/commits. Stop alleen bij een echte blocker.
           claude_args: |
-            --model claude-sonnet-4-6
-            --max-turns 80
+            --allowedTools Edit,Read,Write,Bash
+            --max-turns 60
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
