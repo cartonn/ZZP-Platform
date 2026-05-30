@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { logAndSubmitPerformanceAction } from "./actions";
@@ -10,6 +11,10 @@ export function PerformanceForm({ collaborationId }: { collaborationId: string }
     logAndSubmitPerformanceAction.bind(null, collaborationId),
     null,
   );
+  // Eén of meer diensten; elke rij is een begin/eind-paar (client-side beheerd).
+  const [shiftRows, setShiftRows] = useState<number[]>([0]);
+  const addShift = () => setShiftRows((rows) => [...rows, (rows[rows.length - 1] ?? 0) + 1]);
+  const removeShift = (id: number) => setShiftRows((rows) => (rows.length > 1 ? rows.filter((r) => r !== id) : rows));
 
   return (
     <Card>
@@ -50,17 +55,33 @@ export function PerformanceForm({ collaborationId }: { collaborationId: string }
             </label>
           </div>
           <details className="text-sm" open>
-            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Dienst (begin/eind) — ORT wordt automatisch berekend</summary>
-            <p className="mt-1 text-xs text-muted-foreground">Vul de begin- en eindtijd van de dienst in; de avond-/nacht-/weekend-/feestdagtoeslag wordt automatisch afgeleid. Dit overschrijft de handmatige urenverdeling hieronder.</p>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <label className="text-xs">
-                <span className="mb-1 block text-muted-foreground">Begin dienst</span>
-                <input name="shiftStart" type="datetime-local" className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" />
-              </label>
-              <label className="text-xs">
-                <span className="mb-1 block text-muted-foreground">Einde dienst</span>
-                <input name="shiftEnd" type="datetime-local" className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" />
-              </label>
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Diensten (begin/eind) — ORT wordt automatisch berekend</summary>
+            <p className="mt-1 text-xs text-muted-foreground">Vul per dienst de begin- en eindtijd in; de avond-/nacht-/weekend-/feestdagtoeslag wordt automatisch afgeleid en over alle diensten opgeteld. Dit overschrijft de handmatige urenverdeling hieronder.</p>
+            <div className="mt-2 space-y-2">
+              {shiftRows.map((id) => (
+                <div key={id} className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                  <label className="text-xs">
+                    <span className="mb-1 block text-muted-foreground">Begin dienst</span>
+                    <input name="shiftStart" type="datetime-local" className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" />
+                  </label>
+                  <label className="text-xs">
+                    <span className="mb-1 block text-muted-foreground">Einde dienst</span>
+                    <input name="shiftEnd" type="datetime-local" className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => removeShift(id)}
+                    disabled={shiftRows.length === 1}
+                    aria-label="Dienst verwijderen"
+                    className="mb-0.5 rounded-md border border-input p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={addShift} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                <Plus className="size-3.5" aria-hidden /> Dienst toevoegen
+              </button>
             </div>
           </details>
           <details className="text-sm">

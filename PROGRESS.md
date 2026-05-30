@@ -742,4 +742,14 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   Gate: typecheck ✓ lint ✓ test ✓ build ✓. E2e overgeslagen (geen browser-channel in routine).
   Let op: tijden in lokale TZ — zet TZ=Europe/Amsterdam in productie.
 
+### ORT — meerdere diensten per urenstaat (week/maand) — 2026-05-30
+- **Motor** (`shift.ts`): `segmentShifts(shifts, opts)` aggregeert meerdere diensten tot één set
+  ORT-segmenten (gelijke categorieën opgeteld). Een periode met veel diensten → één factuur.
+- **UI** (`performance-form.tsx`): meerdere dienstrijen toevoegen/verwijderen (client-side);
+  inputs delen `shiftStart`/`shiftEnd`-namen → server leest ze met `getAll` en paart per index.
+- **Action**: parseert alle dienstparen, valideert (begin<eind, beide gevuld), bouwt de
+  feestdagenset over alle betrokken jaren en aggregeert met het sectorprofiel.
+- **Tests**: `segmentShifts` (3) — optellen gelijke categorieën, combineren verschillende, leeg.
+  Tests: 444 → 447 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

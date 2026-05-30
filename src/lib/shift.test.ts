@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { segmentShift, dutchHolidays } from "@/lib/shift";
+import { segmentShift, segmentShifts, dutchHolidays } from "@/lib/shift";
 import { DEFAULT_ORT_RATES_BPS, ORT_SECTOR_PROFILES } from "@/lib/config";
 
 /** Hulp: som van alle uren in de segmenten. */
@@ -87,6 +87,33 @@ describe("segmentShift", () => {
       rates: DEFAULT_ORT_RATES_BPS,
     });
     expect(totalHours(segs)).toBe(8);
+  });
+});
+
+describe("segmentShifts — meerdere diensten aggregeren", () => {
+  it("telt gelijke categorieën over diensten op", () => {
+    const segs = segmentShifts([
+      { start: new Date(2025, 5, 9, 9, 0), end: new Date(2025, 5, 9, 17, 0) }, // ma 8u NORMAL
+      { start: new Date(2025, 5, 10, 9, 0), end: new Date(2025, 5, 10, 17, 0) }, // di 8u NORMAL
+    ]);
+    expect(segs).toHaveLength(1);
+    expect(hoursFor(segs, "NORMAL")).toBe(16);
+  });
+
+  it("combineert verschillende categorieën uit verschillende diensten", () => {
+    const segs = segmentShifts([
+      { start: new Date(2025, 5, 9, 9, 0), end: new Date(2025, 5, 9, 17, 0) }, //  ma 8u NORMAL
+      { start: new Date(2025, 5, 14, 22, 0), end: new Date(2025, 5, 15, 6, 0) }, // za-nacht
+    ]);
+    expect(hoursFor(segs, "NORMAL")).toBe(8);
+    // za 22:00–00:00 = zaterdag (+52% > nacht +49% in DEFAULT) → 2u; 00:00–06:00 zo +72% → 6u
+    expect(hoursFor(segs, "SATURDAY")).toBe(2);
+    expect(hoursFor(segs, "SUNDAY")).toBe(6);
+    expect(totalHours(segs)).toBe(16);
+  });
+
+  it("lege lijst → geen segmenten", () => {
+    expect(segmentShifts([])).toEqual([]);
   });
 });
 

@@ -97,6 +97,33 @@ export function segmentShift(start: Date, end: Date, opts: SegmentShiftOptions =
   return segments;
 }
 
+/** Eén gewerkte dienst (begin/eind). */
+export interface Shift {
+  start: Date;
+  end: Date;
+}
+
+/**
+ * Aggregeert meerdere diensten (bv. een week- of maand-urenstaat) tot één set ORT-segmenten.
+ * Elke dienst wordt apart gesegmenteerd; gelijke categorieën worden opgeteld. Zo levert een
+ * periode met veel diensten één factuur op met de juiste toeslagen — geen handmatige optelling.
+ */
+export function segmentShifts(shifts: readonly Shift[], opts: SegmentShiftOptions = {}): OrtSegment[] {
+  const hoursByCat = new Map<OrtSegmentCategory, number>();
+  for (const s of shifts) {
+    for (const seg of segmentShift(s.start, s.end, opts)) {
+      hoursByCat.set(seg.category, (hoursByCat.get(seg.category) ?? 0) + seg.hours);
+    }
+  }
+  const order: OrtSegmentCategory[] = ["NORMAL", ...ORT_CATEGORIES];
+  const segments: OrtSegment[] = [];
+  for (const cat of order) {
+    const hours = hoursByCat.get(cat);
+    if (hours && hours > 0) segments.push({ category: cat, hours: Math.round(hours * 100) / 100 });
+  }
+  return segments;
+}
+
 /**
  * Officiële Nederlandse feestdagen voor een jaar als YYYY-MM-DD-set. Pasen via de
  * algoritmeberekening (Meeus/Jones/Butcher); Koningsdag schuift naar zaterdag als 27 april op

@@ -20,7 +20,7 @@ import {
 import { prisma } from "@/lib/db";
 import { eurosToCents } from "@/lib/invoices";
 import { type OrtSegment, ortRatesForSector } from "@/lib/ort";
-import { segmentShift, dutchHolidays } from "@/lib/shift";
+import { segmentShifts, dutchHolidays, type Shift } from "@/lib/shift";
 import { type OrtCategory, ORT_SECTORS, type OrtSector } from "@/lib/config";
 import { validatePerformanceForm, type PerformanceFormData } from "@/lib/validation";
 
@@ -65,21 +65,30 @@ export async function logAndSubmitPerformanceAction(
   const col = await prisma.collaboration.findUnique({ where: { id: collaborationId }, select: { rate: true, ortProfile: true } });
   const rateCents = col?.rate != null ? col.rate * 100 : null;
 
-  // Dienstmodus: vul je begin/eind van de dienst in, dan leidt de server de ORT-categorieën
-  // (avond/nacht/weekend/feestdag) automatisch af — geen handmatige urenverdeling.
-  const shiftStartRaw = type === "HOURS" ? String(formData.get("shiftStart") ?? "").trim() : "";
-  const shiftEndRaw = type === "HOURS" ? String(formData.get("shiftEnd") ?? "").trim() : "";
+  // Dienstmodus: vul één of meer diensten (begin/eind) in, dan leidt de server de ORT-categorieën
+  // (avond/nacht/weekend/feestdag) automatisch af en aggregeert ze — geen handmatige urenverdeling.
+  const shiftStartsRaw = type === "HOURS" ? formData.getAll("shiftStart").map((v) => String(v).trim()) : [];
+  const shiftEndsRaw = type === "HOURS" ? formData.getAll("shiftEnd").map((v) => String(v).trim()) : [];
+  const shifts: Shift[] = [];
+  const holidayYears = new Set<number>();
+  for (let i = 0; i < Math.max(shiftStartsRaw.length, shiftEndsRaw.length); i++) {
+    const s = shiftStartsRaw[i] ?? "";
+    const e = shiftEndsRaw[i] ?? "";
+    if (!s && !e) continue; // lege rij overslaan
+    if (!s || !e) return "Vul bij elke dienst zowel een begin- als eindtijd in.";
+    const start = new Date(s);
+    const end = new Date(e);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return "Ongeldige diensttijden.";
+    if (end.getTime() <= start.getTime()) return "Het einde van de dienst moet na het begin liggen.";
+    shifts.push({ start, end });
+    holidayYears.add(start.getFullYear());
+    holidayYears.add(end.getFullYear());
+  }
   let ortSegments: OrtSegment[] = [];
-  if (shiftStartRaw && shiftEndRaw) {
-    const shiftStart = new Date(shiftStartRaw);
-    const shiftEnd = new Date(shiftEndRaw);
-    if (isNaN(shiftStart.getTime()) || isNaN(shiftEnd.getTime())) return "Ongeldige diensttijden.";
-    if (shiftEnd.getTime() <= shiftStart.getTime()) return "Het einde van de dienst moet na het begin liggen.";
-    const holidays = dutchHolidays(shiftStart.getFullYear());
-    if (shiftEnd.getFullYear() !== shiftStart.getFullYear()) {
-      for (const k of dutchHolidays(shiftEnd.getFullYear())) holidays.add(k);
-    }
-    ortSegments = segmentShift(shiftStart, shiftEnd, { rates: ortRatesForSector(col?.ortProfile), holidays });
+  if (shifts.length > 0) {
+    const holidays = new Set<string>();
+    for (const y of holidayYears) for (const k of dutchHolidays(y)) holidays.add(k);
+    ortSegments = segmentShifts(shifts, { rates: ortRatesForSector(col?.ortProfile), holidays });
   } else {
     const ortFields: Array<["NORMAL" | OrtCategory, string]> = [
       ["NORMAL", "ort_normal"],
