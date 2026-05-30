@@ -372,6 +372,14 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                     <input name="hours" type="number" step="0.25" min="0" placeholder="bv. 8" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                   </label>
                   <label className="text-sm">
+                    <span className="mb-1 block text-muted-foreground">Periode van (bij uurtarief)</span>
+                    <input name="periodStart" type="date" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-sm">
+                    <span className="mb-1 block text-muted-foreground">Periode t/m (bij uurtarief)</span>
+                    <input name="periodEnd" type="date" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-sm">
                     <span className="mb-1 block text-muted-foreground">Bedrag € (bij oplevering)</span>
                     <input name="amount" type="number" step="0.01" min="0" placeholder="bv. 2500" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                   </label>
@@ -424,9 +432,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                           <span className="font-medium">{p.type === "HOURS" ? "Urenstaat" : p.milestoneTitle || "Oplevering"}</span>
                           <Badge variant={st.variant}>{st.label}</Badge>
                         </div>
-                        <p className="truncate text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {p.type === "HOURS"
-                            ? `${p.hours ?? 0} uur${p.rateCents ? ` × ${formatEuro(p.rateCents)}` : ""}`
+                            ? `${p.hours ?? 0} uur${p.rateCents ? ` × ${formatEuro(p.rateCents)}` : ""}${p.periodStart && p.periodEnd ? ` · ${fmt(p.periodStart)} t/m ${fmt(p.periodEnd)}` : ""}`
                             : p.amountCents != null ? formatEuro(p.amountCents) : ""}
                           {p.description ? ` · ${p.description}` : ""}
                         </p>

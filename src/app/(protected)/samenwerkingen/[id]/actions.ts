@@ -50,6 +50,11 @@ export async function logAndSubmitPerformanceAction(collaborationId: string, for
   const type = formData.get("type") === "MILESTONE" ? "MILESTONE" : "HOURS";
   const description = String(formData.get("description") ?? "").slice(0, 500);
 
+  const periodStartRaw = type === "HOURS" ? String(formData.get("periodStart") ?? "").trim() : "";
+  const periodEndRaw = type === "HOURS" ? String(formData.get("periodEnd") ?? "").trim() : "";
+  const periodStart = periodStartRaw ? new Date(periodStartRaw) : null;
+  const periodEnd = periodEndRaw ? new Date(periodEndRaw) : null;
+
   // ORT-segmenten (zorg): uren per tijdscategorie. Leeg/0 → geen segment.
   const ortFields: Array<["NORMAL" | OrtCategory, string]> = [
     ["NORMAL", "ort_normal"],
@@ -76,6 +81,8 @@ export async function logAndSubmitPerformanceAction(collaborationId: string, for
       hours: type === "HOURS" ? (useOrt ? ortSegments.reduce((s, x) => s + x.hours, 0) : Number(formData.get("hours") ?? 0)) : null,
       rateCents: type === "HOURS" ? rateCents : null,
       ortSegments: useOrt ? ortSegments : null,
+      periodStart: type === "HOURS" ? periodStart : null,
+      periodEnd: type === "HOURS" ? periodEnd : null,
       amountCents: type === "MILESTONE" ? eurosToCents(Number(formData.get("amount") ?? 0)) : null,
       milestoneTitle: type === "MILESTONE" ? String(formData.get("milestoneTitle") ?? "") : null,
       description,
