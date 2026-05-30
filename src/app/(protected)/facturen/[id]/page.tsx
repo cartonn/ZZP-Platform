@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { cancelInvoice, markInvoicePaid, sendInvoice } from "../actions";
+import { PrintButton } from "@/components/ui/print-button";
 
 export const metadata: Metadata = { title: "Factuur · ZZP Platform" };
 
@@ -65,9 +66,12 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Link href="/facturen" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-3.5" aria-hidden /> Terug naar facturen
-      </Link>
+      <div className="flex items-center justify-between print-hide">
+        <Link href="/facturen" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-3.5" aria-hidden /> Terug naar facturen
+        </Link>
+        <PrintButton />
+      </div>
 
       <Card>
         <CardContent className="space-y-5">
@@ -137,7 +141,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           </div>
 
           {(canSend || canCancel || canPay) && (
-            <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+            <div className="flex flex-wrap gap-2 border-t border-border pt-4 print-hide">
               {canSend && (
                 <form action={sendInvoice.bind(null, invoice.id)}>
                   <Button type="submit" size="sm">Versturen</Button>

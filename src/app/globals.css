@@ -59,3 +59,37 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Print / PDF (Afdrukken-knop op factuurdetail). Verberg navigatie en actiebalk;
+   toon alleen de factuurinhoud schoon op papier. */
+@media print {
+  /* Verberg navigatie-elementen en knoppen die niet op papier thuishoren. */
+  aside,
+  header,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Zet het grid om naar een enkelvoudige kolom zodat de inhoud vol breedte is. */
+  body > *,
+  .grid {
+    display: block !important;
+  }
+
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  /* Haal schermspecifieke achtergrondkleuren weg voor een schone afdruk. */
+  body {
+    background: #fff !important;
+  }
+
+  /* Vermijd paginabreuken midden in de factuurkaart. */
+  .card,
+  table,
+  tr {
+    page-break-inside: avoid;
+  }
+}
