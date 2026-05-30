@@ -221,12 +221,41 @@ async function main() {
     },
   });
 
+  // ORT-demo (zorg): Fatima (verpleegkundige BIG) op somatische afdeling. Toont de
+  // ORT-uitsplitsing (regulier + nacht) in het werkproces. Wacht op goedkeuring opdrachtgever.
+  // Berekening: 4h normaal × €52 = €208; 4h nacht × €52 + 49% toeslag = €309,92; subtotaal €517,92.
+  // app-6 (Fatima op job-4) naar ACCEPTED zodat de samenwerking aangemaakt kan worden.
+  await prisma.application.update({ where: { id: "app-6" }, data: { status: "ACCEPTED" } });
+  await prisma.collaboration.upsert({
+    where: { id: "collab-4" }, update: {},
+    create: {
+      id: "collab-4", jobId: "job-4", applicationId: "app-6", freelancerId: pid.fatima!,
+      companyId, status: "ACTIVE", contractStatus: "SIGNED", rate: 52, startDate: daysFromNow(-21),
+    },
+  });
+  // ORT-urenstaat: 4h regulier + 4h nacht (week 3). rateCents = 52 × 100 = 5200.
+  // NORMAL 4h: 4×5200 = 20800; NIGHT 4h: 4×5200 + 49% = 30992; subtotaal = 51792 (€517,92).
+  await prisma.performance.upsert({
+    where: { id: "perf-3" }, update: {},
+    create: {
+      id: "perf-3", collaborationId: "collab-4", type: "HOURS", status: "SUBMITTED",
+      hours: 8, rateCents: 5200,
+      ortSegments: JSON.stringify([
+        { category: "NORMAL", hours: 4 },
+        { category: "NIGHT", hours: 4 },
+      ]),
+      description: "Week 3 — avond/nachtdiensten somatische afdeling",
+      submittedAt: daysFromNow(-1), correlationId: "collab-4",
+    },
+  });
+
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");
   console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
   console.log("  opdrachtgever@zzp-platform.local  (CLIENT — Jansen Software)");
   console.log("Demo-inhoud: 7 ZZP'ers met certificaten/diploma's, 6 gepubliceerde opdrachten + 1 concept,");
-  console.log("8 reacties (alle statussen), 2 actieve samenwerkingen, 4 facturen (betaald/verzonden/verlopen).");
+  console.log("9 reacties (alle statussen), 3 actieve samenwerkingen incl. ORT-zorg, 4 facturen.");
+  console.log("ORT-demo: collab-4 (Fatima, verpleegkunde) — ORT-urenstaat ingediend, wacht op goedkeuring.");
 }
 
 main()
