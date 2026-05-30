@@ -83,3 +83,28 @@ export const PAYMENT_CONFIRMATION = {
   /** Default: ZZP'er bevestigt ontvangst → bevestigd. Beide partijen = strenger. */
   requireBothParties: false,
 } as const;
+
+// --- ORT / onregelmatigheidstoeslagen (zorg) — CONFIGUREERBAAR per CAO -------
+// Toeslag bovenop het basisuurtarief, per tijdscategorie. Percentages in basispunten (bps):
+// 2200 = +22%. Dit zijn VOORBEELDWAARDEN (CAO-achtig); de echte percentages verschillen per CAO
+// en worden bij voorkeur per opdrachtgever/contract overschreven. NORMAL = geen toeslag.
+export const ORT_CATEGORIES = ["EVENING", "NIGHT", "SATURDAY", "SUNDAY", "HOLIDAY"] as const;
+export type OrtCategory = (typeof ORT_CATEGORIES)[number];
+
+/** Nederlandse labels voor de UI. */
+export const ORT_CATEGORY_LABEL: Record<OrtCategory, string> = {
+  EVENING: "Avond",
+  NIGHT: "Nacht",
+  SATURDAY: "Zaterdag",
+  SUNDAY: "Zondag",
+  HOLIDAY: "Feestdag",
+};
+
+export const DEFAULT_ORT_RATES_BPS: Record<OrtCategory, number> = {
+  EVENING: 2200, //   +22%
+  NIGHT: 4900, //     +49%
+  SATURDAY: 5200, //  +52%
+  SUNDAY: 7200, //    +72%
+  HOLIDAY: 10000, //  +100%
+};
+
