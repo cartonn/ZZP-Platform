@@ -9,6 +9,8 @@ const schema = z
     AUTH_SECRET: z.string().min(16, "AUTH_SECRET moet minstens 16 tekens zijn."),
     STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
     STORAGE_S3_BUCKET: z.string().optional(),
+    // Semantische matching: local (default, in-memory) of pgvector (productie).
+    SEMANTIC_MATCHER: z.enum(["local", "pgvector"]).default("local"),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     // Beveiligt POST /api/tasks/expiry (verloopdetectie + herinneringen). Optioneel;
     // zonder waarde is het endpoint uitgeschakeld (503).

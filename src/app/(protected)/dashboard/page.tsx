@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CheckCircle, CheckCircle2, Circle } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
@@ -9,12 +9,6 @@ import { clientCredentialAlerts, describeCredentialAlert } from "@/lib/collabora
 import { overdueInvoiceCount } from "@/lib/signals";
 import { computeCompanyCompleteness } from "@/lib/profile";
 import { adminNextActions, clientNextActions, freelancerNextActions } from "@/lib/next-actions";
-import { cascadeClientActions, cascadeFreelancerActions } from "@/lib/cascade/next-actions";
-import {
-  computeOnboardingSteps,
-  isOnboardingComplete,
-  type OnboardingData,
-} from "@/lib/onboarding";
 import { Badge } from "@/components/ui/badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { AvailabilityBadge } from "@/components/availability-badge";
@@ -64,39 +58,6 @@ interface Attention {
   href: string;
 }
 
-async function freelancerOnboardingData(userId: string): Promise<OnboardingData> {
-  const profile = await prisma.freelancerProfile.findUnique({
-    where: { userId },
-    select: {
-      id: true,
-      headline: true,
-      bio: true,
-      _count: {
-        select: { skills: true, credentials: true, availabilityWindows: true, applications: true },
-      },
-    },
-  });
-
-  if (!profile) {
-    return {
-      profileComplete: false,
-      hasCredential: false,
-      hasAvailability: false,
-      hasApplied: false,
-    };
-  }
-
-  const profileComplete =
-    !!profile.headline?.trim() && !!profile.bio?.trim() && profile._count.skills > 0;
-
-  return {
-    profileComplete,
-    hasCredential: profile._count.credentials > 0,
-    hasAvailability: profile._count.availabilityWindows > 0,
-    hasApplied: profile._count.applications > 0,
-  };
-}
-
 async function dashboardData(
   role: UserRole,
   userId: string,
@@ -138,17 +99,6 @@ async function dashboardData(
       rejectedCredentials: rejected,
       expiringCredentials: expiring,
       overdueInvoices: overdue,
-    })) {
-      attention.push({ label: a.title, href: a.href });
-    }
-    // Werkproces "aan zet" (cascade): concept-facturen indienen, betaling markeren.
-    const [cascadeDraft, cascadeApproved] = await Promise.all([
-      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "DRAFT" } }),
-      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "APPROVED" } }),
-    ]);
-    for (const a of cascadeFreelancerActions({
-      draftInvoices: cascadeDraft,
-      approvedInvoices: cascadeApproved,
     })) {
       attention.push({ label: a.title, href: a.href });
     }
@@ -211,19 +161,6 @@ async function dashboardData(
     })) {
       attention.push({ label: a.title, href: a.href });
     }
-    // Werkproces "aan zet" (cascade): prestaties en facturen die op goedkeuring wachten.
-    const [perfToApprove, invToApprove] = await Promise.all([
-      prisma.performance.count({
-        where: { status: "SUBMITTED", collaboration: { company: { userId } } },
-      }),
-      prisma.invoice.count({ where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" } }),
-    ]);
-    for (const a of cascadeClientActions({
-      performancesToApprove: perfToApprove,
-      invoicesToApprove: invToApprove,
-    })) {
-      attention.push({ label: a.title, href: a.href });
-    }
     return {
       stats: [
         { label: "Gepubliceerde opdrachten", value: openJobs, href: "/opdrachten" },
@@ -234,13 +171,12 @@ async function dashboardData(
     };
   }
 
-  const [pending, users, jobs, deletionRequests, pendingUsers, openDisputes] = await Promise.all([
+  const [pending, users, jobs, deletionRequests, pendingUsers] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.user.count(),
     prisma.job.count(),
     prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
     prisma.user.count({ where: { status: "PENDING" } }),
-    prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
   ]);
   for (const a of adminNextActions({
     deletionRequests,
@@ -249,11 +185,6 @@ async function dashboardData(
   })) {
     attention.push({ label: a.title, href: a.href });
   }
-  if (openDisputes > 0)
-    attention.push({
-      label: `${openDisputes} open dispuut(en) wachten op bemiddeling`,
-      href: "/admin/disputen",
-    });
   return {
     stats: [
       { label: "Openstaande verificaties", value: pending, href: "/admin/verificaties" },
@@ -275,17 +206,10 @@ export default async function DashboardPage() {
     day: "numeric",
     month: "long",
   });
-  const [{ stats, attention }, matches, onboardingData] = await Promise.all([
+  const [{ stats, attention }, matches] = await Promise.all([
     dashboardData(role, user.id!),
     role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
-    role === "FREELANCER"
-      ? freelancerOnboardingData(user.id!)
-      : Promise.resolve<OnboardingData | null>(null),
   ]);
-
-  const onboardingSteps = onboardingData ? computeOnboardingSteps(onboardingData) : null;
-  const showOnboarding = onboardingSteps !== null && !isOnboardingComplete(onboardingSteps);
-  const completedCount = onboardingSteps ? onboardingSteps.filter((s) => s.completed).length : 0;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -315,48 +239,6 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </section>
-
-      {showOnboarding && onboardingSteps && (
-        <section className="rounded-lg border border-border bg-card">
-          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-            <h2 className="text-sm font-medium">Aan de slag</h2>
-            <span className="text-xs text-muted-foreground">
-              {completedCount} van {onboardingSteps.length} stappen voltooid
-            </span>
-          </div>
-          <ul className="divide-y divide-border">
-            {onboardingSteps.map((step) =>
-              step.completed ? (
-                <li
-                  key={step.id}
-                  className="flex items-center gap-3 px-5 py-3 text-sm text-muted-foreground"
-                >
-                  <CheckCircle className="size-4 shrink-0 text-success" aria-hidden />
-                  <span>{step.label}</span>
-                </li>
-              ) : (
-                <li key={step.id}>
-                  <Link
-                    href={step.href}
-                    className="focus-ring flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/40"
-                  >
-                    <span className="flex items-center gap-3">
-                      <Circle className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                      <span>
-                        <span className="block font-medium">{step.label}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          {step.description}
-                        </span>
-                      </span>
-                    </span>
-                    <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </Link>
-                </li>
-              ),
-            )}
-          </ul>
-        </section>
-      )}
 
       <section className="rounded-lg border border-border bg-card">
         <div className="border-b border-border px-5 py-3">
@@ -410,6 +292,11 @@ export default async function DashboardPage() {
                     <span className="block truncate text-xs text-muted-foreground">
                       {m.companyName}
                     </span>
+                    {m.related ? (
+                      <span className="block truncate text-xs text-primary">
+                        Sluit inhoudelijk aan op je profiel
+                      </span>
+                    ) : null}
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <AvailabilityBadge status={m.availability} />
