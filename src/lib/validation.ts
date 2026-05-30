@@ -189,3 +189,39 @@ export const invoiceLineSchema = z.object({
   unitCents: z.coerce.number().int().min(0).max(100_000_000),
 });
 export type InvoiceLineInput = z.infer<typeof invoiceLineSchema>;
+
+// --- Performance (urenstaat/oplevering) indienen ---
+export interface PerformanceFormData {
+  type: "HOURS" | "MILESTONE";
+  hours: number;
+  ortTotal: number; // total hours across all ORT segments (0 if no ORT)
+  hasOrt: boolean;
+  amount: number; // in euros
+  milestoneTitle: string;
+  periodStartRaw: string;
+  periodEndRaw: string;
+  rateCents: number | null;
+}
+
+/** Pure validatie van performance-invoer. Geeft een foutmelding terug, of null bij geldig. */
+export function validatePerformanceForm(data: PerformanceFormData): string | null {
+  if (data.type === "HOURS") {
+    if (data.rateCents == null) return "Er is geen uurtarief ingesteld voor deze samenwerking. Neem contact op met de opdrachtgever.";
+    if (data.hasOrt) {
+      if (data.ortTotal <= 0) return "Vul minstens één uur in bij de ORT-categorieën.";
+    } else {
+      if (data.hours <= 0) return "Vul het aantal uren in (minimaal 0,25 uur).";
+    }
+    if (data.periodStartRaw && data.periodEndRaw) {
+      const s = new Date(data.periodStartRaw);
+      const e = new Date(data.periodEndRaw);
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime()) && s > e) {
+        return "De begindatum van de periode mag niet na de einddatum liggen.";
+      }
+    }
+  } else {
+    if (data.amount <= 0) return "Voer een bedrag in van minimaal €0,01.";
+    if (!data.milestoneTitle.trim()) return "Geef de oplevering een titel.";
+  }
+  return null;
+}

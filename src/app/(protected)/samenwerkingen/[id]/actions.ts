@@ -21,6 +21,7 @@ import { prisma } from "@/lib/db";
 import { eurosToCents } from "@/lib/invoices";
 import { type OrtSegment } from "@/lib/ort";
 import { type OrtCategory } from "@/lib/config";
+import { validatePerformanceForm, type PerformanceFormData } from "@/lib/validation";
 
 /** Vertaalt een CascadeError/transitiefout naar een leesbare melding; hergooit de rest. */
 function toMessage(e: unknown): never {
@@ -45,7 +46,11 @@ export async function signContractAction(collaborationId: string): Promise<void>
   refresh(collaborationId);
 }
 
-export async function logAndSubmitPerformanceAction(collaborationId: string, formData: FormData): Promise<void> {
+export async function logAndSubmitPerformanceAction(
+  collaborationId: string,
+  _prevState: string | null,
+  formData: FormData,
+): Promise<string | null> {
   const actor = await requireActor();
   const type = formData.get("type") === "MILESTONE" ? "MILESTONE" : "HOURS";
   const description = String(formData.get("description") ?? "").slice(0, 500);
@@ -55,7 +60,6 @@ export async function logAndSubmitPerformanceAction(collaborationId: string, for
   const periodStart = periodStartRaw ? new Date(periodStartRaw) : null;
   const periodEnd = periodEndRaw ? new Date(periodEndRaw) : null;
 
-  // ORT-segmenten (zorg): uren per tijdscategorie. Leeg/0 → geen segment.
   const ortFields: Array<["NORMAL" | OrtCategory, string]> = [
     ["NORMAL", "ort_normal"],
     ["EVENING", "ort_evening"],
@@ -69,29 +73,48 @@ export async function logAndSubmitPerformanceAction(collaborationId: string, for
     .filter((s) => s.hours > 0);
   const useOrt = type === "HOURS" && ortSegments.length > 0;
 
-  try {
-    // Snapshot het uurtarief uit de samenwerking (server-side waarheid).
-    const col = await prisma.collaboration.findUnique({ where: { id: collaborationId }, select: { rate: true } });
-    const rateCents = col?.rate != null ? col.rate * 100 : null;
+  // Snapshot het uurtarief uit de samenwerking (server-side waarheid).
+  const col = await prisma.collaboration.findUnique({ where: { id: collaborationId }, select: { rate: true } });
+  const rateCents = col?.rate != null ? col.rate * 100 : null;
 
+  const hours = type === "HOURS" ? (useOrt ? ortSegments.reduce((s, x) => s + x.hours, 0) : Number(formData.get("hours") ?? 0)) : 0;
+  const amount = Number(formData.get("amount") ?? 0);
+  const milestoneTitle = String(formData.get("milestoneTitle") ?? "");
+
+  const validationError = validatePerformanceForm({
+    type,
+    hours,
+    ortTotal: useOrt ? ortSegments.reduce((s, x) => s + x.hours, 0) : 0,
+    hasOrt: useOrt,
+    amount,
+    milestoneTitle,
+    periodStartRaw,
+    periodEndRaw,
+    rateCents,
+  } satisfies PerformanceFormData);
+  if (validationError) return validationError;
+
+  try {
     const id = await createPerformance(actor, {
       collaborationId,
       type,
-      // Bij ORT is het totaal de som van de segment-uren; anders het ingevoerde urenveld.
-      hours: type === "HOURS" ? (useOrt ? ortSegments.reduce((s, x) => s + x.hours, 0) : Number(formData.get("hours") ?? 0)) : null,
+      hours: type === "HOURS" ? hours : null,
       rateCents: type === "HOURS" ? rateCents : null,
       ortSegments: useOrt ? ortSegments : null,
       periodStart: type === "HOURS" ? periodStart : null,
       periodEnd: type === "HOURS" ? periodEnd : null,
-      amountCents: type === "MILESTONE" ? eurosToCents(Number(formData.get("amount") ?? 0)) : null,
-      milestoneTitle: type === "MILESTONE" ? String(formData.get("milestoneTitle") ?? "") : null,
+      amountCents: type === "MILESTONE" ? eurosToCents(amount) : null,
+      milestoneTitle: type === "MILESTONE" ? milestoneTitle : null,
       description,
     });
     await submitPerformance(actor, id);
   } catch (e) {
-    toMessage(e);
+    if (e instanceof CascadeError) return e.message;
+    if (e instanceof Error) return e.message;
+    return "Er is een fout opgetreden. Probeer het opnieuw.";
   }
   refresh(collaborationId);
+  return null;
 }
 
 export async function approvePerformanceAction(performanceId: string, collaborationId: string): Promise<void> {

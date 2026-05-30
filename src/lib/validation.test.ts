@@ -6,6 +6,8 @@ import {
   freelancerProfileSchema,
   jobSchema,
   registerSchema,
+  validatePerformanceForm,
+  type PerformanceFormData,
 } from "@/lib/validation";
 
 describe("registerSchema", () => {
@@ -153,5 +155,93 @@ describe("credentialSchema", () => {
   it("weigert onbekend type en te korte titel", () => {
     expect(credentialSchema.safeParse({ ...base, type: "ONZIN" }).success).toBe(false);
     expect(credentialSchema.safeParse({ ...base, title: "X" }).success).toBe(false);
+  });
+});
+
+describe("validatePerformanceForm", () => {
+  const hoursBase: PerformanceFormData = {
+    type: "HOURS",
+    hours: 8,
+    ortTotal: 0,
+    hasOrt: false,
+    amount: 0,
+    milestoneTitle: "",
+    periodStartRaw: "",
+    periodEndRaw: "",
+    rateCents: 8500,
+  };
+
+  const milestoneBase: PerformanceFormData = {
+    type: "MILESTONE",
+    hours: 0,
+    ortTotal: 0,
+    hasOrt: false,
+    amount: 2500,
+    milestoneTitle: "Mijlpaal 1",
+    periodStartRaw: "",
+    periodEndRaw: "",
+    rateCents: null,
+  };
+
+  it("HOURS: hours=0 geeft een fout", () => {
+    const result = validatePerformanceForm({ ...hoursBase, hours: 0 });
+    expect(result).not.toBeNull();
+    expect(result).toContain("uren");
+  });
+
+  it("HOURS: rateCents=null geeft een fout over ontbrekend uurtarief", () => {
+    const result = validatePerformanceForm({ ...hoursBase, rateCents: null });
+    expect(result).not.toBeNull();
+    expect(result).toContain("uurtarief");
+  });
+
+  it("HOURS: geldige uren + rateCents geeft null", () => {
+    expect(validatePerformanceForm(hoursBase)).toBeNull();
+  });
+
+  it("HOURS: ORT met ortTotal=0 geeft een fout", () => {
+    const result = validatePerformanceForm({ ...hoursBase, hasOrt: true, ortTotal: 0 });
+    expect(result).not.toBeNull();
+    expect(result).toContain("ORT");
+  });
+
+  it("HOURS: ORT met ortTotal>0 geeft null", () => {
+    expect(validatePerformanceForm({ ...hoursBase, hasOrt: true, ortTotal: 4, hours: 4 })).toBeNull();
+  });
+
+  it("HOURS: periodStart > periodEnd geeft een fout", () => {
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      periodStartRaw: "2026-05-31",
+      periodEndRaw: "2026-05-01",
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("begindatum");
+  });
+
+  it("HOURS: periodStart <= periodEnd geeft null", () => {
+    expect(
+      validatePerformanceForm({
+        ...hoursBase,
+        periodStartRaw: "2026-05-01",
+        periodEndRaw: "2026-05-31",
+      }),
+    ).toBeNull();
+  });
+
+  it("MILESTONE: amount=0 geeft een fout", () => {
+    const result = validatePerformanceForm({ ...milestoneBase, amount: 0 });
+    expect(result).not.toBeNull();
+    expect(result).toContain("bedrag");
+  });
+
+  it("MILESTONE: lege titel geeft een fout", () => {
+    const result = validatePerformanceForm({ ...milestoneBase, milestoneTitle: "" });
+    expect(result).not.toBeNull();
+    expect(result).toContain("titel");
+  });
+
+  it("MILESTONE: geldig bedrag en titel geeft null", () => {
+    expect(validatePerformanceForm(milestoneBase)).toBeNull();
   });
 });
