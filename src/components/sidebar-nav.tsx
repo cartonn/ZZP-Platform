@@ -7,6 +7,7 @@ import {
   Briefcase,
   Building2,
   CalendarDays,
+  Clock,
   CreditCard,
   FileCheck2,
   Files,
@@ -38,6 +39,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   handshake: Handshake,
   creditCard: CreditCard,
   calendar: CalendarDays,
+  clock: Clock,
   barChart: BarChart,
   settings: Settings,
 };

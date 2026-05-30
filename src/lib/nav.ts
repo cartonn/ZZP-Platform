@@ -14,6 +14,7 @@ export type NavIcon =
   | "handshake"
   | "creditCard"
   | "calendar"
+  | "clock"
   | "barChart"
   | "settings";
 
@@ -32,6 +33,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
     { label: "Mijn profiel", href: "/profiel", icon: "user", enabled: true },
     { label: "Beschikbaarheid", href: "/beschikbaarheid", icon: "calendar", enabled: true },
+    { label: "Diensten", href: "/diensten", icon: "clock", enabled: true },
     { label: "Opdrachten", href: "/opdrachten", icon: "briefcase", enabled: true },
     { label: "Mijn reacties", href: "/reacties", icon: "files", enabled: true },
     { label: "Documenten", href: "/documenten", icon: "files", enabled: true },
