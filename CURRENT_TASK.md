@@ -32,9 +32,17 @@ volgens de Definition of Done (zie CLAUDE.md → AUTO-MODE), commit + push, pak 
 Altijd `git fetch`/rebase vóór commit én push (meerdere agents pushen naar dezelfde branch).
 
 ### Backlog (bovenste eerst — houd deze lijst levend)
-1. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
+1. Rate-limiting op auth + mutaties (deterministisch, in-memory default + pluggable store
+   achter een service-grens; faalt veilig). Beschermt login + dure mutaties.
+2. Hoofdletterongevoelig zoeken op Postgres (`mode: "insensitive"`) achter een env/provider-
+   switch; SQLite-pad ongemoeid. (Bekend uitgesteld code-punt.)
+3. Multi-member-organisaties + subrollen (owner/manager/recruiter/viewer) — grote epic, eigen sessie.
 
-Gereed: bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
+Gereed: **semantische matching-laag** (deterministisch lokaal `semantic.ts` + service-grens
+`semantic-matcher.ts` met pgvector-seam; tiebreaker + "sluit inhoudelijk aan"-verklaring in
+dashboard/opdrachtkaart; SEMANTIC_MATCHER env. De echte pgvector-activatie — extensie +
+embedding-kolom + ANN-index op productie-Postgres — is mensenwerk; de ranking degradeert
+gracieus). · bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
 nieuwe-reactie-notificatie · uitlegbare matching (match-reasons) · next-action-engine
 (dashboard draait erop) · beschikbaarheid in matching (score onveranderd, reden + badges) ·
 design-polish-pass (gedeelde EmptyState + Skeleton, route-skeletten, reduced-motion) ·
