@@ -241,6 +241,9 @@ export default async function DashboardPage() {
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{m.title}</span>
                     <span className="block truncate text-xs text-muted-foreground">{m.companyName}</span>
+                    {m.related ? (
+                      <span className="block truncate text-xs text-primary">Sluit inhoudelijk aan op je profiel</span>
+                    ) : null}
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <AvailabilityBadge status={m.availability} />
