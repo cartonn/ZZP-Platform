@@ -51,8 +51,10 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
       print/PDF-factuur + A4-styling, e-mailkanaal-abstractie (MailSender). Open (mensenwerk):
       SMTP-koppeling productie.
 - [~] **Fase 7 — Hardening & end-to-end** — zijpad-integratietests, loading-states,
-      cutover-migratiescript (legacy-facturen → cascade-velden; getest, idempotent). Open:
-      Playwright-e2e (interactieve sessie mét browser).
+      cutover-migratiescript (legacy-facturen → cascade-velden; getest, idempotent),
+      nav-signalen cascade (cascadeWork op /samenwerkingen + openDisputes op /admin/disputen),
+      ORT-categorietests (SATURDAY, HOLIDAY, volledig gemengd), validatietests periodedata.
+      Open: Playwright-e2e (interactieve sessie mét browser).
 
 ### 24/7-bouw actief — coördinatie (lees dit, auto-build-agent)
 De GitHub Actions-workflow `auto-build.yml` bouwt elke ~15 min op deze branch. Meerdere agents pushen
@@ -93,7 +95,9 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > idempotentie-test, cascade-factuurdetail herleidingsbewijs, admin-kwartaaloverzicht,
 > DBA-drempels configureerbaar (PlatformConfig + /admin/configuratie), onboarding-checklist
 > ZZP'er (4 stappen, dashboard), dark-mode toggle (gebruikerskeuze), cutover-migratiescript
-> legacy-facturen (scripts/migrate-legacy-invoices.mjs, getest, idempotent).
+> legacy-facturen (scripts/migrate-legacy-invoices.mjs, getest, idempotent),
+> nav-signalen cascade (cascadeWork + openDisputes in signals.ts), ORT-categorietests
+> (SATURDAY/HOLIDAY/gemengd), handlers-edge-cases, validatietests periodedata.
 
 ### Gap-analyse (Fase 0)
 **Herbruikbaar:** enums+Zod-patroon; `assert*Transition`-maps (credential/invoice/collaboration);

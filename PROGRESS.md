@@ -699,4 +699,17 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Notificaties verschijnen automatisch in het bestaande notificatiecentrum + bel; signals.ts
   badget bijna-verlopen al. Geen "AI" in teksten/comments/docs.
 
+### Platform Overhaul — Fase 7 hardening (nav-signalen + ORT-tests) — 2026-05-30
+- **Nav-signalen cascade** (`signals.ts`): FREELANCER krijgt badge op `/samenwerkingen`
+  voor concept-facturen indienen + goedgekeurde facturen betalen; CLIENT voor
+  prestaties + facturen goedkeuren. ADMIN krijgt badge op `/admin/disputen` bij open
+  disputen. `SignalCounts` uitgebreid met `cascadeWork` + `openDisputes`.
+- **ORT-tests**: SATURDAY (+52%), HOLIDAY (+100%) en volledig gemengde dienst (alle 5
+  categorieën) toegevoegd aan `ort.test.ts`.
+- **Handlers-tests**: lege `ortSegments`-array valt terug op `uren×tarief`; HOLIDAY via
+  `performanceSubtotalCents` getest.
+- **Validatie-tests**: ORT + periodedatum-combinaties (geldig, start>eind, alleen start).
+- Tests: 415 → 426 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
+  E2e overgeslagen (geen browser-channel in routine).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
