@@ -5,6 +5,7 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { COLLABORATION_TRANSITIONS } from "@/lib/collaborations";
 import { assessCollaborationCredentials, type CredentialAlert } from "@/lib/collaboration-alerts";
+import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type FreelancerCredential } from "@/lib/matching";
 import { type CollaborationStatus, type CredentialType } from "@/lib/enums";
@@ -57,6 +58,9 @@ export default async function SamenwerkingenPage() {
         select: {
           id: true,
           title: true,
+          dbaDirectSupervision: true,
+          dbaEmbedded: true,
+          dbaFixedSchedule: true,
           credentialRequirements: { where: { required: true }, select: { credentialType: true } },
         },
       },
@@ -105,6 +109,9 @@ export default async function SamenwerkingenPage() {
                 : null;
             const showAlert = alert && alert.status !== "COMPLIANT";
             const urgent = alert?.status === "NON_COMPLIANT";
+            const dba = status === "ACTIVE"
+              ? assessCollaborationDba({ collaborationId: c.id, startDate: c.startDate, ...jobDbaIndicators(c.job) })
+              : null;
             return (
               <Card key={c.id}>
                 <CardContent className="space-y-3">
@@ -113,6 +120,11 @@ export default async function SamenwerkingenPage() {
                       <div className="flex items-center gap-2">
                         <Link href={`/opdrachten/${c.job.id}`} className="font-medium underline-offset-4 hover:underline">{c.job.title}</Link>
                         <Badge variant={STATUS[status].variant}>{STATUS[status].label}</Badge>
+                        {dba && dba.level !== "LAAG" && (
+                          <Badge variant={dba.level === "HOOG" ? "warning" : "muted"} title="DBA-aandachtspunt — geen juridisch oordeel">
+                            {DBA_LEVEL_LABEL[dba.level]}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">Met {counterparty}</p>
                     </div>
