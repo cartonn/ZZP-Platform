@@ -76,18 +76,18 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 5. **Juridisch/AVG-review** (MENSENWERK) vóór livegang met echte gevoelige documenten.
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
-1. Cascade-factuurdetail verder verbeteren: toon de gekoppelde prestatie(s) op `/facturen/[id]`
-   als herleidingsbewijs (welke uren/oplevering heeft deze factuur gegenereerd).
-2. Admin-kwartaaloverzicht: `/admin/administratie` met platform-brede omzet per kwartaal en
-   een lijst van openstaande betalingen over alle samenwerkingen heen.
-3. Wet DBA-drempelwaarden nu configureerbaar: zorg dat de DBA-drempels in `config.ts` ook
-   dynamisch gelezen worden vanuit een admin-configuratiepagina (simpele DB-row + formulier).
-4. Onboarding-flow verbeteren: nieuwe ZZP'ers krijgen na registratie een stap-voor-stap checklist
-   (profiel invullen → certificaat uploaden → beschikbaarheid instellen → eerste opdracht zoeken).
+1. Dark-first-beslissing verwerken (DESIGN.md open punt) — keuze vastleggen, tokens aanpassen,
+   visueel verifiëren. Blokkeert de cutover-checklist.
+2. Cutover-voorbereiding: migratiescript voor bestaande demo-/livefacturen (tijdelijke `status`/
+   `number`-brug afronden) + DB-smoke op een kopie.
+3. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
+   routines, doe in een interactieve sessie.
 
 > Reeds gedaan (niet opnieuw): print/PDF-factuurknop, MailSender-abstractie, concept-factuur-
 > reminders, jaaroverzicht/IB, grootboek-/BTW-CSV, DBA-omzetconcentratie, admin-disputen,
-> run-all cron, BTW-herinnering, cascade-keten op werkprocespagina, idempotentie-test.
+> run-all cron, BTW-herinnering, cascade-keten op werkprocespagina, idempotentie-test,
+> cascade-factuurdetail herleidingsbewijs, admin-kwartaaloverzicht, DBA-drempels configureerbaar
+> (PlatformConfig + /admin/configuratie), onboarding-checklist ZZP'er (4 stappen, dashboard).
 
 ### Gap-analyse (Fase 0)
 **Herbruikbaar:** enums+Zod-patroon; `assert*Transition`-maps (credential/invoice/collaboration);

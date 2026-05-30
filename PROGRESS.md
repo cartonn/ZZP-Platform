@@ -131,6 +131,19 @@ Cascade A→E als pure planners + transactionele applier, volledig getest zonder
   (eerste aanroep → transactie; tweede aanroep → early return zonder dubbel effect).
 - Tests: 352 (was 328). Gate groen: typecheck/lint/test/build. E2e overgeslagen (geen browser).
 
+### Platform Overhaul — DBA-drempels configureerbaar + onboarding-checklist — 2026-05-30
+- `PlatformConfig`-model (schema): singleton-rij met DBA-drempelwaarden (fallback op statische defaults).
+- `platform-config.ts`: `getDbaThresholds()` / `saveDbaThresholds()` met DB-fallback.
+- `dba-monitor.ts`: `thresholds?`-parameter op `assessCollaborationDba` + `planDbaMonitorRun`
+  (bestaande tests ongewijzigd); `dba-monitor-task.ts` laadt drempels uit DB vóór het plannen.
+- `/admin/configuratie`: admins kunnen DBA-drempels (eerste/sterk duursignaal, omzetconcentratie%)
+  aanpassen via formulier + server action (Zod-validatie, audit).
+- Nav: "Configuratie" voor ADMIN met Settings-icoon.
+- `onboarding.ts` (pure): 4-stappen-checklist (profiel/certificaat/beschikbaarheid/opdracht) +
+  `isOnboardingComplete`. Dashboard-FREELANCER-view toont "Aan de slag"-blok tot alle stappen klaar.
+- Tests: +19 (platform-config 10, onboarding 9); totaal 384 groen.
+- Gate groen: typecheck/lint/test/build. E2e overgeslagen (geen browser).
+
 ### Meedenk-laag — 2026-05-26
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"
