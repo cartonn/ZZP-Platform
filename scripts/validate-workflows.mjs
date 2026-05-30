@@ -44,6 +44,14 @@ try {
   if (on && !("schedule" in on)) errors.push("auto-build.yml: schedule ontbreekt");
   else ok("schedule aanwezig");
 
+  // GELEERDE LES: claude-code-action crasht op een 'push'-event ("Unsupported event type: push").
+  // Daarom mag auto-build NIET op push triggeren.
+  if (on && "push" in on) {
+    errors.push("auto-build.yml: heeft een 'push'-trigger — die crasht de claude-code-action (Unsupported event type: push)");
+  } else {
+    ok("geen push-trigger (voorkomt action-crash)");
+  }
+
   // De build moet de ACTIEVE branch checkouten en daarnaartoe pushen.
   if (!raw.includes(ACTIVE_BRANCH)) {
     errors.push(`auto-build.yml: verwijst niet naar de actieve branch ${ACTIVE_BRANCH}`);
