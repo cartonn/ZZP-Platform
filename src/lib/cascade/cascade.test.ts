@@ -11,6 +11,7 @@ import {
   planPerformanceRejected,
   planInvoiceSubmittedEvent,
   planInvoiceApprovedEvent,
+  planInvoiceRejectedEvent,
   planPaymentConfirmedEvent,
   planInvoiceCreditedEvent,
 } from "@/lib/cascade/handlers";
@@ -180,5 +181,72 @@ describe("zijpad — creditfactuur maakt de administratie netto nul", () => {
     expect(summary.CLIENT.KOSTEN).toBe(0);
     expect(summary.CLIENT.BTW_VOORBELASTING).toBe(0);
     expect(vatPosition(postings).FREELANCER).toBe(0);
+  });
+});
+
+describe("zijpad D' — factuur afgekeurd en opnieuw ingediend (Fase 7)", () => {
+  it("REJECTED -> SUBMITTED -> APPROVED doorloopt correct met sluitende administratie", () => {
+    const fin = { subtotalCents: 480_00, vatCents: 100_80, totalCents: 580_80 };
+
+    // Factuur ingediend (C)
+    const c = planInvoiceSubmittedEvent({
+      invoice: { id: "i2", lifecycleStatus: "DRAFT", ...fin },
+      partyInvoiceNumber: "2026-0002",
+      clientUserId: "c1", now, actorId: "f1",
+    });
+    expect(c.statusChanges[0]?.to).toBe("SUBMITTED");
+
+    // D' — factuur afgekeurd door opdrachtgever (reden verplicht)
+    const dPrime = planInvoiceRejectedEvent({
+      invoiceId: "i2", lifecycleStatus: "SUBMITTED",
+      reason: "Onjuist uurtarief toegepast.",
+      freelancerUserId: "f1", actorId: "c1",
+    });
+    expect(dPrime.statusChanges[0]?.to).toBe("REJECTED");
+    // Geen boekingen bij afwijzing (nog niets gerealiseerd)
+    expect(dPrime.postings).toHaveLength(0);
+
+    // C opnieuw — ZZP'er dient gecorrigeerde factuur in
+    const cRetry = planInvoiceSubmittedEvent({
+      invoice: { id: "i2", lifecycleStatus: "REJECTED", ...fin },
+      partyInvoiceNumber: "2026-0002",
+      clientUserId: "c1", now, actorId: "f1",
+    });
+    expect(cRetry.statusChanges[0]?.to).toBe("SUBMITTED");
+
+    // D — opdrachtgever keurt goed
+    const d = planInvoiceApprovedEvent({
+      invoice: { id: "i2", lifecycleStatus: "SUBMITTED", ...fin },
+      paymentTermDays: 30,
+      freelancerUserId: "f1", now, actorId: "c1",
+    });
+    expect(d.statusChanges[0]?.to).toBe("APPROVED");
+
+    // E — betaling geregistreerd
+    const e = planPaymentConfirmedEvent({
+      invoice: { id: "i2", lifecycleStatus: "APPROVED", ...fin, partyInvoiceNumber: "2026-0002" },
+      collaboration: { id: "col3", status: "ACTIVE" },
+      freelancerUserId: "f1", clientUserId: "c1", now, actorId: "f1",
+    });
+    expect(e.statusChanges[0]?.to).toBe("PAID");
+
+    // Administratie sluit: postings van C + D + E (c-retry vervangt geen postings)
+    const allPostings = [...c.postings, ...d.postings, ...e.postings];
+    const summary = summarizeByParty(allPostings);
+    expect(summary.FREELANCER.DEBITEUREN).toBe(0);
+    expect(summary.FREELANCER.OMZET).toBe(-480_00);
+    expect(summary.CLIENT.CREDITEUREN).toBe(0);
+    expect(summary.CLIENT.KOSTEN).toBe(480_00);
+    expect(Object.keys(summary.PLATFORM)).toHaveLength(0);
+  });
+
+  it("planInvoiceRejectedEvent vereist een reden (D')", () => {
+    expect(() =>
+      planInvoiceRejectedEvent({
+        invoiceId: "i2", lifecycleStatus: "SUBMITTED",
+        reason: "",
+        freelancerUserId: "f1", actorId: "c1",
+      }),
+    ).toThrow(/reden/);
   });
 });
