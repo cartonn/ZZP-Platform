@@ -10,6 +10,7 @@ import {
   visibilitySchema,
   workModeSchema,
 } from "@/lib/enums";
+import { MODEL_AGREEMENT_TYPES } from "./model-agreement";
 
 const optionalInt = (max: number) =>
   z
@@ -113,6 +114,9 @@ export const jobSchema = z
     dbaExclusive: z.boolean().default(false),
     dbaWeakEntrepreneurship: z.boolean().default(false),
     dbaDurationMonths: optionalInt(240),
+    modelAgreementType: z
+      .union([z.enum(MODEL_AGREEMENT_TYPES), z.literal(""), z.null(), z.undefined()])
+      .transform((v) => (v ? v : null)),
   })
   .refine((d) => d.rateMin == null || d.rateMax == null || d.rateMin <= d.rateMax, {
     message: "Minimumtarief mag niet hoger zijn dan maximumtarief.",

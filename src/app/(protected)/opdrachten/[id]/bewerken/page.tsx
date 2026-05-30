@@ -50,6 +50,7 @@ export default async function OpdrachtBewerkenPage({ params }: { params: Promise
           optionalSkillIds: job.skills.filter((s) => !s.required).map((s) => s.skillId),
           requiredCredentialTypes: job.credentialRequirements.filter((c) => c.required).map((c) => c.credentialType),
           optionalCredentialTypes: job.credentialRequirements.filter((c) => !c.required).map((c) => c.credentialType),
+          modelAgreementType: job.modelAgreementType ?? "",
           dba: {
             dbaDirectSupervision: job.dbaDirectSupervision,
             dbaEmbedded: job.dbaEmbedded,

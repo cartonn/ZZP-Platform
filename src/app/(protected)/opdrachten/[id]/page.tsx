@@ -18,6 +18,7 @@ import { scoreJobForFreelancer, type ComplianceResult, type ComplianceStatus, ty
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
+import { recommendModelAgreement, MODEL_AGREEMENT_LABELS, type ModelAgreementType } from "@/lib/model-agreement";
 import { changeJobStatus, createApplication } from "../actions";
 import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import { ApplicationForm } from "./application-form";
@@ -205,6 +206,36 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               ))}
             </ul>
           )}
+          {(() => {
+            const modelRec = recommendModelAgreement({
+              directSupervision: job.dbaDirectSupervision,
+              embedded: job.dbaEmbedded,
+              fixedSchedule: job.dbaFixedSchedule,
+              noSubstitution: job.dbaNoSubstitution,
+              exclusive: job.dbaExclusive,
+              weakEntrepreneurship: job.dbaWeakEntrepreneurship,
+              durationMonths: job.dbaDurationMonths,
+            });
+            return (
+              <>
+                {modelRec.recommended && (
+                  <div className="rounded-md border border-border bg-muted/40 p-2.5">
+                    <p className="text-xs font-medium">Aanbevolen modelovereenkomst: {modelRec.label}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground/70">{modelRec.note}</p>
+                  </div>
+                )}
+                {job.modelAgreementType ? (
+                  <p className="text-xs text-muted-foreground">
+                    Vastgelegd: <span className="font-medium text-foreground">{MODEL_AGREEMENT_LABELS[job.modelAgreementType as ModelAgreementType]}</span>
+                  </p>
+                ) : (
+                  modelRec.recommended && (
+                    <p className="text-[11px] text-muted-foreground/70">Nog geen modelovereenkomst vastgelegd.</p>
+                  )
+                )}
+              </>
+            );
+          })()}
           <p className="text-[11px] text-muted-foreground/70">Hulpmiddel, geen juridisch advies.</p>
         </section>
       )}

@@ -37,6 +37,7 @@ function parseJobForm(formData: FormData) {
     dbaExclusive: formData.get("dbaExclusive") === "on",
     dbaWeakEntrepreneurship: formData.get("dbaWeakEntrepreneurship") === "on",
     dbaDurationMonths: formData.get("dbaDurationMonths") ?? "",
+    modelAgreementType: formData.get("modelAgreementType") ?? "",
   });
 }
 
@@ -102,6 +103,7 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
     dbaDurationMonths: data.dbaDurationMonths ?? null,
     dbaRisk: dba.level,
     dbaReasons: JSON.stringify(dba.reasons),
+    modelAgreementType: data.modelAgreementType ?? null,
   };
 
   let savedId: string;
