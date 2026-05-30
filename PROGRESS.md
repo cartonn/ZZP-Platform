@@ -583,9 +583,9 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   verklarende regel ("Sluit inhoudelijk aan op je profiel / op de opdracht") op de dashboard-
   en opdrachtkaart wanneer de aansluiting boven de drempel ligt. `computeMatchScore` blijft
   ongewijzigd (bestaande tests intact). Tiebreaker-unit-tests toegevoegd in beide test-files.
-- **Drempel gekalibreerd** op de demo-seed (42 job×profiel-paren): median 0.139, p90 0.336,
-  max 0.452 → `SEMANTIC_HIGHLIGHT_THRESHOLD = 0.3` toont de verklaring alleen voor de ~top 10–15%
-  best-aansluitende paren (selectief, nooit altijd-aan/leeg).
+- **Drempel gekalibreerd** op de demo-seed (42 job×profiel-paren, gemeten): median 0.120,
+  p75 0.245, p90 0.472, max 0.737 → `SEMANTIC_HIGHLIGHT_THRESHOLD = 0.3` toont de verklaring
+  voor 7/42 = 16,7% (~top 1/6) best-aansluitende paren (selectief, nooit altijd-aan/leeg).
 - env: `SEMANTIC_MATCHER` toegevoegd aan `env.ts` (default "local") + `.env.example`.
 - Checks groen: typecheck, lint, **246 unit-tests**, build (33 routes), `check:env`. E2e
   overgeslagen (geen browser-channel in deze routine-omgeving, net als CI). Geen "AI" in
