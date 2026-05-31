@@ -14,6 +14,9 @@ export interface ImportResult {
   errors: string[];
 }
 
+/** Maximum aantal diensten per CSV-import om timeouts en notificatie-spam te voorkomen. */
+const MAX_IMPORT_SIZE = 100;
+
 export async function importDienstenAction(
   _prev: ImportResult | null,
   formData: FormData,
@@ -53,6 +56,16 @@ export async function importDienstenAction(
   const rates = resolveOrtRates({ ortProfile: col.ortProfile, ortCustomRates: col.ortCustomRates });
 
   const { shifts: parsedShifts, errors: parseErrors } = parseCsvShifts(csvText);
+
+  if (parsedShifts.length > MAX_IMPORT_SIZE) {
+    return {
+      imported: 0,
+      skipped: 0,
+      errors: [
+        `Maximaal ${MAX_IMPORT_SIZE} diensten per import toegestaan. Dit bestand bevat ${parsedShifts.length} geldige regels. Splits het bestand op in kleinere batches.`,
+      ],
+    };
+  }
 
   const errors: string[] = parseErrors.map((e) => `Regel ${e.line}: ${e.message}`);
   let imported = 0;

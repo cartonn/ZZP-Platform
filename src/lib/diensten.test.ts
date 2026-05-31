@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCsvShifts, exportDienstenCsv, type DienstSummary } from "./diensten";
+import { parseCsvShifts, exportDienstenCsv, MAX_CSV_IMPORT_SIZE, type DienstSummary } from "./diensten";
 
 describe("parseCsvShifts", () => {
   it("parses a single valid row (ISO-8601)", () => {
@@ -93,6 +93,18 @@ describe("parseCsvShifts", () => {
     const longDesc = "x".repeat(600);
     const { shifts } = parseCsvShifts(`2024-01-15T08:00;2024-01-15T16:00;${longDesc}`);
     expect(shifts[0]!.description.length).toBe(500);
+  });
+});
+
+describe("MAX_CSV_IMPORT_SIZE", () => {
+  it("is een positief getal", () => {
+    expect(MAX_CSV_IMPORT_SIZE).toBeGreaterThan(0);
+  });
+
+  it("past als limiet (100 rijen is genoeg voor een maand dagdiensten)", () => {
+    // Minstens 30 (een maand) maar ook niet onbeperkt.
+    expect(MAX_CSV_IMPORT_SIZE).toBeGreaterThanOrEqual(30);
+    expect(MAX_CSV_IMPORT_SIZE).toBeLessThanOrEqual(500);
   });
 });
 

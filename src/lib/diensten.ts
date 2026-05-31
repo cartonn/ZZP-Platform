@@ -171,6 +171,9 @@ export interface CsvParseResult {
   errors: CsvParseError[];
 }
 
+/** Maximum aantal geldige dienst-rijen dat één import mag bevatten (handhaving in de server-action). */
+export const MAX_CSV_IMPORT_SIZE = 100;
+
 /**
  * Parseert CSV-tekst voor diensten-import. Formaat (semikolon-gescheiden):
  *   start;eind;omschrijving

@@ -76,7 +76,7 @@ export default async function ImporteerPage() {
         <p className="mt-2 text-xs text-muted-foreground">
           Tijdstempels: ISO-8601 of met spatie als scheidingsteken (bv. &ldquo;2024-01-15 22:00&rdquo;).
           Avond/nacht/weekend/feestdagen worden automatisch afgeleid aan de hand van het ORT-profiel
-          van de samenwerking.
+          van de samenwerking. Maximaal 100 diensten per import.
         </p>
       </section>
     </div>
