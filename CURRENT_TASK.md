@@ -128,7 +128,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > nav-signalen cascade (cascadeWork + openDisputes + pendingPerformances in signals.ts),
 > ORT-categorietests (SATURDAY/HOLIDAY/gemengd), handlers-edge-cases, validatietests periodedata,
 > diensten-overzicht ZZP'er + CSV-import + export, prestaties-overzicht opdrachtgever + export,
-> admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening.
+> admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening,
+> AVG verwijderverzoek afhandelen (admin anonimiseert account: account-anonymization.ts + anonymizeUser
+>
+> - /admin/gebruikers-actie + User.anonymizedAt; facturen bewaard, certificaten/documenten verwijderd).
 
 ### Gap-analyse (Fase 0)
 

@@ -29,6 +29,28 @@
 
 ## Logboek
 
+### AVG — verwijderverzoek afhandelen (anonimiseren) — 2026-05-31
+
+Sloot de half-afgebouwde AVG "recht op verwijdering"-flow: een gebruiker kon verwijdering
+aanvragen en beheer zag het verzoek, maar kon het niet uitvoeren (de "Verwijderverzoek"-badge
+was een doodlopende knop). Branch: `claude/epic-lovelace-AriUF`. Linear ZZP2-32. Commit `fb081a2`.
+
+- `src/lib/account-anonymization.ts` (pure, getest): `canAnonymizeUser` (alleen ADMIN, niet eigen
+  account, nooit een ADMIN-target, alleen openstaand verzoek, niet al geanonimiseerd) +
+  scrub-payloads `userAnonymizationData` / `freelancerProfileAnonymizationData` /
+  `companyAnonymizationData` + deterministisch `anonymizedEmail` (uniek, `.invalid`-domein).
+- `anonymizeUser` server-actie (`/admin/gebruikers/actions.ts`): mutatieketen
+  auth → rol → guard → actie → audit in één transactie. Wist PII op User/profiel/bedrijf,
+  verwijdert certificaten + documenten (gevoeligste PII; storage best-effort), **bewaart facturen**
+  (fiscale bewaarplicht). Zet `status=SUSPENDED`, `anonymizedAt`, wist `deletionRequestedAt`.
+  Inloggen wordt onmogelijk (lege passwordHash). Berichten/notificaties blijven als gezamenlijke
+  records staan maar zijn niet meer naar een persoon herleidbaar.
+- Schema additief: nullable `User.anonymizedAt`.
+- UI `/admin/gebruikers`: bevestigde "Verzoek afhandelen"-actie (client-confirm, onomkeerbaar) op
+  rijen met een verzoek + "Geanonimiseerd"-badge erna. Geen dode knop meer.
+- Tests: +23 (account-anonymization). Gate groen: typecheck ✓ lint ✓ test 578 ✓ build ✓ prettier ✓.
+  E2e (Playwright) overgeslagen — geen browser-channel in deze omgeving (zoals CI).
+
 ### Platform Overhaul — Fase 0 + 1 — 2026-05-29
 
 Start van de event-driven overhaul (`prompts/PLATFORM_OVERHAUL.md`). Branch deze sessie:
