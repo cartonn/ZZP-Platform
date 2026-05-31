@@ -615,4 +615,40 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Checks: typecheck ✓, lint ✓, **213 unit-tests** ✓ (+11), build ✓ (33 routes). E2e overgeslagen
   (geen browser-channel in deze routine-omgeving; net als CI). Commit `ec189e3`.
 
+### Incrementen na laatste PROGRESS-update — 2026-05-31
+
+Toegevoegd door auto-build-runs (niet eerder gedocumenteerd):
+
+- **CSV-consolidatie** (`src/lib/csv.ts`): één robuuste RFC4180-parser + schrijver (detectDelimiter,
+  parseCsvRecords, escapeCsvField, toCsv). Diensten.ts + onboarding/import.ts hergebruiken deze.
+  Bugfix: diensten-CSV brak op gequote velden. Tests: +11 (csv.test.ts).
+- **SMTP-verzending + welkomstmail** (`mail-sender.ts SmtpMailSender`, `onboarding/welcome-email.ts`):
+  nodemailer-driver achter EMAIL_DRIVER=smtp; admin-import stuurt optioneel welkomstmail met
+  tijdelijk wachtwoord i.p.v. alleen scherm-onthulling. Tests: +6 (welcome-email) +2 (mail-sender).
+- **E-mailmeldingen cascade-herinneringen** (`services/reminder-emails.ts`): alle vier
+  herinneringstaken (expiry, betaling, concept-factuur, BTW-kwartaal) sturen nu ook een e-mail
+  naast de in-app-notificatie. Fire-and-forget; DB-transactie rolt niet terug bij e-mailfout.
+  Tests: +16. Totaal: 555 groen.
+- **Playwright e2e in CI** + repo hardening (CODEOWNERS, templates, CONTRIBUTING, SECURITY).
+- **CI/branch-fix**: auto-build gebruikt nu branch+PR flow (branch protection).
+
+### Wachtwoord-reset via e-mail — 2026-05-31
+
+Productie-kritische flow, nu SMTP beschikbaar is:
+
+- `PasswordResetToken`-model (schema, additief): tokenHash (SHA-256, nooit raw), expiresAt (1 uur),
+  usedAt (eenmalig gebruik), Cascade-delete bij gebruiker. `prisma db push` ✓.
+- `src/lib/password-reset.ts`: `hashResetToken` + `isResetTokenValid` (puur), `createResetToken` /
+  `validateResetToken` / `consumeResetToken` (DB).
+- `src/lib/services/reset-email.ts`: pure e-mailtemplate (HTML-escaped), getest.
+- `/wachtwoord-vergeten` (publiek): e-mailadres invullen; altijd dezelfde respons
+  (e-mail-enumeratiebescherming); fire-and-forget mailverzending.
+- `/wachtwoord-herstellen/[token]` (publiek): nieuw wachtwoord instellen; token gevalideerd
+  (geldigheid + one-time-use) en geconsumed in één transactie met wachtwoord-update.
+- Middleware: beide routes toegevoegd aan `isPublicPath`.
+- Login-pagina: "Wachtwoord vergeten?"-link.
+- Audit: `PASSWORD_RESET_REQUESTED` + `PASSWORD_RESET_COMPLETED` (met IP/UA).
+- Tests: +14 (hashResetToken 2 / isResetTokenValid 5 / buildResetEmail 7). Totaal 569 groen.
+- Gate: typecheck ✓ lint ✓ test 569 ✓ build ✓. E2e overgeslagen (geen browser-channel).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
