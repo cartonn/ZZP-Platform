@@ -5,8 +5,6 @@ on:
     branches: ["**"]
   pull_request:
 
-# Lint + typecheck + unit-tests + build in één run (npm run check).
-# E2e (Playwright) draait lokaal via Edge; in CI bewust niet meegenomen i.v.m. browser-channel.
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -23,3 +21,32 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npm run check
+      - run: npx prettier --check .
+
+  e2e:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      DATABASE_URL: "file:./ci.db"
+      AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
+      STORAGE_DRIVER: "local"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate && npx prisma db push --skip-generate && npx prisma db seed
+      - run: npx playwright install chromium --with-deps
+      - run: npm run build
+      - run: npx playwright test --project=ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: |
+            e2e/screenshots/
+            playwright-report/
+          retention-days: 7

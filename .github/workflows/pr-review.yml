@@ -3,7 +3,7 @@ name: PR review (reviewer + security)
 # Reviewpoort: op elke PR draait een review-agent (correctheid + security). Hij ADVISEERT —
 # merget nooit. Samen met CI (ci.yml) en menselijke goedkeuring vormt dit de gate vóór merge.
 #
-# MENSENWERK (eenmalig): repo-secret ANTHROPIC_API_KEY. Zonder dit secret slaat de stap over.
+# Draait op Claude Max (OAuth) — geen API-kosten per token.
 
 on:
   pull_request:
@@ -29,7 +29,7 @@ jobs:
       - name: Review
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             Review deze PR-diff tegen de basis-branch. Volg de rollen in .claude/agents/reviewer.md
@@ -42,5 +42,3 @@ jobs:
           claude_args: |
             --model claude-sonnet-4-6
             --max-turns 30
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

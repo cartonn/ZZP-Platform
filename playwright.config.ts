@@ -16,9 +16,11 @@ export default defineConfig({
     // Edge (chromium-gebaseerd) via systeem-install: de Playwright-browser-CDN staat
     // niet in de netwerk-allowlist van deze omgeving, msedge wel (packages.microsoft.com).
     { name: "edge", use: { ...devices["Desktop Edge"], channel: "msedge" } },
+    // Bundled Chromium voor CI (GitHub Actions). Gebruik: npx playwright test --project=ci
+    { name: "ci", use: { ...devices["Desktop Chrome"] } },
   ],
   webServer: {
-    command: "npm run dev",
+    command: process.env.CI ? "npm run start" : "npm run dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

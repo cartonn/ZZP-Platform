@@ -5,7 +5,8 @@ name: Swarm (parallel fan-out)
 # op de regel die overeenkomt met zijn lane-index. Houd het op 2-4 lanes (zie SWARM.md:
 # meer agents loont niet voor code en kost ~15x tokens).
 #
-# MENSENWERK (eenmalig): repo-secret ANTHROPIC_API_KEY. Draai via "Run workflow"; review
+# Draait op Claude Max (OAuth) — geen API-kosten per token.
+# MENSENWERK (eenmalig): repo-secret CLAUDE_OAUTH_TOKEN. Draai via "Run workflow"; review
 # en merge daarna de geopende PR's (de verificatiepoort blijft menselijk/CI).
 
 on:
@@ -41,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/dazzling-carson-v9Qwk
+          ref: main
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
@@ -60,7 +61,7 @@ jobs:
       - name: Worker-bouwronde
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             Je bent worker-agent in een zwerm (lane ${{ matrix.index }}). Volg CLAUDE.md en SWARM.md.
@@ -69,19 +70,18 @@ jobs:
                (tel van boven af). Negeer de andere items — die doen andere workers.
             3. Implementeer alleen die taak volgens de Definition of Done; raak geen bestanden
                aan buiten je taak (voorkom conflicten). `npm run typecheck`+`lint`+`test`+`build` groen.
-            4. Commit op je huidige branch. Push NIET naar claude/dazzling-carson-v9Qwk.
+            4. Draai `npx prettier --write .` voor je commit.
+            5. Commit op je huidige branch. Push NIET naar main.
             Geen "AI" in de UI/teksten. Geen goedkeuring vragen.
           claude_args: |
             --model claude-sonnet-4-6
             --max-turns 50
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Push branch + open PR
         run: |
           BRANCH="swarm/lane-${{ matrix.index }}-${{ github.run_id }}"
           git push -u origin "$BRANCH" || exit 0
-          gh pr create --base claude/dazzling-carson-v9Qwk --head "$BRANCH" \
+          gh pr create --base main --head "$BRANCH" \
             --title "swarm: lane ${{ matrix.index }} (run ${{ github.run_id }})" \
             --body "Automatisch door zwerm-worker. Review + merge na groene checks." || true
         env:

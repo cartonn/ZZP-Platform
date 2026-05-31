@@ -3,8 +3,9 @@ name: Auto-build (scheduled)
 # 24/7 doorbouwen zonder open sessie.
 # Elke 15 min pakt één agent het bovenste backlog-item op, levert af en pusht.
 # Draait op Claude Max (OAuth) — geen API-kosten per token.
+# Na de bouwronde draait e2e (Playwright + Chromium) als visuele regressiecheck.
 #
-# Vereist repo-secret: CLAUDE_OAUTH_TOKEN (van claude.ai/settings/api)
+# Vereist repo-secret: CLAUDE_OAUTH_TOKEN
 # Optioneel: BUILD_PAT (fine-grained PAT met contents:write + actions:write)
 #   — met BUILD_PAT triggert de agent na afloop meteen een nieuwe ronde via
 #     workflow_dispatch (sneller dan wachten op het 15-min schedule).
@@ -24,7 +25,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  WORK_BRANCH: claude/modest-babbage-08jYa
+  WORK_BRANCH: main
 
 jobs:
   build:
@@ -62,14 +63,21 @@ jobs:
                re-theme (open beslissing van de eigenaar). Geen geld via het platform; DBA blijft
                signaleren met disclaimer.
             4. Definition of Done: testbare kern + unit-tests, dan npm run typecheck, npm run lint,
-               npm run test en npm run build — allemaal groen. E2e overslaan (geen browser-channel).
-            5. Commit met duidelijke message en push naar ${{ env.WORK_BRANCH }}. Geen PR.
-            6. Werk PROGRESS.md en CURRENT_TASK.md bij; commit en push opnieuw.
+               npm run test en npm run build — allemaal groen.
+            5. Draai `npx prettier --write .` voor je commit.
+            6. Commit met duidelijke message en push naar ${{ env.WORK_BRANCH }}. Geen PR.
+            7. Werk PROGRESS.md en CURRENT_TASK.md bij; commit en push opnieuw.
             Vraag niet om goedkeuring. Geen "AI" in UI/teksten/commits. Stop alleen bij een echte blocker.
           claude_args: |
             --model claude-sonnet-4-6
             --allowedTools Edit,Read,Write,Bash
             --max-turns 60
+
+      - name: Formattering normaliseren
+        if: always()
+        run: |
+          npx prettier --write . 2>/dev/null || true
+          git diff --quiet || (git add -A && git commit -m "style: format with Prettier" && git push)
 
       - name: Re-arm (trigger volgende ronde direct)
         if: always()
@@ -83,3 +91,46 @@ jobs:
           echo "BUILD_PAT aanwezig — trigger volgende ronde via workflow_dispatch"
           sleep 60
           gh workflow run auto-build.yml --ref "${WORK_BRANCH}"
+
+  e2e:
+    needs: build
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: "file:./ci.db"
+      AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
+      STORAGE_DRIVER: "local"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.WORK_BRANCH }}
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma db push --skip-generate
+      - run: npx prisma db seed
+      - run: npx playwright install chromium --with-deps
+      - run: npm run build
+      - run: npx playwright test --project=ci
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: e2e/screenshots/
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
