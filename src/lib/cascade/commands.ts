@@ -10,6 +10,18 @@ import { type Actor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { type DomainEventInput } from "@/lib/events";
 import { allocateInvoiceNumber, type PartyOwners } from "@/lib/administration/persist";
+import { getMailSender } from "@/lib/services/mail-sender";
+import {
+  type UserContact,
+  buildContractSignedEmail,
+  buildPerformanceSubmittedEmail,
+  buildPerformanceApprovedEmail,
+  buildPerformanceRejectedEmail,
+  buildInvoiceSubmittedEmail,
+  buildInvoiceApprovedEmail,
+  buildInvoiceRejectedEmail,
+  buildPaymentConfirmedEmail,
+} from "@/lib/services/cascade-emails";
 import { applyCascadeEffects } from "@/lib/cascade/apply";
 import { type CascadeEffects } from "@/lib/cascade/types";
 import {
@@ -167,6 +179,21 @@ export async function signContract(actor: Actor, collaborationId: string): Promi
       correlationId: collaborationId,
     },
   );
+
+  // Best-effort e-mail naar beide partijen.
+  try {
+    const meta = await loadCollabMeta(collaborationId);
+    if (meta) {
+      const mail = getMailSender();
+      const link = collabLink(collaborationId);
+      await mail.send(
+        buildContractSignedEmail({ recipient: meta.freelancer, jobTitle: meta.jobTitle, link }),
+      );
+      await mail.send(
+        buildContractSignedEmail({ recipient: meta.client, jobTitle: meta.jobTitle, link }),
+      );
+    }
+  } catch {}
 }
 
 // --- Urenstaat/oplevering aanmaken (concept) -------------------------------
@@ -253,6 +280,21 @@ export async function submitPerformance(actor: Actor, performanceId: string): Pr
       performanceId,
     },
   );
+
+  // Best-effort e-mail naar de opdrachtgever.
+  try {
+    const meta = await loadCollabMeta(perf.collaborationId);
+    if (meta) {
+      await getMailSender().send(
+        buildPerformanceSubmittedEmail({
+          recipient: meta.client,
+          freelancerName: meta.freelancer.name,
+          jobTitle: meta.jobTitle,
+          link: collabLink(perf.collaborationId),
+        }),
+      );
+    }
+  } catch {}
 }
 
 // --- Event B2 — Prestatie goedkeuren -> concept-factuur --------------------
@@ -300,6 +342,20 @@ export async function approvePerformance(actor: Actor, performanceId: string): P
       performanceId,
     },
   );
+
+  // Best-effort e-mail naar de ZZP'er.
+  try {
+    const meta = await loadCollabMeta(perf.collaborationId);
+    if (meta) {
+      await getMailSender().send(
+        buildPerformanceApprovedEmail({
+          recipient: meta.freelancer,
+          jobTitle: meta.jobTitle,
+          link: collabLink(perf.collaborationId),
+        }),
+      );
+    }
+  } catch {}
 }
 
 // --- Event B2' — Prestatie afkeuren ----------------------------------------
@@ -336,6 +392,21 @@ export async function rejectPerformance(
       performanceId,
     },
   );
+
+  // Best-effort e-mail naar de ZZP'er met de reden.
+  try {
+    const meta = await loadCollabMeta(perf.collaborationId);
+    if (meta) {
+      await getMailSender().send(
+        buildPerformanceRejectedEmail({
+          recipient: meta.freelancer,
+          jobTitle: meta.jobTitle,
+          reason,
+          link: collabLink(perf.collaborationId),
+        }),
+      );
+    }
+  } catch {}
 }
 
 // --- Event C — Factuur indienen --------------------------------------------
@@ -375,6 +446,24 @@ export async function submitInvoice(actor: Actor, invoiceId: string): Promise<vo
     },
     { allocate: { issuerKey: inv.issuerKey, year: new Date().getFullYear(), invoiceId } },
   );
+
+  // Best-effort e-mail naar de opdrachtgever.
+  if (inv.collaborationId) {
+    try {
+      const meta = await loadCollabMeta(inv.collaborationId);
+      if (meta) {
+        await getMailSender().send(
+          buildInvoiceSubmittedEmail({
+            recipient: meta.client,
+            freelancerName: meta.freelancer.name,
+            jobTitle: meta.jobTitle,
+            totalCents: inv.totalCents,
+            link: collabLink(inv.collaborationId),
+          }),
+        );
+      }
+    } catch {}
+  }
 }
 
 // --- Event D — Factuur goedkeuren ------------------------------------------
@@ -413,6 +502,26 @@ export async function approveInvoice(actor: Actor, invoiceId: string): Promise<v
       invoiceId,
     },
   );
+
+  // Best-effort e-mail naar de ZZP'er met het goedgekeurde bedrag en de vervaldatum.
+  if (inv.collaborationId) {
+    try {
+      const meta = await loadCollabMeta(inv.collaborationId);
+      if (meta) {
+        const dueAt = new Date();
+        dueAt.setDate(dueAt.getDate() + DEFAULT_PAYMENT_TERM_DAYS);
+        await getMailSender().send(
+          buildInvoiceApprovedEmail({
+            recipient: meta.freelancer,
+            jobTitle: meta.jobTitle,
+            totalCents: inv.totalCents,
+            dueAt,
+            link: collabLink(inv.collaborationId),
+          }),
+        );
+      }
+    } catch {}
+  }
 }
 
 // --- Event D' — Factuur afkeuren -------------------------------------------
@@ -447,7 +556,25 @@ export async function rejectInvoice(
       correlationId: inv.correlationId,
       invoiceId,
     },
+    // Note: no allocate here — invoice rejected, number already assigned from submitInvoice
   );
+
+  // Best-effort e-mail naar de ZZP'er met de reden.
+  if (inv.collaborationId) {
+    try {
+      const meta = await loadCollabMeta(inv.collaborationId);
+      if (meta) {
+        await getMailSender().send(
+          buildInvoiceRejectedEmail({
+            recipient: meta.freelancer,
+            jobTitle: meta.jobTitle,
+            reason,
+            link: collabLink(inv.collaborationId),
+          }),
+        );
+      }
+    } catch {}
+  }
 }
 
 // --- Event E — Betaling bevestigen -----------------------------------------
@@ -502,6 +629,18 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
       invoiceId,
     },
   );
+
+  // Best-effort e-mail naar beide partijen.
+  try {
+    const meta = await loadCollabMeta(inv.collaborationId);
+    if (meta) {
+      const mail = getMailSender();
+      const link = collabLink(inv.collaborationId);
+      const emailData = { jobTitle: meta.jobTitle, totalCents: inv.totalCents, link };
+      await mail.send(buildPaymentConfirmedEmail({ recipient: meta.freelancer, ...emailData }));
+      await mail.send(buildPaymentConfirmedEmail({ recipient: meta.client, ...emailData }));
+    }
+  } catch {}
 }
 
 // --- Zijpad — Creditfactuur ------------------------------------------------
@@ -769,4 +908,38 @@ async function loadCascadeInvoice(invoiceId: string): Promise<LoadedInvoice> {
     correlationId: inv.correlationId,
     collaborationId: inv.collaborationId,
   };
+}
+
+// ─── E-mail helpers (best-effort — gooit nooit de cascade om) ───────────────
+
+interface CollabMeta {
+  jobTitle: string;
+  freelancer: UserContact;
+  client: UserContact;
+}
+
+async function loadCollabMeta(collaborationId: string): Promise<CollabMeta | null> {
+  try {
+    const col = await prisma.collaboration.findUnique({
+      where: { id: collaborationId },
+      select: {
+        job: { select: { title: true } },
+        freelancer: { select: { user: { select: { name: true, email: true } } } },
+        company: { select: { user: { select: { name: true, email: true } } } },
+      },
+    });
+    if (!col) return null;
+    return {
+      jobTitle: col.job.title,
+      freelancer: { name: col.freelancer.user.name ?? "", email: col.freelancer.user.email },
+      client: { name: col.company.user.name ?? "", email: col.company.user.email },
+    };
+  } catch {
+    return null;
+  }
+}
+
+function collabLink(collaborationId: string): string {
+  const base = process.env.PLATFORM_URL ?? process.env.NEXTAUTH_URL ?? "";
+  return `${base}/samenwerkingen/${collaborationId}`;
 }
