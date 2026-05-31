@@ -52,5 +52,7 @@ export class DuoDiplomaVerifier implements DiplomaVerifier {
 }
 
 export function getDiplomaVerifier(): DiplomaVerifier {
-  return process.env.DIPLOMA_VERIFIER === "duo" ? new DuoDiplomaVerifier() : new MockDiplomaVerifier();
+  return process.env.DIPLOMA_VERIFIER === "duo"
+    ? new DuoDiplomaVerifier()
+    : new MockDiplomaVerifier();
 }

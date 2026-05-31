@@ -77,7 +77,11 @@ export default async function VerificatiesPage() {
                     <p className="font-medium">{c.title}</p>
                     {(() => {
                       const days = daysWaiting(c.updatedAt, now);
-                      return <Badge variant={days >= STALE_DAYS ? "warning" : "muted"}>{waitingLabel(days)}</Badge>;
+                      return (
+                        <Badge variant={days >= STALE_DAYS ? "warning" : "muted"}>
+                          {waitingLabel(days)}
+                        </Badge>
+                      );
                     })()}
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -87,7 +91,8 @@ export default async function VerificatiesPage() {
                     {fmt(c.expiresAt) ? ` · vervalt ${fmt(c.expiresAt)}` : ""}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Ingediend door {c.freelancerProfile.user.name} ({c.freelancerProfile.user.email})
+                    Ingediend door {c.freelancerProfile.user.name} ({c.freelancerProfile.user.email}
+                    )
                   </p>
                 </div>
 
@@ -101,14 +106,31 @@ export default async function VerificatiesPage() {
 
                 <div className="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-end">
                   <form action={verifyCredential.bind(null, c.id)}>
-                    <Button type="submit" size="sm">Goedkeuren</Button>
+                    <Button type="submit" size="sm">
+                      Goedkeuren
+                    </Button>
                   </form>
-                  <form action={rejectCredential.bind(null, c.id)} className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end">
+                  <form
+                    action={rejectCredential.bind(null, c.id)}
+                    className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end"
+                  >
                     <div className="flex-1">
-                      <label htmlFor={`reason-${c.id}`} className="mb-1 block text-xs font-medium">Reden van afwijzing</label>
-                      <Textarea id={`reason-${c.id}`} name="reason" rows={2} required minLength={3} maxLength={500} placeholder="Verplicht bij afwijzen…" />
+                      <label htmlFor={`reason-${c.id}`} className="mb-1 block text-xs font-medium">
+                        Reden van afwijzing
+                      </label>
+                      <Textarea
+                        id={`reason-${c.id}`}
+                        name="reason"
+                        rows={2}
+                        required
+                        minLength={3}
+                        maxLength={500}
+                        placeholder="Verplicht bij afwijzen…"
+                      />
                     </div>
-                    <Button type="submit" variant="danger" size="sm">Afwijzen</Button>
+                    <Button type="submit" variant="danger" size="sm">
+                      Afwijzen
+                    </Button>
                   </form>
                 </div>
               </CardContent>

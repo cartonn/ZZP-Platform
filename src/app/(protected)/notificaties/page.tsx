@@ -36,7 +36,13 @@ function NotificationRow({ n }: { n: NotificationItem }) {
   const inner = (
     <>
       <div className="flex items-start gap-3">
-        <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", unread ? "bg-primary" : "bg-transparent")} aria-hidden />
+        <span
+          className={cn(
+            "mt-1.5 size-2 shrink-0 rounded-full",
+            unread ? "bg-primary" : "bg-transparent",
+          )}
+          aria-hidden
+        />
         <div className="min-w-0 flex-1">
           <p className={cn("text-sm", unread ? "font-medium" : "")}>{n.title}</p>
           {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}
@@ -44,7 +50,9 @@ function NotificationRow({ n }: { n: NotificationItem }) {
         </div>
         {unread && (
           <form action={markNotificationRead.bind(null, n.id)}>
-            <Button type="submit" variant="ghost" size="sm">Gelezen</Button>
+            <Button type="submit" variant="ghost" size="sm">
+              Gelezen
+            </Button>
           </form>
         )}
       </div>
@@ -53,7 +61,9 @@ function NotificationRow({ n }: { n: NotificationItem }) {
   return (
     <div className={cn("px-4 py-3", unread && "bg-muted/30")}>
       {n.link ? (
-        <Link href={n.link} className="block hover:opacity-80">{inner}</Link>
+        <Link href={n.link} className="block hover:opacity-80">
+          {inner}
+        </Link>
       ) : (
         inner
       )}
@@ -65,7 +75,9 @@ function NotificationGroup({ heading, items }: { heading: string; items: Notific
   if (items.length === 0) return null;
   return (
     <section className="space-y-2">
-      <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{heading}</h2>
+      <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {heading}
+      </h2>
       <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
         {items.map((n) => (
           <NotificationRow key={n.id} n={n} />
@@ -93,11 +105,15 @@ export default async function NotificatiesPage() {
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Notificaties</h1>
-          <p className="text-sm text-muted-foreground">Updates over je certificaten, reacties en berichten.</p>
+          <p className="text-sm text-muted-foreground">
+            Updates over je certificaten, reacties en berichten.
+          </p>
         </div>
         {hasUnread && (
           <form action={markAllNotificationsRead}>
-            <Button type="submit" variant="secondary" size="sm">Alles als gelezen markeren</Button>
+            <Button type="submit" variant="secondary" size="sm">
+              Alles als gelezen markeren
+            </Button>
           </form>
         )}
       </header>

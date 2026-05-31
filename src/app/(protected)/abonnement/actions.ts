@@ -22,7 +22,13 @@ export async function changeSubscription(planKey: string): Promise<void> {
     create: { userId: actor.id, planId: plan.id, status: "ACTIVE" },
   });
   await prisma.auditLog.create({
-    data: auditData({ actorId: actor.id, action: "SUBSCRIPTION_CHANGED", entityType: "Subscription", entityId: actor.id, metadata: { plan: key } }),
+    data: auditData({
+      actorId: actor.id,
+      action: "SUBSCRIPTION_CHANGED",
+      entityType: "Subscription",
+      entityId: actor.id,
+      metadata: { plan: key },
+    }),
   });
   revalidatePath("/abonnement");
 }

@@ -12,9 +12,7 @@ import { scoreJobForFreelancer } from "@/lib/matching";
 import { type JobStatus, jobStatusSchema } from "@/lib/enums";
 import { applicationSchema, jobSchema } from "@/lib/validation";
 
-export type JobFormState =
-  | { error?: string; fieldErrors?: Record<string, string> }
-  | undefined;
+export type JobFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
 function parseJobForm(formData: FormData) {
   return jobSchema.safeParse({
@@ -49,7 +47,10 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
     throw e;
   }
 
-  const company = await prisma.company.findUnique({ where: { userId: actor.id }, select: { id: true, userId: true } });
+  const company = await prisma.company.findUnique({
+    where: { userId: actor.id },
+    select: { id: true, userId: true },
+  });
   if (!company) return { error: "Bedrijfsprofiel niet gevonden." };
 
   const parsed = parseJobForm(formData);
@@ -63,14 +64,25 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
 
   // Alleen bestaande skills koppelen; required wint van optional bij overlap.
   const allSkillIds = [...new Set([...data.requiredSkillIds, ...data.optionalSkillIds])];
-  const validSkills = await prisma.skill.findMany({ where: { id: { in: allSkillIds } }, select: { id: true } });
+  const validSkills = await prisma.skill.findMany({
+    where: { id: { in: allSkillIds } },
+    select: { id: true },
+  });
   const validSet = new Set(validSkills.map((s) => s.id));
   const requiredSet = new Set(data.requiredSkillIds.filter((id) => validSet.has(id)));
-  const jobSkills = [...validSet].map((skillId) => ({ skillId, required: requiredSet.has(skillId) }));
+  const jobSkills = [...validSet].map((skillId) => ({
+    skillId,
+    required: requiredSet.has(skillId),
+  }));
 
   const requiredCreds = new Set(data.requiredCredentialTypes);
-  const credTypes = [...new Set([...data.requiredCredentialTypes, ...data.optionalCredentialTypes])];
-  const credReqs = credTypes.map((credentialType) => ({ credentialType, required: requiredCreds.has(credentialType) }));
+  const credTypes = [
+    ...new Set([...data.requiredCredentialTypes, ...data.optionalCredentialTypes]),
+  ];
+  const credReqs = credTypes.map((credentialType) => ({
+    credentialType,
+    required: requiredCreds.has(credentialType),
+  }));
 
   const jobId = (formData.get("jobId") as string) || null;
   // Wet DBA: server-berekende (gezaghebbende) risico-snapshot — niet de client vertrouwen.
@@ -106,7 +118,10 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
 
   let savedId: string;
   if (jobId) {
-    const existing = await prisma.job.findUnique({ where: { id: jobId }, include: { company: { select: { userId: true } } } });
+    const existing = await prisma.job.findUnique({
+      where: { id: jobId },
+      include: { company: { select: { userId: true } } },
+    });
     if (!existing) return { error: "Opdracht niet gevonden." };
     assertOwnership(actor, existing.company.userId);
 
@@ -141,7 +156,10 @@ export async function changeJobStatus(jobId: string, target: string): Promise<vo
   const actor = await requireRole("CLIENT");
   const targetStatus = jobStatusSchema.parse(target);
 
-  const job = await prisma.job.findUnique({ where: { id: jobId }, include: { company: { select: { userId: true } } } });
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: { company: { select: { userId: true } } },
+  });
   if (!job) throw new Error("Opdracht niet gevonden.");
   assertOwnership(actor, job.company.userId);
 
@@ -194,7 +212,10 @@ export async function createApplication(
 
   const profile = await prisma.freelancerProfile.findUnique({
     where: { userId: actor.id },
-    include: { skills: true, credentials: { select: { type: true, status: true, expiresAt: true } } },
+    include: {
+      skills: true,
+      credentials: { select: { type: true, status: true, expiresAt: true } },
+    },
   });
   if (!profile) return { error: "Maak eerst je profiel aan." };
 
@@ -203,7 +224,8 @@ export async function createApplication(
     include: { skills: true, credentialRequirements: true, company: { select: { userId: true } } },
   });
   if (!job) return { error: "Opdracht niet gevonden." };
-  if (job.status !== "PUBLISHED") return { error: "Je kunt alleen op gepubliceerde opdrachten reageren." };
+  if (job.status !== "PUBLISHED")
+    return { error: "Je kunt alleen op gepubliceerde opdrachten reageren." };
 
   const existing = await prisma.application.findUnique({
     where: { jobId_freelancerId: { jobId, freelancerId: profile.id } },
@@ -218,10 +240,13 @@ export async function createApplication(
     prisma.plan.findUnique({ where: { key: "FREE" } }),
   ]);
   // Alleen een ACTIEF abonnement telt; anders geldt het FREE-plan (CLAUDE.md regel 1).
-  const activePlanMax = subscription?.status === "ACTIVE" ? subscription.plan.maxApplications : undefined;
+  const activePlanMax =
+    subscription?.status === "ACTIVE" ? subscription.plan.maxApplications : undefined;
   const maxApplications = activePlanMax ?? freePlan?.maxApplications ?? 5;
   if (!canApply(maxApplications, count)) {
-    return { error: `Je hebt het maximum aantal reacties (${maxApplications}) van je plan bereikt. Upgrade je abonnement voor meer reacties.` };
+    return {
+      error: `Je hebt het maximum aantal reacties (${maxApplications}) van je plan bereikt. Upgrade je abonnement voor meer reacties.`,
+    };
   }
 
   const parsed = applicationSchema.safeParse({

@@ -18,7 +18,9 @@ describe("reactie-statusovergangen", () => {
   it("weigert ongeldige overgangen", () => {
     expect(canTransitionApplication("REJECTED", "ACCEPTED")).toBe(false);
     expect(canTransitionApplication("NEW", "NEW")).toBe(false);
-    expect(() => assertApplicationTransition("REJECTED", "ACCEPTED")).toThrow(ApplicationTransitionError);
+    expect(() => assertApplicationTransition("REJECTED", "ACCEPTED")).toThrow(
+      ApplicationTransitionError,
+    );
   });
 });
 

@@ -15,7 +15,9 @@ describe("MockDiplomaVerifier", () => {
   });
 
   it("weigert een ongeldig codeformaat", async () => {
-    expect((await v.verify({ verificationCode: "12345", holderName: "Sanne" })).verified).toBe(false);
+    expect((await v.verify({ verificationCode: "12345", holderName: "Sanne" })).verified).toBe(
+      false,
+    );
     expect((await v.verify({ verificationCode: "", holderName: "Sanne" })).verified).toBe(false);
   });
 

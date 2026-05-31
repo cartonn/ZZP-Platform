@@ -6,12 +6,12 @@ CURRENT_TASK.md), nu toegespitst op ZZP Platform.
 
 ## De bestanden
 
-| Bestand | Rol |
-|---|---|
-| `CLAUDE.md` | Persistente context + regels. Wordt elke sessie gelezen. Wijzigt zelden. |
-| `BUILD_ORDER.md` | De volledige bouwvolgorde in 11 sessies (0 t/m 10). |
+| Bestand           | Rol                                                                      |
+| ----------------- | ------------------------------------------------------------------------ |
+| `CLAUDE.md`       | Persistente context + regels. Wordt elke sessie gelezen. Wijzigt zelden. |
+| `BUILD_ORDER.md`  | De volledige bouwvolgorde in 11 sessies (0 t/m 10).                      |
 | `CURRENT_TASK.md` | Wat je NU doet. Schuift door naar de volgende sessie als een blok af is. |
-| `PROGRESS.md` | Logboek van wat af is. Bijwerken aan het eind van elke sessie. |
+| `PROGRESS.md`     | Logboek van wat af is. Bijwerken aan het eind van elke sessie.           |
 
 ## Eenmalige setup
 

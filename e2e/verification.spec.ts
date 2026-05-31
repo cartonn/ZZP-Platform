@@ -5,7 +5,11 @@ const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-const SAMPLE = { name: "bewijs.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 bewijsstuk") };
+const SAMPLE = {
+  name: "bewijs.pdf",
+  mimeType: "application/pdf",
+  buffer: Buffer.from("%PDF-1.4 bewijsstuk"),
+};
 
 async function registerFreelancer(page: Page, email: string) {
   await page.goto("/register");
@@ -24,7 +28,10 @@ async function login(page: Page, email: string) {
   await page.waitForURL("**/dashboard");
 }
 
-async function addAndSubmitCredential(page: Page, opts: { type: string; title: string; issuedAt?: string; expiresAt?: string }) {
+async function addAndSubmitCredential(
+  page: Page,
+  opts: { type: string; title: string; issuedAt?: string; expiresAt?: string },
+) {
   await page.goto("/certificaten/nieuw");
   await page.selectOption("#type", opts.type);
   await page.fill("#title", opts.title);
@@ -43,7 +50,12 @@ test("admin keurt goed en wijst af; ZZP'er ziet de uitkomst", async ({ page, bro
   const approveTitle = `VOG ${uniq()}`;
   const rejectTitle = `Diploma ${uniq()}`;
   await registerFreelancer(page, `verif-${uniq()}@test.local`);
-  await addAndSubmitCredential(page, { type: "VOG", title: approveTitle, issuedAt: "2026-01-01", expiresAt: "2030-01-01" });
+  await addAndSubmitCredential(page, {
+    type: "VOG",
+    title: approveTitle,
+    issuedAt: "2026-01-01",
+    expiresAt: "2030-01-01",
+  });
   await addAndSubmitCredential(page, { type: "DIPLOMA", title: rejectTitle });
 
   // Admin beoordeelt.
@@ -59,11 +71,16 @@ test("admin keurt goed en wijst af; ZZP'er ziet de uitkomst", async ({ page, bro
   ).toBeVisible();
   await shot(admin, "20-admin-queue");
 
-  await admin.locator("div.bg-card", { hasText: approveTitle }).getByRole("button", { name: "Goedkeuren" }).click();
+  await admin
+    .locator("div.bg-card", { hasText: approveTitle })
+    .getByRole("button", { name: "Goedkeuren" })
+    .click();
   await expect(admin.getByText(approveTitle)).toHaveCount(0); // uit de wachtrij
 
   const rejectCard = admin.locator("div.bg-card", { hasText: rejectTitle });
-  await rejectCard.getByLabel("Reden van afwijzing").fill("Document is onleesbaar, upload een duidelijke scan.");
+  await rejectCard
+    .getByLabel("Reden van afwijzing")
+    .fill("Document is onleesbaar, upload een duidelijke scan.");
   await rejectCard.getByRole("button", { name: "Afwijzen" }).click();
   await expect(admin.getByText(rejectTitle)).toHaveCount(0);
   await adminCtx.close();
@@ -90,13 +107,21 @@ test("verlopen VERIFIED-certificaat wordt server-side EXPIRED", async ({ page, b
   const title = `Oud Cert ${uniq()}`;
   await registerFreelancer(page, `expiry-${uniq()}@test.local`);
   // Reeds verstreken vervaldatum.
-  await addAndSubmitCredential(page, { type: "CERTIFICATE", title, issuedAt: "2019-01-01", expiresAt: "2020-01-01" });
+  await addAndSubmitCredential(page, {
+    type: "CERTIFICATE",
+    title,
+    issuedAt: "2019-01-01",
+    expiresAt: "2020-01-01",
+  });
 
   const adminCtx = await browser.newContext();
   const admin = await adminCtx.newPage();
   await login(admin, "admin@zzp-platform.local");
   await admin.goto("/admin/verificaties");
-  await admin.locator("div.bg-card", { hasText: title }).getByRole("button", { name: "Goedkeuren" }).click();
+  await admin
+    .locator("div.bg-card", { hasText: title })
+    .getByRole("button", { name: "Goedkeuren" })
+    .click();
   await expect(admin.getByText(title)).toHaveCount(0);
 
   // Expiry-actie zet de (verlopen) VERIFIED-credential op EXPIRED.
@@ -105,5 +130,7 @@ test("verlopen VERIFIED-certificaat wordt server-side EXPIRED", async ({ page, b
   await adminCtx.close();
 
   await page.goto("/certificaten");
-  await expect(page.locator("div.bg-card", { hasText: title }).getByText("Verlopen", { exact: true })).toBeVisible();
+  await expect(
+    page.locator("div.bg-card", { hasText: title }).getByText("Verlopen", { exact: true }),
+  ).toBeVisible();
 });

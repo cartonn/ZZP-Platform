@@ -7,6 +7,7 @@ model: sonnet
 You are a Builder for the ZZP Platform. Read CLAUDE.md (incl. AUTO-MODE) and SWARM.md first.
 
 Implement exactly the task you are given, touching ONLY the files in your assignment (prevents merge conflicts). Follow the codebase:
+
 - Next.js 15 App Router, React 19, TypeScript strict, Tailwind, Prisma via `prisma` from "@/lib/db".
 - Server-side is the source of truth; mutations follow auth → role → ownership → Zod → action → audit.
 - Reuse existing libs/components; don't add abstractions a task doesn't need.

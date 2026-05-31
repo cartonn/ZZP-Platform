@@ -13,7 +13,10 @@ import { deleteAvailabilityWindow } from "./actions";
 
 export const metadata: Metadata = { title: "Beschikbaarheid · ZZP Platform" };
 
-const TYPE: Record<AvailabilityWindowType, { label: string; variant: "success" | "warning" | "muted" }> = {
+const TYPE: Record<
+  AvailabilityWindowType,
+  { label: string; variant: "success" | "warning" | "muted" }
+> = {
   AVAILABLE: { label: "Beschikbaar", variant: "success" },
   LIMITED: { label: "Beperkt", variant: "warning" },
   UNAVAILABLE: { label: "Niet beschikbaar", variant: "muted" },
@@ -22,9 +25,15 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function BeschikbaarheidPage() {
   const actor = await requireRole("FREELANCER");
-  const profile = await prisma.freelancerProfile.findUnique({ where: { userId: actor.id }, select: { id: true } });
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { userId: actor.id },
+    select: { id: true },
+  });
   const rows = profile
-    ? await prisma.availabilityWindow.findMany({ where: { freelancerProfileId: profile.id }, orderBy: { startDate: "asc" } })
+    ? await prisma.availabilityWindow.findMany({
+        where: { freelancerProfileId: profile.id },
+        orderBy: { startDate: "asc" },
+      })
     : [];
   const windows = rows.map((w) => ({ ...w, type: w.type as AvailabilityWindowType }));
   const upcoming = upcomingWindows(windows);
@@ -35,7 +44,8 @@ export default async function BeschikbaarheidPage() {
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Beschikbaarheid</h1>
         <p className="text-sm text-muted-foreground">
-          Leg je beschikbaarheid vast in periodes. {summary ? `Status: ${summary}.` : "Nog geen inzetbare periode."}
+          Leg je beschikbaarheid vast in periodes.{" "}
+          {summary ? `Status: ${summary}.` : "Nog geen inzetbare periode."}
         </p>
       </header>
 
@@ -57,7 +67,9 @@ export default async function BeschikbaarheidPage() {
               <div key={w.id} className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium tabular-nums">{fmt(w.startDate)} — {fmt(w.endDate)}</p>
+                    <p className="text-sm font-medium tabular-nums">
+                      {fmt(w.startDate)} — {fmt(w.endDate)}
+                    </p>
                     <Badge variant={t.variant}>{t.label}</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">

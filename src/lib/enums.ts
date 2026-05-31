@@ -28,13 +28,7 @@ export const JOB_STATUSES = ["DRAFT", "PUBLISHED", "CLOSED"] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 export const jobStatusSchema = z.enum(JOB_STATUSES);
 
-export const APPLICATION_STATUSES = [
-  "NEW",
-  "VIEWED",
-  "SHORTLIST",
-  "REJECTED",
-  "ACCEPTED",
-] as const;
+export const APPLICATION_STATUSES = ["NEW", "VIEWED", "SHORTLIST", "REJECTED", "ACCEPTED"] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const applicationStatusSchema = z.enum(APPLICATION_STATUSES);
 
@@ -67,22 +61,11 @@ export const AVAILABILITY_WINDOW_TYPES = ["AVAILABLE", "LIMITED", "UNAVAILABLE"]
 export type AvailabilityWindowType = (typeof AVAILABILITY_WINDOW_TYPES)[number];
 export const availabilityWindowTypeSchema = z.enum(AVAILABILITY_WINDOW_TYPES);
 
-export const DOCUMENT_KINDS = [
-  "CREDENTIAL",
-  "VOG",
-  "INSURANCE",
-  "CONTRACT",
-  "OTHER",
-] as const;
+export const DOCUMENT_KINDS = ["CREDENTIAL", "VOG", "INSURANCE", "CONTRACT", "OTHER"] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 export const documentKindSchema = z.enum(DOCUMENT_KINDS);
 
-export const COLLABORATION_STATUSES = [
-  "PROPOSED",
-  "ACTIVE",
-  "COMPLETED",
-  "CANCELLED",
-] as const;
+export const COLLABORATION_STATUSES = ["PROPOSED", "ACTIVE", "COMPLETED", "CANCELLED"] as const;
 export type CollaborationStatus = (typeof COLLABORATION_STATUSES)[number];
 export const collaborationStatusSchema = z.enum(COLLABORATION_STATUSES);
 
@@ -90,13 +73,7 @@ export const CONTRACT_STATUSES = ["DRAFT", "SENT", "SIGNED"] as const;
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
 export const contractStatusSchema = z.enum(CONTRACT_STATUSES);
 
-export const INVOICE_STATUSES = [
-  "DRAFT",
-  "SENT",
-  "PAID",
-  "OVERDUE",
-  "CANCELLED",
-] as const;
+export const INVOICE_STATUSES = ["DRAFT", "SENT", "PAID", "OVERDUE", "CANCELLED"] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 export const invoiceStatusSchema = z.enum(INVOICE_STATUSES);
 

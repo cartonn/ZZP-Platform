@@ -1,15 +1,13 @@
 import { describe, expect, it } from "vitest";
-import {
-  EXPIRY_REMINDER_WINDOW_DAYS,
-  planExpiryRun,
-  type ExpiryCandidate,
-} from "@/lib/expiry";
+import { EXPIRY_REMINDER_WINDOW_DAYS, planExpiryRun, type ExpiryCandidate } from "@/lib/expiry";
 
 // Vaste referentiedatum voor deterministische tests.
 const now = new Date("2026-05-25T12:00:00Z");
 
 /** Helper om snel een testkandidate te maken met sensible defaults. */
-function makeCandidate(overrides: Partial<ExpiryCandidate> & Pick<ExpiryCandidate, "id">): ExpiryCandidate {
+function makeCandidate(
+  overrides: Partial<ExpiryCandidate> & Pick<ExpiryCandidate, "id">,
+): ExpiryCandidate {
   return {
     status: "VERIFIED",
     expiresAt: null,
@@ -113,9 +111,9 @@ describe("planExpiryRun", () => {
 
     const candidates: ExpiryCandidate[] = [
       makeCandidate({ id: "s1", status: "SUBMITTED", expiresAt: past }),
-      makeCandidate({ id: "s2", status: "DRAFT",     expiresAt: past }),
-      makeCandidate({ id: "s3", status: "REJECTED",  expiresAt: soon }),
-      makeCandidate({ id: "s4", status: "EXPIRED",   expiresAt: past }),
+      makeCandidate({ id: "s2", status: "DRAFT", expiresAt: past }),
+      makeCandidate({ id: "s3", status: "REJECTED", expiresAt: soon }),
+      makeCandidate({ id: "s4", status: "EXPIRED", expiresAt: past }),
     ];
 
     const plan = planExpiryRun(candidates, now);
@@ -144,19 +142,28 @@ describe("planExpiryRun", () => {
 
   // 8. Gemengde batch → correcte partitionering (aantallen + ids).
   it("verdeelt een gemengde batch correct", () => {
-    const past       = new Date("2026-01-01T00:00:00Z");
-    const soon       = new Date("2026-06-10T12:00:00Z"); // 16 dagen
-    const far        = new Date("2026-12-31T00:00:00Z"); // ~220 dagen
-    const soonDedup  = new Date("2026-06-10T12:00:00Z"); // zelfde als soon
+    const past = new Date("2026-01-01T00:00:00Z");
+    const soon = new Date("2026-06-10T12:00:00Z"); // 16 dagen
+    const far = new Date("2026-12-31T00:00:00Z"); // ~220 dagen
+    const soonDedup = new Date("2026-06-10T12:00:00Z"); // zelfde als soon
 
     const candidates: ExpiryCandidate[] = [
       // Moet verlopen
       makeCandidate({ id: "exp1", status: "VERIFIED", expiresAt: past }),
-      makeCandidate({ id: "exp2", status: "VERIFIED", expiresAt: new Date("2026-03-01T00:00:00Z") }),
+      makeCandidate({
+        id: "exp2",
+        status: "VERIFIED",
+        expiresAt: new Date("2026-03-01T00:00:00Z"),
+      }),
       // Moet herinnerd worden
       makeCandidate({ id: "rem1", status: "VERIFIED", expiresAt: soon, expiryReminderFor: null }),
       // Dedup: al herinnerd voor dezelfde datum
-      makeCandidate({ id: "dup1", status: "VERIFIED", expiresAt: soonDedup, expiryReminderFor: soonDedup }),
+      makeCandidate({
+        id: "dup1",
+        status: "VERIFIED",
+        expiresAt: soonDedup,
+        expiryReminderFor: soonDedup,
+      }),
       // Ver weg: niets doen
       makeCandidate({ id: "far1", status: "VERIFIED", expiresAt: far }),
       // Geen vervaldatum: niets doen

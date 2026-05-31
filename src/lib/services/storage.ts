@@ -51,7 +51,10 @@ export function validateUpload(file: UploadCandidate): void {
 
 /** Genereert een niet-raadbare storage-key. Nooit de originele bestandsnaam als pad gebruiken. */
 export function generateStorageKey(filename: string): string {
-  const ext = path.extname(filename).toLowerCase().replace(/[^.a-z0-9]/g, "");
+  const ext = path
+    .extname(filename)
+    .toLowerCase()
+    .replace(/[^.a-z0-9]/g, "");
   return `${new Date().getFullYear()}/${randomUUID()}${ext}`;
 }
 
@@ -135,7 +138,9 @@ class S3StorageDriver implements StorageDriver {
 
   async put(key: string, data: Buffer, mimeType: string): Promise<StoredObject> {
     const { client, bucket, lib } = await this.svc();
-    await client.send(new lib.PutObjectCommand({ Bucket: bucket, Key: key, Body: data, ContentType: mimeType }));
+    await client.send(
+      new lib.PutObjectCommand({ Bucket: bucket, Key: key, Body: data, ContentType: mimeType }),
+    );
     return { key, size: data.byteLength };
   }
 

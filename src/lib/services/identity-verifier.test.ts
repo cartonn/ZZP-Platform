@@ -1,17 +1,26 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getIdentityVerifier, IdinIdentityVerifier, MockIdentityVerifier } from "@/lib/services/identity-verifier";
+import {
+  getIdentityVerifier,
+  IdinIdentityVerifier,
+  MockIdentityVerifier,
+} from "@/lib/services/identity-verifier";
 
 describe("MockIdentityVerifier", () => {
   const v = new MockIdentityVerifier();
 
   it("verifieert als de naam overeenkomt (case-/spatie-ongevoelig)", async () => {
-    const r = await v.verify({ accountName: "Sanne de Vries", providedName: "  sanne   DE vries " });
+    const r = await v.verify({
+      accountName: "Sanne de Vries",
+      providedName: "  sanne   DE vries ",
+    });
     expect(r.verified).toBe(true);
     expect(r.verifiedName).toBe("Sanne de Vries");
   });
 
   it("weigert bij afwijkende naam of lege invoer", async () => {
-    expect((await v.verify({ accountName: "Sanne de Vries", providedName: "Jan Jansen" })).verified).toBe(false);
+    expect(
+      (await v.verify({ accountName: "Sanne de Vries", providedName: "Jan Jansen" })).verified,
+    ).toBe(false);
     expect((await v.verify({ accountName: "Sanne", providedName: "" })).verified).toBe(false);
   });
 });

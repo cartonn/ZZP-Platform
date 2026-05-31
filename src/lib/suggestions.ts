@@ -33,10 +33,17 @@ export function topSuggestions(
 }
 
 /** Best passende openbare ZZP'ers voor een opdracht die nog niet reageerden. */
-export async function suggestedFreelancersForJob(jobId: string, limit = 4): Promise<FreelancerSuggestion[]> {
+export async function suggestedFreelancersForJob(
+  jobId: string,
+  limit = 4,
+): Promise<FreelancerSuggestion[]> {
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    include: { skills: true, credentialRequirements: true, applications: { select: { freelancerId: true } } },
+    include: {
+      skills: true,
+      credentialRequirements: true,
+      applications: { select: { freelancerId: true } },
+    },
   });
   if (!job || job.status !== "PUBLISHED") return [];
 

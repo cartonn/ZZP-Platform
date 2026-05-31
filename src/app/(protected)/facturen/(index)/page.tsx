@@ -25,12 +25,19 @@ export default async function FacturenPage() {
     orderBy: { createdAt: "desc" },
     include: {
       collaboration: {
-        select: { job: { select: { title: true } }, company: { select: { name: true } }, freelancer: { select: { user: { select: { name: true } } } } },
+        select: {
+          job: { select: { title: true } },
+          company: { select: { name: true } },
+          freelancer: { select: { user: { select: { name: true } } } },
+        },
       },
     },
   });
 
-  const paidCents = invoices.reduce((sum, inv) => (inv.status === "PAID" ? sum + inv.totalCents : sum), 0);
+  const paidCents = invoices.reduce(
+    (sum, inv) => (inv.status === "PAID" ? sum + inv.totalCents : sum),
+    0,
+  );
   const openCents = invoices.reduce(
     (sum, inv) => (inv.status === "SENT" || inv.status === "OVERDUE" ? sum + inv.totalCents : sum),
     0,
@@ -42,12 +49,16 @@ export default async function FacturenPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Facturen</h1>
           <p className="text-sm text-muted-foreground">
-            {isFreelancer ? "Je opgestelde en verzonden facturen." : "Ontvangen facturen van je samenwerkingen."}
+            {isFreelancer
+              ? "Je opgestelde en verzonden facturen."
+              : "Ontvangen facturen van je samenwerkingen."}
           </p>
         </div>
         {isFreelancer && (
           <Button asChild>
-            <Link href="/facturen/nieuw"><Plus className="size-4" aria-hidden /> Nieuwe factuur</Link>
+            <Link href="/facturen/nieuw">
+              <Plus className="size-4" aria-hidden /> Nieuwe factuur
+            </Link>
           </Button>
         )}
       </header>
@@ -74,24 +85,34 @@ export default async function FacturenPage() {
           <EmptyState
             icon={Receipt}
             title={isFreelancer ? "Nog geen facturen" : "Nog geen facturen ontvangen"}
-            description={isFreelancer ? "Stel een factuur op vanuit een actieve samenwerking." : undefined}
+            description={
+              isFreelancer ? "Stel een factuur op vanuit een actieve samenwerking." : undefined
+            }
           />
         </Card>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {invoices.map((inv) => (
-            <Link key={inv.id} href={`/facturen/${inv.id}`} className="card-interactive flex items-center justify-between gap-4 px-4 py-3">
+            <Link
+              key={inv.id}
+              href={`/facturen/${inv.id}`}
+              className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
+            >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium tabular-nums">{inv.number}</p>
                   <InvoiceStatusBadge status={inv.status as InvoiceStatus} dueAt={inv.dueAt} />
                 </div>
                 <p className="truncate text-xs text-muted-foreground">
-                  {isFreelancer ? inv.collaboration?.company.name : inv.collaboration?.freelancer.user.name}
+                  {isFreelancer
+                    ? inv.collaboration?.company.name
+                    : inv.collaboration?.freelancer.user.name}
                   {inv.collaboration?.job.title ? ` · ${inv.collaboration.job.title}` : ""}
                 </p>
               </div>
-              <span className="shrink-0 text-sm font-semibold tabular-nums">{formatEuro(inv.totalCents)}</span>
+              <span className="shrink-0 text-sm font-semibold tabular-nums">
+                {formatEuro(inv.totalCents)}
+              </span>
             </Link>
           ))}
         </div>

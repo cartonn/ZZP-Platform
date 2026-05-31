@@ -2,7 +2,13 @@
 // het normaliseren/valideren van zoek- & filterparameters. Server-side is de waarheid.
 // Pure functies, getest.
 
-import { type JobStatus, type WorkMode, WORK_MODES, type CredentialType, CREDENTIAL_TYPES } from "@/lib/enums";
+import {
+  type JobStatus,
+  type WorkMode,
+  WORK_MODES,
+  type CredentialType,
+  CREDENTIAL_TYPES,
+} from "@/lib/enums";
 
 export class JobTransitionError extends Error {
   constructor(from: JobStatus, to: JobStatus) {
@@ -70,7 +76,9 @@ function toPositiveInt(v: string | undefined): number | undefined {
 /** Parse + valideer ruwe searchParams naar veilige filters. Onbekende waarden vallen weg. */
 export function normalizeJobFilters(params: RawParams): JobFilters {
   const workModeRaw = first(params.workMode);
-  const workMode = WORK_MODES.includes(workModeRaw as WorkMode) ? (workModeRaw as WorkMode) : undefined;
+  const workMode = WORK_MODES.includes(workModeRaw as WorkMode)
+    ? (workModeRaw as WorkMode)
+    : undefined;
 
   const credRaw = first(params.requiredCredential);
   const requiredCredential = CREDENTIAL_TYPES.includes(credRaw as CredentialType)
@@ -91,7 +99,13 @@ export function normalizeJobFilters(params: RawParams): JobFilters {
 
   return {
     q: (first(params.q) ?? "").trim().slice(0, 100),
-    skillIds: [...new Set(all(params.skillIds).map((s) => s.trim()).filter(Boolean))],
+    skillIds: [
+      ...new Set(
+        all(params.skillIds)
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ),
+    ],
     industryId,
     workMode,
     rateMin,

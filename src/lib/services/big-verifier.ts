@@ -52,5 +52,7 @@ export class BigRegisterVerifier implements BigVerifier {
 }
 
 export function getBigVerifier(): BigVerifier {
-  return process.env.BIG_VERIFIER === "bigregister" ? new BigRegisterVerifier() : new MockBigVerifier();
+  return process.env.BIG_VERIFIER === "bigregister"
+    ? new BigRegisterVerifier()
+    : new MockBigVerifier();
 }

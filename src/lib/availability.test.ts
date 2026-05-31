@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { currentOrNextAvailable, summarizeAvailability, upcomingWindows, type WindowLike } from "@/lib/availability";
+import {
+  currentOrNextAvailable,
+  summarizeAvailability,
+  upcomingWindows,
+  type WindowLike,
+} from "@/lib/availability";
 
 const d = (s: string) => new Date(s);
 const now = d("2026-06-15T00:00:00Z");
@@ -24,11 +29,15 @@ describe("currentOrNextAvailable", () => {
     expect(currentOrNextAvailable(windows, now)?.startDate).toEqual(d("2026-06-01"));
   });
   it("kiest het eerstvolgende inzetbare venster als nu niets dekt", () => {
-    const future = [{ startDate: d("2026-08-01"), endDate: d("2026-09-01"), type: "LIMITED" as const }];
+    const future = [
+      { startDate: d("2026-08-01"), endDate: d("2026-09-01"), type: "LIMITED" as const },
+    ];
     expect(currentOrNextAvailable(future, now)?.startDate).toEqual(d("2026-08-01"));
   });
   it("negeert UNAVAILABLE-vensters", () => {
-    const only = [{ startDate: d("2026-07-01"), endDate: d("2026-08-01"), type: "UNAVAILABLE" as const }];
+    const only = [
+      { startDate: d("2026-07-01"), endDate: d("2026-08-01"), type: "UNAVAILABLE" as const },
+    ];
     expect(currentOrNextAvailable(only, now)).toBeNull();
   });
 });
@@ -38,7 +47,9 @@ describe("summarizeAvailability", () => {
     expect(summarizeAvailability(windows, now)).toBe("Beschikbaar t/m 2026-07-01");
   });
   it("'vanaf' als het in de toekomst ligt", () => {
-    const future = [{ startDate: d("2026-08-01"), endDate: d("2026-09-01"), type: "LIMITED" as const }];
+    const future = [
+      { startDate: d("2026-08-01"), endDate: d("2026-09-01"), type: "LIMITED" as const },
+    ];
     expect(summarizeAvailability(future, now)).toBe("Beperkt beschikbaar vanaf 2026-08-01");
   });
   it("null als er niets inzetbaars is", () => {

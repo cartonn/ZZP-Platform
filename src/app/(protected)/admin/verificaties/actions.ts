@@ -53,7 +53,13 @@ export async function verifyCredential(credentialId: string): Promise<void> {
       },
     }),
     prisma.auditLog.create({
-      data: auditData({ actorId: actor.id, action: "CREDENTIAL_VERIFIED", entityType: "Credential", entityId: credentialId, metadata: { from, to: next } }),
+      data: auditData({
+        actorId: actor.id,
+        action: "CREDENTIAL_VERIFIED",
+        entityType: "Credential",
+        entityId: credentialId,
+        metadata: { from, to: next },
+      }),
     }),
   ]);
 
@@ -97,7 +103,13 @@ export async function rejectCredential(credentialId: string, formData: FormData)
       },
     }),
     prisma.auditLog.create({
-      data: auditData({ actorId: actor.id, action: "CREDENTIAL_REJECTED", entityType: "Credential", entityId: credentialId, metadata: { from, to: next, reason } }),
+      data: auditData({
+        actorId: actor.id,
+        action: "CREDENTIAL_REJECTED",
+        entityType: "Credential",
+        entityId: credentialId,
+        metadata: { from, to: next, reason },
+      }),
     }),
   ]);
 
@@ -111,7 +123,10 @@ export type ExpiryState = { ran?: true; expired?: number; reminded?: number } | 
  * herinneringen (verificatieflow stap 5). Deelt één bron van waarheid met de geplande taak:
  * de admin-knop en `POST /api/tasks/expiry` roepen beide `runExpiryTask` aan.
  */
-export async function runExpiryCheck(_prev: ExpiryState, _formData: FormData): Promise<ExpiryState> {
+export async function runExpiryCheck(
+  _prev: ExpiryState,
+  _formData: FormData,
+): Promise<ExpiryState> {
   const actor = await requireRole("ADMIN");
   const { expired, reminded } = await runExpiryTask({ actorId: actor.id });
 

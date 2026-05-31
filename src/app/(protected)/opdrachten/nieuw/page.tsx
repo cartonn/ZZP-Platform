@@ -17,7 +17,10 @@ export default async function NieuweOpdrachtPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <Link href="/opdrachten" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/opdrachten"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="size-3.5" aria-hidden /> Terug naar opdrachten
         </Link>
         <h1 className="mt-2 text-xl font-semibold tracking-tight">Nieuwe opdracht</h1>

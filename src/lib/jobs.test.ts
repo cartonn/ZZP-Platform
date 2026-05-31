@@ -46,7 +46,13 @@ describe("normalizeJobFilters", () => {
   });
 
   it("accepteert geldige enums en parseert tarief-range", () => {
-    const f = normalizeJobFilters({ workMode: "REMOTE", requiredCredential: "VOG", rateMin: "50", rateMax: "90", sort: "rate_desc" });
+    const f = normalizeJobFilters({
+      workMode: "REMOTE",
+      requiredCredential: "VOG",
+      rateMin: "50",
+      rateMax: "90",
+      sort: "rate_desc",
+    });
     expect(f.workMode).toBe("REMOTE");
     expect(f.requiredCredential).toBe("VOG");
     expect(f.rateMin).toBe(50);

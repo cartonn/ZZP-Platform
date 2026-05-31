@@ -7,9 +7,7 @@ import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { registerSchema } from "@/lib/validation";
 
-export type RegisterState =
-  | { error?: string; fieldErrors?: Record<string, string> }
-  | undefined;
+export type RegisterState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
 export async function register(_prev: RegisterState, formData: FormData): Promise<RegisterState> {
   const parsed = registerSchema.safeParse({

@@ -29,7 +29,10 @@ export interface CredentialFormInitial {
 }
 
 export function CredentialForm({ initial }: { initial: CredentialFormInitial }) {
-  const [state, formAction, isPending] = useActionState<CredentialState, FormData>(saveCredential, undefined);
+  const [state, formAction, isPending] = useActionState<CredentialState, FormData>(
+    saveCredential,
+    undefined,
+  );
   const fe = state?.fieldErrors ?? {};
   const [type, setType] = useState(initial.type);
   const isEdit = !!initial.id;
@@ -42,21 +45,40 @@ export function CredentialForm({ initial }: { initial: CredentialFormInitial }) 
         <Field label="Type" htmlFor="type" required error={fe.type}>
           <Select id="type" name="type" value={type} onChange={(e) => setType(e.target.value)}>
             {TYPES.map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
+              <option key={v} value={v}>
+                {l}
+              </option>
             ))}
           </Select>
         </Field>
         <Field label="Titel" htmlFor="title" required error={fe.title}>
-          <Input id="title" name="title" defaultValue={initial.title} required maxLength={160} placeholder="bijv. VOG 2026" />
+          <Input
+            id="title"
+            name="title"
+            defaultValue={initial.title}
+            required
+            maxLength={160}
+            placeholder="bijv. VOG 2026"
+          />
         </Field>
         <Field label="Uitgever" htmlFor="issuer" error={fe.issuer}>
-          <Input id="issuer" name="issuer" defaultValue={initial.issuer} placeholder="bijv. Justis, ROC, NEN" />
+          <Input
+            id="issuer"
+            name="issuer"
+            defaultValue={initial.issuer}
+            placeholder="bijv. Justis, ROC, NEN"
+          />
         </Field>
         <div />
         <Field label="Uitgiftedatum" htmlFor="issuedAt" error={fe.issuedAt}>
           <Input id="issuedAt" name="issuedAt" type="date" defaultValue={initial.issuedAt} />
         </Field>
-        <Field label="Vervaldatum" htmlFor="expiresAt" error={fe.expiresAt} hint="Leeg = verloopt niet.">
+        <Field
+          label="Vervaldatum"
+          htmlFor="expiresAt"
+          error={fe.expiresAt}
+          hint="Leeg = verloopt niet."
+        >
           <Input id="expiresAt" name="expiresAt" type="date" defaultValue={initial.expiresAt} />
         </Field>
       </div>
@@ -89,7 +111,8 @@ export function CredentialForm({ initial }: { initial: CredentialFormInitial }) 
           />
           {isEdit && (
             <p className="text-xs text-muted-foreground">
-              Een nieuw bewijsstuk zet een al beoordeeld certificaat terug naar &quot;in beoordeling&quot;.
+              Een nieuw bewijsstuk zet een al beoordeeld certificaat terug naar &quot;in
+              beoordeling&quot;.
             </p>
           )}
         </div>
@@ -98,15 +121,29 @@ export function CredentialForm({ initial }: { initial: CredentialFormInitial }) 
       <fieldset className="space-y-2">
         <legend className="block text-sm font-medium">Zichtbaarheid op je publieke profiel</legend>
         <label className="flex items-center gap-2 text-sm">
-          <input type="radio" name="visibility" value="PRIVATE" defaultChecked={initial.visibility !== "PUBLIC"} /> Privé
+          <input
+            type="radio"
+            name="visibility"
+            value="PRIVATE"
+            defaultChecked={initial.visibility !== "PUBLIC"}
+          />{" "}
+          Privé
         </label>
         <label className="flex items-center gap-2 text-sm">
-          <input type="radio" name="visibility" value="PUBLIC" defaultChecked={initial.visibility === "PUBLIC"} /> Openbaar
+          <input
+            type="radio"
+            name="visibility"
+            value="PUBLIC"
+            defaultChecked={initial.visibility === "PUBLIC"}
+          />{" "}
+          Openbaar
         </label>
       </fieldset>
 
       {state?.error && !Object.keys(fe).length && (
-        <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>
+        <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+          {state.error}
+        </p>
       )}
 
       <Button type="submit" disabled={isPending}>

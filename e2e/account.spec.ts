@@ -1,7 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 
-const shot = (p: Page, n: string) => p.screenshot({ path: path.join("e2e", "screenshots", n + ".png"), fullPage: true });
+const shot = (p: Page, n: string) =>
+  p.screenshot({ path: path.join("e2e", "screenshots", n + ".png"), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 test("AVG: gegevens exporteren en verwijdering aanvragen/intrekken", async ({ page }) => {
@@ -17,7 +18,9 @@ test("AVG: gegevens exporteren en verwijdering aanvragen/intrekken", async ({ pa
   await expect(page.getByRole("heading", { name: "Account & privacy" })).toBeVisible();
 
   // Inzage: export levert JSON met de eigen e-mail.
-  const href = await page.getByRole("link", { name: /Download mijn gegevens/ }).getAttribute("href");
+  const href = await page
+    .getByRole("link", { name: /Download mijn gegevens/ })
+    .getAttribute("href");
   expect(href).toBe("/api/account/export");
   const resp = await page.context().request.get(href!);
   expect(resp.status()).toBe(200);

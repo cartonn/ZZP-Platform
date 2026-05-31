@@ -80,13 +80,23 @@ export function JobFilters({
           onChange={(e) => setQ(e.target.value)}
           className="sm:col-span-2 lg:col-span-2"
         />
-        <Select aria-label="Branche" value={params.get("industryId") ?? ""} onChange={(e) => set("industryId", e.target.value)}>
+        <Select
+          aria-label="Branche"
+          value={params.get("industryId") ?? ""}
+          onChange={(e) => set("industryId", e.target.value)}
+        >
           <option value="">Alle branches</option>
           {industries.map((i) => (
-            <option key={i.id} value={i.id}>{i.name}</option>
+            <option key={i.id} value={i.id}>
+              {i.name}
+            </option>
           ))}
         </Select>
-        <Select aria-label="Werkmodus" value={params.get("workMode") ?? ""} onChange={(e) => set("workMode", e.target.value)}>
+        <Select
+          aria-label="Werkmodus"
+          value={params.get("workMode") ?? ""}
+          onChange={(e) => set("workMode", e.target.value)}
+        >
           <option value="">Alle werkmodi</option>
           <option value="REMOTE">Remote</option>
           <option value="ONSITE">Op locatie</option>
@@ -108,12 +118,22 @@ export function JobFilters({
           defaultValue={params.get("rateMax") ?? ""}
           onBlur={(e) => set("rateMax", e.target.value)}
         />
-        <Select aria-label="Vereist certificaat" value={params.get("requiredCredential") ?? ""} onChange={(e) => set("requiredCredential", e.target.value)}>
+        <Select
+          aria-label="Vereist certificaat"
+          value={params.get("requiredCredential") ?? ""}
+          onChange={(e) => set("requiredCredential", e.target.value)}
+        >
           {CREDENTIALS.map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
+            <option key={v} value={v}>
+              {l}
+            </option>
           ))}
         </Select>
-        <Select aria-label="Sorteren" value={params.get("sort") ?? "recent"} onChange={(e) => set("sort", e.target.value)}>
+        <Select
+          aria-label="Sorteren"
+          value={params.get("sort") ?? "recent"}
+          onChange={(e) => set("sort", e.target.value)}
+        >
           <option value="recent">Nieuwste eerst</option>
           <option value="rate_desc">Tarief hoog → laag</option>
           <option value="rate_asc">Tarief laag → hoog</option>
@@ -129,7 +149,9 @@ export function JobFilters({
               onClick={() => toggleSkill(s.id)}
               className={cn(
                 "rounded-full border px-3 py-1 text-sm transition-colors",
-                selectedSkills.has(s.id) ? "border-primary bg-accent" : "border-border hover:bg-muted",
+                selectedSkills.has(s.id)
+                  ? "border-primary bg-accent"
+                  : "border-border hover:bg-muted",
               )}
             >
               {s.name}

@@ -55,7 +55,10 @@ test("verlopen factuur vraagt aandacht op dashboard en zijbalk", async ({ page, 
 
   // ZZP'er activeert samenwerking en stuurt een factuur met een vervaldatum in het verleden.
   await fp.goto("/samenwerkingen");
-  await fp.locator("div.bg-card", { hasText: title }).getByRole("button", { name: "Markeer als actief" }).click();
+  await fp
+    .locator("div.bg-card", { hasText: title })
+    .getByRole("button", { name: "Markeer als actief" })
+    .click();
   await expect(fp.locator("div.bg-card", { hasText: title }).getByText("Actief")).toBeVisible();
 
   await fp.goto("/facturen/nieuw");
@@ -71,7 +74,9 @@ test("verlopen factuur vraagt aandacht op dashboard en zijbalk", async ({ page, 
   // Het systeem trekt het verband: op het dashboard én de zijbalk.
   await fp.goto("/dashboard");
   await expect(fp.getByText(/over de vervaldatum/)).toBeVisible();
-  const facturenNav = fp.locator('nav[aria-label="Hoofdnavigatie"]').getByRole("link", { name: /Facturen/ });
+  const facturenNav = fp
+    .locator('nav[aria-label="Hoofdnavigatie"]')
+    .getByRole("link", { name: /Facturen/ });
   await expect(facturenNav).toContainText("1");
   await shot(fp, "31-overdue-invoice");
 

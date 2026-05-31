@@ -34,7 +34,10 @@ export default async function RegisterPage() {
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Al een account?{" "}
-          <Link href="/login" className="font-medium text-foreground underline-offset-4 hover:underline">
+          <Link
+            href="/login"
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
             Inloggen
           </Link>
         </p>

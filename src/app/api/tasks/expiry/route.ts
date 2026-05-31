@@ -11,25 +11,17 @@ export async function POST(request: Request): Promise<Response> {
   // Eindpunt is alleen actief als CRON_SECRET is geconfigureerd.
   const secret = process.env.CRON_SECRET;
   if (!secret) {
-    return NextResponse.json(
-      { error: "Taak-endpoint niet geconfigureerd." },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "Taak-endpoint niet geconfigureerd." }, { status: 503 });
   }
 
   // Lees het token uit de Authorization-header of de query-parameter.
   const authHeader = request.headers.get("authorization") ?? "";
   const urlToken = new URL(request.url).searchParams.get("token") ?? "";
-  const provided = authHeader.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : urlToken;
+  const provided = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : urlToken;
 
   // Geen details lekken over wat er precies niet klopt.
   if (provided !== secret) {
-    return NextResponse.json(
-      { error: "Niet geautoriseerd." },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "Niet geautoriseerd." }, { status: 401 });
   }
 
   try {

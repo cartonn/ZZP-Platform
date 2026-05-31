@@ -17,7 +17,11 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 
 export const metadata: Metadata = { title: "Opdrachten · ZZP Platform" };
 
-const WORK_MODE: Record<WorkMode, string> = { REMOTE: "Remote", ONSITE: "Op locatie", HYBRID: "Hybride" };
+const WORK_MODE: Record<WorkMode, string> = {
+  REMOTE: "Remote",
+  ONSITE: "Op locatie",
+  HYBRID: "Hybride",
+};
 
 const JOB_STATUS_LABEL: Record<JobStatus, string> = {
   DRAFT: "Concept",
@@ -57,21 +61,32 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Mijn opdrachten</h1>
-          <p className="text-sm text-muted-foreground">Beheer je opdrachten en publiceer ze voor ZZP&apos;ers.</p>
+          <p className="text-sm text-muted-foreground">
+            Beheer je opdrachten en publiceer ze voor ZZP&apos;ers.
+          </p>
         </div>
         <Button asChild>
-          <Link href="/opdrachten/nieuw"><Plus className="size-4" aria-hidden /> Nieuwe opdracht</Link>
+          <Link href="/opdrachten/nieuw">
+            <Plus className="size-4" aria-hidden /> Nieuwe opdracht
+          </Link>
         </Button>
       </header>
 
-      <form method="get" className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto]">
+      <form
+        method="get"
+        className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto]"
+      >
         <Select name="status" defaultValue={status ?? ""} aria-label="Status">
           <option value="">Alle statussen</option>
           {JOB_STATUSES.map((s) => (
-            <option key={s} value={s}>{JOB_STATUS_LABEL[s]}</option>
+            <option key={s} value={s}>
+              {JOB_STATUS_LABEL[s]}
+            </option>
           ))}
         </Select>
-        <Button type="submit" variant="secondary">Filteren</Button>
+        <Button type="submit" variant="secondary">
+          Filteren
+        </Button>
       </form>
 
       {jobs.length === 0 ? (
@@ -86,7 +101,11 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {jobs.map((job) => (
-            <Link key={job.id} href={`/opdrachten/${job.id}`} className="card-interactive flex items-center justify-between gap-4 px-4 py-3">
+            <Link
+              key={job.id}
+              href={`/opdrachten/${job.id}`}
+              className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
+            >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{job.title}</p>
                 <p className="text-xs text-muted-foreground">
@@ -121,11 +140,17 @@ async function BrowseJobs({
   if (f.rateMax != null) where.rateMin = { lte: f.rateMax };
   if (f.skillIds.length) where.skills = { some: { skillId: { in: f.skillIds } } };
   if (f.requiredCredential) {
-    where.credentialRequirements = { some: { credentialType: f.requiredCredential, required: true } };
+    where.credentialRequirements = {
+      some: { credentialType: f.requiredCredential, required: true },
+    };
   }
 
   const orderBy: Prisma.JobOrderByWithRelationInput =
-    f.sort === "rate_desc" ? { rateMax: "desc" } : f.sort === "rate_asc" ? { rateMin: "asc" } : { publishedAt: "desc" };
+    f.sort === "rate_desc"
+      ? { rateMax: "desc" }
+      : f.sort === "rate_asc"
+        ? { rateMin: "asc" }
+        : { publishedAt: "desc" };
 
   const [total, jobs, industries, skills, profile] = await Promise.all([
     prisma.job.count({ where }),
@@ -146,7 +171,10 @@ async function BrowseJobs({
     actor.role === "FREELANCER"
       ? prisma.freelancerProfile.findUnique({
           where: { userId: actor.id },
-          include: { skills: { select: { skillId: true } }, credentials: { select: { type: true, status: true, expiresAt: true } } },
+          include: {
+            skills: { select: { skillId: true } },
+            credentials: { select: { type: true, status: true, expiresAt: true } },
+          },
         })
       : Promise.resolve(null),
   ]);
@@ -192,7 +220,11 @@ async function BrowseJobs({
           <p className="text-xs text-muted-foreground">{total} opdracht(en) gevonden</p>
           <div className="space-y-3">
             {jobs.map((job) => (
-              <Link key={job.id} href={`/opdrachten/${job.id}`} className="card-interactive block rounded-lg border border-border bg-card p-4">
+              <Link
+                key={job.id}
+                href={`/opdrachten/${job.id}`}
+                className="card-interactive block rounded-lg border border-border bg-card p-4"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium">{job.title}</p>
@@ -201,15 +233,20 @@ async function BrowseJobs({
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     {(job.rateMin != null || job.rateMax != null) && (
                       <span className="text-sm tabular-nums text-muted-foreground">
-                        € {job.rateMin ?? "?"}{job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
+                        € {job.rateMin ?? "?"}
+                        {job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
                       </span>
                     )}
-                    {matchByJob.has(job.id) && <Badge variant="muted">Match {matchByJob.get(job.id)}%</Badge>}
+                    {matchByJob.has(job.id) && (
+                      <Badge variant="muted">Match {matchByJob.get(job.id)}%</Badge>
+                    )}
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   {job.location && (
-                    <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden /> {job.location}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="size-3" aria-hidden /> {job.location}
+                    </span>
                   )}
                   <span>{WORK_MODE[job.workMode as WorkMode]}</span>
                   {job.industry && <span>{job.industry.name}</span>}
@@ -221,12 +258,22 @@ async function BrowseJobs({
           {totalPages > 1 && (
             <nav className="flex items-center justify-between pt-2" aria-label="Paginering">
               {f.page > 1 ? (
-                <Button asChild variant="secondary" size="sm"><Link href={mkPageHref(f.page - 1)}>Vorige</Link></Button>
-              ) : <span />}
-              <span className="text-xs text-muted-foreground">Pagina {f.page} van {totalPages}</span>
+                <Button asChild variant="secondary" size="sm">
+                  <Link href={mkPageHref(f.page - 1)}>Vorige</Link>
+                </Button>
+              ) : (
+                <span />
+              )}
+              <span className="text-xs text-muted-foreground">
+                Pagina {f.page} van {totalPages}
+              </span>
               {f.page < totalPages ? (
-                <Button asChild variant="secondary" size="sm"><Link href={mkPageHref(f.page + 1)}>Volgende</Link></Button>
-              ) : <span />}
+                <Button asChild variant="secondary" size="sm">
+                  <Link href={mkPageHref(f.page + 1)}>Volgende</Link>
+                </Button>
+              ) : (
+                <span />
+              )}
             </nav>
           )}
         </>

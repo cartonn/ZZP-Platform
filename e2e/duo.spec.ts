@@ -1,9 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 
-const shot = (p: Page, n: string) => p.screenshot({ path: path.join("e2e", "screenshots", n + ".png"), fullPage: true });
+const shot = (p: Page, n: string) =>
+  p.screenshot({ path: path.join("e2e", "screenshots", n + ".png"), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-const SAMPLE = { name: "diploma.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 diploma-uittreksel") };
+const SAMPLE = {
+  name: "diploma.pdf",
+  mimeType: "application/pdf",
+  buffer: Buffer.from("%PDF-1.4 diploma-uittreksel"),
+};
 
 test("DUO-diplomaverificatie: ongeldige code faalt, geldige code verifieert", async ({ page }) => {
   await page.goto("/register");

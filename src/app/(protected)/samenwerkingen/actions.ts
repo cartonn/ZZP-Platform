@@ -11,7 +11,11 @@ import { collaborationProposalSchema } from "@/lib/validation";
 export type ProposalState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
 /** CLIENT stelt een samenwerking voor op basis van een geaccepteerde reactie. */
-export async function proposeCollaboration(applicationId: string, _prev: ProposalState, formData: FormData): Promise<ProposalState> {
+export async function proposeCollaboration(
+  applicationId: string,
+  _prev: ProposalState,
+  formData: FormData,
+): Promise<ProposalState> {
   let actor;
   try {
     actor = await requireRole("CLIENT");
@@ -22,12 +26,19 @@ export async function proposeCollaboration(applicationId: string, _prev: Proposa
 
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
-    include: { job: { select: { id: true, companyId: true, company: { select: { userId: true } } } }, freelancer: { select: { id: true, userId: true } } },
+    include: {
+      job: { select: { id: true, companyId: true, company: { select: { userId: true } } } },
+      freelancer: { select: { id: true, userId: true } },
+    },
   });
-  if (!application || application.job.company.userId !== actor.id) return { error: "Reactie niet gevonden." };
+  if (!application || application.job.company.userId !== actor.id)
+    return { error: "Reactie niet gevonden." };
   if (application.status !== "ACCEPTED") return { error: "Accepteer de reactie eerst." };
 
-  const existing = await prisma.collaboration.findUnique({ where: { applicationId }, select: { id: true } });
+  const existing = await prisma.collaboration.findUnique({
+    where: { applicationId },
+    select: { id: true },
+  });
   if (existing) return { error: "Er bestaat al een samenwerking voor deze reactie." };
 
   const parsed = collaborationProposalSchema.safeParse({
@@ -67,7 +78,12 @@ export async function proposeCollaboration(applicationId: string, _prev: Proposa
       },
     }),
     prisma.auditLog.create({
-      data: auditData({ actorId: actor.id, action: "COLLABORATION_PROPOSED", entityType: "Collaboration", entityId: collaboration.id }),
+      data: auditData({
+        actorId: actor.id,
+        action: "COLLABORATION_PROPOSED",
+        entityType: "Collaboration",
+        entityId: collaboration.id,
+      }),
     }),
   ]);
 
@@ -76,7 +92,10 @@ export async function proposeCollaboration(applicationId: string, _prev: Proposa
   return undefined;
 }
 
-export async function changeCollaborationStatus(collaborationId: string, target: string): Promise<void> {
+export async function changeCollaborationStatus(
+  collaborationId: string,
+  target: string,
+): Promise<void> {
   const actor = await requireActor();
   const targetStatus = collaborationStatusSchema.parse(target);
 
@@ -110,7 +129,13 @@ export async function changeCollaborationStatus(collaborationId: string, target:
       },
     }),
     prisma.auditLog.create({
-      data: auditData({ actorId: actor.id, action: "COLLABORATION_STATUS_CHANGED", entityType: "Collaboration", entityId: collaborationId, metadata: { from, to: targetStatus } }),
+      data: auditData({
+        actorId: actor.id,
+        action: "COLLABORATION_STATUS_CHANGED",
+        entityType: "Collaboration",
+        entityId: collaborationId,
+        metadata: { from, to: targetStatus },
+      }),
     }),
   ]);
 

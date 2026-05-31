@@ -56,12 +56,24 @@ describe("computeFreelancerCompleteness", () => {
 });
 
 describe("computeCompanyCompleteness", () => {
-  const empty = { description: null, location: null, website: null, hasIndustry: false, hasLogo: false };
+  const empty = {
+    description: null,
+    location: null,
+    website: null,
+    hasIndustry: false,
+    hasLogo: false,
+  };
 
   it("is 0% en somt alles op bij een leeg bedrijfsprofiel", () => {
     const r = computeCompanyCompleteness(empty);
     expect(r.score).toBe(0);
-    expect(r.missing.map((m) => m.key)).toEqual(["description", "location", "industry", "website", "logo"]);
+    expect(r.missing.map((m) => m.key)).toEqual([
+      "description",
+      "location",
+      "industry",
+      "website",
+      "logo",
+    ]);
   });
 
   it("is 100% en zonder ontbrekende velden bij een compleet profiel", () => {

@@ -1,7 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { type ApplicationStatus } from "@/lib/enums";
 
-const MAP: Record<ApplicationStatus, { label: string; variant: "muted" | "default" | "success" | "warning" | "danger" }> = {
+const MAP: Record<
+  ApplicationStatus,
+  { label: string; variant: "muted" | "default" | "success" | "warning" | "danger" }
+> = {
   NEW: { label: "Nieuw", variant: "default" },
   VIEWED: { label: "Bekeken", variant: "muted" },
   SHORTLIST: { label: "Shortlist", variant: "warning" },

@@ -13,7 +13,11 @@ import { deleteDocument } from "./actions";
 export const metadata: Metadata = { title: "Documenten · ZZP Platform" };
 
 const KIND_LABEL: Record<DocumentKind, string> = {
-  CREDENTIAL: "Credential", VOG: "VOG", INSURANCE: "Verzekering", CONTRACT: "Contract", OTHER: "Overig",
+  CREDENTIAL: "Credential",
+  VOG: "VOG",
+  INSURANCE: "Verzekering",
+  CONTRACT: "Contract",
+  OTHER: "Overig",
 };
 
 function formatSize(bytes: number) {
@@ -34,7 +38,9 @@ export default async function DocumentenPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Documenten</h1>
-        <p className="text-sm text-muted-foreground">Je geüploade documenten. Alleen jij (en beheer) kunt ze openen.</p>
+        <p className="text-sm text-muted-foreground">
+          Je geüploade documenten. Alleen jij (en beheer) kunt ze openen.
+        </p>
       </header>
 
       <DocumentForm />
@@ -71,7 +77,12 @@ export default async function DocumentenPage() {
                   </Button>
                   {!linked && (
                     <form action={deleteDocument.bind(null, doc.id)}>
-                      <Button type="submit" variant="danger" size="sm" aria-label={`Verwijder ${doc.filename}`}>
+                      <Button
+                        type="submit"
+                        variant="danger"
+                        size="sm"
+                        aria-label={`Verwijder ${doc.filename}`}
+                      >
                         <Trash2 className="size-3.5" aria-hidden />
                       </Button>
                     </form>

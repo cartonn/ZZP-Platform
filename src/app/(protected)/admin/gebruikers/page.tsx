@@ -45,7 +45,14 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
       where,
       orderBy: { createdAt: "desc" },
       take: 100,
-      select: { id: true, name: true, email: true, role: true, status: true, deletionRequestedAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        deletionRequestedAt: true,
+      },
     }),
     prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
     prisma.user.count({ where: { status: "PENDING" } }),
@@ -63,7 +70,7 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
           {deletionRequests > 0 && (
             <Link
               href="/admin/gebruikers?deletion=1"
-              className="inline-flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger focus-ring"
+              className="focus-ring inline-flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger"
             >
               <AlertTriangle className="size-4 shrink-0" aria-hidden />
               {deletionRequests} AVG-verwijderverzoek(en) — beoordeel
@@ -72,7 +79,7 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
           {pendingUsers > 0 && (
             <Link
               href="/admin/gebruikers?status=PENDING"
-              className="inline-flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1.5 text-sm text-warning focus-ring"
+              className="focus-ring inline-flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1.5 text-sm text-warning"
             >
               <AlertTriangle className="size-4 shrink-0" aria-hidden />
               {pendingUsers} in afwachting — activeer
@@ -81,8 +88,16 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
         </div>
       )}
 
-      <form method="get" className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto_auto_auto]">
-        <Input name="q" defaultValue={q} placeholder="Zoek op naam of e-mail…" aria-label="Zoeken" />
+      <form
+        method="get"
+        className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto_auto_auto]"
+      >
+        <Input
+          name="q"
+          defaultValue={q}
+          placeholder="Zoek op naam of e-mail…"
+          aria-label="Zoeken"
+        />
         <Select name="role" defaultValue={role} aria-label="Rol">
           <option value="">Alle rollen</option>
           <option value="FREELANCER">ZZP&apos;er</option>
@@ -95,7 +110,9 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
           <option value="SUSPENDED">Geschorst</option>
           <option value="PENDING">In afwachting</option>
         </Select>
-        <Button type="submit" variant="secondary">Filteren</Button>
+        <Button type="submit" variant="secondary">
+          Filteren
+        </Button>
       </form>
 
       {users.length === 0 ? (
@@ -115,7 +132,10 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
             const isSelf = u.id === actor.id;
             const target = toggleSuspension(u.status as UserStatus);
             return (
-              <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <div
+                key={u.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium">{u.name}</p>
@@ -128,7 +148,11 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
                 </div>
                 {!isSelf && (
                   <form action={setUserStatus.bind(null, u.id, target)}>
-                    <Button type="submit" variant={target === "SUSPENDED" ? "danger" : "secondary"} size="sm">
+                    <Button
+                      type="submit"
+                      variant={target === "SUSPENDED" ? "danger" : "secondary"}
+                      size="sm"
+                    >
                       {target === "SUSPENDED" ? "Schorsen" : "Activeren"}
                     </Button>
                   </form>

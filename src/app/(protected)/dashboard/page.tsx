@@ -58,19 +58,37 @@ interface Attention {
   href: string;
 }
 
-async function dashboardData(role: UserRole, userId: string): Promise<{ stats: Stat[]; attention: Attention[] }> {
+async function dashboardData(
+  role: UserRole,
+  userId: string,
+): Promise<{ stats: Stat[]; attention: Attention[] }> {
   const attention: Attention[] = [];
 
   if (role === "FREELANCER") {
-    const profile = await prisma.freelancerProfile.findUnique({ where: { userId }, select: { id: true, completeness: true, visibility: true } });
+    const profile = await prisma.freelancerProfile.findUnique({
+      where: { userId },
+      select: { id: true, completeness: true, visibility: true },
+    });
     const pid = profile?.id;
     const soon = new Date(Date.now() + 30 * 86400_000);
     const now = new Date();
     const [applications, verified, rejected, expiring, account, overdue] = await Promise.all([
       pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
-      pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED" } }) : Promise.resolve(0),
-      pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "REJECTED" } }) : Promise.resolve(0),
-      pid ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED", expiresAt: { gt: now, lte: soon } } }) : Promise.resolve(0),
+      pid
+        ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED" } })
+        : Promise.resolve(0),
+      pid
+        ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "REJECTED" } })
+        : Promise.resolve(0),
+      pid
+        ? prisma.credential.count({
+            where: {
+              freelancerProfileId: pid,
+              status: "VERIFIED",
+              expiresAt: { gt: now, lte: soon },
+            },
+          })
+        : Promise.resolve(0),
       prisma.user.findUnique({ where: { id: userId }, select: { identityVerifiedAt: true } }),
       overdueInvoiceCount("FREELANCER", userId),
     ]);
@@ -97,7 +115,14 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
   if (role === "CLIENT") {
     const company = await prisma.company.findUnique({
       where: { userId },
-      select: { id: true, description: true, location: true, website: true, industryId: true, logoKey: true },
+      select: {
+        id: true,
+        description: true,
+        location: true,
+        website: true,
+        industryId: true,
+        logoKey: true,
+      },
     });
     const cid = company?.id;
     const companyCompleteness = company
@@ -109,20 +134,30 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
           hasLogo: !!company.logoKey,
         }).score
       : 0;
-    const [openJobs, newApps, drafts, activeCollabs, credentialAlerts, overdue] = await Promise.all([
-      cid ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } }) : Promise.resolve(0),
-      cid ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } }) : Promise.resolve(0),
-      cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
-      cid ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } }) : Promise.resolve(0),
-      clientCredentialAlerts(userId),
-      overdueInvoiceCount("CLIENT", userId),
-    ]);
+    const [openJobs, newApps, drafts, activeCollabs, credentialAlerts, overdue] = await Promise.all(
+      [
+        cid
+          ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
+          : Promise.resolve(0),
+        cid
+          ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } })
+          : Promise.resolve(0),
+        cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
+        cid
+          ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } })
+          : Promise.resolve(0),
+        clientCredentialAlerts(userId),
+        overdueInvoiceCount("CLIENT", userId),
+      ],
+    );
     for (const a of clientNextActions({
       companyCompleteness,
       newApplications: newApps,
       draftJobs: drafts,
       overdueInvoices: overdue,
-      collaborationCredentialAlerts: credentialAlerts.map((a) => describeCredentialAlert(a.freelancerName, a.jobTitle, a.alert)),
+      collaborationCredentialAlerts: credentialAlerts.map((a) =>
+        describeCredentialAlert(a.freelancerName, a.jobTitle, a.alert),
+      ),
     })) {
       attention.push({ label: a.title, href: a.href });
     }
@@ -143,7 +178,11 @@ async function dashboardData(role: UserRole, userId: string): Promise<{ stats: S
     prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
     prisma.user.count({ where: { status: "PENDING" } }),
   ]);
-  for (const a of adminNextActions({ deletionRequests, pendingVerifications: pending, pendingUsers })) {
+  for (const a of adminNextActions({
+    deletionRequests,
+    pendingVerifications: pending,
+    pendingUsers,
+  })) {
     attention.push({ label: a.title, href: a.href });
   }
   return {
@@ -162,7 +201,11 @@ export default async function DashboardPage() {
   const role = user.role as UserRole;
   const intro = INTRO[role];
   const firstName = (user.name ?? "").split(" ")[0] || "daar";
-  const today = new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
+  const today = new Date().toLocaleDateString("nl-NL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
   const [{ stats, attention }, matches] = await Promise.all([
     dashboardData(role, user.id!),
     role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
@@ -189,7 +232,7 @@ export default async function DashboardPage() {
           <Link
             key={s.label}
             href={s.href}
-            className="rounded-lg border border-border bg-card p-5 transition-colors hover:bg-muted/40 focus-ring"
+            className="focus-ring rounded-lg border border-border bg-card p-5 transition-colors hover:bg-muted/40"
           >
             <p className="text-sm text-muted-foreground">{s.label}</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">{s.value}</p>
@@ -210,7 +253,10 @@ export default async function DashboardPage() {
           <ul className="divide-y divide-border">
             {attention.map((a) => (
               <li key={a.label}>
-                <Link href={a.href} className="flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/40 focus-ring">
+                <Link
+                  href={a.href}
+                  className="focus-ring flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/40"
+                >
                   <span className="flex items-center gap-2">
                     <AlertTriangle className="size-4 shrink-0 text-warning" aria-hidden />
                     {a.label}
@@ -227,7 +273,10 @@ export default async function DashboardPage() {
         <section className="rounded-lg border border-border bg-card">
           <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
             <h2 className="text-sm font-medium">Opdrachten die bij je passen</h2>
-            <Link href="/opdrachten" className="text-xs text-muted-foreground hover:text-foreground focus-ring">
+            <Link
+              href="/opdrachten"
+              className="focus-ring text-xs text-muted-foreground hover:text-foreground"
+            >
               Alle opdrachten
             </Link>
           </div>
@@ -236,11 +285,13 @@ export default async function DashboardPage() {
               <li key={m.jobId}>
                 <Link
                   href={`/opdrachten/${m.jobId}`}
-                  className="flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/40 focus-ring"
+                  className="focus-ring flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/40"
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{m.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{m.companyName}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {m.companyName}
+                    </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <AvailabilityBadge status={m.availability} />

@@ -2,7 +2,10 @@
 // Alleen bruikbaar in request-scope (server actions, route handlers, auth-events).
 import { headers } from "next/headers";
 
-export async function requestMeta(): Promise<{ ipAddress: string | null; userAgent: string | null }> {
+export async function requestMeta(): Promise<{
+  ipAddress: string | null;
+  userAgent: string | null;
+}> {
   try {
     const h = await headers();
     const fwd = h.get("x-forwarded-for");

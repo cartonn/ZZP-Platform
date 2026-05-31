@@ -42,12 +42,16 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
 
   const status = invoice.status as InvoiceStatus;
   const canSend = isFreelancerOwner && status === "DRAFT";
-  const canCancel = isFreelancerOwner && (status === "DRAFT" || status === "SENT" || status === "OVERDUE");
+  const canCancel =
+    isFreelancerOwner && (status === "DRAFT" || status === "SENT" || status === "OVERDUE");
   const canPay = isClient && (status === "SENT" || status === "OVERDUE");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Link href="/facturen" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/facturen"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="size-3.5" aria-hidden /> Terug naar facturen
       </Link>
 
@@ -55,7 +59,9 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
         <CardContent className="space-y-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-lg font-semibold tracking-tight tabular-nums">Factuur {invoice.number}</h1>
+              <h1 className="text-lg font-semibold tabular-nums tracking-tight">
+                Factuur {invoice.number}
+              </h1>
               <p className="text-sm text-muted-foreground">{invoice.collaboration.job.title}</p>
             </div>
             <InvoiceStatusBadge status={status} dueAt={invoice.dueAt} />
@@ -101,8 +107,12 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={3} className="py-2 text-right text-sm font-medium">Totaal</td>
-                <td className="py-2 text-right font-semibold tabular-nums">{formatEuro(invoice.totalCents)}</td>
+                <td colSpan={3} className="py-2 text-right text-sm font-medium">
+                  Totaal
+                </td>
+                <td className="py-2 text-right font-semibold tabular-nums">
+                  {formatEuro(invoice.totalCents)}
+                </td>
               </tr>
             </tfoot>
           </table>
@@ -111,17 +121,23 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
             <div className="flex flex-wrap gap-2 border-t border-border pt-4">
               {canSend && (
                 <form action={sendInvoice.bind(null, invoice.id)}>
-                  <Button type="submit" size="sm">Versturen</Button>
+                  <Button type="submit" size="sm">
+                    Versturen
+                  </Button>
                 </form>
               )}
               {canPay && (
                 <form action={markInvoicePaid.bind(null, invoice.id)}>
-                  <Button type="submit" size="sm">Markeer als betaald</Button>
+                  <Button type="submit" size="sm">
+                    Markeer als betaald
+                  </Button>
                 </form>
               )}
               {canCancel && (
                 <form action={cancelInvoice.bind(null, invoice.id)}>
-                  <Button type="submit" variant="danger" size="sm">Annuleren</Button>
+                  <Button type="submit" variant="danger" size="sm">
+                    Annuleren
+                  </Button>
                 </form>
               )}
             </div>

@@ -57,7 +57,10 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
 
   // Freelancer activeert de samenwerking.
   await fp.goto("/samenwerkingen");
-  await fp.locator("div.bg-card", { hasText: title }).getByRole("button", { name: "Markeer als actief" }).click();
+  await fp
+    .locator("div.bg-card", { hasText: title })
+    .getByRole("button", { name: "Markeer als actief" })
+    .click();
   await expect(fp.locator("div.bg-card", { hasText: title }).getByText("Actief")).toBeVisible();
 
   // Factuur opstellen.
@@ -78,7 +81,10 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
   // Opdrachtgever markeert als betaald.
   await page.goto("/facturen");
   await expect(page.getByText("€ 900,00").first()).toBeVisible();
-  await page.getByRole("link", { name: /Fact Freelancer|2026-/ }).first().click();
+  await page
+    .getByRole("link", { name: /Fact Freelancer|2026-/ })
+    .first()
+    .click();
   await page.waitForURL(/\/facturen\/[a-z0-9]+$/);
   await page.getByRole("button", { name: "Markeer als betaald" }).click();
   await expect(page.getByText("Betaald")).toBeVisible();
@@ -90,7 +96,9 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
 test("abonnement upgraden naar PRO", async ({ page }) => {
   await registerFreelancer(page, `abo-${uniq()}@test.local`);
   await page.goto("/abonnement");
-  await expect(page.locator("div.bg-card", { hasText: "Gratis" }).getByText("Huidig", { exact: true })).toBeVisible();
+  await expect(
+    page.locator("div.bg-card", { hasText: "Gratis" }).getByText("Huidig", { exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Kies Pro" }).click();
   // Na upgrade is Pro het huidige plan.
   const pro = page.locator("div.bg-card", { hasText: "Pro" });

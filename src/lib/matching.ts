@@ -85,13 +85,22 @@ export interface MatchInput {
   freelancerSkillIds: readonly string[];
   requiredCredentialTypes: readonly CredentialType[];
   credentials: readonly FreelancerCredential[];
-  job: { rateMin?: number | null; rateMax?: number | null; workMode: WorkMode; location?: string | null };
+  job: {
+    rateMin?: number | null;
+    rateMax?: number | null;
+    workMode: WorkMode;
+    location?: string | null;
+  };
   freelancer: {
     hourlyRate?: number | null;
     workMode: WorkMode;
     location?: string | null;
     availability: Availability;
-    availabilityWindows?: readonly { startDate: Date; endDate: Date; type: AvailabilityWindowType }[];
+    availabilityWindows?: readonly {
+      startDate: Date;
+      endDate: Date;
+      type: AvailabilityWindowType;
+    }[];
   };
 }
 
@@ -127,7 +136,14 @@ export function availabilityReason(status: Availability): MatchReason | null {
   }
 }
 
-const WEIGHTS = { requiredSkills: 35, optionalSkills: 15, compliance: 25, rate: 15, workMode: 5, location: 5 };
+const WEIGHTS = {
+  requiredSkills: 35,
+  optionalSkills: 15,
+  compliance: 25,
+  rate: 15,
+  workMode: 5,
+  location: 5,
+};
 
 /** Server-berekende matchscore (0-100) + onderverdeling + compliance-snapshot. */
 export function computeMatchScore(input: MatchInput, now: Date = new Date()): MatchResult {
@@ -136,19 +152,31 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
   const required = dedupe(input.requiredSkillIds);
   const optional = dedupe(input.optionalSkillIds);
   const requiredCoverage =
-    required.length === 0 ? 1 : required.filter((s) => freelancerSkills.has(s)).length / required.length;
+    required.length === 0
+      ? 1
+      : required.filter((s) => freelancerSkills.has(s)).length / required.length;
   const optionalCoverage =
-    optional.length === 0 ? 1 : optional.filter((s) => freelancerSkills.has(s)).length / optional.length;
-  const skills = requiredCoverage * WEIGHTS.requiredSkills + optionalCoverage * WEIGHTS.optionalSkills;
+    optional.length === 0
+      ? 1
+      : optional.filter((s) => freelancerSkills.has(s)).length / optional.length;
+  const skills =
+    requiredCoverage * WEIGHTS.requiredSkills + optionalCoverage * WEIGHTS.optionalSkills;
 
   const compliance = computeCompliance(input.requiredCredentialTypes, input.credentials, now);
   const reqCredCount = dedupe(input.requiredCredentialTypes).length;
   const compliancePoints =
-    reqCredCount === 0 ? WEIGHTS.compliance : (compliance.satisfied.length / reqCredCount) * WEIGHTS.compliance;
+    reqCredCount === 0
+      ? WEIGHTS.compliance
+      : (compliance.satisfied.length / reqCredCount) * WEIGHTS.compliance;
 
   const rate = rateFit(input.job.rateMin, input.job.rateMax, input.freelancer.hourlyRate);
   const workMode = workModeFit(input.job.workMode, input.freelancer.workMode);
-  const location = locationFit(input.job.workMode, input.freelancer.workMode, input.job.location, input.freelancer.location);
+  const location = locationFit(
+    input.job.workMode,
+    input.freelancer.workMode,
+    input.job.location,
+    input.freelancer.location,
+  );
 
   const breakdown = {
     skills: round(skills),
@@ -158,7 +186,13 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     location: round(location),
   };
   const score = clamp(
-    Math.round(breakdown.skills + breakdown.compliance + breakdown.rate + breakdown.workMode + breakdown.location),
+    Math.round(
+      breakdown.skills +
+        breakdown.compliance +
+        breakdown.rate +
+        breakdown.workMode +
+        breakdown.location,
+    ),
     0,
     100,
   );
@@ -215,7 +249,7 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
   const activeWindow = windows && windows.length > 0 ? currentOrNextAvailable(windows, now) : null;
   const effectiveStatus: Availability = activeWindow
     ? activeWindow.type
-    : input.freelancer.availability ?? "UNKNOWN";
+    : (input.freelancer.availability ?? "UNKNOWN");
   const availReason = availabilityReason(effectiveStatus);
   if (availReason) {
     if (availReason.kind === "positive") {
@@ -267,13 +301,20 @@ export function scoreJobForFreelancer(
       requiredSkillIds: job.skills.filter((s) => s.required).map((s) => s.skillId),
       optionalSkillIds: job.skills.filter((s) => !s.required).map((s) => s.skillId),
       freelancerSkillIds: freelancer.skills.map((s) => s.skillId),
-      requiredCredentialTypes: job.credentialRequirements.filter((c) => c.required).map((c) => c.credentialType as CredentialType),
+      requiredCredentialTypes: job.credentialRequirements
+        .filter((c) => c.required)
+        .map((c) => c.credentialType as CredentialType),
       credentials: freelancer.credentials.map((c) => ({
         type: c.type as CredentialType,
         status: c.status as CredentialStatus,
         expiresAt: c.expiresAt,
       })),
-      job: { rateMin: job.rateMin, rateMax: job.rateMax, workMode: job.workMode as WorkMode, location: job.location },
+      job: {
+        rateMin: job.rateMin,
+        rateMax: job.rateMax,
+        workMode: job.workMode as WorkMode,
+        location: job.location,
+      },
       freelancer: {
         hourlyRate: freelancer.hourlyRate,
         workMode: freelancer.workMode as WorkMode,
@@ -290,7 +331,11 @@ export function scoreJobForFreelancer(
   );
 }
 
-function rateFit(min: number | null | undefined, max: number | null | undefined, rate: number | null | undefined): number {
+function rateFit(
+  min: number | null | undefined,
+  max: number | null | undefined,
+  rate: number | null | undefined,
+): number {
   if (rate == null || (min == null && max == null)) return WEIGHTS.rate * 0.66; // onbekend -> neutraal
   if (max != null && rate > max) {
     const over = (rate - max) / max;

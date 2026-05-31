@@ -38,7 +38,10 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
   await page.selectOption("#workMode", "HYBRID");
   await page.fill("#rateMin", "70");
   await page.fill("#rateMax", "100");
-  await page.locator("fieldset", { hasText: "Vereiste certificaten" }).getByText("VOG", { exact: true }).click();
+  await page
+    .locator("fieldset", { hasText: "Vereiste certificaten" })
+    .getByText("VOG", { exact: true })
+    .click();
   await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const detailUrl = page.url();
@@ -51,7 +54,10 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
   await registerFreelancer(fp, `refree-${uniq()}@test.local`);
   await fp.goto(detailUrl);
   await expect(fp.getByRole("heading", { name: "Reageren op deze opdracht" })).toBeVisible();
-  await fp.fill("#motivation", "Ik heb ruime ervaring met vergelijkbare projecten en ben direct beschikbaar.");
+  await fp.fill(
+    "#motivation",
+    "Ik heb ruime ervaring met vergelijkbare projecten en ben direct beschikbaar.",
+  );
   await fp.fill("#proposedRate", "85");
   await fp.fill("#availability", "Per direct, 32 uur");
   await shot(fp, "14-apply-form");
@@ -90,7 +96,9 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
   await expect(page.getByText("Shortlist")).toBeVisible();
   await page.fill('textarea[name="note"]', "Sterke kandidaat, uitnodigen voor gesprek.");
   await page.getByRole("button", { name: "Notitie opslaan" }).click();
-  await expect(page.locator('textarea[name="note"]')).toHaveValue("Sterke kandidaat, uitnodigen voor gesprek.");
+  await expect(page.locator('textarea[name="note"]')).toHaveValue(
+    "Sterke kandidaat, uitnodigen voor gesprek.",
+  );
   await shot(page, "16-kandidaten");
 
   await ctx.close();

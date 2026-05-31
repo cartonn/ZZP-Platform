@@ -23,7 +23,9 @@ describe("normalizeAuditFilters", () => {
   });
 
   it("parseert filters en clamp page >= 1", () => {
-    expect(normalizeAuditFilters({ action: "INVOICE_PAID", entityType: "Invoice", page: "3" })).toEqual({
+    expect(
+      normalizeAuditFilters({ action: "INVOICE_PAID", entityType: "Invoice", page: "3" }),
+    ).toEqual({
       action: "INVOICE_PAID",
       entityType: "Invoice",
       page: 3,

@@ -1,7 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 
-const shot = (p: Page, n: string) => p.screenshot({ path: path.join("e2e", "screenshots", n + ".png"), fullPage: true });
+const shot = (p: Page, n: string) =>
+  p.screenshot({ path: path.join("e2e", "screenshots", n + ".png"), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 test("AVG-verwijderverzoek vraagt aandacht bij de beheerder", async ({ page, browser }) => {
@@ -30,7 +31,9 @@ test("AVG-verwijderverzoek vraagt aandacht bij de beheerder", async ({ page, bro
   await expect(admin.getByText(/AVG-verwijderverzoek\(en\) — beoordeel/)).toBeVisible();
 
   await admin.goto("/admin/gebruikers");
-  await expect(admin.getByRole("link", { name: /AVG-verwijderverzoek\(en\) — beoordeel/ })).toBeVisible();
+  await expect(
+    admin.getByRole("link", { name: /AVG-verwijderverzoek\(en\) — beoordeel/ }),
+  ).toBeVisible();
 
   // Filter op verwijderverzoeken: de gebruiker staat erbij met een rood label.
   await admin.goto("/admin/gebruikers?deletion=1");

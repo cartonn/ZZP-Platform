@@ -32,7 +32,10 @@ export default async function LoginPage() {
           </div>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Nog geen account?{" "}
-            <Link href="/register" className="font-medium text-foreground underline-offset-4 hover:underline">
+            <Link
+              href="/register"
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
               Registreren
             </Link>
           </p>

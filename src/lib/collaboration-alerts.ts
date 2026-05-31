@@ -5,7 +5,11 @@
 
 import { prisma } from "@/lib/db";
 import { isExpired, isExpiringSoon, CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
-import { computeCompliance, type ComplianceStatus, type FreelancerCredential } from "@/lib/matching";
+import {
+  computeCompliance,
+  type ComplianceStatus,
+  type FreelancerCredential,
+} from "@/lib/matching";
 import { type CredentialType } from "@/lib/enums";
 
 const EXPIRY_WINDOW_DAYS = 30;
@@ -44,15 +48,28 @@ export function assessCollaborationCredentials(
   if (base.missing.length > 0 || base.expired.length > 0) status = "NON_COMPLIANT";
   else if (base.inReview.length > 0 || expiringSoon.length > 0) status = "WARNING";
 
-  return { status, missing: base.missing, expired: base.expired, expiringSoon, inReview: base.inReview };
+  return {
+    status,
+    missing: base.missing,
+    expired: base.expired,
+    expiringSoon,
+    inReview: base.inReview,
+  };
 }
 
 /** Korte, gerichte omschrijving van de melding (vanuit het perspectief van de opdrachtgever). */
-export function describeCredentialAlert(name: string, jobTitle: string, alert: CredentialAlert): string {
+export function describeCredentialAlert(
+  name: string,
+  jobTitle: string,
+  alert: CredentialAlert,
+): string {
   const types = (list: CredentialType[]) => list.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ");
-  if (alert.missing.length > 0) return `${name} mist een vereist certificaat (${types(alert.missing)}) — ${jobTitle}`;
-  if (alert.expired.length > 0) return `Certificaat van ${name} is verlopen (${types(alert.expired)}) — ${jobTitle}`;
-  if (alert.expiringSoon.length > 0) return `Certificaat van ${name} verloopt binnenkort (${types(alert.expiringSoon)}) — ${jobTitle}`;
+  if (alert.missing.length > 0)
+    return `${name} mist een vereist certificaat (${types(alert.missing)}) — ${jobTitle}`;
+  if (alert.expired.length > 0)
+    return `Certificaat van ${name} is verlopen (${types(alert.expired)}) — ${jobTitle}`;
+  if (alert.expiringSoon.length > 0)
+    return `Certificaat van ${name} verloopt binnenkort (${types(alert.expiringSoon)}) — ${jobTitle}`;
   return `Certificaat van ${name} in beoordeling (${types(alert.inReview)}) — ${jobTitle}`;
 }
 
@@ -91,7 +108,9 @@ export async function clientCredentialAlerts(userId: string): Promise<ClientCred
   const now = new Date();
   const alerts: ClientCredentialAlert[] = [];
   for (const c of collaborations) {
-    const requiredTypes = c.job.credentialRequirements.map((r) => r.credentialType as CredentialType);
+    const requiredTypes = c.job.credentialRequirements.map(
+      (r) => r.credentialType as CredentialType,
+    );
     if (requiredTypes.length === 0) continue;
     const credentials: FreelancerCredential[] = c.freelancer.credentials.map((cr) => ({
       type: cr.type as CredentialType,

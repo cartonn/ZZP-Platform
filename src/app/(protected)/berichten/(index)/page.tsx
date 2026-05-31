@@ -30,7 +30,11 @@ export default async function BerichtenPage() {
     include: {
       job: { select: { title: true } },
       participants: { include: { user: { select: { id: true, name: true } } } },
-      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true, createdAt: true } },
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { body: true, createdAt: true },
+      },
     },
   });
 
@@ -54,7 +58,9 @@ export default async function BerichtenPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Berichten</h1>
-        <p className="text-sm text-muted-foreground">Je gesprekken met opdrachtgevers en ZZP&apos;ers.</p>
+        <p className="text-sm text-muted-foreground">
+          Je gesprekken met opdrachtgevers en ZZP&apos;ers.
+        </p>
       </header>
 
       {conversations.length === 0 ? (
@@ -72,7 +78,11 @@ export default async function BerichtenPage() {
             const last = c.messages[0];
             const unread = unreadByConversation.get(c.id) ?? 0;
             return (
-              <Link key={c.id} href={`/berichten/${c.id}`} className="card-interactive flex items-center justify-between gap-4 px-4 py-3">
+              <Link
+                key={c.id}
+                href={`/berichten/${c.id}`}
+                className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium">{other?.user.name ?? "Onbekend"}</p>
@@ -82,7 +92,9 @@ export default async function BerichtenPage() {
                   {last && (
                     <>
                       <p className="truncate text-xs text-muted-foreground">{last.body}</p>
-                      <p className="text-xs text-muted-foreground">{relativeTime(last.createdAt)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {relativeTime(last.createdAt)}
+                      </p>
                     </>
                   )}
                 </div>

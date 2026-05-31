@@ -7,6 +7,9 @@ export async function GET() {
     await prisma.$queryRaw`SELECT 1`;
     return NextResponse.json({ status: "ok", db: true, time: new Date().toISOString() });
   } catch {
-    return NextResponse.json({ status: "degraded", db: false, time: new Date().toISOString() }, { status: 503 });
+    return NextResponse.json(
+      { status: "degraded", db: false, time: new Date().toISOString() },
+      { status: 503 },
+    );
   }
 }

@@ -4,13 +4,17 @@
 - **Datum:** YYYY-MM-DD
 
 ## Context
+
 Wat speelt er, welk probleem of welke keuze.
 
 ## Besluit
+
 Wat we hebben besloten (één heldere alinea).
 
 ## Gevolgen
+
 Voordelen, nadelen, en wat dit betekent voor de bouw/ops.
 
 ## Alternatieven
+
 Wat is overwogen en waarom afgevallen.

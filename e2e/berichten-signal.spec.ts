@@ -54,7 +54,9 @@ test("ongelezen bericht toont een badge op Berichten in de zijbalk", async ({ pa
 
   // ZZP'er ziet vanaf elke pagina dat er een ongelezen bericht wacht.
   await fp.goto("/dashboard");
-  const berichtenNav = fp.locator('nav[aria-label="Hoofdnavigatie"]').getByRole("link", { name: /Berichten/ });
+  const berichtenNav = fp
+    .locator('nav[aria-label="Hoofdnavigatie"]')
+    .getByRole("link", { name: /Berichten/ });
   await expect(berichtenNav).toContainText("1");
   await shot(fp, "27-nav-badge-berichten");
 

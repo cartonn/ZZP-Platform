@@ -49,7 +49,10 @@ export async function updateCompanyProfile(
 
   // Branche moet bestaan (defensief).
   if (data.industryId) {
-    const exists = await prisma.industry.findUnique({ where: { id: data.industryId }, select: { id: true } });
+    const exists = await prisma.industry.findUnique({
+      where: { id: data.industryId },
+      select: { id: true },
+    });
     if (!exists) return { fieldErrors: { industryId: "Onbekende branche." } };
   }
 
@@ -68,7 +71,10 @@ export async function updateCompanyProfile(
     await getStorage().put(key, buffer, logo.type);
     const previous = company.logoKey;
     logoKey = key;
-    if (previous) await getStorage().delete(previous).catch(() => {});
+    if (previous)
+      await getStorage()
+        .delete(previous)
+        .catch(() => {});
   }
 
   await prisma.company.update({

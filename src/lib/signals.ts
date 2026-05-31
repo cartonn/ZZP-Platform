@@ -104,10 +104,15 @@ async function unreadConversationCount(userId: string): Promise<number> {
 
   const grouped = await prisma.message.groupBy({
     by: ["conversationId"],
-    where: { conversationId: { in: participants.map((p) => p.conversationId) }, senderId: { not: userId } },
+    where: {
+      conversationId: { in: participants.map((p) => p.conversationId) },
+      senderId: { not: userId },
+    },
     _max: { createdAt: true },
   });
-  const latestForeign = new Map<string, Date | null>(grouped.map((g) => [g.conversationId, g._max.createdAt]));
+  const latestForeign = new Map<string, Date | null>(
+    grouped.map((g) => [g.conversationId, g._max.createdAt]),
+  );
   return countUnreadConversations(participants, latestForeign);
 }
 
@@ -123,7 +128,11 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     const [rejected, expiring, unreadMessages, overdueInvoices] = await Promise.all([
       prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
       prisma.credential.count({
-        where: { freelancerProfileId: profile.id, status: "VERIFIED", expiresAt: { gt: now, lte: soon } },
+        where: {
+          freelancerProfileId: profile.id,
+          status: "VERIFIED",
+          expiresAt: { gt: now, lte: soon },
+        },
       }),
       unreadConversationCount(userId),
       overdueInvoiceCount("FREELANCER", userId),

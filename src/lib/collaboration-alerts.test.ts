@@ -22,14 +22,18 @@ describe("assessCollaborationCredentials", () => {
   });
 
   it("is NON_COMPLIANT bij een verlopen vereist certificaat", () => {
-    const creds: FreelancerCredential[] = [{ type: "VOG", status: "VERIFIED", expiresAt: inDays(-1) }];
+    const creds: FreelancerCredential[] = [
+      { type: "VOG", status: "VERIFIED", expiresAt: inDays(-1) },
+    ];
     const r = assessCollaborationCredentials(["VOG"], creds, now);
     expect(r.status).toBe("NON_COMPLIANT");
     expect(r.expired).toEqual(["VOG"]);
   });
 
   it("waarschuwt (WARNING) als een geldig certificaat binnenkort verloopt", () => {
-    const creds: FreelancerCredential[] = [{ type: "VOG", status: "VERIFIED", expiresAt: inDays(10) }];
+    const creds: FreelancerCredential[] = [
+      { type: "VOG", status: "VERIFIED", expiresAt: inDays(10) },
+    ];
     const r = assessCollaborationCredentials(["VOG"], creds, now);
     expect(r.status).toBe("WARNING");
     expect(r.expiringSoon).toEqual(["VOG"]);

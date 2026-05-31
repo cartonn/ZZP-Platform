@@ -44,10 +44,26 @@ export async function changeApplicationStatus(appId: string, target: string): Pr
   await prisma.$transaction([
     prisma.application.update({ where: { id: appId }, data: { status: targetStatus } }),
     prisma.auditLog.create({
-      data: auditData({ actorId: actor.id, action: "APPLICATION_STATUS_CHANGED", entityType: "Application", entityId: appId, metadata: { from, to: targetStatus } }),
+      data: auditData({
+        actorId: actor.id,
+        action: "APPLICATION_STATUS_CHANGED",
+        entityType: "Application",
+        entityId: appId,
+        metadata: { from, to: targetStatus },
+      }),
     }),
     ...(notify
-      ? [prisma.notification.create({ data: { userId: app.freelancer.userId, type: `APPLICATION_${targetStatus}`, title: notify.title, body: notify.body, link: "/reacties" } })]
+      ? [
+          prisma.notification.create({
+            data: {
+              userId: app.freelancer.userId,
+              type: `APPLICATION_${targetStatus}`,
+              title: notify.title,
+              body: notify.body,
+              link: "/reacties",
+            },
+          }),
+        ]
       : []),
   ]);
   revalidatePath("/kandidaten");
@@ -57,8 +73,15 @@ export async function saveApplicationNote(appId: string, formData: FormData): Pr
   const actor = await requireRole("CLIENT");
   await loadOwnedApplication(actor, appId);
 
-  const note = String(formData.get("note") ?? "").trim().slice(0, 2000);
+  const note = String(formData.get("note") ?? "")
+    .trim()
+    .slice(0, 2000);
   await prisma.application.update({ where: { id: appId }, data: { note: note || null } });
-  await audit({ actorId: actor.id, action: "APPLICATION_NOTE_SAVED", entityType: "Application", entityId: appId });
+  await audit({
+    actorId: actor.id,
+    action: "APPLICATION_NOTE_SAVED",
+    entityType: "Application",
+    entityId: appId,
+  });
   revalidatePath("/kandidaten");
 }

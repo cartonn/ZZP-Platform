@@ -2,7 +2,10 @@ import { ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { type TrustLevel } from "@/lib/trust";
 
-const MAP: Record<Exclude<TrustLevel, "BASIS">, { label: string; variant: "success" | "default" }> = {
+const MAP: Record<
+  Exclude<TrustLevel, "BASIS">,
+  { label: string; variant: "success" | "default" }
+> = {
   DEELS: { label: "Deels geverifieerd", variant: "default" },
   VOLLEDIG: { label: "Volledig geverifieerd", variant: "success" },
 };

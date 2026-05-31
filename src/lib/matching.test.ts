@@ -65,7 +65,12 @@ describe("computeMatchScore", () => {
     requiredCredentialTypes: ["VOG"],
     credentials: [{ type: "VOG", status: "VERIFIED", expiresAt: future }],
     job: { rateMin: 60, rateMax: 90, workMode: "HYBRID", location: "Amsterdam" },
-    freelancer: { hourlyRate: 75, workMode: "HYBRID", location: "Amsterdam", availability: "AVAILABLE" },
+    freelancer: {
+      hourlyRate: 75,
+      workMode: "HYBRID",
+      location: "Amsterdam",
+      availability: "AVAILABLE",
+    },
   };
 
   it("geeft een perfecte match ~100", () => {
@@ -92,7 +97,12 @@ describe("computeMatchScore", () => {
         ...base,
         freelancerSkillIds: [],
         credentials: [],
-        freelancer: { hourlyRate: 500, workMode: "ONSITE", location: "Groningen", availability: "AVAILABLE" },
+        freelancer: {
+          hourlyRate: 500,
+          workMode: "ONSITE",
+          location: "Groningen",
+          availability: "AVAILABLE",
+        },
       },
       now,
     );
@@ -134,7 +144,10 @@ describe("computeMatchScore", () => {
   });
 
   it("voegt een positieve reason toe bij AVAILABLE zonder de score te wijzigen", () => {
-    const baseline = computeMatchScore({ ...base, freelancer: { ...base.freelancer, availability: "UNKNOWN" } }, now);
+    const baseline = computeMatchScore(
+      { ...base, freelancer: { ...base.freelancer, availability: "UNKNOWN" } },
+      now,
+    );
     const r = computeMatchScore(base, now);
     expect(r.score).toBe(baseline.score);
     expect(r.breakdown).toEqual(baseline.breakdown);
@@ -144,14 +157,22 @@ describe("computeMatchScore", () => {
   });
 
   it("geeft een gap-reason bij UNAVAILABLE", () => {
-    const r = computeMatchScore({ ...base, freelancer: { ...base.freelancer, availability: "UNAVAILABLE" } }, now);
+    const r = computeMatchScore(
+      { ...base, freelancer: { ...base.freelancer, availability: "UNAVAILABLE" } },
+      now,
+    );
     expect(r.availability.status).toBe("UNAVAILABLE");
-    const gap = r.reasons.find((re) => re.kind === "gap" && re.label === "Momenteel niet beschikbaar");
+    const gap = r.reasons.find(
+      (re) => re.kind === "gap" && re.label === "Momenteel niet beschikbaar",
+    );
     expect(gap).toBeDefined();
   });
 
   it("geeft geen beschikbaarheids-reason bij UNKNOWN", () => {
-    const r = computeMatchScore({ ...base, freelancer: { ...base.freelancer, availability: "UNKNOWN" } }, now);
+    const r = computeMatchScore(
+      { ...base, freelancer: { ...base.freelancer, availability: "UNKNOWN" } },
+      now,
+    );
     expect(r.availability.status).toBe("UNKNOWN");
     expect(r.availability.reason).toBeNull();
     expect(r.reasons.map((re) => re.label)).not.toContain("Direct beschikbaar");
@@ -166,7 +187,11 @@ describe("computeMatchScore", () => {
           ...base.freelancer,
           availability: "UNAVAILABLE",
           availabilityWindows: [
-            { startDate: new Date("2026-05-01T00:00:00Z"), endDate: new Date("2026-06-30T00:00:00Z"), type: "AVAILABLE" },
+            {
+              startDate: new Date("2026-05-01T00:00:00Z"),
+              endDate: new Date("2026-06-30T00:00:00Z"),
+              type: "AVAILABLE",
+            },
           ],
         },
       },

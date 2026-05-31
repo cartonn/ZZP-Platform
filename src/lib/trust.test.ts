@@ -17,7 +17,9 @@ describe("computeTrustLevel", () => {
   });
 
   it("DEELS bij alleen een geverifieerd certificaat", () => {
-    expect(computeTrustLevel({ identityVerified: false, verifiedCredentialCount: 2 }).level).toBe("DEELS");
+    expect(computeTrustLevel({ identityVerified: false, verifiedCredentialCount: 2 }).level).toBe(
+      "DEELS",
+    );
   });
 
   it("VOLLEDIG bij identiteit én certificaat", () => {

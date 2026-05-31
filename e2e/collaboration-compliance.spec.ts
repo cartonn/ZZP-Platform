@@ -6,7 +6,10 @@ const shot = (page: Page, name: string) =>
   page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-test("compliance-ripple: ontbrekend vereist certificaat waarschuwt beide partijen", async ({ page, browser }) => {
+test("compliance-ripple: ontbrekend vereist certificaat waarschuwt beide partijen", async ({
+  page,
+  browser,
+}) => {
   test.slow();
   const title = `Compliance Opdracht ${uniq()}`;
 
@@ -24,7 +27,10 @@ test("compliance-ripple: ontbrekend vereist certificaat waarschuwt beide partije
   await page.fill("#title", title);
   await page.fill("#description", "Project waarvoor een geldige VOG vereist is.");
   await page.selectOption("#workMode", "REMOTE");
-  await page.locator("fieldset", { hasText: "Vereiste certificaten" }).getByText("VOG", { exact: true }).click();
+  await page
+    .locator("fieldset", { hasText: "Vereiste certificaten" })
+    .getByText("VOG", { exact: true })
+    .click();
   await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const detailUrl = page.url();

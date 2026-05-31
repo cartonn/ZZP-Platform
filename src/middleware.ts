@@ -12,7 +12,8 @@ function getPublicOrigin(request: Request, fallbackOrigin: string) {
   const host = forwardedHost ?? request.headers.get("host");
   if (!host) return fallbackOrigin;
 
-  const protocol = request.headers.get("x-forwarded-proto") ?? new URL(fallbackOrigin).protocol.replace(":", "");
+  const protocol =
+    request.headers.get("x-forwarded-proto") ?? new URL(fallbackOrigin).protocol.replace(":", "");
   return `${protocol}://${host}`;
 }
 

@@ -11,9 +11,15 @@ export type IdentityState = { ok?: true; error?: string } | undefined;
 
 /** Identiteitsverificatie (iDIN/eIDAS, achter de service-grens). Bij succes wordt de geverifieerde
  *  juridische naam vastgelegd — basis voor het vertrouwensniveau en naamcontrole bij credentials. */
-export async function verifyIdentity(_prev: IdentityState, formData: FormData): Promise<IdentityState> {
+export async function verifyIdentity(
+  _prev: IdentityState,
+  formData: FormData,
+): Promise<IdentityState> {
   const actor = await requireActor();
-  const user = await prisma.user.findUnique({ where: { id: actor.id }, select: { name: true, identityVerifiedAt: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: actor.id },
+    select: { name: true, identityVerifiedAt: true },
+  });
   if (user?.identityVerifiedAt) return { error: "Je identiteit is al geverifieerd." };
 
   const providedName = String(formData.get("legalName") ?? "").trim();
@@ -29,9 +35,19 @@ export async function verifyIdentity(_prev: IdentityState, formData: FormData): 
 
   const meta = await requestMeta();
   await prisma.$transaction([
-    prisma.user.update({ where: { id: actor.id }, data: { identityVerifiedAt: new Date(), verifiedLegalName: result.verifiedName } }),
+    prisma.user.update({
+      where: { id: actor.id },
+      data: { identityVerifiedAt: new Date(), verifiedLegalName: result.verifiedName },
+    }),
     prisma.auditLog.create({
-      data: auditData({ actorId: actor.id, action: "IDENTITY_VERIFIED", entityType: "User", entityId: actor.id, metadata: { source: result.source }, ...meta }),
+      data: auditData({
+        actorId: actor.id,
+        action: "IDENTITY_VERIFIED",
+        entityType: "User",
+        entityId: actor.id,
+        metadata: { source: result.source },
+        ...meta,
+      }),
     }),
   ]);
   revalidatePath("/account");
@@ -49,11 +65,23 @@ export async function requestAccountDeletion(): Promise<void> {
     prisma.user.update({ where: { id: actor.id }, data: { deletionRequestedAt: new Date() } }),
     ...admins.map((a) =>
       prisma.notification.create({
-        data: { userId: a.id, type: "ACCOUNT_DELETION_REQUESTED", title: "Verwijderverzoek", body: "Een gebruiker heeft accountverwijdering aangevraagd.", link: "/admin/gebruikers" },
+        data: {
+          userId: a.id,
+          type: "ACCOUNT_DELETION_REQUESTED",
+          title: "Verwijderverzoek",
+          body: "Een gebruiker heeft accountverwijdering aangevraagd.",
+          link: "/admin/gebruikers",
+        },
       }),
     ),
     prisma.auditLog.create({
-      data: auditData({ actorId: actor.id, action: "ACCOUNT_DELETION_REQUESTED", entityType: "User", entityId: actor.id, ...meta }),
+      data: auditData({
+        actorId: actor.id,
+        action: "ACCOUNT_DELETION_REQUESTED",
+        entityType: "User",
+        entityId: actor.id,
+        ...meta,
+      }),
     }),
   ]);
   revalidatePath("/account");
@@ -65,7 +93,13 @@ export async function cancelDeletionRequest(): Promise<void> {
   await prisma.$transaction([
     prisma.user.update({ where: { id: actor.id }, data: { deletionRequestedAt: null } }),
     prisma.auditLog.create({
-      data: auditData({ actorId: actor.id, action: "ACCOUNT_DELETION_CANCELLED", entityType: "User", entityId: actor.id, ...meta }),
+      data: auditData({
+        actorId: actor.id,
+        action: "ACCOUNT_DELETION_CANCELLED",
+        entityType: "User",
+        entityId: actor.id,
+        ...meta,
+      }),
     }),
   ]);
   revalidatePath("/account");

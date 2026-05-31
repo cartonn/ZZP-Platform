@@ -26,9 +26,19 @@ interface Criterion {
 const CRITERIA: readonly Criterion[] = [
   { key: "headline", label: "Functietitel", weight: 20, done: (i) => !!i.headline?.trim() },
   { key: "bio", label: "Korte bio", weight: 15, done: (i) => !!i.bio?.trim() },
-  { key: "hourlyRate", label: "Uurtarief", weight: 15, done: (i) => i.hourlyRate != null && i.hourlyRate > 0 },
+  {
+    key: "hourlyRate",
+    label: "Uurtarief",
+    weight: 15,
+    done: (i) => i.hourlyRate != null && i.hourlyRate > 0,
+  },
   { key: "location", label: "Locatie", weight: 10, done: (i) => !!i.location?.trim() },
-  { key: "availability", label: "Beschikbaarheid", weight: 10, done: (i) => i.availability !== "UNKNOWN" },
+  {
+    key: "availability",
+    label: "Beschikbaarheid",
+    weight: 10,
+    done: (i) => i.availability !== "UNKNOWN",
+  },
   { key: "languages", label: "Talen", weight: 10, done: (i) => i.languages.length > 0 },
   { key: "skills", label: "Minstens één skill", weight: 15, done: (i) => i.skillCount > 0 },
   { key: "industries", label: "Minstens één branche", weight: 5, done: (i) => i.industryCount > 0 },

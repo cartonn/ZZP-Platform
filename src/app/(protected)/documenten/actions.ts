@@ -12,9 +12,14 @@ import {
 } from "@/lib/services/storage";
 import { documentSchema } from "@/lib/validation";
 
-export type DocumentState = { ok?: true; error?: string; fieldErrors?: Record<string, string> } | undefined;
+export type DocumentState =
+  | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
+  | undefined;
 
-export async function uploadDocument(_prev: DocumentState, formData: FormData): Promise<DocumentState> {
+export async function uploadDocument(
+  _prev: DocumentState,
+  formData: FormData,
+): Promise<DocumentState> {
   let actor;
   try {
     actor = await requireRole("FREELANCER");
@@ -42,9 +47,22 @@ export async function uploadDocument(_prev: DocumentState, formData: FormData): 
   const key = generateStorageKey(file.name);
   await getStorage().put(key, buffer, file.type);
   const doc = await prisma.document.create({
-    data: { ownerId: actor.id, kind: parsed.data.kind, filename: file.name, mimeType: file.type, size: file.size, storageKey: key },
+    data: {
+      ownerId: actor.id,
+      kind: parsed.data.kind,
+      filename: file.name,
+      mimeType: file.type,
+      size: file.size,
+      storageKey: key,
+    },
   });
-  await audit({ actorId: actor.id, action: "DOCUMENT_UPLOADED", entityType: "Document", entityId: doc.id, metadata: { kind: parsed.data.kind } });
+  await audit({
+    actorId: actor.id,
+    action: "DOCUMENT_UPLOADED",
+    entityType: "Document",
+    entityId: doc.id,
+    metadata: { kind: parsed.data.kind },
+  });
 
   revalidatePath("/documenten");
   return { ok: true };
@@ -62,7 +80,14 @@ export async function deleteDocument(documentId: string): Promise<void> {
   }
 
   await prisma.document.delete({ where: { id: documentId } });
-  await getStorage().delete(doc.storageKey).catch(() => {});
-  await audit({ actorId: actor.id, action: "DOCUMENT_DELETED", entityType: "Document", entityId: documentId });
+  await getStorage()
+    .delete(doc.storageKey)
+    .catch(() => {});
+  await audit({
+    actorId: actor.id,
+    action: "DOCUMENT_DELETED",
+    entityType: "Document",
+    entityId: documentId,
+  });
   revalidatePath("/documenten");
 }

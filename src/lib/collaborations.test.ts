@@ -17,6 +17,8 @@ describe("samenwerking-statusovergangen", () => {
     expect(canTransitionCollaboration("PROPOSED", "COMPLETED")).toBe(false);
     expect(canTransitionCollaboration("COMPLETED", "ACTIVE")).toBe(false);
     expect(canTransitionCollaboration("CANCELLED", "ACTIVE")).toBe(false);
-    expect(() => assertCollaborationTransition("COMPLETED", "ACTIVE")).toThrow(CollaborationTransitionError);
+    expect(() => assertCollaborationTransition("COMPLETED", "ACTIVE")).toThrow(
+      CollaborationTransitionError,
+    );
   });
 });

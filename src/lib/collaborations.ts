@@ -10,17 +10,26 @@ export class CollaborationTransitionError extends Error {
   }
 }
 
-export const COLLABORATION_TRANSITIONS: Record<CollaborationStatus, readonly CollaborationStatus[]> = {
+export const COLLABORATION_TRANSITIONS: Record<
+  CollaborationStatus,
+  readonly CollaborationStatus[]
+> = {
   PROPOSED: ["ACTIVE", "CANCELLED"],
   ACTIVE: ["COMPLETED", "CANCELLED"],
   COMPLETED: [],
   CANCELLED: [],
 };
 
-export function canTransitionCollaboration(from: CollaborationStatus, to: CollaborationStatus): boolean {
+export function canTransitionCollaboration(
+  from: CollaborationStatus,
+  to: CollaborationStatus,
+): boolean {
   return COLLABORATION_TRANSITIONS[from].includes(to);
 }
 
-export function assertCollaborationTransition(from: CollaborationStatus, to: CollaborationStatus): void {
+export function assertCollaborationTransition(
+  from: CollaborationStatus,
+  to: CollaborationStatus,
+): void {
   if (!canTransitionCollaboration(from, to)) throw new CollaborationTransitionError(from, to);
 }

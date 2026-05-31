@@ -6,15 +6,23 @@ import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { availabilityWindowSchema } from "@/lib/validation";
 
-export type AvailabilityState = { ok?: true; error?: string; fieldErrors?: Record<string, string> } | undefined;
+export type AvailabilityState =
+  | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
+  | undefined;
 
 async function requireProfile(actorId: string) {
-  const profile = await prisma.freelancerProfile.findUnique({ where: { userId: actorId }, select: { id: true } });
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { userId: actorId },
+    select: { id: true },
+  });
   if (!profile) throw new Error("Maak eerst je profiel aan.");
   return profile;
 }
 
-export async function addAvailabilityWindow(_prev: AvailabilityState, formData: FormData): Promise<AvailabilityState> {
+export async function addAvailabilityWindow(
+  _prev: AvailabilityState,
+  formData: FormData,
+): Promise<AvailabilityState> {
   let actor;
   try {
     actor = await requireRole("FREELANCER");
@@ -49,7 +57,12 @@ export async function addAvailabilityWindow(_prev: AvailabilityState, formData: 
       note: d.note ?? null,
     },
   });
-  await audit({ actorId: actor.id, action: "AVAILABILITY_ADDED", entityType: "AvailabilityWindow", entityId: window.id });
+  await audit({
+    actorId: actor.id,
+    action: "AVAILABILITY_ADDED",
+    entityType: "AvailabilityWindow",
+    entityId: window.id,
+  });
   revalidatePath("/beschikbaarheid");
   return { ok: true };
 }
@@ -57,10 +70,19 @@ export async function addAvailabilityWindow(_prev: AvailabilityState, formData: 
 export async function deleteAvailabilityWindow(windowId: string): Promise<void> {
   const actor = await requireRole("FREELANCER");
   const profile = await requireProfile(actor.id);
-  const window = await prisma.availabilityWindow.findUnique({ where: { id: windowId }, select: { freelancerProfileId: true } });
-  if (!window || window.freelancerProfileId !== profile.id) throw new Error("Venster niet gevonden.");
+  const window = await prisma.availabilityWindow.findUnique({
+    where: { id: windowId },
+    select: { freelancerProfileId: true },
+  });
+  if (!window || window.freelancerProfileId !== profile.id)
+    throw new Error("Venster niet gevonden.");
 
   await prisma.availabilityWindow.delete({ where: { id: windowId } });
-  await audit({ actorId: actor.id, action: "AVAILABILITY_REMOVED", entityType: "AvailabilityWindow", entityId: windowId });
+  await audit({
+    actorId: actor.id,
+    action: "AVAILABILITY_REMOVED",
+    entityType: "AvailabilityWindow",
+    entityId: windowId,
+  });
   revalidatePath("/beschikbaarheid");
 }

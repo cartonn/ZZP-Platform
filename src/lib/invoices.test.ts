@@ -29,7 +29,12 @@ describe("factuur-statusovergangen", () => {
 describe("bedrag-berekening (centen)", () => {
   it("berekent regel- en factuurtotaal", () => {
     expect(lineAmountCents({ quantity: 3, unitCents: 8500 })).toBe(25500);
-    expect(invoiceTotalCents([{ quantity: 2, unitCents: 5000 }, { quantity: 1, unitCents: 2500 }])).toBe(12500);
+    expect(
+      invoiceTotalCents([
+        { quantity: 2, unitCents: 5000 },
+        { quantity: 1, unitCents: 2500 },
+      ]),
+    ).toBe(12500);
     expect(invoiceTotalCents([])).toBe(0);
   });
 

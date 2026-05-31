@@ -15,7 +15,10 @@ async function registerClient(page: Page, name: string, email: string) {
 
 // RLS-intent op de app-laag: een opdrachtgever mag opdrachten van een andere opdrachtgever
 // niet zien of bewerken (IDOR-weigering, server-side afgedwongen via ownership/notFound).
-test("kruisgebruiker: opdrachtgever B kan opdracht van A niet zien of bewerken", async ({ page, browser }) => {
+test("kruisgebruiker: opdrachtgever B kan opdracht van A niet zien of bewerken", async ({
+  page,
+  browser,
+}) => {
   const title = `Authz Opdracht ${uniq()}`;
   await registerClient(page, "Authz A", `authz-a-${uniq()}@test.local`);
   await page.goto("/opdrachten/nieuw");

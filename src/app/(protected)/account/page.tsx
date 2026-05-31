@@ -16,7 +16,15 @@ export default async function AccountPage() {
   const actor = await requireActor();
   const user = await prisma.user.findUnique({
     where: { id: actor.id },
-    select: { email: true, name: true, role: true, createdAt: true, deletionRequestedAt: true, identityVerifiedAt: true, verifiedLegalName: true },
+    select: {
+      email: true,
+      name: true,
+      role: true,
+      createdAt: true,
+      deletionRequestedAt: true,
+      identityVerifiedAt: true,
+      verifiedLegalName: true,
+    },
   });
   if (!user) return null;
 
@@ -24,15 +32,29 @@ export default async function AccountPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Account & privacy</h1>
-        <p className="text-sm text-muted-foreground">Je accountgegevens en je rechten onder de AVG.</p>
+        <p className="text-sm text-muted-foreground">
+          Je accountgegevens en je rechten onder de AVG.
+        </p>
       </header>
 
       <Card>
         <CardContent className="grid grid-cols-2 gap-3 text-sm">
-          <div><p className="text-xs text-muted-foreground">Naam</p><p>{user.name}</p></div>
-          <div><p className="text-xs text-muted-foreground">E-mail</p><p className="truncate">{user.email}</p></div>
-          <div><p className="text-xs text-muted-foreground">Rol</p><p>{ROLE_LABEL[user.role as UserRole]}</p></div>
-          <div><p className="text-xs text-muted-foreground">Lid sinds</p><p>{user.createdAt.toISOString().slice(0, 10)}</p></div>
+          <div>
+            <p className="text-xs text-muted-foreground">Naam</p>
+            <p>{user.name}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">E-mail</p>
+            <p className="truncate">{user.email}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Rol</p>
+            <p>{ROLE_LABEL[user.role as UserRole]}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Lid sinds</p>
+            <p>{user.createdAt.toISOString().slice(0, 10)}</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -45,13 +67,14 @@ export default async function AccountPage() {
           {user.identityVerifiedAt ? (
             <p className="text-sm text-muted-foreground">
               Geverifieerd op {user.identityVerifiedAt.toISOString().slice(0, 10)}
-              {user.verifiedLegalName ? ` · ${user.verifiedLegalName}` : ""}. Dit verhoogt je vertrouwensniveau.
+              {user.verifiedLegalName ? ` · ${user.verifiedLegalName}` : ""}. Dit verhoogt je
+              vertrouwensniveau.
             </p>
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Verifieer je identiteit (iDIN/eIDAS) zodat opdrachtgevers zien dat jij echt de houder van je
-                certificaten bent. Verhoogt je vertrouwensniveau.
+                Verifieer je identiteit (iDIN/eIDAS) zodat opdrachtgevers zien dat jij echt de
+                houder van je certificaten bent. Verhoogt je vertrouwensniveau.
               </p>
               <IdentityForm />
             </>
@@ -63,10 +86,14 @@ export default async function AccountPage() {
         <CardContent className="space-y-3">
           <div>
             <h2 className="text-sm font-medium">Inzage (recht op dataportabiliteit)</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Download je eigen gegevens als JSON-bestand.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Download je eigen gegevens als JSON-bestand.
+            </p>
           </div>
           <Button asChild variant="secondary" size="sm">
-            <a href="/api/account/export"><Download className="size-3.5" aria-hidden /> Download mijn gegevens</a>
+            <a href="/api/account/export">
+              <Download className="size-3.5" aria-hidden /> Download mijn gegevens
+            </a>
           </Button>
         </CardContent>
       </Card>
@@ -76,23 +103,28 @@ export default async function AccountPage() {
           <div>
             <h2 className="text-sm font-medium">Account verwijderen (recht op verwijdering)</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Je kunt verwijdering aanvragen. Sommige gegevens (zoals facturen) bewaren we vanwege een
-              wettelijke (fiscale) bewaarplicht; beheer handelt je verzoek af en verwijdert of anonimiseert
-              de rest. Je kunt het verzoek intrekken zolang het nog niet is uitgevoerd.
+              Je kunt verwijdering aanvragen. Sommige gegevens (zoals facturen) bewaren we vanwege
+              een wettelijke (fiscale) bewaarplicht; beheer handelt je verzoek af en verwijdert of
+              anonimiseert de rest. Je kunt het verzoek intrekken zolang het nog niet is uitgevoerd.
             </p>
           </div>
           {user.deletionRequestedAt ? (
             <div className="space-y-2">
               <p className="rounded-md bg-warning/10 px-3 py-2 text-sm text-warning">
-                Verwijdering aangevraagd op {user.deletionRequestedAt.toISOString().slice(0, 10)}. In behandeling bij beheer.
+                Verwijdering aangevraagd op {user.deletionRequestedAt.toISOString().slice(0, 10)}.
+                In behandeling bij beheer.
               </p>
               <form action={cancelDeletionRequest}>
-                <Button type="submit" variant="secondary" size="sm">Verzoek intrekken</Button>
+                <Button type="submit" variant="secondary" size="sm">
+                  Verzoek intrekken
+                </Button>
               </form>
             </div>
           ) : (
             <form action={requestAccountDeletion}>
-              <Button type="submit" variant="danger" size="sm">Verwijdering aanvragen</Button>
+              <Button type="submit" variant="danger" size="sm">
+                Verwijdering aanvragen
+              </Button>
             </form>
           )}
         </CardContent>

@@ -16,7 +16,10 @@ import { changeCollaborationStatus } from "./actions";
 
 export const metadata: Metadata = { title: "Samenwerkingen · ZZP Platform" };
 
-const STATUS: Record<CollaborationStatus, { label: string; variant: "default" | "success" | "muted" | "danger" }> = {
+const STATUS: Record<
+  CollaborationStatus,
+  { label: string; variant: "default" | "success" | "muted" | "danger" }
+> = {
   PROPOSED: { label: "Voorgesteld", variant: "default" },
   ACTIVE: { label: "Actief", variant: "success" },
   COMPLETED: { label: "Afgerond", variant: "muted" },
@@ -38,12 +41,20 @@ function fmt(d: Date | null) {
 function alertPhrase(a: CredentialAlert, name: string, isClient: boolean): string {
   const t = (list: CredentialType[]) => list.map((x) => CREDENTIAL_TYPE_LABEL[x]).join(", ");
   if (a.missing.length > 0)
-    return isClient ? `${name} mist een vereist certificaat: ${t(a.missing)}.` : `Je mist een vereist certificaat: ${t(a.missing)}.`;
+    return isClient
+      ? `${name} mist een vereist certificaat: ${t(a.missing)}.`
+      : `Je mist een vereist certificaat: ${t(a.missing)}.`;
   if (a.expired.length > 0)
-    return isClient ? `Certificaat van ${name} is verlopen: ${t(a.expired)}.` : `Je ${t(a.expired)} is verlopen.`;
+    return isClient
+      ? `Certificaat van ${name} is verlopen: ${t(a.expired)}.`
+      : `Je ${t(a.expired)} is verlopen.`;
   if (a.expiringSoon.length > 0)
-    return isClient ? `Certificaat van ${name} verloopt binnenkort: ${t(a.expiringSoon)}.` : `Je ${t(a.expiringSoon)} verloopt binnenkort.`;
-  return isClient ? `Certificaat van ${name} is in beoordeling: ${t(a.inReview)}.` : `Je ${t(a.inReview)} is in beoordeling.`;
+    return isClient
+      ? `Certificaat van ${name} verloopt binnenkort: ${t(a.expiringSoon)}.`
+      : `Je ${t(a.expiringSoon)} verloopt binnenkort.`;
+  return isClient
+    ? `Certificaat van ${name} is in beoordeling: ${t(a.inReview)}.`
+    : `Je ${t(a.inReview)} is in beoordeling.`;
 }
 
 export default async function SamenwerkingenPage() {
@@ -93,7 +104,9 @@ export default async function SamenwerkingenPage() {
             const isClient = c.company.userId === actor.id;
             const counterparty = isClient ? c.freelancer.user.name : c.company.name;
 
-            const requiredTypes = c.job.credentialRequirements.map((r) => r.credentialType as CredentialType);
+            const requiredTypes = c.job.credentialRequirements.map(
+              (r) => r.credentialType as CredentialType,
+            );
             const credentials: FreelancerCredential[] = c.freelancer.credentials.map((cr) => ({
               type: cr.type as CredentialType,
               status: cr.status as FreelancerCredential["status"],
@@ -111,7 +124,12 @@ export default async function SamenwerkingenPage() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2">
-                        <Link href={`/opdrachten/${c.job.id}`} className="font-medium underline-offset-4 hover:underline">{c.job.title}</Link>
+                        <Link
+                          href={`/opdrachten/${c.job.id}`}
+                          className="font-medium underline-offset-4 hover:underline"
+                        >
+                          {c.job.title}
+                        </Link>
                         <Badge variant={STATUS[status].variant}>{STATUS[status].label}</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">Met {counterparty}</p>
@@ -127,7 +145,9 @@ export default async function SamenwerkingenPage() {
                   {showAlert && alert && (
                     <div
                       className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${
-                        urgent ? "border-danger/30 bg-danger/10 text-danger" : "border-warning/30 bg-warning/10 text-warning"
+                        urgent
+                          ? "border-danger/30 bg-danger/10 text-danger"
+                          : "border-warning/30 bg-warning/10 text-warning"
                       }`}
                     >
                       <AlertTriangle className="size-4 shrink-0" aria-hidden />
@@ -136,7 +156,10 @@ export default async function SamenwerkingenPage() {
                         {!isClient && (
                           <>
                             {" "}
-                            <Link href="/certificaten" className="font-medium underline underline-offset-2">
+                            <Link
+                              href="/certificaten"
+                              className="font-medium underline underline-offset-2"
+                            >
                               Bijwerken
                             </Link>
                           </>
@@ -145,17 +168,30 @@ export default async function SamenwerkingenPage() {
                     </div>
                   )}
 
-                  {(COLLABORATION_TRANSITIONS[status].length > 0 || (!isClient && (status === "ACTIVE" || status === "COMPLETED"))) && (
+                  {(COLLABORATION_TRANSITIONS[status].length > 0 ||
+                    (!isClient && (status === "ACTIVE" || status === "COMPLETED"))) && (
                     <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                       {COLLABORATION_TRANSITIONS[status].map((to) => (
                         <form key={to} action={changeCollaborationStatus.bind(null, c.id, to)}>
-                          <Button type="submit" size="sm" variant={to === "CANCELLED" ? "danger" : to === "ACTIVE" ? "primary" : "secondary"}>
+                          <Button
+                            type="submit"
+                            size="sm"
+                            variant={
+                              to === "CANCELLED"
+                                ? "danger"
+                                : to === "ACTIVE"
+                                  ? "primary"
+                                  : "secondary"
+                            }
+                          >
                             {ACTION_LABEL[to]}
                           </Button>
                         </form>
                       ))}
                       {!isClient && (status === "ACTIVE" || status === "COMPLETED") && (
-                        <Button asChild variant="secondary" size="sm"><Link href="/facturen/nieuw">Factuur opstellen</Link></Button>
+                        <Button asChild variant="secondary" size="sm">
+                          <Link href="/facturen/nieuw">Factuur opstellen</Link>
+                        </Button>
                       )}
                     </div>
                   )}

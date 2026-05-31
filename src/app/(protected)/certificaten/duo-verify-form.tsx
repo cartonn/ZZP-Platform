@@ -8,7 +8,10 @@ import { verifyCredentialViaDuo, type DuoVerifyState } from "./actions";
 /** DUO-verificatie van een diploma via de verificatiecode uit het DUO-diplomaregister. */
 export function DuoVerifyForm({ credentialId }: { credentialId: string }) {
   const action = verifyCredentialViaDuo.bind(null, credentialId);
-  const [state, formAction, isPending] = useActionState<DuoVerifyState, FormData>(action, undefined);
+  const [state, formAction, isPending] = useActionState<DuoVerifyState, FormData>(
+    action,
+    undefined,
+  );
 
   return (
     <form action={formAction} className="flex flex-wrap items-center gap-2">
@@ -21,7 +24,11 @@ export function DuoVerifyForm({ credentialId }: { credentialId: string }) {
       <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
         {isPending ? "Controleren…" : "Verifieer via DUO"}
       </Button>
-      {state?.error && <span role="alert" className="text-xs text-danger">{state.error}</span>}
+      {state?.error && (
+        <span role="alert" className="text-xs text-danger">
+          {state.error}
+        </span>
+      )}
     </form>
   );
 }

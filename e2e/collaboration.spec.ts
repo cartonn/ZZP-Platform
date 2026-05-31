@@ -25,7 +25,10 @@ async function registerFreelancer(page: Page, email: string) {
   await page.waitForURL("**/dashboard");
 }
 
-test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notificaties", async ({ page, browser }) => {
+test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notificaties", async ({
+  page,
+  browser,
+}) => {
   test.slow(); // zware multi-context journey; veel dev-mode route-compiles onder parallelle load
   const title = `Coll Opdracht ${uniq()}`;
   await registerClient(page, `coll-client-${uniq()}@test.local`);
@@ -55,7 +58,9 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
   await expect(page.getByText("Coll Freelancer")).toBeVisible();
   await page.getByRole("button", { name: "Bericht sturen" }).click();
   await page.waitForURL(/\/berichten\/[a-z0-9]+$/);
-  await page.locator('textarea[name="body"]').fill("Hoi, ik heb interesse in je reactie. Wanneer kun je starten?");
+  await page
+    .locator('textarea[name="body"]')
+    .fill("Hoi, ik heb interesse in je reactie. Wanneer kun je starten?");
   await page.getByRole("button", { name: "Versturen" }).click();
   await expect(page.getByText("Hoi, ik heb interesse")).toBeVisible({ timeout: 15000 });
   await shot(page, "22-berichten");

@@ -33,13 +33,22 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
   // Aanmaken (start als concept).
   await page.goto("/opdrachten/nieuw");
   await page.fill("#title", title);
-  await page.fill("#description", "We zoeken een ervaren ontwikkelaar voor een langlopend project.");
+  await page.fill(
+    "#description",
+    "We zoeken een ervaren ontwikkelaar voor een langlopend project.",
+  );
   await page.selectOption("#workMode", "REMOTE");
   await page.fill("#rateMin", "70");
   await page.fill("#rateMax", "95");
   await page.fill("#location", "Amsterdam");
-  await page.locator("fieldset", { hasText: "Vereiste skills" }).getByText("TypeScript", { exact: true }).click();
-  await page.locator("fieldset", { hasText: "Vereiste certificaten" }).getByText("VOG", { exact: true }).click();
+  await page
+    .locator("fieldset", { hasText: "Vereiste skills" })
+    .getByText("TypeScript", { exact: true })
+    .click();
+  await page
+    .locator("fieldset", { hasText: "Vereiste certificaten" })
+    .getByText("VOG", { exact: true })
+    .click();
   await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
 
   // Redirect naar de detailpagina (concept). Wacht op de heading, leg dán de URL vast.
@@ -64,14 +73,18 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
   await fp.goto("/opdrachten");
   await fp.getByLabel("Zoeken").fill(title);
   await fp.waitForURL(/[?&]q=/); // wacht tot de debounced zoekopdracht is toegepast
-  const card = fp.getByRole("link", { name: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) });
+  const card = fp.getByRole("link", {
+    name: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  });
   await expect(card).toBeVisible();
   await shot(fp, "12-job-browse");
 
   await card.click();
   await fp.waitForURL(detailUrl);
   await expect(fp.getByRole("heading", { name: title })).toBeVisible({ timeout: 15000 });
-  await expect(fp.locator("section", { hasText: "Vereiste certificaten" }).getByText("VOG", { exact: true })).toBeVisible();
+  await expect(
+    fp.locator("section", { hasText: "Vereiste certificaten" }).getByText("VOG", { exact: true }),
+  ).toBeVisible();
   await shot(fp, "13-job-detail-freelancer");
 
   // Niet-gepubliceerde opdracht is niet zichtbaar voor anderen: depubliceer en check 404.

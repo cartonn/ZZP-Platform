@@ -7,20 +7,32 @@ import { prisma } from "@/lib/db";
 import { profileVisibleTo } from "@/lib/profile";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
-import { type Availability, type AvailabilityWindowType, type Visibility, type WorkMode } from "@/lib/enums";
+import {
+  type Availability,
+  type AvailabilityWindowType,
+  type Visibility,
+  type WorkMode,
+} from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrustBadge } from "@/components/trust/trust-badge";
 
 export const metadata: Metadata = { title: "ZZP-profiel · ZZP Platform" };
 
-const AVAILABILITY: Record<Availability, { label: string; variant: "success" | "warning" | "muted" }> = {
+const AVAILABILITY: Record<
+  Availability,
+  { label: string; variant: "success" | "warning" | "muted" }
+> = {
   AVAILABLE: { label: "Beschikbaar", variant: "success" },
   LIMITED: { label: "Beperkt beschikbaar", variant: "warning" },
   UNAVAILABLE: { label: "Niet beschikbaar", variant: "muted" },
   UNKNOWN: { label: "Beschikbaarheid onbekend", variant: "muted" },
 };
-const WORK_MODE: Record<WorkMode, string> = { REMOTE: "Remote", ONSITE: "Op locatie", HYBRID: "Hybride" };
+const WORK_MODE: Record<WorkMode, string> = {
+  REMOTE: "Remote",
+  ONSITE: "Op locatie",
+  HYBRID: "Hybride",
+};
 
 function parseLanguages(raw: string | null): string[] {
   if (!raw) return [];
@@ -114,7 +126,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
               {availabilitySummary && <span>{availabilitySummary}</span>}
             </div>
 
-            {profile.bio && <p className="whitespace-pre-line text-sm leading-relaxed">{profile.bio}</p>}
+            {profile.bio && (
+              <p className="whitespace-pre-line text-sm leading-relaxed">{profile.bio}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -123,7 +137,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <h2 className="text-sm font-medium">Skills</h2>
             <div className="flex flex-wrap gap-2">
               {profile.skills.map((s) => (
-                <Badge key={s.skillId} variant="muted">{s.skill.name}</Badge>
+                <Badge key={s.skillId} variant="muted">
+                  {s.skill.name}
+                </Badge>
               ))}
             </div>
           </section>
@@ -134,7 +150,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <h2 className="text-sm font-medium">Branches</h2>
             <div className="flex flex-wrap gap-2">
               {profile.industries.map((i) => (
-                <Badge key={i.industryId} variant="muted">{i.industry.name}</Badge>
+                <Badge key={i.industryId} variant="muted">
+                  {i.industry.name}
+                </Badge>
               ))}
             </div>
           </section>
@@ -145,7 +163,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <h2 className="text-sm font-medium">Geverifieerde certificaten</h2>
             <div className="flex flex-wrap gap-2">
               {verifiedCredentials.map((c) => (
-                <Badge key={c.id} variant="success">{c.title}</Badge>
+                <Badge key={c.id} variant="success">
+                  {c.title}
+                </Badge>
               ))}
             </div>
           </section>

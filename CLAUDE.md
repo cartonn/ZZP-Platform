@@ -18,20 +18,18 @@ werkt volgens dit contract:
    Stop niet voor goedkeuring; lever af, commit, pak de volgende. Vraag alleen bij
    échte tweesprongen (data-verlies, risicovolle git-acties, juridische keuzes).
 2. **Eén bron, automatische deploy.** Ontwikkel en push naar branch
-   **`claude/dazzling-carson-v9Qwk`**. Railway bouwt **deze** branch automatisch
+   **`main`**. Railway bouwt **deze** branch automatisch
    (Dockerfile → PostgreSQL) en zet hem live op `zzp-platform-production-*.up.railway.app`.
-   `main` is oud/kapot — niet gebruiken. Push nooit naar een andere branch zonder
-   expliciete toestemming.
+   Push nooit naar een andere branch zonder expliciete toestemming.
 3. **Meerdere agents tegelijk.** Er pushen mogelijk meerdere agents naar dezelfde branch.
    **Altijd `git fetch` + rebase/pull vóór elke commit én vóór elke push.** Bij
    non-fast-forward: rebasen, niet force-pushen. Gebruik subagents (Explore/parallel)
    voor research en onafhankelijk werk; integreer en commit zelf.
 4. **Definition of Done per increment (geen uitzonderingen):** testbare kern + unit-tests →
-   UI → `npm run typecheck` + `npm run lint` + `npm run test` + `npm run build` groen →
-   commit → push. **E2e is GEEN gate in CI/routine** (die omgevingen hebben geen
-   browser-channel — zie `ci.yml`): doe e2e + screenshot alléén in een interactieve sessie
-   mét browser; in een routine/CI sla je e2e over (en vermeld dat kort). Nooit afvinken op
-   "ziet er goed uit".
+   UI → `npm run typecheck` + `npm run lint` + `npm run test` + `npm run build` +
+   `npx prettier --write .` groen → commit → push. **E2e draait automatisch in CI**
+   (Playwright met bundled Chromium, project `ci`). Screenshots worden als artifacts
+   geüpload. Nooit afvinken op "ziet er goed uit".
 5. **Productiekwaliteit, geen slop.** Deterministisch, server-side waarheid. Geen dode
    knoppen. **Het woord "AI" komt nergens in de UI, teksten, comments of docs voor.**
 6. **Houd het geheugen actueel.** Werk `PROGRESS.md` (wat af is) en `CURRENT_TASK.md`
@@ -102,8 +100,8 @@ Leer van Linear/Vercel/Stripe. Refined minimalism, geen drukte.
 - Strakke tabellen, lijsten, detailpanelen, drawers.
 - Consistente statuschips, badges, tabs, focus states, keyboard nav.
 - Geen decoratieve gradients. Geen kaart-in-kaart. Geen templategevoel.
-- Elke pagina beantwoordt direct: *Wat is de status? Wat moet ik nu doen?
-  Wat is de volgende beste actie? Kan ik dit vertrouwen?*
+- Elke pagina beantwoordt direct: _Wat is de status? Wat moet ik nu doen?
+  Wat is de volgende beste actie? Kan ik dit vertrouwen?_
 - **UI-taal = Nederlands.** Code = Engels.
 - Elke view heeft loading-, error- én empty-states. Tekst valt nooit buiten knoppen/cards.
 
@@ -151,12 +149,12 @@ User, Account, Session · FreelancerProfile, Company · Skill, Industry (+ koppe
 ## Definition of Done (per taak)
 
 Een taak is pas af als:
+
 - `npm run typecheck` slaagt (geen TS-fouten)
 - `npm run lint` slaagt
 - `npm run test` groen (relevante unit-tests geschreven én slagend)
-- De flow is in de browser doorgeklikt (interactieve sessie mét browser). **In CI/routine
-  zonder browser-channel: e2e overslaan** — net als `ci.yml`; de headless-gate
-  (typecheck/lint/test/build) is dan leidend.
+- `npx prettier --check .` slaagt (formatting)
+- E2e draait automatisch in CI (Playwright `--project=ci`). Screenshots als artifacts.
 - Loading/error/empty-states aanwezig
 - `PROGRESS.md` bijgewerkt, `CURRENT_TASK.md` doorgeschoven naar de volgende taak
 

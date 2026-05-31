@@ -19,14 +19,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: async ({ user }) => {
       if (!user?.id) return;
       const meta = await requestMeta();
-      await audit({ actorId: user.id, action: "USER_LOGIN", entityType: "User", entityId: user.id, ...meta });
+      await audit({
+        actorId: user.id,
+        action: "USER_LOGIN",
+        entityType: "User",
+        entityId: user.id,
+        ...meta,
+      });
     },
     signOut: async (message) => {
       const token = "token" in message ? message.token : null;
       const userId = token?.id as string | undefined;
       if (!userId) return;
       const meta = await requestMeta();
-      await audit({ actorId: userId, action: "USER_LOGOUT", entityType: "User", entityId: userId, ...meta });
+      await audit({
+        actorId: userId,
+        action: "USER_LOGOUT",
+        entityType: "User",
+        entityId: userId,
+        ...meta,
+      });
     },
   },
   providers: [
@@ -41,9 +53,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const { email, password } = parsed.data;
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || user.status !== "ACTIVE" || !(await bcrypt.compare(password, user.passwordHash))) {
+        if (
+          !user ||
+          user.status !== "ACTIVE" ||
+          !(await bcrypt.compare(password, user.passwordHash))
+        ) {
           const meta = await requestMeta();
-          await audit({ action: "USER_LOGIN_FAILED", entityType: "User", entityId: user?.id ?? "unknown", metadata: { email }, ...meta });
+          await audit({
+            action: "USER_LOGIN_FAILED",
+            entityType: "User",
+            entityId: user?.id ?? "unknown",
+            metadata: { email },
+            ...meta,
+          });
           return null;
         }
 

@@ -24,7 +24,13 @@ export async function adminCloseJob(jobId: string): Promise<void> {
   await prisma.$transaction([
     prisma.job.update({ where: { id: jobId }, data: { status: "CLOSED" } }),
     prisma.auditLog.create({
-      data: auditData({ actorId: actor.id, action: "JOB_CLOSED_BY_ADMIN", entityType: "Job", entityId: jobId, metadata: { from } }),
+      data: auditData({
+        actorId: actor.id,
+        action: "JOB_CLOSED_BY_ADMIN",
+        entityType: "Job",
+        entityId: jobId,
+        metadata: { from },
+      }),
     }),
   ]);
   revalidatePath("/admin/opdrachten");

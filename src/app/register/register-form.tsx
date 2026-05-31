@@ -31,9 +31,7 @@ export function RegisterForm() {
               className={cn(
                 "cursor-pointer rounded-md border p-3 text-sm transition-colors",
                 "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background",
-                role === r.value
-                  ? "border-primary bg-accent"
-                  : "border-border hover:bg-muted",
+                role === r.value ? "border-primary bg-accent" : "border-border hover:bg-muted",
               )}
             >
               <input
@@ -52,7 +50,13 @@ export function RegisterForm() {
       </fieldset>
 
       <Field label="Naam" htmlFor="name" required error={fe.name}>
-        <Input id="name" name="name" autoComplete="name" required placeholder="Voor- en achternaam" />
+        <Input
+          id="name"
+          name="name"
+          autoComplete="name"
+          required
+          placeholder="Voor- en achternaam"
+        />
       </Field>
 
       {role === "CLIENT" && (
@@ -62,11 +66,31 @@ export function RegisterForm() {
       )}
 
       <Field label="E-mail" htmlFor="email" required error={fe.email}>
-        <Input id="email" name="email" type="email" autoComplete="email" required placeholder="naam@bedrijf.nl" />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          placeholder="naam@bedrijf.nl"
+        />
       </Field>
 
-      <Field label="Wachtwoord" htmlFor="password" required hint="Minstens 8 tekens." error={fe.password}>
-        <Input id="password" name="password" type="password" autoComplete="new-password" required placeholder="••••••••" />
+      <Field
+        label="Wachtwoord"
+        htmlFor="password"
+        required
+        hint="Minstens 8 tekens."
+        error={fe.password}
+      >
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          required
+          placeholder="••••••••"
+        />
       </Field>
 
       {state?.error && !Object.keys(fe).length && (

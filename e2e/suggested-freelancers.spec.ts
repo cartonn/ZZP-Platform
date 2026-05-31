@@ -6,7 +6,10 @@ const shot = (page: Page, name: string) =>
   page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-test("opdrachtgever ziet passende ZZP'ers bij de opdracht en kan ze benaderen", async ({ page, browser }) => {
+test("opdrachtgever ziet passende ZZP'ers bij de opdracht en kan ze benaderen", async ({
+  page,
+  browser,
+}) => {
   test.slow();
   const id = uniq();
   const freelancerName = `Suggest Freelancer ${id}`;
@@ -25,7 +28,10 @@ test("opdrachtgever ziet passende ZZP'ers bij de opdracht en kan ze benaderen", 
   await fp.fill("#hourlyRate", "80");
   await fp.selectOption("#workMode", "REMOTE");
   await fp.selectOption("#availability", "AVAILABLE");
-  await fp.locator("fieldset", { hasText: "Skills" }).getByText("TypeScript", { exact: true }).click();
+  await fp
+    .locator("fieldset", { hasText: "Skills" })
+    .getByText("TypeScript", { exact: true })
+    .click();
   await fp.getByRole("button", { name: "Profiel opslaan" }).click();
   await expect(fp.getByText(/opgeslagen|bijgewerkt/i).first()).toBeVisible({ timeout: 15000 });
 
@@ -45,7 +51,10 @@ test("opdrachtgever ziet passende ZZP'ers bij de opdracht en kan ze benaderen", 
   await page.selectOption("#workMode", "REMOTE");
   await page.fill("#rateMin", "70");
   await page.fill("#rateMax", "95");
-  await page.locator("fieldset", { hasText: "Vereiste skills" }).getByText("TypeScript", { exact: true }).click();
+  await page
+    .locator("fieldset", { hasText: "Vereiste skills" })
+    .getByText("TypeScript", { exact: true })
+    .click();
   await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await page.getByRole("button", { name: "Publiceren" }).click();

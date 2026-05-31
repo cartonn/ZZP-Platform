@@ -44,7 +44,11 @@ export async function AppShell({
           <SidebarNav items={navForRole(role)} badges={badges} />
         </div>
         <div className="border-t border-border p-3">
-          <Link href="/account" className="flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted focus-ring" aria-label="Account & privacy">
+          <Link
+            href="/account"
+            className="focus-ring flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted"
+            aria-label="Account & privacy"
+          >
             <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
               {initials}
             </div>
@@ -80,7 +84,7 @@ export async function AppShell({
             <Link
               href="/notificaties"
               aria-label={`Notificaties${unread > 0 ? ` (${unread} ongelezen)` : ""}`}
-              className="relative rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-ring"
+              className="focus-ring relative rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Bell className="size-5" aria-hidden />
               {unread > 0 && (

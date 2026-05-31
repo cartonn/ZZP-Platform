@@ -45,7 +45,8 @@ const MESSAGES: Record<keyof typeof WEIGHTS, string> = {
   embedded: "Structurele inbedding in de organisatie wijst richting een dienstverband.",
   noSubstitution: "Geen vrije vervanging beperkt het zelfstandig ondernemerschap.",
   fixedSchedule: "Vaste uren/rooster lijkt op een dienstverband.",
-  weakEntrepreneurship: "Zwak ondernemerschap (laag tarief / nauwelijks andere opdrachtgevers) duidt op afhankelijkheid.",
+  weakEntrepreneurship:
+    "Zwak ondernemerschap (laag tarief / nauwelijks andere opdrachtgevers) duidt op afhankelijkheid.",
   exclusive: "Exclusief voor één opdrachtgever vermindert het ondernemersrisico.",
 };
 
@@ -64,10 +65,17 @@ export function assessDbaRisk(input: DbaInput): DbaResult {
   const months = input.durationMonths ?? 0;
   if (months > 12) {
     score += 2;
-    reasons.push({ factor: "duration", message: "Langer dan 12 maanden: langdurige inzet verhoogt het risico op schijnzelfstandigheid." });
+    reasons.push({
+      factor: "duration",
+      message:
+        "Langer dan 12 maanden: langdurige inzet verhoogt het risico op schijnzelfstandigheid.",
+    });
   } else if (months > 6) {
     score += 1;
-    reasons.push({ factor: "duration", message: "Duur van 6-12 maanden: houd de continuïteit in de gaten." });
+    reasons.push({
+      factor: "duration",
+      message: "Duur van 6-12 maanden: houd de continuïteit in de gaten.",
+    });
   }
 
   const level: DbaRisk = score >= 5 ? "HOOG" : score >= 2 ? "MIDDEN" : "LAAG";

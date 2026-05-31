@@ -71,7 +71,7 @@ export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBa
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-ring",
+              "focus-ring flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
               isActive
                 ? "bg-accent font-medium text-accent-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -82,7 +82,7 @@ export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBa
             {badge && (
               <span
                 className={cn(
-                  "ml-auto flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium leading-5 tabular-nums",
+                  "ml-auto flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums leading-5",
                   badge.tone === "attention"
                     ? "bg-primary text-primary-foreground"
                     : "border border-border bg-background text-muted-foreground",

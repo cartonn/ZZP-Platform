@@ -30,7 +30,7 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
         onClick={() => setOpen(true)}
         aria-label="Menu openen"
         aria-expanded={open}
-        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-ring"
+        className="focus-ring rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Menu className="size-5" aria-hidden />
       </button>
@@ -46,10 +46,17 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
           <div className="absolute inset-y-0 left-0 flex w-64 max-w-[80%] flex-col bg-background shadow-xl">
             <div className="flex h-14 items-center justify-between border-b border-border px-4">
               <div className="flex items-center gap-2">
-                <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">Z</div>
+                <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
+                  Z
+                </div>
                 <span className="text-sm font-semibold">ZZP Platform</span>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Menu sluiten" className="rounded-md p-1.5 hover:bg-muted focus-ring">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Menu sluiten"
+                className="focus-ring rounded-md p-1.5 hover:bg-muted"
+              >
                 <X className="size-5" aria-hidden />
               </button>
             </div>

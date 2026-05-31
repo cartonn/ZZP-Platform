@@ -50,10 +50,7 @@ export function assertRole(
 ): asserts actor is Actor {
   assertAuthenticated(actor);
   if (!roles.includes(actor.role)) {
-    throw new AuthorizationError(
-      `Geen toegang: vereist rol ${roles.join(" of ")}.`,
-      403,
-    );
+    throw new AuthorizationError(`Geen toegang: vereist rol ${roles.join(" of ")}.`, 403);
   }
 }
 

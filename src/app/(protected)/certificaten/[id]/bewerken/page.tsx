@@ -8,20 +8,28 @@ import { CredentialForm } from "../../credential-form";
 
 export const metadata: Metadata = { title: "Certificaat bewerken · ZZP Platform" };
 
-export default async function CredentialBewerkenPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CredentialBewerkenPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const actor = await requireRole("FREELANCER");
   const { id } = await params;
 
-  const profile = await prisma.freelancerProfile.findUnique({ where: { userId: actor.id }, select: { id: true } });
-  const credential = profile
-    ? await prisma.credential.findUnique({ where: { id } })
-    : null;
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { userId: actor.id },
+    select: { id: true },
+  });
+  const credential = profile ? await prisma.credential.findUnique({ where: { id } }) : null;
   if (!credential || credential.freelancerProfileId !== profile!.id) notFound();
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <Link href="/certificaten" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/certificaten"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="size-3.5" aria-hidden /> Terug naar certificaten
         </Link>
         <h1 className="mt-2 text-xl font-semibold tracking-tight">Certificaat bewerken</h1>

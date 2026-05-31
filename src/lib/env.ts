@@ -16,7 +16,11 @@ const schema = z
   })
   .superRefine((v, ctx) => {
     if (v.STORAGE_DRIVER === "s3" && !v.STORAGE_S3_BUCKET) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["STORAGE_S3_BUCKET"], message: "Verplicht bij STORAGE_DRIVER=s3." });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["STORAGE_S3_BUCKET"],
+        message: "Verplicht bij STORAGE_DRIVER=s3.",
+      });
     }
   });
 
@@ -26,7 +30,9 @@ export type Env = z.infer<typeof schema>;
 export function validateEnv(): Env {
   const result = schema.safeParse(process.env);
   if (!result.success) {
-    const details = result.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
+    const details = result.error.issues
+      .map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`)
+      .join("\n");
     throw new Error(`Ongeldige omgevingsvariabelen:\n${details}`);
   }
   return result.data;

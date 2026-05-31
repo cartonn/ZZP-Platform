@@ -27,7 +27,8 @@ export default function ProtectedError({
       <div className="space-y-1">
         <h1 className="text-lg font-semibold tracking-tight">Er ging iets mis</h1>
         <p className="text-sm text-muted-foreground">
-          Er trad een onverwachte fout op. Probeer het opnieuw; blijft het misgaan, ga dan terug naar je dashboard.
+          Er trad een onverwachte fout op. Probeer het opnieuw; blijft het misgaan, ga dan terug
+          naar je dashboard.
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">

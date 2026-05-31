@@ -19,12 +19,20 @@ export default async function NieuweFactuurPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <Link href="/facturen" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/facturen"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="size-3.5" aria-hidden /> Terug naar facturen
         </Link>
         <h1 className="mt-2 text-xl font-semibold tracking-tight">Nieuwe factuur</h1>
       </div>
-      <InvoiceForm collaborations={collaborations.map((c) => ({ id: c.id, label: `${c.job.title} — ${c.company.name}` }))} />
+      <InvoiceForm
+        collaborations={collaborations.map((c) => ({
+          id: c.id,
+          label: `${c.job.title} — ${c.company.name}`,
+        }))}
+      />
     </div>
   );
 }

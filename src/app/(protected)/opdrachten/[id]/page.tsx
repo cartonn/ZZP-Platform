@@ -14,7 +14,12 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { TrustBadge } from "@/components/trust/trust-badge";
-import { scoreJobForFreelancer, type ComplianceResult, type ComplianceStatus, type MatchReason } from "@/lib/matching";
+import {
+  scoreJobForFreelancer,
+  type ComplianceResult,
+  type ComplianceStatus,
+  type MatchReason,
+} from "@/lib/matching";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
@@ -24,7 +29,11 @@ import { ApplicationForm } from "./application-form";
 
 export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
 
-const WORK_MODE: Record<WorkMode, string> = { REMOTE: "Remote", ONSITE: "Op locatie", HYBRID: "Hybride" };
+const WORK_MODE: Record<WorkMode, string> = {
+  REMOTE: "Remote",
+  ONSITE: "Op locatie",
+  HYBRID: "Hybride",
+};
 
 function transitionLabel(from: JobStatus, to: JobStatus): string {
   if (to === "PUBLISHED") return from === "CLOSED" ? "Heropenen" : "Publiceren";
@@ -82,7 +91,11 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
 
   // Bestaande reactie van de huidige ZZP'er (voor de reageer-sectie), plus — als hij nog
   // niet reageerde — een persoonlijke aansluiting (match + welke eisen hij al haalt).
-  let myApplication: { status: string; matchScore: number | null; complianceSnapshot: string | null } | null = null;
+  let myApplication: {
+    status: string;
+    matchScore: number | null;
+    complianceSnapshot: string | null;
+  } | null = null;
   let myFit: { score: number; compliance: ComplianceResult; reasons: MatchReason[] } | null = null;
   if (actor.role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
@@ -106,11 +119,15 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   const myCompliance = parseComplianceStatus(myApplication?.complianceSnapshot);
 
   // Spiegelbeeld voor de opdrachtgever: openbare ZZP'ers die passen en nog niet reageerden.
-  const suggestions = isOwner && status === "PUBLISHED" ? await suggestedFreelancersForJob(job.id) : [];
+  const suggestions =
+    isOwner && status === "PUBLISHED" ? await suggestedFreelancersForJob(job.id) : [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Link href="/opdrachten" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/opdrachten"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="size-3.5" aria-hidden /> Terug naar opdrachten
       </Link>
 
@@ -125,7 +142,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               <p className="text-sm text-muted-foreground">{job.company.name}</p>
             </div>
             {isOwner && (
-              <Link href={`/opdrachten/${job.id}/bewerken`} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted">
+              <Link
+                href={`/opdrachten/${job.id}/bewerken`}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+              >
                 <Pencil className="size-3.5" aria-hidden /> Bewerken
               </Link>
             )}
@@ -133,12 +153,15 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {job.location && (
-              <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {job.location}</span>
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="size-3.5" aria-hidden /> {job.location}
+              </span>
             )}
             <span>{WORK_MODE[job.workMode as WorkMode]}</span>
             {(job.rateMin != null || job.rateMax != null) && (
               <span>
-                € {job.rateMin ?? "?"}{job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
+                € {job.rateMin ?? "?"}
+                {job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
               </span>
             )}
             {job.industry && <span>{job.industry.name}</span>}
@@ -155,7 +178,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             <div className="space-y-2">
               <h2 className="text-sm font-medium">Vereiste skills</h2>
               <div className="flex flex-wrap gap-2">
-                {requiredSkills.map((s) => <Badge key={s.skillId}>{s.skill.name}</Badge>)}
+                {requiredSkills.map((s) => (
+                  <Badge key={s.skillId}>{s.skill.name}</Badge>
+                ))}
               </div>
             </div>
           )}
@@ -163,7 +188,11 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             <div className="space-y-2">
               <h2 className="text-sm font-medium">Gewenste skills</h2>
               <div className="flex flex-wrap gap-2">
-                {optionalSkills.map((s) => <Badge key={s.skillId} variant="muted">{s.skill.name}</Badge>)}
+                {optionalSkills.map((s) => (
+                  <Badge key={s.skillId} variant="muted">
+                    {s.skill.name}
+                  </Badge>
+                ))}
               </div>
             </div>
           )}
@@ -176,7 +205,11 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             <div className="space-y-2">
               <h2 className="text-sm font-medium">Vereiste certificaten</h2>
               <div className="flex flex-wrap gap-2">
-                {requiredCreds.map((c) => <Badge key={c.id} variant="warning">{CREDENTIAL_TYPE_LABEL[c.credentialType as CredentialType]}</Badge>)}
+                {requiredCreds.map((c) => (
+                  <Badge key={c.id} variant="warning">
+                    {CREDENTIAL_TYPE_LABEL[c.credentialType as CredentialType]}
+                  </Badge>
+                ))}
               </div>
             </div>
           )}
@@ -184,7 +217,11 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             <div className="space-y-2">
               <h2 className="text-sm font-medium">Gewenste certificaten</h2>
               <div className="flex flex-wrap gap-2">
-                {optionalCreds.map((c) => <Badge key={c.id} variant="muted">{CREDENTIAL_TYPE_LABEL[c.credentialType as CredentialType]}</Badge>)}
+                {optionalCreds.map((c) => (
+                  <Badge key={c.id} variant="muted">
+                    {CREDENTIAL_TYPE_LABEL[c.credentialType as CredentialType]}
+                  </Badge>
+                ))}
               </div>
             </div>
           )}
@@ -213,13 +250,22 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         <section className="rounded-lg border border-border bg-card">
           <div className="border-b border-border px-5 py-3">
             <h2 className="text-sm font-medium">Geschikte ZZP&apos;ers</h2>
-            <p className="text-xs text-muted-foreground">Openbare profielen die bij deze opdracht passen en nog niet reageerden.</p>
+            <p className="text-xs text-muted-foreground">
+              Openbare profielen die bij deze opdracht passen en nog niet reageerden.
+            </p>
           </div>
           <ul className="divide-y divide-border">
             {suggestions.map((f) => (
-              <li key={f.freelancerId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+              <li
+                key={f.freelancerId}
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+              >
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <Link href={`/zzp/${f.freelancerId}`} target="_blank" className="font-medium underline-offset-4 hover:underline">
+                  <Link
+                    href={`/zzp/${f.freelancerId}`}
+                    target="_blank"
+                    className="font-medium underline-offset-4 hover:underline"
+                  >
                     {f.name}
                   </Link>
                   <TrustBadge level={f.trustLevel} />
@@ -229,7 +275,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                   <ComplianceBadge status={f.compliance} />
                   <Badge variant="muted">Match {f.score}%</Badge>
                   <form action={startConversationWithFreelancer.bind(null, job.id, f.freelancerId)}>
-                    <Button type="submit" variant="secondary" size="sm">Bericht sturen</Button>
+                    <Button type="submit" variant="secondary" size="sm">
+                      Bericht sturen
+                    </Button>
                   </form>
                 </div>
               </li>
@@ -238,29 +286,48 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         </section>
       )}
 
-      {!isOwner && (job.company.description || job.company.location || job.company.website || job.company.industry) && (
-        <section className="space-y-2 rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-medium">Over de opdrachtgever</h2>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            {job.company.location && (
-              <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {job.company.location}</span>
+      {!isOwner &&
+        (job.company.description ||
+          job.company.location ||
+          job.company.website ||
+          job.company.industry) && (
+          <section className="space-y-2 rounded-lg border border-border bg-card p-5">
+            <h2 className="text-sm font-medium">Over de opdrachtgever</h2>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              {job.company.location && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="size-3.5" aria-hidden /> {job.company.location}
+                </span>
+              )}
+              {job.company.industry && <span>{job.company.industry.name}</span>}
+              {job.company.website && (
+                <a
+                  href={job.company.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                >
+                  Website <ExternalLink className="size-3.5" aria-hidden />
+                </a>
+              )}
+            </div>
+            {job.company.description && (
+              <p className="whitespace-pre-line text-sm leading-relaxed">
+                {job.company.description}
+              </p>
             )}
-            {job.company.industry && <span>{job.company.industry.name}</span>}
-            {job.company.website && (
-              <a href={job.company.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline-offset-4 hover:underline">
-                Website <ExternalLink className="size-3.5" aria-hidden />
-              </a>
-            )}
-          </div>
-          {job.company.description && <p className="whitespace-pre-line text-sm leading-relaxed">{job.company.description}</p>}
-        </section>
-      )}
+          </section>
+        )}
 
       {isOwner ? (
         <div className="flex flex-wrap gap-2 border-t border-border pt-4">
           {JOB_TRANSITIONS[status].map((to) => (
             <form key={to} action={changeJobStatus.bind(null, job.id, to)}>
-              <Button type="submit" variant={to === "PUBLISHED" ? "primary" : "secondary"} size="sm">
+              <Button
+                type="submit"
+                variant={to === "PUBLISHED" ? "primary" : "secondary"}
+                size="sm"
+              >
                 {transitionLabel(status, to)}
               </Button>
             </form>
@@ -272,9 +339,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           <div className="space-y-2 border-t border-border pt-4">
             <p className="text-sm font-medium">Je hebt op deze opdracht gereageerd.</p>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              {myApplication.matchScore != null && <Badge variant="muted">Match {myApplication.matchScore}%</Badge>}
+              {myApplication.matchScore != null && (
+                <Badge variant="muted">Match {myApplication.matchScore}%</Badge>
+              )}
               {myCompliance && <ComplianceBadge status={myCompliance} />}
-              <Link href="/reacties" className="underline-offset-4 hover:underline">Bekijk mijn reacties</Link>
+              <Link href="/reacties" className="underline-offset-4 hover:underline">
+                Bekijk mijn reacties
+              </Link>
             </div>
           </div>
         ) : status === "PUBLISHED" ? (
@@ -293,9 +364,14 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                         {r.kind === "positive" ? (
                           <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
                         ) : (
-                          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+                          <TriangleAlert
+                            className="mt-0.5 size-4 shrink-0 text-warning"
+                            aria-hidden
+                          />
                         )}
-                        <span className={r.kind === "gap" ? "text-muted-foreground" : ""}>{r.label}</span>
+                        <span className={r.kind === "gap" ? "text-muted-foreground" : ""}>
+                          {r.label}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -311,12 +387,20 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                           {state === "satisfied" ? (
                             <Check className="size-4 shrink-0 text-success" aria-hidden />
                           ) : (
-                            <TriangleAlert className={`size-4 shrink-0 ${urgent ? "text-danger" : "text-warning"}`} aria-hidden />
+                            <TriangleAlert
+                              className={`size-4 shrink-0 ${urgent ? "text-danger" : "text-warning"}`}
+                              aria-hidden
+                            />
                           )}
                           <span>{CREDENTIAL_TYPE_LABEL[type]}</span>
-                          <span className="text-xs text-muted-foreground">{CRED_STATE_LABEL[state]}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {CRED_STATE_LABEL[state]}
+                          </span>
                           {urgent && (
-                            <Link href="/certificaten" className="text-xs font-medium underline underline-offset-2">
+                            <Link
+                              href="/certificaten"
+                              className="text-xs font-medium underline underline-offset-2"
+                            >
                               Toevoegen
                             </Link>
                           )}

@@ -1,7 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 
-const shot = (p: Page, n: string) => p.screenshot({ path: path.join("e2e", "screenshots", n + ".png"), fullPage: true });
+const shot = (p: Page, n: string) =>
+  p.screenshot({ path: path.join("e2e", "screenshots", n + ".png"), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 test("ZZP'er ziet info over de opdrachtgever bij een opdracht", async ({ page, browser }) => {

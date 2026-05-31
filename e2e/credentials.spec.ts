@@ -7,7 +7,11 @@ const shot = (page: Page, name: string) =>
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 // Minimaal niet-leeg "PDF"-bestand; validateUpload controleert mimeType + grootte, niet de inhoud.
-const SAMPLE = { name: "bewijs.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test bewijsstuk") };
+const SAMPLE = {
+  name: "bewijs.pdf",
+  mimeType: "application/pdf",
+  buffer: Buffer.from("%PDF-1.4 test bewijsstuk"),
+};
 
 async function registerFreelancer(page: Page, email: string) {
   await page.goto("/register");
@@ -18,7 +22,10 @@ async function registerFreelancer(page: Page, email: string) {
   await page.waitForURL("**/dashboard");
 }
 
-test("credential uploaden, verificatie aanvragen en privé-download afdwingen", async ({ page, browser }) => {
+test("credential uploaden, verificatie aanvragen en privé-download afdwingen", async ({
+  page,
+  browser,
+}) => {
   await registerFreelancer(page, `cert-${uniq()}@test.local`);
 
   // Credential toevoegen met bewijsstuk.
@@ -62,7 +69,11 @@ test("document uploaden en privé downloaden", async ({ page }) => {
 
   await page.goto("/documenten");
   await page.selectOption("#kind", "CONTRACT");
-  await page.setInputFiles("#document", { name: "contract.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 contract") });
+  await page.setInputFiles("#document", {
+    name: "contract.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 contract"),
+  });
   await page.getByRole("button", { name: "Uploaden" }).click();
 
   await expect(page.getByText("Geüpload.")).toBeVisible();

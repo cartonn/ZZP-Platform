@@ -55,7 +55,11 @@ async function loadOwnedCollaboration(actorId: string, collaborationId: string) 
   return collaboration;
 }
 
-export async function createInvoice(collaborationId: string, _prev: InvoiceState, formData: FormData): Promise<InvoiceState> {
+export async function createInvoice(
+  collaborationId: string,
+  _prev: InvoiceState,
+  formData: FormData,
+): Promise<InvoiceState> {
   let actor;
   try {
     actor = await requireRole("FREELANCER");
@@ -76,7 +80,12 @@ export async function createInvoice(collaborationId: string, _prev: InvoiceState
   if (dueAt && Number.isNaN(dueAt.getTime())) return { fieldErrors: { dueAt: "Ongeldige datum." } };
 
   const year = new Date().getFullYear();
-  const lineData = lines.map((l) => ({ description: l.description, quantity: l.quantity, unitCents: l.unitCents, amountCents: l.amountCents }));
+  const lineData = lines.map((l) => ({
+    description: l.description,
+    quantity: l.quantity,
+    unitCents: l.unitCents,
+    amountCents: l.amountCents,
+  }));
   const totalCents = invoiceTotalCents(lines);
 
   // Factuurnummer is @unique; bij gelijktijdig aanmaken kan het botsen -> retry met hertelling.
@@ -86,19 +95,33 @@ export async function createInvoice(collaborationId: string, _prev: InvoiceState
     const number = formatInvoiceNumber(year, seq);
     try {
       invoice = await prisma.invoice.create({
-        data: { collaborationId, number, status: "DRAFT", dueAt, totalCents, lines: { create: lineData } },
+        data: {
+          collaborationId,
+          number,
+          status: "DRAFT",
+          dueAt,
+          totalCents,
+          lines: { create: lineData },
+        },
         select: { id: true, number: true },
       });
       break;
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && attempt < 4) continue;
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && attempt < 4)
+        continue;
       throw e;
     }
   }
   if (!invoice) return { error: "Kon geen factuurnummer toewijzen. Probeer het opnieuw." };
 
   await prisma.auditLog.create({
-    data: auditData({ actorId: actor.id, action: "INVOICE_CREATED", entityType: "Invoice", entityId: invoice.id, metadata: { number: invoice.number } }),
+    data: auditData({
+      actorId: actor.id,
+      action: "INVOICE_CREATED",
+      entityType: "Invoice",
+      entityId: invoice.id,
+      metadata: { number: invoice.number },
+    }),
   });
 
   revalidatePath("/facturen");
@@ -108,7 +131,14 @@ export async function createInvoice(collaborationId: string, _prev: InvoiceState
 async function loadInvoiceParty(invoiceId: string) {
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
-    include: { collaboration: { include: { freelancer: { select: { userId: true } }, company: { select: { userId: true } } } } },
+    include: {
+      collaboration: {
+        include: {
+          freelancer: { select: { userId: true } },
+          company: { select: { userId: true } },
+        },
+      },
+    },
   });
   return invoice;
 }
@@ -116,7 +146,8 @@ async function loadInvoiceParty(invoiceId: string) {
 export async function sendInvoice(invoiceId: string): Promise<void> {
   const actor = await requireRole("FREELANCER");
   const invoice = await loadInvoiceParty(invoiceId);
-  if (!invoice || invoice.collaboration?.freelancer.userId !== actor.id) throw new Error("Factuur niet gevonden.");
+  if (!invoice || invoice.collaboration?.freelancer.userId !== actor.id)
+    throw new Error("Factuur niet gevonden.");
 
   const from = invoice.status as InvoiceStatus;
   try {
@@ -128,11 +159,27 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
 
   const dueAt = invoice.dueAt ?? new Date(Date.now() + 14 * 86400_000); // standaard 14 dagen
   await prisma.$transaction([
-    prisma.invoice.update({ where: { id: invoiceId }, data: { status: "SENT", issuedAt: new Date(), dueAt } }),
-    prisma.notification.create({
-      data: { userId: invoice.collaboration!.company.userId, type: "INVOICE_SENT", title: "Nieuwe factuur ontvangen", body: `Factuur ${invoice.number}.`, link: "/facturen" },
+    prisma.invoice.update({
+      where: { id: invoiceId },
+      data: { status: "SENT", issuedAt: new Date(), dueAt },
     }),
-    prisma.auditLog.create({ data: auditData({ actorId: actor.id, action: "INVOICE_SENT", entityType: "Invoice", entityId: invoiceId }) }),
+    prisma.notification.create({
+      data: {
+        userId: invoice.collaboration!.company.userId,
+        type: "INVOICE_SENT",
+        title: "Nieuwe factuur ontvangen",
+        body: `Factuur ${invoice.number}.`,
+        link: "/facturen",
+      },
+    }),
+    prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "INVOICE_SENT",
+        entityType: "Invoice",
+        entityId: invoiceId,
+      }),
+    }),
   ]);
   revalidatePath("/facturen");
   revalidatePath(`/facturen/${invoiceId}`);
@@ -141,7 +188,8 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
 export async function markInvoicePaid(invoiceId: string): Promise<void> {
   const actor = await requireRole("CLIENT");
   const invoice = await loadInvoiceParty(invoiceId);
-  if (!invoice || invoice.collaboration?.company.userId !== actor.id) throw new Error("Factuur niet gevonden.");
+  if (!invoice || invoice.collaboration?.company.userId !== actor.id)
+    throw new Error("Factuur niet gevonden.");
 
   const from = invoice.status as InvoiceStatus;
   // Een verlopen factuur staat in de DB nog als SENT; PAID is vanuit beide geldig.
@@ -155,9 +203,22 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
   await prisma.$transaction([
     prisma.invoice.update({ where: { id: invoiceId }, data: { status: "PAID" } }),
     prisma.notification.create({
-      data: { userId: invoice.collaboration!.freelancer.userId, type: "INVOICE_PAID", title: "Factuur betaald", body: `Factuur ${invoice.number} is als betaald gemarkeerd.`, link: "/facturen" },
+      data: {
+        userId: invoice.collaboration!.freelancer.userId,
+        type: "INVOICE_PAID",
+        title: "Factuur betaald",
+        body: `Factuur ${invoice.number} is als betaald gemarkeerd.`,
+        link: "/facturen",
+      },
     }),
-    prisma.auditLog.create({ data: auditData({ actorId: actor.id, action: "INVOICE_PAID", entityType: "Invoice", entityId: invoiceId }) }),
+    prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "INVOICE_PAID",
+        entityType: "Invoice",
+        entityId: invoiceId,
+      }),
+    }),
   ]);
   revalidatePath("/facturen");
   revalidatePath(`/facturen/${invoiceId}`);
@@ -166,7 +227,8 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
 export async function cancelInvoice(invoiceId: string): Promise<void> {
   const actor = await requireRole("FREELANCER");
   const invoice = await loadInvoiceParty(invoiceId);
-  if (!invoice || invoice.collaboration?.freelancer.userId !== actor.id) throw new Error("Factuur niet gevonden.");
+  if (!invoice || invoice.collaboration?.freelancer.userId !== actor.id)
+    throw new Error("Factuur niet gevonden.");
 
   const from = invoice.status as InvoiceStatus;
   try {
@@ -178,7 +240,14 @@ export async function cancelInvoice(invoiceId: string): Promise<void> {
 
   await prisma.$transaction([
     prisma.invoice.update({ where: { id: invoiceId }, data: { status: "CANCELLED" } }),
-    prisma.auditLog.create({ data: auditData({ actorId: actor.id, action: "INVOICE_CANCELLED", entityType: "Invoice", entityId: invoiceId }) }),
+    prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "INVOICE_CANCELLED",
+        entityType: "Invoice",
+        entityId: invoiceId,
+      }),
+    }),
   ]);
   revalidatePath("/facturen");
   revalidatePath(`/facturen/${invoiceId}`);

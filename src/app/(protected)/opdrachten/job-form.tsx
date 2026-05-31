@@ -92,37 +92,83 @@ export function JobForm({
       {initial.id && <input type="hidden" name="jobId" value={initial.id} />}
 
       <Field label="Titel" htmlFor="title" required error={fe.title}>
-        <Input id="title" name="title" defaultValue={initial.title} required maxLength={160} placeholder="Bijv. Frontend Developer (React)" />
+        <Input
+          id="title"
+          name="title"
+          defaultValue={initial.title}
+          required
+          maxLength={160}
+          placeholder="Bijv. Frontend Developer (React)"
+        />
       </Field>
 
       <Field label="Omschrijving" htmlFor="description" required error={fe.description}>
-        <Textarea id="description" name="description" defaultValue={initial.description} rows={6} maxLength={5000} />
+        <Textarea
+          id="description"
+          name="description"
+          defaultValue={initial.description}
+          rows={6}
+          maxLength={5000}
+        />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Branche" htmlFor="industryId" error={fe.industryId}>
-          <Select id="industryId" name="industryId" value={industryId} onChange={(e) => setIndustryId(e.target.value)}>
+          <Select
+            id="industryId"
+            name="industryId"
+            value={industryId}
+            onChange={(e) => setIndustryId(e.target.value)}
+          >
             <option value="">— Kies een branche —</option>
             {industries.map((i) => (
-              <option key={i.id} value={i.id}>{i.name}</option>
+              <option key={i.id} value={i.id}>
+                {i.name}
+              </option>
             ))}
           </Select>
         </Field>
         <Field label="Werkmodus" htmlFor="workMode" error={fe.workMode}>
-          <Select id="workMode" name="workMode" value={workMode} onChange={(e) => setWorkMode(e.target.value)}>
+          <Select
+            id="workMode"
+            name="workMode"
+            value={workMode}
+            onChange={(e) => setWorkMode(e.target.value)}
+          >
             {WORK_MODE.map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
+              <option key={v} value={v}>
+                {l}
+              </option>
             ))}
           </Select>
         </Field>
         <Field label="Min. tarief (€/uur)" htmlFor="rateMin" error={fe.rateMin}>
-          <Input id="rateMin" name="rateMin" type="number" min={0} max={2000} defaultValue={initial.rateMin} />
+          <Input
+            id="rateMin"
+            name="rateMin"
+            type="number"
+            min={0}
+            max={2000}
+            defaultValue={initial.rateMin}
+          />
         </Field>
         <Field label="Max. tarief (€/uur)" htmlFor="rateMax" error={fe.rateMax}>
-          <Input id="rateMax" name="rateMax" type="number" min={0} max={2000} defaultValue={initial.rateMax} />
+          <Input
+            id="rateMax"
+            name="rateMax"
+            type="number"
+            min={0}
+            max={2000}
+            defaultValue={initial.rateMax}
+          />
         </Field>
         <Field label="Locatie" htmlFor="location" error={fe.location}>
-          <Input id="location" name="location" defaultValue={initial.location} placeholder="Amsterdam" />
+          <Input
+            id="location"
+            name="location"
+            defaultValue={initial.location}
+            placeholder="Amsterdam"
+          />
         </Field>
         <Field label="Startdatum" htmlFor="startDate" error={fe.startDate}>
           <Input id="startDate" name="startDate" type="date" defaultValue={initial.startDate} />
@@ -160,8 +206,8 @@ export function JobForm({
         <div>
           <legend className="text-sm font-medium">Wet DBA — risicocheck</legend>
           <p className="mt-1 text-xs text-muted-foreground">
-            Vink aan wat van toepassing is. We tonen direct het risico op schijnzelfstandigheid met uitleg.
-            Dit is een hulpmiddel, geen juridisch advies.
+            Vink aan wat van toepassing is. We tonen direct het risico op schijnzelfstandigheid met
+            uitleg. Dit is een hulpmiddel, geen juridisch advies.
           </p>
         </div>
         <div className="space-y-2">
@@ -216,7 +262,9 @@ export function JobForm({
         </span>
       </div>
       {state?.error && !Object.keys(fe).length && (
-        <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>
+        <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+          {state.error}
+        </p>
       )}
     </form>
   );
@@ -243,7 +291,13 @@ function ChipGroup({
       ) : (
         <div className="flex flex-wrap gap-2">
           {options.map((o) => (
-            <CheckChip key={o.value} name={name} value={o.value} label={o.label} defaultChecked={selected.includes(o.value)} />
+            <CheckChip
+              key={o.value}
+              name={name}
+              value={o.value}
+              label={o.label}
+              defaultChecked={selected.includes(o.value)}
+            />
           ))}
         </div>
       )}

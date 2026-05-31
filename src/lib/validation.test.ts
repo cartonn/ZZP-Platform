@@ -32,8 +32,18 @@ describe("registerSchema", () => {
   });
 
   it("weigert te kort wachtwoord en ongeldige rol", () => {
-    expect(registerSchema.safeParse({ name: "X", email: "a@b.nl", password: "kort", role: "FREELANCER" }).success).toBe(false);
-    expect(registerSchema.safeParse({ name: "Naam", email: "a@b.nl", password: "geheim123", role: "ADMIN" }).success).toBe(false);
+    expect(
+      registerSchema.safeParse({ name: "X", email: "a@b.nl", password: "kort", role: "FREELANCER" })
+        .success,
+    ).toBe(false);
+    expect(
+      registerSchema.safeParse({
+        name: "Naam",
+        email: "a@b.nl",
+        password: "geheim123",
+        role: "ADMIN",
+      }).success,
+    ).toBe(false);
   });
 });
 
@@ -66,7 +76,11 @@ describe("freelancerProfileSchema", () => {
 
   it("weigert ongeldige enum-waarden", () => {
     expect(
-      freelancerProfileSchema.safeParse({ availability: "ONBEKEND", workMode: "HYBRID", visibility: "PUBLIC" }).success,
+      freelancerProfileSchema.safeParse({
+        availability: "ONBEKEND",
+        workMode: "HYBRID",
+        visibility: "PUBLIC",
+      }).success,
     ).toBe(false);
   });
 });
@@ -82,13 +96,19 @@ describe("companyProfileSchema", () => {
   });
 
   it("weigert ongeldige website-URL en te korte naam", () => {
-    expect(companyProfileSchema.safeParse({ name: "Acme", website: "geen-url" }).success).toBe(false);
+    expect(companyProfileSchema.safeParse({ name: "Acme", website: "geen-url" }).success).toBe(
+      false,
+    );
     expect(companyProfileSchema.safeParse({ name: "A" }).success).toBe(false);
   });
 });
 
 describe("jobSchema", () => {
-  const base = { title: "Frontend Developer", description: "Bouw onze nieuwe app.", workMode: "HYBRID" };
+  const base = {
+    title: "Frontend Developer",
+    description: "Bouw onze nieuwe app.",
+    workMode: "HYBRID",
+  };
 
   it("accepteert een geldige opdracht en defaultt arrays", () => {
     const r = jobSchema.safeParse(base);
@@ -122,7 +142,10 @@ describe("jobSchema", () => {
 
 describe("applicationSchema", () => {
   it("accepteert een geldige reactie", () => {
-    const r = applicationSchema.safeParse({ motivation: "Ik pas hier goed bij omdat...", proposedRate: "80" });
+    const r = applicationSchema.safeParse({
+      motivation: "Ik pas hier goed bij omdat...",
+      proposedRate: "80",
+    });
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.proposedRate).toBe(80);
   });
@@ -136,7 +159,11 @@ describe("credentialSchema", () => {
   const base = { type: "VOG", title: "Verklaring Omtrent Gedrag", visibility: "PRIVATE" };
 
   it("accepteert geldige metadata en coerceert datums", () => {
-    const r = credentialSchema.safeParse({ ...base, issuedAt: "2025-01-01", expiresAt: "2026-01-01" });
+    const r = credentialSchema.safeParse({
+      ...base,
+      issuedAt: "2025-01-01",
+      expiresAt: "2026-01-01",
+    });
     expect(r.success).toBe(true);
     if (r.success) {
       expect(r.data.issuedAt).toBeInstanceOf(Date);
@@ -145,7 +172,11 @@ describe("credentialSchema", () => {
   });
 
   it("weigert vervaldatum vóór uitgiftedatum", () => {
-    const r = credentialSchema.safeParse({ ...base, issuedAt: "2026-01-01", expiresAt: "2025-01-01" });
+    const r = credentialSchema.safeParse({
+      ...base,
+      issuedAt: "2026-01-01",
+      expiresAt: "2025-01-01",
+    });
     expect(r.success).toBe(false);
     if (!r.success) expect(r.error.issues[0]?.path).toContain("expiresAt");
   });

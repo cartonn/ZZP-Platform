@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { runExpiryCheck, type ExpiryState } from "./actions";
 
 export function ExpiryButton() {
-  const [state, formAction, isPending] = useActionState<ExpiryState, FormData>(runExpiryCheck, undefined);
+  const [state, formAction, isPending] = useActionState<ExpiryState, FormData>(
+    runExpiryCheck,
+    undefined,
+  );
 
   return (
     <form action={formAction} className="flex items-center gap-3">

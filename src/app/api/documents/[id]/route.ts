@@ -10,7 +10,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     actor = await requireActor();
   } catch (e) {
-    if (e instanceof AuthorizationError) return NextResponse.json({ error: e.message }, { status: e.status });
+    if (e instanceof AuthorizationError)
+      return NextResponse.json({ error: e.message }, { status: e.status });
     throw e;
   }
 

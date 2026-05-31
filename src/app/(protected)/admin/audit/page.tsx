@@ -50,10 +50,25 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
         <p className="text-sm text-muted-foreground">{total} gebeurtenis(sen). Alleen-lezen.</p>
       </header>
 
-      <form method="get" className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_1fr_auto]">
-        <Input name="action" defaultValue={f.action ?? ""} placeholder="Actie (bijv. INVOICE_PAID)" aria-label="Actie" />
-        <Input name="entityType" defaultValue={f.entityType ?? ""} placeholder="Entiteit (bijv. Credential)" aria-label="Entiteit" />
-        <Button type="submit" variant="secondary">Filteren</Button>
+      <form
+        method="get"
+        className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_1fr_auto]"
+      >
+        <Input
+          name="action"
+          defaultValue={f.action ?? ""}
+          placeholder="Actie (bijv. INVOICE_PAID)"
+          aria-label="Actie"
+        />
+        <Input
+          name="entityType"
+          defaultValue={f.entityType ?? ""}
+          placeholder="Entiteit (bijv. Credential)"
+          aria-label="Entiteit"
+        />
+        <Button type="submit" variant="secondary">
+          Filteren
+        </Button>
       </form>
 
       {entries.length === 0 ? (
@@ -71,13 +86,19 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
           {entries.map((e) => (
             <div key={e.id} className="px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">{e.action}</code>
-                <span className="text-xs text-muted-foreground">{e.createdAt.toISOString().slice(0, 19).replace("T", " ")}</span>
+                <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
+                  {e.action}
+                </code>
+                <span className="text-xs text-muted-foreground">
+                  {e.createdAt.toISOString().slice(0, 19).replace("T", " ")}
+                </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 {e.entityType} · {e.entityId} · door {e.actor?.name ?? "systeem"}
               </p>
-              {e.metadata && <p className="mt-1 truncate text-xs text-muted-foreground/80">{e.metadata}</p>}
+              {e.metadata && (
+                <p className="mt-1 truncate text-xs text-muted-foreground/80">{e.metadata}</p>
+              )}
             </div>
           ))}
         </div>
@@ -85,9 +106,23 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
 
       {totalPages > 1 && (
         <nav className="flex items-center justify-between pt-2" aria-label="Paginering">
-          {f.page > 1 ? <Button asChild variant="secondary" size="sm"><Link href={pageHref(f.page - 1)}>Vorige</Link></Button> : <span />}
-          <span className="text-xs text-muted-foreground">Pagina {f.page} van {totalPages}</span>
-          {f.page < totalPages ? <Button asChild variant="secondary" size="sm"><Link href={pageHref(f.page + 1)}>Volgende</Link></Button> : <span />}
+          {f.page > 1 ? (
+            <Button asChild variant="secondary" size="sm">
+              <Link href={pageHref(f.page - 1)}>Vorige</Link>
+            </Button>
+          ) : (
+            <span />
+          )}
+          <span className="text-xs text-muted-foreground">
+            Pagina {f.page} van {totalPages}
+          </span>
+          {f.page < totalPages ? (
+            <Button asChild variant="secondary" size="sm">
+              <Link href={pageHref(f.page + 1)}>Volgende</Link>
+            </Button>
+          ) : (
+            <span />
+          )}
         </nav>
       )}
     </div>

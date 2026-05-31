@@ -48,21 +48,45 @@ export function CompanyForm({
           >
             <option value="">— Kies een branche —</option>
             {industries.map((i) => (
-              <option key={i.id} value={i.id}>{i.name}</option>
+              <option key={i.id} value={i.id}>
+                {i.name}
+              </option>
             ))}
           </Select>
         </Field>
         <Field label="Locatie" htmlFor="location" error={fe.location}>
-          <Input id="location" name="location" defaultValue={initial.location} placeholder="Utrecht" />
+          <Input
+            id="location"
+            name="location"
+            defaultValue={initial.location}
+            placeholder="Utrecht"
+          />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Website" htmlFor="website" error={fe.website} hint="Volledige URL, bijv. https://bedrijf.nl">
-            <Input id="website" name="website" type="url" defaultValue={initial.website} placeholder="https://" />
+          <Field
+            label="Website"
+            htmlFor="website"
+            error={fe.website}
+            hint="Volledige URL, bijv. https://bedrijf.nl"
+          >
+            <Input
+              id="website"
+              name="website"
+              type="url"
+              defaultValue={initial.website}
+              placeholder="https://"
+            />
           </Field>
         </div>
         <div className="sm:col-span-2">
           <Field label="Omschrijving" htmlFor="description" error={fe.description}>
-            <Textarea id="description" name="description" defaultValue={initial.description} rows={4} maxLength={2000} />
+            <Textarea
+              id="description"
+              name="description"
+              defaultValue={initial.description}
+              rows={4}
+              maxLength={2000}
+            />
           </Field>
         </div>
       </div>
@@ -77,7 +101,13 @@ export function CompanyForm({
               className="size-12 shrink-0 rounded-md border border-border object-cover"
             />
           )}
-          <Input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" className="h-auto py-1.5" />
+          <Input
+            id="logo"
+            name="logo"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="h-auto py-1.5"
+          />
         </div>
       </Field>
 
@@ -87,7 +117,9 @@ export function CompanyForm({
         </Button>
         {state?.ok && <span className="text-sm text-success">Opgeslagen.</span>}
         {state?.error && !Object.keys(fe).length && (
-          <span role="alert" className="text-sm text-danger">{state.error}</span>
+          <span role="alert" className="text-sm text-danger">
+            {state.error}
+          </span>
         )}
       </div>
     </form>

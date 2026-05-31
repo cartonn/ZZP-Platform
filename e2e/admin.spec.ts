@@ -14,7 +14,10 @@ async function loginAdmin(page: Page) {
   await page.waitForURL("**/dashboard");
 }
 
-test("admin schorst gebruiker (self-guard), sluit opdracht en ziet auditregel", async ({ page, browser }) => {
+test("admin schorst gebruiker (self-guard), sluit opdracht en ziet auditregel", async ({
+  page,
+  browser,
+}) => {
   test.slow();
   const targetName = `Target ${uniq()}`;
   const jobTitle = `Admin Opdracht ${uniq()}`;

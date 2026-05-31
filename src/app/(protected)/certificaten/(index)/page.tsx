@@ -22,7 +22,10 @@ function fmt(d: Date | null) {
 
 export default async function CertificatenPage() {
   const actor = await requireRole("FREELANCER");
-  const profile = await prisma.freelancerProfile.findUnique({ where: { userId: actor.id }, select: { id: true } });
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { userId: actor.id },
+    select: { id: true },
+  });
 
   const credentials = profile
     ? await prisma.credential.findMany({
@@ -30,7 +33,17 @@ export default async function CertificatenPage() {
         orderBy: { createdAt: "desc" },
         include: {
           document: { select: { id: true, filename: true } },
-          verifications: { orderBy: { createdAt: "desc" }, select: { id: true, decision: true, reason: true, source: true, createdAt: true, verifier: { select: { name: true } } } },
+          verifications: {
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              decision: true,
+              reason: true,
+              source: true,
+              createdAt: true,
+              verifier: { select: { name: true } },
+            },
+          },
         },
       })
     : [];
@@ -40,10 +53,14 @@ export default async function CertificatenPage() {
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Certificaten</h1>
-          <p className="text-sm text-muted-foreground">Beheer je bewijsstukken en vraag verificatie aan.</p>
+          <p className="text-sm text-muted-foreground">
+            Beheer je bewijsstukken en vraag verificatie aan.
+          </p>
         </div>
         <Button asChild>
-          <Link href="/certificaten/nieuw"><Plus className="size-4" aria-hidden /> Nieuw certificaat</Link>
+          <Link href="/certificaten/nieuw">
+            <Plus className="size-4" aria-hidden /> Nieuw certificaat
+          </Link>
         </Button>
       </header>
 
@@ -64,7 +81,9 @@ export default async function CertificatenPage() {
             const expiringSoon = isExpiringSoon({ status, expiresAt: c.expiresAt });
             // Losse verificatie-aanvraag alleen vanuit concept/afgewezen/verlopen.
             // (VERIFIED->SUBMITTED bestaat wél in de map, maar uitsluitend bij document-vervangen.)
-            const canSubmit = !!c.documentId && (status === "DRAFT" || status === "REJECTED" || status === "EXPIRED");
+            const canSubmit =
+              !!c.documentId &&
+              (status === "DRAFT" || status === "REJECTED" || status === "EXPIRED");
             const isPublic = (c.visibility as Visibility) === "PUBLIC";
             return (
               <Card key={c.id}>
@@ -86,9 +105,17 @@ export default async function CertificatenPage() {
 
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     {fmt(c.expiresAt) && (
-                      <span className={expiringSoon ? "text-warning" : status === "EXPIRED" ? "text-danger" : ""}>
+                      <span
+                        className={
+                          expiringSoon ? "text-warning" : status === "EXPIRED" ? "text-danger" : ""
+                        }
+                      >
                         Vervalt {fmt(c.expiresAt)}
-                        {days != null && days >= 0 ? ` (over ${days} dagen)` : days != null ? " (verlopen)" : ""}
+                        {days != null && days >= 0
+                          ? ` (over ${days} dagen)`
+                          : days != null
+                            ? " (verlopen)"
+                            : ""}
                       </span>
                     )}
                   </div>
@@ -101,12 +128,21 @@ export default async function CertificatenPage() {
 
                   {c.verifications.length > 0 && (
                     <details className="text-sm">
-                      <summary className="cursor-pointer text-muted-foreground">Verificatiehistorie ({c.verifications.length})</summary>
+                      <summary className="cursor-pointer text-muted-foreground">
+                        Verificatiehistorie ({c.verifications.length})
+                      </summary>
                       <ul className="mt-2 space-y-1">
                         {c.verifications.map((v) => (
                           <li key={v.id} className="text-xs text-muted-foreground">
-                            {v.createdAt.toISOString().slice(0, 10)} — {v.decision === "VERIFIED" ? "Goedgekeurd" : "Afgewezen"}
-                            {v.source === "DUO" ? " via DUO" : v.source === "BIG" ? " via BIG-register" : v.verifier?.name ? ` door ${v.verifier.name}` : ""}
+                            {v.createdAt.toISOString().slice(0, 10)} —{" "}
+                            {v.decision === "VERIFIED" ? "Goedgekeurd" : "Afgewezen"}
+                            {v.source === "DUO"
+                              ? " via DUO"
+                              : v.source === "BIG"
+                                ? " via BIG-register"
+                                : v.verifier?.name
+                                  ? ` door ${v.verifier.name}`
+                                  : ""}
                             {v.reason ? `: ${v.reason}` : ""}
                           </li>
                         ))}
@@ -117,27 +153,41 @@ export default async function CertificatenPage() {
                   <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     {canSubmit && (
                       <form action={requestVerification.bind(null, c.id)}>
-                        <Button type="submit" size="sm">Verificatie aanvragen</Button>
+                        <Button type="submit" size="sm">
+                          Verificatie aanvragen
+                        </Button>
                       </form>
                     )}
                     {c.document && (
                       <Button asChild variant="secondary" size="sm">
-                        <a href={`/api/documents/${c.document.id}`} target="_blank" rel="noreferrer">
+                        <a
+                          href={`/api/documents/${c.document.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
                           <Download className="size-3.5" aria-hidden /> Bewijsstuk
                         </a>
                       </Button>
                     )}
                     <Button asChild variant="secondary" size="sm">
-                      <Link href={`/certificaten/${c.id}/bewerken`}><Pencil className="size-3.5" aria-hidden /> Bewerken</Link>
+                      <Link href={`/certificaten/${c.id}/bewerken`}>
+                        <Pencil className="size-3.5" aria-hidden /> Bewerken
+                      </Link>
                     </Button>
                     <form action={toggleCredentialVisibility.bind(null, c.id)}>
                       <Button type="submit" variant="secondary" size="sm">
-                        {isPublic ? <EyeOff className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
+                        {isPublic ? (
+                          <EyeOff className="size-3.5" aria-hidden />
+                        ) : (
+                          <Eye className="size-3.5" aria-hidden />
+                        )}
                         {isPublic ? "Maak privé" : "Maak openbaar"}
                       </Button>
                     </form>
                     <form action={deleteCredential.bind(null, c.id)}>
-                      <Button type="submit" variant="danger" size="sm"><Trash2 className="size-3.5" aria-hidden /> Verwijderen</Button>
+                      <Button type="submit" variant="danger" size="sm">
+                        <Trash2 className="size-3.5" aria-hidden /> Verwijderen
+                      </Button>
                     </form>
                   </div>
 
@@ -145,15 +195,20 @@ export default async function CertificatenPage() {
                     <div className="space-y-1 border-t border-border pt-3">
                       <p className="text-xs font-medium">Diploma verifiëren via DUO</p>
                       <p className="text-xs text-muted-foreground">
-                        Vul de verificatiecode in van je gewaarmerkte uittreksel uit het DUO-diplomaregister.
+                        Vul de verificatiecode in van je gewaarmerkte uittreksel uit het
+                        DUO-diplomaregister.
                       </p>
                       <DuoVerifyForm credentialId={c.id} />
                     </div>
                   )}
                   {c.type === "LICENSE" && status !== "VERIFIED" && (
                     <div className="space-y-1 border-t border-border pt-3">
-                      <p className="text-xs font-medium">Beroepsregistratie verifiëren via BIG-register</p>
-                      <p className="text-xs text-muted-foreground">Vul je BIG-nummer in (11 cijfers).</p>
+                      <p className="text-xs font-medium">
+                        Beroepsregistratie verifiëren via BIG-register
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Vul je BIG-nummer in (11 cijfers).
+                      </p>
                       <BigVerifyForm credentialId={c.id} />
                     </div>
                   )}

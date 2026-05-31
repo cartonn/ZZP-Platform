@@ -8,7 +8,11 @@ import { JobForm } from "../../job-form";
 
 export const metadata: Metadata = { title: "Opdracht bewerken · ZZP Platform" };
 
-export default async function OpdrachtBewerkenPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OpdrachtBewerkenPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const actor = await requireRole("CLIENT");
   const { id } = await params;
 
@@ -30,7 +34,10 @@ export default async function OpdrachtBewerkenPage({ params }: { params: Promise
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <Link href={`/opdrachten/${job.id}`} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href={`/opdrachten/${job.id}`}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="size-3.5" aria-hidden /> Terug naar opdracht
         </Link>
         <h1 className="mt-2 text-xl font-semibold tracking-tight">Opdracht bewerken</h1>
@@ -48,8 +55,12 @@ export default async function OpdrachtBewerkenPage({ params }: { params: Promise
           startDate: job.startDate ? job.startDate.toISOString().slice(0, 10) : "",
           requiredSkillIds: job.skills.filter((s) => s.required).map((s) => s.skillId),
           optionalSkillIds: job.skills.filter((s) => !s.required).map((s) => s.skillId),
-          requiredCredentialTypes: job.credentialRequirements.filter((c) => c.required).map((c) => c.credentialType),
-          optionalCredentialTypes: job.credentialRequirements.filter((c) => !c.required).map((c) => c.credentialType),
+          requiredCredentialTypes: job.credentialRequirements
+            .filter((c) => c.required)
+            .map((c) => c.credentialType),
+          optionalCredentialTypes: job.credentialRequirements
+            .filter((c) => !c.required)
+            .map((c) => c.credentialType),
           dba: {
             dbaDirectSupervision: job.dbaDirectSupervision,
             dbaEmbedded: job.dbaEmbedded,

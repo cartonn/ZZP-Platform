@@ -25,8 +25,12 @@ const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** Dev/demo-verifier: identiteit "geverifieerd" als de opgegeven naam overeenkomt met de accountnaam. */
 export class MockIdentityVerifier implements IdentityVerifier {
-  async verify({ accountName, providedName }: IdentityVerificationInput): Promise<IdentityVerificationResult> {
-    const match = normalize(accountName) === normalize(providedName) && normalize(providedName).length > 0;
+  async verify({
+    accountName,
+    providedName,
+  }: IdentityVerificationInput): Promise<IdentityVerificationResult> {
+    const match =
+      normalize(accountName) === normalize(providedName) && normalize(providedName).length > 0;
     return {
       verified: match,
       verifiedName: match ? accountName : null,
@@ -53,5 +57,7 @@ export interface IdentityVerifier {
 }
 
 export function getIdentityVerifier(): IdentityVerifier {
-  return process.env.IDENTITY_VERIFIER === "idin" ? new IdinIdentityVerifier() : new MockIdentityVerifier();
+  return process.env.IDENTITY_VERIFIER === "idin"
+    ? new IdinIdentityVerifier()
+    : new MockIdentityVerifier();
 }

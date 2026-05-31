@@ -30,7 +30,8 @@ export default async function AbonnementPage() {
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Abonnement</h1>
         <p className="text-sm text-muted-foreground">
-          Je huidige plan bepaalt limieten zoals het aantal {isFreelancer ? "reacties" : "actieve opdrachten"}.
+          Je huidige plan bepaalt limieten zoals het aantal{" "}
+          {isFreelancer ? "reacties" : "actieve opdrachten"}.
         </p>
       </header>
 
@@ -46,18 +47,33 @@ export default async function AbonnementPage() {
                 </div>
                 <p className="text-2xl font-semibold tabular-nums">
                   {plan.priceCents === 0 ? "Gratis" : formatEuro(plan.priceCents)}
-                  {plan.priceCents > 0 && <span className="text-sm font-normal text-muted-foreground">/mnd</span>}
+                  {plan.priceCents > 0 && (
+                    <span className="text-sm font-normal text-muted-foreground">/mnd</span>
+                  )}
                 </p>
                 <ul className="space-y-1.5 text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2"><Check className="size-3.5 text-success" aria-hidden /> {limit(plan.maxApplications)} reacties</li>
-                  <li className="flex items-center gap-2"><Check className="size-3.5 text-success" aria-hidden /> {limit(plan.maxJobs)} opdrachten</li>
+                  <li className="flex items-center gap-2">
+                    <Check className="size-3.5 text-success" aria-hidden />{" "}
+                    {limit(plan.maxApplications)} reacties
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="size-3.5 text-success" aria-hidden /> {limit(plan.maxJobs)}{" "}
+                    opdrachten
+                  </li>
                 </ul>
                 <div className="mt-auto pt-2">
                   {isCurrent ? (
-                    <Button variant="secondary" size="sm" className="w-full" disabled>Huidig plan</Button>
+                    <Button variant="secondary" size="sm" className="w-full" disabled>
+                      Huidig plan
+                    </Button>
                   ) : (
                     <form action={changeSubscription.bind(null, plan.key)}>
-                      <Button type="submit" variant={plan.key === "FREE" ? "secondary" : "primary"} size="sm" className="w-full">
+                      <Button
+                        type="submit"
+                        variant={plan.key === "FREE" ? "secondary" : "primary"}
+                        size="sm"
+                        className="w-full"
+                      >
                         Kies {plan.name}
                       </Button>
                     </form>

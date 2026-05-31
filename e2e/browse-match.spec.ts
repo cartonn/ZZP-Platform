@@ -26,7 +26,10 @@ test("ZZP'er ziet z'n persoonlijke match per opdracht in de lijst", async ({ pag
   await page.selectOption("#workMode", "REMOTE");
   await page.fill("#rateMin", "70");
   await page.fill("#rateMax", "95");
-  await page.locator("fieldset", { hasText: "Vereiste skills" }).getByText("TypeScript", { exact: true }).click();
+  await page
+    .locator("fieldset", { hasText: "Vereiste skills" })
+    .getByText("TypeScript", { exact: true })
+    .click();
   await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await page.getByRole("button", { name: "Publiceren" }).click();
@@ -44,14 +47,19 @@ test("ZZP'er ziet z'n persoonlijke match per opdracht in de lijst", async ({ pag
   await fp.goto("/profiel");
   await fp.fill("#hourlyRate", "80");
   await fp.selectOption("#workMode", "REMOTE");
-  await fp.locator("fieldset", { hasText: "Skills" }).getByText("TypeScript", { exact: true }).click();
+  await fp
+    .locator("fieldset", { hasText: "Skills" })
+    .getByText("TypeScript", { exact: true })
+    .click();
   await fp.getByRole("button", { name: "Profiel opslaan" }).click();
   await expect(fp.getByText(/opgeslagen|bijgewerkt/i).first()).toBeVisible({ timeout: 15000 });
 
   await fp.goto("/opdrachten");
   await fp.getByLabel("Zoeken").fill(title);
   await fp.waitForURL(/[?&]q=/);
-  const card = fp.getByRole("link", { name: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) });
+  const card = fp.getByRole("link", {
+    name: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  });
   await expect(card).toBeVisible();
   await expect(card.getByText(/Match \d+%/)).toBeVisible();
   await shot(fp, "30-browse-match");

@@ -1,7 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { type CredentialStatus } from "@/lib/enums";
 
-const MAP: Record<CredentialStatus, { label: string; variant: "muted" | "default" | "success" | "warning" | "danger" }> = {
+const MAP: Record<
+  CredentialStatus,
+  { label: string; variant: "muted" | "default" | "success" | "warning" | "danger" }
+> = {
   DRAFT: { label: "Concept", variant: "muted" },
   SUBMITTED: { label: "In beoordeling", variant: "default" },
   VERIFIED: { label: "Geverifieerd", variant: "success" },

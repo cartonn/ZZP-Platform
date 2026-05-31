@@ -33,13 +33,18 @@ function complianceStatus(raw: string | null): ComplianceStatus | null {
 
 export default async function ReactiesPage() {
   const actor = await requireRole("FREELANCER");
-  const profile = await prisma.freelancerProfile.findUnique({ where: { userId: actor.id }, select: { id: true } });
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { userId: actor.id },
+    select: { id: true },
+  });
 
   const applications = profile
     ? await prisma.application.findMany({
         where: { freelancerId: profile.id },
         orderBy: { createdAt: "desc" },
-        include: { job: { select: { id: true, title: true, company: { select: { name: true } } } } },
+        include: {
+          job: { select: { id: true, title: true, company: { select: { name: true } } } },
+        },
       })
     : [];
 
@@ -80,7 +85,9 @@ export default async function ReactiesPage() {
                   {app.matchScore != null && <Badge variant="muted">Match {app.matchScore}%</Badge>}
                   {compliance && <ComplianceBadge status={compliance} />}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">{STATUS_HINT[app.status as ApplicationStatus]}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {STATUS_HINT[app.status as ApplicationStatus]}
+                </p>
               </Link>
             );
           })}

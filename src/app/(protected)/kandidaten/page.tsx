@@ -50,7 +50,9 @@ export default async function KandidatenPage() {
       job: { select: { id: true, title: true } },
       freelancer: {
         select: {
-          id: true, headline: true, visibility: true,
+          id: true,
+          headline: true,
+          visibility: true,
           user: { select: { name: true, identityVerifiedAt: true } },
           availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
           credentials: { where: { status: "VERIFIED" }, select: { id: true, expiresAt: true } },
@@ -64,7 +66,9 @@ export default async function KandidatenPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Kandidaten</h1>
-        <p className="text-sm text-muted-foreground">Reacties op je opdrachten, met match en compliance.</p>
+        <p className="text-sm text-muted-foreground">
+          Reacties op je opdrachten, met match en compliance.
+        </p>
       </header>
 
       {applications.length === 0 ? (
@@ -84,7 +88,9 @@ export default async function KandidatenPage() {
             const nowMs = Date.now();
             const trust = computeTrustLevel({
               identityVerified: !!app.freelancer.user.identityVerifiedAt,
-              verifiedCredentialCount: app.freelancer.credentials.filter((c) => !c.expiresAt || c.expiresAt.getTime() > nowMs).length,
+              verifiedCredentialCount: app.freelancer.credentials.filter(
+                (c) => !c.expiresAt || c.expiresAt.getTime() > nowMs,
+              ).length,
             });
             return (
               <Card key={app.id}>
@@ -93,7 +99,11 @@ export default async function KandidatenPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         {isPublic ? (
-                          <Link href={`/zzp/${app.freelancer.id}`} target="_blank" className="font-medium underline-offset-4 hover:underline">
+                          <Link
+                            href={`/zzp/${app.freelancer.id}`}
+                            target="_blank"
+                            className="font-medium underline-offset-4 hover:underline"
+                          >
                             {app.freelancer.user.name}
                           </Link>
                         ) : (
@@ -104,23 +114,35 @@ export default async function KandidatenPage() {
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {app.freelancer.headline ?? "—"} · op{" "}
-                        <Link href={`/opdrachten/${app.job.id}`} className="underline-offset-4 hover:underline">
+                        <Link
+                          href={`/opdrachten/${app.job.id}`}
+                          className="underline-offset-4 hover:underline"
+                        >
                           {app.job.title}
                         </Link>
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      {app.matchScore != null && <Badge variant="muted">Match {app.matchScore}%</Badge>}
+                      {app.matchScore != null && (
+                        <Badge variant="muted">Match {app.matchScore}%</Badge>
+                      )}
                       {compliance && <ComplianceBadge status={compliance} />}
                     </div>
                   </div>
 
                   <p className="whitespace-pre-line text-sm">{app.motivation}</p>
                   <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground">
-                    {app.proposedRate != null && <span>Tariefvoorstel: € {app.proposedRate}/uur</span>}
+                    {app.proposedRate != null && (
+                      <span>Tariefvoorstel: € {app.proposedRate}/uur</span>
+                    )}
                     {app.availability && <span>Beschikbaarheid: {app.availability}</span>}
                     {(() => {
-                      const s = summarizeAvailability(app.freelancer.availabilityWindows.map((w) => ({ ...w, type: w.type as AvailabilityWindowType })));
+                      const s = summarizeAvailability(
+                        app.freelancer.availabilityWindows.map((w) => ({
+                          ...w,
+                          type: w.type as AvailabilityWindowType,
+                        })),
+                      );
                       return s ? <span>Agenda: {s}</span> : null;
                     })()}
                   </div>
@@ -131,7 +153,13 @@ export default async function KandidatenPage() {
                         <Button
                           type="submit"
                           size="sm"
-                          variant={to === "ACCEPTED" ? "primary" : to === "REJECTED" ? "danger" : "secondary"}
+                          variant={
+                            to === "ACCEPTED"
+                              ? "primary"
+                              : to === "REJECTED"
+                                ? "danger"
+                                : "secondary"
+                          }
                         >
                           {ACTION_LABEL[to]}
                         </Button>
@@ -140,19 +168,33 @@ export default async function KandidatenPage() {
                   </div>
 
                   <form action={saveApplicationNote.bind(null, app.id)} className="space-y-2">
-                    <Textarea name="note" rows={2} defaultValue={app.note ?? ""} placeholder="Interne notitie (alleen voor jou)…" maxLength={2000} />
-                    <Button type="submit" variant="secondary" size="sm">Notitie opslaan</Button>
+                    <Textarea
+                      name="note"
+                      rows={2}
+                      defaultValue={app.note ?? ""}
+                      placeholder="Interne notitie (alleen voor jou)…"
+                      maxLength={2000}
+                    />
+                    <Button type="submit" variant="secondary" size="sm">
+                      Notitie opslaan
+                    </Button>
                   </form>
 
                   <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     <form action={startConversationForApplication.bind(null, app.id)}>
-                      <Button type="submit" variant="secondary" size="sm">Bericht sturen</Button>
+                      <Button type="submit" variant="secondary" size="sm">
+                        Bericht sturen
+                      </Button>
                     </form>
                     {app.collaboration && (
-                      <Button asChild variant="secondary" size="sm"><Link href="/samenwerkingen">Bekijk samenwerking</Link></Button>
+                      <Button asChild variant="secondary" size="sm">
+                        <Link href="/samenwerkingen">Bekijk samenwerking</Link>
+                      </Button>
                     )}
                   </div>
-                  {status === "ACCEPTED" && !app.collaboration && <ProposeCollaboration applicationId={app.id} />}
+                  {status === "ACCEPTED" && !app.collaboration && (
+                    <ProposeCollaboration applicationId={app.id} />
+                  )}
                 </CardContent>
               </Card>
             );

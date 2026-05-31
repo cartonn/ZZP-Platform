@@ -24,7 +24,12 @@ collect(readFileSync(join(root, "next.config.mjs"), "utf8"));
 
 const missing = [...used].filter((v) => !IGNORE.has(v) && !example.includes(v));
 if (missing.length) {
-  console.error("[check:env] FOUT — niet gedocumenteerd in .env.example:\n" + missing.map((v) => "  - " + v).join("\n"));
+  console.error(
+    "[check:env] FOUT — niet gedocumenteerd in .env.example:\n" +
+      missing.map((v) => "  - " + v).join("\n"),
+  );
   process.exit(1);
 }
-console.log(`[check:env] OK — ${used.size} env-var(s) gebruikt, alle gedocumenteerd of uitgesloten.`);
+console.log(
+  `[check:env] OK — ${used.size} env-var(s) gebruikt, alle gedocumenteerd of uitgesloten.`,
+);

@@ -29,7 +29,10 @@ describe("topMatches", () => {
   });
 
   it("draagt de beschikbaarheidsstatus mee door de rangschikking", () => {
-    const out = topMatches([{ ...m("a", 80), availability: "LIMITED" }], { minScore: 70, limit: 10 });
+    const out = topMatches([{ ...m("a", 80), availability: "LIMITED" }], {
+      minScore: 70,
+      limit: 10,
+    });
     expect(out.map((x) => x.availability)).toEqual(["LIMITED"]);
   });
 });

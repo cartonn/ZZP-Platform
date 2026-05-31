@@ -22,7 +22,10 @@ import { credentialSchema } from "@/lib/validation";
 export type CredentialState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
 async function requireProfile(actorId: string) {
-  const profile = await prisma.freelancerProfile.findUnique({ where: { userId: actorId }, select: { id: true } });
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { userId: actorId },
+    select: { id: true },
+  });
   if (!profile) throw new Error("Maak eerst je profiel aan.");
   return profile;
 }
@@ -53,13 +56,21 @@ async function putBlob(ownerId: string, type: CredentialType, file: File) {
 
 async function deleteDocumentById(documentId: string | null) {
   if (!documentId) return;
-  const doc = await prisma.document.findUnique({ where: { id: documentId }, select: { storageKey: true } });
+  const doc = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: { storageKey: true },
+  });
   if (!doc) return;
   await prisma.document.delete({ where: { id: documentId } });
-  await getStorage().delete(doc.storageKey).catch(() => {});
+  await getStorage()
+    .delete(doc.storageKey)
+    .catch(() => {});
 }
 
-export async function saveCredential(_prev: CredentialState, formData: FormData): Promise<CredentialState> {
+export async function saveCredential(
+  _prev: CredentialState,
+  formData: FormData,
+): Promise<CredentialState> {
   let actor;
   try {
     actor = await requireRole("FREELANCER");
@@ -114,7 +125,11 @@ export async function saveCredential(_prev: CredentialState, formData: FormData)
           const doc = await tx.document.create({ data: docData });
           await tx.credential.update({
             where: { id: credentialId },
-            data: { ...fields, documentId: doc.id, ...(resubmit ? { status: "SUBMITTED", rejectionReason: null } : {}) },
+            data: {
+              ...fields,
+              documentId: doc.id,
+              ...(resubmit ? { status: "SUBMITTED", rejectionReason: null } : {}),
+            },
           });
           if (resubmit) await tx.verificationRequest.create({ data: { credentialId } });
         });
@@ -122,15 +137,30 @@ export async function saveCredential(_prev: CredentialState, formData: FormData)
       } else {
         await prisma.credential.update({ where: { id: credentialId }, data: fields });
       }
-      await audit({ actorId: actor.id, action: "CREDENTIAL_UPDATED", entityType: "Credential", entityId: credentialId });
+      await audit({
+        actorId: actor.id,
+        action: "CREDENTIAL_UPDATED",
+        entityType: "Credential",
+        entityId: credentialId,
+      });
     } else {
       if (!hasFile) return { fieldErrors: { document: "Een bewijsstuk is verplicht." } };
       const docData = await putBlob(actor.id, data.type, file);
       // Document + credential atomair: nested create voorkomt een verweesd Document-record.
       const created = await prisma.credential.create({
-        data: { ...fields, status: "DRAFT", freelancerProfile: { connect: { id: profile.id } }, document: { create: docData } },
+        data: {
+          ...fields,
+          status: "DRAFT",
+          freelancerProfile: { connect: { id: profile.id } },
+          document: { create: docData },
+        },
       });
-      await audit({ actorId: actor.id, action: "CREDENTIAL_CREATED", entityType: "Credential", entityId: created.id });
+      await audit({
+        actorId: actor.id,
+        action: "CREDENTIAL_CREATED",
+        entityType: "Credential",
+        entityId: created.id,
+      });
     }
   } catch (e) {
     if (e instanceof UploadValidationError) return { fieldErrors: { document: e.message } };
@@ -159,7 +189,10 @@ export async function requestVerification(credentialId: string): Promise<void> {
   }
 
   await prisma.$transaction([
-    prisma.credential.update({ where: { id: credentialId }, data: { status: "SUBMITTED", rejectionReason: null } }),
+    prisma.credential.update({
+      where: { id: credentialId },
+      data: { status: "SUBMITTED", rejectionReason: null },
+    }),
     prisma.verificationRequest.create({ data: { credentialId } }),
   ]);
   await audit({
@@ -177,7 +210,8 @@ export async function toggleCredentialVisibility(credentialId: string): Promise<
   const profile = await requireProfile(actor.id);
   const credential = await loadOwnedCredential(profile.id, credentialId);
 
-  const next: Visibility = (credential.visibility as Visibility) === "PUBLIC" ? "PRIVATE" : "PUBLIC";
+  const next: Visibility =
+    (credential.visibility as Visibility) === "PUBLIC" ? "PRIVATE" : "PUBLIC";
   await prisma.credential.update({ where: { id: credentialId }, data: { visibility: next } });
   await audit({
     actorId: actor.id,
@@ -196,7 +230,12 @@ export async function deleteCredential(credentialId: string): Promise<void> {
 
   await prisma.credential.delete({ where: { id: credentialId } });
   await deleteDocumentById(credential.documentId);
-  await audit({ actorId: actor.id, action: "CREDENTIAL_DELETED", entityType: "Credential", entityId: credentialId });
+  await audit({
+    actorId: actor.id,
+    action: "CREDENTIAL_DELETED",
+    entityType: "Credential",
+    entityId: credentialId,
+  });
   revalidatePath("/certificaten");
 }
 
@@ -220,13 +259,32 @@ async function applyExternalVerification(opts: {
   }
   const meta = await requestMeta();
   await prisma.$transaction([
-    prisma.credential.update({ where: { id: opts.credentialId }, data: { status: "VERIFIED", verifiedAt: new Date(), rejectionReason: null } }),
-    prisma.credentialVerification.create({
-      data: { credentialId: opts.credentialId, verifierId: null, source: opts.source, decision: "VERIFIED", reason: opts.reason },
+    prisma.credential.update({
+      where: { id: opts.credentialId },
+      data: { status: "VERIFIED", verifiedAt: new Date(), rejectionReason: null },
     }),
-    prisma.verificationRequest.updateMany({ where: { credentialId: opts.credentialId, status: "PENDING" }, data: { status: "RESOLVED", resolvedAt: new Date() } }),
+    prisma.credentialVerification.create({
+      data: {
+        credentialId: opts.credentialId,
+        verifierId: null,
+        source: opts.source,
+        decision: "VERIFIED",
+        reason: opts.reason,
+      },
+    }),
+    prisma.verificationRequest.updateMany({
+      where: { credentialId: opts.credentialId, status: "PENDING" },
+      data: { status: "RESOLVED", resolvedAt: new Date() },
+    }),
     prisma.auditLog.create({
-      data: auditData({ actorId: opts.actorId, action: "CREDENTIAL_VERIFIED", entityType: "Credential", entityId: opts.credentialId, metadata: { source: opts.source }, ...meta }),
+      data: auditData({
+        actorId: opts.actorId,
+        action: "CREDENTIAL_VERIFIED",
+        entityType: "Credential",
+        entityId: opts.credentialId,
+        metadata: { source: opts.source },
+        ...meta,
+      }),
     }),
   ]);
   revalidatePath("/certificaten");
@@ -234,7 +292,11 @@ async function applyExternalVerification(opts: {
 }
 
 /** Verifieer een diploma via de DUO-koppeling (verificatiecode uit het DUO-diplomaregister). */
-export async function verifyCredentialViaDuo(credentialId: string, _prev: DuoVerifyState, formData: FormData): Promise<DuoVerifyState> {
+export async function verifyCredentialViaDuo(
+  credentialId: string,
+  _prev: DuoVerifyState,
+  formData: FormData,
+): Promise<DuoVerifyState> {
   let actor;
   try {
     actor = await requireRole("FREELANCER");
@@ -253,7 +315,10 @@ export async function verifyCredentialViaDuo(credentialId: string, _prev: DuoVer
   const user = await prisma.user.findUnique({ where: { id: actor.id }, select: { name: true } });
   let result;
   try {
-    result = await getDiplomaVerifier().verify({ verificationCode: code, holderName: user?.name ?? "" });
+    result = await getDiplomaVerifier().verify({
+      verificationCode: code,
+      holderName: user?.name ?? "",
+    });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Verificatie mislukt." };
   }
@@ -269,7 +334,11 @@ export async function verifyCredentialViaDuo(credentialId: string, _prev: DuoVer
 }
 
 /** Verifieer een beroepsregistratie via het BIG-register (BIG-nummer). Geldt voor type Licentie. */
-export async function verifyCredentialViaBig(credentialId: string, _prev: ExternalVerifyState, formData: FormData): Promise<ExternalVerifyState> {
+export async function verifyCredentialViaBig(
+  credentialId: string,
+  _prev: ExternalVerifyState,
+  formData: FormData,
+): Promise<ExternalVerifyState> {
   let actor;
   try {
     actor = await requireRole("FREELANCER");

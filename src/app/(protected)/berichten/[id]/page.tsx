@@ -21,10 +21,19 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
     include: {
       job: { select: { id: true, title: true } },
       participants: { include: { user: { select: { id: true, name: true } } } },
-      messages: { orderBy: { createdAt: "asc" }, include: { sender: { select: { id: true, name: true } } } },
+      messages: {
+        orderBy: { createdAt: "asc" },
+        include: { sender: { select: { id: true, name: true } } },
+      },
     },
   });
-  if (!conversation || !isParticipant(conversation.participants.map((p) => p.user.id), actor.id)) {
+  if (
+    !conversation ||
+    !isParticipant(
+      conversation.participants.map((p) => p.user.id),
+      actor.id,
+    )
+  ) {
     notFound();
   }
 
@@ -35,14 +44,22 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
       <MarkRead conversationId={conversation.id} />
 
       <div>
-        <Link href="/berichten" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/berichten"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="size-3.5" aria-hidden /> Terug naar berichten
         </Link>
-        <h1 className="mt-2 text-lg font-semibold tracking-tight">{other?.user.name ?? "Gesprek"}</h1>
+        <h1 className="mt-2 text-lg font-semibold tracking-tight">
+          {other?.user.name ?? "Gesprek"}
+        </h1>
         {conversation.job && (
           <p className="text-sm text-muted-foreground">
             Over:{" "}
-            <Link href={`/opdrachten/${conversation.job.id}`} className="underline-offset-4 hover:underline">
+            <Link
+              href={`/opdrachten/${conversation.job.id}`}
+              className="underline-offset-4 hover:underline"
+            >
               {conversation.job.title}
             </Link>
           </p>
@@ -70,7 +87,12 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
                   )}
                 >
                   <p className="whitespace-pre-line break-words">{m.body}</p>
-                  <p className={cn("mt-1 text-[10px]", mine ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                  <p
+                    className={cn(
+                      "mt-1 text-[10px]",
+                      mine ? "text-primary-foreground/70" : "text-muted-foreground",
+                    )}
+                  >
                     {m.createdAt.toISOString().slice(0, 16).replace("T", " ")}
                   </p>
                 </div>

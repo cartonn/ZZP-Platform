@@ -16,7 +16,11 @@ async function loadParticipants(conversationId: string) {
   });
 }
 
-export async function sendMessage(conversationId: string, _prev: MessageState, formData: FormData): Promise<MessageState> {
+export async function sendMessage(
+  conversationId: string,
+  _prev: MessageState,
+  formData: FormData,
+): Promise<MessageState> {
   let actor;
   try {
     actor = await requireActor();
@@ -26,7 +30,12 @@ export async function sendMessage(conversationId: string, _prev: MessageState, f
   }
 
   const participants = await loadParticipants(conversationId);
-  if (!isParticipant(participants.map((p) => p.userId), actor.id)) {
+  if (
+    !isParticipant(
+      participants.map((p) => p.userId),
+      actor.id,
+    )
+  ) {
     return { error: "Geen toegang tot dit gesprek." };
   }
 
@@ -113,15 +122,25 @@ export async function startConversationForApplication(applicationId: string): Pr
 }
 
 /** CLIENT start (of heropent) een gesprek met een voorgestelde ZZP'er bij een opdracht. */
-export async function startConversationWithFreelancer(jobId: string, freelancerId: string): Promise<void> {
+export async function startConversationWithFreelancer(
+  jobId: string,
+  freelancerId: string,
+): Promise<void> {
   const actor = await requireRole("CLIENT");
 
   const [job, freelancer] = await Promise.all([
-    prisma.job.findUnique({ where: { id: jobId }, select: { id: true, status: true, company: { select: { userId: true } } } }),
-    prisma.freelancerProfile.findUnique({ where: { id: freelancerId }, select: { userId: true, visibility: true } }),
+    prisma.job.findUnique({
+      where: { id: jobId },
+      select: { id: true, status: true, company: { select: { userId: true } } },
+    }),
+    prisma.freelancerProfile.findUnique({
+      where: { id: freelancerId },
+      select: { userId: true, visibility: true },
+    }),
   ]);
   if (!job || job.company.userId !== actor.id) throw new Error("Opdracht niet gevonden.");
-  if (job.status !== "PUBLISHED") throw new Error("Je kunt alleen bij een gepubliceerde opdracht iemand benaderen.");
+  if (job.status !== "PUBLISHED")
+    throw new Error("Je kunt alleen bij een gepubliceerde opdracht iemand benaderen.");
   if (!freelancer || freelancer.visibility !== "PUBLIC") throw new Error("ZZP'er niet gevonden.");
 
   const freelancerUserId = freelancer.userId;

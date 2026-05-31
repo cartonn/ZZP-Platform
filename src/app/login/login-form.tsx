@@ -22,7 +22,7 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           required
-          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-ring"
+          className="focus-ring h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
           placeholder="naam@bedrijf.nl"
         />
       </div>
@@ -37,7 +37,7 @@ export function LoginForm() {
           type="password"
           autoComplete="current-password"
           required
-          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-ring"
+          className="focus-ring h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
           placeholder="••••••••"
         />
       </div>

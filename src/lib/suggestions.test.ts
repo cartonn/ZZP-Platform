@@ -17,7 +17,10 @@ describe("topSuggestions", () => {
   });
 
   it("sorteert aflopend op score en begrenst op limit", () => {
-    const out = topSuggestions([s("a", 72), s("b", 95), s("c", 88), s("d", 100)], { minScore: 70, limit: 2 });
+    const out = topSuggestions([s("a", 72), s("b", 95), s("c", 88), s("d", 100)], {
+      minScore: 70,
+      limit: 2,
+    });
     expect(out.map((x) => x.freelancerId)).toEqual(["d", "b"]);
   });
 
@@ -26,7 +29,10 @@ describe("topSuggestions", () => {
   });
 
   it("draagt het beschikbaarheidsstatusveld ongewijzigd mee", () => {
-    const out = topSuggestions([{ ...s("a", 80), availability: "LIMITED" }], { minScore: 70, limit: 10 });
+    const out = topSuggestions([{ ...s("a", 80), availability: "LIMITED" }], {
+      minScore: 70,
+      limit: 10,
+    });
     expect(out[0]?.availability).toBe("LIMITED");
   });
 });
