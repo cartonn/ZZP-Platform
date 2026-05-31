@@ -50,10 +50,13 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
       concept-factuur), CSV-exports (grootboek + BTW), jaaroverzicht/IB, notificatie-categorieën,
       print/PDF-factuur + A4-styling, e-mailkanaal-abstractie (MailSender). Open (mensenwerk):
       SMTP-koppeling productie.
-- [~] **Fase 7 — Hardening & end-to-end** — zijpad-integratietests, loading-states,
-      cutover-migratiescript (legacy-facturen → cascade-velden; getest, idempotent),
-      nav-signalen cascade (cascadeWork op /samenwerkingen + openDisputes op /admin/disputen),
-      ORT-categorietests (SATURDAY, HOLIDAY, volledig gemengd), validatietests periodedata.
+- [x] **Fase 7 — Hardening & end-to-end** — zijpad-integratietests ✓, loading-states ✓,
+      cutover-migratiescript ✓ (legacy-facturen → cascade-velden; getest, idempotent),
+      nav-signalen cascade ✓ (cascadeWork + openDisputes + pendingPerformances),
+      ORT-categorietests ✓ (SATURDAY/HOLIDAY/gemengd), validatietests periodedata ✓,
+      diensten-overzicht ZZP'er + CSV-import ✓, prestaties-overzicht opdrachtgever ✓,
+      diensten-/prestaties-exports ✓, admin platform-statistieken (/admin/statistieken) ✓,
+      diensten-import MAX_CSV_IMPORT_SIZE hardening ✓.
       Open: Playwright-e2e (interactieve sessie mét browser).
 
 ### 24/7-bouw actief — coördinatie (lees dit, auto-build-agent)
@@ -92,9 +95,14 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 - [x] Maatwerk-percentages per klant (eigen bps die het sectorprofiel overschrijven).
 - [x] **Onboarding-import (CSV)**: ZZP'ers + opdrachtgevers in bulk met dry-run preview, validatie,
       transactionele aanmaak + audit, tijdelijke wachtwoorden. (`/admin/import`)
-- [ ] **Volgende stappen:** diensten/uren-import via CSV (leunt op de shift-motor → urenstaten zonder
-      overtypen); rooster/diensten-overzicht per klant; e-mail-uitnodiging i.p.v. tijdelijk wachtwoord
-      (mensenwerk: SMTP); PWA + push.
+- [x] **Diensten-overzicht + CSV-import** (`/diensten`, `/diensten/importeer`): ZZP'er importeert
+      diensten via CSV → ORT-segmentatie → cascade createPerformance + submitPerformance.
+- [x] **Prestaties-overzicht voor opdrachtgever** (`/prestaties`): rooster/diensten per klant,
+      "Keuren →"-link, CSV-export.
+- [x] **Admin platform-statistieken** (`/admin/statistieken`): live metriek-kaarten (gebruikers,
+      samenwerkingen, prestaties, facturen, verificaties, disputen).
+- [ ] **Volgende stappen (mensenwerk/browser):** e-mail-uitnodiging i.p.v. tijdelijk wachtwoord
+      (SMTP); Playwright e2e; cutover (Railway).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
@@ -111,8 +119,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > DBA-drempels configureerbaar (PlatformConfig + /admin/configuratie), onboarding-checklist
 > ZZP'er (4 stappen, dashboard), dark-mode toggle (gebruikerskeuze), cutover-migratiescript
 > legacy-facturen (scripts/migrate-legacy-invoices.mjs, getest, idempotent),
-> nav-signalen cascade (cascadeWork + openDisputes in signals.ts), ORT-categorietests
-> (SATURDAY/HOLIDAY/gemengd), handlers-edge-cases, validatietests periodedata.
+> nav-signalen cascade (cascadeWork + openDisputes + pendingPerformances in signals.ts),
+> ORT-categorietests (SATURDAY/HOLIDAY/gemengd), handlers-edge-cases, validatietests periodedata,
+> diensten-overzicht ZZP'er + CSV-import + export, prestaties-overzicht opdrachtgever + export,
+> admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening.
 
 ### Gap-analyse (Fase 0)
 **Herbruikbaar:** enums+Zod-patroon; `assert*Transition`-maps (credential/invoice/collaboration);

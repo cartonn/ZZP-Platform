@@ -801,4 +801,37 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   one-time-reveal van tijdelijke wachtwoorden vóór livegang.
 - Tests totaal: 485 groen (incl. door auto-build toegevoegde diensten-tests).
 
+### ORT — diensten-overzicht + CSV-import voor ZZP'ers — 2026-05-31
+- `src/lib/diensten.ts` (query + CSV-export voor ZZP'er-diensten) + `src/lib/diensten.test.ts`
+  (13 tests: parseCsvShifts + exportDienstenCsv).
+- `/diensten`: overzicht van alle urenstaaten/opleveringen per ZZP'er, statusfilter,
+  link naar samenwerking, exportknop.
+- `/diensten/importeer` (page + form + actions): CSV-import wizard, ORT-segmentatie per dienst,
+  createPerformance + submitPerformance in de cascade-keten.
+- `/diensten/export`: CSV-export van alle diensten voor de ZZP'er.
+- Tests: +13 (diensten).
+
+### Prestaties-overzicht voor opdrachtgever (rooster per klant) — 2026-05-31
+- `src/lib/prestaties.ts` (query + CSV-export voor opdrachtgever) + `src/lib/prestaties.test.ts`
+  (10 tests: exportPrestatiesCsv).
+- `/prestaties`: overzicht van alle urenstaaten/opleveringen van alle ZZP'ers voor de
+  opdrachtgever, statusfilter (ter goedkeuring/goedgekeurd/afgekeurd), "Keuren →"-link,
+  exportknop, pending-telling in de header.
+- `/prestaties/export`: CSV-export van alle prestaties.
+- Nav `pendingPerformances`-signaal: badge op `/prestaties` voor openstaande goedkeuringen.
+- Tests: +10 (prestaties).
+
+### Admin platform-statistieken + diensten-import hardening — 2026-05-31
+- `src/lib/admin-stats.ts`: pure helpers (`approvalRate`, `sharePercent`, `formatStatsEuro`)
+  + `getPlatformStats()` (gebruikers per rol, samenwerkingen per status, prestaties per status,
+  facturen cascade/verwerkt/bedrag, verificatie-wachtrij, open disputen).
+- `src/lib/admin-stats.test.ts`: 11 unit-tests.
+- `/admin/statistieken`: metriek-kaarten per sectie, dispuut-waarschuwingsbanner,
+  links naar beheerpagina's. `loading.tsx` aanwezig.
+- `nav.ts`: "Statistieken" nav-item voor ADMIN.
+- Diensten CSV-import hardening: `MAX_CSV_IMPORT_SIZE = 100` in `diensten.ts`
+  (geëxporteerd, getest); server-action weigert > 100 diensten; UI toont het maximum.
+- Tests: 505 → 520 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
+  E2e overgeslagen (geen browser-channel in routine).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
