@@ -30,6 +30,7 @@ model User {
   mustChangePassword Boolean @default(false) //      true = geforceerde wachtwoordwijziging (bv. na bulk-import)
   emailVerified DateTime?
   deletionRequestedAt DateTime? //                   AVG: door gebruiker aangevraagde verwijdering
+  anonymizedAt        DateTime? //                   AVG: door beheer uitgevoerde anonimisering (recht op verwijdering)
   identityVerifiedAt  DateTime? //                   iDIN/eIDAS-identiteitsverificatie
   verifiedLegalName   String? //                     door de bron bevestigde juridische naam
   createdAt    DateTime @default(now())
