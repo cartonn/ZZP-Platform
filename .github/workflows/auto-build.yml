@@ -1,14 +1,12 @@
 name: Auto-build (scheduled)
 
 # 24/7 doorbouwen zonder open sessie.
-# Elke 15 min pakt één agent het bovenste backlog-item op, levert af en pusht.
+# Elke 15 min pakt één agent het bovenste backlog-item op, bouwt op een feature branch,
+# en opent een PR naar main. De eigenaar reviewt en merget.
 # Draait op Claude Max (OAuth) — geen API-kosten per token.
 # Na de bouwronde draait e2e (Playwright + Chromium) als visuele regressiecheck.
 #
 # Vereist repo-secret: CLAUDE_OAUTH_TOKEN
-# Optioneel: BUILD_PAT (fine-grained PAT met contents:write + actions:write)
-#   — met BUILD_PAT triggert de agent na afloop meteen een nieuwe ronde via
-#     workflow_dispatch (sneller dan wachten op het 15-min schedule).
 # STOPPEN: zet de workflow uit in het Actions-tabblad.
 
 on:
@@ -18,14 +16,12 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
   actions: write
 
 concurrency:
   group: auto-build
   cancel-in-progress: false
-
-env:
-  WORK_BRANCH: main
 
 jobs:
   build:
@@ -38,9 +34,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.WORK_BRANCH }}
+          ref: main
           fetch-depth: 0
-          token: ${{ secrets.BUILD_PAT || secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -49,24 +44,32 @@ jobs:
 
       - run: npm ci || npm install
 
+      - name: Maak feature branch
+        run: |
+          BRANCH="auto-build/run-${{ github.run_id }}"
+          git config user.name "zzp-autobuild"
+          git config user.email "autobuild@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
       - name: Autonome bouwronde
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.BUILD_PAT || secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
-            Autonome bouwmodus voor de ZZP Platform-overhaul. Werk op branch ${{ env.WORK_BRANCH }}.
+            Autonome bouwmodus voor de ZZP Platform-overhaul.
+            Je werkt op een feature branch — commit en push hier, NIET naar main.
             1. Lees CLAUDE.md, CURRENT_TASK.md, PROGRESS.md en prompts/PLATFORM_OVERHAUL.md.
-            2. git fetch origin && git rebase origin/${{ env.WORK_BRANCH }}.
-            3. Pak de volgende afgebakende overhaul-increment (Fase 5/6/7: o.a. PDF/print-factuur,
+            2. Pak de volgende afgebakende overhaul-increment (Fase 5/6/7: o.a. PDF/print-factuur,
                e-mailkanaal-abstractie, extra exports, edge cases/hardening). VERMIJD een dark-first
                re-theme (open beslissing van de eigenaar). Geen geld via het platform; DBA blijft
                signaleren met disclaimer.
-            4. Definition of Done: testbare kern + unit-tests, dan npm run typecheck, npm run lint,
+            3. Definition of Done: testbare kern + unit-tests, dan npm run typecheck, npm run lint,
                npm run test en npm run build — allemaal groen.
-            5. Draai `npx prettier --write .` voor je commit.
-            6. Commit met duidelijke message en push naar ${{ env.WORK_BRANCH }}. Geen PR.
-            7. Werk PROGRESS.md en CURRENT_TASK.md bij; commit en push opnieuw.
+            4. Draai `npx prettier --write .` voor je commit.
+            5. Commit met duidelijke message. Push naar de huidige branch.
+            6. Werk PROGRESS.md en CURRENT_TASK.md bij; commit en push opnieuw.
             Vraag niet om goedkeuring. Geen "AI" in UI/teksten/commits. Stop alleen bij een echte blocker.
           claude_args: |
             --model claude-sonnet-4-6
@@ -74,23 +77,32 @@ jobs:
             --max-turns 60
 
       - name: Formattering normaliseren
-        if: always()
         run: |
           npx prettier --write . 2>/dev/null || true
-          git diff --quiet || (git add -A && git commit -m "style: format with Prettier" && git push)
-
-      - name: Re-arm (trigger volgende ronde direct)
-        if: always()
-        env:
-          GH_TOKEN: ${{ secrets.BUILD_PAT || secrets.GITHUB_TOKEN }}
-        run: |
-          if [ "$GH_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" ]; then
-            echo "Geen BUILD_PAT — volgende ronde via schedule (max 15 min)"
-            exit 0
+          if ! git diff --quiet; then
+            git add -A
+            git commit -m "style: format with Prettier"
           fi
-          echo "BUILD_PAT aanwezig — trigger volgende ronde via workflow_dispatch"
-          sleep 60
-          gh workflow run auto-build.yml --ref "${WORK_BRANCH}"
+
+      - name: Push branch + open PR
+        run: |
+          git push -u origin "$BRANCH" || exit 0
+          gh pr create --base main --head "$BRANCH" \
+            --title "auto-build: $(git log -1 --format=%s)" \
+            --body "$(cat <<'BODY'
+          ## Auto-build ronde
+
+          Automatisch gebouwd door de 24/7 auto-build agent.
+          Review de wijzigingen en merge als alles groen is.
+
+          **Checklist (automatisch):**
+          - [x] `npm run check` gedraaid door agent
+          - [x] Prettier formatting toegepast
+          - [ ] E2e check (draait hieronder)
+          BODY
+          )" || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   e2e:
     needs: build
@@ -105,7 +117,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.WORK_BRANCH }}
+          ref: main
           fetch-depth: 1
 
       - uses: actions/setup-node@v4
