@@ -42,6 +42,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Berichten", href: "/berichten", icon: "messages", enabled: true },
     { label: "Facturen", href: "/facturen", icon: "receipt", enabled: true },
     { label: "Administratie", href: "/administratie", icon: "receipt", enabled: true },
+    { label: "Openstaand", href: "/openstaand", icon: "receipt", enabled: true },
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", enabled: true },
   ],
   CLIENT: [
@@ -55,6 +56,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Berichten", href: "/berichten", icon: "messages", enabled: true },
     { label: "Facturen", href: "/facturen", icon: "receipt", enabled: true },
     { label: "Administratie", href: "/administratie", icon: "receipt", enabled: true },
+    { label: "Openstaand", href: "/openstaand", icon: "receipt", enabled: true },
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", enabled: true },
   ],
   ADMIN: [
