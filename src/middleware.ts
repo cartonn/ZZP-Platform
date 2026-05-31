@@ -21,6 +21,8 @@ function isPublicPath(pathname: string) {
   return (
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname === "/wachtwoord-vergeten" ||
+    pathname.startsWith("/wachtwoord-herstellen/") ||
     pathname === "/api/health" ||
     pathname.startsWith("/zzp/") ||
     pathname.startsWith("/api/auth") ||
