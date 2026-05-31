@@ -42,6 +42,7 @@ const META: Record<string, NotificationMeta> = {
   COLLABORATION_STATUS: { category: "collaboration", tone: "info" },
   VAT_REMINDER: { category: "system", tone: "info" },
   INVOICE_DRAFT_ESCALATION: { category: "invoice", tone: "attention" },
+  JOB_MATCH: { category: "system", tone: "info" },
 };
 
 /** Categorie + toon voor een notificatietype; valt terug op een neutrale systeem-categorie. */
