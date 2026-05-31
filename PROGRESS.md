@@ -887,4 +887,35 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Tests: 505 → 520 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
   E2e overgeslagen (geen browser-channel in routine).
 
+### CSV-kern + SMTP-mail + onboarding e2e + repo-hardening — 2026-05-31
+
+- **CSV-kernbibliotheek** (`src/lib/csv.ts`): gedeelde lees-/schrijffuncties hergebruikt door
+  diensten, prestaties, administratie en import — één bron i.p.v. herhaalde code.
+- **SMTP-mailintegratie** (`feat(mail)` x2):
+  - `SmtpMailSender` in `mail-sender.ts` (nodemailer, lazy geladen, poort 465 = TLS / 587 = STARTTLS).
+  - Welkomstmail bij onboarding-import (`welcome-email.ts`) — tijdelijk wachtwoord + inloglink.
+  - Cascade-herinneringen (`reminder-emails.ts`) — expiry-task + payment-reminders-task +
+    concept-invoice-reminders-task + vat-reminder-task sturen nu ook e-mail via `getMailSender()`.
+  - Patroon: e-mails buiten de transactie (falen rolt DB-actie niet terug).
+- **E2e-tests onboarding** (`test(e2e)`): CSV bulk-import + geforceerde wachtwoordwijziging
+  (happy path + edge cases) in Playwright CI.
+- **Playwright in CI** (`feat(ci)`): `playwright.yml` draait nu ook in GitHub Actions (`--project=ci`,
+  bundled Chromium), screenshots als artifact. Alle workflows op OAuth (geen API key meer).
+- **Repo-hardening** (`feat`): `CODEOWNERS`, issue-/PR-templates, `CONTRIBUTING.md`, `SECURITY.md`.
+- **Prettier + husky + lint-staged** (`feat`): formatting-toolchain als pre-commit hook; codebase
+  geformatteerd; `.git-blame-ignore-revs` voor de format-commit.
+
+### Verificatie-uitslag e-mails + DBA-signaal e-mail — 2026-05-31
+
+Sluit de ontbrekende e-mailkanalen voor twee kritieke platform-events:
+
+- **Admin goedkeuren/afwijzen → e-mail naar ZZP'er** (`admin/verificaties/actions.ts`):
+  `buildCredentialVerifiedEmail` en `buildCredentialRejectedEmail` (inclusief afwijzingsreden)
+  — naast de bestaande in-app notificatie.
+- **DBA-monitor signaal → e-mail naar beide partijen** (`dba-monitor-task.ts`):
+  `buildDbaSignalEmail` met signaaltekst + disclaimer — naar ZZP'er én opdrachtgever.
+- **3 nieuwe templates** in `reminder-emails.ts` + 9 unit-tests (totaal 564 groen).
+- **Patroon**: e-mail buiten transactie, `getMailSender()` singleton (noop dev/test, SMTP prod).
+- Gate: typecheck ✓ lint ✓ test 564 ✓ build ✓.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
