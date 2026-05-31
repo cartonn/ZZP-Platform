@@ -59,6 +59,11 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
       diensten-/prestaties-exports ✓, admin platform-statistieken (/admin/statistieken) ✓,
       diensten-import MAX_CSV_IMPORT_SIZE hardening ✓.
       Open: Playwright-e2e (interactieve sessie mét browser).
+- [x] **Post-fase (auto-build)** — CSV-consolidatie (robuuste RFC4180-kern), SMTP-verzending +
+      welkomstmail (nodemailer), e-mailmeldingen alle cascade-herinneringen, CI Playwright +
+      repo-hardening, **wachtwoord-reset via e-mail** (PasswordResetToken-model + SHA-256 hash,
+      one-time-use, 1-uur expiry, /wachtwoord-vergeten + /wachtwoord-herstellen/[token], audit).
+      Tests: 569 groen.
 
 ### 24/7-bouw actief — coördinatie (lees dit, auto-build-agent)
 
@@ -106,16 +111,21 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
       "Keuren →"-link, CSV-export.
 - [x] **Admin platform-statistieken** (`/admin/statistieken`): live metriek-kaarten (gebruikers,
       samenwerkingen, prestaties, facturen, verificaties, disputen).
-- [ ] **Volgende stappen (mensenwerk/browser):** e-mail-uitnodiging i.p.v. tijdelijk wachtwoord
-      (SMTP); Playwright e2e; cutover (Railway).
+- [x] **E-mail-uitnodiging:** welkomstmail bij import (SMTP, optioneel). Wachtwoord-reset-flow
+      aanwezig (`/wachtwoord-vergeten` + `/wachtwoord-herstellen/[token]`).
+- [ ] **Volgende stappen (mensenwerk/browser):** Playwright e2e; cutover (Railway).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
-1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
+1. **Admin SMTP-verificatieknop** — kleine beheerpagina-toevoeging: admin kan een test-e-mail
+   sturen om de SMTP-configuratie te verifiëren zonder in productie te gokken.
+2. **Registratie-e-mailverificatie** — nieuwe gebruikers verifiëren hun e-mailadres via een
+   koppeling (PasswordResetToken-patroon hergebruiken); emailVerified vullen na klik.
+3. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
    routines, doe in een interactieve sessie mét browser-channel.
-2. Postgres-smoke van het migratiescript (optioneel, aanbevolen vóór cutover) — draai
+4. Postgres-smoke van het migratiescript (optioneel, aanbevolen vóór cutover) — draai
    `migrate-legacy-invoices.mjs` op een Postgres-kopie van de demo-DB.
-3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
+5. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
 > Reeds gedaan (niet opnieuw): print/PDF-factuurknop + A4-afdruk-styling, MailSender-abstractie,
