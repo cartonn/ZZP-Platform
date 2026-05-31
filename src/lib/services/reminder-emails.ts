@@ -268,3 +268,45 @@ export function buildVatReminderEmail(input: VatReminderEmailInput): MailMessage
     `),
   };
 }
+
+// ─── Job-match alert ─────────────────────────────────────────────────────────
+
+export interface JobMatchEmailInput {
+  name: string;
+  email: string;
+  jobTitle: string;
+  companyName: string;
+  matchScore: number;
+  jobUrl: string;
+}
+
+export function buildJobMatchEmail(input: JobMatchEmailInput): MailMessage {
+  const platform = PLATFORM;
+  const subject = `Nieuwe opdracht die bij je past: "${input.jobTitle}"`;
+  const text = [
+    `Hallo ${input.name},`,
+    "",
+    `Er is een nieuwe opdracht geplaatst die goed bij je profiel past:`,
+    `"${input.jobTitle}" bij ${input.companyName} (${input.matchScore}% match).`,
+    "",
+    `Opdracht bekijken: ${input.jobUrl}`,
+    "",
+    "Met vriendelijke groet,",
+    platform,
+  ].join("\n");
+  return {
+    to: recipient(input.name, input.email),
+    subject,
+    text,
+    html: html(`
+      <h1 style="margin:0 0 8px;font-size:18px;">Nieuwe opdracht die bij je past</h1>
+      <p style="margin:0 0 12px;font-size:14px;color:#52525b;">Hallo ${esc(input.name)},</p>
+      <p style="margin:0 0 4px;font-size:14px;">Er is een nieuwe opdracht geplaatst die goed bij je profiel past:</p>
+      <p style="margin:0 0 16px;font-size:16px;font-weight:600;">${esc(input.jobTitle)}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#52525b;">${esc(input.companyName)} · ${input.matchScore}% match</p>
+      <br/>
+      ${btn(input.jobUrl, "Opdracht bekijken")}
+      <p style="margin:16px 0 0;font-size:12px;color:#71717a;">${esc(platform)}</p>
+    `),
+  };
+}

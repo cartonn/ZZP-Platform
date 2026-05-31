@@ -11,6 +11,7 @@ import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs"
 import { scoreJobForFreelancer } from "@/lib/matching";
 import { type JobStatus, jobStatusSchema } from "@/lib/enums";
 import { applicationSchema, jobSchema } from "@/lib/validation";
+import { runJobAlertsTask } from "@/lib/job-alerts-task";
 
 export type JobFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -190,6 +191,13 @@ export async function changeJobStatus(jobId: string, target: string): Promise<vo
     entityId: jobId,
     metadata: { from, to: targetStatus },
   });
+
+  // Bij publicatie direct passende ZZP'ers notificeren.
+  if (targetStatus === "PUBLISHED") {
+    await runJobAlertsTask({ actorId: actor.id, jobId }).catch((err) =>
+      console.error("[changeJobStatus] job-alerts mislukt:", err),
+    );
+  }
 
   revalidatePath("/opdrachten");
   revalidatePath(`/opdrachten/${jobId}`);

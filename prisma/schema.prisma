@@ -205,7 +205,8 @@ model Job {
   startDate   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  publishedAt DateTime?
+  publishedAt      DateTime?
+  jobAlertsSentAt  DateTime? // gezet nadat passende ZZP'ers genotificeerd zijn
 
   // Wet DBA-check (schijnzelfstandigheid) — invoer + server-berekende snapshot.
   dbaDirectSupervision Boolean @default(false)

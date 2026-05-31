@@ -9,6 +9,7 @@ import { runPaymentReminderTask } from "@/lib/payment-reminders-task";
 import { runDbaMonitorTask } from "@/lib/dba-monitor-task";
 import { runConceptInvoiceReminderTask } from "@/lib/concept-invoice-reminders-task";
 import { runVatReminderTask } from "@/lib/vat-reminder-task";
+import { runJobAlertsTask } from "@/lib/job-alerts-task";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export async function POST(request: Request): Promise<Response> {
       fn: () => runConceptInvoiceReminderTask({ actorId: null }),
     },
     { name: "vat-reminders", fn: () => runVatReminderTask({ actorId: null }) },
+    { name: "job-alerts", fn: () => runJobAlertsTask({ actorId: null }) },
   ];
 
   const results: Record<string, unknown> = {};
