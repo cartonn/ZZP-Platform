@@ -231,6 +231,126 @@ export function buildConceptInvoiceReminderEmail(
   };
 }
 
+// ─── Certificaat geverifieerd ─────────────────────────────────────────────────
+
+export interface CredentialVerifiedEmailInput {
+  name: string;
+  email: string;
+  credentialTitle: string;
+  loginUrl: string;
+}
+
+export function buildCredentialVerifiedEmail(input: CredentialVerifiedEmailInput): MailMessage {
+  const platform = PLATFORM;
+  const subject = `Certificaat geverifieerd: "${input.credentialTitle}"`;
+  const text = [
+    `Hallo ${input.name},`,
+    "",
+    `Goed nieuws! Je certificaat "${input.credentialTitle}" is goedgekeurd en geverifieerd.`,
+    "Je profiel is nu up-to-date en zichtbaar voor opdrachtgevers.",
+    "",
+    `Certificaten bekijken: ${input.loginUrl}/certificaten`,
+    "",
+    "Met vriendelijke groet,",
+    platform,
+  ].join("\n");
+  return {
+    to: recipient(input.name, input.email),
+    subject,
+    text,
+    html: html(`
+      <h1 style="margin:0 0 8px;font-size:18px;">Certificaat geverifieerd</h1>
+      <p style="margin:0 0 12px;font-size:14px;color:#52525b;">Hallo ${esc(input.name)},</p>
+      <p style="margin:0 0 16px;font-size:14px;">Je certificaat <strong>${esc(input.credentialTitle)}</strong> is goedgekeurd en geverifieerd. Je profiel is nu up-to-date en zichtbaar voor opdrachtgevers.</p>
+      ${btn(`${input.loginUrl}/certificaten`, "Certificaten bekijken")}
+      <p style="margin:16px 0 0;font-size:12px;color:#71717a;">${esc(platform)}</p>
+    `),
+  };
+}
+
+// ─── Certificaat afgewezen ────────────────────────────────────────────────────
+
+export interface CredentialRejectedEmailInput {
+  name: string;
+  email: string;
+  credentialTitle: string;
+  reason: string;
+  loginUrl: string;
+}
+
+export function buildCredentialRejectedEmail(input: CredentialRejectedEmailInput): MailMessage {
+  const platform = PLATFORM;
+  const subject = `Certificaat afgewezen: "${input.credentialTitle}"`;
+  const text = [
+    `Hallo ${input.name},`,
+    "",
+    `Je certificaat "${input.credentialTitle}" is helaas afgewezen.`,
+    `Reden: ${input.reason}`,
+    "",
+    "Je kunt de gegevens aanpassen en opnieuw verificatie aanvragen.",
+    "",
+    `Certificaten beheren: ${input.loginUrl}/certificaten`,
+    "",
+    "Met vriendelijke groet,",
+    platform,
+  ].join("\n");
+  return {
+    to: recipient(input.name, input.email),
+    subject,
+    text,
+    html: html(`
+      <h1 style="margin:0 0 8px;font-size:18px;">Certificaat afgewezen</h1>
+      <p style="margin:0 0 12px;font-size:14px;color:#52525b;">Hallo ${esc(input.name)},</p>
+      <p style="margin:0 0 16px;font-size:14px;">Je certificaat <strong>${esc(input.credentialTitle)}</strong> is helaas afgewezen.</p>
+      <p style="margin:0 0 16px;font-size:14px;"><strong>Reden:</strong> ${esc(input.reason)}</p>
+      <p style="margin:0 0 16px;font-size:14px;">Je kunt de gegevens aanpassen en opnieuw verificatie aanvragen.</p>
+      ${btn(`${input.loginUrl}/certificaten`, "Certificaat aanpassen")}
+      <p style="margin:16px 0 0;font-size:12px;color:#71717a;">${esc(platform)}</p>
+    `),
+  };
+}
+
+// ─── DBA-signaal ─────────────────────────────────────────────────────────────
+
+export interface DbaSignalEmailInput {
+  name: string;
+  email: string;
+  /** "freelancer" of "client" — bepaalt de aanspreektitel. */
+  role: "freelancer" | "client";
+  level: string;
+  /** Volledige signaaltekst inclusief disclaimer (uit dba-monitor-task). */
+  message: string;
+  collaborationId: string;
+  loginUrl: string;
+}
+
+export function buildDbaSignalEmail(input: DbaSignalEmailInput): MailMessage {
+  const platform = PLATFORM;
+  const subject = `Aandachtspunt inzet — ${input.level}`;
+  const text = [
+    `Hallo ${input.name},`,
+    "",
+    input.message,
+    "",
+    `Samenwerking bekijken: ${input.loginUrl}/samenwerkingen/${input.collaborationId}`,
+    "",
+    "Met vriendelijke groet,",
+    platform,
+  ].join("\n");
+  return {
+    to: recipient(input.name, input.email),
+    subject,
+    text,
+    html: html(`
+      <h1 style="margin:0 0 8px;font-size:18px;">Aandachtspunt inzet</h1>
+      <p style="margin:0 0 12px;font-size:14px;color:#52525b;">Hallo ${esc(input.name)},</p>
+      <p style="margin:0 0 16px;font-size:14px;">${esc(input.message)}</p>
+      ${btn(`${input.loginUrl}/samenwerkingen/${input.collaborationId}`, "Samenwerking bekijken")}
+      <p style="margin:16px 0 0;font-size:12px;color:#71717a;">${esc(platform)}</p>
+    `),
+  };
+}
+
 // ─── BTW-kwartaal herinnering ────────────────────────────────────────────────
 
 export interface VatReminderEmailInput {

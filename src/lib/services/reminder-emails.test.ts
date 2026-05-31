@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   buildCredentialExpiryWarningEmail,
   buildCredentialExpiredEmail,
+  buildCredentialVerifiedEmail,
+  buildCredentialRejectedEmail,
+  buildDbaSignalEmail,
   buildPaymentReminderEmail,
   buildPaymentOverdueEmail,
   buildConceptInvoiceReminderEmail,
@@ -135,5 +138,93 @@ describe("reminder-emails", () => {
       year: 2026,
     });
     expect(msg.to).toBe("anon@test.nl");
+  });
+
+  describe("buildCredentialVerifiedEmail", () => {
+    it("bevat certificaattitel en 'geverifieerd' in subject en tekst", () => {
+      const msg = buildCredentialVerifiedEmail({ ...BASE, credentialTitle: "VOG" });
+      expect(msg.subject).toContain("VOG");
+      expect(msg.subject).toContain("geverifieerd");
+      expect(msg.text).toContain("VOG");
+      expect(msg.text).toContain("goedgekeurd");
+      expect(msg.html).toContain("VOG");
+    });
+    it("link verwijst naar /certificaten", () => {
+      const msg = buildCredentialVerifiedEmail({ ...BASE, credentialTitle: "BIG" });
+      expect(msg.text).toContain("/certificaten");
+      expect(msg.html).toContain("/certificaten");
+    });
+    it("to-veld bevat naam én e-mail", () => {
+      const msg = buildCredentialVerifiedEmail({ ...BASE, credentialTitle: "BIG" });
+      expect(msg.to).toBe("Sanne de Vries <sanne@test.nl>");
+    });
+  });
+
+  describe("buildCredentialRejectedEmail", () => {
+    it("bevat certificaattitel, afwijzingsreden en 'afgewezen' in subject en tekst", () => {
+      const msg = buildCredentialRejectedEmail({
+        ...BASE,
+        credentialTitle: "EHBO",
+        reason: "Bewijsstuk onleesbaar",
+      });
+      expect(msg.subject).toContain("EHBO");
+      expect(msg.subject).toContain("afgewezen");
+      expect(msg.text).toContain("Bewijsstuk onleesbaar");
+      expect(msg.html).toContain("Bewijsstuk onleesbaar");
+    });
+    it("link verwijst naar /certificaten", () => {
+      const msg = buildCredentialRejectedEmail({
+        ...BASE,
+        credentialTitle: "VOG",
+        reason: "Verlopen",
+      });
+      expect(msg.html).toContain("/certificaten");
+    });
+    it("escapet HTML-speciale tekens in de reden", () => {
+      const msg = buildCredentialRejectedEmail({
+        ...BASE,
+        credentialTitle: "VOG",
+        reason: '<script>alert("xss")</script>',
+      });
+      expect(msg.html).not.toContain("<script>");
+      expect(msg.html).toContain("&lt;script&gt;");
+    });
+  });
+
+  describe("buildDbaSignalEmail", () => {
+    it("bevat level en signaalbericht in subject en tekst", () => {
+      const msg = buildDbaSignalEmail({
+        ...BASE,
+        role: "freelancer",
+        level: "Verhoogd risico",
+        message: "Opdracht loopt 11 maanden.",
+        collaborationId: "collab-1",
+      });
+      expect(msg.subject).toContain("Verhoogd risico");
+      expect(msg.text).toContain("Opdracht loopt 11 maanden");
+      expect(msg.html).toContain("Opdracht loopt 11 maanden");
+    });
+    it("link verwijst naar de samenwerking", () => {
+      const msg = buildDbaSignalEmail({
+        ...BASE,
+        role: "client",
+        level: "Hoog risico",
+        message: "Signaal.",
+        collaborationId: "collab-2",
+      });
+      expect(msg.text).toContain("/samenwerkingen/collab-2");
+      expect(msg.html).toContain("/samenwerkingen/collab-2");
+    });
+    it("escapet HTML-speciale tekens in het bericht", () => {
+      const msg = buildDbaSignalEmail({
+        ...BASE,
+        role: "freelancer",
+        level: "Laag risico",
+        message: "Bericht met <b>HTML</b> & 'quotes'.",
+        collaborationId: "c",
+      });
+      expect(msg.html).not.toContain("<b>");
+      expect(msg.html).toContain("&lt;b&gt;");
+    });
   });
 });
