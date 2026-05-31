@@ -128,7 +128,13 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > nav-signalen cascade (cascadeWork + openDisputes + pendingPerformances in signals.ts),
 > ORT-categorietests (SATURDAY/HOLIDAY/gemengd), handlers-edge-cases, validatietests periodedata,
 > diensten-overzicht ZZP'er + CSV-import + export, prestaties-overzicht opdrachtgever + export,
-> admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening.
+> admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening,
+> **aanmaning-sjabloon voor ZZP'er op OVERDUE facturen** (buildAanmaningData + AanmaningSection +
+> 14 tests; WORKFLOW_MAP.md statuskolom bijgewerkt naar ✅; admin/import loading.tsx).
+>
+> **Branch-status:** `claude/aanmaning-hardening` klaar voor PR + CI. Main is protected (branch
+> protection rule + vereiste CI-check). Volgende agent: open een PR van deze branch naar main,
+> of merge direct na CI-groen.
 
 ### Gap-analyse (Fase 0)
 

@@ -887,4 +887,19 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Tests: 505 → 520 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
   E2e overgeslagen (geen browser-channel in routine).
 
+### Aanmaning-sjabloon + WORKFLOW_MAP hardening — 2026-05-31
+
+Increment: ontbrekend PLATFORM_OVERHAUL.md §4 zijpad-vereiste ("aanmaning sjabloon voor ZZP'er").
+
+- `src/lib/aanmaning.ts` — pure `buildAanmaningData` + `buildAanmaningLetter`; 14 unit-tests.
+- `src/components/invoices/aanmaning-section.tsx` — opvouwbare kaart op factuur-detail met
+  klembord-kopieer; print-hide zodat afdrukken van de factuur zelf ongewijzigd blijft.
+- `facturen/[id]/page.tsx` — `AanmaningSection` geïntegreerd voor OVERDUE + isFreelancerOwner
+  (cascade én legacy facturen).
+- `admin/import/loading.tsx` — ontbrekende loading-state toegevoegd.
+- `WORKFLOW_MAP.md` — alle cascade-event-statussen bijgewerkt van ⬜ naar ✅;
+  "Betaling te laat" zijpad bijgewerkt met aanmaning-sjabloon.
+- Tests: 555 → 569 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
+  Branch: `claude/aanmaning-hardening` (main is protected, vereist PR + CI).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
