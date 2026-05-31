@@ -887,4 +887,18 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Tests: 505 → 520 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
   E2e overgeslagen (geen browser-channel in routine).
 
+### Cascade workflow e-mailnotificaties — 2026-05-31
+
+Elke cascade-stap stuurt nu best-effort een e-mail naar de betrokken partij(en).
+
+- `src/lib/services/cascade-emails.ts`: 8 pure template-functies (Events A/B1/B2/B2'/C/D/D'/E);
+  locale-onafhankelijke euro-opmaak (`fmtEuro`) en datumopmaak (`fmtDate`); HTML + plaintext.
+- `src/lib/services/cascade-emails.test.ts`: 14 unit-tests (inhoud, escaping, eurobedrag,
+  datum, ontvangerformattering).
+- `src/lib/cascade/commands.ts`: `loadCollabMeta` helper (jobTitle + freelancer/client contact
+  in één query); `collabLink` helper; best-effort e-mail dispatch (try/catch) na
+  `persistEventAndEffects` in alle cascade-commands.
+- Fouten in de e-maillaag stoppen nooit de cascade.
+- Tests: 555 → 569 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
