@@ -88,11 +88,19 @@ export default async function AdminAdministratiePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Platform Administratie</h1>
-        <p className="text-sm text-muted-foreground">
-          Platform-brede kwartaaloverzichten en openstaande betalingen over alle samenwerkingen.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold tracking-tight">Platform Administratie</h1>
+          <p className="text-sm text-muted-foreground">
+            Platform-brede kwartaaloverzichten en openstaande betalingen over alle samenwerkingen.
+          </p>
+        </div>
+        <a
+          href="/api/admin/export/invoices"
+          className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+        >
+          Facturen CSV
+        </a>
       </header>
 
       {/* Kwartaaloverzicht */}
