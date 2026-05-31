@@ -193,24 +193,24 @@ describe("segmentShift — volledig binnen één categorie", () => {
     // h=22 en h=23 vallen beide in nacht (>= 22)
     const segs = segmentShift(new Date(2026, 0, 12, 22, 30), new Date(2026, 0, 12, 23, 30));
     expect(segs).toHaveLength(1);
-    expect(segs[0].category).toBe("NIGHT");
-    expect(segs[0].hours).toBeCloseTo(1, 2);
+    expect(hoursFor(segs, "NIGHT")).toBeCloseTo(1, 2);
+    expect(segs.every((s) => s.category === "NIGHT")).toBe(true);
   });
 
   it("maandag 00:30–05:30 → alleen NIGHT (5 uur, h < 6)", () => {
     // h=0..5 vallen in nacht (h < 6)
     const segs = segmentShift(new Date(2026, 0, 12, 0, 30), new Date(2026, 0, 12, 5, 30));
     expect(segs).toHaveLength(1);
-    expect(segs[0].category).toBe("NIGHT");
-    expect(segs[0].hours).toBeCloseTo(5, 2);
+    expect(hoursFor(segs, "NIGHT")).toBeCloseTo(5, 2);
+    expect(segs.every((s) => s.category === "NIGHT")).toBe(true);
   });
 
   it("maandag 19:00–21:30 → alleen EVENING (2,5 uur, 18 <= h < 22)", () => {
     // h=19, 20, 21 → avond (>= 18 en < 22)
     const segs = segmentShift(new Date(2026, 0, 12, 19), new Date(2026, 0, 12, 21, 30));
     expect(segs).toHaveLength(1);
-    expect(segs[0].category).toBe("EVENING");
-    expect(segs[0].hours).toBeCloseTo(2.5, 2);
+    expect(hoursFor(segs, "EVENING")).toBeCloseTo(2.5, 2);
+    expect(segs.every((s) => s.category === "EVENING")).toBe(true);
   });
 
   it("nachtdienst over middernacht → NIGHT", () => {
@@ -230,16 +230,16 @@ describe("segmentShift — volledig binnen één categorie", () => {
     // Zaterdag 10 jan 2026 overdag — SATURDAY wint
     const segs = segmentShift(new Date(2026, 0, 10, 10), new Date(2026, 0, 10, 12));
     expect(segs).toHaveLength(1);
-    expect(segs[0].category).toBe("SATURDAY");
-    expect(segs[0].hours).toBeCloseTo(2, 2);
+    expect(hoursFor(segs, "SATURDAY")).toBeCloseTo(2, 2);
+    expect(segs.every((s) => s.category === "SATURDAY")).toBe(true);
   });
 
   it("zondag 11:00–13:00 → alleen SUNDAY (2 uur)", () => {
     // Zondag 11 jan 2026 overdag — SUNDAY wint
     const segs = segmentShift(new Date(2026, 0, 11, 11), new Date(2026, 0, 11, 13));
     expect(segs).toHaveLength(1);
-    expect(segs[0].category).toBe("SUNDAY");
-    expect(segs[0].hours).toBeCloseTo(2, 2);
+    expect(hoursFor(segs, "SUNDAY")).toBeCloseTo(2, 2);
+    expect(segs.every((s) => s.category === "SUNDAY")).toBe(true);
   });
 
   it("feestdag overdag → HOLIDAY wanneer feestdagenset wordt meegegeven", () => {
@@ -249,8 +249,8 @@ describe("segmentShift — volledig binnen één categorie", () => {
       holidays,
     });
     expect(segs).toHaveLength(1);
-    expect(segs[0].category).toBe("HOLIDAY");
-    expect(segs[0].hours).toBeCloseTo(2, 2);
+    expect(hoursFor(segs, "HOLIDAY")).toBeCloseTo(2, 2);
+    expect(segs.every((s) => s.category === "HOLIDAY")).toBe(true);
   });
 
   it("kwartierresolutie: half uur telt mee", () => {
@@ -292,14 +292,16 @@ describe("segmentShift — prioriteit: hoogste toeslag wint", () => {
     // Zaterdag 10 jan 2026, 23:00–00:00
     const segs = segmentShift(new Date(2026, 0, 10, 23), new Date(2026, 0, 11, 0));
     expect(segs).toHaveLength(1);
-    expect(segs[0].category).toBe("SATURDAY");
+    expect(hoursFor(segs, "SATURDAY")).toBeCloseTo(1, 2);
+    expect(segs.every((s) => s.category === "SATURDAY")).toBe(true);
   });
 
   it("zondagnacht (01:00) → SUNDAY (7200 bps) wint van NIGHT (4900 bps)", () => {
     // Zondag 11 jan 2026, 01:00–02:00
     const segs = segmentShift(new Date(2026, 0, 11, 1), new Date(2026, 0, 11, 2));
     expect(segs).toHaveLength(1);
-    expect(segs[0].category).toBe("SUNDAY");
+    expect(hoursFor(segs, "SUNDAY")).toBeCloseTo(1, 2);
+    expect(segs.every((s) => s.category === "SUNDAY")).toBe(true);
   });
 
   it("feestdag op doordeweekse avond → HOLIDAY wint van EVENING", () => {
@@ -307,7 +309,8 @@ describe("segmentShift — prioriteit: hoogste toeslag wint", () => {
     const holidays = dutchHolidays(2026);
     const segs = segmentShift(new Date(2026, 0, 1, 19), new Date(2026, 0, 1, 20), { holidays });
     expect(segs).toHaveLength(1);
-    expect(segs[0].category).toBe("HOLIDAY");
+    expect(hoursFor(segs, "HOLIDAY")).toBeCloseTo(1, 2);
+    expect(segs.every((s) => s.category === "HOLIDAY")).toBe(true);
   });
 
   it("feestdag op doordeweekse nacht → HOLIDAY wint van NIGHT", () => {
@@ -315,7 +318,8 @@ describe("segmentShift — prioriteit: hoogste toeslag wint", () => {
     const holidays = dutchHolidays(2026);
     const segs = segmentShift(new Date(2026, 0, 1, 23), new Date(2026, 0, 2, 0), { holidays });
     expect(segs).toHaveLength(1);
-    expect(segs[0].category).toBe("HOLIDAY");
+    expect(hoursFor(segs, "HOLIDAY")).toBeCloseTo(1, 2);
+    expect(segs.every((s) => s.category === "HOLIDAY")).toBe(true);
   });
 
   it("precedentie volgt het sectorprofiel: andere rates kunnen anders kiezen", () => {
