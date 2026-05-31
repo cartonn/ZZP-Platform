@@ -118,18 +118,22 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
-> Reeds gedaan (niet opnieuw): print/PDF-factuurknop + A4-afdruk-styling, MailSender-abstractie,
-> concept-factuur-reminders, jaaroverzicht/IB, grootboek-/BTW-CSV, DBA-omzetconcentratie,
-> admin-disputen, run-all cron, BTW-herinnering, cascade-keten op werkprocespagina,
-> idempotentie-test, cascade-factuurdetail herleidingsbewijs, admin-kwartaaloverzicht,
-> DBA-drempels configureerbaar (PlatformConfig + /admin/configuratie), onboarding-checklist
-> ZZP'er (4 stappen, dashboard), dark-mode toggle (gebruikerskeuze), cutover-migratiescript
-> legacy-facturen (scripts/migrate-legacy-invoices.mjs, getest, idempotent),
+> Reeds gedaan (niet opnieuw): print/PDF-factuurknop + A4-afdruk-styling, MailSender-abstractie
+> (noop + SMTP via nodemailer), cascade-herinneringen e-mailen (expiry/payment/concept-factuur/
+> BTW via getMailSender()), welkomstmail bij onboarding-import, verificatie-uitslag e-mails
+> (goedkeuren/afwijzen → ZZP'er), DBA-signaal e-mails (→ ZZP'er + opdrachtgever), CSV-kern
+> gedeeld (@/lib/csv), concept-factuur-reminders, jaaroverzicht/IB, grootboek-/BTW-CSV,
+> DBA-omzetconcentratie, admin-disputen, run-all cron, BTW-herinnering, cascade-keten op
+> werkprocespagina, idempotentie-test, cascade-factuurdetail herleidingsbewijs,
+> admin-kwartaaloverzicht, DBA-drempels configureerbaar (PlatformConfig + /admin/configuratie),
+> onboarding-checklist ZZP'er (4 stappen, dashboard), dark-mode toggle (gebruikerskeuze),
+> cutover-migratiescript legacy-facturen (scripts/migrate-legacy-invoices.mjs, getest, idempotent),
 > nav-signalen cascade (cascadeWork + openDisputes + pendingPerformances in signals.ts),
 > ORT-categorietests (SATURDAY/HOLIDAY/gemengd), handlers-edge-cases, validatietests periodedata,
 > diensten-overzicht ZZP'er + CSV-import + export, prestaties-overzicht opdrachtgever + export,
 > admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening,
-> cascade workflow e-mailnotificaties (Events A–E, cascade-emails.ts, 14 tests).
+> Playwright in CI (playwright.yml, bundled Chromium, OAuth), repo-hardening (CODEOWNERS/templates/
+> CONTRIBUTING/SECURITY), Prettier + husky + lint-staged toolchain.
 
 ### Gap-analyse (Fase 0)
 
