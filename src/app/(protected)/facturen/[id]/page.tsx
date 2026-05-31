@@ -15,6 +15,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { cancelInvoice, markInvoicePaid, sendInvoice } from "../actions";
 import { PrintButton } from "@/components/ui/print-button";
+import { AanmaningSection } from "@/components/invoices/aanmaning-section";
+import { buildAanmaningData } from "@/lib/aanmaning";
 
 export const metadata: Metadata = { title: "Factuur · ZZP Platform" };
 
@@ -100,6 +102,21 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
     isFreelancerOwner &&
     (status === "DRAFT" || status === "SENT" || status === "OVERDUE");
   const canPay = !cascade && isClient && (status === "SENT" || status === "OVERDUE");
+
+  // Aanmaning sjabloon: toon wanneer factuur te laat is en actor de ZZP'er/uitschrijver is.
+  const isOverdue = invoice.lifecycleStatus === "OVERDUE" || (!cascade && status === "OVERDUE");
+  const showAanmaning = isOverdue && isFreelancerOwner;
+  const aanmaningData = showAanmaning
+    ? buildAanmaningData({
+        freelancerName: invoice.collaboration.freelancer.user.name ?? "",
+        companyName: invoice.collaboration.company.name,
+        invoiceNumber: invoice.partyInvoiceNumber ?? invoice.number ?? "—",
+        jobTitle: invoice.collaboration.job.title,
+        issuedAt: invoice.issuedAt,
+        dueAt: invoice.dueAt,
+        totalCents: invoice.totalCents,
+      })
+    : null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -368,6 +385,8 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           </CardContent>
         </Card>
       )}
+
+      {aanmaningData && <AanmaningSection data={aanmaningData} />}
     </div>
   );
 }
