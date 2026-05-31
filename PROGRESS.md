@@ -887,4 +887,33 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Tests: 505 → 520 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
   E2e overgeslagen (geen browser-channel in routine).
 
+### Post-overhaul increments — e-mail, CI, hardening — 2026-05-31
+
+Opgebouwde commits na merge `modest-babbage-08jYa` → `main`:
+
+- **SMTP + welkomstmail (onboarding-import):** `mail-sender.ts` SmtpMailSender (nodemailer,
+  lazy geladen), `welcome-email.ts` pure HTML-template; import-wizard biedt optionele
+  welkomstmail (best-effort, faalt de import niet); tests: welkomstmail (6) + SMTP-mock (2).
+- **E-mailmeldingen voor cascade-herinneringen:** `reminder-emails.ts` (6 pure templates:
+  credential verlopen/bijna-verlopen, betaaltermijn, concept-factuur, BTW-kwartaal) +
+  koppeling in alle vier remindertasks; tests: 16. E-mail-falen rolt de DB niet terug.
+- **Playwright e2e in CI:** `ci.yml` (e2e job, non-blocking, bundled Chromium);
+  `auto-build.yml` op OAuth + feature-branch-flow + Prettier-stap na agent.
+- **Repo-hardening:** CODEOWNERS, issue/PR-templates, CONTRIBUTING, SECURITY.md.
+- **Prettier + husky + lint-staged:** pre-commit-hook + `.git-blame-ignore-revs`.
+- Tests: 520 → 555 groen.
+
+### Freelancer-zoekpagina voor opdrachtgevers (/freelancers) — 2026-05-31
+
+- `src/lib/freelancer-search.ts`: pure filter (`applyFreelancerFilters`) + DB-query
+  (`getAllPublicFreelancers`); trust + beschikbaarheid server-side berekend.
+- `src/lib/freelancer-search.test.ts`: 15 unit-tests (naam/headline/locatie/skill/
+  trustLevel/availableOnly/AND-combinaties).
+- `/freelancers`: kaartoverzicht (grid 2/3 col), zoekbalk + trust-dropdown + beschikbaar-
+  checkbox, initialen-avatar, trust-badge, skills-tags, uurtarief, beschikbaarheidssamenvatting,
+  "Bekijk profiel" → /zzp/[id]. Loading skeleton aanwezig.
+- `nav.ts`: "ZZP'ers" nav-item voor CLIENT.
+- Tests: 555 → 570 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
+  Branch: `auto-build/freelancer-search-aca60d1` → PR naar main.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

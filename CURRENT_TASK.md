@@ -7,20 +7,15 @@
 
 - **Live:** test-URL `zzp-platform-production-be07.up.railway.app`. Demo-accounts (wachtwoord
   `demo1234`): `opdrachtgever@`, `zzp@` (Sanne), `admin@zzp-platform.local`.
-- **Deploy:** Railway bouwt/deployt branch **`claude/dazzling-carson-v9Qwk`** automatisch (Dockerfile).
-  `scripts/start.mjs` doet bij elke boot `prisma db push` + **seed (idempotent)** → de rijke demo-
-  inhoud staat er altijd (7 ZZP'ers met certificaten, 6 opdrachten + concept, reacties in alle
-  statussen, 2 samenwerkingen, 4 facturen incl. verlopen).
-- **24/7-bouw:** Routine **"ZZP auto-build"** in Claude Code on the web (claude.ai/code/routines),
-  elke ~2 uur. Orchestrator op **Opus**, builder-subagents op **Sonnet** (zie `.claude/agents/*`).
-  Maakt per run een **Linear-issue in team "ZZP Platform HUB"** (In Progress → Done met commit-hash).
-  **Let op:** routine-runs pushen naar hun eigen **`claude/epic-*`-branch** — die moet je naar
-  `claude/dazzling-carson-v9Qwk` **mergen** (na de poort) om live te gaan. `ANTHROPIC_API_KEY`-secret
-  staat in GitHub. (De GitHub-Actions-cron `auto-build.yml` bestaat ook, maar is onbewezen vanuit de
-  sessie — de Routine is de gekozen route.)
+- **Branch-model (gewijzigd):** `main` is nu **protected** (branch protection, CI-gate vereist).
+  Agents werken op feature branches (`auto-build/...`) en openen een PR naar main. De CI-workflow
+  `ci.yml` draait automatisch op elke push; pas als `check` groen is mag er gemerged worden.
+  Railway volgt de default branch (main) zodra de cutover is uitgevoerd.
+- **24/7-bouw:** GitHub Actions `auto-build.yml` (elke 15 min) start een Claude-sessie op een
+  feature branch, opent een PR. `CLAUDE_OAUTH_TOKEN`-secret staat in GitHub.
 - **Vóór échte productie (mensenwerk, zie MENSENWERK.md):** juridisch/AVG-review (blokkeert livegang
   met echte gevoelige documenten), betalingen (Stripe/Mollie), echte verificatie-API's (DUO/BIG/iDIN
-  — nu demo), e-mail, S3-documentopslag, eigen domein. Code is hierop voorbereid.
+  — nu demo), SMTP, S3-documentopslag, eigen domein. Code is hierop voorbereid.
 
 ---
 
@@ -111,11 +106,15 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
-1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
+1. **Freelancer-detailpagina vanuit /freelancers** — verbeter `/zzp/[id]` voor opdrachtgevers:
+   voeg een "Bericht sturen"-knop toe (reuses `startConversationWithFreelancer`), voeg
+   cascade-werkproces-link toe (bij actieve samenwerking). Nu toont het profiel al info;
+   de actie-laag voor opdrachtgevers ontbreekt nog.
+2. **Admin: gebruiker bewerken** — naast schorsen/activeren ook naam/e-mail wijzigen door ADMIN
+   (bijv. na typo bij import). Server-side: rol nooit aanpasbaar, audit verplicht.
+3. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
    routines, doe in een interactieve sessie mét browser-channel.
-2. Postgres-smoke van het migratiescript (optioneel, aanbevolen vóór cutover) — draai
-   `migrate-legacy-invoices.mjs` op een Postgres-kopie van de demo-DB.
-3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
+4. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
 > Reeds gedaan (niet opnieuw): print/PDF-factuurknop + A4-afdruk-styling, MailSender-abstractie,
