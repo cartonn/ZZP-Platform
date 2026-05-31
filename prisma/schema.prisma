@@ -27,6 +27,7 @@ model User {
   name         String
   role         String   @default("FREELANCER") // UserRole: FREELANCER | CLIENT | ADMIN
   status       String   @default("ACTIVE") //       UserStatus: ACTIVE | SUSPENDED | PENDING
+  mustChangePassword Boolean @default(false) //      true = geforceerde wachtwoordwijziging (bv. na bulk-import)
   emailVerified DateTime?
   deletionRequestedAt DateTime? //                   AVG: door gebruiker aangevraagde verwijdering
   identityVerifiedAt  DateTime? //                   iDIN/eIDAS-identiteitsverificatie
@@ -401,16 +402,88 @@ model Collaboration {
   status         String   @default("PROPOSED") // CollaborationStatus: PROPOSED | ACTIVE | COMPLETED | CANCELLED
   contractStatus String   @default("DRAFT") //    ContractStatus: DRAFT | SENT | SIGNED
   rate           Int?
+  ortProfile     String? // OrtSector: DEFAULT | VVT | GGZ | GHZ | JEUGD — bepaalt ORT-toeslagen (zorg)
+  ortCustomRates String? // JSON Record<OrtCategory, bps> — maatwerk per klant, overschrijft het sectorprofiel
   startDate      DateTime?
   endDate        DateTime?
+  disputedAt     DateTime? // dispuut open → cascade bevroren tot opgelost (§4 zijpad)
+  disputeReason  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  job         Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  application Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  freelancer  FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
-  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoices    Invoice[]
+  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  application  Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices     Invoice[]
+  performances Performance[]
+}
+
+// ---------------------------------------------------------------------------
+// Overhaul Fase 2 — administratie & cascade (PLATFORM_OVERHAUL.md §4 & §5).
+// Additief: de bestaande Invoice/Collaboration-flow blijft werken; de cutover volgt in Fase 3.
+// ---------------------------------------------------------------------------
+
+// Urenstaat (HOURS) of oplevering/milestone (MILESTONE) — de verplichte goedkeuringsstap
+// vóór facturatie (Besluit 3). Status volgt PERFORMANCE_STATES (src/lib/lifecycles.ts).
+model Performance {
+  id              String    @id @default(cuid())
+  collaborationId String
+  type            String    @default("HOURS") // PerformanceType: HOURS | MILESTONE
+  status          String    @default("DRAFT") // PerformanceState
+  periodStart     DateTime? //                    bij HOURS: begin van de periode
+  periodEnd       DateTime? //                    bij HOURS: einde van de periode
+  hours           Float? //                        gewerkte uren (mag kwartieren), bij HOURS
+  rateCents       Int? //                          snapshot uurtarief in centen, bij HOURS
+  ortSegments     String? //                        JSON-string: ORT-segmenten [{category,hours}] (zorg)
+  milestoneTitle  String? //                       bij MILESTONE
+  amountCents     Int? //                          milestonebedrag in centen, bij MILESTONE
+  description     String    @default("")
+  rejectionReason String? //                       verplicht bij afkeuren (server-side)
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  correlationId   String? //                        bindt de cascade aaneen
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  invoice       Invoice? //                          de afgeleide concept-factuur (na goedkeuring)
+
+  @@index([collaborationId])
+  @@index([status])
+}
+
+// Doorlopende factuurnummer-reeks PER UITSCHRIJVENDE PARTIJ (geen platform-brede nummering).
+// issuerKey = userId van de ZZP'er, of "PLATFORM" voor de fee-reeks.
+model InvoiceSequence {
+  issuerKey String
+  year      Int
+  lastSeq   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@id([issuerKey, year])
+}
+
+// Persistente boekingsregel (dubbel boekhouden) — de neerslag van de administratiemotor.
+// Herleidbaar naar event -> factuur -> prestatie -> contract -> opdracht (§5).
+model AdministrationEntry {
+  id            String   @id @default(cuid())
+  party         String //   LedgerParty: FREELANCER | CLIENT | PLATFORM
+  ownerUserId   String? //  wiens administratie dit is (per-partij views)
+  account       String //   LedgerAccount (src/lib/administration/ledger.ts)
+  debitCents    Int      @default(0)
+  creditCents   Int      @default(0)
+  invoiceId     String?
+  performanceId String?
+  correlationId String?
+  eventId       String? //  herleidbaar naar het DomainEvent
+  occurredAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([ownerUserId])
+  @@index([invoiceId])
+  @@index([correlationId])
 }
 
 model Invoice {
@@ -424,8 +497,27 @@ model Invoice {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // --- Overhaul-cascade (Fase 2, additief) ---------------------------------
+  // De live flow gebruikt status/number/totalCents hierboven; deze velden voeden de nieuwe
+  // event-driven facturatie. Reconciliatie/cutover gebeurt in Fase 3.
+  lifecycleStatus    String? //   InvoiceLifecycleState (concept->ingediend->goedgekeurd->betaald->verwerkt)
+  performanceId      String?  @unique //  afgeleid uit deze goedgekeurde prestatie
+  issuerUserId       String? //  uitschrijver (ZZP'er); null = platform-fee
+  counterpartyUserId String? //  opdrachtgever
+  issuerKey          String? //  reekssleutel: userId of "PLATFORM"
+  partyInvoiceNumber String? //  nummer binnen de partij-reeks (uniek per issuerKey)
+  subtotalCents      Int? //     bedrag excl. BTW
+  vatCents           Int? //     BTW-bedrag
+  vatRegime          String? //  VatRegime (config.ts)
+  correlationId      String?
+
   collaboration Collaboration? @relation(fields: [collaborationId], references: [id], onDelete: SetNull)
   lines         InvoiceLine[]
+  performance   Performance?   @relation(fields: [performanceId], references: [id], onDelete: SetNull)
+
+  @@unique([issuerKey, partyInvoiceNumber])
+  @@index([lifecycleStatus])
+  @@index([correlationId])
 }
 
 model InvoiceLine {
@@ -496,4 +588,54 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([action])
+}
+
+// ---------------------------------------------------------------------------
+// Event-laag (ARCHITECTURE.md §2.1) — append-only event store + idempotentie.
+// Naast AuditLog (mens-leesbaar gevolg) is dit de machine-trigger voor de cascade.
+// ---------------------------------------------------------------------------
+
+model DomainEvent {
+  id            String   @id @default(cuid())
+  type          String //   DomainEventType (src/lib/events.ts)
+  actorRole     String //   ActorRole: FREELANCER | CLIENT | ADMIN | SYSTEM
+  actorId       String? //  null = systeemactie
+  subjectType   String //   bv. "Contract", "Invoice", "Performance"
+  subjectId     String
+  payload       String   @default("{}") // JSON-string (geen Json scalar — portabiliteit)
+  correlationId String? //  bindt een hele cascade aaneen
+  dedupeKey     String?  @unique // publicatie-idempotentie; meerdere NULLs toegestaan
+  occurredAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  handlerRuns EventHandlerRun[]
+
+  @@index([type])
+  @@index([subjectType, subjectId])
+  @@index([correlationId])
+}
+
+// Idempotentie-marker: een handler draait per event hooguit één keer.
+model EventHandlerRun {
+  eventId   String
+  handler   String
+  createdAt DateTime @default(now())
+
+  event DomainEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, handler])
+}
+
+// ---------------------------------------------------------------------------
+// Platform-configuratie (singleton, id = "singleton")
+// DBA-drempelwaarden configureerbaar via /admin/configuratie.
+// ---------------------------------------------------------------------------
+
+model PlatformConfig {
+  id                         String   @id @default("singleton")
+  dbaMinDurationMonths       Int      @default(6)
+  dbaStrongDurationMonths    Int      @default(12)
+  dbaRevenueConcentrationPct Int      @default(80)
+  updatedAt                  DateTime @updatedAt
+  updatedBy                  String?
 }

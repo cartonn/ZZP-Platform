@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart,
   Briefcase,
   Building2,
   CalendarDays,
+  Clock,
   CreditCard,
   FileCheck2,
   Files,
@@ -13,6 +15,7 @@ import {
   LayoutDashboard,
   MessagesSquare,
   Receipt,
+  Settings,
   ShieldCheck,
   User,
   Users,
@@ -36,6 +39,9 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   handshake: Handshake,
   creditCard: CreditCard,
   calendar: CalendarDays,
+  clock: Clock,
+  barChart: BarChart,
+  settings: Settings,
 };
 
 export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBadges }) {

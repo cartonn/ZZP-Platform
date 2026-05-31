@@ -1,0 +1,41 @@
+name: Actions smoke (diagnostiek)
+
+# Bewijst — ZONDER enige secret — of GitHub Actions op deze repo/branch draait.
+# Schrijft een regel naar .github/actions-smoke.log en pusht via de standaard GITHUB_TOKEN.
+# Als deze commit verschijnt: Actions staat AAN; dan zit het probleem in de Anthropic-stap/secret
+# van auto-build. Verschijnt hij NIET: Actions is uit of niet ge-provisioned (repo-instelling).
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["claude/modest-babbage-08jYa"]
+    paths: [".github/smoke-trigger"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: actions-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/modest-babbage-08jYa
+          fetch-depth: 0
+      - name: Bewijs dat Actions draait + rapporteer secret-aanwezigheid (geen waarden)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BUILD_PAT: ${{ secrets.BUILD_PAT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$ANTHROPIC_API_KEY" ]; then A=ja; else A=NEE; fi
+          if [ -n "$BUILD_PAT" ]; then P=ja; else P=NEE; fi
+          echo "actions-ran $(date -u +%FT%TZ) anthropic_key=$A build_pat=$P sha=${GITHUB_SHA}" >> .github/actions-smoke.log
+          git add .github/actions-smoke.log
+          git commit -m "ci(smoke): Actions draait; secrets anthropic=$A pat=$P"
+          git push origin HEAD:claude/modest-babbage-08jYa

@@ -308,6 +308,7 @@ async function main() {
   ];
 
   const pid: Record<string, string> = {};
+  const uid: Record<string, string> = {};
   for (const f of freelancers) {
     const idFields = f.identityVerified
       ? { identityVerifiedAt: daysFromNow(-40), verifiedLegalName: f.name }
@@ -341,6 +342,7 @@ async function main() {
     });
     const profileId = user.freelancerProfile!.id;
     pid[f.key] = profileId;
+    uid[f.key] = user.id;
     for (const slug of f.skills) {
       await prisma.freelancerSkill.upsert({
         where: {
@@ -766,6 +768,135 @@ async function main() {
     });
   }
 
+  // --- Cascade-demo (event-driven werkproces, Fase 3) ---
+  // Voorgestelde samenwerking zodat "Contract ondertekenen" demonstreerbaar is.
+  await prisma.application.upsert({
+    where: { id: "app-9" },
+    update: {},
+    create: {
+      id: "app-9",
+      jobId: "job-1",
+      freelancerId: pid.youssef!,
+      status: "ACCEPTED",
+      motivation: "Beschikbaar voor het zorgplatform; sterk in geteste, toegankelijke code.",
+      proposedRate: 90,
+      availability: "In overleg",
+      matchScore: 88,
+    },
+  });
+  await prisma.collaboration.upsert({
+    where: { id: "collab-3" },
+    update: {},
+    create: {
+      id: "collab-3",
+      jobId: "job-1",
+      applicationId: "app-9",
+      freelancerId: pid.youssef!,
+      companyId,
+      status: "PROPOSED",
+      contractStatus: "DRAFT",
+      rate: 90,
+      startDate: daysFromNow(5),
+    },
+  });
+
+  // Op de lopende samenwerking (collab-1: Sanne ↔ Jansen): een ingediende urenstaat (wacht op
+  // goedkeuring door de opdrachtgever) en een goedgekeurde urenstaat met een concept-factuur
+  // (wacht op indienen door de ZZP'er). Bedragen in centen; uurtarief €105 = 10500.
+  await prisma.performance.upsert({
+    where: { id: "perf-1" },
+    update: {},
+    create: {
+      id: "perf-1",
+      collaborationId: "collab-1",
+      type: "HOURS",
+      status: "SUBMITTED",
+      hours: 16,
+      rateCents: 10500,
+      description: "Sprint 3 — week 1 en 2",
+      submittedAt: daysFromNow(-2),
+      correlationId: "collab-1",
+    },
+  });
+  await prisma.performance.upsert({
+    where: { id: "perf-2" },
+    update: {},
+    create: {
+      id: "perf-2",
+      collaborationId: "collab-1",
+      type: "HOURS",
+      status: "APPROVED",
+      hours: 8,
+      rateCents: 10500,
+      description: "Sprint 2 — extra werkdag",
+      submittedAt: daysFromNow(-6),
+      approvedAt: daysFromNow(-5),
+      correlationId: "collab-1",
+    },
+  });
+  await prisma.invoice.upsert({
+    where: { id: "inv-c1" },
+    update: {},
+    create: {
+      id: "inv-c1",
+      collaborationId: "collab-1",
+      number: "CONCEPT-perf-2",
+      status: "DRAFT",
+      totalCents: 101640,
+      lifecycleStatus: "DRAFT",
+      performanceId: "perf-2",
+      issuerUserId: uid.sanne!,
+      counterpartyUserId: client.id,
+      issuerKey: uid.sanne!,
+      subtotalCents: 84000,
+      vatCents: 17640,
+      vatRegime: "STANDARD_HIGH",
+      correlationId: "collab-1",
+    },
+  });
+
+  // ORT-demo (zorg): Fatima (verpleegkundige BIG) op somatische afdeling. Toont de
+  // ORT-uitsplitsing (regulier + nacht) in het werkproces. Wacht op goedkeuring opdrachtgever.
+  // Berekening: 4h normaal × €52 = €208; 4h nacht × €52 + 49% toeslag = €309,92; subtotaal €517,92.
+  // app-6 (Fatima op job-4) naar ACCEPTED zodat de samenwerking aangemaakt kan worden.
+  await prisma.application.update({ where: { id: "app-6" }, data: { status: "ACCEPTED" } });
+  await prisma.collaboration.upsert({
+    where: { id: "collab-4" },
+    update: {},
+    create: {
+      id: "collab-4",
+      jobId: "job-4",
+      applicationId: "app-6",
+      freelancerId: pid.fatima!,
+      companyId,
+      status: "ACTIVE",
+      contractStatus: "SIGNED",
+      rate: 52,
+      startDate: daysFromNow(-21),
+    },
+  });
+  // ORT-urenstaat: 4h regulier + 4h nacht (week 3). rateCents = 52 × 100 = 5200.
+  // NORMAL 4h: 4×5200 = 20800; NIGHT 4h: 4×5200 + 49% = 30992; subtotaal = 51792 (€517,92).
+  await prisma.performance.upsert({
+    where: { id: "perf-3" },
+    update: {},
+    create: {
+      id: "perf-3",
+      collaborationId: "collab-4",
+      type: "HOURS",
+      status: "SUBMITTED",
+      hours: 8,
+      rateCents: 5200,
+      ortSegments: JSON.stringify([
+        { category: "NORMAL", hours: 4 },
+        { category: "NIGHT", hours: 4 },
+      ]),
+      description: "Week 3 — avond/nachtdiensten somatische afdeling",
+      submittedAt: daysFromNow(-1),
+      correlationId: "collab-4",
+    },
+  });
+
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");
   console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
@@ -773,8 +904,9 @@ async function main() {
   console.log(
     "Demo-inhoud: 7 ZZP'ers met certificaten/diploma's, 6 gepubliceerde opdrachten + 1 concept,",
   );
+  console.log("9 reacties (alle statussen), 3 actieve samenwerkingen incl. ORT-zorg, 4 facturen.");
   console.log(
-    "8 reacties (alle statussen), 2 actieve samenwerkingen, 4 facturen (betaald/verzonden/verlopen).",
+    "ORT-demo: collab-4 (Fatima, verpleegkunde) — ORT-urenstaat ingediend, wacht op goedkeuring.",
   );
 }
 

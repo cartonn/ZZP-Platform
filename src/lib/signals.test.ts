@@ -37,6 +37,36 @@ describe("buildBadges", () => {
       "/facturen": { count: 1, tone: "attention" },
     });
   });
+
+  it("mapt cascade-werkproces-acties naar /samenwerkingen met attention-toon", () => {
+    expect(buildBadges({ cascadeWork: 3 })).toEqual({
+      "/samenwerkingen": { count: 3, tone: "attention" },
+    });
+  });
+
+  it("mapt open disputen naar /admin/disputen met attention-toon", () => {
+    expect(buildBadges({ openDisputes: 2 })).toEqual({
+      "/admin/disputen": { count: 2, tone: "attention" },
+    });
+  });
+
+  it("combineert cascade-acties en verlopen facturen op aparte hrefs", () => {
+    const badges = buildBadges({ cascadeWork: 2, overdueInvoices: 1 });
+    expect(badges["/samenwerkingen"]).toEqual({ count: 2, tone: "attention" });
+    expect(badges["/facturen"]).toEqual({ count: 1, tone: "attention" });
+  });
+
+  it("mapt openstaande prestaties naar /prestaties met attention-toon", () => {
+    expect(buildBadges({ pendingPerformances: 4 })).toEqual({
+      "/prestaties": { count: 4, tone: "attention" },
+    });
+  });
+
+  it("toont prestaties-badge naast cascade-badge als beide niet-nul zijn", () => {
+    const badges = buildBadges({ pendingPerformances: 2, cascadeWork: 3 });
+    expect(badges["/prestaties"]).toEqual({ count: 2, tone: "attention" });
+    expect(badges["/samenwerkingen"]).toEqual({ count: 3, tone: "attention" });
+  });
 });
 
 describe("countUnreadConversations", () => {

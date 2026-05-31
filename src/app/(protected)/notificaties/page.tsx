@@ -1,15 +1,46 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Bell } from "lucide-react";
+import {
+  Bell,
+  Handshake,
+  Receipt,
+  Banknote,
+  ShieldAlert,
+  AlertTriangle,
+  FileCheck,
+  Workflow,
+} from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import {
+  notificationMeta,
+  type NotificationCategory,
+  type NotificationTone,
+} from "@/lib/notifications";
 import { markAllNotificationsRead, markNotificationRead } from "./actions";
 
 export const metadata: Metadata = { title: "Notificaties · ZZP Platform" };
+
+const CATEGORY_ICON: Record<NotificationCategory, typeof Bell> = {
+  workflow: Workflow,
+  invoice: Receipt,
+  payment: Banknote,
+  dba: ShieldAlert,
+  dispute: AlertTriangle,
+  credential: FileCheck,
+  collaboration: Handshake,
+  system: Bell,
+};
+
+const TONE_CLASS: Record<NotificationTone, string> = {
+  attention: "text-warning",
+  info: "text-muted-foreground",
+  success: "text-success",
+};
 
 function relativeTime(d: Date): string {
   const diff = Date.now() - d.getTime();
@@ -33,6 +64,8 @@ function isSameDay(a: Date, b: Date): boolean {
 
 function NotificationRow({ n }: { n: NotificationItem }) {
   const unread = !n.readAt;
+  const meta = notificationMeta(n.type);
+  const Icon = CATEGORY_ICON[meta.category];
   const inner = (
     <>
       <div className="flex items-start gap-3">
@@ -43,6 +76,7 @@ function NotificationRow({ n }: { n: NotificationItem }) {
           )}
           aria-hidden
         />
+        <Icon className={cn("mt-0.5 size-4 shrink-0", TONE_CLASS[meta.tone])} aria-hidden />
         <div className="min-w-0 flex-1">
           <p className={cn("text-sm", unread ? "font-medium" : "")}>{n.title}</p>
           {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}

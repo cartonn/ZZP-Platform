@@ -5,12 +5,28 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
+import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = { title: "Facturen · ZZP Platform" };
+
+const CASCADE_LABEL: Record<
+  InvoiceLifecycleState,
+  { label: string; variant: "muted" | "warning" | "success" | "danger" }
+> = {
+  DRAFT: { label: "Concept", variant: "muted" },
+  SUBMITTED: { label: "Ingediend", variant: "warning" },
+  APPROVED: { label: "Goedgekeurd", variant: "success" },
+  PAID: { label: "Betaald", variant: "success" },
+  PROCESSED: { label: "Verwerkt", variant: "muted" },
+  REJECTED: { label: "Afgekeurd", variant: "danger" },
+  OVERDUE: { label: "Te laat", variant: "danger" },
+  CREDITED: { label: "Gecrediteerd", variant: "danger" },
+};
 
 export default async function FacturenPage() {
   const actor = await requireActor();
@@ -92,29 +108,47 @@ export default async function FacturenPage() {
         </Card>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {invoices.map((inv) => (
-            <Link
-              key={inv.id}
-              href={`/facturen/${inv.id}`}
-              className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium tabular-nums">{inv.number}</p>
-                  <InvoiceStatusBadge status={inv.status as InvoiceStatus} dueAt={inv.dueAt} />
+          {invoices.map((inv) => {
+            const cascade = inv.lifecycleStatus != null;
+            const href =
+              cascade && inv.collaborationId
+                ? `/samenwerkingen/${inv.collaborationId}`
+                : `/facturen/${inv.id}`;
+            const cascadeMeta = cascade
+              ? CASCADE_LABEL[inv.lifecycleStatus as InvoiceLifecycleState]
+              : null;
+            const displayNumber = cascade
+              ? (inv.partyInvoiceNumber ?? "Concept-factuur")
+              : inv.number;
+            return (
+              <Link
+                key={inv.id}
+                href={href}
+                className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium tabular-nums">{displayNumber}</p>
+                    {cascadeMeta ? (
+                      <Badge variant={cascadeMeta.variant}>{cascadeMeta.label}</Badge>
+                    ) : (
+                      <InvoiceStatusBadge status={inv.status as InvoiceStatus} dueAt={inv.dueAt} />
+                    )}
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {isFreelancer
+                      ? inv.collaboration?.company.name
+                      : inv.collaboration?.freelancer.user.name}
+                    {inv.collaboration?.job.title ? ` · ${inv.collaboration.job.title}` : ""}
+                    {cascade ? " · via werkproces" : ""}
+                  </p>
                 </div>
-                <p className="truncate text-xs text-muted-foreground">
-                  {isFreelancer
-                    ? inv.collaboration?.company.name
-                    : inv.collaboration?.freelancer.user.name}
-                  {inv.collaboration?.job.title ? ` · ${inv.collaboration.job.title}` : ""}
-                </p>
-              </div>
-              <span className="shrink-0 text-sm font-semibold tabular-nums">
-                {formatEuro(inv.totalCents)}
-              </span>
-            </Link>
-          ))}
+                <span className="shrink-0 text-sm font-semibold tabular-nums">
+                  {formatEuro(inv.totalCents)}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

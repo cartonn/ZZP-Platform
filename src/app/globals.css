@@ -25,6 +25,34 @@
   --radius: 0.5rem;
 }
 
+/* Donker thema — gebruikerskeuze (toggle), niet geforceerd. Zelfde semantische tokens met
+   donkere waarden; status-tinten iets lichter zodat ze leesbaar blijven op donker. */
+.dark {
+  --background: 240 10% 6%;
+  --foreground: 0 0% 96%;
+  --muted: 240 5% 14%;
+  --muted-foreground: 240 5% 64%;
+  --card: 240 8% 9%;
+  --card-foreground: 0 0% 96%;
+  --border: 240 5% 18%;
+  --input: 240 5% 20%;
+  --ring: 240 5% 50%;
+  --primary: 0 0% 96%;
+  --primary-foreground: 240 8% 9%;
+  --accent: 240 5% 16%;
+  --accent-foreground: 0 0% 96%;
+  --success: 142 60% 50%;
+  --warning: 35 92% 58%;
+  --danger: 0 72% 62%;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
 * {
   border-color: hsl(var(--border));
 }
@@ -57,5 +85,85 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Print / PDF (Afdrukken-knop op factuurdetail). Verberg navigatie en actiebalk;
+   toon alleen de factuurinhoud schoon op papier. */
+@media print {
+  /* Paginagrootte en marges: A4, 2 cm rondom. */
+  @page {
+    size: A4 portrait;
+    margin: 2cm;
+  }
+
+  /* Altijd lichte achtergrond en donkere tekst, ook bij donker thema. */
+  *,
+  *::before,
+  *::after {
+    color: #111 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Verberg navigatie-elementen en knoppen die niet op papier thuishoren. */
+  aside,
+  header,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Zet het grid om naar een enkelvoudige kolom zodat de inhoud vol breedte is. */
+  body > *,
+  .grid {
+    display: block !important;
+  }
+
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Max-breedte van de factuurcontainer opheffen. */
+  .max-w-2xl {
+    max-width: 100% !important;
+  }
+
+  /* Kaarten: kader zichtbaar maar subtiel. */
+  .card {
+    border: 1px solid #d1d5db !important;
+    border-radius: 4px !important;
+    page-break-inside: avoid;
+  }
+
+  /* Tabellen: leesbare borders op cellen. */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th,
+  td {
+    border-bottom: 1px solid #e5e7eb !important;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Dempe subtekst iets maar zorg dat het leesbaar blijft. */
+  .text-muted-foreground {
+    color: #6b7280 !important;
+  }
+
+  /* Badges: platte rand in plaats van gekleurde achtergrond. */
+  .badge,
+  [class*="badge"] {
+    border: 1px solid #d1d5db !important;
+    background: #fff !important;
+    color: #111 !important;
   }
 }

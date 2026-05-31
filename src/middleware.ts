@@ -39,6 +39,17 @@ export default auth((request) => {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Geforceerde wachtwoordwijziging (bv. na bulk-import): blokkeer alle routes behalve de
+  // wijzigpagina en uitloggen, tot de gebruiker zijn eigen wachtwoord heeft ingesteld.
+  const changePath = "/account/wachtwoord";
+  if (
+    request.auth.user.mustChangePassword &&
+    pathname !== changePath &&
+    !pathname.startsWith("/api/auth")
+  ) {
+    return NextResponse.redirect(new URL(changePath, origin));
+  }
+
   // Defense-in-depth: /admin alleen voor ADMIN (pagina's + actions checken ook).
   if (pathname.startsWith("/admin") && request.auth.user.role !== "ADMIN") {
     return NextResponse.redirect(new URL("/dashboard", origin));

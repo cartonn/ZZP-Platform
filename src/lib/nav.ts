@@ -13,7 +13,10 @@ export type NavIcon =
   | "building"
   | "handshake"
   | "creditCard"
-  | "calendar";
+  | "calendar"
+  | "clock"
+  | "barChart"
+  | "settings";
 
 export interface NavItem {
   label: string;
@@ -30,6 +33,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
     { label: "Mijn profiel", href: "/profiel", icon: "user", enabled: true },
     { label: "Beschikbaarheid", href: "/beschikbaarheid", icon: "calendar", enabled: true },
+    { label: "Diensten", href: "/diensten", icon: "clock", enabled: true },
     { label: "Opdrachten", href: "/opdrachten", icon: "briefcase", enabled: true },
     { label: "Mijn reacties", href: "/reacties", icon: "files", enabled: true },
     { label: "Documenten", href: "/documenten", icon: "files", enabled: true },
@@ -37,6 +41,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", enabled: true },
     { label: "Berichten", href: "/berichten", icon: "messages", enabled: true },
     { label: "Facturen", href: "/facturen", icon: "receipt", enabled: true },
+    { label: "Administratie", href: "/administratie", icon: "receipt", enabled: true },
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", enabled: true },
   ],
   CLIENT: [
@@ -45,16 +50,24 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Mijn opdrachten", href: "/opdrachten", icon: "briefcase", enabled: true },
     { label: "Kandidaten", href: "/kandidaten", icon: "users", enabled: true },
     { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", enabled: true },
+    { label: "Prestaties", href: "/prestaties", icon: "fileCheck", enabled: true },
     { label: "Berichten", href: "/berichten", icon: "messages", enabled: true },
     { label: "Facturen", href: "/facturen", icon: "receipt", enabled: true },
+    { label: "Administratie", href: "/administratie", icon: "receipt", enabled: true },
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", enabled: true },
   ],
   ADMIN: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
     { label: "Verificaties", href: "/admin/verificaties", icon: "fileCheck", enabled: true },
+    { label: "Samenwerkingen", href: "/admin/samenwerkingen", icon: "handshake", enabled: true },
+    { label: "Disputen", href: "/admin/disputen", icon: "handshake", enabled: true },
+    { label: "Administratie", href: "/admin/administratie", icon: "barChart", enabled: true },
     { label: "Gebruikers", href: "/admin/gebruikers", icon: "users", enabled: true },
+    { label: "Importeren", href: "/admin/import", icon: "users", enabled: true },
     { label: "Opdrachten", href: "/admin/opdrachten", icon: "briefcase", enabled: true },
+    { label: "Statistieken", href: "/admin/statistieken", icon: "barChart", enabled: true },
     { label: "Audit log", href: "/admin/audit", icon: "shield", enabled: true },
+    { label: "Configuratie", href: "/admin/configuratie", icon: "settings", enabled: true },
   ],
 };
 

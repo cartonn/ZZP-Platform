@@ -1,4 +1,5 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import { Download } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -79,6 +80,25 @@ export default async function AccountPage() {
               <IdentityForm />
             </>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-medium">Wachtwoord</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Wijzig het wachtwoord van je account.
+              </p>
+            </div>
+            <Link
+              href="/account/wachtwoord"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent"
+            >
+              Wachtwoord wijzigen
+            </Link>
+          </div>
         </CardContent>
       </Card>
 
