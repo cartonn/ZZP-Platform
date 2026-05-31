@@ -887,4 +887,23 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Tests: 505 → 520 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
   E2e overgeslagen (geen browser-channel in routine).
 
+### Administratie — Openstaande posten (debiteuren-/crediteurenbeheer met aging) — 2026-05-31
+
+- Orchestrator (Opus) + 2 Sonnet-builders op niet-overlappende bestanden (pure core vs. UI/route/nav).
+- **Pure read-model** `src/lib/administration/aging.ts` (+ 28 tests): `daysOverdue`,
+  `agingBucketKey`, `buildAgingReport`, `agingCsv`. Vijf buckets op dagen na vervaldatum
+  (nog niet vervallen / 1–30 / 31–60 / 61–90 / 90+); totalen per bucket, totaal openstaand,
+  totaal/aantal te laat; rijen gesorteerd meest-te-laat-eerst. Integer-centen, hergebruikt
+  `toCsv`/`centsToEuroPlain`.
+- **Pagina** `/openstaand` + `loading.tsx`: bucket-samenvatting, kaarten (totaal openstaand /
+  waarvan te laat), per-factuur-rijen met dagen-te-laat-chip, link naar werkproces (cascade) of
+  factuur (legacy). Rol-afhankelijk (ZZP'er = te ontvangen/debiteuren; opdrachtgever = te
+  betalen/crediteuren; beheerder = lege staat). Empty-states aanwezig.
+- **CSV-export** `GET /api/administratie/openstaand`: uitsluitend eigen posten, auditregel
+  `OPEN_ITEMS_EXPORTED`. Nav-item "Openstaand" voor ZZP'er en opdrachtgever.
+- Openstaand = cascade SUBMITTED/APPROVED/OVERDUE + legacy SENT/OVERDUE. Server-side waarheid.
+- Gate groen: typecheck ✓ lint ✓ test (583) ✓ build ✓ prettier ✓. E2e overgeslagen (geen
+  browser-channel in de routine). Bij setup ontbrak `nodemailer` in `node_modules` → `npm install`
+  gedraaid (lockfile ongewijzigd). Linear: ZZP2-30 (Done), commit `3dafdba`.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
