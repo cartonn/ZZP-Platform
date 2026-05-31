@@ -32,9 +32,19 @@ volgens de Definition of Done (zie CLAUDE.md → AUTO-MODE), commit + push, pak 
 Altijd `git fetch`/rebase vóór commit én push (meerdere agents pushen naar dezelfde branch).
 
 ### Backlog (bovenste eerst — houd deze lijst levend)
-1. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
+1. Semantisch matchen met pgvector — **GEBLOKKEERD in de headless routine-omgeving**:
+   vereist productie-Postgres mét `vector`-extensie (lokaal/CI draait op SQLite, dus de
+   groene poort dekt het niet) én semantische embeddings uit een extern model (botst met
+   "deterministisch, server-side waarheid" + geen-"AI"). Oppakken zodra een mens prod-Postgres
+   + embedding-bron heeft gekozen; tot dan onderaan de prioriteit.
+2. JWT-staleness bij schorsing/rol-wijziging: status uit DB herlezen in `currentActor`
+   (of korte token-TTL) zodat een net-geschorste gebruiker direct geen toegang houdt.
+3. Durable rate-limit-store (Redis/Upstash) achter de bestaande `RateLimitStore`-interface
+   voor multi-instance; daarna ook rate-limiting op zware mutaties (uploads/verificatie).
+4. AVG: verwerkingsregister + bewaartermijnen documenteren/afdwingen (deels mensenwerk).
 
-Gereed: bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
+Gereed: rate-limiting op login + registratie (brute-force-bescherming, deterministische
+fixed-window-limiter met pluggbare store) · bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
 nieuwe-reactie-notificatie · uitlegbare matching (match-reasons) · next-action-engine
 (dashboard draait erop) · beschikbaarheid in matching (score onveranderd, reden + badges) ·
 design-polish-pass (gedeelde EmptyState + Skeleton, route-skeletten, reduced-motion) ·

@@ -565,4 +565,25 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Notificaties verschijnen automatisch in het bestaande notificatiecentrum + bel; signals.ts
   badget bijna-verlopen al. Geen "AI" in teksten/comments/docs.
 
+### Increment: Rate-limiting op auth (brute-force-bescherming) — 2026-05-31
+- Orchestrator (Opus) + 1 Sonnet-builder (geïsoleerde kern); orchestrator deed integratie + poort.
+  Linear: ZZP2-29 (team ZZP Platform HUB), In Progress → Done met commit-hash.
+- **Keuze:** bovenste backlog-item (pgvector semantisch matchen) is in deze headless routine-
+  omgeving geblokkeerd — vereist prod-Postgres mét `vector`-extensie (lokaal/CI = SQLite, poort
+  dekt het niet) én externe embeddings (botst met determinisme + geen-"AI"). In plaats daarvan het
+  door de handover gesanctioneerde, headless-testbare security-item opgepakt.
+- **Kern** `src/lib/rate-limit.ts` (+ 11 unit-tests, geïnjecteerde klok): deterministische
+  fixed-window-limiter met pluggbare `RateLimitStore`-interface, dezelfde driver-aanpak als
+  storage/verifiers. `MemoryRateLimitStore` (per-proces, sweep bij drempel) als default; later
+  vervangbaar door een durable store (Redis/Upstash) achter dezelfde interface. `RateLimiter`-
+  wrapper + geconfigureerde singletons (`loginRateLimiter` 5/15min, `registerRateLimiter` 5/uur).
+- **Login** (`src/auth.ts`): begrenst pogingen per IP + genormaliseerde e-mail; bij overschrijding
+  poging weigeren + `AUTH_RATE_LIMITED`-audit (IP/UA), géén enumeratie-lek. Reset de teller bij
+  geslaagde login zodat legitieme gebruikers niet onnodig worden geblokkeerd.
+- **Registratie** (`src/app/register/actions.ts`): begrenst nieuwe accounts per IP +
+  `REGISTER_RATE_LIMITED`-audit; neutrale foutmelding.
+- Geen nieuwe env-vars (config als constanten → geen `check:env`-impact). Geen "AI" in code/teksten.
+- Checks: typecheck ✓, lint ✓, **213 unit-tests** ✓ (+11), build ✓ (33 routes). E2e overgeslagen
+  (geen browser-channel in deze routine-omgeving; net als CI). Commit `ec189e3`.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
