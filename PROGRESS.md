@@ -4,7 +4,6 @@
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
 ## Legenda
-
 - [x] af en getest
 - [~] deels af / in uitvoering
 - [ ] nog niet begonnen
@@ -29,161 +28,10 @@
 
 ## Logboek
 
-### Platform Overhaul — Fase 0 + 1 — 2026-05-29
-
-Start van de event-driven overhaul (`prompts/PLATFORM_OVERHAUL.md`). Branch deze sessie:
-`claude/modest-babbage-08jYa`.
-
-- **Fase 0 (docs):** `ARCHITECTURE.md` (huidig + event-driven doel), `DECISIONS.md` (besluiten 0A
-  hard + 0B open + sessie-besluiten), `WORKFLOW_MAP.md` (event→effect-tabel, Events A–F + zijpaden),
-  `DESIGN.md` (UX-principes + open dark-first-keuze), gap-analyse + fasevoortgang in `CURRENT_TASK.md`.
-- **Fase 1 (event-laag, getest):** `state-machine.ts` (generieke `defineStateMachine`),
-  `lifecycles.ts` (WorkOrder/Contract/Performance/InvoiceLifecycle/Payment), `events.ts`
-  (`DomainEventType` + `EventStore` + `InMemoryEventStore`), `event-bus.ts` (`EventBus`, idempotente
-  `publish` met handler-claim + self-healing replay), `event-store.ts` (`PrismaEventStore` + singleton).
-  Schema: `DomainEvent` (append-only, unieke `dedupeKey`) + `EventHandlerRun`. Tests: 28 nieuw
-  (state-machine 7 / lifecycles 14 / event-bus 7). Gate groen: typecheck, lint, test (230), build.
-  Idempotentie aangetoond: dubbele publish = één event, handler draait één keer.
-
-### Platform Overhaul — Fase 2 (administratie, additief) — 2026-05-29
-
-Richting met eigenaar afgestemd: **additief naast elkaar** (live Invoice-flow blijft werken,
-cutover in Fase 3). Pure administratiemotor, volledig getest zonder DB.
-
-- `config.ts` (BTW-regimes/tarieven in bps, platformfee default UIT, reminder-tijden, DBA-drempels
-  - disclaimer, betaalbevestiging) · `administration/vat.ts` (BTW integer-centen) ·
-    `administration/numbering.ts` (nummering per uitschrijvende partij, gatenvrij) ·
-    `administration/ledger.ts` (dubbel-boekhoud-postings per event C/D/E + creditfactuur, saldo's,
-    BTW-positie, sluitcontrole) · `administration/persist.ts` (prisma-schrijvers + transactionele
-    nummer-toewijzing).
-- Schema additief: `Performance`, `InvoiceSequence`, `AdministrationEntry`; `Invoice` uitgebreid met
-  nullable cascade/BTW/partij-velden + unique(issuerKey, partyInvoiceNumber).
-- Tests: 24 nieuw (vat 8 / numbering 7 / ledger 9). Gate groen: typecheck, lint, test (254), build.
-  Proeftransactie A–E: debiteuren/crediteuren afgeboekt, BTW correct, geen platform-boeking (Besluit 1).
-- Volgende: Fase 3 (cascade-handlers op de event-bus) — stop-and-confirm bij cutover live Invoice-UI.
-
-### Platform Overhaul — Fase 3 (hoofdcascade, logica) — 2026-05-29
-
-Cascade A→E als pure planners + transactionele applier, volledig getest zonder DB.
-
-- `cascade/types.ts` (CascadeEffects) · `cascade/handlers.ts` (A/B1/B2/B2′/C/D/D′/E, Event F achter
-  flag) · `cascade/apply.ts` (atomaire applier: status + postings + notificaties + audit + nieuwe
-  concept-factuur).
-- Tests: 16 nieuw (handlers 14 / integratie 2). Integratie dekt hele pad A→E (uurtarief + milestone);
-  beide administraties sluiten; geen platform-boeking (Besluit 1). Gate groen: typecheck, lint,
-  test (270), build.
-- Nog te doen (stop-and-confirm): command-functies (routes/serveracties) die planner+event+apply
-  koppelen + factuurnummer-allocatie, dan cutover van de live Invoice/samenwerking-UI. Daarna Fase 4.
-
-### Platform Overhaul — Fase 3 runtime-cutover (command-laag + UI) — 2026-05-29
-
-- `cascade/commands.ts` (signContract, create/submit/approve/rejectPerformance,
-  submit/approve/rejectInvoice, confirmPayment) — atomair: DomainEvent + effecten + idempotentie-
-  marker in één transactie; factuurnummer per partij via allocator.
-- `/samenwerkingen/[id]` werkproces-UI met "Aan zet"-banner en alle rol-acties (additief naast de
-  live factuur-flow). Link vanaf de samenwerkingenlijst.
-- seed: cascade-demo (voorgestelde samenwerking + ingediende/goedgekeurde prestaties + concept-factuur).
-- Geverifieerd met een DB-smoke: hele keten A→E loopt door, administratie sluit, BTW + nummer per
-  partij kloppen, geen platform-boeking. Gate groen (typecheck/lint/test 270/build).
-- Volgende: Fase 4 (zijpaden + DBA-monitoring); cascade-facturen op /facturen tonen; oude
-  factuuraanmaak uitfaseren ná browserverificatie.
-
-### Platform Overhaul — Fase 4 (DBA-monitoring + administratie-overzichten) — 2026-05-29
-
-- `dba-monitor.ts` (pure engine: duur 6/12 mnd, omzetconcentratie, patroon-indicatoren; niveau
-  Laag/Verhoogd/Hoog; altijd disclaimer — Besluit 2) + `dba-monitor-task.ts` (geplande runner,
-  idempotent via DomainEvent dedupeKey; notificatie bij beide partijen + audit) + POST
-  /api/tasks/dba-monitor (CRON_SECRET). Werkproces-UI toont het signaal rustig met disclaimer.
-- `administration/overview.ts` (pure: BTW per kwartaal, debiteuren/crediteuren-saldo, jaaromzet) +
-  `/administratie`-pagina (ZZP'er/opdrachtgever) met nav-item.
-- Tests: 13 nieuw (dba-monitor 9 / overview 4). Gate groen (typecheck/lint/test 283/build).
-- Te-late-betaling + aanmaningen: `payment-reminders.ts` (pure) + task + /api/tasks/payment-reminders;
-  herinnering 5/1 dag vóór, OVERDUE-transitie + signaal bij beide partijen. Tests: 6.
-- Creditfactuur: `planInvoiceCreditedEvent` + `creditInvoice`-command + UI-knop in het werkproces;
-  tegenboekingen + BTW-correctie. Tests: +2.
-- Dispuut/escalatie: `openDispute`/`resolveDispute`-commands + Collaboration.disputedAt;
-  `assertNotDisputed` bevriest alle cascade-commands; admin-notificatie + oplossen; UI in werkproces.
-- **Fase 4 afgerond.** Exports (CSV/PDF) verschuiven naar Fase 6. Volgende: Fase 5/6 polish +
-  cascade-facturen op /facturen + dashboard "aan zet".
-
-### Platform Overhaul — Fase 5 (koppeling) — 2026-05-29
-
-- Cascade-facturen tonen op `/facturen` met lifecycle-badge + partij-nummer, link naar het werkproces.
-- Dashboard "aan zet": cascade-taken (concept-factuur indienen / betaling markeren bij ZZP'er;
-  prestaties & facturen goedkeuren bij opdrachtgever) verschijnen in "Vraagt aandacht".
-- Gate groen (typecheck/lint/test 291/build). Open in Fase 5: dark-first-keuze (stop-and-confirm).
-
-### Platform Overhaul — nacht-build increments — 2026-05-29/30
-
-- Cascade-factuurdetail (`/facturen/[id]`): lifecycle-badge, partij-nummer, BTW-uitsplitsing, herkomst-blok.
-- CSV-export administratie: `administration/csv.ts` (pure) + `GET /api/administratie/export` + knop.
-- Cascade-dashboardtaken in geteste pure helpers (`cascade/next-actions.ts`); dashboard gebruikt ze.
-- BTW-kwartaal CSV-export; notificatie-categorieën+iconen; zijpad-integratietests (resubmit, credit-
-  netting); loading-states; DBA gevoed door Job-indicatoren; admin-disputenoverzicht (/admin/disputen)
-  - dashboardsignaal. Tests doorlopend groen (309). Open: e-mailkanaal, PDF-export, Playwright-e2e,
-    dark-first-beslissing.
-
-### Platform Overhaul — concept-factuur-reminders (§4 B2) — 2026-05-30
-
-- `concept-invoice-reminders.ts` (pure): herinnert de ZZP'er aan niet-ingediende concept-facturen op
-  dag 3 en 7; escaleert daarna naar het platform (admins). `concept-invoice-reminders-task.ts`
-  (plan/apply, idempotent via DomainEvent dedupeKey) + `POST /api/tasks/concept-invoice-reminders`.
-- Tests: 5 nieuw (325 totaal). Gate groen. Vult de B2-reminder-cascade uit §4 aan.
-
-### Platform Overhaul — §6 run-all, BTW-herinnering, cascade-keten, idempotentie-test — 2026-05-30
-
-- `/api/tasks/run-all`: enkelvoudig cron-eindpunt dat alle vijf geplande taken (expiry, betaling,
-  DBA, concept-factuur, BTW-herinnering) achtereenvolgens uitvoert; per-taak fouten breken de rest
-  niet af; host hoeft nog maar één cron te configureren.
-- `vat-reminder.ts` (pure): kwartaal-BTW-herinnering aan alle actieve ZZP'ers in de laatste 7
-  dagen van elk kwartaal; dedupeKey per gebruiker/kwartaal/jaar (idempotent). `vat-reminder-task.ts`
-  - `POST /api/tasks/vat-reminder`. `notifications.ts` uitgebreid met VAT_REMINDER en
-    INVOICE_DRAFT_ESCALATION.
-- `/samenwerkingen/[id]`: cascade-keten (contract → prestatie → factuur → betaling) met
-  statusiconen bovenaan; afgeleid van bestaande data, geen extra DB-query.
-- `cascade/idempotency.test.ts`: pure-planner determinisme (3 planners) + mock-DB dedupeKey-guard
-  (eerste aanroep → transactie; tweede aanroep → early return zonder dubbel effect).
-- Tests: 352 (was 328). Gate groen: typecheck/lint/test/build. E2e overgeslagen (geen browser).
-
-### Platform Overhaul — DBA-drempels configureerbaar + onboarding-checklist — 2026-05-30
-
-- `PlatformConfig`-model (schema): singleton-rij met DBA-drempelwaarden (fallback op statische defaults).
-- `platform-config.ts`: `getDbaThresholds()` / `saveDbaThresholds()` met DB-fallback.
-- `dba-monitor.ts`: `thresholds?`-parameter op `assessCollaborationDba` + `planDbaMonitorRun`
-  (bestaande tests ongewijzigd); `dba-monitor-task.ts` laadt drempels uit DB vóór het plannen.
-- `/admin/configuratie`: admins kunnen DBA-drempels (eerste/sterk duursignaal, omzetconcentratie%)
-  aanpassen via formulier + server action (Zod-validatie, audit).
-- Nav: "Configuratie" voor ADMIN met Settings-icoon.
-- `onboarding.ts` (pure): 4-stappen-checklist (profiel/certificaat/beschikbaarheid/opdracht) +
-  `isOnboardingComplete`. Dashboard-FREELANCER-view toont "Aan de slag"-blok tot alle stappen klaar.
-- Tests: +19 (platform-config 10, onboarding 9); totaal 384 groen.
-- Gate groen: typecheck/lint/test/build. E2e overgeslagen (geen browser).
-
-### Platform Overhaul — dark mode + cutover-voorbereiding — 2026-05-30
-
-- Dark mode als gebruikerskeuze: `src/lib/theme.ts` (pure, server-safe) + `ThemeProvider` +
-  `ThemeToggle`-knop (header + loginpagina); persistentie via cookie; tests (4). DESIGN.md
-  en DECISIONS.md bijgewerkt: keuze vastgelegd als "gebruikerskeuze", geen geforceerde dark-first.
-- **Cutover-migratiescript** `scripts/migrate-legacy-invoices.mjs` (idempotent, --dry-run):
-  vult `lifecycleStatus`, `issuerUserId`, `counterpartyUserId`, `issuerKey`, `partyInvoiceNumber`
-  (per-partij doorlopend, chronologisch), `subtotalCents`, `vatCents` en `vatRegime` in op alle
-  facturen die vóór de overhaul-cascade zijn aangemaakt. Atomaire transactie; werkt
-  `InvoiceSequence` bij. Statusmapping: SENT→SUBMITTED, OVERDUE→OVERDUE, PAID→PROCESSED,
-  CANCELLED→CREDITED. BTW-regime EXEMPT (legacy-facturen bevatten geen BTW-splitsing).
-  Na migratie zijn alle facturen zichtbaar én actieerbaar in het cascade-werkproces.
-- Unit-tests `src/lib/migrate-legacy-invoices.test.ts`: statusmapping + per-partij-nummering
-  (chronologisch, gatenvrij, jaar-scheiding). 6 tests.
-- **Print/PDF-factuur-styling verbeterd** (`globals.css`): `@page` A4-marges, geforceerd licht
-  thema bij afdrukken (ook bij donker thema actief), `max-w-2xl` opgeheven zodat factuur
-  pagina-breed is, subtiele kaartborders, leesbare tabelcellen, dempte subtekst.
-- Gate groen: typecheck ✓ lint ✓ test 394 ✓ build ✓. E2e overgeslagen (geen browser).
-
 ### Meedenk-laag — 2026-05-26
-
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"
 is bewust uit de hele UI, code-commentaren en docs gehouden.)
-
 - **Nav-signalen** (`src/lib/signals.ts` + test): badges op nav-items vanaf elke pagina —
   certificaten (afgewezen/verloopt), kandidaten (nieuwe reacties), opdrachten (concepten),
   verificaties (wachtrij), berichten (ongelezen, 2 begrensde queries, geen N+1). Toon: attention
@@ -214,7 +62,6 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
   build, e2e + shots.
 
 ### Sessie 0 — 2026-05-25
-
 - Wat gedaan: fundament vanaf nul gescaffold (geen bestaande codebase aangetroffen).
   Next.js 15 (App Router) + React 19 + TS strict + Prisma (SQLite) + Auth.js v5
   (credentials + JWT, role-based) + Tailwind + Vitest. Login werkt, guard redirect
@@ -247,7 +94,6 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
     `packages.microsoft.com` → `microsoft-edge-stable`. Niet via Playwright's eigen CDN.
 
 ### Sessie 1 — 2026-05-26
-
 - Wat gedaan: onboarding & profielen. Registratie met rolkeuze (FREELANCER/CLIENT)
   maakt account + leeg profiel/bedrijf aan en logt direct in. Freelancer- en
   bedrijfsprofiel bewerkbaar via beschermde routes (mutatieketen rol→ownership→Zod→
@@ -263,7 +109,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
   - `src/app/zzp/[id]/page.tsx` — publiek profiel (zichtbaarheid afgedwongen)
   - `src/app/api/media/[...key]/route.ts` — auth-gated logo-serving via storage
   - `src/components/ui/*` — input, textarea, select, field, card, progress, badge
-  - nav.ts: /profiel + /bedrijf op enabled; auth.config: /register + /zzp/\* publiek
+  - nav.ts: /profiel + /bedrijf op enabled; auth.config: /register + /zzp/* publiek
 - Tests: 58 unit-tests (incl. validation 8, profile 6) + 10 Playwright e2e groen
   (registratie, profiel publiceren, PUBLIC→PRIVATE 404, bedrijfsprofiel).
 - Checks: typecheck ✓, lint ✓, test ✓ (58), build ✓ (10 routes), e2e ✓ (10, via Edge).
@@ -275,7 +121,6 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 2 — Opdrachten CRUD + zoeken/filteren.
 
 ### Sessie 2 — 2026-05-26
-
 - Wat gedaan: opdrachten CRUD + zoeken/filteren. CLIENT maakt/bewerkt opdrachten
   (concept → publiceren → sluiten/heropenen → depubliceren) met server-side afgedwongen
   statusovergangen (`JOB_TRANSITIONS`/`assertJobTransition`) + ownership + audit. Vereiste/
@@ -301,7 +146,6 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
   gebruik `src/lib/matching.ts`; feature-gating per plan).
 
 ### Sessie 3 — 2026-05-26
-
 - Wat gedaan: reacties & kandidatenflow. FREELANCER reageert op een PUBLISHED opdracht
   (motivatie/tariefvoorstel/beschikbaarheid); server berekent matchscore + compliance-
   snapshot via `matching.ts` en slaat ze op. Eén reactie per opdracht. Plan-gating
@@ -326,7 +170,6 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
   storage-abstractie, credentials uploaden/metadata/verificatie aanvragen/zichtbaarheid.
 
 ### Sessie 4 — 2026-05-26
-
 - Wat gedaan: documenten + credentials (ZZP-kant). FREELANCER uploadt certificaten
   (type/titel/uitgever/datums + bewijsstuk via storage-abstractie), bewerkt metadata,
   vraagt verificatie aan (DRAFT/REJECTED/EXPIRED → SUBMITTED via assertTransition), vervangt
@@ -358,8 +201,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 5 — Admin-verificatiequeue (goedkeuren/afwijzen met verplichte reden,
   expiry-job VERIFIED→EXPIRED). Hierna is de kerndifferentiatie demo-klaar.
 
-### Sessie 5 — 2026-05-26 (MIJLPAAL: kerndifferentiatie demo-klaar)
-
+### Sessie 5 — 2026-05-26  (MIJLPAAL: kerndifferentiatie demo-klaar)
 - Wat gedaan: admin-verificatiequeue + expiry. ADMIN beoordeelt ingediende certificaten
   op `/admin/verificaties`: goedkeuren (→VERIFIED, verifiedAt, CredentialVerification-record,
   VerificationRequest→RESOLVED) en afwijzen (→REJECTED, **reden verplicht** server-side,
@@ -387,7 +229,6 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 6 — Berichten, notificaties, samenwerkingen.
 
 ### Sessie 6 — 2026-05-26
-
 - Wat gedaan: berichten, notificaties, samenwerkingen.
   - **Berichten:** 1-op-1 gesprek (Conversation + ConversationParticipant) tussen CLIENT en
     ZZP'er, gestart vanuit een reactie (`startConversationForApplication`). Thread + composer;
@@ -416,7 +257,6 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 7 — Facturatie + billing.
 
 ### Sessie 7 — 2026-05-26
-
 - Wat gedaan: facturatie + billing.
   - **Facturen (FREELANCER):** opstellen vanuit een ACTIVE/COMPLETED samenwerking (dynamische
     regels: omschrijving/aantal/tarief). Bedragen server-berekend in centen (euro's→centen,
@@ -441,7 +281,6 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 8 — Admin-paneel afronden (gebruikers, opdrachten, audit log).
 
 ### Sessie 8 — 2026-05-26
-
 - Wat gedaan: admin-paneel afgerond.
   - **Gebruikers (`/admin/gebruikers`):** zoeken/filteren (naam/e-mail, rol, status); schorsen/
     activeren via `setUserStatus` met server-side self-guard (`canModerateUser`) + Zod-status +
@@ -464,7 +303,6 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 9 — Polish, performance, a11y, e2e.
 
 ### Sessie 9 — 2026-05-26
-
 - Wat gedaan: polish, performance, a11y — geen nieuwe features.
   - **Mobiele navigatie (echte gap, gevonden via mobiele browserverificatie):** sidebar was
     `hidden md:flex` zonder mobiel alternatief → géén navigatie op telefoon. Toegevoegd:
@@ -485,8 +323,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Visueel gecontroleerd: mobiel menu (screenshot 30), eerdere schermen ongewijzigd.
 - Volgende stap: Sessie 10 — Productie-voorbereiding (code-kant).
 
-### Sessie 10 — 2026-05-26 (laatste codesessie)
-
+### Sessie 10 — 2026-05-26  (laatste codesessie)
 - Wat gedaan: productie-voorbereiding (code-kant).
   - **S3-storage-driver** achter de bestaande `StorageDriver`-interface (`@aws-sdk/client-s3`,
     lazy import, env-geschakeld via `STORAGE_DRIVER=s3`; lokaal blijft default). Werkt met AWS S3
@@ -500,7 +337,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Tests: 104 unit-tests (env 3) + 21 e2e groen; health + headers geverifieerd (tijdelijke check).
   Reviewzwerm: CLEAN — S3-driver correct, health veilig publiek, CSP breekt prod niet, alleen
   /api/health toegevoegd aan publieke routes. Advies (bewuste trade-offs): CSP `script-src
-'unsafe-inline'` en JWT-staleness bij rol/status-wijziging → voor de menselijke securityreview.
+  'unsafe-inline'` en JWT-staleness bij rol/status-wijziging → voor de menselijke securityreview.
 - Checks: typecheck ✓, lint ✓, test ✓ (104), build ✓ (28 routes), e2e ✓ (21, via Edge).
 
 ---
@@ -514,7 +351,6 @@ met polish + productie-voorbereiding. **104 unit-tests + 21 Playwright-e2e groen
 typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 
 ### Nog te doen door een mens (NIET door een agent — bewust, zie CLAUDE.md):
-
 1. **Productie-infra**: PostgreSQL provisionen (en `prisma/schema.prisma` datasource provider
    op `postgresql` zetten + migratie draaien), S3-bucket + IAM, mailprovider, domein/HTTPS,
    secrets (`AUTH_SECRET`, DB, AWS) via de hosting-secretstore, backups.
@@ -527,13 +363,11 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 4. **E-mail/notificaties**: in-app `Notification` bestaat; echte e-mail/push koppelen.
 
 ### Bekende, bewust uitgestelde code-punten (kandidaten voor later):
-
 - Berichten-ongelezen telt per conversatie met een COUNT (prima voor nu; denormaliseren bij schaal).
 - SQLite-zoek is hoofdlettergevoelig; op Postgres `mode: "insensitive"` aanzetten.
 - Geen unieke index op (jobId, deelnemerspaar) voor conversaties (theoretische dubbel-race).
 
 ### Hardening — 2026-05-26 (geleerd van een parallelle Codex-bouw, selectief overgenomen)
-
 - Aanleiding: vergelijking met een andere aanpak (Codex, branch `zzp-production-quality-control-system`).
   Niet klakkeloos overgenomen — alleen wat echt waarde toevoegt en binnen scope past.
 - Toegepast (in-scope productie-hardening):
@@ -554,7 +388,6 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   achter op de code. Checks: `npm run check` groen (104 unit + build); scan:secrets + check:env OK.
 
 ### Design-systeem + ReOS-leerpunten — 2026-05-26 (eigenaar-richting)
-
 - Aanleiding: eigenaar vindt het light Linear-thema mooier en wil het in **tokens** vastgelegd;
   leer ook van de eerdere ReOS-werkplek-UX.
 - `design.md` toegevoegd: token-tabel (uit globals.css), statuskleur-mapping, component-contracten,
@@ -569,7 +402,6 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 - Checks: typecheck ✓, lint ✓, build ✓, e2e ✓ (21). Smoke-admin assert aangepast op de nieuwe header.
 
 ### Wet DBA — deterministische compliance — 2026-05-26 (eigenaar-richting: "conform geldende wetgeving")
-
 - Wat gedaan: deterministische schijnzelfstandigheid-check op opdrachten. Regels beslissen en
   leggen uit; **geen black box, geen dode knoppen**. `src/lib/dba.ts` (gewogen indicatoren: gezag/inbedding =
   kern, vrije vervanging/vaste uren = medium, exclusiviteit/duur = licht) → LAAG/MIDDEN/HOOG met
@@ -578,7 +410,7 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   Server **herberekent gezaghebbend** bij opslaan en bewaart snapshot (`dbaRisk` + `dbaReasons` JSON +
   de booleans) — client-waarde wordt nooit vertrouwd. Detailpagina toont risico + uitleg + advies
   **alleen aan eigenaar/admin** (niet aan kandidaten). Disclaimer: hulpmiddel, geen juridisch advies.
-- Schema: Job uitgebreid met dba\*-velden (db push). validation: jobSchema uitgebreid.
+- Schema: Job uitgebreid met dba*-velden (db push). validation: jobSchema uitgebreid.
 - Tests: 111 unit-tests (dba 7) + 22 e2e groen (hoog-risico live + op detail). Reviewzwerm: CLEAN
   (server-gezaghebbend, geen lek naar non-owners, drempels kloppen, JSON-guard).
 - Checks: typecheck ✓, lint ✓, build ✓, e2e ✓ (22). Desktop + mobiel-patroon ongewijzigd.
@@ -586,7 +418,6 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   DPIA-light) en modelovereenkomst-koppeling bij HOOG; beide deels mensenwerk.
 
 ### ReOS-corpus leerpunten toegepast — 2026-05-26
-
 - Aanleiding: volledige ReOS-planningscorpus gelezen (visie/roadmap/doelgroep/concurrentie,
   RLS-plan, privacy-matrix, DBA-case-log, incident/change templates). Selectief toegepast:
 - **DBA-model completer + golden cases:** hun DBA-reviewlog (DBA-001 pass / -002 review / -003
@@ -604,7 +435,6 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   login/securityevents + IP/UA.
 
 ### Increment: AVG-gegevensrechten + audit-hardening — 2026-05-26
-
 - **Inzage/portabiliteit:** `/account` + `/api/account/export` — JSON-export van uitsluitend de
   eigen persoonsgegevens (profiel, credential-metadata, bedrijf, reacties, document-metadata,
   notificaties, eigen berichten); geen documentinhoud, geen data van derden, auth vereist.
@@ -618,7 +448,6 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   login-enumeratie in de response, bcrypt-short-circuit correct). Checks groen.
 
 ### Increment: Beschikbaarheid als workflow-stap — 2026-05-26
-
 - `AvailabilityWindow`-model (periodes met type AVAILABLE/LIMITED/UNAVAILABLE + uren + notitie).
   `/beschikbaarheid` (FREELANCER): periodes toevoegen/verwijderen (ownership + audit).
 - `src/lib/availability.ts` (getest): upcomingWindows, currentOrNextAvailable (negeert
@@ -628,7 +457,6 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   verwijderen). 26 e2e + units groen. Reviewzwerm: CLEAN (geen IDOR op delete, geen datalek).
 
 ### STATUS: productiewaardig MVP (code-kant) bereikt — 2026-05-26
-
 Na de eigenaar-richtingen (design-tokens, ReOS-werkbank, Wet DBA, AVG, beschikbaarheid) is dit
 een productiewaardige MVP voor de NL ZZP-marktplaats: echte auth + RBAC, persistente DB + audit
 (incl. login/IP/UA), opdrachten→reacties (match+compliance), documenten/certificaten + admin-
@@ -644,7 +472,6 @@ aan het eind van een lange sessie thuishoort. Overige open punten: RLS-first op 
 echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 
 ### Increment: DUO-diplomaverificatie (API-koppeling achter service-grens) — 2026-05-26
-
 - Eerlijke aanpak: er is geen open DUO-lookup-API; de echte route is de **verificatiecode** uit het
   DUO-diplomaregister. Geïmplementeerd achter een schone interface (zoals de S3-driver):
   - `src/lib/services/diploma-verifier.ts` (getest): `DiplomaVerifier` + **MockDiplomaVerifier**
@@ -662,7 +489,6 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Productie-onboarding (DUO-contract/endpoint/cert) = mensenwerk; idem BIG-register voor zorg (apart).
 
 ### Increment: BIG-registerverificatie (zorg-beroepsregistratie) — 2026-05-26
-
 - Zelfde service-grens-patroon als DUO. `src/lib/services/big-verifier.ts` (getest):
   `BigVerifier` + **MockBigVerifier** (valideert alleen het 11-cijferige BIG-nummerformaat,
   verzint geen registratiegegevens) + **BigRegisterVerifier** (env `BIG_VERIFIER=bigregister`;
@@ -677,7 +503,6 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Productie-onboarding BIG-register = mensenwerk (zelfde als DUO).
 
 ### Increment: Identiteitsverificatie + zichtbaar vertrouwensniveau — 2026-05-26
-
 - Slimme differentiator: concurrenten verifiëren losse documenten; wij binden **identiteit +
   geverifieerde certificaten** tot één uitlegbaar **trust-signaal** dat opdrachtgevers zien.
 - `src/lib/services/identity-verifier.ts` (getest): `IdentityVerifier` + **MockIdentityVerifier**
@@ -696,7 +521,6 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Echte iDIN/eIDAS-koppeling = mensenwerk (zelfde patroon als DUO/BIG).
 
 ### Increment: Design-polish-pass — lege/laad/fout-staten + micro-interacties — 2026-05-29
-
 - Orchestrator (Opus) + 3 Sonnet-builders op niet-overlappende paginagroepen (lijst-/admin-/berichten-vlakken).
 - **Gedeelde `EmptyState`** (`src/components/ui/empty-state.tsx`): icoon-in-zachte-cirkel + titel +
   omschrijving + optionele actieknop (echte route, geen dode knop). Vervangt overal de ad-hoc
@@ -718,7 +542,6 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   gedeelde dev-server (elk slaagt los/na retry). Lokale dev-db opnieuw geseed (schone staat).
 
 ### Increment: Geplande verloopdetectie + "verloopt binnenkort"-herinneringen — 2026-05-29
-
 - Orchestrator (Opus) + 2 Sonnet-builders, contract-first op niet-overlappende bestanden
   (pure planner vs. runner/endpoint/env); orchestrator deed schema + integratie + poort.
 - **Pure planner** `src/lib/expiry.ts` (+ 10 unit-tests): `planExpiryRun(candidates, now, windowDays)`
@@ -736,184 +559,31 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   `.github/workflows/expiry-check.yml` roept het dagelijks aan via repo-secrets
   `EXPIRY_TASK_URL` + `CRON_SECRET` (de scheduler-koppeling zelf = mensenwerk).
 - **Admin** `runExpiryCheck` gerefactord naar `runExpiryTask`; knop rapporteert nu verlopen
-  - herinneringen. Schema: `Credential.expiryReminderFor` (db push). env: `CRON_SECRET` optioneel.
+  + herinneringen. Schema: `Credential.expiryReminderFor` (db push). env: `CRON_SECRET` optioneel.
 - Checks: typecheck ✓, lint ✓, **202 unit-tests** ✓ (+10 planner), build ✓ (route geregistreerd),
   `check:env` ✓. E2e overgeslagen (geen browser-channel in deze routine-omgeving; net als CI).
 - Notificaties verschijnen automatisch in het bestaande notificatiecentrum + bel; signals.ts
   badget bijna-verlopen al. Geen "AI" in teksten/comments/docs.
 
-### Platform Overhaul — Fase 7 hardening (nav-signalen + ORT-tests) — 2026-05-30
-
-- **Nav-signalen cascade** (`signals.ts`): FREELANCER krijgt badge op `/samenwerkingen`
-  voor concept-facturen indienen + goedgekeurde facturen betalen; CLIENT voor
-  prestaties + facturen goedkeuren. ADMIN krijgt badge op `/admin/disputen` bij open
-  disputen. `SignalCounts` uitgebreid met `cascadeWork` + `openDisputes`.
-- **ORT-tests**: SATURDAY (+52%), HOLIDAY (+100%) en volledig gemengde dienst (alle 5
-  categorieën) toegevoegd aan `ort.test.ts`.
-- **Handlers-tests**: lege `ortSegments`-array valt terug op `uren×tarief`; HOLIDAY via
-  `performanceSubtotalCents` getest.
-- **Validatie-tests**: ORT + periodedatum-combinaties (geldig, start>eind, alleen start).
-- Tests: 415 → 426 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
-  E2e overgeslagen (geen browser-channel in routine).
-
-### ORT — sector-/klantprofielen (van rekenmotor naar verkoopbaar) — 2026-05-30
-
-- **Config** (`config.ts`): `ORT_SECTORS` (DEFAULT/VVT/GGZ/GHZ/JEUGD) + `ORT_SECTOR_LABEL`
-  - `ORT_SECTOR_PROFILES` (toeslag-bps per categorie per zorg-CAO). DEFAULT verwijst naar
-    `DEFAULT_ORT_RATES_BPS` (één bron van waarheid). Waarden zijn richtwaarden — per CAO valideren.
-- **Resolver** (`ort.ts`): `ortRatesForSector(sector?)` → profiel of DEFAULT-fallback bij
-  onbekend/leeg. Server-side waarheid: de samenwerking bepaalt het profiel, niet de client.
-- **Schema**: `Collaboration.ortProfile String?` (nullable, additief — db push veilig).
-- **Cascade-koppeling**: `PerformanceApprovedCtx.performance.ortRates`; `approvePerformance`
-  resolvt `ortProfile` → bps en geeft die mee aan `performanceSubtotalCents`/`ortSubtotalCents`.
-- **UI**: sectorkeuze op de samenwerking (opdrachtgever/admin stelt in via `setOrtProfileAction`);
-  ORT-uitsplitsing op samenwerking- én factuurpagina rekent met het gekozen sectorprofiel.
-- **Tests**: `ortRatesForSector` (bekend/onbekend/leeg, alle profielen dekken 5 categorieën,
-  sectorprofiel beïnvloedt subtotaal). Tests: 426 → 430 groen.
-  Gate: typecheck ✓ lint ✓ test ✓ build ✓. E2e overgeslagen (geen browser-channel in routine).
-
-### ORT — automatische categorisatie uit diensttijden (geen Excel) — 2026-05-30
-
-- **Dienstmotor** (`shift.ts`): `segmentShift(start, end, opts)` zet een dienst (begin/eind)
-  automatisch om in ORT-segmenten (uren per categorie). Loopt de dienst in kwartierstappen door,
-  classificeert elk moment en telt per categorie op. Precedentie = **hoogste toeslag wint** (de
-  rates uit het sectorprofiel bepalen de keuze, bv. zaterdagnacht → zaterdag of nacht).
-- **Feestdagen** (`dutchHolidays(year)`): officiële NL-feestdagen incl. Pasen-afgeleiden
-  (Meeus/Jones/Butcher) en Koningsdag-verschuiving bij zondag. Overschrijfbaar per CAO.
-- **Tijdvensters** (`config.ts ORT_TIME_WINDOWS`): avond 18:00, nacht 22:00–06:00 — configureerbaar.
-- **UI**: dienst-invoer (begin/eind, datetime-local) in `performance-form.tsx`; de server leidt de
-  ORT-categorieën af met het sectorprofiel + feestdagen. Handmatige urenverdeling blijft als fallback.
-- **Tests**: `shift.test.ts` (14) — dag/avond/nacht over middernacht, weekend/feestdag-precedentie,
-  sectorprofiel-precedentie, kwartierresolutie, feestdagberekening. Tests: 430 → 444 groen.
-  Gate: typecheck ✓ lint ✓ test ✓ build ✓. E2e overgeslagen (geen browser-channel in routine).
-  Let op: tijden in lokale TZ — zet TZ=Europe/Amsterdam in productie.
-
-### ORT — meerdere diensten per urenstaat (week/maand) — 2026-05-30
-
-- **Motor** (`shift.ts`): `segmentShifts(shifts, opts)` aggregeert meerdere diensten tot één set
-  ORT-segmenten (gelijke categorieën opgeteld). Een periode met veel diensten → één factuur.
-- **UI** (`performance-form.tsx`): meerdere dienstrijen toevoegen/verwijderen (client-side);
-  inputs delen `shiftStart`/`shiftEnd`-namen → server leest ze met `getAll` en paart per index.
-- **Action**: parseert alle dienstparen, valideert (begin<eind, beide gevuld), bouwt de
-  feestdagenset over alle betrokken jaren en aggregeert met het sectorprofiel.
-- **Tests**: `segmentShifts` (3) — optellen gelijke categorieën, combineren verschillende, leeg.
-  Tests: 444 → 447 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
-
-### ORT — live preview in de urenstaat-form — 2026-05-30
-
-- **`performance-form.tsx`**: dienstrijen zijn nu gecontroleerd (React-state). Terwijl je de
-  diensten typt, leidt de form live de ORT-segmenten + subtotaal af met dezelfde motor als de
-  server (`segmentShifts` + `computeOrt` + `ortRatesForSector` + `dutchHolidays`). Toont een
-  voorbeeldtabel (categorie/uren/toeslag/totaal) zodat de ZZP'er vóór indienen ziet wat klopt
-  ("kan ik dit vertrouwen?"). Server blijft de waarheid; de opdrachtgever keurt definitief goed.
-- **`page.tsx`**: `rateCents` + `ortProfile` als props doorgegeven aan de form.
-- Gate: typecheck ✓ lint ✓ test ✓ build ✓ (447 groen). Geen nieuwe units (UI-preview hergebruikt
-  de al-geteste motoren); e2e overgeslagen (geen browser-channel in routine).
-
-### ORT — maatwerk-percentages per klant — 2026-05-30
-
-- **Engine** (`ort.ts`): `parseOrtCustomRates(json)` (valideert 5 categorieën, niet-negatieve
-  gehele bps) + `resolveOrtRates({ortProfile, ortCustomRates})` met precedentie
-  **maatwerk → sectorprofiel → default**. Eén resolver, overal hergebruikt.
-- **Schema**: `Collaboration.ortCustomRates String?` (JSON bps, nullable, additief).
-- **UI** (`ort-profile-form.tsx`, client): keuze "Maatwerk" toont 5 percentage-velden (procent →
-  bps), voorgevuld uit de huidige maatwerkwaarden; opdrachtgever/admin stelt in (server dwingt af).
-- **Threading**: cascade (`approvePerformance`), urenstaat-afleiding (action), én alle
-  weergaven (samenwerking-uitsplitsing, factuurpagina, live preview) gebruiken `resolveOrtRates`.
-- **Tests**: `parseOrtCustomRates` + `resolveOrtRates` (precedentie/validatie). 447 → 452 groen.
-  Gate: typecheck ✓ lint ✓ test ✓ build ✓.
-
-### Onboarding — CSV bulk-import van ZZP'ers & opdrachtgevers — 2026-05-30
-
-- **Pure kern** (`onboarding/import.ts`): eigen RFC4180-achtige CSV-parser (`;`/`,`/tab-autodetectie,
-  gequote velden met `""`, BOM, CRLF/LF), kolomherkenning met NL/EN-aliassen, rolherkenning
-  (ZZP'er/opdrachtgever-synoniemen), per-rij Zod-validatie met duidelijke meldingen, dubbele
-  e-mails binnen het bestand markeren, en een samenvatting. Voorbeeld-CSV-generator.
-- **Tijdelijke wachtwoorden** (`onboarding/password.ts`): crypto-random, leesbaar (geen 0/O/1/l/I),
-  gegarandeerd elke tekensoort, geschud.
-- **Server** (`admin/import/actions.ts`): `previewImport` (dry-run + DB-annotaties: bestaat e-mail
-  al, onbekende vaardigheden) en `commitImport` (transactioneel User+profiel+notificatie+audit per
-  rij; bestaande overslaan; rol kan nooit ADMIN worden; max 500 rijen; 2 MB-limiet). Voorbeeld-CSV
-  via admin-only route. Samenvattende audit `USERS_IMPORTED`.
-- **UI** (`admin/import`): twee-staps wizard — upload → controle-overzicht (per rij status
-  OK/Let op/Fout/Bestaat al + opmerkingen) → bevestigen → resultaat met eenmalig getoonde
-  tijdelijke inloggegevens (kopieerbaar). Link + nav-item bij Gebruikers.
-- **Tests**: `import.test.ts` (16: parser, aliassen, rol, validatie, dubbele e-mail, template) +
-  `password.test.ts` (4). Gate: typecheck ✓ lint ✓ test ✓ build ✓.
-  Vervolg (mensenwerk): e-mail-uitnodiging i.p.v. tijdelijk wachtwoord zodra SMTP staat.
-- **Security-review verwerkt** (subagent): (1) **geforceerde wachtwoordwijziging** — geïmporteerde
-  accounts krijgen `User.mustChangePassword=true`; middleware blokkeert alle routes behalve
-  `/account/wachtwoord` tot de gebruiker zelf een wachtwoord instelt; daarna uitloggen + opnieuw
-  inloggen (verse JWT). Vlag door schema → JWT/sessie → `Actor`. Nieuwe wachtwoord-wijzigpagina
-  (ook vrijwillig via /account). (2) bcrypt-hashing parallel (`Promise.all`) i.p.v. sequentieel.
-  (3) geen interne foutmeldingen naar client (generiek + server-side log). (4) MIME-check
-  aangescherpt (`.csv`-extensie leidend). Open (mensenwerk, MENSENWERK §5): privacy-sign-off op de
-  one-time-reveal van tijdelijke wachtwoorden vóór livegang.
-- Tests totaal: 485 groen (incl. door auto-build toegevoegde diensten-tests).
-
-### ORT — diensten-overzicht + CSV-import voor ZZP'ers — 2026-05-31
-
-- `src/lib/diensten.ts` (query + CSV-export voor ZZP'er-diensten) + `src/lib/diensten.test.ts`
-  (13 tests: parseCsvShifts + exportDienstenCsv).
-- `/diensten`: overzicht van alle urenstaaten/opleveringen per ZZP'er, statusfilter,
-  link naar samenwerking, exportknop.
-- `/diensten/importeer` (page + form + actions): CSV-import wizard, ORT-segmentatie per dienst,
-  createPerformance + submitPerformance in de cascade-keten.
-- `/diensten/export`: CSV-export van alle diensten voor de ZZP'er.
-- Tests: +13 (diensten).
-
-### Prestaties-overzicht voor opdrachtgever (rooster per klant) — 2026-05-31
-
-- `src/lib/prestaties.ts` (query + CSV-export voor opdrachtgever) + `src/lib/prestaties.test.ts`
-  (10 tests: exportPrestatiesCsv).
-- `/prestaties`: overzicht van alle urenstaaten/opleveringen van alle ZZP'ers voor de
-  opdrachtgever, statusfilter (ter goedkeuring/goedgekeurd/afgekeurd), "Keuren →"-link,
-  exportknop, pending-telling in de header.
-- `/prestaties/export`: CSV-export van alle prestaties.
-- Nav `pendingPerformances`-signaal: badge op `/prestaties` voor openstaande goedkeuringen.
-- Tests: +10 (prestaties).
-
-### Admin platform-statistieken + diensten-import hardening — 2026-05-31
-
-- `src/lib/admin-stats.ts`: pure helpers (`approvalRate`, `sharePercent`, `formatStatsEuro`)
-  - `getPlatformStats()` (gebruikers per rol, samenwerkingen per status, prestaties per status,
-    facturen cascade/verwerkt/bedrag, verificatie-wachtrij, open disputen).
-- `src/lib/admin-stats.test.ts`: 11 unit-tests.
-- `/admin/statistieken`: metriek-kaarten per sectie, dispuut-waarschuwingsbanner,
-  links naar beheerpagina's. `loading.tsx` aanwezig.
-- `nav.ts`: "Statistieken" nav-item voor ADMIN.
-- Diensten CSV-import hardening: `MAX_CSV_IMPORT_SIZE = 100` in `diensten.ts`
-  (geëxporteerd, getest); server-action weigert > 100 diensten; UI toont het maximum.
-- Tests: 505 → 520 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
-  E2e overgeslagen (geen browser-channel in routine).
-
-### Post-overhaul increments — e-mail, CI, hardening — 2026-05-31
-
-Opgebouwde commits na merge `modest-babbage-08jYa` → `main`:
-
-- **SMTP + welkomstmail (onboarding-import):** `mail-sender.ts` SmtpMailSender (nodemailer,
-  lazy geladen), `welcome-email.ts` pure HTML-template; import-wizard biedt optionele
-  welkomstmail (best-effort, faalt de import niet); tests: welkomstmail (6) + SMTP-mock (2).
-- **E-mailmeldingen voor cascade-herinneringen:** `reminder-emails.ts` (6 pure templates:
-  credential verlopen/bijna-verlopen, betaaltermijn, concept-factuur, BTW-kwartaal) +
-  koppeling in alle vier remindertasks; tests: 16. E-mail-falen rolt de DB niet terug.
-- **Playwright e2e in CI:** `ci.yml` (e2e job, non-blocking, bundled Chromium);
-  `auto-build.yml` op OAuth + feature-branch-flow + Prettier-stap na agent.
-- **Repo-hardening:** CODEOWNERS, issue/PR-templates, CONTRIBUTING, SECURITY.md.
-- **Prettier + husky + lint-staged:** pre-commit-hook + `.git-blame-ignore-revs`.
-- Tests: 520 → 555 groen.
-
-### Freelancer-zoekpagina voor opdrachtgevers (/freelancers) — 2026-05-31
-
-- `src/lib/freelancer-search.ts`: pure filter (`applyFreelancerFilters`) + DB-query
-  (`getAllPublicFreelancers`); trust + beschikbaarheid server-side berekend.
-- `src/lib/freelancer-search.test.ts`: 15 unit-tests (naam/headline/locatie/skill/
-  trustLevel/availableOnly/AND-combinaties).
-- `/freelancers`: kaartoverzicht (grid 2/3 col), zoekbalk + trust-dropdown + beschikbaar-
-  checkbox, initialen-avatar, trust-badge, skills-tags, uurtarief, beschikbaarheidssamenvatting,
-  "Bekijk profiel" → /zzp/[id]. Loading skeleton aanwezig.
-- `nav.ts`: "ZZP'ers" nav-item voor CLIENT.
-- Tests: 555 → 570 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
-  Branch: `auto-build/freelancer-search-aca60d1` → PR naar main.
+### Increment: Rate-limiting op auth (brute-force-bescherming) — 2026-05-31
+- Orchestrator (Opus) + 1 Sonnet-builder (geïsoleerde kern); orchestrator deed integratie + poort.
+  Linear: ZZP2-29 (team ZZP Platform HUB), In Progress → Done met commit-hash.
+- **Keuze:** bovenste backlog-item (pgvector semantisch matchen) is in deze headless routine-
+  omgeving geblokkeerd — vereist prod-Postgres mét `vector`-extensie (lokaal/CI = SQLite, poort
+  dekt het niet) én externe embeddings (botst met determinisme + geen-"AI"). In plaats daarvan het
+  door de handover gesanctioneerde, headless-testbare security-item opgepakt.
+- **Kern** `src/lib/rate-limit.ts` (+ 11 unit-tests, geïnjecteerde klok): deterministische
+  fixed-window-limiter met pluggbare `RateLimitStore`-interface, dezelfde driver-aanpak als
+  storage/verifiers. `MemoryRateLimitStore` (per-proces, sweep bij drempel) als default; later
+  vervangbaar door een durable store (Redis/Upstash) achter dezelfde interface. `RateLimiter`-
+  wrapper + geconfigureerde singletons (`loginRateLimiter` 5/15min, `registerRateLimiter` 5/uur).
+- **Login** (`src/auth.ts`): begrenst pogingen per IP + genormaliseerde e-mail; bij overschrijding
+  poging weigeren + `AUTH_RATE_LIMITED`-audit (IP/UA), géén enumeratie-lek. Reset de teller bij
+  geslaagde login zodat legitieme gebruikers niet onnodig worden geblokkeerd.
+- **Registratie** (`src/app/register/actions.ts`): begrenst nieuwe accounts per IP +
+  `REGISTER_RATE_LIMITED`-audit; neutrale foutmelding.
+- Geen nieuwe env-vars (config als constanten → geen `check:env`-impact). Geen "AI" in code/teksten.
+- Checks: typecheck ✓, lint ✓, **213 unit-tests** ✓ (+11), build ✓ (33 routes). E2e overgeslagen
+  (geen browser-channel in deze routine-omgeving; net als CI). Commit `ec189e3`.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
