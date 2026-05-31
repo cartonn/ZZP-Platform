@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Upload, CheckCircle2, AlertTriangle, XCircle, Copy, Check, RotateCcw } from "lucide-react";
+import { Upload, CheckCircle2, AlertTriangle, XCircle, Copy, Check, RotateCcw, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -44,11 +44,12 @@ function CopyButton({ text, label = "Kopiëren" }: { text: string; label?: strin
   );
 }
 
-export function ImportWizard() {
+export function ImportWizard({ emailConfigured }: { emailConfigured: boolean }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ServerImportPreview | null>(null);
   const [result, setResult] = useState<ImportCommitResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sendEmail, setSendEmail] = useState(emailConfigured);
   const [pending, start] = useTransition();
 
   function doPreview(e: React.FormEvent) {
@@ -69,6 +70,7 @@ export function ImportWizard() {
     start(async () => {
       const fd = new FormData();
       fd.append("file", file);
+      if (emailConfigured && sendEmail) fd.append("sendEmail", "1");
       try {
         const r = await commitImport(fd);
         setResult(r);
@@ -88,22 +90,36 @@ export function ImportWizard() {
 
   // --- Resultaat ----------------------------------------------------------
   if (result) {
-    const credentials = result.created.map((c) => `${c.name};${c.email};${c.tempPassword}`).join("\n");
+    // Wachtwoorden die nog gedeeld moeten worden: scherm-modus, of een mislukte mail.
+    const needsManualShare = result.created.filter((c) => c.emailSent !== true);
+    const emailedCount = result.created.filter((c) => c.emailSent === true).length;
+    const credentials = needsManualShare.map((c) => `${c.name};${c.email};${c.tempPassword}`).join("\n");
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="success">{result.created.length} aangemaakt</Badge>
+          {emailedCount > 0 && <Badge variant="success">{emailedCount} gemaild</Badge>}
+          {result.emailFailures > 0 && <Badge variant="warning">{result.emailFailures} mail mislukt</Badge>}
           {result.skippedExisting.length > 0 && <Badge variant="muted">{result.skippedExisting.length} bestond al</Badge>}
           {result.failed.length > 0 && <Badge variant="danger">{result.failed.length} mislukt</Badge>}
         </div>
 
-        {result.created.length > 0 && (
+        {result.emailRequested && emailedCount > 0 && (
+          <p className="flex items-start gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+            <Mail className="mt-0.5 size-4 shrink-0" aria-hidden />
+            {emailedCount} welkomstmail(s) verstuurd met inloggegevens.
+          </p>
+        )}
+
+        {needsManualShare.length > 0 && (
           <div className="rounded-lg border border-border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
               <div>
                 <p className="text-sm font-medium">Tijdelijke inloggegevens</p>
                 <p className="text-xs text-muted-foreground">
-                  Deel deze veilig met de gebruikers. Ze worden hierna niet meer getoond; laat gebruikers hun wachtwoord wijzigen.
+                  {result.emailRequested
+                    ? "Deze konden niet gemaild worden — deel ze veilig. Ze worden hierna niet meer getoond."
+                    : "Deel deze veilig met de gebruikers. Ze worden hierna niet meer getoond; laat gebruikers hun wachtwoord wijzigen."}
                 </p>
               </div>
               <CopyButton text={`naam;email;wachtwoord\n${credentials}`} label="Alles kopiëren" />
@@ -118,7 +134,7 @@ export function ImportWizard() {
                 </tr>
               </thead>
               <tbody>
-                {result.created.map((c) => (
+                {needsManualShare.map((c) => (
                   <tr key={c.email} className="border-t border-border/60">
                     <td className="px-4 py-2">{c.name}</td>
                     <td className="px-4 py-2 text-muted-foreground">{c.email}</td>
@@ -208,6 +224,23 @@ export function ImportWizard() {
         </div>
 
         {error && <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+
+        {emailConfigured ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={sendEmail}
+              onChange={(e) => setSendEmail(e.target.checked)}
+              className="size-4 rounded border-input"
+            />
+            <Mail className="size-4 text-muted-foreground" aria-hidden />
+            Welkomstmail met inloggegevens versturen naar elke nieuwe gebruiker
+          </label>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            E-mailverzending is niet geconfigureerd; je krijgt de tijdelijke wachtwoorden op het scherm te zien.
+          </p>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={doCommit} disabled={pending || summary.importable - summary.existing === 0}>

@@ -15,9 +15,31 @@ import {
   type ParsedImportRow,
 } from "@/lib/onboarding/import";
 import { generateTempPassword } from "@/lib/onboarding/password";
+import { buildWelcomeEmail } from "@/lib/onboarding/welcome-email";
+import { getMailSender } from "@/lib/services/mail-sender";
 
 const MAX_CSV_BYTES = 2 * 1024 * 1024; // 2 MB
 const MAX_ROWS = 500; // bovengrens per import (bewaakt looptijd van het hashen)
+
+/** True als het SMTP-mailkanaal is geconfigureerd (welkomstmails kunnen dan verzonden worden). */
+export async function isEmailConfigured(): Promise<boolean> {
+  await requireRole("ADMIN");
+  return process.env.EMAIL_DRIVER === "smtp";
+}
+
+/** Bouwt de absolute inlog-URL uit de request-headers (val terug op een relatieve link). */
+async function loginUrl(): Promise<string> {
+  try {
+    const { headers } = await import("next/headers");
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    if (host) return `${proto}://${host}/login`;
+  } catch {
+    /* buiten request-context — val terug */
+  }
+  return "/login";
+}
 
 export interface ServerImportRow extends ParsedImportRow {
   /** E-mailadres bestaat al in de DB → de rij wordt overgeslagen (geen fout). */
@@ -33,11 +55,24 @@ export interface ServerImportPreview {
   summary: ImportSummary & { existing: number };
 }
 
+export interface ImportCreatedRow {
+  name: string;
+  email: string;
+  role: ImportRole;
+  tempPassword: string;
+  /** null = niet per mail verstuurd (admin koos scherm); true/false = verzendresultaat. */
+  emailSent: boolean | null;
+}
+
 export interface ImportCommitResult {
-  created: { name: string; email: string; role: ImportRole; tempPassword: string }[];
+  created: ImportCreatedRow[];
   skippedExisting: string[];
   failed: { rowNumber: number; email: string; reason: string }[];
   totalRows: number;
+  /** Of de admin om welkomstmails heeft gevraagd. */
+  emailRequested: boolean;
+  /** Aantal mislukte verzendingen (zodat de UI de wachtwoorden alsnog toont). */
+  emailFailures: number;
 }
 
 /** Leest en valideert het CSV-bestand uit het formulier; geeft de tekst of een leesbare fout. */
@@ -121,8 +156,20 @@ export async function commitImport(formData: FormData): Promise<ImportCommitResu
     (await prisma.skill.findMany({ select: { id: true, name: true } })).map((s) => [s.name.toLowerCase(), s.id]),
   );
 
+  // Welkomstmail versturen? Alleen als de admin dit kiest én SMTP is geconfigureerd.
+  const sendEmail = formData.get("sendEmail") === "1" && process.env.EMAIL_DRIVER === "smtp";
+  const mailer = sendEmail ? getMailSender() : null;
+  const url = sendEmail ? await loginUrl() : "/login";
+
   const meta = await requestMeta();
-  const result: ImportCommitResult = { created: [], skippedExisting: [], failed: [], totalRows: rows.length };
+  const result: ImportCommitResult = {
+    created: [],
+    skippedExisting: [],
+    failed: [],
+    totalRows: rows.length,
+    emailRequested: sendEmail,
+    emailFailures: 0,
+  };
 
   // Verzamel eerst de aan te maken rijen; rijen met fouten of bestaande e-mails apart afhandelen.
   const toCreate: ServerImportRow[] = [];
@@ -202,7 +249,20 @@ export async function commitImport(formData: FormData): Promise<ImportCommitResu
         });
       });
 
-      result.created.push({ name: row.name, email: row.email, role, tempPassword });
+      // Welkomstmail versturen (best-effort): een mislukte mail mag het account niet terugdraaien.
+      let emailSent: boolean | null = null;
+      if (mailer) {
+        try {
+          await mailer.send(buildWelcomeEmail({ name: row.name, email: row.email, tempPassword, loginUrl: url }));
+          emailSent = true;
+        } catch (mailErr) {
+          console.error("Import: welkomstmail mislukt voor", row.email, mailErr);
+          emailSent = false;
+          result.emailFailures++;
+        }
+      }
+
+      result.created.push({ name: row.name, email: row.email, role, tempPassword, emailSent });
     } catch (e) {
       // Geen interne foutdetails (bv. Prisma-melding) naar de client lekken; server-side loggen.
       console.error("Import: aanmaken mislukt voor rij", row.rowNumber, e);

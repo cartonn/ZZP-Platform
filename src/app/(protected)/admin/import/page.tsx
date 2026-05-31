@@ -3,11 +3,13 @@ import { Download, ArrowLeft } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { IMPORT_TEMPLATE_HEADERS } from "@/lib/onboarding/import";
 import { ImportWizard } from "./import-wizard";
+import { isEmailConfigured } from "./actions";
 
 export const metadata = { title: "Importeren — Beheer" };
 
 export default async function ImportPage() {
   await requireRole("ADMIN");
+  const emailConfigured = await isEmailConfigured();
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -44,7 +46,7 @@ export default async function ImportPage() {
         </p>
       </div>
 
-      <ImportWizard />
+      <ImportWizard emailConfigured={emailConfigured} />
     </div>
   );
 }
