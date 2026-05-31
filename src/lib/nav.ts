@@ -48,6 +48,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
     { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", enabled: true },
     { label: "Mijn opdrachten", href: "/opdrachten", icon: "briefcase", enabled: true },
+    { label: "ZZP'ers", href: "/freelancers", icon: "users", enabled: true },
     { label: "Kandidaten", href: "/kandidaten", icon: "users", enabled: true },
     { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", enabled: true },
     { label: "Prestaties", href: "/prestaties", icon: "fileCheck", enabled: true },
