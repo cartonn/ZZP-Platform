@@ -5,6 +5,8 @@
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { planVatReminders } from "@/lib/vat-reminder";
+import { getMailSender } from "@/lib/services/mail-sender";
+import { buildVatReminderEmail } from "@/lib/services/reminder-emails";
 
 export interface VatReminderResult {
   reminded: number;
@@ -15,8 +17,9 @@ export async function runVatReminderTask(opts: { actorId?: string | null; now?: 
 
   const freelancers = await prisma.user.findMany({
     where: { role: "FREELANCER", status: "ACTIVE" },
-    select: { id: true },
+    select: { id: true, email: true, name: true },
   });
+  const vatUserMap = new Map(freelancers.map((u) => [u.id, u]));
 
   const plan = planVatReminders(freelancers.map((u) => ({ userId: u.id })), now);
   if (plan.reminders.length === 0) return { reminded: 0 };
@@ -30,6 +33,9 @@ export async function runVatReminderTask(opts: { actorId?: string | null; now?: 
   const seen = new Set(existing.map((e) => e.dedupeKey));
   const fresh = plan.reminders.filter((r) => !seen.has(r.dedupeKey));
   if (fresh.length === 0) return { reminded: 0 };
+
+  const loginUrl = process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
+  const mail = getMailSender();
 
   for (const r of fresh) {
     await prisma.$transaction([
@@ -64,6 +70,14 @@ export async function runVatReminderTask(opts: { actorId?: string | null; now?: 
         }),
       }),
     ]);
+    const u = vatUserMap.get(r.userId);
+    if (u) {
+      try {
+        await mail.send(buildVatReminderEmail({ name: u.name ?? u.email, email: u.email, quarter: r.quarter, year: r.year, loginUrl }));
+      } catch (err) {
+        console.error("[vat-reminder-task] e-mail mislukt:", err);
+      }
+    }
   }
 
   return { reminded: fresh.length };

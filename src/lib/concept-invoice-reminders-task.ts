@@ -5,7 +5,9 @@
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { planConceptInvoiceReminders, type ConceptInvoiceCandidate } from "@/lib/concept-invoice-reminders";
+import { planConceptInvoiceReminders, type ConceptInvoiceCandidate, daysSince } from "@/lib/concept-invoice-reminders";
+import { getMailSender } from "@/lib/services/mail-sender";
+import { buildConceptInvoiceReminderEmail } from "@/lib/services/reminder-emails";
 
 export interface ConceptReminderResult {
   reminded: number;
@@ -41,6 +43,16 @@ export async function runConceptInvoiceReminderTask(opts: { actorId?: string | n
   const freshReminders = plan.reminders.filter((r) => !seen.has(r.dedupeKey));
   const freshEscalations = plan.escalations.filter((e) => !seen.has(e.dedupeKey));
 
+  // Batch-query voor e-mailadressen (één query voor alle betrokken gebruikers).
+  const reminderUserIds = [...new Set(freshReminders.map((r) => r.userId))];
+  const reminderUsers =
+    reminderUserIds.length > 0
+      ? await prisma.user.findMany({ where: { id: { in: reminderUserIds } }, select: { id: true, email: true, name: true } })
+      : [];
+  const reminderUserMap = new Map(reminderUsers.map((u) => [u.id, u]));
+  const loginUrl = process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
+  const mail = getMailSender();
+
   for (const r of freshReminders) {
     await prisma.$transaction([
       prisma.domainEvent.create({
@@ -49,6 +61,16 @@ export async function runConceptInvoiceReminderTask(opts: { actorId?: string | n
       prisma.notification.create({ data: { userId: r.userId, type: r.notificationType, title: r.title, body: r.body, link: "/facturen" } }),
       prisma.auditLog.create({ data: auditData({ actorId: opts.actorId ?? null, action: "INVOICE_DRAFT_REMINDER", entityType: "Invoice", entityId: r.invoiceId, metadata: { stage: r.stage } }) }),
     ]);
+    const u = reminderUserMap.get(r.userId);
+    const candidate = candidates.find((c) => c.invoiceId === r.invoiceId);
+    if (u && candidate) {
+      const d = daysSince(candidate.createdAt, now);
+      try {
+        await mail.send(buildConceptInvoiceReminderEmail({ name: u.name ?? u.email, email: u.email, invoiceNumber: candidate.partyInvoiceNumber ?? "concept-factuur", daysSince: d, loginUrl }));
+      } catch (err) {
+        console.error("[concept-invoice-reminders-task] e-mail mislukt:", err);
+      }
+    }
   }
 
   if (freshEscalations.length > 0) {

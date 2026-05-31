@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { invoiceLifecycleMachine, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { planPaymentReminders, type PaymentReminderCandidate } from "@/lib/payment-reminders";
+import { getMailSender } from "@/lib/services/mail-sender";
+import { buildPaymentReminderEmail, buildPaymentOverdueEmail } from "@/lib/services/reminder-emails";
 
 export interface PaymentReminderResult {
   markedOverdue: number;
@@ -48,6 +50,16 @@ export async function runPaymentReminderTask(opts: { actorId?: string | null; no
   const seen = new Set(existing.map((e) => e.dedupeKey));
   const fresh = plan.reminders.filter((r) => !seen.has(r.dedupeKey));
 
+  // Batch-query voor e-mailadressen van alle betrokken gebruikers.
+  const allUserIds = [...new Set(fresh.map((r) => r.userId))];
+  const paymentUsers =
+    allUserIds.length > 0
+      ? await prisma.user.findMany({ where: { id: { in: allUserIds } }, select: { id: true, email: true, name: true } })
+      : [];
+  const paymentUserMap = new Map(paymentUsers.map((u) => [u.id, u]));
+  const loginUrl = process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
+  const mail = getMailSender();
+
   for (const r of fresh) {
     await prisma.$transaction([
       prisma.domainEvent.create({
@@ -69,6 +81,25 @@ export async function runPaymentReminderTask(opts: { actorId?: string | null; no
         data: auditData({ actorId: opts.actorId ?? null, action: r.overdue ? "PAYMENT_OVERDUE" : "PAYMENT_REMINDER", entityType: "Invoice", entityId: r.invoiceId, metadata: { stage: r.stage } }),
       }),
     ]);
+    const u = paymentUserMap.get(r.userId);
+    const candidate = candidates.find((c) => c.invoiceId === r.invoiceId);
+    if (u && candidate) {
+      const num = candidate.partyInvoiceNumber ?? "factuur";
+      try {
+        if (r.overdue) {
+          const isFreelancer = r.userId === candidate.freelancerUserId;
+          await mail.send(buildPaymentOverdueEmail({ role: isFreelancer ? "freelancer" : "client", name: u.name ?? u.email, email: u.email, invoiceNumber: num, loginUrl }));
+        } else {
+          // Bereken daysLeft uit de stage-string (bv. "before-5" → 5).
+          const daysLeft = parseInt(r.stage.replace("before-", ""), 10);
+          if (!isNaN(daysLeft)) {
+            await mail.send(buildPaymentReminderEmail({ name: u.name ?? u.email, email: u.email, invoiceNumber: num, daysLeft, loginUrl }));
+          }
+        }
+      } catch (err) {
+        console.error("[payment-reminders-task] e-mail mislukt:", err);
+      }
+    }
   }
 
   return { markedOverdue, reminded: fresh.length };
