@@ -117,6 +117,19 @@ export const ORT_TIME_WINDOWS = {
   nightEndHour: 6, //     nacht loopt door tot 06:00
 } as const;
 
+// --- Aanmaningsladder (dunning) — dagen NÁ de vervaldag (configureerbaar) ----
+// Het platform int niet (Besluit 1): dit zijn herinneringen/signalen, geen incasso. Per niveau
+// wordt eenmalig een signaal gevuurd zodra dat niveau is bereikt. Drempels in dagen-na-vervaldag.
+export const DUNNING_STAGES = [
+  { level: "REMINDER", daysOverdue: 0, label: "Betalingsherinnering" },
+  { level: "FIRST_NOTICE", daysOverdue: 14, label: "Eerste aanmaning" },
+  { level: "SECOND_NOTICE", daysOverdue: 30, label: "Tweede aanmaning" },
+  { level: "FINAL_NOTICE", daysOverdue: 45, label: "Laatste aanmaning" },
+] as const;
+export type DunningLevel = (typeof DUNNING_STAGES)[number]["level"];
+/** Vanaf dit niveau wordt het platform (admins) geïnformeerd. */
+export const DUNNING_ESCALATION_LEVEL: DunningLevel = "FINAL_NOTICE";
+
 // --- ORT sector-/klantprofielen (rulesets) ----------------------------------
 // ORT verschilt per zorg-CAO: VVT, GGZ, GHZ (gehandicaptenzorg) en Jeugdzorg hanteren elk
 // eigen toeslagen. Een samenwerking kiest een profiel (Collaboration.ortProfile); ontbreekt dat,
