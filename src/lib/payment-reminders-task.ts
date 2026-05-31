@@ -5,7 +5,11 @@
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { invoiceLifecycleMachine, type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { planPaymentReminders, type PaymentReminderCandidate } from "@/lib/payment-reminders";
+import {
+  planPaymentReminders,
+  type PaymentReminderCandidate,
+  type PaymentEscalationItem,
+} from "@/lib/payment-reminders";
 import { getMailSender } from "@/lib/services/mail-sender";
 import {
   buildPaymentReminderEmail,
@@ -15,6 +19,7 @@ import {
 export interface PaymentReminderResult {
   markedOverdue: number;
   reminded: number;
+  escalated: number;
 }
 
 export async function runPaymentReminderTask(opts: {
@@ -59,15 +64,23 @@ export async function runPaymentReminderTask(opts: {
     markedOverdue += 1;
   }
 
-  // Filter al-gevuurde herinneringen weg (idempotent via DomainEvent dedupeKey).
-  if (plan.reminders.length === 0) return { markedOverdue, reminded: 0 };
-  const keys = plan.reminders.map((r) => r.dedupeKey);
+  // Filter al-gevuurde herinneringen en escalaties weg (idempotent via DomainEvent dedupeKey).
+  if (plan.reminders.length === 0 && plan.escalations.length === 0)
+    return { markedOverdue, reminded: 0, escalated: 0 };
+
+  const keys = [
+    ...plan.reminders.map((r) => r.dedupeKey),
+    ...plan.escalations.map((e) => e.dedupeKey),
+  ];
   const existing = await prisma.domainEvent.findMany({
     where: { dedupeKey: { in: keys } },
     select: { dedupeKey: true },
   });
   const seen = new Set(existing.map((e) => e.dedupeKey));
   const fresh = plan.reminders.filter((r) => !seen.has(r.dedupeKey));
+  const freshEscalations: PaymentEscalationItem[] = plan.escalations.filter(
+    (e) => !seen.has(e.dedupeKey),
+  );
 
   // Batch-query voor e-mailadressen van alle betrokken gebruikers.
   const allUserIds = [...new Set(fresh.map((r) => r.userId))];
@@ -152,5 +165,54 @@ export async function runPaymentReminderTask(opts: {
     }
   }
 
-  return { markedOverdue, reminded: fresh.length };
+  // Escalaties naar admins: één DomainEvent + notificaties per admin + auditlog per escalatie.
+  let escalated = 0;
+  if (freshEscalations.length > 0) {
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN", status: "ACTIVE" },
+      select: { id: true },
+    });
+    for (const e of freshEscalations) {
+      const domainEvent = prisma.domainEvent.create({
+        data: {
+          type: "PAYMENT_OVERDUE",
+          actorRole: "SYSTEM",
+          actorId: opts.actorId ?? null,
+          subjectType: "Invoice",
+          subjectId: e.invoiceId,
+          payload: JSON.stringify({
+            stage: "escalation",
+            level: e.level,
+            daysOverdue: e.daysOverdue,
+          }),
+          correlationId: null,
+          dedupeKey: e.dedupeKey,
+        },
+      });
+      const notificationCreates = admins.map((admin) =>
+        prisma.notification.create({
+          data: {
+            userId: admin.id,
+            type: "PAYMENT_OVERDUE",
+            title: "Te late betaling vraagt aandacht",
+            body: `Factuur ${e.partyInvoiceNumber ?? "(concept)"} staat ${e.daysOverdue} dagen open (laatste aanmaning).`,
+            link: "/admin/administratie",
+          },
+        }),
+      );
+      const auditLog = prisma.auditLog.create({
+        data: auditData({
+          actorId: opts.actorId ?? null,
+          action: "PAYMENT_OVERDUE",
+          entityType: "Invoice",
+          entityId: e.invoiceId,
+          metadata: { stage: "escalation", level: e.level },
+        }),
+      });
+      await prisma.$transaction([domainEvent, ...notificationCreates, auditLog]);
+      escalated += 1;
+    }
+  }
+
+  return { markedOverdue, reminded: fresh.length, escalated };
 }

@@ -701,4 +701,23 @@ Sluit de ontbrekende e-mailkanalen voor twee kritieke platform-events:
   geregistreerd) prettier ✓. E2e overgeslagen (geen browser-channel in de routine-omgeving, net als CI).
   Linear: ZZP2-37. Geen "AI" in UI/teksten/comments.
 
+### Aanmaningsladder voor te late facturen (dunning-escalatie) — 2026-05-31
+
+- Orchestrator (Opus) + 2 Sonnet-builders op niet-overlappende bestanden (engine+config+tests vs.
+  runner). Linear: ZZP2-35 (ZZP Platform HUB).
+- **Config** (`config.ts`): `DUNNING_STAGES` (REMINDER@0 / FIRST_NOTICE@14 / SECOND_NOTICE@30 /
+  FINAL_NOTICE@45 dagen-na-vervaldag, NL-labels) + `DunningLevel` + `DUNNING_ESCALATION_LEVEL`.
+  Configureerbaar; het platform int niet (Besluit 1) — signalen, geen incasso.
+- **Engine** (`payment-reminders.ts`): `daysOverdue` + `currentDunningStage` (hoogst bereikte
+  niveau of null) + `PaymentEscalationItem` + `escalations[]` op het plan. `planPaymentReminders`
+  vuurt per te late factuur het huidige niveau, eenmalig per niveau (dedupeKey per niveau,
+  idempotent), en escaleert naar het platform op het laatste niveau. Pre-vervaldag-herinneringen
+  ongewijzigd; bestaande tests blijven groen.
+- **Runner** (`payment-reminders-task.ts`): verwerkt de gestaffelde reminders + escaleert naar
+  actieve admins (DomainEvent + notificatie per admin + audit, idempotent via dedupeKey).
+  `PaymentReminderResult.escalated` toegevoegd.
+- **UI**: rustig informatief aanmaningsniveau-label op de factuurdetailpagina voor OVERDUE-facturen.
+- Tests: 555 → 573 groen (+18). Gate: typecheck ✓ lint ✓ test ✓ build ✓ prettier ✓.
+  E2e overgeslagen (geen browser-channel in deze omgeving; net als CI).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
