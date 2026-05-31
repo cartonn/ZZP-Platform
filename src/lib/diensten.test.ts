@@ -142,10 +142,11 @@ describe("exportDienstenCsv", () => {
   });
 
   it("toont ORT-indicator correct", () => {
+    // De gedeelde CSV-escaper quote alleen waar nodig; de ORT-kolom staat tussen scheidingstekens.
     const csv = exportDienstenCsv([base]);
-    expect(csv).toContain('"Ja"');
+    expect(csv).toContain(";Ja;");
     const noOrt = exportDienstenCsv([{ ...base, hasOrt: false }]);
-    expect(noOrt).toContain('"Nee"');
+    expect(noOrt).toContain(";Nee;");
   });
 
   it("formatteert bedragen als EUR met komma", () => {

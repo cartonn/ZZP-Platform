@@ -1,20 +1,12 @@
 // CSV-export van de administratie (PLATFORM_OVERHAUL.md §5: exporteerbaar voor de boekhouder).
 // Pure functies: bouwen de CSV-tekst; de route levert hem als download. Bedragen in hele euro's
 // met punt-decimaal, scheidingsteken ';' (gangbaar voor NL-Excel). Geen floats opslaan — alleen
-// hier omrekenen van centen naar weergave.
+// hier omrekenen van centen naar weergave. De generieke CSV-primitieven komen uit @/lib/csv.
 
-/** Escapet één veld: dubbele quotes verdubbelen en quoten bij ; " of newline. */
-export function escapeCsvField(value: string): string {
-  if (/[";\n\r]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
+import { escapeCsvField, toCsv } from "@/lib/csv";
 
-/** Bouwt CSV-tekst uit rijen (eerste rij = kop). Velden worden ge-escaped. */
-export function toCsv(rows: readonly (readonly (string | number)[])[]): string {
-  return rows.map((row) => row.map((c) => escapeCsvField(String(c))).join(";")).join("\r\n");
-}
+// Her-export zodat bestaande importers (@/lib/administration/csv) blijven werken.
+export { escapeCsvField, toCsv };
 
 /** Centen → euro-weergave met punt-decimaal, bv. 101640 → "1016.40". */
 export function centsToEuroPlain(cents: number): string {

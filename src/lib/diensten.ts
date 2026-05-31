@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/db";
 import { type OrtSegment, ortSubtotalCents, resolveOrtRates } from "@/lib/ort";
+import { parseCsvRecords, escapeCsvField } from "@/lib/csv";
 
 export interface DienstSummary {
   id: string;
@@ -144,7 +145,7 @@ export function exportDienstenCsv(diensten: DienstSummary[]): string {
       d.rejectionReason ?? "",
       d.description,
     ]
-      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .map((v) => escapeCsvField(String(v)))
       .join(";"),
   );
 
@@ -177,29 +178,28 @@ export const MAX_CSV_IMPORT_SIZE = 100;
 /**
  * Parseert CSV-tekst voor diensten-import. Formaat (semikolon-gescheiden):
  *   start;eind;omschrijving
- * Kolom "omschrijving" is optioneel. Een optionele kopregels-regel wordt overgeslagen.
- * Tijdstempels: ISO-8601 of "2024-01-15 22:00" (spatie i.p.v. T toegestaan).
+ * Kolom "omschrijving" is optioneel (mag het scheidingsteken of newlines bevatten als ze
+ * gequote zijn). Een optionele kopregel wordt overgeslagen. Tijdstempels: ISO-8601 of
+ * "2024-01-15 22:00" (spatie i.p.v. T toegestaan). Gebruikt de gedeelde RFC4180-parser (@/lib/csv).
  */
 export function parseCsvShifts(text: string): CsvParseResult {
   const shifts: ParsedShift[] = [];
   const errors: CsvParseError[] = [];
 
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
+  // Vast scheidingsteken ';' voor dit formaat; de parser handelt gequote velden en newlines af.
+  const records = parseCsvRecords(text, ";");
 
   let startLine = 0;
-  if (lines.length > 0) {
-    const firstCol = lines[0]!.split(";")[0]!.trim().toLowerCase();
+  if (records.length > 0) {
+    const firstCol = (records[0]![0] ?? "").trim().toLowerCase();
     if (["start", "datum_start", "begin", "van"].includes(firstCol)) {
       startLine = 1;
     }
   }
 
-  for (let i = startLine; i < lines.length; i++) {
+  for (let i = startLine; i < records.length; i++) {
     const lineNum = i + 1;
-    const cols = lines[i]!.split(";").map((c) => c.trim());
+    const cols = records[i]!.map((c) => c.trim());
 
     if (cols.length < 2) {
       errors.push({ line: lineNum, message: "Minimaal twee kolommen vereist (start;eind)." });

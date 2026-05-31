@@ -7,7 +7,10 @@
 // Daarom: dry-run preview met per-rij status (ok/waarschuwing/fout), niets schrijven vóór bevestiging.
 
 import { z } from "zod";
-import { escapeCsvField } from "@/lib/administration/csv";
+import { escapeCsvField, parseCsvRecords, detectDelimiter } from "@/lib/csv";
+
+// Her-export zodat bestaande importers (de admin-import-actie + tests) dit pad blijven gebruiken.
+export { parseCsvRecords, detectDelimiter };
 
 export type ImportRole = "FREELANCER" | "CLIENT";
 
@@ -47,105 +50,6 @@ export interface ImportSummary {
 export interface ImportPreview {
   rows: ParsedImportRow[];
   summary: ImportSummary;
-}
-
-// --- CSV-parser (RFC 4180-achtig) ------------------------------------------
-// Ondersteunt ; , en tab als scheidingsteken (autodetectie op de kopregel), velden tussen
-// dubbele quotes met "" als escape, CRLF/LF en een BOM. Excel-NL exporteert met ';' en quotet
-// velden met komma's — dat moet gewoon werken.
-
-const DELIMITERS = [";", ",", "\t"] as const;
-type Delimiter = (typeof DELIMITERS)[number];
-
-export function detectDelimiter(headerLine: string): Delimiter {
-  let best: Delimiter = ";";
-  let bestCount = -1;
-  for (const d of DELIMITERS) {
-    // tel voorkomens buiten quotes
-    let count = 0;
-    let inQuotes = false;
-    for (const ch of headerLine) {
-      if (ch === '"') inQuotes = !inQuotes;
-      else if (ch === d && !inQuotes) count++;
-    }
-    if (count > bestCount) {
-      best = d;
-      bestCount = count;
-    }
-  }
-  return best;
-}
-
-/** Splitst CSV-tekst in records (rijen van velden). Lege regels worden overgeslagen. */
-export function parseCsvRecords(text: string): string[][] {
-  const clean = text.replace(/^\uFEFF/, "");
-  const firstLineEnd = clean.search(/\r\n|\n|\r/);
-  const headerLine = firstLineEnd === -1 ? clean : clean.slice(0, firstLineEnd);
-  const delim = detectDelimiter(headerLine);
-
-  const records: string[][] = [];
-  let field = "";
-  let record: string[] = [];
-  let inQuotes = false;
-  let i = 0;
-  const n = clean.length;
-
-  const endField = () => {
-    record.push(field);
-    field = "";
-  };
-  const endRecord = () => {
-    endField();
-    // Sla volledig lege regels over (één leeg veld).
-    if (!(record.length === 1 && record[0]!.trim() === "")) records.push(record);
-    record = [];
-  };
-
-  while (i < n) {
-    const ch = clean[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (clean[i + 1] === '"') {
-          field += '"';
-          i += 2;
-          continue;
-        }
-        inQuotes = false;
-        i++;
-        continue;
-      }
-      field += ch;
-      i++;
-      continue;
-    }
-    if (ch === '"') {
-      inQuotes = true;
-      i++;
-      continue;
-    }
-    if (ch === delim) {
-      endField();
-      i++;
-      continue;
-    }
-    if (ch === "\r") {
-      // \r of \r\n
-      if (clean[i + 1] === "\n") i++;
-      endRecord();
-      i++;
-      continue;
-    }
-    if (ch === "\n") {
-      endRecord();
-      i++;
-      continue;
-    }
-    field += ch;
-    i++;
-  }
-  // laatste veld/record
-  if (field.length > 0 || record.length > 0) endRecord();
-  return records;
 }
 
 // --- Kolomherkenning -------------------------------------------------------
