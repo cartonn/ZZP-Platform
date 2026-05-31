@@ -128,7 +128,9 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > nav-signalen cascade (cascadeWork + openDisputes + pendingPerformances in signals.ts),
 > ORT-categorietests (SATURDAY/HOLIDAY/gemengd), handlers-edge-cases, validatietests periodedata,
 > diensten-overzicht ZZP'er + CSV-import + export, prestaties-overzicht opdrachtgever + export,
-> admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening.
+> admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening,
+> CSV-export formule-injectie-hardening (csvEscape, alle exports) + ORT-shiftsegmentatie testdekking
+> (shift.test.ts).
 
 ### Gap-analyse (Fase 0)
 
