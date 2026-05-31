@@ -6,6 +6,7 @@ import { authConfig } from "@/auth.config";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { loginRateLimiter } from "@/lib/rate-limit";
 import { type UserRole } from "@/lib/enums";
 
 const credentialsSchema = z.object({
@@ -40,12 +41,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
+        const meta = await requestMeta();
+
+        // Brute-force-bescherming: begrens inlogpogingen per IP + e-mail. De server
+        // beslist; bij overschrijding wordt de poging geweigerd en geaudit. E-mail
+        // genormaliseerd zodat hoofdletter-varianten niet om de limiet heen kunnen.
+        const limitKey = `${meta.ipAddress ?? "unknown"}:${email.toLowerCase()}`;
+        if (!loginRateLimiter.check(limitKey).allowed) {
+          await audit({ action: "AUTH_RATE_LIMITED", entityType: "User", entityId: "unknown", metadata: { email }, ...meta });
+          return null;
+        }
+
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || user.status !== "ACTIVE" || !(await bcrypt.compare(password, user.passwordHash))) {
-          const meta = await requestMeta();
           await audit({ action: "USER_LOGIN_FAILED", entityType: "User", entityId: user?.id ?? "unknown", metadata: { email }, ...meta });
           return null;
         }
+
+        // Geslaagde login: reset de teller zodat een legitieme gebruiker na eerdere
+        // misfires niet onnodig wordt geblokkeerd.
+        loginRateLimiter.reset(limitKey);
 
         return {
           id: user.id,
