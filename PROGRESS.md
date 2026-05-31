@@ -887,4 +887,22 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Tests: 505 → 520 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
   E2e overgeslagen (geen browser-channel in routine).
 
+### Job-alerts voor ZZP'ers — 2026-05-31
+
+- `src/lib/job-alerts.ts`: pure planner `planJobAlerts` — scoort elke passende ZZP'er voor
+  nieuw gepubliceerde opdrachten (drempel 70/100, dedupeKey per job+user), slaat al-gereageerde
+  freelancers over, retourneert `JobAlertPlan` met JOB_MATCH notificaties.
+- `src/lib/job-alerts-task.ts`: runner `runJobAlertsTask` — laadt unalerted PUBLISHED jobs
+  - actieve FreelancerProfiles (incl. skills/credentials/availability), filtert dubbele via
+    DomainEvent dedupeKey, schrijft notifications + DomainEvents + audit atomair, zet `alertedAt`
+    op verwerkte jobs (idempotentie-anker).
+- `src/app/api/tasks/job-alerts/route.ts`: beveiligd POST-endpoint (CRON_SECRET, zelfde
+  guard als andere taak-routes).
+- `src/app/api/tasks/run-all/route.ts`: `job-alerts` toegevoegd aan de run-all-suite.
+- `src/lib/notifications.ts`: `JOB_MATCH` notificatietype (categorie system, toon info).
+- `prisma/schema.prisma`: `Job.alertedAt DateTime?` (additief, db push gedraaid).
+- `src/lib/job-alerts.test.ts`: 10 unit-tests (lege inputs, match boven drempel, uitsluiting
+  al-gereageerden, drempel-instelling, dedupeKey-formaat, link, meerdere jobs/freelancers).
+- Tests: 555 → 566 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
