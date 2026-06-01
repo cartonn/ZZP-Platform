@@ -4,9 +4,11 @@ import { prisma } from "@/lib/db";
 import { getStorage } from "@/lib/services/storage";
 
 // Serveert opgeslagen media via de storage-abstractie. Storage is privé (CLAUDE.md
-// regel 4): er wordt nooit een publiek pad blootgesteld. Voor Sessie 1 dekt deze route
-// alleen bedrijfslogo's (key moet als Company.logoKey bekend zijn). De algemene,
-// ownership-gecontroleerde document-download volgt in Sessie 4.
+// regel 4): er wordt nooit een publiek pad blootgesteld.
+// Toegang: ingelogd + key moet een bekende Company.logoKey zijn.
+// Logo's zijn bewust zichtbaar voor alle ingelogde gebruikers (staan op zoekpagina's,
+// opdrachtdetails, bedrijfsprofielen). Gevoelige documenten gaan via /api/documents/[id]
+// met ownership-check.
 export async function GET(_req: Request, ctx: { params: Promise<{ key: string[] }> }) {
   try {
     await requireActor();
