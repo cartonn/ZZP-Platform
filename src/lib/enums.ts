@@ -160,6 +160,44 @@ export const INCIDENT_TRANSITIONS: Record<IncidentStatus, readonly IncidentStatu
 };
 
 // ---------------------------------------------------------------------------
+// Belastingaangifte-delegatie ("Wij doen je aangifte"). Het platform orchestreert en
+// vraagt akkoord; een aangesloten partner-belastingkantoor is de feitelijke gemachtigde
+// indiener (becon/SBR/PKIoverheid). De ZZP'er blijft zelf verantwoordelijk. Geen "AI" in UI.
+// ---------------------------------------------------------------------------
+
+export const TAX_FILING_KINDS = ["IB", "BTW"] as const;
+export type TaxFilingKind = (typeof TAX_FILING_KINDS)[number];
+export const taxFilingKindSchema = z.enum(TAX_FILING_KINDS);
+
+/** Machtigingsvorm bij de Belastingdienst (zzp/eenmanszaak: DigiD-machtiging; anders eHerkenning-ketenmachtiging). */
+export const MANDATE_KINDS = ["DIGID", "EHERKENNING"] as const;
+export type MandateKind = (typeof MANDATE_KINDS)[number];
+export const mandateKindSchema = z.enum(MANDATE_KINDS);
+
+export const TAX_FILING_STATUSES = [
+  "AKKOORD", //            consent + machtiging gegeven, klaar voor het kantoor
+  "IN_BEHANDELING", //     partner-belastingkantoor werkt aan de aangifte
+  "VRAGEN", //             kantoor heeft een vraag aan de klant (round-trip)
+  "CONCEPT_KLAAR", //      concept klaar — wacht op review-then-submit door de klant
+  "INGEDIEND", //          door het kantoor ingediend bij de Belastingdienst
+  "AANSLAG_ONTVANGEN", //  (voorlopige/definitieve) aanslag terug
+  "INGETROKKEN", //        machtiging ingetrokken door de klant
+] as const;
+export type TaxFilingStatus = (typeof TAX_FILING_STATUSES)[number];
+export const taxFilingStatusSchema = z.enum(TAX_FILING_STATUSES);
+
+/** Enige toegestane overgangsmap (CLAUDE.md regel 3). */
+export const TAX_FILING_TRANSITIONS: Record<TaxFilingStatus, readonly TaxFilingStatus[]> = {
+  AKKOORD: ["IN_BEHANDELING", "INGETROKKEN"],
+  IN_BEHANDELING: ["VRAGEN", "CONCEPT_KLAAR", "INGETROKKEN"],
+  VRAGEN: ["IN_BEHANDELING", "INGETROKKEN"],
+  CONCEPT_KLAAR: ["INGEDIEND", "VRAGEN", "INGETROKKEN"],
+  INGEDIEND: ["AANSLAG_ONTVANGEN"],
+  AANSLAG_ONTVANGEN: [],
+  INGETROKKEN: [],
+};
+
+// ---------------------------------------------------------------------------
 // Credential-statusovergangen (CLAUDE.md regel 3)
 //
 // Dit is de enige toegestane overgangsmap. `assertTransition` in
