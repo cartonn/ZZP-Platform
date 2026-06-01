@@ -86,6 +86,57 @@ export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 export const subscriptionStatusSchema = z.enum(SUBSCRIPTION_STATUSES);
 
 // ---------------------------------------------------------------------------
+// Support / Helpdesk (klantondersteuning). Geen "AI" in UI/teksten — de
+// geautomatiseerde beantwoorder heet "Support-assistent" / "Helpdesk".
+// Statusovergangen via SUPPORT_TICKET_TRANSITIONS (assertTransition).
+// ---------------------------------------------------------------------------
+
+export const SUPPORT_CATEGORIES = [
+  "ACCOUNT",
+  "INVOICE",
+  "CREDENTIAL",
+  "JOB",
+  "TECHNICAL",
+  "PRIVACY",
+  "OTHER",
+] as const;
+export type SupportCategory = (typeof SUPPORT_CATEGORIES)[number];
+export const supportCategorySchema = z.enum(SUPPORT_CATEGORIES);
+
+export const SUPPORT_TICKET_STATUSES = [
+  "NEW",
+  "TRIAGED",
+  "AUTO_ANSWERED",
+  "ESCALATED",
+  "RESOLVED",
+  "REOPENED",
+] as const;
+export type SupportTicketStatus = (typeof SUPPORT_TICKET_STATUSES)[number];
+export const supportTicketStatusSchema = z.enum(SUPPORT_TICKET_STATUSES);
+
+/** Enige toegestane overgangsmap voor support-tickets (CLAUDE.md regel 3). */
+export const SUPPORT_TICKET_TRANSITIONS: Record<
+  SupportTicketStatus,
+  readonly SupportTicketStatus[]
+> = {
+  NEW: ["TRIAGED"],
+  TRIAGED: ["AUTO_ANSWERED", "ESCALATED", "RESOLVED"],
+  AUTO_ANSWERED: ["RESOLVED", "ESCALATED", "REOPENED"],
+  ESCALATED: ["RESOLVED", "REOPENED"],
+  RESOLVED: ["REOPENED"],
+  REOPENED: ["TRIAGED", "ESCALATED", "RESOLVED"],
+};
+
+export const SUPPORT_PRIORITIES = ["LOW", "NORMAL", "HIGH"] as const;
+export type SupportPriority = (typeof SUPPORT_PRIORITIES)[number];
+export const supportPrioritySchema = z.enum(SUPPORT_PRIORITIES);
+
+/** Wie schreef een bericht: gebruiker, menselijke support-medewerker, of de assistent. */
+export const SUPPORT_AUTHOR_KINDS = ["USER", "AGENT", "ASSISTANT"] as const;
+export type SupportAuthorKind = (typeof SUPPORT_AUTHOR_KINDS)[number];
+export const supportAuthorKindSchema = z.enum(SUPPORT_AUTHOR_KINDS);
+
+// ---------------------------------------------------------------------------
 // Credential-statusovergangen (CLAUDE.md regel 3)
 //
 // Dit is de enige toegestane overgangsmap. `assertTransition` in

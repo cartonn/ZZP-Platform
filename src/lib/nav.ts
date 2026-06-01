@@ -45,6 +45,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Administratie", href: "/administratie", icon: "receipt", enabled: true },
     { label: "Openstaand", href: "/openstaand", icon: "receipt", enabled: true },
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", enabled: true },
+    { label: "Support", href: "/support", icon: "messages", enabled: true },
   ],
   CLIENT: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
@@ -59,12 +60,14 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Administratie", href: "/administratie", icon: "receipt", enabled: true },
     { label: "Openstaand", href: "/openstaand", icon: "receipt", enabled: true },
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", enabled: true },
+    { label: "Support", href: "/support", icon: "messages", enabled: true },
   ],
   ADMIN: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
     { label: "Verificaties", href: "/admin/verificaties", icon: "fileCheck", enabled: true },
     { label: "Samenwerkingen", href: "/admin/samenwerkingen", icon: "handshake", enabled: true },
     { label: "Disputen", href: "/admin/disputen", icon: "handshake", enabled: true },
+    { label: "Helpdesk", href: "/admin/support", icon: "messages", enabled: true },
     { label: "DBA-monitor", href: "/admin/dba", icon: "shield", enabled: true },
     { label: "Administratie", href: "/admin/administratie", icon: "barChart", enabled: true },
     { label: "Gebruikers", href: "/admin/gebruikers", icon: "users", enabled: true },

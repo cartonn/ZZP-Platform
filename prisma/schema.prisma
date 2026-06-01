@@ -50,6 +50,10 @@ model User {
 
   passwordResetTokens PasswordResetToken[]
 
+  supportTickets    SupportTicket[]        @relation("SupportRequester")
+  assignedTickets   SupportTicket[]        @relation("SupportAssignee")
+  supportMessages   SupportMessage[]       @relation("SupportMessageAuthor")
+
   @@index([role])
   @@index([status])
 }
@@ -660,4 +664,47 @@ model PlatformConfig {
   dbaRevenueConcentrationPct Int      @default(80)
   updatedAt                  DateTime @updatedAt
   updatedBy                  String?
+}
+
+// ---------------------------------------------------------------------------
+// Support / Helpdesk (klantondersteuning). Geen "AI" in UI/teksten.
+// Statusovergangen via SUPPORT_TICKET_TRANSITIONS (src/lib/enums.ts).
+// ---------------------------------------------------------------------------
+
+model SupportTicket {
+  id               String    @id @default(cuid())
+  userId           String //                       de aanvrager (eigenaar)
+  subject          String
+  category         String    @default("OTHER") //  SupportCategory
+  status           String    @default("NEW") //     SupportTicketStatus
+  priority         String    @default("NORMAL") //  SupportPriority
+  intent           String? //                       server-bepaalde triage-intentie
+  triageConfidence Int? //                          0-100, deterministisch
+  assignedToId     String? //                       ADMIN aan wie geëscaleerd is
+  autoAttempts     Int       @default(0) //          guardrail: stop na 2 auto-pogingen
+  resolvedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user       User             @relation("SupportRequester", fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo User?            @relation("SupportAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages   SupportMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model SupportMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  authorId   String? //                  null = systeem (de "Support-assistent")
+  authorKind String   @default("USER") // SupportAuthorKind: USER | AGENT | ASSISTANT
+  body       String
+  createdAt  DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?         @relation("SupportMessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
 }
