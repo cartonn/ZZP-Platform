@@ -146,4 +146,40 @@ describe("signContract — DB-niveau idempotentie via dedupeKey", () => {
     await signContract(actor, "col-abc");
     expect(mockTransaction).not.toHaveBeenCalled();
   });
+
+  it("race: P2002-botsing op dedupeKey in de transactie → idempotente no-op (geen fout)", async () => {
+    // De pre-check ziet niets (lege store), maar een concurrente request schrijft het event
+    // net eerder weg. De @unique-constraint werpt dan P2002; dit mag geen fout opleveren.
+    mockTransaction.mockReset();
+    mockTransaction.mockRejectedValueOnce(
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["dedupeKey"] },
+      }),
+    );
+    const { signContract } = await import("@/lib/cascade/commands");
+    const actor = { id: "c1", role: "CLIENT" as const, name: "Client", status: "ACTIVE" };
+    // Resolvet (void) i.p.v. de P2002 te laten doorlekken — dat is de idempotente afhandeling.
+    await expect(signContract(actor, "col-abc")).resolves.toBeUndefined();
+  });
+});
+
+describe("isUniqueDedupeViolation", () => {
+  it("herkent P2002 op dedupeKey (array of string target)", async () => {
+    const { isUniqueDedupeViolation } = await import("@/lib/cascade/commands");
+    expect(isUniqueDedupeViolation({ code: "P2002", meta: { target: ["dedupeKey"] } })).toBe(true);
+    expect(
+      isUniqueDedupeViolation({ code: "P2002", meta: { target: "DomainEvent_dedupeKey_key" } }),
+    ).toBe(true);
+    expect(isUniqueDedupeViolation({ code: "P2002" })).toBe(true); // geen target → idempotent
+  });
+
+  it("negeert andere fouten en andere unique-constraints", async () => {
+    const { isUniqueDedupeViolation } = await import("@/lib/cascade/commands");
+    expect(isUniqueDedupeViolation({ code: "P2002", meta: { target: ["number"] } })).toBe(false);
+    expect(isUniqueDedupeViolation({ code: "P2025" })).toBe(false);
+    expect(isUniqueDedupeViolation(new Error("boom"))).toBe(false);
+    expect(isUniqueDedupeViolation(null)).toBe(false);
+    expect(isUniqueDedupeViolation(undefined)).toBe(false);
+  });
 });

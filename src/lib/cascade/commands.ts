@@ -74,6 +74,40 @@ async function persistEventAndEffects(
     if (existing) return {}; // al verwerkt — idempotent
   }
 
+  try {
+    return await persistInTransaction(eventInput, effects, refs, opts);
+  } catch (e) {
+    // Race: tussen de pre-check en de create kan een concurrente request hetzelfde
+    // dedupeKey al hebben weggeschreven. De @unique-constraint op DomainEvent.dedupeKey
+    // dwingt idempotentie hard af; we vertalen die botsing naar dezelfde no-op als de
+    // pre-check, zodat dubbele verwerking nooit als fout naar de gebruiker lekt.
+    if (eventInput.dedupeKey && isUniqueDedupeViolation(e)) return {};
+    throw e;
+  }
+}
+
+/** Herkent een Prisma P2002 unique-constraint-botsing op DomainEvent.dedupeKey. */
+export function isUniqueDedupeViolation(e: unknown): boolean {
+  if (!e || typeof e !== "object" || !("code" in e)) return false;
+  if ((e as { code?: unknown }).code !== "P2002") return false;
+  const target = (e as { meta?: { target?: unknown } }).meta?.target;
+  // target is meestal string[] (Postgres) of string (SQLite). Geen target → toch idempotent.
+  if (Array.isArray(target)) return target.some((t) => String(t).includes("dedupeKey"));
+  if (typeof target === "string") return target.includes("dedupeKey");
+  return true;
+}
+
+async function persistInTransaction(
+  eventInput: DomainEventInput,
+  effects: CascadeEffects,
+  refs: {
+    owners: PartyOwners;
+    invoiceId?: string | null;
+    performanceId?: string | null;
+    correlationId?: string | null;
+  },
+  opts?: { allocate?: { issuerKey: string; year: number; invoiceId: string } },
+): Promise<PersistResult> {
   return prisma.$transaction(async (tx) => {
     const event = await tx.domainEvent.create({
       data: {
