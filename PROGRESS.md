@@ -4,6 +4,7 @@
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
 ## Legenda
+
 - [x] af en getest
 - [~] deels af / in uitvoering
 - [ ] nog niet begonnen
@@ -29,9 +30,11 @@
 ## Logboek
 
 ### Meedenk-laag — 2026-05-26
+
 Cohesief, deterministisch "meedenk"-systeem dat rollen ontzorgt; alleen wat belangrijk is /
 actie vraagt wordt getoond, complexiteit blijft server-side. Geen nieuwe infra. (De term "AI"
 is bewust uit de hele UI, code-commentaren en docs gehouden.)
+
 - **Nav-signalen** (`src/lib/signals.ts` + test): badges op nav-items vanaf elke pagina —
   certificaten (afgewezen/verloopt), kandidaten (nieuwe reacties), opdrachten (concepten),
   verificaties (wachtrij), berichten (ongelezen, 2 begrensde queries, geen N+1). Toon: attention
@@ -62,6 +65,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
   build, e2e + shots.
 
 ### Sessie 0 — 2026-05-25
+
 - Wat gedaan: fundament vanaf nul gescaffold (geen bestaande codebase aangetroffen).
   Next.js 15 (App Router) + React 19 + TS strict + Prisma (SQLite) + Auth.js v5
   (credentials + JWT, role-based) + Tailwind + Vitest. Login werkt, guard redirect
@@ -94,6 +98,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
     `packages.microsoft.com` → `microsoft-edge-stable`. Niet via Playwright's eigen CDN.
 
 ### Sessie 1 — 2026-05-26
+
 - Wat gedaan: onboarding & profielen. Registratie met rolkeuze (FREELANCER/CLIENT)
   maakt account + leeg profiel/bedrijf aan en logt direct in. Freelancer- en
   bedrijfsprofiel bewerkbaar via beschermde routes (mutatieketen rol→ownership→Zod→
@@ -109,7 +114,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
   - `src/app/zzp/[id]/page.tsx` — publiek profiel (zichtbaarheid afgedwongen)
   - `src/app/api/media/[...key]/route.ts` — auth-gated logo-serving via storage
   - `src/components/ui/*` — input, textarea, select, field, card, progress, badge
-  - nav.ts: /profiel + /bedrijf op enabled; auth.config: /register + /zzp/* publiek
+  - nav.ts: /profiel + /bedrijf op enabled; auth.config: /register + /zzp/\* publiek
 - Tests: 58 unit-tests (incl. validation 8, profile 6) + 10 Playwright e2e groen
   (registratie, profiel publiceren, PUBLIC→PRIVATE 404, bedrijfsprofiel).
 - Checks: typecheck ✓, lint ✓, test ✓ (58), build ✓ (10 routes), e2e ✓ (10, via Edge).
@@ -121,6 +126,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 2 — Opdrachten CRUD + zoeken/filteren.
 
 ### Sessie 2 — 2026-05-26
+
 - Wat gedaan: opdrachten CRUD + zoeken/filteren. CLIENT maakt/bewerkt opdrachten
   (concept → publiceren → sluiten/heropenen → depubliceren) met server-side afgedwongen
   statusovergangen (`JOB_TRANSITIONS`/`assertJobTransition`) + ownership + audit. Vereiste/
@@ -146,6 +152,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
   gebruik `src/lib/matching.ts`; feature-gating per plan).
 
 ### Sessie 3 — 2026-05-26
+
 - Wat gedaan: reacties & kandidatenflow. FREELANCER reageert op een PUBLISHED opdracht
   (motivatie/tariefvoorstel/beschikbaarheid); server berekent matchscore + compliance-
   snapshot via `matching.ts` en slaat ze op. Eén reactie per opdracht. Plan-gating
@@ -170,6 +177,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
   storage-abstractie, credentials uploaden/metadata/verificatie aanvragen/zichtbaarheid.
 
 ### Sessie 4 — 2026-05-26
+
 - Wat gedaan: documenten + credentials (ZZP-kant). FREELANCER uploadt certificaten
   (type/titel/uitgever/datums + bewijsstuk via storage-abstractie), bewerkt metadata,
   vraagt verificatie aan (DRAFT/REJECTED/EXPIRED → SUBMITTED via assertTransition), vervangt
@@ -201,7 +209,8 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 5 — Admin-verificatiequeue (goedkeuren/afwijzen met verplichte reden,
   expiry-job VERIFIED→EXPIRED). Hierna is de kerndifferentiatie demo-klaar.
 
-### Sessie 5 — 2026-05-26  (MIJLPAAL: kerndifferentiatie demo-klaar)
+### Sessie 5 — 2026-05-26 (MIJLPAAL: kerndifferentiatie demo-klaar)
+
 - Wat gedaan: admin-verificatiequeue + expiry. ADMIN beoordeelt ingediende certificaten
   op `/admin/verificaties`: goedkeuren (→VERIFIED, verifiedAt, CredentialVerification-record,
   VerificationRequest→RESOLVED) en afwijzen (→REJECTED, **reden verplicht** server-side,
@@ -229,6 +238,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 6 — Berichten, notificaties, samenwerkingen.
 
 ### Sessie 6 — 2026-05-26
+
 - Wat gedaan: berichten, notificaties, samenwerkingen.
   - **Berichten:** 1-op-1 gesprek (Conversation + ConversationParticipant) tussen CLIENT en
     ZZP'er, gestart vanuit een reactie (`startConversationForApplication`). Thread + composer;
@@ -257,6 +267,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 7 — Facturatie + billing.
 
 ### Sessie 7 — 2026-05-26
+
 - Wat gedaan: facturatie + billing.
   - **Facturen (FREELANCER):** opstellen vanuit een ACTIVE/COMPLETED samenwerking (dynamische
     regels: omschrijving/aantal/tarief). Bedragen server-berekend in centen (euro's→centen,
@@ -281,6 +292,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 8 — Admin-paneel afronden (gebruikers, opdrachten, audit log).
 
 ### Sessie 8 — 2026-05-26
+
 - Wat gedaan: admin-paneel afgerond.
   - **Gebruikers (`/admin/gebruikers`):** zoeken/filteren (naam/e-mail, rol, status); schorsen/
     activeren via `setUserStatus` met server-side self-guard (`canModerateUser`) + Zod-status +
@@ -303,6 +315,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Volgende stap: Sessie 9 — Polish, performance, a11y, e2e.
 
 ### Sessie 9 — 2026-05-26
+
 - Wat gedaan: polish, performance, a11y — geen nieuwe features.
   - **Mobiele navigatie (echte gap, gevonden via mobiele browserverificatie):** sidebar was
     `hidden md:flex` zonder mobiel alternatief → géén navigatie op telefoon. Toegevoegd:
@@ -323,7 +336,8 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Visueel gecontroleerd: mobiel menu (screenshot 30), eerdere schermen ongewijzigd.
 - Volgende stap: Sessie 10 — Productie-voorbereiding (code-kant).
 
-### Sessie 10 — 2026-05-26  (laatste codesessie)
+### Sessie 10 — 2026-05-26 (laatste codesessie)
+
 - Wat gedaan: productie-voorbereiding (code-kant).
   - **S3-storage-driver** achter de bestaande `StorageDriver`-interface (`@aws-sdk/client-s3`,
     lazy import, env-geschakeld via `STORAGE_DRIVER=s3`; lokaal blijft default). Werkt met AWS S3
@@ -337,7 +351,7 @@ is bewust uit de hele UI, code-commentaren en docs gehouden.)
 - Tests: 104 unit-tests (env 3) + 21 e2e groen; health + headers geverifieerd (tijdelijke check).
   Reviewzwerm: CLEAN — S3-driver correct, health veilig publiek, CSP breekt prod niet, alleen
   /api/health toegevoegd aan publieke routes. Advies (bewuste trade-offs): CSP `script-src
-  'unsafe-inline'` en JWT-staleness bij rol/status-wijziging → voor de menselijke securityreview.
+'unsafe-inline'` en JWT-staleness bij rol/status-wijziging → voor de menselijke securityreview.
 - Checks: typecheck ✓, lint ✓, test ✓ (104), build ✓ (28 routes), e2e ✓ (21, via Edge).
 
 ---
@@ -351,6 +365,7 @@ met polish + productie-voorbereiding. **104 unit-tests + 21 Playwright-e2e groen
 typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 
 ### Nog te doen door een mens (NIET door een agent — bewust, zie CLAUDE.md):
+
 1. **Productie-infra**: PostgreSQL provisionen (en `prisma/schema.prisma` datasource provider
    op `postgresql` zetten + migratie draaien), S3-bucket + IAM, mailprovider, domein/HTTPS,
    secrets (`AUTH_SECRET`, DB, AWS) via de hosting-secretstore, backups.
@@ -363,11 +378,13 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 4. **E-mail/notificaties**: in-app `Notification` bestaat; echte e-mail/push koppelen.
 
 ### Bekende, bewust uitgestelde code-punten (kandidaten voor later):
+
 - Berichten-ongelezen telt per conversatie met een COUNT (prima voor nu; denormaliseren bij schaal).
 - SQLite-zoek is hoofdlettergevoelig; op Postgres `mode: "insensitive"` aanzetten.
 - Geen unieke index op (jobId, deelnemerspaar) voor conversaties (theoretische dubbel-race).
 
 ### Hardening — 2026-05-26 (geleerd van een parallelle Codex-bouw, selectief overgenomen)
+
 - Aanleiding: vergelijking met een andere aanpak (Codex, branch `zzp-production-quality-control-system`).
   Niet klakkeloos overgenomen — alleen wat echt waarde toevoegt en binnen scope past.
 - Toegepast (in-scope productie-hardening):
@@ -388,6 +405,7 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   achter op de code. Checks: `npm run check` groen (104 unit + build); scan:secrets + check:env OK.
 
 ### Design-systeem + ReOS-leerpunten — 2026-05-26 (eigenaar-richting)
+
 - Aanleiding: eigenaar vindt het light Linear-thema mooier en wil het in **tokens** vastgelegd;
   leer ook van de eerdere ReOS-werkplek-UX.
 - `design.md` toegevoegd: token-tabel (uit globals.css), statuskleur-mapping, component-contracten,
@@ -402,6 +420,7 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
 - Checks: typecheck ✓, lint ✓, build ✓, e2e ✓ (21). Smoke-admin assert aangepast op de nieuwe header.
 
 ### Wet DBA — deterministische compliance — 2026-05-26 (eigenaar-richting: "conform geldende wetgeving")
+
 - Wat gedaan: deterministische schijnzelfstandigheid-check op opdrachten. Regels beslissen en
   leggen uit; **geen black box, geen dode knoppen**. `src/lib/dba.ts` (gewogen indicatoren: gezag/inbedding =
   kern, vrije vervanging/vaste uren = medium, exclusiviteit/duur = licht) → LAAG/MIDDEN/HOOG met
@@ -410,7 +429,7 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   Server **herberekent gezaghebbend** bij opslaan en bewaart snapshot (`dbaRisk` + `dbaReasons` JSON +
   de booleans) — client-waarde wordt nooit vertrouwd. Detailpagina toont risico + uitleg + advies
   **alleen aan eigenaar/admin** (niet aan kandidaten). Disclaimer: hulpmiddel, geen juridisch advies.
-- Schema: Job uitgebreid met dba*-velden (db push). validation: jobSchema uitgebreid.
+- Schema: Job uitgebreid met dba\*-velden (db push). validation: jobSchema uitgebreid.
 - Tests: 111 unit-tests (dba 7) + 22 e2e groen (hoog-risico live + op detail). Reviewzwerm: CLEAN
   (server-gezaghebbend, geen lek naar non-owners, drempels kloppen, JSON-guard).
 - Checks: typecheck ✓, lint ✓, build ✓, e2e ✓ (22). Desktop + mobiel-patroon ongewijzigd.
@@ -418,6 +437,7 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   DPIA-light) en modelovereenkomst-koppeling bij HOOG; beide deels mensenwerk.
 
 ### ReOS-corpus leerpunten toegepast — 2026-05-26
+
 - Aanleiding: volledige ReOS-planningscorpus gelezen (visie/roadmap/doelgroep/concurrentie,
   RLS-plan, privacy-matrix, DBA-case-log, incident/change templates). Selectief toegepast:
 - **DBA-model completer + golden cases:** hun DBA-reviewlog (DBA-001 pass / -002 review / -003
@@ -435,6 +455,7 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   login/securityevents + IP/UA.
 
 ### Increment: AVG-gegevensrechten + audit-hardening — 2026-05-26
+
 - **Inzage/portabiliteit:** `/account` + `/api/account/export` — JSON-export van uitsluitend de
   eigen persoonsgegevens (profiel, credential-metadata, bedrijf, reacties, document-metadata,
   notificaties, eigen berichten); geen documentinhoud, geen data van derden, auth vereist.
@@ -448,6 +469,7 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   login-enumeratie in de response, bcrypt-short-circuit correct). Checks groen.
 
 ### Increment: Beschikbaarheid als workflow-stap — 2026-05-26
+
 - `AvailabilityWindow`-model (periodes met type AVAILABLE/LIMITED/UNAVAILABLE + uren + notitie).
   `/beschikbaarheid` (FREELANCER): periodes toevoegen/verwijderen (ownership + audit).
 - `src/lib/availability.ts` (getest): upcomingWindows, currentOrNextAvailable (negeert
@@ -457,6 +479,7 @@ typecheck/lint/build groen; console schoon; mobiel + desktop geverifieerd.
   verwijderen). 26 e2e + units groen. Reviewzwerm: CLEAN (geen IDOR op delete, geen datalek).
 
 ### STATUS: productiewaardig MVP (code-kant) bereikt — 2026-05-26
+
 Na de eigenaar-richtingen (design-tokens, ReOS-werkbank, Wet DBA, AVG, beschikbaarheid) is dit
 een productiewaardige MVP voor de NL ZZP-marktplaats: echte auth + RBAC, persistente DB + audit
 (incl. login/IP/UA), opdrachten→reacties (match+compliance), documenten/certificaten + admin-
@@ -472,6 +495,7 @@ aan het eind van een lange sessie thuishoort. Overige open punten: RLS-first op 
 echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 
 ### Increment: DUO-diplomaverificatie (API-koppeling achter service-grens) — 2026-05-26
+
 - Eerlijke aanpak: er is geen open DUO-lookup-API; de echte route is de **verificatiecode** uit het
   DUO-diplomaregister. Geïmplementeerd achter een schone interface (zoals de S3-driver):
   - `src/lib/services/diploma-verifier.ts` (getest): `DiplomaVerifier` + **MockDiplomaVerifier**
@@ -489,6 +513,7 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Productie-onboarding (DUO-contract/endpoint/cert) = mensenwerk; idem BIG-register voor zorg (apart).
 
 ### Increment: BIG-registerverificatie (zorg-beroepsregistratie) — 2026-05-26
+
 - Zelfde service-grens-patroon als DUO. `src/lib/services/big-verifier.ts` (getest):
   `BigVerifier` + **MockBigVerifier** (valideert alleen het 11-cijferige BIG-nummerformaat,
   verzint geen registratiegegevens) + **BigRegisterVerifier** (env `BIG_VERIFIER=bigregister`;
@@ -503,6 +528,7 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Productie-onboarding BIG-register = mensenwerk (zelfde als DUO).
 
 ### Increment: Identiteitsverificatie + zichtbaar vertrouwensniveau — 2026-05-26
+
 - Slimme differentiator: concurrenten verifiëren losse documenten; wij binden **identiteit +
   geverifieerde certificaten** tot één uitlegbaar **trust-signaal** dat opdrachtgevers zien.
 - `src/lib/services/identity-verifier.ts` (getest): `IdentityVerifier` + **MockIdentityVerifier**
@@ -521,6 +547,7 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Echte iDIN/eIDAS-koppeling = mensenwerk (zelfde patroon als DUO/BIG).
 
 ### Increment: Design-polish-pass — lege/laad/fout-staten + micro-interacties — 2026-05-29
+
 - Orchestrator (Opus) + 3 Sonnet-builders op niet-overlappende paginagroepen (lijst-/admin-/berichten-vlakken).
 - **Gedeelde `EmptyState`** (`src/components/ui/empty-state.tsx`): icoon-in-zachte-cirkel + titel +
   omschrijving + optionele actieknop (echte route, geen dode knop). Vervangt overal de ad-hoc
@@ -542,6 +569,7 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   gedeelde dev-server (elk slaagt los/na retry). Lokale dev-db opnieuw geseed (schone staat).
 
 ### Increment: Geplande verloopdetectie + "verloopt binnenkort"-herinneringen — 2026-05-29
+
 - Orchestrator (Opus) + 2 Sonnet-builders, contract-first op niet-overlappende bestanden
   (pure planner vs. runner/endpoint/env); orchestrator deed schema + integratie + poort.
 - **Pure planner** `src/lib/expiry.ts` (+ 10 unit-tests): `planExpiryRun(candidates, now, windowDays)`
@@ -559,13 +587,14 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   `.github/workflows/expiry-check.yml` roept het dagelijks aan via repo-secrets
   `EXPIRY_TASK_URL` + `CRON_SECRET` (de scheduler-koppeling zelf = mensenwerk).
 - **Admin** `runExpiryCheck` gerefactord naar `runExpiryTask`; knop rapporteert nu verlopen
-  + herinneringen. Schema: `Credential.expiryReminderFor` (db push). env: `CRON_SECRET` optioneel.
+  - herinneringen. Schema: `Credential.expiryReminderFor` (db push). env: `CRON_SECRET` optioneel.
 - Checks: typecheck ✓, lint ✓, **202 unit-tests** ✓ (+10 planner), build ✓ (route geregistreerd),
   `check:env` ✓. E2e overgeslagen (geen browser-channel in deze routine-omgeving; net als CI).
 - Notificaties verschijnen automatisch in het bestaande notificatiecentrum + bel; signals.ts
   badget bijna-verlopen al. Geen "AI" in teksten/comments/docs.
 
 ### Increment: Rate-limiting op auth (brute-force-bescherming) — 2026-05-31
+
 - Orchestrator (Opus) + 1 Sonnet-builder (geïsoleerde kern); orchestrator deed integratie + poort.
   Linear: ZZP2-29 (team ZZP Platform HUB), In Progress → Done met commit-hash.
 - **Keuze:** bovenste backlog-item (pgvector semantisch matchen) is in deze headless routine-

@@ -60,13 +60,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // genormaliseerd zodat hoofdletter-varianten niet om de limiet heen kunnen.
         const limitKey = `${meta.ipAddress ?? "unknown"}:${email.toLowerCase()}`;
         if (!loginRateLimiter.check(limitKey).allowed) {
-          await audit({ action: "AUTH_RATE_LIMITED", entityType: "User", entityId: "unknown", metadata: { email }, ...meta });
+          await audit({
+            action: "AUTH_RATE_LIMITED",
+            entityType: "User",
+            entityId: "unknown",
+            metadata: { email },
+            ...meta,
+          });
           return null;
         }
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || user.status !== "ACTIVE" || !(await bcrypt.compare(password, user.passwordHash))) {
-          await audit({ action: "USER_LOGIN_FAILED", entityType: "User", entityId: user?.id ?? "unknown", metadata: { email }, ...meta });
+        if (
+          !user ||
+          user.status !== "ACTIVE" ||
+          !(await bcrypt.compare(password, user.passwordHash))
+        ) {
+          await audit({
+            action: "USER_LOGIN_FAILED",
+            entityType: "User",
+            entityId: user?.id ?? "unknown",
+            metadata: { email },
+            ...meta,
+          });
           return null;
         }
 

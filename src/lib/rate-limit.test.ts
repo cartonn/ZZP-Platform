@@ -1,9 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import {
-  MemoryRateLimitStore,
-  RateLimiter,
-  type RateLimitResult,
-} from "@/lib/rate-limit";
+import { MemoryRateLimitStore, RateLimiter, type RateLimitResult } from "@/lib/rate-limit";
 
 // Vaste referentietijdstempel voor deterministische tests — geen echte timers.
 const BASE_NOW = 1_700_000_000_000; // willekeurige, vaste epoch-waarde

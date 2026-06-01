@@ -36,7 +36,13 @@ export async function register(_prev: RegisterState, formData: FormData): Promis
   const meta = await requestMeta();
   const limitKey = meta.ipAddress ?? "unknown";
   if (!registerRateLimiter.check(limitKey).allowed) {
-    await audit({ action: "REGISTER_RATE_LIMITED", entityType: "User", entityId: "unknown", metadata: { email }, ...meta });
+    await audit({
+      action: "REGISTER_RATE_LIMITED",
+      entityType: "User",
+      entityId: "unknown",
+      metadata: { email },
+      ...meta,
+    });
     return { error: "Te veel registratiepogingen. Probeer het later opnieuw." };
   }
 
