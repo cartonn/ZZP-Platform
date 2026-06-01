@@ -1,8 +1,10 @@
 import { type Metadata } from "next";
-import { Check } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
+import { type PlanKey, type UserRole } from "@/lib/enums";
+import { tierInfo } from "@/lib/entitlements";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,10 +14,10 @@ import { changeSubscription } from "./actions";
 export const metadata: Metadata = { title: "Abonnement · ZZP Platform" };
 
 const ORDER: Record<string, number> = { FREE: 0, PRO: 1, BUSINESS: 2 };
-const limit = (n: number) => (n < 0 ? "onbeperkt" : String(n));
 
 export default async function AbonnementPage() {
   const actor = await requireActor();
+  const role = actor.role as UserRole;
   const [plans, subscription] = await Promise.all([
     prisma.plan.findMany(),
     prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
@@ -23,26 +25,46 @@ export default async function AbonnementPage() {
   plans.sort((a, b) => (ORDER[a.key] ?? 99) - (ORDER[b.key] ?? 99));
 
   const currentKey = subscription?.status === "ACTIVE" ? subscription.plan.key : "FREE";
-  const isFreelancer = actor.role === "FREELANCER";
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <header>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <header className="space-y-1">
         <h1 className="text-xl font-semibold tracking-tight">Abonnement</h1>
         <p className="text-sm text-muted-foreground">
-          Je huidige plan bepaalt limieten zoals het aantal{" "}
-          {isFreelancer ? "reacties" : "actieve opdrachten"}.
+          {role === "CLIENT"
+            ? "Van zelf inhuren tot de volledige inhuuradministratie uitbesteden."
+            : "Van zelf je administratie doen tot volledig ontzorgd worden — jij werkt, wij rekenen voor."}
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid items-start gap-4 sm:grid-cols-3">
         {plans.map((plan) => {
+          const key = plan.key as PlanKey;
+          const tier = tierInfo(key, role);
+          if (!tier) return null;
           const isCurrent = plan.key === currentKey;
+          const isFull = key === "BUSINESS";
+
           return (
-            <Card key={plan.id} className={cn(isCurrent && "border-primary ring-1 ring-primary")}>
+            <Card
+              key={plan.id}
+              className={cn(
+                "relative",
+                tier.highlighted && "border-primary ring-1 ring-primary",
+                isFull && "border-primary/60",
+              )}
+            >
+              {tier.highlighted && (
+                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-medium text-primary-foreground">
+                  Aanbevolen
+                </span>
+              )}
               <CardContent className="flex h-full flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">{plan.name}</span>
+                  <span className="flex items-center gap-1.5 text-sm font-semibold">
+                    {isFull && <Sparkles className="size-4 text-primary" aria-hidden />}
+                    {tier.name}
+                  </span>
                   {isCurrent && <Badge variant="success">Huidig</Badge>}
                 </div>
                 <p className="text-2xl font-semibold tabular-nums">
@@ -51,15 +73,14 @@ export default async function AbonnementPage() {
                     <span className="text-sm font-normal text-muted-foreground">/mnd</span>
                   )}
                 </p>
+                <p className="text-xs text-muted-foreground">{tier.tagline}</p>
                 <ul className="space-y-1.5 text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <Check className="size-3.5 text-success" aria-hidden />{" "}
-                    {limit(plan.maxApplications)} reacties
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="size-3.5 text-success" aria-hidden /> {limit(plan.maxJobs)}{" "}
-                    opdrachten
-                  </li>
+                  {tier.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2">
+                      <Check className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden />
+                      <span>{f}</span>
+                    </li>
+                  ))}
                 </ul>
                 <div className="mt-auto pt-2">
                   {isCurrent ? (
@@ -70,11 +91,11 @@ export default async function AbonnementPage() {
                     <form action={changeSubscription.bind(null, plan.key)}>
                       <Button
                         type="submit"
-                        variant={plan.key === "FREE" ? "secondary" : "primary"}
+                        variant={key === "FREE" ? "secondary" : "primary"}
                         size="sm"
                         className="w-full"
                       >
-                        Kies {plan.name}
+                        Kies {tier.name}
                       </Button>
                     </form>
                   )}
@@ -85,9 +106,18 @@ export default async function AbonnementPage() {
         })}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Let op: dit is een demo zonder echte betaling. Een plan wijzigen activeert het direct.
-      </p>
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <p>
+          {
+            "Betalingen lopen rechtstreeks tussen ZZP'er en opdrachtgever; het platform verwerkt geen geld uit het werkproces. Het abonnement is een platformdienst, geen percentage over je omzet."
+          }
+        </p>
+        <p>
+          De voorbereiding en indiening van aangiftes in Volledig Ontzorgd is dienstverlening; je
+          blijft zelf eindverantwoordelijk. Dit is een demo zonder echte betaling — een plan
+          wijzigen activeert het direct.
+        </p>
+      </div>
     </div>
   );
 }
