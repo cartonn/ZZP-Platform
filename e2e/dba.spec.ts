@@ -24,7 +24,7 @@ test("Wet DBA-check: hoog risico live + op detail", async ({ page }) => {
   await page.getByRole("checkbox", { name: /directe aansturing/ }).check();
   await page.getByRole("checkbox", { name: /structureel ingebed/ }).check();
   await expect(page.getByText("Hoog DBA-risico")).toBeVisible();
-  await expect(page.getByText(/gezagsverhouding/)).toBeVisible();
+  await expect(page.getByText(/gezagsverhouding/).first()).toBeVisible();
   await shot(page, "34-dba-form");
 
   await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
@@ -33,6 +33,6 @@ test("Wet DBA-check: hoog risico live + op detail", async ({ page }) => {
   // Server-berekende snapshot zichtbaar op de detailpagina (eigenaar).
   await expect(page.getByRole("heading", { name: "Wet DBA — risico" })).toBeVisible();
   await expect(page.getByText("Hoog DBA-risico")).toBeVisible();
-  await expect(page.getByText(/Herzie de opdracht|modelovereenkomst/)).toBeVisible();
+  await expect(page.getByText(/Herzie de opdracht|modelovereenkomst/).first()).toBeVisible();
   await shot(page, "35-dba-detail");
 });

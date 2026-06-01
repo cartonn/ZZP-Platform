@@ -126,8 +126,29 @@ export class RateLimiter {
 // nodig achter dezelfde RateLimitStore-interface — net zoals de S3-storagedriver
 // achter StorageDriver zit.
 
-/** Maximaal 5 inlogpogingen per IP per 15 minuten. */
-export const loginRateLimiter = new RateLimiter(new MemoryRateLimitStore(), 5, 15 * 60_000);
+/**
+ * Drempel uit env met veilige fallback. Hiermee kan een specifieke omgeving de limiet
+ * verhogen — bijvoorbeeld de e2e-suite, waar de héle suite vanaf één IP draait en de
+ * productie-defaults onterecht zouden afgaan — zonder de productiedrempel te raken.
+ * Ongeldige of ontbrekende waarden vallen terug op de veilige default.
+ */
+function limitFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+}
 
-/** Maximaal 5 registraties per IP per uur. */
-export const registerRateLimiter = new RateLimiter(new MemoryRateLimitStore(), 5, 60 * 60_000);
+/** Maximaal LOGIN_RATE_LIMIT (default 5) inlogpogingen per IP+e-mail per 15 minuten. */
+export const loginRateLimiter = new RateLimiter(
+  new MemoryRateLimitStore(),
+  limitFromEnv("LOGIN_RATE_LIMIT", 5),
+  15 * 60_000,
+);
+
+/** Maximaal REGISTER_RATE_LIMIT (default 5) registraties per IP per uur. */
+export const registerRateLimiter = new RateLimiter(
+  new MemoryRateLimitStore(),
+  limitFromEnv("REGISTER_RATE_LIMIT", 5),
+  60 * 60_000,
+);

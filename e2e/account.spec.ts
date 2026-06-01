@@ -43,7 +43,8 @@ test("Audit: login-events worden gelogd (admin ziet USER_LOGIN)", async ({ page 
   await page.waitForURL("**/dashboard");
 
   await page.goto("/admin/audit");
-  await page.getByLabel("Actie").fill("USER_LOGIN");
+  // getByLabel("Actie") botst met de zijbalk-badge ("… vraagt actie"); richt op het invoerveld.
+  await page.getByRole("textbox", { name: "Actie" }).fill("USER_LOGIN");
   await page.getByRole("button", { name: "Filteren" }).click();
   await expect(page.getByText("USER_LOGIN").first()).toBeVisible();
 });

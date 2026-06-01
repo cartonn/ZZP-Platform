@@ -31,6 +31,10 @@ jobs:
       AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
       STORAGE_DRIVER: "local"
       CI: "true"
+      # De héle e2e-suite draait vanaf één IP met dezelfde seed-accounts; de strenge
+      # productie-defaults (5) zouden de login/registratie onterecht blokkeren.
+      LOGIN_RATE_LIMIT: "100000"
+      REGISTER_RATE_LIMIT: "100000"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
