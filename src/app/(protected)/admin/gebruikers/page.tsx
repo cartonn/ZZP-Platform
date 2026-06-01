@@ -13,7 +13,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { setUserStatus } from "./actions";
+import { anonymizeUser, setUserStatus } from "./actions";
+import { AnonymizeButton } from "./anonymize-button";
 
 export const metadata: Metadata = { title: "Gebruikers · ZZP Platform" };
 
@@ -52,6 +53,7 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
         role: true,
         status: true,
         deletionRequestedAt: true,
+        anonymizedAt: true,
       },
     }),
     prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
@@ -152,20 +154,29 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
                     {isSelf && <span className="text-xs text-muted-foreground">(jij)</span>}
                     <Badge variant="muted">{ROLE_LABEL[u.role as UserRole]}</Badge>
                     <Badge variant={st.variant}>{st.label}</Badge>
-                    {u.deletionRequestedAt && <Badge variant="danger">Verwijderverzoek</Badge>}
+                    {u.anonymizedAt ? (
+                      <Badge variant="muted">Geanonimiseerd</Badge>
+                    ) : (
+                      u.deletionRequestedAt && <Badge variant="danger">Verwijderverzoek</Badge>
+                    )}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                 </div>
-                {!isSelf && (
-                  <form action={setUserStatus.bind(null, u.id, target)}>
-                    <Button
-                      type="submit"
-                      variant={target === "SUSPENDED" ? "danger" : "secondary"}
-                      size="sm"
-                    >
-                      {target === "SUSPENDED" ? "Schorsen" : "Activeren"}
-                    </Button>
-                  </form>
+                {!isSelf && !u.anonymizedAt && (
+                  <div className="flex items-center gap-2">
+                    {u.deletionRequestedAt && u.role !== "ADMIN" && (
+                      <AnonymizeButton action={anonymizeUser.bind(null, u.id)} />
+                    )}
+                    <form action={setUserStatus.bind(null, u.id, target)}>
+                      <Button
+                        type="submit"
+                        variant={target === "SUSPENDED" ? "danger" : "secondary"}
+                        size="sm"
+                      >
+                        {target === "SUSPENDED" ? "Schorsen" : "Activeren"}
+                      </Button>
+                    </form>
+                  </div>
                 )}
               </div>
             );
