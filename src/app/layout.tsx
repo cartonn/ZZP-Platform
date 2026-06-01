@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 // Zet het thema vóór de eerste paint (geen flits). Leest de keuze uit localStorage,
 // valt terug op het systeemvoorkeur. Dark mode = gebruikerskeuze, niet geforceerd.
-const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}var p=localStorage.getItem('palette');if(p==='warm-clay'||p==='indigo'){document.documentElement.setAttribute('data-theme',p)}}catch(e){}})();`;
+const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}var p=localStorage.getItem('palette');if(p==='bloei'||p==='elektrisch-blauw'){document.documentElement.setAttribute('data-theme',p)}}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

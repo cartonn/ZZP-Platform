@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 
-// Verifieert het 3-thema systeem (Standaard / Klei / Indigo) × light/dark als gebruiker.
+// Verifieert het 3-thema systeem (Standaard / Bloei / Elektrisch Blauw) × light/dark als gebruiker.
 // Zelfstandig (geen gedeelde helper) zodat deze spec los van andere QA-PR's draait.
 
 const SHOTS = path.join("e2e", "qa", "screenshots");
@@ -30,16 +30,16 @@ test.describe("QA: Kleurschema's + dark mode", () => {
 
     await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
 
-    await page.getByRole("radio", { name: "Kleurschema Klei" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "warm-clay");
-    await shot(page, "themes-klei");
+    await page.getByRole("radio", { name: "Kleurschema Bloei" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "bloei");
+    await shot(page, "themes-bloei");
 
-    await page.getByRole("radio", { name: "Kleurschema Indigo" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "indigo");
-    await shot(page, "themes-indigo");
+    await page.getByRole("radio", { name: "Kleurschema Elektrisch Blauw" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "elektrisch-blauw");
+    await shot(page, "themes-elektrisch");
 
     await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "indigo");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "elektrisch-blauw");
 
     await page.getByRole("radio", { name: "Kleurschema Standaard" }).click();
     await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
@@ -47,10 +47,10 @@ test.describe("QA: Kleurschema's + dark mode", () => {
 
   test("kleurschema en dark mode zijn onafhankelijk combineerbaar", async ({ page }) => {
     await login(page, "zzp@zzp-platform.local");
-    await page.getByRole("radio", { name: "Kleurschema Klei" }).click();
+    await page.getByRole("radio", { name: "Kleurschema Bloei" }).click();
     await page.getByRole("button", { name: "Schakel naar donkere modus" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "warm-clay");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "bloei");
     await expect(page.locator("html")).toHaveClass(/dark/);
-    await shot(page, "themes-klei-dark");
+    await shot(page, "themes-bloei-dark");
   });
 });

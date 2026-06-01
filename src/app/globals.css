@@ -53,84 +53,88 @@
    winnen automatisch van de basis-.dark (0,1,0); de palette-light-blokken
    (0,1,1) winnen van de basis-:root. "standaard" = geen attribuut.
 
-   Optie 2 — Klei (warm-clay): warme terracotta op zand/crème (Claude-stijl).
+   Optie 2 — Bloei: kalme navy-slate op warme off-white. Naar bloomintranet.com:
+   licht, clean, professioneel-vriendelijk SaaS met zachte kaarten en pill-knoppen.
+   Contrast WCAG AA geverifieerd (fg/bg, kaart, subtekst, knop, accent, rand).
 --------------------------------------------------------------------------- */
-:root[data-theme="warm-clay"] {
-  --background: 40 42% 98%;
-  --foreground: 28 18% 14%;
-  --muted: 36 30% 95%;
-  --muted-foreground: 34 8% 40%;
-  --card: 40 50% 99%;
-  --card-foreground: 28 18% 14%;
-  --border: 34 22% 88%;
-  --input: 34 22% 86%;
-  --ring: 16 55% 46%;
-  --primary: 16 55% 46%;
-  --primary-foreground: 40 42% 98%;
-  --accent: 30 40% 93%;
-  --accent-foreground: 16 52% 30%;
-  --success: 152 55% 32%;
-  --warning: 30 92% 34%;
-  --danger: 4 72% 46%;
-  --radius: 0.625rem;
+:root[data-theme="bloei"] {
+  --background: 30 12% 97%;
+  --foreground: 230 25% 22%;
+  --muted: 228 14% 93%;
+  --muted-foreground: 228 12% 44%;
+  --card: 0 0% 100%;
+  --card-foreground: 230 25% 22%;
+  --border: 228 14% 80%;
+  --input: 228 14% 84%;
+  --ring: 230 23% 45%;
+  --primary: 230 23% 35%;
+  --primary-foreground: 30 25% 97%;
+  --accent: 228 24% 92%;
+  --accent-foreground: 230 25% 28%;
+  --success: 142 42% 38%;
+  --warning: 40 68% 42%;
+  --danger: 349 48% 48%;
+  --radius: 0.75rem;
 }
-:root[data-theme="warm-clay"].dark {
-  --background: 28 12% 8%;
-  --foreground: 36 30% 94%;
-  --muted: 28 8% 16%;
-  --muted-foreground: 34 10% 64%;
-  --card: 28 11% 11%;
-  --card-foreground: 36 30% 94%;
-  --border: 28 9% 20%;
-  --input: 28 9% 22%;
-  --ring: 18 62% 60%;
-  --primary: 18 62% 60%;
-  --primary-foreground: 28 18% 10%;
-  --accent: 28 12% 16%;
-  --accent-foreground: 30 30% 92%;
-  --success: 150 55% 52%;
-  --warning: 34 90% 58%;
-  --danger: 6 75% 62%;
-  --radius: 0.625rem;
+:root[data-theme="bloei"].dark {
+  --background: 230 22% 9%;
+  --foreground: 30 16% 92%;
+  --muted: 230 18% 16%;
+  --muted-foreground: 228 14% 64%;
+  --card: 230 22% 12%;
+  --card-foreground: 30 16% 92%;
+  --border: 230 16% 24%;
+  --input: 230 16% 23%;
+  --ring: 230 28% 62%;
+  --primary: 228 34% 68%;
+  --primary-foreground: 230 25% 12%;
+  --accent: 230 22% 20%;
+  --accent-foreground: 30 16% 92%;
+  --success: 142 46% 52%;
+  --warning: 40 84% 58%;
+  --danger: 349 56% 64%;
+  --radius: 0.75rem;
 }
 
-/* Optie 3 — Indigo: kalme slate met een precieze indigo-signatuur (Mercury-stijl). */
-:root[data-theme="indigo"] {
-  --background: 228 24% 99%;
-  --foreground: 230 18% 12%;
-  --muted: 228 22% 96%;
-  --muted-foreground: 230 10% 42%;
+/* Optie 3 — Elektrisch Blauw: navy fundament met een elektrisch-blauwe signatuur (#0066FF).
+   Naar capisoft.nl: donker, koel, modern tech — flat, strak, heldere blauwe CTA's.
+   Contrast WCAG AA geverifieerd. */
+:root[data-theme="elektrisch-blauw"] {
+  --background: 210 30% 99%;
+  --foreground: 220 40% 9%;
+  --muted: 214 32% 95%;
+  --muted-foreground: 215 18% 42%;
   --card: 0 0% 100%;
-  --card-foreground: 230 18% 12%;
-  --border: 228 18% 90%;
-  --input: 228 18% 88%;
-  --ring: 245 58% 52%;
-  --primary: 245 58% 52%;
-  --primary-foreground: 228 30% 98%;
-  --accent: 245 46% 95%;
-  --accent-foreground: 245 52% 40%;
-  --success: 158 66% 30%;
-  --warning: 30 92% 36%;
-  --danger: 352 70% 48%;
+  --card-foreground: 220 40% 9%;
+  --border: 214 28% 81%;
+  --input: 214 28% 86%;
+  --ring: 215 100% 50%;
+  --primary: 215 100% 50%;
+  --primary-foreground: 210 40% 99%;
+  --accent: 210 90% 95%;
+  --accent-foreground: 216 80% 32%;
+  --success: 142 64% 38%;
+  --warning: 35 92% 42%;
+  --danger: 0 72% 48%;
   --radius: 0.5rem;
 }
-:root[data-theme="indigo"].dark {
-  --background: 230 18% 8%;
-  --foreground: 228 28% 95%;
-  --muted: 230 12% 16%;
-  --muted-foreground: 228 14% 66%;
-  --card: 230 16% 11%;
-  --card-foreground: 228 28% 95%;
-  --border: 230 12% 20%;
-  --input: 230 12% 22%;
-  --ring: 247 72% 70%;
-  --primary: 247 72% 70%;
-  --primary-foreground: 230 18% 8%;
-  --accent: 245 30% 20%;
-  --accent-foreground: 228 40% 92%;
-  --success: 156 58% 52%;
-  --warning: 34 92% 60%;
-  --danger: 352 72% 64%;
+:root[data-theme="elektrisch-blauw"].dark {
+  --background: 220 38% 6%;
+  --foreground: 210 30% 96%;
+  --muted: 218 26% 15%;
+  --muted-foreground: 214 18% 64%;
+  --card: 220 32% 9%;
+  --card-foreground: 210 30% 96%;
+  --border: 216 24% 22%;
+  --input: 216 24% 20%;
+  --ring: 200 100% 60%;
+  --primary: 211 100% 58%;
+  --primary-foreground: 220 40% 6%;
+  --accent: 215 45% 18%;
+  --accent-foreground: 195 100% 78%;
+  --success: 142 60% 50%;
+  --warning: 35 92% 58%;
+  --danger: 0 72% 62%;
   --radius: 0.5rem;
 }
 

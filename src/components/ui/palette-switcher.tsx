@@ -7,8 +7,8 @@ import { type Palette, PALETTES, PALETTE_LABELS, isPalette, applyPalette } from 
 // zien ongeacht het actieve thema. HSL-triples komen overeen met globals.css.
 const SWATCH: Record<Palette, string> = {
   standaard: "hsl(240 6% 10%)",
-  "warm-clay": "hsl(16 55% 46%)",
-  indigo: "hsl(245 58% 52%)",
+  bloei: "hsl(230 23% 35%)",
+  "elektrisch-blauw": "hsl(215 100% 50%)",
 };
 
 /** Kleurschemakiezer (3 opties). Persisteert in localStorage als "palette"; de no-flash-script
