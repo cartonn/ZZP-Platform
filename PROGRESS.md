@@ -646,4 +646,25 @@ Sluit de ontbrekende e-mailkanalen voor twee kritieke platform-events:
 - **Patroon**: e-mail buiten transactie, `getMailSender()` singleton (noop dev/test, SMTP prod).
 - Gate: typecheck ✓ lint ✓ test 564 ✓ build ✓.
 
+### Admin DBA-risico-overzicht (/admin/dba) — 2026-06-01
+
+- **Probleem:** de DBA-monitor (`dba-monitor.ts` + geplande taak) signaleert per samenwerking en
+  notificeert beide partijen, maar er was geen geconsolideerd beheerdersoverzicht. Beheerders konden
+  het DBA-risico over álle actieve samenwerkingen niet in één blik zien/sorteren/filteren.
+- **Pure kern** `src/lib/dba-overview.ts` (+ `dba-overview.test.ts`, 14 tests): `rankDbaLevel`
+  (HOOG<VERHOOGD<LAAG), `sortDbaRows` (hoogste risico eerst, bij gelijk niveau langste duur eerst),
+  `summarizeDbaOverview` (totaal + aantal per niveau, alle drie niveaus altijd aanwezig) en
+  `loadDbaOverview(now?)` — laadt ACTIEVE samenwerkingen, berekent omzetconcentratie identiek aan de
+  monitor-taak en past de bestaande engine (`assessCollaborationDba` + `jobDbaIndicators`) toe.
+  Server-side waarheid; hergebruikt `getDbaThresholds()` (DB-drempels).
+- **Pagina** `/admin/dba` (+ `loading.tsx`): samenvattingsstrip met klikbare niveaufilters
+  (querystring `?niveau=`), per rij Card met niveau-Badge (HOOG→danger/VERHOOGD→warning/LAAG→muted),
+  duur, partijen en de individuele signalen, link naar het werkproces. Verplichte disclaimer altijd
+  zichtbaar (Besluit 2: signaleren, geen juridisch oordeel). Loading- + lege staten aanwezig.
+  Alleen ADMIN (`requireRole("ADMIN")`). Nav-item "DBA-monitor" toegevoegd voor ADMIN.
+- Gebouwd met 2 Sonnet-builders op niet-overlappende bestanden (lib+tests / pagina+nav), orchestrator
+  integreerde + draaide de poort. Gate groen: typecheck ✓ lint ✓ test 569 ✓ build ✓ (/admin/dba
+  geregistreerd) prettier ✓. E2e overgeslagen (geen browser-channel in de routine-omgeving, net als CI).
+  Linear: ZZP2-37. Geen "AI" in UI/teksten/comments.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
