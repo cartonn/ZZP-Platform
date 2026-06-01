@@ -1,11 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { Browser } from "playwright-core";
 import path from "node:path";
+import { clickUntil, clickForUrl } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+// Wacht tot de huidige route is gehydrateerd (zie HydrationFlag): server-action-knoppen reageren
+// pas dan; nodig na een navigatie, vóór de eerste klik op zo'n knop.
+const hydrated = async (p: Page) => {
+  const path = new URL(p.url()).pathname;
+  await p.waitForSelector(`html[data-hydrated="${path}"]`, { timeout: 10000 });
+};
 
 async function registerClient(page: Page, email: string) {
   await page.goto("/register");
@@ -48,33 +55,46 @@ async function setupCollaboration(
   await page.goto("/opdrachten/nieuw");
   await page.fill("#title", title);
   await page.fill("#description", "Test cascade-opdracht voor end-to-end verificatie.");
-  await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  // Robuust klikken: server-action-knoppen reageren pas na hydratie (zie _robust).
+  await clickUntil(
+    page.getByRole("button", { name: "Opdracht aanmaken" }),
+    page.getByRole("heading", { name: title }),
+  );
   const detailUrl = page.url();
-  await page.getByRole("button", { name: "Publiceren" }).click();
-  await expect(page.getByText("Gepubliceerd")).toBeVisible();
+  await clickUntil(
+    page.getByRole("button", { name: "Publiceren" }),
+    page.getByText("Gepubliceerd"),
+  );
 
   const fctx = await browser.newContext();
   const fp = await fctx.newPage();
   await registerFreelancer(fp, fpEmail);
   await fp.goto(detailUrl);
   await fp.fill("#motivation", "Ik pas perfect bij dit cascade-project en lever op tijd.");
-  await fp.getByRole("button", { name: "Reactie versturen" }).click();
-  await fp.waitForURL("**/reacties");
+  await clickForUrl(fp.getByRole("button", { name: "Reactie versturen" }), fp, "**/reacties");
 
   // Client accepteert en stelt samenwerking voor.
   await page.goto("/kandidaten");
-  await page.getByRole("button", { name: "Accepteren" }).click();
-  await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
+  await clickUntil(
+    page.getByRole("button", { name: "Accepteren" }),
+    page.getByText("Samenwerking voorstellen"),
+  );
   await page.locator('input[name="rate"]').fill("85");
-  await page.getByRole("button", { name: "Voorstel versturen" }).click();
-  await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible({
-    timeout: 15000,
-  });
+  await clickUntil(
+    page.getByRole("button", { name: "Voorstel versturen" }),
+    page.getByRole("link", { name: "Bekijk samenwerking" }),
+  );
 
-  const collabLink = page.getByRole("link", { name: "Bekijk samenwerking" });
-  const collaborationUrl = (await collabLink.getAttribute("href")) ?? "";
-  await collabLink.click();
+  // De "Bekijk samenwerking"-knop linkt naar de lijst; open van daaruit de detailpagina van
+  // deze samenwerking (kaart herkenbaar aan de opdrachttitel, detaillink via href-prefix).
+  await page.goto("/samenwerkingen");
+  await hydrated(page);
+  const detailLink = page
+    .locator("div.bg-card", { hasText: title })
+    .locator('a[href^="/samenwerkingen/"]')
+    .first();
+  const collaborationUrl = (await detailLink.getAttribute("href")) ?? "";
+  await detailLink.click();
   await page.waitForURL("**/samenwerkingen/**");
 
   return { collaborationUrl, fp, fctx };
@@ -85,66 +105,84 @@ test("cascade A→E happy path (milestone)", async ({ page, browser }) => {
 
   const { collaborationUrl, fp, fctx } = await setupCollaboration(page, browser as Browser);
 
-  // --- Event A: Client ondertekent contract ---
+  // --- Event A: Client ondertekent contract --- (robuust klikken: pre-hydratie-race)
   await expect(page.getByText("Voorgesteld")).toBeVisible({ timeout: 15000 });
-  await page.getByRole("button", { name: "Contract ondertekenen" }).click();
-  await expect(page.getByText("Actief")).toBeVisible({ timeout: 15000 });
+  await clickUntil(
+    page.getByRole("button", { name: "Contract ondertekenen" }),
+    page.getByText("Actief"),
+  );
   await shot(page, "cascade-a-contract-signed");
 
   // --- Event B1: Freelancer dient milestone-prestatie in ---
   await fp.goto(collaborationUrl);
   await expect(fp.getByText("Actief")).toBeVisible({ timeout: 15000 });
 
-  // Selecteer type MILESTONE
-  await fp.selectOption('select[name="type"]', "MILESTONE");
-  await fp.fill('input[name="amount"]', "1000");
-  await fp.fill('input[name="milestoneTitle"]', "Fase 1");
-  await fp.fill('input[name="description"]', "Eerste fase opgeleverd");
-  await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
-
-  // Wacht op bevestiging: badge "Ter goedkeuring" verschijnt in de prestatielijst
-  await expect(fp.getByText("Ter goedkeuring")).toBeVisible({ timeout: 15000 });
+  // Robuust indienen: pre-hydratie kan controlled inputs resetten, dus wacht op hydratie en
+  // herhaal invullen + indienen tot de prestatie "Ter goedkeuring" toont (exact, anders matcht
+  // de knoptekst "Indienen ter goedkeuring" al). Type MILESTONE.
+  await hydrated(fp);
+  await expect(async () => {
+    if (
+      !(await fp
+        .getByText("Ter goedkeuring", { exact: true })
+        .isVisible()
+        .catch(() => false))
+    ) {
+      await fp.selectOption('select[name="type"]', "MILESTONE").catch(() => {});
+      // De MILESTONE-velden verschijnen client-side ná de selectie; wacht tot ze er zijn.
+      await fp.waitForSelector('input[name="amount"]', { timeout: 3000 }).catch(() => {});
+      await fp.fill('input[name="amount"]', "1000").catch(() => {});
+      await fp.fill('input[name="milestoneTitle"]', "Fase 1").catch(() => {});
+      await fp.fill('input[name="description"]', "Eerste fase opgeleverd").catch(() => {});
+      await fp
+        .getByRole("button", { name: "Indienen ter goedkeuring" })
+        .click({ timeout: 3000 })
+        .catch(() => {});
+    }
+    await expect(fp.getByText("Ter goedkeuring", { exact: true })).toBeVisible({ timeout: 3000 });
+  }).toPass({ timeout: 25000 });
   await shot(fp, "cascade-b1-performance-submitted");
 
   // --- Event B2: Client keurt prestatie goed ---
   await page.reload();
   await expect(page.getByText("Ter goedkeuring")).toBeVisible({ timeout: 15000 });
-
-  // Klik de goedkeuren-knop bij de ingediende prestatie
   const perfCard = page.locator("section").filter({ hasText: "Uren & opleveringen" });
-  await perfCard.getByRole("button", { name: "Goedkeuren" }).first().click();
-
-  // Na goedkeuring verschijnt automatisch een concept-factuur
-  await expect(page.getByText("Concept").first()).toBeVisible({ timeout: 15000 });
+  // Na goedkeuring verschijnt automatisch een concept-factuur.
+  await clickUntil(
+    perfCard.getByRole("button", { name: "Goedkeuren" }).first(),
+    page.getByText("Concept").first(),
+  );
   await shot(page, "cascade-b2-invoice-created");
 
   // --- Event C: Freelancer dient factuur in ---
   await fp.reload();
   await expect(fp.getByText("Concept").first()).toBeVisible({ timeout: 15000 });
-
   const invCard = fp.locator("section").filter({ hasText: "Facturen" });
-  await invCard.getByRole("button", { name: "Indienen" }).first().click();
-  await expect(fp.getByText("Ingediend")).toBeVisible({ timeout: 15000 });
+  await clickUntil(
+    invCard.getByRole("button", { name: "Indienen" }).first(),
+    fp.getByText("Ingediend"),
+  );
   await shot(fp, "cascade-c-invoice-submitted");
 
   // --- Event D: Client keurt factuur goed ---
   await page.reload();
   await expect(page.getByText("Ingediend")).toBeVisible({ timeout: 15000 });
-
   const invSection = page.locator("section").filter({ hasText: "Facturen" });
-  await invSection.getByRole("button", { name: "Goedkeuren" }).first().click();
-  await expect(page.getByText("Goedgekeurd")).toBeVisible({ timeout: 15000 });
+  await clickUntil(
+    invSection.getByRole("button", { name: "Goedkeuren" }).first(),
+    page.getByText("Goedgekeurd"),
+  );
   await shot(page, "cascade-d-invoice-approved");
 
   // --- Event E: Freelancer registreert betaling ---
   await fp.reload();
   await expect(fp.getByText("Goedgekeurd")).toBeVisible({ timeout: 15000 });
-
   const invSectionFp = fp.locator("section").filter({ hasText: "Facturen" });
-  await invSectionFp.getByRole("button", { name: "Betaling ontvangen" }).first().click();
-
-  // Betaald of Verwerkt — beide zijn eindstatus
-  await expect(fp.getByText(/Betaald|Verwerkt/).first()).toBeVisible({ timeout: 15000 });
+  // Betaald of Verwerkt — beide zijn eindstatus.
+  await clickUntil(
+    invSectionFp.getByRole("button", { name: "Betaling ontvangen" }).first(),
+    fp.getByText(/Betaald|Verwerkt/).first(),
+  );
   await shot(fp, "cascade-e-payment-confirmed");
 
   await fctx.close();
