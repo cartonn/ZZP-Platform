@@ -60,3 +60,62 @@ export function administrationCsv(rows: readonly AdministrationCsvRow[]): string
     ]);
   return toCsv([header, ...body]);
 }
+
+export interface PlatformInvoiceCsvRow {
+  date: Date | null;
+  partyInvoiceNumber: string | null;
+  freelancerName: string;
+  clientName: string;
+  jobTitle: string;
+  subtotalCents: number | null;
+  vatCents: number | null;
+  totalCents: number;
+  lifecycleStatus: string | null;
+  dueAt: Date | null;
+}
+
+const LIFECYCLE_LABEL: Record<string, string> = {
+  DRAFT: "Concept",
+  SUBMITTED: "Ingediend",
+  APPROVED: "Goedgekeurd",
+  PAID: "Betaald",
+  PROCESSED: "Verwerkt",
+  REJECTED: "Afgekeurd",
+  OVERDUE: "Te laat",
+  CREDITED: "Gecrediteerd",
+};
+
+/** Platform-brede factuurexport → CSV voor financieel toezicht. Gesorteerd op datum. */
+export function platformInvoicesCsv(rows: readonly PlatformInvoiceCsvRow[]): string {
+  const header = [
+    "datum",
+    "factuurnummer",
+    "zzper",
+    "opdrachtgever",
+    "opdracht",
+    "subtotaal_excl",
+    "btw",
+    "totaal_incl",
+    "status",
+    "vervaldatum",
+  ];
+  const body = [...rows]
+    .sort((a, b) => {
+      const ta = (a.date ?? new Date(0)).getTime();
+      const tb = (b.date ?? new Date(0)).getTime();
+      return ta - tb;
+    })
+    .map((r) => [
+      r.date ? r.date.toISOString().slice(0, 10) : "",
+      r.partyInvoiceNumber ?? "",
+      r.freelancerName,
+      r.clientName,
+      r.jobTitle,
+      centsToEuroPlain(r.subtotalCents ?? r.totalCents),
+      centsToEuroPlain(r.vatCents ?? 0),
+      centsToEuroPlain(r.totalCents),
+      r.lifecycleStatus ? (LIFECYCLE_LABEL[r.lifecycleStatus] ?? r.lifecycleStatus) : "",
+      r.dueAt ? r.dueAt.toISOString().slice(0, 10) : "",
+    ]);
+  return toCsv([header, ...body]);
+}
