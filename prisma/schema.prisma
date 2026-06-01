@@ -236,6 +236,7 @@ model Job {
   dbaDurationMonths    Int?
   dbaRisk              String? //  DbaRisk: LAAG | MIDDEN | HOOG (server-berekend)
   dbaReasons           String? //  JSON-string met uitleg per indicator
+  modelAgreementType   String? //  ModelAgreementType die op deze opdracht van toepassing is (door opdrachtgever vastgelegd)
 
   company              Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   industry             Industry?                  @relation(fields: [industryId], references: [id])
