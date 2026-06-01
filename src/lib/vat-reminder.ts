@@ -21,16 +21,15 @@ export interface VatReminderPlan {
   reminders: VatReminderItem[];
 }
 
-/** Geeft het kwartaalnummer (1–4) en jaar voor een gegeven datum. */
+/** Geeft het kwartaalnummer (1–4) en jaar voor een gegeven datum (UTC). */
 export function quarterOf(date: Date): { quarter: number; year: number } {
-  return { quarter: Math.ceil((date.getMonth() + 1) / 3), year: date.getFullYear() };
+  return { quarter: Math.ceil((date.getUTCMonth() + 1) / 3), year: date.getUTCFullYear() };
 }
 
-/** Laatste dag van een kwartaal (bijv. Q1 = 31 maart). */
+/** Laatste dag van een kwartaal (bijv. Q1 = 31 maart), einde van de dag UTC. */
 export function quarterEndDate(year: number, quarter: number): Date {
   const lastMonth = quarter * 3; // 3, 6, 9, 12
-  // Dag 0 van de volgende maand = laatste dag van lastMonth.
-  return new Date(year, lastMonth, 0);
+  return new Date(Date.UTC(year, lastMonth, 0, 23, 59, 59, 999));
 }
 
 /**
@@ -41,7 +40,7 @@ export function isInReminderWindow(now: Date, windowDays = 7): boolean {
   const { quarter, year } = quarterOf(now);
   const end = quarterEndDate(year, quarter);
   const msInDay = 1000 * 60 * 60 * 24;
-  const daysLeft = Math.ceil((end.getTime() - now.getTime()) / msInDay);
+  const daysLeft = Math.floor((end.getTime() - now.getTime()) / msInDay);
   return daysLeft >= 0 && daysLeft < windowDays;
 }
 
