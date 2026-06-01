@@ -15,7 +15,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
-RUN npm install --no-audit --no-fund
+# --legacy-peer-deps: next-auth (beta) declareert nodemailer@^7 als peer, wij draaien de
+# gepatchte nodemailer@8 (CVE-fix). De lockfile is hiermee consistent; zonder de vlag
+# faalt npm install in de schone Docker-omgeving op ERESOLVE.
+RUN npm install --no-audit --no-fund --legacy-peer-deps
 
 COPY . .
 
@@ -39,13 +42,14 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-COPY --from=builder /app/package.json /app/package-lock.json* ./
-COPY --from=builder /app/node_modules ./node_modules/
-COPY --from=builder /app/.next ./.next/
-COPY --from=builder /app/public ./public/
-COPY --from=builder /app/prisma ./prisma/
-COPY --from=builder /app/scripts ./scripts/
-COPY --from=builder /app/next.config.mjs ./
+# Geen public/ in deze repo — niet kopiëren (zou de build laten falen). --chown zodat de
+# non-root runtime-user in .next/cache en Prisma-temp mag schrijven.
+COPY --from=builder --chown=nodejs:nodejs /app/package.json /app/package-lock.json* ./
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules/
+COPY --from=builder --chown=nodejs:nodejs /app/.next ./.next/
+COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma/
+COPY --from=builder --chown=nodejs:nodejs /app/scripts ./scripts/
+COPY --from=builder --chown=nodejs:nodejs /app/next.config.mjs ./
 
 USER nodejs
 
