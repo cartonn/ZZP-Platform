@@ -1,3 +1,5 @@
+import { verifyViaHttp } from "@/lib/services/http-verify";
+
 // Diploma-/certificaatverificatie achter een schone service-grens.
 //
 // REALITEIT: er is geen open DUO-API om vrij iemands diploma op te vragen. De echte route is het
@@ -41,13 +43,32 @@ export class MockDiplomaVerifier implements DiplomaVerifier {
   }
 }
 
-/** Echte DUO-koppeling. Implementatie vereist productie-onboarding; zonder config faalt 'ie helder. */
+/**
+ * Echte DUO-koppeling: controleert de verificatiecode tegen het geconfigureerde endpoint
+ * (DIPLOMA_API_BASE + DIPLOMA_API_KEY) via de gedeelde HTTP-helper. Productie-onboarding bij DUO
+ * (contract/certificaten/endpoint) is mensenwerk; zonder config faalt 'ie helder.
+ */
 export class DuoDiplomaVerifier implements DiplomaVerifier {
-  async verify(): Promise<DiplomaVerificationResult> {
-    throw new Error(
-      "DUO-koppeling is niet geconfigureerd. Stel DUO_API_BASE + credentials in en implementeer de " +
-        "documentcontrole tegen het DUO-diplomaregister (echte onboarding is mensenwerk).",
+  constructor(private readonly fetchImpl?: typeof fetch) {}
+
+  async verify(input: DiplomaVerificationInput): Promise<DiplomaVerificationResult> {
+    const raw = await verifyViaHttp(
+      {
+        name: "DUO",
+        baseUrl: process.env.DUO_API_BASE,
+        apiKey: process.env.DUO_API_KEY,
+        path: "/diploma/verify",
+        fetchImpl: this.fetchImpl,
+      },
+      { verificationCode: input.verificationCode.trim(), holderName: input.holderName.trim() },
     );
+    return {
+      verified: raw.verified,
+      source: "DUO",
+      message:
+        raw.message ??
+        (raw.verified ? "Diploma geverifieerd via DUO." : "DUO kon dit diploma niet verifiëren."),
+    };
   }
 }
 

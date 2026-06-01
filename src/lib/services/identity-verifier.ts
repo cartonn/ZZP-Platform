@@ -1,3 +1,5 @@
+import { verifyViaHttp } from "@/lib/services/http-verify";
+
 // Identiteitsverificatie achter een schone service-grens.
 //
 // Best practice: bind een geverifieerde identiteit (iDIN via de bank, of eIDAS/DigiD) aan het
@@ -42,13 +44,33 @@ export class MockIdentityVerifier implements IdentityVerifier {
   }
 }
 
-/** Echte iDIN/eIDAS-koppeling. Vereist productie-onboarding; zonder config faalt 'ie helder. */
+/**
+ * Echte iDIN/eIDAS-koppeling: bevestigt de identiteit tegen het geconfigureerde endpoint
+ * (IDENTITY_API_BASE + IDENTITY_API_KEY) via de gedeelde HTTP-helper. De redirect-/handtekeningflow-
+ * onboarding is mensenwerk; zonder config faalt 'ie helder.
+ */
 export class IdinIdentityVerifier implements IdentityVerifier {
-  async verify(): Promise<IdentityVerificationResult> {
-    throw new Error(
-      "Identiteitsverificatie (iDIN/eIDAS) is niet geconfigureerd. Stel IDENTITY_API_BASE + credentials in " +
-        "en implementeer de redirect-/handtekeningflow (echte onboarding is mensenwerk).",
+  constructor(private readonly fetchImpl?: typeof fetch) {}
+
+  async verify(input: IdentityVerificationInput): Promise<IdentityVerificationResult> {
+    const raw = await verifyViaHttp(
+      {
+        name: "iDIN",
+        baseUrl: process.env.IDENTITY_API_BASE,
+        apiKey: process.env.IDENTITY_API_KEY,
+        path: "/identity/verify",
+        fetchImpl: this.fetchImpl,
+      },
+      { accountName: input.accountName.trim(), providedName: input.providedName.trim() },
     );
+    return {
+      verified: raw.verified,
+      verifiedName: raw.verifiedName ?? (raw.verified ? input.providedName.trim() : null),
+      source: "IDIN",
+      message:
+        raw.message ??
+        (raw.verified ? "Identiteit bevestigd via iDIN." : "Identiteit kon niet worden bevestigd."),
+    };
   }
 }
 

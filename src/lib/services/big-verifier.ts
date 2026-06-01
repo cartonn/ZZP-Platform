@@ -1,3 +1,5 @@
+import { verifyViaHttp } from "@/lib/services/http-verify";
+
 // BIG-registerverificatie (beroepsregistratie zorg) achter een schone service-grens.
 //
 // Het BIG-register is publiek doorzoekbaar op BIG-nummer + naam en geeft de registratiestatus
@@ -41,13 +43,34 @@ export class MockBigVerifier implements BigVerifier {
   }
 }
 
-/** Echte BIG-registerkoppeling. Vereist productie-onboarding; zonder config faalt 'ie helder. */
+/**
+ * Echte BIG-registerkoppeling: controleert BIG-nummer + naam tegen het geconfigureerde endpoint
+ * (BIG_API_BASE + BIG_API_KEY) via de gedeelde HTTP-helper. Productie-onboarding is mensenwerk;
+ * zonder config faalt 'ie helder.
+ */
 export class BigRegisterVerifier implements BigVerifier {
-  async verify(): Promise<BigVerificationResult> {
-    throw new Error(
-      "BIG-registerkoppeling is niet geconfigureerd. Stel BIG_API_BASE + credentials in en implementeer " +
-        "de registratiecontrole tegen het BIG-register (echte onboarding is mensenwerk).",
+  constructor(private readonly fetchImpl?: typeof fetch) {}
+
+  async verify(input: BigVerificationInput): Promise<BigVerificationResult> {
+    const raw = await verifyViaHttp(
+      {
+        name: "BIG",
+        baseUrl: process.env.BIG_API_BASE,
+        apiKey: process.env.BIG_API_KEY,
+        path: "/big/verify",
+        fetchImpl: this.fetchImpl,
+      },
+      { bigNumber: input.bigNumber.trim(), holderName: input.holderName.trim() },
     );
+    return {
+      verified: raw.verified,
+      source: "BIG",
+      message:
+        raw.message ??
+        (raw.verified
+          ? "Registratie bevestigd in het BIG-register."
+          : "Geen actieve registratie gevonden in het BIG-register."),
+    };
   }
 }
 
