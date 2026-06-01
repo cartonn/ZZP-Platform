@@ -587,7 +587,8 @@ model Subscription {
   id               String   @id @default(cuid())
   userId           String   @unique
   planId           String
-  status           String   @default("ACTIVE") // SubscriptionStatus: ACTIVE | PAST_DUE | CANCELLED
+  status           String   @default("ACTIVE") // SubscriptionStatus: PENDING | ACTIVE | PAST_DUE | CANCELLED
+  providerRef      String? //                     betaalprovider-referentie (bv. Mollie payment id)
   currentPeriodEnd DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

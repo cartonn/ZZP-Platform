@@ -81,7 +81,7 @@ export const PLAN_KEYS = ["FREE", "PRO", "BUSINESS"] as const;
 export type PlanKey = (typeof PLAN_KEYS)[number];
 export const planKeySchema = z.enum(PLAN_KEYS);
 
-export const SUBSCRIPTION_STATUSES = ["ACTIVE", "PAST_DUE", "CANCELLED"] as const;
+export const SUBSCRIPTION_STATUSES = ["PENDING", "ACTIVE", "PAST_DUE", "CANCELLED"] as const;
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 export const subscriptionStatusSchema = z.enum(SUBSCRIPTION_STATUSES);
 
