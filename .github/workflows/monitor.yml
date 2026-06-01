@@ -1,0 +1,40 @@
+name: Platform-bewaking
+
+# Geplande beveiligings-/gezondheidsbewaking (code-kant). Roept het beveiligde endpoint
+# POST /api/tasks/monitor aan, dat de recente audit-log scant op auth-anomalieën
+# (brute-force-bursts, reset-floods, rolwijziging-bursts) en incidenten wegschrijft +
+# admins waarschuwt. De runner is idempotent (dedupeKey per tijdvenster).
+#
+# Mensenwerk (eenmalig, anders draait dit niet):
+#   - Repo-secret MONITOR_TASK_URL = https://<productie-host>/api/tasks/monitor
+#   - Repo-secret CRON_SECRET      = dezelfde waarde als de CRON_SECRET van de server
+# Zonder deze secrets stopt de job vroegtijdig zonder te falen.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *" # elke 10 minuten
+  workflow_dispatch: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Endpoint aanroepen
+        env:
+          MONITOR_TASK_URL: ${{ secrets.MONITOR_TASK_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$MONITOR_TASK_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "MONITOR_TASK_URL of CRON_SECRET ontbreekt — taak overgeslagen (configureer de repo-secrets)."
+            exit 0
+          fi
+          status=$(curl -sS -o /tmp/monitor-response.json -w "%{http_code}" \
+            -X POST "$MONITOR_TASK_URL" \
+            -H "Authorization: Bearer $CRON_SECRET")
+          echo "HTTP $status"
+          cat /tmp/monitor-response.json || true
+          echo
+          if [ "$status" != "200" ]; then
+            echo "Platform-bewaking faalde (HTTP $status)."
+            exit 1
+          fi

@@ -10,6 +10,7 @@ import { runDbaMonitorTask } from "@/lib/dba-monitor-task";
 import { runConceptInvoiceReminderTask } from "@/lib/concept-invoice-reminders-task";
 import { runVatReminderTask } from "@/lib/vat-reminder-task";
 import { runJobAlertsTask } from "@/lib/job-alerts-task";
+import { runMonitorTask } from "@/lib/monitoring/monitor-task";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export async function POST(request: Request): Promise<Response> {
     },
     { name: "vat-reminders", fn: () => runVatReminderTask({ actorId: null }) },
     { name: "job-alerts", fn: () => runJobAlertsTask({ actorId: null }) },
+    { name: "monitor", fn: () => runMonitorTask({}) },
   ];
 
   const results: Record<string, unknown> = {};
