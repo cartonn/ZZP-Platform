@@ -31,6 +31,7 @@ export interface NavItem {
 const NAV: Record<UserRole, NavItem[]> = {
   FREELANCER: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
+    { label: "Ontzorgd", href: "/ontzorgd", icon: "barChart", enabled: true },
     { label: "Mijn profiel", href: "/profiel", icon: "user", enabled: true },
     { label: "Beschikbaarheid", href: "/beschikbaarheid", icon: "calendar", enabled: true },
     { label: "Diensten", href: "/diensten", icon: "clock", enabled: true },
