@@ -23,7 +23,9 @@ describe("MockBigVerifier", () => {
 
 describe("BigRegisterVerifier", () => {
   it("faalt helder zonder configuratie", async () => {
-    await expect(new BigRegisterVerifier().verify()).rejects.toThrow(/niet geconfigureerd/);
+    await expect(
+      new BigRegisterVerifier().verify({ bigNumber: "12345678901", holderName: "Fatima" }),
+    ).rejects.toThrow(/niet geconfigureerd/);
   });
 });
 

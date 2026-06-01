@@ -27,7 +27,9 @@ describe("MockIdentityVerifier", () => {
 
 describe("IdinIdentityVerifier", () => {
   it("faalt helder zonder configuratie", async () => {
-    await expect(new IdinIdentityVerifier().verify()).rejects.toThrow(/niet geconfigureerd/);
+    await expect(
+      new IdinIdentityVerifier().verify({ accountName: "Sanne", providedName: "Sanne" }),
+    ).rejects.toThrow(/niet geconfigureerd/);
   });
 });
 

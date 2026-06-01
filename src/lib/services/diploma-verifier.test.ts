@@ -29,7 +29,9 @@ describe("MockDiplomaVerifier", () => {
 
 describe("DuoDiplomaVerifier", () => {
   it("faalt helder zonder configuratie", async () => {
-    await expect(new DuoDiplomaVerifier().verify()).rejects.toThrow(/niet geconfigureerd/);
+    await expect(
+      new DuoDiplomaVerifier().verify({ verificationCode: "DUO-AAAA-BBBB", holderName: "Sanne" }),
+    ).rejects.toThrow(/niet geconfigureerd/);
   });
 });
 
