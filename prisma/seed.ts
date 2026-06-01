@@ -11,10 +11,18 @@ async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
   // --- Referentiedata: plannen ---
+  // Waarde-tiers: Gratis → Zelf-doen → Volledig Ontzorgd (zie src/lib/entitlements.ts).
+  // De keys blijven FREE/PRO/BUSINESS; de naam/prijs volgt het waardegebaseerde model.
   const plans = [
     { key: "FREE", name: "Gratis", maxApplications: 5, maxJobs: 1, priceCents: 0 },
-    { key: "PRO", name: "Pro", maxApplications: 50, maxJobs: 10, priceCents: 2900 },
-    { key: "BUSINESS", name: "Business", maxApplications: -1, maxJobs: -1, priceCents: 9900 },
+    { key: "PRO", name: "Zelf-doen", maxApplications: -1, maxJobs: -1, priceCents: 1900 },
+    {
+      key: "BUSINESS",
+      name: "Volledig Ontzorgd",
+      maxApplications: -1,
+      maxJobs: -1,
+      priceCents: 9900,
+    },
   ];
   for (const plan of plans) {
     await prisma.plan.upsert({ where: { key: plan.key }, update: plan, create: plan });
