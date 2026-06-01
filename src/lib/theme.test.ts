@@ -48,20 +48,20 @@ describe("theme", () => {
 describe("palette", () => {
   it("isPalette herkent de drie geldige schema's", () => {
     expect(isPalette("standaard")).toBe(true);
-    expect(isPalette("warm-clay")).toBe(true);
-    expect(isPalette("indigo")).toBe(true);
+    expect(isPalette("bloei")).toBe(true);
+    expect(isPalette("elektrisch-blauw")).toBe(true);
     expect(isPalette("paars")).toBe(false);
     expect(isPalette(null)).toBe(false);
   });
 
   it("er zijn precies drie kleurschema's", () => {
-    expect(PALETTES).toEqual(["standaard", "warm-clay", "indigo"]);
+    expect(PALETTES).toEqual(["standaard", "bloei", "elektrisch-blauw"]);
   });
 
   it("nextPalette doorloopt cyclisch", () => {
-    expect(nextPalette("standaard")).toBe("warm-clay");
-    expect(nextPalette("warm-clay")).toBe("indigo");
-    expect(nextPalette("indigo")).toBe("standaard");
+    expect(nextPalette("standaard")).toBe("bloei");
+    expect(nextPalette("bloei")).toBe("elektrisch-blauw");
+    expect(nextPalette("elektrisch-blauw")).toBe("standaard");
   });
 
   it("applyPalette zet data-theme; standaard verwijdert het attribuut", () => {
@@ -70,9 +70,13 @@ describe("palette", () => {
       setAttribute: (n: string, v: string) => calls.push([n, v]),
       removeAttribute: (n: string) => calls.push([n]),
     };
-    applyPalette("warm-clay", root);
-    applyPalette("indigo", root);
+    applyPalette("bloei", root);
+    applyPalette("elektrisch-blauw", root);
     applyPalette("standaard", root);
-    expect(calls).toEqual([["data-theme", "warm-clay"], ["data-theme", "indigo"], ["data-theme"]]);
+    expect(calls).toEqual([
+      ["data-theme", "bloei"],
+      ["data-theme", "elektrisch-blauw"],
+      ["data-theme"],
+    ]);
   });
 });

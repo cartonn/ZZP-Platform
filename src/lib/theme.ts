@@ -31,19 +31,19 @@ export function applyTheme(theme: Theme, root: ThemeRoot): void {
 // op <html>; "standaard" = geen attribuut (valt terug op de basis-tokens).
 // ---------------------------------------------------------------------------
 
-export const PALETTES = ["standaard", "warm-clay", "indigo"] as const;
+export const PALETTES = ["standaard", "bloei", "elektrisch-blauw"] as const;
 export type Palette = (typeof PALETTES)[number];
 
 /** Nederlandse labels voor de UI (geen technische ids tonen). */
 export const PALETTE_LABELS: Record<Palette, string> = {
   standaard: "Standaard",
-  "warm-clay": "Klei",
-  indigo: "Indigo",
+  bloei: "Bloei",
+  "elektrisch-blauw": "Elektrisch Blauw",
 };
 
 /** Runtime-guard voor een opgeslagen palette-waarde. */
 export function isPalette(value: unknown): value is Palette {
-  return value === "standaard" || value === "warm-clay" || value === "indigo";
+  return value === "standaard" || value === "bloei" || value === "elektrisch-blauw";
 }
 
 /** De volgende palette in de cyclus (voor een eenvoudige doorloop-knop). */
