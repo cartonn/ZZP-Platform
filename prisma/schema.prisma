@@ -536,6 +536,8 @@ model Invoice {
   performance   Performance?   @relation(fields: [performanceId], references: [id], onDelete: SetNull)
 
   @@unique([issuerKey, partyInvoiceNumber])
+  @@index([collaborationId])
+  @@index([issuerUserId])
   @@index([lifecycleStatus])
   @@index([correlationId])
 }
