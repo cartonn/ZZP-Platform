@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { authenticate, type LoginState } from "./actions";
 
 export function LoginForm() {
@@ -12,35 +14,27 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="space-y-1.5">
-        <label htmlFor="email" className="block text-sm font-medium">
-          E-mail
-        </label>
-        <input
+      <Field label="E-mail" htmlFor="email" required>
+        <Input
           id="email"
           name="email"
           type="email"
           autoComplete="email"
           required
-          className="focus-ring h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
           placeholder="naam@bedrijf.nl"
         />
-      </div>
+      </Field>
 
-      <div className="space-y-1.5">
-        <label htmlFor="password" className="block text-sm font-medium">
-          Wachtwoord
-        </label>
-        <input
+      <Field label="Wachtwoord" htmlFor="password" required>
+        <Input
           id="password"
           name="password"
           type="password"
           autoComplete="current-password"
           required
-          className="focus-ring h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
           placeholder="••••••••"
         />
-      </div>
+      </Field>
 
       {state?.error && (
         <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
