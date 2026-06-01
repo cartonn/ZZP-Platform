@@ -6,6 +6,7 @@
 > verder ingevuld bovenop de cascade.
 
 ## ✅ Beslist — dark mode als gebruikerskeuze (toggle)
+
 De eigenaar koos: **dark mode is een keuze op het platform**, geen geforceerde dark-first re-theme.
 Het light-thema blijft de standaard; gebruikers kunnen wisselen via de **ThemeToggle** in de header.
 Implementatie: Tailwind `darkMode: "class"`, donkere tokenwaarden in `globals.css` (`.dark { … }`),
@@ -14,6 +15,7 @@ pure logica in `src/lib/theme.ts` (getest). Omdat de tokens semantisch zijn, wer
 componenten in beide thema's zonder wijziging.
 
 ## UX-principes (hard, §7)
+
 - **"Aan zet"-principe.** Elke rol ziet bovenaan glashelder wat er nú van hém/haar wordt verwacht
   ("2 urenstaten wachten op je goedkeuring"). Geen zoeken. Gevoed door de next-action-engine.
 - **Statushelderheid.** Eén consistente status-badge-taal over álle objecten
@@ -29,10 +31,11 @@ componenten in beide thema's zonder wijziging.
 - **Microcopy:** correct, zakelijk Nederlands. Consistentie boven originaliteit.
 
 ## Statuskleur-mapping (voorstel, definitief in Fase 5)
-| Toestand | Kleurtoken |
-|---|---|
-| concept / verwacht | `muted` |
-| ingediend / ter goedkeuring / gemarkeerd | `warning` |
-| goedgekeurd / actief / getekend / bevestigd / betaald | `success` |
-| afgekeurd / te laat / gecrediteerd | `danger` |
-| afgerond / gearchiveerd | `muted-foreground` |
+
+| Toestand                                              | Kleurtoken         |
+| ----------------------------------------------------- | ------------------ |
+| concept / verwacht                                    | `muted`            |
+| ingediend / ter goedkeuring / gemarkeerd              | `warning`          |
+| goedgekeurd / actief / getekend / bevestigd / betaald | `success`          |
+| afgekeurd / te laat / gecrediteerd                    | `danger`           |
+| afgerond / gearchiveerd                               | `muted-foreground` |
