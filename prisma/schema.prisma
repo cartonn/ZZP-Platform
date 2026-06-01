@@ -708,3 +708,27 @@ model SupportMessage {
 
   @@index([ticketId])
 }
+
+// ---------------------------------------------------------------------------
+// Platform-bewaking (health + security monitor). Systeem-eigenaarschap; geen "AI" in UI.
+// Deterministische anomaliedetectie schrijft incidenten weg; dedupeKey houdt re-runs idempotent.
+// ---------------------------------------------------------------------------
+
+model HealthIncident {
+  id           String    @id @default(cuid())
+  source       String //                 IncidentSource: UPTIME | ERROR | CVE | AUTH
+  severity     String    @default("WARN") // IncidentSeverity: INFO | WARN | CRITICAL
+  code         String //                 stabiele machine-code, bv. LOGIN_BURST, ROLE_ESCALATION
+  status       String    @default("OPEN") // IncidentStatus: OPEN | ACKNOWLEDGED | RESOLVED
+  summary      String //                 mensleesbare samenvatting (NL)
+  evidence     String? //                JSON-string met onderbouwing
+  dedupeKey    String    @unique //       idempotentie: één incident per logische bevinding/venster
+  acknowledgedAt DateTime?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status])
+  @@index([severity])
+  @@index([source])
+}

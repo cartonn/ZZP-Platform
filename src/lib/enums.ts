@@ -137,6 +137,29 @@ export type SupportAuthorKind = (typeof SUPPORT_AUTHOR_KINDS)[number];
 export const supportAuthorKindSchema = z.enum(SUPPORT_AUTHOR_KINDS);
 
 // ---------------------------------------------------------------------------
+// Platform-bewaking (health + security monitor). Systeem-eigenaarschap.
+// Geen "AI" in UI — dit heet "Platform-bewaking" / "Bewaking".
+// ---------------------------------------------------------------------------
+
+export const INCIDENT_SOURCES = ["UPTIME", "ERROR", "CVE", "AUTH"] as const;
+export type IncidentSource = (typeof INCIDENT_SOURCES)[number];
+export const incidentSourceSchema = z.enum(INCIDENT_SOURCES);
+
+export const INCIDENT_SEVERITIES = ["INFO", "WARN", "CRITICAL"] as const;
+export type IncidentSeverity = (typeof INCIDENT_SEVERITIES)[number];
+export const incidentSeveritySchema = z.enum(INCIDENT_SEVERITIES);
+
+export const INCIDENT_STATUSES = ["OPEN", "ACKNOWLEDGED", "RESOLVED"] as const;
+export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
+export const incidentStatusSchema = z.enum(INCIDENT_STATUSES);
+
+export const INCIDENT_TRANSITIONS: Record<IncidentStatus, readonly IncidentStatus[]> = {
+  OPEN: ["ACKNOWLEDGED", "RESOLVED"],
+  ACKNOWLEDGED: ["RESOLVED", "OPEN"],
+  RESOLVED: ["OPEN"], // heropenen kan, bv. bij herhaling
+};
+
+// ---------------------------------------------------------------------------
 // Credential-statusovergangen (CLAUDE.md regel 3)
 //
 // Dit is de enige toegestane overgangsmap. `assertTransition` in
