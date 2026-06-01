@@ -1,0 +1,60 @@
+name: QA (user-flow verification)
+
+# Na elke merge naar main draait de QA-agent de kritieke user-flows door als
+# echte gebruiker (Playwright + Chromium). Screenshots worden als artifacts bewaard.
+# Bij failures opent de QA-agent een issue met reproductiestappen.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: qa
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: "file:./ci.db"
+      AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
+      STORAGE_DRIVER: "local"
+      COMMIT_SHA: ${{ github.sha }}
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma db push --skip-generate
+      - run: npx prisma db seed
+      - run: npx playwright install chromium --with-deps
+      - run: npm run build
+
+      - name: QA critical flows
+        run: npx playwright test e2e/qa/ --project=ci --reporter=list
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-screenshots
+          path: e2e/qa/screenshots/
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-report
+          path: playwright-report/
+          retention-days: 14
