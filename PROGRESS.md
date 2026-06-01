@@ -593,6 +593,8 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Notificaties verschijnen automatisch in het bestaande notificatiecentrum + bel; signals.ts
   badget bijna-verlopen al. Geen "AI" in teksten/comments/docs.
 
+<<<<<<< HEAD
+
 ### Increment: Rate-limiting op auth (brute-force-bescherming) — 2026-05-31
 
 - Orchestrator (Opus) + 1 Sonnet-builder (geïsoleerde kern); orchestrator deed integratie + poort.
@@ -644,7 +646,39 @@ Sluit de ontbrekende e-mailkanalen voor twee kritieke platform-events:
   `buildDbaSignalEmail` met signaaltekst + disclaimer — naar ZZP'er én opdrachtgever.
 - **3 nieuwe templates** in `reminder-emails.ts` + 9 unit-tests (totaal 564 groen).
 - **Patroon**: e-mail buiten transactie, `getMailSender()` singleton (noop dev/test, SMTP prod).
-- Gate: typecheck ✓ lint ✓ test 564 ✓ build ✓.
+- # Gate: typecheck ✓ lint ✓ test 564 ✓ build ✓.
+
+### Increment: Semantische matching-laag (deterministisch lokaal, pgvector-klaar) — 2026-05-30
+
+- Orchestrator (Opus) + 2 Sonnet-builders op niet-overlappende nieuwe bestanden; orchestrator
+  deed de integratie + poort. Backlog-kop "semantisch matchen met pgvector" — gebouwd volgens
+  hetzelfde service-grens-patroon als storage/DUO/BIG/identiteit (lokaal werkt overal, echte
+  pgvector-provisioning op productie-Postgres = mensenwerk).
+- **Pure laag** `src/lib/semantic.ts` (+ 34 unit-tests): deterministische tekstgelijkenis zonder
+  externe afhankelijkheid — `tokenize` (lowercase, diacritics-strip, NL-stopwoorden, min. lengte),
+  `embed` (feature hashing via FNV-1a, signed, L2-genormaliseerd, dim 96), `cosineSimilarity`
+  (geklemd op [0,1]), `textRelatedness(a,b)` 0..1. Symmetrisch, identiek=1, leeg=0.
+- **Service-grens** `src/lib/services/semantic-matcher.ts` (+ 8 unit-tests): `SemanticMatcher`-
+  interface, `LocalSemanticMatcher` (default, in-memory cosinus), `PgVectorSemanticMatcher`
+  (env `SEMANTIC_MATCHER=pgvector`; faalt helder zonder DB-zijde), `getSemanticMatcher()` +
+  `safeRelatedness()` zodat ranking nooit crasht (degradeert naar score-only).
+- **Integratie** `recommendations.ts` + `suggestions.ts`: inhoudelijke gelijkenis als
+  deterministische **tiebreaker** bij gelijke score (`relatedness` veld, optioneel) + een
+  verklarende regel ("Sluit inhoudelijk aan op je profiel / op de opdracht") op de dashboard-
+  en opdrachtkaart wanneer de aansluiting boven de drempel ligt. `computeMatchScore` blijft
+  ongewijzigd (bestaande tests intact). Tiebreaker-unit-tests toegevoegd in beide test-files.
+- **Drempel gekalibreerd** op de demo-seed (42 job×profiel-paren, gemeten): median 0.120,
+  p75 0.245, p90 0.472, max 0.737 → `SEMANTIC_HIGHLIGHT_THRESHOLD = 0.3` toont de verklaring
+  voor 7/42 = 16,7% (~top 1/6) best-aansluitende paren (selectief, nooit altijd-aan/leeg).
+- env: `SEMANTIC_MATCHER` toegevoegd aan `env.ts` (default "local") + `.env.example`.
+- Checks groen: typecheck, lint, **246 unit-tests**, build (33 routes), `check:env`. E2e
+  overgeslagen (geen browser-channel in deze routine-omgeving, net als CI). Geen "AI" in
+  UI/teksten/comments/docs; deterministisch en server-side.
+- Let op (handoff): de backlog-kop "semantisch matchen" is in eerdere routine-runs al meermaals
+  als Done gemarkeerd op losse `claude/epic-*`-branches die nooit naar `claude/dazzling-carson-v9Qwk`
+  zijn gemerged. Deze run staat op `claude/epic-lovelace-ghtBi` en moet (na de poort) eveneens
+  gemerged worden om live te gaan.
+  > > > > > > > d9912ac (docs: corrigeer gemeten kalibratiecijfers semantische drempel)
 
 ### Admin DBA-risico-overzicht (/admin/dba) — 2026-06-01
 
