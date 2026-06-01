@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs";
 import { signIn } from "@/auth";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { requestMeta } from "@/lib/request-meta";
+import { registerRateLimiter } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
 
 export type RegisterState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
@@ -28,6 +30,21 @@ export async function register(_prev: RegisterState, formData: FormData): Promis
   }
 
   const { name, email, password, role, companyName } = parsed.data;
+
+  // Begrens massale account-aanmaak per IP (server-side waarheid). Bij overschrijding
+  // weigeren + auditregel; geen enumeratie-informatie in de respons.
+  const meta = await requestMeta();
+  const limitKey = meta.ipAddress ?? "unknown";
+  if (!registerRateLimiter.check(limitKey).allowed) {
+    await audit({
+      action: "REGISTER_RATE_LIMITED",
+      entityType: "User",
+      entityId: "unknown",
+      metadata: { email },
+      ...meta,
+    });
+    return { error: "Te veel registratiepogingen. Probeer het later opnieuw." };
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
