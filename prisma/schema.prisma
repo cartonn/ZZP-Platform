@@ -53,6 +53,7 @@ model User {
   supportTickets    SupportTicket[]        @relation("SupportRequester")
   assignedTickets   SupportTicket[]        @relation("SupportAssignee")
   supportMessages   SupportMessage[]       @relation("SupportMessageAuthor")
+  taxFilingRequests TaxFilingRequest[]     @relation("TaxFilingRequester")
 
   @@index([role])
   @@index([status])
@@ -731,4 +732,48 @@ model HealthIncident {
   @@index([status])
   @@index([severity])
   @@index([source])
+}
+
+// ---------------------------------------------------------------------------
+// Belastingaangifte-delegatie ("Wij doen je aangifte"). Eén verzoek per belastingjaar +
+// middel (IB/BTW). Granulaire, intrekbare toestemming; een partner-belastingkantoor is de
+// feitelijke gemachtigde indiener. Geld loopt nooit via het platform (Besluit 1).
+// ---------------------------------------------------------------------------
+
+model TaxFilingRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  taxYear   Int //                     belastingjaar
+  kind      String //                  TaxFilingKind: IB | BTW
+  quarter   Int      @default(0) //     bij BTW: kwartaal 1-4; bij IB: 0 (n.v.t.)
+  status    String   @default("AKKOORD") // TaxFilingStatus
+
+  partnerName String //                naam van het aangesloten belastingkantoor (gemachtigde)
+  mandateKind String //                MandateKind: DIGID | EHERKENNING
+
+  // Granulaire toestemming (AVG: los vastgelegd, niet voorgevinkt).
+  dpaAcceptedVersion String //         versie verwerkersovereenkomst die de klant accepteerde
+  consentShareAt     DateTime //       toestemming om het dossier met de partner te delen
+  consentMandateAt   DateTime //       machtiging om namens de klant in te dienen (dit middel/jaar)
+
+  // Concept + review-then-submit.
+  conceptAmountCents Int? //           geschat te betalen/ontvangen bedrag in het concept
+  conceptSharedAt    DateTime?
+  clientApprovedAt   DateTime? //      definitief indien-akkoord van de klant (review-then-submit)
+
+  // Indiening + terugkoppeling.
+  submittedAt   DateTime?
+  submissionRef String? //             ontvangstbevestiging Digipoort/SBR
+  aanslagCents  Int? //                bedrag op de aanslag
+  aanslagAt     DateTime?
+
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("TaxFilingRequester", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taxYear, kind, quarter])
+  @@index([userId])
+  @@index([status])
 }

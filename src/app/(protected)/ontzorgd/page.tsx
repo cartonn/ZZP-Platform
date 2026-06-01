@@ -229,6 +229,12 @@ export default async function OntzorgdPage() {
 
           <div className="flex flex-wrap gap-2">
             <a
+              href="/ontzorgd/aangifte"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              Wij doen je aangifte
+            </a>
+            <a
               href="/administratie"
               className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
             >
