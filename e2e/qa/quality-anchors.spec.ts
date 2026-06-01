@@ -51,13 +51,14 @@ test.describe("QA: Quality anchors", () => {
 
   test("freelancer kan /admin niet bereiken (server-side)", async ({ page }) => {
     await login(page, ACCOUNTS.freelancer);
-    const res = await page.goto("/admin/verificaties");
-    expect(res?.status()).toBeGreaterThanOrEqual(300);
+    // page.goto volgt de server-side redirect; assert dat de non-admin wegblijft van /admin.
+    await page.goto("/admin/verificaties");
+    await expect(page).not.toHaveURL(/\/admin/);
   });
 
   test("client kan /admin niet bereiken (server-side)", async ({ page }) => {
     await login(page, ACCOUNTS.client);
-    const res = await page.goto("/admin/gebruikers");
-    expect(res?.status()).toBeGreaterThanOrEqual(300);
+    await page.goto("/admin/gebruikers");
+    await expect(page).not.toHaveURL(/\/admin/);
   });
 });

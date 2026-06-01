@@ -57,8 +57,10 @@ test.describe("QA: Freelancer (Sanne)", () => {
   });
 
   test("kan /admin niet bereiken", async ({ page }) => {
-    const res = await page.goto("/admin/verificaties");
-    expect(res?.status()).toBeGreaterThanOrEqual(300);
+    // De server-side route-gate weert non-admins; page.goto volgt de redirect, dus
+    // assert op de eind-URL (weg van /admin), niet op de HTTP-status van het antwoord.
+    await page.goto("/admin/verificaties");
+    await expect(page).not.toHaveURL(/\/admin/);
     await shot(page, "freelancer-admin-blocked");
   });
 });
