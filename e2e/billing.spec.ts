@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { clickUntil } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -93,16 +94,18 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
   await fctx.close();
 });
 
-test("abonnement upgraden naar PRO", async ({ page }) => {
+test("abonnement upgraden naar Zelf-doen", async ({ page }) => {
   await registerFreelancer(page, `abo-${uniq()}@test.local`);
   await page.goto("/abonnement");
   await expect(
     page.locator("div.bg-card", { hasText: "Gratis" }).getByText("Huidig", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Kies Pro" }).click();
-  // Na upgrade is Pro het huidige plan.
-  const pro = page.locator("div.bg-card", { hasText: "Pro" });
-  await expect(pro.getByText("Huidig", { exact: true })).toBeVisible();
-  await expect(pro.getByText("50 reacties")).toBeVisible();
+  // Na upgrade is Zelf-doen (PlanKey PRO) het huidige plan. Kaart uniek via z'n tagline.
+  const zelfdoen = page.locator("div.bg-card", { hasText: "Jij houdt de regie" });
+  await clickUntil(
+    page.getByRole("button", { name: "Kies Zelf-doen" }),
+    zelfdoen.getByText("Huidig", { exact: true }),
+  );
+  await expect(zelfdoen.getByText("Onbeperkt reageren en samenwerken")).toBeVisible();
   await shot(page, "27-abonnement");
 });

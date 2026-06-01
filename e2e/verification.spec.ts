@@ -1,10 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { clickUntil, clickUntilGone } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+// Wacht tot de huidige route is gehydrateerd/gecommit (zie HydrationFlag): server-action-knoppen
+// reageren pas dan. Nodig na een navigatie, vóór de eerste klik op zo'n knop. De vlag draagt de
+// pathname, dus we wachten tot die de huidige URL matcht (betrouwbaar per navigatie).
+const hydrated = async (p: Page) => {
+  const path = new URL(p.url()).pathname;
+  await p.waitForSelector(`html[data-hydrated="${path}"]`, { timeout: 10000 });
+};
 const SAMPLE = {
   name: "bewijs.pdf",
   mimeType: "application/pdf",
@@ -40,10 +48,15 @@ async function addAndSubmitCredential(
   await page.setInputFiles("#document", SAMPLE);
   await page.getByRole("button", { name: "Certificaat toevoegen" }).click();
   await page.waitForURL("**/certificaten");
+  // Wacht tot de client gehydrateerd is: een server-action-form werkt pas dan; een klik
+  // direct na de navigatie zou anders verloren gaan. (Deterministischer dan networkidle.)
+  await hydrated(page);
 
   const card = page.locator("div.bg-card", { hasText: opts.title });
-  await card.getByRole("button", { name: "Verificatie aanvragen" }).click();
-  await expect(card.getByText("In beoordeling")).toBeVisible();
+  await clickUntil(
+    card.getByRole("button", { name: "Verificatie aanvragen" }),
+    card.getByText("In beoordeling"),
+  );
 }
 
 test("admin keurt goed en wijst af; ZZP'er ziet de uitkomst", async ({ page, browser }) => {
@@ -63,6 +76,7 @@ test("admin keurt goed en wijst af; ZZP'er ziet de uitkomst", async ({ page, bro
   const admin = await adminCtx.newPage();
   await login(admin, "admin@zzp-platform.local");
   await admin.goto("/admin/verificaties");
+  await hydrated(admin); // hydratie afwachten vóór server-action-kliks
   await expect(admin.getByText(approveTitle)).toBeVisible();
   await expect(admin.getByText(rejectTitle)).toBeVisible();
   // Wachttijd zichtbaar zodat de beheerder kan prioriteren (net ingediend = vandaag).
@@ -71,18 +85,29 @@ test("admin keurt goed en wijst af; ZZP'er ziet de uitkomst", async ({ page, bro
   ).toBeVisible();
   await shot(admin, "20-admin-queue");
 
-  await admin
-    .locator("div.bg-card", { hasText: approveTitle })
-    .getByRole("button", { name: "Goedkeuren" })
-    .click();
-  await expect(admin.getByText(approveTitle)).toHaveCount(0); // uit de wachtrij
+  await clickUntilGone(
+    admin
+      .locator("div.bg-card", { hasText: approveTitle })
+      .getByRole("button", { name: "Goedkeuren" }),
+    admin.getByText(approveTitle), // uit de wachtrij
+  );
 
+  // Afwijzen vereist een reden; vul die in en klik tot de kaart de wachtrij verlaat (robuust
+  // tegen de pre-hydratie-race en een re-render door de voorgaande goedkeuring).
   const rejectCard = admin.locator("div.bg-card", { hasText: rejectTitle });
-  await rejectCard
-    .getByLabel("Reden van afwijzing")
-    .fill("Document is onleesbaar, upload een duidelijke scan.");
-  await rejectCard.getByRole("button", { name: "Afwijzen" }).click();
-  await expect(admin.getByText(rejectTitle)).toHaveCount(0);
+  await expect(async () => {
+    if ((await admin.getByText(rejectTitle).count()) > 0) {
+      await rejectCard
+        .getByLabel("Reden van afwijzing")
+        .fill("Document is onleesbaar, upload een duidelijke scan.")
+        .catch(() => {});
+      await rejectCard
+        .getByRole("button", { name: "Afwijzen" })
+        .click({ timeout: 3000 })
+        .catch(() => {});
+    }
+    await expect(admin.getByText(rejectTitle)).toHaveCount(0, { timeout: 3000 });
+  }).toPass({ timeout: 20000 });
   await adminCtx.close();
 
   // ZZP'er ziet de uitkomsten.
@@ -118,11 +143,11 @@ test("verlopen VERIFIED-certificaat wordt server-side EXPIRED", async ({ page, b
   const admin = await adminCtx.newPage();
   await login(admin, "admin@zzp-platform.local");
   await admin.goto("/admin/verificaties");
-  await admin
-    .locator("div.bg-card", { hasText: title })
-    .getByRole("button", { name: "Goedkeuren" })
-    .click();
-  await expect(admin.getByText(title)).toHaveCount(0);
+  await hydrated(admin); // hydratie afwachten vóór server-action-kliks
+  await clickUntilGone(
+    admin.locator("div.bg-card", { hasText: title }).getByRole("button", { name: "Goedkeuren" }),
+    admin.getByText(title),
+  );
 
   // Expiry-actie zet de (verlopen) VERIFIED-credential op EXPIRED.
   await admin.getByRole("button", { name: "Verlopen certificaten verwerken" }).click();

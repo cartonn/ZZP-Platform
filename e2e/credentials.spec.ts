@@ -1,10 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { clickUntil } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+// Wacht tot de huidige route is gehydrateerd (zie HydrationFlag): server-action-knoppen
+// reageren pas dan; nodig na een navigatie, vóór de eerste klik op zo'n knop.
+const hydrated = async (p: Page) => {
+  const path = new URL(p.url()).pathname;
+  await p.waitForSelector(`html[data-hydrated="${path}"]`, { timeout: 10000 });
+};
 
 // Minimaal niet-leeg "PDF"-bestand; validateUpload controleert mimeType + grootte, niet de inhoud.
 const SAMPLE = {
@@ -42,10 +49,13 @@ test("credential uploaden, verificatie aanvragen en privé-download afdwingen", 
   await expect(page.getByText("Concept")).toBeVisible();
   await shot(page, "17-certificaten");
 
-  // Verificatie aanvragen: DRAFT -> SUBMITTED (server-side via assertTransition).
-  await page.getByRole("button", { name: "Verificatie aanvragen" }).click();
+  await hydrated(page);
+  // Verificatie aanvragen: DRAFT -> SUBMITTED. Robuust klikken (pre-hydratie-race).
+  await clickUntil(
+    page.getByRole("button", { name: "Verificatie aanvragen" }),
+    page.getByText("In beoordeling"),
+  );
   await expect(page.getByRole("button", { name: "Verificatie aanvragen" })).toHaveCount(0);
-  await expect(page.getByText("In beoordeling")).toBeVisible();
   await shot(page, "18-certificaten-submitted");
 
   // Privé-download: eigenaar mag het bewijsstuk openen (200).
