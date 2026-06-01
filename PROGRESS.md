@@ -29,6 +29,27 @@
 
 ## Logboek
 
+### Globale snelzoeker (⌘K) — server-side, rol-gescopte quick-navigatie — 2026-06-01
+
+- Orchestrator (Opus) + 2 Sonnet-builders op niet-overlappende bestanden (server-actie vs. UI);
+  orchestrator schreef de pure keystone + draaide de poort + integreerde. Linear: ZZP2-39 (Done).
+- **Pure kern** `src/lib/search.ts` (+ 13 unit-tests): `normalizeSearchQuery`, `scoreField`
+  (exact > begint-met > woord-begint-met > bevat), `bestFieldScore`, `rankResults`
+  (score → vaste type-volgorde → titel NL, begrensd) en `groupResultsByType`. DB-onafhankelijk,
+  volledig deterministisch.
+- **Server-actie** `src/app/(protected)/search/actions.ts` (`searchPlatform`): rol-gescopt +
+  ownership-afgedwongen (FREELANCER/CLIENT/ADMIN). Begrensde queries (`take: 40`/categorie via
+  `Promise.all`), hoofdletterongevoelige JS-scoring (SQLite/Postgres-agnostisch — geen reliance op
+  case-sensitive `contains`). Geen IDOR (elke query scopet op de actor; gesprekken tonen alleen de
+  tegenpartij-naam). ADMIN vindt ook gebruikers (→ `/admin/gebruikers?q=`).
+- **UI** `command-palette.tsx` + `search-trigger.tsx`, gemonteerd in `app-shell.tsx`: ⌘K/Ctrl+K
+  (+ headerknop) opent; debounce 150 ms + out-of-order-bescherming (request-id); toetsenbordnav
+  (↑↓/↵/esc); groepering per type; laad-/te-korte-query-/lege-staat; toegankelijk dialog
+  (`role="dialog"`/`aria-modal`/`listbox`/`option`, auto-focus). Geen dode knoppen.
+- Gate: typecheck ✓ lint ✓ test **568** (+13) ✓ build ✓. Prettier op de nieuwe bestanden ✓.
+  E2e overgeslagen (geen browser-channel in routine; ⌘K-interactie verifiëren in een sessie mét
+  browser). Commit `f768d25` op `claude/epic-lovelace-hZ9E1` (deploy-merge = bestaande gated stap).
+
 ### Platform Overhaul — Fase 0 + 1 — 2026-05-29
 
 Start van de event-driven overhaul (`prompts/PLATFORM_OVERHAUL.md`). Branch deze sessie:
