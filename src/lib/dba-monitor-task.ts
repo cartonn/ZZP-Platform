@@ -14,6 +14,8 @@ import {
 } from "@/lib/dba-monitor";
 import { DBA_DISCLAIMER } from "@/lib/config";
 import { getDbaThresholds } from "@/lib/platform-config";
+import { getMailSender } from "@/lib/services/mail-sender";
+import { buildDbaSignalEmail } from "@/lib/services/reminder-emails";
 
 export interface DbaMonitorResult {
   raised: number;
@@ -136,6 +138,47 @@ export async function runDbaMonitorTask(opts: {
         }),
       }),
     ]);
+  }
+
+  // E-mails buiten de transactielus — falen mag de DB-actie niet terugdraaien.
+  if (fresh.length > 0) {
+    const allUserIds = [
+      ...new Set([...fresh.map((r) => r.freelancerUserId), ...fresh.map((r) => r.clientUserId)]),
+    ];
+    const users = await prisma.user.findMany({
+      where: { id: { in: allUserIds } },
+      select: { id: true, email: true, name: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const mail = getMailSender();
+    const loginUrl = process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
+
+    for (const item of fresh) {
+      const title = `${DBA_LEVEL_LABEL[item.signal.level]}`;
+      const message = `${item.signal.message} ${DBA_DISCLAIMER}`;
+      for (const [userId, role] of [
+        [item.freelancerUserId, "freelancer"],
+        [item.clientUserId, "client"],
+      ] as const) {
+        const u = userMap.get(userId);
+        if (!u) continue;
+        try {
+          await mail.send(
+            buildDbaSignalEmail({
+              name: u.name ?? u.email,
+              email: u.email,
+              role,
+              level: title,
+              message,
+              collaborationId: item.collaborationId,
+              loginUrl,
+            }),
+          );
+        } catch (err) {
+          console.error("[dba-monitor-task] e-mail mislukt:", err);
+        }
+      }
+    }
   }
 
   return { raised: fresh.length };
