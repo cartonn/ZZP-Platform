@@ -887,4 +887,30 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Tests: 505 → 520 groen. Gate: typecheck ✓ lint ✓ test ✓ build ✓.
   E2e overgeslagen (geen browser-channel in routine).
 
+### E-mail reminders + SMTP + welkomstmail — 2026-05-31
+
+- `src/lib/services/mail-sender.ts`: `SmtpMailSender` via nodemailer (lazy geladen, TLS/STARTTLS,
+  transporter-singleton); behoudt duidelijke "niet geconfigureerd"-fout.
+- `src/lib/services/reminder-emails.ts`: 6 pure template-functies voor cascade-herinneringen
+  (expiry, betaling, concept-factuur, BTW-kwartaal). Alle vier geplande taken (expiry, payment,
+  concept-invoice, vat-reminder) sturen nu ook een e-mail naast de in-app-notificatie.
+  E-mail-falen draait de DB-transactie niet terug (fire-and-forget).
+- `src/lib/onboarding/welcome-email.ts`: welkomstmail bij import (tijdelijk wachtwoord + inlog-URL).
+  Admin-import: optionele welkomstmail (checkbox); best-effort, mislukte mail toont het wachtwoord
+  alsnog op het scherm.
+- Tests: +22 (reminder-emails 16 + welcome-email 6). Gate: typecheck ✓ lint ✓ test 555 ✓ build ✓.
+  Mensenwerk: SMTP-credentials + DNS/SPF/DKIM in productie.
+
+### Playwright e2e — cascade-flow A→E + zijpaden — 2026-06-01
+
+- `e2e/cascade.spec.ts`: drie end-to-end tests voor de complete cascade (hoofdpad + zijpaden):
+  1. **Happy path A→E (milestone)**: contract ondertekenen (Event A) → prestatie indienen (B1) →
+     goedkeuren (B2, auto-factuur) → factuur indienen (C) → goedkeuren (D) → betaling ontvangen (E).
+  2. **Afkeuren + resubmit (uren)**: prestatie afgekeurd met reden → reden zichtbaar voor ZZP'er →
+     opnieuw indienen → goedgekeurd.
+  3. **Dispuut bevriest werkproces**: freelancer opent dispuut → goedkeuren-knoppen verdwijnen →
+     admin lost op via `/admin/disputen` → cascade ontbevroren.
+- Tests zijn seed-onafhankelijk (verse accounts + data per run). Screenshots op elk cascade-event.
+- Gate: typecheck ✓ lint ✓ test 555 ✓ build ✓. E2e draait in CI via bundled Chromium (`--project=ci`).
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

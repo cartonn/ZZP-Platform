@@ -82,8 +82,8 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 1. [x] Dark-first-beslissing verwerkt (toggle + DESIGN.md + DECISIONS.md).
 2. [x] Migratiescript getest (`scripts/migrate-legacy-invoices.mjs --dry-run` + live run +
        idempotentiecheck). Werkt op SQLite; testen op een Postgres-kopie = aanbevolen vóór prod.
-3. [ ] **e2e in een interactieve sessie mét browser** (cascade-flow A→E, migrated invoices in
-       werkproces, PDF-afdruk). Kan niet in CI/routine.
+3. [x] **e2e cascade-flow A→E** — `e2e/cascade.spec.ts` (milestone + uren + dispuut). Draait in
+       CI via bundled Chromium. Open: migrated invoices in werkproces + PDF-afdruk (browser).
 4. [ ] `modest-babbage` → deploy-branch brengen: of merge naar de default branch, of
        `modest-babbage` de **default** maken; **Railway op die branch richten** en deploy + seed.
 5. [ ] **Juridisch/AVG-review** (MENSENWERK) vóór livegang met echte gevoelige documenten.
@@ -106,13 +106,15 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
       "Keuren →"-link, CSV-export.
 - [x] **Admin platform-statistieken** (`/admin/statistieken`): live metriek-kaarten (gebruikers,
       samenwerkingen, prestaties, facturen, verificaties, disputen).
-- [ ] **Volgende stappen (mensenwerk/browser):** e-mail-uitnodiging i.p.v. tijdelijk wachtwoord
-      (SMTP); Playwright e2e; cutover (Railway).
+- [x] **E-mail-uitnodiging bij onboarding-import** (welkomstmail, SMTP-abstractie aanwezig;
+      SMTP-credentials = mensenwerk/productie).
+- [x] **Playwright e2e cascade-flow** — `e2e/cascade.spec.ts`, CI-ready.
+- [ ] **Cutover (Railway)** — mensenwerk.
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
-1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
-   routines, doe in een interactieve sessie mét browser-channel.
+1. [x] Playwright e2e voor de cascade-flow — `e2e/cascade.spec.ts` (A→E happy path + afkeuren/
+       resubmit + dispuut-bevriezing). Draait in CI via bundled Chromium (`--project=ci`).
 2. Postgres-smoke van het migratiescript (optioneel, aanbevolen vóór cutover) — draai
    `migrate-legacy-invoices.mjs` op een Postgres-kopie van de demo-DB.
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
