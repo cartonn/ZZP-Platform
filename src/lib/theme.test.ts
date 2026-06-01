@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { isTheme, nextTheme, applyTheme, THEMES } from "@/lib/theme";
+import {
+  isTheme,
+  nextTheme,
+  applyTheme,
+  THEMES,
+  PALETTES,
+  isPalette,
+  nextPalette,
+  applyPalette,
+} from "@/lib/theme";
 
 describe("theme", () => {
   it("isTheme herkent geldige waarden", () => {
@@ -33,5 +42,37 @@ describe("theme", () => {
 
   it("er zijn precies twee thema's (keuze, geen geforceerde dark-first)", () => {
     expect(THEMES).toEqual(["light", "dark"]);
+  });
+});
+
+describe("palette", () => {
+  it("isPalette herkent de drie geldige schema's", () => {
+    expect(isPalette("standaard")).toBe(true);
+    expect(isPalette("warm-clay")).toBe(true);
+    expect(isPalette("indigo")).toBe(true);
+    expect(isPalette("paars")).toBe(false);
+    expect(isPalette(null)).toBe(false);
+  });
+
+  it("er zijn precies drie kleurschema's", () => {
+    expect(PALETTES).toEqual(["standaard", "warm-clay", "indigo"]);
+  });
+
+  it("nextPalette doorloopt cyclisch", () => {
+    expect(nextPalette("standaard")).toBe("warm-clay");
+    expect(nextPalette("warm-clay")).toBe("indigo");
+    expect(nextPalette("indigo")).toBe("standaard");
+  });
+
+  it("applyPalette zet data-theme; standaard verwijdert het attribuut", () => {
+    const calls: Array<[string, string?]> = [];
+    const root = {
+      setAttribute: (n: string, v: string) => calls.push([n, v]),
+      removeAttribute: (n: string) => calls.push([n]),
+    };
+    applyPalette("warm-clay", root);
+    applyPalette("indigo", root);
+    applyPalette("standaard", root);
+    expect(calls).toEqual([["data-theme", "warm-clay"], ["data-theme", "indigo"], ["data-theme"]]);
   });
 });

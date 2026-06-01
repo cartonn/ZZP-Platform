@@ -46,6 +46,94 @@
   --danger: 0 72% 62%;
 }
 
+/* ---------------------------------------------------------------------------
+   Palettes (kleurschema's) — gebruikerskeuze via data-theme, ORTHOGONAAL aan
+   light/dark. Zelfde semantische tokennamen, dus geen enkele component of
+   Tailwind-mapping verandert. De palette-dark-blokken (specificiteit 0,2,1)
+   winnen automatisch van de basis-.dark (0,1,0); de palette-light-blokken
+   (0,1,1) winnen van de basis-:root. "standaard" = geen attribuut.
+
+   Optie 2 — Klei (warm-clay): warme terracotta op zand/crème (Claude-stijl).
+--------------------------------------------------------------------------- */
+:root[data-theme="warm-clay"] {
+  --background: 40 42% 98%;
+  --foreground: 28 18% 14%;
+  --muted: 36 30% 95%;
+  --muted-foreground: 34 8% 40%;
+  --card: 40 50% 99%;
+  --card-foreground: 28 18% 14%;
+  --border: 34 22% 88%;
+  --input: 34 22% 86%;
+  --ring: 16 55% 46%;
+  --primary: 16 55% 46%;
+  --primary-foreground: 40 42% 98%;
+  --accent: 30 40% 93%;
+  --accent-foreground: 16 52% 30%;
+  --success: 152 55% 32%;
+  --warning: 30 92% 34%;
+  --danger: 4 72% 46%;
+  --radius: 0.625rem;
+}
+:root[data-theme="warm-clay"].dark {
+  --background: 28 12% 8%;
+  --foreground: 36 30% 94%;
+  --muted: 28 8% 16%;
+  --muted-foreground: 34 10% 64%;
+  --card: 28 11% 11%;
+  --card-foreground: 36 30% 94%;
+  --border: 28 9% 20%;
+  --input: 28 9% 22%;
+  --ring: 18 62% 60%;
+  --primary: 18 62% 60%;
+  --primary-foreground: 28 18% 10%;
+  --accent: 28 12% 16%;
+  --accent-foreground: 30 30% 92%;
+  --success: 150 55% 52%;
+  --warning: 34 90% 58%;
+  --danger: 6 75% 62%;
+  --radius: 0.625rem;
+}
+
+/* Optie 3 — Indigo: kalme slate met een precieze indigo-signatuur (Mercury-stijl). */
+:root[data-theme="indigo"] {
+  --background: 228 24% 99%;
+  --foreground: 230 18% 12%;
+  --muted: 228 22% 96%;
+  --muted-foreground: 230 10% 42%;
+  --card: 0 0% 100%;
+  --card-foreground: 230 18% 12%;
+  --border: 228 18% 90%;
+  --input: 228 18% 88%;
+  --ring: 245 58% 52%;
+  --primary: 245 58% 52%;
+  --primary-foreground: 228 30% 98%;
+  --accent: 245 46% 95%;
+  --accent-foreground: 245 52% 40%;
+  --success: 158 66% 30%;
+  --warning: 30 92% 36%;
+  --danger: 352 70% 48%;
+  --radius: 0.5rem;
+}
+:root[data-theme="indigo"].dark {
+  --background: 230 18% 8%;
+  --foreground: 228 28% 95%;
+  --muted: 230 12% 16%;
+  --muted-foreground: 228 14% 66%;
+  --card: 230 16% 11%;
+  --card-foreground: 228 28% 95%;
+  --border: 230 12% 20%;
+  --input: 230 12% 22%;
+  --ring: 247 72% 70%;
+  --primary: 247 72% 70%;
+  --primary-foreground: 230 18% 8%;
+  --accent: 245 30% 20%;
+  --accent-foreground: 228 40% 92%;
+  --success: 156 58% 52%;
+  --warning: 34 92% 60%;
+  --danger: 352 72% 64%;
+  --radius: 0.5rem;
+}
+
 html {
   color-scheme: light;
 }
