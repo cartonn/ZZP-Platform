@@ -11,6 +11,7 @@ import {
   Circle,
   Clock,
   XCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -321,6 +322,12 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           Werkproces met {counterparty} · betaling verloopt rechtstreeks; het platform houdt alleen
           de status bij.
         </p>
+        <Link
+          href={`/samenwerkingen/${col.id}/dossier`}
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+        >
+          <ShieldCheck className="size-4" aria-hidden /> Compliance-dossier
+        </Link>
       </header>
 
       {/* Cascade-keten: visuele voortgang van contract t/m betaling */}
