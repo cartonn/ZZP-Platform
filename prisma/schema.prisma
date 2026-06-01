@@ -70,6 +70,7 @@ model User {
   leadContacts      LeadContact[]      @relation("LeadContactAuthor")
   authoredCourses   Course[]           @relation("CourseAuthor")
   lessonCompletions LessonCompletion[] @relation("LessonCompleter")
+  notificationPreferences NotificationPreference[]
 
   @@index([role])
   @@index([status])
@@ -241,6 +242,23 @@ model LeadContact {
   createdBy User? @relation("LeadContactAuthor", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([leadId, createdAt])
+}
+
+// Per-categorie voorkeur voor herinnerings-/signaal-e-mails. In-app notificaties blijven altijd
+// staan (server-side bron van waarheid); deze rij stuurt alleen of het bijbehorende e-mailkanaal
+// mag verzenden. Afwezige rij = standaard aan (opt-out-model). Categorie is een string uit
+// EMAIL_PREFERENCE_CATEGORIES (src/lib/notification-preferences.ts).
+model NotificationPreference {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     String //  EmailPreferenceCategory: payment | invoice | vat | dba
+  emailEnabled Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, category])
+  @@index([userId])
 }
 
 // Wachtwoord-reset tokens: de raw token staat nooit in de DB; alleen de SHA-256 hash.

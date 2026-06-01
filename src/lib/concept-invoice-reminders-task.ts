@@ -12,6 +12,8 @@ import {
 } from "@/lib/concept-invoice-reminders";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { buildConceptInvoiceReminderEmail } from "@/lib/services/reminder-emails";
+import { loadEmailPreferencesFor } from "@/lib/notification-preferences-data";
+import { isEmailEnabled } from "@/lib/notification-preferences";
 
 export interface ConceptReminderResult {
   reminded: number;
@@ -73,6 +75,7 @@ export async function runConceptInvoiceReminderTask(opts: {
         })
       : [];
   const reminderUserMap = new Map(reminderUsers.map((u) => [u.id, u]));
+  const prefsByUser = await loadEmailPreferencesFor(reminderUserIds);
   const loginUrl = process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
   const mail = getMailSender();
 
@@ -114,15 +117,17 @@ export async function runConceptInvoiceReminderTask(opts: {
     if (u && candidate) {
       const d = daysSince(candidate.createdAt, now);
       try {
-        await mail.send(
-          buildConceptInvoiceReminderEmail({
-            name: u.name ?? u.email,
-            email: u.email,
-            invoiceNumber: candidate.partyInvoiceNumber ?? "concept-factuur",
-            daysSince: d,
-            loginUrl,
-          }),
-        );
+        if (isEmailEnabled(prefsByUser.get(r.userId), "invoice")) {
+          await mail.send(
+            buildConceptInvoiceReminderEmail({
+              name: u.name ?? u.email,
+              email: u.email,
+              invoiceNumber: candidate.partyInvoiceNumber ?? "concept-factuur",
+              daysSince: d,
+              loginUrl,
+            }),
+          );
+        }
       } catch (err) {
         console.error("[concept-invoice-reminders-task] e-mail mislukt:", err);
       }

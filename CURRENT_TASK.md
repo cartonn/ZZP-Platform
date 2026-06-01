@@ -186,7 +186,9 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > ORT-categorietests (SATURDAY/HOLIDAY/gemengd), handlers-edge-cases, validatietests periodedata,
 > diensten-overzicht ZZP'er + CSV-import + export, prestaties-overzicht opdrachtgever + export,
 > admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening,
-> admin DBA-risico-overzicht (/admin/dba: geconsolideerd, gesorteerd, filterbaar; dba-overview.ts + test).
+> admin DBA-risico-overzicht (/admin/dba: geconsolideerd, gesorteerd, filterbaar; dba-overview.ts + test),
+> notificatie-voorkeuren (/account/notificaties: e-mailherinneringen per categorie aan/uit, opt-out-model,
+> NotificationPreference-model, gating in de 4 reminder-taakrunners — ZZP2-41).
 
 ### Gap-analyse (Fase 0)
 

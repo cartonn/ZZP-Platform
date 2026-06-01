@@ -16,6 +16,8 @@ import { DBA_DISCLAIMER } from "@/lib/config";
 import { getDbaThresholds } from "@/lib/platform-config";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { buildDbaSignalEmail } from "@/lib/services/reminder-emails";
+import { loadEmailPreferencesFor } from "@/lib/notification-preferences-data";
+import { isEmailEnabled } from "@/lib/notification-preferences";
 
 export interface DbaMonitorResult {
   raised: number;
@@ -150,6 +152,7 @@ export async function runDbaMonitorTask(opts: {
       select: { id: true, email: true, name: true },
     });
     const userMap = new Map(users.map((u) => [u.id, u]));
+    const prefsByUser = await loadEmailPreferencesFor(allUserIds);
     const mail = getMailSender();
     const loginUrl = process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
 
@@ -163,17 +166,19 @@ export async function runDbaMonitorTask(opts: {
         const u = userMap.get(userId);
         if (!u) continue;
         try {
-          await mail.send(
-            buildDbaSignalEmail({
-              name: u.name ?? u.email,
-              email: u.email,
-              role,
-              level: title,
-              message,
-              collaborationId: item.collaborationId,
-              loginUrl,
-            }),
-          );
+          if (isEmailEnabled(prefsByUser.get(userId), "dba")) {
+            await mail.send(
+              buildDbaSignalEmail({
+                name: u.name ?? u.email,
+                email: u.email,
+                role,
+                level: title,
+                message,
+                collaborationId: item.collaborationId,
+                loginUrl,
+              }),
+            );
+          }
         } catch (err) {
           console.error("[dba-monitor-task] e-mail mislukt:", err);
         }
