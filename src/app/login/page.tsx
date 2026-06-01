@@ -45,6 +45,14 @@ export default async function LoginPage({
             <LoginForm />
           </div>
           <p className="mt-4 text-center text-sm text-muted-foreground">
+            <Link
+              href="/wachtwoord-vergeten"
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              Wachtwoord vergeten?
+            </Link>
+          </p>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
             Nog geen account?{" "}
             <Link
               href="/register"

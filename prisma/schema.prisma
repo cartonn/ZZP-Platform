@@ -47,8 +47,25 @@ model User {
   verifications     CredentialVerification[] @relation("Verifier")
   auditLogs         AuditLog[]             @relation("AuditActor")
 
+  passwordResetTokens PasswordResetToken[]
+
   @@index([role])
   @@index([status])
+}
+
+// Wachtwoord-reset tokens: de raw token staat nooit in de DB; alleen de SHA-256 hash.
+// Tokens verlopen na 1 uur en zijn eenmalig te gebruiken (usedAt wordt gezet na gebruik).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique  // SHA-256 van het onbewerkte token
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // NextAuth-modellen (toekomstige OAuth/sessies; credentials+JWT gebruikt ze nu niet).
