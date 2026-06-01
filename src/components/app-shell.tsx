@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { PaletteSwitcher } from "@/components/ui/palette-switcher";
 import { SearchTrigger } from "@/components/search/search-trigger";
 import { CommandPalette } from "@/components/search/command-palette";
 import { navForRole, ROLE_LABEL } from "@/lib/nav";
@@ -85,6 +86,7 @@ export async function AppShell({
           </div>
           <div className="ml-auto flex items-center gap-3">
             <SearchTrigger />
+            <PaletteSwitcher />
             <ThemeToggle />
             <Link
               href="/notificaties"

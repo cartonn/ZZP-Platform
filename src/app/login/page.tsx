@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { PaletteSwitcher } from "@/components/ui/palette-switcher";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Inloggen · ZZP Platform" };
@@ -26,7 +27,8 @@ export default async function LoginPage({
             Z
           </div>
           <span className="text-base font-semibold">ZZP Platform</span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <PaletteSwitcher />
             <ThemeToggle />
           </div>
         </div>
