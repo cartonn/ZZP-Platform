@@ -223,6 +223,7 @@ model Job {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   publishedAt DateTime?
+  alertedAt   DateTime? // wanneer job-alerts voor dit job zijn verzonden (dedup-anker)
 
   // Wet DBA-check (schijnzelfstandigheid) — invoer + server-berekende snapshot.
   dbaDirectSupervision Boolean @default(false)
