@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { SearchTrigger } from "@/components/search/search-trigger";
+import { CommandPalette } from "@/components/search/command-palette";
 import { navForRole, ROLE_LABEL } from "@/lib/nav";
 import { navBadges } from "@/lib/signals";
 import { prisma } from "@/lib/db";
@@ -82,6 +84,7 @@ export async function AppShell({
             <span className="text-sm font-semibold">ZZP Platform</span>
           </div>
           <div className="ml-auto flex items-center gap-3">
+            <SearchTrigger />
             <ThemeToggle />
             <Link
               href="/notificaties"
@@ -102,6 +105,7 @@ export async function AppShell({
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
+      <CommandPalette />
     </div>
   );
 }
