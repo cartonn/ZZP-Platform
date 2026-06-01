@@ -118,7 +118,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
-> Reeds gedaan (niet opnieuw): print/PDF-factuurknop + A4-afdruk-styling, MailSender-abstractie,
+> Reeds gedaan (niet opnieuw): aanmaningsladder/dunning-escalatie (DUNNING_STAGES in config,
+> currentDunningStage + escalations in payment-reminders.ts, admin-escalatie in de runner,
+> niveau-label op factuurdetail — Linear ZZP2-35), print/PDF-factuurknop + A4-afdruk-styling,
+> MailSender-abstractie,
 > concept-factuur-reminders, jaaroverzicht/IB, grootboek-/BTW-CSV, DBA-omzetconcentratie,
 > admin-disputen, run-all cron, BTW-herinnering, cascade-keten op werkprocespagina,
 > idempotentie-test, cascade-factuurdetail herleidingsbewijs, admin-kwartaaloverzicht,

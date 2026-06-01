@@ -8,6 +8,7 @@ import { formatEuro } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
+import { currentDunningStage } from "@/lib/payment-reminders";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +16,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { cancelInvoice, markInvoicePaid, sendInvoice } from "../actions";
 import { PrintButton } from "@/components/ui/print-button";
-import { AanmaningSection } from "@/components/invoices/aanmaning-section";
-import { buildAanmaningData } from "@/lib/aanmaning";
 
 export const metadata: Metadata = { title: "Factuur · ZZP Platform" };
 
@@ -103,20 +102,9 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
     (status === "DRAFT" || status === "SENT" || status === "OVERDUE");
   const canPay = !cascade && isClient && (status === "SENT" || status === "OVERDUE");
 
-  // Aanmaning sjabloon: toon wanneer factuur te laat is en actor de ZZP'er/uitschrijver is.
-  const isOverdue = invoice.lifecycleStatus === "OVERDUE" || (!cascade && status === "OVERDUE");
-  const showAanmaning = isOverdue && isFreelancerOwner;
-  const aanmaningData = showAanmaning
-    ? buildAanmaningData({
-        freelancerName: invoice.collaboration.freelancer.user.name ?? "",
-        companyName: invoice.collaboration.company.name,
-        invoiceNumber: invoice.partyInvoiceNumber ?? invoice.number ?? "—",
-        jobTitle: invoice.collaboration.job.title,
-        issuedAt: invoice.issuedAt,
-        dueAt: invoice.dueAt,
-        totalCents: invoice.totalCents,
-      })
-    : null;
+  // Aanmaningsniveau (rustig informatief) voor te late cascade-facturen.
+  const dunning =
+    cascade && invoice.lifecycleStatus === "OVERDUE" ? currentDunningStage(invoice.dueAt) : null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -139,11 +127,18 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
               </h1>
               <p className="text-sm text-muted-foreground">{invoice.collaboration.job.title}</p>
             </div>
-            {cascadeMeta ? (
-              <Badge variant={cascadeMeta.variant}>{cascadeMeta.label}</Badge>
-            ) : (
-              <InvoiceStatusBadge status={status} dueAt={invoice.dueAt} />
-            )}
+            <div className="flex flex-col items-end gap-1">
+              {cascadeMeta ? (
+                <Badge variant={cascadeMeta.variant}>{cascadeMeta.label}</Badge>
+              ) : (
+                <InvoiceStatusBadge status={status} dueAt={invoice.dueAt} />
+              )}
+              {dunning && (
+                <span className="text-xs text-muted-foreground">
+                  {dunning.label} · {dunning.daysOverdue} dag(en) te laat
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -385,8 +380,6 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           </CardContent>
         </Card>
       )}
-
-      {aanmaningData && <AanmaningSection data={aanmaningData} />}
     </div>
   );
 }
