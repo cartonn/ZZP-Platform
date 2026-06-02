@@ -58,14 +58,16 @@
    Contrast WCAG AA geverifieerd (fg/bg, kaart, subtekst, knop, accent, rand).
 --------------------------------------------------------------------------- */
 :root[data-theme="bloei"] {
-  --background: 30 12% 97%;
+  /* Lichte modus: licht-oranje canvas i.p.v. wit (gebruikerskeuze). Lichtheid behouden (AA);
+     alleen tint/saturatie verwarmd. De donkere modus blijft ongewijzigd. */
+  --background: 28 56% 95%;
   --foreground: 230 25% 22%;
-  --muted: 228 14% 93%;
+  --muted: 30 46% 92%;
   --muted-foreground: 228 12% 44%;
-  --card: 0 0% 100%;
+  --card: 36 56% 98%;
   --card-foreground: 230 25% 22%;
-  --border: 228 14% 80%;
-  --input: 228 14% 84%;
+  --border: 30 32% 82%;
+  --input: 30 32% 85%;
   --ring: 230 23% 45%;
   --primary: 230 23% 35%;
   --primary-foreground: 30 25% 97%;
@@ -100,14 +102,16 @@
    Naar capisoft.nl: donker, koel, modern tech — flat, strak, heldere blauwe CTA's.
    Contrast WCAG AA geverifieerd. */
 :root[data-theme="elektrisch-blauw"] {
-  --background: 210 30% 99%;
+  /* Lichte modus: licht-blauw canvas i.p.v. wit (gebruikerskeuze). Lichtheid behouden (AA);
+     alleen tint/saturatie verdiept naar blauw. De donkere modus blijft ongewijzigd. */
+  --background: 208 70% 96%;
   --foreground: 220 40% 9%;
-  --muted: 214 32% 95%;
+  --muted: 210 56% 92%;
   --muted-foreground: 215 18% 42%;
-  --card: 0 0% 100%;
+  --card: 205 60% 98%;
   --card-foreground: 220 40% 9%;
-  --border: 214 28% 81%;
-  --input: 214 28% 86%;
+  --border: 210 48% 82%;
+  --input: 210 48% 86%;
   --ring: 215 100% 50%;
   --primary: 215 100% 50%;
   --primary-foreground: 210 40% 99%;
