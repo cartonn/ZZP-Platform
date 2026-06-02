@@ -1,7 +1,25 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import {
+  signContract,
+  createPerformance,
+  submitPerformance,
+  approvePerformance,
+  rejectPerformance,
+  submitInvoice,
+  approveInvoice,
+  confirmPayment,
+} from "@/lib/cascade/commands";
 
 const prisma = new PrismaClient();
+
+/** Bouwt een Actor zoals de server-acties die doorgeven, zodat de seed de échte cascade-commands
+ *  kan aanroepen (geen directe upserts in eindtoestanden). */
+const actorOf = (id: string, role: "FREELANCER" | "CLIENT" | "ADMIN") => ({
+  id,
+  role,
+  status: "ACTIVE",
+});
 
 const DEMO_PASSWORD = "demo1234";
 const DAY = 86_400_000;
@@ -712,252 +730,194 @@ async function main() {
     });
   }
 
-  // --- Actieve samenwerkingen ---
-  type Collab = {
-    id: string;
-    job: string;
-    app: string;
-    fk: string;
-    rate: number;
-    startDays: number;
-  };
-  const collabs: Collab[] = [
-    { id: "collab-1", job: "job-3", app: "app-5", fk: "sanne", rate: 105, startDays: -14 },
-    { id: "collab-2", job: "job-2", app: "app-3", fk: "youssef", rate: 90, startDays: -30 },
-  ];
-  for (const c of collabs) {
-    await prisma.collaboration.upsert({
-      where: { id: c.id },
-      update: {},
-      create: {
-        id: c.id,
-        jobId: c.job,
-        applicationId: c.app,
-        freelancerId: pid[c.fk]!,
-        companyId,
-        status: "ACTIVE",
-        contractStatus: "SIGNED",
-        rate: c.rate,
-        startDate: daysFromNow(c.startDays),
-      },
-    });
-  }
+  // --- Werkproces-cascade via de ÉCHTE commands (geen directe upserts) ---
+  // Demo-data, maar elke samenwerking/urenstaat/factuur ontstaat via dezelfde command-paden als de
+  // app: signContract -> createPerformance -> submitPerformance -> approvePerformance ->
+  // submitInvoice -> approveInvoice -> confirmPayment. Zo worden óók de DomainEvents, de audit-log
+  // én de administratie (AdministrationEntry: grootboek/BTW/debiteuren) correct gevuld — net als in
+  // productie. Directe upserts zouden lege boekhouding geven.
+  //
+  // Run-once: alleen genereren als de rijke set er nog niet is, zodat testwijzigingen behouden
+  // blijven bij een herstart; de eerste keer wordt oude cascade-demo opgeruimd. SEED_DEMO-only.
+  const RICH_COLLAB_TARGET = 12;
+  if ((await prisma.collaboration.count()) < RICH_COLLAB_TARGET) {
+    // Oude/onvolledige cascade-demo opruimen in FK-veilige volgorde (children eerst).
+    await prisma.administrationEntry.deleteMany({});
+    await prisma.invoiceLine.deleteMany({});
+    await prisma.invoice.deleteMany({});
+    await prisma.performance.deleteMany({});
+    await prisma.collaboration.deleteMany({});
+    await prisma.eventHandlerRun.deleteMany({});
+    await prisma.domainEvent.deleteMany({});
 
-  // --- Facturen (echt-ogend: betaald / verzonden / verlopen) ---
-  type Inv = {
-    id: string;
-    collab: string;
-    number: string;
-    status: string;
-    dueDays: number;
-    desc: string;
-    qty: number;
-    unit: number;
-  };
-  const invoices: Inv[] = [
-    {
-      id: "inv-1",
-      collab: "collab-1",
-      number: "2026-0001",
-      status: "PAID",
-      dueDays: -10,
-      desc: "Projectleiding sprint 1",
-      qty: 16,
-      unit: 10500,
-    },
-    {
-      id: "inv-2",
-      collab: "collab-1",
-      number: "2026-0004",
-      status: "SENT",
-      dueDays: 14,
-      desc: "Projectleiding sprint 2",
-      qty: 20,
-      unit: 10500,
-    },
-    {
-      id: "inv-3",
-      collab: "collab-2",
-      number: "2026-0002",
-      status: "OVERDUE",
-      dueDays: -5,
-      desc: "API-ontwikkeling",
-      qty: 16,
-      unit: 7500,
-    },
-    {
-      id: "inv-4",
-      collab: "collab-2",
-      number: "2026-0003",
-      status: "PAID",
-      dueDays: -20,
-      desc: "Integraties & tests",
-      qty: 12,
-      unit: 7500,
-    },
-  ];
-  for (const inv of invoices) {
-    const amount = inv.qty * inv.unit;
-    await prisma.invoice.upsert({
-      where: { id: inv.id },
-      update: {},
-      create: {
-        id: inv.id,
-        collaborationId: inv.collab,
-        number: inv.number,
-        status: inv.status,
-        issuedAt: daysFromNow(inv.dueDays - 14),
-        dueAt: daysFromNow(inv.dueDays),
-        totalCents: amount,
-        lines: {
-          create: [
-            { description: inv.desc, quantity: inv.qty, unitCents: inv.unit, amountCents: amount },
-          ],
+    type Target =
+      | "PROPOSED"
+      | "ACTIVE"
+      | "PERF_SUBMITTED"
+      | "PERF_REJECTED"
+      | "PERF_APPROVED"
+      | "INVOICE_SUBMITTED"
+      | "INVOICE_APPROVED"
+      | "PAID";
+    const ORDER: Target[] = [
+      "PROPOSED",
+      "ACTIVE",
+      "PERF_SUBMITTED",
+      "PERF_REJECTED",
+      "PERF_APPROVED",
+      "INVOICE_SUBMITTED",
+      "INVOICE_APPROVED",
+      "PAID",
+    ];
+    const reaches = (target: Target, stage: Target) =>
+      ORDER.indexOf(target) >= ORDER.indexOf(stage);
+
+    // Elk paar (fk, job) is uniek én niet in de foundation-reacties (unique constraint
+    // jobId+freelancerId). Eén collaboration per applicatie (applicationId @unique).
+    const scenarios: { fk: string; job: string; rate: number; target: Target; ort?: boolean }[] = [
+      { fk: "youssef", job: "job-6", rate: 90, target: "PAID" },
+      { fk: "lisa", job: "job-1", rate: 105, target: "PAID" },
+      { fk: "fatima", job: "job-6", rate: 54, target: "PAID", ort: true },
+      { fk: "sanne", job: "job-2", rate: 100, target: "INVOICE_APPROVED" },
+      { fk: "peter", job: "job-6", rate: 80, target: "INVOICE_SUBMITTED" },
+      { fk: "daan", job: "job-2", rate: 70, target: "PERF_APPROVED" },
+      { fk: "fatima", job: "job-2", rate: 58, target: "PERF_APPROVED", ort: true },
+      { fk: "youssef", job: "job-3", rate: 95, target: "PERF_SUBMITTED" },
+      { fk: "fatima", job: "job-3", rate: 60, target: "PERF_REJECTED" },
+      { fk: "sanne", job: "job-5", rate: 88, target: "ACTIVE" },
+      { fk: "lisa", job: "job-5", rate: 92, target: "ACTIVE" },
+      { fk: "peter", job: "job-1", rate: 75, target: "PROPOSED" },
+    ];
+
+    let i = 0;
+    for (const s of scenarios) {
+      i++;
+      const application = await prisma.application.create({
+        data: {
+          jobId: s.job,
+          freelancerId: pid[s.fk]!,
+          status: "ACCEPTED",
+          motivation: "Beschikbaar en passend bij de opdracht; graag aan de slag.",
+          proposedRate: s.rate,
+          availability: "In overleg",
+          matchScore: 80 + (i % 15),
         },
-      },
-    });
+      });
+      const collab = await prisma.collaboration.create({
+        data: {
+          jobId: s.job,
+          applicationId: application.id,
+          freelancerId: pid[s.fk]!,
+          companyId,
+          status: "PROPOSED",
+          contractStatus: "DRAFT",
+          rate: s.rate,
+          startDate: daysFromNow(-30 + i),
+          ortProfile: s.ort ? "VVT" : null,
+        },
+      });
+      const fActor = actorOf(uid[s.fk]!, "FREELANCER");
+      const cActor = actorOf(client.id, "CLIENT");
+
+      if (!reaches(s.target, "ACTIVE")) continue;
+      await signContract(cActor, collab.id);
+      if (!reaches(s.target, "PERF_SUBMITTED")) continue;
+
+      const perfId = await createPerformance(fActor, {
+        collaborationId: collab.id,
+        type: "HOURS",
+        hours: s.ort ? 8 : 16,
+        rateCents: s.rate * 100,
+        ortSegments: s.ort
+          ? [
+              { category: "NORMAL" as const, hours: 4 },
+              { category: "NIGHT" as const, hours: 4 },
+            ]
+          : null,
+        periodStart: daysFromNow(-21 + i),
+        periodEnd: daysFromNow(-14 + i),
+        description: s.ort ? "Avond/nachtdiensten somatische afdeling" : "Werkzaamheden sprint",
+      });
+      await submitPerformance(fActor, perfId);
+
+      if (s.target === "PERF_REJECTED") {
+        await rejectPerformance(
+          cActor,
+          perfId,
+          "Graag de uren per dag specificeren en opnieuw indienen.",
+        );
+        continue;
+      }
+      if (!reaches(s.target, "PERF_APPROVED")) continue;
+      await approvePerformance(cActor, perfId); // genereert automatisch de concept-factuur
+
+      if (!reaches(s.target, "INVOICE_SUBMITTED")) continue;
+      const draftInvoice = await prisma.invoice.findFirst({
+        where: { collaborationId: collab.id, lifecycleStatus: "DRAFT" },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
+      if (!draftInvoice) continue;
+      await submitInvoice(fActor, draftInvoice.id);
+      if (!reaches(s.target, "INVOICE_APPROVED")) continue;
+      await approveInvoice(cActor, draftInvoice.id);
+      if (!reaches(s.target, "PAID")) continue;
+      await confirmPayment(fActor, draftInvoice.id); // statusupdate, geen betaling (Besluit 1)
+    }
+
+    // --- Support-tickets (helpdesk-wachtrij) ---
+    const ticketSpecs: { fk: string; subject: string; category: string; status: string }[] = [
+      { fk: "daan", subject: "Mijn VOG is afgewezen — hoe dien ik opnieuw in?", category: "CREDENTIAL", status: "NEW" }, // prettier-ignore
+      { fk: "lisa", subject: "Factuur-PDF toont niet alle regels", category: "INVOICE", status: "TRIAGED" }, // prettier-ignore
+      { fk: "peter", subject: "Hoe verifieer ik mijn identiteit?", category: "ACCOUNT", status: "AUTO_ANSWERED" }, // prettier-ignore
+      { fk: "youssef", subject: "Vraag over de zelfstandigenaftrek", category: "OTHER", status: "ESCALATED" }, // prettier-ignore
+      { fk: "fatima", subject: "ORT-toeslag klopt niet op mijn urenstaat", category: "INVOICE", status: "RESOLVED" }, // prettier-ignore
+    ];
+    for (const t of ticketSpecs) {
+      const resolved = t.status === "RESOLVED";
+      await prisma.supportTicket.create({
+        data: {
+          userId: uid[t.fk]!,
+          subject: t.subject,
+          category: t.category,
+          status: t.status,
+          priority: "NORMAL",
+          resolvedAt: resolved ? daysFromNow(-1) : null,
+          messages: {
+            create: [
+              { authorId: uid[t.fk]!, authorKind: "USER", body: t.subject },
+              ...(resolved
+                ? [
+                    {
+                      authorId: null,
+                      authorKind: "ASSISTANT",
+                      body: "Je urenstaat is herberekend; de ORT-toeslag staat nu correct op de factuur.",
+                    },
+                  ]
+                : []),
+            ],
+          },
+        },
+      });
+    }
   }
 
-  // --- Cascade-demo (event-driven werkproces, Fase 3) ---
-  // Voorgestelde samenwerking zodat "Contract ondertekenen" demonstreerbaar is.
-  await prisma.application.upsert({
-    where: { id: "app-9" },
-    update: {},
-    create: {
-      id: "app-9",
-      jobId: "job-1",
-      freelancerId: pid.youssef!,
-      status: "ACCEPTED",
-      motivation: "Beschikbaar voor het zorgplatform; sterk in geteste, toegankelijke code.",
-      proposedRate: 90,
-      availability: "In overleg",
-      matchScore: 88,
-    },
-  });
-  await prisma.collaboration.upsert({
-    where: { id: "collab-3" },
-    update: {},
-    create: {
-      id: "collab-3",
-      jobId: "job-1",
-      applicationId: "app-9",
-      freelancerId: pid.youssef!,
-      companyId,
-      status: "PROPOSED",
-      contractStatus: "DRAFT",
-      rate: 90,
-      startDate: daysFromNow(5),
-    },
-  });
-
-  // Op de lopende samenwerking (collab-1: Sanne ↔ Jansen): een ingediende urenstaat (wacht op
-  // goedkeuring door de opdrachtgever) en een goedgekeurde urenstaat met een concept-factuur
-  // (wacht op indienen door de ZZP'er). Bedragen in centen; uurtarief €105 = 10500.
-  await prisma.performance.upsert({
-    where: { id: "perf-1" },
-    update: {},
-    create: {
-      id: "perf-1",
-      collaborationId: "collab-1",
-      type: "HOURS",
-      status: "SUBMITTED",
-      hours: 16,
-      rateCents: 10500,
-      description: "Sprint 3 — week 1 en 2",
-      submittedAt: daysFromNow(-2),
-      correlationId: "collab-1",
-    },
-  });
-  await prisma.performance.upsert({
-    where: { id: "perf-2" },
-    update: {},
-    create: {
-      id: "perf-2",
-      collaborationId: "collab-1",
-      type: "HOURS",
-      status: "APPROVED",
-      hours: 8,
-      rateCents: 10500,
-      description: "Sprint 2 — extra werkdag",
-      submittedAt: daysFromNow(-6),
-      approvedAt: daysFromNow(-5),
-      correlationId: "collab-1",
-    },
-  });
-  await prisma.invoice.upsert({
-    where: { id: "inv-c1" },
-    update: {},
-    create: {
-      id: "inv-c1",
-      collaborationId: "collab-1",
-      number: "CONCEPT-perf-2",
-      status: "DRAFT",
-      totalCents: 101640,
-      lifecycleStatus: "DRAFT",
-      performanceId: "perf-2",
-      issuerUserId: uid.sanne!,
-      counterpartyUserId: client.id,
-      issuerKey: uid.sanne!,
-      subtotalCents: 84000,
-      vatCents: 17640,
-      vatRegime: "STANDARD_HIGH",
-      correlationId: "collab-1",
-    },
-  });
-
-  // ORT-demo (zorg): Fatima (verpleegkundige BIG) op somatische afdeling. Toont de
-  // ORT-uitsplitsing (regulier + nacht) in het werkproces. Wacht op goedkeuring opdrachtgever.
-  // Berekening: 4h normaal × €52 = €208; 4h nacht × €52 + 49% toeslag = €309,92; subtotaal €517,92.
-  // app-6 (Fatima op job-4) naar ACCEPTED zodat de samenwerking aangemaakt kan worden.
-  // updateMany (geen update): tolereert 0 rijen, zodat een afwijkende DB-staat de seed/boot niet crasht.
-  await prisma.application.updateMany({ where: { id: "app-6" }, data: { status: "ACCEPTED" } });
-  await prisma.collaboration.upsert({
-    where: { id: "collab-4" },
-    update: {},
-    create: {
-      id: "collab-4",
-      jobId: "job-4",
-      applicationId: "app-6",
-      freelancerId: pid.fatima!,
-      companyId,
-      status: "ACTIVE",
-      contractStatus: "SIGNED",
-      rate: 52,
-      startDate: daysFromNow(-21),
-    },
-  });
-  // ORT-urenstaat: 4h regulier + 4h nacht (week 3). rateCents = 52 × 100 = 5200.
-  // NORMAL 4h: 4×5200 = 20800; NIGHT 4h: 4×5200 + 49% = 30992; subtotaal = 51792 (€517,92).
-  await prisma.performance.upsert({
-    where: { id: "perf-3" },
-    update: {},
-    create: {
-      id: "perf-3",
-      collaborationId: "collab-4",
-      type: "HOURS",
-      status: "SUBMITTED",
-      hours: 8,
-      rateCents: 5200,
-      ortSegments: JSON.stringify([
-        { category: "NORMAL", hours: 4 },
-        { category: "NIGHT", hours: 4 },
-      ]),
-      description: "Week 3 — avond/nachtdiensten somatische afdeling",
-      submittedAt: daysFromNow(-1),
-      correlationId: "collab-4",
-    },
-  });
-
+  const [collabCount, invoiceCount, ledgerCount, ticketCount] = await Promise.all([
+    prisma.collaboration.count(),
+    prisma.invoice.count(),
+    prisma.administrationEntry.count(),
+    prisma.supportTicket.count(),
+  ]);
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");
   console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
   console.log("  opdrachtgever@zzp-platform.local  (CLIENT — Jansen Software)");
   console.log(
-    "Demo-inhoud: 7 ZZP'ers met certificaten/diploma's, 6 gepubliceerde opdrachten + 1 concept,",
-  );
-  console.log("9 reacties (alle statussen), 3 actieve samenwerkingen incl. ORT-zorg, 4 facturen.");
-  console.log(
-    "ORT-demo: collab-4 (Fatima, verpleegkunde) — ORT-urenstaat ingediend, wacht op goedkeuring.",
+    "Cascade via echte commands: %d samenwerkingen, %d facturen, %d grootboekregels, %d support-tickets.",
+    collabCount,
+    invoiceCount,
+    ledgerCount,
+    ticketCount,
   );
 }
 
