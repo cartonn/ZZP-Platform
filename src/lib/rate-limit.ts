@@ -152,3 +152,14 @@ export const registerRateLimiter = new RateLimiter(
   limitFromEnv("REGISTER_RATE_LIMIT", 5),
   60 * 60_000,
 );
+
+/**
+ * Maximaal RESET_RATE_LIMIT (default 3) wachtwoord-reset-aanvragen per sleutel (IP én e-mail) per
+ * uur. Beperkt mail-bombing en CPU-amplificatie (token-hashing) zonder de enumeratiebescherming
+ * (uniforme respons) te doorbreken.
+ */
+export const resetRateLimiter = new RateLimiter(
+  new MemoryRateLimitStore(),
+  limitFromEnv("RESET_RATE_LIMIT", 3),
+  60 * 60_000,
+);

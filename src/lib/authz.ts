@@ -3,6 +3,7 @@
 // Dit bestand levert de auth/rol/ownership-stappen. De pure predicaten zijn
 // los unit-getest; de async wrappers halen de huidige gebruiker uit Auth.js.
 
+import { cache } from "react";
 import { type UserRole } from "@/lib/enums";
 
 export interface Actor {
@@ -71,17 +72,41 @@ export function assertOwnership(
 // --- Async glue (Auth.js). Lazy import zodat unit-tests de pure functies kunnen
 //     testen zonder next-auth/prisma in te laden. ---
 
-/** Huidige actor of `null`. Gebruik in read-paden waar anoniem toegestaan is. */
+/**
+ * Verse rol/status uit de DB, per request gememoïseerd (React cache) zodat meerdere
+ * currentActor()-aanroepen binnen één request maar één query doen.
+ */
+const loadFreshUser = cache(async (userId: string) => {
+  const { prisma } = await import("@/lib/db");
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, status: true, mustChangePassword: true, anonymizedAt: true },
+  });
+});
+
+/**
+ * Huidige actor of `null`. Gebruik in read-paden waar anoniem toegestaan is.
+ *
+ * Server-side is de waarheid (CLAUDE.md regel 1): rol/status worden LIVE uit de DB geladen, niet
+ * uit de (tot ~30 dagen geldige) JWT. Daardoor verliest een geschorste, gedegradeerde of
+ * geanonimiseerde gebruiker direct toegang i.p.v. pas bij token-expiry — de stale client-token
+ * beslist niets meer.
+ */
 export async function currentActor(): Promise<Actor | null> {
   const { auth } = await import("@/auth");
   const session = await auth();
   const user = session?.user;
-  if (!user?.id || !user.role) return null;
+  if (!user?.id) return null;
+
+  const fresh = await loadFreshUser(user.id);
+  // Verwijderd of geanonimiseerd → geen actor (bestaande sessie wordt waardeloos).
+  if (!fresh || fresh.anonymizedAt) return null;
+
   return {
     id: user.id,
-    role: user.role as UserRole,
-    status: user.status ?? "ACTIVE",
-    mustChangePassword: user.mustChangePassword ?? false,
+    role: fresh.role as UserRole,
+    status: fresh.status,
+    mustChangePassword: fresh.mustChangePassword,
   };
 }
 

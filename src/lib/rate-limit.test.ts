@@ -1,5 +1,10 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { MemoryRateLimitStore, RateLimiter, type RateLimitResult } from "@/lib/rate-limit";
+import {
+  MemoryRateLimitStore,
+  RateLimiter,
+  resetRateLimiter,
+  type RateLimitResult,
+} from "@/lib/rate-limit";
 
 // Vaste referentietijdstempel voor deterministische tests — geen echte timers.
 const BASE_NOW = 1_700_000_000_000; // willekeurige, vaste epoch-waarde
@@ -174,5 +179,15 @@ describe("RateLimiter (wrapper)", () => {
     const fresh = limiter.check("user-4", BASE_NOW + WINDOW_MS);
     expect(fresh.allowed).toBe(true);
     expect(fresh.remaining).toBe(0);
+  });
+});
+
+describe("resetRateLimiter (wachtwoord-reset)", () => {
+  it("staat de default van 3 aanvragen per sleutel toe en weigert de 4e", () => {
+    const key = `reset-test-${BASE_NOW}`; // unieke sleutel, beïnvloedt andere tests niet
+    expect(resetRateLimiter.check(key, BASE_NOW).allowed).toBe(true);
+    expect(resetRateLimiter.check(key, BASE_NOW + 1).allowed).toBe(true);
+    expect(resetRateLimiter.check(key, BASE_NOW + 2).allowed).toBe(true);
+    expect(resetRateLimiter.check(key, BASE_NOW + 3).allowed).toBe(false);
   });
 });
