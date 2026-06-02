@@ -37,6 +37,13 @@ export async function AppShell({
 
   return (
     <div className="grid min-h-screen grid-cols-[16rem_1fr] max-md:grid-cols-1">
+      {/* Skip-link: eerste focusbare element, springt naar de hoofdinhoud (toetsenbord/screenreader). */}
+      <a
+        href="#hoofdinhoud"
+        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-lg focus:border focus:border-border focus:bg-card focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-sm"
+      >
+        Naar inhoud
+      </a>
       <aside className="hidden flex-col border-r border-border bg-muted/30 md:flex">
         <div className="flex h-14 items-center gap-2 border-b border-border px-4">
           <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
@@ -105,7 +112,13 @@ export async function AppShell({
             </span>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+        <main
+          id="hoofdinhoud"
+          tabIndex={-1}
+          className="flex-1 overflow-y-auto p-4 outline-none md:p-6"
+        >
+          {children}
+        </main>
       </div>
       <CommandPalette />
     </div>
