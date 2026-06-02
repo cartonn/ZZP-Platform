@@ -228,7 +228,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
               )}
               {canCancel && (
                 <form action={cancelInvoice.bind(null, invoice.id)}>
-                  <Button type="submit" variant="danger" size="sm">
+                  <Button type="submit" variant="destructive" size="sm">
                     Annuleren
                   </Button>
                 </form>

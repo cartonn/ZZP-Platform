@@ -114,7 +114,7 @@ export default async function AdminOpdrachtenPage({
                 </div>
                 {status !== "CLOSED" && (
                   <form action={adminCloseJob.bind(null, job.id)}>
-                    <Button type="submit" variant="danger" size="sm">
+                    <Button type="submit" variant="destructive" size="sm">
                       Sluiten
                     </Button>
                   </form>

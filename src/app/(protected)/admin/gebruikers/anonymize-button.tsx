@@ -20,7 +20,7 @@ export function AnonymizeButton({ action }: { action: () => Promise<void> }) {
         }
       }}
     >
-      <Button type="submit" variant="danger" size="sm">
+      <Button type="submit" variant="destructive" size="sm">
         Verzoek afhandelen
       </Button>
     </form>

@@ -9,7 +9,7 @@
   --background: 0 0% 100%;
   --foreground: 240 10% 4%;
   --muted: 240 5% 96%;
-  --muted-foreground: 240 4% 46%;
+  --muted-foreground: 240 5% 40%;
   --card: 0 0% 100%;
   --card-foreground: 240 10% 4%;
   --border: 240 6% 90%;
@@ -162,9 +162,14 @@ body {
     @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring;
   }
 
-  /* Klikbare lijstrij/card: subtiele, rustige hover. Premium, geen drukte. */
+  /* Klikbare lijstrij/card: subtiele, rustige hover + zichtbare focus. Premium, geen drukte. */
   .card-interactive {
-    @apply transition-colors hover:border-foreground/20 hover:bg-muted/40;
+    @apply outline-none transition-colors hover:border-foreground/20 hover:bg-muted/40 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Eén canonieke metadata-regel onder lijstitems: rustige, compacte subtekst. */
+  .metadata-row {
+    @apply flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground;
   }
 }
 

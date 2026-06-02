@@ -1,7 +1,13 @@
 import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("rounded-lg border border-border bg-card", className)} {...props} />;
+  // Subtiele diepte (shadow-sm) i.p.v. enkel een rand: premium, minder "wireframe".
+  return (
+    <div
+      className={cn("rounded-lg border border-border bg-card shadow-sm", className)}
+      {...props}
+    />
+  );
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

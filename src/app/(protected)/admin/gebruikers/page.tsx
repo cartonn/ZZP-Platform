@@ -170,7 +170,7 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
                     <form action={setUserStatus.bind(null, u.id, target)}>
                       <Button
                         type="submit"
-                        variant={target === "SUSPENDED" ? "danger" : "secondary"}
+                        variant={target === "SUSPENDED" ? "destructive" : "secondary"}
                         size="sm"
                       >
                         {target === "SUSPENDED" ? "Schorsen" : "Activeren"}

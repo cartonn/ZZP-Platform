@@ -49,7 +49,7 @@ export default async function CertificatenPage() {
     : [];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Certificaten</h1>
@@ -185,7 +185,7 @@ export default async function CertificatenPage() {
                       </Button>
                     </form>
                     <form action={deleteCredential.bind(null, c.id)}>
-                      <Button type="submit" variant="danger" size="sm">
+                      <Button type="submit" variant="destructive" size="sm">
                         <Trash2 className="size-3.5" aria-hidden /> Verwijderen
                       </Button>
                     </form>

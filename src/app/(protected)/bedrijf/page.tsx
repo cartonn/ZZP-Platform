@@ -20,7 +20,7 @@ export default async function BedrijfPage() {
 
   if (!company) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         <Card>
           <CardContent className="p-0">
             <EmptyState
@@ -43,7 +43,7 @@ export default async function BedrijfPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Bedrijfsprofiel</h1>
         <p className="text-sm text-muted-foreground">

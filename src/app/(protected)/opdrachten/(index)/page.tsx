@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Briefcase, MapPin, Plus, SearchX } from "lucide-react";
+import { Briefcase, ChevronRight, MapPin, Plus, SearchX } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -218,38 +218,37 @@ async function BrowseJobs({
       ) : (
         <>
           <p className="text-xs text-muted-foreground">{total} opdracht(en) gevonden</p>
-          <div className="space-y-3">
+          <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             {jobs.map((job) => (
               <Link
                 key={job.id}
                 href={`/opdrachten/${job.id}`}
-                className="card-interactive block rounded-lg border border-border bg-card p-4"
+                className="card-interactive flex items-center justify-between gap-4 px-5 py-3.5"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium">{job.title}</p>
-                    <p className="text-sm text-muted-foreground">{job.company.name}</p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    {(job.rateMin != null || job.rateMax != null) && (
-                      <span className="text-sm tabular-nums text-muted-foreground">
-                        € {job.rateMin ?? "?"}
-                        {job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{job.title}</p>
+                  <p className="metadata-row mt-0.5">
+                    <span className="font-medium text-foreground/70">{job.company.name}</span>
+                    {job.location && (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="size-3" aria-hidden /> {job.location}
                       </span>
                     )}
-                    {matchByJob.has(job.id) && (
-                      <Badge variant="muted">Match {matchByJob.get(job.id)}%</Badge>
-                    )}
-                  </div>
+                    <span>{WORK_MODE[job.workMode as WorkMode]}</span>
+                    {job.industry && <span>{job.industry.name}</span>}
+                  </p>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  {job.location && (
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="size-3" aria-hidden /> {job.location}
+                <div className="flex shrink-0 items-center gap-3">
+                  {(job.rateMin != null || job.rateMax != null) && (
+                    <span className="hidden text-sm tabular-nums text-muted-foreground sm:inline">
+                      € {job.rateMin ?? "?"}
+                      {job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
                     </span>
                   )}
-                  <span>{WORK_MODE[job.workMode as WorkMode]}</span>
-                  {job.industry && <span>{job.industry.name}</span>}
+                  {matchByJob.has(job.id) && (
+                    <Badge variant="accent">Match {matchByJob.get(job.id)}%</Badge>
+                  )}
+                  <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
                 </div>
               </Link>
             ))}

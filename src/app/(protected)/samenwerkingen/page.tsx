@@ -87,7 +87,7 @@ export default async function SamenwerkingenPage() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Samenwerkingen</h1>
         <p className="text-sm text-muted-foreground">Voorgestelde en lopende samenwerkingen.</p>
@@ -207,7 +207,7 @@ export default async function SamenwerkingenPage() {
                             size="sm"
                             variant={
                               to === "CANCELLED"
-                                ? "danger"
+                                ? "destructive"
                                 : to === "ACTIVE"
                                   ? "primary"
                                   : "secondary"

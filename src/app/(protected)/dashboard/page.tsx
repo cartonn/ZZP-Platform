@@ -301,7 +301,7 @@ export default async function DashboardPage() {
                   <span className="flex shrink-0 items-center gap-2">
                     <AvailabilityBadge status={m.availability} />
                     <ComplianceBadge status={m.compliance} />
-                    <Badge variant="muted">Match {m.score}%</Badge>
+                    <Badge variant="accent">Match {m.score}%</Badge>
                     <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
                   </span>
                 </Link>
