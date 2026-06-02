@@ -28,6 +28,7 @@ import {
   signContractAction,
   approvePerformanceAction,
   rejectPerformanceAction,
+  resubmitPerformanceAction,
   submitInvoiceAction,
   approveInvoiceAction,
   rejectInvoiceAction,
@@ -570,6 +571,15 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                           })()}
                       </div>
                     </div>
+                    {isFreelancer && p.status === "REJECTED" && (
+                      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+                        <form action={resubmitPerformanceAction.bind(null, p.id, col.id)}>
+                          <Button type="submit" size="sm">
+                            Opnieuw indienen ter beoordeling
+                          </Button>
+                        </form>
+                      </div>
+                    )}
                     {isClient && p.status === "SUBMITTED" && (
                       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
                         <form action={approvePerformanceAction.bind(null, p.id, col.id)}>
@@ -639,13 +649,16 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
-                      {isFreelancer && inv.lifecycleStatus === "DRAFT" && (
-                        <form action={submitInvoiceAction.bind(null, inv.id, col.id)}>
-                          <Button type="submit" size="sm">
-                            Indienen
-                          </Button>
-                        </form>
-                      )}
+                      {isFreelancer &&
+                        (inv.lifecycleStatus === "DRAFT" || inv.lifecycleStatus === "REJECTED") && (
+                          <form action={submitInvoiceAction.bind(null, inv.id, col.id)}>
+                            <Button type="submit" size="sm">
+                              {inv.lifecycleStatus === "REJECTED"
+                                ? "Corrigeer en dien opnieuw in"
+                                : "Indienen"}
+                            </Button>
+                          </form>
+                        )}
                       {isClient && inv.lifecycleStatus === "SUBMITTED" && (
                         <>
                           <form action={approveInvoiceAction.bind(null, inv.id, col.id)}>

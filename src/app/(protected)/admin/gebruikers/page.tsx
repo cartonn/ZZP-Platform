@@ -4,7 +4,6 @@ import { AlertTriangle, Users, Upload } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { toggleSuspension } from "@/lib/admin";
 import { ROLE_LABEL } from "@/lib/nav";
 import { type UserRole, type UserStatus } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
@@ -142,7 +141,6 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
           {users.map((u) => {
             const st = STATUS[u.status as UserStatus];
             const isSelf = u.id === actor.id;
-            const target = toggleSuspension(u.status as UserStatus);
             return (
               <div
                 key={u.id}
@@ -167,15 +165,27 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
                     {u.deletionRequestedAt && u.role !== "ADMIN" && (
                       <AnonymizeButton action={anonymizeUser.bind(null, u.id)} />
                     )}
-                    <form action={setUserStatus.bind(null, u.id, target)}>
-                      <Button
-                        type="submit"
-                        variant={target === "SUSPENDED" ? "destructive" : "secondary"}
-                        size="sm"
-                      >
-                        {target === "SUSPENDED" ? "Schorsen" : "Activeren"}
-                      </Button>
-                    </form>
+                    {/* PENDING goedkeuren = activeren (PENDING -> ACTIVE). */}
+                    {u.status === "PENDING" && (
+                      <form action={setUserStatus.bind(null, u.id, "ACTIVE")}>
+                        <Button type="submit" variant="primary" size="sm">
+                          Goedkeuren
+                        </Button>
+                      </form>
+                    )}
+                    {u.status === "SUSPENDED" ? (
+                      <form action={setUserStatus.bind(null, u.id, "ACTIVE")}>
+                        <Button type="submit" variant="secondary" size="sm">
+                          Activeren
+                        </Button>
+                      </form>
+                    ) : (
+                      <form action={setUserStatus.bind(null, u.id, "SUSPENDED")}>
+                        <Button type="submit" variant="destructive" size="sm">
+                          Schorsen
+                        </Button>
+                      </form>
+                    )}
                   </div>
                 )}
               </div>

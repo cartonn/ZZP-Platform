@@ -220,6 +220,24 @@ export async function approvePerformanceAction(
   refresh(collaborationId);
 }
 
+/**
+ * Een afgekeurde prestatie opnieuw ter beoordeling indienen (zijpad REJECTED -> SUBMITTED).
+ * Dezelfde record (geen losse REJECTED-rij die de "vraagt aandacht"-telling open laat staan);
+ * submitPerformance dwingt de transitie af via de state-machine.
+ */
+export async function resubmitPerformanceAction(
+  performanceId: string,
+  collaborationId: string,
+): Promise<void> {
+  const actor = await requireActor();
+  try {
+    await submitPerformance(actor, performanceId);
+  } catch (e) {
+    toMessage(e);
+  }
+  refresh(collaborationId);
+}
+
 export async function rejectPerformanceAction(
   performanceId: string,
   collaborationId: string,

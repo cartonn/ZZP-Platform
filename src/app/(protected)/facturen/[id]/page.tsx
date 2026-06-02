@@ -9,6 +9,8 @@ import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
 import { currentDunningStage } from "@/lib/payment-reminders";
+import { buildAanmaningData } from "@/lib/aanmaning";
+import { AanmaningSection } from "@/components/invoices/aanmaning-section";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -105,6 +107,15 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   // Aanmaningsniveau (rustig informatief) voor te late cascade-facturen.
   const dunning =
     cascade && invoice.lifecycleStatus === "OVERDUE" ? currentDunningStage(invoice.dueAt) : null;
+
+  // De ZZP'er (crediteur) kan voor een te late, onbetaalde factuur een aanmaning opstellen.
+  const overdueForReminder =
+    isFreelancerOwner &&
+    invoice.dueAt != null &&
+    invoice.dueAt.getTime() < Date.now() &&
+    status !== "PAID" &&
+    status !== "CANCELLED" &&
+    !["PAID", "PROCESSED", "CREDITED"].includes(invoice.lifecycleStatus ?? "");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -237,6 +248,20 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           )}
         </CardContent>
       </Card>
+
+      {overdueForReminder && (
+        <AanmaningSection
+          data={buildAanmaningData({
+            freelancerName: invoice.collaboration.freelancer.user.name ?? "",
+            companyName: invoice.collaboration.company.name,
+            invoiceNumber: invoice.partyInvoiceNumber ?? invoice.number,
+            jobTitle: invoice.collaboration.job.title,
+            issuedAt: invoice.issuedAt ?? invoice.createdAt,
+            dueAt: invoice.dueAt,
+            totalCents: invoice.totalCents,
+          })}
+        />
+      )}
 
       {/* Herleidingsbewijs (§5): factuur → goedgekeurde prestatie → samenwerking/werkproces */}
       {cascade && (
