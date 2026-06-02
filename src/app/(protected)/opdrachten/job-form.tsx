@@ -108,6 +108,13 @@ export function JobForm({
     <form action={formAction} className="space-y-6">
       {initial.id && <input type="hidden" name="jobId" value={initial.id} />}
 
+      <div className="space-y-1 border-b border-border pb-2">
+        <h2 className="text-sm font-semibold tracking-tight">Basisgegevens</h2>
+        <p className="text-xs text-muted-foreground">
+          Wat houdt de opdracht in en onder welke voorwaarden?
+        </p>
+      </div>
+
       <Field label="Titel" htmlFor="title" required error={fe.title}>
         <Input
           id="title"
@@ -192,6 +199,13 @@ export function JobForm({
         </Field>
       </div>
 
+      <div className="space-y-1 border-b border-border pb-2 pt-2">
+        <h2 className="text-sm font-semibold tracking-tight">Eisen aan de ZZP&apos;er</h2>
+        <p className="text-xs text-muted-foreground">
+          Skills en certificaten bepalen de match en de compliance-check.
+        </p>
+      </div>
+
       <ChipGroup
         legend="Vereiste skills"
         name="requiredSkillIds"
@@ -218,6 +232,13 @@ export function JobForm({
         options={Object.entries(CREDENTIAL_LABELS).map(([value, label]) => ({ value, label }))}
         selected={initial.optionalCredentialTypes}
       />
+
+      <div className="space-y-1 border-b border-border pb-2 pt-2">
+        <h2 className="text-sm font-semibold tracking-tight">Compliance &amp; overeenkomst</h2>
+        <p className="text-xs text-muted-foreground">
+          We toetsen het risico op schijnzelfstandigheid en adviseren een modelovereenkomst.
+        </p>
+      </div>
 
       <fieldset className="space-y-3 rounded-lg border border-border bg-card p-5">
         <div>
