@@ -7,6 +7,36 @@ const DEMO_PASSWORD = "demo1234";
 const DAY = 86_400_000;
 const daysFromNow = (n: number) => new Date(Date.now() + n * DAY);
 
+/** Alleen demo-data seeden als dit expliciet aanstaat (demo-/testfase). In productie blijft de
+ *  database leeg en komt de echte data via de CSV-import. */
+const SEED_DEMO = process.env.SEED_DEMO === "true";
+
+/**
+ * Maakt bij go-live een échte beheerder aan uit env (geen demo-wachtwoord), maar alleen als die
+ * via BOOTSTRAP_ADMIN_EMAIL/PASSWORD is geconfigureerd én er nog geen ADMIN bestaat. mustChangePassword
+ * dwingt een eigen wachtwoord af bij de eerste login. Zo kan de eerste admin de CSV-import doen
+ * zonder dat er ooit een hardgecodeerd demo-wachtwoord in productie staat.
+ */
+async function bootstrapAdminIfConfigured() {
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+  if (!email || !password) return;
+  const existingAdmin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
+  if (existingAdmin) return;
+  const passwordHash = await bcrypt.hash(password, 10);
+  await prisma.user.create({
+    data: {
+      email,
+      name: "Beheerder",
+      role: "ADMIN",
+      status: "ACTIVE",
+      passwordHash,
+      mustChangePassword: true,
+    },
+  });
+  console.log("[seed] Bootstrap-admin aangemaakt voor %s (wachtwoordwijziging vereist).", email);
+}
+
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
@@ -67,6 +97,18 @@ async function main() {
     string,
     string
   >;
+
+  // Referentiedata (plans/skills/industries) is hierboven geseed en blijft áltijd nodig — ook in
+  // productie. De demo-data hieronder (accounts incl. admin/demo1234, opdrachten, samenwerkingen,
+  // facturen) draait alleen in de demo-/testfase (SEED_DEMO=true). In productie: alleen een
+  // optionele bootstrap-admin; de echte data komt via de CSV-import.
+  if (!SEED_DEMO) {
+    await bootstrapAdminIfConfigured();
+    console.log(
+      "[seed] Referentiedata geseed; demo-data overgeslagen (zet SEED_DEMO=true voor de demo-/testfase).",
+    );
+    return;
+  }
 
   // --- ADMIN ---
   await prisma.user.upsert({
@@ -867,7 +909,8 @@ async function main() {
   // ORT-uitsplitsing (regulier + nacht) in het werkproces. Wacht op goedkeuring opdrachtgever.
   // Berekening: 4h normaal × €52 = €208; 4h nacht × €52 + 49% toeslag = €309,92; subtotaal €517,92.
   // app-6 (Fatima op job-4) naar ACCEPTED zodat de samenwerking aangemaakt kan worden.
-  await prisma.application.update({ where: { id: "app-6" }, data: { status: "ACCEPTED" } });
+  // updateMany (geen update): tolereert 0 rijen, zodat een afwijkende DB-staat de seed/boot niet crasht.
+  await prisma.application.updateMany({ where: { id: "app-6" }, data: { status: "ACCEPTED" } });
   await prisma.collaboration.upsert({
     where: { id: "collab-4" },
     update: {},

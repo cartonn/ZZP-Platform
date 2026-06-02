@@ -1,7 +1,8 @@
 // Productie-start (Railway). Idempotent en veilig bij elke (her)start:
 //  1. zorg dat de Prisma-provider past bij DATABASE_URL;
-//  2. zet het schema op de database (db push, geen migraties nodig);
-//  3. seed demo-data alleen als de database nog leeg is;
+//  2. zet het schema op de database (db push — additief; GEEN --accept-data-loss, zodat een
+//     destructieve schemawijziging de boot veilig laat falen i.p.v. productiedata te droppen);
+//  3. seed referentiedata altijd + demo-data alleen als SEED_DEMO=true (demo-/testfase);
 //  4. start de Next.js-server op de door Railway aangereikte PORT.
 import { execSync } from "node:child_process";
 
@@ -12,11 +13,18 @@ if (!process.env.DATABASE_URL) {
 }
 
 run("node scripts/use-db-provider.mjs");
-run("npx prisma db push --skip-generate --accept-data-loss");
+// Bewust ZONDER --accept-data-loss: additieve wijzigingen (nieuwe kolommen/indexes) gaan door,
+// maar een destructieve wijziging faalt zichtbaar i.p.v. stilzwijgend data te wissen.
+run("npx prisma db push --skip-generate");
 
-// Seed is volledig idempotent (upserts / upsert-by-id), dus veilig bij elke start —
-// zo krijgt ook een bestaande database de (verrijkte) demo-inhoud.
-console.log("[start] demo-data seeden (idempotent)");
+// seed.ts seedt referentiedata (plans/skills/industries) altijd idempotent; demo-data alleen bij
+// SEED_DEMO=true. In productie (SEED_DEMO niet gezet): alleen referentiedata + een optionele
+// bootstrap-admin uit BOOTSTRAP_ADMIN_EMAIL/PASSWORD. De echte data komt daar via de CSV-import.
+console.log(
+  process.env.SEED_DEMO === "true"
+    ? "[start] referentie- + demo-data seeden (SEED_DEMO=true)"
+    : "[start] alleen referentiedata seeden (SEED_DEMO niet gezet)",
+);
 run("npx prisma db seed");
 
 const port = process.env.PORT ?? "3000";
