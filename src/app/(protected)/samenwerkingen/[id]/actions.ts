@@ -5,6 +5,7 @@ import { requireActor } from "@/lib/authz";
 import {
   signContract,
   createPerformance,
+  updatePerformance,
   submitPerformance,
   approvePerformance,
   rejectPerformance,
@@ -16,6 +17,7 @@ import {
   openDispute,
   resolveDispute,
   CascadeError,
+  type CreatePerformanceInput,
 } from "@/lib/cascade/commands";
 import { prisma } from "@/lib/db";
 import { eurosToCents } from "@/lib/invoices";
@@ -47,12 +49,16 @@ export async function signContractAction(collaborationId: string): Promise<void>
   refresh(collaborationId);
 }
 
-export async function logAndSubmitPerformanceAction(
+/**
+ * Parseert het prestatie-formulier (dienstmodus of handmatige ORT/uren) tot een createPerformance-
+ * input — gedeeld door nieuw indienen én corrigeren-en-opnieuw-indienen. Server-side waarheid:
+ * het uurtarief en ORT-profiel komen uit de samenwerking. Geeft een leesbare foutmelding terug
+ * bij ongeldige invoer, anders de volledige input (incl. de ruwe diensten voor inline-correctie).
+ */
+async function parsePerformanceInput(
   collaborationId: string,
-  _prevState: string | null,
   formData: FormData,
-): Promise<string | null> {
-  const actor = await requireActor();
+): Promise<{ error: string } | { input: CreatePerformanceInput }> {
   const type = formData.get("type") === "MILESTONE" ? "MILESTONE" : "HOURS";
   const description = String(formData.get("description") ?? "").slice(0, 500);
 
@@ -80,12 +86,12 @@ export async function logAndSubmitPerformanceAction(
     const s = shiftStartsRaw[i] ?? "";
     const e = shiftEndsRaw[i] ?? "";
     if (!s && !e) continue; // lege rij overslaan
-    if (!s || !e) return "Vul bij elke dienst zowel een begin- als eindtijd in.";
+    if (!s || !e) return { error: "Vul bij elke dienst zowel een begin- als eindtijd in." };
     const start = new Date(s);
     const end = new Date(e);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return "Ongeldige diensttijden.";
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return { error: "Ongeldige diensttijden." };
     if (end.getTime() <= start.getTime())
-      return "Het einde van de dienst moet na het begin liggen.";
+      return { error: "Het einde van de dienst moet na het begin liggen." };
     shifts.push({ start, end });
     holidayYears.add(start.getFullYear());
     holidayYears.add(end.getFullYear());
@@ -134,22 +140,63 @@ export async function logAndSubmitPerformanceAction(
     periodEndRaw,
     rateCents,
   } satisfies PerformanceFormData);
-  if (validationError) return validationError;
+  if (validationError) return { error: validationError };
 
-  try {
-    const id = await createPerformance(actor, {
+  return {
+    input: {
       collaborationId,
       type,
       hours: type === "HOURS" ? hours : null,
       rateCents: type === "HOURS" ? rateCents : null,
       ortSegments: useOrt ? ortSegments : null,
+      shifts: type === "HOURS" && shifts.length > 0 ? shifts : null,
       periodStart: type === "HOURS" ? periodStart : null,
       periodEnd: type === "HOURS" ? periodEnd : null,
       amountCents: type === "MILESTONE" ? eurosToCents(amount) : null,
       milestoneTitle: type === "MILESTONE" ? milestoneTitle : null,
       description,
-    });
+    },
+  };
+}
+
+export async function logAndSubmitPerformanceAction(
+  collaborationId: string,
+  _prevState: string | null,
+  formData: FormData,
+): Promise<string | null> {
+  const actor = await requireActor();
+  const parsed = await parsePerformanceInput(collaborationId, formData);
+  if ("error" in parsed) return parsed.error;
+  try {
+    const id = await createPerformance(actor, parsed.input);
     await submitPerformance(actor, id);
+  } catch (e) {
+    if (e instanceof CascadeError) return e.message;
+    if (e instanceof Error) return e.message;
+    return "Er is een fout opgetreden. Probeer het opnieuw.";
+  }
+  refresh(collaborationId);
+  return null;
+}
+
+/**
+ * Corrigeer een afgekeurde (of concept-)prestatie en dien opnieuw in: dezelfde record wordt
+ * bijgewerkt met de gecorrigeerde waarden (incl. diensten) en daarna ingediend (REJECTED ->
+ * SUBMITTED). Geen losse REJECTED-rij. Zie ADR-0005.
+ */
+export async function editAndResubmitPerformanceAction(
+  performanceId: string,
+  collaborationId: string,
+  _prevState: string | null,
+  formData: FormData,
+): Promise<string | null> {
+  const actor = await requireActor();
+  const parsed = await parsePerformanceInput(collaborationId, formData);
+  if ("error" in parsed) return parsed.error;
+  try {
+    const { collaborationId: _cid, ...fields } = parsed.input;
+    await updatePerformance(actor, performanceId, fields);
+    await submitPerformance(actor, performanceId);
   } catch (e) {
     if (e instanceof CascadeError) return e.message;
     if (e instanceof Error) return e.message;
@@ -214,24 +261,6 @@ export async function approvePerformanceAction(
   const actor = await requireActor();
   try {
     await approvePerformance(actor, performanceId);
-  } catch (e) {
-    toMessage(e);
-  }
-  refresh(collaborationId);
-}
-
-/**
- * Een afgekeurde prestatie opnieuw ter beoordeling indienen (zijpad REJECTED -> SUBMITTED).
- * Dezelfde record (geen losse REJECTED-rij die de "vraagt aandacht"-telling open laat staan);
- * submitPerformance dwingt de transitie af via de state-machine.
- */
-export async function resubmitPerformanceAction(
-  performanceId: string,
-  collaborationId: string,
-): Promise<void> {
-  const actor = await requireActor();
-  try {
-    await submitPerformance(actor, performanceId);
   } catch (e) {
     toMessage(e);
   }

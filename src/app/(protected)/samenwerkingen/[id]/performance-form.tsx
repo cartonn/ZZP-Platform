@@ -9,6 +9,7 @@ import { computeOrt, resolveOrtRates } from "@/lib/ort";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
 import { formatEuro } from "@/lib/invoices";
 import { logAndSubmitPerformanceAction } from "./actions";
+import { type ManualOrtField, type PerformanceFormDefaults } from "@/lib/performance-form";
 
 interface ShiftRow {
   id: number;
@@ -21,18 +22,30 @@ export function PerformanceForm({
   rateCents,
   ortProfile,
   ortCustomRates,
+  action,
+  submitLabel = "Indienen ter goedkeuring",
+  defaults,
 }: {
   collaborationId: string;
   rateCents: number | null;
   ortProfile: string | null;
   ortCustomRates: string | null;
+  /** Eigen form-actie (bv. corrigeren-en-opnieuw-indienen); standaard = nieuw indienen. */
+  action?: (prevState: string | null, formData: FormData) => Promise<string | null>;
+  submitLabel?: string;
+  /** Voorinvulling bij het corrigeren van een bestaande prestatie. */
+  defaults?: PerformanceFormDefaults;
 }) {
   const [error, formAction, isPending] = useActionState(
-    logAndSubmitPerformanceAction.bind(null, collaborationId),
+    action ?? logAndSubmitPerformanceAction.bind(null, collaborationId),
     null,
   );
   // Eén of meer diensten; elke rij is een begin/eind-paar (client-side beheerd).
-  const [rows, setRows] = useState<ShiftRow[]>([{ id: 0, start: "", end: "" }]);
+  const [rows, setRows] = useState<ShiftRow[]>(
+    defaults?.shifts.length
+      ? defaults.shifts.map((s, i) => ({ id: i, start: s.start, end: s.end }))
+      : [{ id: 0, start: "", end: "" }],
+  );
   const addShift = () =>
     setRows((r) => [...r, { id: (r[r.length - 1]?.id ?? 0) + 1, start: "", end: "" }]);
   const removeShift = (id: number) =>
@@ -78,6 +91,7 @@ export function PerformanceForm({
               <span className="mb-1 block text-muted-foreground">Type</span>
               <select
                 name="type"
+                defaultValue={defaults?.type}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
                 <option value="HOURS">Urenstaat (uurtarief)</option>
@@ -94,6 +108,7 @@ export function PerformanceForm({
                 step="0.25"
                 min="0"
                 placeholder="bv. 8"
+                defaultValue={defaults?.hours}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </label>
@@ -102,6 +117,7 @@ export function PerformanceForm({
               <input
                 name="periodStart"
                 type="date"
+                defaultValue={defaults?.periodStart}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </label>
@@ -110,6 +126,7 @@ export function PerformanceForm({
               <input
                 name="periodEnd"
                 type="date"
+                defaultValue={defaults?.periodEnd}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </label>
@@ -121,6 +138,7 @@ export function PerformanceForm({
                 step="0.01"
                 min="0"
                 placeholder="bv. 2500"
+                defaultValue={defaults?.amount}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </label>
@@ -131,6 +149,7 @@ export function PerformanceForm({
                 type="text"
                 maxLength={120}
                 placeholder="bv. Mijlpaal 1"
+                defaultValue={defaults?.milestoneTitle}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </label>
@@ -272,6 +291,7 @@ export function PerformanceForm({
                     step="0.25"
                     min="0"
                     placeholder="0"
+                    defaultValue={defaults?.manualOrt[name as ManualOrtField]}
                     className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                   />
                 </label>
@@ -285,11 +305,12 @@ export function PerformanceForm({
               type="text"
               maxLength={500}
               placeholder="Periode of toelichting"
+              defaultValue={defaults?.description}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
           </label>
           <Button type="submit" size="sm" disabled={isPending}>
-            {isPending ? "Bezig..." : "Indienen ter goedkeuring"}
+            {isPending ? "Bezig..." : submitLabel}
           </Button>
         </form>
       </CardContent>

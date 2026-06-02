@@ -28,7 +28,7 @@ import {
   signContractAction,
   approvePerformanceAction,
   rejectPerformanceAction,
-  resubmitPerformanceAction,
+  editAndResubmitPerformanceAction,
   submitInvoiceAction,
   approveInvoiceAction,
   rejectInvoiceAction,
@@ -38,6 +38,7 @@ import {
   resolveDisputeAction,
 } from "./actions";
 import { PerformanceForm } from "./performance-form";
+import { performanceFormDefaults } from "@/lib/performance-form";
 import { OrtProfileForm } from "./ort-profile-form";
 
 export const metadata: Metadata = { title: "Werkproces · ZZP Platform" };
@@ -572,13 +573,22 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                       </div>
                     </div>
                     {isFreelancer && p.status === "REJECTED" && (
-                      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
-                        <form action={resubmitPerformanceAction.bind(null, p.id, col.id)}>
-                          <Button type="submit" size="sm">
-                            Opnieuw indienen ter beoordeling
-                          </Button>
-                        </form>
-                      </div>
+                      <details className="border-t border-border pt-2">
+                        <summary className="focus-ring cursor-pointer text-sm font-medium text-foreground hover:text-foreground">
+                          Corrigeer en dien opnieuw in
+                        </summary>
+                        <div className="mt-3">
+                          <PerformanceForm
+                            collaborationId={col.id}
+                            rateCents={col.rate != null ? col.rate * 100 : null}
+                            ortProfile={col.ortProfile}
+                            ortCustomRates={col.ortCustomRates}
+                            action={editAndResubmitPerformanceAction.bind(null, p.id, col.id)}
+                            submitLabel="Corrigeer en dien opnieuw in"
+                            defaults={performanceFormDefaults(p)}
+                          />
+                        </div>
+                      </details>
                     )}
                     {isClient && p.status === "SUBMITTED" && (
                       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">

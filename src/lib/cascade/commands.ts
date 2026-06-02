@@ -239,10 +239,27 @@ export interface CreatePerformanceInput {
   amountCents?: number | null;
   /** ORT-segmenten (zorg): uren per tijdscategorie; bepaalt het factuursubtotaal met toeslag. */
   ortSegments?: OrtSegment[] | null;
+  /** Ruwe diensttijden (ADR-0005): bewaard zodat een afgekeurde prestatie inline te corrigeren is. */
+  shifts?: { start: Date; end: Date }[] | null;
   milestoneTitle?: string | null;
   periodStart?: Date | null;
   periodEnd?: Date | null;
   description?: string;
+}
+
+/** Lokale `datetime-local`-string (yyyy-MM-ddTHH:mm) zodat de diensten zonder tijdzone-drift
+ * exact terugvullen in het formulier (de invoer was óók lokale tijd). */
+function toLocalInput(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** Serialiseert ruwe diensten naar JSON voor opslag; null als er geen diensten zijn. */
+function serializeShifts(shifts: { start: Date; end: Date }[] | null | undefined): string | null {
+  if (!shifts || shifts.length === 0) return null;
+  return JSON.stringify(
+    shifts.map((s) => ({ start: toLocalInput(s.start), end: toLocalInput(s.end) })),
+  );
 }
 
 /** ZZP'er legt een concept-urenstaat/oplevering vast (nog geen event; pas indienen triggert B1). */
@@ -271,6 +288,7 @@ export async function createPerformance(
         input.type === "HOURS" && input.ortSegments?.length
           ? JSON.stringify(input.ortSegments)
           : null,
+      shifts: input.type === "HOURS" ? serializeShifts(input.shifts) : null,
       amountCents: input.type === "MILESTONE" ? (input.amountCents ?? null) : null,
       milestoneTitle: input.type === "MILESTONE" ? (input.milestoneTitle ?? null) : null,
       periodStart: input.periodStart ?? null,
@@ -280,6 +298,44 @@ export async function createPerformance(
     },
   });
   return perf.id;
+}
+
+/**
+ * Corrigeert de waarden van een nog niet-definitieve prestatie (alleen eigenaar; alleen DRAFT of
+ * REJECTED). Overschrijft de invoer-/afgeleide velden vóór een (her)indiening. Emit géén event —
+ * het PERFORMANCE_SUBMITTED-event valt op de daaropvolgende submitPerformance. Zie ADR-0005.
+ */
+export async function updatePerformance(
+  actor: Actor,
+  performanceId: string,
+  input: Omit<CreatePerformanceInput, "collaborationId">,
+): Promise<void> {
+  const perf = await loadPerformance(performanceId);
+  if (actor.role !== "ADMIN" && actor.id !== perf.freelancerUserId) {
+    throw new CascadeError("Alleen de ZZP'er kan de prestatie aanpassen.");
+  }
+  if (perf.status !== "DRAFT" && perf.status !== "REJECTED") {
+    throw new CascadeError("Alleen een concept of afgekeurde prestatie kan worden aangepast.");
+  }
+  await assertNotDisputed(perf.collaborationId);
+  await prisma.performance.update({
+    where: { id: performanceId },
+    data: {
+      type: input.type,
+      hours: input.type === "HOURS" ? (input.hours ?? null) : null,
+      rateCents: input.type === "HOURS" ? (input.rateCents ?? null) : null,
+      ortSegments:
+        input.type === "HOURS" && input.ortSegments?.length
+          ? JSON.stringify(input.ortSegments)
+          : null,
+      shifts: input.type === "HOURS" ? serializeShifts(input.shifts) : null,
+      amountCents: input.type === "MILESTONE" ? (input.amountCents ?? null) : null,
+      milestoneTitle: input.type === "MILESTONE" ? (input.milestoneTitle ?? null) : null,
+      periodStart: input.periodStart ?? null,
+      periodEnd: input.periodEnd ?? null,
+      description: input.description ?? "",
+    },
+  });
 }
 
 // --- Event B1 — Prestatie indienen -----------------------------------------
