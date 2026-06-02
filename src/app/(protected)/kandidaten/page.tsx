@@ -124,7 +124,7 @@ export default async function KandidatenPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {app.matchScore != null && (
-                        <Badge variant="muted">Match {app.matchScore}%</Badge>
+                        <Badge variant="accent">Match {app.matchScore}%</Badge>
                       )}
                       {compliance && <ComplianceBadge status={compliance} />}
                     </div>

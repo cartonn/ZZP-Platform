@@ -82,7 +82,9 @@ export default async function ReactiesPage() {
                   <ApplicationStatusBadge status={app.status as ApplicationStatus} />
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {app.matchScore != null && <Badge variant="muted">Match {app.matchScore}%</Badge>}
+                  {app.matchScore != null && (
+                    <Badge variant="accent">Match {app.matchScore}%</Badge>
+                  )}
                   {compliance && <ComplianceBadge status={compliance} />}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">

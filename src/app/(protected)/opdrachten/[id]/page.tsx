@@ -315,7 +315,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                 <div className="flex shrink-0 items-center gap-2">
                   <AvailabilityBadge status={f.availability} />
                   <ComplianceBadge status={f.compliance} />
-                  <Badge variant="muted">Match {f.score}%</Badge>
+                  <Badge variant="accent">Match {f.score}%</Badge>
                   <form action={startConversationWithFreelancer.bind(null, job.id, f.freelancerId)}>
                     <Button type="submit" variant="secondary" size="sm">
                       Bericht sturen
@@ -382,7 +382,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             <p className="text-sm font-medium">Je hebt op deze opdracht gereageerd.</p>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               {myApplication.matchScore != null && (
-                <Badge variant="muted">Match {myApplication.matchScore}%</Badge>
+                <Badge variant="accent">Match {myApplication.matchScore}%</Badge>
               )}
               {myCompliance && <ComplianceBadge status={myCompliance} />}
               <Link href="/reacties" className="underline-offset-4 hover:underline">
@@ -396,7 +396,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               <section className="space-y-3 rounded-lg border border-border bg-card p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-sm font-medium">Jouw aansluiting</h2>
-                  <Badge variant="muted">Match {myFit.score}%</Badge>
+                  <Badge variant="accent">Match {myFit.score}%</Badge>
                   <ComplianceBadge status={myFit.compliance.status} />
                 </div>
                 {myFit.reasons.length > 0 && (
