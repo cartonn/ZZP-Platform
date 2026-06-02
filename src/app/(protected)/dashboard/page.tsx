@@ -73,7 +73,8 @@ interface AttentionItem {
 interface RunningCollab {
   id: string;
   jobTitle: string;
-  clientName: string;
+  /** De andere partij: voor een ZZP'er de opdrachtgever, voor een opdrachtgever de ZZP'er. */
+  counterpartyName: string;
   stage: CascadeStage;
 }
 interface DashboardData {
@@ -188,7 +189,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     const running: RunningCollab[] = runningRows.map((c) => ({
       id: c.id,
       jobTitle: c.job.title,
-      clientName: c.company.name,
+      counterpartyName: c.company.name,
       stage: cascadeStage({
         viewer: "FREELANCER",
         collaborationId: c.id,
@@ -263,6 +264,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       invoicesToApprove,
       contractsToSign,
       messagesAwaitingReply,
+      runningRows,
     ] = await Promise.all([
       cid
         ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
@@ -283,6 +285,26 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       prisma.invoice.count({ where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" } }),
       prisma.collaboration.count({ where: { contractStatus: "SENT", company: { userId } } }),
       unreadConversationCount(userId),
+      // Lopende samenwerkingen vanuit de opdrachtgever: dezelfde cascade, ander perspectief.
+      prisma.collaboration.findMany({
+        where: { company: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
+        select: {
+          id: true,
+          status: true,
+          contractStatus: true,
+          disputedAt: true,
+          job: { select: { title: true } },
+          freelancer: { select: { user: { select: { name: true } } } },
+          performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
+          invoices: {
+            where: { lifecycleStatus: { not: null } },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { lifecycleStatus: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
     ]);
     const clientActions = rankNextActions([
       ...clientNextActions({
@@ -301,6 +323,21 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     for (const a of clientActions) {
       attention.push({ label: a.title, href: a.href, tone: a.tone });
     }
+    const running: RunningCollab[] = runningRows.map((c) => ({
+      id: c.id,
+      jobTitle: c.job.title,
+      counterpartyName: c.freelancer.user.name ?? "ZZP'er",
+      stage: cascadeStage({
+        viewer: "CLIENT",
+        collaborationId: c.id,
+        collaborationStatus: c.status as CollaborationStatus,
+        contractStatus: c.contractStatus as ContractStatus,
+        disputed: c.disputedAt !== null,
+        latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
+        latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
+          null) as InvoiceLifecycleState | null,
+      }),
+    }));
     return {
       stats: [
         { label: "Gepubliceerde opdrachten", value: openJobs, href: "/opdrachten" },
@@ -308,7 +345,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         { label: "Actieve samenwerkingen", value: activeCollabs, href: "/samenwerkingen" },
       ],
       attention,
-      running: [],
+      running,
       week: null,
       isNewAccount: openJobs === 0 && drafts === 0 && activeCollabs === 0,
     };
@@ -377,7 +414,7 @@ function RunningCard({ collab }: { collab: RunningCollab }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium">{collab.jobTitle}</p>
-          <p className="truncate text-xs text-muted-foreground">{collab.clientName}</p>
+          <p className="truncate text-xs text-muted-foreground">{collab.counterpartyName}</p>
         </div>
         <Badge variant={TONE_BADGE[stage.tone]}>{stage.label}</Badge>
       </div>
@@ -452,11 +489,11 @@ function MatchesSection({ matches, prominent }: { matches: JobMatch[]; prominent
   );
 }
 
-function AttentionSection({ attention }: { attention: AttentionItem[] }) {
+function AttentionSection({ attention, title }: { attention: AttentionItem[]; title: string }) {
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-5 py-3">
-        <h2 className="text-sm font-medium">Wat vraagt aandacht</h2>
+        <h2 className="text-sm font-medium">{title}</h2>
       </div>
       {attention.length === 0 ? (
         <div className="flex items-center gap-2 px-5 py-6 text-sm text-muted-foreground">
@@ -576,8 +613,12 @@ export default async function DashboardPage() {
         <MatchesSection matches={matches} prominent />
       )}
 
-      {/* Zone 2 — Wat vraagt aandacht (gerangschikte next-actions met tone). */}
-      <AttentionSection attention={attention} />
+      {/* Zone 2 — Wat vraagt aandacht (gerangschikte next-actions met tone).
+          Voor de admin is dit de operationele wachtrij. */}
+      <AttentionSection
+        attention={attention}
+        title={role === "ADMIN" ? "Operationele wachtrij" : "Wat vraagt aandacht"}
+      />
 
       {/* Zone 3 compact — naast lopend werk de matches eronder. */}
       {role === "FREELANCER" && hasRunning && matches.length > 0 && (
