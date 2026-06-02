@@ -54,12 +54,9 @@ semantische token via Tailwind (`bg-primary`, `text-muted-foreground`, …).
 
 Dezelfde tokennamen, dus geen component verandert.
 
-- **standaard** — neutraal, monochroom; witte canvas in light.
-- **bloei** — navy-slate merk; light = **licht-oranje** canvas, dark = navy fundament. `--radius: 0.75rem`.
-- **elektrisch-blauw** — elektrisch-blauwe signatuur `#0066FF`; light = **licht-blauw** canvas, dark = navy fundament.
-
-> Light-canvas-tint (optie 2/3) zit op de neutrale oppervlakken (background/card/muted/border/input);
-> lichtheid blijft AA-veilig, merk-tokens en de donkere modus zijn ongewijzigd.
+- **standaard** — neutraal, monochroom.
+- **bloei** — kalme navy-slate op warme off-white (naar bloomintranet.com). `--radius: 0.75rem`.
+- **elektrisch-blauw** — navy fundament + elektrisch-blauwe signatuur `#0066FF` (naar capisoft.nl).
 
 Contrast is **WCAG AA**-geverifieerd (fg/bg, kaart, subtekst, knop, accent, rand).
 
