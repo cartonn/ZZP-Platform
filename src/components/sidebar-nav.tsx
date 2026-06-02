@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -49,31 +50,27 @@ export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBa
 
   return (
     <nav className="flex flex-col gap-0.5" aria-label="Hoofdnavigatie">
-      {items.map((item) => {
+      {items.map((item, i) => {
         const Icon = ICONS[item.icon];
         const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
         const badge = badges?.[item.href];
+        // Sectiekop zodra de sectie wisselt — groepeert een lange navigatie in rustige blokken.
+        const showHeader = !!item.section && item.section !== items[i - 1]?.section;
 
-        if (!item.enabled) {
-          return (
-            <span
-              key={item.href}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground/50"
-              aria-disabled="true"
-              title="Binnenkort beschikbaar"
-            >
-              <Icon className="size-4 shrink-0" aria-hidden />
-              <span className="truncate">{item.label}</span>
-              <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground/40">
-                soon
-              </span>
+        const node = !item.enabled ? (
+          <span
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground/50"
+            aria-disabled="true"
+            title="Binnenkort beschikbaar"
+          >
+            <Icon className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">{item.label}</span>
+            <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground/40">
+              soon
             </span>
-          );
-        }
-
-        return (
+          </span>
+        ) : (
           <Link
-            key={item.href}
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
@@ -99,6 +96,17 @@ export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBa
               </span>
             )}
           </Link>
+        );
+
+        return (
+          <Fragment key={item.href}>
+            {showHeader && (
+              <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                {item.section}
+              </p>
+            )}
+            {node}
+          </Fragment>
         );
       })}
     </nav>
