@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { clientCredentialAlerts, describeCredentialAlert } from "@/lib/collaboration-alerts";
-import { overdueInvoiceCount } from "@/lib/signals";
+import { overdueInvoiceCount, unreadConversationCount } from "@/lib/signals";
 import { computeCompanyCompleteness } from "@/lib/profile";
 import {
   adminNextActions,
@@ -90,6 +90,7 @@ async function dashboardData(
       rejectedInvoices,
       rejectedPerformances,
       contractsToSign,
+      messagesAwaitingReply,
     ] = await Promise.all([
       pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
       pid
@@ -117,6 +118,7 @@ async function dashboardData(
         where: { status: "REJECTED", collaboration: { freelancer: { userId } } },
       }),
       prisma.collaboration.count({ where: { contractStatus: "SENT", freelancer: { userId } } }),
+      unreadConversationCount(userId),
     ]);
     // Base- en cascade-acties samen ranken zodat de juiste "aan zet" bovenaan staat.
     const freelancerActions = rankNextActions([
@@ -128,6 +130,7 @@ async function dashboardData(
         expiringCredentials: expiring,
         overdueInvoices: overdue,
         contractsAwaitingSignature: contractsToSign,
+        messagesAwaitingReply,
       }),
       ...cascadeFreelancerActions({
         draftInvoices,
@@ -181,6 +184,7 @@ async function dashboardData(
       performancesToApprove,
       invoicesToApprove,
       contractsToSign,
+      messagesAwaitingReply,
     ] = await Promise.all([
       cid
         ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
@@ -200,6 +204,7 @@ async function dashboardData(
       }),
       prisma.invoice.count({ where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" } }),
       prisma.collaboration.count({ where: { contractStatus: "SENT", company: { userId } } }),
+      unreadConversationCount(userId),
     ]);
     const clientActions = rankNextActions([
       ...clientNextActions({
@@ -211,6 +216,7 @@ async function dashboardData(
           describeCredentialAlert(a.freelancerName, a.jobTitle, a.alert),
         ),
         contractsAwaitingSignature: contractsToSign,
+        messagesAwaitingReply,
       }),
       ...cascadeClientActions({ performancesToApprove, invoicesToApprove }),
     ]);

@@ -56,6 +56,7 @@ const allClearFreelancer = {
   expiringCredentials: 0,
   overdueInvoices: 0,
   contractsAwaitingSignature: 0,
+  messagesAwaitingReply: 0,
 };
 
 describe("freelancerNextActions", () => {
@@ -121,6 +122,7 @@ const allClearClient = {
   overdueInvoices: 0,
   collaborationCredentialAlerts: [],
   contractsAwaitingSignature: 0,
+  messagesAwaitingReply: 0,
 };
 
 describe("clientNextActions", () => {
@@ -152,6 +154,7 @@ describe("clientNextActions", () => {
       overdueInvoices: 1,
       collaborationCredentialAlerts: ["Compliance-alert"],
       contractsAwaitingSignature: 0,
+      messagesAwaitingReply: 0,
     });
     expect(ranked[0]?.id).toBe("client-collaboration-alert-0");
     expect(ranked.map((x) => x.id)).toEqual([
@@ -171,6 +174,7 @@ describe("clientNextActions", () => {
       overdueInvoices: 1,
       collaborationCredentialAlerts: [],
       contractsAwaitingSignature: 0,
+      messagesAwaitingReply: 0,
     });
     const byId = Object.fromEntries(ranked.map((x) => [x.id, x.href]));
     expect(byId["client-company-completeness"]).toBe("/bedrijf");
@@ -243,6 +247,40 @@ describe("contract-ondertekening als next-action", () => {
   });
 
   it("geen teken-actie bij 0 wachtende contracten", () => {
+    expect(freelancerNextActions(allClearFreelancer)).toEqual([]);
+    expect(clientNextActions(allClearClient)).toEqual([]);
+  });
+});
+
+describe("berichten die op antwoord wachten als next-action", () => {
+  it("freelancer krijgt een berichten-actie", () => {
+    const ranked = freelancerNextActions({ ...allClearFreelancer, messagesAwaitingReply: 3 });
+    expect(ranked.map((x) => x.id)).toEqual(["freelancer-messages-awaiting"]);
+    expect(ranked[0]?.href).toBe("/berichten");
+    expect(ranked[0]?.tone).toBe("attention");
+  });
+
+  it("client krijgt een berichten-actie", () => {
+    const ranked = clientNextActions({ ...allClearClient, messagesAwaitingReply: 1 });
+    expect(ranked.map((x) => x.id)).toEqual(["client-messages-awaiting"]);
+    expect(ranked[0]?.href).toBe("/berichten");
+  });
+
+  it("rangschikt over-vervaldatum facturen boven berichten, en berichten boven nieuwe reacties", () => {
+    const ranked = clientNextActions({
+      ...allClearClient,
+      overdueInvoices: 1,
+      messagesAwaitingReply: 1,
+      newApplications: 1,
+    });
+    expect(ranked.map((x) => x.id)).toEqual([
+      "client-overdue-invoices",
+      "client-messages-awaiting",
+      "client-new-applications",
+    ]);
+  });
+
+  it("geen berichten-actie bij 0", () => {
     expect(freelancerNextActions(allClearFreelancer)).toEqual([]);
     expect(clientNextActions(allClearClient)).toEqual([]);
   });
