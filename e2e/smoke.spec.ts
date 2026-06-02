@@ -34,8 +34,7 @@ test("FREELANCER logt in en ziet role-aware dashboard", async ({ page }) => {
   await login(page, "zzp@zzp-platform.local");
   const nav = page.getByRole("navigation", { name: "Hoofdnavigatie" });
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Welkom terug");
-  await expect(page.getByText("Volgende stappen")).toBeVisible();
-  await expect(page.getByText("ZZP'er").first()).toBeVisible();
+  await expect(page.getByText("ZZP-werkplek")).toBeVisible();
   // role-aware nav: freelancer ziet "Certificaten", niet "Verificaties"
   await expect(nav.getByText("Certificaten")).toBeVisible();
   await expect(nav.getByText("Verificaties")).toHaveCount(0);
