@@ -442,6 +442,13 @@ model Collaboration {
   company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices     Invoice[]
   performances Performance[]
+
+  // Hot paths: dashboards/admin/zoeken filteren op partij + status (Postgres indexeert FK's niet
+  // automatisch). Additieve indexes — veilig via db push.
+  @@index([companyId])
+  @@index([freelancerId])
+  @@index([status])
+  @@index([disputedAt])
 }
 
 // ---------------------------------------------------------------------------
