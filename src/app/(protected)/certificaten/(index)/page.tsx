@@ -185,7 +185,7 @@ export default async function CertificatenPage() {
                       </Button>
                     </form>
                     <form action={deleteCredential.bind(null, c.id)}>
-                      <Button type="submit" variant="danger" size="sm">
+                      <Button type="submit" variant="destructive" size="sm">
                         <Trash2 className="size-3.5" aria-hidden /> Verwijderen
                       </Button>
                     </form>

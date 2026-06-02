@@ -128,7 +128,7 @@ export default async function VerificatiesPage() {
                         placeholder="Verplicht bij afwijzen…"
                       />
                     </div>
-                    <Button type="submit" variant="danger" size="sm">
+                    <Button type="submit" variant="destructive" size="sm">
                       Afwijzen
                     </Button>
                   </form>

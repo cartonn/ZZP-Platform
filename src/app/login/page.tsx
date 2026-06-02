@@ -64,11 +64,6 @@ export default async function LoginPage({
             </Link>
           </p>
         </div>
-
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Demo-accounts (wachtwoord <span className="font-medium">demo1234</span>):
-          admin@zzp-platform.local · zzp@zzp-platform.local · opdrachtgever@zzp-platform.local
-        </p>
       </div>
     </div>
   );
