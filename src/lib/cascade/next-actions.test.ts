@@ -20,7 +20,9 @@ describe("cascadeFreelancerActions", () => {
     });
     expect(a.map((x) => x.id)).toEqual(["cascade-draft-invoices", "cascade-approved-invoices"]);
     expect(a[0]?.title).toContain("2");
-    expect(a[0]?.href).toBe("/facturen");
+    // Cascade-acties wijzen naar het werkproces, niet naar /facturen (daar zijn de knoppen verborgen).
+    expect(a[0]?.href).toBe("/samenwerkingen");
+    expect(a.every((x) => x.href === "/samenwerkingen")).toBe(true);
   });
   it("afgekeurde prestaties/facturen verschijnen en wegen zwaarder dan eigen indienen", () => {
     const a = cascadeFreelancerActions({

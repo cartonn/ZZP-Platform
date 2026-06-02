@@ -1,5 +1,9 @@
 // Cascade-"aan zet"-acties (PLATFORM_OVERHAUL.md §7). Pure logica, geen I/O: zet primitieve tellingen
 // om naar NextAction-items voor het dashboard. Houdt de dashboard-strings op één geteste plek.
+//
+// NB: alle cascade-acties verwijzen naar /samenwerkingen — daar staat het werkproces met de knoppen
+// (indienen, betaling markeren, goedkeuren). De /facturen-pagina verbergt cascade-acties bewust, dus
+// een href naar /facturen zou naar een plek leiden waar de handeling niet uitvoerbaar is.
 
 import { type NextAction } from "@/lib/next-actions";
 
@@ -33,7 +37,7 @@ export function cascadeFreelancerActions(input: FreelancerCascadeInput): NextAct
     actions.push({
       id: "cascade-rejected-invoices",
       title: `${input.rejectedInvoices} afgekeurde factu(u)r(en) — corrigeer en dien opnieuw in`,
-      href: "/facturen",
+      href: "/samenwerkingen",
       tone: "attention",
       priority: P.rejected,
     });
@@ -42,7 +46,7 @@ export function cascadeFreelancerActions(input: FreelancerCascadeInput): NextAct
     actions.push({
       id: "cascade-draft-invoices",
       title: `${input.draftInvoices} concept-factuur(en) klaar om in te dienen`,
-      href: "/facturen",
+      href: "/samenwerkingen",
       tone: "attention",
       priority: P.submit,
     });
@@ -51,7 +55,7 @@ export function cascadeFreelancerActions(input: FreelancerCascadeInput): NextAct
     actions.push({
       id: "cascade-approved-invoices",
       title: `${input.approvedInvoices} goedgekeurde factuur(en): markeer de betaling zodra je bent betaald`,
-      href: "/facturen",
+      href: "/samenwerkingen",
       tone: "info",
       priority: P.payment,
     });
@@ -81,7 +85,7 @@ export function cascadeClientActions(input: ClientCascadeInput): NextAction[] {
     actions.push({
       id: "cascade-invoices-approve",
       title: `${input.invoicesToApprove} factuur(en) wachten op je goedkeuring`,
-      href: "/facturen",
+      href: "/samenwerkingen",
       tone: "attention",
       priority: P.approve,
     });
