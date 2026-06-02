@@ -13,9 +13,13 @@ export function SearchTrigger() {
       type="button"
       onClick={open}
       aria-label="Snelzoeker openen (Ctrl K)"
-      className="focus-ring rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      className="focus-ring flex h-9 items-center gap-2 rounded-lg text-muted-foreground transition-colors hover:text-foreground sm:border sm:border-border sm:bg-background sm:px-2.5 sm:hover:bg-muted"
     >
-      <Search className="size-5" aria-hidden />
+      <Search className="size-5 sm:size-4" aria-hidden />
+      <span className="hidden text-sm sm:inline">Zoeken…</span>
+      <kbd className="ml-3 hidden rounded border border-border bg-muted px-1.5 font-sans text-[11px] font-medium leading-5 text-muted-foreground sm:inline">
+        ⌘K
+      </kbd>
     </button>
   );
 }
