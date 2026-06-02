@@ -3,6 +3,16 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(avg): verwerkingsregister + bewaartermijnen op /admin/avg (branch `feat/admin-avg-register`)
+
+Bergings-backlog (geborgen van routine-branch J4fj9, cherry-pick op actuele main):
+art. 30 AVG-verwerkingsregister met bewaartermijnen-overzicht voor de beheerder
+(`processing-register.ts` + 43 tests, `/admin/avg`, nav-item). Pre-launch-complianceitem.
+Visueel geverifieerd als admin (lokale prod-server, nul console-errors).
+Gates groen: typecheck ✓, lint ✓, test 1590 ✓, build ✓, prettier ✓
+
+---
+
 ## fix(security): bevindingen security-review 12-6 (branch `fix/security-review-juni`)
 
 Review over het volledige dagdiff (20 PR's, 119 bestanden): 0 Critical, 2 High, 5 Medium.
@@ -1191,6 +1201,30 @@ Sluit de ontbrekende e-mailkanalen voor twee kritieke platform-events:
 - **UI**: rustig informatief aanmaningsniveau-label op de factuurdetailpagina voor OVERDUE-facturen.
 - Tests: 555 → 573 groen (+18). Gate: typecheck ✓ lint ✓ test ✓ build ✓ prettier ✓.
   E2e overgeslagen (geen browser-channel in deze omgeving; net als CI).
+
+### AVG-verwerkingsregister + bewaartermijnen-overzicht (admin) — 2026-06-02
+
+- **Probleem:** het platform verwerkt gevoelige persoonsgegevens (VOG/strafrechtelijk, diploma's,
+  identiteit, financiële administratie) maar er was nergens een verwerkingsregister (art. 30 AVG) of
+  een overzicht van bewaartermijnen — terwijl de formele AVG-review livegang met echte gevoelige
+  documenten blokkeert. Eerste concrete, controleerbare bouwsteen daarvoor.
+- **Pure kern** `src/lib/compliance/processing-register.ts` (+ `.test.ts`, 43 tests): deterministisch
+  register van 13 verwerkingsactiviteiten (naam, doel, rechtsgrond art. 6, betrokkenen, categorieën
+  persoonsgegevens, gevoelig art. 9/10, ontvangers, bewaartermijn, beveiligingsmaatregelen) afgeleid
+  uit het echte datamodel, plus een bewaarschema (`RETENTION_SCHEDULE`, 7 regels — o.a. fiscale
+  bewaarplicht 7 jaar). Hulpfuncties `summarizeRegister` (telling per rechtsgrond + gevoelig),
+  `filterByLegalBasis` (muteert niet), `LEGAL_BASES`/`LEGAL_BASIS_LABEL`, verplichte disclaimer.
+- **Admin-pagina** `/admin/avg` (+ `loading.tsx`): samenvattingsstrip met rechtsgrond-filterpills
+  (querystring `?grond=`), registercards met rechtsgrond- + "Gevoelig (art. 9/10)"-badge, bewaarschema-
+  sectie, disclaimer, lege/loading-staten. Alleen ADMIN (`requireRole`). **CSV-export** `/admin/avg/export`
+  via `csv.ts` (register + bewaarschema in één bestand, ADMIN-gated). Nav-item "Verwerkingsregister"
+  onder Toezicht. Read-only — geen data-mutatie/verwijdering.
+- Gebouwd met 2 Sonnet-builders op niet-overlappende bestanden (lib+tests / pagina+route+nav),
+  orchestrator integreerde + draaide de poort. Gate groen: typecheck ✓ lint ✓ **test 978 ✓** build ✓
+  (/admin/avg + /admin/avg/export geregistreerd) prettier ✓. E2e overgeslagen (geen browser-channel
+  in de routine-omgeving, net als CI). Linear: ZZP2-53. Geen "AI" in UI/teksten/comments.
+
+---
 
 ---
 

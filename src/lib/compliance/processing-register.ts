@@ -1,0 +1,484 @@
+// AVG-verwerkingsregister (art. 30 AVG) + bewaarschema voor het ZZP Platform.
+// Puur en deterministisch — geen DB, geen I/O, geen Date.now-afhankelijkheid.
+// De verwerkingsverantwoordelijke stelt dit register vast en houdt het actueel.
+// Geen juridisch advies.
+
+// --- Rechtsgronden (art. 6 AVG) ---------------------------------------------
+
+export type LegalBasis =
+  | "TOESTEMMING"
+  | "OVEREENKOMST"
+  | "WETTELIJKE_VERPLICHTING"
+  | "GERECHTVAARDIGD_BELANG";
+
+export const LEGAL_BASES: readonly LegalBasis[] = [
+  "TOESTEMMING",
+  "OVEREENKOMST",
+  "WETTELIJKE_VERPLICHTING",
+  "GERECHTVAARDIGD_BELANG",
+] as const;
+
+export const LEGAL_BASIS_LABEL: Record<LegalBasis, string> = {
+  TOESTEMMING: "Toestemming (art. 6 lid 1a)",
+  OVEREENKOMST: "Overeenkomst (art. 6 lid 1b)",
+  WETTELIJKE_VERPLICHTING: "Wettelijke verplichting (art. 6 lid 1c)",
+  GERECHTVAARDIGD_BELANG: "Gerechtvaardigd belang (art. 6 lid 1f)",
+};
+
+// --- Verwerkingsactiviteit ---------------------------------------------------
+
+export interface ProcessingActivity {
+  /** Stabiele identificatiesleutel (kebab-case), uniek binnen het register. */
+  key: string;
+  /** Naam van de verwerking. */
+  name: string;
+  /** Doel van de verwerking. */
+  purpose: string;
+  /** Rechtsgrond (art. 6 AVG). */
+  legalBasis: LegalBasis;
+  /** Categorieën van betrokkenen. */
+  dataSubjects: string[];
+  /** Categorieën van persoonsgegevens. */
+  dataCategories: string[];
+  /** Bevat bijzondere (art. 9) of strafrechtelijke (art. 10) persoonsgegevens. */
+  sensitive: boolean;
+  /** Ontvangers van de persoonsgegevens. */
+  recipients: string[];
+  /** Bewaartermijn (mensleesbaar). */
+  retention: string;
+  /** Technische en organisatorische beveiligingsmaatregelen. */
+  securityMeasures: string[];
+}
+
+export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
+  // 1. Accountbeheer & authenticatie
+  {
+    key: "accountbeheer-authenticatie",
+    name: "Accountbeheer & authenticatie",
+    purpose: "Aanmaken, beheren en beveiligen van gebruikersaccounts; inloggen en sessiebeheer.",
+    legalBasis: "OVEREENKOMST",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers", "Beheerders"],
+    dataCategories: ["Naam", "E-mailadres", "Wachtwoord-hash", "Rol", "IP-adres", "Sessietokens"],
+    sensitive: false,
+    recipients: ["Intern platformbeheer"],
+    retention: "Tot beëindiging van het account + redelijke afhandeltermijn (max. 30 dagen)",
+    securityMeasures: [
+      "Wachtwoord-hashing (bcrypt)",
+      "Versleutelde opslag",
+      "Toegang op rol (RBAC)",
+      "Auditlogging",
+      "Beperkte bewaartermijn",
+    ],
+  },
+
+  // 2. ZZP-profiel & vindbaarheid
+  {
+    key: "zzp-profiel-vindbaarheid",
+    name: "ZZP-profiel & vindbaarheid",
+    purpose:
+      "Opstellen en tonen van het ZZP-profiel zodat opdrachtgevers de ZZP'er kunnen vinden en beoordelen.",
+    legalBasis: "OVEREENKOMST",
+    dataSubjects: ["ZZP'ers"],
+    dataCategories: [
+      "Naam",
+      "Profielfoto",
+      "Biografie",
+      "Vaardigheden",
+      "Uurtarief",
+      "Zichtbaarheidsinstellingen",
+      "Locatie (regio)",
+    ],
+    sensitive: false,
+    recipients: ["Opdrachtgevers (op basis van zichtbaarheidsinstelling)"],
+    retention: "Tot beëindiging van het account + redelijke afhandeltermijn (max. 30 dagen)",
+    securityMeasures: [
+      "Zichtbaarheidscontrole door de ZZP'er zelf",
+      "Toegang op rol (RBAC)",
+      "Versleutelde opslag",
+    ],
+  },
+
+  // 3. Bedrijfsprofiel opdrachtgever
+  {
+    key: "bedrijfsprofiel-opdrachtgever",
+    name: "Bedrijfsprofiel opdrachtgever",
+    purpose:
+      "Beheren van het bedrijfsprofiel van opdrachtgevers voor gebruik op het platform en weergave aan ZZP'ers.",
+    legalBasis: "OVEREENKOMST",
+    dataSubjects: ["Opdrachtgevers"],
+    dataCategories: [
+      "Bedrijfsnaam",
+      "Contactpersoon",
+      "E-mailadres",
+      "KVK-nummer",
+      "Branche",
+      "Vestigingsadres",
+    ],
+    sensitive: false,
+    recipients: ["ZZP'ers (beperkte weergave)", "Intern platformbeheer"],
+    retention: "Tot beëindiging van het account + redelijke afhandeltermijn (max. 30 dagen)",
+    securityMeasures: ["Toegang op rol (RBAC)", "Versleutelde opslag", "Auditlogging"],
+  },
+
+  // 4. Certificaten & documentverificatie (VOG, diploma's, verzekeringsbewijzen)
+  {
+    key: "certificaten-documentverificatie",
+    name: "Certificaten & documentverificatie",
+    purpose:
+      "Verifiëren van door ZZP'ers ingediende certificaten, diploma's en screeningen (waaronder VOG) ter borging van betrouwbaarheid en wettelijke eisen.",
+    legalBasis: "WETTELIJKE_VERPLICHTING",
+    dataSubjects: ["ZZP'ers"],
+    dataCategories: [
+      "VOG (strafrechtelijke gegevens art. 10 AVG)",
+      "Diploma's en certificaten",
+      "Verzekeringsbewijzen",
+      "Verificatiestatus en -datum",
+      "Naam en geboortedatum",
+    ],
+    sensitive: true,
+    recipients: [
+      "Bevoegde beheerders (verificatiequeue)",
+      "Opdrachtgevers (verificatiestatus — geen ruwe documenten)",
+    ],
+    retention: "Niet langer dan noodzakelijk voor het verificatiedoel",
+    securityMeasures: [
+      "Documenten standaard privé",
+      "Versleutelde opslag",
+      "Toegang op rol (RBAC)",
+      "Auditlogging",
+      "Beperkte toegang tot bevoegde beheerders",
+    ],
+  },
+
+  // 5. Externe registerverificatie (DUO-diploma, BIG-register)
+  {
+    key: "externe-registerverificatie",
+    name: "Externe registerverificatie",
+    purpose:
+      "Verifiëren van diploma's en beroepskwalificaties via externe overheidsregisters (DUO, BIG-register).",
+    legalBasis: "WETTELIJKE_VERPLICHTING",
+    dataSubjects: ["ZZP'ers"],
+    dataCategories: ["Verificatiecode", "Registratienummer", "Naam (voor matchingsdoeleinden)"],
+    sensitive: false,
+    recipients: ["DUO (Dienst Uitvoering Onderwijs)", "BIG-register"],
+    retention: "Verificatieresultaat bewaard zolang het bijbehorende certificaat actief is",
+    securityMeasures: [
+      "Minimale gegevensoverdracht (dataminimalisatie)",
+      "Versleutelde verbinding (TLS)",
+      "Auditlogging",
+    ],
+  },
+
+  // 6. Identiteitsverificatie (iDIN/eIDAS, juridische naam)
+  {
+    key: "identiteitsverificatie",
+    name: "Identiteitsverificatie",
+    purpose:
+      "Vaststellen van de juridische identiteit van gebruikers ter voorkoming van fraude en naleving van platformeisen.",
+    legalBasis: "OVEREENKOMST",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers"],
+    dataCategories: ["Juridische naam", "Geboortedatum", "Verificatiestatus (iDIN/eIDAS)"],
+    sensitive: false,
+    recipients: ["iDIN-dienstverlener (verwerker)", "Intern platformbeheer"],
+    retention:
+      "Verificatiestatus bewaard zolang het account actief is; ruwe verificatiegegevens worden niet opgeslagen",
+    securityMeasures: [
+      "Dataminimalisatie (alleen verificatiestatus bewaard)",
+      "Versleutelde opslag",
+      "Toegang op rol (RBAC)",
+      "Auditlogging",
+    ],
+  },
+
+  // 7. Opdrachten, reacties & matching
+  {
+    key: "opdrachten-reacties-matching",
+    name: "Opdrachten, reacties & matching",
+    purpose:
+      "Plaatsen van opdrachten door opdrachtgevers, indienen van reacties door ZZP'ers en ondersteunen van het matchingsproces.",
+    legalBasis: "OVEREENKOMST",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers"],
+    dataCategories: [
+      "Opdrachtomschrijving",
+      "Vereiste vaardigheden en certificaten",
+      "Tarief en beschikbaarheid",
+      "Reactie-inhoud en motivatie",
+      "Matchingsuitslag",
+    ],
+    sensitive: false,
+    recipients: [
+      "Opdrachtgevers (reacties van ZZP'ers)",
+      "ZZP'ers (opdrachten van opdrachtgevers)",
+    ],
+    retention:
+      "Tot 4 weken na afronding van de selectieprocedure, tenzij toestemming voor langere bewaring",
+    securityMeasures: ["Toegang op rol (RBAC)", "Versleutelde opslag", "Auditlogging"],
+  },
+
+  // 8. Berichten tussen partijen
+  {
+    key: "berichten-communicatie",
+    name: "Berichten & communicatie",
+    purpose:
+      "Faciliteren van beveiligde communicatie tussen ZZP'ers en opdrachtgevers via het platformberichtencentrum.",
+    legalBasis: "OVEREENKOMST",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers"],
+    dataCategories: ["Berichtinhoud", "Afzender en ontvanger", "Tijdstempel"],
+    sensitive: false,
+    recipients: ["Betrokken ZZP'er en opdrachtgever"],
+    retention: "Duur van de samenwerking + redelijke termijn (max. 12 maanden na beëindiging)",
+    securityMeasures: [
+      "Toegang beperkt tot gespreksdeelnemers",
+      "Versleutelde opslag",
+      "Toegang op rol (RBAC)",
+    ],
+  },
+
+  // 9. Samenwerkingen & Wet-DBA-beoordeling
+  {
+    key: "samenwerkingen-wet-dba",
+    name: "Samenwerkingen & Wet-DBA-beoordeling",
+    purpose:
+      "Vastleggen en beheren van samenwerkingsovereenkomsten, inclusief beoordeling van Wet DBA-indicatoren ter informatie van partijen.",
+    legalBasis: "OVEREENKOMST",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers"],
+    dataCategories: [
+      "Contractgegevens en -status",
+      "Modelovereenkomsttype",
+      "DBA-risiconiveau en indicatoren",
+      "Start- en einddatum",
+    ],
+    sensitive: false,
+    recipients: ["Betrokken ZZP'er en opdrachtgever", "Intern platformbeheer"],
+    retention: "Duur van de samenwerking + 7 jaar (fiscale bewaarplicht; contractgegevens)",
+    securityMeasures: ["Toegang op rol (RBAC)", "Versleutelde opslag", "Auditlogging"],
+  },
+
+  // 10. Facturatie & financiële administratie
+  {
+    key: "facturatie-financiele-administratie",
+    name: "Facturatie & financiële administratie",
+    purpose:
+      "Opstellen, verwerken en archiveren van facturen en financiële administratie ten behoeve van de fiscale en wettelijke bewaarplicht.",
+    legalBasis: "WETTELIJKE_VERPLICHTING",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers"],
+    dataCategories: [
+      "Factuurnummer en -bedrag",
+      "BTW-gegevens",
+      "Bankgegevens (IBAN)",
+      "Naam en adres",
+      "KVK- en BTW-nummer",
+      "Betalingsstatus",
+    ],
+    sensitive: false,
+    recipients: [
+      "Belastingdienst (op verzoek of wettelijke verplichting)",
+      "Intern platformbeheer",
+    ],
+    retention: "7 jaar (fiscale bewaarplicht, art. 52 AWR)",
+    securityMeasures: [
+      "Versleutelde opslag",
+      "Toegang op rol (RBAC)",
+      "Auditlogging",
+      "Beperkte toegang tot bevoegde beheerders",
+    ],
+  },
+
+  // 11. Notificaties & e-mail
+  {
+    key: "notificaties-email",
+    name: "Notificaties & e-mail",
+    purpose:
+      "Versturen van platformmeldingen en transactionele e-mails (verificatieuitslagen, statusupdates, herinneringen) ter ondersteuning van de dienstverlening.",
+    legalBasis: "GERECHTVAARDIGD_BELANG",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers", "Beheerders"],
+    dataCategories: ["E-mailadres", "Naam", "Notificatietype en -inhoud"],
+    sensitive: false,
+    recipients: ["E-maildienstverlener (verwerker)"],
+    retention:
+      "Notificatiehistorie max. 6 maanden; e-mailadressen bewaard zolang het account actief is",
+    securityMeasures: [
+      "Verwerkerovereenkomst met e-maildienstverlener",
+      "Versleutelde verbinding (TLS)",
+      "Dataminimalisatie in e-mailinhoud",
+    ],
+  },
+
+  // 12. Beveiliging, auditlog & misbruikpreventie
+  {
+    key: "beveiliging-auditlog-misbruikpreventie",
+    name: "Beveiliging, auditlog & misbruikpreventie",
+    purpose:
+      "Detecteren en voorkomen van ongeautoriseerde toegang, misbruik en fraude; vastleggen van beveiligingsrelevante handelingen.",
+    legalBasis: "GERECHTVAARDIGD_BELANG",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers", "Beheerders"],
+    dataCategories: [
+      "IP-adres",
+      "User-agent (browserkenmerk)",
+      "Tijdstempel van handelingen",
+      "Inlogpogingen (succesvol/mislukt)",
+      "Auditgebeurtenissen (wie, wat, wanneer)",
+    ],
+    sensitive: false,
+    recipients: ["Intern platformbeheer (beveiligingsteam)"],
+    retention: "12 maanden",
+    securityMeasures: [
+      "Auditlogging",
+      "Toegang op rol (RBAC)",
+      "Versleutelde opslag",
+      "Beperkte bewaartermijn",
+    ],
+  },
+
+  // 13. Abonnementen & betaling
+  {
+    key: "abonnementen-betaling",
+    name: "Abonnementen & betaling",
+    purpose:
+      "Beheren van platformabonnementen en verwerken van betalingen voor toegang tot betaalde functionaliteiten.",
+    legalBasis: "OVEREENKOMST",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers"],
+    dataCategories: ["Abonnementstype en -status", "Betalingsreferentie", "Facturatiegegevens"],
+    sensitive: false,
+    recipients: ["Betaaldienstverlener (verwerker, toekomstig)", "Intern platformbeheer"],
+    retention: "7 jaar (fiscale bewaarplicht, art. 52 AWR)",
+    securityMeasures: [
+      "Verwerkerovereenkomst met betaaldienstverlener",
+      "Geen opslag van volledige betaalkaartgegevens op het platform",
+      "Versleutelde opslag",
+      "Auditlogging",
+    ],
+  },
+] as const;
+
+// --- Bewaarschema ------------------------------------------------------------
+
+export interface RetentionRule {
+  /** Stabiele identificatiesleutel, uniek binnen het schema. */
+  key: string;
+  /** Gegevenscategorie waarop de regel van toepassing is. */
+  category: string;
+  /** Bewaartermijn (mensleesbaar). */
+  period: string;
+  /** Grondslag of reden voor de bewaartermijn. */
+  rationale: string;
+}
+
+export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
+  {
+    key: "financiele-administratie-facturen",
+    category: "Financiële administratie & facturen",
+    period: "7 jaar",
+    rationale: "Fiscale bewaarplicht (art. 52 AWR)",
+  },
+  {
+    key: "accountgegevens",
+    category: "Accountgegevens",
+    period: "Tot beëindiging van het account + redelijke afhandeltermijn",
+    rationale:
+      "Noodzakelijk voor uitvoering van de overeenkomst; na beëindiging geen grondslag meer",
+  },
+  {
+    key: "gevoelige-documenten",
+    category: "Gevoelige documenten (VOG, diploma's, certificaten)",
+    period: "Niet langer dan noodzakelijk voor het verificatiedoel",
+    rationale:
+      "Dataminimalisatiebeginsel (art. 5 lid 1e AVG); bijzondere en strafrechtelijke gegevens vereisen extra terughoudendheid",
+  },
+  {
+    key: "auditlog-beveiligingslogboeken",
+    category: "Auditlog & beveiligingslogboeken",
+    period: "12 maanden",
+    rationale:
+      "Gerechtvaardigd belang (beveiliging en fraudepreventie); langer bewaren staat niet in verhouding tot het doel",
+  },
+  {
+    key: "berichten",
+    category: "Berichten tussen partijen",
+    period: "Duur van de samenwerking + redelijke termijn (max. 12 maanden na beëindiging)",
+    rationale:
+      "Noodzakelijk voor de uitvoering van de overeenkomst en mogelijke geschillenbeslechting",
+  },
+  {
+    key: "reacties-sollicitaties",
+    category: "Reacties & sollicitaties",
+    period: "Tot 4 weken na afronding van de selectieprocedure, tenzij toestemming voor langer",
+    rationale: "AVG-richtlijn voor sollicitatiegegevens; daarna geen legitiem doel meer",
+  },
+  {
+    key: "sessies-tokens",
+    category: "Sessies & tokens",
+    period: "Kortlevend; verloopt automatisch",
+    rationale:
+      "Beveiligingsbeginsel: sessies hebben een korte levensduur en verlopen automatisch na inactiviteit of afmelding",
+  },
+] as const;
+
+// --- Samenvatting & filterfuncties ------------------------------------------
+
+export interface RegisterSummary {
+  /** Totaal aantal verwerkingsactiviteiten. */
+  total: number;
+  /** Uitsplitsing per rechtsgrond (alle vier sleutels altijd aanwezig, 0 indien geen activiteit). */
+  byLegalBasis: Record<LegalBasis, number>;
+  /** Aantal verwerkingen met bijzondere of strafrechtelijke persoonsgegevens. */
+  sensitiveCount: number;
+}
+
+/**
+ * Maakt een samenvatting van het verwerkingsregister.
+ * Zonder argument: samenvat over PROCESSING_REGISTER.
+ * Met argument: samenvat over de meegegeven lijst.
+ */
+export function summarizeRegister(activities?: readonly ProcessingActivity[]): RegisterSummary {
+  const list = activities ?? PROCESSING_REGISTER;
+
+  const byLegalBasis: Record<LegalBasis, number> = {
+    TOESTEMMING: 0,
+    OVEREENKOMST: 0,
+    WETTELIJKE_VERPLICHTING: 0,
+    GERECHTVAARDIGD_BELANG: 0,
+  };
+
+  let sensitiveCount = 0;
+
+  for (const activity of list) {
+    byLegalBasis[activity.legalBasis] += 1;
+    if (activity.sensitive) {
+      sensitiveCount += 1;
+    }
+  }
+
+  return {
+    total: list.length,
+    byLegalBasis,
+    sensitiveCount,
+  };
+}
+
+/**
+ * Filtert verwerkingsactiviteiten op rechtsgrond.
+ * basis === null → ongefilterde kopie van de invoer; anders alleen activiteiten met die rechtsgrond.
+ * Muteert de inputlijst niet.
+ */
+export function filterByLegalBasis(
+  activities: readonly ProcessingActivity[],
+  basis: LegalBasis | null,
+): ProcessingActivity[] {
+  if (basis === null) {
+    return [...activities];
+  }
+  return activities.filter((a) => a.legalBasis === basis);
+}
+
+// --- Disclaimer -------------------------------------------------------------
+
+/**
+ * Verplichte disclaimer bij weergave van het verwerkingsregister.
+ * Dit register is een hulpmiddel/concept; de verwerkingsverantwoordelijke stelt het vast en
+ * houdt het actueel. Het vormt geen juridisch advies.
+ */
+export const PROCESSING_REGISTER_DISCLAIMER: string =
+  "Dit register is een hulpmiddel ter ondersteuning van de naleving van art. 30 AVG. " +
+  "De verwerkingsverantwoordelijke stelt het register vast, controleert de juistheid en " +
+  "houdt het actueel. Dit document vormt geen juridisch advies.";
