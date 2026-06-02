@@ -2,10 +2,9 @@
 //  1. zorg dat de Prisma-provider past bij DATABASE_URL;
 //  2. zet het schema op de database (db push — additief; GEEN --accept-data-loss, zodat een
 //     destructieve schemawijziging de boot veilig laat falen i.p.v. productiedata te droppen);
-//  3. seed referentiedata voor serverstart;
-//  4. start de Next.js-server op de door Railway aangereikte PORT;
-//  5. seed rijke demo-data asynchroon als SEED_DEMO=true, zodat Railway-healthchecks niet wachten
-//     op een lange demo-seed.
+//  3. start de Next.js-server op de door Railway aangereikte PORT;
+//  4. seed referentie- en eventueel demo-data asynchroon nadat /api/health echt gezond is,
+//     zodat Railway-healthchecks nooit wachten op een seed.
 import { execSync, spawn } from "node:child_process";
 import http from "node:http";
 
@@ -20,15 +19,7 @@ run("node scripts/use-db-provider.mjs");
 // maar een destructieve wijziging faalt zichtbaar i.p.v. stilzwijgend data te wissen.
 run("npx prisma db push --skip-generate");
 
-// seed.ts seedt referentiedata (plans/skills/industries) altijd idempotent; demo-data alleen bij
-// SEED_DEMO=true. In productie (SEED_DEMO niet gezet): alleen referentiedata + een optionele
-// bootstrap-admin uit BOOTSTRAP_ADMIN_EMAIL/PASSWORD. De echte data komt daar via de CSV-import.
 const seedDemo = process.env.SEED_DEMO === "true";
-console.log("[start] referentiedata seeden voor serverstart");
-run("npx prisma db seed", {
-  ...process.env,
-  SEED_DEMO: "false",
-});
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -52,28 +43,28 @@ async function waitForLocalHealth(port, attempts = 90) {
   return false;
 }
 
-const startBackgroundDemoSeed = async () => {
-  if (!seedDemo) return;
+const startBackgroundSeed = async () => {
   const healthy = await waitForLocalHealth(port);
   if (!healthy) {
-    console.error("[start] demo-seed overgeslagen: lokale /api/health werd niet tijdig gezond");
+    console.error("[start] seed overgeslagen: lokale /api/health werd niet tijdig gezond");
     return;
   }
-  console.log("[start] rijke demo-data seeden op de achtergrond (SEED_DEMO=true)");
+  console.log(
+    seedDemo
+      ? "[start] referentie- en rijke demo-data seeden op de achtergrond (SEED_DEMO=true)"
+      : "[start] referentiedata seeden op de achtergrond",
+  );
   const child = spawn("npx", ["prisma", "db", "seed"], {
-    env: {
-      ...process.env,
-      SEED_DEMO: "true",
-    },
+    env: process.env,
     stdio: "inherit",
   });
   child.on("exit", (code, signal) => {
     if (code === 0) {
-      console.log("[start] achtergrond demo-seed afgerond");
+      console.log("[start] achtergrond-seed afgerond");
       return;
     }
     console.error(
-      `[start] achtergrond demo-seed faalde${signal ? ` door signaal ${signal}` : ` met exitcode ${code}`}`,
+      `[start] achtergrond-seed faalde${signal ? ` door signaal ${signal}` : ` met exitcode ${code}`}`,
     );
   });
 };
@@ -85,7 +76,7 @@ const server = spawn("npx", ["next", "start", "-p", port], {
 });
 
 server.on("spawn", () => {
-  void startBackgroundDemoSeed();
+  void startBackgroundSeed();
 });
 server.on("error", (error) => {
   console.error("[start] Next.js kon niet starten", error);
