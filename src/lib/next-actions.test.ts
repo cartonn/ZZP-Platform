@@ -4,6 +4,7 @@ import {
   freelancerNextActions,
   clientNextActions,
   adminNextActions,
+  formatMissing,
   type NextAction,
 } from "./next-actions";
 
@@ -52,6 +53,7 @@ const allClearFreelancer = {
   profilePrivate: false,
   identityVerified: true,
   completeness: 100,
+  missingProfileItems: [] as string[],
   rejectedCredentials: 0,
   expiringCredentials: 0,
   overdueInvoices: 0,
@@ -117,6 +119,7 @@ describe("freelancerNextActions", () => {
 
 const allClearClient = {
   companyCompleteness: 100,
+  missingCompanyItems: [] as string[],
   newApplications: 0,
   draftJobs: 0,
   overdueInvoices: 0,
@@ -149,6 +152,7 @@ describe("clientNextActions", () => {
   it("ranks compliance ripple above the rest", () => {
     const ranked = clientNextActions({
       companyCompleteness: 50,
+      missingCompanyItems: [],
       newApplications: 2,
       draftJobs: 1,
       overdueInvoices: 1,
@@ -169,6 +173,7 @@ describe("clientNextActions", () => {
   it("uses app hrefs", () => {
     const ranked = clientNextActions({
       companyCompleteness: 80,
+      missingCompanyItems: [],
       newApplications: 1,
       draftJobs: 1,
       overdueInvoices: 1,
@@ -283,5 +288,52 @@ describe("berichten die op antwoord wachten als next-action", () => {
   it("geen berichten-actie bij 0", () => {
     expect(freelancerNextActions(allClearFreelancer)).toEqual([]);
     expect(clientNextActions(allClearClient)).toEqual([]);
+  });
+});
+
+describe("formatMissing", () => {
+  it("voegt tot max items samen", () => {
+    expect(formatMissing(["Uurtarief", "Talen"])).toBe("Uurtarief, Talen");
+  });
+  it("kapt af met '+N meer'", () => {
+    expect(formatMissing(["A", "B", "C", "D", "E"])).toBe("A, B, C +2 meer");
+  });
+  it("leeg = lege string", () => {
+    expect(formatMissing([])).toBe("");
+  });
+});
+
+describe("completeness-actie toont wat te doen om 100% te halen", () => {
+  it("freelancer: noemt de ontbrekende onderdelen concreet", () => {
+    const ranked = freelancerNextActions({
+      ...allClearFreelancer,
+      completeness: 70,
+      missingProfileItems: ["Uurtarief", "Talen", "Locatie"],
+    });
+    const a = ranked.find((x) => x.id === "freelancer-completeness");
+    expect(a?.title).toBe("Profiel is 70% compleet — voeg toe: Uurtarief, Talen, Locatie");
+    expect(a?.href).toBe("/profiel");
+  });
+
+  it("freelancer: valt terug op 'vul aan' zonder lijst", () => {
+    const ranked = freelancerNextActions({
+      ...allClearFreelancer,
+      completeness: 80,
+      missingProfileItems: [],
+    });
+    expect(ranked.find((x) => x.id === "freelancer-completeness")?.title).toBe(
+      "Profiel is 80% compleet — vul aan",
+    );
+  });
+
+  it("client: noemt de ontbrekende bedrijfsonderdelen concreet", () => {
+    const ranked = clientNextActions({
+      ...allClearClient,
+      companyCompleteness: 65,
+      missingCompanyItems: ["Logo", "Website"],
+    });
+    expect(ranked.find((x) => x.id === "client-company-completeness")?.title).toBe(
+      "Bedrijfsprofiel is 65% compleet — voeg toe: Logo, Website",
+    );
   });
 });

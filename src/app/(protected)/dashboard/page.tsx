@@ -3,12 +3,17 @@ import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2, Info } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { type UserRole, type CollaborationStatus, type ContractStatus } from "@/lib/enums";
+import {
+  type UserRole,
+  type CollaborationStatus,
+  type ContractStatus,
+  type Availability,
+} from "@/lib/enums";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { clientCredentialAlerts, describeCredentialAlert } from "@/lib/collaboration-alerts";
 import { overdueInvoiceCount, unreadConversationCount } from "@/lib/signals";
-import { computeCompanyCompleteness } from "@/lib/profile";
+import { computeCompanyCompleteness, computeFreelancerCompleteness } from "@/lib/profile";
 import {
   adminNextActions,
   clientNextActions,
@@ -85,15 +90,51 @@ interface DashboardData {
   isNewAccount: boolean;
 }
 
+// Mirror van profiel/page.tsx: talen staan als JSON-array-string opgeslagen.
+function parseLanguages(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
 async function dashboardData(role: UserRole, userId: string): Promise<DashboardData> {
   const attention: AttentionItem[] = [];
 
   if (role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
       where: { userId },
-      select: { id: true, completeness: true, visibility: true },
+      select: {
+        id: true,
+        visibility: true,
+        headline: true,
+        bio: true,
+        hourlyRate: true,
+        location: true,
+        availability: true,
+        languages: true,
+        skills: { select: { skillId: true } },
+        industries: { select: { industryId: true } },
+      },
     });
     const pid = profile?.id;
+    // Live berekend (zelfde bron als de profielpagina) zodat we de ontbrekende onderdelen
+    // concreet kunnen tonen — "voeg toe: Uurtarief, Talen, ...".
+    const completeness = profile
+      ? computeFreelancerCompleteness({
+          headline: profile.headline,
+          bio: profile.bio,
+          hourlyRate: profile.hourlyRate,
+          location: profile.location,
+          availability: profile.availability as Availability,
+          languages: parseLanguages(profile.languages),
+          skillCount: profile.skills.length,
+          industryCount: profile.industries.length,
+        })
+      : { score: 0, missing: [] };
     const soon = new Date(Date.now() + 30 * 86400_000);
     const now = new Date();
     const [
@@ -136,7 +177,9 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       prisma.performance.count({
         where: { status: "REJECTED", collaboration: { freelancer: { userId } } },
       }),
-      prisma.collaboration.count({ where: { contractStatus: "SENT", freelancer: { userId } } }),
+      // Voorgestelde samenwerkingen wachten op ondertekening (contractStatus blijft DRAFT tot
+      // getekend; "SENT" wordt nergens gezet). PROPOSED = nog te tekenen om ACTIVE te worden.
+      prisma.collaboration.count({ where: { status: "PROPOSED", freelancer: { userId } } }),
       unreadConversationCount(userId),
       // Lopende samenwerkingen (niet-terminaal) met de gegevens om de cascade-fase af te leiden.
       prisma.collaboration.findMany({
@@ -168,7 +211,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       ...freelancerNextActions({
         profilePrivate: profile?.visibility === "PRIVATE",
         identityVerified: !!account?.identityVerifiedAt,
-        completeness: profile?.completeness ?? 0,
+        completeness: completeness.score,
+        missingProfileItems: completeness.missing.map((m) => m.label),
         rejectedCredentials: rejected,
         expiringCredentials: expiring,
         overdueInvoices: overdue,
@@ -220,7 +264,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
 
     return {
       stats: [
-        { label: "Profiel compleet", value: `${profile?.completeness ?? 0}%`, href: "/profiel" },
+        { label: "Profiel compleet", value: `${completeness.score}%`, href: "/profiel" },
         { label: "Geverifieerde certificaten", value: verified, href: "/certificaten" },
         { label: "Mijn reacties", value: applications, href: "/reacties" },
       ],
@@ -251,8 +295,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           website: company.website,
           hasIndustry: !!company.industryId,
           hasLogo: !!company.logoKey,
-        }).score
-      : 0;
+        })
+      : { score: 0, missing: [] };
     const [
       openJobs,
       newApps,
@@ -283,7 +327,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         where: { status: "SUBMITTED", collaboration: { company: { userId } } },
       }),
       prisma.invoice.count({ where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" } }),
-      prisma.collaboration.count({ where: { contractStatus: "SENT", company: { userId } } }),
+      // Zie freelancer-tak: PROPOSED = wacht op ondertekening (SENT wordt nergens gezet).
+      prisma.collaboration.count({ where: { status: "PROPOSED", company: { userId } } }),
       unreadConversationCount(userId),
       // Lopende samenwerkingen vanuit de opdrachtgever: dezelfde cascade, ander perspectief.
       prisma.collaboration.findMany({
@@ -308,7 +353,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     ]);
     const clientActions = rankNextActions([
       ...clientNextActions({
-        companyCompleteness,
+        companyCompleteness: companyCompleteness.score,
+        missingCompanyItems: companyCompleteness.missing.map((m) => m.label),
         newApplications: newApps,
         draftJobs: drafts,
         overdueInvoices: overdue,

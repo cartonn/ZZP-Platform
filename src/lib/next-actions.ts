@@ -26,6 +26,15 @@ export function rankNextActions(actions: NextAction[]): NextAction[] {
     .map(({ action }) => action);
 }
 
+/**
+ * Vat de ontbrekende onderdelen samen voor in een actie-titel: maximaal `max` namen,
+ * de rest als "+N meer". Zo weet de gebruiker concreet wát te doen om 100% te halen.
+ */
+export function formatMissing(items: readonly string[], max = 3): string {
+  if (items.length <= max) return items.join(", ");
+  return `${items.slice(0, max).join(", ")} +${items.length - max} meer`;
+}
+
 // Priority bands. Compliance/blocking items outrank cosmetic ones. Gaps leave
 // room for future items without renumbering.
 const P = {
@@ -49,6 +58,8 @@ export interface FreelancerActionInput {
   profilePrivate: boolean;
   identityVerified: boolean;
   completeness: number;
+  /** Labels van de ontbrekende profielonderdelen (uit computeFreelancerCompleteness). */
+  missingProfileItems: string[];
   rejectedCredentials: number;
   expiringCredentials: number;
   overdueInvoices: number;
@@ -80,9 +91,12 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
     });
   }
   if (input.completeness < 100) {
+    const todo = input.missingProfileItems.length
+      ? `voeg toe: ${formatMissing(input.missingProfileItems)}`
+      : "vul aan";
     actions.push({
       id: "freelancer-completeness",
-      title: `Profiel is ${input.completeness}% compleet — vul aan`,
+      title: `Profiel is ${input.completeness}% compleet — ${todo}`,
       href: "/profiel",
       tone: "info",
       priority: P.completeness,
@@ -109,7 +123,7 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
   if (input.overdueInvoices > 0) {
     actions.push({
       id: "freelancer-overdue-invoices",
-      title: `${input.overdueInvoices} factu(u)r(en) over de vervaldatum — stuur een herinnering`,
+      title: `${input.overdueInvoices} factu(u)r(en) over de vervaldatum — volg op`,
       href: "/facturen",
       tone: "attention",
       priority: P.overdueInvoice,
@@ -139,6 +153,8 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
 
 export interface ClientActionInput {
   companyCompleteness: number;
+  /** Labels van de ontbrekende bedrijfsprofiel-onderdelen (uit computeCompanyCompleteness). */
+  missingCompanyItems: string[];
   newApplications: number;
   draftJobs: number;
   overdueInvoices: number;
@@ -164,9 +180,12 @@ export function clientNextActions(input: ClientActionInput): NextAction[] {
     });
   });
   if (input.companyCompleteness < 100) {
+    const todo = input.missingCompanyItems.length
+      ? `voeg toe: ${formatMissing(input.missingCompanyItems)}`
+      : "vul aan";
     actions.push({
       id: "client-company-completeness",
-      title: `Bedrijfsprofiel is ${input.companyCompleteness}% compleet — vul aan`,
+      title: `Bedrijfsprofiel is ${input.companyCompleteness}% compleet — ${todo}`,
       href: "/bedrijf",
       tone: "info",
       priority: P.completeness,
@@ -193,7 +212,7 @@ export function clientNextActions(input: ClientActionInput): NextAction[] {
   if (input.overdueInvoices > 0) {
     actions.push({
       id: "client-overdue-invoices",
-      title: `${input.overdueInvoices} openstaande factu(u)r(en) over de vervaldatum — betaal`,
+      title: `${input.overdueInvoices} openstaande factu(u)r(en) over de vervaldatum — markeer als betaald`,
       href: "/facturen",
       tone: "attention",
       priority: P.overdueInvoice,
