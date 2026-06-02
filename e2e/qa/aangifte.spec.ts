@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { clickUntil } from "../_robust";
 
 // Verifieert de aangifte-delegatie: upsell zonder tier, en de volledige consent →
 // concept → review-then-submit flow mét Volledig Ontzorgd.
@@ -28,9 +29,14 @@ test.describe("QA: Wij doen je aangifte", () => {
     await login(page, "zzp@zzp-platform.local");
 
     // Upgrade naar Volledig Ontzorgd via de abonnementspagina (echte gebruikersflow).
+    // Robuust klikken: server-action-knoppen reageren pas na hydratie (zie _robust).
     await page.goto("/abonnement");
-    await page.getByRole("button", { name: "Kies Volledig Ontzorgd" }).click();
-    await page.waitForLoadState("networkidle");
+    await clickUntil(
+      page.getByRole("button", { name: "Kies Volledig Ontzorgd" }),
+      page
+        .locator("div.bg-card", { hasText: "Jij werkt, wij doen de administratie" })
+        .getByText("Huidig", { exact: true }),
+    );
 
     await page.goto("/ontzorgd/aangifte");
     await expect(page.getByRole("heading", { name: "Wij doen je aangifte" })).toBeVisible();
@@ -39,14 +45,15 @@ test.describe("QA: Wij doen je aangifte", () => {
     await page.locator('input[name="consentDpa"]').check();
     await page.locator('input[name="consentShare"]').check();
     await page.locator('input[name="consentMandate"]').check();
-    await page.getByRole("button", { name: "Start mijn aangifte" }).click();
-    await page.waitForLoadState("networkidle");
-
-    // Concept klaar → review-then-submit.
-    await expect(page.getByText("Concept klaar — wacht op jouw akkoord")).toBeVisible();
+    await clickUntil(
+      page.getByRole("button", { name: "Start mijn aangifte" }),
+      page.getByText("Concept klaar — wacht op jouw akkoord"),
+    );
     await shot(page, "aangifte-concept");
-    await page.getByRole("button", { name: "Akkoord — dien in" }).click();
-    await page.waitForLoadState("networkidle");
+    await clickUntil(
+      page.getByRole("button", { name: "Akkoord — dien in" }),
+      page.getByText("Ingediend bij de Belastingdienst"),
+    );
 
     // Ingediend met ontvangstbevestiging.
     await expect(page.getByText("Ingediend bij de Belastingdienst")).toBeVisible();

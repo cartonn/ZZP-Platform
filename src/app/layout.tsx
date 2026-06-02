@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { HydrationFlag } from "@/components/system/hydration-flag";
 
 export const metadata: Metadata = {
   title: "ZZP Platform",
@@ -16,7 +17,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <HydrationFlag />
+        {children}
+      </body>
     </html>
   );
 }
