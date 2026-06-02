@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { deleteCredential, requestVerification, toggleCredentialVisibility } from "../actions";
 import { DuoVerifyForm } from "../duo-verify-form";
@@ -184,11 +185,14 @@ export default async function CertificatenPage() {
                         {isPublic ? "Maak privé" : "Maak openbaar"}
                       </Button>
                     </form>
-                    <form action={deleteCredential.bind(null, c.id)}>
-                      <Button type="submit" variant="destructive" size="sm">
-                        <Trash2 className="size-3.5" aria-hidden /> Verwijderen
-                      </Button>
-                    </form>
+                    <ConfirmButton
+                      action={deleteCredential.bind(null, c.id)}
+                      title="Certificaat verwijderen?"
+                      description="Het certificaat en het gekoppelde bewijsstuk worden permanent verwijderd. Dit kan niet ongedaan worden gemaakt."
+                      confirmLabel="Verwijderen"
+                    >
+                      <Trash2 className="size-3.5" aria-hidden /> Verwijderen
+                    </ConfirmButton>
                   </div>
 
                   {c.type === "DIPLOMA" && status !== "VERIFIED" && (

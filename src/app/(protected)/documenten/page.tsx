@@ -6,6 +6,7 @@ import { type DocumentKind } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DocumentForm } from "./document-form";
 import { deleteDocument } from "./actions";
@@ -76,16 +77,15 @@ export default async function DocumentenPage() {
                     </a>
                   </Button>
                   {!linked && (
-                    <form action={deleteDocument.bind(null, doc.id)}>
-                      <Button
-                        type="submit"
-                        variant="destructive"
-                        size="sm"
-                        aria-label={`Verwijder ${doc.filename}`}
-                      >
-                        <Trash2 className="size-3.5" aria-hidden />
-                      </Button>
-                    </form>
+                    <ConfirmButton
+                      action={deleteDocument.bind(null, doc.id)}
+                      title="Document verwijderen?"
+                      description="Dit document wordt permanent uit je opslag verwijderd. Dit kan niet ongedaan worden gemaakt."
+                      confirmLabel="Verwijderen"
+                      aria-label={`Verwijder ${doc.filename}`}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden />
+                    </ConfirmButton>
                   )}
                 </div>
               </div>
