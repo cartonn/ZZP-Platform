@@ -79,7 +79,7 @@ export default async function DocumentenPage() {
                     <form action={deleteDocument.bind(null, doc.id)}>
                       <Button
                         type="submit"
-                        variant="danger"
+                        variant="destructive"
                         size="sm"
                         aria-label={`Verwijder ${doc.filename}`}
                       >

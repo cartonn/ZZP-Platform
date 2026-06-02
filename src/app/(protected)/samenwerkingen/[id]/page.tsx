@@ -587,7 +587,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                             placeholder="Reden afkeuren"
                             className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                           />
-                          <Button type="submit" size="sm" variant="danger">
+                          <Button type="submit" size="sm" variant="destructive">
                             Afkeuren
                           </Button>
                         </form>
@@ -663,7 +663,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                               placeholder="Reden afkeuren"
                               className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                             />
-                            <Button type="submit" size="sm" variant="danger">
+                            <Button type="submit" size="sm" variant="destructive">
                               Afkeuren
                             </Button>
                           </form>

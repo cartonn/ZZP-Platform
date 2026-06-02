@@ -142,7 +142,7 @@ export default async function AccountPage() {
             </div>
           ) : (
             <form action={requestAccountDeletion}>
-              <Button type="submit" variant="danger" size="sm">
+              <Button type="submit" variant="destructive" size="sm">
                 Verwijdering aanvragen
               </Button>
             </form>
