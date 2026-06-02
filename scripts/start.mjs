@@ -7,6 +7,7 @@
 //  5. seed rijke demo-data asynchroon als SEED_DEMO=true, zodat Railway-healthchecks niet wachten
 //     op een lange demo-seed.
 import { execSync, spawn } from "node:child_process";
+import http from "node:http";
 
 const run = (cmd, env = process.env) => execSync(cmd, { env, stdio: "inherit" });
 
@@ -29,8 +30,35 @@ run("npx prisma db seed", {
   SEED_DEMO: "false",
 });
 
-const startBackgroundDemoSeed = () => {
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForLocalHealth(port, attempts = 90) {
+  const url = `http://127.0.0.1:${port}/api/health`;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const ok = await new Promise((resolve) => {
+      const req = http.get(url, (res) => {
+        res.resume();
+        resolve(res.statusCode === 200);
+      });
+      req.on("error", () => resolve(false));
+      req.setTimeout(1000, () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
+    if (ok) return true;
+    await wait(1000);
+  }
+  return false;
+}
+
+const startBackgroundDemoSeed = async () => {
   if (!seedDemo) return;
+  const healthy = await waitForLocalHealth(port);
+  if (!healthy) {
+    console.error("[start] demo-seed overgeslagen: lokale /api/health werd niet tijdig gezond");
+    return;
+  }
   console.log("[start] rijke demo-data seeden op de achtergrond (SEED_DEMO=true)");
   const child = spawn("npx", ["prisma", "db", "seed"], {
     env: {
@@ -56,7 +84,9 @@ const server = spawn("npx", ["next", "start", "-p", port], {
   stdio: "inherit",
 });
 
-server.on("spawn", startBackgroundDemoSeed);
+server.on("spawn", () => {
+  void startBackgroundDemoSeed();
+});
 server.on("error", (error) => {
   console.error("[start] Next.js kon niet starten", error);
   process.exit(1);
