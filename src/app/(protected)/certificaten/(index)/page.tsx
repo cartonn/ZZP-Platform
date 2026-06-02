@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Award, Download, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import { Award, Download, Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { CREDENTIAL_TYPE_LABEL, daysUntilExpiry, isExpiringSoon } from "@/lib/credentials";
@@ -158,6 +158,18 @@ export default async function CertificatenPage() {
                           Verificatie aanvragen
                         </Button>
                       </form>
+                    )}
+                    {/* Bijna-verlopen, nog geldig (VERIFIED): vernieuwen = nieuw bewijsstuk uploaden
+                        op de bewerken-pagina, wat het certificaat opnieuw ter verificatie aanbiedt. */}
+                    {expiringSoon && (
+                      <Button asChild size="sm">
+                        <Link
+                          href={`/certificaten/${c.id}/bewerken`}
+                          title="Upload een nieuw bewijsstuk om het certificaat te vernieuwen"
+                        >
+                          <RefreshCw className="size-3.5" aria-hidden /> Vernieuwen
+                        </Link>
+                      </Button>
                     )}
                     {c.document && (
                       <Button asChild variant="secondary" size="sm">
