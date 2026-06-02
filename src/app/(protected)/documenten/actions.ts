@@ -5,6 +5,7 @@ import { AuthorizationError, requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import {
+  assertContentMatchesMime,
   generateStorageKey,
   getStorage,
   UploadValidationError,
@@ -44,6 +45,12 @@ export async function uploadDocument(
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
+  try {
+    assertContentMatchesMime(buffer, file.type);
+  } catch (e) {
+    if (e instanceof UploadValidationError) return { fieldErrors: { document: e.message } };
+    throw e;
+  }
   const key = generateStorageKey(file.name);
   await getStorage().put(key, buffer, file.type);
   const doc = await prisma.document.create({

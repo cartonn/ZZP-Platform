@@ -11,6 +11,7 @@ import { documentKindForCredential } from "@/lib/documents";
 import { getDiplomaVerifier } from "@/lib/services/diploma-verifier";
 import { getBigVerifier } from "@/lib/services/big-verifier";
 import {
+  assertContentMatchesMime,
   generateStorageKey,
   getStorage,
   UploadValidationError,
@@ -42,6 +43,7 @@ async function loadOwnedCredential(profileId: string, credentialId: string) {
 async function putBlob(ownerId: string, type: CredentialType, file: File) {
   validateUpload({ filename: file.name, mimeType: file.type, size: file.size });
   const buffer = Buffer.from(await file.arrayBuffer());
+  assertContentMatchesMime(buffer, file.type);
   const key = generateStorageKey(file.name);
   await getStorage().put(key, buffer, file.type);
   return {

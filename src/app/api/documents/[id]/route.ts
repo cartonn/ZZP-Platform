@@ -3,6 +3,8 @@ import { AuthorizationError, requireActor } from "@/lib/authz";
 import { canAccessDocument } from "@/lib/documents";
 import { prisma } from "@/lib/db";
 import { getStorage } from "@/lib/services/storage";
+import { audit } from "@/lib/audit";
+import { requestMeta } from "@/lib/request-meta";
 
 // Privé document-download (CLAUDE.md regel 4): alleen eigenaar of admin. Nooit publiek pad.
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -33,12 +35,26 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const data = await storage.get(doc.storageKey);
   const safeName = doc.filename.replace(/[^\w.\-]+/g, "_");
 
+  // AVG/compliance (CLAUDE.md regel 5): wie-zag-welk-gevoelig-document-wanneer vastleggen.
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "DOCUMENT_ACCESSED",
+    entityType: "Document",
+    entityId: id,
+    metadata: { viewerRole: actor.role, owner: actor.id === doc.ownerId },
+    ...meta,
+  });
+
   return new NextResponse(new Uint8Array(data), {
     headers: {
       "Content-Type": doc.mimeType,
       "Content-Disposition": `inline; filename="${safeName}"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
+      // Sandbox het document: zelfs als een verkeerd getypt bestand inline wordt geopend,
+      // mag het geen scripts/embeds uitvoeren (defense-in-depth bovenop magic-byte-validatie).
+      "Content-Security-Policy": "sandbox; default-src 'none'",
     },
   });
 }
