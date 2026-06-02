@@ -906,8 +906,11 @@ async function main() {
       if (!reaches(s.target, "PAID")) continue;
       await confirmPayment(fActor, draftInvoice.id); // statusupdate, geen betaling (Besluit 1)
     }
+  }
 
-    // --- Support-tickets (helpdesk-wachtrij) ---
+  // --- Support-tickets (helpdesk-wachtrij) — eigen guard, los van de cascade-telling, zodat ze
+  //     ook (her)gemaakt worden als een eerdere boot halverwege afbrak (zelfherstellend). ---
+  if ((await prisma.supportTicket.count()) === 0) {
     const ticketSpecs: { fk: string; subject: string; category: string; status: string }[] = [
       { fk: "daan", subject: "Mijn VOG is afgewezen — hoe dien ik opnieuw in?", category: "CREDENTIAL", status: "NEW" }, // prettier-ignore
       { fk: "lisa", subject: "Factuur-PDF toont niet alle regels", category: "INVOICE", status: "TRIAGED" }, // prettier-ignore
