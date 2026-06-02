@@ -5,7 +5,11 @@ import { type UserRole } from "@/lib/enums";
 // Auth.js-config in src/auth.ts. De Credentials-provider wordt daar toegevoegd.
 export const authConfig = {
   pages: { signIn: "/login" },
-  session: { strategy: "jwt" },
+  // Kortere sessieduur dan de Auth.js-default (30 dagen): defense-in-depth bovenop de live
+  // DB-revalidatie in currentActor(). updateAge verlengt een actieve sessie stilzwijgend.
+  session: { strategy: "jwt", maxAge: 8 * 60 * 60, updateAge: 60 * 60 },
+  // Secure cookies in productie (https); Auth.js zet dan de __Secure-/__Host-prefix + secure-flag.
+  useSecureCookies: process.env.NODE_ENV === "production",
   trustHost: true,
   callbacks: {
     jwt({ token, user, trigger, session }) {

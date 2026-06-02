@@ -8,6 +8,7 @@ import { buildResetEmail } from "@/lib/services/reset-email";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { resetRateLimiter } from "@/lib/rate-limit";
 
 export interface ForgotPasswordState {
   submitted?: boolean;
@@ -36,6 +37,14 @@ export async function requestPasswordReset(
   }
 
   const { email } = parsed.data;
+  const meta = await requestMeta();
+
+  // Begrens reset-aanvragen per IP+e-mail (mail-bombing / CPU-amplificatie). Bij overschrijding
+  // dezelfde uniforme respons teruggeven — geen enumeratie-lek, geen werk uitvoeren.
+  const limitKey = `${meta.ipAddress ?? "unknown"}:${email.toLowerCase()}`;
+  if (!resetRateLimiter.check(limitKey).allowed) {
+    return { submitted: true };
+  }
 
   // Zoek de gebruiker — maar laat de response nooit uitlekken of het bestaat.
   const user = await prisma.user.findUnique({
@@ -61,7 +70,6 @@ export async function requestPasswordReset(
         console.error("[password-reset] e-mail verzenden mislukt:", err);
       });
 
-      const meta = await requestMeta();
       await audit({
         actorId: user.id,
         action: "PASSWORD_RESET_REQUESTED",
