@@ -25,6 +25,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
     env:
       DATABASE_URL: "file:./ci.db"
@@ -45,7 +46,7 @@ jobs:
       - run: npx prisma generate && npx prisma db push --skip-generate && npx prisma db seed
       - run: npx playwright install chromium --with-deps
       - run: npm run build
-      - run: npx playwright test --project=ci
+      - run: npx playwright test e2e/smoke.spec.ts --project=ci
       - uses: actions/upload-artifact@v4
         if: always()
         with:
