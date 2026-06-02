@@ -11,6 +11,23 @@
 
 ---
 
+## WORKSPACE OVERHAUL (`prompts/WORKSPACE_OVERHAUL.md`) — dashboards → command center
+
+- [x] **Fase 1 — pure helpers + unit-tests** (branch `feat/workspace-overhaul`, PR #69)
+  - [x] A) `src/lib/cascade/stage.ts` — `cascadeStage()`: fase/voortgang (stap N/6)/wie-aan-zet/CTA
+        per samenwerking, viewer-bewust. 14 tests (`stage.test.ts`).
+  - [x] C) `src/lib/next-actions.ts` — `messagesAwaitingReply` voor freelancer + client (band 55);
+        dashboard hergebruikt `unreadConversationCount` uit `signals.ts` (nu geëxporteerd). +4 tests.
+        (Legitimatie/VOG-expiry valt al onder `expiringCredentials`; geen apart identiteit-expiry-veld.)
+  - [x] B) `src/lib/week-overview.ts` — `weekOverview()`: deterministisch weekoverzicht (ISO-week UTC,
+        timing-classificatie, sortering per opdrachtgever). 10 tests. Geen per-dag-rooster (geen
+        schema-veld) → echt "ma bij A, wo bij B" vergt ADR + schema-uitbreiding (Fase 6).
+- [ ] **Fase 2 — FREELANCER-dashboard → drie zones** (loopt/aandacht/oppakken; tone + voortgang tonen).
+- [ ] **Fase 3 — CLIENT** · [ ] **Fase 4 — ADMIN** · [ ] **Fase 5 — zijbalk** ·
+      [ ] **Fase 6 — weekoverzicht-UI (+ evt. ADR/schema)**.
+
+---
+
 ## Status per sessie
 
 - [x] **Sessie 0** — Inventarisatie & fundament

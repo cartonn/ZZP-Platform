@@ -104,7 +104,7 @@ export async function overdueInvoiceCount(role: UserRole, userId: string): Promi
 }
 
 /** Twee begrensde queries (geen N+1): deelnemerschap + laatste vreemde bericht per gesprek. */
-async function unreadConversationCount(userId: string): Promise<number> {
+export async function unreadConversationCount(userId: string): Promise<number> {
   const participants = await prisma.conversationParticipant.findMany({
     where: { userId },
     select: { conversationId: true, lastReadAt: true },

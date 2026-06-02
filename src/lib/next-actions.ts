@@ -39,6 +39,7 @@ const P = {
   verificationQueue: 70, // wacht op verificatie (admin)
   overdueInvoice: 60, // factuur over de vervaldatum
   pendingUsers: 60, // gebruikers met PENDING-status (admin)
+  messagesAwaiting: 55, // berichten van de andere partij wachten op antwoord
   applications: 50, // nieuwe reacties
   completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)
   drafts: 20, // concept-opdrachten
@@ -53,6 +54,8 @@ export interface FreelancerActionInput {
   overdueInvoices: number;
   /** Samenwerkingen met een contract dat op ondertekening wacht (deblokkeert de cascade). */
   contractsAwaitingSignature: number;
+  /** Gesprekken waarin een bericht van de andere partij op antwoord wacht. */
+  messagesAwaitingReply: number;
 }
 
 export function freelancerNextActions(input: FreelancerActionInput): NextAction[] {
@@ -121,6 +124,15 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
       priority: P.contractSign,
     });
   }
+  if (input.messagesAwaitingReply > 0) {
+    actions.push({
+      id: "freelancer-messages-awaiting",
+      title: `${input.messagesAwaitingReply} bericht(en) wachten op je antwoord`,
+      href: "/berichten",
+      tone: "attention",
+      priority: P.messagesAwaiting,
+    });
+  }
 
   return rankNextActions(actions);
 }
@@ -134,6 +146,8 @@ export interface ClientActionInput {
   collaborationCredentialAlerts: string[];
   /** Samenwerkingen met een contract dat op ondertekening wacht. */
   contractsAwaitingSignature: number;
+  /** Gesprekken waarin een bericht van de andere partij op antwoord wacht. */
+  messagesAwaitingReply: number;
 }
 
 export function clientNextActions(input: ClientActionInput): NextAction[] {
@@ -192,6 +206,15 @@ export function clientNextActions(input: ClientActionInput): NextAction[] {
       href: "/samenwerkingen",
       tone: "attention",
       priority: P.contractSign,
+    });
+  }
+  if (input.messagesAwaitingReply > 0) {
+    actions.push({
+      id: "client-messages-awaiting",
+      title: `${input.messagesAwaitingReply} bericht(en) wachten op je antwoord`,
+      href: "/berichten",
+      tone: "attention",
+      priority: P.messagesAwaiting,
     });
   }
 
