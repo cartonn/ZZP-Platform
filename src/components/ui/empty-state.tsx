@@ -44,7 +44,7 @@ export function EmptyState({
         ) : null}
       </div>
       {action ? (
-        <Button asChild size="sm" variant="secondary" className="mt-1">
+        <Button asChild size="sm" variant="primary" className="mt-1">
           <Link href={action.href}>{action.label}</Link>
         </Button>
       ) : null}
