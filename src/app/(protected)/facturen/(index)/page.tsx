@@ -104,6 +104,9 @@ export default async function FacturenPage() {
             description={
               isFreelancer ? "Stel een factuur op vanuit een actieve samenwerking." : undefined
             }
+            action={
+              isFreelancer ? { label: "Factuur opstellen", href: "/facturen/nieuw" } : undefined
+            }
           />
         </Card>
       ) : (
