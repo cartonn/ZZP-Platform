@@ -373,6 +373,17 @@ async function main() {
         },
       ],
     },
+    // --- Extra ZZP'ers (breedte) ---
+    { key: "kevin", email: "kevin@zzp-platform.local", name: "Kevin Mol", headline: "Python Developer / Data", bio: "Bouwt data-pipelines en ML-features.", rate: 82, availability: "AVAILABLE", location: "Amsterdam", workMode: "REMOTE", industry: "ict", skills: ["python", "aws"], identityVerified: true, completeness: 100, creds: [{ type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 250 }] }, // prettier-ignore
+    { key: "nadia", email: "nadia@zzp-platform.local", name: "Nadia Haddad", headline: "Scrum Master", bio: "Faciliteert teams; gecertificeerd PSM II.", rate: 88, availability: "LIMITED", location: "Rotterdam", workMode: "HYBRID", industry: "ict", skills: ["scrum", "projectmanagement"], identityVerified: false, completeness: 85, creds: [{ type: "CERTIFICATE", title: "PSM II", issuer: "Scrum.org", status: "SUBMITTED" }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 20 }] }, // prettier-ignore
+    { key: "tom", email: "tom@zzp-platform.local", name: "Tom Bakhuis", headline: "Fullstack Developer", bio: "React + Node, end-to-end features.", rate: 80, availability: "AVAILABLE", location: "Eindhoven", workMode: "REMOTE", industry: "ict", skills: ["react", "nodejs", "typescript"], identityVerified: true, completeness: 95, creds: [{ type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 500 }, { type: "DIPLOMA", title: "WO Technische Informatica", issuer: "TU Eindhoven", status: "VERIFIED" }] }, // prettier-ignore
+    { key: "emma", email: "emma@zzp-platform.local", name: "Emma de Boer", headline: "Verpleegkundige (IC)", bio: "IC-verpleegkundige, BIG-geregistreerd, nachtdiensten.", rate: 56, availability: "AVAILABLE", location: "Groningen", workMode: "ONSITE", industry: "zorg", skills: ["verpleegkunde"], identityVerified: true, completeness: 100, creds: [{ type: "LICENSE", title: "BIG-registratie Verpleegkundige", issuer: "CIBG", status: "VERIFIED", expiresInDays: 800 }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 200 }] }, // prettier-ignore
+    { key: "ahmed", email: "ahmed@zzp-platform.local", name: "Ahmed Yilmaz", headline: "Installatiemonteur", bio: "Werktuigbouw + elektra, VCA-VOL.", rate: 58, availability: "AVAILABLE", location: "Tilburg", workMode: "ONSITE", industry: "bouw", skills: ["elektrotechniek", "vca"], identityVerified: false, completeness: 80, creds: [{ type: "CERTIFICATE", title: "VCA VOL", issuer: "VCA Infra", status: "VERIFIED", expiresInDays: 400 }, { type: "VOG", title: "VOG", issuer: "Justis", status: "REJECTED", reason: "Document onleesbaar — upload opnieuw." }] }, // prettier-ignore
+    { key: "julia", email: "julia@zzp-platform.local", name: "Julia Vermeer", headline: "Logistiek consultant", bio: "Optimaliseert warehouse- en transportprocessen.", rate: 72, availability: "LIMITED", location: "Venlo", workMode: "HYBRID", industry: "logistiek", skills: ["projectmanagement"], identityVerified: true, completeness: 90, creds: [{ type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 350 }] }, // prettier-ignore
+    { key: "bram", email: "bram@zzp-platform.local", name: "Bram Koster", headline: "DevOps Engineer", bio: "Kubernetes, CI/CD, observability.", rate: 95, availability: "AVAILABLE", location: "Utrecht", workMode: "REMOTE", industry: "ict", skills: ["aws", "nodejs"], identityVerified: true, completeness: 100, creds: [{ type: "CERTIFICATE", title: "AWS Solutions Architect", issuer: "AWS", status: "VERIFIED", expiresInDays: 600 }, { type: "VOG", title: "VOG", issuer: "Justis", status: "SUBMITTED" }] }, // prettier-ignore
+    { key: "sofie", email: "sofie@zzp-platform.local", name: "Sofie Willems", headline: "Frontend Developer", bio: "Toegankelijke UI's met React + design-systemen.", rate: 76, availability: "AVAILABLE", location: "Den Bosch", workMode: "HYBRID", industry: "ict", skills: ["react", "typescript"], identityVerified: false, completeness: 75, creds: [{ type: "DIPLOMA", title: "HBO Software Engineering", issuer: "Fontys", status: "SUBMITTED" }] }, // prettier-ignore
+    { key: "rik", email: "rik@zzp-platform.local", name: "Rik Plomp", headline: "Projectmanager Bouw", bio: "Leidt bouwprojecten van ontwerp tot oplevering.", rate: 90, availability: "UNAVAILABLE", location: "Zwolle", workMode: "ONSITE", industry: "bouw", skills: ["projectmanagement"], identityVerified: true, completeness: 95, creds: [{ type: "CERTIFICATE", title: "VCA VOL", issuer: "VCA Infra", status: "EXPIRED" }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 120 }] }, // prettier-ignore
+    { key: "iris", email: "iris@zzp-platform.local", name: "Iris Hendriks", headline: "Verzorgende IG", bio: "Thuiszorg en VVT, flexibel inzetbaar.", rate: 42, availability: "AVAILABLE", location: "Arnhem", workMode: "ONSITE", industry: "zorg", skills: ["verpleegkunde"], identityVerified: true, completeness: 100, creds: [{ type: "DIPLOMA", title: "MBO Verzorgende IG", issuer: "Rijn IJssel", status: "VERIFIED" }, { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", expiresInDays: 280 }] }, // prettier-ignore
   ];
 
   const pid: Record<string, string> = {};
@@ -452,30 +463,42 @@ async function main() {
     }
   }
 
-  // --- Opdrachtgever + bedrijf ---
-  const client = await prisma.user.upsert({
-    where: { email: "opdrachtgever@zzp-platform.local" },
-    update: {},
-    create: {
-      email: "opdrachtgever@zzp-platform.local",
-      name: "Mark Jansen",
-      role: "CLIENT",
-      status: "ACTIVE",
-      emailVerified: new Date(),
-      passwordHash,
-      company: {
-        create: {
-          name: "Jansen Software B.V.",
-          industryId: industryId.ict,
-          description: "Productbureau voor web- en mobiele applicaties in zorg en overheid.",
-          website: "https://jansensoftware.nl",
-          location: "Utrecht",
+  // --- Opdrachtgevers + bedrijven (meerdere) ---
+  const companySpecs = [
+    { key: "jansen", email: "opdrachtgever@zzp-platform.local", contact: "Mark Jansen", company: "Jansen Software B.V.", industry: "ict", website: "https://jansensoftware.nl", location: "Utrecht", description: "Productbureau voor web- en mobiele applicaties in zorg en overheid." }, // prettier-ignore
+    { key: "zorggroep", email: "zorggroep@zzp-platform.local", contact: "Petra Mulder", company: "ZorgGroep Midden B.V.", industry: "zorg", website: "https://zorggroepmidden.nl", location: "Amersfoort", description: "Aanbieder van wijkverpleging en VVT-zorg." }, // prettier-ignore
+    { key: "bouwpartners", email: "bouwpartners@zzp-platform.local", contact: "Henk de Wit", company: "BouwPartners Nederland", industry: "bouw", website: "https://bouwpartners.nl", location: "Zwolle", description: "Aannemer voor utiliteits- en woningbouw." }, // prettier-ignore
+    { key: "logiflow", email: "logiflow@zzp-platform.local", contact: "Sandra Vos", company: "LogiFlow Logistics", industry: "logistiek", website: "https://logiflow.nl", location: "Venlo", description: "Warehousing en transportoptimalisatie." }, // prettier-ignore
+    { key: "datic", email: "datic@zzp-platform.local", contact: "Erik Brand", company: "Datic Solutions", industry: "ict", website: "https://datic.nl", location: "Eindhoven", description: "Data- en cloudconsultancy." }, // prettier-ignore
+  ];
+  const clientUserIdByKey: Record<string, string> = {};
+  const companyIdByKey: Record<string, string> = {};
+  for (const c of companySpecs) {
+    const u = await prisma.user.upsert({
+      where: { email: c.email },
+      update: {},
+      create: {
+        email: c.email,
+        name: c.contact,
+        role: "CLIENT",
+        status: "ACTIVE",
+        emailVerified: new Date(),
+        passwordHash,
+        company: {
+          create: {
+            name: c.company,
+            industryId: industryId[c.industry]!,
+            description: c.description,
+            website: c.website,
+            location: c.location,
+          },
         },
       },
-    },
-    include: { company: true },
-  });
-  const companyId = client.company!.id;
+      include: { company: true },
+    });
+    clientUserIdByKey[c.key] = u.id;
+    companyIdByKey[c.key] = u.company!.id;
+  }
 
   // --- Opdrachten ---
   type Job = {
@@ -492,6 +515,7 @@ async function main() {
     opt?: string[];
     reqCreds?: string[];
     dbaRisk?: string;
+    company?: string; // bedrijf-key (default "jansen")
   };
   const jobs: Job[] = [
     {
@@ -585,6 +609,19 @@ async function main() {
       industry: "ict",
       req: ["react"],
     },
+    // --- Extra opdrachten, verdeeld over de bedrijven (breedte) ---
+    { id: "job-8", title: "Wijkverpleegkundige", description: "Wijkverpleging in de regio Amersfoort; flexibele diensten.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 45, rateMax: 62, location: "Amersfoort", industry: "zorg", req: ["verpleegkunde"], reqCreds: ["LICENSE", "VOG"], dbaRisk: "MIDDEN", company: "zorggroep" }, // prettier-ignore
+    { id: "job-9", title: "Verzorgende IG (VVT)", description: "VVT-zorg met avond- en nachtdiensten (ORT van toepassing).", status: "PUBLISHED", workMode: "ONSITE", rateMin: 38, rateMax: 50, location: "Amersfoort", industry: "zorg", req: ["verpleegkunde"], reqCreds: ["VOG"], company: "zorggroep" }, // prettier-ignore
+    { id: "job-10", title: "Elektromonteur utiliteit", description: "Installatiewerk in utiliteitsbouw; VCA vereist.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 48, rateMax: 68, location: "Zwolle", industry: "bouw", req: ["elektrotechniek", "vca"], reqCreds: ["VOG"], company: "bouwpartners" }, // prettier-ignore
+    { id: "job-11", title: "Projectleider Bouw", description: "Leid bouwprojecten van ontwerp tot oplevering.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 80, rateMax: 110, location: "Zwolle", industry: "bouw", req: ["projectmanagement"], dbaRisk: "MIDDEN", company: "bouwpartners" }, // prettier-ignore
+    { id: "job-12", title: "Logistiek Planner", description: "Plan transport- en magazijnstromen voor een groeiend netwerk.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 55, rateMax: 80, location: "Venlo", industry: "logistiek", req: ["projectmanagement"], company: "logiflow" }, // prettier-ignore
+    { id: "job-13", title: "Supply Chain Analist", description: "Data-analyse van de keten; Python + dashboards.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 65, rateMax: 90, industry: "logistiek", req: ["python"], opt: ["aws"], company: "logiflow" }, // prettier-ignore
+    { id: "job-14", title: "Data Engineer", description: "Bouw data-pipelines op AWS voor onze klanten.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 80, rateMax: 110, industry: "ict", req: ["python", "aws"], reqCreds: ["VOG"], company: "datic" }, // prettier-ignore
+    { id: "job-15", title: "Cloud Engineer", description: "Beheer en automatiseer cloudinfrastructuur (AWS/Node).", status: "PUBLISHED", workMode: "REMOTE", rateMin: 85, rateMax: 115, industry: "ict", req: ["aws", "nodejs"], company: "datic" }, // prettier-ignore
+    { id: "job-16", title: "Fullstack Developer", description: "End-to-end features in React en Node voor ons platform.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 75, rateMax: 100, location: "Utrecht", industry: "ict", req: ["react", "nodejs"], opt: ["typescript"], reqCreds: ["VOG"], company: "jansen" }, // prettier-ignore
+    { id: "job-17", title: "Scrum Master", description: "Faciliteer twee teams; verbeter het ontwikkelproces.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 80, rateMax: 100, location: "Utrecht", industry: "ict", req: ["scrum"], company: "jansen" }, // prettier-ignore
+    { id: "job-18", title: "Frontend Developer", description: "Toegankelijke UI's met een design-systeem.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 70, rateMax: 95, industry: "ict", req: ["react", "typescript"], company: "datic" }, // prettier-ignore
+    { id: "job-19", title: "Installatiemonteur", description: "Werktuigbouw en elektra op locatie; VCA vereist.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 46, rateMax: 64, location: "Tilburg", industry: "bouw", req: ["elektrotechniek"], reqCreds: ["VOG"], company: "bouwpartners" }, // prettier-ignore
   ];
   const now = new Date();
   for (const j of jobs) {
@@ -597,7 +634,7 @@ async function main() {
       update: {},
       create: {
         id: j.id,
-        companyId,
+        companyId: companyIdByKey[j.company ?? "jansen"]!,
         industryId: industryId[j.industry]!,
         title: j.title,
         description: j.description,
@@ -772,26 +809,31 @@ async function main() {
     const reaches = (target: Target, stage: Target) =>
       ORDER.indexOf(target) >= ORDER.indexOf(stage);
 
-    // Elk paar (fk, job) is uniek én niet in de foundation-reacties (unique constraint
-    // jobId+freelancerId). Eén collaboration per applicatie (applicationId @unique).
+    // Bedrijf per opdracht, zodat de cascade over meerdere opdrachtgevers wordt verdeeld.
+    const jobCompanyKey: Record<string, string> = Object.fromEntries(
+      jobs.map((j) => [j.id, j.company ?? "jansen"]),
+    );
+    // Eén scenario per (nieuwe) opdracht → elk (freelancer, opdracht)-paar is uniek en botst niet met
+    // de foundation-reacties (constraint jobId+freelancerId). Verdeeld over alle bedrijven/toestanden.
     const scenarios: { fk: string; job: string; rate: number; target: Target; ort?: boolean }[] = [
-      { fk: "youssef", job: "job-6", rate: 90, target: "PAID" },
-      { fk: "lisa", job: "job-1", rate: 105, target: "PAID" },
-      { fk: "fatima", job: "job-6", rate: 54, target: "PAID", ort: true },
-      { fk: "sanne", job: "job-2", rate: 100, target: "INVOICE_APPROVED" },
-      { fk: "peter", job: "job-6", rate: 80, target: "INVOICE_SUBMITTED" },
-      { fk: "daan", job: "job-2", rate: 70, target: "PERF_APPROVED" },
-      { fk: "fatima", job: "job-2", rate: 58, target: "PERF_APPROVED", ort: true },
-      { fk: "youssef", job: "job-3", rate: 95, target: "PERF_SUBMITTED" },
-      { fk: "fatima", job: "job-3", rate: 60, target: "PERF_REJECTED" },
-      { fk: "sanne", job: "job-5", rate: 88, target: "ACTIVE" },
-      { fk: "lisa", job: "job-5", rate: 92, target: "ACTIVE" },
-      { fk: "peter", job: "job-1", rate: 75, target: "PROPOSED" },
+      { fk: "emma", job: "job-8", rate: 56, target: "PAID", ort: true },
+      { fk: "iris", job: "job-9", rate: 42, target: "INVOICE_APPROVED", ort: true },
+      { fk: "ahmed", job: "job-10", rate: 58, target: "PAID" },
+      { fk: "rik", job: "job-11", rate: 90, target: "ACTIVE" },
+      { fk: "julia", job: "job-12", rate: 72, target: "INVOICE_SUBMITTED" },
+      { fk: "kevin", job: "job-13", rate: 82, target: "PERF_APPROVED" },
+      { fk: "bram", job: "job-14", rate: 95, target: "PAID" },
+      { fk: "tom", job: "job-15", rate: 88, target: "PERF_SUBMITTED" },
+      { fk: "sofie", job: "job-16", rate: 76, target: "PERF_REJECTED" },
+      { fk: "nadia", job: "job-17", rate: 88, target: "ACTIVE" },
+      { fk: "youssef", job: "job-18", rate: 90, target: "PROPOSED" },
+      { fk: "daan", job: "job-19", rate: 60, target: "PERF_APPROVED" },
     ];
 
     let i = 0;
     for (const s of scenarios) {
       i++;
+      const compKey = jobCompanyKey[s.job] ?? "jansen";
       const application = await prisma.application.create({
         data: {
           jobId: s.job,
@@ -808,7 +850,7 @@ async function main() {
           jobId: s.job,
           applicationId: application.id,
           freelancerId: pid[s.fk]!,
-          companyId,
+          companyId: companyIdByKey[compKey]!,
           status: "PROPOSED",
           contractStatus: "DRAFT",
           rate: s.rate,
@@ -817,7 +859,7 @@ async function main() {
         },
       });
       const fActor = actorOf(uid[s.fk]!, "FREELANCER");
-      const cActor = actorOf(client.id, "CLIENT");
+      const cActor = actorOf(clientUserIdByKey[compKey]!, "CLIENT");
 
       if (!reaches(s.target, "ACTIVE")) continue;
       await signContract(cActor, collab.id);
