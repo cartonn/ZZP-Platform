@@ -87,6 +87,12 @@ export async function anonymizeUser(userId: string): Promise<void> {
     prisma.company.updateMany({ where: { userId }, data: companyAnonymizationData() }),
     prisma.credential.deleteMany({ where: { freelancerProfile: { userId } } }),
     prisma.document.deleteMany({ where: { ownerId: userId } }),
+    // AVG: verzonden berichten blijven als gespreksgeschiedenis bestaan, maar de vrije tekst kan
+    // PII bevatten (naam/adres/telefoon) → redacten zodat de betrokkene niet meer herleidbaar is.
+    prisma.message.updateMany({
+      where: { senderId: userId },
+      data: { body: "[Bericht verwijderd op verzoek van de gebruiker]" },
+    }),
     prisma.auditLog.create({
       data: auditData({
         actorId: actor.id,

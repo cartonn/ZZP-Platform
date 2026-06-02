@@ -49,6 +49,52 @@ export function validateUpload(file: UploadCandidate): void {
   }
 }
 
+/**
+ * Detecteert het werkelijke bestandstype aan de byte-signatuur (magic bytes), onafhankelijk van
+ * de door de client opgegeven Content-Type. Geeft null bij een onbekende/niet-toegestane signatuur.
+ */
+export function sniffMimeType(buffer: Buffer): AllowedMimeType | null {
+  if (buffer.length >= 5 && buffer.toString("latin1", 0, 5) === "%PDF-") {
+    return "application/pdf";
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.toString("latin1", 0, 4) === "RIFF" &&
+    buffer.toString("latin1", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
+
+/**
+ * Werpt `UploadValidationError` als de echte byte-signatuur niet overeenkomt met het opgegeven
+ * MIME-type. Voorkomt dat een uitvoerbaar/HTML-bestand met een vervalste Content-Type passeert.
+ */
+export function assertContentMatchesMime(buffer: Buffer, declaredMime: string): void {
+  if (sniffMimeType(buffer) !== declaredMime) {
+    throw new UploadValidationError(
+      "De bestandsinhoud komt niet overeen met het opgegeven type. Upload een geldig PDF-, PNG-, JPEG- of WEBP-bestand.",
+    );
+  }
+}
+
 /** Genereert een niet-raadbare storage-key. Nooit de originele bestandsnaam als pad gebruiken. */
 export function generateStorageKey(filename: string): string {
   const ext = path

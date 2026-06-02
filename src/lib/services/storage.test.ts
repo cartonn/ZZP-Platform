@@ -3,9 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  assertContentMatchesMime,
   generateStorageKey,
   getStorage,
   MAX_UPLOAD_BYTES,
+  sniffMimeType,
   UploadValidationError,
   validateUpload,
 } from "@/lib/services/storage";
@@ -32,6 +34,40 @@ describe("validateUpload", () => {
   it("weigert een leeg bestand en lege naam", () => {
     expect(() => validateUpload({ ...ok, size: 0 })).toThrow(UploadValidationError);
     expect(() => validateUpload({ ...ok, filename: "" })).toThrow(UploadValidationError);
+  });
+});
+
+describe("sniffMimeType / assertContentMatchesMime (magic bytes)", () => {
+  const pdf = Buffer.from("%PDF-1.7\n...", "latin1");
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+  const webp = Buffer.concat([
+    Buffer.from("RIFF", "latin1"),
+    Buffer.from([0x00, 0x00, 0x00, 0x00]),
+    Buffer.from("WEBP", "latin1"),
+  ]);
+  const html = Buffer.from("<!DOCTYPE html><script>alert(1)</script>", "latin1");
+
+  it("herkent toegestane signaturen", () => {
+    expect(sniffMimeType(pdf)).toBe("application/pdf");
+    expect(sniffMimeType(png)).toBe("image/png");
+    expect(sniffMimeType(jpeg)).toBe("image/jpeg");
+    expect(sniffMimeType(webp)).toBe("image/webp");
+  });
+
+  it("geeft null voor onbekende/niet-toegestane inhoud", () => {
+    expect(sniffMimeType(html)).toBeNull();
+    expect(sniffMimeType(Buffer.alloc(2))).toBeNull();
+  });
+
+  it("accepteert wanneer inhoud bij het opgegeven type past", () => {
+    expect(() => assertContentMatchesMime(pdf, "application/pdf")).not.toThrow();
+    expect(() => assertContentMatchesMime(png, "image/png")).not.toThrow();
+  });
+
+  it("weigert een vervalst Content-Type (HTML als pdf, of pdf-bytes als png)", () => {
+    expect(() => assertContentMatchesMime(html, "application/pdf")).toThrow(UploadValidationError);
+    expect(() => assertContentMatchesMime(pdf, "image/png")).toThrow(UploadValidationError);
   });
 });
 

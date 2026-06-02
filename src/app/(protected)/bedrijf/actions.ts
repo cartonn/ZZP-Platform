@@ -5,6 +5,7 @@ import { requireRole, assertOwnership, AuthorizationError } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import {
+  assertContentMatchesMime,
   generateStorageKey,
   getStorage,
   UploadValidationError,
@@ -60,13 +61,14 @@ export async function updateCompanyProfile(
   let logoKey = company.logoKey;
   const logo = formData.get("logo");
   if (logo instanceof File && logo.size > 0) {
+    const buffer = Buffer.from(await logo.arrayBuffer());
     try {
       validateUpload({ filename: logo.name, mimeType: logo.type, size: logo.size });
+      assertContentMatchesMime(buffer, logo.type);
     } catch (e) {
       if (e instanceof UploadValidationError) return { fieldErrors: { logo: e.message } };
       throw e;
     }
-    const buffer = Buffer.from(await logo.arrayBuffer());
     const key = generateStorageKey(logo.name);
     await getStorage().put(key, buffer, logo.type);
     const previous = company.logoKey;
