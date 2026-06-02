@@ -8,6 +8,8 @@ export type NavIcon =
   | "files"
   | "messages"
   | "receipt"
+  | "fileText"
+  | "wallet"
   | "shield"
   | "user"
   | "building"
@@ -42,16 +44,10 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Diensten", href: "/diensten", icon: "clock", section: "Profiel", enabled: true },
     { label: "Beschikbaarheid", href: "/beschikbaarheid", icon: "calendar", section: "Profiel", enabled: true }, // prettier-ignore
     { label: "Documenten", href: "/documenten", icon: "files", section: "Profiel", enabled: true },
-    {
-      label: "Ontzorgd",
-      href: "/ontzorgd",
-      icon: "barChart",
-      section: "Financieel",
-      enabled: true,
-    },
-    { label: "Facturen", href: "/facturen", icon: "receipt", section: "Financieel", enabled: true },
-    { label: "Administratie", href: "/administratie", icon: "receipt", section: "Financieel", enabled: true }, // prettier-ignore
-    { label: "Openstaand", href: "/openstaand", icon: "receipt", section: "Financieel", enabled: true }, // prettier-ignore
+    { label: "Facturen", href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
+    { label: "Boekhouding", href: "/administratie", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
+    { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
+    { label: "Ontzorgd", href: "/ontzorgd", icon: "barChart", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", section: "Account", enabled: true }, // prettier-ignore
     { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },
   ],
@@ -63,9 +59,9 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
     { label: "Prestaties", href: "/prestaties", icon: "fileCheck", section: "Werk", enabled: true },
     { label: "Berichten", href: "/berichten", icon: "messages", section: "Werk", enabled: true },
-    { label: "Facturen", href: "/facturen", icon: "receipt", section: "Financieel", enabled: true },
-    { label: "Administratie", href: "/administratie", icon: "receipt", section: "Financieel", enabled: true }, // prettier-ignore
-    { label: "Openstaand", href: "/openstaand", icon: "receipt", section: "Financieel", enabled: true }, // prettier-ignore
+    { label: "Facturen", href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
+    { label: "Boekhouding", href: "/administratie", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
+    { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", section: "Account", enabled: true }, // prettier-ignore
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", section: "Account", enabled: true }, // prettier-ignore
     { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },
@@ -83,7 +79,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Statistieken", href: "/admin/statistieken", icon: "barChart", section: "Toezicht", enabled: true }, // prettier-ignore
     { label: "Gebruikers", href: "/admin/gebruikers", icon: "users", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Importeren", href: "/admin/import", icon: "users", section: "Beheer", enabled: true },
-    { label: "Administratie", href: "/admin/administratie", icon: "barChart", section: "Beheer", enabled: true }, // prettier-ignore
+    { label: "Administratie", href: "/admin/administratie", icon: "fileText", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Configuratie", href: "/admin/configuratie", icon: "settings", section: "Beheer", enabled: true }, // prettier-ignore
   ],
 };

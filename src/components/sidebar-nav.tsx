@@ -11,6 +11,7 @@ import {
   Clock,
   CreditCard,
   FileCheck2,
+  FileText,
   Files,
   Handshake,
   LayoutDashboard,
@@ -20,6 +21,7 @@ import {
   ShieldCheck,
   User,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { type NavIcon, type NavItem } from "@/lib/nav";
@@ -34,6 +36,8 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   files: Files,
   messages: MessagesSquare,
   receipt: Receipt,
+  fileText: FileText,
+  wallet: Wallet,
   shield: ShieldCheck,
   user: User,
   building: Building2,
