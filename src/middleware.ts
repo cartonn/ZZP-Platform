@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
+import { isAdminPath } from "@/lib/route-guards";
 
 const { auth } = NextAuth(authConfig);
 
@@ -53,7 +54,8 @@ export default auth((request) => {
   }
 
   // Defense-in-depth: /admin alleen voor ADMIN (pagina's + actions checken ook).
-  if (pathname.startsWith("/admin") && request.auth.user.role !== "ADMIN") {
+  // NB: segmentgrens — anders matcht "/admin" ook "/administratie" (de boekhoudpagina).
+  if (isAdminPath(pathname) && request.auth.user.role !== "ADMIN") {
     return NextResponse.redirect(new URL("/dashboard", origin));
   }
 
