@@ -93,6 +93,9 @@ Elke increment brengt ons dichter bij die lat; nooit eronder zakken.
 
 ## Designfilosofie (hard)
 
+> **Canoniek designsysteem: [`DESIGN.md`](./DESIGN.md)** — tokens, primitives, layout-/breedte-schema,
+> status-badge-taal en Do's/Don'ts. Lees + volg dat vóór elke UI-wijziging; drift = bug.
+
 Leer van Linear/Vercel/Stripe. Refined minimalism, geen drukte.
 
 - Rustig, compact, premium. Hoge informatiedichtheid zonder rommel.
