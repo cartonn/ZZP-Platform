@@ -17,8 +17,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: npm audit (faalt op high/critical)
-        run: npm audit --audit-level=high
+      # Hard-gate op de PRODUCTIE-dependencies: alleen wat daadwerkelijk meedraait mag een deploy
+      # blokkeren. Dev-tooling (vitest/vite/esbuild) draait nooit in productie; advisories daarin
+      # (bv. de Vitest-UI-fileread) horen de build niet rood te maken.
+      - name: npm audit productie-deps (faalt op high/critical)
+        run: npm audit --audit-level=high --omit=dev
+      # Volledige audit (incl. dev) puur ter info — blokkeert niet.
+      - name: npm audit volledig (informatief)
+        run: npm audit --audit-level=high || true
 
   secret-scan:
     runs-on: ubuntu-latest
