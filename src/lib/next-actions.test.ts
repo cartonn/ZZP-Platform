@@ -55,6 +55,7 @@ const allClearFreelancer = {
   rejectedCredentials: 0,
   expiringCredentials: 0,
   overdueInvoices: 0,
+  contractsAwaitingSignature: 0,
 };
 
 describe("freelancerNextActions", () => {
@@ -119,6 +120,7 @@ const allClearClient = {
   draftJobs: 0,
   overdueInvoices: 0,
   collaborationCredentialAlerts: [],
+  contractsAwaitingSignature: 0,
 };
 
 describe("clientNextActions", () => {
@@ -149,6 +151,7 @@ describe("clientNextActions", () => {
       draftJobs: 1,
       overdueInvoices: 1,
       collaborationCredentialAlerts: ["Compliance-alert"],
+      contractsAwaitingSignature: 0,
     });
     expect(ranked[0]?.id).toBe("client-collaboration-alert-0");
     expect(ranked.map((x) => x.id)).toEqual([
@@ -167,6 +170,7 @@ describe("clientNextActions", () => {
       draftJobs: 1,
       overdueInvoices: 1,
       collaborationCredentialAlerts: [],
+      contractsAwaitingSignature: 0,
     });
     const byId = Object.fromEntries(ranked.map((x) => [x.id, x.href]));
     expect(byId["client-company-completeness"]).toBe("/bedrijf");
@@ -180,6 +184,7 @@ const allClearAdmin = {
   deletionRequests: 0,
   pendingVerifications: 0,
   pendingUsers: 0,
+  openDisputes: 0,
 };
 
 describe("adminNextActions", () => {
@@ -192,6 +197,7 @@ describe("adminNextActions", () => {
       deletionRequests: 1,
       pendingVerifications: 5,
       pendingUsers: 3,
+      openDisputes: 0,
     });
     expect(ranked.map((x) => x.id)).toEqual([
       "admin-deletion-requests",
@@ -201,15 +207,43 @@ describe("adminNextActions", () => {
     expect(ranked[0]?.tone).toBe("attention");
   });
 
+  it("ranks open disputes above pending-users (bevroren werkproces)", () => {
+    const ranked = adminNextActions({ ...allClearAdmin, openDisputes: 2, pendingUsers: 1 });
+    expect(ranked[0]?.id).toBe("admin-open-disputes");
+    expect(ranked[0]?.href).toBe("/admin/disputen");
+    expect(ranked[0]?.tone).toBe("attention");
+  });
+
   it("uses admin hrefs", () => {
     const ranked = adminNextActions({
       deletionRequests: 1,
       pendingVerifications: 1,
       pendingUsers: 1,
+      openDisputes: 0,
     });
     const byId = Object.fromEntries(ranked.map((x) => [x.id, x.href]));
     expect(byId["admin-deletion-requests"]).toBe("/admin/gebruikers?deletion=1");
     expect(byId["admin-pending-verifications"]).toBe("/admin/verificaties");
     expect(byId["admin-pending-users"]).toBe("/admin/gebruikers?status=PENDING");
+  });
+});
+
+describe("contract-ondertekening als next-action", () => {
+  it("freelancer krijgt een teken-actie bij een wachtend contract", () => {
+    const ranked = freelancerNextActions({ ...allClearFreelancer, contractsAwaitingSignature: 1 });
+    expect(ranked.map((x) => x.id)).toEqual(["freelancer-contracts-sign"]);
+    expect(ranked[0]?.href).toBe("/samenwerkingen");
+    expect(ranked[0]?.tone).toBe("attention");
+  });
+
+  it("client krijgt een teken-actie bij een wachtend contract", () => {
+    const ranked = clientNextActions({ ...allClearClient, contractsAwaitingSignature: 2 });
+    expect(ranked.map((x) => x.id)).toEqual(["client-contracts-sign"]);
+    expect(ranked[0]?.href).toBe("/samenwerkingen");
+  });
+
+  it("geen teken-actie bij 0 wachtende contracten", () => {
+    expect(freelancerNextActions(allClearFreelancer)).toEqual([]);
+    expect(clientNextActions(allClearClient)).toEqual([]);
   });
 });

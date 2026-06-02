@@ -8,7 +8,13 @@ import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { clientCredentialAlerts, describeCredentialAlert } from "@/lib/collaboration-alerts";
 import { overdueInvoiceCount } from "@/lib/signals";
 import { computeCompanyCompleteness } from "@/lib/profile";
-import { adminNextActions, clientNextActions, freelancerNextActions } from "@/lib/next-actions";
+import {
+  adminNextActions,
+  clientNextActions,
+  freelancerNextActions,
+  rankNextActions,
+} from "@/lib/next-actions";
+import { cascadeClientActions, cascadeFreelancerActions } from "@/lib/cascade/next-actions";
 import { Badge } from "@/components/ui/badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { AvailabilityBadge } from "@/components/availability-badge";
@@ -72,7 +78,19 @@ async function dashboardData(
     const pid = profile?.id;
     const soon = new Date(Date.now() + 30 * 86400_000);
     const now = new Date();
-    const [applications, verified, rejected, expiring, account, overdue] = await Promise.all([
+    const [
+      applications,
+      verified,
+      rejected,
+      expiring,
+      account,
+      overdue,
+      draftInvoices,
+      approvedInvoices,
+      rejectedInvoices,
+      rejectedPerformances,
+      contractsToSign,
+    ] = await Promise.all([
       pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
       pid
         ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED" } })
@@ -91,15 +109,34 @@ async function dashboardData(
         : Promise.resolve(0),
       prisma.user.findUnique({ where: { id: userId }, select: { identityVerifiedAt: true } }),
       overdueInvoiceCount("FREELANCER", userId),
+      // Cascade (lifecycleStatus = de cascade-flow; oude losse-status-facturen tellen niet mee).
+      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "DRAFT" } }),
+      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "APPROVED" } }),
+      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "REJECTED" } }),
+      prisma.performance.count({
+        where: { status: "REJECTED", collaboration: { freelancer: { userId } } },
+      }),
+      prisma.collaboration.count({ where: { contractStatus: "SENT", freelancer: { userId } } }),
     ]);
-    for (const a of freelancerNextActions({
-      profilePrivate: profile?.visibility === "PRIVATE",
-      identityVerified: !!account?.identityVerifiedAt,
-      completeness: profile?.completeness ?? 0,
-      rejectedCredentials: rejected,
-      expiringCredentials: expiring,
-      overdueInvoices: overdue,
-    })) {
+    // Base- en cascade-acties samen ranken zodat de juiste "aan zet" bovenaan staat.
+    const freelancerActions = rankNextActions([
+      ...freelancerNextActions({
+        profilePrivate: profile?.visibility === "PRIVATE",
+        identityVerified: !!account?.identityVerifiedAt,
+        completeness: profile?.completeness ?? 0,
+        rejectedCredentials: rejected,
+        expiringCredentials: expiring,
+        overdueInvoices: overdue,
+        contractsAwaitingSignature: contractsToSign,
+      }),
+      ...cascadeFreelancerActions({
+        draftInvoices,
+        approvedInvoices,
+        rejectedPerformances,
+        rejectedInvoices,
+      }),
+    ]);
+    for (const a of freelancerActions) {
       attention.push({ label: a.title, href: a.href });
     }
     return {
@@ -134,31 +171,50 @@ async function dashboardData(
           hasLogo: !!company.logoKey,
         }).score
       : 0;
-    const [openJobs, newApps, drafts, activeCollabs, credentialAlerts, overdue] = await Promise.all(
-      [
-        cid
-          ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
-          : Promise.resolve(0),
-        cid
-          ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } })
-          : Promise.resolve(0),
-        cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
-        cid
-          ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } })
-          : Promise.resolve(0),
-        clientCredentialAlerts(userId),
-        overdueInvoiceCount("CLIENT", userId),
-      ],
-    );
-    for (const a of clientNextActions({
-      companyCompleteness,
-      newApplications: newApps,
-      draftJobs: drafts,
-      overdueInvoices: overdue,
-      collaborationCredentialAlerts: credentialAlerts.map((a) =>
-        describeCredentialAlert(a.freelancerName, a.jobTitle, a.alert),
-      ),
-    })) {
+    const [
+      openJobs,
+      newApps,
+      drafts,
+      activeCollabs,
+      credentialAlerts,
+      overdue,
+      performancesToApprove,
+      invoicesToApprove,
+      contractsToSign,
+    ] = await Promise.all([
+      cid
+        ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
+        : Promise.resolve(0),
+      cid
+        ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } })
+        : Promise.resolve(0),
+      cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
+      cid
+        ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } })
+        : Promise.resolve(0),
+      clientCredentialAlerts(userId),
+      overdueInvoiceCount("CLIENT", userId),
+      // Cascade: prestaties/facturen die op de goedkeuring van deze opdrachtgever wachten.
+      prisma.performance.count({
+        where: { status: "SUBMITTED", collaboration: { company: { userId } } },
+      }),
+      prisma.invoice.count({ where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" } }),
+      prisma.collaboration.count({ where: { contractStatus: "SENT", company: { userId } } }),
+    ]);
+    const clientActions = rankNextActions([
+      ...clientNextActions({
+        companyCompleteness,
+        newApplications: newApps,
+        draftJobs: drafts,
+        overdueInvoices: overdue,
+        collaborationCredentialAlerts: credentialAlerts.map((a) =>
+          describeCredentialAlert(a.freelancerName, a.jobTitle, a.alert),
+        ),
+        contractsAwaitingSignature: contractsToSign,
+      }),
+      ...cascadeClientActions({ performancesToApprove, invoicesToApprove }),
+    ]);
+    for (const a of clientActions) {
       attention.push({ label: a.title, href: a.href });
     }
     return {
@@ -171,17 +227,19 @@ async function dashboardData(
     };
   }
 
-  const [pending, users, jobs, deletionRequests, pendingUsers] = await Promise.all([
+  const [pending, users, jobs, deletionRequests, pendingUsers, openDisputes] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.user.count(),
     prisma.job.count(),
     prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
     prisma.user.count({ where: { status: "PENDING" } }),
+    prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
   ]);
   for (const a of adminNextActions({
     deletionRequests,
     pendingVerifications: pending,
     pendingUsers,
+    openDisputes,
   })) {
     attention.push({ label: a.title, href: a.href });
   }

@@ -402,6 +402,8 @@ export async function rejectPerformance(
   if (actor.role !== "ADMIN" && actor.id !== perf.clientUserId) {
     throw new CascadeError("Alleen de opdrachtgever kan de prestatie afkeuren.");
   }
+  // Tijdens een dispuut bevriest de cascade — ook afkeuren is een transitie (§4 zijpad).
+  await assertNotDisputed(perf.collaborationId);
   const effects = planPerformanceRejected({
     performanceId,
     status: perf.status,
@@ -568,6 +570,8 @@ export async function rejectInvoice(
   if (actor.role !== "ADMIN" && actor.id !== inv.counterpartyUserId) {
     throw new CascadeError("Alleen de opdrachtgever kan de factuur afkeuren.");
   }
+  // Tijdens een dispuut bevriest de cascade — ook afkeuren is een transitie (§4 zijpad).
+  if (inv.collaborationId) await assertNotDisputed(inv.collaborationId);
   const effects = planInvoiceRejectedEvent({
     invoiceId,
     lifecycleStatus: inv.lifecycleStatus,

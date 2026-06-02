@@ -3,18 +3,41 @@
 
 import { type NextAction } from "@/lib/next-actions";
 
-// Prioriteiten sluiten aan op next-actions.ts: goedkeuring vragen is urgenter dan eigen indienen.
-const P = { approve: 65, submit: 55, payment: 58 } as const;
+// Prioriteiten sluiten aan op next-actions.ts: goedkeuring vragen is urgenter dan eigen indienen;
+// een AFKEURING (de loop is gebroken, werk/geld blijft hangen) is urgenter dan een eerste indiening.
+const P = { approve: 65, rejected: 62, payment: 58, submit: 55 } as const;
 
 export interface FreelancerCascadeInput {
   /** Concept-facturen klaar om in te dienen (Event C). */
   draftInvoices: number;
   /** Goedgekeurde facturen waarvan de betaling nog gemarkeerd moet worden (Event E). */
   approvedInvoices: number;
+  /** Afgekeurde prestaties — corrigeren en opnieuw indienen (zijpad B'). */
+  rejectedPerformances: number;
+  /** Afgekeurde facturen — corrigeren en opnieuw indienen (zijpad D'). */
+  rejectedInvoices: number;
 }
 
 export function cascadeFreelancerActions(input: FreelancerCascadeInput): NextAction[] {
   const actions: NextAction[] = [];
+  if (input.rejectedPerformances > 0) {
+    actions.push({
+      id: "cascade-rejected-performances",
+      title: `${input.rejectedPerformances} afgekeurde uren/oplevering(en) — corrigeer en dien opnieuw in`,
+      href: "/samenwerkingen",
+      tone: "attention",
+      priority: P.rejected,
+    });
+  }
+  if (input.rejectedInvoices > 0) {
+    actions.push({
+      id: "cascade-rejected-invoices",
+      title: `${input.rejectedInvoices} afgekeurde factu(u)r(en) — corrigeer en dien opnieuw in`,
+      href: "/facturen",
+      tone: "attention",
+      priority: P.rejected,
+    });
+  }
   if (input.draftInvoices > 0) {
     actions.push({
       id: "cascade-draft-invoices",

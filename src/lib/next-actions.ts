@@ -33,6 +33,8 @@ const P = {
   identity: 90, // identiteit niet geverifieerd
   complianceRipple: 85, // lopende samenwerking met certificaat-alert
   credentialRejected: 80, // afgewezen certificaat — opnieuw indienen
+  disputeOpen: 76, // open dispuut — werkproces bevroren (admin)
+  contractSign: 72, // contract ter ondertekening — deblokkeert de samenwerking
   credentialExpiring: 70, // certificaat verloopt binnenkort
   verificationQueue: 70, // wacht op verificatie (admin)
   overdueInvoice: 60, // factuur over de vervaldatum
@@ -49,6 +51,8 @@ export interface FreelancerActionInput {
   rejectedCredentials: number;
   expiringCredentials: number;
   overdueInvoices: number;
+  /** Samenwerkingen met een contract dat op ondertekening wacht (deblokkeert de cascade). */
+  contractsAwaitingSignature: number;
 }
 
 export function freelancerNextActions(input: FreelancerActionInput): NextAction[] {
@@ -108,6 +112,15 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
       priority: P.overdueInvoice,
     });
   }
+  if (input.contractsAwaitingSignature > 0) {
+    actions.push({
+      id: "freelancer-contracts-sign",
+      title: `${input.contractsAwaitingSignature} contract(en) wachten op ondertekening`,
+      href: "/samenwerkingen",
+      tone: "attention",
+      priority: P.contractSign,
+    });
+  }
 
   return rankNextActions(actions);
 }
@@ -119,6 +132,8 @@ export interface ClientActionInput {
   overdueInvoices: number;
   /** Pre-rendered descriptions of credential alerts for active collaborations. */
   collaborationCredentialAlerts: string[];
+  /** Samenwerkingen met een contract dat op ondertekening wacht. */
+  contractsAwaitingSignature: number;
 }
 
 export function clientNextActions(input: ClientActionInput): NextAction[] {
@@ -170,6 +185,15 @@ export function clientNextActions(input: ClientActionInput): NextAction[] {
       priority: P.overdueInvoice,
     });
   }
+  if (input.contractsAwaitingSignature > 0) {
+    actions.push({
+      id: "client-contracts-sign",
+      title: `${input.contractsAwaitingSignature} contract(en) wachten op ondertekening`,
+      href: "/samenwerkingen",
+      tone: "attention",
+      priority: P.contractSign,
+    });
+  }
 
   return rankNextActions(actions);
 }
@@ -178,11 +202,22 @@ export interface AdminActionInput {
   deletionRequests: number;
   pendingVerifications: number;
   pendingUsers: number;
+  /** Open disputen — het werkproces is bevroren tot opgelost. */
+  openDisputes: number;
 }
 
 export function adminNextActions(input: AdminActionInput): NextAction[] {
   const actions: NextAction[] = [];
 
+  if (input.openDisputes > 0) {
+    actions.push({
+      id: "admin-open-disputes",
+      title: `${input.openDisputes} open dispuut/disputen — werkproces bevroren, beoordeel`,
+      href: "/admin/disputen",
+      tone: "attention",
+      priority: P.disputeOpen,
+    });
+  }
   if (input.deletionRequests > 0) {
     actions.push({
       id: "admin-deletion-requests",
