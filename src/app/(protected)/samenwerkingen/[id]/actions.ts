@@ -37,6 +37,10 @@ function refresh(collaborationId: string) {
   revalidatePath(`/samenwerkingen/${collaborationId}`);
   revalidatePath("/samenwerkingen");
   revalidatePath("/facturen");
+  // Het Actiecentrum en het dashboard lezen dezelfde openstaande items: na een cascade-stap
+  // hervalideren zodat de afgehandelde taak verdwijnt en de volgende klaarstaat (auto-advance).
+  revalidatePath("/acties");
+  revalidatePath("/dashboard");
 }
 
 export async function signContractAction(collaborationId: string): Promise<void> {

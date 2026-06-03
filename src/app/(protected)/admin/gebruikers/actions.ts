@@ -52,6 +52,8 @@ export async function setUserStatus(userId: string, target: string): Promise<voi
     }),
   ]);
   revalidatePath("/admin/gebruikers");
+  revalidatePath("/acties");
+  revalidatePath("/dashboard");
 }
 
 /** AVG "recht op verwijdering": beheer voert een openstaand verwijderverzoek uit door het account

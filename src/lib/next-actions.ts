@@ -36,8 +36,9 @@ export function formatMissing(items: readonly string[], max = 3): string {
 }
 
 // Priority bands. Compliance/blocking items outrank cosmetic ones. Gaps leave
-// room for future items without renumbering.
-const P = {
+// room for future items without renumbering. Geëxporteerd zodat het item-niveau
+// Actiecentrum (src/lib/actions/tasks.ts) exact dezelfde rangschikking gebruikt.
+export const P = {
   blocking: 100, // profiel privé, AVG-verwijderverzoek
   identity: 90, // identiteit niet geverifieerd
   complianceRipple: 85, // lopende samenwerking met certificaat-alert
