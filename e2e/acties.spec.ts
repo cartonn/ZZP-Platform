@@ -150,7 +150,14 @@ test("actiecentrum: ingediende prestatie beoordelen + goedkeuren via drawer", as
   await approveTask.getByRole("button", { name: "Beoordelen" }).click();
   const drawer = page.getByRole("dialog");
   await expect(drawer).toBeVisible();
-  await expect(drawer.getByText("Urenstaat")).toBeVisible();
+
+  // De urenstaat is als echte PDF te openen + wordt geserveerd (geauthenticeerd, application/pdf, %PDF).
+  const pdfLink = drawer.getByRole("link", { name: /Open urenstaat/ });
+  await expect(pdfLink).toBeVisible();
+  const pdfResp = await page.request.get((await pdfLink.getAttribute("href"))!);
+  expect(pdfResp.status()).toBe(200);
+  expect(pdfResp.headers()["content-type"]).toContain("application/pdf");
+  expect((await pdfResp.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
   // Pas na inzien goedkeuren → drawer sluit, taak verdwijnt (auto-advance).
   await drawer.getByRole("button", { name: "Goedkeuren" }).click();
