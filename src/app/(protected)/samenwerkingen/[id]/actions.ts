@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/authz";
+import { type ResolveState } from "@/lib/actions/resolve-state";
 import {
   signContract,
   createPerformance,
@@ -323,6 +324,66 @@ export async function rejectInvoiceAction(
     toMessage(e);
   }
   refresh(collaborationId);
+}
+
+// --- useActionState-vriendelijke wrappers voor de Actiecentrum-beoordeel-drawer. Ze hergebruiken
+// de void-acties hierboven (incl. auth/ownership/audit/revalidate) en zetten alleen de uitkomst om
+// naar { ok } / { error } zodat de drawer kan sluiten + doorvloeien en fouten inline kan tonen.
+
+export async function approvePerformanceState(
+  performanceId: string,
+  collaborationId: string,
+  _prev: ResolveState,
+  _formData: FormData,
+): Promise<ResolveState> {
+  try {
+    await approvePerformanceAction(performanceId, collaborationId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+  }
+  return { ok: true };
+}
+
+export async function rejectPerformanceState(
+  performanceId: string,
+  collaborationId: string,
+  _prev: ResolveState,
+  formData: FormData,
+): Promise<ResolveState> {
+  try {
+    await rejectPerformanceAction(performanceId, collaborationId, formData);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+  }
+  return { ok: true };
+}
+
+export async function approveInvoiceState(
+  invoiceId: string,
+  collaborationId: string,
+  _prev: ResolveState,
+  _formData: FormData,
+): Promise<ResolveState> {
+  try {
+    await approveInvoiceAction(invoiceId, collaborationId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+  }
+  return { ok: true };
+}
+
+export async function rejectInvoiceState(
+  invoiceId: string,
+  collaborationId: string,
+  _prev: ResolveState,
+  formData: FormData,
+): Promise<ResolveState> {
+  try {
+    await rejectInvoiceAction(invoiceId, collaborationId, formData);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+  }
+  return { ok: true };
 }
 
 export async function confirmPaymentAction(

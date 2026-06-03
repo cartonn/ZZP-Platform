@@ -99,7 +99,7 @@ export function performanceApproveTask(
     subtitle: `${jobTitle} · ${freelancerName}`,
     tone: "attention",
     priority: P.complianceRipple - 20, // = approve-band (65), conform cascade/next-actions.ts
-    resolver: "approveReject",
+    resolver: "drawer", // inspecteer-dan-beslis: details inzien, dan goedkeuren/afwijzen
     href: collabHref(collabId),
     perfId,
     collabId,
@@ -155,7 +155,7 @@ export function invoiceApproveTask(invId: string, collabId: string, jobTitle: st
     subtitle: jobTitle,
     tone: "attention",
     priority: P.complianceRipple - 20, // approve-band (65)
-    resolver: "approveReject",
+    resolver: "drawer", // inspecteer-dan-beslis: factuur inzien, dan goedkeuren/afwijzen
     href: collabHref(collabId),
     invId,
     collabId,
@@ -276,7 +276,7 @@ export function adminVerifyCredentialTask(credId: string, title: string): Pendin
     subtitle: title,
     tone: "attention",
     priority: P.verificationQueue,
-    resolver: "approveReject",
+    resolver: "drawer", // inspecteer-dan-beslis: bewijsstuk bekijken, dan goedkeuren/afwijzen
     href: "/admin/verificaties",
     credId,
   };

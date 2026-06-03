@@ -56,10 +56,10 @@ describe("task builders", () => {
     });
   });
 
-  it("performance-approve: approveReject-resolver met approve-prioriteit (65)", () => {
+  it("performance-approve: drawer-resolver (inspecteer-dan-beslis) met approve-prioriteit (65)", () => {
     const t = performanceApproveTask("p1", "c1", "Job", "Sanne");
     expect(t.kind).toBe("performance-approve");
-    expect(t.resolver).toBe("approveReject");
+    expect(t.resolver).toBe("drawer");
     expect(t.priority).toBe(65);
     expect(t.id).toBe("performance-approve:p1");
   });

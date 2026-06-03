@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { statusForDecision, TransitionError } from "@/lib/credentials";
 import { runExpiryTask } from "@/lib/expiry-task";
 import { type CredentialStatus } from "@/lib/enums";
+import { type ResolveState } from "@/lib/actions/resolve-state";
 
 async function loadCredentialForDecision(credentialId: string) {
   const credential = await prisma.credential.findUnique({
@@ -118,6 +119,35 @@ export async function rejectCredential(credentialId: string, formData: FormData)
   revalidatePath("/admin/verificaties");
   revalidatePath("/acties");
   revalidatePath("/dashboard");
+}
+
+// useActionState-vriendelijke wrappers voor de Actiecentrum-beoordeel-drawer (hergebruiken de
+// void-acties hierboven incl. requireRole/audit/revalidate); zetten de uitkomst om naar { ok }/{ error }.
+
+export async function verifyCredentialState(
+  credentialId: string,
+  _prev: ResolveState,
+  _formData: FormData,
+): Promise<ResolveState> {
+  try {
+    await verifyCredential(credentialId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+  }
+  return { ok: true };
+}
+
+export async function rejectCredentialState(
+  credentialId: string,
+  _prev: ResolveState,
+  formData: FormData,
+): Promise<ResolveState> {
+  try {
+    await rejectCredential(credentialId, formData);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+  }
+  return { ok: true };
 }
 
 export type ExpiryState = { ran?: true; expired?: number; reminded?: number } | undefined;

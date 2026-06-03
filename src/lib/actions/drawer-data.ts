@@ -8,12 +8,25 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { performanceFormDefaults, type PerformanceFormDefaults } from "@/lib/performance-form";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { type CredentialType } from "@/lib/enums";
 import { type PendingTask } from "@/lib/actions/tasks";
 import { type ProfileFormInitial } from "@/app/(protected)/profiel/profile-form";
 import { type CompanyFormInitial } from "@/app/(protected)/bedrijf/company-form";
 import { type CredentialFormInitial } from "@/app/(protected)/certificaten/credential-form";
 
 type Option = { id: string; name: string };
+
+/** Bewijsstuk-verwijzing voor de beoordeel-drawer (alleen metadata; de bytes komen via /api/documents). */
+export type ReviewDocument = { id: string; filename: string; mimeType: string };
+/** Eén factuurregel, bedragen in centen. */
+export type ReviewInvoiceLine = {
+  id: string;
+  description: string;
+  quantity: number;
+  unitCents: number;
+  amountCents: number;
+};
 
 /** Geserialiseerde data per drawer-taak (plain objects — geen Date), gekeyd op task.id. */
 export type DrawerData =
@@ -40,6 +53,51 @@ export type DrawerData =
       kind: "message-reply";
       conversationId: string;
       messages: { id: string; mine: boolean; body: string }[];
+    }
+  | {
+      kind: "admin-verify-credential";
+      credId: string;
+      typeLabel: string;
+      title: string;
+      issuer: string;
+      issuedAt: string;
+      expiresAt: string;
+      submittedBy: string;
+      document: ReviewDocument | null;
+    }
+  | {
+      kind: "invoice-approve";
+      invId: string;
+      collabId: string;
+      number: string;
+      jobTitle: string;
+      fromName: string;
+      toName: string;
+      issuedAt: string;
+      dueAt: string;
+      vatRegime: string;
+      subtotalCents: number;
+      vatCents: number;
+      totalCents: number;
+      lines: ReviewInvoiceLine[];
+    }
+  | {
+      kind: "performance-approve";
+      perfId: string;
+      collabId: string;
+      perfType: string;
+      hours: number | null;
+      rateCents: number | null;
+      amountCents: number | null;
+      milestoneTitle: string | null;
+      periodStart: string;
+      periodEnd: string;
+      description: string;
+      ortSegments: string | null;
+      ortProfile: string | null;
+      ortCustomRates: string | null;
+      freelancerName: string;
+      jobTitle: string;
     };
 
 const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
@@ -74,6 +132,9 @@ export async function loadDrawerData(
   const credTasks = tasks.filter((t) => t.kind === "credential-fix");
   const perfTasks = tasks.filter((t) => t.kind === "performance-resubmit");
   const replyTasks = tasks.filter((t) => t.kind === "message-reply");
+  const verifyTasks = tasks.filter((t) => t.kind === "admin-verify-credential");
+  const invoiceApproveTasks = tasks.filter((t) => t.kind === "invoice-approve");
+  const perfApproveTasks = tasks.filter((t) => t.kind === "performance-approve");
 
   await Promise.all([
     // Profiel (één query voor private + completeness; identity heeft geen data nodig).
@@ -256,6 +317,168 @@ export async function loadDrawerData(
           .map((m) => ({ id: m.id, mine: m.senderId === actor.id, body: m.body }))
           .reverse();
         out[t.id] = { kind: "message-reply", conversationId: t.conversationId, messages };
+      }
+    })(),
+
+    // Certificaten ter verificatie (admin): velden + bewijsstuk-referentie (gebatcht).
+    (async () => {
+      if (verifyTasks.length === 0) return;
+      const ids = verifyTasks.flatMap((t) =>
+        t.kind === "admin-verify-credential" ? [t.credId] : [],
+      );
+      const creds = await prisma.credential.findMany({
+        where: { id: { in: ids } },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          issuer: true,
+          issuedAt: true,
+          expiresAt: true,
+          document: { select: { id: true, filename: true, mimeType: true } },
+          freelancerProfile: { select: { user: { select: { name: true } } } },
+        },
+      });
+      const byId = new Map(creds.map((c) => [c.id, c]));
+      for (const t of verifyTasks) {
+        if (t.kind !== "admin-verify-credential") continue;
+        const c = byId.get(t.credId);
+        if (!c) continue;
+        out[t.id] = {
+          kind: "admin-verify-credential",
+          credId: c.id,
+          typeLabel: CREDENTIAL_TYPE_LABEL[c.type as CredentialType] ?? c.type,
+          title: c.title,
+          issuer: c.issuer ?? "",
+          issuedAt: ymd(c.issuedAt),
+          expiresAt: ymd(c.expiresAt),
+          submittedBy: c.freelancerProfile.user.name ?? "ZZP'er",
+          document: c.document
+            ? { id: c.document.id, filename: c.document.filename, mimeType: c.document.mimeType }
+            : null,
+        };
+      }
+    })(),
+
+    // Ingediende facturen ter goedkeuring (opdrachtgever): regels + bedragen (gebatcht, scoped).
+    (async () => {
+      if (invoiceApproveTasks.length === 0) return;
+      const ids = invoiceApproveTasks.flatMap((t) =>
+        t.kind === "invoice-approve" ? [t.invId] : [],
+      );
+      const invoices = await prisma.invoice.findMany({
+        where: { id: { in: ids }, collaboration: { company: { userId: actor.id } } },
+        select: {
+          id: true,
+          partyInvoiceNumber: true,
+          issuedAt: true,
+          dueAt: true,
+          vatRegime: true,
+          subtotalCents: true,
+          vatCents: true,
+          totalCents: true,
+          lines: {
+            select: {
+              id: true,
+              description: true,
+              quantity: true,
+              unitCents: true,
+              amountCents: true,
+            },
+          },
+          collaboration: {
+            select: {
+              id: true,
+              job: { select: { title: true } },
+              company: { select: { name: true } },
+              freelancer: { select: { user: { select: { name: true } } } },
+            },
+          },
+        },
+      });
+      const byId = new Map(invoices.map((i) => [i.id, i]));
+      for (const t of invoiceApproveTasks) {
+        if (t.kind !== "invoice-approve") continue;
+        const i = byId.get(t.invId);
+        if (!i || !i.collaboration) continue;
+        out[t.id] = {
+          kind: "invoice-approve",
+          invId: i.id,
+          collabId: i.collaboration.id,
+          number: i.partyInvoiceNumber ?? "—",
+          jobTitle: i.collaboration.job.title,
+          fromName: i.collaboration.freelancer.user.name ?? "ZZP'er",
+          toName: i.collaboration.company.name,
+          issuedAt: ymd(i.issuedAt),
+          dueAt: ymd(i.dueAt),
+          vatRegime: i.vatRegime ?? "",
+          subtotalCents: i.subtotalCents ?? 0,
+          vatCents: i.vatCents ?? 0,
+          totalCents: i.totalCents ?? 0,
+          lines: i.lines.map((l) => ({
+            id: l.id,
+            description: l.description,
+            quantity: l.quantity,
+            unitCents: l.unitCents,
+            amountCents: l.amountCents,
+          })),
+        };
+      }
+    })(),
+
+    // Ingediende prestaties ter goedkeuring (opdrachtgever): uren/oplevering + ORT-context (gebatcht, scoped).
+    (async () => {
+      if (perfApproveTasks.length === 0) return;
+      const ids = perfApproveTasks.flatMap((t) =>
+        t.kind === "performance-approve" ? [t.perfId] : [],
+      );
+      const perfs = await prisma.performance.findMany({
+        where: { id: { in: ids }, collaboration: { company: { userId: actor.id } } },
+        select: {
+          id: true,
+          type: true,
+          hours: true,
+          rateCents: true,
+          amountCents: true,
+          milestoneTitle: true,
+          periodStart: true,
+          periodEnd: true,
+          description: true,
+          ortSegments: true,
+          collaborationId: true,
+          collaboration: {
+            select: {
+              ortProfile: true,
+              ortCustomRates: true,
+              job: { select: { title: true } },
+              freelancer: { select: { user: { select: { name: true } } } },
+            },
+          },
+        },
+      });
+      const byId = new Map(perfs.map((p) => [p.id, p]));
+      for (const t of perfApproveTasks) {
+        if (t.kind !== "performance-approve") continue;
+        const p = byId.get(t.perfId);
+        if (!p) continue;
+        out[t.id] = {
+          kind: "performance-approve",
+          perfId: p.id,
+          collabId: p.collaborationId,
+          perfType: p.type,
+          hours: p.hours,
+          rateCents: p.rateCents,
+          amountCents: p.amountCents,
+          milestoneTitle: p.milestoneTitle,
+          periodStart: ymd(p.periodStart),
+          periodEnd: ymd(p.periodEnd),
+          description: p.description,
+          ortSegments: p.ortSegments,
+          ortProfile: p.collaboration.ortProfile,
+          ortCustomRates: p.collaboration.ortCustomRates,
+          freelancerName: p.collaboration.freelancer.user.name ?? "ZZP'er",
+          jobTitle: p.collaboration.job.title,
+        };
       }
     })(),
   ]);
