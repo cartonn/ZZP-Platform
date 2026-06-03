@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Disputen · ZZP Platform" };
 
@@ -27,13 +28,10 @@ export default async function AdminDisputenPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Disputen</h1>
-        <p className="text-sm text-muted-foreground">
-          Samenwerkingen met een open dispuut. Het werkproces is bevroren tot het platform bemiddelt
-          en het dispuut oplost.
-        </p>
-      </header>
+      <PageHeader
+        title="Disputen"
+        description="Samenwerkingen met een open dispuut. Het werkproces is bevroren tot het platform bemiddelt en het dispuut oplost."
+      />
 
       {disputed.length === 0 ? (
         <Card>
