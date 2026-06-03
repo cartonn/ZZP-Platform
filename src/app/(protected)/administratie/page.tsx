@@ -14,6 +14,7 @@ import {
 } from "@/lib/administration/overview";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Administratie · ZZP Platform" };
 
@@ -45,31 +46,28 @@ export default async function AdministratiePage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold tracking-tight">Administratie {year}</h1>
-          <p className="text-sm text-muted-foreground">
-            Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt
-            rechtstreeks; het platform houdt alleen de status bij.
-          </p>
-        </div>
-        {entries.length > 0 && (
-          <div className="flex shrink-0 gap-2">
-            <a
-              href="/api/administratie/export"
-              className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-            >
-              Grootboek CSV
-            </a>
-            <a
-              href="/api/administratie/btw"
-              className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-            >
-              BTW-overzicht CSV
-            </a>
-          </div>
-        )}
-      </header>
+      <PageHeader
+        title={`Administratie ${year}`}
+        description="Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt rechtstreeks; het platform houdt alleen de status bij."
+        action={
+          entries.length > 0 ? (
+            <div className="flex gap-2">
+              <a
+                href="/api/administratie/export"
+                className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+              >
+                Grootboek CSV
+              </a>
+              <a
+                href="/api/administratie/btw"
+                className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+              >
+                BTW-overzicht CSV
+              </a>
+            </div>
+          ) : undefined
+        }
+      />
 
       {entries.length === 0 ? (
         <Card>

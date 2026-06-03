@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { SUPPORT_STATUS_LABEL, SUPPORT_CATEGORY_LABEL, statusVariant } from "@/lib/support/labels";
 import { type SupportTicketStatus, type SupportCategory } from "@/lib/enums";
 
@@ -22,17 +23,15 @@ export default async function SupportPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold tracking-tight">Support</h1>
-          <p className="text-sm text-muted-foreground">
-            Stel je vraag — vaak heb je direct antwoord, anders pakt de helpdesk het op.
-          </p>
-        </div>
-        <Button asChild size="sm">
-          <Link href="/support/nieuw">Nieuwe vraag</Link>
-        </Button>
-      </header>
+      <PageHeader
+        title="Support"
+        description="Stel je vraag — vaak heb je direct antwoord, anders pakt de helpdesk het op."
+        action={
+          <Button asChild size="sm">
+            <Link href="/support/nieuw">Nieuwe vraag</Link>
+          </Button>
+        }
+      />
 
       {tickets.length === 0 ? (
         <Card>

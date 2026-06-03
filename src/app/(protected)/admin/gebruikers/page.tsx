@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { anonymizeUser, setUserStatus } from "./actions";
@@ -61,20 +62,18 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Gebruikers</h1>
-          <p className="text-sm text-muted-foreground">
-            Beheer accounts: rol, status en schorsing.
-          </p>
-        </div>
-        <Link
-          href="/admin/import"
-          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent"
-        >
-          <Upload className="size-4" aria-hidden /> Importeren
-        </Link>
-      </header>
+      <PageHeader
+        title="Gebruikers"
+        description="Beheer accounts: rol, status en schorsing."
+        action={
+          <Link
+            href="/admin/import"
+            className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent"
+          >
+            <Upload className="size-4" aria-hidden /> Importeren
+          </Link>
+        }
+      />
 
       {(deletionRequests > 0 || pendingUsers > 0) && (
         <div className="flex flex-wrap gap-2">
