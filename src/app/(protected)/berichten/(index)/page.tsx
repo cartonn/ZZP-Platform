@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Berichten · ZZP Platform" };
 
@@ -56,12 +57,7 @@ export default async function BerichtenPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Berichten</h1>
-        <p className="text-sm text-muted-foreground">
-          Je gesprekken met opdrachtgevers en ZZP&apos;ers.
-        </p>
-      </header>
+      <PageHeader title="Berichten" description="Je gesprekken met opdrachtgevers en ZZP'ers." />
 
       {conversations.length === 0 ? (
         <Card>

@@ -7,6 +7,7 @@ import { type ComplianceStatus } from "@/lib/matching";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { type ApplicationStatus } from "@/lib/enums";
@@ -50,10 +51,7 @@ export default async function ReactiesPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Mijn reacties</h1>
-        <p className="text-sm text-muted-foreground">Je reacties op opdrachten en hun status.</p>
-      </header>
+      <PageHeader title="Mijn reacties" description="Je reacties op opdrachten en hun status." />
 
       {applications.length === 0 ? (
         <Card>

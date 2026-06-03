@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { AvailabilityForm } from "./availability-form";
 import { deleteAvailabilityWindow } from "./actions";
 
@@ -41,13 +42,15 @@ export default async function BeschikbaarheidPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Beschikbaarheid</h1>
-        <p className="text-sm text-muted-foreground">
-          Leg je beschikbaarheid vast in periodes.{" "}
-          {summary ? `Status: ${summary}.` : "Nog geen inzetbare periode."}
-        </p>
-      </header>
+      <PageHeader
+        title="Beschikbaarheid"
+        description={
+          <>
+            Leg je beschikbaarheid vast in periodes.{" "}
+            {summary ? `Status: ${summary}.` : "Nog geen inzetbare periode."}
+          </>
+        }
+      />
 
       <AvailabilityForm />
 
