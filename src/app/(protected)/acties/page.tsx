@@ -5,6 +5,7 @@ import { pendingTasks } from "@/lib/actions/pending-tasks";
 import { loadDrawerData } from "@/lib/actions/drawer-data";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { ActionList } from "@/components/actions/action-list";
 
 export const metadata: Metadata = { title: "Acties · ZZP Platform" };
@@ -21,14 +22,14 @@ export default async function ActiesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Acties</h1>
-        <p className="text-sm text-muted-foreground">
-          {tasks.length > 0
+      <PageHeader
+        title="Acties"
+        description={
+          tasks.length > 0
             ? "Handel hier alles af wat op je wacht — afgehandelde acties verdwijnen vanzelf."
-            : "Alles is afgehandeld."}
-        </p>
-      </header>
+            : "Alles is afgehandeld."
+        }
+      />
 
       {tasks.length === 0 ? (
         <Card>
