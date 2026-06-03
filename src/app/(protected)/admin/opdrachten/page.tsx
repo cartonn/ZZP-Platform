@@ -8,6 +8,7 @@ import { type JobStatus } from "@/lib/enums";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -44,12 +45,10 @@ export default async function AdminOpdrachtenPage({
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Opdrachten (beheer)</h1>
-        <p className="text-sm text-muted-foreground">
-          Alle opdrachten op het platform. Sluit ongepaste opdrachten.
-        </p>
-      </header>
+      <PageHeader
+        title="Opdrachten (beheer)"
+        description="Alle opdrachten op het platform. Sluit ongepaste opdrachten."
+      />
 
       {draftJobs > 0 && (
         <div className="flex flex-wrap gap-2">

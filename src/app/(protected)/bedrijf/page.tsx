@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { computeCompanyCompleteness } from "@/lib/profile";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Progress } from "@/components/ui/progress";
 import { CompanyForm } from "./company-form";
 
@@ -44,12 +45,10 @@ export default async function BedrijfPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Bedrijfsprofiel</h1>
-        <p className="text-sm text-muted-foreground">
-          Een compleet profiel wekt vertrouwen bij ZZP&apos;ers die op je opdrachten reageren.
-        </p>
-      </header>
+      <PageHeader
+        title="Bedrijfsprofiel"
+        description="Een compleet profiel wekt vertrouwen bij ZZP'ers die op je opdrachten reageren."
+      />
 
       <Card>
         <CardContent className="space-y-3">
