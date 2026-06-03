@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { changeCollaborationStatus } from "./actions";
 
 export const metadata: Metadata = { title: "Samenwerkingen · ZZP Platform" };
@@ -88,10 +89,7 @@ export default async function SamenwerkingenPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Samenwerkingen</h1>
-        <p className="text-sm text-muted-foreground">Voorgestelde en lopende samenwerkingen.</p>
-      </header>
+      <PageHeader title="Samenwerkingen" description="Voorgestelde en lopende samenwerkingen." />
 
       {collaborations.length === 0 ? (
         <Card>

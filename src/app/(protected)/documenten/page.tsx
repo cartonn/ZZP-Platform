@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { DocumentForm } from "./document-form";
 import { deleteDocument } from "./actions";
 
@@ -37,12 +38,10 @@ export default async function DocumentenPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Documenten</h1>
-        <p className="text-sm text-muted-foreground">
-          Je geüploade documenten. Alleen jij (en beheer) kunt ze openen.
-        </p>
-      </header>
+      <PageHeader
+        title="Documenten"
+        description="Je geüploade documenten. Alleen jij (en beheer) kunt ze openen."
+      />
 
       <DocumentForm />
 

@@ -8,6 +8,7 @@ import { type UserRole } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { cancelDeletionRequest, requestAccountDeletion } from "./actions";
 import { IdentityForm } from "./identity-form";
 
@@ -31,12 +32,10 @@ export default async function AccountPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Account & privacy</h1>
-        <p className="text-sm text-muted-foreground">
-          Je accountgegevens en je rechten onder de AVG.
-        </p>
-      </header>
+      <PageHeader
+        title="Account & privacy"
+        description="Je accountgegevens en je rechten onder de AVG."
+      />
 
       <Card>
         <CardContent className="grid grid-cols-2 gap-3 text-sm">

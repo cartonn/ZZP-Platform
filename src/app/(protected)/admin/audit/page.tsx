@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Audit log · ZZP Platform" };
 
@@ -45,10 +46,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Audit log</h1>
-        <p className="text-sm text-muted-foreground">{total} gebeurtenis(sen). Alleen-lezen.</p>
-      </header>
+      <PageHeader title="Audit log" description={`${total} gebeurtenis(sen). Alleen-lezen.`} />
 
       <form
         method="get"

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Textarea } from "@/components/ui/textarea";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
@@ -64,12 +65,10 @@ export default async function KandidatenPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Kandidaten</h1>
-        <p className="text-sm text-muted-foreground">
-          Reacties op je opdrachten, met match en compliance.
-        </p>
-      </header>
+      <PageHeader
+        title="Kandidaten"
+        description="Reacties op je opdrachten, met match en compliance."
+      />
 
       {applications.length === 0 ? (
         <Card>
