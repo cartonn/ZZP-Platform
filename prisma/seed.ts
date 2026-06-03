@@ -469,29 +469,34 @@ async function main() {
       // Idempotent + ephemeral-safe: de blob wordt elke seed-run (her)schreven (overschrijft op
       // dezelfde key, ook als lokale storage bij een herstart weg was), het Document wordt geüpsert
       // op de unieke storageKey, en de credential krijgt de documentId.
-      const bewijs = await credentialBewijsPdf({
-        holderName: f.name,
-        title: c.title,
-        issuer: c.issuer,
-        type: c.type,
-        issuedAt: daysFromNow(-400),
-        expiresAt: c.expiresInDays ? daysFromNow(c.expiresInDays) : null,
-      });
-      const storageKey = `seed-demo/credential-${id}.pdf`;
-      await getStorage().put(storageKey, bewijs, "application/pdf");
-      const doc = await prisma.document.upsert({
-        where: { storageKey },
-        update: { ownerId: user.id, size: bewijs.length },
-        create: {
-          ownerId: user.id,
-          kind: documentKindForCredential(c.type as CredentialType),
-          filename: `${c.title}.pdf`,
-          mimeType: "application/pdf",
-          size: bewijs.length,
-          storageKey,
-        },
-      });
-      await prisma.credential.update({ where: { id }, data: { documentId: doc.id } });
+      // Defensief: een storage-fout (bv. niet-schrijfbare map) mag de rest van de seed niet afbreken.
+      try {
+        const bewijs = await credentialBewijsPdf({
+          holderName: f.name,
+          title: c.title,
+          issuer: c.issuer,
+          type: c.type,
+          issuedAt: daysFromNow(-400),
+          expiresAt: c.expiresInDays ? daysFromNow(c.expiresInDays) : null,
+        });
+        const storageKey = `seed-demo/credential-${id}.pdf`;
+        await getStorage().put(storageKey, bewijs, "application/pdf");
+        const doc = await prisma.document.upsert({
+          where: { storageKey },
+          update: { ownerId: user.id, size: bewijs.length },
+          create: {
+            ownerId: user.id,
+            kind: documentKindForCredential(c.type as CredentialType),
+            filename: `${c.title}.pdf`,
+            mimeType: "application/pdf",
+            size: bewijs.length,
+            storageKey,
+          },
+        });
+        await prisma.credential.update({ where: { id }, data: { documentId: doc.id } });
+      } catch (e) {
+        console.warn(`[seed] bewijsstuk koppelen mislukt voor ${id}:`, (e as Error).message);
+      }
     }
   }
 
