@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 type TriggerVariant = "destructive" | "secondary" | "ghost";
@@ -40,21 +40,30 @@ export function ConfirmButton({
 }) {
   const [open, setOpen] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const descId = useId();
 
   useEffect(() => {
     if (!open) return;
+    const trigger = triggerRef.current; // stabiel; vastleggen voor de cleanup
     // Focus de bevestigknop en sluit op Escape.
     confirmRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      // Focus terug naar de trigger bij sluiten (no-op als de trigger door de actie is verdwenen).
+      trigger?.focus();
+    };
   }, [open]);
 
   return (
     <>
       <Button
+        ref={triggerRef}
         type="button"
         variant={triggerVariant}
         size={size}
@@ -67,7 +76,13 @@ export function ConfirmButton({
       </Button>
 
       {open && (
-        <div className="fixed inset-0 z-50" role="alertdialog" aria-modal="true" aria-label={title}>
+        <div
+          className="fixed inset-0 z-50"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={descId}
+        >
           <button
             type="button"
             aria-label={`${title} — sluiten`}
@@ -75,8 +90,12 @@ export function ConfirmButton({
             className="absolute inset-0 bg-black/40"
           />
           <div className="relative mx-auto mt-[20vh] w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-xl">
-            <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+            <h2 id={titleId} className="text-sm font-semibold tracking-tight">
+              {title}
+            </h2>
+            <p id={descId} className="mt-1.5 text-sm text-muted-foreground">
+              {description}
+            </p>
             <div className="mt-5 flex items-center justify-end gap-2">
               <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(false)}>
                 {cancelLabel}
