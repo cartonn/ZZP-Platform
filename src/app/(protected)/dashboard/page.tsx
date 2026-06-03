@@ -15,17 +15,8 @@ import {
 } from "@/lib/enums";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
-import { clientCredentialAlerts, describeCredentialAlert } from "@/lib/collaboration-alerts";
-import { overdueInvoiceCount, unreadConversationCount } from "@/lib/signals";
-import { computeCompanyCompleteness, computeFreelancerCompleteness } from "@/lib/profile";
-import {
-  adminNextActions,
-  clientNextActions,
-  freelancerNextActions,
-  rankNextActions,
-  type NextActionTone,
-} from "@/lib/next-actions";
-import { cascadeClientActions, cascadeFreelancerActions } from "@/lib/cascade/next-actions";
+import { computeFreelancerCompleteness } from "@/lib/profile";
+import { type NextActionTone } from "@/lib/next-actions";
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
 import { Badge } from "@/components/ui/badge";
@@ -74,11 +65,6 @@ interface Stat {
   value: string | number;
   href: string;
 }
-interface AttentionItem {
-  label: string;
-  href: string;
-  tone: NextActionTone;
-}
 interface RunningCollab {
   id: string;
   jobTitle: string;
@@ -88,7 +74,6 @@ interface RunningCollab {
 }
 interface DashboardData {
   stats: Stat[];
-  attention: AttentionItem[];
   running: RunningCollab[];
   week: WeekOverview | null;
   isNewAccount: boolean;
@@ -106,14 +91,11 @@ function parseLanguages(raw: string | null): string[] {
 }
 
 async function dashboardData(role: UserRole, userId: string): Promise<DashboardData> {
-  const attention: AttentionItem[] = [];
-
   if (role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
       where: { userId },
       select: {
         id: true,
-        visibility: true,
         headline: true,
         bio: true,
         hourlyRate: true,
@@ -139,43 +121,16 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           industryCount: profile.industries.length,
         })
       : { score: 0, missing: [] };
-    const soon = new Date(Date.now() + 30 * 86400_000);
     const now = new Date();
-    const [
-      applications,
-      creds,
-      account,
-      overdue,
-      draftInvoices,
-      approvedInvoices,
-      rejectedInvoices,
-      rejectedPerformances,
-      contractsToSign,
-      messagesAwaitingReply,
-      runningRows,
-    ] = await Promise.all([
+    const [applications, creds, runningRows] = await Promise.all([
       pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
-      // Eén query voor alle certificaten van de ZZP'er; de drie tellingen leiden we in-memory af
-      // (scheelt 2 DB-round-trips t.o.v. drie aparte count()-queries).
+      // Eén query voor alle certificaten van de ZZP'er; de telling leiden we in-memory af.
       pid
         ? prisma.credential.findMany({
             where: { freelancerProfileId: pid },
-            select: { status: true, expiresAt: true },
+            select: { status: true },
           })
-        : Promise.resolve<{ status: string; expiresAt: Date | null }[]>([]),
-      prisma.user.findUnique({ where: { id: userId }, select: { identityVerifiedAt: true } }),
-      overdueInvoiceCount("FREELANCER", userId),
-      // Cascade (lifecycleStatus = de cascade-flow; oude losse-status-facturen tellen niet mee).
-      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "DRAFT" } }),
-      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "APPROVED" } }),
-      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "REJECTED" } }),
-      prisma.performance.count({
-        where: { status: "REJECTED", collaboration: { freelancer: { userId } } },
-      }),
-      // Voorgestelde samenwerkingen wachten op ondertekening (contractStatus blijft DRAFT tot
-      // getekend; "SENT" wordt nergens gezet). PROPOSED = nog te tekenen om ACTIVE te worden.
-      prisma.collaboration.count({ where: { status: "PROPOSED", freelancer: { userId } } }),
-      unreadConversationCount(userId),
+        : Promise.resolve<{ status: string }[]>([]),
       // Lopende samenwerkingen (niet-terminaal) met de gegevens om de cascade-fase af te leiden.
       prisma.collaboration.findMany({
         where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
@@ -201,37 +156,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       }),
     ]);
 
-    // Certificaat-tellingen in-memory afgeleid uit de ene findMany hierboven (zelfde drempels).
+    // Geverifieerde certificaten voor de statistiek-tegel (in-memory uit de findMany hierboven).
     const verified = creds.filter((c) => c.status === "VERIFIED").length;
-    const rejected = creds.filter((c) => c.status === "REJECTED").length;
-    const expiring = creds.filter(
-      (c) =>
-        c.status === "VERIFIED" && c.expiresAt != null && c.expiresAt > now && c.expiresAt <= soon,
-    ).length;
-
-    // Base- en cascade-acties samen ranken zodat de juiste "aan zet" bovenaan staat.
-    const freelancerActions = rankNextActions([
-      ...freelancerNextActions({
-        profilePrivate: profile?.visibility === "PRIVATE",
-        identityVerified: !!account?.identityVerifiedAt,
-        completeness: completeness.score,
-        missingProfileItems: completeness.missing.map((m) => m.label),
-        rejectedCredentials: rejected,
-        expiringCredentials: expiring,
-        overdueInvoices: overdue,
-        contractsAwaitingSignature: contractsToSign,
-        messagesAwaitingReply,
-      }),
-      ...cascadeFreelancerActions({
-        draftInvoices,
-        approvedInvoices,
-        rejectedPerformances,
-        rejectedInvoices,
-      }),
-    ]);
-    for (const a of freelancerActions) {
-      attention.push({ label: a.title, href: a.href, tone: a.tone });
-    }
 
     const running: RunningCollab[] = runningRows.map((c) => ({
       id: c.id,
@@ -271,7 +197,6 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         { label: "Geverifieerde certificaten", value: verified, href: "/certificaten" },
         { label: "Mijn reacties", value: applications, href: "/reacties" },
       ],
-      attention,
       running,
       week,
       isNewAccount: applications === 0 && running.length === 0,
@@ -281,38 +206,10 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
   if (role === "CLIENT") {
     const company = await prisma.company.findUnique({
       where: { userId },
-      select: {
-        id: true,
-        description: true,
-        location: true,
-        website: true,
-        industryId: true,
-        logoKey: true,
-      },
+      select: { id: true },
     });
     const cid = company?.id;
-    const companyCompleteness = company
-      ? computeCompanyCompleteness({
-          description: company.description,
-          location: company.location,
-          website: company.website,
-          hasIndustry: !!company.industryId,
-          hasLogo: !!company.logoKey,
-        })
-      : { score: 0, missing: [] };
-    const [
-      openJobs,
-      newApps,
-      drafts,
-      activeCollabs,
-      credentialAlerts,
-      overdue,
-      performancesToApprove,
-      invoicesToApprove,
-      contractsToSign,
-      messagesAwaitingReply,
-      runningRows,
-    ] = await Promise.all([
+    const [openJobs, newApps, drafts, activeCollabs, runningRows] = await Promise.all([
       cid
         ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
         : Promise.resolve(0),
@@ -323,16 +220,6 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       cid
         ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } })
         : Promise.resolve(0),
-      clientCredentialAlerts(userId),
-      overdueInvoiceCount("CLIENT", userId),
-      // Cascade: prestaties/facturen die op de goedkeuring van deze opdrachtgever wachten.
-      prisma.performance.count({
-        where: { status: "SUBMITTED", collaboration: { company: { userId } } },
-      }),
-      prisma.invoice.count({ where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" } }),
-      // Zie freelancer-tak: PROPOSED = wacht op ondertekening (SENT wordt nergens gezet).
-      prisma.collaboration.count({ where: { status: "PROPOSED", company: { userId } } }),
-      unreadConversationCount(userId),
       // Lopende samenwerkingen vanuit de opdrachtgever: dezelfde cascade, ander perspectief.
       prisma.collaboration.findMany({
         where: { company: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
@@ -354,24 +241,6 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         orderBy: { createdAt: "desc" },
       }),
     ]);
-    const clientActions = rankNextActions([
-      ...clientNextActions({
-        companyCompleteness: companyCompleteness.score,
-        missingCompanyItems: companyCompleteness.missing.map((m) => m.label),
-        newApplications: newApps,
-        draftJobs: drafts,
-        overdueInvoices: overdue,
-        collaborationCredentialAlerts: credentialAlerts.map((a) =>
-          describeCredentialAlert(a.freelancerName, a.jobTitle, a.alert),
-        ),
-        contractsAwaitingSignature: contractsToSign,
-        messagesAwaitingReply,
-      }),
-      ...cascadeClientActions({ performancesToApprove, invoicesToApprove }),
-    ]);
-    for (const a of clientActions) {
-      attention.push({ label: a.title, href: a.href, tone: a.tone });
-    }
     const running: RunningCollab[] = runningRows.map((c) => ({
       id: c.id,
       jobTitle: c.job.title,
@@ -393,36 +262,23 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         { label: "Nieuwe reacties", value: newApps, href: "/kandidaten" },
         { label: "Actieve samenwerkingen", value: activeCollabs, href: "/samenwerkingen" },
       ],
-      attention,
       running,
       week: null,
       isNewAccount: openJobs === 0 && drafts === 0 && activeCollabs === 0,
     };
   }
 
-  const [pending, users, jobs, deletionRequests, pendingUsers, openDisputes] = await Promise.all([
+  const [pending, users, jobs] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.user.count(),
     prisma.job.count(),
-    prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
-    prisma.user.count({ where: { status: "PENDING" } }),
-    prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
   ]);
-  for (const a of adminNextActions({
-    deletionRequests,
-    pendingVerifications: pending,
-    pendingUsers,
-    openDisputes,
-  })) {
-    attention.push({ label: a.title, href: a.href, tone: a.tone });
-  }
   return {
     stats: [
       { label: "Openstaande verificaties", value: pending, href: "/admin/verificaties" },
       { label: "Gebruikers", value: users, href: "/admin/gebruikers" },
       { label: "Opdrachten", value: jobs, href: "/admin/opdrachten" },
     ],
-    attention,
     running: [],
     week: null,
     isNewAccount: false,
