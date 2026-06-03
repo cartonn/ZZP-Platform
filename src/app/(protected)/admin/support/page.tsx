@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { ASSISTANT_NAME } from "@/lib/support/knowledge-base";
 import { SUPPORT_STATUS_LABEL, SUPPORT_CATEGORY_LABEL, statusVariant } from "@/lib/support/labels";
 import {
@@ -37,12 +38,10 @@ export default async function AdminSupportPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Helpdesk</h1>
-        <p className="text-sm text-muted-foreground">
-          Tickets die door de {ASSISTANT_NAME} naar een medewerker zijn doorgezet.
-        </p>
-      </header>
+      <PageHeader
+        title="Helpdesk"
+        description={<>Tickets die door de {ASSISTANT_NAME} naar een medewerker zijn doorgezet.</>}
+      />
 
       {tickets.length === 0 ? (
         <Card>

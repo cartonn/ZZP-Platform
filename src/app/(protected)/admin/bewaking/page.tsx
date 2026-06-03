@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { type IncidentSeverity, type IncidentStatus, type IncidentSource } from "@/lib/enums";
 import { acknowledgeIncident, resolveIncident } from "./actions";
 
@@ -43,13 +44,15 @@ export default async function BewakingPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Platform-bewaking</h1>
-        <p className="text-sm text-muted-foreground">
-          Beveiligings- en gezondheidssignalen, automatisch gedetecteerd uit de audit-log.
-          {open.length > 0 ? ` ${open.length} open.` : " Alles rustig."}
-        </p>
-      </header>
+      <PageHeader
+        title="Platform-bewaking"
+        description={
+          <>
+            Beveiligings- en gezondheidssignalen, automatisch gedetecteerd uit de audit-log.
+            {open.length > 0 ? ` ${open.length} open.` : " Alles rustig."}
+          </>
+        }
+      />
 
       {incidents.length === 0 ? (
         <Card>
