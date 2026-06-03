@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -58,19 +59,17 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Mijn opdrachten</h1>
-          <p className="text-sm text-muted-foreground">
-            Beheer je opdrachten en publiceer ze voor ZZP&apos;ers.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/opdrachten/nieuw">
-            <Plus className="size-4" aria-hidden /> Nieuwe opdracht
-          </Link>
-        </Button>
-      </header>
+      <PageHeader
+        title="Mijn opdrachten"
+        description="Beheer je opdrachten en publiceer ze voor ZZP'ers."
+        action={
+          <Button asChild>
+            <Link href="/opdrachten/nieuw">
+              <Plus className="size-4" aria-hidden /> Nieuwe opdracht
+            </Link>
+          </Button>
+        }
+      />
 
       <form
         method="get"

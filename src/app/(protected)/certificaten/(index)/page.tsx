@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { deleteCredential, requestVerification, toggleCredentialVisibility } from "../actions";
 import { DuoVerifyForm } from "../duo-verify-form";
 import { BigVerifyForm } from "../big-verify-form";
@@ -51,19 +52,17 @@ export default async function CertificatenPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Certificaten</h1>
-          <p className="text-sm text-muted-foreground">
-            Beheer je bewijsstukken en vraag verificatie aan.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/certificaten/nieuw">
-            <Plus className="size-4" aria-hidden /> Nieuw certificaat
-          </Link>
-        </Button>
-      </header>
+      <PageHeader
+        title="Certificaten"
+        description="Beheer je bewijsstukken en vraag verificatie aan."
+        action={
+          <Button asChild>
+            <Link href="/certificaten/nieuw">
+              <Plus className="size-4" aria-hidden /> Nieuw certificaat
+            </Link>
+          </Button>
+        }
+      />
 
       {credentials.length === 0 ? (
         <Card>

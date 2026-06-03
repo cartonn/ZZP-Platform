@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import {
   notificationMeta,
@@ -136,21 +137,19 @@ export default async function NotificatiesPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Notificaties</h1>
-          <p className="text-sm text-muted-foreground">
-            Updates over je certificaten, reacties en berichten.
-          </p>
-        </div>
-        {hasUnread && (
-          <form action={markAllNotificationsRead}>
-            <Button type="submit" variant="secondary" size="sm">
-              Alles als gelezen markeren
-            </Button>
-          </form>
-        )}
-      </header>
+      <PageHeader
+        title="Notificaties"
+        description="Updates over je certificaten, reacties en berichten."
+        action={
+          hasUnread ? (
+            <form action={markAllNotificationsRead}>
+              <Button type="submit" variant="secondary" size="sm">
+                Alles als gelezen markeren
+              </Button>
+            </form>
+          ) : undefined
+        }
+      />
 
       {notifications.length === 0 ? (
         <Card>

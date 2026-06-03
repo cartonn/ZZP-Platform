@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Facturen · ZZP Platform" };
 
@@ -61,23 +62,23 @@ export default async function FacturenPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Facturen</h1>
-          <p className="text-sm text-muted-foreground">
-            {isFreelancer
-              ? "Je opgestelde en verzonden facturen."
-              : "Ontvangen facturen van je samenwerkingen."}
-          </p>
-        </div>
-        {isFreelancer && (
-          <Button asChild>
-            <Link href="/facturen/nieuw">
-              <Plus className="size-4" aria-hidden /> Nieuwe factuur
-            </Link>
-          </Button>
-        )}
-      </header>
+      <PageHeader
+        title="Facturen"
+        description={
+          isFreelancer
+            ? "Je opgestelde en verzonden facturen."
+            : "Ontvangen facturen van je samenwerkingen."
+        }
+        action={
+          isFreelancer ? (
+            <Button asChild>
+              <Link href="/facturen/nieuw">
+                <Plus className="size-4" aria-hidden /> Nieuwe factuur
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       {invoices.length > 0 && (
         <div className="flex gap-3">
