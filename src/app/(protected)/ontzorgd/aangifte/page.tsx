@@ -9,6 +9,7 @@ import { formatEuro } from "@/lib/invoices";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { FILING_STATUS_LABEL, filingStatusVariant } from "@/lib/tax-filing/labels";
 import { FILING_DISCLAIMER, LOGIUS_REVOKE_URL, PARTNER_NAME } from "@/lib/tax-filing/config";
 import { type PlanKey, type TaxFilingStatus, type TaxFilingKind } from "@/lib/enums";
@@ -35,13 +36,15 @@ export default async function AangiftePage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Wij doen je aangifte</h1>
-        <p className="text-sm text-muted-foreground">
-          Geef akkoord; {PARTNER_NAME} controleert en dient namens jou in. Jij ziet eerst het
-          concept en geeft het laatste akkoord.
-        </p>
-      </header>
+      <PageHeader
+        title="Wij doen je aangifte"
+        description={
+          <>
+            Geef akkoord; {PARTNER_NAME} controleert en dient namens jou in. Jij ziet eerst het
+            concept en geeft het laatste akkoord.
+          </>
+        }
+      />
 
       {!entitled ? (
         <Card>
