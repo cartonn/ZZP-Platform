@@ -7,6 +7,7 @@ import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Samenwerkingen overzicht · ZZP Platform" };
 
@@ -56,13 +57,10 @@ export default async function AdminSamenwerkingenPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Samenwerkingen</h1>
-        <p className="text-sm text-muted-foreground">
-          Overzicht van alle samenwerkingen — contract tot betaling. Klik om naar het werkproces te
-          gaan.
-        </p>
-      </header>
+      <PageHeader
+        title="Samenwerkingen"
+        description="Overzicht van alle samenwerkingen — contract tot betaling. Klik om naar het werkproces te gaan."
+      />
 
       {collaborations.length === 0 ? (
         <Card>

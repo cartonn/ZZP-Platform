@@ -8,6 +8,7 @@ import { tierInfo } from "@/lib/entitlements";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { changeSubscription } from "./actions";
 
@@ -28,14 +29,14 @@ export default async function AbonnementPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Abonnement</h1>
-        <p className="text-sm text-muted-foreground">
-          {role === "CLIENT"
+      <PageHeader
+        title="Abonnement"
+        description={
+          role === "CLIENT"
             ? "Van zelf inhuren tot de volledige inhuuradministratie uitbesteden."
-            : "Van zelf je administratie doen tot volledig ontzorgd worden — jij werkt, wij rekenen voor."}
-        </p>
-      </header>
+            : "Van zelf je administratie doen tot volledig ontzorgd worden — jij werkt, wij rekenen voor."
+        }
+      />
 
       <div className="grid items-start gap-4 sm:grid-cols-3">
         {plans.map((plan) => {

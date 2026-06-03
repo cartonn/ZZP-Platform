@@ -8,6 +8,7 @@ import { DBA_DISCLAIMER } from "@/lib/config";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "DBA-monitor · ZZP Platform" };
 
@@ -38,13 +39,10 @@ export default async function AdminDbaPage({ searchParams }: { searchParams: Sea
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">DBA-monitor</h1>
-        <p className="text-sm text-muted-foreground">
-          Signalering van mogelijke schijnzelfstandigheid over actieve samenwerkingen. Dit is geen
-          juridisch oordeel — het platform signaleert en informeert alleen.
-        </p>
-      </header>
+      <PageHeader
+        title="DBA-monitor"
+        description="Signalering van mogelijke schijnzelfstandigheid over actieve samenwerkingen. Dit is geen juridisch oordeel — het platform signaleert en informeert alleen."
+      />
 
       {rows.length === 0 ? (
         <>
