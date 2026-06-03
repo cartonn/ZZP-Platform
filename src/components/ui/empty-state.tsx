@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import Link from "next/link";
 import { type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,12 +18,15 @@ export function EmptyState({
   title,
   description,
   action,
+  children,
   className,
 }: {
   icon?: LucideIcon;
   title: string;
   description?: string;
   action?: EmptyStateAction;
+  /** Extra actie-slot onder de uitleg, bv. een client-side knop (filters wissen). */
+  children?: ReactNode;
   className?: string;
 }) {
   return (
@@ -48,6 +52,7 @@ export function EmptyState({
           <Link href={action.href}>{action.label}</Link>
         </Button>
       ) : null}
+      {children ? <div className="mt-1">{children}</div> : null}
     </div>
   );
 }
