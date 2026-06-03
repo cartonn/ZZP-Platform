@@ -12,6 +12,7 @@ import type { TrustLevel } from "@/lib/trust";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
@@ -92,21 +93,15 @@ export function FreelancerBrowse({ freelancers }: { freelancers: FreelancerCard[
 
       {/* Resultatenlijst */}
       {results.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
-          <div className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <Search className="size-5" aria-hidden />
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold tracking-tight">Geen ZZP&apos;ers gevonden</p>
-            <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-              Pas de filters aan om meer resultaten te zien.
-            </p>
-          </div>
+        <EmptyState
+          icon={Search}
+          title="Geen ZZP'ers gevonden"
+          description="Pas de filters aan om meer resultaten te zien."
+        >
           {(query || trustLevel || availableOnly) && (
             <Button
               size="sm"
               variant="secondary"
-              className="mt-1"
               onClick={() => {
                 setQuery("");
                 setTrustLevel("");
@@ -116,7 +111,7 @@ export function FreelancerBrowse({ freelancers }: { freelancers: FreelancerCard[
               Filters wissen
             </Button>
           )}
-        </div>
+        </EmptyState>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {results.map((f) => (
