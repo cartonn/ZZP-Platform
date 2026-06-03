@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Textarea } from "@/components/ui/textarea";
 import { ExpiryButton } from "./expiry-button";
 import { rejectCredential, verifyCredential } from "./actions";
@@ -46,16 +47,16 @@ export default async function VerificatiesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Verificaties</h1>
-          <p className="text-sm text-muted-foreground">
+      <PageHeader
+        title="Verificaties"
+        description={
+          <>
             Beoordeel ingediende certificaten. {queue.length} in de wachtrij
             {oldestDays >= STALE_DAYS ? `, langst wachtend ${oldestDays} dagen` : ""}.
-          </p>
-        </div>
-        <ExpiryButton />
-      </header>
+          </>
+        }
+        action={<ExpiryButton />}
+      />
 
       {queue.length === 0 ? (
         <Card>
