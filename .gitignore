@@ -27,6 +27,9 @@ next-env.d.ts
 .env
 .env*.local
 
+# Claude Code — persoonlijke, lokale settings/permissies (niet delen met het team)
+.claude/settings.local.json
+
 # database (local sqlite)
 *.db
 *.db-journal
