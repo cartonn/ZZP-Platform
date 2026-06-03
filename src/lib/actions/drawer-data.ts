@@ -19,14 +19,6 @@ type Option = { id: string; name: string };
 
 /** Bewijsstuk-verwijzing voor de beoordeel-drawer (alleen metadata; de bytes komen via /api/documents). */
 export type ReviewDocument = { id: string; filename: string; mimeType: string };
-/** Eén factuurregel, bedragen in centen. */
-export type ReviewInvoiceLine = {
-  id: string;
-  description: string;
-  quantity: number;
-  unitCents: number;
-  amountCents: number;
-};
 
 /** Geserialiseerde data per drawer-taak (plain objects — geen Date), gekeyd op task.id. */
 export type DrawerData =
@@ -79,7 +71,6 @@ export type DrawerData =
       subtotalCents: number;
       vatCents: number;
       totalCents: number;
-      lines: ReviewInvoiceLine[];
     }
   | {
       kind: "performance-approve";
@@ -377,15 +368,6 @@ export async function loadDrawerData(
           subtotalCents: true,
           vatCents: true,
           totalCents: true,
-          lines: {
-            select: {
-              id: true,
-              description: true,
-              quantity: true,
-              unitCents: true,
-              amountCents: true,
-            },
-          },
           collaboration: {
             select: {
               id: true,
@@ -415,13 +397,6 @@ export async function loadDrawerData(
           subtotalCents: i.subtotalCents ?? 0,
           vatCents: i.vatCents ?? 0,
           totalCents: i.totalCents ?? 0,
-          lines: i.lines.map((l) => ({
-            id: l.id,
-            description: l.description,
-            quantity: l.quantity,
-            unitCents: l.unitCents,
-            amountCents: l.amountCents,
-          })),
         };
       }
     })(),
