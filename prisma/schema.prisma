@@ -21,39 +21,39 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         String   @default("FREELANCER") // UserRole: FREELANCER | CLIENT | ADMIN
-  status       String   @default("ACTIVE") //       UserStatus: ACTIVE | SUSPENDED | PENDING
-  mustChangePassword Boolean @default(false) //      true = geforceerde wachtwoordwijziging (bv. na bulk-import)
-  emailVerified DateTime?
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  name                String
+  role                String    @default("FREELANCER") // UserRole: FREELANCER | CLIENT | ADMIN
+  status              String    @default("ACTIVE") //       UserStatus: ACTIVE | SUSPENDED | PENDING
+  mustChangePassword  Boolean   @default(false) //      true = geforceerde wachtwoordwijziging (bv. na bulk-import)
+  emailVerified       DateTime?
   deletionRequestedAt DateTime? //                   AVG: door gebruiker aangevraagde verwijdering
   anonymizedAt        DateTime? //                   AVG: door beheer uitgevoerde anonimisering (recht op verwijdering)
   identityVerifiedAt  DateTime? //                   iDIN/eIDAS-identiteitsverificatie
   verifiedLegalName   String? //                     door de bron bevestigde juridische naam
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   accounts          Account[]
   sessions          Session[]
   freelancerProfile FreelancerProfile?
   company           Company?
   documents         Document[]
-  sentMessages      Message[]              @relation("MessageSender")
+  sentMessages      Message[]                 @relation("MessageSender")
   participations    ConversationParticipant[]
   notifications     Notification[]
   subscription      Subscription?
-  verifications     CredentialVerification[] @relation("Verifier")
-  auditLogs         AuditLog[]             @relation("AuditActor")
+  verifications     CredentialVerification[]  @relation("Verifier")
+  auditLogs         AuditLog[]                @relation("AuditActor")
 
   passwordResetTokens PasswordResetToken[]
 
-  supportTickets    SupportTicket[]        @relation("SupportRequester")
-  assignedTickets   SupportTicket[]        @relation("SupportAssignee")
-  supportMessages   SupportMessage[]       @relation("SupportMessageAuthor")
-  taxFilingRequests TaxFilingRequest[]     @relation("TaxFilingRequester")
+  supportTickets    SupportTicket[]    @relation("SupportRequester")
+  assignedTickets   SupportTicket[]    @relation("SupportAssignee")
+  supportMessages   SupportMessage[]   @relation("SupportMessageAuthor")
+  taxFilingRequests TaxFilingRequest[] @relation("TaxFilingRequester")
 
   @@index([role])
   @@index([status])
@@ -64,7 +64,7 @@ model User {
 model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String
-  tokenHash String    @unique  // SHA-256 van het onbewerkte token
+  tokenHash String    @unique // SHA-256 van het onbewerkte token
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
@@ -115,28 +115,28 @@ model VerificationToken {
 // ---------------------------------------------------------------------------
 
 model FreelancerProfile {
-  id           String  @id @default(cuid())
-  userId       String  @unique
+  id           String   @id @default(cuid())
+  userId       String   @unique
   headline     String?
   bio          String?
   hourlyRate   Int? //   euro per uur
-  availability String  @default("UNKNOWN") // Availability: AVAILABLE | LIMITED | UNAVAILABLE | UNKNOWN
+  availability String   @default("UNKNOWN") // Availability: AVAILABLE | LIMITED | UNAVAILABLE | UNKNOWN
   location     String?
-  workMode     String  @default("HYBRID") //  WorkMode: REMOTE | ONSITE | HYBRID
+  workMode     String   @default("HYBRID") //  WorkMode: REMOTE | ONSITE | HYBRID
   languages    String? //                      JSON-string array, bv. ["nl","en"]
   kvkNumber    String?
   btwNumber    String?
-  visibility   String  @default("PUBLIC") //   Visibility: PUBLIC | PRIVATE
-  completeness Int     @default(0) //           0-100, server-berekend
+  visibility   String   @default("PUBLIC") //   Visibility: PUBLIC | PRIVATE
+  completeness Int      @default(0) //           0-100, server-berekend
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skills       FreelancerSkill[]
-  industries   FreelancerIndustry[]
-  credentials  Credential[]
-  applications Application[]
-  collaborations Collaboration[]
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills              FreelancerSkill[]
+  industries          FreelancerIndustry[]
+  credentials         Credential[]
+  applications        Application[]
+  collaborations      Collaboration[]
   availabilityWindows AvailabilityWindow[]
 }
 
@@ -156,8 +156,8 @@ model AvailabilityWindow {
 }
 
 model Company {
-  id          String  @id @default(cuid())
-  userId      String  @unique
+  id          String   @id @default(cuid())
+  userId      String   @unique
   name        String
   logoKey     String?
   industryId  String?
@@ -215,41 +215,41 @@ model FreelancerIndustry {
 // ---------------------------------------------------------------------------
 
 model Job {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   companyId   String
   title       String
   description String
-  status      String   @default("DRAFT") // JobStatus: DRAFT | PUBLISHED | CLOSED
+  status      String    @default("DRAFT") // JobStatus: DRAFT | PUBLISHED | CLOSED
   industryId  String?
   rateMin     Int?
   rateMax     Int?
   location    String?
-  workMode    String   @default("HYBRID") // WorkMode
+  workMode    String    @default("HYBRID") // WorkMode
   startDate   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   publishedAt DateTime?
   alertedAt   DateTime? // wanneer job-alerts voor dit job zijn verzonden (dedup-anker)
 
   // Wet DBA-check (schijnzelfstandigheid) — invoer + server-berekende snapshot.
-  dbaDirectSupervision Boolean @default(false)
-  dbaEmbedded          Boolean @default(false)
-  dbaFixedSchedule     Boolean @default(false)
-  dbaNoSubstitution    Boolean @default(false)
-  dbaExclusive         Boolean @default(false)
+  dbaDirectSupervision    Boolean @default(false)
+  dbaEmbedded             Boolean @default(false)
+  dbaFixedSchedule        Boolean @default(false)
+  dbaNoSubstitution       Boolean @default(false)
+  dbaExclusive            Boolean @default(false)
   dbaWeakEntrepreneurship Boolean @default(false)
-  dbaDurationMonths    Int?
-  dbaRisk              String? //  DbaRisk: LAAG | MIDDEN | HOOG (server-berekend)
-  dbaReasons           String? //  JSON-string met uitleg per indicator
-  modelAgreementType   String? //  ModelAgreementType die op deze opdracht van toepassing is (door opdrachtgever vastgelegd)
+  dbaDurationMonths       Int?
+  dbaRisk                 String? //  DbaRisk: LAAG | MIDDEN | HOOG (server-berekend)
+  dbaReasons              String? //  JSON-string met uitleg per indicator
+  modelAgreementType      String? //  ModelAgreementType die op deze opdracht van toepassing is (door opdrachtgever vastgelegd)
 
-  company              Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  industry             Industry?                  @relation(fields: [industryId], references: [id])
-  skills               JobSkill[]
+  company                Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  industry               Industry?                  @relation(fields: [industryId], references: [id])
+  skills                 JobSkill[]
   credentialRequirements JobCredentialRequirement[]
-  applications         Application[]
-  conversations        Conversation[]
-  collaborations       Collaboration[]
+  applications           Application[]
+  conversations          Conversation[]
+  collaborations         Collaboration[]
 
   @@index([status])
   @@index([companyId])
@@ -294,8 +294,8 @@ model Application {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  job           Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  freelancer    FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
   collaboration Collaboration?
 
   @@unique([jobId, freelancerId])
@@ -325,6 +325,8 @@ model ConversationParticipant {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([conversationId, userId])
+  // De PK leidt met conversationId; unreadConversations()/navBadges/dashboard filteren op userId.
+  @@index([userId])
 }
 
 model Message {
@@ -361,21 +363,21 @@ model Document {
 }
 
 model Credential {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   freelancerProfileId String
   type                String //   CredentialType: VOG | DIPLOMA | CERTIFICATE | INSURANCE | LICENSE | OTHER
   title               String
   issuer              String?
   issuedAt            DateTime?
   expiresAt           DateTime?
-  status              String   @default("DRAFT") // CredentialStatus: DRAFT | SUBMITTED | VERIFIED | REJECTED | EXPIRED
+  status              String    @default("DRAFT") // CredentialStatus: DRAFT | SUBMITTED | VERIFIED | REJECTED | EXPIRED
   documentId          String?
-  visibility          String   @default("PRIVATE") // Visibility: PUBLIC | PRIVATE
+  visibility          String    @default("PRIVATE") // Visibility: PUBLIC | PRIVATE
   verifiedAt          DateTime?
   rejectionReason     String?
   expiryReminderFor   DateTime? // vervaldatum waarvoor al een "verloopt binnenkort"-herinnering is verstuurd (dedup, idempotent)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   freelancerProfile FreelancerProfile        @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
   document          Document?                @relation(fields: [documentId], references: [id], onDelete: SetNull)
@@ -383,7 +385,9 @@ model Credential {
   requests          VerificationRequest[]
 
   @@index([status])
-  @@index([freelancerProfileId])
+  // Composite: dashboard/signals telt per (freelancerProfileId, status); dekt ook queries op alleen
+  // freelancerProfileId (leftmost prefix), dus de losse index erop is overbodig.
+  @@index([freelancerProfileId, status])
 }
 
 // Historie: elke verificatiebeslissing is een onveranderlijke regel (audit-grade).
@@ -403,10 +407,10 @@ model CredentialVerification {
 }
 
 model VerificationRequest {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   credentialId String
-  status       String   @default("PENDING") // RequestStatus: PENDING | RESOLVED
-  createdAt    DateTime @default(now())
+  status       String    @default("PENDING") // RequestStatus: PENDING | RESOLVED
+  createdAt    DateTime  @default(now())
   resolvedAt   DateTime?
 
   credential Credential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
@@ -419,13 +423,13 @@ model VerificationRequest {
 // ---------------------------------------------------------------------------
 
 model Collaboration {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   jobId          String
-  applicationId  String   @unique
+  applicationId  String    @unique
   freelancerId   String
   companyId      String
-  status         String   @default("PROPOSED") // CollaborationStatus: PROPOSED | ACTIVE | COMPLETED | CANCELLED
-  contractStatus String   @default("DRAFT") //    ContractStatus: DRAFT | SENT | SIGNED
+  status         String    @default("PROPOSED") // CollaborationStatus: PROPOSED | ACTIVE | COMPLETED | CANCELLED
+  contractStatus String    @default("DRAFT") //    ContractStatus: DRAFT | SENT | SIGNED
   rate           Int?
   ortProfile     String? // OrtSector: DEFAULT | VVT | GGZ | GHZ | JEUGD — bepaalt ORT-toeslagen (zorg)
   ortCustomRates String? // JSON Record<OrtCategory, bps> — maatwerk per klant, overschrijft het sectorprofiel
@@ -433,8 +437,8 @@ model Collaboration {
   endDate        DateTime?
   disputedAt     DateTime? // dispuut open → cascade bevroren tot opgelost (§4 zijpad)
   disputeReason  String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
   application  Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
@@ -520,21 +524,21 @@ model AdministrationEntry {
 }
 
 model Invoice {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   collaborationId String?
-  number          String   @unique
-  status          String   @default("DRAFT") // InvoiceStatus: DRAFT | SENT | PAID | OVERDUE | CANCELLED
+  number          String    @unique
+  status          String    @default("DRAFT") // InvoiceStatus: DRAFT | SENT | PAID | OVERDUE | CANCELLED
   issuedAt        DateTime?
   dueAt           DateTime?
-  totalCents      Int      @default(0) //        som van regels, server-berekend
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  totalCents      Int       @default(0) //        som van regels, server-berekend
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // --- Overhaul-cascade (Fase 2, additief) ---------------------------------
   // De live flow gebruikt status/number/totalCents hierboven; deze velden voeden de nieuwe
   // event-driven facturatie. Reconciliatie/cutover gebeurt in Fase 3.
   lifecycleStatus    String? //   InvoiceLifecycleState (concept->ingediend->goedgekeurd->betaald->verwerkt)
-  performanceId      String?  @unique //  afgeleid uit deze goedgekeurde prestatie
+  performanceId      String? @unique //  afgeleid uit deze goedgekeurde prestatie
   issuerUserId       String? //  uitschrijver (ZZP'er); null = platform-fee
   counterpartyUserId String? //  opdrachtgever
   issuerKey          String? //  reekssleutel: userId of "PLATFORM"
@@ -550,9 +554,13 @@ model Invoice {
 
   @@unique([issuerKey, partyInvoiceNumber])
   @@index([collaborationId])
-  @@index([issuerUserId])
   @@index([lifecycleStatus])
   @@index([correlationId])
+  // Composites: dashboard/signals tellen facturen per partij + lifecycleStatus (cascade-werk,
+  // betalingen). [issuerUserId, lifecycleStatus] dekt ook queries op alleen issuerUserId; voor de
+  // opdrachtgever bestond nog géén counterpartyUserId-index.
+  @@index([issuerUserId, lifecycleStatus])
+  @@index([counterpartyUserId, lifecycleStatus])
 }
 
 model InvoiceLine {
@@ -566,14 +574,14 @@ model InvoiceLine {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   type      String //   NotificationType (string)
   title     String
   body      String?
   link      String?
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -581,25 +589,25 @@ model Notification {
 }
 
 model Plan {
-  id              String   @id @default(cuid())
-  key             String   @unique // PlanKey: FREE | PRO | BUSINESS
+  id              String @id @default(cuid())
+  key             String @unique // PlanKey: FREE | PRO | BUSINESS
   name            String
   maxApplications Int //                -1 = onbeperkt
   maxJobs         Int
-  priceCents      Int      @default(0)
+  priceCents      Int    @default(0)
 
   subscriptions Subscription[]
 }
 
 model Subscription {
-  id               String   @id @default(cuid())
-  userId           String   @unique
+  id               String    @id @default(cuid())
+  userId           String    @unique
   planId           String
-  status           String   @default("ACTIVE") // SubscriptionStatus: PENDING | ACTIVE | PAST_DUE | CANCELLED
+  status           String    @default("ACTIVE") // SubscriptionStatus: PENDING | ACTIVE | PAST_DUE | CANCELLED
   providerRef      String? //                     betaalprovider-referentie (bv. Mollie payment id)
   currentPeriodEnd DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan Plan @relation(fields: [planId], references: [id])
@@ -725,18 +733,18 @@ model SupportMessage {
 // ---------------------------------------------------------------------------
 
 model HealthIncident {
-  id           String    @id @default(cuid())
-  source       String //                 IncidentSource: UPTIME | ERROR | CVE | AUTH
-  severity     String    @default("WARN") // IncidentSeverity: INFO | WARN | CRITICAL
-  code         String //                 stabiele machine-code, bv. LOGIN_BURST, ROLE_ESCALATION
-  status       String    @default("OPEN") // IncidentStatus: OPEN | ACKNOWLEDGED | RESOLVED
-  summary      String //                 mensleesbare samenvatting (NL)
-  evidence     String? //                JSON-string met onderbouwing
-  dedupeKey    String    @unique //       idempotentie: één incident per logische bevinding/venster
+  id             String    @id @default(cuid())
+  source         String //                 IncidentSource: UPTIME | ERROR | CVE | AUTH
+  severity       String    @default("WARN") // IncidentSeverity: INFO | WARN | CRITICAL
+  code           String //                 stabiele machine-code, bv. LOGIN_BURST, ROLE_ESCALATION
+  status         String    @default("OPEN") // IncidentStatus: OPEN | ACKNOWLEDGED | RESOLVED
+  summary        String //                 mensleesbare samenvatting (NL)
+  evidence       String? //                JSON-string met onderbouwing
+  dedupeKey      String    @unique //       idempotentie: één incident per logische bevinding/venster
   acknowledgedAt DateTime?
-  resolvedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([status])
   @@index([severity])
@@ -750,12 +758,12 @@ model HealthIncident {
 // ---------------------------------------------------------------------------
 
 model TaxFilingRequest {
-  id        String   @id @default(cuid())
-  userId    String
-  taxYear   Int //                     belastingjaar
-  kind      String //                  TaxFilingKind: IB | BTW
-  quarter   Int      @default(0) //     bij BTW: kwartaal 1-4; bij IB: 0 (n.v.t.)
-  status    String   @default("AKKOORD") // TaxFilingStatus
+  id      String @id @default(cuid())
+  userId  String
+  taxYear Int //                     belastingjaar
+  kind    String //                  TaxFilingKind: IB | BTW
+  quarter Int    @default(0) //     bij BTW: kwartaal 1-4; bij IB: 0 (n.v.t.)
+  status  String @default("AKKOORD") // TaxFilingStatus
 
   partnerName String //                naam van het aangesloten belastingkantoor (gemachtigde)
   mandateKind String //                MandateKind: DIGID | EHERKENNING
@@ -777,8 +785,8 @@ model TaxFilingRequest {
   aanslagAt     DateTime?
 
   revokedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   user User @relation("TaxFilingRequester", fields: [userId], references: [id], onDelete: Cascade)
 
