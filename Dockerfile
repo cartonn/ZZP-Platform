@@ -50,6 +50,12 @@ COPY --from=builder --chown=nodejs:nodejs /app/.next ./.next/
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma/
 COPY --from=builder --chown=nodejs:nodejs /app/scripts ./scripts/
 COPY --from=builder --chown=nodejs:nodejs /app/next.config.mjs ./
+# De demo-seed (prisma/seed.ts) draait via tsx en importeert app-code (@/lib/cascade/commands, ...).
+# Daarvoor moeten de bronbestanden én tsconfig.json (dat het @/*-pad-alias definieert) in de
+# runtime-image staan — alleen .next is niet genoeg. Zonder deze faalt de achtergrond-seed met
+# MODULE_NOT_FOUND en blijft de demo-data leeg.
+COPY --from=builder --chown=nodejs:nodejs /app/src ./src/
+COPY --from=builder --chown=nodejs:nodejs /app/tsconfig.json ./
 
 USER nodejs
 
