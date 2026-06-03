@@ -310,6 +310,18 @@ export function PerformanceReviewBody({
         )}
       </div>
 
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+          {isMilestone ? "Oplevering" : "Urenstaat"} — open en controleer voordat je beslist
+        </p>
+        <Button asChild variant="secondary" className="w-full">
+          <a href={`/api/prestaties/${data.perfId}/pdf`} target="_blank" rel="noreferrer">
+            <FileText className="size-4" aria-hidden />
+            Open {isMilestone ? "oplevering" : "urenstaat"} (PDF)
+          </a>
+        </Button>
+      </div>
+
       {data.description ? (
         <div>
           <p className="mb-1 text-xs font-medium text-muted-foreground">Omschrijving</p>
