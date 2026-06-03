@@ -19,15 +19,10 @@ import { type DrawerData } from "@/lib/actions/drawer-data";
 import { cn } from "@/lib/utils";
 import {
   signContractAction,
-  approvePerformanceAction,
-  rejectPerformanceAction,
   submitInvoiceAction,
-  approveInvoiceAction,
-  rejectInvoiceAction,
   confirmPaymentAction,
   resolveDisputeAction,
 } from "@/app/(protected)/samenwerkingen/[id]/actions";
-import { verifyCredential, rejectCredential } from "@/app/(protected)/admin/verificaties/actions";
 import { setUserStatus } from "@/app/(protected)/admin/gebruikers/actions";
 
 type FormAction = (formData: FormData) => void | Promise<void>;
@@ -61,41 +56,6 @@ function OneClick({
   );
 }
 
-function ApproveReject({ approve, reject }: { approve: FormAction; reject: FormAction }) {
-  return (
-    <div className="flex items-center gap-2">
-      <form action={approve}>
-        <SubmitButton size="sm" pendingLabel="Bezig…">
-          Goedkeuren
-        </SubmitButton>
-      </form>
-      <details className="relative">
-        <summary className="focus-ring inline-flex h-8 cursor-pointer list-none items-center rounded-lg px-3 text-sm text-danger transition-colors hover:bg-muted [&::-webkit-details-marker]:hidden">
-          Afwijzen
-        </summary>
-        <form
-          action={reject}
-          className="absolute right-0 z-20 mt-2 w-72 space-y-2 rounded-lg border border-border bg-card p-3 text-left shadow-md"
-        >
-          <label className="block text-xs font-medium text-muted-foreground">
-            Reden voor afwijzing
-          </label>
-          <textarea
-            name="reason"
-            required
-            rows={2}
-            placeholder="Wat moet er anders?"
-            className="focus-ring w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-          />
-          <SubmitButton variant="danger" size="sm" className="w-full" pendingLabel="Bezig…">
-            Bevestig afwijzing
-          </SubmitButton>
-        </form>
-      </details>
-    </div>
-  );
-}
-
 function OpenLink({ href, label = "Openen" }: { href: string; label?: string }) {
   return (
     <Button asChild size="sm" variant="secondary">
@@ -114,6 +74,10 @@ const DRAWER_LABEL: Record<string, string> = {
   "credential-fix": "Opnieuw indienen",
   "performance-resubmit": "Corrigeren",
   "message-reply": "Beantwoorden",
+  // Inspecteer-dan-beslis: open het artefact (document/factuur/uren) en keur goed of af.
+  "admin-verify-credential": "Beoordelen",
+  "invoice-approve": "Beoordelen",
+  "performance-approve": "Beoordelen",
 };
 
 /** Bindt elke taak aan de bestaande server-actie en kiest de juiste inline-vorm. */
@@ -153,33 +117,16 @@ function Resolver({
           label="Dispuut oplossen"
         />
       );
-    case "performance-approve":
-      return (
-        <ApproveReject
-          approve={approvePerformanceAction.bind(null, task.perfId, task.collabId)}
-          reject={rejectPerformanceAction.bind(null, task.perfId, task.collabId)}
-        />
-      );
-    case "invoice-approve":
-      return (
-        <ApproveReject
-          approve={approveInvoiceAction.bind(null, task.invId, task.collabId)}
-          reject={rejectInvoiceAction.bind(null, task.invId, task.collabId)}
-        />
-      );
-    case "admin-verify-credential":
-      return (
-        <ApproveReject
-          approve={verifyCredential.bind(null, task.credId)}
-          reject={rejectCredential.bind(null, task.credId)}
-        />
-      );
-    // Drawer-soorten: open het bestaande formulier inline in een slide-over.
+    // Drawer-soorten: open het bestaande formulier of een beoordeel-paneel inline in een slide-over.
+    // De beoordeel-soorten (certificaat/factuur/prestatie) tonen eerst het artefact, dan goedkeuren/afwijzen.
     case "profile-complete":
     case "company-complete":
     case "credential-fix":
     case "performance-resubmit":
     case "message-reply":
+    case "admin-verify-credential":
+    case "invoice-approve":
+    case "performance-approve":
       return (
         <DrawerResolver task={task} data={drawerData?.[task.id]} label={DRAWER_LABEL[task.kind]} />
       );

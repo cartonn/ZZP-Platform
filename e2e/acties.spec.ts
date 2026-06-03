@@ -115,7 +115,10 @@ test("actiecentrum: contract tekenen lost de taak op en advanced", async ({ page
   await fctx.close();
 });
 
-test("actiecentrum: ingediende prestatie inline goedkeuren", async ({ page, browser }) => {
+test("actiecentrum: ingediende prestatie beoordelen + goedkeuren via drawer", async ({
+  page,
+  browser,
+}) => {
   test.slow();
   const { collaborationUrl, fp, fctx } = await setupCollaboration(page, browser as Browser);
 
@@ -139,15 +142,21 @@ test("actiecentrum: ingediende prestatie inline goedkeuren", async ({ page, brow
   await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
   await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
 
-  // Client opent /acties → keurt de ingediende uren inline goed → de taak verdwijnt.
+  // Client opent /acties → "Beoordelen" opent de drawer met de urendetails (eerst inzien).
   await page.goto("/acties");
   await hydrated(page);
   const approveTask = page.locator("li", { hasText: "Keur de ingediende uren" });
   await expect(approveTask).toBeVisible({ timeout: 15000 });
-  await clickUntilGone(
-    approveTask.getByRole("button", { name: "Goedkeuren" }),
-    page.locator("li", { hasText: "Keur de ingediende uren" }),
-  );
+  await approveTask.getByRole("button", { name: "Beoordelen" }).click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText("Urenstaat")).toBeVisible();
+
+  // Pas na inzien goedkeuren → drawer sluit, taak verdwijnt (auto-advance).
+  await drawer.getByRole("button", { name: "Goedkeuren" }).click();
+  await expect(page.locator("li", { hasText: "Keur de ingediende uren" })).toHaveCount(0, {
+    timeout: 15000,
+  });
   await shot(page, "acties-na-goedkeuren");
 
   await fctx.close();

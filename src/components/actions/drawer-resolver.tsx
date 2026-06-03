@@ -7,6 +7,11 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ActionDrawer } from "@/components/actions/action-drawer";
 import { ReplyComposer } from "@/components/actions/reply-composer";
+import {
+  CredentialReviewBody,
+  InvoiceReviewBody,
+  PerformanceReviewBody,
+} from "@/components/actions/review-bodies";
 import { type PendingTask } from "@/lib/actions/tasks";
 import { type DrawerData } from "@/lib/actions/drawer-data";
 import { ProfileForm } from "@/app/(protected)/profiel/profile-form";
@@ -106,5 +111,11 @@ function DrawerBody({ data, onResolved }: { data: DrawerData; onResolved: () => 
           onResolved={onResolved}
         />
       );
+    case "admin-verify-credential":
+      return <CredentialReviewBody data={data} onResolved={onResolved} />;
+    case "invoice-approve":
+      return <InvoiceReviewBody data={data} onResolved={onResolved} />;
+    case "performance-approve":
+      return <PerformanceReviewBody data={data} onResolved={onResolved} />;
   }
 }
