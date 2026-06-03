@@ -16,6 +16,7 @@ import {
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { computeFreelancerCompleteness } from "@/lib/profile";
+import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { type NextActionTone } from "@/lib/next-actions";
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
@@ -92,20 +93,9 @@ function parseLanguages(raw: string | null): string[] {
 
 async function dashboardData(role: UserRole, userId: string): Promise<DashboardData> {
   if (role === "FREELANCER") {
-    const profile = await prisma.freelancerProfile.findUnique({
-      where: { userId },
-      select: {
-        id: true,
-        headline: true,
-        bio: true,
-        hourlyRate: true,
-        location: true,
-        availability: true,
-        languages: true,
-        skills: { select: { skillId: true } },
-        industries: { select: { industryId: true } },
-      },
-    });
+    // Gedeelde, request-gecachte profiel-load (zie getCompletenessProfile): dezelfde query
+    // die pendingTasks() ophaalt wordt binnen deze render hergebruikt i.p.v. opnieuw gedraaid.
+    const profile = await getCompletenessProfile(userId);
     const pid = profile?.id;
     // Live berekend (zelfde bron als de profielpagina) zodat we de ontbrekende onderdelen
     // concreet kunnen tonen — "voeg toe: Uurtarief, Talen, ...".

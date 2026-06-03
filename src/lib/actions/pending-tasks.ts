@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { type Availability } from "@/lib/enums";
 import { computeFreelancerCompleteness, computeCompanyCompleteness } from "@/lib/profile";
+import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { overdueInvoiceCount } from "@/lib/signals";
 import {
   rankTasks,
@@ -83,21 +84,9 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
 
   const [profile, account, overdue, unread] = await Promise.all([
-    prisma.freelancerProfile.findUnique({
-      where: { userId },
-      select: {
-        id: true,
-        visibility: true,
-        headline: true,
-        bio: true,
-        hourlyRate: true,
-        location: true,
-        availability: true,
-        languages: true,
-        skills: { select: { skillId: true } },
-        industries: { select: { industryId: true } },
-      },
-    }),
+    // Gedeelde, request-gecachte profiel-load (zie getCompletenessProfile): op het dashboard
+    // deelt deze query één render met dashboardData i.p.v. het profiel tweemaal op te halen.
+    getCompletenessProfile(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { identityVerifiedAt: true } }),
     overdueInvoiceCount("FREELANCER", userId),
     unreadConversations(userId),
