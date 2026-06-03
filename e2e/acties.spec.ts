@@ -204,3 +204,78 @@ test("actiecentrum: dashboard-zone handelt inline af + advanced", async ({ page,
     page.locator("li", { hasText: "Contract ondertekenen" }),
   );
 });
+
+test("actiecentrum: factuur beoordelen — PDF openen + goedkeuren", async ({ page, browser }) => {
+  test.slow();
+  const { collaborationUrl, fp, fctx } = await setupCollaboration(page, browser as Browser);
+
+  // Contract actief.
+  await page.goto(collaborationUrl);
+  await clickUntil(
+    page.getByRole("button", { name: "Contract ondertekenen" }),
+    page.getByText("Actief"),
+  );
+
+  // Freelancer dient uren in.
+  await fp.goto(collaborationUrl);
+  await expect(fp.getByText("Actief")).toBeVisible({ timeout: 15000 });
+  await hydrated(fp);
+  await fp.fill('input[name="hours"]', "8");
+  await fp.fill('input[name="periodStart"]', "2026-01-06");
+  await fp.fill('input[name="periodEnd"]', "2026-01-06");
+  await fp.fill('input[name="description"]', "Week 1");
+  await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
+  await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
+
+  // Client keurt de prestatie goed via het Actiecentrum (bewezen drawer-flow) → concept-factuur.
+  await page.goto("/acties");
+  await hydrated(page);
+  const perfTask = page.locator("li", { hasText: "Keur de ingediende uren" });
+  await expect(perfTask).toBeVisible({ timeout: 15000 });
+  await perfTask.getByRole("button", { name: "Beoordelen" }).click();
+  const perfDrawer = page.getByRole("dialog");
+  await expect(perfDrawer).toBeVisible();
+  await perfDrawer.getByRole("button", { name: "Goedkeuren" }).click();
+  await expect(page.locator("li", { hasText: "Keur de ingediende uren" })).toHaveCount(0, {
+    timeout: 15000,
+  });
+
+  // Freelancer dient de factuur in (wacht eerst tot de concept-factuur zichtbaar is, zoals cascade.spec).
+  await fp.reload();
+  await expect(fp.getByText("Concept").first()).toBeVisible({ timeout: 15000 });
+  const invCard = fp.locator("section").filter({ hasText: "Facturen" });
+  // Resultaat scopen tot de factuur-sectie: een losse getByText("Ingediend") matcht elders op de
+  // pagina (substring) waardoor clickUntil zou denken dat het al klaar is en niet zou klikken.
+  await clickUntil(
+    invCard.getByRole("button", { name: "Indienen" }).first(),
+    invCard.getByText("Ingediend"),
+  );
+
+  // Client opent /acties → factuur beoordelen → de factuur-PDF.
+  await page.goto("/acties");
+  await hydrated(page);
+  const task = page.locator("li", { hasText: "Keur de ingediende factuur" });
+  await expect(task).toBeVisible({ timeout: 15000 });
+  await task.getByRole("button", { name: "Beoordelen" }).click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer).toBeVisible();
+  const pdfLink = drawer.getByRole("link", { name: /Open factuur/ });
+  await expect(pdfLink).toBeVisible();
+
+  // De factuur-PDF wordt echt geserveerd (geauthenticeerd, application/pdf, %PDF-header).
+  const href = await pdfLink.getAttribute("href");
+  const resp = await page.request.get(href!);
+  expect(resp.status()).toBe(200);
+  expect(resp.headers()["content-type"]).toContain("application/pdf");
+  const body = await resp.body();
+  expect(body.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+
+  // Pas na inzien goedkeuren → de taak verdwijnt (auto-advance).
+  await drawer.getByRole("button", { name: "Goedkeuren" }).click();
+  await expect(page.locator("li", { hasText: "Keur de ingediende factuur" })).toHaveCount(0, {
+    timeout: 15000,
+  });
+  await shot(page, "acties-factuur-pdf");
+
+  await fctx.close();
+});

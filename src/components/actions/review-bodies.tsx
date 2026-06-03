@@ -6,7 +6,7 @@
 // bij succes vuurt onResolved → drawer sluit + doorvloeien. Een fout wordt inline getoond.
 
 import { useActionState, useEffect } from "react";
-import { ExternalLink } from "lucide-react";
+import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatEuro } from "@/lib/invoices";
 import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
@@ -98,32 +98,20 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Bewijsstuk-preview: PDF/afbeelding inline via de geauditeerde /api/documents-route, + openlink. */
-function DocumentViewer({ doc }: { doc: ReviewDocument | null }) {
+/** Bewijsstuk openen: het geüploade document (PDF/afbeelding) opent in een nieuw tabblad via de
+ *  geauditeerde /api/documents-route (top-level navigatie — niet geblokkeerd door framing-headers,
+ *  en elke view wordt geaudit). Eerst openen + lezen, dan pas beslissen. */
+function OpenDocumentButton({ doc }: { doc: ReviewDocument | null }) {
   if (!doc) {
     return <p className="text-sm text-muted-foreground">Geen bewijsstuk geüpload.</p>;
   }
-  const url = `/api/documents/${doc.id}`;
-  const previewable = doc.mimeType === "application/pdf" || doc.mimeType.startsWith("image/");
   return (
-    <div className="space-y-2">
-      {previewable ? (
-        <iframe
-          src={url}
-          title={`Bewijsstuk: ${doc.filename}`}
-          className="h-80 w-full rounded-md border border-border bg-muted/30"
-        />
-      ) : null}
-      <a
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        className="focus-ring inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-      >
-        <ExternalLink className="size-3.5" aria-hidden />
-        {doc.filename} openen
+    <Button asChild variant="secondary" className="w-full">
+      <a href={`/api/documents/${doc.id}`} target="_blank" rel="noreferrer">
+        <FileText className="size-4" aria-hidden />
+        Open bewijsstuk — {doc.filename}
       </a>
-    </div>
+    </Button>
   );
 }
 
@@ -145,8 +133,10 @@ export function CredentialReviewBody({
         <DetailRow label="Ingediend door" value={data.submittedBy} />
       </div>
       <div>
-        <p className="mb-1.5 text-xs font-medium text-muted-foreground">Bewijsstuk</p>
-        <DocumentViewer doc={data.document} />
+        <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+          Bewijsstuk — open en controleer voordat je beslist
+        </p>
+        <OpenDocumentButton doc={data.document} />
       </div>
       <ApproveRejectControls
         approve={verifyCredentialState.bind(null, data.credId)}
@@ -175,28 +165,17 @@ export function InvoiceReviewBody({
         <DetailRow label="Vervaldatum" value={data.dueAt} />
       </div>
 
-      {data.lines.length > 0 ? (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-muted-foreground">
-              <th className="py-1 font-normal">Omschrijving</th>
-              <th className="py-1 text-right font-normal">Aantal</th>
-              <th className="py-1 text-right font-normal">Per stuk</th>
-              <th className="py-1 text-right font-normal">Bedrag</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.lines.map((l) => (
-              <tr key={l.id} className="border-t border-border/40">
-                <td className="py-1">{l.description}</td>
-                <td className="py-1 text-right tabular-nums">{l.quantity}</td>
-                <td className="py-1 text-right tabular-nums">{formatEuro(l.unitCents)}</td>
-                <td className="py-1 text-right tabular-nums">{formatEuro(l.amountCents)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+          Factuur — open en controleer voordat je beslist
+        </p>
+        <Button asChild variant="secondary" className="w-full">
+          <a href={`/api/facturen/${data.invId}/pdf`} target="_blank" rel="noreferrer">
+            <FileText className="size-4" aria-hidden />
+            Open factuur (PDF)
+          </a>
+        </Button>
+      </div>
 
       <div className="space-y-1 border-t border-border pt-2 text-sm">
         <div className="flex justify-between">
