@@ -143,9 +143,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     const now = new Date();
     const [
       applications,
-      verified,
-      rejected,
-      expiring,
+      creds,
       account,
       overdue,
       draftInvoices,
@@ -157,21 +155,14 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       runningRows,
     ] = await Promise.all([
       pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
+      // Eén query voor alle certificaten van de ZZP'er; de drie tellingen leiden we in-memory af
+      // (scheelt 2 DB-round-trips t.o.v. drie aparte count()-queries).
       pid
-        ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "VERIFIED" } })
-        : Promise.resolve(0),
-      pid
-        ? prisma.credential.count({ where: { freelancerProfileId: pid, status: "REJECTED" } })
-        : Promise.resolve(0),
-      pid
-        ? prisma.credential.count({
-            where: {
-              freelancerProfileId: pid,
-              status: "VERIFIED",
-              expiresAt: { gt: now, lte: soon },
-            },
+        ? prisma.credential.findMany({
+            where: { freelancerProfileId: pid },
+            select: { status: true, expiresAt: true },
           })
-        : Promise.resolve(0),
+        : Promise.resolve<{ status: string; expiresAt: Date | null }[]>([]),
       prisma.user.findUnique({ where: { id: userId }, select: { identityVerifiedAt: true } }),
       overdueInvoiceCount("FREELANCER", userId),
       // Cascade (lifecycleStatus = de cascade-flow; oude losse-status-facturen tellen niet mee).
@@ -209,6 +200,14 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         orderBy: { createdAt: "desc" },
       }),
     ]);
+
+    // Certificaat-tellingen in-memory afgeleid uit de ene findMany hierboven (zelfde drempels).
+    const verified = creds.filter((c) => c.status === "VERIFIED").length;
+    const rejected = creds.filter((c) => c.status === "REJECTED").length;
+    const expiring = creds.filter(
+      (c) =>
+        c.status === "VERIFIED" && c.expiresAt != null && c.expiresAt > now && c.expiresAt <= soon,
+    ).length;
 
     // Base- en cascade-acties samen ranken zodat de juiste "aan zet" bovenaan staat.
     const freelancerActions = rankNextActions([
