@@ -18,10 +18,26 @@ const ticketSchema = z.object({
   body: z.string().trim().min(10, "Beschrijf je vraag in iets meer detail."),
 });
 
-/** Laadt een ticket dat van de actor is (ownership), of werpt. */
-async function loadOwnedTicket(ticketId: string, userId: string) {
+/**
+ * Laadt een ticket dat van de actor is (ownership), of werpt. Een poging om een ticket
+ * van iemand anders te bewerken is een beveiligingsrelevante gebeurtenis en wordt geaudit
+ * (CLAUDE.md regel 5 — "audit alles wat telt"), zodat cross-user-toegangspogingen zichtbaar
+ * zijn. Een onbekend id loggen we niet: dat is doorgaans een verouderde link, geen poging.
+ */
+async function loadOwnedTicket(ticketId: string, userId: string, attemptedAction: string) {
   const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
-  if (!ticket || ticket.userId !== userId) throw new Error("Ticket niet gevonden.");
+  if (!ticket || ticket.userId !== userId) {
+    if (ticket && ticket.userId !== userId) {
+      await audit({
+        actorId: userId,
+        action: "SUPPORT_TICKET_ACCESS_DENIED",
+        entityType: "SupportTicket",
+        entityId: ticketId,
+        metadata: { attemptedAction, ownerId: ticket.userId },
+      });
+    }
+    throw new Error("Ticket niet gevonden.");
+  }
   return ticket;
 }
 
@@ -118,7 +134,7 @@ const replySchema = z.object({ body: z.string().trim().min(1, "Schrijf een beric
 
 export async function replyToTicket(ticketId: string, formData: FormData): Promise<void> {
   const actor = await requireActor();
-  const ticket = await loadOwnedTicket(ticketId, actor.id);
+  const ticket = await loadOwnedTicket(ticketId, actor.id, "reply");
 
   const parsed = replySchema.safeParse({ body: formData.get("body") });
   if (!parsed.success) return;
@@ -144,7 +160,7 @@ export async function replyToTicket(ticketId: string, formData: FormData): Promi
 
 export async function markResolved(ticketId: string): Promise<void> {
   const actor = await requireActor();
-  const ticket = await loadOwnedTicket(ticketId, actor.id);
+  const ticket = await loadOwnedTicket(ticketId, actor.id, "resolve");
 
   assertSupportTransition(ticket.status as SupportTicketStatus, "RESOLVED");
   await prisma.supportTicket.update({
