@@ -300,6 +300,9 @@ model Application {
 
   @@unique([jobId, freelancerId])
   @@index([status])
+  // /reacties + dashboard: reacties van één ZZP'er, nieuwste eerst. De unique-index begint
+  // met jobId en dekt freelancerId-filters niet; dit composite doet dat (incl. de sortering).
+  @@index([freelancerId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -588,7 +591,9 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  // Notificatielijst: per gebruiker, nieuwste eerst. userId blijft leidend, dus dit dekt
+  // ook userId-only filters (bv. de ongelezen-badge).
+  @@index([userId, createdAt])
 }
 
 model Plan {
