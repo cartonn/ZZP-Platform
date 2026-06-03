@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { Inbox } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { pendingTasks } from "@/lib/actions/pending-tasks";
+import { loadDrawerData } from "@/lib/actions/drawer-data";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ActionList } from "@/components/actions/action-list";
@@ -14,6 +15,9 @@ export const metadata: Metadata = { title: "Acties · ZZP Platform" };
 export default async function ActiesPage() {
   const actor = await requireActor();
   const tasks = await pendingTasks(actor);
+  // Prefetch de form-data voor de drawer-soorten die daadwerkelijk in de lijst staan (N+1-veilig),
+  // zodat elke actie ter plekke in een slide-over af te handelen is.
+  const drawerData = await loadDrawerData(actor, tasks);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -35,7 +39,7 @@ export default async function ActiesPage() {
           />
         </Card>
       ) : (
-        <ActionList tasks={tasks} />
+        <ActionList tasks={tasks} drawerData={drawerData} />
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +25,7 @@ export function PerformanceForm({
   action,
   submitLabel = "Indienen ter goedkeuring",
   defaults,
+  onResolved,
 }: {
   collaborationId: string;
   rateCents: number | null;
@@ -35,11 +36,20 @@ export function PerformanceForm({
   submitLabel?: string;
   /** Voorinvulling bij het corrigeren van een bestaande prestatie. */
   defaults?: PerformanceFormDefaults;
+  /** Vuurt na een geslaagde indiening — gebruikt door het Actiecentrum (drawer sluiten + doorvloeien). */
+  onResolved?: () => void;
 }) {
   const [error, formAction, isPending] = useActionState(
     action ?? logAndSubmitPerformanceAction.bind(null, collaborationId),
     null,
   );
+  // Succes-signaal: de actie geeft string|null terug (geen expliciet ok). Een geslaagde submit is
+  // een pending→klaar-overgang die op null eindigt. Zo kan de drawer sluiten + doorvloeien.
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !isPending && error === null) onResolved?.();
+    wasPending.current = isPending;
+  }, [isPending, error, onResolved]);
   // Eén of meer diensten; elke rij is een begin/eind-paar (client-side beheerd).
   const [rows, setRows] = useState<ShiftRow[]>(
     defaults?.shifts.length

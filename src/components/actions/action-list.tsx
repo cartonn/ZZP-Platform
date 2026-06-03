@@ -3,16 +3,19 @@
 // → de RSC re-rendert → de afgehandelde taak verdwijnt en de volgende staat klaar (auto-advance,
 // zonder client-state). Reden-bij-afwijzen zit in een native <details>-popover (geen client-JS).
 //
-// Inc. 1 handelt inline af: één-klik (tekenen/indienen/betaling/activeren/dispuut) en goedkeuren/
-// afwijzen (prestatie/factuur/certificaat). De drawer-/reply-/link-soorten openen voorlopig de
-// bestaande pagina (deep-link); Inc. 2 maakt die inline in een slide-over.
+// Twee inline-vormen: (1) één-klik / goedkeuren-afwijzen direct als server-action-form in de rij;
+// (2) drawer-soorten (profiel/bedrijf/certificaat/prestatie/bericht) openen een slide-over die het
+// bestaande formulier inline hergebruikt (DrawerResolver). Resterende link-soorten (overdue,
+// AVG-verwijderverzoek) zijn deep-links. Alles vloeit door via revalidate / router.refresh().
 
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2, Info, type LucideIcon } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SubmitButton } from "@/components/actions/submit-button";
+import { DrawerResolver } from "@/components/actions/drawer-resolver";
 import { type PendingTask, type TaskTone } from "@/lib/actions/tasks";
+import { type DrawerData } from "@/lib/actions/drawer-data";
 import { cn } from "@/lib/utils";
 import {
   signContractAction,
@@ -104,8 +107,23 @@ function OpenLink({ href, label = "Openen" }: { href: string; label?: string }) 
   );
 }
 
+/** Labels voor de drawer-trigger per soort (de drawer-titel = de volledige taaktitel). */
+const DRAWER_LABEL: Record<string, string> = {
+  "profile-complete": "Afronden",
+  "company-complete": "Afronden",
+  "credential-fix": "Opnieuw indienen",
+  "performance-resubmit": "Corrigeren",
+  "message-reply": "Beantwoorden",
+};
+
 /** Bindt elke taak aan de bestaande server-actie en kiest de juiste inline-vorm. */
-function Resolver({ task }: { task: PendingTask }) {
+function Resolver({
+  task,
+  drawerData,
+}: {
+  task: PendingTask;
+  drawerData?: Record<string, DrawerData>;
+}) {
   switch (task.kind) {
     case "contract-sign":
       return <OneClick action={signContractAction.bind(null, task.collabId)} label="Onderteken" />;
@@ -156,13 +174,28 @@ function Resolver({ task }: { task: PendingTask }) {
           reject={rejectCredential.bind(null, task.credId)}
         />
       );
-    // Inc. 2 maakt deze inline (slide-over / inline composer); voor nu een deep-link.
+    // Drawer-soorten: open het bestaande formulier inline in een slide-over.
+    case "profile-complete":
+    case "company-complete":
+    case "credential-fix":
+    case "performance-resubmit":
+    case "message-reply":
+      return (
+        <DrawerResolver task={task} data={drawerData?.[task.id]} label={DRAWER_LABEL[task.kind]} />
+      );
+    // Link-soorten (overdue-factuur, AVG-verwijderverzoek): deep-link naar de plek van de handeling.
     default:
       return <OpenLink href={task.href} />;
   }
 }
 
-export function ActionList({ tasks }: { tasks: PendingTask[] }) {
+export function ActionList({
+  tasks,
+  drawerData,
+}: {
+  tasks: PendingTask[];
+  drawerData?: Record<string, DrawerData>;
+}) {
   return (
     <Card>
       <ul className="divide-y divide-border">
@@ -182,7 +215,7 @@ export function ActionList({ tasks }: { tasks: PendingTask[] }) {
               </div>
             </div>
             <div className="ml-7 shrink-0 sm:ml-0">
-              <Resolver task={task} />
+              <Resolver task={task} drawerData={drawerData} />
             </div>
           </li>
         ))}

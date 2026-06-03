@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckChip } from "@/components/ui/check-chip";
 import { Field } from "@/components/ui/field";
@@ -40,15 +40,21 @@ export function ProfileForm({
   initial,
   skills,
   industries,
+  onResolved,
 }: {
   initial: ProfileFormInitial;
   skills: { id: string; name: string }[];
   industries: { id: string; name: string }[];
+  /** Vuurt na een geslaagde opslag — gebruikt door het Actiecentrum om de drawer te sluiten + door te vloeien. */
+  onResolved?: () => void;
 }) {
   const [state, formAction, isPending] = useActionState<ProfileState, FormData>(
     updateFreelancerProfile,
     undefined,
   );
+  useEffect(() => {
+    if (state?.ok) onResolved?.();
+  }, [state, onResolved]);
   const fe = state?.fieldErrors ?? {};
   // Controlled selects: voorkomt dat de weergave terugspringt na de RSC-refresh
   // die een server action triggert (uncontrolled <select> reset-effect).

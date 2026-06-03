@@ -20,7 +20,9 @@ import {
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { credentialSchema } from "@/lib/validation";
 
-export type CredentialState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
+export type CredentialState =
+  | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
+  | undefined;
 
 async function requireProfile(actorId: string) {
   const profile = await prisma.freelancerProfile.findUnique({
@@ -69,10 +71,12 @@ async function deleteDocumentById(documentId: string | null) {
     .catch(() => {});
 }
 
-export async function saveCredential(
-  _prev: CredentialState,
-  formData: FormData,
-): Promise<CredentialState> {
+/**
+ * Kern van het opslaan/(her)indienen van een credential — gedeeld door de standalone
+ * /certificaten-pagina (saveCredential, met redirect) en het Actiecentrum (saveCredentialInline,
+ * zonder redirect). Geeft een fout-state terug bij een probleem, of `undefined` bij succes.
+ */
+async function persistCredential(formData: FormData): Promise<CredentialState> {
   let actor;
   try {
     actor = await requireRole("FREELANCER");
@@ -170,8 +174,34 @@ export async function saveCredential(
     throw e;
   }
 
+  return undefined; // succes
+}
+
+/** Standalone /certificaten-pagina: opslaan en terug naar het overzicht. */
+export async function saveCredential(
+  _prev: CredentialState,
+  formData: FormData,
+): Promise<CredentialState> {
+  const result = await persistCredential(formData);
+  if (result) return result;
   revalidatePath("/certificaten");
   redirect("/certificaten");
+}
+
+/**
+ * Actiecentrum-variant: zelfde mutatie, maar zonder redirect — geeft { ok: true } terug zodat de
+ * drawer kan sluiten en doorvloeien, en revalideert /acties zodat de afgehandelde taak verdwijnt.
+ */
+export async function saveCredentialInline(
+  _prev: CredentialState,
+  formData: FormData,
+): Promise<CredentialState> {
+  const result = await persistCredential(formData);
+  if (result) return result;
+  revalidatePath("/certificaten");
+  revalidatePath("/acties");
+  revalidatePath("/dashboard");
+  return { ok: true };
 }
 
 export async function requestVerification(credentialId: string): Promise<void> {

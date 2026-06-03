@@ -152,3 +152,28 @@ test("actiecentrum: ingediende prestatie inline goedkeuren", async ({ page, brow
 
   await fctx.close();
 });
+
+test("actiecentrum: identiteit inline verifiëren via de drawer", async ({ page }) => {
+  test.slow();
+  // registerFreelancer registreert met naam "Acties ZZP'er"; de iDIN-verifier vereist een match.
+  const legalName = "Acties ZZP'er";
+  await registerFreelancer(page, `acties-ident-${uniq()}@test.local`);
+
+  await page.goto("/acties");
+  await hydrated(page);
+  const task = page.locator("li", { hasText: "Verifieer je identiteit" });
+  await expect(task).toBeVisible({ timeout: 15000 });
+
+  // Open de drawer en handel de actie ter plekke af (geen navigatie weg van /acties).
+  await task.getByRole("button", { name: "Afronden" }).click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer).toBeVisible();
+  await drawer.getByLabel("Juridische naam").fill(legalName);
+  await drawer.getByRole("button", { name: "Verifieer identiteit (iDIN)" }).click();
+
+  // Auto-advance: na succes sluit de drawer en verdwijnt de taak uit de lijst.
+  await expect(page.locator("li", { hasText: "Verifieer je identiteit" })).toHaveCount(0, {
+    timeout: 15000,
+  });
+  await shot(page, "acties-drawer-identiteit");
+});
