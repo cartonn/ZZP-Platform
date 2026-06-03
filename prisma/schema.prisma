@@ -339,7 +339,10 @@ model Message {
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
-  @@index([conversationId])
+  // Composite: de berichtenlijst haalt per gesprek het laatste bericht op (orderBy createdAt)
+  // én telt ongelezen (conversationId + createdAt > lastReadAt). conversationId blijft de
+  // leidende kolom, dus dit dekt ook queries die alleen op conversationId filteren.
+  @@index([conversationId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
