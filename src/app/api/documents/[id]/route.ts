@@ -25,6 +25,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   if (!doc) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
   if (!canAccessDocument(actor, doc.ownerId)) {
+    // Een poging om andermans gevoelige document (VOG, diploma) te openen is een
+    // beveiligingsrelevante gebeurtenis — leg 'm vast naast de geslaagde toegang hieronder
+    // (CLAUDE.md regel 5: document-toegang auditen, ook de geweigerde).
+    const meta = await requestMeta();
+    await audit({
+      actorId: actor.id,
+      action: "DOCUMENT_ACCESS_DENIED",
+      entityType: "Document",
+      entityId: id,
+      metadata: { viewerRole: actor.role, ownerId: doc.ownerId },
+      ...meta,
+    });
     return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
   }
 
