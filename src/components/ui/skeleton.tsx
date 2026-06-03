@@ -36,3 +36,22 @@ export function ListSkeleton({ rows = 5, className }: { rows?: number; className
     </div>
   );
 }
+
+// Formulier-skelet: N label+veld-paren plus een knop in één card, voor bewerk-/nieuw-pagina's.
+export function FormSkeleton({ fields = 4, className }: { fields?: number; className?: string }) {
+  return (
+    <div
+      className={cn("space-y-4 rounded-lg border border-border bg-card p-5", className)}
+      aria-busy="true"
+      aria-label="Laden"
+    >
+      {Array.from({ length: fields }).map((_, i) => (
+        <div key={i} className="space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      ))}
+      <Skeleton className="h-9 w-32" />
+    </div>
+  );
+}
