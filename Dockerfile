@@ -57,6 +57,12 @@ COPY --from=builder --chown=nodejs:nodejs /app/next.config.mjs ./
 COPY --from=builder --chown=nodejs:nodejs /app/src ./src/
 COPY --from=builder --chown=nodejs:nodejs /app/tsconfig.json ./
 
+# De lokale storage-driver schrijft geüploade documenten/bewijsstukken naar /app/storage. /app is
+# root-eigendom, dus de non-root runtime-user kan die map niet zelf aanmaken → maak 'm aan en geef
+# 'm aan nodejs. Zonder dit faalt elke document-write (EACCES): échte uploads én de demo-seed van de
+# certificaat-bewijsstukken. (Voor persistente productie-opslag: STORAGE_DRIVER=s3 of een volume.)
+RUN mkdir -p /app/storage && chown -R nodejs:nodejs /app/storage
+
 USER nodejs
 
 EXPOSE 3000
