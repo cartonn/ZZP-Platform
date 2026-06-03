@@ -177,3 +177,21 @@ test("actiecentrum: identiteit inline verifiëren via de drawer", async ({ page 
   });
   await shot(page, "acties-drawer-identiteit");
 });
+
+test("actiecentrum: dashboard-zone handelt inline af + advanced", async ({ page, browser }) => {
+  test.slow();
+  await setupCollaboration(page, browser as Browser);
+
+  // De dashboard-zone "Wat vraagt aandacht" toont het te-tekenen contract als inline-actie.
+  await page.goto("/dashboard");
+  await hydrated(page);
+  const signRow = page.locator("li", { hasText: "Contract ondertekenen" });
+  await expect(signRow).toBeVisible({ timeout: 15000 });
+  await shot(page, "acties-dashboard-zone");
+
+  // Inline ondertekenen vanaf het dashboard → de taak verdwijnt (auto-advance via revalidate).
+  await clickUntilGone(
+    signRow.getByRole("button", { name: "Onderteken" }),
+    page.locator("li", { hasText: "Contract ondertekenen" }),
+  );
+});

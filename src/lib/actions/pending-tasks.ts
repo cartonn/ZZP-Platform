@@ -27,6 +27,8 @@ import {
   adminResolveDisputeTask,
   adminDeletionRequestTask,
   overdueInvoiceTask,
+  applicationsReviewTask,
+  draftJobsTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 
@@ -180,13 +182,15 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
 async function clientTasks(userId: string): Promise<PendingTask[]> {
   const tasks: PendingTask[] = [];
 
-  const [company, overdue, unread] = await Promise.all([
+  const [company, overdue, unread, newApplications, draftJobs] = await Promise.all([
     prisma.company.findUnique({
       where: { userId },
       select: { description: true, location: true, website: true, industryId: true, logoKey: true },
     }),
     overdueInvoiceCount("CLIENT", userId),
     unreadConversations(userId),
+    prisma.application.count({ where: { job: { company: { userId } }, status: "NEW" } }),
+    prisma.job.count({ where: { company: { userId }, status: "DRAFT" } }),
   ]);
 
   if (company) {
@@ -237,6 +241,8 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   for (const conversationId of unread)
     tasks.push(messageReplyTask(conversationId, "Nieuw bericht"));
   if (overdue > 0) tasks.push(overdueInvoiceTask(overdue, "CLIENT"));
+  if (newApplications > 0) tasks.push(applicationsReviewTask(newApplications));
+  if (draftJobs > 0) tasks.push(draftJobsTask(draftJobs));
   return tasks;
 }
 

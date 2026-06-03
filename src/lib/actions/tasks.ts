@@ -51,7 +51,9 @@ export type PendingTask =
   | (TaskBase & { kind: "admin-activate-user"; userId: string })
   | (TaskBase & { kind: "admin-resolve-dispute"; collabId: string })
   | (TaskBase & { kind: "admin-deletion-request"; userId: string })
-  | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" });
+  | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
+  | (TaskBase & { kind: "applications-review" })
+  | (TaskBase & { kind: "draft-jobs" });
 
 export type TaskKind = PendingTask["kind"];
 
@@ -333,5 +335,31 @@ export function overdueInvoiceTask(count: number, role: "FREELANCER" | "CLIENT")
     resolver: "link",
     href: "/facturen",
     role,
+  };
+}
+
+export function applicationsReviewTask(count: number): PendingTask {
+  return {
+    kind: "applications-review",
+    id: "applications-review",
+    title: `${count} nieuwe reactie(s)`,
+    subtitle: "Beoordeel de kandidaten",
+    tone: "attention",
+    priority: P.applications,
+    resolver: "link",
+    href: "/kandidaten",
+  };
+}
+
+export function draftJobsTask(count: number): PendingTask {
+  return {
+    kind: "draft-jobs",
+    id: "draft-jobs",
+    title: `${count} concept-opdracht(en)`,
+    subtitle: "Publiceren?",
+    tone: "info",
+    priority: P.drafts,
+    resolver: "link",
+    href: "/opdrachten",
   };
 }

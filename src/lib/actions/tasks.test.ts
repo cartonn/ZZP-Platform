@@ -9,6 +9,8 @@ import {
   profileCompletenessTask,
   adminDeletionRequestTask,
   adminResolveDisputeTask,
+  applicationsReviewTask,
+  draftJobsTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 
@@ -80,5 +82,22 @@ describe("task builders", () => {
     const t = adminDeletionRequestTask("u1", "Jan");
     expect(t.resolver).toBe("link");
     expect(t.priority).toBe(P.blocking);
+  });
+
+  it("nieuwe reacties + concept-opdrachten zijn link-taken (pariteit met de aggregaat)", () => {
+    const apps = applicationsReviewTask(3);
+    expect(apps).toMatchObject({
+      kind: "applications-review",
+      resolver: "link",
+      href: "/kandidaten",
+    });
+    expect(apps.priority).toBe(P.applications);
+    expect(apps.title).toContain("3");
+
+    const drafts = draftJobsTask(2);
+    expect(drafts).toMatchObject({ kind: "draft-jobs", resolver: "link", href: "/opdrachten" });
+    expect(drafts.priority).toBe(P.drafts);
+    // Concept-opdrachten wegen lichter dan nieuwe reacties.
+    expect(drafts.priority).toBeLessThan(apps.priority);
   });
 });

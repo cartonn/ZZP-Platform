@@ -189,6 +189,40 @@ function Resolver({
   }
 }
 
+/** De kale rijen (zonder Card-omhulsel), zodat ze ook binnen een dashboard-zone passen. */
+export function TaskRows({
+  tasks,
+  drawerData,
+}: {
+  tasks: PendingTask[];
+  drawerData?: Record<string, DrawerData>;
+}) {
+  return (
+    <ul className="divide-y divide-border">
+      {tasks.map((task) => (
+        <li
+          key={task.id}
+          id={task.id}
+          className="flex flex-wrap items-start justify-between gap-3 px-5 py-4"
+        >
+          <div className="flex min-w-0 items-start gap-3">
+            <ToneIcon tone={task.tone} />
+            <div className="min-w-0">
+              <p className="font-medium leading-snug">{task.title}</p>
+              {task.subtitle ? (
+                <p className="truncate text-sm text-muted-foreground">{task.subtitle}</p>
+              ) : null}
+            </div>
+          </div>
+          <div className="ml-7 shrink-0 sm:ml-0">
+            <Resolver task={task} drawerData={drawerData} />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function ActionList({
   tasks,
   drawerData,
@@ -198,28 +232,7 @@ export function ActionList({
 }) {
   return (
     <Card>
-      <ul className="divide-y divide-border">
-        {tasks.map((task) => (
-          <li
-            key={task.id}
-            id={task.id}
-            className="flex flex-wrap items-start justify-between gap-3 px-5 py-4"
-          >
-            <div className="flex min-w-0 items-start gap-3">
-              <ToneIcon tone={task.tone} />
-              <div className="min-w-0">
-                <p className="font-medium leading-snug">{task.title}</p>
-                {task.subtitle ? (
-                  <p className="truncate text-sm text-muted-foreground">{task.subtitle}</p>
-                ) : null}
-              </div>
-            </div>
-            <div className="ml-7 shrink-0 sm:ml-0">
-              <Resolver task={task} drawerData={drawerData} />
-            </div>
-          </li>
-        ))}
-      </ul>
+      <TaskRows tasks={tasks} drawerData={drawerData} />
     </Card>
   );
 }
