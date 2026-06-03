@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
@@ -126,7 +126,14 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
         >
           <ArrowLeft className="size-3.5" aria-hidden /> Terug naar facturen
         </Link>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          <Button asChild variant="secondary" size="sm">
+            <a href={`/api/facturen/${id}/pdf`} target="_blank" rel="noreferrer">
+              <FileText className="size-4" aria-hidden /> Open als PDF
+            </a>
+          </Button>
+          <PrintButton />
+        </div>
       </div>
 
       <Card>
