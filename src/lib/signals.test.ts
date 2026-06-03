@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBadges, countUnreadConversations } from "./signals";
+import { buildBadges, countUnreadConversations, withActionCenterBadge } from "./signals";
 
 describe("buildBadges", () => {
   it("laat items met telling 0 of ontbrekend weg", () => {
@@ -66,6 +66,26 @@ describe("buildBadges", () => {
     const badges = buildBadges({ pendingPerformances: 2, cascadeWork: 3 });
     expect(badges["/prestaties"]).toEqual({ count: 2, tone: "attention" });
     expect(badges["/samenwerkingen"]).toEqual({ count: 3, tone: "attention" });
+  });
+});
+
+describe("withActionCenterBadge", () => {
+  it("sommeert alleen de attention-signalen op /acties", () => {
+    const badges = withActionCenterBadge({
+      "/certificaten": { count: 2, tone: "attention" },
+      "/facturen": { count: 1, tone: "attention" },
+      "/berichten": { count: 5, tone: "info" }, // info telt niet mee
+    });
+    expect(badges["/acties"]).toEqual({ count: 3, tone: "attention" });
+  });
+
+  it("voegt geen /acties-badge toe als er niets actie vraagt", () => {
+    const badges = withActionCenterBadge({ "/berichten": { count: 4, tone: "info" } });
+    expect(badges["/acties"]).toBeUndefined();
+  });
+
+  it("lege badges → geen /acties", () => {
+    expect(withActionCenterBadge({})["/acties"]).toBeUndefined();
   });
 });
 

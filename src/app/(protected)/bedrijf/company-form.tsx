@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -20,14 +20,20 @@ export interface CompanyFormInitial {
 export function CompanyForm({
   initial,
   industries,
+  onResolved,
 }: {
   initial: CompanyFormInitial;
   industries: { id: string; name: string }[];
+  /** Vuurt na een geslaagde opslag — gebruikt door het Actiecentrum (drawer sluiten + doorvloeien). */
+  onResolved?: () => void;
 }) {
   const [state, formAction, isPending] = useActionState<CompanyState, FormData>(
     updateCompanyProfile,
     undefined,
   );
+  useEffect(() => {
+    if (state?.ok) onResolved?.();
+  }, [state, onResolved]);
   const fe = state?.fieldErrors ?? {};
   const [industryId, setIndustryId] = useState(initial.industryId);
 

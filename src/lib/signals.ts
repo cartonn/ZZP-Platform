@@ -66,6 +66,19 @@ export function buildBadges(counts: SignalCounts): NavBadges {
   return out;
 }
 
+/**
+ * /acties-badge: som van de attention-signalen die al berekend zijn. Bewust een goedkope
+ * benadering (geen volledige pendingTasks-enumeratie in de layout) — de exacte, item-niveau lijst
+ * staat op de /acties-pagina zelf. Tellingen die meerdere items bundelen (cascadeWork) tellen mee.
+ */
+export function withActionCenterBadge(badges: NavBadges): NavBadges {
+  const total = Object.values(badges)
+    .filter((b) => b.tone === "attention")
+    .reduce((sum, b) => sum + b.count, 0);
+  if (total > 0) badges["/acties"] = { count: total, tone: "attention" };
+  return badges;
+}
+
 interface ParticipantRead {
   conversationId: string;
   lastReadAt: Date | null;
@@ -152,12 +165,14 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "APPROVED" } }),
       ]);
     const cascadeWork = cascadeDraft + cascadeApproved;
-    return buildBadges({
-      credentialAlerts: rejected + expiring,
-      unreadMessages,
-      overdueInvoices,
-      cascadeWork,
-    });
+    return withActionCenterBadge(
+      buildBadges({
+        credentialAlerts: rejected + expiring,
+        unreadMessages,
+        overdueInvoices,
+        cascadeWork,
+      }),
+    );
   }
 
   if (role === "CLIENT") {
@@ -179,19 +194,21 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         }),
       ]);
     const cascadeWork = cascadePerf + cascadeInv;
-    return buildBadges({
-      newApplications,
-      draftJobs,
-      unreadMessages,
-      overdueInvoices,
-      cascadeWork,
-      pendingPerformances: cascadePerf,
-    });
+    return withActionCenterBadge(
+      buildBadges({
+        newApplications,
+        draftJobs,
+        unreadMessages,
+        overdueInvoices,
+        cascadeWork,
+        pendingPerformances: cascadePerf,
+      }),
+    );
   }
 
   const [pendingVerifications, openDisputes] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
   ]);
-  return buildBadges({ pendingVerifications, openDisputes });
+  return withActionCenterBadge(buildBadges({ pendingVerifications, openDisputes }));
 }

@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { saveCredential, type CredentialState } from "./actions";
+
+type CredentialAction = (prev: CredentialState, formData: FormData) => Promise<CredentialState>;
 
 const TYPES = [
   ["VOG", "VOG (Verklaring Omtrent Gedrag)"],
@@ -28,11 +30,24 @@ export interface CredentialFormInitial {
   documentId?: string | null;
 }
 
-export function CredentialForm({ initial }: { initial: CredentialFormInitial }) {
+export function CredentialForm({
+  initial,
+  action,
+  onResolved,
+}: {
+  initial: CredentialFormInitial;
+  /** Server-actie; standaard saveCredential (met redirect). Het Actiecentrum geeft saveCredentialInline. */
+  action?: CredentialAction;
+  /** Vuurt na een geslaagde opslag — gebruikt door het Actiecentrum (drawer sluiten + doorvloeien). */
+  onResolved?: () => void;
+}) {
   const [state, formAction, isPending] = useActionState<CredentialState, FormData>(
-    saveCredential,
+    action ?? saveCredential,
     undefined,
   );
+  useEffect(() => {
+    if (state?.ok) onResolved?.();
+  }, [state, onResolved]);
   const fe = state?.fieldErrors ?? {};
   const [type, setType] = useState(initial.type);
   const isEdit = !!initial.id;

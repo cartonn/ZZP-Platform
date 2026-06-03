@@ -1,16 +1,19 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { verifyIdentity, type IdentityState } from "./actions";
 
-export function IdentityForm() {
+export function IdentityForm({ onResolved }: { onResolved?: () => void }) {
   const [state, formAction, isPending] = useActionState<IdentityState, FormData>(
     verifyIdentity,
     undefined,
   );
+  useEffect(() => {
+    if (state?.ok) onResolved?.();
+  }, [state, onResolved]);
 
   return (
     <form action={formAction} className="space-y-3">

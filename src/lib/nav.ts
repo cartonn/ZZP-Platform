@@ -2,6 +2,7 @@ import { type UserRole } from "@/lib/enums";
 
 export type NavIcon =
   | "dashboard"
+  | "inbox"
   | "briefcase"
   | "users"
   | "fileCheck"
@@ -35,6 +36,7 @@ export interface NavItem {
 const NAV: Record<UserRole, NavItem[]> = {
   FREELANCER: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
+    { label: "Acties", href: "/acties", icon: "inbox", enabled: true },
     { label: "Opdrachten", href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true },
     { label: "Mijn reacties", href: "/reacties", icon: "files", section: "Werk", enabled: true },
     { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
@@ -53,6 +55,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   ],
   CLIENT: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
+    { label: "Acties", href: "/acties", icon: "inbox", enabled: true },
     { label: "Mijn opdrachten", href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true }, // prettier-ignore
     { label: "ZZP'ers", href: "/freelancers", icon: "users", section: "Werk", enabled: true },
     { label: "Kandidaten", href: "/kandidaten", icon: "users", section: "Werk", enabled: true },
@@ -68,6 +71,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   ],
   ADMIN: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
+    { label: "Acties", href: "/acties", icon: "inbox", enabled: true },
     { label: "Verificaties", href: "/admin/verificaties", icon: "fileCheck", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Samenwerkingen", href: "/admin/samenwerkingen", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Disputen", href: "/admin/disputen", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore

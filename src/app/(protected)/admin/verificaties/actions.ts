@@ -64,6 +64,8 @@ export async function verifyCredential(credentialId: string): Promise<void> {
   ]);
 
   revalidatePath("/admin/verificaties");
+  revalidatePath("/acties");
+  revalidatePath("/dashboard");
 }
 
 /** Afwijzen: SUBMITTED -> REJECTED. Reden verplicht (server-side, verificatieflow stap 4). */
@@ -114,6 +116,8 @@ export async function rejectCredential(credentialId: string, formData: FormData)
   ]);
 
   revalidatePath("/admin/verificaties");
+  revalidatePath("/acties");
+  revalidatePath("/dashboard");
 }
 
 export type ExpiryState = { ran?: true; expired?: number; reminded?: number } | undefined;

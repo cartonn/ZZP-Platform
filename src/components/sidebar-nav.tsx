@@ -14,6 +14,7 @@ import {
   FileText,
   Files,
   Handshake,
+  Inbox,
   LayoutDashboard,
   MessagesSquare,
   Receipt,
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 
 const ICONS: Record<NavIcon, LucideIcon> = {
   dashboard: LayoutDashboard,
+  inbox: Inbox,
   briefcase: Briefcase,
   users: Users,
   fileCheck: FileCheck2,

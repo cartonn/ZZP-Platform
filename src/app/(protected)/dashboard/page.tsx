@@ -1,8 +1,12 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CheckCircle2, Info } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { auth } from "@/auth";
+import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { pendingTasks } from "@/lib/actions/pending-tasks";
+import { loadDrawerData } from "@/lib/actions/drawer-data";
+import { DashboardActions } from "@/components/actions/dashboard-actions";
 import {
   type UserRole,
   type CollaborationStatus,
@@ -434,14 +438,6 @@ const TONE_BADGE: Record<NextActionTone, "warning" | "muted" | "success"> = {
   success: "success",
 };
 
-function ToneIcon({ tone }: { tone: NextActionTone }) {
-  if (tone === "attention")
-    return <AlertTriangle className="size-4 shrink-0 text-warning" aria-hidden />;
-  if (tone === "success")
-    return <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />;
-  return <Info className="size-4 shrink-0 text-muted-foreground" aria-hidden />;
-}
-
 const TIMING_LABEL: Record<string, string> = {
   ongoing: "Loopt",
   "starts-this-week": "Start deze week",
@@ -535,39 +531,6 @@ function MatchesSection({ matches, prominent }: { matches: JobMatch[]; prominent
   );
 }
 
-function AttentionSection({ attention, title }: { attention: AttentionItem[]; title: string }) {
-  return (
-    <section className="rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-5 py-3">
-        <h2 className="text-sm font-medium">{title}</h2>
-      </div>
-      {attention.length === 0 ? (
-        <div className="flex items-center gap-2 px-5 py-6 text-sm text-muted-foreground">
-          <CheckCircle2 className="size-4 text-success" aria-hidden />
-          Niets dat nu aandacht vraagt. Goed bezig.
-        </div>
-      ) : (
-        <ul className="divide-y divide-border">
-          {attention.map((a) => (
-            <li key={a.label}>
-              <Link
-                href={a.href}
-                className="focus-ring flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/40"
-              >
-                <span className="flex items-center gap-2">
-                  <ToneIcon tone={a.tone} />
-                  {a.label}
-                </span>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
 export default async function DashboardPage() {
   const session = await auth();
   const user = session!.user;
@@ -579,20 +542,24 @@ export default async function DashboardPage() {
     day: "numeric",
     month: "long",
   });
-  const [{ stats, attention, running, week, isNewAccount }, matches] = await Promise.all([
+  const actor = await requireActor();
+  const [{ stats, running, week, isNewAccount }, matches, tasks] = await Promise.all([
     dashboardData(role, user.id!),
     role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
+    pendingTasks(actor),
   ]);
+  // Dezelfde item-niveau taken als /acties, hier inline-afhandelbaar in de aandacht-zone.
+  const drawerData = await loadDrawerData(actor, tasks);
 
   const hasRunning = running.length > 0;
   const headerLead =
-    attention.length === 0
+    tasks.length === 0
       ? hasRunning
         ? "Je lopende werk staat op schema."
         : intro.lead
-      : attention.length === 1
+      : tasks.length === 1
         ? "Er is 1 punt dat je aandacht vraagt."
-        : `Er zijn ${attention.length} punten die je aandacht vragen.`;
+        : `Er zijn ${tasks.length} punten die je aandacht vragen.`;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -659,10 +626,11 @@ export default async function DashboardPage() {
         <MatchesSection matches={matches} prominent />
       )}
 
-      {/* Zone 2 — Wat vraagt aandacht (gerangschikte next-actions met tone).
-          Voor de admin is dit de operationele wachtrij. */}
-      <AttentionSection
-        attention={attention}
+      {/* Zone 2 — Wat vraagt aandacht: de top-taken inline-afhandelbaar (zelfde resolvers + drawer
+          als /acties). Voor de admin is dit de operationele wachtrij. */}
+      <DashboardActions
+        tasks={tasks}
+        drawerData={drawerData}
         title={role === "ADMIN" ? "Operationele wachtrij" : "Wat vraagt aandacht"}
       />
 
