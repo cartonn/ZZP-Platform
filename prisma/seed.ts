@@ -1085,25 +1085,77 @@ async function main() {
     });
   }
 
-  const [collabCount, invoiceCount, ledgerCount, ticketCount, conversationCount] =
-    await Promise.all([
-      prisma.collaboration.count(),
-      prisma.invoice.count(),
-      prisma.administrationEntry.count(),
-      prisma.supportTicket.count(),
-      prisma.conversation.count(),
-    ]);
-  console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
-  console.log("  admin@zzp-platform.local          (ADMIN)");
-  console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
-  console.log("  opdrachtgever@zzp-platform.local  (CLIENT — Jansen Software)");
-  console.log(
-    "Cascade via echte commands: %d samenwerkingen, %d facturen, %d grootboekregels, %d support-tickets, %d gesprekken.",
+  // --- Beschikbaarheid-vensters — elke ZZP'er een realistische agenda, zodat /beschikbaarheid en de
+  //     availability-filters (kandidaten/zoeken) in de demo gevuld zijn. Idempotent: alleen bij lege
+  //     tabel, dus bestaande databases worden eenmalig aangevuld zonder duplicaten. ---
+  if ((await prisma.availabilityWindow.count()) === 0) {
+    let w = 0;
+    for (const profileId of Object.values(pid)) {
+      w++;
+      const variant = w % 3;
+      // Lopende beschikbaarheid (altijd) + een tweede, gevarieerde periode.
+      await prisma.availabilityWindow.create({
+        data: {
+          freelancerProfileId: profileId,
+          startDate: daysFromNow(-7),
+          endDate: daysFromNow(60),
+          type: "AVAILABLE",
+          hoursPerWeek: 32 + variant * 4,
+          note: "Open voor nieuwe opdrachten",
+        },
+      });
+      const second =
+        variant === 0
+          ? { start: 60, end: 74, type: "UNAVAILABLE", hours: null, note: "Vakantie" }
+          : variant === 1
+            ? { start: 21, end: 90, type: "LIMITED", hours: 16, note: "Naast een lopende opdracht" }
+            : {
+                start: 90,
+                end: 150,
+                type: "AVAILABLE",
+                hours: 40,
+                note: "Volledig beschikbaar komend kwartaal",
+              };
+      await prisma.availabilityWindow.create({
+        data: {
+          freelancerProfileId: profileId,
+          startDate: daysFromNow(second.start),
+          endDate: daysFromNow(second.end),
+          type: second.type,
+          hoursPerWeek: second.hours,
+          note: second.note,
+        },
+      });
+    }
+  }
+
+  const [
     collabCount,
     invoiceCount,
     ledgerCount,
     ticketCount,
     conversationCount,
+    availabilityCount,
+  ] = await Promise.all([
+    prisma.collaboration.count(),
+    prisma.invoice.count(),
+    prisma.administrationEntry.count(),
+    prisma.supportTicket.count(),
+    prisma.conversation.count(),
+    prisma.availabilityWindow.count(),
+  ]);
+  console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
+  console.log("  admin@zzp-platform.local          (ADMIN)");
+  console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
+  console.log("  opdrachtgever@zzp-platform.local  (CLIENT — Jansen Software)");
+  console.log(
+    "Cascade via echte commands: %d samenwerkingen, %d facturen, %d grootboekregels, %d support-tickets, %d gesprekken, %d beschikbaarheid-vensters.",
+    collabCount,
+    invoiceCount,
+    ledgerCount,
+    ticketCount,
+    conversationCount,
+    availabilityCount,
   );
 }
 
