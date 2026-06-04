@@ -814,7 +814,7 @@ async function main() {
   //
   // Run-once: alleen genereren als de rijke set er nog niet is, zodat testwijzigingen behouden
   // blijven bij een herstart; de eerste keer wordt oude cascade-demo opgeruimd. SEED_DEMO-only.
-  const RICH_COLLAB_TARGET = 12;
+  const RICH_COLLAB_TARGET = 13;
   if ((await prisma.collaboration.count()) < RICH_COLLAB_TARGET) {
     // Oude/onvolledige cascade-demo opruimen in FK-veilige volgorde (children eerst).
     await prisma.administrationEntry.deleteMany({});
@@ -853,7 +853,18 @@ async function main() {
     );
     // Eén scenario per (nieuwe) opdracht → elk (freelancer, opdracht)-paar is uniek en botst niet met
     // de foundation-reacties (constraint jobId+freelancerId). Verdeeld over alle bedrijven/toestanden.
-    const scenarios: { fk: string; job: string; rate: number; target: Target; ort?: boolean }[] = [
+    const scenarios: {
+      fk: string;
+      job: string;
+      rate: number;
+      target: Target;
+      ort?: boolean;
+      collabId?: string;
+    }[] = [
+      // Vlaggenschip: het primaire demo-account Sanne (zzp@) krijgt een volledige reis met de
+      // primaire opdrachtgever Jansen (opdrachtgever@) — t/m betaald. Stabiel id "collab-1" zodat
+      // het compliance-dossier en de Ontzorgd-/administratie-overzichten een vaste ankerklant hebben.
+      { fk: "sanne", job: "job-16", rate: 95, target: "PAID", collabId: "collab-1" },
       { fk: "emma", job: "job-8", rate: 56, target: "PAID", ort: true },
       { fk: "iris", job: "job-9", rate: 42, target: "INVOICE_APPROVED", ort: true },
       { fk: "ahmed", job: "job-10", rate: 58, target: "PAID" },
@@ -885,6 +896,7 @@ async function main() {
       });
       const collab = await prisma.collaboration.create({
         data: {
+          ...(s.collabId ? { id: s.collabId } : {}),
           jobId: s.job,
           applicationId: application.id,
           freelancerId: pid[s.fk]!,
