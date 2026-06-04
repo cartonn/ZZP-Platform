@@ -817,11 +817,17 @@ async function main() {
   const RICH_COLLAB_TARGET = 13;
   if ((await prisma.collaboration.count()) < RICH_COLLAB_TARGET) {
     // Oude/onvolledige cascade-demo opruimen in FK-veilige volgorde (children eerst).
+    // BELANGRIJK: ook de cascade-applicaties weg, anders botst een herhaalde regeneratie op de
+    // unique (jobId, freelancerId) bij het opnieuw aanmaken (de samenwerking wordt verwijderd, maar
+    // de reactie blijft staan). De foundation-reacties (app-1..app-8) horen niet bij de cascade en
+    // blijven behouden; we verwijderen alles daarbuiten (demo-only: alleen seed-data).
+    const FOUNDATION_APP_IDS = apps.map((a) => a.id);
     await prisma.administrationEntry.deleteMany({});
     await prisma.invoiceLine.deleteMany({});
     await prisma.invoice.deleteMany({});
     await prisma.performance.deleteMany({});
     await prisma.collaboration.deleteMany({});
+    await prisma.application.deleteMany({ where: { id: { notIn: FOUNDATION_APP_IDS } } });
     await prisma.eventHandlerRun.deleteMany({});
     await prisma.domainEvent.deleteMany({});
 
