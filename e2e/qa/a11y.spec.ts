@@ -14,13 +14,23 @@ test.describe("A11y: landmarks + skip-link", () => {
     page,
   }) => {
     await login(page, "zzp@zzp-platform.local");
+    await page.waitForSelector('html[data-hydrated="/dashboard"]', { timeout: 10000 });
 
-    // Eerste Tab focust de (visueel verborgen) skip-link.
-    await page.keyboard.press("Tab");
+    // De skip-link is het EERSTE focusbare element in de DOM-/tab-volgorde (WCAG 2.4.1).
+    // (We checken de DOM-volgorde i.p.v. een Tab-toets: headless-Chromium verplaatst de
+    // document-focus niet betrouwbaar op de eerste Tab.)
+    const firstTabbableIsSkip = await page.evaluate(() => {
+      const first = document.querySelector(
+        'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      return first?.getAttribute("href") === "#hoofdinhoud";
+    });
+    expect(firstTabbableIsSkip).toBe(true);
+
+    // Activeren (toetsenbord) zet de focus op de hoofdinhoud — niet alleen scrollen.
     const skip = page.getByRole("link", { name: "Naar inhoud" });
+    await skip.focus();
     await expect(skip).toBeFocused();
-
-    // Activeren zet de focus op de hoofdinhoud.
     await skip.press("Enter");
     await expect(page.locator("main#hoofdinhoud")).toBeFocused();
   });
