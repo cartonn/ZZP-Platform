@@ -54,9 +54,9 @@ test("ZZP'er ziet proactief een passende opdracht op het dashboard", async ({ pa
   await fp.getByRole("button", { name: "Profiel opslaan" }).click();
   await expect(fp.getByText(/opgeslagen|bijgewerkt/i).first()).toBeVisible({ timeout: 15000 });
 
-  // Het systeem denkt mee: de opdracht verschijnt vanzelf op het dashboard.
+  // Het systeem denkt mee: de opdracht verschijnt vanzelf op het dashboard in de match-zone.
   await fp.goto("/dashboard");
-  await expect(fp.getByRole("heading", { name: "Opdrachten die bij je passen" })).toBeVisible();
+  await expect(fp.getByText("Opdrachten die bij je profiel passen")).toBeVisible();
   const match = fp.getByRole("link", {
     name: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
   });
