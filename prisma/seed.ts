@@ -1129,6 +1129,41 @@ async function main() {
     }
   }
 
+  // --- Abonnementen — opdrachtgevers met meerdere opdrachten staan op een betaald plan (consistent
+  //     met hun aantal opdrachten; FREE staat maar 1 opdracht toe) plus het vlaggenschip-ZZP-account.
+  //     Zo toont /abonnement een actief plan i.p.v. overal de gratis-default. Idempotent op userId. ---
+  if ((await prisma.subscription.count()) === 0) {
+    const planRows = await prisma.plan.findMany({ select: { id: true, key: true } });
+    const planIdByKey = Object.fromEntries(planRows.map((pl) => [pl.key, pl.id]));
+    const subSpecs: { email: string; plan: string }[] = [
+      { email: "opdrachtgever@zzp-platform.local", plan: "BUSINESS" },
+      { email: "zorggroep@zzp-platform.local", plan: "BUSINESS" },
+      { email: "bouwpartners@zzp-platform.local", plan: "PRO" },
+      { email: "logiflow@zzp-platform.local", plan: "PRO" },
+      { email: "datic@zzp-platform.local", plan: "PRO" },
+      { email: "zzp@zzp-platform.local", plan: "PRO" },
+    ];
+    for (const s of subSpecs) {
+      const user = await prisma.user.findUnique({
+        where: { email: s.email },
+        select: { id: true },
+      });
+      const planId = planIdByKey[s.plan];
+      if (!user || !planId) continue;
+      await prisma.subscription.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+          userId: user.id,
+          planId,
+          status: "ACTIVE",
+          providerRef: "demo-subscription",
+          currentPeriodEnd: daysFromNow(30),
+        },
+      });
+    }
+  }
+
   const [
     collabCount,
     invoiceCount,
@@ -1136,6 +1171,7 @@ async function main() {
     ticketCount,
     conversationCount,
     availabilityCount,
+    subscriptionCount,
   ] = await Promise.all([
     prisma.collaboration.count(),
     prisma.invoice.count(),
@@ -1143,19 +1179,21 @@ async function main() {
     prisma.supportTicket.count(),
     prisma.conversation.count(),
     prisma.availabilityWindow.count(),
+    prisma.subscription.count(),
   ]);
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");
   console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
   console.log("  opdrachtgever@zzp-platform.local  (CLIENT — Jansen Software)");
   console.log(
-    "Cascade via echte commands: %d samenwerkingen, %d facturen, %d grootboekregels, %d support-tickets, %d gesprekken, %d beschikbaarheid-vensters.",
+    "Cascade via echte commands: %d samenwerkingen, %d facturen, %d grootboekregels, %d support-tickets, %d gesprekken, %d beschikbaarheid-vensters, %d abonnementen.",
     collabCount,
     invoiceCount,
     ledgerCount,
     ticketCount,
     conversationCount,
     availabilityCount,
+    subscriptionCount,
   );
 }
 
