@@ -14,6 +14,7 @@ import { getStorage } from "@/lib/services/storage";
 import { documentKindForCredential } from "@/lib/documents";
 import { type CredentialType } from "@/lib/enums";
 import { credentialBewijsPdf } from "./seed-credential-pdf";
+import { SEED_CONVERSATIONS, SEED_TICKETS } from "./seed-berichten-tickets-data";
 
 const prisma = new PrismaClient();
 
@@ -984,22 +985,113 @@ async function main() {
     }
   }
 
-  const [collabCount, invoiceCount, ledgerCount, ticketCount] = await Promise.all([
-    prisma.collaboration.count(),
-    prisma.invoice.count(),
-    prisma.administrationEntry.count(),
-    prisma.supportTicket.count(),
-  ]);
+  // --- Gesprekken (berichten) — realistische threads ZZP'er <-> opdrachtgever, breed over de
+  //     bedrijven en lifecycle-stages. Idempotent op conversation-id (nested participants/messages
+  //     draaien alleen in de create-tak). lastReadAt is zo gezet dat een deel van de gesprekken een
+  //     ongelezen-badge toont bij de tegenpartij van de laatste afzender (zie `badge`). ---
+  for (const c of SEED_CONVERSATIONS) {
+    const freelancerUserId = uid[c.fk];
+    const clientUserId = clientUserIdByKey[c.ck];
+    if (!freelancerUserId || !clientUserId) continue;
+    // Strikt oplopende tijdstempels (oudste eerst); de minuut-offset breekt gelijke dagen.
+    const ordered = [...c.messages].sort((a, b) => b.daysAgo - a.daysAgo);
+    const msgs = ordered.map((m, idx) => ({
+      senderId: m.from === "freelancer" ? freelancerUserId : clientUserId,
+      body: m.body,
+      createdAt: new Date(daysFromNow(-m.daysAgo).getTime() + idx * 60_000),
+    }));
+    const lastTime = msgs[msgs.length - 1]!.createdAt;
+    const lastFrom = ordered[ordered.length - 1]!.from;
+    // De ongelezen-badge ligt bij de tegenpartij van de laatste afzender (alleen als badge=true).
+    const unread = c.badge ? (lastFrom === "client" ? "freelancer" : "client") : "none";
+    const justBefore = new Date(lastTime.getTime() - 1);
+    const freelancerRead = unread === "freelancer" ? justBefore : lastTime;
+    const clientRead = unread === "client" ? justBefore : lastTime;
+    await prisma.conversation.upsert({
+      where: { id: c.id },
+      update: {},
+      create: {
+        id: c.id,
+        jobId: c.jobId,
+        participants: {
+          create: [
+            { userId: freelancerUserId, lastReadAt: freelancerRead },
+            { userId: clientUserId, lastReadAt: clientRead },
+          ],
+        },
+        messages: {
+          create: msgs.map((m) => ({
+            senderId: m.senderId,
+            body: m.body,
+            createdAt: m.createdAt,
+          })),
+        },
+      },
+    });
+  }
+
+  // --- Extra support-tickets (breedte: alle categorieën + statussen, ZZP'ers én opdrachtgevers,
+  //     met meerdere-berichten-threads incl. helpdeskmedewerker-antwoorden). Idempotent op id,
+  //     naast de basis-tickets hierboven. ---
+  const adminForTickets = await prisma.user.findUnique({
+    where: { email: "admin@zzp-platform.local" },
+    select: { id: true },
+  });
+  for (const t of SEED_TICKETS) {
+    const ownerId = t.role === "client" ? clientUserIdByKey[t.owner] : uid[t.owner];
+    if (!ownerId) continue;
+    const escalated = t.status === "ESCALATED";
+    const resolved = t.status === "RESOLVED";
+    const ordered = [...t.messages].sort((a, b) => b.daysAgo - a.daysAgo);
+    const firstCreatedAt = ordered.length ? daysFromNow(-ordered[0]!.daysAgo) : daysFromNow(-1);
+    // USER = de aanvrager, AGENT = de helpdeskmedewerker (admin), ASSISTANT = systeem (geen auteur).
+    const authorIdFor = (kind: string) =>
+      kind === "USER" ? ownerId : kind === "AGENT" ? (adminForTickets?.id ?? null) : null;
+    await prisma.supportTicket.upsert({
+      where: { id: t.id },
+      update: {},
+      create: {
+        id: t.id,
+        userId: ownerId,
+        subject: t.subject,
+        category: t.category,
+        status: t.status,
+        priority: escalated ? "HIGH" : "NORMAL",
+        assignedToId: escalated ? (adminForTickets?.id ?? null) : null,
+        autoAttempts: t.messages.some((m) => m.authorKind === "ASSISTANT") ? 1 : 0,
+        resolvedAt: resolved ? daysFromNow(-1) : null,
+        createdAt: firstCreatedAt,
+        messages: {
+          create: ordered.map((m, idx) => ({
+            authorId: authorIdFor(m.authorKind),
+            authorKind: m.authorKind,
+            body: m.body,
+            createdAt: new Date(daysFromNow(-m.daysAgo).getTime() + idx * 60_000),
+          })),
+        },
+      },
+    });
+  }
+
+  const [collabCount, invoiceCount, ledgerCount, ticketCount, conversationCount] =
+    await Promise.all([
+      prisma.collaboration.count(),
+      prisma.invoice.count(),
+      prisma.administrationEntry.count(),
+      prisma.supportTicket.count(),
+      prisma.conversation.count(),
+    ]);
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");
   console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
   console.log("  opdrachtgever@zzp-platform.local  (CLIENT — Jansen Software)");
   console.log(
-    "Cascade via echte commands: %d samenwerkingen, %d facturen, %d grootboekregels, %d support-tickets.",
+    "Cascade via echte commands: %d samenwerkingen, %d facturen, %d grootboekregels, %d support-tickets, %d gesprekken.",
     collabCount,
     invoiceCount,
     ledgerCount,
     ticketCount,
+    conversationCount,
   );
 }
 
