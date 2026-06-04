@@ -20,10 +20,15 @@ concurrency:
 jobs:
   qa:
     runs-on: ubuntu-latest
-    # Setup (npm ci + browsers + prod build) plus 51 user-flow tests met retries paste niet in
-    # 15 min: de run werd structureel afgekapt op "QA critical flows" (geen signaal). 30 min geeft
-    # de suite ruimte om af te ronden zodat de user-flow-verificatie weer echt draait.
-    timeout-minutes: 30
+    # De 51 user-flow-tests duren samen ~28+ min (met retries) en pasten niet in één job — de run
+    # werd structureel afgekapt op "QA critical flows" (zelfs met 30 min). Daarom geshard over 4
+    # parallelle jobs (elk een kwart van de tests via --shard), zodat de verificatie binnen het
+    # budget afrondt. Elke shard seedt zijn eigen ci.db, dus geen kruis-besmetting.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     env:
       DATABASE_URL: "file:./ci.db"
       AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
@@ -49,19 +54,19 @@ jobs:
       - run: npx playwright install chromium --with-deps
       - run: npm run build
 
-      - name: QA critical flows
-        run: npx playwright test e2e/qa/ --project=ci --reporter=list
+      - name: QA critical flows (shard ${{ matrix.shard }}/4)
+        run: npx playwright test e2e/qa/ --project=ci --reporter=list --shard=${{ matrix.shard }}/4
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qa-screenshots
+          name: qa-screenshots-${{ matrix.shard }}
           path: e2e/qa/screenshots/
           retention-days: 14
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qa-report
+          name: qa-report-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 14
