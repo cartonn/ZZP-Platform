@@ -20,7 +20,10 @@ concurrency:
 jobs:
   qa:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Setup (npm ci + browsers + prod build) plus 51 user-flow tests met retries paste niet in
+    # 15 min: de run werd structureel afgekapt op "QA critical flows" (geen signaal). 30 min geeft
+    # de suite ruimte om af te ronden zodat de user-flow-verificatie weer echt draait.
+    timeout-minutes: 30
     env:
       DATABASE_URL: "file:./ci.db"
       AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
