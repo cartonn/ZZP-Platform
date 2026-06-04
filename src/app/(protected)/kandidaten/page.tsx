@@ -187,7 +187,9 @@ export default async function KandidatenPage() {
                     </form>
                     {app.collaboration && (
                       <Button asChild variant="secondary" size="sm">
-                        <Link href="/samenwerkingen">Bekijk samenwerking</Link>
+                        <Link href={`/samenwerkingen/${app.collaboration.id}`}>
+                          Bekijk samenwerking
+                        </Link>
                       </Button>
                     )}
                   </div>
