@@ -8,7 +8,9 @@ test.describe("QA: Freelancer (Sanne)", () => {
 
   test("dashboard toont next-actions", async ({ page }) => {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByText("Volgende stappen")).toBeVisible();
+    // De next-action-zone heet sinds de dashboard-overhaul "Wat kan ik oppakken"
+    // (item-niveau taken via pendingTasks i.p.v. de oude "Volgende stappen"-aggregatie).
+    await expect(page.getByText("Wat kan ik oppakken")).toBeVisible();
     await shot(page, "freelancer-dashboard");
   });
 
