@@ -35,6 +35,10 @@ jobs:
       STORAGE_DRIVER: "local"
       COMMIT_SHA: ${{ github.sha }}
       CI: "true"
+      # Zonder dit seedt `prisma db seed` alleen referentiedata en GEEN demo-accounts, waardoor
+      # élke user-flow-test bleef hangen op de login (waitForURL naar /dashboard). De suite logt in
+      # als de demo-accounts (zzp@/opdrachtgever@/admin@), dus die moeten bestaan.
+      SEED_DEMO: "true"
       # Eén IP + gedeelde seed-accounts voor de héle suite; verhoog de strenge
       # productie-rate-limits zodat login/registratie niet onterecht wordt geblokkeerd.
       LOGIN_RATE_LIMIT: "100000"
