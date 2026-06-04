@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { SkipLink } from "@/components/ui/skip-link";
 import { PaletteSwitcher } from "@/components/ui/palette-switcher";
 import { SearchTrigger } from "@/components/search/search-trigger";
 import { CommandPalette } from "@/components/search/command-palette";
@@ -38,12 +39,7 @@ export async function AppShell({
   return (
     <div className="grid min-h-screen grid-cols-[16rem_1fr] max-md:grid-cols-1">
       {/* Skip-link: eerste focusbare element, springt naar de hoofdinhoud (toetsenbord/screenreader). */}
-      <a
-        href="#hoofdinhoud"
-        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-lg focus:border focus:border-border focus:bg-card focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow-sm"
-      >
-        Naar inhoud
-      </a>
+      <SkipLink />
       <aside className="hidden flex-col border-r border-border bg-muted/30 md:flex">
         <div className="flex h-14 items-center gap-2 border-b border-border px-4">
           <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
