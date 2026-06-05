@@ -55,3 +55,18 @@ export function visibleJobsWhere(actor: Actor | null | undefined): { tenantId?: 
   if (hasTenant(actor)) return { tenantId: actor.tenantId };
   return { tenantId: null };
 }
+
+/**
+ * Where-fragment voor zichtbare ZZP'ers bij browse + suggesties — de omgekeerde richting van
+ * visibleJobsWhere, voor een opdrachtgever die ZZP'ers bekijkt ("gesloten per tenant").
+ * - ADMIN: `{}` (alle)
+ * - tenant-opdrachtgever: alleen de eigen franchise-roster
+ * - directe opdrachtgever: alleen niet-tenant ZZP'ers (`tenantId = null`)
+ */
+export function visibleFreelancersWhere(actor: Actor | null | undefined): {
+  tenantId?: string | null;
+} {
+  if (actor?.role === "ADMIN") return {};
+  if (hasTenant(actor)) return { tenantId: actor.tenantId };
+  return { tenantId: null };
+}
