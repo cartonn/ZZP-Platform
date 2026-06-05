@@ -66,7 +66,9 @@ export async function suggestedFreelancersForJob(
 
   const applied = new Set(job.applications.map((a) => a.freelancerId));
   const profiles = await prisma.freelancerProfile.findMany({
-    where: { visibility: "PUBLIC" },
+    // Gesloten per tenant: voor een tenant-dienst worden alleen ZZP'ers uit de eigen franchise
+    // gesuggereerd; voor een platform-opdracht alleen niet-tenant ZZP'ers (job.tenantId is de bron).
+    where: { visibility: "PUBLIC", tenantId: job.tenantId },
     orderBy: { updatedAt: "desc" },
     take: SCAN_LIMIT,
     include: {

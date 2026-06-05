@@ -6,6 +6,7 @@ import {
   assertSameTenant,
   ownsViaTenant,
   visibleJobsWhere,
+  visibleFreelancersWhere,
 } from "@/lib/tenancy";
 
 const franchiser: Actor = { id: "f1", role: "ADMIN", status: "ACTIVE", tenantId: "t1" };
@@ -72,5 +73,17 @@ describe("visibleJobsWhere (gesloten per tenant)", () => {
   it("scheidt tenants strikt: t1 vs t2", () => {
     expect(visibleJobsWhere(otherTenant)).toEqual({ tenantId: "t2" });
     expect(visibleJobsWhere(franchiser)).toEqual({}); // franchiser is hier ADMIN-rol → alles
+  });
+});
+
+describe("visibleFreelancersWhere (gesloten per tenant, omgekeerde richting)", () => {
+  it("tenant-opdrachtgever ziet alleen de eigen franchise-roster", () => {
+    expect(visibleFreelancersWhere(tenantAdmin)).toEqual({ tenantId: "t1" });
+  });
+  it("directe opdrachtgever ziet alleen niet-tenant ZZP'ers (tenantId null)", () => {
+    expect(visibleFreelancersWhere(directUser)).toEqual({ tenantId: null });
+  });
+  it("ADMIN ziet alle ZZP'ers", () => {
+    expect(visibleFreelancersWhere(admin)).toEqual({});
   });
 });

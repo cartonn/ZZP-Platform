@@ -61,11 +61,13 @@ export function applyFreelancerFilters(
 }
 
 /** Haalt alle publieke ZZP-profielen op; berekent trust + beschikbaarheid server-side. */
-export async function getAllPublicFreelancers(): Promise<FreelancerCard[]> {
+export async function getAllPublicFreelancers(
+  tenantScope: { tenantId?: string | null } = {},
+): Promise<FreelancerCard[]> {
   const now = new Date();
 
   const profiles = await prisma.freelancerProfile.findMany({
-    where: { visibility: "PUBLIC" },
+    where: { visibility: "PUBLIC", ...tenantScope },
     orderBy: { updatedAt: "desc" },
     take: 300,
     include: {

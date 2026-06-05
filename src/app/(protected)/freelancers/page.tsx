@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
 import { requireActor } from "@/lib/authz";
+import { visibleFreelancersWhere } from "@/lib/tenancy";
 import { getAllPublicFreelancers } from "@/lib/freelancer-search";
 import { FreelancerBrowse } from "./freelancer-browse";
 
@@ -13,7 +14,8 @@ export default async function FreelancersPage() {
     redirect("/opdrachten");
   }
 
-  const freelancers = await getAllPublicFreelancers();
+  // Gesloten per tenant: een tenant-opdrachtgever ziet alleen de eigen franchise-roster.
+  const freelancers = await getAllPublicFreelancers(visibleFreelancersWhere(actor));
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
