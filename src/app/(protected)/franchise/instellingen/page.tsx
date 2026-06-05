@@ -11,7 +11,7 @@ export default async function FranchiseInstellingenPage() {
   const actor = await requireRole("FRANCHISER");
   const tenant = await prisma.tenant.findUnique({
     where: { ownerUserId: actor.id },
-    select: { name: true, brandColor: true },
+    select: { name: true, brandColor: true, openOverflow: true },
   });
 
   return (
@@ -25,6 +25,7 @@ export default async function FranchiseInstellingenPage() {
           <BrandingForm
             initialName={tenant?.name ?? ""}
             initialColor={tenant?.brandColor ?? null}
+            initialOverflow={tenant?.openOverflow ?? false}
           />
         </CardContent>
       </Card>

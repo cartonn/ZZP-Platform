@@ -44,6 +44,7 @@ export async function updateFranchiseBranding(
     return { error: "Controleer de ingevoerde gegevens.", fieldErrors };
   }
   const { name, brandColor } = parsed.data;
+  const openOverflow = formData.get("openOverflow") === "on";
 
   // De Franchiser beheert exact één tenant (Tenant.ownerUserId = hijzelf).
   const tenant = await prisma.tenant.findUnique({
@@ -54,7 +55,7 @@ export async function updateFranchiseBranding(
 
   await prisma.tenant.update({
     where: { id: tenant.id },
-    data: { name, brandColor: brandColor ? brandColor : null },
+    data: { name, brandColor: brandColor ? brandColor : null, openOverflow },
   });
 
   await audit({
@@ -62,7 +63,7 @@ export async function updateFranchiseBranding(
     action: "FRANCHISE_BRANDING_UPDATED",
     entityType: "Tenant",
     entityId: tenant.id,
-    metadata: { name, brandColor: brandColor || null },
+    metadata: { name, brandColor: brandColor || null, openOverflow },
   });
 
   revalidatePath("/franchise/instellingen");

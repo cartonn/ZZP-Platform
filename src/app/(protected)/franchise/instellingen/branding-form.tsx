@@ -10,9 +10,11 @@ import { FormStatus } from "@/components/ui/form-status";
 export function BrandingForm({
   initialName,
   initialColor,
+  initialOverflow,
 }: {
   initialName: string;
   initialColor: string | null;
+  initialOverflow: boolean;
 }) {
   const [state, action, pending] = useActionState<BrandingState, FormData>(
     updateFranchiseBranding,
@@ -49,6 +51,21 @@ export function BrandingForm({
           />
         </div>
       </Field>
+      <label className="flex items-start gap-2.5 border-t border-border pt-4 text-sm">
+        <input
+          type="checkbox"
+          name="openOverflow"
+          defaultChecked={initialOverflow}
+          className="mt-0.5 size-4 rounded border-input"
+        />
+        <span>
+          <span className="font-medium">Diensten openstellen voor het hele platform</span>
+          <span className="block text-xs text-muted-foreground">
+            Onvervulde diensten van je franchise worden dan ook zichtbaar voor ZZP&apos;ers buiten
+            je roster — betere vulgraad, minder exclusiviteit.
+          </span>
+        </span>
+      </label>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? "Opslaan…" : "Opslaan"}

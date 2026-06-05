@@ -9,6 +9,7 @@
 // deterministische tiebreaker bij gelijke score en als verklaring in de kaart.
 
 import { prisma } from "@/lib/db";
+import { visibleJobsWhereForTenant } from "@/lib/tenancy";
 import { scoreJobForFreelancer, type ComplianceStatus } from "@/lib/matching";
 import { getSemanticMatcher, safeRelatedness } from "@/lib/services/semantic-matcher";
 import { type Availability } from "@/lib/enums";
@@ -66,9 +67,9 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
 
   const appliedJobIds = new Set(profile.applications.map((a) => a.jobId));
   const jobs = await prisma.job.findMany({
-    // Gesloten per tenant: een tenant-ZZP'er krijgt alleen diensten van zijn franchise aanbevolen;
-    // een directe ZZP'er alleen platform-opdrachten (tenantId null). profile.tenantId is de bron.
-    where: { status: "PUBLISHED", tenantId: profile.tenantId },
+    // Gesloten per tenant (+ overflow): de eigen franchise-diensten + opengestelde diensten van
+    // andere franchises (een directe ZZP'er: platform-opdrachten + opengestelde diensten).
+    where: { status: "PUBLISHED", AND: [visibleJobsWhereForTenant(profile.tenantId)] },
     include: {
       skills: { include: { skill: { select: { name: true } } } },
       credentialRequirements: true,

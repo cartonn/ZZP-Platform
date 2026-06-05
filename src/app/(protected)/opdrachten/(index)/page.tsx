@@ -133,9 +133,10 @@ async function BrowseJobs({
 }) {
   const f = normalizeJobFilters(searchParams);
 
-  // Gesloten per tenant: een tenant-ZZP'er ziet alleen diensten van zijn franchise; een directe
-  // ZZP'er alleen platform-opdrachten (tenantId null). ADMIN ziet alles.
-  const where: Prisma.JobWhereInput = { status: "PUBLISHED", ...visibleJobsWhere(actor) };
+  // Gesloten per tenant (+ overflow): een tenant-ZZP'er ziet diensten van zijn franchise + opengestelde
+  // diensten; een directe ZZP'er platform-opdrachten + opengestelde diensten. ADMIN ziet alles.
+  // Als AND-clausule zodat de tekstzoek-OR hieronder de zichtbaarheids-OR niet overschrijft.
+  const where: Prisma.JobWhereInput = { status: "PUBLISHED", AND: [visibleJobsWhere(actor)] };
   if (f.q) where.OR = [{ title: { contains: f.q } }, { description: { contains: f.q } }];
   if (f.industryId) where.industryId = f.industryId;
   if (f.workMode) where.workMode = f.workMode;

@@ -6,13 +6,15 @@ import {
   assertSameTenant,
   ownsViaTenant,
   visibleJobsWhere,
+  visibleJobsWhereForTenant,
   visibleFreelancersWhere,
+  canViewJob,
 } from "@/lib/tenancy";
 
-const franchiser: Actor = { id: "f1", role: "ADMIN", status: "ACTIVE", tenantId: "t1" };
-// Let op: FRANCHISER-rol bestaat nog niet in de enum (Inc 1); de helpers zijn rol-agnostisch en
-// leunen op tenantId. We modelleren een tenant-admin als een actor mét tenantId (rol CLIENT volstaat
-// voor de pure helper-tests, want alleen ADMIN heeft een bypass).
+const OVERFLOW = { tenant: { is: { openOverflow: true } } };
+
+// De helpers zijn rol-agnostisch en leunen op tenantId. We modelleren een tenant-admin als een actor
+// mét tenantId (rol CLIENT volstaat voor de pure helper-tests, want alleen ADMIN heeft een bypass).
 const tenantAdmin: Actor = { id: "f1", role: "CLIENT", status: "ACTIVE", tenantId: "t1" };
 const tenantMember: Actor = { id: "u1", role: "FREELANCER", status: "ACTIVE", tenantId: "t1" };
 const otherTenant: Actor = { id: "u2", role: "FREELANCER", status: "ACTIVE", tenantId: "t2" };
@@ -59,20 +61,42 @@ describe("ownsViaTenant", () => {
   });
 });
 
-describe("visibleJobsWhere (gesloten per tenant)", () => {
-  it("tenant-ZZP'er ziet alleen de eigen tenant-diensten", () => {
-    expect(visibleJobsWhere(tenantMember)).toEqual({ tenantId: "t1" });
+describe("visibleJobsWhere (gesloten per tenant + overflow)", () => {
+  it("tenant-ZZP'er ziet eigen tenant-diensten + opengestelde diensten", () => {
+    expect(visibleJobsWhere(tenantMember)).toEqual({ OR: [{ tenantId: "t1" }, OVERFLOW] });
   });
-  it("directe ZZP'er ziet alleen platform-opdrachten (tenantId null)", () => {
-    expect(visibleJobsWhere(directUser)).toEqual({ tenantId: null });
+  it("directe ZZP'er ziet platform-opdrachten + opengestelde diensten", () => {
+    expect(visibleJobsWhere(directUser)).toEqual({ OR: [{ tenantId: null }, OVERFLOW] });
   });
   it("ADMIN ziet alles", () => {
     expect(visibleJobsWhere(admin)).toEqual({});
   });
-  // Een tenant-dienst is dus niet zichtbaar voor een directe ZZP'er, en omgekeerd.
-  it("scheidt tenants strikt: t1 vs t2", () => {
-    expect(visibleJobsWhere(otherTenant)).toEqual({ tenantId: "t2" });
-    expect(visibleJobsWhere(franchiser)).toEqual({}); // franchiser is hier ADMIN-rol → alles
+  it("scheidt tenants: t1 vs t2 (los van de overflow-clausule)", () => {
+    expect(visibleJobsWhereForTenant("t2")).toEqual({ OR: [{ tenantId: "t2" }, OVERFLOW] });
+  });
+});
+
+describe("canViewJob (detail-zichtbaarheid)", () => {
+  const job = (tenantId: string | null, openOverflow = false) => ({
+    tenantId,
+    tenant: tenantId ? { openOverflow } : null,
+  });
+  it("ADMIN ziet elke dienst", () => {
+    expect(canViewJob(admin, job("t9", false))).toBe(true);
+  });
+  it("eigen tenant-match mag", () => {
+    expect(canViewJob(tenantMember, job("t1"))).toBe(true);
+  });
+  it("andere tenant zonder overflow mag niet", () => {
+    expect(canViewJob(tenantMember, job("t2", false))).toBe(false);
+    expect(canViewJob(directUser, job("t1", false))).toBe(false);
+  });
+  it("opengestelde (overflow) dienst mag iedereen zien", () => {
+    expect(canViewJob(directUser, job("t1", true))).toBe(true);
+    expect(canViewJob(otherTenant, job("t1", true))).toBe(true);
+  });
+  it("directe gebruiker ziet platform-opdracht (tenantId null)", () => {
+    expect(canViewJob(directUser, job(null))).toBe(true);
   });
 });
 

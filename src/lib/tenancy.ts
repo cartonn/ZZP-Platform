@@ -4,6 +4,7 @@
 // tenant"-regel (een tenant-dienst is alleen zichtbaar voor de eigen roster, en vice-versa) op
 // één plek staat. ADMIN ziet alles. Pure functies — los unit-getest, geen DB/IO.
 
+import { type Prisma } from "@prisma/client";
 import { AuthorizationError, type Actor } from "@/lib/authz";
 
 /** Heeft deze actor een franchise (tenant)? Versmalt het type zodat `tenantId` een string is. */
@@ -50,10 +51,39 @@ export function ownsViaTenant(
  * - directe gebruiker: alleen platform-opdrachten (`tenantId = null`)
  * AND dit fragment in de bestaande gepubliceerde-opdrachten-query.
  */
-export function visibleJobsWhere(actor: Actor | null | undefined): { tenantId?: string | null } {
+/**
+ * Where-fragment voor een gegeven tenant-context (gesloten per tenant + overflow). Een franchise
+ * kan haar onvervulde (= nog gepubliceerde) diensten openstellen voor het hele platform
+ * (`Tenant.openOverflow`); die zijn dan voor iedere ZZP'er zichtbaar, náást de eigen scope.
+ */
+export function visibleJobsWhereForTenant(tenantId: string | null): Prisma.JobWhereInput {
+  const overflow: Prisma.JobWhereInput = { tenant: { is: { openOverflow: true } } };
+  return tenantId ? { OR: [{ tenantId }, overflow] } : { OR: [{ tenantId: null }, overflow] };
+}
+
+/**
+ * Where-fragment voor zichtbare opdrachten/diensten bij browse + matching.
+ * - ADMIN: `{}` (alles)
+ * - tenant-gebonden gebruiker: eigen tenant + overflow-diensten van andere franchises
+ * - directe gebruiker: platform-opdrachten (tenantId null) + overflow-diensten
+ * AND dit fragment in de bestaande gepubliceerde-opdrachten-query.
+ */
+export function visibleJobsWhere(actor: Actor | null | undefined): Prisma.JobWhereInput {
   if (actor?.role === "ADMIN") return {};
-  if (hasTenant(actor)) return { tenantId: actor.tenantId };
-  return { tenantId: null };
+  return visibleJobsWhereForTenant(hasTenant(actor) ? actor.tenantId : null);
+}
+
+/**
+ * Mag deze (niet-eigenaar, niet-admin) actor dit dienst-detail zien? Eigen tenant-match of
+ * een opengestelde (overflow) dienst. Spiegelt visibleJobsWhere voor de detailpagina.
+ */
+export function canViewJob(
+  actor: Actor | null | undefined,
+  job: { tenantId: string | null; tenant?: { openOverflow: boolean } | null },
+): boolean {
+  if (actor?.role === "ADMIN") return true;
+  const own = (actor?.tenantId ?? null) === job.tenantId;
+  return own || !!job.tenant?.openOverflow;
 }
 
 /**
