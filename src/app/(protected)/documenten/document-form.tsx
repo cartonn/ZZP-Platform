@@ -6,6 +6,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { uploadDocument, type DocumentState } from "./actions";
+import { FormStatus } from "@/components/ui/form-status";
 
 const KINDS = [
   ["OTHER", "Overig"],
@@ -69,7 +70,7 @@ export function DocumentForm() {
         <Button type="submit" disabled={isPending}>
           {isPending ? "Uploaden…" : "Uploaden"}
         </Button>
-        {state?.ok && <span className="text-sm text-success">Geüpload.</span>}
+        <FormStatus success={state?.ok && "Geüpload."} />
       </div>
     </form>
   );

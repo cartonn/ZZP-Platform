@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { updateCompanyProfile, type CompanyState } from "./actions";
+import { FormStatus } from "@/components/ui/form-status";
 
 export interface CompanyFormInitial {
   name: string;
@@ -121,7 +122,7 @@ export function CompanyForm({
         <Button type="submit" disabled={isPending}>
           {isPending ? "Opslaan…" : "Bedrijfsprofiel opslaan"}
         </Button>
-        {state?.ok && <span className="text-sm text-success">Opgeslagen.</span>}
+        <FormStatus success={state?.ok && "Opgeslagen."} />
         {state?.error && !Object.keys(fe).length && (
           <span role="alert" className="text-sm text-danger">
             {state.error}

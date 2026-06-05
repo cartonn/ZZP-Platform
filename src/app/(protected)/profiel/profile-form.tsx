@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { updateFreelancerProfile, type ProfileState } from "./actions";
+import { FormStatus } from "@/components/ui/form-status";
 
 const AVAILABILITY = [
   ["AVAILABLE", "Beschikbaar"],
@@ -212,7 +213,7 @@ export function ProfileForm({
         <Button type="submit" disabled={isPending}>
           {isPending ? "Opslaan…" : "Profiel opslaan"}
         </Button>
-        {state?.ok && <span className="text-sm text-success">Opgeslagen.</span>}
+        <FormStatus success={state?.ok && "Opgeslagen."} />
         {state?.error && !Object.keys(fe).length && (
           <span role="alert" className="text-sm text-danger">
             {state.error}
