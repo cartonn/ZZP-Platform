@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { sendMessage, type MessageState } from "../actions";
+import { FormStatus } from "@/components/ui/form-status";
 
 export function MessageComposer({ conversationId }: { conversationId: string }) {
   const action = sendMessage.bind(null, conversationId);
@@ -36,6 +37,8 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
           {state.error}
         </span>
       )}
+      {/* Het bericht verschijnt zelf in de thread; alleen voor screenreaders aankondigen. */}
+      <FormStatus success={state?.ok && "Bericht verzonden."} srOnly />
     </form>
   );
 }

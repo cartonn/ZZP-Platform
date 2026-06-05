@@ -6,6 +6,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { addAvailabilityWindow, type AvailabilityState } from "./actions";
+import { FormStatus } from "@/components/ui/form-status";
 
 export function AvailabilityForm() {
   const [state, formAction, isPending] = useActionState<AvailabilityState, FormData>(
@@ -65,7 +66,7 @@ export function AvailabilityForm() {
         <Button type="submit" disabled={isPending}>
           {isPending ? "Toevoegen…" : "Toevoegen"}
         </Button>
-        {state?.ok && <span className="text-sm text-success">Toegevoegd.</span>}
+        <FormStatus success={state?.ok && "Toegevoegd."} />
       </div>
     </form>
   );

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { verifyIdentity, type IdentityState } from "./actions";
+import { FormStatus } from "@/components/ui/form-status";
 
 export function IdentityForm({ onResolved }: { onResolved?: () => void }) {
   const [state, formAction, isPending] = useActionState<IdentityState, FormData>(
@@ -29,9 +30,12 @@ export function IdentityForm({ onResolved }: { onResolved?: () => void }) {
           {state.error}
         </p>
       )}
-      <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
-        {isPending ? "Verifiëren…" : "Verifieer identiteit (iDIN)"}
-      </Button>
+      <div className="flex items-center gap-3">
+        <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
+          {isPending ? "Verifiëren…" : "Verifieer identiteit (iDIN)"}
+        </Button>
+        <FormStatus success={state?.ok && "Identiteit geverifieerd."} />
+      </div>
     </form>
   );
 }
