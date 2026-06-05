@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
-import { Users } from "lucide-react";
+import Link from "next/link";
+import { Users, ChevronRight } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
@@ -21,14 +22,17 @@ const AVAIL_LABEL: Record<string, string> = {
 
 export default async function FranchiseZzpersPage() {
   const actor = await requireRole("FRANCHISER");
-  const freelancers = await prisma.freelancerProfile.findMany({
-    where: tenantScopeWhere(actor),
-    orderBy: { createdAt: "desc" },
-    include: {
-      user: { select: { name: true, email: true } },
-      _count: { select: { credentials: true, collaborations: true } },
-    },
-  });
+  const [freelancers, skills] = await Promise.all([
+    prisma.freelancerProfile.findMany({
+      where: tenantScopeWhere(actor),
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: { select: { name: true, email: true } },
+        _count: { select: { credentials: true, collaborations: true, skills: true } },
+      },
+    }),
+    prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -40,7 +44,7 @@ export default async function FranchiseZzpersPage() {
       <Card>
         <CardContent className="space-y-4 p-5">
           <h2 className="text-sm font-semibold tracking-tight">Nieuwe ZZP&apos;er</h2>
-          <ZzperForm />
+          <ZzperForm skills={skills} />
         </CardContent>
       </Card>
 
@@ -55,20 +59,29 @@ export default async function FranchiseZzpersPage() {
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {freelancers.map((f) => (
-            <div key={f.id} className="flex items-start justify-between gap-3 p-4">
+            <Link
+              key={f.id}
+              href={`/franchise/zzpers/${f.id}`}
+              className="focus-ring flex items-center justify-between gap-3 p-4 hover:bg-muted/40"
+            >
               <div className="min-w-0">
                 <p className="truncate font-medium">{f.user.name}</p>
                 <p className="truncate text-sm text-muted-foreground">
                   {f.headline ?? f.user.email}
                 </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {plural(f._count.skills, "skill", "skills")} ·{" "}
+                  {plural(f._count.credentials, "certificaat", "certificaten")} · profiel{" "}
+                  {f.completeness}%
+                </p>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
+              <div className="flex shrink-0 items-center gap-2">
                 <Badge variant={f.availability === "AVAILABLE" ? "success" : "muted"}>
                   {AVAIL_LABEL[f.availability] ?? f.availability}
                 </Badge>
-                <span>{plural(f._count.credentials, "certificaat", "certificaten")}</span>
+                <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
