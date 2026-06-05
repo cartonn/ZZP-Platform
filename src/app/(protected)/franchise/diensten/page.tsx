@@ -22,7 +22,7 @@ const STATUS: Record<JobStatus, { label: string; variant: "muted" | "success" | 
 export default async function FranchiseDienstenPage() {
   const actor = await requireRole("FRANCHISER");
   const scope = tenantScopeWhere(actor);
-  const [diensten, companies] = await Promise.all([
+  const [diensten, companies, skills] = await Promise.all([
     prisma.job.findMany({
       where: scope,
       orderBy: { createdAt: "desc" },
@@ -41,6 +41,7 @@ export default async function FranchiseDienstenPage() {
         departments: { orderBy: { name: "asc" }, select: { id: true, name: true } },
       },
     }),
+    prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   const hasAfdeling = companies.some((c) => c.departments.length > 0);
 
@@ -55,7 +56,10 @@ export default async function FranchiseDienstenPage() {
         <CardContent className="space-y-4 p-5">
           <h2 className="text-sm font-semibold tracking-tight">Nieuwe dienst uitzetten</h2>
           {hasAfdeling ? (
-            <DienstForm companies={companies.filter((c) => c.departments.length > 0)} />
+            <DienstForm
+              companies={companies.filter((c) => c.departments.length > 0)}
+              skills={skills}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">
               Voeg eerst een opdrachtgever met minstens één afdeling toe voordat je een dienst kunt

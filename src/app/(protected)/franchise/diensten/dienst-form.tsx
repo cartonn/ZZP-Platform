@@ -8,6 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { FormStatus } from "@/components/ui/form-status";
+import { CheckChip } from "@/components/ui/check-chip";
+import { CREDENTIAL_TYPES } from "@/lib/enums";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 
 export interface OpdrachtgeverOption {
   id: string;
@@ -15,7 +18,13 @@ export interface OpdrachtgeverOption {
   departments: { id: string; name: string }[];
 }
 
-export function DienstForm({ companies }: { companies: OpdrachtgeverOption[] }) {
+export function DienstForm({
+  companies,
+  skills,
+}: {
+  companies: OpdrachtgeverOption[];
+  skills: { id: string; name: string }[];
+}) {
   const [state, action, pending] = useActionState<DienstState, FormData>(createDienst, undefined);
   const fieldErrors = state && "fieldErrors" in state ? (state.fieldErrors ?? {}) : {};
   const error = state && "error" in state ? state.error : undefined;
@@ -76,6 +85,50 @@ export function DienstForm({ companies }: { companies: OpdrachtgeverOption[] }) 
           <Input id="startDate" name="startDate" type="date" />
         </Field>
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Tarief vanaf (€/uur)" htmlFor="rateMin" error={fieldErrors.rateMin}>
+          <Input
+            id="rateMin"
+            name="rateMin"
+            type="number"
+            inputMode="numeric"
+            placeholder="bijv. 40"
+          />
+        </Field>
+        <Field label="Tarief tot (€/uur)" htmlFor="rateMax" error={fieldErrors.rateMax}>
+          <Input
+            id="rateMax"
+            name="rateMax"
+            type="number"
+            inputMode="numeric"
+            placeholder="bijv. 55"
+          />
+        </Field>
+      </div>
+
+      <fieldset>
+        <legend className="mb-2 block text-sm font-medium">Gevraagde skills</legend>
+        {skills.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Geen skills beschikbaar.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {skills.map((s) => (
+              <CheckChip key={s.id} name="skillIds" value={s.id} label={s.name} />
+            ))}
+          </div>
+        )}
+      </fieldset>
+
+      <fieldset>
+        <legend className="mb-2 block text-sm font-medium">Vereiste certificaten</legend>
+        <div className="flex flex-wrap gap-2">
+          {CREDENTIAL_TYPES.map((t) => (
+            <CheckChip key={t} name="credentialTypes" value={t} label={CREDENTIAL_TYPE_LABEL[t]} />
+          ))}
+        </div>
+      </fieldset>
+
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending || departments.length === 0}>
           {pending ? "Uitzetten…" : "Dienst uitzetten"}
