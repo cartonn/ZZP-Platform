@@ -37,6 +37,31 @@ export function ListSkeleton({ rows = 5, className }: { rows?: number; className
   );
 }
 
+// Dichte lijst-skelet: één container met divider-rijen, matcht de `divide-y`-lijstpagina's
+// (facturen, opdrachten, acties) i.p.v. losse kaarten — voorkomt layout-shift bij het laden.
+export function DenseListSkeleton({ rows = 5, className }: { rows?: number; className?: string }) {
+  return (
+    <div
+      className={cn(
+        "divide-y divide-border overflow-hidden rounded-lg border border-border bg-card",
+        className,
+      )}
+      aria-busy="true"
+      aria-label="Laden"
+    >
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between gap-3 p-4">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+          <Skeleton className="h-8 w-20" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Formulier-skelet: N label+veld-paren plus een knop in één card, voor bewerk-/nieuw-pagina's.
 export function FormSkeleton({ fields = 4, className }: { fields?: number; className?: string }) {
   return (
