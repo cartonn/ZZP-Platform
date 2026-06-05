@@ -268,7 +268,11 @@ async function adminTasks(): Promise<PendingTask[]> {
   const [creds, pendingUsers, disputes, deletions] = await Promise.all([
     prisma.credential.findMany({
       where: { status: "SUBMITTED" },
-      select: { id: true, title: true },
+      select: {
+        id: true,
+        title: true,
+        freelancerProfile: { select: { user: { select: { name: true } } } },
+      },
       take: MAX,
     }),
     prisma.user.findMany({
@@ -287,7 +291,10 @@ async function adminTasks(): Promise<PendingTask[]> {
       take: MAX,
     }),
   ]);
-  for (const c of creds) tasks.push(adminVerifyCredentialTask(c.id, c.title));
+  for (const c of creds)
+    tasks.push(
+      adminVerifyCredentialTask(c.id, c.title, c.freelancerProfile.user.name ?? "Onbekend"),
+    );
   for (const u of pendingUsers) tasks.push(adminActivateUserTask(u.id, u.name ?? "Gebruiker"));
   for (const d of disputes) tasks.push(adminResolveDisputeTask(d.id, d.job.title));
   for (const u of deletions) tasks.push(adminDeletionRequestTask(u.id, u.name ?? "Gebruiker"));

@@ -273,11 +273,15 @@ export function credentialFixTask(
   };
 }
 
-export function adminVerifyCredentialTask(credId: string, title: string): PendingTask {
+export function adminVerifyCredentialTask(
+  credId: string,
+  title: string,
+  submitterName: string,
+): PendingTask {
   return {
     kind: "admin-verify-credential",
     id: `admin-verify-credential:${credId}`,
-    title: "Beoordeel het ingediende certificaat",
+    title: `Beoordeel het certificaat van ${submitterName}`,
     subtitle: title,
     tone: "attention",
     priority: P.verificationQueue,

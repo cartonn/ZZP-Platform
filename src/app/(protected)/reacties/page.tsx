@@ -45,6 +45,7 @@ export default async function ReactiesPage() {
         orderBy: { createdAt: "desc" },
         include: {
           job: { select: { id: true, title: true, company: { select: { name: true } } } },
+          collaboration: { select: { id: true } },
         },
       })
     : [];
@@ -66,10 +67,19 @@ export default async function ReactiesPage() {
         <div className="space-y-3">
           {applications.map((app) => {
             const compliance = complianceStatus(app.complianceSnapshot);
+            // Zodra er een samenwerking uit de reactie is voortgekomen, wijst de kaart naar het
+            // werkproces (de logische volgende stap) i.p.v. terug naar de opdracht.
+            const hint = app.collaboration
+              ? "Samenwerking gestart — bekijk het werkproces."
+              : STATUS_HINT[app.status as ApplicationStatus];
             return (
               <Link
                 key={app.id}
-                href={`/opdrachten/${app.job.id}`}
+                href={
+                  app.collaboration
+                    ? `/samenwerkingen/${app.collaboration.id}`
+                    : `/opdrachten/${app.job.id}`
+                }
                 className="card-interactive block rounded-lg border border-border bg-card p-4"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -85,9 +95,7 @@ export default async function ReactiesPage() {
                   )}
                   {compliance && <ComplianceBadge status={compliance} />}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {STATUS_HINT[app.status as ApplicationStatus]}
-                </p>
+                <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
               </Link>
             );
           })}
