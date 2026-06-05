@@ -6,3 +6,8 @@
 export function isAdminPath(pathname: string): boolean {
   return pathname === "/admin" || pathname.startsWith("/admin/");
 }
+
+/** Hoort dit pad bij de franchise-werkplek (Franchiser of admin)? Segmentgrens-match. */
+export function isFranchisePath(pathname: string): boolean {
+  return pathname === "/franchise" || pathname.startsWith("/franchise/");
+}
