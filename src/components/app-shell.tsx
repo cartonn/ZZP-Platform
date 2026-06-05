@@ -11,7 +11,8 @@ import { PaletteSwitcher } from "@/components/ui/palette-switcher";
 import { SearchTrigger } from "@/components/search/search-trigger";
 import { CommandPalette } from "@/components/search/command-palette";
 import { navForRole, ROLE_LABEL } from "@/lib/nav";
-import { navBadges } from "@/lib/signals";
+import { navBadges, withActionCenterBadge } from "@/lib/signals";
+import { pendingTaskCount } from "@/lib/actions/pending-tasks";
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
 
@@ -23,12 +24,15 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   const role = user.role as UserRole;
-  const [unread, badges] = await Promise.all([
+  const [unread, rawBadges, actionCount] = await Promise.all([
     user.id
       ? prisma.notification.count({ where: { userId: user.id, readAt: null } })
       : Promise.resolve(0),
     user.id ? navBadges(role, user.id) : Promise.resolve({}),
+    user.id ? pendingTaskCount(user.id, role) : Promise.resolve(0),
   ]);
+  // De /acties-badge telt exact de openstaande taken (zoals de pagina ze toont).
+  const badges = withActionCenterBadge(rawBadges, actionCount);
   const initials = (user.name ?? user.email ?? "?")
     .split(" ")
     .map((p) => p[0])
