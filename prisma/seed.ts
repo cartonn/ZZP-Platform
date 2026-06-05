@@ -190,7 +190,7 @@ async function main() {
       creds: [
         {
           type: "VOG",
-          title: "VOG Verklaring Omtrent Gedrag",
+          title: "Verklaring Omtrent Gedrag",
           issuer: "Justis",
           status: "VERIFIED",
           expiresInDays: 300,
@@ -220,7 +220,7 @@ async function main() {
       creds: [
         {
           type: "VOG",
-          title: "VOG Verklaring Omtrent Gedrag",
+          title: "Verklaring Omtrent Gedrag",
           issuer: "Justis",
           status: "VERIFIED",
           expiresInDays: 280,
@@ -257,7 +257,7 @@ async function main() {
         },
         {
           type: "VOG",
-          title: "VOG Verklaring Omtrent Gedrag",
+          title: "Verklaring Omtrent Gedrag",
           issuer: "Justis",
           status: "VERIFIED",
           expiresInDays: 200,
@@ -288,7 +288,7 @@ async function main() {
         },
         {
           type: "VOG",
-          title: "VOG Verklaring Omtrent Gedrag",
+          title: "Verklaring Omtrent Gedrag",
           issuer: "Justis",
           status: "VERIFIED",
           expiresInDays: 25,
@@ -319,7 +319,7 @@ async function main() {
         },
         {
           type: "VOG",
-          title: "VOG Verklaring Omtrent Gedrag",
+          title: "Verklaring Omtrent Gedrag",
           issuer: "Justis",
           status: "VERIFIED",
           expiresInDays: 320,
@@ -349,7 +349,7 @@ async function main() {
       creds: [
         {
           type: "VOG",
-          title: "VOG Verklaring Omtrent Gedrag",
+          title: "Verklaring Omtrent Gedrag",
           issuer: "Justis",
           status: "SUBMITTED",
         },
@@ -450,7 +450,9 @@ async function main() {
       const id = `cred-${f.key}-${c.type}`;
       await prisma.credential.upsert({
         where: { id },
-        update: {},
+        // Titel/zichtbaarheid mogen convergeren naar de seed-definitie (puur referentie-display);
+        // status/datums blijven met rust zodat runtime-eindtoestanden niet worden overschreven.
+        update: { title: c.title },
         create: {
           id,
           freelancerProfileId: profileId,
