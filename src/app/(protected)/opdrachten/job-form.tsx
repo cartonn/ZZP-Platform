@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckChip } from "@/components/ui/check-chip";
 import { Field } from "@/components/ui/field";
@@ -78,6 +78,18 @@ export function JobForm({
 }) {
   const [state, formAction, isPending] = useActionState<JobFormState, FormData>(saveJob, undefined);
   const fe = state?.fieldErrors ?? {};
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Na een server-validatie: spring naar het eerste foutieve veld (lange form, DBA-blok onderaan).
+  // Field zet aria-invalid op het foutieve input, dus dat is meteen het anker + SR-aankondiging.
+  useEffect(() => {
+    if (!state?.fieldErrors || Object.keys(state.fieldErrors).length === 0) return;
+    const first = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (first) {
+      first.scrollIntoView({ behavior: "smooth", block: "center" });
+      first.focus({ preventScroll: true });
+    }
+  }, [state]);
   const [workMode, setWorkMode] = useState(initial.workMode);
   const [industryId, setIndustryId] = useState(initial.industryId);
   const [dba, setDba] = useState(initial.dba);
@@ -105,7 +117,7 @@ export function JobForm({
   });
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form ref={formRef} action={formAction} noValidate className="space-y-6">
       {initial.id && <input type="hidden" name="jobId" value={initial.id} />}
 
       <div className="space-y-1 border-b border-border pb-2">
@@ -131,6 +143,7 @@ export function JobForm({
           id="description"
           name="description"
           defaultValue={initial.description}
+          required
           rows={6}
           maxLength={5000}
         />
@@ -241,13 +254,11 @@ export function JobForm({
       </div>
 
       <fieldset className="space-y-3 rounded-lg border border-border bg-card p-5">
-        <div>
-          <legend className="text-sm font-medium">Wet DBA — risicocheck</legend>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Vink aan wat van toepassing is. We tonen direct het risico op schijnzelfstandigheid met
-            uitleg. Dit is een hulpmiddel, geen juridisch advies.
-          </p>
-        </div>
+        <legend className="text-sm font-medium">Wet DBA — risicocheck</legend>
+        <p className="text-xs text-muted-foreground">
+          Vink aan wat van toepassing is. We tonen direct het risico op schijnzelfstandigheid met
+          uitleg. Dit is een hulpmiddel, geen juridisch advies.
+        </p>
         <div className="space-y-2">
           {DBA_FACTORS.map(([name, label]) => (
             <label key={name} className="flex items-start gap-2 text-sm">
