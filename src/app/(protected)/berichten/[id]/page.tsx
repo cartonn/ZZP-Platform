@@ -84,14 +84,18 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
                 <div
                   className={cn(
                     "max-w-[80%] rounded-lg px-3 py-2 text-sm",
-                    mine ? "bg-primary text-primary-foreground" : "border border-border bg-card",
+                    mine
+                      ? "bg-primary text-primary-foreground dark:bg-accent dark:text-accent-foreground"
+                      : "border border-border bg-card",
                   )}
                 >
                   <p className="whitespace-pre-line break-words">{m.body}</p>
                   <p
                     className={cn(
                       "mt-1 text-[10px]",
-                      mine ? "text-primary-foreground/70" : "text-muted-foreground",
+                      mine
+                        ? "text-primary-foreground/70 dark:text-accent-foreground/70"
+                        : "text-muted-foreground",
                     )}
                   >
                     {formatDateTimeNl(m.createdAt)}
