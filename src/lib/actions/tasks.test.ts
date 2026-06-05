@@ -8,6 +8,7 @@ import {
   paymentConfirmTask,
   profileCompletenessTask,
   messageReplyTask,
+  adminVerifyCredentialTask,
   adminDeletionRequestTask,
   adminResolveDisputeTask,
   applicationsReviewTask,
@@ -92,6 +93,14 @@ describe("task builders", () => {
     // Zonder gekoppelde opdracht valt het terug op een nette generieke subtitel.
     const noJob = messageReplyTask("conv3", "Nadia Haddad", null);
     expect(noJob.subtitle).toBe("Nieuw bericht");
+  });
+
+  it("certificaat-beoordeling benoemt de indiener zodat de wachtrij niet uit identieke rijen bestaat", () => {
+    const a = adminVerifyCredentialTask("c1", "VOG", "Sanne de Vries");
+    const b = adminVerifyCredentialTask("c2", "VOG", "Bram Koster");
+    expect(a.title).toBe("Beoordeel het certificaat van Sanne de Vries");
+    expect(a.subtitle).toBe("VOG");
+    expect(a.title).not.toBe(b.title);
   });
 
   it("AVG-verwijderverzoek blijft een link (onomkeerbaar, geen één-klik)", () => {
