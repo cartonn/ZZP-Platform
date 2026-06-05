@@ -151,4 +151,14 @@ describe("weekOverview", () => {
     expect(result.entries).toEqual([]);
     expect(result.clientCount).toBe(0);
   });
+
+  it("draagt het vastgelegde weekrooster (ADR-0004) mee naar de entry", () => {
+    const result = weekOverview([collab({ weekdays: ["MON", "WED", "FRI"] })], ref);
+    expect(result.entries[0]?.weekdays).toEqual(["MON", "WED", "FRI"]);
+  });
+
+  it("laat weekdays ongedefinieerd wanneer niet vastgelegd (terugval op timing)", () => {
+    const result = weekOverview([collab()], ref);
+    expect(result.entries[0]?.weekdays).toBeUndefined();
+  });
 });

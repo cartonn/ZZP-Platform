@@ -26,6 +26,9 @@ import { type OrtSegment, resolveOrtRates } from "@/lib/ort";
 import { segmentShifts, dutchHolidays, type Shift } from "@/lib/shift";
 import { type OrtCategory, ORT_SECTORS, ORT_CATEGORIES, type OrtSector } from "@/lib/config";
 import { validatePerformanceForm, type PerformanceFormData } from "@/lib/validation";
+import { weekdaySchema, type Weekday } from "@/lib/enums";
+import { serializeWeekdays } from "@/lib/weekdays";
+import { audit } from "@/lib/audit";
 
 /** Vertaalt een CascadeError/transitiefout naar een leesbare melding; hergooit de rest. */
 function toMessage(e: unknown): never {
@@ -255,6 +258,46 @@ export async function setOrtProfileAction(
       ortProfile: isCustom ? null : sector === "DEFAULT" ? null : sector,
       ortCustomRates: customRates,
     },
+  });
+  refresh(collaborationId);
+}
+
+/**
+ * Legt het per-dag-weekrooster van een samenwerking vast (ADR-0004): welke weekdagen de ZZP'er bij
+ * deze opdrachtgever werkt. Beide partijen (en admin) mogen het bijwerken — het is een gedeelde
+ * planningsafspraak. Lege selectie = "niet vastgelegd" (null). Server-side waarheid + audit.
+ */
+export async function setWeekdaysAction(
+  collaborationId: string,
+  formData: FormData,
+): Promise<void> {
+  const actor = await requireActor();
+
+  const col = await prisma.collaboration.findUnique({
+    where: { id: collaborationId },
+    select: { company: { select: { userId: true } }, freelancer: { select: { userId: true } } },
+  });
+  if (!col) throw new Error("Samenwerking niet gevonden.");
+  const isClient = actor.id === col.company.userId;
+  const isFreelancer = actor.id === col.freelancer.userId;
+  if (!isClient && !isFreelancer && actor.role !== "ADMIN") {
+    throw new Error("Alleen de betrokken partijen kunnen het weekrooster vastleggen.");
+  }
+
+  // Alleen geldige weekdag-codes; ontdubbeld + canoniek geordend door serializeWeekdays.
+  const selected = formData
+    .getAll("weekdays")
+    .map(String)
+    .filter((v): v is Weekday => weekdaySchema.safeParse(v).success);
+  const weekdays = serializeWeekdays(selected);
+
+  await prisma.collaboration.update({ where: { id: collaborationId }, data: { weekdays } });
+  await audit({
+    actorId: actor.id,
+    action: "COLLABORATION_WEEKDAYS_SET",
+    entityType: "Collaboration",
+    entityId: collaborationId,
+    metadata: { weekdays },
   });
   refresh(collaborationId);
 }

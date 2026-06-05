@@ -967,6 +967,19 @@ async function main() {
     }
   }
 
+  // --- Weekrooster per samenwerking (ADR-0004) — leg op een paar demo-samenwerkingen de werkelijke
+  //     weekdagen vast, zodat de detailpagina (en het weekoverzicht) een echt "ma + di bij A"-rooster
+  //     toont i.p.v. alleen periode/timing. Idempotent: zet alleen het additieve veld. ---
+  const weekdayDemo: { where: object; days: string }[] = [
+    { where: { id: "collab-1" }, days: '["MON","TUE","WED"]' }, // Sanne ↔ Jansen (anker)
+    { where: { jobId: "job-11" }, days: '["MON","TUE","WED","THU"]' }, // Rik — actief
+    { where: { jobId: "job-17" }, days: '["WED","THU","FRI"]' }, // Nadia — actief
+    { where: { jobId: "job-18" }, days: '["MON","WED","FRI"]' }, // Youssef — voorgesteld
+  ];
+  for (const w of weekdayDemo) {
+    await prisma.collaboration.updateMany({ where: w.where, data: { weekdays: w.days } });
+  }
+
   // --- Support-tickets (helpdesk-wachtrij) — eigen guard, los van de cascade-telling, zodat ze
   //     ook (her)gemaakt worden als een eerdere boot halverwege afbrak (zelfherstellend). ---
   if ((await prisma.supportTicket.count()) === 0) {

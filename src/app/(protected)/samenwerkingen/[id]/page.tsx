@@ -40,6 +40,8 @@ import {
 import { PerformanceForm } from "./performance-form";
 import { performanceFormDefaults } from "@/lib/performance-form";
 import { OrtProfileForm } from "./ort-profile-form";
+import { WeekdaysForm } from "./weekdays-form";
+import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 
@@ -271,6 +273,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
 
   const counterparty = isClient ? col.freelancer.user.name : col.company.name;
   const active = col.status === "ACTIVE";
+  const weekdays = parseWeekdays(col.weekdays);
 
   // DBA-monitoring (§6): rustig signaleren, mét disclaimer; geen juridisch oordeel (Besluit 2).
   const dba = assessCollaborationDba(
@@ -510,6 +513,30 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             </p>
           )
         ))}
+
+      {/* Weekrooster (ADR-0004) — welke dagen er bij deze opdrachtgever wordt gewerkt. Beide
+          partijen leggen het vast; bij een afgeronde samenwerking alleen tonen. */}
+      {active || col.status === "PROPOSED" ? (
+        <Card>
+          <CardContent className="space-y-2 py-4">
+            <div>
+              <p className="text-sm font-medium">Weekrooster</p>
+              <p className="text-xs text-muted-foreground">
+                Leg vast op welke dagen er bij {counterparty} wordt gewerkt. Dit verschijnt in het
+                weekoverzicht; geen selectie = niet vastgelegd.
+              </p>
+            </div>
+            <WeekdaysForm collaborationId={col.id} weekdays={weekdays} />
+          </CardContent>
+        </Card>
+      ) : (
+        weekdays.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Weekrooster:{" "}
+            <span className="font-medium text-foreground">{formatWeekdays(weekdays)}</span>
+          </p>
+        )
+      )}
 
       {/* Prestaties: urenstaat / oplevering */}
       <section className="space-y-3">

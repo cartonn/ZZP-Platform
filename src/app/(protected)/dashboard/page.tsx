@@ -21,6 +21,7 @@ import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { type NextActionTone } from "@/lib/next-actions";
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
+import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ComplianceBadge } from "@/components/compliance-badge";
@@ -145,6 +146,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           startDate: true,
           endDate: true,
           rate: true,
+          weekdays: true,
           company: { select: { id: true, name: true } },
           job: { select: { title: true } },
           performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
@@ -189,6 +191,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
               startDate: c.startDate,
               endDate: c.endDate,
               rate: c.rate,
+              weekdays: parseWeekdays(c.weekdays),
             })),
             now,
           )
@@ -505,13 +508,16 @@ export default async function DashboardPage() {
           </div>
           {week && (
             <ul className="flex flex-wrap gap-2">
-              {week.entries.map((e) => (
-                <li key={e.collaborationId}>
-                  <Badge variant="muted">
-                    {e.clientName} · {TIMING_LABEL[e.timing] ?? "Loopt"}
-                  </Badge>
-                </li>
-              ))}
+              {week.entries.map((e) => {
+                const rooster = e.weekdays?.length ? formatWeekdays(e.weekdays) : null;
+                return (
+                  <li key={e.collaborationId}>
+                    <Badge variant="muted">
+                      {e.clientName} · {rooster ?? TIMING_LABEL[e.timing] ?? "Loopt"}
+                    </Badge>
+                  </li>
+                );
+              })}
             </ul>
           )}
           <div className="grid gap-3 sm:grid-cols-2">
