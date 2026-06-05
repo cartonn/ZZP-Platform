@@ -115,7 +115,7 @@ export function performanceResubmitTask(
   return {
     kind: "performance-resubmit",
     id: `performance-resubmit:${perfId}`,
-    title: "Afgekeurde uren corrigeren en opnieuw indienen",
+    title: "Corrigeer de afgekeurde uren en dien opnieuw in",
     subtitle: jobTitle,
     tone: "attention",
     priority: P.credentialExpiring - 8, // = rejected-band (62)
@@ -295,7 +295,7 @@ export function adminActivateUserTask(userId: string, name: string): PendingTask
   return {
     kind: "admin-activate-user",
     id: `admin-activate-user:${userId}`,
-    title: "Gebruiker goedkeuren",
+    title: "Keur de gebruiker goed",
     subtitle: name,
     tone: "info",
     priority: P.pendingUsers,
@@ -309,7 +309,7 @@ export function adminResolveDisputeTask(collabId: string, jobTitle: string): Pen
   return {
     kind: "admin-resolve-dispute",
     id: `admin-resolve-dispute:${collabId}`,
-    title: "Dispuut beoordelen — werkproces bevroren",
+    title: "Beoordeel het dispuut — werkproces bevroren",
     subtitle: jobTitle,
     tone: "attention",
     priority: P.disputeOpen,

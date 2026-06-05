@@ -16,7 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 
-export const metadata: Metadata = { title: "Administratie · ZZP Platform" };
+export const metadata: Metadata = { title: "Boekhouding · ZZP Platform" };
 
 const QUARTER_LABEL = ["1e kwartaal", "2e kwartaal", "3e kwartaal", "4e kwartaal"];
 
@@ -47,7 +47,7 @@ export default async function AdministratiePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader
-        title={`Administratie ${year}`}
+        title={`Boekhouding ${year}`}
         description="Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt rechtstreeks; het platform houdt alleen de status bij."
         action={
           entries.length > 0 ? (
@@ -73,7 +73,7 @@ export default async function AdministratiePage() {
         <Card>
           <EmptyState
             icon={Receipt}
-            title="Nog geen administratie"
+            title="Nog geen boekhouding"
             description="Zodra er facturen via het werkproces lopen, verschijnen hier je BTW- en debiteuren-/crediteurenoverzichten."
           />
         </Card>
