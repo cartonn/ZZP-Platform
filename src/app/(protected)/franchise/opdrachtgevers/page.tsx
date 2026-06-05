@@ -1,13 +1,15 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
+import { OpdrachtgeverForm } from "./opdrachtgever-form";
 
 export const metadata: Metadata = { title: "Opdrachtgevers · Franchise" };
 
@@ -29,6 +31,13 @@ export default async function FranchiseOpdrachtgeversPage() {
         description="De opdrachtgevers die je in je franchise hebt gebracht, met hun afdelingen."
       />
 
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <h2 className="text-sm font-semibold tracking-tight">Nieuwe opdrachtgever</h2>
+          <OpdrachtgeverForm />
+        </CardContent>
+      </Card>
+
       {companies.length === 0 ? (
         <Card>
           <EmptyState
@@ -40,7 +49,11 @@ export default async function FranchiseOpdrachtgeversPage() {
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {companies.map((c) => (
-            <div key={c.id} className="flex items-start justify-between gap-3 p-4">
+            <Link
+              key={c.id}
+              href={`/franchise/opdrachtgevers/${c.id}`}
+              className="card-interactive flex items-start justify-between gap-3 p-4"
+            >
               <div className="min-w-0">
                 <p className="truncate font-medium">{c.name}</p>
                 <p className="truncate text-sm text-muted-foreground">{c.user.email}</p>
@@ -51,7 +64,7 @@ export default async function FranchiseOpdrachtgeversPage() {
                 <br />
                 sinds {formatDateShortNl(c.createdAt)}
               </p>
-            </div>
+            </Link>
           ))}
         </div>
       )}
