@@ -180,8 +180,13 @@ export function CommandPalette() {
             onKeyDown={onKeydownInPalette}
             placeholder="Zoek opdrachten, samenwerkingen, facturen…"
             className="h-12 border-0 bg-transparent px-0 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            role="combobox"
             aria-autocomplete="list"
             aria-controls="command-palette-results"
+            aria-expanded={searchable && flat.length > 0}
+            aria-activedescendant={
+              flat[highlightedIndex] ? `palette-option-${highlightedIndex}` : undefined
+            }
             autoComplete="off"
             spellCheck={false}
           />
@@ -221,12 +226,13 @@ export function CommandPalette() {
                     return (
                       <button
                         key={item.id}
+                        id={`palette-option-${idx}`}
                         type="button"
                         role="option"
                         aria-selected={highlighted}
                         onClick={() => navigate(item)}
                         onMouseEnter={() => setHighlightedIndex(idx)}
-                        className={`flex w-full flex-col gap-0.5 rounded-md px-3 py-2 text-left transition-colors focus:outline-none ${
+                        className={`flex w-full flex-col gap-0.5 rounded-md px-3 py-2 text-left transition-colors focus-visible:bg-muted focus-visible:outline-none ${
                           highlighted ? "bg-muted" : "hover:bg-muted/60"
                         }`}
                       >
