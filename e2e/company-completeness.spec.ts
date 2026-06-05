@@ -21,9 +21,9 @@ test("bedrijfsprofiel toont compleetheid en concrete aanvulpunten", async ({ pag
   await expect(page.getByText("0%")).toBeVisible();
   await expect(page.getByText(/Nog aan te vullen:.*Omschrijving/)).toBeVisible();
 
-  // Dashboard meldt het ook.
+  // Dashboard meldt het ook (als afhandelbare taak in de actiezone sinds de command-center-overhaul).
   await page.goto("/dashboard");
-  await expect(page.getByText("Bedrijfsprofiel is 0% compleet — vul aan")).toBeVisible();
+  await expect(page.getByText("Bedrijfsprofiel is 0% compleet").first()).toBeVisible();
 
   // Aanvullen: omschrijving, locatie, website, branche -> 90% (alleen logo open).
   await page.goto("/bedrijf");
