@@ -1,6 +1,6 @@
 # ADR-0004: Weekrooster per samenwerking (per-dag-planning)
 
-- **Status:** voorgesteld
+- **Status:** geaccepteerd (geïmplementeerd 2026-06-06)
 - **Datum:** 2026-05-30
 
 ## Context
@@ -46,6 +46,13 @@ model Collaboration {
   (auth → rol → ownership → Zod → actie → audit), niet client-side afgeleid.
 
 Dit besluit wordt pas geïmplementeerd na akkoord van de eigenaar (data-model-wijziging → migratie).
+
+**Uitgevoerd (2026-06-06, na akkoord eigenaar):** `Collaboration.weekdays String?` toegevoegd (additief,
+`prisma db push`). `Weekday`-enum + `weekdaySchema` in `src/lib/enums.ts`; pure (de)serialisatie +
+NL-labels + formattering in `src/lib/weekdays.ts` (`parseWeekdays`/`serializeWeekdays`/`formatWeekdays`,
+unit-getest). Vastleggen via `setWeekdaysAction` op `/samenwerkingen/[id]` (auth → ownership: beide
+partijen + admin → Zod-validatie per code → audit `COLLABORATION_WEEKDAYS_SET`). Het weekoverzicht
+(`week-overview.ts` + dashboard) toont het rooster wanneer vastgelegd, anders de timing-terugval.
 
 ## Gevolgen
 

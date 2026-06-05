@@ -4,10 +4,11 @@
 // referentiedatum lopen, classificeert de timing (loopt door / start / eindigt deze week) en
 // sorteert zo dat samenwerkingen bij dezelfde opdrachtgever bij elkaar staan.
 //
-// Bewust additief: het datamodel kent geen uren-per-week of per-dag-rooster op Collaboration/Job
-// (alleen AvailabilityWindow draagt hoursPerWeek, en dat is de eigen opgegeven beschikbaarheid —
-// niet per opdrachtgever). Een echt "ma bij A, wo bij B"-rooster vereist eerst een ADR + een
-// minimale schema-uitbreiding; dat wordt hier niet stilzwijgend verzonnen.
+// Sinds ADR-0004 draagt een samenwerking een optioneel per-dag-weekrooster (`weekdays`): de
+// werkelijke "ma bij A, wo bij B"-indeling, expliciet vastgelegd — niet afgeleid. Het overzicht
+// geeft het mee wanneer aanwezig en valt anders terug op de timing-classificatie.
+
+import { type Weekday } from "@/lib/enums";
 
 const DAY_MS = 86_400_000;
 
@@ -20,6 +21,12 @@ export interface WeekCollaborationInput {
   endDate: Date | null;
   /** Uurtarief in centen, of null als (nog) niet vastgelegd. */
   rate: number | null;
+  /**
+   * Vastgelegde weekdagen voor deze samenwerking (ADR-0004), canoniek geordend. Lege/ontbrekende
+   * lijst = niet vastgelegd; het overzicht valt dan terug op de timing. Optioneel zodat bestaande
+   * aanroepers ongewijzigd blijven.
+   */
+  weekdays?: Weekday[];
 }
 
 export type WeekTiming = "ongoing" | "starts-this-week" | "ends-this-week" | "starts-and-ends";

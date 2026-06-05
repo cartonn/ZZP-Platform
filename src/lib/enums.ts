@@ -69,6 +69,12 @@ export const COLLABORATION_STATUSES = ["PROPOSED", "ACTIVE", "COMPLETED", "CANCE
 export type CollaborationStatus = (typeof COLLABORATION_STATUSES)[number];
 export const collaborationStatusSchema = z.enum(COLLABORATION_STATUSES);
 
+// Weekdagen voor het optionele per-dag-weekrooster op een samenwerking (ADR-0004). Maandag eerst
+// (ISO-volgorde); opgeslagen als JSON-array van deze codes in Collaboration.weekdays.
+export const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
+export type Weekday = (typeof WEEKDAYS)[number];
+export const weekdaySchema = z.enum(WEEKDAYS);
+
 export const CONTRACT_STATUSES = ["DRAFT", "SENT", "SIGNED"] as const;
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
 export const contractStatusSchema = z.enum(CONTRACT_STATUSES);
