@@ -93,12 +93,15 @@ export async function AppShell({
           </div>
           <div className="ml-auto flex items-center gap-3">
             <SearchTrigger />
-            <PaletteSwitcher />
+            {/* Cosmetische schemakiezer: niet op de smalle mobiele header (vreet ruimte). */}
+            <div className="hidden md:flex">
+              <PaletteSwitcher />
+            </div>
             <ThemeToggle />
             <Link
               href="/notificaties"
               aria-label={`Notificaties${unread > 0 ? ` (${unread} ongelezen)` : ""}`}
-              className="focus-ring relative rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="focus-ring relative inline-flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Bell className="size-5" aria-hidden />
               {unread > 0 && (

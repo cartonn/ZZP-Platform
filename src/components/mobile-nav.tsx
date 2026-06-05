@@ -30,7 +30,7 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
         onClick={() => setOpen(true)}
         aria-label="Menu openen"
         aria-expanded={open}
-        className="focus-ring rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="focus-ring -ml-2 inline-flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Menu className="size-5" aria-hidden />
       </button>
