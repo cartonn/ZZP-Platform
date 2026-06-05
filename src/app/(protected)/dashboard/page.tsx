@@ -33,6 +33,7 @@ const WERKPLEK: Record<UserRole, string> = {
   FREELANCER: "ZZP-werkplek",
   CLIENT: "Opdrachtgever-werkplek",
   ADMIN: "Beheerwerkplek",
+  FRANCHISER: "Franchise-werkplek",
 };
 
 // Onboarding-checklist: alleen voor nieuwe accounts (zie isNewAccount).
@@ -59,6 +60,14 @@ const INTRO: Record<UserRole, { lead: string; next: string[] }> = {
       "Werk de verificatiequeue bij.",
       "Controleer gebruikers en rollen.",
       "Bekijk de audit trail van gevoelige acties.",
+    ],
+  },
+  FRANCHISER: {
+    lead: "Breng opdrachtgevers en ZZP'ers in je franchise en zet diensten voor ze uit.",
+    next: [
+      "Voeg je eerste opdrachtgever toe met zijn afdelingen.",
+      "Breng ZZP'ers in je roster.",
+      "Zet diensten uit voor een afdeling.",
     ],
   },
 };
@@ -268,6 +277,29 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       running,
       week: null,
       isNewAccount: openJobs === 0 && drafts === 0 && activeCollabs === 0,
+    };
+  }
+
+  if (role === "FRANCHISER") {
+    // Tenant-overzicht: opdrachtgevers + ZZP'ers + open diensten binnen de eigen franchise.
+    const me = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
+    const tenantId = me?.tenantId ?? null;
+    const [companies, freelancers, openDiensten] = tenantId
+      ? await Promise.all([
+          prisma.company.count({ where: { tenantId } }),
+          prisma.freelancerProfile.count({ where: { tenantId } }),
+          prisma.job.count({ where: { tenantId, status: "PUBLISHED" } }),
+        ])
+      : [0, 0, 0];
+    return {
+      stats: [
+        { label: "Opdrachtgevers", value: companies, href: "/franchise/opdrachtgevers" },
+        { label: "ZZP'ers", value: freelancers, href: "/franchise/zzpers" },
+        { label: "Open diensten", value: openDiensten, href: "/franchise/diensten" },
+      ],
+      running: [],
+      week: null,
+      isNewAccount: companies === 0 && freelancers === 0,
     };
   }
 

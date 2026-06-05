@@ -103,7 +103,7 @@ export function countUnreadConversations(
  * Vanuit de ZZP'er (herinneren) of de opdrachtgever (betalen). Eén indexed count.
  */
 export async function overdueInvoiceCount(role: UserRole, userId: string): Promise<number> {
-  if (role === "ADMIN") return 0;
+  if (role === "ADMIN" || role === "FRANCHISER") return 0;
   const party = role === "FREELANCER" ? { freelancer: { userId } } : { company: { userId } };
   return prisma.invoice.count({
     where: {
@@ -197,6 +197,12 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       cascadeWork,
       pendingPerformances: cascadePerf,
     });
+  }
+
+  if (role === "FRANCHISER") {
+    // Franchise-werkplek: nog geen per-nav-signalen (tenant-signalen volgen met de
+    // oversight-increment). Ongelezen berichten lopen al via de notificatiebel.
+    return {};
   }
 
   const [pendingVerifications, openDisputes] = await Promise.all([

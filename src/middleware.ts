@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
-import { isAdminPath } from "@/lib/route-guards";
+import { isAdminPath, isFranchisePath } from "@/lib/route-guards";
 
 const { auth } = NextAuth(authConfig);
 
@@ -56,6 +56,12 @@ export default auth((request) => {
   // Defense-in-depth: /admin alleen voor ADMIN (pagina's + actions checken ook).
   // NB: segmentgrens — anders matcht "/admin" ook "/administratie" (de boekhoudpagina).
   if (isAdminPath(pathname) && request.auth.user.role !== "ADMIN") {
+    return NextResponse.redirect(new URL("/dashboard", origin));
+  }
+
+  // /franchise alleen voor de Franchiser (tenant-admin). De platform-admin houdt toezicht
+  // via /admin/franchises; tenant-scoping leunt op de eigen tenantId van de Franchiser.
+  if (isFranchisePath(pathname) && request.auth.user.role !== "FRANCHISER") {
     return NextResponse.redirect(new URL("/dashboard", origin));
   }
 

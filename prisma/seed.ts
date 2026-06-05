@@ -15,6 +15,7 @@ import { documentKindForCredential } from "@/lib/documents";
 import { type CredentialType } from "@/lib/enums";
 import { credentialBewijsPdf } from "./seed-credential-pdf";
 import { SEED_CONVERSATIONS, SEED_TICKETS } from "./seed-berichten-tickets-data";
+import { seedFranchise } from "./seed-franchise";
 
 const prisma = new PrismaClient();
 
@@ -1189,10 +1190,12 @@ async function main() {
     prisma.availabilityWindow.count(),
     prisma.subscription.count(),
   ]);
+  await seedFranchise(prisma, passwordHash);
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");
   console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
   console.log("  opdrachtgever@zzp-platform.local  (CLIENT — Jansen Software)");
+  console.log("  franchise@zzp-platform.local      (FRANCHISER — Zorgbemiddeling Noord)");
   console.log(
     "Cascade via echte commands: %d samenwerkingen, %d facturen, %d grootboekregels, %d support-tickets, %d gesprekken, %d beschikbaarheid-vensters, %d abonnementen.",
     collabCount,

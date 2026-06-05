@@ -82,9 +82,20 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Audit log", href: "/admin/audit", icon: "shield", section: "Toezicht", enabled: true }, // prettier-ignore
     { label: "Statistieken", href: "/admin/statistieken", icon: "barChart", section: "Toezicht", enabled: true }, // prettier-ignore
     { label: "Gebruikers", href: "/admin/gebruikers", icon: "users", section: "Beheer", enabled: true }, // prettier-ignore
+    { label: "Franchises", href: "/admin/franchises", icon: "building", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Importeren", href: "/admin/import", icon: "users", section: "Beheer", enabled: true },
     { label: "Administratie", href: "/admin/administratie", icon: "fileText", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Configuratie", href: "/admin/configuratie", icon: "settings", section: "Beheer", enabled: true }, // prettier-ignore
+  ],
+  // Franchisenemer (tenant-admin). De franchise-werkplek-items (Opdrachtgevers, ZZP'ers,
+  // Diensten) komen per increment binnen zodra hun pagina's bestaan.
+  FRANCHISER: [
+    { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
+    { label: "Opdrachtgevers", href: "/franchise/opdrachtgevers", icon: "building", section: "Franchise", enabled: true }, // prettier-ignore
+    { label: "ZZP'ers", href: "/franchise/zzpers", icon: "users", section: "Franchise", enabled: true }, // prettier-ignore
+    { label: "Diensten", href: "/franchise/diensten", icon: "clock", section: "Franchise", enabled: true }, // prettier-ignore
+    { label: "Berichten", href: "/berichten", icon: "messages", section: "Account", enabled: true },
+    { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },
   ],
 };
 
@@ -96,4 +107,5 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   FREELANCER: "ZZP'er",
   CLIENT: "Opdrachtgever",
   ADMIN: "Beheerder",
+  FRANCHISER: "Franchisenemer",
 };

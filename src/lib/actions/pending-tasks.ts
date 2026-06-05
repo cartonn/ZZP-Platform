@@ -108,6 +108,9 @@ async function unreadConversations(userId: string): Promise<UnreadConversation[]
 const computeTasks = cache(async (userId: string, role: string): Promise<PendingTask[]> => {
   if (role === "FREELANCER") return rankTasks(await freelancerTasks(userId));
   if (role === "CLIENT") return rankTasks(await clientTasks(userId));
+  // Franchise-werkplek heeft (nog) geen eigen actie-items; voorkomt dat een FRANCHISER
+  // de admin-taken te zien krijgt via de fallthrough.
+  if (role === "FRANCHISER") return [];
   return rankTasks(await adminTasks());
 });
 
