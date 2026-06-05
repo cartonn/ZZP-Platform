@@ -6,15 +6,23 @@ import { prisma } from "@/lib/db";
 import { requireRole, AuthorizationError } from "@/lib/authz";
 import { assertSameTenant, hasTenant } from "@/lib/tenancy";
 import { audit } from "@/lib/audit";
+import { credentialTypeSchema } from "@/lib/enums";
 
-const schema = z.object({
-  departmentId: z.string().min(1, "Kies een afdeling."),
-  title: z.string().trim().min(3, "Titel is te kort.").max(160),
-  description: z.string().trim().min(10, "Geef een korte omschrijving.").max(5000),
-  location: z.string().trim().max(120).optional(),
-  workMode: z.enum(["REMOTE", "ONSITE", "HYBRID"]).default("ONSITE"),
-  startDate: z.string().trim().optional(),
-});
+const schema = z
+  .object({
+    departmentId: z.string().min(1, "Kies een afdeling."),
+    title: z.string().trim().min(3, "Titel is te kort.").max(160),
+    description: z.string().trim().min(10, "Geef een korte omschrijving.").max(5000),
+    location: z.string().trim().max(120).optional(),
+    workMode: z.enum(["REMOTE", "ONSITE", "HYBRID"]).default("ONSITE"),
+    startDate: z.string().trim().optional(),
+    rateMin: z.coerce.number().int().min(0).max(100000).optional(),
+    rateMax: z.coerce.number().int().min(0).max(100000).optional(),
+  })
+  .refine((d) => d.rateMin == null || d.rateMax == null || d.rateMin <= d.rateMax, {
+    message: "Het minimumtarief mag niet hoger zijn dan het maximum.",
+    path: ["rateMax"],
+  });
 
 export type DienstState =
   | { ok: true; title: string }
@@ -32,6 +40,8 @@ export async function createDienst(_prev: DienstState, formData: FormData): Prom
   }
   if (!hasTenant(actor)) return { error: "Geen franchise gekoppeld." };
 
+  const rawMin = formData.get("rateMin");
+  const rawMax = formData.get("rateMax");
   const parsed = schema.safeParse({
     departmentId: formData.get("departmentId"),
     title: formData.get("title"),
@@ -39,6 +49,8 @@ export async function createDienst(_prev: DienstState, formData: FormData): Prom
     location: formData.get("location") || undefined,
     workMode: formData.get("workMode") || "ONSITE",
     startDate: formData.get("startDate") || undefined,
+    rateMin: rawMin ? rawMin : undefined,
+    rateMax: rawMax ? rawMax : undefined,
   });
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
@@ -48,7 +60,26 @@ export async function createDienst(_prev: DienstState, formData: FormData): Prom
     }
     return { error: "Controleer de ingevoerde gegevens.", fieldErrors };
   }
-  const { departmentId, title, description, location, workMode, startDate } = parsed.data;
+  const { departmentId, title, description, location, workMode, startDate, rateMin, rateMax } =
+    parsed.data;
+
+  // Alleen bestaande skills en geldige certificaattypes koppelen (defensief tegen gemanipuleerde input).
+  const requestedSkillIds = formData.getAll("skillIds").map(String).filter(Boolean);
+  const validSkills = requestedSkillIds.length
+    ? await prisma.skill.findMany({
+        where: { id: { in: requestedSkillIds } },
+        select: { id: true },
+      })
+    : [];
+  const skillIds = validSkills.map((s) => s.id);
+  const credentialTypes = [
+    ...new Set(
+      formData
+        .getAll("credentialTypes")
+        .map(String)
+        .filter((t) => credentialTypeSchema.safeParse(t).success),
+    ),
+  ];
 
   // De afdeling (en daarmee de opdrachtgever) moet in de eigen tenant zitten.
   const dept = await prisma.department.findUnique({
@@ -76,6 +107,12 @@ export async function createDienst(_prev: DienstState, formData: FormData): Prom
       workMode,
       location: location ?? null,
       startDate: startDate ? new Date(startDate) : null,
+      rateMin: rateMin ?? null,
+      rateMax: rateMax ?? null,
+      skills: skillIds.length ? { create: skillIds.map((id) => ({ skillId: id })) } : undefined,
+      credentialRequirements: credentialTypes.length
+        ? { create: credentialTypes.map((credentialType) => ({ credentialType })) }
+        : undefined,
     },
   });
 
@@ -84,7 +121,13 @@ export async function createDienst(_prev: DienstState, formData: FormData): Prom
     action: "FRANCHISE_DIENST_PUBLISHED",
     entityType: "Job",
     entityId: job.id,
-    metadata: { tenantId: actor.tenantId, departmentId, companyId: dept.companyId },
+    metadata: {
+      tenantId: actor.tenantId,
+      departmentId,
+      companyId: dept.companyId,
+      skills: skillIds.length,
+      credentials: credentialTypes.length,
+    },
   });
 
   revalidatePath("/franchise/diensten");
