@@ -114,10 +114,9 @@ export default async function FacturenPage() {
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {invoices.map((inv) => {
             const cascade = inv.lifecycleStatus != null;
-            const href =
-              cascade && inv.collaborationId
-                ? `/samenwerkingen/${inv.collaborationId}`
-                : `/facturen/${inv.id}`;
+            // Een rij in de facturenlijst toont factuurnummer + bedrag; klikken hoort het
+            // factuurdetail te openen (met PDF/print), niet onverwacht naar het werkproces te springen.
+            const href = `/facturen/${inv.id}`;
             const cascadeMeta = cascade
               ? CASCADE_LABEL[inv.lifecycleStatus as InvoiceLifecycleState]
               : null;
