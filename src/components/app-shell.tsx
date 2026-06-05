@@ -13,6 +13,8 @@ import { CommandPalette } from "@/components/search/command-palette";
 import { navForRole, ROLE_LABEL } from "@/lib/nav";
 import { navBadges, withActionCenterBadge } from "@/lib/signals";
 import { pendingTaskCount } from "@/lib/actions/pending-tasks";
+import { getTenantBranding } from "@/lib/franchise/branding";
+import { Brand } from "@/components/franchise/brand";
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
 
@@ -24,12 +26,13 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   const role = user.role as UserRole;
-  const [unread, rawBadges, actionCount] = await Promise.all([
+  const [unread, rawBadges, actionCount, branding] = await Promise.all([
     user.id
       ? prisma.notification.count({ where: { userId: user.id, readAt: null } })
       : Promise.resolve(0),
     user.id ? navBadges(role, user.id) : Promise.resolve({}),
     user.id ? pendingTaskCount(user.id, role) : Promise.resolve(0),
+    user.id ? getTenantBranding(user.id) : Promise.resolve(null),
   ]);
   // De /acties-badge telt exact de openstaande taken (zoals de pagina ze toont).
   const badges = withActionCenterBadge(rawBadges, actionCount);
@@ -46,10 +49,7 @@ export async function AppShell({
       <SkipLink />
       <aside className="hidden flex-col border-r border-border bg-muted/30 md:flex">
         <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-          <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-            Z
-          </div>
-          <span className="text-sm font-semibold">ZZP Platform</span>
+          <Brand branding={branding} />
         </div>
         <div className="flex-1 overflow-y-auto p-3">
           <SidebarNav items={navForRole(role)} badges={badges} />
@@ -86,10 +86,7 @@ export async function AppShell({
         <header className="flex h-14 items-center justify-between gap-3 border-b border-border px-4 md:px-6">
           <div className="flex items-center gap-2 md:hidden">
             <MobileNav items={navForRole(role)} badges={badges} />
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-              Z
-            </div>
-            <span className="text-sm font-semibold">ZZP Platform</span>
+            <Brand branding={branding} />
           </div>
           <div className="ml-auto flex items-center gap-3">
             <SearchTrigger />

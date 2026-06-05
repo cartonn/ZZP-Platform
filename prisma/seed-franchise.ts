@@ -23,6 +23,7 @@ export async function seedFranchise(prisma: PrismaClient, passwordHash: string):
       name: "Zorgbemiddeling Noord",
       slug: "zorgbemiddeling-noord",
       ownerUserId: franchiser.id,
+      brandColor: "#0e7490",
     },
   });
   await prisma.user.update({ where: { id: franchiser.id }, data: { tenantId: tenant.id } });
