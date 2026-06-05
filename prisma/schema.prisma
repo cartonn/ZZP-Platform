@@ -33,8 +33,14 @@ model User {
   anonymizedAt        DateTime? //                   AVG: door beheer uitgevoerde anonimisering (recht op verwijdering)
   identityVerifiedAt  DateTime? //                   iDIN/eIDAS-identiteitsverificatie
   verifiedLegalName   String? //                     door de bron bevestigde juridische naam
+  tenantId            String? //                     franchise-lidmaatschap; null = directe platformgebruiker
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+
+  // Franchise (tenant): een gebruiker is lid van max. één tenant (tenant); een Franchiser
+  // bezit daarnaast precies één tenant (ownedTenant). Twee aparte relaties → named relations.
+  tenant      Tenant? @relation("TenantMembers", fields: [tenantId], references: [id], onDelete: SetNull)
+  ownedTenant Tenant? @relation("TenantOwner")
 
   accounts          Account[]
   sessions          Session[]
@@ -57,6 +63,42 @@ model User {
 
   @@index([role])
   @@index([status])
+  @@index([tenantId])
+}
+
+// Franchise / tenant: een Franchiser opereert een eigen tak met eigen opdrachtgevers + ZZP'ers.
+// Per-tenant data-isolatie via de tenantId-FK's op User/Company/FreelancerProfile/Job.
+model Tenant {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  ownerUserId  String   @unique //          de Franchiser die deze tenant beheert
+  status       String   @default("ACTIVE") // TenantStatus: ACTIVE | SUSPENDED
+  openOverflow Boolean  @default(false) //  true = niet-gevulde diensten vallen terug naar het hele platform (v2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner       User                @relation("TenantOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  members     User[]              @relation("TenantMembers")
+  companies   Company[]
+  freelancers FreelancerProfile[]
+  jobs        Job[]
+}
+
+// Afdeling binnen een opdrachtgever (bv. een afdeling/locatie van een zorginstelling).
+model Department {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  code      String?
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobs    Job[]
+
+  @@index([companyId])
 }
 
 // Wachtwoord-reset tokens: de raw token staat nooit in de DB; alleen de SHA-256 hash.
@@ -128,16 +170,20 @@ model FreelancerProfile {
   btwNumber    String?
   visibility   String   @default("PUBLIC") //   Visibility: PUBLIC | PRIVATE
   completeness Int      @default(0) //           0-100, server-berekend
+  tenantId     String? //                        gedenormaliseerd uit User.tenantId voor tenant-scoping (roster)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   skills              FreelancerSkill[]
   industries          FreelancerIndustry[]
   credentials         Credential[]
   applications        Application[]
   collaborations      Collaboration[]
   availabilityWindows AvailabilityWindow[]
+
+  @@index([tenantId])
 }
 
 model AvailabilityWindow {
@@ -164,13 +210,18 @@ model Company {
   description String?
   website     String?
   location    String?
+  tenantId    String? //                gedenormaliseerd uit User.tenantId voor tenant-scoping
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   industry       Industry?       @relation(fields: [industryId], references: [id])
+  tenant         Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   jobs           Job[]
   collaborations Collaboration[]
+  departments    Department[]
+
+  @@index([tenantId])
 }
 
 model Skill {
@@ -215,21 +266,23 @@ model FreelancerIndustry {
 // ---------------------------------------------------------------------------
 
 model Job {
-  id          String    @id @default(cuid())
-  companyId   String
-  title       String
-  description String
-  status      String    @default("DRAFT") // JobStatus: DRAFT | PUBLISHED | CLOSED
-  industryId  String?
-  rateMin     Int?
-  rateMax     Int?
-  location    String?
-  workMode    String    @default("HYBRID") // WorkMode
-  startDate   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  publishedAt DateTime?
-  alertedAt   DateTime? // wanneer job-alerts voor dit job zijn verzonden (dedup-anker)
+  id           String    @id @default(cuid())
+  companyId    String
+  title        String
+  description  String
+  status       String    @default("DRAFT") // JobStatus: DRAFT | PUBLISHED | CLOSED
+  industryId   String?
+  rateMin      Int?
+  rateMax      Int?
+  location     String?
+  workMode     String    @default("HYBRID") // WorkMode
+  startDate    DateTime?
+  tenantId     String? //                     gedenormaliseerd uit Company.tenantId; null = platform-opdracht
+  departmentId String? //                    afdeling van de opdrachtgever waarvoor de dienst wordt uitgezet
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  publishedAt  DateTime?
+  alertedAt    DateTime? // wanneer job-alerts voor dit job zijn verzonden (dedup-anker)
 
   // Wet DBA-check (schijnzelfstandigheid) — invoer + server-berekende snapshot.
   dbaDirectSupervision    Boolean @default(false)
@@ -245,6 +298,8 @@ model Job {
 
   company                Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   industry               Industry?                  @relation(fields: [industryId], references: [id])
+  tenant                 Tenant?                    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  department             Department?                @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   skills                 JobSkill[]
   credentialRequirements JobCredentialRequirement[]
   applications           Application[]
@@ -253,6 +308,8 @@ model Job {
 
   @@index([status])
   @@index([companyId])
+  @@index([tenantId])
+  @@index([departmentId])
 }
 
 model JobSkill {
