@@ -3,6 +3,7 @@
 // taakrunner via getMailSender(). Geen secrets in de tekst.
 
 import { type MailMessage } from "@/lib/services/mail-sender";
+import { plural } from "@/lib/plural";
 
 const PLATFORM = process.env.PLATFORM_NAME ?? "ZZP Platform";
 
@@ -49,11 +50,11 @@ export function buildCredentialExpiryWarningEmail(
   input: CredentialExpiryWarningInput,
 ): MailMessage {
   const platform = PLATFORM;
-  const subject = `Actie vereist: certificaat "${input.credentialTitle}" verloopt over ${input.daysLeft} dag(en)`;
+  const subject = `Actie vereist: certificaat "${input.credentialTitle}" verloopt over ${plural(input.daysLeft, "dag", "dagen")}`;
   const text = [
     `Hallo ${input.name},`,
     "",
-    `Je certificaat "${input.credentialTitle}" verloopt over ${input.daysLeft} dag(en).`,
+    `Je certificaat "${input.credentialTitle}" verloopt over ${plural(input.daysLeft, "dag", "dagen")}.`,
     "Vernieuw het op tijd om geverifieerd te blijven.",
     "",
     `Certificaten beheren: ${input.loginUrl}/certificaten`,
@@ -68,7 +69,7 @@ export function buildCredentialExpiryWarningEmail(
     html: html(`
       <h1 style="margin:0 0 8px;font-size:18px;">Certificaat verloopt binnenkort</h1>
       <p style="margin:0 0 12px;font-size:14px;color:#52525b;">Hallo ${esc(input.name)},</p>
-      <p style="margin:0 0 16px;font-size:14px;">Je certificaat <strong>${esc(input.credentialTitle)}</strong> verloopt over <strong>${input.daysLeft} dag(en)</strong>. Vernieuw het op tijd om geverifieerd te blijven.</p>
+      <p style="margin:0 0 16px;font-size:14px;">Je certificaat <strong>${esc(input.credentialTitle)}</strong> verloopt over <strong>${plural(input.daysLeft, "dag", "dagen")}</strong>. Vernieuw het op tijd om geverifieerd te blijven.</p>
       ${btn(`${input.loginUrl}/certificaten`, "Certificaten beheren")}
       <p style="margin:16px 0 0;font-size:12px;color:#71717a;">${esc(platform)}</p>
     `),
@@ -124,11 +125,11 @@ export interface PaymentReminderEmailInput {
 
 export function buildPaymentReminderEmail(input: PaymentReminderEmailInput): MailMessage {
   const platform = PLATFORM;
-  const subject = `Betaaltermijn: factuur ${input.invoiceNumber} vervalt over ${input.daysLeft} dag(en)`;
+  const subject = `Betaaltermijn: factuur ${input.invoiceNumber} vervalt over ${plural(input.daysLeft, "dag", "dagen")}`;
   const text = [
     `Hallo ${input.name},`,
     "",
-    `Factuur ${input.invoiceNumber} vervalt over ${input.daysLeft} dag(en).`,
+    `Factuur ${input.invoiceNumber} vervalt over ${plural(input.daysLeft, "dag", "dagen")}.`,
     "Betaling verloopt rechtstreeks aan de ZZP'er.",
     "",
     `Facturen bekijken: ${input.loginUrl}/facturen`,
@@ -143,7 +144,7 @@ export function buildPaymentReminderEmail(input: PaymentReminderEmailInput): Mai
     html: html(`
       <h1 style="margin:0 0 8px;font-size:18px;">Betaaltermijn nadert</h1>
       <p style="margin:0 0 12px;font-size:14px;color:#52525b;">Hallo ${esc(input.name)},</p>
-      <p style="margin:0 0 16px;font-size:14px;">Factuur <strong>${esc(input.invoiceNumber)}</strong> vervalt over <strong>${input.daysLeft} dag(en)</strong>. Betaling verloopt rechtstreeks aan de ZZP'er.</p>
+      <p style="margin:0 0 16px;font-size:14px;">Factuur <strong>${esc(input.invoiceNumber)}</strong> vervalt over <strong>${plural(input.daysLeft, "dag", "dagen")}</strong>. Betaling verloopt rechtstreeks aan de ZZP'er.</p>
       ${btn(`${input.loginUrl}/facturen`, "Factuur bekijken")}
       <p style="margin:16px 0 0;font-size:12px;color:#71717a;">${esc(platform)}</p>
     `),
@@ -209,7 +210,7 @@ export function buildConceptInvoiceReminderEmail(
   const text = [
     `Hallo ${input.name},`,
     "",
-    `Je concept-factuur ${input.invoiceNumber} staat al ${input.daysSince} dag(en) klaar.`,
+    `Je concept-factuur ${input.invoiceNumber} staat al ${plural(input.daysSince, "dag", "dagen")} klaar.`,
     "Controleer en dien hem in zodat de betaling kan starten.",
     "",
     `Facturen bekijken: ${input.loginUrl}/facturen`,
@@ -224,7 +225,7 @@ export function buildConceptInvoiceReminderEmail(
     html: html(`
       <h1 style="margin:0 0 8px;font-size:18px;">Concept-factuur wacht op indiening</h1>
       <p style="margin:0 0 12px;font-size:14px;color:#52525b;">Hallo ${esc(input.name)},</p>
-      <p style="margin:0 0 16px;font-size:14px;">Je concept-factuur <strong>${esc(input.invoiceNumber)}</strong> staat al <strong>${input.daysSince} dag(en)</strong> klaar. Controleer en dien hem in zodat de betaling kan starten.</p>
+      <p style="margin:0 0 16px;font-size:14px;">Je concept-factuur <strong>${esc(input.invoiceNumber)}</strong> staat al <strong>${plural(input.daysSince, "dag", "dagen")}</strong> klaar. Controleer en dien hem in zodat de betaling kan starten.</p>
       ${btn(`${input.loginUrl}/facturen`, "Factuur indienen")}
       <p style="margin:16px 0 0;font-size:12px;color:#71717a;">${esc(platform)}</p>
     `),

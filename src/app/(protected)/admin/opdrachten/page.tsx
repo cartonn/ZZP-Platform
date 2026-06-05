@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { adminCloseJob } from "./actions";
+import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Opdrachten (beheer) · ZZP Platform" };
 
@@ -57,7 +58,7 @@ export default async function AdminOpdrachtenPage({
             className="focus-ring inline-flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1.5 text-sm text-warning"
           >
             <AlertTriangle className="size-4 shrink-0" aria-hidden />
-            {draftJobs} concept(en) — bekijk
+            {plural(draftJobs, "concept", "concepten")} — bekijk
           </Link>
         </div>
       )}
@@ -108,7 +109,7 @@ export default async function AdminOpdrachtenPage({
                     <JobStatusBadge status={status} />
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    {job.company.name} · {job._count.applications} reactie(s)
+                    {job.company.name} · {plural(job._count.applications, "reactie", "reacties")}
                   </p>
                 </div>
                 {status !== "CLOSED" && (

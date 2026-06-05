@@ -3,6 +3,8 @@
 // goedgekeurde prestaties, facturen en betaalstatus tot één controleerbaar, herleidbaar geheel.
 // Geen oordeel/garantie (Besluit 2): toont feiten + signalen; de werkelijke werkwijze is bepalend.
 
+import { plural } from "@/lib/plural";
+
 export interface DossierCredential {
   type: string;
   title: string;
@@ -76,7 +78,7 @@ export function buildComplianceDossier(input: DossierInput): ComplianceDossier {
     summary:
       input.dbaRisk == null
         ? "Nog geen DBA-beoordeling vastgelegd."
-        : `Risiconiveau: ${input.dbaRisk}. ${input.dbaReasons.length} indicator(en) toegelicht.`,
+        : `Risiconiveau: ${input.dbaRisk}. ${plural(input.dbaReasons.length, "indicator", "indicatoren")} toegelicht.`,
     attention: dbaHigh || input.dbaRisk == null,
   });
 
@@ -105,7 +107,7 @@ export function buildComplianceDossier(input: DossierInput): ComplianceDossier {
   sections.push({
     key: "verificatie",
     title: "Verificatie ZZP'er",
-    summary: `${verified.length} geverifieerd${expired.length ? `, ${expired.length} verlopen` : ""} van ${input.credentials.length} certifica(a)t(en).`,
+    summary: `${verified.length} geverifieerd${expired.length ? `, ${expired.length} verlopen` : ""} van ${plural(input.credentials.length, "certificaat", "certificaten")}.`,
     attention: expired.length > 0 || verified.length === 0,
   });
 
@@ -114,7 +116,7 @@ export function buildComplianceDossier(input: DossierInput): ComplianceDossier {
   sections.push({
     key: "prestaties",
     title: "Goedgekeurde prestaties",
-    summary: `${approved.length} van ${input.performances.length} prestatie(s) goedgekeurd.`,
+    summary: `${approved.length} van ${plural(input.performances.length, "prestatie", "prestaties")} goedgekeurd.`,
     attention: false,
   });
 
@@ -124,7 +126,7 @@ export function buildComplianceDossier(input: DossierInput): ComplianceDossier {
   sections.push({
     key: "facturen",
     title: "Facturen & betaalstatus",
-    summary: `${input.invoices.length} factu(u)r(en), ${paid.length} betaald${overdue.length ? `, ${overdue.length} te laat` : ""}.`,
+    summary: `${plural(input.invoices.length, "factuur", "facturen")}, ${paid.length} betaald${overdue.length ? `, ${overdue.length} te laat` : ""}.`,
     attention: overdue.length > 0,
   });
 

@@ -41,6 +41,7 @@ import { PerformanceForm } from "./performance-form";
 import { performanceFormDefaults } from "@/lib/performance-form";
 import { OrtProfileForm } from "./ort-profile-form";
 import { formatDateShortNl } from "@/lib/format-date";
+import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Werkproces · ZZP Platform" };
 
@@ -283,7 +284,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   if (active) {
     const submitted = col.performances.filter((p) => p.status === "SUBMITTED").length;
     if (isClient && submitted > 0)
-      todo.push(`${submitted} ingediende prestatie(s) wachten op je goedkeuring.`);
+      todo.push(
+        `${plural(submitted, "ingediende prestatie", "ingediende prestaties")} ${submitted === 1 ? "wacht" : "wachten"} op je goedkeuring.`,
+      );
     const draftInv = col.invoices.filter((i) => i.lifecycleStatus === "DRAFT").length;
     if (isFreelancer && draftInv > 0)
       todo.push(`${draftInv} concept-factuur(en) klaar om in te dienen.`);

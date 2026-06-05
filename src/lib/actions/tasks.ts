@@ -7,6 +7,7 @@
 // Dezelfde prioriteitsbanden (P) worden hergebruikt zodat de rangschikking nooit afwijkt.
 
 import { P, type NextActionTone } from "@/lib/next-actions";
+import { plural } from "@/lib/plural";
 
 export type TaskTone = NextActionTone;
 
@@ -332,7 +333,7 @@ export function overdueInvoiceTask(count: number, role: "FREELANCER" | "CLIENT")
   return {
     kind: "overdue-invoice",
     id: `overdue-invoice:${role}`,
-    title: `${count} factu(u)r(en) over de vervaldatum`,
+    title: `${plural(count, "factuur", "facturen")} over de vervaldatum`,
     subtitle: role === "FREELANCER" ? "Volg op bij de opdrachtgever" : "Markeer als betaald",
     tone: "attention",
     priority: P.overdueInvoice,
@@ -346,7 +347,7 @@ export function applicationsReviewTask(count: number): PendingTask {
   return {
     kind: "applications-review",
     id: "applications-review",
-    title: `${count} nieuwe reactie(s)`,
+    title: `${plural(count, "nieuwe reactie", "nieuwe reacties")}`,
     subtitle: "Beoordeel de kandidaten",
     tone: "attention",
     priority: P.applications,
@@ -359,7 +360,7 @@ export function draftJobsTask(count: number): PendingTask {
   return {
     kind: "draft-jobs",
     id: "draft-jobs",
-    title: `${count} concept-opdracht(en)`,
+    title: `${plural(count, "concept-opdracht", "concept-opdrachten")}`,
     subtitle: "Publiceren?",
     tone: "info",
     priority: P.drafts,

@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { planExpiryRun, EXPIRY_REMINDER_WINDOW_DAYS, type ExpiryCandidate } from "@/lib/expiry";
 import { type CredentialStatus } from "@/lib/enums";
+import { plural } from "@/lib/plural";
 
 export interface ExpiryRunResult {
   expired: number;
@@ -113,7 +114,7 @@ export async function runExpiryTask(opts: {
             userId: item.userId,
             type: "CREDENTIAL_EXPIRING",
             title: "Certificaat verloopt binnenkort",
-            body: `Je certificaat "${item.title}" verloopt over ${item.daysLeft} dag(en). Vernieuw het op tijd om geverifieerd te blijven.`,
+            body: `Je certificaat "${item.title}" verloopt over ${plural(item.daysLeft, "dag", "dagen")}. Vernieuw het op tijd om geverifieerd te blijven.`,
             link: "/certificaten",
           },
         }),

@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { AvailabilityBadge } from "@/components/availability-badge";
+import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Dashboard · ZZP Platform" };
 
@@ -454,8 +455,8 @@ export default async function DashboardPage() {
             <h2 className="text-sm font-medium">Wat loopt er nu</h2>
             {week && (
               <p className="text-xs text-muted-foreground">
-                Deze week: {week.entries.length} samenwerking(en) bij {week.clientCount}{" "}
-                opdrachtgever(s)
+                Deze week: {plural(week.entries.length, "samenwerking", "samenwerkingen")} bij{" "}
+                {plural(week.clientCount, "opdrachtgever", "opdrachtgevers")}
               </p>
             )}
             <Link

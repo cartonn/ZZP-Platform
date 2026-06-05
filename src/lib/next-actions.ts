@@ -3,6 +3,8 @@
 // and produces a ranked list of actions. Thresholds mirror the dashboard exactly so a
 // later swap is behaviour-preserving. Higher priority = more urgent = shown first.
 
+import { plural } from "@/lib/plural";
+
 export type NextActionTone = "attention" | "info" | "success";
 
 export interface NextAction {
@@ -124,7 +126,7 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
   if (input.overdueInvoices > 0) {
     actions.push({
       id: "freelancer-overdue-invoices",
-      title: `${input.overdueInvoices} factu(u)r(en) over de vervaldatum — volg op`,
+      title: `${plural(input.overdueInvoices, "factuur", "facturen")} over de vervaldatum — volg op`,
       href: "/facturen",
       tone: "attention",
       priority: P.overdueInvoice,
@@ -133,7 +135,7 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
   if (input.contractsAwaitingSignature > 0) {
     actions.push({
       id: "freelancer-contracts-sign",
-      title: `${input.contractsAwaitingSignature} contract(en) wachten op ondertekening`,
+      title: `${plural(input.contractsAwaitingSignature, "contract", "contracten")} ${input.contractsAwaitingSignature === 1 ? "wacht" : "wachten"} op ondertekening`,
       href: "/samenwerkingen",
       tone: "attention",
       priority: P.contractSign,
@@ -142,7 +144,7 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
   if (input.messagesAwaitingReply > 0) {
     actions.push({
       id: "freelancer-messages-awaiting",
-      title: `${input.messagesAwaitingReply} bericht(en) wachten op je antwoord`,
+      title: `${plural(input.messagesAwaitingReply, "bericht", "berichten")} ${input.messagesAwaitingReply === 1 ? "wacht" : "wachten"} op je antwoord`,
       href: "/berichten",
       tone: "attention",
       priority: P.messagesAwaiting,
@@ -195,7 +197,7 @@ export function clientNextActions(input: ClientActionInput): NextAction[] {
   if (input.newApplications > 0) {
     actions.push({
       id: "client-new-applications",
-      title: `${input.newApplications} nieuwe reactie(s) — beoordeel kandidaten`,
+      title: `${plural(input.newApplications, "nieuwe reactie", "nieuwe reacties")} — beoordeel kandidaten`,
       href: "/kandidaten",
       tone: "attention",
       priority: P.applications,
@@ -204,7 +206,7 @@ export function clientNextActions(input: ClientActionInput): NextAction[] {
   if (input.draftJobs > 0) {
     actions.push({
       id: "client-draft-jobs",
-      title: `${input.draftJobs} concept-opdracht(en) — publiceren?`,
+      title: `${plural(input.draftJobs, "concept-opdracht", "concept-opdrachten")} — publiceren?`,
       href: "/opdrachten",
       tone: "info",
       priority: P.drafts,
@@ -213,7 +215,7 @@ export function clientNextActions(input: ClientActionInput): NextAction[] {
   if (input.overdueInvoices > 0) {
     actions.push({
       id: "client-overdue-invoices",
-      title: `${input.overdueInvoices} openstaande factu(u)r(en) over de vervaldatum — markeer als betaald`,
+      title: `${plural(input.overdueInvoices, "openstaande factuur", "openstaande facturen")} over de vervaldatum — markeer als betaald`,
       href: "/facturen",
       tone: "attention",
       priority: P.overdueInvoice,
@@ -222,7 +224,7 @@ export function clientNextActions(input: ClientActionInput): NextAction[] {
   if (input.contractsAwaitingSignature > 0) {
     actions.push({
       id: "client-contracts-sign",
-      title: `${input.contractsAwaitingSignature} contract(en) wachten op ondertekening`,
+      title: `${plural(input.contractsAwaitingSignature, "contract", "contracten")} ${input.contractsAwaitingSignature === 1 ? "wacht" : "wachten"} op ondertekening`,
       href: "/samenwerkingen",
       tone: "attention",
       priority: P.contractSign,
@@ -231,7 +233,7 @@ export function clientNextActions(input: ClientActionInput): NextAction[] {
   if (input.messagesAwaitingReply > 0) {
     actions.push({
       id: "client-messages-awaiting",
-      title: `${input.messagesAwaitingReply} bericht(en) wachten op je antwoord`,
+      title: `${plural(input.messagesAwaitingReply, "bericht", "berichten")} ${input.messagesAwaitingReply === 1 ? "wacht" : "wachten"} op je antwoord`,
       href: "/berichten",
       tone: "attention",
       priority: P.messagesAwaiting,
@@ -264,7 +266,7 @@ export function adminNextActions(input: AdminActionInput): NextAction[] {
   if (input.deletionRequests > 0) {
     actions.push({
       id: "admin-deletion-requests",
-      title: `${input.deletionRequests} AVG-verwijderverzoek(en) — beoordeel`,
+      title: `${plural(input.deletionRequests, "AVG-verwijderverzoek", "AVG-verwijderverzoeken")} — beoordeel`,
       href: "/admin/gebruikers?deletion=1",
       tone: "attention",
       priority: P.blocking,
@@ -282,7 +284,7 @@ export function adminNextActions(input: AdminActionInput): NextAction[] {
   if (input.pendingUsers > 0) {
     actions.push({
       id: "admin-pending-users",
-      title: `${input.pendingUsers} gebruiker(s) wachten op goedkeuring`,
+      title: `${plural(input.pendingUsers, "gebruiker", "gebruikers")} ${input.pendingUsers === 1 ? "wacht" : "wachten"} op goedkeuring`,
       href: "/admin/gebruikers?status=PENDING",
       tone: "info",
       priority: P.pendingUsers,
