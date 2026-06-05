@@ -94,6 +94,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Opdrachtgevers", href: "/franchise/opdrachtgevers", icon: "building", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "ZZP'ers", href: "/franchise/zzpers", icon: "users", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Diensten", href: "/franchise/diensten", icon: "clock", section: "Franchise", enabled: true }, // prettier-ignore
+    { label: "Samenwerkingen", href: "/franchise/samenwerkingen", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Berichten", href: "/berichten", icon: "messages", section: "Account", enabled: true },
     { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },
   ],
