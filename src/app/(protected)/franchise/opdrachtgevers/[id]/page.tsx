@@ -5,11 +5,15 @@ import { ArrowLeft } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
+import { type JobStatus } from "@/lib/enums";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
 import { DepartmentForm } from "./department-form";
+import { DienstInlineForm } from "./dienst-inline-form";
 import { removeDepartment } from "../actions";
 
 export const metadata: Metadata = { title: "Opdrachtgever · Franchise" };
@@ -27,7 +31,17 @@ export default async function OpdrachtgeverDetailPage({
       user: { select: { name: true, email: true } },
       departments: {
         orderBy: { createdAt: "asc" },
-        include: { _count: { select: { jobs: true } } },
+        include: {
+          jobs: {
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              _count: { select: { applications: true } },
+            },
+          },
+        },
       },
     },
   });
@@ -49,32 +63,70 @@ export default async function OpdrachtgeverDetailPage({
       />
 
       <Card>
-        <CardContent className="space-y-4 p-5">
-          <h2 className="text-sm font-semibold tracking-tight">Afdelingen</h2>
+        <CardContent className="space-y-5 p-5">
+          <div>
+            <h2 className="text-sm font-semibold tracking-tight">Afdelingen &amp; diensten</h2>
+            <p className="text-xs text-muted-foreground">
+              Richt per afdeling de diensten in die je voor deze opdrachtgever uitzet.
+            </p>
+          </div>
+
           {company.departments.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Nog geen afdelingen. Voeg er hieronder een toe.
             </p>
           ) : (
-            <ul className="divide-y divide-border">
-              {company.departments.map((d) => (
-                <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <span className="min-w-0">
-                    <span className="font-medium">{d.name}</span>
-                    {d.location && <span className="text-muted-foreground"> · {d.location}</span>}
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {plural(d._count.jobs, "dienst", "diensten")}
-                    </span>
-                  </span>
-                  <form action={removeDepartment.bind(null, d.id)}>
-                    <Button type="submit" variant="ghost" size="xs">
-                      Verwijderen
-                    </Button>
-                  </form>
-                </li>
-              ))}
+            <ul className="space-y-4">
+              {company.departments.map((d) => {
+                const openCount = d.jobs.filter((j) => j.status === "PUBLISHED").length;
+                return (
+                  <li key={d.id} className="rounded-lg border border-border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium">{d.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {d.location ? `${d.location} · ` : ""}
+                          {plural(d.jobs.length, "dienst", "diensten")}
+                          {d.jobs.length > 0 && ` · ${openCount} open`}
+                        </p>
+                      </div>
+                      <form action={removeDepartment.bind(null, d.id)}>
+                        <Button type="submit" variant="ghost" size="xs">
+                          Verwijderen
+                        </Button>
+                      </form>
+                    </div>
+
+                    {d.jobs.length > 0 && (
+                      <ul className="mt-3 divide-y divide-border border-t border-border">
+                        {d.jobs.map((j) => (
+                          <li key={j.id} className="flex items-center justify-between gap-3 py-2">
+                            <Link
+                              href={`/opdrachten/${j.id}`}
+                              className="focus-ring min-w-0 truncate text-sm hover:underline"
+                            >
+                              {j.title}
+                            </Link>
+                            <span className="flex shrink-0 items-center gap-2">
+                              {j._count.applications > 0 && (
+                                <Badge variant="muted">
+                                  {plural(j._count.applications, "reactie", "reacties")}
+                                </Badge>
+                              )}
+                              <JobStatusBadge status={j.status as JobStatus} />
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    <DienstInlineForm departmentId={d.id} />
+                  </li>
+                );
+              })}
             </ul>
           )}
+
           <div className="border-t border-border pt-4">
             <DepartmentForm companyId={company.id} />
           </div>

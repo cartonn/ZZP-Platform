@@ -18,7 +18,7 @@ const createSchema = z.object({
 });
 
 export type OpdrachtgeverState =
-  | { ok: true; email: string; tempPassword: string; companyName: string }
+  | { ok: true; email: string; tempPassword: string; companyName: string; companyId: string }
   | { error: string; fieldErrors?: Record<string, string> }
   | undefined;
 
@@ -67,7 +67,7 @@ export async function createOpdrachtgever(
   const passwordHash = await bcrypt.hash(tempPassword, 10);
   const tenantId = actor.tenantId;
 
-  await prisma.user.create({
+  const created = await prisma.user.create({
     data: {
       name: contactName,
       email,
@@ -87,18 +87,20 @@ export async function createOpdrachtgever(
         },
       },
     },
+    select: { company: { select: { id: true } } },
   });
+  const companyId = created.company!.id;
 
   await audit({
     actorId: actor.id,
     action: "FRANCHISE_CLIENT_ADDED",
     entityType: "Company",
-    entityId: email,
+    entityId: companyId,
     metadata: { tenantId, companyName, departments: deptNames.length },
   });
 
   revalidatePath("/franchise/opdrachtgevers");
-  return { ok: true, email, tempPassword, companyName };
+  return { ok: true, email, tempPassword, companyName, companyId };
 }
 
 const deptSchema = z.object({
@@ -155,4 +157,92 @@ export async function removeDepartment(departmentId: string): Promise<void> {
   assertSameTenant(actor, dept.company.tenantId);
   await prisma.department.delete({ where: { id: departmentId } });
   revalidatePath(`/franchise/opdrachtgevers/${dept.companyId}`);
+}
+
+const dienstSchema = z.object({
+  title: z.string().trim().min(3, "Titel is te kort.").max(160),
+  description: z.string().trim().min(10, "Geef een korte omschrijving.").max(5000),
+  location: z.string().trim().max(120).optional(),
+  workMode: z.enum(["REMOTE", "ONSITE", "HYBRID"]).default("ONSITE"),
+  startDate: z.string().trim().optional(),
+});
+
+export type DienstInlineState =
+  | { ok: true; title: string }
+  | { error: string; fieldErrors?: Record<string, string> }
+  | undefined;
+
+/**
+ * Zet vanuit de opdrachtgever-cockpit een dienst (opdracht) uit op één afdeling. Spiegelt
+ * createDienst, maar is afdeling-gebonden en hervalideert de opdrachtgever-detailpagina, zodat de
+ * franchiser afdelingen én diensten op één plek opbouwt.
+ */
+export async function publishDienst(
+  departmentId: string,
+  _prev: DienstInlineState,
+  formData: FormData,
+): Promise<DienstInlineState> {
+  let actor;
+  try {
+    actor = await requireRole("FRANCHISER");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
+
+  const dept = await prisma.department.findUnique({
+    where: { id: departmentId },
+    select: { companyId: true, company: { select: { tenantId: true } } },
+  });
+  if (!dept) return { error: "Afdeling niet gevonden." };
+  try {
+    assertSameTenant(actor, dept.company.tenantId);
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
+
+  const parsed = dienstSchema.safeParse({
+    title: formData.get("title"),
+    description: formData.get("description"),
+    location: formData.get("location") || undefined,
+    workMode: formData.get("workMode") || "ONSITE",
+    startDate: formData.get("startDate") || undefined,
+  });
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const i of parsed.error.issues) {
+      const k = i.path[0];
+      if (typeof k === "string" && !fieldErrors[k]) fieldErrors[k] = i.message;
+    }
+    return { error: "Controleer de ingevoerde gegevens.", fieldErrors };
+  }
+  const { title, description, location, workMode, startDate } = parsed.data;
+
+  const job = await prisma.job.create({
+    data: {
+      companyId: dept.companyId,
+      tenantId: actor.tenantId,
+      departmentId,
+      title,
+      description,
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+      workMode,
+      location: location ?? null,
+      startDate: startDate ? new Date(startDate) : null,
+    },
+  });
+
+  await audit({
+    actorId: actor.id,
+    action: "FRANCHISE_DIENST_PUBLISHED",
+    entityType: "Job",
+    entityId: job.id,
+    metadata: { tenantId: actor.tenantId, departmentId, companyId: dept.companyId },
+  });
+
+  revalidatePath(`/franchise/opdrachtgevers/${dept.companyId}`);
+  revalidatePath("/franchise/diensten");
+  return { ok: true, title };
 }

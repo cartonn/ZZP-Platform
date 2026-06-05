@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { createOpdrachtgever, type OpdrachtgeverState } from "./actions";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -82,6 +84,12 @@ export function OpdrachtgeverForm() {
           <p className="mt-2 font-mono text-xs">
             {state.email} · {state.tempPassword}
           </p>
+          <Link
+            href={`/franchise/opdrachtgevers/${state.companyId}`}
+            className="focus-ring mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
+          >
+            Verder met afdelingen &amp; diensten <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
         </div>
       )}
     </form>
