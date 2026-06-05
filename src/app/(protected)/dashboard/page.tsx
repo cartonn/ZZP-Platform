@@ -506,8 +506,9 @@ export default async function DashboardPage() {
         <MatchesSection matches={matches} prominent={false} />
       )}
 
-      {/* Aan de slag — onboarding alleen voor nieuwe accounts. */}
-      {isNewAccount && (
+      {/* Aan de slag — onboarding alleen voor nieuwe accounts, en alleen als het actiecentrum
+          niets concreets toont (anders verschijnen profiel/identiteit dubbel). */}
+      {isNewAccount && tasks.length === 0 && (
         <section className="rounded-lg border border-border bg-card p-5">
           <h2 className="text-sm font-medium">Aan de slag</h2>
           <ul className="mt-3 space-y-2">

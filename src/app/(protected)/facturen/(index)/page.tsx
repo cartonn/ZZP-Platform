@@ -60,6 +60,15 @@ export default async function FacturenPage() {
     0,
   );
 
+  // Een ZZP'er kan pas factureren vanuit een lopende/afgeronde samenwerking. Zonder dat is
+  // "Nieuwe factuur" een doodloop (de form blokkeert), dus tonen we dan een route naar opdrachten.
+  const canInvoice =
+    isFreelancer &&
+    (invoices.length > 0 ||
+      (await prisma.collaboration.count({
+        where: { freelancer: { userId: actor.id }, status: { in: ["ACTIVE", "COMPLETED"] } },
+      })) > 0);
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
@@ -70,7 +79,7 @@ export default async function FacturenPage() {
             : "Ontvangen facturen van je samenwerkingen."
         }
         action={
-          isFreelancer ? (
+          canInvoice ? (
             <Button asChild>
               <Link href="/facturen/nieuw">
                 <Plus className="size-4" aria-hidden /> Nieuwe factuur
@@ -103,10 +112,18 @@ export default async function FacturenPage() {
             icon={Receipt}
             title={isFreelancer ? "Nog geen facturen" : "Nog geen facturen ontvangen"}
             description={
-              isFreelancer ? "Stel een factuur op vanuit een actieve samenwerking." : undefined
+              isFreelancer
+                ? canInvoice
+                  ? "Stel een factuur op vanuit een actieve samenwerking."
+                  : "Zodra een opdracht tot een samenwerking leidt, kun je hier factureren."
+                : undefined
             }
             action={
-              isFreelancer ? { label: "Factuur opstellen", href: "/facturen/nieuw" } : undefined
+              isFreelancer
+                ? canInvoice
+                  ? { label: "Factuur opstellen", href: "/facturen/nieuw" }
+                  : { label: "Bekijk opdrachten", href: "/opdrachten" }
+                : undefined
             }
           />
         </Card>
