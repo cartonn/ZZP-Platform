@@ -28,7 +28,8 @@ import {
   MODEL_AGREEMENT_LABELS,
   type ModelAgreementType,
 } from "@/lib/model-agreement";
-import { changeJobStatus, createApplication } from "../actions";
+import { createApplication } from "../actions";
+import { JobStatusButton } from "./job-status-button";
 import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import { ApplicationForm } from "./application-form";
 import { formatDateShortNl } from "@/lib/format-date";
@@ -365,15 +366,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       {isOwner ? (
         <div className="flex flex-wrap gap-2 border-t border-border pt-4">
           {JOB_TRANSITIONS[status].map((to) => (
-            <form key={to} action={changeJobStatus.bind(null, job.id, to)}>
-              <Button
-                type="submit"
-                variant={to === "PUBLISHED" ? "primary" : "secondary"}
-                size="sm"
-              >
-                {transitionLabel(status, to)}
-              </Button>
-            </form>
+            <JobStatusButton
+              key={to}
+              jobId={job.id}
+              to={to}
+              label={transitionLabel(status, to)}
+              primary={to === "PUBLISHED"}
+            />
           ))}
         </div>
       ) : (
