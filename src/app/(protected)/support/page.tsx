@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { SUPPORT_STATUS_LABEL, SUPPORT_CATEGORY_LABEL, statusVariant } from "@/lib/support/labels";
 import { type SupportTicketStatus, type SupportCategory } from "@/lib/enums";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Support · ZZP Platform" };
 
@@ -59,7 +60,7 @@ export default async function SupportPage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {SUPPORT_CATEGORY_LABEL[t.category as SupportCategory]} · {t._count.messages}{" "}
                 {t._count.messages === 1 ? "bericht" : "berichten"} ·{" "}
-                {t.updatedAt.toLocaleDateString("nl-NL")}
+                {formatDateShortNl(t.updatedAt)}
               </p>
             </Link>
           ))}

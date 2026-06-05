@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { cancelDeletionRequest, requestAccountDeletion } from "./actions";
 import { IdentityForm } from "./identity-form";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Account & privacy · ZZP Platform" };
 
@@ -53,7 +54,7 @@ export default async function AccountPage() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Lid sinds</p>
-            <p>{user.createdAt.toISOString().slice(0, 10)}</p>
+            <p>{formatDateShortNl(user.createdAt)}</p>
           </div>
         </CardContent>
       </Card>
@@ -66,7 +67,7 @@ export default async function AccountPage() {
           </div>
           {user.identityVerifiedAt ? (
             <p className="text-sm text-muted-foreground">
-              Geverifieerd op {user.identityVerifiedAt.toISOString().slice(0, 10)}
+              Geverifieerd op {formatDateShortNl(user.identityVerifiedAt)}
               {user.verifiedLegalName ? ` · ${user.verifiedLegalName}` : ""}. Dit verhoogt je
               vertrouwensniveau.
             </p>
@@ -130,8 +131,8 @@ export default async function AccountPage() {
           {user.deletionRequestedAt ? (
             <div className="space-y-2">
               <p className="rounded-md bg-warning/10 px-3 py-2 text-sm text-warning">
-                Verwijdering aangevraagd op {user.deletionRequestedAt.toISOString().slice(0, 10)}.
-                In behandeling bij beheer.
+                Verwijdering aangevraagd op {formatDateShortNl(user.deletionRequestedAt)}. In
+                behandeling bij beheer.
               </p>
               <form action={cancelDeletionRequest}>
                 <Button type="submit" variant="secondary" size="sm">

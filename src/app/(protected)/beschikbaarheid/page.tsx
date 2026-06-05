@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { formatDateShortNl } from "@/lib/format-date";
 import { AvailabilityForm } from "./availability-form";
 import { deleteAvailabilityWindow } from "./actions";
 
@@ -22,7 +23,7 @@ const TYPE: Record<
   LIMITED: { label: "Beperkt", variant: "warning" },
   UNAVAILABLE: { label: "Niet beschikbaar", variant: "muted" },
 };
-const fmt = (d: Date) => d.toISOString().slice(0, 10);
+const fmt = (d: Date) => formatDateShortNl(d);
 
 export default async function BeschikbaarheidPage() {
   const actor = await requireRole("FREELANCER");

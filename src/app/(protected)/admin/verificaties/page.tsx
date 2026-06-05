@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Textarea } from "@/components/ui/textarea";
 import { ExpiryButton } from "./expiry-button";
 import { rejectCredential, verifyCredential } from "./actions";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Verificaties · ZZP Platform" };
 
@@ -26,7 +27,7 @@ function waitingLabel(days: number): string {
 }
 
 function fmt(d: Date | null) {
-  return d ? d.toISOString().slice(0, 10) : null;
+  return d ? formatDateShortNl(d) : null;
 }
 
 export default async function VerificatiesPage() {

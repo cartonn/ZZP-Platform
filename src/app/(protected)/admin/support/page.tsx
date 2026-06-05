@@ -15,6 +15,7 @@ import {
   type SupportAuthorKind,
 } from "@/lib/enums";
 import { adminReply, adminResolve } from "./actions";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Helpdesk · ZZP Platform" };
 
@@ -65,7 +66,7 @@ export default async function AdminSupportPage() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {t.user.name} · {SUPPORT_CATEGORY_LABEL[t.category as SupportCategory]} ·{" "}
-                    {t.updatedAt.toLocaleDateString("nl-NL")}
+                    {formatDateShortNl(t.updatedAt)}
                   </p>
                   {last && (
                     <div className="rounded-md bg-muted/40 px-3 py-2 text-sm">

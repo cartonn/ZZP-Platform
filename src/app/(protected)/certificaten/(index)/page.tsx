@@ -15,11 +15,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { deleteCredential, requestVerification, toggleCredentialVisibility } from "../actions";
 import { DuoVerifyForm } from "../duo-verify-form";
 import { BigVerifyForm } from "../big-verify-form";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Certificaten · ZZP Platform" };
 
 function fmt(d: Date | null) {
-  return d ? d.toISOString().slice(0, 10) : null;
+  return d ? formatDateShortNl(d) : null;
 }
 
 export default async function CertificatenPage() {
@@ -134,7 +135,7 @@ export default async function CertificatenPage() {
                       <ul className="mt-2 space-y-1">
                         {c.verifications.map((v) => (
                           <li key={v.id} className="text-xs text-muted-foreground">
-                            {v.createdAt.toISOString().slice(0, 10)} —{" "}
+                            {formatDateShortNl(v.createdAt)} —{" "}
                             {v.decision === "VERIFIED" ? "Goedgekeurd" : "Afgewezen"}
                             {v.source === "DUO"
                               ? " via DUO"

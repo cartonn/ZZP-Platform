@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { cancelInvoice, markInvoicePaid, sendInvoice } from "../actions";
 import { PrintButton } from "@/components/ui/print-button";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Factuur · ZZP Platform" };
 
@@ -36,7 +37,7 @@ const CASCADE_LABEL: Record<
 };
 
 function fmt(d: Date | null) {
-  return d ? d.toISOString().slice(0, 10) : "—";
+  return d ? formatDateShortNl(d) : "—";
 }
 
 function parseOrtSegments(json: string | null | undefined): OrtSegment[] {

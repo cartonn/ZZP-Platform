@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MessageComposer } from "./message-composer";
 import { MarkRead } from "./mark-read";
+import { formatDateTimeNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Gesprek · ZZP Platform" };
 
@@ -93,7 +94,7 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
                       mine ? "text-primary-foreground/70" : "text-muted-foreground",
                     )}
                   >
-                    {m.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+                    {formatDateTimeNl(m.createdAt)}
                   </p>
                 </div>
               </div>

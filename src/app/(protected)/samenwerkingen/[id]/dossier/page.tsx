@@ -8,6 +8,7 @@ import { DBA_DISCLAIMER } from "@/lib/config";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buildComplianceDossier, type DossierInput } from "@/lib/compliance/dossier";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Compliance-dossier · ZZP Platform" };
 
@@ -129,7 +130,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
             {dossier.timeline.map((t, i) => (
               <div key={i} className="flex items-baseline gap-3 text-sm">
                 <span className="w-24 shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {t.at.toLocaleDateString("nl-NL")}
+                  {formatDateShortNl(t.at)}
                 </span>
                 <span>{t.label}</span>
               </div>

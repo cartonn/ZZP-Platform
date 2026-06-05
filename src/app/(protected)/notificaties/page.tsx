@@ -23,6 +23,7 @@ import {
   type NotificationTone,
 } from "@/lib/notifications";
 import { markAllNotificationsRead, markNotificationRead } from "./actions";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Notificaties · ZZP Platform" };
 
@@ -50,7 +51,7 @@ function relativeTime(d: Date): string {
   if (min < 60) return `${min} min geleden`;
   const h = Math.floor(min / 60);
   if (h < 24) return `${h} uur geleden`;
-  return d.toISOString().slice(0, 10);
+  return formatDateShortNl(d);
 }
 
 type NotificationItem = Awaited<ReturnType<typeof prisma.notification.findMany>>[number];
