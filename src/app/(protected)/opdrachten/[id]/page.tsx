@@ -90,6 +90,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   const status = job.status as JobStatus;
   // Niet-gepubliceerde opdrachten zijn alleen zichtbaar voor de eigenaar (server-side).
   if (status !== "PUBLISHED" && !isOwner) notFound();
+  // Gesloten per tenant: een niet-eigenaar mag een dienst alleen zien als die bij zijn franchise
+  // hoort (beide tenantId null voor directe gebruikers, of gelijke tenantId). ADMIN ziet alles.
+  if (!isOwner && actor.role !== "ADMIN" && job.tenantId !== (actor.tenantId ?? null)) notFound();
 
   const requiredSkills = job.skills.filter((s) => s.required);
   const optionalSkills = job.skills.filter((s) => !s.required);

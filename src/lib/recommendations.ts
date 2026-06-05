@@ -66,7 +66,9 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
 
   const appliedJobIds = new Set(profile.applications.map((a) => a.jobId));
   const jobs = await prisma.job.findMany({
-    where: { status: "PUBLISHED" },
+    // Gesloten per tenant: een tenant-ZZP'er krijgt alleen diensten van zijn franchise aanbevolen;
+    // een directe ZZP'er alleen platform-opdrachten (tenantId null). profile.tenantId is de bron.
+    where: { status: "PUBLISHED", tenantId: profile.tenantId },
     include: {
       skills: { include: { skill: { select: { name: true } } } },
       credentialRequirements: true,

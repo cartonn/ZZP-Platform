@@ -5,10 +5,11 @@ import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
 import { type JobStatus } from "@/lib/enums";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { plural } from "@/lib/plural";
+import { DienstForm } from "./dienst-form";
 
 export const metadata: Metadata = { title: "Diensten · Franchise" };
 
@@ -20,15 +21,28 @@ const STATUS: Record<JobStatus, { label: string; variant: "muted" | "success" | 
 
 export default async function FranchiseDienstenPage() {
   const actor = await requireRole("FRANCHISER");
-  const diensten = await prisma.job.findMany({
-    where: tenantScopeWhere(actor),
-    orderBy: { createdAt: "desc" },
-    include: {
-      company: { select: { name: true } },
-      department: { select: { name: true } },
-      _count: { select: { applications: true } },
-    },
-  });
+  const scope = tenantScopeWhere(actor);
+  const [diensten, companies] = await Promise.all([
+    prisma.job.findMany({
+      where: scope,
+      orderBy: { createdAt: "desc" },
+      include: {
+        company: { select: { name: true } },
+        department: { select: { name: true } },
+        _count: { select: { applications: true } },
+      },
+    }),
+    prisma.company.findMany({
+      where: scope,
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        departments: { orderBy: { name: "asc" }, select: { id: true, name: true } },
+      },
+    }),
+  ]);
+  const hasAfdeling = companies.some((c) => c.departments.length > 0);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -36,6 +50,20 @@ export default async function FranchiseDienstenPage() {
         title="Diensten"
         description="De diensten die je namens je opdrachtgevers hebt uitgezet."
       />
+
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <h2 className="text-sm font-semibold tracking-tight">Nieuwe dienst uitzetten</h2>
+          {hasAfdeling ? (
+            <DienstForm companies={companies.filter((c) => c.departments.length > 0)} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Voeg eerst een opdrachtgever met minstens één afdeling toe voordat je een dienst kunt
+              uitzetten.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {diensten.length === 0 ? (
         <Card>
