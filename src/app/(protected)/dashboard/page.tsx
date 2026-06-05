@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, AlertTriangle } from "lucide-react";
 import { auth } from "@/auth";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -15,6 +15,7 @@ import {
 } from "@/lib/enums";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
+import { clientCredentialAlerts, shortCredentialAlert } from "@/lib/collaboration-alerts";
 import { computeFreelancerCompleteness } from "@/lib/profile";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { type NextActionTone } from "@/lib/next-actions";
@@ -71,6 +72,8 @@ interface RunningCollab {
   jobTitle: string;
   /** De andere partij: voor een ZZP'er de opdrachtgever, voor een opdrachtgever de ZZP'er. */
   counterpartyName: string;
+  /** Compliance-waarschuwing voor deze samenwerking (bv. ZZP'er mist een vereist certificaat). */
+  complianceWarning?: string;
   stage: CascadeStage;
 }
 interface DashboardData {
@@ -231,10 +234,19 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         orderBy: { createdAt: "desc" },
       }),
     ]);
+    // Compliance-waarschuwingen per lopende samenwerking (ZZP'er mist/verlopen vereist certificaat),
+    // zodat de opdrachtgever dit ook op het dashboard ziet — niet alleen op /samenwerkingen.
+    const complianceByCollab = new Map(
+      (await clientCredentialAlerts(userId)).map((a) => [
+        a.collaborationId,
+        shortCredentialAlert(a.alert),
+      ]),
+    );
     const running: RunningCollab[] = runningRows.map((c) => ({
       id: c.id,
       jobTitle: c.job.title,
       counterpartyName: c.freelancer.user.name ?? "ZZP'er",
+      complianceWarning: complianceByCollab.get(c.id),
       stage: cascadeStage({
         viewer: "CLIENT",
         collaborationId: c.id,
@@ -305,6 +317,12 @@ function RunningCard({ collab }: { collab: RunningCollab }) {
         </div>
         <Badge variant={TONE_BADGE[stage.tone]}>{stage.label}</Badge>
       </div>
+      {collab.complianceWarning && (
+        <p className="flex items-center gap-1.5 text-xs font-medium text-danger">
+          <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+          {collab.complianceWarning}
+        </p>
+      )}
       <div className="space-y-1">
         <Progress value={pct} />
         <p className="text-xs text-muted-foreground">

@@ -70,11 +70,10 @@ test("compliance-ripple: ontbrekend vereist certificaat waarschuwt beide partije
   await expect(fcard2.getByRole("link", { name: "Bijwerken" })).toBeVisible();
   await shot(fp, "25-samenwerking-freelancer-compliance");
 
-  // Opdrachtgever ziet het compliance-verband terug bij de samenwerking.
-  // NB: sinds de workspace-overhaul (dashboard -> command center met pendingTasks) toont het
-  // dashboard alleen nog door de opdrachtgever uit te voeren taken; een ontbrekend certificaat van
-  // de ZZP'er is informatief (niet client-actie) en staat nu in de samenwerking-context. Of dit ook
-  // op het dashboard zichtbaar moet zijn, is een productkeuze (zie geheugen-notitie).
+  // Opdrachtgever ziet de compliance-waarschuwing terug op het dashboard (op de lopende-
+  // samenwerking-kaart in "Wat loopt er nu") én bij de samenwerking zelf.
+  await page.goto("/dashboard");
+  await expect(page.getByText(/Mist een vereist certificaat \(VOG\)/i)).toBeVisible();
   await page.goto("/samenwerkingen");
   const ccard = page.locator("div.bg-card", { hasText: title });
   await expect(ccard.getByText("Comp Freelancer mist een vereist certificaat: VOG.")).toBeVisible();

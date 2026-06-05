@@ -57,6 +57,16 @@ export function assessCollaborationCredentials(
   };
 }
 
+/** Zeer korte melding zonder naam/opdracht — voor compacte plekken (bv. een samenwerkingskaart). */
+export function shortCredentialAlert(alert: CredentialAlert): string {
+  const types = (list: CredentialType[]) => list.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ");
+  if (alert.missing.length > 0) return `Mist een vereist certificaat (${types(alert.missing)})`;
+  if (alert.expired.length > 0) return `Certificaat verlopen (${types(alert.expired)})`;
+  if (alert.expiringSoon.length > 0)
+    return `Certificaat verloopt binnenkort (${types(alert.expiringSoon)})`;
+  return `Certificaat in beoordeling (${types(alert.inReview)})`;
+}
+
 /** Korte, gerichte omschrijving van de melding (vanuit het perspectief van de opdrachtgever). */
 export function describeCredentialAlert(
   name: string,
