@@ -30,6 +30,11 @@ export function BigVerifyForm({ credentialId }: { credentialId: string }) {
           {state.error}
         </span>
       )}
+      {state?.ok && (
+        <span role="status" className="text-xs text-success">
+          BIG-registratie geverifieerd.
+        </span>
+      )}
     </form>
   );
 }

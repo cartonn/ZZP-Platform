@@ -29,6 +29,11 @@ export function DuoVerifyForm({ credentialId }: { credentialId: string }) {
           {state.error}
         </span>
       )}
+      {state?.ok && (
+        <span role="status" className="text-xs text-success">
+          Diploma geverifieerd via DUO.
+        </span>
+      )}
     </form>
   );
 }
