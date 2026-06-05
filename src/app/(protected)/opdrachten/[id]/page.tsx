@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, ExternalLink, MapPin, Pencil, TriangleAlert } from "lucide-react";
 import { owns, requireActor } from "@/lib/authz";
+import { canViewJob } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { JOB_TRANSITIONS } from "@/lib/jobs";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
@@ -82,6 +83,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       industry: { select: { name: true } },
       skills: { include: { skill: { select: { name: true } } } },
       credentialRequirements: true,
+      tenant: { select: { openOverflow: true } },
     },
   });
   if (!job) notFound();
@@ -90,9 +92,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   const status = job.status as JobStatus;
   // Niet-gepubliceerde opdrachten zijn alleen zichtbaar voor de eigenaar (server-side).
   if (status !== "PUBLISHED" && !isOwner) notFound();
-  // Gesloten per tenant: een niet-eigenaar mag een dienst alleen zien als die bij zijn franchise
-  // hoort (beide tenantId null voor directe gebruikers, of gelijke tenantId). ADMIN ziet alles.
-  if (!isOwner && actor.role !== "ADMIN" && job.tenantId !== (actor.tenantId ?? null)) notFound();
+  // Gesloten per tenant (+ overflow): een niet-eigenaar mag een dienst alleen zien als die bij zijn
+  // franchise hoort, of als de franchise hem heeft opengesteld. ADMIN ziet alles.
+  if (!isOwner && !canViewJob(actor, job)) notFound();
 
   const requiredSkills = job.skills.filter((s) => s.required);
   const optionalSkills = job.skills.filter((s) => !s.required);
