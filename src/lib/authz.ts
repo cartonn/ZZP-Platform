@@ -13,6 +13,9 @@ export interface Actor {
   /** true = geforceerde wachtwoordwijziging vereist (bv. na bulk-import). Optioneel: testliterals
    *  hoeven dit niet te zetten; de middleware leest de vlag uit de sessie. */
   mustChangePassword?: boolean;
+  /** Franchise-lidmaatschap. `null`/`undefined` = directe platformgebruiker (geen tenant). De
+   *  tenant-scoping (src/lib/tenancy.ts) leunt hierop; ADMIN negeert het en ziet alle tenants. */
+  tenantId?: string | null;
 }
 
 export class AuthorizationError extends Error {
@@ -80,7 +83,13 @@ const loadFreshUser = cache(async (userId: string) => {
   const { prisma } = await import("@/lib/db");
   return prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, status: true, mustChangePassword: true, anonymizedAt: true },
+    select: {
+      role: true,
+      status: true,
+      mustChangePassword: true,
+      anonymizedAt: true,
+      tenantId: true,
+    },
   });
 });
 
@@ -107,6 +116,7 @@ export async function currentActor(): Promise<Actor | null> {
     role: fresh.role as UserRole,
     status: fresh.status,
     mustChangePassword: fresh.mustChangePassword,
+    tenantId: fresh.tenantId,
   };
 }
 
