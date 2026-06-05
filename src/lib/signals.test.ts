@@ -70,22 +70,23 @@ describe("buildBadges", () => {
 });
 
 describe("withActionCenterBadge", () => {
-  it("sommeert alleen de attention-signalen op /acties", () => {
-    const badges = withActionCenterBadge({
-      "/certificaten": { count: 2, tone: "attention" },
-      "/facturen": { count: 1, tone: "attention" },
-      "/berichten": { count: 5, tone: "info" }, // info telt niet mee
-    });
-    expect(badges["/acties"]).toEqual({ count: 3, tone: "attention" });
+  it("zet de exacte takentelling op /acties (zoals de pagina toont)", () => {
+    const badges = withActionCenterBadge(
+      { "/kandidaten": { count: 3, tone: "attention" }, "/berichten": { count: 5, tone: "info" } },
+      6,
+    );
+    expect(badges["/acties"]).toEqual({ count: 6, tone: "attention" });
+    // de per-nav-badges blijven onveranderd
+    expect(badges["/berichten"]).toEqual({ count: 5, tone: "info" });
   });
 
-  it("voegt geen /acties-badge toe als er niets actie vraagt", () => {
-    const badges = withActionCenterBadge({ "/berichten": { count: 4, tone: "info" } });
+  it("geen /acties-badge bij 0 openstaande taken", () => {
+    const badges = withActionCenterBadge({ "/berichten": { count: 4, tone: "info" } }, 0);
     expect(badges["/acties"]).toBeUndefined();
   });
 
-  it("lege badges → geen /acties", () => {
-    expect(withActionCenterBadge({})["/acties"]).toBeUndefined();
+  it("lege badges + 0 taken → geen /acties", () => {
+    expect(withActionCenterBadge({}, 0)["/acties"]).toBeUndefined();
   });
 });
 

@@ -3,6 +3,7 @@
 // drempels als het dashboard (signals.ts, profile.ts). N+1-veilig: één query per kind met take-limiet.
 
 import "server-only";
+import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { type Availability } from "@/lib/enums";
@@ -102,10 +103,21 @@ async function unreadConversations(userId: string): Promise<UnreadConversation[]
   });
 }
 
-export async function pendingTasks(actor: Actor): Promise<PendingTask[]> {
-  if (actor.role === "FREELANCER") return rankTasks(await freelancerTasks(actor.id));
-  if (actor.role === "CLIENT") return rankTasks(await clientTasks(actor.id));
+// Request-gecachet (React.cache): de layout (sidebar-badge) en de pagina (dashboard/acties)
+// vragen dezelfde tasks op binnen één render; zo wordt het maar één keer berekend.
+const computeTasks = cache(async (userId: string, role: string): Promise<PendingTask[]> => {
+  if (role === "FREELANCER") return rankTasks(await freelancerTasks(userId));
+  if (role === "CLIENT") return rankTasks(await clientTasks(userId));
   return rankTasks(await adminTasks());
+});
+
+export async function pendingTasks(actor: Actor): Promise<PendingTask[]> {
+  return computeTasks(actor.id, actor.role);
+}
+
+/** Aantal openstaande taken — exact wat /acties toont, voor de sidebar-badge. */
+export async function pendingTaskCount(userId: string, role: string): Promise<number> {
+  return (await computeTasks(userId, role)).length;
 }
 
 async function freelancerTasks(userId: string): Promise<PendingTask[]> {
