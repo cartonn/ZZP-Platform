@@ -716,20 +716,25 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         ["APPROVED", "PAID", "PROCESSED", "OVERDUE"].includes(
                           inv.lifecycleStatus ?? "",
                         ) && (
-                          <form
-                            action={creditInvoiceAction.bind(null, inv.id, col.id)}
-                            className="flex items-center gap-2"
-                          >
-                            <input
-                              name="reason"
-                              required
-                              placeholder="Reden creditering"
-                              className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
-                            />
-                            <Button type="submit" size="sm" variant="secondary">
-                              Crediteren
-                            </Button>
-                          </form>
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                              Factuur crediteren
+                            </summary>
+                            <form
+                              action={creditInvoiceAction.bind(null, inv.id, col.id)}
+                              className="mt-2 flex items-center gap-2"
+                            >
+                              <input
+                                name="reason"
+                                required
+                                placeholder="Reden creditering"
+                                className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                              />
+                              <Button type="submit" size="sm" variant="secondary">
+                                Crediteren
+                              </Button>
+                            </form>
+                          </details>
                         )}
                     </div>
                   </CardContent>

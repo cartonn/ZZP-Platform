@@ -17,6 +17,7 @@ import {
 } from "@/lib/tax/reservation";
 import { hoursCriterion, type HoursCriterion } from "@/lib/tax/hours-criterion";
 import { VAT_DEADLINES_2026, KOR_THRESHOLD_CENTS } from "@/lib/tax/config";
+import { formatEuro } from "@/lib/invoices";
 
 export interface OntzorgInput {
   entries: readonly LedgerEntry[];
@@ -134,7 +135,7 @@ function buildActions(args: {
   if (args.reservation.totalReserveCents > 0) {
     actions.push({
       code: "RESERVE",
-      label: `Zet ${formatEuroShort(args.reservation.totalReserveCents)} opzij voor de belasting`,
+      label: `Zet ${formatEuro(args.reservation.totalReserveCents)} opzij voor de belasting`,
       urgency: "info",
     });
   }
@@ -182,8 +183,4 @@ function formatDateNl(iso: string): string {
     "december",
   ];
   return `${d} ${months[(m ?? 1) - 1]} ${y}`;
-}
-
-function formatEuroShort(cents: number): string {
-  return `€${(cents / 100).toLocaleString("nl-NL", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
