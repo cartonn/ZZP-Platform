@@ -154,7 +154,14 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
   redirect(`/opdrachten/${savedId}`);
 }
 
-export async function changeJobStatus(jobId: string, target: string): Promise<void> {
+export type JobStatusState = { error?: string } | undefined;
+
+export async function changeJobStatus(
+  jobId: string,
+  target: string,
+  _prev?: JobStatusState,
+  _formData?: FormData,
+): Promise<JobStatusState> {
   const actor = await requireRole("CLIENT");
   const targetStatus = jobStatusSchema.parse(target);
 
@@ -162,19 +169,24 @@ export async function changeJobStatus(jobId: string, target: string): Promise<vo
     where: { id: jobId },
     include: { company: { select: { userId: true } } },
   });
-  if (!job) throw new Error("Opdracht niet gevonden.");
-  assertOwnership(actor, job.company.userId);
+  if (!job) return { error: "Opdracht niet gevonden." };
+  try {
+    assertOwnership(actor, job.company.userId);
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
 
   const from = job.status as JobStatus;
   try {
     assertJobTransition(from, targetStatus);
   } catch (e) {
-    if (e instanceof JobTransitionError) throw new Error(e.message);
+    if (e instanceof JobTransitionError) return { error: e.message };
     throw e;
   }
 
   if (targetStatus === "PUBLISHED" && !canPublish(job)) {
-    throw new Error("Een opdracht heeft een titel en omschrijving nodig om te publiceren.");
+    return { error: "Een opdracht heeft een titel en omschrijving nodig om te publiceren." };
   }
 
   await prisma.job.update({
