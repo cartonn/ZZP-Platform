@@ -7,6 +7,7 @@ import {
   invoiceSubmitTask,
   paymentConfirmTask,
   profileCompletenessTask,
+  messageReplyTask,
   adminDeletionRequestTask,
   adminResolveDisputeTask,
   applicationsReviewTask,
@@ -76,6 +77,21 @@ describe("task builders", () => {
     const t = profileCompletenessTask(60, ["Uurtarief", "Talen", "Locatie", "Bio"]);
     expect(t.subtitle).toBe("Voeg toe: Uurtarief, Talen, Locatie");
     expect(t.resolver).toBe("drawer");
+  });
+
+  it("bericht-taak benoemt afzender + onderwerp zodat meerdere rijen onderscheidend zijn", () => {
+    const withJob = messageReplyTask("conv1", "Mark Jansen", "Senior React Developer");
+    expect(withJob.title).toBe("Beantwoord Mark Jansen");
+    expect(withJob.subtitle).toBe("Over: Senior React Developer");
+    expect(withJob.href).toBe("/berichten/conv1");
+
+    // Twee gesprekken met verschillende afzenders leveren onderscheidende rijen op.
+    const other = messageReplyTask("conv2", "Sofie Willems", "Fullstack Developer");
+    expect(other.title).not.toBe(withJob.title);
+
+    // Zonder gekoppelde opdracht valt het terug op een nette generieke subtitel.
+    const noJob = messageReplyTask("conv3", "Nadia Haddad", null);
+    expect(noJob.subtitle).toBe("Nieuw bericht");
   });
 
   it("AVG-verwijderverzoek blijft een link (onomkeerbaar, geen één-klik)", () => {

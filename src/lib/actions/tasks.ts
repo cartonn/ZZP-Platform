@@ -177,12 +177,16 @@ export function paymentConfirmTask(invId: string, collabId: string, jobTitle: st
   };
 }
 
-export function messageReplyTask(conversationId: string, withWhom: string): PendingTask {
+export function messageReplyTask(
+  conversationId: string,
+  withWhom: string,
+  subject?: string | null,
+): PendingTask {
   return {
     kind: "message-reply",
     id: `message-reply:${conversationId}`,
-    title: "Beantwoord het bericht",
-    subtitle: withWhom,
+    title: `Beantwoord ${withWhom}`,
+    subtitle: subject ? `Over: ${subject}` : "Nieuw bericht",
     tone: "attention",
     priority: P.messagesAwaiting,
     resolver: "reply",
