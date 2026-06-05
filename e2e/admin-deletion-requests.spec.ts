@@ -28,7 +28,9 @@ test("AVG-verwijderverzoek vraagt aandacht bij de beheerder", async ({ page, bro
   await admin.fill("#password", "demo1234");
   await admin.getByRole("button", { name: "Inloggen" }).click();
   await admin.waitForURL("**/dashboard");
-  await expect(admin.getByText(/AVG-verwijderverzoek\(en\) — beoordeel/)).toBeVisible();
+  // Het verzoek verschijnt als blocking-taak in de actiezone (sinds de command-center-overhaul
+  // per item i.p.v. een geaggregeerde teller). .first() omdat er meerdere kunnen openstaan.
+  await expect(admin.getByText("AVG-verwijderverzoek beoordelen").first()).toBeVisible();
 
   await admin.goto("/admin/gebruikers");
   await expect(
