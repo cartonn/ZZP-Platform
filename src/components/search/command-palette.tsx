@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { searchPlatform } from "@/app/(protected)/search/actions";
 import { groupResultsByType, isSearchableQuery, type SearchResult } from "@/lib/search";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 
 // ---------------------------------------------------------------------------
 // Globale snelzoeker (⌘K / Ctrl+K). Opent via keydown of CustomEvent.
@@ -26,8 +27,10 @@ export function CommandPalette() {
 
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useFocusTrap(dialogRef, open);
 
   // ------------------------------------------------------------------
   // Openen / sluiten
@@ -150,7 +153,13 @@ export function CommandPalette() {
   const searchable = isSearchableQuery(query);
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Snelzoeker">
+    <div
+      ref={dialogRef}
+      className="fixed inset-0 z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Snelzoeker"
+    >
       {/* Backdrop */}
       <button
         type="button"

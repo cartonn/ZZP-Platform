@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 
 type TriggerVariant = "destructive" | "secondary" | "ghost";
 type Size = "xs" | "sm" | "md";
@@ -41,8 +42,10 @@ export function ConfirmButton({
   const [open, setOpen] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descId = useId();
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -77,6 +80,7 @@ export function ConfirmButton({
 
       {open && (
         <div
+          ref={dialogRef}
           className="fixed inset-0 z-50"
           role="alertdialog"
           aria-modal="true"
