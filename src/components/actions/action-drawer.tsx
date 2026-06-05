@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 
 // Hand-rolled slide-over (geen Radix), volgens het bewezen overlay-patroon in deze codebase
 // (CommandPalette/MobileNav/ConfirmButton): inline fixed-overlay, geen portal, Escape sluit,
@@ -20,6 +21,8 @@ export function ActionDrawer({
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -45,7 +48,13 @@ export function ActionDrawer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={title}>
+    <div
+      ref={dialogRef}
+      className="fixed inset-0 z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
       <button
         type="button"
         aria-label="Sluiten"

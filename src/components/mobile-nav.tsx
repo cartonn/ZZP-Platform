@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { type NavItem } from "@/lib/nav";
 import { type NavBadges } from "@/lib/signals";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 
 /** Mobiel navigatiemenu (drawer). Sluit automatisch bij routewissel en op Escape. */
 export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBadges }) {
   const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
     setOpen(false);
@@ -36,7 +39,13 @@ export function MobileNav({ items, badges }: { items: NavItem[]; badges?: NavBad
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Navigatie">
+        <div
+          ref={dialogRef}
+          className="fixed inset-0 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigatie"
+        >
           <button
             type="button"
             aria-label="Menu sluiten"
