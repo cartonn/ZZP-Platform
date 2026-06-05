@@ -70,7 +70,7 @@ export default async function PrestatiesPage({
         <div>
           <h1 className="text-xl font-semibold">Prestaties</h1>
           <p className="text-sm text-muted-foreground">
-            Urenstaaten en opleveringen van jouw ZZP&apos;ers — overzicht over alle samenwerkingen.
+            Urenstaten en opleveringen van jouw ZZP&apos;ers — overzicht over alle samenwerkingen.
             {pendingCount > 0 && (
               <span className="ml-1 font-medium text-foreground">
                 {pendingCount} wacht op jouw goedkeuring.
@@ -121,7 +121,7 @@ export default async function PrestatiesPage({
           description={
             filterStatus
               ? "Er zijn geen prestaties met deze status. Pas het filter aan."
-              : "Je ZZP'ers hebben nog geen urenstaaten of opleveringen ingediend."
+              : "Je ZZP'ers hebben nog geen urenstaten of opleveringen ingediend."
           }
         />
       ) : (
