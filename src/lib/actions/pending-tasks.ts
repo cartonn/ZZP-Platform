@@ -48,7 +48,13 @@ function parseLanguages(raw: string | null): string[] {
 }
 
 /** Gesprekken met een onbeantwoord bericht van de andere partij (zelfde logica als signals). */
-async function unreadConversations(userId: string): Promise<string[]> {
+interface UnreadConversation {
+  id: string;
+  withWhom: string; // de andere deelnemer (afzender)
+  subject: string | null; // de opdracht waar het gesprek over gaat, indien gekoppeld
+}
+
+async function unreadConversations(userId: string): Promise<UnreadConversation[]> {
   const participants = await prisma.conversationParticipant.findMany({
     where: { userId },
     select: { conversationId: true, lastReadAt: true },
@@ -63,13 +69,37 @@ async function unreadConversations(userId: string): Promise<string[]> {
     _max: { createdAt: true },
   });
   const latest = new Map(grouped.map((g) => [g.conversationId, g._max.createdAt]));
-  return participants
+  const unreadIds = participants
     .filter((p) => {
       const at = latest.get(p.conversationId);
       return at && (!p.lastReadAt || at.getTime() > p.lastReadAt.getTime());
     })
     .slice(0, MAX)
     .map((p) => p.conversationId);
+  if (unreadIds.length === 0) return [];
+
+  // Verrijk met afzender + onderwerp zodat elke berichttaak onderscheidend is
+  // (anders tonen meerdere openstaande berichten een identieke rij).
+  const convos = await prisma.conversation.findMany({
+    where: { id: { in: unreadIds } },
+    select: {
+      id: true,
+      job: { select: { title: true } },
+      participants: {
+        where: { userId: { not: userId } },
+        select: { user: { select: { name: true } } },
+      },
+    },
+  });
+  const byId = new Map(convos.map((c) => [c.id, c]));
+  return unreadIds.map((id) => {
+    const c = byId.get(id);
+    return {
+      id,
+      withWhom: c?.participants[0]?.user.name ?? "Onbekende afzender",
+      subject: c?.job?.title ?? null,
+    };
+  });
 }
 
 export async function pendingTasks(actor: Actor): Promise<PendingTask[]> {
@@ -162,8 +192,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     }
   }
 
-  for (const conversationId of unread)
-    tasks.push(messageReplyTask(conversationId, "Nieuw bericht"));
+  for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));
   if (overdue > 0) tasks.push(overdueInvoiceTask(overdue, "FREELANCER"));
   return tasks;
 }
@@ -227,8 +256,7 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     for (const inv of c.invoices) tasks.push(invoiceApproveTask(inv.id, c.id, c.job.title));
   }
 
-  for (const conversationId of unread)
-    tasks.push(messageReplyTask(conversationId, "Nieuw bericht"));
+  for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));
   if (overdue > 0) tasks.push(overdueInvoiceTask(overdue, "CLIENT"));
   if (newApplications > 0) tasks.push(applicationsReviewTask(newApplications));
   if (draftJobs > 0) tasks.push(draftJobsTask(draftJobs));
