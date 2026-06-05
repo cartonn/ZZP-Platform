@@ -19,6 +19,7 @@ import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { cancelInvoice, markInvoicePaid, sendInvoice } from "../actions";
 import { PrintButton } from "@/components/ui/print-button";
 import { formatDateShortNl } from "@/lib/format-date";
+import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Factuur · ZZP Platform" };
 
@@ -154,7 +155,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
               )}
               {dunning && (
                 <span className="text-xs text-muted-foreground">
-                  {dunning.label} · {dunning.daysOverdue} dag(en) te laat
+                  {dunning.label} · {plural(dunning.daysOverdue, "dag", "dagen")} te laat
                 </span>
               )}
             </div>

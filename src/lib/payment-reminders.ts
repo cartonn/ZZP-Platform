@@ -13,6 +13,7 @@ import {
   DUNNING_ESCALATION_LEVEL,
   type DunningLevel,
 } from "@/lib/config";
+import { plural } from "@/lib/plural";
 
 export interface PaymentReminderCandidate {
   invoiceId: string;
@@ -103,7 +104,7 @@ export function planPaymentReminders(
         userId: c.clientUserId,
         notificationType: "PAYMENT_OVERDUE",
         title: stage.label,
-        body: `Factuur ${num} is ${stage.daysOverdue} dag(en) over de vervaldag (${stage.label.toLowerCase()}). Betaal rechtstreeks aan de ZZP'er en markeer de betaling.`,
+        body: `Factuur ${num} is ${plural(stage.daysOverdue, "dag", "dagen")} over de vervaldag (${stage.label.toLowerCase()}). Betaal rechtstreeks aan de ZZP'er en markeer de betaling.`,
         stage: stage.level,
         dedupeKey: `payment-overdue-${c.invoiceId}-${stage.level}`,
         overdue: true,
@@ -115,7 +116,7 @@ export function planPaymentReminders(
         userId: c.freelancerUserId,
         notificationType: "PAYMENT_OVERDUE",
         title: stage.label,
-        body: `Factuur ${num} is ${stage.daysOverdue} dag(en) te laat. Je kunt een ${stage.label.toLowerCase()} sturen.`,
+        body: `Factuur ${num} is ${plural(stage.daysOverdue, "dag", "dagen")} te laat. Je kunt een ${stage.label.toLowerCase()} sturen.`,
         stage: stage.level,
         dedupeKey: `payment-overdue-freelancer-${c.invoiceId}-${stage.level}`,
         overdue: true,
@@ -149,7 +150,7 @@ export function planPaymentReminders(
         userId: c.clientUserId,
         notificationType: "PAYMENT_REMINDER",
         title: "Betaaltermijn nadert",
-        body: `Factuur ${num} vervalt over ${days} dag(en). Betaling verloopt rechtstreeks aan de ZZP'er.`,
+        body: `Factuur ${num} vervalt over ${plural(days, "dag", "dagen")}. Betaling verloopt rechtstreeks aan de ZZP'er.`,
         stage: `before-${days}`,
         dedupeKey: `payment-due-${c.invoiceId}-${days}`,
         overdue: false,

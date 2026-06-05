@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Opdrachten · ZZP Platform" };
 
@@ -108,7 +109,7 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{job.title}</p>
                 <p className="text-xs text-muted-foreground">
-                  {job._count.applications} reactie(s)
+                  {plural(job._count.applications, "reactie", "reacties")}
                   {job.location ? ` · ${job.location}` : ""}
                 </p>
               </div>
@@ -216,7 +217,9 @@ async function BrowseJobs({
         </Card>
       ) : (
         <>
-          <p className="text-xs text-muted-foreground">{total} opdracht(en) gevonden</p>
+          <p className="text-xs text-muted-foreground">
+            {plural(total, "opdracht", "opdrachten")} gevonden
+          </p>
           <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             {jobs.map((job) => (
               <Link

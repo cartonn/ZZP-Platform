@@ -5,6 +5,7 @@
 
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { REMINDERS } from "@/lib/config";
+import { plural } from "@/lib/plural";
 
 export interface ConceptInvoiceCandidate {
   invoiceId: string;
@@ -64,7 +65,7 @@ export function planConceptInvoiceReminders(
         userId: c.issuerUserId,
         notificationType: "INVOICE_DRAFT_REMINDER",
         title: "Concept-factuur nog niet ingediend",
-        body: `Je ${num} staat al ${d} dag(en) klaar. Controleer en dien hem in zodat de betaling kan starten.`,
+        body: `Je ${num} staat al ${plural(d, "dag", "dagen")} klaar. Controleer en dien hem in zodat de betaling kan starten.`,
         stage: `day-${d}`,
         dedupeKey: `concept-reminder-${c.invoiceId}-${d}`,
       });

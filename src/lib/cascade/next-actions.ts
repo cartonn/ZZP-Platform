@@ -6,6 +6,7 @@
 // een href naar /facturen zou naar een plek leiden waar de handeling niet uitvoerbaar is.
 
 import { type NextAction } from "@/lib/next-actions";
+import { plural } from "@/lib/plural";
 
 // Prioriteiten sluiten aan op next-actions.ts: goedkeuring vragen is urgenter dan eigen indienen;
 // een AFKEURING (de loop is gebroken, werk/geld blijft hangen) is urgenter dan een eerste indiening.
@@ -27,7 +28,7 @@ export function cascadeFreelancerActions(input: FreelancerCascadeInput): NextAct
   if (input.rejectedPerformances > 0) {
     actions.push({
       id: "cascade-rejected-performances",
-      title: `${input.rejectedPerformances} afgekeurde uren/oplevering(en) — corrigeer en dien opnieuw in`,
+      title: `${plural(input.rejectedPerformances, "afgekeurde urenstaat/oplevering", "afgekeurde uren/opleveringen")} — corrigeer en dien opnieuw in`,
       href: "/samenwerkingen",
       tone: "attention",
       priority: P.rejected,
@@ -36,7 +37,7 @@ export function cascadeFreelancerActions(input: FreelancerCascadeInput): NextAct
   if (input.rejectedInvoices > 0) {
     actions.push({
       id: "cascade-rejected-invoices",
-      title: `${input.rejectedInvoices} afgekeurde factu(u)r(en) — corrigeer en dien opnieuw in`,
+      title: `${plural(input.rejectedInvoices, "afgekeurde factuur", "afgekeurde facturen")} — corrigeer en dien opnieuw in`,
       href: "/samenwerkingen",
       tone: "attention",
       priority: P.rejected,
@@ -45,7 +46,7 @@ export function cascadeFreelancerActions(input: FreelancerCascadeInput): NextAct
   if (input.draftInvoices > 0) {
     actions.push({
       id: "cascade-draft-invoices",
-      title: `${input.draftInvoices} concept-factuur(en) klaar om in te dienen`,
+      title: `${plural(input.draftInvoices, "concept-factuur", "concept-facturen")} klaar om in te dienen`,
       href: "/samenwerkingen",
       tone: "attention",
       priority: P.submit,
@@ -54,7 +55,7 @@ export function cascadeFreelancerActions(input: FreelancerCascadeInput): NextAct
   if (input.approvedInvoices > 0) {
     actions.push({
       id: "cascade-approved-invoices",
-      title: `${input.approvedInvoices} goedgekeurde factuur(en): markeer de betaling zodra je bent betaald`,
+      title: `${plural(input.approvedInvoices, "goedgekeurde factuur", "goedgekeurde facturen")}: markeer de betaling zodra je bent betaald`,
       href: "/samenwerkingen",
       tone: "info",
       priority: P.payment,
@@ -84,7 +85,7 @@ export function cascadeClientActions(input: ClientCascadeInput): NextAction[] {
   if (input.invoicesToApprove > 0) {
     actions.push({
       id: "cascade-invoices-approve",
-      title: `${input.invoicesToApprove} factuur(en) wachten op je goedkeuring`,
+      title: `${plural(input.invoicesToApprove, "factuur", "facturen")} ${input.invoicesToApprove === 1 ? "wacht" : "wachten"} op je goedkeuring`,
       href: "/samenwerkingen",
       tone: "attention",
       priority: P.approve,

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { runExpiryCheck, type ExpiryState } from "./actions";
+import { plural } from "@/lib/plural";
 
 export function ExpiryButton() {
   const [state, formAction, isPending] = useActionState<ExpiryState, FormData>(
@@ -21,7 +22,9 @@ export function ExpiryButton() {
             ? "Niets te doen: geen verlopen of bijna-verlopen certificaten."
             : [
                 (state.expired ?? 0) > 0 ? `${state.expired} op verlopen gezet` : null,
-                (state.reminded ?? 0) > 0 ? `${state.reminded} herinnering(en) verstuurd` : null,
+                (state.reminded ?? 0) > 0
+                  ? `${plural(state.reminded ?? 0, "herinnering", "herinneringen")} verstuurd`
+                  : null,
               ]
                 .filter(Boolean)
                 .join(" · ") + "."}

@@ -20,6 +20,7 @@ import {
   type ServerImportRow,
   type ImportCommitResult,
 } from "./actions";
+import { plural } from "@/lib/plural";
 
 type RowStatus = { label: string; variant: "success" | "warning" | "danger" | "muted" };
 
@@ -128,7 +129,7 @@ export function ImportWizard({ emailConfigured }: { emailConfigured: boolean }) 
         {result.emailRequested && emailedCount > 0 && (
           <p className="flex items-start gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
             <Mail className="mt-0.5 size-4 shrink-0" aria-hidden />
-            {emailedCount} welkomstmail(s) verstuurd met inloggegevens.
+            {plural(emailedCount, "welkomstmail", "welkomstmails")} verstuurd met inloggegevens.
           </p>
         )}
 
@@ -200,9 +201,13 @@ export function ImportWizard({ emailConfigured }: { emailConfigured: boolean }) 
           <Badge variant="success">{summary.importable - summary.existing} aanmaken</Badge>
           {summary.existing > 0 && <Badge variant="muted">{summary.existing} bestaat al</Badge>}
           {summary.warnings > 0 && (
-            <Badge variant="warning">{summary.warnings} waarschuwing(en)</Badge>
+            <Badge variant="warning">
+              {plural(summary.warnings, "waarschuwing", "waarschuwingen")}
+            </Badge>
           )}
-          {summary.errors > 0 && <Badge variant="danger">{summary.errors} fout(en)</Badge>}
+          {summary.errors > 0 && (
+            <Badge variant="danger">{plural(summary.errors, "fout", "fouten")}</Badge>
+          )}
         </div>
 
         <div className="overflow-hidden rounded-lg border border-border bg-card">

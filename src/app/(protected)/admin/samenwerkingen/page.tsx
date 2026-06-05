@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatDateShortNl } from "@/lib/format-date";
+import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Samenwerkingen overzicht · ZZP Platform" };
 
@@ -109,7 +110,8 @@ export default async function AdminSamenwerkingenPage() {
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       {pendingPerf > 0 && (
                         <span className="text-warning">
-                          {pendingPerf} prestatie(s) wachten op goedkeuring
+                          {plural(pendingPerf, "prestatie", "prestaties")}{" "}
+                          {pendingPerf === 1 ? "wacht" : "wachten"} op goedkeuring
                         </span>
                       )}
                       {pendingInv > 0 && (
