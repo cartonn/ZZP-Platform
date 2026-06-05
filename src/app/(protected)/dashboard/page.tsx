@@ -316,8 +316,11 @@ function RunningCard({ collab }: { collab: RunningCollab }) {
           <p className="truncate font-medium">{collab.jobTitle}</p>
           <p className="truncate text-xs text-muted-foreground">{collab.counterpartyName}</p>
         </div>
-        <Badge variant={TONE_BADGE[stage.tone]}>{stage.label}</Badge>
+        <Badge variant={TONE_BADGE[stage.tone]} className="shrink-0" title={stage.label}>
+          {stage.badgeLabel}
+        </Badge>
       </div>
+      <p className="text-sm text-muted-foreground">{stage.label}</p>
       {collab.complianceWarning && (
         <p className="flex items-center gap-1.5 text-xs font-medium text-danger">
           <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
