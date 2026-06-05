@@ -4,10 +4,11 @@ import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { plural } from "@/lib/plural";
+import { ZzperForm } from "./zzper-form";
 
 export const metadata: Metadata = { title: "ZZP'ers · Franchise" };
 
@@ -35,6 +36,13 @@ export default async function FranchiseZzpersPage() {
         title="ZZP'ers"
         description="De ZZP'ers in je roster — degenen die je in je franchise hebt gebracht."
       />
+
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <h2 className="text-sm font-semibold tracking-tight">Nieuwe ZZP&apos;er</h2>
+          <ZzperForm />
+        </CardContent>
+      </Card>
 
       {freelancers.length === 0 ? (
         <Card>
