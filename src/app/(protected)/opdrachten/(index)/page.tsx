@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Briefcase, ChevronRight, MapPin, Plus, SearchX } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
+import { visibleJobsWhere } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
 import { scoreJobForFreelancer } from "@/lib/matching";
@@ -132,7 +133,9 @@ async function BrowseJobs({
 }) {
   const f = normalizeJobFilters(searchParams);
 
-  const where: Prisma.JobWhereInput = { status: "PUBLISHED" };
+  // Gesloten per tenant: een tenant-ZZP'er ziet alleen diensten van zijn franchise; een directe
+  // ZZP'er alleen platform-opdrachten (tenantId null). ADMIN ziet alles.
+  const where: Prisma.JobWhereInput = { status: "PUBLISHED", ...visibleJobsWhere(actor) };
   if (f.q) where.OR = [{ title: { contains: f.q } }, { description: { contains: f.q } }];
   if (f.industryId) where.industryId = f.industryId;
   if (f.workMode) where.workMode = f.workMode;
