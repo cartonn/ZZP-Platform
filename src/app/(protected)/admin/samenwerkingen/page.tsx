@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Samenwerkingen overzicht · ZZP Platform" };
 
@@ -28,7 +29,7 @@ const DBA_VARIANT: Record<string, "muted" | "warning" | "danger"> = {
 };
 
 function fmt(d: Date | null | undefined) {
-  return d ? d.toISOString().slice(0, 10) : "—";
+  return d ? formatDateShortNl(d) : "—";
 }
 
 export default async function AdminSamenwerkingenPage() {

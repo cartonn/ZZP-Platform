@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { DocumentForm } from "./document-form";
 import { deleteDocument } from "./actions";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Documenten · ZZP Platform" };
 
@@ -65,7 +66,7 @@ export default async function DocumentenPage() {
                     <Badge variant="muted">{KIND_LABEL[doc.kind as DocumentKind]}</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {formatSize(doc.size)} · {doc.createdAt.toISOString().slice(0, 10)}
+                    {formatSize(doc.size)} · {formatDateShortNl(doc.createdAt)}
                     {linked ? " · gekoppeld aan een credential" : ""}
                   </p>
                 </div>

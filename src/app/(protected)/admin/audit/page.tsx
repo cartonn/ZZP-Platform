@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { formatDateTimeNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Audit log · ZZP Platform" };
 
@@ -88,7 +89,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
                   {e.action}
                 </code>
                 <span className="text-xs text-muted-foreground">
-                  {e.createdAt.toISOString().slice(0, 19).replace("T", " ")}
+                  {formatDateTimeNl(e.createdAt)}
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">

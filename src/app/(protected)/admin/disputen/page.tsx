@@ -6,11 +6,12 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Disputen · ZZP Platform" };
 
 function fmt(d: Date | null) {
-  return d ? d.toISOString().slice(0, 10) : "—";
+  return d ? formatDateShortNl(d) : "—";
 }
 
 export default async function AdminDisputenPage() {

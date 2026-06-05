@@ -44,13 +44,13 @@ describe("currentOrNextAvailable", () => {
 
 describe("summarizeAvailability", () => {
   it("'t/m' als het nu dekt", () => {
-    expect(summarizeAvailability(windows, now)).toBe("Beschikbaar t/m 2026-07-01");
+    expect(summarizeAvailability(windows, now)).toBe("Beschikbaar t/m 1 jul 2026");
   });
   it("'vanaf' als het in de toekomst ligt", () => {
     const future = [
       { startDate: d("2026-08-01"), endDate: d("2026-09-01"), type: "LIMITED" as const },
     ];
-    expect(summarizeAvailability(future, now)).toBe("Beperkt beschikbaar vanaf 2026-08-01");
+    expect(summarizeAvailability(future, now)).toBe("Beperkt beschikbaar vanaf 1 aug 2026");
   });
   it("null als er niets inzetbaars is", () => {
     expect(summarizeAvailability([], now)).toBeNull();

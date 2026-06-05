@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatEuro } from "@/lib/invoices";
 import { platformQuarterlySummary } from "@/lib/administration/platform-overview";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Platform Administratie · ZZP Platform" };
 
@@ -18,7 +19,7 @@ const QUARTER_LABEL: Record<number, string> = {
 };
 
 function fmt(d: Date | null | undefined): string {
-  return d ? d.toLocaleDateString("nl-NL") : "—";
+  return d ? formatDateShortNl(d) : "—";
 }
 
 function lifecycleLabel(status: string | null | undefined): string {

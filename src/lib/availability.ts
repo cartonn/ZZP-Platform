@@ -2,6 +2,7 @@
 // Server-side waarheid; UI toont alleen. Pure functies, getest.
 
 import { type AvailabilityWindowType } from "@/lib/enums";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export interface WindowLike {
   startDate: Date;
@@ -31,8 +32,6 @@ export function currentOrNextAvailable<T extends WindowLike>(
   return covering ?? usable[0] ?? null;
 }
 
-const fmt = (d: Date) => d.toISOString().slice(0, 10);
-
 /** Korte NL-samenvatting van de beschikbaarheid, of `null` als er niets inzetbaars is. */
 export function summarizeAvailability(
   windows: readonly WindowLike[],
@@ -42,5 +41,7 @@ export function summarizeAvailability(
   if (!w) return null;
   const label = w.type === "LIMITED" ? "Beperkt beschikbaar" : "Beschikbaar";
   const isNow = w.startDate.getTime() <= now.getTime();
-  return isNow ? `${label} t/m ${fmt(w.endDate)}` : `${label} vanaf ${fmt(w.startDate)}`;
+  return isNow
+    ? `${label} t/m ${formatDateShortNl(w.endDate)}`
+    : `${label} vanaf ${formatDateShortNl(w.startDate)}`;
 }

@@ -40,6 +40,7 @@ import {
 import { PerformanceForm } from "./performance-form";
 import { performanceFormDefaults } from "@/lib/performance-form";
 import { OrtProfileForm } from "./ort-profile-form";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Werkproces · ZZP Platform" };
 
@@ -68,7 +69,7 @@ const INV_STATUS: Record<
 };
 
 function fmt(d: Date | null) {
-  return d ? d.toISOString().slice(0, 10) : null;
+  return d ? formatDateShortNl(d) : null;
 }
 
 function parseOrtSegments(json: string | null | undefined): OrtSegment[] {

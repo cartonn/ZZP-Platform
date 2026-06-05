@@ -31,6 +31,7 @@ import {
 import { changeJobStatus, createApplication } from "../actions";
 import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import { ApplicationForm } from "./application-form";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
 
@@ -170,7 +171,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               </span>
             )}
             {job.industry && <span>{job.industry.name}</span>}
-            {job.startDate && <span>Start: {job.startDate.toISOString().slice(0, 10)}</span>}
+            {job.startDate && <span>Start: {formatDateShortNl(job.startDate)}</span>}
           </div>
 
           <p className="whitespace-pre-line text-sm leading-relaxed">{job.description}</p>

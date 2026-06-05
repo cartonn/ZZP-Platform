@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Berichten · ZZP Platform" };
 
@@ -17,7 +18,7 @@ function relativeTime(d: Date): string {
   if (min < 60) return `${min} min geleden`;
   const h = Math.floor(min / 60);
   if (h < 24) return `${h} uur geleden`;
-  return d.toISOString().slice(0, 10);
+  return formatDateShortNl(d);
 }
 
 export default async function BerichtenPage() {
