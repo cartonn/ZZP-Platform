@@ -106,7 +106,7 @@ export default async function VerificatiesPage() {
                   </Button>
                 )}
 
-                <div className="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-end">
+                <div className="space-y-3 border-t border-border pt-3">
                   <form action={verifyCredential.bind(null, c.id)}>
                     <Button type="submit" size="sm">
                       Goedkeuren
@@ -114,7 +114,7 @@ export default async function VerificatiesPage() {
                   </form>
                   <form
                     action={rejectCredential.bind(null, c.id)}
-                    className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end"
+                    className="flex flex-col gap-2 sm:flex-row sm:items-end"
                   >
                     <div className="flex-1">
                       <label htmlFor={`reason-${c.id}`} className="mb-1 block text-xs font-medium">
