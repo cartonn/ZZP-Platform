@@ -4,6 +4,7 @@
 
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
+import { usersWithEntitlement } from "@/lib/entitlement-guard";
 import { invoiceLifecycleMachine, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import {
   planPaymentReminders,
@@ -68,6 +69,15 @@ export async function runPaymentReminderTask(opts: {
   if (plan.reminders.length === 0 && plan.escalations.length === 0)
     return { markedOverdue, reminded: 0, escalated: 0 };
 
+  // Automatische betalingsherinneringen + aanmaningsladder zijn een betaalde feature (AUTO_REMINDERS).
+  // Alleen facturen van ZZP'ers met dat plan worden gesignaleerd; het OVERDUE-markeren hierboven
+  // blijft voor iedereen gelden (dat is feitelijke statusregistratie, geen premium-signalering).
+  const freelancerIds = [...new Set(candidates.map((c) => c.freelancerUserId))];
+  const entitled = await usersWithEntitlement(freelancerIds, "AUTO_REMINDERS");
+  const entitledInvoiceIds = new Set(
+    candidates.filter((c) => entitled.has(c.freelancerUserId)).map((c) => c.invoiceId),
+  );
+
   const keys = [
     ...plan.reminders.map((r) => r.dedupeKey),
     ...plan.escalations.map((e) => e.dedupeKey),
@@ -77,9 +87,11 @@ export async function runPaymentReminderTask(opts: {
     select: { dedupeKey: true },
   });
   const seen = new Set(existing.map((e) => e.dedupeKey));
-  const fresh = plan.reminders.filter((r) => !seen.has(r.dedupeKey));
+  const fresh = plan.reminders.filter(
+    (r) => !seen.has(r.dedupeKey) && entitledInvoiceIds.has(r.invoiceId),
+  );
   const freshEscalations: PaymentEscalationItem[] = plan.escalations.filter(
-    (e) => !seen.has(e.dedupeKey),
+    (e) => !seen.has(e.dedupeKey) && entitledInvoiceIds.has(e.invoiceId),
   );
 
   // Batch-query voor e-mailadressen van alle betrokken gebruikers.

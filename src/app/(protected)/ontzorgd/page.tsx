@@ -1,7 +1,8 @@
 import { type Metadata } from "next";
 import { redirect } from "next/navigation";
-import { CircleAlert, Clock, PiggyBank, Receipt, Sparkles, TrendingUp } from "lucide-react";
+import { CircleAlert, Clock, Lock, PiggyBank, Receipt, Sparkles, TrendingUp } from "lucide-react";
 import { requireActor } from "@/lib/authz";
+import { userHasEntitlement } from "@/lib/entitlement-guard";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type LedgerEntry } from "@/lib/administration/overview";
@@ -29,6 +30,22 @@ export default async function OntzorgdPage() {
   const actor = await requireActor();
   // Alleen voor ZZP'ers; opdrachtgever/admin hebben een eigen administratie.
   if (actor.role !== "FREELANCER") redirect("/administratie");
+
+  // Het Ontzorgd-dashboard (IB-jaaroverzicht) is een betaalde feature (IB_VOORBEREIDING).
+  if (!(await userHasEntitlement(actor.id, "IB_VOORBEREIDING"))) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <Card>
+          <EmptyState
+            icon={Lock}
+            title="Ontzorgd zit in een betaald plan"
+            description="Upgrade naar Zelf-doen of hoger voor je IB-jaaroverzicht en het ontzorgd-dashboard."
+            action={{ label: "Bekijk abonnementen", href: "/abonnement" }}
+          />
+        </Card>
+      </div>
+    );
+  }
 
   const now = new Date();
   const year = now.getUTCFullYear();
