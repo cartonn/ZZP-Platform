@@ -63,7 +63,7 @@ test("compliance-ripple: ontbrekend vereist certificaat waarschuwt beide partije
   // ZZP'er activeert de samenwerking en ziet de eigen herstelactie.
   await fp.goto("/samenwerkingen");
   const fcard = fp.locator("div.bg-card", { hasText: title });
-  await fcard.getByRole("button", { name: "Markeer als actief" }).click();
+  await fcard.getByRole("button", { name: "Contract ondertekenen" }).click();
   await expect(fp.locator("div.bg-card", { hasText: title }).getByText("Actief")).toBeVisible();
   const fcard2 = fp.locator("div.bg-card", { hasText: title });
   await expect(fcard2.getByText("Je mist een vereist certificaat: VOG.")).toBeVisible();

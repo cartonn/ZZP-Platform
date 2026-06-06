@@ -89,7 +89,7 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
   const collabCard = fp.locator("div.bg-card", { hasText: title });
   await expect(collabCard.getByText("Voorgesteld")).toBeVisible();
   await shot(fp, "23-samenwerkingen");
-  await collabCard.getByRole("button", { name: "Markeer als actief" }).click();
+  await collabCard.getByRole("button", { name: "Contract ondertekenen" }).click();
   await expect(fp.locator("div.bg-card", { hasText: title }).getByText("Actief")).toBeVisible();
 
   // ZZP'er heeft notificaties (bericht + reactie geaccepteerd + samenwerking voorgesteld).
