@@ -5,12 +5,23 @@ import { prisma } from "@/lib/db";
 import {
   sortIdeas,
   parseIdeaSort,
+  isIdeaAudience,
+  isIdeaTheme,
   IDEA_SORTS,
   IDEA_SORT_LABEL,
   IDEA_STATUS_LABEL,
   IDEA_STATUS_VARIANT,
+  IDEA_AUDIENCE_LABEL,
+  IDEA_THEME_LABEL,
 } from "@/lib/ideas";
-import { IDEA_STATUSES, type IdeaStatus } from "@/lib/enums";
+import {
+  IDEA_STATUSES,
+  IDEA_AUDIENCES,
+  IDEA_THEMES,
+  type IdeaStatus,
+  type IdeaAudience,
+  type IdeaTheme,
+} from "@/lib/enums";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +32,7 @@ import { formatDateShortNl } from "@/lib/format-date";
 import { IdeaForm } from "./idea-form";
 import { VoteButton } from "./vote-button";
 import { StatusControl } from "./status-control";
+import { CategoryControl } from "./category-control";
 import { IdeaComments } from "./idea-comments";
 
 export const metadata: Metadata = { title: "Ideeën · ZZP Platform" };
@@ -36,9 +48,18 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
   const sort = parseIdeaSort(first(sp.sort));
   const statusParam = first(sp.status);
   const statusFilter = isIdeaStatus(statusParam) ? statusParam : undefined;
+  const audienceParam = first(sp.audience);
+  const audienceFilter = isIdeaAudience(audienceParam) ? audienceParam : undefined;
+  const themeParam = first(sp.theme);
+  const themeFilter = isIdeaTheme(themeParam) ? themeParam : undefined;
+  const hasFilter = Boolean(statusFilter || audienceFilter || themeFilter);
 
   const rows = await prisma.idea.findMany({
-    where: statusFilter ? { status: statusFilter } : undefined,
+    where: {
+      ...(statusFilter ? { status: statusFilter } : {}),
+      ...(audienceFilter ? { audience: audienceFilter } : {}),
+      ...(themeFilter ? { theme: themeFilter } : {}),
+    },
     include: {
       author: { select: { name: true } },
       _count: { select: { votes: true } },
@@ -56,6 +77,8 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
       title: r.title,
       description: r.description,
       status: r.status as IdeaStatus,
+      audience: r.audience as IdeaAudience,
+      theme: (r.theme as IdeaTheme | null) ?? null,
       declineReason: r.declineReason,
       createdAt: r.createdAt,
       voteCount: r._count.votes,
@@ -115,6 +138,32 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
             </option>
           ))}
         </Select>
+        <Select
+          name="audience"
+          defaultValue={audienceFilter ?? ""}
+          aria-label="Filter op doelgroep"
+          className="h-9 max-w-44 text-sm"
+        >
+          <option value="">Alle doelgroepen</option>
+          {IDEA_AUDIENCES.map((a) => (
+            <option key={a} value={a}>
+              {IDEA_AUDIENCE_LABEL[a]}
+            </option>
+          ))}
+        </Select>
+        <Select
+          name="theme"
+          defaultValue={themeFilter ?? ""}
+          aria-label="Filter op thema"
+          className="h-9 max-w-44 text-sm"
+        >
+          <option value="">{"Alle thema's"}</option>
+          {IDEA_THEMES.map((t) => (
+            <option key={t} value={t}>
+              {IDEA_THEME_LABEL[t]}
+            </option>
+          ))}
+        </Select>
         <Button type="submit" size="sm" variant="secondary">
           Toepassen
         </Button>
@@ -124,10 +173,10 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
         <Card>
           <EmptyState
             icon={Lightbulb}
-            title={statusFilter ? "Geen ideeën in deze status" : "Nog geen ideeën"}
+            title={hasFilter ? "Geen ideeën voor dit filter" : "Nog geen ideeën"}
             description={
-              statusFilter
-                ? "Pas het filter aan om andere ideeën te zien."
+              hasFilter
+                ? "Pas de filters aan om andere ideeën te zien."
                 : "Wees de eerste die een verbetering voorstelt."
             }
           />
@@ -146,7 +195,13 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
                         {IDEA_STATUS_LABEL[idea.status]}
                       </Badge>
                     </div>
-                    <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <Badge variant="muted">{IDEA_AUDIENCE_LABEL[idea.audience]}</Badge>
+                      {idea.theme && (
+                        <Badge variant="default">{IDEA_THEME_LABEL[idea.theme]}</Badge>
+                      )}
+                    </div>
+                    <p className="mt-1.5 whitespace-pre-line text-sm text-muted-foreground">
                       {idea.description}
                     </p>
                     {idea.status === "DECLINED" && idea.declineReason && (
@@ -158,7 +213,15 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
                       {idea.authorName} · {formatDateShortNl(idea.createdAt)}
                     </p>
                     {isAdmin && (
-                      <StatusControl ideaId={idea.id} status={idea.status} title={idea.title} />
+                      <>
+                        <StatusControl ideaId={idea.id} status={idea.status} title={idea.title} />
+                        <CategoryControl
+                          ideaId={idea.id}
+                          audience={idea.audience}
+                          theme={idea.theme}
+                          title={idea.title}
+                        />
+                      </>
                     )}
                     <IdeaComments ideaId={idea.id} comments={idea.comments} />
                   </div>

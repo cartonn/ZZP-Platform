@@ -6,16 +6,29 @@ import { z } from "zod";
 import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { ideaStatusSchema, type IdeaStatus } from "@/lib/enums";
+import {
+  ideaAudienceSchema,
+  ideaStatusSchema,
+  ideaThemeSchema,
+  type IdeaStatus,
+} from "@/lib/enums";
 import { canIdeaTransition, ideaStatusRequiresReason, IDEA_STATUS_LABEL } from "@/lib/ideas";
 
 export type IdeaFormState =
   | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
   | undefined;
 
+// Thema is optioneel: een lege keuze betekent "geen specifiek thema" (null).
+const optionalThemeSchema = z.preprocess(
+  (v) => (v === "" || v == null ? undefined : v),
+  ideaThemeSchema.optional(),
+);
+
 const ideaSchema = z.object({
   title: z.string().trim().min(4, "Geef een korte, duidelijke titel.").max(140),
   description: z.string().trim().min(10, "Beschrijf je idee in iets meer detail.").max(4000),
+  audience: ideaAudienceSchema.default("PLATFORM"),
+  theme: optionalThemeSchema,
 });
 
 /** Dien een idee in. De indiener stemt er automatisch op (hij staat erachter). */
@@ -31,6 +44,8 @@ export async function createIdea(_prev: IdeaFormState, formData: FormData): Prom
   const parsed = ideaSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description"),
+    audience: formData.get("audience") ?? undefined,
+    theme: formData.get("theme"),
   });
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
@@ -46,6 +61,8 @@ export async function createIdea(_prev: IdeaFormState, formData: FormData): Prom
       authorId: actor.id,
       title: parsed.data.title,
       description: parsed.data.description,
+      audience: parsed.data.audience,
+      theme: parsed.data.theme ?? null,
       votes: { create: { userId: actor.id } },
     },
   });
@@ -54,7 +71,11 @@ export async function createIdea(_prev: IdeaFormState, formData: FormData): Prom
     action: "IDEA_CREATED",
     entityType: "Idea",
     entityId: idea.id,
-    metadata: { title: parsed.data.title },
+    metadata: {
+      title: parsed.data.title,
+      audience: parsed.data.audience,
+      theme: parsed.data.theme ?? null,
+    },
   });
 
   revalidatePath("/ideeen");
@@ -176,6 +197,38 @@ export async function addComment(ideaId: string, formData: FormData): Promise<vo
       },
     });
   }
+
+  revalidatePath("/ideeen");
+}
+
+const categorySchema = z.object({
+  audience: ideaAudienceSchema,
+  theme: optionalThemeSchema,
+});
+
+/** Beheerder corrigeert de doelgroep + het thema van een idee. Audit van de wijziging. */
+export async function setIdeaCategory(ideaId: string, formData: FormData): Promise<void> {
+  const actor = await requireRole("ADMIN");
+  const parsed = categorySchema.safeParse({
+    audience: formData.get("audience"),
+    theme: formData.get("theme"),
+  });
+  if (!parsed.success) return;
+
+  const idea = await prisma.idea.findUnique({ where: { id: ideaId }, select: { id: true } });
+  if (!idea) return; // verwijderd of onbekend id — nette no-op
+
+  await prisma.idea.update({
+    where: { id: ideaId },
+    data: { audience: parsed.data.audience, theme: parsed.data.theme ?? null },
+  });
+  await audit({
+    actorId: actor.id,
+    action: "IDEA_CATEGORIZED",
+    entityType: "Idea",
+    entityId: ideaId,
+    metadata: { audience: parsed.data.audience, theme: parsed.data.theme ?? null },
+  });
 
   revalidatePath("/ideeen");
 }

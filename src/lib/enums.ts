@@ -91,6 +91,17 @@ export const IDEA_TRANSITIONS: Record<IdeaStatus, readonly IdeaStatus[]> = {
   DECLINED: ["OPEN"],
 };
 
+// Categorisering van een idee, in twee onafhankelijke assen zodat de box beheersbaar blijft bij
+// honderden ideeën. Doelgroep (audience) = wie het raakt; PLATFORM is de catch-all/default.
+export const IDEA_AUDIENCES = ["PLATFORM", "BROKER", "FREELANCER", "CLIENT"] as const;
+export type IdeaAudience = (typeof IDEA_AUDIENCES)[number];
+export const ideaAudienceSchema = z.enum(IDEA_AUDIENCES);
+
+// Thema (theme) = waar het idee inhoudelijk over gaat. Optioneel: niet elk idee heeft een thema.
+export const IDEA_THEMES = ["COMPLIANCE", "BILLING"] as const;
+export type IdeaTheme = (typeof IDEA_THEMES)[number];
+export const ideaThemeSchema = z.enum(IDEA_THEMES);
+
 export const CONTRACT_STATUSES = ["DRAFT", "SENT", "SIGNED"] as const;
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
 export const contractStatusSchema = z.enum(CONTRACT_STATUSES);
