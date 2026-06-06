@@ -6,6 +6,7 @@ import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { assertCollaborationTransition, CollaborationTransitionError } from "@/lib/collaborations";
+import { signContract, CascadeError } from "@/lib/cascade/commands";
 import { type CollaborationStatus, collaborationStatusSchema } from "@/lib/enums";
 import { collaborationProposalSchema } from "@/lib/validation";
 
@@ -125,6 +126,13 @@ export async function changeCollaborationStatus(
     throw e;
   }
 
+  // Een samenwerking wordt uitsluitend actief via een ondertekend contract (signContractAction /
+  // signContractFromList), niet via een losse statuswijziging. Dit blokkeert het oude
+  // "Markeer als actief"-pad zodat er nooit een actieve inhuur zonder contract ontstaat.
+  if (targetStatus === "ACTIVE") {
+    throw new Error("Onderteken eerst het contract om de samenwerking te activeren.");
+  }
+
   const otherUserId = partyUserIds.find((id) => id !== actor.id)!;
   await prisma.$transaction([
     prisma.collaboration.update({ where: { id: collaborationId }, data: { status: targetStatus } }),
@@ -149,4 +157,22 @@ export async function changeCollaborationStatus(
   ]);
 
   revalidatePath("/samenwerkingen");
+}
+
+/**
+ * Contract ondertekenen vanaf het samenwerkingen-overzicht. Hergebruikt de cascade-command
+ * signContract (zet atomair contractStatus=SIGNED + status=ACTIVE). De enige manier om een
+ * samenwerking te activeren — vervangt het oude losse "Markeer als actief".
+ */
+export async function signContractFromList(collaborationId: string): Promise<void> {
+  const actor = await requireActor();
+  try {
+    await signContract(actor, collaborationId);
+  } catch (e) {
+    if (e instanceof CascadeError) throw new Error(e.message);
+    throw e;
+  }
+  revalidatePath("/samenwerkingen");
+  revalidatePath("/acties");
+  revalidatePath("/dashboard");
 }

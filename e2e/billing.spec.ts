@@ -60,7 +60,7 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
   await fp.goto("/samenwerkingen");
   await fp
     .locator("div.bg-card", { hasText: title })
-    .getByRole("button", { name: "Markeer als actief" })
+    .getByRole("button", { name: "Contract ondertekenen" })
     .click();
   await expect(fp.locator("div.bg-card", { hasText: title }).getByText("Actief")).toBeVisible();
 
