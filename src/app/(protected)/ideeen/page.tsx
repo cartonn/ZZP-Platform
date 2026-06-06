@@ -1,9 +1,16 @@
 import { type Metadata } from "next";
-import { ChevronUp, Lightbulb } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { rankIdeas, IDEA_STATUS_LABEL, IDEA_STATUS_VARIANT } from "@/lib/ideas";
-import { IDEA_TRANSITIONS, type IdeaStatus } from "@/lib/enums";
+import {
+  sortIdeas,
+  parseIdeaSort,
+  IDEA_SORTS,
+  IDEA_SORT_LABEL,
+  IDEA_STATUS_LABEL,
+  IDEA_STATUS_VARIANT,
+} from "@/lib/ideas";
+import { IDEA_STATUSES, type IdeaStatus } from "@/lib/enums";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,33 +18,57 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShortNl } from "@/lib/format-date";
-import { cn } from "@/lib/utils";
 import { IdeaForm } from "./idea-form";
-import { toggleVote, setIdeaStatus } from "./actions";
+import { VoteButton } from "./vote-button";
+import { StatusControl } from "./status-control";
+import { IdeaComments } from "./idea-comments";
 
 export const metadata: Metadata = { title: "Ideeën · ZZP Platform" };
 
-export default async function IdeeenPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+const isIdeaStatus = (v: string): v is IdeaStatus =>
+  (IDEA_STATUSES as readonly string[]).includes(v);
+
+export default async function IdeeenPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await requireActor();
+  const sp = await searchParams;
+  const sort = parseIdeaSort(first(sp.sort));
+  const statusParam = first(sp.status);
+  const statusFilter = isIdeaStatus(statusParam) ? statusParam : undefined;
+
   const rows = await prisma.idea.findMany({
+    where: statusFilter ? { status: statusFilter } : undefined,
     include: {
       author: { select: { name: true } },
       _count: { select: { votes: true } },
       votes: { where: { userId: actor.id }, select: { userId: true } },
+      comments: {
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { name: true } } },
+      },
     },
   });
 
-  const ideas = rankIdeas(
+  const ideas = sortIdeas(
     rows.map((r) => ({
       id: r.id,
       title: r.title,
       description: r.description,
       status: r.status as IdeaStatus,
+      declineReason: r.declineReason,
       createdAt: r.createdAt,
       voteCount: r._count.votes,
       hasVoted: r.votes.length > 0,
       authorName: r.author.name,
+      comments: r.comments.map((c) => ({
+        id: c.id,
+        authorName: c.author.name,
+        body: c.body,
+        createdAt: c.createdAt,
+      })),
     })),
+    sort,
   );
   const isAdmin = actor.role === "ADMIN";
 
@@ -55,12 +86,50 @@ export default async function IdeeenPage() {
         </CardContent>
       </Card>
 
+      <form
+        method="get"
+        className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3"
+      >
+        <Select
+          name="sort"
+          defaultValue={sort}
+          aria-label="Sorteren"
+          className="h-9 max-w-44 text-sm"
+        >
+          {IDEA_SORTS.map((s) => (
+            <option key={s} value={s}>
+              {IDEA_SORT_LABEL[s]}
+            </option>
+          ))}
+        </Select>
+        <Select
+          name="status"
+          defaultValue={statusFilter ?? ""}
+          aria-label="Filter op status"
+          className="h-9 max-w-44 text-sm"
+        >
+          <option value="">Alle statussen</option>
+          {IDEA_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {IDEA_STATUS_LABEL[s]}
+            </option>
+          ))}
+        </Select>
+        <Button type="submit" size="sm" variant="secondary">
+          Toepassen
+        </Button>
+      </form>
+
       {ideas.length === 0 ? (
         <Card>
           <EmptyState
             icon={Lightbulb}
-            title="Nog geen ideeën"
-            description="Wees de eerste die een verbetering voorstelt."
+            title={statusFilter ? "Geen ideeën in deze status" : "Nog geen ideeën"}
+            description={
+              statusFilter
+                ? "Pas het filter aan om andere ideeën te zien."
+                : "Wees de eerste die een verbetering voorstelt."
+            }
           />
         </Card>
       ) : (
@@ -80,12 +149,18 @@ export default async function IdeeenPage() {
                     <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
                       {idea.description}
                     </p>
+                    {idea.status === "DECLINED" && idea.declineReason && (
+                      <p className="mt-2 rounded-md bg-danger/5 px-3 py-2 text-sm text-danger">
+                        <span className="font-medium">Afgewezen:</span> {idea.declineReason}
+                      </p>
+                    )}
                     <p className="mt-2 text-xs text-muted-foreground">
                       {idea.authorName} · {formatDateShortNl(idea.createdAt)}
                     </p>
                     {isAdmin && (
                       <StatusControl ideaId={idea.id} status={idea.status} title={idea.title} />
                     )}
+                    <IdeaComments ideaId={idea.id} comments={idea.comments} />
                   </div>
                 </CardContent>
               </Card>
@@ -94,71 +169,5 @@ export default async function IdeeenPage() {
         </ul>
       )}
     </div>
-  );
-}
-
-/** Stem-knop: toont de telling en of jij gestemd hebt; klikken togglet (server-side waarheid). */
-function VoteButton({
-  ideaId,
-  count,
-  hasVoted,
-}: {
-  ideaId: string;
-  count: number;
-  hasVoted: boolean;
-}) {
-  return (
-    <form action={toggleVote.bind(null, ideaId)} className="shrink-0">
-      <button
-        type="submit"
-        aria-pressed={hasVoted}
-        aria-label={hasVoted ? "Stem intrekken" : "Stem op dit idee"}
-        className={cn(
-          "focus-ring flex w-12 flex-col items-center gap-0.5 rounded-md border py-1.5 transition-colors",
-          hasVoted
-            ? "border-primary bg-accent text-primary"
-            : "border-border text-muted-foreground hover:border-foreground/40",
-        )}
-      >
-        <ChevronUp className="size-4" aria-hidden />
-        <span className="text-sm font-semibold tabular-nums">{count}</span>
-      </button>
-    </form>
-  );
-}
-
-/** Beheerder zet de status van een idee — alleen geldige overgangen (incl. de huidige status). */
-function StatusControl({
-  ideaId,
-  status,
-  title,
-}: {
-  ideaId: string;
-  status: IdeaStatus;
-  title: string;
-}) {
-  const options: IdeaStatus[] = [status, ...IDEA_TRANSITIONS[status]];
-  return (
-    <form
-      action={setIdeaStatus.bind(null, ideaId)}
-      className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3"
-    >
-      <span className="text-xs text-muted-foreground">Status:</span>
-      <Select
-        name="status"
-        defaultValue={status}
-        aria-label={`Status van idee: ${title}`}
-        className="h-8 max-w-40 text-sm"
-      >
-        {options.map((s) => (
-          <option key={s} value={s}>
-            {IDEA_STATUS_LABEL[s]}
-          </option>
-        ))}
-      </Select>
-      <Button type="submit" size="xs" variant="secondary">
-        Opslaan
-      </Button>
-    </form>
   );
 }

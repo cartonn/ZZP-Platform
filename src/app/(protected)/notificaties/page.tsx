@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   FileCheck,
   Workflow,
+  Lightbulb,
 } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -35,6 +36,7 @@ const CATEGORY_ICON: Record<NotificationCategory, typeof Bell> = {
   dispute: AlertTriangle,
   credential: FileCheck,
   collaboration: Handshake,
+  idea: Lightbulb,
   system: Bell,
 };
 
