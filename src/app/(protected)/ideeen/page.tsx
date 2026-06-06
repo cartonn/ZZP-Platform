@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
-import { ChevronUp, Lightbulb } from "lucide-react";
+import Link from "next/link";
+import { ChevronUp, Lightbulb, Search } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { rankIdeas, IDEA_STATUS_LABEL, IDEA_STATUS_VARIANT } from "@/lib/ideas";
@@ -8,18 +9,26 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShortNl } from "@/lib/format-date";
+import { plural } from "@/lib/plural";
 import { cn } from "@/lib/utils";
 import { IdeaForm } from "./idea-form";
 import { toggleVote, setIdeaStatus } from "./actions";
 
 export const metadata: Metadata = { title: "Ideeën · ZZP Platform" };
 
-export default async function IdeeenPage() {
+export default async function IdeeenPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const actor = await requireActor();
+  const q = (await searchParams).q?.trim() ?? "";
   const rows = await prisma.idea.findMany({
+    where: q ? { OR: [{ title: { contains: q } }, { description: { contains: q } }] } : undefined,
     include: {
       author: { select: { name: true } },
       _count: { select: { votes: true } },
@@ -55,13 +64,55 @@ export default async function IdeeenPage() {
         </CardContent>
       </Card>
 
+      <form method="get" className="flex items-center gap-2" role="search">
+        <div className="relative flex-1">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Zoek in ideeën…"
+            aria-label="Zoek in ideeën"
+            className="pl-9"
+          />
+        </div>
+        <Button type="submit" variant="secondary">
+          Zoeken
+        </Button>
+        {q && (
+          <Link
+            href="/ideeen"
+            className="focus-ring text-sm text-muted-foreground hover:text-foreground"
+          >
+            Wissen
+          </Link>
+        )}
+      </form>
+
+      {q && (
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          {plural(ideas.length, "idee", "ideeën")} voor “{q}”.
+        </p>
+      )}
+
       {ideas.length === 0 ? (
         <Card>
-          <EmptyState
-            icon={Lightbulb}
-            title="Nog geen ideeën"
-            description="Wees de eerste die een verbetering voorstelt."
-          />
+          {q ? (
+            <EmptyState
+              icon={Search}
+              title="Geen ideeën gevonden"
+              description={`Geen idee komt overeen met “${q}”. Probeer andere woorden of dien je idee zelf in.`}
+            />
+          ) : (
+            <EmptyState
+              icon={Lightbulb}
+              title="Nog geen ideeën"
+              description="Wees de eerste die een verbetering voorstelt."
+            />
+          )}
         </Card>
       ) : (
         <ul className="space-y-3">

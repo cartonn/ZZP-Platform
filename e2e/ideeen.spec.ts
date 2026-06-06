@@ -44,6 +44,18 @@ test("ideeënbox: indienen, upvote togglen en (admin) status zetten", async ({ p
   await card.getByRole("button", { name: "Stem intrekken" }).click();
   await expect(card.getByRole("button", { name: "Stem op dit idee" })).toBeVisible();
 
+  // --- Zoeken: filtert op titel/omschrijving ---
+  await page.getByRole("searchbox", { name: "Zoek in ideeën" }).fill("Mobiele");
+  await page.getByRole("button", { name: "Zoeken" }).click();
+  await page.waitForURL(/\?q=Mobiele/);
+  await expect(page.getByText(MOBIEL)).toBeVisible();
+  await expect(page.getByText("Donkere modus voor het hele platform")).toHaveCount(0);
+  await shot(page, "ideeen-zoeken");
+  // Wissen → alles weer zichtbaar.
+  await page.getByRole("link", { name: "Wissen" }).click();
+  await page.waitForURL(/\/ideeen$/);
+  await expect(page.getByText("Donkere modus voor het hele platform")).toBeVisible();
+
   // --- Admin: status van een idee zetten ---
   const actx = await browser.newContext();
   const apage = await actx.newPage();
