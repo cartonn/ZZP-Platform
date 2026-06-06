@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
@@ -54,18 +55,26 @@ export async function proposeCollaboration(
   }
   const data = parsed.data;
 
-  const collaboration = await prisma.collaboration.create({
-    data: {
-      jobId: application.job.id,
-      applicationId,
-      freelancerId: application.freelancer.id,
-      companyId: application.job.companyId,
-      status: "PROPOSED",
-      rate: data.rate ?? null,
-      startDate: data.startDate ?? null,
-      endDate: data.endDate ?? null,
-    },
-  });
+  let collaboration;
+  try {
+    collaboration = await prisma.collaboration.create({
+      data: {
+        jobId: application.job.id,
+        applicationId,
+        freelancerId: application.freelancer.id,
+        companyId: application.job.companyId,
+        status: "PROPOSED",
+        rate: data.rate ?? null,
+        startDate: data.startDate ?? null,
+        endDate: data.endDate ?? null,
+      },
+    });
+  } catch (e) {
+    // Gelijktijdig voorstel op dezelfde reactie → applicationId @unique. Nette melding i.p.v. 500.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")
+      return { error: "Er bestaat al een samenwerking voor deze reactie." };
+    throw e;
+  }
 
   await prisma.$transaction([
     prisma.notification.create({
