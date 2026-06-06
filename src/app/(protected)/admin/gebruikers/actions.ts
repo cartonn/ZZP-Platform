@@ -112,8 +112,10 @@ export async function anonymizeUser(userId: string): Promise<void> {
     const storage = getStorage();
     await Promise.all(
       documents.map((d) =>
-        storage.delete(d.storageKey).catch(() => {
-          /* opslag-opruiming is best-effort; de DB-anonimisering is al definitief */
+        storage.delete(d.storageKey).catch((err) => {
+          // Opslag-opruiming is best-effort; de DB-anonimisering is al definitief. Wél loggen,
+          // want dit is het AVG-vergetelheidspad — een achtergebleven bestand moet zichtbaar zijn.
+          console.error("[gebruikers] AVG-storage-opruiming mislukt voor key", d.storageKey, err);
         }),
       ),
     );

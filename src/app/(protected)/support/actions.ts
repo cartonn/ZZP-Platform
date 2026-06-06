@@ -143,9 +143,11 @@ export async function replyToTicket(ticketId: string, formData: FormData): Promi
     data: { ticketId, authorId: actor.id, authorKind: "USER", body: parsed.data.body },
   });
 
-  // Een reactie op een opgelost ticket heropent het.
-  if (ticket.status === "RESOLVED") {
-    assertSupportTransition("RESOLVED", "REOPENED");
+  // Een reactie op een opgelost OF zelf-beantwoord ticket heropent het, zodat het in de
+  // helpdesk-wachtrij komt — AUTO_ANSWERED staat daar anders niet in en het vervolgbericht
+  // zou stil verdwijnen.
+  if (ticket.status === "RESOLVED" || ticket.status === "AUTO_ANSWERED") {
+    assertSupportTransition(ticket.status as SupportTicketStatus, "REOPENED");
     await prisma.supportTicket.update({ where: { id: ticketId }, data: { status: "REOPENED" } });
   }
 
