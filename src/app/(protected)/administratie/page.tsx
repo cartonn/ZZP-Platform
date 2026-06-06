@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
-import { Receipt } from "lucide-react";
+import { Receipt, Lock } from "lucide-react";
 import { requireActor } from "@/lib/authz";
+import { userHasEntitlement } from "@/lib/entitlement-guard";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { type LedgerParty } from "@/lib/administration/ledger";
@@ -22,6 +23,24 @@ const QUARTER_LABEL = ["1e kwartaal", "2e kwartaal", "3e kwartaal", "4e kwartaal
 
 export default async function AdministratiePage() {
   const actor = await requireActor();
+
+  // Boekhouding (grootboek/btw/debiteuren) is een betaalde feature (ADMINISTRATIE). Admin mag altijd.
+  if (actor.role !== "ADMIN" && !(await userHasEntitlement(actor.id, "ADMINISTRATIE"))) {
+    return (
+      <div className="mx-auto max-w-4xl space-y-6">
+        <PageHeader title="Boekhouding" description="Onderdeel van een betaald plan." />
+        <Card>
+          <EmptyState
+            icon={Lock}
+            title="Boekhouding zit in een betaald plan"
+            description="Upgrade naar Zelf-doen of hoger voor je grootboek, btw per kwartaal en debiteuren/crediteuren."
+            action={{ label: "Bekijk abonnementen", href: "/abonnement" }}
+          />
+        </Card>
+      </div>
+    );
+  }
+
   // Admin heeft geen eigen administratie (alleen ZZP'er/opdrachtgever); toon dan leeg.
   const party: LedgerParty = actor.role === "CLIENT" ? "CLIENT" : "FREELANCER";
   const year = new Date().getFullYear();
