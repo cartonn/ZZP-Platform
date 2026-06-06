@@ -424,6 +424,9 @@ export async function approvePerformance(actor: Actor, performanceId: string): P
       subjectType: "Performance",
       subjectId: performanceId,
       correlationId: perf.collaborationId,
+      // Eenmalige overgang: dedupeKey maakt een dubbele goedkeuring een nette no-op i.p.v. een
+      // P2002 op Invoice.performanceId (de concept-factuur wordt dan niet nogmaals aangemaakt).
+      dedupeKey: `performance-approved-${performanceId}`,
     },
     effects,
     {
@@ -586,6 +589,8 @@ export async function approveInvoice(actor: Actor, invoiceId: string): Promise<v
       subjectType: "Invoice",
       subjectId: invoiceId,
       correlationId: inv.correlationId,
+      // Eenmalige overgang (SUBMITTED→APPROVED): dedupeKey maakt een dubbele goedkeuring idempotent.
+      dedupeKey: `invoice-approved-${invoiceId}`,
     },
     effects,
     {
@@ -769,6 +774,8 @@ export async function creditInvoice(
       subjectType: "Invoice",
       subjectId: invoiceId,
       correlationId: inv.correlationId,
+      // Eenmalige overgang: dedupeKey maakt een dubbele creditering idempotent.
+      dedupeKey: `invoice-credited-${invoiceId}`,
     },
     effects,
     {
