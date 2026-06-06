@@ -76,7 +76,9 @@ export async function updateCompanyProfile(
     if (previous)
       await getStorage()
         .delete(previous)
-        .catch(() => {});
+        .catch((err) =>
+          console.error("[bedrijf] storage-opruiming mislukt voor key", previous, err),
+        );
   }
 
   await prisma.company.update({

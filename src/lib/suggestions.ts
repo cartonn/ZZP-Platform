@@ -60,15 +60,22 @@ export async function suggestedFreelancersForJob(
       skills: { include: { skill: { select: { name: true } } } },
       credentialRequirements: true,
       applications: { select: { freelancerId: true } },
+      tenant: { select: { openOverflow: true } },
     },
   });
   if (!job || job.status !== "PUBLISHED") return [];
 
   const applied = new Set(job.applications.map((a) => a.freelancerId));
+  // Gesloten per tenant: voor een tenant-dienst worden alleen ZZP'ers uit de eigen franchise
+  // gesuggereerd; voor een platform-opdracht alleen niet-tenant ZZP'ers. Maar als de franchise de
+  // dienst heeft opengesteld (openOverflow), is hij platform-breed zichtbaar — dan suggereren we
+  // ook ZZP'ers buiten de eigen franchise, spiegelend aan visibleJobsWhere/canViewJob.
+  const profileScope =
+    job.tenantId && job.tenant?.openOverflow
+      ? { visibility: "PUBLIC" as const }
+      : { visibility: "PUBLIC" as const, tenantId: job.tenantId };
   const profiles = await prisma.freelancerProfile.findMany({
-    // Gesloten per tenant: voor een tenant-dienst worden alleen ZZP'ers uit de eigen franchise
-    // gesuggereerd; voor een platform-opdracht alleen niet-tenant ZZP'ers (job.tenantId is de bron).
-    where: { visibility: "PUBLIC", tenantId: job.tenantId },
+    where: profileScope,
     orderBy: { updatedAt: "desc" },
     take: SCAN_LIMIT,
     include: {

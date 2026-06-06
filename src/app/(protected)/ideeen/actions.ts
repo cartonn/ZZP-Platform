@@ -193,6 +193,7 @@ export async function addComment(ideaId: string, formData: FormData): Promise<vo
         userId: idea.authorId,
         type: "IDEA_COMMENT",
         title: `Nieuwe reactie op je idee: ${idea.title}`,
+        body: "Iemand heeft op je idee gereageerd.",
         link: "/ideeen",
       },
     });

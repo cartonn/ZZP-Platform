@@ -58,7 +58,7 @@ async function putBlob(ownerId: string, type: CredentialType, file: File) {
   };
 }
 
-async function deleteDocumentById(documentId: string | null) {
+async function deleteDocumentById(actorId: string, documentId: string | null) {
   if (!documentId) return;
   const doc = await prisma.document.findUnique({
     where: { id: documentId },
@@ -68,7 +68,17 @@ async function deleteDocumentById(documentId: string | null) {
   await prisma.document.delete({ where: { id: documentId } });
   await getStorage()
     .delete(doc.storageKey)
-    .catch(() => {});
+    .catch((err) =>
+      console.error("[certificaten] storage-opruiming mislukt voor key", doc.storageKey, err),
+    );
+  // Verwijderen van een (gevoelig) document is een audit-waardige gebeurtenis, ook als het via de
+  // credential-levenscyclus loopt (CLAUDE.md regel 5).
+  await audit({
+    actorId,
+    action: "DOCUMENT_DELETED",
+    entityType: "Document",
+    entityId: documentId,
+  });
 }
 
 /**
@@ -139,7 +149,7 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
           });
           if (resubmit) await tx.verificationRequest.create({ data: { credentialId } });
         });
-        await deleteDocumentById(previousDocumentId);
+        await deleteDocumentById(actor.id, previousDocumentId);
       } else {
         await prisma.credential.update({ where: { id: credentialId }, data: fields });
       }
@@ -261,7 +271,7 @@ export async function deleteCredential(credentialId: string): Promise<void> {
   const credential = await loadOwnedCredential(profile.id, credentialId);
 
   await prisma.credential.delete({ where: { id: credentialId } });
-  await deleteDocumentById(credential.documentId);
+  await deleteDocumentById(actor.id, credential.documentId);
   await audit({
     actorId: actor.id,
     action: "CREDENTIAL_DELETED",

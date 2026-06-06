@@ -89,7 +89,9 @@ export async function deleteDocument(documentId: string): Promise<void> {
   await prisma.document.delete({ where: { id: documentId } });
   await getStorage()
     .delete(doc.storageKey)
-    .catch(() => {});
+    .catch((err) =>
+      console.error("[documenten] storage-opruiming mislukt voor key", doc.storageKey, err),
+    );
   await audit({
     actorId: actor.id,
     action: "DOCUMENT_DELETED",

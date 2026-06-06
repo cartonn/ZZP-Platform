@@ -73,11 +73,26 @@ export async function sendMessage(
 
 export async function markConversationRead(conversationId: string): Promise<void> {
   const actor = await requireActor();
-  await prisma.conversationParticipant.updateMany({
-    where: { conversationId, userId: actor.id },
-    data: { lastReadAt: new Date() },
-  });
+  const now = new Date();
+  // Markeer het gesprek gelezen én ruim de bijbehorende bericht-notificaties op, zodat de
+  // notificatielijst en de bel-teller niet stale blijven na het lezen van het gesprek.
+  await prisma.$transaction([
+    prisma.conversationParticipant.updateMany({
+      where: { conversationId, userId: actor.id },
+      data: { lastReadAt: now },
+    }),
+    prisma.notification.updateMany({
+      where: {
+        userId: actor.id,
+        type: "MESSAGE",
+        link: `/berichten/${conversationId}`,
+        readAt: null,
+      },
+      data: { readAt: now },
+    }),
+  ]);
   revalidatePath("/berichten");
+  revalidatePath("/notificaties");
 }
 
 /** CLIENT start (of heropent) een gesprek met de ZZP'er van een reactie. */

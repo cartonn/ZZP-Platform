@@ -32,19 +32,22 @@ export async function verifyCredential(credentialId: string): Promise<void> {
     throw e;
   }
 
-  await prisma.$transaction([
-    prisma.credential.update({
-      where: { id: credentialId },
+  await prisma.$transaction(async (tx) => {
+    // Status-guard binnen de transactie: alleen verwerken als de credential nog in `from` staat.
+    // Een gelijktijdige tweede beslissing matcht 0 rijen en breekt af — geen dubbele audit/notificatie.
+    const res = await tx.credential.updateMany({
+      where: { id: credentialId, status: from },
       data: { status: next, verifiedAt: new Date(), rejectionReason: null },
-    }),
-    prisma.credentialVerification.create({
+    });
+    if (res.count === 0) throw new Error("Deze aanvraag is al beoordeeld.");
+    await tx.credentialVerification.create({
       data: { credentialId, verifierId: actor.id, decision: "VERIFIED" },
-    }),
-    prisma.verificationRequest.updateMany({
+    });
+    await tx.verificationRequest.updateMany({
       where: { credentialId, status: "PENDING" },
       data: { status: "RESOLVED", resolvedAt: new Date() },
-    }),
-    prisma.notification.create({
+    });
+    await tx.notification.create({
       data: {
         userId: credential.freelancerProfile.userId,
         type: "CREDENTIAL_VERIFIED",
@@ -52,8 +55,8 @@ export async function verifyCredential(credentialId: string): Promise<void> {
         body: `Je certificaat "${credential.title}" is geverifieerd.`,
         link: "/certificaten",
       },
-    }),
-    prisma.auditLog.create({
+    });
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "CREDENTIAL_VERIFIED",
@@ -61,8 +64,8 @@ export async function verifyCredential(credentialId: string): Promise<void> {
         entityId: credentialId,
         metadata: { from, to: next },
       }),
-    }),
-  ]);
+    });
+  });
 
   revalidatePath("/admin/verificaties");
   revalidatePath("/acties");
@@ -84,19 +87,20 @@ export async function rejectCredential(credentialId: string, formData: FormData)
     throw e; // "Een afwijzing vereist een reden."
   }
 
-  await prisma.$transaction([
-    prisma.credential.update({
-      where: { id: credentialId },
+  await prisma.$transaction(async (tx) => {
+    const res = await tx.credential.updateMany({
+      where: { id: credentialId, status: from },
       data: { status: next, rejectionReason: reason, verifiedAt: null },
-    }),
-    prisma.credentialVerification.create({
+    });
+    if (res.count === 0) throw new Error("Deze aanvraag is al beoordeeld.");
+    await tx.credentialVerification.create({
       data: { credentialId, verifierId: actor.id, decision: "REJECTED", reason },
-    }),
-    prisma.verificationRequest.updateMany({
+    });
+    await tx.verificationRequest.updateMany({
       where: { credentialId, status: "PENDING" },
       data: { status: "RESOLVED", resolvedAt: new Date() },
-    }),
-    prisma.notification.create({
+    });
+    await tx.notification.create({
       data: {
         userId: credential.freelancerProfile.userId,
         type: "CREDENTIAL_REJECTED",
@@ -104,8 +108,8 @@ export async function rejectCredential(credentialId: string, formData: FormData)
         body: `Je certificaat "${credential.title}" is afgewezen: ${reason}`,
         link: "/certificaten",
       },
-    }),
-    prisma.auditLog.create({
+    });
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "CREDENTIAL_REJECTED",
@@ -113,8 +117,8 @@ export async function rejectCredential(credentialId: string, formData: FormData)
         entityId: credentialId,
         metadata: { from, to: next, reason },
       }),
-    }),
-  ]);
+    });
+  });
 
   revalidatePath("/admin/verificaties");
   revalidatePath("/acties");
