@@ -988,15 +988,18 @@ async function main() {
       title: string;
       description: string;
       status?: string;
+      audience?: string;
+      theme?: string;
       declineReason?: string;
       voters: string[];
       comments?: [string, string][];
     }[] = [
-      { author: "sanne", title: "Donkere modus voor het hele platform", description: "Een rustige donkere modus zou prettig werken tijdens avond- en nachtdiensten.", voters: ["youssef", "lisa", "daan", "kevin"], comments: [["lisa", "Ja graag — vooral 's nachts is het scherm nu erg fel."], ["daan", "Met een automatische schakeling op zonsondergang zou top zijn."]] }, // prettier-ignore
-      { author: "lisa", title: "Facturen automatisch herinneren", description: "Stuur opdrachtgevers automatisch een nette herinnering zodra een factuur openstaat.", status: "PLANNED", voters: ["sanne", "fatima"], comments: [["sanne", "Dit scheelt me elke maand bellen."]] }, // prettier-ignore
-      { author: "kevin", title: "Mobiele app met push-meldingen", description: "Meldingen voor nieuwe passende opdrachten en berichten, direct op de telefoon.", voters: ["daan", "youssef"] }, // prettier-ignore
-      { author: "daan", title: "Urenstaten exporteren naar PDF", description: "Handig voor mijn eigen administratie en om door te sturen naar de boekhouder.", status: "DONE", voters: ["sanne"] }, // prettier-ignore
-      { author: "youssef", title: "Openbaar profiel met eigen domeinnaam", description: "Een persoonlijke pagina op een eigen domein om naar opdrachtgevers te delen.", status: "DECLINED", declineReason: "Valt buiten de scope van het platform; een link naar je profiel blijft beschikbaar.", voters: ["kevin"] }, // prettier-ignore
+      { author: "sanne", title: "Donkere modus voor het hele platform", description: "Een rustige donkere modus zou prettig werken tijdens avond- en nachtdiensten.", audience: "PLATFORM", voters: ["youssef", "lisa", "daan", "kevin"], comments: [["lisa", "Ja graag — vooral 's nachts is het scherm nu erg fel."], ["daan", "Met een automatische schakeling op zonsondergang zou top zijn."]] }, // prettier-ignore
+      { author: "lisa", title: "Facturen automatisch herinneren", description: "Stuur opdrachtgevers automatisch een nette herinnering zodra een factuur openstaat.", status: "PLANNED", audience: "CLIENT", theme: "BILLING", voters: ["sanne", "fatima"], comments: [["sanne", "Dit scheelt me elke maand bellen."]] }, // prettier-ignore
+      { author: "kevin", title: "Mobiele app met push-meldingen", description: "Meldingen voor nieuwe passende opdrachten en berichten, direct op de telefoon.", audience: "FREELANCER", voters: ["daan", "youssef"] }, // prettier-ignore
+      { author: "daan", title: "Urenstaten exporteren naar PDF", description: "Handig voor mijn eigen administratie en om door te sturen naar de boekhouder.", status: "DONE", audience: "FREELANCER", theme: "BILLING", voters: ["sanne"] }, // prettier-ignore
+      { author: "youssef", title: "Openbaar profiel met eigen domeinnaam", description: "Een persoonlijke pagina op een eigen domein om naar opdrachtgevers te delen.", status: "DECLINED", audience: "FREELANCER", declineReason: "Valt buiten de scope van het platform; een link naar je profiel blijft beschikbaar.", voters: ["kevin"] }, // prettier-ignore
+      { author: "fatima", title: "VOG-verloop tijdig signaleren", description: "Een waarschuwing ruim voordat mijn VOG of BIG-registratie verloopt, zodat ik op tijd kan verlengen.", audience: "BROKER", theme: "COMPLIANCE", voters: ["sanne", "lisa", "daan"] }, // prettier-ignore
     ];
     for (const spec of ideaSpecs) {
       if (!uid[spec.author]) continue;
@@ -1012,6 +1015,8 @@ async function main() {
           title: spec.title,
           description: spec.description,
           status: spec.status ?? "OPEN",
+          audience: spec.audience ?? "PLATFORM",
+          theme: spec.theme ?? null,
           declineReason: spec.declineReason ?? null,
           votes: { create: voterIds.map((userId) => ({ userId })) },
           comments: { create: comments },

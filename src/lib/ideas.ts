@@ -2,7 +2,14 @@
 // los getest. De server levert de ideeën met hun stemtelling; deze helper bepaalt deterministisch
 // de volgorde en de labels — server-side waarheid, geen client-logica (CLAUDE.md regel 1).
 
-import { IDEA_TRANSITIONS, type IdeaStatus } from "@/lib/enums";
+import {
+  IDEA_AUDIENCES,
+  IDEA_THEMES,
+  IDEA_TRANSITIONS,
+  type IdeaAudience,
+  type IdeaStatus,
+  type IdeaTheme,
+} from "@/lib/enums";
 
 export const IDEA_STATUS_LABEL: Record<IdeaStatus, string> = {
   OPEN: "Open",
@@ -10,6 +17,29 @@ export const IDEA_STATUS_LABEL: Record<IdeaStatus, string> = {
   DONE: "Uitgevoerd",
   DECLINED: "Afgewezen",
 };
+
+// Doelgroep- en thema-labels (NL). Twee onafhankelijke assen om de box filterbaar te houden.
+export const IDEA_AUDIENCE_LABEL: Record<IdeaAudience, string> = {
+  PLATFORM: "Platformbreed",
+  BROKER: "Bemiddelaar",
+  FREELANCER: "ZZP'er",
+  CLIENT: "Opdrachtgever",
+};
+
+export const IDEA_THEME_LABEL: Record<IdeaTheme, string> = {
+  COMPLIANCE: "Compliance",
+  BILLING: "Facturatie",
+};
+
+/** Type-guard voor een doelgroep uit ruwe invoer (bv. een querystring-filter). */
+export function isIdeaAudience(value: string): value is IdeaAudience {
+  return (IDEA_AUDIENCES as readonly string[]).includes(value);
+}
+
+/** Type-guard voor een thema uit ruwe invoer (bv. een querystring-filter). */
+export function isIdeaTheme(value: string): value is IdeaTheme {
+  return (IDEA_THEMES as readonly string[]).includes(value);
+}
 
 // Status-taal conform DESIGN.md §7: wacht/in behandeling = warning, afgerond = success, afgewezen =
 // danger, nog niet opgepakt = muted. `accent` blijft gereserveerd voor de match-score-signatuur.

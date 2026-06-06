@@ -4,10 +4,15 @@ import {
   sortIdeas,
   parseIdeaSort,
   ideaStatusRequiresReason,
+  isIdeaAudience,
+  isIdeaTheme,
   IDEA_STATUS_LABEL,
+  IDEA_AUDIENCE_LABEL,
+  IDEA_THEME_LABEL,
   canIdeaTransition,
   type RankableIdea,
 } from "@/lib/ideas";
+import { IDEA_AUDIENCES, IDEA_THEMES } from "@/lib/enums";
 
 const idea = (o: Partial<RankableIdea> & { id: string }): RankableIdea => ({
   voteCount: 0,
@@ -91,6 +96,29 @@ describe("parseIdeaSort", () => {
     expect(parseIdeaSort("top")).toBe("top");
     expect(parseIdeaSort(undefined)).toBe("top");
     expect(parseIdeaSort("onzin")).toBe("top");
+  });
+});
+
+describe("categorie-labels en -guards", () => {
+  it("heeft een NL-label voor elke doelgroep en elk thema", () => {
+    for (const a of IDEA_AUDIENCES) expect(IDEA_AUDIENCE_LABEL[a]).toBeTruthy();
+    for (const t of IDEA_THEMES) expect(IDEA_THEME_LABEL[t]).toBeTruthy();
+    expect(IDEA_AUDIENCE_LABEL.PLATFORM).toBe("Platformbreed");
+    expect(IDEA_THEME_LABEL.BILLING).toBe("Facturatie");
+  });
+
+  it("isIdeaAudience accepteert alleen geldige doelgroepen", () => {
+    expect(isIdeaAudience("FREELANCER")).toBe(true);
+    expect(isIdeaAudience("PLATFORM")).toBe(true);
+    expect(isIdeaAudience("")).toBe(false);
+    expect(isIdeaAudience("ONZIN")).toBe(false);
+  });
+
+  it("isIdeaTheme accepteert alleen geldige thema's", () => {
+    expect(isIdeaTheme("COMPLIANCE")).toBe(true);
+    expect(isIdeaTheme("BILLING")).toBe(true);
+    expect(isIdeaTheme("")).toBe(false);
+    expect(isIdeaTheme("PLATFORM")).toBe(false);
   });
 });
 

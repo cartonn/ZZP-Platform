@@ -692,8 +692,10 @@ model Idea {
   authorId      String
   title         String
   description   String
-  status        String   @default("OPEN") // IdeaStatus: OPEN | PLANNED | DONE | DECLINED
-  declineReason String? //                   verplicht bij DECLINED (server-side afgedwongen), getoond op het idee
+  status        String   @default("OPEN") //     IdeaStatus: OPEN | PLANNED | DONE | DECLINED
+  audience      String   @default("PLATFORM") // IdeaAudience: PLATFORM | BROKER | FREELANCER | CLIENT
+  theme         String? //                        IdeaTheme: COMPLIANCE | BILLING (optioneel)
+  declineReason String? //                        verplicht bij DECLINED (server-side afgedwongen), getoond op het idee
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -703,6 +705,8 @@ model Idea {
 
   @@index([status])
   @@index([createdAt])
+  @@index([audience])
+  @@index([theme])
 }
 
 model IdeaVote {
