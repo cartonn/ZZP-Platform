@@ -34,6 +34,8 @@ const META: Record<string, NotificationMeta> = {
   PAYMENT_CONFIRMED: { category: "payment", tone: "success" },
   PAYMENT_OVERDUE: { category: "payment", tone: "attention" },
   PAYMENT_REMINDER: { category: "payment", tone: "info" },
+  SUBSCRIPTION_PAST_DUE: { category: "payment", tone: "attention" },
+  SUBSCRIPTION_DOWNGRADED: { category: "system", tone: "info" },
   DBA_SIGNAL: { category: "dba", tone: "info" },
   DISPUTE_OPENED: { category: "dispute", tone: "attention" },
   DISPUTE_RESOLVED: { category: "dispute", tone: "success" },

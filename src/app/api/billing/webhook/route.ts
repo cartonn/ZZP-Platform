@@ -40,7 +40,7 @@ export async function POST(request: Request): Promise<Response> {
     periodEnd.setMonth(periodEnd.getMonth() + 1);
     await prisma.subscription.update({
       where: { id: sub.id },
-      data: { status: "ACTIVE", currentPeriodEnd: periodEnd },
+      data: { status: "ACTIVE", currentPeriodEnd: periodEnd, pastDueAt: null },
     });
     await audit({
       actorId: null,
@@ -50,7 +50,10 @@ export async function POST(request: Request): Promise<Response> {
       metadata: { paymentId },
     });
   } else if (status === "failed" && sub.status === "PENDING") {
-    await prisma.subscription.update({ where: { id: sub.id }, data: { status: "PAST_DUE" } });
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data: { status: "PAST_DUE", pastDueAt: new Date() },
+    });
     await audit({
       actorId: null,
       action: "SUBSCRIPTION_PAYMENT_FAILED",

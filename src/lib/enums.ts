@@ -118,6 +118,15 @@ export const SUBSCRIPTION_STATUSES = ["PENDING", "ACTIVE", "PAST_DUE", "CANCELLE
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 export const subscriptionStatusSchema = z.enum(SUBSCRIPTION_STATUSES);
 
+// Expliciete overgangsmap (CLAUDE.md regel 3). PAST_DUE → ACTIVE = betaling hersteld,
+// PAST_DUE → CANCELLED = na de herinneringsladder teruggezet naar Gratis (geen actief plan).
+export const SUBSCRIPTION_TRANSITIONS: Record<SubscriptionStatus, readonly SubscriptionStatus[]> = {
+  PENDING: ["ACTIVE", "PAST_DUE", "CANCELLED"],
+  ACTIVE: ["PAST_DUE", "CANCELLED"],
+  PAST_DUE: ["ACTIVE", "CANCELLED"],
+  CANCELLED: [],
+};
+
 // ---------------------------------------------------------------------------
 // Support / Helpdesk (klantondersteuning). Geen "AI" in UI/teksten — de
 // geautomatiseerde beantwoorder heet "Support-assistent" / "Helpdesk".
