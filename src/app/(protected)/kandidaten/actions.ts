@@ -13,6 +13,7 @@ async function loadOwnedApplication(actor: Actor, appId: string) {
     include: {
       job: { select: { title: true, company: { select: { userId: true } } } },
       freelancer: { select: { userId: true } },
+      collaboration: { select: { id: true } },
     },
   });
   if (!app) throw new Error("Reactie niet gevonden.");
@@ -25,6 +26,14 @@ export async function changeApplicationStatus(appId: string, target: string): Pr
   const targetStatus = applicationStatusSchema.parse(target);
   const app = await loadOwnedApplication(actor, appId);
 
+  // Zodra er een samenwerking uit deze reactie is voortgekomen, is de reactie gebonden aan het
+  // werkproces en mag de status niet meer los wijzigen (zou inconsistentie geven).
+  if (app.collaboration) {
+    throw new Error(
+      "Reactie is gekoppeld aan een samenwerking en kan niet meer van status wijzigen.",
+    );
+  }
+
   const from = app.status as ApplicationStatus;
   try {
     assertApplicationTransition(from, targetStatus);
@@ -33,13 +42,19 @@ export async function changeApplicationStatus(appId: string, target: string): Pr
     throw e;
   }
 
-  // Notificeer de ZZP'er bij een definitieve uitkomst.
+  // Notificeer de ZZP'er bij een definitieve uitkomst — én bij het terugdraaien van een acceptatie,
+  // zodat hij niet eindeloos op het beloofde samenwerkingsvoorstel blijft wachten.
   const notify =
     targetStatus === "ACCEPTED"
       ? { title: "Je reactie is geaccepteerd", body: `Voor "${app.job.title}".` }
       : targetStatus === "REJECTED"
         ? { title: "Je reactie is afgewezen", body: `Voor "${app.job.title}".` }
-        : null;
+        : from === "ACCEPTED" && targetStatus === "SHORTLIST"
+          ? {
+              title: "Acceptatie ingetrokken",
+              body: `Voor "${app.job.title}" sta je weer op de shortlist.`,
+            }
+          : null;
 
   await prisma.$transaction([
     prisma.application.update({ where: { id: appId }, data: { status: targetStatus } }),
