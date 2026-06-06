@@ -3,14 +3,14 @@ import Link from "next/link";
 import { FileText } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { type ComplianceStatus } from "@/lib/matching";
+import { liveComplianceStatus } from "@/lib/matching";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
-import { type ApplicationStatus } from "@/lib/enums";
+import { type ApplicationStatus, type CredentialType, type CredentialStatus } from "@/lib/enums";
 
 export const metadata: Metadata = { title: "Mijn reacties · ZZP Platform" };
 
@@ -23,28 +23,35 @@ const STATUS_HINT: Record<ApplicationStatus, string> = {
   REJECTED: "Deze keer niet geselecteerd. Reageer gerust op andere opdrachten.",
 };
 
-function complianceStatus(raw: string | null): ComplianceStatus | null {
-  if (!raw) return null;
-  try {
-    return (JSON.parse(raw)?.status as ComplianceStatus) ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export default async function ReactiesPage() {
   const actor = await requireRole("FREELANCER");
   const profile = await prisma.freelancerProfile.findUnique({
     where: { userId: actor.id },
-    select: { id: true },
+    select: {
+      id: true,
+      credentials: { select: { type: true, status: true, expiresAt: true } },
+    },
   });
+
+  const myCredentials = (profile?.credentials ?? []).map((c) => ({
+    type: c.type as CredentialType,
+    status: c.status as CredentialStatus,
+    expiresAt: c.expiresAt,
+  }));
 
   const applications = profile
     ? await prisma.application.findMany({
         where: { freelancerId: profile.id },
         orderBy: { createdAt: "desc" },
         include: {
-          job: { select: { id: true, title: true, company: { select: { name: true } } } },
+          job: {
+            select: {
+              id: true,
+              title: true,
+              company: { select: { name: true } },
+              credentialRequirements: { select: { credentialType: true, required: true } },
+            },
+          },
           collaboration: { select: { id: true } },
         },
       })
@@ -66,7 +73,13 @@ export default async function ReactiesPage() {
       ) : (
         <div className="space-y-3">
           {applications.map((app) => {
-            const compliance = complianceStatus(app.complianceSnapshot);
+            // Live compliance uit de actuele certificaten i.p.v. de bevroren snapshot.
+            const compliance = liveComplianceStatus(
+              app.job.credentialRequirements
+                .filter((r) => r.required)
+                .map((r) => r.credentialType as CredentialType),
+              myCredentials,
+            );
             // Zodra er een samenwerking uit de reactie is voortgekomen, wijst de kaart naar het
             // werkproces (de logische volgende stap) i.p.v. terug naar de opdracht.
             const hint = app.collaboration

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeCompliance,
   computeMatchScore,
+  liveComplianceStatus,
   type FreelancerCredential,
   type MatchInput,
 } from "@/lib/matching";
@@ -54,6 +55,20 @@ describe("computeCompliance", () => {
     const r = computeCompliance(["VOG"], creds, now);
     expect(r.status).toBe("COMPLIANT");
     expect(r.satisfied).toEqual(["VOG"]);
+  });
+});
+
+describe("liveComplianceStatus", () => {
+  it("geeft null als de opdracht geen vereiste certificaten heeft (geen badge)", () => {
+    expect(liveComplianceStatus([], [], now)).toBeNull();
+  });
+  it("herrekent live: een sinds de reactie verlopen VOG geeft WARNING, niet COMPLIANT", () => {
+    const creds: FreelancerCredential[] = [{ type: "VOG", status: "VERIFIED", expiresAt: past }];
+    expect(liveComplianceStatus(["VOG"], creds, now)).toBe("WARNING");
+  });
+  it("geldige, niet-verlopen VOG → COMPLIANT", () => {
+    const creds: FreelancerCredential[] = [{ type: "VOG", status: "VERIFIED", expiresAt: future }];
+    expect(liveComplianceStatus(["VOG"], creds, now)).toBe("COMPLIANT");
   });
 });
 

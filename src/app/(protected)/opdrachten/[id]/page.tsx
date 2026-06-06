@@ -7,7 +7,12 @@ import { canViewJob } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { JOB_TRANSITIONS } from "@/lib/jobs";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
-import { type CredentialType, type JobStatus, type WorkMode } from "@/lib/enums";
+import {
+  type CredentialType,
+  type CredentialStatus,
+  type JobStatus,
+  type WorkMode,
+} from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +22,7 @@ import { AvailabilityBadge } from "@/components/availability-badge";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import {
   scoreJobForFreelancer,
+  liveComplianceStatus,
   type ComplianceResult,
   type ComplianceStatus,
   type MatchReason,
@@ -109,6 +115,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
     complianceSnapshot: string | null;
   } | null = null;
   let myFit: { score: number; compliance: ComplianceResult; reasons: MatchReason[] } | null = null;
+  let myCompliance: ComplianceStatus | null = null;
   if (actor.role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
       where: { userId: actor.id },
@@ -126,9 +133,19 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         const match = scoreJobForFreelancer(job, profile);
         myFit = { score: match.score, compliance: match.compliance, reasons: match.reasons };
       }
+      // Live compliance voor een reeds verstuurde reactie (i.p.v. de bevroren snapshot).
+      if (myApplication) {
+        myCompliance = liveComplianceStatus(
+          requiredCreds.map((c) => c.credentialType as CredentialType),
+          profile.credentials.map((c) => ({
+            type: c.type as CredentialType,
+            status: c.status as CredentialStatus,
+            expiresAt: c.expiresAt,
+          })),
+        );
+      }
     }
   }
-  const myCompliance = parseComplianceStatus(myApplication?.complianceSnapshot);
 
   // Spiegelbeeld voor de opdrachtgever: openbare ZZP'ers die passen en nog niet reageerden.
   const suggestions =
@@ -469,16 +486,6 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       )}
     </div>
   );
-}
-
-function parseComplianceStatus(raw: string | null | undefined): ComplianceStatus | null {
-  if (!raw) return null;
-  try {
-    const v = JSON.parse(raw);
-    return (v?.status as ComplianceStatus) ?? null;
-  } catch {
-    return null;
-  }
 }
 
 function parseDbaReasons(raw: string | null | undefined): DbaReason[] {

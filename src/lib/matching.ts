@@ -79,6 +79,21 @@ export function computeCompliance(
   return { status, satisfied, inReview, expired, missing };
 }
 
+/**
+ * Live compliance-status voor weergave bij reactie/kandidaat: berekent de actuele compliance uit de
+ * huidige certificaten i.p.v. een bevroren snapshot van het reactiemoment (een VOG kan intussen
+ * verlopen zijn). Geeft `null` als de opdracht geen vereiste certificaten heeft — dan is er niets
+ * om aan te voldoen en tonen we geen badge.
+ */
+export function liveComplianceStatus(
+  requiredTypes: readonly CredentialType[],
+  credentials: readonly FreelancerCredential[],
+  now: Date = new Date(),
+): ComplianceStatus | null {
+  if (requiredTypes.length === 0) return null;
+  return computeCompliance(requiredTypes, credentials, now).status;
+}
+
 export interface MatchInput {
   requiredSkillIds: readonly string[];
   optionalSkillIds: readonly string[];
