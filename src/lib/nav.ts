@@ -19,6 +19,7 @@ export type NavIcon =
   | "calendar"
   | "clock"
   | "barChart"
+  | "lightbulb"
   | "settings";
 
 export interface NavItem {
@@ -51,6 +52,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Ontzorgd", href: "/ontzorgd", icon: "barChart", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", section: "Account", enabled: true }, // prettier-ignore
+    { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Account", enabled: true }, // prettier-ignore
     { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },
   ],
   CLIENT: [
@@ -67,6 +69,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", section: "Account", enabled: true }, // prettier-ignore
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", section: "Account", enabled: true }, // prettier-ignore
+    { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Account", enabled: true }, // prettier-ignore
     { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },
   ],
   ADMIN: [
@@ -86,6 +89,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Importeren", href: "/admin/import", icon: "users", section: "Beheer", enabled: true },
     { label: "Administratie", href: "/admin/administratie", icon: "fileText", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Configuratie", href: "/admin/configuratie", icon: "settings", section: "Beheer", enabled: true }, // prettier-ignore
+    { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Beheer", enabled: true },
   ],
   // Franchisenemer (tenant-admin). De franchise-werkplek-items (Opdrachtgevers, ZZP'ers,
   // Diensten) komen per increment binnen zodra hun pagina's bestaan.
@@ -97,6 +101,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Samenwerkingen", href: "/franchise/samenwerkingen", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Berichten", href: "/berichten", icon: "messages", section: "Account", enabled: true },
     { label: "Instellingen", href: "/franchise/instellingen", icon: "settings", section: "Account", enabled: true }, // prettier-ignore
+    { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Account", enabled: true }, // prettier-ignore
     { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },
   ],
 };
