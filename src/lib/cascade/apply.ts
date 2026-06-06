@@ -61,21 +61,34 @@ export async function applyCascadeEffects(
     result.createdInvoiceId = created.id;
   }
 
-  // 2. Statuswijzigingen (al gevalideerd tegen de state machine in de planner).
+  // 2. Statuswijzigingen (al gevalideerd tegen de state machine in de planner). De write is
+  //    voorwaardelijk op de verwachte `from`-status (updateMany met status-match): een gelijktijdige
+  //    andere transitie overschrijft zo niet stilzwijgend en laat geen verweesde factuur achter —
+  //    bij een botsing (count !== 1) rolt de hele transactie terug.
   for (const sc of effects.statusChanges) {
-    const data = { [sc.field]: sc.to, ...(sc.set ?? {}) } as Record<string, unknown>;
+    const data = { [sc.field]: sc.to, ...(sc.set ?? {}) };
+    const where = { id: sc.id, [sc.field]: sc.from };
+    let count: number;
     if (sc.entity === "Collaboration") {
-      await tx.collaboration.update({
-        where: { id: sc.id },
-        data: data as Prisma.CollaborationUpdateInput,
-      });
+      ({ count } = await tx.collaboration.updateMany({
+        where: where as Prisma.CollaborationWhereInput,
+        data: data as Prisma.CollaborationUpdateManyMutationInput,
+      }));
     } else if (sc.entity === "Performance") {
-      await tx.performance.update({
-        where: { id: sc.id },
-        data: data as Prisma.PerformanceUpdateInput,
-      });
-    } else if (sc.entity === "Invoice") {
-      await tx.invoice.update({ where: { id: sc.id }, data: data as Prisma.InvoiceUpdateInput });
+      ({ count } = await tx.performance.updateMany({
+        where: where as Prisma.PerformanceWhereInput,
+        data: data as Prisma.PerformanceUpdateManyMutationInput,
+      }));
+    } else {
+      ({ count } = await tx.invoice.updateMany({
+        where: where as Prisma.InvoiceWhereInput,
+        data: data as Prisma.InvoiceUpdateManyMutationInput,
+      }));
+    }
+    if (count !== 1) {
+      throw new Error(
+        "De status is intussen gewijzigd door een andere actie. Probeer het opnieuw.",
+      );
     }
   }
 
