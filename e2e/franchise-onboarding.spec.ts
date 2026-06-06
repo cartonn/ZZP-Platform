@@ -39,12 +39,16 @@ test("franchiser zet vanaf de cockpit inline een dienst uit op een afdeling", as
   await page.getByRole("link", { name: "Naar opdrachtgever" }).click();
   await page.waitForURL(/\/franchise\/opdrachtgevers\/[a-z0-9]+$/);
   await expect(page.getByRole("heading", { name: company })).toBeVisible();
+  // Nog geen dienst → de hervat-balk staat er.
+  await expect(page.getByText("Onboarding nog niet afgerond")).toBeVisible();
 
-  // Inline dienst uitzetten op de afdeling (inklapbaar blok openen).
+  // Inline dienst uitzetten op de afdeling (inklapbaar blok openen), met skill + VOG (rijke velden).
   await page.getByText("Dienst uitzetten", { exact: true }).click();
   const dienst = `Nachtdienst ${uniq()}`;
   await page.getByLabel("Titel").fill(dienst);
   await page.getByLabel("Omschrijving").fill("Nachtdienst op de afdeling geriatrie, VOG vereist.");
+  await page.locator('label:has(input[name="skillIds"])').first().click();
+  await page.locator('label:has(input[name="credentialTypes"][value="VOG"])').click();
   await page.getByRole("button", { name: "Uitzetten", exact: true }).click();
 
   // De dienst verschijnt met status "Gepubliceerd" en blijft na herladen.
@@ -54,4 +58,6 @@ test("franchiser zet vanaf de cockpit inline een dienst uit op een afdeling", as
   await shot(page, "franchise-cockpit-dienst");
   await page.reload();
   await expect(page.getByRole("link", { name: dienst })).toBeVisible();
+  // Nu een afdeling én een dienst → de hervat-balk is weg.
+  await expect(page.getByText("Onboarding nog niet afgerond")).toHaveCount(0);
 });

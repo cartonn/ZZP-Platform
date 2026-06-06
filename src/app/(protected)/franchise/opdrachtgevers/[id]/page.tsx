@@ -25,27 +25,36 @@ export default async function OpdrachtgeverDetailPage({
 }) {
   const { id } = await params;
   const actor = await requireRole("FRANCHISER");
-  const company = await prisma.company.findFirst({
-    where: { id, ...tenantScopeWhere(actor) },
-    include: {
-      user: { select: { name: true, email: true } },
-      departments: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          jobs: {
-            orderBy: { createdAt: "desc" },
-            select: {
-              id: true,
-              title: true,
-              status: true,
-              _count: { select: { applications: true } },
+  const [company, skills] = await Promise.all([
+    prisma.company.findFirst({
+      where: { id, ...tenantScopeWhere(actor) },
+      include: {
+        user: { select: { name: true, email: true } },
+        departments: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            jobs: {
+              orderBy: { createdAt: "desc" },
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                _count: { select: { applications: true } },
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  ]);
   if (!company) notFound();
+
+  // Onboarding "afmaken"-balk zolang er nog geen afdeling óf nog geen dienst is — zelfde regel als
+  // de wizard (getOnboardingState). Linkt terug naar de juiste wizard-stap.
+  const totalDiensten = company.departments.reduce((sum, d) => sum + d.jobs.length, 0);
+  const onboardingIncomplete = company.departments.length === 0 || totalDiensten === 0;
+  const resumeStap = company.departments.length === 0 ? "afdelingen" : "diensten";
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -61,6 +70,23 @@ export default async function OpdrachtgeverDetailPage({
           company.location ? ` · ${company.location}` : ""
         }`}
       />
+
+      {onboardingIncomplete && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-accent/40 px-4 py-3 text-sm">
+          <span className="text-muted-foreground">
+            Onboarding nog niet afgerond —{" "}
+            {company.departments.length === 0
+              ? "voeg een afdeling toe"
+              : "zet een eerste dienst uit"}
+            .
+          </span>
+          <Button asChild size="sm" variant="secondary">
+            <Link href={`/franchise/opdrachtgevers/nieuw?stap=${resumeStap}&company=${company.id}`}>
+              Onboarding afmaken
+            </Link>
+          </Button>
+        </div>
+      )}
 
       <Card>
         <CardContent className="space-y-5 p-5">
@@ -120,7 +146,7 @@ export default async function OpdrachtgeverDetailPage({
                       </ul>
                     )}
 
-                    <DienstInlineForm departmentId={d.id} />
+                    <DienstInlineForm departmentId={d.id} skills={skills} />
                   </li>
                 );
               })}
