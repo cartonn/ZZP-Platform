@@ -1,15 +1,15 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Building2 } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
-import { OpdrachtgeverForm } from "./opdrachtgever-form";
 
 export const metadata: Metadata = { title: "Opdrachtgevers · Franchise" };
 
@@ -29,21 +29,22 @@ export default async function FranchiseOpdrachtgeversPage() {
       <PageHeader
         title="Opdrachtgevers"
         description="De opdrachtgevers die je in je franchise hebt gebracht, met hun afdelingen."
+        action={
+          <Button asChild>
+            <Link href="/franchise/opdrachtgevers/nieuw">
+              <Plus className="size-4" aria-hidden /> Nieuwe opdrachtgever
+            </Link>
+          </Button>
+        }
       />
-
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <h2 className="text-sm font-semibold tracking-tight">Nieuwe opdrachtgever</h2>
-          <OpdrachtgeverForm />
-        </CardContent>
-      </Card>
 
       {companies.length === 0 ? (
         <Card>
           <EmptyState
             icon={Building2}
             title="Nog geen opdrachtgevers"
-            description="Je hebt nog geen opdrachtgevers in je franchise."
+            description="Zet je eerste opdrachtgever op — met afdelingen en diensten in één doorloop."
+            action={{ label: "Nieuwe opdrachtgever", href: "/franchise/opdrachtgevers/nieuw" }}
           />
         </Card>
       ) : (
