@@ -75,6 +75,22 @@ export const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as con
 export type Weekday = (typeof WEEKDAYS)[number];
 export const weekdaySchema = z.enum(WEEKDAYS);
 
+// Ideeënbox: levenscyclus van een ingediend idee. OPEN = nieuw, PLANNED = opgepakt,
+// DONE = uitgevoerd, DECLINED = niet gehonoreerd.
+export const IDEA_STATUSES = ["OPEN", "PLANNED", "DONE", "DECLINED"] as const;
+export type IdeaStatus = (typeof IDEA_STATUSES)[number];
+export const ideaStatusSchema = z.enum(IDEA_STATUSES);
+
+// Expliciete overgangsmap (CLAUDE.md regel 3). Een open idee wordt getrieerd; een afgehandeld
+// idee (uitgevoerd/afgewezen) kan alleen heropend worden — niet rechtstreeks van DONE naar
+// DECLINED springen. Een gelijke-naar-gelijke overgang is geen overgang (no-op).
+export const IDEA_TRANSITIONS: Record<IdeaStatus, readonly IdeaStatus[]> = {
+  OPEN: ["PLANNED", "DONE", "DECLINED"],
+  PLANNED: ["OPEN", "DONE", "DECLINED"],
+  DONE: ["OPEN"],
+  DECLINED: ["OPEN"],
+};
+
 export const CONTRACT_STATUSES = ["DRAFT", "SENT", "SIGNED"] as const;
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
 export const contractStatusSchema = z.enum(CONTRACT_STATUSES);

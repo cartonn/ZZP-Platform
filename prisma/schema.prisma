@@ -60,6 +60,8 @@ model User {
   assignedTickets   SupportTicket[]    @relation("SupportAssignee")
   supportMessages   SupportMessage[]   @relation("SupportMessageAuthor")
   taxFilingRequests TaxFilingRequest[] @relation("TaxFilingRequester")
+  ideas             Idea[]             @relation("IdeaAuthor")
+  ideaVotes         IdeaVote[]         @relation("IdeaVoter")
 
   @@index([role])
   @@index([status])
@@ -678,6 +680,38 @@ model Subscription {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan Plan @relation(fields: [planId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Ideeënbox — gebruikers stellen verbeteringen voor en stemmen op elkaars ideeën
+// ---------------------------------------------------------------------------
+
+model Idea {
+  id          String   @id @default(cuid())
+  authorId    String
+  title       String
+  description String
+  status      String   @default("OPEN") // IdeaStatus: OPEN | PLANNED | DONE | DECLINED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author User       @relation("IdeaAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  votes  IdeaVote[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model IdeaVote {
+  ideaId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User @relation("IdeaVoter", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([ideaId, userId])
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------

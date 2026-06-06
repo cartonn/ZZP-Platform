@@ -16,6 +16,7 @@ import {
   Handshake,
   Inbox,
   LayoutDashboard,
+  Lightbulb,
   MessagesSquare,
   Receipt,
   Settings,
@@ -48,6 +49,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   calendar: CalendarDays,
   clock: Clock,
   barChart: BarChart,
+  lightbulb: Lightbulb,
   settings: Settings,
 };
 

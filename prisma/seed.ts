@@ -980,6 +980,38 @@ async function main() {
     await prisma.collaboration.updateMany({ where: w.where, data: { weekdays: w.days } });
   }
 
+  // --- Ideeënbox — een paar ingediende ideeën met stemmen, zodat de pagina meteen gevuld is.
+  //     Eigen guard (zelfherstellend). De indiener stemt automatisch op zijn eigen idee. ---
+  if ((await prisma.idea.count()) === 0) {
+    const ideaSpecs: {
+      author: string;
+      title: string;
+      description: string;
+      status?: string;
+      voters: string[];
+    }[] = [
+      { author: "sanne", title: "Donkere modus voor het hele platform", description: "Een rustige donkere modus zou prettig werken tijdens avond- en nachtdiensten.", voters: ["youssef", "lisa", "daan", "kevin"] }, // prettier-ignore
+      { author: "lisa", title: "Facturen automatisch herinneren", description: "Stuur opdrachtgevers automatisch een nette herinnering zodra een factuur openstaat.", status: "PLANNED", voters: ["sanne", "fatima"] }, // prettier-ignore
+      { author: "kevin", title: "Mobiele app met push-meldingen", description: "Meldingen voor nieuwe passende opdrachten en berichten, direct op de telefoon.", voters: ["daan", "youssef"] }, // prettier-ignore
+      { author: "daan", title: "Urenstaten exporteren naar PDF", description: "Handig voor mijn eigen administratie en om door te sturen naar de boekhouder.", status: "DONE", voters: ["sanne"] }, // prettier-ignore
+    ];
+    for (const spec of ideaSpecs) {
+      if (!uid[spec.author]) continue;
+      const voterIds = [...new Set([spec.author, ...spec.voters])]
+        .map((v) => uid[v])
+        .filter((x): x is string => !!x);
+      await prisma.idea.create({
+        data: {
+          authorId: uid[spec.author]!,
+          title: spec.title,
+          description: spec.description,
+          status: spec.status ?? "OPEN",
+          votes: { create: voterIds.map((userId) => ({ userId })) },
+        },
+      });
+    }
+  }
+
   // --- Support-tickets (helpdesk-wachtrij) — eigen guard, los van de cascade-telling, zodat ze
   //     ook (her)gemaakt worden als een eerdere boot halverwege afbrak (zelfherstellend). ---
   if ((await prisma.supportTicket.count()) === 0) {
