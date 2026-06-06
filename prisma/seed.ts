@@ -988,25 +988,33 @@ async function main() {
       title: string;
       description: string;
       status?: string;
+      declineReason?: string;
       voters: string[];
+      comments?: [string, string][];
     }[] = [
-      { author: "sanne", title: "Donkere modus voor het hele platform", description: "Een rustige donkere modus zou prettig werken tijdens avond- en nachtdiensten.", voters: ["youssef", "lisa", "daan", "kevin"] }, // prettier-ignore
-      { author: "lisa", title: "Facturen automatisch herinneren", description: "Stuur opdrachtgevers automatisch een nette herinnering zodra een factuur openstaat.", status: "PLANNED", voters: ["sanne", "fatima"] }, // prettier-ignore
+      { author: "sanne", title: "Donkere modus voor het hele platform", description: "Een rustige donkere modus zou prettig werken tijdens avond- en nachtdiensten.", voters: ["youssef", "lisa", "daan", "kevin"], comments: [["lisa", "Ja graag — vooral 's nachts is het scherm nu erg fel."], ["daan", "Met een automatische schakeling op zonsondergang zou top zijn."]] }, // prettier-ignore
+      { author: "lisa", title: "Facturen automatisch herinneren", description: "Stuur opdrachtgevers automatisch een nette herinnering zodra een factuur openstaat.", status: "PLANNED", voters: ["sanne", "fatima"], comments: [["sanne", "Dit scheelt me elke maand bellen."]] }, // prettier-ignore
       { author: "kevin", title: "Mobiele app met push-meldingen", description: "Meldingen voor nieuwe passende opdrachten en berichten, direct op de telefoon.", voters: ["daan", "youssef"] }, // prettier-ignore
       { author: "daan", title: "Urenstaten exporteren naar PDF", description: "Handig voor mijn eigen administratie en om door te sturen naar de boekhouder.", status: "DONE", voters: ["sanne"] }, // prettier-ignore
+      { author: "youssef", title: "Openbaar profiel met eigen domeinnaam", description: "Een persoonlijke pagina op een eigen domein om naar opdrachtgevers te delen.", status: "DECLINED", declineReason: "Valt buiten de scope van het platform; een link naar je profiel blijft beschikbaar.", voters: ["kevin"] }, // prettier-ignore
     ];
     for (const spec of ideaSpecs) {
       if (!uid[spec.author]) continue;
       const voterIds = [...new Set([spec.author, ...spec.voters])]
         .map((v) => uid[v])
         .filter((x): x is string => !!x);
+      const comments = (spec.comments ?? [])
+        .filter(([author]) => uid[author])
+        .map(([author, body]) => ({ authorId: uid[author]!, body }));
       await prisma.idea.create({
         data: {
           authorId: uid[spec.author]!,
           title: spec.title,
           description: spec.description,
           status: spec.status ?? "OPEN",
+          declineReason: spec.declineReason ?? null,
           votes: { create: voterIds.map((userId) => ({ userId })) },
+          comments: { create: comments },
         },
       });
     }

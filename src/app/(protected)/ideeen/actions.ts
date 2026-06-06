@@ -7,7 +7,7 @@ import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { ideaStatusSchema, type IdeaStatus } from "@/lib/enums";
-import { canIdeaTransition } from "@/lib/ideas";
+import { canIdeaTransition, ideaStatusRequiresReason, IDEA_STATUS_LABEL } from "@/lib/ideas";
 
 export type IdeaFormState =
   | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
@@ -81,25 +81,101 @@ export async function toggleVote(ideaId: string): Promise<void> {
   revalidatePath("/ideeen");
 }
 
-/** Alleen een beheerder bepaalt de status van een idee, via de expliciete overgangsmap. */
+const reasonSchema = z.string().trim().min(4, "Geef een korte reden.").max(500);
+
+/**
+ * Alleen een beheerder bepaalt de status van een idee, via de expliciete overgangsmap. Afwijzen
+ * vereist een reden (server-side afgedwongen). Bij elke geldige wijziging worden de stemmers en de
+ * indiener genotificeerd, zodat de mensen die het idee steunden weten wat ermee gebeurt.
+ */
 export async function setIdeaStatus(ideaId: string, formData: FormData): Promise<void> {
   const actor = await requireRole("ADMIN");
   const parsed = ideaStatusSchema.safeParse(formData.get("status"));
   if (!parsed.success) return;
   const next = parsed.data;
 
-  const idea = await prisma.idea.findUnique({ where: { id: ideaId }, select: { status: true } });
+  const idea = await prisma.idea.findUnique({
+    where: { id: ideaId },
+    select: { status: true, authorId: true, title: true },
+  });
   if (!idea) return; // verwijderd of onbekend id — nette no-op, geen P2025
   const current = idea.status as IdeaStatus;
   if (current === next || !canIdeaTransition(current, next)) return; // ongeldige sprong → no-op
 
-  await prisma.idea.update({ where: { id: ideaId }, data: { status: next } });
+  // Reden alleen vereist (en bewaard) bij afwijzen; bij elke andere overgang wordt hij gewist.
+  let declineReason: string | null = null;
+  if (ideaStatusRequiresReason(next)) {
+    const reason = reasonSchema.safeParse(formData.get("reason"));
+    if (!reason.success) return; // geen reden → geen afwijzing (de UI vraagt erom)
+    declineReason = reason.data;
+  }
+
+  await prisma.idea.update({ where: { id: ideaId }, data: { status: next, declineReason } });
   await audit({
     actorId: actor.id,
     action: "IDEA_STATUS_SET",
     entityType: "Idea",
     entityId: ideaId,
-    metadata: { from: current, to: next },
+    metadata: { from: current, to: next, ...(declineReason ? { reason: declineReason } : {}) },
   });
+
+  // Notificeer de indiener + iedereen die stemde (zonder dubbelen, en niet de beheerder zelf).
+  const voters = await prisma.ideaVote.findMany({ where: { ideaId }, select: { userId: true } });
+  const recipients = new Set<string>([idea.authorId, ...voters.map((v) => v.userId)]);
+  recipients.delete(actor.id);
+  if (recipients.size > 0) {
+    const body =
+      next === "DECLINED" && declineReason
+        ? `Status: ${IDEA_STATUS_LABEL[next]} — ${declineReason}`
+        : `Status: ${IDEA_STATUS_LABEL[next]}`;
+    await prisma.notification.createMany({
+      data: [...recipients].map((userId) => ({
+        userId,
+        type: "IDEA_STATUS",
+        title: `Idee bijgewerkt: ${idea.title}`,
+        body,
+        link: "/ideeen",
+      })),
+    });
+  }
+
+  revalidatePath("/ideeen");
+}
+
+const commentSchema = z.string().trim().min(2, "Schrijf een korte reactie.").max(2000);
+
+/** Plaats een reactie op een idee. De indiener wordt genotificeerd (tenzij hij zelf reageert). */
+export async function addComment(ideaId: string, formData: FormData): Promise<void> {
+  const actor = await requireActor();
+  const parsed = commentSchema.safeParse(formData.get("body"));
+  if (!parsed.success) return;
+
+  const idea = await prisma.idea.findUnique({
+    where: { id: ideaId },
+    select: { authorId: true, title: true },
+  });
+  if (!idea) return;
+
+  await prisma.ideaComment.create({
+    data: { ideaId, authorId: actor.id, body: parsed.data },
+  });
+  await audit({
+    actorId: actor.id,
+    action: "IDEA_COMMENTED",
+    entityType: "Idea",
+    entityId: ideaId,
+  });
+
+  if (idea.authorId !== actor.id) {
+    await prisma.notification.create({
+      data: {
+        userId: idea.authorId,
+        type: "IDEA_COMMENT",
+        title: `Nieuwe reactie op je idee: ${idea.title}`,
+        link: "/ideeen",
+      },
+    });
+  }
+
   revalidatePath("/ideeen");
 }

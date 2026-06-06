@@ -9,6 +9,7 @@ export const NOTIFICATION_CATEGORIES = [
   "dispute", //      dispuut/escalatie
   "credential", //   certificaat/verificatie
   "collaboration", //samenwerking
+  "idea", //         ideeënbox (statuswijziging, reactie)
   "system", //       overig/systeem
 ] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
@@ -40,6 +41,8 @@ const META: Record<string, NotificationMeta> = {
   CREDENTIAL_EXPIRING: { category: "credential", tone: "info" },
   COLLABORATION_PROPOSED: { category: "collaboration", tone: "info" },
   COLLABORATION_STATUS: { category: "collaboration", tone: "info" },
+  IDEA_STATUS: { category: "idea", tone: "info" },
+  IDEA_COMMENT: { category: "idea", tone: "info" },
   VAT_REMINDER: { category: "system", tone: "info" },
   INVOICE_DRAFT_ESCALATION: { category: "invoice", tone: "attention" },
   JOB_MATCH: { category: "system", tone: "info" },
