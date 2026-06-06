@@ -4,12 +4,17 @@ import { Users } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { APPLICATION_TRANSITIONS } from "@/lib/applications";
-import { type ComplianceStatus } from "@/lib/matching";
+import { liveComplianceStatus } from "@/lib/matching";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { type AvailabilityWindowType } from "@/lib/enums";
-import { type ApplicationStatus, type Visibility } from "@/lib/enums";
+import {
+  type ApplicationStatus,
+  type Visibility,
+  type CredentialType,
+  type CredentialStatus,
+} from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,15 +37,6 @@ const ACTION_LABEL: Record<ApplicationStatus, string> = {
   REJECTED: "Afwijzen",
 };
 
-function complianceStatus(raw: string | null): ComplianceStatus | null {
-  if (!raw) return null;
-  try {
-    return (JSON.parse(raw)?.status as ComplianceStatus) ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export default async function KandidatenPage() {
   const actor = await requireRole("CLIENT");
 
@@ -48,7 +44,13 @@ export default async function KandidatenPage() {
     where: { job: { company: { userId: actor.id } } },
     orderBy: [{ status: "asc" }, { matchScore: "desc" }],
     include: {
-      job: { select: { id: true, title: true } },
+      job: {
+        select: {
+          id: true,
+          title: true,
+          credentialRequirements: { select: { credentialType: true, required: true } },
+        },
+      },
       freelancer: {
         select: {
           id: true,
@@ -56,7 +58,7 @@ export default async function KandidatenPage() {
           visibility: true,
           user: { select: { name: true, identityVerifiedAt: true } },
           availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
-          credentials: { where: { status: "VERIFIED" }, select: { id: true, expiresAt: true } },
+          credentials: { select: { type: true, status: true, expiresAt: true } },
         },
       },
       collaboration: { select: { id: true } },
@@ -82,13 +84,24 @@ export default async function KandidatenPage() {
         <div className="space-y-4">
           {applications.map((app) => {
             const status = app.status as ApplicationStatus;
-            const compliance = complianceStatus(app.complianceSnapshot);
+            // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
+            // reactiemoment (een VOG kan intussen verlopen zijn).
+            const compliance = liveComplianceStatus(
+              app.job.credentialRequirements
+                .filter((r) => r.required)
+                .map((r) => r.credentialType as CredentialType),
+              app.freelancer.credentials.map((c) => ({
+                type: c.type as CredentialType,
+                status: c.status as CredentialStatus,
+                expiresAt: c.expiresAt,
+              })),
+            );
             const isPublic = (app.freelancer.visibility as Visibility) === "PUBLIC";
             const nowMs = Date.now();
             const trust = computeTrustLevel({
               identityVerified: !!app.freelancer.user.identityVerifiedAt,
               verifiedCredentialCount: app.freelancer.credentials.filter(
-                (c) => !c.expiresAt || c.expiresAt.getTime() > nowMs,
+                (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > nowMs),
               ).length,
             });
             return (
