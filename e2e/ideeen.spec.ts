@@ -44,14 +44,26 @@ test("ideeënbox: indienen, upvote togglen en (admin) status zetten", async ({ p
   await card.getByRole("button", { name: "Stem intrekken" }).click();
   await expect(card.getByRole("button", { name: "Stem op dit idee" })).toBeVisible();
 
+  // --- Zoeken: filtert op titel/omschrijving ---
+  await page.getByRole("searchbox", { name: "Zoek in ideeën" }).fill("Mobiele");
+  await page.getByRole("button", { name: "Toepassen" }).click();
+  await page.waitForURL(/[?&]q=Mobiele/);
+  await expect(page.getByText(MOBIEL)).toBeVisible();
+  await expect(page.getByText("Donkere modus voor het hele platform")).toHaveCount(0);
+  await shot(page, "ideeen-zoeken");
+  await page.getByRole("link", { name: "Wissen" }).click();
+  await page.waitForURL(/\/ideeen$/);
+  await expect(page.getByText("Donkere modus voor het hele platform")).toBeVisible();
+
   // --- Admin: status van een idee zetten ---
   const actx = await browser.newContext();
   const apage = await actx.newPage();
   await login(apage, "admin@zzp-platform.local");
   await apage.goto("/ideeen");
   const adminCard = apage.locator("li", { hasText: "Donkere modus voor het hele platform" });
-  await adminCard.getByRole("combobox").selectOption("PLANNED");
-  await adminCard.getByRole("button", { name: "Opslaan" }).click();
+  // Per idee staan nu meerdere selects (status/doelgroep/thema) — kies de status-select op naam.
+  await adminCard.getByRole("combobox", { name: /^Status van idee/ }).selectOption("PLANNED");
+  await adminCard.getByRole("button", { name: "Opslaan" }).first().click();
   // De statusbadge (vóór de select in de DOM) toont nu "Gepland".
   await expect(adminCard.getByText("Gepland").first()).toBeVisible();
   await shot(apage, "ideeen-admin-status");

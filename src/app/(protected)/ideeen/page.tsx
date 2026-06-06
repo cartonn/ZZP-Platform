@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
-import { Lightbulb } from "lucide-react";
+import Link from "next/link";
+import { Lightbulb, Search } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import {
@@ -26,6 +27,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShortNl } from "@/lib/format-date";
@@ -52,13 +54,15 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
   const audienceFilter = isIdeaAudience(audienceParam) ? audienceParam : undefined;
   const themeParam = first(sp.theme);
   const themeFilter = isIdeaTheme(themeParam) ? themeParam : undefined;
-  const hasFilter = Boolean(statusFilter || audienceFilter || themeFilter);
+  const q = first(sp.q).trim();
+  const hasFilter = Boolean(statusFilter || audienceFilter || themeFilter || q);
 
   const rows = await prisma.idea.findMany({
     where: {
       ...(statusFilter ? { status: statusFilter } : {}),
       ...(audienceFilter ? { audience: audienceFilter } : {}),
       ...(themeFilter ? { theme: themeFilter } : {}),
+      ...(q ? { OR: [{ title: { contains: q } }, { description: { contains: q } }] } : {}),
     },
     include: {
       author: { select: { name: true } },
@@ -111,8 +115,23 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
 
       <form
         method="get"
+        role="search"
         className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3"
       >
+        <div className="relative basis-full">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Zoek in ideeën…"
+            aria-label="Zoek in ideeën"
+            className="pl-9"
+          />
+        </div>
         <Select
           name="sort"
           defaultValue={sort}
@@ -167,17 +186,33 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
         <Button type="submit" size="sm" variant="secondary">
           Toepassen
         </Button>
+        {hasFilter && (
+          <Link
+            href="/ideeen"
+            className="focus-ring text-sm text-muted-foreground hover:text-foreground"
+          >
+            Wissen
+          </Link>
+        )}
       </form>
 
       {ideas.length === 0 ? (
         <Card>
           <EmptyState
-            icon={Lightbulb}
-            title={hasFilter ? "Geen ideeën voor dit filter" : "Nog geen ideeën"}
+            icon={q ? Search : Lightbulb}
+            title={
+              q
+                ? "Geen ideeën gevonden"
+                : hasFilter
+                  ? "Geen ideeën voor dit filter"
+                  : "Nog geen ideeën"
+            }
             description={
-              hasFilter
-                ? "Pas de filters aan om andere ideeën te zien."
-                : "Wees de eerste die een verbetering voorstelt."
+              q
+                ? `Geen idee komt overeen met “${q}”. Probeer andere woorden of pas de filters aan.`
+                : hasFilter
+                  ? "Pas de filters aan om andere ideeën te zien."
+                  : "Wees de eerste die een verbetering voorstelt."
             }
           />
         </Card>
