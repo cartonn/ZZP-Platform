@@ -676,6 +676,7 @@ model Subscription {
   status           String    @default("ACTIVE") // SubscriptionStatus: PENDING | ACTIVE | PAST_DUE | CANCELLED
   providerRef      String? //                     betaalprovider-referentie (bv. Mollie payment id)
   currentPeriodEnd DateTime?
+  pastDueAt        DateTime? //                    sinds wanneer PAST_DUE — anker voor de herinnering-/downgrade-ladder
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
