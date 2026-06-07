@@ -265,6 +265,56 @@ describe("computeMatchScore", () => {
     expect(other.breakdown.location).toBeLessThan(MATCH_COMPONENT_MAX.location);
   });
 
+  it("toont een positieve reistijd-reason als de opdracht binnen de max. reistijd ligt", () => {
+    const r = computeMatchScore(
+      {
+        ...base,
+        job: { ...base.job, workMode: "ONSITE", location: "Rotterdam" },
+        freelancer: {
+          ...base.freelancer,
+          workMode: "ONSITE",
+          location: "Amsterdam",
+          maxTravelMinutes: 120,
+        },
+      },
+      now,
+    );
+    const travel = r.reasons.find((re) => re.label.includes("reistijd"));
+    expect(travel?.kind).toBe("positive");
+    expect(travel?.label).toMatch(/Binnen je max\. reistijd \(ca\. \d+ min\)/);
+  });
+
+  it("toont een gap-reason met de reistijd als de opdracht erbuiten ligt", () => {
+    const r = computeMatchScore(
+      {
+        ...base,
+        job: { ...base.job, workMode: "ONSITE", location: "Venlo" },
+        freelancer: {
+          ...base.freelancer,
+          workMode: "ONSITE",
+          location: "Amsterdam",
+          maxTravelMinutes: 30,
+        },
+      },
+      now,
+    );
+    const travel = r.reasons.find((re) => re.label.includes("reistijd"));
+    expect(travel?.kind).toBe("gap");
+    expect(travel?.label).toMatch(/Verder dan je max\. reistijd \(ca\. \d+ min\)/);
+  });
+
+  it("toont geen reistijd-reason zonder opgegeven max. reistijd", () => {
+    const r = computeMatchScore(
+      {
+        ...base,
+        job: { ...base.job, workMode: "ONSITE", location: "Venlo" },
+        freelancer: { ...base.freelancer, workMode: "ONSITE", location: "Amsterdam" },
+      },
+      now,
+    );
+    expect(r.reasons.some((re) => re.label.includes("reistijd"))).toBe(false);
+  });
+
   it("negeert reistijd bij een onbekende plaats (terugval op stad-vergelijking)", () => {
     const r = computeMatchScore(
       {
