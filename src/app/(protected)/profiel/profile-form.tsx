@@ -29,6 +29,7 @@ export interface ProfileFormInitial {
   location: string;
   availability: string;
   workMode: string;
+  maxTravelMinutes: string;
   languages: string;
   kvkNumber: string;
   btwNumber: string;
@@ -125,6 +126,22 @@ export function ProfileForm({
               </option>
             ))}
           </Select>
+        </Field>
+        <Field
+          label="Max. reistijd (min.)"
+          htmlFor="maxTravelMinutes"
+          error={fe.maxTravelMinutes}
+          hint="Voor opdrachten op locatie. Leeg = geen limiet."
+        >
+          <Input
+            id="maxTravelMinutes"
+            name="maxTravelMinutes"
+            type="number"
+            min={0}
+            max={999}
+            defaultValue={initial.maxTravelMinutes}
+            placeholder="bijv. 45"
+          />
         </Field>
         <div className="sm:col-span-2">
           <Field

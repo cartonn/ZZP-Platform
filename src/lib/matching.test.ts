@@ -210,6 +210,80 @@ describe("computeMatchScore", () => {
     expect(gap?.label).toBe("Mist vereist certificaat");
   });
 
+  it("weegt reistijd mee bij een max. reistijd: binnen bereik = volledige locatie-score", () => {
+    const r = computeMatchScore(
+      {
+        ...base,
+        job: { ...base.job, workMode: "ONSITE", location: "Amsterdam" },
+        freelancer: {
+          ...base.freelancer,
+          workMode: "ONSITE",
+          location: "Amsterdam",
+          maxTravelMinutes: 60,
+        },
+      },
+      now,
+    );
+    expect(r.breakdown.location).toBe(MATCH_COMPONENT_MAX.location);
+  });
+
+  it("schaalt de locatie-score terug als de opdracht buiten de max. reistijd ligt", () => {
+    const r = computeMatchScore(
+      {
+        ...base,
+        job: { ...base.job, workMode: "ONSITE", location: "Venlo" },
+        freelancer: {
+          ...base.freelancer,
+          workMode: "ONSITE",
+          location: "Amsterdam",
+          maxTravelMinutes: 60,
+        },
+      },
+      now,
+    );
+    expect(r.breakdown.location).toBeLessThan(MATCH_COMPONENT_MAX.location);
+  });
+
+  it("valt zonder max. reistijd terug op stad-vergelijking (gedrag ongewijzigd)", () => {
+    const same = computeMatchScore(
+      {
+        ...base,
+        job: { ...base.job, workMode: "ONSITE", location: "Amsterdam" },
+        freelancer: { ...base.freelancer, workMode: "ONSITE", location: "Amsterdam" },
+      },
+      now,
+    );
+    const other = computeMatchScore(
+      {
+        ...base,
+        job: { ...base.job, workMode: "ONSITE", location: "Venlo" },
+        freelancer: { ...base.freelancer, workMode: "ONSITE", location: "Amsterdam" },
+      },
+      now,
+    );
+    expect(same.breakdown.location).toBe(MATCH_COMPONENT_MAX.location);
+    expect(other.breakdown.location).toBeLessThan(MATCH_COMPONENT_MAX.location);
+  });
+
+  it("negeert reistijd bij een onbekende plaats (terugval op stad-vergelijking)", () => {
+    const r = computeMatchScore(
+      {
+        ...base,
+        job: { ...base.job, workMode: "ONSITE", location: "Atlantis" },
+        freelancer: {
+          ...base.freelancer,
+          workMode: "ONSITE",
+          location: "Amsterdam",
+          maxTravelMinutes: 30,
+        },
+      },
+      now,
+    );
+    // Onbekende plaats → estimateTravelMinutes null → stad-vergelijking: verschillende steden → 0.4×.
+    expect(r.breakdown.location).toBeLessThan(MATCH_COMPONENT_MAX.location);
+    expect(r.breakdown.location).toBeGreaterThan(0);
+  });
+
   it("voegt een positieve reason toe bij AVAILABLE zonder de score te wijzigen", () => {
     const baseline = computeMatchScore(
       { ...base, freelancer: { ...base.freelancer, availability: "UNKNOWN" } },

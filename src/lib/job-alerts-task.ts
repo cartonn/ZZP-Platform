@@ -59,6 +59,7 @@ export async function runJobAlertsTask(opts?: {
     hourlyRate: p.hourlyRate,
     workMode: p.workMode,
     location: p.location,
+    maxTravelMinutes: p.maxTravelMinutes,
     availability: p.availability,
     availabilityWindows: p.availabilityWindows,
   }));

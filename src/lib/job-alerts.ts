@@ -27,6 +27,7 @@ export interface JobAlertFreelancer {
   hourlyRate: number | null;
   workMode: string;
   location: string | null;
+  maxTravelMinutes?: number | null;
   availability: string;
   availabilityWindows?: readonly { startDate: Date; endDate: Date; type: string }[];
 }
