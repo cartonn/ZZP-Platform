@@ -101,4 +101,70 @@ export async function seedFranchise(prisma: PrismaClient, passwordHash: string):
       publishedAt: new Date(),
     },
   });
+
+  // Acquisitie-pijplijn (CRM-light): een paar leads in verschillende fasen, met contactgeschiedenis.
+  const leads: Array<{
+    id: string;
+    organizationName: string;
+    contactName: string;
+    email: string;
+    phone: string;
+    status: string;
+    notes: string;
+    log: string[];
+  }> = [
+    {
+      id: "lead-noord-thuiszorg",
+      organizationName: "Thuiszorg Het Hoge Noorden",
+      contactName: "Marijke Veenstra",
+      email: "m.veenstra@hethogenoorden.nl",
+      phone: "050-1234567",
+      status: "WARM",
+      notes: "Zoekt flexpool verzorgenden IG voor de regio Groningen-stad.",
+      log: [
+        "Eerste belletje — interesse in een vaste flexpool. Stuurt functieprofielen toe.",
+        "Status: Warm — offerte-gesprek ingepland voor volgende week.",
+      ],
+    },
+    {
+      id: "lead-noord-revalidatie",
+      organizationName: "Revalidatiecentrum Maartenshof",
+      contactName: "Paul Dijkstra",
+      email: "p.dijkstra@maartenshof.nl",
+      phone: "050-7654321",
+      status: "KOUD",
+      notes: "Via via binnengekomen; nog niet benaderd.",
+      log: [],
+    },
+    {
+      id: "lead-noord-ggz",
+      organizationName: "GGZ Drenthe — locatie Assen",
+      contactName: "Hanneke Smit",
+      email: "h.smit@ggzdrenthe.nl",
+      phone: "0592-112233",
+      status: "NO_DEAL",
+      notes: "Werkt met een vaste landelijke partij.",
+      log: ["Status: Afgevallen — heeft al een raamcontract met een landelijke bemiddelaar."],
+    },
+  ];
+
+  for (const l of leads) {
+    await prisma.lead.upsert({
+      where: { id: l.id },
+      update: {},
+      create: {
+        id: l.id,
+        tenantId: tenant.id,
+        organizationName: l.organizationName,
+        contactName: l.contactName,
+        email: l.email,
+        phone: l.phone,
+        status: l.status,
+        notes: l.notes,
+        contacts: {
+          create: l.log.map((body) => ({ body, createdById: franchiser.id })),
+        },
+      },
+    });
+  }
 }

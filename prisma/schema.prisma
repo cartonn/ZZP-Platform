@@ -63,6 +63,7 @@ model User {
   ideas             Idea[]             @relation("IdeaAuthor")
   ideaVotes         IdeaVote[]         @relation("IdeaVoter")
   ideaComments      IdeaComment[]      @relation("IdeaCommentAuthor")
+  leadContacts      LeadContact[]      @relation("LeadContactAuthor")
 
   @@index([role])
   @@index([status])
@@ -87,6 +88,7 @@ model Tenant {
   companies   Company[]
   freelancers FreelancerProfile[]
   jobs        Job[]
+  leads       Lead[]
 }
 
 // Afdeling binnen een opdrachtgever (bv. een afdeling/locatie van een zorginstelling).
@@ -103,6 +105,45 @@ model Department {
   jobs    Job[]
 
   @@index([companyId])
+}
+
+// Lead = een organisatie die de Franchiser nog wil binnenhalen (acquisitie-pijplijn). Tenant-gescoped:
+// een lead is alleen zichtbaar voor de eigen franchise. Wordt een lead klant, dan koppelt de
+// onboarding-wizard hem aan een echte Company/CLIENT (de lead-status gaat naar KLANT, terminaal).
+model Lead {
+  id               String    @id @default(cuid())
+  tenantId         String //  acquisitie hoort altijd bij één franchise
+  organizationName String
+  contactName      String?
+  email            String?
+  phone            String?
+  status           String    @default("KOUD") // LeadStatus: KOUD | WARM | KLANT | NO_DEAL
+  notes            String? //  vrije notitie bij de lead zelf
+  nextFollowUp     DateTime? // geplande opvolgdatum (acties-signaal)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contacts LeadContact[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+}
+
+// Eén regel in het contactlogboek van een lead (belletje, mail, gesprek). Onveranderlijk: de
+// tijdlijn is de acquisitie-geschiedenis.
+model LeadContact {
+  id          String   @id @default(cuid())
+  leadId      String
+  body        String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("LeadContactAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([leadId, createdAt])
 }
 
 // Wachtwoord-reset tokens: de raw token staat nooit in de DB; alleen de SHA-256 hash.

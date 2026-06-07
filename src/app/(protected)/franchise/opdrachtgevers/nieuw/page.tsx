@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
-import { WizardOpdrachtgever } from "./wizard-opdrachtgever";
+import { WizardOpdrachtgever, type OpdrachtgeverPrefill } from "./wizard-opdrachtgever";
 import { WizardAfdelingForm } from "./wizard-afdeling-form";
 import { WizardDienstForm } from "./wizard-dienst-form";
 import { removeAfdelingStep } from "./actions";
@@ -30,11 +30,22 @@ const wizardHref = (stap: Stap, company?: string) =>
 export default async function WizardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ stap?: string; company?: string }>;
+  searchParams: Promise<{
+    stap?: string;
+    company?: string;
+    leadId?: string;
+    naam?: string;
+    contact?: string;
+    email?: string;
+  }>;
 }) {
   const actor = await requireRole("FRANCHISER");
   const sp = await searchParams;
   const companyId = sp.company ?? null;
+  // Prefill vanuit een lead ("Wordt klant"-CTA). Alleen relevant in de eerste stap.
+  const prefill: OpdrachtgeverPrefill | undefined = sp.leadId
+    ? { leadId: sp.leadId, companyName: sp.naam, contactName: sp.contact, email: sp.email }
+    : undefined;
   const rawStap = (sp.stap ?? "opdrachtgever") as Stap;
   const stap: Stap = (["opdrachtgever", "afdelingen", "diensten", "klaar"] as const).includes(
     rawStap,
@@ -94,7 +105,7 @@ export default async function WizardPage({
 
         {/* Actieve stap */}
         <div className="min-w-0">
-          {stap === "opdrachtgever" && <StepOpdrachtgever />}
+          {stap === "opdrachtgever" && <StepOpdrachtgever prefill={prefill} />}
           {stap === "afdelingen" && state && <StepAfdelingen state={state} />}
           {stap === "diensten" && state && <StepDiensten actor={actor} state={state} />}
           {stap === "klaar" && state && <StepKlaar state={state} />}
@@ -109,7 +120,7 @@ export default async function WizardPage({
   );
 }
 
-function StepOpdrachtgever() {
+function StepOpdrachtgever({ prefill }: { prefill?: OpdrachtgeverPrefill }) {
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
@@ -120,7 +131,7 @@ function StepOpdrachtgever() {
             regel je in de volgende stappen.
           </p>
         </div>
-        <WizardOpdrachtgever />
+        <WizardOpdrachtgever prefill={prefill} />
       </CardContent>
     </Card>
   );
