@@ -1,9 +1,11 @@
 import { type Metadata } from "next";
-import { CalendarDays, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, CalendarDays, Trash2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { summarizeAvailability, upcomingWindows } from "@/lib/availability";
 import { type AvailabilityWindowType } from "@/lib/enums";
+import { detectAvailabilityConflicts } from "@/lib/availability-conflicts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,15 +33,40 @@ export default async function BeschikbaarheidPage() {
     where: { userId: actor.id },
     select: { id: true },
   });
-  const rows = profile
-    ? await prisma.availabilityWindow.findMany({
-        where: { freelancerProfileId: profile.id },
-        orderBy: { startDate: "asc" },
-      })
-    : [];
+  const [rows, collabRows] = await Promise.all([
+    profile
+      ? prisma.availabilityWindow.findMany({
+          where: { freelancerProfileId: profile.id },
+          orderBy: { startDate: "asc" },
+        })
+      : Promise.resolve([]),
+    profile
+      ? prisma.collaboration.findMany({
+          where: { freelancerId: profile.id, status: { in: ["PROPOSED", "ACTIVE"] } },
+          select: {
+            id: true,
+            startDate: true,
+            endDate: true,
+            job: { select: { title: true } },
+            company: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
   const windows = rows.map((w) => ({ ...w, type: w.type as AvailabilityWindowType }));
   const upcoming = upcomingWindows(windows);
   const summary = summarizeAvailability(windows);
+
+  const conflicts = detectAvailabilityConflicts(
+    windows,
+    collabRows.map((c) => ({
+      id: c.id,
+      startDate: c.startDate,
+      endDate: c.endDate,
+      jobTitle: c.job.title,
+      clientName: c.company.name,
+    })),
+  );
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -52,6 +79,39 @@ export default async function BeschikbaarheidPage() {
           </>
         }
       />
+
+      {conflicts.length > 0 && (
+        <section className="rounded-lg border border-danger/30 bg-danger/5 p-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="size-4 shrink-0 text-danger" aria-hidden />
+            <h2 className="text-sm font-medium text-foreground">
+              {conflicts.length === 1
+                ? "1 periode botst met een lopende samenwerking"
+                : `${conflicts.length} periodes botsen met een lopende samenwerking`}
+            </h2>
+          </div>
+          <ul className="mt-3 space-y-2">
+            {conflicts.map((c) => (
+              <li key={`${c.windowId}-${c.collaborationId}`}>
+                <Link
+                  href={`/samenwerkingen/${c.collaborationId}`}
+                  className="focus-ring flex items-start justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted/40"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-medium">
+                      Niet beschikbaar {fmt(c.overlapStart)} — {fmt(c.overlapEnd)}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      Botst met {c.clientName} · {c.jobTitle}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">Bekijk →</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <AvailabilityForm />
 
