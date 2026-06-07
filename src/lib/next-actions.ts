@@ -124,7 +124,7 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
   if (input.expiringCredentials > 0) {
     actions.push({
       id: "freelancer-credentials-expiring",
-      title: `${input.expiringCredentials} certificaat verloopt binnenkort — vernieuw`,
+      title: `${plural(input.expiringCredentials, "certificaat", "certificaten")} ${input.expiringCredentials === 1 ? "verloopt" : "verlopen"} binnenkort — vernieuw`,
       href: "/certificaten",
       tone: "attention",
       priority: P.credentialExpiring,

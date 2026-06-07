@@ -11,6 +11,7 @@ import { computeTrustLevel } from "@/lib/trust";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import {
+  APPLICATION_STATUSES,
   type ApplicationStatus,
   type Visibility,
   type CredentialType,
@@ -43,7 +44,9 @@ export default async function KandidatenPage() {
 
   const applications = await prisma.application.findMany({
     where: { job: { company: { userId: actor.id } } },
-    orderBy: [{ status: "asc" }, { matchScore: "desc" }],
+    // Beste match eerst; de werkstroom-volgorde (NEW vóór afgehandelde) zetten we in-memory, want
+    // `status` is een string-kolom — DB-`asc` zou lexicografisch sorteren (ACCEPTED bovenaan).
+    orderBy: { matchScore: "desc" },
     include: {
       job: {
         select: {
@@ -65,6 +68,14 @@ export default async function KandidatenPage() {
       collaboration: { select: { id: true } },
     },
   });
+
+  // Werkstroom-volgorde: NEW → VIEWED → SHORTLIST → REJECTED → ACCEPTED (actie-vragend eerst,
+  // afgehandeld onderaan). Stabiel, dus binnen één status blijft de match-volgorde (hoogste eerst) staan.
+  applications.sort(
+    (a, b) =>
+      APPLICATION_STATUSES.indexOf(a.status as ApplicationStatus) -
+      APPLICATION_STATUSES.indexOf(b.status as ApplicationStatus),
+  );
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -175,7 +186,7 @@ export default async function KandidatenPage() {
                     {app.proposedRate != null && (
                       <span>Tariefvoorstel: € {app.proposedRate}/uur</span>
                     )}
-                    {app.availability && <span>Beschikbaarheid: {app.availability}</span>}
+                    {app.availability && <span>Aangegeven bij reactie: {app.availability}</span>}
                     {(() => {
                       const s = summarizeAvailability(
                         app.freelancer.availabilityWindows.map((w) => ({

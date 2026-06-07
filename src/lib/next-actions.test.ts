@@ -81,6 +81,13 @@ describe("freelancerNextActions", () => {
     expect(ranked[0]?.tone).toBe("attention");
   });
 
+  it("gebruikt correct enkelvoud/meervoud bij verlopende certificaten", () => {
+    const one = freelancerNextActions({ ...allClearFreelancer, expiringCredentials: 1 });
+    expect(one[0]?.title).toContain("1 certificaat verloopt binnenkort");
+    const many = freelancerNextActions({ ...allClearFreelancer, expiringCredentials: 3 });
+    expect(many[0]?.title).toContain("3 certificaten verlopen binnenkort");
+  });
+
   it("orders compliance/blocking above cosmetic completeness", () => {
     const ranked = freelancerNextActions({
       ...allClearFreelancer,
