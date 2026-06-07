@@ -3,6 +3,7 @@ import {
   computeCompliance,
   computeMatchScore,
   liveComplianceStatus,
+  MATCH_COMPONENT_MAX,
   type FreelancerCredential,
   type MatchInput,
 } from "@/lib/matching";
@@ -92,6 +93,28 @@ describe("computeMatchScore", () => {
     const r = computeMatchScore(base, now);
     expect(r.score).toBe(100);
     expect(r.compliance.status).toBe("COMPLIANT");
+  });
+
+  it("breakdown-componenten sommeren tot de score en blijven binnen hun maximum (MATCH_COMPONENT_MAX)", () => {
+    // De som van de maxima is de 100-punts-schaal — de basis voor de transparante breakdown-weergave.
+    const maxSum = Object.values(MATCH_COMPONENT_MAX).reduce((a, b) => a + b, 0);
+    expect(maxSum).toBe(100);
+
+    // Bij een perfecte match haalt elke component exact zijn maximum.
+    const r = computeMatchScore(base, now);
+    for (const key of Object.keys(MATCH_COMPONENT_MAX) as (keyof typeof MATCH_COMPONENT_MAX)[]) {
+      expect(r.breakdown[key]).toBe(MATCH_COMPONENT_MAX[key]);
+    }
+
+    // En bij een zwakke match overschrijdt geen enkele component zijn maximum.
+    const weak = computeMatchScore(
+      { ...base, freelancerSkillIds: [], credentials: [], freelancer: { ...base.freelancer, hourlyRate: 200 } }, // prettier-ignore
+      now,
+    );
+    for (const key of Object.keys(MATCH_COMPONENT_MAX) as (keyof typeof MATCH_COMPONENT_MAX)[]) {
+      expect(weak.breakdown[key]).toBeLessThanOrEqual(MATCH_COMPONENT_MAX[key]);
+      expect(weak.breakdown[key]).toBeGreaterThanOrEqual(0);
+    }
   });
 
   it("verlaagt de score bij ontbrekende vereiste skills", () => {

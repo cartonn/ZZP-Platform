@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
+import { MatchBreakdown } from "@/components/match/match-breakdown";
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import {
@@ -26,6 +27,7 @@ import {
   type ComplianceResult,
   type ComplianceStatus,
   type MatchReason,
+  type MatchResult,
 } from "@/lib/matching";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
@@ -114,7 +116,12 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
     matchScore: number | null;
     complianceSnapshot: string | null;
   } | null = null;
-  let myFit: { score: number; compliance: ComplianceResult; reasons: MatchReason[] } | null = null;
+  let myFit: {
+    score: number;
+    breakdown: MatchResult["breakdown"];
+    compliance: ComplianceResult;
+    reasons: MatchReason[];
+  } | null = null;
   let myCompliance: ComplianceStatus | null = null;
   if (actor.role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
@@ -131,7 +138,12 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       });
       if (!myApplication && status === "PUBLISHED") {
         const match = scoreJobForFreelancer(job, profile);
-        myFit = { score: match.score, compliance: match.compliance, reasons: match.reasons };
+        myFit = {
+          score: match.score,
+          breakdown: match.breakdown,
+          compliance: match.compliance,
+          reasons: match.reasons,
+        };
       }
       // Live compliance voor een reeds verstuurde reactie (i.p.v. de bevroren snapshot).
       if (myApplication) {
@@ -440,6 +452,14 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                     ))}
                   </ul>
                 )}
+                <details className="text-sm">
+                  <summary className="focus-ring cursor-pointer text-muted-foreground">
+                    Hoe is deze score opgebouwd?
+                  </summary>
+                  <div className="mt-3">
+                    <MatchBreakdown breakdown={myFit.breakdown} />
+                  </div>
+                </details>
                 {requiredCreds.length > 0 && (
                   <ul className="space-y-1.5 text-sm">
                     {requiredCreds.map((c) => {
