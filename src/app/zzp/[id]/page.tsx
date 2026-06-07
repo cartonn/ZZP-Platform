@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrustBadge } from "@/components/trust/trust-badge";
+import { TrustExplanation } from "@/components/trust/trust-explanation";
 
 export const metadata: Metadata = { title: "ZZP-profiel · ZZP Platform" };
 
@@ -131,6 +132,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             )}
           </CardContent>
         </Card>
+
+        {/* Maakt het vertrouwens-badge verklaarbaar voor de kijker: welke signalen het niveau dragen.
+            Bij BASIS is er niets positiefs te tonen (en is ook het badge verborgen) — dan overslaan. */}
+        {trust.level !== "BASIS" && <TrustExplanation trust={trust} />}
 
         {profile.skills.length > 0 && (
           <section className="space-y-2">
