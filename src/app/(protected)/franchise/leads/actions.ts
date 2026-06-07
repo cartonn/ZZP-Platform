@@ -132,6 +132,19 @@ export async function setLeadStatus(leadId: string, formData: FormData): Promise
 
 const contactSchema = z.string().trim().min(2, "Schrijf een korte notitie.").max(2000);
 
+/**
+ * Leest de optionele opvolgdatum uit het formulier. `undefined` = veld niet aanwezig (niet
+ * aanraken); `null` = leeg ingevuld (opvolging wissen); een `Date` = nieuwe opvolgdatum. Een
+ * ongeldige waarde wordt genegeerd (undefined).
+ */
+function parseNextFollowUp(formData: FormData): Date | null | undefined {
+  if (!formData.has("nextFollowUp")) return undefined;
+  const raw = String(formData.get("nextFollowUp") ?? "").trim();
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
 /** Voeg een regel toe aan het contactlogboek van een lead (belletje, mail, gesprek). Tenant-scoped. */
 export async function addLeadContact(leadId: string, formData: FormData): Promise<void> {
   const actor = await requireRole("FRANCHISER");
@@ -145,9 +158,15 @@ export async function addLeadContact(leadId: string, formData: FormData): Promis
   if (!lead) return;
   assertSameTenant(actor, lead.tenantId);
 
-  await prisma.leadContact.create({
-    data: { leadId, body: parsed.data, createdById: actor.id },
-  });
+  const nextFollowUp = parseNextFollowUp(formData);
+  await prisma.$transaction([
+    prisma.leadContact.create({
+      data: { leadId, body: parsed.data, createdById: actor.id },
+    }),
+    ...(nextFollowUp !== undefined
+      ? [prisma.lead.update({ where: { id: leadId }, data: { nextFollowUp } })]
+      : []),
+  ]);
   await audit({
     actorId: actor.id,
     action: "LEAD_CONTACT_ADDED",
@@ -155,5 +174,6 @@ export async function addLeadContact(leadId: string, formData: FormData): Promis
     entityId: leadId,
   });
 
+  revalidatePath("/franchise/leads");
   revalidatePath(`/franchise/leads/${leadId}`);
 }

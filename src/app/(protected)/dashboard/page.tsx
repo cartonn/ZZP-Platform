@@ -296,21 +296,31 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     // Tenant-overzicht: opdrachtgevers + ZZP'ers + open diensten binnen de eigen franchise.
     const me = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
     const tenantId = me?.tenantId ?? null;
-    const [companies, freelancers, openDiensten, activeCollabs, companiesWithoutDiensten] = tenantId
+    const [
+      companies,
+      freelancers,
+      openDiensten,
+      activeCollabs,
+      companiesWithoutDiensten,
+      openLeads,
+    ] = tenantId
       ? await Promise.all([
           prisma.company.count({ where: { tenantId } }),
           prisma.freelancerProfile.count({ where: { tenantId } }),
           prisma.job.count({ where: { tenantId, status: "PUBLISHED" } }),
           prisma.collaboration.count({ where: { job: { tenantId }, status: "ACTIVE" } }),
           prisma.company.count({ where: { tenantId, jobs: { none: { status: "PUBLISHED" } } } }),
+          // Lopende acquisitie: leads die nog niet klant of afgevallen zijn.
+          prisma.lead.count({ where: { tenantId, status: { in: ["KOUD", "WARM"] } } }),
         ])
-      : [0, 0, 0, 0, 0];
+      : [0, 0, 0, 0, 0, 0];
     return {
       stats: [
         { label: "Opdrachtgevers", value: companies, href: "/franchise/opdrachtgevers" },
         { label: "ZZP'ers", value: freelancers, href: "/franchise/zzpers" },
         { label: "Open diensten", value: openDiensten, href: "/franchise/diensten" },
         { label: "Lopende samenwerkingen", value: activeCollabs, href: "/franchise/samenwerkingen" }, // prettier-ignore
+        { label: "Open leads", value: openLeads, href: "/franchise/leads" },
       ],
       running: [],
       week: null,

@@ -10,17 +10,27 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatDateTimeNl } from "@/lib/format-date";
+import { formatDateTimeNl, formatDateShortNl } from "@/lib/format-date";
 import { StatusControl } from "../status-control";
 import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = { title: "Lead · Franchise" };
+
+// Een opvolgdatum is "te laat" als die vóór vandaag valt (op dagniveau, UTC-datuminvoer).
+function followUpState(date: Date | null, now: Date): "overdue" | "upcoming" | null {
+  if (!date) return null;
+  const day = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  return day(date) < day(now) ? "overdue" : "upcoming";
+}
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actor = await requireRole("FRANCHISER");
   const lead = await getLeadDetail(actor, id);
   if (!lead) notFound();
+
+  const followUp = followUpState(lead.nextFollowUp, new Date());
+  const followUpDefault = lead.nextFollowUp ? lead.nextFollowUp.toISOString().slice(0, 10) : "";
 
   // "Wordt klant" is alleen zinvol zolang de lead nog loopt (niet al klant, niet afgevallen).
   const canConvert = lead.status === "KOUD" || lead.status === "WARM";
@@ -71,6 +81,20 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           </div>
           {lead.notes && <p className="text-sm text-muted-foreground">{lead.notes}</p>}
 
+          {lead.nextFollowUp && (
+            <p className="text-sm">
+              <span className="text-muted-foreground">Volgende opvolging: </span>
+              <span
+                className={
+                  followUp === "overdue" ? "font-medium text-danger" : "font-medium text-foreground"
+                }
+              >
+                {formatDateShortNl(lead.nextFollowUp)}
+                {followUp === "overdue" && " — te laat"}
+              </span>
+            </p>
+          )}
+
           <div className="border-t border-border pt-4">
             <StatusControl
               leadId={lead.id}
@@ -98,7 +122,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         <h2 className="text-sm font-semibold tracking-tight">Contactlogboek</h2>
         <Card>
           <CardContent className="space-y-4 p-5">
-            <ContactForm leadId={lead.id} />
+            <ContactForm leadId={lead.id} defaultFollowUp={followUpDefault} />
             {lead.contacts.length === 0 ? (
               <EmptyState
                 title="Nog geen contactmomenten"

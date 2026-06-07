@@ -43,6 +43,14 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
     include: { _count: { select: { contacts: true } } },
   });
 
+  // Een opvolgdatum vóór vandaag is "te laat" (op dagniveau, UTC-datuminvoer).
+  const todayUTC = (() => {
+    const n = new Date();
+    return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
+  })();
+  const isOverdue = (d: Date | null) =>
+    !!d && Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) < todayUTC;
+
   const tabs: { label: string; href: string; active: boolean }[] = [
     { label: "Alle", href: "/franchise/leads", active: !statusFilter },
     ...LEAD_STATUSES.map((s) => ({
@@ -115,6 +123,14 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
                 <p className="truncate text-sm text-muted-foreground">
                   {l.contactName || l.email || "Geen contactpersoon"}
                 </p>
+                {l.nextFollowUp && (
+                  <p
+                    className={`mt-0.5 text-xs ${isOverdue(l.nextFollowUp) ? "font-medium text-danger" : "text-muted-foreground"}`}
+                  >
+                    Opvolgen: {formatDateShortNl(l.nextFollowUp)}
+                    {isOverdue(l.nextFollowUp) && " — te laat"}
+                  </p>
+                )}
               </div>
               <p className="shrink-0 text-right text-xs text-muted-foreground">
                 {plural(l._count.contacts, "notitie", "notities")}
