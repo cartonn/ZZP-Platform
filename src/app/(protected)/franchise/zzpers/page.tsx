@@ -53,7 +53,7 @@ export default async function FranchiseZzpersPage() {
           <EmptyState
             icon={Users}
             title="Nog geen ZZP'ers"
-            description="Je hebt nog geen ZZP'ers in je roster."
+            description="Voeg hierboven je eerste ZZP'er toe — daarna vult hij zelf zijn profiel en certificaten aan."
           />
         </Card>
       ) : (

@@ -4,6 +4,7 @@ import {
   freelancerNextActions,
   clientNextActions,
   adminNextActions,
+  franchiserNextActions,
   formatMissing,
   type NextAction,
 } from "./next-actions";
@@ -288,6 +289,68 @@ describe("berichten die op antwoord wachten als next-action", () => {
   it("geen berichten-actie bij 0", () => {
     expect(freelancerNextActions(allClearFreelancer)).toEqual([]);
     expect(clientNextActions(allClearClient)).toEqual([]);
+  });
+});
+
+const allClearFranchiser = {
+  companies: 2,
+  publishedDiensten: 3,
+  rosterFreelancers: 4,
+  companiesWithoutDiensten: 0,
+};
+
+describe("franchiserNextActions", () => {
+  it("toont niets wanneer de franchise volledig staat", () => {
+    expect(franchiserNextActions(allClearFranchiser)).toEqual([]);
+  });
+
+  it("toont bij een lege tenant de opdrachtgever- én de roster-startstap (geen zinloze dienst-stap)", () => {
+    const ranked = franchiserNextActions({
+      companies: 0,
+      publishedDiensten: 0,
+      rosterFreelancers: 0,
+      companiesWithoutDiensten: 0,
+    });
+    // first-client (90) boven roster (70); de dienst-stap ontbreekt want er is nog geen opdrachtgever.
+    expect(ranked.map((x) => x.id)).toEqual(["franchiser-first-client", "franchiser-roster-empty"]);
+    expect(ranked[0]?.href).toBe("/franchise/opdrachtgevers/nieuw");
+    expect(ranked[0]?.tone).toBe("info");
+  });
+
+  it("stuurt naar de eerste dienst zodra er een opdrachtgever is", () => {
+    const ranked = franchiserNextActions({
+      ...allClearFranchiser,
+      publishedDiensten: 0,
+      companiesWithoutDiensten: 2,
+    });
+    expect(ranked.map((x) => x.id)).toEqual(["franchiser-first-service"]);
+    expect(ranked[0]?.href).toBe("/franchise/opdrachtgevers");
+  });
+
+  it("nudget opdrachtgevers-zonder-diensten zodra er al diensten lopen", () => {
+    const ranked = franchiserNextActions({ ...allClearFranchiser, companiesWithoutDiensten: 1 });
+    expect(ranked.map((x) => x.id)).toEqual(["franchiser-clients-without-service"]);
+    expect(ranked[0]?.title).toContain("1 opdrachtgever");
+  });
+
+  it("toont eerste-dienst én roster bij een opdrachtgever zonder diensten en leeg roster, diensten bovenaan", () => {
+    const ranked = franchiserNextActions({
+      companies: 1,
+      publishedDiensten: 0,
+      rosterFreelancers: 0,
+      companiesWithoutDiensten: 1,
+    });
+    // first-service (80) boven roster (70).
+    expect(ranked.map((x) => x.id)).toEqual([
+      "franchiser-first-service",
+      "franchiser-roster-empty",
+    ]);
+  });
+
+  it("toont alleen de roster-stap als diensten staan maar het roster leeg is", () => {
+    const ranked = franchiserNextActions({ ...allClearFranchiser, rosterFreelancers: 0 });
+    expect(ranked.map((x) => x.id)).toEqual(["franchiser-roster-empty"]);
+    expect(ranked[0]?.href).toBe("/franchise/zzpers");
   });
 });
 

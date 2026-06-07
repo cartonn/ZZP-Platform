@@ -50,6 +50,7 @@ export default async function FranchiseSamenwerkingenPage() {
             icon={Handshake}
             title="Nog geen samenwerkingen"
             description="Zodra een ZZP'er op een dienst reageert en je opdrachtgever akkoord gaat, verschijnt de samenwerking hier."
+            action={{ label: "Bekijk je diensten", href: "/franchise/diensten" }}
           />
         </Card>
       ) : (
