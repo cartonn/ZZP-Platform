@@ -167,4 +167,12 @@ export async function seedFranchise(prisma: PrismaClient, passwordHash: string):
       },
     });
   }
+
+  // Tenant-abonnement (facturatie-overzicht): demo-franchise op het gratis plan. Bedragen blijven 0
+  // tot de prijzen + provider zijn ingesteld (mensenwerk).
+  await prisma.tenantSubscription.upsert({
+    where: { tenantId: tenant.id },
+    update: {},
+    create: { tenantId: tenant.id, planKey: "FREE", status: "ACTIVE", billingCycleStartDay: 1 },
+  });
 }

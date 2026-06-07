@@ -1,0 +1,112 @@
+import { type Metadata } from "next";
+import { Info, ReceiptText } from "lucide-react";
+import { requireRole } from "@/lib/authz";
+import { getTenantBillingOverview } from "@/lib/franchise/billing";
+import { type TenantSubscriptionStatus } from "@/lib/enums";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { formatEuro } from "@/lib/invoices";
+import { formatDateShortNl } from "@/lib/format-date";
+import { plural } from "@/lib/plural";
+
+export const metadata: Metadata = { title: "Facturatie · Franchise" };
+
+const STATUS_LABEL: Record<TenantSubscriptionStatus, string> = {
+  ACTIVE: "Actief",
+  PAST_DUE: "Betaling open",
+  SUSPENDED: "Opgeschort",
+};
+const STATUS_VARIANT: Record<TenantSubscriptionStatus, "success" | "warning" | "danger"> = {
+  ACTIVE: "success",
+  PAST_DUE: "warning",
+  SUSPENDED: "danger",
+};
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+export default async function FranchiseFacturatiePage() {
+  const actor = await requireRole("FRANCHISER");
+  const overview = await getTenantBillingOverview(actor, new Date());
+
+  if (!overview) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <PageHeader title="Facturatie" description="Het abonnement en de fees van je franchise." />
+        <Card>
+          <EmptyState
+            icon={ReceiptText}
+            title="Geen franchise gekoppeld"
+            description="Dit overzicht is beschikbaar zodra je een franchise beheert."
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <PageHeader
+        title="Facturatie"
+        description="Je abonnement en de transactie-fees per gevulde samenwerking."
+        action={
+          <Badge variant={STATUS_VARIANT[overview.status]} className="text-sm">
+            {STATUS_LABEL[overview.status]}
+          </Badge>
+        }
+      />
+
+      {!overview.billingEnabled && (
+        <Card>
+          <CardContent className="flex gap-3 p-4 text-sm">
+            <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <p className="text-muted-foreground">
+              Facturatie staat nog niet actief. Het overzicht en de berekening zijn ingericht; de
+              tarieven en de incasso worden ingesteld voordat er daadwerkelijk wordt gefactureerd.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardContent className="p-5">
+          <h2 className="mb-2 text-sm font-semibold tracking-tight">Abonnement</h2>
+          <div className="divide-y divide-border">
+            <Row label="Plan" value={overview.planLabel} />
+            <Row label="Per maand" value={formatEuro(overview.monthlyPriceCents)} />
+            <Row
+              label="Volgende factuurdatum"
+              value={formatDateShortNl(overview.nextBillingDate)}
+            />
+            {overview.status === "PAST_DUE" && (
+              <Row label="Achterstallig" value={plural(overview.daysOverdue, "dag", "dagen")} />
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-5">
+          <h2 className="mb-2 text-sm font-semibold tracking-tight">Transactie-fees</h2>
+          <div className="divide-y divide-border">
+            <Row
+              label={`Openstaand (${plural(overview.openFeesCount, "samenwerking", "samenwerkingen")})`}
+              value={formatEuro(overview.openFeesCents)}
+            />
+            <Row label="Reeds gefactureerd" value={formatEuro(overview.invoicedFeesCents)} />
+            <Row label="Totaal nu verschuldigd" value={formatEuro(overview.totalDueCents)} />
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Bedragen exclusief btw.</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

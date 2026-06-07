@@ -136,6 +136,25 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    demo-abonnementsflow door echte betalingen.
    **Tip:** start de pilot gerust met de demoflow; betalingen kun je later activeren.
 
+### §3b. Franchise-facturatie (tenant-billing)
+
+**Wat:** de technische kern van de franchise-monetisatie (3+1 hybride: een maandabonnement per
+vestiging + een lichte transactie-fee per gevulde samenwerking) staat klaar. Datamodel, fee-
+berekening (incl. btw) en het read-only overzicht op `/franchise/facturatie` werken; alles staat
+**standaard UIT** met bedragen op **0** (`TENANT_BILLING` in `src/lib/config.ts`).
+**Waarom mensenwerk:** dit zijn commerciële + juridische keuzes, geen code.
+**Wat jij invult/beslist:**
+
+1. **Prijsmodel:** bedrag per vestiging/maand per plan (FREE/GROEI/PRO) en de fee per samenwerking
+   (percentage of vast bedrag). Vul dit in `TENANT_BILLING.plans` en zet `enabled: true`.
+2. **Btw-classificatie:** bevestig dat het abonnement + de fee als B2B-dienst (21%) tellen, of
+   stem af met je boekhouder.
+3. **Wiring fee-registratie:** zodra de prijzen vaststaan, laat je ontwikkelaar/agent de
+   `planCollaborationFeeRecord`-helper aan de samenwerking-cascade koppelen (registreert de fee
+   idempotent bij het ingaan van een samenwerking). Bewust nog niet aangesloten zolang billing UIT staat.
+4. **Incasso + provider:** zelfde Stripe/Mollie-stappen als §3, maar dan per tenant; plus de
+   aanmaningsladder op tenant-niveau (zie `pastDueAt`/`SUSPENDED`).
+
 ---
 
 ## §4. Externe verificatiekoppelingen (DUO, BIG, iDIN/eIDAS)
