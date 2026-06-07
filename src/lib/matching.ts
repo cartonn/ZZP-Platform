@@ -285,6 +285,27 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     gaps.push({ kind: "gap", label: "Werkmodus sluit niet aan" });
   }
 
+  // Reistijd: alleen tonen als de ZZP'er een max. reistijd heeft opgegeven én de opdracht op locatie
+  // is. Maakt de locatie-score navolgbaar door de geschatte reistijd te tonen (Pidz-pariteit, ADR-0006 A).
+  const maxTravel = input.freelancer.maxTravelMinutes;
+  if (
+    maxTravel != null &&
+    maxTravel > 0 &&
+    input.job.workMode !== "REMOTE" &&
+    input.freelancer.workMode !== "REMOTE" &&
+    input.job.location &&
+    input.freelancer.location
+  ) {
+    const minutes = estimateTravelMinutes(input.freelancer.location, input.job.location);
+    if (minutes != null) {
+      if (minutes <= maxTravel) {
+        positives.push({ kind: "positive", label: `Binnen je max. reistijd (ca. ${minutes} min)` });
+      } else {
+        gaps.push({ kind: "gap", label: `Verder dan je max. reistijd (ca. ${minutes} min)` });
+      }
+    }
+  }
+
   // Beschikbaarheid: een venster dat nu of als eerstvolgende inzetbaar is, overschrijft
   // de losse status. Dit beïnvloedt alleen de uitleg, niet de score of breakdown.
   const windows = input.freelancer.availabilityWindows;
