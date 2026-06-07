@@ -6,7 +6,7 @@ const shot = (page: Page, name: string) =>
   page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 const uniq = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-test("compliance-ripple: ontbrekend vereist certificaat waarschuwt beide partijen", async ({
+test("inzetbaarheid-gate: ontbrekend vereist certificaat blokkeert de plaatsing", async ({
   page,
   browser,
 }) => {
@@ -60,20 +60,19 @@ test("compliance-ripple: ontbrekend vereist certificaat waarschuwt beide partije
   await page.getByRole("button", { name: "Voorstel versturen" }).click();
   await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible();
 
-  // ZZP'er activeert de samenwerking en ziet de eigen herstelactie.
+  // ZZP'er: de samenwerking kan NIET starten zolang de VOG ontbreekt — ondertekenen is geblokkeerd
+  // (reageren en voorstellen mocht wél; de harde grens zit bij de plaatsing, ADR-0006 C-hybride).
   await fp.goto("/samenwerkingen");
   const fcard = fp.locator("div.bg-card", { hasText: title });
-  await fcard.getByRole("button", { name: "Contract ondertekenen" }).click();
-  await expect(fp.locator("div.bg-card", { hasText: title }).getByText("Actief")).toBeVisible();
-  const fcard2 = fp.locator("div.bg-card", { hasText: title });
-  await expect(fcard2.getByText("Je mist een vereist certificaat: VOG.")).toBeVisible();
-  await expect(fcard2.getByRole("link", { name: "Bijwerken" })).toBeVisible();
-  await shot(fp, "25-samenwerking-freelancer-compliance");
+  await expect(fcard.getByText("Je mist een vereist certificaat: VOG.")).toBeVisible();
+  await expect(fcard.getByRole("link", { name: "Bijwerken" })).toBeVisible();
+  await expect(
+    fcard.getByText("Ondertekenen kan pas als je aan de certificaateisen voldoet."),
+  ).toBeVisible();
+  await expect(fcard.getByRole("button", { name: "Contract ondertekenen" })).toHaveCount(0);
+  await shot(fp, "25-samenwerking-plaatsing-geblokkeerd");
 
-  // Opdrachtgever ziet de compliance-waarschuwing terug op het dashboard (op de lopende-
-  // samenwerking-kaart in "Wat loopt er nu") én bij de samenwerking zelf.
-  await page.goto("/dashboard");
-  await expect(page.getByText(/Mist een vereist certificaat \(VOG\)/i)).toBeVisible();
+  // Opdrachtgever ziet dezelfde compliance-waarschuwing op de voorgestelde samenwerking.
   await page.goto("/samenwerkingen");
   const ccard = page.locator("div.bg-card", { hasText: title });
   await expect(ccard.getByText("Comp Freelancer mist een vereist certificaat: VOG.")).toBeVisible();

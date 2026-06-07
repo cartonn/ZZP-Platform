@@ -201,13 +201,20 @@ export default async function SamenwerkingenPage() {
                     <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                       {/* Activeren kan alleen door het contract te ondertekenen — niet als losse
                           statuswijziging. Voor PROPOSED tonen we daarom "Contract ondertekenen". */}
-                      {status === "PROPOSED" && (
-                        <form action={signContractFromList.bind(null, c.id)}>
-                          <Button type="submit" size="sm" variant="primary">
-                            Contract ondertekenen
-                          </Button>
-                        </form>
-                      )}
+                      {status === "PROPOSED" &&
+                        (urgent ? (
+                          <span className="text-xs font-medium text-danger">
+                            {isClient
+                              ? "Ondertekenen kan pas als de ZZP'er aan de certificaateisen voldoet."
+                              : "Ondertekenen kan pas als je aan de certificaateisen voldoet."}
+                          </span>
+                        ) : (
+                          <form action={signContractFromList.bind(null, c.id)}>
+                            <Button type="submit" size="sm" variant="primary">
+                              Contract ondertekenen
+                            </Button>
+                          </form>
+                        ))}
                       {COLLABORATION_TRANSITIONS[status]
                         .filter((to) => !(status === "PROPOSED" && to === "ACTIVE"))
                         .map((to) => (

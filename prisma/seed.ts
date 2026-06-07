@@ -9,6 +9,7 @@ import {
   submitInvoice,
   approveInvoice,
   confirmPayment,
+  CascadeError,
 } from "@/lib/cascade/commands";
 import { getStorage } from "@/lib/services/storage";
 import { documentKindForCredential } from "@/lib/documents";
@@ -921,7 +922,15 @@ async function main() {
       const cActor = actorOf(clientUserIdByKey[compKey]!, "CLIENT");
 
       if (!reaches(s.target, "ACTIVE")) continue;
-      await signContract(cActor, collab.id);
+      try {
+        await signContract(cActor, collab.id);
+      } catch (e) {
+        // Inzetbaarheid-gate (ADR-0006, C-hybride): voldoet de ZZP'er niet aan de harde
+        // certificaateisen, dan kan de samenwerking niet starten. Laat 'm als PROPOSED staan —
+        // dat demonstreert juist de plaatsing-gate (bv. ahmed met een afgewezen VOG).
+        if (e instanceof CascadeError) continue;
+        throw e;
+      }
       if (!reaches(s.target, "PERF_SUBMITTED")) continue;
 
       const perfId = await createPerformance(fActor, {
