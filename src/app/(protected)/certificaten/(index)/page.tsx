@@ -10,8 +10,10 @@ import {
   isExpiringSoon,
 } from "@/lib/credentials";
 import { computeTrustLevel } from "@/lib/trust";
+import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { plural } from "@/lib/plural";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
+import { MandatoryDocuments } from "@/components/credentials/mandatory-documents";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,6 +73,16 @@ export default async function CertificatenPage() {
     ),
   });
 
+  // Platformbrede verplichte documenten (los van een specifieke opdracht): wat moet de ZZP'er
+  // minimaal aanleveren om opdrachten te mogen vervullen.
+  const mandatory = mandatoryDocuments(
+    credentials.map((c) => ({
+      type: c.type as CredentialType,
+      status: c.status as CredentialStatus,
+      expiresAt: c.expiresAt,
+    })),
+  );
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
@@ -86,6 +98,8 @@ export default async function CertificatenPage() {
       />
 
       <TrustExplanation trust={trust} self />
+
+      <MandatoryDocuments items={mandatory.items} allSatisfied={mandatory.allSatisfied} />
 
       {credentials.length === 0 ? (
         <Card>
