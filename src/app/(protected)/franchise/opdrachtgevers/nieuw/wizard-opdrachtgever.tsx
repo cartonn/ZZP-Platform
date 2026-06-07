@@ -35,7 +35,14 @@ function CopyCreds({ email, password }: { email: string; password: string }) {
   );
 }
 
-export function WizardOpdrachtgever() {
+export interface OpdrachtgeverPrefill {
+  companyName?: string;
+  contactName?: string;
+  email?: string;
+  leadId?: string;
+}
+
+export function WizardOpdrachtgever({ prefill }: { prefill?: OpdrachtgeverPrefill }) {
   const [state, action, pending] = useActionState<OpdrachtgeverState, FormData>(
     createOpdrachtgever,
     undefined,
@@ -67,6 +74,13 @@ export function WizardOpdrachtgever() {
 
   return (
     <form action={action} className="space-y-4">
+      {prefill?.leadId && <input type="hidden" name="leadId" value={prefill.leadId} />}
+      {prefill?.leadId && (
+        <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          Gegevens overgenomen uit de lead. Bij aanmaken wordt de lead op{" "}
+          <span className="font-medium text-foreground">Klant</span> gezet.
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Naam opdrachtgever"
@@ -78,6 +92,7 @@ export function WizardOpdrachtgever() {
             id="companyName"
             name="companyName"
             placeholder="Bijv. Verpleeghuis De Brug"
+            defaultValue={prefill?.companyName}
             required
           />
         </Field>
@@ -90,7 +105,13 @@ export function WizardOpdrachtgever() {
           required
           error={fieldErrors.contactName}
         >
-          <Input id="contactName" name="contactName" placeholder="Voor- en achternaam" required />
+          <Input
+            id="contactName"
+            name="contactName"
+            placeholder="Voor- en achternaam"
+            defaultValue={prefill?.contactName}
+            required
+          />
         </Field>
         <Field label="E-mail" htmlFor="email" required error={fieldErrors.email}>
           <Input
@@ -98,6 +119,7 @@ export function WizardOpdrachtgever() {
             name="email"
             type="email"
             placeholder="naam@opdrachtgever.nl"
+            defaultValue={prefill?.email}
             required
           />
         </Field>

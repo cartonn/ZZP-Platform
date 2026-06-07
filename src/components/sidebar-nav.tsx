@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarDays,
   Clock,
+  Contact,
   CreditCard,
   FileCheck2,
   FileText,
@@ -50,6 +51,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   clock: Clock,
   barChart: BarChart,
   lightbulb: Lightbulb,
+  contact: Contact,
   settings: Settings,
 };
 

@@ -91,6 +91,21 @@ export const IDEA_TRANSITIONS: Record<IdeaStatus, readonly IdeaStatus[]> = {
   DECLINED: ["OPEN"],
 };
 
+// Lead (franchise-acquisitie). KOUD = nog niet benaderd; WARM = in gesprek; KLANT = binnengehaald
+// (terminaal — verder via de onboarding-wizard naar een echte opdrachtgever); NO_DEAL = afgevallen.
+export const LEAD_STATUSES = ["KOUD", "WARM", "KLANT", "NO_DEAL"] as const;
+export type LeadStatus = (typeof LEAD_STATUSES)[number];
+export const leadStatusSchema = z.enum(LEAD_STATUSES);
+
+// Expliciete overgangsmap (CLAUDE.md regel 3). KLANT is terminaal; een afgevallen lead (NO_DEAL)
+// kan heropend worden. Een gelijke-naar-gelijke overgang is geen overgang (no-op).
+export const LEAD_TRANSITIONS: Record<LeadStatus, readonly LeadStatus[]> = {
+  KOUD: ["WARM", "NO_DEAL"],
+  WARM: ["KOUD", "KLANT", "NO_DEAL"],
+  KLANT: [],
+  NO_DEAL: ["KOUD", "WARM"],
+};
+
 // Categorisering van een idee, in twee onafhankelijke assen zodat de box beheersbaar blijft bij
 // honderden ideeën. Doelgroep (audience) = wie het raakt; PLATFORM is de catch-all/default.
 export const IDEA_AUDIENCES = ["PLATFORM", "BROKER", "FREELANCER", "CLIENT"] as const;

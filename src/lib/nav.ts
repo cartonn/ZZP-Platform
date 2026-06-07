@@ -20,6 +20,7 @@ export type NavIcon =
   | "clock"
   | "barChart"
   | "lightbulb"
+  | "contact"
   | "settings";
 
 export interface NavItem {
@@ -95,6 +96,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   // Diensten) komen per increment binnen zodra hun pagina's bestaan.
   FRANCHISER: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
+    { label: "Leads", href: "/franchise/leads", icon: "contact", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Opdrachtgevers", href: "/franchise/opdrachtgevers", icon: "building", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "ZZP'ers", href: "/franchise/zzpers", icon: "users", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Diensten", href: "/franchise/diensten", icon: "clock", section: "Franchise", enabled: true }, // prettier-ignore

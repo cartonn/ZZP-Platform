@@ -9,6 +9,8 @@ import { assertSameTenant, hasTenant } from "@/lib/tenancy";
 import { audit } from "@/lib/audit";
 import { generateTempPassword } from "@/lib/onboarding/password";
 import { createFranchiseDienst } from "@/lib/franchise/dienst";
+import { canLeadTransition } from "@/lib/leads";
+import { type LeadStatus } from "@/lib/enums";
 
 const createSchema = z.object({
   companyName: z.string().trim().min(2, "Naam is te kort.").max(160),
@@ -99,6 +101,42 @@ export async function createOpdrachtgever(
     entityId: companyId,
     metadata: { tenantId, companyName, departments: deptNames.length },
   });
+
+  // Kwam deze opdrachtgever uit een lead ("Wordt klant")? Sluit de acquisitie-loop: zet de lead op
+  // KLANT (terminaal) en log het in het contactboek. Defensief: alleen binnen de eigen tenant en
+  // alleen als de overgang geldig is — een al gesloten lead raakt niet verstoord.
+  const leadId = String(formData.get("leadId") ?? "").trim();
+  if (leadId) {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { status: true, tenantId: true },
+    });
+    if (
+      lead &&
+      lead.tenantId === tenantId &&
+      canLeadTransition(lead.status as LeadStatus, "KLANT")
+    ) {
+      await prisma.$transaction([
+        prisma.lead.update({ where: { id: leadId }, data: { status: "KLANT" } }),
+        prisma.leadContact.create({
+          data: {
+            leadId,
+            body: `Status: Klant — opdrachtgever ${companyName} aangemaakt en onboarding gestart.`,
+            createdById: actor.id,
+          },
+        }),
+      ]);
+      await audit({
+        actorId: actor.id,
+        action: "LEAD_STATUS_SET",
+        entityType: "Lead",
+        entityId: leadId,
+        metadata: { from: lead.status, to: "KLANT", companyId },
+      });
+      revalidatePath("/franchise/leads");
+      revalidatePath(`/franchise/leads/${leadId}`);
+    }
+  }
 
   revalidatePath("/franchise/opdrachtgevers");
   return { ok: true, email, tempPassword, companyName, companyId };
