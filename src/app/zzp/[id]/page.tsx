@@ -54,8 +54,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       skills: { include: { skill: { select: { name: true } } } },
       industries: { include: { industry: { select: { name: true } } } },
       credentials: {
-        where: { visibility: "PUBLIC", status: "VERIFIED" },
-        select: { id: true, title: true, type: true, expiresAt: true },
+        where: { status: "VERIFIED" },
+        select: { id: true, title: true, type: true, expiresAt: true, visibility: true },
         orderBy: { title: "asc" },
       },
       availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
@@ -75,12 +75,16 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     profile.availabilityWindows.map((w) => ({ ...w, type: w.type as AvailabilityWindowType })),
   );
   const now = Date.now();
-  const verifiedCredentials = profile.credentials.filter(
+  // Geldige (niet-verlopen) geverifieerde certificaten. Het vertrouwensniveau telt ze ALLE — het is
+  // een platform-verificatiesignaal, consistent met /kandidaten en de suggesties — terwijl de getoonde
+  // lijst alleen de openbare bevat (de ZZP'er bepaalt zelf wat publiek zichtbaar is).
+  const verifiedActive = profile.credentials.filter(
     (c) => !c.expiresAt || c.expiresAt.getTime() > now,
   );
+  const publicCredentials = verifiedActive.filter((c) => c.visibility === "PUBLIC");
   const trust = computeTrustLevel({
     identityVerified: !!profile.user.identityVerifiedAt,
-    verifiedCredentialCount: verifiedCredentials.length,
+    verifiedCredentialCount: verifiedActive.length,
   });
 
   return (
@@ -163,11 +167,11 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           </section>
         )}
 
-        {verifiedCredentials.length > 0 && (
+        {publicCredentials.length > 0 && (
           <section className="space-y-2">
             <h2 className="text-sm font-medium">Geverifieerde certificaten</h2>
             <div className="flex flex-wrap gap-2">
-              {verifiedCredentials.map((c) => (
+              {publicCredentials.map((c) => (
                 <Badge key={c.id} variant="success">
                   {c.title}
                 </Badge>
