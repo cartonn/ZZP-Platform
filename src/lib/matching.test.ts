@@ -35,10 +35,10 @@ describe("computeCompliance", () => {
     expect(r.missing).toEqual(["VOG"]);
   });
 
-  it("is WARNING bij een verlopen vereist credential", () => {
+  it("is NON_COMPLIANT bij een verlopen vereist credential (voldoet nú niet)", () => {
     const creds: FreelancerCredential[] = [{ type: "VOG", status: "VERIFIED", expiresAt: past }];
     const r = computeCompliance(["VOG"], creds, now);
-    expect(r.status).toBe("WARNING");
+    expect(r.status).toBe("NON_COMPLIANT");
     expect(r.expired).toEqual(["VOG"]);
   });
 
@@ -64,9 +64,9 @@ describe("liveComplianceStatus", () => {
   it("geeft null als de opdracht geen vereiste certificaten heeft (geen badge)", () => {
     expect(liveComplianceStatus([], [], now)).toBeNull();
   });
-  it("herrekent live: een sinds de reactie verlopen VOG geeft WARNING, niet COMPLIANT", () => {
+  it("herrekent live: een sinds de reactie verlopen VOG geeft NON_COMPLIANT, niet COMPLIANT", () => {
     const creds: FreelancerCredential[] = [{ type: "VOG", status: "VERIFIED", expiresAt: past }];
-    expect(liveComplianceStatus(["VOG"], creds, now)).toBe("WARNING");
+    expect(liveComplianceStatus(["VOG"], creds, now)).toBe("NON_COMPLIANT");
   });
   it("geldige, niet-verlopen VOG → COMPLIANT", () => {
     const creds: FreelancerCredential[] = [{ type: "VOG", status: "VERIFIED", expiresAt: future }];
