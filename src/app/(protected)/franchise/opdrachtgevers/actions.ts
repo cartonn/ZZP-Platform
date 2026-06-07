@@ -140,8 +140,15 @@ export async function addDepartment(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer." };
 
-  await prisma.department.create({
+  const dept = await prisma.department.create({
     data: { companyId, name: parsed.data.name, location: parsed.data.location ?? null },
+  });
+  await audit({
+    actorId: actor.id,
+    action: "FRANCHISE_DEPARTMENT_ADDED",
+    entityType: "Department",
+    entityId: dept.id,
+    metadata: { companyId, tenantId: company.tenantId, name: parsed.data.name },
   });
   revalidatePath(`/franchise/opdrachtgevers/${companyId}`);
   return {};
@@ -157,6 +164,13 @@ export async function removeDepartment(departmentId: string): Promise<void> {
   if (!dept) return;
   assertSameTenant(actor, dept.company.tenantId);
   await prisma.department.delete({ where: { id: departmentId } });
+  await audit({
+    actorId: actor.id,
+    action: "FRANCHISE_DEPARTMENT_REMOVED",
+    entityType: "Department",
+    entityId: departmentId,
+    metadata: { companyId: dept.companyId, tenantId: dept.company.tenantId },
+  });
   revalidatePath(`/franchise/opdrachtgevers/${dept.companyId}`);
 }
 
