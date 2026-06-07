@@ -2,8 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   assertCollaborationTransition,
   canTransitionCollaboration,
+  complianceBlocksPlacement,
   CollaborationTransitionError,
 } from "@/lib/collaborations";
+
+describe("complianceBlocksPlacement (inzetbaarheid-gate)", () => {
+  it("blokkeert plaatsing alleen bij NON_COMPLIANT", () => {
+    expect(complianceBlocksPlacement("NON_COMPLIANT")).toBe(true);
+    expect(complianceBlocksPlacement("WARNING")).toBe(false);
+    expect(complianceBlocksPlacement("COMPLIANT")).toBe(false);
+  });
+});
 
 describe("samenwerking-statusovergangen", () => {
   it("staat geldige overgangen toe", () => {

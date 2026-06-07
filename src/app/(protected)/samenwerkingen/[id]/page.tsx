@@ -16,6 +16,10 @@ import {
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
+import { computeCompliance } from "@/lib/matching";
+import { complianceBlocksPlacement } from "@/lib/collaborations";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { type CredentialType, type CredentialStatus } from "@/lib/enums";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
@@ -257,10 +261,17 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           dbaDirectSupervision: true,
           dbaEmbedded: true,
           dbaFixedSchedule: true,
+          credentialRequirements: { where: { required: true }, select: { credentialType: true } },
         },
       },
       company: { select: { name: true, userId: true } },
-      freelancer: { select: { userId: true, user: { select: { name: true } } } },
+      freelancer: {
+        select: {
+          userId: true,
+          user: { select: { name: true } },
+          credentials: { select: { type: true, status: true, expiresAt: true } },
+        },
+      },
       performances: { orderBy: { createdAt: "desc" } },
       invoices: { where: { lifecycleStatus: { not: null } }, orderBy: { createdAt: "desc" } },
     },
@@ -270,6 +281,29 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const isClient = col.company.userId === actor.id;
   const isFreelancer = col.freelancer.userId === actor.id;
   if (!isClient && !isFreelancer && actor.role !== "ADMIN") notFound();
+
+  // Inzetbaarheid-gate (ADR-0006, C-hybride): zolang de samenwerking nog niet gestart is, kan ze pas
+  // ondertekend/actief worden als de ZZP'er aan de harde certificaateisen voldoet.
+  const placementRequired = col.job.credentialRequirements.map((r) => r.credentialType as CredentialType); // prettier-ignore
+  const placementCompliance =
+    col.status === "PROPOSED" && placementRequired.length > 0
+      ? computeCompliance(
+          placementRequired,
+          col.freelancer.credentials.map((c) => ({
+            type: c.type as CredentialType,
+            status: c.status as CredentialStatus,
+            expiresAt: c.expiresAt,
+          })),
+        )
+      : null;
+  const placementBlocked = placementCompliance
+    ? complianceBlocksPlacement(placementCompliance.status)
+    : false;
+  const placementMissing = placementCompliance
+    ? [...placementCompliance.missing, ...placementCompliance.expired]
+        .map((t) => CREDENTIAL_TYPE_LABEL[t])
+        .join(", ")
+    : "";
 
   const counterparty = isClient ? col.freelancer.user.name : col.company.name;
   const active = col.status === "ACTIVE";
@@ -283,7 +317,12 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
 
   // "Aan zet": wat moet déze rol nu doen?
   const todo: string[] = [];
-  if (col.status === "PROPOSED") todo.push("Onderteken het contract om de opdracht te starten.");
+  if (col.status === "PROPOSED")
+    todo.push(
+      placementBlocked
+        ? `Vul het ontbrekende of verlopen certificaat aan (${placementMissing}) — daarna kan het contract worden ondertekend.`
+        : "Onderteken het contract om de opdracht te starten.",
+    );
   if (active) {
     const submitted = col.performances.filter((p) => p.status === "SUBMITTED").length;
     if (isClient && submitted > 0)
@@ -461,21 +500,31 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         </Card>
       )}
 
-      {/* Contract */}
+      {/* Contract — kan pas ondertekend/actief worden als de ZZP'er aan de certificaateisen voldoet. */}
       {col.status === "PROPOSED" && (
         <Card>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div>
               <p className="text-sm font-medium">Contract</p>
               <p className="text-sm text-muted-foreground">
-                Onderteken om uren of opleveringen te kunnen vastleggen.
+                {placementBlocked
+                  ? `Deze samenwerking kan niet starten: een vereist certificaat ontbreekt of is verlopen (${placementMissing}).`
+                  : "Onderteken om uren of opleveringen te kunnen vastleggen."}
               </p>
             </div>
-            <form action={signContractAction.bind(null, col.id)}>
-              <Button type="submit" size="sm">
-                Contract ondertekenen
-              </Button>
-            </form>
+            {placementBlocked ? (
+              isFreelancer ? (
+                <Button asChild variant="secondary" size="sm">
+                  <Link href="/certificaten">Naar mijn certificaten</Link>
+                </Button>
+              ) : null
+            ) : (
+              <form action={signContractAction.bind(null, col.id)}>
+                <Button type="submit" size="sm">
+                  Contract ondertekenen
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
       )}
