@@ -83,12 +83,54 @@ model Tenant {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  owner       User                @relation("TenantOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
-  members     User[]              @relation("TenantMembers")
-  companies   Company[]
-  freelancers FreelancerProfile[]
-  jobs        Job[]
-  leads       Lead[]
+  owner        User                @relation("TenantOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  members      User[]              @relation("TenantMembers")
+  companies    Company[]
+  freelancers  FreelancerProfile[]
+  jobs         Job[]
+  leads        Lead[]
+  subscription TenantSubscription?
+  fees         CollaborationFee[]
+}
+
+// Tenant-abonnement (franchise-monetisatie, ADR-0006 E). Eén actief abonnement per vestiging/tenant.
+// De plan-keuze + periode leven hier; de exacte prijzen en de betaalprovider zijn mensenwerk. De
+// `providerRef` (Stripe/Mollie-referentie) blijft leeg tot de provider is gekoppeld.
+model TenantSubscription {
+  id                   String    @id @default(cuid())
+  tenantId             String    @unique
+  planKey              String    @default("FREE") // TenantPlanKey: FREE | GROEI | PRO
+  status               String    @default("ACTIVE") // TenantSubscriptionStatus: ACTIVE | PAST_DUE | SUSPENDED
+  billingCycleStartDay Int       @default(1) //       dag van de maand waarop de cyclus start (1–28)
+  currentPeriodStart   DateTime  @default(now())
+  currentPeriodEnd     DateTime?
+  pastDueAt            DateTime? //                   sinds wanneer betaling achterstallig is
+  providerRef          String? //                     betaalprovider-referentie (mensenwerk)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Transactie-fee per gevulde samenwerking (append-only). Eén fee per samenwerking (collaborationId
+// uniek → idempotent). De bedragen worden config-gedreven berekend; zolang billing UIT staat worden
+// er geen fees geregistreerd. Wordt later op een fee-factuur gezet (status INVOICED).
+model CollaborationFee {
+  id              String   @id @default(cuid())
+  collaborationId String   @unique
+  tenantId        String
+  planKey         String //               het plan dat gold toen de fee werd vastgelegd
+  feeCents        Int //                  fee excl. BTW (integer-centen)
+  vatCents        Int      @default(0)
+  status          String   @default("PENDING") // CollaborationFeeStatus: PENDING | INVOICED
+  invoiceId       String? //              fee-factuur waarop de fee staat (mensenwerk-facturatie)
+  recordedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
 }
 
 // Afdeling binnen een opdrachtgever (bv. een afdeling/locatie van een zorginstelling).
@@ -202,23 +244,23 @@ model VerificationToken {
 // ---------------------------------------------------------------------------
 
 model FreelancerProfile {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  headline     String?
-  bio          String?
-  hourlyRate   Int? //   euro per uur
-  availability String   @default("UNKNOWN") // Availability: AVAILABLE | LIMITED | UNAVAILABLE | UNKNOWN
-  location     String?
-  workMode     String   @default("HYBRID") //  WorkMode: REMOTE | ONSITE | HYBRID
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  headline         String?
+  bio              String?
+  hourlyRate       Int? //   euro per uur
+  availability     String   @default("UNKNOWN") // Availability: AVAILABLE | LIMITED | UNAVAILABLE | UNKNOWN
+  location         String?
+  workMode         String   @default("HYBRID") //  WorkMode: REMOTE | ONSITE | HYBRID
   maxTravelMinutes Int? //                      Max. reistijd naar een opdracht (minuten); null = geen limiet/onbekend.
-  languages    String? //                      JSON-string array, bv. ["nl","en"]
-  kvkNumber    String?
-  btwNumber    String?
-  visibility   String   @default("PUBLIC") //   Visibility: PUBLIC | PRIVATE
-  completeness Int      @default(0) //           0-100, server-berekend
-  tenantId     String? //                        gedenormaliseerd uit User.tenantId voor tenant-scoping (roster)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  languages        String? //                      JSON-string array, bv. ["nl","en"]
+  kvkNumber        String?
+  btwNumber        String?
+  visibility       String   @default("PUBLIC") //   Visibility: PUBLIC | PRIVATE
+  completeness     Int      @default(0) //           0-100, server-berekend
+  tenantId         String? //                        gedenormaliseerd uit User.tenantId voor tenant-scoping (roster)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: SetNull)
@@ -556,6 +598,7 @@ model Collaboration {
   company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices     Invoice[]
   performances Performance[]
+  fee          CollaborationFee?
 
   // Hot paths: dashboards/admin/zoeken filteren op partij + status (Postgres indexeert FK's niet
   // automatisch). Additieve indexes — veilig via db push.

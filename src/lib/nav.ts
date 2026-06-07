@@ -102,6 +102,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Diensten", href: "/franchise/diensten", icon: "clock", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Samenwerkingen", href: "/franchise/samenwerkingen", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Berichten", href: "/berichten", icon: "messages", section: "Account", enabled: true },
+    { label: "Facturatie", href: "/franchise/facturatie", icon: "receipt", section: "Account", enabled: true }, // prettier-ignore
     { label: "Instellingen", href: "/franchise/instellingen", icon: "settings", section: "Account", enabled: true }, // prettier-ignore
     { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Account", enabled: true }, // prettier-ignore
     { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },

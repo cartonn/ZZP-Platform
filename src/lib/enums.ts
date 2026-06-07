@@ -142,6 +142,34 @@ export const SUBSCRIPTION_TRANSITIONS: Record<SubscriptionStatus, readonly Subsc
   CANCELLED: [],
 };
 
+// --- Tenant-billing (franchise-monetisatie, 3+1 hybride: abonnement per vestiging + transactie-fee
+// per gevulde samenwerking). De prijzen/percentages zijn mensenwerk (zie MENSENWERK.md); hier staan
+// alleen de sleutels + statussen. Standaard staat de facturatie UIT (zie config TENANT_BILLING).
+export const TENANT_PLAN_KEYS = ["FREE", "GROEI", "PRO"] as const;
+export type TenantPlanKey = (typeof TENANT_PLAN_KEYS)[number];
+export const tenantPlanKeySchema = z.enum(TENANT_PLAN_KEYS);
+
+export const TENANT_SUBSCRIPTION_STATUSES = ["ACTIVE", "PAST_DUE", "SUSPENDED"] as const;
+export type TenantSubscriptionStatus = (typeof TENANT_SUBSCRIPTION_STATUSES)[number];
+export const tenantSubscriptionStatusSchema = z.enum(TENANT_SUBSCRIPTION_STATUSES);
+
+// PAST_DUE → ACTIVE = betaling hersteld; PAST_DUE → SUSPENDED = na de aanmaningsladder stilgezet;
+// SUSPENDED → ACTIVE = heractiveren na betaling.
+export const TENANT_SUBSCRIPTION_TRANSITIONS: Record<
+  TenantSubscriptionStatus,
+  readonly TenantSubscriptionStatus[]
+> = {
+  ACTIVE: ["PAST_DUE", "SUSPENDED"],
+  PAST_DUE: ["ACTIVE", "SUSPENDED"],
+  SUSPENDED: ["ACTIVE"],
+};
+
+// Transactie-fee per samenwerking: PENDING = geregistreerd, nog niet gefactureerd; INVOICED = op
+// een fee-factuur gezet. Append-only (een fee verdwijnt nooit; CLAUDE.md audit-principe).
+export const COLLABORATION_FEE_STATUSES = ["PENDING", "INVOICED"] as const;
+export type CollaborationFeeStatus = (typeof COLLABORATION_FEE_STATUSES)[number];
+export const collaborationFeeStatusSchema = z.enum(COLLABORATION_FEE_STATUSES);
+
 // ---------------------------------------------------------------------------
 // Support / Helpdesk (klantondersteuning). Geen "AI" in UI/teksten — de
 // geautomatiseerde beantwoorder heet "Support-assistent" / "Helpdesk".

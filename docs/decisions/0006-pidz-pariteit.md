@@ -114,8 +114,18 @@ eigenaar-/juridische verantwoordelijkheid. Pas bouwen na jouw besluit.
 - **A** en **C-hybride** en **D-light** zijn additief en passen in onze architectuur; ze maken de
   Franchiser/tenant-laag substantieel zwaarder (richting "Pidz maar beter") zonder de differentiatie
   op te geven.
-- **E** blokkeert op een eigenaar-/juridisch besluit + externe betaalintegratie (mensenwerk).
+- **E** — de **technische kern** is gebouwd (datamodel `TenantSubscription`/`CollaborationFee`,
+  config-gedreven fee-berekening incl. btw, read-only `/franchise/facturatie`-overzicht), **standaard
+  UIT** met bedragen op 0. Het **prijsmodel + de betaalprovider + de cascade-wiring** blijven
+  eigenaar-/juridisch werk (zie `MENSENWERK.md §3b`).
 - Geen enkele wijziging is destructief; datamodel-uitbreidingen zijn nullable/additief.
+
+## Status van de blokken
+
+- **A — reistijd-matching:** gebouwd (max. reistijd per ZZP'er weegt mee in de locatie-component).
+- **C-hybride — inzetbaarheid-gate:** gebouwd (NON_COMPLIANT blokkeert de plaatsing bij `signContract`).
+- **D-light — franchise-CRM (leads):** gebouwd (acquisitie-pijplijn + lead→klant-onboarding).
+- **E — tenant-billing:** technische kern gebouwd, facturatie staat uit tot het prijsmodel er is.
 
 ## Alternatieven
 

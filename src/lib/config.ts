@@ -58,6 +58,42 @@ export const PLATFORM_FEE: PlatformFeeConfig = {
   vatRegime: "STANDARD_HIGH",
 };
 
+// --- Tenant-billing (franchise-monetisatie, ADR-0006 blok E) ----------------
+// 3+1 hybride model: een maandabonnement per vestiging (tenant) + een lichte transactie-fee per
+// gevulde samenwerking. De technische kern (datamodel, fee-berekening, read-only overzicht) is
+// autonoom gebouwd; de EXACTE prijzen/percentages en de betaalprovider zijn MENSENWERK (zie
+// MENSENWERK.md §3). Daarom staan alle bedragen op 0 en de hele module standaard UIT.
+export interface TenantPlanConfig {
+  key: string;
+  label: string;
+  monthlyPriceCents: number; // abonnement per vestiging per maand (0 = nog niet bepaald)
+  feePercentageBps: number; //  transactie-fee als % van de samenwerkingswaarde (bps)
+  feeFixedCents: number; //     of een vast bedrag per gevulde samenwerking (heeft voorrang als > 0)
+}
+
+export interface TenantBillingConfig {
+  enabled: boolean;
+  vatRegime: VatRegime; //      BTW over abonnement + fee (B2B-dienst, classificatie = mensenwerk)
+  defaultPlanKey: string;
+  plans: Record<string, TenantPlanConfig>;
+}
+
+/**
+ * Default: tenant-billing volledig UIT, alle bedragen 0. De plan-sleutels staan klaar zodat het
+ * datamodel en de overzichten kloppen; zodra de eigenaar de prijzen + provider invult (mensenwerk)
+ * wordt dit aangezet.
+ */
+export const TENANT_BILLING: TenantBillingConfig = {
+  enabled: false,
+  vatRegime: "STANDARD_HIGH",
+  defaultPlanKey: "FREE",
+  plans: {
+    FREE: { key: "FREE", label: "Gratis", monthlyPriceCents: 0, feePercentageBps: 0, feeFixedCents: 0 }, // prettier-ignore
+    GROEI: { key: "GROEI", label: "Groei", monthlyPriceCents: 0, feePercentageBps: 0, feeFixedCents: 0 }, // prettier-ignore
+    PRO: { key: "PRO", label: "Pro", monthlyPriceCents: 0, feePercentageBps: 0, feeFixedCents: 0 }, // prettier-ignore
+  },
+};
+
 // --- Reminder-cascade (tijden in dagen, configureerbaar) -------------------
 export const REMINDERS = {
   /** Concept-factuur door ZZP'er nog niet ingediend (na Event B2). */
