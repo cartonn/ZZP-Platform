@@ -25,13 +25,15 @@ test("ideeënbox: indienen, upvote togglen en (admin) status zetten", async ({ p
   // Seed-idee met de meeste stemmen staat bovenaan.
   await expect(page.getByText("Donkere modus voor het hele platform")).toBeVisible();
 
-  // Nieuw idee indienen → verschijnt (met 1 automatische stem van de indiener).
+  // Het indienformulier is standaard ingeklapt; "Idee indienen" ontvouwt het.
   const titel = `Sneller zoeken ${uniq()}`;
+  await page.getByRole("button", { name: "Idee indienen" }).click();
   await page.fill("#title", titel);
   await page.fill(
     "#description",
     "Een zoekbalk bovenaan om snel een opdracht of bericht te vinden.",
   );
+  // Tweede "Idee indienen" is nu de submit-knop in het ontvouwde formulier.
   await page.getByRole("button", { name: "Idee indienen" }).click();
   await expect(page.getByText("Idee ingediend — bedankt.")).toBeVisible();
   await expect(page.getByText(titel)).toBeVisible();
