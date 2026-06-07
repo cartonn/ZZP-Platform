@@ -103,6 +103,10 @@ export async function seedFranchise(prisma: PrismaClient, passwordHash: string):
   });
 
   // Acquisitie-pijplijn (CRM-light): een paar leads in verschillende fasen, met contactgeschiedenis.
+  const now = new Date();
+  const inDays = (n: number) =>
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + n));
+
   const leads: Array<{
     id: string;
     organizationName: string;
@@ -112,6 +116,7 @@ export async function seedFranchise(prisma: PrismaClient, passwordHash: string):
     status: string;
     notes: string;
     log: string[];
+    nextFollowUp?: Date;
   }> = [
     {
       id: "lead-noord-thuiszorg",
@@ -121,6 +126,7 @@ export async function seedFranchise(prisma: PrismaClient, passwordHash: string):
       phone: "050-1234567",
       status: "WARM",
       notes: "Zoekt flexpool verzorgenden IG voor de regio Groningen-stad.",
+      nextFollowUp: inDays(3),
       log: [
         "Eerste belletje — interesse in een vaste flexpool. Stuurt functieprofielen toe.",
         "Status: Warm — offerte-gesprek ingepland voor volgende week.",
@@ -161,6 +167,7 @@ export async function seedFranchise(prisma: PrismaClient, passwordHash: string):
         phone: l.phone,
         status: l.status,
         notes: l.notes,
+        nextFollowUp: l.nextFollowUp ?? null,
         contacts: {
           create: l.log.map((body) => ({ body, createdById: franchiser.id })),
         },

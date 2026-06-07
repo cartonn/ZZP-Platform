@@ -2,11 +2,21 @@
 
 import { useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { addLeadContact } from "../actions";
 
-/** Een regel toevoegen aan het contactlogboek. Reset na verzenden zodat snel meerdere kunnen volgen. */
-export function ContactForm({ leadId }: { leadId: string }) {
+/**
+ * Een regel toevoegen aan het contactlogboek, met optioneel een opvolgdatum (default = de huidige).
+ * Reset na verzenden zodat snel meerdere kunnen volgen.
+ */
+export function ContactForm({
+  leadId,
+  defaultFollowUp,
+}: {
+  leadId: string;
+  defaultFollowUp?: string;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
@@ -26,9 +36,21 @@ export function ContactForm({ leadId }: { leadId: string }) {
         placeholder="Wat is er besproken? (belletje, mail, gesprek…)"
         className="text-sm"
       />
-      <Button type="submit" size="sm">
-        Notitie toevoegen
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="nextFollowUp" className="text-xs text-muted-foreground">
+          Volgende opvolging
+        </label>
+        <Input
+          id="nextFollowUp"
+          name="nextFollowUp"
+          type="date"
+          defaultValue={defaultFollowUp ?? ""}
+          className="h-8 w-40 text-sm"
+        />
+        <Button type="submit" size="sm">
+          Notitie toevoegen
+        </Button>
+      </div>
     </form>
   );
 }
