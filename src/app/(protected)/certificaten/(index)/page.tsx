@@ -3,7 +3,14 @@ import Link from "next/link";
 import { Award, Download, Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { CREDENTIAL_TYPE_LABEL, daysUntilExpiry, isExpiringSoon } from "@/lib/credentials";
+import {
+  CREDENTIAL_TYPE_LABEL,
+  activeVerifiedCount,
+  daysUntilExpiry,
+  isExpiringSoon,
+} from "@/lib/credentials";
+import { computeTrustLevel } from "@/lib/trust";
+import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,26 +37,38 @@ export default async function CertificatenPage() {
     select: { id: true },
   });
 
-  const credentials = profile
-    ? await prisma.credential.findMany({
-        where: { freelancerProfileId: profile.id },
-        orderBy: { createdAt: "desc" },
-        include: {
-          document: { select: { id: true, filename: true } },
-          verifications: {
-            orderBy: { createdAt: "desc" },
-            select: {
-              id: true,
-              decision: true,
-              reason: true,
-              source: true,
-              createdAt: true,
-              verifier: { select: { name: true } },
+  const [credentials, user] = await Promise.all([
+    profile
+      ? prisma.credential.findMany({
+          where: { freelancerProfileId: profile.id },
+          orderBy: { createdAt: "desc" },
+          include: {
+            document: { select: { id: true, filename: true } },
+            verifications: {
+              orderBy: { createdAt: "desc" },
+              select: {
+                id: true,
+                decision: true,
+                reason: true,
+                source: true,
+                createdAt: true,
+                verifier: { select: { name: true } },
+              },
             },
           },
-        },
-      })
-    : [];
+        })
+      : Promise.resolve([]),
+    prisma.user.findUnique({ where: { id: actor.id }, select: { identityVerifiedAt: true } }),
+  ]);
+
+  // Verklaarbaar vertrouwensniveau: dezelfde server-side regels als de opdrachtgever ziet, maar hier
+  // met de concrete verbeterstappen (zelf-weergave). Verlopen bewijsstukken tellen niet mee.
+  const trust = computeTrustLevel({
+    identityVerified: !!user?.identityVerifiedAt,
+    verifiedCredentialCount: activeVerifiedCount(
+      credentials.map((c) => ({ status: c.status as CredentialStatus, expiresAt: c.expiresAt })),
+    ),
+  });
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -64,6 +83,8 @@ export default async function CertificatenPage() {
           </Button>
         }
       />
+
+      <TrustExplanation trust={trust} self />
 
       {credentials.length === 0 ? (
         <Card>
