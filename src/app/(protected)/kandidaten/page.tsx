@@ -4,7 +4,8 @@ import { Users } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { APPLICATION_TRANSITIONS } from "@/lib/applications";
-import { liveComplianceStatus } from "@/lib/matching";
+import { computeCompliance } from "@/lib/matching";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
 import { TrustBadge } from "@/components/trust/trust-badge";
@@ -85,17 +86,22 @@ export default async function KandidatenPage() {
           {applications.map((app) => {
             const status = app.status as ApplicationStatus;
             // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
-            // reactiemoment (een VOG kan intussen verlopen zijn).
-            const compliance = liveComplianceStatus(
-              app.job.credentialRequirements
-                .filter((r) => r.required)
-                .map((r) => r.credentialType as CredentialType),
-              app.freelancer.credentials.map((c) => ({
-                type: c.type as CredentialType,
-                status: c.status as CredentialStatus,
-                expiresAt: c.expiresAt,
-              })),
-            );
+            // reactiemoment (een VOG kan intussen verlopen zijn). De volledige uitsplitsing
+            // (missing/expired/inReview) maakt voor de opdrachtgever concreet WAT er ontbreekt.
+            const requiredTypes = app.job.credentialRequirements
+              .filter((r) => r.required)
+              .map((r) => r.credentialType as CredentialType);
+            const compliance =
+              requiredTypes.length > 0
+                ? computeCompliance(
+                    requiredTypes,
+                    app.freelancer.credentials.map((c) => ({
+                      type: c.type as CredentialType,
+                      status: c.status as CredentialStatus,
+                      expiresAt: c.expiresAt,
+                    })),
+                  )
+                : null;
             const isPublic = (app.freelancer.visibility as Visibility) === "PUBLIC";
             const nowMs = Date.now();
             const trust = computeTrustLevel({
@@ -138,9 +144,31 @@ export default async function KandidatenPage() {
                       {app.matchScore != null && (
                         <Badge variant="accent">Match {app.matchScore}%</Badge>
                       )}
-                      {compliance && <ComplianceBadge status={compliance} />}
+                      {compliance && <ComplianceBadge status={compliance.status} />}
                     </div>
                   </div>
+
+                  {compliance && compliance.status !== "COMPLIANT" && (
+                    <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      {compliance.missing.length > 0 && (
+                        <span className="text-danger">
+                          Mist: {compliance.missing.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                        </span>
+                      )}
+                      {compliance.expired.length > 0 && (
+                        <span className="text-danger">
+                          Verlopen:{" "}
+                          {compliance.expired.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                        </span>
+                      )}
+                      {compliance.inReview.length > 0 && (
+                        <span className="text-warning">
+                          In beoordeling:{" "}
+                          {compliance.inReview.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                        </span>
+                      )}
+                    </p>
+                  )}
 
                   <p className="whitespace-pre-line text-sm">{app.motivation}</p>
                   <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground">
