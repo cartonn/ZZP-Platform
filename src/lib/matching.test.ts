@@ -118,6 +118,34 @@ describe("computeMatchScore", () => {
     }
   });
 
+  const sumBreakdown = (
+    b: { skills: number; compliance: number; rate: number; workMode: number; location: number }, // prettier-ignore
+  ) => b.skills + b.compliance + b.rate + b.workMode + b.location;
+
+  it("de getoonde breakdown telt exact op tot de getoonde score (ook bij fractionele bijdragen)", () => {
+    // Scenario uit de bug-hunt dat de oude afronding (1 decimaal per component, daarna Math.round van
+    // de som) deed afwijken: 0/1 vereiste skills, geen cert-match, geen tarief, ONSITE vs REMOTE.
+    const r = computeMatchScore(
+      {
+        requiredSkillIds: ["r0"],
+        optionalSkillIds: [],
+        freelancerSkillIds: [],
+        requiredCredentialTypes: ["VOG"],
+        credentials: [],
+        job: { rateMin: null, rateMax: null, workMode: "ONSITE", location: "A" },
+        freelancer: {
+          hourlyRate: null,
+          workMode: "REMOTE",
+          location: "B",
+          availability: "AVAILABLE",
+        },
+      },
+      now,
+    );
+    expect(sumBreakdown(r.breakdown)).toBe(r.score);
+    expect(sumBreakdown(computeMatchScore(base, now).breakdown)).toBe(100);
+  });
+
   it("verlaagt de score bij ontbrekende vereiste skills", () => {
     const r = computeMatchScore({ ...base, freelancerSkillIds: ["next"] }, now);
     expect(r.score).toBeLessThan(100);

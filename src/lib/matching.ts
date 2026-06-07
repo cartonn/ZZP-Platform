@@ -219,14 +219,14 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     workMode: round(workMode),
     location: round(location),
   };
+  // Exact de som van de (op hele punten afgeronde) componenten — zo telt de zichtbare breakdown
+  // altijd op tot de getoonde score (de belofte "geen black box" in MatchBreakdown).
   const score = clamp(
-    Math.round(
-      breakdown.skills +
-        breakdown.compliance +
-        breakdown.rate +
-        breakdown.workMode +
-        breakdown.location,
-    ),
+    breakdown.skills +
+      breakdown.compliance +
+      breakdown.rate +
+      breakdown.workMode +
+      breakdown.location,
     0,
     100,
   );
@@ -406,6 +406,7 @@ function dedupe<T>(arr: readonly T[]): T[] {
 function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
 }
+// Hele punten per component, zodat de getoonde breakdown exact optelt tot de getoonde totaalscore.
 function round(n: number): number {
-  return Math.round(n * 10) / 10;
+  return Math.round(n);
 }
