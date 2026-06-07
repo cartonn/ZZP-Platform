@@ -160,6 +160,16 @@ const WEIGHTS = {
   location: 5,
 };
 
+/** Maximale punten per match-component (som = 100). Afgeleid van WEIGHTS zodat het in sync blijft;
+ *  gebruikt door de breakdown-weergave om elke component als aandeel van zijn maximum te tonen. */
+export const MATCH_COMPONENT_MAX = {
+  skills: WEIGHTS.requiredSkills + WEIGHTS.optionalSkills,
+  compliance: WEIGHTS.compliance,
+  rate: WEIGHTS.rate,
+  workMode: WEIGHTS.workMode,
+  location: WEIGHTS.location,
+} as const;
+
 /** Server-berekende matchscore (0-100) + onderverdeling + compliance-snapshot. */
 export function computeMatchScore(input: MatchInput, now: Date = new Date()): MatchResult {
   const freelancerSkills = new Set(input.freelancerSkillIds);
