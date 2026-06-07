@@ -55,6 +55,13 @@ export const P = {
   applications: 50, // nieuwe reacties
   completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)
   drafts: 20, // concept-opdrachten
+  // Franchiser-activatie: geleide opzet van een nieuwe tenant (begeleidend, niet alarmerend).
+  // De banden zijn rol-geïsoleerd (alleen franchiser-acties), dus overlap met bovenstaande
+  // semantische waarden is bewust en onschadelijk — ze worden nooit samen gerangschikt.
+  franchiserFirstClient: 90, // nog geen opdrachtgever — de enige zinvolle eerste stap
+  franchiserFirstService: 80, // opdrachtgever(s), maar nog geen enkele dienst uitgezet
+  franchiserRoster: 70, // nog geen ZZP'ers in het roster
+  franchiserClientsWithoutService: 40, // opdrachtgever(s) zonder diensten (doorlopende nudge)
 } as const;
 
 export interface FreelancerActionInput {
@@ -288,6 +295,67 @@ export function adminNextActions(input: AdminActionInput): NextAction[] {
       href: "/admin/gebruikers?status=PENDING",
       tone: "info",
       priority: P.pendingUsers,
+    });
+  }
+
+  return rankNextActions(actions);
+}
+
+export interface FranchiserActionInput {
+  /** Opdrachtgevers (Company) in de tenant. */
+  companies: number;
+  /** Gepubliceerde diensten (Job PUBLISHED) in de tenant. */
+  publishedDiensten: number;
+  /** ZZP'ers in het eigen roster (FreelancerProfile). */
+  rosterFreelancers: number;
+  /** Opdrachtgevers zonder ook maar één gepubliceerde dienst. */
+  companiesWithoutDiensten: number;
+}
+
+/**
+ * Geleide opzet van een franchise: toont de eerstvolgende, concrete stap(pen) om de tenant
+ * werkend te krijgen — opdrachtgever → dienst → roster. Begeleidend (tone "info"), niet
+ * alarmerend, en leeg zodra de franchise staat (≥1 opdrachtgever met diensten én een roster).
+ */
+export function franchiserNextActions(input: FranchiserActionInput): NextAction[] {
+  const actions: NextAction[] = [];
+
+  // De opdrachtgever→dienst-tak: zonder opdrachtgever kan er nog niets uitgezet worden, dus toon dán
+  // alleen "eerste opdrachtgever" (de dienst-stap zou zinloos zijn). Daarna de eerste/ontbrekende dienst.
+  if (input.companies === 0) {
+    actions.push({
+      id: "franchiser-first-client",
+      title: "Voeg je eerste opdrachtgever toe — met afdelingen en diensten in één doorloop",
+      href: "/franchise/opdrachtgevers/nieuw",
+      tone: "info",
+      priority: P.franchiserFirstClient,
+    });
+  } else if (input.publishedDiensten === 0) {
+    actions.push({
+      id: "franchiser-first-service",
+      title: "Zet je eerste dienst uit bij een opdrachtgever",
+      href: "/franchise/opdrachtgevers",
+      tone: "info",
+      priority: P.franchiserFirstService,
+    });
+  } else if (input.companiesWithoutDiensten > 0) {
+    actions.push({
+      id: "franchiser-clients-without-service",
+      title: `${plural(input.companiesWithoutDiensten, "opdrachtgever", "opdrachtgevers")} zonder diensten — zet diensten uit`,
+      href: "/franchise/opdrachtgevers",
+      tone: "info",
+      priority: P.franchiserClientsWithoutService,
+    });
+  }
+
+  // Het roster is een parallelle opzet-tak: ZZP'ers kun je los van opdrachtgevers al toevoegen.
+  if (input.rosterFreelancers === 0) {
+    actions.push({
+      id: "franchiser-roster-empty",
+      title: "Breng ZZP'ers in je roster om diensten te kunnen vervullen",
+      href: "/franchise/zzpers",
+      tone: "info",
+      priority: P.franchiserRoster,
     });
   }
 

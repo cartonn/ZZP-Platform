@@ -18,7 +18,7 @@ import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { clientCredentialAlerts, shortCredentialAlert } from "@/lib/collaboration-alerts";
 import { computeFreelancerCompleteness } from "@/lib/profile";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
-import { type NextActionTone } from "@/lib/next-actions";
+import { franchiserNextActions, type NextAction, type NextActionTone } from "@/lib/next-actions";
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
 import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
@@ -92,6 +92,8 @@ interface DashboardData {
   running: RunningCollab[];
   week: WeekOverview | null;
   isNewAccount: boolean;
+  /** Geleide activatie-stappen (alleen franchiser); leeg zodra de franchise volledig staat. */
+  activation: NextAction[];
 }
 
 // Mirror van profiel/page.tsx: talen staan als JSON-array-string opgeslagen.
@@ -206,6 +208,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       running,
       week,
       isNewAccount: applications === 0 && running.length === 0,
+      activation: [],
     };
   }
 
@@ -280,6 +283,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       running,
       week: null,
       isNewAccount: openJobs === 0 && drafts === 0 && activeCollabs === 0,
+      activation: [],
     };
   }
 
@@ -287,14 +291,15 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     // Tenant-overzicht: opdrachtgevers + ZZP'ers + open diensten binnen de eigen franchise.
     const me = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
     const tenantId = me?.tenantId ?? null;
-    const [companies, freelancers, openDiensten, activeCollabs] = tenantId
+    const [companies, freelancers, openDiensten, activeCollabs, companiesWithoutDiensten] = tenantId
       ? await Promise.all([
           prisma.company.count({ where: { tenantId } }),
           prisma.freelancerProfile.count({ where: { tenantId } }),
           prisma.job.count({ where: { tenantId, status: "PUBLISHED" } }),
           prisma.collaboration.count({ where: { job: { tenantId }, status: "ACTIVE" } }),
+          prisma.company.count({ where: { tenantId, jobs: { none: { status: "PUBLISHED" } } } }),
         ])
-      : [0, 0, 0, 0];
+      : [0, 0, 0, 0, 0];
     return {
       stats: [
         { label: "Opdrachtgevers", value: companies, href: "/franchise/opdrachtgevers" },
@@ -305,6 +310,14 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       running: [],
       week: null,
       isNewAccount: companies === 0 && freelancers === 0,
+      // Geleide opzet: verschijnt zolang de franchise nog niet volledig staat (ook bij gedeeltelijke
+      // inrichting), en verdwijnt zodra er een opdrachtgever met diensten én een roster is.
+      activation: franchiserNextActions({
+        companies,
+        publishedDiensten: openDiensten,
+        rosterFreelancers: freelancers,
+        companiesWithoutDiensten,
+      }),
     };
   }
 
@@ -322,6 +335,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     running: [],
     week: null,
     isNewAccount: false,
+    activation: [],
   };
 }
 
@@ -447,7 +461,7 @@ export default async function DashboardPage() {
     month: "long",
   });
   const actor = await requireActor();
-  const [{ stats, running, week, isNewAccount }, matches, tasks] = await Promise.all([
+  const [{ stats, running, week, isNewAccount, activation }, matches, tasks] = await Promise.all([
     dashboardData(role, user.id!),
     role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
     pendingTasks(actor),
@@ -487,6 +501,33 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </section>
+
+      {/* Franchiser-activatie — geleide opzet van de franchise. Klikbare stappen die de eerstvolgende
+          concrete actie tonen (opdrachtgever → dienst → roster); verdwijnt zodra de franchise staat. */}
+      {role === "FRANCHISER" && activation.length > 0 && (
+        <section className="rounded-lg border border-border bg-card p-5">
+          <h2 className="text-sm font-medium">Aan de slag</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Richt je franchise stap voor stap in.
+          </p>
+          <ul className="mt-3 space-y-1">
+            {activation.map((a, i) => (
+              <li key={a.id}>
+                <Link
+                  href={a.href}
+                  className="focus-ring -mx-2 flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted/40"
+                >
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] font-medium text-foreground">
+                    {i + 1}
+                  </span>
+                  <span className="flex-1 font-medium">{a.title}</span>
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Zone 1 — Wat loopt er nu (lopende samenwerkingen + cascade-fase). */}
       {hasRunning && (
@@ -547,8 +588,9 @@ export default async function DashboardPage() {
       )}
 
       {/* Aan de slag — onboarding alleen voor nieuwe accounts, en alleen als het actiecentrum
-          niets concreets toont (anders verschijnen profiel/identiteit dubbel). */}
-      {isNewAccount && tasks.length === 0 && (
+          niets concreets toont (anders verschijnen profiel/identiteit dubbel). De franchiser heeft
+          hierboven al zijn eigen, klikbare activatie-sectie. */}
+      {isNewAccount && tasks.length === 0 && role !== "FRANCHISER" && (
         <section className="rounded-lg border border-border bg-card p-5">
           <h2 className="text-sm font-medium">Aan de slag</h2>
           <ul className="mt-3 space-y-2">
