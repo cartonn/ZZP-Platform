@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole, AuthorizationError } from "@/lib/authz";
 import { assertSameTenant } from "@/lib/tenancy";
+import { audit } from "@/lib/audit";
 import { createFranchiseDienst } from "@/lib/franchise/dienst";
 
 // De wizard heeft eigen acties zodat ze de wizard-route hervalideren (de gedeelde cockpit-acties
@@ -49,8 +50,15 @@ export async function addAfdelingStep(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer." };
 
-  await prisma.department.create({
+  const dept = await prisma.department.create({
     data: { companyId, name: parsed.data.name, location: parsed.data.location ?? null },
+  });
+  await audit({
+    actorId: actor.id,
+    action: "FRANCHISE_DEPARTMENT_ADDED",
+    entityType: "Department",
+    entityId: dept.id,
+    metadata: { companyId, tenantId: company.tenantId, name: parsed.data.name },
   });
   revalidatePath(WIZARD);
   return {};
@@ -61,11 +69,18 @@ export async function removeAfdelingStep(departmentId: string): Promise<void> {
   const actor = await requireRole("FRANCHISER");
   const dept = await prisma.department.findUnique({
     where: { id: departmentId },
-    select: { company: { select: { tenantId: true } } },
+    select: { companyId: true, company: { select: { tenantId: true } } },
   });
   if (!dept) return;
   assertSameTenant(actor, dept.company.tenantId);
   await prisma.department.delete({ where: { id: departmentId } });
+  await audit({
+    actorId: actor.id,
+    action: "FRANCHISE_DEPARTMENT_REMOVED",
+    entityType: "Department",
+    entityId: departmentId,
+    metadata: { companyId: dept.companyId, tenantId: dept.company.tenantId },
+  });
   revalidatePath(WIZARD);
 }
 
