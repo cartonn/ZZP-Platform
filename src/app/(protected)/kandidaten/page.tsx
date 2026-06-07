@@ -1,10 +1,10 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Users } from "lucide-react";
+import { Users, Check, TriangleAlert } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { APPLICATION_TRANSITIONS } from "@/lib/applications";
-import { computeCompliance } from "@/lib/matching";
+import { computeCompliance, scoreJobForFreelancer } from "@/lib/matching";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
@@ -52,6 +52,11 @@ export default async function KandidatenPage() {
         select: {
           id: true,
           title: true,
+          rateMin: true,
+          rateMax: true,
+          workMode: true,
+          location: true,
+          skills: { select: { skillId: true, required: true } },
           credentialRequirements: { select: { credentialType: true, required: true } },
         },
       },
@@ -60,7 +65,12 @@ export default async function KandidatenPage() {
           id: true,
           headline: true,
           visibility: true,
+          hourlyRate: true,
+          workMode: true,
+          location: true,
+          availability: true,
           user: { select: { name: true, identityVerifiedAt: true } },
+          skills: { select: { skillId: true } },
           availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
           credentials: { select: { type: true, status: true, expiresAt: true } },
         },
@@ -121,6 +131,9 @@ export default async function KandidatenPage() {
                 (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > nowMs),
               ).length,
             });
+            // Live onderbouwing van de match (waarom past deze kandidaat) — dezelfde server-side
+            // regels als de ZZP'er op de opdracht ziet, zodat de opdrachtgever niet alleen "Match X%" leest.
+            const fitReasons = scoreJobForFreelancer(app.job, app.freelancer).reasons;
             return (
               <Card key={app.id}>
                 <CardContent className="space-y-3">
@@ -179,6 +192,31 @@ export default async function KandidatenPage() {
                         </span>
                       )}
                     </p>
+                  )}
+
+                  {fitReasons.length > 0 && (
+                    <details className="text-sm">
+                      <summary className="focus-ring cursor-pointer text-muted-foreground">
+                        Waarom deze match?
+                      </summary>
+                      <ul className="mt-2 space-y-1.5">
+                        {fitReasons.map((r, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            {r.kind === "positive" ? (
+                              <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+                            ) : (
+                              <TriangleAlert
+                                className="mt-0.5 size-4 shrink-0 text-warning"
+                                aria-hidden
+                              />
+                            )}
+                            <span className={r.kind === "gap" ? "text-muted-foreground" : ""}>
+                              {r.label}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
                   )}
 
                   <p className="whitespace-pre-line text-sm">{app.motivation}</p>
