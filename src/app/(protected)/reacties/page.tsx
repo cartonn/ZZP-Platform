@@ -3,7 +3,8 @@ import Link from "next/link";
 import { FileText } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { liveComplianceStatus } from "@/lib/matching";
+import { computeCompliance } from "@/lib/matching";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -73,13 +74,13 @@ export default async function ReactiesPage() {
       ) : (
         <div className="space-y-3">
           {applications.map((app) => {
-            // Live compliance uit de actuele certificaten i.p.v. de bevroren snapshot.
-            const compliance = liveComplianceStatus(
-              app.job.credentialRequirements
-                .filter((r) => r.required)
-                .map((r) => r.credentialType as CredentialType),
-              myCredentials,
-            );
+            // Live compliance uit de actuele certificaten i.p.v. de bevroren snapshot. De volledige
+            // uitsplitsing maakt voor de ZZP'er concreet wat hij nog moet regelen om te voldoen.
+            const requiredTypes = app.job.credentialRequirements
+              .filter((r) => r.required)
+              .map((r) => r.credentialType as CredentialType);
+            const compliance =
+              requiredTypes.length > 0 ? computeCompliance(requiredTypes, myCredentials) : null;
             // Zodra er een samenwerking uit de reactie is voortgekomen, wijst de kaart naar het
             // werkproces (de logische volgende stap) i.p.v. terug naar de opdracht.
             const hint = app.collaboration
@@ -106,8 +107,30 @@ export default async function ReactiesPage() {
                   {app.matchScore != null && (
                     <Badge variant="accent">Match {app.matchScore}%</Badge>
                   )}
-                  {compliance && <ComplianceBadge status={compliance} />}
+                  {compliance && <ComplianceBadge status={compliance.status} />}
                 </div>
+                {compliance && compliance.status !== "COMPLIANT" && (
+                  <p className="mt-1.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                    {compliance.missing.length > 0 && (
+                      <span className="text-danger">
+                        Je mist:{" "}
+                        {compliance.missing.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                      </span>
+                    )}
+                    {compliance.expired.length > 0 && (
+                      <span className="text-danger">
+                        Verlopen:{" "}
+                        {compliance.expired.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                      </span>
+                    )}
+                    {compliance.inReview.length > 0 && (
+                      <span className="text-warning">
+                        In beoordeling:{" "}
+                        {compliance.inReview.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                      </span>
+                    )}
+                  </p>
+                )}
                 <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
               </Link>
             );
