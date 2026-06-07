@@ -737,4 +737,34 @@ Sluit de ontbrekende e-mailkanalen voor twee kritieke platform-events:
 - Tests: 555 → 573 groen (+18). Gate: typecheck ✓ lint ✓ test ✓ build ✓ prettier ✓.
   E2e overgeslagen (geen browser-channel in deze omgeving; net als CI).
 
+### Autonome nachtbouw — look&feel + franchiser-activatie + verklaarbaarheid — 2026-06-07
+
+Autonoom (eigenaar afwezig): elke wijziging via feature-branch → PR → self-merge bij groene CI
+(check/e2e/audit/secret-scan/review), nooit direct op `main`. Per PR de volledige gate + een
+lokale visuele check. Tests 1086 → 1098.
+
+- **Look & feel (los van de app):** 5 ontwerprichtingen / 9 varianten in één deelbaar bestand
+  `zzp-platform-ontwerpen.html`, gepubliceerd op GitHub Pages (`cartonn.github.io/zzp-ontwerpen`,
+  repo `cartonn/zzp-ontwerpen`). Kaart-layout (Warme Zorg / Helder Pro / Vertrouwen Groen) + Command
+  (donker, 3-paneel; cyaan/violet/warm) + Editorial (licht, serif; teal/pruim/warm). Door een
+  8-agent design-QA + HTML-audit gehaald (bevestigd: nergens "AI"). Nog geen keuze doorgevoerd in de
+  echte tokens — wacht op de richtingkeuze van de eigenaar.
+- **#179 — Ideeënbox:** het indienformulier op `/ideeen` ontvouwt pas na klik op "Idee indienen"
+  (`idea-composer.tsx`); rustig beginscherm = de ideeënlijst. E2e bijgewerkt.
+- **#180 — Franchiser-activatie:** pure `franchiserNextActions()` in `next-actions.ts` (+6 tests) →
+  klikbare "Aan de slag"-sectie op het franchiser-dashboard (opdrachtgever → dienst → roster),
+  verdwijnt zodra de franchise volledig staat. Doodlopende empty-states (zzpers/samenwerkingen)
+  begeleid.
+- **Trust-transparantie #181 / #183:** nieuw `TrustExplanation`-component + `activeVerifiedCount()`
+  in `credentials.ts` (+3 tests). Vertrouwens-roadmap op `/certificaten` (ZZP'er, mét verbeterstappen)
+  en kijker-uitleg op `/zzp/[id]` (alleen positieve onderbouwing).
+- **Match-transparantie #182 / #184:** `MATCH_COMPONENT_MAX` + `MatchBreakdown` (uitklapbare
+  punten-breakdown op de opdracht-detailpagina) + `topPositiveReason()` (sterkste reden op de
+  dashboard-matchkaarten). +3 tests.
+- **Compliance-transparantie #185 / #186:** `computeCompliance`-detail ("Mist: VOG" / "Verlopen: …" /
+  "In beoordeling: …") op `/kandidaten` (opdrachtgever) en `/reacties` (ZZP'er), naast de bestaande
+  detail op de opdracht-detailpagina.
+- **Bewust uitgesteld:** franchise-monetisatie (= v2-5 tenant-billing) — productkeuze, wacht op een
+  ADR-gesprek met de eigenaar; niet autonoom gestart.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
