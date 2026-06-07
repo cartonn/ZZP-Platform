@@ -10,6 +10,7 @@ import {
   isExpiringSoon,
 } from "@/lib/credentials";
 import { computeTrustLevel } from "@/lib/trust";
+import { plural } from "@/lib/plural";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
@@ -134,7 +135,9 @@ export default async function CertificatenPage() {
                       >
                         Vervalt {fmt(c.expiresAt)}
                         {days != null && days >= 0
-                          ? ` (over ${days} dagen)`
+                          ? days === 0
+                            ? " (verloopt vandaag)"
+                            : ` (over ${plural(days, "dag", "dagen")})`
                           : days != null
                             ? " (verlopen)"
                             : ""}

@@ -12,7 +12,9 @@ import {
   type CollaborationStatus,
   type ContractStatus,
   type Availability,
+  type CredentialStatus,
 } from "@/lib/enums";
+import { activeVerifiedCount } from "@/lib/credentials";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { clientCredentialAlerts, shortCredentialAlert } from "@/lib/collaboration-alerts";
@@ -134,9 +136,9 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       pid
         ? prisma.credential.findMany({
             where: { freelancerProfileId: pid },
-            select: { status: true },
+            select: { status: true, expiresAt: true },
           })
-        : Promise.resolve<{ status: string }[]>([]),
+        : Promise.resolve<{ status: string; expiresAt: Date | null }[]>([]),
       // Lopende samenwerkingen (niet-terminaal) met de gegevens om de cascade-fase af te leiden.
       prisma.collaboration.findMany({
         where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
@@ -163,8 +165,11 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       }),
     ]);
 
-    // Geverifieerde certificaten voor de statistiek-tegel (in-memory uit de findMany hierboven).
-    const verified = creds.filter((c) => c.status === "VERIFIED").length;
+    // Geverifieerde certificaten voor de statistiek-tegel: VERIFIED én niet verlopen — consistent met
+    // /certificaten, het publieke profiel en het vertrouwensniveau (een verlopen bewijs telt niet mee).
+    const verified = activeVerifiedCount(
+      creds.map((c) => ({ status: c.status as CredentialStatus, expiresAt: c.expiresAt })),
+    );
 
     const running: RunningCollab[] = runningRows.map((c) => ({
       id: c.id,
