@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  activeVerifiedCount,
   assertTransition,
   canTransition,
   daysUntilExpiry,
@@ -92,5 +93,42 @@ describe("expiry", () => {
     expect(expiryTransition({ status: "VERIFIED", expiresAt: past }, now)).toBe("EXPIRED");
     expect(expiryTransition({ status: "VERIFIED", expiresAt: future }, now)).toBeNull();
     expect(expiryTransition({ status: "SUBMITTED", expiresAt: past }, now)).toBeNull();
+  });
+});
+
+describe("activeVerifiedCount", () => {
+  const nu = new Date("2026-05-25T12:00:00Z");
+  const verleden = new Date("2026-01-01T12:00:00Z");
+  const toekomst = new Date("2027-01-01T12:00:00Z");
+
+  it("telt alleen VERIFIED certificaten", () => {
+    const count = activeVerifiedCount(
+      [
+        { status: "VERIFIED" },
+        { status: "VERIFIED", expiresAt: toekomst },
+        { status: "SUBMITTED" },
+        { status: "DRAFT" },
+        { status: "REJECTED" },
+      ],
+      nu,
+    );
+    expect(count).toBe(2);
+  });
+
+  it("telt een verlopen VERIFIED certificaat niet mee", () => {
+    const count = activeVerifiedCount(
+      [
+        { status: "VERIFIED", expiresAt: verleden },
+        { status: "VERIFIED", expiresAt: toekomst },
+        { status: "VERIFIED" }, // geen vervaldatum → verloopt nooit
+      ],
+      nu,
+    );
+    expect(count).toBe(2);
+  });
+
+  it("is 0 zonder geldige geverifieerde certificaten", () => {
+    expect(activeVerifiedCount([], nu)).toBe(0);
+    expect(activeVerifiedCount([{ status: "SUBMITTED" }, { status: "EXPIRED" }], nu)).toBe(0);
   });
 });

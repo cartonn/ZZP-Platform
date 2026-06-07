@@ -83,6 +83,17 @@ export function daysUntilExpiry(
   return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 
+/**
+ * Aantal geldige, geverifieerde certificaten: VERIFIED én niet verlopen. Dit is de basis voor het
+ * vertrouwensniveau (zie computeTrustLevel) — een verlopen bewijsstuk telt niet meer mee.
+ */
+export function activeVerifiedCount(
+  credentials: readonly ExpiryInput[],
+  now: Date = new Date(),
+): number {
+  return credentials.filter((c) => c.status === "VERIFIED" && !isExpired(c, now)).length;
+}
+
 /** Bijna verlopen: VERIFIED, nog niet verlopen, en binnen `withinDays`. */
 export function isExpiringSoon(
   credential: ExpiryInput,
