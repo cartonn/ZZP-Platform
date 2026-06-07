@@ -79,9 +79,11 @@ export function computeCompliance(
   }
 
   let status: ComplianceStatus = "COMPLIANT";
-  if (missing.length > 0) {
+  if (missing.length > 0 || expired.length > 0) {
+    // Een verlopen vereist certificaat betekent dat de ZZP'er nú niet aan de eis voldoet — net als een
+    // ontbrekend certificaat (gelijk aan collaboration-alerts.ts). WARNING is voor "nog in beoordeling".
     status = "NON_COMPLIANT";
-  } else if (expired.length > 0 || inReview.length > 0) {
+  } else if (inReview.length > 0) {
     status = "WARNING";
   }
 
@@ -250,10 +252,12 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     if (compliance.status === "COMPLIANT") {
       positives.push({ kind: "positive", label: "Voldoet aan de certificaateisen" });
     } else if (compliance.status === "WARNING") {
-      gaps.push({ kind: "gap", label: "Certificaat in beoordeling of verloopt binnenkort" });
+      gaps.push({ kind: "gap", label: "Certificaat in beoordeling" });
     } else {
       if (compliance.missing.length > 0) {
         gaps.push({ kind: "gap", label: "Mist vereist certificaat" });
+      } else if (compliance.expired.length > 0) {
+        gaps.push({ kind: "gap", label: "Vereist certificaat is verlopen" });
       }
     }
   }
