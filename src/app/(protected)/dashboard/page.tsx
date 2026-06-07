@@ -429,7 +429,9 @@ function MatchesSection({ matches, prominent }: { matches: JobMatch[]; prominent
                 <span className="block truncate text-xs text-muted-foreground">
                   {m.companyName}
                 </span>
-                {m.related ? (
+                {m.reason ? (
+                  <span className="block truncate text-xs text-primary">{m.reason}</span>
+                ) : m.related ? (
                   <span className="block truncate text-xs text-primary">
                     Sluit inhoudelijk aan op je profiel
                   </span>

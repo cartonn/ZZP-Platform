@@ -20,6 +20,15 @@ export interface MatchReason {
   label: string;
 }
 
+/**
+ * De sterkste positieve reden voor een compacte uitleg (bv. op een dashboard-matchkaart). De reasons
+ * worden in volgorde van componentgewicht gepusht (skills eerst), dus de eerste positieve is de
+ * zwaarst wegende troef. Geeft `null` als er geen positieve reden is.
+ */
+export function topPositiveReason(reasons: readonly MatchReason[]): string | null {
+  return reasons.find((r) => r.kind === "positive")?.label ?? null;
+}
+
 export interface FreelancerCredential {
   type: CredentialType;
   status: CredentialStatus;
