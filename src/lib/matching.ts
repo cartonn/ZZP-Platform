@@ -4,6 +4,7 @@
 
 import { currentOrNextAvailable } from "@/lib/availability";
 import { isExpired } from "@/lib/credentials";
+import { estimateTravelMinutes } from "@/lib/services/travel-distance";
 import {
   type Availability,
   type AvailabilityWindowType,
@@ -121,6 +122,8 @@ export interface MatchInput {
     hourlyRate?: number | null;
     workMode: WorkMode;
     location?: string | null;
+    /** Max. reistijd (minuten) die de ZZP'er accepteert; null/undefined = geen limiet → stad-vergelijking. */
+    maxTravelMinutes?: number | null;
     availability: Availability;
     availabilityWindows?: readonly {
       startDate: Date;
@@ -212,6 +215,7 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     input.freelancer.workMode,
     input.job.location,
     input.freelancer.location,
+    input.freelancer.maxTravelMinutes,
   );
 
   const breakdown = {
@@ -324,6 +328,7 @@ export interface FreelancerMatchSource {
   hourlyRate: number | null;
   workMode: string;
   location: string | null;
+  maxTravelMinutes?: number | null;
   availability: string;
   availabilityWindows?: readonly { startDate: Date; endDate: Date; type: string }[];
 }
@@ -357,6 +362,7 @@ export function scoreJobForFreelancer(
         hourlyRate: freelancer.hourlyRate,
         workMode: freelancer.workMode as WorkMode,
         location: freelancer.location,
+        maxTravelMinutes: freelancer.maxTravelMinutes ?? null,
         availability: freelancer.availability as Availability,
         availabilityWindows: freelancer.availabilityWindows?.map((w) => ({
           startDate: w.startDate,
@@ -396,8 +402,20 @@ function locationFit(
   freelancerMode: WorkMode,
   jobLoc: string | null | undefined,
   freelancerLoc: string | null | undefined,
+  maxTravelMinutes?: number | null,
 ): number {
   if (jobMode === "REMOTE" || freelancerMode === "REMOTE") return WEIGHTS.location;
+  // Reistijd-gebaseerd zodra de ZZP'er een max. reistijd heeft én beide plaatsen bekend zijn:
+  // binnen bereik = vol, erbuiten = lineair aflopend (op 2× de limiet → 0). Zonder limiet of bij een
+  // onbekende plaats: de bestaande stad-naam-vergelijking (gedrag ongewijzigd voor bestaande data).
+  if (maxTravelMinutes != null && maxTravelMinutes > 0 && jobLoc && freelancerLoc) {
+    const minutes = estimateTravelMinutes(freelancerLoc, jobLoc);
+    if (minutes != null) {
+      if (minutes <= maxTravelMinutes) return WEIGHTS.location;
+      const over = (minutes - maxTravelMinutes) / maxTravelMinutes;
+      return WEIGHTS.location * clamp(1 - over, 0, 1);
+    }
+  }
   if (!jobLoc || !freelancerLoc) return WEIGHTS.location * 0.6;
   return jobLoc.trim().toLowerCase() === freelancerLoc.trim().toLowerCase()
     ? WEIGHTS.location

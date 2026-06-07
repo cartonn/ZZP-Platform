@@ -110,6 +110,7 @@ export default async function ProfielPage() {
           location: profile.location ?? "",
           availability: profile.availability,
           workMode: profile.workMode,
+          maxTravelMinutes: profile.maxTravelMinutes?.toString() ?? "",
           languages: languages.join(", "),
           kvkNumber: profile.kvkNumber ?? "",
           btwNumber: profile.btwNumber ?? "",

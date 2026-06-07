@@ -169,6 +169,7 @@ model FreelancerProfile {
   availability String   @default("UNKNOWN") // Availability: AVAILABLE | LIMITED | UNAVAILABLE | UNKNOWN
   location     String?
   workMode     String   @default("HYBRID") //  WorkMode: REMOTE | ONSITE | HYBRID
+  maxTravelMinutes Int? //                      Max. reistijd naar een opdracht (minuten); null = geen limiet/onbekend.
   languages    String? //                      JSON-string array, bv. ["nl","en"]
   kvkNumber    String?
   btwNumber    String?

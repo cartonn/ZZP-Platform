@@ -68,6 +68,7 @@ export default async function KandidatenPage() {
           hourlyRate: true,
           workMode: true,
           location: true,
+          maxTravelMinutes: true,
           availability: true,
           user: { select: { name: true, identityVerifiedAt: true } },
           skills: { select: { skillId: true } },

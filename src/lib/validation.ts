@@ -60,6 +60,10 @@ export const freelancerProfileSchema = z.object({
   location: optionalText(120),
   availability: availabilitySchema,
   workMode: workModeSchema,
+  maxTravelMinutes: z
+    .union([z.literal(""), z.coerce.number().int().min(0).max(999)])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? undefined : Number(v))),
   languages: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
   kvkNumber: optionalText(20),
   btwNumber: optionalText(30),
