@@ -15,7 +15,7 @@ export function IdeaForm() {
   const [state, action, pending] = useActionState<IdeaFormState, FormData>(createIdea, undefined);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Na een geslaagde indiening het formulier leegmaken.
+  // Na een geslaagde indiening het formulier leegmaken (het blijft open met de bevestiging).
   useEffect(() => {
     if (state?.ok) formRef.current?.reset();
   }, [state]);

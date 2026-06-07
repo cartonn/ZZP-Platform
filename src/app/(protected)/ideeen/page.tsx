@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShortNl } from "@/lib/format-date";
-import { IdeaForm } from "./idea-form";
+import { IdeaComposer } from "./idea-composer";
 import { VoteButton } from "./vote-button";
 import { StatusControl } from "./status-control";
 import { CategoryControl } from "./category-control";
@@ -106,12 +106,7 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
         description="Stel verbeteringen voor en stem op de ideeën van anderen. De meest gewenste staan bovenaan."
       />
 
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <h2 className="text-sm font-semibold tracking-tight">Nieuw idee</h2>
-          <IdeaForm />
-        </CardContent>
-      </Card>
+      <IdeaComposer />
 
       <form
         method="get"
