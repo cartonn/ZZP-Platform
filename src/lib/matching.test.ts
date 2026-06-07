@@ -3,6 +3,7 @@ import {
   computeCompliance,
   computeMatchScore,
   liveComplianceStatus,
+  topPositiveReason,
   MATCH_COMPONENT_MAX,
   type FreelancerCredential,
   type MatchInput,
@@ -237,5 +238,22 @@ describe("computeMatchScore", () => {
     );
     expect(r.availability.status).toBe("AVAILABLE");
     expect(r.availability.reason).toEqual({ kind: "positive", label: "Direct beschikbaar" });
+  });
+});
+
+describe("topPositiveReason", () => {
+  it("geeft de eerste positieve reden (zwaarst wegende troef)", () => {
+    expect(
+      topPositiveReason([
+        { kind: "gap", label: "Mist 1 van 3 vereiste skills" },
+        { kind: "positive", label: "Voldoet aan de certificaateisen" },
+        { kind: "positive", label: "Tarief past binnen het budget" },
+      ]),
+    ).toBe("Voldoet aan de certificaateisen");
+  });
+
+  it("geeft null zonder positieve reden", () => {
+    expect(topPositiveReason([{ kind: "gap", label: "Mist vereist certificaat" }])).toBeNull();
+    expect(topPositiveReason([])).toBeNull();
   });
 });

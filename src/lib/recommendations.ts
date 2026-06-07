@@ -10,7 +10,7 @@
 
 import { prisma } from "@/lib/db";
 import { visibleJobsWhereForTenant } from "@/lib/tenancy";
-import { scoreJobForFreelancer, type ComplianceStatus } from "@/lib/matching";
+import { scoreJobForFreelancer, topPositiveReason, type ComplianceStatus } from "@/lib/matching";
 import { getSemanticMatcher, safeRelatedness } from "@/lib/services/semantic-matcher";
 import { type Availability } from "@/lib/enums";
 
@@ -25,6 +25,8 @@ export interface JobMatch {
   relatedness?: number;
   /** Sluit inhoudelijk sterk aan (boven de drempel) — voor de verklaring in de UI. */
   related?: boolean;
+  /** Sterkste positieve match-reden (bv. "Alle vereiste skills aanwezig") — compacte uitleg in de UI. */
+  reason?: string;
 }
 
 /** Drempel waaronder een opdracht niet relevant genoeg is om proactief te tonen. */
@@ -101,6 +103,7 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
         availability: match.availability.status,
         relatedness,
         related: relatedness >= SEMANTIC_HIGHLIGHT_THRESHOLD,
+        reason: topPositiveReason(match.reasons) ?? undefined,
       };
     });
 
