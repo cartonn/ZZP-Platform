@@ -1,10 +1,24 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { HydrationFlag } from "@/components/system/hydration-flag";
+import { PwaRegister } from "@/components/system/pwa-register";
 
 export const metadata: Metadata = {
   title: "ZZP Platform",
   description: "Opdrachten, geverifieerde certificaten en veilig documentbeheer voor ZZP'ers.",
+  applicationName: "ZZP Platform",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "ZZP Platform" },
+  icons: { apple: "/pwa/icon/apple.png" },
+};
+
+// themeColor MOET in de viewport-export staan (Next 15); in metadata wordt het genegeerd.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0e11" },
+  ],
 };
 
 // Zet het thema vóór de eerste paint (geen flits). Leest de keuze uit localStorage,
@@ -19,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen antialiased">
         <HydrationFlag />
+        <PwaRegister />
         {children}
       </body>
     </html>

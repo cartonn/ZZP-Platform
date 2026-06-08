@@ -13,6 +13,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   `connect-src 'self'${isDev ? " ws:" : ""}`,
+  "worker-src 'self'", // service worker (PWA)
+  "manifest-src 'self'",
   "form-action 'self'",
 ].join("; ");
 
@@ -29,7 +31,17 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // De service worker zelf nooit cachen: zo komt een nieuwe versie altijd direct binnen.
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
   },
 };
 
