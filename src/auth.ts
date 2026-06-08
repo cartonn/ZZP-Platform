@@ -20,6 +20,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: async ({ user }) => {
       if (!user?.id) return;
       const meta = await requestMeta();
+      // Eén write per geslaagde login (Node-runtime): voedt het recency-signaal voor inzetbaarheid.
+      await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
       await audit({
         actorId: user.id,
         action: "USER_LOGIN",

@@ -33,6 +33,7 @@ model User {
   anonymizedAt        DateTime? //                   AVG: door beheer uitgevoerde anonimisering (recht op verwijdering)
   identityVerifiedAt  DateTime? //                   iDIN/eIDAS-identiteitsverificatie
   verifiedLegalName   String? //                     door de bron bevestigde juridische naam
+  lastLoginAt         DateTime? //                   laatste geslaagde login (recency-signaal voor inzetbaarheid)
   tenantId            String? //                     franchise-lidmaatschap; null = directe platformgebruiker
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
