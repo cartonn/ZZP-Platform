@@ -791,6 +791,8 @@ export async function creditInvoice(
   if (actor.role !== "ADMIN" && actor.id !== inv.issuerUserId) {
     throw new CascadeError("Alleen de uitschrijver kan een creditfactuur maken.");
   }
+  // Tijdens een dispuut bevriest de cascade — ook crediteren is een transitie (§4 zijpad).
+  if (inv.collaborationId) await assertNotDisputed(inv.collaborationId);
   const effects = planInvoiceCreditedEvent({
     invoice: {
       id: invoiceId,

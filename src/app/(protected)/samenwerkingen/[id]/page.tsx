@@ -336,14 +336,18 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       );
     const draftInv = col.invoices.filter((i) => i.lifecycleStatus === "DRAFT").length;
     if (isFreelancer && draftInv > 0)
-      todo.push(`${draftInv} concept-factuur(en) klaar om in te dienen.`);
+      todo.push(
+        `${plural(draftInv, "concept-factuur", "concept-facturen")} klaar om in te dienen.`,
+      );
     const submittedInv = col.invoices.filter((i) => i.lifecycleStatus === "SUBMITTED").length;
     if (isClient && submittedInv > 0)
-      todo.push(`${submittedInv} factuur(en) wachten op je goedkeuring.`);
+      todo.push(
+        `${plural(submittedInv, "factuur", "facturen")} ${submittedInv === 1 ? "wacht" : "wachten"} op je goedkeuring.`,
+      );
     const approvedInv = col.invoices.filter((i) => i.lifecycleStatus === "APPROVED").length;
     if (isFreelancer && approvedInv > 0)
       todo.push(
-        `${approvedInv} goedgekeurde factuur(en): markeer de ontvangst zodra je bent betaald.`,
+        `${plural(approvedInv, "goedgekeurde factuur", "goedgekeurde facturen")}: markeer de ontvangst zodra je bent betaald.`,
       );
   }
 

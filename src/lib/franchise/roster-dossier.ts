@@ -143,7 +143,9 @@ export async function getRosterDossier(
 
   const [collabRows, performanceRows, invoiceRows, logRows] = await Promise.all([
     prisma.collaboration.findMany({
-      where: { freelancerId: profile.id },
+      // Tenant-scope: alleen samenwerkingen op opdrachten van de eigen franchise. Een roster-ZZP'er
+      // kan via overflow ook voor een andere franchise hebben gewerkt — die mag hier niet lekken.
+      where: { freelancerId: profile.id, job: { is: tenantScopeWhere(actor) } },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -169,7 +171,7 @@ export async function getRosterDossier(
       },
     }),
     prisma.performance.findMany({
-      where: { collaboration: { freelancerId: profile.id } },
+      where: { collaboration: { freelancerId: profile.id, job: { is: tenantScopeWhere(actor) } } },
       orderBy: { periodStart: "desc" },
       select: {
         id: true,
@@ -183,7 +185,12 @@ export async function getRosterDossier(
       },
     }),
     prisma.invoice.findMany({
-      where: { issuerUserId: profile.user.id },
+      // Alleen facturen die bij een samenwerking op een eigen-franchise-opdracht horen (geen lek van
+      // facturen voor overflow-werk bij een andere franchise).
+      where: {
+        issuerUserId: profile.user.id,
+        collaboration: { is: { job: { is: tenantScopeWhere(actor) } } },
+      },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
