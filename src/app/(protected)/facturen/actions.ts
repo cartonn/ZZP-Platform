@@ -71,6 +71,19 @@ export async function createInvoice(
   const collaboration = await loadOwnedCollaboration(actor.id, collaborationId);
   if (!collaboration) return { error: "Samenwerking niet gevonden." };
 
+  // Dubbele-facturatie-gate (server-side waarheid): als deze samenwerking de uren-/prestatie-cascade
+  // gebruikt (een prestatie of een cascade-factuur), mag er geen losse factuur bij — die loopt daar.
+  const [performanceCount, cascadeInvoiceCount] = await Promise.all([
+    prisma.performance.count({ where: { collaborationId } }),
+    prisma.invoice.count({ where: { collaborationId, lifecycleStatus: { not: null } } }),
+  ]);
+  if (performanceCount > 0 || cascadeInvoiceCount > 0) {
+    return {
+      error:
+        "Deze samenwerking factureert via de uren- en prestatieflow. Maak de factuur daar aan, niet los.",
+    };
+  }
+
   const { lines, error } = parseLines(formData);
   if (error) return { error };
 

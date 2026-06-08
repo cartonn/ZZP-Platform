@@ -9,6 +9,7 @@ import { canApply } from "@/lib/applications";
 import { assessDbaRisk } from "@/lib/dba";
 import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs";
 import { scoreJobForFreelancer } from "@/lib/matching";
+import { canViewJob } from "@/lib/tenancy";
 import { type JobStatus, jobStatusSchema } from "@/lib/enums";
 import { applicationSchema, jobSchema } from "@/lib/validation";
 
@@ -235,11 +236,19 @@ export async function createApplication(
 
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    include: { skills: true, credentialRequirements: true, company: { select: { userId: true } } },
+    include: {
+      skills: true,
+      credentialRequirements: true,
+      company: { select: { userId: true } },
+      tenant: { select: { openOverflow: true } },
+    },
   });
   if (!job) return { error: "Opdracht niet gevonden." };
   if (job.status !== "PUBLISHED")
     return { error: "Je kunt alleen op gepubliceerde opdrachten reageren." };
+  // Tenant-zichtbaarheid: een tenant-dienst is alleen reageerbaar voor de eigen roster (of als de
+  // franchise hem heeft opengesteld via overflow). Niet alleen op de detailpagina afdwingen.
+  if (!canViewJob(actor, job)) return { error: "Deze opdracht is niet zichtbaar voor jou." };
 
   const existing = await prisma.application.findUnique({
     where: { jobId_freelancerId: { jobId, freelancerId: profile.id } },

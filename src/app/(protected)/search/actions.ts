@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { currentActor } from "@/lib/authz";
+import { visibleJobsWhere } from "@/lib/tenancy";
 import {
   type SearchResult,
   normalizeSearchQuery,
@@ -39,7 +40,9 @@ export async function searchPlatform(rawQuery: string): Promise<SearchResult[]> 
     case "FREELANCER": {
       const [jobs, collaborations, credentials, invoices, conversations] = await Promise.all([
         prisma.job.findMany({
-          where: { status: "PUBLISHED" },
+          // Tenant-zichtbaarheid: een franchise-dienst is alleen vindbaar voor de eigen roster
+          // (of als overflow opengezet); directe ZZP'ers zien alleen platform-opdrachten.
+          where: { status: "PUBLISHED", AND: [visibleJobsWhere(actor)] },
           take: 40,
           orderBy: { updatedAt: "desc" },
           include: { company: { select: { name: true } } },

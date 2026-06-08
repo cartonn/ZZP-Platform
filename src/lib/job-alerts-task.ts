@@ -23,6 +23,7 @@ export async function runJobAlertsTask(opts?: {
       skills: { select: { skillId: true, required: true } },
       credentialRequirements: { select: { credentialType: true, required: true } },
       applications: { select: { freelancerId: true } },
+      tenant: { select: { openOverflow: true } },
     },
   });
   if (rawJobs.length === 0) return { alerted: 0, jobs: 0 };
@@ -48,6 +49,8 @@ export async function runJobAlertsTask(opts?: {
     rateMax: j.rateMax,
     workMode: j.workMode,
     location: j.location,
+    tenantId: j.tenantId,
+    openOverflow: j.tenant?.openOverflow ?? false,
     applicantProfileIds: j.applications.map((a) => a.freelancerId),
   }));
 
@@ -61,6 +64,7 @@ export async function runJobAlertsTask(opts?: {
     location: p.location,
     maxTravelMinutes: p.maxTravelMinutes,
     availability: p.availability,
+    tenantId: p.tenantId,
     availabilityWindows: p.availabilityWindows,
   }));
 

@@ -16,6 +16,8 @@ const makeJob = (overrides: Partial<JobAlertJob> = {}): JobAlertJob => ({
   rateMax: null,
   workMode: "ONSITE",
   location: "Amsterdam",
+  tenantId: null,
+  openOverflow: false,
   applicantProfileIds: [],
   ...overrides,
 });
@@ -29,6 +31,7 @@ const makeFreelancer = (overrides: Partial<JobAlertFreelancer> = {}): JobAlertFr
   workMode: "ONSITE",
   location: "Amsterdam",
   availability: "AVAILABLE",
+  tenantId: null,
   ...overrides,
 });
 
@@ -50,6 +53,38 @@ describe("planJobAlerts", () => {
     expect(alert?.jobId).toBe("job-1");
     expect(alert?.userId).toBe("user-1");
     expect(alert?.score).toBeGreaterThanOrEqual(JOB_ALERT_THRESHOLD);
+  });
+
+  it("alert geen tenant-dienst aan een ZZP'er buiten die tenant", () => {
+    const plan = planJobAlerts(
+      [makeJob({ tenantId: "tenant-a", openOverflow: false })],
+      [makeFreelancer({ tenantId: "tenant-b" })],
+    );
+    expect(plan.alerts).toHaveLength(0);
+  });
+
+  it("alert een tenant-dienst wel aan de eigen-tenant-ZZP'er", () => {
+    const plan = planJobAlerts(
+      [makeJob({ tenantId: "tenant-a" })],
+      [makeFreelancer({ tenantId: "tenant-a" })],
+    );
+    expect(plan.alerts).toHaveLength(1);
+  });
+
+  it("alert een opengestelde (overflow) tenant-dienst aan iedere ZZP'er", () => {
+    const plan = planJobAlerts(
+      [makeJob({ tenantId: "tenant-a", openOverflow: true })],
+      [makeFreelancer({ tenantId: null })],
+    );
+    expect(plan.alerts).toHaveLength(1);
+  });
+
+  it("alert een platform-opdracht (geen tenant) niet aan een franchise-ZZP'er", () => {
+    const plan = planJobAlerts(
+      [makeJob({ tenantId: null })],
+      [makeFreelancer({ tenantId: "tenant-a" })],
+    );
+    expect(plan.alerts).toHaveLength(0);
   });
 
   it("slaat ZZP'er over die al heeft gereageerd", () => {
