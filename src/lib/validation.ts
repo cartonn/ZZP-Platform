@@ -5,12 +5,45 @@ import { z } from "zod";
 import {
   availabilitySchema,
   availabilityWindowTypeSchema,
+  courseAudienceSchema,
   credentialTypeSchema,
   documentKindSchema,
   visibilitySchema,
   workModeSchema,
 } from "@/lib/enums";
 import { MODEL_AGREEMENT_TYPES } from "./model-agreement";
+
+// --- Academie -------------------------------------------------------------
+const optionalLevel = z.preprocess(
+  (v) => (v === "" || v == null ? undefined : v),
+  z.enum(["BEGINNER", "GEVORDERD"]).optional(),
+);
+
+export const courseInputSchema = z.object({
+  title: z.string().trim().min(4, "Geef een duidelijke titel.").max(140),
+  summary: z.string().trim().min(8, "Geef een korte omschrijving.").max(400),
+  audience: courseAudienceSchema.default("FREELANCER"),
+  level: optionalLevel,
+  order: z
+    .union([z.literal(""), z.coerce.number().int().min(0).max(999)])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? 0 : Number(v))),
+});
+export type CourseInput = z.infer<typeof courseInputSchema>;
+
+export const lessonInputSchema = z.object({
+  title: z.string().trim().min(3, "Geef een lestitel.").max(140),
+  body: z.string().trim().min(10, "Schrijf de lesinhoud.").max(20000),
+  estimatedMinutes: z
+    .union([z.literal(""), z.coerce.number().int().min(1).max(600)])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? undefined : Number(v))),
+  order: z
+    .union([z.literal(""), z.coerce.number().int().min(0).max(999)])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? 0 : Number(v))),
+});
+export type LessonInput = z.infer<typeof lessonInputSchema>;
 
 const optionalInt = (max: number) =>
   z
