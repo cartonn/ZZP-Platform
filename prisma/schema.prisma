@@ -524,7 +524,8 @@ model Credential {
   expiresAt           DateTime?
   status              String    @default("DRAFT") // CredentialStatus: DRAFT | SUBMITTED | VERIFIED | REJECTED | EXPIRED
   documentId          String?
-  visibility          String    @default("PRIVATE") // Visibility: PUBLIC | PRIVATE
+  visibility          String    @default("PRIVATE") // Visibility: PUBLIC | PRIVATE — zichtbaar op publiek profiel
+  sharedWithClient    Boolean   @default(false) //     opt-in: metadata gedeeld met opdrachtgevers in lopende samenwerkingen (niet het bestand)
   verifiedAt          DateTime?
   rejectionReason     String?
   expiryReminderFor   DateTime? // vervaldatum waarvoor al een "verloopt binnenkort"-herinnering is verstuurd (dedup, idempotent)

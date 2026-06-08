@@ -157,6 +157,7 @@ async function main() {
     status: "VERIFIED" | "SUBMITTED" | "EXPIRED" | "REJECTED";
     expiresInDays?: number;
     reason?: string;
+    sharedWithClient?: boolean;
   };
   type Freelancer = {
     key: string;
@@ -197,6 +198,7 @@ async function main() {
           issuer: "Justis",
           status: "VERIFIED",
           expiresInDays: 300,
+          sharedWithClient: true,
         },
         {
           type: "DIPLOMA",
@@ -465,6 +467,7 @@ async function main() {
           issuer: c.issuer,
           status: c.status,
           visibility: "PUBLIC",
+          sharedWithClient: c.sharedWithClient ?? false,
           issuedAt: daysFromNow(-400),
           expiresAt: c.expiresInDays ? daysFromNow(c.expiresInDays) : null,
           verifiedAt: c.status === "VERIFIED" ? daysFromNow(-30) : null,

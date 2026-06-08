@@ -265,6 +265,30 @@ export async function toggleCredentialVisibility(credentialId: string): Promise<
   revalidatePath("/certificaten");
 }
 
+/**
+ * Deel/ontdeel dit certificaat met opdrachtgevers in lopende samenwerkingen. Deelt alleen de
+ * METADATA (type/titel/uitgever/verificatiedatum) — nooit het bestand. Ge-audit; alleen de eigenaar.
+ */
+export async function toggleCredentialSharing(credentialId: string): Promise<void> {
+  const actor = await requireRole("FREELANCER");
+  const profile = await requireProfile(actor.id);
+  const credential = await loadOwnedCredential(profile.id, credentialId);
+
+  const next = !credential.sharedWithClient;
+  await prisma.credential.update({
+    where: { id: credentialId },
+    data: { sharedWithClient: next },
+  });
+  await audit({
+    actorId: actor.id,
+    action: "CREDENTIAL_SHARING_CHANGED",
+    entityType: "Credential",
+    entityId: credentialId,
+    metadata: { sharedWithClient: next },
+  });
+  revalidatePath("/certificaten");
+}
+
 export async function deleteCredential(credentialId: string): Promise<void> {
   const actor = await requireRole("FREELANCER");
   const profile = await requireProfile(actor.id);
