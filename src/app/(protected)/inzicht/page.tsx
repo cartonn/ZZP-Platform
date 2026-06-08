@@ -1,13 +1,22 @@
 import { type Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BarChart3, Briefcase, Receipt, ShieldCheck, TrendingUp } from "lucide-react";
-import { requireActor } from "@/lib/authz";
+import {
+  BarChart3,
+  Briefcase,
+  Receipt,
+  ShieldCheck,
+  TrendingUp,
+  Users,
+  Building2,
+} from "lucide-react";
+import { requireActor, type Actor } from "@/lib/authz";
 import { type UserRole } from "@/lib/enums";
 import { getFreelancerStats } from "@/lib/freelancer-stats";
 import { getClientStats } from "@/lib/client-stats";
+import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
 import { formatEuro } from "@/lib/invoices";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -35,16 +44,20 @@ export default async function InzichtPage() {
   // Admins hebben hun eigen platform-brede statistieken.
   if (role === "ADMIN") redirect("/admin/statistieken");
 
+  const description =
+    role === "FRANCHISER"
+      ? "De cijfers van je franchise — omzet, vulgraad, roster en samenwerkingen."
+      : "Je cijfers in één overzicht — verdiensten, werk en activiteit.";
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
-      <PageHeader
-        title="Inzicht"
-        description="Je cijfers in één overzicht — verdiensten, werk en activiteit."
-      />
+      <PageHeader title="Inzicht" description={description} />
       {role === "FREELANCER" ? (
         <FreelancerInzicht userId={actor.id} />
       ) : role === "CLIENT" ? (
         <ClientInzicht userId={actor.id} />
+      ) : role === "FRANCHISER" ? (
+        <FranchiserInzicht actor={actor} />
       ) : (
         <Card>
           <EmptyState
@@ -54,6 +67,113 @@ export default async function InzichtPage() {
           />
         </Card>
       )}
+    </div>
+  );
+}
+
+async function FranchiserInzicht({ actor }: { actor: Actor }) {
+  const [s, byCompany] = await Promise.all([
+    getTenantStats(actor),
+    getTenantCompanyBreakdown(actor),
+  ]);
+  if (!s) {
+    return (
+      <Card>
+        <EmptyState
+          icon={BarChart3}
+          title="Nog geen franchise"
+          description="Zodra je franchise is ingericht, verschijnen hier de cijfers van je regio."
+        />
+      </Card>
+    );
+  }
+  const withActivity = byCompany.filter((r) => r.totalJobs > 0 || r.revenuePaidCents > 0);
+  return (
+    <div className="space-y-8">
+      <section className="space-y-3">
+        <SectionHeader icon={Receipt} title="Omzet" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard label="Betaald" value={formatEuro(s.revenuePaidCents)} tone="success" />
+          <StatCard
+            label="Openstaand"
+            value={formatEuro(s.revenueOpenCents)}
+            sub="verstuurd, nog niet betaald"
+          />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <SectionHeader icon={Briefcase} title="Diensten" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            label="Open diensten"
+            value={s.openJobs}
+            sub="nog in te vullen"
+            href="/franchise/diensten"
+            tone={s.openJobs > 0 ? "warning" : "default"}
+          />
+          <StatCard label="Vervuld" value={s.filledJobs} sub={`${s.fillRate}% vulgraad`} />
+          <StatCard
+            label="Lopende samenwerkingen"
+            value={s.activeCollaborations}
+            href="/franchise/samenwerkingen"
+          />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <SectionHeader icon={Users} title="Roster" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard label="ZZP'ers" value={s.rosterFreelancers} href="/franchise/zzpers" />
+          <StatCard
+            label="Inzetbaar"
+            value={s.engageableFreelancers}
+            sub={`${s.engageabilityRate}% van je roster`}
+            tone={
+              s.engageabilityRate >= 80
+                ? "success"
+                : s.engageabilityRate >= 50
+                  ? "warning"
+                  : "default"
+            }
+          />
+          <StatCard label="Opdrachtgevers" value={s.companies} href="/franchise/opdrachtgevers" />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <SectionHeader icon={Building2} title="Per opdrachtgever" />
+        {withActivity.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={Building2}
+              title="Nog geen activiteit"
+              description="Zodra je diensten uitzet en facturen lopen, zie je hier de omzet en vulgraad per opdrachtgever."
+            />
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="divide-y divide-border p-0">
+              {withActivity.map((r) => (
+                <div
+                  key={r.companyId}
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{r.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.filledJobs}/{r.totalJobs} diensten vervuld · {r.fillRate}% vulgraad
+                    </p>
+                  </div>
+                  <span className="text-sm font-medium tabular-nums">
+                    {formatEuro(r.revenuePaidCents)}
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </section>
     </div>
   );
 }
