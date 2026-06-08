@@ -187,6 +187,12 @@ export const COLLABORATION_FEE_STATUSES = ["PENDING", "INVOICED"] as const;
 export type CollaborationFeeStatus = (typeof COLLABORATION_FEE_STATUSES)[number];
 export const collaborationFeeStatusSchema = z.enum(COLLABORATION_FEE_STATUSES);
 
+// ZZP-platformabonnement: een maandbijdrage per ZZP'er (alleen in maanden met werk). PENDING =
+// geregistreerd, nog niet gefactureerd; INVOICED = op een abonnementsfactuur gezet. Append-only.
+export const MEMBERSHIP_CHARGE_STATUSES = ["PENDING", "INVOICED"] as const;
+export type MembershipChargeStatus = (typeof MEMBERSHIP_CHARGE_STATUSES)[number];
+export const membershipChargeStatusSchema = z.enum(MEMBERSHIP_CHARGE_STATUSES);
+
 // ---------------------------------------------------------------------------
 // Support / Helpdesk (klantondersteuning). Geen "AI" in UI/teksten — de
 // geautomatiseerde beantwoorder heet "Support-assistent" / "Helpdesk".

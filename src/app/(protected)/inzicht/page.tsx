@@ -8,13 +8,16 @@ import {
   TrendingUp,
   Users,
   Building2,
+  CreditCard,
 } from "lucide-react";
 import { requireActor, type Actor } from "@/lib/authz";
 import { type UserRole } from "@/lib/enums";
 import { getFreelancerStats } from "@/lib/freelancer-stats";
+import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { getClientStats } from "@/lib/client-stats";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
 import { formatEuro } from "@/lib/invoices";
+import { plural } from "@/lib/plural";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
@@ -179,7 +182,10 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
 }
 
 async function FreelancerInzicht({ userId }: { userId: string }) {
-  const s = await getFreelancerStats(userId);
+  const [s, membership] = await Promise.all([
+    getFreelancerStats(userId),
+    getFreelancerMembership(userId),
+  ]);
   if (!s) {
     return (
       <Card>
@@ -240,6 +246,37 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
           />
         </div>
       </section>
+
+      {membership.enabled && (
+        <section className="space-y-3">
+          <SectionHeader icon={CreditCard} title="Platformabonnement" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              label="Deze maand"
+              value={membership.billedThisMonth ? formatEuro(membership.monthlyTotalCents) : "—"}
+              sub={
+                membership.billedThisMonth
+                  ? "incl. btw — je had werk deze maand"
+                  : "geen werk deze maand, dus geen bijdrage"
+              }
+              tone={membership.billedThisMonth ? "default" : "success"}
+            />
+            <StatCard
+              label="Openstaand"
+              value={formatEuro(membership.openCents)}
+              sub={
+                membership.openMonths > 0
+                  ? `${plural(membership.openMonths, "maand", "maanden")} nog te voldoen`
+                  : "niets openstaand"
+              }
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Het platformabonnement is {formatEuro(membership.monthlyTotalCents)} per maand (incl.
+            btw) en geldt alleen in maanden waarin je werkt.
+          </p>
+        </section>
+      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { credentialBewijsPdf } from "./seed-credential-pdf";
 import { SEED_CONVERSATIONS, SEED_TICKETS } from "./seed-berichten-tickets-data";
 import { seedFranchise } from "./seed-franchise";
 import { seedAcademy } from "./seed-academy";
+import { runZzpMembershipTask } from "@/lib/zzp-membership-task";
 
 const prisma = new PrismaClient();
 
@@ -1265,6 +1266,18 @@ async function main() {
   ]);
   await seedFranchise(prisma, passwordHash);
   await seedAcademy(prisma, uid["sanne"]);
+
+  // ZZP-platformabonnement: registreer de maandbijdragen voor de demo (huidige + 2 vorige maanden),
+  // zodat het abonnement-overzicht gevuld is. Idempotent via de unieke (userId, period)-index.
+  const membershipNow = new Date();
+  for (let back = 0; back < 3; back++) {
+    await runZzpMembershipTask({
+      month: new Date(
+        Date.UTC(membershipNow.getUTCFullYear(), membershipNow.getUTCMonth() - back, 1),
+      ),
+    });
+  }
+
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");
   console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");

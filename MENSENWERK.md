@@ -154,9 +154,12 @@ alleen geregistreerd en getoond. De volgende stappen zijn nog mensenwerk:
 3. **Incasso + provider:** Stripe/Mollie per tenant + de aanmaningsladder op tenant-niveau
    (`pastDueAt`/`SUSPENDED`), en het omzetten van PENDING-fees naar verzonden fee-facturen
    (`CollaborationFee.invoiceId`).
-4. **ZZP-abonnement (€30–40/mnd, los spoor):** een per-gebruiker abonnement dat alleen in actieve
-   maanden telt. Dit is een aparte billing-as (niet de per-tenant `TenantSubscription`) en vereist
-   een betaalprovider; nog te bouwen zodra je dat wilt.
+4. **ZZP-abonnement (€40/actieve maand): GEBOUWD — alleen incasso resteert.** De geplande taak
+   `zzp-membership-task` registreert idempotent een maandbijdrage (`ZZP_MEMBERSHIP` in `config.ts`,
+   €40 excl. btw) voor elke ZZP'er die die maand werk had; de ZZP'er ziet het op `/inzicht`. Net als
+   de tenant-fee wordt er **nog niets geïncasseerd** — resterend mensenwerk: betaalprovider per ZZP'er
+   - het omzetten van de PENDING-bijdragen naar verzonden abonnementsfacturen
+     (`ZzpMembershipCharge.invoiceId`). Bedrag bij te stellen in de config.
 
 ---
 
