@@ -18,6 +18,7 @@ import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { computeCompliance } from "@/lib/matching";
 import { complianceBlocksPlacement } from "@/lib/collaborations";
+import { getSharedCredentialsForClient } from "@/lib/shared-credentials";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType, type CredentialStatus } from "@/lib/enums";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
@@ -309,6 +310,10 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const active = col.status === "ACTIVE";
   const weekdays = parseWeekdays(col.weekdays);
 
+  // Door de ZZP'er met de opdrachtgever gedeelde certificaten (metadata, niet het bestand). Alleen
+  // de opdrachtgever-partij ziet ze; de helper dwingt dat server-side af.
+  const sharedCredentials = isClient ? await getSharedCredentialsForClient(col.id, actor.id) : [];
+
   // DBA-monitoring (§6): rustig signaleren, mét disclaimer; geen juridisch oordeel (Besluit 2).
   const dba = assessCollaborationDba(
     { collaborationId: col.id, startDate: col.startDate, ...jobDbaIndicators(col.job) },
@@ -525,6 +530,36 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                 </Button>
               </form>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Gedeelde certificaten — de ZZP'er geeft zelf vrij welke geverifieerde certificaten de
+          opdrachtgever mag inzien (alleen de gegevens, niet het bestand). */}
+      {isClient && sharedCredentials.length > 0 && (
+        <Card>
+          <CardContent className="space-y-3 py-4">
+            <div>
+              <p className="text-sm font-medium">Gedeelde certificaten</p>
+              <p className="text-xs text-muted-foreground">
+                {counterparty} heeft deze geverifieerde certificaten met je gedeeld.
+              </p>
+            </div>
+            <ul className="divide-y divide-border">
+              {sharedCredentials.map((c) => (
+                <li key={c.id} className="flex items-center justify-between gap-3 py-2">
+                  <span className="min-w-0">
+                    <span className="font-medium">{c.title}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {CREDENTIAL_TYPE_LABEL[c.type] ?? c.type}
+                      {c.issuer && ` · ${c.issuer}`}
+                      {c.verifiedAt && ` · geverifieerd ${formatDateShortNl(c.verifiedAt)}`}
+                    </span>
+                  </span>
+                  <Badge variant="success">Geverifieerd</Badge>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

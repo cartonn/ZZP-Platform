@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Award, Download, Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Award, Download, Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2, Users } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import {
@@ -22,7 +22,12 @@ import { CredentialStatusBadge } from "@/components/credentials/credential-statu
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { deleteCredential, requestVerification, toggleCredentialVisibility } from "../actions";
+import {
+  deleteCredential,
+  requestVerification,
+  toggleCredentialVisibility,
+  toggleCredentialSharing,
+} from "../actions";
 import { DuoVerifyForm } from "../duo-verify-form";
 import { BigVerifyForm } from "../big-verify-form";
 import { formatDateShortNl } from "@/lib/format-date";
@@ -235,6 +240,19 @@ export default async function CertificatenPage() {
                         {isPublic ? "Maak privé" : "Maak openbaar"}
                       </Button>
                     </form>
+                    {status === "VERIFIED" && (
+                      <form action={toggleCredentialSharing.bind(null, c.id)}>
+                        <Button
+                          type="submit"
+                          variant="secondary"
+                          size="sm"
+                          title="Deel de gegevens van dit certificaat (niet het bestand) met opdrachtgevers in je lopende samenwerkingen"
+                        >
+                          <Users className="size-3.5" aria-hidden />
+                          {c.sharedWithClient ? "Niet delen" : "Delen met opdrachtgever"}
+                        </Button>
+                      </form>
+                    )}
                     <ConfirmButton
                       action={deleteCredential.bind(null, c.id)}
                       title="Certificaat verwijderen?"
