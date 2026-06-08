@@ -193,6 +193,17 @@ export const MEMBERSHIP_CHARGE_STATUSES = ["PENDING", "INVOICED"] as const;
 export type MembershipChargeStatus = (typeof MEMBERSHIP_CHARGE_STATUSES)[number];
 export const membershipChargeStatusSchema = z.enum(MEMBERSHIP_CHARGE_STATUSES);
 
+// Platform-facturatie (incasso van de eigen verdienste): de PENDING-bijdragen worden gebundeld tot
+// een factuur van het platform aan de betaler — TENANT_FEE (aan de franchise) of ZZP_MEMBERSHIP
+// (aan de ZZP'er). Status DRAFT → SENT → PAID (of CANCELLED); transities in platform-billing/billing.ts.
+export const PLATFORM_BILLING_KINDS = ["TENANT_FEE", "ZZP_MEMBERSHIP"] as const;
+export type PlatformBillingKind = (typeof PLATFORM_BILLING_KINDS)[number];
+export const platformBillingKindSchema = z.enum(PLATFORM_BILLING_KINDS);
+
+export const PLATFORM_BILLING_STATUSES = ["DRAFT", "SENT", "PAID", "CANCELLED"] as const;
+export type PlatformBillingStatus = (typeof PLATFORM_BILLING_STATUSES)[number];
+export const platformBillingStatusSchema = z.enum(PLATFORM_BILLING_STATUSES);
+
 // ---------------------------------------------------------------------------
 // Support / Helpdesk (klantondersteuning). Geen "AI" in UI/teksten — de
 // geautomatiseerde beantwoorder heet "Support-assistent" / "Helpdesk".
