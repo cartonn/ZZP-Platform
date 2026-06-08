@@ -28,6 +28,7 @@ import { type OrtCategory, ORT_SECTORS, ORT_CATEGORIES, type OrtSector } from "@
 import { validatePerformanceForm, type PerformanceFormData } from "@/lib/validation";
 import { weekdaySchema, type Weekday } from "@/lib/enums";
 import { serializeWeekdays } from "@/lib/weekdays";
+import { MODEL_AGREEMENT_TYPES, type ModelAgreementType } from "@/lib/model-agreement";
 import { audit } from "@/lib/audit";
 
 /** Vertaalt een CascadeError/transitiefout naar een leesbare melding; hergooit de rest. */
@@ -298,6 +299,97 @@ export async function setWeekdaysAction(
     entityType: "Collaboration",
     entityId: collaborationId,
     metadata: { weekdays },
+  });
+  refresh(collaborationId);
+}
+
+/**
+ * Legt het type modelovereenkomst van een samenwerking vast (Wet DBA). Alleen de opdrachtgever (of
+ * admin) kiest de overeenkomstvorm — en alleen zolang geen van beide partijen al akkoord heeft
+ * gegeven, want een wijziging na akkoord zou dat akkoord ongeldig maken. Server-side waarheid + audit.
+ */
+export async function setAgreementTypeAction(
+  collaborationId: string,
+  formData: FormData,
+): Promise<void> {
+  const actor = await requireActor();
+  const raw = String(formData.get("agreementType") ?? "");
+  if (!(MODEL_AGREEMENT_TYPES as readonly string[]).includes(raw)) {
+    throw new Error("Ongeldig type modelovereenkomst.");
+  }
+
+  const col = await prisma.collaboration.findUnique({
+    where: { id: collaborationId },
+    select: {
+      company: { select: { userId: true } },
+      agreementFreelancerSignedAt: true,
+      agreementClientSignedAt: true,
+    },
+  });
+  if (!col) throw new Error("Samenwerking niet gevonden.");
+  if (actor.role !== "ADMIN" && actor.id !== col.company.userId) {
+    throw new Error("Alleen de opdrachtgever kan de overeenkomstvorm kiezen.");
+  }
+  if (col.agreementFreelancerSignedAt || col.agreementClientSignedAt) {
+    throw new Error("De overeenkomst is al ondertekend; de vorm kan niet meer worden gewijzigd.");
+  }
+
+  await prisma.collaboration.update({
+    where: { id: collaborationId },
+    data: { agreementType: raw as ModelAgreementType },
+  });
+  await audit({
+    actorId: actor.id,
+    action: "MODEL_AGREEMENT_TYPE_SET",
+    entityType: "Collaboration",
+    entityId: collaborationId,
+    metadata: { agreementType: raw },
+  });
+  refresh(collaborationId);
+}
+
+/**
+ * Legt het digitale akkoord van de inloggende partij op de modelovereenkomst vast. Alleen de
+ * betrokken ZZP'er of opdrachtgever tekent (een admin tekent niet namens een partij). Idempotent:
+ * een al gezet akkoord wordt niet overschreven. Server-side waarheid + audit.
+ */
+export async function signModelAgreementAction(collaborationId: string): Promise<void> {
+  const actor = await requireActor();
+  const col = await prisma.collaboration.findUnique({
+    where: { id: collaborationId },
+    select: {
+      company: { select: { userId: true } },
+      freelancer: { select: { userId: true } },
+      agreementFreelancerSignedAt: true,
+      agreementClientSignedAt: true,
+    },
+  });
+  if (!col) throw new Error("Samenwerking niet gevonden.");
+
+  const isClient = actor.id === col.company.userId;
+  const isFreelancer = actor.id === col.freelancer.userId;
+  if (!isClient && !isFreelancer) {
+    throw new Error("Alleen de betrokken partijen kunnen de overeenkomst ondertekenen.");
+  }
+
+  const already = isFreelancer ? col.agreementFreelancerSignedAt : col.agreementClientSignedAt;
+  if (already) {
+    refresh(collaborationId);
+    return; // idempotent: al ondertekend
+  }
+
+  await prisma.collaboration.update({
+    where: { id: collaborationId },
+    data: isFreelancer
+      ? { agreementFreelancerSignedAt: new Date() }
+      : { agreementClientSignedAt: new Date() },
+  });
+  await audit({
+    actorId: actor.id,
+    action: "MODEL_AGREEMENT_SIGNED",
+    entityType: "Collaboration",
+    entityId: collaborationId,
+    metadata: { party: isFreelancer ? "FREELANCER" : "CLIENT" },
   });
   refresh(collaborationId);
 }
