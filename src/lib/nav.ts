@@ -94,6 +94,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Franchises", href: "/admin/franchises", icon: "building", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Importeren", href: "/admin/import", icon: "users", section: "Beheer", enabled: true },
     { label: "Administratie", href: "/admin/administratie", icon: "fileText", section: "Beheer", enabled: true }, // prettier-ignore
+    { label: "Facturatie", href: "/admin/facturatie", icon: "receipt", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Configuratie", href: "/admin/configuratie", icon: "settings", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Academie", href: "/academie", icon: "graduationCap", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Beheer", enabled: true },
