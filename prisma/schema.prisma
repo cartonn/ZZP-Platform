@@ -586,6 +586,12 @@ model Collaboration {
   status         String    @default("PROPOSED") // CollaborationStatus: PROPOSED | ACTIVE | COMPLETED | CANCELLED
   contractStatus String    @default("DRAFT") //    ContractStatus: DRAFT | SENT | SIGNED
   rate           Int? //                              uurtarief-snapshot in EURO (niet centen); null = geen vast tarief
+
+  // Modelovereenkomst (Wet DBA): welk type van toepassing is + het digitale akkoord per partij.
+  // De PDF wordt on-demand gegenereerd uit deze velden + de opdracht/partij-data (geen opslag).
+  agreementType               String? //   ModelAgreementType; null = nog niet vastgelegd (valt terug op aanbeveling)
+  agreementFreelancerSignedAt DateTime? // digitaal akkoord ZZP'er op de modelovereenkomst
+  agreementClientSignedAt     DateTime? // digitaal akkoord opdrachtgever op de modelovereenkomst
   ortProfile     String? // OrtSector: DEFAULT | VVT | GGZ | GHZ | JEUGD — bepaalt ORT-toeslagen (zorg)
   ortCustomRates String? // JSON Record<OrtCategory, bps> — maatwerk per klant, overschrijft het sectorprofiel
   startDate      DateTime?

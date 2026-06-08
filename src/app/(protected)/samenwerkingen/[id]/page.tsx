@@ -22,6 +22,9 @@ import { getSharedCredentialsForClient } from "@/lib/shared-credentials";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType, type CredentialStatus } from "@/lib/enums";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
+import { recommendModelAgreement } from "@/lib/model-agreement";
+import { resolveAgreementType } from "@/lib/contract-agreement";
+import { ModelAgreementCard } from "./model-agreement-card";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
 import { ORT_CATEGORY_LABEL, ORT_SECTORS, ORT_SECTOR_LABEL, type OrtCategory } from "@/lib/config";
@@ -262,6 +265,11 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           dbaDirectSupervision: true,
           dbaEmbedded: true,
           dbaFixedSchedule: true,
+          dbaNoSubstitution: true,
+          dbaExclusive: true,
+          dbaWeakEntrepreneurship: true,
+          dbaDurationMonths: true,
+          modelAgreementType: true,
           credentialRequirements: { where: { required: true }, select: { credentialType: true } },
         },
       },
@@ -319,6 +327,27 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
     { collaborationId: col.id, startDate: col.startDate, ...jobDbaIndicators(col.job) },
     new Date(),
   );
+
+  // Modelovereenkomst (Wet DBA): aanbevolen vorm + de op samenwerking/opdracht vastgelegde keuze.
+  const agreementRecommendation = recommendModelAgreement({
+    directSupervision: col.job.dbaDirectSupervision,
+    embedded: col.job.dbaEmbedded,
+    fixedSchedule: col.job.dbaFixedSchedule,
+    noSubstitution: col.job.dbaNoSubstitution,
+    exclusive: col.job.dbaExclusive,
+    weakEntrepreneurship: col.job.dbaWeakEntrepreneurship,
+    durationMonths: col.job.dbaDurationMonths,
+  });
+  const agreementType = resolveAgreementType(
+    col.agreementType,
+    col.job.modelAgreementType,
+    agreementRecommendation.type,
+  );
+  const myAgreementSignedAt = isFreelancer
+    ? col.agreementFreelancerSignedAt
+    : isClient
+      ? col.agreementClientSignedAt
+      : null;
 
   // "Aan zet": wat moet déze rol nu doen?
   const todo: string[] = [];
@@ -536,6 +565,33 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Modelovereenkomst (Wet DBA) — genereerbare overeenkomst + digitaal akkoord per partij. */}
+      {col.status !== "CANCELLED" && (isClient || isFreelancer || actor.role === "ADMIN") && (
+        <ModelAgreementCard
+          collaborationId={col.id}
+          agreementType={agreementType}
+          recommendation={agreementRecommendation}
+          rows={[
+            {
+              role: "ZZP'er",
+              name: col.freelancer.user.name ?? "Opdrachtnemer",
+              signedAt: col.agreementFreelancerSignedAt,
+            },
+            {
+              role: "Opdrachtgever",
+              name: col.company.name,
+              signedAt: col.agreementClientSignedAt,
+            },
+          ]}
+          canSign={(isFreelancer || isClient) && !myAgreementSignedAt}
+          canChooseType={
+            (isClient || actor.role === "ADMIN") &&
+            !col.agreementFreelancerSignedAt &&
+            !col.agreementClientSignedAt
+          }
+        />
       )}
 
       {/* Gedeelde certificaten — de ZZP'er geeft zelf vrij welke geverifieerde certificaten de
