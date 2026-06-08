@@ -3,6 +3,21 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(dashboard): opdrachtgever-zone "Wat kan ik oppakken" (branch `feat/client-oppakken`)
+
+Bergings-backlog / WORKSPACE_OVERHAUL Fase 3-rest (geborgen van routine-branch nrzrs0,
+handmatig geïntegreerd op het huidige drie-zones-dashboard):
+
+- [x] `suggestedFreelancersForClient()` in `suggestions.ts` (+ tests): geschikte openbare
+      ZZP'ers geaggregeerd over de gepubliceerde opdrachten van de opdrachtgever
+- [x] `ClientSuggestionsSection` op het dashboard in de fase-2-stijl (stille badges,
+      MatchMeter + mono-percentage, TrustBadge, "Bericht sturen"): prominent zonder lopend
+      werk, compact ernaast, en een nodig-uit-CTA zonder suggesties
+- [x] Vangrail-allowlist hernummerd; visueel geverifieerd als opdrachtgever (nul errors)
+- Gates groen: typecheck ✓, lint ✓, test 1628 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(beschikbaarheid): conflictdetectie met lopende samenwerkingen (branch `feat/beschikbaarheidsconflicten`)
 
 Bergings-backlog (geborgen van routine-branch wtK4l, ZZP2-109): `availability-conflicts.ts`

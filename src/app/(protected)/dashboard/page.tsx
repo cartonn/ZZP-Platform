@@ -19,6 +19,9 @@ import {
 import { activeVerifiedCount } from "@/lib/credentials";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
+import { suggestedFreelancersForClient, type ClientFreelancerSuggestion } from "@/lib/suggestions";
+import { TrustBadge } from "@/components/trust/trust-badge";
+import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import { clientCredentialAlerts, shortCredentialAlert } from "@/lib/collaboration-alerts";
 import { computeFreelancerCompleteness } from "@/lib/profile";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
@@ -107,6 +110,8 @@ interface DashboardData {
   activation: NextAction[];
   /** Inzetbaarheidsstatus van de ZZP'er zelf (alleen FREELANCER). */
   engageability?: EngageabilityResult | null;
+  /** Voorgestelde ZZP'ers voor de opdrachtgever (alleen CLIENT). */
+  suggestedFreelancers?: ClientFreelancerSuggestion[];
 }
 
 // Mirror van profiel/page.tsx: talen staan als JSON-array-string opgeslagen.
@@ -261,40 +266,43 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       select: { id: true },
     });
     const cid = company?.id;
-    const [openJobs, newApps, drafts, activeCollabs, runningRows] = await Promise.all([
-      cid
-        ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
-        : Promise.resolve(0),
-      cid
-        ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } })
-        : Promise.resolve(0),
-      cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
-      cid
-        ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } })
-        : Promise.resolve(0),
-      // Lopende samenwerkingen vanuit de opdrachtgever: dezelfde cascade, ander perspectief.
-      // Interim-cap tegen onbegrensde groei (audit QW3); echte cursor-paginatie volgt in T3.
-      prisma.collaboration.findMany({
-        where: { company: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
-        take: 100,
-        select: {
-          id: true,
-          status: true,
-          contractStatus: true,
-          disputedAt: true,
-          job: { select: { title: true } },
-          freelancer: { select: { user: { select: { name: true } } } },
-          performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
-          invoices: {
-            where: { lifecycleStatus: { not: null } },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: { lifecycleStatus: true },
+    const [openJobs, newApps, drafts, activeCollabs, runningRows, suggestedFreelancers] =
+      await Promise.all([
+        cid
+          ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
+          : Promise.resolve(0),
+        cid
+          ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } })
+          : Promise.resolve(0),
+        cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
+        cid
+          ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } })
+          : Promise.resolve(0),
+        // Lopende samenwerkingen vanuit de opdrachtgever: dezelfde cascade, ander perspectief.
+        // Interim-cap tegen onbegrensde groei (audit QW3); echte cursor-paginatie volgt in T3.
+        prisma.collaboration.findMany({
+          where: { company: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
+          take: 100,
+          select: {
+            id: true,
+            status: true,
+            contractStatus: true,
+            disputedAt: true,
+            job: { select: { title: true } },
+            freelancer: { select: { user: { select: { name: true } } } },
+            performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
+            invoices: {
+              where: { lifecycleStatus: { not: null } },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { lifecycleStatus: true },
+            },
           },
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-    ]);
+          orderBy: { createdAt: "desc" },
+        }),
+        // Voorgestelde ZZP'ers, geaggregeerd over de gepubliceerde opdrachten (zone 3).
+        suggestedFreelancersForClient(userId, 4),
+      ]);
     // Compliance-waarschuwingen per lopende samenwerking (ZZP'er mist/verlopen vereist certificaat),
     // zodat de opdrachtgever dit ook op het dashboard ziet — niet alleen op /samenwerkingen.
     const complianceByCollab = new Map(
@@ -329,6 +337,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       week: null,
       isNewAccount: openJobs === 0 && drafts === 0 && activeCollabs === 0,
       activation: [],
+      suggestedFreelancers,
     };
   }
 
@@ -513,6 +522,77 @@ function MatchesSection({ matches, prominent }: { matches: JobMatch[]; prominent
   );
 }
 
+function ClientSuggestionsSection({
+  suggestions,
+  prominent,
+}: {
+  suggestions: ClientFreelancerSuggestion[];
+  prominent: boolean;
+}) {
+  return (
+    <section className="rounded-lg border border-border bg-card">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
+        <div>
+          <h2 className="text-sm font-medium">Wat kan ik oppakken</h2>
+          {prominent && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Geschikte ZZP&apos;ers voor je opdrachten — benader ze direct.
+            </p>
+          )}
+        </div>
+        <Link
+          href="/kandidaten"
+          className="focus-ring text-xs text-muted-foreground hover:text-foreground"
+        >
+          Alle kandidaten
+        </Link>
+      </div>
+      <ul className="divide-y divide-border">
+        {suggestions.map((f) => (
+          <li key={f.freelancerId} className="px-5 py-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="min-w-0">
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <Link
+                    href={`/zzp/${f.freelancerId}`}
+                    target="_blank"
+                    className="focus-ring truncate font-medium hover:text-primary"
+                  >
+                    {f.name}
+                  </Link>
+                  <TrustBadge level={f.trustLevel} />
+                </span>
+                {f.related && (
+                  <span className="block truncate text-xs text-primary">
+                    Sluit inhoudelijk aan op je opdracht
+                  </span>
+                )}
+                <span className="block truncate text-xs text-muted-foreground">{f.jobTitle}</span>
+              </span>
+              <span className="flex shrink-0 flex-wrap items-center gap-3">
+                {/* Rustig: badges alleen als ze iets signaleren — beschikbaar/compliant is de norm. */}
+                {f.availability !== "AVAILABLE" && <AvailabilityBadge status={f.availability} />}
+                {f.compliance !== "COMPLIANT" && <ComplianceBadge status={f.compliance} />}
+                <span className="flex flex-col items-end gap-1">
+                  <span className="font-mono text-sm font-semibold tracking-tight text-primary">
+                    {f.score}%
+                  </span>
+                  <MatchMeter score={f.score} />
+                </span>
+                <form action={startConversationWithFreelancer.bind(null, f.jobId, f.freelancerId)}>
+                  <Button type="submit" variant="secondary" size="sm">
+                    Bericht sturen
+                  </Button>
+                </form>
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default async function DashboardPage() {
   const session = await auth();
   const user = session!.user;
@@ -527,7 +607,7 @@ export default async function DashboardPage() {
   });
   const actor = await requireActor();
   const [
-    { stats, running, week, isNewAccount, activation, engageability },
+    { stats, running, week, isNewAccount, activation, engageability, suggestedFreelancers },
     matches,
     tasks,
     activity,
@@ -667,6 +747,28 @@ export default async function DashboardPage() {
         <MatchesSection matches={matches} prominent />
       )}
 
+      {/* Zone 3 prominent (CLIENT) — geschikte ZZP'ers wanneer er weinig loopt. */}
+      {role === "CLIENT" && !hasRunning && (suggestedFreelancers?.length ?? 0) > 0 && (
+        <ClientSuggestionsSection suggestions={suggestedFreelancers!} prominent />
+      )}
+
+      {/* Zone 3 leeg (CLIENT) — geen lopend werk en geen suggesties: nodig uit tot plaatsen.
+          Niet tonen bovenop het onboarding-scherm (isNewAccount zonder taken). */}
+      {role === "CLIENT" &&
+        !hasRunning &&
+        (suggestedFreelancers?.length ?? 0) === 0 &&
+        !(isNewAccount && tasks.length === 0) && (
+          <section className="rounded-lg border border-border bg-card p-5">
+            <h2 className="text-sm font-medium">Wat kan ik oppakken</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Plaats een opdracht om geschikte ZZP&apos;ers voorgesteld te krijgen.
+            </p>
+            <Button asChild size="sm" variant="secondary" className="mt-3">
+              <Link href="/opdrachten/nieuw">Opdracht plaatsen</Link>
+            </Button>
+          </section>
+        )}
+
       {/* Zone 2 — Wat vraagt aandacht: de top-taken inline-afhandelbaar (zelfde resolvers + drawer
           als /acties). Voor de admin is dit de operationele wachtrij. */}
       <DashboardActions
@@ -678,6 +780,9 @@ export default async function DashboardPage() {
       {/* Zone 3 compact — naast lopend werk de matches eronder. */}
       {role === "FREELANCER" && hasRunning && matches.length > 0 && (
         <MatchesSection matches={matches} prominent={false} />
+      )}
+      {role === "CLIENT" && hasRunning && (suggestedFreelancers?.length ?? 0) > 0 && (
+        <ClientSuggestionsSection suggestions={suggestedFreelancers!} prominent={false} />
       )}
 
       {/* Aan de slag — onboarding alleen voor nieuwe accounts, en alleen als het actiecentrum
