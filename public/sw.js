@@ -10,9 +10,16 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE)
       .then((c) => c.add(OFFLINE_URL))
+      .catch(() => {}) // een mislukte pre-cache mag de installatie niet blokkeren
       .then(() => self.skipWaiting()),
   );
 });
+
+// Laatste vangnet als de offline-pagina niet (meer) in de cache zit (bv. na cache-evictie).
+const OFFLINE_FALLBACK = new Response(
+  "<!doctype html><meta charset=utf-8><title>Offline</title><p style='font:16px system-ui;padding:24px'>Je bent offline. Probeer het later opnieuw.",
+  { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } },
+);
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
@@ -33,7 +40,9 @@ self.addEventListener("fetch", (event) => {
   // Navigaties: altijd eerst het netwerk (verse, per-gebruiker SSR). Pas bij een netwerkfout valt het
   // terug op de statische offline-pagina. Geen HTML wordt gecachet.
   if (req.mode === "navigate") {
-    event.respondWith(fetch(req).catch(() => caches.match(OFFLINE_URL)));
+    event.respondWith(
+      fetch(req).catch(() => caches.match(OFFLINE_URL).then((r) => r || OFFLINE_FALLBACK.clone())),
+    );
     return;
   }
 

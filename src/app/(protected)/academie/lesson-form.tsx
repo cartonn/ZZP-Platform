@@ -53,14 +53,15 @@ export function LessonForm({
             placeholder="bijv. 5"
           />
         </Field>
-        <Field label="Volgorde" htmlFor="order" hint="Lager = eerder in de cursus">
+        <Field label="Volgorde" htmlFor="order" hint="Lager = eerder; leeg = achteraan">
           <Input
             id="order"
             name="order"
             type="number"
             min={0}
             max={999}
-            defaultValue={initial?.order ?? "0"}
+            defaultValue={initial?.order ?? ""}
+            placeholder="achteraan"
           />
         </Field>
       </div>

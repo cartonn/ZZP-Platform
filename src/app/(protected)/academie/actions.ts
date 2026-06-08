@@ -51,24 +51,39 @@ export async function createCourse(_prev: AuthorState, formData: FormData): Prom
   }
   const data = parsed.data;
 
-  let slug = slugify(data.title);
+  const baseSlug = slugify(data.title);
+  let slug = baseSlug;
   for (let n = 2; await prisma.course.findUnique({ where: { slug }, select: { id: true } }); n++) {
-    slug = `${slugify(data.title)}-${n}`;
+    slug = `${baseSlug}-${n}`;
   }
 
-  const course = await prisma.course.create({
-    data: {
-      authorId: auth.actor.id,
-      title: data.title,
-      summary: data.summary,
-      audience: data.audience,
-      level: data.level ?? null,
-      order: data.order,
-      slug,
-      status: "DRAFT",
-    },
-    select: { id: true, slug: true },
-  });
+  // De unieke index is de bron van waarheid: bij een race op de slug (twee gelijktijdige aanmaak-
+  // pogingen passeren beide de leescheck) opnieuw proberen met een suffix i.p.v. een 500.
+  const courseData = {
+    authorId: auth.actor.id,
+    title: data.title,
+    summary: data.summary,
+    audience: data.audience,
+    level: data.level ?? null,
+    order: data.order,
+    status: "DRAFT",
+  };
+  let course: { id: string; slug: string } | null = null;
+  for (let attempt = 0; attempt < 5 && !course; attempt++) {
+    try {
+      course = await prisma.course.create({
+        data: { ...courseData, slug },
+        select: { id: true, slug: true },
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        slug = `${baseSlug}-${attempt + 2}-${Math.random().toString(36).slice(2, 6)}`;
+        continue;
+      }
+      throw e;
+    }
+  }
+  if (!course) return { error: "Aanmaken mislukt, probeer opnieuw." };
   await audit({
     actorId: auth.actor.id,
     action: "COURSE_CREATED",
@@ -178,7 +193,7 @@ export async function createLesson(
       title: data.title,
       body: data.body,
       estimatedMinutes: data.estimatedMinutes ?? null,
-      order: data.order || course._count.lessons + 1,
+      order: data.order ?? course._count.lessons + 1,
     },
     select: { id: true },
   });

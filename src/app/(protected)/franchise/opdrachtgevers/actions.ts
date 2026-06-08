@@ -2,6 +2,7 @@
 
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole, AuthorizationError } from "@/lib/authz";
@@ -70,28 +71,38 @@ export async function createOpdrachtgever(
   const passwordHash = await bcrypt.hash(tempPassword, 10);
   const tenantId = actor.tenantId;
 
-  const created = await prisma.user.create({
-    data: {
-      name: contactName,
-      email,
-      passwordHash,
-      role: "CLIENT",
-      status: "ACTIVE",
-      mustChangePassword: true,
-      tenantId,
-      company: {
-        create: {
-          name: companyName,
-          location: location ?? null,
-          tenantId,
-          departments: deptNames.length
-            ? { create: deptNames.map((name) => ({ name })) }
-            : undefined,
+  let created;
+  try {
+    created = await prisma.user.create({
+      data: {
+        name: contactName,
+        email,
+        passwordHash,
+        role: "CLIENT",
+        status: "ACTIVE",
+        mustChangePassword: true,
+        tenantId,
+        company: {
+          create: {
+            name: companyName,
+            location: location ?? null,
+            tenantId,
+            departments: deptNames.length
+              ? { create: deptNames.map((name) => ({ name })) }
+              : undefined,
+          },
         },
       },
-    },
-    select: { company: { select: { id: true } } },
-  });
+      select: { company: { select: { id: true } } },
+    });
+  } catch (e) {
+    // Race tussen de e-mail-precheck en de create (of een parallel aangemaakt account): de unieke
+    // index is leidend → nette veldfout i.p.v. een 500.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return { error: "Er bestaat al een account met dit e-mailadres.", fieldErrors: { email: "Al in gebruik." } }; // prettier-ignore
+    }
+    throw e;
+  }
   const companyId = created.company!.id;
 
   await audit({
