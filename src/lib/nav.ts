@@ -39,6 +39,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   FREELANCER: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
     { label: "Acties", href: "/acties", icon: "inbox", enabled: true },
+    { label: "Inzicht", href: "/inzicht", icon: "barChart", enabled: true },
     { label: "Opdrachten", href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true },
     { label: "Mijn reacties", href: "/reacties", icon: "files", section: "Werk", enabled: true },
     { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
@@ -59,6 +60,7 @@ const NAV: Record<UserRole, NavItem[]> = {
   CLIENT: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
     { label: "Acties", href: "/acties", icon: "inbox", enabled: true },
+    { label: "Inzicht", href: "/inzicht", icon: "barChart", enabled: true },
     { label: "Mijn opdrachten", href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true }, // prettier-ignore
     { label: "ZZP'ers", href: "/freelancers", icon: "users", section: "Werk", enabled: true },
     { label: "Kandidaten", href: "/kandidaten", icon: "users", section: "Werk", enabled: true },
