@@ -138,22 +138,25 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
 
 ### §3b. Franchise-facturatie (tenant-billing)
 
-**Wat:** de technische kern van de franchise-monetisatie (3+1 hybride: een maandabonnement per
-vestiging + een lichte transactie-fee per gevulde samenwerking) staat klaar. Datamodel, fee-
-berekening (incl. btw) en het read-only overzicht op `/franchise/facturatie` werken; alles staat
-**standaard UIT** met bedragen op **0** (`TENANT_BILLING` in `src/lib/config.ts`).
-**Waarom mensenwerk:** dit zijn commerciële + juridische keuzes, geen code.
-**Wat jij invult/beslist:**
+**Wat:** de franchise-monetisatie (3+1 hybride: een maandabonnement per vestiging + een lichte
+transactie-fee per gevulde samenwerking) is **AANGEZET**. Datamodel, fee-berekening (incl. btw),
+het overzicht op `/franchise/facturatie` én de **fee-registratie in de cascade** werken: bij elke
+bevestigde betaling op een tenant-samenwerking wordt de fee idempotent als **PENDING** vastgelegd
+(`src/lib/tenant-billing/record-fee.ts`). De staffel staat in `TENANT_BILLING` (`src/lib/config.ts`):
+FREE € 0/2,5% · GROEI € 99/1,75% · PRO € 199/1,0% (excl. btw, door jou bij te stellen).
+**Belangrijk:** er wordt nog **niets daadwerkelijk gefactureerd of geïncasseerd** — de fees worden
+alleen geregistreerd en getoond. De volgende stappen zijn nog mensenwerk:
 
-1. **Prijsmodel:** bedrag per vestiging/maand per plan (FREE/GROEI/PRO) en de fee per samenwerking
-   (percentage of vast bedrag). Vul dit in `TENANT_BILLING.plans` en zet `enabled: true`.
-2. **Btw-classificatie:** bevestig dat het abonnement + de fee als B2B-dienst (21%) tellen, of
-   stem af met je boekhouder.
-3. **Wiring fee-registratie:** zodra de prijzen vaststaan, laat je ontwikkelaar/agent de
-   `planCollaborationFeeRecord`-helper aan de samenwerking-cascade koppelen (registreert de fee
-   idempotent bij het ingaan van een samenwerking). Bewust nog niet aangesloten zolang billing UIT staat.
-4. **Incasso + provider:** zelfde Stripe/Mollie-stappen als §3, maar dan per tenant; plus de
-   aanmaningsladder op tenant-niveau (zie `pastDueAt`/`SUSPENDED`).
+1. **Btw-classificatie (vóór je écht factureert):** laat de belastingadviseur bevestigen dat we als
+   **bemiddelaar** (niet principaal) gelden, zodat 21% btw alleen over de fee loopt — niet over het
+   hele uurtarief. Dit is het enige echte juridische risicopunt.
+2. **Definitieve prijzen:** stel de staffel in `TENANT_BILLING.plans` bij naar jouw unit-economics.
+3. **Incasso + provider:** Stripe/Mollie per tenant + de aanmaningsladder op tenant-niveau
+   (`pastDueAt`/`SUSPENDED`), en het omzetten van PENDING-fees naar verzonden fee-facturen
+   (`CollaborationFee.invoiceId`).
+4. **ZZP-abonnement (€30–40/mnd, los spoor):** een per-gebruiker abonnement dat alleen in actieve
+   maanden telt. Dit is een aparte billing-as (niet de per-tenant `TenantSubscription`) en vereist
+   een betaalprovider; nog te bouwen zodra je dat wilt.
 
 ---
 
