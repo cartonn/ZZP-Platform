@@ -15,6 +15,9 @@ export interface JobAlertJob {
   rateMax: number | null;
   workMode: string;
   location: string | null;
+  /** Tenant-zichtbaarheid: een franchise-dienst alert alleen de eigen roster, tenzij opengezet. */
+  tenantId: string | null;
+  openOverflow: boolean;
   /** FreelancerProfile.id's die al een reactie op dit job hebben ingediend. */
   applicantProfileIds: readonly string[];
 }
@@ -29,7 +32,14 @@ export interface JobAlertFreelancer {
   location: string | null;
   maxTravelMinutes?: number | null;
   availability: string;
+  /** Franchise-lidmaatschap; null = directe platform-ZZP'er. */
+  tenantId: string | null;
   availabilityWindows?: readonly { startDate: Date; endDate: Date; type: string }[];
+}
+
+/** Mag deze ZZP'er deze opdracht zien? Eigen-tenant of een opengestelde (overflow) dienst. */
+function freelancerCanSeeJob(freelancerTenantId: string | null, job: JobAlertJob): boolean {
+  return job.openOverflow || (freelancerTenantId ?? null) === job.tenantId;
 }
 
 export interface JobAlertItem {
@@ -66,6 +76,8 @@ export function planJobAlerts(
 
     for (const freelancer of freelancers) {
       if (applicantSet.has(freelancer.freelancerProfileId)) continue;
+      // Geen alert voor een opdracht buiten de tenant-scope van de ZZP'er.
+      if (!freelancerCanSeeJob(freelancer.tenantId ?? null, job)) continue;
 
       const result = scoreJobForFreelancer(job, freelancer, now);
       if (result.score < threshold) continue;

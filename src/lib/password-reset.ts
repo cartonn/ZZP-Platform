@@ -56,10 +56,15 @@ export async function validateResetToken(
   return { userId: record.userId, tokenId: record.id };
 }
 
-/** Markeert een token als gebruikt (eenmalig gebruik). */
-export async function consumeResetToken(tokenId: string): Promise<void> {
-  await prisma.passwordResetToken.update({
-    where: { id: tokenId },
+/**
+ * Claimt een token atomair als "gebruikt" (eenmalig gebruik, race-proof). De conditionele
+ * `updateMany` op `usedAt: null` is de bron van waarheid: bij twee gelijktijdige resets matcht maar
+ * één request → die krijgt `true`, de ander `false`. Geeft `true` als deze aanroep de claim won.
+ */
+export async function consumeResetToken(tokenId: string): Promise<boolean> {
+  const res = await prisma.passwordResetToken.updateMany({
+    where: { id: tokenId, usedAt: null },
     data: { usedAt: new Date() },
   });
+  return res.count === 1;
 }

@@ -11,7 +11,15 @@ export default async function NieuweFactuurPage() {
   const actor = await requireRole("FREELANCER");
 
   const collaborations = await prisma.collaboration.findMany({
-    where: { freelancer: { userId: actor.id }, status: { in: ["ACTIVE", "COMPLETED"] } },
+    // Alleen samenwerkingen die NIET in de uren-/prestatie-cascade zitten: zodra er een prestatie of
+    // een cascade-factuur (lifecycleStatus) bestaat, loopt de facturatie daar — een losse factuur
+    // erbij zou dubbel factureren. Dit voorkomt dubbele/inconsistente facturatie.
+    where: {
+      freelancer: { userId: actor.id },
+      status: { in: ["ACTIVE", "COMPLETED"] },
+      performances: { none: {} },
+      invoices: { none: { lifecycleStatus: { not: null } } },
+    },
     orderBy: { updatedAt: "desc" },
     include: { job: { select: { title: true } }, company: { select: { name: true } } },
   });

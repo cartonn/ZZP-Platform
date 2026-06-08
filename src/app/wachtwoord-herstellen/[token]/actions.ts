@@ -53,12 +53,20 @@ export async function resetPassword(
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: record.userId },
-      data: { passwordHash, mustChangePassword: false },
-    });
-    await consumeResetToken(record.tokenId);
+  // Claim het token ATOMAIR vóór we het wachtwoord zetten: de conditionele update (op usedAt: null)
+  // is de eenmalig-gebruik-gate. Verliest deze request de race (token net door een ander gebruikt),
+  // dan zetten we geen wachtwoord. Fail-closed.
+  const claimed = await consumeResetToken(record.tokenId);
+  if (!claimed) {
+    return {
+      error:
+        "Deze herstelkoppeling is ongeldig of verlopen. Vraag een nieuwe aan via 'Wachtwoord vergeten'.",
+    };
+  }
+
+  await prisma.user.update({
+    where: { id: record.userId },
+    data: { passwordHash, mustChangePassword: false },
   });
 
   const meta = await requestMeta();
