@@ -32,6 +32,7 @@ import {
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
+import { estimateTravelMinutesWithRouting } from "@/lib/services/routing";
 import {
   recommendModelAgreement,
   MODEL_AGREEMENT_LABELS,
@@ -137,7 +138,14 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         select: { status: true, matchScore: true, complianceSnapshot: true },
       });
       if (!myApplication && status === "PUBLISHED") {
-        const match = scoreJobForFreelancer(job, profile);
+        const routedTravelMinutesToJob =
+          profile.maxTravelMinutes != null &&
+          profile.maxTravelMinutes > 0 &&
+          profile.workMode !== "REMOTE" &&
+          job.workMode !== "REMOTE"
+            ? await estimateTravelMinutesWithRouting(profile.location, job.location)
+            : null;
+        const match = scoreJobForFreelancer(job, { ...profile, routedTravelMinutesToJob });
         myFit = {
           score: match.score,
           breakdown: match.breakdown,

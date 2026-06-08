@@ -9,6 +9,7 @@ import { canApply } from "@/lib/applications";
 import { assessDbaRisk } from "@/lib/dba";
 import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs";
 import { scoreJobForFreelancer } from "@/lib/matching";
+import { estimateTravelMinutesWithRouting } from "@/lib/services/routing";
 import { canViewJob } from "@/lib/tenancy";
 import { type JobStatus, jobStatusSchema } from "@/lib/enums";
 import { applicationSchema, jobSchema } from "@/lib/validation";
@@ -285,8 +286,16 @@ export async function createApplication(
   }
   const data = parsed.data;
 
-  // Server-berekende matchscore + compliance-snapshot (CLAUDE.md regel 1).
-  const match = scoreJobForFreelancer(job, profile);
+  // Server-berekende matchscore + compliance-snapshot (CLAUDE.md regel 1). Echte routed reistijd
+  // (Geoapify) als provider actief is; anders de offline schatting — beide via één seam.
+  const routedTravelMinutesToJob =
+    profile.maxTravelMinutes != null &&
+    profile.maxTravelMinutes > 0 &&
+    profile.workMode !== "REMOTE" &&
+    job.workMode !== "REMOTE"
+      ? await estimateTravelMinutesWithRouting(profile.location, job.location)
+      : null;
+  const match = scoreJobForFreelancer(job, { ...profile, routedTravelMinutesToJob });
 
   const application = await prisma.application.create({
     data: {

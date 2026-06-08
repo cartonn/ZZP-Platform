@@ -31,4 +31,12 @@ describe("validateEnv", () => {
     delete process.env.STORAGE_S3_BUCKET;
     expect(() => validateEnv()).toThrow(/STORAGE_S3_BUCKET/);
   });
+
+  it("vereist een Geoapify-key bij echte routing", () => {
+    process.env.DATABASE_URL = "file:./dev.db";
+    process.env.AUTH_SECRET = "x".repeat(32);
+    process.env.ROUTING_PROVIDER = "geoapify";
+    delete process.env.GEOAPIFY_API_KEY;
+    expect(() => validateEnv()).toThrow(/GEOAPIFY_API_KEY/);
+  });
 });

@@ -124,6 +124,8 @@ export interface MatchInput {
     location?: string | null;
     /** Max. reistijd (minuten) die de ZZP'er accepteert; null/undefined = geen limiet → stad-vergelijking. */
     maxTravelMinutes?: number | null;
+    /** Optioneel: echte routed reistijd, vooraf asynchroon berekend door de aanroeper. */
+    routedTravelMinutesToJob?: number | null;
     availability: Availability;
     availabilityWindows?: readonly {
       startDate: Date;
@@ -216,6 +218,7 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     input.job.location,
     input.freelancer.location,
     input.freelancer.maxTravelMinutes,
+    input.freelancer.routedTravelMinutesToJob,
   );
 
   const breakdown = {
@@ -296,7 +299,9 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     input.job.location &&
     input.freelancer.location
   ) {
-    const minutes = estimateTravelMinutes(input.freelancer.location, input.job.location);
+    const minutes =
+      input.freelancer.routedTravelMinutesToJob ??
+      estimateTravelMinutes(input.freelancer.location, input.job.location);
     if (minutes != null) {
       if (minutes <= maxTravel) {
         positives.push({ kind: "positive", label: `Binnen je max. reistijd (ca. ${minutes} min)` });
@@ -350,6 +355,7 @@ export interface FreelancerMatchSource {
   workMode: string;
   location: string | null;
   maxTravelMinutes?: number | null;
+  routedTravelMinutesToJob?: number | null;
   availability: string;
   availabilityWindows?: readonly { startDate: Date; endDate: Date; type: string }[];
 }
@@ -384,6 +390,7 @@ export function scoreJobForFreelancer(
         workMode: freelancer.workMode as WorkMode,
         location: freelancer.location,
         maxTravelMinutes: freelancer.maxTravelMinutes ?? null,
+        routedTravelMinutesToJob: freelancer.routedTravelMinutesToJob ?? null,
         availability: freelancer.availability as Availability,
         availabilityWindows: freelancer.availabilityWindows?.map((w) => ({
           startDate: w.startDate,
@@ -424,13 +431,14 @@ function locationFit(
   jobLoc: string | null | undefined,
   freelancerLoc: string | null | undefined,
   maxTravelMinutes?: number | null,
+  routedTravelMinutesToJob?: number | null,
 ): number {
   if (jobMode === "REMOTE" || freelancerMode === "REMOTE") return WEIGHTS.location;
   // Reistijd-gebaseerd zodra de ZZP'er een max. reistijd heeft én beide plaatsen bekend zijn:
   // binnen bereik = vol, erbuiten = lineair aflopend (op 2× de limiet → 0). Zonder limiet of bij een
   // onbekende plaats: de bestaande stad-naam-vergelijking (gedrag ongewijzigd voor bestaande data).
   if (maxTravelMinutes != null && maxTravelMinutes > 0 && jobLoc && freelancerLoc) {
-    const minutes = estimateTravelMinutes(freelancerLoc, jobLoc);
+    const minutes = routedTravelMinutesToJob ?? estimateTravelMinutes(freelancerLoc, jobLoc);
     if (minutes != null) {
       if (minutes <= maxTravelMinutes) return WEIGHTS.location;
       const over = (minutes - maxTravelMinutes) / maxTravelMinutes;
