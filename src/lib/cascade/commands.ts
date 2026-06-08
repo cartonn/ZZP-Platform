@@ -43,6 +43,7 @@ import { type CollaborationStatus } from "@/lib/enums";
 import { type OrtSegment, resolveOrtRates } from "@/lib/ort";
 import { type InvoiceLifecycleState, type PerformanceState } from "@/lib/lifecycles";
 import { DEFAULT_PAYMENT_TERM_DAYS, DEFAULT_VAT_REGIME } from "@/lib/config";
+import { recordTenantFeeForCollaboration } from "@/lib/tenant-billing/record-fee";
 
 export class CascadeError extends Error {
   constructor(message: string) {
@@ -767,6 +768,12 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
       invoiceId,
     },
   );
+
+  // Best-effort transactie-fee voor de franchise-tenant registreren (idempotent; no-op als billing
+  // uit staat of de samenwerking niet bij een tenant hoort). Mag de betaling nooit laten falen.
+  try {
+    await recordTenantFeeForCollaboration(inv.collaborationId);
+  } catch {}
 
   // Best-effort e-mail naar beide partijen.
   try {

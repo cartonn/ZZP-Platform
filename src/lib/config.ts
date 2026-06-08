@@ -60,9 +60,12 @@ export const PLATFORM_FEE: PlatformFeeConfig = {
 
 // --- Tenant-billing (franchise-monetisatie, ADR-0006 blok E) ----------------
 // 3+1 hybride model: een maandabonnement per vestiging (tenant) + een lichte transactie-fee per
-// gevulde samenwerking. De technische kern (datamodel, fee-berekening, read-only overzicht) is
-// autonoom gebouwd; de EXACTE prijzen/percentages en de betaalprovider zijn MENSENWERK (zie
-// MENSENWERK.md §3). Daarom staan alle bedragen op 0 en de hele module standaard UIT.
+// gevulde samenwerking. AANGEZET met een hybride staffel (lage drempel, fee daalt per plan). De fee
+// wordt bij betaling idempotent als PENDING geregistreerd (record-fee.ts) en getoond op
+// /franchise/facturatie. Bedragen zijn config-driven en door de eigenaar bij te stellen. Resterend
+// MENSENWERK (MENSENWERK.md §3): definitieve prijzen, betaalprovider/incasso, BTW-classificatie door
+// de belastingadviseur (bemiddelaar i.p.v. principaal) vóór er daadwerkelijk gefactureerd wordt, en
+// het aparte ZZP-abonnement (per gebruiker, vereist provider).
 export interface TenantPlanConfig {
   key: string;
   label: string;
@@ -79,18 +82,21 @@ export interface TenantBillingConfig {
 }
 
 /**
- * Default: tenant-billing volledig UIT, alle bedragen 0. De plan-sleutels staan klaar zodat het
- * datamodel en de overzichten kloppen; zodra de eigenaar de prijzen + provider invult (mensenwerk)
- * wordt dit aangezet.
+ * Hybride staffel (excl. btw, 21% komt erbovenop): instap gratis met de hoogste fee, hogere plannen
+ * met een vast vestiging-abonnement en een lagere fee — zo blijft de drempel laag en schaalt de
+ * verdienste mee met het succes van de franchise. Bedragen door de eigenaar bij te stellen.
+ *   FREE  — € 0 /mnd  + 2,5% per samenwerking
+ *   GROEI — € 99 /mnd + 1,75%
+ *   PRO   — € 199 /mnd + 1,0%
  */
 export const TENANT_BILLING: TenantBillingConfig = {
-  enabled: false,
+  enabled: true,
   vatRegime: "STANDARD_HIGH",
   defaultPlanKey: "FREE",
   plans: {
-    FREE: { key: "FREE", label: "Gratis", monthlyPriceCents: 0, feePercentageBps: 0, feeFixedCents: 0 }, // prettier-ignore
-    GROEI: { key: "GROEI", label: "Groei", monthlyPriceCents: 0, feePercentageBps: 0, feeFixedCents: 0 }, // prettier-ignore
-    PRO: { key: "PRO", label: "Pro", monthlyPriceCents: 0, feePercentageBps: 0, feeFixedCents: 0 }, // prettier-ignore
+    FREE: { key: "FREE", label: "Gratis", monthlyPriceCents: 0, feePercentageBps: 250, feeFixedCents: 0 }, // prettier-ignore
+    GROEI: { key: "GROEI", label: "Groei", monthlyPriceCents: 9900, feePercentageBps: 175, feeFixedCents: 0 }, // prettier-ignore
+    PRO: { key: "PRO", label: "Pro", monthlyPriceCents: 19900, feePercentageBps: 100, feeFixedCents: 0 }, // prettier-ignore
   },
 };
 
