@@ -24,10 +24,14 @@ import { franchiserNextActions, type NextAction, type NextActionTone } from "@/l
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
 import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
+import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
+import { type FreelancerCredential } from "@/lib/matching";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { AvailabilityBadge } from "@/components/availability-badge";
+import { EngageabilityExplanation } from "@/components/engageability-explanation";
 import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Dashboard · ZZP Platform" };
@@ -96,6 +100,8 @@ interface DashboardData {
   isNewAccount: boolean;
   /** Geleide activatie-stappen (alleen franchiser); leeg zodra de franchise volledig staat. */
   activation: NextAction[];
+  /** Inzetbaarheidsstatus van de ZZP'er zelf (alleen FREELANCER). */
+  engageability?: EngageabilityResult | null;
 }
 
 // Mirror van profiel/page.tsx: talen staan als JSON-array-string opgeslagen.
@@ -130,15 +136,15 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         })
       : { score: 0, missing: [] };
     const now = new Date();
-    const [applications, creds, runningRows] = await Promise.all([
+    const [applications, creds, runningRows, me] = await Promise.all([
       pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
       // Eén query voor alle certificaten van de ZZP'er; de telling leiden we in-memory af.
       pid
         ? prisma.credential.findMany({
             where: { freelancerProfileId: pid },
-            select: { status: true, expiresAt: true },
+            select: { type: true, status: true, expiresAt: true },
           })
-        : Promise.resolve<{ status: string; expiresAt: Date | null }[]>([]),
+        : Promise.resolve<{ type: string; status: string; expiresAt: Date | null }[]>([]),
       // Lopende samenwerkingen (niet-terminaal) met de gegevens om de cascade-fase af te leiden.
       prisma.collaboration.findMany({
         where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
@@ -162,6 +168,11 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           },
         },
         orderBy: { createdAt: "desc" },
+      }),
+      // Identiteit + recency voor de inzetbaarheidsstatus (lichte select, geen extra joins).
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { identityVerifiedAt: true, lastLoginAt: true },
       }),
     ]);
 
@@ -204,6 +215,25 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           )
         : null;
 
+    const engageability = profile
+      ? computeEngageability(
+          {
+            credentials: creds.map(
+              (c): FreelancerCredential => ({
+                type: c.type as FreelancerCredential["type"],
+                status: c.status as FreelancerCredential["status"],
+                expiresAt: c.expiresAt,
+              }),
+            ),
+            completeness: completeness.score,
+            availability: profile.availability as Availability,
+            identityVerified: me?.identityVerifiedAt != null,
+            lastActiveAt: me?.lastLoginAt ?? null,
+          },
+          now,
+        )
+      : null;
+
     return {
       stats: [
         { label: "Profiel compleet", value: `${completeness.score}%`, href: "/profiel" },
@@ -214,6 +244,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       week,
       isNewAccount: applications === 0 && running.length === 0,
       activation: [],
+      engageability,
     };
   }
 
@@ -478,11 +509,12 @@ export default async function DashboardPage() {
     month: "long",
   });
   const actor = await requireActor();
-  const [{ stats, running, week, isNewAccount, activation }, matches, tasks] = await Promise.all([
-    dashboardData(role, user.id!),
-    role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
-    pendingTasks(actor),
-  ]);
+  const [{ stats, running, week, isNewAccount, activation, engageability }, matches, tasks] =
+    await Promise.all([
+      dashboardData(role, user.id!),
+      role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
+      pendingTasks(actor),
+    ]);
   // Dezelfde item-niveau taken als /acties, hier inline-afhandelbaar in de aandacht-zone.
   const drawerData = await loadDrawerData(actor, tasks);
 
@@ -518,6 +550,23 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </section>
+
+      {/* Eigen inzetbaarheid — toont de ZZP'er wat een opdrachtgever ziet, met een concreet herstelpad.
+          Verschijnt alleen als er iets te verbeteren valt (rustig houden zodra je inzetbaar bent). */}
+      {role === "FREELANCER" && engageability && engageability.status !== "ACTIEF" && (
+        <section className="rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-2 text-sm font-semibold tracking-tight">Jouw inzetbaarheid</h2>
+          <EngageabilityExplanation result={engageability} self />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="secondary">
+              <Link href="/certificaten">Naar certificaten</Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/profiel">Profiel aanvullen</Link>
+            </Button>
+          </div>
+        </section>
+      )}
 
       {/* Franchiser-activatie — geleide opzet van de franchise. Klikbare stappen die de eerstvolgende
           concrete actie tonen (opdrachtgever → dienst → roster); verdwijnt zodra de franchise staat. */}
