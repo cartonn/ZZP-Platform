@@ -91,6 +91,23 @@ export const IDEA_TRANSITIONS: Record<IdeaStatus, readonly IdeaStatus[]> = {
   DECLINED: ["OPEN"],
 };
 
+// Academie — cursusstatus + doelgroep. DRAFT = concept (alleen beheer), PUBLISHED = zichtbaar voor
+// de doelgroep, ARCHIVED = uit de lijst (voltooiingen blijven bestaan).
+export const COURSE_STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
+export type CourseStatus = (typeof COURSE_STATUSES)[number];
+export const courseStatusSchema = z.enum(COURSE_STATUSES);
+
+export const COURSE_TRANSITIONS: Record<CourseStatus, readonly CourseStatus[]> = {
+  DRAFT: ["PUBLISHED"],
+  PUBLISHED: ["ARCHIVED", "DRAFT"],
+  ARCHIVED: ["PUBLISHED"],
+};
+
+// Doelgroep van een cursus. ALL = iedereen; anders rolgericht.
+export const COURSE_AUDIENCES = ["ALL", "FREELANCER", "CLIENT"] as const;
+export type CourseAudience = (typeof COURSE_AUDIENCES)[number];
+export const courseAudienceSchema = z.enum(COURSE_AUDIENCES);
+
 // Lead (franchise-acquisitie). KOUD = nog niet benaderd; WARM = in gesprek; KLANT = binnengehaald
 // (terminaal — verder via de onboarding-wizard naar een echte opdrachtgever); NO_DEAL = afgevallen.
 export const LEAD_STATUSES = ["KOUD", "WARM", "KLANT", "NO_DEAL"] as const;

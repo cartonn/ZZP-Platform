@@ -21,6 +21,7 @@ export type NavIcon =
   | "barChart"
   | "lightbulb"
   | "contact"
+  | "graduationCap"
   | "settings";
 
 export interface NavItem {
@@ -47,6 +48,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Mijn profiel", href: "/profiel", icon: "user", section: "Profiel", enabled: true },
     { label: "Certificaten", href: "/certificaten", icon: "fileCheck", section: "Profiel", enabled: true }, // prettier-ignore
     { label: "Diensten", href: "/diensten", icon: "clock", section: "Profiel", enabled: true },
+    { label: "Academie", href: "/academie", icon: "graduationCap", section: "Profiel", enabled: true }, // prettier-ignore
     { label: "Beschikbaarheid", href: "/beschikbaarheid", icon: "calendar", section: "Profiel", enabled: true }, // prettier-ignore
     { label: "Documenten", href: "/documenten", icon: "files", section: "Profiel", enabled: true },
     { label: "Facturen", href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
@@ -71,6 +73,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Boekhouding", href: "/administratie", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", section: "Account", enabled: true }, // prettier-ignore
+    { label: "Academie", href: "/academie", icon: "graduationCap", section: "Account", enabled: true }, // prettier-ignore
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", section: "Account", enabled: true }, // prettier-ignore
     { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Account", enabled: true }, // prettier-ignore
     { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },
@@ -92,6 +95,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Importeren", href: "/admin/import", icon: "users", section: "Beheer", enabled: true },
     { label: "Administratie", href: "/admin/administratie", icon: "fileText", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Configuratie", href: "/admin/configuratie", icon: "settings", section: "Beheer", enabled: true }, // prettier-ignore
+    { label: "Academie", href: "/academie", icon: "graduationCap", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Beheer", enabled: true },
   ],
   // Franchisenemer (tenant-admin). De franchise-werkplek-items (Opdrachtgevers, ZZP'ers,
