@@ -52,6 +52,7 @@ model User {
   participations    ConversationParticipant[]
   notifications     Notification[]
   subscription      Subscription?
+  membershipCharges ZzpMembershipCharge[]
   verifications     CredentialVerification[]  @relation("Verifier")
   auditLogs         AuditLog[]                @relation("AuditActor")
 
@@ -134,6 +135,27 @@ model CollaborationFee {
   tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status])
+}
+
+// ZZP-platformabonnement: een maandelijkse bijdrage per ZZP'er, alleen in maanden waarin de ZZP'er
+// werk heeft (PIDZ-model). Eén bedrag per (gebruiker, maand) — `period` is "YYYY-MM". Wordt idempotent
+// als PENDING geregistreerd door de geplande taak (zzp-membership-task); incasso = mensenwerk.
+model ZzpMembershipCharge {
+  id         String   @id @default(cuid())
+  userId     String
+  period     String //               "YYYY-MM" (UTC) — de maand waarover de bijdrage geldt
+  priceCents Int //                  abonnement excl. BTW (integer-centen)
+  vatCents   Int      @default(0)
+  status     String   @default("PENDING") // MembershipChargeStatus: PENDING | INVOICED
+  invoiceId  String? //              abonnementsfactuur waarop de bijdrage staat (mensenwerk-facturatie)
+  recordedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])
+  @@index([status])
+  @@index([userId])
 }
 
 // Afdeling binnen een opdrachtgever (bv. een afdeling/locatie van een zorginstelling).

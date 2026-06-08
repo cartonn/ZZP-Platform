@@ -100,6 +100,22 @@ export const TENANT_BILLING: TenantBillingConfig = {
   },
 };
 
+// --- ZZP-platformabonnement (PIDZ-model) ------------------------------------
+// Een maandbijdrage per ZZP'er, maar alleen in maanden waarin de ZZP'er werk heeft (≥1 goedgekeurde
+// prestatie). De geplande taak (zzp-membership-task) registreert de bijdrage idempotent als PENDING;
+// er wordt nog NIETS geïncasseerd (betaalprovider = mensenwerk). Bedrag excl. btw, bij te stellen.
+export interface ZzpMembershipConfig {
+  enabled: boolean;
+  monthlyPriceCents: number; // bijdrage per actieve maand, excl. btw
+  vatRegime: VatRegime;
+}
+
+export const ZZP_MEMBERSHIP: ZzpMembershipConfig = {
+  enabled: true,
+  monthlyPriceCents: 4000, // € 40 per actieve maand (excl. btw)
+  vatRegime: "STANDARD_HIGH",
+};
+
 // --- Reminder-cascade (tijden in dagen, configureerbaar) -------------------
 export const REMINDERS = {
   /** Concept-factuur door ZZP'er nog niet ingediend (na Event B2). */

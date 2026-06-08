@@ -12,6 +12,7 @@ import { runVatReminderTask } from "@/lib/vat-reminder-task";
 import { runJobAlertsTask } from "@/lib/job-alerts-task";
 import { runSubscriptionPastDueTask } from "@/lib/past-due-task";
 import { runMonitorTask } from "@/lib/monitoring/monitor-task";
+import { runZzpMembershipTask } from "@/lib/zzp-membership-task";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export async function POST(request: Request): Promise<Response> {
     { name: "vat-reminders", fn: () => runVatReminderTask({ actorId: null }) },
     { name: "job-alerts", fn: () => runJobAlertsTask({ actorId: null }) },
     { name: "subscription-past-due", fn: () => runSubscriptionPastDueTask({ actorId: null }) },
+    { name: "zzp-membership", fn: () => runZzpMembershipTask({}) },
     { name: "monitor", fn: () => runMonitorTask({}) },
   ];
 
