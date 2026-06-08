@@ -65,6 +65,8 @@ model User {
   ideaVotes         IdeaVote[]         @relation("IdeaVoter")
   ideaComments      IdeaComment[]      @relation("IdeaCommentAuthor")
   leadContacts      LeadContact[]      @relation("LeadContactAuthor")
+  authoredCourses   Course[]           @relation("CourseAuthor")
+  lessonCompletions LessonCompletion[] @relation("LessonCompleter")
 
   @@index([role])
   @@index([status])
@@ -1003,4 +1005,56 @@ model TaxFilingRequest {
   @@unique([userId, taxYear, kind, quarter])
   @@index([userId])
   @@index([status])
+}
+
+// Academie — cursussen (Course) met lessen (Lesson) en per-gebruiker voortgang (LessonCompletion).
+// Voortgang is afgeleid (aantal voltooide lessen / totaal), niet gedenormaliseerd. Spiegelt het
+// Idea/IdeaVote-patroon (compound-PK join-tabel).
+model Course {
+  id        String   @id @default(cuid())
+  authorId  String? //  beheerder/auteur; null = systeemcursus
+  title     String
+  summary   String //   korte omschrijving (lijst-/kaartweergave)
+  slug      String   @unique // leesbare URL
+  status    String   @default("DRAFT") // CourseStatus: DRAFT | PUBLISHED | ARCHIVED
+  audience  String   @default("FREELANCER") // CourseAudience: ALL | FREELANCER | CLIENT
+  level     String? //  optioneel: BEGINNER | GEVORDERD
+  order     Int      @default(0) // sorteervolgorde
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author  User?    @relation("CourseAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  lessons Lesson[]
+
+  @@index([status])
+  @@index([audience])
+  @@index([order])
+}
+
+model Lesson {
+  id               String   @id @default(cuid())
+  courseId         String
+  title            String
+  body             String //  les-inhoud (platte alinea's; newlines behouden)
+  order            Int      @default(0)
+  estimatedMinutes Int? //    leesduur-indicatie
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  course      Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  completions LessonCompletion[]
+
+  @@index([courseId, order])
+}
+
+model LessonCompletion {
+  lessonId    String
+  userId      String
+  completedAt DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user   User   @relation("LessonCompleter", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([lessonId, userId])
+  @@index([userId])
 }

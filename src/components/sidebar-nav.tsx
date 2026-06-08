@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Clock,
   Contact,
+  GraduationCap,
   CreditCard,
   FileCheck2,
   FileText,
@@ -52,6 +53,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   barChart: BarChart,
   lightbulb: Lightbulb,
   contact: Contact,
+  graduationCap: GraduationCap,
   settings: Settings,
 };
 

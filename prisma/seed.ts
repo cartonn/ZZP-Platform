@@ -17,6 +17,7 @@ import { type CredentialType } from "@/lib/enums";
 import { credentialBewijsPdf } from "./seed-credential-pdf";
 import { SEED_CONVERSATIONS, SEED_TICKETS } from "./seed-berichten-tickets-data";
 import { seedFranchise } from "./seed-franchise";
+import { seedAcademy } from "./seed-academy";
 
 const prisma = new PrismaClient();
 
@@ -1263,6 +1264,7 @@ async function main() {
     prisma.subscription.count(),
   ]);
   await seedFranchise(prisma, passwordHash);
+  await seedAcademy(prisma, uid["sanne"]);
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");
   console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
