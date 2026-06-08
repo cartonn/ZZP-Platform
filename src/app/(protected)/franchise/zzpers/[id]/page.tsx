@@ -22,6 +22,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AvailabilityBadge } from "@/components/availability-badge";
+import { EngageabilityBadge } from "@/components/engageability-badge";
+import { EngageabilityExplanation } from "@/components/engageability-explanation";
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { plural } from "@/lib/plural";
@@ -94,7 +96,12 @@ export default async function RosterDetailPage({
         description={`${profile.headline ?? profile.email}${
           profile.location ? ` · ${profile.location}` : ""
         }`}
-        action={<AvailabilityBadge status={profile.availability} />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <EngageabilityBadge status={dossier.engageability.status} />
+            <AvailabilityBadge status={profile.availability} />
+          </div>
+        }
       />
 
       <nav className="flex flex-wrap gap-2 text-sm" aria-label="Dossier-onderdelen">
@@ -152,6 +159,11 @@ function ProfielTab({ dossier }: { dossier: RosterDossier }) {
   return (
     <Card>
       <CardContent className="space-y-5 p-5">
+        <div className="rounded-lg border border-border bg-muted/30 p-4">
+          <h2 className="mb-2 text-sm font-semibold tracking-tight">Inzetbaarheid</h2>
+          <EngageabilityExplanation result={dossier.engageability} />
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           {profile.hourlyRate != null && <Badge variant="muted">€{profile.hourlyRate}/uur</Badge>}
           <Badge variant="muted">Profiel {profile.completeness}%</Badge>

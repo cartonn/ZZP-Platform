@@ -4,35 +4,55 @@ import { Users, ChevronRight } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
+import { type Availability } from "@/lib/enums";
+import { type FreelancerCredential } from "@/lib/matching";
+import { computeEngageability } from "@/lib/engageability";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Badge } from "@/components/ui/badge";
+import { EngageabilityBadge } from "@/components/engageability-badge";
 import { plural } from "@/lib/plural";
 import { ZzperForm } from "./zzper-form";
 
 export const metadata: Metadata = { title: "ZZP'ers · Franchise" };
 
-const AVAIL_LABEL: Record<string, string> = {
-  AVAILABLE: "Beschikbaar",
-  LIMITED: "Beperkt",
-  UNAVAILABLE: "Niet beschikbaar",
-  UNKNOWN: "Onbekend",
-};
-
 export default async function FranchiseZzpersPage() {
   const actor = await requireRole("FRANCHISER");
+  const now = new Date();
   const [freelancers, skills] = await Promise.all([
     prisma.freelancerProfile.findMany({
       where: tenantScopeWhere(actor),
       orderBy: { createdAt: "desc" },
       include: {
-        user: { select: { name: true, email: true } },
+        user: { select: { name: true, email: true, identityVerifiedAt: true, lastLoginAt: true } },
+        credentials: { select: { type: true, status: true, expiresAt: true } },
         _count: { select: { credentials: true, collaborations: true, skills: true } },
       },
     }),
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
+
+  const engageabilityById = new Map(
+    freelancers.map((f) => [
+      f.id,
+      computeEngageability(
+        {
+          credentials: f.credentials.map(
+            (c): FreelancerCredential => ({
+              type: c.type as FreelancerCredential["type"],
+              status: c.status as FreelancerCredential["status"],
+              expiresAt: c.expiresAt,
+            }),
+          ),
+          completeness: f.completeness,
+          availability: f.availability as Availability,
+          identityVerified: f.user.identityVerifiedAt != null,
+          lastActiveAt: f.user.lastLoginAt,
+        },
+        now,
+      ),
+    ]),
+  );
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -76,9 +96,7 @@ export default async function FranchiseZzpersPage() {
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <Badge variant={f.availability === "AVAILABLE" ? "success" : "muted"}>
-                  {AVAIL_LABEL[f.availability] ?? f.availability}
-                </Badge>
+                <EngageabilityBadge status={engageabilityById.get(f.id)!.status} />
                 <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
               </div>
             </Link>

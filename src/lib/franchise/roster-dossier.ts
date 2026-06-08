@@ -17,6 +17,8 @@ import {
 } from "@/lib/enums";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
+import { type FreelancerCredential } from "@/lib/matching";
+import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
 
 export interface DossierCollaboration {
   id: string;
@@ -84,6 +86,7 @@ export interface RosterDossier {
     skills: string[];
     industries: string[];
   };
+  engageability: EngageabilityResult;
   collaborations: DossierCollaboration[];
   performances: DossierPerformance[];
   invoices: DossierInvoice[];
@@ -118,7 +121,9 @@ export async function getRosterDossier(
   const profile = await prisma.freelancerProfile.findFirst({
     where: { id: profileId, ...tenantScopeWhere(actor) },
     include: {
-      user: { select: { id: true, name: true, email: true } },
+      user: {
+        select: { id: true, name: true, email: true, identityVerifiedAt: true, lastLoginAt: true },
+      },
       skills: { include: { skill: { select: { name: true } } } },
       industries: { include: { industry: { select: { name: true } } } },
       credentials: {
@@ -217,7 +222,25 @@ export async function getRosterDossier(
     }),
   }));
 
+  const engageability = computeEngageability(
+    {
+      credentials: profile.credentials.map(
+        (c): FreelancerCredential => ({
+          type: c.type as FreelancerCredential["type"],
+          status: c.status as FreelancerCredential["status"],
+          expiresAt: c.expiresAt,
+        }),
+      ),
+      completeness: profile.completeness,
+      availability: profile.availability as Availability,
+      identityVerified: profile.user.identityVerifiedAt != null,
+      lastActiveAt: profile.user.lastLoginAt,
+    },
+    new Date(),
+  );
+
   return {
+    engageability,
     profile: {
       id: profile.id,
       name: profile.user.name,

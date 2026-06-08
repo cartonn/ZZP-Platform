@@ -54,30 +54,43 @@ export async function seedFranchise(prisma: PrismaClient, passwordHash: string):
     create: { id: "dept-noord-geriatrie", companyId, name: "Afdeling Geriatrie", location: "Groningen" }, // prettier-ignore
   });
 
-  // ZZP'ers in de roster.
-  const roster: Array<[string, string, string]> = [
-    ["zzp-noord-1@zzp-platform.local", "Lars Bakker", "Verpleegkundige niveau 4"],
-    ["zzp-noord-2@zzp-platform.local", "Sofia Janssen", "Verzorgende IG"],
+  // ZZP'ers in de roster. Eén volledig inzetbaar (verplichte docs + identiteit), één nog niet —
+  // zodat de inzetbaarheidsstatus in de roster meteen een mix toont.
+  const oneYear = new Date(Date.now() + 365 * 86_400_000);
+  const roster: Array<{ email: string; name: string; headline: string; compliant: boolean }> = [
+    { email: "zzp-noord-1@zzp-platform.local", name: "Lars Bakker", headline: "Verpleegkundige niveau 4", compliant: true }, // prettier-ignore
+    { email: "zzp-noord-2@zzp-platform.local", name: "Sofia Janssen", headline: "Verzorgende IG", compliant: false }, // prettier-ignore
   ];
-  for (const [email, name, headline] of roster) {
+  for (const r of roster) {
     await prisma.user.upsert({
-      where: { email },
+      where: { email: r.email },
       update: { tenantId: tenant.id },
       create: {
-        email,
-        name,
+        email: r.email,
+        name: r.name,
         role: "FREELANCER",
         status: "ACTIVE",
         emailVerified: new Date(),
         passwordHash,
         tenantId: tenant.id,
+        ...(r.compliant ? { identityVerifiedAt: new Date(), lastLoginAt: new Date() } : {}),
         freelancerProfile: {
           create: {
-            headline,
+            headline: r.headline,
             availability: "AVAILABLE",
             visibility: "PUBLIC",
-            completeness: 60,
+            completeness: r.compliant ? 90 : 55,
             tenantId: tenant.id,
+            ...(r.compliant
+              ? {
+                  credentials: {
+                    create: [
+                      { type: "VOG", title: "VOG", issuer: "Justis", status: "VERIFIED", verifiedAt: new Date(), expiresAt: oneYear }, // prettier-ignore
+                      { type: "INSURANCE", title: "Beroepsaansprakelijkheid", issuer: "Allianz", status: "VERIFIED", verifiedAt: new Date(), expiresAt: oneYear }, // prettier-ignore
+                    ],
+                  },
+                }
+              : {}),
           },
         },
       },
