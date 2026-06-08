@@ -53,6 +53,7 @@ model User {
   notifications     Notification[]
   subscription      Subscription?
   membershipCharges ZzpMembershipCharge[]
+  billingInvoices   PlatformBillingInvoice[]  @relation("PlatformBillingPayer")
   verifications     CredentialVerification[]  @relation("Verifier")
   auditLogs         AuditLog[]                @relation("AuditActor")
 
@@ -156,6 +157,34 @@ model ZzpMembershipCharge {
   @@unique([userId, period])
   @@index([status])
   @@index([userId])
+}
+
+// Platform-factuur (incasso van de platform-verdienste): bundelt de PENDING-bijdragen tot één factuur
+// van het platform aan de betaler. kind=TENANT_FEE → de franchise(-owner); kind=ZZP_MEMBERSHIP → de
+// ZZP'er. De regels zijn de gekoppelde CollaborationFee-/ZzpMembershipCharge-rijen (invoiceId = deze id;
+// status INVOICED). providerRef is de Stripe/Mollie-referentie (mensenwerk). Bedragen in centen.
+model PlatformBillingInvoice {
+  id            String    @id @default(cuid())
+  number        String    @unique //          "PF-2026-0001"
+  kind          String //                      PlatformBillingKind: TENANT_FEE | ZZP_MEMBERSHIP
+  payerUserId   String //                      de betalende partij (franchise-owner of ZZP'er)
+  tenantId      String? //                     gezet bij TENANT_FEE
+  periodLabel   String //                      menselijke periode-aanduiding (bv. "t/m 2026-06")
+  subtotalCents Int //                          som excl. btw
+  vatCents      Int       @default(0)
+  totalCents    Int
+  vatRegime     String    @default("STANDARD_HIGH")
+  status        String    @default("DRAFT") // PlatformBillingStatus: DRAFT | SENT | PAID | CANCELLED
+  providerRef   String? //                     Stripe/Mollie-referentie (mensenwerk)
+  issuedAt      DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  payer User @relation("PlatformBillingPayer", fields: [payerUserId], references: [id], onDelete: Cascade)
+
+  @@index([kind, status])
+  @@index([payerUserId])
 }
 
 // Afdeling binnen een opdrachtgever (bv. een afdeling/locatie van een zorginstelling).
