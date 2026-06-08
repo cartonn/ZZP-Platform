@@ -348,3 +348,41 @@ export async function estimateTravelMinutesWithRouting(
   if (route) return Math.round(route.durationSeconds / 60);
   return estimateTravelMinutes(from, to);
 }
+
+export interface RoutingDiagnostics {
+  provider: RoutingProvider;
+  /** Of er een API-key is geconfigureerd — NOOIT de waarde zelf (alleen aan/uit). */
+  keyConfigured: boolean;
+  /** True als de provider actief én bruikbaar is (geconfigureerd + key aanwezig). */
+  active: boolean;
+  geocodeCacheCount: number;
+  routeCacheCount: number;
+  lastRouteAt: Date | null;
+}
+
+/**
+ * Diagnose voor de admin-bewaking: welke routing-provider draait, of de key gezet is (boolean, niet
+ * de waarde) en hoeveel er gecachet is. Server-side; lekt nooit de API-key.
+ */
+export async function routingDiagnostics(): Promise<RoutingDiagnostics> {
+  const provider = configuredRoutingProvider();
+  // Boolean afgeleid uit de ruwe env (NOOIT de waarde), zodat een gezette sleutel mét
+  // provider="offline" zichtbaar blijft als misconfiguratie.
+  const keyConfigured = (process.env.GEOAPIFY_API_KEY ?? "").trim().length > 0;
+  const [geocodeCacheCount, routeCacheCount, lastRoute] = await Promise.all([
+    prisma.geocodeCache.count(),
+    prisma.travelRouteCache.count(),
+    prisma.travelRouteCache.findFirst({
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true },
+    }),
+  ]);
+  return {
+    provider,
+    keyConfigured,
+    active: provider === "geoapify" && keyConfigured,
+    geocodeCacheCount,
+    routeCacheCount,
+    lastRouteAt: lastRoute?.updatedAt ?? null,
+  };
+}
