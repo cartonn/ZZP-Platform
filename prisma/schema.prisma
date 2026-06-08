@@ -964,6 +964,50 @@ model HealthIncident {
 }
 
 // ---------------------------------------------------------------------------
+// Reistijd-routing cache. Echte geocoding/routing loopt via een externe provider
+// (Geoapify) en wordt gecachet zodat matching niet onnodig API-credits verbruikt.
+// JSON/enum-vrij en provider-agnostisch: één schema voor SQLite + Postgres.
+// ---------------------------------------------------------------------------
+
+model GeocodeCache {
+  id         String   @id @default(cuid())
+  provider   String //          bv. geoapify
+  query      String //          originele zoekterm/plaatsnaam
+  queryKey   String   @unique // provider + genormaliseerde query hash
+  lat        Float
+  lon        Float
+  label      String?
+  confidence Float?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([provider])
+  @@index([expiresAt])
+}
+
+model TravelRouteCache {
+  id              String   @id @default(cuid())
+  provider        String //          bv. geoapify
+  mode            String   @default("drive")
+  fromQuery       String
+  toQuery         String
+  cacheKey        String   @unique // provider + mode + from/to hash
+  fromLat         Float
+  fromLon         Float
+  toLat           Float
+  toLon           Float
+  distanceMeters  Int
+  durationSeconds Int
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([provider, mode])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
 // Belastingaangifte-delegatie ("Wij doen je aangifte"). Eén verzoek per belastingjaar +
 // middel (IB/BTW). Granulaire, intrekbare toestemming; een partner-belastingkantoor is de
 // feitelijke gemachtigde indiener. Geld loopt nooit via het platform (Besluit 1).

@@ -334,6 +334,25 @@ describe("computeMatchScore", () => {
     expect(r.breakdown.location).toBeGreaterThan(0);
   });
 
+  it("gebruikt vooraf geroute minuten boven de offline plaatsnaam-schatting", () => {
+    const r = computeMatchScore(
+      {
+        ...base,
+        job: { ...base.job, workMode: "ONSITE", location: "Onbekende opdrachtlocatie" },
+        freelancer: {
+          ...base.freelancer,
+          workMode: "ONSITE",
+          location: "Onbekende woonplaats",
+          maxTravelMinutes: 30,
+          routedTravelMinutesToJob: 20,
+        },
+      },
+      now,
+    );
+    expect(r.breakdown.location).toBe(MATCH_COMPONENT_MAX.location);
+    expect(r.reasons.find((re) => re.label.includes("reistijd"))?.label).toContain("20 min");
+  });
+
   it("voegt een positieve reason toe bij AVAILABLE zonder de score te wijzigen", () => {
     const baseline = computeMatchScore(
       { ...base, freelancer: { ...base.freelancer, availability: "UNKNOWN" } },

@@ -9,6 +9,9 @@ const schema = z
     AUTH_SECRET: z.string().min(16, "AUTH_SECRET moet minstens 16 tekens zijn."),
     STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
     STORAGE_S3_BUCKET: z.string().optional(),
+    // Echte reistijd-routing: offline fallback (default) of Geoapify met API-key.
+    ROUTING_PROVIDER: z.enum(["offline", "geoapify"]).default("offline"),
+    GEOAPIFY_API_KEY: z.string().optional(),
     // Semantische matching: local (default, in-memory) of pgvector (productie).
     SEMANTIC_MATCHER: z.enum(["local", "pgvector"]).default("local"),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -22,6 +25,13 @@ const schema = z
         code: z.ZodIssueCode.custom,
         path: ["STORAGE_S3_BUCKET"],
         message: "Verplicht bij STORAGE_DRIVER=s3.",
+      });
+    }
+    if (v.ROUTING_PROVIDER === "geoapify" && !v.GEOAPIFY_API_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["GEOAPIFY_API_KEY"],
+        message: "Verplicht bij ROUTING_PROVIDER=geoapify.",
       });
     }
   });
