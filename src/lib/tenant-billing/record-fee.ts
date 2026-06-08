@@ -3,7 +3,7 @@
 // cumulatief betaalde waarde, en bevroren zodra de fee is gefactureerd (status != PENDING). No-op als
 // billing uit staat, de samenwerking niet bij een tenant hoort, of de fee op 0 uitkomt. De aanroep
 // (confirmPayment) is best-effort: deze registratie faalt nooit de betaling zelf.
-import "server-only";
+// (Geen `import "server-only"`: dit bestand wordt via de cascade-commands ook door de seed geladen.)
 import { prisma } from "@/lib/db";
 import { TENANT_BILLING } from "@/lib/config";
 import { planCollaborationFeeRecord } from "@/lib/tenant-billing/collaboration-fee";
