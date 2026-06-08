@@ -2,6 +2,7 @@
 
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole, AuthorizationError } from "@/lib/authz";
 import { audit } from "@/lib/audit";
@@ -99,5 +100,6 @@ export async function createFranchise(
     metadata: { slug, owner: franchiserEmail },
   });
 
+  revalidatePath("/admin/franchises");
   return { ok: true, email: franchiserEmail, tempPassword, tenantName };
 }

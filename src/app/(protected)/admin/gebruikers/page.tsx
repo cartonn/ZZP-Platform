@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { anonymizeUser, setUserStatus } from "./actions";
 import { AnonymizeButton } from "./anonymize-button";
+import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Gebruikers · ZZP Platform" };
 
@@ -83,7 +84,8 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
               className="focus-ring inline-flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger"
             >
               <AlertTriangle className="size-4 shrink-0" aria-hidden />
-              {deletionRequests} AVG-verwijderverzoek(en) — beoordeel
+              {plural(deletionRequests, "AVG-verwijderverzoek", "AVG-verwijderverzoeken")} —
+              beoordeel
             </Link>
           )}
           {pendingUsers > 0 && (

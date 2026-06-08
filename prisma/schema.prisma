@@ -585,7 +585,7 @@ model Collaboration {
   companyId      String
   status         String    @default("PROPOSED") // CollaborationStatus: PROPOSED | ACTIVE | COMPLETED | CANCELLED
   contractStatus String    @default("DRAFT") //    ContractStatus: DRAFT | SENT | SIGNED
-  rate           Int?
+  rate           Int? //                              uurtarief-snapshot in EURO (niet centen); null = geen vast tarief
   ortProfile     String? // OrtSector: DEFAULT | VVT | GGZ | GHZ | JEUGD — bepaalt ORT-toeslagen (zorg)
   ortCustomRates String? // JSON Record<OrtCategory, bps> — maatwerk per klant, overschrijft het sectorprofiel
   startDate      DateTime?

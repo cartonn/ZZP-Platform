@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buildComplianceDossier, type DossierInput } from "@/lib/compliance/dossier";
 import { formatDateShortNl } from "@/lib/format-date";
+import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Compliance-dossier · ZZP Platform" };
 
@@ -83,7 +84,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
           <p className="text-sm text-muted-foreground">
             {dossier.jobTitle} · {dossier.freelancerName}
             {dossier.attentionCount > 0
-              ? ` · ${dossier.attentionCount} aandachtspunt(en)`
+              ? ` · ${plural(dossier.attentionCount, "aandachtspunt", "aandachtspunten")}`
               : " · alles compleet"}
           </p>
         </div>
