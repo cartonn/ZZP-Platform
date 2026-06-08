@@ -1,12 +1,263 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { requireActor, requireRole, AuthorizationError } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { courseStatusSchema, type CourseAudience, type UserRole } from "@/lib/enums";
-import { canCourseTransition, visibleAudiencesForRole } from "@/lib/academy";
+import { canCourseTransition, visibleAudiencesForRole, slugify } from "@/lib/academy";
+import { courseInputSchema, lessonInputSchema } from "@/lib/validation";
+
+export type AuthorState =
+  | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
+  | undefined;
+
+function fieldErrorsFrom(error: import("zod").ZodError): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const i of error.issues) {
+    const k = i.path[0];
+    if (typeof k === "string" && !out[k]) out[k] = i.message;
+  }
+  return out;
+}
+
+async function requireAdminOrState(): Promise<
+  { actor: Awaited<ReturnType<typeof requireRole>> } | { state: AuthorState }
+> {
+  try {
+    return { actor: await requireRole("ADMIN") };
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { state: { error: e.message } };
+    throw e;
+  }
+}
+
+/** Maak een nieuwe cursus (DRAFT). De slug wordt afgeleid van de titel en uniek gemaakt. */
+export async function createCourse(_prev: AuthorState, formData: FormData): Promise<AuthorState> {
+  const auth = await requireAdminOrState();
+  if ("state" in auth) return auth.state;
+
+  const parsed = courseInputSchema.safeParse({
+    title: formData.get("title"),
+    summary: formData.get("summary"),
+    audience: formData.get("audience") ?? undefined,
+    level: formData.get("level"),
+    order: formData.get("order") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: "Controleer de ingevoerde gegevens.", fieldErrors: fieldErrorsFrom(parsed.error) }; // prettier-ignore
+  }
+  const data = parsed.data;
+
+  let slug = slugify(data.title);
+  for (let n = 2; await prisma.course.findUnique({ where: { slug }, select: { id: true } }); n++) {
+    slug = `${slugify(data.title)}-${n}`;
+  }
+
+  const course = await prisma.course.create({
+    data: {
+      authorId: auth.actor.id,
+      title: data.title,
+      summary: data.summary,
+      audience: data.audience,
+      level: data.level ?? null,
+      order: data.order,
+      slug,
+      status: "DRAFT",
+    },
+    select: { id: true, slug: true },
+  });
+  await audit({
+    actorId: auth.actor.id,
+    action: "COURSE_CREATED",
+    entityType: "Course",
+    entityId: course.id,
+    metadata: { slug },
+  });
+
+  revalidatePath("/academie");
+  redirect(`/academie/${course.slug}`);
+}
+
+/** Werk de metadata van een cursus bij. */
+export async function updateCourse(
+  courseId: string,
+  _prev: AuthorState,
+  formData: FormData,
+): Promise<AuthorState> {
+  const auth = await requireAdminOrState();
+  if ("state" in auth) return auth.state;
+
+  const parsed = courseInputSchema.safeParse({
+    title: formData.get("title"),
+    summary: formData.get("summary"),
+    audience: formData.get("audience") ?? undefined,
+    level: formData.get("level"),
+    order: formData.get("order") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: "Controleer de ingevoerde gegevens.", fieldErrors: fieldErrorsFrom(parsed.error) }; // prettier-ignore
+  }
+  const data = parsed.data;
+
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { slug: true },
+  });
+  if (!course) return { error: "Cursus niet gevonden." };
+
+  await prisma.course.update({
+    where: { id: courseId },
+    data: {
+      title: data.title,
+      summary: data.summary,
+      audience: data.audience,
+      level: data.level ?? null,
+      order: data.order,
+    },
+  });
+  await audit({
+    actorId: auth.actor.id,
+    action: "COURSE_UPDATED",
+    entityType: "Course",
+    entityId: courseId,
+  });
+
+  revalidatePath("/academie");
+  revalidatePath(`/academie/${course.slug}`);
+  redirect(`/academie/${course.slug}`);
+}
+
+/** Verwijder een cursus (en daarmee de lessen + voortgang via cascade). */
+export async function deleteCourse(courseId: string): Promise<void> {
+  const actor = await requireRole("ADMIN");
+  const course = await prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
+  if (!course) return;
+  await prisma.course.delete({ where: { id: courseId } });
+  await audit({
+    actorId: actor.id,
+    action: "COURSE_DELETED",
+    entityType: "Course",
+    entityId: courseId,
+  });
+  revalidatePath("/academie");
+  redirect("/academie");
+}
+
+/** Voeg een les toe aan een cursus. */
+export async function createLesson(
+  courseId: string,
+  _prev: AuthorState,
+  formData: FormData,
+): Promise<AuthorState> {
+  const auth = await requireAdminOrState();
+  if ("state" in auth) return auth.state;
+
+  const parsed = lessonInputSchema.safeParse({
+    title: formData.get("title"),
+    body: formData.get("body"),
+    estimatedMinutes: formData.get("estimatedMinutes") ?? "",
+    order: formData.get("order") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: "Controleer de ingevoerde gegevens.", fieldErrors: fieldErrorsFrom(parsed.error) }; // prettier-ignore
+  }
+  const data = parsed.data;
+
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { slug: true, _count: { select: { lessons: true } } },
+  });
+  if (!course) return { error: "Cursus niet gevonden." };
+
+  const lesson = await prisma.lesson.create({
+    data: {
+      courseId,
+      title: data.title,
+      body: data.body,
+      estimatedMinutes: data.estimatedMinutes ?? null,
+      order: data.order || course._count.lessons + 1,
+    },
+    select: { id: true },
+  });
+  await audit({
+    actorId: auth.actor.id,
+    action: "LESSON_CREATED",
+    entityType: "Lesson",
+    entityId: lesson.id,
+    metadata: { courseId },
+  });
+
+  revalidatePath(`/academie/${course.slug}`);
+  redirect(`/academie/${course.slug}`);
+}
+
+/** Werk een les bij. */
+export async function updateLesson(
+  lessonId: string,
+  _prev: AuthorState,
+  formData: FormData,
+): Promise<AuthorState> {
+  const auth = await requireAdminOrState();
+  if ("state" in auth) return auth.state;
+
+  const parsed = lessonInputSchema.safeParse({
+    title: formData.get("title"),
+    body: formData.get("body"),
+    estimatedMinutes: formData.get("estimatedMinutes") ?? "",
+    order: formData.get("order") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: "Controleer de ingevoerde gegevens.", fieldErrors: fieldErrorsFrom(parsed.error) }; // prettier-ignore
+  }
+  const data = parsed.data;
+
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: { course: { select: { slug: true } } },
+  });
+  if (!lesson) return { error: "Les niet gevonden." };
+
+  await prisma.lesson.update({
+    where: { id: lessonId },
+    data: {
+      title: data.title,
+      body: data.body,
+      estimatedMinutes: data.estimatedMinutes ?? null,
+      order: data.order,
+    },
+  });
+  await audit({
+    actorId: auth.actor.id,
+    action: "LESSON_UPDATED",
+    entityType: "Lesson",
+    entityId: lessonId,
+  });
+
+  revalidatePath(`/academie/${lesson.course.slug}`);
+  redirect(`/academie/${lesson.course.slug}`);
+}
+
+/** Verwijder een les (en de voltooiingen via cascade). */
+export async function deleteLesson(lessonId: string): Promise<void> {
+  const actor = await requireRole("ADMIN");
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: { course: { select: { slug: true } } },
+  });
+  if (!lesson) return;
+  await prisma.lesson.delete({ where: { id: lessonId } });
+  await audit({
+    actorId: actor.id,
+    action: "LESSON_DELETED",
+    entityType: "Lesson",
+    entityId: lessonId,
+  });
+  revalidatePath(`/academie/${lesson.course.slug}`);
+  redirect(`/academie/${lesson.course.slug}`);
+}
 
 /**
  * Markeer een les als voltooid, of maak het ongedaan (toggle). Idempotent en race-tolerant op de

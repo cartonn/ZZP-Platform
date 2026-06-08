@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { canCourseTransition, courseProgress, visibleAudiencesForRole } from "@/lib/academy";
+import {
+  canCourseTransition,
+  courseProgress,
+  visibleAudiencesForRole,
+  slugify,
+} from "@/lib/academy";
 
 describe("canCourseTransition", () => {
   it("staat publiceren toe (DRAFT→PUBLISHED) en archiveren (PUBLISHED→ARCHIVED)", () => {
@@ -35,5 +40,17 @@ describe("visibleAudiencesForRole", () => {
   });
   it("een beheerder ziet alle doelgroepen", () => {
     expect(visibleAudiencesForRole("ADMIN")).toEqual(["ALL", "FREELANCER", "CLIENT"]);
+  });
+});
+
+describe("slugify", () => {
+  it("maakt een URL-veilige slug van een titel", () => {
+    expect(slugify("Goed van start als ZZP'er")).toBe("goed-van-start-als-zzp-er");
+  });
+  it("verwijdert accenten en trimt streepjes", () => {
+    expect(slugify("  Privacy & Béscherming!  ")).toBe("privacy-bescherming");
+  });
+  it("valt terug op 'cursus' als er niets bruikbaars is", () => {
+    expect(slugify("!!!")).toBe("cursus");
   });
 });

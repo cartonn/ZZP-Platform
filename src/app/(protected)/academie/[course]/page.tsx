@@ -1,7 +1,16 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { getCourseDetail } from "@/lib/academy-data";
 import { COURSE_STATUS_LABEL, COURSE_STATUS_VARIANT } from "@/lib/academy";
@@ -11,8 +20,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { plural } from "@/lib/plural";
-import { setCourseStatus } from "../actions";
+import { setCourseStatus, deleteLesson } from "../actions";
 
 export const metadata: Metadata = { title: "Cursus · Academie" };
 
@@ -48,9 +58,16 @@ export default async function CourseDetailPage({
         description={course.summary}
         action={
           isAdmin ? (
-            <Badge variant={COURSE_STATUS_VARIANT[course.status]}>
-              {COURSE_STATUS_LABEL[course.status]}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={COURSE_STATUS_VARIANT[course.status]}>
+                {COURSE_STATUS_LABEL[course.status]}
+              </Badge>
+              <Button asChild variant="secondary" size="sm">
+                <Link href={`/academie/${course.slug}/bewerken`}>
+                  <Pencil className="size-3.5" aria-hidden /> Bewerken
+                </Link>
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -75,36 +92,59 @@ export default async function CourseDetailPage({
         </CardContent>
       </Card>
 
-      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-        {course.lessons.map((l, i) => (
-          <Link
-            key={l.id}
-            href={`/academie/${course.slug}/${l.id}`}
-            className="card-interactive flex items-center gap-3 p-4"
-          >
-            {l.completed ? (
-              <CheckCircle2 className="size-5 shrink-0 text-success" aria-hidden />
-            ) : (
-              <Circle className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-            )}
-            <span className="min-w-0 flex-1">
-              <span className="font-medium">
+      {course.lessons.length > 0 && (
+        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+          {course.lessons.map((l, i) => (
+            <div key={l.id} className="flex items-center gap-3 p-4">
+              {l.completed ? (
+                <CheckCircle2 className="size-5 shrink-0 text-success" aria-hidden />
+              ) : (
+                <Circle className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+              )}
+              <Link
+                href={`/academie/${course.slug}/${l.id}`}
+                className="min-w-0 flex-1 font-medium hover:underline"
+              >
                 {i + 1}. {l.title}
-              </span>
-            </span>
-            {l.estimatedMinutes != null && (
-              <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="size-3.5" aria-hidden /> {l.estimatedMinutes} min
-              </span>
-            )}
-          </Link>
-        ))}
-      </div>
+              </Link>
+              {l.estimatedMinutes != null && (
+                <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="size-3.5" aria-hidden /> {l.estimatedMinutes} min
+                </span>
+              )}
+              {isAdmin && (
+                <span className="flex shrink-0 items-center gap-1">
+                  <Button asChild variant="ghost" size="xs" aria-label="Les bewerken">
+                    <Link href={`/academie/${course.slug}/${l.id}/bewerken`}>
+                      <Pencil className="size-3.5" aria-hidden />
+                    </Link>
+                  </Button>
+                  <ConfirmButton
+                    action={deleteLesson.bind(null, l.id)}
+                    title="Les verwijderen?"
+                    description="De les en de voltooiingen worden permanent verwijderd."
+                    confirmLabel="Verwijderen"
+                    size="xs"
+                    aria-label="Les verwijderen"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden />
+                  </ConfirmButton>
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {isAdmin && (
         <Card>
           <CardContent className="flex flex-wrap items-center gap-2 p-4">
-            <span className="text-sm text-muted-foreground">Beheer:</span>
+            <Button asChild size="sm" variant="secondary">
+              <Link href={`/academie/${course.slug}/lessen/nieuw`}>
+                <Plus className="size-3.5" aria-hidden /> Nieuwe les
+              </Link>
+            </Button>
+            <span className="mx-1 h-5 w-px bg-border" aria-hidden />
             {COURSE_TRANSITIONS[course.status].map((next) => (
               <form key={next} action={setCourseStatus.bind(null, course.id)}>
                 <input type="hidden" name="status" value={next} />

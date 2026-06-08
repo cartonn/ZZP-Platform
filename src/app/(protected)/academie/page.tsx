@@ -1,12 +1,13 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Plus } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { listCourses } from "@/lib/academy-data";
 import { COURSE_STATUS_LABEL, COURSE_STATUS_VARIANT } from "@/lib/academy";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
 import { plural } from "@/lib/plural";
@@ -23,6 +24,15 @@ export default async function AcademiePage() {
       <PageHeader
         title="Academie"
         description="Korte cursussen over je vak, compliance en administratie — leer in je eigen tempo."
+        action={
+          isAdmin ? (
+            <Button asChild>
+              <Link href="/academie/nieuw">
+                <Plus className="size-4" aria-hidden /> Nieuwe cursus
+              </Link>
+            </Button>
+          ) : undefined
+        }
       />
 
       {courses.length === 0 ? (

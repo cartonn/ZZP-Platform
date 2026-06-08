@@ -56,3 +56,18 @@ export function courseProgress(done: number, total: number): CourseProgress {
   const pct = total <= 0 ? 0 : Math.round((done / total) * 100);
   return { done, total, pct, completed: total > 0 && done >= total };
 }
+
+/**
+ * Maakt een URL-veilige slug van een titel: kleine letters, accenten weg, niet-alfanumeriek → "-".
+ * Geeft "cursus" terug als er niets bruikbaars overblijft, zodat de slug nooit leeg is.
+ */
+export function slugify(input: string): string {
+  const base = input
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "") // diakritische tekens
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return base || "cursus";
+}
