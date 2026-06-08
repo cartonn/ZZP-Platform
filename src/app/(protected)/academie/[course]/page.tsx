@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpen,
   CheckCircle2,
   Circle,
   Clock,
@@ -21,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ConfirmButton } from "@/components/ui/confirm-button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { plural } from "@/lib/plural";
 import { setCourseStatus, deleteLesson } from "../actions";
 
@@ -92,7 +94,19 @@ export default async function CourseDetailPage({
         </CardContent>
       </Card>
 
-      {course.lessons.length > 0 && (
+      {course.lessons.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={BookOpen}
+            title="Nog geen lessen"
+            description={
+              isAdmin
+                ? "Voeg hieronder de eerste les toe."
+                : "Deze cursus heeft nog geen lessen. Kom binnenkort terug."
+            }
+          />
+        </Card>
+      ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {course.lessons.map((l, i) => (
             <div key={l.id} className="flex items-center gap-3 p-4">

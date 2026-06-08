@@ -40,7 +40,11 @@ export default async function AcademiePage() {
           <EmptyState
             icon={GraduationCap}
             title="Nog geen cursussen"
-            description="Zodra er cursussen gepubliceerd zijn, verschijnen ze hier."
+            description={
+              isAdmin
+                ? "Maak hierboven je eerste cursus aan."
+                : "Zodra er cursussen gepubliceerd zijn, verschijnen ze hier."
+            }
           />
         </Card>
       ) : (

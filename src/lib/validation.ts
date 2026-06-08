@@ -38,10 +38,11 @@ export const lessonInputSchema = z.object({
     .union([z.literal(""), z.coerce.number().int().min(1).max(600)])
     .optional()
     .transform((v) => (v === "" || v === undefined ? undefined : Number(v))),
+  // Leeg = onbepaald (de actie kiest dan auto-append achteraan); een expliciete 0 betekent vooraan.
   order: z
     .union([z.literal(""), z.coerce.number().int().min(0).max(999)])
     .optional()
-    .transform((v) => (v === "" || v === undefined ? 0 : Number(v))),
+    .transform((v) => (v === "" || v === undefined ? undefined : Number(v))),
 });
 export type LessonInput = z.infer<typeof lessonInputSchema>;
 
