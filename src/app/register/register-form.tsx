@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -92,6 +93,15 @@ export function RegisterForm() {
           placeholder="••••••••"
         />
       </Field>
+
+      {state?.success && (
+        <p role="status" className="rounded-md bg-success/10 px-3 py-2 text-sm text-success">
+          {state.success}{" "}
+          <Link href="/login" className="font-medium underline underline-offset-2">
+            Inloggen
+          </Link>
+        </p>
+      )}
 
       {state?.error && !Object.keys(fe).length && (
         <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">

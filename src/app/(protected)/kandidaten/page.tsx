@@ -24,10 +24,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Textarea } from "@/components/ui/textarea";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
-import { changeApplicationStatus, saveApplicationNote } from "./actions";
+import { changeApplicationStatus } from "./actions";
+import { ApplicationNoteForm } from "./application-note-form";
 import { startConversationForApplication } from "@/app/(protected)/berichten/actions";
 import { ProposeCollaboration } from "./propose-collaboration";
 
@@ -280,37 +281,34 @@ export default async function KandidatenPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                    {APPLICATION_TRANSITIONS[status].map((to) => (
-                      <form key={to} action={changeApplicationStatus.bind(null, app.id, to)}>
-                        <Button
-                          type="submit"
+                    {APPLICATION_TRANSITIONS[status].map((to) =>
+                      to === "REJECTED" ? (
+                        <ConfirmButton
+                          key={to}
+                          action={changeApplicationStatus.bind(null, app.id, to)}
+                          triggerVariant="destructive"
                           size="sm"
-                          variant={
-                            to === "ACCEPTED"
-                              ? "primary"
-                              : to === "REJECTED"
-                                ? "danger"
-                                : "secondary"
-                          }
+                          title="Reactie afwijzen?"
+                          description="De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist."
+                          confirmLabel="Afwijzen"
                         >
                           {ACTION_LABEL[to]}
-                        </Button>
-                      </form>
-                    ))}
+                        </ConfirmButton>
+                      ) : (
+                        <form key={to} action={changeApplicationStatus.bind(null, app.id, to)}>
+                          <Button
+                            type="submit"
+                            size="sm"
+                            variant={to === "ACCEPTED" ? "primary" : "secondary"}
+                          >
+                            {ACTION_LABEL[to]}
+                          </Button>
+                        </form>
+                      ),
+                    )}
                   </div>
 
-                  <form action={saveApplicationNote.bind(null, app.id)} className="space-y-2">
-                    <Textarea
-                      name="note"
-                      rows={2}
-                      defaultValue={app.note ?? ""}
-                      placeholder="Interne notitie (alleen voor jou)…"
-                      maxLength={2000}
-                    />
-                    <Button type="submit" variant="secondary" size="sm">
-                      Notitie opslaan
-                    </Button>
-                  </form>
+                  <ApplicationNoteForm appId={app.id} defaultNote={app.note ?? ""} />
 
                   <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     <form action={startConversationForApplication.bind(null, app.id)}>

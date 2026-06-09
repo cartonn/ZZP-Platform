@@ -9,6 +9,7 @@ import { type JobStatus } from "@/lib/enums";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
@@ -123,11 +124,20 @@ export default async function OpdrachtgeverDetailPage({
                           {d.jobs.length > 0 && ` · ${openCount} open`}
                         </p>
                       </div>
-                      <form action={removeDepartment.bind(null, d.id)}>
-                        <Button type="submit" variant="ghost" size="xs">
-                          Verwijderen
-                        </Button>
-                      </form>
+                      <ConfirmButton
+                        action={removeDepartment.bind(null, d.id)}
+                        triggerVariant="ghost"
+                        size="xs"
+                        title="Afdeling verwijderen?"
+                        description={
+                          d.jobs.length > 0
+                            ? `Deze afdeling heeft ${plural(d.jobs.length, "dienst", "diensten")}. Die blijven bestaan, maar verliezen hun koppeling met deze afdeling.`
+                            : "De afdeling wordt definitief verwijderd."
+                        }
+                        confirmLabel="Verwijderen"
+                      >
+                        Verwijderen
+                      </ConfirmButton>
                     </div>
 
                     {d.jobs.length > 0 && (
