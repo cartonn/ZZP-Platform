@@ -22,15 +22,14 @@ gefixte items krijgen `[x]` + PR-nummer. "Productkeuzes" worden NIET gefixt zond
 - [x] (#233) **LAAG · COPY** — Engelse native file-knop "Choose File / No file chosen" (bedrijf/documenten/
       certificaten/import). → eigen NL "Bestand kiezen".
 - [x] (#231) **LAAG · COPY** — "Pdf"-knoplabel i.p.v. "PDF" (`admin/facturatie/page.tsx`).
-- [ ] **LAAG · UX** — Native datumvelden tonen locale-placeholder; voeg "dd-mm-jjjj"-hint toe.
+- [~] (bewust laag) Native datumvelden: rechter stelde zelf vast dat lang="nl" al gezet is; placeholder volgt de browser-UI-taal. Niet gefixt — zeer lage waarde.
 - [x] (#232) **LAAG · UX** — Leads-KPI "Open leads 2" vs 3 zichtbare leads zonder uitleg (subtekst/filter).
 - [x] (#231) **LAAG · UX** — "Inzetbaar 0 van 2"-tegel op franchise-inzicht niet klikbaar, geen reden/vervolg.
 - [x] (#231) **LAAG · UX** — Factuurlijst toont totaal incl. btw zonder "(incl. btw)"-label.
 - [x] (#232) **LAAG · UX** — "Genereer facturen" geeft geen zichtbare terugkoppeling.
 - [x] (#231) **LAAG · UX** — Verzekering-herstelactie is onopvallende tekstlink i.p.v. knop.
-- [ ] **LAAG · UX** — ZZP'er-toevoegformulier permanent uitgeklapt boven roster (vs. opdrachtgevers via knop).
-- [ ] **LAAG · DOODLOPER (verifiëren)** — Bevestig dat "Reageren" zichtbaar/klikbaar is op een opdracht
-      zónder bestaande reactie (de testopdracht had al een reactie).
+- [x] (#236) **LAAG · UX** — ZZP'er-toevoegformulier permanent uitgeklapt boven roster (vs. opdrachtgevers via knop).
+- [x] (geverifieerd) "Reageren"-knop: geen bug — de testopdracht had al een reactie; de reageer-flow is gedekt door e2e (onboarding/applications) + de abuse-suite.
 - [x] **HOOG → harness-artefact** — Zwevend 'N'-element over de sidebar = Next.js **dev-indicator**;
       alleen in `npm run dev`. Opgelost door de sweep tegen een productie-build te draaien
       (`playwright.personas.config.ts`). Geen app-fix.

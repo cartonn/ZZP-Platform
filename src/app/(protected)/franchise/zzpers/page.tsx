@@ -8,7 +8,7 @@ import { type Availability } from "@/lib/enums";
 import { type FreelancerCredential } from "@/lib/matching";
 import { computeEngageability } from "@/lib/engageability";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EngageabilityBadge } from "@/components/engageability-badge";
 import { plural } from "@/lib/plural";
@@ -61,12 +61,16 @@ export default async function FranchiseZzpersPage() {
         description="De ZZP'ers in je roster — degenen die je in je franchise hebt gebracht."
       />
 
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <h2 className="text-sm font-semibold tracking-tight">Nieuwe ZZP&apos;er</h2>
+      {/* Toevoegen ingeklapt zodat de roster (het primaire werk) bovenaan dominant blijft; open zodra
+          er nog geen ZZP'ers zijn (eerste onboarding). */}
+      <details open={freelancers.length === 0} className="rounded-lg border border-border bg-card">
+        <summary className="cursor-pointer p-4 text-sm font-semibold tracking-tight">
+          Nieuwe ZZP&apos;er toevoegen
+        </summary>
+        <div className="space-y-4 border-t border-border p-5 pt-4">
           <ZzperForm skills={skills} />
-        </CardContent>
-      </Card>
+        </div>
+      </details>
 
       {freelancers.length === 0 ? (
         <Card>
