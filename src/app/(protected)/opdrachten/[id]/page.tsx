@@ -1,7 +1,15 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Check, ExternalLink, MapPin, Pencil, TriangleAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  ExternalLink,
+  MapPin,
+  Pencil,
+  ShieldCheck,
+  TriangleAlert,
+} from "lucide-react";
 import { owns, requireActor } from "@/lib/authz";
 import { canViewJob } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
@@ -220,6 +228,22 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           <p className="whitespace-pre-line text-sm leading-relaxed">{job.description}</p>
         </CardContent>
       </Card>
+
+      {/* Risk-reversal: etaleer de bestaande compliance-gate als zekerheid voor de opdrachtgever. */}
+      {isOwner && (
+        <Card>
+          <CardContent className="space-y-1 py-4">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <ShieldCheck className="size-4 text-success" aria-hidden /> Veilig inhuren
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Elke kandidaat doorloopt certificaat-verificatie. Een samenwerking kan pas starten als
+              de verplichte certificaten (zoals VOG en bevoegdheid) geldig zijn — de
+              compliance-check zit vóór de bevestiging, niet erna.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {(requiredSkills.length > 0 || optionalSkills.length > 0) && (
         <section className="space-y-3">

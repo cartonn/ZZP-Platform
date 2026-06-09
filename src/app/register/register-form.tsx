@@ -99,6 +99,13 @@ export function RegisterForm() {
         </p>
       )}
 
+      {role === "FREELANCER" && (
+        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          Het platformabonnement geldt alleen in maanden waarin je via het platform werkt — geen
+          opdracht, geen kosten.
+        </p>
+      )}
+
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? "Bezig…" : "Account aanmaken"}
       </Button>
