@@ -47,9 +47,9 @@ Wet-DBA-verdedigbaarheid) luider en eerder in de funnel zichtbaar.
 ### Backlog — BOUWEN (duidelijke UX/principe-winst)
 
 - [ ] **M** Publieke landing + login met vertrouwens-strip (échte platformdata, verificatie-keurmerk) — /login, root, /register
-- [ ] **M** "Beste match"-banner met match-reasons op opdracht-detail/reactielijst — /opdrachten/[id], /kandidaten
+- [x] (#238) **M** "Beste match"-banner met match-reasons op opdracht-detail/reactielijst — /opdrachten/[id], /kandidaten
 - [ ] **S** No-cure-no-fee-abonnement expliciet communiceren ("geen werk = geen bijdrage") — /register, /abonnement
-- [ ] **S** Verificatie-keurmerk-rij (VOG ✓ · BIG ✓ · Diploma ✓) op kandidaat-/ZZP-profiel — /zzp/[id], /kandidaten
+- [x] (#238) **S** Verificatie-keurmerk-rij (VOG ✓ · BIG ✓ · Diploma ✓) op kandidaat-/ZZP-profiel — /zzp/[id], /kandidaten
 - [x] (#237) **S** ORT-foutpreventie-indicator ("toeslagen automatisch berekend") op prestatie/factuur — /samenwerkingen/[id], /prestaties, /facturen
 - [ ] **S** Zekerheids-/risk-reversal-blok op opdracht-detail ("certificaten vooraf geverifieerd") — /opdrachten/[id]
 - [ ] **M** Rijkere facet-discovery + resultaattelling op /opdrachten

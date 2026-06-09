@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
+import { VerificationMarks } from "@/components/credentials/verification-marks";
 
 export const metadata: Metadata = { title: "ZZP-profiel · ZZP Platform" };
 
@@ -126,6 +127,15 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                 {profile.headline && (
                   <p className="text-sm text-muted-foreground">{profile.headline}</p>
                 )}
+                <div className="mt-2">
+                  <VerificationMarks
+                    credentials={verifiedActive.map((c) => ({
+                      type: c.type,
+                      status: "VERIFIED",
+                      expiresAt: c.expiresAt,
+                    }))}
+                  />
+                </div>
               </div>
               <Badge variant={availability.variant}>{availability.label}</Badge>
             </div>
