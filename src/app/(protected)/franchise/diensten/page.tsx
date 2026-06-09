@@ -55,7 +55,7 @@ export default async function FranchiseDienstenPage() {
           {diensten.map((d) => (
             <Link
               key={d.id}
-              href={`/opdrachten/${d.id}`}
+              href={`/franchise/diensten/${d.id}`}
               className="card-interactive flex items-start justify-between gap-3 p-4"
             >
               <div className="min-w-0">

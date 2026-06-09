@@ -38,5 +38,5 @@ gefixte items krijgen `[x]` + PR-nummer. "Productkeuzes" worden NIET gefixt zond
 ### Productkeuzes (eigenaar-besluit — niet auto-fixen)
 
 - [x] (#234, primaire accounts) Seed-/demodata is IT/developer i.p.v. zorg (positionering). Verrijken met zorgcontext = keuze.
-- Franchise-diensten-overzicht is read-only zonder doorklik naar dienst-detail.
+- [x] (#235) Franchise-diensten-overzicht is read-only zonder doorklik naar dienst-detail.
 - [x] (#232) Statistieken: subgroep-percentages tellen niet zichtbaar tot 100% (admins niet apart getoond).
