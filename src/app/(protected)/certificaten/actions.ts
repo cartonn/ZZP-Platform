@@ -151,7 +151,32 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
         });
         await deleteDocumentById(actor.id, previousDocumentId);
       } else {
-        await prisma.credential.update({ where: { id: credentialId }, data: fields });
+        // Geen nieuw bewijsstuk. Wijzigt de ZZP'er verificatie-relevante feiten (type/titel/uitgever/
+        // datums) van een al geverifieerd of verlopen certificaat, dan vervalt de verificatie en gaat
+        // het terug naar beoordeling — anders kon men de vervaldatum vooruitzetten (expiry-bypass) of
+        // het type omkatten met behoud van de VERIFIED-badge. Alleen de zichtbaarheid wijzigen raakt
+        // de verificatie niet.
+        const sameDate = (a: Date | null, b: Date | null) =>
+          (a ? a.getTime() : null) === (b ? b.getTime() : null);
+        const factsChanged =
+          fields.type !== credential.type ||
+          (fields.title ?? "") !== (credential.title ?? "") ||
+          (fields.issuer ?? null) !== (credential.issuer ?? null) ||
+          !sameDate(fields.issuedAt, credential.issuedAt) ||
+          !sameDate(fields.expiresAt, credential.expiresAt);
+        const reverify = (status === "VERIFIED" || status === "EXPIRED") && factsChanged;
+        if (reverify) {
+          assertTransition(status, "SUBMITTED");
+          await prisma.$transaction(async (tx) => {
+            await tx.credential.update({
+              where: { id: credentialId },
+              data: { ...fields, status: "SUBMITTED", rejectionReason: null },
+            });
+            await tx.verificationRequest.create({ data: { credentialId } });
+          });
+        } else {
+          await prisma.credential.update({ where: { id: credentialId }, data: fields });
+        }
       }
       await audit({
         actorId: actor.id,
