@@ -17,7 +17,9 @@ export interface ForgotPasswordState {
 }
 
 const schema = z.object({
-  email: z.string().email("Vul een geldig e-mailadres in."),
+  // Zelfde normalisatie als bij registratie/login: anders vindt de reset-lookup het account niet en
+  // krijgt de gebruiker (door enumeratiebescherming) stil geen mail → ook geen herstelpad.
+  email: z.string().trim().toLowerCase().email("Vul een geldig e-mailadres in."),
 });
 
 /**
