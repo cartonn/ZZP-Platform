@@ -196,6 +196,26 @@ export async function changeJobStatus(
     return { error: "Een opdracht heeft een titel en omschrijving nodig om te publiceren." };
   }
 
+  // Plan-gating (server-side, CLAUDE.md regel 1): het aantal ACTIEVE (gepubliceerde) opdrachten is
+  // begrensd door het plan (FREE = 1, betaald = onbeperkt). Spiegelt de reactie-limiet (maxApplications);
+  // zonder dit kon een gratis opdrachtgever onbeperkt publiceren en de betaalde upgrade omzeilen.
+  if (targetStatus === "PUBLISHED") {
+    const [activeCount, subscription, freePlan] = await Promise.all([
+      prisma.job.count({
+        where: { company: { userId: actor.id }, status: "PUBLISHED", id: { not: jobId } },
+      }),
+      prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
+      prisma.plan.findUnique({ where: { key: "FREE" } }),
+    ]);
+    const activePlanMax = subscription?.status === "ACTIVE" ? subscription.plan.maxJobs : undefined;
+    const maxJobs = activePlanMax ?? freePlan?.maxJobs ?? 1;
+    if (!canApply(maxJobs, activeCount)) {
+      return {
+        error: `Je hebt het maximum aantal actieve opdrachten (${maxJobs}) van je plan bereikt. Upgrade je abonnement voor meer.`,
+      };
+    }
+  }
+
   await prisma.job.update({
     where: { id: jobId },
     data: {
