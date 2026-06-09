@@ -45,6 +45,23 @@ export function ownsViaTenant(
 }
 
 /**
+ * Mag deze viewer een aan een tenant gebonden profiel/entiteit zien? Een entiteit zonder tenant
+ * (`tenantId` null) is niet tenant-afgeschermd → true (overige zichtbaarheidsregels, zoals
+ * visibility==PUBLIC, gelden daar los van). Anders alleen de eigenaar, een ADMIN, of iemand binnen
+ * dezelfde tenant — sluit cross-tenant én onauthenticated inzage uit, consistent met
+ * visibleFreelancersWhere. Pure functie.
+ */
+export function tenantEntityVisibleTo(
+  viewer: Actor | null | undefined,
+  entityTenantId: string | null | undefined,
+  ownerUserId: string,
+): boolean {
+  if (!entityTenantId) return true;
+  if (viewer?.id === ownerUserId) return true;
+  return ownsViaTenant(viewer, entityTenantId);
+}
+
+/**
  * Where-fragment voor zichtbare opdrachten/diensten bij browse + matching ("gesloten per tenant").
  * - ADMIN: `{}` (alles)
  * - tenant-gebonden gebruiker: alleen diensten van de eigen tenant
