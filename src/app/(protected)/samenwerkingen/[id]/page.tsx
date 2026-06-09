@@ -617,7 +617,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             <ul className="divide-y divide-border">
               {sharedCredentials.map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-3 py-2">
-                  <span className="min-w-0">
+                  <span className="min-w-0 truncate">
                     <span className="font-medium">{c.title}</span>
                     <span className="ml-2 text-xs text-muted-foreground">
                       {CREDENTIAL_TYPE_LABEL[c.type] ?? c.type}
@@ -724,11 +724,13 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                   <CardContent className="space-y-2 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="min-w-0 truncate font-medium">
                             {p.type === "HOURS" ? "Urenstaat" : p.milestoneTitle || "Oplevering"}
                           </span>
-                          <Badge variant={st.variant}>{st.label}</Badge>
+                          <Badge variant={st.variant} className="shrink-0">
+                            {st.label}
+                          </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {p.type === "HOURS"

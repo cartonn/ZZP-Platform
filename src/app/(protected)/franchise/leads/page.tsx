@@ -114,9 +114,9 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
               className="card-interactive flex items-start justify-between gap-3 p-4"
             >
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <p className="truncate font-medium">{l.organizationName}</p>
-                  <Badge variant={LEAD_STATUS_VARIANT[l.status as LeadStatus]}>
+                  <Badge variant={LEAD_STATUS_VARIANT[l.status as LeadStatus]} className="shrink-0">
                     {LEAD_STATUS_LABEL[l.status as LeadStatus]}
                   </Badge>
                 </div>

@@ -126,9 +126,11 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         <Card>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl font-semibold tracking-tight">{profile.user.name}</h1>
+                  <h1 className="break-words text-xl font-semibold tracking-tight">
+                    {profile.user.name}
+                  </h1>
                   <TrustBadge level={trust.level} />
                 </div>
                 {profile.headline && (
@@ -174,7 +176,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <h2 className="text-sm font-medium">Skills</h2>
             <div className="flex flex-wrap gap-2">
               {profile.skills.map((s) => (
-                <Badge key={s.skillId} variant="muted">
+                <Badge key={s.skillId} variant="muted" className="max-w-full break-words">
                   {s.skill.name}
                 </Badge>
               ))}
@@ -187,7 +189,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <h2 className="text-sm font-medium">Branches</h2>
             <div className="flex flex-wrap gap-2">
               {profile.industries.map((i) => (
-                <Badge key={i.industryId} variant="muted">
+                <Badge key={i.industryId} variant="muted" className="max-w-full break-words">
                   {i.industry.name}
                 </Badge>
               ))}
@@ -200,7 +202,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <h2 className="text-sm font-medium">Geverifieerde certificaten</h2>
             <div className="flex flex-wrap gap-2">
               {publicCredentials.map((c) => (
-                <Badge key={c.id} variant="success">
+                <Badge key={c.id} variant="success" className="max-w-full break-words">
                   {c.title}
                 </Badge>
               ))}

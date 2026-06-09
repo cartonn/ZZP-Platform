@@ -634,7 +634,7 @@ export default async function DashboardPage() {
                 const rooster = e.weekdays?.length ? formatWeekdays(e.weekdays) : null;
                 return (
                   <li key={e.collaborationId}>
-                    <Badge variant="muted">
+                    <Badge variant="muted" className="block max-w-[18rem] truncate">
                       {e.clientName} · {rooster ?? TIMING_LABEL[e.timing] ?? "Loopt"}
                     </Badge>
                   </li>

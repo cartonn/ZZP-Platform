@@ -146,23 +146,25 @@ export default async function SamenwerkingenPage() {
               <Card key={c.id}>
                 <CardContent className="space-y-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Link
                           href={`/opdrachten/${c.job.id}`}
-                          className="font-medium underline-offset-4 hover:underline"
+                          className="min-w-0 truncate font-medium underline-offset-4 hover:underline"
                         >
                           {c.job.title}
                         </Link>
-                        <Badge variant={STATUS[status].variant}>{STATUS[status].label}</Badge>
-                        {dba && dba.level !== "LAAG" && (
-                          <Badge
-                            variant={dba.level === "HOOG" ? "warning" : "muted"}
-                            title="DBA-aandachtspunt — geen juridisch oordeel"
-                          >
-                            {DBA_LEVEL_LABEL[dba.level]}
-                          </Badge>
-                        )}
+                        <span className="flex shrink-0 items-center gap-2">
+                          <Badge variant={STATUS[status].variant}>{STATUS[status].label}</Badge>
+                          {dba && dba.level !== "LAAG" && (
+                            <Badge
+                              variant={dba.level === "HOOG" ? "warning" : "muted"}
+                              title="DBA-aandachtspunt — geen juridisch oordeel"
+                            >
+                              {DBA_LEVEL_LABEL[dba.level]}
+                            </Badge>
+                          )}
+                        </span>
                       </div>
                       <p className="text-sm text-muted-foreground">Met {counterparty}</p>
                     </div>
