@@ -101,3 +101,31 @@ na adversariële verificatie (confidence ≥ 0,6). **Alle 17 gefixt** (#245–#2
 - [x] (#265) **AUTHZ** — Compliance-dossier lekte totaaltal incl. DRAFT/REJECTED-certificaten. Query gefilterd op VERIFIED + EXPIRED.
 - [x] (#265) **COPY** — "Certificaat vernieuwt binnenkort" → "verloopt binnenkort".
 - [x] (#263) **UX** — Notitie loggen behield verlopen opvolgdatum → lead bleef "te laat". Alleen toekomstige datum voorgevuld.
+
+## Iteratie 3 — 2026-06-09 (code-flow-sweep, nog-ongedekte flows)
+
+6 hunters (job-posting/profiel/academie/billing/admin-import/cross-cutting) → 15 bevindingen,
+**15 bevestigd**, **13 gefixt** (#268–#276), 2 bewust geparkeerd. Diminishing returns: hele app gedekt.
+
+### HOOG
+
+- [x] (#268) **AUTHZ** — `saveJob` zette geen `tenantId` → zelf-geplaatste opdracht van een tenant-CLIENT lekte platform-breed (cross-tenant zichtbaar/reageerbaar + PII in suggesties). Denormaliseert nu `company.tenantId`.
+- [x] (#269) **BUG** — Beschikbaarheidsvenster "t/m vandaag" verdween de hele laatste dag (einddatum als middernacht-UTC vergeleken). Inclusieve einddatum + UNAVAILABLE-dominantie over overlappend AVAILABLE-venster.
+- [x] (#270) **AUTHZ** — DUO/BIG-zelfverificatie zonder rate-limit (brute-force op code/BIG-nummer). `credentialVerifyRateLimiter` (10/uur/ZZP'er).
+
+### MIDDEN
+
+- [x] (#271) **AUTHZ** — Plan-limiet `maxJobs` nergens afgedwongen → gratis opdrachtgever kon onbeperkt publiceren. Handhaving bij PUBLISHED (spiegelt maxApplications).
+- [x] (#273) **DEADEND** — Franchiser kon eigen uitgezette dienst niet sluiten/heropenen (alleen CLIENT/admin). Tenant-scoped `setDienstStatus` + knoppen.
+- [x] (#272) **GELD** — `setOrtProfileAction` wijzigde factuur-bepalende ORT-toeslagen zonder audit. `COLLABORATION_ORT_SET`-audit toegevoegd.
+- [x] (#275) **UX** — Cursus un-publishen/archiveren ontnam cursisten zonder bevestiging toegang. ConfirmButton met waarschuwing.
+- [x] (#276) **BUG** — Monitoring vuurde dubbel incident op de UTC-uurgrens (rollend venster vs uur-dedupeKey). Tijdloze `groupKey` + recent-onderdrukking.
+- [ ] (geparkeerd — eigenaar/infra) **BUG** — `ROLE_CHANGE_BURST`-detector + `classifyCves` kunnen nooit vuren: rolwijziging-feature is geparkeerd (iter-1) en CVE-ingest vereist eigenaar-infra. Detectoren staan correct gestaged; vuren zodra die landen.
+
+### LAAG
+
+- [x] (#272) **AUTHZ** — Import stuurde temp-wachtwoord óók in de payload bij geslaagde mail. `tempPassword` nu optioneel, alleen bij niet-gemaild.
+- [x] (#274) **GELD** — Tarief €0 geaccepteerd ("€ 0/uur"). Indien ingevuld nu minstens €1.
+- [x] (#269) **COPY** — Engelse "Invalid date" bij beschikbaarheid → NL-foutboodschap.
+- [x] (#274) **BUG** — `SUBSCRIPTION_TRANSITIONS` had CANCELLED terminaal terwijl her-aanmelding het al heractiveert. Map staat CANCELLED→PENDING/ACTIVE nu toe.
+- [ ] (geparkeerd — LAAG, geen dataverlies) **UX** — Gearchiveerde cursus niet meer in te zien voor wie 'm voltooide (canView blokkeert niet-PUBLISHED). Voltooiingen blijven bewaard + admin-zichtbaar; schone fix vereist completion-state door meerdere read-paden te rijgen voor marginale waarde.
