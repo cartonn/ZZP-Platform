@@ -46,21 +46,26 @@ export async function setBillingStatusAction(id: string, to: PlatformBillingStat
   });
   if (!inv) throw new Error("Factuur niet gevonden.");
 
+  const from = inv.status as PlatformBillingStatus;
   try {
-    assertPlatformBillingTransition(inv.status as PlatformBillingStatus, to);
+    assertPlatformBillingTransition(from, to);
   } catch (e) {
     if (e instanceof PlatformBillingTransitionError) throw new Error(e.message);
     throw e;
   }
 
-  await prisma.platformBillingInvoice.update({
-    where: { id },
+  // Concurrency-guard (zoals de verificatieflow): de overgang slaagt alleen als de status nog
+  // exact `from` is. Zo kunnen twee gelijktijdige beslissingen (twee tabs, of straks een
+  // betaalprovider-webhook + admin-klik) niet allebei dezelfde transitie doorzetten.
+  const res = await prisma.platformBillingInvoice.updateMany({
+    where: { id, status: from },
     data: {
       status: to,
       ...(to === "SENT" ? { issuedAt: new Date() } : {}),
       ...(to === "PAID" ? { paidAt: new Date() } : {}),
     },
   });
+  if (res.count === 0) throw new Error("Deze factuur is intussen al bijgewerkt.");
   await audit({
     actorId: actor.id,
     action: "PLATFORM_BILLING_STATUS_SET",

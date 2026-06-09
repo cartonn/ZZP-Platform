@@ -65,7 +65,7 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title="Gebruikers"
-        description="Beheer accounts: rol, status en schorsing."
+        description="Beheer accounts: status, schorsing en anonimisering. De rol staat per account vermeld."
         action={
           <Link
             href="/admin/import"
