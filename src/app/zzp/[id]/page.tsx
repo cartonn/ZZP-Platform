@@ -7,9 +7,11 @@ import { prisma } from "@/lib/db";
 import { profileVisibleTo } from "@/lib/profile";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
+import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import {
   type Availability,
   type AvailabilityWindowType,
+  type CredentialType,
   type Visibility,
   type WorkMode,
 } from "@/lib/enums";
@@ -85,6 +87,15 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const trust = computeTrustLevel({
     identityVerified: !!profile.user.identityVerifiedAt,
     verifiedCredentialCount: verifiedActive.length,
+    // De query laadt alleen VERIFIED-certificaten; allSatisfied = beide verplichte docs (VOG +
+    // verzekering) zijn geldig geverifieerd. Ontbreekt er één, dan geen "VOLLEDIG"-badge publiek.
+    mandatoryDocsComplete: mandatoryDocuments(
+      verifiedActive.map((c) => ({
+        type: c.type as CredentialType,
+        status: "VERIFIED",
+        expiresAt: c.expiresAt,
+      })),
+    ).allSatisfied,
   });
 
   return (

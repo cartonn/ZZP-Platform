@@ -29,4 +29,24 @@ describe("computeTrustLevel", () => {
     expect(r.missing).toEqual([]);
     expect(r.reasons).toContain("1 geverifieerd certificaat");
   });
+
+  it("zakt naar DEELS als een verplicht document ontbreekt, ook met identiteit + certificaat", () => {
+    const r = computeTrustLevel({
+      identityVerified: true,
+      verifiedCredentialCount: 1,
+      mandatoryDocsComplete: false,
+    });
+    expect(r.level).toBe("DEELS");
+    expect(r.missing).toContain("Lever je verplichte documenten aan (VOG en verzekering)");
+  });
+
+  it("blijft VOLLEDIG als de verplichte documenten compleet zijn", () => {
+    expect(
+      computeTrustLevel({
+        identityVerified: true,
+        verifiedCredentialCount: 1,
+        mandatoryDocsComplete: true,
+      }).level,
+    ).toBe("VOLLEDIG");
+  });
 });
