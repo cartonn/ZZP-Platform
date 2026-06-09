@@ -23,7 +23,10 @@ export function StatusControl({
   organizationName: string;
 }) {
   const [selected, setSelected] = useState<LeadStatus>(status);
-  const options: LeadStatus[] = [status, ...LEAD_TRANSITIONS[status]];
+  // "Klant" is bewust GEEN losse dropdown-overgang: een lead wordt klant via de onboarding-wizard
+  // (die een echte opdrachtgever aanmaakt). Direct op KLANT zetten gaf een doodloop — geen
+  // opdrachtgever, terminale status, CTA verdwenen. Daarom hier uitgefilterd; de "Wordt klant"-CTA blijft.
+  const options: LeadStatus[] = [status, ...LEAD_TRANSITIONS[status]].filter((s) => s !== "KLANT");
   const needsReason = leadStatusRequiresReason(selected) && selected !== status;
   const isTerminal = LEAD_TRANSITIONS[status].length === 0;
 
