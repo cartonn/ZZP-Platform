@@ -246,6 +246,12 @@ export interface InvoiceSubmittedCtx {
   clientUserId: string;
   now: Date;
   actorId: string | null;
+  /**
+   * Heraanbieding na afkeuring (REJECTED→SUBMITTED): het factuurnummer is al toegekend en de
+   * omzet/debiteuren/af-te-dragen-BTW zijn al geboekt bij de éérste indiening (afkeuring boekt niet
+   * terug). Dan GEEN nieuwe grootboekboekingen — anders telt de administratie de factuur dubbel.
+   */
+  resubmit?: boolean;
 }
 
 export function planInvoiceSubmittedEvent(ctx: InvoiceSubmittedCtx): CascadeEffects {
@@ -259,15 +265,19 @@ export function planInvoiceSubmittedEvent(ctx: InvoiceSubmittedCtx): CascadeEffe
     to: "SUBMITTED",
     set: { partyInvoiceNumber: ctx.partyInvoiceNumber, issuedAt: ctx.now },
   });
-  fx.postings.push(
-    ...planInvoiceSubmitted({
-      issuer: "FREELANCER",
-      counterparty: "CLIENT",
-      subtotalCents: ctx.invoice.subtotalCents,
-      vatCents: ctx.invoice.vatCents,
-      totalCents: ctx.invoice.totalCents,
-    }),
-  );
+  // Alleen bij de éérste indiening boeken: omzet/debiteuren/BTW worden één keer erkend. Een
+  // heraanbieding na afkeuring boekt niet opnieuw (afkeuring boekte ook niet terug) → geen dubbeltelling.
+  if (!ctx.resubmit) {
+    fx.postings.push(
+      ...planInvoiceSubmitted({
+        issuer: "FREELANCER",
+        counterparty: "CLIENT",
+        subtotalCents: ctx.invoice.subtotalCents,
+        vatCents: ctx.invoice.vatCents,
+        totalCents: ctx.invoice.totalCents,
+      }),
+    );
+  }
   fx.notifications.push({
     userId: ctx.clientUserId,
     type: "INVOICE_SUBMITTED",
