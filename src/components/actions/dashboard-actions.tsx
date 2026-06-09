@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { TaskRows } from "@/components/actions/action-list";
+import { TaskHero, TaskRows } from "@/components/actions/action-list";
 import { type PendingTask } from "@/lib/actions/tasks";
 import { type DrawerData } from "@/lib/actions/drawer-data";
 
@@ -45,7 +45,10 @@ export function DashboardActions({
         </div>
       ) : (
         <>
-          <TaskRows tasks={shown} drawerData={drawerData} />
+          {/* De meest urgente taak als held-kaart (de ranking komt al gesorteerd binnen),
+              de rest als compacte rijen — antwoord op "wat nu?" zonder te scannen. */}
+          {shown[0] ? <TaskHero task={shown[0]} drawerData={drawerData} /> : null}
+          {shown.length > 1 ? <TaskRows tasks={shown.slice(1)} drawerData={drawerData} /> : null}
           {rest > 0 ? (
             <Link
               href="/acties"
