@@ -260,6 +260,15 @@ export async function setOrtProfileAction(
       ortCustomRates: customRates,
     },
   });
+  // De ORT-toeslagen bepalen direct het geld op elke toekomstige prestatie/factuur — een geld-
+  // bepalende wijziging hoort in het auditspoor (CLAUDE.md regel 5), net als de buur-acties hier.
+  await audit({
+    actorId: actor.id,
+    action: "COLLABORATION_ORT_SET",
+    entityType: "Collaboration",
+    entityId: collaborationId,
+    metadata: { profile: isCustom ? "MAATWERK" : sector, ...(isCustom ? { customRates } : {}) },
+  });
   refresh(collaborationId);
 }
 
