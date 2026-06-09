@@ -55,8 +55,23 @@ Wet-DBA-verdedigbaarheid) luider en eerder in de funnel zichtbaar.
 - [x] (#240) **M** Rijkere facet-discovery + resultaattelling op /opdrachten — telling + branche/werkmodus/tariefrange/bevoegdheid/skills/sorteren bestonden al; locatie-facet (plaats/regio) toegevoegd
 - [x] (#243) **M** Acceptatie-/grace-venster met auto-akkoord-timer op de uren→prestatie-stap — autoApprovePerformance (SYSTEM, idempotent, zelfde factuur-cascade) + geplande taak in run-all; ENV-gated `PERFORMANCE_GRACE_DAYS`, standaard UIT (auto-factuur = financieel beleid). Follow-up: deadline-indicator in UI wanneer ingeschakeld
 - [x] (#242) **M** Live, geanonimiseerd activiteits-/liquiditeitssignaal op dashboard (échte data) — ZZP'er ziet hoeveelheid werk (open + nieuw deze maand), opdrachtgever ziet aanbod (beschikbaar + geverifieerd); verbergt zich zonder activiteit
-- [ ] **M** Multi-apply met auto-opschoning van concurrerende reacties bij acceptatie
-- [ ] **L** Web-push + één-tap reageren op ad-hoc diensten (PWA)
+
+> De acht items hierboven zijn gebouwd (#237–#243). De twee onderstaande zijn naar
+> "Geparkeerd" verplaatst omdat ze een product-/infra-besluit van de eigenaar vergen
+> (zie onder) — niet omdat ze technisch onhaalbaar zijn.
+
+### Geparkeerd — PRODUCT/INFRA-besluit (eigenaar-keuze, niet stilzwijgend bouwen)
+
+- **Multi-apply met auto-opschoning van concurrerende reacties bij acceptatie** — `Job` is impliciet
+  single-hire (geen vacature-/posities-veld) en de kloof tussen _accepteren_ en _contract tekenen_ is
+  bewust: een opdrachtgever houdt zijn shortlist als backup tot de handtekening staat. Auto-opschonen
+  raakt daarom twee open keuzes: (a) **trigger** — bij accept (te vroeg, contract nog niet getekend)
+  of pas bij `signContract → ACTIVE` (positie écht gevuld); (b) **wat** — de eigen reacties van de
+  ZZP'er intrekken (kost hem kansen) óf de andere kandidaten van die opdracht afwijzen (raakt
+  multi-hire/backup-strategie). Beide zijn UX/product-beslissingen, geen veilige default.
+- **Web-push + één-tap reageren op ad-hoc diensten (PWA)** — vereist eigenaar-infra: VAPID-sleutels,
+  een service worker en push-subscriptie-opslag + toestemming. Buiten wat een agent veilig en
+  zelfstandig kan aanzetten zonder productie-secrets.
 
 ### Geparkeerd — STRATEGISCH/PRIJS (eigenaar-besluit, niet stilzwijgend bouwen)
 
