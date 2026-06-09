@@ -491,6 +491,96 @@ export async function approvePerformance(actor: Actor, performanceId: string): P
   } catch {}
 }
 
+/**
+ * Systeem-goedkeuring na het grace-venster: een ingediende prestatie die de opdrachtgever niet op
+ * tijd beoordeelde wordt automatisch goedgekeurd, zodat de ZZP'er kan factureren ondanks een stille
+ * opdrachtgever. Geen actor (SYSTEM/null in de audit). Spiegelt approvePerformance — dezelfde
+ * factuur-cascade en dezelfde dedupeKey, dus een dubbele run is een nette no-op. Idempotent: een
+ * prestatie die niet (meer) INGEDIEND is, wordt overgeslagen.
+ */
+export async function autoApprovePerformance(performanceId: string): Promise<void> {
+  const perf = await loadPerformance(performanceId);
+  if (perf.status !== "SUBMITTED") return; // alleen ingediende prestaties; idempotent
+  await assertNotDisputed(perf.collaborationId);
+  const effects = planPerformanceApproved({
+    performance: {
+      id: performanceId,
+      status: perf.status,
+      type: perf.type,
+      hours: perf.hours,
+      rateCents: perf.rateCents,
+      amountCents: perf.amountCents,
+      ortSegments: perf.ortSegments,
+      ortRates: perf.ortSegments?.length
+        ? resolveOrtRates({ ortProfile: perf.ortProfile, ortCustomRates: perf.ortCustomRates })
+        : null,
+      collaborationId: perf.collaborationId,
+    },
+    freelancerUserId: perf.freelancerUserId,
+    clientUserId: perf.clientUserId,
+    issuerKey: perf.freelancerUserId,
+    vatRegime: DEFAULT_VAT_REGIME,
+    correlationId: perf.collaborationId,
+    now: new Date(),
+    actorId: null,
+  });
+  await persistEventAndEffects(
+    {
+      type: "PERFORMANCE_APPROVED",
+      actorRole: "SYSTEM",
+      actorId: null,
+      subjectType: "Performance",
+      subjectId: performanceId,
+      correlationId: perf.collaborationId,
+      // Dezelfde dedupeKey als de handmatige goedkeuring: een prestatie kan nooit twee keer
+      // worden goedgekeurd (geen dubbele concept-factuur), ongeacht wie/wat de overgang trekt.
+      dedupeKey: `performance-approved-${performanceId}`,
+    },
+    effects,
+    {
+      owners: { FREELANCER: perf.freelancerUserId, CLIENT: perf.clientUserId },
+      correlationId: perf.collaborationId,
+      performanceId,
+    },
+  );
+
+  // Transparantie: beide partijen weten dat de goedkeuring automatisch (na het venster) gebeurde.
+  try {
+    await prisma.notification.createMany({
+      data: [
+        {
+          userId: perf.clientUserId,
+          type: "PERFORMANCE_AUTO_APPROVED",
+          title: "Prestatie automatisch goedgekeurd",
+          body: "Je hebt een ingediende prestatie niet op tijd beoordeeld; deze is nu automatisch goedgekeurd.",
+          link: collabLink(perf.collaborationId),
+        },
+        {
+          userId: perf.freelancerUserId,
+          type: "PERFORMANCE_AUTO_APPROVED",
+          title: "Je prestatie is automatisch goedgekeurd",
+          body: "De opdrachtgever reageerde niet binnen het venster; je kunt nu factureren.",
+          link: collabLink(perf.collaborationId),
+        },
+      ],
+    });
+  } catch {}
+
+  // Best-effort e-mail naar de ZZP'er (zelfde mail als bij handmatige goedkeuring).
+  try {
+    const meta = await loadCollabMeta(perf.collaborationId);
+    if (meta) {
+      await getMailSender().send(
+        buildPerformanceApprovedEmail({
+          recipient: meta.freelancer,
+          jobTitle: meta.jobTitle,
+          link: collabLink(perf.collaborationId),
+        }),
+      );
+    }
+  } catch {}
+}
+
 // --- Event B2' — Prestatie afkeuren ----------------------------------------
 export async function rejectPerformance(
   actor: Actor,
