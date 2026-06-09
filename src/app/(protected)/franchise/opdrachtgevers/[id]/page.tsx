@@ -128,7 +128,7 @@ export default async function OpdrachtgeverDetailPage({
                         {d.jobs.map((j) => (
                           <li key={j.id} className="flex items-center justify-between gap-3 py-2">
                             <Link
-                              href={`/opdrachten/${j.id}`}
+                              href={`/franchise/diensten/${j.id}`}
                               className="focus-ring min-w-0 truncate text-sm hover:underline"
                             >
                               {j.title}
