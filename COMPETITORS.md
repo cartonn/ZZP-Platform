@@ -52,7 +52,7 @@ Wet-DBA-verdedigbaarheid) luider en eerder in de funnel zichtbaar.
 - [x] (#238) **S** Verificatie-keurmerk-rij (VOG ✓ · BIG ✓ · Diploma ✓) op kandidaat-/ZZP-profiel — /zzp/[id], /kandidaten
 - [x] (#237) **S** ORT-foutpreventie-indicator ("toeslagen automatisch berekend") op prestatie/factuur — /samenwerkingen/[id], /prestaties, /facturen
 - [x] (#239) **S** Zekerheids-/risk-reversal-blok op opdracht-detail ("certificaten vooraf geverifieerd") — /opdrachten/[id]
-- [ ] **M** Rijkere facet-discovery + resultaattelling op /opdrachten
+- [x] (#240) **M** Rijkere facet-discovery + resultaattelling op /opdrachten — telling + branche/werkmodus/tariefrange/bevoegdheid/skills/sorteren bestonden al; locatie-facet (plaats/regio) toegevoegd
 - [ ] **M** Acceptatie-/grace-venster met auto-akkoord-timer op de uren→prestatie-stap
 - [ ] **M** Live, geanonimiseerd activiteits-/liquiditeitssignaal op dashboard (échte data)
 - [ ] **M** Multi-apply met auto-opschoning van concurrerende reacties bij acceptatie

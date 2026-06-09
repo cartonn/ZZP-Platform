@@ -50,6 +50,7 @@ export interface JobFilters {
   q: string;
   skillIds: string[];
   industryId?: string;
+  location?: string;
   workMode?: WorkMode;
   rateMin?: number;
   rateMax?: number;
@@ -96,6 +97,7 @@ export function normalizeJobFilters(params: RawParams): JobFilters {
 
   const page = Math.max(1, toPositiveInt(first(params.page)) ?? 1);
   const industryId = first(params.industryId)?.trim() || undefined;
+  const location = first(params.location)?.trim().slice(0, 80) || undefined;
 
   return {
     q: (first(params.q) ?? "").trim().slice(0, 100),
@@ -107,6 +109,7 @@ export function normalizeJobFilters(params: RawParams): JobFilters {
       ),
     ],
     industryId,
+    location,
     workMode,
     rateMin,
     rateMax,

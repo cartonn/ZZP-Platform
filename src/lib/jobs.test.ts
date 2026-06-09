@@ -76,4 +76,11 @@ describe("normalizeJobFilters", () => {
     expect(normalizeJobFilters({ skillIds: "solo" }).skillIds).toEqual(["solo"]);
     expect(normalizeJobFilters({ skillIds: ["x", "y"] }).skillIds).toEqual(["x", "y"]);
   });
+
+  it("trimt en begrenst de locatie-filter; leeg wordt undefined", () => {
+    expect(normalizeJobFilters({ location: "  Amsterdam  " }).location).toBe("Amsterdam");
+    expect(normalizeJobFilters({ location: "   " }).location).toBeUndefined();
+    expect(normalizeJobFilters({}).location).toBeUndefined();
+    expect(normalizeJobFilters({ location: "x".repeat(200) }).location).toHaveLength(80);
+  });
 });

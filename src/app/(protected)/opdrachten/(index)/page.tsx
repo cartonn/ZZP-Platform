@@ -139,6 +139,7 @@ async function BrowseJobs({
   const where: Prisma.JobWhereInput = { status: "PUBLISHED", AND: [visibleJobsWhere(actor)] };
   if (f.q) where.OR = [{ title: { contains: f.q } }, { description: { contains: f.q } }];
   if (f.industryId) where.industryId = f.industryId;
+  if (f.location) where.location = { contains: f.location };
   if (f.workMode) where.workMode = f.workMode;
   if (f.rateMin != null) where.rateMax = { gte: f.rateMin };
   if (f.rateMax != null) where.rateMin = { lte: f.rateMax };
