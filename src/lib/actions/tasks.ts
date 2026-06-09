@@ -262,7 +262,9 @@ export function credentialFixTask(
     title:
       cause === "rejected"
         ? "Afgewezen certificaat opnieuw indienen"
-        : "Certificaat vernieuwt binnenkort",
+        : // Een certificaat vernieuwt zichzelf niet — het verloopt; consistent met de notificatie
+          // ("Certificaat verloopt binnenkort") en de next-action-engine.
+          "Certificaat verloopt binnenkort",
     subtitle: title,
     tone: "attention",
     priority: cause === "rejected" ? P.credentialRejected : P.credentialExpiring,

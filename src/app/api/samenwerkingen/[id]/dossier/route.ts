@@ -41,7 +41,13 @@ export async function GET(
         select: {
           userId: true,
           user: { select: { name: true } },
-          credentials: { select: { type: true, title: true, status: true, verifiedAt: true } },
+          // Alleen beoordeelde (geverifieerd/verlopen) certificaten: het dossier mag het bestaan van
+          // concept-/afgewezen/in-behandeling-pogingen van de ZZP'er niet aan de opdrachtgever lekken
+          // via het totaaltal ("X van N"). De verificatiesectie gebruikt enkel VERIFIED + EXPIRED.
+          credentials: {
+            where: { status: { in: ["VERIFIED", "EXPIRED"] } },
+            select: { type: true, title: true, status: true, verifiedAt: true },
+          },
         },
       },
       performances: { select: { description: true, status: true, approvedAt: true } },
