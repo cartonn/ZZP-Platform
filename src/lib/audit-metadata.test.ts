@@ -9,9 +9,21 @@ describe("formatAuditMetadata", () => {
     expect(s).toBe("Subtotaal € 960,00 · Btw € 201,60 · Totaal € 1.161,60");
   });
 
-  it("labelt bekende sleutels en toont overige waarden", () => {
+  it("labelt bekende sleutels en vertaalt status-waarden naar NL", () => {
     expect(formatAuditMetadata(JSON.stringify({ email: "a@b.nl", to: "PAID" }))).toBe(
-      "E-mail: a@b.nl · Naar: PAID",
+      "E-mail: a@b.nl · Naar: Betaald",
+    );
+  });
+
+  it("vertaalt from/to-statusovergangen volledig naar NL", () => {
+    expect(formatAuditMetadata(JSON.stringify({ from: "SUBMITTED", to: "VERIFIED" }))).toBe(
+      "Van: Ingediend · Naar: Geverifieerd",
+    );
+  });
+
+  it("laat onbekende waarden ongewijzigd", () => {
+    expect(formatAuditMetadata(JSON.stringify({ planKey: "GROEI", party: "FREELANCER" }))).toBe(
+      "Plan: GROEI · Partij: FREELANCER",
     );
   });
 
