@@ -10,7 +10,10 @@ import { loginRateLimiter } from "@/lib/rate-limit";
 import { type UserRole } from "@/lib/enums";
 
 const credentialsSchema = z.object({
-  email: z.string().email(),
+  // Registratie slaat e-mail genormaliseerd (trim + lowercase) op; de login-lookup MOET hetzelfde
+  // normaliseren, anders matcht 'Jan@Bedrijf.nl' het opgeslagen 'jan@bedrijf.nl' niet op een
+  // hoofdlettergevoelige unieke kolom (PostgreSQL) → onterechte buitensluiting.
+  email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1),
 });
 
