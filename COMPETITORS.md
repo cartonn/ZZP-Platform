@@ -53,7 +53,7 @@ Wet-DBA-verdedigbaarheid) luider en eerder in de funnel zichtbaar.
 - [x] (#237) **S** ORT-foutpreventie-indicator ("toeslagen automatisch berekend") op prestatie/factuur — /samenwerkingen/[id], /prestaties, /facturen
 - [x] (#239) **S** Zekerheids-/risk-reversal-blok op opdracht-detail ("certificaten vooraf geverifieerd") — /opdrachten/[id]
 - [x] (#240) **M** Rijkere facet-discovery + resultaattelling op /opdrachten — telling + branche/werkmodus/tariefrange/bevoegdheid/skills/sorteren bestonden al; locatie-facet (plaats/regio) toegevoegd
-- [ ] **M** Acceptatie-/grace-venster met auto-akkoord-timer op de uren→prestatie-stap
+- [x] (#243) **M** Acceptatie-/grace-venster met auto-akkoord-timer op de uren→prestatie-stap — autoApprovePerformance (SYSTEM, idempotent, zelfde factuur-cascade) + geplande taak in run-all; ENV-gated `PERFORMANCE_GRACE_DAYS`, standaard UIT (auto-factuur = financieel beleid). Follow-up: deadline-indicator in UI wanneer ingeschakeld
 - [x] (#242) **M** Live, geanonimiseerd activiteits-/liquiditeitssignaal op dashboard (échte data) — ZZP'er ziet hoeveelheid werk (open + nieuw deze maand), opdrachtgever ziet aanbod (beschikbaar + geverifieerd); verbergt zich zonder activiteit
 - [ ] **M** Multi-apply met auto-opschoning van concurrerende reacties bij acceptatie
 - [ ] **L** Web-push + één-tap reageren op ad-hoc diensten (PWA)

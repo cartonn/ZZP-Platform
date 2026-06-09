@@ -124,6 +124,23 @@ export const REMINDERS = {
   paymentBeforeDueDays: [5, 1] as const,
 } as const;
 
+// --- Acceptatie-/grace-venster voor ingediende prestaties (§4 Event B/B2) ---
+// Een ingediende prestatie die de opdrachtgever niet binnen dit aantal dagen beoordeelt, wordt
+// automatisch goedgekeurd (zodat de ZZP'er kan factureren ondanks een stille opdrachtgever).
+// Dit is een FINANCIEEL beleid (auto-goedkeuring genereert een concept-factuur) en staat daarom
+// standaard UIT: alleen actief wanneer de eigenaar PERFORMANCE_GRACE_DAYS > 0 zet. 0/leeg = uit.
+export function parseGraceDays(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "") return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.floor(n);
+}
+
+/** Geconfigureerd grace-venster in dagen; 0 = uitgeschakeld (geen auto-goedkeuring). */
+export function performanceGraceDays(): number {
+  return parseGraceDays(process.env.PERFORMANCE_GRACE_DAYS);
+}
+
 // --- DBA-monitoring drempels & teksten (§6, configureerbaar) ----------------
 export const DBA_THRESHOLDS = {
   durationSignalMonths: 6, //        eerste duursignaal
