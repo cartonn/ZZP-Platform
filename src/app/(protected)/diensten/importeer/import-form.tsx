@@ -29,7 +29,7 @@ export function ImportForm({
             <select
               name="collaborationId"
               required
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
               <option value="">Kies een samenwerking…</option>
               {collaborationOptions.map((o) => (
@@ -47,7 +47,7 @@ export function ImportForm({
               required
               rows={10}
               placeholder={`start;eind;omschrijving\n2024-01-15T22:00;2024-01-16T06:00;Nachtdienst`}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs leading-relaxed"
+              className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs leading-relaxed"
             />
           </label>
 

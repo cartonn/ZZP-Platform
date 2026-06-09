@@ -67,7 +67,7 @@ export function ModelAgreementCard({
               <select
                 name="agreementType"
                 defaultValue={agreementType}
-                className="rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground"
+                className="focus-ring rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground"
               >
                 {MODEL_AGREEMENT_TYPES.map((t) => (
                   <option key={t} value={t}>
