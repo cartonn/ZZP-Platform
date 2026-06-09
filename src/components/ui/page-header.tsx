@@ -14,7 +14,7 @@ export function PageHeader({
 }) {
   const heading = (
     <>
-      <h1 className="break-words text-xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="break-words font-display text-2xl font-semibold tracking-tight">{title}</h1>
       {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
     </>
   );

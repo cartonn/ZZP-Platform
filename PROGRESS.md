@@ -1103,4 +1103,23 @@ cat)`. DomainEvent/Notification/AuditLog en admin-escalaties ongemoeid. Transact
   prettier ✓. E2e overgeslagen (geen browser-channel in de routine-omgeving, net als CI).
   Linear: ZZP2-41. Geen "AI" in UI/teksten/comments.
 
+## Sessie — Vakwerk-ontwerptaal (fase 1) — 2026-06-09
+
+Eigenaar koos de lichte richting met pastel achtergrond; Vakwerk is nu het standaardpalet
+(ADR 0007, routekaart in `docs/PLAN-WERELDKLASSE.md`, referentie `docs/ontwerpen/vakwerk.html`).
+
+- **Tokens:** pastelblauw papier + witte vellen + klein-blauw + zegelgroen in `:root`/`.dark`
+  (`globals.css`); bloei/elektrisch-blauw blijven werken. Radius 0.75rem.
+- **Typografie:** Inter / Schibsted Grotesk / JetBrains Mono via `next/font` (`layout.tsx`),
+  `font-display`/`font-mono` in Tailwind. PageHeader-h1 → display-font.
+- **Nieuwe primitives (+ geteste lib-logica):** `Seal`, `MatchMeter` (`lib/meter.ts`),
+  `Sparkline` (`lib/sparkline.ts`), `CascadeStepper`, `TurnBanner`, `Table`.
+- **Backend-slice:** `lib/revenue.ts` — maandelijkse omzetreeks (Europe/Amsterdam, factuurdatum)
+  - delta; gevoed door betaalde facturen (cascade + legacy).
+- **Toegepast:** app-shell (witte zijbalk/topbalk op pastel canvas), dashboard (display-kop,
+  overline-labels, mono-KPI's, omzet-sparkline als 4e ZZP-stat, matchmeters bij matches),
+  samenwerkingsdetail (CascadeStepper + TurnBanner i.p.v. handgerolde stepper/kaart).
+- **Checks:** typecheck/lint/test (125 bestanden, 1272 tests)/build groen; visueel geverifieerd
+  (licht + donker, dashboard + werkproces) met de demo-seed.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

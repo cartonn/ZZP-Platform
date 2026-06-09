@@ -33,7 +33,8 @@ Bron: branch `claude/gifted-ramanujan-4u3uk7` (tokens/fonts, seal, match-meter,
 cascade-stepper, sparkline, stat-card, turn-banner, palette-switcher, held-kaart-dashboard,
 ADR-0007, docs/PLAN-WERELDKLASSE.md, docs/ontwerpen/\*.html).
 
-- [ ] Fase 1: tokens + fonts + signatuurcomponenten landen (cherry-pick op actuele main)
+- [x] Fase 1: tokens + fonts + signatuurcomponenten geland (cherry-pick af71fb4, pagina's
+      bewust op main-versie gehouden; visueel geverifieerd licht + donker)
 - [ ] Fase 2: dashboard held-kaart + stat-cards + warm licht palet (Honing) als default
 - [ ] Fase 3: werkproces-/samenwerkingenpagina (cascade-stepper, turn-banner)
 - [ ] Fase 4: overige schermen + dark-mode-pariteit + palette-switcher

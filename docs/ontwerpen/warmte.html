@@ -1,0 +1,1076 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Warmte — drie lichte paletten voor het ZZP-Platform</title>
+    <meta
+      name="description"
+      content="Eén warme, zachte layout (geïnspireerd op de eerste kaart-richting), drie nieuwe lichte kleurcombinaties: Honing, Olijf en Vlier."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ============================================================
+         WARMTE — één zachte, warme layout; drie eigen lichte paletten:
+         · HONING — warm ivoor + diep honinggoud + petrolgroen
+         · OLIJF  — zacht linnen + diep olijfgroen + terracotta
+         · VLIER  — licht blush + bordeaux + saliegroen
+         ============================================================ */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Figtree", system-ui, sans-serif;
+        background: #eceae6;
+        color: #1c1a16;
+        -webkit-font-smoothing: antialiased;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      a {
+        color: inherit;
+      }
+      .mono {
+        font-family: "JetBrains Mono", monospace;
+        font-feature-settings: "tnum";
+        letter-spacing: -0.02em;
+      }
+
+      /* ---------- presentatiedek ---------- */
+      .deck {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 26px 28px 10px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .deck .mark {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        background: #1c1a16;
+        color: #fff;
+        font-family: "Bricolage Grotesque", sans-serif;
+        font-weight: 800;
+        font-size: 19px;
+      }
+      .deck h1 {
+        font-family: "Bricolage Grotesque", sans-serif;
+        font-size: 19px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .deck p {
+        font-size: 12.5px;
+        color: #6b665c;
+        margin-top: 1px;
+      }
+      .deck .pills {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .deck button {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        color: #56524a;
+        background: #fff;
+        border: 1px solid #d8d4cc;
+        padding: 8px 15px;
+        border-radius: 999px;
+        transition: 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .deck button .d {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .deck button:hover {
+        color: #1c1a16;
+        border-color: #9d978b;
+      }
+      .deck button.actief {
+        color: #fff;
+        background: #1c1a16;
+        border-color: #1c1a16;
+      }
+      .hint {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 0 28px 14px;
+        font-size: 12.5px;
+        color: #6b665c;
+      }
+      .hint b {
+        color: #46423a;
+      }
+      .kader {
+        max-width: 1240px;
+        margin: 0 auto 56px;
+        padding: 0 28px;
+      }
+
+      /* ---------- het warme app-frame (gedeeld; kleuren via paletten) ---------- */
+      .warm {
+        /* standaard: HONING */
+        --canvas: #faf6ec;
+        --card: #ffffff;
+        --ink: #221d14;
+        --mut: #75695a;
+        --line: #ebe2d2;
+        --line-soft: #f2ebdd;
+        --brand: #9a6403;
+        --brand-soft: #f7e9cf;
+        --ok: #0e6b5c;
+        --ok-soft: #dcf0ec;
+        --warn: #b4500f;
+        --warn-soft: #f9e4d6;
+        --gold: #c9971f;
+
+        display: grid;
+        grid-template-columns: 230px 1fr;
+        min-height: 800px;
+        background: var(--canvas);
+        color: var(--ink);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow:
+          0 40px 90px -50px rgba(30, 25, 18, 0.55),
+          0 2px 8px rgba(30, 25, 18, 0.08);
+        transition: background 0.25s ease;
+      }
+      .warm[data-palet="olijf"] {
+        --canvas: #f7f7f0;
+        --ink: #1e2118;
+        --mut: #6c7163;
+        --line: #e4e6d8;
+        --line-soft: #edeee2;
+        --brand: #59672b;
+        --brand-soft: #ecefd9;
+        --ok: #2f6b45;
+        --ok-soft: #dfefe4;
+        --warn: #a8650a;
+        --warn-soft: #f7ebd3;
+      }
+      .warm[data-palet="vlier"] {
+        --canvas: #faf3f1;
+        --ink: #251a1d;
+        --mut: #7a6a6e;
+        --line: #efdfdd;
+        --line-soft: #f5e9e7;
+        --brand: #93304a;
+        --brand-soft: #f7e3e8;
+        --ok: #2e6b50;
+        --ok-soft: #dff0e7;
+        --warn: #9a6a08;
+        --warn-soft: #f8edd2;
+      }
+
+      /* zijbalk */
+      .warm .zij {
+        background: var(--card);
+        border-right: 1px solid var(--line);
+        padding: 20px 14px;
+        display: flex;
+        flex-direction: column;
+      }
+      .warm .merk {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 2px 8px 18px;
+      }
+      .warm .merk .m {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        background: var(--brand);
+        color: #fff;
+        font-family: "Bricolage Grotesque", sans-serif;
+        font-weight: 800;
+        font-size: 17px;
+      }
+      .warm .merk .n {
+        font-family: "Bricolage Grotesque", sans-serif;
+        font-weight: 800;
+        font-size: 15.5px;
+        letter-spacing: -0.02em;
+      }
+      .warm .groep {
+        padding: 14px 10px 7px;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--mut);
+      }
+      .warm .zij a {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 8px 10px;
+        border-radius: 11px;
+        text-decoration: none;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--ink);
+        opacity: 0.78;
+        margin-bottom: 1px;
+      }
+      .warm .zij a svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex: none;
+      }
+      .warm .zij a:hover {
+        background: var(--line-soft);
+        opacity: 1;
+      }
+      .warm .zij a.actief {
+        background: var(--brand-soft);
+        color: var(--brand);
+        opacity: 1;
+        font-weight: 600;
+      }
+      .warm .zij .voet {
+        margin-top: auto;
+        border-top: 1px solid var(--line-soft);
+        padding: 12px 8px 2px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .warm .zij .voet .av {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--brand-soft);
+        color: var(--brand);
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 12px;
+      }
+      .warm .zij .voet .w {
+        font-size: 12.5px;
+        font-weight: 600;
+      }
+      .warm .zij .voet .r {
+        font-size: 11px;
+        color: var(--mut);
+      }
+
+      /* hoofd */
+      .warm .hoofd {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .warm .top {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 13px 26px;
+        background: var(--card);
+        border-bottom: 1px solid var(--line);
+      }
+      .warm .topnav {
+        display: flex;
+        gap: 2px;
+      }
+      .warm .topnav a {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--mut);
+        text-decoration: none;
+        padding: 8px 13px;
+        border-radius: 10px;
+      }
+      .warm .topnav a:hover {
+        color: var(--ink);
+        background: var(--line-soft);
+      }
+      .warm .topnav a.actief {
+        color: var(--brand);
+        background: var(--brand-soft);
+      }
+      .warm .zoek {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-width: 240px;
+        background: var(--canvas);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 13px;
+        color: var(--mut);
+      }
+      .warm .zoek kbd {
+        margin-left: auto;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 1px 6px;
+        background: var(--card);
+      }
+      .warm .top .me {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--brand);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 12px;
+      }
+
+      .warm .inhoud {
+        padding: 28px;
+        flex: 1;
+      }
+
+      /* held */
+      .warm .held {
+        display: flex;
+        gap: 18px;
+        align-items: flex-start;
+      }
+      .warm .pav {
+        width: 76px;
+        height: 76px;
+        border-radius: 24px;
+        flex: none;
+        position: relative;
+        background: var(--brand-soft);
+        color: var(--brand);
+        display: grid;
+        place-items: center;
+        font-family: "Bricolage Grotesque", sans-serif;
+        font-weight: 800;
+        font-size: 27px;
+      }
+      .warm .pav .zegel {
+        position: absolute;
+        right: -6px;
+        bottom: -6px;
+        width: 26px;
+        height: 26px;
+      }
+      .warm .held h2 {
+        font-family: "Bricolage Grotesque", sans-serif;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .warm .held .functie {
+        font-size: 13.5px;
+        color: var(--mut);
+        margin-top: 3px;
+      }
+      .warm .chips {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .warm .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4.5px 11px;
+        border-radius: 999px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        color: var(--ink);
+      }
+      .warm .chip .d {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .warm .chip.merk {
+        background: var(--brand-soft);
+        color: var(--brand);
+        border-color: transparent;
+      }
+      .warm .chip.oke {
+        background: var(--ok-soft);
+        color: var(--ok);
+        border-color: transparent;
+      }
+      .warm .cta {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        flex: none;
+      }
+      .warm .kn {
+        font: inherit;
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 999px;
+        padding: 10px 18px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        color: var(--ink);
+        transition: 0.15s;
+      }
+      .warm .kn:hover {
+        border-color: var(--mut);
+      }
+      .warm .kn.primair {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+      }
+      .warm .kn.primair:hover {
+        filter: brightness(1.08);
+      }
+
+      /* tabs */
+      .warm .tabs {
+        display: flex;
+        gap: 2px;
+        margin: 22px 0 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      .warm .tabs a {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--mut);
+        text-decoration: none;
+        padding: 9px 13px;
+        position: relative;
+      }
+      .warm .tabs a:hover {
+        color: var(--ink);
+      }
+      .warm .tabs a.actief {
+        color: var(--brand);
+      }
+      .warm .tabs a.actief::after {
+        content: "";
+        position: absolute;
+        left: 11px;
+        right: 11px;
+        bottom: -1px;
+        height: 2.5px;
+        border-radius: 3px;
+        background: var(--brand);
+      }
+
+      /* kaarten */
+      .warm .raster {
+        display: grid;
+        grid-template-columns: 1.55fr 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+      .warm .kolom {
+        display: grid;
+        gap: 16px;
+      }
+      .warm .vel {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(30, 25, 18, 0.04);
+      }
+      .warm .velkop {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .warm .velkop h3 {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--mut);
+      }
+      .warm .velkop .meer {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--brand);
+        text-decoration: none;
+      }
+      .warm .velkop .meer:hover {
+        text-decoration: underline;
+      }
+      .warm .kv {
+        padding: 4px 18px 8px;
+      }
+      .warm .kv .rij {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line-soft);
+        font-size: 13.5px;
+      }
+      .warm .kv .rij:last-child {
+        border-bottom: 0;
+      }
+      .warm .kv .k {
+        color: var(--mut);
+      }
+      .warm .kv .v {
+        font-weight: 600;
+        text-align: right;
+      }
+
+      /* certificaten */
+      .warm .cert {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        padding: 12px 18px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .warm .cert:last-child {
+        border-bottom: 0;
+      }
+      .warm .cert .ci {
+        flex: 1;
+        min-width: 0;
+      }
+      .warm .cert .ci .t {
+        font-size: 13.5px;
+        font-weight: 600;
+      }
+      .warm .cert .ci .s {
+        font-size: 12px;
+        color: var(--mut);
+        margin-top: 1px;
+      }
+      .warm .bron {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 9.5px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: var(--mut);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 2px 6px;
+        flex: none;
+      }
+      .warm .tag {
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 3.5px 10px;
+        border-radius: 999px;
+        flex: none;
+      }
+      .warm .tag.oke {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .warm .tag.let {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+
+      /* matchring */
+      .warm .ringkaart {
+        padding: 20px 18px;
+        text-align: center;
+      }
+      .warm .ring {
+        width: 108px;
+        height: 108px;
+        margin: 2px auto 12px;
+        border-radius: 50%;
+        background: conic-gradient(var(--brand) calc(var(--pct) * 1%), var(--line) 0);
+        display: grid;
+        place-items: center;
+      }
+      .warm .ring .in {
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        background: var(--card);
+        display: grid;
+        place-items: center;
+      }
+      .warm .ring .pct {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+      .warm .ringkaart .sub {
+        font-size: 12.5px;
+        color: var(--mut);
+      }
+      .warm .ringkaart .sub b {
+        color: var(--ink);
+      }
+      .warm .balken {
+        margin-top: 16px;
+        display: grid;
+        gap: 11px;
+        text-align: left;
+      }
+      .warm .balk .bl {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--mut);
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+      .warm .balk .bl b {
+        color: var(--ink);
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 600;
+      }
+      .warm .balk .spoor {
+        height: 6px;
+        border-radius: 999px;
+        background: var(--line-soft);
+        overflow: hidden;
+      }
+      .warm .balk .vul {
+        height: 100%;
+        border-radius: 999px;
+        background: var(--brand);
+      }
+      .warm .balk .vul.oke {
+        background: var(--ok);
+      }
+      .warm .reden {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        font-size: 12px;
+        color: var(--mut);
+        margin-top: 14px;
+        text-align: left;
+      }
+      .warm .reden .min {
+        color: var(--warn);
+        font-weight: 700;
+      }
+
+      @media (max-width: 1020px) {
+        .warm {
+          grid-template-columns: 1fr;
+        }
+        .warm .zij {
+          display: none;
+        }
+        .warm .raster {
+          grid-template-columns: 1fr;
+        }
+        .warm .zoek {
+          min-width: 0;
+          flex: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="deck">
+      <div class="mark">W</div>
+      <div>
+        <h1>Warmte — drie lichte paletten</h1>
+        <p>Zelfde warme scherm (profiel van Sanne), drie eigen kleurcombinaties. Wissel rechts.</p>
+      </div>
+      <div class="pills">
+        <button class="actief" onclick="kies('honing', this)">
+          <span class="d" style="background: #b07406"></span>1 · Honing
+        </button>
+        <button onclick="kies('olijf', this)">
+          <span class="d" style="background: #59672b"></span>2 · Olijf
+        </button>
+        <button onclick="kies('vlier', this)">
+          <span class="d" style="background: #93304a"></span>3 · Vlier
+        </button>
+      </div>
+    </header>
+    <p class="hint" id="hint">
+      <b>Honing — warm ivoor · diep honinggoud · petrolgroen.</b> Gouden warmte met een
+      ambachtelijke ondertoon; petrol draagt het vertrouwen (geverifieerd), gebrande oranje
+      waarschuwt.
+    </p>
+
+    <div class="kader">
+      <div class="warm" id="app" data-palet="honing">
+        <!-- zijbalk -->
+        <aside class="zij">
+          <div class="merk">
+            <div class="m">Z</div>
+            <div class="n">ZZP·Platform</div>
+          </div>
+          <a href="#"
+            ><svg viewBox="0 0 24 24">
+              <path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg
+            >Dashboard</a
+          >
+          <a href="#"
+            ><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h9" /></svg>Acties</a
+          >
+          <div class="groep">Werk</div>
+          <a href="#"
+            ><svg viewBox="0 0 24 24">
+              <rect x="3" y="6" width="18" height="14" rx="2" />
+              <path d="M8 6V4h8v2" /></svg
+            >Opdrachten</a
+          >
+          <a href="#" class="actief"
+            ><svg viewBox="0 0 24 24">
+              <circle cx="9" cy="8" r="3" />
+              <path d="M3 20a6 6 0 0 1 12 0M16 11a3 3 0 1 0 0-6M21 20a6 6 0 0 0-5-5.9" /></svg
+            >ZZP'ers</a
+          >
+          <a href="#"
+            ><svg viewBox="0 0 24 24"><path d="M8 12h8M8 7l-4 5 4 5M16 7l4 5-4 5" /></svg
+            >Samenwerkingen</a
+          >
+          <a href="#"
+            ><svg viewBox="0 0 24 24">
+              <path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z" /></svg
+            >Berichten</a
+          >
+          <div class="groep">Administratie</div>
+          <a href="#"
+            ><svg viewBox="0 0 24 24">
+              <path d="M6 2h9l5 5v15H6z" />
+              <path d="M9 13h6M9 17h6" /></svg
+            >Facturen</a
+          >
+          <a href="#"
+            ><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 14l3-3 3 3 5-6" /></svg>Boekhouding</a
+          >
+          <a href="#"
+            ><svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" /></svg
+            >Abonnement</a
+          >
+          <div class="voet">
+            <span class="av">FF</span
+            ><span
+              ><span class="w">Fleur Fontein</span><br /><span class="r">Opdrachtgever</span></span
+            >
+          </div>
+        </aside>
+
+        <!-- hoofd -->
+        <div class="hoofd">
+          <div class="top">
+            <nav class="topnav">
+              <a href="#">Overzicht</a>
+              <a href="#" class="actief">Mensen</a>
+              <a href="#">Planning</a>
+              <a href="#">Financieel</a>
+            </nav>
+            <div class="zoek">Zoek een ZZP'er, opdracht… <kbd>⌘K</kbd></div>
+            <span class="me">FF</span>
+          </div>
+
+          <div class="inhoud">
+            <div class="held">
+              <div class="pav">
+                SV
+                <svg class="zegel" viewBox="0 0 30 30" aria-label="Volledig geverifieerd">
+                  <circle cx="15" cy="15" r="14" fill="var(--ok)" />
+                  <circle
+                    cx="15"
+                    cy="15"
+                    r="11"
+                    fill="none"
+                    stroke="rgba(255,255,255,.5)"
+                    stroke-width="1.3"
+                  />
+                  <path
+                    d="m9.5 15.5 3.5 3.5 7-8"
+                    fill="none"
+                    stroke="#fff"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+              <div style="min-width: 0">
+                <h2>
+                  Sanne de Vries <span class="chip oke"><span class="d"></span>Beschikbaar</span>
+                </h2>
+                <div class="functie">
+                  Verpleegkundige niveau 4 · Amsterdam · zelfstandig sinds 2021
+                </div>
+                <div class="chips">
+                  <span class="chip merk">Match <span class="mono">92%</span></span>
+                  <span class="chip">€ 44–52 / uur</span>
+                  <span class="chip">28 u/wk</span>
+                  <span class="chip"
+                    >4.9 <span style="color: var(--gold)">★</span> · 23 beoordelingen</span
+                  >
+                </div>
+              </div>
+              <div class="cta">
+                <button class="kn">Bericht</button>
+                <button class="kn primair">Voorstel doen</button>
+              </div>
+            </div>
+
+            <nav class="tabs">
+              <a href="#" class="actief">Profiel</a>
+              <a href="#">Certificaten</a>
+              <a href="#">Beschikbaarheid</a>
+              <a href="#">Samenwerkingen</a>
+              <a href="#">Beoordelingen</a>
+            </nav>
+
+            <div class="raster">
+              <div class="kolom">
+                <div class="vel">
+                  <div class="velkop">
+                    <h3>Stamgegevens</h3>
+                    <a href="#" class="meer">Bewerken</a>
+                  </div>
+                  <div class="kv">
+                    <div class="rij">
+                      <span class="k">Functie</span><span class="v">Verpleegkundige niveau 4</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">Specialisaties</span
+                      ><span class="v">Geriatrie, wijkverpleging, palliatief</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">Locatie</span><span class="v">Amsterdam · 25 km bereik</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">Uurtarief</span><span class="v mono">€ 44 – € 52</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">KvK-nummer</span><span class="v mono">7721 4458</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">Talen</span><span class="v">Nederlands, Engels</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">Lid sinds</span><span class="v">14 maart 2021</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="vel">
+                  <div class="velkop">
+                    <h3>Certificaten — servergeverifieerd</h3>
+                    <span class="tag oke">3 van 4 geldig</span>
+                  </div>
+                  <div class="cert">
+                    <svg width="26" height="26" viewBox="0 0 30 30" aria-hidden="true">
+                      <circle cx="15" cy="15" r="14" fill="var(--ok-soft)" />
+                      <path
+                        d="m9.5 15.5 3.5 3.5 7-8"
+                        fill="none"
+                        stroke="var(--ok)"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                    <div class="ci">
+                      <div class="t">VOG — Verklaring Omtrent Gedrag</div>
+                      <div class="s">Geverifieerd 12 feb 2025 · geldig t/m maart 2027</div>
+                    </div>
+                    <span class="bron">ADMIN</span><span class="tag oke">Geverifieerd</span>
+                  </div>
+                  <div class="cert">
+                    <svg width="26" height="26" viewBox="0 0 30 30" aria-hidden="true">
+                      <circle cx="15" cy="15" r="14" fill="var(--ok-soft)" />
+                      <path
+                        d="m9.5 15.5 3.5 3.5 7-8"
+                        fill="none"
+                        stroke="var(--ok)"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                    <div class="ci">
+                      <div class="t">BIG-registratie</div>
+                      <div class="s">BIG-nr. 89xxxxxx04 · register geraadpleegd 2 jun</div>
+                    </div>
+                    <span class="bron">BIG</span><span class="tag oke">Geverifieerd</span>
+                  </div>
+                  <div class="cert">
+                    <svg width="26" height="26" viewBox="0 0 30 30" aria-hidden="true">
+                      <circle cx="15" cy="15" r="14" fill="var(--ok-soft)" />
+                      <path
+                        d="m9.5 15.5 3.5 3.5 7-8"
+                        fill="none"
+                        stroke="var(--ok)"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                    <div class="ci">
+                      <div class="t">Diploma MBO-Verpleegkunde niveau 4</div>
+                      <div class="s">Diplomaregister geraadpleegd · code gecontroleerd</div>
+                    </div>
+                    <span class="bron">DUO</span><span class="tag oke">Geverifieerd</span>
+                  </div>
+                  <div class="cert">
+                    <svg width="26" height="26" viewBox="0 0 30 30" aria-hidden="true">
+                      <circle cx="15" cy="15" r="14" fill="var(--warn-soft)" />
+                      <path
+                        d="M15 8v8M15 20h.01"
+                        fill="none"
+                        stroke="var(--warn)"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                    <div class="ci">
+                      <div class="t">Reanimatiecertificaat</div>
+                      <div class="s">Verloopt over 21 dagen · herinnering verstuurd</div>
+                    </div>
+                    <span class="bron">ADMIN</span><span class="tag let">Verloopt</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="kolom">
+                <div class="vel ringkaart" style="--pct: 92">
+                  <div class="velkop" style="margin: -20px -18px 16px; padding: 13px 18px">
+                    <h3>Aansluiting</h3>
+                  </div>
+                  <div class="ring">
+                    <div class="in"><span class="pct">92%</span></div>
+                  </div>
+                  <div class="sub">match met <b>Nachtdienst Geriatrie</b></div>
+                  <div class="balken">
+                    <div class="balk">
+                      <div class="bl"><span>Compliance</span><b>100%</b></div>
+                      <div class="spoor"><div class="vul oke" style="width: 100%"></div></div>
+                    </div>
+                    <div class="balk">
+                      <div class="bl"><span>Vaardigheden</span><b>96%</b></div>
+                      <div class="spoor"><div class="vul" style="width: 96%"></div></div>
+                    </div>
+                    <div class="balk">
+                      <div class="bl"><span>Beschikbaarheid</span><b>88%</b></div>
+                      <div class="spoor"><div class="vul" style="width: 88%"></div></div>
+                    </div>
+                  </div>
+                  <p class="reden">
+                    <span class="min">−</span
+                    ><span
+                      >Beschikbaar vanaf week 25; de opdracht start in week 24. Eerlijk vermeld —
+                      geen black box.</span
+                    >
+                  </p>
+                </div>
+
+                <div class="vel">
+                  <div class="velkop"><h3>Vertrouwen</h3></div>
+                  <div class="kv">
+                    <div class="rij">
+                      <span class="k">Identiteit</span
+                      ><span class="v" style="color: var(--ok)">Geverifieerd via iDIN</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">Wet DBA</span
+                      ><span class="v" style="color: var(--ok)">Laag risico</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">Verzekering</span
+                      ><span class="v" style="color: var(--ok)">Beroepsaansprakelijkheid ✓</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">Beoordeling</span
+                      ><span class="v">4.9 <span style="color: var(--gold)">★</span> (23)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="vel">
+                  <div class="velkop"><h3>Recente samenwerkingen</h3></div>
+                  <div class="kv">
+                    <div class="rij">
+                      <span class="k">Thuiszorg West</span><span class="v">Afgerond · mei</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">Verpleeghuis De Es</span
+                      ><span class="v" style="color: var(--brand)">Lopend</span>
+                    </div>
+                    <div class="rij">
+                      <span class="k">Zorggroep Noord</span><span class="v">Voorstel</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      var HINTS = {
+        honing:
+          "<b>Honing — warm ivoor · diep honinggoud · petrolgroen.</b> Gouden warmte met een ambachtelijke ondertoon; petrol draagt het vertrouwen (geverifieerd), gebrande oranje waarschuwt.",
+        olijf:
+          "<b>Olijf — zacht linnen · diep olijfgroen · loofgroen.</b> Geworteld en natuurlijk, mediterrane kalmte; het groen doet dubbel werk (merk én gezondheid), amber waarschuwt.",
+        vlier:
+          "<b>Vlier — licht blush · bordeaux · saliegroen.</b> Het warmst en menselijkst van de drie — hospitality-gevoel; bordeaux geeft gezag, salie draagt het vertrouwen.",
+      };
+      function kies(palet, el) {
+        document.getElementById("app").setAttribute("data-palet", palet);
+        document.getElementById("hint").innerHTML = HINTS[palet];
+        document.querySelectorAll(".deck .pills button").forEach(function (b) {
+          b.classList.remove("actief");
+        });
+        el.classList.add("actief");
+      }
+    </script>
+  </body>
+</html>
