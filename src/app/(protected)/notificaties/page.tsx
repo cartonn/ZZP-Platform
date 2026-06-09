@@ -80,6 +80,7 @@ function NotificationRow({ n }: { n: NotificationItem }) {
       />
       <Icon className={cn("mt-0.5 size-4 shrink-0", TONE_CLASS[meta.tone])} aria-hidden />
       <div className="min-w-0 flex-1">
+        {unread && <span className="sr-only">Ongelezen: </span>}
         <p className={cn("text-sm", unread ? "font-medium" : "")}>{n.title}</p>
         {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}
         <p className="mt-0.5 text-xs text-muted-foreground">{relativeTime(n.createdAt)}</p>

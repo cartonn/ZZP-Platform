@@ -26,6 +26,13 @@ const URGENCY_DOT: Record<OntzorgAction["urgency"], string> = {
   info: "bg-success",
 };
 
+// Tekstequivalent van de kleur-dot — anders is urgentie alleen via kleur leesbaar (WCAG 1.4.1).
+const URGENCY_LABEL: Record<OntzorgAction["urgency"], string> = {
+  now: "Urgent",
+  soon: "Binnenkort",
+  info: "Ter info",
+};
+
 export default async function OntzorgdPage() {
   const actor = await requireActor();
   // Alleen voor ZZP'ers; opdrachtgever/admin hebben een eigen administratie.
@@ -116,6 +123,7 @@ export default async function OntzorgdPage() {
                       className={`size-2 shrink-0 rounded-full ${URGENCY_DOT[a.urgency]}`}
                       aria-hidden
                     />
+                    <span className="sr-only">{URGENCY_LABEL[a.urgency]}: </span>
                     <span className="text-sm">{a.label}</span>
                   </div>
                 ))}

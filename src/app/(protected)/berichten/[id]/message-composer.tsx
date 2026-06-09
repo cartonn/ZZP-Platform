@@ -27,6 +27,7 @@ export function MessageComposer({ conversationId }: { conversationId: string }) 
         required
         maxLength={5000}
         placeholder="Schrijf een bericht…"
+        aria-label="Bericht"
         className="flex-1"
       />
       <Button type="submit" disabled={isPending}>
