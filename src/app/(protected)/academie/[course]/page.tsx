@@ -159,14 +159,31 @@ export default async function CourseDetailPage({
               </Link>
             </Button>
             <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-            {COURSE_TRANSITIONS[course.status].map((next) => (
-              <form key={next} action={setCourseStatus.bind(null, course.id)}>
-                <input type="hidden" name="status" value={next} />
-                <Button type="submit" size="sm" variant="secondary">
+            {COURSE_TRANSITIONS[course.status].map((next) =>
+              // Vanuit PUBLISHED ontneemt elke overgang (DRAFT/ARCHIVED) lopende cursisten direct
+              // toegang — dat hoort een bevestiging te vragen, net als een verwijdering. Publiceren
+              // (toegang geven) is veilig en blijft een gewone knop.
+              course.status === "PUBLISHED" ? (
+                <ConfirmButton
+                  key={next}
+                  action={setCourseStatus.bind(null, course.id, next)}
+                  title={next === "ARCHIVED" ? "Cursus archiveren?" : "Cursus terug naar concept?"}
+                  description="Lopende cursisten verliezen direct toegang tot deze cursus. Hun voltooiingen blijven bewaard; publiceer opnieuw om de toegang te herstellen."
+                  confirmLabel={STATUS_ACTION_LABEL[next]}
+                  triggerVariant="secondary"
+                  size="sm"
+                >
                   {STATUS_ACTION_LABEL[next]}
-                </Button>
-              </form>
-            ))}
+                </ConfirmButton>
+              ) : (
+                <form key={next} action={setCourseStatus.bind(null, course.id)}>
+                  <input type="hidden" name="status" value={next} />
+                  <Button type="submit" size="sm" variant="secondary">
+                    {STATUS_ACTION_LABEL[next]}
+                  </Button>
+                </form>
+              ),
+            )}
           </CardContent>
         </Card>
       )}
