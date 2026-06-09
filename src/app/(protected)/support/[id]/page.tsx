@@ -1,4 +1,5 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -30,6 +31,10 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
 
   const status = ticket.status as SupportTicketStatus;
   const resolved = status === "RESOLVED";
+  // Alleen de aanvrager mag hier reageren/afhandelen. Een ADMIN bekijkt het ticket alleen-lezen en
+  // beheert het via de helpdesk (/admin/support) — anders falen de gebruikersacties (loadOwnedTicket)
+  // én vervuilen ze het audit-log met valse "toegang geweigerd"-regels tegen de eigen admin.
+  const isOwner = ticket.userId === actor.id;
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -61,7 +66,15 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
         </p>
       )}
 
-      {!resolved ? (
+      {!isOwner ? (
+        <p className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          Je bekijkt dit ticket als beheerder. Reageren en afhandelen doe je via de{" "}
+          <Link href="/admin/support" className="font-medium underline underline-offset-4">
+            helpdesk
+          </Link>
+          .
+        </p>
+      ) : !resolved ? (
         <div className="space-y-3">
           <form action={replyToTicket.bind(null, ticket.id)} className="space-y-2">
             <textarea
@@ -84,24 +97,23 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
           </form>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          Dit ticket is opgelost. Reageer hieronder om het te heropenen.
-        </p>
-      )}
-
-      {resolved && (
-        <form action={replyToTicket.bind(null, ticket.id)} className="space-y-2">
-          <textarea
-            name="body"
-            rows={3}
-            required
-            className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground"
-            placeholder="Toch nog een vraag? Heropen het ticket…"
-          />
-          <Button type="submit" variant="secondary" size="sm">
-            Heropenen
-          </Button>
-        </form>
+        <>
+          <p className="text-sm text-muted-foreground">
+            Dit ticket is opgelost. Reageer hieronder om het te heropenen.
+          </p>
+          <form action={replyToTicket.bind(null, ticket.id)} className="space-y-2">
+            <textarea
+              name="body"
+              rows={3}
+              required
+              className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground"
+              placeholder="Toch nog een vraag? Heropen het ticket…"
+            />
+            <Button type="submit" variant="secondary" size="sm">
+              Heropenen
+            </Button>
+          </form>
+        </>
       )}
     </div>
   );

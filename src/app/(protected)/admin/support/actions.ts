@@ -22,6 +22,18 @@ export async function adminReply(ticketId: string, formData: FormData): Promise<
   await prisma.supportMessage.create({
     data: { ticketId, authorId: actor.id, authorKind: "AGENT", body: parsed.data.body },
   });
+  // De aanvrager moet wéten dat de helpdesk heeft gereageerd — anders eindigt de escalatie doodlopend
+  // (hij zou bij toeval /support/[id] moeten heropenen). Notificatie + bel-teller, consistent met
+  // sendMessage in de berichtenflow.
+  await prisma.notification.create({
+    data: {
+      userId: ticket.userId,
+      type: "SUPPORT_REPLY",
+      title: "Reactie van de helpdesk",
+      body: parsed.data.body.slice(0, 120),
+      link: `/support/${ticketId}`,
+    },
+  });
   // Een onbehandeld ticket toewijzen aan de reagerende medewerker.
   if (!ticket.assignedToId) {
     await prisma.supportTicket.update({
