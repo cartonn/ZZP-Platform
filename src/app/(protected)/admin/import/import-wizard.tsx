@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { FileInput } from "@/components/ui/file-input";
 import {
   previewImport,
   commitImport,
@@ -314,17 +315,15 @@ export function ImportWizard({ emailConfigured }: { emailConfigured: boolean }) 
         <label htmlFor="csv" className="mb-1 block text-sm font-medium">
           CSV-bestand
         </label>
-        <input
+        <FileInput
           id="csv"
           name="file"
-          type="file"
           accept=".csv,text/csv"
-          onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null);
+          onChange={(f) => {
+            setFile(f);
             setPreview(null);
             setError(null);
           }}
-          className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm"
         />
       </div>
 

@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FileInput } from "@/components/ui/file-input";
 import { Select } from "@/components/ui/select";
 import { uploadDocument, type DocumentState } from "./actions";
 import { FormStatus } from "@/components/ui/form-status";
@@ -52,12 +52,10 @@ export function DocumentForm() {
           error={fe.document}
           hint="PDF, PNG, JPEG of WEBP, max 10 MB. Privé."
         >
-          <Input
+          <FileInput
             id="document"
             name="document"
-            type="file"
             accept="application/pdf,image/png,image/jpeg,image/webp"
-            className="h-auto py-1.5"
           />
         </Field>
       </div>
