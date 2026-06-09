@@ -97,9 +97,18 @@ export default async function RosterDetailPage({
           profile.location ? ` · ${profile.location}` : ""
         }`}
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <EngageabilityBadge status={dossier.engageability.status} />
-            <AvailabilityBadge status={profile.availability} />
+          // Twee verschillende assen: inzetbaarheid (compliance-blokkade) vs. beschikbaarheid (agenda).
+          // Expliciet gelabeld zodat een rood "Nog niet inzetbaar" náást een groen "Beschikbaar" niet
+          // als tegenstrijdigheid leest.
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              Inzetbaarheid
+              <EngageabilityBadge status={dossier.engageability.status} />
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              Beschikbaarheid
+              <AvailabilityBadge status={profile.availability} />
+            </span>
           </div>
         }
       />

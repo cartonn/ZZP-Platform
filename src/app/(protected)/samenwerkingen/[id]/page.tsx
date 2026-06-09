@@ -348,6 +348,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
     : isClient
       ? col.agreementClientSignedAt
       : null;
+  // Tekenen/wijzigen kan alleen zolang de samenwerking nog loopt; bij een afgeronde of geannuleerde
+  // samenwerking is de overeenkomst historisch en read-only (geen actieve "Akkoord geven" meer).
+  const agreementStillOpen = col.status === "PROPOSED" || col.status === "ACTIVE";
 
   // "Aan zet": wat moet déze rol nu doen?
   const todo: string[] = [];
@@ -585,9 +588,10 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
               signedAt: col.agreementClientSignedAt,
             },
           ]}
-          canSign={(isFreelancer || isClient) && !myAgreementSignedAt}
+          canSign={(isFreelancer || isClient) && !myAgreementSignedAt && agreementStillOpen}
           canChooseType={
             (isClient || actor.role === "ADMIN") &&
+            agreementStillOpen &&
             !col.agreementFreelancerSignedAt &&
             !col.agreementClientSignedAt
           }
