@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { assertSupportTransition } from "@/lib/support/state";
+import { assertSupportTransition, canSupportTransition } from "@/lib/support/state";
 import { type SupportTicketStatus } from "@/lib/enums";
 
 const replySchema = z.object({ body: z.string().trim().min(1) });
@@ -39,6 +39,15 @@ export async function adminReply(ticketId: string, formData: FormData): Promise<
     await prisma.supportTicket.update({
       where: { id: ticketId },
       data: { assignedToId: actor.id },
+    });
+  }
+  // Na een helpdesk-reactie ligt de bal bij de aanvrager → "wacht op je reactie" (uit de wachtrij).
+  // Voorheen bleef het ticket ESCALATED en dus eeuwig in de helpdesk-wachtrij staan na een antwoord.
+  // Een reactie van de aanvrager zet het via replyToTicket terug op ESCALATED (terug in de wachtrij).
+  if (canSupportTransition(ticket.status as SupportTicketStatus, "AWAITING_USER")) {
+    await prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: { status: "AWAITING_USER" },
     });
   }
   await audit({

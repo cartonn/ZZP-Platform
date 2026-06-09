@@ -227,6 +227,7 @@ export const SUPPORT_TICKET_STATUSES = [
   "TRIAGED",
   "AUTO_ANSWERED",
   "ESCALATED",
+  "AWAITING_USER", // helpdesk heeft gereageerd; de bal ligt bij de aanvrager (uit de wachtrij)
   "RESOLVED",
   "REOPENED",
 ] as const;
@@ -238,12 +239,14 @@ export const SUPPORT_TICKET_TRANSITIONS: Record<
   SupportTicketStatus,
   readonly SupportTicketStatus[]
 > = {
-  NEW: ["TRIAGED"],
-  TRIAGED: ["AUTO_ANSWERED", "ESCALATED", "RESOLVED"],
+  NEW: ["TRIAGED", "AWAITING_USER"],
+  TRIAGED: ["AUTO_ANSWERED", "ESCALATED", "RESOLVED", "AWAITING_USER"],
   AUTO_ANSWERED: ["RESOLVED", "ESCALATED", "REOPENED"],
-  ESCALATED: ["RESOLVED", "REOPENED"],
+  ESCALATED: ["RESOLVED", "REOPENED", "AWAITING_USER"],
+  // Helpdesk reageerde → wacht op de aanvrager. Diens reactie zet 'm terug in de wachtrij (ESCALATED).
+  AWAITING_USER: ["ESCALATED", "RESOLVED", "REOPENED"],
   RESOLVED: ["REOPENED"],
-  REOPENED: ["TRIAGED", "ESCALATED", "RESOLVED"],
+  REOPENED: ["TRIAGED", "ESCALATED", "RESOLVED", "AWAITING_USER"],
 };
 
 export const SUPPORT_PRIORITIES = ["LOW", "NORMAL", "HIGH"] as const;

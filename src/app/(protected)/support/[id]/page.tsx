@@ -66,6 +66,13 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
         </p>
       )}
 
+      {status === "AWAITING_USER" && (
+        <p className="rounded-md border border-primary/30 bg-accent/30 px-3 py-2 text-sm text-muted-foreground">
+          De helpdesk heeft gereageerd. Reageer hieronder als je nog een vraag hebt, of markeer het
+          als opgelost.
+        </p>
+      )}
+
       {!isOwner ? (
         <p className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           Je bekijkt dit ticket als beheerder. Reageren en afhandelen doe je via de{" "}
