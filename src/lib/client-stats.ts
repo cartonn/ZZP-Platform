@@ -4,6 +4,7 @@
 import { prisma } from "@/lib/db";
 import { clientCredentialAlerts } from "@/lib/collaboration-alerts";
 import { ratePercent } from "@/lib/freelancer-stats";
+import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
 
 export interface ClientStats {
   /** Betaalde facturen (uitgaven die voldaan zijn). */
@@ -41,7 +42,9 @@ export async function getClientStats(userId: string): Promise<ClientStats | null
         _sum: { totalCents: true },
       }),
       prisma.invoice.aggregate({
-        where: { counterpartyUserId: userId, status: { in: ["SENT", "OVERDUE"] } },
+        // Cascade-bewust: cascade-facturen blijven status='DRAFT' en gelden als openstaand op hun
+        // lifecycleStatus (SUBMITTED/APPROVED/OVERDUE); legacy-facturen op status SENT/OVERDUE.
+        where: { counterpartyUserId: userId, ...outstandingInvoiceWhere },
         _sum: { totalCents: true },
       }),
       prisma.job.count({
