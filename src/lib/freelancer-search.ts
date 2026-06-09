@@ -4,6 +4,8 @@
 import { prisma } from "@/lib/db";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
+import { mandatoryDocuments } from "@/lib/mandatory-documents";
+import { type CredentialType, type CredentialStatus } from "@/lib/enums";
 
 export interface FreelancerCard {
   id: string;
@@ -73,7 +75,7 @@ export async function getAllPublicFreelancers(
     include: {
       user: { select: { id: true, name: true, identityVerifiedAt: true } },
       skills: { include: { skill: { select: { id: true, name: true } } } },
-      credentials: { select: { status: true, expiresAt: true } },
+      credentials: { select: { type: true, status: true, expiresAt: true } },
       availabilityWindows: { orderBy: { startDate: "asc" } },
     },
   });
@@ -85,6 +87,13 @@ export async function getAllPublicFreelancers(
     const trust = computeTrustLevel({
       identityVerified: !!p.user.identityVerifiedAt,
       verifiedCredentialCount,
+      mandatoryDocsComplete: mandatoryDocuments(
+        p.credentials.map((c) => ({
+          type: c.type as CredentialType,
+          status: c.status as CredentialStatus,
+          expiresAt: c.expiresAt,
+        })),
+      ).allSatisfied,
     });
     const availability = summarizeAvailability(
       p.availabilityWindows as {

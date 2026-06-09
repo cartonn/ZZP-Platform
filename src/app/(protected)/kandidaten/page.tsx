@@ -8,6 +8,7 @@ import { computeCompliance, scoreJobForFreelancer } from "@/lib/matching";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
+import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import {
@@ -131,6 +132,13 @@ export default async function KandidatenPage() {
               verifiedCredentialCount: app.freelancer.credentials.filter(
                 (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > nowMs),
               ).length,
+              mandatoryDocsComplete: mandatoryDocuments(
+                app.freelancer.credentials.map((c) => ({
+                  type: c.type as CredentialType,
+                  status: c.status as CredentialStatus,
+                  expiresAt: c.expiresAt,
+                })),
+              ).allSatisfied,
             });
             // Live onderbouwing van de match (waarom past deze kandidaat) — dezelfde server-side
             // regels als de ZZP'er op de opdracht ziet, zodat de opdrachtgever niet alleen "Match X%" leest.

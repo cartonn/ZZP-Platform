@@ -8,6 +8,12 @@ export type TrustLevel = (typeof TRUST_LEVELS)[number];
 export interface TrustInput {
   identityVerified: boolean;
   verifiedCredentialCount: number;
+  /**
+   * Of de platformbrede verplichte documenten (VOG + verzekering) geldig zijn aangeleverd.
+   * Default true (backward-compatible). Ontbreekt er één, dan kan het niveau niet "VOLLEDIG" zijn —
+   * anders botst het sterkste vertrouwenssignaal met "Nog niet inzetbaar".
+   */
+  mandatoryDocsComplete?: boolean;
 }
 
 export interface TrustResult {
@@ -40,9 +46,15 @@ export function computeTrustLevel(input: TrustInput): TrustResult {
     missing.push("Laat minstens één certificaat verifiëren");
   }
 
-  const both = input.identityVerified && input.verifiedCredentialCount > 0;
+  const mandatoryComplete = input.mandatoryDocsComplete ?? true;
+  if (!mandatoryComplete) {
+    missing.push("Lever je verplichte documenten aan (VOG en verzekering)");
+  }
+
+  // "VOLLEDIG" vereist identiteit + minstens één geverifieerd certificaat ÉN de verplichte documenten.
+  const full = input.identityVerified && input.verifiedCredentialCount > 0 && mandatoryComplete;
   const either = input.identityVerified || input.verifiedCredentialCount > 0;
-  const level: TrustLevel = both ? "VOLLEDIG" : either ? "DEELS" : "BASIS";
+  const level: TrustLevel = full ? "VOLLEDIG" : either ? "DEELS" : "BASIS";
 
   return { level, label: LABEL[level], reasons, missing };
 }

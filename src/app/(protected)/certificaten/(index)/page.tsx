@@ -69,15 +69,6 @@ export default async function CertificatenPage() {
     prisma.user.findUnique({ where: { id: actor.id }, select: { identityVerifiedAt: true } }),
   ]);
 
-  // Verklaarbaar vertrouwensniveau: dezelfde server-side regels als de opdrachtgever ziet, maar hier
-  // met de concrete verbeterstappen (zelf-weergave). Verlopen bewijsstukken tellen niet mee.
-  const trust = computeTrustLevel({
-    identityVerified: !!user?.identityVerifiedAt,
-    verifiedCredentialCount: activeVerifiedCount(
-      credentials.map((c) => ({ status: c.status as CredentialStatus, expiresAt: c.expiresAt })),
-    ),
-  });
-
   // Platformbrede verplichte documenten (los van een specifieke opdracht): wat moet de ZZP'er
   // minimaal aanleveren om opdrachten te mogen vervullen.
   const mandatory = mandatoryDocuments(
@@ -87,6 +78,17 @@ export default async function CertificatenPage() {
       expiresAt: c.expiresAt,
     })),
   );
+
+  // Verklaarbaar vertrouwensniveau: dezelfde server-side regels als de opdrachtgever ziet, maar hier
+  // met de concrete verbeterstappen (zelf-weergave). Verlopen bewijsstukken tellen niet mee. Zolang een
+  // verplicht document ontbreekt kan het niveau niet "VOLLEDIG" zijn.
+  const trust = computeTrustLevel({
+    identityVerified: !!user?.identityVerifiedAt,
+    verifiedCredentialCount: activeVerifiedCount(
+      credentials.map((c) => ({ status: c.status as CredentialStatus, expiresAt: c.expiresAt })),
+    ),
+    mandatoryDocsComplete: mandatory.allSatisfied,
+  });
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">

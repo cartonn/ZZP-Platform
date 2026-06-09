@@ -6,10 +6,11 @@
 // deterministische tiebreaker bij gelijke score en als verklaring — nooit in de score zelf.
 
 import { prisma } from "@/lib/db";
-import { type Availability } from "@/lib/enums";
+import { type Availability, type CredentialType, type CredentialStatus } from "@/lib/enums";
 import { scoreJobForFreelancer, type ComplianceStatus } from "@/lib/matching";
 import { getSemanticMatcher, safeRelatedness } from "@/lib/services/semantic-matcher";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
+import { mandatoryDocuments } from "@/lib/mandatory-documents";
 
 export interface FreelancerSuggestion {
   freelancerId: string;
@@ -100,6 +101,13 @@ export async function suggestedFreelancersForJob(
       const trust = computeTrustLevel({
         identityVerified: !!p.user.identityVerifiedAt,
         verifiedCredentialCount,
+        mandatoryDocsComplete: mandatoryDocuments(
+          p.credentials.map((c) => ({
+            type: c.type as CredentialType,
+            status: c.status as CredentialStatus,
+            expiresAt: c.expiresAt,
+          })),
+        ).allSatisfied,
       });
       const profileText = joinText([p.headline, p.bio, ...p.skills.map((s) => s.skill?.name)]);
       const relatedness = safeRelatedness(matcher, jobText, profileText);
