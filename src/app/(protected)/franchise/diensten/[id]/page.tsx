@@ -4,16 +4,19 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Users } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getDienstDetail } from "@/lib/franchise/dienst-detail";
+import { JOB_TRANSITIONS } from "@/lib/jobs";
 import { type JobStatus, type ApplicationStatus, type WorkMode } from "@/lib/enums";
 import { type ComplianceStatus } from "@/lib/matching";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { plural } from "@/lib/plural";
+import { setDienstStatus } from "../actions";
 
 export const metadata: Metadata = { title: "Dienst · Franchise" };
 
@@ -21,6 +24,13 @@ const WORKMODE: Record<WorkMode, string> = {
   REMOTE: "Remote",
   ONSITE: "Op locatie",
   HYBRID: "Hybride",
+};
+
+// Wat de franchiser met de dienst-status kan doen (de uitzetter mag 'm ook weer terugtrekken).
+const STATUS_ACTION_LABEL: Record<JobStatus, string> = {
+  PUBLISHED: "Publiceren",
+  CLOSED: "Sluiten",
+  DRAFT: "Terug naar concept",
 };
 
 function rateLabel(min: number | null, max: number | null): string | null {
@@ -68,6 +78,21 @@ export default async function FranchiseDienstDetailPage({
           {dienst.description && (
             <p className="text-sm text-muted-foreground">{dienst.description}</p>
           )}
+          {/* De franchiser die de dienst uitzette kan 'm ook sluiten/heropenen/depubliceren — voorheen
+              kon alleen de opdrachtgever dat, waardoor een ongewenste live dienst niet terug te trekken was. */}
+          <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+            {JOB_TRANSITIONS[dienst.status as JobStatus].map((to) => (
+              <form key={to} action={setDienstStatus.bind(null, id, to)}>
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant={to === "CLOSED" ? "destructive" : "secondary"}
+                >
+                  {STATUS_ACTION_LABEL[to]}
+                </Button>
+              </form>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
