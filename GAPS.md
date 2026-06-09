@@ -174,3 +174,34 @@ cross-domein-semantiek. Gegroepeerd in 6 gegate PR's per thema.
 ### Geparkeerd (productkeuze, eigenaar)
 
 - [ ] (geparkeerd — IA/product) **TERMINOLOGIE** — "Diensten"/"Prestaties"/"Opdrachten" overlappen semantisch over rollen (nav.ts). Opschonen = routes/URL's hernoemen → informatie-architectuur-besluit, geen los UI-fixje.
+
+## Iteratie 5 — 2026-06-09 (robuustheid + a11y + doodlopers)
+
+Nieuwe coverage-assen na de logica- (1–3) en presentatie-formattering-sweep (4):
+**robuustheid onder edge-content**, **toetsenbord/a11y** en **lege-/doodloop-states**.
+3 parallelle hunters → ~20 bevindingen, alle bevestigde gefixt (#285–#287), 1 geparkeerd.
+**Geen HOOG/security/logica/geld-bug** in deze ronde — uitsluitend polish, het convergentie-signaal van de lus.
+
+### Robuustheid / overflow (#285)
+
+- [x] (#285) **OVERFLOW** — Gedeelde `PageHeader` (~38 pagina's): titel zonder `break-words`, kop-div zonder `min-w-0` → lange ononderbroken titel duwde de actie weg. Min-w-0 + break-words.
+- [x] (#285) **OVERFLOW** — `kandidaten`/`samenwerkingen` (lijst+detail)/`berichten`-index: naam/titel zonder `truncate` naast badges zonder `shrink-0` → badges van de kaart geduwd. Canoniek truncate-patroon.
+- [x] (#285) **OVERFLOW** — `zzp/[id]` publiek profiel: naam zonder `break-words` + skill/branche/certificaat-badges zonder `max-w-full break-words`.
+- [x] (#285) **OVERFLOW** — `berichten`-thread: een 300-tekens-zonder-spatie-token verbreedde de bubbel → `[overflow-wrap:anywhere]`.
+- [x] (#285) **OVERFLOW** — Dashboard-weekchips + `franchise/leads`: lange klant/organisatie-naam capt/truncate i.p.v. overflow.
+
+### Toegankelijkheid (#286)
+
+- [x] (#286) **A11Y** — `berichten`-thread: bericht-`Textarea` had alleen een placeholder (geen toegankelijke naam) → `aria-label="Bericht"`.
+- [x] (#286) **A11Y** — `ontzorgd` "Wat nu te doen": urgentie alleen via kleur-dot → `sr-only` "Urgent/Binnenkort/Ter info" (WCAG 1.4.1).
+- [x] (#286) **A11Y** — `notificaties`: ongelezen alleen via kleur → `sr-only` "Ongelezen"-marker.
+- [x] (#286) **A11Y** — `freelancers`-browse: decoratieve Search/MapPin/Euro/Calendar-iconen → `aria-hidden`.
+- [x] (#286) **A11Y** — `performance-form`: herhaalde "Begin/Einde dienst"-labels per dienstrij nu uniek via `aria-label` met rijnummer.
+
+### Lege-/doodloop-states (#287)
+
+- [x] (#287) **DOODLOOP** — `prestaties` (CLIENT-only) + `diensten` (FREELANCER-only): verkeerde-rol-fallback was een kale one-liner zonder uitweg → `PageHeader`+`Card`+`EmptyState` met "Naar dashboard"-actie.
+- [x] (#287) **STATE** — Ontbrekende `franchise/samenwerkingen/loading.tsx` → toegevoegd (PageHeaderSkeleton + DenseListSkeleton, max-w-4xl) zoals de zusterroutes.
+- [ ] (geparkeerd — LAAG, conf 0.5) **STATE** — `administratie` mapt ADMIN op een FREELANCER-grootboek → alles-nul-maar-gevuld zonder "geen administratie voor deze rol"-melding. Zelden bereikt; fix discutabel.
+
+**Convergentie-observatie:** logica-laag (iter 1–3) én presentatie-laag (iter 4–5) zijn nu tot laag-risico-residu doorgespit. Een volgende ronde langs dezelfde assen zal naar verwachting "schoon" zijn (2 schone rondes = lus klaar volgens LOOP.md).
