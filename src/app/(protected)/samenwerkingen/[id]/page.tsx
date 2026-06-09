@@ -112,6 +112,10 @@ function OrtBreakdown({
   return (
     <div className="mt-2 space-y-1">
       <p className="text-xs font-medium text-muted-foreground">ORT-uitsplitsing</p>
+      <p className="flex items-center gap-1 text-xs text-success">
+        <CheckCircle2 className="size-3" aria-hidden />
+        Toeslagen automatisch berekend uit de diensttijden — geen handmatige correctie nodig.
+      </p>
       <table className="w-full text-xs">
         <thead>
           <tr className="text-left text-muted-foreground">
