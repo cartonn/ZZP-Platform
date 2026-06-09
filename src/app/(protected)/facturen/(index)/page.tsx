@@ -163,8 +163,11 @@ export default async function FacturenPage() {
                     {cascade ? " · via werkproces" : ""}
                   </p>
                 </div>
-                <span className="shrink-0 text-sm font-semibold tabular-nums">
-                  {formatEuro(inv.totalCents)}
+                <span className="shrink-0 text-right">
+                  <span className="block text-sm font-semibold tabular-nums">
+                    {formatEuro(inv.totalCents)}
+                  </span>
+                  <span className="block text-[10px] text-muted-foreground">incl. btw</span>
                 </span>
               </Link>
             );

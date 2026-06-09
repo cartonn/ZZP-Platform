@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Check, Clock, TriangleAlert } from "lucide-react";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type MandatoryDocState, type MandatoryDocStatus } from "@/lib/mandatory-documents";
+import { Button } from "@/components/ui/button";
 
 const STATE: Record<
   MandatoryDocState,
@@ -57,12 +58,9 @@ export function MandatoryDocuments({
                 {s.label}
               </span>
               {s.action && (
-                <Link
-                  href="/certificaten/nieuw"
-                  className="focus-ring ml-auto text-xs font-medium underline underline-offset-2"
-                >
-                  Toevoegen
-                </Link>
+                <Button asChild size="sm" variant="secondary" className="ml-auto">
+                  <Link href="/certificaten/nieuw">Toevoegen</Link>
+                </Button>
               )}
             </li>
           );
