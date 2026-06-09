@@ -320,7 +320,13 @@ export async function toggleLessonComplete(lessonId: string): Promise<void> {
 }
 
 /** Beheerder zet de cursusstatus (publiceren/archiveren) via de expliciete overgangsmap. */
-export async function setCourseStatus(courseId: string, formData: FormData): Promise<void> {
+export async function setCourseStatus(
+  courseId: string,
+  // De status komt óf als gebonden argument (ConfirmButton-flow, geen verborgen veld mogelijk) óf
+  // uit het formulierveld (plain submit). Eén actie dekt beide aanroepstijlen.
+  statusArg: string | FormData,
+  _formData?: FormData,
+): Promise<void> {
   let actor;
   try {
     actor = await requireRole("ADMIN");
@@ -328,7 +334,9 @@ export async function setCourseStatus(courseId: string, formData: FormData): Pro
     if (e instanceof AuthorizationError) return;
     throw e;
   }
-  const parsed = courseStatusSchema.safeParse(formData.get("status"));
+  const rawStatus =
+    typeof statusArg === "string" ? statusArg : String(statusArg.get("status") ?? "");
+  const parsed = courseStatusSchema.safeParse(rawStatus);
   if (!parsed.success) return;
   const next = parsed.data;
 
