@@ -4,6 +4,7 @@ import { AlertTriangle, Handshake } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { COLLABORATION_TRANSITIONS } from "@/lib/collaborations";
+import { invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { assessCollaborationCredentials, type CredentialAlert } from "@/lib/collaboration-alerts";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
@@ -87,6 +88,18 @@ export default async function SamenwerkingenPage() {
       },
     },
   });
+
+  // Welke samenwerkingen lenen zich voor een LOSSE factuur (niet in de cascade)? Zelfde regel als
+  // /facturen/nieuw — anders loopt de "Factuur opstellen"-knop dood op een lege keuzelijst zodra de
+  // ZZP'er uren heeft ingediend (dan loopt facturatie via het werkproces).
+  const invoiceableIds = new Set(
+    (
+      await prisma.collaboration.findMany({
+        where: invoiceableCollaborationsWhere(actor.id),
+        select: { id: true },
+      })
+    ).map((c) => c.id),
+  );
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -228,7 +241,7 @@ export default async function SamenwerkingenPage() {
                             </Button>
                           </form>
                         ))}
-                      {!isClient && (status === "ACTIVE" || status === "COMPLETED") && (
+                      {!isClient && invoiceableIds.has(c.id) && (
                         <Button asChild variant="secondary" size="sm">
                           <Link href="/facturen/nieuw">Factuur opstellen</Link>
                         </Button>

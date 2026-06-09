@@ -2,7 +2,26 @@
 // Bedragen in centen (integer) — nooit floats opslaan; nooit client-bedragen vertrouwen.
 // Pure functies, getest.
 
+import { type Prisma } from "@prisma/client";
 import { type InvoiceStatus } from "@/lib/enums";
+
+/**
+ * Where-fragment voor samenwerkingen waaruit een ZZP'er een LOSSE factuur mag opstellen: lopend of
+ * afgerond, en nog NIET in de uren-/prestatie-cascade. Zodra er een prestatie of een cascade-factuur
+ * (lifecycleStatus) bestaat, loopt de facturatie via het werkproces en zou een losse factuur dubbel
+ * factureren. Eén bron van waarheid voor /facturen/nieuw, de "Nieuwe factuur"-knop en de
+ * "Factuur opstellen"-knop op /samenwerkingen — zodat die niet uiteenlopen (en doodlopen).
+ */
+export function invoiceableCollaborationsWhere(
+  freelancerUserId: string,
+): Prisma.CollaborationWhereInput {
+  return {
+    freelancer: { userId: freelancerUserId },
+    status: { in: ["ACTIVE", "COMPLETED"] },
+    performances: { none: {} },
+    invoices: { none: { lifecycleStatus: { not: null } } },
+  };
+}
 
 export class InvoiceTransitionError extends Error {
   constructor(from: InvoiceStatus, to: InvoiceStatus) {
