@@ -514,8 +514,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
               <input
                 name="reason"
                 required
+                aria-label="Toelichting bij het dispuut"
                 placeholder="Toelichting"
-                className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                className="focus-ring flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
               />
               <Button type="submit" size="sm" variant="secondary">
                 Dispuut openen
@@ -787,8 +788,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                           <input
                             name="reason"
                             required
+                            aria-label="Reden van afkeuring"
                             placeholder="Reden afkeuren"
-                            className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                            className="focus-ring rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                           />
                           <Button type="submit" size="sm" variant="destructive">
                             Afkeuren
@@ -908,8 +910,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                               <input
                                 name="reason"
                                 required
+                                aria-label="Reden voor creditering"
                                 placeholder="Reden creditering"
-                                className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                                className="focus-ring flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                               />
                               <Button type="submit" size="sm" variant="secondary">
                                 Crediteren

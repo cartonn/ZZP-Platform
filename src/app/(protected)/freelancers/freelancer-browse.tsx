@@ -57,6 +57,7 @@ export function FreelancerBrowse({ freelancers }: { freelancers: FreelancerCard[
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
+            aria-label="Zoeken"
             placeholder="Zoek op naam, specialisme of vaardigheid…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -64,6 +65,7 @@ export function FreelancerBrowse({ freelancers }: { freelancers: FreelancerCard[
           />
         </div>
         <Select
+          aria-label="Vertrouwensniveau"
           value={trustLevel}
           onChange={(e) => setTrustLevel(e.target.value as TrustLevel | "")}
           className="sm:w-56"
