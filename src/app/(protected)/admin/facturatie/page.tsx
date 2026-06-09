@@ -29,9 +29,17 @@ const STATUS: Record<
   CANCELLED: { label: "Geannuleerd", variant: "danger" },
 };
 
-export default async function FacturatiePage() {
+export default async function FacturatiePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ gegenereerd?: string }>;
+}) {
   await requireRole("ADMIN");
-  const invoices = await listPlatformBillingInvoices();
+  const [{ gegenereerd }, invoices] = await Promise.all([
+    searchParams,
+    listPlatformBillingInvoices(),
+  ]);
+  const generated = gegenereerd != null ? Number(gegenereerd) : null;
 
   const open = invoices.filter((i) => i.status === "DRAFT" || i.status === "SENT");
   const openCents = open.reduce((s, i) => s + i.totalCents, 0);
@@ -45,6 +53,16 @@ export default async function FacturatiePage() {
         title="Facturatie"
         description="De facturen van het platform aan franchises (transactie-fee) en ZZP'ers (abonnement). Bundel de openstaande bijdragen en beheer de status. Er wordt nog niets automatisch geïncasseerd."
       />
+
+      {generated != null && Number.isFinite(generated) && (
+        <Card>
+          <CardContent className="py-3 text-sm">
+            {generated > 0
+              ? `${generated} nieuwe ${generated === 1 ? "factuur" : "facturen"} aangemaakt.`
+              : "Geen nieuwe facturen — alle openstaande bijdragen waren al gefactureerd."}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard

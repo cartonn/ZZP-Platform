@@ -37,10 +37,14 @@ maar wordt gelogd = mogelijk een gat).
 
 ## Guardrails (niet-onderhandelbaar)
 
-- Altijd feature-branch → PR → CI → **admin-merge op groen**; nooit `main` breken.
+- Altijd feature-branch → PR → CI → **admin-merge UITSLUITEND bij `fail=0`**; nooit `main` breken,
+  nooit een rode check overrulen (les uit #229).
 - Persona's zijn **read-only** verkenners; alleen fix-agents schrijven.
-- **Productkeuze ≠ bug.** Bewuste keuzes worden geparkeerd in `GAPS.md` (sectie "Productkeuzes"),
-  niet gefixt — die vragen een eigenaar-besluit. Zie ook `docs/decisions/` en `MENSENWERK.md`.
+- **Handel naar je eigen advies (directive 2026-06-09).** Vind je een verbetering met een duidelijk
+  goed antwoord — óók een voormalige "productkeuze" — bouw 'm; niet rapporteren-en-wachten. **Parkeer
+  alleen** wat écht alleen de eigenaar kan beslissen: prijzen/fee-%, juridische classificatie,
+  onomkeerbare/data-verlies-acties, externe incasso/verzending, of een fundamentele positionering met
+  meerdere even-legitieme uitkomsten. Bij twijfel: kies de beste optie, bouw 'm, noteer de afweging.
 - Geld blijft **PENDING** (geen echte incasso); geen externe verzending; auth nooit uit; het woord
   "AI" nergens in UI/teksten/comments; NL-UI + `DESIGN.md`.
 - **Stop na 2 mislukte fix-pogingen** op een item → parkeren als "needs human".

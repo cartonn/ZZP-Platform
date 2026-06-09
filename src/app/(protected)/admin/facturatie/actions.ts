@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
@@ -27,6 +28,9 @@ export async function generateBillingAction(): Promise<void> {
     },
   });
   revalidatePath("/admin/facturatie");
+  // Zichtbare terugkoppeling: hoeveel facturen er zijn aangemaakt (of 0).
+  const made = result.tenantInvoices + result.membershipInvoices;
+  redirect(`/admin/facturatie?gegenereerd=${made}`);
 }
 
 /**

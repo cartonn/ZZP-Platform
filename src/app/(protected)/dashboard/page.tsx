@@ -83,6 +83,8 @@ interface Stat {
   label: string;
   value: string | number;
   href: string;
+  /** Optionele verduidelijking onder het getal (bv. "excl. afgevallen"). */
+  sub?: string;
 }
 interface RunningCollab {
   id: string;
@@ -351,7 +353,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         { label: "ZZP'ers", value: freelancers, href: "/franchise/zzpers" },
         { label: "Open diensten", value: openDiensten, href: "/franchise/diensten" },
         { label: "Lopende samenwerkingen", value: activeCollabs, href: "/franchise/samenwerkingen" }, // prettier-ignore
-        { label: "Open leads", value: openLeads, href: "/franchise/leads" },
+        { label: "Open leads", value: openLeads, href: "/franchise/leads", sub: "excl. afgevallen" }, // prettier-ignore
       ],
       running: [],
       week: null,
@@ -547,6 +549,7 @@ export default async function DashboardPage() {
           >
             <p className="text-sm text-muted-foreground">{s.label}</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">{s.value}</p>
+            {s.sub && <p className="mt-0.5 text-xs text-muted-foreground">{s.sub}</p>}
           </Link>
         ))}
       </section>
