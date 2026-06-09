@@ -52,7 +52,7 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
 
   const company = await prisma.company.findUnique({
     where: { userId: actor.id },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, tenantId: true },
   });
   if (!company) return { error: "Bedrijfsprofiel niet gevonden." };
 
@@ -143,6 +143,11 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
       data: {
         ...fields,
         companyId: company.id,
+        // Denormaliseer de tenant van het bedrijf op de opdracht. Voor een franchise-opdrachtgever
+        // (tenantId gezet) blijft de opdracht zo "gesloten per tenant"; zonder dit kreeg een
+        // zelf-geplaatste opdracht tenantId=null en lekte hij als platform-opdracht naar alle
+        // directe ZZP'ers (en suggesties cross-tenant). Spiegelt createFranchiseDienst.
+        tenantId: company.tenantId,
         status: "DRAFT",
         skills: { create: jobSkills },
         credentialRequirements: { create: credReqs },
