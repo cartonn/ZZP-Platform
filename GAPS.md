@@ -72,3 +72,32 @@ na adversariële verificatie (confidence ≥ 0,6). **Alle 17 gefixt** (#245–#2
 - [x] (#254) **BUG** — Factuurstatusovergang zonder concurrency-guard. Atomische `updateMany` + count-check, zoals verificaties.
 
 **Resterend (bewust, geen auto-fix):** rolwijziging in `/admin/gebruikers` (security-gevoelig + tenant-implicaties — eigenaar-keuze; de `ROLE_CHANGED`-audit/monitoring staat klaar). Confirm-dialog vóór destructieve acties (afdeling verwijderen) = bredere UX-verbetering.
+
+## Iteratie 2 — 2026-06-09 (code-flow-sweep, ongedekte gebieden)
+
+6 hunters (onboarding/documenten-credentials/berichten-tickets/notificaties/ideeën-leads/matching-search)
+→ 16 bevindingen, **16 bevestigd**, **alle 16 gefixt** (#256–#266), elk op groene CI.
+
+### HOOG
+
+- [x] (#256) **BUG** — Login + wachtwoord-reset misten `.toLowerCase()` op e-mail (registratie normaliseert wél) → hoofdletter-lockout in productie (Postgres, hoofdlettergevoelig). Beide schema's normaliseren nu.
+- [x] (#257) **BUG** — Bewerken van een GEVERIFIEERD certificaat (datums/type) zonder nieuw bewijs hield status VERIFIED → expiry-bypass + omkatten. Verificatie-relevante wijziging reset nu naar SUBMITTED.
+- [x] (#259) **BUG** — "Gelezen"-knop genest in de notificatie-`<Link>` (ongeldige HTML, klik navigeerde weg) + doorklikken markeerde niet als gelezen. `openNotification` (mark+navigate) + sibling-knop.
+- [x] (#258) **AUTHZ** — Overflow-suggesties + `startConversationWithFreelancer` doorbraken de tenant-grens (cross-tenant PII + contactopname). Suggesties tenant-scoped + `visibleFreelancersWhere`-check.
+
+### MIDDEN
+
+- [x] (#260) **DEADEND** — Geschorst account mid-sessie → doodlopende foutpagina-lus. Middleware → `/geschorst`-pagina.
+- [x] (#260) **AUTHZ** — `currentActor()` gaf geschorst account nog een Actor (zoeken bleef werken). Nult nu SUSPENDED.
+- [x] (#261) **AUTHZ** — DUO/BIG-zelfverificatie zonder server-side typecontrole → admin-queue omzeilbaar. DUO eist DIPLOMA, BIG eist LICENSE.
+- [x] (#262) **DEADEND** — `adminReply` maakte geen notificatie → aanvrager kreeg geen signaal. Notificatie + bel-teller toegevoegd.
+- [x] (#262) **BUG** — Admin zag gebruikers-actieknoppen op andermans ticket (faalden + vervuilden audit-log). Acties nu alleen voor de aanvrager; admin alleen-lezen.
+- [x] (#266) **UX** — `adminReply` veranderde de status niet → beantwoord ticket bleef in de wachtrij. Nieuwe `AWAITING_USER`-status.
+- [x] (#263) **DEADEND** — Lead direct op KLANT zetten was een doodloop (geen opdrachtgever). KLANT alleen via onboarding (dropdown + server-guard).
+- [x] (#264) **BUG** — Scalaire `availability` genegeerd in ZZP-zoeken → "Direct beschikbaar"-ZZP'er zonder venster onzichtbaar. Scalar-fallback toegevoegd.
+
+### LAAG
+
+- [x] (#265) **AUTHZ** — Compliance-dossier lekte totaaltal incl. DRAFT/REJECTED-certificaten. Query gefilterd op VERIFIED + EXPIRED.
+- [x] (#265) **COPY** — "Certificaat vernieuwt binnenkort" → "verloopt binnenkort".
+- [x] (#263) **UX** — Notitie loggen behield verlopen opvolgdatum → lead bleef "te laat". Alleen toekomstige datum voorgevuld.
