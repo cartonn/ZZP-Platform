@@ -103,6 +103,12 @@ export function JobFilters({
           <option value="HYBRID">Hybride</option>
         </Select>
         <Input
+          aria-label="Locatie"
+          placeholder="Plaats of regio…"
+          defaultValue={params.get("location") ?? ""}
+          onBlur={(e) => set("location", e.target.value.trim())}
+        />
+        <Input
           type="number"
           min={0}
           aria-label="Minimumtarief"
