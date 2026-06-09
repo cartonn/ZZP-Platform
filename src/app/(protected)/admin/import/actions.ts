@@ -59,7 +59,10 @@ export interface ImportCreatedRow {
   name: string;
   email: string;
   role: ImportRole;
-  tempPassword: string;
+  /** Tijdelijk wachtwoord. Alleen aanwezig als het NIET per mail is verstuurd (de admin deelt het dan
+   *  handmatig). Bij een geslaagde welkomstmail is het geheim al out-of-band gedeeld en sturen we het
+   *  niet naar de browser-payload. */
+  tempPassword?: string;
   /** null = niet per mail verstuurd (admin koos scherm); true/false = verzendresultaat. */
   emailSent: boolean | null;
 }
@@ -294,7 +297,15 @@ export async function commitImport(formData: FormData): Promise<ImportCommitResu
         }
       }
 
-      result.created.push({ name: row.name, email: row.email, role, tempPassword, emailSent });
+      // Stuur het tijdelijke wachtwoord alleen mee als het NIET (geslaagd) gemaild is — anders is het
+      // geheim al via e-mail gedeeld en hoeft het niet naar de browser-payload.
+      result.created.push({
+        name: row.name,
+        email: row.email,
+        role,
+        emailSent,
+        ...(emailSent === true ? {} : { tempPassword }),
+      });
     } catch (e) {
       // Geen interne foutdetails (bv. Prisma-melding) naar de client lekken; server-side loggen.
       console.error("Import: aanmaken mislukt voor rij", row.rowNumber, e);

@@ -161,9 +161,9 @@ export function ImportWizard({ emailConfigured }: { emailConfigured: boolean }) 
                   <tr key={c.email} className="border-t border-border/60">
                     <td className="px-4 py-2">{c.name}</td>
                     <td className="px-4 py-2 text-muted-foreground">{c.email}</td>
-                    <td className="px-4 py-2 font-mono text-xs">{c.tempPassword}</td>
+                    <td className="px-4 py-2 font-mono text-xs">{c.tempPassword ?? "—"}</td>
                     <td className="px-4 py-2 text-right">
-                      <CopyButton text={c.tempPassword} />
+                      <CopyButton text={c.tempPassword ?? ""} />
                     </td>
                   </tr>
                 ))}
