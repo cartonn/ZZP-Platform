@@ -21,13 +21,13 @@ gefixte items krijgen `[x]` + PR-nummer. "Productkeuzes" worden NIET gefixt zond
       nette NL key/value + geformatteerde bedragen.
 - [ ] **LAAG · COPY** — Engelse native file-knop "Choose File / No file chosen" (bedrijf/documenten/
       certificaten/import). → eigen NL "Bestand kiezen".
-- [ ] **LAAG · COPY** — "Pdf"-knoplabel i.p.v. "PDF" (`admin/facturatie/page.tsx`).
+- [x] (#231) **LAAG · COPY** — "Pdf"-knoplabel i.p.v. "PDF" (`admin/facturatie/page.tsx`).
 - [ ] **LAAG · UX** — Native datumvelden tonen locale-placeholder; voeg "dd-mm-jjjj"-hint toe.
 - [ ] **LAAG · UX** — Leads-KPI "Open leads 2" vs 3 zichtbare leads zonder uitleg (subtekst/filter).
-- [ ] **LAAG · UX** — "Inzetbaar 0 van 2"-tegel op franchise-inzicht niet klikbaar, geen reden/vervolg.
-- [ ] **LAAG · UX** — Factuurlijst toont totaal incl. btw zonder "(incl. btw)"-label.
+- [x] (#231) **LAAG · UX** — "Inzetbaar 0 van 2"-tegel op franchise-inzicht niet klikbaar, geen reden/vervolg.
+- [x] (#231) **LAAG · UX** — Factuurlijst toont totaal incl. btw zonder "(incl. btw)"-label.
 - [ ] **LAAG · UX** — "Genereer facturen" geeft geen zichtbare terugkoppeling.
-- [ ] **LAAG · UX** — Verzekering-herstelactie is onopvallende tekstlink i.p.v. knop.
+- [x] (#231) **LAAG · UX** — Verzekering-herstelactie is onopvallende tekstlink i.p.v. knop.
 - [ ] **LAAG · UX** — ZZP'er-toevoegformulier permanent uitgeklapt boven roster (vs. opdrachtgevers via knop).
 - [ ] **LAAG · DOODLOPER (verifiëren)** — Bevestig dat "Reageren" zichtbaar/klikbaar is op een opdracht
       zónder bestaande reactie (de testopdracht had al een reactie).

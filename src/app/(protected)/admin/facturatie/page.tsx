@@ -113,7 +113,7 @@ export default async function FacturatiePage() {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        Pdf
+                        PDF
                       </a>
                     </Button>
                     {status === "DRAFT" && (

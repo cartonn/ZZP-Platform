@@ -132,6 +132,7 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
             label="Inzetbaar"
             value={s.engageableFreelancers}
             sub={`${s.engageabilityRate}% van je roster`}
+            href="/franchise/zzpers"
             tone={
               s.engageabilityRate >= 80
                 ? "success"
