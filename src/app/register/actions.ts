@@ -9,7 +9,9 @@ import { requestMeta } from "@/lib/request-meta";
 import { registerRateLimiter } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
 
-export type RegisterState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
+export type RegisterState =
+  | { error?: string; success?: string; fieldErrors?: Record<string, string> }
+  | undefined;
 
 export async function register(_prev: RegisterState, formData: FormData): Promise<RegisterState> {
   const parsed = registerSchema.safeParse({
@@ -77,8 +79,10 @@ export async function register(_prev: RegisterState, formData: FormData): Promis
     await signIn("credentials", { email, password, redirectTo: "/dashboard" });
   } catch (error) {
     // signIn gooit bij succes een NEXT_REDIRECT die we MOETEN doorlaten.
+    // Komen we hier met een AuthError, dan is het account wél aangemaakt maar lukte de
+    // auto-login niet — dat is een succesmelding (groen), geen fout (rood).
     if (error instanceof AuthError) {
-      return { error: "Account aangemaakt. Log in om verder te gaan." };
+      return { success: "Account aangemaakt. Log in om verder te gaan." };
     }
     throw error;
   }

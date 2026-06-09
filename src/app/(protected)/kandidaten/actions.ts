@@ -84,7 +84,13 @@ export async function changeApplicationStatus(appId: string, target: string): Pr
   revalidatePath("/kandidaten");
 }
 
-export async function saveApplicationNote(appId: string, formData: FormData): Promise<void> {
+export type ApplicationNoteState = { success?: string; error?: string } | undefined;
+
+export async function saveApplicationNote(
+  appId: string,
+  _prev: ApplicationNoteState,
+  formData: FormData,
+): Promise<ApplicationNoteState> {
   const actor = await requireRole("CLIENT");
   await loadOwnedApplication(actor, appId);
 
@@ -99,4 +105,5 @@ export async function saveApplicationNote(appId: string, formData: FormData): Pr
     entityId: appId,
   });
   revalidatePath("/kandidaten");
+  return { success: "Notitie opgeslagen." };
 }
