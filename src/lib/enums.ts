@@ -152,11 +152,13 @@ export const subscriptionStatusSchema = z.enum(SUBSCRIPTION_STATUSES);
 
 // Expliciete overgangsmap (CLAUDE.md regel 3). PAST_DUE → ACTIVE = betaling hersteld,
 // PAST_DUE → CANCELLED = na de herinneringsladder teruggezet naar Gratis (geen actief plan).
+// CANCELLED → PENDING/ACTIVE = her-aanmelding: een eerder geannuleerd/afgewaardeerd abonnement kan
+// opnieuw worden gestart (de activate-flow doet dit al; de map sluit nu aan op dat gewenste gedrag).
 export const SUBSCRIPTION_TRANSITIONS: Record<SubscriptionStatus, readonly SubscriptionStatus[]> = {
   PENDING: ["ACTIVE", "PAST_DUE", "CANCELLED"],
   ACTIVE: ["PAST_DUE", "CANCELLED"],
   PAST_DUE: ["ACTIVE", "CANCELLED"],
-  CANCELLED: [],
+  CANCELLED: ["PENDING", "ACTIVE"],
 };
 
 // --- Tenant-billing (franchise-monetisatie, 3+1 hybride: abonnement per vestiging + transactie-fee

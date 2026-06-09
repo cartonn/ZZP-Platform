@@ -46,9 +46,9 @@ export const lessonInputSchema = z.object({
 });
 export type LessonInput = z.infer<typeof lessonInputSchema>;
 
-const optionalInt = (max: number) =>
+const optionalInt = (max: number, min = 0) =>
   z
-    .union([z.literal(""), z.coerce.number().int().min(0).max(max)])
+    .union([z.literal(""), z.coerce.number().int().min(min).max(max)])
     .optional()
     .transform((v) => (v === "" || v === undefined ? undefined : Number(v)));
 
@@ -132,8 +132,10 @@ export const jobSchema = z
       .union([z.string().cuid(), z.literal("")])
       .optional()
       .transform((v) => (v ? v : undefined)),
-    rateMin: optionalInt(2000),
-    rateMax: optionalInt(2000),
+    // Een tarief is optioneel (leeg = "geen tarief"), maar als het is ingevuld minstens €1/uur —
+    // anders verscheen letterlijk "€ 0/uur" op de opdracht (onlogisch, oogt als bug).
+    rateMin: optionalInt(2000, 1),
+    rateMax: optionalInt(2000, 1),
     location: optionalText(120),
     workMode: workModeSchema,
     startDate: z

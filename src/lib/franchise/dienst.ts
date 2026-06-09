@@ -23,8 +23,9 @@ export const dienstSchema = z
     location: z.string().trim().max(120).optional(),
     workMode: z.enum(["REMOTE", "ONSITE", "HYBRID"]).default("ONSITE"),
     startDate: z.string().trim().optional(),
-    rateMin: z.coerce.number().int().min(0).max(100000).optional(),
-    rateMax: z.coerce.number().int().min(0).max(100000).optional(),
+    // Tarief optioneel, maar indien ingevuld minstens €1/uur (geen "€ 0/uur"-dienst).
+    rateMin: z.coerce.number().int().min(1).max(100000).optional(),
+    rateMax: z.coerce.number().int().min(1).max(100000).optional(),
   })
   .refine((d) => d.rateMin == null || d.rateMax == null || d.rateMin <= d.rateMax, {
     message: "Het minimumtarief mag niet hoger zijn dan het maximum.",
