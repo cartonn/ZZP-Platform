@@ -4,7 +4,8 @@ import { Users, Check, TriangleAlert } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { APPLICATION_TRANSITIONS } from "@/lib/applications";
-import { computeCompliance, scoreJobForFreelancer } from "@/lib/matching";
+import { computeCompliance, scoreJobForFreelancer, topPositiveReason } from "@/lib/matching";
+import { VerificationMarks } from "@/components/credentials/verification-marks";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
@@ -89,6 +90,16 @@ export default async function KandidatenPage() {
       APPLICATION_STATUSES.indexOf(b.status as ApplicationStatus),
   );
 
+  // "Beste match": hoogste matchscore onder de nog niet afgewezen reacties — bovenaan etaleren met de
+  // belangrijkste reden, want geen enkele concurrent toont leesbare match-redenen aan de beslisser.
+  const best =
+    [...applications]
+      .filter((a) => a.status !== "REJECTED" && a.matchScore != null)
+      .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0] ?? null;
+  const bestReason = best
+    ? topPositiveReason(scoreJobForFreelancer(best.job, best.freelancer).reasons)
+    : null;
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
@@ -106,6 +117,27 @@ export default async function KandidatenPage() {
         </Card>
       ) : (
         <div className="space-y-4">
+          {best && (
+            <Card className="border-accent/40 bg-accent/5">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Beste match
+                  </p>
+                  <p className="truncate text-sm font-semibold">
+                    {best.freelancer.user.name}
+                    {best.matchScore != null && (
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        Match {best.matchScore}%
+                      </span>
+                    )}
+                  </p>
+                  {bestReason && <p className="text-xs text-muted-foreground">{bestReason}</p>}
+                </div>
+                <VerificationMarks credentials={best.freelancer.credentials} />
+              </CardContent>
+            </Card>
+          )}
           {applications.map((app) => {
             const status = app.status as ApplicationStatus;
             // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
@@ -180,6 +212,8 @@ export default async function KandidatenPage() {
                       {compliance && <ComplianceBadge status={compliance.status} />}
                     </div>
                   </div>
+
+                  <VerificationMarks credentials={app.freelancer.credentials} />
 
                   {compliance && compliance.status !== "COMPLIANT" && (
                     <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
