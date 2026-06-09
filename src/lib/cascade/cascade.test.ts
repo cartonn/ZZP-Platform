@@ -419,15 +419,21 @@ describe("zijpad D' — factuur afgekeurd en opnieuw ingediend (Fase 7)", () => 
     // Geen boekingen bij afwijzing (nog niets gerealiseerd)
     expect(dPrime.postings).toHaveLength(0);
 
-    // C opnieuw — ZZP'er dient gecorrigeerde factuur in
+    // C opnieuw — ZZP'er dient na afkeuring opnieuw in (REJECTED→SUBMITTED). Het echte command-pad
+    // zet resubmit:true en hergebruikt het bestaande nummer (geen nieuwe allocatie). Cruciaal: GEEN
+    // nieuwe boekingen — de omzet/BTW is bij de eerste indiening al erkend en afkeuring boekte niet
+    // terug, dus opnieuw boeken zou de administratie laten dubbeltellen.
     const cRetry = planInvoiceSubmittedEvent({
       invoice: { id: "i2", lifecycleStatus: "REJECTED", ...fin },
       partyInvoiceNumber: "2026-0002",
       clientUserId: "c1",
       now,
       actorId: "f1",
+      resubmit: true,
     });
     expect(cRetry.statusChanges[0]?.to).toBe("SUBMITTED");
+    expect(cRetry.statusChanges[0]?.set?.partyInvoiceNumber).toBe("2026-0002"); // nummer behouden
+    expect(cRetry.postings).toHaveLength(0); // geen dubbele omzet/BTW-boeking
 
     // D — opdrachtgever keurt goed
     const d = planInvoiceApprovedEvent({
@@ -450,8 +456,10 @@ describe("zijpad D' — factuur afgekeurd en opnieuw ingediend (Fase 7)", () => 
     });
     expect(e.statusChanges[0]?.to).toBe("PAID");
 
-    // Administratie sluit: postings van C + D + E (c-retry vervangt geen postings)
-    const allPostings = [...c.postings, ...d.postings, ...e.postings];
+    // Administratie sluit: postings van C + (lege) C-retry + D + E. De heraanbieding voegt nu
+    // expliciet niets toe (resubmit), dus de omzet/BTW telt precies één keer — ook al nemen we de
+    // C-retry-postings hier wél mee.
+    const allPostings = [...c.postings, ...cRetry.postings, ...d.postings, ...e.postings];
     const summary = summarizeByParty(allPostings);
     expect(summary.FREELANCER.DEBITEUREN).toBe(0);
     expect(summary.FREELANCER.OMZET).toBe(-480_00);

@@ -641,6 +641,10 @@ export async function submitInvoice(actor: Actor, invoiceId: string): Promise<vo
     throw new CascadeError("Alleen de uitschrijver kan de factuur indienen.");
   }
   if (inv.collaborationId) await assertNotDisputed(inv.collaborationId);
+  // Heraanbieding na afkeuring: een factuur die al een partyInvoiceNumber draagt is eerder ingediend.
+  // Dan het bestaande nummer behouden (geen nieuwe allocatie → geen gat in de gatenvrije reeks) en
+  // niet opnieuw boeken (omzet/BTW al erkend bij de eerste indiening).
+  const isResubmit = inv.partyInvoiceNumber != null;
   const effects = planInvoiceSubmittedEvent({
     invoice: {
       id: invoiceId,
@@ -649,10 +653,12 @@ export async function submitInvoice(actor: Actor, invoiceId: string): Promise<vo
       vatCents: inv.vatCents,
       totalCents: inv.totalCents,
     },
-    partyInvoiceNumber: "", // wordt in de transactie door de allocator gezet
+    // Eerste indiening: leeg → de allocator vult het. Heraanbieding: behoud het bestaande nummer.
+    partyInvoiceNumber: isResubmit ? (inv.partyInvoiceNumber ?? "") : "",
     clientUserId: inv.counterpartyUserId,
     now: new Date(),
     actorId: actor.id,
+    resubmit: isResubmit,
   });
   await persistEventAndEffects(
     {
@@ -669,7 +675,10 @@ export async function submitInvoice(actor: Actor, invoiceId: string): Promise<vo
       correlationId: inv.correlationId,
       invoiceId,
     },
-    { allocate: { issuerKey: inv.issuerKey, year: new Date().getFullYear(), invoiceId } },
+    // Alleen bij de eerste indiening een nummer alloceren; heraanbieding hergebruikt het bestaande.
+    isResubmit
+      ? undefined
+      : { allocate: { issuerKey: inv.issuerKey, year: new Date().getFullYear(), invoiceId } },
   );
 
   // Best-effort e-mail naar de opdrachtgever.
