@@ -149,6 +149,10 @@ export async function replyToTicket(ticketId: string, formData: FormData): Promi
   if (ticket.status === "RESOLVED" || ticket.status === "AUTO_ANSWERED") {
     assertSupportTransition(ticket.status as SupportTicketStatus, "REOPENED");
     await prisma.supportTicket.update({ where: { id: ticketId }, data: { status: "REOPENED" } });
+  } else if (ticket.status === "AWAITING_USER") {
+    // De helpdesk wachtte op de aanvrager; diens reactie zet het ticket terug in de wachtrij.
+    assertSupportTransition(ticket.status as SupportTicketStatus, "ESCALATED");
+    await prisma.supportTicket.update({ where: { id: ticketId }, data: { status: "ESCALATED" } });
   }
 
   await audit({

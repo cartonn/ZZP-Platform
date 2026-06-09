@@ -7,6 +7,7 @@ export const SUPPORT_STATUS_LABEL: Record<SupportTicketStatus, string> = {
   TRIAGED: "In behandeling",
   AUTO_ANSWERED: "Beantwoord",
   ESCALATED: "Bij de helpdesk",
+  AWAITING_USER: "Wacht op je reactie",
   RESOLVED: "Opgelost",
   REOPENED: "Heropend",
 };
