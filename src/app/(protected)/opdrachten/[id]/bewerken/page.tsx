@@ -32,7 +32,7 @@ export default async function OpdrachtBewerkenPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <Link
           href={`/opdrachten/${job.id}`}

@@ -109,7 +109,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Link href="/" className="flex items-center gap-2">
             <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
               Z
@@ -122,7 +122,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
+      <main className="mx-auto max-w-2xl space-y-6 px-4 py-8">
         <Card>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">

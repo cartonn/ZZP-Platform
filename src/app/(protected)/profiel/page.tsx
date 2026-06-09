@@ -36,7 +36,7 @@ export default async function ProfielPage() {
 
   if (!profile) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-2xl">
         <Card>
           <CardContent className="p-0">
             <EmptyState
@@ -66,7 +66,7 @@ export default async function ProfielPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Mijn profiel</h1>
