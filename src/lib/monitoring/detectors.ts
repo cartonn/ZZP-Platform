@@ -13,8 +13,14 @@ export interface Finding {
   summary: string;
   /** Onderbouwing (wordt als JSON-string opgeslagen). */
   evidence: Record<string, unknown>;
-  /** Idempotentie-anker: één incident per logische bevinding/tijdvenster. */
+  /** Idempotentie-anker (incl. tijdvenster): harde unieke sleutel per incident-record. */
   dedupeKey: string;
+  /**
+   * Tijdloos voorvoegsel van de dedupeKey (bv. `auth-login-burst-<ip>-`). De runner onderdrukt een
+   * nieuw incident als er bínnen het rollende scanvenster al één met deze groupKey is — zo vuurt
+   * dezelfde burst niet dubbel zodra hij de UTC-uurgrens kruist (rollend venster vs. uur-suffix).
+   */
+  groupKey: string;
 }
 
 /** Minimale vorm van een auditregel die de detectoren nodig hebben. */
@@ -65,13 +71,15 @@ export function detectAuthAnomalies(rows: readonly AuditRow[], now: Date): Findi
   for (const [ip, n] of count(failed, (r) => r.ipAddress ?? "onbekend")) {
     if (n >= THRESHOLDS.loginBurstPerIp) {
       const critical = n >= THRESHOLDS.loginBurstCritical;
+      const groupKey = `auth-login-burst-${ip}-`;
       findings.push({
         source: "AUTH",
         severity: critical ? "CRITICAL" : "WARN",
         code: "LOGIN_BURST",
         summary: `${n} mislukte inlogpogingen vanaf IP ${ip} in het laatste uur.`,
         evidence: { ip, count: n, window },
-        dedupeKey: `auth-login-burst-${ip}-${window}`,
+        dedupeKey: `${groupKey}${window}`,
+        groupKey,
       });
     }
   }
@@ -80,13 +88,15 @@ export function detectAuthAnomalies(rows: readonly AuditRow[], now: Date): Findi
   const resets = rows.filter((r) => r.action === "PASSWORD_RESET_REQUESTED");
   for (const [ip, n] of count(resets, (r) => r.ipAddress ?? "onbekend")) {
     if (n >= THRESHOLDS.passwordResetFlood) {
+      const groupKey = `auth-reset-flood-${ip}-`;
       findings.push({
         source: "AUTH",
         severity: "WARN",
         code: "PASSWORD_RESET_FLOOD",
         summary: `${n} wachtwoord-resetaanvragen vanaf IP ${ip} in het laatste uur.`,
         evidence: { ip, count: n, window },
-        dedupeKey: `auth-reset-flood-${ip}-${window}`,
+        dedupeKey: `${groupKey}${window}`,
+        groupKey,
       });
     }
   }
@@ -94,13 +104,15 @@ export function detectAuthAnomalies(rows: readonly AuditRow[], now: Date): Findi
   // Burst van rolwijzigingen (privilege-escalatie-signaal).
   const roleChanges = rows.filter((r) => r.action === "ROLE_CHANGED");
   if (roleChanges.length >= THRESHOLDS.roleChangeBurst) {
+    const groupKey = `auth-role-burst-`;
     findings.push({
       source: "AUTH",
       severity: "WARN",
       code: "ROLE_CHANGE_BURST",
       summary: `${roleChanges.length} rolwijzigingen in het laatste uur — controleer of dit klopt.`,
       evidence: { count: roleChanges.length, window },
-      dedupeKey: `auth-role-burst-${window}`,
+      dedupeKey: `${groupKey}${window}`,
+      groupKey,
     });
   }
 
@@ -116,14 +128,18 @@ export interface NpmVuln {
 /** Classificeert npm-audit-bevindingen: high/critical → Finding (CVE-bron). */
 export function classifyCves(vulns: readonly NpmVuln[], dateKey: string): Finding[] {
   const relevant = vulns.filter((v) => v.severity === "high" || v.severity === "critical");
-  return relevant.map((v) => ({
-    source: "CVE" as const,
-    severity: v.severity === "critical" ? "CRITICAL" : "WARN",
-    code: "DEPENDENCY_CVE",
-    summary: `Kwetsbaarheid (${v.severity}) in dependency ${v.name}.`,
-    evidence: { package: v.name, severity: v.severity },
-    dedupeKey: `cve-${v.name}-${v.severity}-${dateKey}`,
-  }));
+  return relevant.map((v) => {
+    const groupKey = `cve-${v.name}-${v.severity}-`;
+    return {
+      source: "CVE" as const,
+      severity: v.severity === "critical" ? ("CRITICAL" as const) : ("WARN" as const),
+      code: "DEPENDENCY_CVE",
+      summary: `Kwetsbaarheid (${v.severity}) in dependency ${v.name}.`,
+      evidence: { package: v.name, severity: v.severity },
+      dedupeKey: `${groupKey}${dateKey}`,
+      groupKey,
+    };
+  });
 }
 
 /** Hoogste severity in een set findings (voor een samenvattend signaal). */

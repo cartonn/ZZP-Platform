@@ -18,6 +18,13 @@ vi.mock("@/lib/db", () => ({
         async ({ where }: { where: { dedupeKey: string } }) =>
           store.incidents.get(where.dedupeKey) ?? null,
       ),
+      // Recent-duplicate-onderdrukking op groupKey-prefix (store wordt per test geleegd, dus elke
+      // aanwezige match telt als "recent" — het createdAt-venster is een echte-DB-zorg).
+      findFirst: vi.fn(async ({ where }: { where: { dedupeKey?: { startsWith?: string } } }) => {
+        const prefix = where.dedupeKey?.startsWith ?? "";
+        for (const [k, v] of store.incidents) if (k.startsWith(prefix)) return v;
+        return null;
+      }),
       create: vi.fn(async ({ data }: { data: { dedupeKey: string } }) => {
         store.incidents.set(data.dedupeKey, data);
         store.created.push(data);
