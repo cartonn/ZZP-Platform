@@ -2,6 +2,8 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { getPublicTrustStats } from "@/lib/public-trust";
+import { TrustStrip } from "@/components/marketing/trust-strip";
 import { RegisterForm } from "./register-form";
 
 export const metadata: Metadata = { title: "Registreren · ZZP Platform" };
@@ -11,6 +13,7 @@ export default async function RegisterPage() {
   if (session?.user) {
     redirect("/dashboard");
   }
+  const trustStats = await getPublicTrustStats();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-10">
@@ -41,6 +44,8 @@ export default async function RegisterPage() {
             Inloggen
           </Link>
         </p>
+
+        <TrustStrip stats={trustStats} />
       </div>
     </div>
   );

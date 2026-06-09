@@ -46,7 +46,7 @@ Wet-DBA-verdedigbaarheid) luider en eerder in de funnel zichtbaar.
 
 ### Backlog — BOUWEN (duidelijke UX/principe-winst)
 
-- [ ] **M** Publieke landing + login met vertrouwens-strip (échte platformdata, verificatie-keurmerk) — /login, root, /register
+- [x] (#241) **M** Vertrouwens-strip op /login + /register (échte platformdata, verificatie-keurmerk) — kwalitatieve garanties + keurmerk-rij altijd, echte cijfers boven betekenis-drempel; root blijft dashboard-first (geen marketinghomepage, CLAUDE.md)
 - [x] (#238) **M** "Beste match"-banner met match-reasons op opdracht-detail/reactielijst — /opdrachten/[id], /kandidaten
 - [x] (#239) **S** No-cure-no-fee-abonnement expliciet communiceren ("geen werk = geen bijdrage") — /register, /abonnement
 - [x] (#238) **S** Verificatie-keurmerk-rij (VOG ✓ · BIG ✓ · Diploma ✓) op kandidaat-/ZZP-profiel — /zzp/[id], /kandidaten
