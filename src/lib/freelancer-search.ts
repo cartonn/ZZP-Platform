@@ -5,7 +5,14 @@ import { prisma } from "@/lib/db";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
-import { type CredentialType, type CredentialStatus } from "@/lib/enums";
+import { type Availability, type CredentialType, type CredentialStatus } from "@/lib/enums";
+
+// Korte beschikbaarheidstekst uit het scalaire profielveld, als terugval wanneer er geen inzetbaar
+// venster is. UNAVAILABLE/UNKNOWN geven (terecht) geen "beschikbaar"-signaal → null.
+const SCALAR_AVAILABILITY_SUMMARY: Partial<Record<Availability, string>> = {
+  AVAILABLE: "Direct beschikbaar",
+  LIMITED: "Beperkt beschikbaar",
+};
 
 export interface FreelancerCard {
   id: string;
@@ -95,14 +102,21 @@ export async function getAllPublicFreelancers(
         })),
       ).allSatisfied,
     });
-    const availability = summarizeAvailability(
-      p.availabilityWindows as {
-        startDate: Date;
-        endDate: Date;
-        type: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
-      }[],
-      now,
-    );
+    // Val terug op het scalaire beschikbaarheidsveld als er geen inzetbaar venster is — anders is een
+    // ZZP'er die "Direct beschikbaar" koos maar (nog) geen venster invulde ten onrechte onzichtbaar
+    // bij "Alleen beschikbaar" en zonder badge, terwijl de matching-engine hem wél als beschikbaar
+    // telt. Spiegelt de scalar-fallback in matching.ts.
+    const availability =
+      summarizeAvailability(
+        p.availabilityWindows as {
+          startDate: Date;
+          endDate: Date;
+          type: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
+        }[],
+        now,
+      ) ??
+      SCALAR_AVAILABILITY_SUMMARY[p.availability as Availability] ??
+      null;
 
     return {
       id: p.id,
