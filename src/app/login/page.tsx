@@ -2,8 +2,10 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { getPublicTrustStats } from "@/lib/public-trust";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PaletteSwitcher } from "@/components/ui/palette-switcher";
+import { TrustStrip } from "@/components/marketing/trust-strip";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Inloggen · ZZP Platform" };
@@ -18,6 +20,7 @@ export default async function LoginPage({
     redirect("/dashboard");
   }
   const changed = (await searchParams).changed === "1";
+  const trustStats = await getPublicTrustStats();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
@@ -64,6 +67,8 @@ export default async function LoginPage({
             </Link>
           </p>
         </div>
+
+        <TrustStrip stats={trustStats} />
       </div>
     </div>
   );
