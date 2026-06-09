@@ -10,6 +10,7 @@ import { assertTransition, TransitionError } from "@/lib/credentials";
 import { documentKindForCredential } from "@/lib/documents";
 import { getDiplomaVerifier } from "@/lib/services/diploma-verifier";
 import { getBigVerifier } from "@/lib/services/big-verifier";
+import { credentialVerifyRateLimiter } from "@/lib/rate-limit";
 import {
   assertContentMatchesMime,
   generateStorageKey,
@@ -395,6 +396,11 @@ export async function verifyCredentialViaDuo(
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
   }
+  // Anti-brute-force: zelf-verificatie zet direct op VERIFIED zonder admin; begrens het gokken van
+  // een DUO-code/BIG-nummer (gedeelde budget met BIG, per ZZP'er per uur).
+  if (!credentialVerifyRateLimiter.check(`verify:${actor.id}`).allowed) {
+    return { error: "Te veel verificatiepogingen. Probeer het later opnieuw." };
+  }
   const profile = await requireProfile(actor.id);
   const credential = await loadOwnedCredential(profile.id, credentialId);
   const status = credential.status as CredentialStatus;
@@ -441,6 +447,11 @@ export async function verifyCredentialViaBig(
   } catch (e) {
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
+  }
+  // Anti-brute-force: zelf-verificatie zet direct op VERIFIED zonder admin; begrens het gokken van
+  // een BIG-nummer/DUO-code (gedeelde budget met DUO, per ZZP'er per uur).
+  if (!credentialVerifyRateLimiter.check(`verify:${actor.id}`).allowed) {
+    return { error: "Te veel verificatiepogingen. Probeer het later opnieuw." };
   }
   const profile = await requireProfile(actor.id);
   const credential = await loadOwnedCredential(profile.id, credentialId);
