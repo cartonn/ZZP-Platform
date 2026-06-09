@@ -61,20 +61,17 @@ export async function suggestedFreelancersForJob(
       skills: { include: { skill: { select: { name: true } } } },
       credentialRequirements: true,
       applications: { select: { freelancerId: true } },
-      tenant: { select: { openOverflow: true } },
     },
   });
   if (!job || job.status !== "PUBLISHED") return [];
 
   const applied = new Set(job.applications.map((a) => a.freelancerId));
-  // Gesloten per tenant: voor een tenant-dienst worden alleen ZZP'ers uit de eigen franchise
-  // gesuggereerd; voor een platform-opdracht alleen niet-tenant ZZP'ers. Maar als de franchise de
-  // dienst heeft opengesteld (openOverflow), is hij platform-breed zichtbaar — dan suggereren we
-  // ook ZZP'ers buiten de eigen franchise, spiegelend aan visibleJobsWhere/canViewJob.
-  const profileScope =
-    job.tenantId && job.tenant?.openOverflow
-      ? { visibility: "PUBLIC" as const }
-      : { visibility: "PUBLIC" as const, tenantId: job.tenantId };
+  // Gesloten per tenant — óók bij een opengestelde (overflow) dienst. Overflow opent een dienst voor
+  // ZZP'ers van andere franchises (de jobs→ZZP'er-richting), maar de omgekeerde richting — een
+  // opdrachtgever krijgt ZZP'ers van een ándere franchise gesuggereerd én kan ze benaderen — is
+  // overal elders gesloten (visibleFreelancersWhere kent geen overflow; /zzp/[id] geeft cross-tenant
+  // 404). Dus altijd op de eigen tenant van de dienst scopen, anders lekt cross-tenant PII.
+  const profileScope = { visibility: "PUBLIC" as const, tenantId: job.tenantId };
   const profiles = await prisma.freelancerProfile.findMany({
     where: profileScope,
     orderBy: { updatedAt: "desc" },

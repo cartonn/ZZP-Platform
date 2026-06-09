@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { visibleFreelancersWhere } from "@/lib/tenancy";
 import { isParticipant } from "@/lib/messaging";
 import { messageSchema } from "@/lib/validation";
 
@@ -150,13 +151,20 @@ export async function startConversationWithFreelancer(
     }),
     prisma.freelancerProfile.findUnique({
       where: { id: freelancerId },
-      select: { userId: true, visibility: true },
+      select: { userId: true, visibility: true, tenantId: true },
     }),
   ]);
   if (!job || job.company.userId !== actor.id) throw new Error("Opdracht niet gevonden.");
   if (job.status !== "PUBLISHED")
     throw new Error("Je kunt alleen bij een gepubliceerde opdracht iemand benaderen.");
   if (!freelancer || freelancer.visibility !== "PUBLIC") throw new Error("ZZP'er niet gevonden.");
+  // Gesloten per tenant: een opdrachtgever mag alleen ZZP'ers binnen zijn eigen scope benaderen —
+  // dezelfde grens als visibleFreelancersWhere op /freelancers (tenant-opdrachtgever → eigen roster,
+  // directe opdrachtgever → niet-tenant ZZP'ers). Voorkomt cross-tenant contactopname via overflow.
+  const scope = visibleFreelancersWhere(actor);
+  if (scope.tenantId !== undefined && scope.tenantId !== freelancer.tenantId) {
+    throw new Error("ZZP'er niet gevonden.");
+  }
 
   const freelancerUserId = freelancer.userId;
   const existing = await prisma.conversation.findFirst({
