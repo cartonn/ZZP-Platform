@@ -4,6 +4,7 @@ import { Plus, Receipt } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
+import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { Button } from "@/components/ui/button";
@@ -55,8 +56,10 @@ export default async function FacturenPage() {
     (sum, inv) => (inv.status === "PAID" ? sum + inv.totalCents : sum),
     0,
   );
+  // Cascade-bewust: cascade-facturen blijven status='DRAFT' en gelden als openstaand op hun
+  // lifecycleStatus (SUBMITTED/APPROVED/OVERDUE) — alleen op `status` filteren mist ze allemaal.
   const openCents = invoices.reduce(
-    (sum, inv) => (inv.status === "SENT" || inv.status === "OVERDUE" ? sum + inv.totalCents : sum),
+    (sum, inv) => (isInvoiceOutstanding(inv) ? sum + inv.totalCents : sum),
     0,
   );
 
