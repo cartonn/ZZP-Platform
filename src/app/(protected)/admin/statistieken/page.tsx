@@ -69,6 +69,12 @@ export default async function StatistiekenPage() {
             href="/admin/gebruikers"
           />
           <StatCard
+            label="Beheerders"
+            value={stats.users.admins}
+            sub={`${sharePercent(stats.users.admins, stats.users.total)}% van totaal`}
+            href="/admin/gebruikers"
+          />
+          <StatCard
             label="Geschorst"
             value={stats.users.suspended}
             tone={stats.users.suspended > 0 ? "warning" : "default"}
