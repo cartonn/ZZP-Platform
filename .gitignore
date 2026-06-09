@@ -53,3 +53,7 @@ pidz/
 
 # Persona-sweep screenshots (zelf-test-lus) — lokaal/CI-artefact, niet committen
 e2e/personas/shots/
+
+# Stray design-mockups dropped in repo root (not part of the app)
+zzp-platform-ontwerpen.html
+*.local.html

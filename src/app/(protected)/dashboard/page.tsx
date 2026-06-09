@@ -511,6 +511,7 @@ export default async function DashboardPage() {
     weekday: "long",
     day: "numeric",
     month: "long",
+    timeZone: "Europe/Amsterdam",
   });
   const actor = await requireActor();
   const [
