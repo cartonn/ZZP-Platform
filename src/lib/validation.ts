@@ -189,8 +189,9 @@ export type CredentialInput = z.infer<typeof credentialSchema>;
 // --- Beschikbaarheidsvenster ---
 export const availabilityWindowSchema = z
   .object({
-    startDate: z.coerce.date(),
-    endDate: z.coerce.date(),
+    // NL-foutboodschap i.p.v. Zod's Engelse "Invalid date" (UI-taal = Nederlands).
+    startDate: z.coerce.date({ invalid_type_error: "Kies een geldige begindatum." }),
+    endDate: z.coerce.date({ invalid_type_error: "Kies een geldige einddatum." }),
     type: availabilityWindowTypeSchema,
     hoursPerWeek: optionalInt(168),
     note: optionalText(200),

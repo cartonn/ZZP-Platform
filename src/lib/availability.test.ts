@@ -40,6 +40,23 @@ describe("currentOrNextAvailable", () => {
     ];
     expect(currentOrNextAvailable(only, now)).toBeNull();
   });
+  it("behandelt de einddatum INCLUSIEF (t/m): venster t/m vandaag blijft de hele dag geldig", () => {
+    // Venster eindigt 'vandaag' (00:00 UTC); now is later op de dag. Mag niet wegvallen.
+    const sameDay = [
+      { startDate: d("2026-06-10"), endDate: d("2026-06-15"), type: "AVAILABLE" as const },
+    ];
+    const later = d("2026-06-15T14:00:00Z");
+    expect(currentOrNextAvailable(sameDay, later)?.startDate).toEqual(d("2026-06-10"));
+    expect(upcomingWindows(sameDay, later)).toHaveLength(1);
+  });
+  it("een UNAVAILABLE-periode domineert een overlappend inzetbaar venster (nu niet beschikbaar)", () => {
+    const conflict = [
+      { startDate: d("2026-06-01"), endDate: d("2026-06-30"), type: "UNAVAILABLE" as const },
+      { startDate: d("2026-01-01"), endDate: d("2026-12-31"), type: "AVAILABLE" as const },
+    ];
+    expect(currentOrNextAvailable(conflict, now)).toBeNull();
+    expect(summarizeAvailability(conflict, now)).toBeNull();
+  });
 });
 
 describe("summarizeAvailability", () => {
