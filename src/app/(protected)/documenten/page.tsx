@@ -38,7 +38,7 @@ export default async function DocumentenPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title="Documenten"
         description="Je geüploade documenten. Alleen jij (en beheer) kunt ze openen."

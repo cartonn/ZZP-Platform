@@ -59,7 +59,7 @@ export default async function ReactiesPage() {
     : [];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader title="Mijn reacties" description="Je reacties op opdrachten en hun status." />
 
       {applications.length === 0 ? (

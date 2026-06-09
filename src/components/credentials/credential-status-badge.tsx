@@ -6,7 +6,7 @@ const MAP: Record<
   { label: string; variant: "muted" | "default" | "success" | "warning" | "danger" }
 > = {
   DRAFT: { label: "Concept", variant: "muted" },
-  SUBMITTED: { label: "In beoordeling", variant: "default" },
+  SUBMITTED: { label: "In beoordeling", variant: "warning" },
   VERIFIED: { label: "Geverifieerd", variant: "success" },
   REJECTED: { label: "Afgewezen", variant: "danger" },
   EXPIRED: { label: "Verlopen", variant: "warning" },

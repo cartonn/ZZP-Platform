@@ -86,7 +86,7 @@ export function ModelAgreementCard({
           {rows.map((r) => (
             <li key={r.role} className="flex items-center gap-2 text-sm">
               {r.signedAt ? (
-                <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+                <CheckCircle2 className="size-4 shrink-0 text-success" />
               ) : (
                 <Circle className="size-4 shrink-0 text-muted-foreground" />
               )}
