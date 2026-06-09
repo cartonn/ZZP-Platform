@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Plus, Receipt } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { formatEuro } from "@/lib/invoices";
+import { formatEuro, invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
@@ -63,14 +63,12 @@ export default async function FacturenPage() {
     0,
   );
 
-  // Een ZZP'er kan pas factureren vanuit een lopende/afgeronde samenwerking. Zonder dat is
-  // "Nieuwe factuur" een doodloop (de form blokkeert), dus tonen we dan een route naar opdrachten.
+  // "Nieuwe factuur" alleen tonen als er écht een samenwerking is om een LOSSE factuur uit op te
+  // stellen (niet in de cascade). Anders loopt de knop dood op een lege keuzelijst — dezelfde regel
+  // als /facturen/nieuw, gedeeld via invoiceableCollaborationsWhere.
   const canInvoice =
     isFreelancer &&
-    (invoices.length > 0 ||
-      (await prisma.collaboration.count({
-        where: { freelancer: { userId: actor.id }, status: { in: ["ACTIVE", "COMPLETED"] } },
-      })) > 0);
+    (await prisma.collaboration.count({ where: invoiceableCollaborationsWhere(actor.id) })) > 0;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">

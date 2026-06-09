@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { InvoiceForm } from "../invoice-form";
 
 export const metadata: Metadata = { title: "Nieuwe factuur · ZZP Platform" };
@@ -10,16 +11,9 @@ export const metadata: Metadata = { title: "Nieuwe factuur · ZZP Platform" };
 export default async function NieuweFactuurPage() {
   const actor = await requireRole("FREELANCER");
 
+  // Alleen samenwerkingen die NIET in de uren-/prestatie-cascade zitten (gedeelde regel).
   const collaborations = await prisma.collaboration.findMany({
-    // Alleen samenwerkingen die NIET in de uren-/prestatie-cascade zitten: zodra er een prestatie of
-    // een cascade-factuur (lifecycleStatus) bestaat, loopt de facturatie daar — een losse factuur
-    // erbij zou dubbel factureren. Dit voorkomt dubbele/inconsistente facturatie.
-    where: {
-      freelancer: { userId: actor.id },
-      status: { in: ["ACTIVE", "COMPLETED"] },
-      performances: { none: {} },
-      invoices: { none: { lifecycleStatus: { not: null } } },
-    },
+    where: invoiceableCollaborationsWhere(actor.id),
     orderBy: { updatedAt: "desc" },
     include: { job: { select: { title: true } }, company: { select: { name: true } } },
   });
