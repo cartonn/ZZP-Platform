@@ -94,7 +94,15 @@ describe("highestSeverity", () => {
     expect(highestSeverity([])).toBeNull();
     expect(
       highestSeverity([
-        { source: "AUTH", severity: "WARN", code: "x", summary: "", evidence: {}, dedupeKey: "1" },
+        {
+          source: "AUTH",
+          severity: "WARN",
+          code: "x",
+          summary: "",
+          evidence: {},
+          dedupeKey: "1",
+          groupKey: "x-",
+        },
         {
           source: "AUTH",
           severity: "CRITICAL",
@@ -102,6 +110,7 @@ describe("highestSeverity", () => {
           summary: "",
           evidence: {},
           dedupeKey: "2",
+          groupKey: "y-",
         },
       ]),
     ).toBe("CRITICAL");

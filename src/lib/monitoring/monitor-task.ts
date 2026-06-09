@@ -41,7 +41,7 @@ export async function runMonitorTask(opts: { now?: Date } = {}): Promise<Monitor
   let adminsNotified = 0;
 
   for (const f of findings) {
-    const created = await persistFinding(f);
+    const created = await persistFinding(f, now);
     if (!created) continue; // al bekend in dit venster — idempotent
     newIncidents++;
 
@@ -62,9 +62,21 @@ export async function runMonitorTask(opts: { now?: Date } = {}): Promise<Monitor
 }
 
 /** Persisteert een finding als incident; geeft false als het er al was (idempotent). */
-async function persistFinding(f: Finding): Promise<boolean> {
+async function persistFinding(f: Finding, now: Date): Promise<boolean> {
   const existing = await prisma.healthIncident.findUnique({ where: { dedupeKey: f.dedupeKey } });
   if (existing) return false;
+  // Onderdruk een nieuw incident als er bínnen het rollende scanvenster al één met dezelfde groupKey
+  // is. Anders vuurt dezelfde burst dubbel zodra hij de UTC-uurgrens kruist (de dedupeKey krijgt dan
+  // een ander uur-suffix terwijl de events nog in het venster zitten) — inclusief een dubbele
+  // admin-notificatie bij CRITICAL.
+  const recent = await prisma.healthIncident.findFirst({
+    where: {
+      dedupeKey: { startsWith: f.groupKey },
+      createdAt: { gte: new Date(now.getTime() - SCAN_WINDOW_MS) },
+    },
+    select: { id: true },
+  });
+  if (recent) return false;
   try {
     await prisma.healthIncident.create({
       data: {
