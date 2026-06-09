@@ -5,6 +5,7 @@ import { MapPin } from "lucide-react";
 import { currentActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { profileVisibleTo } from "@/lib/profile";
+import { tenantEntityVisibleTo } from "@/lib/tenancy";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
@@ -69,6 +70,12 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
   const viewer = await currentActor();
   if (!profileVisibleTo(viewer, profile.userId, profile.visibility as Visibility)) {
+    notFound();
+  }
+  // Gesloten per tenant: een aan een franchise gebonden ZZP-profiel mag niet publiek (of cross-tenant)
+  // worden ingezien — alleen de eigenaar, een ADMIN of iemand binnen dezelfde tenant. Directe profielen
+  // (tenantId == null) blijven publiek. Consistent met visibleFreelancersWhere op /freelancers.
+  if (!tenantEntityVisibleTo(viewer, profile.tenantId, profile.userId)) {
     notFound();
   }
 

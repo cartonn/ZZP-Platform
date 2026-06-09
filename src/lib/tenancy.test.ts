@@ -5,6 +5,7 @@ import {
   tenantScopeWhere,
   assertSameTenant,
   ownsViaTenant,
+  tenantEntityVisibleTo,
   visibleJobsWhere,
   visibleJobsWhereForTenant,
   visibleFreelancersWhere,
@@ -58,6 +59,25 @@ describe("ownsViaTenant", () => {
     expect(ownsViaTenant(admin, "t9")).toBe(true);
     expect(ownsViaTenant(otherTenant, "t1")).toBe(false);
     expect(ownsViaTenant(directUser, "t1")).toBe(false);
+  });
+});
+
+describe("tenantEntityVisibleTo", () => {
+  // owner = de ZZP'er zelf (userId "ownerU"); het profiel hangt aan tenant "t1".
+  it("een profiel zonder tenant is niet tenant-afgeschermd (blijft publiek)", () => {
+    expect(tenantEntityVisibleTo(null, null, "ownerU")).toBe(true);
+    expect(tenantEntityVisibleTo(otherTenant, null, "ownerU")).toBe(true);
+  });
+  it("staat eigenaar, ADMIN en zelfde-tenant toe", () => {
+    const owner: Actor = { id: "ownerU", role: "FREELANCER", status: "ACTIVE", tenantId: "t1" };
+    expect(tenantEntityVisibleTo(owner, "t1", "ownerU")).toBe(true);
+    expect(tenantEntityVisibleTo(admin, "t1", "ownerU")).toBe(true);
+    expect(tenantEntityVisibleTo(tenantMember, "t1", "ownerU")).toBe(true);
+  });
+  it("weigert cross-tenant én onauthenticated inzage van een tenant-profiel", () => {
+    expect(tenantEntityVisibleTo(otherTenant, "t1", "ownerU")).toBe(false);
+    expect(tenantEntityVisibleTo(directUser, "t1", "ownerU")).toBe(false);
+    expect(tenantEntityVisibleTo(null, "t1", "ownerU")).toBe(false);
   });
 });
 
