@@ -50,3 +50,6 @@ npm-debug.log*
 
 # Lokale Pidz-observatie-screenshots — bevatten persoonsgegevens van derden, nooit committen (AVG).
 pidz/
+
+# Persona-sweep screenshots (zelf-test-lus) — lokaal/CI-artefact, niet committen
+e2e/personas/shots/
