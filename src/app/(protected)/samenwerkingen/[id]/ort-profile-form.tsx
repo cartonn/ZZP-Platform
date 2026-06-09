@@ -29,7 +29,7 @@ export function OrtProfileForm({
           name="ortProfile"
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          className="focus-ring rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         >
           {ORT_SECTORS.map((s) => (
             <option key={s} value={s}>
@@ -57,7 +57,7 @@ export function OrtProfileForm({
                 min="0"
                 defaultValue={custom ? Math.round(custom[cat] / 100) : ""}
                 placeholder="bv. 22"
-                className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                className="focus-ring w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
               />
             </label>
           ))}

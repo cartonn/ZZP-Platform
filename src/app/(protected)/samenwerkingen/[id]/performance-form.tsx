@@ -102,7 +102,7 @@ export function PerformanceForm({
               <select
                 name="type"
                 defaultValue={defaults?.type}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
                 <option value="HOURS">Urenstaat (uurtarief)</option>
                 <option value="MILESTONE">Oplevering (vast bedrag)</option>
@@ -119,7 +119,7 @@ export function PerformanceForm({
                 min="0"
                 placeholder="bv. 8"
                 defaultValue={defaults?.hours}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </label>
             <label className="text-sm">
@@ -128,7 +128,7 @@ export function PerformanceForm({
                 name="periodStart"
                 type="date"
                 defaultValue={defaults?.periodStart}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </label>
             <label className="text-sm">
@@ -137,7 +137,7 @@ export function PerformanceForm({
                 name="periodEnd"
                 type="date"
                 defaultValue={defaults?.periodEnd}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </label>
             <label className="text-sm">
@@ -149,7 +149,7 @@ export function PerformanceForm({
                 min="0"
                 placeholder="bv. 2500"
                 defaultValue={defaults?.amount}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </label>
             <label className="text-sm">
@@ -160,7 +160,7 @@ export function PerformanceForm({
                 maxLength={120}
                 placeholder="bv. Mijlpaal 1"
                 defaultValue={defaults?.milestoneTitle}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </label>
           </div>
@@ -183,7 +183,7 @@ export function PerformanceForm({
                       type="datetime-local"
                       value={row.start}
                       onChange={(e) => setRow(row.id, { start: e.target.value })}
-                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                      className="focus-ring w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                     />
                   </label>
                   <label className="text-xs">
@@ -193,7 +193,7 @@ export function PerformanceForm({
                       type="datetime-local"
                       value={row.end}
                       onChange={(e) => setRow(row.id, { end: e.target.value })}
-                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                      className="focus-ring w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                     />
                   </label>
                   <button
@@ -201,7 +201,7 @@ export function PerformanceForm({
                     onClick={() => removeShift(row.id)}
                     disabled={rows.length === 1}
                     aria-label="Dienst verwijderen"
-                    className="mb-0.5 rounded-md border border-input p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
+                    className="focus-ring mb-0.5 rounded-md border border-input p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
                   >
                     <X className="size-4" aria-hidden />
                   </button>
@@ -302,7 +302,7 @@ export function PerformanceForm({
                     min="0"
                     placeholder="0"
                     defaultValue={defaults?.manualOrt[name as ManualOrtField]}
-                    className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                    className="focus-ring w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                   />
                 </label>
               ))}
@@ -316,7 +316,7 @@ export function PerformanceForm({
               maxLength={500}
               placeholder="Periode of toelichting"
               defaultValue={defaults?.description}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
           </label>
           <Button type="submit" size="sm" disabled={isPending}>
