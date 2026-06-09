@@ -135,14 +135,18 @@ async function BrowseJobs({
 
   // Gesloten per tenant (+ overflow): een tenant-ZZP'er ziet diensten van zijn franchise + opengestelde
   // diensten; een directe ZZP'er platform-opdrachten + opengestelde diensten. ADMIN ziet alles.
-  // Als AND-clausule zodat de tekstzoek-OR hieronder de zichtbaarheids-OR niet overschrijft.
-  const where: Prisma.JobWhereInput = { status: "PUBLISHED", AND: [visibleJobsWhere(actor)] };
+  // Tarieffilters als AND-clausules: sluit een opdracht alléén uit als de relevante grens bekend is
+  // én buiten bereik valt. Een onbekende grens (nullable rateMin/rateMax) telt niet als uitsluiting —
+  // anders verdween een "€80+/uur"-opdracht (rateMax null) stilzwijgend bij een minimumtarief-filter.
+  const and: Prisma.JobWhereInput[] = [visibleJobsWhere(actor)];
+  if (f.rateMin != null) and.push({ OR: [{ rateMax: { gte: f.rateMin } }, { rateMax: null }] });
+  if (f.rateMax != null) and.push({ OR: [{ rateMin: { lte: f.rateMax } }, { rateMin: null }] });
+  // AND-clausule zodat de tekstzoek-OR hieronder de zichtbaarheids-OR niet overschrijft.
+  const where: Prisma.JobWhereInput = { status: "PUBLISHED", AND: and };
   if (f.q) where.OR = [{ title: { contains: f.q } }, { description: { contains: f.q } }];
   if (f.industryId) where.industryId = f.industryId;
   if (f.location) where.location = { contains: f.location };
   if (f.workMode) where.workMode = f.workMode;
-  if (f.rateMin != null) where.rateMax = { gte: f.rateMin };
-  if (f.rateMax != null) where.rateMin = { lte: f.rateMax };
   if (f.skillIds.length) where.skills = { some: { skillId: { in: f.skillIds } } };
   if (f.requiredCredential) {
     where.credentialRequirements = {
