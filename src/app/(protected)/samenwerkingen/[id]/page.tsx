@@ -882,7 +882,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         >
                           <Banknote className="size-4 text-muted-foreground" aria-hidden />
                           <Button type="submit" size="sm">
-                            Betaling ontvangen
+                            {/* De opdrachtgever is de betaler — "ontvangen" zou voor hem het
+                                tegenovergestelde beweren van wat hij doet. Rol-afhankelijk label. */}
+                            {isClient ? "Markeer als betaald" : "Betaling ontvangen"}
                           </Button>
                         </form>
                       )}
