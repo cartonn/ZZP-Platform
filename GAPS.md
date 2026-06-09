@@ -15,9 +15,9 @@ gefixte items krijgen `[x]` + PR-nummer. "Productkeuzes" worden NIET gefixt zond
       modelovereenkomst. → `canSign`/`canChooseType` alleen bij PROPOSED/ACTIVE.
 - [x] **HOOG · UX** (#227) — Tegenstrijdige ongelabelde badges op ZZP-detail. → gelabeld als
       "Inzetbaarheid" / "Beschikbaarheid".
-- [ ] **MIDDEN · COPY** — Abonnementspagina lekt "Dit is een demo zonder echte betaling"
+- [x] **MIDDEN · COPY** (#229) — Abonnementspagina lekt "Dit is een demo zonder echte betaling"
       (`abonnement/page.tsx`). → demo-tekst weg / neutraal herschrijven.
-- [ ] **MIDDEN · UX** — Audit-log toont rauwe JSON met centen + e-mail (`admin/audit/page.tsx`). →
+- [x] **MIDDEN · UX** (#229) — Audit-log toont rauwe JSON met centen + e-mail (`admin/audit/page.tsx`). →
       nette NL key/value + geformatteerde bedragen.
 - [ ] **LAAG · COPY** — Engelse native file-knop "Choose File / No file chosen" (bedrijf/documenten/
       certificaten/import). → eigen NL "Bestand kiezen".
