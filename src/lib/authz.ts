@@ -108,8 +108,10 @@ export async function currentActor(): Promise<Actor | null> {
   if (!user?.id) return null;
 
   const fresh = await loadFreshUser(user.id);
-  // Verwijderd of geanonimiseerd → geen actor (bestaande sessie wordt waardeloos).
-  if (!fresh || fresh.anonymizedAt) return null;
+  // Verwijderd, geanonimiseerd of niet-actief (geschorst) → geen actor. Een mid-sessie geschorst
+  // account verliest zo live de toegang; read-paden die op currentActor() leunen (bv. zoeken)
+  // behandelen het als uitgelogd, ook met een nog geldige JWT.
+  if (!fresh || fresh.anonymizedAt || fresh.status !== "ACTIVE") return null;
 
   return {
     id: user.id,

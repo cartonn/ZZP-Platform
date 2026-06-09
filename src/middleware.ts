@@ -42,6 +42,18 @@ export default auth((request) => {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Geschorst (of anderszins niet-actief) account met nog geldige sessie: stuur naar een duidelijke
+  // schorsingspagina i.p.v. een doodlopende foutpagina (requireActor gooit anders 403 op /dashboard).
+  // De /geschorst-pagina zelf + uitloggen blijven bereikbaar.
+  const suspended = request.auth.user.status !== "ACTIVE";
+  if (suspended && pathname !== "/geschorst" && !pathname.startsWith("/api/auth")) {
+    return NextResponse.redirect(new URL("/geschorst", origin));
+  }
+  // Een actief account hoort niet op de schorsingspagina te blijven hangen.
+  if (!suspended && pathname === "/geschorst") {
+    return NextResponse.redirect(new URL("/dashboard", origin));
+  }
+
   // Geforceerde wachtwoordwijziging (bv. na bulk-import): blokkeer alle routes behalve de
   // wijzigpagina en uitloggen, tot de gebruiker zijn eigen wachtwoord heeft ingesteld.
   const changePath = "/account/wachtwoord";
