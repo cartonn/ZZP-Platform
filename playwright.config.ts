@@ -2,6 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  // De persona-sweep (e2e/personas/*) draait apart via playwright.personas.config.ts tegen een
+  // productie-build; die reizen muteren demo-data en horen niet in de gating-suite.
+  testIgnore: ["**/personas/**"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // Eén gedeelde dev-server + zware multi-context tests → incidentele timing-flakes.
