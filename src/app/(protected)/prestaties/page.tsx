@@ -51,7 +51,7 @@ export default async function PrestatiesPage({
   const pendingCount = allPrestaties.filter((p) => p.status === "SUBMITTED").length;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Prestaties</h1>

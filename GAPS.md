@@ -129,3 +129,48 @@ na adversariële verificatie (confidence ≥ 0,6). **Alle 17 gefixt** (#245–#2
 - [x] (#269) **COPY** — Engelse "Invalid date" bij beschikbaarheid → NL-foutboodschap.
 - [x] (#274) **BUG** — `SUBSCRIPTION_TRANSITIONS` had CANCELLED terminaal terwijl her-aanmelding het al heractiveert. Map staat CANCELLED→PENDING/ACTIVE nu toe.
 - [ ] (geparkeerd — LAAG, geen dataverlies) **UX** — Gearchiveerde cursus niet meer in te zien voor wie 'm voltooide (canView blokkeert niet-PUBLISHED). Voltooiingen blijven bewaard + admin-zichtbaar; schone fix vereist completion-state door meerdere read-paden te rijgen voor marginale waarde.
+
+## Iteratie 4 — 2026-06-09 (presentatie-laag-sweep)
+
+Na 3 logica/authz/geld-sweeps (hele app gedekt, diminishing returns) bewust de **onderbelichte
+presentatie-laag** doorgelicht: datum/geld/plurals-formattering, design-tokens, container-breedtes,
+focus/feedback. Ruim 20 bevindingen, **alle bevestigde gefixt** (#278–#283) op 1 productkeuze na.
+Eén grensgeval (EXPIRED-warning vs factuur-OVERDUE-danger) bewust níét gewijzigd: verdedigbare
+cross-domein-semantiek. Gegroepeerd in 6 gegate PR's per thema.
+
+### Loading/skeleton-states (#278)
+
+- [x] (#278) **UX** — Geen `loading.tsx` op `/berichten`, `/admin/facturatie`, `/certificaten` → harde layout-sprong bij navigatie. PageHeader+Dense/Form-skeleton toegevoegd, canonieke breedte.
+
+### Toegankelijkheid (#279)
+
+- [x] (#279) **A11Y** — Zoek-input + trust-select in ZZP-browse zonder toegankelijke naam → `aria-label`.
+- [x] (#279) **A11Y** — Thema-knop + 4 reden-velden (dispuut/afkeuring/creditering) misten `focus-ring` + label. Toegevoegd.
+
+### Formattering & copy-consistentie (#280)
+
+- [x] (#280) **DATUM** — `admin/bewaking` toonde `toLocaleString` (UTC op server) → `formatDateTimeNl` (Europe/Amsterdam).
+- [x] (#280) **DATUM** — `prestaties` + `diensten` herhaalden eigen `fmtDate`/`fmtPeriod` → centrale `format-date`-helpers.
+- [x] (#280) **DATUM** — Dashboard-begroeting miste `Europe/Amsterdam` → kon een dag verspringen op UTC-server.
+- [x] (#280) **PLURAL** — `openstaand` "1 dagen te laat" → `plural()` ("1 dag te laat").
+- [x] (#280) **PLURAL** — `admin/franchises` kale tellingen (opdrachtgever/ZZP'er/dienst) → `plural()`.
+- [x] (#280) **GELD** — `franchise/zzpers` "€{rate}" → "€ {rate}" (canonieke euro-spatie).
+
+### Design-systeem-consistentie (#281, #283)
+
+- [x] (#281) **TOKEN** — `model-agreement-card` rauwe `text-emerald-600` → semantische `text-success`.
+- [x] (#281) **BADGE** — Certificaat `SUBMITTED` `default` → `warning` (in-beoordeling = aandacht-status; spiegelt prestaties/samenwerkingen).
+- [x] (#281) **PRIMITIVE** — `freelancers` rauwe `<h1 text-2xl>` → canonieke `PageHeader`.
+- [x] (#281, #283) **BREEDTE** — Niet-canonieke `max-w-3xl` app-breed → 3 canonieke breedtes (4xl collectie / 2xl form-detail) over ~20 pagina's + bijbehorende loading.tsx. App-breed nu nul `max-w-3xl`.
+- [x] (#283) **FOCUS** — Handgerolde `<select>/<input>/<textarea>` (performance-form 11, ort-profile 2, model-agreement 1, diensten-import 2) misten de `focus-ring` van de gedeelde primitives. Toegevoegd.
+
+### Interactie-veiligheid & feedback (#282)
+
+- [x] (#282) **FEEDBACK** — Registratie: "Account aangemaakt, log in" werd in `error` (rood) getoond → eigen `success`-veld (groen) met inloglink.
+- [x] (#282) **VEILIGHEID** — `kandidaten` afwijzen was één-klik `danger` (ZZP'er krijgt bericht) → `ConfirmButton`.
+- [x] (#282) **FEEDBACK** — `kandidaten` interne-notitie submitte stil → client-form met `useActionState`+`FormStatus` ("Notitie opgeslagen").
+- [x] (#282) **VEILIGHEID** — `franchise/opdrachtgevers` afdeling-verwijderen was één-klik → `ConfirmButton` (waarschuwt bij diensten; die overleven via `onDelete: SetNull`).
+
+### Geparkeerd (productkeuze, eigenaar)
+
+- [ ] (geparkeerd — IA/product) **TERMINOLOGIE** — "Diensten"/"Prestaties"/"Opdrachten" overlappen semantisch over rollen (nav.ts). Opschonen = routes/URL's hernoemen → informatie-architectuur-besluit, geen los UI-fixje.
