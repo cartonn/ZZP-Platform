@@ -6,7 +6,9 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { pendingTasks } from "@/lib/actions/pending-tasks";
 import { loadDrawerData } from "@/lib/actions/drawer-data";
+import { getActivitySignal } from "@/lib/activity-signal";
 import { DashboardActions } from "@/components/actions/dashboard-actions";
+import { ActivitySignalBar } from "@/components/dashboard/activity-signal";
 import {
   type UserRole,
   type CollaborationStatus,
@@ -511,12 +513,17 @@ export default async function DashboardPage() {
     month: "long",
   });
   const actor = await requireActor();
-  const [{ stats, running, week, isNewAccount, activation, engageability }, matches, tasks] =
-    await Promise.all([
-      dashboardData(role, user.id!),
-      role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
-      pendingTasks(actor),
-    ]);
+  const [
+    { stats, running, week, isNewAccount, activation, engageability },
+    matches,
+    tasks,
+    activity,
+  ] = await Promise.all([
+    dashboardData(role, user.id!),
+    role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
+    pendingTasks(actor),
+    role === "FREELANCER" || role === "CLIENT" ? getActivitySignal() : Promise.resolve(null),
+  ]);
   // Dezelfde item-niveau taken als /acties, hier inline-afhandelbaar in de aandacht-zone.
   const drawerData = await loadDrawerData(actor, tasks);
 
@@ -553,6 +560,10 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </section>
+
+      {/* Live, geanonimiseerd liquiditeitssignaal: een ZZP'er ziet de hoeveelheid werk, een
+          opdrachtgever het beschikbare aanbod. Verbergt zichzelf zonder relevante activiteit. */}
+      {activity && <ActivitySignalBar signal={activity} role={role} />}
 
       {/* Eigen inzetbaarheid — toont de ZZP'er wat een opdrachtgever ziet, met een concreet herstelpad.
           Verschijnt alleen als er iets te verbeteren valt (rustig houden zodra je inzetbaar bent). */}

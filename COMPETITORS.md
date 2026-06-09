@@ -54,7 +54,7 @@ Wet-DBA-verdedigbaarheid) luider en eerder in de funnel zichtbaar.
 - [x] (#239) **S** Zekerheids-/risk-reversal-blok op opdracht-detail ("certificaten vooraf geverifieerd") — /opdrachten/[id]
 - [x] (#240) **M** Rijkere facet-discovery + resultaattelling op /opdrachten — telling + branche/werkmodus/tariefrange/bevoegdheid/skills/sorteren bestonden al; locatie-facet (plaats/regio) toegevoegd
 - [ ] **M** Acceptatie-/grace-venster met auto-akkoord-timer op de uren→prestatie-stap
-- [ ] **M** Live, geanonimiseerd activiteits-/liquiditeitssignaal op dashboard (échte data)
+- [x] (#242) **M** Live, geanonimiseerd activiteits-/liquiditeitssignaal op dashboard (échte data) — ZZP'er ziet hoeveelheid werk (open + nieuw deze maand), opdrachtgever ziet aanbod (beschikbaar + geverifieerd); verbergt zich zonder activiteit
 - [ ] **M** Multi-apply met auto-opschoning van concurrerende reacties bij acceptatie
 - [ ] **L** Web-push + één-tap reageren op ad-hoc diensten (PWA)
 
