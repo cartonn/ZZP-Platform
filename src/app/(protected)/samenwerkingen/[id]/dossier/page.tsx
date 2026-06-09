@@ -36,7 +36,12 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
         select: {
           userId: true,
           user: { select: { name: true } },
-          credentials: { select: { type: true, title: true, status: true, verifiedAt: true } },
+          // Alleen beoordeelde (geverifieerd/verlopen) certificaten — geen lek van concept-/afgewezen/
+          // in-behandeling-pogingen via het totaaltal. Consistent met de dossier-API-route.
+          credentials: {
+            where: { status: { in: ["VERIFIED", "EXPIRED"] } },
+            select: { type: true, title: true, status: true, verifiedAt: true },
+          },
         },
       },
       performances: { select: { description: true, status: true, approvedAt: true } },
