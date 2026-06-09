@@ -25,7 +25,7 @@ export default async function OpdrachtgeverDetailPage({
 }) {
   const { id } = await params;
   const actor = await requireRole("FRANCHISER");
-  const [company, skills] = await Promise.all([
+  const [company, skills, orphanJobs] = await Promise.all([
     prisma.company.findFirst({
       where: { id, ...tenantScopeWhere(actor) },
       include: {
@@ -47,6 +47,13 @@ export default async function OpdrachtgeverDetailPage({
       },
     }),
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // Diensten zonder afdeling: blijven bestaan (en zichtbaar/matchbaar) nadat hun afdeling is
+    // verwijderd (onDelete: SetNull). Apart tonen zodat ze niet stil uit de cockpit verdwijnen.
+    prisma.job.findMany({
+      where: { companyId: id, departmentId: null, ...tenantScopeWhere(actor) },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true, status: true, _count: { select: { applications: true } } },
+    }),
   ]);
   if (!company) notFound();
 
@@ -158,6 +165,40 @@ export default async function OpdrachtgeverDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      {orphanJobs.length > 0 && (
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            <div>
+              <h2 className="text-sm font-semibold tracking-tight">Diensten zonder afdeling</h2>
+              <p className="text-xs text-muted-foreground">
+                Deze diensten hoorden bij een verwijderde afdeling. Ze zijn nog actief en zichtbaar
+                voor je roster — koppel ze aan een afdeling of sluit ze als ze niet meer nodig zijn.
+              </p>
+            </div>
+            <ul className="divide-y divide-border border-t border-border">
+              {orphanJobs.map((j) => (
+                <li key={j.id} className="flex items-center justify-between gap-3 py-2">
+                  <Link
+                    href={`/franchise/diensten/${j.id}`}
+                    className="focus-ring min-w-0 truncate text-sm hover:underline"
+                  >
+                    {j.title}
+                  </Link>
+                  <span className="flex shrink-0 items-center gap-2">
+                    {j._count.applications > 0 && (
+                      <Badge variant="muted">
+                        {plural(j._count.applications, "reactie", "reacties")}
+                      </Badge>
+                    )}
+                    <JobStatusBadge status={j.status as JobStatus} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

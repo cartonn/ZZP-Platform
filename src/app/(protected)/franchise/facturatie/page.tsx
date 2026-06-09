@@ -64,17 +64,20 @@ export default async function FranchiseFacturatiePage() {
         }
       />
 
-      {!overview.billingEnabled && (
-        <Card>
-          <CardContent className="flex gap-3 p-4 text-sm">
-            <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <p className="text-muted-foreground">
-              Facturatie staat nog niet actief. Het overzicht en de berekening zijn ingericht; de
-              tarieven en de incasso worden ingesteld voordat er daadwerkelijk wordt gefactureerd.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* De automatische incasso is nog niet gekoppeld (mensenwerk): het overzicht en de
+          fee-berekening draaien, maar er wordt nog niets daadwerkelijk geïncasseerd. De disclaimer
+          hoort dus zichtbaar te zijn zolang die koppeling ontbreekt — niet pas wanneer de
+          fee-berekening uitstaat (toen verdween hij juist op het moment dat hij nodig was). */}
+      <Card>
+        <CardContent className="flex gap-3 p-4 text-sm">
+          <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <p className="text-muted-foreground">
+            De automatische incasso is nog niet actief. Het overzicht en de berekening zijn
+            ingericht en de bedragen hieronder zijn indicatief; er wordt op dit moment nog niets
+            daadwerkelijk geïncasseerd.
+          </p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-5">
