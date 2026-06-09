@@ -75,7 +75,7 @@ export default async function OpenstaandPage() {
 
   if (isAdmin) {
     return (
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-4xl space-y-6">
         <header>
           <h1 className="text-xl font-semibold tracking-tight">Openstaande posten</h1>
         </header>
@@ -94,7 +94,7 @@ export default async function OpenstaandPage() {
   const report = buildAgingReport(openInvoices, new Date());
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Openstaande posten</h1>
