@@ -115,8 +115,8 @@ export default async function AbonnementPage() {
         </p>
         <p>
           De voorbereiding en indiening van aangiftes in Volledig Ontzorgd is dienstverlening; je
-          blijft zelf eindverantwoordelijk. Dit is een demo zonder echte betaling — een plan
-          wijzigen activeert het direct.
+          blijft zelf eindverantwoordelijk. Een plan wijzigen gaat direct in; je ziet de wijziging
+          meteen terug in je abonnement.
         </p>
       </div>
     </div>
