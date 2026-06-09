@@ -399,6 +399,11 @@ export async function verifyCredentialViaDuo(
   const credential = await loadOwnedCredential(profile.id, credentialId);
   const status = credential.status as CredentialStatus;
   if (status === "VERIFIED") return { error: "Dit certificaat is al geverifieerd." };
+  // Server-side typecontrole (CLAUDE.md regel 1): de UI toont dit formulier alleen bij een diploma,
+  // maar de actie is direct aanroepbaar. Zonder deze guard kon men een willekeurig type via DUO
+  // verifiëren en zo de admin-beoordeling omzeilen.
+  if (credential.type !== "DIPLOMA")
+    return { error: "DUO-verificatie geldt alleen voor een diploma." };
 
   const code = String(formData.get("verificationCode") ?? "").trim();
   if (!code) return { error: "Voer een DUO-verificatiecode in." };
@@ -441,6 +446,11 @@ export async function verifyCredentialViaBig(
   const credential = await loadOwnedCredential(profile.id, credentialId);
   const status = credential.status as CredentialStatus;
   if (status === "VERIFIED") return { error: "Dit certificaat is al geverifieerd." };
+  // Server-side typecontrole (CLAUDE.md regel 1): BIG-verificatie geldt alleen voor een
+  // beroepsregistratie (licentie). De UI verbergt dit formulier voor andere types, maar de actie is
+  // direct aanroepbaar — zonder guard kon men elk type via BIG verifiëren en de admin-queue omzeilen.
+  if (credential.type !== "LICENSE")
+    return { error: "BIG-verificatie geldt alleen voor een beroepsregistratie (licentie)." };
 
   const bigNumber = String(formData.get("bigNumber") ?? "").trim();
   if (!bigNumber) return { error: "Voer een BIG-nummer in." };
