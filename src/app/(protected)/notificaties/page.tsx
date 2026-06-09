@@ -1,5 +1,4 @@
 import { type Metadata } from "next";
-import Link from "next/link";
 import {
   Bell,
   Handshake,
@@ -23,7 +22,7 @@ import {
   type NotificationCategory,
   type NotificationTone,
 } from "@/lib/notifications";
-import { markAllNotificationsRead, markNotificationRead } from "./actions";
+import { markAllNotificationsRead, markNotificationRead, openNotification } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
 
 export const metadata: Metadata = { title: "Notificaties · ZZP Platform" };
@@ -70,40 +69,44 @@ function NotificationRow({ n }: { n: NotificationItem }) {
   const unread = !n.readAt;
   const meta = notificationMeta(n.type);
   const Icon = CATEGORY_ICON[meta.category];
-  const inner = (
-    <>
-      <div className="flex items-start gap-3">
-        <span
-          className={cn(
-            "mt-1.5 size-2 shrink-0 rounded-full",
-            unread ? "bg-primary" : "bg-transparent",
-          )}
-          aria-hidden
-        />
-        <Icon className={cn("mt-0.5 size-4 shrink-0", TONE_CLASS[meta.tone])} aria-hidden />
-        <div className="min-w-0 flex-1">
-          <p className={cn("text-sm", unread ? "font-medium" : "")}>{n.title}</p>
-          {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}
-          <p className="mt-0.5 text-xs text-muted-foreground">{relativeTime(n.createdAt)}</p>
-        </div>
-        {unread && (
-          <form action={markNotificationRead.bind(null, n.id)}>
-            <Button type="submit" variant="ghost" size="sm">
-              Gelezen
-            </Button>
-          </form>
+  const content = (
+    <div className="flex items-start gap-3">
+      <span
+        className={cn(
+          "mt-1.5 size-2 shrink-0 rounded-full",
+          unread ? "bg-primary" : "bg-transparent",
         )}
+        aria-hidden
+      />
+      <Icon className={cn("mt-0.5 size-4 shrink-0", TONE_CLASS[meta.tone])} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className={cn("text-sm", unread ? "font-medium" : "")}>{n.title}</p>
+        {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}
+        <p className="mt-0.5 text-xs text-muted-foreground">{relativeTime(n.createdAt)}</p>
       </div>
-    </>
+    </div>
   );
+  // De klikbare inhoud en de "Gelezen"-knop staan náást elkaar (sibling-forms), nooit genest — een
+  // knop/form in een <a> is ongeldige HTML en de klik botste met de navigatie. Klikken op een rij met
+  // bestemming markeert nu als gelezen én navigeert (openNotification); de losse knop markeert zonder
+  // weg te navigeren.
   return (
-    <div className={cn("px-4 py-3", unread && "bg-muted/30")}>
+    <div className={cn("flex items-start gap-2 px-4 py-3", unread && "bg-muted/30")}>
       {n.link ? (
-        <Link href={n.link} className="block hover:opacity-80">
-          {inner}
-        </Link>
+        <form action={openNotification.bind(null, n.id)} className="min-w-0 flex-1">
+          <button type="submit" className="focus-ring block w-full text-left hover:opacity-80">
+            {content}
+          </button>
+        </form>
       ) : (
-        inner
+        <div className="min-w-0 flex-1">{content}</div>
+      )}
+      {unread && (
+        <form action={markNotificationRead.bind(null, n.id)} className="shrink-0">
+          <Button type="submit" variant="ghost" size="sm">
+            Gelezen
+          </Button>
+        </form>
       )}
     </div>
   );
