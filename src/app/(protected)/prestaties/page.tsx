@@ -7,7 +7,9 @@ import { formatEuro } from "@/lib/invoices";
 import { formatDateShortNl, formatDateRangeNl } from "@/lib/format-date";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Prestaties · ZZP Platform" };
 
@@ -36,8 +38,19 @@ export default async function PrestatiesPage({
   const actor = await requireActor();
   if (actor.role !== "CLIENT") {
     return (
-      <div className="mx-auto max-w-2xl">
-        <p className="text-sm text-muted-foreground">Alleen beschikbaar voor opdrachtgevers.</p>
+      <div className="mx-auto max-w-2xl space-y-6">
+        <PageHeader
+          title="Prestaties"
+          description="Het prestatie-overzicht is er voor opdrachtgevers."
+        />
+        <Card>
+          <EmptyState
+            icon={ClipboardList}
+            title="Alleen voor opdrachtgevers"
+            description="Urenstaten en opleveringen van je ZZP'ers bekijk je hier als opdrachtgever. Ga terug naar je dashboard voor jouw overzicht."
+            action={{ label: "Naar dashboard", href: "/dashboard" }}
+          />
+        </Card>
       </div>
     );
   }
