@@ -163,3 +163,14 @@ export const resetRateLimiter = new RateLimiter(
   limitFromEnv("RESET_RATE_LIMIT", 3),
   60 * 60_000,
 );
+
+/**
+ * Maximaal CREDENTIAL_VERIFY_RATE_LIMIT (default 10) zelf-verificatiepogingen (DUO/BIG) per ZZP'er
+ * per uur. De zelf-verificatie zet een credential direct op VERIFIED zonder admin; zonder limiet is
+ * het gokken van een (publiek opzoekbaar) BIG-nummer of DUO-code geautomatiseerd brute-forcebaar.
+ */
+export const credentialVerifyRateLimiter = new RateLimiter(
+  new MemoryRateLimitStore(),
+  limitFromEnv("CREDENTIAL_VERIFY_RATE_LIMIT", 10),
+  60 * 60_000,
+);
