@@ -14,7 +14,7 @@ export function PageHeader({
 }) {
   const heading = (
     <>
-      <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="break-words text-xl font-semibold tracking-tight">{title}</h1>
       {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
     </>
   );
@@ -23,7 +23,7 @@ export function PageHeader({
 
   return (
     <header className="flex flex-wrap items-start justify-between gap-3">
-      <div className="space-y-1">{heading}</div>
+      <div className="min-w-0 space-y-1">{heading}</div>
       <div className="shrink-0">{action}</div>
     </header>
   );

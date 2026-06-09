@@ -81,11 +81,17 @@ export default async function BerichtenPage() {
                 className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
               >
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <p className="truncate text-sm font-medium">{other?.user.name ?? "Onbekend"}</p>
-                    {unread > 0 && <Badge variant="default">{unread} nieuw</Badge>}
+                    {unread > 0 && (
+                      <Badge variant="default" className="shrink-0">
+                        {unread} nieuw
+                      </Badge>
+                    )}
                   </div>
-                  {c.job && <p className="text-xs text-muted-foreground">Over: {c.job.title}</p>}
+                  {c.job && (
+                    <p className="truncate text-xs text-muted-foreground">Over: {c.job.title}</p>
+                  )}
                   {last && (
                     <>
                       <p className="truncate text-xs text-muted-foreground">{last.body}</p>

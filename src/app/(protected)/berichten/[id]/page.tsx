@@ -89,7 +89,9 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
                       : "border border-border bg-card",
                   )}
                 >
-                  <p className="whitespace-pre-line break-words">{m.body}</p>
+                  <p className="whitespace-pre-line break-words [overflow-wrap:anywhere]">
+                    {m.body}
+                  </p>
                   <p
                     className={cn(
                       "mt-1 text-[10px]",
