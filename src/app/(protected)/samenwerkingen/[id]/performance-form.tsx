@@ -174,7 +174,7 @@ export function PerformanceForm({
               handmatige urenverdeling hieronder.
             </p>
             <div className="mt-2 space-y-2">
-              {rows.map((row) => (
+              {rows.map((row, i) => (
                 <div key={row.id} className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
                   <label className="text-xs">
                     <span className="mb-1 block text-muted-foreground">Begin dienst</span>
@@ -183,6 +183,7 @@ export function PerformanceForm({
                       type="datetime-local"
                       value={row.start}
                       onChange={(e) => setRow(row.id, { start: e.target.value })}
+                      aria-label={`Begin dienst ${i + 1}`}
                       className="focus-ring w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                     />
                   </label>
@@ -193,6 +194,7 @@ export function PerformanceForm({
                       type="datetime-local"
                       value={row.end}
                       onChange={(e) => setRow(row.id, { end: e.target.value })}
+                      aria-label={`Einde dienst ${i + 1}`}
                       className="focus-ring w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                     />
                   </label>
@@ -200,7 +202,7 @@ export function PerformanceForm({
                     type="button"
                     onClick={() => removeShift(row.id)}
                     disabled={rows.length === 1}
-                    aria-label="Dienst verwijderen"
+                    aria-label={`Dienst ${i + 1} verwijderen`}
                     className="focus-ring mb-0.5 rounded-md border border-input p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
                   >
                     <X className="size-4" aria-hidden />

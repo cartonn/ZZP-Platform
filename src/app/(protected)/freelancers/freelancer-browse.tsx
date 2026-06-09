@@ -54,7 +54,10 @@ export function FreelancerBrowse({ freelancers }: { freelancers: FreelancerCard[
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
           <Input
             type="search"
             aria-label="Zoeken"
@@ -153,18 +156,18 @@ function FreelancerCardItem({ card: f }: { card: FreelancerCard }) {
       <div className="flex flex-col gap-1 text-xs text-muted-foreground">
         {f.location && (
           <span className="flex items-center gap-1">
-            <MapPin className="h-3 w-3 shrink-0" />
+            <MapPin className="h-3 w-3 shrink-0" aria-hidden />
             {f.location} · {WORK_MODE_LABEL[f.workMode] ?? f.workMode}
           </span>
         )}
         {f.hourlyRate != null && (
           <span className="flex items-center gap-1">
-            <Euro className="h-3 w-3 shrink-0" />€ {f.hourlyRate} / uur
+            <Euro className="h-3 w-3 shrink-0" aria-hidden />€ {f.hourlyRate} / uur
           </span>
         )}
         {f.availabilitySummary && (
           <span className="flex items-center gap-1 text-success">
-            <Calendar className="h-3 w-3 shrink-0" />
+            <Calendar className="h-3 w-3 shrink-0" aria-hidden />
             {f.availabilitySummary}
           </span>
         )}
