@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { type IncidentSeverity, type IncidentStatus, type IncidentSource } from "@/lib/enums";
 import { routingDiagnostics } from "@/lib/services/routing";
+import { formatDateTimeNl } from "@/lib/format-date";
 import { acknowledgeIncident, resolveIncident } from "./actions";
 
 export const metadata: Metadata = { title: "Platform-bewaking · ZZP Platform" };
@@ -98,7 +99,7 @@ export default async function BewakingPage() {
               ? "Echte reistijden via de externe provider, met lokale cache. De API-sleutel staat alleen in de serveromgeving en wordt hier nooit getoond."
               : "Geen externe provider geconfigureerd; reistijd valt terug op de deterministische plaatsnaam-schatting."}
             {routing.lastRouteAt
-              ? ` Laatste route opgehaald op ${routing.lastRouteAt.toLocaleString("nl-NL")}.`
+              ? ` Laatste route opgehaald op ${formatDateTimeNl(routing.lastRouteAt)}.`
               : ""}
           </p>
         </CardContent>
@@ -132,7 +133,7 @@ export default async function BewakingPage() {
                   </div>
                   <p className="text-sm">{i.summary}</p>
                   <p className="text-xs text-muted-foreground">
-                    {i.createdAt.toLocaleString("nl-NL")} · {i.code}
+                    {formatDateTimeNl(i.createdAt)} · {i.code}
                   </p>
                   {!resolved && (
                     <div className="flex flex-wrap gap-2 pt-1">

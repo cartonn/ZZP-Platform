@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { formatDateShortNl } from "@/lib/format-date";
+import { plural } from "@/lib/plural";
 import { FranchiseForm } from "./franchise-form";
 
 export const metadata: Metadata = { title: "Franchises · ZZP Platform" };
@@ -58,9 +59,10 @@ export default async function FranchisesPage() {
                 </p>
               </div>
               <p className="shrink-0 text-right text-xs text-muted-foreground">
-                {t._count.companies} opdrachtgevers · {t._count.freelancers} ZZP&apos;ers
+                {plural(t._count.companies, "opdrachtgever", "opdrachtgevers")} ·{" "}
+                {plural(t._count.freelancers, "ZZP'er", "ZZP'ers")}
                 <br />
-                {t._count.jobs} diensten
+                {plural(t._count.jobs, "dienst", "diensten")}
               </p>
             </div>
           ))}

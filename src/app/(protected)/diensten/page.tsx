@@ -4,6 +4,7 @@ import { Clock, Download, Upload } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { getDienstenForFreelancer } from "@/lib/diensten";
 import { formatEuro } from "@/lib/invoices";
+import { formatDateRangeNl } from "@/lib/format-date";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -27,21 +28,6 @@ const FILTER_LABELS: Record<string, string> = {
   APPROVED: "Goedgekeurd",
   REJECTED: "Afgekeurd",
 };
-
-function fmtDate(d: Date | null): string {
-  if (!d) return "—";
-  return d.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function fmtPeriod(start: Date | null, end: Date | null): string {
-  if (!start && !end) return "—";
-  if (start && end) {
-    const s = start.toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
-    const e = end.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
-    return `${s} – ${e}`;
-  }
-  return fmtDate(start ?? end);
-}
 
 export default async function DienstenPage({
   searchParams,
@@ -142,7 +128,7 @@ export default async function DienstenPage({
                     <span className="text-xs text-muted-foreground">{d.companyName}</span>
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                    <span>{fmtPeriod(d.periodStart, d.periodEnd)}</span>
+                    <span>{formatDateRangeNl(d.periodStart, d.periodEnd)}</span>
                     {d.type === "HOURS" && d.hours != null && (
                       <span>
                         {d.hours.toLocaleString("nl-NL")} u{d.hasOrt && " · ORT"}

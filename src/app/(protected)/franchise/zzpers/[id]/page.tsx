@@ -174,7 +174,7 @@ function ProfielTab({ dossier }: { dossier: RosterDossier }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {profile.hourlyRate != null && <Badge variant="muted">€{profile.hourlyRate}/uur</Badge>}
+          {profile.hourlyRate != null && <Badge variant="muted">€ {profile.hourlyRate}/uur</Badge>}
           <Badge variant="muted">Profiel {profile.completeness}%</Badge>
           {profile.maxTravelMinutes != null && (
             <Badge variant="muted">max. {profile.maxTravelMinutes} min reizen</Badge>
@@ -247,7 +247,7 @@ function OvereenkomstenTab({ dossier }: { dossier: RosterDossier }) {
             <p className="truncate text-sm text-muted-foreground">{c.companyName}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {formatDateRangeNl(c.startDate, c.endDate)}
-              {c.rate != null && ` · €${c.rate}/uur`}
+              {c.rate != null && ` · € ${c.rate}/uur`}
             </p>
           </div>
           <div className="shrink-0 text-right">

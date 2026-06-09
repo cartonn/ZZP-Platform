@@ -4,6 +4,7 @@ import { ClipboardList, Download } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { getPrestatiesForClient } from "@/lib/prestaties";
 import { formatEuro } from "@/lib/invoices";
+import { formatDateShortNl, formatDateRangeNl } from "@/lib/format-date";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -26,21 +27,6 @@ const FILTER_LABELS: Record<string, string> = {
   APPROVED: "Goedgekeurd",
   REJECTED: "Afgekeurd",
 };
-
-function fmtDate(d: Date | null): string {
-  if (!d) return "—";
-  return d.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function fmtPeriod(start: Date | null, end: Date | null): string {
-  if (!start && !end) return "—";
-  if (start && end) {
-    const s = start.toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
-    const e = end.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
-    return `${s} – ${e}`;
-  }
-  return fmtDate(start ?? end);
-}
 
 export default async function PrestatiesPage({
   searchParams,
@@ -139,7 +125,7 @@ export default async function PrestatiesPage({
                     <span className="text-xs text-muted-foreground">{p.jobTitle}</span>
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                    <span>{fmtPeriod(p.periodStart, p.periodEnd)}</span>
+                    <span>{formatDateRangeNl(p.periodStart, p.periodEnd)}</span>
                     {p.type === "HOURS" && p.hours != null && (
                       <span>
                         {p.hours.toLocaleString("nl-NL")} u{p.hasOrt && " · ORT"}
@@ -157,7 +143,7 @@ export default async function PrestatiesPage({
                   </div>
                   {p.status === "SUBMITTED" && p.submittedAt && (
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Ingediend op {fmtDate(p.submittedAt)}
+                      Ingediend op {formatDateShortNl(p.submittedAt)}
                     </p>
                   )}
                   {p.rejectionReason && (

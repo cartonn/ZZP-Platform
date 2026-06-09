@@ -4,6 +4,7 @@ import { Wallet } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
+import { plural } from "@/lib/plural";
 import {
   buildAgingReport,
   type OpenInvoice,
@@ -202,7 +203,9 @@ export default async function OpenstaandPage() {
                       {AGING_BUCKETS.find((b) => b.key === row.bucket)?.label}
                     </Badge>
                     {row.daysOverdue > 0 && (
-                      <span className="text-xs text-danger">{row.daysOverdue} dagen te laat</span>
+                      <span className="text-xs text-danger">
+                        {plural(row.daysOverdue, "dag", "dagen")} te laat
+                      </span>
                     )}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
