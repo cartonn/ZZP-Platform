@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatDateTimeNl } from "@/lib/format-date";
 import { formatAuditMetadata } from "@/lib/audit-metadata";
+import { auditActionLabel } from "@/lib/audit-labels";
 
 export const metadata: Metadata = { title: "Audit log · ZZP Platform" };
 
@@ -86,9 +87,9 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
           {entries.map((e) => (
             <div key={e.id} className="px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
-                  {e.action}
-                </code>
+                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">
+                  {auditActionLabel(e.action)}
+                </span>
                 <span className="text-xs text-muted-foreground">
                   {formatDateTimeNl(e.createdAt)}
                 </span>

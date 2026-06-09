@@ -15,12 +15,30 @@ const LABELS: Record<string, string> = {
   planKey: "Plan",
   party: "Partij",
   reason: "Reden",
+  from: "Van",
   to: "Naar",
   score: "Score",
   agreementType: "Overeenkomst",
   tenantInvoices: "Tenant-facturen",
   membershipInvoices: "Abonnementsfacturen",
   weekdays: "Weekdagen",
+};
+
+// NL-vertaling van rauwe enum-WAARDEN die in audit-metadata voorkomen (vooral de from/to-statussen
+// van verificatie- en factuurbeslissingen). Onbekende waarden vallen ongewijzigd terug.
+const VALUE_LABELS: Record<string, string> = {
+  DRAFT: "Concept",
+  SUBMITTED: "Ingediend",
+  VERIFIED: "Geverifieerd",
+  REJECTED: "Afgewezen",
+  EXPIRED: "Verlopen",
+  SENT: "Verzonden",
+  APPROVED: "Goedgekeurd",
+  PAID: "Betaald",
+  OVERDUE: "Te laat",
+  CANCELLED: "Geannuleerd",
+  PROCESSED: "Verwerkt",
+  CREDITED: "Gecrediteerd",
 };
 
 function labelFor(key: string): string {
@@ -51,7 +69,9 @@ export function formatAuditMetadata(raw: string | null | undefined): string {
     if (/Cents$/.test(key) && typeof value === "number") {
       parts.push(`${labelFor(key)} ${formatEuro(value)}`);
     } else {
-      const shown = typeof value === "object" ? JSON.stringify(value) : String(value);
+      const raw = typeof value === "object" ? JSON.stringify(value) : String(value);
+      // Bekende enum-statussen (bv. from/to bij een verificatie- of factuurbeslissing) naar NL.
+      const shown = VALUE_LABELS[raw] ?? raw;
       parts.push(`${labelFor(key)}: ${shown}`);
     }
   }
