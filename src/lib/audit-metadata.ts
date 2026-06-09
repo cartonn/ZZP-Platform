@@ -25,8 +25,11 @@ const LABELS: Record<string, string> = {
 
 function labelFor(key: string): string {
   if (LABELS[key]) return LABELS[key];
-  // camelCase → "Camel case" als nette fallback.
-  const spaced = key.replace(/([A-Z])/g, " $1").trim();
+  // camelCase → "Camel case" als nette fallback (zinszinkapitalen, geen titelkapitalen).
+  const spaced = key
+    .replace(/([A-Z])/g, " $1")
+    .trim()
+    .toLowerCase();
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
