@@ -183,14 +183,14 @@ async function main() {
       key: "sanne",
       email: "zzp@zzp-platform.local",
       name: "Sanne de Vries",
-      headline: "Senior Frontend Developer",
-      bio: "Tien jaar ervaring met React en TypeScript; bouwt toegankelijke, geteste interfaces.",
-      rate: 85,
+      headline: "Verpleegkundige (BIG-geregistreerd)",
+      bio: "Tien jaar ervaring in de somatische en wijkverpleging; flexibel inzetbaar en BIG-geregistreerd.",
+      rate: 52,
       availability: "AVAILABLE",
       location: "Amsterdam",
-      workMode: "HYBRID",
-      industry: "ict",
-      skills: ["react", "typescript"],
+      workMode: "ONSITE",
+      industry: "zorg",
+      skills: ["verpleegkunde"],
       identityVerified: true,
       completeness: 100,
       creds: [
@@ -203,9 +203,9 @@ async function main() {
           sharedWithClient: true,
         },
         {
-          type: "DIPLOMA",
-          title: "HBO Informatica",
-          issuer: "Hogeschool van Amsterdam",
+          type: "LICENSE",
+          title: "BIG-registratie Verpleegkundige",
+          issuer: "CIBG",
           status: "SUBMITTED",
         },
       ],
@@ -514,7 +514,7 @@ async function main() {
 
   // --- Opdrachtgevers + bedrijven (meerdere) ---
   const companySpecs = [
-    { key: "jansen", email: "opdrachtgever@zzp-platform.local", contact: "Mark Jansen", company: "Jansen Software B.V.", industry: "ict", website: "https://jansensoftware.nl", location: "Utrecht", description: "Productbureau voor web- en mobiele applicaties in zorg en overheid." }, // prettier-ignore
+    { key: "jansen", email: "opdrachtgever@zzp-platform.local", contact: "Mark Jansen", company: "Zorgcentrum Jansen", industry: "zorg", website: "https://zorgcentrumjansen.nl", location: "Utrecht", description: "Zorginstelling voor somatische zorg en wijkverpleging." }, // prettier-ignore
     { key: "zorggroep", email: "zorggroep@zzp-platform.local", contact: "Petra Mulder", company: "ZorgGroep Midden B.V.", industry: "zorg", website: "https://zorggroepmidden.nl", location: "Amersfoort", description: "Aanbieder van wijkverpleging en VVT-zorg." }, // prettier-ignore
     { key: "bouwpartners", email: "bouwpartners@zzp-platform.local", contact: "Henk de Wit", company: "BouwPartners Nederland", industry: "bouw", website: "https://bouwpartners.nl", location: "Zwolle", description: "Aannemer voor utiliteits- en woningbouw." }, // prettier-ignore
     { key: "logiflow", email: "logiflow@zzp-platform.local", contact: "Sandra Vos", company: "LogiFlow Logistics", industry: "logistiek", website: "https://logiflow.nl", location: "Venlo", description: "Warehousing en transportoptimalisatie." }, // prettier-ignore
@@ -569,16 +569,16 @@ async function main() {
   const jobs: Job[] = [
     {
       id: "job-1",
-      title: "Senior React Developer",
+      title: "Verpleegkundige (somatiek)",
       description:
-        "Bouw mee aan ons zorgplatform. Focus op toegankelijkheid, kwaliteit en geteste code.",
+        "Inzet op een somatische afdeling; dag- en avonddiensten. BIG-registratie en VOG vereist.",
       status: "PUBLISHED",
-      workMode: "HYBRID",
-      rateMin: 80,
-      rateMax: 110,
+      workMode: "ONSITE",
+      rateMin: 45,
+      rateMax: 62,
       location: "Utrecht",
-      industry: "ict",
-      req: ["react", "typescript"],
+      industry: "zorg",
+      req: ["verpleegkunde"],
       reqCreds: ["VOG"],
       dbaRisk: "LAAG",
     },
@@ -667,7 +667,7 @@ async function main() {
     { id: "job-13", title: "Supply Chain Analist", description: "Data-analyse van de keten; Python + dashboards.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 65, rateMax: 90, industry: "logistiek", req: ["python"], opt: ["aws"], company: "logiflow" }, // prettier-ignore
     { id: "job-14", title: "Data Engineer", description: "Bouw data-pipelines op AWS voor onze klanten.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 80, rateMax: 110, industry: "ict", req: ["python", "aws"], reqCreds: ["VOG"], company: "datic" }, // prettier-ignore
     { id: "job-15", title: "Cloud Engineer", description: "Beheer en automatiseer cloudinfrastructuur (AWS/Node).", status: "PUBLISHED", workMode: "REMOTE", rateMin: 85, rateMax: 115, industry: "ict", req: ["aws", "nodejs"], company: "datic" }, // prettier-ignore
-    { id: "job-16", title: "Fullstack Developer", description: "End-to-end features in React en Node voor ons platform.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 75, rateMax: 100, location: "Utrecht", industry: "ict", req: ["react", "nodejs"], opt: ["typescript"], reqCreds: ["VOG"], company: "jansen" }, // prettier-ignore
+    { id: "job-16", title: "Fullstack Developer", description: "End-to-end features in React en Node voor ons platform.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 75, rateMax: 100, location: "Utrecht", industry: "ict", req: ["react", "nodejs"], opt: ["typescript"], reqCreds: ["VOG"], company: "datic" }, // prettier-ignore
     { id: "job-17", title: "Scrum Master", description: "Faciliteer twee teams; verbeter het ontwikkelproces.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 80, rateMax: 100, location: "Utrecht", industry: "ict", req: ["scrum"], company: "jansen" }, // prettier-ignore
     { id: "job-18", title: "Frontend Developer", description: "Toegankelijke UI's met een design-systeem.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 70, rateMax: 95, industry: "ict", req: ["react", "typescript"], company: "datic" }, // prettier-ignore
     { id: "job-19", title: "Installatiemonteur", description: "Werktuigbouw en elektra op locatie; VCA vereist.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 46, rateMax: 64, location: "Tilburg", industry: "bouw", req: ["elektrotechniek"], reqCreds: ["VOG"], company: "bouwpartners" }, // prettier-ignore
@@ -1281,7 +1281,7 @@ async function main() {
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");
   console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
-  console.log("  opdrachtgever@zzp-platform.local  (CLIENT — Jansen Software)");
+  console.log("  opdrachtgever@zzp-platform.local  (CLIENT — Zorgcentrum Jansen)");
   console.log("  franchise@zzp-platform.local      (FRANCHISER — Zorgbemiddeling Noord)");
   console.log(
     "Cascade via echte commands: %d samenwerkingen, %d facturen, %d grootboekregels, %d support-tickets, %d gesprekken, %d beschikbaarheid-vensters, %d abonnementen.",
