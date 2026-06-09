@@ -9,14 +9,12 @@ gefixte items krijgen `[x]` + PR-nummer. "Productkeuzes" worden NIET gefixt zond
 
 ### Bevestigd (te fixen)
 
-- [ ] **HOOG · BUG** — Vertrouwensniveau "Volledig geverifieerd" negeert ontbrekende verplichte
-      documenten (`src/lib/trust.ts`): toont "sterkste signaal" terwijl Verzekering ontbreekt + ZZP'er
-      "Nog niet inzetbaar" is. Lekt ook naar opdrachtgever-overzichten. → trust meeweegt verplichte docs.
-- [ ] **HOOG · BUG** — Afgeronde + betaalde samenwerking toont nog actieve "Akkoord geven" op de
-      modelovereenkomst (`samenwerkingen/[id]/model-agreement-card.tsx` + `page.tsx`). → bij
-      COMPLETED read-only / `canSign` uit.
-- [ ] **HOOG · UX** — Tegenstrijdige ongelabelde badges op ZZP-detail: rood "Nog niet inzetbaar" náást
-      groen "Beschikbaar" (`franchise/zzpers/[id]/page.tsx`). → labelen of groen onderdrukken bij INACTIEF.
+- [x] **HOOG · BUG** (#226) — Vertrouwensniveau "Volledig geverifieerd" negeerde ontbrekende verplichte
+      documenten (`src/lib/trust.ts`). → trust weegt nu VOG+verzekering mee op alle 5 surfaces.
+- [x] **HOOG · BUG** (#227) — Afgeronde + betaalde samenwerking toonde nog actieve "Akkoord geven" op de
+      modelovereenkomst. → `canSign`/`canChooseType` alleen bij PROPOSED/ACTIVE.
+- [x] **HOOG · UX** (#227) — Tegenstrijdige ongelabelde badges op ZZP-detail. → gelabeld als
+      "Inzetbaarheid" / "Beschikbaarheid".
 - [ ] **MIDDEN · COPY** — Abonnementspagina lekt "Dit is een demo zonder echte betaling"
       (`abonnement/page.tsx`). → demo-tekst weg / neutraal herschrijven.
 - [ ] **MIDDEN · UX** — Audit-log toont rauwe JSON met centen + e-mail (`admin/audit/page.tsx`). →
