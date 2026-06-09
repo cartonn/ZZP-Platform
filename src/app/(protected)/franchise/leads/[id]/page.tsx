@@ -29,8 +29,15 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const lead = await getLeadDetail(actor, id);
   if (!lead) notFound();
 
-  const followUp = followUpState(lead.nextFollowUp, new Date());
-  const followUpDefault = lead.nextFollowUp ? lead.nextFollowUp.toISOString().slice(0, 10) : "";
+  const now = new Date();
+  const followUp = followUpState(lead.nextFollowUp, now);
+  // Prefill alleen een TOEKOMSTIGE opvolgdatum. Een verlopen datum laten we leeg, zodat het loggen
+  // van een contactmoment de "te laat"-datum niet stilzwijgend opnieuw wegschrijft (de lead bleef
+  // anders rood "te laat" terwijl er net contact was). De franchiser zet desgewenst een nieuwe datum.
+  const followUpDefault =
+    lead.nextFollowUp && lead.nextFollowUp.getTime() > now.getTime()
+      ? lead.nextFollowUp.toISOString().slice(0, 10)
+      : "";
 
   // "Wordt klant" is alleen zinvol zolang de lead nog loopt (niet al klant, niet afgevallen).
   const canConvert = lead.status === "KOUD" || lead.status === "WARM";

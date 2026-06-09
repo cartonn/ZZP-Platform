@@ -102,6 +102,10 @@ export async function setLeadStatus(leadId: string, formData: FormData): Promise
 
   const current = lead.status as LeadStatus;
   if (current === next || !canLeadTransition(current, next)) return; // ongeldige sprong → no-op
+  // KLANT wordt UITSLUITEND bereikt via de onboarding-wizard (createOpdrachtgever maakt dan een echte
+  // opdrachtgever én zet de lead op KLANT). Een directe statussprong zou een doodloop geven (geen
+  // opdrachtgever, terminale status). De dropdown toont KLANT niet; deze guard sluit het hard af.
+  if (next === "KLANT") return;
 
   let reason: string | null = null;
   if (leadStatusRequiresReason(next)) {
