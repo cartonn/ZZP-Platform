@@ -19,7 +19,7 @@ gefixte items krijgen `[x]` + PR-nummer. "Productkeuzes" worden NIET gefixt zond
       (`abonnement/page.tsx`). → demo-tekst weg / neutraal herschrijven.
 - [x] **MIDDEN · UX** (#229) — Audit-log toont rauwe JSON met centen + e-mail (`admin/audit/page.tsx`). →
       nette NL key/value + geformatteerde bedragen.
-- [ ] **LAAG · COPY** — Engelse native file-knop "Choose File / No file chosen" (bedrijf/documenten/
+- [x] (#233) **LAAG · COPY** — Engelse native file-knop "Choose File / No file chosen" (bedrijf/documenten/
       certificaten/import). → eigen NL "Bestand kiezen".
 - [x] (#231) **LAAG · COPY** — "Pdf"-knoplabel i.p.v. "PDF" (`admin/facturatie/page.tsx`).
 - [ ] **LAAG · UX** — Native datumvelden tonen locale-placeholder; voeg "dd-mm-jjjj"-hint toe.

@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { FileInput } from "@/components/ui/file-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { updateCompanyProfile, type CompanyState } from "./actions";
@@ -108,13 +109,7 @@ export function CompanyForm({
               className="size-12 shrink-0 rounded-md border border-border object-cover"
             />
           )}
-          <Input
-            id="logo"
-            name="logo"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="h-auto py-1.5"
-          />
+          <FileInput id="logo" name="logo" accept="image/png,image/jpeg,image/webp" />
         </div>
       </Field>
 

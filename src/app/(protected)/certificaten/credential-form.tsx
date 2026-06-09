@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { FileInput } from "@/components/ui/file-input";
 import { Select } from "@/components/ui/select";
 import { saveCredential, type CredentialState } from "./actions";
 
@@ -116,13 +117,11 @@ export function CredentialForm({
               Huidig bewijsstuk bekijken
             </a>
           )}
-          <Input
+          <FileInput
             id="document"
             name="document"
-            type="file"
             accept="application/pdf,image/png,image/jpeg,image/webp"
             required={!isEdit}
-            className="h-auto py-1.5"
           />
           {isEdit && (
             <p className="text-xs text-muted-foreground">
