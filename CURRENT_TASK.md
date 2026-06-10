@@ -316,3 +316,32 @@ npm run db:seed        # indien seed gewijzigd
 ```
 
 Faalt iets → oorzaak onderzoeken, fixen, checks opnieuw. Pas daarna afvinken.
+
+---
+
+## Concurrentie-backlog (onderzoek juni 2026 — acht punten, eigenaar akkoord)
+
+Bron: concurrentie-onderzoek + `docs/PRIJSADVIES.md`. Eén punt per PR, DoD-groen.
+
+1. [~] **Tarief-drempelwaarschuwing rechtsvermoeden (< €38/uur)** — in uitvoering
+   (branch `claude/feat-tariefdrempel`): rustig DBA-signaal op opdracht-form/-detail +
+   samenwerking, mét disclaimer. Drempel in config (wet aangenomen 21-4-2026, verwacht 1-1-2027).
+2. [~] **Betaalgedrag-signaal opdrachtgever** — in uitvoering (branch `claude/feat-betaalgedrag`):
+   pure `payment-behavior.ts` (gem. dagen-tot-betaling, %-op-tijd, sampleSize ≥ 3) + blok op
+   opdracht-detail voor de ZZP'er.
+3. [ ] **Portable vertrouwensdossier** — deelbaar + verifieerbaar: openbare, niet-raadbare
+       dossier-URL (token) met geverifieerde certificaten-metadata + zegel; PDF-export bestaat al
+       (dossier), de deelbare verifieerbare link is nieuw. Audit op elke weergave.
+4. [ ] **DBA-audit-export per samenwerking** — bundel modelovereenkomst + DBA-indicatoren +
+       monitoring-historie als PDF ("klaar voor het bedrijfsbezoek"). Bouw op de bestaande
+       dossier-/PDF-routes.
+5. [ ] **Fee-transparantie-UI** — zodra billing aangaat (PRIJSADVIES): de fee als aparte regel
+       zichtbaar voor béíde partijen op factuur + samenwerking. Tot die tijd: tarief-afspraken
+       identiek tonen aan beide kanten (verifiëren dat dit al zo is).
+6. [ ] **Symmetrische annulering + no-show-registratie** — PRODUCTBESLUIT eigenaar nodig
+       (annuleringstermijnen, gevolgen beide kanten); daarna registratie + zichtbaarheid in profielen.
+7. [ ] **Notificatie-betrouwbaarheid** — web-push (VAPID = mensenwerk) + e-mail-fallback +
+       "gemist terwijl je weg was"-overzicht; koppel aan bestaand notificatiecentrum.
+8. [ ] **Startkapitaal & boekhoud-belofte etaleren** — trust-strip/registratie-copy:
+       "geverifieerd dossier = je startkapitaal (geen reviews nodig)" en "jouw facturen sluiten
+       altijd aan op je boekhouding (gatenvrije nummering)". Kleine copy-PR; "AI" blijft verboden.
