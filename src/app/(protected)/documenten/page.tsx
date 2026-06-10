@@ -34,6 +34,8 @@ export default async function DocumentenPage() {
   const documents = await prisma.document.findMany({
     where: { ownerId: actor.id },
     orderBy: { createdAt: "desc" },
+    // Interim-cap tegen onbegrensde groei (audit QW3); echte cursor-paginatie volgt in T3.
+    take: 100,
     include: { _count: { select: { credentials: true } } },
   });
 

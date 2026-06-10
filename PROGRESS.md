@@ -767,4 +767,8 @@ lokale visuele check. Tests 1086 → 1098.
 - **Bewust uitgesteld:** franchise-monetisatie (= v2-5 tenant-billing) — productkeuze, wacht op een
   ADR-gesprek met de eigenaar; niet autonoom gestart.
 
+- **Audit QW3 — interim-cap lijstqueries:** `take: 100` op de vier onbegrensde
+  collaboration-/document-`findMany`'s (dashboard ×2, samenwerkingen, documenten) als vangnet
+  tegen onbegrensde groei; echte cursor-paginatie volgt in audit-taak T3.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

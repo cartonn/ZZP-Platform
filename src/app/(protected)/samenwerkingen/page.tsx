@@ -67,6 +67,8 @@ export default async function SamenwerkingenPage() {
   const collaborations = await prisma.collaboration.findMany({
     where: { OR: [{ company: { userId: actor.id } }, { freelancer: { userId: actor.id } }] },
     orderBy: { updatedAt: "desc" },
+    // Interim-cap tegen onbegrensde groei (audit QW3); echte cursor-paginatie volgt in T3.
+    take: 100,
     include: {
       job: {
         select: {

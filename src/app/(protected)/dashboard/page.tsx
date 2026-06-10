@@ -150,8 +150,10 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           })
         : Promise.resolve<{ type: string; status: string; expiresAt: Date | null }[]>([]),
       // Lopende samenwerkingen (niet-terminaal) met de gegevens om de cascade-fase af te leiden.
+      // Interim-cap tegen onbegrensde groei (audit QW3); echte cursor-paginatie volgt in T3.
       prisma.collaboration.findMany({
         where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
+        take: 100,
         select: {
           id: true,
           status: true,
@@ -270,8 +272,10 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } })
         : Promise.resolve(0),
       // Lopende samenwerkingen vanuit de opdrachtgever: dezelfde cascade, ander perspectief.
+      // Interim-cap tegen onbegrensde groei (audit QW3); echte cursor-paginatie volgt in T3.
       prisma.collaboration.findMany({
         where: { company: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
+        take: 100,
         select: {
           id: true,
           status: true,
