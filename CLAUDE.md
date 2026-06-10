@@ -27,9 +27,10 @@ werkt volgens dit contract:
    voor research en onafhankelijk werk; integreer en commit zelf.
 4. **Definition of Done per increment (geen uitzonderingen):** testbare kern + unit-tests →
    UI → `npm run typecheck` + `npm run lint` + `npm run test` + `npm run build` +
-   `npx prettier --write .` groen → commit → push. **E2e draait automatisch in CI**
-   (Playwright met bundled Chromium, project `ci`). Screenshots worden als artifacts
-   geüpload. Nooit afvinken op "ziet er goed uit".
+   `npx prettier --write .` groen → commit → push → **PR + CI-poort geverifieerd groen
+   (`gh pr checks <nr>`)**. **E2e draait automatisch in CI** (Playwright met bundled
+   Chromium, project `ci`). Screenshots worden als artifacts geüpload. Nooit afvinken op
+   "ziet er goed uit" of "git status is schoon" — een PR is pas af als de CI-poort groen is.
 5. **Productiekwaliteit, geen slop.** Deterministisch, server-side waarheid. Geen dode
    knoppen. **Het woord "AI" komt nergens in de UI, teksten, comments of docs voor.**
 6. **Houd het geheugen actueel.** Werk `PROGRESS.md` (wat af is) en `CURRENT_TASK.md`
@@ -160,8 +161,14 @@ Een taak is pas af als:
 - E2e draait automatisch in CI (Playwright `--project=ci`). Screenshots als artifacts.
 - Loading/error/empty-states aanwezig
 - `PROGRESS.md` bijgewerkt, `CURRENT_TASK.md` doorgeschoven naar de volgende taak
+- **CI-poort geverifieerd groen.** Bij een PR is "af" pas waar als de daadwerkelijke
+  CI-uitkomst groen is — controleer met `gh pr checks <nr>` en citeer die uitkomst.
+  Een schone werkboom (`git status` clean) of groene lokale checks zijn **niet** voldoende
+  bewijs; CI draait extra poorten (o.a. `check:env`, `prettier --check .` over de hele repo,
+  e2e) die lokaal makkelijk gemist worden. Meld nooit een PR als klaar zonder de groene poort.
 
-**Nooit** een taak afvinken op basis van "ziet er goed uit". Draai de checks.
+**Nooit** een taak afvinken op basis van "ziet er goed uit" of "git status is schoon".
+Draai de checks én verifieer de CI-poort.
 
 ---
 
