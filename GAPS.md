@@ -205,3 +205,46 @@ Nieuwe coverage-assen na de logica- (1–3) en presentatie-formattering-sweep (4
 - [ ] (geparkeerd — LAAG, conf 0.5) **STATE** — `administratie` mapt ADMIN op een FREELANCER-grootboek → alles-nul-maar-gevuld zonder "geen administratie voor deze rol"-melding. Zelden bereikt; fix discutabel.
 
 **Convergentie-observatie:** logica-laag (iter 1–3) én presentatie-laag (iter 4–5) zijn nu tot laag-risico-residu doorgespit. Een volgende ronde langs dezelfde assen zal naar verwachting "schoon" zijn (2 schone rondes = lus klaar volgens LOOP.md).
+
+## Iteratie 6 — 2026-06-10 (volledige vision-persona-ronde + abuse-suite)
+
+Eerste volledige LOOP.md-ronde sinds de pivot: seed → prod-build → 4 persona-reizen (Playwright,
+nl-NL-locale) → vision-sweep (4 critici + rechter) → abuse/IDOR-suite. 25 ruwe bevindingen →
+**14 bevestigd**, 2 productkeuzes (geparkeerd), 6 dropped. **De lus was NIET schoon:** deze ronde
+vond een HOOG demo-coherentie-bug, dus de convergentie-verwachting van iter-5 klopte niet — een
+vision-ronde tegen de echte schermen vindt wat de code-flow-sweeps misten.
+
+**Abuse/IDOR-suite:** 8 pass, 4 flaky (eerste poging faalt op het bekende lokale `notFound()`→200-
+artefact, slaagt bij retry). Draft-opdracht-guard (`opdrachten/[id]:111` + `canViewJob`) geverifieerd
+solide → géén echte IDOR/security-bevinding. CI = waarheid.
+
+### HOOG
+
+- [x] (#289) **BUG** — Vlaggenschip-demo incoherent: zorg-verpleegkundige Sanne was via collab-1/job-16 aan een IT-opdracht "Fullstack Developer" + React-berichten gekoppeld (ondermijnt zorg-benchmark + verklaarbare matching). collab-1 → "Verpleegkundige (detachering)" @ Jansen (met ORT), reacties/threads naar zorg, Anna (frontend) naar job-16/Datic. Sanne's profiel was al correct zorg — alleen de seed-bedrading van haar reis was fout.
+- [x] (#292) **BUG** — Abuse-fixtureaccounts (`@test.local`) stapelden op in de admin-gebruikerslijst + tellingen (geen opruiming). Playwright `globalTeardown` ruimt ze nu op (4→0 geverifieerd). Verse seed had er al 0 → accumulatie-artefact, geen productbug.
+
+### MIDDEN
+
+- [x] (#290) **COPY** — Audit log overwegend Engels: `AUDIT_ACTION_LABEL` dekte 9 van ~120 acties (rest viel terug op Engelse fallback) + entityType/rol onvertaald. Map uitgebreid naar ~120 acties + `auditEntityLabel` (User→Gebruiker, …).
+- [x] (#289) **BUG** — Tracker "Contract Getekend" sprak modelovereenkomst "nog niet ondertekend" tegen op afgeronde samenwerkingen: de cascade tekende alleen het contract. Seed zet nu beide digitale akkoorden op ACTIVE/COMPLETED-collabs.
+- [x] (#292) **COPY** — Native date-inputs toonden "mm/dd/yyyy" in de NL-UI: Playwright-persona-sweep draaide op en-US-default. Locale nl-NL + Europe/Amsterdam toegevoegd (product was al correct voor NL-gebruikers; `<html lang="nl">` stond al).
+- [x] (#291) **UX** — "Profiel compleet 100%" botste met "Nog niet inzetbaar / Verzekering ontbreekt". Stat hernoemd naar "Profielvelden" (meet ingevulde velden; inzetbaarheid blijft apart).
+
+### LAAG
+
+- [x] (#291) **UX** — Reactie-statuscopy "Samenwerking gestart" liep achter op de echte status (bv. "Afgerond"). Volgt nu de actuele samenwerkingsstatus.
+- [x] (#291) **COPY** — Wizard-sublabel "Overslaan kan" → "Optioneel".
+- [x] (#289) **UX** — Concept-opdracht had "(concept)" in titel én Concept-badge (dubbelop). Suffix uit job-7-titel.
+- [x] (#291) **UX** — Franchise-facturatie "Actief"-abonnementsbadge botste met "incasso nog niet actief". Badge → "Abonnement: Actief".
+- [x] (#293) **UX** — ZZP'ers-lijst toonde "Nog niet inzetbaar" zonder inline reden. Toont nu de belangrijkste blokkade (bv. "Verzekering ontbreekt") op het lijstitem.
+
+### Vals-positieven (bevestigd door rechter, maar al gefixt / werkt-zoals-bedoeld — niet opnieuw flaggen)
+
+- [ ] (vals-positief) **UX** — Notificatiebel "niet klikbaar": is al een `<Link href="/notificaties">` (rechter zag een verouderde screenshot).
+- [ ] (vals-positief) **UX** — Logo-upload "native file-input": `/bedrijf` gebruikt al de gestylde `FileInput` (sr-only native + eigen knop).
+- [ ] (vals-positief) **UX** — Factuurrij "geen affordance": rij is al een `card-interactive`-`<Link>` met hover, consistent met berichten/leads.
+
+### Geparkeerd (productkeuze, eigenaar)
+
+- [ ] (geparkeerd — prijs/juridiek) **PRODUCTKEUZE** — Twee "abonnementen" naast elkaar (€48,40 platformbijdrage incl. btw vs. €19 plan-tier). Bewuste twee-posten-pricing; bedragen/benaming = eigenaar.
+- [ ] (geparkeerd — compliance/juridiek) **PRODUCTKEUZE** — DBA "Verhoogd risico" (>80% omzetconcentratie) op een net gestarte samenwerking. Of er een minimumdrempel moet komen vóór het signaal is een inhoudelijke Wet-DBA-afweging.

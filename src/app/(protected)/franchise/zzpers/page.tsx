@@ -82,29 +82,40 @@ export default async function FranchiseZzpersPage() {
         </Card>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {freelancers.map((f) => (
-            <Link
-              key={f.id}
-              href={`/franchise/zzpers/${f.id}`}
-              className="focus-ring flex items-center justify-between gap-3 p-4 hover:bg-muted/40"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{f.user.name}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {f.headline ?? f.user.email}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {plural(f._count.skills, "skill", "skills")} ·{" "}
-                  {plural(f._count.credentials, "certificaat", "certificaten")} · profiel{" "}
-                  {f.completeness}%
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <EngageabilityBadge status={engageabilityById.get(f.id)!.status} />
-                <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-              </div>
-            </Link>
-          ))}
+          {freelancers.map((f) => {
+            const eng = engageabilityById.get(f.id)!;
+            return (
+              <Link
+                key={f.id}
+                href={`/franchise/zzpers/${f.id}`}
+                className="focus-ring flex items-center justify-between gap-3 p-4 hover:bg-muted/40"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{f.user.name}</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {f.headline ?? f.user.email}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {plural(f._count.skills, "skill", "skills")} ·{" "}
+                    {plural(f._count.credentials, "certificaat", "certificaten")} · profiel{" "}
+                    {f.completeness}%
+                  </p>
+                  {/* Waaróm niet-inzetbaar in één oogopslag, zodat de franchiser de blokkade ziet
+                      zonder door te klikken. Eerste blokkade + telling van de rest. */}
+                  {eng.blockers.length > 0 && (
+                    <p className="mt-0.5 truncate text-xs text-danger">
+                      {eng.blockers[0]}
+                      {eng.blockers.length > 1 ? ` +${eng.blockers.length - 1}` : ""}
+                    </p>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <EngageabilityBadge status={eng.status} />
+                  <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
