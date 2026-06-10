@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getPublicTrustStats } from "@/lib/public-trust";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { PaletteSwitcher } from "@/components/ui/palette-switcher";
 import { TrustStrip } from "@/components/marketing/trust-strip";
 import { LoginForm } from "./login-form";
 
@@ -31,7 +30,6 @@ export default async function LoginPage({
           </div>
           <span className="text-base font-semibold">ZZP Platform</span>
           <div className="ml-auto flex items-center gap-2">
-            <PaletteSwitcher />
             <ThemeToggle />
           </div>
         </div>

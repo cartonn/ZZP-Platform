@@ -29,6 +29,7 @@ import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
 import { type FreelancerCredential } from "@/lib/matching";
 import { Badge } from "@/components/ui/badge";
+import { MatchMeter } from "@/components/ui/match-meter";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ComplianceBadge } from "@/components/compliance-badge";
@@ -491,10 +492,17 @@ function MatchesSection({ matches, prominent }: { matches: JobMatch[]; prominent
                   </span>
                 ) : null}
               </span>
-              <span className="flex shrink-0 items-center gap-2">
-                <AvailabilityBadge status={m.availability} />
-                <ComplianceBadge status={m.compliance} />
-                <Badge variant="accent">Match {m.score}%</Badge>
+              <span className="flex shrink-0 items-center gap-3">
+                {/* Rustig houden: badges alleen als ze iets signaleren — "beschikbaar" en
+                    "voldoet aan eisen" zijn de norm en hoeven geen aandacht te vragen. */}
+                {m.availability !== "AVAILABLE" && <AvailabilityBadge status={m.availability} />}
+                {m.compliance !== "COMPLIANT" && <ComplianceBadge status={m.compliance} />}
+                <span className="flex flex-col items-end gap-1">
+                  <span className="font-mono text-sm font-semibold tracking-tight text-primary">
+                    {m.score}%
+                  </span>
+                  <MatchMeter score={m.score} />
+                </span>
                 <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
               </span>
             </Link>

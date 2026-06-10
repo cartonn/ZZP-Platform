@@ -1121,5 +1121,10 @@ Eigenaar koos de lichte richting met pastel achtergrond; Vakwerk is nu het stand
   samenwerkingsdetail (CascadeStepper + TurnBanner i.p.v. handgerolde stepper/kaart).
 - **Checks:** typecheck/lint/test (125 bestanden, 1272 tests)/build groen; visueel geverifieerd
   (licht + donker, dashboard + werkproces) met de demo-seed.
+- **Rustiger gemaakt (eigenaarsfeedback "iets minder druk"):** keuzepaletten-systeem volledig
+  verwijderd (PaletteSwitcher, bloei/elektrisch-blauw-CSS, palette-deel van theme.ts/no-flash-
+  script; themes-e2e versmald tot licht/donker) — één identiteit. Achtergrond/randen/accent
+  zachter (bg `216 42% 97%`). Dashboard-matchrijen tonen beschikbaarheid-/compliance-badges
+  alleen nog bij een afwijking.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
