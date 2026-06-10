@@ -36,10 +36,11 @@ describe("planPastDue", () => {
   });
 
   it("downgradet vanaf dag 8 (na de herinneringsladder)", () => {
-    const plan = planPastDue([cand({ id: "old", pastDueAt: daysAgo(8) })], now);
+    const since = daysAgo(8);
+    const plan = planPastDue([cand({ id: "old", pastDueAt: since })], now);
     expect(plan.reminders).toEqual([]);
     expect(plan.downgrades.map((d) => d.subscriptionId)).toEqual(["old"]);
-    expect(plan.downgrades[0]?.dedupeKey).toBe("subscription-downgrade-old");
+    expect(plan.downgrades[0]?.dedupeKey).toBe(`subscription-downgrade-old-${since.getTime()}`);
   });
 
   it("valt terug op updatedAt als pastDueAt ontbreekt (oude rijen)", () => {
@@ -47,8 +48,27 @@ describe("planPastDue", () => {
     expect(plan.reminders.map((r) => r.day)).toEqual([3]);
   });
 
-  it("gebruikt stabiele dedup-sleutels per dag", () => {
-    const plan = planPastDue([cand({ id: "x", pastDueAt: daysAgo(1) })], now);
-    expect(plan.reminders[0]?.dedupeKey).toBe("subscription-past-due-x-day-1");
+  it("gebruikt stabiele dedup-sleutels per dag, met cyclus-discriminator", () => {
+    const since = daysAgo(1);
+    const plan = planPastDue([cand({ id: "x", pastDueAt: since })], now);
+    expect(plan.reminders[0]?.dedupeKey).toBe(`subscription-past-due-x-${since.getTime()}-day-1`);
+  });
+
+  it("vuurt een verse ladder bij een tweede PAST_DUE-episode op dezelfde abonnement-rij", () => {
+    // Een abonnement-rij wordt hergebruikt (uniek per userId): na her-aanmelding kan een latere
+    // betaling opnieuw mislukken met een verse pastDueAt. De dedupeKeys moeten dan verschillen van
+    // de eerste episode, anders filtert de runner ze als "al gevuurd" weg en mist de klant elke
+    // herinnering + de downgrade.
+    const firstEpisode = planPastDue([cand({ id: "sub", pastDueAt: daysAgo(1) })], now);
+    // Tweede episode: zelfde id, maar een nieuwe pastDueAt (verse mislukking, één dag oud t.o.v. later).
+    const later = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const secondPastDue = new Date(later.getTime() - 1 * 24 * 60 * 60 * 1000);
+    const secondEpisode = planPastDue([cand({ id: "sub", pastDueAt: secondPastDue })], later);
+
+    const firstKey = firstEpisode.reminders[0]?.dedupeKey;
+    const secondKey = secondEpisode.reminders[0]?.dedupeKey;
+    expect(firstKey).toBeDefined();
+    expect(secondKey).toBeDefined();
+    expect(secondKey).not.toBe(firstKey);
   });
 });

@@ -505,14 +505,20 @@ export function planInvoiceCreditedEvent(ctx: InvoiceCreditedCtx): CascadeEffect
     to: "CREDITED",
     set: { status: "CANCELLED", rejectionReason: ctx.reason.trim() },
   });
+  // Een al betaalde factuur (PAID/PROCESSED) heeft betaal-tegenboekingen; crediteren draait die terug.
+  const reversePayment =
+    ctx.invoice.lifecycleStatus === "PAID" || ctx.invoice.lifecycleStatus === "PROCESSED";
   fx.postings.push(
-    ...planInvoiceCredited({
-      issuer: "FREELANCER",
-      counterparty: "CLIENT",
-      subtotalCents: ctx.invoice.subtotalCents,
-      vatCents: ctx.invoice.vatCents,
-      totalCents: ctx.invoice.totalCents,
-    }),
+    ...planInvoiceCredited(
+      {
+        issuer: "FREELANCER",
+        counterparty: "CLIENT",
+        subtotalCents: ctx.invoice.subtotalCents,
+        vatCents: ctx.invoice.vatCents,
+        totalCents: ctx.invoice.totalCents,
+      },
+      { reversePayment },
+    ),
   );
   const num = ctx.invoice.partyInvoiceNumber ?? "concept";
   fx.notifications.push(

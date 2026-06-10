@@ -84,8 +84,19 @@ export function planPaymentConfirmed(fin: InvoiceFinancials): Posting[] {
   ];
 }
 
-/** Zijpad — creditfactuur: tegenboeking van indienen + goedkeuren (alle bedragen negatief). */
-export function planInvoiceCredited(fin: InvoiceFinancials): Posting[] {
+/**
+ * Zijpad — creditfactuur: tegenboeking van indienen + goedkeuren (alle bedragen negatief).
+ *
+ * Was de factuur al betaald (lifecycle PAID/PROCESSED), dan zijn de betaal-tegenboekingen
+ * (ONTVANGEN/BETAALD + afboeking debiteuren/crediteuren uit `planPaymentConfirmed`) al gemaakt.
+ * Crediteren = terugbetalen, dus die moeten óók terug: geef `reversePayment` mee. Zonder dat blijft
+ * er een spookvordering (DEBITEUREN < 0) bij de ZZP'er en een spookschuld (CREDITEUREN > 0) bij de
+ * opdrachtgever staan, die rechtstreeks in de debiteuren-/crediteurenoverzichten lekt.
+ */
+export function planInvoiceCredited(
+  fin: InvoiceFinancials,
+  opts: { reversePayment?: boolean } = {},
+): Posting[] {
   const negated: InvoiceFinancials = {
     issuer: fin.issuer,
     counterparty: fin.counterparty,
@@ -93,7 +104,9 @@ export function planInvoiceCredited(fin: InvoiceFinancials): Posting[] {
     vatCents: -fin.vatCents,
     totalCents: -fin.totalCents,
   };
-  return [...planInvoiceSubmitted(negated), ...planInvoiceApproved(negated)];
+  const postings = [...planInvoiceSubmitted(negated), ...planInvoiceApproved(negated)];
+  if (opts.reversePayment) postings.push(...planPaymentConfirmed(negated));
+  return postings;
 }
 
 // --- Analyse / overzichten --------------------------------------------------

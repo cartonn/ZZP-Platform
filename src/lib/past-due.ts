@@ -49,18 +49,24 @@ export function planPastDue(
   for (const c of candidates) {
     const since = c.pastDueAt ?? c.updatedAt;
     const d = daysSince(since, now);
+    // Cyclus-discriminator: een abonnement-rij wordt hergebruikt over zijn hele levensloop (uniek
+    // per userId, upsert bij her-aanmelding), terwijl DomainEvent-rijen permanent blijven. Zonder
+    // een per-episode-token zou een tweede mislukte betaling exact dezelfde dedupeKeys produceren en
+    // als "al gevuurd" worden weggefilterd → geen herinneringen en geen downgrade meer. `since`
+    // (pastDueAt, vers gezet door de webhook bij elke mislukking) is per episode uniek én stabiel.
+    const cycle = since.getTime();
     if (d > PAST_DUE_DOWNGRADE_AFTER_DAYS) {
       downgrades.push({
         subscriptionId: c.id,
         userId: c.userId,
-        dedupeKey: `subscription-downgrade-${c.id}`,
+        dedupeKey: `subscription-downgrade-${c.id}-${cycle}`,
       });
     } else if ((PAST_DUE_REMINDER_DAYS as readonly number[]).includes(d)) {
       reminders.push({
         subscriptionId: c.id,
         userId: c.userId,
         day: d,
-        dedupeKey: `subscription-past-due-${c.id}-day-${d}`,
+        dedupeKey: `subscription-past-due-${c.id}-${cycle}-day-${d}`,
       });
     }
   }
