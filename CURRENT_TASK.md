@@ -335,16 +335,17 @@ Bron: concurrentie-onderzoek + `docs/PRIJSADVIES.md`. Eén punt per PR, DoD-groe
 4. [ ] **DBA-audit-export per samenwerking** — bundel modelovereenkomst + DBA-indicatoren +
        monitoring-historie als PDF ("klaar voor het bedrijfsbezoek"). Bouw op de bestaande
        dossier-/PDF-routes.
-5. [ ] **Fee-transparantie-UI** — zodra billing aangaat (PRIJSADVIES): de fee als aparte regel
-       zichtbaar voor béíde partijen op factuur + samenwerking. Tot die tijd: tarief-afspraken
-       identiek tonen aan beide kanten (verifiëren dat dit al zo is).
+5. [~] **Fee-transparantie-UI** — zodra billing aangaat (PRIJSADVIES): de fee als aparte regel
+   zichtbaar voor béíde partijen op factuur + samenwerking. Symmetrie-verificatie GEDAAN
+   (10-6-2026): tarief/factuurbedragen worden op alle oppervlakken (samenwerkingenlijst/
+   -detail, facturenlijst/-detail, opdracht-detail) identiek aan beide partijen getoond;
+   geen role-conditional bedragen; tenant-fees in geen enkele partij-UI. Rest wacht op billing.
 6. [ ] **Symmetrische annulering + no-show-registratie** — PRODUCTBESLUIT eigenaar nodig
        (annuleringstermijnen, gevolgen beide kanten); daarna registratie + zichtbaarheid in profielen.
-7. [~] **Notificatie-betrouwbaarheid** — e-mail-fallback geleverd (branch
-   `claude/feat-notificatie-digest`): digest-runner bundelt ongelezen notificaties > 24u tot
-   één e-mail per gebruiker (idempotent via `Notification.digestedAt`; slaat over zonder
-   SMTP-kanaal). Nog open: "gemist terwijl je weg was"-overzicht (volgende increment);
-   web-push (VAPID) = mensenwerk.
+7. [~] **Notificatie-betrouwbaarheid** — e-mail-fallback digest gemerged (PR #314: runner
+   bundelt ongelezen notificaties > 24u tot één e-mail per gebruiker, idempotent via
+   `Notification.digestedAt`, slaat over zonder SMTP-kanaal); "terwijl je weg was"-overzicht
+   in PR #315 (`claude/feat-gemist-overzicht`). Nog open: web-push (VAPID) = mensenwerk.
 8. [ ] **Startkapitaal & boekhoud-belofte etaleren** — trust-strip/registratie-copy:
        "geverifieerd dossier = je startkapitaal (geen reviews nodig)" en "jouw facturen sluiten
        altijd aan op je boekhouding (gatenvrije nummering)". Kleine copy-PR; "AI" blijft verboden.

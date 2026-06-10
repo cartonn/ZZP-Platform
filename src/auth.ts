@@ -23,8 +23,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: async ({ user }) => {
       if (!user?.id) return;
       const meta = await requestMeta();
-      // Eén write per geslaagde login (Node-runtime): voedt het recency-signaal voor inzetbaarheid.
-      await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+      // Eén schuif per geslaagde login (Node-runtime): lastLoginAt voedt het recency-signaal voor
+      // inzetbaarheid; de vorige waarde schuift naar previousLoginAt en begrenst het
+      // "terwijl je weg was"-venster in het notificatiecentrum.
+      const prev = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { lastLoginAt: true },
+      });
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { previousLoginAt: prev?.lastLoginAt ?? null, lastLoginAt: new Date() },
+      });
       await audit({
         actorId: user.id,
         action: "USER_LOGIN",

@@ -22,6 +22,8 @@ import {
   type NotificationCategory,
   type NotificationTone,
 } from "@/lib/notifications";
+import { missedWhileAway } from "@/lib/missed-notifications";
+import { plural } from "@/lib/plural";
 import { markAllNotificationsRead, markNotificationRead, openNotification } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
 
@@ -131,12 +133,25 @@ function NotificationGroup({ heading, items }: { heading: string; items: Notific
 
 export default async function NotificatiesPage() {
   const actor = await requireActor();
-  const notifications = await prisma.notification.findMany({
-    where: { userId: actor.id },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const [notifications, me] = await Promise.all([
+    prisma.notification.findMany({
+      where: { userId: actor.id },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    prisma.user.findUnique({
+      where: { id: actor.id },
+      select: { previousLoginAt: true, lastLoginAt: true },
+    }),
+  ]);
   const hasUnread = notifications.some((n) => !n.readAt);
+  // "Terwijl je weg was" — ongelezen meldingen die tussen de vorige en de huidige login
+  // binnenkwamen. Verbergt zichzelf zonder vorige login of zonder gemiste meldingen.
+  const missed = missedWhileAway({
+    previousLoginAt: me?.previousLoginAt ?? null,
+    lastLoginAt: me?.lastLoginAt ?? null,
+    notifications,
+  });
 
   const now = new Date();
   const today = notifications.filter((n) => isSameDay(n.createdAt, now));
@@ -168,6 +183,18 @@ export default async function NotificatiesPage() {
         </Card>
       ) : (
         <div className="space-y-6">
+          {missed && (
+            <p className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
+              <Bell className="size-4 shrink-0" aria-hidden />
+              <span>
+                Terwijl je weg was:{" "}
+                <span className="font-medium text-foreground">
+                  {plural(missed.count, "ongelezen melding", "ongelezen meldingen")}
+                </span>{" "}
+                sinds je vorige bezoek op {formatDateShortNl(missed.from)}.
+              </span>
+            </p>
+          )}
           <NotificationGroup heading="Vandaag" items={today} />
           <NotificationGroup heading="Eerder" items={earlier} />
         </div>
