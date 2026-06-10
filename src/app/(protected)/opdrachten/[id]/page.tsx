@@ -40,6 +40,7 @@ import {
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
+import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
 import { estimateTravelMinutesWithRouting } from "@/lib/services/routing";
 import {
   recommendModelAgreement,
@@ -364,6 +365,19 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           <p className="text-[11px] text-muted-foreground/70">Hulpmiddel, geen juridisch advies.</p>
         </section>
       )}
+
+      {isOwner &&
+        (() => {
+          // rateMin is in EUR (Int), convert to cents for the threshold check.
+          const rateMinCents = job.rateMin != null ? job.rateMin * 100 : null;
+          const rateThreshold = assessRateThreshold(rateMinCents);
+          return rateThreshold.belowThreshold ? (
+            <section className="space-y-1.5 rounded-lg border border-warning/40 bg-warning/5 p-4">
+              <p className="text-xs font-medium text-warning">Rechtsvermoeden werknemerschap</p>
+              <p className="text-xs text-muted-foreground">{rechtsvermoedenHint()}</p>
+            </section>
+          ) : null;
+        })()}
 
       {isOwner && suggestions.length > 0 && (
         <section className="rounded-lg border border-border bg-card">

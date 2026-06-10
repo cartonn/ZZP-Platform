@@ -3,6 +3,18 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(dba): tarief-drempelwaarschuwing rechtsvermoeden werknemerschap (branch `claude/feat-tariefdrempel`)
+
+- [x] **`RECHTSVERMOEDEN_DREMPEL_CENTS = 3800`** toegevoegd aan `src/lib/config.ts` met broncommentaar (wetsvoorstel VBAR, aangenomen 21-4-2026, drempel €38 prijspeil 2025, verwachte iwt 1-1-2027)
+- [x] **`src/lib/rechtsvermoeden.ts`** — pure logica: `assessRateThreshold(rateCents)`, `rechtsvermoedenHint()`, `RECHTSVERMOEDEN_DISCLAIMER`
+- [x] **`src/lib/rechtsvermoeden.test.ts`** — 11 unit-tests: onder/op/boven drempel, null-tarief, grenswaarden, hint-inhoud, disclaimer
+- [x] **`src/app/(protected)/opdrachten/job-form.tsx`** — live inline hint bij het rateMin-veld (client-side, `warning`-toon, verdwijnt zodra tarief ≥ €38)
+- [x] **`src/app/(protected)/opdrachten/[id]/page.tsx`** — statisch signaalblok naast DBA-sectie voor eigenaar/admin als rateMin < €38
+- [x] **`src/app/(protected)/samenwerkingen/[id]/page.tsx`** — Card-blok in het Afspraken/DBA-blok voor actieve en voorgestelde samenwerkingen als col.rate < €38
+- Alle gates groen: typecheck ✓, lint ✓, 1359 tests ✓ (was 1348), prettier ✓
+
+---
+
 ## Legenda
 
 - [x] af en getest

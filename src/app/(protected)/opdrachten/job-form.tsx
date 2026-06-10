@@ -14,6 +14,7 @@ import {
   MODEL_AGREEMENT_LABELS,
   MODEL_AGREEMENT_TYPES,
 } from "@/lib/model-agreement";
+import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
 import { type CredentialType } from "@/lib/enums";
 import { saveJob, type JobFormState } from "./actions";
 
@@ -94,6 +95,11 @@ export function JobForm({
   const [industryId, setIndustryId] = useState(initial.industryId);
   const [dba, setDba] = useState(initial.dba);
   const [modelAgreementType, setModelAgreementType] = useState(initial.modelAgreementType);
+  const [rateMin, setRateMin] = useState(initial.rateMin);
+
+  // Live rechtsvermoeden-drempelcheck op het minimumtarief (pure functie, centen).
+  const rateMinCents = rateMin !== "" ? Number(rateMin) * 100 : null;
+  const rateThreshold = assessRateThreshold(rateMinCents);
 
   // Live, deterministische DBA-inschatting (zelfde pure functie als de server gebruikt).
   const dbaResult = assessDbaRisk({
@@ -186,8 +192,14 @@ export function JobForm({
             type="number"
             min={0}
             max={2000}
-            defaultValue={initial.rateMin}
+            value={rateMin}
+            onChange={(e) => setRateMin(e.target.value)}
           />
+          {rateThreshold.belowThreshold && (
+            <p className="mt-1 text-xs text-warning" role="note">
+              {rechtsvermoedenHint()}
+            </p>
+          )}
         </Field>
         <Field label="Max. tarief (€/uur)" htmlFor="rateMax" error={fe.rateMax}>
           <Input

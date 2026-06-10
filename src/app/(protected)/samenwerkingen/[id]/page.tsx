@@ -22,6 +22,7 @@ import { getSharedCredentialsForClient } from "@/lib/shared-credentials";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType, type CredentialStatus } from "@/lib/enums";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
+import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
 import { recommendModelAgreement } from "@/lib/model-agreement";
 import { resolveAgreementType } from "@/lib/contract-agreement";
 import { ModelAgreementCard } from "./model-agreement-card";
@@ -382,6 +383,22 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           </CardContent>
         </Card>
       )}
+
+      {/* Rechtsvermoeden werknemerschap — tarief-drempelwaarschuwing (rustig, niet-blokkerend) */}
+      {(active || col.status === "PROPOSED") &&
+        (() => {
+          // col.rate is in EUR (Int), convert to cents for the threshold check.
+          const rateCents = col.rate != null ? col.rate * 100 : null;
+          const rateThreshold = assessRateThreshold(rateCents);
+          return rateThreshold.belowThreshold ? (
+            <Card>
+              <CardContent className="space-y-1.5 py-4">
+                <p className="text-sm font-medium text-warning">Rechtsvermoeden werknemerschap</p>
+                <p className="text-xs text-muted-foreground">{rechtsvermoedenHint()}</p>
+              </CardContent>
+            </Card>
+          ) : null;
+        })()}
 
       {/* Contract — kan pas ondertekend/actief worden als de ZZP'er aan de certificaateisen voldoet. */}
       {col.status === "PROPOSED" && (
