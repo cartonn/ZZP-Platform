@@ -610,8 +610,6 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Notificaties verschijnen automatisch in het bestaande notificatiecentrum + bel; signals.ts
   badget bijna-verlopen al. Geen "AI" in teksten/comments/docs.
 
-<<<<<<< HEAD
-
 ### Increment: Rate-limiting op auth (brute-force-bescherming) — 2026-05-31
 
 - Orchestrator (Opus) + 1 Sonnet-builder (geïsoleerde kern); orchestrator deed integratie + poort.
@@ -691,11 +689,9 @@ Sluit de ontbrekende e-mailkanalen voor twee kritieke platform-events:
 - Checks groen: typecheck, lint, **246 unit-tests**, build (33 routes), `check:env`. E2e
   overgeslagen (geen browser-channel in deze routine-omgeving, net als CI). Geen "AI" in
   UI/teksten/comments/docs; deterministisch en server-side.
-- Let op (handoff): de backlog-kop "semantisch matchen" is in eerdere routine-runs al meermaals
-  als Done gemarkeerd op losse `claude/epic-*`-branches die nooit naar `claude/dazzling-carson-v9Qwk`
-  zijn gemerged. Deze run staat op `claude/epic-lovelace-ghtBi` en moet (na de poort) eveneens
-  gemerged worden om live te gaan.
-  > > > > > > > d9912ac (docs: corrigeer gemeten kalibratiecijfers semantische drempel)
+- Historische noot: deze backlog-kop is in eerdere routine-runs op losse `claude/epic-*`-branches
+  bewerkt. Inmiddels is alles via PR's naar **`main`** gemerged (main = bron van waarheid + deploy-
+  branch); losse epic-/deploy-branches zijn niet meer in gebruik.
 
 ### Admin DBA-risico-overzicht (/admin/dba) — 2026-06-01
 
