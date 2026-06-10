@@ -26,6 +26,7 @@ function isPublicPath(pathname: string) {
     pathname.startsWith("/wachtwoord-herstellen/") ||
     pathname === "/api/health" ||
     pathname.startsWith("/zzp/") ||
+    pathname.startsWith("/vertrouwen/") || // publiek vertrouwensdossier (token-beveiligd, geen sessie)
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/tasks/") // eigen token-guard (CRON_SECRET), geen sessie
   );
