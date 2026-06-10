@@ -353,3 +353,24 @@ anders dan een sessie-heartbeat) en bouwt de overhaul-branch `claude/modest-babb
 
 **Starten/stoppen:** start via Actions → "Run workflow", of bump `.swarm-trigger` en push. Stoppen:
 verwijder `BUILD_PAT` of zet de workflow uit (Actions-tabblad). **Validatie:** `npm run validate:ci`.
+
+---
+
+## §10. Productie-cron voor `/api/tasks/run-all` (mensenwerk)
+
+Het platform heeft een eindpunt `/api/tasks/run-all` dat alle geplande taakrunners in één
+aanroep uitvoert (expiry, betalingsherinneringen, DBA-monitor, concept-factuur-reminders,
+BTW-herinnering, job-alerts, PAST_DUE-ladder, ZZP-lidmaatschapsbijdrage, grace-venster).
+
+Op dit moment is **alleen** de dagelijkse expiry-check gewired via een GitHub Actions-workflow
+(`.github/workflows/expiry-check.yml`, elke dag om 06:00 UTC → `/api/tasks/expiry`).
+**`/api/tasks/run-all` heeft géén productie-cron.** Dat is bewust uitgesteld (mensenwerk):
+
+**Wat je moet doen:**
+1. Kies een host-cron (GitHub Actions-schema, Railway Cron Service, of een externe planner).
+2. Voeg een cron-job toe die dagelijks (of meerdere keren per dag, afhankelijk van de taak)
+   `POST /api/tasks/run-all` aanroept met de interne `TASK_SECRET`-header.
+3. Zet `TASK_SECRET` als secret (§7) — het eindpunt weigert aanroepen zonder dit geheim.
+4. Test éénmaal handmatig via `curl -X POST -H "x-task-secret: <geheim>" https://jouwdomein.nl/api/tasks/run-all`.
+
+Zolang deze cron ontbreekt, draaien de overige taakrunners **alleen bij handmatige aanroep**.

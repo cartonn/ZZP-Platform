@@ -11,6 +11,23 @@
 
 ---
 
+## Audit T1 — unit-tests voor alle cron-task-runners (branch `claude/audit-t1-cron-tests`)
+
+- [x] **Unit-tests voor alle 9 cron-task-runners** — 51 nieuwe tests (+ 4 runner-tests uitgebreid in `performance-grace-task.test.ts`)
+  - `expiry-task.test.ts` — 5 tests: verlopen, herinnering, dedup, mix, leeg. Functies: 100%
+  - `payment-reminders-task.test.ts` — 4 tests: leeg, OVERDUE-markering, dedup, null-candidates. Functies: 80%
+  - `dba-monitor-task.test.ts` — 5 tests: leeg, HOOG-signaal, dedup, recent, omzetconcentratie. Functies: 100%
+  - `concept-invoice-reminders-task.test.ts` — 6 tests: leeg, dag 3, dag 7, escalatie, dedup, geen dag. Functies: 100%
+  - `vat-reminder-task.test.ts` — 4 tests: leeg, buiten venster, happy path 2 ZZP'ers, dedup. Functies: 100%
+  - `job-alerts-task.test.ts` — 6 tests: leeg, geen profielen, happy path, dedup, al gealert, credentials. Functies: 100%
+  - `past-due-task.test.ts` — 6 tests: leeg, dag 1, dag 3, downgrade, dedup, geen herinneringsdag. Functies: 100%
+  - `zzp-membership-task.test.ts` — 6 tests: leeg, 1 ZZP'er, 2 ZZP'ers, dedup, 2× run, buiten maand. Functies: 100%
+  - `performance-grace-task.test.ts` (uitgebreid) — 4 runner-tests + 6 bestaande pure tests. Functies: 100%
+  - **Coverage:** functies per runner ≥ 80% (totaal 95,65%). Zie coveragetabel in commit-body.
+  - `MENSENWERK.md` bijgewerkt met §10 over ontbrekende productie-cron voor `/api/tasks/run-all`.
+
+---
+
 ## WORKSPACE OVERHAUL (`prompts/WORKSPACE_OVERHAUL.md`) — dashboards → command center
 
 - [x] **Fase 1 — pure helpers + unit-tests** (branch `feat/workspace-overhaul`, PR #69)
