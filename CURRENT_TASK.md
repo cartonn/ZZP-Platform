@@ -7,17 +7,20 @@
 
 - **Live:** test-URL `zzp-platform-production-be07.up.railway.app`. Demo-accounts (wachtwoord
   `demo1234`): `opdrachtgever@`, `zzp@` (Sanne), `admin@zzp-platform.local`.
-- **Deploy:** Railway bouwt/deployt branch **`claude/dazzling-carson-v9Qwk`** automatisch (Dockerfile).
+- **Deploy:** Railway bouwt/deployt de **default branch `main`** automatisch (Dockerfile).
   `scripts/start.mjs` doet bij elke boot `prisma db push` + **seed (idempotent)** → de rijke demo-
   inhoud staat er altijd (7 ZZP'ers met certificaten, 6 opdrachten + concept, reacties in alle
   statussen, 2 samenwerkingen, 4 facturen incl. verlopen).
+- **Workflow (main-flow):** korte feature-branches (`feat/...`, `fix/...`, `docs/...`) → **PR naar
+  `main`** → na de poort (CI groen, geverifieerd via `gh pr checks <nr>`) mergen → Railway deployt
+  `main`. **Altijd `git fetch` + rebase vóór commit én push.** Geen losse langlevende epic-/deploy-
+  branches meer; `main` is de bron van waarheid en de deploy-branch tegelijk.
 - **24/7-bouw:** Routine **"ZZP auto-build"** in Claude Code on the web (claude.ai/code/routines),
   elke ~2 uur. Orchestrator op **Opus**, builder-subagents op **Sonnet** (zie `.claude/agents/*`).
   Maakt per run een **Linear-issue in team "ZZP Platform HUB"** (In Progress → Done met commit-hash).
-  **Let op:** routine-runs pushen naar hun eigen **`claude/epic-*`-branch** — die moet je naar
-  `claude/dazzling-carson-v9Qwk` **mergen** (na de poort) om live te gaan. `ANTHROPIC_API_KEY`-secret
-  staat in GitHub. (De GitHub-Actions-cron `auto-build.yml` bestaat ook, maar is onbewezen vanuit de
-  sessie — de Routine is de gekozen route.)
+  Routine-runs leveren een **PR naar `main`** op. `ANTHROPIC_API_KEY`-secret staat in GitHub. (De
+  GitHub-Actions-cron `auto-build.yml` bestaat ook, maar is onbewezen vanuit de sessie — de Routine
+  is de gekozen route.)
 - **Vóór échte productie (mensenwerk, zie MENSENWERK.md):** juridisch/AVG-review (blokkeert livegang
   met echte gevoelige documenten), betalingen (Stripe/Mollie), echte verificatie-API's (DUO/BIG/iDIN
   — nu demo), e-mail, S3-documentopslag, eigen domein. Code is hierop voorbereid.
@@ -30,8 +33,8 @@ Grote, gefaseerde verbouwing naar een event-driven systeem met de volledige fact
 administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A besluiten hard,
 §0B open). Werkdocumenten: `ARCHITECTURE.md`, `DECISIONS.md`, `WORKFLOW_MAP.md`, `DESIGN.md`.
 
-> **Branch deze sessie:** `claude/modest-babbage-08jYa` (harness-instructie). Niet naar
-> `claude/dazzling-carson-v9Qwk` pushen zonder toestemming.
+> **Branch-flow:** werk op een korte feature-branch en lever een **PR naar `main`**. De overhaul is
+> inmiddels volledig op `main` gemerged en live (geen aparte deploy-branch meer).
 
 ### Fasevoortgang
 
@@ -62,14 +65,14 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
 
 ### 24/7-bouw actief — coördinatie (lees dit, auto-build-agent)
 
-De GitHub Actions-workflow `auto-build.yml` bouwt elke ~15 min op deze branch. Meerdere agents pushen
-hier; **altijd `git fetch` + rebase vóór commit én push**. Kies een increment dat **niet overlapt**
-met de laatste commits. **Geen dark-first re-theme** zonder akkoord eigenaar (open beslissing).
+Meerdere agents pushen via PR's naar `main`; **altijd `git fetch` + rebase vóór commit én push**.
+Kies een increment dat **niet overlapt** met de laatste commits. Houd PR's klein (100–300 regels).
 
-### Deploy-afspraak: additief tot "klaar", dan cutover
+### Deploy-afspraak: de cutover is gebeurd — `main` is live
 
-Alles accumuleert op `claude/modest-babbage-08jYa`. **Railway raakt de overhaul pas bij de cutover**
-(default branch is nu `dazzling-carson` = oude code). Niet eerder pushen naar de deploy-branch.
+De overhaul is volledig naar `main` gemerged en Railway deployt `main`. **Er is geen aparte deploy-
+branch meer**; elke gemergde PR gaat na de poort automatisch live. De cutover-checklist hieronder is
+historie (afgevinkt waar van toepassing).
 
 **Definition of Done (wanneer is de overhaul "klaar" — bron: PLATFORM_OVERHAUL.md §9):**
 cascade A–E + verplichte goedkeuring (B) + alle zijpaden werken end-to-end (uurtarief én milestone);
@@ -84,8 +87,8 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
        idempotentiecheck). Werkt op SQLite; testen op een Postgres-kopie = aanbevolen vóór prod.
 3. [ ] **e2e in een interactieve sessie mét browser** (cascade-flow A→E, migrated invoices in
        werkproces, PDF-afdruk). Kan niet in CI/routine.
-4. [ ] `modest-babbage` → deploy-branch brengen: of merge naar de default branch, of
-       `modest-babbage` de **default** maken; **Railway op die branch richten** en deploy + seed.
+4. [x] Overhaul naar **`main`** gemerged; Railway deployt `main` (default branch). Geen aparte
+       deploy-branch meer.
 5. [ ] **Juridisch/AVG-review** (MENSENWERK) vóór livegang met echte gevoelige documenten.
 
 **ORT / zorg — voortgang (zorgbureau zonder Excel, doel september):**
@@ -108,6 +111,51 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
       samenwerkingen, prestaties, facturen, verificaties, disputen).
 - [ ] **Volgende stappen (mensenwerk/browser):** e-mail-uitnodiging i.p.v. tijdelijk wachtwoord
       (SMTP); Playwright e2e; cutover (Railway).
+
+### Audit-backlog (Fable-audit op `main` — M0/M1 gemerged, M2/M3 open)
+
+> Bron: principal-audit op `main`. Gezondheid **B+**, nul Critical/High security. Echte
+> zwaktes = onderhoudbaarheid + schaal, niet veiligheid. **Niet aankomen behalve voor tests:**
+> planner/applier-split, authz-chain, document-privacy, domeinmotor (matching/cascade/administration).
+> Beantwoorde auditvragen: deploy-branch = **`main`**; e2e blijft **advisory** (niet blocking);
+> cron-call-shape = `runXxxTask({ actorId: null })` via `POST /api/tasks/run-all` achter
+> `Bearer $CRON_SECRET`.
+
+**M0/M1 — gemerged (niet opnieuw doen):**
+
+- [x] **T1 — cron-task unit-tests** (#301): 51 tests over 9 runners, idempotentie + lege state,
+      geïnjecteerde klok. _Open noot:_ `run-all` heeft nog geen prod-cron (host-config = mensenwerk;
+      alleen `expiry-check.yml` is gewired).
+- [x] **T2 — `apply.ts` transactietest** (#299): atomaire write geverifieerd; 0% → ~100%.
+- [x] **QW3 — interim list-cap** (#298): `take: 100` op dashboard/samenwerkingen/documenten.
+- [x] **QW1 — `next` → 15.5.19 + postcss-override** (#300): `npm audit` 2 moderate → **0**.
+
+**M2 — high-leverage (volgende; bovenste eerst):**
+
+1. [ ] **T3 — cursor-paginatie** (paginagrootte 50, "meer laden") op dashboard/samenwerkingen/
+       documenten. `samenwerkingen` haalt beide partij-zijden via `OR` op → pagineer op
+       `orderBy: updatedAt` met stabiele tiebreaker `id` (deterministische cursor). E2e laadt page-2.
+       Grep/lint-check tegen nieuwe unbounded list-`findMany`. _(L, med risico)_
+2. [ ] **T4 — split `cascade/commands.ts`** (1193 r.) in `{contract,performance,invoice,payment}-`
+       `commands.ts` + barrel-re-export (nul gedragswijziging, importpaden ongewijzigd). Gedeelde
+       helpers (`assertParty`, `loadPerformance`, `catch {}` mail-blocks) naar `commands-shared.ts`.
+       `typecheck` na elke move. _(M, med risico — brede imports)_
+3. [ ] **T5 — extract** `buildChainSteps` + ORT-helpers uit `samenwerkingen/[id]/page.tsx` (935 r.)
+       naar `lib/` met unit-tests; pagina < 600 r. _(M)_
+
+**M3 — polish (laagste prioriteit):**
+
+4. [ ] **T7 — Prisma-config-migratie** (`package.json#prisma` → `prisma.config.ts`); ruimt
+       build-deprecation vóór Prisma 7. _(S)_ · **L3/L4** (post-guard `!`-asserts; gedupliceerde
+       `parseLanguages`/`parseOrtSegments`) alleen meenemen als je toch in die bestanden zit.
+       **T6 (e2e blocking) — overslaan** tot de suite stabiel-groen is.
+
+> **NIET nu doen (auditadvies):** Prisma 7 / Next 16 / Tailwind 4 majors (opt-in, geen pre-launch-
+> payoff, regressierisico); CSP-nonce-pipeline (`'unsafe-inline'` gedocumenteerd acceptabel pre-prod,
+> herzien vóór livegang met echte documenten); Redis-rate-limit-store (interface al pluggbaar, pas
+> bij multi-instance).
+
+---
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
@@ -249,7 +297,8 @@ verloopdetectie als geplande taak (runExpiryTask + POST /api/tasks/expiry met CR
 ### Per increment (geen uitzonderingen)
 
 testbare kern + unit-tests → UI → typecheck/lint/test/build groen → e2e + screenshot →
-commit → push naar `claude/dazzling-carson-v9Qwk` → werk PROGRESS.md + deze backlog bij.
+commit → **PR naar `main`** (feature-branch) → **CI-poort geverifieerd groen (`gh pr checks <nr>`)**
+→ na de poort mergen → werk PROGRESS.md + deze backlog bij.
 
 ---
 
