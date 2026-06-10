@@ -59,7 +59,7 @@ export default async function FranchiseFacturatiePage() {
         description="Je abonnement en de transactie-fees per gevulde samenwerking."
         action={
           <Badge variant={STATUS_VARIANT[overview.status]} className="text-sm">
-            {STATUS_LABEL[overview.status]}
+            Abonnement: {STATUS_LABEL[overview.status]}
           </Badge>
         }
       />
