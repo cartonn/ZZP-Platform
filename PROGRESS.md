@@ -617,5 +617,8 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   geïnjecteerde fake `TransactionClient`: B2-pakket (factuur+status+postings+notificatie+audit),
   tabel-dispatch per entiteit, terugrol bij gelijktijdige statuswijziging (count ≠ 1), lege
   effecten, occurredAt-default. `apply.ts` van 0% naar 100% statements / 83% branches.
+- **Audit QW1 — afhankelijkheden schoon:** `next` ^15.5.19 (in-range) + `overrides.postcss =
+"$postcss"` zodat de geneste postcss 8.4.31 in next dedupliceert naar de top-level 8.5.15
+  (GHSA-qx2v-qp2m-jg93, vereist ≥ 8.5.10). `npm audit`: 2 moderate → **0 vulnerabilities**.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
