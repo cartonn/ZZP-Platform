@@ -41,6 +41,19 @@
 
 ---
 
+## Audit T3 — cursor-paginatie samenwerkingen en documenten (branch `claude/audit-t3-paginatie`)
+
+- [x] **Gedeelde pagination-helper** `src/lib/pagination.ts` — `pageArgs()`, `splitPage()`, `getPageSize()` (env `LIST_PAGE_SIZE`, default 50). 11 unit-tests in `pagination.test.ts`.
+- [x] **Samenwerkingen paginatie** `src/app/(protected)/samenwerkingen/page.tsx` — `take: 100` verwijderd, cursor-paginatie via `?cursor=`, `orderBy: [updatedAt desc, id desc]`, "Meer laden"-link (RSC).
+- [x] **Documenten paginatie** `src/app/(protected)/documenten/page.tsx` — zelfde aanpak, `orderBy: [createdAt desc, id desc]`.
+- [x] **Vangrail** `src/lib/unbounded-queries.test.ts` — scant `src/app/**` op `findMany()` zonder `take:` of `pageArgs`-spread; volledige allowlist met redenen (56 uitzonderingen gedocumenteerd).
+- [x] **Env-documentatie** `.env.example` — `LIST_PAGE_SIZE` gedocumenteerd.
+- [x] **CI** `.github/workflows/ci.yml` — `LIST_PAGE_SIZE: "5"` in e2e-job-env.
+- [x] **E2e-spec** `e2e/paginatie.spec.ts` — defensief geschreven (seed heeft max. 2 documenten / 1 samenwerking per gebruiker, dus "Meer laden" verschijnt niet met default seed). Cursor-URL-navigatie zonder fout getest.
+- Checks: typecheck ✓ · lint ✓ · test 133 files / 1321 tests ✓ · prettier ✓ · check:env ✓
+
+---
+
 ## Audit T1 — unit-tests voor alle cron-task-runners (branch `claude/audit-t1-cron-tests`)
 
 - [x] **Unit-tests voor alle 9 cron-task-runners** — 51 nieuwe tests (+ 4 runner-tests uitgebreid in `performance-grace-task.test.ts`)

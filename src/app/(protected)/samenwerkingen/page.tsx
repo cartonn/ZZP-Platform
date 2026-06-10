@@ -10,6 +10,7 @@ import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type FreelancerCredential } from "@/lib/matching";
 import { type CollaborationStatus, type CredentialType } from "@/lib/enums";
+import { pageArgs, splitPage } from "@/lib/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,14 +62,19 @@ function alertPhrase(a: CredentialAlert, name: string, isClient: boolean): strin
     : `Je ${t(a.inReview)} is in beoordeling.`;
 }
 
-export default async function SamenwerkingenPage() {
+export default async function SamenwerkingenPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const actor = await requireActor();
+  const sp = await searchParams;
+  const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
 
-  const collaborations = await prisma.collaboration.findMany({
+  const rows = await prisma.collaboration.findMany({
     where: { OR: [{ company: { userId: actor.id } }, { freelancer: { userId: actor.id } }] },
-    orderBy: { updatedAt: "desc" },
-    // Interim-cap tegen onbegrensde groei (audit QW3); echte cursor-paginatie volgt in T3.
-    take: 100,
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    ...pageArgs(cursor),
     include: {
       job: {
         select: {
@@ -91,9 +97,12 @@ export default async function SamenwerkingenPage() {
     },
   });
 
+  const { items: collaborations, nextCursor } = splitPage(rows);
+
   // Welke samenwerkingen lenen zich voor een LOSSE factuur (niet in de cascade)? Zelfde regel als
   // /facturen/nieuw — anders loopt de "Factuur opstellen"-knop dood op een lege keuzelijst zodra de
   // ZZP'er uren heeft ingediend (dan loopt facturatie via het werkproces).
+  // ID-set-query voor factureerbare samenwerkingen; geen volledige lijst
   const invoiceableIds = new Set(
     (
       await prisma.collaboration.findMany({
@@ -107,12 +116,20 @@ export default async function SamenwerkingenPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader title="Samenwerkingen" description="Voorgestelde en lopende samenwerkingen." />
 
-      {collaborations.length === 0 ? (
+      {collaborations.length === 0 && !cursor ? (
         <Card>
           <EmptyState
             icon={Handshake}
             title="Nog geen samenwerkingen"
             description="Een opdrachtgever stelt een samenwerking voor vanuit een geaccepteerde reactie."
+          />
+        </Card>
+      ) : collaborations.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={Handshake}
+            title="Geen verdere samenwerkingen"
+            description="Je hebt alle samenwerkingen bekeken."
           />
         </Card>
       ) : (
@@ -256,6 +273,14 @@ export default async function SamenwerkingenPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {nextCursor && (
+        <div className="flex justify-center">
+          <Button asChild variant="secondary">
+            <Link href={`/samenwerkingen?cursor=${nextCursor}`}>Meer laden</Link>
+          </Button>
         </div>
       )}
     </div>
