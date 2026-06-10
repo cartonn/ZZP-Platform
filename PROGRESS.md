@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(notificaties): "terwijl je weg was"-overzicht in het notificatiecentrum (branch `claude/feat-gemist-overzicht`)
+
+Concurrentie-backlog punt 7 (deel 2 van 2): het notificatiecentrum vat ongelezen meldingen samen
+die binnenkwamen tussen de vorige en de huidige login. Deel 1 (e-mail-fallback digest) zit in
+PR #314; web-push (VAPID) blijft mensenwerk.
+
+- [x] **`prisma/schema.prisma`** — additief nullable `User.previousLoginAt`
+- [x] **`src/auth.ts`** — signIn-event schuift `lastLoginAt` → `previousLoginAt` vóór de update
+- [x] **`src/lib/missed-notifications.ts`** — pure `missedWhileAway()`: venster (previousLoginAt,
+      lastLoginAt], alleen ongelezen, null bij niets te tonen (rustige standaard)
+- [x] **`src/lib/missed-notifications.test.ts`** — 8 unit-tests (geen vorige login, venster-
+      randwaarden, gelezen telt niet, na-login telt niet, defensief zonder lastLoginAt)
+- [x] **`src/app/(protected)/notificaties/page.tsx`** — rustige banner boven de groepen:
+      "Terwijl je weg was: N ongelezen meldingen sinds je vorige bezoek op {datum}"
+- Gates groen: typecheck ✓, lint ✓, test 1381 ✓ (was 1373), build ✓, prettier ✓
+
+---
+
 ## feat(notificaties): e-mail-fallback digest voor ongelezen meldingen (branch `claude/feat-notificatie-digest`)
 
 Concurrentie-backlog punt 7 (deel 1 van 2): wie de app een tijd niet opent, krijgt ongelezen
