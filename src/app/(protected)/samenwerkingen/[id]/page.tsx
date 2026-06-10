@@ -253,12 +253,22 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           Werkproces met {counterparty} · betaling verloopt rechtstreeks; het platform houdt alleen
           de status bij.
         </p>
-        <Link
-          href={`/samenwerkingen/${col.id}/dossier`}
-          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-        >
-          <ShieldCheck className="size-4" aria-hidden /> Compliance-dossier
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={`/samenwerkingen/${col.id}/dossier`}
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            <ShieldCheck className="size-4" aria-hidden /> Compliance-dossier
+          </Link>
+          <Link
+            href={`/api/samenwerkingen/${col.id}/dba-dossier`}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            <FileText className="size-4" aria-hidden /> DBA-dossier (PDF)
+          </Link>
+        </div>
       </header>
 
       {/* Cascade-keten: visuele voortgang van contract t/m betaling */}
