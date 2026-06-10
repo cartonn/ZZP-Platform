@@ -1,4 +1,4 @@
-import { Check, ScrollText, ShieldCheck, Target } from "lucide-react";
+import { Check, FileCheck, FolderCheck, ScrollText, ShieldCheck, Target } from "lucide-react";
 import { type PublicTrustStats, trustHighlights } from "@/lib/public-trust";
 
 const PILLARS = [
@@ -16,6 +16,16 @@ const PILLARS = [
     icon: Target,
     title: "Verklaarbare match",
     desc: "Je ziet bij elke opdracht waaróm die bij je past.",
+  },
+  {
+    icon: FolderCheck,
+    title: "Geverifieerd dossier is je startkapitaal",
+    desc: "Je hebt geen reviews nodig om te beginnen — een volledig dossier spreekt voor zich.",
+  },
+  {
+    icon: FileCheck,
+    title: "Gatenvrije factuurnummering",
+    desc: "Facturen krijgen een eigen, doorlopende nummering per partij — jouw boekhouding sluit altijd aan.",
   },
 ] as const;
 
