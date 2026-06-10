@@ -4,6 +4,7 @@ import { Wallet } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
+import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import {
   buildAgingReport,
@@ -91,7 +92,16 @@ export default async function OpenstaandPage() {
   }
 
   const openInvoices = await fetchOpenInvoices(actor.id, isFreelancer);
-  const report = buildAgingReport(openInvoices, new Date());
+  const now = new Date();
+  const report = buildAgingReport(openInvoices, now);
+
+  // Vooruitblik: nog niet vervallen facturen met een vervaldatum binnen 7 dagen. Toont de verwachte
+  // betaal-timing die al in het systeem zit (betaaltermijn) — géén garantie/incasso (geld blijft PENDING).
+  const weekAhead = new Date(now.getTime() + 7 * 86_400_000);
+  const upcoming = report.rows.filter(
+    (r) => r.daysOverdue === 0 && r.dueAt != null && r.dueAt <= weekAhead,
+  );
+  const upcomingCents = upcoming.reduce((sum, r) => sum + r.amountCents, 0);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -116,7 +126,7 @@ export default async function OpenstaandPage() {
 
       {report.rows.length > 0 && (
         <>
-          <div className="flex gap-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             <Card className="flex-1">
               <CardContent className="space-y-1 p-4">
                 <p className="text-xs text-muted-foreground">Totaal openstaand</p>
@@ -136,6 +146,19 @@ export default async function OpenstaandPage() {
                     {report.overdueCount} {report.overdueCount === 1 ? "post" : "posten"}
                   </p>
                 )}
+              </CardContent>
+            </Card>
+            <Card className="flex-1">
+              <CardContent className="space-y-1 p-4">
+                <p className="text-xs text-muted-foreground">
+                  {isFreelancer ? "Binnenkomend deze week" : "Te betalen deze week"}
+                </p>
+                <p className="text-lg font-semibold tabular-nums">{formatEuro(upcomingCents)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {upcoming.length > 0
+                    ? `${plural(upcoming.length, "post", "posten")} met vervaldatum binnen 7 dagen`
+                    : "geen vervaldatum binnen 7 dagen"}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -202,10 +225,16 @@ export default async function OpenstaandPage() {
                     <Badge variant={bucketVariant(row.bucket)}>
                       {AGING_BUCKETS.find((b) => b.key === row.bucket)?.label}
                     </Badge>
-                    {row.daysOverdue > 0 && (
+                    {row.daysOverdue > 0 ? (
                       <span className="text-xs text-danger">
                         {plural(row.daysOverdue, "dag", "dagen")} te laat
                       </span>
+                    ) : (
+                      row.dueAt && (
+                        <span className="text-xs text-muted-foreground">
+                          verwacht rond {formatDateShortNl(row.dueAt)}
+                        </span>
+                      )
                     )}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
