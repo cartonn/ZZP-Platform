@@ -93,3 +93,56 @@ Wet-DBA-verdedigbaarheid) luider en eerder in de funnel zichtbaar.
 - PIDZ "instellingskosten 15-25% all-in" = **geen traceerbare bron** → markeren als schatting (wel generiek "10-20% inhouden").
 - Correct geverifieerd: PIDZ €56,94 (ZZP-abo), Temper €4,90/u, YoungOnes €4,75/u, Maqqie 1%/max 7,5%,
   Planet Interim-abo's, Upwork 0-15%, Fiverr 20%+5,5%, Toptal $79+$500.
+
+## Ronde 2 — 2026-06-10 (verdieping: franchiser/rooster/dossier-kant)
+
+Verdiept: **PIDZ**, **Bendy** en **Zorgwerk** (zorgwerk.nl, incl. ZZP-Markt) — focus op de operatie
+en de franchiser/rooster/dossier-kant (waar ronde 1 lichter overheen ging). Bron: openbare sites;
+alle volume-/fee-claims expliciet als marketing/schatting gelabeld (zie feitcheck).
+
+### Per concurrent (beter / slechter dan wij)
+
+| Concurrent   | Doet beter                                                                                                                                                     | Doet slechter                                                                                                                             |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **PIDZ**     | Bewezen liquiditeit/dichtheid + fysieke regio-/franchise-infra met menselijke planners → zichtbare "vulgraad"-moat (claim "80% binnen 2u", _marketing_)        | Matching is een black box; geen zichtbare match-redenen, per-document-verificatiestatus, ORT-opbouw of DBA-tooling — wat wij wél tonen    |
+| **Bendy**    | Volledige white-label bureau-stack: eigen-merk app in beide stores, Otentica-echtheidsverificatie (BIG/SKJ/KvK/VOG), ingebouwde WTT/ORT-calculator             | Geen eigen marktplaats/liquiditeit, geen DBA/payroll, geen rooster-dossier of leads-CRM, niet ZZP-specifiek — gereedschap zónder netwerk  |
+| **Zorgwerk** | API-koppeling op instellingsroosters (Nedap ONS/Intus/Monaco/Ortec) + wekelijkse-uitbetaling-belofte (neemt debiteurenrisico); ZZP-Markt "SOS-knop" vervanging | Verplichte screening + kennismakingsgesprek, geen open doorzoekbare profielen, marges niet transparant — minder zelf-kiezen/transparantie |
+
+**Kern:** de drie bevestigen onze differentiatie (verklaarbare match + zichtbare verificatie/DBA/ORT
+die zij missen), maar leggen het zwaartepunt bij de OPERATIE. De grootste laag-risico-winst zit in het
+**zichtbaar maken van bestaande data** op de franchiser/cashflow-kant.
+
+### Backlog — BOUWEN (duidelijke UX/principe-winst)
+
+- [x] (#294) **M** Vulgraad/dekkingsoverzicht op /franchise/diensten (PIDZ-moat gedigitaliseerd): vulgraad %, open vs. gevuld, "dreigt onvervuld"-alarm bij 7+ dagen open, aandacht-eerst-sortering. Pure oversight op bestaande velden.
+- [x] (#295) **M** Cashflow-vooruitblik "binnenkomend deze week" op /openstaand (Zorgwerk-rust zonder factoring): som van facturen met vervaldatum binnen 7 dagen + per post "verwacht rond <datum>". Toont alleen bestaande betaal-timing; geld blijft PENDING.
+- [x] (al gebouwd) **S** Inzetbaarheids-verdict in roster-dossier (PIDZ-kwaliteitsgrip): de roster-dossierdetail toont al `EngageabilityExplanation` (badge + blokkades/aandacht/redenen) als kop-oordeel — rechter zag alleen de lib, niet de UI.
+- [x] (al gebouwd) **S** Screening-lat zichtbaar op opdracht-detail (PIDZ-vertrouwen): /opdrachten/[id] heeft al het "Veilig inhuren"-risk-reversal-blok dat de compliance-gate-vóór-bevestiging uitlegt (ronde 1 #239).
+- [ ] (volgende ronde) **L** Herplaatsing bij uitval (Zorgwerk/ZZP-Markt "SOS"): annulering van een ACTIVE samenwerking → dienst weer 'open' + direct passende inzetbare ZZP'ers voorstellen. Hergebruikt status-transitie + `suggestedFreelancersForJob` + berichten. L/risicovol (raakt de openstaande-factuur-veiligheidsrem in de cancel-actie); zorgvuldig in een eigen ronde bouwen.
+
+### Geparkeerd — PRODUCT/INFRA (eigenaar-besluit, niet stilzwijgend bouwen)
+
+- **Per-dag-weekrooster-visualisatie op franchise-niveau** (PIDZ-plannersoog) — ADR-0004 parkeert de
+  per-dag-rooster-bouw bewust tot eigenaar-akkoord. Zelfs een _read-only_ weekraster raakt dat besluit;
+  daarom geparkeerd tot akkoord (dan strikt read-only visualisatie van bestaande `weekdays`, geen plan-engine).
+- **Rooster-koppeling met externe instellingssystemen** (Nedap ONS/Ortec, à la Zorgwerk) — diepe
+  API-/partnerschapsintegratie (build-vs-buy, datadeling met externe leveranciers). Een lichte
+  CSV-dienst-import zou een BOUWEN-voorloper kunnen zijn; de echte API-koppeling = eigenaar.
+
+### Geparkeerd — STRATEGISCH/PRIJS (eigenaar-besluit)
+
+- **Brede inhuurmix onder één dak** (uitzenden/detachering/flexpool/MSP naast ZZP, à la Zorgwerk) —
+  raakt de harde regel "geen payroll-tak"; fundamentele positionerings-/businessmodelkeuze.
+- **Eigen-merk/white-label app per bureau in de stores** (Bendy-model) — harde regel: geen
+  white-label/tenant-branding zonder eigenaar (branding-laag bestaat technisch, activatie = eigenaar).
+
+### Feitcheck-correcties ronde 2 (niet als feit presenteren)
+
+- PIDZ publiceert het **eigen fee-percentage nergens**; "3-15%"/"€3-5/u" komt uit PIDZ's kennisbank als
+  algemene markt-bandbreedte, niet als PIDZ-tarief → markt-indicatie/schatting.
+- PIDZ-franchisecijfers (entree €100k, jaarfee ~50% omzet, gebied 30-50km, ~€600k/vestiging) komen van
+  denationalefranchisegids.nl (projectie 2024), **niet door PIDZ bevestigd** → derde-bron/projectie.
+- PIDZ-volumeclaims (8.500+ opdrachten/week, 650+ instellingen, "80% binnen 2u") = **PIDZ-eigen marketing**, onafhankelijk onbevestigd.
+- Zorgwerk-claims (75.000+ gescreend, 14.000+ locaties, "elke 20s een match") = **Zorgwerk-eigen marketing**; ZZP-fee "€3/u ex btw" uit support-snippet, opdrachtgever-marge **niet gepubliceerd**.
+- ZZP-Markt-prijzen (vast bedrag/maand ZZP'er, % van uurtarief org) **niet in euro's gepubliceerd**; "no-cure-no-pay bij 0-1 diensten" = claim, bedragen onbekend.
+- Bendy-prijs (€16/actieve gebruiker/maand + €2.500 opstart, geen take-rate, bron bendy.nl) = SaaS-per-seat zónder marktplaats — niet 1-op-1 met onze fee-logica vergelijkbaar.
