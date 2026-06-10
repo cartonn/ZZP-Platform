@@ -50,6 +50,9 @@ COPY --from=builder --chown=nodejs:nodejs /app/.next ./.next/
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma/
 COPY --from=builder --chown=nodejs:nodejs /app/scripts ./scripts/
 COPY --from=builder --chown=nodejs:nodejs /app/next.config.mjs ./
+# Prisma leest zijn configuratie (o.a. het seed-commando) uit prisma.config.ts; zonder dit
+# bestand vindt `prisma db seed` bij boot geen seed-commando meer (vervangt package.json#prisma).
+COPY --from=builder --chown=nodejs:nodejs /app/prisma.config.ts ./
 # De demo-seed (prisma/seed.ts) draait via tsx en importeert app-code (@/lib/cascade/commands, ...).
 # Daarvoor moeten de bronbestanden én tsconfig.json (dat het @/*-pad-alias definieert) in de
 # runtime-image staan — alleen .next is niet genoeg. Zonder deze faalt de achtergrond-seed met

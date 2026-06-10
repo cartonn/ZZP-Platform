@@ -638,4 +638,10 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 "$postcss"` zodat de geneste postcss 8.4.31 in next dedupliceert naar de top-level 8.5.15
   (GHSA-qx2v-qp2m-jg93, vereist ≥ 8.5.10). `npm audit`: 2 moderate → **0 vulnerabilities**.
 
+- **Audit T7 — Prisma-config-migratie:** `package.json#prisma` (deprecated, weg in Prisma 7) →
+  `prisma.config.ts` (`defineConfig` met schema + `migrations.seed`). dotenv expliciet geladen
+  (CLI slaat .env-loading over mét configbestand); `prisma.config.ts` meegekopieerd naar de
+  runtime-image (Dockerfile) zodat de boot-seed zijn commando blijft vinden. Lokaal geverifieerd:
+  generate zonder deprecation, `db push` en `db seed` werken.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
