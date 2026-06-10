@@ -14,6 +14,11 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3000",
     trace: "off",
+    // Echte NL-gebruiker: zo renderen native controls (bv. <input type="date">) in dd-mm-jjjj
+    // i.p.v. Playwright's en-US-default (mm/dd/yyyy), zodat de screenshots de werkelijke ervaring
+    // tonen en de rechter geen valse "Amerikaanse datum"-bug flagt.
+    locale: "nl-NL",
+    timezoneId: "Europe/Amsterdam",
   },
   projects: [{ name: "ci", use: { ...devices["Desktop Chrome"] } }],
   webServer: {

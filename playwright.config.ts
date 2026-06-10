@@ -5,6 +5,9 @@ export default defineConfig({
   // De persona-sweep (e2e/personas/*) draait apart via playwright.personas.config.ts tegen een
   // productie-build; die reizen muteren demo-data en horen niet in de gating-suite.
   testIgnore: ["**/personas/**"],
+  // Ruimt na de suite de @test.local-fixtureaccounts op die de abuse/IDOR-suite registreert,
+  // zodat ze niet in de admin-gebruikerslijst/tellingen blijven hangen (vooral in een gedeelde dev-DB).
+  globalTeardown: "./e2e/global-teardown.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // Eén gedeelde dev-server + zware multi-context tests → incidentele timing-flakes.
