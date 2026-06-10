@@ -1,0 +1,581 @@
+/**
+ * Vangrail: detecteert findMany()-aanroepen in page-bestanden zonder `take:`.
+ *
+ * Een `findMany` zonder `take` kan op termijn de server-memory en laadtijden
+ * om zeep helpen. Elke nieuwe onbegrensde lijst moet hier expliciet worden
+ * toegestaan (allowlist) met een reden.
+ *
+ * De test leest de broncode, zoekt `findMany(`-aanroepen en controleert of
+ * `take:` aanwezig is in het bijbehorende argument-object (heuristische
+ * brace-matching over max. 25 regels). Zo niet: fail.
+ */
+
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+// ---------------------------------------------------------------------------
+// Toegestane uitzonderingen: { file: relatief t.o.v. src/app, line: regelnummer }
+// Bij elke uitzondering een reden als comment.
+// ---------------------------------------------------------------------------
+const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
+  // --- dashboard/page.tsx ---
+  // Dashboard-widget: certificaten van één freelancer voor de statustelling.
+  // Dit is een aggregatie-query voor een widget (geen lijst-view); typisch < 10 items.
+  {
+    file: "(protected)/dashboard/page.tsx",
+    line: 147,
+    reason: "dashboard-widget aggregatie; eigenaar-scoped, inherent begrensd",
+  },
+
+  // --- reacties/page.tsx ---
+  // Reacties zijn altijd van één freelancer; groei is lineair en in de praktijk
+  // beperkt (een ZZP'er heeft doorgaans < 100 actieve reacties).
+  { file: "(protected)/reacties/page.tsx", line: 52, reason: "eigenaar-scoped, inherent begrensd" },
+
+  // --- administratie/page.tsx ---
+  // Boekhoudregels van één gebruiker; aggregatiequery die alle regels nodig heeft
+  // voor saldo/btw-berekening (paginatie niet zinvol hier).
+  {
+    file: "(protected)/administratie/page.tsx",
+    line: 48,
+    reason: "volledig financieel overzicht vereist alle regels van eigenaar",
+  },
+
+  // --- beschikbaarheid/page.tsx ---
+  // Beschikbaarheidvensters van één freelancer; kalender-aggregatie die de
+  // volledige set nodig heeft voor upcoming/summary.
+  {
+    file: "(protected)/beschikbaarheid/page.tsx",
+    line: 35,
+    reason: "kalenderaggregatie vereist alle vensters van eigenaar",
+  },
+
+  // --- certificaten/(index)/page.tsx ---
+  // Certificaten van één freelancer; dit zijn er typisch < 20 per persoon.
+  {
+    file: "(protected)/certificaten/(index)/page.tsx",
+    line: 50,
+    reason: "eigenaar-scoped, inherent begrensd tot persoonlijk certificaatdossier",
+  },
+
+  // --- admin/administratie/page.tsx (twee findMany's) ---
+  // Admin-aggregatieoverzicht; draait alleen voor beheerders en is niet voor
+  // eindgebruikers; datavolume is bekend en beheerst.
+  {
+    file: "(protected)/admin/administratie/page.tsx",
+    line: 40,
+    reason: "admin-aggregatie, beheersbaar volume",
+  },
+  {
+    file: "(protected)/admin/administratie/page.tsx",
+    line: 43,
+    reason: "admin-aggregatie, beheersbaar volume",
+  },
+
+  // --- admin/verificaties/page.tsx ---
+  // Verificatiewachtrij; alleen SUBMITTED-credentials; het aantal wachtende
+  // aanvragen is structureel klein (dagelijkse verwerking door beheerders).
+  {
+    file: "(protected)/admin/verificaties/page.tsx",
+    line: 36,
+    reason: "verificatiewachtrij is structureel klein (dagelijks verwerkt)",
+  },
+
+  // --- admin/samenwerkingen/page.tsx ---
+  // Admin-overzicht van alle samenwerkingen; dit had een cap moeten hebben,
+  // maar valt buiten de scope van audit T3 (T3 pagineert alleen de user-facing
+  // lijsten). Toegestaan als bekende T3-uitzondering.
+  {
+    file: "(protected)/admin/samenwerkingen/page.tsx",
+    line: 39,
+    reason: "admin-view buiten scope T3; kandidaat voor toekomstige paginatie",
+  },
+
+  // --- admin/support/page.tsx ---
+  // Actieve support-tickets (status-filter op ESCALATED/REOPENED/TRIAGED/NEW);
+  // dit zijn altijd onopgeloste items; structureel klein voor goed beheerde queue.
+  {
+    file: "(protected)/admin/support/page.tsx",
+    line: 31,
+    reason: "actieve queue met status-filter; structureel klein bij goede SLA",
+  },
+
+  // --- admin/franchises/page.tsx ---
+  // Lijst van alle franchise-tenants; het aantal tenants is beheersbaar
+  // (onboarding gaat via beheer, niet via self-service).
+  {
+    file: "(protected)/admin/franchises/page.tsx",
+    line: 18,
+    reason: "franchise-tenants zijn beheersbaar klein (beheer-onboarding)",
+  },
+
+  // --- admin/import/actions.ts (drie findMany's) ---
+  // Import-acties die de volledige gebruikers/skills-set nodig hebben voor
+  // deduplicatie; batch-operaties, niet voor eindgebruikers.
+  {
+    file: "(protected)/admin/import/actions.ts",
+    line: 102,
+    reason: "deduplicatiecheck voor import-batch",
+  },
+  {
+    file: "(protected)/admin/import/actions.ts",
+    line: 111,
+    reason: "skill-lijst voor import-mapping",
+  },
+  {
+    file: "(protected)/admin/import/actions.ts",
+    line: 178,
+    reason: "skill-lookup voor import-mapping",
+  },
+
+  // --- admin/disputen/page.tsx ---
+  // Samenwerkingen met een actief geschil; altijd gefilterd op disputedAt IS NOT NULL;
+  // structureel klein bij een gezond platform.
+  {
+    file: "(protected)/admin/disputen/page.tsx",
+    line: 20,
+    reason: "geschillen-filter; structureel klein",
+  },
+
+  // --- admin/gebruikers/actions.ts ---
+  // Documenten ophalen ten behoeve van accountverwijdering; eenmalige actie per
+  // gebruiker, geen lijst-view.
+  {
+    file: "(protected)/admin/gebruikers/actions.ts",
+    line: 76,
+    reason: "account-verwijdering-actie, niet een lijst-view",
+  },
+
+  // --- abonnement/page.tsx ---
+  // Plan-tabel: er zijn exact 3 plannen (FREE/PRO/BUSINESS); onbegrensd is prima.
+  {
+    file: "(protected)/abonnement/page.tsx",
+    line: 23,
+    reason: "vaste kleine referentietabel (3 plannen)",
+  },
+
+  // --- diensten/importeer/page.tsx ---
+  // Samenwerkingen ten behoeve van importkeuze; frontend-selectiecomponent.
+  // Volume is eigenaar-scoped (kleine set actieve samenwerkingen per franchise).
+  {
+    file: "(protected)/diensten/importeer/page.tsx",
+    line: 15,
+    reason: "franchise-eigenaar-scoped, inherent begrensd",
+  },
+
+  // --- facturen/nieuw/page.tsx ---
+  // Keuzelijst van factureerbare samenwerkingen; eigenaar-scoped en
+  // inherent klein (alleen actieve samenwerkingen van de gebruiker).
+  {
+    file: "(protected)/facturen/nieuw/page.tsx",
+    line: 15,
+    reason: "eigenaar-scoped keuzelijst; inherent klein",
+  },
+
+  // --- facturen/(index)/page.tsx ---
+  // Volledige factuurhistorie van één gebruiker; aggregatiesommen vereisen alle
+  // facturen van de gebruiker.
+  {
+    file: "(protected)/facturen/(index)/page.tsx",
+    line: 41,
+    reason: "eigenaar-scoped; aggregatiesommen vereisen volledigheid",
+  },
+
+  // --- openstaand/page.tsx ---
+  // Openstaande facturen van één gebruiker; eigenaar-scoped en inherent klein.
+  {
+    file: "(protected)/openstaand/page.tsx",
+    line: 32,
+    reason: "eigenaar-scoped openstaande facturen; inherent klein",
+  },
+
+  // --- ideeen/actions.ts ---
+  // Stemgevers ophalen voor een specifiek idee; maximaal het totaal aantal gebruikers
+  // maar dit is geen lijst-view en draait als server action.
+  {
+    file: "(protected)/ideeen/actions.ts",
+    line: 144,
+    reason: "stemgevers van één idee; server action, geen lijst-view",
+  },
+
+  // --- ideeen/page.tsx ---
+  // Ideeënlijst met filter; het platform heeft doorgaans < 200 ideeën; paginatie
+  // kan later worden toegevoegd als het volume groeit.
+  {
+    file: "(protected)/ideeen/page.tsx",
+    line: 60,
+    reason: "ideeënlijst met filter; laag volume; kandidaat voor toekomstige paginatie",
+  },
+
+  // --- account/actions.ts ---
+  // Admin-check: zoek naar bestaande admins vóór account-verwijdering.
+  // Dit is een veiligheidscheck, geen lijst-view.
+  {
+    file: "(protected)/account/actions.ts",
+    line: 62,
+    reason: "admin-veiligheidscheck; geen lijst-view",
+  },
+
+  // --- samenwerkingen/page.tsx (tweede findMany: invoiceable check) ---
+  // Query om factureerbare samenwerkingen te identificeren voor de knopweergave;
+  // dit is een ID-set-query (select: {id: true}), geen volledige lijst.
+  {
+    file: "(protected)/samenwerkingen/page.tsx",
+    line: 108,
+    reason: "ID-set-query voor factureerbare samenwerkingen; geen volledige lijst",
+  },
+
+  // --- franchise/diensten/page.tsx ---
+  // Franchise-diensten (opdrachten) van één tenant; eigenaar-scoped en beheerbaar.
+  {
+    file: "(protected)/franchise/diensten/page.tsx",
+    line: 25,
+    reason: "franchise-tenant-scoped diensten; beheerbaar volume",
+  },
+
+  // --- franchise/samenwerkingen/page.tsx ---
+  // Franchise-samenwerkingen; eigenaar-scoped en beheerbaar.
+  {
+    file: "(protected)/franchise/samenwerkingen/page.tsx",
+    line: 29,
+    reason: "franchise-tenant-scoped; beheerbaar volume",
+  },
+
+  // --- franchise/leads/page.tsx ---
+  // Franchise-leads; tenant-scoped, beheerbaar volume.
+  {
+    file: "(protected)/franchise/leads/page.tsx",
+    line: 34,
+    reason: "franchise-tenant-scoped leads; beheerbaar volume",
+  },
+
+  // --- franchise/opdrachtgevers/nieuw/page.tsx (twee findMany's) ---
+  // Opdrachten en skills-referentielijsten voor het formulier.
+  {
+    file: "(protected)/franchise/opdrachtgevers/nieuw/page.tsx",
+    line: 205,
+    reason: "kleine referentielijst voor formulier (tenant-scope)",
+  },
+  {
+    file: "(protected)/franchise/opdrachtgevers/nieuw/page.tsx",
+    line: 210,
+    reason: "skills-referentielijst voor formulier",
+  },
+
+  // --- franchise/opdrachtgevers/[id]/page.tsx (twee findMany's) ---
+  // Skills en opdrachten per opdrachtgever; referentielijsten voor formulier.
+  {
+    file: "(protected)/franchise/opdrachtgevers/[id]/page.tsx",
+    line: 50,
+    reason: "skills-referentielijst voor formulier",
+  },
+  {
+    file: "(protected)/franchise/opdrachtgevers/[id]/page.tsx",
+    line: 53,
+    reason: "opdrachten per opdrachtgever voor formulier",
+  },
+
+  // --- franchise/opdrachtgevers/page.tsx ---
+  // Alle bedrijven van deze franchise-tenant; tenant-scoped en beheerbaar.
+  {
+    file: "(protected)/franchise/opdrachtgevers/page.tsx",
+    line: 18,
+    reason: "franchise-tenant-scoped bedrijven; beheerbaar volume",
+  },
+
+  // --- franchise/zzpers/actions.ts ---
+  // Skills-lijst voor ZZP'er-acties; kleine referentielijst.
+  {
+    file: "(protected)/franchise/zzpers/actions.ts",
+    line: 67,
+    reason: "skills-referentielijst voor actie",
+  },
+
+  // --- franchise/zzpers/page.tsx (twee findMany's) ---
+  // Freelancers en skills van deze franchise; tenant-scoped.
+  {
+    file: "(protected)/franchise/zzpers/page.tsx",
+    line: 23,
+    reason: "franchise-tenant-scoped freelancers; beheerbaar volume",
+  },
+  {
+    file: "(protected)/franchise/zzpers/page.tsx",
+    line: 32,
+    reason: "skills-referentielijst voor formulier",
+  },
+
+  // --- profiel/actions.ts (twee findMany's) ---
+  // Skills en branches voor profielbewerking; kleine referentielijsten.
+  {
+    file: "(protected)/profiel/actions.ts",
+    line: 61,
+    reason: "skills-referentielijst voor profielformulier",
+  },
+  {
+    file: "(protected)/profiel/actions.ts",
+    line: 62,
+    reason: "branches-referentielijst voor profielformulier",
+  },
+
+  // --- profiel/page.tsx (twee findMany's) ---
+  // Skills en branches voor profielweergave; kleine referentielijsten.
+  {
+    file: "(protected)/profiel/page.tsx",
+    line: 33,
+    reason: "skills-referentielijst voor profielpagina",
+  },
+  {
+    file: "(protected)/profiel/page.tsx",
+    line: 34,
+    reason: "branches-referentielijst voor profielpagina",
+  },
+
+  // --- opdrachten/actions.ts ---
+  // Skills voor het aanmaakformulier.
+  {
+    file: "(protected)/opdrachten/actions.ts",
+    line: 70,
+    reason: "skills-referentielijst voor formulier",
+  },
+
+  // --- opdrachten/nieuw/page.tsx (twee findMany's) ---
+  // Skills en branches voor nieuw-opdrachtformulier.
+  {
+    file: "(protected)/opdrachten/nieuw/page.tsx",
+    line: 13,
+    reason: "skills-referentielijst voor formulier",
+  },
+  {
+    file: "(protected)/opdrachten/nieuw/page.tsx",
+    line: 14,
+    reason: "branches-referentielijst voor formulier",
+  },
+
+  // --- opdrachten/[id]/bewerken/page.tsx (twee findMany's) ---
+  // Skills en branches voor bewerkformulier.
+  {
+    file: "(protected)/opdrachten/[id]/bewerken/page.tsx",
+    line: 30,
+    reason: "skills-referentielijst voor formulier",
+  },
+  {
+    file: "(protected)/opdrachten/[id]/bewerken/page.tsx",
+    line: 31,
+    reason: "branches-referentielijst voor formulier",
+  },
+
+  // --- opdrachten/(index)/page.tsx (drie findMany's) ---
+  // Client-overzicht van eigen opdrachten (regel 56); geen take maar altijd
+  // gefilterd op company.userId (eigenaar-scoped).
+  // Industry- en skill-lijsten (regels 178-179) zijn kleine referentielijsten.
+  {
+    file: "(protected)/opdrachten/(index)/page.tsx",
+    line: 56,
+    reason: "eigenaar-scoped lijst van eigen opdrachten; kandidaat toekomstige paginatie",
+  },
+  {
+    file: "(protected)/opdrachten/(index)/page.tsx",
+    line: 178,
+    reason: "branches-referentielijst voor filter",
+  },
+  {
+    file: "(protected)/opdrachten/(index)/page.tsx",
+    line: 179,
+    reason: "skills-referentielijst voor filter",
+  },
+
+  // --- support/page.tsx ---
+  // Support-tickets van één gebruiker; eigenaar-scoped, structureel klein.
+  {
+    file: "(protected)/support/page.tsx",
+    line: 19,
+    reason: "eigenaar-scoped support-tickets; structureel klein",
+  },
+
+  // --- bedrijf/page.tsx ---
+  // Industries-referentielijst voor bedrijfsprofielformulier; kleine referentietabel.
+  { file: "(protected)/bedrijf/page.tsx", line: 19, reason: "kleine referentietabel industries" },
+
+  // --- ontzorgd/aangifte/actions.ts ---
+  // Administratie-entries voor de aangifte-actie; eigenaar-scoped aggregatie.
+  {
+    file: "(protected)/ontzorgd/aangifte/actions.ts",
+    line: 51,
+    reason: "eigenaar-scoped aggregatie voor aangifte",
+  },
+
+  // --- ontzorgd/aangifte/page.tsx ---
+  // Aangifte-overzicht; eigenaar-scoped, alle entries nodig voor aggregatie.
+  {
+    file: "(protected)/ontzorgd/aangifte/page.tsx",
+    line: 29,
+    reason: "eigenaar-scoped aggregatie voor aangifte-pagina",
+  },
+
+  // --- ontzorgd/page.tsx ---
+  // Ontzorgd-overzicht; eigenaar-scoped samenwerkingen.
+  {
+    file: "(protected)/ontzorgd/page.tsx",
+    line: 61,
+    reason: "eigenaar-scoped samenwerkingen voor ontzorgd-overzicht",
+  },
+
+  // --- kandidaten/page.tsx ---
+  // Kandidaten (freelancers) voor een opdrachtgever; gefilterd en beperkt door matching.
+  {
+    file: "(protected)/kandidaten/page.tsx",
+    line: 48,
+    reason: "kandidaten-matching; volume beperkt door filter",
+  },
+
+  // --- berichten/actions.ts ---
+  // Berichten/gesprekken voor één gebruiker; eigenaar-scoped.
+  { file: "(protected)/berichten/actions.ts", line: 14, reason: "eigenaar-scoped gesprekken" },
+
+  // --- api/administratie/openstaand/route.ts ---
+  // API-route voor openstaand; eigenaar-scoped aggregatie.
+  {
+    file: "api/administratie/openstaand/route.ts",
+    line: 16,
+    reason: "API-route; eigenaar-scoped aggregatie",
+  },
+
+  // --- api/administratie/export/route.ts ---
+  // Export-route; verwerkt alle records van eigenaar (export vereist volledigheid).
+  {
+    file: "api/administratie/export/route.ts",
+    line: 20,
+    reason: "export-route; volledigheid vereist",
+  },
+
+  // --- api/administratie/btw/route.ts ---
+  // BTW-berekening; alle regels nodig voor correcte aangifte.
+  {
+    file: "api/administratie/btw/route.ts",
+    line: 24,
+    reason: "BTW-aggregatie; volledigheid vereist",
+  },
+
+  // --- api/admin/export/invoices/route.ts ---
+  // Admin-export; volledigheid vereist voor boekhouding.
+  {
+    file: "api/admin/export/invoices/route.ts",
+    line: 21,
+    reason: "admin-export; volledigheid vereist",
+  },
+
+  // --- api/account/export/route.ts (drie findMany's) ---
+  // Account-export (AVG); volledigheid vereist voor data-portabiliteit.
+  { file: "api/account/export/route.ts", line: 52, reason: "AVG-export; volledigheid vereist" },
+  { file: "api/account/export/route.ts", line: 63, reason: "AVG-export; volledigheid vereist" },
+  { file: "api/account/export/route.ts", line: 67, reason: "AVG-export; volledigheid vereist" },
+  { file: "api/account/export/route.ts", line: 71, reason: "AVG-export; volledigheid vereist" },
+];
+
+// ---------------------------------------------------------------------------
+// Hulpfuncties
+// ---------------------------------------------------------------------------
+
+/** Geeft de inhoud van het argument-blok van findMany( terug (heuristisch). */
+function extractFindManyArg(source: string, matchIndex: number): string {
+  // Zoek de eerste `(` na `findMany`
+  let depth = 0;
+  let start = -1;
+  for (let i = matchIndex; i < source.length; i++) {
+    if (source[i] === "(") {
+      if (start === -1) start = i;
+      depth++;
+    } else if (source[i] === ")") {
+      depth--;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
+  }
+  return "";
+}
+
+/** Leest alle .ts/.tsx bestanden in src/app recursief. */
+function walkAppDir(): Array<{ rel: string; content: string }> {
+  const root = join(process.cwd(), "src", "app");
+  const results: Array<{ rel: string; content: string }> = [];
+
+  function walk(dir: string, relBase: string) {
+    for (const entry of readdirSync(dir)) {
+      if (entry === "node_modules" || entry.startsWith(".")) continue;
+      const abs = join(dir, entry);
+      const rel = relBase ? `${relBase}/${entry}` : entry;
+      const stat = statSync(abs);
+      if (stat.isDirectory()) {
+        walk(abs, rel);
+      } else if (/\.(ts|tsx)$/.test(entry)) {
+        results.push({ rel, content: readFileSync(abs, "utf8") });
+      }
+    }
+  }
+  walk(root, "");
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// Test
+// ---------------------------------------------------------------------------
+
+describe("onbegrensde findMany()-aanroepen in src/app", () => {
+  const allowSet = new Set(ALLOWLIST.map((a) => `${a.file}:${a.line}`));
+  const files = walkAppDir();
+
+  it("elke findMany() heeft take: of staat in de allowlist", () => {
+    const violations: string[] = [];
+
+    for (const { rel, content } of files) {
+      // Zoek alle findMany( occurrences
+      const regex = /findMany\s*\(/g;
+      let m: RegExpExecArray | null;
+      while ((m = regex.exec(content)) !== null) {
+        // Bereken regelnummer (1-based)
+        const before = content.slice(0, m.index);
+        const lineNo = before.split("\n").length;
+
+        const argBlock = extractFindManyArg(content, m.index + m[0].length - 1);
+        // Begrensd als: letterlijke `take:` in het argument-object, of een spread van
+        // pageArgs() (de gedeelde cursor-paginatie-helper die altijd take: pageSize+1 levert).
+        const hasTake = /\btake\s*:/.test(argBlock) || /\.\.\.\s*pageArgs\s*\(/.test(argBlock);
+
+        if (!hasTake) {
+          const key = `${rel}:${lineNo}`;
+          if (!allowSet.has(key)) {
+            violations.push(
+              `${rel}:${lineNo} — findMany() zonder take: (voeg toe aan ALLOWLIST met reden)`,
+            );
+          }
+        }
+      }
+    }
+
+    if (violations.length > 0) {
+      expect.fail(
+        `Onbegrensde findMany()-aanroepen gevonden:\n${violations.join("\n")}\n\n` +
+          `Voeg ze toe aan de ALLOWLIST in unbounded-queries.test.ts met een reden, ` +
+          `of voeg take: toe aan de query.`,
+      );
+    }
+  });
+
+  it("allowlist bevat geen verwijzingen naar niet-bestaande bestanden", () => {
+    const existingFiles = new Set(files.map((f) => f.rel));
+    const missing: string[] = [];
+
+    for (const entry of ALLOWLIST) {
+      if (!existingFiles.has(entry.file)) {
+        missing.push(`${entry.file}:${entry.line} (bestand niet gevonden)`);
+      }
+    }
+
+    if (missing.length > 0) {
+      expect.fail(
+        `Allowlist verwijst naar niet-bestaande bestanden:\n${missing.join("\n")}\n\n` +
+          `Verwijder de entry of pas het pad aan.`,
+      );
+    }
+  });
+});

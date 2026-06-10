@@ -37,6 +37,8 @@ jobs:
       # productie-defaults (5) zouden de login/registratie onterecht blokkeren.
       LOGIN_RATE_LIMIT: "100000"
       REGISTER_RATE_LIMIT: "100000"
+      # Kleine paginagrootte zodat "Meer laden" testbaar is met de seed-data.
+      LIST_PAGE_SIZE: "5"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -1,8 +1,10 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import { Download, FileText, Trash2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { type DocumentKind } from "@/lib/enums";
+import { pageArgs, splitPage } from "@/lib/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,15 +31,23 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export default async function DocumentenPage() {
+export default async function DocumentenPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const actor = await requireRole("FREELANCER");
-  const documents = await prisma.document.findMany({
+  const sp = await searchParams;
+  const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
+
+  const rows = await prisma.document.findMany({
     where: { ownerId: actor.id },
-    orderBy: { createdAt: "desc" },
-    // Interim-cap tegen onbegrensde groei (audit QW3); echte cursor-paginatie volgt in T3.
-    take: 100,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    ...pageArgs(cursor),
     include: { _count: { select: { credentials: true } } },
   });
+
+  const { items: documents, nextCursor } = splitPage(rows);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -48,12 +58,20 @@ export default async function DocumentenPage() {
 
       <DocumentForm />
 
-      {documents.length === 0 ? (
+      {documents.length === 0 && !cursor ? (
         <Card>
           <EmptyState
             icon={FileText}
             title="Nog geen documenten geüpload"
             description="Gebruik het formulier hierboven om je eerste document toe te voegen."
+          />
+        </Card>
+      ) : documents.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={FileText}
+            title="Geen verdere documenten"
+            description="Je hebt alle documenten bekeken."
           />
         </Card>
       ) : (
@@ -93,6 +111,14 @@ export default async function DocumentenPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {nextCursor && (
+        <div className="flex justify-center py-2">
+          <Button asChild variant="secondary">
+            <Link href={`/documenten?cursor=${nextCursor}`}>Meer laden</Link>
+          </Button>
         </div>
       )}
     </div>
