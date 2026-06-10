@@ -44,8 +44,6 @@ describe("runZzpMembershipTask", () => {
     store.performances = [];
     store.upserts = [];
     vi.resetModules();
-    // Reset env zodat ZZP_MEMBERSHIP.enabled via config werkt
-    delete process.env.ZZP_MEMBERSHIP_ENABLED;
   });
 
   it("lege toestand — geen prestaties → billed = 0", async () => {

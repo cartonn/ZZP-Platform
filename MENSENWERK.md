@@ -367,6 +367,7 @@ Op dit moment is **alleen** de dagelijkse expiry-check gewired via een GitHub Ac
 **`/api/tasks/run-all` heeft géén productie-cron.** Dat is bewust uitgesteld (mensenwerk):
 
 **Wat je moet doen:**
+
 1. Kies een host-cron (GitHub Actions-schema, Railway Cron Service, of een externe planner).
 2. Voeg een cron-job toe die dagelijks (of meerdere keren per dag, afhankelijk van de taak)
    `POST /api/tasks/run-all` aanroept met de interne `TASK_SECRET`-header.
