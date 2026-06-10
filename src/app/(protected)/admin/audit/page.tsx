@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatDateTimeNl } from "@/lib/format-date";
 import { formatAuditMetadata } from "@/lib/audit-metadata";
-import { auditActionLabel } from "@/lib/audit-labels";
+import { auditActionLabel, auditEntityLabel } from "@/lib/audit-labels";
 
 export const metadata: Metadata = { title: "Audit log · ZZP Platform" };
 
@@ -95,7 +95,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {e.entityType} · {e.entityId} · door {e.actor?.name ?? "systeem"}
+                {auditEntityLabel(e.entityType)} · {e.entityId} · door {e.actor?.name ?? "systeem"}
               </p>
               {e.metadata && (
                 <p className="mt-1 truncate text-xs text-muted-foreground/80">
