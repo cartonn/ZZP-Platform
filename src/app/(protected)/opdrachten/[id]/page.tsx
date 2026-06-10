@@ -51,6 +51,8 @@ import { JobStatusButton } from "./job-status-button";
 import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import { ApplicationForm } from "./application-form";
 import { formatDateShortNl } from "@/lib/format-date";
+import { getPaymentBehaviorForCompany } from "@/lib/data/payment-behavior";
+import { PaymentBehaviorBlock } from "@/components/jobs/payment-behavior-block";
 
 export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
 
@@ -174,6 +176,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       }
     }
   }
+
+  // Betaalgedrag-signaal: alleen voor de ZZP'er die een beslissing neemt (niet voor de eigenaar
+  // zelf; wel voor niet-eigenaar FREELANCER-rol die de opdracht bekijkt).
+  const paymentBehavior =
+    !isOwner && actor.role === "FREELANCER"
+      ? await getPaymentBehaviorForCompany(job.companyId)
+      : null;
 
   // Spiegelbeeld voor de opdrachtgever: openbare ZZP'ers die passen en nog niet reageerden.
   const suggestions =
@@ -428,6 +437,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             )}
           </section>
         )}
+
+      {paymentBehavior && <PaymentBehaviorBlock behavior={paymentBehavior} />}
 
       {isOwner ? (
         <div className="flex flex-wrap gap-2 border-t border-border pt-4">
