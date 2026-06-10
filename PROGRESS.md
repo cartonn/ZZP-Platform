@@ -3,6 +3,17 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(dba): audit-klaar DBA-dossier als PDF-export per samenwerking (branch `claude/feat-dba-export`)
+
+- [x] **`src/lib/dba-audit.ts`** — pure functie `buildDbaAuditData(col, parties, credentials, now)` → serialiseerbaar data-object; `DBA_AUDIT_FOOTER` als vaste voettekst-disclaimer
+- [x] **`src/lib/dba-audit.test.ts`** — 25 unit-tests: footer/disclaimer, modelovereenkomst-status (ondertekend/niet), DBA-indicatoren doorvertaald (6), rechtsvermoeden tarieftoets, ondernemerschap-signalen, header-metadata
+- [x] **`src/lib/dba-audit-pdf.ts`** — PDF-builder (`buildDbaAuditPdf`) met voettekst op elke pagina (pdf-lib, hergebruikt pdf-common)
+- [x] **`src/app/api/samenwerkingen/[id]/dba-dossier/route.ts`** — GET-route: requireActor → partij-check → PDF → audit `DBA_DOSSIER_EXPORTED`
+- [x] **`src/app/(protected)/samenwerkingen/[id]/page.tsx`** — link "DBA-dossier (PDF)" naast Compliance-dossier (minimale wijziging)
+- Alle gates groen: typecheck ✓, lint ✓, 1398 tests ✓ (137 test files), prettier ✓
+
+---
+
 ## feat(vertrouwen): startkapitaal- en boekhoud-belofte op de vertrouwens-strip (branch `claude/feat-trust-copy`)
 
 - [x] **`src/components/marketing/trust-strip.tsx`** — twee nieuwe PILLARS toegevoegd:
