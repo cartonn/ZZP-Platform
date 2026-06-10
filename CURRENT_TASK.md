@@ -340,8 +340,11 @@ Bron: concurrentie-onderzoek + `docs/PRIJSADVIES.md`. Eén punt per PR, DoD-groe
        identiek tonen aan beide kanten (verifiëren dat dit al zo is).
 6. [ ] **Symmetrische annulering + no-show-registratie** — PRODUCTBESLUIT eigenaar nodig
        (annuleringstermijnen, gevolgen beide kanten); daarna registratie + zichtbaarheid in profielen.
-7. [ ] **Notificatie-betrouwbaarheid** — web-push (VAPID = mensenwerk) + e-mail-fallback +
-       "gemist terwijl je weg was"-overzicht; koppel aan bestaand notificatiecentrum.
+7. [~] **Notificatie-betrouwbaarheid** — e-mail-fallback geleverd (branch
+   `claude/feat-notificatie-digest`): digest-runner bundelt ongelezen notificaties > 24u tot
+   één e-mail per gebruiker (idempotent via `Notification.digestedAt`; slaat over zonder
+   SMTP-kanaal). Nog open: "gemist terwijl je weg was"-overzicht (volgende increment);
+   web-push (VAPID) = mensenwerk.
 8. [ ] **Startkapitaal & boekhoud-belofte etaleren** — trust-strip/registratie-copy:
        "geverifieerd dossier = je startkapitaal (geen reviews nodig)" en "jouw facturen sluiten
        altijd aan op je boekhouding (gatenvrije nummering)". Kleine copy-PR; "AI" blijft verboden.

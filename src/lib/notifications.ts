@@ -54,3 +54,16 @@ const META: Record<string, NotificationMeta> = {
 export function notificationMeta(type: string): NotificationMeta {
   return META[type] ?? { category: "system", tone: "info" };
 }
+
+/** NL-label per categorie — voor groepskoppen in digest-e-mail en overzichten. */
+export const NOTIFICATION_CATEGORY_LABEL: Record<NotificationCategory, string> = {
+  workflow: "Werkproces",
+  invoice: "Facturen",
+  payment: "Betalingen",
+  dba: "DBA-signalen",
+  dispute: "Disputen",
+  credential: "Certificaten",
+  collaboration: "Samenwerkingen",
+  idea: "Ideeënbox",
+  system: "Overig",
+};
