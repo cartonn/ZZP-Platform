@@ -648,7 +648,7 @@ async function main() {
     },
     {
       id: "job-7",
-      title: "Frontend Developer (concept)",
+      title: "Frontend Developer",
       description: "Concept-opdracht — nog niet gepubliceerd.",
       status: "DRAFT",
       workMode: "HYBRID",
@@ -722,14 +722,14 @@ async function main() {
       job: "job-1",
       fk: "sanne",
       status: "NEW",
-      motivation: "Tien jaar React-ervaring; lever graag toegankelijke, geteste interfaces.",
-      rate: 95,
+      motivation: "BIG-geregistreerd verpleegkundige; ruime ervaring op somatische afdelingen.",
+      rate: 58,
       score: 92,
       compliance: snap("COMPLIANT", ["VOG"]),
     },
     {
       id: "app-2",
-      job: "job-1",
+      job: "job-16",
       fk: "anna",
       status: "SHORTLIST",
       motivation: "React-specialist; help graag de frontend-architectuur opzetten.",
@@ -759,11 +759,11 @@ async function main() {
     },
     {
       id: "app-5",
-      job: "job-3",
+      job: "job-9",
       fk: "sanne",
       status: "ACCEPTED",
-      motivation: "Sterk in stakeholdermanagement en oplevering.",
-      rate: 105,
+      motivation: "Ervaren in VVT en wijkzorg; flexibel voor avond- en nachtdiensten.",
+      rate: 48,
       score: 84,
       compliance: snap("COMPLIANT"),
     },
@@ -881,7 +881,7 @@ async function main() {
       // Vlaggenschip: het primaire demo-account Sanne (zzp@) krijgt een volledige reis met de
       // primaire opdrachtgever Jansen (opdrachtgever@) — t/m betaald. Stabiel id "collab-1" zodat
       // het compliance-dossier en de Ontzorgd-/administratie-overzichten een vaste ankerklant hebben.
-      { fk: "sanne", job: "job-16", rate: 95, target: "PAID", collabId: "collab-1" },
+      { fk: "sanne", job: "job-4", rate: 60, target: "PAID", collabId: "collab-1", ort: true },
       { fk: "emma", job: "job-8", rate: 56, target: "PAID", ort: true },
       { fk: "iris", job: "job-9", rate: 42, target: "INVOICE_APPROVED", ort: true },
       { fk: "ahmed", job: "job-10", rate: 58, target: "PAID" },
@@ -982,6 +982,18 @@ async function main() {
       await confirmPayment(fActor, draftInvoice.id); // statusupdate, geen betaling (Besluit 1)
     }
   }
+
+  // --- Modelovereenkomst digitaal akkoord — een ACTIEVE of AFGERONDE samenwerking hoort een
+  //     ondertekende modelovereenkomst te hebben; anders spreekt de voortgangstracker ("contract
+  //     getekend") de modelovereenkomst-kaart ("nog niet ondertekend") tegen. Zet beide digitale
+  //     akkoorden op samenwerkingen die de start hebben gehaald. Idempotent (alleen waar nog null). ---
+  await prisma.collaboration.updateMany({
+    where: { status: { in: ["ACTIVE", "COMPLETED"] }, agreementFreelancerSignedAt: null },
+    data: {
+      agreementFreelancerSignedAt: daysFromNow(-28),
+      agreementClientSignedAt: daysFromNow(-28),
+    },
+  });
 
   // --- Weekrooster per samenwerking (ADR-0004) — leg op een paar demo-samenwerkingen de werkelijke
   //     weekdagen vast, zodat de detailpagina (en het weekoverzicht) een echt "ma + di bij A"-rooster

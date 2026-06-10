@@ -45,7 +45,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "client",
         daysAgo: 6,
-        body: "Hoi Sanne, bedankt voor je reactie op de opdracht Senior React Developer! Je profiel sluit goed aan, vooral je ervaring met component libraries. Heb je deze week even tijd voor een korte kennismaking?",
+        body: "Hoi Sanne, bedankt voor je reactie op de opdracht Verpleegkundige (somatiek)! Je profiel sluit goed aan, vooral je ervaring op somatische afdelingen. Heb je deze week even tijd voor een korte kennismaking?",
       },
       {
         from: "freelancer",
@@ -60,36 +60,36 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "client",
         daysAgo: 5,
-        body: "Top, laten we donderdag om 10:00 doen via een videocall. Het gaat om een nieuw dashboard dat we in sprints van twee weken opbouwen. Inzet ongeveer 32 uur per week. Wat hanteer jij als uurtarief?",
+        body: "Top, laten we donderdag om 10:00 doen via een videocall. Het gaat om inzet op onze somatische afdeling met dag- en avonddiensten, ongeveer 32 uur per week. Wat hanteer jij als uurtarief?",
       },
       {
         from: "freelancer",
         daysAgo: 5,
-        body: "Donderdag 10:00 staat genoteerd. Mijn tarief is 85 euro per uur excl. btw, en ik factureer per twee weken met een betaaltermijn van 14 dagen. Een recente VOG kan ik desgewenst aanleveren.",
+        body: "Donderdag 10:00 staat genoteerd. Mijn tarief is 58 euro per uur excl. btw, en ik factureer per twee weken met een betaaltermijn van 14 dagen. Een recente VOG en mijn BIG-registratie kan ik desgewenst aanleveren.",
       },
       {
         from: "client",
         daysAgo: 4,
-        body: "Helder, dat klinkt prima. Een VOG is inderdaad welkom voor we starten. Ik stuur zo de uitnodiging voor donderdag. Tot dan, Sanne!",
+        body: "Helder, dat klinkt prima. Een VOG en je BIG-registratie zijn inderdaad welkom voor we starten. Ik stuur zo de uitnodiging voor donderdag. Tot dan, Sanne!",
       },
     ],
   },
   {
     id: "c-anna-react",
     fk: "anna",
-    ck: "jansen",
-    jobId: "job-1",
+    ck: "datic",
+    jobId: "job-16",
     badge: true,
     messages: [
       {
         from: "client",
         daysAgo: 5,
-        body: "Hoi Anna! Leuk dat je op de shortlist staat voor de Senior React Developer-rol. We willen graag door, maar voor de zekerheid: hoe staat het met je VOG-aanvraag?",
+        body: "Hoi Anna! Leuk dat je op de shortlist staat voor de Fullstack Developer-rol. We willen graag door, maar voor de zekerheid: hoe staat het met je VOG-aanvraag?",
       },
       {
         from: "freelancer",
         daysAgo: 5,
-        body: "Hoi Mark, dank je! Goed nieuws. Ik heb de VOG vorige week aangevraagd en de status is inmiddels 'in behandeling'.",
+        body: "Hoi Erik, dank je! Goed nieuws. Ik heb de VOG vorige week aangevraagd en de status is inmiddels 'in behandeling'.",
       },
       {
         from: "freelancer",
