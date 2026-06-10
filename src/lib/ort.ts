@@ -129,3 +129,16 @@ export function resolveOrtRates(opts: {
 }): Record<OrtCategory, number> {
   return parseOrtCustomRates(opts.ortCustomRates) ?? ortRatesForSector(opts.ortProfile);
 }
+
+/**
+ * Parse een JSON-string naar een array van OrtSegment-objecten. Bij lege/ongeldige invoer wordt
+ * een lege array teruggegeven (nooit null/undefined, zodat de aanroeper altijd een array krijgt).
+ */
+export function parseOrtSegments(json: string | null | undefined): OrtSegment[] {
+  if (!json) return [];
+  try {
+    return JSON.parse(json) as OrtSegment[];
+  } catch {
+    return [];
+  }
+}

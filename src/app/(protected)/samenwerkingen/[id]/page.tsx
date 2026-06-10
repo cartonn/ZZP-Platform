@@ -7,9 +7,9 @@ import {
   FileText,
   ClipboardList,
   Banknote,
-  CheckCircle2,
   Circle,
   Clock,
+  CheckCircle2,
   XCircle,
   ShieldCheck,
 } from "lucide-react";
@@ -26,8 +26,10 @@ import { recommendModelAgreement } from "@/lib/model-agreement";
 import { resolveAgreementType } from "@/lib/contract-agreement";
 import { ModelAgreementCard } from "./model-agreement-card";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { computeOrt, resolveOrtRates, type OrtSegment } from "@/lib/ort";
-import { ORT_CATEGORY_LABEL, ORT_SECTORS, ORT_SECTOR_LABEL, type OrtCategory } from "@/lib/config";
+import { parseOrtSegments } from "@/lib/ort";
+import { ORT_SECTORS, ORT_SECTOR_LABEL } from "@/lib/config";
+import { buildChainSteps, type ChainStepStatus } from "@/lib/cascade/chain-steps";
+import { OrtBreakdown } from "@/components/collaborations/ort-breakdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -83,177 +85,12 @@ function fmt(d: Date | null) {
   return d ? formatDateShortNl(d) : null;
 }
 
-function parseOrtSegments(json: string | null | undefined): OrtSegment[] {
-  if (!json) return [];
-  try {
-    return JSON.parse(json) as OrtSegment[];
-  } catch {
-    return [];
-  }
-}
-
-function OrtBreakdown({
-  ortSegments,
-  rateCents,
-  ortProfile,
-  ortCustomRates,
-}: {
-  ortSegments: OrtSegment[];
-  rateCents: number;
-  ortProfile?: string | null;
-  ortCustomRates?: string | null;
-}) {
-  const result = computeOrt(
-    ortSegments,
-    rateCents,
-    resolveOrtRates({ ortProfile, ortCustomRates }),
-  );
-  if (result.lines.length === 0) return null;
-  return (
-    <div className="mt-2 space-y-1">
-      <p className="text-xs font-medium text-muted-foreground">ORT-uitsplitsing</p>
-      <p className="flex items-center gap-1 text-xs text-success">
-        <CheckCircle2 className="size-3" aria-hidden />
-        Toeslagen automatisch berekend uit de diensttijden — geen handmatige correctie nodig.
-      </p>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="text-left text-muted-foreground">
-            <th className="py-0.5 font-normal">Categorie</th>
-            <th className="py-0.5 text-right font-normal">Uren</th>
-            <th className="py-0.5 text-right font-normal">Basis</th>
-            <th className="py-0.5 text-right font-normal">Toeslag</th>
-            <th className="py-0.5 text-right font-normal">Totaal</th>
-          </tr>
-        </thead>
-        <tbody>
-          {result.lines.map((line, i) => (
-            <tr key={i} className="border-t border-border/40">
-              <td className="py-0.5">
-                {line.category === "NORMAL"
-                  ? "Regulier"
-                  : ORT_CATEGORY_LABEL[line.category as OrtCategory]}
-              </td>
-              <td className="py-0.5 text-right tabular-nums">{line.hours}</td>
-              <td className="py-0.5 text-right tabular-nums">{formatEuro(line.baseCents)}</td>
-              <td className="py-0.5 text-right tabular-nums">
-                {line.surchargeCents > 0
-                  ? `+${formatEuro(line.surchargeCents)} (${Math.round(line.surchargeBps / 100)}%)`
-                  : "—"}
-              </td>
-              <td className="py-0.5 text-right font-medium tabular-nums">
-                {formatEuro(line.totalCents)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="border-t border-border">
-            <td colSpan={4} className="py-0.5 font-medium">
-              Subtotaal excl. btw
-            </td>
-            <td className="py-0.5 text-right font-semibold tabular-nums">
-              {formatEuro(result.subtotalCents)}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  );
-}
-
-type ChainStepStatus = "done" | "active" | "waiting" | "error";
-
-interface ChainStep {
-  label: string;
-  status: ChainStepStatus;
-  detail?: string;
-}
-
 const STEP_ICON: Record<ChainStepStatus, React.ReactNode> = {
   done: <CheckCircle2 className="size-4 text-success" aria-hidden />,
   active: <Clock className="size-4 text-warning" aria-hidden />,
   waiting: <Circle className="size-4 text-muted-foreground" aria-hidden />,
   error: <XCircle className="size-4 text-danger" aria-hidden />,
 };
-
-function buildChainSteps(col: {
-  status: string;
-  performances: Array<{ status: string }>;
-  invoices: Array<{ lifecycleStatus: string | null }>;
-}): ChainStep[] {
-  const steps: ChainStep[] = [];
-
-  // Stap 1: Contract
-  const contractDone = col.status !== "PROPOSED";
-  steps.push({
-    label: "Contract",
-    status: contractDone ? "done" : col.status === "CANCELLED" ? "waiting" : "active",
-    detail: contractDone ? "Getekend" : "Wachten op ondertekening",
-  });
-
-  // Stap 2: Prestatie (uren / oplevering)
-  const perfs = col.performances;
-  let perfStatus: ChainStepStatus = "waiting";
-  let perfDetail = "Nog geen uren of oplevering ingediend";
-  if (!contractDone) {
-    perfStatus = "waiting";
-    perfDetail = "Volgt na contract";
-  } else if (perfs.some((p) => p.status === "APPROVED")) {
-    perfStatus = "done";
-    perfDetail = "Goedgekeurd";
-  } else if (perfs.some((p) => p.status === "SUBMITTED")) {
-    perfStatus = "active";
-    perfDetail = "Ter goedkeuring";
-  } else if (perfs.some((p) => p.status === "REJECTED")) {
-    perfStatus = "error";
-    perfDetail = "Afgekeurd — nieuw indienen";
-  } else if (perfs.length > 0) {
-    perfStatus = "active";
-    perfDetail = "Concept aangemaakt";
-  }
-  steps.push({ label: "Prestatie", status: perfStatus, detail: perfDetail });
-
-  // Stap 3: Factuur
-  const invs = col.invoices.filter((i) => i.lifecycleStatus);
-  let invStatus: ChainStepStatus = "waiting";
-  let invDetail = "Volgt na goedkeuring prestatie";
-  if (invs.some((i) => ["PAID", "PROCESSED"].includes(i.lifecycleStatus!))) {
-    invStatus = "done";
-    invDetail = "Betaald";
-  } else if (invs.some((i) => i.lifecycleStatus === "APPROVED")) {
-    invStatus = "active";
-    invDetail = "Goedgekeurd — wachten op betaling";
-  } else if (invs.some((i) => i.lifecycleStatus === "SUBMITTED")) {
-    invStatus = "active";
-    invDetail = "Ter goedkeuring";
-  } else if (invs.some((i) => i.lifecycleStatus === "REJECTED")) {
-    invStatus = "error";
-    invDetail = "Afgekeurd";
-  } else if (invs.some((i) => i.lifecycleStatus === "OVERDUE")) {
-    invStatus = "error";
-    invDetail = "Vervallen — betaling te laat";
-  } else if (invs.some((i) => i.lifecycleStatus === "DRAFT")) {
-    invStatus = "active";
-    invDetail = "Concept — nog niet ingediend";
-  }
-  steps.push({ label: "Factuur", status: invStatus, detail: invDetail });
-
-  // Stap 4: Betaling
-  const paid = invs.some((i) => ["PAID", "PROCESSED"].includes(i.lifecycleStatus!));
-  const invApproved = invs.some((i) => i.lifecycleStatus === "APPROVED");
-  steps.push({
-    label: "Betaling",
-    status: paid ? "done" : invApproved ? "active" : "waiting",
-    detail: paid
-      ? "Ontvangen"
-      : invApproved
-        ? "Wachten op betaling"
-        : "Volgt na factuurgoedkeuring",
-  });
-
-  return steps;
-}
 
 export default async function WerkprocesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

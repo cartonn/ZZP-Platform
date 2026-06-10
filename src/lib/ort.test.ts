@@ -5,6 +5,7 @@ import {
   ortRatesForSector,
   resolveOrtRates,
   parseOrtCustomRates,
+  parseOrtSegments,
   type OrtSegment,
 } from "@/lib/ort";
 import { DEFAULT_ORT_RATES_BPS, ORT_SECTOR_PROFILES, ORT_SECTORS } from "@/lib/config";
@@ -157,6 +158,27 @@ describe("resolveOrtRates — maatwerk vóór sector vóór default", () => {
 
   it("ongeldig maatwerk → val terug op sector/default", () => {
     expect(resolveOrtRates({ ortProfile: null, ortCustomRates: "{" })).toBe(DEFAULT_ORT_RATES_BPS);
+  });
+});
+
+describe("parseOrtSegments — JSON-parse met lege-array-fallback", () => {
+  it("valide JSON-array met segmenten parset correct", () => {
+    const segs: OrtSegment[] = [
+      { category: "NORMAL", hours: 6 },
+      { category: "EVENING", hours: 2 },
+    ];
+    expect(parseOrtSegments(JSON.stringify(segs))).toEqual(segs);
+  });
+
+  it("ongeldige JSON geeft lege array terug", () => {
+    expect(parseOrtSegments("{niet_geldig")).toEqual([]);
+    expect(parseOrtSegments("abc")).toEqual([]);
+  });
+
+  it("null/undefined/lege string geeft lege array terug", () => {
+    expect(parseOrtSegments(null)).toEqual([]);
+    expect(parseOrtSegments(undefined)).toEqual([]);
+    expect(parseOrtSegments("")).toEqual([]);
   });
 });
 
