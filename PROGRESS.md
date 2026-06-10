@@ -26,6 +26,17 @@
 
 ---
 
+## Betaalgedrag-signaal opdrachtgever (branch `claude/feat-betaalgedrag`)
+
+- [x] **`src/lib/payment-behavior.ts`** — pure functie `computePaymentBehavior()`, bronkeuze `updatedAt` als `paidAt`-proxy gedocumenteerd, tone-grenzen (good/neutral/warning/unknown), sampleSize < 3 = unknown
+- [x] **`src/lib/payment-behavior.test.ts`** — 14 unit-tests voor alle grenzen + lege invoer + edge cases
+- [x] **`src/lib/data/payment-behavior.ts`** — query `getPaymentBehaviorForCompany()` (laatste 25 betaalde facturen per companyId, via collaboration.companyId)
+- [x] **`src/components/jobs/payment-behavior-block.tsx`** — compact blok met badge + statistieken (tone-kleur, avg dagen, % op tijd)
+- [x] **`src/app/(protected)/opdrachten/[id]/page.tsx`** — betaalgedrag-blok zichtbaar voor niet-eigenaar FREELANCER
+- [x] Checks: typecheck ✓, lint ✓, test ✓ (1362/1362), build ✓, prettier ✓
+
+---
+
 ## Audit T5 — logica uit samenwerkingen-pagina extraheren (branch `claude/audit-t5-pagina-extractie`)
 
 - [x] **Extractie pure logica uit `src/app/(protected)/samenwerkingen/[id]/page.tsx`** (935 → 772 regels)
