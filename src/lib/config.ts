@@ -141,6 +141,13 @@ export function performanceGraceDays(): number {
   return parseGraceDays(process.env.PERFORMANCE_GRACE_DAYS);
 }
 
+// --- Rechtsvermoeden werknemerschap (wetsvoorstel VBAR, aangenomen 21-4-2026) ----------------
+// Bij een uurtarief onder €38 (prijspeil 2025) kan de werkende een rechtsvermoeden van loondienst
+// inroepen (art. 7:610a BW zoals gewijzigd). Verwachte inwerkingtreding: 1-1-2027.
+// Bron: Wet toelating terbeschikkingstelling van arbeidskrachten / VBAR, Staatsblad 2026.
+// Geen juridisch advies — dit is een signaaldrempel.
+export const RECHTSVERMOEDEN_DREMPEL_CENTS = 3800; // €38 in centen
+
 // --- DBA-monitoring drempels & teksten (§6, configureerbaar) ----------------
 export const DBA_THRESHOLDS = {
   durationSignalMonths: 6, //        eerste duursignaal
