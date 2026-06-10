@@ -112,6 +112,60 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 - [ ] **Volgende stappen (mensenwerk/browser):** e-mail-uitnodiging i.p.v. tijdelijk wachtwoord
       (SMTP); Playwright e2e; cutover (Railway).
 
+### Audit-backlog (`main` @ 5fb5ebe, Fable-audit — bovenste eerst, pak er één)
+
+> Bron: principal-audit op `main`. Gezondheid **B+**, nul Critical/High security. Echte
+> zwaktes = onderhoudbaarheid + schaal, niet veiligheid. Volgorde = milestone-volgorde.
+> **Niet aankomen behalve voor tests:** planner/applier-split, authz-chain, document-privacy,
+> domeinmotor (matching/cascade/administration) — dat is de differentiatie en is gezond.
+> Beantwoorde auditvragen: deploy-branch = **`main`** (M2 al gefixt in PR #297, niet opnieuw doen);
+> e2e blijft **advisory** (niet blocking); cron-call-shape = `runXxxTask({ actorId: null })` via
+> `POST /api/tasks/run-all` achter `Bearer $CRON_SECRET`.
+
+**M0 — testnet (eerst; hoogste prioriteit, laag risico):**
+
+1. [ ] **T1 — cron-task unit-tests.** Elke `src/lib/*-task.ts`-runner testen op geseede fixture:
+       seed preconditie → `runXxxTask({ actorId: null })` → assert statusovergang + notificatie-rij
+   - **idempotentie bij 2e call**. Klok injecteren (anchor-patroon uit `revenue.ts`, geen
+     `Date.now()`). Doel: function-coverage cron-tasks ≥ 80%. Noteer in PR dat `run-all` nog geen
+     prod-cron heeft (host-config = mensenwerk; alleen `expiry-check.yml` is gewired). _(L, tests)_
+2. [ ] **T2 — `apply.ts` transactietest.** Assert dat statusChanges + postings + audits +
+       notificaties **atomair** samen worden weggeschreven; til `cascade/apply.ts` van 0% → ~80%. _(M)_
+3. [ ] **QW3 — interim list-cap.** `take: 100` op de drie unbounded `findMany`'s (`dashboard`,
+       `samenwerkingen`, `documenten`) als vangnet vóór T3. _(S)_
+
+**M1 — quick win:**
+
+4. [ ] **QW1 — `next` → 15.5.19** (in-range bump). Ruimt beide `npm audit` moderate-advisories
+       (postcss via next). Bevestig `npm audit` = 0 in de PR. _(S, zeer laag risico)_
+
+**M2 — high-leverage:**
+
+5. [ ] **T3 — cursor-paginatie** (paginagrootte 50, "meer laden") op dashboard/samenwerkingen/
+       documenten. `samenwerkingen` haalt beide partij-zijden via `OR` op → pagineer op
+       `orderBy: updatedAt` met stabiele tiebreaker `id` (deterministische cursor). E2e laadt page-2.
+       Grep/lint-check tegen nieuwe unbounded list-`findMany`. _(L, med risico)_
+6. [ ] **T4 — split `cascade/commands.ts`** (1193 r.) in `{contract,performance,invoice,payment}-`
+       `commands.ts` + barrel-re-export (nul gedragswijziging, importpaden ongewijzigd). Gedeelde
+       helpers (`assertParty`, `loadPerformance`, `catch {}` mail-blocks) naar `commands-shared.ts`.
+       `typecheck` na elke move. _(M, med risico — brede imports)_
+7. [ ] **T5 — extract** `buildChainSteps` + ORT-helpers uit `samenwerkingen/[id]/page.tsx` (935 r.)
+       naar `lib/` met unit-tests; pagina < 600 r. _(M)_
+
+**M3 — polish (laagste prioriteit):**
+
+8. [ ] **T7 — Prisma-config-migratie** (`package.json#prisma` → `prisma.config.ts`); ruimt
+       build-deprecation vóór Prisma 7. _(S)_ · **L3/L4** (post-guard `!`-asserts; gedupliceerde
+       `parseLanguages`/`parseOrtSegments`) alleen meenemen als je toch in die bestanden zit.
+       **T6 (e2e blocking) — overslaan** tot de suite stabiel-groen is.
+
+> **NIET nu doen (auditadvies):** Prisma 7 / Next 16 / Tailwind 4 majors (opt-in, geen pre-launch-
+> payoff, regressierisico); CSP-nonce-pipeline (`'unsafe-inline'` gedocumenteerd acceptabel pre-prod,
+> herzien vóór livegang met echte documenten); Redis-rate-limit-store (interface al pluggbaar, pas
+> bij multi-instance). M2 deploy-branch-fix is al gedaan (PR #297).
+
+---
+
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
 1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
