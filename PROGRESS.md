@@ -3,6 +3,17 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(vertrouwen): startkapitaal- en boekhoud-belofte op de vertrouwens-strip (branch `claude/feat-trust-copy`)
+
+- [x] **`src/components/marketing/trust-strip.tsx`** — twee nieuwe PILLARS toegevoegd:
+  - "Geverifieerd dossier is je startkapitaal" (icoon: `FolderCheck`)
+  - "Gatenvrije factuurnummering" (icoon: `FileCheck`)
+  - Zelfde structuur/stijl als bestaande pijlers; geen duplicatie
+- Geen nieuwe unit-tests nodig (PILLARS is pure data zonder logica; test voor `trustHighlights` ongewijzigd)
+- Alle gates groen: typecheck ✓, lint ✓, 1373 tests ✓, prettier ✓, build ✓
+
+---
+
 ## feat(notificaties): "terwijl je weg was"-overzicht in het notificatiecentrum (branch `claude/feat-gemist-overzicht`)
 
 Concurrentie-backlog punt 7 (deel 2 van 2): het notificatiecentrum vat ongelezen meldingen samen
