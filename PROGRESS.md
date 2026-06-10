@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(vertrouwen): deelbaar en verifieerbaar vertrouwensdossier (branch `claude/feat-dossier-link`)
+
+- [x] **`src/lib/share-token.ts`** — pure helpers `dossierShareToken(profileId, secret)` en `verifyDossierToken(profileId, token, secret)`; HMAC-SHA256, hex, 32 tekens; timing-safe vergelijking; lege-secret-guard
+- [x] **`src/lib/share-token.test.ts`** — 10 unit-tests: deterministisch, verkeerd token faalt, ander id faalt, lege secret werpt / retourneert false, lengte-oracle geblokkeerd
+- [x] **`src/app/vertrouwen/[profileId]/[token]/page.tsx`** — publieke route (buiten protected): token+profiel-check → neutrale melding als ongeldig/niet-PUBLIC; bij geldig: naam/functie/vertrouwensbadge (hergebruik TrustBadge + computeTrustLevel), geverifieerde certificaten-metadata (type/titel/geldig-t/m/bron), verificatieverklaring + datum; audit TRUST_DOSSIER_VIEWED; geen bestanden, geen PII buiten naam+functie
+- [x] **`src/middleware.ts`** — `/vertrouwen/` toegevoegd als publieke route (naast `/zzp/`)
+- [x] **`src/app/(protected)/certificaten/(index)/page.tsx`** — deelblok "Deel je vertrouwensdossier": URL tonen als profiel PUBLIC (data-testid), link naar profielinstellingen als PRIVATE; server-side token-berekening, geen client-JS
+- [x] **`src/lib/audit-labels.ts`** — `TRUST_DOSSIER_VIEWED` label toegevoegd
+- [x] **`src/lib/unbounded-queries.test.ts`** — allowlist bijgewerkt (regel-nr. verschoven door edits in certificaten-page)
+- [x] **`e2e/trust-dossier.spec.ts`** — 2 e2e-specs: deelblok zichtbaar + URL navigeerbaar + publieke pagina bevestigt naam + "Geverifieerd"; ongeldige token toont neutrale melding
+- Bewuste beperking (gedocumenteerd in code): geen per-token revocatie in v1; profiel op PRIVATE zetten maakt link ontoegankelijk
+- Middleware-aanpassing: ja (`/vertrouwen/` als publiek pad)
+- Gates groen: typecheck ✓, lint ✓, 1383 tests ✓ (was 1373, +10 share-token), prettier (n.v.t. — zie poort)
+
+---
+
 ## feat(dba): audit-klaar DBA-dossier als PDF-export per samenwerking (branch `claude/feat-dba-export`)
 
 - [x] **`src/lib/dba-audit.ts`** — pure functie `buildDbaAuditData(col, parties, credentials, now)` → serialiseerbaar data-object; `DBA_AUDIT_FOOTER` als vaste voettekst-disclaimer

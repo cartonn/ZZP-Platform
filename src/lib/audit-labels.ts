@@ -86,6 +86,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   DOCUMENT_ACCESS_DENIED: "Documenttoegang geweigerd",
   DOCUMENT_DELETED: "Document verwijderd",
   DOSSIER_EXPORTED: "Dossier geëxporteerd",
+  TRUST_DOSSIER_VIEWED: "Vertrouwensdossier ingezien",
 
   // Academie
   COURSE_CREATED: "Cursus aangemaakt",

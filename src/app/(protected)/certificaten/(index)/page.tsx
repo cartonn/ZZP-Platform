@@ -1,6 +1,18 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Award, Download, Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2, Users } from "lucide-react";
+import {
+  Award,
+  Download,
+  Eye,
+  EyeOff,
+  Link2,
+  Pencil,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import {
@@ -11,6 +23,7 @@ import {
 } from "@/lib/credentials";
 import { computeTrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
+import { dossierShareToken } from "@/lib/share-token";
 import { plural } from "@/lib/plural";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { MandatoryDocuments } from "@/components/credentials/mandatory-documents";
@@ -42,7 +55,7 @@ export default async function CertificatenPage() {
   const actor = await requireRole("FREELANCER");
   const profile = await prisma.freelancerProfile.findUnique({
     where: { userId: actor.id },
-    select: { id: true },
+    select: { id: true, visibility: true },
   });
 
   const [credentials, user] = await Promise.all([
@@ -79,6 +92,15 @@ export default async function CertificatenPage() {
     })),
   );
 
+  // Deelbare link: server-side token (HMAC-SHA256) over profileId — geen opslag nodig.
+  // Link werkt alleen als profiel PUBLIC is; bij PRIVATE toont de pagina een nette melding.
+  const shareToken = profile ? dossierShareToken(profile.id, process.env.AUTH_SECRET ?? "") : null;
+  const shareUrl =
+    profile && shareToken
+      ? `${process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? ""}/vertrouwen/${profile.id}/${shareToken}`
+      : null;
+  const isPublicProfile = (profile?.visibility as Visibility | undefined) === "PUBLIC";
+
   // Verklaarbaar vertrouwensniveau: dezelfde server-side regels als de opdrachtgever ziet, maar hier
   // met de concrete verbeterstappen (zelf-weergave). Verlopen bewijsstukken tellen niet mee. Zolang een
   // verplicht document ontbreekt kan het niveau niet "VOLLEDIG" zijn.
@@ -105,6 +127,51 @@ export default async function CertificatenPage() {
       />
 
       <TrustExplanation trust={trust} self />
+
+      {/* Deelbaar vertrouwensdossier */}
+      <section
+        className="rounded-lg border border-border bg-card p-5 shadow-sm"
+        data-testid="share-dossier-block"
+      >
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="size-4 text-primary" aria-hidden />
+          <h2 className="text-sm font-medium">Deel je vertrouwensdossier</h2>
+        </div>
+        {isPublicProfile && shareUrl ? (
+          <div className="mt-3 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Deel de onderstaande link met een instelling. Zij zien je naam, functie,
+              vertrouwensniveau en geverifieerde certificaten — nooit de bestanden zelf.
+            </p>
+            <div className="flex items-center gap-2">
+              <Link2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <code
+                data-testid="share-dossier-url"
+                className="flex-1 break-all rounded-md bg-muted px-3 py-2 font-mono text-xs"
+              >
+                {shareUrl}
+              </code>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              De link is geldig zolang je profiel openbaar is. Zet je profiel op privé om het
+              dossier ontoegankelijk te maken.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-3 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Je profiel staat op <span className="font-medium">privé</span>. Zet je profiel op
+              openbaar om een deelbare link te activeren.
+            </p>
+            <a
+              href="/profiel"
+              className="inline-flex items-center gap-1.5 text-sm text-primary underline-offset-4 hover:underline"
+            >
+              Profielinstellingen
+            </a>
+          </div>
+        )}
+      </section>
 
       <MandatoryDocuments items={mandatory.items} allSatisfied={mandatory.allSatisfied} />
 
