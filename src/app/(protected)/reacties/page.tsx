@@ -24,6 +24,14 @@ const STATUS_HINT: Record<ApplicationStatus, string> = {
   REJECTED: "Deze keer niet geselecteerd. Reageer gerust op andere opdrachten.",
 };
 
+// Zodra er een samenwerking is, volgt de hint de actuele samenwerkingsstatus i.p.v. een vaste tekst.
+const COLLAB_HINT: Record<string, string> = {
+  PROPOSED: "Samenwerking voorgesteld — bekijk het voorstel.",
+  ACTIVE: "Samenwerking gestart — bekijk het werkproces.",
+  COMPLETED: "Samenwerking afgerond — bekijk het werkproces.",
+  CANCELLED: "Samenwerking geannuleerd — bekijk het werkproces.",
+};
+
 export default async function ReactiesPage() {
   const actor = await requireRole("FREELANCER");
   const profile = await prisma.freelancerProfile.findUnique({
@@ -53,7 +61,7 @@ export default async function ReactiesPage() {
               credentialRequirements: { select: { credentialType: true, required: true } },
             },
           },
-          collaboration: { select: { id: true } },
+          collaboration: { select: { id: true, status: true } },
         },
       })
     : [];
@@ -84,7 +92,8 @@ export default async function ReactiesPage() {
             // Zodra er een samenwerking uit de reactie is voortgekomen, wijst de kaart naar het
             // werkproces (de logische volgende stap) i.p.v. terug naar de opdracht.
             const hint = app.collaboration
-              ? "Samenwerking gestart — bekijk het werkproces."
+              ? (COLLAB_HINT[app.collaboration.status] ??
+                "Samenwerking gestart — bekijk het werkproces.")
               : STATUS_HINT[app.status as ApplicationStatus];
             return (
               <Link

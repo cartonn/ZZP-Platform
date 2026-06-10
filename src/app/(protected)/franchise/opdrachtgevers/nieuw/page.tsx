@@ -76,7 +76,7 @@ export default async function WizardPage({
     {
       key: "diensten",
       label: "Diensten",
-      sublabel: state ? plural(state.dienstenCount, "dienst", "diensten") : "Overslaan kan",
+      sublabel: state ? plural(state.dienstenCount, "dienst", "diensten") : "Optioneel",
       status: railStatus(2),
     },
   ];

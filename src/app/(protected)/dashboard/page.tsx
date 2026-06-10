@@ -240,7 +240,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
 
     return {
       stats: [
-        { label: "Profiel compleet", value: `${completeness.score}%`, href: "/profiel" },
+        { label: "Profielvelden", value: `${completeness.score}%`, href: "/profiel" },
         { label: "Geverifieerde certificaten", value: verified, href: "/certificaten" },
         { label: "Mijn reacties", value: applications, href: "/reacties" },
       ],
