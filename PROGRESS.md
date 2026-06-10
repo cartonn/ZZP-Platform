@@ -687,4 +687,10 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   runtime-image (Dockerfile) zodat de boot-seed zijn commando blijft vinden. Lokaal geverifieerd:
   generate zonder deprecation, `db push` en `db seed` werken.
 
+- **Prijsadvies + concurrentie-backlog:** `docs/PRIJSADVIES.md` vastgelegd (4 prijslijnen:
+  zzp-abo €24,95/actieve mnd, opdrachtgever €1,75/uur, tenant €12,50/actieve zzp'er/mnd,
+  optionele factoring 2,5% — eigenaar: factoring is geen harde nee meer) met omzetscenario's
+  200/500/1.000/3.000 zzp'ers en geverifieerde concurrent-benchmarks. Acht-punten
+  concurrentie-backlog toegevoegd aan CURRENT_TASK.md; punt 1 en 2 parallel in uitvoering.
+
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
