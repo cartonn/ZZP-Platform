@@ -1,6 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { parseGraceDays } from "./config";
 import { graceCutoff, isGraceEligible, type GraceCandidate } from "./performance-grace-task";
+
+// --- Runner-tests voor runPerformanceGraceTask ------------------------------
+
+const store = {
+  performances: [] as Array<Record<string, unknown>>,
+};
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    performance: {
+      findMany: vi.fn(async () => store.performances),
+    },
+  },
+}));
+
+vi.mock("@/lib/cascade/commands", () => ({
+  autoApprovePerformance: vi.fn(async () => ({ ok: true })),
+}));
+
+const NOW = new Date("2026-06-09T12:00:00.000Z");
 
 describe("parseGraceDays", () => {
   it("is uit (0) bij leeg, ontbrekend of ongeldig", () => {
@@ -51,5 +71,58 @@ describe("isGraceEligible", () => {
       isGraceEligible({ ...base, disputedAt: new Date("2026-06-01T00:00:00.000Z") }, cutoff),
     ).toBe(false);
     expect(isGraceEligible({ ...base, collabStatus: "CANCELLED" }, cutoff)).toBe(false);
+  });
+});
+
+// --- Runner-tests -----------------------------------------------------------
+
+describe("runPerformanceGraceTask", () => {
+  beforeEach(async () => {
+    store.performances = [];
+    vi.resetModules();
+    delete process.env.PERFORMANCE_GRACE_DAYS;
+  });
+
+  it("grace-venster uit (PERFORMANCE_GRACE_DAYS niet gezet) → enabled = false, geen DB-query", async () => {
+    const { runPerformanceGraceTask } = await import("@/lib/performance-grace-task");
+    const result = await runPerformanceGraceTask({ actorId: null, now: NOW });
+    expect(result).toEqual({ enabled: false, considered: 0, approved: 0 });
+  });
+
+  it("happy path — prestatie over grace-grens → goedgekeurd", async () => {
+    process.env.PERFORMANCE_GRACE_DAYS = "7";
+    // Ingediend 8 dagen geleden → voorbij 7-dagengrens
+    const submittedAt = new Date(NOW.getTime() - 8 * 24 * 60 * 60 * 1000);
+    store.performances = [
+      {
+        id: "perf-1",
+        status: "SUBMITTED",
+        submittedAt,
+        collaboration: { status: "ACTIVE", disputedAt: null },
+      },
+    ];
+    const { runPerformanceGraceTask } = await import("@/lib/performance-grace-task");
+    const result = await runPerformanceGraceTask({ actorId: null, now: NOW });
+    expect(result.enabled).toBe(true);
+    expect(result.considered).toBe(1);
+    expect(result.approved).toBe(1);
+  });
+
+  it("lege toestand — geen kandidaten → enabled, considered = 0, approved = 0", async () => {
+    process.env.PERFORMANCE_GRACE_DAYS = "7";
+    store.performances = [];
+    const { runPerformanceGraceTask } = await import("@/lib/performance-grace-task");
+    const result = await runPerformanceGraceTask({ actorId: null, now: NOW });
+    expect(result).toEqual({ enabled: true, considered: 0, approved: 0 });
+  });
+
+  it("idempotentie — tweede run zonder kandidaten in de DB doet niets extra", async () => {
+    process.env.PERFORMANCE_GRACE_DAYS = "7";
+    store.performances = [];
+    const { runPerformanceGraceTask } = await import("@/lib/performance-grace-task");
+    const first = await runPerformanceGraceTask({ actorId: null, now: NOW });
+    const second = await runPerformanceGraceTask({ actorId: null, now: NOW });
+    expect(first).toEqual(second);
+    expect(first.approved).toBe(0);
   });
 });
