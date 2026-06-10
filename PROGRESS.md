@@ -11,6 +11,21 @@
 
 ---
 
+## Audit T4 — `commands.ts` gesplitst per entiteit (branch `claude/audit-t4-commands-split`)
+
+- [x] **Mechanische splitsing van `src/lib/cascade/commands.ts` (1193 regels) in 6 modules**
+  - `commands-shared.ts` (230 regels) — `CascadeError`, `isUniqueDedupeViolation`, `persistEventAndEffects`, `persistInTransaction`, `assertParty`, `assertNotDisputed`, loaders (`loadPerformance`, `loadCascadeInvoice`), e-mailhelpers (`loadCollabMeta`, `collabLink`)
+  - `contract-commands.ts` (97 regels) — `signContract` (Event A)
+  - `performance-commands.ts` (287 regels) — `createPerformance`, `updatePerformance`, `submitPerformance`, `approvePerformance`, `autoApprovePerformance`, `rejectPerformance` (Events B1/B2/B2')
+  - `invoice-commands.ts` (188 regels) — `submitInvoice`, `approveInvoice`, `rejectInvoice`, `creditInvoice` (Events C/D/D')
+  - `payment-commands.ts` (78 regels) — `confirmPayment` (Event E)
+  - `dispute-commands.ts` (107 regels) — `openDispute`, `resolveDispute` (zijpad escalatie)
+  - `commands.ts` (38 regels) — barrel, re-exporteert alles; alle bestaande importpaden werken ongewijzigd
+  - Puur mechanische verplaatsing: nul gedragswijzigingen, nul hernoemingen, comments meegenomen
+  - Alle gates groen: typecheck ✓, lint ✓, 1306 tests ✓, build ✓, prettier ✓
+
+---
+
 ## Audit T1 — unit-tests voor alle cron-task-runners (branch `claude/audit-t1-cron-tests`)
 
 - [x] **Unit-tests voor alle 9 cron-task-runners** — 51 nieuwe tests (+ 4 runner-tests uitgebreid in `performance-grace-task.test.ts`)
