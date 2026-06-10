@@ -26,6 +26,21 @@
 
 ---
 
+## Audit T5 — logica uit samenwerkingen-pagina extraheren (branch `claude/audit-t5-pagina-extractie`)
+
+- [x] **Extractie pure logica uit `src/app/(protected)/samenwerkingen/[id]/page.tsx`** (935 → 772 regels)
+  - `src/lib/cascade/chain-steps.ts` — `buildChainSteps` + types `ChainStep`/`ChainStepStatus` (puur, geen React)
+  - `src/lib/cascade/chain-steps.test.ts` — 24 unit-tests voor alle cascade-stappen/toestanden
+  - `src/lib/ort.ts` — `parseOrtSegments` toegevoegd (JSON-parse met lege-array-fallback)
+  - `src/lib/ort.test.ts` — 3 tests voor `parseOrtSegments` (geldig, ongeldig JSON, null/undefined)
+  - `src/components/collaborations/ort-breakdown.tsx` — `OrtBreakdown` JSX-component
+  - `PERF_STATUS`/`INV_STATUS` zijn in de page gelaten: worden nergens anders gebruikt, verplaatsen
+    zou een bestand-zonder-callers opleveren. Keuze: kleinste, zuiverste resultaat.
+  - `STEP_ICON` (React-rendering) blijft in de page conform opdracht.
+- [x] Checks: typecheck ✓, lint ✓, test ✓ (1333/1333), prettier ✓
+
+---
+
 ## Audit T1 — unit-tests voor alle cron-task-runners (branch `claude/audit-t1-cron-tests`)
 
 - [x] **Unit-tests voor alle 9 cron-task-runners** — 51 nieuwe tests (+ 4 runner-tests uitgebreid in `performance-grace-task.test.ts`)
