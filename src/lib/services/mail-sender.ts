@@ -85,6 +85,15 @@ class SmtpMailSender implements MailSender {
   }
 }
 
+/**
+ * Of er een kanaal is dat e-mail daadwerkelijk aflevert (EMAIL_DRIVER=smtp). Taken waarvan
+ * e-mail het enige effect is (zoals de notificatie-digest) horen zonder echt kanaal over te
+ * slaan, zodat hun voortgangsmarkering niet wordt gezet terwijl er niets is verzonden.
+ */
+export function isMailDeliveryConfigured(): boolean {
+  return (process.env.EMAIL_DRIVER ?? "noop") === "smtp";
+}
+
 let cached: MailSender | null = null;
 
 /** Geeft de geconfigureerde MailSender-instantie terug (singleton). */

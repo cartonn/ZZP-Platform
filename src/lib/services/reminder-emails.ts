@@ -389,3 +389,60 @@ export function buildVatReminderEmail(input: VatReminderEmailInput): MailMessage
     `),
   };
 }
+
+// ─── Notificatie-digest (e-mail-fallback voor ongelezen meldingen) ───────────
+
+export interface NotificationDigestEmailInput {
+  name: string;
+  email: string;
+  count: number;
+  /** Groepsregels uit de planner: per categorie label, teller en voorbeeldtitels. */
+  lines: Array<{ label: string; count: number; titles: string[] }>;
+  loginUrl: string;
+}
+
+export function buildNotificationDigestEmail(input: NotificationDigestEmailInput): MailMessage {
+  const platform = PLATFORM;
+  const subject = `Je hebt ${plural(input.count, "ongelezen melding", "ongelezen meldingen")} op ${platform}`;
+  const textLines = input.lines.flatMap((l) => [
+    `${l.label} (${l.count}):`,
+    ...l.titles.map((t) => `  - ${t}`),
+    ...(l.count > l.titles.length ? [`  … en nog ${l.count - l.titles.length} meer`] : []),
+  ]);
+  const text = [
+    `Hallo ${input.name},`,
+    "",
+    `Er ${input.count === 1 ? "wacht 1 melding" : `wachten ${input.count} meldingen`} op je in het notificatiecentrum:`,
+    "",
+    ...textLines,
+    "",
+    `Meldingen bekijken: ${input.loginUrl}/notificaties`,
+    "",
+    "Met vriendelijke groet,",
+    platform,
+  ].join("\n");
+  const htmlLines = input.lines
+    .map((l) => {
+      const items = l.titles.map((t) => `<li style="margin:0 0 4px;">${esc(t)}</li>`).join("");
+      const more =
+        l.count > l.titles.length
+          ? `<li style="margin:0 0 4px;color:#71717a;">… en nog ${l.count - l.titles.length} meer</li>`
+          : "";
+      return `<p style="margin:12px 0 4px;font-size:14px;"><strong>${esc(l.label)}</strong> (${l.count})</p>
+      <ul style="margin:0;padding-left:18px;font-size:14px;color:#52525b;">${items}${more}</ul>`;
+    })
+    .join("");
+  return {
+    to: recipient(input.name, input.email),
+    subject,
+    text,
+    html: html(`
+      <h1 style="margin:0 0 8px;font-size:18px;">${plural(input.count, "Ongelezen melding", "Ongelezen meldingen")}</h1>
+      <p style="margin:0 0 12px;font-size:14px;color:#52525b;">Hallo ${esc(input.name)},</p>
+      ${htmlLines}
+      <p style="margin:16px 0 16px;font-size:14px;">Bekijk en handel ze af in het notificatiecentrum.</p>
+      ${btn(`${input.loginUrl}/notificaties`, "Meldingen bekijken")}
+      <p style="margin:16px 0 0;font-size:12px;color:#71717a;">${esc(platform)}</p>
+    `),
+  };
+}

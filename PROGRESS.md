@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(notificaties): e-mail-fallback digest voor ongelezen meldingen (branch `claude/feat-notificatie-digest`)
+
+Concurrentie-backlog punt 7 (deel 1 van 2): wie de app een tijd niet opent, krijgt ongelezen
+in-app-notificaties gebundeld per e-mail. Web-push (VAPID) blijft mensenwerk; het "gemist terwijl
+je weg was"-overzicht is het volgende increment.
+
+- [x] **`src/lib/notification-digest.ts`** — pure planner: bundelt ongelezen notificaties ouder dan
+      24u (`REMINDERS.notificationDigestMinAgeHours`) tot één digest per gebruiker, gegroepeerd per
+      categorie (NL-labels, vaste volgorde, max 3 voorbeeldtitels), deterministische `dedupeKey`
+- [x] **`src/lib/notification-digest-task.ts`** — runner (plan/apply zoals `runExpiryTask`):
+      idempotent via nieuw veld `Notification.digestedAt` (voortgangsmarkering à la
+      `expiryReminderFor`) + `DomainEvent.dedupeKey` als vangnet; **slaat over zonder echt
+      mailkanaal** (`isMailDeliveryConfigured()`, nieuw in `mail-sender.ts`) omdat e-mail hier het
+      enige effect is; cap 500 kandidaten/run
+- [x] **`prisma/schema.prisma`** — additief nullable `Notification.digestedAt`
+- [x] **`src/lib/notifications.ts`** — `NOTIFICATION_CATEGORY_LABEL` (NL-labels per categorie)
+- [x] **`src/lib/services/reminder-emails.ts`** — `buildNotificationDigestEmail` (tekst + HTML)
+- [x] **`src/app/api/tasks/run-all/route.ts`** — runner geregistreerd als `notification-digest`
+- [x] Tests: 8 planner-tests (`notification-digest.test.ts`) + 8 runner-tests
+      (`notification-digest-task.test.ts`: skip-zonder-mailkanaal, drempel, happy path,
+      idempotentie, dedupe-vangnet, mailfout-tolerantie)
+- Gates groen: typecheck ✓, lint ✓, test 1389 ✓ (was 1373), build ✓, prettier ✓
+
+---
+
 ## feat(dba): tarief-drempelwaarschuwing rechtsvermoeden werknemerschap (branch `claude/feat-tariefdrempel`)
 
 - [x] **`RECHTSVERMOEDEN_DREMPEL_CENTS = 3800`** toegevoegd aan `src/lib/config.ts` met broncommentaar (wetsvoorstel VBAR, aangenomen 21-4-2026, drempel €38 prijspeil 2025, verwachte iwt 1-1-2027)

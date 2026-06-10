@@ -122,6 +122,12 @@ export const REMINDERS = {
   conceptInvoiceDays: [0, 3, 7] as const,
   /** Betaaltermijn opdrachtgever (na Event D): dagen vóór/na vervaldag. */
   paymentBeforeDueDays: [5, 1] as const,
+  /**
+   * E-mail-fallback (digest): ongelezen in-app-notificaties ouder dan dit aantal uren worden
+   * gebundeld in één e-mail per gebruiker. De wachttijd geeft de app-route eerst de kans;
+   * wie dagelijks inlogt krijgt nooit digest-mail.
+   */
+  notificationDigestMinAgeHours: 24,
 } as const;
 
 // --- Acceptatie-/grace-venster voor ingediende prestaties (§4 Event B/B2) ---

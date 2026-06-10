@@ -796,6 +796,10 @@ model Notification {
   link      String?
   readAt    DateTime?
   createdAt DateTime  @default(now())
+  // Wanneer deze notificatie is meegenomen in een e-maildigest (e-mail-fallback voor wie de app
+  // een tijd niet opent). Voortgangsmarkering zoals Credential.expiryReminderFor: null = nog niet
+  // gedigest; voorkomt dubbele digest-mails zonder aparte tabel.
+  digestedAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
