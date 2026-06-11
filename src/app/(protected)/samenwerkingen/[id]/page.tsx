@@ -27,6 +27,7 @@ import { ReplacementPanel } from "@/components/collaborations/replacement-panel"
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -321,9 +322,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             </p>
             {actor.role === "ADMIN" && (
               <form action={resolveDisputeAction.bind(null, col.id)}>
-                <Button type="submit" size="sm">
-                  Dispuut oplossen
-                </Button>
+                <PendingSubmitButton size="sm">Dispuut oplossen</PendingSubmitButton>
               </form>
             )}
           </CardContent>
@@ -345,9 +344,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                 placeholder="Toelichting"
                 className="focus-ring flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
               />
-              <Button type="submit" size="sm" variant="secondary">
+              <PendingSubmitButton size="sm" variant="secondary">
                 Dispuut openen
-              </Button>
+              </PendingSubmitButton>
             </form>
           </details>
         )
@@ -409,9 +408,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
               ) : null
             ) : (
               <form action={signContractAction.bind(null, col.id)}>
-                <Button type="submit" size="sm">
-                  Contract ondertekenen
-                </Button>
+                <PendingSubmitButton size="sm">Contract ondertekenen</PendingSubmitButton>
               </form>
             )}
           </CardContent>
@@ -622,9 +619,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                     {isClient && p.status === "SUBMITTED" && !frozen && (
                       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
                         <form action={approvePerformanceAction.bind(null, p.id, col.id)}>
-                          <Button type="submit" size="sm">
-                            Goedkeuren
-                          </Button>
+                          <PendingSubmitButton size="sm">Goedkeuren</PendingSubmitButton>
                         </form>
                         <form
                           action={rejectPerformanceAction.bind(null, p.id, col.id)}
@@ -637,9 +632,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                             placeholder="Reden afkeuren"
                             className="focus-ring rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                           />
-                          <Button type="submit" size="sm" variant="destructive">
+                          <PendingSubmitButton size="sm" variant="destructive">
                             Afkeuren
-                          </Button>
+                          </PendingSubmitButton>
                         </form>
                       </div>
                     )}
@@ -693,19 +688,17 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         !frozen &&
                         (inv.lifecycleStatus === "DRAFT" || inv.lifecycleStatus === "REJECTED") && (
                           <form action={submitInvoiceAction.bind(null, inv.id, col.id)}>
-                            <Button type="submit" size="sm">
+                            <PendingSubmitButton size="sm">
                               {inv.lifecycleStatus === "REJECTED"
                                 ? "Corrigeer en dien opnieuw in"
                                 : "Indienen"}
-                            </Button>
+                            </PendingSubmitButton>
                           </form>
                         )}
                       {isClient && inv.lifecycleStatus === "SUBMITTED" && !frozen && (
                         <>
                           <form action={approveInvoiceAction.bind(null, inv.id, col.id)}>
-                            <Button type="submit" size="sm">
-                              Goedkeuren
-                            </Button>
+                            <PendingSubmitButton size="sm">Goedkeuren</PendingSubmitButton>
                           </form>
                           <form
                             action={rejectInvoiceAction.bind(null, inv.id, col.id)}
@@ -717,9 +710,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                               placeholder="Reden afkeuren"
                               className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                             />
-                            <Button type="submit" size="sm" variant="destructive">
+                            <PendingSubmitButton size="sm" variant="destructive">
                               Afkeuren
-                            </Button>
+                            </PendingSubmitButton>
                           </form>
                         </>
                       )}
@@ -731,11 +724,11 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                             className="flex items-center gap-2"
                           >
                             <Banknote className="size-4 text-muted-foreground" aria-hidden />
-                            <Button type="submit" size="sm">
+                            <PendingSubmitButton size="sm">
                               {/* De opdrachtgever is de betaler — "ontvangen" zou voor hem het
                                 tegenovergestelde beweren van wat hij doet. Rol-afhankelijk label. */}
                               {isClient ? "Markeer als betaald" : "Betaling ontvangen"}
-                            </Button>
+                            </PendingSubmitButton>
                           </form>
                         )}
                       {(inv.lifecycleStatus === "PAID" || inv.lifecycleStatus === "PROCESSED") && (
@@ -763,9 +756,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                                 placeholder="Reden creditering"
                                 className="focus-ring flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                               />
-                              <Button type="submit" size="sm" variant="secondary">
+                              <PendingSubmitButton size="sm" variant="secondary">
                                 Crediteren
-                              </Button>
+                              </PendingSubmitButton>
                             </form>
                           </details>
                         )}
