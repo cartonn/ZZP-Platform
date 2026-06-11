@@ -2,17 +2,7 @@ import { type Metadata } from "next";
 import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  FileText,
-  ClipboardList,
-  Banknote,
-  Circle,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowLeft, FileText, ClipboardList, Banknote, ShieldCheck } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
@@ -29,7 +19,9 @@ import { ModelAgreementCard } from "./model-agreement-card";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { parseOrtSegments } from "@/lib/ort";
 import { ORT_SECTORS, ORT_SECTOR_LABEL } from "@/lib/config";
-import { buildChainSteps, type ChainStepStatus } from "@/lib/cascade/chain-steps";
+import { buildChainSteps } from "@/lib/cascade/chain-steps";
+import { CascadeStepper } from "@/components/ui/cascade-stepper";
+import { TurnBanner } from "@/components/ui/turn-banner";
 import { OrtBreakdown } from "@/components/collaborations/ort-breakdown";
 import { ReplacementPanel } from "@/components/collaborations/replacement-panel";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
@@ -87,13 +79,6 @@ const INV_STATUS: Record<
 function fmt(d: Date | null) {
   return d ? formatDateShortNl(d) : null;
 }
-
-const STEP_ICON: Record<ChainStepStatus, React.ReactNode> = {
-  done: <CheckCircle2 className="size-4 text-success" aria-hidden />,
-  active: <Clock className="size-4 text-warning" aria-hidden />,
-  waiting: <Circle className="size-4 text-muted-foreground" aria-hidden />,
-  error: <XCircle className="size-4 text-danger" aria-hidden />,
-};
 
 export default async function WerkprocesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -294,47 +279,25 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                 <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Voortgang
                 </p>
-                <ol className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-0">
-                  {steps.map((step, i) => (
-                    <li
-                      key={step.label}
-                      className="flex items-start gap-2 sm:flex-1 sm:flex-col sm:items-center sm:text-center"
-                    >
-                      <div className="flex items-center gap-2 sm:flex-col sm:gap-1">
-                        {STEP_ICON[step.status]}
-                        <span
-                          className={`text-xs font-medium ${step.status === "waiting" ? "text-muted-foreground" : "text-foreground"}`}
-                        >
-                          {step.label}
-                        </span>
-                      </div>
-                      {step.detail && (
-                        <span className="text-xs text-muted-foreground sm:mt-0.5">
-                          {step.detail}
-                        </span>
-                      )}
-                      {i < steps.length - 1 && (
-                        <span className="hidden sm:absolute sm:block" aria-hidden />
-                      )}
-                    </li>
-                  ))}
-                </ol>
+                <CascadeStepper steps={steps} />
               </CardContent>
             </Card>
           );
         })()}
 
       {todo.length > 0 && (
-        <Card>
-          <CardContent className="space-y-1 py-4">
-            <p className="text-sm font-medium">Aan zet</p>
-            <ul className="list-inside list-disc text-sm text-muted-foreground">
-              {todo.map((t, i) => (
-                <li key={i}>{t}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <TurnBanner
+          title={todo[0]}
+          description={
+            todo.length > 1 ? (
+              <ul className="list-inside list-disc">
+                {todo.slice(1).map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
+              </ul>
+            ) : undefined
+          }
+        />
       )}
 
       {/* Dispuut: bevroren cascade tot opgelost (§4 zijpad) */}

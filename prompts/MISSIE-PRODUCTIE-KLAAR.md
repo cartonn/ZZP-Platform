@@ -37,7 +37,7 @@ ADR-0007, docs/PLAN-WERELDKLASSE.md, docs/ontwerpen/\*.html).
       bewust op main-versie gehouden; visueel geverifieerd licht + donker)
 - [x] Fase 2: held-kaart (TaskHero) + rustiger identiteit (stillere badges, MatchMeter,
       één palet) — eigenaarskeuze uit de ontwerpbranch gevolgd (zacht pastel i.p.v. Honing)
-- [ ] Fase 3: werkproces-/samenwerkingenpagina (cascade-stepper, turn-banner)
+- [x] Fase 3: werkproces-pagina draagt CascadeStepper + TurnBanner (gericht herbouwd)
 - [ ] Fase 4: overige schermen + dark-mode-pariteit + palette-switcher
 - Regels: DESIGN.md is canoniek; nul dode knoppen; loading/error/empty overal; geen
   tekst-overflow; elke gewijzigde pagina visueel geverifieerd (e2e-screenshots).
