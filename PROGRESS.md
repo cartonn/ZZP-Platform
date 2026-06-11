@@ -3,6 +3,18 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(design): Vakwerk fase 3 — CascadeStepper + TurnBanner op het werkproces (branch `feat/vakwerk-fase3`)
+
+- [x] Keten-rendering op `/samenwerkingen/[id]` vervangen door de `CascadeStepper`-signatuur
+      (zegelgroen afgerond, merkkleur actief, verbindingslijn; mobiel stapelt verticaal);
+      `STEP_ICON` + losse iconen-imports verwijderd
+- [x] "Aan zet"-card vervangen door de `TurnBanner` (hét contrastmoment: inkt op papier,
+      pulserende stip; eerste taak als titel, rest als lijst)
+- [x] Visueel geverifieerd op lokale prod-server (login → samenwerking; nul console-errors)
+- Gates groen: typecheck ✓, lint ✓, test 1545 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(design): Vakwerk fase 2 — held-kaart + rustiger identiteit (branch `feat/vakwerk-fase2`)
 
 Missie C fase 2 (cherry-picks 8840e36 + aa5719a van de ontwerpbranch, op actuele main):
