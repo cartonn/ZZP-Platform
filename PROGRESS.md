@@ -3,6 +3,15 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## docs(design): Vakwerk fase 4 — dark-pariteit-sweep afgerond (geen afwijkingen)
+
+Sweep over dashboard, opdrachten, samenwerkingen (+detail), facturen, certificaten en
+notificaties in licht én donker (14 screenshots via lokale prod-server): 0 console-errors,
+0 overflow, statuskleuren en signatuurcomponenten klappen correct om via de tokens.
+Missie C (Vakwerk-frontend) is hiermee volledig afgevinkt; geen codewijzigingen nodig.
+
+---
+
 ## feat(design): Vakwerk fase 3 — CascadeStepper + TurnBanner op het werkproces (branch `feat/vakwerk-fase3`)
 
 - [x] Keten-rendering op `/samenwerkingen/[id]` vervangen door de `CascadeStepper`-signatuur
