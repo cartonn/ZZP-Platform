@@ -16,8 +16,10 @@ tegen main geverifieerd (drie parallelle zoekagenten, 11-6-2026).
 
 Hoogste prioriteit eerst (correctheid/geld/compliance → UX → nice-to-have):
 
-1. **Afronden-rem** — samenwerking kan COMPLETED worden met open facturen/geld (geen guard in
-   `planPaymentConfirmedEvent`). Branch: `epic-lovelace-t3oe7h`. _(geld-correctheid)_
+1. [x] **Afronden-rem** — samenwerking kan COMPLETED worden met open facturen/geld (geen guard in
+       `planPaymentConfirmedEvent`). **Geborgen 11-6 (ZZP2-160, branch `claude/dazzling-carson-v9Qwk`):**
+       pure `cascade/completion.ts` (`hasOpenCollaborationWork`) + guard in de handler; de cascade rondt
+       alleen af als deze betaling het laatste openstaande werk afsluit. _(geld-correctheid)_
 2. **CSV formule-injectie-hardening** — `escapeCsvField` escapet geen `=+-@`-prefixen.
    Branch: `epic-lovelace-gCZVD`. _(security, klein)_
 3. **Rol-fallback boekhouding** — facturatie-pagina's alleen `requireRole("ADMIN")`, FRANCHISER

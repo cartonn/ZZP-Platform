@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(cascade): afronden-rem — geen COMPLETED-samenwerking met openstaand geld (branch `claude/dazzling-carson-v9Qwk`, ZZP2-160)
+
+Bergings-backlog #1 (geld-correctheid). `planPaymentConfirmedEvent` zette een samenwerking
+onvoorwaardelijk op COMPLETED zodra één factuur betaald werd — ook als er nog andere
+niet-afgewikkelde facturen of onbeoordeelde prestaties open stonden, waardoor dat geld/werk
+los van zijn context achterbleef.
+
+- [x] **`src/lib/cascade/completion.ts`** — pure, DB-loze helper: `isInvoiceSettled`
+      (cascade PAID/PROCESSED/CREDITED of legacy PAID/CANCELLED = afgewikkeld) +
+      `hasOpenCollaborationWork(snapshot)` (open zodra een SUBMITTED-prestatie of een
+      niet-afgewikkelde andere factuur bestaat). +21 unit-tests (`completion.test.ts`).
+- [x] **`src/lib/cascade/handlers.ts`** — `PaymentConfirmedCtx.collaboration` kreeg optioneel
+      `hasOtherOpenWork`; afrond-conditie is nu `status === "ACTIVE" && !hasOtherOpenWork`.
+      +1 handler-test (afronding tegengehouden bij openstaand werk).
+- [x] **`src/lib/cascade/payment-commands.ts`** — `confirmPayment` berekent server-side de
+      snapshot (andere facturen + SUBMITTED-prestaties van de samenwerking) en geeft
+      `hasOtherOpenWork` door. De factuur wordt nog steeds betaald gemarkeerd; alleen de
+      automatische afronding wacht tot het laatste openstaande werk weg is.
+- Gates groen: typecheck ✓, lint ✓, test 1493 ✓, build ✓, prettier ✓. (e2e overgeslagen —
+  routine zonder browser-channel.)
+
+---
+
 ## feat(notificaties): e-mailvoorkeuren per categorie (opt-out) — geborgen + uitgebreid (branch `feat/email-voorkeuren`)
 
 Geborgen van routine-branch `epic-lovelace-2fRim` (1 juni, nooit als PR geopend; zie
