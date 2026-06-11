@@ -109,13 +109,13 @@ test("cascade A→E happy path (milestone)", async ({ page, browser }) => {
   await expect(page.getByText("Voorgesteld")).toBeVisible({ timeout: 15000 });
   await clickUntil(
     page.getByRole("button", { name: "Contract ondertekenen" }),
-    page.getByText("Actief"),
+    page.getByText("Actief").first(),
   );
   await shot(page, "cascade-a-contract-signed");
 
   // --- Event B1: Freelancer dient milestone-prestatie in ---
   await fp.goto(collaborationUrl);
-  await expect(fp.getByText("Actief")).toBeVisible({ timeout: 15000 });
+  await expect(fp.getByText("Actief").first()).toBeVisible({ timeout: 15000 });
 
   // Robuust indienen: pre-hydratie kan controlled inputs resetten, dus wacht op hydratie en
   // herhaal invullen + indienen tot de prestatie "Ter goedkeuring" toont (exact, anders matcht
@@ -125,6 +125,7 @@ test("cascade A→E happy path (milestone)", async ({ page, browser }) => {
     if (
       !(await fp
         .getByText("Ter goedkeuring", { exact: true })
+        .first()
         .isVisible()
         .catch(() => false))
     ) {
@@ -139,49 +140,85 @@ test("cascade A→E happy path (milestone)", async ({ page, browser }) => {
         .click({ timeout: 3000 })
         .catch(() => {});
     }
-    await expect(fp.getByText("Ter goedkeuring", { exact: true })).toBeVisible({ timeout: 3000 });
+    await expect(fp.getByText("Ter goedkeuring", { exact: true }).first()).toBeVisible({
+      timeout: 3000,
+    });
   }).toPass({ timeout: 25000 });
   await shot(fp, "cascade-b1-performance-submitted");
 
   // --- Event B2: Client keurt prestatie goed ---
   await page.reload();
-  await expect(page.getByText("Ter goedkeuring")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
   const perfCard = page.locator("section").filter({ hasText: "Uren & opleveringen" });
   // Na goedkeuring verschijnt automatisch een concept-factuur.
   await clickUntil(
     perfCard.getByRole("button", { name: "Goedkeuren" }).first(),
-    page.getByText("Concept").first(),
+    page
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Concept", { exact: true })
+      .first(),
   );
   await shot(page, "cascade-b2-invoice-created");
 
   // --- Event C: Freelancer dient factuur in ---
   await fp.reload();
-  await expect(fp.getByText("Concept").first()).toBeVisible({ timeout: 15000 });
+  await expect(
+    fp
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Concept", { exact: true })
+      .first(),
+  ).toBeVisible({ timeout: 15000 });
   const invCard = fp.locator("section").filter({ hasText: "Facturen" });
   await clickUntil(
     invCard.getByRole("button", { name: "Indienen" }).first(),
-    fp.getByText("Ingediend"),
+    fp
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Ingediend", { exact: true })
+      .first(),
   );
   await shot(fp, "cascade-c-invoice-submitted");
 
   // --- Event D: Client keurt factuur goed ---
   await page.reload();
-  await expect(page.getByText("Ingediend")).toBeVisible({ timeout: 15000 });
+  await expect(
+    page
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Ingediend", { exact: true })
+      .first(),
+  ).toBeVisible({ timeout: 15000 });
   const invSection = page.locator("section").filter({ hasText: "Facturen" });
   await clickUntil(
     invSection.getByRole("button", { name: "Goedkeuren" }).first(),
-    page.getByText("Goedgekeurd"),
+    page
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Goedgekeurd", { exact: true })
+      .first(),
   );
   await shot(page, "cascade-d-invoice-approved");
 
   // --- Event E: Freelancer registreert betaling ---
   await fp.reload();
-  await expect(fp.getByText("Goedgekeurd")).toBeVisible({ timeout: 15000 });
+  await expect(
+    fp
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Goedgekeurd", { exact: true })
+      .first(),
+  ).toBeVisible({ timeout: 15000 });
   const invSectionFp = fp.locator("section").filter({ hasText: "Facturen" });
   // Betaald of Verwerkt — beide zijn eindstatus.
   await clickUntil(
     invSectionFp.getByRole("button", { name: "Betaling ontvangen" }).first(),
-    fp.getByText(/Betaald|Verwerkt/).first(),
+    fp
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText(/^(Betaald|Verwerkt)$/)
+      .first(),
   );
   await shot(fp, "cascade-e-payment-confirmed");
 
@@ -195,11 +232,11 @@ test("cascade afkeuren prestatie en opnieuw indienen (uren)", async ({ page, bro
 
   // --- Event A: Contract ondertekenen ---
   await page.getByRole("button", { name: "Contract ondertekenen" }).click();
-  await expect(page.getByText("Actief")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("Actief").first()).toBeVisible({ timeout: 15000 });
 
   // --- Event B1: Freelancer dient uren in ---
   await fp.goto(collaborationUrl);
-  await expect(fp.getByText("Actief")).toBeVisible({ timeout: 15000 });
+  await expect(fp.getByText("Actief").first()).toBeVisible({ timeout: 15000 });
 
   // Type blijft HOURS (standaard); vul uren + periode in
   await fp.fill('input[name="hours"]', "8");
@@ -207,22 +244,22 @@ test("cascade afkeuren prestatie en opnieuw indienen (uren)", async ({ page, bro
   await fp.fill('input[name="periodEnd"]', "2026-01-06");
   await fp.fill('input[name="description"]', "Week 1");
   await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
-  await expect(fp.getByText("Ter goedkeuring")).toBeVisible({ timeout: 15000 });
+  await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
   await shot(fp, "cascade-reject-b1-submitted");
 
   // --- Client keurt af ---
   await page.reload();
-  await expect(page.getByText("Ter goedkeuring")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
 
   const perfCard = page.locator("section").filter({ hasText: "Uren & opleveringen" });
   await perfCard.locator('input[name="reason"]').first().fill("Uren kloppen niet");
   await perfCard.getByRole("button", { name: "Afkeuren" }).first().click();
-  await expect(page.getByText("Afgekeurd")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("Afgekeurd").first()).toBeVisible({ timeout: 15000 });
   await shot(page, "cascade-reject-rejected");
 
   // --- Reden is zichtbaar voor freelancer ---
   await fp.reload();
-  await expect(fp.getByText("Afgekeurd")).toBeVisible({ timeout: 15000 });
+  await expect(fp.getByText("Afgekeurd").first()).toBeVisible({ timeout: 15000 });
   await expect(fp.getByText("Uren kloppen niet")).toBeVisible({ timeout: 15000 });
   await shot(fp, "cascade-reject-reason-visible");
 
@@ -232,11 +269,11 @@ test("cascade afkeuren prestatie en opnieuw indienen (uren)", async ({ page, bro
   await fp.fill('input[name="periodEnd"]', "2026-01-06");
   await fp.fill('input[name="description"]', "Week 1 (gecorrigeerd)");
   await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
-  await expect(fp.getByText("Ter goedkeuring")).toBeVisible({ timeout: 15000 });
+  await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
 
   // --- Client keurt nu goed ---
   await page.reload();
-  await expect(page.getByText("Ter goedkeuring")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
 
   const perfCard2 = page.locator("section").filter({ hasText: "Uren & opleveringen" });
   await perfCard2.getByRole("button", { name: "Goedkeuren" }).first().click();
@@ -253,30 +290,42 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
 
   // --- Contract ondertekenen ---
   await page.getByRole("button", { name: "Contract ondertekenen" }).click();
-  await expect(page.getByText("Actief")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("Actief").first()).toBeVisible({ timeout: 15000 });
 
   // --- Freelancer dient milestone in ---
   await fp.goto(collaborationUrl);
-  await expect(fp.getByText("Actief")).toBeVisible({ timeout: 15000 });
+  await expect(fp.getByText("Actief").first()).toBeVisible({ timeout: 15000 });
   await fp.selectOption('select[name="type"]', "MILESTONE");
   await fp.fill('input[name="amount"]', "2000");
   await fp.fill('input[name="milestoneTitle"]', "Fase A");
   await fp.fill('input[name="description"]', "Oplevering fase A");
   await fp.getByRole("button", { name: "Indienen ter goedkeuring" }).click();
-  await expect(fp.getByText("Ter goedkeuring")).toBeVisible({ timeout: 15000 });
+  await expect(fp.getByText("Ter goedkeuring").first()).toBeVisible({ timeout: 15000 });
 
   // --- Client keurt goed (auto-factuur aangemaakt) ---
   await page.reload();
   const perfCard = page.locator("section").filter({ hasText: "Uren & opleveringen" });
-  await perfCard.getByRole("button", { name: "Goedkeuren" }).first().click();
-  await expect(page.getByText("Concept").first()).toBeVisible({ timeout: 15000 });
+  await clickUntil(
+    perfCard.getByRole("button", { name: "Goedkeuren" }).first(),
+    page
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Concept", { exact: true })
+      .first(),
+  );
 
   // --- Freelancer dient factuur in ---
   await fp.reload();
-  await expect(fp.getByText("Concept").first()).toBeVisible({ timeout: 15000 });
+  await expect(
+    fp
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Concept", { exact: true })
+      .first(),
+  ).toBeVisible({ timeout: 15000 });
   const invCard = fp.locator("section").filter({ hasText: "Facturen" });
   await invCard.getByRole("button", { name: "Indienen" }).first().click();
-  await expect(fp.getByText("Ingediend")).toBeVisible({ timeout: 15000 });
+  await expect(fp.getByText("Ingediend").first()).toBeVisible({ timeout: 15000 });
 
   // --- Freelancer opent een dispuut ---
   // Open het details-element "Probleem melden / dispuut openen"
@@ -328,5 +377,101 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   await shot(ap, "cascade-dispute-resolved");
 
   await actx.close();
+  await fctx.close();
+});
+
+test("cascade credit-zijpad: betaalde factuur crediteren met reden", async ({ page, browser }) => {
+  test.slow();
+
+  const { collaborationUrl, fp, fctx } = await setupCollaboration(page, browser as Browser);
+
+  // --- A: contract ---
+  await expect(page.getByText("Voorgesteld")).toBeVisible({ timeout: 15000 });
+  await clickUntil(
+    page.getByRole("button", { name: "Contract ondertekenen" }),
+    page.getByText("Actief").first(),
+  );
+
+  // --- B1: milestone indienen (zelfde robuuste loop als de happy path) ---
+  await fp.goto(collaborationUrl);
+  await expect(fp.getByText("Actief").first()).toBeVisible({ timeout: 15000 });
+  await hydrated(fp);
+  await expect(async () => {
+    if (
+      !(await fp
+        .getByText("Ter goedkeuring", { exact: true })
+        .first()
+        .isVisible()
+        .catch(() => false))
+    ) {
+      await fp.selectOption('select[name="type"]', "MILESTONE").catch(() => {});
+      await fp.waitForSelector('input[name="amount"]', { timeout: 3000 }).catch(() => {});
+      await fp.fill('input[name="amount"]', "1500").catch(() => {});
+      await fp.fill('input[name="milestoneTitle"]', "Fase credit").catch(() => {});
+      await fp.fill('input[name="description"]', "Op te leveren en te crediteren").catch(() => {});
+      await fp
+        .getByRole("button", { name: "Indienen ter goedkeuring" })
+        .click({ timeout: 3000 })
+        .catch(() => {});
+    }
+    await expect(fp.getByText("Ter goedkeuring", { exact: true }).first()).toBeVisible({
+      timeout: 3000,
+    });
+  }).toPass({ timeout: 25000 });
+
+  // --- B2 → C → D → E: goedkeuren, indienen, goedkeuren, betalen ---
+  await page.reload();
+  const perfCard = page.locator("section").filter({ hasText: "Uren & opleveringen" });
+  await clickUntil(
+    perfCard.getByRole("button", { name: "Goedkeuren" }).first(),
+    page
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Concept", { exact: true })
+      .first(),
+  );
+  await fp.reload();
+  const invCard = fp.locator("section").filter({ hasText: "Facturen" });
+  await clickUntil(
+    invCard.getByRole("button", { name: "Indienen" }).first(),
+    fp
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Ingediend", { exact: true })
+      .first(),
+  );
+  await page.reload();
+  const invSection = page.locator("section").filter({ hasText: "Facturen" });
+  await clickUntil(
+    invSection.getByRole("button", { name: "Goedkeuren" }).first(),
+    page
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText("Goedgekeurd", { exact: true })
+      .first(),
+  );
+  await fp.reload();
+  const invSectionFp = fp.locator("section").filter({ hasText: "Facturen" });
+  await clickUntil(
+    invSectionFp.getByRole("button", { name: "Betaling ontvangen" }).first(),
+    fp
+      .locator("section")
+      .filter({ hasText: "Facturen" })
+      .getByText(/^(Betaald|Verwerkt)$/)
+      .first(),
+  );
+
+  // --- Credit-zijpad: freelancer crediteert de betaalde factuur (reden verplicht) ---
+  await fp.locator("details").filter({ hasText: "Factuur crediteren" }).first().click();
+  await fp.locator('input[name="reason"]').fill("Verkeerd bedrag — creditering afgesproken");
+  await fp.getByRole("button", { name: "Crediteren" }).click();
+  await expect(fp.getByText("Gecrediteerd").first()).toBeVisible({ timeout: 15000 });
+  await shot(fp, "cascade-credit-issued");
+
+  // Ook de opdrachtgever ziet de creditering.
+  await page.reload();
+  await expect(page.getByText("Gecrediteerd").first()).toBeVisible({ timeout: 15000 });
+  await shot(page, "cascade-credit-client-view");
+
   await fctx.close();
 });

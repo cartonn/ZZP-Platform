@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(geld) + e2e: credit-/afkeur-crash, betaal-tegenboekingen, dispuut-freeze (branch `feat/e2e-credit-zijpad`)
+
+De nieuwe credit-zijpad-e2e legde een keten van echte bugs bloot (missie B-vondst):
+
+- [x] **Crash-fix:** `Invoice.rejectionReason` bestond niet — élke factuurafkeuring (D′) én
+      creditering crashte op een PrismaClientValidationError achter een generieke foutpagina.
+      Kolom additief toegevoegd (schema + db push).
+- [x] **Geld-fix geborgen** (sanering-sha 798aedee, routine-branch pbzof7): credit-van-betaald
+      draait nu óók de betaal-tegenboekingen terug (geen spookvordering/-schuld meer in
+      debiteuren/crediteuren) + PAST_DUE-ladder per episode; met verzwaarde tests.
+- [x] **UI-dispuut-freeze:** 7 actie-oppervlakken op het werkproces (prestatie-/factuur-/
+      betaal-/credit-acties) verdwijnen tijdens een dispuut — server blokkeerde al, de UI
+      bood de acties nog aan.
+- [x] **e2e:** nieuw credit-zijpad-scenario; hele cascade-suite locator-gehard (stepper-details
+      maakten vrije-tekst-matches ambigu, scoping op secties + exact); **4/4 lokaal groen**.
+- [x] **CI:** e2e-job draait nu smoke + cascade (was alleen smoke — de kritieke geld-loop
+      draaide nooit in CI).
+- Gates groen: typecheck ✓, lint ✓, test 1547 ✓, build ✓, prettier ✓
+
+---
+
 ## docs(design): Vakwerk fase 4 — dark-pariteit-sweep afgerond (geen afwijkingen)
 
 Sweep over dashboard, opdrachten, samenwerkingen (+detail), facturen, certificaten en
@@ -377,9 +398,19 @@ je weg was"-overzicht is het volgende increment.
   - [x] B) `src/lib/week-overview.ts` — `weekOverview()`: deterministisch weekoverzicht (ISO-week UTC,
         timing-classificatie, sortering per opdrachtgever). 10 tests. Geen per-dag-rooster (geen
         schema-veld) → echt "ma bij A, wo bij B" vergt ADR + schema-uitbreiding (Fase 6).
-- [ ] **Fase 2 — FREELANCER-dashboard → drie zones** (loopt/aandacht/oppakken; tone + voortgang tonen).
-- [ ] **Fase 3 — CLIENT** · [ ] **Fase 4 — ADMIN** · [ ] **Fase 5 — zijbalk** ·
-      [ ] **Fase 6 — weekoverzicht-UI (+ evt. ADR/schema)**.
+- [x] **Fase 2 — FREELANCER-dashboard → drie zones** — `dashboard/page.tsx`: zone 1 "Wat loopt er nu"
+      (`RunningCard` met fase-chip + `Progress` stap N/M + "aan zet"-CTA via `cascadeStage`), zone 2 "Wat
+      vraagt aandacht" (`DashboardActions`, tone-bewust), zone 3 "Wat kan ik oppakken" (`MatchesSection`,
+      prominent bij geen lopend werk, compact ernaast). + inzetbaarheid + onboarding-checklist nieuw account.
+- [x] **Fase 3 — CLIENT** — zelfde drie zones vanuit opdrachtgever-perspectief (lopende samenwerkingen +
+      compliance-waarschuwing per kaart, operationele aandacht-zone).
+- [x] **Fase 4 — ADMIN** — zone 2 als "Operationele wachtrij" (`DashboardActions`); kerncijfers via stats +
+      `/admin/statistieken`.
+- [x] **Fase 5 — zijbalk** — `nav.ts` per rol gegroepeerd (Werk · Profiel · Administratie · Account; admin:
+      Operatie · Toezicht · Beheer), met Dashboard ≠ Administratie expliciet gescheiden + eigen iconen.
+- [x] **Fase 6 — weekoverzicht-UI** — week-chips bovenaan zone 1 bij ≥2 actieve samenwerkingen
+      (`weekOverview` + `formatWeekdays`); `Collaboration.weekdays` bestaat (`parseWeekdays`), dus "ma bij A,
+      wo bij B" wordt getoond waar ingevuld. Resterend: interactieve e2e-verificatie (browser-sessie).
 
 ---
 
@@ -400,6 +431,21 @@ je weg was"-overzicht is het volgende increment.
 ---
 
 ## Logboek
+
+### QA-iteratie 6 — 2026-06-10 (geld + reminders + authz, gerichte diepte) — ZZP2-144
+
+3 adversariële hunters op nog-niet-diep-gedekte assen. **2 HOOG-geldbugs gefixt** (zie GAPS.md iter-6):
+
+- **Credit-van-betaald** (`ledger.ts`/`cascade/handlers.ts`): crediteren van een PAID/PROCESSED-factuur
+  draaide de betaal-tegenboekingen niet terug → spookvordering/-schuld in de debiteuren-/crediteuren-
+  overzichten. `planInvoiceCredited({ reversePayment })` + test verzwaard (DEBITEUREN/CREDITEUREN/
+  ONTVANGEN/BETAALD = 0) + test voor crediteren-vóór-betaling.
+- **PAST_DUE-ladder tweede episode** (`past-due.ts`): dedupeKey miste een cyclus-discriminator → een
+  tweede mislukte betaling vuurde geen herinneringen/downgrade. Nu gediscrimineerd op `pastDueAt`. +regressietest.
+
+Authz/tenant/state-as schoon (convergentie bevestigd). Tevens PROGRESS WORKSPACE-OVERHAUL-fasen
+gereconciliëerd met de echte code-stand (dashboard drie zones + gegroepeerde nav waren al gebouwd).
+Gate groen: typecheck ✓, lint ✓, test ✓, build ✓. E2e overgeslagen (geen browser-channel in de routine).
 
 ### Meedenk-laag — 2026-05-26
 

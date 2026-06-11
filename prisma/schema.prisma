@@ -779,6 +779,9 @@ model Invoice {
   subtotalCents      Int? //     bedrag excl. BTW
   vatCents           Int? //     BTW-bedrag
   vatRegime          String? //  VatRegime (config.ts)
+  // Reden bij afkeuren (D') of crediteren — de cascade-handlers schrijven dit veld; zonder deze
+  // kolom crashte elke afkeuring/creditering op een PrismaClientValidationError (e2e-vondst 11-6).
+  rejectionReason    String?
   correlationId      String?
 
   collaboration Collaboration? @relation(fields: [collaborationId], references: [id], onDelete: SetNull)

@@ -22,9 +22,11 @@ vertrouwen, Wet-DBA/AVG-compliance en een rustiger, mooier product.
 
 ### B. Kritieke gebruikersloops groen (e2e)
 
-- [ ] Playwright dekt: registratie→profiel→certificaat→admin-verificatie→opdracht→reactie→
-      match→samenwerking→contract→uren→goedkeuring→factuur→betaling (cascade A–E) voor
-      FREELANCER, CLIENT én ADMIN; plus dispuut/credit-zijpad.
+- [x] Playwright dekt: cascade A–E (3 rollen) + afkeuren + dispuut-freeze + credit-zijpad
+      (4/4 groen in dev-modus; registratie→verificatie→opdracht→reactie zaten al in bestaande specs).
+- [ ] **BLOCKER issue #329**: server-action-responses hangen in prod-modus (UI eeuwig pending,
+      DB-write slaagt; pre-existing, niet CSP). Cascade-e2e in CI weer aanzetten ná de fix;
+      daarna pas T6 (e2e blocking).
 - [ ] e2e van advisory → blocking in `ci.yml` (audit T6) zodra 3 opeenvolgende runs groen.
 
 ### C. Frontend slick — Vakwerk-ontwerptaal

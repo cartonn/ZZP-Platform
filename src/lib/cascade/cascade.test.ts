@@ -15,7 +15,12 @@ import {
   planPaymentConfirmedEvent,
   planInvoiceCreditedEvent,
 } from "@/lib/cascade/handlers";
-import { summarizeByParty, vatPosition, type Posting } from "@/lib/administration/ledger";
+import {
+  assertBalanced,
+  summarizeByParty,
+  vatPosition,
+  type Posting,
+} from "@/lib/administration/ledger";
 import { type CascadeEffects, type NotificationDraft } from "@/lib/cascade/types";
 
 const now = new Date("2026-05-29T10:00:00Z");
@@ -318,6 +323,53 @@ describe("zijpad — creditfactuur maakt de administratie netto nul", () => {
     expect(summary.CLIENT.KOSTEN).toBe(0);
     expect(summary.CLIENT.BTW_VOORBELASTING).toBe(0);
     expect(vatPosition(postings).FREELANCER).toBe(0);
+    // Crediteren van een al-betaalde factuur moet óók de betaal-tegenboekingen terugdraaien, anders
+    // blijft er een spookvordering/-schuld + ONTVANGEN/BETAALD-saldo staan dat in de
+    // debiteuren-/crediteurenoverzichten lekt.
+    expect(summary.FREELANCER.DEBITEUREN ?? 0).toBe(0);
+    expect(summary.FREELANCER.ONTVANGEN ?? 0).toBe(0);
+    expect(summary.CLIENT.CREDITEUREN ?? 0).toBe(0);
+    expect(summary.CLIENT.BETAALD ?? 0).toBe(0);
+    // En elke partij blijft sluitend (debet = credit).
+    assertBalanced(postings, "FREELANCER");
+    assertBalanced(postings, "CLIENT");
+  });
+
+  it("crediteren vóór betaling (APPROVED) raakt geen betaalrekeningen", () => {
+    const fin = { subtotalCents: 600_00, vatCents: 126_00, totalCents: 726_00 };
+    const postings: Posting[] = [
+      ...planInvoiceSubmittedEvent({
+        invoice: { id: "i2", lifecycleStatus: "DRAFT", ...fin },
+        partyInvoiceNumber: "2026-0002",
+        clientUserId: "c1",
+        now,
+        actorId: "f1",
+      }).postings,
+      ...planInvoiceApprovedEvent({
+        invoice: { id: "i2", lifecycleStatus: "SUBMITTED", ...fin },
+        paymentTermDays: 30,
+        freelancerUserId: "f1",
+        now,
+        actorId: "c1",
+      }).postings,
+      ...planInvoiceCreditedEvent({
+        invoice: { id: "i2", lifecycleStatus: "APPROVED", ...fin, partyInvoiceNumber: "2026-0002" },
+        freelancerUserId: "f1",
+        clientUserId: "c1",
+        reason: "Correctie vóór betaling",
+        actorId: "f1",
+      }).postings,
+    ];
+    const summary = summarizeByParty(postings);
+    // Geen betaling geweest → geen ONTVANGEN/BETAALD, en alles netto nul.
+    expect(summary.FREELANCER.ONTVANGEN ?? 0).toBe(0);
+    expect(summary.CLIENT.BETAALD ?? 0).toBe(0);
+    expect(summary.FREELANCER.DEBITEUREN ?? 0).toBe(0);
+    expect(summary.CLIENT.CREDITEUREN ?? 0).toBe(0);
+    expect(summary.FREELANCER.OMZET).toBe(0);
+    expect(summary.CLIENT.KOSTEN).toBe(0);
+    assertBalanced(postings, "FREELANCER");
+    assertBalanced(postings, "CLIENT");
   });
 });
 
