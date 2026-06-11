@@ -13,8 +13,8 @@ vertrouwen, Wet-DBA/AVG-compliance en een rustiger, mooier product.
 
 - [x] npm audit 0 high/critical · scan:secrets groen (CI `security.yml`)
 - [x] JWT-staleness: `currentActor` herleest status/rol uit de DB (geschorst = direct buiten)
-- [~] Rate-limiting: login/registratie/reset/zelf-verificatie ✓ — berichten, reacties,
-  document-upload en AVG-export volgen (iteratie 1)
+- [x] Rate-limiting: login/registratie/reset/zelf-verificatie ✓ + berichten/reacties/
+      uploads/AVG-export (PR #322)
 - [ ] CSP-nonce-pipeline i.p.v. `script-src 'unsafe-inline'` (eigen iteratie; e2e-verifiëren,
       let op static→dynamic rendering)
 - [ ] /security-review op het actuele diff zonder open High/Critical
