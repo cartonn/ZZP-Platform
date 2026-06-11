@@ -222,8 +222,25 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // dit is een ID-set-query (select: {id: true}), geen volledige lijst.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 108,
+    line: 109,
     reason: "ID-set-query voor factureerbare samenwerkingen; geen volledige lijst",
+  },
+
+  // --- samenwerkingen/page.tsx (derde findMany: afronden-rem) ---
+  // Factuurstatussen voor de zichtbare (gepagineerde) samenwerkingen, om de "Markeer als
+  // afgerond"-knop niet als dode knop aan te bieden. Begrensd door de page-of-collaborations.
+  {
+    file: "(protected)/samenwerkingen/page.tsx",
+    line: 122,
+    reason: "factuurstatus-snapshot per zichtbare samenwerking (afronden-rem); page-begrensd",
+  },
+
+  // --- samenwerkingen/actions.ts (afronden-rem guard) ---
+  // Factuurstatussen van één samenwerking om afronden server-side te weigeren bij open geld.
+  {
+    file: "(protected)/samenwerkingen/actions.ts",
+    line: 163,
+    reason: "factuurstatus van één samenwerking voor de afronden-rem; per-collab begrensd",
   },
 
   // --- franchise/diensten/page.tsx ---

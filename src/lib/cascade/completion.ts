@@ -42,3 +42,24 @@ export function hasOpenCollaborationWork(snapshot: OpenWorkSnapshot): boolean {
   if (snapshot.submittedPerformances > 0) return true;
   return snapshot.otherInvoices.some((inv) => !isInvoiceSettled(inv));
 }
+
+/**
+ * NL-reden waarom een samenwerking nog niet afgerond mag worden, of `null` als het mag.
+ * Tegenhanger van `hasOpenCollaborationWork` voor het handmatige afrondpad én de knopweergave:
+ * geld weegt het zwaarst (een niet-afgewikkelde factuur blokkeert vóór een onbeoordeelde
+ * prestatie). Bij handmatig afronden tellen álle facturen mee (zet ze in `otherInvoices`).
+ */
+export function completionBlockReason(snapshot: OpenWorkSnapshot): string | null {
+  const openInvoices = snapshot.otherInvoices.filter((inv) => !isInvoiceSettled(inv)).length;
+  if (openInvoices > 0) {
+    return openInvoices === 1
+      ? "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst."
+      : `Er staan nog ${openInvoices} facturen open voor deze samenwerking. Markeer die als betaald of crediteer ze eerst.`;
+  }
+  if (snapshot.submittedPerformances > 0) {
+    return snapshot.submittedPerformances === 1
+      ? "Er wacht nog 1 ingediende urenstaat of oplevering op goedkeuring. Beoordeel die eerst voordat je de samenwerking afrondt."
+      : `Er wachten nog ${snapshot.submittedPerformances} ingediende urenstaten of opleveringen op goedkeuring. Beoordeel die eerst voordat je de samenwerking afrondt.`;
+  }
+  return null;
+}

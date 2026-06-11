@@ -16,10 +16,13 @@ tegen main geverifieerd (drie parallelle zoekagenten, 11-6-2026).
 
 Hoogste prioriteit eerst (correctheid/geld/compliance → UX → nice-to-have):
 
-1. [x] **Afronden-rem** — samenwerking kan COMPLETED worden met open facturen/geld (geen guard in
-       `planPaymentConfirmedEvent`). **Geborgen 11-6 (ZZP2-160, branch `claude/dazzling-carson-v9Qwk`):**
-       pure `cascade/completion.ts` (`hasOpenCollaborationWork`) + guard in de handler; de cascade rondt
-       alleen af als deze betaling het laatste openstaande werk afsluit. _(geld-correctheid)_
+1. [x] **Afronden-rem** — samenwerking kan COMPLETED worden met open facturen/geld. **Geborgen 11-6
+       (ZZP2-160, branch `claude/dazzling-carson-v9Qwk`):** pure `cascade/completion.ts`
+       (`hasOpenCollaborationWork`) + guard in de cascade-handler; rondt alleen af als deze betaling het
+       laatste openstaande werk afsluit. **Afgemaakt (ZZP2-163):** ook het HANDMATIGE pad
+       (`changeCollaborationStatus → COMPLETED`) weigert nu afronden bij open geld/onbeoordeeld werk, en
+       `/samenwerkingen` toont de reden i.p.v. een dode "Markeer als afgerond"-knop
+       (`completionBlockReason`). _(geld-correctheid — volledig gedicht)_
 2. [x] **CSV formule-injectie-hardening** — `escapeCsvField` escapet geen `=+-@`-prefixen.
        **Geborgen 11-6 (ZZP2-161, branch `claude/dazzling-carson-v9Qwk`):** voorloopse apostrof voor
        gevaarlijke starttekens in `src/lib/csv.ts` (gewone negatieve getallen uitgezonderd), +12 tests;

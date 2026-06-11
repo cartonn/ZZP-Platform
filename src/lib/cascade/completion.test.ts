@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isInvoiceSettled,
   hasOpenCollaborationWork,
+  completionBlockReason,
   type InvoiceStateSnapshot,
   type OpenWorkSnapshot,
 } from "@/lib/cascade/completion";
@@ -125,5 +126,55 @@ describe("hasOpenCollaborationWork", () => {
         }),
       ),
     ).toBe(true);
+  });
+});
+
+// ─── completionBlockReason ───────────────────────────────────────────────────
+
+describe("completionBlockReason", () => {
+  it("geen open werk → null (afronden mag)", () => {
+    expect(completionBlockReason(snapshot())).toBeNull();
+  });
+
+  it("alleen afgewikkelde facturen → null", () => {
+    expect(
+      completionBlockReason(snapshot({ otherInvoices: [inv("SUBMITTED", "PAID")] })),
+    ).toBeNull();
+  });
+
+  it("één open factuur → enkelvoud-reden over geld", () => {
+    expect(completionBlockReason(snapshot({ otherInvoices: [inv("APPROVED", "APPROVED")] }))).toBe(
+      "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst.",
+    );
+  });
+
+  it("twee open facturen → meervoud-reden over geld", () => {
+    expect(
+      completionBlockReason(
+        snapshot({ otherInvoices: [inv("APPROVED", "APPROVED"), inv("SENT", null)] }),
+      ),
+    ).toBe(
+      "Er staan nog 2 facturen open voor deze samenwerking. Markeer die als betaald of crediteer ze eerst.",
+    );
+  });
+
+  it("geld weegt zwaarder: open factuur + prestatie → reden over de factuur", () => {
+    expect(
+      completionBlockReason(
+        snapshot({ otherInvoices: [inv("APPROVED", "APPROVED")], submittedPerformances: 2 }),
+      ),
+    ).toContain("factuur open");
+  });
+
+  it("één ingediende prestatie zonder open factuur → enkelvoud-reden over prestatie", () => {
+    expect(completionBlockReason(snapshot({ submittedPerformances: 1 }))).toBe(
+      "Er wacht nog 1 ingediende urenstaat of oplevering op goedkeuring. Beoordeel die eerst voordat je de samenwerking afrondt.",
+    );
+  });
+
+  it("meerdere ingediende prestaties zonder open factuur → meervoud-reden", () => {
+    expect(completionBlockReason(snapshot({ submittedPerformances: 3 }))).toBe(
+      "Er wachten nog 3 ingediende urenstaten of opleveringen op goedkeuring. Beoordeel die eerst voordat je de samenwerking afrondt.",
+    );
   });
 });

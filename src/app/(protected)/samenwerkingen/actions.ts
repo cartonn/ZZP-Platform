@@ -9,6 +9,7 @@ import { assertCollaborationTransition, CollaborationTransitionError } from "@/l
 import { assertJobTransition } from "@/lib/jobs";
 import { planReplacement } from "@/lib/replacement";
 import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
+import { completionBlockReason } from "@/lib/cascade/completion";
 import { signContract, CascadeError } from "@/lib/cascade/commands";
 import { type CollaborationStatus, type JobStatus, collaborationStatusSchema } from "@/lib/enums";
 import { collaborationProposalSchema } from "@/lib/validation";
@@ -152,6 +153,21 @@ export async function changeCollaborationStatus(
         "Er staat nog een openstaande factuur voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst.",
       );
     }
+  }
+
+  // Afronden-rem (geld-correctheid): rond geen samenwerking af zolang er nog open geld is (een
+  // niet-afgewikkelde factuur) óf een ingediende prestatie die nog op goedkeuring wacht. Symmetrisch
+  // met de annuleer-rem; server-side de waarheid. Spiegelt de cascade-afronding (confirmPayment).
+  if (targetStatus === "COMPLETED") {
+    const [otherInvoices, submittedPerformances] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { collaborationId },
+        select: { lifecycleStatus: true, status: true },
+      }),
+      prisma.performance.count({ where: { collaborationId, status: "SUBMITTED" } }),
+    ]);
+    const reason = completionBlockReason({ otherInvoices, submittedPerformances });
+    if (reason) throw new Error(reason);
   }
 
   // Herplaatsing bij uitval: een geannuleerde actieve inzet heropent de dienst (indien gesloten)

@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(samenwerkingen): afronden-rem op het handmatige pad + knopweergave (branch `claude/dazzling-carson-v9Qwk`, ZZP2-163)
+
+Maakt bergings-backlog #1 (geld-correctheid) volledig af. De cascade-afronding was al gedicht
+(ZZP2-160, `cascade/completion.ts`), maar het **handmatige** afrondpad miste de rem en bood een
+dode knop. Nu symmetrisch met de annuleer-rem en gevoed uit dezelfde pure module:
+
+- [x] **`src/lib/cascade/completion.ts`** — `completionBlockReason(snapshot)`: NL-reden of `null`
+      (geld eerst: niet-afgewikkelde factuur blokkeert vóór een onbeoordeelde SUBMITTED-prestatie).
+      Tegenhanger van `hasOpenCollaborationWork`, gedeeld door guard + UI. +8 unit-tests.
+- [x] **`samenwerkingen/actions.ts`** — `changeCollaborationStatus` weigert COMPLETED server-side bij
+      open geld/onbeoordeeld werk (factuurstatussen + SUBMITTED-prestaties; server-side waarheid).
+- [x] **`samenwerkingen/page.tsx`** — geen dode "Markeer als afgerond"-knop: bulk-snapshot per
+      zichtbare samenwerking → toont de reden i.p.v. een knop die de server zou weigeren.
+- [x] **`unbounded-queries.test.ts`** — allowlist voor de twee nieuwe (page-/collab-begrensde)
+      findMany's + bijgewerkte regelnummers.
+- Gate groen: typecheck ✓, lint ✓, test 1523 ✓, build ✓, prettier ✓. (E2e niet in routine — geen
+  browser-channel.)
+
+---
+
 ## fix(boekhouding): geen FREELANCER-fallback voor ADMIN/FRANCHISER op /administratie (branch `claude/dazzling-carson-v9Qwk`, ZZP2-162)
 
 Bergings-backlog #3 (rol-fallback boekhouding). `/administratie` bepaalde de grootboekpartij met
