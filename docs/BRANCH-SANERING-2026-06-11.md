@@ -16,12 +16,21 @@ tegen main geverifieerd (drie parallelle zoekagenten, 11-6-2026).
 
 Hoogste prioriteit eerst (correctheid/geld/compliance → UX → nice-to-have):
 
-1. **Afronden-rem** — samenwerking kan COMPLETED worden met open facturen/geld (geen guard in
-   `planPaymentConfirmedEvent`). Branch: `epic-lovelace-t3oe7h`. _(geld-correctheid)_
-2. **CSV formule-injectie-hardening** — `escapeCsvField` escapet geen `=+-@`-prefixen.
-   Branch: `epic-lovelace-gCZVD`. _(security, klein)_
-3. **Rol-fallback boekhouding** — facturatie-pagina's alleen `requireRole("ADMIN")`, FRANCHISER
-   valt buiten de boot. Branch: `epic-lovelace-szz2a3`.
+1. [x] **Afronden-rem** — samenwerking kan COMPLETED worden met open facturen/geld. **Geborgen 11-6
+       (ZZP2-160, branch `claude/dazzling-carson-v9Qwk`):** pure `cascade/completion.ts`
+       (`hasOpenCollaborationWork`) + guard in de cascade-handler; rondt alleen af als deze betaling het
+       laatste openstaande werk afsluit. **Afgemaakt (ZZP2-163):** ook het HANDMATIGE pad
+       (`changeCollaborationStatus → COMPLETED`) weigert nu afronden bij open geld/onbeoordeeld werk, en
+       `/samenwerkingen` toont de reden i.p.v. een dode "Markeer als afgerond"-knop
+       (`completionBlockReason`). _(geld-correctheid — volledig gedicht)_
+2. [x] **CSV formule-injectie-hardening** — `escapeCsvField` escapet geen `=+-@`-prefixen.
+       **Geborgen 11-6 (ZZP2-161, branch `claude/dazzling-carson-v9Qwk`):** voorloopse apostrof voor
+       gevaarlijke starttekens in `src/lib/csv.ts` (gewone negatieve getallen uitgezonderd), +12 tests;
+       beschermt alle exports via de centrale module. _(security, klein)_
+3. [x] **Rol-fallback boekhouding** — `/administratie` viel voor ADMIN/FRANCHISER stil terug op
+       FREELANCER → misleidend leeg ZZP-grootboek. **Gedaan (ZZP2-162, branch
+       `claude/dazzling-carson-v9Qwk`):** pure `administrationPartyForRole` (ADMIN/FRANCHISER→null)
+   - nette empty-state met doorverwijzing. (Was `epic-lovelace-szz2a3`.)
 4. **AVG-verwerkingsregister + bewaartermijnen** (`/admin/avg`) — pre-launch-compliance.
    Branches: `epic-lovelace-J4fj9`, `-PKJLj`.
 5. **KvK-/BTW-formaatvalidatie** — velden bestaan, geen format-/regexcheck. Branch: `-0jOnC`.

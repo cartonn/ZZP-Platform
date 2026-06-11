@@ -398,7 +398,7 @@ export interface PaymentConfirmedCtx {
     totalCents: number;
     partyInvoiceNumber: string | null;
   };
-  collaboration: { id: string; status: CollaborationStatus };
+  collaboration: { id: string; status: CollaborationStatus; hasOtherOpenWork?: boolean };
   freelancerUserId: string;
   clientUserId: string;
   now: Date;
@@ -416,8 +416,10 @@ export function planPaymentConfirmedEvent(ctx: PaymentConfirmedCtx): CascadeEffe
     to: "PAID",
     set: { status: "PAID" }, // spiegel naar de live status zodat de bestaande UI klopt
   });
-  // De samenwerking rondt af zodra de betaling is geregistreerd (idempotent: alleen vanuit ACTIVE).
-  if (ctx.collaboration.status === "ACTIVE") {
+  // De samenwerking rondt alleen af als deze betaling het laatste openstaande werk afsluit:
+  // niet vanuit een andere status dan ACTIVE (idempotent) en niet zolang er nog een andere
+  // openstaande factuur of een onbeoordeelde prestatie is (geld blijft anders los van context).
+  if (ctx.collaboration.status === "ACTIVE" && !ctx.collaboration.hasOtherOpenWork) {
     fx.statusChanges.push({
       entity: "Collaboration",
       id: ctx.collaboration.id,

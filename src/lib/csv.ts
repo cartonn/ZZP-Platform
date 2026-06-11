@@ -105,10 +105,39 @@ export function parseCsvRecords(text: string, delimiter?: CsvDelimiter): string[
 
 // --- Schrijven -------------------------------------------------------------
 
-/** Escapet één veld: quote bij scheidingsteken, dubbele quote of newline; verdubbelt quotes. */
+/** Herkent een gewoon negatief getal (geheel of decimaal met punt of komma). */
+const PLAIN_NEGATIVE = /^-\d+(?:[.,]\d+)?$/;
+
+/**
+ * Bepaalt of een cel een formule-injectie-prefix nodig heeft.
+ * Gevaarlijke starttekens: = + @ \t \r en - (tenzij het een gewoon negatief getal is).
+ */
+function needsFormulaGuard(value: string): boolean {
+  if (value.length === 0) return false;
+  const first = value[0];
+  if (first === "=" || first === "+" || first === "@" || first === "\t" || first === "\r") {
+    return true;
+  }
+  if (first === "-") {
+    // Gewone negatieve getallen (bv. -5, -1016.40, -1016,40) mogen ongewijzigd door.
+    return !PLAIN_NEGATIVE.test(value);
+  }
+  return false;
+}
+
+/**
+ * Escapet één veld voor CSV-uitvoer:
+ * 1. Formule-injectie-beveiliging (CWE-1236): cellen die beginnen met =, +, @, \t, \r of -
+ *    (tenzij een gewoon negatief getal) krijgen een voorloopse apostrof '
+ *    zodat spreadsheet-programma's de inhoud als tekst behandelen.
+ * 2. RFC 4180-quoting: quotet bij scheidingsteken, dubbele quote of newline;
+ *    verdubbelt aanwezige dubbele quotes.
+ * De apostrof wordt BINNEN de quotes geplaatst wanneer quoting nodig is.
+ */
 export function escapeCsvField(value: string, delimiter: CsvDelimiter = ";"): string {
-  const needsQuote = value.includes(delimiter) || /["\n\r]/.test(value);
-  return needsQuote ? `"${value.replace(/"/g, '""')}"` : value;
+  const guarded = needsFormulaGuard(value) ? `'${value}` : value;
+  const needsQuote = guarded.includes(delimiter) || /["\n\r]/.test(guarded);
+  return needsQuote ? `"${guarded.replace(/"/g, '""')}"` : guarded;
 }
 
 /** Bouwt CSV-tekst uit rijen (eerste rij = kop). Velden worden ge-escaped; CRLF tussen rijen. */

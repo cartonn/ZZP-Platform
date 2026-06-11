@@ -5,6 +5,7 @@ import { type Actor } from "@/lib/authz";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { buildPaymentConfirmedEmail } from "@/lib/services/cascade-emails";
 import { planPaymentConfirmedEvent } from "@/lib/cascade/handlers";
+import { hasOpenCollaborationWork } from "@/lib/cascade/completion";
 import { type CollaborationStatus } from "@/lib/enums";
 import { recordTenantFeeForCollaboration } from "@/lib/tenant-billing/record-fee";
 import {
@@ -36,6 +37,19 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
   });
   if (!col) throw new CascadeError("Samenwerking niet gevonden.");
 
+  // Bepaal of deze betaling het laatste openstaande werk afsluit. Andere niet-afgewikkelde
+  // facturen of nog onbeoordeelde prestaties houden de samenwerking ACTIEF (geld-correctheid).
+  const [otherInvoices, submittedPerformances] = await Promise.all([
+    prisma.invoice.findMany({
+      where: { collaborationId: inv.collaborationId, id: { not: invoiceId } },
+      select: { lifecycleStatus: true, status: true },
+    }),
+    prisma.performance.count({
+      where: { collaborationId: inv.collaborationId, status: "SUBMITTED" },
+    }),
+  ]);
+  const hasOtherOpenWork = hasOpenCollaborationWork({ otherInvoices, submittedPerformances });
+
   const effects = planPaymentConfirmedEvent({
     invoice: {
       id: invoiceId,
@@ -45,7 +59,7 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
       totalCents: inv.totalCents,
       partyInvoiceNumber: inv.partyInvoiceNumber,
     },
-    collaboration: { id: col.id, status: col.status as CollaborationStatus },
+    collaboration: { id: col.id, status: col.status as CollaborationStatus, hasOtherOpenWork },
     freelancerUserId: inv.issuerUserId,
     clientUserId: inv.counterpartyUserId,
     now: new Date(),

@@ -5,6 +5,7 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { COLLABORATION_TRANSITIONS } from "@/lib/collaborations";
 import { invoiceableCollaborationsWhere } from "@/lib/invoices";
+import { completionBlockReason } from "@/lib/cascade/completion";
 import { assessCollaborationCredentials, type CredentialAlert } from "@/lib/collaboration-alerts";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
@@ -112,6 +113,33 @@ export default async function SamenwerkingenPage({
     ).map((c) => c.id),
   );
 
+  // Afronden-rem: voor welke samenwerkingen mag "Markeer als afgerond" worden aangeboden? Niet
+  // zolang er nog open geld is (een niet-afgewikkelde factuur) of een ingediende prestatie op
+  // goedkeuring wacht — de server zou de knop anders weigeren. We tonen dan de reden i.p.v. een dode
+  // knop. Server blijft de waarheid (zie changeCollaborationStatus). Bulk-query, geen N+1.
+  const collabIds = collaborations.map((c) => c.id);
+  const [invoiceRows, pendingPerfRows] = await Promise.all([
+    prisma.invoice.findMany({
+      where: { collaborationId: { in: collabIds } },
+      select: { collaborationId: true, lifecycleStatus: true, status: true },
+    }),
+    prisma.performance.groupBy({
+      by: ["collaborationId"],
+      where: { collaborationId: { in: collabIds }, status: "SUBMITTED" },
+      _count: { _all: true },
+    }),
+  ]);
+  const invoicesByCollab = new Map<string, { lifecycleStatus: string | null; status: string }[]>();
+  for (const r of invoiceRows) {
+    if (!r.collaborationId) continue;
+    const list = invoicesByCollab.get(r.collaborationId) ?? [];
+    list.push({ lifecycleStatus: r.lifecycleStatus, status: r.status });
+    invoicesByCollab.set(r.collaborationId, list);
+  }
+  const submittedPerfByCollab = new Map(
+    pendingPerfRows.map((r) => [r.collaborationId, r._count._all]),
+  );
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader title="Samenwerkingen" description="Voorgestelde en lopende samenwerkingen." />
@@ -138,6 +166,10 @@ export default async function SamenwerkingenPage({
             const status = c.status as CollaborationStatus;
             const isClient = c.company.userId === actor.id;
             const counterparty = isClient ? c.freelancer.user.name : c.company.name;
+            const completionBlock = completionBlockReason({
+              otherInvoices: invoicesByCollab.get(c.id) ?? [],
+              submittedPerformances: submittedPerfByCollab.get(c.id) ?? 0,
+            });
 
             const requiredTypes = c.job.credentialRequirements.map(
               (r) => r.credentialType as CredentialType,
@@ -251,17 +283,23 @@ export default async function SamenwerkingenPage({
                         ))}
                       {COLLABORATION_TRANSITIONS[status]
                         .filter((to) => !(status === "PROPOSED" && to === "ACTIVE"))
-                        .map((to) => (
-                          <form key={to} action={changeCollaborationStatus.bind(null, c.id, to)}>
-                            <Button
-                              type="submit"
-                              size="sm"
-                              variant={to === "CANCELLED" ? "destructive" : "secondary"}
-                            >
-                              {ACTION_LABEL[to]}
-                            </Button>
-                          </form>
-                        ))}
+                        .map((to) =>
+                          to === "COMPLETED" && completionBlock ? (
+                            <span key={to} className="text-xs font-medium text-danger">
+                              {completionBlock}
+                            </span>
+                          ) : (
+                            <form key={to} action={changeCollaborationStatus.bind(null, c.id, to)}>
+                              <Button
+                                type="submit"
+                                size="sm"
+                                variant={to === "CANCELLED" ? "destructive" : "secondary"}
+                              >
+                                {ACTION_LABEL[to]}
+                              </Button>
+                            </form>
+                          ),
+                        )}
                       {!isClient && invoiceableIds.has(c.id) && (
                         <Button asChild variant="secondary" size="sm">
                           <Link href="/facturen/nieuw">Factuur opstellen</Link>

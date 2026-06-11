@@ -359,4 +359,26 @@ describe("Event E — planPaymentConfirmedEvent", () => {
     // Default: fee UIT → geen vervolg-events.
     expect(fx.followups).toHaveLength(0);
   });
+
+  it("rondt de samenwerking NIET af zolang er ander openstaand werk is", () => {
+    const fx = planPaymentConfirmedEvent({
+      invoice: {
+        id: "i1",
+        lifecycleStatus: "APPROVED",
+        subtotalCents: 600_00,
+        vatCents: 126_00,
+        totalCents: 726_00,
+        partyInvoiceNumber: "2026-0001",
+      },
+      collaboration: { id: "col1", status: "ACTIVE", hasOtherOpenWork: true },
+      freelancerUserId: "f1",
+      clientUserId: "c1",
+      now,
+      actorId: "f1",
+    });
+    // Factuur wordt nog steeds betaald gemarkeerd...
+    expect(fx.statusChanges.find((s) => s.entity === "Invoice")?.to).toBe("PAID");
+    // ...maar de samenwerking blijft ACTIEF (geen Collaboration-statuswijziging).
+    expect(fx.statusChanges.find((s) => s.entity === "Collaboration")).toBeUndefined();
+  });
 });

@@ -3,6 +3,87 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(samenwerkingen): afronden-rem op het handmatige pad + knopweergave (branch `claude/dazzling-carson-v9Qwk`, ZZP2-163)
+
+Maakt bergings-backlog #1 (geld-correctheid) volledig af. De cascade-afronding was al gedicht
+(ZZP2-160, `cascade/completion.ts`), maar het **handmatige** afrondpad miste de rem en bood een
+dode knop. Nu symmetrisch met de annuleer-rem en gevoed uit dezelfde pure module:
+
+- [x] **`src/lib/cascade/completion.ts`** — `completionBlockReason(snapshot)`: NL-reden of `null`
+      (geld eerst: niet-afgewikkelde factuur blokkeert vóór een onbeoordeelde SUBMITTED-prestatie).
+      Tegenhanger van `hasOpenCollaborationWork`, gedeeld door guard + UI. +8 unit-tests.
+- [x] **`samenwerkingen/actions.ts`** — `changeCollaborationStatus` weigert COMPLETED server-side bij
+      open geld/onbeoordeeld werk (factuurstatussen + SUBMITTED-prestaties; server-side waarheid).
+- [x] **`samenwerkingen/page.tsx`** — geen dode "Markeer als afgerond"-knop: bulk-snapshot per
+      zichtbare samenwerking → toont de reden i.p.v. een knop die de server zou weigeren.
+- [x] **`unbounded-queries.test.ts`** — allowlist voor de twee nieuwe (page-/collab-begrensde)
+      findMany's + bijgewerkte regelnummers.
+- Gate groen: typecheck ✓, lint ✓, test 1523 ✓, build ✓, prettier ✓. (E2e niet in routine — geen
+  browser-channel.)
+
+---
+
+## fix(boekhouding): geen FREELANCER-fallback voor ADMIN/FRANCHISER op /administratie (branch `claude/dazzling-carson-v9Qwk`, ZZP2-162)
+
+Bergings-backlog #3 (rol-fallback boekhouding). `/administratie` bepaalde de grootboekpartij met
+een stille fallback (`actor.role === "CLIENT" ? "CLIENT" : "FREELANCER"`): ADMIN en FRANCHISER
+kregen daardoor een lege ZZP-administratie met labels (omzet, af te dragen BTW) die voor hun rol
+niet kloppen. Een franchisenemer heeft geen persoonlijke debiteuren-/crediteurenadministratie;
+een admin gebruikt het platform-brede overzicht.
+
+- [x] **`src/lib/administration/overview.ts`** — pure `administrationPartyForRole(role)`:
+      FREELANCER→FREELANCER, CLIENT→CLIENT, ADMIN/FRANCHISER→null (+ type `PersonalLedgerParty`).
+- [x] **`src/app/(protected)/administratie/page.tsx`** — bij `null` een nette empty-state:
+      admin → link naar `/admin/administratie`, overige rollen → dashboard. Geen misleidend grootboek.
+- [x] **Tests** — `overview.test.ts` +3 (FREELANCER/CLIENT/ADMIN/FRANCHISER); allowlist-regel
+      voor de eigenaar-scoped `administrationEntry.findMany` bijgewerkt naar de nieuwe regel.
+- Gate groen: typecheck ✓, lint ✓, test 1516 ✓, build ✓, prettier ✓. (e2e niet gedraaid —
+  geen browser-channel in de routine.)
+
+---
+
+## fix(csv): hard tegen formule-injectie (CWE-1236) in CSV-export (branch `claude/dazzling-carson-v9Qwk`, ZZP2-161)
+
+Bergings-backlog #2 (security, klein). `escapeCsvField` quotete velden bij scheidingsteken/
+quote/newline, maar beschermde niet tegen formule-injectie: een cel die met `=`/`+`/`-`/`@`/
+tab/CR begint kan door Excel/LibreOffice/Sheets als formule worden uitgevoerd. Exportwaarden
+komen deels uit gebruikersinvoer (namen, bedrijfsnamen, omschrijvingen).
+
+- [x] **`src/lib/csv.ts`** — `needsFormulaGuard(value)` herkent gevaarlijke starttekens
+      (`= + @ \t \r`, en `-` tenzij een gewoon negatief getal via `PLAIN_NEGATIVE`); cellen
+      krijgen een voorloopse apostrof `'` (binnen de quotes wanneer quoting nodig is).
+      Fix in de centrale module ⇒ alle exports (grootboek, BTW, aging, diensten, onboarding)
+      zijn in één keer beschermd. RFC 4180-quoting blijft intact.
+- [x] **`src/lib/csv.test.ts`** — +12 tests: elk gevaarlijk startteken, `=HYPERLINK`-payload,
+      negatief-getal-uitzonderingen (`-5`, `-1016.40`, `-1016,40`), `a=b` ongemoeid, gemengde rij.
+- Gates groen: typecheck ✓, lint ✓, test 1513 ✓, build ✓, prettier ✓. (e2e overgeslagen —
+  routine zonder browser-channel.)
+
+---
+
+## fix(cascade): afronden-rem — geen COMPLETED-samenwerking met openstaand geld (branch `claude/dazzling-carson-v9Qwk`, ZZP2-160)
+
+Bergings-backlog #1 (geld-correctheid). `planPaymentConfirmedEvent` zette een samenwerking
+onvoorwaardelijk op COMPLETED zodra één factuur betaald werd — ook als er nog andere
+niet-afgewikkelde facturen of onbeoordeelde prestaties open stonden, waardoor dat geld/werk
+los van zijn context achterbleef.
+
+- [x] **`src/lib/cascade/completion.ts`** — pure, DB-loze helper: `isInvoiceSettled`
+      (cascade PAID/PROCESSED/CREDITED of legacy PAID/CANCELLED = afgewikkeld) +
+      `hasOpenCollaborationWork(snapshot)` (open zodra een SUBMITTED-prestatie of een
+      niet-afgewikkelde andere factuur bestaat). +21 unit-tests (`completion.test.ts`).
+- [x] **`src/lib/cascade/handlers.ts`** — `PaymentConfirmedCtx.collaboration` kreeg optioneel
+      `hasOtherOpenWork`; afrond-conditie is nu `status === "ACTIVE" && !hasOtherOpenWork`.
+      +1 handler-test (afronding tegengehouden bij openstaand werk).
+- [x] **`src/lib/cascade/payment-commands.ts`** — `confirmPayment` berekent server-side de
+      snapshot (andere facturen + SUBMITTED-prestaties van de samenwerking) en geeft
+      `hasOtherOpenWork` door. De factuur wordt nog steeds betaald gemarkeerd; alleen de
+      automatische afronding wacht tot het laatste openstaande werk weg is.
+- Gates groen: typecheck ✓, lint ✓, test 1493 ✓, build ✓, prettier ✓. (e2e overgeslagen —
+  routine zonder browser-channel.)
+
+---
+
 ## feat(notificaties): e-mailvoorkeuren per categorie (opt-out) — geborgen + uitgebreid (branch `feat/email-voorkeuren`)
 
 Geborgen van routine-branch `epic-lovelace-2fRim` (1 juni, nooit als PR geopend; zie
@@ -19,6 +100,29 @@ actuele main, en uitgebreid:
       alsnog één digest over de achterstand krijgt; +1 runner-test
 - [x] Preferences-tests bijgewerkt 4 → 5 categorieën (incl. schema-cases)
 - Gates groen: typecheck ✓, lint ✓, test 1471 ✓, build ✓, prettier ✓
+
+---
+
+## feat(samenwerkingen): herplaatsing bij uitval (branch `claude/dazzling-carson-v9Qwk`, ZZP2-158)
+
+Concurrentie-backlog ronde 2, laatste open BOUWEN-item ("SOS" à la Zorgwerk/ZZP-Markt): bij
+annulering van een **actieve** samenwerking helpt het platform de opdrachtgever de dienst direct
+opnieuw in te vullen. De openstaande-factuur-veiligheidsrem in de cancel-actie bleef ongewijzigd.
+
+- [x] **`src/lib/replacement.ts`** (+ `replacement.test.ts`, 8 tests) — pure `planReplacement({ from, to, jobStatus })`:
+      alleen `ACTIVE→CANCELLED` handelt; CLOSED→heropenen (PUBLISHED) + signaal, PUBLISHED→alleen signaal,
+      DRAFT→niets (respecteert een bewust gedepubliceerde dienst). Alle andere overgangen = leeg plan.
+- [x] **`src/app/(protected)/samenwerkingen/actions.ts`** — `changeCollaborationStatus` heropent de dienst
+      (via `assertJobTransition`, defense-in-depth) + notificeert de opdrachtgever (`COLLABORATION_REPLACEMENT`) + audit (`JOB_REOPENED_FOR_REPLACEMENT`, `COLLABORATION_REPLACEMENT_OPENED`), atomair in de bestaande
+      `$transaction`. Veiligheidsrem (openstaande factuur blokkeert annuleren) staat ervóór en blijft intact.
+- [x] **`src/components/collaborations/replacement-panel.tsx`** — rustige "Herplaatsing"-kaart met passende,
+      beschikbare ZZP'ers (TrustBadge/AvailabilityBadge/ComplianceBadge + "Bericht sturen" via
+      `startConversationWithFreelancer`) of nette lege staat met link naar de opdracht.
+- [x] **`src/app/(protected)/samenwerkingen/[id]/page.tsx`** — panel getoond aan de opdrachtgever bij een
+      geannuleerde samenwerking; `suggestedFreelancersForJob` (leeg zodra de dienst niet PUBLISHED is).
+- [x] **`src/lib/audit-labels.ts`** + **`src/lib/notifications.ts`** — nieuwe labels + notificatiecategorie.
+- Gate groen: typecheck ✓, lint ✓, test 1479 ✓ (+8, na rebase op main), build ✓, prettier ✓. (E2e:
+  geen browser-channel in de routine — overgeslagen, net als in CI.)
 
 ---
 

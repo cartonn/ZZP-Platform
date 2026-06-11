@@ -3,6 +3,22 @@
 // (AdministrationEntry). Integer-centen; exporteerbaar/herleidbaar (de UI/exports bouwen hierop).
 
 import { type LedgerAccount, type LedgerParty } from "@/lib/administration/ledger";
+import { type UserRole } from "@/lib/enums";
+
+/** De grootboekpartij van de persoonlijke boekhouding (geen PLATFORM). */
+export type PersonalLedgerParty = Extract<LedgerParty, "FREELANCER" | "CLIENT">;
+
+/**
+ * Welke grootboekpartij hoort bij een rol op de persoonlijke boekhouding (`/administratie`).
+ * Alleen FREELANCER en CLIENT hebben een eigen cascade-grootboek. ADMIN en FRANCHISER niet:
+ * een admin gebruikt het platform-brede overzicht (`/admin/administratie`), een franchisenemer
+ * heeft geen persoonlijke debiteuren-/crediteurenadministratie. Voor die rollen → `null`.
+ */
+export function administrationPartyForRole(role: UserRole): PersonalLedgerParty | null {
+  if (role === "FREELANCER") return "FREELANCER";
+  if (role === "CLIENT") return "CLIENT";
+  return null;
+}
 
 export interface LedgerEntry {
   party: LedgerParty;

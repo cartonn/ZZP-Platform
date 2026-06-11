@@ -166,10 +166,11 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
 0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`
-   (geverifieerde gaten, hoogste prioriteit eerst): afronden-rem (COMPLETED met open geld),
-   CSV-formule-injectie-hardening, rol-fallback boekhouding FRANCHISER, AVG-verwerkingsregister
-   (/admin/avg, pre-launch), KvK-/BTW-formaatvalidatie, beschikbaarheidsconflicten,
-   CLIENT-dashboard "wat kan ik oppakken", tweezijdige beoordelingen, iCal-export, e.v.
+   (geverifieerde gaten, hoogste prioriteit eerst). Gedaan: ~~afronden-rem~~ (ZZP2-160),
+   ~~CSV-formule-injectie-hardening~~ (ZZP2-161), ~~rol-fallback boekhouding~~ (ZZP2-162).
+   Volgende open: AVG-verwerkingsregister (/admin/avg, pre-launch), KvK-/BTW-formaatvalidatie,
+   beschikbaarheidsconflicten, CLIENT-dashboard "wat kan ik oppakken", tweezijdige beoordelingen,
+   iCal-export, e.v.
    Bergen = cherry-pick vanaf de bewaarde branch op verse main (zoals #318) of vers bouwen.
 1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
    routines, doe in een interactieve sessie mét browser-channel.
@@ -194,7 +195,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening,
 > admin DBA-risico-overzicht (/admin/dba: geconsolideerd, gesorteerd, filterbaar; dba-overview.ts + test),
 > notificatie-voorkeuren (/account/notificaties: e-mailherinneringen per categorie aan/uit, opt-out-model,
-> NotificationPreference-model, gating in de 4 reminder-taakrunners — ZZP2-41).
+> NotificationPreference-model, gating in de 4 reminder-taakrunners — ZZP2-41),
+> herplaatsing bij uitval (ZZP2-158: geannuleerde actieve inzet heropent de dienst + ReplacementPanel met
+> vervangers op de samenwerking-detailpagina; replacement.ts + test — sluit de COMPETITORS.md ronde-2
+> BOUWEN-backlog volledig af).
 
 ### Gap-analyse (Fase 0)
 

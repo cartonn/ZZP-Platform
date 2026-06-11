@@ -43,6 +43,7 @@ const META: Record<string, NotificationMeta> = {
   CREDENTIAL_EXPIRING: { category: "credential", tone: "info" },
   COLLABORATION_PROPOSED: { category: "collaboration", tone: "info" },
   COLLABORATION_STATUS: { category: "collaboration", tone: "info" },
+  COLLABORATION_REPLACEMENT: { category: "collaboration", tone: "attention" },
   IDEA_STATUS: { category: "idea", tone: "info" },
   IDEA_COMMENT: { category: "idea", tone: "info" },
   VAT_REMINDER: { category: "system", tone: "info" },
