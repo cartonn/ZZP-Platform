@@ -5,7 +5,7 @@
 
 ## HANDOFF — operationele stand (lees dit eerst)
 
-- **Live:** test-URL `zzp-platform-production-be07.up.railway.app`. Demo-accounts (wachtwoord
+- **Live:** test-URL `zzp-platform-production-ba07.up.railway.app`. Demo-accounts (wachtwoord
   `demo1234`): `opdrachtgever@`, `zzp@` (Sanne), `admin@zzp-platform.local`.
 - **Deploy:** Railway bouwt/deployt de **default branch `main`** automatisch (Dockerfile).
   `scripts/start.mjs` doet bij elke boot `prisma db push` + **seed (idempotent)** → de rijke demo-
