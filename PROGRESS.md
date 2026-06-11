@@ -3,6 +3,21 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(design): Vakwerk fase 2 — held-kaart + rustiger identiteit (branch `feat/vakwerk-fase2`)
+
+Missie C fase 2 (cherry-picks 8840e36 + aa5719a van de ontwerpbranch, op actuele main):
+
+- [x] **TaskHero** in `action-list.tsx` — de hoogst-gerankte taak als toon-getint held-vlak met
+      icoonblok en dezelfde inline-resolver; de rest blijft compacte rijen
+- [x] **Rustiger identiteit** — badges alleen als ze iets signaleren (beschikbaar/compliant is de
+      norm), MatchMeter + mono-percentage i.p.v. drie badges, zachter pastel, palette-switcher
+      verwijderd (één identiteit), theme.ts vereenvoudigd
+- [x] Vangrail-allowlist hernummerd (dashboard-regel)
+- [x] Visueel geverifieerd op lokale prod-server (login → dashboard, nul console-errors)
+- Gates groen: typecheck ✓, lint ✓, test 1545 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(security): CSP-nonce-pipeline — productie zonder 'unsafe-inline' voor scripts (branch `feat/csp-nonce`)
 
 Missie A (prompts/MISSIE-PRODUCTIE-KLAAR.md): de laatste grote pre-prod security-hardening in code.
