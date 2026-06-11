@@ -3,6 +3,20 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(ux): PendingSubmitButton — geen enkele werkproces-knop hangt nog eeuwig (branch `feat/pending-submit-watchdog`)
+
+Generalisatie van de JobStatusButton-watchdog (issue #329-leerpunt):
+
+- [x] `src/components/ui/pending-submit-button.tsx` — submit-knop met `useFormStatus`-pending +
+      watchdog: geen response binnen 5s → harde refresh (verse GET = werkelijke status)
+- [x] Alle 10 submit-knoppen op `/samenwerkingen/[id]` (goed-/afkeuren, factuur indienen/
+      goedkeuren/afkeuren, betaling, crediteren, dispuut openen/oplossen, contract) omgezet
+- [x] Command-level-repro bevestigt: rejectPerformance werkt foutloos — het afkeuren-e2e-pad
+      blijft een prod-form-nuance binnen #329; CI-skip blijft met verwijzing
+- Gates groen: typecheck ✓, lint ✓, tests ✓, build ✓, prettier ✓
+
+---
+
 ## fix(ux): statusknop kan niet meer eeuwig hangen — watchdog + redirect (issue #329, branch `fix/329-werkende-statusknop`)
 
 Diepe debugsessie op de prod-only hang van server-action-responses (#329):
