@@ -24,8 +24,10 @@ Hoogste prioriteit eerst (correctheid/geld/compliance → UX → nice-to-have):
        **Geborgen 11-6 (ZZP2-161, branch `claude/dazzling-carson-v9Qwk`):** voorloopse apostrof voor
        gevaarlijke starttekens in `src/lib/csv.ts` (gewone negatieve getallen uitgezonderd), +12 tests;
        beschermt alle exports via de centrale module. _(security, klein)_
-3. **Rol-fallback boekhouding** — facturatie-pagina's alleen `requireRole("ADMIN")`, FRANCHISER
-   valt buiten de boot. Branch: `epic-lovelace-szz2a3`.
+3. [x] **Rol-fallback boekhouding** — `/administratie` viel voor ADMIN/FRANCHISER stil terug op
+       FREELANCER → misleidend leeg ZZP-grootboek. **Gedaan (ZZP2-162, branch
+       `claude/dazzling-carson-v9Qwk`):** pure `administrationPartyForRole` (ADMIN/FRANCHISER→null)
+   - nette empty-state met doorverwijzing. (Was `epic-lovelace-szz2a3`.)
 4. **AVG-verwerkingsregister + bewaartermijnen** (`/admin/avg`) — pre-launch-compliance.
    Branches: `epic-lovelace-J4fj9`, `-PKJLj`.
 5. **KvK-/BTW-formaatvalidatie** — velden bestaan, geen format-/regexcheck. Branch: `-0jOnC`.

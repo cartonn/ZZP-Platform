@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(boekhouding): geen FREELANCER-fallback voor ADMIN/FRANCHISER op /administratie (branch `claude/dazzling-carson-v9Qwk`, ZZP2-162)
+
+Bergings-backlog #3 (rol-fallback boekhouding). `/administratie` bepaalde de grootboekpartij met
+een stille fallback (`actor.role === "CLIENT" ? "CLIENT" : "FREELANCER"`): ADMIN en FRANCHISER
+kregen daardoor een lege ZZP-administratie met labels (omzet, af te dragen BTW) die voor hun rol
+niet kloppen. Een franchisenemer heeft geen persoonlijke debiteuren-/crediteurenadministratie;
+een admin gebruikt het platform-brede overzicht.
+
+- [x] **`src/lib/administration/overview.ts`** — pure `administrationPartyForRole(role)`:
+      FREELANCER→FREELANCER, CLIENT→CLIENT, ADMIN/FRANCHISER→null (+ type `PersonalLedgerParty`).
+- [x] **`src/app/(protected)/administratie/page.tsx`** — bij `null` een nette empty-state:
+      admin → link naar `/admin/administratie`, overige rollen → dashboard. Geen misleidend grootboek.
+- [x] **Tests** — `overview.test.ts` +3 (FREELANCER/CLIENT/ADMIN/FRANCHISER); allowlist-regel
+      voor de eigenaar-scoped `administrationEntry.findMany` bijgewerkt naar de nieuwe regel.
+- Gate groen: typecheck ✓, lint ✓, test 1516 ✓, build ✓, prettier ✓. (e2e niet gedraaid —
+  geen browser-channel in de routine.)
+
+---
+
 ## fix(csv): hard tegen formule-injectie (CWE-1236) in CSV-export (branch `claude/dazzling-carson-v9Qwk`, ZZP2-161)
 
 Bergings-backlog #2 (security, klein). `escapeCsvField` quotete velden bij scheidingsteken/

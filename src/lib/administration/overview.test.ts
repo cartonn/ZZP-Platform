@@ -15,8 +15,24 @@ import {
   revenueCents,
   costCents,
   annualSummary,
+  administrationPartyForRole,
   type LedgerEntry,
 } from "@/lib/administration/overview";
+
+describe("administrationPartyForRole", () => {
+  it("mapt FREELANCER en CLIENT op hun eigen grootboekpartij", () => {
+    expect(administrationPartyForRole("FREELANCER")).toBe("FREELANCER");
+    expect(administrationPartyForRole("CLIENT")).toBe("CLIENT");
+  });
+
+  it("geeft null voor ADMIN (geen eigen boekhouding; gebruikt het platform-overzicht)", () => {
+    expect(administrationPartyForRole("ADMIN")).toBeNull();
+  });
+
+  it("geeft null voor FRANCHISER (geen persoonlijke debiteuren-/crediteurenadministratie)", () => {
+    expect(administrationPartyForRole("FRANCHISER")).toBeNull();
+  });
+});
 
 const vat = computeVat(600_00, "STANDARD_HIGH");
 const fin: InvoiceFinancials = {

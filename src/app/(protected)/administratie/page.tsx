@@ -1,5 +1,5 @@
 import { type Metadata } from "next";
-import { Receipt, Lock } from "lucide-react";
+import { Receipt, Lock, Landmark } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { userHasEntitlement } from "@/lib/entitlement-guard";
 import { prisma } from "@/lib/db";
@@ -11,6 +11,7 @@ import {
   openPayablesCents,
   revenueCents,
   annualSummary,
+  administrationPartyForRole,
   type LedgerEntry,
 } from "@/lib/administration/overview";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,8 +42,37 @@ export default async function AdministratiePage() {
     );
   }
 
-  // Admin heeft geen eigen administratie (alleen ZZP'er/opdrachtgever); toon dan leeg.
-  const party: LedgerParty = actor.role === "CLIENT" ? "CLIENT" : "FREELANCER";
+  // Alleen ZZP'er/opdrachtgever hebben een eigen grootboek. ADMIN gebruikt het platform-brede
+  // overzicht (/admin/administratie); een franchisenemer heeft geen persoonlijke administratie.
+  const party = administrationPartyForRole(actor.role);
+  if (!party) {
+    const isAdmin = actor.role === "ADMIN";
+    return (
+      <div className="mx-auto max-w-2xl space-y-6">
+        <PageHeader
+          title="Boekhouding"
+          description="Persoonlijke boekhouding is er voor ZZP'ers en opdrachtgevers."
+        />
+        <Card>
+          <EmptyState
+            icon={Landmark}
+            title="Geen persoonlijke boekhouding voor deze rol"
+            description={
+              isAdmin
+                ? "Als beheerder heb je geen eigen grootboek. Het platform-brede overzicht (grootboek, btw per kwartaal en debiteuren/crediteuren) staat onder Beheer."
+                : "Deze rol heeft geen eigen debiteuren-/crediteurenadministratie."
+            }
+            action={
+              isAdmin
+                ? { label: "Naar platform-administratie", href: "/admin/administratie" }
+                : { label: "Naar dashboard", href: "/dashboard" }
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
   const year = new Date().getFullYear();
 
   const rows = await prisma.administrationEntry.findMany({ where: { ownerUserId: actor.id } });
