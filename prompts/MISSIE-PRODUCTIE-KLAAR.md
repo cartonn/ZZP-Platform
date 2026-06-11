@@ -49,7 +49,7 @@ ADR-0007, docs/PLAN-WERELDKLASSE.md, docs/ontwerpen/\*.html).
 
 - [x] Afronden-rem (geen COMPLETED met open geld) · [x] CSV-formule-injectie ·
       [x] academie↔vertrouwen
-- [ ] FRANCHiser-fallback boekhouding · [ ] AVG-verwerkingsregister `/admin/avg` ·
+- [x] FRANCHISER/ADMIN-fallback boekhouding · [ ] AVG-verwerkingsregister `/admin/avg` ·
       [ ] KvK-/BTW-formaatvalidatie · [ ] beschikbaarheidsconflicten · [ ] CLIENT-dashboard
       "wat kan ik oppakken" · [ ] tweezijdige beoordelingen · [ ] iCal-export ·
       [ ] dispuut-triage-prioriteit

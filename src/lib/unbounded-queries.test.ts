@@ -38,7 +38,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // voor saldo/btw-berekening (paginatie niet zinvol hier).
   {
     file: "(protected)/administratie/page.tsx",
-    line: 78,
+    line: 77,
     reason: "volledig financieel overzicht vereist alle regels van eigenaar",
   },
 
