@@ -35,7 +35,8 @@ ADR-0007, docs/PLAN-WERELDKLASSE.md, docs/ontwerpen/\*.html).
 
 - [x] Fase 1: tokens + fonts + signatuurcomponenten geland (cherry-pick af71fb4, pagina's
       bewust op main-versie gehouden; visueel geverifieerd licht + donker)
-- [ ] Fase 2: dashboard held-kaart + stat-cards + warm licht palet (Honing) als default
+- [x] Fase 2: held-kaart (TaskHero) + rustiger identiteit (stillere badges, MatchMeter,
+      één palet) — eigenaarskeuze uit de ontwerpbranch gevolgd (zacht pastel i.p.v. Honing)
 - [ ] Fase 3: werkproces-/samenwerkingenpagina (cascade-stepper, turn-banner)
 - [ ] Fase 4: overige schermen + dark-mode-pariteit + palette-switcher
 - Regels: DESIGN.md is canoniek; nul dode knoppen; loading/error/empty overal; geen

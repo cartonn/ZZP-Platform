@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 
-// Verifieert het 3-thema systeem (Standaard / Bloei / Elektrisch Blauw) × light/dark als gebruiker.
-// Zelfstandig (geen gedeelde helper) zodat deze spec los van andere QA-PR's draait.
+// Verifieert licht/donker als gebruikerskeuze. Het vroegere palette-systeem
+// (3 kleurschema's) is bewust verwijderd: één identiteit — zie ADR 0007.
 
 const SHOTS = path.join("e2e", "qa", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -16,41 +16,25 @@ async function login(page: Page, email: string) {
   await page.waitForURL("**/dashboard");
 }
 
-test.describe("QA: Kleurschema's + dark mode", () => {
-  test("login-pagina toont palettekiezer met 3 opties", async ({ page }) => {
+test.describe("QA: Licht/donker thema", () => {
+  test("er is geen palettekiezer meer (één identiteit)", async ({ page }) => {
     await page.goto("/login");
-    const group = page.getByRole("radiogroup", { name: "Kleurschema" });
-    await expect(group).toBeVisible();
-    await expect(group.getByRole("radio")).toHaveCount(3);
-    await shot(page, "themes-login-switcher");
+    await expect(page.getByRole("radiogroup", { name: "Kleurschema" })).toHaveCount(0);
+    await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
   });
 
-  test("palettekeuze wijzigt data-theme en blijft behouden na reload", async ({ page }) => {
+  test("donkere modus schakelt en blijft behouden na reload", async ({ page }) => {
     await login(page, "zzp@zzp-platform.local");
 
-    await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
-
-    await page.getByRole("radio", { name: "Kleurschema Bloei" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "bloei");
-    await shot(page, "themes-bloei");
-
-    await page.getByRole("radio", { name: "Kleurschema Elektrisch Blauw" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "elektrisch-blauw");
-    await shot(page, "themes-elektrisch");
+    await page.getByRole("button", { name: "Schakel naar donkere modus" }).click();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+    await shot(page, "themes-donker");
 
     await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "elektrisch-blauw");
-
-    await page.getByRole("radio", { name: "Kleurschema Standaard" }).click();
-    await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
-  });
-
-  test("kleurschema en dark mode zijn onafhankelijk combineerbaar", async ({ page }) => {
-    await login(page, "zzp@zzp-platform.local");
-    await page.getByRole("radio", { name: "Kleurschema Bloei" }).click();
-    await page.getByRole("button", { name: "Schakel naar donkere modus" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "bloei");
     await expect(page.locator("html")).toHaveClass(/dark/);
-    await shot(page, "themes-bloei-dark");
+
+    await page.getByRole("button", { name: "Schakel naar lichte modus" }).click();
+    await expect(page.locator("html")).not.toHaveClass(/dark/);
+    await shot(page, "themes-licht");
   });
 });

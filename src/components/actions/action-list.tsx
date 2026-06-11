@@ -136,6 +136,53 @@ function Resolver({
   }
 }
 
+/** Tint per toon voor de held-kaart (eerste actie op het dashboard). */
+const HERO_BG: Record<TaskTone, string> = {
+  attention: "bg-warning/10",
+  info: "bg-accent/50",
+  success: "bg-success/10",
+};
+
+/**
+ * Held-weergave van de meest urgente taak (DESIGN.md §7 — "aan zet"-principe): toon-getint
+ * vlak, icoon in een omkaderd blok, zelfde Resolver als de rijen zodat inline afhandelen
+ * (one-click / drawer) identiek blijft werken.
+ */
+export function TaskHero({
+  task,
+  drawerData,
+}: {
+  task: PendingTask;
+  drawerData?: Record<string, DrawerData>;
+}) {
+  const { Icon, className } = TONE[task.tone];
+  return (
+    <div
+      id={task.id}
+      className={cn(
+        "flex flex-wrap items-center gap-4 border-b border-border px-5 py-4",
+        HERO_BG[task.tone],
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card",
+          className,
+        )}
+      >
+        <Icon className="size-5" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1 basis-56">
+        <p className="font-medium leading-snug">{task.title}</p>
+        {task.subtitle ? <p className="text-sm text-muted-foreground">{task.subtitle}</p> : null}
+      </div>
+      <div className="shrink-0">
+        <Resolver task={task} drawerData={drawerData} />
+      </div>
+    </div>
+  );
+}
+
 /** De kale rijen (zonder Card-omhulsel), zodat ze ook binnen een dashboard-zone passen. */
 export function TaskRows({
   tasks,

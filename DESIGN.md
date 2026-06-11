@@ -33,34 +33,32 @@ thema's zonder wijziging.
 ## 2. Kleur (tokens)
 
 Alle kleuren zijn **HSL-triples in CSS-variabelen** (`hsl(var(--token))`), zodat één set semantische
-namen op light/dark × 3 palettes draait. **Nooit hardcoded hex in componenten** — gebruik de
+namen in licht én donker draait. **Nooit hardcoded hex in componenten** — gebruik de
 semantische token via Tailwind (`bg-primary`, `text-muted-foreground`, …).
 
 ### Semantische tokens (standaard-palette "Vakwerk", light)
 
 | Token                                | HSL                           | Rol                              |
 | ------------------------------------ | ----------------------------- | -------------------------------- |
-| `--background`                       | `214 60% 96%`                 | pastelblauw papier (canvas)      |
+| `--background`                       | `216 42% 97%`                 | pastelblauw papier (canvas)      |
 | `--foreground`                       | `228 20% 11%`                 | inkt (hoofdtekst)                |
-| `--muted`                            | `216 38% 92%`                 | subtiel vlak / hover             |
+| `--muted`                            | `217 32% 93%`                 | subtiel vlak / hover             |
 | `--muted-foreground`                 | `226 12% 40%`                 | subtekst (AA-veilig)             |
 | `--card`                             | `0 0% 100%`                   | wit vel (kaartvlak)              |
-| `--border` / `--input`               | `218 30% 87%` / `218 30% 84%` | randen / invoerranden            |
+| `--border` / `--input`               | `218 24% 89%` / `218 24% 86%` | randen / invoerranden            |
 | `--ring`                             | `234 71% 48%`                 | focus-ring (merkkleur)           |
 | `--primary` / `--primary-foreground` | `234 71% 45%` / `0 0% 100%`   | klein-blauw CTA / tekst erop     |
-| `--accent` / `--accent-foreground`   | `230 70% 94%` / `234 60% 38%` | merk-tint-vlak / tekst           |
+| `--accent` / `--accent-foreground`   | `231 56% 95%` / `234 60% 38%` | merk-tint-vlak / tekst           |
 | `--success`                          | `155 75% 27%`                 | zegelgroen — geverifieerd/actief |
 | `--warning`                          | `36 90% 36%`                  | let op / verloopt                |
 | `--danger`                           | `0 64% 44%`                   | fout / destructief               |
 | `--radius`                           | `0.75rem`                     | basis-afronding                  |
 
-### Palettes (orthogonaal aan light/dark, via `data-theme` op `<html>`)
+### Eén palet, twee modi
 
-Dezelfde tokennamen, dus geen component verandert.
-
-- **standaard ("Vakwerk")** — pastelblauw papier + klein-blauw + zegelgroen. Hét merk.
-- **bloei** — kalme navy-slate op warme off-white (naar bloomintranet.com). `--radius: 0.75rem`.
-- **elektrisch-blauw** — navy fundament + elektrisch-blauwe signatuur `#0066FF` (naar capisoft.nl).
+Er is **één identiteit** (Vakwerk) in licht en donker; het vroegere keuzepaletten-systeem
+(bloei / elektrisch-blauw + PaletteSwitcher) is bewust verwijderd — een merk wissel je niet
+per gebruiker (ADR 0007). Donker is een gebruikerskeuze via de ThemeToggle.
 
 Contrast is **WCAG AA**-geverifieerd (fg/bg, kaart, subtekst, knop, accent, rand).
 

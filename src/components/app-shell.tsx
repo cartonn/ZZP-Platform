@@ -7,7 +7,6 @@ import { SidebarNav } from "@/components/sidebar-nav";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SkipLink } from "@/components/ui/skip-link";
-import { PaletteSwitcher } from "@/components/ui/palette-switcher";
 import { SearchTrigger } from "@/components/search/search-trigger";
 import { CommandPalette } from "@/components/search/command-palette";
 import { navForRole, ROLE_LABEL } from "@/lib/nav";
@@ -91,10 +90,6 @@ export async function AppShell({
           </div>
           <div className="ml-auto flex items-center gap-3">
             <SearchTrigger />
-            {/* Cosmetische schemakiezer: niet op de smalle mobiele header (vreet ruimte). */}
-            <div className="hidden md:flex">
-              <PaletteSwitcher />
-            </div>
             <ThemeToggle />
             <Link
               href="/notificaties"
