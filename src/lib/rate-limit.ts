@@ -174,3 +174,43 @@ export const credentialVerifyRateLimiter = new RateLimiter(
   limitFromEnv("CREDENTIAL_VERIFY_RATE_LIMIT", 10),
   60 * 60_000,
 );
+
+/**
+ * Maximaal MESSAGE_RATE_LIMIT (default 30) berichten per gebruiker per 5 minuten. Spam-rem op
+ * het 1-op-1-kanaal; ruim boven normaal gebruik, maar stopt scripts en plak-loops.
+ */
+export const messageRateLimiter = new RateLimiter(
+  new MemoryRateLimitStore(),
+  limitFromEnv("MESSAGE_RATE_LIMIT", 30),
+  5 * 60_000,
+);
+
+/**
+ * Maximaal APPLICATION_RATE_LIMIT (default 10) reacties op opdrachten per ZZP'er per uur.
+ * Begrenst massa-reageren (spam richting opdrachtgevers) zonder serieus gebruik te hinderen.
+ */
+export const applicationRateLimiter = new RateLimiter(
+  new MemoryRateLimitStore(),
+  limitFromEnv("APPLICATION_RATE_LIMIT", 10),
+  60 * 60_000,
+);
+
+/**
+ * Maximaal UPLOAD_RATE_LIMIT (default 20) document-uploads per gebruiker per uur. Begrenst
+ * storage-vulling en misbruik van de upload-pijplijn; validatie per bestand blijft leidend.
+ */
+export const uploadRateLimiter = new RateLimiter(
+  new MemoryRateLimitStore(),
+  limitFromEnv("UPLOAD_RATE_LIMIT", 20),
+  60 * 60_000,
+);
+
+/**
+ * Maximaal EXPORT_RATE_LIMIT (default 5) AVG-exports per gebruiker per uur. De export bundelt
+ * veel queries in één verzoek; de limiet voorkomt CPU-amplificatie via een scripted loop.
+ */
+export const exportRateLimiter = new RateLimiter(
+  new MemoryRateLimitStore(),
+  limitFromEnv("EXPORT_RATE_LIMIT", 5),
+  60 * 60_000,
+);

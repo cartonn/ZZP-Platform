@@ -352,7 +352,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills voor het aanmaakformulier.
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 70,
+    line: 71,
     reason: "skills-referentielijst voor formulier",
   },
 
@@ -448,7 +448,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
 
   // --- berichten/actions.ts ---
   // Berichten/gesprekken voor één gebruiker; eigenaar-scoped.
-  { file: "(protected)/berichten/actions.ts", line: 14, reason: "eigenaar-scoped gesprekken" },
+  { file: "(protected)/berichten/actions.ts", line: 15, reason: "eigenaar-scoped gesprekken" },
 
   // --- api/administratie/openstaand/route.ts ---
   // API-route voor openstaand; eigenaar-scoped aggregatie.
@@ -484,10 +484,10 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
 
   // --- api/account/export/route.ts (drie findMany's) ---
   // Account-export (AVG); volledigheid vereist voor data-portabiliteit.
-  { file: "api/account/export/route.ts", line: 52, reason: "AVG-export; volledigheid vereist" },
-  { file: "api/account/export/route.ts", line: 63, reason: "AVG-export; volledigheid vereist" },
-  { file: "api/account/export/route.ts", line: 67, reason: "AVG-export; volledigheid vereist" },
-  { file: "api/account/export/route.ts", line: 71, reason: "AVG-export; volledigheid vereist" },
+  { file: "api/account/export/route.ts", line: 61, reason: "AVG-export; volledigheid vereist" },
+  { file: "api/account/export/route.ts", line: 72, reason: "AVG-export; volledigheid vereist" },
+  { file: "api/account/export/route.ts", line: 76, reason: "AVG-export; volledigheid vereist" },
+  { file: "api/account/export/route.ts", line: 80, reason: "AVG-export; volledigheid vereist" },
 ];
 
 // ---------------------------------------------------------------------------

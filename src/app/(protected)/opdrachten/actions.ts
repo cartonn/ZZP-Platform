@@ -1,5 +1,6 @@
 "use server";
 
+import { applicationRateLimiter } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertOwnership, AuthorizationError, requireRole } from "@/lib/authz";
@@ -249,6 +250,11 @@ export async function createApplication(
   } catch (e) {
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
+  }
+
+  // Reactie-rem: begrens massa-reageren per ZZP'er (spam richting opdrachtgevers).
+  if (!applicationRateLimiter.check(`apply:${actor.id}`).allowed) {
+    return { error: "Te veel reacties kort achter elkaar. Probeer het later opnieuw." };
   }
 
   const profile = await prisma.freelancerProfile.findUnique({

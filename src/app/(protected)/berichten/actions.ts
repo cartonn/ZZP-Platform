@@ -6,6 +6,7 @@ import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { visibleFreelancersWhere } from "@/lib/tenancy";
 import { isParticipant } from "@/lib/messaging";
+import { messageRateLimiter } from "@/lib/rate-limit";
 import { messageSchema } from "@/lib/validation";
 
 export type MessageState = { ok?: true; error?: string } | undefined;
@@ -28,6 +29,11 @@ export async function sendMessage(
   } catch (e) {
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
+  }
+
+  // Spam-rem: begrens het verzendtempo per gebruiker vóór de duurdere queries.
+  if (!messageRateLimiter.check(`msg:${actor.id}`).allowed) {
+    return { error: "Te veel berichten kort achter elkaar. Wacht even en probeer het opnieuw." };
   }
 
   const participants = await loadParticipants(conversationId);
