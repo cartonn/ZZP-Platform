@@ -15,8 +15,8 @@ import {
 // ---------------------------------------------------------------------------
 
 describe("EMAIL_PREFERENCE_CATEGORIES", () => {
-  it("bevat exact 4 categorieën", () => {
-    expect(EMAIL_PREFERENCE_CATEGORIES).toHaveLength(4);
+  it("bevat exact 5 categorieën", () => {
+    expect(EMAIL_PREFERENCE_CATEGORIES).toHaveLength(5);
   });
 
   it("alle sleutels zijn uniek", () => {
@@ -31,12 +31,13 @@ describe("EMAIL_PREFERENCE_CATEGORIES", () => {
     }
   });
 
-  it("bevat de vier verwachte sleutels: payment, invoice, vat, dba", () => {
+  it("bevat de vijf verwachte sleutels: payment, invoice, vat, dba, digest", () => {
     const keys = EMAIL_PREFERENCE_CATEGORIES.map((c) => c.key);
     expect(keys).toContain("payment");
     expect(keys).toContain("invoice");
     expect(keys).toContain("vat");
     expect(keys).toContain("dba");
+    expect(keys).toContain("digest");
   });
 });
 
@@ -46,8 +47,8 @@ describe("EMAIL_PREFERENCE_CATEGORY_KEYS", () => {
     expect(Array.from(EMAIL_PREFERENCE_CATEGORY_KEYS)).toEqual(expectedKeys);
   });
 
-  it("bevat exact 4 sleutels", () => {
-    expect(EMAIL_PREFERENCE_CATEGORY_KEYS).toHaveLength(4);
+  it("bevat exact 5 sleutels", () => {
+    expect(EMAIL_PREFERENCE_CATEGORY_KEYS).toHaveLength(5);
   });
 });
 
@@ -86,7 +87,7 @@ describe("isEmailPreferenceCategory", () => {
 // ---------------------------------------------------------------------------
 
 describe("defaultEmailPreferences", () => {
-  it("bevat exact de 4 bekende sleutels", () => {
+  it("bevat exact de 5 bekende sleutels", () => {
     const prefs = defaultEmailPreferences();
     const keys = Object.keys(prefs).sort();
     const expectedKeys = Array.from(EMAIL_PREFERENCE_CATEGORY_KEYS).sort();
@@ -131,7 +132,7 @@ describe("resolveEmailPreferences", () => {
   it("onbekende categorie in rijen wordt genegeerd (geen extra sleutels, geen crash)", () => {
     const prefs = resolveEmailPreferences([{ category: "onbekend", emailEnabled: false }]);
     const keys = Object.keys(prefs);
-    expect(keys).toHaveLength(4);
+    expect(keys).toHaveLength(5);
     for (const key of EMAIL_PREFERENCE_CATEGORY_KEYS) {
       expect(prefs[key]).toBe(true);
     }
@@ -225,9 +226,9 @@ describe("isEmailEnabled", () => {
 // ---------------------------------------------------------------------------
 
 describe("emailPreferencesSchema", () => {
-  const validInput = { payment: true, invoice: false, vat: true, dba: false };
+  const validInput = { payment: true, invoice: false, vat: true, dba: false, digest: true };
 
-  it("valideert een correct object met 4 booleans", () => {
+  it("valideert een correct object met 5 booleans", () => {
     const result = emailPreferencesSchema.safeParse(validInput);
     expect(result.success).toBe(true);
     if (result.success) {
@@ -241,6 +242,7 @@ describe("emailPreferencesSchema", () => {
       invoice: true,
       vat: true,
       dba: true,
+      digest: true,
     });
     expect(result.success).toBe(true);
   });
@@ -251,6 +253,7 @@ describe("emailPreferencesSchema", () => {
       invoice: false,
       vat: false,
       dba: false,
+      digest: false,
     });
     expect(result.success).toBe(true);
   });
@@ -266,6 +269,7 @@ describe("emailPreferencesSchema", () => {
       invoice: false,
       vat: true,
       dba: false,
+      digest: true,
     });
     expect(result.success).toBe(false);
   });
@@ -276,6 +280,7 @@ describe("emailPreferencesSchema", () => {
       invoice: false,
       vat: true,
       dba: false,
+      digest: true,
     });
     expect(result.success).toBe(false);
   });
@@ -286,6 +291,7 @@ describe("emailPreferencesSchema", () => {
       invoice: false,
       vat: true,
       dba: false,
+      digest: true,
     });
     expect(result.success).toBe(false);
   });
@@ -304,7 +310,7 @@ describe("emailPreferencesSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       const keys = Object.keys(result.data).sort();
-      expect(keys).toEqual(["dba", "invoice", "payment", "vat"]);
+      expect(keys).toEqual(["dba", "digest", "invoice", "payment", "vat"]);
     }
   });
 });

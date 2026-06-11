@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(notificaties): e-mailvoorkeuren per categorie (opt-out) — geborgen + uitgebreid (branch `feat/email-voorkeuren`)
+
+Geborgen van routine-branch `epic-lovelace-2fRim` (1 juni, nooit als PR geopend; zie
+"Increment: Notificatie-voorkeuren" verderop voor de oorspronkelijke inhoud) via cherry-pick op
+actuele main, en uitgebreid:
+
+- [x] Cherry-pick conflictvrij voor alle code behalve schema/PROGRESS; T1-runner-tests (10 juni)
+      voorzien van `notificationPreference`-mock (4 testbestanden)
+- [x] **Nieuwe 5e categorie `digest`** in `EMAIL_PREFERENCE_CATEGORIES` — de digest-runner
+      (#314) bestond nog niet toen de branch gebouwd werd
+- [x] **`notification-digest-task.ts`** — opt-out op queryniveau
+      (`notificationPreferences: { none: { category: "digest", emailEnabled: false } }`):
+      notificaties van een opted-out gebruiker blijven ongemarkeerd zodat hij na heraanzetten
+      alsnog één digest over de achterstand krijgt; +1 runner-test
+- [x] Preferences-tests bijgewerkt 4 → 5 categorieën (incl. schema-cases)
+- Gates groen: typecheck ✓, lint ✓, test 1471 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(vertrouwen): deelbaar en verifieerbaar vertrouwensdossier (branch `claude/feat-dossier-link`)
 
 - [x] **`src/lib/share-token.ts`** — pure helpers `dossierShareToken(profileId, secret)` en `verifyDossierToken(profileId, token, secret)`; HMAC-SHA256, hex, 32 tekens; timing-safe vergelijking; lege-secret-guard

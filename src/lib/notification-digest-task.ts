@@ -32,10 +32,19 @@ export async function runNotificationDigestTask(opts: {
   }
   const now = opts.now ?? new Date();
 
-  // Kandidaten: ongelezen, nog niet gedigest, van actieve gebruikers. De leeftijdsdrempel
-  // handhaaft de planner; hier alleen ophalen wat überhaupt in aanmerking kan komen.
+  // Kandidaten: ongelezen, nog niet gedigest, van actieve gebruikers die de digest-mail niet
+  // hebben uitgezet (opt-out op queryniveau — notificaties van een opted-out gebruiker blijven
+  // ongemarkeerd, zodat hij na heraanzetten alsnog één digest over de hele achterstand krijgt).
+  // De leeftijdsdrempel handhaaft de planner; hier alleen ophalen wat in aanmerking kan komen.
   const candidates = await prisma.notification.findMany({
-    where: { readAt: null, digestedAt: null, user: { status: "ACTIVE" } },
+    where: {
+      readAt: null,
+      digestedAt: null,
+      user: {
+        status: "ACTIVE",
+        notificationPreferences: { none: { category: "digest", emailEnabled: false } },
+      },
+    },
     select: {
       id: true,
       userId: true,

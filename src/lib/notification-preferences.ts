@@ -33,6 +33,12 @@ export const EMAIL_PREFERENCE_CATEGORIES = [
     label: "DBA-signalen",
     description: "Een melding wanneer een samenwerking een verhoogd DBA-risico laat zien.",
   },
+  {
+    key: "digest",
+    label: "Overzicht van gemiste meldingen",
+    description:
+      "Een gebundelde e-mail wanneer ongelezen meldingen langer dan een dag blijven staan.",
+  },
 ] as const;
 
 export type EmailPreferenceCategory = (typeof EMAIL_PREFERENCE_CATEGORIES)[number]["key"];
