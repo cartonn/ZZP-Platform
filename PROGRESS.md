@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(csv): hard tegen formule-injectie (CWE-1236) in CSV-export (branch `claude/dazzling-carson-v9Qwk`, ZZP2-161)
+
+Bergings-backlog #2 (security, klein). `escapeCsvField` quotete velden bij scheidingsteken/
+quote/newline, maar beschermde niet tegen formule-injectie: een cel die met `=`/`+`/`-`/`@`/
+tab/CR begint kan door Excel/LibreOffice/Sheets als formule worden uitgevoerd. Exportwaarden
+komen deels uit gebruikersinvoer (namen, bedrijfsnamen, omschrijvingen).
+
+- [x] **`src/lib/csv.ts`** — `needsFormulaGuard(value)` herkent gevaarlijke starttekens
+      (`= + @ \t \r`, en `-` tenzij een gewoon negatief getal via `PLAIN_NEGATIVE`); cellen
+      krijgen een voorloopse apostrof `'` (binnen de quotes wanneer quoting nodig is).
+      Fix in de centrale module ⇒ alle exports (grootboek, BTW, aging, diensten, onboarding)
+      zijn in één keer beschermd. RFC 4180-quoting blijft intact.
+- [x] **`src/lib/csv.test.ts`** — +12 tests: elk gevaarlijk startteken, `=HYPERLINK`-payload,
+      negatief-getal-uitzonderingen (`-5`, `-1016.40`, `-1016,40`), `a=b` ongemoeid, gemengde rij.
+- Gates groen: typecheck ✓, lint ✓, test 1513 ✓, build ✓, prettier ✓. (e2e overgeslagen —
+  routine zonder browser-channel.)
+
+---
+
 ## fix(cascade): afronden-rem — geen COMPLETED-samenwerking met openstaand geld (branch `claude/dazzling-carson-v9Qwk`, ZZP2-160)
 
 Bergings-backlog #1 (geld-correctheid). `planPaymentConfirmedEvent` zette een samenwerking

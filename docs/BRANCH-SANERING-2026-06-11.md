@@ -20,8 +20,10 @@ Hoogste prioriteit eerst (correctheid/geld/compliance → UX → nice-to-have):
        `planPaymentConfirmedEvent`). **Geborgen 11-6 (ZZP2-160, branch `claude/dazzling-carson-v9Qwk`):**
        pure `cascade/completion.ts` (`hasOpenCollaborationWork`) + guard in de handler; de cascade rondt
        alleen af als deze betaling het laatste openstaande werk afsluit. _(geld-correctheid)_
-2. **CSV formule-injectie-hardening** — `escapeCsvField` escapet geen `=+-@`-prefixen.
-   Branch: `epic-lovelace-gCZVD`. _(security, klein)_
+2. [x] **CSV formule-injectie-hardening** — `escapeCsvField` escapet geen `=+-@`-prefixen.
+       **Geborgen 11-6 (ZZP2-161, branch `claude/dazzling-carson-v9Qwk`):** voorloopse apostrof voor
+       gevaarlijke starttekens in `src/lib/csv.ts` (gewone negatieve getallen uitgezonderd), +12 tests;
+       beschermt alle exports via de centrale module. _(security, klein)_
 3. **Rol-fallback boekhouding** — facturatie-pagina's alleen `requireRole("ADMIN")`, FRANCHISER
    valt buiten de boot. Branch: `epic-lovelace-szz2a3`.
 4. **AVG-verwerkingsregister + bewaartermijnen** (`/admin/avg`) — pre-launch-compliance.
