@@ -4,7 +4,6 @@ import { requireActor } from "@/lib/authz";
 import { userHasEntitlement } from "@/lib/entitlement-guard";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
-import { type LedgerParty } from "@/lib/administration/ledger";
 import {
   vatYear,
   openReceivablesCents,
@@ -77,7 +76,7 @@ export default async function AdministratiePage() {
 
   const rows = await prisma.administrationEntry.findMany({ where: { ownerUserId: actor.id } });
   const entries: LedgerEntry[] = rows.map((r) => ({
-    party: r.party as LedgerParty,
+    party: r.party as LedgerEntry["party"],
     account: r.account as LedgerEntry["account"],
     debitCents: r.debitCents,
     creditCents: r.creditCents,

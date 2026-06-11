@@ -3,6 +3,16 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(boekhouding): rol-fallback ADMIN/FRANCHISER op /administratie (branch `fix/boekhouding-rol-fallback2`)
+
+Bergings-backlog (geborgen van routine-branch szz2a3, ZZP2-141): ADMIN/FRANCHISER kregen op
+/administratie een misleidend leeg ZZP-grootboek; nu een nette uitleg-lege-staat
+(`administrationPartyForRole`), met voor ADMIN een verwijzing naar het platform-brede overzicht.
+Vangrail-allowlist hernummerd. Visueel geverifieerd als admin op lokale prod-server.
+Gates groen: typecheck ✓, lint ✓, test 1547 ✓, build ✓, prettier ✓
+
+---
+
 ## fix(geld) + e2e: credit-/afkeur-crash, betaal-tegenboekingen, dispuut-freeze (branch `feat/e2e-credit-zijpad`)
 
 De nieuwe credit-zijpad-e2e legde een keten van echte bugs bloot (missie B-vondst):
