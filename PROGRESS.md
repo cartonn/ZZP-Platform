@@ -22,6 +22,29 @@ actuele main, en uitgebreid:
 
 ---
 
+## feat(samenwerkingen): herplaatsing bij uitval (branch `claude/dazzling-carson-v9Qwk`, ZZP2-158)
+
+Concurrentie-backlog ronde 2, laatste open BOUWEN-item ("SOS" à la Zorgwerk/ZZP-Markt): bij
+annulering van een **actieve** samenwerking helpt het platform de opdrachtgever de dienst direct
+opnieuw in te vullen. De openstaande-factuur-veiligheidsrem in de cancel-actie bleef ongewijzigd.
+
+- [x] **`src/lib/replacement.ts`** (+ `replacement.test.ts`, 8 tests) — pure `planReplacement({ from, to, jobStatus })`:
+      alleen `ACTIVE→CANCELLED` handelt; CLOSED→heropenen (PUBLISHED) + signaal, PUBLISHED→alleen signaal,
+      DRAFT→niets (respecteert een bewust gedepubliceerde dienst). Alle andere overgangen = leeg plan.
+- [x] **`src/app/(protected)/samenwerkingen/actions.ts`** — `changeCollaborationStatus` heropent de dienst
+      (via `assertJobTransition`, defense-in-depth) + notificeert de opdrachtgever (`COLLABORATION_REPLACEMENT`) + audit (`JOB_REOPENED_FOR_REPLACEMENT`, `COLLABORATION_REPLACEMENT_OPENED`), atomair in de bestaande
+      `$transaction`. Veiligheidsrem (openstaande factuur blokkeert annuleren) staat ervóór en blijft intact.
+- [x] **`src/components/collaborations/replacement-panel.tsx`** — rustige "Herplaatsing"-kaart met passende,
+      beschikbare ZZP'ers (TrustBadge/AvailabilityBadge/ComplianceBadge + "Bericht sturen" via
+      `startConversationWithFreelancer`) of nette lege staat met link naar de opdracht.
+- [x] **`src/app/(protected)/samenwerkingen/[id]/page.tsx`** — panel getoond aan de opdrachtgever bij een
+      geannuleerde samenwerking; `suggestedFreelancersForJob` (leeg zodra de dienst niet PUBLISHED is).
+- [x] **`src/lib/audit-labels.ts`** + **`src/lib/notifications.ts`** — nieuwe labels + notificatiecategorie.
+- Gate groen: typecheck ✓, lint ✓, test 1479 ✓ (+8, na rebase op main), build ✓, prettier ✓. (E2e:
+  geen browser-channel in de routine — overgeslagen, net als in CI.)
+
+---
+
 ## feat(vertrouwen): deelbaar en verifieerbaar vertrouwensdossier (branch `claude/feat-dossier-link`)
 
 - [x] **`src/lib/share-token.ts`** — pure helpers `dossierShareToken(profileId, secret)` en `verifyDossierToken(profileId, token, secret)`; HMAC-SHA256, hex, 32 tekens; timing-safe vergelijking; lege-secret-guard

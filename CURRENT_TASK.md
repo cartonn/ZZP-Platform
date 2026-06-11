@@ -194,7 +194,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > admin platform-statistieken (/admin/statistieken), diensten-import MAX_CSV_IMPORT_SIZE hardening,
 > admin DBA-risico-overzicht (/admin/dba: geconsolideerd, gesorteerd, filterbaar; dba-overview.ts + test),
 > notificatie-voorkeuren (/account/notificaties: e-mailherinneringen per categorie aan/uit, opt-out-model,
-> NotificationPreference-model, gating in de 4 reminder-taakrunners — ZZP2-41).
+> NotificationPreference-model, gating in de 4 reminder-taakrunners — ZZP2-41),
+> herplaatsing bij uitval (ZZP2-158: geannuleerde actieve inzet heropent de dienst + ReplacementPanel met
+> vervangers op de samenwerking-detailpagina; replacement.ts + test — sluit de COMPETITORS.md ronde-2
+> BOUWEN-backlog volledig af).
 
 ### Gap-analyse (Fase 0)
 
