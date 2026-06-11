@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(ux): statusknop kan niet meer eeuwig hangen — watchdog + redirect (issue #329, branch `fix/329-werkende-statusknop`)
+
+Diepe debugsessie op de prod-only hang van server-action-responses (#329):
+
+- Uitgesloten: CSP (#323), service worker, action-body (auth/prisma/audit/revalidate), bind-forms,
+  sectie-JSX. Vastgesteld: route-specifiek (/opdrachten/[id]), intermitterend (~2/3), server rondt
+  alles af incl. 303 — de response bereikt de client nooit. Wortel zit in Next-streaming-internals;
+  reproductiepad en bevindingen staan in issue #329.
+- [x] `changeJobStatus` eindigt nu met `redirect()` (juiste semantiek; verse GET).
+- [x] **Watchdog** in `JobStatusButton`: hangt de response > 4s, dan een harde refresh — een verse
+      GET toont gegarandeerd de werkelijke status. Geverifieerd 3/3 in prod-modus (badge ≤ 5s).
+- [x] Cascade-e2e weer aan in CI (de setup strandde exact op dit hang-pad).
+- Gates groen: typecheck ✓, lint ✓, test 1545 ✓, build ✓, prettier ✓
+
+---
+
 ## fix(boekhouding): rol-fallback ADMIN/FRANCHISER op /administratie (branch `fix/boekhouding-rol-fallback2`)
 
 Bergings-backlog (geborgen van routine-branch szz2a3, ZZP2-141): ADMIN/FRANCHISER kregen op

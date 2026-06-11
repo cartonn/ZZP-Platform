@@ -235,6 +235,11 @@ export async function changeJobStatus(
 
   revalidatePath("/opdrachten");
   revalidatePath(`/opdrachten/${jobId}`);
+  // Sluit af met een redirect naar dezelfde pagina: de client krijgt een 303 + verse GET in
+  // plaats van een gestreamde action-rerender. Die stream blijft in productie intermitterend
+  // hangen (issue #329) waardoor de knop eeuwig op "bezig" stond terwijl de wissel al gelukt
+  // was; het redirect-pad is in alle probes betrouwbaar gebleken.
+  redirect(`/opdrachten/${jobId}`);
 }
 
 export type ApplyState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
