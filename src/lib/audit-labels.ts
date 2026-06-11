@@ -36,6 +36,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   JOB_STATUS_CHANGED: "Opdrachtstatus gewijzigd",
   JOB_CLOSED_BY_ADMIN: "Opdracht gesloten door beheerder",
   JOB_ALERT_SENT: "Opdrachtmelding verstuurd",
+  JOB_REOPENED_FOR_REPLACEMENT: "Dienst heropend voor herplaatsing",
   APPLICATION_CREATED: "Gereageerd op opdracht",
   APPLICATION_STATUS_CHANGED: "Reactiestatus gewijzigd",
   APPLICATION_NOTE_SAVED: "Notitie bij reactie opgeslagen",
@@ -43,6 +44,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   // Samenwerking & werkproces
   COLLABORATION_PROPOSED: "Samenwerking voorgesteld",
   COLLABORATION_STATUS_CHANGED: "Samenwerkingsstatus gewijzigd",
+  COLLABORATION_REPLACEMENT_OPENED: "Herplaatsing geopend na uitval",
   COLLABORATION_ORT_SET: "ORT-profiel ingesteld",
   COLLABORATION_WEEKDAYS_SET: "Weekrooster ingesteld",
   CONTRACT_SIGNED: "Contract ondertekend",

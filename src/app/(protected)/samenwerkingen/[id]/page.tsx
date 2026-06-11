@@ -31,6 +31,8 @@ import { parseOrtSegments } from "@/lib/ort";
 import { ORT_SECTORS, ORT_SECTOR_LABEL } from "@/lib/config";
 import { buildChainSteps, type ChainStepStatus } from "@/lib/cascade/chain-steps";
 import { OrtBreakdown } from "@/components/collaborations/ort-breakdown";
+import { ReplacementPanel } from "@/components/collaborations/replacement-panel";
+import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -132,6 +134,11 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const isClient = col.company.userId === actor.id;
   const isFreelancer = col.freelancer.userId === actor.id;
   if (!isClient && !isFreelancer && actor.role !== "ADMIN") notFound();
+
+  // Herplaatsing bij uitval: de opdrachtgever ziet bij een geannuleerde inzet direct passende,
+  // beschikbare ZZP'ers (leeg zodra de dienst niet meer open staat — geen dode lijst).
+  const replacementSuggestions =
+    isClient && col.status === "CANCELLED" ? await suggestedFreelancersForJob(col.job.id) : [];
 
   // Inzetbaarheid-gate (ADR-0006, C-hybride): zolang de samenwerking nog niet gestart is, kan ze pas
   // ondertekend/actief worden als de ZZP'er aan de harde certificaateisen voldoet.
@@ -270,6 +277,12 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           </Link>
         </div>
       </header>
+
+      {/* Herplaatsing bij uitval: bij een geannuleerde inzet stelt het platform de opdrachtgever
+          direct passende, beschikbare ZZP'ers voor om de dienst opnieuw in te vullen. */}
+      {isClient && col.status === "CANCELLED" && (
+        <ReplacementPanel jobId={col.job.id} suggestions={replacementSuggestions} />
+      )}
 
       {/* Cascade-keten: visuele voortgang van contract t/m betaling */}
       {col.status !== "CANCELLED" &&

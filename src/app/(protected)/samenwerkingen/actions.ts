@@ -6,9 +6,11 @@ import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { assertCollaborationTransition, CollaborationTransitionError } from "@/lib/collaborations";
+import { assertJobTransition } from "@/lib/jobs";
+import { planReplacement } from "@/lib/replacement";
 import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
 import { signContract, CascadeError } from "@/lib/cascade/commands";
-import { type CollaborationStatus, collaborationStatusSchema } from "@/lib/enums";
+import { type CollaborationStatus, type JobStatus, collaborationStatusSchema } from "@/lib/enums";
 import { collaborationProposalSchema } from "@/lib/validation";
 
 export type ProposalState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
@@ -112,7 +114,11 @@ export async function changeCollaborationStatus(
 
   const collaboration = await prisma.collaboration.findUnique({
     where: { id: collaborationId },
-    include: { company: { select: { userId: true } }, freelancer: { select: { userId: true } } },
+    include: {
+      company: { select: { userId: true } },
+      freelancer: { select: { userId: true } },
+      job: { select: { id: true, status: true, title: true } },
+    },
   });
   if (!collaboration) throw new Error("Samenwerking niet gevonden.");
 
@@ -148,8 +154,21 @@ export async function changeCollaborationStatus(
     }
   }
 
+  // Herplaatsing bij uitval: een geannuleerde actieve inzet heropent de dienst (indien gesloten)
+  // en seint de opdrachtgever om direct een vervanger te werven. De veiligheidsrem hierboven blijft
+  // de baas — dit draait pas nadat annuleren is toegestaan.
+  const replacement = planReplacement({
+    from,
+    to: targetStatus,
+    jobStatus: collaboration.job.status as JobStatus,
+  });
+  if (replacement.reopenJob && replacement.targetJobStatus) {
+    // Defense-in-depth: ook deze overgang loopt via de expliciete dienst-statusmap.
+    assertJobTransition(collaboration.job.status as JobStatus, replacement.targetJobStatus);
+  }
+
   const otherUserId = partyUserIds.find((id) => id !== actor.id)!;
-  await prisma.$transaction([
+  const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.collaboration.update({ where: { id: collaborationId }, data: { status: targetStatus } }),
     prisma.notification.create({
       data: {
@@ -169,9 +188,54 @@ export async function changeCollaborationStatus(
         metadata: { from, to: targetStatus },
       }),
     }),
-  ]);
+  ];
+
+  if (replacement.reopenJob && replacement.targetJobStatus) {
+    ops.push(
+      prisma.job.update({
+        where: { id: collaboration.job.id },
+        data: { status: replacement.targetJobStatus },
+      }),
+      prisma.auditLog.create({
+        data: auditData({
+          actorId: actor.id,
+          action: "JOB_REOPENED_FOR_REPLACEMENT",
+          entityType: "Job",
+          entityId: collaboration.job.id,
+          metadata: { from: collaboration.job.status, to: replacement.targetJobStatus },
+        }),
+      }),
+    );
+  }
+
+  if (replacement.signal) {
+    ops.push(
+      prisma.notification.create({
+        data: {
+          userId: collaboration.company.userId,
+          type: "COLLABORATION_REPLACEMENT",
+          title: "Inzet geannuleerd — herplaats de dienst",
+          body: `De inzet voor "${collaboration.job.title}" is geannuleerd. Bekijk wie je direct kunt herplaatsen.`,
+          link: `/samenwerkingen/${collaborationId}`,
+        },
+      }),
+      prisma.auditLog.create({
+        data: auditData({
+          actorId: actor.id,
+          action: "COLLABORATION_REPLACEMENT_OPENED",
+          entityType: "Collaboration",
+          entityId: collaborationId,
+          metadata: { jobId: collaboration.job.id, reopened: replacement.reopenJob },
+        }),
+      }),
+    );
+  }
+
+  await prisma.$transaction(ops);
 
   revalidatePath("/samenwerkingen");
+  revalidatePath(`/samenwerkingen/${collaborationId}`);
+  if (replacement.reopenJob) revalidatePath(`/opdrachten/${collaboration.job.id}`);
 }
 
 /**
