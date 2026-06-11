@@ -12,9 +12,13 @@ werk beide bij.
 
 ---
 
-## 1. Visual theme
+## 1. Visual theme — "Vakwerk"
 
-Refined minimalism — premium en rustig, niet druk, niet "wireframe". Hoge informatiedichtheid zonder
+Refined minimalism met een eigen identiteit (zie `docs/ontwerpen/VAKWERK.md` +
+`docs/ontwerpen/vakwerk.html`): **pastelblauw papier** als canvas, **witte vellen** (kaarten),
+**klein-blauw** als merkkleur en **zegelgroen** voor geverifieerd. Drie regels dragen de taal:
+het zegel draagt het merk (verificatie = het product), cijfers zijn typografie (alles in mono),
+en eerlijkheid is premium (matchredenen tonen óók de minpunten). Hoge informatiedichtheid zonder
 rommel. **Dashboard-first**: elke pagina beantwoordt direct _wat is de status, wat moet ik nu doen,
 kan ik dit vertrouwen?_ Geen marketinghomepage als hoofdscherm, geen decoratieve gradients, geen
 kaart-in-kaart, geen templategevoel. Scanbare rijen boven sparse kaarten voor collecties.
@@ -32,29 +36,29 @@ Alle kleuren zijn **HSL-triples in CSS-variabelen** (`hsl(var(--token))`), zodat
 namen op light/dark × 3 palettes draait. **Nooit hardcoded hex in componenten** — gebruik de
 semantische token via Tailwind (`bg-primary`, `text-muted-foreground`, …).
 
-### Semantische tokens (standaard-palette, light)
+### Semantische tokens (standaard-palette "Vakwerk", light)
 
-| Token                                | HSL                         | Rol                          |
-| ------------------------------------ | --------------------------- | ---------------------------- |
-| `--background`                       | `0 0% 100%`                 | paginavlak                   |
-| `--foreground`                       | `240 10% 4%`                | hoofdtekst                   |
-| `--muted`                            | `240 5% 96%`                | subtiel vlak / hover         |
-| `--muted-foreground`                 | `240 5% 40%`                | subtekst (AA-veilig)         |
-| `--card`                             | `0 0% 100%`                 | kaartvlak                    |
-| `--border` / `--input`               | `240 6% 90%`                | randen / invoerranden        |
-| `--ring`                             | `240 5% 65%`                | focus-ring                   |
-| `--primary` / `--primary-foreground` | `240 6% 10%` / `0 0% 98%`   | merk-CTA-vlak / tekst erop   |
-| `--accent` / `--accent-foreground`   | `240 5% 96%` / `240 6% 10%` | zacht merk-tint-vlak / tekst |
-| `--success`                          | `142 64% 38%`               | geslaagd / actief            |
-| `--warning`                          | `35 92% 42%`                | let op / verloopt            |
-| `--danger`                           | `0 72% 48%`                 | fout / destructief           |
-| `--radius`                           | `0.5rem`                    | basis-afronding              |
+| Token                                | HSL                           | Rol                              |
+| ------------------------------------ | ----------------------------- | -------------------------------- |
+| `--background`                       | `214 60% 96%`                 | pastelblauw papier (canvas)      |
+| `--foreground`                       | `228 20% 11%`                 | inkt (hoofdtekst)                |
+| `--muted`                            | `216 38% 92%`                 | subtiel vlak / hover             |
+| `--muted-foreground`                 | `226 12% 40%`                 | subtekst (AA-veilig)             |
+| `--card`                             | `0 0% 100%`                   | wit vel (kaartvlak)              |
+| `--border` / `--input`               | `218 30% 87%` / `218 30% 84%` | randen / invoerranden            |
+| `--ring`                             | `234 71% 48%`                 | focus-ring (merkkleur)           |
+| `--primary` / `--primary-foreground` | `234 71% 45%` / `0 0% 100%`   | klein-blauw CTA / tekst erop     |
+| `--accent` / `--accent-foreground`   | `230 70% 94%` / `234 60% 38%` | merk-tint-vlak / tekst           |
+| `--success`                          | `155 75% 27%`                 | zegelgroen — geverifieerd/actief |
+| `--warning`                          | `36 90% 36%`                  | let op / verloopt                |
+| `--danger`                           | `0 64% 44%`                   | fout / destructief               |
+| `--radius`                           | `0.75rem`                     | basis-afronding                  |
 
 ### Palettes (orthogonaal aan light/dark, via `data-theme` op `<html>`)
 
 Dezelfde tokennamen, dus geen component verandert.
 
-- **standaard** — neutraal, monochroom.
+- **standaard ("Vakwerk")** — pastelblauw papier + klein-blauw + zegelgroen. Hét merk.
 - **bloei** — kalme navy-slate op warme off-white (naar bloomintranet.com). `--radius: 0.75rem`.
 - **elektrisch-blauw** — navy fundament + elektrisch-blauwe signatuur `#0066FF` (naar capisoft.nl).
 
@@ -71,16 +75,20 @@ Contrast is **WCAG AA**-geverifieerd (fg/bg, kaart, subtekst, knop, accent, rand
 
 ## 3. Typografie
 
-Systeem-sans (`--font-sans`). Antialiased, `optimizeLegibility`.
+Drie lettertypen via `next/font` (zelfgehost, zie `layout.tsx`): **Inter** (`--font-sans`, UI),
+**Schibsted Grotesk** (`--font-display`, koppen) en **JetBrains Mono** (`--font-mono`, cijfers).
+Antialiased, `optimizeLegibility`. Cijfers zijn typografie: tarieven, scores, uren en bedragen
+altijd in mono — dat is de Vakwerk-precisie.
 
-| Rol                   | Klassen                                           |
-| --------------------- | ------------------------------------------------- |
-| Paginatitel (h1)      | `text-xl font-semibold tracking-tight`            |
-| Paginasubtitel        | `text-sm text-muted-foreground`                   |
-| Sectiekop (h2)        | `text-sm font-semibold tracking-tight`            |
-| Body                  | `text-sm`                                         |
-| Metadata / timestamps | `.metadata-row` (`text-xs text-muted-foreground`) |
-| Cijfers / bedragen    | `tabular-nums`                                    |
+| Rol                   | Klassen                                                                    |
+| --------------------- | -------------------------------------------------------------------------- |
+| Paginatitel (h1)      | `font-display text-2xl font-semibold tracking-tight`                       |
+| Paginasubtitel        | `text-sm text-muted-foreground`                                            |
+| Sectiekop (h2)        | `text-sm font-semibold tracking-tight`                                     |
+| Body                  | `text-sm`                                                                  |
+| Metadata / timestamps | `.metadata-row` (`text-xs text-muted-foreground`)                          |
+| Cijfers / bedragen    | `font-mono` (+ `tracking-tight` bij grote KPI-cijfers)                     |
+| KPI-label             | `text-[11px] font-semibold uppercase tracking-wider text-muted-foreground` |
 
 ---
 
@@ -111,6 +119,22 @@ Bouw nieuwe UI met deze primitives. Voeg geen ad-hoc varianten per pagina toe �
   Actie-zware item-beheer (bv. certificaten met inline forms) mag wél `Card` per item.
 - **EmptyState** / **Skeleton** — gebruik de gedeelde componenten voor lege/laad-staten.
 
+### Vakwerk-signatuurcomponenten
+
+- **Seal** (`seal.tsx`) — hét vertrouwensteken: cirkel met dubbele ring + vinkje. Tonen:
+  `verified` (zegelgroen), `brand`, `expiring` (amber, uitroepteken). Eén consistent zegel,
+  geen losse vinkjes verzinnen.
+- **MatchMeter** (`match-meter.tsx`) — 10 segmenten naast het percentage; altijd merk-getint.
+  Logica getest in `src/lib/meter.ts`.
+- **Sparkline** (`sparkline.tsx`) — kleine inline-trend in merkkleur (bv. omzet op het dashboard);
+  schaal-logica getest in `src/lib/sparkline.ts`.
+- **CascadeStepper** (`cascade-stepper.tsx`) — de keten contract → prestatie → factuur → betaling
+  als horizontale stappen (done = zegelgroen, actief = merk-ring, fout = danger).
+- **TurnBanner** (`turn-banner.tsx`) — de "aan zet"-banier: inkt op papier (klapt om in donker),
+  pulserend merkpunt, één boodschap, max. één actie. **Maximaal één per pagina.**
+- **Table** (`table.tsx`) — canonieke tabel (`Table/THead/TBody/TR/TH/TD`); cijferkolommen met
+  `numeric` (rechts, mono). Geen handgerolde tabellen meer per pagina.
+
 ---
 
 ## 5. Layout & spacing
@@ -120,8 +144,9 @@ Bouw nieuwe UI met deze primitives. Voeg geen ad-hoc varianten per pagina toe �
   - Dashboard / command-center → `max-w-5xl`
   - Collectie / overzicht / data → `max-w-4xl`
   - Formulier / detail / lezen → `max-w-2xl`
-- **Sidebar** (16rem, `bg-muted/30`): gegroepeerd in semantische secties met subtiele uppercase
-  koppen, geordend naar werkstroom (Werk · Profiel · Financieel · Account / Operatie · Toezicht · Beheer).
+- **Sidebar** (16rem, `bg-card` — een wit vel op het pastel canvas): gegroepeerd in semantische
+  secties met subtiele uppercase koppen, geordend naar werkstroom (Werk · Profiel · Financieel ·
+  Account / Operatie · Toezicht · Beheer). Header eveneens `bg-card`.
 - **Header** (h-14): zoek-pill met ⌘K-hint links, palette/dark-toggle, notificaties, rol rechts.
 - Lange formulieren: opdelen in zichtbare secties (`h2`-kop + korte uitleg + `border-b`-scheiding).
 

@@ -1,0 +1,1860 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atelier — drie eigen ontwerprichtingen voor het ZZP-Platform</title>
+    <meta
+      name="description"
+      content="Drie originele ontwerprichtingen: Polderlicht (het landschap als layout), Lijnennet (je werk als wegwijzer) en Nieuwe Beelding (structuur als schoonheid)."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600;700&family=Archivo:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ============================================================
+         ATELIER — drie eigen richtingen, elk met een eigen concept:
+         1. POLDERLICHT   — het landschap als layout (banen, geen kaarten)
+         2. LIJNENNET     — je werk als wegwijzer (haltes, vertrekstaat)
+         3. NIEUWE BEELDING — structuur als schoonheid (vlakken, lijnen)
+         ============================================================ */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Instrument Sans", system-ui, sans-serif;
+        background: #ececea;
+        color: #16181c;
+        -webkit-font-smoothing: antialiased;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      a {
+        color: inherit;
+      }
+
+      /* ---------- presentatiedek ---------- */
+      .deck {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 26px 28px 10px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .deck .mark {
+        width: 42px;
+        height: 42px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        background: #16181c;
+        color: #fff;
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: 19px;
+      }
+      .deck h1 {
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .deck p {
+        font-size: 12.5px;
+        color: #5d6065;
+        margin-top: 1px;
+      }
+      .deck .pills {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .deck button {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        color: #4c4f55;
+        background: #fff;
+        border: 1px solid #d6d6d2;
+        padding: 8px 15px;
+        border-radius: 999px;
+        transition: 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .deck button .d {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .deck button:hover {
+        color: #16181c;
+        border-color: #9a9a94;
+      }
+      .deck button.actief {
+        color: #fff;
+        background: #16181c;
+        border-color: #16181c;
+      }
+      .hint {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0 28px 14px;
+        font-size: 12.5px;
+        color: #6b6e74;
+      }
+      .hint b {
+        color: #44474c;
+      }
+      .kader {
+        max-width: 1280px;
+        margin: 0 auto 56px;
+        padding: 0 28px;
+      }
+      .frame {
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow:
+          0 40px 90px -50px rgba(15, 17, 22, 0.55),
+          0 2px 8px rgba(15, 17, 22, 0.08);
+      }
+
+      /* ============================================================
+         1 · POLDERLICHT — het landschap als layout
+         Geen kaarten. De pagina is een polder bij zonsopkomst: banen
+         (lucht → akker → veld → water) gescheiden door horizonlijnen.
+         Geld = water onderin. Serif-cijfers staan los op het land.
+         ============================================================ */
+      .polder {
+        background: #fbf8f1;
+        color: #23251f;
+        font-family: "Instrument Sans", sans-serif;
+      }
+      .polder .serif {
+        font-family: "Instrument Serif", Georgia, serif;
+        font-weight: 400;
+      }
+      .polder .horizon-nav {
+        display: flex;
+        align-items: baseline;
+        gap: 30px;
+        padding: 20px 48px 18px;
+        border-bottom: 1px solid #23251f;
+      }
+      .polder .wm {
+        font-family: "Instrument Serif", serif;
+        font-size: 21px;
+        letter-spacing: -0.01em;
+      }
+      .polder .wm i {
+        font-style: italic;
+        color: #c25e1f;
+      }
+      .polder .horizon-nav a {
+        text-decoration: none;
+        font-size: 13.5px;
+        color: #6e6a5c;
+      }
+      .polder .horizon-nav a.actief {
+        color: #23251f;
+        font-weight: 600;
+        border-bottom: 2px solid #c25e1f;
+        padding-bottom: 2px;
+      }
+      .polder .horizon-nav a:hover {
+        color: #23251f;
+      }
+      .polder .horizon-nav .r {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font-size: 13px;
+        color: #6e6a5c;
+      }
+      .polder .horizon-nav .me {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #23251f;
+        color: #fbf8f1;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .polder .baan {
+        padding: 34px 48px;
+        border-bottom: 1px solid #23251f;
+      }
+      .polder .baan .label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #8a8470;
+        margin-bottom: 14px;
+      }
+
+      /* lucht */
+      .polder .lucht {
+        background: linear-gradient(#fdfbf6, #faf5ea);
+        padding-top: 44px;
+        padding-bottom: 38px;
+        display: flex;
+        align-items: flex-end;
+        gap: 40px;
+        flex-wrap: wrap;
+      }
+      .polder .lucht .datum {
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #8a8470;
+        margin-bottom: 10px;
+      }
+      .polder .lucht h2 {
+        font-family: "Instrument Serif", serif;
+        font-size: 46px;
+        line-height: 1.02;
+        letter-spacing: -0.015em;
+        font-weight: 400;
+      }
+      .polder .lucht h2 i {
+        font-style: italic;
+        color: #c25e1f;
+      }
+      .polder .lucht .sub {
+        font-size: 15px;
+        color: #6e6a5c;
+        margin-top: 10px;
+      }
+      .polder .lucht .zon {
+        margin-left: auto;
+        text-align: right;
+      }
+      .polder .lucht .zon .ring {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        border: 1px solid #23251f;
+        border-radius: 999px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .polder .lucht .zon .ring .b {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #2e7d44;
+      }
+      .polder .lucht .zon .s {
+        display: block;
+        font-size: 12px;
+        color: #8a8470;
+        margin-top: 8px;
+      }
+
+      /* akker — acties als voren in het land */
+      .polder .akker {
+        background: #faf4e6;
+        padding-top: 26px;
+        padding-bottom: 10px;
+      }
+      .polder .voor {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        padding: 17px 0;
+        border-top: 1px dashed #d8cfb4;
+      }
+      .polder .voor:first-of-type {
+        border-top: 0;
+      }
+      .polder .voor .nr {
+        font-family: "Instrument Serif", serif;
+        font-size: 30px;
+        color: #c8bfa3;
+        width: 34px;
+        flex: none;
+        line-height: 1;
+      }
+      .polder .voor.eerst .nr {
+        color: #c25e1f;
+      }
+      .polder .voor .vt {
+        flex: 1;
+        min-width: 0;
+      }
+      .polder .voor .vt .t {
+        font-size: 15.5px;
+        font-weight: 600;
+      }
+      .polder .voor.eerst .vt .t {
+        font-family: "Instrument Serif", serif;
+        font-weight: 400;
+        font-size: 21px;
+      }
+      .polder .voor .vt .s {
+        font-size: 13px;
+        color: #8a8470;
+        margin-top: 2px;
+      }
+      .polder .knop {
+        font: inherit;
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 999px;
+        padding: 10px 20px;
+        border: 1px solid #23251f;
+        background: transparent;
+        color: #23251f;
+        flex: none;
+      }
+      .polder .knop:hover {
+        background: #23251f;
+        color: #fbf8f1;
+      }
+      .polder .knop.zon {
+        background: #c25e1f;
+        border-color: #c25e1f;
+        color: #fff;
+      }
+      .polder .knop.zon:hover {
+        background: #a84e15;
+      }
+
+      /* veld — week + werk */
+      .polder .veld {
+        background: #f0f1e2;
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 48px;
+      }
+      .polder .hek {
+        display: flex;
+        gap: 0;
+        align-items: flex-end;
+        height: 150px;
+        border-bottom: 2px solid #23251f;
+      }
+      .polder .paal {
+        flex: 1;
+        position: relative;
+        height: 100%;
+        border-left: 1px solid #b9bba0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+      .polder .paal:first-child {
+        border-left: 0;
+      }
+      .polder .paal .dg {
+        position: absolute;
+        top: 0;
+        left: 8px;
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #8a8470;
+      }
+      .polder .paal .dienst {
+        margin: 0 7px 10px;
+        background: #fbf8f1;
+        border: 1px solid #23251f;
+        border-radius: 8px;
+        padding: 8px 9px;
+        box-shadow: 2px 2px 0 #23251f;
+      }
+      .polder .paal .dienst .u {
+        font-size: 11.5px;
+        font-weight: 700;
+      }
+      .polder .paal .dienst .w {
+        font-size: 10.5px;
+        color: #6e6a5c;
+        margin-top: 1px;
+        line-height: 1.3;
+      }
+      .polder .paal.vandaag .dg {
+        color: #c25e1f;
+        font-weight: 700;
+      }
+      .polder .werkrij {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 13px 0;
+        border-bottom: 1px dashed #c6c8ab;
+        font-size: 14px;
+      }
+      .polder .werkrij:last-child {
+        border-bottom: 0;
+      }
+      .polder .werkrij b {
+        font-weight: 600;
+      }
+      .polder .oog {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #2e7d44;
+      }
+      .polder .oog.wacht {
+        color: #a06c08;
+      }
+      .polder .oog.stil {
+        color: #8a8470;
+        font-weight: 500;
+      }
+
+      /* water — geld onderin, donkere baan */
+      .polder .water {
+        background: #2c3a40;
+        color: #e9eee9;
+        border-bottom: 0;
+        padding-top: 30px;
+        padding-bottom: 36px;
+      }
+      .polder .water .label {
+        color: #8da6a2;
+      }
+      .polder .watergrid {
+        display: grid;
+        grid-template-columns: 1fr 1.3fr 1fr;
+        gap: 48px;
+        align-items: end;
+      }
+      .polder .water .cijfer {
+        font-family: "Instrument Serif", serif;
+        font-size: 44px;
+        line-height: 1;
+      }
+      .polder .water .cl {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #8da6a2;
+        margin-bottom: 10px;
+      }
+      .polder .water .cs {
+        font-size: 12.5px;
+        color: #aebfbb;
+        margin-top: 8px;
+      }
+      .polder .peil {
+        height: 14px;
+        border: 1px solid #54696d;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: 12px;
+        background: #243135;
+      }
+      .polder .peil i {
+        display: block;
+        height: 100%;
+        width: 64%;
+        background: linear-gradient(90deg, #6fa8a0, #9ec4ba);
+        border-radius: 999px;
+      }
+      .polder .water .cijfer .ok {
+        color: #9ec4ba;
+      }
+      .polder .water a {
+        color: #cfe0da;
+        font-size: 13px;
+      }
+
+      /* ============================================================
+         2 · LIJNENNET — je werk als wegwijzer
+         Elke samenwerking is een lijn met haltes (de cascade). Wat nu
+         moet = de vertrekstaat. Wayfinding-typografie, lijnkleuren.
+         ============================================================ */
+      .lijn {
+        background: #f4f5f7;
+        color: #001a4d;
+        font-family: "Archivo", sans-serif;
+      }
+      .lijn .top {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        padding: 0 34px;
+        background: #fff;
+        border-bottom: 4px solid #ffc917;
+        height: 64px;
+      }
+      .lijn .blok {
+        width: 38px;
+        height: 38px;
+        background: #0a2e8a;
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+        font-size: 20px;
+        border-radius: 8px;
+      }
+      .lijn .wm {
+        font-weight: 800;
+        font-size: 17px;
+        letter-spacing: -0.01em;
+      }
+      .lijn .top nav {
+        display: flex;
+        gap: 4px;
+        margin-left: 16px;
+      }
+      .lijn .top nav a {
+        text-decoration: none;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #515e75;
+        padding: 8px 13px;
+        border-radius: 8px;
+      }
+      .lijn .top nav a:hover {
+        background: #eef1f6;
+        color: #001a4d;
+      }
+      .lijn .top nav a.actief {
+        background: #0a2e8a;
+        color: #fff;
+      }
+      .lijn .top .r {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .lijn .top .zoek {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #ffc917;
+        color: #1a1a00;
+        border-radius: 999px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .lijn .top .me {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: #e8ebf2;
+        color: #0a2e8a;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        font-size: 13px;
+      }
+
+      .lijn .inhoud {
+        padding: 30px 34px 40px;
+        display: grid;
+        gap: 22px;
+      }
+      .lijn .kop {
+        display: flex;
+        align-items: flex-end;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .lijn .kop h2 {
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+      }
+      .lijn .kop .sub {
+        font-size: 14px;
+        color: #515e75;
+        margin-top: 4px;
+      }
+      .lijn .kop .bord {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        background: #0a2e8a;
+        color: #fff;
+        border-radius: 10px;
+        padding: 9px 16px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .lijn .kop .bord .v {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #2bb673;
+        display: grid;
+        place-items: center;
+      }
+      .lijn .kop .bord .v svg {
+        width: 11px;
+        height: 11px;
+      }
+
+      /* vertrekstaat — wat nu, als vertrekbord */
+      .lijn .staat {
+        background: #08123a;
+        color: #eef1f8;
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .lijn .staat .sk {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 15px 22px;
+        border-bottom: 1px solid #1d2a5e;
+      }
+      .lijn .staat .sk .t {
+        font-weight: 800;
+        font-size: 14px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #ffc917;
+      }
+      .lijn .staat .sk .s {
+        font-size: 12px;
+        color: #8d99c4;
+      }
+      .lijn .staat .rij {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 14px 22px;
+        border-bottom: 1px solid #131f4d;
+      }
+      .lijn .staat .rij:last-child {
+        border-bottom: 0;
+      }
+      .lijn .staat .tijd {
+        font-family: "Space Mono", monospace;
+        font-size: 15px;
+        font-weight: 700;
+        color: #ffc917;
+        width: 74px;
+        flex: none;
+      }
+      .lijn .staat .tijd.kalm {
+        color: #8d99c4;
+      }
+      .lijn .staat .best {
+        flex: 1;
+        min-width: 0;
+      }
+      .lijn .staat .best .b {
+        font-weight: 700;
+        font-size: 15px;
+      }
+      .lijn .staat .best .v {
+        font-size: 12px;
+        color: #8d99c4;
+        margin-top: 1px;
+      }
+      .lijn .staat .spoor {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        color: #08123a;
+        background: #eef1f8;
+        border-radius: 6px;
+        padding: 4px 9px;
+        flex: none;
+      }
+      .lijn .staat .ga {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        background: #ffc917;
+        color: #1a1a00;
+        border: 0;
+        border-radius: 999px;
+        padding: 9px 18px;
+        flex: none;
+      }
+      .lijn .staat .ga:hover {
+        background: #ffd84d;
+      }
+      .lijn .staat .ga.stil {
+        background: transparent;
+        color: #aeb9dd;
+        border: 1px solid #2a3a76;
+      }
+
+      /* lijnen — samenwerkingen als routes met haltes */
+      .lijn .net {
+        background: #fff;
+        border-radius: 16px;
+        padding: 22px 26px 8px;
+      }
+      .lijn .net .nk {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 6px;
+      }
+      .lijn .net .nk h3 {
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .lijn .net .nk a {
+        margin-left: auto;
+        font-size: 13px;
+        font-weight: 700;
+        color: #0a2e8a;
+        text-decoration: none;
+      }
+      .lijn .route {
+        padding: 20px 0 26px;
+        border-bottom: 1px dashed #d9deea;
+      }
+      .lijn .route:last-child {
+        border-bottom: 0;
+      }
+      .lijn .route .rk {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .lijn .route .lnr {
+        width: 34px;
+        height: 24px;
+        border-radius: 7px;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 900;
+        color: #fff;
+        flex: none;
+      }
+      .lijn .route .rt {
+        font-weight: 700;
+        font-size: 15px;
+      }
+      .lijn .route .rs {
+        font-size: 12.5px;
+        color: #515e75;
+      }
+      .lijn .route .eind {
+        margin-left: auto;
+        font-size: 12px;
+        font-weight: 700;
+        color: #515e75;
+      }
+      .lijn .spoorlijn {
+        position: relative;
+        height: 56px;
+      }
+      .lijn .spoorlijn .rail {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        top: 9px;
+        height: 6px;
+        border-radius: 999px;
+        background: #e3e7f0;
+      }
+      .lijn .spoorlijn .rail i {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        border-radius: 999px;
+      }
+      .lijn .haltes {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        justify-content: space-between;
+      }
+      .lijn .halte {
+        position: relative;
+        width: 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .lijn .halte .dot {
+        width: 16px;
+        height: 16px;
+        margin-top: 4px;
+        border-radius: 50%;
+        background: #fff;
+        border: 4px solid #c4ccdd;
+        z-index: 1;
+      }
+      .lijn .halte.geweest .dot {
+        border-color: currentColor;
+      }
+      .lijn .halte.hier .dot {
+        width: 22px;
+        height: 22px;
+        margin-top: 1px;
+        border-width: 5px;
+        border-color: currentColor;
+        box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 22%, transparent);
+      }
+      .lijn .halte .hl {
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #515e75;
+        margin-top: 8px;
+        white-space: nowrap;
+      }
+      .lijn .halte.hier .hl {
+        color: #001a4d;
+      }
+      .lijn .halte .jbh {
+        position: absolute;
+        top: -22px;
+        font-size: 9.5px;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        color: #fff;
+        background: #001a4d;
+        border-radius: 4px;
+        padding: 2.5px 7px;
+        white-space: nowrap;
+      }
+
+      .lijn .duo {
+        display: grid;
+        grid-template-columns: 1.45fr 1fr;
+        gap: 22px;
+        align-items: start;
+      }
+      .lijn .borden {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .lijn .bordje {
+        background: #fff;
+        border-radius: 14px;
+        padding: 16px 18px 14px;
+        border-left: 6px solid #0a2e8a;
+      }
+      .lijn .bordje .bl {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #515e75;
+      }
+      .lijn .bordje .bv {
+        font-family: "Space Mono", monospace;
+        font-size: 23px;
+        font-weight: 700;
+        margin-top: 6px;
+        letter-spacing: -0.02em;
+      }
+      .lijn .bordje .bs {
+        font-size: 12px;
+        color: #515e75;
+        margin-top: 4px;
+      }
+      .lijn .bordje.geel {
+        border-left-color: #ffc917;
+      }
+      .lijn .bordje.groen {
+        border-left-color: #2bb673;
+      }
+      .lijn .verbind {
+        background: #fff;
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .lijn .verbind .vk {
+        padding: 16px 22px 12px;
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        border-bottom: 1px solid #e8ebf2;
+      }
+      .lijn .vrij {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 13px 22px;
+        border-bottom: 1px solid #eef0f5;
+      }
+      .lijn .vrij:last-child {
+        border-bottom: 0;
+      }
+      .lijn .vrij .pct {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background: #ffc917;
+        display: grid;
+        place-items: center;
+        font-family: "Space Mono", monospace;
+        font-size: 13px;
+        font-weight: 700;
+        color: #1a1a00;
+        flex: none;
+      }
+      .lijn .vrij .vt {
+        flex: 1;
+        min-width: 0;
+      }
+      .lijn .vrij .vt .t {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .lijn .vrij .vt .s {
+        font-size: 12px;
+        color: #515e75;
+        margin-top: 1px;
+      }
+      .lijn .vrij .ok {
+        font-size: 11px;
+        font-weight: 800;
+        color: #0c6b43;
+        background: #d9f3e7;
+        padding: 4px 10px;
+        border-radius: 999px;
+      }
+
+      /* ============================================================
+         3 · NIEUWE BEELDING — structuur als schoonheid
+         Witte vlakken, zwarte lijnen (het grid ÍS de interface),
+         primaire kleuren strikt functioneel: blauw = geverifieerd,
+         geel = aandacht, rood = fout. Zwart = actie.
+         ============================================================ */
+      .stijl {
+        background: #f4f2ec;
+        color: #111;
+        font-family: "Space Grotesk", sans-serif;
+      }
+      .stijl .balk {
+        display: flex;
+        align-items: stretch;
+        background: #f4f2ec;
+        border-bottom: 3px solid #111;
+      }
+      .stijl .balk .wm {
+        padding: 18px 26px;
+        font-weight: 700;
+        font-size: 17px;
+        letter-spacing: 0.04em;
+        border-right: 3px solid #111;
+      }
+      .stijl .balk nav {
+        display: flex;
+      }
+      .stijl .balk nav a {
+        display: flex;
+        align-items: center;
+        padding: 0 18px;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #6c6a62;
+        border-right: 1px solid #d8d4c8;
+      }
+      .stijl .balk nav a.actief {
+        background: #111;
+        color: #fff;
+      }
+      .stijl .balk nav a:hover {
+        color: #111;
+      }
+      .stijl .balk .r {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 0;
+      }
+      .stijl .balk .r .zk {
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        border-left: 3px solid #111;
+        align-self: stretch;
+      }
+      .stijl .balk .r .mij {
+        display: grid;
+        place-items: center;
+        width: 60px;
+        border-left: 3px solid #111;
+        background: #2747d8;
+        color: #fff;
+        font-weight: 700;
+        align-self: stretch;
+      }
+
+      .stijl .compositie {
+        display: grid;
+        grid-template-columns: 1.7fr 1fr 1fr;
+        gap: 3px;
+        background: #111;
+        border-bottom: 3px solid #111;
+      }
+      .stijl .vlak {
+        background: #fff;
+        padding: 24px 26px;
+        min-height: 130px;
+        position: relative;
+      }
+      .stijl .vlak.crème {
+        background: #f4f2ec;
+      }
+      .stijl .vlak.geel {
+        background: #f7c600;
+      }
+      .stijl .vlak.blauw {
+        background: #2747d8;
+        color: #fff;
+      }
+      .stijl .vlak.zwart {
+        background: #111;
+        color: #fff;
+      }
+      .stijl .ol {
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #8a877c;
+        margin-bottom: 12px;
+      }
+      .stijl .vlak.geel .ol {
+        color: #5c4a00;
+      }
+      .stijl .vlak.blauw .ol {
+        color: #b9c4f5;
+      }
+      .stijl .vlak.zwart .ol {
+        color: #9a9a94;
+      }
+      .stijl h2.groet {
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+      }
+      .stijl .groet-sub {
+        font-size: 14px;
+        color: #6c6a62;
+        margin-top: 10px;
+        max-width: 46ch;
+      }
+      .stijl .mono {
+        font-family: "Space Mono", monospace;
+      }
+      .stijl .reuzen {
+        font-family: "Space Mono", monospace;
+        font-size: 52px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 1;
+      }
+      .stijl .reuzen small {
+        font-size: 20px;
+      }
+      .stijl .vlak .voet {
+        position: absolute;
+        left: 26px;
+        right: 26px;
+        bottom: 18px;
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .stijl .vlak.geel .voet {
+        color: #5c4a00;
+        font-weight: 600;
+      }
+      .stijl .vlak.blauw .voet {
+        color: #ccd5fa;
+      }
+
+      .stijl .actieblok {
+        margin-top: 20px;
+        border: 3px solid #111;
+      }
+      .stijl .actie1 {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        background: #f7c600;
+        padding: 16px 20px;
+        border-bottom: 3px solid #111;
+      }
+      .stijl .actie1 .anr {
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+        font-size: 15px;
+        background: #111;
+        color: #f7c600;
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .stijl .actie1 .at {
+        flex: 1;
+        font-weight: 700;
+        font-size: 15px;
+      }
+      .stijl .actie1 .at small {
+        display: block;
+        font-weight: 500;
+        font-size: 12px;
+        color: #5c4a00;
+        margin-top: 2px;
+      }
+      .stijl .actierij {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 13px 20px;
+        border-bottom: 1px solid #d8d4c8;
+        font-size: 13.5px;
+        background: #fff;
+      }
+      .stijl .actierij:last-child {
+        border-bottom: 0;
+      }
+      .stijl .actierij .anr2 {
+        font-family: "Space Mono", monospace;
+        color: #8a877c;
+        width: 30px;
+        text-align: center;
+      }
+      .stijl .actierij .at2 {
+        flex: 1;
+        font-weight: 500;
+      }
+      .stijl .zknop {
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+        background: #111;
+        color: #fff;
+        border: 0;
+        padding: 11px 20px;
+        flex: none;
+      }
+      .stijl .zknop:hover {
+        background: #2747d8;
+      }
+      .stijl .zknop.lijn2 {
+        background: transparent;
+        color: #111;
+        border: 2px solid #111;
+        padding: 9px 18px;
+      }
+      .stijl .zknop.lijn2:hover {
+        background: #111;
+        color: #fff;
+      }
+
+      .stijl .onder {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 0.9fr;
+        gap: 3px;
+        background: #111;
+      }
+      .stijl .weekgrid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0;
+        border: 2px solid #111;
+      }
+      .stijl .wd {
+        border-right: 1px solid #d8d4c8;
+        min-height: 86px;
+        padding: 8px;
+        position: relative;
+      }
+      .stijl .wd:last-child {
+        border-right: 0;
+      }
+      .stijl .wd .wl {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #8a877c;
+      }
+      .stijl .wd.nu .wl {
+        color: #2747d8;
+      }
+      .stijl .wd .blokje {
+        margin-top: 8px;
+        background: #2747d8;
+        color: #fff;
+        font-size: 9.5px;
+        font-weight: 700;
+        padding: 5px 6px;
+        line-height: 1.3;
+      }
+      .stijl .wd .blokje.geel {
+        background: #f7c600;
+        color: #111;
+      }
+      .stijl .kv {
+        font-size: 13.5px;
+      }
+      .stijl .kv .r {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 10px 0;
+        border-bottom: 1px solid #d8d4c8;
+      }
+      .stijl .kv .r:last-child {
+        border-bottom: 0;
+      }
+      .stijl .kv .k {
+        color: #6c6a62;
+      }
+      .stijl .kv .w {
+        font-weight: 700;
+        text-align: right;
+      }
+      .stijl .blokstatus {
+        display: inline-block;
+        width: 11px;
+        height: 11px;
+        margin-right: 7px;
+        vertical-align: -1px;
+      }
+      .stijl .blokstatus.b {
+        background: #2747d8;
+      }
+      .stijl .blokstatus.g {
+        background: #f7c600;
+      }
+      .stijl .blokstatus.r {
+        background: #d8262c;
+      }
+      .stijl .blokstatus.x {
+        background: #c9c5b8;
+      }
+      .stijl .dossier .dr {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .stijl .dossier .dr:last-child {
+        border-bottom: 0;
+      }
+      .stijl .dossier .dr .vink {
+        width: 18px;
+        height: 18px;
+        background: #fff;
+        color: #2747d8;
+        display: grid;
+        place-items: center;
+        flex: none;
+        font-weight: 700;
+      }
+      .stijl .dossier .dr .vink.let {
+        background: #f7c600;
+        color: #111;
+      }
+      .stijl .dossier .dr small {
+        margin-left: auto;
+        font-size: 11px;
+        color: #ccd5fa;
+      }
+      .stijl .voetregel {
+        display: flex;
+        justify-content: space-between;
+        padding: 14px 26px;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #8a877c;
+        border-top: 3px solid #111;
+      }
+
+      @media (max-width: 1020px) {
+        .polder .veld,
+        .polder .watergrid {
+          grid-template-columns: 1fr;
+          gap: 26px;
+        }
+        .lijn .duo {
+          grid-template-columns: 1fr;
+        }
+        .lijn .borden {
+          grid-template-columns: 1fr;
+        }
+        .stijl .compositie,
+        .stijl .onder {
+          grid-template-columns: 1fr;
+        }
+        .polder .horizon-nav {
+          flex-wrap: wrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="deck">
+      <div class="mark">A</div>
+      <div>
+        <h1>Atelier — drie eigen richtingen</h1>
+        <p>
+          Zelfde scherm (het ZZP-dashboard van Sanne), drie totaal verschillende concepten. Wissel
+          rechts.
+        </p>
+      </div>
+      <div class="pills">
+        <button class="actief" onclick="toon('polder', this)">
+          <span class="d" style="background: #c25e1f"></span>1 · Polderlicht
+        </button>
+        <button onclick="toon('lijn', this)">
+          <span class="d" style="background: #ffc917"></span>2 · Lijnennet
+        </button>
+        <button onclick="toon('stijl', this)">
+          <span class="d" style="background: #2747d8"></span>3 · Nieuwe Beelding
+        </button>
+      </div>
+    </header>
+    <p class="hint" id="hint">
+      <b>Polderlicht — het landschap als layout.</b> Geen kaarten: de pagina is een polder bij
+      zonsopkomst. Banen met horizonlijnen — lucht (begroeting), akker (acties als voren), veld
+      (week als hek), en geld als water onderin, mét waterpeil.
+    </p>
+
+    <div class="kader">
+      <!-- ==================== 1 · POLDERLICHT ==================== -->
+      <div class="frame polder" id="scherm-polder">
+        <nav class="horizon-nav">
+          <span class="wm">zzp<i>·</i>platform</span>
+          <a href="#" class="actief">Vandaag</a>
+          <a href="#">Opdrachten</a>
+          <a href="#">Samenwerkingen</a>
+          <a href="#">Dossier</a>
+          <a href="#">Geld</a>
+          <span class="r"><span>⌘K zoeken</span><span class="me">SV</span></span>
+        </nav>
+
+        <section class="baan lucht">
+          <div>
+            <div class="datum">Maandag 9 juni · week 24</div>
+            <h2>Goedemorgen, <i>Sanne</i></h2>
+            <p class="sub">
+              Drie zaken vragen je aandacht. De rest van je polder ligt erbij zoals het hoort.
+            </p>
+          </div>
+          <div class="zon">
+            <span class="ring"><span class="b"></span>Volledig geverifieerd</span>
+            <span class="s">VOG · BIG · diploma · verzekering</span>
+          </div>
+        </section>
+
+        <section class="baan akker">
+          <div class="label">De akker — wat vandaag aandacht vraagt</div>
+          <div class="voor eerst">
+            <span class="nr">1</span>
+            <div class="vt">
+              <div class="t">Je reanimatiecertificaat verloopt over 21 dagen</div>
+              <div class="s">
+                Twee lopende samenwerkingen vereisen het — zonder geldig bewijs zak je naar "deels
+                geverifieerd".
+              </div>
+            </div>
+            <button class="knop zon">Vernieuwen</button>
+          </div>
+          <div class="voor">
+            <span class="nr">2</span>
+            <div class="vt">
+              <div class="t">Onderteken de modelovereenkomst voor Nachtdienst Geriatrie</div>
+              <div class="s">Thuiszorg West tekende gisteren — jij bent aan zet.</div>
+            </div>
+            <button class="knop">Bekijken</button>
+          </div>
+          <div class="voor">
+            <span class="nr">3</span>
+            <div class="vt">
+              <div class="t">Twee nieuwe opdrachten passen ≥ 90% bij je profiel</div>
+              <div class="s">Beide binnen 25 minuten reizen, tarief boven je ondergrens.</div>
+            </div>
+            <button class="knop">Bekijken</button>
+          </div>
+        </section>
+
+        <section class="baan veld">
+          <div>
+            <div class="label">Het veld — jouw week</div>
+            <div class="hek">
+              <div class="paal vandaag"><span class="dg">Ma 9</span></div>
+              <div class="paal">
+                <span class="dg">Di 10</span>
+                <div class="dienst">
+                  <div class="u">23:00–07:00</div>
+                  <div class="w">Nacht · De Es</div>
+                </div>
+              </div>
+              <div class="paal"><span class="dg">Wo 11</span></div>
+              <div class="paal">
+                <span class="dg">Do 12</span>
+                <div class="dienst">
+                  <div class="u">23:00–07:00</div>
+                  <div class="w">Nacht · De Es</div>
+                </div>
+              </div>
+              <div class="paal"><span class="dg">Vr 13</span></div>
+              <div class="paal">
+                <span class="dg">Za 14</span>
+                <div class="dienst">
+                  <div class="u">15:00–23:00</div>
+                  <div class="w">Avond · West</div>
+                </div>
+              </div>
+              <div class="paal"><span class="dg">Zo 15</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="label">Lopend werk</div>
+            <div class="werkrij"><b>Verpleeghuis De Es</b><span class="oog">loopt</span></div>
+            <div class="werkrij">
+              <b>Thuiszorg West</b><span class="oog wacht">uren wachten op akkoord</span>
+            </div>
+            <div class="werkrij"><b>Zorggroep Noord</b><span class="oog stil">voorstel</span></div>
+          </div>
+        </section>
+
+        <section class="baan water">
+          <div class="label">Het water — jouw geld</div>
+          <div class="watergrid">
+            <div>
+              <div class="cl">Omzet juni</div>
+              <div class="cijfer">€ 3.480</div>
+              <div class="cs">▲ 12% ten opzichte van mei</div>
+            </div>
+            <div>
+              <div class="cl">Waterpeil — betaald vs. openstaand</div>
+              <div class="cijfer">
+                <span class="ok">€ 2.190</span>
+                <span style="font-size: 22px; color: #8da6a2">van € 3.480 binnen</span>
+              </div>
+              <div class="peil"><i></i></div>
+              <div class="cs">
+                € 1.290 openstaand · oudste factuur 6 dagen · <a href="#">bekijk facturen</a>
+              </div>
+            </div>
+            <div>
+              <div class="cl">BTW Q2</div>
+              <div class="cijfer">€ 2.187</div>
+              <div class="cs">aangifte vóór 31 juli</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ==================== 2 · LIJNENNET ==================== -->
+      <div class="frame lijn" id="scherm-lijn" hidden>
+        <div class="top">
+          <div class="blok">Z</div>
+          <span class="wm">ZZP Platform</span>
+          <nav>
+            <a href="#" class="actief">Netkaart</a>
+            <a href="#">Opdrachten</a>
+            <a href="#">Dossier</a>
+            <a href="#">Geld</a>
+          </nav>
+          <div class="r">
+            <span class="zoek">Zoeken ⌘K</span>
+            <span class="me">SV</span>
+          </div>
+        </div>
+
+        <div class="inhoud">
+          <div class="kop">
+            <div>
+              <h2>Goedemorgen, Sanne</h2>
+              <p class="sub">
+                Drie vertrekken vragen je aandacht — je lijnen rijden verder op schema.
+              </p>
+            </div>
+            <span class="bord">
+              <span class="v"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#fff"
+                  stroke-width="3.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="m5 13 4 4L19 7" /></svg
+              ></span>
+              Volledig geverifieerd
+            </span>
+          </div>
+
+          <!-- vertrekstaat -->
+          <div class="staat">
+            <div class="sk">
+              <span class="t">Vertrek — wat nu</span
+              ><span class="s">je drie eerstvolgende handelingen, op volgorde van vertrektijd</span>
+            </div>
+            <div class="rij">
+              <span class="tijd">21 dgn</span>
+              <div class="best">
+                <div class="b">Reanimatiecertificaat vernieuwen</div>
+                <div class="v">
+                  daarna blijft "volledig geverifieerd" staan — 2 lijnen vereisen het
+                </div>
+              </div>
+              <span class="spoor">DOSSIER</span>
+              <button class="ga">Vernieuwen</button>
+            </div>
+            <div class="rij">
+              <span class="tijd">vandaag</span>
+              <div class="best">
+                <div class="b">Modelovereenkomst ondertekenen — Nachtdienst Geriatrie</div>
+                <div class="v">Thuiszorg West tekende gisteren · jij bent aan zet</div>
+              </div>
+              <span class="spoor">LIJN 2</span>
+              <button class="ga">Ondertekenen</button>
+            </div>
+            <div class="rij">
+              <span class="tijd kalm">nieuw</span>
+              <div class="best">
+                <div class="b">2 nieuwe verbindingen ≥ 90% match</div>
+                <div class="v">beide binnen 25 minuten reizen, tarief boven je ondergrens</div>
+              </div>
+              <span class="spoor">MATCHES</span>
+              <button class="ga stil">Bekijken</button>
+            </div>
+          </div>
+
+          <div class="duo">
+            <!-- lijnen -->
+            <div class="net">
+              <div class="nk">
+                <h3>Jouw lijnen</h3>
+                <a href="#">Alle samenwerkingen →</a>
+              </div>
+
+              <div class="route" style="color: #0a2e8a">
+                <div class="rk">
+                  <span class="lnr" style="background: #0a2e8a">L1</span>
+                  <div>
+                    <div class="rt">Weekenddienst — Verpleeghuis De Es</div>
+                    <div class="rs">€ 46/uur · za &amp; zo · ORT VVT</div>
+                  </div>
+                  <span class="eind">richting: Betaald</span>
+                </div>
+                <div class="spoorlijn">
+                  <div class="rail"><i style="background: #0a2e8a; width: 78%"></i></div>
+                  <div class="haltes">
+                    <div class="halte geweest">
+                      <span class="dot"></span><span class="hl">Contract</span>
+                    </div>
+                    <div class="halte geweest">
+                      <span class="dot"></span><span class="hl">Uren</span>
+                    </div>
+                    <div class="halte geweest">
+                      <span class="dot"></span><span class="hl">Akkoord</span>
+                    </div>
+                    <div class="halte hier">
+                      <span class="jbh">JE BENT HIER</span><span class="dot"></span
+                      ><span class="hl">Factuur</span>
+                    </div>
+                    <div class="halte">
+                      <span class="dot"></span><span class="hl">Betaald</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="route" style="color: #0e8f7e">
+                <div class="rk">
+                  <span class="lnr" style="background: #0e8f7e">L2</span>
+                  <div>
+                    <div class="rt">Nachtdienst Geriatrie — Thuiszorg West</div>
+                    <div class="rs">€ 48/uur · di &amp; do · ORT VVT</div>
+                  </div>
+                  <span class="eind">vertrekt na ondertekening</span>
+                </div>
+                <div class="spoorlijn">
+                  <div class="rail"><i style="background: #0e8f7e; width: 13%"></i></div>
+                  <div class="haltes">
+                    <div class="halte hier">
+                      <span class="jbh">JE BENT HIER</span><span class="dot"></span
+                      ><span class="hl">Contract</span>
+                    </div>
+                    <div class="halte"><span class="dot"></span><span class="hl">Uren</span></div>
+                    <div class="halte">
+                      <span class="dot"></span><span class="hl">Akkoord</span>
+                    </div>
+                    <div class="halte">
+                      <span class="dot"></span><span class="hl">Factuur</span>
+                    </div>
+                    <div class="halte">
+                      <span class="dot"></span><span class="hl">Betaald</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="route" style="color: #c2530e">
+                <div class="rk">
+                  <span class="lnr" style="background: #c2530e">L3</span>
+                  <div>
+                    <div class="rt">Flexpool — Zorggroep Noord</div>
+                    <div class="rs">voorstel · nog geen vertrektijd</div>
+                  </div>
+                  <span class="eind">wacht op jouw reactie</span>
+                </div>
+                <div class="spoorlijn">
+                  <div class="rail"><i style="background: #c2530e; width: 4%"></i></div>
+                  <div class="haltes">
+                    <div class="halte hier">
+                      <span class="jbh">VOORSTEL</span><span class="dot"></span
+                      ><span class="hl">Contract</span>
+                    </div>
+                    <div class="halte"><span class="dot"></span><span class="hl">Uren</span></div>
+                    <div class="halte">
+                      <span class="dot"></span><span class="hl">Akkoord</span>
+                    </div>
+                    <div class="halte">
+                      <span class="dot"></span><span class="hl">Factuur</span>
+                    </div>
+                    <div class="halte">
+                      <span class="dot"></span><span class="hl">Betaald</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: grid; gap: 22px">
+              <div class="borden" style="grid-template-columns: 1fr">
+                <div class="bordje groen">
+                  <div class="bl">Omzet juni</div>
+                  <div class="bv">€ 3.480</div>
+                  <div class="bs">+12% t.o.v. mei · 2 facturen openstaand</div>
+                </div>
+                <div class="bordje geel">
+                  <div class="bl">Uren deze week</div>
+                  <div class="bv">24 / 28</div>
+                  <div class="bs">3 diensten gepland</div>
+                </div>
+                <div class="bordje">
+                  <div class="bl">BTW Q2</div>
+                  <div class="bv">€ 2.187</div>
+                  <div class="bs">aangifte vóór 31 juli</div>
+                </div>
+              </div>
+
+              <div class="verbind">
+                <div class="vk">Nieuwe verbindingen</div>
+                <div class="vrij">
+                  <span class="pct">94%</span>
+                  <div class="vt">
+                    <div class="t">Wijkverpleging avonddiensten</div>
+                    <div class="s">Zorggroep Noord · Amstelveen · € 46–50/uur</div>
+                  </div>
+                  <span class="ok">Certificaten ✓</span>
+                </div>
+                <div class="vrij">
+                  <span class="pct">91%</span>
+                  <div class="vt">
+                    <div class="t">Geriatrie weekenddiensten</div>
+                    <div class="s">Huize Vredenhof · Haarlem · € 48/uur</div>
+                  </div>
+                  <span class="ok">Certificaten ✓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== 3 · NIEUWE BEELDING ==================== -->
+      <div class="frame stijl" id="scherm-stijl" hidden>
+        <div class="balk">
+          <span class="wm">ZZP—PLATFORM</span>
+          <nav>
+            <a href="#" class="actief">Vandaag</a>
+            <a href="#">Werk</a>
+            <a href="#">Dossier</a>
+            <a href="#">Geld</a>
+          </nav>
+          <div class="r">
+            <span class="zk">ZOEK ⌘K</span>
+            <span class="mij">SV</span>
+          </div>
+        </div>
+
+        <div class="compositie">
+          <div class="vlak crème">
+            <div class="ol">Maandag 9 juni — week 24</div>
+            <h2 class="groet">Goedemorgen,<br />Sanne de Vries</h2>
+            <p class="groet-sub">
+              Drie punten vragen je aandacht. Alles daaronder is structuur: het loopt.
+            </p>
+          </div>
+          <div class="vlak geel">
+            <div class="ol">Beste match vandaag</div>
+            <div class="reuzen">94<small>%</small></div>
+            <div class="voet">
+              <span>Wijkverpleging avond — Zorggroep Noord</span><span>→</span>
+            </div>
+          </div>
+          <div class="vlak">
+            <div class="ol">Omzet juni</div>
+            <div class="reuzen" style="font-size: 40px">€3.480</div>
+            <div class="voet" style="color: #6c6a62">
+              <span>+12% t.o.v. mei</span><span class="mono">●●●●●○</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 22px 26px">
+          <div class="ol" style="margin-bottom: 0">Acties — op volgorde van gewicht</div>
+          <div class="actieblok">
+            <div class="actie1">
+              <span class="anr">1</span>
+              <div class="at">
+                Reanimatiecertificaat verloopt over 21 dagen
+                <small>twee lopende samenwerkingen vereisen het — vernieuw vóór 30 juni</small>
+              </div>
+              <button class="zknop">Vernieuwen</button>
+            </div>
+            <div class="actierij">
+              <span class="anr2">2</span>
+              <span class="at2"
+                >Onderteken de modelovereenkomst — <b>Nachtdienst Geriatrie</b> (Thuiszorg West
+                tekende gisteren)</span
+              >
+              <button class="zknop lijn2">Openen</button>
+            </div>
+            <div class="actierij">
+              <span class="anr2">3</span>
+              <span class="at2">Twee nieuwe opdrachten passen ≥ 90% bij je profiel</span>
+              <button class="zknop lijn2">Bekijken</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="onder">
+          <div class="vlak">
+            <div class="ol">Week 24</div>
+            <div class="weekgrid">
+              <div class="wd nu"><span class="wl">Ma 9</span></div>
+              <div class="wd">
+                <span class="wl">Di 10</span>
+                <div class="blokje">23–07<br />De Es</div>
+              </div>
+              <div class="wd"><span class="wl">Wo 11</span></div>
+              <div class="wd">
+                <span class="wl">Do 12</span>
+                <div class="blokje">23–07<br />De Es</div>
+              </div>
+              <div class="wd"><span class="wl">Vr 13</span></div>
+              <div class="wd">
+                <span class="wl">Za 14</span>
+                <div class="blokje geel">15–23<br />West</div>
+              </div>
+              <div class="wd"><span class="wl">Zo 15</span></div>
+            </div>
+          </div>
+          <div class="vlak crème">
+            <div class="ol">Lopend werk</div>
+            <div class="kv">
+              <div class="r">
+                <span class="k"><span class="blokstatus b"></span>Verpleeghuis De Es</span
+                ><span class="w">factuur onderweg</span>
+              </div>
+              <div class="r">
+                <span class="k"><span class="blokstatus g"></span>Thuiszorg West</span
+                ><span class="w">uren wachten op akkoord</span>
+              </div>
+              <div class="r">
+                <span class="k"><span class="blokstatus x"></span>Zorggroep Noord</span
+                ><span class="w">voorstel</span>
+              </div>
+              <div class="r">
+                <span class="k">Openstaand</span><span class="w mono">€ 1.290</span>
+              </div>
+              <div class="r">
+                <span class="k">BTW Q2 vóór 31 juli</span><span class="w mono">€ 2.187</span>
+              </div>
+            </div>
+          </div>
+          <div class="vlak blauw dossier">
+            <div class="ol">Dossier — geverifieerd</div>
+            <div class="dr"><span class="vink">✓</span>VOG<small>t/m mrt 2027</small></div>
+            <div class="dr">
+              <span class="vink">✓</span>BIG-registratie<small>register ✓</small>
+            </div>
+            <div class="dr"><span class="vink">✓</span>Diploma MBO-V 4<small>DUO ✓</small></div>
+            <div class="dr">
+              <span class="vink let">!</span>Reanimatie<small>verloopt 30 jun</small>
+            </div>
+          </div>
+        </div>
+        <div class="voetregel"><span>ZZP—Platform</span><span>Structuur is schoonheid</span></div>
+      </div>
+    </div>
+
+    <script>
+      var HINTS = {
+        polder:
+          "<b>Polderlicht — het landschap als layout.</b> Geen kaarten: de pagina is een polder bij zonsopkomst. Banen met horizonlijnen — lucht (begroeting), akker (acties als voren), veld (week als hek), en geld als water onderin, mét waterpeil.",
+        lijn: "<b>Lijnennet — je werk als wegwijzer.</b> Elke samenwerking is een lijn met haltes (contract → uren → akkoord → factuur → betaald) en een “JE BENT HIER”-markering. Wat nu moet, staat op het vertrekbord. Wayfinding doet wat het belooft: je verdwaalt nooit.",
+        stijl:
+          "<b>Nieuwe Beelding — structuur als schoonheid.</b> Witte en crème vlakken, zwarte lijnen als interface, en primaire kleuren strikt functioneel: blauw = geverifieerd, geel = aandacht, rood = fout, zwart = actie. Mondriaan-discipline, nul decoratie.",
+      };
+      function toon(naam, el) {
+        ["polder", "lijn", "stijl"].forEach(function (s) {
+          document.getElementById("scherm-" + s).hidden = s !== naam;
+        });
+        document.getElementById("hint").innerHTML = HINTS[naam];
+        document.querySelectorAll(".deck .pills button").forEach(function (b) {
+          b.classList.remove("actief");
+        });
+        el.classList.add("actief");
+      }
+    </script>
+  </body>
+</html>

@@ -47,7 +47,8 @@ export async function AppShell({
     <div className="grid min-h-screen grid-cols-[16rem_1fr] max-md:grid-cols-1">
       {/* Skip-link: eerste focusbare element, springt naar de hoofdinhoud (toetsenbord/screenreader). */}
       <SkipLink />
-      <aside className="hidden flex-col border-r border-border bg-muted/30 md:flex">
+      {/* Vakwerk-shell: witte zijbalk en topbalk als "vellen" op het pastel canvas. */}
+      <aside className="hidden flex-col border-r border-border bg-card md:flex">
         <div className="flex h-14 items-center gap-2 border-b border-border px-4">
           <Brand branding={branding} />
         </div>
@@ -83,7 +84,7 @@ export async function AppShell({
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        <header className="flex h-14 items-center justify-between gap-3 border-b border-border px-4 md:px-6">
+        <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
           <div className="flex items-center gap-2 md:hidden">
             <MobileNav items={navForRole(role)} badges={badges} />
             <Brand branding={branding} />

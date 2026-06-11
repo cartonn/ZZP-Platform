@@ -1,8 +1,27 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import { Inter, Schibsted_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { HydrationFlag } from "@/components/system/hydration-flag";
 import { PwaRegister } from "@/components/system/pwa-register";
+
+// Vakwerk-typografie (DESIGN.md): Inter voor UI, Schibsted Grotesk voor koppen,
+// JetBrains Mono voor cijfers. Via next/font zelfgehost — geen runtime-request.
+const fontSans = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+const fontDisplay = Schibsted_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+const fontMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "ZZP Platform",
@@ -17,8 +36,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0e0e11" },
+    { media: "(prefers-color-scheme: light)", color: "#eef3fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#101117" },
   ],
 };
 
@@ -32,7 +51,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // zodat er geen statisch gebakken HTML zónder nonce meer bestaat — bewuste afweging.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang="nl" suppressHydrationWarning>
+    <html
+      lang="nl"
+      suppressHydrationWarning
+      className={`${fontSans.variable} ${fontDisplay.variable} ${fontMono.variable}`}
+    >
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
