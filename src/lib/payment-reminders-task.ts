@@ -16,6 +16,8 @@ import {
   buildPaymentReminderEmail,
   buildPaymentOverdueEmail,
 } from "@/lib/services/reminder-emails";
+import { loadEmailPreferencesFor } from "@/lib/notification-preferences-data";
+import { isEmailEnabled } from "@/lib/notification-preferences";
 
 export interface PaymentReminderResult {
   markedOverdue: number;
@@ -104,6 +106,7 @@ export async function runPaymentReminderTask(opts: {
         })
       : [];
   const paymentUserMap = new Map(paymentUsers.map((u) => [u.id, u]));
+  const prefsByUser = await loadEmailPreferencesFor(allUserIds);
   const loginUrl = process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
   const mail = getMailSender();
 
@@ -145,30 +148,32 @@ export async function runPaymentReminderTask(opts: {
     if (u && candidate) {
       const num = candidate.partyInvoiceNumber ?? "factuur";
       try {
-        if (r.overdue) {
-          const isFreelancer = r.userId === candidate.freelancerUserId;
-          await mail.send(
-            buildPaymentOverdueEmail({
-              role: isFreelancer ? "freelancer" : "client",
-              name: u.name ?? u.email,
-              email: u.email,
-              invoiceNumber: num,
-              loginUrl,
-            }),
-          );
-        } else {
-          // Bereken daysLeft uit de stage-string (bv. "before-5" → 5).
-          const daysLeft = parseInt(r.stage.replace("before-", ""), 10);
-          if (!isNaN(daysLeft)) {
+        if (isEmailEnabled(prefsByUser.get(r.userId), "payment")) {
+          if (r.overdue) {
+            const isFreelancer = r.userId === candidate.freelancerUserId;
             await mail.send(
-              buildPaymentReminderEmail({
+              buildPaymentOverdueEmail({
+                role: isFreelancer ? "freelancer" : "client",
                 name: u.name ?? u.email,
                 email: u.email,
                 invoiceNumber: num,
-                daysLeft,
                 loginUrl,
               }),
             );
+          } else {
+            // Bereken daysLeft uit de stage-string (bv. "before-5" → 5).
+            const daysLeft = parseInt(r.stage.replace("before-", ""), 10);
+            if (!isNaN(daysLeft)) {
+              await mail.send(
+                buildPaymentReminderEmail({
+                  name: u.name ?? u.email,
+                  email: u.email,
+                  invoiceNumber: num,
+                  daysLeft,
+                  loginUrl,
+                }),
+              );
+            }
           }
         }
       } catch (err) {

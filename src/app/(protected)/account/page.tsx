@@ -104,6 +104,26 @@ export default async function AccountPage() {
 
       <Card>
         <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-medium">Notificatie-voorkeuren</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Beheer welke herinnerings-e-mails je ontvangt. In-app meldingen blijven altijd
+                staan.
+              </p>
+            </div>
+            <Link
+              href="/account/notificaties"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent"
+            >
+              Voorkeuren instellen
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3">
           <div>
             <h2 className="text-sm font-medium">Inzage (recht op dataportabiliteit)</h2>
             <p className="mt-1 text-sm text-muted-foreground">

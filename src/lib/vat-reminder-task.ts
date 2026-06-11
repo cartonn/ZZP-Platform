@@ -7,6 +7,8 @@ import { auditData } from "@/lib/audit";
 import { planVatReminders } from "@/lib/vat-reminder";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { buildVatReminderEmail } from "@/lib/services/reminder-emails";
+import { loadEmailPreferencesFor } from "@/lib/notification-preferences-data";
+import { isEmailEnabled } from "@/lib/notification-preferences";
 
 export interface VatReminderResult {
   reminded: number;
@@ -40,6 +42,7 @@ export async function runVatReminderTask(opts: {
   const fresh = plan.reminders.filter((r) => !seen.has(r.dedupeKey));
   if (fresh.length === 0) return { reminded: 0 };
 
+  const prefsByUser = await loadEmailPreferencesFor(fresh.map((r) => r.userId));
   const loginUrl = process.env.NEXTAUTH_URL ?? "https://app.zzp-platform.nl";
   const mail = getMailSender();
 
@@ -79,15 +82,17 @@ export async function runVatReminderTask(opts: {
     const u = vatUserMap.get(r.userId);
     if (u) {
       try {
-        await mail.send(
-          buildVatReminderEmail({
-            name: u.name ?? u.email,
-            email: u.email,
-            quarter: r.quarter,
-            year: r.year,
-            loginUrl,
-          }),
-        );
+        if (isEmailEnabled(prefsByUser.get(r.userId), "vat")) {
+          await mail.send(
+            buildVatReminderEmail({
+              name: u.name ?? u.email,
+              email: u.email,
+              quarter: r.quarter,
+              year: r.year,
+              loginUrl,
+            }),
+          );
+        }
       } catch (err) {
         console.error("[vat-reminder-task] e-mail mislukt:", err);
       }

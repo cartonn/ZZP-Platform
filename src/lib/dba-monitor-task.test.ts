@@ -25,6 +25,9 @@ vi.mock("@/lib/db", () => ({
     invoice: {
       findMany: vi.fn(async () => store.invoices),
     },
+    notificationPreference: {
+      findMany: vi.fn(async () => []), // geen rijen = standaard aan (opt-out-model)
+    },
     domainEvent: {
       findMany: vi.fn(async (args: { where: { dedupeKey: { in: string[] } } }) =>
         store.domainEvents.filter((e) => args.where.dedupeKey.in.includes(e.dedupeKey as string)),

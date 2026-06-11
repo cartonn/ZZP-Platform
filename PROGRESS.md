@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(notificaties): e-mailvoorkeuren per categorie (opt-out) — geborgen + uitgebreid (branch `feat/email-voorkeuren`)
+
+Geborgen van routine-branch `epic-lovelace-2fRim` (1 juni, nooit als PR geopend; zie
+"Increment: Notificatie-voorkeuren" verderop voor de oorspronkelijke inhoud) via cherry-pick op
+actuele main, en uitgebreid:
+
+- [x] Cherry-pick conflictvrij voor alle code behalve schema/PROGRESS; T1-runner-tests (10 juni)
+      voorzien van `notificationPreference`-mock (4 testbestanden)
+- [x] **Nieuwe 5e categorie `digest`** in `EMAIL_PREFERENCE_CATEGORIES` — de digest-runner
+      (#314) bestond nog niet toen de branch gebouwd werd
+- [x] **`notification-digest-task.ts`** — opt-out op queryniveau
+      (`notificationPreferences: { none: { category: "digest", emailEnabled: false } }`):
+      notificaties van een opted-out gebruiker blijven ongemarkeerd zodat hij na heraanzetten
+      alsnog één digest over de achterstand krijgt; +1 runner-test
+- [x] Preferences-tests bijgewerkt 4 → 5 categorieën (incl. schema-cases)
+- Gates groen: typecheck ✓, lint ✓, test 1471 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(vertrouwen): deelbaar en verifieerbaar vertrouwensdossier (branch `claude/feat-dossier-link`)
 
 - [x] **`src/lib/share-token.ts`** — pure helpers `dossierShareToken(profileId, secret)` en `verifyDossierToken(profileId, token, secret)`; HMAC-SHA256, hex, 32 tekens; timing-safe vergelijking; lege-secret-guard
@@ -774,6 +793,132 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
 - Notificaties verschijnen automatisch in het bestaande notificatiecentrum + bel; signals.ts
   badget bijna-verlopen al. Geen "AI" in teksten/comments/docs.
 
+### Increment: Rate-limiting op auth (brute-force-bescherming) — 2026-05-31
+
+- Orchestrator (Opus) + 1 Sonnet-builder (geïsoleerde kern); orchestrator deed integratie + poort.
+  Linear: ZZP2-29 (team ZZP Platform HUB), In Progress → Done met commit-hash.
+- **Keuze:** bovenste backlog-item (pgvector semantisch matchen) is in deze headless routine-
+  omgeving geblokkeerd — vereist prod-Postgres mét `vector`-extensie (lokaal/CI = SQLite, poort
+  dekt het niet) én externe embeddings (botst met determinisme + geen-"AI"). In plaats daarvan het
+  door de handover gesanctioneerde, headless-testbare security-item opgepakt.
+- **Kern** `src/lib/rate-limit.ts` (+ 11 unit-tests, geïnjecteerde klok): deterministische
+  fixed-window-limiter met pluggbare `RateLimitStore`-interface, dezelfde driver-aanpak als
+  storage/verifiers. `MemoryRateLimitStore` (per-proces, sweep bij drempel) als default; later
+  vervangbaar door een durable store (Redis/Upstash) achter dezelfde interface. `RateLimiter`-
+  wrapper + geconfigureerde singletons (`loginRateLimiter` 5/15min, `registerRateLimiter` 5/uur).
+- **Login** (`src/auth.ts`): begrenst pogingen per IP + genormaliseerde e-mail; bij overschrijding
+  poging weigeren + `AUTH_RATE_LIMITED`-audit (IP/UA), géén enumeratie-lek. Reset de teller bij
+  geslaagde login zodat legitieme gebruikers niet onnodig worden geblokkeerd.
+- **Registratie** (`src/app/register/actions.ts`): begrenst nieuwe accounts per IP +
+  `REGISTER_RATE_LIMITED`-audit; neutrale foutmelding.
+- Geen nieuwe env-vars (config als constanten → geen `check:env`-impact). Geen "AI" in code/teksten.
+- Checks: typecheck ✓, lint ✓, **213 unit-tests** ✓ (+11), build ✓ (33 routes). E2e overgeslagen
+  (geen browser-channel in deze routine-omgeving; net als CI). Commit `ec189e3`.
+
+### CSV-kern + SMTP-mail + onboarding e2e + repo-hardening — 2026-05-31
+
+- **CSV-kernbibliotheek** (`src/lib/csv.ts`): gedeelde lees-/schrijffuncties hergebruikt door
+  diensten, prestaties, administratie en import — één bron i.p.v. herhaalde code.
+- **SMTP-mailintegratie** (`feat(mail)` x2):
+  - `SmtpMailSender` in `mail-sender.ts` (nodemailer, lazy geladen, poort 465 = TLS / 587 = STARTTLS).
+  - Welkomstmail bij onboarding-import (`welcome-email.ts`) — tijdelijk wachtwoord + inloglink.
+  - Cascade-herinneringen (`reminder-emails.ts`) — expiry-task + payment-reminders-task +
+    concept-invoice-reminders-task + vat-reminder-task sturen nu ook e-mail via `getMailSender()`.
+  - Patroon: e-mails buiten de transactie (falen rolt DB-actie niet terug).
+- **E2e-tests onboarding** (`test(e2e)`): CSV bulk-import + geforceerde wachtwoordwijziging
+  (happy path + edge cases) in Playwright CI.
+- **Playwright in CI** (`feat(ci)`): `playwright.yml` draait nu ook in GitHub Actions (`--project=ci`,
+  bundled Chromium), screenshots als artifact. Alle workflows op OAuth (geen API key meer).
+- **Repo-hardening** (`feat`): `CODEOWNERS`, issue-/PR-templates, `CONTRIBUTING.md`, `SECURITY.md`.
+- **Prettier + husky + lint-staged** (`feat`): formatting-toolchain als pre-commit hook; codebase
+  geformatteerd; `.git-blame-ignore-revs` voor de format-commit.
+
+### Verificatie-uitslag e-mails + DBA-signaal e-mail — 2026-05-31
+
+Sluit de ontbrekende e-mailkanalen voor twee kritieke platform-events:
+
+- **Admin goedkeuren/afwijzen → e-mail naar ZZP'er** (`admin/verificaties/actions.ts`):
+  `buildCredentialVerifiedEmail` en `buildCredentialRejectedEmail` (inclusief afwijzingsreden)
+  — naast de bestaande in-app notificatie.
+- **DBA-monitor signaal → e-mail naar beide partijen** (`dba-monitor-task.ts`):
+  `buildDbaSignalEmail` met signaaltekst + disclaimer — naar ZZP'er én opdrachtgever.
+- **3 nieuwe templates** in `reminder-emails.ts` + 9 unit-tests (totaal 564 groen).
+- **Patroon**: e-mail buiten transactie, `getMailSender()` singleton (noop dev/test, SMTP prod).
+- # Gate: typecheck ✓ lint ✓ test 564 ✓ build ✓.
+
+### Increment: Semantische matching-laag (deterministisch lokaal, pgvector-klaar) — 2026-05-30
+
+- Orchestrator (Opus) + 2 Sonnet-builders op niet-overlappende nieuwe bestanden; orchestrator
+  deed de integratie + poort. Backlog-kop "semantisch matchen met pgvector" — gebouwd volgens
+  hetzelfde service-grens-patroon als storage/DUO/BIG/identiteit (lokaal werkt overal, echte
+  pgvector-provisioning op productie-Postgres = mensenwerk).
+- **Pure laag** `src/lib/semantic.ts` (+ 34 unit-tests): deterministische tekstgelijkenis zonder
+  externe afhankelijkheid — `tokenize` (lowercase, diacritics-strip, NL-stopwoorden, min. lengte),
+  `embed` (feature hashing via FNV-1a, signed, L2-genormaliseerd, dim 96), `cosineSimilarity`
+  (geklemd op [0,1]), `textRelatedness(a,b)` 0..1. Symmetrisch, identiek=1, leeg=0.
+- **Service-grens** `src/lib/services/semantic-matcher.ts` (+ 8 unit-tests): `SemanticMatcher`-
+  interface, `LocalSemanticMatcher` (default, in-memory cosinus), `PgVectorSemanticMatcher`
+  (env `SEMANTIC_MATCHER=pgvector`; faalt helder zonder DB-zijde), `getSemanticMatcher()` +
+  `safeRelatedness()` zodat ranking nooit crasht (degradeert naar score-only).
+- **Integratie** `recommendations.ts` + `suggestions.ts`: inhoudelijke gelijkenis als
+  deterministische **tiebreaker** bij gelijke score (`relatedness` veld, optioneel) + een
+  verklarende regel ("Sluit inhoudelijk aan op je profiel / op de opdracht") op de dashboard-
+  en opdrachtkaart wanneer de aansluiting boven de drempel ligt. `computeMatchScore` blijft
+  ongewijzigd (bestaande tests intact). Tiebreaker-unit-tests toegevoegd in beide test-files.
+- **Drempel gekalibreerd** op de demo-seed (42 job×profiel-paren, gemeten): median 0.120,
+  p75 0.245, p90 0.472, max 0.737 → `SEMANTIC_HIGHLIGHT_THRESHOLD = 0.3` toont de verklaring
+  voor 7/42 = 16,7% (~top 1/6) best-aansluitende paren (selectief, nooit altijd-aan/leeg).
+- env: `SEMANTIC_MATCHER` toegevoegd aan `env.ts` (default "local") + `.env.example`.
+- Checks groen: typecheck, lint, **246 unit-tests**, build (33 routes), `check:env`. E2e
+  overgeslagen (geen browser-channel in deze routine-omgeving, net als CI). Geen "AI" in
+  UI/teksten/comments/docs; deterministisch en server-side.
+- Let op (handoff): de backlog-kop "semantisch matchen" is in eerdere routine-runs al meermaals
+  als Done gemarkeerd op losse `claude/epic-*`-branches die nooit naar `claude/dazzling-carson-v9Qwk`
+  zijn gemerged. Deze run staat op `claude/epic-lovelace-ghtBi` en moet (na de poort) eveneens
+  gemerged worden om live te gaan.
+
+### Admin DBA-risico-overzicht (/admin/dba) — 2026-06-01
+
+- **Probleem:** de DBA-monitor (`dba-monitor.ts` + geplande taak) signaleert per samenwerking en
+  notificeert beide partijen, maar er was geen geconsolideerd beheerdersoverzicht. Beheerders konden
+  het DBA-risico over álle actieve samenwerkingen niet in één blik zien/sorteren/filteren.
+- **Pure kern** `src/lib/dba-overview.ts` (+ `dba-overview.test.ts`, 14 tests): `rankDbaLevel`
+  (HOOG<VERHOOGD<LAAG), `sortDbaRows` (hoogste risico eerst, bij gelijk niveau langste duur eerst),
+  `summarizeDbaOverview` (totaal + aantal per niveau, alle drie niveaus altijd aanwezig) en
+  `loadDbaOverview(now?)` — laadt ACTIEVE samenwerkingen, berekent omzetconcentratie identiek aan de
+  monitor-taak en past de bestaande engine (`assessCollaborationDba` + `jobDbaIndicators`) toe.
+  Server-side waarheid; hergebruikt `getDbaThresholds()` (DB-drempels).
+- **Pagina** `/admin/dba` (+ `loading.tsx`): samenvattingsstrip met klikbare niveaufilters
+  (querystring `?niveau=`), per rij Card met niveau-Badge (HOOG→danger/VERHOOGD→warning/LAAG→muted),
+  duur, partijen en de individuele signalen, link naar het werkproces. Verplichte disclaimer altijd
+  zichtbaar (Besluit 2: signaleren, geen juridisch oordeel). Loading- + lege staten aanwezig.
+  Alleen ADMIN (`requireRole("ADMIN")`). Nav-item "DBA-monitor" toegevoegd voor ADMIN.
+- Gebouwd met 2 Sonnet-builders op niet-overlappende bestanden (lib+tests / pagina+nav), orchestrator
+  integreerde + draaide de poort. Gate groen: typecheck ✓ lint ✓ test 569 ✓ build ✓ (/admin/dba
+  geregistreerd) prettier ✓. E2e overgeslagen (geen browser-channel in de routine-omgeving, net als CI).
+  Linear: ZZP2-37. Geen "AI" in UI/teksten/comments.
+
+### Aanmaningsladder voor te late facturen (dunning-escalatie) — 2026-05-31
+
+- Orchestrator (Opus) + 2 Sonnet-builders op niet-overlappende bestanden (engine+config+tests vs.
+  runner). Linear: ZZP2-35 (ZZP Platform HUB).
+- **Config** (`config.ts`): `DUNNING_STAGES` (REMINDER@0 / FIRST_NOTICE@14 / SECOND_NOTICE@30 /
+  FINAL_NOTICE@45 dagen-na-vervaldag, NL-labels) + `DunningLevel` + `DUNNING_ESCALATION_LEVEL`.
+  Configureerbaar; het platform int niet (Besluit 1) — signalen, geen incasso.
+- **Engine** (`payment-reminders.ts`): `daysOverdue` + `currentDunningStage` (hoogst bereikte
+  niveau of null) + `PaymentEscalationItem` + `escalations[]` op het plan. `planPaymentReminders`
+  vuurt per te late factuur het huidige niveau, eenmalig per niveau (dedupeKey per niveau,
+  idempotent), en escaleert naar het platform op het laatste niveau. Pre-vervaldag-herinneringen
+  ongewijzigd; bestaande tests blijven groen.
+- **Runner** (`payment-reminders-task.ts`): verwerkt de gestaffelde reminders + escaleert naar
+  actieve admins (DomainEvent + notificatie per admin + audit, idempotent via dedupeKey).
+  `PaymentReminderResult.escalated` toegevoegd.
+- **UI**: rustig informatief aanmaningsniveau-label op de factuurdetailpagina voor OVERDUE-facturen.
+- Tests: 555 → 573 groen (+18). Gate: typecheck ✓ lint ✓ test ✓ build ✓ prettier ✓.
+  E2e overgeslagen (geen browser-channel in deze omgeving; net als CI).
+
+---
+
 - **Audit QW3 — interim-cap lijstqueries:** `take: 100` op de vier onbegrensde
   collaboration-/document-`findMany`'s (dashboard ×2, samenwerkingen, documenten) als vangnet
   tegen onbegrensde groei; echte cursor-paginatie volgt in audit-taak T3.
@@ -796,5 +941,30 @@ echte betaalprovider, e-mail, formele security-/AVG-review (mensenwerk).
   optionele factoring 2,5% — eigenaar: factoring is geen harde nee meer) met omzetscenario's
   200/500/1.000/3.000 zzp'ers en geverifieerde concurrent-benchmarks. Acht-punten
   concurrentie-backlog toegevoegd aan CURRENT_TASK.md; punt 1 en 2 parallel in uitvoering.
+
+### Increment: Notificatie-voorkeuren — e-mailherinneringen per categorie aan/uit — 2026-06-01
+
+- **Probleem:** terugkerende herinnerings-/signaal-e-mails (betaling, concept-factuur, BTW, DBA)
+  konden niet per categorie worden uitgezet; geen controle over de inbox. In-app notificaties
+  blijven de bron van waarheid en staan hier los van.
+- **Pure kern** `src/lib/notification-preferences.ts` (+ 38 unit-tests): `EMAIL_PREFERENCE_CATEGORIES`
+  (payment/invoice/vat/dba, NL-labels), opt-out-model (afwezige rij = aan), `resolveEmailPreferences`,
+  `isEmailEnabled`, `isEmailPreferenceCategory`, `emailPreferencesSchema` (Zod).
+- **Datalaag** `src/lib/notification-preferences-data.ts`: `loadEmailPreferences(userId)`,
+  `loadEmailPreferencesFor(userIds)` (één query, geen N+1), `recipientWantsEmail`.
+- **Schema:** `NotificationPreference` (`@@unique([userId, category])`, default aan, cascade delete);
+  relatie op `User`. (db push, additief — bestaande flow ongemoeid.)
+- **UI** `/account/notificaties` (+ `loading.tsx`): toggle per categorie via de mutatieketen
+  (requireActor → Zod → `$transaction` upserts → `auditData`+`requestMeta` → revalidate), met link
+  vanaf `/account`. Geen dode knoppen; uitleg dat in-app meldingen altijd blijven.
+- **Gating** in de 4 terugkerende taakrunners (`payment-reminders-task`, `concept-invoice-reminders-task`,
+  `vat-reminder-task`, `dba-monitor-task`): vóór `mail.send` checkt `isEmailEnabled(prefsByUser.get(uid),
+cat)`. DomainEvent/Notification/AuditLog en admin-escalaties ongemoeid. Transactionele cascade-/
+  wachtwoord-/welkomstmails bewust buiten scope (operationeel, niet uit te zetten).
+- Gebouwd met 3 Sonnet-builders op niet-overlappende bestanden (tests / UI / runner-gating);
+  orchestrator (Opus) leverde het contract (schema + pure kern + datalaag) en draaide de poort.
+- Gate groen: typecheck ✓ lint ✓ test **884** ✓ (+38) build ✓ (`/account/notificaties` geregistreerd)
+  prettier ✓. E2e overgeslagen (geen browser-channel in de routine-omgeving, net als CI).
+  Linear: ZZP2-41. Geen "AI" in UI/teksten/comments.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->

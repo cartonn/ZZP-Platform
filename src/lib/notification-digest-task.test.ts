@@ -145,6 +145,19 @@ describe("runNotificationDigestTask", () => {
     expect(store.sentMails).toHaveLength(0);
   });
 
+  it("sluit gebruikers die de digest-mail uitzetten op queryniveau uit (opt-out)", async () => {
+    store.notifications = [notif({})];
+    const { runNotificationDigestTask } = await import("@/lib/notification-digest-task");
+    const { prisma } = await import("@/lib/db");
+    await runNotificationDigestTask({ actorId: null, now: NOW });
+    const args = vi.mocked(prisma.notification.findMany).mock.calls[0]?.[0] as {
+      where: { user: Record<string, unknown> };
+    };
+    expect(args.where.user.notificationPreferences).toEqual({
+      none: { category: "digest", emailEnabled: false },
+    });
+  });
+
   it("mailfout breekt de run niet — markering en event blijven staan", async () => {
     store.notifications = [notif({})];
     vi.doMock("@/lib/services/mail-sender", () => ({
