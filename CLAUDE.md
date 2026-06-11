@@ -25,6 +25,19 @@ werkt volgens dit contract:
    **Altijd `git fetch` + rebase/pull vóór elke commit én vóór elke push.** Bij
    non-fast-forward: rebasen, niet force-pushen. Gebruik subagents (Explore/parallel)
    voor research en onafhankelijk werk; integreer en commit zelf.
+   3a. **Branch-discipline (hard — geldt óók voor routines/24/7-runs):**
+   1. Begin élke run met `git fetch origin` en een **verse** feature-branch:
+      `git checkout -b feat/<korte-taaknaam> origin/main`. Hervat nooit een eerdere
+      sessie-/verzamelbranch; bouw nooit op een lokale staat.
+   2. **Overlap-check vóór je bouwt:** lees `gh pr list --state open`, de laatste ~10
+      commits op `origin/main` én de bovenste secties van PROGRESS.md. Is het backlog-item
+      al in-flight of gemerged → pak het volgende item.
+   3. **Een run zonder PR is een mislukte run.** Eindig altijd met push + `gh pr create`
+      naar `main` en verifieer de CI-poort (`gh pr checks <nr>`). Werk dat alleen op een
+      branch staat zonder PR, bestaat niet voor het project.
+   4. Eén klein increment per run (richtlijn 100–300 regels), DoD-gates groen vóór de PR.
+      Gemergde branches worden automatisch verwijderd (repo-setting); laat geen
+      branches achter.
 4. **Definition of Done per increment (geen uitzonderingen):** testbare kern + unit-tests →
    UI → `npm run typecheck` + `npm run lint` + `npm run test` + `npm run build` +
    `npx prettier --write .` groen → commit → push → **PR + CI-poort geverifieerd groen
