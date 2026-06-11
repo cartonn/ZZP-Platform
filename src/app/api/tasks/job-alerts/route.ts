@@ -1,7 +1,8 @@
 // Beveiligd HTTP-eindpunt voor job-alerts.
-// POST met Authorization: Bearer <CRON_SECRET> of ?token=<CRON_SECRET>. Zonder CRON_SECRET: 503.
+// POST met Authorization: Bearer <CRON_SECRET> Zonder CRON_SECRET: 503.
 
 import { NextResponse } from "next/server";
+import { authorizeCron } from "@/lib/cron-auth";
 import { runJobAlertsTask } from "@/lib/job-alerts-task";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +13,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Taak-endpoint niet geconfigureerd." }, { status: 503 });
   }
 
-  const authHeader = request.headers.get("authorization") ?? "";
-  const urlToken = new URL(request.url).searchParams.get("token") ?? "";
-  const provided = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : urlToken;
-  if (provided !== secret) {
+  if (!authorizeCron(request, secret)) {
     return NextResponse.json({ error: "Niet geautoriseerd." }, { status: 401 });
   }
 

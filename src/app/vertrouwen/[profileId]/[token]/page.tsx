@@ -1,8 +1,11 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { Check, ShieldCheck } from "lucide-react";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { verifyDossierToken } from "@/lib/share-token";
+import { dossierViewRateLimiter } from "@/lib/rate-limit";
+import { requestMeta } from "@/lib/request-meta";
+import { verifyDossierToken, shareTokenSecret } from "@/lib/share-token";
 import { computeTrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
@@ -27,7 +30,14 @@ export default async function TrustDossierPage({
 }) {
   const { profileId, token } = await params;
 
-  const secret = process.env.AUTH_SECRET ?? "";
+  // Brute-force-/scrape-rem (security-review M-4): sessieloze route, dus per IP begrensd.
+  // Bij overschrijding tonen we dezelfde 404 als bij een ongeldig token (geen oracle).
+  const { ipAddress } = await requestMeta();
+  if (!dossierViewRateLimiter.check(`dossier:${ipAddress ?? "onbekend"}`).allowed) {
+    notFound();
+  }
+
+  const secret = shareTokenSecret();
   const validToken = secret ? verifyDossierToken(profileId, token, secret) : false;
 
   // Laad het profiel — altijd, ook bij ongeldig token, want we willen geen

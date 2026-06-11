@@ -214,3 +214,15 @@ export const exportRateLimiter = new RateLimiter(
   limitFromEnv("EXPORT_RATE_LIMIT", 5),
   60 * 60_000,
 );
+
+/**
+ * Maximaal DOSSIER_VIEW_RATE_LIMIT (default 30) weergaven van het publieke vertrouwensdossier
+ * per IP per 5 minuten. De token-entropie is hoog (HMAC-SHA256), maar de route is sessieloos en
+ * elke poging kost een DB-query — deze rem maakt brute-force/scraping onaantrekkelijk
+ * (security-review M-4).
+ */
+export const dossierViewRateLimiter = new RateLimiter(
+  new MemoryRateLimitStore(),
+  limitFromEnv("DOSSIER_VIEW_RATE_LIMIT", 30),
+  5 * 60_000,
+);

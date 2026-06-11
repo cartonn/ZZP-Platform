@@ -12,6 +12,15 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 const TOKEN_LENGTH = 32;
 
 /**
+ * Sleutel voor deeltoken-HMAC's. Bij voorkeur een eigen SHARE_TOKEN_SECRET zodat rotatie van
+ * AUTH_SECRET (sessies) niet alle gedeelde dossier-links breekt en andersom (security-review
+ * H-1, 12-6-2026). Valt terug op AUTH_SECRET voor bestaande omgevingen.
+ */
+export function shareTokenSecret(): string {
+  return process.env.SHARE_TOKEN_SECRET || process.env.AUTH_SECRET || "";
+}
+
+/**
  * Berekent het deeltoken voor een freelancerProfile-id. Het token is 32 hexadecimale tekens
  * (afgeknotte HMAC-SHA256). Deterministisch: zelfde invoer = zelfde uitvoer.
  *

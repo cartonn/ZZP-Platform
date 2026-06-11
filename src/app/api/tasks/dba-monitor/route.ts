@@ -1,8 +1,9 @@
 // Beveiligd HTTP-eindpunt voor de geplande DBA-monitorrun (§6).
-// Aanroepen via POST met Authorization: Bearer <CRON_SECRET> of ?token=<CRON_SECRET>.
+// Aanroepen via POST met Authorization: Bearer <CRON_SECRET>.
 // Zonder geconfigureerde CRON_SECRET is het eindpunt uitgeschakeld (503).
 
 import { NextResponse } from "next/server";
+import { authorizeCron } from "@/lib/cron-auth";
 import { runDbaMonitorTask } from "@/lib/dba-monitor-task";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +14,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Taak-endpoint niet geconfigureerd." }, { status: 503 });
   }
 
-  const authHeader = request.headers.get("authorization") ?? "";
-  const urlToken = new URL(request.url).searchParams.get("token") ?? "";
-  const provided = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : urlToken;
-
-  if (provided !== secret) {
+  if (!authorizeCron(request, secret)) {
     return NextResponse.json({ error: "Niet geautoriseerd." }, { status: 401 });
   }
 
