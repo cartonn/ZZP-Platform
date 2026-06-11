@@ -1,8 +1,12 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
+  applicationRateLimiter,
+  exportRateLimiter,
   MemoryRateLimitStore,
+  messageRateLimiter,
   RateLimiter,
   resetRateLimiter,
+  uploadRateLimiter,
   type RateLimitResult,
 } from "@/lib/rate-limit";
 
@@ -189,5 +193,40 @@ describe("resetRateLimiter (wachtwoord-reset)", () => {
     expect(resetRateLimiter.check(key, BASE_NOW + 1).allowed).toBe(true);
     expect(resetRateLimiter.check(key, BASE_NOW + 2).allowed).toBe(true);
     expect(resetRateLimiter.check(key, BASE_NOW + 3).allowed).toBe(false);
+  });
+});
+
+describe("mutatie-limiters (berichten/reacties/uploads/export)", () => {
+  it("messageRateLimiter: 30 berichten toegestaan, 31e geweigerd", () => {
+    const key = `msg-test-${BASE_NOW}`;
+    for (let i = 0; i < 30; i++) {
+      expect(messageRateLimiter.check(key, BASE_NOW + i).allowed).toBe(true);
+    }
+    expect(messageRateLimiter.check(key, BASE_NOW + 30).allowed).toBe(false);
+  });
+
+  it("applicationRateLimiter: 10 reacties toegestaan, 11e geweigerd", () => {
+    const key = `apply-test-${BASE_NOW}`;
+    for (let i = 0; i < 10; i++) {
+      expect(applicationRateLimiter.check(key, BASE_NOW + i).allowed).toBe(true);
+    }
+    expect(applicationRateLimiter.check(key, BASE_NOW + 10).allowed).toBe(false);
+  });
+
+  it("uploadRateLimiter: 20 uploads toegestaan, 21e geweigerd", () => {
+    const key = `upload-test-${BASE_NOW}`;
+    for (let i = 0; i < 20; i++) {
+      expect(uploadRateLimiter.check(key, BASE_NOW + i).allowed).toBe(true);
+    }
+    expect(uploadRateLimiter.check(key, BASE_NOW + 20).allowed).toBe(false);
+  });
+
+  it("exportRateLimiter: 5 exports toegestaan, 6e geweigerd, nieuw venster na een uur", () => {
+    const key = `export-test-${BASE_NOW}`;
+    for (let i = 0; i < 5; i++) {
+      expect(exportRateLimiter.check(key, BASE_NOW + i).allowed).toBe(true);
+    }
+    expect(exportRateLimiter.check(key, BASE_NOW + 5).allowed).toBe(false);
+    expect(exportRateLimiter.check(key, BASE_NOW + 60 * 60_000).allowed).toBe(true);
   });
 });

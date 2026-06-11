@@ -3,6 +3,7 @@ import { AuthorizationError, requireActor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
+import { exportRateLimiter } from "@/lib/rate-limit";
 
 // AVG recht op inzage/dataportabiliteit: exporteer de eigen gegevens als JSON.
 // Alleen de eigen persoonsgegevens (geen documentinhoud, geen data van derden).
@@ -14,6 +15,14 @@ export async function GET() {
     if (e instanceof AuthorizationError)
       return NextResponse.json({ error: e.message }, { status: e.status });
     throw e;
+  }
+
+  // Export-rem: de export bundelt veel queries; begrens scripted loops (HTTP 429).
+  if (!exportRateLimiter.check(`export:${actor.id}`).allowed) {
+    return NextResponse.json(
+      { error: "Te veel exportverzoeken. Probeer het later opnieuw." },
+      { status: 429 },
+    );
   }
 
   const [user, profile, company, applications, documents, notifications, sentMessages] =

@@ -3,6 +3,20 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(security): rate-limiting op kritieke mutaties (branch `feat/rate-limit-mutaties`)
+
+Missie A (prompts/MISSIE-PRODUCTIE-KLAAR.md): vier nieuwe fixed-window-limiters naast de
+bestaande login/registratie/reset/zelf-verificatie-remmen.
+
+- [x] `src/lib/rate-limit.ts` — message (30/5min), application (10/u), upload (20/u), export (5/u);
+      alle drempels via env overschrijfbaar, gedocumenteerd in `.env.example`
+- [x] Gewired: `berichten/actions.ts` (sendMessage), `opdrachten/actions.ts` (createApplication),
+      `documenten/actions.ts` (uploadDocument), `api/account/export` (HTTP 429)
+- [x] 4 nieuwe limiter-tests; allowlist-regelnummers vangrail bijgewerkt
+- Gates groen: typecheck ✓, lint ✓, test 1527 ✓, build ✓, prettier ✓, check:env ✓
+
+---
+
 ## fix(samenwerkingen): afronden-rem op het handmatige pad + knopweergave (branch `claude/dazzling-carson-v9Qwk`, ZZP2-163)
 
 Maakt bergings-backlog #1 (geld-correctheid) volledig af. De cascade-afronding was al gedicht

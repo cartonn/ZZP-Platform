@@ -11,6 +11,7 @@ import {
   UploadValidationError,
   validateUpload,
 } from "@/lib/services/storage";
+import { uploadRateLimiter } from "@/lib/rate-limit";
 import { documentSchema } from "@/lib/validation";
 
 export type DocumentState =
@@ -27,6 +28,11 @@ export async function uploadDocument(
   } catch (e) {
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
+  }
+
+  // Upload-rem: begrens het aantal uploads per gebruiker per uur (storage/misbruik).
+  if (!uploadRateLimiter.check(`upload:${actor.id}`).allowed) {
+    return { error: "Te veel uploads kort achter elkaar. Probeer het later opnieuw." };
   }
 
   const parsed = documentSchema.safeParse({ kind: formData.get("kind") });
