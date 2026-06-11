@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(security): CSP-nonce-pipeline — productie zonder 'unsafe-inline' voor scripts (branch `feat/csp-nonce`)
+
+Missie A (prompts/MISSIE-PRODUCTIE-KLAAR.md): de laatste grote pre-prod security-hardening in code.
+
+- [x] `src/lib/csp.ts` (+ 5 tests) — pure `buildCsp()` + `generateNonce()` (Web Crypto, Edge+Node);
+      prod: `script-src 'self' 'nonce-…' 'strict-dynamic'` + legacy-fallbacks; dev: oude permissieve
+      policy (HMR) zonder nonce
+- [x] `src/middleware.ts` — `nextWithCsp()`: nonce per request op request- én responseheaders
+      (request-header laat Next zijn eigen hydratie-scripts noncen)
+- [x] `src/app/layout.tsx` — leest `x-nonce` via `headers()` voor het inline theme-script; maakt de
+      app bewust volledig dynamisch zodat er geen statisch gebakken HTML zonder nonce bestaat
+- [x] `next.config.mjs` — CSP verwijderd uit de statische headers (rest blijft)
+- [x] Geverifieerd op lokale prod-server: header + nonce op theme- én framework-scripts (curl),
+      0 nonce-loze inline scripts, browser-smoke zonder CSP-errors met werkende interactiviteit
+- Gates groen: typecheck ✓, lint ✓, csp-tests 5 ✓, build ✓ (alle routes dynamisch)
+
+---
+
 ## feat(security): rate-limiting op kritieke mutaties (branch `feat/rate-limit-mutaties`)
 
 Missie A (prompts/MISSIE-PRODUCTIE-KLAAR.md): vier nieuwe fixed-window-limiters naast de

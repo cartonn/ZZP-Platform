@@ -1,9 +1,29 @@
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
+import { buildCsp, generateNonce } from "@/lib/csp";
 import { isAdminPath, isFranchisePath } from "@/lib/route-guards";
 
 const { auth } = NextAuth(authConfig);
+
+const isDev = process.env.NODE_ENV !== "production";
+
+/**
+ * CSP-nonce-pipeline (missie A): per request een nonce. De policy gaat op de REQUEST-headers
+ * (zo geeft Next zijn eigen framework-/hydratiescripts de nonce mee) én op de response. De
+ * layout leest x-nonce voor het inline theme-script. Redirects hebben geen document en dus
+ * geen CSP nodig.
+ */
+function nextWithCsp(request: Request): NextResponse {
+  const nonce = generateNonce();
+  const csp = buildCsp({ nonce, isDev });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("content-security-policy", csp);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
 
 function getPublicOrigin(request: Request, fallbackOrigin: string) {
   const configuredOrigin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
@@ -34,7 +54,7 @@ function isPublicPath(pathname: string) {
 
 export default auth((request) => {
   const { pathname, search } = request.nextUrl;
-  if (isPublicPath(pathname)) return NextResponse.next();
+  if (isPublicPath(pathname)) return nextWithCsp(request);
 
   const origin = getPublicOrigin(request, request.nextUrl.origin);
   if (!request.auth?.user) {
@@ -78,7 +98,7 @@ export default auth((request) => {
     return NextResponse.redirect(new URL("/dashboard", origin));
   }
 
-  return NextResponse.next();
+  return nextWithCsp(request);
 });
 
 export const config = {
