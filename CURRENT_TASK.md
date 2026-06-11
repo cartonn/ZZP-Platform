@@ -68,6 +68,12 @@ administratiecascade. Bron van waarheid: `prompts/PLATFORM_OVERHAUL.md` (§0A be
 Meerdere agents pushen via PR's naar `main`; **altijd `git fetch` + rebase vóór commit én push**.
 Kies een increment dat **niet overlapt** met de laatste commits. Houd PR's klein (100–300 regels).
 
+**Branch-discipline (hard, zie CLAUDE.md 3a — les van 11-6-2026):** verse branch vanaf
+`origin/main` per run (nooit een sessie-branch hervatten); overlap-check vóór het bouwen
+(`gh pr list` + main-log + PROGRESS.md-top); **een run zonder PR is een mislukte run** — de
+nachtroutine bouwde tweemaal duplicaatwerk op een verzamelbranch zonder PR en dat werk is
+weggegooid. Gemergde branches worden automatisch verwijderd (repo-setting aan sinds 11-6-2026).
+
 ### Deploy-afspraak: de cutover is gebeurd — `main` is live
 
 De overhaul is volledig naar `main` gemerged en Railway deployt `main`. **Er is geen aparte deploy-
