@@ -119,6 +119,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const isClient = col.company.userId === actor.id;
   const isFreelancer = col.freelancer.userId === actor.id;
   if (!isClient && !isFreelancer && actor.role !== "ADMIN") notFound();
+  // Dispuut-freeze (§4): de server weigert elke cascade-actie tijdens een dispuut; de UI hoort
+  // die acties dan ook niet aan te bieden (anders klikt men tegen een kale foutpagina aan).
+  const frozen = Boolean(col.disputedAt);
 
   // Herplaatsing bij uitval: de opdrachtgever ziet bij een geannuleerde inzet direct passende,
   // beschikbare ZZP'ers (leeg zodra de dienst niet meer open staat — geen dode lijst).
@@ -538,7 +541,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           <h2 className="text-sm font-semibold">Uren & opleveringen</h2>
         </div>
 
-        {active && isFreelancer && (
+        {active && isFreelancer && !frozen && (
           <PerformanceForm
             collaborationId={col.id}
             rateCents={col.rate != null ? col.rate * 100 : null}
@@ -598,7 +601,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                           })()}
                       </div>
                     </div>
-                    {isFreelancer && p.status === "REJECTED" && (
+                    {isFreelancer && p.status === "REJECTED" && !frozen && (
                       <details className="border-t border-border pt-2">
                         <summary className="focus-ring cursor-pointer text-sm font-medium text-foreground hover:text-foreground">
                           Corrigeer en dien opnieuw in
@@ -616,7 +619,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         </div>
                       </details>
                     )}
-                    {isClient && p.status === "SUBMITTED" && (
+                    {isClient && p.status === "SUBMITTED" && !frozen && (
                       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
                         <form action={approvePerformanceAction.bind(null, p.id, col.id)}>
                           <Button type="submit" size="sm">
@@ -687,6 +690,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                     </div>
                     <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
                       {isFreelancer &&
+                        !frozen &&
                         (inv.lifecycleStatus === "DRAFT" || inv.lifecycleStatus === "REJECTED") && (
                           <form action={submitInvoiceAction.bind(null, inv.id, col.id)}>
                             <Button type="submit" size="sm">
@@ -696,7 +700,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                             </Button>
                           </form>
                         )}
-                      {isClient && inv.lifecycleStatus === "SUBMITTED" && (
+                      {isClient && inv.lifecycleStatus === "SUBMITTED" && !frozen && (
                         <>
                           <form action={approveInvoiceAction.bind(null, inv.id, col.id)}>
                             <Button type="submit" size="sm">
@@ -719,25 +723,28 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                           </form>
                         </>
                       )}
-                      {(isFreelancer || isClient) && inv.lifecycleStatus === "APPROVED" && (
-                        <form
-                          action={confirmPaymentAction.bind(null, inv.id, col.id)}
-                          className="flex items-center gap-2"
-                        >
-                          <Banknote className="size-4 text-muted-foreground" aria-hidden />
-                          <Button type="submit" size="sm">
-                            {/* De opdrachtgever is de betaler — "ontvangen" zou voor hem het
+                      {(isFreelancer || isClient) &&
+                        inv.lifecycleStatus === "APPROVED" &&
+                        !frozen && (
+                          <form
+                            action={confirmPaymentAction.bind(null, inv.id, col.id)}
+                            className="flex items-center gap-2"
+                          >
+                            <Banknote className="size-4 text-muted-foreground" aria-hidden />
+                            <Button type="submit" size="sm">
+                              {/* De opdrachtgever is de betaler — "ontvangen" zou voor hem het
                                 tegenovergestelde beweren van wat hij doet. Rol-afhankelijk label. */}
-                            {isClient ? "Markeer als betaald" : "Betaling ontvangen"}
-                          </Button>
-                        </form>
-                      )}
+                              {isClient ? "Markeer als betaald" : "Betaling ontvangen"}
+                            </Button>
+                          </form>
+                        )}
                       {(inv.lifecycleStatus === "PAID" || inv.lifecycleStatus === "PROCESSED") && (
                         <span className="text-xs text-muted-foreground">
                           Betaling geregistreerd.
                         </span>
                       )}
                       {isFreelancer &&
+                        !frozen &&
                         ["APPROVED", "PAID", "PROCESSED", "OVERDUE"].includes(
                           inv.lifecycleStatus ?? "",
                         ) && (

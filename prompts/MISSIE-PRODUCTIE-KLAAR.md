@@ -22,9 +22,9 @@ vertrouwen, Wet-DBA/AVG-compliance en een rustiger, mooier product.
 
 ### B. Kritieke gebruikersloops groen (e2e)
 
-- [ ] Playwright dekt: registratie→profiel→certificaat→admin-verificatie→opdracht→reactie→
-      match→samenwerking→contract→uren→goedkeuring→factuur→betaling (cascade A–E) voor
-      FREELANCER, CLIENT én ADMIN; plus dispuut/credit-zijpad.
+- [x] Playwright dekt: cascade A–E (3 rollen) + afkeuren + dispuut-freeze + credit-zijpad
+      (4/4 groen; registratie→verificatie→opdracht→reactie zaten al in de bestaande specs).
+      CI-e2e draait nu smoke + cascade (was alleen smoke).
 - [ ] e2e van advisory → blocking in `ci.yml` (audit T6) zodra 3 opeenvolgende runs groen.
 
 ### C. Frontend slick — Vakwerk-ontwerptaal

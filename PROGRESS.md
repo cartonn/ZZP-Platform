@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(geld) + e2e: credit-/afkeur-crash, betaal-tegenboekingen, dispuut-freeze (branch `feat/e2e-credit-zijpad`)
+
+De nieuwe credit-zijpad-e2e legde een keten van echte bugs bloot (missie B-vondst):
+
+- [x] **Crash-fix:** `Invoice.rejectionReason` bestond niet — élke factuurafkeuring (D′) én
+      creditering crashte op een PrismaClientValidationError achter een generieke foutpagina.
+      Kolom additief toegevoegd (schema + db push).
+- [x] **Geld-fix geborgen** (sanering-sha 798aedee, routine-branch pbzof7): credit-van-betaald
+      draait nu óók de betaal-tegenboekingen terug (geen spookvordering/-schuld meer in
+      debiteuren/crediteuren) + PAST_DUE-ladder per episode; met verzwaarde tests.
+- [x] **UI-dispuut-freeze:** 7 actie-oppervlakken op het werkproces (prestatie-/factuur-/
+      betaal-/credit-acties) verdwijnen tijdens een dispuut — server blokkeerde al, de UI
+      bood de acties nog aan.
+- [x] **e2e:** nieuw credit-zijpad-scenario; hele cascade-suite locator-gehard (stepper-details
+      maakten vrije-tekst-matches ambigu, scoping op secties + exact); **4/4 lokaal groen**.
+- [x] **CI:** e2e-job draait nu smoke + cascade (was alleen smoke — de kritieke geld-loop
+      draaide nooit in CI).
+- Gates groen: typecheck ✓, lint ✓, test 1547 ✓, build ✓, prettier ✓
+
+---
+
 ## docs(design): Vakwerk fase 4 — dark-pariteit-sweep afgerond (geen afwijkingen)
 
 Sweep over dashboard, opdrachten, samenwerkingen (+detail), facturen, certificaten en
