@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(security): bevindingen security-review 12-6 (branch `fix/security-review-juni`)
+
+Review over het volledige dagdiff (20 PR's, 119 bestanden): 0 Critical, 2 High, 5 Medium.
+
+- [x] **H-1** — `shareTokenSecret()`: deel-links gebruiken voortaan SHARE_TOKEN_SECRET
+      (fallback AUTH_SECRET); rotatie van sessies en links ontkoppeld; .env.example bij
+- [x] **M-1/M-2** — `src/lib/cron-auth.ts`: alle 12 taakroutes alleen nog Bearer-header
+      (geen ?token= in access-logs) + timing-safe vergelijking
+- [x] **M-3** — NoopMailSender logt in productie geen e-mailadres/onderwerp meer (AVG)
+- [x] **M-4** — `dossierViewRateLimiter` (30/5min per IP) op het publieke vertrouwensdossier,
+      met dezelfde 404 als bij een ongeldig token (geen oracle)
+- [x] **H-2** (gedeelde limit-store) + SHARE_TOKEN_SECRET-zetten → MENSENWERK §0b;
+      **M-5** (watchdog-dubbelklik) gemitigeerd door assertJobTransition, afweging genoteerd
+- Gates groen: typecheck ✓, lint ✓, test 1547 ✓, build ✓, prettier ✓, check:env ✓
+
+---
+
 ## feat(ux): PendingSubmitButton — geen enkele werkproces-knop hangt nog eeuwig (branch `feat/pending-submit-watchdog`)
 
 Generalisatie van de JobStatusButton-watchdog (issue #329-leerpunt):

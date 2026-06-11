@@ -22,9 +22,16 @@ export interface MailSender {
 /** Doet niets (standaard in dev/test). Logt alleen naar de console buiten testomgevingen. */
 class NoopMailSender implements MailSender {
   async send(message: MailMessage): Promise<void> {
-    if (process.env.NODE_ENV !== "test") {
-      console.log(`[mail:noop] To: ${message.to} | Subject: ${message.subject}`);
+    if (process.env.NODE_ENV === "test") return;
+    // In productie géén adres/onderwerp loggen: e-mailadressen zijn persoonsgegevens en horen
+    // niet in hosting-logs (security-review M-3). Dev blijft verbose voor debuggen.
+    if (process.env.NODE_ENV === "production") {
+      console.log(
+        "[mail:noop] e-mail overgeslagen — geen mailkanaal geconfigureerd (EMAIL_DRIVER).",
+      );
+      return;
     }
+    console.log(`[mail:noop] To: ${message.to} | Subject: ${message.subject}`);
   }
 }
 

@@ -23,7 +23,7 @@ import {
 } from "@/lib/credentials";
 import { computeTrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
-import { dossierShareToken } from "@/lib/share-token";
+import { dossierShareToken, shareTokenSecret } from "@/lib/share-token";
 import { plural } from "@/lib/plural";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { MandatoryDocuments } from "@/components/credentials/mandatory-documents";
@@ -94,7 +94,7 @@ export default async function CertificatenPage() {
 
   // Deelbare link: server-side token (HMAC-SHA256) over profileId — geen opslag nodig.
   // Link werkt alleen als profiel PUBLIC is; bij PRIVATE toont de pagina een nette melding.
-  const shareToken = profile ? dossierShareToken(profile.id, process.env.AUTH_SECRET ?? "") : null;
+  const shareToken = profile ? dossierShareToken(profile.id, shareTokenSecret()) : null;
   const shareUrl =
     profile && shareToken
       ? `${process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? ""}/vertrouwen/${profile.id}/${shareToken}`

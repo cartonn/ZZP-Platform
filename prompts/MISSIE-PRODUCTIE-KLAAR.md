@@ -17,7 +17,9 @@ vertrouwen, Wet-DBA/AVG-compliance en een rustiger, mooier product.
       uploads/AVG-export (PR #322)
 - [ ] CSP-nonce-pipeline i.p.v. `script-src 'unsafe-inline'` (eigen iteratie; e2e-verifiëren,
       let op static→dynamic rendering)
-- [ ] /security-review op het actuele diff zonder open High/Critical
+- [x] Security-review gedaan (12-6): 0 Critical; H-1 (SHARE_TOKEN_SECRET) + M-1 t/m M-4
+      in code gefixt; H-2 (gedeelde limit-store) + secret-zetten = mensenwerk (MENSENWERK §0b);
+      M-5 (watchdog-dubbelklik) gemitigeerd door assertJobTransition — afweging gedocumenteerd
 - Mensenwerk (niet blokkeren, wel in MENSENWERK.md): juridisch/AVG-review, SMTP, S3, secrets.
 
 ### B. Kritieke gebruikersloops groen (e2e)

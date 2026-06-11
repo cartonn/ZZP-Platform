@@ -43,6 +43,16 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
 
 ---
 
+## §0b. Security-review 12-6-2026 — twee punten voor de mens
+
+- **SHARE_TOKEN_SECRET zetten in productie** (H-1): zonder eigen sleutel vallen deelbare
+  dossier-links terug op AUTH_SECRET — rotatie van het één breekt dan het ander. Genereer met
+  `openssl rand -base64 32` en zet hem in de Railway-secrets vóór de eerste echte deel-link.
+- **Gedeelde rate-limit-store vóór horizontale schaling** (H-2): de limiters zijn per-proces
+  in-memory; bij meerdere Railway-instances zijn de limieten per instance. De
+  `RateLimitStore`-interface is pluggbaar — Upstash/Redis past er direct achter. Niet nodig
+  zolang er één instance draait.
+
 ## §1. Hosting, database, opslag, domein, geheimen
 
 **Wat:** de plek waar de website draait, waar gegevens worden bewaard en waar documenten veilig
