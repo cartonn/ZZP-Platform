@@ -3,6 +3,15 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(admin): dispuut-triage met leeftijd en urgentie (branch `feat/dispuut-triage`)
+
+Bergings-backlog (geborgen van routine-branch SJmv0, laatste D-item): `src/lib/disputes.ts`
+(+ tests) berekent leeftijd/urgentie per open dispuut; /admin/disputen toont samenvatting +
+urgentiesortering. Visueel geverifieerd als admin (lege staat netjes).
+Gates groen: typecheck ✓, lint ✓, test 1660 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(dashboard): opdrachtgever-zone "Wat kan ik oppakken" (branch `feat/client-oppakken`)
 
 Bergings-backlog / WORKSPACE_OVERHAUL Fase 3-rest (geborgen van routine-branch nrzrs0,
@@ -1234,6 +1243,27 @@ Sluit de ontbrekende e-mailkanalen voor twee kritieke platform-events:
 - **UI**: rustig informatief aanmaningsniveau-label op de factuurdetailpagina voor OVERDUE-facturen.
 - Tests: 555 → 573 groen (+18). Gate: typecheck ✓ lint ✓ test ✓ build ✓ prettier ✓.
   E2e overgeslagen (geen browser-channel in deze omgeving; net als CI).
+
+### Dispuut-triage op /admin/disputen (leeftijd + urgentie + samenvatting) — 2026-06-05
+
+- **Probleem:** `/admin/disputen` toonde open disputen alleen met "sinds {datum}" — geen gevoel van
+  urgentie terwijl een open dispuut de facturatie-cascade (en dus betaling) bevriest tot bemiddeling.
+- **Pure kern** `src/lib/disputes.ts` (+ `disputes.test.ts`, 32 tests, stijl van `dba-overview.ts`):
+  `disputeAgeDays` (hele dagen open, floor, nooit negatief), `disputeUrgency`
+  (NORMAAL/VERHOOGD/URGENT via `DISPUTE_URGENCY_THRESHOLDS` 3/7 dagen), `rankDisputeUrgency`,
+  `sortDisputeRows` (urgentste eerst, bij gelijk niveau oudste eerst), `summarizeDisputes` (totaal
+  - aantal per niveau, alle niveaus altijd aanwezig, oudste leeftijd) en `buildDisputeRow` (pure
+    factory). `loadDisputeOverview(now?)` als dunne DB-laag (alle samenwerkingen met open dispuut),
+    gesorteerd. Server-side waarheid; geen schemawijziging.
+- **Pagina** `/admin/disputen`: samenvattingsstrip met tellers per urgentieniveau + per kaart een
+  urgentie-Badge (URGENT→danger / VERHOOGD→warning / NORMAAL→muted) en "X dagen open"; gesorteerd
+  urgentste-eerst. Loading/empty-states intact.
+- Gebouwd met 2 Sonnet-builders op niet-overlappende bestanden (lib+tests / pagina), orchestrator
+  (Opus) integreerde + draaide de poort. Gate groen: typecheck ✓ lint ✓ test **1057** ✓ build ✓
+  prettier ✓. E2e overgeslagen (geen browser-channel in de routine-omgeving, net als CI).
+  Linear: ZZP2-89. Geen "AI" in UI/teksten/comments.
+
+---
 
 ### AVG-verwerkingsregister + bewaartermijnen-overzicht (admin) — 2026-06-02
 
