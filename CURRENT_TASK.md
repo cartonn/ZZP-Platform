@@ -165,13 +165,12 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
-0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`
-   (geverifieerde gaten, hoogste prioriteit eerst). Gedaan: ~~afronden-rem~~ (ZZP2-160),
-   ~~CSV-formule-injectie-hardening~~ (ZZP2-161), ~~rol-fallback boekhouding~~ (ZZP2-162).
-   Volgende open: AVG-verwerkingsregister (/admin/avg, pre-launch), KvK-/BTW-formaatvalidatie,
-   beschikbaarheidsconflicten, CLIENT-dashboard "wat kan ik oppakken", tweezijdige beoordelingen,
-   iCal-export, e.v.
-   Bergen = cherry-pick vanaf de bewaarde branch op verse main (zoals #318) of vers bouwen.
+0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`.
+   **VOLLEDIG GEBORGEN (12-6-2026):** afronden-rem, CSV-injectie-hardening, rol-fallback
+   boekhouding, AVG-verwerkingsregister (#334), KvK-/BTW-validatie (#335),
+   beschikbaarheidsconflicten (#336), CLIENT-dashboard "wat kan ik oppakken" (#337),
+   iCal-export (#338), dispuut-triage (#339), inkomstenprognose (`feat/inkomstenprognose`).
+   Enige rest: tweezijdige beoordelingen = geparkeerd productbesluit (eigenaar).
 1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
    routines, doe in een interactieve sessie mét browser-channel.
 2. Postgres-smoke van het migratiescript (optioneel, aanbevolen vóór cutover) — draai

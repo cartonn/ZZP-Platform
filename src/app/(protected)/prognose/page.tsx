@@ -8,6 +8,7 @@ import { buildIncomeForecast, type ForecastItem, type ForecastStage } from "@/li
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Inkomstenprognose · ZZP Platform" };
 
@@ -54,11 +55,15 @@ export default async function PrognosePage() {
     redirect("/administratie");
   }
 
+  // Cap: een prognose over de eerstvolgende ~200 open facturen is ruim voldoende;
+  // oudste vervaldag eerst zodat de dichtstbijzijnde verwachting nooit buiten de cap valt.
   const invoices = await prisma.invoice.findMany({
     where: {
       collaboration: { freelancer: { userId: actor.id } },
       lifecycleStatus: { in: ["DRAFT", "SUBMITTED", "APPROVED", "OVERDUE"] },
     },
+    orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],
+    take: 200,
     include: {
       collaboration: {
         select: {
@@ -86,12 +91,10 @@ export default async function PrognosePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Inkomstenprognose</h1>
-        <p className="text-sm text-muted-foreground">
-          Verwachte inkomsten op een tijdlijn — inclusief concepten die je nog moet factureren.
-        </p>
-      </header>
+      <PageHeader
+        title="Inkomstenprognose"
+        description="Verwachte inkomsten op een tijdlijn — inclusief concepten die je nog moet factureren."
+      />
 
       {!hasItems ? (
         <Card>
@@ -108,32 +111,40 @@ export default async function PrognosePage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Card>
               <CardContent className="space-y-1 p-4">
-                <p className="text-xs text-muted-foreground">Nog te factureren</p>
-                <p className="text-base font-semibold tabular-nums">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Nog te factureren
+                </p>
+                <p className="font-mono text-base font-semibold tabular-nums">
                   {formatEuro(forecast.unbilledGrossCents)}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="space-y-1 p-4">
-                <p className="text-xs text-muted-foreground">Onderweg</p>
-                <p className="text-base font-semibold tabular-nums">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Onderweg
+                </p>
+                <p className="font-mono text-base font-semibold tabular-nums">
                   {formatEuro(forecast.inFlightGrossCents)}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="space-y-1 p-4">
-                <p className="text-xs text-muted-foreground">Te laat</p>
-                <p className="text-base font-semibold tabular-nums text-danger">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Te laat
+                </p>
+                <p className="font-mono text-base font-semibold tabular-nums text-danger">
                   {formatEuro(forecast.overdueGrossCents)}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="space-y-1 p-4">
-                <p className="text-xs text-muted-foreground">Totaal verwacht</p>
-                <p className="text-base font-semibold tabular-nums">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Totaal verwacht
+                </p>
+                <p className="font-mono text-base font-semibold tabular-nums">
                   {formatEuro(forecast.totalGrossCents)}
                 </p>
               </CardContent>
@@ -145,8 +156,10 @@ export default async function PrognosePage() {
             {forecast.buckets.map((bucket) => (
               <section key={bucket.key} className="space-y-2">
                 <div className="flex items-baseline justify-between gap-2">
-                  <h2 className="text-sm font-semibold">{bucket.label}</h2>
-                  <span className="text-sm tabular-nums text-muted-foreground">
+                  <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {bucket.label}
+                  </h2>
+                  <span className="font-mono text-sm tabular-nums text-muted-foreground">
                     {formatEuro(bucket.grossCents)}
                   </span>
                 </div>
@@ -163,11 +176,11 @@ export default async function PrognosePage() {
                         </div>
                         <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                           {item.jobTitle && <span className="truncate">{item.jobTitle}</span>}
-                          <span>{item.number ?? "Concept"}</span>
+                          {item.number && <span className="font-mono">{item.number}</span>}
                           {item.expectedDate && <span>{formatNlDate(item.expectedDate)}</span>}
                         </div>
                       </div>
-                      <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      <span className="shrink-0 font-mono text-sm font-semibold tabular-nums">
                         {formatEuro(item.grossCents)}
                       </span>
                     </div>

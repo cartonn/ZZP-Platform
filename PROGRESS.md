@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(prognose): inkomstenprognose voor de ZZP'er (branch `feat/inkomstenprognose`)
+
+Bergings-backlog item 11 (sanering-doc, branch `-7wDjk` geborgen via cherry-pick op verse main):
+
+- [x] `src/lib/income-forecast.ts` — pure motor: open cascade-facturen (DRAFT/SUBMITTED/
+      APPROVED/OVERDUE) → buckets Te laat / Deze maand / Volgende maand / Later / Nog te
+      plannen; totalen bruto/netto/BTW + nog-te-factureren / onderweg / te-laat-splitsing.
+- [x] `/prognose` (alleen FREELANCER; anderen → /administratie): samenvattingsstrip,
+      buckets met factuurregels, BTW-opzij-hint, disclaimer. Warmte-taal (PageHeader,
+      uppercase-labels, mono-bedragen). Nav-item "Prognose" onder Administratie.
+- [x] Hardening t.o.v. de geborgen branch: `take: 200` + deterministische `orderBy`
+      (vervaldag eerst — vangrail unbounded-queries), dubbele "Concept"-aanduiding weg.
+- [x] Tests: income-forecast-suite (bucketing, sortering, randen rond maandwissel/UTC).
+
+Visueel geverifieerd (leeg + gevuld, licht). Gates groen: typecheck ✓, lint ✓, test 1726 ✓,
+build ✓, prettier ✓
+
+---
+
 ## feat(design): werkproces-pagina in de Warmte-taal (branch `feat/warmte-werkproces`)
 
 Schermen-sweep (slot): display-titel op de kop, alle sectiekoppen (Uren & opleveringen,
