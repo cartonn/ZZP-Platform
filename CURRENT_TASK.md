@@ -338,33 +338,27 @@ Faalt iets → oorzaak onderzoeken, fixen, checks opnieuw. Pas daarna afvinken.
 
 ---
 
-## Concurrentie-backlog (onderzoek juni 2026 — acht punten, eigenaar akkoord)
+## Concurrentie-backlog (onderzoek juni 2026 — AFGEROND op 2 geparkeerde punten na, 12-6-2026)
 
-Bron: concurrentie-onderzoek + `docs/PRIJSADVIES.md`. Eén punt per PR, DoD-groen.
+Bron: concurrentie-onderzoek + `docs/PRIJSADVIES.md`. Status geverifieerd tegen `main` (12-6):
 
-1. [~] **Tarief-drempelwaarschuwing rechtsvermoeden (< €38/uur)** — in uitvoering
-   (branch `claude/feat-tariefdrempel`): rustig DBA-signaal op opdracht-form/-detail +
-   samenwerking, mét disclaimer. Drempel in config (wet aangenomen 21-4-2026, verwacht 1-1-2027).
-2. [~] **Betaalgedrag-signaal opdrachtgever** — in uitvoering (branch `claude/feat-betaalgedrag`):
-   pure `payment-behavior.ts` (gem. dagen-tot-betaling, %-op-tijd, sampleSize ≥ 3) + blok op
-   opdracht-detail voor de ZZP'er.
-3. [ ] **Portable vertrouwensdossier** — deelbaar + verifieerbaar: openbare, niet-raadbare
-       dossier-URL (token) met geverifieerde certificaten-metadata + zegel; PDF-export bestaat al
-       (dossier), de deelbare verifieerbare link is nieuw. Audit op elke weergave.
-4. [ ] **DBA-audit-export per samenwerking** — bundel modelovereenkomst + DBA-indicatoren +
-       monitoring-historie als PDF ("klaar voor het bedrijfsbezoek"). Bouw op de bestaande
-       dossier-/PDF-routes.
-5. [~] **Fee-transparantie-UI** — zodra billing aangaat (PRIJSADVIES): de fee als aparte regel
-   zichtbaar voor béíde partijen op factuur + samenwerking. Symmetrie-verificatie GEDAAN
-   (10-6-2026): tarief/factuurbedragen worden op alle oppervlakken (samenwerkingenlijst/
-   -detail, facturenlijst/-detail, opdracht-detail) identiek aan beide partijen getoond;
-   geen role-conditional bedragen; tenant-fees in geen enkele partij-UI. Rest wacht op billing.
-6. [ ] **Symmetrische annulering + no-show-registratie** — PRODUCTBESLUIT eigenaar nodig
-       (annuleringstermijnen, gevolgen beide kanten); daarna registratie + zichtbaarheid in profielen.
-7. [~] **Notificatie-betrouwbaarheid** — e-mail-fallback digest gemerged (PR #314: runner
-   bundelt ongelezen notificaties > 24u tot één e-mail per gebruiker, idempotent via
-   `Notification.digestedAt`, slaat over zonder SMTP-kanaal); "terwijl je weg was"-overzicht
-   in PR #315 (`claude/feat-gemist-overzicht`). Nog open: web-push (VAPID) = mensenwerk.
-8. [ ] **Startkapitaal & boekhoud-belofte etaleren** — trust-strip/registratie-copy:
-       "geverifieerd dossier = je startkapitaal (geen reviews nodig)" en "jouw facturen sluiten
-       altijd aan op je boekhouding (gatenvrije nummering)". Kleine copy-PR; "AI" blijft verboden.
+1. [x] **Tarief-drempelwaarschuwing rechtsvermoeden (< €38/uur)** — gemerged:
+       `lib/rechtsvermoeden.ts` + tests, `RECHTSVERMOEDEN_DREMPEL_CENTS` in config, signaal op
+       opdracht-form/-detail + samenwerking mét disclaimer; ook in `dba-audit.ts`.
+2. [x] **Betaalgedrag-signaal opdrachtgever** (#310) — `payment-behavior.ts` (gem. dagen-tot-
+       betaling, %-op-tijd, sampleSize ≥ 3) + blok op opdracht-detail voor de ZZP'er.
+3. [x] **Portable vertrouwensdossier** (#313, hardening #333) — publieke niet-raadbare URL
+       `/vertrouwen/[profileId]/[token]` (HMAC-token `lib/share-token.ts`, eigen
+       `SHARE_TOKEN_SECRET`), geverifieerde certificaten-metadata + zegel, geen informatielek,
+       rate-limit per IP, audit op elke weergave; deelblok op /certificaten.
+4. [x] **DBA-audit-export per samenwerking** (#312) — PDF-export
+       `api/samenwerkingen/[id]/dba-dossier` ("klaar voor het bedrijfsbezoek"), `lib/dba-audit.ts`.
+5. [~] **Fee-transparantie-UI** — GEPARKEERD tot billing aangaat (PRIJSADVIES): de fee als aparte
+   regel zichtbaar voor béíde partijen op factuur + samenwerking. Symmetrie-verificatie GEDAAN
+   (10-6-2026): tarief/factuurbedragen op alle oppervlakken identiek aan beide partijen getoond;
+   geen role-conditional bedragen; tenant-fees in geen enkele partij-UI.
+6. [ ] **Symmetrische annulering + no-show-registratie** — GEPARKEERD: PRODUCTBESLUIT eigenaar
+       nodig (annuleringstermijnen, gevolgen beide kanten); daarna registratie + profielen.
+7. [x] **Notificatie-betrouwbaarheid** — digest (#314), "terwijl je weg was" (#315),
+       e-mailvoorkeuren per categorie (#318). Nog open: web-push (VAPID) = mensenwerk.
+8. [x] **Startkapitaal & boekhoud-belofte etaleren** (#311) — trust-strip/registratie-copy.
