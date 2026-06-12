@@ -50,6 +50,83 @@ export function topSuggestions(
     .slice(0, opts.limit);
 }
 
+export interface ClientFreelancerSuggestion extends FreelancerSuggestion {
+  /** De gepubliceerde opdracht die deze ZZP'er suggereerde (bron voor "Bericht sturen"). */
+  jobId: string;
+  jobTitle: string;
+}
+
+/**
+ * Pure dedup + rangschikking over meerdere opdrachten: houd per ZZP'er de hoogst scorende
+ * suggestie (tiebreak: hoogste relatedness), sorteer aflopend op score (tiebreak relatedness),
+ * begrens op limit. Deterministisch, geen I/O.
+ */
+export function mergeClientSuggestions(
+  list: readonly ClientFreelancerSuggestion[],
+  opts: { limit: number },
+): ClientFreelancerSuggestion[] {
+  // Dedup by freelancerId, keeping entry with highest score (tiebreak: highest relatedness)
+  const best = new Map<string, ClientFreelancerSuggestion>();
+  for (const entry of list) {
+    const existing = best.get(entry.freelancerId);
+    if (!existing) {
+      best.set(entry.freelancerId, entry);
+    } else {
+      const existingRel = existing.relatedness ?? 0;
+      const entryRel = entry.relatedness ?? 0;
+      if (
+        entry.score > existing.score ||
+        (entry.score === existing.score && entryRel > existingRel)
+      ) {
+        best.set(entry.freelancerId, entry);
+      }
+    }
+  }
+
+  return Array.from(best.values())
+    .sort((a, b) => b.score - a.score || (b.relatedness ?? 0) - (a.relatedness ?? 0))
+    .slice(0, opts.limit);
+}
+
+/**
+ * Best passende openbare ZZP'ers voor een opdrachtgever, geaggregeerd over zijn gepubliceerde
+ * opdrachten (die nog niet reageerden). Hergebruikt suggestedFreelancersForJob per opdracht.
+ */
+export async function suggestedFreelancersForClient(
+  userId: string,
+  limit = 4,
+): Promise<ClientFreelancerSuggestion[]> {
+  const company = await prisma.company.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (!company) return [];
+
+  const jobs = await prisma.job.findMany({
+    where: { companyId: company.id, status: "PUBLISHED" },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: { id: true, title: true },
+  });
+  if (jobs.length === 0) return [];
+
+  const perJobResults = await Promise.all(
+    jobs.map(async (job) => {
+      const suggestions = await suggestedFreelancersForJob(job.id, limit);
+      return suggestions.map(
+        (s): ClientFreelancerSuggestion => ({
+          ...s,
+          jobId: job.id,
+          jobTitle: job.title,
+        }),
+      );
+    }),
+  );
+
+  const all = perJobResults.flat();
+  return mergeClientSuggestions(all, { limit });
+}
+
 /** Best passende openbare ZZP'ers voor een opdracht die nog niet reageerden. */
 export async function suggestedFreelancersForJob(
   jobId: string,
