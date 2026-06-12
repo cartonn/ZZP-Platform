@@ -19,6 +19,7 @@ export type NavIcon =
   | "calendar"
   | "clock"
   | "barChart"
+  | "trendingUp"
   | "lightbulb"
   | "contact"
   | "graduationCap"
@@ -55,6 +56,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Boekhouding", href: "/administratie", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Ontzorgd", href: "/ontzorgd", icon: "barChart", section: "Administratie", enabled: true }, // prettier-ignore
+    { label: "Prognose", href: "/prognose", icon: "trendingUp", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", section: "Account", enabled: true }, // prettier-ignore
     { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Account", enabled: true }, // prettier-ignore
     { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },

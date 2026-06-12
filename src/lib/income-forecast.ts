@@ -1,0 +1,221 @@
+// Pure, deterministic helper for computing an income forecast from a list of
+// cascade invoice items. No I/O, no external imports.
+
+export type ForecastStage = "DRAFT" | "SUBMITTED" | "APPROVED" | "OVERDUE";
+
+export interface ForecastItem {
+  invoiceId: string;
+  stage: ForecastStage;
+  netCents: number; // excl. VAT (subtotal)
+  vatCents: number; // VAT
+  grossCents: number; // incl. VAT (total)
+  expectedDate: Date | null; // dueAt; null for DRAFT/SUBMITTED
+  counterpartyName: string; // client name
+  number: string | null; // invoice number within party sequence, or null for drafts
+  jobTitle: string | null;
+}
+
+export type ForecastBucketKey = "OVERDUE" | "THIS_MONTH" | "NEXT_MONTH" | "LATER" | "UNSCHEDULED";
+
+export interface ForecastBucket {
+  key: ForecastBucketKey;
+  label: string; // NL label
+  items: ForecastItem[]; // stably sorted
+  netCents: number; // sum of items
+  vatCents: number;
+  grossCents: number;
+}
+
+export interface IncomeForecast {
+  // Only non-empty buckets, in fixed order: OVERDUE, THIS_MONTH, NEXT_MONTH, LATER, UNSCHEDULED
+  buckets: ForecastBucket[];
+  totalNetCents: number; // sum over all items
+  totalVatCents: number;
+  totalGrossCents: number;
+  unbilledGrossCents: number; // gross of DRAFT items
+  inFlightGrossCents: number; // gross of items in transit: SUBMITTED + APPROVED-future (not overdue, not DRAFT)
+  overdueGrossCents: number; // gross of overdue items (stage OVERDUE or expectedDate < start of today)
+}
+
+// NL labels for each bucket key.
+const BUCKET_LABELS: Record<ForecastBucketKey, string> = {
+  OVERDUE: "Te laat",
+  THIS_MONTH: "Deze maand",
+  NEXT_MONTH: "Volgende maand",
+  LATER: "Later",
+  UNSCHEDULED: "Nog te plannen",
+};
+
+// Fixed bucket display order.
+const BUCKET_ORDER: ForecastBucketKey[] = [
+  "OVERDUE",
+  "THIS_MONTH",
+  "NEXT_MONTH",
+  "LATER",
+  "UNSCHEDULED",
+];
+
+/** Returns UTC midnight (00:00:00.000 UTC) for the given Date. */
+function startOfDayUTC(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+/** Returns a {year, month} tuple in UTC for the given Date. */
+function utcYearMonth(d: Date): { year: number; month: number } {
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
+}
+
+/** Returns the next calendar month in UTC, handling December → January wrap. */
+function nextUTCMonth(ym: { year: number; month: number }): {
+  year: number;
+  month: number;
+} {
+  if (ym.month === 11) {
+    return { year: ym.year + 1, month: 0 };
+  }
+  return { year: ym.year, month: ym.month + 1 };
+}
+
+/** Determines the bucket key for an item given today's start and current year/month. */
+function resolveBucketKey(
+  item: ForecastItem,
+  startOfToday: Date,
+  nowYM: { year: number; month: number },
+): ForecastBucketKey {
+  // Overdue: stage OVERDUE, or has an expectedDate that is before start of today.
+  if (
+    item.stage === "OVERDUE" ||
+    (item.expectedDate !== null && item.expectedDate < startOfToday)
+  ) {
+    return "OVERDUE";
+  }
+
+  // Items without a scheduled date.
+  if (item.expectedDate === null) {
+    return "UNSCHEDULED";
+  }
+
+  const itemYM = utcYearMonth(item.expectedDate);
+  const nextYM = nextUTCMonth(nowYM);
+
+  if (itemYM.year === nowYM.year && itemYM.month === nowYM.month) {
+    return "THIS_MONTH";
+  }
+  if (itemYM.year === nextYM.year && itemYM.month === nextYM.month) {
+    return "NEXT_MONTH";
+  }
+  return "LATER";
+}
+
+/** Stage sort rank for UNSCHEDULED bucket: DRAFT before SUBMITTED. */
+function stageSortRank(stage: ForecastStage): number {
+  if (stage === "DRAFT") return 0;
+  if (stage === "SUBMITTED") return 1;
+  return 2;
+}
+
+/**
+ * Comparator for items within a bucket.
+ *
+ * Items with expectedDate:
+ *   1. expectedDate ascending
+ *   2. grossCents descending
+ *   3. invoiceId ascending (tiebreak)
+ *
+ * Items without expectedDate (DRAFT/SUBMITTED → UNSCHEDULED):
+ *   1. DRAFT before SUBMITTED (by stage rank ascending)
+ *   2. grossCents descending
+ *   3. invoiceId ascending (tiebreak)
+ */
+function compareItems(a: ForecastItem, b: ForecastItem): number {
+  if (a.expectedDate !== null && b.expectedDate !== null) {
+    const dateDiff = a.expectedDate.getTime() - b.expectedDate.getTime();
+    if (dateDiff !== 0) return dateDiff;
+    const grossDiff = b.grossCents - a.grossCents;
+    if (grossDiff !== 0) return grossDiff;
+    return a.invoiceId < b.invoiceId ? -1 : a.invoiceId > b.invoiceId ? 1 : 0;
+  }
+
+  // No expectedDate: sort by stage rank, then grossCents desc, then invoiceId asc.
+  const rankDiff = stageSortRank(a.stage) - stageSortRank(b.stage);
+  if (rankDiff !== 0) return rankDiff;
+  const grossDiff = b.grossCents - a.grossCents;
+  if (grossDiff !== 0) return grossDiff;
+  return a.invoiceId < b.invoiceId ? -1 : a.invoiceId > b.invoiceId ? 1 : 0;
+}
+
+function sumField(items: ForecastItem[], field: keyof ForecastItem): number {
+  return items.reduce((acc, item) => acc + (item[field] as number), 0);
+}
+
+export function buildIncomeForecast(items: ForecastItem[], now: Date): IncomeForecast {
+  const startOfToday = startOfDayUTC(now);
+  const nowYM = utcYearMonth(now);
+
+  // Classify each item into a bucket.
+  const grouped: Record<ForecastBucketKey, ForecastItem[]> = {
+    OVERDUE: [],
+    THIS_MONTH: [],
+    NEXT_MONTH: [],
+    LATER: [],
+    UNSCHEDULED: [],
+  };
+
+  for (const item of items) {
+    const key = resolveBucketKey(item, startOfToday, nowYM);
+    grouped[key].push(item);
+  }
+
+  // Sort each bucket.
+  for (const key of BUCKET_ORDER) {
+    grouped[key].sort(compareItems);
+  }
+
+  // Build non-empty buckets in fixed order.
+  const buckets: ForecastBucket[] = [];
+  for (const key of BUCKET_ORDER) {
+    const bucketItems = grouped[key];
+    if (bucketItems.length === 0) continue;
+    buckets.push({
+      key,
+      label: BUCKET_LABELS[key],
+      items: bucketItems,
+      netCents: sumField(bucketItems, "netCents"),
+      vatCents: sumField(bucketItems, "vatCents"),
+      grossCents: sumField(bucketItems, "grossCents"),
+    });
+  }
+
+  // Global totals over all items.
+  const totalNetCents = sumField(items, "netCents");
+  const totalVatCents = sumField(items, "vatCents");
+  const totalGrossCents = sumField(items, "grossCents");
+
+  // Partition: unbilled (DRAFT), overdue, in-flight (everything else).
+  let unbilledGrossCents = 0;
+  let overdueGrossCents = 0;
+  let inFlightGrossCents = 0;
+
+  for (const item of items) {
+    if (item.stage === "DRAFT") {
+      unbilledGrossCents += item.grossCents;
+    } else if (
+      item.stage === "OVERDUE" ||
+      (item.expectedDate !== null && item.expectedDate < startOfToday)
+    ) {
+      overdueGrossCents += item.grossCents;
+    } else {
+      inFlightGrossCents += item.grossCents;
+    }
+  }
+
+  return {
+    buckets,
+    totalNetCents,
+    totalVatCents,
+    totalGrossCents,
+    unbilledGrossCents,
+    inFlightGrossCents,
+    overdueGrossCents,
+  };
+}
