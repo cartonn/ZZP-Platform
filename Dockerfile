@@ -42,9 +42,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Geen public/ in deze repo — niet kopiëren (zou de build laten falen). --chown zodat de
-# non-root runtime-user in .next/cache en Prisma-temp mag schrijven.
+# --chown zodat de non-root runtime-user in .next/cache en Prisma-temp mag schrijven.
 COPY --from=builder --chown=nodejs:nodejs /app/package.json /app/package-lock.json* ./
+# public/ bevat de service worker (sw.js) en offline.html; zonder deze kopie 404'en die
+# bestanden in productie en faalt de SW-registratie in de browserconsole.
+COPY --from=builder --chown=nodejs:nodejs /app/public ./public/
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules/
 COPY --from=builder --chown=nodejs:nodejs /app/.next ./.next/
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma/
