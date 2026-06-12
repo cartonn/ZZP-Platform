@@ -3,6 +3,21 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(design): opdracht-detail in de Warmte-taal (branch `feat/warmte-opdracht-detail`)
+
+Schermen-sweep (vervolg op het Warmte-profiel, #341) — pure presentatie, nul logica:
+
+- [x] Kop-kaart: display-titel + mono-tariefchip
+- [x] Alle secties in de uppercase-labeltaal (Eisen, Wet DBA, Geschikte ZZP'ers,
+      Over de opdrachtgever, Veilig inhuren)
+- [x] "Jouw aansluiting" met ScoreRing-donut (zoals de Aansluiting-kaart in het ontwerp);
+      compliance-badge alleen bij afwijking
+- [x] Geschikte ZZP'ers: stille badges + MatchMeter (consistent met dashboard)
+- [x] Visueel geverifieerd als ZZP'er (donut + labels renderen, nul console-errors)
+- Gates groen: typecheck ✓, lint ✓, test 1708 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(profiel): publiek ZZP-profiel naar het Warmte-ontwerp — vijf tabs (branch `feat/vakwerk-profiel`)
 
 Eigenaarsopdracht (ontwerp docs/ontwerpen/warmte.html exact nagebouwd op /zzp/[id]):

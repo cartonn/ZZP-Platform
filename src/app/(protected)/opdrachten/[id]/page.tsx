@@ -29,6 +29,8 @@ import { ComplianceBadge } from "@/components/compliance-badge";
 import { MatchBreakdown } from "@/components/match/match-breakdown";
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { TrustBadge } from "@/components/trust/trust-badge";
+import { ScoreRing } from "@/components/ui/score-ring";
+import { MatchMeter } from "@/components/ui/match-meter";
 import {
   scoreJobForFreelancer,
   liveComplianceStatus,
@@ -190,7 +192,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
     isOwner && status === "PUBLISHED" ? await suggestedFreelancersForJob(job.id) : [];
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <Link
         href="/opdrachten"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
@@ -203,7 +205,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold tracking-tight">{job.title}</h1>
+                <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
+                  {job.title}
+                </h1>
                 {isOwner && <JobStatusBadge status={status} />}
               </div>
               <p className="text-sm text-muted-foreground">{job.company.name}</p>
@@ -226,7 +230,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             )}
             <span>{WORK_MODE[job.workMode as WorkMode]}</span>
             {(job.rateMin != null || job.rateMax != null) && (
-              <span>
+              <span className="font-mono font-semibold text-foreground">
                 € {job.rateMin ?? "?"}
                 {job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
               </span>
@@ -243,7 +247,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       {isOwner && (
         <Card>
           <CardContent className="space-y-1 py-4">
-            <p className="flex items-center gap-2 text-sm font-medium">
+            <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               <ShieldCheck className="size-4 text-success" aria-hidden /> Veilig inhuren
             </p>
             <p className="text-sm text-muted-foreground">
@@ -259,7 +263,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         <section className="space-y-3">
           {requiredSkills.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-sm font-medium">Vereiste skills</h2>
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Vereiste skills
+              </h2>
               <div className="flex flex-wrap gap-2">
                 {requiredSkills.map((s) => (
                   <Badge key={s.skillId}>{s.skill.name}</Badge>
@@ -269,7 +275,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           )}
           {optionalSkills.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-sm font-medium">Gewenste skills</h2>
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Gewenste skills
+              </h2>
               <div className="flex flex-wrap gap-2">
                 {optionalSkills.map((s) => (
                   <Badge key={s.skillId} variant="muted">
@@ -286,7 +294,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         <section className="space-y-3">
           {requiredCreds.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-sm font-medium">Vereiste certificaten</h2>
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Vereiste certificaten
+              </h2>
               <div className="flex flex-wrap gap-2">
                 {requiredCreds.map((c) => (
                   <Badge key={c.id} variant="warning">
@@ -298,7 +308,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           )}
           {optionalCreds.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-sm font-medium">Gewenste certificaten</h2>
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Gewenste certificaten
+              </h2>
               <div className="flex flex-wrap gap-2">
                 {optionalCreds.map((c) => (
                   <Badge key={c.id} variant="muted">
@@ -314,7 +326,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       {isOwner && job.dbaRisk && (
         <section className="space-y-2 rounded-lg border border-border bg-card p-5">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-medium">Wet DBA — risico</h2>
+            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Wet DBA — risico
+            </h2>
             <DbaRiskBadge level={job.dbaRisk as DbaRisk} />
           </div>
           <p className="text-xs text-muted-foreground">{dbaAdvice(job.dbaRisk as DbaRisk)}</p>
@@ -382,7 +396,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       {isOwner && suggestions.length > 0 && (
         <section className="rounded-lg border border-border bg-card">
           <div className="border-b border-border px-5 py-3">
-            <h2 className="text-sm font-medium">Geschikte ZZP&apos;ers</h2>
+            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Geschikte ZZP&apos;ers
+            </h2>
             <p className="text-xs text-muted-foreground">
               Openbare profielen die bij deze opdracht passen en nog niet reageerden.
             </p>
@@ -403,10 +419,16 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                   </Link>
                   <TrustBadge level={f.trustLevel} />
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <AvailabilityBadge status={f.availability} />
-                  <ComplianceBadge status={f.compliance} />
-                  <Badge variant="accent">Match {f.score}%</Badge>
+                <div className="flex shrink-0 flex-wrap items-center gap-3">
+                  {/* Rustig: badges alleen als ze iets signaleren — beschikbaar/compliant is de norm. */}
+                  {f.availability !== "AVAILABLE" && <AvailabilityBadge status={f.availability} />}
+                  {f.compliance !== "COMPLIANT" && <ComplianceBadge status={f.compliance} />}
+                  <span className="flex flex-col items-end gap-1">
+                    <span className="font-mono text-sm font-semibold tracking-tight text-primary">
+                      {f.score}%
+                    </span>
+                    <MatchMeter score={f.score} />
+                  </span>
                   <form action={startConversationWithFreelancer.bind(null, job.id, f.freelancerId)}>
                     <Button type="submit" variant="secondary" size="sm">
                       Bericht sturen
@@ -425,7 +447,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           job.company.website ||
           job.company.industry) && (
           <section className="space-y-2 rounded-lg border border-border bg-card p-5">
-            <h2 className="text-sm font-medium">Over de opdrachtgever</h2>
+            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Over de opdrachtgever
+            </h2>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
               {job.company.location && (
                 <span className="inline-flex items-center gap-1">
@@ -485,10 +509,16 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           <div className="space-y-4 border-t border-border pt-4">
             {myFit && (
               <section className="space-y-3 rounded-lg border border-border bg-card p-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-sm font-medium">Jouw aansluiting</h2>
-                  <Badge variant="accent">Match {myFit.score}%</Badge>
-                  <ComplianceBadge status={myFit.compliance.status} />
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Jouw aansluiting
+                    </h2>
+                    {myFit.compliance.status !== "COMPLIANT" && (
+                      <ComplianceBadge status={myFit.compliance.status} />
+                    )}
+                  </div>
+                  <ScoreRing value={myFit.score} label="Match" size={64} />
                 </div>
                 {myFit.reasons.length > 0 && (
                   <ul className="space-y-1.5 text-sm">
