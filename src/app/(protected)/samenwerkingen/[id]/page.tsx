@@ -47,6 +47,10 @@ import { PerformanceForm } from "./performance-form";
 import { performanceFormDefaults } from "@/lib/performance-form";
 import { OrtProfileForm } from "./ort-profile-form";
 import { WeekdaysForm } from "./weekdays-form";
+import { ReviewForm } from "./review-form";
+import { canLeaveReview } from "@/lib/reviews";
+import { RatingStars } from "@/components/reviews/rating-stars";
+import { ReviewList } from "@/components/reviews/review-list";
 import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
@@ -113,6 +117,18 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       },
       performances: { orderBy: { createdAt: "desc" } },
       invoices: { where: { lifecycleStatus: { not: null } }, orderBy: { createdAt: "desc" } },
+      reviews: {
+        select: {
+          id: true,
+          authorId: true,
+          subjectId: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
+          author: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!col) notFound();
@@ -155,6 +171,16 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const counterparty = isClient ? col.freelancer.user.name : col.company.name;
   const active = col.status === "ACTIVE";
   const weekdays = parseWeekdays(col.weekdays);
+
+  // Tweezijdige beoordeling: alleen na een afgeronde samenwerking, één per partij.
+  const isParticipant = isClient || isFreelancer;
+  const myReview = col.reviews.find((r) => r.authorId === actor.id) ?? null;
+  const receivedReview = col.reviews.find((r) => r.subjectId === actor.id) ?? null;
+  const canReview = canLeaveReview({
+    collaborationStatus: col.status,
+    isParticipant,
+    alreadyReviewed: myReview !== null,
+  });
 
   // Door de ZZP'er met de opdrachtgever gedeelde certificaten (metadata, niet het bestand). Alleen
   // de opdrachtgever-partij ziet ze; de helper dwingt dat server-side af.
@@ -770,6 +796,52 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           </div>
         )}
       </section>
+
+      {col.status === "COMPLETED" && (
+        <section className="space-y-3 rounded-lg border border-border bg-card p-5">
+          <h2 className="text-sm font-medium">Beoordeling</h2>
+          {isParticipant ? (
+            <div className="space-y-4">
+              {canReview ? (
+                <ReviewForm collaborationId={col.id} subjectLabel={counterparty} />
+              ) : myReview ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Jouw beoordeling</p>
+                  <RatingStars average={myReview.rating} size="md" showValue />
+                  {myReview.comment && (
+                    <p className="text-sm text-muted-foreground">{myReview.comment}</p>
+                  )}
+                </div>
+              ) : null}
+              {receivedReview ? (
+                <div className="space-y-1 border-t border-border pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    Beoordeling van {receivedReview.author.name}
+                  </p>
+                  <RatingStars average={receivedReview.rating} size="md" showValue />
+                  {receivedReview.comment && (
+                    <p className="text-sm text-muted-foreground">{receivedReview.comment}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+                  De andere partij heeft nog geen beoordeling geplaatst.
+                </p>
+              )}
+            </div>
+          ) : (
+            <ReviewList
+              reviews={col.reviews.map((r) => ({
+                id: r.id,
+                authorName: r.author.name,
+                rating: r.rating,
+                comment: r.comment,
+                createdAt: r.createdAt,
+              }))}
+            />
+          )}
+        </section>
+      )}
     </div>
   );
 }

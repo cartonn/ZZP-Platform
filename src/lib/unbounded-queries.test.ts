@@ -497,6 +497,15 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   { file: "api/account/export/route.ts", line: 72, reason: "AVG-export; volledigheid vereist" },
   { file: "api/account/export/route.ts", line: 76, reason: "AVG-export; volledigheid vereist" },
   { file: "api/account/export/route.ts", line: 80, reason: "AVG-export; volledigheid vereist" },
+
+  // --- zzp/[id]/page.tsx ---
+  // Publiek profiel: beoordelingen over één ZZP'er. Aggregatie (gemiddelde + telling) vereist
+  // alle rijen; inherent begrensd door het aantal afgeronde samenwerkingen van die persoon.
+  {
+    file: "zzp/[id]/page.tsx",
+    line: 114,
+    reason: "subject-scoped reputatie-aggregatie; begrensd door afgeronde samenwerkingen",
+  },
 ];
 
 // ---------------------------------------------------------------------------

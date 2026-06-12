@@ -67,6 +67,8 @@ model User {
   ideas             Idea[]             @relation("IdeaAuthor")
   ideaVotes         IdeaVote[]         @relation("IdeaVoter")
   ideaComments      IdeaComment[]      @relation("IdeaCommentAuthor")
+  reviewsWritten    Review[]           @relation("ReviewAuthor")
+  reviewsReceived   Review[]           @relation("ReviewSubject")
   leadContacts      LeadContact[]      @relation("LeadContactAuthor")
   authoredCourses   Course[]           @relation("CourseAuthor")
   lessonCompletions LessonCompletion[] @relation("LessonCompleter")
@@ -679,6 +681,7 @@ model Collaboration {
   invoices     Invoice[]
   performances Performance[]
   fee          CollaborationFee?
+  reviews      Review[]
 
   // Hot paths: dashboards/admin/zoeken filteren op partij + status (Postgres indexeert FK's niet
   // automatisch). Additieve indexes — veilig via db push.
@@ -686,6 +689,28 @@ model Collaboration {
   @@index([freelancerId])
   @@index([status])
   @@index([disputedAt])
+}
+
+// Tweezijdige beoordeling na een afgeronde samenwerking: beide partijen kunnen elkaar
+// éénmalig beoordelen (1–5 sterren + optionele toelichting). Server-side afgedwongen:
+// alleen op een COMPLETED samenwerking, alleen door een deelnemer, maximaal één per partij.
+model Review {
+  id              String   @id @default(cuid())
+  collaborationId String
+  authorId        String // de gebruiker die de beoordeling schrijft
+  subjectId       String // de beoordeelde tegenpartij
+  direction       String // ReviewDirection: CLIENT_ON_FREELANCER | FREELANCER_ON_CLIENT
+  rating          Int // 1..5, server-side gevalideerd
+  comment         String? // optionele toelichting
+  createdAt       DateTime @default(now())
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  author        User          @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  subject       User          @relation("ReviewSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([collaborationId, authorId]) // één beoordeling per partij per samenwerking
+  @@index([subjectId])
+  @@index([collaborationId])
 }
 
 // ---------------------------------------------------------------------------

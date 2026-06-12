@@ -20,6 +20,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
+import { RatingStars } from "@/components/reviews/rating-stars";
+import { ReviewList } from "@/components/reviews/review-list";
+import { aggregateReviews } from "@/lib/reviews";
 import { VerificationMarks } from "@/components/credentials/verification-marks";
 
 export const metadata: Metadata = { title: "ZZP-profiel · ZZP Platform" };
@@ -106,6 +109,21 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     ).allSatisfied,
   });
 
+  // Reputatie uit afgeronde samenwerkingen: alleen beoordelingen die opdrachtgevers over
+  // déze ZZP'er hebben achtergelaten (deterministisch, server-side).
+  const reviews = await prisma.review.findMany({
+    where: { subjectId: profile.userId, direction: "CLIENT_ON_FREELANCER" },
+    select: {
+      id: true,
+      rating: true,
+      comment: true,
+      createdAt: true,
+      author: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  const reviewAgg = aggregateReviews(reviews);
+
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="border-b border-border bg-background">
@@ -132,6 +150,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                     {profile.user.name}
                   </h1>
                   <TrustBadge level={trust.level} />
+                  {reviewAgg.count > 0 && (
+                    <RatingStars average={reviewAgg.average} count={reviewAgg.count} showValue />
+                  )}
                 </div>
                 {profile.headline && (
                   <p className="text-sm text-muted-foreground">{profile.headline}</p>
@@ -207,6 +228,25 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                 </Badge>
               ))}
             </div>
+          </section>
+        )}
+
+        {reviews.length > 0 && (
+          <section className="space-y-2">
+            <h2 className="text-sm font-medium">Beoordelingen door opdrachtgevers</h2>
+            <Card>
+              <CardContent>
+                <ReviewList
+                  reviews={reviews.map((r) => ({
+                    id: r.id,
+                    authorName: r.author.name,
+                    rating: r.rating,
+                    comment: r.comment,
+                    createdAt: r.createdAt,
+                  }))}
+                />
+              </CardContent>
+            </Card>
           </section>
         )}
       </main>
