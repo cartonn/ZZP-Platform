@@ -8,6 +8,10 @@ import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { type Availability } from "@/lib/enums";
 import { computeFreelancerCompleteness, computeCompanyCompleteness } from "@/lib/profile";
+import { mandatoryDocuments } from "@/lib/mandatory-documents";
+import { type FreelancerCredential } from "@/lib/matching";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { type CredentialType } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { overdueInvoiceCount } from "@/lib/signals";
 import {
@@ -24,6 +28,7 @@ import {
   identityVerifyTask,
   companyCompletenessTask,
   credentialFixTask,
+  mandatoryDocumentTask,
   adminVerifyCredentialTask,
   adminActivateUserTask,
   adminResolveDisputeTask,
@@ -158,18 +163,45 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         ),
       );
 
+    // Eén query voor álle certificaten: de fix-taken (afgewezen/verloopt) én de verplichte-
+    // documentenstatus (VOG/verzekering) worden in-memory afgeleid — zelfde bron als de
+    // inzetbaarheidskaart op het dashboard, zodat beide oppervlakken nooit tegenspreken.
     const creds = await prisma.credential.findMany({
-      where: {
-        freelancerProfileId: profile.id,
-        OR: [{ status: "REJECTED" }, { status: "VERIFIED", expiresAt: { gt: now, lte: soon } }],
-      },
-      select: { id: true, title: true, status: true },
+      where: { freelancerProfileId: profile.id },
+      select: { id: true, title: true, type: true, status: true, expiresAt: true },
       take: MAX,
     });
     for (const c of creds) {
-      tasks.push(
-        credentialFixTask(c.id, c.title, c.status === "REJECTED" ? "rejected" : "expiring"),
-      );
+      if (c.status === "REJECTED") tasks.push(credentialFixTask(c.id, c.title, "rejected"));
+      else if (
+        c.status === "VERIFIED" &&
+        c.expiresAt !== null &&
+        c.expiresAt > now &&
+        c.expiresAt <= soon
+      )
+        tasks.push(credentialFixTask(c.id, c.title, "expiring"));
+    }
+    // Ontbrekend/verlopen verplicht document = taak (blokkeert inzetbaarheid). In beoordeling
+    // = geen taak: daar is de admin aan zet, niet de ZZP'er.
+    const mandatory = mandatoryDocuments(
+      creds.map(
+        (c): FreelancerCredential => ({
+          type: c.type as FreelancerCredential["type"],
+          status: c.status as FreelancerCredential["status"],
+          expiresAt: c.expiresAt,
+        }),
+      ),
+      now,
+    );
+    for (const doc of mandatory.items) {
+      if (doc.state === "missing" || doc.state === "expired")
+        tasks.push(
+          mandatoryDocumentTask(
+            doc.type,
+            CREDENTIAL_TYPE_LABEL[doc.type as CredentialType],
+            doc.state,
+          ),
+        );
     }
   }
 

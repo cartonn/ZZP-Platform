@@ -2,12 +2,23 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireRole } from "@/lib/authz";
+import { CREDENTIAL_TYPES, type CredentialType } from "@/lib/enums";
 import { CredentialForm } from "../credential-form";
 
 export const metadata: Metadata = { title: "Nieuw certificaat · ZZP Platform" };
 
-export default async function NieuweCredentialPage() {
+export default async function NieuweCredentialPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>;
+}) {
   await requireRole("FREELANCER");
+  // Deep-link vanuit het Actiecentrum ("verplicht document ontbreekt"): ?type=VOG/INSURANCE
+  // vult het juiste documenttype vast in. Ongeldige waarden vallen terug op de default.
+  const { type } = await searchParams;
+  const initialType: CredentialType = (CREDENTIAL_TYPES as readonly string[]).includes(type ?? "")
+    ? (type as CredentialType)
+    : "VOG";
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -21,7 +32,7 @@ export default async function NieuweCredentialPage() {
       </div>
       <CredentialForm
         initial={{
-          type: "VOG",
+          type: initialType,
           title: "",
           issuer: "",
           issuedAt: "",

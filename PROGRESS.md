@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(dashboard): verplicht-documenttaak + Warmte-kop (branch `fix/dashboard-verplicht-document`)
+
+Eigenaar-melding (12-6): dashboard toonde rood "Nog niet inzetbaar — Verzekering ontbreekt"
+terwijl "Wat vraagt aandacht" zei "Niets dat nu aandacht vraagt. Goed bezig." — de
+next-action-laag kende verplichte documenten (VOG/verzekering) niet.
+
+- [x] `tasks.ts` — nieuwe taaksoort `mandatory-document` (band P.mandatoryDoc=84: boven
+      afgewezen certificaat, onder identiteit); titel "ontbreekt"/"verlopen", link-resolver.
+- [x] `pending-tasks.ts` — één credential-query voedt nu fix-taken én `mandatoryDocuments()`
+      (zelfde bron als de inzetbaarheidskaart — de oppervlakken kunnen niet meer tegenspreken).
+      In beoordeling = geen taak (admin is aan zet).
+- [x] `/certificaten/nieuw?type=…` — deep-link vult het documenttype vast in (gevalideerd
+      tegen CREDENTIAL_TYPES, ongeldig → VOG).
+- [x] Dashboard in de Warmte-taal: display-kop, uppercase sectielabels (incl. aandacht-zone),
+      mono statistiek-cijfers.
+
+Visueel geverifieerd (Sanne: verzekering-taak bovenaan, deep-link prefillt INSURANCE).
+Gates groen: typecheck ✓, lint ✓, test 1728 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(prognose): inkomstenprognose voor de ZZP'er (branch `feat/inkomstenprognose`)
 
 Bergings-backlog item 11 (sanering-doc, branch `-7wDjk` geborgen via cherry-pick op verse main):
