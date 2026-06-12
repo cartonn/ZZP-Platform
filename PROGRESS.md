@@ -3,6 +3,20 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(profiel): publiek profiel schermvullend + ruimere kop (branch `feat/profiel-breed`)
+
+Eigenaar-verzoek (12-6): profiel stond smal in het midden — schermvullender en mooier.
+
+- [x] Pagina van max-w-3xl naar **max-w-6xl** (kopbalk + main), px-6 op sm+.
+- [x] Kopkaart meer présence: p-6/p-8, avatar size-16/20, naam display text-3xl,
+      uurtarief als groot mono-kerncijfer (€ 52 + /uur klein), ruimere kerncijfer-rij.
+- [x] Profiel-tab-grid op lg naar 2fr/1fr (hoofdkolom breder op grote schermen).
+
+Visueel geverifieerd op 1600px, geen console-errors. Gates groen: typecheck ✓, lint ✓,
+test 1728 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(profiel): "Mijn profiel" = de publieke weergave; bewerken op /profiel/bewerken (branch `feat/profiel-publiek`)
 
 Eigenaar-verzoek (12-6): "Mijn profiel" moet direct het publieke profiel tonen; de
