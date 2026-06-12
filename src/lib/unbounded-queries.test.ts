@@ -244,7 +244,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Factuurstatussen van één samenwerking om afronden server-side te weigeren bij open geld.
   {
     file: "(protected)/samenwerkingen/actions.ts",
-    line: 206,
+    line: 205,
     reason: "factuurstatus van één samenwerking voor de afronden-rem; per-collab begrensd",
   },
 
