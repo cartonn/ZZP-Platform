@@ -48,6 +48,7 @@ export type PendingTask =
     })
   | (TaskBase & { kind: "company-complete"; missing?: string[] })
   | (TaskBase & { kind: "credential-fix"; credId: string; cause: "rejected" | "expiring" })
+  | (TaskBase & { kind: "mandatory-document"; docType: string; cause: "missing" | "expired" })
   | (TaskBase & { kind: "admin-verify-credential"; credId: string })
   | (TaskBase & { kind: "admin-activate-user"; userId: string })
   | (TaskBase & { kind: "admin-resolve-dispute"; collabId: string })
@@ -271,6 +272,33 @@ export function credentialFixTask(
     resolver: "drawer",
     href: `/certificaten/${credId}/bewerken`,
     credId,
+    cause,
+  };
+}
+
+/**
+ * Verplicht document (VOG/verzekering) ontbreekt of is verlopen. Dit blokkeert de inzetbaarheid
+ * van de ZZP'er — zonder deze taak zegt "Wat vraagt aandacht" ten onrechte "niets te doen" terwijl
+ * de inzetbaarheidskaart rood "Nog niet inzetbaar" toont. In beoordeling = geen taak (wacht op admin).
+ */
+export function mandatoryDocumentTask(
+  docType: string,
+  label: string,
+  cause: "missing" | "expired",
+): PendingTask {
+  return {
+    kind: "mandatory-document",
+    id: `mandatory-document:${docType}`,
+    title:
+      cause === "missing"
+        ? `Verplicht document ontbreekt: ${label}`
+        : `Verplicht document verlopen: ${label}`,
+    subtitle: "Zonder dit document ben je niet inzetbaar — upload het bewijsstuk",
+    tone: "attention",
+    priority: P.mandatoryDoc,
+    resolver: "link",
+    href: `/certificaten/nieuw?type=${docType}`,
+    docType,
     cause,
   };
 }

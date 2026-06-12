@@ -44,6 +44,7 @@ export const P = {
   blocking: 100, // profiel privé, AVG-verwijderverzoek
   identity: 90, // identiteit niet geverifieerd
   complianceRipple: 85, // lopende samenwerking met certificaat-alert
+  mandatoryDoc: 84, // verplicht document (VOG/verzekering) ontbreekt of verlopen — blokkeert inzetbaarheid
   credentialRejected: 80, // afgewezen certificaat — opnieuw indienen
   disputeOpen: 76, // open dispuut — werkproces bevroren (admin)
   contractSign: 72, // contract ter ondertekening — deblokkeert de samenwerking

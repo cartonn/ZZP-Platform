@@ -27,7 +27,9 @@ export function DashboardActions({
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <h2 className="text-sm font-medium">{title}</h2>
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {title}
+        </h2>
         {tasks.length > 0 ? (
           <Link
             href="/acties"

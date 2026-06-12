@@ -8,6 +8,7 @@ import {
   paymentConfirmTask,
   profileCompletenessTask,
   messageReplyTask,
+  mandatoryDocumentTask,
   adminVerifyCredentialTask,
   adminDeletionRequestTask,
   adminResolveDisputeTask,
@@ -101,6 +102,30 @@ describe("task builders", () => {
     expect(a.title).toBe("Beoordeel het certificaat van Sanne de Vries");
     expect(a.subtitle).toBe("VOG");
     expect(a.title).not.toBe(b.title);
+  });
+
+  it("verplicht document ontbreekt: hoge prioriteit (blokkeert inzetbaarheid) + deep-link met type", () => {
+    const t = mandatoryDocumentTask("INSURANCE", "Verzekering", "missing");
+    expect(t).toMatchObject({
+      kind: "mandatory-document",
+      id: "mandatory-document:INSURANCE",
+      resolver: "link",
+      tone: "attention",
+      priority: P.mandatoryDoc,
+      href: "/certificaten/nieuw?type=INSURANCE",
+    });
+    expect(t.title).toBe("Verplicht document ontbreekt: Verzekering");
+    // Blokkeert inzetbaarheid → weegt zwaarder dan een afgewezen (niet-verplicht) certificaat,
+    // maar lichter dan identiteitsverificatie.
+    expect(P.mandatoryDoc).toBeGreaterThan(P.credentialRejected);
+    expect(P.mandatoryDoc).toBeLessThan(P.identity);
+  });
+
+  it("verplicht document verlopen: eigen titel, zelfde band", () => {
+    const t = mandatoryDocumentTask("VOG", "VOG", "expired");
+    expect(t.title).toBe("Verplicht document verlopen: VOG");
+    expect(t.id).toBe("mandatory-document:VOG");
+    expect(t.priority).toBe(P.mandatoryDoc);
   });
 
   it("AVG-verwijderverzoek blijft een link (onomkeerbaar, geen één-klik)", () => {

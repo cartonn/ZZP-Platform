@@ -467,7 +467,9 @@ function MatchesSection({ matches, prominent }: { matches: JobMatch[]; prominent
     <section className="rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div>
-          <h2 className="text-sm font-medium">Wat kan ik oppakken</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Wat kan ik oppakken
+          </h2>
           {prominent && (
             <p className="mt-0.5 text-xs text-muted-foreground">
               Opdrachten die bij je profiel passen — reageer direct.
@@ -533,7 +535,9 @@ function ClientSuggestionsSection({
     <section className="rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div>
-          <h2 className="text-sm font-medium">Wat kan ik oppakken</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Wat kan ik oppakken
+          </h2>
           {prominent && (
             <p className="mt-0.5 text-xs text-muted-foreground">
               Geschikte ZZP&apos;ers voor je opdrachten — benader ze direct.
@@ -636,7 +640,9 @@ export default async function DashboardPage() {
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {WERKPLEK[role]} · {today}
         </p>
-        <h1 className="text-xl font-semibold tracking-tight">Welkom terug, {firstName}</h1>
+        <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
+          Welkom terug, {firstName}
+        </h1>
         <p className="text-sm text-muted-foreground">{headerLead}</p>
       </header>
 
@@ -647,8 +653,10 @@ export default async function DashboardPage() {
             href={s.href}
             className="focus-ring rounded-lg border border-border bg-card p-5 transition-colors hover:bg-muted/40"
           >
-            <p className="text-sm text-muted-foreground">{s.label}</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{s.value}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {s.label}
+            </p>
+            <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">{s.value}</p>
             {s.sub && <p className="mt-0.5 text-xs text-muted-foreground">{s.sub}</p>}
           </Link>
         ))}
@@ -662,7 +670,9 @@ export default async function DashboardPage() {
           Verschijnt alleen als er iets te verbeteren valt (rustig houden zodra je inzetbaar bent). */}
       {role === "FREELANCER" && engageability && engageability.status !== "ACTIEF" && (
         <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="mb-2 text-sm font-semibold tracking-tight">Jouw inzetbaarheid</h2>
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Jouw inzetbaarheid
+          </h2>
           <EngageabilityExplanation result={engageability} self />
           <div className="mt-3 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="secondary">
@@ -679,7 +689,9 @@ export default async function DashboardPage() {
           concrete actie tonen (opdrachtgever → dienst → roster); verdwijnt zodra de franchise staat. */}
       {role === "FRANCHISER" && activation.length > 0 && (
         <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-medium">Aan de slag</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Aan de slag
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Richt je franchise stap voor stap in.
           </p>
@@ -706,7 +718,9 @@ export default async function DashboardPage() {
       {hasRunning && (
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-medium">Wat loopt er nu</h2>
+            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Wat loopt er nu
+            </h2>
             {week && (
               <p className="text-xs text-muted-foreground">
                 Deze week: {plural(week.entries.length, "samenwerking", "samenwerkingen")} bij{" "}
@@ -759,7 +773,9 @@ export default async function DashboardPage() {
         (suggestedFreelancers?.length ?? 0) === 0 &&
         !(isNewAccount && tasks.length === 0) && (
           <section className="rounded-lg border border-border bg-card p-5">
-            <h2 className="text-sm font-medium">Wat kan ik oppakken</h2>
+            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Wat kan ik oppakken
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Plaats een opdracht om geschikte ZZP&apos;ers voorgesteld te krijgen.
             </p>
@@ -790,7 +806,9 @@ export default async function DashboardPage() {
           hierboven al zijn eigen, klikbare activatie-sectie. */}
       {isNewAccount && tasks.length === 0 && role !== "FRANCHISER" && (
         <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-medium">Aan de slag</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Aan de slag
+          </h2>
           <ul className="mt-3 space-y-2">
             {intro.next.map((step, i) => (
               <li key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
