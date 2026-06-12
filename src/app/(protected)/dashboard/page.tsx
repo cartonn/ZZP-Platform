@@ -434,18 +434,58 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     };
   }
 
-  const [pending, users, jobs] = await Promise.all([
+  const [pending, users, jobs, runningRows] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.user.count(),
     prisma.job.count(),
+    // Platformbrede lopende samenwerkingen — de admin ziet dezelfde "Wat loopt er nu"-zone
+    // als de partijen, met de meest recent bewogen samenwerkingen bovenaan.
+    prisma.collaboration.findMany({
+      where: { status: { in: ["PROPOSED", "ACTIVE"] } },
+      take: 6,
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        contractStatus: true,
+        disputedAt: true,
+        job: { select: { title: true } },
+        company: { select: { name: true } },
+        freelancer: { select: { user: { select: { name: true } } } },
+        performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
+        invoices: {
+          where: { lifecycleStatus: { not: null } },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { lifecycleStatus: true },
+        },
+      },
+    }),
   ]);
+  const running: RunningCollab[] = runningRows.map((c) => ({
+    id: c.id,
+    jobTitle: c.job.title,
+    // Beide partijen: de admin kijkt mee, niet vanuit één kant.
+    counterpartyName: [c.freelancer.user.name, c.company.name].filter(Boolean).join(" · "),
+    // Beschrijving vanuit het opdrachtgever-perspectief leest voor een meekijkende admin
+    // het neutraalst ("wacht op uren/oplevering van de ZZP'er").
+    stage: cascadeStage({
+      viewer: "CLIENT",
+      collaborationId: c.id,
+      collaborationStatus: c.status as CollaborationStatus,
+      contractStatus: c.contractStatus as ContractStatus,
+      disputed: c.disputedAt !== null,
+      latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
+      latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ?? null) as InvoiceLifecycleState | null,
+    }),
+  }));
   return {
     stats: [
       { label: "Openstaande verificaties", value: pending, href: "/admin/verificaties" },
       { label: "Gebruikers", value: users, href: "/admin/gebruikers" },
       { label: "Opdrachten", value: jobs, href: "/admin/opdrachten" },
     ],
-    running: [],
+    running,
     week: null,
     isNewAccount: false,
     activation: [],
@@ -458,6 +498,31 @@ const TONE_BADGE: Record<NextActionTone, "warning" | "muted" | "success"> = {
   attention: "warning",
   info: "muted",
   success: "success",
+};
+
+/** Overzichtslink van de "Wat loopt er nu"-zone, per rol. */
+const SAMENWERKINGEN_HREF: Record<UserRole, string> = {
+  FREELANCER: "/samenwerkingen",
+  CLIENT: "/samenwerkingen",
+  ADMIN: "/admin/samenwerkingen",
+  FRANCHISER: "/franchise/samenwerkingen",
+};
+
+/** Lege staat van de "Wat loopt er nu"-zone: wat is de eerstvolgende stap richting lopend werk? */
+const NO_RUNNING: Record<UserRole, { text: string; cta?: { label: string; href: string } }> = {
+  FREELANCER: {
+    text: "Geen lopende samenwerkingen. Reageer op een opdracht die bij je past om te starten.",
+    cta: { label: "Bekijk opdrachten", href: "/opdrachten" },
+  },
+  CLIENT: {
+    text: "Geen lopende samenwerkingen. Plaats een opdracht om ZZP'ers voorgesteld te krijgen.",
+    cta: { label: "Opdracht plaatsen", href: "/opdrachten/nieuw" },
+  },
+  ADMIN: { text: "Geen lopende samenwerkingen op het platform." },
+  FRANCHISER: {
+    text: "Geen lopende samenwerkingen in je franchise. Zet een dienst uit om te starten.",
+    cta: { label: "Naar diensten", href: "/franchise/diensten" },
+  },
 };
 
 const TIMING_LABEL: Record<string, string> = {
@@ -749,47 +814,57 @@ export default async function DashboardPage() {
         title={role === "ADMIN" ? "Operationele wachtrij" : "Wat vraagt aandacht"}
       />
 
-      {/* Zone 2 — Wat loopt er nu (lopende samenwerkingen + cascade-fase). */}
-      {hasRunning && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Wat loopt er nu
-            </h2>
-            {week && (
-              <p className="text-xs text-muted-foreground">
-                Deze week: {plural(week.entries.length, "samenwerking", "samenwerkingen")} bij{" "}
-                {plural(week.clientCount, "opdrachtgever", "opdrachtgevers")}
-              </p>
-            )}
-            <Link
-              href="/samenwerkingen"
-              className="focus-ring text-xs text-muted-foreground hover:text-foreground"
-            >
-              Alle samenwerkingen
-            </Link>
-          </div>
+      {/* Zone 2 — Wat loopt er nu (lopende samenwerkingen + cascade-fase). Altijd zichtbaar,
+          voor elke rol dezelfde plek; zonder lopend werk een lege staat met de eerstvolgende stap. */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Wat loopt er nu
+          </h2>
           {week && (
-            <ul className="flex flex-wrap gap-2">
-              {week.entries.map((e) => {
-                const rooster = e.weekdays?.length ? formatWeekdays(e.weekdays) : null;
-                return (
-                  <li key={e.collaborationId}>
-                    <Badge variant="muted" className="block max-w-[18rem] truncate">
-                      {e.clientName} · {rooster ?? TIMING_LABEL[e.timing] ?? "Loopt"}
-                    </Badge>
-                  </li>
-                );
-              })}
-            </ul>
+            <p className="text-xs text-muted-foreground">
+              Deze week: {plural(week.entries.length, "samenwerking", "samenwerkingen")} bij{" "}
+              {plural(week.clientCount, "opdrachtgever", "opdrachtgevers")}
+            </p>
           )}
+          <Link
+            href={SAMENWERKINGEN_HREF[role]}
+            className="focus-ring text-xs text-muted-foreground hover:text-foreground"
+          >
+            Alle samenwerkingen
+          </Link>
+        </div>
+        {week && (
+          <ul className="flex flex-wrap gap-2">
+            {week.entries.map((e) => {
+              const rooster = e.weekdays?.length ? formatWeekdays(e.weekdays) : null;
+              return (
+                <li key={e.collaborationId}>
+                  <Badge variant="muted" className="block max-w-[18rem] truncate">
+                    {e.clientName} · {rooster ?? TIMING_LABEL[e.timing] ?? "Loopt"}
+                  </Badge>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {hasRunning ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {running.map((c) => (
               <RunningCard key={c.id} collab={c} />
             ))}
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="rounded-lg border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">{NO_RUNNING[role].text}</p>
+            {NO_RUNNING[role].cta && (
+              <Button asChild size="sm" variant="secondary" className="mt-3">
+                <Link href={NO_RUNNING[role].cta.href}>{NO_RUNNING[role].cta.label}</Link>
+              </Button>
+            )}
+          </div>
+        )}
+      </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
         {stats.map((s) => (

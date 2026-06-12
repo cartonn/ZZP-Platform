@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(dashboard): "Wat loopt er nu" altijd zichtbaar + admin platformbreed (branch `feat/dashboard-wat-loopt-er-nu`)
+
+Eigenaar-feedback op #348: de zone verdween bij de ZZP'er zonder lopend werk en ontbrak
+bij de admin — alle rollen moeten dezelfde opzet zien.
+
+- [x] Zone altijd zichtbaar voor elke rol; zonder lopend werk een lege staat met de
+      eerstvolgende stap (ZZP'er → opdrachten, opdrachtgever → plaatsen, franchiser → diensten).
+- [x] Admin: platformbrede lopende samenwerkingen (6 meest recent bewogen, beide partijnamen,
+      cascade-fase vanuit CLIENT-perspectief — leest neutraal voor een meekijker; admin heeft
+      toegang tot de werkprocespagina).
+- [x] "Alle samenwerkingen"-link per rol (/samenwerkingen, /admin/…, /franchise/…).
+
+Visueel geverifieerd (ZZP + admin, geen console-errors). Gates groen: typecheck ✓, lint ✓,
+test 1728 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(dashboard): profielkaart-kop + vaste zone-volgorde voor alle rollen (branch `feat/dashboard-profielkaart`)
 
 Eigenaar-verzoek (12-6): direct na inloggen de publieke-profielkaart bovenaan, daaronder
