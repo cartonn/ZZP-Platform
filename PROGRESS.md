@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(dashboard): profielkaart-kop + vaste zone-volgorde voor alle rollen (branch `feat/dashboard-profielkaart`)
+
+Eigenaar-verzoek (12-6): direct na inloggen de publieke-profielkaart bovenaan, daaronder
+"Wat vraagt aandacht" en de lopende samenwerkingen, daarna de rest — zelfde opzet/stijl
+voor alle rollen.
+
+- [x] Profielkaart-kop (publieke-profiel-taal van /zzp/[id]): initialen-avatar, display-naam,
+      vertrouwenszegel (zelfde computeTrustLevel-bron als profiel + dossier), subtitel
+      (kop/locatie of bedrijfsnaam·plaats), mono-uurtarief, statusregel, link
+      "Bekijk je publieke profiel" (ZZP'er).
+- [x] Zone-volgorde voor élke rol: profielkaart → Wat vraagt aandacht (admin: Operationele
+      wachtrij) → Wat loopt er nu → statistieken → de rest zoals het was.
+- [x] e2e-smoke bijgewerkt (h1 = naam i.p.v. "Welkom terug"); vangrail-allowlist hernummerd.
+
+Visueel geverifieerd (ZZP/CLIENT/ADMIN, geen console-errors); smoke 7/7 lokaal groen.
+Gates groen: typecheck ✓, lint ✓, test 1728 ✓, build ✓, prettier ✓
+
+---
+
 ## fix(dashboard): verplicht-documenttaak + Warmte-kop (branch `fix/dashboard-verplicht-document`)
 
 Eigenaar-melding (12-6): dashboard toonde rood "Nog niet inzetbaar — Verzekering ontbreekt"
