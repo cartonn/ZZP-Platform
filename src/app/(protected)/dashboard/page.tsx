@@ -124,8 +124,8 @@ interface IdentityCard {
   /** Kerncijfers-regel (bv. uurtarief); eerste item in mono. */
   meta: string[];
   trustLevel?: TrustLevel;
-  /** Link naar het publieke profiel (alleen ZZP'er). */
-  publicHref?: string;
+  /** Link naar profiel bewerken (alleen ZZP'er) — "Mijn profiel" toont al de publieke weergave. */
+  editHref?: string;
 }
 
 function initials(name: string | null): string {
@@ -287,7 +287,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
 
     return {
       stats: [
-        { label: "Profielvelden", value: `${completeness.score}%`, href: "/profiel" },
+        { label: "Profielvelden", value: `${completeness.score}%`, href: "/profiel/bewerken" },
         { label: "Geverifieerde certificaten", value: verified, href: "/certificaten" },
         { label: "Mijn reacties", value: applications, href: "/reacties" },
       ],
@@ -300,7 +300,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         subtitle: [profile?.headline, profile?.location].filter(Boolean).join(" · ") || null,
         meta: profile?.hourlyRate != null ? [`€ ${profile.hourlyRate}/uur`] : [],
         trustLevel: trust.level,
-        publicHref: pid ? `/zzp/${pid}` : undefined,
+        editHref: "/profiel/bewerken",
       },
     };
   }
@@ -793,12 +793,12 @@ export default async function DashboardPage() {
               ))}
               <span className="text-muted-foreground">{headerLead}</span>
             </div>
-            {identity?.publicHref && (
+            {identity?.editHref && (
               <Link
-                href={identity.publicHref}
+                href={identity.editHref}
                 className="focus-ring mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
               >
-                Bekijk je publieke profiel
+                Bewerk jouw profiel
                 <ArrowRight className="size-3.5" aria-hidden />
               </Link>
             )}
@@ -899,7 +899,7 @@ export default async function DashboardPage() {
               <Link href="/certificaten">Naar certificaten</Link>
             </Button>
             <Button asChild size="sm" variant="ghost">
-              <Link href="/profiel">Profiel aanvullen</Link>
+              <Link href="/profiel/bewerken">Profiel aanvullen</Link>
             </Button>
           </div>
         </section>

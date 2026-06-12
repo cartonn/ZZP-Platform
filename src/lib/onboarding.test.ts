@@ -55,7 +55,7 @@ describe("computeOnboardingSteps", () => {
 
   it("stap-hrefs zijn correct", () => {
     const steps = computeOnboardingSteps(allFalse);
-    expect(steps[0]!.href).toBe("/profiel");
+    expect(steps[0]!.href).toBe("/profiel/bewerken");
     expect(steps[1]!.href).toBe("/certificaten/nieuw");
     expect(steps[2]!.href).toBe("/beschikbaarheid");
     expect(steps[3]!.href).toBe("/opdrachten");

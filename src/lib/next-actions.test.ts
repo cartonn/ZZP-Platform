@@ -118,7 +118,7 @@ describe("freelancerNextActions", () => {
       overdueInvoices: 1,
     });
     const byId = Object.fromEntries(ranked.map((x) => [x.id, x.href]));
-    expect(byId["freelancer-profile-private"]).toBe("/profiel");
+    expect(byId["freelancer-profile-private"]).toBe("/profiel/bewerken");
     expect(byId["freelancer-identity-unverified"]).toBe("/account");
     expect(byId["freelancer-credentials-rejected"]).toBe("/certificaten");
     expect(byId["freelancer-overdue-invoices"]).toBe("/facturen");
@@ -382,7 +382,7 @@ describe("completeness-actie toont wat te doen om 100% te halen", () => {
     });
     const a = ranked.find((x) => x.id === "freelancer-completeness");
     expect(a?.title).toBe("Profiel is 70% compleet — voeg toe: Uurtarief, Talen, Locatie");
-    expect(a?.href).toBe("/profiel");
+    expect(a?.href).toBe("/profiel/bewerken");
   });
 
   it("freelancer: valt terug op 'vul aan' zonder lijst", () => {

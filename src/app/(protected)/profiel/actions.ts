@@ -111,7 +111,7 @@ export async function updateFreelancerProfile(
     metadata: { completeness, visibility: data.visibility },
   });
 
-  revalidatePath("/profiel");
+  revalidatePath("/profiel/bewerken");
   revalidatePath(`/zzp/${profile.id}`);
   return { ok: true };
 }

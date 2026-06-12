@@ -44,7 +44,7 @@ test("ZZP'er ziet z'n persoonlijke match per opdracht in de lijst", async ({ pag
   await fp.fill("#password", "geheim123");
   await fp.getByRole("button", { name: "Account aanmaken" }).click();
   await fp.waitForURL("**/dashboard");
-  await fp.goto("/profiel");
+  await fp.goto("/profiel/bewerken");
   await fp.fill("#hourlyRate", "80");
   await fp.selectOption("#workMode", "REMOTE");
   await fp

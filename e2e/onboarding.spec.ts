@@ -41,8 +41,8 @@ test("freelancer registreert, vult profiel en publiceert het", async ({ page, br
   const email = `freelancer-${uniq()}@test.local`;
   await registerFreelancer(page, email);
 
-  await page.goto("/profiel");
-  await expect(page.getByRole("heading", { name: "Mijn profiel" })).toBeVisible();
+  await page.goto("/profiel/bewerken");
+  await expect(page.getByRole("heading", { name: "Profiel bewerken" })).toBeVisible();
 
   await page.fill("#headline", "Senior Frontend Developer");
   await page.fill("#bio", "Tien jaar ervaring met React en TypeScript.");
@@ -61,7 +61,7 @@ test("freelancer registreert, vult profiel en publiceert het", async ({ page, br
   await expect(page.getByRole("progressbar")).toBeVisible();
   await expect(page.locator("#availability")).toHaveValue("AVAILABLE");
   await shot(page, "07-profiel");
-  const link = page.getByRole("link", { name: /Bekijk publiek profiel/ });
+  const link = page.getByRole("link", { name: /Naar mijn profiel/ });
   await expect(link).toBeVisible();
   const href = await link.getAttribute("href");
   expect(href).toMatch(/^\/zzp\//);

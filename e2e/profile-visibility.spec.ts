@@ -15,7 +15,7 @@ test("privéprofiel waarschuwt de ZZP'er dat opdrachtgevers hem niet kunnen vind
   await page.getByRole("button", { name: "Account aanmaken" }).click();
   await page.waitForURL("**/dashboard");
 
-  await page.goto("/profiel");
+  await page.goto("/profiel/bewerken");
   await page.locator('input[name="visibility"][value="PRIVATE"]').check();
   await page.getByRole("button", { name: "Profiel opslaan" }).click();
   await expect(page.getByText(/opgeslagen|bijgewerkt/i).first()).toBeVisible({ timeout: 15000 });
