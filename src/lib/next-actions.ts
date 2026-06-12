@@ -87,7 +87,7 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
     actions.push({
       id: "freelancer-profile-private",
       title: "Je profiel staat op privé — opdrachtgevers kunnen je niet vinden",
-      href: "/profiel",
+      href: "/profiel/bewerken",
       tone: "attention",
       priority: P.blocking,
     });
@@ -108,7 +108,7 @@ export function freelancerNextActions(input: FreelancerActionInput): NextAction[
     actions.push({
       id: "freelancer-completeness",
       title: `Profiel is ${input.completeness}% compleet — ${todo}`,
-      href: "/profiel",
+      href: "/profiel/bewerken",
       tone: "info",
       priority: P.completeness,
     });

@@ -86,7 +86,7 @@ test("zzper journey", async ({ page }) => {
   );
   await p.step(page, "facturen", (pg) => pg.goto("/facturen"));
   await p.step(page, "certificaten", (pg) => pg.goto("/certificaten"));
-  await p.step(page, "profiel", (pg) => pg.goto("/profiel"));
+  await p.step(page, "profiel", (pg) => pg.goto("/profiel/bewerken"));
   await p.step(page, "inzicht-abonnement", (pg) => pg.goto("/inzicht"));
   await p.step(page, "abonnement", (pg) => pg.goto("/abonnement"));
   await p.step(page, "berichten", (pg) => pg.goto("/berichten"));

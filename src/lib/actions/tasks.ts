@@ -205,7 +205,7 @@ export function profilePrivateTask(): PendingTask {
     tone: "attention",
     priority: P.blocking,
     resolver: "drawer",
-    href: "/profiel",
+    href: "/profiel/bewerken",
     section: "profile-private",
   };
 }
@@ -219,7 +219,7 @@ export function profileCompletenessTask(score: number, missing: string[]): Pendi
     tone: "info",
     priority: P.completeness,
     resolver: "drawer",
-    href: "/profiel",
+    href: "/profiel/bewerken",
     section: "profile-completeness",
     missing,
   };

@@ -31,7 +31,7 @@ test.describe("QA: Quality anchors", () => {
       "/dashboard",
       "/certificaten",
       "/opdrachten",
-      "/profiel",
+      "/profiel/bewerken",
       "/berichten",
       "/notificaties",
       "/facturen",

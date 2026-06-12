@@ -285,6 +285,15 @@ export default async function PublicProfilePage({
                   />
                 </div>
               </div>
+              {/* Eigen profiel: direct door naar bewerken — "Mijn profiel" landt hier. */}
+              {viewer?.id === profile.userId && (
+                <Link
+                  href="/profiel/bewerken"
+                  className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+                >
+                  Bewerk jouw profiel
+                </Link>
+              )}
             </div>
           </CardContent>
         </Card>

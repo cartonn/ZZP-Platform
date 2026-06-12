@@ -343,12 +343,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // --- profiel/page.tsx (twee findMany's) ---
   // Skills en branches voor profielweergave; kleine referentielijsten.
   {
-    file: "(protected)/profiel/page.tsx",
+    file: "(protected)/profiel/bewerken/page.tsx",
     line: 33,
     reason: "skills-referentielijst voor profielpagina",
   },
   {
-    file: "(protected)/profiel/page.tsx",
+    file: "(protected)/profiel/bewerken/page.tsx",
     line: 34,
     reason: "branches-referentielijst voor profielpagina",
   },

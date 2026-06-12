@@ -174,7 +174,7 @@ export default async function CertificatenPage() {
               openbaar om een deelbare link te activeren.
             </p>
             <a
-              href="/profiel"
+              href="/profiel/bewerken"
               className="inline-flex items-center gap-1.5 text-sm text-primary underline-offset-4 hover:underline"
             >
               Profielinstellingen

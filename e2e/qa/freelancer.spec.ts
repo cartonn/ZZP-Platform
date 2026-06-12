@@ -35,7 +35,7 @@ test.describe("QA: Freelancer (Sanne)", () => {
   });
 
   test("profiel bewerken flow", async ({ page }) => {
-    await page.goto("/profiel");
+    await page.goto("/profiel/bewerken");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await shot(page, "freelancer-profiel");
   });

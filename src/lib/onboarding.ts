@@ -22,7 +22,7 @@ export function computeOnboardingSteps(data: OnboardingData): OnboardingStep[] {
       id: "profile",
       label: "Profiel invullen",
       description: "Voeg je naam, bio en vaardigheden toe zodat opdrachtgevers je kunnen vinden.",
-      href: "/profiel",
+      href: "/profiel/bewerken",
       completed: data.profileComplete,
     },
     {

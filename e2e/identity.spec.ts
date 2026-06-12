@@ -28,8 +28,8 @@ test("identiteitsverificatie + vertrouwensniveau op publiek profiel", async ({ p
   await shot(page, "40-account-identity");
 
   // Vertrouwensniveau zichtbaar op het publieke profiel (identiteit, 0 certs → "Deels geverifieerd").
-  await page.goto("/profiel");
-  const link = page.getByRole("link", { name: /Bekijk publiek profiel/ });
+  await page.goto("/profiel/bewerken");
+  const link = page.getByRole("link", { name: /Naar mijn profiel/ });
   await expect(link).toBeVisible();
   const href = await link.getAttribute("href");
   await page.goto(href!);

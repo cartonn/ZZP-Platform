@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(profiel): "Mijn profiel" = de publieke weergave; bewerken op /profiel/bewerken (branch `feat/profiel-publiek`)
+
+Eigenaar-verzoek (12-6): "Mijn profiel" moet direct het publieke profiel tonen; de
+dashboardknop wordt "Bewerk jouw profiel".
+
+- [x] `/profiel` → redirect naar het eigen publieke profiel (/zzp/[id]; eigenaar mag altijd
+      kijken, ook op privé — profileVisibleTo). Bewerkformulier verhuisd naar `/profiel/bewerken`
+      (kop "Profiel bewerken", display-titel, link "Naar mijn profiel").
+- [x] Eigen publiek profiel: knop "Bewerk jouw profiel" in de kopkaart (alleen eigenaar).
+- [x] Dashboard-profielkaart: "Bekijk je publieke profiel" → "Bewerk jouw profiel"
+      (/profiel/bewerken). Alle bewerk-links omgezet (tasks, next-actions, onboarding,
+      certificaten, dashboard-stat); 9 e2e-specs + vangrail-allowlist meegenomen.
+
+Visueel + flow geverifieerd (dashboard → Mijn profiel → publiek profiel met tabs →
+bewerk-knop → formulier); 19 geraakte e2e-tests lokaal groen.
+Gates groen: typecheck ✓, lint ✓, test 1728 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(dashboard): "Wat loopt er nu" altijd zichtbaar + admin platformbreed (branch `feat/dashboard-wat-loopt-er-nu`)
 
 Eigenaar-feedback op #348: de zone verdween bij de ZZP'er zonder lopend werk en ontbrak
