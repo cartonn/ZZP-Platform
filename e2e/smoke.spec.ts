@@ -33,7 +33,8 @@ test("guard: ongeauthenticeerd /dashboard -> /login", async ({ page }) => {
 test("FREELANCER logt in en ziet role-aware dashboard", async ({ page }) => {
   await login(page, "zzp@zzp-platform.local");
   const nav = page.getByRole("navigation", { name: "Hoofdnavigatie" });
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Welkom terug");
+  // Profielkaart-kop: de h1 toont de naam (publieke-profiel-stijl), de werkplek staat erboven.
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Sanne");
   await expect(page.getByText("ZZP-werkplek")).toBeVisible();
   // role-aware nav: freelancer ziet "Certificaten", niet "Verificaties"
   await expect(nav.getByText("Certificaten")).toBeVisible();
