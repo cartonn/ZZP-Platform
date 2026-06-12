@@ -158,11 +158,31 @@ export function ProfileForm({
             />
           </Field>
         </div>
-        <Field label="KvK-nummer" htmlFor="kvkNumber" error={fe.kvkNumber}>
-          <Input id="kvkNumber" name="kvkNumber" defaultValue={initial.kvkNumber} />
+        <Field
+          label="KvK-nummer"
+          htmlFor="kvkNumber"
+          error={fe.kvkNumber}
+          hint="8 cijfers, bijv. 12345678"
+        >
+          <Input
+            id="kvkNumber"
+            name="kvkNumber"
+            defaultValue={initial.kvkNumber}
+            placeholder="12345678"
+          />
         </Field>
-        <Field label="BTW-nummer" htmlFor="btwNumber" error={fe.btwNumber}>
-          <Input id="btwNumber" name="btwNumber" defaultValue={initial.btwNumber} />
+        <Field
+          label="BTW-nummer"
+          htmlFor="btwNumber"
+          error={fe.btwNumber}
+          hint="Bijv. NL123456789B01"
+        >
+          <Input
+            id="btwNumber"
+            name="btwNumber"
+            defaultValue={initial.btwNumber}
+            placeholder="NL123456789B01"
+          />
         </Field>
       </div>
 

@@ -3,6 +3,15 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(profiel): KvK- en BTW-nummervalidatie (branch `feat/kvk-btw-validatie`)
+
+Bergings-backlog (geborgen van routine-branch 0jOnC, ZZP2-127): `src/lib/fiscal.ts` met
+formaatvalidatie voor KvK-nummers (8 cijfers) en NL-BTW-id's (NL + 9 cijfers + B + 2,
+incl. elfproef-varianten) + 25 tests; gekoppeld in `validation.ts` aan het ZZP'er-profiel.
+Gates groen: typecheck ✓, lint ✓, test 1615 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(avg): verwerkingsregister + bewaartermijnen op /admin/avg (branch `feat/admin-avg-register`)
 
 Bergings-backlog (geborgen van routine-branch J4fj9, cherry-pick op actuele main):

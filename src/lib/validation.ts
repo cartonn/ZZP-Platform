@@ -12,6 +12,7 @@ import {
   workModeSchema,
 } from "@/lib/enums";
 import { MODEL_AGREEMENT_TYPES } from "./model-agreement";
+import { isValidBtwId, isValidKvk, normalizeBtwId, normalizeKvk } from "@/lib/fiscal";
 
 // --- Academie -------------------------------------------------------------
 const optionalLevel = z.preprocess(
@@ -99,8 +100,30 @@ export const freelancerProfileSchema = z.object({
     .optional()
     .transform((v) => (v === "" || v === undefined ? undefined : Number(v))),
   languages: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
-  kvkNumber: optionalText(20),
-  btwNumber: optionalText(30),
+  kvkNumber: z
+    .union([z.literal(""), z.string().trim()])
+    .optional()
+    .superRefine((v, ctx) => {
+      if (v && !isValidKvk(v)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Ongeldig KvK-nummer (8 cijfers).",
+        });
+      }
+    })
+    .transform((v) => (v ? normalizeKvk(v) : undefined)),
+  btwNumber: z
+    .union([z.literal(""), z.string().trim()])
+    .optional()
+    .superRefine((v, ctx) => {
+      if (v && !isValidBtwId(v)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Ongeldig BTW-id (bijv. NL123456789B01).",
+        });
+      }
+    })
+    .transform((v) => (v ? normalizeBtwId(v) : undefined)),
   visibility: visibilitySchema,
   skillIds: z.array(z.string().cuid()).max(50).default([]),
   industryIds: z.array(z.string().cuid()).max(20).default([]),

@@ -29,7 +29,8 @@ vertrouwen, Wet-DBA/AVG-compliance en een rustiger, mooier product.
 - [ ] **BLOCKER issue #329**: server-action-responses hangen in prod-modus (UI eeuwig pending,
       DB-write slaagt; pre-existing, niet CSP). Cascade-e2e in CI weer aanzetten ná de fix;
       daarna pas T6 (e2e blocking).
-- [ ] e2e van advisory → blocking in `ci.yml` (audit T6) zodra 3 opeenvolgende runs groen.
+- [x] T6 uitgevoerd (12-6, eigenaar akkoord): required checks = check + e2e na 3 groene
+      main-runs met de cascade-suite
 
 ### C. Frontend slick — Vakwerk-ontwerptaal
 
