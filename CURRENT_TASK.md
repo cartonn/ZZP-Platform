@@ -168,9 +168,11 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`
    (geverifieerde gaten, hoogste prioriteit eerst). Gedaan: ~~afronden-rem~~ (ZZP2-160),
    ~~CSV-formule-injectie-hardening~~ (ZZP2-161), ~~rol-fallback boekhouding~~ (ZZP2-162).
-   Volgende open: AVG-verwerkingsregister (/admin/avg, pre-launch), KvK-/BTW-formaatvalidatie,
-   beschikbaarheidsconflicten, CLIENT-dashboard "wat kan ik oppakken", tweezijdige beoordelingen,
-   iCal-export, e.v.
+   Gedaan via main-PR's: AVG-verwerkingsregister (#334), KvK-/BTW-formaatvalidatie (#335),
+   beschikbaarheidsconflicten (#336), CLIENT-dashboard "wat kan ik oppakken" (#337),
+   iCal-export (#338), dispuut-triage (#339). Tweezijdige beoordelingen geborgen (ZZP2-171,
+   branch `feat/tweezijdige-beoordelingen`). Volgende open: financiële inkomstenprognose,
+   factuur-CSV-export per gebruiker, mailkanaal dispuut-/samenwerking-events, e.v.
    Bergen = cherry-pick vanaf de bewaarde branch op verse main (zoals #318) of vers bouwen.
 1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
    routines, doe in een interactieve sessie mét browser-channel.

@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(reviews): tweezijdige beoordelingen na een afgeronde samenwerking (branch `feat/tweezijdige-beoordelingen`)
+
+Bergings-backlog #8 (geborgen van routine-branch Ym6ng, opnieuw geïntegreerd op verse main).
+Na een COMPLETED samenwerking beoordelen beide partijen elkaar éénmalig (1–5 sterren +
+optionele toelichting). Pure kern `src/lib/reviews.ts` (+33 tests: reviewInputSchema,
+reviewDirection, canLeaveReview, aggregateReviews, formatRating). Server-actie
+`createReviewAction` (auth → deelnemerschap → COMPLETED → Zod → max-één → notificatie + audit,
+transactioneel; `@@unique([collaborationId, authorId])`). UI: beoordeel-sectie op
+/samenwerkingen/[id] (form/eigen/ontvangen, admin alleen-lezen) + RatingStars/ReviewList op het
+publieke ZZP-profiel (gemiddelde + ontvangen beoordelingen). Seed: wederzijdse demo-beoordelingen
+op afgeronde samenwerkingen (idempotent). Vangrail-allowlist voor de profiel-aggregatiequery bij.
+Gates groen: typecheck ✓, lint ✓, test 1741 ✓, build ✓, prettier ✓. (Linear ZZP2-171.)
+
+> Branch-noot: de toegewezen routine-branch `claude/dazzling-carson-v9Qwk` bleek een stale
+> verzamelbranch (duplicaten van reeds-gemergde AVG/KvK/dubbele-boeking + een ongemergde
+> double-blind reviews-variant ZZP2-170). Conform CLAUDE.md §3a niet hervat; clean increment op
+> verse main geleverd via `feat/tweezijdige-beoordelingen`. De stale branch is onaangeroerd
+> gelaten (uniek werk recoverable via sha ef8901b).
+
+---
+
 ## feat(agenda): ICS-export van het werkrooster (branch `feat/ical-export`)
 
 Bergings-backlog (geborgen van routine-branch zg2s6n): `lib/calendar/{ics,schedule}.ts`

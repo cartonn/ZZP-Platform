@@ -37,7 +37,10 @@ Hoogste prioriteit eerst (correctheid/geld/compliance → UX → nice-to-have):
 6. **Beschikbaarheidsconflicten** (dubbele boeking) — branch `-wtK4l`.
 7. **CLIENT-dashboard "Wat kan ik oppakken"** (WORKSPACE_OVERHAUL Fase 3-rest) — suggesties
    voor de opdrachtgever; `suggestions.ts` bestaat al. Branches: `-q8l8W`, `-Laagg`, `-nrzrs0`.
-8. **Tweezijdige beoordelingen** na samenwerking — branches `-h9Dfw`, `-hLFwd`, `-Ym6ng`.
+8. [x] **Tweezijdige beoordelingen** na samenwerking — geborgen (ZZP2-171, branch
+       `feat/tweezijdige-beoordelingen`, geharvest van `-Ym6ng` op verse main): Review-model +
+       pure `lib/reviews.ts` (+33 tests) + server-actie (max-één, audit/notificatie) + UI op
+       /samenwerkingen/[id] + gemiddelde/lijst op het publieke ZZP-profiel + idempotente demo-seed.
 9. **Agenda-export iCal (.ics)** — branches `-6me9m`, `-Vv26O`, `-UV5P7`, `-zg2s6n`.
 10. **Dispuut-triage-prioriteit** op /admin/disputen — branch `-SJmv0`.
 11. **Financiële inkomstenprognose** (EUR; urenprognose bestaat) — branch `-7wDjk`.
