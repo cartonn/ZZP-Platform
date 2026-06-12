@@ -227,7 +227,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // dit is een ID-set-query (select: {id: true}), geen volledige lijst.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 110,
+    line: 122,
     reason: "ID-set-query voor factureerbare samenwerkingen; geen volledige lijst",
   },
 
@@ -236,7 +236,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // afgerond"-knop niet als dode knop aan te bieden. Begrensd door de page-of-collaborations.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 123,
+    line: 135,
     reason: "factuurstatus-snapshot per zichtbare samenwerking (afronden-rem); page-begrensd",
   },
 

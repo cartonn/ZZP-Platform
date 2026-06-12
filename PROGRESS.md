@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(design): samenwerkingen-lijst in de Warmte-taal + werkproces-fase per kaart (branch `feat/warmte-samenwerkingen-lijst`)
+
+Schermen-sweep (vervolg): de samenwerkingen-lijst was het zwakste kernscherm.
+
+- [x] Werkproces-fase op elke actieve/voorgestelde kaart (zelfde cascadeStage-afleiding als
+      de dashboard-kaarten): omschrijving, "Aan zet"-badge, voortgangsbalk "Stap x van 6",
+      klikbaar naar het werkproces. Terminale kaarten: stille "Werkproces bekijken →"-link.
+- [x] Mono-tarief als kerncijfer (€ 85/uur) i.p.v. kale "Tarief:"-tekst.
+- [x] Zwevende scheidingslijn op afgeronde kaarten gefixt (actierij rendert alleen met inhoud).
+- [x] Query: laatste prestatie + cascade-factuur per kaart (take-1 nested, geen N+1);
+      vangrail-allowlist hernummerd.
+
+Visueel geverifieerd, geen console-errors. Gates groen: typecheck ✓, lint ✓, test 1728 ✓,
+build ✓, prettier ✓
+
+---
+
 ## feat(profiel): publiek profiel schermvullend + ruimere kop (branch `feat/profiel-breed`)
 
 Eigenaar-verzoek (12-6): profiel stond smal in het midden — schermvullender en mooier.

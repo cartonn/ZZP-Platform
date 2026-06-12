@@ -11,13 +11,16 @@ import { assessCollaborationCredentials, type CredentialAlert } from "@/lib/coll
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type FreelancerCredential } from "@/lib/matching";
-import { type CollaborationStatus, type CredentialType } from "@/lib/enums";
+import { type CollaborationStatus, type ContractStatus, type CredentialType } from "@/lib/enums";
+import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
+import { cascadeStage } from "@/lib/cascade/stage";
 import { pageArgs, splitPage } from "@/lib/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { Progress } from "@/components/ui/progress";
 import { changeCollaborationStatus, signContractFromList } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
 
@@ -95,6 +98,15 @@ export default async function SamenwerkingenPage({
           user: { select: { name: true } },
           credentials: { select: { type: true, status: true, expiresAt: true } },
         },
+      },
+      // Laatste prestatie + cascade-factuur om de werkproces-fase op de kaart te tonen
+      // (zelfde afleiding als de dashboard-kaarten).
+      performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
+      invoices: {
+        where: { lifecycleStatus: { not: null } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { lifecycleStatus: true },
       },
     },
   });
@@ -243,20 +255,65 @@ export default async function SamenwerkingenPage({
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    {c.rate != null && <span>Tarief: € {c.rate}/uur</span>}
+                  <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    {c.rate != null && (
+                      <span className="font-mono text-sm font-semibold text-foreground">
+                        € {c.rate}
+                        <span className="font-sans text-xs font-normal text-muted-foreground">
+                          /uur
+                        </span>
+                      </span>
+                    )}
                     {fmt(c.startDate) && <span>Start: {fmt(c.startDate)}</span>}
                     {fmt(c.endDate) && <span>Eind: {fmt(c.endDate)}</span>}
                   </div>
 
-                  <div>
-                    <Link
-                      href={`/samenwerkingen/${c.id}`}
-                      className="text-sm font-medium underline underline-offset-4"
-                    >
-                      Werkproces openen →
-                    </Link>
-                  </div>
+                  {/* Werkproces-fase — zelfde afleiding als de dashboard-kaarten: waar staat het,
+                      wie is aan zet, met voortgang. Terminale statussen volstaan met een stille link. */}
+                  {status === "PROPOSED" || status === "ACTIVE" ? (
+                    (() => {
+                      const stage = cascadeStage({
+                        viewer: isClient ? "CLIENT" : "FREELANCER",
+                        collaborationId: c.id,
+                        collaborationStatus: status,
+                        contractStatus: c.contractStatus as ContractStatus,
+                        disputed: c.disputedAt !== null,
+                        latestPerformanceStatus: (c.performances[0]?.status ??
+                          null) as PerformanceState | null,
+                        latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
+                          null) as InvoiceLifecycleState | null,
+                      });
+                      return (
+                        <Link
+                          href={stage.cta.href}
+                          className="focus-ring block rounded-md border border-border px-3 py-2.5 transition-colors hover:bg-muted/40"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm">{stage.label}</span>
+                            {stage.youAreUp && <Badge variant="warning">Aan zet</Badge>}
+                          </div>
+                          <div className="mt-2 flex items-center gap-3">
+                            <Progress
+                              value={Math.round((stage.step / stage.totalSteps) * 100)}
+                              className="h-1.5 flex-1"
+                            />
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              Stap {stage.step} van {stage.totalSteps}
+                            </span>
+                          </div>
+                        </Link>
+                      );
+                    })()
+                  ) : (
+                    <div>
+                      <Link
+                        href={`/samenwerkingen/${c.id}`}
+                        className="focus-ring text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                      >
+                        Werkproces bekijken →
+                      </Link>
+                    </div>
+                  )}
 
                   {showAlert && alert && (
                     <div
@@ -285,7 +342,7 @@ export default async function SamenwerkingenPage({
                   )}
 
                   {(COLLABORATION_TRANSITIONS[status].length > 0 ||
-                    (!isClient && (status === "ACTIVE" || status === "COMPLETED"))) && (
+                    (!isClient && invoiceableIds.has(c.id))) && (
                     <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                       {/* Activeren kan alleen door het contract te ondertekenen — niet als losse
                           statuswijziging. Voor PROPOSED tonen we daarom "Contract ondertekenen". */}
