@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
-import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
+import { AuthorizationError, requireActor, requireRole, type Actor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { assertCollaborationTransition, CollaborationTransitionError } from "@/lib/collaborations";
@@ -11,8 +11,9 @@ import { planReplacement } from "@/lib/replacement";
 import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
 import { completionBlockReason } from "@/lib/cascade/completion";
 import { signContract, CascadeError } from "@/lib/cascade/commands";
+import { assessCancellation } from "@/lib/cancellation";
 import { type CollaborationStatus, type JobStatus, collaborationStatusSchema } from "@/lib/enums";
-import { collaborationProposalSchema } from "@/lib/validation";
+import { collaborationProposalSchema, collaborationCancellationSchema } from "@/lib/validation";
 
 export type ProposalState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -106,13 +107,54 @@ export async function proposeCollaboration(
   return undefined;
 }
 
+export type CancelState = { error?: string } | undefined;
+
+/**
+ * Annuleren met verplichte reden (symmetrisch: beide partijen). De 7-dagen-kostenregel wordt
+ * server-side beoordeeld en als snapshot op de samenwerking vastgelegd (productbesluit 12-6-2026):
+ * een opdrachtgever-annulering van een actieve samenwerking korter dan 7 dagen vóór de start is
+ * betalingsplichtig.
+ */
+export async function cancelCollaboration(
+  collaborationId: string,
+  _prev: CancelState,
+  formData: FormData,
+): Promise<CancelState> {
+  const actor = await requireActor();
+  const parsed = collaborationCancellationSchema.safeParse({
+    reason: formData.get("reason") ?? "",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Controleer de reden." };
+
+  try {
+    await applyCollaborationStatusChange(actor, collaborationId, "CANCELLED", {
+      reason: parsed.data.reason,
+    });
+  } catch (e) {
+    if (e instanceof Error) return { error: e.message };
+    throw e;
+  }
+  return undefined;
+}
+
 export async function changeCollaborationStatus(
   collaborationId: string,
   target: string,
 ): Promise<void> {
   const actor = await requireActor();
   const targetStatus = collaborationStatusSchema.parse(target);
+  // Annuleren loopt uitsluitend via cancelCollaboration (reden verplicht + kostensnapshot).
+  if (targetStatus === "CANCELLED")
+    throw new Error("Annuleren vereist een reden — gebruik de annuleerknop.");
+  await applyCollaborationStatusChange(actor, collaborationId, targetStatus);
+}
 
+async function applyCollaborationStatusChange(
+  actor: Actor,
+  collaborationId: string,
+  targetStatus: CollaborationStatus,
+  cancellation?: { reason: string },
+): Promise<void> {
   const collaboration = await prisma.collaboration.findUnique({
     where: { id: collaborationId },
     include: {
@@ -183,15 +225,41 @@ export async function changeCollaborationStatus(
     assertJobTransition(collaboration.job.status as JobStatus, replacement.targetJobStatus);
   }
 
+  // Annuleringssnapshot: reden + 7-dagen-kostenoordeel server-side vastgelegd op het
+  // annuleermoment, zodat het oordeel niet verschuift als de startdatum later wijzigt.
+  const now = new Date();
+  const cancellationData = cancellation
+    ? {
+        cancelledAt: now,
+        cancelledById: actor.id,
+        cancellationReason: cancellation.reason,
+        cancellationChargeable: assessCancellation({
+          byClient: actor.id === collaboration.company.userId,
+          active: from === "ACTIVE",
+          startDate: collaboration.startDate,
+          now,
+        }).chargeable,
+      }
+    : null;
+
   const otherUserId = partyUserIds.find((id) => id !== actor.id)!;
   const ops: Prisma.PrismaPromise<unknown>[] = [
-    prisma.collaboration.update({ where: { id: collaborationId }, data: { status: targetStatus } }),
+    prisma.collaboration.update({
+      where: { id: collaborationId },
+      data: { status: targetStatus, ...(cancellationData ?? {}) },
+    }),
     prisma.notification.create({
       data: {
         userId: otherUserId,
         type: "COLLABORATION_STATUS",
-        title: "Samenwerking bijgewerkt",
-        body: `Status: ${targetStatus}.`,
+        title: cancellationData ? "Samenwerking geannuleerd" : "Samenwerking bijgewerkt",
+        body: cancellationData
+          ? `Reden: ${cancellation!.reason}${
+              cancellationData.cancellationChargeable
+                ? " · Geannuleerd binnen 7 dagen vóór de start — voor de opdrachtgever geldt een betalingsverplichting."
+                : ""
+            }`
+          : `Status: ${targetStatus}.`,
         link: "/samenwerkingen",
       },
     }),
@@ -201,7 +269,16 @@ export async function changeCollaborationStatus(
         action: "COLLABORATION_STATUS_CHANGED",
         entityType: "Collaboration",
         entityId: collaborationId,
-        metadata: { from, to: targetStatus },
+        metadata: {
+          from,
+          to: targetStatus,
+          ...(cancellationData
+            ? {
+                reason: cancellation!.reason,
+                chargeable: cancellationData.cancellationChargeable,
+              }
+            : {}),
+        },
       }),
     }),
   ];

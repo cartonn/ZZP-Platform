@@ -14,7 +14,9 @@ import { type FreelancerCredential } from "@/lib/matching";
 import { type CollaborationStatus, type ContractStatus, type CredentialType } from "@/lib/enums";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { cascadeStage } from "@/lib/cascade/stage";
+import { assessCancellation } from "@/lib/cancellation";
 import { pageArgs, splitPage } from "@/lib/pagination";
+import { CancelCollaborationForm } from "@/components/collaborations/cancel-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -362,23 +364,41 @@ export default async function SamenwerkingenPage({
                         ))}
                       {COLLABORATION_TRANSITIONS[status]
                         .filter((to) => !(status === "PROPOSED" && to === "ACTIVE"))
-                        .map((to) =>
-                          to === "COMPLETED" && completionBlock ? (
-                            <span key={to} className="text-xs font-medium text-danger">
-                              {completionBlock}
-                            </span>
-                          ) : (
+                        .map((to) => {
+                          if (to === "COMPLETED" && completionBlock)
+                            return (
+                              <span key={to} className="text-xs font-medium text-danger">
+                                {completionBlock}
+                              </span>
+                            );
+                          if (to === "CANCELLED") {
+                            // Annuleren vraagt een reden; de 7-dagen-kostenregel (opdrachtgever)
+                            // wordt getoond — de server legt het oordeel vast.
+                            const cancelTerms = assessCancellation({
+                              byClient: isClient,
+                              active: status === "ACTIVE",
+                              startDate: c.startDate,
+                              now: new Date(),
+                            });
+                            return (
+                              <CancelCollaborationForm
+                                key={to}
+                                collaborationId={c.id}
+                                chargeable={cancelTerms.chargeable}
+                                freeUntilLabel={
+                                  cancelTerms.freeUntil ? fmt(cancelTerms.freeUntil) : null
+                                }
+                              />
+                            );
+                          }
+                          return (
                             <form key={to} action={changeCollaborationStatus.bind(null, c.id, to)}>
-                              <Button
-                                type="submit"
-                                size="sm"
-                                variant={to === "CANCELLED" ? "destructive" : "secondary"}
-                              >
+                              <Button type="submit" size="sm" variant="secondary">
                                 {ACTION_LABEL[to]}
                               </Button>
                             </form>
-                          ),
-                        )}
+                          );
+                        })}
                       {!isClient && invoiceableIds.has(c.id) && (
                         <Button asChild variant="secondary" size="sm">
                           <Link href="/facturen/nieuw">Factuur opstellen</Link>

@@ -669,6 +669,15 @@ model Collaboration {
   weekdays       String? // ADR-0004: JSON-array van Weekday ["MON","WED","FRI"]; null = niet vastgelegd
   disputedAt     DateTime? // dispuut open → cascade bevroren tot opgelost (§4 zijpad)
   disputeReason  String?
+
+  // Annulering (symmetrisch geregistreerd, productbesluit 12-6-2026): reden verplicht voor beide
+  // partijen; chargeable = server-side snapshot van de 7-dagen-regel op het annuleermoment
+  // (alleen een opdrachtgever-annulering van een actieve samenwerking < 7 dagen vóór de start).
+  cancelledAt            DateTime?
+  cancelledById          String? // userId van de annulerende partij
+  cancellationReason     String?
+  cancellationChargeable Boolean   @default(false)
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

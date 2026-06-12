@@ -147,6 +147,13 @@ export function performanceGraceDays(): number {
   return parseGraceDays(process.env.PERFORMANCE_GRACE_DAYS);
 }
 
+// --- Annuleringstermijn (productbesluit eigenaar 12-6-2026) ----------------
+// De opdrachtgever annuleert kosteloos zolang de startdatum nog minstens dit aantal dagen weg is;
+// korter op de start (of na de start) ontstaat een betalingsverplichting. Symmetrisch geregistreerd:
+// ook de ZZP'er annuleert met verplichte reden, maar zonder kostenregel (dat pad loopt via
+// herplaatsing/no-show-registratie).
+export const CANCELLATION_FREE_DAYS = 7;
+
 // --- Rechtsvermoeden werknemerschap (wetsvoorstel VBAR, aangenomen 21-4-2026) ----------------
 // Bij een uurtarief onder €38 (prijspeil 2025) kan de werkende een rechtsvermoeden van loondienst
 // inroepen (art. 7:610a BW zoals gewijzigd). Verwachte inwerkingtreding: 1-1-2027.
