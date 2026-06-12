@@ -234,7 +234,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
 
       <header className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold tracking-tight">{col.job.title}</h1>
+          <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
+            {col.job.title}
+          </h1>
           <Badge variant={active ? "success" : col.status === "COMPLETED" ? "muted" : "default"}>
             {col.status === "PROPOSED"
               ? "Voorgesteld"
@@ -393,7 +395,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         <Card>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div>
-              <p className="text-sm font-medium">Contract</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Contract
+              </p>
               <p className="text-sm text-muted-foreground">
                 {placementBlocked
                   ? `Deze samenwerking kan niet starten: een vereist certificaat ontbreekt of is verlopen (${placementMissing}).`
@@ -449,7 +453,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         <Card>
           <CardContent className="space-y-3 py-4">
             <div>
-              <p className="text-sm font-medium">Gedeelde certificaten</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Gedeelde certificaten
+              </p>
               <p className="text-xs text-muted-foreground">
                 {counterparty} heeft deze geverifieerde certificaten met je gedeeld.
               </p>
@@ -479,7 +485,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           <Card>
             <CardContent className="space-y-2 py-4">
               <div>
-                <p className="text-sm font-medium">ORT-profiel (onregelmatigheidstoeslagen)</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  ORT-profiel (onregelmatigheidstoeslagen)
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Bepaalt de toeslagen voor avond/nacht/weekend/feestdag. Kies de CAO-sector of
                   maatwerk; standaard = geen specifieke CAO.
@@ -513,7 +521,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         <Card>
           <CardContent className="space-y-2 py-4">
             <div>
-              <p className="text-sm font-medium">Weekrooster</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Weekrooster
+              </p>
               <p className="text-xs text-muted-foreground">
                 Leg vast op welke dagen er bij {counterparty} wordt gewerkt. Dit verschijnt in het
                 weekoverzicht; geen selectie = niet vastgelegd.
@@ -535,7 +545,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-muted-foreground" aria-hidden />
-          <h2 className="text-sm font-semibold">Uren & opleveringen</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Uren & opleveringen
+          </h2>
         </div>
 
         {active && isFreelancer && !frozen && (
@@ -650,7 +662,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <FileText className="size-4 text-muted-foreground" aria-hidden />
-          <h2 className="text-sm font-semibold">Facturen</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Facturen
+          </h2>
         </div>
 
         {col.invoices.length === 0 ? (
