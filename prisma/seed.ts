@@ -995,6 +995,56 @@ async function main() {
     },
   });
 
+  // --- Tweezijdige beoordelingen — op afgeronde (COMPLETED) samenwerkingen laten beide partijen
+  //     elkaar éénmalig een beoordeling na, zodat het publieke ZZP-profiel een echte reputatie toont
+  //     naast het vertrouwensniveau. Idempotent via @@unique([collaborationId, authorId]). ---
+  const completedCollabs = await prisma.collaboration.findMany({
+    where: { status: "COMPLETED" },
+    select: {
+      id: true,
+      company: { select: { userId: true } },
+      freelancer: { select: { userId: true } },
+    },
+  });
+  let r = 0;
+  for (const c of completedCollabs) {
+    r++;
+    const clientRating = 5 - (r % 2); // afwisselend 5 en 4 sterren
+    const freelancerRating = 4 + (r % 2); // afwisselend 4 en 5 sterren
+    await prisma.review.upsert({
+      where: { collaborationId_authorId: { collaborationId: c.id, authorId: c.company.userId } },
+      update: {},
+      create: {
+        collaborationId: c.id,
+        authorId: c.company.userId,
+        subjectId: c.freelancer.userId,
+        direction: "CLIENT_ON_FREELANCER",
+        rating: clientRating,
+        comment:
+          clientRating === 5
+            ? "Prettige samenwerking, vakkundig en betrouwbaar. Zeker een aanrader."
+            : "Goede inzet en duidelijke communicatie. Graag tot een volgende keer.",
+        createdAt: daysFromNow(-7 + r),
+      },
+    });
+    await prisma.review.upsert({
+      where: { collaborationId_authorId: { collaborationId: c.id, authorId: c.freelancer.userId } },
+      update: {},
+      create: {
+        collaborationId: c.id,
+        authorId: c.freelancer.userId,
+        subjectId: c.company.userId,
+        direction: "FREELANCER_ON_CLIENT",
+        rating: freelancerRating,
+        comment:
+          freelancerRating === 5
+            ? "Heldere opdracht, snelle afhandeling en op tijd betaald."
+            : "Fijne opdrachtgever met duidelijke verwachtingen.",
+        createdAt: daysFromNow(-6 + r),
+      },
+    });
+  }
+
   // --- Weekrooster per samenwerking (ADR-0004) — leg op een paar demo-samenwerkingen de werkelijke
   //     weekdagen vast, zodat de detailpagina (en het weekoverzicht) een echt "ma + di bij A"-rooster
   //     toont i.p.v. alleen periode/timing. Idempotent: zet alleen het additieve veld. ---

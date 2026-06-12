@@ -25,6 +25,8 @@ import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { VerificationMarks } from "@/components/credentials/verification-marks";
 import { parseLanguages } from "@/lib/parse-languages";
 import { FavoriteButton } from "@/components/favorites/favorite-button";
+import { RatingStars } from "@/components/reviews/rating-stars";
+import { ReviewList } from "@/components/reviews/review-list";
 
 const AVAILABILITY: Record<
   Availability,
@@ -177,6 +179,40 @@ export async function ProfileScreen({
     notFound();
   }
 
+  // Publieke reputatie: beoordelingen die opdrachtgevers over deze ZZP'er hebben achtergelaten na een
+  // voltooide samenwerking (richting CLIENT_ON_FREELANCER). Server-side waarheid, recentste eerst,
+  // begrensd. De andere richting (ZZP'er over opdrachtgever) hoort niet op het publieke ZZP-profiel.
+  // Aparte aggregatie over ALLE beoordelingen (gemiddelde + totaal), zodat de kop het juiste cijfer
+  // toont; de getoonde lijst blijft begrensd tot de 20 recentste. De `take` op de lijst mag het
+  // gemiddelde niet vertekenen — daarom telt/­middelt de database, niet de afgekapte rijen.
+  const reviewWhere = {
+    subjectId: profile.userId,
+    direction: "CLIENT_ON_FREELANCER",
+  } as const;
+  const [reviewRows, reviewStats] = await Promise.all([
+    prisma.review.findMany({
+      where: reviewWhere,
+      select: {
+        id: true,
+        rating: true,
+        comment: true,
+        createdAt: true,
+        author: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.review.aggregate({
+      where: reviewWhere,
+      _avg: { rating: true },
+      _count: { rating: true },
+    }),
+  ]);
+  const reviewAgg = {
+    count: reviewStats._count.rating,
+    average: reviewStats._avg.rating != null ? Math.round(reviewStats._avg.rating * 10) / 10 : 0,
+  };
+
   // Opdrachtgever die een ander profiel bekijkt: bepaal of deze ZZP'er al in zijn poule
   // (flexpool/favorieten) staat, zodat de knop de juiste stand toont. Server-side waarheid.
   let clientFavorited: boolean | null = null;
@@ -261,6 +297,14 @@ export async function ProfileScreen({
                 </h1>
                 <Badge variant={availability.variant}>{availability.label}</Badge>
                 <TrustBadge level={trust.level} />
+                {reviewAgg.count > 0 && (
+                  <RatingStars
+                    average={reviewAgg.average}
+                    count={reviewAgg.count}
+                    size="md"
+                    showValue
+                  />
+                )}
               </div>
               <p className="mt-1 text-sm text-muted-foreground sm:text-base">
                 {[profile.headline, profile.location, `op het platform sinds ${memberSince}`]
@@ -386,6 +430,30 @@ export async function ProfileScreen({
                     Over
                   </h2>
                   <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">{profile.bio}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {reviewAgg.count > 0 && (
+              <Card>
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Beoordelingen door opdrachtgevers
+                    </h2>
+                    <RatingStars average={reviewAgg.average} count={reviewAgg.count} showValue />
+                  </div>
+                  <div className="mt-2">
+                    <ReviewList
+                      reviews={reviewRows.map((r) => ({
+                        id: r.id,
+                        authorName: r.author.name,
+                        rating: r.rating,
+                        comment: r.comment,
+                        createdAt: r.createdAt,
+                      }))}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             )}
