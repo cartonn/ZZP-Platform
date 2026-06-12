@@ -220,7 +220,7 @@ export default async function PublicProfilePage({
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
             <div className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
               Z
@@ -235,47 +235,52 @@ export default async function PublicProfilePage({
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
         {/* Profielkop — Warmte-ontwerp: avatar, naam + status, subtitel, kerncijfers. */}
         <Card>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-start gap-4">
+          <CardContent className="space-y-4 p-6 sm:p-8">
+            <div className="flex flex-wrap items-start gap-5">
               <div
                 aria-hidden
-                className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-lg font-semibold text-primary"
+                className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
               >
                 {initials(profile.user.name)}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">
                     {profile.user.name}
                   </h1>
                   <Badge variant={availability.variant}>{availability.label}</Badge>
                   <TrustBadge level={trust.level} />
                 </div>
-                <p className="mt-0.5 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-foreground sm:text-base">
                   {[profile.headline, profile.location, `op het platform sinds ${memberSince}`]
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+                <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
                   {profile.hourlyRate != null && (
-                    <span className="font-mono font-semibold">€ {profile.hourlyRate}/uur</span>
+                    <span>
+                      <span className="font-mono text-lg font-semibold tracking-tight">
+                        € {profile.hourlyRate}
+                      </span>
+                      <span className="text-sm text-muted-foreground">/uur</span>
+                    </span>
                   )}
                   {hoursPerWeek != null && (
-                    <span className="text-muted-foreground">{hoursPerWeek} u/wk</span>
+                    <span className="text-sm text-muted-foreground">{hoursPerWeek} u/wk</span>
                   )}
                   {completed > 0 && (
-                    <span className="text-muted-foreground">
+                    <span className="text-sm text-muted-foreground">
                       {plural(completed, "afgeronde samenwerking", "afgeronde samenwerkingen")}
                     </span>
                   )}
-                  <span className="text-muted-foreground">
+                  <span className="text-sm text-muted-foreground">
                     {WORK_MODE[profile.workMode as WorkMode]}
                   </span>
                 </div>
-                <div className="mt-2">
+                <div className="mt-3">
                   <VerificationMarks
                     credentials={verifiedActive.map((c) => ({
                       type: c.type,
@@ -320,7 +325,7 @@ export default async function PublicProfilePage({
         </nav>
 
         {tab === "profiel" && (
-          <div className="grid gap-6 md:grid-cols-[3fr_2fr]">
+          <div className="grid gap-6 md:grid-cols-[3fr_2fr] lg:grid-cols-[2fr_1fr]">
             <div className="space-y-6">
               <Card>
                 <CardContent className="py-4">
