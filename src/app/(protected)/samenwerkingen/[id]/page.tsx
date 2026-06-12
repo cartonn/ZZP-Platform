@@ -10,7 +10,7 @@ import { computeCompliance } from "@/lib/matching";
 import { complianceBlocksPlacement } from "@/lib/collaborations";
 import { getSharedCredentialsForClient } from "@/lib/shared-credentials";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
-import { type CredentialType, type CredentialStatus } from "@/lib/enums";
+import { type CredentialType, type CredentialStatus, type NoShowVerdict } from "@/lib/enums";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
 import { recommendModelAgreement } from "@/lib/model-agreement";
@@ -24,6 +24,8 @@ import { CascadeStepper } from "@/components/ui/cascade-stepper";
 import { TurnBanner } from "@/components/ui/turn-banner";
 import { OrtBreakdown } from "@/components/collaborations/ort-breakdown";
 import { ReplacementPanel } from "@/components/collaborations/replacement-panel";
+import { NoShowReportForm } from "@/components/collaborations/no-show-form";
+import { NO_SHOW_LIMIT } from "@/lib/no-show";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,6 +115,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       },
       performances: { orderBy: { createdAt: "desc" } },
       invoices: { where: { lifecycleStatus: { not: null } }, orderBy: { createdAt: "desc" } },
+      noShowReports: { orderBy: { occurredOn: "desc" }, take: 20 },
     },
   });
   if (!col) notFound();
@@ -299,6 +302,61 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           direct passende, beschikbare ZZP'ers voor om de dienst opnieuw in te vullen. */}
       {isClient && col.status === "CANCELLED" && (
         <ReplacementPanel jobId={col.job.id} suggestions={replacementSuggestions} />
+      )}
+
+      {/* No-show-registratie (productbesluit 12-6-2026): de opdrachtgever meldt mét reden; de
+          ZZP'er ziet hier elke melding terug inclusief het admin-oordeel. Alleen ongegronde
+          no-shows tellen mee richting uitschrijving (grens: NO_SHOW_LIMIT). */}
+      {(col.noShowReports.length > 0 ||
+        (isClient && (col.status === "ACTIVE" || col.status === "CANCELLED"))) && (
+        <Card>
+          <CardContent className="space-y-3 py-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                No-shows
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Een beheerder beoordeelt elke melding; alleen ongegronde no-shows tellen mee — bij{" "}
+                {NO_SHOW_LIMIT} volgt uitschrijving van het platform.
+              </p>
+            </div>
+            {col.noShowReports.length > 0 && (
+              <ul className="divide-y divide-border">
+                {col.noShowReports.map((r) => {
+                  const verdict = r.verdict as NoShowVerdict;
+                  return (
+                    <li key={r.id} className="space-y-0.5 py-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-medium">
+                          Dienst van {formatDateShortNl(r.occurredOn)}
+                        </span>
+                        <Badge
+                          variant={
+                            verdict === "PENDING"
+                              ? "warning"
+                              : verdict === "JUSTIFIED"
+                                ? "success"
+                                : "danger"
+                          }
+                        >
+                          {verdict === "PENDING"
+                            ? "In beoordeling"
+                            : verdict === "JUSTIFIED"
+                              ? "Gegrond"
+                              : "Ongegrond"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Reden: {r.reason}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {isClient && (col.status === "ACTIVE" || col.status === "CANCELLED") && (
+              <NoShowReportForm collaborationId={col.id} />
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Cascade-keten: visuele voortgang van contract t/m betaling */}

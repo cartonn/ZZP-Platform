@@ -343,6 +343,7 @@ model FreelancerProfile {
   applications        Application[]
   collaborations      Collaboration[]
   availabilityWindows AvailabilityWindow[]
+  noShowReports       NoShowReport[]
 
   @@index([tenantId])
 }
@@ -685,9 +686,10 @@ model Collaboration {
   application  Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
   company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoices     Invoice[]
-  performances Performance[]
-  fee          CollaborationFee?
+  invoices      Invoice[]
+  performances  Performance[]
+  fee           CollaborationFee?
+  noShowReports NoShowReport[]
 
   // Hot paths: dashboards/admin/zoeken filteren op partij + status (Postgres indexeert FK's niet
   // automatisch). Additieve indexes — veilig via db push.
@@ -695,6 +697,32 @@ model Collaboration {
   @@index([freelancerId])
   @@index([status])
   @@index([disputedAt])
+}
+
+// No-show-registratie (productbesluit 12-6-2026): de melder (opdrachtgever of franchiser van de
+// dienst) registreert een no-show met de reden zoals de ZZP'er die opgaf; de admin beoordeelt
+// gegrond/ongegrond. Alleen ONGEGRONDE no-shows tellen mee; bij NO_SHOW_LIMIT (3) verschijnt een
+// uitschrijf-taak in de admin-wachtrij (User.status → SUSPENDED, handmatig bevestigd — nooit
+// automatisch).
+model NoShowReport {
+  id                  String    @id @default(cuid())
+  collaborationId     String
+  freelancerProfileId String
+  reportedById        String //  userId van de melder (opdrachtgever of franchiser)
+  reason              String //  reden zoals de ZZP'er die opgaf / zoals bekend bij de melder
+  occurredOn          DateTime //  (dag van) de gemiste dienst
+  verdict             String    @default("PENDING") // NoShowVerdict: PENDING | JUSTIFIED | UNJUSTIFIED
+  verdictNote         String?
+  verdictById         String? //  admin die het oordeel velde
+  verdictAt           DateTime?
+  createdAt           DateTime  @default(now())
+
+  collaboration Collaboration     @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  freelancer    FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([freelancerProfileId, verdict])
+  @@index([verdict])
+  @@index([collaborationId])
 }
 
 // ---------------------------------------------------------------------------

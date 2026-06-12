@@ -14,6 +14,7 @@ import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { overdueInvoiceCount } from "@/lib/signals";
+import { NO_SHOW_LIMIT } from "@/lib/no-show";
 import {
   rankTasks,
   contractSignTask,
@@ -33,6 +34,9 @@ import {
   adminActivateUserTask,
   adminResolveDisputeTask,
   adminDeletionRequestTask,
+  adminJudgeNoShowTask,
+  adminSuspendNoShowTask,
+  noShowWarningTask,
   overdueInvoiceTask,
   applicationsReviewTask,
   draftJobsTask,
@@ -241,6 +245,29 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
 
   for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));
   if (overdue > 0) tasks.push(overdueInvoiceTask(overdue, "FREELANCER"));
+
+  // No-show-stand (productbesluit 12-6-2026): de ZZP'er ziet ongegronde registraties als
+  // waarschuwing — bij de grens volgt uitschrijving (adminbeslissing). Link naar de meest
+  // recente registratie zodat de reden + het oordeel direct terug te lezen zijn.
+  if (profile) {
+    const latestUnjustified = await prisma.noShowReport.findFirst({
+      where: { freelancerProfileId: profile.id, verdict: "UNJUSTIFIED" },
+      orderBy: { createdAt: "desc" },
+      select: { collaborationId: true },
+    });
+    if (latestUnjustified) {
+      const unjustified = await prisma.noShowReport.count({
+        where: { freelancerProfileId: profile.id, verdict: "UNJUSTIFIED" },
+      });
+      tasks.push(
+        noShowWarningTask(
+          unjustified,
+          NO_SHOW_LIMIT,
+          `/samenwerkingen/${latestUnjustified.collaborationId}`,
+        ),
+      );
+    }
+  }
   return tasks;
 }
 
@@ -312,32 +339,51 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
 
 async function adminTasks(): Promise<PendingTask[]> {
   const tasks: PendingTask[] = [];
-  const [creds, pendingUsers, disputes, deletions] = await Promise.all([
-    prisma.credential.findMany({
-      where: { status: "SUBMITTED" },
-      select: {
-        id: true,
-        title: true,
-        freelancerProfile: { select: { user: { select: { name: true } } } },
-      },
-      take: MAX,
-    }),
-    prisma.user.findMany({
-      where: { status: "PENDING" },
-      select: { id: true, name: true },
-      take: MAX,
-    }),
-    prisma.collaboration.findMany({
-      where: { disputedAt: { not: null } },
-      select: { id: true, job: { select: { title: true } } },
-      take: MAX,
-    }),
-    prisma.user.findMany({
-      where: { deletionRequestedAt: { not: null }, anonymizedAt: null, role: { not: "ADMIN" } },
-      select: { id: true, name: true },
-      take: MAX,
-    }),
-  ]);
+  const [creds, pendingUsers, disputes, deletions, noShowReports, noShowAtLimit] =
+    await Promise.all([
+      prisma.credential.findMany({
+        where: { status: "SUBMITTED" },
+        select: {
+          id: true,
+          title: true,
+          freelancerProfile: { select: { user: { select: { name: true } } } },
+        },
+        take: MAX,
+      }),
+      prisma.user.findMany({
+        where: { status: "PENDING" },
+        select: { id: true, name: true },
+        take: MAX,
+      }),
+      prisma.collaboration.findMany({
+        where: { disputedAt: { not: null } },
+        select: { id: true, job: { select: { title: true } } },
+        take: MAX,
+      }),
+      prisma.user.findMany({
+        where: { deletionRequestedAt: { not: null }, anonymizedAt: null, role: { not: "ADMIN" } },
+        select: { id: true, name: true },
+        take: MAX,
+      }),
+      // No-show-meldingen die op een oordeel wachten (gegrond/ongegrond).
+      prisma.noShowReport.findMany({
+        where: { verdict: "PENDING" },
+        select: {
+          id: true,
+          freelancer: { select: { user: { select: { name: true } } } },
+          collaboration: { select: { job: { select: { title: true } } } },
+        },
+        orderBy: { createdAt: "asc" },
+        take: MAX,
+      }),
+      // ZZP'ers op/over de grens van ongegronde no-shows → uitschrijf-taak (handmatig besluit).
+      prisma.noShowReport.groupBy({
+        by: ["freelancerProfileId"],
+        where: { verdict: "UNJUSTIFIED" },
+        _count: { _all: true },
+        having: { freelancerProfileId: { _count: { gte: NO_SHOW_LIMIT } } },
+      }),
+    ]);
   for (const c of creds)
     tasks.push(
       adminVerifyCredentialTask(c.id, c.title, c.freelancerProfile.user.name ?? "Onbekend"),
@@ -345,5 +391,30 @@ async function adminTasks(): Promise<PendingTask[]> {
   for (const u of pendingUsers) tasks.push(adminActivateUserTask(u.id, u.name ?? "Gebruiker"));
   for (const d of disputes) tasks.push(adminResolveDisputeTask(d.id, d.job.title));
   for (const u of deletions) tasks.push(adminDeletionRequestTask(u.id, u.name ?? "Gebruiker"));
+  for (const r of noShowReports)
+    tasks.push(
+      adminJudgeNoShowTask(r.id, r.freelancer.user.name ?? "ZZP'er", r.collaboration.job.title),
+    );
+  if (noShowAtLimit.length > 0) {
+    // Alleen nog-actieve accounts: een al geschorste ZZP'er heeft geen uitschrijf-taak meer.
+    const profiles = await prisma.freelancerProfile.findMany({
+      where: {
+        id: { in: noShowAtLimit.map((r) => r.freelancerProfileId) },
+        user: { status: "ACTIVE" },
+      },
+      select: { id: true, user: { select: { id: true, name: true } } },
+    });
+    const countByProfile = new Map(
+      noShowAtLimit.map((r) => [r.freelancerProfileId, r._count._all]),
+    );
+    for (const p of profiles)
+      tasks.push(
+        adminSuspendNoShowTask(
+          p.user.id,
+          p.user.name ?? "ZZP'er",
+          countByProfile.get(p.id) ?? NO_SHOW_LIMIT,
+        ),
+      );
+  }
   return tasks;
 }

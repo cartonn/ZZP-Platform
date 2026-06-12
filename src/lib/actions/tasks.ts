@@ -53,6 +53,9 @@ export type PendingTask =
   | (TaskBase & { kind: "admin-activate-user"; userId: string })
   | (TaskBase & { kind: "admin-resolve-dispute"; collabId: string })
   | (TaskBase & { kind: "admin-deletion-request"; userId: string })
+  | (TaskBase & { kind: "admin-judge-no-show"; reportId: string })
+  | (TaskBase & { kind: "admin-suspend-no-show"; userId: string })
+  | (TaskBase & { kind: "no-show-warning" })
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
   | (TaskBase & { kind: "applications-review" })
   | (TaskBase & { kind: "draft-jobs" });
@@ -360,6 +363,56 @@ export function adminDeletionRequestTask(userId: string, name: string): PendingT
     resolver: "link", // onomkeerbaar → bewust achter de bevestigingsflow, niet één klik
     href: "/admin/gebruikers?deletion=1",
     userId,
+  };
+}
+
+export function adminJudgeNoShowTask(
+  reportId: string,
+  freelancerName: string,
+  jobTitle: string,
+): PendingTask {
+  return {
+    kind: "admin-judge-no-show",
+    id: `admin-judge-no-show:${reportId}`,
+    title: "Beoordeel no-show-melding (gegrond/ongegrond)",
+    subtitle: `${freelancerName} · ${jobTitle}`,
+    tone: "attention",
+    priority: P.disputeOpen,
+    resolver: "link",
+    href: "/admin/no-shows",
+    reportId,
+  };
+}
+
+export function adminSuspendNoShowTask(
+  userId: string,
+  name: string,
+  unjustified: number,
+): PendingTask {
+  return {
+    kind: "admin-suspend-no-show",
+    id: `admin-suspend-no-show:${userId}`,
+    title: "Uitschrijving beoordelen — grens ongegronde no-shows bereikt",
+    subtitle: `${name} · ${unjustified} ongegronde no-shows`,
+    tone: "attention",
+    priority: P.blocking,
+    resolver: "link", // schorsen is ingrijpend → bewust via de no-show-pagina, niet één klik
+    href: "/admin/no-shows",
+    userId,
+  };
+}
+
+/** Waarschuwing voor de ZZP'er: ongegronde no-shows geregistreerd; bij de grens volgt uitschrijving. */
+export function noShowWarningTask(unjustified: number, limit: number, href: string): PendingTask {
+  return {
+    kind: "no-show-warning",
+    id: "no-show-warning",
+    title: `Let op: ${plural(unjustified, "ongegronde no-show", "ongegronde no-shows")} geregistreerd`,
+    subtitle: `Bij ${limit} ongegronde no-shows volgt uitschrijving van het platform.`,
+    tone: "attention",
+    priority: P.complianceRipple,
+    resolver: "link",
+    href,
   };
 }
 

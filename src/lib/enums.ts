@@ -69,6 +69,12 @@ export const COLLABORATION_STATUSES = ["PROPOSED", "ACTIVE", "COMPLETED", "CANCE
 export type CollaborationStatus = (typeof COLLABORATION_STATUSES)[number];
 export const collaborationStatusSchema = z.enum(COLLABORATION_STATUSES);
 
+// No-show-beoordeling (productbesluit 12-6-2026): PENDING = wacht op admin-oordeel,
+// JUSTIFIED = gegronde reden (telt niet mee), UNJUSTIFIED = ongegrond (telt mee richting de grens).
+export const NO_SHOW_VERDICTS = ["PENDING", "JUSTIFIED", "UNJUSTIFIED"] as const;
+export type NoShowVerdict = (typeof NO_SHOW_VERDICTS)[number];
+export const noShowVerdictSchema = z.enum(NO_SHOW_VERDICTS);
+
 // Weekdagen voor het optionele per-dag-weekrooster op een samenwerking (ADR-0004). Maandag eerst
 // (ISO-volgorde); opgeslagen als JSON-array van deze codes in Collaboration.weekdays.
 export const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
