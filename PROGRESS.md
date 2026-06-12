@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(profiel): publiek ZZP-profiel naar het Warmte-ontwerp — vijf tabs (branch `feat/vakwerk-profiel`)
+
+Eigenaarsopdracht (ontwerp docs/ontwerpen/warmte.html exact nagebouwd op /zzp/[id]):
+
+- [x] **Profielkop**: avatar-initialen, naam + beschikbaarheids- en vertrouwensbadge, subtitel
+      (functie · locatie · op het platform sinds), kerncijfers (uurtarief mono, u/wk uit
+      beschikbaarheidsvensters, afgeronde samenwerkingen, werkmodus), verificatie-zegels
+- [x] **Vijf tabs** (server-gerenderd via ?tab=, geen client-JS): Profiel · Certificaten ·
+      Beschikbaarheid · Samenwerkingen · Beoordelingen
+- [x] **Profiel**: Stamgegevens (functie/specialisaties/branches/locatie+reistijd/uurtarief/
+      KvK/talen/lid sinds) + Over; rechterkolom Profielkracht (ScoreRing-donut + signaalbalken
+      identiteit/documenten/certificaten, eerlijk server-side berekend) + Vertrouwen +
+      Recente samenwerkingen
+- [x] **Certificaten**: "X van Y geldig", per rij bron-tag (DUO/BIG/ADMIN), geverifieerd-datum,
+      geldig-t/m of verloopt-over-X-dagen, status-badge
+- [x] **Beschikbaarheid**: status + samenvatting + komende vensters · **Samenwerkingen**:
+      geanonimiseerd (opdrachttitel, géén bedrijfsnaam — privacy) · **Beoordelingen**: eerlijke
+      staat (systeem in voorbereiding, feiten i.p.v. sterren)
+- [x] Nieuw `ScoreRing`-component (puur SVG); alle visibility-/tenant-guards intact
+- [x] Visueel geverifieerd: alle 5 tabs geschoten, nul console-errors
+- Gates groen: typecheck ✓, lint ✓, test 1708 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(agenda): ICS-export van het werkrooster (branch `feat/ical-export`)
 
 Bergings-backlog (geborgen van routine-branch zg2s6n): `lib/calendar/{ics,schedule}.ts`
