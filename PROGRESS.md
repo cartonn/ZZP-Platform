@@ -3,6 +3,15 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(design): certificaten-beheer in de Warmte-taal (branch `feat/warmte-certificaten`)
+
+Schermen-sweep (vervolg): geldig-teller in de paginakop ("X van Y geldig geverifieerd"),
+bron-tags (DUO/BIG/ADMIN) naast de statusbadge per certificaat, uppercase-label op het
+deel-dossier-blok — zelfde taal als het publieke profiel (#341). Pure presentatie.
+Visueel geverifieerd; gates groen: typecheck ✓, lint ✓, test 1708 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(design): opdracht-detail in de Warmte-taal (branch `feat/warmte-opdracht-detail`)
 
 Schermen-sweep (vervolg op het Warmte-profiel, #341) — pure presentatie, nul logica:

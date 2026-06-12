@@ -112,11 +112,19 @@ export default async function CertificatenPage() {
     mandatoryDocsComplete: mandatory.allSatisfied,
   });
 
+  // Warmte-taal: bron-tag per certificaattype (DUO/BIG/ADMIN) + geldig-teller, zoals op het
+  // publieke profiel.
+  const sourceTag = (type: CredentialType) =>
+    type === "DIPLOMA" ? "DUO" : type === "LICENSE" ? "BIG" : "ADMIN";
+  const validCount = credentials.filter(
+    (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > Date.now()),
+  ).length;
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title="Certificaten"
-        description="Beheer je bewijsstukken en vraag verificatie aan."
+        description={`Beheer je bewijsstukken en vraag verificatie aan. ${credentials.length > 0 ? `${validCount} van ${credentials.length} geldig geverifieerd.` : ""}`}
         action={
           <Button asChild>
             <Link href="/certificaten/nieuw">
@@ -135,7 +143,9 @@ export default async function CertificatenPage() {
       >
         <div className="flex items-center gap-2">
           <ShieldCheck className="size-4 text-primary" aria-hidden />
-          <h2 className="text-sm font-medium">Deel je vertrouwensdossier</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Deel je vertrouwensdossier
+          </h2>
         </div>
         {isPublicProfile && shareUrl ? (
           <div className="mt-3 space-y-2">
@@ -203,6 +213,9 @@ export default async function CertificatenPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{c.title}</span>
+                        <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+                          {sourceTag(c.type as CredentialType)}
+                        </span>
                         <CredentialStatusBadge status={status} />
                         <Badge variant="muted">{isPublic ? "Openbaar" : "Privé"}</Badge>
                       </div>
