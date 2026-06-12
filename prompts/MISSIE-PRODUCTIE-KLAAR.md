@@ -1,5 +1,9 @@
 # MISSIE: PRODUCTIE-KLAAR — doorlopende opdracht voor alle agents
 
+> **STATUS: MISSIE VOLBRACHT — 12-6-2026.** Alle sporen A–D afgevinkt (tweezijdige
+> beoordelingen bewust geparkeerd als productbesluit). Openstaand mensenwerk: MENSENWERK §0b,
+> SMTP/S3/web-push/AVG-juridisch, issue #329-wortel. Zie PROGRESS.md voor het verloop.
+
 > Eigenaar-opdracht 11-6-2026. Werk per iteratie/run één increment volledig af (DoD-groen,
 > PR, CI-poort, merge, prod-health) tot de eindstreep hieronder is gehaald. Lees altijd eerst
 > CLAUDE.md (incl. 3a), CURRENT_TASK.md, PROGRESS.md, DESIGN.md.
