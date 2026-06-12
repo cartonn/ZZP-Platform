@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(profiel): "Mijn profiel" binnen de app-schil — zijbalk blijft staan (branch `fix/profiel-in-app-schil`)
+
+Eigenaar-melding (12-6): klik op "Mijn profiel" liet de linkernavigatie verdwijnen (redirect
+naar de standalone publieke route).
+
+- [x] Profielweergave geëxtraheerd naar gedeeld servercomponent
+      `src/components/profile/profile-screen.tsx` (kopkaart + tabs + tabinhoud; tab-links
+      via basePath; zelfde visibility-checks).
+- [x] `/profiel` rendert de weergave nu bínnen de app-schil (zijbalk + topbar blijven);
+      tabs navigeren binnen /profiel?tab=…
+- [x] `/zzp/[id]` blijft de standalone publieke route (eigen chrome, Inloggen-link
+      voor bezoekers) — zelfde gedeelde weergave.
+
+Geverifieerd: zijbalk zichtbaar op /profiel (alle tabs), publieke route ongewijzigd
+standalone, geen console-errors. Gates groen: typecheck ✓, lint ✓, test 1728 ✓, build ✓
+
+---
+
 ## feat(design): samenwerkingen-lijst in de Warmte-taal + werkproces-fase per kaart (branch `feat/warmte-samenwerkingen-lijst`)
 
 Schermen-sweep (vervolg): de samenwerkingen-lijst was het zwakste kernscherm.
