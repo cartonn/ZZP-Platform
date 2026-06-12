@@ -138,10 +138,11 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 
 **M2 — high-leverage (volgende; bovenste eerst):**
 
-1. [ ] **T3 — cursor-paginatie** (paginagrootte 50, "meer laden") op dashboard/samenwerkingen/
-       documenten. `samenwerkingen` haalt beide partij-zijden via `OR` op → pagineer op
-       `orderBy: updatedAt` met stabiele tiebreaker `id` (deterministische cursor). E2e laadt page-2.
-       Grep/lint-check tegen nieuwe unbounded list-`findMany`. _(L, med risico)_
+1. [x] **T3 — cursor-paginatie** — AFGEROND. Samenwerkingen + documenten: cursor-paginatie
+   - "Meer laden" + vangrail-test (#307). Dashboard-zone "Wat loopt er nu": bewuste
+     top-6 (`RUNNING_ZONE_LIMIT`, `updatedAt desc`) + overloop-tegel met totaaltelling
+     i.p.v. cursor — het dashboard verwijst door naar de gepagineerde lijst
+     (`lib/running-zone.ts` + tests, branch `feat/cursor-paginatie`).
 2. [ ] **T4 — split `cascade/commands.ts`** (1193 r.) in `{contract,performance,invoice,payment}-`
        `commands.ts` + barrel-re-export (nul gedragswijziging, importpaden ongewijzigd). Gedeelde
        helpers (`assertParty`, `loadPerformance`, `catch {}` mail-blocks) naar `commands-shared.ts`.

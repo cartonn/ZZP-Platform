@@ -28,6 +28,7 @@ import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { franchiserNextActions, type NextAction, type NextActionTone } from "@/lib/next-actions";
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
+import { RUNNING_ZONE_LIMIT, runningZonePlan } from "@/lib/running-zone";
 import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
@@ -106,6 +107,8 @@ interface RunningCollab {
 interface DashboardData {
   stats: Stat[];
   running: RunningCollab[];
+  /** Lopende samenwerkingen buiten de zone-grens (doorverwijs-tegel "Nog n lopende …"). */
+  runningOverflow: number;
   week: WeekOverview | null;
   isNewAccount: boolean;
   /** Geleide activatie-stappen (alleen franchiser); leeg zodra de franchise volledig staat. */
@@ -168,7 +171,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         })
       : { score: 0, missing: [] };
     const now = new Date();
-    const [applications, creds, runningRows, me] = await Promise.all([
+    const [applications, creds, runningRows, me, runningTotal] = await Promise.all([
       pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
       // Eén query voor alle certificaten van de ZZP'er; de telling leiden we in-memory af.
       pid
@@ -178,10 +181,11 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           })
         : Promise.resolve<{ type: string; status: string; expiresAt: Date | null }[]>([]),
       // Lopende samenwerkingen (niet-terminaal) met de gegevens om de cascade-fase af te leiden.
-      // Interim-cap tegen onbegrensde groei (audit QW3); echte cursor-paginatie volgt in T3.
+      // Bewust begrensd tot de zone-grens, meest recent bewogen bovenaan (audit T3) —
+      // de volledige gepagineerde lijst staat op /samenwerkingen.
       prisma.collaboration.findMany({
         where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
-        take: 100,
+        take: RUNNING_ZONE_LIMIT,
         select: {
           id: true,
           status: true,
@@ -201,12 +205,16 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
             select: { lifecycleStatus: true },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { updatedAt: "desc" },
       }),
       // Identiteit + recency voor de inzetbaarheidsstatus (lichte select, geen extra joins).
       prisma.user.findUnique({
         where: { id: userId },
         select: { identityVerifiedAt: true, lastLoginAt: true },
+      }),
+      // Totaal lopende samenwerkingen, voor de eerlijke overloop-telling in de zone.
+      prisma.collaboration.count({
+        where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
       }),
     ]);
 
@@ -231,23 +239,24 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           null) as InvoiceLifecycleState | null,
       }),
     }));
-    // Weekoverzicht alleen bij meerdere lopende samenwerkingen (anders voegt het niets toe).
-    const week =
-      runningRows.length >= 2
-        ? weekOverview(
-            runningRows.map((c) => ({
-              collaborationId: c.id,
-              clientId: c.company.id,
-              clientName: c.company.name,
-              jobTitle: c.job.title,
-              startDate: c.startDate,
-              endDate: c.endDate,
-              rate: c.rate,
-              weekdays: parseWeekdays(c.weekdays),
-            })),
-            now,
-          )
-        : null;
+    const zone = runningZonePlan(runningTotal);
+    // Weekoverzicht alleen bij meerdere lopende samenwerkingen (anders voegt het niets toe)
+    // én volledige data (boven de zone-grens zou de "Deze week"-telling liegen).
+    const week = zone.showWeek
+      ? weekOverview(
+          runningRows.map((c) => ({
+            collaborationId: c.id,
+            clientId: c.company.id,
+            clientName: c.company.name,
+            jobTitle: c.job.title,
+            startDate: c.startDate,
+            endDate: c.endDate,
+            rate: c.rate,
+            weekdays: parseWeekdays(c.weekdays),
+          })),
+          now,
+        )
+      : null;
 
     const engageability = profile
       ? computeEngageability(
@@ -292,8 +301,9 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         { label: "Mijn reacties", value: applications, href: "/reacties" },
       ],
       running,
+      runningOverflow: zone.overflow,
       week,
-      isNewAccount: applications === 0 && running.length === 0,
+      isNewAccount: applications === 0 && runningTotal === 0,
       activation: [],
       engageability,
       identity: {
@@ -311,43 +321,54 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       select: { id: true, name: true, location: true },
     });
     const cid = company?.id;
-    const [openJobs, newApps, drafts, activeCollabs, runningRows, suggestedFreelancers] =
-      await Promise.all([
-        cid
-          ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
-          : Promise.resolve(0),
-        cid
-          ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } })
-          : Promise.resolve(0),
-        cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
-        cid
-          ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } })
-          : Promise.resolve(0),
-        // Lopende samenwerkingen vanuit de opdrachtgever: dezelfde cascade, ander perspectief.
-        // Interim-cap tegen onbegrensde groei (audit QW3); echte cursor-paginatie volgt in T3.
-        prisma.collaboration.findMany({
-          where: { company: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
-          take: 100,
-          select: {
-            id: true,
-            status: true,
-            contractStatus: true,
-            disputedAt: true,
-            job: { select: { title: true } },
-            freelancer: { select: { user: { select: { name: true } } } },
-            performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
-            invoices: {
-              where: { lifecycleStatus: { not: null } },
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: { lifecycleStatus: true },
-            },
+    const [
+      openJobs,
+      newApps,
+      drafts,
+      activeCollabs,
+      runningRows,
+      suggestedFreelancers,
+      runningTotal,
+    ] = await Promise.all([
+      cid
+        ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
+        : Promise.resolve(0),
+      cid
+        ? prisma.application.count({ where: { job: { companyId: cid }, status: "NEW" } })
+        : Promise.resolve(0),
+      cid ? prisma.job.count({ where: { companyId: cid, status: "DRAFT" } }) : Promise.resolve(0),
+      cid
+        ? prisma.collaboration.count({ where: { companyId: cid, status: "ACTIVE" } })
+        : Promise.resolve(0),
+      // Lopende samenwerkingen vanuit de opdrachtgever: dezelfde cascade, ander perspectief.
+      // Bewust begrensd tot de zone-grens, meest recent bewogen bovenaan (audit T3).
+      prisma.collaboration.findMany({
+        where: { company: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
+        take: RUNNING_ZONE_LIMIT,
+        select: {
+          id: true,
+          status: true,
+          contractStatus: true,
+          disputedAt: true,
+          job: { select: { title: true } },
+          freelancer: { select: { user: { select: { name: true } } } },
+          performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
+          invoices: {
+            where: { lifecycleStatus: { not: null } },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { lifecycleStatus: true },
           },
-          orderBy: { createdAt: "desc" },
-        }),
-        // Voorgestelde ZZP'ers, geaggregeerd over de gepubliceerde opdrachten (zone 3).
-        suggestedFreelancersForClient(userId, 4),
-      ]);
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
+      // Voorgestelde ZZP'ers, geaggregeerd over de gepubliceerde opdrachten (zone 3).
+      suggestedFreelancersForClient(userId, 4),
+      // Totaal lopende samenwerkingen, voor de eerlijke overloop-telling in de zone.
+      prisma.collaboration.count({
+        where: { company: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
+      }),
+    ]);
     // Compliance-waarschuwingen per lopende samenwerking (ZZP'er mist/verlopen vereist certificaat),
     // zodat de opdrachtgever dit ook op het dashboard ziet — niet alleen op /samenwerkingen.
     const complianceByCollab = new Map(
@@ -379,6 +400,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         { label: "Actieve samenwerkingen", value: activeCollabs, href: "/samenwerkingen" },
       ],
       running,
+      runningOverflow: runningZonePlan(runningTotal).overflow,
       week: null,
       isNewAccount: openJobs === 0 && drafts === 0 && activeCollabs === 0,
       activation: [],
@@ -421,6 +443,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         { label: "Open leads", value: openLeads, href: "/franchise/leads", sub: "excl. afgevallen" }, // prettier-ignore
       ],
       running: [],
+      runningOverflow: 0,
       week: null,
       isNewAccount: companies === 0 && freelancers === 0,
       // Geleide opzet: verschijnt zolang de franchise nog niet volledig staat (ook bij gedeeltelijke
@@ -434,7 +457,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     };
   }
 
-  const [pending, users, jobs, runningRows] = await Promise.all([
+  const [pending, users, jobs, runningRows, runningTotal] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.user.count(),
     prisma.job.count(),
@@ -442,7 +465,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     // als de partijen, met de meest recent bewogen samenwerkingen bovenaan.
     prisma.collaboration.findMany({
       where: { status: { in: ["PROPOSED", "ACTIVE"] } },
-      take: 6,
+      take: RUNNING_ZONE_LIMIT,
       orderBy: { updatedAt: "desc" },
       select: {
         id: true,
@@ -461,6 +484,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         },
       },
     }),
+    // Totaal lopende samenwerkingen op het platform, voor de overloop-telling in de zone.
+    prisma.collaboration.count({ where: { status: { in: ["PROPOSED", "ACTIVE"] } } }),
   ]);
   const running: RunningCollab[] = runningRows.map((c) => ({
     id: c.id,
@@ -486,6 +511,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       { label: "Opdrachten", value: jobs, href: "/admin/opdrachten" },
     ],
     running,
+    runningOverflow: runningZonePlan(runningTotal).overflow,
     week: null,
     isNewAccount: false,
     activation: [],
@@ -728,6 +754,7 @@ export default async function DashboardPage() {
     {
       stats,
       running,
+      runningOverflow,
       week,
       isNewAccount,
       activation,
@@ -853,6 +880,15 @@ export default async function DashboardPage() {
             {running.map((c) => (
               <RunningCard key={c.id} collab={c} />
             ))}
+            {runningOverflow > 0 && (
+              <Link
+                href={SAMENWERKINGEN_HREF[role]}
+                className="focus-ring flex min-h-24 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+              >
+                Nog {plural(runningOverflow, "lopende samenwerking", "lopende samenwerkingen")}
+                <ArrowRight className="size-4" aria-hidden />
+              </Link>
+            )}
           </div>
         ) : (
           <div className="rounded-lg border border-border bg-card p-5">
