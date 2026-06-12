@@ -118,7 +118,7 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 - [ ] **Volgende stappen (mensenwerk/browser):** e-mail-uitnodiging i.p.v. tijdelijk wachtwoord
       (SMTP); Playwright e2e; cutover (Railway).
 
-### Audit-backlog (Fable-audit op `main` — M0/M1 gemerged, M2/M3 open)
+### Audit-backlog (Fable-audit op `main` — VOLLEDIG AFGEROND 12-6-2026)
 
 > Bron: principal-audit op `main`. Gezondheid **B+**, nul Critical/High security. Echte
 > zwaktes = onderhoudbaarheid + schaal, niet veiligheid. **Niet aankomen behalve voor tests:**
@@ -136,26 +136,27 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 - [x] **QW3 — interim list-cap** (#298): `take: 100` op dashboard/samenwerkingen/documenten.
 - [x] **QW1 — `next` → 15.5.19 + postcss-override** (#300): `npm audit` 2 moderate → **0**.
 
-**M2 — high-leverage (volgende; bovenste eerst):**
+**M2 — gemerged (niet opnieuw doen):**
 
-1. [x] **T3 — cursor-paginatie** — AFGEROND. Samenwerkingen + documenten: cursor-paginatie
-   - "Meer laden" + vangrail-test (#307). Dashboard-zone "Wat loopt er nu": bewuste
-     top-6 (`RUNNING_ZONE_LIMIT`, `updatedAt desc`) + overloop-tegel met totaaltelling
-     i.p.v. cursor — het dashboard verwijst door naar de gepagineerde lijst
-     (`lib/running-zone.ts` + tests, branch `feat/cursor-paginatie`).
-2. [ ] **T4 — split `cascade/commands.ts`** (1193 r.) in `{contract,performance,invoice,payment}-`
-       `commands.ts` + barrel-re-export (nul gedragswijziging, importpaden ongewijzigd). Gedeelde
-       helpers (`assertParty`, `loadPerformance`, `catch {}` mail-blocks) naar `commands-shared.ts`.
-       `typecheck` na elke move. _(M, med risico — brede imports)_
-3. [ ] **T5 — extract** `buildChainSteps` + ORT-helpers uit `samenwerkingen/[id]/page.tsx` (935 r.)
-       naar `lib/` met unit-tests; pagina < 600 r. _(M)_
+1. [x] **T3 — cursor-paginatie** (#307 + #354): samenwerkingen + documenten cursor-gepagineerd
+       ("Meer laden", `lib/pagination.ts`, vangrail-test); dashboard-zone "Wat loopt er nu"
+       bewust begrensd tot top-6 (`lib/running-zone.ts`, `updatedAt desc`) + overloop-tegel
+       met totaaltelling die doorverwijst naar de gepagineerde lijst.
+2. [x] **T4 — split `cascade/commands.ts`** (#305): 1193 r. → 6 modules
+       (`commands-shared` / `contract-` / `performance-` / `invoice-` / `payment-` /
+       `dispute-commands.ts`) + barrel in `commands.ts`; importpaden ongewijzigd, nul
+       gedragswijziging.
+3. [x] **T5 — extract pagina-logica**: `buildChainSteps` → `cascade/chain-steps.ts` (24 tests),
+       `parseOrtSegments` → `lib/ort.ts`, `OrtBreakdown` → component. Pagina 935 → 772 r.
+       (inmiddels weer ~790 door nieuwe features — acceptabel).
 
-**M3 — polish (laagste prioriteit):**
+**M3 — gemerged:**
 
-4. [ ] **T7 — Prisma-config-migratie** (`package.json#prisma` → `prisma.config.ts`); ruimt
-       build-deprecation vóór Prisma 7. _(S)_ · **L3/L4** (post-guard `!`-asserts; gedupliceerde
-       `parseLanguages`/`parseOrtSegments`) alleen meenemen als je toch in die bestanden zit.
-       **T6 (e2e blocking) — overslaan** tot de suite stabiel-groen is.
+4. [x] **T7 — Prisma-config-migratie**: `package.json#prisma` → `prisma.config.ts`
+       (`defineConfig`, dotenv expliciet, meegekopieerd in de Docker-image).
+       Resterend uit M3: **L3/L4** (post-guard `!`-asserts; gedupliceerde `parseLanguages`)
+       alleen meenemen als je toch in die bestanden zit; **T6 (e2e blocking) — overslaan**
+       tot de suite stabiel-groen is.
 
 > **NIET nu doen (auditadvies):** Prisma 7 / Next 16 / Tailwind 4 majors (opt-in, geen pre-launch-
 > payoff, regressierisico); CSP-nonce-pipeline (`'unsafe-inline'` gedocumenteerd acceptabel pre-prod,
