@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## perf(dashboard): "Wat loopt er nu" bewust begrensd — audit T3 afgerond (branch `feat/cursor-paginatie`)
+
+Sluitstuk van audit T3 (samenwerkingen/documenten waren al gepagineerd in #307): de
+dashboard-zone hing nog op de interim-cap `take: 100` (QW3) en rendert tot 100 kaarten.
+
+- [x] `src/lib/running-zone.ts` — zone-grens `RUNNING_ZONE_LIMIT = 6` + pure
+      `runningZonePlan(total)`: overloop-telling en het weekoverzicht-besluit
+      (alleen bij ≥ 2 lopende én volledige data — afgekapte set zou de telling laten
+      liegen). 5 unit-tests in `running-zone.test.ts`.
+- [x] Dashboard FREELANCER/CLIENT: `take: 100` → `take: RUNNING_ZONE_LIMIT`,
+      sortering `updatedAt desc` (meest recent bewogen bovenaan, consistent met de
+      admin-zone) + `collaboration.count` voor de eerlijke totaaltelling.
+      Admin-tak op dezelfde gedeelde grens; `isNewAccount` (ZZP'er) op het totaal.
+- [x] Overloop-tegel in de zone: "Nog n lopende samenwerking(en) →" (gestippelde
+      kaart) naar de volledige, gepagineerde lijst per rol (`SAMENWERKINGEN_HREF`).
+- [x] Vangrail-allowlist regelnummer bijgewerkt (`unbounded-queries.test.ts`).
+
+Besluit: op het dashboard geen "meer laden"-cursor maar een bewuste top-6 + doorverwijzing —
+het dashboard toont alleen wat telt; de cursor-gepagineerde lijsten zijn /samenwerkingen
+en /documenten (#307). Daarmee is audit T3 volledig af; geen `take: 100`-interim-caps
+meer op de T3-oppervlakken.
+
+Gates groen: typecheck ✓, lint ✓, test 1733 ✓, build ✓, prettier ✓
+
+---
+
 ## fix(profiel): "Mijn profiel" binnen de app-schil — zijbalk blijft staan (branch `fix/profiel-in-app-schil`)
 
 Eigenaar-melding (12-6): klik op "Mijn profiel" liet de linkernavigatie verdwijnen (redirect
