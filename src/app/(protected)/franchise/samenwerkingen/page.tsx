@@ -31,7 +31,7 @@ export default async function FranchiseSamenwerkingenPage() {
         orderBy: { updatedAt: "desc" },
         include: {
           job: { select: { title: true, department: { select: { name: true } } } },
-          company: { select: { name: true } },
+          company: { select: { name: true, userId: true } },
           freelancer: { select: { user: { select: { name: true } } } },
         },
       })
@@ -58,19 +58,34 @@ export default async function FranchiseSamenwerkingenPage() {
           {collabs.map((c) => {
             const status = STATUS[c.status as CollaborationStatus] ?? STATUS.PROPOSED;
             return (
-              <div key={c.id} className="flex items-start justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{c.job.title}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {c.company.name}
-                    {c.job.department ? ` · ${c.job.department.name}` : ""} ·{" "}
-                    {c.freelancer.user.name}
-                  </p>
+              <div key={c.id} className="space-y-2 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{c.job.title}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {c.company.name}
+                      {c.job.department ? ` · ${c.job.department.name}` : ""} ·{" "}
+                      {c.freelancer.user.name}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
+                    <Badge variant={status.variant}>{status.label}</Badge>
+                    <span>bijgewerkt {formatDateShortNl(c.updatedAt)}</span>
+                  </div>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
-                  <Badge variant={status.variant}>{status.label}</Badge>
-                  <span>bijgewerkt {formatDateShortNl(c.updatedAt)}</span>
-                </div>
+                {/* Annuleringsregistratie voor het franchise-toezicht: wie, wanneer, waarom —
+                    en of de 7-dagen-kostenregel geldt (productbesluit 12-6-2026). */}
+                {c.status === "CANCELLED" && c.cancellationReason && (
+                  <div className="rounded-md border border-danger/20 bg-danger/5 px-3 py-2 text-xs">
+                    <p className="font-medium">
+                      Geannuleerd
+                      {c.cancelledAt ? ` op ${formatDateShortNl(c.cancelledAt)}` : ""} door{" "}
+                      {c.cancelledById === c.company.userId ? "de opdrachtgever" : "de ZZP'er"}
+                      {c.cancellationChargeable ? " · betalingsverplichting van toepassing" : ""}
+                    </p>
+                    <p className="mt-0.5 text-muted-foreground">Reden: {c.cancellationReason}</p>
+                  </div>
+                )}
               </div>
             );
           })}

@@ -250,6 +250,12 @@ export const collaborationProposalSchema = z
   });
 export type CollaborationProposalInput = z.infer<typeof collaborationProposalSchema>;
 
+// --- Samenwerking annuleren (reden verplicht, symmetrisch voor beide partijen) ---
+export const collaborationCancellationSchema = z.object({
+  reason: trimmed(500).min(5, "Geef een reden op (minimaal 5 tekens)."),
+});
+export type CollaborationCancellationInput = z.infer<typeof collaborationCancellationSchema>;
+
 // --- Factuurregel (unitCents wordt server-side uit euro's berekend) ---
 export const invoiceLineSchema = z.object({
   description: trimmed(200).min(1, "Omschrijving is verplicht."),

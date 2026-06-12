@@ -269,6 +269,32 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         </div>
       </header>
 
+      {/* Annuleringsregistratie: wie, wanneer, waarom — en of de 7-dagen-kostenregel geldt. */}
+      {col.status === "CANCELLED" && col.cancellationReason && (
+        <Card>
+          <CardContent className="space-y-1.5 py-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Annulering
+              </p>
+              {col.cancellationChargeable && <Badge variant="warning">Betalingsverplichting</Badge>}
+            </div>
+            <p className="text-sm">
+              Geannuleerd
+              {col.cancelledAt ? ` op ${formatDateShortNl(col.cancelledAt)}` : ""} door{" "}
+              {col.cancelledById === col.company.userId ? "de opdrachtgever" : "de ZZP'er"}.
+            </p>
+            <p className="text-sm text-muted-foreground">Reden: {col.cancellationReason}</p>
+            {col.cancellationChargeable && (
+              <p className="text-xs text-muted-foreground">
+                Geannuleerd binnen 7 dagen vóór de start — voor de opdrachtgever geldt een
+                betalingsverplichting.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Herplaatsing bij uitval: bij een geannuleerde inzet stelt het platform de opdrachtgever
           direct passende, beschikbare ZZP'ers voor om de dienst opnieuw in te vullen. */}
       {isClient && col.status === "CANCELLED" && (

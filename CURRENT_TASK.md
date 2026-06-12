@@ -357,8 +357,13 @@ Bron: concurrentie-onderzoek + `docs/PRIJSADVIES.md`. Status geverifieerd tegen 
    regel zichtbaar voor béíde partijen op factuur + samenwerking. Symmetrie-verificatie GEDAAN
    (10-6-2026): tarief/factuurbedragen op alle oppervlakken identiek aan beide partijen getoond;
    geen role-conditional bedragen; tenant-fees in geen enkele partij-UI.
-6. [ ] **Symmetrische annulering + no-show-registratie** — GEPARKEERD: PRODUCTBESLUIT eigenaar
-       nodig (annuleringstermijnen, gevolgen beide kanten); daarna registratie + profielen.
+6. [~] **Symmetrische annulering + no-show-registratie** — PRODUCTBESLUIT genomen (12-6-2026):
+   (a) opdrachtgever annuleert kosteloos tot 7 dagen vóór de start, daarna
+   betalingsverplichting; (b) reden verplicht en zichtbaar voor de franchiser onder
+   samenwerkingen; (c) no-show: melder registreert met reden → ZZP'er geïnformeerd, admin
+   beoordeelt gegrond/ongegrond, bij 3 ongegronde een uitschrijf-taak in de admin-wachtrij
+   (User.status → SUSPENDED, handmatig bevestigd). **Deel 1 (annulering) gebouwd**
+   (branch `feat/annulering-met-reden`); deel 2 (no-show) volgt.
 7. [x] **Notificatie-betrouwbaarheid** — digest (#314), "terwijl je weg was" (#315),
        e-mailvoorkeuren per categorie (#318). Nog open: web-push (VAPID) = mensenwerk.
 8. [x] **Startkapitaal & boekhoud-belofte etaleren** (#311) — trust-strip/registratie-copy.

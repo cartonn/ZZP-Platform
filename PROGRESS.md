@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(annulering): symmetrische annulering met reden + 7-dagen-kostenregel (branch `feat/annulering-met-reden`) — punt 6 deel 1
+
+Productbesluit eigenaar (12-6): opdrachtgever annuleert kosteloos tot 7 dagen vóór de start;
+daarna betalingsverplichting. Reden verplicht voor beide partijen; zichtbaar voor de franchiser.
+
+- [x] `lib/cancellation.ts` — pure `assessCancellation` (alleen opdrachtgever-annulering van een
+      ACTIEVE samenwerking met startdatum kan betalingsplichtig zijn; grens = start − 7 dagen,
+      `CANCELLATION_FREE_DAYS` in config). 7 unit-tests incl. grensgeval.
+- [x] Schema (additief): `Collaboration.cancelledAt/cancelledById/cancellationReason/
+cancellationChargeable` — server-side snapshot op het annuleermoment.
+- [x] Actions: `cancelCollaboration` (useActionState, reden verplicht via
+      `collaborationCancellationSchema`, zelfde guards als statuswijziging — open-factuur-rem,
+      herplaatsing); `changeCollaborationStatus` weigert CANCELLED voortaan; notificatie aan de
+      andere partij bevat de reden + evt. betalingsverplichting; audit-metadata reason+chargeable.
+- [x] UI: `CancelCollaborationForm` (uitklapbaar, kostenregel getoond vóór bevestiging) op de
+      samenwerkingen-lijst; annuleringskaart op het werkproces-detail; reden + wie/wanneer +
+      betalingsverplichting-badge op /franchise/samenwerkingen (eigenaarsvraag).
+
+Volgende stap (punt 6 deel 2): no-show-registratie met reden → ZZP'er geïnformeerd, admin
+beoordeelt gegrond/ongegrond, bij 3 ongegronde een uitschrijf-taak in de admin-wachtrij.
+Gates groen: typecheck ✓, lint ✓, test 1740 ✓, build ✓, prettier ✓
+
+---
+
 ## perf(dashboard): "Wat loopt er nu" bewust begrensd — audit T3 afgerond (branch `feat/cursor-paginatie`)
 
 Sluitstuk van audit T3 (samenwerkingen/documenten waren al gepagineerd in #307): de
