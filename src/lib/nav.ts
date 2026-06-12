@@ -86,6 +86,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Verificaties", href: "/admin/verificaties", icon: "fileCheck", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Samenwerkingen", href: "/admin/samenwerkingen", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Disputen", href: "/admin/disputen", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore
+    { label: "No-shows", href: "/admin/no-shows", icon: "users", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Helpdesk", href: "/admin/support", icon: "messages", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Opdrachten", href: "/admin/opdrachten", icon: "briefcase", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Platform-bewaking", href: "/admin/bewaking", icon: "shield", section: "Toezicht", enabled: true }, // prettier-ignore

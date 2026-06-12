@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(no-show): registratie + admin-beoordeling + uitschrijf-wachtrij (branch `feat/no-show-registratie`) — punt 6 deel 2 (sluit punt 6 af)
+
+Productbesluit eigenaar (12-6): melder registreert no-show met reden → ZZP'er direct
+geïnformeerd; admin beoordeelt gegrond/ongegrond; alleen ongegronde tellen mee; bij 3
+ongegronde een uitschrijf-taak in de admin-wachtrij (handmatig, nooit automatisch).
+
+- [x] Schema: `NoShowReport` (collab + freelancerProfile + melder + reden + occurredOn +
+      verdict PENDING/JUSTIFIED/UNJUSTIFIED + verdictBy/At). Enum + Zod (`noShowVerdictSchema`).
+- [x] `lib/no-show.ts` — `NO_SHOW_LIMIT = 3`, pure `noShowStanding` (telling/remaining/atLimit),
+      6 unit-tests.
+- [x] Actions: `reportNoShow` (opdrachtgever óf franchiser van de dienst; alleen op
+      ACTIVE/CANCELLED; notificatie aan ZZP'er mét reden + uitleg; audit) en
+      `judgeNoShowReport` (admin; oordeel + notificatie met stand n/3; audit).
+- [x] `/admin/no-shows` (+ navitem Operatie): te-beoordelen-wachtrij met gegrond/ongegrond,
+      "grens bereikt"-sectie met uitschrijf-knop (hergebruikt `setUserStatus` → SUSPENDED),
+      recent-beoordeeld-lijst.
+- [x] Actiecentrum: admin-taken `admin-judge-no-show` (per melding) + `admin-suspend-no-show`
+      (grens bereikt, alleen ACTIVE-accounts); ZZP'er-waarschuwing `no-show-warning`
+      (n van 3, link naar de samenwerking met de reden).
+- [x] Werkproces-detail: no-show-kaart — opdrachtgever meldt (datum + reden), beide partijen
+      zien elke registratie incl. oordeel-badge (zo komt de reden expliciet bij de ZZP'er).
+
+Gates groen: typecheck ✓, lint ✓, test 1746 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(annulering): symmetrische annulering met reden + 7-dagen-kostenregel (branch `feat/annulering-met-reden`) — punt 6 deel 1
 
 Productbesluit eigenaar (12-6): opdrachtgever annuleert kosteloos tot 7 dagen vóór de start;

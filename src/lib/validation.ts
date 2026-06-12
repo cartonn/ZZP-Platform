@@ -256,6 +256,13 @@ export const collaborationCancellationSchema = z.object({
 });
 export type CollaborationCancellationInput = z.infer<typeof collaborationCancellationSchema>;
 
+// --- No-show melden (reden + dag van de gemiste dienst verplicht) ---
+export const noShowReportSchema = z.object({
+  reason: trimmed(500).min(5, "Geef de reden op zoals de ZZP'er die opgaf (minimaal 5 tekens)."),
+  occurredOn: z.coerce.date({ message: "Geef de dag van de gemiste dienst op." }),
+});
+export type NoShowReportInput = z.infer<typeof noShowReportSchema>;
+
 // --- Factuurregel (unitCents wordt server-side uit euro's berekend) ---
 export const invoiceLineSchema = z.object({
   description: trimmed(200).min(1, "Omschrijving is verplicht."),
