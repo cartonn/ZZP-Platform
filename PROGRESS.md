@@ -3,6 +3,15 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(beschikbaarheid): conflictdetectie met lopende samenwerkingen (branch `feat/beschikbaarheidsconflicten`)
+
+Bergings-backlog (geborgen van routine-branch wtK4l, ZZP2-109): `availability-conflicts.ts`
+(+ tests) detecteert niet-beschikbaarheidsvensters die overlappen met lopende/voorgestelde
+samenwerkingen en waarschuwt op /beschikbaarheid. Vangrail-allowlist bijgewerkt.
+Gates groen: typecheck ✓, lint ✓, test 1625 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(profiel): KvK- en BTW-nummervalidatie (branch `feat/kvk-btw-validatie`)
 
 Bergings-backlog (geborgen van routine-branch 0jOnC, ZZP2-127): `src/lib/fiscal.ts` met

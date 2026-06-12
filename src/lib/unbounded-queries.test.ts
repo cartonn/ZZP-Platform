@@ -47,8 +47,13 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // volledige set nodig heeft voor upcoming/summary.
   {
     file: "(protected)/beschikbaarheid/page.tsx",
-    line: 35,
+    line: 38,
     reason: "kalenderaggregatie vereist alle vensters van eigenaar",
+  },
+  {
+    file: "(protected)/beschikbaarheid/page.tsx",
+    line: 44,
+    reason: "eigenaar-scoped lopende samenwerkingen voor conflictdetectie; inherent klein",
   },
 
   // --- certificaten/(index)/page.tsx ---
