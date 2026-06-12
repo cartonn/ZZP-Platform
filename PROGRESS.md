@@ -3,6 +3,15 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(design): werkproces-pagina in de Warmte-taal (branch `feat/warmte-werkproces`)
+
+Schermen-sweep (slot): display-titel op de kop, alle sectiekoppen (Uren & opleveringen,
+Facturen, Contract, Gedeelde certificaten, Weekrooster, ORT-profiel) in de uppercase-labeltaal —
+consistent met profiel/opdracht-detail/certificaten. Pure presentatie; visueel geverifieerd.
+Gates groen: typecheck ✓, lint ✓, test 1708 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(design): certificaten-beheer in de Warmte-taal (branch `feat/warmte-certificaten`)
 
 Schermen-sweep (vervolg): geldig-teller in de paginakop ("X van Y geldig geverifieerd"),
