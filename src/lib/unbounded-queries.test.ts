@@ -227,7 +227,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // dit is een ID-set-query (select: {id: true}), geen volledige lijst.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 109,
+    line: 110,
     reason: "ID-set-query voor factureerbare samenwerkingen; geen volledige lijst",
   },
 
@@ -236,7 +236,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // afgerond"-knop niet als dode knop aan te bieden. Begrensd door de page-of-collaborations.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 122,
+    line: 123,
     reason: "factuurstatus-snapshot per zichtbare samenwerking (afronden-rem); page-begrensd",
   },
 
@@ -486,6 +486,10 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     line: 21,
     reason: "admin-export; volledigheid vereist",
   },
+
+  // --- api/agenda/route.ts ---
+  // ICS-export: alle actieve samenwerkingen van één eigenaar (inherent klein).
+  { file: "api/agenda/route.ts", line: 21, reason: "eigenaar-scoped rooster-export" },
 
   // --- api/account/export/route.ts (drie findMany's) ---
   // Account-export (AVG); volledigheid vereist voor data-portabiliteit.

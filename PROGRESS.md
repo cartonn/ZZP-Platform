@@ -3,6 +3,17 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(agenda): ICS-export van het werkrooster (branch `feat/ical-export`)
+
+Bergings-backlog (geborgen van routine-branch zg2s6n): `lib/calendar/{ics,schedule}.ts`
+(+ tests) genereren een geldige VCALENDAR met wekelijkse RRULE-events uit actieve
+samenwerkingen met rooster; `GET /api/agenda` (eigenaar-scoped) + downloadknop op
+/samenwerkingen die zich verbergt zonder exporteerbaar rooster (geen dode knop).
+Positief én leeg pad geverifieerd op lokale prod-server. Vangrail-allowlist bij.
+Gates groen: typecheck ✓, lint ✓, test 1676 ✓, build ✓, prettier ✓
+
+---
+
 ## feat(admin): dispuut-triage met leeftijd en urgentie (branch `feat/dispuut-triage`)
 
 Bergings-backlog (geborgen van routine-branch SJmv0, laatste D-item): `src/lib/disputes.ts`

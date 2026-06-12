@@ -1,8 +1,9 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, Handshake } from "lucide-react";
+import { AlertTriangle, CalendarDays, Handshake } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { parseWeekdays } from "@/lib/weekdays";
 import { COLLABORATION_TRANSITIONS } from "@/lib/collaborations";
 import { invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { completionBlockReason } from "@/lib/cascade/completion";
@@ -140,9 +141,30 @@ export default async function SamenwerkingenPage({
     pendingPerfRows.map((r) => [r.collaborationId, r._count._all]),
   );
 
+  // Toon de agenda-export alleen wanneer er echt een geplande, actieve samenwerking is (geen dode
+  // knop): status ACTIVE met een startdatum én vastgelegde weekdagen.
+  const hasExportableSchedule = collaborations.some(
+    (c) => c.status === "ACTIVE" && c.startDate != null && parseWeekdays(c.weekdays).length > 0,
+  );
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader title="Samenwerkingen" description="Voorgestelde en lopende samenwerkingen." />
+      <PageHeader
+        title="Samenwerkingen"
+        description="Voorgestelde en lopende samenwerkingen."
+        action={
+          hasExportableSchedule ? (
+            <a
+              href="/api/agenda"
+              download="rooster.ics"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <CalendarDays className="size-4" aria-hidden />
+              Rooster exporteren (.ics)
+            </a>
+          ) : undefined
+        }
+      />
 
       {collaborations.length === 0 && !cursor ? (
         <Card>
