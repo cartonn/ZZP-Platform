@@ -220,7 +220,10 @@ kalender publiceren/claimen).
 > per functie met platform-fallback + anonimiseringsdrempel, MarketRateCard op /profiel/bewerken — sluit
 > PLAN-WERELDKLASSE Fase 3 "Tariefinzicht" af),
 > kandidaten-bulk-triage (ZZP2-185: shortlist/bekeken/afwijzen voor meerdere reacties tegelijk op
-> /kandidaten — planBulkApplicationTransition + bulkChangeApplicationStatus + sticky bulk-balk).
+> /kandidaten — planBulkApplicationTransition + bulkChangeApplicationStatus + sticky bulk-balk),
+> omzet-/uitgaventrend op /inzicht (ZZP2-189: revenue-trend.ts buildRevenueTrend + rol-/tenant-fetchers,
+> RevenueTrendCard met sparkline + delta-badge + 6-maands strip; sluit de eerder ongebruikte
+> monthlyRevenue/Sparkline-capaciteit aan op echte data, per rol — FREELANCER/CLIENT/FRANCHISER).
 
 ### Gap-analyse (Fase 0)
 

@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(inzicht): maandelijkse omzet-/uitgaventrend per rol — branch `claude/dazzling-carson-v9Qwk` (Linear ZZP2-189)
+
+De pure omzetreeks (`monthlyRevenue`/`monthDeltaPct` in `revenue.ts`) én de `Sparkline`-component
+bestonden al getest, maar werden nergens gerenderd — een dode capaciteit. `/inzicht` toonde alleen
+statische KPI-tegels, geen trend over tijd.
+
+- [x] `src/lib/revenue-trend.ts` — pure `buildRevenueTrend(rows, now, months)` (delegeert naar
+      `monthlyRevenue`/`monthDeltaPct`) + drie rol-/tenant-gescopete DB-fetchers
+      (`getFreelancerRevenueTrend` / `getClientRevenueTrend` / `getTenantRevenueTrend`):
+      gefactureerde facturen (`issuedAt != null`, niet `CANCELLED`) per maand, gespiegeld op de
+      ownership-filters van `*-stats.ts` (issuer/counterparty/tenant; platform-fee uitgesloten).
+      8 unit-tests (groepering, jaargrens, delta, lege staat).
+- [x] `src/components/insight/revenue-trend-card.tsx` — presentationele server-component: huidig
+      maandbedrag, delta-badge (▲/▼ t.o.v. vorige maand), `Sparkline`, 6-maands strip + empty-state.
+- [x] `src/app/(protected)/inzicht/page.tsx` — kaart ingehaakt voor FREELANCER (omzet), CLIENT
+      (uitgaven) en FRANCHISER (franchise-omzet), direct onder de verdiensten/uitgaven/omzet-sectie.
+
+Server-side waarheid, integer-centen, omzet volgt de factuurdatum (consistent met de administratie).
+Gates groen: typecheck ✓, lint ✓, test 1803 ✓, build ✓, prettier ✓ (e2e n.v.t. — geen browserkanaal).
+Commit `2cea08e`.
+
+---
+
 ## feat(opdrachten): matchredenen op de opdracht-kaart — branch `claude/dazzling-carson-v9Qwk` (Linear ZZP2-188)
 
 PLAN-WERELDKLASSE Fase 2 "Matchredenen zichtbaar maken op kaarten (ook de minpunten —
