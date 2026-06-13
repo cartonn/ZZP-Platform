@@ -40,6 +40,9 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   APPLICATION_CREATED: "Gereageerd op opdracht",
   APPLICATION_STATUS_CHANGED: "Reactiestatus gewijzigd",
   APPLICATION_NOTE_SAVED: "Notitie bij reactie opgeslagen",
+  FAVORITE_ADDED: "ZZP'er aan flexpool toegevoegd",
+  FAVORITE_REMOVED: "ZZP'er uit flexpool verwijderd",
+  FAVORITE_NOTE_SAVED: "Notitie bij flexpool-favoriet opgeslagen",
 
   // Samenwerking & werkproces
   COLLABORATION_PROPOSED: "Samenwerking voorgesteld",

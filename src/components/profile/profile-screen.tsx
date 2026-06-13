@@ -24,6 +24,7 @@ import { TrustBadge } from "@/components/trust/trust-badge";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { VerificationMarks } from "@/components/credentials/verification-marks";
 import { parseLanguages } from "@/lib/parse-languages";
+import { FavoriteButton } from "@/components/favorites/favorite-button";
 
 const AVAILABILITY: Record<
   Availability,
@@ -165,6 +166,25 @@ export async function ProfileScreen({
     notFound();
   }
 
+  // Opdrachtgever die een ander profiel bekijkt: bepaal of deze ZZP'er al in zijn poule
+  // (flexpool/favorieten) staat, zodat de knop de juiste stand toont. Server-side waarheid.
+  let clientFavorited: boolean | null = null;
+  if (viewer?.role === "CLIENT" && viewer.id !== profile.userId) {
+    const company = await prisma.company.findUnique({
+      where: { userId: viewer.id },
+      select: { id: true },
+    });
+    if (company) {
+      const fav = await prisma.favoriteFreelancer.findUnique({
+        where: {
+          companyId_freelancerProfileId: { companyId: company.id, freelancerProfileId: profile.id },
+        },
+        select: { id: true },
+      });
+      clientFavorited = !!fav;
+    }
+  }
+
   const availability = AVAILABILITY[profile.availability as Availability];
   const languages = parseLanguages(profile.languages);
   const availabilitySummary = summarizeAvailability(
@@ -268,14 +288,16 @@ export async function ProfileScreen({
               </div>
             </div>
             {/* Eigen profiel: direct door naar bewerken — "Mijn profiel" landt hier. */}
-            {viewer?.id === profile.userId && (
+            {viewer?.id === profile.userId ? (
               <Link
                 href="/profiel/bewerken"
                 className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
               >
                 Bewerk jouw profiel
               </Link>
-            )}
+            ) : clientFavorited !== null ? (
+              <FavoriteButton freelancerProfileId={profile.id} initialFavorited={clientFavorited} />
+            ) : null}
           </div>
         </CardContent>
       </Card>
