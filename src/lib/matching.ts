@@ -30,6 +30,15 @@ export function topPositiveReason(reasons: readonly MatchReason[]): string | nul
   return reasons.find((r) => r.kind === "positive")?.label ?? null;
 }
 
+/**
+ * Het zwaarst wegende minpunt voor een compacte uitleg (bv. op een opdracht-matchkaart). De gaps
+ * worden in dezelfde volgorde van componentgewicht gepusht (skills eerst), dus de eerste gap is het
+ * meest bepalende. Geeft `null` als er geen minpunt is — uitlegbaarheid toont óók de keerzijde.
+ */
+export function topGapReason(reasons: readonly MatchReason[]): string | null {
+  return reasons.find((r) => r.kind === "gap")?.label ?? null;
+}
+
 export interface FreelancerCredential {
   type: CredentialType;
   status: CredentialStatus;

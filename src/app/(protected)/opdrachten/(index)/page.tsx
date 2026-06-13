@@ -1,12 +1,12 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Briefcase, ChevronRight, MapPin, Plus, SearchX } from "lucide-react";
+import { Briefcase, Check, ChevronRight, MapPin, Minus, Plus, SearchX } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
 import { visibleJobsWhere } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
-import { scoreJobForFreelancer } from "@/lib/matching";
+import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/matching";
 import { JOB_STATUSES, type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -188,11 +188,18 @@ async function BrowseJobs({
       : Promise.resolve(null),
   ]);
 
-  // Persoonlijke matchscore per opdracht zodat de ZZP'er ziet waar te reageren loont.
-  const matchByJob = new Map<string, number>();
+  // Persoonlijke match per opdracht: score plus de zwaarst wegende troef én het zwaarst wegende
+  // minpunt — uitlegbaarheid. De ZZP'er ziet niet alleen *of* het matcht, maar *waarom* (en wat niet).
+  type JobMatch = { score: number; reason: string | null; gap: string | null };
+  const matchByJob = new Map<string, JobMatch>();
   if (profile) {
     for (const job of jobs) {
-      matchByJob.set(job.id, scoreJobForFreelancer(job, profile).score);
+      const result = scoreJobForFreelancer(job, profile);
+      matchByJob.set(job.id, {
+        score: result.score,
+        reason: topPositiveReason(result.reasons),
+        gap: topGapReason(result.reasons),
+      });
     }
   }
 
@@ -230,39 +237,56 @@ async function BrowseJobs({
             {plural(total, "opdracht", "opdrachten")} gevonden
           </p>
           <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-            {jobs.map((job) => (
-              <Link
-                key={job.id}
-                href={`/opdrachten/${job.id}`}
-                className="card-interactive flex items-center justify-between gap-4 px-5 py-3.5"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{job.title}</p>
-                  <p className="metadata-row mt-0.5">
-                    <span className="font-medium text-foreground/70">{job.company.name}</span>
-                    {job.location && (
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin className="size-3" aria-hidden /> {job.location}
+            {jobs.map((job) => {
+              const match = matchByJob.get(job.id);
+              return (
+                <Link
+                  key={job.id}
+                  href={`/opdrachten/${job.id}`}
+                  className="card-interactive flex items-center justify-between gap-4 px-5 py-3.5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{job.title}</p>
+                    <p className="metadata-row mt-0.5">
+                      <span className="font-medium text-foreground/70">{job.company.name}</span>
+                      {job.location && (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="size-3" aria-hidden /> {job.location}
+                        </span>
+                      )}
+                      <span>{WORK_MODE[job.workMode as WorkMode]}</span>
+                      {job.industry && <span>{job.industry.name}</span>}
+                    </p>
+                    {match && (match.reason || match.gap) && (
+                      <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                        {match.reason && (
+                          <span className="inline-flex items-center gap-1 text-success">
+                            <Check className="size-3 shrink-0" aria-hidden />
+                            <span className="truncate">{match.reason}</span>
+                          </span>
+                        )}
+                        {match.gap && (
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+                            <Minus className="size-3 shrink-0" aria-hidden />
+                            <span className="truncate">{match.gap}</span>
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    {(job.rateMin != null || job.rateMax != null) && (
+                      <span className="hidden text-sm tabular-nums text-muted-foreground sm:inline">
+                        € {job.rateMin ?? "?"}
+                        {job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
                       </span>
                     )}
-                    <span>{WORK_MODE[job.workMode as WorkMode]}</span>
-                    {job.industry && <span>{job.industry.name}</span>}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  {(job.rateMin != null || job.rateMax != null) && (
-                    <span className="hidden text-sm tabular-nums text-muted-foreground sm:inline">
-                      € {job.rateMin ?? "?"}
-                      {job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
-                    </span>
-                  )}
-                  {matchByJob.has(job.id) && (
-                    <Badge variant="accent">Match {matchByJob.get(job.id)}%</Badge>
-                  )}
-                  <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-                </div>
-              </Link>
-            ))}
+                    {match && <Badge variant="accent">Match {match.score}%</Badge>}
+                    <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+                  </div>
+                </Link>
+              );
+            })}
           </div>
 
           {totalPages > 1 && (
