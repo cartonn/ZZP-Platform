@@ -166,6 +166,12 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 
 ---
 
+**PLAN-WERELDKLASSE Fase 3 — voortgang (`docs/PLAN-WERELDKLASSE.md`):** Tariefinzicht (ZZP2-184),
+portable vertrouwensdossier (#313) en **Flexpool/favorieten slice 1 (ZZP2-187, commit `c59f8d7`)**
+af. Beoordelingen = geparkeerd productbesluit (eigenaar). Open Fase 3: **Flexpool slice 2** (nieuwe
+diensten eerst naar de pool routeren — "eerst eigen mensen") en **Rooster-marktplaats** (diensten per
+kalender publiceren/claimen).
+
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
 0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`.

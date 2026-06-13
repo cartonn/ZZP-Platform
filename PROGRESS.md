@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(flexpool): poule van bewezen ZZP'ers — branch `claude/dazzling-carson-v9Qwk` (ZZP2-187)
+
+PLAN-WERELDKLASSE Fase 3 "Flexpool/favorieten" (slice 1). Een opdrachtgever houdt een poule van
+bewezen ZZP'ers bij ("eerst eigen mensen"); de poule toont beschikbaren eerst.
+
+- [x] Schema: `FavoriteFreelancer` (company → freelancerProfile, optionele privé-notitie, uniek per
+      paar, cascade-delete) + relaties op `Company`/`FreelancerProfile`. `prisma db push` + generate.
+- [x] `lib/favorites.ts` — pure `favoriteNoteSchema` (Zod, max 500) + `sortFavorites` (beschikbaren
+      eerst via vaste ordening, dan recentst toegevoegd; muteert niet). 6 unit-tests.
+- [x] `favorieten/actions.ts` — `addFavorite`/`removeFavorite`/`saveFavoriteNote`: keten auth → rol
+      CLIENT → ownership (eigen bedrijf) → Zod → actie → audit; idempotent (bestaanscheck +
+      `deleteMany`); revalidatePath op /favorieten + /zzp/[id].
+- [x] `/favorieten` (Flexpool): overzicht met beschikbaarheid-badge, tarief, notitie, profiel-link,
+      verwijderen achter `ConfirmButton`; loading.tsx + twee empty-states (geen bedrijf / lege poule).
+      `take: 100` (vangrail groen).
+- [x] `FavoriteButton` (client, optimistisch) op het publieke ZZP-profiel — alleen voor een
+      opdrachtgever die een ander profiel bekijkt; `ProfileScreen` bepaalt de favoriet-stand
+      server-side. Navitem "Flexpool" onder Werk (CLIENT).
+- [x] Audit-labels FAVORITE_ADDED/REMOVED/NOTE_SAVED. Idempotente demo-seed: 3 favorieten voor
+      Zorgcentrum Jansen (SEED_DEMO).
+
+Gate groen: typecheck ✓, lint ✓, test 1793 ✓, build ✓, prettier --check . ✓. (E2e niet gedraaid —
+routine-omgeving heeft geen browser-channel, zie CLAUDE.md.) Commit `c59f8d7`.
+Vervolgslice (apart): nieuwe diensten eerst naar de pool routeren.
+
+---
+
 ## refactor(parse-languages): dedup naar gedeelde lib (audit L3) — branch `claude/dazzling-carson-v9Qwk` (ZZP2-186)
 
 De helper `parseLanguages(raw)` stond 6× gekopieerd met inconsistente signatuur (5× `string[]`,
