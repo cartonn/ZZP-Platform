@@ -223,7 +223,10 @@ kalender publiceren/claimen).
 > /kandidaten — planBulkApplicationTransition + bulkChangeApplicationStatus + sticky bulk-balk),
 > omzet-/uitgaventrend op /inzicht (ZZP2-189: revenue-trend.ts buildRevenueTrend + rol-/tenant-fetchers,
 > RevenueTrendCard met sparkline + delta-badge + 6-maands strip; sluit de eerder ongebruikte
-> monthlyRevenue/Sparkline-capaciteit aan op echte data, per rol — FREELANCER/CLIENT/FRANCHISER).
+> monthlyRevenue/Sparkline-capaciteit aan op echte data, per rol — FREELANCER/CLIENT/FRANCHISER),
+> facturatiecockpit statusfilter + verouderingssignaal (ZZP2-190: `/admin/facturatie` filter-tabs per
+> status + "Te lang open"-KPI + per-factuur veroudering, afgeleid uit issuedAt; pure
+> `platform-billing/aging.ts` + 13 tests; geen schemawijziging).
 
 ### Gap-analyse (Fase 0)
 

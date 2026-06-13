@@ -16,6 +16,7 @@ export interface BillingInvoiceRow {
   status: string;
   providerRef: string | null;
   createdAt: Date;
+  issuedAt: Date | null;
 }
 
 export async function listPlatformBillingInvoices(): Promise<BillingInvoiceRow[]> {
@@ -34,6 +35,7 @@ export async function listPlatformBillingInvoices(): Promise<BillingInvoiceRow[]
       status: true,
       providerRef: true,
       createdAt: true,
+      issuedAt: true,
       payer: { select: { name: true } },
     },
   });
@@ -61,6 +63,7 @@ export async function listPlatformBillingInvoices(): Promise<BillingInvoiceRow[]
     status: r.status,
     providerRef: r.providerRef,
     createdAt: r.createdAt,
+    issuedAt: r.issuedAt,
   }));
 }
 

@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(facturatie): statusfilter + verouderingssignaal op de platform-facturatiecockpit (ZZP2-190)
+
+`/admin/facturatie` toonde de platformfacturen (franchise-fee + ZZP-abonnement) als platte lijst
+zonder filter of veroudering — de admin kon niet snel zien welke facturen verstuurd-maar-onbetaald
+zijn en hoe lang al (de aanmaan-vraag). Additief, deterministisch, server-side, **geen schemawijziging**
+(afgeleid uit bestaande `issuedAt`/`paidAt`).
+
+- [x] `src/lib/platform-billing/aging.ts` — pure verouderingslogica met geïnjecteerde klok:
+      `PLATFORM_BILLING_TERM_DAYS` (= `DEFAULT_PAYMENT_TERM_DAYS` = 30), `dueDateFor`,
+      `agingFor(inv, now)` (dagen openstaand + dagen te laat + `overdue`-vlag; alleen SENT
+      veroudert; `overdue` strikt `now > dueAt` dus exact op de termijn = niet te laat),
+      `summarizeAging` (aantal + centen te laat). 13 unit-tests incl. grensgeval op de termijn.
+- [x] `billing-data.ts` — `issuedAt` toegevoegd aan `BillingInvoiceRow` + select.
+- [x] `/admin/facturatie/page.tsx` — statusfilter-tabs (Alle/Concept/Verzonden/Betaald/Geannuleerd)
+      via `?status=`-searchParam met telling per status (server-side filter, `aria-current`),
+      StatCard "Te lang open" (aantal + bedrag verlopen termijn, tone warning), per VERZONDEN-factuur
+      een "Betaaltermijn verlopen · n d"-badge of rustige "n dagen open"-tekst, plus een lege staat
+      wanneer het filter niets oplevert. Bestaande genereer-/PDF-/statusknoppen ongewijzigd.
+
+Gates groen: typecheck ✓, lint ✓, test 1816 ✓ (+13), prettier ✓, build ✓. E2e overgeslagen
+(routine zonder browser-channel, net als CI).
+
+---
+
 ## feat(inzicht): maandelijkse omzet-/uitgaventrend per rol — branch `claude/dazzling-carson-v9Qwk` (Linear ZZP2-189)
 
 De pure omzetreeks (`monthlyRevenue`/`monthDeltaPct` in `revenue.ts`) én de `Sparkline`-component
