@@ -180,7 +180,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
-> Reeds gedaan (niet opnieuw): aanmaningsladder/dunning-escalatie (DUNNING_STAGES in config,
+> Reeds gedaan (niet opnieuw): geschorste/geanonimiseerde ZZP'er niet meer vindbaar voor
+> opdrachtgevers (ZZP2-183: gedeeld `discoverableFreelancerWhere` = PUBLIC + ACTIVE op /freelancers,
+> opdracht-suggesties en "gesprek starten" — sluit het no-show-handhavingsgat),
+> aanmaningsladder/dunning-escalatie (DUNNING_STAGES in config,
 > currentDunningStage + escalations in payment-reminders.ts, admin-escalatie in de runner,
 > niveau-label op factuurdetail — Linear ZZP2-35), print/PDF-factuurknop + A4-afdruk-styling,
 > MailSender-abstractie,

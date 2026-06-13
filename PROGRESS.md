@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(vindbaarheid): geschorste ZZP'er niet meer vindbaar voor opdrachtgevers (ZZP2-183)
+
+Correctie-gat: een geschorst account (`User.status = SUSPENDED`) wordt al server-side geweigerd bij
+login (`auth.ts`) en bij elke mutatie (`authz.ts`), maar de opdrachtgever-gerichte vind-oppervlakken
+filterden alleen op `visibility: "PUBLIC"` — niet op accountstatus. Daardoor bleef een ZZP'er die net
+is uitgeschreven (no-show-flow) of geanonimiseerd (status óók SUSPENDED) gewoon in zoek/suggesties/
+contact opduiken. `job-alerts-task.ts` deed het al wél goed. Dit ondergroef de no-show-handhaving.
+
+- [x] `src/lib/freelancer-visibility.ts` — gedeeld where-fragment `discoverableFreelancerWhere`
+      (`{ visibility: "PUBLIC", user: { status: "ACTIVE" } }`). Bewust een leaf-module zonder
+      server-only imports (db/auth/next-headers), zodat `freelancer-search.ts` — dat in de
+      client-graph van `freelancer-browse.tsx` zit — niet de auth-keten meebundelt. + 3 unit-tests.
+- [x] Toegepast op de drie opdrachtgever-oppervlakken: `getAllPublicFreelancers` (/freelancers),
+      `suggestedFreelancersForJob` (opdracht-suggesties), `startConversationWithFreelancer`
+      (berichten — extra `user.status === "ACTIVE"`-guard naast de PUBLIC-check).
+- [x] Geanonimiseerde accounts lekten al niet (anonimisering zet ook `visibility: PRIVATE`); de
+      status-filter dekt dat nu netjes dubbel af.
+
+Gates groen: typecheck ✓, lint ✓, test 1749 ✓, build ✓, prettier ✓. (E2e overgeslagen — routine-
+omgeving heeft geen browser-channel.)
+
+---
+
 ## feat(no-show): registratie + admin-beoordeling + uitschrijf-wachtrij (branch `feat/no-show-registratie`) — punt 6 deel 2 (sluit punt 6 af)
 
 Productbesluit eigenaar (12-6): melder registreert no-show met reden → ZZP'er direct

@@ -2,6 +2,7 @@
 // pure filterlogica. Toont alleen PUBLIC profielen; trust + beschikbaarheid server-side.
 
 import { prisma } from "@/lib/db";
+import { discoverableFreelancerWhere } from "@/lib/freelancer-visibility";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
@@ -76,7 +77,7 @@ export async function getAllPublicFreelancers(
   const now = new Date();
 
   const profiles = await prisma.freelancerProfile.findMany({
-    where: { visibility: "PUBLIC", ...tenantScope },
+    where: { ...discoverableFreelancerWhere, ...tenantScope },
     orderBy: { updatedAt: "desc" },
     take: 300,
     include: {
