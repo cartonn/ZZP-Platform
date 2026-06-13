@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(flexpool): nieuwe dienst eerst naar de poule routeren — "eerst eigen mensen" (ZZP2-192, branch `claude/dazzling-carson-v9Qwk`)
+
+Flexpool slice 2 (`docs/PLAN-WERELDKLASSE.md` Fase 3 — vervolg op slice 1, ZZP2-187). Slice 1 liet een
+opdrachtgever een poule bijhouden, maar de poule deed nog niets bij het plaatsen van werk. Nu krijgen
+poule-leden bij de **eerste** publicatie van een opdracht direct voorrang — vóór de brede
+`job-alerts`-taak en ongeacht de matchdrempel. Server-side waarheid, deterministisch, idempotent.
+
+- [x] `src/lib/pool-routing.ts` — pure `planPoolInvites(job, members)`: geschiktheid (ACTIEF account,
+      PUBLIC profiel, tenant-zichtbaarheid/overflow, nog niet gereageerd, niet UNAVAILABLE) →
+      notificatie-items met dedupeKey `pool-invite:${jobId}:${userId}`. 20 unit-tests
+      (`pool-routing.test.ts`): alle vijf overslaan-regels, overflow-doorlating, null-tenant-match,
+      AVAILABLE/LIMITED/UNKNOWN vs. UNAVAILABLE, volgordebehoud, non-mutatie.
+- [x] `src/lib/notifications.ts` + `src/lib/audit-labels.ts` — type `POOL_INVITE` (categorie
+      collaboration, toon attention) + audit-actie `POOL_INVITED`.
+- [x] `opdrachten/actions.ts` — `changeJobStatus` informeert de poule **alleen bij de eerste
+      publicatie** (`!job.publishedAt`), zodat heropenen (CLOSED→PUBLISHED) niet opnieuw spamt;
+      `notification.createMany` + audit met telling. Tenant-overflow uit de job-relatie.
+- [x] `opdrachten/[id]/page.tsx` — rustige eigenaar-noot "N leden uit je Flexpool zijn bij publicatie
+      als eerste geïnformeerd" (telling uit het gezaghebbende POOL_INVITED-auditrecord, niet live
+      herberekend — de UI claimt alleen wat verstuurd is). Link naar /favorieten.
+- [x] Vangrail-allowlist bijgewerkt (skill-query regel verschoven 71→72 + nieuwe per-bedrijf
+      begrensde flexpool-query).
+
+Gates groen: typecheck ✓, lint ✓, test 1855 ✓ (+20), build ✓, prettier --check . ✓. (E2e niet in de
+routine — geen browser-channel, net als CI.) Open vervolg in Fase 3: Rooster-marktplaats (diensten per
+kalender publiceren/claimen). Demo-seed van een poule-uitnodiging is bewust overgeslagen (additief
+risico); de uitnodiging verschijnt live bij een echte publicatie.
+
 ## feat(inzicht): leverbetrouwbaarheid-signaal voor de ZZP'er (ZZP2-191, branch `claude/dazzling-carson-v9Qwk`)
 
 Premium, objectief signaal naast het bestaande betaalgedrag-signaal van de opdrachtgever:

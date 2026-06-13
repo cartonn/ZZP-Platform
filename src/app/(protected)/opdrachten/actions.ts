@@ -12,7 +12,8 @@ import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs"
 import { scoreJobForFreelancer } from "@/lib/matching";
 import { estimateTravelMinutesWithRouting } from "@/lib/services/routing";
 import { canViewJob } from "@/lib/tenancy";
-import { type JobStatus, jobStatusSchema } from "@/lib/enums";
+import { planPoolInvites, type PoolMember } from "@/lib/pool-routing";
+import { type Availability, type JobStatus, jobStatusSchema } from "@/lib/enums";
 import { applicationSchema, jobSchema } from "@/lib/validation";
 
 export type JobFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
@@ -175,7 +176,10 @@ export async function changeJobStatus(
 
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    include: { company: { select: { userId: true } } },
+    include: {
+      company: { select: { userId: true } },
+      tenant: { select: { openOverflow: true } },
+    },
   });
   if (!job) return { error: "Opdracht niet gevonden." };
   try {
@@ -232,6 +236,71 @@ export async function changeJobStatus(
     entityId: jobId,
     metadata: { from, to: targetStatus },
   });
+
+  // Flexpool "eerst eigen mensen": bij de EERSTE publicatie (publishedAt was nog leeg) krijgen de
+  // poule-leden van de opdrachtgever direct een uitnodiging — vóór de brede job-alert-taak en
+  // ongeacht de matchdrempel. Alleen op de eerste publicatie, zodat heropenen (CLOSED→PUBLISHED)
+  // de poule niet opnieuw spamt. Wie geschikt is bepaalt de pure planner (server-side waarheid).
+  if (targetStatus === "PUBLISHED" && !job.publishedAt) {
+    const company = await prisma.company.findUnique({
+      where: { userId: actor.id },
+      select: { id: true, name: true },
+    });
+    if (company) {
+      const favorites = await prisma.favoriteFreelancer.findMany({
+        where: { companyId: company.id },
+        select: {
+          freelancer: {
+            select: {
+              id: true,
+              availability: true,
+              visibility: true,
+              tenantId: true,
+              user: { select: { id: true, status: true } },
+              applications: { where: { jobId }, select: { id: true } },
+            },
+          },
+        },
+      });
+      const members: PoolMember[] = favorites.map((f) => ({
+        userId: f.freelancer.user.id,
+        freelancerProfileId: f.freelancer.id,
+        availability: f.freelancer.availability as Availability,
+        visibility: f.freelancer.visibility,
+        userStatus: f.freelancer.user.status,
+        tenantId: f.freelancer.tenantId,
+        hasApplied: f.freelancer.applications.length > 0,
+      }));
+      const invites = planPoolInvites(
+        {
+          id: jobId,
+          title: job.title,
+          companyName: company.name,
+          tenantId: job.tenantId,
+          openOverflow: job.tenant?.openOverflow ?? false,
+        },
+        members,
+      );
+      if (invites.length > 0) {
+        await prisma.notification.createMany({
+          data: invites.map((i) => ({
+            userId: i.userId,
+            type: i.notificationType,
+            title: i.title,
+            body: i.body,
+            link: i.link,
+          })),
+        });
+        await audit({
+          actorId: actor.id,
+          action: "POOL_INVITED",
+          entityType: "Job",
+          entityId: jobId,
+          metadata: { count: invites.length },
+        });
+      }
+    }
+  }
 
   revalidatePath("/opdrachten");
   revalidatePath(`/opdrachten/${jobId}`);

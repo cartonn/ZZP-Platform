@@ -167,10 +167,11 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 ---
 
 **PLAN-WERELDKLASSE Fase 3 — voortgang (`docs/PLAN-WERELDKLASSE.md`):** Tariefinzicht (ZZP2-184),
-portable vertrouwensdossier (#313) en **Flexpool/favorieten slice 1 (ZZP2-187, commit `c59f8d7`)**
-af. Beoordelingen = geparkeerd productbesluit (eigenaar). Open Fase 3: **Flexpool slice 2** (nieuwe
-diensten eerst naar de pool routeren — "eerst eigen mensen") en **Rooster-marktplaats** (diensten per
-kalender publiceren/claimen).
+portable vertrouwensdossier (#313), **Flexpool/favorieten slice 1 (ZZP2-187, commit `c59f8d7`)** én
+**Flexpool slice 2 (ZZP2-192) — nieuwe dienst eerst naar de pool routeren ("eerst eigen mensen"):
+`pool-routing.ts` `planPoolInvites` + wiring in `changeJobStatus` bij de eerste publicatie + eigenaar-
+noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). Open Fase 3: **Rooster-marktplaats**
+(diensten per kalender publiceren/claimen).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
