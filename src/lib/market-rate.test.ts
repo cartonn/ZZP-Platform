@@ -1,0 +1,249 @@
+import { describe, expect, it } from "vitest";
+import { computeMarketRate, median, percentile } from "@/lib/market-rate";
+
+// ---------------------------------------------------------------------------
+// median
+// ---------------------------------------------------------------------------
+describe("median", () => {
+  it("geeft null terug bij een lege array", () => {
+    expect(median([])).toBeNull();
+  });
+
+  it("geeft de middelste waarde bij oneven lengte", () => {
+    expect(median([10, 20, 30])).toBe(20);
+    expect(median([5, 1, 3])).toBe(3); // sorteert intern: [1,3,5]
+    expect(median([42])).toBe(42);
+  });
+
+  it("geeft het gemiddelde van de twee middelste waarden bij even lengte", () => {
+    expect(median([10, 20, 30, 40])).toBe(25); // (20+30)/2
+    expect(median([1, 2, 3, 4])).toBe(2.5); // (2+3)/2
+    expect(median([100, 200])).toBe(150);
+  });
+
+  it("rondt NIET af — dat is de verantwoordelijkheid van computeMarketRate", () => {
+    expect(median([1, 2])).toBe(1.5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// percentile
+// ---------------------------------------------------------------------------
+describe("percentile", () => {
+  it("geeft null terug bij een lege array", () => {
+    expect(percentile([], 0.5)).toBeNull();
+  });
+
+  it("p=0 geeft het minimum", () => {
+    expect(percentile([30, 10, 20], 0)).toBe(10);
+  });
+
+  it("p=1 geeft het maximum", () => {
+    expect(percentile([30, 10, 20], 1)).toBe(30);
+  });
+
+  it("p=0.5 op {10, 20, 30} geeft 20", () => {
+    expect(percentile([10, 20, 30], 0.5)).toBe(20);
+  });
+
+  it("interpolatie tussen twee waarden", () => {
+    // Geordend: [0, 100]; idx = 0.25 * 1 = 0.25; resultaat = 0 + 100*0.25 = 25
+    expect(percentile([0, 100], 0.25)).toBe(25);
+    // Geordend: [10, 20, 30, 40]; idx = 0.75 * 3 = 2.25;
+    // lo=2 (30), hi=3 (40); 30 + 10*0.25 = 32.5
+    expect(percentile([10, 20, 30, 40], 0.75)).toBe(32.5);
+  });
+
+  it("muteert de invoerarray NIET", () => {
+    const input = [30, 10, 20];
+    const original = [...input];
+    percentile(input, 0.5);
+    expect(input).toEqual(original);
+  });
+
+  it("één waarde: p25 en p75 geven die waarde", () => {
+    expect(percentile([50], 0.25)).toBe(50);
+    expect(percentile([50], 0.75)).toBe(50);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeMarketRate
+// ---------------------------------------------------------------------------
+describe("computeMarketRate", () => {
+  const MIN = 3; // gebruik dezelfde drempel als MARKET_RATE_MIN_SAMPLE
+
+  // --- scope-keuze ---
+
+  it("kiest industrie-scope wanneer er genoeg industrie-peers zijn", () => {
+    const result = computeMarketRate({
+      ownRate: 75,
+      industryPeerRates: [60, 70, 80],
+      platformPeerRates: [50, 55, 60, 65, 70],
+      minSample: MIN,
+    });
+    expect(result.scope).toBe("industry");
+    expect(result.sampleSize).toBe(3);
+  });
+
+  it("valt terug op platform-scope wanneer industrie te klein is maar platform genoeg heeft", () => {
+    const result = computeMarketRate({
+      ownRate: 75,
+      industryPeerRates: [60, 70], // slechts 2
+      platformPeerRates: [50, 60, 70, 80, 90],
+      minSample: MIN,
+    });
+    expect(result.scope).toBe("platform");
+    expect(result.sampleSize).toBe(5);
+  });
+
+  it("geeft scope 'none' wanneer beide sets onder de drempel vallen", () => {
+    const result = computeMarketRate({
+      ownRate: 75,
+      industryPeerRates: [60],
+      platformPeerRates: [55, 65],
+      minSample: MIN,
+    });
+    expect(result.scope).toBe("none");
+    expect(result.median).toBeNull();
+    expect(result.p25).toBeNull();
+    expect(result.p75).toBeNull();
+    expect(result.position).toBe("unknown");
+  });
+
+  it("sampleSize bij scope 'none' = grootte van de grootste beschikbare set", () => {
+    const result = computeMarketRate({
+      ownRate: 75,
+      industryPeerRates: [60], // 1
+      platformPeerRates: [55, 65], // 2
+      minSample: MIN,
+    });
+    expect(result.sampleSize).toBe(2); // platform is groter
+  });
+
+  it("sampleSize bij scope 'none' — industrie is de grootste beschikbare set", () => {
+    const result = computeMarketRate({
+      ownRate: 75,
+      industryPeerRates: [60, 70], // 2
+      platformPeerRates: [55], // 1
+      minSample: MIN,
+    });
+    expect(result.sampleSize).toBe(2); // industrie is groter
+  });
+
+  it("sampleSize bij scope 'none' — beide leeg", () => {
+    const result = computeMarketRate({
+      ownRate: 75,
+      industryPeerRates: [],
+      platformPeerRates: [],
+      minSample: MIN,
+    });
+    expect(result.sampleSize).toBe(0);
+  });
+
+  // --- position ---
+
+  it("position 'below' wanneer eigen tarief onder p25 ligt", () => {
+    // peers: [40, 60, 80, 100, 120] — p25 ≈ 60, p75 ≈ 100
+    const result = computeMarketRate({
+      ownRate: 30, // ruim onder p25
+      industryPeerRates: [40, 60, 80, 100, 120],
+      platformPeerRates: [],
+      minSample: MIN,
+    });
+    expect(result.position).toBe("below");
+  });
+
+  it("position 'within' wanneer eigen tarief tussen p25 en p75 ligt", () => {
+    const result = computeMarketRate({
+      ownRate: 80,
+      industryPeerRates: [40, 60, 80, 100, 120],
+      platformPeerRates: [],
+      minSample: MIN,
+    });
+    expect(result.position).toBe("within");
+  });
+
+  it("position 'above' wanneer eigen tarief boven p75 ligt", () => {
+    const result = computeMarketRate({
+      ownRate: 130,
+      industryPeerRates: [40, 60, 80, 100, 120],
+      platformPeerRates: [],
+      minSample: MIN,
+    });
+    expect(result.position).toBe("above");
+  });
+
+  it("position 'unknown' wanneer ownRate null is", () => {
+    const result = computeMarketRate({
+      ownRate: null,
+      industryPeerRates: [40, 60, 80],
+      platformPeerRates: [],
+      minSample: MIN,
+    });
+    expect(result.position).toBe("unknown");
+    expect(result.ownRate).toBeNull();
+  });
+
+  it("position 'unknown' wanneer ownRate nul of negatief is", () => {
+    for (const rate of [0, -1, -100]) {
+      const result = computeMarketRate({
+        ownRate: rate,
+        industryPeerRates: [40, 60, 80],
+        platformPeerRates: [],
+        minSample: MIN,
+      });
+      expect(result.position).toBe("unknown");
+    }
+  });
+
+  // --- filtering van ongeldige peer-waarden ---
+
+  it("negeert niet-positieve en niet-eindige peer-waarden", () => {
+    const result = computeMarketRate({
+      ownRate: 70,
+      industryPeerRates: [60, 0, -10, Infinity, NaN, 80, 100],
+      platformPeerRates: [],
+      minSample: MIN,
+    });
+    // Na filtering: [60, 80, 100] — 3 geldige peers
+    expect(result.scope).toBe("industry");
+    expect(result.sampleSize).toBe(3);
+  });
+
+  it("scope 'none' wanneer industrie-peers allemaal ongeldig zijn", () => {
+    const result = computeMarketRate({
+      ownRate: 70,
+      industryPeerRates: [0, -5, Infinity],
+      platformPeerRates: [0, NaN],
+      minSample: MIN,
+    });
+    expect(result.scope).toBe("none");
+    expect(result.sampleSize).toBe(0);
+  });
+
+  // --- correcte berekening ---
+
+  it("mediaan en kwartielen worden afgerond op heel getal", () => {
+    // peers: [10, 20, 30] — mediaan = 20, p25 = 15, p75 = 25
+    const result = computeMarketRate({
+      ownRate: 20,
+      industryPeerRates: [10, 20, 30],
+      platformPeerRates: [],
+      minSample: MIN,
+    });
+    expect(result.median).toBe(20);
+    expect(result.p25).toBe(15);
+    expect(result.p75).toBe(25);
+  });
+
+  it("geeft ownRate ongewijzigd door in het resultaat", () => {
+    const result = computeMarketRate({
+      ownRate: 87.5,
+      industryPeerRates: [60, 80, 100],
+      platformPeerRates: [],
+      minSample: MIN,
+    });
+    expect(result.ownRate).toBe(87.5);
+  });
+});

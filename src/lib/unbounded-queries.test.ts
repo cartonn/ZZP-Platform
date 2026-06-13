@@ -344,12 +344,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills en branches voor profielweergave; kleine referentielijsten.
   {
     file: "(protected)/profiel/bewerken/page.tsx",
-    line: 33,
+    line: 36,
     reason: "skills-referentielijst voor profielpagina",
   },
   {
     file: "(protected)/profiel/bewerken/page.tsx",
-    line: 34,
+    line: 37,
     reason: "branches-referentielijst voor profielpagina",
   },
 

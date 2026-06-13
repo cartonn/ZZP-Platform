@@ -4,10 +4,13 @@ import { ExternalLink, UserX } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { computeFreelancerCompleteness } from "@/lib/profile";
+import { computeMarketRate } from "@/lib/market-rate";
+import { MARKET_RATE_MIN_SAMPLE, MARKET_RATE_SAMPLE_CAP } from "@/lib/config";
 import { type Availability } from "@/lib/enums";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
+import { MarketRateCard } from "@/components/profile/market-rate-card";
 import { ProfileForm } from "../profile-form";
 
 export const metadata: Metadata = { title: "Profiel bewerken · ZZP Platform" };
@@ -53,6 +56,34 @@ export default async function ProfielPage() {
   const languages = parseLanguages(profile.languages);
   const skillIds = profile.skills.map((s) => s.skillId);
   const industryIds = profile.industries.map((i) => i.industryId);
+
+  // Peer-tarieven voor de marktband. We selecteren alleen `hourlyRate` en cappen
+  // de set met een ruime `take`: een steekproef van deze omvang levert een
+  // representatieve mediaan/spreiding én een harde geheugengrens (de band is
+  // expliciet indicatief).
+  const [industryPeers, platformPeers] = await Promise.all([
+    prisma.freelancerProfile.findMany({
+      where: {
+        id: { not: profile.id },
+        hourlyRate: { not: null },
+        industries: { some: { industryId: { in: industryIds } } },
+      },
+      select: { hourlyRate: true },
+      take: MARKET_RATE_SAMPLE_CAP,
+    }),
+    prisma.freelancerProfile.findMany({
+      where: { id: { not: profile.id }, hourlyRate: { not: null } },
+      select: { hourlyRate: true },
+      take: MARKET_RATE_SAMPLE_CAP,
+    }),
+  ]);
+
+  const marketRate = computeMarketRate({
+    ownRate: profile.hourlyRate,
+    industryPeerRates: industryPeers.map((p) => p.hourlyRate as number),
+    platformPeerRates: platformPeers.map((p) => p.hourlyRate as number),
+    minSample: MARKET_RATE_MIN_SAMPLE,
+  });
 
   const { score, missing } = computeFreelancerCompleteness({
     headline: profile.headline,
@@ -100,6 +131,8 @@ export default async function ProfielPage() {
           )}
         </CardContent>
       </Card>
+
+      <MarketRateCard insight={marketRate} />
 
       <ProfileForm
         initial={{

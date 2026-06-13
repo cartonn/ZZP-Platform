@@ -161,6 +161,14 @@ export const CANCELLATION_FREE_DAYS = 7;
 // Geen juridisch advies — dit is een signaaldrempel.
 export const RECHTSVERMOEDEN_DREMPEL_CENTS = 3800; // €38 in centen
 
+// --- Marktband (tarief vs. markt) — anonimiseringsdrempel -------------------
+// Minimaal dit aantal peer-tarieven vereist voordat we een marktband tonen.
+// Voorkomt dat een ZZP'er het tarief van één collega kan herleiden.
+export const MARKET_RATE_MIN_SAMPLE = 3;
+// Bovengrens op het aantal peer-tarieven dat we per band ophalen: een ruime
+// steekproef voor een representatieve mediaan/spreiding mét harde geheugengrens.
+export const MARKET_RATE_SAMPLE_CAP = 5000;
+
 // --- DBA-monitoring drempels & teksten (§6, configureerbaar) ----------------
 export const DBA_THRESHOLDS = {
   durationSignalMonths: 6, //        eerste duursignaal
