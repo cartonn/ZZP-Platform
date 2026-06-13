@@ -174,6 +174,12 @@ kalender publiceren/claimen).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Matchredenen op de opdracht-kaart** (`/opdrachten`, Linear ZZP2-188) —
+> troef (`topPositiveReason`) én minpunt (`topGapReason`) onder elke kaart; uitlegbaarheid uit de
+> bestaande matchmotor, geen extra query. Sluit een deel van `docs/PLAN-WERELDKLASSE.md` Fase 2
+> "Matchredenen zichtbaar maken op kaarten" af (kandidaten-kaart blijft open).
+> NB: tariefinzicht (Fase 3) was op deze branch al gebouwd (ZZP2-184, `lib/market-rate.ts`).
+
 0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`.
    **VOLLEDIG GEBORGEN (12-6-2026):** afronden-rem, CSV-injectie-hardening, rol-fallback
    boekhouding, AVG-verwerkingsregister (#334), KvK-/BTW-validatie (#335),

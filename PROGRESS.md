@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(opdrachten): matchredenen op de opdracht-kaart — branch `claude/dazzling-carson-v9Qwk` (Linear ZZP2-188)
+
+PLAN-WERELDKLASSE Fase 2 "Matchredenen zichtbaar maken op kaarten (ook de minpunten —
+uitlegbaarheid als feature)". De ZZP'er zag op `/opdrachten` alleen een "Match X%"-badge; de
+`reasons` die de matchmotor al berekent werden weggegooid.
+
+- [x] `src/lib/matching.ts` — `topGapReason(reasons)` naast `topPositiveReason`: het zwaarst
+      wegende minpunt (eerste gap), `null` als er geen is. Puur. 2 unit-tests in `matching.test.ts`.
+- [x] `src/app/(protected)/opdrachten/(index)/page.tsx` — per opdracht het volledige
+      `scoreJobForFreelancer`-resultaat (score + troef + minpunt); onder de metadata-regel een
+      regel met de zwaarst wegende troef (groen, check) en het zwaarst wegende minpunt (gedempt,
+      minus). Geen extra query — alles uit de bestaande matchberekening.
+
+Gates groen: typecheck ✓, lint ✓, test 1795 ✓ (+2), build ✓, prettier ✓, check:env ✓.
+(E2e overgeslagen — routine-omgeving heeft geen browserkanaal.)
+
+> Noot: deze run startte op een tariefinzicht-increment, maar bij de overlap-check bleek dat al
+> gebouwd op deze branch (ZZP2-184, `lib/market-rate.ts` + marktband op profiel/bewerken). Om
+> duplicaat te vermijden is dat verworpen en is dit matchredenen-increment gekozen.
+
+---
+
 ## feat(flexpool): poule van bewezen ZZP'ers — branch `claude/dazzling-carson-v9Qwk` (ZZP2-187)
 
 PLAN-WERELDKLASSE Fase 3 "Flexpool/favorieten" (slice 1). Een opdrachtgever houdt een poule van
