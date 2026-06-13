@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import {
   BarChart3,
   Briefcase,
+  Gauge,
   Receipt,
   ShieldCheck,
   TrendingUp,
@@ -14,6 +15,7 @@ import { requireActor, type Actor } from "@/lib/authz";
 import { type UserRole } from "@/lib/enums";
 import { getFreelancerStats } from "@/lib/freelancer-stats";
 import { getFreelancerMembership } from "@/lib/freelancer-membership";
+import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-quality";
 import { getClientStats } from "@/lib/client-stats";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
 import {
@@ -195,10 +197,11 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
 }
 
 async function FreelancerInzicht({ userId }: { userId: string }) {
-  const [s, membership, trend] = await Promise.all([
+  const [s, membership, trend, quality] = await Promise.all([
     getFreelancerStats(userId),
     getFreelancerMembership(userId),
     getFreelancerRevenueTrend(userId),
+    getDeliveryQuality(userId),
   ]);
   if (!s) {
     return (
@@ -241,6 +244,64 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
           />
           <StatCard label="Afgeronde samenwerkingen" value={s.completedCollaborations} />
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <SectionHeader icon={Gauge} title="Leverbetrouwbaarheid" />
+        {quality === null || quality.tone === "INSUFFICIENT" ? (
+          <Card>
+            <EmptyState
+              icon={Gauge}
+              title="Nog geen betrouwbaarheidssignaal"
+              description="Zodra je urenstaten en opleveringen zijn goedgekeurd, zie je hier hoe vaak je werk in één keer akkoord is en hoe snel het wordt goedgekeurd."
+            />
+          </Card>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <StatCard
+                label="In één keer akkoord"
+                value={`${quality.firstTimeRightRate}%`}
+                sub="van je goedgekeurde prestaties"
+                tone={
+                  quality.firstTimeRightRate >= 90
+                    ? "success"
+                    : quality.firstTimeRightRate >= 70
+                      ? "warning"
+                      : "default"
+                }
+              />
+              <StatCard
+                label="Gem. goedkeuringstijd"
+                value={
+                  quality.avgApprovalDays != null
+                    ? `${quality.avgApprovalDays} ${quality.avgApprovalDays === 1 ? "dag" : "dagen"}`
+                    : "—"
+                }
+                sub="van indienen tot akkoord"
+              />
+              <StatCard
+                label="Beoordeling"
+                value={DELIVERY_TONE_LABEL[quality.tone]}
+                sub={`${quality.approvedPerformances} goedgekeurde prestaties`}
+                tone={
+                  quality.tone === "EXCELLENT"
+                    ? "success"
+                    : quality.tone === "DEVELOPING"
+                      ? "warning"
+                      : "default"
+                }
+              />
+            </div>
+            {quality.correctedPerformances > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {quality.correctedPerformances}{" "}
+                {quality.correctedPerformances === 1 ? "prestatie werd" : "prestaties werden"} na
+                een correctie alsnog goedgekeurd.
+              </p>
+            )}
+          </>
+        )}
       </section>
 
       <section className="space-y-3">
