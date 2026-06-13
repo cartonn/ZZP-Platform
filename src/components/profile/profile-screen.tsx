@@ -23,6 +23,7 @@ import { ScoreRing } from "@/components/ui/score-ring";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { VerificationMarks } from "@/components/credentials/verification-marks";
+import { parseLanguages } from "@/lib/parse-languages";
 
 const AVAILABILITY: Record<
   Availability,
@@ -66,16 +67,6 @@ const TABS = [
   { key: "beoordelingen", label: "Beoordelingen" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
-
-function parseLanguages(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.map(String) : [];
-  } catch {
-    return [];
-  }
-}
 
 function initials(name: string | null): string {
   if (!name) return "Z";

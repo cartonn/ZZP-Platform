@@ -154,9 +154,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 
 4. [x] **T7 — Prisma-config-migratie**: `package.json#prisma` → `prisma.config.ts`
        (`defineConfig`, dotenv expliciet, meegekopieerd in de Docker-image).
-       Resterend uit M3: **L3/L4** (post-guard `!`-asserts; gedupliceerde `parseLanguages`)
-       alleen meenemen als je toch in die bestanden zit; **T6 (e2e blocking) — overslaan**
-       tot de suite stabiel-groen is.
+       Resterend uit M3: **L4** (post-guard `!`-asserts) alleen meenemen als je toch in die
+       bestanden zit; **L3 — afgerond** (ZZP2-186: `parseLanguages` 6× gededupliceerd naar
+       `src/lib/parse-languages.ts` + `parseLanguagesText`, 7 tests); **T6 (e2e blocking) —
+       overslaan** tot de suite stabiel-groen is.
 
 > **NIET nu doen (auditadvies):** Prisma 7 / Next 16 / Tailwind 4 majors (opt-in, geen pre-launch-
 > payoff, regressierisico); CSP-nonce-pipeline (`'unsafe-inline'` gedocumenteerd acceptabel pre-prod,

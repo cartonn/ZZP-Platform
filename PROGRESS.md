@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## refactor(parse-languages): dedup naar gedeelde lib (audit L3) — branch `claude/dazzling-carson-v9Qwk` (ZZP2-186)
+
+De helper `parseLanguages(raw)` stond 6× gekopieerd met inconsistente signatuur (5× `string[]`,
+1× komma-gevoegde `string`). Audit-L3-rest uit CURRENT_TASK.md. Nu één bron van waarheid.
+
+- [x] `src/lib/parse-languages.ts` — `parseLanguages(raw): string[]` (defensief parsen van de
+      JSON-array-string) + `parseLanguagesText(raw): string` (komma-gevoegd voor drawer-velden).
+- [x] 7 unit-tests (`parse-languages.test.ts`): null/leeg, geldige array, ongeldige JSON,
+      niet-array JSON, niet-string-elementen, tekst-variant.
+- [x] 6 callsites omgezet naar imports; lokale duplicaten verwijderd
+      (`profile-screen.tsx`, `pending-tasks.ts`, `roster-dossier.ts`, `dashboard/page.tsx`,
+      `profiel/bewerken/page.tsx`, `drawer-data.ts` → `parseLanguagesText`). Nul gedragswijziging.
+- [x] Vangrail-allowlist regelnummers bijgewerkt (`unbounded-queries.test.ts`: dashboard → 168,
+      profiel/bewerken → 27/28 na het verwijderen van de lokale functies, op de rebase-stand).
+
+Gates groen: typecheck ✓, lint ✓, test ✓, build ✓, prettier --check . ✓. (E2e niet
+gedraaid — routine-omgeving heeft geen browser-channel, zie CLAUDE.md.)
+
+---
+
 ## feat(kandidaten): bulk-triage reacties (branch `claude/dazzling-carson-v9Qwk`) — Linear ZZP2-185
 
 Opdrachtgever kan op `/kandidaten` reacties in batches triëren i.p.v. één voor één.

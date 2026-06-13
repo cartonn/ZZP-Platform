@@ -12,18 +12,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { MarketRateCard } from "@/components/profile/market-rate-card";
 import { ProfileForm } from "../profile-form";
+import { parseLanguages } from "@/lib/parse-languages";
 
 export const metadata: Metadata = { title: "Profiel bewerken · ZZP Platform" };
-
-function parseLanguages(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.map(String) : [];
-  } catch {
-    return [];
-  }
-}
 
 export default async function ProfielPage() {
   const actor = await requireRole("FREELANCER");

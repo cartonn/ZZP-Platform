@@ -42,6 +42,7 @@ import { ComplianceBadge } from "@/components/compliance-badge";
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { EngageabilityExplanation } from "@/components/engageability-explanation";
 import { plural } from "@/lib/plural";
+import { parseLanguages } from "@/lib/parse-languages";
 
 export const metadata: Metadata = { title: "Dashboard · ZZP Platform" };
 
@@ -137,17 +138,6 @@ function initials(name: string | null): string {
   const first = parts[0]?.[0] ?? "";
   const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
   return (first + last).toUpperCase() || "?";
-}
-
-// Mirror van profiel/page.tsx: talen staan als JSON-array-string opgeslagen.
-function parseLanguages(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.map(String) : [];
-  } catch {
-    return [];
-  }
 }
 
 async function dashboardData(role: UserRole, userId: string): Promise<DashboardData> {

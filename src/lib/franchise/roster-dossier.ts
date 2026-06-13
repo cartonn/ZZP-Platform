@@ -19,6 +19,7 @@ import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecyc
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { type FreelancerCredential } from "@/lib/matching";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
+import { parseLanguages } from "@/lib/parse-languages";
 
 export interface DossierCollaboration {
   id: string;
@@ -98,16 +99,6 @@ export interface RosterDossier {
     invoices: number;
     credentials: number;
   };
-}
-
-function parseLanguages(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.map(String) : [];
-  } catch {
-    return [];
-  }
 }
 
 /**

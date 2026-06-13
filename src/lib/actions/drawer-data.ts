@@ -14,6 +14,7 @@ import { type PendingTask } from "@/lib/actions/tasks";
 import { type ProfileFormInitial } from "@/app/(protected)/profiel/profile-form";
 import { type CompanyFormInitial } from "@/app/(protected)/bedrijf/company-form";
 import { type CredentialFormInitial } from "@/app/(protected)/certificaten/credential-form";
+import { parseLanguagesText } from "@/lib/parse-languages";
 
 type Option = { id: string; name: string };
 
@@ -93,16 +94,6 @@ export type DrawerData =
 
 const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
-function parseLanguages(raw: string | null): string {
-  if (!raw) return "";
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.map(String).join(", ") : "";
-  } catch {
-    return "";
-  }
-}
-
 /**
  * Bouwt een map task.id → DrawerData voor alle drawer-soorten in `tasks`. Alleen de soorten die
  * voorkomen leiden tot queries; gelijksoortige taken worden in één findMany gebatcht.
@@ -163,7 +154,7 @@ export async function loadDrawerData(
         availability: profile.availability,
         workMode: profile.workMode,
         maxTravelMinutes: profile.maxTravelMinutes?.toString() ?? "",
-        languages: parseLanguages(profile.languages),
+        languages: parseLanguagesText(profile.languages),
         kvkNumber: profile.kvkNumber ?? "",
         btwNumber: profile.btwNumber ?? "",
         visibility: profile.visibility,
