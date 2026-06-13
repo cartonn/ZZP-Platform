@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(kandidaten): bulk-triage reacties (branch `claude/dazzling-carson-v9Qwk`) — Linear ZZP2-185
+
+Opdrachtgever kan op `/kandidaten` reacties in batches triëren i.p.v. één voor één.
+
+- [x] `lib/applications.ts` — pure `planBulkApplicationTransition(items, to)` op de bestaande
+      `APPLICATION_TRANSITIONS`-map → `{ eligible, skipped }`. Server-side waarheid; +4 unit-tests
+      (`applications.test.ts`, totaal 10 in dat bestand).
+- [x] `kandidaten/actions.ts` — `bulkChangeApplicationStatus(_prev, formData)`: auth → rol CLIENT →
+      ownership (alleen eigen opdrachten via where-clause) → Zod-doelstatus (alleen
+      VIEWED/SHORTLIST/REJECTED; ACCEPTED blijft een bewuste losse actie) → overgangscheck →
+      atomair `$transaction` (status-update + audit `APPLICATION_STATUS_CHANGED` + notificatie bij
+      afwijzen). Reacties gekoppeld aan een samenwerking worden overgeslagen; resultaatmelding
+      "n bijgewerkt, m overgeslagen".
+- [x] `kandidaten/bulk-triage-bar.tsx` (client) — sticky balk; checkboxes gekoppeld via het HTML
+      `form=`-attribuut aan een aparte bulk-form (geen geneste forms), telling via document-wide
+      change-listener, statuskeuze + `window.confirm` bij afwijzen, feedback via `FormStatus`.
+- [x] `kandidaten/page.tsx` — checkbox per kaart (alleen als niet aan een samenwerking gekoppeld),
+      `<BulkTriageBar />`, `pb-24` zodat de vaste balk de laatste kaart niet bedekt.
+- [x] `unbounded-queries.test.ts` — allowlist: page.tsx-regel verschoven (48→49) + nieuwe
+      bulk-query (begrensd door `id: { in: ids }`).
+
+Gates groen: typecheck ✓, lint ✓, test 1751 ✓, build ✓, prettier ✓ (e2e niet in deze omgeving —
+geen browser-channel).
+
+---
+
 ## feat(tarief): "jouw tarief vs. de markt" — geanonimiseerde marktband (branch `claude/dazzling-carson-v9Qwk`, Linear ZZP2-184)
 
 Differentiator uit `docs/PLAN-WERELDKLASSE.md` Fase 3: de ZZP'er stelt zijn uurtarief in

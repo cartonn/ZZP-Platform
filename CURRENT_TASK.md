@@ -205,7 +205,9 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > BOUWEN-backlog volledig af),
 > tariefinzicht "jouw tarief vs. de markt" (ZZP2-184: lib/market-rate.ts geanonimiseerde mediaan + p25/p75
 > per functie met platform-fallback + anonimiseringsdrempel, MarketRateCard op /profiel/bewerken — sluit
-> PLAN-WERELDKLASSE Fase 3 "Tariefinzicht" af).
+> PLAN-WERELDKLASSE Fase 3 "Tariefinzicht" af),
+> kandidaten-bulk-triage (ZZP2-185: shortlist/bekeken/afwijzen voor meerdere reacties tegelijk op
+> /kandidaten — planBulkApplicationTransition + bulkChangeApplicationStatus + sticky bulk-balk).
 
 ### Gap-analyse (Fase 0)
 
