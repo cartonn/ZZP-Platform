@@ -227,6 +227,10 @@ kalender publiceren/claimen).
 > facturatiecockpit statusfilter + verouderingssignaal (ZZP2-190: `/admin/facturatie` filter-tabs per
 > status + "Te lang open"-KPI + per-factuur veroudering, afgeleid uit issuedAt; pure
 > `platform-billing/aging.ts` + 13 tests; geen schemawijziging).
+> leverbetrouwbaarheid-signaal ZZP'er (ZZP2-191: `collaboration-quality.ts` — first-time-right %
+> (goedgekeurd zonder eerdere afkeuring), gecorrigeerde prestaties, gem. goedkeuringstijd
+> `submittedAt`→`approvedAt`, toon-oordeel met min-steekproef 3; sectie "Leverbetrouwbaarheid" op
+> /inzicht voor de FREELANCER; read-only, server-side, geen schemawijziging; 19 unit-tests).
 
 ### Gap-analyse (Fase 0)
 

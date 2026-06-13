@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(inzicht): leverbetrouwbaarheid-signaal voor de ZZP'er (ZZP2-191, branch `claude/dazzling-carson-v9Qwk`)
+
+Premium, objectief signaal naast het bestaande betaalgedrag-signaal van de opdrachtgever:
+hoe vaak levert de ZZP'er in één keer akkoord, en hoe snel keurt de opdrachtgever goed.
+Puur afgeleid uit bestaande modellen — geen schemawijziging, read-only, server-side.
+
+- [x] `src/lib/collaboration-quality.ts` — pure helpers + `getDeliveryQuality(userId)`:
+      `firstTimeRightRate` (% goedgekeurd zonder eerdere afkeuring: `approvedAt` gezet, `rejectedAt`
+      leeg), `correctedPerformances` (goedgekeurd na een afkeuring), `avgApprovalDays`
+      (`submittedAt`→`approvedAt`), `completedCollaborations` als steekproefbasis, toon
+      `EXCELLENT|RELIABLE|DEVELOPING|INSUFFICIENT` met `DELIVERY_MIN_SAMPLE = 3`.
+- [x] `src/lib/collaboration-quality.test.ts` — 19 unit-tests (grenzen 90/70, min-steekproef,
+      doorlooptijd-afronding op 1 decimaal, lege invoer).
+- [x] `src/app/(protected)/inzicht/page.tsx` — sectie "Leverbetrouwbaarheid" (FREELANCER):
+      3 StatCards + muted correctie-noot + empty-state bij te weinig gegevens.
+
+Gates groen: typecheck ✓, lint ✓, test 1835 ✓, build ✓, prettier ✓. (e2e niet in de routine — geen browser.)
+
+---
+
 ## feat(facturatie): statusfilter + verouderingssignaal op de platform-facturatiecockpit (ZZP2-190)
 
 `/admin/facturatie` toonde de platformfacturen (franchise-fee + ZZP-abonnement) als platte lijst
