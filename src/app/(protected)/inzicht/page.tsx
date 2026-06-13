@@ -16,12 +16,18 @@ import { getFreelancerStats } from "@/lib/freelancer-stats";
 import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { getClientStats } from "@/lib/client-stats";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
+import {
+  getFreelancerRevenueTrend,
+  getClientRevenueTrend,
+  getTenantRevenueTrend,
+} from "@/lib/revenue-trend";
 import { formatEuro } from "@/lib/invoices";
 import { plural } from "@/lib/plural";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RevenueTrendCard } from "@/components/insight/revenue-trend-card";
 
 export const metadata: Metadata = { title: "Inzicht · ZZP Platform" };
 
@@ -75,9 +81,10 @@ export default async function InzichtPage() {
 }
 
 async function FranchiserInzicht({ actor }: { actor: Actor }) {
-  const [s, byCompany] = await Promise.all([
+  const [s, byCompany, trend] = await Promise.all([
     getTenantStats(actor),
     getTenantCompanyBreakdown(actor),
+    getTenantRevenueTrend(actor),
   ]);
   if (!s) {
     return (
@@ -103,6 +110,11 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
             sub="verstuurd, nog niet betaald"
           />
         </div>
+        <RevenueTrendCard
+          trend={trend}
+          title="Omzet per maand"
+          emptyDescription="Zodra er facturen lopen in je franchise, zie je hier de omzet per maand."
+        />
       </section>
 
       <section className="space-y-3">
@@ -183,9 +195,10 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
 }
 
 async function FreelancerInzicht({ userId }: { userId: string }) {
-  const [s, membership] = await Promise.all([
+  const [s, membership, trend] = await Promise.all([
     getFreelancerStats(userId),
     getFreelancerMembership(userId),
+    getFreelancerRevenueTrend(userId),
   ]);
   if (!s) {
     return (
@@ -211,6 +224,11 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
           />
           <StatCard label="Goedgekeurde uren" value={s.approvedHours} sub="totaal" />
         </div>
+        <RevenueTrendCard
+          trend={trend}
+          title="Omzet per maand"
+          emptyDescription="Zodra je facturen verstuurt, zie je hier je omzet per maand."
+        />
       </section>
 
       <section className="space-y-3">
@@ -283,7 +301,7 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
 }
 
 async function ClientInzicht({ userId }: { userId: string }) {
-  const s = await getClientStats(userId);
+  const [s, trend] = await Promise.all([getClientStats(userId), getClientRevenueTrend(userId)]);
   if (!s) {
     return (
       <Card>
@@ -307,6 +325,11 @@ async function ClientInzicht({ userId }: { userId: string }) {
             sub="ontvangen, nog niet betaald"
           />
         </div>
+        <RevenueTrendCard
+          trend={trend}
+          title="Uitgaven per maand"
+          emptyDescription="Zodra je facturen ontvangt, zie je hier je uitgaven per maand."
+        />
       </section>
 
       <section className="space-y-3">
