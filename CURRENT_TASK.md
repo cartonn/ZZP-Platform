@@ -202,7 +202,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > NotificationPreference-model, gating in de 4 reminder-taakrunners — ZZP2-41),
 > herplaatsing bij uitval (ZZP2-158: geannuleerde actieve inzet heropent de dienst + ReplacementPanel met
 > vervangers op de samenwerking-detailpagina; replacement.ts + test — sluit de COMPETITORS.md ronde-2
-> BOUWEN-backlog volledig af).
+> BOUWEN-backlog volledig af),
+> tariefinzicht "jouw tarief vs. de markt" (ZZP2-184: lib/market-rate.ts geanonimiseerde mediaan + p25/p75
+> per functie met platform-fallback + anonimiseringsdrempel, MarketRateCard op /profiel/bewerken — sluit
+> PLAN-WERELDKLASSE Fase 3 "Tariefinzicht" af).
 
 ### Gap-analyse (Fase 0)
 

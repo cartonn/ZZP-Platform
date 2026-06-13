@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(tarief): "jouw tarief vs. de markt" — geanonimiseerde marktband (branch `claude/dazzling-carson-v9Qwk`, Linear ZZP2-184)
+
+Differentiator uit `docs/PLAN-WERELDKLASSE.md` Fase 3: de ZZP'er stelt zijn uurtarief in
+mét marktreferentie, geanonimiseerd en server-side berekend.
+
+- [x] `src/lib/market-rate.ts` — pure, deterministische motor: `median`, `percentile`
+      (lineaire interpolatie, muteert input niet) en `computeMarketRate`. Functie-band
+      (gedeelde industrie) met platform-brede fallback; positie van het eigen tarief
+      t.o.v. p25–p75 (below/within/above/unknown). Anonimiseringsdrempel
+      `MARKET_RATE_MIN_SAMPLE` (=3) — onder de drempel geen band (geen herleidbaarheid);
+      eigen tarief uitgesloten uit de peer-set. 26 unit-tests.
+- [x] `src/lib/config.ts` — `MARKET_RATE_MIN_SAMPLE` + `MARKET_RATE_SAMPLE_CAP` (=5000,
+      harde geheugengrens op de peer-query; band is expliciet indicatief).
+- [x] `src/components/profile/market-rate-card.tsx` — server-component (Vakwerk, mono-cijfers):
+      mediaan groot, middenmoot p25–p75, scope-label (Vergelijkbare functies / Platformbreed),
+      positiebadge + uitleg, eigen tarief, disclaimer; rustige empty-state onder de drempel.
+- [x] `/profiel/bewerken` — peer-query (gedeelde industrie + platform-fallback, `take` gecapt,
+      alleen `hourlyRate`), kaart tussen compleetheid en formulier. Allowlist-regels
+      (skills/branches) bijgewerkt na lijnverschuiving.
+
+Gates groen: typecheck ✓, lint ✓, test 1772 ✓, build ✓, prettier ✓. (E2e overgeslagen —
+routine-omgeving zonder browser-channel, net als CI.)
+
+---
+
 ## fix(vindbaarheid): geschorste ZZP'er niet meer vindbaar voor opdrachtgevers (ZZP2-183)
 
 Correctie-gat: een geschorst account (`User.status = SUSPENDED`) wordt al server-side geweigerd bij
