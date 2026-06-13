@@ -4,6 +4,8 @@ import {
   assertApplicationTransition,
   canApply,
   canTransitionApplication,
+  planBulkApplicationTransition,
+  type BulkTransitionItem,
 } from "@/lib/applications";
 
 describe("reactie-statusovergangen", () => {
@@ -37,5 +39,57 @@ describe("canApply (plan-gating)", () => {
 
   it("limiet 0 weigert alles", () => {
     expect(canApply(0, 0)).toBe(false);
+  });
+});
+
+describe("planBulkApplicationTransition", () => {
+  it("alle items eligible als overgang toegestaan is", () => {
+    const items: BulkTransitionItem[] = [
+      { id: "a", from: "NEW" },
+      { id: "b", from: "VIEWED" },
+      { id: "c", from: "SHORTLIST" },
+    ];
+    const plan = planBulkApplicationTransition(items, "REJECTED");
+    expect(plan.eligible).toEqual(["a", "b", "c"]);
+    expect(plan.skipped).toEqual([]);
+  });
+
+  it("gemengd: eligible en skipped bij verschillende statussen", () => {
+    const items: BulkTransitionItem[] = [
+      { id: "a", from: "NEW" },
+      { id: "b", from: "ACCEPTED" }, // ACCEPTED -> SHORTLIST only
+      { id: "c", from: "VIEWED" },
+    ];
+    const plan = planBulkApplicationTransition(items, "SHORTLIST");
+    expect(plan.eligible).toContain("a");
+    expect(plan.eligible).toContain("c");
+    expect(plan.eligible).toContain("b"); // ACCEPTED -> SHORTLIST is allowed
+    expect(plan.skipped).toEqual([]);
+  });
+
+  it("lege input geeft beide arrays leeg", () => {
+    const plan = planBulkApplicationTransition([], "VIEWED");
+    expect(plan.eligible).toEqual([]);
+    expect(plan.skipped).toEqual([]);
+  });
+
+  it("no-op (from===to) wordt geskipt", () => {
+    // SHORTLIST -> SHORTLIST: not in the transitions map, must be skipped
+    const items: BulkTransitionItem[] = [{ id: "x", from: "SHORTLIST" }];
+    const plan = planBulkApplicationTransition(items, "SHORTLIST");
+    expect(plan.eligible).toEqual([]);
+    expect(plan.skipped).toEqual(["x"]);
+  });
+
+  it("REJECTED als target: NEW/VIEWED/SHORTLIST eligible, ACCEPTED geskipt", () => {
+    const items: BulkTransitionItem[] = [
+      { id: "n", from: "NEW" },
+      { id: "v", from: "VIEWED" },
+      { id: "s", from: "SHORTLIST" },
+      { id: "a", from: "ACCEPTED" }, // ACCEPTED only allows -> SHORTLIST
+    ];
+    const plan = planBulkApplicationTransition(items, "REJECTED");
+    expect(plan.eligible).toEqual(["n", "v", "s"]);
+    expect(plan.skipped).toEqual(["a"]);
   });
 });

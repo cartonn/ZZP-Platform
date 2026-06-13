@@ -447,8 +447,16 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Kandidaten (freelancers) voor een opdrachtgever; gefilterd en beperkt door matching.
   {
     file: "(protected)/kandidaten/page.tsx",
-    line: 48,
+    line: 49,
     reason: "kandidaten-matching; volume beperkt door filter",
+  },
+
+  // --- kandidaten/actions.ts ---
+  // Bulk-triage: geladen set is begrensd door de geselecteerde appId's (id: { in: ids }).
+  {
+    file: "(protected)/kandidaten/actions.ts",
+    line: 138,
+    reason: "bulk-triage; begrensd door geselecteerde ids (id in ids)",
   },
 
   // --- berichten/actions.ts ---

@@ -29,6 +29,7 @@ import { ApplicationStatusBadge } from "@/components/applications/application-st
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { changeApplicationStatus } from "./actions";
 import { ApplicationNoteForm } from "./application-note-form";
+import { BulkTriageBar } from "./bulk-triage-bar";
 import { startConversationForApplication } from "@/app/(protected)/berichten/actions";
 import { ProposeCollaboration } from "./propose-collaboration";
 
@@ -102,7 +103,7 @@ export default async function KandidatenPage() {
     : null;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 pb-24">
       <PageHeader
         title="Kandidaten"
         description="Reacties op je opdrachten, met match en compliance."
@@ -139,6 +140,7 @@ export default async function KandidatenPage() {
               </CardContent>
             </Card>
           )}
+          <BulkTriageBar />
           {applications.map((app) => {
             const status = app.status as ApplicationStatus;
             // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
@@ -182,6 +184,16 @@ export default async function KandidatenPage() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex min-w-0 items-center gap-2">
+                        {!app.collaboration && (
+                          <input
+                            type="checkbox"
+                            name="appId"
+                            value={app.id}
+                            form="kandidaten-bulk"
+                            aria-label={`Selecteer ${app.freelancer.user.name}`}
+                            className="focus-ring size-4 shrink-0 rounded border-input accent-accent"
+                          />
+                        )}
                         {isPublic ? (
                           <Link
                             href={`/zzp/${app.freelancer.id}`}
