@@ -22,7 +22,13 @@ import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { suggestedFreelancersForClient, type ClientFreelancerSuggestion } from "@/lib/suggestions";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
-import { clientCredentialAlerts, shortCredentialAlert } from "@/lib/collaboration-alerts";
+import {
+  clientCredentialAlerts,
+  shortCredentialAlert,
+  summarizeClientCompliance,
+  type ClientComplianceSnapshot,
+} from "@/lib/collaboration-alerts";
+import { ComplianceSnapshotCard } from "@/components/dashboard/compliance-snapshot-card";
 import { computeFreelancerCompleteness } from "@/lib/profile";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { franchiserNextActions, type NextAction, type NextActionTone } from "@/lib/next-actions";
@@ -116,6 +122,8 @@ interface DashboardData {
   isNewAccount: boolean;
   /** Geleide activatie-stappen (alleen franchiser); leeg zodra de franchise volledig staat. */
   activation: NextAction[];
+  /** Geaggregeerde certificaat-compliance van lopende samenwerkingen (alleen CLIENT). */
+  complianceSnapshot?: ClientComplianceSnapshot;
   /** Inzetbaarheidsstatus van de ZZP'er zelf (alleen FREELANCER). */
   engageability?: EngageabilityResult | null;
   /** Voorgestelde ZZP'ers voor de opdrachtgever (alleen CLIENT). */
@@ -363,12 +371,13 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     ]);
     // Compliance-waarschuwingen per lopende samenwerking (ZZP'er mist/verlopen vereist certificaat),
     // zodat de opdrachtgever dit ook op het dashboard ziet — niet alleen op /samenwerkingen.
+    // De volledige lijst voedt zowel de per-kaart melding als de geaggregeerde momentopname,
+    // zodat ook samenwerkingen buiten de top-6 zone in de telling meetellen.
+    const credentialAlerts = await clientCredentialAlerts(userId);
     const complianceByCollab = new Map(
-      (await clientCredentialAlerts(userId)).map((a) => [
-        a.collaborationId,
-        shortCredentialAlert(a.alert),
-      ]),
+      credentialAlerts.map((a) => [a.collaborationId, shortCredentialAlert(a.alert)]),
     );
+    const complianceSnapshot = summarizeClientCompliance(credentialAlerts);
     const running: RunningCollab[] = runningRows.map((c) => ({
       id: c.id,
       jobTitle: c.job.title,
@@ -396,6 +405,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       week: null,
       isNewAccount: openJobs === 0 && drafts === 0 && activeCollabs === 0,
       activation: [],
+      complianceSnapshot,
       suggestedFreelancers,
       identity: {
         subtitle: [company?.name, company?.location].filter(Boolean).join(" · ") || null,
@@ -744,6 +754,7 @@ export default async function DashboardPage() {
       isNewAccount,
       activation,
       engageability,
+      complianceSnapshot,
       suggestedFreelancers,
       identity,
     },
@@ -874,6 +885,11 @@ export default async function DashboardPage() {
           </div>
         )}
       </section>
+
+      {/* Certificaat-compliance over álle lopende samenwerkingen (ook buiten de top-6 zone),
+          zodat de opdrachtgever in één oogopslag ziet of er ergens een vereist certificaat
+          ontbreekt of verloopt. Verbergt zichzelf wanneer alles op orde is. */}
+      {complianceSnapshot && <ComplianceSnapshotCard snapshot={complianceSnapshot} />}
 
       <section className="grid gap-4 sm:grid-cols-3">
         {stats.map((s) => (

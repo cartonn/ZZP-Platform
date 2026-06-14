@@ -186,8 +186,10 @@ Reactie↔Kandidaat opgelost. Open in Fase 2: lege-/laad-/fouttoestanden naar Va
 portable vertrouwensdossier (#313), **Flexpool/favorieten slice 1 (ZZP2-187, commit `c59f8d7`)** én
 **Flexpool slice 2 (ZZP2-192) — nieuwe dienst eerst naar de pool routeren ("eerst eigen mensen"):
 `pool-routing.ts` `planPoolInvites` + wiring in `changeJobStatus` bij de eerste publicatie + eigenaar-
-noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). Open Fase 3: **Rooster-marktplaats**
-(diensten per kalender publiceren/claimen).
+noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). **Rooster-marktplaats slice 1
+(discovery)** af — `roster-market.ts` `buildRosterCalendar` + read-only `/rooster`-agenda van open
+diensten met startdatum, per dag, met matchscore. Open Fase 3: de **publiceer-/claim-kant** van de
+Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct vanuit de kalender).
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
@@ -210,7 +212,14 @@ noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). Open Fase 3: **
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
-> Reeds gedaan (niet opnieuw): geschorste/geanonimiseerde ZZP'er niet meer vindbaar voor
+> Reeds gedaan (niet opnieuw): Rooster-marktplaats slice 1 — discovery-kalender van open diensten
+> (`lib/roster-market.ts` `buildRosterCalendar` + read-only `/rooster` voor FREELANCER/ADMIN:
+> PUBLISHED-jobs met startdatum per kalenderdag, matchscore + "Gereageerd"-badge, doorklik naar de
+> opdracht; reageren via de bestaande flow, geen schemawijziging; 14 unit-tests; nav-item onder Werk),
+> indirecte uren voor het urencriterium (/ontzorgd/uren:
+> IndirectHoursEntry-model + lib/tax/indirect-hours.ts + acties/page; /ontzorgd telt nu direct +
+> indirect i.p.v. indirectHours:0 — branch claude/dazzling-carson-v9Qwk),
+> geschorste/geanonimiseerde ZZP'er niet meer vindbaar voor
 > opdrachtgevers (ZZP2-183: gedeeld `discoverableFreelancerWhere` = PUBLIC + ACTIVE op /freelancers,
 > opdracht-suggesties en "gesprek starten" — sluit het no-show-handhavingsgat),
 > aanmaningsladder/dunning-escalatie (DUNNING_STAGES in config,
@@ -252,6 +261,10 @@ noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). Open Fase 3: **
 > met betekenis-drempels: afgeronde samenwerkingen ≥ 1 + gewerkte uren round ≥ 8; server-berekend in
 > `freelancer-search.ts` via bulk-queries, getoond op de browse-kaart; spiegelt het betaalgedrag-signaal
 > de andere kant op; geen subjectieve beoordelingen; 8 unit-tests; geen schemawijziging).
+> certificaat-compliance-momentopname op het CLIENT-dashboard (`summarizeClientCompliance` in
+> `collaboration-alerts.ts` + `ComplianceSnapshotCard`): geaggregeerde telling over álle lopende
+> samenwerkingen — sluit het zicht-gat dat de per-kaart-melding alleen de top-6 zone dekte; read-only,
+> geen extra query, geen schemawijziging, 4 unit-tests; verbergt zichzelf wanneer alles compliant is.
 
 ### Gap-analyse (Fase 0)
 

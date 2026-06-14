@@ -44,6 +44,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: TERM_PLURAL.action, href: "/acties", icon: "inbox", enabled: true },
     { label: "Inzicht", href: "/inzicht", icon: "barChart", enabled: true },
     { label: TERM_PLURAL.job, href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true }, // prettier-ignore
+    { label: "Rooster", href: "/rooster", icon: "calendar", section: "Werk", enabled: true }, // prettier-ignore
     { label: `Mijn ${TERM_PLURAL.application.toLowerCase()}`, href: "/reacties", icon: "files", section: "Werk", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.collaboration, href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.message, href: "/berichten", icon: "messages", section: "Werk", enabled: true }, // prettier-ignore

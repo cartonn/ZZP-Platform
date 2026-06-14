@@ -3,6 +3,100 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(rooster): discovery-kalender van open diensten — Rooster-marktplaats slice 1 (branch `claude/dazzling-carson-v9Qwk`)
+
+PLAN-WERELDKLASSE Fase 3 "Rooster-marktplaats: diensten per kalender publiceren/claimen". Slice 1 =
+de **discovery-kant** voor de ZZP'er: gepubliceerde opdrachten mét een startdatum (`Job.startDate`)
+als agenda gegroepeerd per kalenderdag, met persoonlijke matchscore en doorklik naar de opdracht.
+Het reageren/claimen loopt via de bestaande opdracht-detail/reageer-flow — **geen nieuwe mutatie,
+geen schemawijziging**, puur additief en server-side.
+
+- [x] `src/lib/roster-market.ts` — pure `buildRosterCalendar(shifts, now, horizonDays=21)`:
+      bucket dated shifts per UTC-kalenderdag binnen de horizon; verleden weggefilterd, diensten ná
+      de horizon geteld in `beyondHorizon` (niet geplaatst); binnen een dag gesorteerd matchScore
+      desc (null achteraan) → startDate asc → title asc; dagen oplopend; `weekday` via
+      `(getUTCDay()+6)%7`; muteert de input niet. Geen I/O.
+- [x] `src/lib/roster-market.test.ts` — 14 unit-tests: lege invoer, verleden weggefilterd,
+      horizon-grens (exact = wél / +1 dag = beyondHorizon), sortering matchScore/null/tie-breaks,
+      dagen oplopend, isToday-markering, weekday-mapping (vaste UTC-zondag/maandag), non-mutatie,
+      total/beyondHorizon-tellingen.
+- [x] `src/app/(protected)/rooster/page.tsx` — read-only agenda (FREELANCER + ADMIN; CLIENT →
+      redirect /opdrachten). Tenant-zichtbare PUBLISHED-jobs met `startDate gte vandaag` (`take: 200`,
+      `visibleJobsWhere`); matchscore via `scoreJobForFreelancer`; "Gereageerd"-badge uit een
+      begrensde `application.findMany`. Dag-secties (NL weekdag + datum + "Vandaag"-badge), shift-rijen
+      in de Vakwerk/Warmte-stijl (tarief mono, `Match X%`-badge), empty-state + beyondHorizon-noot.
+- [x] `src/app/(protected)/rooster/loading.tsx` — skeleton (PageHeader + dense list).
+- [x] `src/lib/nav.ts` — navitem "Rooster" onder Werk (FREELANCER), direct ná Opdrachten.
+
+Gates groen: typecheck ✓, lint ✓, test 1943 ✓ (+14), build ✓ (`/rooster` aanwezig), prettier --check . ✓.
+(E2e niet in de routine — geen browser-channel, zie CLAUDE.md.) Open vervolg in Fase 3: de
+**publiceer-/claim-kant** (opdrachtgever dateert losse diensten; ZZP'er claimt direct vanuit de
+kalender i.p.v. de reageer-flow). Noot: `prisma generate` was nodig in de verse container — de
+`IndirectHoursEntry`-client was stale waardoor typecheck eerst rood stond (geen codewijziging nodig).
+
+> **Routine-noot (Linear):** stap 3/6 (tracking-issue in "ZZP Platform HUB") kon niet — de
+> Linear-connector vereist interactieve OAuth (niet beschikbaar in een onbeheerde routine) én de
+> workspace zit nog op de gratis issue-limiet (eerder gemeld). Mensenwerk: workspace upgraden/opschonen
+> of OAuth eenmalig koppelen, anders blijft de Linear-tracking van auto-build-runs geblokkeerd.
+
+---
+
+## feat(dashboard): certificaat-compliance-momentopname voor de opdrachtgever (branch `claude/dazzling-carson-v9Qwk`)
+
+De CLIENT-dashboard toonde certificaat-waarschuwingen (ZZP'er mist/verlopen vereist certificaat)
+alleen per-kaart in de "Wat loopt er nu"-zone, die **bewust tot top-6 begrensd** is
+(`running-zone.ts`). Een opdrachtgever met meer lopende samenwerkingen zag compliance-gaten
+buiten die zone dus niet op het dashboard — een echt zicht-gat op de kerndifferentiator
+(certificaat-verificatie). Dit voegt een geaggregeerde momentopname toe over **álle** lopende
+samenwerkingen. Read-only, server-side, deterministisch, geen schemawijziging, geen extra query
+(hergebruikt de al opgehaalde `clientCredentialAlerts`).
+
+- [x] `src/lib/collaboration-alerts.ts` — pure `summarizeClientCompliance(alerts)` →
+      `ClientComplianceSnapshot`: `total` (samenwerkingen met actie), `nonCompliant`/`warning`
+      (status-splitsing) en de type-tellingen `missing`/`expired`/`expiringSoon`/`inReview`
+      gesommeerd over alle meldingen. Geen I/O, muteert de invoer niet.
+- [x] `src/lib/collaboration-alerts.test.ts` — 4 unit-tests (lege invoer → nullen,
+      NON_COMPLIANT/WARNING-splitsing, type-sommatie over meerdere meldingen, non-mutatie op een
+      bevroren array).
+- [x] `src/components/dashboard/compliance-snapshot-card.tsx` — presentationele server-component
+      (geen client-JS): zegel-icoon + uppercase label "Certificaten van je ZZP'ers", mono-telling
+      "N samenwerking(en) vragen aandacht", alleen-niet-nul breakdown-chips, link naar
+      /samenwerkingen. Verbergt zichzelf (`return null`) zodra alles op orde is — rustig dashboard.
+- [x] `dashboard/page.tsx` — CLIENT-tak: volledige meldingslijst gevangen, momentopname berekend en
+      via `complianceSnapshot` op `DashboardData` doorgegeven; kaart gerenderd tussen de
+      "Wat loopt er nu"-zone en de statistiek-grid. Vangrail-allowlist-regelnummer bijgewerkt
+      (170→178 door de uitgebreide import).
+
+Gates groen: typecheck ✓, lint ✓, test 1929 ✓ (+4), build ✓, prettier --check . ✓.
+(E2e niet in de routine — geen browser-channel, zie CLAUDE.md.) Noot: in deze verse container moest
+`npx prisma generate` draaien om de client met het nieuwe `IndirectHoursEntry`-model te synchroniseren
+(anders faalde typecheck op vóór-bestaande `ontzorgd/`-fouten — geen codewijziging nodig).
+
+---
+
+## feat(ontzorgd): indirecte uren bijhouden voor het urencriterium (branch `claude/dazzling-carson-v9Qwk`)
+
+Het Ontzorgd-dashboard gaf `indirectHours: 0` hard mee aan `buildOntzorgOverview`, terwijl
+`hoursCriterion` indirecte uren (acquisitie/administratie/scholing/reistijd) al ondersteunt voor
+het 1.225-uur urencriterium (zelfstandigenaftrek). De ZZP'er kon ze nergens registreren →
+voortgang telde te laag en de onderbouwing voor de aftrek ontbrak.
+
+- [x] Schema (additief): `IndirectHoursEntry` (userId, workedOn, hours Float, category, note?) +
+      relatie `User.indirectHoursEntries`. Categorie als string (geen db-enum — SQLite/Postgres).
+- [x] `src/lib/tax/indirect-hours.ts` — pure module: `INDIRECT_HOUR_CATEGORIES` + NL-labels,
+      `indirectHoursEntrySchema` (geen toekomstdatum, kwartier-precisie, 0<uren≤24, notitie ≤280),
+      `sumIndirectHours`, `groupIndirectHoursByCategory` (canonieke volgorde, alleen >0). 16 tests.
+- [x] `/ontzorgd/uren` — actions (`addIndirectHours`/`deleteIndirectHours`: auth → rol → entitlement
+      IB_VOORBEREIDING → Zod → schrijven → audit; ownership-check op delete) + page (totaal +
+      subtotalen per categorie, invoerformulier via client-component, lijst met verwijderen,
+      loading-skeleton, empty/lock-states). `findMany` gebonden met `take: 200`.
+- [x] `/ontzorgd` koppelt de jaar-som van indirecte uren door naar `buildOntzorgOverview`, toont
+      "Direct X u · indirect Y u" in de urencriterium-kaart + link "Indirecte uren bijhouden →".
+
+Gates groen: typecheck ✓, lint ✓, test 1762 ✓ (16 nieuw), build ✓, prettier ✓. E2e overgeslagen
+(routine-omgeving zonder browser-channel). Linear-issue niet aangemaakt: workspace zit op de
+free-issue-limiet (mensenwerk: upgrade Linear).
+
 ## feat(freelancers): feitelijk track record per ZZP'er op de browse-kaart (branch `claude/dazzling-carson-v9Qwk`)
 
 Opdrachtgevers zagen op /freelancers wél vertrouwensniveau, tarief, beschikbaarheid en
