@@ -248,6 +248,10 @@ noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). Open Fase 3: **
 > met betekenis-drempels: afgeronde samenwerkingen ≥ 1 + gewerkte uren round ≥ 8; server-berekend in
 > `freelancer-search.ts` via bulk-queries, getoond op de browse-kaart; spiegelt het betaalgedrag-signaal
 > de andere kant op; geen subjectieve beoordelingen; 8 unit-tests; geen schemawijziging).
+> certificaat-compliance-momentopname op het CLIENT-dashboard (`summarizeClientCompliance` in
+> `collaboration-alerts.ts` + `ComplianceSnapshotCard`): geaggregeerde telling over álle lopende
+> samenwerkingen — sluit het zicht-gat dat de per-kaart-melding alleen de top-6 zone dekte; read-only,
+> geen extra query, geen schemawijziging, 4 unit-tests; verbergt zichzelf wanneer alles compliant is.
 
 ### Gap-analyse (Fase 0)
 
