@@ -3,6 +3,44 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(rooster): discovery-kalender van open diensten — Rooster-marktplaats slice 1 (branch `claude/dazzling-carson-v9Qwk`)
+
+PLAN-WERELDKLASSE Fase 3 "Rooster-marktplaats: diensten per kalender publiceren/claimen". Slice 1 =
+de **discovery-kant** voor de ZZP'er: gepubliceerde opdrachten mét een startdatum (`Job.startDate`)
+als agenda gegroepeerd per kalenderdag, met persoonlijke matchscore en doorklik naar de opdracht.
+Het reageren/claimen loopt via de bestaande opdracht-detail/reageer-flow — **geen nieuwe mutatie,
+geen schemawijziging**, puur additief en server-side.
+
+- [x] `src/lib/roster-market.ts` — pure `buildRosterCalendar(shifts, now, horizonDays=21)`:
+      bucket dated shifts per UTC-kalenderdag binnen de horizon; verleden weggefilterd, diensten ná
+      de horizon geteld in `beyondHorizon` (niet geplaatst); binnen een dag gesorteerd matchScore
+      desc (null achteraan) → startDate asc → title asc; dagen oplopend; `weekday` via
+      `(getUTCDay()+6)%7`; muteert de input niet. Geen I/O.
+- [x] `src/lib/roster-market.test.ts` — 14 unit-tests: lege invoer, verleden weggefilterd,
+      horizon-grens (exact = wél / +1 dag = beyondHorizon), sortering matchScore/null/tie-breaks,
+      dagen oplopend, isToday-markering, weekday-mapping (vaste UTC-zondag/maandag), non-mutatie,
+      total/beyondHorizon-tellingen.
+- [x] `src/app/(protected)/rooster/page.tsx` — read-only agenda (FREELANCER + ADMIN; CLIENT →
+      redirect /opdrachten). Tenant-zichtbare PUBLISHED-jobs met `startDate gte vandaag` (`take: 200`,
+      `visibleJobsWhere`); matchscore via `scoreJobForFreelancer`; "Gereageerd"-badge uit een
+      begrensde `application.findMany`. Dag-secties (NL weekdag + datum + "Vandaag"-badge), shift-rijen
+      in de Vakwerk/Warmte-stijl (tarief mono, `Match X%`-badge), empty-state + beyondHorizon-noot.
+- [x] `src/app/(protected)/rooster/loading.tsx` — skeleton (PageHeader + dense list).
+- [x] `src/lib/nav.ts` — navitem "Rooster" onder Werk (FREELANCER), direct ná Opdrachten.
+
+Gates groen: typecheck ✓, lint ✓, test 1943 ✓ (+14), build ✓ (`/rooster` aanwezig), prettier --check . ✓.
+(E2e niet in de routine — geen browser-channel, zie CLAUDE.md.) Open vervolg in Fase 3: de
+**publiceer-/claim-kant** (opdrachtgever dateert losse diensten; ZZP'er claimt direct vanuit de
+kalender i.p.v. de reageer-flow). Noot: `prisma generate` was nodig in de verse container — de
+`IndirectHoursEntry`-client was stale waardoor typecheck eerst rood stond (geen codewijziging nodig).
+
+> **Routine-noot (Linear):** stap 3/6 (tracking-issue in "ZZP Platform HUB") kon niet — de
+> Linear-connector vereist interactieve OAuth (niet beschikbaar in een onbeheerde routine) én de
+> workspace zit nog op de gratis issue-limiet (eerder gemeld). Mensenwerk: workspace upgraden/opschonen
+> of OAuth eenmalig koppelen, anders blijft de Linear-tracking van auto-build-runs geblokkeerd.
+
+---
+
 ## feat(dashboard): certificaat-compliance-momentopname voor de opdrachtgever (branch `claude/dazzling-carson-v9Qwk`)
 
 De CLIENT-dashboard toonde certificaat-waarschuwingen (ZZP'er mist/verlopen vereist certificaat)
