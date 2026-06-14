@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(freelancers): feitelijk track record per ZZP'er op de browse-kaart (branch `claude/dazzling-carson-v9Qwk`)
+
+Opdrachtgevers zagen op /freelancers wél vertrouwensniveau, tarief, beschikbaarheid en
+vaardigheden, maar geen feitelijke staat van dienst. Dit voegt het spiegelbeeld toe van het
+betaalgedrag-signaal (`payment-behavior.ts`, dat de ZZP'er over de opdrachtgever ziet): een
+puur feitelijk, server-berekend track record dat de opdrachtgever over de ZZP'er ziet. Geen
+subjectieve beoordelingen (geparkeerd productbesluit) — alleen harde feiten.
+
+- [x] `src/lib/freelancer-track-record.ts` — pure `trackRecordHighlights(record)` met
+      betekenis-drempels (spiegelt `trustHighlights` in `public-trust.ts`): afgeronde
+      samenwerkingen ≥ 1 ("afgeronde klus/klussen", via `plural.ts`), gewerkte uren
+      `Math.round` ≥ 8 ("uur gewerkt"). Onder de drempel: niets tonen, zodat een net-gestarte
+      ZZP'er nooit met magere "0"-cijfers pronkt. 8 unit-tests.
+- [x] `src/lib/freelancer-search.ts` — `FreelancerCard.trackRecord` server-side meegeleverd via
+      efficiënte bulk-queries (geen N+1): `collaboration.groupBy` voor COMPLETED + `findMany`
+      met APPROVED HOURS-prestaties, gesommeerd per `freelancerId`. Tenant-gescoped via de al
+      gescopete profiel-ids. Fixtures in `freelancer-search.test.ts` bijgewerkt (15 tests).
+- [x] `freelancer-browse.tsx` — compacte track-record-regel op de kaart (CircleCheck/Clock,
+      mono-cijfer + muted label); lege staat = niets gerenderd. Semantische tokens, geen "AI".
+
+Gates groen: typecheck ✓, lint ✓, test 1754 ✓, build ✓, prettier --check . ✓
+(E2e niet gedraaid — routine-omgeving heeft geen browser-channel, zie CLAUDE.md.)
+
+---
+
 ## test(dba): structuur-/gedragstests voor de DBA-dossier-PDF-generator (branch `claude/dazzling-carson-v9Qwk`)
 
 `src/lib/dba-audit-pdf.ts` (`buildDbaAuditPdf`) genereert het DBA-compliance-dossier voor een

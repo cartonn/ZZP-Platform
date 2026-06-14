@@ -7,6 +7,7 @@ import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { type Availability, type CredentialType, type CredentialStatus } from "@/lib/enums";
+import { type FreelancerTrackRecord } from "@/lib/freelancer-track-record";
 
 // Korte beschikbaarheidstekst uit het scalaire profielveld, als terugval wanneer er geen inzetbaar
 // venster is. UNAVAILABLE/UNKNOWN geven (terecht) geen "beschikbaar"-signaal → null.
@@ -28,6 +29,7 @@ export interface FreelancerCard {
   availabilitySummary: string | null;
   hourlyRate: number | null;
   completeness: number;
+  trackRecord: FreelancerTrackRecord;
 }
 
 export interface FreelancerSearchFilters {
@@ -88,6 +90,39 @@ export async function getAllPublicFreelancers(
     },
   });
 
+  // ids is pas bekend ná de profiel-fetch → track-record-queries in een aparte Promise.all.
+  const ids = profiles.map((p) => p.id);
+
+  const [completedGroups, approvedHoursRows] = await Promise.all([
+    prisma.collaboration.groupBy({
+      by: ["freelancerId"],
+      where: { status: "COMPLETED", freelancerId: { in: ids } },
+      _count: { _all: true },
+    }),
+    prisma.collaboration.findMany({
+      where: { freelancerId: { in: ids } },
+      select: {
+        freelancerId: true,
+        performances: {
+          where: { status: "APPROVED", type: "HOURS" },
+          select: { hours: true },
+        },
+      },
+    }),
+  ]);
+
+  // Map: freelancerId → completedCollaborations
+  const completedMap = new Map<string, number>(
+    completedGroups.map((g) => [g.freelancerId, g._count._all]),
+  );
+
+  // Map: freelancerId → approvedHours (som van alle APPROVED HOURS performances)
+  const hoursMap = new Map<string, number>();
+  for (const row of approvedHoursRows) {
+    const sum = row.performances.reduce((acc, perf) => acc + (perf.hours ?? 0), 0);
+    hoursMap.set(row.freelancerId, (hoursMap.get(row.freelancerId) ?? 0) + sum);
+  }
+
   return profiles.map((p) => {
     const verifiedCredentialCount = p.credentials.filter(
       (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt > now),
@@ -119,6 +154,11 @@ export async function getAllPublicFreelancers(
       SCALAR_AVAILABILITY_SUMMARY[p.availability as Availability] ??
       null;
 
+    const trackRecord: FreelancerTrackRecord = {
+      completedCollaborations: completedMap.get(p.id) ?? 0,
+      approvedHours: hoursMap.get(p.id) ?? 0,
+    };
+
     return {
       id: p.id,
       userId: p.user.id,
@@ -132,6 +172,7 @@ export async function getAllPublicFreelancers(
       availabilitySummary: availability,
       hourlyRate: p.hourlyRate,
       completeness: p.completeness,
+      trackRecord,
     };
   });
 }

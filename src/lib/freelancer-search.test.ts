@@ -14,6 +14,7 @@ const sanne: FreelancerCard = {
   availabilitySummary: "Beschikbaar t/m 2026-06-30",
   hourlyRate: 85,
   completeness: 80,
+  trackRecord: { completedCollaborations: 3, approvedHours: 120 },
 };
 
 const jan: FreelancerCard = {
@@ -29,6 +30,7 @@ const jan: FreelancerCard = {
   availabilitySummary: null,
   hourlyRate: 75,
   completeness: 40,
+  trackRecord: { completedCollaborations: 0, approvedHours: 0 },
 };
 
 const cards = [sanne, jan];
