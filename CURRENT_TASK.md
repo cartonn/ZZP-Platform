@@ -21,13 +21,19 @@
   Routine-runs leveren een **PR naar `main`** op. `ANTHROPIC_API_KEY`-secret staat in GitHub. (De
   GitHub-Actions-cron `auto-build.yml` bestaat ook, maar is onbewezen vanuit de sessie — de Routine
   is de gekozen route.)
-  - **Vangnet auto-PR (sinds 14-6, `auto-pr-claude.yml`):** als de routine alléén naar haar
+  - **Verse branch per run (instellen in de routine-prompt):** zet het git-blok uit
+    **CLAUDE.md §3a punt 1+3** letterlijk bovenaan de routine-prompt op claude.ai
+    (`git reset --hard` + `git checkout -b "feat/auto-$(date +%Y%m%d-%H%M%S)-$RANDOM" origin/main`
+    → werk → rebase → push → `gh pr create --base main`). Dit maakt "vers vanaf main per run"
+    deterministisch en de branchnaam collision-proof voor parallelle agents. Zonder deze
+    promptregel hervat de routine de sessie-branch en stapelt het werk (les 13-14 juni).
+  - **Vangnet auto-PR (sinds 14-6, `auto-pr-claude.yml`):** als de routine tóch alléén naar haar
     sessie-branch `claude/<naam>` pusht zonder zelf een PR te openen, opent deze workflow er
     automatisch één naar `main` (idempotent). Zo blijft routine-werk nooit meer hangen op de
     sessie-branch (les van 13-14 juni: 24 commits + AVG-blockers op `claude/dazzling-carson-v9Qwk`
-    zonder PR — geborgen in PR #360). De workflow **merget niet**: de poort (ci/security op de push,
-    pr-review + mens) beoordeelt en merget. **Eenmalig mensenwerk:** repo-instelling
-    "Allow GitHub Actions to create and approve pull requests" moet AAN staan.
+    zonder PR — geborgen in PR #360; daarna de branch gereset naar main). De workflow **merget
+    niet**: de poort (ci/security op de push, pr-review + mens) beoordeelt en merget. Repo-instelling
+    "Allow GitHub Actions to create and approve pull requests" staat AAN (sinds 14-6).
 - **Vóór échte productie (mensenwerk, zie MENSENWERK.md):** juridisch/AVG-review (blokkeert livegang
   met echte gevoelige documenten), betalingen (Stripe/Mollie), echte verificatie-API's (DUO/BIG/iDIN
   — nu demo), e-mail, S3-documentopslag, eigen domein. Code is hierop voorbereid.
