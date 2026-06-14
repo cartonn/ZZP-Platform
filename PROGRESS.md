@@ -23,7 +23,7 @@ deterministisch, **geen schemawijziging** (afgeleid uit de bestaande annulerings
 - [x] `src/lib/data/client-reliability.ts` — `getClientReliabilityForCompany(companyId)`: laatste 50
       afgewikkelde (COMPLETED/CANCELLED) samenwerkingen per bedrijf + `company.userId` voor de
       `byClient`-attributie (chargeable = definitioneel opdrachtgever, anders `cancelledById ===
-  ownerUserId`). Alleen geaggregeerde statistieken — geen individuele data zichtbaar.
+ownerUserId`). Alleen geaggregeerde statistieken — geen individuele data zichtbaar.
 - [x] `src/components/jobs/client-reliability-block.tsx` — compact blok (kalender-icoon, toon-badge),
       "geen enkele afspraak geannuleerd"-tekst bij 0, anders percentage + evt. last-minute-telling;
       `unknown`-empty-state. Spiegelt het betaalgedrag-blok visueel.
