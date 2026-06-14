@@ -166,6 +166,13 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 
 ---
 
+**PLAN-WERELDKLASSE Fase 2 — voortgang:** **Weekrooster als kalenderstrip (ZZP2-194, commit
+`7f71870`)** af — `week-strip.ts` `buildWeekStrip` + `WeekStripView` op de dashboard-zone "Wat loopt
+er nu" (ma–zo dienstblokken i.p.v. platte badges). Matchredenen op kaarten: **opdracht-kaart
+(ZZP2-188) én kandidaten-kaart af** (de kandidaten-kaart toont al de volledige troef/minpunt-redenen
+in "Waarom deze match?"). Open in Fase 2: terminologie-ADR, lege-/laad-/fouttoestanden naar
+Vakwerk-stijl.
+
 **PLAN-WERELDKLASSE Fase 3 — voortgang (`docs/PLAN-WERELDKLASSE.md`):** Tariefinzicht (ZZP2-184),
 portable vertrouwensdossier (#313), **Flexpool/favorieten slice 1 (ZZP2-187, commit `c59f8d7`)** én
 **Flexpool slice 2 (ZZP2-192) — nieuwe dienst eerst naar de pool routeren ("eerst eigen mensen"):

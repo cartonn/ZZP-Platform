@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(dashboard): weekrooster als kalenderstrip (ma–zo) — PLAN-WERELDKLASSE Fase 2 (ZZP2-194, branch `claude/dazzling-carson-v9Qwk`)
+
+De dashboard-zone "Wat loopt er nu" toonde "Deze week" als een platte rij muted-badges. Fase 2 vroeg
+een echte kalenderstrip (ma–zo met dienstblokken); de data was er al (`week.entries` + `weekdays`,
+ADR-0004) maar werd niet als rooster getoond.
+
+- [x] `src/lib/week-strip.ts` — pure `buildWeekStrip(week, now)`: 7 dagkolommen met per dag de lopende
+      samenwerkingen. Expliciet weekrooster (`weekdays`) wint; entries zonder rooster vallen terug op
+      de actieve kalenderdagen binnen de week (start/eind geklemd op UTC-dagniveau). Markeert vandaag.
+      Geen I/O. 7 unit-tests (`week-strip.test.ts`): weekdag-mapping, fallback start/eind-klemming,
+      open-eind = hele week, vandaag-markering binnen/buiten de week, twee samenwerkingen op één dag.
+- [x] `src/components/dashboard/week-strip.tsx` — presentationele 7-koloms grid (server-component,
+      geen client-JS): dag-label + datum, dienstblokken linken naar `/samenwerkingen/[id]`, vandaag
+      geaccentueerd, rustige lege dagen.
+- [x] `dashboard/page.tsx` — platte badge-rij vervangen door de strip (alleen bij gevulde week);
+      samenvattingsregel ("Deze week: N samenwerkingen bij M opdrachtgevers") blijft. Ongebruikte
+      `TIMING_LABEL` + `formatWeekdays`-import verwijderd; vangrail-allowlist regelnummer bijgewerkt.
+
+Sluit PLAN-WERELDKLASSE Fase 2 "Weekrooster als kalenderstrip" af. Gates groen: typecheck ✓, lint ✓,
+test 1862 ✓ (+7), build ✓, prettier --check . ✓. (E2e niet in de routine — geen browser-channel,
+net als CI.) Commit `7f71870`.
+
 ## feat(flexpool): nieuwe dienst eerst naar de poule routeren — "eerst eigen mensen" (ZZP2-192, branch `claude/dazzling-carson-v9Qwk`)
 
 Flexpool slice 2 (`docs/PLAN-WERELDKLASSE.md` Fase 3 — vervolg op slice 1, ZZP2-187). Slice 1 liet een
