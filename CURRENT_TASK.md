@@ -17,10 +17,12 @@
   branches meer; `main` is de bron van waarheid en de deploy-branch tegelijk.
 - **24/7-bouw:** Routine **"ZZP auto-build"** in Claude Code on the web (claude.ai/code/routines),
   elke ~2 uur. Orchestrator op **Opus**, builder-subagents op **Sonnet** (zie `.claude/agents/*`).
-  Maakt per run een **Linear-issue in team "ZZP Platform HUB"** (In Progress → Done met commit-hash).
   Routine-runs leveren een **PR naar `main`** op. `ANTHROPIC_API_KEY`-secret staat in GitHub. (De
   GitHub-Actions-cron `auto-build.yml` bestaat ook, maar is onbewezen vanuit de sessie — de Routine
-  is de gekozen route.)
+  is de gekozen route.) _(Linear wordt niet meer gebruikt — sinds 14-6.)_
+  - **Canonieke routine-prompt:** [`docs/ROUTINE-PROMPT.md`](docs/ROUTINE-PROMPT.md) — plak die in
+    het Instructions-veld op claude.ai. Bevat de verse-branch-start + PR-eind; bij een
+    promptwijziging: diff tegen dat bestand.
   - **Verse branch per run (instellen in de routine-prompt):** zet het git-blok uit
     **CLAUDE.md §3a punt 1+3** letterlijk bovenaan de routine-prompt op claude.ai
     (`git reset --hard` + `git checkout -b "feat/auto-$(date +%Y%m%d-%H%M%S)-$RANDOM" origin/main`
