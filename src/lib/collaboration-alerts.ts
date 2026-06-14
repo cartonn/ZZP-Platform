@@ -150,6 +150,7 @@ export async function clientCredentialAlerts(userId: string): Promise<ClientCred
 
   const collaborations = await prisma.collaboration.findMany({
     where: { companyId: company.id, status: "ACTIVE" },
+    take: 200,
     include: {
       job: {
         select: {

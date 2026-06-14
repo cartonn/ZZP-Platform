@@ -11,10 +11,17 @@ export function ComplianceSnapshotCard({ snapshot }: { snapshot: ClientComplianc
     label: string;
   }
 
+  // Werkwoordsvormen meervoud-correct: "1 mist een certificaat" vs "2 missen een certificaat".
   const chips: Chip[] = [
-    { count: snapshot.missing, label: "mist een certificaat" },
+    {
+      count: snapshot.missing,
+      label: snapshot.missing === 1 ? "mist een certificaat" : "missen een certificaat",
+    },
     { count: snapshot.expired, label: "verlopen" },
-    { count: snapshot.expiringSoon, label: "verloopt binnenkort" },
+    {
+      count: snapshot.expiringSoon,
+      label: snapshot.expiringSoon === 1 ? "verloopt binnenkort" : "verlopen binnenkort",
+    },
     { count: snapshot.inReview, label: "in beoordeling" },
   ].filter((c) => c.count > 0);
 

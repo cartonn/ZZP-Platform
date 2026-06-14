@@ -1,4 +1,5 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CircleAlert, Clock, Lock, PiggyBank, Receipt, Sparkles, TrendingUp } from "lucide-react";
 import { requireActor } from "@/lib/authz";
@@ -224,9 +225,9 @@ export default async function OntzorgdPage() {
                   />
                 </div>
                 <div>
-                  <a href="/ontzorgd/uren" className="text-xs text-primary hover:underline">
+                  <Link href="/ontzorgd/uren" className="text-xs text-primary hover:underline">
                     Indirecte uren bijhouden →
-                  </a>
+                  </Link>
                 </div>
               </CardContent>
             </Card>

@@ -1,4 +1,5 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Clock, Lock } from "lucide-react";
 import { requireActor } from "@/lib/authz";
@@ -63,13 +64,13 @@ export default async function IndirectUrenPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       {/* Terug-link */}
-      <a
+      <Link
         href="/ontzorgd"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-3.5" aria-hidden />
         Terug naar Ontzorgd
-      </a>
+      </Link>
 
       {/* Kop */}
       <header className="space-y-1">

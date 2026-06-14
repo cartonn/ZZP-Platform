@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { AuthorizationError, requireActor } from "@/lib/authz";
-import { audit } from "@/lib/audit";
+import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { userHasEntitlement } from "@/lib/entitlement-guard";
 import { indirectHoursEntrySchema } from "@/lib/tax/indirect-hours";
@@ -76,25 +76,35 @@ export async function addIndirectHours(
  */
 export async function deleteIndirectHours(id: string): Promise<void> {
   const actor = await requireActor();
+  // Volledige keten zoals addIndirectHours: auth → rol → ownership → actie → audit. De rol-check
+  // stond hier eerder niet, waardoor de keten gebroken was (een ADMIN passeert de ownership-check via
+  // owns(); indirecte uren zijn puur ZZP'er-werk).
+  if (actor.role !== "FREELANCER") {
+    throw new AuthorizationError("Alleen voor ZZP'ers.");
+  }
 
   const row = await prisma.indirectHoursEntry.findUnique({ where: { id } });
   if (!row || row.userId !== actor.id) {
     throw new Error("Regel niet gevonden.");
   }
 
-  await prisma.indirectHoursEntry.delete({ where: { id } });
-
-  await audit({
-    actorId: actor.id,
-    action: "INDIRECT_HOURS_DELETED",
-    entityType: "IndirectHoursEntry",
-    entityId: id,
-    metadata: {
-      hours: row.hours,
-      category: row.category,
-      workedOn: row.workedOn.toISOString(),
-    },
-  });
+  // Delete + audit atomair: anders kan de audit wegvallen als de write na de delete faalt.
+  await prisma.$transaction([
+    prisma.indirectHoursEntry.delete({ where: { id } }),
+    prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "INDIRECT_HOURS_DELETED",
+        entityType: "IndirectHoursEntry",
+        entityId: id,
+        metadata: {
+          hours: row.hours,
+          category: row.category,
+          workedOn: row.workedOn.toISOString(),
+        },
+      }),
+    }),
+  ]);
 
   revalidatePath("/ontzorgd/uren");
   revalidatePath("/ontzorgd");
