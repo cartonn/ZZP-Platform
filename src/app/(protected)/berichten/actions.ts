@@ -157,13 +157,21 @@ export async function startConversationWithFreelancer(
     }),
     prisma.freelancerProfile.findUnique({
       where: { id: freelancerId },
-      select: { userId: true, visibility: true, tenantId: true },
+      select: {
+        userId: true,
+        visibility: true,
+        tenantId: true,
+        user: { select: { status: true } },
+      },
     }),
   ]);
   if (!job || job.company.userId !== actor.id) throw new Error("Opdracht niet gevonden.");
   if (job.status !== "PUBLISHED")
     throw new Error("Je kunt alleen bij een gepubliceerde opdracht iemand benaderen.");
-  if (!freelancer || freelancer.visibility !== "PUBLIC") throw new Error("ZZP'er niet gevonden.");
+  // Geschorst account (bv. uitgeschreven na no-shows) of geanonimiseerd → niet benaderbaar.
+  // Spiegelt discoverableFreelancerWhere op /freelancers + de opdracht-suggesties.
+  if (!freelancer || freelancer.visibility !== "PUBLIC" || freelancer.user.status !== "ACTIVE")
+    throw new Error("ZZP'er niet gevonden.");
   // Gesloten per tenant: een opdrachtgever mag alleen ZZP'ers binnen zijn eigen scope benaderen —
   // dezelfde grens als visibleFreelancersWhere op /freelancers (tenant-opdrachtgever → eigen roster,
   // directe opdrachtgever → niet-tenant ZZP'ers). Voorkomt cross-tenant contactopname via overflow.

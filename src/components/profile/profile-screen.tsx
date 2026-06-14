@@ -23,6 +23,8 @@ import { ScoreRing } from "@/components/ui/score-ring";
 import { TrustBadge } from "@/components/trust/trust-badge";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { VerificationMarks } from "@/components/credentials/verification-marks";
+import { parseLanguages } from "@/lib/parse-languages";
+import { FavoriteButton } from "@/components/favorites/favorite-button";
 
 const AVAILABILITY: Record<
   Availability,
@@ -66,16 +68,6 @@ const TABS = [
   { key: "beoordelingen", label: "Beoordelingen" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
-
-function parseLanguages(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.map(String) : [];
-  } catch {
-    return [];
-  }
-}
 
 function initials(name: string | null): string {
   if (!name) return "Z";
@@ -131,7 +123,7 @@ export async function ProfileScreen({
   const profile = await prisma.freelancerProfile.findUnique({
     where: { id },
     include: {
-      user: { select: { name: true, identityVerifiedAt: true } },
+      user: { select: { name: true, identityVerifiedAt: true, status: true } },
       skills: { include: { skill: { select: { name: true } } } },
       industries: { include: { industry: { select: { name: true } } } },
       credentials: {
@@ -167,11 +159,41 @@ export async function ProfileScreen({
   if (!profileVisibleTo(viewer, profile.userId, profile.visibility as Visibility)) {
     notFound();
   }
+  // Accountstatus is óók server-side waarheid: een geschorst/geanonimiseerd account (na herhaalde
+  // ongegronde no-shows of AVG-anonimisering) mag niet meer bereikbaar zijn via de directe profiel-
+  // URL. Alleen de eigenaar en een ADMIN mogen het dan nog inzien. Spiegelt discoverableFreelancerWhere
+  // (zoek/suggesties/gesprek-starten), dat de accountstatus al uitsluit.
+  if (
+    profile.user.status !== "ACTIVE" &&
+    viewer?.id !== profile.userId &&
+    viewer?.role !== "ADMIN"
+  ) {
+    notFound();
+  }
   // Gesloten per tenant: een aan een franchise gebonden ZZP-profiel mag niet publiek (of cross-tenant)
   // worden ingezien — alleen de eigenaar, een ADMIN of iemand binnen dezelfde tenant. Directe profielen
   // (tenantId == null) blijven publiek. Consistent met visibleFreelancersWhere op /freelancers.
   if (!tenantEntityVisibleTo(viewer, profile.tenantId, profile.userId)) {
     notFound();
+  }
+
+  // Opdrachtgever die een ander profiel bekijkt: bepaal of deze ZZP'er al in zijn poule
+  // (flexpool/favorieten) staat, zodat de knop de juiste stand toont. Server-side waarheid.
+  let clientFavorited: boolean | null = null;
+  if (viewer?.role === "CLIENT" && viewer.id !== profile.userId) {
+    const company = await prisma.company.findUnique({
+      where: { userId: viewer.id },
+      select: { id: true },
+    });
+    if (company) {
+      const fav = await prisma.favoriteFreelancer.findUnique({
+        where: {
+          companyId_freelancerProfileId: { companyId: company.id, freelancerProfileId: profile.id },
+        },
+        select: { id: true },
+      });
+      clientFavorited = !!fav;
+    }
   }
 
   const availability = AVAILABILITY[profile.availability as Availability];
@@ -277,14 +299,16 @@ export async function ProfileScreen({
               </div>
             </div>
             {/* Eigen profiel: direct door naar bewerken — "Mijn profiel" landt hier. */}
-            {viewer?.id === profile.userId && (
+            {viewer?.id === profile.userId ? (
               <Link
                 href="/profiel/bewerken"
                 className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
               >
                 Bewerk jouw profiel
               </Link>
-            )}
+            ) : clientFavorited !== null ? (
+              <FavoriteButton freelancerProfileId={profile.id} initialFavorited={clientFavorited} />
+            ) : null}
           </div>
         </CardContent>
       </Card>

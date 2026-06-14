@@ -8,6 +8,7 @@ import {
   MapPin,
   Pencil,
   ShieldCheck,
+  Star,
   TriangleAlert,
 } from "lucide-react";
 import { owns, requireActor } from "@/lib/authz";
@@ -191,6 +192,26 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   const suggestions =
     isOwner && status === "PUBLISHED" ? await suggestedFreelancersForJob(job.id) : [];
 
+  // Flexpool "eerst eigen mensen": toon de eigenaar hoeveel poule-leden bij de eerste publicatie
+  // direct zijn geïnformeerd (de gezaghebbende telling staat in het POOL_INVITED-auditrecord, niet
+  // live herberekend — zo claimt de UI alleen wat daadwerkelijk verstuurd is).
+  const poolInviteLog = isOwner
+    ? await prisma.auditLog.findFirst({
+        where: { entityType: "Job", entityId: job.id, action: "POOL_INVITED" },
+        orderBy: { createdAt: "desc" },
+        select: { metadata: true },
+      })
+    : null;
+  const poolInvitedCount = ((): number => {
+    if (!poolInviteLog?.metadata) return 0;
+    try {
+      const meta = JSON.parse(poolInviteLog.metadata) as { count?: unknown };
+      return typeof meta.count === "number" ? meta.count : 0;
+    } catch {
+      return 0;
+    }
+  })();
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Link
@@ -257,6 +278,20 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Flexpool "eerst eigen mensen": rustige bevestiging dat de poule bij publicatie voorrang kreeg. */}
+      {isOwner && poolInvitedCount > 0 && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Star className="size-4 text-primary" aria-hidden />
+          <span>
+            {poolInvitedCount === 1 ? "1 lid uit je " : `${poolInvitedCount} leden uit je `}
+            <Link href="/favorieten" className="font-medium text-foreground hover:underline">
+              Flexpool
+            </Link>{" "}
+            {poolInvitedCount === 1 ? "is" : "zijn"} bij publicatie als eerste geïnformeerd.
+          </span>
+        </p>
       )}
 
       {(requiredSkills.length > 0 || optionalSkills.length > 0) && (

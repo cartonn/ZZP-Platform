@@ -3,6 +3,359 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(freelancers): feitelijk track record per ZZP'er op de browse-kaart (branch `claude/dazzling-carson-v9Qwk`)
+
+Opdrachtgevers zagen op /freelancers wél vertrouwensniveau, tarief, beschikbaarheid en
+vaardigheden, maar geen feitelijke staat van dienst. Dit voegt het spiegelbeeld toe van het
+betaalgedrag-signaal (`payment-behavior.ts`, dat de ZZP'er over de opdrachtgever ziet): een
+puur feitelijk, server-berekend track record dat de opdrachtgever over de ZZP'er ziet. Geen
+subjectieve beoordelingen (geparkeerd productbesluit) — alleen harde feiten.
+
+- [x] `src/lib/freelancer-track-record.ts` — pure `trackRecordHighlights(record)` met
+      betekenis-drempels (spiegelt `trustHighlights` in `public-trust.ts`): afgeronde
+      samenwerkingen ≥ 1 ("afgeronde klus/klussen", via `plural.ts`), gewerkte uren
+      `Math.round` ≥ 8 ("uur gewerkt"). Onder de drempel: niets tonen, zodat een net-gestarte
+      ZZP'er nooit met magere "0"-cijfers pronkt. 8 unit-tests.
+- [x] `src/lib/freelancer-search.ts` — `FreelancerCard.trackRecord` server-side meegeleverd via
+      efficiënte bulk-queries (geen N+1): `collaboration.groupBy` voor COMPLETED + `findMany`
+      met APPROVED HOURS-prestaties, gesommeerd per `freelancerId`. Tenant-gescoped via de al
+      gescopete profiel-ids. Fixtures in `freelancer-search.test.ts` bijgewerkt (15 tests).
+- [x] `freelancer-browse.tsx` — compacte track-record-regel op de kaart (CircleCheck/Clock,
+      mono-cijfer + muted label); lege staat = niets gerenderd. Semantische tokens, geen "AI".
+
+Gates groen: typecheck ✓, lint ✓, test 1754 ✓, build ✓, prettier --check . ✓
+(E2e niet gedraaid — routine-omgeving heeft geen browser-channel, zie CLAUDE.md.)
+
+---
+
+## test(dba): structuur-/gedragstests voor de DBA-dossier-PDF-generator (branch `claude/dazzling-carson-v9Qwk`)
+
+`src/lib/dba-audit-pdf.ts` (`buildDbaAuditPdf`) genereert het DBA-compliance-dossier voor een
+eventueel bedrijfsbezoek van de Belastingdienst — een kerndifferentiator. De pure data-bouwer
+(`dba-audit.ts`) was getest, de PDF-render-laag zelf had nul tests.
+
+- [x] `src/lib/dba-audit-pdf.test.ts` — 14 tests die via `PDFDocument.load` verifiëren (geen broze
+      byte-asserts): geldige niet-lege PDF + `%PDF`-magic; titel bevat opdracht- én ZZP'er-naam;
+      paginabreuk (60 lange indicatoren + lange disclaimer → ≥ 2 pagina's, > kleine dossier — bewijst
+      dat `addPage`/`ensure` meermaals loopt en de per-pagina-footer dus blijft staan); geen crash op
+      tekens buiten WinAnsi (€/é/—/typografisch apostrof/"ZZP'er"); rand-/null-data
+      (`durationMonths`/`rateCentsSnapshot` null, 0 vs > 0 geverifieerde certificaten, lege indicatoren).
+- [x] Fixture bouwt waar mogelijk via `buildDbaAuditData` zodat de tests in de pas blijven met het
+      echte datacontract. Geen productie-gedrag gewijzigd (alleen tests).
+
+> **Routine-noot (Linear):** de Linear-workspace "ZZP Platform HUB" heeft de **gratis issue-limiet
+> bereikt** ("Usage limit exceeded — free issue limit"). De routine kon daardoor géén tracking-issue
+> aanmaken (stap 3/6). Mensenwerk: workspace upgraden of opschonen, anders blijft de Linear-tracking
+> van auto-build-runs geblokkeerd.
+
+Gate groen: typecheck ✓, lint ✓, test 1760 ✓ (+14), build ✓, prettier ✓. (E2e niet in de routine —
+geen browser-channel.)
+
+---
+
+## refactor(profiel): talen-write-kant naar de gedeelde helper (branch `claude/dazzling-carson-v9Qwk`)
+
+Sluitstuk op de eerdere `parseLanguages`-deduplicatie (audit L3, commit 49f5628): die consolideerde
+alleen de LEES-kant. De SCHRIJF-kant in `profiel/actions.ts` had nog een eigen komma-split én
+`JSON.stringify(...)` — dezelfde (de)serialisatielogica los gekopieerd.
+
+- [x] `src/lib/parse-languages.ts` uitgebreid met `splitLanguagesInput` (komma-invoer → opgeschoonde
+      lijst, getrimd/lege segmenten weg) en `serializeLanguages` (lijst → JSON-array-string of `null`).
+- [x] `profiel/actions.ts` gebruikt nu beide helpers i.p.v. lokale logica — één bron van waarheid voor
+      de hele talen-rondgang (split → valideer → serialiseer → parse → toon). Nul gedragswijziging.
+- [x] 6 nieuwe unit-tests in `parse-languages.test.ts` (split: trim/filter/leeg; serialize: leeg→null,
+      inverse van `parseLanguages`).
+- [x] `unbounded-queries.test.ts`-allowlist regelnummers voor `profiel/actions.ts` bijgewerkt (de
+      compactere split verschoof de twee findMany-regels).
+
+Gates groen: typecheck ✓, lint ✓, test 1887 ✓, build ✓, prettier ✓. (e2e overgeslagen — geen
+browser-channel in de routine.)
+
+---
+
+## feat(terminologie): canoniek begrippenkader (IA) + ADR (branch `claude/dazzling-carson-v9Qwk`, ZZP2-195)
+
+PLAN-WERELDKLASSE Fase 2 — "Terminologie gladstrijken: één begrippenkader, IA-besluit vastleggen
+als ADR." De UI gebruikte domeinbegrippen niet consistent en twee termen waren overladen.
+
+- [x] **`docs/decisions/0008-terminologie-ia.md`** — ADR met het canonieke glossarium (11 begrippen:
+      enkelvoud/meervoud/route/toelichting) + expliciete oplossing van twee overloads:
+      (1) Opdracht ↔ Dienst (werkvraag/vacature vs. concrete geplande/gewerkte dienst — verschillende
+      begrippen); (2) Reactie ↔ Kandidaat (zelfde `Application`-record, ZZP'er- vs. opdrachtgever-
+      perspectief, bewust behouden).
+- [x] **`src/lib/terminology.ts`** — bron van waarheid: `TERM` / `TERM_PLURAL` (Record per
+      `DomainConcept`) + `term()`-helper. Puur, geen runtime-afhankelijkheid.
+- [x] **`src/lib/nav.ts`** — de kernbegrip-labels (FREELANCER/CLIENT + de gelijke ADMIN/FRANCHISER-
+      items) betrekken nu uit `TERM_PLURAL`; **gedragsbehoudend** (geen getoonde label-string
+      verandert), zodat de begrippen niet meer per scherm kunnen afdrijven.
+- [x] **`src/lib/terminology.test.ts`** — 19 unit-tests: compleetheid, uniciteit, `term()`-gedrag,
+      en een **vangrail** die afdwingt dat 12 live nav-labels gelijk blijven aan het canonieke kader.
+
+Gates groen: typecheck ✓, lint ✓, test 1881 ✓, build ✓, prettier ✓. (e2e niet in routine — geen
+browser-channel, zie CLAUDE.md.)
+
+---
+
+## feat(dashboard): weekrooster als kalenderstrip (ma–zo) — PLAN-WERELDKLASSE Fase 2 (ZZP2-194, branch `claude/dazzling-carson-v9Qwk`)
+
+De dashboard-zone "Wat loopt er nu" toonde "Deze week" als een platte rij muted-badges. Fase 2 vroeg
+een echte kalenderstrip (ma–zo met dienstblokken); de data was er al (`week.entries` + `weekdays`,
+ADR-0004) maar werd niet als rooster getoond.
+
+- [x] `src/lib/week-strip.ts` — pure `buildWeekStrip(week, now)`: 7 dagkolommen met per dag de lopende
+      samenwerkingen. Expliciet weekrooster (`weekdays`) wint; entries zonder rooster vallen terug op
+      de actieve kalenderdagen binnen de week (start/eind geklemd op UTC-dagniveau). Markeert vandaag.
+      Geen I/O. 7 unit-tests (`week-strip.test.ts`): weekdag-mapping, fallback start/eind-klemming,
+      open-eind = hele week, vandaag-markering binnen/buiten de week, twee samenwerkingen op één dag.
+- [x] `src/components/dashboard/week-strip.tsx` — presentationele 7-koloms grid (server-component,
+      geen client-JS): dag-label + datum, dienstblokken linken naar `/samenwerkingen/[id]`, vandaag
+      geaccentueerd, rustige lege dagen.
+- [x] `dashboard/page.tsx` — platte badge-rij vervangen door de strip (alleen bij gevulde week);
+      samenvattingsregel ("Deze week: N samenwerkingen bij M opdrachtgevers") blijft. Ongebruikte
+      `TIMING_LABEL` + `formatWeekdays`-import verwijderd; vangrail-allowlist regelnummer bijgewerkt.
+
+Sluit PLAN-WERELDKLASSE Fase 2 "Weekrooster als kalenderstrip" af. Gates groen: typecheck ✓, lint ✓,
+test 1862 ✓ (+7), build ✓, prettier --check . ✓. (E2e niet in de routine — geen browser-channel,
+net als CI.) Commit `7f71870`.
+
+## feat(flexpool): nieuwe dienst eerst naar de poule routeren — "eerst eigen mensen" (ZZP2-192, branch `claude/dazzling-carson-v9Qwk`)
+
+Flexpool slice 2 (`docs/PLAN-WERELDKLASSE.md` Fase 3 — vervolg op slice 1, ZZP2-187). Slice 1 liet een
+opdrachtgever een poule bijhouden, maar de poule deed nog niets bij het plaatsen van werk. Nu krijgen
+poule-leden bij de **eerste** publicatie van een opdracht direct voorrang — vóór de brede
+`job-alerts`-taak en ongeacht de matchdrempel. Server-side waarheid, deterministisch, idempotent.
+
+- [x] `src/lib/pool-routing.ts` — pure `planPoolInvites(job, members)`: geschiktheid (ACTIEF account,
+      PUBLIC profiel, tenant-zichtbaarheid/overflow, nog niet gereageerd, niet UNAVAILABLE) →
+      notificatie-items met dedupeKey `pool-invite:${jobId}:${userId}`. 20 unit-tests
+      (`pool-routing.test.ts`): alle vijf overslaan-regels, overflow-doorlating, null-tenant-match,
+      AVAILABLE/LIMITED/UNKNOWN vs. UNAVAILABLE, volgordebehoud, non-mutatie.
+- [x] `src/lib/notifications.ts` + `src/lib/audit-labels.ts` — type `POOL_INVITE` (categorie
+      collaboration, toon attention) + audit-actie `POOL_INVITED`.
+- [x] `opdrachten/actions.ts` — `changeJobStatus` informeert de poule **alleen bij de eerste
+      publicatie** (`!job.publishedAt`), zodat heropenen (CLOSED→PUBLISHED) niet opnieuw spamt;
+      `notification.createMany` + audit met telling. Tenant-overflow uit de job-relatie.
+- [x] `opdrachten/[id]/page.tsx` — rustige eigenaar-noot "N leden uit je Flexpool zijn bij publicatie
+      als eerste geïnformeerd" (telling uit het gezaghebbende POOL_INVITED-auditrecord, niet live
+      herberekend — de UI claimt alleen wat verstuurd is). Link naar /favorieten.
+- [x] Vangrail-allowlist bijgewerkt (skill-query regel verschoven 71→72 + nieuwe per-bedrijf
+      begrensde flexpool-query).
+
+Gates groen: typecheck ✓, lint ✓, test 1855 ✓ (+20), build ✓, prettier --check . ✓. (E2e niet in de
+routine — geen browser-channel, net als CI.) Open vervolg in Fase 3: Rooster-marktplaats (diensten per
+kalender publiceren/claimen). Demo-seed van een poule-uitnodiging is bewust overgeslagen (additief
+risico); de uitnodiging verschijnt live bij een echte publicatie.
+
+## feat(inzicht): leverbetrouwbaarheid-signaal voor de ZZP'er (ZZP2-191, branch `claude/dazzling-carson-v9Qwk`)
+
+Premium, objectief signaal naast het bestaande betaalgedrag-signaal van de opdrachtgever:
+hoe vaak levert de ZZP'er in één keer akkoord, en hoe snel keurt de opdrachtgever goed.
+Puur afgeleid uit bestaande modellen — geen schemawijziging, read-only, server-side.
+
+- [x] `src/lib/collaboration-quality.ts` — pure helpers + `getDeliveryQuality(userId)`:
+      `firstTimeRightRate` (% goedgekeurd zonder eerdere afkeuring: `approvedAt` gezet, `rejectedAt`
+      leeg), `correctedPerformances` (goedgekeurd na een afkeuring), `avgApprovalDays`
+      (`submittedAt`→`approvedAt`), `completedCollaborations` als steekproefbasis, toon
+      `EXCELLENT|RELIABLE|DEVELOPING|INSUFFICIENT` met `DELIVERY_MIN_SAMPLE = 3`.
+- [x] `src/lib/collaboration-quality.test.ts` — 19 unit-tests (grenzen 90/70, min-steekproef,
+      doorlooptijd-afronding op 1 decimaal, lege invoer).
+- [x] `src/app/(protected)/inzicht/page.tsx` — sectie "Leverbetrouwbaarheid" (FREELANCER):
+      3 StatCards + muted correctie-noot + empty-state bij te weinig gegevens.
+
+Gates groen: typecheck ✓, lint ✓, test 1835 ✓, build ✓, prettier ✓. (e2e niet in de routine — geen browser.)
+
+---
+
+## feat(facturatie): statusfilter + verouderingssignaal op de platform-facturatiecockpit (ZZP2-190)
+
+`/admin/facturatie` toonde de platformfacturen (franchise-fee + ZZP-abonnement) als platte lijst
+zonder filter of veroudering — de admin kon niet snel zien welke facturen verstuurd-maar-onbetaald
+zijn en hoe lang al (de aanmaan-vraag). Additief, deterministisch, server-side, **geen schemawijziging**
+(afgeleid uit bestaande `issuedAt`/`paidAt`).
+
+- [x] `src/lib/platform-billing/aging.ts` — pure verouderingslogica met geïnjecteerde klok:
+      `PLATFORM_BILLING_TERM_DAYS` (= `DEFAULT_PAYMENT_TERM_DAYS` = 30), `dueDateFor`,
+      `agingFor(inv, now)` (dagen openstaand + dagen te laat + `overdue`-vlag; alleen SENT
+      veroudert; `overdue` strikt `now > dueAt` dus exact op de termijn = niet te laat),
+      `summarizeAging` (aantal + centen te laat). 13 unit-tests incl. grensgeval op de termijn.
+- [x] `billing-data.ts` — `issuedAt` toegevoegd aan `BillingInvoiceRow` + select.
+- [x] `/admin/facturatie/page.tsx` — statusfilter-tabs (Alle/Concept/Verzonden/Betaald/Geannuleerd)
+      via `?status=`-searchParam met telling per status (server-side filter, `aria-current`),
+      StatCard "Te lang open" (aantal + bedrag verlopen termijn, tone warning), per VERZONDEN-factuur
+      een "Betaaltermijn verlopen · n d"-badge of rustige "n dagen open"-tekst, plus een lege staat
+      wanneer het filter niets oplevert. Bestaande genereer-/PDF-/statusknoppen ongewijzigd.
+
+Gates groen: typecheck ✓, lint ✓, test 1816 ✓ (+13), prettier ✓, build ✓. E2e overgeslagen
+(routine zonder browser-channel, net als CI).
+
+---
+
+## feat(inzicht): maandelijkse omzet-/uitgaventrend per rol — branch `claude/dazzling-carson-v9Qwk` (Linear ZZP2-189)
+
+De pure omzetreeks (`monthlyRevenue`/`monthDeltaPct` in `revenue.ts`) én de `Sparkline`-component
+bestonden al getest, maar werden nergens gerenderd — een dode capaciteit. `/inzicht` toonde alleen
+statische KPI-tegels, geen trend over tijd.
+
+- [x] `src/lib/revenue-trend.ts` — pure `buildRevenueTrend(rows, now, months)` (delegeert naar
+      `monthlyRevenue`/`monthDeltaPct`) + drie rol-/tenant-gescopete DB-fetchers
+      (`getFreelancerRevenueTrend` / `getClientRevenueTrend` / `getTenantRevenueTrend`):
+      gefactureerde facturen (`issuedAt != null`, niet `CANCELLED`) per maand, gespiegeld op de
+      ownership-filters van `*-stats.ts` (issuer/counterparty/tenant; platform-fee uitgesloten).
+      8 unit-tests (groepering, jaargrens, delta, lege staat).
+- [x] `src/components/insight/revenue-trend-card.tsx` — presentationele server-component: huidig
+      maandbedrag, delta-badge (▲/▼ t.o.v. vorige maand), `Sparkline`, 6-maands strip + empty-state.
+- [x] `src/app/(protected)/inzicht/page.tsx` — kaart ingehaakt voor FREELANCER (omzet), CLIENT
+      (uitgaven) en FRANCHISER (franchise-omzet), direct onder de verdiensten/uitgaven/omzet-sectie.
+
+Server-side waarheid, integer-centen, omzet volgt de factuurdatum (consistent met de administratie).
+Gates groen: typecheck ✓, lint ✓, test 1803 ✓, build ✓, prettier ✓ (e2e n.v.t. — geen browserkanaal).
+Commit `2cea08e`.
+
+---
+
+## feat(opdrachten): matchredenen op de opdracht-kaart — branch `claude/dazzling-carson-v9Qwk` (Linear ZZP2-188)
+
+PLAN-WERELDKLASSE Fase 2 "Matchredenen zichtbaar maken op kaarten (ook de minpunten —
+uitlegbaarheid als feature)". De ZZP'er zag op `/opdrachten` alleen een "Match X%"-badge; de
+`reasons` die de matchmotor al berekent werden weggegooid.
+
+- [x] `src/lib/matching.ts` — `topGapReason(reasons)` naast `topPositiveReason`: het zwaarst
+      wegende minpunt (eerste gap), `null` als er geen is. Puur. 2 unit-tests in `matching.test.ts`.
+- [x] `src/app/(protected)/opdrachten/(index)/page.tsx` — per opdracht het volledige
+      `scoreJobForFreelancer`-resultaat (score + troef + minpunt); onder de metadata-regel een
+      regel met de zwaarst wegende troef (groen, check) en het zwaarst wegende minpunt (gedempt,
+      minus). Geen extra query — alles uit de bestaande matchberekening.
+
+Gates groen: typecheck ✓, lint ✓, test 1795 ✓ (+2), build ✓, prettier ✓, check:env ✓.
+(E2e overgeslagen — routine-omgeving heeft geen browserkanaal.)
+
+> Noot: deze run startte op een tariefinzicht-increment, maar bij de overlap-check bleek dat al
+> gebouwd op deze branch (ZZP2-184, `lib/market-rate.ts` + marktband op profiel/bewerken). Om
+> duplicaat te vermijden is dat verworpen en is dit matchredenen-increment gekozen.
+
+---
+
+## feat(flexpool): poule van bewezen ZZP'ers — branch `claude/dazzling-carson-v9Qwk` (ZZP2-187)
+
+PLAN-WERELDKLASSE Fase 3 "Flexpool/favorieten" (slice 1). Een opdrachtgever houdt een poule van
+bewezen ZZP'ers bij ("eerst eigen mensen"); de poule toont beschikbaren eerst.
+
+- [x] Schema: `FavoriteFreelancer` (company → freelancerProfile, optionele privé-notitie, uniek per
+      paar, cascade-delete) + relaties op `Company`/`FreelancerProfile`. `prisma db push` + generate.
+- [x] `lib/favorites.ts` — pure `favoriteNoteSchema` (Zod, max 500) + `sortFavorites` (beschikbaren
+      eerst via vaste ordening, dan recentst toegevoegd; muteert niet). 6 unit-tests.
+- [x] `favorieten/actions.ts` — `addFavorite`/`removeFavorite`/`saveFavoriteNote`: keten auth → rol
+      CLIENT → ownership (eigen bedrijf) → Zod → actie → audit; idempotent (bestaanscheck +
+      `deleteMany`); revalidatePath op /favorieten + /zzp/[id].
+- [x] `/favorieten` (Flexpool): overzicht met beschikbaarheid-badge, tarief, notitie, profiel-link,
+      verwijderen achter `ConfirmButton`; loading.tsx + twee empty-states (geen bedrijf / lege poule).
+      `take: 100` (vangrail groen).
+- [x] `FavoriteButton` (client, optimistisch) op het publieke ZZP-profiel — alleen voor een
+      opdrachtgever die een ander profiel bekijkt; `ProfileScreen` bepaalt de favoriet-stand
+      server-side. Navitem "Flexpool" onder Werk (CLIENT).
+- [x] Audit-labels FAVORITE_ADDED/REMOVED/NOTE_SAVED. Idempotente demo-seed: 3 favorieten voor
+      Zorgcentrum Jansen (SEED_DEMO).
+
+Gate groen: typecheck ✓, lint ✓, test 1793 ✓, build ✓, prettier --check . ✓. (E2e niet gedraaid —
+routine-omgeving heeft geen browser-channel, zie CLAUDE.md.) Commit `c59f8d7`.
+Vervolgslice (apart): nieuwe diensten eerst naar de pool routeren.
+
+---
+
+## refactor(parse-languages): dedup naar gedeelde lib (audit L3) — branch `claude/dazzling-carson-v9Qwk` (ZZP2-186)
+
+De helper `parseLanguages(raw)` stond 6× gekopieerd met inconsistente signatuur (5× `string[]`,
+1× komma-gevoegde `string`). Audit-L3-rest uit CURRENT_TASK.md. Nu één bron van waarheid.
+
+- [x] `src/lib/parse-languages.ts` — `parseLanguages(raw): string[]` (defensief parsen van de
+      JSON-array-string) + `parseLanguagesText(raw): string` (komma-gevoegd voor drawer-velden).
+- [x] 7 unit-tests (`parse-languages.test.ts`): null/leeg, geldige array, ongeldige JSON,
+      niet-array JSON, niet-string-elementen, tekst-variant.
+- [x] 6 callsites omgezet naar imports; lokale duplicaten verwijderd
+      (`profile-screen.tsx`, `pending-tasks.ts`, `roster-dossier.ts`, `dashboard/page.tsx`,
+      `profiel/bewerken/page.tsx`, `drawer-data.ts` → `parseLanguagesText`). Nul gedragswijziging.
+- [x] Vangrail-allowlist regelnummers bijgewerkt (`unbounded-queries.test.ts`: dashboard → 168,
+      profiel/bewerken → 27/28 na het verwijderen van de lokale functies, op de rebase-stand).
+
+Gates groen: typecheck ✓, lint ✓, test ✓, build ✓, prettier --check . ✓. (E2e niet
+gedraaid — routine-omgeving heeft geen browser-channel, zie CLAUDE.md.)
+
+---
+
+## feat(kandidaten): bulk-triage reacties (branch `claude/dazzling-carson-v9Qwk`) — Linear ZZP2-185
+
+Opdrachtgever kan op `/kandidaten` reacties in batches triëren i.p.v. één voor één.
+
+- [x] `lib/applications.ts` — pure `planBulkApplicationTransition(items, to)` op de bestaande
+      `APPLICATION_TRANSITIONS`-map → `{ eligible, skipped }`. Server-side waarheid; +4 unit-tests
+      (`applications.test.ts`, totaal 10 in dat bestand).
+- [x] `kandidaten/actions.ts` — `bulkChangeApplicationStatus(_prev, formData)`: auth → rol CLIENT →
+      ownership (alleen eigen opdrachten via where-clause) → Zod-doelstatus (alleen
+      VIEWED/SHORTLIST/REJECTED; ACCEPTED blijft een bewuste losse actie) → overgangscheck →
+      atomair `$transaction` (status-update + audit `APPLICATION_STATUS_CHANGED` + notificatie bij
+      afwijzen). Reacties gekoppeld aan een samenwerking worden overgeslagen; resultaatmelding
+      "n bijgewerkt, m overgeslagen".
+- [x] `kandidaten/bulk-triage-bar.tsx` (client) — sticky balk; checkboxes gekoppeld via het HTML
+      `form=`-attribuut aan een aparte bulk-form (geen geneste forms), telling via document-wide
+      change-listener, statuskeuze + `window.confirm` bij afwijzen, feedback via `FormStatus`.
+- [x] `kandidaten/page.tsx` — checkbox per kaart (alleen als niet aan een samenwerking gekoppeld),
+      `<BulkTriageBar />`, `pb-24` zodat de vaste balk de laatste kaart niet bedekt.
+- [x] `unbounded-queries.test.ts` — allowlist: page.tsx-regel verschoven (48→49) + nieuwe
+      bulk-query (begrensd door `id: { in: ids }`).
+
+Gates groen: typecheck ✓, lint ✓, test 1751 ✓, build ✓, prettier ✓ (e2e niet in deze omgeving —
+geen browser-channel).
+
+---
+
+## feat(tarief): "jouw tarief vs. de markt" — geanonimiseerde marktband (branch `claude/dazzling-carson-v9Qwk`, Linear ZZP2-184)
+
+Differentiator uit `docs/PLAN-WERELDKLASSE.md` Fase 3: de ZZP'er stelt zijn uurtarief in
+mét marktreferentie, geanonimiseerd en server-side berekend.
+
+- [x] `src/lib/market-rate.ts` — pure, deterministische motor: `median`, `percentile`
+      (lineaire interpolatie, muteert input niet) en `computeMarketRate`. Functie-band
+      (gedeelde industrie) met platform-brede fallback; positie van het eigen tarief
+      t.o.v. p25–p75 (below/within/above/unknown). Anonimiseringsdrempel
+      `MARKET_RATE_MIN_SAMPLE` (=3) — onder de drempel geen band (geen herleidbaarheid);
+      eigen tarief uitgesloten uit de peer-set. 26 unit-tests.
+- [x] `src/lib/config.ts` — `MARKET_RATE_MIN_SAMPLE` + `MARKET_RATE_SAMPLE_CAP` (=5000,
+      harde geheugengrens op de peer-query; band is expliciet indicatief).
+- [x] `src/components/profile/market-rate-card.tsx` — server-component (Vakwerk, mono-cijfers):
+      mediaan groot, middenmoot p25–p75, scope-label (Vergelijkbare functies / Platformbreed),
+      positiebadge + uitleg, eigen tarief, disclaimer; rustige empty-state onder de drempel.
+- [x] `/profiel/bewerken` — peer-query (gedeelde industrie + platform-fallback, `take` gecapt,
+      alleen `hourlyRate`), kaart tussen compleetheid en formulier. Allowlist-regels
+      (skills/branches) bijgewerkt na lijnverschuiving.
+
+Gates groen: typecheck ✓, lint ✓, test 1772 ✓, build ✓, prettier ✓. (E2e overgeslagen —
+routine-omgeving zonder browser-channel, net als CI.)
+
+---
+
+## fix(vindbaarheid): geschorste ZZP'er niet meer vindbaar voor opdrachtgevers (ZZP2-183)
+
+Correctie-gat: een geschorst account (`User.status = SUSPENDED`) wordt al server-side geweigerd bij
+login (`auth.ts`) en bij elke mutatie (`authz.ts`), maar de opdrachtgever-gerichte vind-oppervlakken
+filterden alleen op `visibility: "PUBLIC"` — niet op accountstatus. Daardoor bleef een ZZP'er die net
+is uitgeschreven (no-show-flow) of geanonimiseerd (status óók SUSPENDED) gewoon in zoek/suggesties/
+contact opduiken. `job-alerts-task.ts` deed het al wél goed. Dit ondergroef de no-show-handhaving.
+
+- [x] `src/lib/freelancer-visibility.ts` — gedeeld where-fragment `discoverableFreelancerWhere`
+      (`{ visibility: "PUBLIC", user: { status: "ACTIVE" } }`). Bewust een leaf-module zonder
+      server-only imports (db/auth/next-headers), zodat `freelancer-search.ts` — dat in de
+      client-graph van `freelancer-browse.tsx` zit — niet de auth-keten meebundelt. + 3 unit-tests.
+- [x] Toegepast op de drie opdrachtgever-oppervlakken: `getAllPublicFreelancers` (/freelancers),
+      `suggestedFreelancersForJob` (opdracht-suggesties), `startConversationWithFreelancer`
+      (berichten — extra `user.status === "ACTIVE"`-guard naast de PUBLIC-check).
+- [x] Geanonimiseerde accounts lekten al niet (anonimisering zet ook `visibility: PRIVATE`); de
+      status-filter dekt dat nu netjes dubbel af.
+
+Gates groen: typecheck ✓, lint ✓, test 1749 ✓, build ✓, prettier ✓. (E2e overgeslagen — routine-
+omgeving heeft geen browser-channel.)
+
+---
+
 ## feat(no-show): registratie + admin-beoordeling + uitschrijf-wachtrij (branch `feat/no-show-registratie`) — punt 6 deel 2 (sluit punt 6 af)
 
 Productbesluit eigenaar (12-6): melder registreert no-show met reden → ZZP'er direct

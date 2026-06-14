@@ -154,9 +154,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 
 4. [x] **T7 — Prisma-config-migratie**: `package.json#prisma` → `prisma.config.ts`
        (`defineConfig`, dotenv expliciet, meegekopieerd in de Docker-image).
-       Resterend uit M3: **L3/L4** (post-guard `!`-asserts; gedupliceerde `parseLanguages`)
-       alleen meenemen als je toch in die bestanden zit; **T6 (e2e blocking) — overslaan**
-       tot de suite stabiel-groen is.
+       Resterend uit M3: **L4** (post-guard `!`-asserts) alleen meenemen als je toch in die
+       bestanden zit; **L3 — afgerond** (ZZP2-186: `parseLanguages` 6× gededupliceerd naar
+       `src/lib/parse-languages.ts` + `parseLanguagesText`, 7 tests); **T6 (e2e blocking) —
+       overslaan** tot de suite stabiel-groen is.
 
 > **NIET nu doen (auditadvies):** Prisma 7 / Next 16 / Tailwind 4 majors (opt-in, geen pre-launch-
 > payoff, regressierisico); CSP-nonce-pipeline (`'unsafe-inline'` gedocumenteerd acceptabel pre-prod,
@@ -165,7 +166,29 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 
 ---
 
+**PLAN-WERELDKLASSE Fase 2 — voortgang:** **Weekrooster als kalenderstrip (ZZP2-194, commit
+`7f71870`)** af — `week-strip.ts` `buildWeekStrip` + `WeekStripView` op de dashboard-zone "Wat loopt
+er nu" (ma–zo dienstblokken i.p.v. platte badges). Matchredenen op kaarten: **opdracht-kaart
+(ZZP2-188) én kandidaten-kaart af** (de kandidaten-kaart toont al de volledige troef/minpunt-redenen
+in "Waarom deze match?"). **Terminologie-ADR (ZZP2-195) af** — canoniek begrippenkader in
+`docs/decisions/0008-terminologie-ia.md` + `src/lib/terminology.ts` (`TERM`/`TERM_PLURAL`/`term()`),
+`nav.ts` gewired (gedragsbehoudend) met vangrail-test tegen drift; overloads Opdracht↔Dienst en
+Reactie↔Kandidaat opgelost. Open in Fase 2: lege-/laad-/fouttoestanden naar Vakwerk-stijl.
+
+**PLAN-WERELDKLASSE Fase 3 — voortgang (`docs/PLAN-WERELDKLASSE.md`):** Tariefinzicht (ZZP2-184),
+portable vertrouwensdossier (#313), **Flexpool/favorieten slice 1 (ZZP2-187, commit `c59f8d7`)** én
+**Flexpool slice 2 (ZZP2-192) — nieuwe dienst eerst naar de pool routeren ("eerst eigen mensen"):
+`pool-routing.ts` `planPoolInvites` + wiring in `changeJobStatus` bij de eerste publicatie + eigenaar-
+noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). Open Fase 3: **Rooster-marktplaats**
+(diensten per kalender publiceren/claimen).
+
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
+
+> Gedaan (niet opnieuw): **Matchredenen op de opdracht-kaart** (`/opdrachten`, Linear ZZP2-188) —
+> troef (`topPositiveReason`) én minpunt (`topGapReason`) onder elke kaart; uitlegbaarheid uit de
+> bestaande matchmotor, geen extra query. Sluit een deel van `docs/PLAN-WERELDKLASSE.md` Fase 2
+> "Matchredenen zichtbaar maken op kaarten" af (kandidaten-kaart blijft open).
+> NB: tariefinzicht (Fase 3) was op deze branch al gebouwd (ZZP2-184, `lib/market-rate.ts`).
 
 0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`.
    **VOLLEDIG GEBORGEN (12-6-2026):** afronden-rem, CSV-injectie-hardening, rol-fallback
@@ -180,7 +203,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
-> Reeds gedaan (niet opnieuw): aanmaningsladder/dunning-escalatie (DUNNING_STAGES in config,
+> Reeds gedaan (niet opnieuw): geschorste/geanonimiseerde ZZP'er niet meer vindbaar voor
+> opdrachtgevers (ZZP2-183: gedeeld `discoverableFreelancerWhere` = PUBLIC + ACTIVE op /freelancers,
+> opdracht-suggesties en "gesprek starten" — sluit het no-show-handhavingsgat),
+> aanmaningsladder/dunning-escalatie (DUNNING_STAGES in config,
 > currentDunningStage + escalations in payment-reminders.ts, admin-escalatie in de runner,
 > niveau-label op factuurdetail — Linear ZZP2-35), print/PDF-factuurknop + A4-afdruk-styling,
 > MailSender-abstractie,
@@ -199,7 +225,26 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 > NotificationPreference-model, gating in de 4 reminder-taakrunners — ZZP2-41),
 > herplaatsing bij uitval (ZZP2-158: geannuleerde actieve inzet heropent de dienst + ReplacementPanel met
 > vervangers op de samenwerking-detailpagina; replacement.ts + test — sluit de COMPETITORS.md ronde-2
-> BOUWEN-backlog volledig af).
+> BOUWEN-backlog volledig af),
+> tariefinzicht "jouw tarief vs. de markt" (ZZP2-184: lib/market-rate.ts geanonimiseerde mediaan + p25/p75
+> per functie met platform-fallback + anonimiseringsdrempel, MarketRateCard op /profiel/bewerken — sluit
+> PLAN-WERELDKLASSE Fase 3 "Tariefinzicht" af),
+> kandidaten-bulk-triage (ZZP2-185: shortlist/bekeken/afwijzen voor meerdere reacties tegelijk op
+> /kandidaten — planBulkApplicationTransition + bulkChangeApplicationStatus + sticky bulk-balk),
+> omzet-/uitgaventrend op /inzicht (ZZP2-189: revenue-trend.ts buildRevenueTrend + rol-/tenant-fetchers,
+> RevenueTrendCard met sparkline + delta-badge + 6-maands strip; sluit de eerder ongebruikte
+> monthlyRevenue/Sparkline-capaciteit aan op echte data, per rol — FREELANCER/CLIENT/FRANCHISER),
+> facturatiecockpit statusfilter + verouderingssignaal (ZZP2-190: `/admin/facturatie` filter-tabs per
+> status + "Te lang open"-KPI + per-factuur veroudering, afgeleid uit issuedAt; pure
+> `platform-billing/aging.ts` + 13 tests; geen schemawijziging).
+> leverbetrouwbaarheid-signaal ZZP'er (ZZP2-191: `collaboration-quality.ts` — first-time-right %
+> (goedgekeurd zonder eerdere afkeuring), gecorrigeerde prestaties, gem. goedkeuringstijd
+> `submittedAt`→`approvedAt`, toon-oordeel met min-steekproef 3; sectie "Leverbetrouwbaarheid" op
+> /inzicht voor de FREELANCER; read-only, server-side, geen schemawijziging; 19 unit-tests).
+> track record per ZZP'er op /freelancers (`freelancer-track-record.ts` — pure `trackRecordHighlights`
+> met betekenis-drempels: afgeronde samenwerkingen ≥ 1 + gewerkte uren round ≥ 8; server-berekend in
+> `freelancer-search.ts` via bulk-queries, getoond op de browse-kaart; spiegelt het betaalgedrag-signaal
+> de andere kant op; geen subjectieve beoordelingen; 8 unit-tests; geen schemawijziging).
 
 ### Gap-analyse (Fase 0)
 

@@ -28,8 +28,10 @@ import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { franchiserNextActions, type NextAction, type NextActionTone } from "@/lib/next-actions";
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
+import { buildWeekStrip } from "@/lib/week-strip";
+import { WeekStripView } from "@/components/dashboard/week-strip";
 import { RUNNING_ZONE_LIMIT, runningZonePlan } from "@/lib/running-zone";
-import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
+import { parseWeekdays } from "@/lib/weekdays";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
@@ -42,6 +44,7 @@ import { ComplianceBadge } from "@/components/compliance-badge";
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { EngageabilityExplanation } from "@/components/engageability-explanation";
 import { plural } from "@/lib/plural";
+import { parseLanguages } from "@/lib/parse-languages";
 
 export const metadata: Metadata = { title: "Dashboard · ZZP Platform" };
 
@@ -137,17 +140,6 @@ function initials(name: string | null): string {
   const first = parts[0]?.[0] ?? "";
   const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
   return (first + last).toUpperCase() || "?";
-}
-
-// Mirror van profiel/page.tsx: talen staan als JSON-array-string opgeslagen.
-function parseLanguages(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.map(String) : [];
-  } catch {
-    return [];
-  }
 }
 
 async function dashboardData(role: UserRole, userId: string): Promise<DashboardData> {
@@ -551,13 +543,6 @@ const NO_RUNNING: Record<UserRole, { text: string; cta?: { label: string; href: 
   },
 };
 
-const TIMING_LABEL: Record<string, string> = {
-  ongoing: "Loopt",
-  "starts-this-week": "Start deze week",
-  "ends-this-week": "Eindigt deze week",
-  "starts-and-ends": "Deze week",
-};
-
 function RunningCard({ collab }: { collab: RunningCollab }) {
   const { stage } = collab;
   const pct = Math.round((stage.step / stage.totalSteps) * 100);
@@ -775,6 +760,7 @@ export default async function DashboardPage() {
   const drawerData = await loadDrawerData(actor, tasks);
 
   const hasRunning = running.length > 0;
+  const weekStrip = week ? buildWeekStrip(week) : null;
   const headerLead =
     tasks.length === 0
       ? hasRunning
@@ -861,20 +847,7 @@ export default async function DashboardPage() {
             Alle samenwerkingen
           </Link>
         </div>
-        {week && (
-          <ul className="flex flex-wrap gap-2">
-            {week.entries.map((e) => {
-              const rooster = e.weekdays?.length ? formatWeekdays(e.weekdays) : null;
-              return (
-                <li key={e.collaborationId}>
-                  <Badge variant="muted" className="block max-w-[18rem] truncate">
-                    {e.clientName} · {rooster ?? TIMING_LABEL[e.timing] ?? "Loopt"}
-                  </Badge>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        {weekStrip?.hasAny && <WeekStripView strip={weekStrip} />}
         {hasRunning ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {running.map((c) => (

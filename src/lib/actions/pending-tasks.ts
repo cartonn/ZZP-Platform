@@ -15,6 +15,7 @@ import { type CredentialType } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { overdueInvoiceCount } from "@/lib/signals";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
+import { parseLanguages } from "@/lib/parse-languages";
 import {
   rankTasks,
   contractSignTask,
@@ -46,16 +47,6 @@ import {
 /** Harde bovengrens per kind (voorkomt N+1/zware lijsten op /acties); "+N meer" buiten beschouwing. */
 const MAX = 50;
 const EXPIRY_WINDOW_MS = 30 * 86_400_000;
-
-function parseLanguages(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.map(String) : [];
-  } catch {
-    return [];
-  }
-}
 
 /** Gesprekken met een onbeantwoord bericht van de andere partij (zelfde logica als signals). */
 interface UnreadConversation {

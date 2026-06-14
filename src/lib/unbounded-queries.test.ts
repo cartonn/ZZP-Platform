@@ -24,7 +24,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Dit is een aggregatie-query voor een widget (geen lijst-view); typisch < 10 items.
   {
     file: "(protected)/dashboard/page.tsx",
-    line: 178,
+    line: 170,
     reason: "dashboard-widget aggregatie; eigenaar-scoped, inherent begrensd",
   },
 
@@ -331,12 +331,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills en branches voor profielbewerking; kleine referentielijsten.
   {
     file: "(protected)/profiel/actions.ts",
-    line: 61,
+    line: 59,
     reason: "skills-referentielijst voor profielformulier",
   },
   {
     file: "(protected)/profiel/actions.ts",
-    line: 62,
+    line: 60,
     reason: "branches-referentielijst voor profielformulier",
   },
 
@@ -344,12 +344,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills en branches voor profielweergave; kleine referentielijsten.
   {
     file: "(protected)/profiel/bewerken/page.tsx",
-    line: 33,
+    line: 27,
     reason: "skills-referentielijst voor profielpagina",
   },
   {
     file: "(protected)/profiel/bewerken/page.tsx",
-    line: 34,
+    line: 28,
     reason: "branches-referentielijst voor profielpagina",
   },
 
@@ -357,8 +357,15 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills voor het aanmaakformulier.
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 71,
+    line: 72,
     reason: "skills-referentielijst voor formulier",
+  },
+  // Flexpool-leden van het eigen bedrijf bij de eerste publicatie (poule is per bedrijf
+  // curated en klein; slice-1-overzicht toont er max. 100).
+  {
+    file: "(protected)/opdrachten/actions.ts",
+    line: 250,
+    reason: "eigen flexpool-leden bij eerste publicatie (per bedrijf begrensd)",
   },
 
   // --- opdrachten/nieuw/page.tsx (twee findMany's) ---
@@ -447,8 +454,16 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Kandidaten (freelancers) voor een opdrachtgever; gefilterd en beperkt door matching.
   {
     file: "(protected)/kandidaten/page.tsx",
-    line: 48,
+    line: 49,
     reason: "kandidaten-matching; volume beperkt door filter",
+  },
+
+  // --- kandidaten/actions.ts ---
+  // Bulk-triage: geladen set is begrensd door de geselecteerde appId's (id: { in: ids }).
+  {
+    file: "(protected)/kandidaten/actions.ts",
+    line: 143,
+    reason: "bulk-triage; begrensd door geselecteerde ids (id in ids)",
   },
 
   // --- berichten/actions.ts ---

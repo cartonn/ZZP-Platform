@@ -60,16 +60,16 @@ model User {
 
   passwordResetTokens PasswordResetToken[]
 
-  supportTickets    SupportTicket[]    @relation("SupportRequester")
-  assignedTickets   SupportTicket[]    @relation("SupportAssignee")
-  supportMessages   SupportMessage[]   @relation("SupportMessageAuthor")
-  taxFilingRequests TaxFilingRequest[] @relation("TaxFilingRequester")
-  ideas             Idea[]             @relation("IdeaAuthor")
-  ideaVotes         IdeaVote[]         @relation("IdeaVoter")
-  ideaComments      IdeaComment[]      @relation("IdeaCommentAuthor")
-  leadContacts      LeadContact[]      @relation("LeadContactAuthor")
-  authoredCourses   Course[]           @relation("CourseAuthor")
-  lessonCompletions LessonCompletion[] @relation("LessonCompleter")
+  supportTickets          SupportTicket[]          @relation("SupportRequester")
+  assignedTickets         SupportTicket[]          @relation("SupportAssignee")
+  supportMessages         SupportMessage[]         @relation("SupportMessageAuthor")
+  taxFilingRequests       TaxFilingRequest[]       @relation("TaxFilingRequester")
+  ideas                   Idea[]                   @relation("IdeaAuthor")
+  ideaVotes               IdeaVote[]               @relation("IdeaVoter")
+  ideaComments            IdeaComment[]            @relation("IdeaCommentAuthor")
+  leadContacts            LeadContact[]            @relation("LeadContactAuthor")
+  authoredCourses         Course[]                 @relation("CourseAuthor")
+  lessonCompletions       LessonCompletion[]       @relation("LessonCompleter")
   notificationPreferences NotificationPreference[]
 
   @@index([role])
@@ -344,6 +344,7 @@ model FreelancerProfile {
   collaborations      Collaboration[]
   availabilityWindows AvailabilityWindow[]
   noShowReports       NoShowReport[]
+  favoritedBy         FavoriteFreelancer[]
 
   @@index([tenantId])
 }
@@ -376,12 +377,13 @@ model Company {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  industry       Industry?       @relation(fields: [industryId], references: [id])
-  tenant         Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  industry       Industry?            @relation(fields: [industryId], references: [id])
+  tenant         Tenant?              @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   jobs           Job[]
   collaborations Collaboration[]
   departments    Department[]
+  favorites      FavoriteFreelancer[]
 
   @@index([tenantId])
 }
@@ -649,13 +651,13 @@ model VerificationRequest {
 // ---------------------------------------------------------------------------
 
 model Collaboration {
-  id             String    @id @default(cuid())
+  id             String @id @default(cuid())
   jobId          String
-  applicationId  String    @unique
+  applicationId  String @unique
   freelancerId   String
   companyId      String
-  status         String    @default("PROPOSED") // CollaborationStatus: PROPOSED | ACTIVE | COMPLETED | CANCELLED
-  contractStatus String    @default("DRAFT") //    ContractStatus: DRAFT | SENT | SIGNED
+  status         String @default("PROPOSED") // CollaborationStatus: PROPOSED | ACTIVE | COMPLETED | CANCELLED
+  contractStatus String @default("DRAFT") //    ContractStatus: DRAFT | SENT | SIGNED
   rate           Int? //                              uurtarief-snapshot in EURO (niet centen); null = geen vast tarief
 
   // Modelovereenkomst (Wet DBA): welk type van toepassing is + het digitale akkoord per partij.
@@ -663,13 +665,13 @@ model Collaboration {
   agreementType               String? //   ModelAgreementType; null = nog niet vastgelegd (valt terug op aanbeveling)
   agreementFreelancerSignedAt DateTime? // digitaal akkoord ZZP'er op de modelovereenkomst
   agreementClientSignedAt     DateTime? // digitaal akkoord opdrachtgever op de modelovereenkomst
-  ortProfile     String? // OrtSector: DEFAULT | VVT | GGZ | GHZ | JEUGD — bepaalt ORT-toeslagen (zorg)
-  ortCustomRates String? // JSON Record<OrtCategory, bps> — maatwerk per klant, overschrijft het sectorprofiel
-  startDate      DateTime?
-  endDate        DateTime?
-  weekdays       String? // ADR-0004: JSON-array van Weekday ["MON","WED","FRI"]; null = niet vastgelegd
-  disputedAt     DateTime? // dispuut open → cascade bevroren tot opgelost (§4 zijpad)
-  disputeReason  String?
+  ortProfile                  String? // OrtSector: DEFAULT | VVT | GGZ | GHZ | JEUGD — bepaalt ORT-toeslagen (zorg)
+  ortCustomRates              String? // JSON Record<OrtCategory, bps> — maatwerk per klant, overschrijft het sectorprofiel
+  startDate                   DateTime?
+  endDate                     DateTime?
+  weekdays                    String? // ADR-0004: JSON-array van Weekday ["MON","WED","FRI"]; null = niet vastgelegd
+  disputedAt                  DateTime? // dispuut open → cascade bevroren tot opgelost (§4 zijpad)
+  disputeReason               String?
 
   // Annulering (symmetrisch geregistreerd, productbesluit 12-6-2026): reden verplicht voor beide
   // partijen; chargeable = server-side snapshot van de 7-dagen-regel op het annuleermoment
@@ -679,13 +681,13 @@ model Collaboration {
   cancellationReason     String?
   cancellationChargeable Boolean   @default(false)
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  application  Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  freelancer   FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
-  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  job           Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  freelancer    FreelancerProfile @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  company       Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices      Invoice[]
   performances  Performance[]
   fee           CollaborationFee?
@@ -847,14 +849,14 @@ model InvoiceLine {
 }
 
 model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  type      String //   NotificationType (string)
-  title     String
-  body      String?
-  link      String?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  userId     String
+  type       String //   NotificationType (string)
+  title      String
+  body       String?
+  link       String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
   // Wanneer deze notificatie is meegenomen in een e-maildigest (e-mail-fallback voor wie de app
   // een tijd niet opent). Voortgangsmarkering zoals Credential.expiryReminderFor: null = nog niet
   // gedigest; voorkomt dubbele digest-mails zonder aparte tabel.
@@ -1209,6 +1211,24 @@ model Lesson {
   completions LessonCompletion[]
 
   @@index([courseId, order])
+}
+
+// Flexpool/favorieten: een opdrachtgever houdt een poule van bewezen ZZP'ers bij ("eerst eigen
+// mensen"). Eén rij per (bedrijf, ZZP-profiel); optionele interne notitie. Cascade-delete zodat de
+// poule schoon blijft als een bedrijf of profiel verdwijnt.
+model FavoriteFreelancer {
+  id                  String   @id @default(cuid())
+  companyId           String
+  freelancerProfileId String
+  note                String? //  interne notitie van de opdrachtgever (privé)
+  createdAt           DateTime @default(now())
+
+  company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  freelancer FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, freelancerProfileId])
+  @@index([companyId])
+  @@index([freelancerProfileId])
 }
 
 model LessonCompletion {

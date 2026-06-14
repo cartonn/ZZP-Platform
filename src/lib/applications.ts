@@ -34,3 +34,29 @@ export function canApply(maxApplications: number, currentCount: number): boolean
   if (maxApplications < 0) return true;
   return currentCount < maxApplications;
 }
+
+export type BulkTransitionItem = { id: string; from: ApplicationStatus };
+export type BulkTransitionPlan = {
+  /** ids whose `from -> to` is an allowed transition */
+  eligible: string[];
+  /** ids skipped because the transition is not allowed (incl. no-op from===to) */
+  skipped: string[];
+};
+
+/** Pure: split a selection into the ids that may transition to `to` and those that may not.
+ *  Server-side truth — the UI never decides eligibility. */
+export function planBulkApplicationTransition(
+  items: BulkTransitionItem[],
+  to: ApplicationStatus,
+): BulkTransitionPlan {
+  const eligible: string[] = [];
+  const skipped: string[] = [];
+  for (const item of items) {
+    if (canTransitionApplication(item.from, to)) {
+      eligible.push(item.id);
+    } else {
+      skipped.push(item.id);
+    }
+  }
+  return { eligible, skipped };
+}

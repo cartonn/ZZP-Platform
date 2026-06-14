@@ -2,12 +2,13 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { MapPin, Search, Calendar, Euro } from "lucide-react";
+import { MapPin, Search, Calendar, Euro, CircleCheck, Clock } from "lucide-react";
 import {
   applyFreelancerFilters,
   type FreelancerCard,
   type FreelancerSearchFilters,
 } from "@/lib/freelancer-search";
+import { trackRecordHighlights } from "@/lib/freelancer-track-record";
 import type { TrustLevel } from "@/lib/trust";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -172,6 +173,27 @@ function FreelancerCardItem({ card: f }: { card: FreelancerCard }) {
           </span>
         )}
       </div>
+
+      {/* Track record */}
+      {(() => {
+        const highlights = trackRecordHighlights(f.trackRecord);
+        if (highlights.length === 0) return null;
+        return (
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {highlights.map((h) => (
+              <span key={h.label} className="flex items-center gap-1">
+                {h.label === "uur gewerkt" ? (
+                  <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                ) : (
+                  <CircleCheck className="h-3 w-3 shrink-0 text-success" aria-hidden />
+                )}
+                <span className="font-mono font-medium text-foreground">{h.value}</span>
+                <span>{h.label}</span>
+              </span>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Skills */}
       {f.skillLabels.length > 0 && (

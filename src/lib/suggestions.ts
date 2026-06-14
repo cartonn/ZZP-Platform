@@ -11,6 +11,7 @@ import { scoreJobForFreelancer, type ComplianceStatus } from "@/lib/matching";
 import { getSemanticMatcher, safeRelatedness } from "@/lib/services/semantic-matcher";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
+import { discoverableFreelancerWhere } from "@/lib/freelancer-visibility";
 
 export interface FreelancerSuggestion {
   freelancerId: string;
@@ -148,7 +149,7 @@ export async function suggestedFreelancersForJob(
   // opdrachtgever krijgt ZZP'ers van een ándere franchise gesuggereerd én kan ze benaderen — is
   // overal elders gesloten (visibleFreelancersWhere kent geen overflow; /zzp/[id] geeft cross-tenant
   // 404). Dus altijd op de eigen tenant van de dienst scopen, anders lekt cross-tenant PII.
-  const profileScope = { visibility: "PUBLIC" as const, tenantId: job.tenantId };
+  const profileScope = { ...discoverableFreelancerWhere, tenantId: job.tenantId };
   const profiles = await prisma.freelancerProfile.findMany({
     where: profileScope,
     orderBy: { updatedAt: "desc" },

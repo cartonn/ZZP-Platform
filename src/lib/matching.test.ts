@@ -4,6 +4,7 @@ import {
   computeMatchScore,
   liveComplianceStatus,
   topPositiveReason,
+  topGapReason,
   MATCH_COMPONENT_MAX,
   type FreelancerCredential,
   type MatchInput,
@@ -426,5 +427,22 @@ describe("topPositiveReason", () => {
   it("geeft null zonder positieve reden", () => {
     expect(topPositiveReason([{ kind: "gap", label: "Mist vereist certificaat" }])).toBeNull();
     expect(topPositiveReason([])).toBeNull();
+  });
+});
+
+describe("topGapReason", () => {
+  it("geeft het eerste minpunt (zwaarst wegende gap)", () => {
+    expect(
+      topGapReason([
+        { kind: "positive", label: "Voldoet aan de certificaateisen" },
+        { kind: "gap", label: "Mist 1 van 3 vereiste skills" },
+        { kind: "gap", label: "Tarief ligt boven het budget" },
+      ]),
+    ).toBe("Mist 1 van 3 vereiste skills");
+  });
+
+  it("geeft null zonder minpunt", () => {
+    expect(topGapReason([{ kind: "positive", label: "Tarief past binnen het budget" }])).toBeNull();
+    expect(topGapReason([])).toBeNull();
   });
 });

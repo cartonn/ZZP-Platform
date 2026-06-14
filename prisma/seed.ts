@@ -1290,6 +1290,30 @@ async function main() {
     });
   }
 
+  // Flexpool-demo: de primaire opdrachtgever (Zorgcentrum Jansen) houdt een poule van bewezen
+  // ZZP'ers bij. Idempotent via de unieke (companyId, freelancerProfileId)-index.
+  const poolCompanyId = companyIdByKey["jansen"];
+  if (poolCompanyId) {
+    const poolProfiles = await prisma.freelancerProfile.findMany({
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+      take: 3,
+    });
+    const poolNotes = [
+      "Vaste kracht — flexibel inzetbaar.",
+      "Sterke beoordelingen, snel beschikbaar.",
+    ];
+    for (const [i, p] of poolProfiles.entries()) {
+      await prisma.favoriteFreelancer.upsert({
+        where: {
+          companyId_freelancerProfileId: { companyId: poolCompanyId, freelancerProfileId: p.id },
+        },
+        update: {},
+        create: { companyId: poolCompanyId, freelancerProfileId: p.id, note: poolNotes[i] ?? null },
+      });
+    }
+  }
+
   console.log("Seed klaar. Demo-accounts (wachtwoord: %s):", DEMO_PASSWORD);
   console.log("  admin@zzp-platform.local          (ADMIN)");
   console.log("  zzp@zzp-platform.local            (FREELANCER — Sanne)");
