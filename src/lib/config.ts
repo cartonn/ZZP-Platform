@@ -164,7 +164,11 @@ export const RECHTSVERMOEDEN_DREMPEL_CENTS = 3800; // €38 in centen
 // --- Marktband (tarief vs. markt) — anonimiseringsdrempel -------------------
 // Minimaal dit aantal peer-tarieven vereist voordat we een marktband tonen.
 // Voorkomt dat een ZZP'er het tarief van één collega kan herleiden.
-export const MARKET_RATE_MIN_SAMPLE = 3;
+// k-anonimiteitsvloer = 10 (security-review 14-6-2026): bij een kleine steekproef zijn de
+// individuele tarieven uit p25/mediaan/p75 te herleiden — uurtarief is persoonlijke financiële
+// data (AVG). Bij < 10 peers wordt de band niet getoond (scope "none"). Drempel = mensenwerk/
+// AVG-keuze; bevestig de waarde vóór livegang met echte gebruikers.
+export const MARKET_RATE_MIN_SAMPLE = 10;
 // Bovengrens op het aantal peer-tarieven dat we per band ophalen: een ruime
 // steekproef voor een representatieve mediaan/spreiding mét harde geheugengrens.
 export const MARKET_RATE_SAMPLE_CAP = 5000;

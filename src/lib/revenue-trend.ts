@@ -19,6 +19,15 @@ export interface RevenueTrend {
   hasData: boolean;
 }
 
+/**
+ * Eerste dag (UTC) van de vroegste maand die `monthlyRevenue` toont — de DB-vloer voor de fetchers,
+ * zodat we niet de volledige factuurhistorie ophalen om er daarna alles buiten het venster uit te
+ * gooien. `monthlyRevenue` bucket per kalendermaand `months-1` terug t.o.v. `now`.
+ */
+function revenueWindowStart(now: Date, months: number): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
+}
+
 /** Pure aggregator: bouwt een RevenueTrend op uit een rij RevenueSource-waarden. */
 export function buildRevenueTrend(rows: RevenueSource[], now: Date, months = 6): RevenueTrend {
   const series = monthlyRevenue(rows, now, months);
@@ -41,7 +50,7 @@ export async function getFreelancerRevenueTrend(
   const invoices = await prisma.invoice.findMany({
     where: {
       issuerUserId: userId,
-      issuedAt: { not: null },
+      issuedAt: { gte: revenueWindowStart(now, months) },
       status: { not: "CANCELLED" },
     },
     select: { issuedAt: true, totalCents: true },
@@ -67,7 +76,7 @@ export async function getClientRevenueTrend(
   const invoices = await prisma.invoice.findMany({
     where: {
       counterpartyUserId: userId,
-      issuedAt: { not: null },
+      issuedAt: { gte: revenueWindowStart(now, months) },
       status: { not: "CANCELLED" },
     },
     select: { issuedAt: true, totalCents: true },
@@ -97,7 +106,7 @@ export async function getTenantRevenueTrend(
 
   const invoices = await prisma.invoice.findMany({
     where: {
-      issuedAt: { not: null },
+      issuedAt: { gte: revenueWindowStart(now, months) },
       status: { not: "CANCELLED" },
       issuerUserId: { not: null },
       collaboration: { job: { tenantId } },

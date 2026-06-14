@@ -51,7 +51,9 @@ function activeOnDay(
   weekEnd: Date,
 ): boolean {
   const start = entry.startDate ? utcMidnight(entry.startDate) : weekStart.getTime();
-  const end = entry.endDate ? entry.endDate.getTime() : weekEnd.getTime();
+  // Symmetrisch met `start` op UTC-middernacht klemmen: een einddatum met een tijdcomponent vóór
+  // middernacht zou de dag anders ten onrechte buiten het venster laten vallen.
+  const end = entry.endDate ? utcMidnight(entry.endDate) : weekEnd.getTime();
   return dayMs >= start && dayMs <= end;
 }
 

@@ -108,6 +108,9 @@ export async function getAllPublicFreelancers(
           select: { hours: true },
         },
       },
+      // Profielen zijn al begrensd (≤ 300), maar elk kan veel samenwerkingen hebben — harde cap
+      // tegen onbegrensde groei van de uren-aggregatie.
+      take: 2000,
     }),
   ]);
 

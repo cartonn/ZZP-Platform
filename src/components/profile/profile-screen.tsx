@@ -123,7 +123,7 @@ export async function ProfileScreen({
   const profile = await prisma.freelancerProfile.findUnique({
     where: { id },
     include: {
-      user: { select: { name: true, identityVerifiedAt: true } },
+      user: { select: { name: true, identityVerifiedAt: true, status: true } },
       skills: { include: { skill: { select: { name: true } } } },
       industries: { include: { industry: { select: { name: true } } } },
       credentials: {
@@ -157,6 +157,17 @@ export async function ProfileScreen({
 
   const viewer = await currentActor();
   if (!profileVisibleTo(viewer, profile.userId, profile.visibility as Visibility)) {
+    notFound();
+  }
+  // Accountstatus is óók server-side waarheid: een geschorst/geanonimiseerd account (na herhaalde
+  // ongegronde no-shows of AVG-anonimisering) mag niet meer bereikbaar zijn via de directe profiel-
+  // URL. Alleen de eigenaar en een ADMIN mogen het dan nog inzien. Spiegelt discoverableFreelancerWhere
+  // (zoek/suggesties/gesprek-starten), dat de accountstatus al uitsluit.
+  if (
+    profile.user.status !== "ACTIVE" &&
+    viewer?.id !== profile.userId &&
+    viewer?.role !== "ADMIN"
+  ) {
     notFound();
   }
   // Gesloten per tenant: een aan een franchise gebonden ZZP-profiel mag niet publiek (of cross-tenant)

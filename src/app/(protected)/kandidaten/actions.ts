@@ -124,7 +124,12 @@ export async function bulkChangeApplicationStatus(
   // Only these three statuses are allowed for bulk triage.
   // ACCEPTED stays a deliberate single action (leads to a collaboration proposal).
   // NEW is not a valid bulk target either.
-  const target = applicationStatusSchema.parse(formData.get("target"));
+  // safeParse: een ongeldige/ontbrekende waarde geeft een nette melding i.p.v. een 500.
+  const parsedTarget = applicationStatusSchema.safeParse(formData.get("target"));
+  if (!parsedTarget.success) {
+    return { error: "Deze bulkactie wordt niet ondersteund." };
+  }
+  const target = parsedTarget.data;
   if (target !== "VIEWED" && target !== "SHORTLIST" && target !== "REJECTED") {
     return { error: "Deze bulkactie wordt niet ondersteund." };
   }

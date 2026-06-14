@@ -100,6 +100,9 @@ export async function getDeliveryQuality(userId: string): Promise<DeliveryQualit
     prisma.performance.findMany({
       where: { collaboration: { freelancerId: profile.id }, status: "APPROVED" },
       select: { submittedAt: true, approvedAt: true, rejectedAt: true },
+      // Ruime cap: het leverbetrouwbaarheid-signaal is een aggregaat; een drukke ZZP'er mag
+      // de server-memory niet onbegrensd belasten (geen take = potentieel duizenden rijen).
+      take: 1000,
     }),
   ]);
 

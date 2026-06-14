@@ -52,7 +52,9 @@ export default async function FlexpoolPage() {
   }
 
   const rows = await prisma.favoriteFreelancer.findMany({
-    where: { companyId: company.id },
+    // Geen geschorste/geanonimiseerde ZZP'ers in de poule-weergave: server-side waarheid, consistent
+    // met discoverableFreelancerWhere (zoek/suggesties) en planPoolInvites (uitnodigingen).
+    where: { companyId: company.id, freelancer: { user: { status: "ACTIVE" } } },
     take: 100,
     select: {
       freelancerProfileId: true,
