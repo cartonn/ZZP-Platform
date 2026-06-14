@@ -1,0 +1,87 @@
+name: Auto-PR voor claude/* branches
+
+# Waarom deze workflow bestaat (zie CLAUDE.md 3a + PROGRESS): de Claude-Code-on-the-web routine
+# ("ZZP auto-build") commit haar nachtwerk naar een sessie-branch `claude/<naam>`, maar opent niet
+# altijd zelf een PR. Daardoor bleef werk hangen op bv. `claude/dazzling-carson-v9Qwk` zonder ooit
+# op `main` te landen ("een run zonder PR is een mislukte run"). Deze workflow opent automatisch een
+# PR naar `main` zodra er naar zo'n branch wordt gepusht, zodat routine-werk altijd via de poort
+# richting main gaat in plaats van op de sessie-branch te blijven staan.
+#
+# Wat het NIET doet: mergen. De PR doorloopt de normale poort (ci.yml + security.yml draaien op de
+# push; pr-review.yml en de mens/orchestrator beoordelen en mergen). Auto-merge van ongereviewd
+# routine-werk is bewust uitgesloten — eerdere oogst bevatte AVG-/privacy-blockers (PR #360).
+#
+# Idempotent: bestaat er al een open PR voor de branch, dan gebeurt er niets.
+#
+# VEREISTE (eenmalig, mensenwerk): repo-instelling Settings → Actions → General →
+# "Allow GitHub Actions to create and approve pull requests" moet AAN staan.
+
+on:
+  push:
+    branches:
+      - "claude/**"
+  # Handmatig draaien voor een al-gepushte branch (bv. de bestaande claude/dazzling-carson-v9Qwk).
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch om een PR voor te openen (bv. claude/dazzling-carson-v9Qwk)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: auto-pr-${{ github.event.inputs.branch || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Open PR naar main (idempotent)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
+          echo "Branch: $BRANCH"
+
+          git fetch origin main --quiet
+
+          # Niets te doen als de branch geen commits vóór heeft op main.
+          AHEAD="$(git rev-list --count origin/main..HEAD)"
+          if [ "$AHEAD" = "0" ]; then
+            echo "Geen commits voor op main — geen PR nodig."
+            exit 0
+          fi
+
+          # Idempotent: bestaat er al een open PR voor deze branch?
+          EXISTING="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$EXISTING" ]; then
+            echo "Open PR #$EXISTING bestaat al voor $BRANCH — niets te doen."
+            exit 0
+          fi
+
+          TITLE="routine: $(git log -1 --format=%s | cut -c1-90)"
+          gh pr create --base main --head "$BRANCH" --title "$TITLE" --body "$(cat <<'BODY'
+          ## Automatisch geopend (auto-pr-claude.yml)
+
+          De routine pushte werk naar deze `claude/*`-sessie-branch zonder zelf een PR te openen.
+          Deze PR brengt dat werk naar de poort richting `main` (zie CLAUDE.md 3a).
+
+          **Poort:** `ci.yml` + `security.yml` draaien op de push naar de branch. Laat `pr-review.yml`
+          (reviewer + security-agents) draaien en **review het werk adversarieel vóór merge** —
+          routine-werk is niet automatisch veilig (eerdere oogst had AVG-/privacy-blockers).
+
+          Deze workflow **merget niet**; dat blijft een bewuste beslissing na de groene poort.
+          BODY
+          )"
+          echo "PR geopend voor $BRANCH."
