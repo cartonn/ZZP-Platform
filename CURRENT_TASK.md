@@ -241,6 +241,10 @@ noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). Open Fase 3: **
 > (goedgekeurd zonder eerdere afkeuring), gecorrigeerde prestaties, gem. goedkeuringstijd
 > `submittedAt`→`approvedAt`, toon-oordeel met min-steekproef 3; sectie "Leverbetrouwbaarheid" op
 > /inzicht voor de FREELANCER; read-only, server-side, geen schemawijziging; 19 unit-tests).
+> track record per ZZP'er op /freelancers (`freelancer-track-record.ts` — pure `trackRecordHighlights`
+> met betekenis-drempels: afgeronde samenwerkingen ≥ 1 + gewerkte uren round ≥ 8; server-berekend in
+> `freelancer-search.ts` via bulk-queries, getoond op de browse-kaart; spiegelt het betaalgedrag-signaal
+> de andere kant op; geen subjectieve beoordelingen; 8 unit-tests; geen schemawijziging).
 
 ### Gap-analyse (Fase 0)
 
