@@ -128,3 +128,66 @@ Herstel: `git fetch origin <sha>` + `git branch <naam> <sha>` (sha's blijven ~2 
 - `claude/epic-lovelace-xijqet` → `859754553128f4117425b947a448a7c1dd57b72d` — docs(backlog): record ZZP2-145 money-cascade fix in CURRENT_TASK
 - `claude/epic-lovelace-zIsbd` → `51b20bd56f9bca0df8026148039e6d14cdb09257` — docs(progress): log franchise opdrachtgever/afdeling-bewerken (ZZP2-103)
 - `claude/modest-babbage-08jYa` → `3fdc0ea803fe7d11fb224c8942431755c1a2ccbe` — docs(qa): target the live deployment instead of localhost
+
+# Branch-sanering 14-6-2026 — bergingskandidaten verwijderd (berging voltooid)
+
+De 50 "bewaard"-branches uit de sanering van 11-6 zijn op 12-6 volledig geborgen (zie
+CURRENT_TASK.md backlog-item 0: AVG-register #334, KvK/BTW #335, beschikbaarheidsconflicten #336,
+CLIENT-dashboard #337, iCal #338, dispuut-triage #339, inkomstenprognose, afronden-rem, CSV-hardening,
+rol-fallback). De resterende `claude/epic-lovelace-*`-branches zijn daarom verwijderd; SHA's hieronder
+voor herstel (`git fetch origin <sha>:refs/heads/<naam>`).
+
+> **Uitzondering — geparkeerd, niet geborgen:** "Tweezijdige beoordelingen" (productbesluit eigenaar)
+> leeft alleen op `-h9Dfw`, `-hLFwd`, `-Ym6ng`. SHA's bewaard; bij doorgang opnieuw bouwen op actuele main.
+
+## Verwijderde branches + sha's
+
+- `claude/epic-lovelace-0jOnC` → `b114332494c4d9e13e4c74a5c674f33b804c853e` — docs: log KvK-/BTW-validatie increment (ZZP2-127)
+- `claude/epic-lovelace-4iqM6` → `773fbfed94d2474444386d7211fc123bd5bf9fea` — feat(franchise): samenvattingsstrip + statusfilter + CSV-exp
+- `claude/epic-lovelace-5yaa5i` → `52b4b459e443e76c24f2c226b0b594348eb74f6d` — feat(franchise): CSV-export voor leads-pijplijn en ZZP'er-ro
+- `claude/epic-lovelace-6me9m` → `535c8d96e68bc497274d07c2ae3aafe6114716f3` — docs: agenda-feed (iCal) in PROGRESS + backlog (ZZP2-70)
+- `claude/epic-lovelace-6pVih` → `6c6a73645286950fc6b4c8ff106bb5bfd8480192` — docs: franchise-overzicht increment (ZZP2-119) in PROGRESS +
+- `claude/epic-lovelace-7iIIb` → `db71be2649f4f459df6cde8741b4aec88b18f001` — feat(leveranciers): geconsolideerd ZZP-/leveranciersoverzich
+- `claude/epic-lovelace-7wDjk` → `e0ab1825689ec9547347d09df7b178bdfd715dc9` — feat(prognose): inkomstenprognose voor de ZZP'er — verwachte
+- `claude/epic-lovelace-8Qdyf` → `b5296a3c7a97b523282379f12dcc1bb936cb30ab` — docs: franchise-statistieken in PROGRESS + backlog; ruim con
+- `claude/epic-lovelace-8bgwcz` → `64b1ce3f57e6e18428d2285f2116bb19584b2474` — fix(correctheid): iteratie-6 sweep — numeriek, tijd/tijdzone
+- `claude/epic-lovelace-Bdq78` → `ae6c3c1ea7ba4ef2ee9d4454296859d9dbf528c6` — docs: franchise dienst-detail increment + franchise-backlog;
+- `claude/epic-lovelace-DdPcB` → `9494e5812fa611fa85bb140568bb439d25fd31ae` — docs: lead-CSV-import (ZZP2-121) in PROGRESS + CURRENT_TASK
+- `claude/epic-lovelace-DsBvj` → `c853a2dfa5dc942ac4d8f0bf9c9193f1b9da8b70` — feat(academie): behaalde cursussen als zichtbaar trust-signa
+- `claude/epic-lovelace-Gdrji` → `77077203b669cb6b71b834193bc5d66109d905d4` — docs: log franchise-statistieken + verwijs actief epic ADR-0
+- `claude/epic-lovelace-H3Sf4` → `dccb16f4adbcb9c41d2414e20ec4c79e4419251c` — docs: noteer ideeënbox-duplicaatpreventie (ZZP2-105)
+- `claude/epic-lovelace-I3Gvj` → `5ee774e37306da77a1f54cfcc5bdde72b9b5b342` — docs: log franchise dienst-detailpagina (ZZP2-99)
+- `claude/epic-lovelace-J4fj9` → `2da9f0c1606e72e2c97b93bfa7544e535c945f68` — feat(avg): verwerkingsregister + bewaartermijnen-overzicht (
+- `claude/epic-lovelace-Laagg` → `e6a821a957153d44c5595e2eda8a894654beb5a4` — feat(dashboard): opdrachtgever-zone 'wat kan ik oppakken' —
+- `claude/epic-lovelace-MLp7A` → `399e0d195c7b39de2fe6f8e460a95c8e4a6e1689` — docs: factuurexport CSV per gebruiker bijgewerkt in PROGRESS
+- `claude/epic-lovelace-NBs0D` → `f7e327c1bf0aaa45299b78b08d793a947c49e2db` — docs: helpdesk-loop-increment + opruiming merge-markers (ZZP
+- `claude/epic-lovelace-PKJLj` → `e1142fbbb84e2042c93b62a37543f4ed2d502020` — docs: PROGRESS + backlog bijgewerkt (AVG-register /admin/avg
+- `claude/epic-lovelace-SJmv0` → `8b4cb8df1b182eb2ccdace62574084bc70d28fc1` — feat(admin): dispuut-triage op /admin/disputen (leeftijd + u
+- `claude/epic-lovelace-St0dP` → `958dd3bff106d1872470cac04b07ed99b30e8237` — docs: log franchise-samenwerkingen filter/export increment (
+- `claude/epic-lovelace-U4nJm` → `c8dddb537b51bb5a230f269396ee6f1be4494a59` — feat(franchise): Inc 6 — tenant-signalen (actie-items + nav-
+- `claude/epic-lovelace-UV5P7` → `5f6da91f4ce48182c58eb93f0ad0fefc8304222f` — feat(calendar): exporteer samenwerkingen naar agenda (.ics)
+- `claude/epic-lovelace-Vv26O` → `6f2ab2c80274b3381e250fd222ae9ab839868da5` — feat(agenda): iCal (.ics) export of collaborations + availab
+- `claude/epic-lovelace-Ym6ng` → `fcc5ddfa90bbdfbf5a9b993d7660c746e4f052b5` — docs: log tweezijdige beoordelingen (ZZP2-106) + ruim confli
+- `claude/epic-lovelace-aDZkD` → `ed3784e41e388902c080821e61b6fbaf5a3bb83a` — docs: log admin operationele-gezondheidsstrip (ZZP2-78)
+- `claude/epic-lovelace-bwYao` → `597c3b866b42d890bd5d70d9de1439927df7d183` — docs: log ideeënbox admin-triage-signaal (ZZP2-104)
+- `claude/epic-lovelace-cp9sl` → `c92c82451b3d5c6f386e50aaf9e425f09001968d` — feat(mail): e-mailkanaal voor dispuut- en samenwerking-event
+- `claude/epic-lovelace-creEd` → `9f53ee3524540bf99b55c2daa08739148049c021` — docs: franchise roster-matching increment (ZZP2-97) in PROGR
+- `claude/epic-lovelace-dB4UI` → `4c964cba55f2556fb029b4dba3853364f8ea8341` — docs: log franchise samenwerking-detail (ZZP2-111) + ruim st
+- `claude/epic-lovelace-ehh6vy` → `c54760ed0df48b4364a9747b7678897e47c5ca05` — docs: record herplaatsing-bij-uitval increment + mark COMPET
+- `claude/epic-lovelace-gCZVD` → `d651479e6fc7a2d7ab21a0114da4eea324ec4c9f` — docs: PROGRESS + backlog na CSV formule-injectie hardening (
+- `claude/epic-lovelace-h9Dfw` → `5272a110ee6101a833db94bfb723cb5ae6d3ec9b` — docs: werk PROGRESS + backlog bij (tweezijdige beoordelingen
+- `claude/epic-lovelace-hLFwd` → `4a11cf83b90baa1b341891a6db671e6e6b1c72cc` — docs: log two-sided reviews increment; clean stray conflict
+- `claude/epic-lovelace-khY5v` → `b17039f4d01df50b59a25c6c8e57f98b414ea98b` — feat(dashboard): admin Platform-gezondheid-zone (kerncijfers
+- `claude/epic-lovelace-nW7RF` → `05cdbef1251252af210d54b8ba9b2af422b78f43` — docs: noteer franchise samenwerking-detail in backlog (ZZP2-
+- `claude/epic-lovelace-nrzrs0` → `c5fa05ddd89daf602dabdce9774f0568242d7d6a` — docs: WORKSPACE_OVERHAUL Fase 3 (CLIENT-dashboard) afgerond
+- `claude/epic-lovelace-q8l8W` → `84f8ef745b046c7523c9567473e48e6cc9571ce6` — feat(dashboard): opdrachtgever-zone "Wat kan ik oppakken" (m
+- `claude/epic-lovelace-snivze` → `6f01fb7b1f8d5595cef122e0b88fe71722106109` — docs: log franchise pijplijn-overzicht + actualiseer workspa
+- `claude/epic-lovelace-szz2a3` → `b704fb0cfb74facebda53555909d5ad0e1d1d6f8` — fix(boekhouding): rol-fallback voor ADMIN/FRANCHISER i.p.v.
+- `claude/epic-lovelace-t3oe7h` → `09e01d0d1e58aeb23533c736f39e08554397bd5d` — feat(samenwerkingen): afronden-rem — geen COMPLETED met open
+- `claude/epic-lovelace-tgl3E` → `d74fe372ac6045c6517971a3bb0d79d0dd855998` — docs: WORKSPACE_OVERHAUL Fase 4 afgerond (admin-health-zone)
+- `claude/epic-lovelace-tsaQY` → `d0982cbde33ea7fb55bb33302338dadb0001abde` — docs: WORKSPACE_OVERHAUL Fase 4 (admin health-zone) + opruim
+- `claude/epic-lovelace-wqFHF` → `9e3a8ef598ca1d5b0cdd9f41e6e91f2e39f9109b` — docs: verslag franchise omzet-overzicht (ZZP2-98) + backlog
+- `claude/epic-lovelace-wtK4l` → `74fa6d335956c7e1051334218b963712464a29e5` — docs: log beschikbaarheidsconflicten (ZZP2-109) + verwijder
+- `claude/epic-lovelace-z9RBc` → `7bb647bebfc468c8e79b848785d5ebdfec0394d5` — feat(franchise): detailpagina per samenwerking met cascade-f
+- `claude/epic-lovelace-zE27a` → `98af98ed56acd7e041709e60a3781a4dd1c93682` — docs: track franchise-werkstroom + roster-compliance in CURR
+- `claude/epic-lovelace-zg2s6n` → `c94351f8d1dc9f920b854878c501d9c1c7e39abf` — docs: agenda-export (.ics) in PROGRESS + CURRENT_TASK; ruim
