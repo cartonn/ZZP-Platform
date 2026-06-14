@@ -28,8 +28,10 @@ import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { franchiserNextActions, type NextAction, type NextActionTone } from "@/lib/next-actions";
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
+import { buildWeekStrip } from "@/lib/week-strip";
+import { WeekStripView } from "@/components/dashboard/week-strip";
 import { RUNNING_ZONE_LIMIT, runningZonePlan } from "@/lib/running-zone";
-import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
+import { parseWeekdays } from "@/lib/weekdays";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
@@ -541,13 +543,6 @@ const NO_RUNNING: Record<UserRole, { text: string; cta?: { label: string; href: 
   },
 };
 
-const TIMING_LABEL: Record<string, string> = {
-  ongoing: "Loopt",
-  "starts-this-week": "Start deze week",
-  "ends-this-week": "Eindigt deze week",
-  "starts-and-ends": "Deze week",
-};
-
 function RunningCard({ collab }: { collab: RunningCollab }) {
   const { stage } = collab;
   const pct = Math.round((stage.step / stage.totalSteps) * 100);
@@ -765,6 +760,7 @@ export default async function DashboardPage() {
   const drawerData = await loadDrawerData(actor, tasks);
 
   const hasRunning = running.length > 0;
+  const weekStrip = week ? buildWeekStrip(week) : null;
   const headerLead =
     tasks.length === 0
       ? hasRunning
@@ -851,20 +847,7 @@ export default async function DashboardPage() {
             Alle samenwerkingen
           </Link>
         </div>
-        {week && (
-          <ul className="flex flex-wrap gap-2">
-            {week.entries.map((e) => {
-              const rooster = e.weekdays?.length ? formatWeekdays(e.weekdays) : null;
-              return (
-                <li key={e.collaborationId}>
-                  <Badge variant="muted" className="block max-w-[18rem] truncate">
-                    {e.clientName} · {rooster ?? TIMING_LABEL[e.timing] ?? "Loopt"}
-                  </Badge>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        {weekStrip?.hasAny && <WeekStripView strip={weekStrip} />}
         {hasRunning ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {running.map((c) => (
