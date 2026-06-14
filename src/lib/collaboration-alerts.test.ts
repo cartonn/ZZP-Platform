@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { assessCollaborationCredentials, describeCredentialAlert } from "./collaboration-alerts";
+import {
+  assessCollaborationCredentials,
+  describeCredentialAlert,
+  summarizeClientCompliance,
+  type ClientCredentialAlert,
+} from "./collaboration-alerts";
 import { type FreelancerCredential } from "./matching";
 
 const now = new Date("2026-05-26T00:00:00Z");
@@ -67,5 +72,112 @@ describe("describeCredentialAlert", () => {
       inReview: [],
     });
     expect(text).toBe("Certificaat van Jan verloopt binnenkort (VOG) — Dakproject");
+  });
+});
+
+describe("summarizeClientCompliance", () => {
+  const makeAlert = (
+    overrides: Partial<ClientCredentialAlert> & { alert: ClientCredentialAlert["alert"] },
+  ): ClientCredentialAlert => ({
+    collaborationId: "collab-1",
+    jobId: "job-1",
+    jobTitle: "Testproject",
+    freelancerName: "Jan",
+    ...overrides,
+  });
+
+  it("geeft alle nullen terug bij een lege invoer", () => {
+    const snap = summarizeClientCompliance([]);
+    expect(snap).toEqual({
+      total: 0,
+      nonCompliant: 0,
+      warning: 0,
+      missing: 0,
+      expired: 0,
+      expiringSoon: 0,
+      inReview: 0,
+    });
+  });
+
+  it("splitst NON_COMPLIANT en WARNING correct over meerdere samenwerkingen", () => {
+    const alerts: ClientCredentialAlert[] = [
+      makeAlert({
+        collaborationId: "c1",
+        alert: {
+          status: "NON_COMPLIANT",
+          missing: ["VOG"],
+          expired: [],
+          expiringSoon: [],
+          inReview: [],
+        },
+      }),
+      makeAlert({
+        collaborationId: "c2",
+        alert: {
+          status: "WARNING",
+          missing: [],
+          expired: [],
+          expiringSoon: ["INSURANCE"],
+          inReview: [],
+        },
+      }),
+      makeAlert({
+        collaborationId: "c3",
+        alert: {
+          status: "NON_COMPLIANT",
+          missing: [],
+          expired: ["DIPLOMA"],
+          expiringSoon: [],
+          inReview: [],
+        },
+      }),
+    ];
+    const snap = summarizeClientCompliance(alerts);
+    expect(snap.total).toBe(3);
+    expect(snap.nonCompliant).toBe(2);
+    expect(snap.warning).toBe(1);
+  });
+
+  it("telt type-aantallen op over meerdere samenwerkingen", () => {
+    const alerts: ClientCredentialAlert[] = [
+      makeAlert({
+        collaborationId: "c1",
+        alert: {
+          status: "NON_COMPLIANT",
+          missing: ["VOG"],
+          expired: [],
+          expiringSoon: [],
+          inReview: [],
+        },
+      }),
+      makeAlert({
+        collaborationId: "c2",
+        alert: {
+          status: "NON_COMPLIANT",
+          missing: ["INSURANCE"],
+          expired: ["DIPLOMA"],
+          expiringSoon: [],
+          inReview: [],
+        },
+      }),
+    ];
+    const snap = summarizeClientCompliance(alerts);
+    expect(snap.missing).toBe(2);
+    expect(snap.expired).toBe(1);
+    expect(snap.expiringSoon).toBe(0);
+    expect(snap.inReview).toBe(0);
+  });
+
+  it("muteert de invoer niet (bevroren array)", () => {
+    const alerts: ClientCredentialAlert[] = [
+      makeAlert({
+        alert: { status: "WARNING", missing: [], expired: [], expiringSoon: [], inReview: ["VOG"] },
+      }),
+    ];
+    const frozen = Object.freeze(alerts);
+    // Mag geen uitzondering gooien; retourwaarde is correct.
+    const snap = summarizeClientCompliance(frozen);
+    expect(snap.total).toBe(1);
+    expect(snap.inReview).toBe(1);
   });
 });

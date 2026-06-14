@@ -3,6 +3,39 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(dashboard): certificaat-compliance-momentopname voor de opdrachtgever (branch `claude/dazzling-carson-v9Qwk`)
+
+De CLIENT-dashboard toonde certificaat-waarschuwingen (ZZP'er mist/verlopen vereist certificaat)
+alleen per-kaart in de "Wat loopt er nu"-zone, die **bewust tot top-6 begrensd** is
+(`running-zone.ts`). Een opdrachtgever met meer lopende samenwerkingen zag compliance-gaten
+buiten die zone dus niet op het dashboard — een echt zicht-gat op de kerndifferentiator
+(certificaat-verificatie). Dit voegt een geaggregeerde momentopname toe over **álle** lopende
+samenwerkingen. Read-only, server-side, deterministisch, geen schemawijziging, geen extra query
+(hergebruikt de al opgehaalde `clientCredentialAlerts`).
+
+- [x] `src/lib/collaboration-alerts.ts` — pure `summarizeClientCompliance(alerts)` →
+      `ClientComplianceSnapshot`: `total` (samenwerkingen met actie), `nonCompliant`/`warning`
+      (status-splitsing) en de type-tellingen `missing`/`expired`/`expiringSoon`/`inReview`
+      gesommeerd over alle meldingen. Geen I/O, muteert de invoer niet.
+- [x] `src/lib/collaboration-alerts.test.ts` — 4 unit-tests (lege invoer → nullen,
+      NON_COMPLIANT/WARNING-splitsing, type-sommatie over meerdere meldingen, non-mutatie op een
+      bevroren array).
+- [x] `src/components/dashboard/compliance-snapshot-card.tsx` — presentationele server-component
+      (geen client-JS): zegel-icoon + uppercase label "Certificaten van je ZZP'ers", mono-telling
+      "N samenwerking(en) vragen aandacht", alleen-niet-nul breakdown-chips, link naar
+      /samenwerkingen. Verbergt zichzelf (`return null`) zodra alles op orde is — rustig dashboard.
+- [x] `dashboard/page.tsx` — CLIENT-tak: volledige meldingslijst gevangen, momentopname berekend en
+      via `complianceSnapshot` op `DashboardData` doorgegeven; kaart gerenderd tussen de
+      "Wat loopt er nu"-zone en de statistiek-grid. Vangrail-allowlist-regelnummer bijgewerkt
+      (170→178 door de uitgebreide import).
+
+Gates groen: typecheck ✓, lint ✓, test 1929 ✓ (+4), build ✓, prettier --check . ✓.
+(E2e niet in de routine — geen browser-channel, zie CLAUDE.md.) Noot: in deze verse container moest
+`npx prisma generate` draaien om de client met het nieuwe `IndirectHoursEntry`-model te synchroniseren
+(anders faalde typecheck op vóór-bestaande `ontzorgd/`-fouten — geen codewijziging nodig).
+
+---
+
 ## feat(ontzorgd): indirecte uren bijhouden voor het urencriterium (branch `claude/dazzling-carson-v9Qwk`)
 
 Het Ontzorgd-dashboard gaf `indirectHours: 0` hard mee aan `buildOntzorgOverview`, terwijl

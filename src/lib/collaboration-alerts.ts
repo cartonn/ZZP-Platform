@@ -91,6 +91,58 @@ export interface ClientCredentialAlert {
   alert: CredentialAlert;
 }
 
+export interface ClientComplianceSnapshot {
+  /** Aantal lopende samenwerkingen met een openstaande certificaat-actie. */
+  total: number;
+  /** Hiervan: er is NU een gat (ontbrekend of verlopen certificaat). */
+  nonCompliant: number;
+  /** Hiervan: handel vóór het vervalt (in beoordeling of verloopt binnenkort). */
+  warning: number;
+  /** Som over alle samenwerkingen van het aantal ontbrekende vereiste certificaten. */
+  missing: number;
+  /** Som van verlopen certificaten. */
+  expired: number;
+  /** Som van binnenkort verlopende certificaten. */
+  expiringSoon: number;
+  /** Som van certificaten in beoordeling. */
+  inReview: number;
+}
+
+/**
+ * Vat de certificaat-meldingen van een opdrachtgever samen tot tellingen voor de
+ * dashboard-momentopname. Pure functie, geen I/O. `total` telt samenwerkingen;
+ * de type-tellingen (missing/expired/...) tellen certificaten over alle samenwerkingen.
+ */
+export function summarizeClientCompliance(
+  alerts: readonly ClientCredentialAlert[],
+): ClientComplianceSnapshot {
+  let nonCompliant = 0;
+  let warning = 0;
+  let missing = 0;
+  let expired = 0;
+  let expiringSoon = 0;
+  let inReview = 0;
+
+  for (const a of alerts) {
+    if (a.alert.status === "NON_COMPLIANT") nonCompliant += 1;
+    else if (a.alert.status === "WARNING") warning += 1;
+    missing += a.alert.missing.length;
+    expired += a.alert.expired.length;
+    expiringSoon += a.alert.expiringSoon.length;
+    inReview += a.alert.inReview.length;
+  }
+
+  return {
+    total: alerts.length,
+    nonCompliant,
+    warning,
+    missing,
+    expired,
+    expiringSoon,
+    inReview,
+  };
+}
+
 /** Lopende samenwerkingen van een opdrachtgever waarvan de certificaat-compliance actie vraagt. */
 export async function clientCredentialAlerts(userId: string): Promise<ClientCredentialAlert[]> {
   const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
