@@ -1,4 +1,5 @@
 import { type UserRole } from "@/lib/enums";
+import { TERM_PLURAL } from "@/lib/terminology";
 
 export type NavIcon =
   | "dashboard"
@@ -40,19 +41,19 @@ export interface NavItem {
 const NAV: Record<UserRole, NavItem[]> = {
   FREELANCER: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
-    { label: "Acties", href: "/acties", icon: "inbox", enabled: true },
+    { label: TERM_PLURAL.action, href: "/acties", icon: "inbox", enabled: true },
     { label: "Inzicht", href: "/inzicht", icon: "barChart", enabled: true },
-    { label: "Opdrachten", href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true },
-    { label: "Mijn reacties", href: "/reacties", icon: "files", section: "Werk", enabled: true },
-    { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
-    { label: "Berichten", href: "/berichten", icon: "messages", section: "Werk", enabled: true },
+    { label: TERM_PLURAL.job, href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true }, // prettier-ignore
+    { label: `Mijn ${TERM_PLURAL.application.toLowerCase()}`, href: "/reacties", icon: "files", section: "Werk", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.collaboration, href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.message, href: "/berichten", icon: "messages", section: "Werk", enabled: true }, // prettier-ignore
     { label: "Mijn profiel", href: "/profiel", icon: "user", section: "Profiel", enabled: true },
-    { label: "Certificaten", href: "/certificaten", icon: "fileCheck", section: "Profiel", enabled: true }, // prettier-ignore
-    { label: "Diensten", href: "/diensten", icon: "clock", section: "Profiel", enabled: true },
+    { label: TERM_PLURAL.credential, href: "/certificaten", icon: "fileCheck", section: "Profiel", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.shift, href: "/diensten", icon: "clock", section: "Profiel", enabled: true }, // prettier-ignore
     { label: "Academie", href: "/academie", icon: "graduationCap", section: "Profiel", enabled: true }, // prettier-ignore
     { label: "Beschikbaarheid", href: "/beschikbaarheid", icon: "calendar", section: "Profiel", enabled: true }, // prettier-ignore
-    { label: "Documenten", href: "/documenten", icon: "files", section: "Profiel", enabled: true },
-    { label: "Facturen", href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.document, href: "/documenten", icon: "files", section: "Profiel", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.invoice, href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Boekhouding", href: "/administratie", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Ontzorgd", href: "/ontzorgd", icon: "barChart", section: "Administratie", enabled: true }, // prettier-ignore
@@ -63,16 +64,16 @@ const NAV: Record<UserRole, NavItem[]> = {
   ],
   CLIENT: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
-    { label: "Acties", href: "/acties", icon: "inbox", enabled: true },
+    { label: TERM_PLURAL.action, href: "/acties", icon: "inbox", enabled: true },
     { label: "Inzicht", href: "/inzicht", icon: "barChart", enabled: true },
-    { label: "Mijn opdrachten", href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true }, // prettier-ignore
+    { label: `Mijn ${TERM_PLURAL.job.toLowerCase()}`, href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true }, // prettier-ignore
     { label: "ZZP'ers", href: "/freelancers", icon: "users", section: "Werk", enabled: true },
     { label: "Flexpool", href: "/favorieten", icon: "contact", section: "Werk", enabled: true },
-    { label: "Kandidaten", href: "/kandidaten", icon: "users", section: "Werk", enabled: true },
-    { label: "Samenwerkingen", href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
-    { label: "Prestaties", href: "/prestaties", icon: "fileCheck", section: "Werk", enabled: true },
-    { label: "Berichten", href: "/berichten", icon: "messages", section: "Werk", enabled: true },
-    { label: "Facturen", href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.candidate, href: "/kandidaten", icon: "users", section: "Werk", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.collaboration, href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.performance, href: "/prestaties", icon: "fileCheck", section: "Werk", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.message, href: "/berichten", icon: "messages", section: "Werk", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.invoice, href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Boekhouding", href: "/administratie", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", section: "Account", enabled: true }, // prettier-ignore
@@ -83,9 +84,9 @@ const NAV: Record<UserRole, NavItem[]> = {
   ],
   ADMIN: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
-    { label: "Acties", href: "/acties", icon: "inbox", enabled: true },
+    { label: TERM_PLURAL.action, href: "/acties", icon: "inbox", enabled: true },
     { label: "Verificaties", href: "/admin/verificaties", icon: "fileCheck", section: "Operatie", enabled: true }, // prettier-ignore
-    { label: "Samenwerkingen", href: "/admin/samenwerkingen", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.collaboration, href: "/admin/samenwerkingen", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Disputen", href: "/admin/disputen", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "No-shows", href: "/admin/no-shows", icon: "users", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Helpdesk", href: "/admin/support", icon: "messages", section: "Operatie", enabled: true }, // prettier-ignore
@@ -111,10 +112,10 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Leads", href: "/franchise/leads", icon: "contact", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Opdrachtgevers", href: "/franchise/opdrachtgevers", icon: "building", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "ZZP'ers", href: "/franchise/zzpers", icon: "users", section: "Franchise", enabled: true }, // prettier-ignore
-    { label: "Diensten", href: "/franchise/diensten", icon: "clock", section: "Franchise", enabled: true }, // prettier-ignore
-    { label: "Samenwerkingen", href: "/franchise/samenwerkingen", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.shift, href: "/franchise/diensten", icon: "clock", section: "Franchise", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.collaboration, href: "/franchise/samenwerkingen", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Inzicht", href: "/inzicht", icon: "barChart", section: "Franchise", enabled: true }, // prettier-ignore
-    { label: "Berichten", href: "/berichten", icon: "messages", section: "Account", enabled: true },
+    { label: TERM_PLURAL.message, href: "/berichten", icon: "messages", section: "Account", enabled: true }, // prettier-ignore
     { label: "Facturatie", href: "/franchise/facturatie", icon: "receipt", section: "Account", enabled: true }, // prettier-ignore
     { label: "Instellingen", href: "/franchise/instellingen", icon: "settings", section: "Account", enabled: true }, // prettier-ignore
     { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Account", enabled: true }, // prettier-ignore

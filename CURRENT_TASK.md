@@ -170,8 +170,10 @@ gemaakt** (DESIGN.md); unit + integratie groen, build groen; docs bij.
 `7f71870`)** af — `week-strip.ts` `buildWeekStrip` + `WeekStripView` op de dashboard-zone "Wat loopt
 er nu" (ma–zo dienstblokken i.p.v. platte badges). Matchredenen op kaarten: **opdracht-kaart
 (ZZP2-188) én kandidaten-kaart af** (de kandidaten-kaart toont al de volledige troef/minpunt-redenen
-in "Waarom deze match?"). Open in Fase 2: terminologie-ADR, lege-/laad-/fouttoestanden naar
-Vakwerk-stijl.
+in "Waarom deze match?"). **Terminologie-ADR (ZZP2-195) af** — canoniek begrippenkader in
+`docs/decisions/0008-terminologie-ia.md` + `src/lib/terminology.ts` (`TERM`/`TERM_PLURAL`/`term()`),
+`nav.ts` gewired (gedragsbehoudend) met vangrail-test tegen drift; overloads Opdracht↔Dienst en
+Reactie↔Kandidaat opgelost. Open in Fase 2: lege-/laad-/fouttoestanden naar Vakwerk-stijl.
 
 **PLAN-WERELDKLASSE Fase 3 — voortgang (`docs/PLAN-WERELDKLASSE.md`):** Tariefinzicht (ZZP2-184),
 portable vertrouwensdossier (#313), **Flexpool/favorieten slice 1 (ZZP2-187, commit `c59f8d7`)** én

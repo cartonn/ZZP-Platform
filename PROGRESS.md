@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(terminologie): canoniek begrippenkader (IA) + ADR (branch `claude/dazzling-carson-v9Qwk`, ZZP2-195)
+
+PLAN-WERELDKLASSE Fase 2 — "Terminologie gladstrijken: één begrippenkader, IA-besluit vastleggen
+als ADR." De UI gebruikte domeinbegrippen niet consistent en twee termen waren overladen.
+
+- [x] **`docs/decisions/0008-terminologie-ia.md`** — ADR met het canonieke glossarium (11 begrippen:
+      enkelvoud/meervoud/route/toelichting) + expliciete oplossing van twee overloads:
+      (1) Opdracht ↔ Dienst (werkvraag/vacature vs. concrete geplande/gewerkte dienst — verschillende
+      begrippen); (2) Reactie ↔ Kandidaat (zelfde `Application`-record, ZZP'er- vs. opdrachtgever-
+      perspectief, bewust behouden).
+- [x] **`src/lib/terminology.ts`** — bron van waarheid: `TERM` / `TERM_PLURAL` (Record per
+      `DomainConcept`) + `term()`-helper. Puur, geen runtime-afhankelijkheid.
+- [x] **`src/lib/nav.ts`** — de kernbegrip-labels (FREELANCER/CLIENT + de gelijke ADMIN/FRANCHISER-
+      items) betrekken nu uit `TERM_PLURAL`; **gedragsbehoudend** (geen getoonde label-string
+      verandert), zodat de begrippen niet meer per scherm kunnen afdrijven.
+- [x] **`src/lib/terminology.test.ts`** — 19 unit-tests: compleetheid, uniciteit, `term()`-gedrag,
+      en een **vangrail** die afdwingt dat 12 live nav-labels gelijk blijven aan het canonieke kader.
+
+Gates groen: typecheck ✓, lint ✓, test 1881 ✓, build ✓, prettier ✓. (e2e niet in routine — geen
+browser-channel, zie CLAUDE.md.)
+
+---
+
 ## feat(dashboard): weekrooster als kalenderstrip (ma–zo) — PLAN-WERELDKLASSE Fase 2 (ZZP2-194, branch `claude/dazzling-carson-v9Qwk`)
 
 De dashboard-zone "Wat loopt er nu" toonde "Deze week" als een platte rij muted-badges. Fase 2 vroeg
