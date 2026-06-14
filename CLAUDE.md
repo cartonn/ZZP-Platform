@@ -26,18 +26,42 @@ werkt volgens dit contract:
    non-fast-forward: rebasen, niet force-pushen. Gebruik subagents (Explore/parallel)
    voor research en onafhankelijk werk; integreer en commit zelf.
    3a. **Branch-discipline (hard — geldt óók voor routines/24/7-runs):**
-   1. Begin élke run met `git fetch origin` en een **verse** feature-branch:
-      `git checkout -b feat/<korte-taaknaam> origin/main`. Hervat nooit een eerdere
-      sessie-/verzamelbranch; bouw nooit op een lokale staat.
+   1. Begin élke run met een **verse, uniek-genoemde** feature-branch vanaf de actuele
+      `origin/main`. Hervat nooit een eerdere sessie-/verzamelbranch; bouw nooit op een
+      lokale of hervatte staat. Draai letterlijk dit als eerste, vóór al het andere werk:
+      ```bash
+      git fetch origin
+      git reset --hard                                  # gooi resume-staat van een hervatte sessie weg
+      git checkout -b "feat/auto-$(date +%Y%m%d-%H%M%S)-$RANDOM" origin/main
+      ```
+      `-b <naam> origin/main` takt rechtstreeks af van main (onafhankelijk van waar HEAD
+      stond). De naam is **collision-proof voor parallelle agents**: seconde-resolutie +
+      `$RANDOM` (bash-builtin, geen externe afhankelijkheid) — twee agents botsen alleen bij
+      exact dezelfde seconde én hetzelfde randomgetal (≈ nul). Gebruik desgewenst een
+      sprekende naam `feat/<taaknaam>-$RANDOM`; het `$RANDOM`-achtervoegsel blijft verplicht.
    2. **Overlap-check vóór je bouwt:** lees `gh pr list --state open`, de laatste ~10
       commits op `origin/main` én de bovenste secties van PROGRESS.md. Is het backlog-item
       al in-flight of gemerged → pak het volgende item.
-   3. **Een run zonder PR is een mislukte run.** Eindig altijd met push + `gh pr create`
-      naar `main` en verifieer de CI-poort (`gh pr checks <nr>`). Werk dat alleen op een
-      branch staat zonder PR, bestaat niet voor het project.
+   3. **Een run zonder PR is een mislukte run.** Eindig altijd met rebase-op-main, push én
+      `gh pr create` naar `main`, en verifieer de CI-poort (`gh pr checks <nr>`):
+      ```bash
+      git fetch origin && git rebase origin/main        # neem werk van parallelle agents mee
+      git push -u origin HEAD
+      gh pr create --base main --title "routine: <korte omschrijving>" --body "<wat + checks>"
+      ```
+      Werk dat alleen op een branch staat zonder PR, bestaat niet voor het project. **Vangnet:**
+      `.github/workflows/auto-pr-claude.yml` opent automatisch een PR naar `main` zodra er naar
+      een `claude/**`-branch wordt gepusht (idempotent) — maar vertrouw daar niet op; lever zelf
+      de PR. (Vereist eenmalig: repo-instelling "Allow GitHub Actions to create and approve
+      pull requests" AAN — staat sinds 14-6-2026.)
    4. Eén klein increment per run (richtlijn 100–300 regels), DoD-gates groen vóór de PR.
       Gemergde branches worden automatisch verwijderd (repo-setting); laat geen
       branches achter.
+   5. **Routine-config (claude.ai/code/routines):** zet het git-blok uit punt 1 + 3 letterlijk
+      bovenaan de routine-prompt — niet alleen hier als beleid. De routine clont weliswaar van
+      de default branch, maar kan een sessie hervatten; alleen de expliciete reset + verse
+      branch in de prompt maakt "vers vanaf main per run" deterministisch (les van 13-14 juni:
+      24 commits gestapeld op één sessie-branch `claude/dazzling-carson-v9Qwk` zonder PR).
 4. **Definition of Done per increment (geen uitzonderingen):** testbare kern + unit-tests →
    UI → `npm run typecheck` + `npm run lint` + `npm run test` + `npm run build` +
    `npx prettier --write .` groen → commit → push → **PR + CI-poort geverifieerd groen
