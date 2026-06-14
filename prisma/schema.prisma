@@ -71,6 +71,7 @@ model User {
   authoredCourses         Course[]                 @relation("CourseAuthor")
   lessonCompletions       LessonCompletion[]       @relation("LessonCompleter")
   notificationPreferences NotificationPreference[]
+  indirectHoursEntries    IndirectHoursEntry[]
 
   @@index([role])
   @@index([status])
@@ -242,6 +243,22 @@ model LeadContact {
   createdBy User? @relation("LeadContactAuthor", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([leadId, createdAt])
+}
+
+// Indirecte uren (acquisitie, administratie, scholing, reistijd) die een ZZP'er zelf invoert.
+// Tellen mee voor het 1.225-uur urencriterium (zelfstandigenaftrek). Categorieën leven in
+// src/lib/tax/indirect-hours.ts (geen db-enum — portabiliteit SQLite/Postgres).
+model IndirectHoursEntry {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workedOn DateTime //  dag waarop de indirecte uren zijn gemaakt
+  hours    Float //     aantal uren (kwartier-precisie toegestaan)
+  category String //    IndirectHourCategory (zie src/lib/tax/indirect-hours.ts)
+  note     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, workedOn])
 }
 
 // Per-categorie voorkeur voor herinnerings-/signaal-e-mails. In-app notificaties blijven altijd

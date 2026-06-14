@@ -57,7 +57,7 @@ export default async function OntzorgdPage() {
   const now = new Date();
   const year = now.getUTCFullYear();
 
-  const [rows, hoursAgg] = await Promise.all([
+  const [rows, hoursAgg, indirectAgg] = await Promise.all([
     prisma.administrationEntry.findMany({ where: { ownerUserId: actor.id } }),
     prisma.performance.aggregate({
       _sum: { hours: true },
@@ -66,6 +66,16 @@ export default async function OntzorgdPage() {
         type: "HOURS",
         collaboration: { freelancer: { userId: actor.id } },
         approvedAt: {
+          gte: new Date(Date.UTC(year, 0, 1)),
+          lte: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
+        },
+      },
+    }),
+    prisma.indirectHoursEntry.aggregate({
+      _sum: { hours: true },
+      where: {
+        userId: actor.id,
+        workedOn: {
           gte: new Date(Date.UTC(year, 0, 1)),
           lte: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
         },
@@ -82,9 +92,10 @@ export default async function OntzorgdPage() {
   }));
 
   const directHours = Math.round(hoursAgg._sum.hours ?? 0);
-  const o = buildOntzorgOverview({ entries, directHours, indirectHours: 0, now });
+  const indirectHoursTotal = Math.round(indirectAgg._sum.hours ?? 0);
+  const o = buildOntzorgOverview({ entries, directHours, indirectHours: indirectHoursTotal, now });
 
-  const hasData = entries.length > 0 || directHours > 0;
+  const hasData = entries.length > 0 || directHours > 0 || indirectHoursTotal > 0;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -196,6 +207,9 @@ export default async function OntzorgdPage() {
                           ? `Op koers (prognose ${o.hours.projectedTotal} uur)`
                           : `Dreigt niet gehaald te worden (prognose ${o.hours.projectedTotal} uur)`}
                     </p>
+                    <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                      Direct {directHours} u · indirect {indirectHoursTotal} u
+                    </p>
                   </div>
                   {!o.hours.met && (
                     <span className="text-sm text-muted-foreground">
@@ -208,6 +222,11 @@ export default async function OntzorgdPage() {
                     className={`h-full rounded-full ${o.hours.met ? "bg-success" : o.hours.projectedMet ? "bg-primary" : "bg-warning"}`}
                     style={{ width: `${Math.min(100, o.hours.progressBps / 100)}%` }}
                   />
+                </div>
+                <div>
+                  <a href="/ontzorgd/uren" className="text-xs text-primary hover:underline">
+                    Indirecte uren bijhouden →
+                  </a>
                 </div>
               </CardContent>
             </Card>

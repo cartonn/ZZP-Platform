@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(ontzorgd): indirecte uren bijhouden voor het urencriterium (branch `claude/dazzling-carson-v9Qwk`)
+
+Het Ontzorgd-dashboard gaf `indirectHours: 0` hard mee aan `buildOntzorgOverview`, terwijl
+`hoursCriterion` indirecte uren (acquisitie/administratie/scholing/reistijd) al ondersteunt voor
+het 1.225-uur urencriterium (zelfstandigenaftrek). De ZZP'er kon ze nergens registreren →
+voortgang telde te laag en de onderbouwing voor de aftrek ontbrak.
+
+- [x] Schema (additief): `IndirectHoursEntry` (userId, workedOn, hours Float, category, note?) +
+      relatie `User.indirectHoursEntries`. Categorie als string (geen db-enum — SQLite/Postgres).
+- [x] `src/lib/tax/indirect-hours.ts` — pure module: `INDIRECT_HOUR_CATEGORIES` + NL-labels,
+      `indirectHoursEntrySchema` (geen toekomstdatum, kwartier-precisie, 0<uren≤24, notitie ≤280),
+      `sumIndirectHours`, `groupIndirectHoursByCategory` (canonieke volgorde, alleen >0). 16 tests.
+- [x] `/ontzorgd/uren` — actions (`addIndirectHours`/`deleteIndirectHours`: auth → rol → entitlement
+      IB_VOORBEREIDING → Zod → schrijven → audit; ownership-check op delete) + page (totaal +
+      subtotalen per categorie, invoerformulier via client-component, lijst met verwijderen,
+      loading-skeleton, empty/lock-states). `findMany` gebonden met `take: 200`.
+- [x] `/ontzorgd` koppelt de jaar-som van indirecte uren door naar `buildOntzorgOverview`, toont
+      "Direct X u · indirect Y u" in de urencriterium-kaart + link "Indirecte uren bijhouden →".
+
+Gates groen: typecheck ✓, lint ✓, test 1762 ✓ (16 nieuw), build ✓, prettier ✓. E2e overgeslagen
+(routine-omgeving zonder browser-channel). Linear-issue niet aangemaakt: workspace zit op de
+free-issue-limiet (mensenwerk: upgrade Linear).
+
 ## feat(freelancers): feitelijk track record per ZZP'er op de browse-kaart (branch `claude/dazzling-carson-v9Qwk`)
 
 Opdrachtgevers zagen op /freelancers wél vertrouwensniveau, tarief, beschikbaarheid en
