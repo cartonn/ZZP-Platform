@@ -210,7 +210,10 @@ noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). Open Fase 3: **
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
-> Reeds gedaan (niet opnieuw): geschorste/geanonimiseerde ZZP'er niet meer vindbaar voor
+> Reeds gedaan (niet opnieuw): indirecte uren voor het urencriterium (/ontzorgd/uren:
+> IndirectHoursEntry-model + lib/tax/indirect-hours.ts + acties/page; /ontzorgd telt nu direct +
+> indirect i.p.v. indirectHours:0 — branch claude/dazzling-carson-v9Qwk),
+> geschorste/geanonimiseerde ZZP'er niet meer vindbaar voor
 > opdrachtgevers (ZZP2-183: gedeeld `discoverableFreelancerWhere` = PUBLIC + ACTIVE op /freelancers,
 > opdracht-suggesties en "gesprek starten" — sluit het no-show-handhavingsgat),
 > aanmaningsladder/dunning-escalatie (DUNNING_STAGES in config,
