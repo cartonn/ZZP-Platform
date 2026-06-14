@@ -3,6 +3,38 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(opdrachten): annuleringsbetrouwbaarheid-signaal van de opdrachtgever (branch `claude/keen-wozniak-jso9v5`)
+
+Spiegelbeeld van het betaalgedrag-signaal (`payment-behavior.ts`): waar dat laat zien hóe een
+opdrachtgever betaalt, laat dit zien hoe betrouwbaar hij zich aan afspraken houdt — hoe vaak hij
+agreed werk annuleert en hoe vaak last-minute (de chargeable 7-dagen-snapshot). De ZZP'er ziet het
+naast het betaalgedrag-blok op de opdracht-detailpagina, vóór hij reageert. Read-only, server-side,
+deterministisch, **geen schemawijziging** (afgeleid uit de bestaande annuleringssnapshot-velden op
+`Collaboration`).
+
+- [x] `src/lib/client-reliability.ts` — pure `computeClientReliability(rows)`: teller = door de
+      opdrachtgever zelf gestarte annuleringen (`byClient && cancelledAt`), noemer = afgeronde
+      samenwerkingen + die eigen annuleringen; annuleringen door de ZZP'er tellen niet mee (teller
+      noch noemer). `cancelRate`, `lastMinute` (chargeable-subset), toon
+      good/neutral/warning/unknown met `MIN_SAMPLE_SIZE = 3` en drempel `> 25%` of een last-minute
+      → warning. Geen I/O, muteert de invoer niet.
+- [x] `src/lib/client-reliability.test.ts` — 11 unit-tests (steekproefgrens, ZZP'er-annuleringen
+      genegeerd, percentage-berekening, alle toon-grenzen, non-mutatie).
+- [x] `src/lib/data/client-reliability.ts` — `getClientReliabilityForCompany(companyId)`: laatste 50
+      afgewikkelde (COMPLETED/CANCELLED) samenwerkingen per bedrijf + `company.userId` voor de
+      `byClient`-attributie (chargeable = definitioneel opdrachtgever, anders `cancelledById ===
+  ownerUserId`). Alleen geaggregeerde statistieken — geen individuele data zichtbaar.
+- [x] `src/components/jobs/client-reliability-block.tsx` — compact blok (kalender-icoon, toon-badge),
+      "geen enkele afspraak geannuleerd"-tekst bij 0, anders percentage + evt. last-minute-telling;
+      `unknown`-empty-state. Spiegelt het betaalgedrag-blok visueel.
+- [x] `opdrachten/[id]/page.tsx` — beide client-signalen samen opgehaald (`Promise.all`, alleen voor
+      een niet-eigenaar FREELANCER) en het blok gerenderd direct ná `PaymentBehaviorBlock`.
+
+Gates groen: typecheck ✓, lint ✓, test 1954 ✓ (+11), build ✓, prettier --write . ✓. (E2e niet in de
+routine — geen browser-channel, zie CLAUDE.md; CI draait e2e wél.)
+
+---
+
 ## feat(rooster): discovery-kalender van open diensten — Rooster-marktplaats slice 1 (branch `claude/dazzling-carson-v9Qwk`)
 
 PLAN-WERELDKLASSE Fase 3 "Rooster-marktplaats: diensten per kalender publiceren/claimen". Slice 1 =
