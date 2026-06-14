@@ -5,6 +5,7 @@ import { requireRole, assertOwnership, AuthorizationError } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { computeFreelancerCompleteness } from "@/lib/profile";
+import { serializeLanguages, splitLanguagesInput } from "@/lib/parse-languages";
 import { freelancerProfileSchema } from "@/lib/validation";
 
 export type ProfileState =
@@ -27,10 +28,7 @@ export async function updateFreelancerProfile(
   if (!profile) return { error: "Profiel niet gevonden." };
   assertOwnership(actor, profile.userId);
 
-  const languages = String(formData.get("languages") ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const languages = splitLanguagesInput(String(formData.get("languages") ?? ""));
 
   const parsed = freelancerProfileSchema.safeParse({
     headline: formData.get("headline") || undefined,
@@ -86,7 +84,7 @@ export async function updateFreelancerProfile(
         availability: data.availability,
         workMode: data.workMode,
         maxTravelMinutes: data.maxTravelMinutes ?? null,
-        languages: data.languages.length ? JSON.stringify(data.languages) : null,
+        languages: serializeLanguages(data.languages),
         kvkNumber: data.kvkNumber ?? null,
         btwNumber: data.btwNumber ?? null,
         visibility: data.visibility,

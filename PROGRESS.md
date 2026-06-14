@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## refactor(profiel): talen-write-kant naar de gedeelde helper (branch `claude/dazzling-carson-v9Qwk`)
+
+Sluitstuk op de eerdere `parseLanguages`-deduplicatie (audit L3, commit 49f5628): die consolideerde
+alleen de LEES-kant. De SCHRIJF-kant in `profiel/actions.ts` had nog een eigen komma-split én
+`JSON.stringify(...)` — dezelfde (de)serialisatielogica los gekopieerd.
+
+- [x] `src/lib/parse-languages.ts` uitgebreid met `splitLanguagesInput` (komma-invoer → opgeschoonde
+      lijst, getrimd/lege segmenten weg) en `serializeLanguages` (lijst → JSON-array-string of `null`).
+- [x] `profiel/actions.ts` gebruikt nu beide helpers i.p.v. lokale logica — één bron van waarheid voor
+      de hele talen-rondgang (split → valideer → serialiseer → parse → toon). Nul gedragswijziging.
+- [x] 6 nieuwe unit-tests in `parse-languages.test.ts` (split: trim/filter/leeg; serialize: leeg→null,
+      inverse van `parseLanguages`).
+- [x] `unbounded-queries.test.ts`-allowlist regelnummers voor `profiel/actions.ts` bijgewerkt (de
+      compactere split verschoof de twee findMany-regels).
+
+Gates groen: typecheck ✓, lint ✓, test 1887 ✓, build ✓, prettier ✓. (e2e overgeslagen — geen
+browser-channel in de routine.)
+
+---
+
 ## feat(terminologie): canoniek begrippenkader (IA) + ADR (branch `claude/dazzling-carson-v9Qwk`, ZZP2-195)
 
 PLAN-WERELDKLASSE Fase 2 — "Terminologie gladstrijken: één begrippenkader, IA-besluit vastleggen

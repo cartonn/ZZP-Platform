@@ -331,12 +331,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills en branches voor profielbewerking; kleine referentielijsten.
   {
     file: "(protected)/profiel/actions.ts",
-    line: 61,
+    line: 59,
     reason: "skills-referentielijst voor profielformulier",
   },
   {
     file: "(protected)/profiel/actions.ts",
-    line: 62,
+    line: 60,
     reason: "branches-referentielijst voor profielformulier",
   },
 
