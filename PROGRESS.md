@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(rooster): matchredenen + sterke-match-filter op de discovery-kalender (branch `claude/keen-wozniak-ln7j00`)
+
+Vervolg op Rooster-marktplaats slice 1: de discovery-kalender (`/rooster`) toonde per dienst alleen
+een kale "Match X%"-badge — de `reasons` die de matchmotor al berekent werden weggegooid, net zoals
+op `/opdrachten` vóór ZZP2-188. Dit trekt de uitlegbaarheid gelijk en voegt een sterke-match-filter
+toe zodat een ZZP'er meteen de best passende diensten ziet. Read-only, server-side, **geen
+schemawijziging, geen nieuwe query** (alles uit de al opgehaalde matchberekening).
+
+- [x] `src/lib/roster-market.ts` — `RosterShiftInput` uitgebreid met optionele `topReason`/`topGap`
+      (de zwaarst wegende troef/minpunt). Nieuwe pure `filterRosterByMinMatch(calendar, min)` +
+      `ROSTER_STRONG_MATCH_MIN = 70`: houdt alleen diensten met `matchScore ≥ min`, laat null-scores
+      (bv. ADMIN) en lege dagen weg, herberekent `total`, laat `beyondHorizon` ongemoeid, muteert de
+      invoer niet.
+- [x] `src/lib/roster-market.test.ts` — 6 nieuwe unit-tests (drempel, null-score weg, lege dagen weg,
+      `beyondHorizon` behouden, grensgeval exact-op-de-drempel, non-mutatie). Totaal 20 in dit bestand.
+- [x] `src/app/(protected)/rooster/page.tsx` — per dienst de volledige `scoreJobForFreelancer`-uitkomst
+      (score + `topPositiveReason` + `topGapReason`); reden-regel onder de metadata (groene troef-check + gedempte minpunt-minus, identiek aan `/opdrachten`). Filter-tabs "Alle diensten / Sterke
+      matches" via `?match=sterk` (alleen voor een FREELANCER mét ≥ 1 sterke match; server-side
+      gefilterd, `aria-current`, telling per tab).
+
+Gates groen: typecheck ✓, lint ✓, test 1949 ✓ (+6), build ✓ (`/rooster` aanwezig), prettier --check . ✓.
+(E2e niet in de routine — geen browser-channel; CI draait e2e.) Open vervolg in Fase 3: de
+**publiceer-/claim-kant** van de Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er
+claimt direct vanuit de kalender).
+
+---
+
 ## feat(opdrachten): annuleringsbetrouwbaarheid-signaal van de opdrachtgever (branch `claude/keen-wozniak-jso9v5`)
 
 Spiegelbeeld van het betaalgedrag-signaal (`payment-behavior.ts`): waar dat laat zien hóe een

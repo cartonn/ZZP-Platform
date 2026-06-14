@@ -15,6 +15,8 @@ export interface RosterShiftInput {
   workMode: string;
   matchScore: number | null; // null als geen ZZP-profiel (bv. ADMIN)
   alreadyApplied: boolean;
+  topReason?: string | null; // zwaarst wegende troef uit de matchmotor (null als geen)
+  topGap?: string | null; // zwaarst wegende minpunt uit de matchmotor (null als geen)
 }
 
 export interface RosterDay {
@@ -113,4 +115,30 @@ export function buildRosterCalendar(
   const total = days.reduce((sum, d) => sum + d.shifts.length, 0);
 
   return { days, total, beyondHorizon };
+}
+
+/** Drempel waarboven een dienst als "sterke match" voor de ZZP'er telt. */
+export const ROSTER_STRONG_MATCH_MIN = 70;
+
+/**
+ * Filtert een rooster-kalender tot diensten met een matchScore ≥ min.
+ * - Diensten zonder score (null, bv. ADMIN) vallen altijd weg — een drempelfilter
+ *   is alleen betekenisvol voor een ZZP'er met een profiel.
+ * - Lege dagen worden weggelaten; `total` wordt herberekend.
+ * - `beyondHorizon` blijft ongemoeid (telt diensten buiten de horizon, ongefilterd).
+ * - Muteert de invoer niet.
+ */
+export function filterRosterByMinMatch(calendar: RosterCalendar, min: number): RosterCalendar {
+  const days: RosterDay[] = [];
+
+  for (const day of calendar.days) {
+    const shifts = day.shifts.filter((s) => s.matchScore !== null && s.matchScore >= min);
+    if (shifts.length > 0) {
+      days.push({ ...day, shifts });
+    }
+  }
+
+  const total = days.reduce((sum, d) => sum + d.shifts.length, 0);
+
+  return { days, total, beyondHorizon: calendar.beyondHorizon };
 }

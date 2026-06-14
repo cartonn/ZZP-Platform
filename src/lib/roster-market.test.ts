@@ -2,7 +2,12 @@
 // Gebruik vaste UTC-datums zodat tests deterministisch zijn ongeacht de timezone.
 
 import { describe, expect, it } from "vitest";
-import { buildRosterCalendar, type RosterShiftInput } from "@/lib/roster-market";
+import {
+  buildRosterCalendar,
+  filterRosterByMinMatch,
+  ROSTER_STRONG_MATCH_MIN,
+  type RosterShiftInput,
+} from "@/lib/roster-market";
 
 // Vaste "nu" voor alle tests: woensdag 2026-06-10 00:00:00 UTC
 const NOW = new Date(Date.UTC(2026, 5, 10)); // maand is 0-indexed
@@ -176,5 +181,67 @@ describe("buildRosterCalendar", () => {
     expect(result.total).toBe(2);
     expect(result.beyondHorizon).toBe(2);
     expect(result.days).toHaveLength(2);
+  });
+});
+
+describe("filterRosterByMinMatch", () => {
+  const dayA = new Date(Date.UTC(2026, 5, 12));
+  const dayB = new Date(Date.UTC(2026, 5, 13));
+
+  function calendarWith(scores: Array<number | null>) {
+    const shifts = scores.map((matchScore, i) =>
+      makeShift({ startDate: i < 2 ? dayA : dayB, jobId: `job-${i}`, matchScore }),
+    );
+    return buildRosterCalendar(shifts, NOW);
+  }
+
+  it("houdt alleen diensten met matchScore ≥ drempel", () => {
+    const calendar = calendarWith([90, 50, 70, 30]);
+    const filtered = filterRosterByMinMatch(calendar, 70);
+    expect(filtered.total).toBe(2);
+    const ids = filtered.days.flatMap((d) => d.shifts.map((s) => s.jobId));
+    expect(ids).toEqual(["job-0", "job-2"]); // 90 en 70 blijven, 50 en 30 vallen weg
+  });
+
+  it("diensten zonder score (null) vallen altijd weg", () => {
+    const calendar = calendarWith([null, 80]);
+    const filtered = filterRosterByMinMatch(calendar, ROSTER_STRONG_MATCH_MIN);
+    expect(filtered.total).toBe(1);
+    expect(filtered.days[0]!.shifts[0]!.matchScore).toBe(80);
+  });
+
+  it("laat lege dagen volledig weg", () => {
+    const calendar = calendarWith([10, 20, 95]); // dag A heeft alleen lage scores
+    const filtered = filterRosterByMinMatch(calendar, 70);
+    expect(filtered.days).toHaveLength(1);
+    expect(filtered.days[0]!.date.getTime()).toBe(Date.UTC(2026, 5, 13));
+  });
+
+  it("behoudt beyondHorizon ongewijzigd", () => {
+    const beyond = new Date(Date.UTC(2026, 6, 5));
+    const shifts = [
+      makeShift({ startDate: dayA, jobId: "in", matchScore: 90 }),
+      makeShift({ startDate: beyond, jobId: "out", matchScore: 95 }),
+    ];
+    const calendar = buildRosterCalendar(shifts, NOW);
+    expect(calendar.beyondHorizon).toBe(1);
+    const filtered = filterRosterByMinMatch(calendar, 70);
+    expect(filtered.beyondHorizon).toBe(1);
+  });
+
+  it("grensgeval: exact op de drempel telt mee", () => {
+    const calendar = calendarWith([70]);
+    expect(filterRosterByMinMatch(calendar, 70).total).toBe(1);
+    expect(filterRosterByMinMatch(calendar, 71).total).toBe(0);
+  });
+
+  it("muteert de invoer-kalender niet", () => {
+    const calendar = calendarWith([90, 30]);
+    const beforeTotal = calendar.total;
+    const beforeDayCount = calendar.days.length;
+    filterRosterByMinMatch(calendar, 70);
+    expect(calendar.total).toBe(beforeTotal);
+    expect(calendar.days).toHaveLength(beforeDayCount);
+    expect(calendar.days[0]!.shifts).toHaveLength(2);
   });
 });
