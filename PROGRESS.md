@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## test(dba): structuur-/gedragstests voor de DBA-dossier-PDF-generator (branch `claude/dazzling-carson-v9Qwk`)
+
+`src/lib/dba-audit-pdf.ts` (`buildDbaAuditPdf`) genereert het DBA-compliance-dossier voor een
+eventueel bedrijfsbezoek van de Belastingdienst — een kerndifferentiator. De pure data-bouwer
+(`dba-audit.ts`) was getest, de PDF-render-laag zelf had nul tests.
+
+- [x] `src/lib/dba-audit-pdf.test.ts` — 14 tests die via `PDFDocument.load` verifiëren (geen broze
+      byte-asserts): geldige niet-lege PDF + `%PDF`-magic; titel bevat opdracht- én ZZP'er-naam;
+      paginabreuk (60 lange indicatoren + lange disclaimer → ≥ 2 pagina's, > kleine dossier — bewijst
+      dat `addPage`/`ensure` meermaals loopt en de per-pagina-footer dus blijft staan); geen crash op
+      tekens buiten WinAnsi (€/é/—/typografisch apostrof/"ZZP'er"); rand-/null-data
+      (`durationMonths`/`rateCentsSnapshot` null, 0 vs > 0 geverifieerde certificaten, lege indicatoren).
+- [x] Fixture bouwt waar mogelijk via `buildDbaAuditData` zodat de tests in de pas blijven met het
+      echte datacontract. Geen productie-gedrag gewijzigd (alleen tests).
+
+> **Routine-noot (Linear):** de Linear-workspace "ZZP Platform HUB" heeft de **gratis issue-limiet
+> bereikt** ("Usage limit exceeded — free issue limit"). De routine kon daardoor géén tracking-issue
+> aanmaken (stap 3/6). Mensenwerk: workspace upgraden of opschonen, anders blijft de Linear-tracking
+> van auto-build-runs geblokkeerd.
+
+Gate groen: typecheck ✓, lint ✓, test 1760 ✓ (+14), build ✓, prettier ✓. (E2e niet in de routine —
+geen browser-channel.)
+
+---
+
 ## refactor(profiel): talen-write-kant naar de gedeelde helper (branch `claude/dazzling-carson-v9Qwk`)
 
 Sluitstuk op de eerdere `parseLanguages`-deduplicatie (audit L3, commit 49f5628): die consolideerde
