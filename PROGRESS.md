@@ -3,6 +3,39 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(reviews): tweezijdige beoordelingen — double-blind (simultane onthulling) (#384, 15-6-2026)
+
+De geparkeerde reviews-feature live gebracht, maar als **trust-primitive met double-blind reveal**
+(zoals Airbnb) i.p.v. direct publiceren — anders is vergelding ("2 sterren terug") de dominante
+faalmodus en verwordt het systeem tot 4,9-ster-inflatie. Beoordeling na een **afgeronde**
+samenwerking; blind tot **min(beide ingediend, venster sluit)**; gelockt bij indienen; submission
+sluit voor béide partijen bij venstereinde (zo kan een gepubliceerde beoordeling niet meer vergolden
+worden). Productbesluit eigenaar (15-6): double-blind, admin mag blinde reviews zien voor moderatie
+(gelabeld), notificatie zonder score tijdens het venster.
+
+- [x] `prisma/schema.prisma` — `Collaboration.completedAt` (venster-anker); `Review.status`
+      (`PENDING_REVEAL`→`PUBLISHED`) + `publishedAt` + `revealDeadline` + indexen
+      (`[subjectId,direction,status]`, `[status,revealDeadline]`).
+- [x] `src/lib/cascade/apply.ts` + `src/app/(protected)/samenwerkingen/actions.ts` — `completedAt`
+      gestempeld op **beide** afrondingspaden (betalings-cascade én handmatige afronding). Het missen
+      van het tweede pad was de BLOCKER uit de adversariële review (venster viel terug op `createdAt`).
+- [x] `src/lib/reviews.ts` (+ test, 45 tests) — pure logica: `reviewWindowCloses/Open`, `isRevealDue`,
+      `canLeaveReview` met `windowClosed`; `aggregateReviews` (gemiddelde over álle PUBLISHED).
+- [x] `src/app/(protected)/samenwerkingen/[id]/review-actions.ts` — auth→deelnemer→COMPLETED→venster
+      open→Zod→max-één→atomair (review+notificatie+audit); mutual reveal race-veilig t.o.v. de cron.
+- [x] `src/lib/reviews-reveal-task.ts` + `/api/tasks/reviews-reveal` + `run-all` — cron-sweep publiceert
+      verstreken `PENDING_REVEAL` (atomair, idempotent via status-guard, notificeert beide partijen).
+- [x] Weergave: publiek profiel (`profile-screen.tsx`) + samenwerking-detail filteren strikt op
+      `PUBLISHED`; tegenpartij ziet blinde review nooit; admin ziet beide richtingen (blind gelabeld).
+- [x] `src/lib/config.ts` `reviewBlindDays()` (env `REVIEW_BLIND_DAYS`, default 14) +
+      `.env.example`-documentatie; seed: historische samenwerkingen `completedAt` + reviews `PUBLISHED`.
+
+Adversariële review (reviewer + security) vóór merge: 1 BLOCKER (tweede afrondingspad) + should-fixes
+(cron-atomiciteit, mutual-reveal-race, auteur-notificatie) verwerkt. CI-poort groen: `check`, `e2e`
+(2 shards), `audit`, `secret-scan`. Gemerged (`--admin`, advisory `review`-job non-blocking).
+
+---
+
 ## feat(prestaties): wachttijd-zicht op de goedkeuringswachtrij van de opdrachtgever
 
 `/prestaties` toonde per ingediende prestatie alleen de indiendatum ("Ingediend op X") — niet

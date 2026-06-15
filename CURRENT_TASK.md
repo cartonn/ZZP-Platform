@@ -201,7 +201,8 @@ Reactie↔Kandidaat opgelost. Open in Fase 2: lege-/laad-/fouttoestanden naar Va
 portable vertrouwensdossier (#313), **Flexpool/favorieten slice 1 (ZZP2-187, commit `c59f8d7`)** én
 **Flexpool slice 2 (ZZP2-192) — nieuwe dienst eerst naar de pool routeren ("eerst eigen mensen"):
 `pool-routing.ts` `planPoolInvites` + wiring in `changeJobStatus` bij de eerste publicatie + eigenaar-
-noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). **Rooster-marktplaats slice 1
+noot** af. Beoordelingen = **GEDAAN** (#384, 15-6): tweezijdig met double-blind reveal (simultane
+onthulling tegen vergelding) — zie PROGRESS.md-top. **Rooster-marktplaats slice 1
 (discovery)** af — `roster-market.ts` `buildRosterCalendar` + read-only `/rooster`-agenda van open
 diensten met startdatum, per dag, met matchscore. Open Fase 3: de **publiceer-/claim-kant** van de
 Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct vanuit de kalender).
@@ -268,7 +269,8 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
    boekhouding, AVG-verwerkingsregister (#334), KvK-/BTW-validatie (#335),
    beschikbaarheidsconflicten (#336), CLIENT-dashboard "wat kan ik oppakken" (#337),
    iCal-export (#338), dispuut-triage (#339), inkomstenprognose (`feat/inkomstenprognose`).
-   Enige rest: tweezijdige beoordelingen = geparkeerd productbesluit (eigenaar).
+   Tweezijdige beoordelingen — **GEDAAN (#384, 15-6)**: double-blind reveal (simultane onthulling),
+   niet langer geparkeerd. Niets meer open uit deze bergings-backlog.
 1. Playwright e2e voor de cascade-flow (interactieve sessie mét browser vereist) — sla over in
    routines, doe in een interactieve sessie mét browser-channel.
 2. Postgres-smoke van het migratiescript (optioneel, aanbevolen vóór cutover) — draai
