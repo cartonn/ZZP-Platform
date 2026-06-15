@@ -26,9 +26,11 @@ const FRANCHISE_ROUTES = [
  * (500); geen data van een ander (als `secret` is meegegeven mag die nooit zichtbaar zijn); en
  * toegang geweigerd — 403/404, weg-geredirect, óf de nette niet-gevonden-pagina.
  *
- * NB: `notFound()` geeft in CI (productie) een echte 404; lokaal toont Next dezelfde niet-gevonden-
- * pagina met status 200 (ook de bestaande authorization.spec faalt daardoor lokaal — CI is de waarheid).
- * Daarom telt de zichtbare niet-gevonden-pagina óók als geweigerd.
+ * NB: op de geauthenticeerde `(protected)` detailroutes geeft `notFound()` óók in productie status
+ * 200 (soft-404) — de async app-schil is al geflusht vóór de pagina notFound() bereikt. Geen echte
+ * schade (achter login, geen lek, nette niet-gevonden-pagina); bewust geaccepteerd, zie ADR-0009.
+ * Daarom telt de zichtbare niet-gevonden-marker óók als geweigerd — en we WACHTEN erop (de marker
+ * streamt na de schil binnen; direct tellen racete en maakte deze test flaky).
  */
 async function expectDenied(page: Page, url: string, opts?: { secret?: string }) {
   const resp = await page.goto(url).catch(() => null);
@@ -41,11 +43,13 @@ async function expectDenied(page: Page, url: string, opts?: { secret?: string })
     ).toHaveCount(0);
   }
   const onRoute = new URL(page.url()).pathname === url.split("?")[0];
-  const notFoundMarker = await page.getByText(/Niet gevonden|bestaat niet|geen toegang/i).count();
-  expect(
-    status === 403 || status === 404 || !onRoute || notFoundMarker > 0,
+  // Hard geweigerd via status/redirect? Dan klaar. Anders (soft-404: status 200, nog op de route)
+  // moet de niet-gevonden-marker verschijnen — daar betrouwbaar op wachten i.p.v. direct tellen.
+  if (status === 403 || status === 404 || !onRoute) return;
+  await expect(
+    page.getByText(/Niet gevonden|bestaat niet|geen toegang/i).first(),
     `toegang tot ${url} hoort geweigerd (status ${status}, beland op ${page.url()})`,
-  ).toBeTruthy();
+  ).toBeVisible({ timeout: 10000 });
 }
 
 async function registerClient(page: Page, name: string, email: string) {
