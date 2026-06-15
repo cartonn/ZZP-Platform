@@ -191,3 +191,18 @@ voor herstel (`git fetch origin <sha>:refs/heads/<naam>`).
 - `claude/epic-lovelace-z9RBc` → `7bb647bebfc468c8e79b848785d5ebdfec0394d5` — feat(franchise): detailpagina per samenwerking met cascade-f
 - `claude/epic-lovelace-zE27a` → `98af98ed56acd7e041709e60a3781a4dd1c93682` — docs: track franchise-werkstroom + roster-compliance in CURR
 - `claude/epic-lovelace-zg2s6n` → `c94351f8d1dc9f920b854878c501d9c1c7e39abf` — docs: agenda-export (.ics) in PROGRESS + CURRENT_TASK; ruim
+
+# Branch-opruiming 15-6-2026
+
+Na verificatie op 'goed maar ongemerged werk' verwijderd (inhoud op main of achterhaald);
+SHA's voor herstel (`git fetch origin <sha>:refs/heads/<naam>`):
+
+- `claude/dazzling-carson-v9Qwk` → `31b58ffb340240e2a2a342bb002e7e21c9a0fcaf` — feat: 3 routine-features geborgen — indirecte uren, roo
+- `feat/ideeen-categorieen` → `fe8f10a361b9e4c30484de830fddbfbada39aa49` — feat(ideeen): categoriseer ideeën op doelgroep + thema
+- `feat/ideeenbox-best` → `50e4e4c4bd3598e3437e432af6745c76cbebc842` — feat(ideeen): best-in-class ideeënbox — optimistic voti
+- `claude/gifted-ramanujan-4u3uk7` → `80a27e52c3ba13824a778b09e198edd5b7728184` — docs(ontwerpen): Warmte — drie eigen lichte paletten op
+- `feat/zorg-seed` → `a257713afce050daa2216c4c6bf6b32870949241` — feat(seed): primaire demo-accounts naar zorg (positione
+
+> **BEWAARD (niet verwijderd):** `feat/tweezijdige-beoordelingen` — bevat een complete, geteste
+> tweezijdige-beoordelingen-feature (Review-model, server-action, UI, 264 testregels) die NIET op
+> main staat (geparkeerd productbesluit eigenaar). Enige kopie; wacht op besluit wel/niet bouwen.
