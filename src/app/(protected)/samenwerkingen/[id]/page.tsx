@@ -18,7 +18,7 @@ import { resolveAgreementType } from "@/lib/contract-agreement";
 import { ModelAgreementCard } from "./model-agreement-card";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { parseOrtSegments } from "@/lib/ort";
-import { ORT_SECTORS, ORT_SECTOR_LABEL } from "@/lib/config";
+import { ORT_SECTORS, ORT_SECTOR_LABEL, reviewBlindDays } from "@/lib/config";
 import { buildChainSteps } from "@/lib/cascade/chain-steps";
 import { CascadeStepper } from "@/components/ui/cascade-stepper";
 import { TurnBanner } from "@/components/ui/turn-banner";
@@ -49,6 +49,10 @@ import { PerformanceForm } from "./performance-form";
 import { performanceFormDefaults } from "@/lib/performance-form";
 import { OrtProfileForm } from "./ort-profile-form";
 import { WeekdaysForm } from "./weekdays-form";
+import { ReviewForm } from "./review-form";
+import { canLeaveReview, reviewWindowCloses, reviewWindowOpen } from "@/lib/reviews";
+import { RatingStars } from "@/components/reviews/rating-stars";
+import { ReviewList } from "@/components/reviews/review-list";
 import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
@@ -116,6 +120,19 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       performances: { orderBy: { createdAt: "desc" } },
       invoices: { where: { lifecycleStatus: { not: null } }, orderBy: { createdAt: "desc" } },
       noShowReports: { orderBy: { occurredOn: "desc" }, take: 20 },
+      reviews: {
+        select: {
+          id: true,
+          authorId: true,
+          subjectId: true,
+          rating: true,
+          comment: true,
+          status: true,
+          createdAt: true,
+          author: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!col) notFound();
@@ -158,6 +175,26 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const counterparty = isClient ? col.freelancer.user.name : col.company.name;
   const active = col.status === "ACTIVE";
   const weekdays = parseWeekdays(col.weekdays);
+
+  // Tweezijdige beoordeling (double-blind reveal): één per partij, alleen binnen het blinde venster.
+  // Venster ankert op het afrondingsmoment (fallback createdAt voor legacy). Ná sluiting kan niemand
+  // meer beoordelen — dat is de hendel tegen vergelding.
+  const isParticipant = isClient || isFreelancer;
+  const reviewWindowClosesAt = reviewWindowCloses(
+    col.completedAt ?? col.createdAt,
+    reviewBlindDays(),
+  );
+  const reviewWindowIsOpen = reviewWindowOpen(reviewWindowClosesAt, new Date());
+  const myReview = col.reviews.find((r) => r.authorId === actor.id) ?? null;
+  // De beoordeling óver mij is pas zichtbaar zodra ze PUBLISHED is (anders lek vóór de onthulling).
+  const receivedReview =
+    col.reviews.find((r) => r.subjectId === actor.id && r.status === "PUBLISHED") ?? null;
+  const canReview = canLeaveReview({
+    collaborationStatus: col.status,
+    isParticipant,
+    alreadyReviewed: myReview !== null,
+    windowClosed: !reviewWindowIsOpen,
+  });
 
   // Door de ZZP'er met de opdrachtgever gedeelde certificaten (metadata, niet het bestand). Alleen
   // de opdrachtgever-partij ziet ze; de helper dwingt dat server-side af.
@@ -868,6 +905,77 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           </div>
         )}
       </section>
+
+      {col.status === "COMPLETED" && (
+        <section className="space-y-3 rounded-lg border border-border bg-card p-5">
+          <h2 className="text-sm font-medium">Beoordeling</h2>
+          {isParticipant ? (
+            <div className="space-y-4">
+              {canReview ? (
+                <div className="space-y-2">
+                  <ReviewForm collaborationId={col.id} subjectLabel={counterparty} />
+                  <p className="text-xs text-muted-foreground">
+                    Beoordelingen zijn blind: jouw oordeel wordt pas zichtbaar zodra de ander óók
+                    beoordeelt of het venster sluit op {formatDateShortNl(reviewWindowClosesAt)}. Na
+                    plaatsen kun je het niet meer wijzigen.
+                  </p>
+                </div>
+              ) : myReview ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Jouw beoordeling</p>
+                  <RatingStars average={myReview.rating} size="md" showValue />
+                  {myReview.comment && (
+                    <p className="text-sm text-muted-foreground">{myReview.comment}</p>
+                  )}
+                  {myReview.status !== "PUBLISHED" && (
+                    <p className="text-xs text-muted-foreground">
+                      Nog niet zichtbaar voor de ander — wordt onthuld zodra jullie beiden hebben
+                      beoordeeld of het venster sluit op {formatDateShortNl(reviewWindowClosesAt)}.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Het beoordelingsvenster is gesloten op {formatDateShortNl(reviewWindowClosesAt)}.
+                </p>
+              )}
+              {receivedReview ? (
+                <div className="space-y-1 border-t border-border pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    Beoordeling van {receivedReview.author.name}
+                  </p>
+                  <RatingStars average={receivedReview.rating} size="md" showValue />
+                  {receivedReview.comment && (
+                    <p className="text-sm text-muted-foreground">{receivedReview.comment}</p>
+                  )}
+                </div>
+              ) : reviewWindowIsOpen ? (
+                <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+                  De beoordelingen worden tegelijk zichtbaar zodra jullie beiden hebben beoordeeld
+                  of het venster sluit op {formatDateShortNl(reviewWindowClosesAt)}.
+                </p>
+              ) : (
+                <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+                  De andere partij heeft niet beoordeeld.
+                </p>
+              )}
+            </div>
+          ) : (
+            // Admin-moderatieweergave: ziet beide richtingen, óók nog-blinde (PENDING_REVEAL)
+            // beoordelingen — gelabeld als "nog niet zichtbaar". Meekijken mag; tippen niet.
+            <ReviewList
+              reviews={col.reviews.map((r) => ({
+                id: r.id,
+                authorName: r.author.name,
+                rating: r.rating,
+                comment: r.comment,
+                createdAt: r.createdAt,
+                pending: r.status !== "PUBLISHED",
+              }))}
+            />
+          )}
+        </section>
+      )}
     </div>
   );
 }

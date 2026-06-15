@@ -67,6 +67,8 @@ model User {
   ideas                   Idea[]                   @relation("IdeaAuthor")
   ideaVotes               IdeaVote[]               @relation("IdeaVoter")
   ideaComments            IdeaComment[]            @relation("IdeaCommentAuthor")
+  reviewsWritten          Review[]                 @relation("ReviewAuthor")
+  reviewsReceived         Review[]                 @relation("ReviewSubject")
   leadContacts            LeadContact[]            @relation("LeadContactAuthor")
   authoredCourses         Course[]                 @relation("CourseAuthor")
   lessonCompletions       LessonCompletion[]       @relation("LessonCompleter")
@@ -249,13 +251,13 @@ model LeadContact {
 // Tellen mee voor het 1.225-uur urencriterium (zelfstandigenaftrek). Categorieën leven in
 // src/lib/tax/indirect-hours.ts (geen db-enum — portabiliteit SQLite/Postgres).
 model IndirectHoursEntry {
-  id       String   @id @default(cuid())
-  userId   String
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workedOn DateTime //  dag waarop de indirecte uren zijn gemaakt
-  hours    Float //     aantal uren (kwartier-precisie toegestaan)
-  category String //    IndirectHourCategory (zie src/lib/tax/indirect-hours.ts)
-  note     String?
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workedOn  DateTime //  dag waarop de indirecte uren zijn gemaakt
+  hours     Float //     aantal uren (kwartier-precisie toegestaan)
+  category  String //    IndirectHourCategory (zie src/lib/tax/indirect-hours.ts)
+  note      String?
   createdAt DateTime @default(now())
 
   @@index([userId, workedOn])
@@ -698,6 +700,12 @@ model Collaboration {
   cancellationReason     String?
   cancellationChargeable Boolean   @default(false)
 
+  // Moment van afronding (status → COMPLETED), gestempeld in de cascade-applier. Ankert het blinde
+  // beoordelingsvenster (double-blind reveal): beide partijen kunnen tot completedAt + REVIEW_BLIND_DAYS
+  // beoordelen; daarna sluit het venster voor béiden tegelijk (zo kan niemand een gepubliceerde
+  // beoordeling nog vergelden). null = legacy/afgerond vóór deze feature (valt terug op createdAt).
+  completedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -709,6 +717,7 @@ model Collaboration {
   performances  Performance[]
   fee           CollaborationFee?
   noShowReports NoShowReport[]
+  reviews       Review[]
 
   // Hot paths: dashboards/admin/zoeken filteren op partij + status (Postgres indexeert FK's niet
   // automatisch). Additieve indexes — veilig via db push.
@@ -741,6 +750,37 @@ model NoShowReport {
 
   @@index([freelancerProfileId, verdict])
   @@index([verdict])
+  @@index([collaborationId])
+}
+
+// Tweezijdige beoordeling na een afgeronde samenwerking: beide partijen kunnen elkaar
+// éénmalig beoordelen (1–5 sterren + optionele toelichting). Server-side afgedwongen:
+// alleen op een COMPLETED samenwerking, alleen door een deelnemer, maximaal één per partij.
+model Review {
+  id              String  @id @default(cuid())
+  collaborationId String
+  authorId        String // de gebruiker die de beoordeling schrijft
+  subjectId       String // de beoordeelde tegenpartij
+  direction       String // ReviewDirection: CLIENT_ON_FREELANCER | FREELANCER_ON_CLIENT
+  rating          Int // 1..5, server-side gevalideerd
+  comment         String? // optionele toelichting
+
+  // Double-blind reveal (simultane onthulling — voorkomt vergeldingsbeoordelingen). Een beoordeling
+  // is bij indiening direct gelockt en blijft PENDING_REVEAL (onzichtbaar voor de tegenpartij) tot
+  // óf beide partijen hebben ingediend, óf het venster sluit — wat eerder komt. Dan PUBLISHED.
+  status         String    @default("PENDING_REVEAL") // ReviewStatus: PENDING_REVEAL | PUBLISHED
+  publishedAt    DateTime? //                            moment van onthulling (null zolang PENDING_REVEAL)
+  revealDeadline DateTime //                             venstersluiting (completionAnchor + REVIEW_BLIND_DAYS)
+  createdAt      DateTime  @default(now())
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  author        User          @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  subject       User          @relation("ReviewSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([collaborationId, authorId]) // één beoordeling per partij per samenwerking
+  @@index([subjectId])
+  @@index([subjectId, direction, status]) // publieke reputatie-query: subject + richting + alleen PUBLISHED
+  @@index([status, revealDeadline]) // cron-sweep: onthul verstreken PENDING_REVEAL-beoordelingen
   @@index([collaborationId])
 }
 
