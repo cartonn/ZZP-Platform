@@ -185,9 +185,12 @@ export async function ProfileScreen({
   // Aparte aggregatie over ALLE beoordelingen (gemiddelde + totaal), zodat de kop het juiste cijfer
   // toont; de getoonde lijst blijft begrensd tot de 20 recentste. De `take` op de lijst mag het
   // gemiddelde niet vertekenen — daarom telt/­middelt de database, niet de afgekapte rijen.
+  // Alleen PUBLISHED telt mee voor de publieke reputatie — een nog-blinde (PENDING_REVEAL)
+  // beoordeling mag niet lekken vóór de simultane onthulling (double-blind reveal).
   const reviewWhere = {
     subjectId: profile.userId,
     direction: "CLIENT_ON_FREELANCER",
+    status: "PUBLISHED",
   } as const;
   const [reviewRows, reviewStats] = await Promise.all([
     prisma.review.findMany({

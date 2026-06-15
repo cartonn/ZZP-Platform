@@ -700,6 +700,12 @@ model Collaboration {
   cancellationReason     String?
   cancellationChargeable Boolean   @default(false)
 
+  // Moment van afronding (status → COMPLETED), gestempeld in de cascade-applier. Ankert het blinde
+  // beoordelingsvenster (double-blind reveal): beide partijen kunnen tot completedAt + REVIEW_BLIND_DAYS
+  // beoordelen; daarna sluit het venster voor béiden tegelijk (zo kan niemand een gepubliceerde
+  // beoordeling nog vergelden). null = legacy/afgerond vóór deze feature (valt terug op createdAt).
+  completedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -751,14 +757,21 @@ model NoShowReport {
 // éénmalig beoordelen (1–5 sterren + optionele toelichting). Server-side afgedwongen:
 // alleen op een COMPLETED samenwerking, alleen door een deelnemer, maximaal één per partij.
 model Review {
-  id              String   @id @default(cuid())
+  id              String  @id @default(cuid())
   collaborationId String
   authorId        String // de gebruiker die de beoordeling schrijft
   subjectId       String // de beoordeelde tegenpartij
   direction       String // ReviewDirection: CLIENT_ON_FREELANCER | FREELANCER_ON_CLIENT
   rating          Int // 1..5, server-side gevalideerd
   comment         String? // optionele toelichting
-  createdAt       DateTime @default(now())
+
+  // Double-blind reveal (simultane onthulling — voorkomt vergeldingsbeoordelingen). Een beoordeling
+  // is bij indiening direct gelockt en blijft PENDING_REVEAL (onzichtbaar voor de tegenpartij) tot
+  // óf beide partijen hebben ingediend, óf het venster sluit — wat eerder komt. Dan PUBLISHED.
+  status         String    @default("PENDING_REVEAL") // ReviewStatus: PENDING_REVEAL | PUBLISHED
+  publishedAt    DateTime? //                            moment van onthulling (null zolang PENDING_REVEAL)
+  revealDeadline DateTime //                             venstersluiting (completionAnchor + REVIEW_BLIND_DAYS)
+  createdAt      DateTime  @default(now())
 
   collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
   author        User          @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
@@ -766,7 +779,8 @@ model Review {
 
   @@unique([collaborationId, authorId]) // één beoordeling per partij per samenwerking
   @@index([subjectId])
-  @@index([subjectId, direction]) // publieke reputatie-query: subject + richting (CLIENT_ON_FREELANCER)
+  @@index([subjectId, direction, status]) // publieke reputatie-query: subject + richting + alleen PUBLISHED
+  @@index([status, revealDeadline]) // cron-sweep: onthul verstreken PENDING_REVEAL-beoordelingen
   @@index([collaborationId])
 }
 

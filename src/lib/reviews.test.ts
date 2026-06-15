@@ -5,6 +5,11 @@ import {
   aggregateReviews,
   reviewInputSchema,
   formatRating,
+  reviewWindowCloses,
+  reviewWindowOpen,
+  isMutualReveal,
+  isRevealDue,
+  DEFAULT_REVIEW_BLIND_DAYS,
   RATING_MIN,
   RATING_MAX,
   REVIEW_COMMENT_MAX,
@@ -99,6 +104,79 @@ describe("canLeaveReview", () => {
         alreadyReviewed: false,
       }),
     ).toBe(false);
+  });
+
+  it("false als het venster gesloten is (double-blind: geen vergelding na onthulling)", () => {
+    expect(
+      canLeaveReview({
+        collaborationStatus: "COMPLETED",
+        isParticipant: true,
+        alreadyReviewed: false,
+        windowClosed: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("true als venster expliciet open (windowClosed false)", () => {
+    expect(
+      canLeaveReview({
+        collaborationStatus: "COMPLETED",
+        isParticipant: true,
+        alreadyReviewed: false,
+        windowClosed: false,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("reviewWindowCloses", () => {
+  it("anker + blinde dagen", () => {
+    const anchor = new Date("2026-06-01T00:00:00.000Z");
+    expect(reviewWindowCloses(anchor, 14).toISOString()).toBe("2026-06-15T00:00:00.000Z");
+  });
+
+  it("gebruikt de standaard blinde dagen als getal", () => {
+    const anchor = new Date("2026-06-01T12:00:00.000Z");
+    const close = reviewWindowCloses(anchor, DEFAULT_REVIEW_BLIND_DAYS);
+    expect(close.getTime() - anchor.getTime()).toBe(DEFAULT_REVIEW_BLIND_DAYS * 86_400_000);
+  });
+});
+
+describe("reviewWindowOpen", () => {
+  const close = new Date("2026-06-15T00:00:00.000Z");
+  it("open vóór sluiting", () => {
+    expect(reviewWindowOpen(close, new Date("2026-06-14T23:59:59.000Z"))).toBe(true);
+  });
+  it("open op het sluitmoment (inclusief)", () => {
+    expect(reviewWindowOpen(close, new Date("2026-06-15T00:00:00.000Z"))).toBe(true);
+  });
+  it("dicht ná sluiting", () => {
+    expect(reviewWindowOpen(close, new Date("2026-06-15T00:00:01.000Z"))).toBe(false);
+  });
+});
+
+describe("isMutualReveal", () => {
+  it("true zodra de tegenpartij al heeft ingediend (tweede indiening)", () => {
+    expect(isMutualReveal(true)).toBe(true);
+  });
+  it("false bij de eerste indiening", () => {
+    expect(isMutualReveal(false)).toBe(false);
+  });
+});
+
+describe("isRevealDue", () => {
+  const now = new Date("2026-06-15T00:00:00.000Z");
+  it("true: PENDING_REVEAL met verstreken venster", () => {
+    expect(isRevealDue("PENDING_REVEAL", new Date("2026-06-14T00:00:00.000Z"), now)).toBe(true);
+  });
+  it("true: deadline exact nu (inclusief)", () => {
+    expect(isRevealDue("PENDING_REVEAL", now, now)).toBe(true);
+  });
+  it("false: venster nog niet verstreken", () => {
+    expect(isRevealDue("PENDING_REVEAL", new Date("2026-06-16T00:00:00.000Z"), now)).toBe(false);
+  });
+  it("false: al PUBLISHED (nooit dubbel onthullen)", () => {
+    expect(isRevealDue("PUBLISHED", new Date("2026-06-01T00:00:00.000Z"), now)).toBe(false);
   });
 });
 

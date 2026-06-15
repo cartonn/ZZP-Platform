@@ -18,7 +18,7 @@ import { resolveAgreementType } from "@/lib/contract-agreement";
 import { ModelAgreementCard } from "./model-agreement-card";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { parseOrtSegments } from "@/lib/ort";
-import { ORT_SECTORS, ORT_SECTOR_LABEL } from "@/lib/config";
+import { ORT_SECTORS, ORT_SECTOR_LABEL, reviewBlindDays } from "@/lib/config";
 import { buildChainSteps } from "@/lib/cascade/chain-steps";
 import { CascadeStepper } from "@/components/ui/cascade-stepper";
 import { TurnBanner } from "@/components/ui/turn-banner";
@@ -50,7 +50,7 @@ import { performanceFormDefaults } from "@/lib/performance-form";
 import { OrtProfileForm } from "./ort-profile-form";
 import { WeekdaysForm } from "./weekdays-form";
 import { ReviewForm } from "./review-form";
-import { canLeaveReview } from "@/lib/reviews";
+import { canLeaveReview, reviewWindowCloses, reviewWindowOpen } from "@/lib/reviews";
 import { RatingStars } from "@/components/reviews/rating-stars";
 import { ReviewList } from "@/components/reviews/review-list";
 import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
@@ -127,6 +127,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           subjectId: true,
           rating: true,
           comment: true,
+          status: true,
           createdAt: true,
           author: { select: { name: true } },
         },
@@ -175,14 +176,24 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   const active = col.status === "ACTIVE";
   const weekdays = parseWeekdays(col.weekdays);
 
-  // Tweezijdige beoordeling: alleen na een afgeronde samenwerking, één per partij.
+  // Tweezijdige beoordeling (double-blind reveal): één per partij, alleen binnen het blinde venster.
+  // Venster ankert op het afrondingsmoment (fallback createdAt voor legacy). Ná sluiting kan niemand
+  // meer beoordelen — dat is de hendel tegen vergelding.
   const isParticipant = isClient || isFreelancer;
+  const reviewWindowClosesAt = reviewWindowCloses(
+    col.completedAt ?? col.createdAt,
+    reviewBlindDays(),
+  );
+  const reviewWindowIsOpen = reviewWindowOpen(reviewWindowClosesAt, new Date());
   const myReview = col.reviews.find((r) => r.authorId === actor.id) ?? null;
-  const receivedReview = col.reviews.find((r) => r.subjectId === actor.id) ?? null;
+  // De beoordeling óver mij is pas zichtbaar zodra ze PUBLISHED is (anders lek vóór de onthulling).
+  const receivedReview =
+    col.reviews.find((r) => r.subjectId === actor.id && r.status === "PUBLISHED") ?? null;
   const canReview = canLeaveReview({
     collaborationStatus: col.status,
     isParticipant,
     alreadyReviewed: myReview !== null,
+    windowClosed: !reviewWindowIsOpen,
   });
 
   // Door de ZZP'er met de opdrachtgever gedeelde certificaten (metadata, niet het bestand). Alleen
@@ -901,7 +912,14 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           {isParticipant ? (
             <div className="space-y-4">
               {canReview ? (
-                <ReviewForm collaborationId={col.id} subjectLabel={counterparty} />
+                <div className="space-y-2">
+                  <ReviewForm collaborationId={col.id} subjectLabel={counterparty} />
+                  <p className="text-xs text-muted-foreground">
+                    Beoordelingen zijn blind: jouw oordeel wordt pas zichtbaar zodra de ander óók
+                    beoordeelt of het venster sluit op {formatDateShortNl(reviewWindowClosesAt)}. Na
+                    plaatsen kun je het niet meer wijzigen.
+                  </p>
+                </div>
               ) : myReview ? (
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Jouw beoordeling</p>
@@ -909,8 +927,18 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                   {myReview.comment && (
                     <p className="text-sm text-muted-foreground">{myReview.comment}</p>
                   )}
+                  {myReview.status !== "PUBLISHED" && (
+                    <p className="text-xs text-muted-foreground">
+                      Nog niet zichtbaar voor de ander — wordt onthuld zodra jullie beiden hebben
+                      beoordeeld of het venster sluit op {formatDateShortNl(reviewWindowClosesAt)}.
+                    </p>
+                  )}
                 </div>
-              ) : null}
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Het beoordelingsvenster is gesloten op {formatDateShortNl(reviewWindowClosesAt)}.
+                </p>
+              )}
               {receivedReview ? (
                 <div className="space-y-1 border-t border-border pt-3">
                   <p className="text-xs text-muted-foreground">
@@ -921,13 +949,20 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                     <p className="text-sm text-muted-foreground">{receivedReview.comment}</p>
                   )}
                 </div>
+              ) : reviewWindowIsOpen ? (
+                <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+                  De beoordelingen worden tegelijk zichtbaar zodra jullie beiden hebben beoordeeld
+                  of het venster sluit op {formatDateShortNl(reviewWindowClosesAt)}.
+                </p>
               ) : (
                 <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-                  De andere partij heeft nog geen beoordeling geplaatst.
+                  De andere partij heeft niet beoordeeld.
                 </p>
               )}
             </div>
           ) : (
+            // Admin-moderatieweergave: ziet beide richtingen, óók nog-blinde (PENDING_REVEAL)
+            // beoordelingen — gelabeld als "nog niet zichtbaar". Meekijken mag; tippen niet.
             <ReviewList
               reviews={col.reviews.map((r) => ({
                 id: r.id,
@@ -935,6 +970,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                 rating: r.rating,
                 comment: r.comment,
                 createdAt: r.createdAt,
+                pending: r.status !== "PUBLISHED",
               }))}
             />
           )}

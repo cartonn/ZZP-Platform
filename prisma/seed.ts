@@ -1006,6 +1006,12 @@ async function main() {
       freelancer: { select: { userId: true } },
     },
   });
+  // Demo-samenwerkingen zijn historisch afgerond → afrondingsmoment ver in het verleden, zodat het
+  // blinde beoordelingsvenster (double-blind reveal) al gesloten is en de beoordelingen PUBLISHED tonen.
+  await prisma.collaboration.updateMany({
+    where: { status: "COMPLETED", completedAt: null },
+    data: { completedAt: daysFromNow(-20) },
+  });
   let r = 0;
   for (const c of completedCollabs) {
     r++;
@@ -1024,6 +1030,9 @@ async function main() {
           clientRating === 5
             ? "Prettige samenwerking, vakkundig en betrouwbaar. Zeker een aanrader."
             : "Goede inzet en duidelijke communicatie. Graag tot een volgende keer.",
+        status: "PUBLISHED",
+        publishedAt: daysFromNow(-12),
+        revealDeadline: daysFromNow(-6),
         createdAt: daysFromNow(-7 + r),
       },
     });
@@ -1040,6 +1049,9 @@ async function main() {
           freelancerRating === 5
             ? "Heldere opdracht, snelle afhandeling en op tijd betaald."
             : "Fijne opdrachtgever met duidelijke verwachtingen.",
+        status: "PUBLISHED",
+        publishedAt: daysFromNow(-12),
+        revealDeadline: daysFromNow(-6),
         createdAt: daysFromNow(-6 + r),
       },
     });

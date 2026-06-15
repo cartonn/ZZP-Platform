@@ -6,6 +6,8 @@ export interface ReviewItem {
   rating: number;
   comment: string | null;
   createdAt: Date | string;
+  /** Nog niet onthuld (double-blind): alleen zichtbaar in de admin-moderatieweergave. */
+  pending?: boolean;
 }
 
 export function ReviewList({ reviews }: { reviews: ReviewItem[] }): React.JSX.Element {
@@ -28,6 +30,11 @@ export function ReviewList({ reviews }: { reviews: ReviewItem[] }): React.JSX.El
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-foreground">{review.authorName}</span>
                 <RatingStars average={review.rating} size="sm" />
+                {review.pending && (
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    Nog niet zichtbaar
+                  </span>
+                )}
               </div>
               <time
                 dateTime={new Date(review.createdAt).toISOString()}

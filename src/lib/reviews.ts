@@ -8,6 +8,39 @@ import { z } from "zod";
 export const REVIEW_DIRECTIONS = ["CLIENT_ON_FREELANCER", "FREELANCER_ON_CLIENT"] as const;
 export type ReviewDirection = (typeof REVIEW_DIRECTIONS)[number];
 
+// Statussen van het double-blind reveal-model (simultane onthulling). PENDING_REVEAL = ingediend en
+// gelockt, maar onzichtbaar voor de tegenpartij; PUBLISHED = onthuld (beide ingediend óf venster dicht).
+export const REVIEW_STATUSES = ["PENDING_REVEAL", "PUBLISHED"] as const;
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
+
+// Standaard blinde venster in dagen na afronding. Overschrijfbaar via env REVIEW_BLIND_DAYS (config.ts).
+export const DEFAULT_REVIEW_BLIND_DAYS = 14;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Sluitmoment van het blinde venster: anker (afrondingsmoment van de samenwerking) + blinde dagen.
+// Bij óf beide ingediend óf dit moment publiceren de beoordeling(en) — wat eerder komt.
+export function reviewWindowCloses(completionAnchor: Date, blindDays: number): Date {
+  return new Date(completionAnchor.getTime() + blindDays * DAY_MS);
+}
+
+// Of het venster op `now` (nog) open is. Ná sluiting kan niemand meer beoordelen — dat is precies de
+// hendel die vergelding voorkomt: wie de gepubliceerde beoordeling ziet, kan zelf niet meer indienen.
+export function reviewWindowOpen(windowCloses: Date, now: Date): boolean {
+  return now.getTime() <= windowCloses.getTime();
+}
+
+// Tweede indiening → directe wederzijdse onthulling (beide beoordelingen worden PUBLISHED).
+export function isMutualReveal(counterpartHasSubmitted: boolean): boolean {
+  return counterpartHasSubmitted;
+}
+
+// Cron-beslisregel: een nog-niet-onthulde beoordeling waarvan het venster verstreken is, publiceert
+// (ook eenzijdig — die ene beoordeling wordt dan gewoon zichtbaar).
+export function isRevealDue(status: string, revealDeadline: Date, now: Date): boolean {
+  return status === "PENDING_REVEAL" && revealDeadline.getTime() <= now.getTime();
+}
+
 export const RATING_MIN = 1;
 export const RATING_MAX = 5;
 export const REVIEW_COMMENT_MAX = 1000;
@@ -35,11 +68,19 @@ export interface CanLeaveReviewInput {
   collaborationStatus: string; // CollaborationStatus: PROPOSED | ACTIVE | COMPLETED | CANCELLED
   isParticipant: boolean;
   alreadyReviewed: boolean;
+  windowClosed?: boolean; // double-blind: ná venstersluiting kan niet meer beoordeeld worden
 }
 
-// true alleen als de samenwerking COMPLETED is, de viewer deelnemer is en nog niet beoordeeld heeft.
+// true alleen als de samenwerking COMPLETED is, de viewer deelnemer is, nog niet beoordeeld heeft
+// én het blinde venster nog open is. Het venster-slot voorkomt het retaliatielek: kon je ná sluiting
+// (= ná publicatie) nog beoordelen, dan zou je de beoordeling van de ander al gezien kunnen hebben.
 export function canLeaveReview(input: CanLeaveReviewInput): boolean {
-  return input.collaborationStatus === "COMPLETED" && input.isParticipant && !input.alreadyReviewed;
+  return (
+    input.collaborationStatus === "COMPLETED" &&
+    input.isParticipant &&
+    !input.alreadyReviewed &&
+    !input.windowClosed
+  );
 }
 
 export interface ReviewAggregate {

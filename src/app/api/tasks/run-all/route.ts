@@ -16,6 +16,7 @@ import { runMonitorTask } from "@/lib/monitoring/monitor-task";
 import { runZzpMembershipTask } from "@/lib/zzp-membership-task";
 import { runPerformanceGraceTask } from "@/lib/performance-grace-task";
 import { runNotificationDigestTask } from "@/lib/notification-digest-task";
+import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,7 @@ export async function POST(request: Request): Promise<Response> {
     { name: "subscription-past-due", fn: () => runSubscriptionPastDueTask({ actorId: null }) },
     { name: "zzp-membership", fn: () => runZzpMembershipTask({}) },
     { name: "performance-grace", fn: () => runPerformanceGraceTask({ actorId: null }) },
+    { name: "reviews-reveal", fn: () => runReviewsRevealTask({ actorId: null }) },
     { name: "notification-digest", fn: () => runNotificationDigestTask({ actorId: null }) },
     { name: "monitor", fn: () => runMonitorTask({}) },
   ];

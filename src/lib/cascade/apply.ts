@@ -67,6 +67,11 @@ export async function applyCascadeEffects(
   //    bij een botsing (count !== 1) rolt de hele transactie terug.
   for (const sc of effects.statusChanges) {
     const data = { [sc.field]: sc.to, ...(sc.set ?? {}) };
+    // Stempel het afrondingsmoment bij de overgang naar COMPLETED — dit ankert het blinde
+    // beoordelingsvenster (double-blind reveal). Eén chokepoint: élke afronding loopt hierlangs.
+    if (sc.entity === "Collaboration" && sc.field === "status" && sc.to === "COMPLETED") {
+      (data as { completedAt?: Date }).completedAt = refs.occurredAt ?? new Date();
+    }
     const where = { id: sc.id, [sc.field]: sc.from };
     let count: number;
     if (sc.entity === "Collaboration") {
