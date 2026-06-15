@@ -19,9 +19,9 @@ schemawijziging**.
 - [x] `src/lib/verification-queue.test.ts` — 15 unit-tests: floor/non-negatief/getalsklok,
       labels (enkel/meervoud), lege wachtrij, oudste-bepaling, stale-grensgeval (exact = telt mee),
       non-mutatie, en consistentie tussen `staleThreshold` en `summarizeVerificationQueue` op de grens.
-- [x] `src/lib/admin-stats.ts` — `pendingVerifications` vervangen door `verificationQueue:
-    VerificationQueueHealth`; query uitgebreid met `findFirst` (oudste, alleen `updatedAt`) +
-      `count` (stale via `staleThreshold`), beide begrensd.
+- [x] `src/lib/admin-stats.ts` — `pendingVerifications` vervangen door
+      `verificationQueue: VerificationQueueHealth`; query uitgebreid met `findFirst` (oudste, alleen
+      `updatedAt`) + `count` (stale via `staleThreshold`), beide begrensd.
 - [x] `src/app/(protected)/admin/statistieken/page.tsx` — certificaten-sectie naar 4 kaarten:
       Wachtrij, Langst wachtend (oudste aanvraag, warning ≥ drempel), Te lang in wachtrij
       (stale-telling), Open disputen.
