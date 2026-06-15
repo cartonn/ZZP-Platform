@@ -19,11 +19,13 @@ function daysLabel(days: number): string {
 export function ExpiryOverviewCard({ overview }: { overview: ExpiryOverview }) {
   if (overview.total === 0) return null;
 
+  // De vensters zijn exclusieve buckets (within60 = 31–60, within90 = 61–90), dus toon
+  // expliciete reeksen i.p.v. "binnen N dagen" — dat laatste leest cumulatief en zou misleiden.
   const chips = [
     { count: overview.expired, label: "verlopen", tone: "danger" as const },
     { count: overview.within30, label: "binnen 30 dagen", tone: "warning" as const },
-    { count: overview.within60, label: "binnen 60 dagen", tone: "muted" as const },
-    { count: overview.within90, label: "binnen 90 dagen", tone: "muted" as const },
+    { count: overview.within60, label: "31–60 dagen", tone: "muted" as const },
+    { count: overview.within90, label: "61–90 dagen", tone: "muted" as const },
   ].filter((c) => c.count > 0);
 
   const listed = overview.items.slice(0, MAX_LISTED);
@@ -95,7 +97,8 @@ export function ExpiryOverviewCard({ overview }: { overview: ExpiryOverview }) {
 
       {remaining > 0 && (
         <p className="mt-3 text-xs text-muted-foreground">
-          en nog {plural(remaining, "certificaat", "certificaten")} binnen 90 dagen
+          en nog{" "}
+          {plural(remaining, "certificaat dat aandacht vraagt", "certificaten die aandacht vragen")}
         </p>
       )}
     </section>
