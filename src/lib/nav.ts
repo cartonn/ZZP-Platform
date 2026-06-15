@@ -77,6 +77,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: TERM_PLURAL.invoice, href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Boekhouding", href: "/administratie", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
+    { label: "Verplichtingen", href: "/verplichtingen", icon: "trendingUp", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", section: "Account", enabled: true }, // prettier-ignore
     { label: "Academie", href: "/academie", icon: "graduationCap", section: "Account", enabled: true }, // prettier-ignore
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", section: "Account", enabled: true }, // prettier-ignore
