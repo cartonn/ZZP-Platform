@@ -199,6 +199,30 @@ noot** af. Beoordelingen = geparkeerd productbesluit (eigenaar). **Rooster-markt
 diensten met startdatum, per dag, met matchscore. Open Fase 3: de **publiceer-/claim-kant** van de
 Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct vanuit de kalender).
 
+### Review-should-fixes nachtbatch #367–#372 (15-6-2026 — geen blockers, opportunistisch)
+
+> Uit de adversariële reviews van de 6 gemergde nachtfeatures. Geen van alle een blocker; pak ze
+> mee wanneer je toch in het betreffende bestand zit, of als losse kleine PR.
+
+- **#367 betrouwbaarheidssignaal** (`lib/client-reliability.ts`): defensieve guard zodat `completed`
+  geen rij telt die óók een client-annulering is (`status==="COMPLETED" && !(byClient && cancelledAt)`);
+  en in `lib/data/client-reliability.ts`: geef `unknown` terug als `company` null is i.p.v. een te
+  positief signaal.
+- **#368 rooster sterke-match** (`rooster/page.tsx`): toon een nette "geen sterke matches"-melding
+  wanneer `?match=sterk` handmatig actief is maar `strongCalendar.total === 0` (nu valt het stil terug).
+- **#369 markttarief-band** (`lib/market-rate.ts` + `JobRateBandCard`): bewaar de niet-afgeronde
+  `p25Raw`/`p75Raw` in `MarketBand` en gebruik die voor `ratePosition`, zodat de grensclassificatie
+  consistent is met `/profiel/bewerken`. **Plus mensenwerk: AVG art.6-bevestiging** dat opdrachtgevers
+  geaggregeerde ZZP-tariefstatistiek mogen zien (≥10 peers, geanonimiseerd) vóór livegang (MENSENWERK §5).
+- **#370 verificatie-wachtrij** (`prisma/schema.prisma` + `certificaten/actions.ts` + `verification-queue.ts`):
+  dedicated `submittedAt DateTime?` op `Credential` (eenmalig gezet bij → SUBMITTED) i.p.v. `updatedAt`
+  voor de wachtrij-leeftijd; + composite index `@@index([status, submittedAt])`.
+- **#371 vervalkalender** (`components/credentials/expiry-overview-card.tsx`): component-test voor
+  `ExpiryOverviewCard` (render/labels/empty). _(De misleidende labels zijn al gefixt bij merge.)_
+- **#372 betaalverplichtingen** (`verplichtingen/page.tsx`): scope op `counterpartyUserId` + de
+  bestaande `@@index([counterpartyUserId, lifecycleStatus])` i.p.v. de 3-way join; en vang
+  OVERDUE-items zónder `dueAt` op die nu door de `take: 200` + `nulls: last` kunnen wegvallen.
+
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
 > Gedaan (niet opnieuw): **Matchredenen op de opdracht-kaart** (`/opdrachten`, Linear ZZP2-188) —
