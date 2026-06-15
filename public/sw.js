@@ -87,7 +87,11 @@ self.addEventListener("push", (event) => {
 // doel-URL. Same-origin afgedwongen via een relatief pad.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || "/notificaties";
+  const raw = (event.notification.data && event.notification.data.url) || "/notificaties";
+  // Expliciete same-origin-grens (niet leunen op de push-handler als enige bron): alleen relatieve
+  // paden; anders terug naar de inbox. Voorkomt open-redirect/phishing als ooit een ander codepad
+  // showNotification aanroept.
+  const target = typeof raw === "string" && raw.startsWith("/") ? raw : "/notificaties";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

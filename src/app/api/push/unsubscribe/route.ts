@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { currentActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { auditData } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,28 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Ongeldig verzoek." }, { status: 400 });
   }
 
-  await prisma.pushSubscription.deleteMany({
+  const { count } = await prisma.pushSubscription.deleteMany({
     where: { endpoint: parsed.data.endpoint, userId: actor.id },
   });
+  if (count > 0) {
+    await prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "PUSH_UNSUBSCRIBE",
+        entityType: "PushSubscription",
+        entityId: actor.id,
+        metadata: {
+          host: (() => {
+            try {
+              return new URL(parsed.data.endpoint).host;
+            } catch {
+              return null;
+            }
+          })(),
+        },
+      }),
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

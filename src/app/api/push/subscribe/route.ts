@@ -6,6 +6,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { currentActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { auditData } from "@/lib/audit";
+import { isAllowedPushEndpoint } from "@/lib/push/endpoints";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +29,31 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const { endpoint, keys } = parsed.data;
+  // Anti-SSRF/exfiltratie: alleen endpoints van bekende push-diensten — de server POST't hier de
+  // (VAPID-ondertekende) melding naartoe; een eigen host zou de inhoud kunnen wegsluizen.
+  if (!isAllowedPushEndpoint(endpoint)) {
+    return NextResponse.json({ error: "Onbekende pushdienst." }, { status: 400 });
+  }
+
   const userAgent = request.headers.get("user-agent")?.slice(0, 256) ?? null;
 
-  await prisma.pushSubscription.upsert({
+  // Eén rij per endpoint; opnieuw abonneren ververst de sleutels en bindt aan de huidige actor
+  // (nodig voor een gedeeld toestel waar een andere gebruiker inlogt). Het endpoint zelf is een
+  // niet-raadbaar geheim, dus dit is geen praktisch overnamerisico. Audit (regel 5): alleen de host,
+  // nooit het geheime pad/sleutelmateriaal.
+  const sub = await prisma.pushSubscription.upsert({
     where: { endpoint },
     create: { userId: actor.id, endpoint, p256dh: keys.p256dh, auth: keys.auth, userAgent },
     update: { userId: actor.id, p256dh: keys.p256dh, auth: keys.auth, userAgent },
+  });
+  await prisma.auditLog.create({
+    data: auditData({
+      actorId: actor.id,
+      action: "PUSH_SUBSCRIBE",
+      entityType: "PushSubscription",
+      entityId: sub.id,
+      metadata: { host: new URL(endpoint).host },
+    }),
   });
 
   return NextResponse.json({ ok: true });
