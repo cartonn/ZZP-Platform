@@ -7,7 +7,6 @@ import {
   formatRating,
   reviewWindowCloses,
   reviewWindowOpen,
-  isMutualReveal,
   isRevealDue,
   DEFAULT_REVIEW_BLIND_DAYS,
   RATING_MIN,
@@ -127,6 +126,18 @@ describe("canLeaveReview", () => {
       }),
     ).toBe(true);
   });
+
+  it("windowClosed weggelaten = venster open (gedocumenteerd contract; actie blijft server-side gate)", () => {
+    // De optionele windowClosed defaultet naar 'open'. De serveractie hercontroleert het venster
+    // hoe dan ook (reviewWindowOpen), dus dit is alleen de UI-gate — geen autorisatiebeslissing.
+    expect(
+      canLeaveReview({
+        collaborationStatus: "COMPLETED",
+        isParticipant: true,
+        alreadyReviewed: false,
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("reviewWindowCloses", () => {
@@ -152,15 +163,6 @@ describe("reviewWindowOpen", () => {
   });
   it("dicht ná sluiting", () => {
     expect(reviewWindowOpen(close, new Date("2026-06-15T00:00:01.000Z"))).toBe(false);
-  });
-});
-
-describe("isMutualReveal", () => {
-  it("true zodra de tegenpartij al heeft ingediend (tweede indiening)", () => {
-    expect(isMutualReveal(true)).toBe(true);
-  });
-  it("false bij de eerste indiening", () => {
-    expect(isMutualReveal(false)).toBe(false);
   });
 });
 

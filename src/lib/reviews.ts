@@ -30,11 +30,6 @@ export function reviewWindowOpen(windowCloses: Date, now: Date): boolean {
   return now.getTime() <= windowCloses.getTime();
 }
 
-// Tweede indiening → directe wederzijdse onthulling (beide beoordelingen worden PUBLISHED).
-export function isMutualReveal(counterpartHasSubmitted: boolean): boolean {
-  return counterpartHasSubmitted;
-}
-
 // Cron-beslisregel: een nog-niet-onthulde beoordeling waarvan het venster verstreken is, publiceert
 // (ook eenzijdig — die ene beoordeling wordt dan gewoon zichtbaar).
 export function isRevealDue(status: string, revealDeadline: Date, now: Date): boolean {

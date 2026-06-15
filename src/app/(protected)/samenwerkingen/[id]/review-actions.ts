@@ -10,7 +10,6 @@ import {
   reviewDirection,
   reviewWindowCloses,
   reviewWindowOpen,
-  isMutualReveal,
   type ReviewDirection,
 } from "@/lib/reviews";
 import { reviewBlindDays } from "@/lib/config";
@@ -81,12 +80,12 @@ export async function createReviewAction(
     return { error: "Je hebt deze samenwerking al beoordeeld." };
   }
   const counterpartReview = col.reviews.find((r) => r.authorId === subjectId) ?? null;
-  const mutual = isMutualReveal(counterpartReview !== null);
+  const mutual = counterpartReview !== null; // tegenpartij al ingediend → tweede indiening, onthul beide
   const link = `/samenwerkingen/${collaborationId}`;
 
   try {
-    const writes: Prisma.PrismaPromise<unknown>[] = [
-      prisma.review.create({
+    await prisma.$transaction(async (tx) => {
+      await tx.review.create({
         data: {
           collaborationId,
           authorId: actor.id,
@@ -98,8 +97,8 @@ export async function createReviewAction(
           publishedAt: mutual ? now : null,
           revealDeadline: windowCloses,
         },
-      }),
-      prisma.auditLog.create({
+      });
+      await tx.auditLog.create({
         data: auditData({
           actorId: actor.id,
           action: "REVIEW_CREATED",
@@ -107,50 +106,51 @@ export async function createReviewAction(
           entityId: collaborationId,
           metadata: { rating: parsed.data.rating, direction, subjectId, mutual },
         }),
-      }),
-    ];
+      });
 
-    if (mutual && counterpartReview) {
-      // Onthul beide: werk de (nog PENDING_REVEAL) tegenpartij-beoordeling bij naar PUBLISHED en
-      // stuur béide partijen een onthullingsnotificatie — nu mét de score over hén.
-      writes.push(
-        prisma.review.updateMany({
-          where: { id: counterpartReview.id, status: "PENDING_REVEAL" },
-          data: { status: "PUBLISHED", publishedAt: now },
-        }),
-        prisma.notification.create({
+      if (mutual && counterpartReview) {
+        // Tweede indiening → wederzijdse onthulling. De tegenpartij ontving zojuist mijn beoordeling:
+        // notificeer hem altijd (mijn beoordeling is nu PUBLISHED). Publiceer daarnaast de (nog blinde)
+        // beoordeling van de tegenpartij; de status-guard maakt dit race-veilig t.o.v. de cron-sweep —
+        // alleen als ík hem publiceer (count 1) notificeer ik mezelf + log ik REVIEW_REVEALED. Heeft de
+        // cron hem net al onthuld (count 0), dan heeft die mij al genotificeerd → geen dubbele melding.
+        await tx.notification.create({
           data: {
-            userId: subjectId, // tegenpartij ontving mijn beoordeling
+            userId: subjectId,
             type: "REVIEW_PUBLISHED",
             title: "Je beoordeling is binnen",
             body: `Je ontving ${parsed.data.rating} van 5 sterren. De beoordelingen zijn nu zichtbaar.`,
             link,
           },
-        }),
-        prisma.notification.create({
-          data: {
-            userId: actor.id, // ik ontving de beoordeling van de tegenpartij
-            type: "REVIEW_PUBLISHED",
-            title: "Je beoordeling is binnen",
-            body: `Je ontving ${counterpartReview.rating} van 5 sterren. De beoordelingen zijn nu zichtbaar.`,
-            link,
-          },
-        }),
-        prisma.auditLog.create({
-          data: auditData({
-            actorId: actor.id,
-            action: "REVIEW_REVEALED",
-            entityType: "Collaboration",
-            entityId: collaborationId,
-            metadata: { trigger: "mutual" },
-          }),
-        }),
-      );
-    } else {
-      // Eerste indiening: nodig de tegenpartij uit om óók te beoordelen — ZONDER score (anders maak
-      // je het blinde venster feitelijk open en herintroduceer je het vergeldingslek).
-      writes.push(
-        prisma.notification.create({
+        });
+        const { count } = await tx.review.updateMany({
+          where: { id: counterpartReview.id, status: "PENDING_REVEAL" },
+          data: { status: "PUBLISHED", publishedAt: now },
+        });
+        if (count === 1) {
+          await tx.notification.create({
+            data: {
+              userId: actor.id,
+              type: "REVIEW_PUBLISHED",
+              title: "Je beoordeling is binnen",
+              body: `Je ontving ${counterpartReview.rating} van 5 sterren. De beoordelingen zijn nu zichtbaar.`,
+              link,
+            },
+          });
+          await tx.auditLog.create({
+            data: auditData({
+              actorId: actor.id,
+              action: "REVIEW_REVEALED",
+              entityType: "Collaboration",
+              entityId: collaborationId,
+              metadata: { trigger: "mutual" },
+            }),
+          });
+        }
+      } else {
+        // Eerste indiening: nodig de tegenpartij uit om óók te beoordelen — ZONDER score (anders maak
+        // je het blinde venster feitelijk open en herintroduceer je het vergeldingslek).
+        await tx.notification.create({
           data: {
             userId: subjectId,
             type: "REVIEW_RECEIVED",
@@ -158,11 +158,9 @@ export async function createReviewAction(
             body: "De andere partij heeft een beoordeling geplaatst. Plaats jouw beoordeling — bij wederzijdse beoordeling worden ze samen zichtbaar.",
             link,
           },
-        }),
-      );
-    }
-
-    await prisma.$transaction(writes);
+        });
+      }
+    });
   } catch (e) {
     // Alleen de unieke-constraint race (dubbele submit, P2002) geeft de idempotente, vriendelijke
     // melding; échte infra-/DB-fouten moeten doorgegooid worden i.p.v. als "al beoordeeld" maskeren.

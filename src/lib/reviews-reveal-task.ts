@@ -22,30 +22,43 @@ export async function runReviewsRevealTask(opts: {
 
   const due = await prisma.review.findMany({
     where: { status: "PENDING_REVEAL", revealDeadline: { lte: now } },
-    select: { id: true, subjectId: true, rating: true, collaborationId: true },
+    select: { id: true, subjectId: true, authorId: true, rating: true, collaborationId: true },
   });
 
   let revealed = 0;
   for (const rev of due) {
     try {
-      // Voorwaardelijke publicatie: gemist door een parallelle run? Dan count 0 → geen notificatie.
-      const { count } = await prisma.review.updateMany({
-        where: { id: rev.id, status: "PENDING_REVEAL" },
-        data: { status: "PUBLISHED", publishedAt: now },
-      });
-      if (count !== 1) continue;
-
-      await prisma.$transaction([
-        prisma.notification.create({
+      // Publicatie + notificaties + audit atomair (CLAUDE.md regel 5). De status-guard binnen de
+      // transactie maakt het idempotent: een parallelle run/mutual-reveal die al publiceerde geeft
+      // count 0 → niets gebeurt (geen dubbele notificatie, geen audit zonder statuswijziging).
+      const link = `/samenwerkingen/${rev.collaborationId}`;
+      const didReveal = await prisma.$transaction(async (tx) => {
+        const { count } = await tx.review.updateMany({
+          where: { id: rev.id, status: "PENDING_REVEAL" },
+          data: { status: "PUBLISHED", publishedAt: now },
+        });
+        if (count !== 1) return false;
+        // Eenzijdige onthulling bij venstersluiting: de beoordeelde ontving een beoordeling, de auteur
+        // hoort dat de zijne nu zichtbaar is (de tegenpartij heeft niet beoordeeld).
+        await tx.notification.create({
           data: {
             userId: rev.subjectId,
             type: "REVIEW_PUBLISHED",
             title: "Je hebt een beoordeling ontvangen",
             body: `Je ontving ${rev.rating} van 5 sterren voor een afgeronde samenwerking.`,
-            link: `/samenwerkingen/${rev.collaborationId}`,
+            link,
           },
-        }),
-        prisma.auditLog.create({
+        });
+        await tx.notification.create({
+          data: {
+            userId: rev.authorId,
+            type: "REVIEW_PUBLISHED",
+            title: "Je beoordeling is nu zichtbaar",
+            body: "Het beoordelingsvenster is gesloten; jouw beoordeling is gepubliceerd.",
+            link,
+          },
+        });
+        await tx.auditLog.create({
           data: auditData({
             actorId: opts.actorId ?? null,
             action: "REVIEW_REVEALED",
@@ -53,12 +66,14 @@ export async function runReviewsRevealTask(opts: {
             entityId: rev.id,
             metadata: { trigger: "window", rating: rev.rating },
           }),
-        }),
-      ]);
-      revealed += 1;
-    } catch {
+        });
+        return true;
+      });
+      if (didReveal) revealed += 1;
+    } catch (e) {
       // Eén falende beoordeling mag de rest niet blokkeren; de volgende run pakt 'm opnieuw op
-      // (de status-guard blijft idempotent).
+      // (de status-guard blijft idempotent). Wél loggen zodat systematische fouten zichtbaar worden.
+      console.error(`[reviews-reveal] onthulling van review ${rev.id} mislukt:`, e);
     }
   }
 
