@@ -59,7 +59,11 @@ jobs:
       - run: npm run build
 
       - name: QA critical flows (shard ${{ matrix.shard }}/4)
-        run: npx playwright test e2e/qa/ --project=ci --reporter=list --shard=${{ matrix.shard }}/4
+        # --workers=1: serieel binnen elke shard. De suite draait tegen één SQLite-db; parallelle
+        # workers veroorzaakten write-lock-contentie + kruisbesmetting tussen tests (o.a. de
+        # franchise-robuustheidstest die in CI faalde maar lokaal serieel slaagt). Sharding (4×)
+        # houdt de totale tijd binnen budget; binnen een shard is serieel betrouwbaarder dan snel.
+        run: npx playwright test e2e/qa/ --project=ci --reporter=list --shard=${{ matrix.shard }}/4 --workers=1
 
       - uses: actions/upload-artifact@v4
         if: always()
