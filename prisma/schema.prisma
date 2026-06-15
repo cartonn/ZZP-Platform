@@ -73,6 +73,7 @@ model User {
   authoredCourses         Course[]                 @relation("CourseAuthor")
   lessonCompletions       LessonCompletion[]       @relation("LessonCompleter")
   notificationPreferences NotificationPreference[]
+  pushSubscriptions       PushSubscription[]
   indirectHoursEntries    IndirectHoursEntry[]
 
   @@index([role])
@@ -918,12 +919,35 @@ model Notification {
   // een tijd niet opent). Voortgangsmarkering zoals Credential.expiryReminderFor: null = nog niet
   // gedigest; voorkomt dubbele digest-mails zonder aparte tabel.
   digestedAt DateTime?
+  // Wanneer deze notificatie als web-push is afgeleverd (voortgangsmarkering zoals digestedAt):
+  // null = nog niet gepusht. De push-delivery-taak zet 'm; voorkomt dubbele pushes zonder aparte tabel.
+  pushedAt   DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Notificatielijst: per gebruiker, nieuwste eerst. userId blijft leidend, dus dit dekt
   // ook userId-only filters (bv. de ongelezen-badge).
   @@index([userId, createdAt])
+  // Push-delivery-sweep: nog-niet-gepushte notificaties, nieuwste eerst.
+  @@index([pushedAt, createdAt])
+}
+
+// Web-push-abonnement van één browser/toestel (PushSubscription uit de Push API). Eén rij per
+// endpoint (uniek); een gebruiker kan meerdere toestellen hebben. p256dh + auth zijn de
+// versleutelingssleutels die de pushdienst nodig heeft. Verlopen endpoints (404/410) worden door de
+// delivery-taak opgeruimd. Geen gevoelige data — alleen routerings-/sleutelmateriaal.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String //   public key (base64url) uit subscription.keys.p256dh
+  auth      String //   auth secret (base64url) uit subscription.keys.auth
+  userAgent String? //  ter herkenning in een toekomstige toestellenlijst
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Plan {

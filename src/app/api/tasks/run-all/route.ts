@@ -17,6 +17,7 @@ import { runZzpMembershipTask } from "@/lib/zzp-membership-task";
 import { runPerformanceGraceTask } from "@/lib/performance-grace-task";
 import { runNotificationDigestTask } from "@/lib/notification-digest-task";
 import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
+import { runPushDeliveryTask } from "@/lib/push-delivery-task";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export async function POST(request: Request): Promise<Response> {
     { name: "zzp-membership", fn: () => runZzpMembershipTask({}) },
     { name: "performance-grace", fn: () => runPerformanceGraceTask({ actorId: null }) },
     { name: "reviews-reveal", fn: () => runReviewsRevealTask({ actorId: null }) },
+    { name: "push-delivery", fn: () => runPushDeliveryTask({}) },
     { name: "notification-digest", fn: () => runNotificationDigestTask({ actorId: null }) },
     { name: "monitor", fn: () => runMonitorTask({}) },
   ];
