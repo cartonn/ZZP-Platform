@@ -5,6 +5,12 @@ import { requireActor } from "@/lib/authz";
 import { getPrestatiesForClient } from "@/lib/prestaties";
 import { formatEuro } from "@/lib/invoices";
 import { formatDateShortNl, formatDateRangeNl } from "@/lib/format-date";
+import {
+  PERFORMANCE_APPROVAL_STALE_DAYS,
+  daysWaiting,
+  summarizePerformanceApproval,
+  waitingLabel,
+} from "@/lib/performance-approval";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -61,7 +67,10 @@ export default async function PrestatiesPage({
     ? allPrestaties.filter((p) => p.status === filterStatus)
     : allPrestaties;
 
-  const pendingCount = allPrestaties.filter((p) => p.status === "SUBMITTED").length;
+  const now = Date.now();
+  const submitted = allPrestaties.filter((p) => p.status === "SUBMITTED");
+  const pendingCount = submitted.length;
+  const queue = summarizePerformanceApproval(submitted, now);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -76,6 +85,13 @@ export default async function PrestatiesPage({
               </span>
             )}
           </p>
+          {queue.staleCount > 0 && (
+            <p className="mt-1 text-xs font-medium text-warning">
+              {queue.staleCount} {queue.staleCount === 1 ? "prestatie wacht" : "prestaties wachten"}{" "}
+              al {PERFORMANCE_APPROVAL_STALE_DAYS} dagen of langer — langer wachten houdt de
+              facturatie tegen.
+            </p>
+          )}
         </div>
         {allPrestaties.length > 0 && (
           <Button asChild size="sm" variant="secondary">
@@ -154,11 +170,23 @@ export default async function PrestatiesPage({
                       <span className="max-w-xs truncate italic">{p.description}</span>
                     )}
                   </div>
-                  {p.status === "SUBMITTED" && p.submittedAt && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Ingediend op {formatDateShortNl(p.submittedAt)}
-                    </p>
-                  )}
+                  {p.status === "SUBMITTED" &&
+                    p.submittedAt &&
+                    (() => {
+                      const days = daysWaiting(p.submittedAt, now);
+                      const stale = days >= PERFORMANCE_APPROVAL_STALE_DAYS;
+                      return (
+                        <p
+                          className={
+                            stale
+                              ? "mt-0.5 text-xs font-medium text-warning"
+                              : "mt-0.5 text-xs text-muted-foreground"
+                          }
+                        >
+                          Ingediend op {formatDateShortNl(p.submittedAt)} · {waitingLabel(days)}
+                        </p>
+                      );
+                    })()}
                   {p.rejectionReason && (
                     <p className="mt-1 text-xs text-danger">Reden afkeuring: {p.rejectionReason}</p>
                   )}

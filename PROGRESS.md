@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(prestaties): wachttijd-zicht op de goedkeuringswachtrij van de opdrachtgever
+
+`/prestaties` toonde per ingediende prestatie alleen de indiendatum ("Ingediend op X") — niet
+hóe lang die al op goedkeuring wacht. Een prestatie die blijft liggen stalt de hele
+facturatiecascade (geen concept-factuur, geen betaling). Dit maakt de doorlooptijd zichtbaar en
+signaleert te lang wachtende prestaties, zodat de opdrachtgever tijdig keurt. Read-only,
+server-side, deterministisch, **geen schemawijziging, geen extra query** (afgeleid uit de al
+opgehaalde `submittedAt`).
+
+- [x] `src/lib/performance-approval.ts` — pure module: `PERFORMANCE_APPROVAL_STALE_DAYS = 3`,
+      `summarizePerformanceApproval(items, now)` → `{ pending, oldestDays, staleCount }` (negeert
+      items zonder `submittedAt`, muteert niet). Hergebruikt de generieke `daysWaiting`/`waitingLabel`
+      uit `verification-queue.ts` (re-export — "vandaag ingediend"/"N dagen wachtend" geldt voor beide
+      wachtrijen) i.p.v. ze te dupliceren.
+- [x] `src/lib/performance-approval.test.ts` — 8 unit-tests: re-export-helpers, lege invoer,
+      null-`submittedAt` genegeerd, pending/oudste/stale-telling, stale-grensgeval (exact = telt mee /
+      −1 = niet), numerieke klok, non-mutatie.
+- [x] `src/app/(protected)/prestaties/page.tsx` — wachtrij-samenvatting berekend over de SUBMITTED-
+      prestaties; header toont een warning-regel "N prestaties wachten al ≥ 3 dagen — houdt de
+      facturatie tegen" bij stale items; per SUBMITTED-rij "Ingediend op X · N dagen wachtend"
+      (warning-tint zodra ≥ drempel). Bestaande filter/export/keuren-flow ongewijzigd.
+
+Gates groen: typecheck ✓, lint ✓, test 1992 ✓ (+8), build ✓, `prettier --check .` ✓.
+(E2e niet in de routine — geen browser-channel, zie CLAUDE.md; CI draait e2e.)
+
+---
+
 ## feat(verplichtingen): betaalverplichtingen-prognose voor de opdrachtgever (branch `claude/keen-wozniak-6jnz3g`)
 
 Spiegelbeeld van de bestaande inkomstenprognose (`/prognose`, alleen FREELANCER): de opdrachtgever

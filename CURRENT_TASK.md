@@ -249,6 +249,11 @@ Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct 
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
+> Reeds gedaan (niet opnieuw): wachttijd-zicht op de prestatie-goedkeuringswachtrij
+> (`lib/performance-approval.ts` — pure `summarizePerformanceApproval` + `PERFORMANCE_APPROVAL_STALE_DAYS=3`,
+> hergebruikt `daysWaiting`/`waitingLabel` uit `verification-queue.ts`; 8 unit-tests; `/prestaties` toont
+> per ingediende prestatie "N dagen wachtend" + een warning-regel bij ≥ 3 dagen die de cascade-stalling
+> benoemt; read-only, geen schemawijziging, geen extra query),
 > Reeds gedaan (niet opnieuw): annuleringsbetrouwbaarheid-signaal van de opdrachtgever
 > (`lib/client-reliability.ts` `computeClientReliability` + `lib/data/client-reliability.ts` +
 > `ClientReliabilityBlock` op de opdracht-detailpagina): spiegelbeeld van het betaalgedrag-signaal —
