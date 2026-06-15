@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(markttarief): niet-afgeronde p25/p75 in de marktband — consistente grensclassificatie (#369)
+
+Review-should-fix **#369** uit de nachtbatch. `JobRateBandCard` (op `/opdrachten/nieuw` +
+`/opdrachten/[id]/bewerken`) bepaalde de tariefpositie via `ratePosition` op de **afgeronde** `p25`/`p75`
+uit de marktband, terwijl `/profiel/bewerken` (`computeMarketRate`) de **niet-afgeronde** percentielen
+gebruikt. Bij een tarief vlak bij een grens kon dezelfde waarde op de twee oppervlakken anders
+classificeren (below/within/above). Opgelost door de niet-afgeronde percentielen in de band mee te geven.
+
+- [x] `src/lib/market-rate.ts` — `MarketBand` uitgebreid met `p25Raw`/`p75Raw` (niet-afgerond, null bij
+      scope "none"); `computeMarketBand` geeft ze terug. De afgeronde `p25`/`p75` blijven voor weergave.
+- [x] `src/components/jobs/job-rate-band-card.tsx` — `ratePosition(p25Raw, p75Raw, rateMin)` i.p.v. de
+      afgeronde grenswaarden; weergave (mediaan + middenmoot) ongewijzigd op de afgeronde waarden.
+- [x] `src/lib/market-rate.test.ts` — +3 tests: p25Raw/p75Raw gelijk aan afgerond bij hele percentielen,
+      niet-afgeronde grenswaarden bewaard bij niet-hele percentielen (40.75/42.25) + consistente
+      classificatie, en null bij scope "none". Suite: 37 (markt-rate), 2064 totaal.
+
+Read-only consumer, server-side waarheid, geen schemawijziging, geen extra query. Gate lokaal groen:
+typecheck ✓ · lint ✓ · test 2064 ✓ · build ✓ · prettier ✓. E2e via CI.
+
+---
+
 ## feat(reviews): tweezijdige beoordelingen — double-blind (simultane onthulling) (#384, 15-6-2026)
 
 De geparkeerde reviews-feature live gebracht, maar als **trust-primitive met double-blind reveal**

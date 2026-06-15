@@ -19,12 +19,14 @@ export function JobRateBandCard({
   /** Het ingevulde minimumtarief in euro, of null wanneer leeg. */
   rateMin: number | null;
 }) {
-  const { scope, sampleSize, median, p25, p75 } = band;
+  const { scope, sampleSize, median, p25, p75, p25Raw, p75Raw } = band;
 
   const scopeLabel =
     scope === "industry" ? "Vergelijkbare functies" : scope === "platform" ? "Platformbreed" : null;
 
-  const position = ratePosition(p25, p75, rateMin);
+  // Positie op de NIET-afgeronde grenswaarden bepalen, zodat de classificatie consistent is
+  // met `/profiel/bewerken` (computeMarketRate); de afgeronde p25/p75 zijn alleen voor weergave.
+  const position = ratePosition(p25Raw, p75Raw, rateMin);
 
   let assessment: { text: string; className: string } | null = null;
   if (scope !== "none") {
