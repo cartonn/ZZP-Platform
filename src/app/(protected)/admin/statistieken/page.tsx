@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getPlatformStats, approvalRate, sharePercent, formatStatsEuro } from "@/lib/admin-stats";
+import { VERIFICATION_STALE_DAYS } from "@/lib/verification-queue";
 import { StatCard } from "@/components/ui/stat-card";
 
 export const metadata: Metadata = { title: "Platform statistieken · ZZP Platform" };
@@ -167,12 +168,32 @@ export default async function StatistiekenPage() {
       {/* Verificaties */}
       <section className="space-y-3">
         <SectionHeader icon={ShieldCheck} title="Certificaten" />
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Wachtrij verificaties"
-            value={stats.pendingVerifications}
-            tone={stats.pendingVerifications > 0 ? "warning" : "success"}
-            sub={stats.pendingVerifications === 0 ? "Wachtrij leeg" : "Wacht op beoordeling"}
+            value={stats.verificationQueue.pending}
+            tone={stats.verificationQueue.pending > 0 ? "warning" : "success"}
+            sub={stats.verificationQueue.pending === 0 ? "Wachtrij leeg" : "Wacht op beoordeling"}
+            href="/admin/verificaties"
+          />
+          <StatCard
+            label="Langst wachtend"
+            value={
+              stats.verificationQueue.pending === 0
+                ? "—"
+                : `${stats.verificationQueue.oldestDays} d`
+            }
+            tone={
+              stats.verificationQueue.oldestDays >= VERIFICATION_STALE_DAYS ? "warning" : "default"
+            }
+            sub={stats.verificationQueue.pending === 0 ? "Geen wachtenden" : "Oudste aanvraag"}
+            href="/admin/verificaties"
+          />
+          <StatCard
+            label="Te lang in wachtrij"
+            value={stats.verificationQueue.staleCount}
+            tone={stats.verificationQueue.staleCount > 0 ? "warning" : "success"}
+            sub={`${VERIFICATION_STALE_DAYS}+ dagen onbehandeld`}
             href="/admin/verificaties"
           />
           <StatCard

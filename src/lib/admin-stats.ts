@@ -2,6 +2,11 @@
 // Alle queries zijn lees-only; geen schrijfacties.
 
 import { prisma } from "@/lib/db";
+import {
+  type VerificationQueueHealth,
+  daysWaiting,
+  staleThreshold,
+} from "@/lib/verification-queue";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,7 +49,7 @@ export interface PlatformStats {
   collaborations: CollaborationStats;
   performances: PerformanceStats;
   invoices: InvoiceStats;
-  pendingVerifications: number;
+  verificationQueue: VerificationQueueHealth;
   openDisputes: number;
 }
 
@@ -82,6 +87,7 @@ export function formatStatsEuro(cents: number): string {
 // ---------------------------------------------------------------------------
 
 export async function getPlatformStats(): Promise<PlatformStats> {
+  const now = new Date();
   const [
     userRows,
     suspendedCount,
@@ -94,6 +100,8 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     invoiceProcessed,
     processedSum,
     pendingVerifications,
+    oldestVerification,
+    staleVerifications,
     openDisputes,
   ] = await Promise.all([
     // Gebruikers per rol
@@ -123,6 +131,16 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     }),
     // Openstaande certificaat-verificaties
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
+    // Langst wachtende aanvraag (alleen het indientijdstip nodig)
+    prisma.credential.findFirst({
+      where: { status: "SUBMITTED" },
+      orderBy: { updatedAt: "asc" },
+      select: { updatedAt: true },
+    }),
+    // Aanvragen die al te lang wachten (>= VERIFICATION_STALE_DAYS) — goedkope count
+    prisma.credential.count({
+      where: { status: "SUBMITTED", updatedAt: { lte: staleThreshold(now) } },
+    }),
     // Open disputen (samenwerking met disputedAt)
     prisma.collaboration.count({ where: { disputedAt: { not: null }, status: "ACTIVE" } }),
   ]);
@@ -168,7 +186,11 @@ export async function getPlatformStats(): Promise<PlatformStats> {
       processed: invoiceProcessed,
       totalProcessedCents: processedSum._sum.totalCents ?? 0,
     },
-    pendingVerifications,
+    verificationQueue: {
+      pending: pendingVerifications,
+      oldestDays: oldestVerification ? daysWaiting(oldestVerification.updatedAt, now) : 0,
+      staleCount: staleVerifications,
+    },
     openDisputes,
   };
 }

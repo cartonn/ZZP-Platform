@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(admin): verificatie-wachtrij gezondheid (doorlooptijd + te-lang-wachtend) op /admin/statistieken
+
+De platform-statistieken toonden voor de kerndifferentiator (certificaat-verificatie) alleen een
+kale wachtrij-telling — geen zicht op doorlooptijd of of er aanvragen blijven liggen. De
+verificatie-wachtrijpagina had bovendien `STALE_DAYS`/`daysWaiting`/`waitingLabel` lokaal
+gedupliceerd. Dit consolideert die logica in één geteste pure module en surface't de
+wachtrij-gezondheid op de statistiekenpagina. Read-only, server-side, deterministisch, **geen
+schemawijziging**.
+
+- [x] `src/lib/verification-queue.ts` — pure module: `VERIFICATION_STALE_DAYS = 5`, `daysWaiting`
+      (hele dagen, geïnjecteerde klok als `Date|number`), `waitingLabel`, `summarizeVerificationQueue`
+      (→ `{ pending, oldestDays, staleCount }`, muteert niet) en `staleThreshold(now)` voor een
+      goedkope `count`-primitive (geen onbegrensde findMany in de hot statistiek-query).
+- [x] `src/lib/verification-queue.test.ts` — 15 unit-tests: floor/non-negatief/getalsklok,
+      labels (enkel/meervoud), lege wachtrij, oudste-bepaling, stale-grensgeval (exact = telt mee),
+      non-mutatie, en consistentie tussen `staleThreshold` en `summarizeVerificationQueue` op de grens.
+- [x] `src/lib/admin-stats.ts` — `pendingVerifications` vervangen door `verificationQueue:
+    VerificationQueueHealth`; query uitgebreid met `findFirst` (oudste, alleen `updatedAt`) +
+      `count` (stale via `staleThreshold`), beide begrensd.
+- [x] `src/app/(protected)/admin/statistieken/page.tsx` — certificaten-sectie naar 4 kaarten:
+      Wachtrij, Langst wachtend (oudste aanvraag, warning ≥ drempel), Te lang in wachtrij
+      (stale-telling), Open disputen.
+- [x] `src/app/(protected)/admin/verificaties/page.tsx` — lokale helpers verwijderd; gebruikt nu de
+      gedeelde module (`summarizeVerificationQueue` + `waitingLabel` + `VERIFICATION_STALE_DAYS`);
+      header toont ook de stale-telling. Vangrail-allowlist regelnummer bijgewerkt (36 → 32).
+
+Gates groen: typecheck ✓, lint ✓, test 1958 ✓ (+15), build ✓, `prettier --check .` ✓.
+(E2e niet in de routine — geen browser-channel, zie CLAUDE.md; CI draait e2e.)
+
+---
+
 ## feat(opdrachten): markttarief-band op het opdracht-formulier (branch `claude/keen-wozniak-14ij6l`)
 
 De `market-rate.ts`-motor toonde een geanonimiseerde marktband alleen aan de ZZP'er op
