@@ -14,9 +14,9 @@ minimumtarief. Zowel `Job.rateMin/rateMax` als `FreelancerProfile.hourlyRate` zi
 direct vergelijkbaar. Server-side berekend, deterministisch, **geen schemawijziging**.
 
 - [x] `src/lib/market-rate.ts` — pure `computeMarketBand({industryPeerRates, platformPeerRates,
-  minSample})` → `MarketBand` (scope/sampleSize/median/p25/p75, afgerond) met dezelfde
+minSample})` → `MarketBand` (scope/sampleSize/median/p25/p75, afgerond) met dezelfde
       scope-keuze (industrie→platform→none) als `computeMarketRate`; pure `ratePosition(p25, p75,
-  rate)` (below/within/above/unknown, grenzen inclusief). `computeMarketRate` hergebruikt nu
+rate)` (below/within/above/unknown, grenzen inclusief). `computeMarketRate` hergebruikt nu
       `ratePosition` (gedragsbehoudend, niet-afgeronde grenzen).
 - [x] `src/lib/market-rate.test.ts` — +13 tests (computeMarketBand: scope-keuze, platform-terugval,
       none + voortgangsteller, filtering, non-mutatie; ratePosition: unknown-gevallen, classificatie,
