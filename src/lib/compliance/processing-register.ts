@@ -349,6 +349,33 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
       "Auditlogging",
     ],
   },
+
+  // 14. Markttarief-indicatie (geanonimiseerd) — grondslag bevestigd door eigenaar 15-6-2026
+  {
+    key: "markttarief-indicatie",
+    name: "Markttarief-indicatie (geanonimiseerd)",
+    purpose:
+      "Tonen van een geanonimiseerde markttariefband (mediaan en 25e/75e percentiel) ter ondersteuning van eerlijke, marktconforme tariefstelling — aan opdrachtgevers op het opdracht-formulier en aan ZZP'ers op het eigen profiel.",
+    legalBasis: "GERECHTVAARDIGD_BELANG",
+    dataSubjects: ["ZZP'ers"],
+    dataCategories: [
+      "Uurtarief — uitsluitend geaggregeerd (mediaan, 25e/75e percentiel); nooit een individueel tarief",
+      "Branche (uitsluitend voor de steekproefselectie)",
+    ],
+    sensitive: false,
+    recipients: [
+      "Opdrachtgevers (geaggregeerde band op het opdracht-formulier)",
+      "ZZP'ers (eigen marktpositie op het profiel)",
+    ],
+    retention:
+      "Niet opgeslagen — de band wordt live berekend uit actuele profielen; geen aparte bewaartermijn",
+    securityMeasures: [
+      "k-anonimiteit: minimaal 10 profielen vereist (MARKET_RATE_MIN_SAMPLE) vóór weergave",
+      "Uitsluitend geaggregeerde statistieken verlaten de server — geen individueel tarief, naam of identificator",
+      "Verplichte disclaimer bij weergave",
+      "Toegang op rol (RBAC)",
+    ],
+  },
 ] as const;
 
 // --- Bewaarschema ------------------------------------------------------------
