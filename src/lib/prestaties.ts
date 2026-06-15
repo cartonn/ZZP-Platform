@@ -44,6 +44,9 @@ export async function getPrestatiesForClient(userId: string): Promise<PrestatieO
       },
     },
     orderBy: [{ periodStart: "desc" }, { createdAt: "desc" }],
+    // Eigenaar-scoped, maar onbegrensde groei voorkomen: een opdrachtgever met veel ZZP'ers/
+    // langlopende samenwerkingen kan honderden prestaties hebben. Ruime cap; recentste eerst.
+    take: 500,
   });
 
   return rows.map((p) => {
