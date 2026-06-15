@@ -229,6 +229,9 @@ Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct 
 > (`lib/roster-market.ts` `buildRosterCalendar` + read-only `/rooster` voor FREELANCER/ADMIN:
 > PUBLISHED-jobs met startdatum per kalenderdag, matchscore + "Gereageerd"-badge, doorklik naar de
 > opdracht; reageren via de bestaande flow, geen schemawijziging; 14 unit-tests; nav-item onder Werk),
+> Rooster matchredenen + sterke-match-filter (`roster-market.ts` `filterRosterByMinMatch` +
+> `ROSTER_STRONG_MATCH_MIN`; troef/minpunt-regel per dienst gelijk aan /opdrachten; `?match=sterk`
+> filter-tabs; 6 unit-tests; geen schemawijziging),
 > indirecte uren voor het urencriterium (/ontzorgd/uren:
 > IndirectHoursEntry-model + lib/tax/indirect-hours.ts + acties/page; /ontzorgd telt nu direct +
 > indirect i.p.v. indirectHours:0 — branch claude/dazzling-carson-v9Qwk),

@@ -1,13 +1,17 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, ChevronRight, MapPin } from "lucide-react";
+import { CalendarDays, Check, ChevronRight, MapPin, Minus } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { visibleJobsWhere } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
-import { scoreJobForFreelancer } from "@/lib/matching";
+import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/matching";
 import { type Weekday, type WorkMode } from "@/lib/enums";
-import { buildRosterCalendar } from "@/lib/roster-market";
+import {
+  buildRosterCalendar,
+  filterRosterByMinMatch,
+  ROSTER_STRONG_MATCH_MIN,
+} from "@/lib/roster-market";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +37,12 @@ const WEEKDAY_LABEL: Record<Weekday, string> = {
   SUN: "Zondag",
 };
 
-export default async function RoosterPage() {
-  const actor = await requireActor();
+export default async function RoosterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ match?: string }>;
+}) {
+  const [actor, { match }] = await Promise.all([requireActor(), searchParams]);
 
   // Opdrachtgevers hebben niets te zoeken in de diensten-kalender
   if (actor.role === "CLIENT") {
@@ -90,7 +98,7 @@ export default async function RoosterPage() {
 
   // Bouw de shift-inputs
   const shifts = jobs.map((job) => {
-    const matchScore = profile !== null ? scoreJobForFreelancer(job, profile).score : null;
+    const result = profile !== null ? scoreJobForFreelancer(job, profile) : null;
     return {
       jobId: job.id,
       title: job.title,
@@ -100,12 +108,19 @@ export default async function RoosterPage() {
       rateMax: job.rateMax,
       location: job.location,
       workMode: job.workMode,
-      matchScore,
+      matchScore: result?.score ?? null,
       alreadyApplied: appliedJobIds.has(job.id),
+      topReason: result ? topPositiveReason(result.reasons) : null,
+      topGap: result ? topGapReason(result.reasons) : null,
     };
   });
 
-  const calendar = buildRosterCalendar(shifts, now);
+  const fullCalendar = buildRosterCalendar(shifts, now);
+  // Sterke-match-filter is alleen betekenisvol voor een ZZP'er met een profiel.
+  const strongCalendar = filterRosterByMinMatch(fullCalendar, ROSTER_STRONG_MATCH_MIN);
+  const showStrongFilter = profile !== null && strongCalendar.total > 0;
+  const strongActive = showStrongFilter && match === "sterk";
+  const calendar = strongActive ? strongCalendar : fullCalendar;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -113,6 +128,39 @@ export default async function RoosterPage() {
         title="Rooster"
         description="Open diensten met een startdatum — gegroepeerd per dag."
       />
+
+      {showStrongFilter && (
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            {
+              label: "Alle diensten",
+              href: "/rooster",
+              active: !strongActive,
+              count: fullCalendar.total,
+            },
+            {
+              label: "Sterke matches",
+              href: "/rooster?match=sterk",
+              active: strongActive,
+              count: strongCalendar.total,
+            },
+          ].map((tab) => (
+            <Link
+              key={tab.label}
+              href={tab.href}
+              aria-current={tab.active ? "page" : undefined}
+              className={[
+                "focus-ring inline-flex items-center rounded-md border px-3 py-1 text-sm transition-colors",
+                tab.active
+                  ? "border-accent-foreground/20 bg-accent text-accent-foreground"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted",
+              ].join(" ")}
+            >
+              {tab.label} ({tab.count})
+            </Link>
+          ))}
+        </div>
+      )}
 
       {calendar.total === 0 ? (
         <Card>
@@ -159,6 +207,22 @@ export default async function RoosterPage() {
                         )}
                         <span>{WORK_MODE_LABEL[shift.workMode as WorkMode]}</span>
                       </p>
+                      {(shift.topReason || shift.topGap) && (
+                        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+                          {shift.topReason && (
+                            <span className="inline-flex items-center gap-1 text-success">
+                              <Check className="size-3 shrink-0" aria-hidden />
+                              {shift.topReason}
+                            </span>
+                          )}
+                          {shift.topGap && (
+                            <span className="inline-flex items-center gap-1 text-muted-foreground">
+                              <Minus className="size-3 shrink-0" aria-hidden />
+                              {shift.topGap}
+                            </span>
+                          )}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex shrink-0 items-center gap-3">
