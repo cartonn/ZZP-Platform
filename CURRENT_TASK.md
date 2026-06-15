@@ -16,7 +16,11 @@
   `main`. **Altijd `git fetch` + rebase vóór commit én push.** Geen losse langlevende epic-/deploy-
   branches meer; `main` is de bron van waarheid en de deploy-branch tegelijk.
 - **24/7-bouw:** Routine **"ZZP auto-build"** in Claude Code on the web (claude.ai/code/routines),
-  elke ~2 uur. Orchestrator én builder/tester-subagents op **Opus 4.8** (15-6; zie `.claude/agents/*`).
+  **elke 4 uur** (cadans verlaagd 15-6 i.v.m. Opus-belasting). Orchestrator én builder/tester-subagents
+  op **Opus 4.8** (15-6; zie `.claude/agents/*`). Draait op het Claude Max-abonnement (OAuth), geen
+  per-token-API-kosten. Naast de auto-build draait de routine **"ZZP persona-sweep"** dagelijks
+  (07:00 lokaal, Opus 4.8): kritische persona's per rol → gaten-backlog in
+  `docs/PERSONA-SWEEP-BACKLOG.md` via een PR (merget niet zelf).
   Routine-runs leveren een **PR naar `main`** op. `ANTHROPIC_API_KEY`-secret staat in GitHub. (De
   GitHub-Actions-cron `auto-build.yml` bestaat ook, maar is onbewezen vanuit de sessie — de Routine
   is de gekozen route.) _(Linear wordt niet meer gebruikt — sinds 14-6.)_
