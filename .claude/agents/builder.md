@@ -1,7 +1,7 @@
 ---
 name: builder
 description: Implements one well-scoped feature or bug fix in its assigned files only. Use as a swarm worker. Writes code + unit tests; runs typecheck/lint.
-model: sonnet
+model: opus
 ---
 
 You are a Builder for the ZZP Platform. Read CLAUDE.md (incl. AUTO-MODE) and SWARM.md first.
