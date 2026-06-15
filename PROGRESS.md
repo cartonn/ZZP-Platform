@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## fix(review-batch): should-fixes deel 2 — #367 / #368 / #372 (15-6-2026)
+
+Drie review-should-fixes uit de nachtbatch #367–#372 verwerkt (geen blockers, opportunistisch).
+#369 en #370 waren al in-flight (PR #387 / #383); #371 (component-render-test) is bewust
+overgeslagen — er is geen jsdom/`@testing-library/react` en de Vitest-omgeving staat op `node`, dus
+een DOM-render-test zou een infra-wijziging vergen die niet in verhouding staat tot één should-fix
+(en `next/link` onder `react-dom/server` is broos). #371 blijft open in de backlog.
+
+- [x] **#367 betrouwbaarheidssignaal** (`lib/client-reliability.ts` + `lib/data/client-reliability.ts`):
+      defensieve noemer-guard zodat een rij die zowel `COMPLETED` is áls een eigen annulering draagt
+      niet dubbel telt (alleen via de teller); en de data-laag geeft nu een neutraal `unknown`-signaal
+      terug wanneer de `company` null is, i.p.v. een te positief signaal (zonder bekende eigenaar kan
+      een annulering niet aan de opdrachtgever worden toegeschreven). +2 unit-tests (totaal 2083).
+- [x] **#368 rooster sterke-match** (`rooster/page.tsx`): nette melding "Geen sterke matches op dit
+      moment — hieronder staan alle open diensten" wanneer `?match=sterk` handmatig actief is maar
+      `strongCalendar.total === 0` (viel voorheen stil terug op alle diensten zonder uitleg).
+- [x] **#372 betaalverplichtingen** (`verplichtingen/page.tsx`): scope direct op `counterpartyUserId`
+      (de gezaghebbende sleutel, met de dedicated index `[counterpartyUserId, lifecycleStatus]`) i.p.v.
+      de 3-way join door collaboration → company → user; + een begrensd vangnet dat OVERDUE-facturen
+      zónder `dueAt` gericht ophaalt en op id dedupliceert, zodat ze niet door `nulls: "last"` + de
+      `take: 200`-cap kunnen wegvallen. Read-only, server-side, geen schemawijziging.
+
+Gates groen: typecheck ✓, lint ✓, test 2083 ✓ (+2), build ✓, `prettier --check .` ✓.
+(E2e niet in de routine — geen browser-channel; CI draait e2e.)
+
+---
+
 ## feat(reviews): tweezijdige beoordelingen — double-blind (simultane onthulling) (#384, 15-6-2026)
 
 De geparkeerde reviews-feature live gebracht, maar als **trust-primitive met double-blind reveal**
