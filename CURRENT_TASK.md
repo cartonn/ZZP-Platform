@@ -19,8 +19,11 @@
   **elke 4 uur** (cadans verlaagd 15-6 i.v.m. Opus-belasting). Orchestrator én builder/tester-subagents
   op **Opus 4.8** (15-6; zie `.claude/agents/*`). Draait op het Claude Max-abonnement (OAuth), geen
   per-token-API-kosten. Naast de auto-build draait de routine **"ZZP persona-sweep"** dagelijks
-  (07:00 lokaal, Opus 4.8): kritische persona's per rol → gaten-backlog in
-  `docs/PERSONA-SWEEP-BACKLOG.md` via een PR (merget niet zelf).
+  (07:00 lokaal, Opus 4.8): test het systeem als kritische gebruiker per rol op **(1) werkt het
+  zoals het hoort** en **(2) stress/adversarieel — gaten zoeken door dingen te doen die niet mogen**
+  (privilege-escalatie, IDOR/cross-tenant, authz-keten omzeilen, verboden statusovergangen,
+  malicieuze input, 404-vs-500). Levert een gaten-backlog in `docs/PERSONA-SWEEP-BACKLOG.md` via een
+  PR (merget niet zelf). Canonieke prompt: [`docs/PERSONA-SWEEP-PROMPT.md`](docs/PERSONA-SWEEP-PROMPT.md).
   Routine-runs leveren een **PR naar `main`** op. `ANTHROPIC_API_KEY`-secret staat in GitHub. (De
   GitHub-Actions-cron `auto-build.yml` bestaat ook, maar is onbewezen vanuit de sessie — de Routine
   is de gekozen route.) _(Linear wordt niet meer gebruikt — sinds 14-6.)_
