@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(certificaten): vervalkalender — overzicht van (bijna) verlopen certificaten (branch `claude/keen-wozniak-d0wjas`)
+
+De `/certificaten`-pagina toonde de vervaldatum alleen per kaart; een ZZP'er met meerdere
+bewijsstukken zag niet in één oogopslag wat als eerste vernieuwd moet worden. Dit voegt een
+geaggregeerde vervalkalender toe boven de certificaatlijst — op de kerndifferentiator
+(verificatie/expiry). Read-only, server-side, deterministisch, **geen schemawijziging, geen extra
+query** (afgeleid uit de al opgehaalde certificaten).
+
+- [x] `src/lib/credential-expiry-overview.ts` — pure `summarizeExpiry(creds, now)` →
+      `ExpiryOverview`: bucket VERIFIED/EXPIRED-certificaten mét vervaldatum in vensters
+      (EXPIRED / WITHIN_30 / WITHIN_60 / WITHIN_90, horizon `EXPIRY_HORIZON_DAYS = 90`), sorteert
+      meest urgent eerst (dagen oplopend, tie-break op titel), telt per venster; muteert de invoer
+      niet. EXPIRED-status telt altijd als verlopen; DRAFT/SUBMITTED/REJECTED en certificaten zonder
+      vervaldatum vallen weg.
+- [x] `src/lib/credential-expiry-overview.test.ts` — 10 unit-tests: lege kalender, venster-indeling,
+      horizon-grens (exact = wél / +1 = weg), VERIFIED-maar-verstreken → verlopen, EXPIRED-status met
+      toekomstdatum → verlopen, niet-verlopende statussen genegeerd, geen vervaldatum genegeerd,
+      sortering + tie-break, non-mutatie.
+- [x] `src/components/credentials/expiry-overview-card.tsx` — presentationele server-component:
+      venster-chips (verlopen/30/60/90), top-5 urgentste certificaten met type-label + dagen-tekst,
+      link naar `/certificaten/[id]/bewerken` om te vernieuwen, "+N binnen 90 dagen"-noot. Verbergt
+      zichzelf zodra niets binnen de horizon verloopt (rustige pagina).
+- [x] `certificaten/(index)/page.tsx` — kaart gerenderd tussen MandatoryDocuments en de lijst;
+      `unbounded-queries.test.ts`-allowlist regelnummer bijgewerkt (63 → 65 door de extra imports).
+
+Gates groen: typecheck ✓, lint ✓, test 1953 ✓ (+10), build ✓, prettier --write . ✓.
+(E2e niet in de routine — geen browser-channel; CI draait e2e.)
+
+---
+
 ## feat(admin): verificatie-wachtrij gezondheid (doorlooptijd + te-lang-wachtend) op /admin/statistieken
 
 De platform-statistieken toonden voor de kerndifferentiator (certificaat-verificatie) alleen een
