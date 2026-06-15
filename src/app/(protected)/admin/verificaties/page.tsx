@@ -13,18 +13,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { ExpiryButton } from "./expiry-button";
 import { rejectCredential, verifyCredential } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
+import {
+  VERIFICATION_STALE_DAYS,
+  daysWaiting,
+  waitingLabel,
+  summarizeVerificationQueue,
+} from "@/lib/verification-queue";
 
 export const metadata: Metadata = { title: "Verificaties · ZZP Platform" };
-
-/** Aantal hele dagen dat een aanvraag al wacht (sinds indienen). */
-const STALE_DAYS = 5;
-function daysWaiting(since: Date, now: number): number {
-  return Math.max(0, Math.floor((now - since.getTime()) / 86_400_000));
-}
-function waitingLabel(days: number): string {
-  if (days === 0) return "vandaag ingediend";
-  return `${days} dag${days === 1 ? "" : "en"} wachtend`;
-}
 
 function fmt(d: Date | null) {
   return d ? formatDateShortNl(d) : null;
@@ -43,8 +39,7 @@ export default async function VerificatiesPage() {
   });
 
   const now = Date.now();
-  const oldest = queue[0];
-  const oldestDays = oldest ? daysWaiting(oldest.updatedAt, now) : 0;
+  const health = summarizeVerificationQueue(queue, now);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -52,8 +47,14 @@ export default async function VerificatiesPage() {
         title="Verificaties"
         description={
           <>
-            Beoordeel ingediende certificaten. {queue.length} in de wachtrij
-            {oldestDays >= STALE_DAYS ? `, langst wachtend ${oldestDays} dagen` : ""}.
+            Beoordeel ingediende certificaten. {health.pending} in de wachtrij
+            {health.oldestDays >= VERIFICATION_STALE_DAYS
+              ? `, langst wachtend ${health.oldestDays} dagen`
+              : ""}
+            {health.staleCount > 0
+              ? ` · ${health.staleCount} langer dan ${VERIFICATION_STALE_DAYS} dagen`
+              : ""}
+            .
           </>
         }
         action={<ExpiryButton />}
@@ -80,7 +81,7 @@ export default async function VerificatiesPage() {
                     {(() => {
                       const days = daysWaiting(c.updatedAt, now);
                       return (
-                        <Badge variant={days >= STALE_DAYS ? "warning" : "muted"}>
+                        <Badge variant={days >= VERIFICATION_STALE_DAYS ? "warning" : "muted"}>
                           {waitingLabel(days)}
                         </Badge>
                       );

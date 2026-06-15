@@ -229,6 +229,13 @@ Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct 
 > `ClientReliabilityBlock` op de opdracht-detailpagina): spiegelbeeld van het betaalgedrag-signaal —
 > hoe vaak annuleert de opdrachtgever agreed werk en hoe vaak last-minute (chargeable); read-only,
 > server-side, geen schemawijziging, 11 unit-tests),
+> Reeds gedaan (niet opnieuw): verificatie-wachtrij gezondheid op /admin/statistieken
+> (`lib/verification-queue.ts` — pure `summarizeVerificationQueue` + `daysWaiting`/`waitingLabel`/
+> `staleThreshold`, `VERIFICATION_STALE_DAYS=5`; 15 unit-tests; admin-stats.ts `pendingVerifications`
+> → `verificationQueue {pending,oldestDays,staleCount}` via begrensde findFirst+count; statistieken-
+> certificatensectie naar 4 kaarten incl. "Langst wachtend" + "Te lang in wachtrij"; de lokale
+> STALE_DAYS/daysWaiting/waitingLabel-duplicatie in /admin/verificaties is opgeruimd naar de gedeelde
+> module; geen schemawijziging),
 > Rooster-marktplaats slice 1 — discovery-kalender van open diensten
 > (`lib/roster-market.ts` `buildRosterCalendar` + read-only `/rooster` voor FREELANCER/ADMIN:
 > PUBLISHED-jobs met startdatum per kalenderdag, matchscore + "Gereageerd"-badge, doorklik naar de
