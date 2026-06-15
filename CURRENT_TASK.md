@@ -288,10 +288,16 @@ Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct 
 > met betekenis-drempels: afgeronde samenwerkingen ≥ 1 + gewerkte uren round ≥ 8; server-berekend in
 > `freelancer-search.ts` via bulk-queries, getoond op de browse-kaart; spiegelt het betaalgedrag-signaal
 > de andere kant op; geen subjectieve beoordelingen; 8 unit-tests; geen schemawijziging).
-> certificaat-compliance-momentopname op het CLIENT-dashboard (`summarizeClientCompliance` in
-> `collaboration-alerts.ts` + `ComplianceSnapshotCard`): geaggregeerde telling over álle lopende
-> samenwerkingen — sluit het zicht-gat dat de per-kaart-melding alleen de top-6 zone dekte; read-only,
-> geen extra query, geen schemawijziging, 4 unit-tests; verbergt zichzelf wanneer alles compliant is.
+> betaalverplichtingen-prognose voor de opdrachtgever (`payment-obligations.ts` `buildPaymentObligations`
+>
+> - `/verplichtingen` CLIENT-only): spiegel van de inkomstenprognose (`/prognose`, FREELANCER) maar
+>   cashflow-uit; bucket OVERDUE/THIS_MONTH/NEXT_MONTH/LATER/UNSCHEDULED met opdrachtgever-semantiek
+>   (DRAFT telt niet — alleen SUBMITTED/APPROVED/OVERDUE), samenvatting goed-te-keuren/ingepland/te-laat,
+>   begrensde query op `collaboration.company.userId`, 12 unit-tests; read-only, geen schemawijziging).
+>   certificaat-compliance-momentopname op het CLIENT-dashboard (`summarizeClientCompliance` in
+>   `collaboration-alerts.ts` + `ComplianceSnapshotCard`): geaggregeerde telling over álle lopende
+>   samenwerkingen — sluit het zicht-gat dat de per-kaart-melding alleen de top-6 zone dekte; read-only,
+>   geen extra query, geen schemawijziging, 4 unit-tests; verbergt zichzelf wanneer alles compliant is.
 
 ### Gap-analyse (Fase 0)
 

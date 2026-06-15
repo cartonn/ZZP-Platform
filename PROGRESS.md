@@ -3,6 +3,39 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(verplichtingen): betaalverplichtingen-prognose voor de opdrachtgever (branch `claude/keen-wozniak-6jnz3g`)
+
+Spiegelbeeld van de bestaande inkomstenprognose (`/prognose`, alleen FREELANCER): de opdrachtgever
+had geen cashflow-uit-overzicht van wat hij nog moet betalen. Deze increment voegt een
+betaalverplichtingen-tijdlijn toe op `/verplichtingen` (CLIENT-only), met dezelfde bucketing als de
+inkomstenprognose maar met opdrachtgever-semantiek: een DRAFT-factuur is nog niet naar de
+opdrachtgever verstuurd en telt nooit als verplichting — alleen SUBMITTED/APPROVED/OVERDUE.
+Read-only, server-side, deterministisch, **geen schemawijziging**.
+
+- [x] `src/lib/payment-obligations.ts` — pure `buildPaymentObligations(items, now)` →
+      `PaymentObligations`: bucket per UTC-kalendermaand (OVERDUE / THIS_MONTH / NEXT_MONTH / LATER /
+      UNSCHEDULED), past-due (OVERDUE-status óf `dueDate < startOfToday`) → OVERDUE, SUBMITTED zonder
+      vervaldag → UNSCHEDULED ("Nog goed te keuren"); per-bucket net/btw/bruto som + samenvatting
+      `awaitingApprovalGrossCents` (SUBMITTED) / `scheduledGrossCents` (APPROVED toekomst) /
+      `overdueGrossCents` / totalen; binnen een bucket gesorteerd dueDate asc → bruto desc →
+      invoiceId asc; muteert de invoer niet, geen I/O.
+- [x] `src/lib/payment-obligations.test.ts` — 12 unit-tests: lege invoer, maand-bucketing, dec→jan
+      wrap, OVERDUE-status met toekomstdatum, APPROVED met verstreken datum → overdue, vervaldag
+      exact op start-vandaag → niet-overdue, SUBMITTED → UNSCHEDULED, bucketvolgorde, sortering +
+      tie-breaks, aggregatie net/btw/bruto, non-mutatie.
+- [x] `src/app/(protected)/verplichtingen/page.tsx` — CLIENT-only (anders redirect /administratie);
+      begrensde query (`take: 200`, `dueAt asc nulls last`) over de cascade-facturen gericht aan de
+      opdrachtgever (`collaboration.company.userId`); samenvattingsstrip (goed te keuren / ingepland /
+      te laat / totaal), bucket-secties met factuurregels (ZZP'er-naam, statuschip, opdracht, nummer,
+      vervaldag), BTW-voorbelasting-hint, prognose-disclaimer, empty-state.
+- [x] `src/app/(protected)/verplichtingen/loading.tsx` — skeleton (PageHeader + lijst).
+- [x] `src/lib/nav.ts` — navitem "Verplichtingen" voor CLIENT onder Administratie, ná Openstaand.
+
+Gates groen: typecheck ✓, lint ✓, test 1955 ✓ (+12), build ✓ (`/verplichtingen` aanwezig),
+`prettier --write .` ✓. (E2e via CI — geen browser-channel in de routine.)
+
+---
+
 ## feat(certificaten): vervalkalender — overzicht van (bijna) verlopen certificaten (branch `claude/keen-wozniak-d0wjas`)
 
 De `/certificaten`-pagina toonde de vervaldatum alleen per kaart; een ZZP'er met meerdere
