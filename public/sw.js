@@ -61,3 +61,42 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+// Web-push: toon de door de server gestuurde notificatie als systeemmelding. De payload is JSON
+// (buildPushPayload): { title, body, url, tag }. Defensief geparset zodat een rare payload de SW niet
+// sloopt; `url` reist mee in data voor de klik-afhandeling hieronder.
+self.addEventListener("push", (event) => {
+  let p = {};
+  try {
+    p = event.data ? event.data.json() : {};
+  } catch {
+    p = {};
+  }
+  const title = p.title || "ZZP Platform";
+  const options = {
+    body: p.body || "",
+    tag: p.tag || undefined,
+    icon: "/pwa/icon/192.png",
+    badge: "/pwa/icon/192.png",
+    data: { url: typeof p.url === "string" && p.url.startsWith("/") ? p.url : "/notificaties" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Klik op de melding: focus een bestaand venster (en navigeer het) of open een nieuw venster op de
+// doel-URL. Same-origin afgedwongen via een relatief pad.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/notificaties";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ("focus" in client) {
+          client.navigate(target).catch(() => {});
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    }),
+  );
+});
