@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeMarketRate, median, percentile } from "@/lib/market-rate";
+import {
+  computeMarketBand,
+  computeMarketRate,
+  median,
+  percentile,
+  ratePosition,
+} from "@/lib/market-rate";
 
 // ---------------------------------------------------------------------------
 // median
@@ -245,5 +251,96 @@ describe("computeMarketRate", () => {
       minSample: MIN,
     });
     expect(result.ownRate).toBe(87.5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ratePosition
+// ---------------------------------------------------------------------------
+describe("ratePosition", () => {
+  it("geeft 'unknown' bij ontbrekend of niet-positief tarief", () => {
+    expect(ratePosition(50, 80, null)).toBe("unknown");
+    expect(ratePosition(50, 80, 0)).toBe("unknown");
+    expect(ratePosition(50, 80, -10)).toBe("unknown");
+    expect(ratePosition(50, 80, Number.NaN)).toBe("unknown");
+  });
+
+  it("geeft 'unknown' wanneer de band onbekend is", () => {
+    expect(ratePosition(null, 80, 60)).toBe("unknown");
+    expect(ratePosition(50, null, 60)).toBe("unknown");
+  });
+
+  it("classificeert below/within/above t.o.v. p25–p75", () => {
+    expect(ratePosition(50, 80, 40)).toBe("below");
+    expect(ratePosition(50, 80, 65)).toBe("within");
+    expect(ratePosition(50, 80, 90)).toBe("above");
+  });
+
+  it("grenzen p25 en p75 tellen als 'within' (inclusief)", () => {
+    expect(ratePosition(50, 80, 50)).toBe("within");
+    expect(ratePosition(50, 80, 80)).toBe("within");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeMarketBand
+// ---------------------------------------------------------------------------
+describe("computeMarketBand", () => {
+  const MIN = 3;
+
+  it("kiest de industrie-set bij genoeg branche-peers", () => {
+    const band = computeMarketBand({
+      industryPeerRates: [40, 50, 60],
+      platformPeerRates: [10, 20, 30, 100],
+      minSample: MIN,
+    });
+    expect(band.scope).toBe("industry");
+    expect(band.sampleSize).toBe(3);
+    expect(band.median).toBe(50);
+    expect(band.p25).toBe(45);
+    expect(band.p75).toBe(55);
+  });
+
+  it("valt terug op het platform bij te weinig branche-peers", () => {
+    const band = computeMarketBand({
+      industryPeerRates: [40],
+      platformPeerRates: [10, 20, 30],
+      minSample: MIN,
+    });
+    expect(band.scope).toBe("platform");
+    expect(band.sampleSize).toBe(3);
+    expect(band.median).toBe(20);
+  });
+
+  it("geeft scope 'none' met voortgangsteller bij te weinig peers overal", () => {
+    const band = computeMarketBand({
+      industryPeerRates: [40, 50],
+      platformPeerRates: [40, 50],
+      minSample: MIN,
+    });
+    expect(band.scope).toBe("none");
+    expect(band.sampleSize).toBe(2);
+    expect(band.median).toBeNull();
+    expect(band.p25).toBeNull();
+    expect(band.p75).toBeNull();
+  });
+
+  it("filtert niet-positieve en niet-eindige tarieven weg", () => {
+    const band = computeMarketBand({
+      industryPeerRates: [0, -5, Number.POSITIVE_INFINITY, 40, 50, 60],
+      platformPeerRates: [],
+      minSample: MIN,
+    });
+    expect(band.scope).toBe("industry");
+    expect(band.sampleSize).toBe(3);
+    expect(band.median).toBe(50);
+  });
+
+  it("muteert de invoer-arrays niet", () => {
+    const industry = [60, 40, 50];
+    const platform = [30, 10, 20];
+    computeMarketBand({ industryPeerRates: industry, platformPeerRates: platform, minSample: MIN });
+    expect(industry).toEqual([60, 40, 50]);
+    expect(platform).toEqual([30, 10, 20]);
   });
 });

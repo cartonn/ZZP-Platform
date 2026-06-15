@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { getJobRateBands } from "@/lib/data/job-rate-bands";
 import { JobForm } from "../job-form";
 
 export const metadata: Metadata = { title: "Nieuwe opdracht · ZZP Platform" };
@@ -13,6 +14,7 @@ export default async function NieuweOpdrachtPage() {
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.industry.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
+  const rateBands = await getJobRateBands(industries.map((i) => i.id));
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -52,6 +54,8 @@ export default async function NieuweOpdrachtPage() {
         }}
         skills={skills}
         industries={industries}
+        rateBands={rateBands.byIndustry}
+        platformRateBand={rateBands.platform}
       />
     </div>
   );

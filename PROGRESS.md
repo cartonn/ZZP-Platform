@@ -3,6 +3,42 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(opdrachten): markttarief-band op het opdracht-formulier (branch `claude/keen-wozniak-14ij6l`)
+
+De `market-rate.ts`-motor toonde een geanonimiseerde marktband alleen aan de ZZP'er op
+`/profiel/bewerken`. De opdrachtgever die een tarief voor een opdracht bepaalt had geen
+marktreferentie — alleen de rechtsvermoeden-drempel (< €38/u). Dit voegt dezelfde
+geanonimiseerde marktband (mediaan + p25–p75) toe aan het opdracht-formulier, gescoped op de
+gekozen branche, met een opdrachtgever-gerichte positie-beoordeling van het ingevulde
+minimumtarief. Zowel `Job.rateMin/rateMax` als `FreelancerProfile.hourlyRate` zijn in euro's →
+direct vergelijkbaar. Server-side berekend, deterministisch, **geen schemawijziging**.
+
+- [x] `src/lib/market-rate.ts` — pure `computeMarketBand({industryPeerRates, platformPeerRates,
+  minSample})` → `MarketBand` (scope/sampleSize/median/p25/p75, afgerond) met dezelfde
+      scope-keuze (industrie→platform→none) als `computeMarketRate`; pure `ratePosition(p25, p75,
+  rate)` (below/within/above/unknown, grenzen inclusief). `computeMarketRate` hergebruikt nu
+      `ratePosition` (gedragsbehoudend, niet-afgeronde grenzen).
+- [x] `src/lib/market-rate.test.ts` — +13 tests (computeMarketBand: scope-keuze, platform-terugval,
+      none + voortgangsteller, filtering, non-mutatie; ratePosition: unknown-gevallen, classificatie,
+      inclusieve grenzen). 35 in dit bestand.
+- [x] `src/lib/data/job-rate-bands.ts` — `getJobRateBands(industryIds)`: één begrensde query
+      (`take: MARKET_RATE_SAMPLE_CAP`) over ZZP-uurtarieven + branche-links, in JS per branche
+      gebucket → `{ byIndustry, platform }`. Alleen geaggregeerde statistieken (k-anonimiteit via
+      `MARKET_RATE_MIN_SAMPLE`).
+- [x] `src/components/jobs/job-rate-band-card.tsx` — presentationele band-kaart: mediaan (mono),
+      middenmoot p25–p75, scope-chip + sample-telling, opdrachtgever-gerichte positie-tekst
+      (onder/in lijn/boven) + disclaimer; rustige "nog niet genoeg profielen"-staat met
+      voortgangsteller.
+- [x] `opdrachten/job-form.tsx` — props `rateBands`/`platformRateBand`; band reactief op de gekozen
+      branche + ingevuld minimumtarief, gerenderd tussen de basisgegevens en de eisen-sectie.
+- [x] `opdrachten/nieuw/page.tsx` + `opdrachten/[id]/bewerken/page.tsx` — banden opgehaald en
+      doorgegeven. Vangrail-allowlist regelnummers bijgewerkt (imports schoven de findMany's).
+
+Gates groen: typecheck ✓, lint ✓, test 1952 ✓ (+13), build ✓, `prettier --check .` ✓. (E2e via CI —
+geen browser-channel in de routine.)
+
+---
+
 ## feat(rooster): matchredenen + sterke-match-filter op de discovery-kalender (branch `claude/keen-wozniak-ln7j00`)
 
 Vervolg op Rooster-marktplaats slice 1: de discovery-kalender (`/rooster`) toonde per dienst alleen

@@ -15,6 +15,8 @@ import {
   MODEL_AGREEMENT_TYPES,
 } from "@/lib/model-agreement";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
+import { JobRateBandCard } from "@/components/jobs/job-rate-band-card";
+import { type MarketBand } from "@/lib/market-rate";
 import { type CredentialType } from "@/lib/enums";
 import { saveJob, type JobFormState } from "./actions";
 
@@ -72,10 +74,16 @@ export function JobForm({
   initial,
   skills,
   industries,
+  rateBands,
+  platformRateBand,
 }: {
   initial: JobFormInitial;
   skills: { id: string; name: string }[];
   industries: { id: string; name: string }[];
+  /** Marktband per branche-id (met platform-terugval ingebakken). */
+  rateBands: Record<string, MarketBand>;
+  /** Platformbrede band als terugval wanneer geen branche is gekozen. */
+  platformRateBand: MarketBand;
 }) {
   const [state, formAction, isPending] = useActionState<JobFormState, FormData>(saveJob, undefined);
   const fe = state?.fieldErrors ?? {};
@@ -100,6 +108,10 @@ export function JobForm({
   // Live rechtsvermoeden-drempelcheck op het minimumtarief (pure functie, centen).
   const rateMinCents = rateMin !== "" ? Number(rateMin) * 100 : null;
   const rateThreshold = assessRateThreshold(rateMinCents);
+
+  // Marktband voor de gekozen branche (server-side berekend); terugval op platformbreed.
+  const rateBand = (industryId && rateBands[industryId]) || platformRateBand;
+  const rateMinEuro = rateMin !== "" && Number.isFinite(Number(rateMin)) ? Number(rateMin) : null;
 
   // Live, deterministische DBA-inschatting (zelfde pure functie als de server gebruikt).
   const dbaResult = assessDbaRisk({
@@ -223,6 +235,8 @@ export function JobForm({
           <Input id="startDate" name="startDate" type="date" defaultValue={initial.startDate} />
         </Field>
       </div>
+
+      <JobRateBandCard band={rateBand} rateMin={rateMinEuro} />
 
       <div className="space-y-1 border-b border-border pb-2 pt-2">
         <h2 className="text-sm font-semibold tracking-tight">Eisen aan de ZZP&apos;er</h2>
