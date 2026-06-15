@@ -57,6 +57,8 @@ import { ApplicationForm } from "./application-form";
 import { formatDateShortNl } from "@/lib/format-date";
 import { getPaymentBehaviorForCompany } from "@/lib/data/payment-behavior";
 import { PaymentBehaviorBlock } from "@/components/jobs/payment-behavior-block";
+import { getClientReliabilityForCompany } from "@/lib/data/client-reliability";
+import { ClientReliabilityBlock } from "@/components/jobs/client-reliability-block";
 
 export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
 
@@ -183,10 +185,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
 
   // Betaalgedrag-signaal: alleen voor de ZZP'er die een beslissing neemt (niet voor de eigenaar
   // zelf; wel voor niet-eigenaar FREELANCER-rol die de opdracht bekijkt).
-  const paymentBehavior =
-    !isOwner && actor.role === "FREELANCER"
-      ? await getPaymentBehaviorForCompany(job.companyId)
-      : null;
+  const showClientSignals = !isOwner && actor.role === "FREELANCER";
+  const [paymentBehavior, clientReliability] = showClientSignals
+    ? await Promise.all([
+        getPaymentBehaviorForCompany(job.companyId),
+        getClientReliabilityForCompany(job.companyId),
+      ])
+    : [null, null];
 
   // Spiegelbeeld voor de opdrachtgever: openbare ZZP'ers die passen en nog niet reageerden.
   const suggestions =
@@ -512,6 +517,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         )}
 
       {paymentBehavior && <PaymentBehaviorBlock behavior={paymentBehavior} />}
+
+      {clientReliability && <ClientReliabilityBlock reliability={clientReliability} />}
 
       {isOwner ? (
         <div className="flex flex-wrap gap-2 border-t border-border pt-4">

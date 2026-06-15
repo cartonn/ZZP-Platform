@@ -220,7 +220,12 @@ Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct 
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
-> Reeds gedaan (niet opnieuw): Rooster-marktplaats slice 1 — discovery-kalender van open diensten
+> Reeds gedaan (niet opnieuw): annuleringsbetrouwbaarheid-signaal van de opdrachtgever
+> (`lib/client-reliability.ts` `computeClientReliability` + `lib/data/client-reliability.ts` +
+> `ClientReliabilityBlock` op de opdracht-detailpagina): spiegelbeeld van het betaalgedrag-signaal —
+> hoe vaak annuleert de opdrachtgever agreed werk en hoe vaak last-minute (chargeable); read-only,
+> server-side, geen schemawijziging, 11 unit-tests),
+> Rooster-marktplaats slice 1 — discovery-kalender van open diensten
 > (`lib/roster-market.ts` `buildRosterCalendar` + read-only `/rooster` voor FREELANCER/ADMIN:
 > PUBLISHED-jobs met startdatum per kalenderdag, matchscore + "Gereageerd"-badge, doorklik naar de
 > opdracht; reageren via de bestaande flow, geen schemawijziging; 14 unit-tests; nav-item onder Werk),
