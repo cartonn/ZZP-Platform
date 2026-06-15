@@ -22,11 +22,13 @@ import {
   isExpiringSoon,
 } from "@/lib/credentials";
 import { computeTrustLevel } from "@/lib/trust";
+import { summarizeExpiry } from "@/lib/credential-expiry-overview";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { dossierShareToken, shareTokenSecret } from "@/lib/share-token";
 import { plural } from "@/lib/plural";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { MandatoryDocuments } from "@/components/credentials/mandatory-documents";
+import { ExpiryOverviewCard } from "@/components/credentials/expiry-overview-card";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -120,6 +122,18 @@ export default async function CertificatenPage() {
     (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > Date.now()),
   ).length;
 
+  // Vervalkalender: wat verloopt (bijna) en moet vernieuwd worden — server-side afgeleid uit de
+  // al opgehaalde certificaten, geen extra query.
+  const expiryOverview = summarizeExpiry(
+    credentials.map((c) => ({
+      id: c.id,
+      title: c.title,
+      type: c.type as CredentialType,
+      status: c.status as CredentialStatus,
+      expiresAt: c.expiresAt,
+    })),
+  );
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
@@ -184,6 +198,8 @@ export default async function CertificatenPage() {
       </section>
 
       <MandatoryDocuments items={mandatory.items} allSatisfied={mandatory.allSatisfied} />
+
+      <ExpiryOverviewCard overview={expiryOverview} />
 
       {credentials.length === 0 ? (
         <Card>
