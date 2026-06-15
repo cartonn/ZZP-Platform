@@ -206,6 +206,10 @@ Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct 
 > bestaande matchmotor, geen extra query. Sluit een deel van `docs/PLAN-WERELDKLASSE.md` Fase 2
 > "Matchredenen zichtbaar maken op kaarten" af (kandidaten-kaart blijft open).
 > NB: tariefinzicht (Fase 3) was op deze branch al gebouwd (ZZP2-184, `lib/market-rate.ts`).
+> Gedaan (niet opnieuw): **Markttarief-band op het opdracht-formulier** — `computeMarketBand` +
+> `ratePosition` in `lib/market-rate.ts`, `lib/data/job-rate-bands.ts`, `JobRateBandCard` op
+> `/opdrachten/nieuw` + `/opdrachten/[id]/bewerken`; geanonimiseerde band per branche met
+> opdrachtgever-positie op het minimumtarief (spiegel van de ZZP'er-marktband). Geen schemawijziging.
 
 0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`.
    **VOLLEDIG GEBORGEN (12-6-2026):** afronden-rem, CSV-injectie-hardening, rol-fallback

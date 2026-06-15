@@ -15,6 +15,24 @@ export type MarketRateScope = "industry" | "platform" | "none";
  */
 export type MarketRatePosition = "below" | "within" | "above" | "unknown";
 
+/**
+ * Marktband zonder eigen-tarief-context: mediaan + spreiding van een peer-set.
+ * Gebruikt waar er geen enkel "eigen tarief" is, maar wél een marktbeeld nodig is
+ * (bijv. de opdrachtgever die een tarief voor een opdracht bepaalt).
+ */
+export interface MarketBand {
+  /** Welke peer-set is gebruikt. */
+  scope: MarketRateScope;
+  /** Aantal gebruikte peer-tarieven. */
+  sampleSize: number;
+  /** Mediaan, afgerond op heel getal (euro); null bij scope "none". */
+  median: number | null;
+  /** 25e percentiel, afgerond op heel getal (euro); null bij scope "none". */
+  p25: number | null;
+  /** 75e percentiel, afgerond op heel getal (euro); null bij scope "none". */
+  p75: number | null;
+}
+
 /** Volledig marktband-inzicht voor één ZZP'er. */
 export interface MarketRateInsight {
   /** Welke peer-set is gebruikt. */
@@ -86,6 +104,75 @@ export function percentile(values: number[], p: number): number | null {
 }
 
 /**
+ * Bepaalt de positie van een tarief t.o.v. een marktbandbreedte (p25–p75).
+ *
+ * "unknown" wanneer het tarief ontbreekt/niet-positief is of de band onbekend is.
+ * Puur — werkt zowel op afgeronde als niet-afgeronde grenswaarden.
+ */
+export function ratePosition(
+  p25: number | null,
+  p75: number | null,
+  rate: number | null,
+): MarketRatePosition {
+  if (rate === null || rate <= 0 || !Number.isFinite(rate)) return "unknown";
+  if (p25 === null || p75 === null) return "unknown";
+  if (rate < p25) return "below";
+  if (rate > p75) return "above";
+  return "within";
+}
+
+/**
+ * Berekent de marktband (mediaan + p25/p75) van een peer-set, zonder eigen-tarief-context.
+ *
+ * Zelfde scope-keuze als `computeMarketRate`: industrie bij genoeg peers, anders platform,
+ * anders "none". Waarden worden afgerond op hele euro's. Puur en deterministisch.
+ */
+export function computeMarketBand(input: {
+  /** Peers binnen dezelfde branche/functie. */
+  industryPeerRates: number[];
+  /** Alle peers op het platform. */
+  platformPeerRates: number[];
+  /** Minimale steekproefgrootte vóór een marktband getoond wordt. */
+  minSample: number;
+}): MarketBand {
+  const { minSample } = input;
+
+  const industryFiltered = input.industryPeerRates.filter((r) => r > 0 && Number.isFinite(r));
+  const platformFiltered = input.platformPeerRates.filter((r) => r > 0 && Number.isFinite(r));
+
+  let scope: MarketRateScope;
+  let peers: number[];
+
+  if (industryFiltered.length >= minSample) {
+    scope = "industry";
+    peers = industryFiltered;
+  } else if (platformFiltered.length >= minSample) {
+    scope = "platform";
+    peers = platformFiltered;
+  } else {
+    return {
+      scope: "none",
+      sampleSize: Math.max(industryFiltered.length, platformFiltered.length),
+      median: null,
+      p25: null,
+      p75: null,
+    };
+  }
+
+  const medianRaw = median(peers);
+  const p25Raw = percentile(peers, 0.25);
+  const p75Raw = percentile(peers, 0.75);
+
+  return {
+    scope,
+    sampleSize: peers.length,
+    median: medianRaw !== null ? Math.round(medianRaw) : null,
+    p25: p25Raw !== null ? Math.round(p25Raw) : null,
+    p75: p75Raw !== null ? Math.round(p75Raw) : null,
+  };
+}
+
+/**
  * Berekent het volledige marktband-inzicht voor één ZZP'er.
  *
  * Werkwijze:
@@ -144,22 +231,9 @@ export function computeMarketRate(input: {
   const p25Rounded = p25Raw !== null ? Math.round(p25Raw) : null;
   const p75Rounded = p75Raw !== null ? Math.round(p75Raw) : null;
 
-  // Stap 4: bepaal positie van het eigen tarief
-  let position: MarketRatePosition;
-
-  if (ownRate === null || ownRate <= 0 || !Number.isFinite(ownRate)) {
-    position = "unknown";
-  } else if (p25Raw === null || p75Raw === null) {
-    // Kan theoretisch niet voorkomen bij peers.length >= minSample >= 1,
-    // maar defensief afhandelen
-    position = "unknown";
-  } else if (ownRate < p25Raw) {
-    position = "below";
-  } else if (ownRate > p75Raw) {
-    position = "above";
-  } else {
-    position = "within";
-  }
+  // Stap 4: bepaal positie van het eigen tarief op basis van de NIET-afgeronde
+  // grenswaarden (vermijdt grensruis bij afronden).
+  const position = ratePosition(p25Raw, p75Raw, ownRate);
 
   return {
     scope,

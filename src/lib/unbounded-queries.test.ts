@@ -372,12 +372,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills en branches voor nieuw-opdrachtformulier.
   {
     file: "(protected)/opdrachten/nieuw/page.tsx",
-    line: 13,
+    line: 14,
     reason: "skills-referentielijst voor formulier",
   },
   {
     file: "(protected)/opdrachten/nieuw/page.tsx",
-    line: 14,
+    line: 15,
     reason: "branches-referentielijst voor formulier",
   },
 
@@ -385,12 +385,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills en branches voor bewerkformulier.
   {
     file: "(protected)/opdrachten/[id]/bewerken/page.tsx",
-    line: 30,
+    line: 31,
     reason: "skills-referentielijst voor formulier",
   },
   {
     file: "(protected)/opdrachten/[id]/bewerken/page.tsx",
-    line: 31,
+    line: 32,
     reason: "branches-referentielijst voor formulier",
   },
 
