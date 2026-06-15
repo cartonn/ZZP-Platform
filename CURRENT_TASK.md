@@ -212,8 +212,9 @@ Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct 
   wanneer `?match=sterk` handmatig actief is maar `strongCalendar.total === 0` (nu valt het stil terug).
 - **#369 markttarief-band** (`lib/market-rate.ts` + `JobRateBandCard`): bewaar de niet-afgeronde
   `p25Raw`/`p75Raw` in `MarketBand` en gebruik die voor `ratePosition`, zodat de grensclassificatie
-  consistent is met `/profiel/bewerken`. **Plus mensenwerk: AVG art.6-bevestiging** dat opdrachtgevers
-  geaggregeerde ZZP-tariefstatistiek mogen zien (≥10 peers, geanonimiseerd) vóór livegang (MENSENWERK §5).
+  consistent is met `/profiel/bewerken`. _(AVG art.6-bevestiging AFGEROND 15-6: eigenaar koos
+  gerechtvaardigd belang (1f); vastgelegd als verwerkingsactiviteit "markttarief-indicatie" in
+  `lib/compliance/processing-register.ts` met k-anonimiteit (≥10) als waarborg.)_
 - **#370 verificatie-wachtrij** (`prisma/schema.prisma` + `certificaten/actions.ts` + `verification-queue.ts`):
   dedicated `submittedAt DateTime?` op `Credential` (eenmalig gezet bij → SUBMITTED) i.p.v. `updatedAt`
   voor de wachtrij-leeftijd; + composite index `@@index([status, submittedAt])`.
