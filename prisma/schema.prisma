@@ -615,6 +615,7 @@ model Credential {
   issuedAt            DateTime?
   expiresAt           DateTime?
   status              String    @default("DRAFT") // CredentialStatus: DRAFT | SUBMITTED | VERIFIED | REJECTED | EXPIRED
+  submittedAt         DateTime? // tijdstip dat het laatst → SUBMITTED ging; basis voor de wachtrij-leeftijd (los van updatedAt, dat elke edit reset)
   documentId          String?
   visibility          String    @default("PRIVATE") // Visibility: PUBLIC | PRIVATE — zichtbaar op publiek profiel
   sharedWithClient    Boolean   @default(false) //     opt-in: metadata gedeeld met opdrachtgevers in lopende samenwerkingen (niet het bestand)
@@ -633,6 +634,8 @@ model Credential {
   // Composite: dashboard/signals telt per (freelancerProfileId, status); dekt ook queries op alleen
   // freelancerProfileId (leftmost prefix), dus de losse index erop is overbodig.
   @@index([freelancerProfileId, status])
+  // Verificatie-wachtrij: oudste-eerst + "te lang wachtend"-telling op (status=SUBMITTED, submittedAt).
+  @@index([status, submittedAt])
 }
 
 // Historie: elke verificatiebeslissing is een onveranderlijke regel (audit-grade).
