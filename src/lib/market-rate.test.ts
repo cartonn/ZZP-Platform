@@ -299,6 +299,38 @@ describe("computeMarketBand", () => {
     expect(band.median).toBe(50);
     expect(band.p25).toBe(45);
     expect(band.p75).toBe(55);
+    // Niet-afgeronde grenswaarden gelijk aan de afgeronde wanneer de percentielen heel zijn.
+    expect(band.p25Raw).toBe(45);
+    expect(band.p75Raw).toBe(55);
+  });
+
+  it("bewaart de niet-afgeronde p25/p75 voor consistente grensclassificatie", () => {
+    // peers: [40, 41, 42, 43] — p25 = 40.75, p75 = 42.25 (afgerond 41 resp. 42)
+    const band = computeMarketBand({
+      industryPeerRates: [40, 41, 42, 43],
+      platformPeerRates: [],
+      minSample: MIN,
+    });
+    expect(band.p25).toBe(41);
+    expect(band.p75).toBe(42);
+    expect(band.p25Raw).toBeCloseTo(40.75, 5);
+    expect(band.p75Raw).toBeCloseTo(42.25, 5);
+    // Een tarief van 41 ligt onder de niet-afgeronde p75 (42.25) → 'within',
+    // maar zou op de afgeronde p25 (41) als grensgeval anders kunnen vallen.
+    expect(ratePosition(band.p25Raw, band.p75Raw, 41)).toBe("within");
+    // Op de afgeronde band zou 42.1 boven p75 (42) liggen ('above'); op de
+    // niet-afgeronde band (42.25) is het nog 'within' — dit is de consistentie die we willen.
+    expect(ratePosition(band.p25Raw, band.p75Raw, 42.1)).toBe("within");
+  });
+
+  it("geeft p25Raw/p75Raw null bij scope 'none'", () => {
+    const band = computeMarketBand({
+      industryPeerRates: [40, 50],
+      platformPeerRates: [40, 50],
+      minSample: MIN,
+    });
+    expect(band.p25Raw).toBeNull();
+    expect(band.p75Raw).toBeNull();
   });
 
   it("valt terug op het platform bij te weinig branche-peers", () => {
