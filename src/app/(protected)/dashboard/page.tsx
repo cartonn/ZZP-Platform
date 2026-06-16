@@ -58,7 +58,7 @@ const WERKPLEK: Record<UserRole, string> = {
   FREELANCER: "ZZP-werkplek",
   CLIENT: "Opdrachtgever-werkplek",
   ADMIN: "Beheerwerkplek",
-  FRANCHISER: "Franchise-werkplek",
+  FRANCHISER: "Bemiddelaar-werkplek",
 };
 
 // Onboarding-checklist: alleen voor nieuwe accounts (zie isNewAccount).
@@ -88,7 +88,7 @@ const INTRO: Record<UserRole, { lead: string; next: string[] }> = {
     ],
   },
   FRANCHISER: {
-    lead: "Breng opdrachtgevers en ZZP'ers in je franchise en zet diensten voor ze uit.",
+    lead: "Breng opdrachtgevers en ZZP'ers in je bemiddeling en zet diensten voor ze uit.",
     next: [
       "Voeg je eerste opdrachtgever toe met zijn afdelingen.",
       "Breng ZZP'ers in je roster.",
@@ -548,7 +548,7 @@ const NO_RUNNING: Record<UserRole, { text: string; cta?: { label: string; href: 
   },
   ADMIN: { text: "Geen lopende samenwerkingen op het platform." },
   FRANCHISER: {
-    text: "Geen lopende samenwerkingen in je franchise. Zet een dienst uit om te starten.",
+    text: "Geen lopende samenwerkingen in je bemiddeling. Zet een dienst uit om te starten.",
     cta: { label: "Naar diensten", href: "/franchise/diensten" },
   },
 };
@@ -938,7 +938,7 @@ export default async function DashboardPage() {
             Aan de slag
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Richt je franchise stap voor stap in.
+            Richt je bemiddeling stap voor stap in.
           </p>
           <ul className="mt-3 space-y-1">
             {activation.map((a, i) => (

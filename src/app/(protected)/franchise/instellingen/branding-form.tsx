@@ -26,13 +26,13 @@ export function BrandingForm({
 
   return (
     <form action={action} className="space-y-4">
-      <Field label="Franchise-naam" htmlFor="name" required error={fe.name}>
+      <Field label="Bemiddeling-naam" htmlFor="name" required error={fe.name}>
         <Input id="name" name="name" defaultValue={initialName} required />
       </Field>
       <Field
         label="Accentkleur"
         htmlFor="brandColor"
-        hint="Hex-kleur (bv. #2563eb), getoond in de werkplek-header van je hele franchise. Leeg = standaard."
+        hint="Hex-kleur (bv. #2563eb), getoond in de werkplek-header van je hele bemiddeling. Leeg = standaard."
         error={fe.brandColor}
       >
         <div className="flex items-center gap-2">

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { BrandingForm } from "./branding-form";
 
-export const metadata: Metadata = { title: "Instellingen · Franchise" };
+export const metadata: Metadata = { title: "Instellingen · Bemiddeling" };
 
 export default async function FranchiseInstellingenPage() {
   const actor = await requireRole("FRANCHISER");
@@ -18,7 +18,7 @@ export default async function FranchiseInstellingenPage() {
     <div className="mx-auto max-w-xl space-y-6">
       <PageHeader
         title="Instellingen"
-        description="De white-label uitstraling van je franchise — naam en accentkleur in de werkplek."
+        description="De white-label uitstraling van je bemiddeling — naam en accentkleur in de werkplek."
       />
       <Card>
         <CardContent className="p-5">

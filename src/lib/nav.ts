@@ -48,12 +48,11 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: `Mijn ${TERM_PLURAL.application.toLowerCase()}`, href: "/reacties", icon: "files", section: "Werk", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.collaboration, href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.message, href: "/berichten", icon: "messages", section: "Werk", enabled: true }, // prettier-ignore
+    // Certificaten, Beschikbaarheid en Documenten zitten nu als tabs in "Mijn profiel"
+    // (de profielhub), dus niet meer apart in de zijbalk.
     { label: "Mijn profiel", href: "/profiel", icon: "user", section: "Profiel", enabled: true },
-    { label: TERM_PLURAL.credential, href: "/certificaten", icon: "fileCheck", section: "Profiel", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.shift, href: "/diensten", icon: "clock", section: "Profiel", enabled: true }, // prettier-ignore
     { label: "Academie", href: "/academie", icon: "graduationCap", section: "Profiel", enabled: true }, // prettier-ignore
-    { label: "Beschikbaarheid", href: "/beschikbaarheid", icon: "calendar", section: "Profiel", enabled: true }, // prettier-ignore
-    { label: TERM_PLURAL.document, href: "/documenten", icon: "files", section: "Profiel", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.invoice, href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Boekhouding", href: "/administratie", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
@@ -100,7 +99,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Audit log", href: "/admin/audit", icon: "shield", section: "Toezicht", enabled: true }, // prettier-ignore
     { label: "Statistieken", href: "/admin/statistieken", icon: "barChart", section: "Toezicht", enabled: true }, // prettier-ignore
     { label: "Gebruikers", href: "/admin/gebruikers", icon: "users", section: "Beheer", enabled: true }, // prettier-ignore
-    { label: "Franchises", href: "/admin/franchises", icon: "building", section: "Beheer", enabled: true }, // prettier-ignore
+    { label: "Bemiddelaars", href: "/admin/franchises", icon: "building", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Importeren", href: "/admin/import", icon: "users", section: "Beheer", enabled: true },
     { label: "Administratie", href: "/admin/administratie", icon: "fileText", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Facturatie", href: "/admin/facturatie", icon: "receipt", section: "Beheer", enabled: true }, // prettier-ignore
@@ -108,17 +107,17 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Academie", href: "/academie", icon: "graduationCap", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Beheer", enabled: true },
   ],
-  // Franchisenemer (tenant-admin). De franchise-werkplek-items (Opdrachtgevers, ZZP'ers,
+  // Bemiddelaar (tenant-admin). De bemiddeling-werkplek-items (Opdrachtgevers, ZZP'ers,
   // Diensten) komen per increment binnen zodra hun pagina's bestaan.
   FRANCHISER: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", enabled: true },
-    { label: "Leads", href: "/franchise/leads", icon: "contact", section: "Franchise", enabled: true }, // prettier-ignore
-    { label: "Opdrachtgevers", href: "/franchise/opdrachtgevers", icon: "building", section: "Franchise", enabled: true }, // prettier-ignore
-    { label: "ZZP'ers", href: "/franchise/zzpers", icon: "users", section: "Franchise", enabled: true }, // prettier-ignore
-    { label: TERM_PLURAL.shift, href: "/franchise/diensten", icon: "clock", section: "Franchise", enabled: true }, // prettier-ignore
-    { label: TERM_PLURAL.collaboration, href: "/franchise/samenwerkingen", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
-    { label: "Shift-overnames", href: "/franchise/shift-overnames", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
-    { label: "Inzicht", href: "/inzicht", icon: "barChart", section: "Franchise", enabled: true }, // prettier-ignore
+    { label: "Leads", href: "/franchise/leads", icon: "contact", section: "Bemiddeling", enabled: true }, // prettier-ignore
+    { label: "Opdrachtgevers", href: "/franchise/opdrachtgevers", icon: "building", section: "Bemiddeling", enabled: true }, // prettier-ignore
+    { label: "ZZP'ers", href: "/franchise/zzpers", icon: "users", section: "Bemiddeling", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.shift, href: "/franchise/diensten", icon: "clock", section: "Bemiddeling", enabled: true }, // prettier-ignore
+    { label: TERM_PLURAL.collaboration, href: "/franchise/samenwerkingen", icon: "handshake", section: "Bemiddeling", enabled: true }, // prettier-ignore
+    { label: "Shift-overnames", href: "/franchise/shift-overnames", icon: "handshake", section: "Bemiddeling", enabled: true }, // prettier-ignore
+    { label: "Inzicht", href: "/inzicht", icon: "barChart", section: "Bemiddeling", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.message, href: "/berichten", icon: "messages", section: "Account", enabled: true }, // prettier-ignore
     { label: "Facturatie", href: "/franchise/facturatie", icon: "receipt", section: "Account", enabled: true }, // prettier-ignore
     { label: "Instellingen", href: "/franchise/instellingen", icon: "settings", section: "Account", enabled: true }, // prettier-ignore
@@ -135,5 +134,5 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   FREELANCER: "ZZP'er",
   CLIENT: "Opdrachtgever",
   ADMIN: "Beheerder",
-  FRANCHISER: "Franchisenemer",
+  FRANCHISER: "Bemiddelaar",
 };

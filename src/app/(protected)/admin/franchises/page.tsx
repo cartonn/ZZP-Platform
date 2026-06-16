@@ -10,7 +10,7 @@ import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { FranchiseForm } from "./franchise-form";
 
-export const metadata: Metadata = { title: "Franchises · ZZP Platform" };
+export const metadata: Metadata = { title: "Bemiddelingen · ZZP Platform" };
 
 export default async function FranchisesPage() {
   await requireRole("ADMIN");
@@ -26,13 +26,13 @@ export default async function FranchisesPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
-        title="Franchises"
-        description="Franchisenemers (tenant-admins) en hun tenants. Een franchisenemer brengt eigen opdrachtgevers en ZZP'ers in het platform."
+        title="Bemiddelingen"
+        description="Bemiddelaars (tenant-admins) en hun tenants. Een bemiddelaar brengt eigen opdrachtgevers en ZZP'ers in het platform."
       />
 
       <Card>
         <CardContent className="space-y-4 p-5">
-          <h2 className="text-sm font-semibold tracking-tight">Nieuwe franchise</h2>
+          <h2 className="text-sm font-semibold tracking-tight">Nieuwe bemiddeling</h2>
           <FranchiseForm />
         </CardContent>
       </Card>
@@ -41,8 +41,8 @@ export default async function FranchisesPage() {
         <Card>
           <EmptyState
             icon={Building2}
-            title="Nog geen franchises"
-            description="Maak hierboven de eerste franchise aan."
+            title="Nog geen bemiddelingen"
+            description="Maak hierboven de eerste bemiddeling aan."
           />
         </Card>
       ) : (

@@ -21,7 +21,7 @@ import { EngageabilityBadge } from "@/components/engageability-badge";
 import { plural } from "@/lib/plural";
 import { ZzperForm } from "./zzper-form";
 
-export const metadata: Metadata = { title: "ZZP'ers · Franchise" };
+export const metadata: Metadata = { title: "ZZP'ers · Bemiddeling" };
 
 export default async function FranchiseZzpersPage() {
   const actor = await requireRole("FRANCHISER");
@@ -81,7 +81,7 @@ export default async function FranchiseZzpersPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title="ZZP'ers"
-        description="De ZZP'ers in je roster — degenen die je in je franchise hebt gebracht."
+        description="De ZZP'ers in je roster — degenen die je in je bemiddeling hebt gebracht."
       />
 
       {/* Toevoegen ingeklapt zodat de roster (het primaire werk) bovenaan dominant blijft; open zodra

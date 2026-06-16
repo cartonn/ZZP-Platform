@@ -35,7 +35,7 @@ export async function createZzper(_prev: ZzperState, formData: FormData): Promis
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
   }
-  if (!hasTenant(actor)) return { error: "Geen franchise gekoppeld." };
+  if (!hasTenant(actor)) return { error: "Geen bemiddeling gekoppeld." };
 
   const rawRate = formData.get("hourlyRate");
   const parsed = schema.safeParse({

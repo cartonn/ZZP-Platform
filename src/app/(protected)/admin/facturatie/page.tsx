@@ -18,7 +18,7 @@ import { generateBillingAction, setBillingStatusAction } from "./actions";
 export const metadata: Metadata = { title: "Facturatie · ZZP Platform" };
 
 const KIND_LABEL: Record<string, string> = {
-  TENANT_FEE: "Franchise-fee",
+  TENANT_FEE: "Bemiddelingsfee",
   ZZP_MEMBERSHIP: "ZZP-abonnement",
 };
 const STATUS: Record<
@@ -87,7 +87,7 @@ export default async function FacturatiePage({
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title="Facturatie"
-        description="De facturen van het platform aan franchises (transactie-fee) en ZZP'ers (abonnement). Bundel de openstaande bijdragen en beheer de status. Er wordt nog niets automatisch geïncasseerd."
+        description="De facturen van het platform aan bemiddelingen (transactie-fee) en ZZP'ers (abonnement). Bundel de openstaande bijdragen en beheer de status. Er wordt nog niets automatisch geïncasseerd."
       />
 
       {generated != null && Number.isFinite(generated) && (
@@ -121,7 +121,7 @@ export default async function FacturatiePage({
           <div>
             <p className="text-sm font-medium">Facturen genereren</p>
             <p className="text-sm text-muted-foreground">
-              Bundelt alle openstaande bijdragen tot nieuwe concept-facturen (één per franchise en
+              Bundelt alle openstaande bijdragen tot nieuwe concept-facturen (één per bemiddeling en
               per ZZP&apos;er). Veilig om te herhalen — al gefactureerde bijdragen worden
               overgeslagen.
             </p>

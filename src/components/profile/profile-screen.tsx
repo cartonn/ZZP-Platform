@@ -27,6 +27,7 @@ import { parseLanguages } from "@/lib/parse-languages";
 import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { RatingStars } from "@/components/reviews/rating-stars";
 import { ReviewList } from "@/components/reviews/review-list";
+import { DocumentsPanel } from "@/components/documents/documents-panel";
 
 const AVAILABILITY: Record<
   Availability,
@@ -69,7 +70,11 @@ const TABS = [
   { key: "samenwerkingen", label: "Samenwerkingen" },
   { key: "beoordelingen", label: "Beoordelingen" },
 ] as const;
-type TabKey = (typeof TABS)[number]["key"];
+// De "Documenten"-tab is eigenaar-only: documenten zijn standaard privé en mogen nooit
+// op een publiek/ander-viewer profiel (/zzp/[id]) verschijnen. Daarom staat hij niet in TABS,
+// maar wordt hij per render alleen toegevoegd wanneer de viewer de eigenaar is.
+const OWNER_DOCUMENTS_TAB = { key: "documenten", label: "Documenten" } as const;
+type TabKey = (typeof TABS)[number]["key"] | typeof OWNER_DOCUMENTS_TAB.key;
 
 function initials(name: string | null): string {
   if (!name) return "Z";
@@ -120,7 +125,6 @@ export async function ProfileScreen({
   basePath: string;
 }) {
   const id = profileId;
-  const tab: TabKey = (TABS.find((t) => t.key === rawTab)?.key ?? "profiel") as TabKey;
 
   const profile = await prisma.freelancerProfile.findUnique({
     where: { id },
@@ -178,6 +182,13 @@ export async function ProfileScreen({
   if (!tenantEntityVisibleTo(viewer, profile.tenantId, profile.userId)) {
     notFound();
   }
+
+  // Eigenaar-check: alleen de ingelogde eigenaar van dit profiel ziet de "Documenten"-tab.
+  // Documenten zijn standaard privé; een publieke/andere viewer van /zzp/[id] krijgt de tab
+  // nooit te zien — en kan hem ook niet via ?tab=documenten forceren (valt terug op "profiel").
+  const isOwner = viewer?.id === profile.userId;
+  const visibleTabs = isOwner ? [...TABS, OWNER_DOCUMENTS_TAB] : TABS;
+  const tab: TabKey = visibleTabs.find((t) => t.key === rawTab)?.key ?? "profiel";
 
   // Publieke reputatie: beoordelingen die opdrachtgevers over deze ZZP'er hebben achtergelaten na een
   // voltooide samenwerking (richting CLIENT_ON_FREELANCER). Server-side waarheid, recentste eerst,
@@ -365,7 +376,7 @@ export async function ProfileScreen({
         aria-label="Profielsecties"
         className="flex flex-wrap gap-1 border-b border-border text-sm"
       >
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <Link
             key={t.key}
             href={tabHref(t.key)}
@@ -718,6 +729,28 @@ export async function ProfileScreen({
               {profile.user.identityVerifiedAt ? " en een geverifieerde identiteit" : ""} — geen
               sterren, wel feiten.
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Documenten — eigenaar-only. Documenten zijn standaard privé; dit paneel verschijnt
+          uitsluitend wanneer de ingelogde gebruiker de eigenaar van dit profiel is. De query
+          binnen DocumentsPanel is server-side gescoped op de eigenaar. "Meer laden" verwijst
+          naar de eigen /documenten-pagina. */}
+      {tab === "documenten" && isOwner && (
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Documenten — privé
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                Alleen jij (en beheer) kunt deze openen.
+              </span>
+            </div>
+            <div className="mt-3">
+              <DocumentsPanel ownerId={profile.userId} basePath="/documenten" />
+            </div>
           </CardContent>
         </Card>
       )}

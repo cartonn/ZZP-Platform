@@ -7,7 +7,7 @@ import { A4, PDF_MARGIN, PDF_RIGHT, PDF_MUTED, PDF_LINE, euro, makeWriter } from
 import { type BillingInvoiceDetail } from "@/lib/platform-billing/billing-data";
 
 const KIND_LABEL: Record<string, string> = {
-  TENANT_FEE: "Franchise-bemiddelingsfee",
+  TENANT_FEE: "Bemiddelingsfee",
   ZZP_MEMBERSHIP: "ZZP-platformabonnement",
 };
 

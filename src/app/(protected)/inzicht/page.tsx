@@ -57,7 +57,7 @@ export default async function InzichtPage() {
 
   const description =
     role === "FRANCHISER"
-      ? "De cijfers van je franchise — omzet, vulgraad, roster en samenwerkingen."
+      ? "De cijfers van je bemiddeling — omzet, vulgraad, roster en samenwerkingen."
       : "Je cijfers in één overzicht — verdiensten, werk en activiteit.";
 
   return (
@@ -93,8 +93,8 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
       <Card>
         <EmptyState
           icon={BarChart3}
-          title="Nog geen franchise"
-          description="Zodra je franchise is ingericht, verschijnen hier de cijfers van je regio."
+          title="Nog geen bemiddeling"
+          description="Zodra je bemiddeling is ingericht, verschijnen hier de cijfers van je regio."
         />
       </Card>
     );
@@ -115,7 +115,7 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
         <RevenueTrendCard
           trend={trend}
           title="Omzet per maand"
-          emptyDescription="Zodra er facturen lopen in je franchise, zie je hier de omzet per maand."
+          emptyDescription="Zodra er facturen lopen in je bemiddeling, zie je hier de omzet per maand."
         />
       </section>
 

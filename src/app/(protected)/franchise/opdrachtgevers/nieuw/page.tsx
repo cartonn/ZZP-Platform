@@ -19,7 +19,7 @@ import { WizardAfdelingForm } from "./wizard-afdeling-form";
 import { WizardDienstForm } from "./wizard-dienst-form";
 import { removeAfdelingStep } from "./actions";
 
-export const metadata: Metadata = { title: "Opdrachtgever opzetten · Franchise" };
+export const metadata: Metadata = { title: "Opdrachtgever opzetten · Bemiddeling" };
 
 const ORDER = ["opdrachtgever", "afdelingen", "diensten"] as const;
 type Stap = (typeof ORDER)[number] | "klaar";

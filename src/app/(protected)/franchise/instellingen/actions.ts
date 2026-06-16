@@ -51,7 +51,7 @@ export async function updateFranchiseBranding(
     where: { ownerUserId: actor.id },
     select: { id: true },
   });
-  if (!tenant) return { error: "Geen franchise gevonden." };
+  if (!tenant) return { error: "Geen bemiddeling gevonden." };
 
   await prisma.tenant.update({
     where: { id: tenant.id },

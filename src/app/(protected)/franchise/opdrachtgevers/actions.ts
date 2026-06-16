@@ -38,7 +38,7 @@ export async function createOpdrachtgever(
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
   }
-  if (!hasTenant(actor)) return { error: "Geen franchise gekoppeld." };
+  if (!hasTenant(actor)) return { error: "Geen bemiddeling gekoppeld." };
 
   const parsed = createSchema.safeParse({
     companyName: formData.get("companyName"),

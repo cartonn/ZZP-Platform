@@ -17,7 +17,7 @@ export function FranchiseForm() {
 
   return (
     <form action={action} className="space-y-4">
-      <Field label="Franchise-naam" htmlFor="tenantName" required error={fieldErrors.tenantName}>
+      <Field label="Bemiddeling-naam" htmlFor="tenantName" required error={fieldErrors.tenantName}>
         <Input
           id="tenantName"
           name="tenantName"
@@ -27,7 +27,7 @@ export function FranchiseForm() {
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
-          label="Naam franchisenemer"
+          label="Naam bemiddelaar"
           htmlFor="franchiserName"
           required
           error={fieldErrors.franchiserName}
@@ -40,7 +40,7 @@ export function FranchiseForm() {
           />
         </Field>
         <Field
-          label="E-mail franchisenemer"
+          label="E-mail bemiddelaar"
           htmlFor="franchiserEmail"
           required
           error={fieldErrors.franchiserEmail}
@@ -56,7 +56,7 @@ export function FranchiseForm() {
       </div>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
-          {pending ? "Aanmaken…" : "Franchise aanmaken"}
+          {pending ? "Aanmaken…" : "Bemiddeling aanmaken"}
         </Button>
         <FormStatus error={error} />
       </div>
@@ -64,10 +64,10 @@ export function FranchiseForm() {
       {state && "ok" in state && state.ok && (
         <div role="status" className="rounded-lg border border-success/30 bg-success/5 p-4 text-sm">
           <p className="font-medium text-success">
-            Franchise &quot;{state.tenantName}&quot; aangemaakt.
+            Bemiddeling &quot;{state.tenantName}&quot; aangemaakt.
           </p>
           <p className="mt-1 text-muted-foreground">
-            Deel deze inloggegevens veilig met de franchisenemer. Hij wijzigt het wachtwoord bij de
+            Deel deze inloggegevens veilig met de bemiddelaar. Hij wijzigt het wachtwoord bij de
             eerste login.
           </p>
           <p className="mt-2 font-mono text-xs">

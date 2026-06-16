@@ -21,7 +21,7 @@ import { ComplianceBadge } from "@/components/compliance-badge";
 import { plural } from "@/lib/plural";
 import { setDienstStatus } from "../actions";
 
-export const metadata: Metadata = { title: "Dienst · Franchise" };
+export const metadata: Metadata = { title: "Dienst · Bemiddeling" };
 
 const WORKMODE: Record<WorkMode, string> = {
   REMOTE: "Remote",

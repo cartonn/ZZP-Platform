@@ -428,7 +428,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
               </p>
               <p className="text-xs text-muted-foreground">
                 Kun je deze inzet niet voortzetten? Bied ze ter overname aan. Een beheerder of
-                franchiser beoordeelt; de overname wordt pas effectief via de gebruikelijke
+                bemiddelaar beoordeelt; de overname wordt pas effectief via de gebruikelijke
                 herplaatsing, waarbij de overnemer een eigen contract krijgt.
               </p>
             </div>

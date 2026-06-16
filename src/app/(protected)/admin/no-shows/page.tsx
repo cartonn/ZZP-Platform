@@ -121,7 +121,7 @@ export default async function AdminNoShowsPage() {
           <EmptyState
             icon={UserX}
             title="Geen openstaande no-show-meldingen"
-            description="Nieuwe meldingen van opdrachtgevers en franchisers verschijnen hier ter beoordeling."
+            description="Nieuwe meldingen van opdrachtgevers en bemiddelaars verschijnen hier ter beoordeling."
           />
         </Card>
       ) : (

@@ -14,7 +14,7 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
 import { buildDekkingsprognose } from "@/lib/franchise/dekkingsprognose";
 
-export const metadata: Metadata = { title: "Diensten · Franchise" };
+export const metadata: Metadata = { title: "Diensten · Bemiddeling" };
 
 const DAY = 86_400_000;
 // Een gepubliceerde dienst die zo lang openstaat zonder actieve plaatsing vraagt aandacht — de

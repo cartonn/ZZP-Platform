@@ -49,7 +49,7 @@ export function ShiftHandoffForm({ collaborationId }: { collaborationId: string 
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        Een beheerder of franchiser beoordeelt je aanvraag. Een goedkeuring betekent niet dat de
+        Een beheerder of bemiddelaar beoordeelt je aanvraag. Een goedkeuring betekent niet dat de
         inzet automatisch wordt overgedragen: de herplaatsing verloopt via de gebruikelijke stap,
         waarbij de overnemer een eigen contract krijgt.
       </p>

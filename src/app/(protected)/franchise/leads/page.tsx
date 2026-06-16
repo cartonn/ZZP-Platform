@@ -16,7 +16,7 @@ import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { LeadComposer } from "./lead-composer";
 
-export const metadata: Metadata = { title: "Leads · Franchise" };
+export const metadata: Metadata = { title: "Leads · Bemiddeling" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";

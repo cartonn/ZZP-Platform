@@ -113,7 +113,10 @@ export async function AppShell({
           tabIndex={-1}
           className="flex-1 overflow-y-auto p-4 outline-none md:p-6"
         >
-          {children}
+          {/* Gecentreerde inhoudskolom — elke pagina krijgt dezelfde breedte/centrering als
+              "Mijn profiel" (max-w-6xl). Pagina's met een eigen smallere max-w blijven smaller,
+              maar nog steeds gecentreerd. */}
+          <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>
       <CommandPalette />

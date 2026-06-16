@@ -114,13 +114,13 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   LEAD_STATUS_SET: "Leadstatus gewijzigd",
 
   // Franchise
-  FRANCHISE_CREATED: "Franchise aangemaakt",
+  FRANCHISE_CREATED: "Bemiddeling aangemaakt",
   FRANCHISE_CLIENT_ADDED: "Opdrachtgever toegevoegd",
   FRANCHISE_FREELANCER_ADDED: "Aan roster toegevoegd",
   FRANCHISE_DEPARTMENT_ADDED: "Afdeling toegevoegd",
   FRANCHISE_DEPARTMENT_REMOVED: "Afdeling verwijderd",
   FRANCHISE_DIENST_STATUS_SET: "Dienststatus gewijzigd",
-  FRANCHISE_BRANDING_UPDATED: "Franchise-branding bijgewerkt",
+  FRANCHISE_BRANDING_UPDATED: "Bemiddeling-branding bijgewerkt",
   TENANT_FEE_RECORDED: "Fee geboekt",
 
   // Support
@@ -178,7 +178,7 @@ const AUDIT_ENTITY_LABEL: Record<string, string> = {
   Lesson: "Les",
   Idea: "Idee",
   Lead: "Lead",
-  Tenant: "Franchise",
+  Tenant: "Bemiddeling",
   Department: "Afdeling",
   SupportTicket: "Supportticket",
   Subscription: "Abonnement",

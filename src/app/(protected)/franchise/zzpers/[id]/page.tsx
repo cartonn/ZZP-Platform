@@ -30,7 +30,7 @@ import { EngageabilityExplanation } from "@/components/engageability-explanation
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 
-export const metadata: Metadata = { title: "ZZP'er · Franchise" };
+export const metadata: Metadata = { title: "ZZP'er · Bemiddeling" };
 
 const TABS = ["profiel", "overeenkomsten", "uren", "facturen", "bestanden", "logboek"] as const;
 type Tab = (typeof TABS)[number];
