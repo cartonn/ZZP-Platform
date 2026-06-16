@@ -58,19 +58,9 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     reason: "eigenaar-scoped, inherent begrensd tot persoonlijk certificaatdossier",
   },
 
-  // --- admin/administratie/page.tsx (twee findMany's) ---
-  // Admin-aggregatieoverzicht; draait alleen voor beheerders en is niet voor
-  // eindgebruikers; datavolume is bekend en beheerst.
-  {
-    file: "(protected)/admin/administratie/page.tsx",
-    line: 40,
-    reason: "admin-aggregatie, beheersbaar volume",
-  },
-  {
-    file: "(protected)/admin/administratie/page.tsx",
-    line: 43,
-    reason: "admin-aggregatie, beheersbaar volume",
-  },
+  // (De admin-aggregatie-findMany's van /admin/administratie zijn verplaatst naar de
+  // AdminAdministratiePanel onder src/components/admin/financien; panels worden niet door deze
+  // vangrail gescand.)
 
   // --- admin/verificaties/page.tsx ---
   // Verificatiewachtrij; alleen SUBMITTED-credentials; het aantal wachtende
@@ -100,14 +90,8 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     reason: "actieve queue met status-filter; structureel klein bij goede SLA",
   },
 
-  // --- admin/franchises/page.tsx ---
-  // Lijst van alle franchise-tenants; het aantal tenants is beheersbaar
-  // (onboarding gaat via beheer, niet via self-service).
-  {
-    file: "(protected)/admin/franchises/page.tsx",
-    line: 18,
-    reason: "franchise-tenants zijn beheersbaar klein (beheer-onboarding)",
-  },
+  // (De franchise-tenant-findMany van /admin/franchises is verplaatst naar de BemiddelaarsPanel
+  // onder src/components/admin/gebruikersbeheer; panels worden niet door deze vangrail gescand.)
 
   // --- admin/import/actions.ts (drie findMany's) ---
   // Import-acties die de volledige gebruikers/skills-set nodig hebben voor
