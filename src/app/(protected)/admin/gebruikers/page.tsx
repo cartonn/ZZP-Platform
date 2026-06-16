@@ -1,65 +1,17 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, Users, Upload } from "lucide-react";
-import type { Prisma } from "@prisma/client";
+import { Upload } from "lucide-react";
 import { requireRole } from "@/lib/authz";
-import { prisma } from "@/lib/db";
-import { ROLE_LABEL } from "@/lib/nav";
-import { type UserRole, type UserStatus } from "@/lib/enums";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { anonymizeUser, setUserStatus } from "./actions";
-import { AnonymizeButton } from "./anonymize-button";
-import { plural } from "@/lib/plural";
+import { GebruikersPanel } from "@/components/admin/gebruikersbeheer/gebruikers-panel";
 
 export const metadata: Metadata = { title: "Gebruikers · ZZP Platform" };
 
-const STATUS: Record<UserStatus, { label: string; variant: "success" | "danger" | "warning" }> = {
-  ACTIVE: { label: "Actief", variant: "success" },
-  SUSPENDED: { label: "Geschorst", variant: "danger" },
-  PENDING: { label: "In afwachting", variant: "warning" },
-};
-
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function GebruikersPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await requireRole("ADMIN");
   const sp = await searchParams;
-  const q = first(sp.q).trim();
-  const role = first(sp.role);
-  const status = first(sp.status);
-  const deletion = first(sp.deletion);
-
-  const where: Prisma.UserWhereInput = {};
-  if (q) where.OR = [{ name: { contains: q } }, { email: { contains: q } }];
-  if (role) where.role = role;
-  if (status) where.status = status;
-  if (deletion === "1") where.deletionRequestedAt = { not: null };
-
-  const [users, deletionRequests, pendingUsers] = await Promise.all([
-    prisma.user.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: 100,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        status: true,
-        deletionRequestedAt: true,
-        anonymizedAt: true,
-      },
-    }),
-    prisma.user.count({ where: { deletionRequestedAt: { not: null } } }),
-    prisma.user.count({ where: { status: "PENDING" } }),
-  ]);
 
   return (
     <div className="space-y-6">
@@ -75,125 +27,7 @@ export default async function GebruikersPage({ searchParams }: { searchParams: S
           </Link>
         }
       />
-
-      {(deletionRequests > 0 || pendingUsers > 0) && (
-        <div className="flex flex-wrap gap-2">
-          {deletionRequests > 0 && (
-            <Link
-              href="/admin/gebruikers?deletion=1"
-              className="focus-ring inline-flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3 py-1.5 text-sm text-danger"
-            >
-              <AlertTriangle className="size-4 shrink-0" aria-hidden />
-              {plural(deletionRequests, "AVG-verwijderverzoek", "AVG-verwijderverzoeken")} —
-              beoordeel
-            </Link>
-          )}
-          {pendingUsers > 0 && (
-            <Link
-              href="/admin/gebruikers?status=PENDING"
-              className="focus-ring inline-flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1.5 text-sm text-warning"
-            >
-              <AlertTriangle className="size-4 shrink-0" aria-hidden />
-              {pendingUsers} in afwachting — activeer
-            </Link>
-          )}
-        </div>
-      )}
-
-      <form
-        method="get"
-        className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto_auto_auto]"
-      >
-        <Input
-          name="q"
-          defaultValue={q}
-          placeholder="Zoek op naam of e-mail…"
-          aria-label="Zoeken"
-        />
-        <Select name="role" defaultValue={role} aria-label="Rol">
-          <option value="">Alle rollen</option>
-          <option value="FREELANCER">ZZP&apos;er</option>
-          <option value="CLIENT">Opdrachtgever</option>
-          <option value="ADMIN">Beheerder</option>
-        </Select>
-        <Select name="status" defaultValue={status} aria-label="Status">
-          <option value="">Alle statussen</option>
-          <option value="ACTIVE">Actief</option>
-          <option value="SUSPENDED">Geschorst</option>
-          <option value="PENDING">In afwachting</option>
-        </Select>
-        <Button type="submit" variant="secondary">
-          Filteren
-        </Button>
-      </form>
-
-      {users.length === 0 ? (
-        <Card>
-          <CardContent className="p-0">
-            <EmptyState
-              icon={Users}
-              title="Geen gebruikers gevonden"
-              description="Er zijn geen accounts die overeenkomen met de huidige filters."
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {users.map((u) => {
-            const st = STATUS[u.status as UserStatus];
-            const isSelf = u.id === actor.id;
-            return (
-              <div
-                key={u.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-medium">{u.name}</p>
-                    {isSelf && <span className="text-xs text-muted-foreground">(jij)</span>}
-                    <Badge variant="muted">{ROLE_LABEL[u.role as UserRole]}</Badge>
-                    <Badge variant={st.variant}>{st.label}</Badge>
-                    {u.anonymizedAt ? (
-                      <Badge variant="muted">Geanonimiseerd</Badge>
-                    ) : (
-                      u.deletionRequestedAt && <Badge variant="danger">Verwijderverzoek</Badge>
-                    )}
-                  </div>
-                  <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-                </div>
-                {!isSelf && !u.anonymizedAt && (
-                  <div className="flex items-center gap-2">
-                    {u.deletionRequestedAt && u.role !== "ADMIN" && (
-                      <AnonymizeButton action={anonymizeUser.bind(null, u.id)} />
-                    )}
-                    {/* PENDING goedkeuren = activeren (PENDING -> ACTIVE). */}
-                    {u.status === "PENDING" && (
-                      <form action={setUserStatus.bind(null, u.id, "ACTIVE")}>
-                        <Button type="submit" variant="primary" size="sm">
-                          Goedkeuren
-                        </Button>
-                      </form>
-                    )}
-                    {u.status === "SUSPENDED" ? (
-                      <form action={setUserStatus.bind(null, u.id, "ACTIVE")}>
-                        <Button type="submit" variant="secondary" size="sm">
-                          Activeren
-                        </Button>
-                      </form>
-                    ) : (
-                      <form action={setUserStatus.bind(null, u.id, "SUSPENDED")}>
-                        <Button type="submit" variant="destructive" size="sm">
-                          Schorsen
-                        </Button>
-                      </form>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <GebruikersPanel actor={actor} searchParams={sp} basePath="/admin/gebruikers" />
     </div>
   );
 }

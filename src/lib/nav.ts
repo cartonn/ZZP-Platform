@@ -93,11 +93,10 @@ const NAV: Record<UserRole, NavItem[]> = {
     // De vijf toezicht-pagina's (statistieken, platform-bewaking, DBA-monitor, audit-log,
     // verwerkingsregister) zitten nu als tabs in de toezicht-hub, dus niet meer apart in de zijbalk.
     { label: "Toezicht", href: "/admin/toezicht", icon: "shield", section: "Toezicht", enabled: true }, // prettier-ignore
-    { label: "Gebruikers", href: "/admin/gebruikers", icon: "users", section: "Beheer", enabled: true }, // prettier-ignore
-    { label: "Bemiddelaars", href: "/admin/franchises", icon: "building", section: "Beheer", enabled: true }, // prettier-ignore
-    { label: "Importeren", href: "/admin/import", icon: "users", section: "Beheer", enabled: true },
-    { label: "Administratie", href: "/admin/administratie", icon: "fileText", section: "Beheer", enabled: true }, // prettier-ignore
-    { label: "Facturatie", href: "/admin/facturatie", icon: "receipt", section: "Beheer", enabled: true }, // prettier-ignore
+    // Gebruikers, Bemiddelaars en Importeren zitten nu als tabs in de Gebruikers-hub
+    // (/admin/gebruikersbeheer); Administratie en Facturatie in de Financiën-hub (/admin/financien).
+    { label: "Gebruikers", href: "/admin/gebruikersbeheer", icon: "users", section: "Beheer", enabled: true }, // prettier-ignore
+    { label: "Financiën", href: "/admin/financien", icon: "fileText", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Configuratie", href: "/admin/configuratie", icon: "settings", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Academie", href: "/academie", icon: "graduationCap", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Beheer", enabled: true },
