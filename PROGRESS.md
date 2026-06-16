@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## docs: persona-sweep-backlog 2026-06-16 reconciliëren (beide bevindingen al geadresseerd)
+
+De persona-sweep van 16-6 draaide tegen basis-commit `f3652c5` en kruiste de bevindingen niet met
+al-gemergd werk of bestaande ADR's. Bij naloop bleken **beide** bevindingen al afgehandeld op `main`;
+er was geen openstaand beveiligings-/robuustheidsgat en geen geschikt, niet-overlappend BOUWEN-item.
+Backlog gereconcilieerd zodat de volgende run/sweep niet opnieuw onderzoekt (of A1 destructief "fixt").
+
+- [x] **A1 (soft-404, LAAG) — GEACCEPTEERD.** Reeds vastgelegd in
+      `docs/decisions/0009-soft-404-auth-routes.md` (15-6): inherent App-Router-streaming-gedrag (de
+      async `(protected)/layout.tsx` + `loading.tsx`-Suspensegrenzen flushen de schil met 200 vóór
+      `notFound()`), geen datalek, achter login. Een echte 404 zou de laadskeletons offeren (harde
+      DESIGN-regel; voor `/certificaten/[id]` en `/berichten/[id]` expliciet behouden, zie de
+      comments in hun segment-`loading.tsx`). Niet "fixen" door laadstaten te slopen.
+- [x] **B1 (cross-role-crash, MEDIUM) — OPGELOST.** Gemerged in PR #395 (commit `2d686c2`) ná de
+      basis-commit van de sweep: `roleForPath()` (`src/lib/route-guards.ts`) + middleware-redirect,
+      analoog aan `isAdminPath`/`isFranchisePath`. Dekt alle door B1 genoemde routes.
+- [x] `docs/PERSONA-SWEEP-BACKLOG.md` — reconciliatie-sectie + A1/B1 als dicht gemarkeerd (record
+      blijft staan). Geen code-/schemawijziging; gates ongemoeid.
+
 ## feat(admin): disputen-gezondheid (doorlooptijd + urgent) op /admin/statistieken
 
 De platform-statistieken toonden voor disputen alleen een kale "Open disputen"-telling — geen zicht

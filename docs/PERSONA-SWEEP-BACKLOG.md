@@ -16,10 +16,38 @@ statusovergangen, malicieuze input, robuustheid). Verwacht bij doel 2: altijd ge
 
 ## Opgelost sinds de vorige sweep (2026-06-15)
 
-De vorige run vond geen beveiligingsgaten (alleen 1 lage soft-404-observatie A1). Die soft-404 is
-**nog niet** geadresseerd (zie A1 hieronder, ongewijzigd). Nieuw onderzocht deze run: de role-gated
-pagina's **buiten** `/admin` en `/franchise` (vorige run testte alleen de `/admin/*`-escalatie).
-Daar komt het enige nieuwe gat van deze run uit (B1).
+De vorige run vond geen beveiligingsgaten (alleen 1 lage soft-404-observatie A1). Nieuw onderzocht
+deze run: de role-gated pagina's **buiten** `/admin` en `/franchise` (vorige run testte alleen de
+`/admin/*`-escalatie). Daar kwam het enige nieuwe gat van deze run uit (B1).
+
+## Reconciliatie tegen `main` (2026-06-16 — bevindingen al geadresseerd)
+
+> Deze sweep draaide tegen basis-commit `f3652c5` en kruiste de bevindingen **niet** met al-gemergd
+> werk of bestaande ADR's. Bij naloop bleken **beide** bevindingen al afgehandeld op `main`. Geen
+> openstaande actie; dit document is hiermee voor deze run dicht. (Geen nieuwe sweep nodig — pas de
+> volgende geplande run.)
+
+- **A1 (soft-404, LAAG) — GEACCEPTEERD, geen actie.** Dit is een bewust besluit, vastgelegd in
+  [`docs/decisions/0009-soft-404-auth-routes.md`](decisions/0009-soft-404-auth-routes.md) (15-6). De
+  HTTP-200 bij een onbestaand/niet-toegankelijk id is **inherent App-Router-streaming-gedrag**: de
+  async `(protected)/layout.tsx` (en de `loading.tsx`-Suspensegrenzen) flushen de app-schil met 200
+  vóór de pagina `notFound()` bereikt. Een echte 404 forceren kan alléén door die schil **niet** te
+  laten streamen — dat offert de laadskeletons op (harde DESIGN-regel "elke view heeft een laadstaat";
+  voor `/certificaten/[id]` en `/berichten/[id]` is die laadstaat zelfs expliciet behouden, zie de
+  comments in hun segment-`loading.tsx`). Geen datalek (ownership-/tenant-checks vóór render),
+  achter login (geen SEO-impact). De afweging is niet de moeite waard voor een cosmetische statuscode;
+  de QA-test toetst de zichtbare niet-gevonden-marker i.p.v. de brosse status. **Niet "fixen" door
+  laadstaten te slopen.**
+- **B1 (cross-role-crash, MEDIUM) — OPGELOST, gemerged.** Reeds gefixt in **PR #395**
+  (`fix(authz): nette redirect voor rol-gated pagina's buiten /admin & /franchise (B1)`, commit
+  `2d686c2`) — gemerged **ná** basis-commit `f3652c5`, vandaar dat deze sweep het nog zag. De fix is
+  exact de voorkeursoptie uit B1: `roleForPath()` in `src/lib/route-guards.ts` (een rol→route-map die
+  de `requireRole(<één rol>)` op die pagina's spiegelt) + wiring in `src/middleware.ts`, analoog aan
+  `isAdminPath`/`isFranchisePath`. Elke door B1 genoemde route (`/kandidaten`, `/bedrijf`,
+  `/certificaten`, `/reacties`, `documenten`, `beschikbaarheid`, `profiel`, `facturen/nieuw`,
+  `favorieten`, `opdrachten/nieuw`, `opdrachten/[id]/bewerken`) zit in de map → schone redirect naar
+  `/dashboard` i.p.v. de crashpagina + error-log. De `requireRole` op de pagina's blijft als
+  defense-in-depth.
 
 ---
 
@@ -32,12 +60,12 @@ factuur/samenwerking/profiel werd zichtbaar. Server-side validatie (Zod) op de p
 weigert negatieve/absurde waarden en cap te lange tekst.
 
 - **Sectie A — functionele defecten:** geen blokkerende defecten; 1 lage observatie (soft-404 →
-  HTTP 200, ongewijzigd t.o.v. 15-6).
+  HTTP 200). **GEACCEPTEERD** via ADR-0009 (zie reconciliatie hierboven) — geen actie.
 - **Sectie B — beveiligings-/robuustheidsgaten:** **1 MEDIUM** — role-gated pagina's buiten
   `/admin` en `/franchise` weigeren toegang via een **ongevangen `AuthorizationError`** die als de
   generieke crashpagina "Er ging iets mis" rendert (+ server-error-log), i.p.v. een nette
-  redirect/403 zoals `/admin` en `/franchise` wél krijgen. Geen datalek, wél verkeerd
-  weigerings-mechanisme.
+  redirect/403 zoals `/admin` en `/franchise` wél krijgen. **OPGELOST** in PR #395 (zie reconciliatie
+  hierboven) — gemerged ná de basis-commit van deze sweep.
 
 ---
 
@@ -58,7 +86,11 @@ Bewijs: `admin-verificaties.png`, `admin-statistieken.png`, `freelancer-dashboar
 volledige inhoud; de admin-verificatiewachtrij laadt kaarten met goedkeur-/afkeur-acties (afkeuren
 vereist een reden, server-side afgedwongen).
 
-### A1 — LAAG · Soft-404 op detailroutes geeft HTTP 200 i.p.v. 404 (ongewijzigd t.o.v. 15-6)
+### A1 — LAAG · Soft-404 op detailroutes geeft HTTP 200 i.p.v. 404 — GEACCEPTEERD (ADR-0009)
+
+> **Status: dicht.** Bewust geaccepteerd in `docs/decisions/0009-soft-404-auth-routes.md` (15-6) —
+> inherent streaming-gedrag, geen datalek, achter login. Een echte 404 zou de laadskeletons offeren.
+> De suggestie hieronder is daarmee afgewezen; tekst blijft staan als record.
 
 - **Rol/scherm:** alle rollen, detailroutes `/samenwerkingen/[id]`, `/facturen/[id]`,
   `/opdrachten/[id]`.
@@ -97,7 +129,11 @@ vereist een reden, server-side afgedwongen).
   `hourlyRate = int, 0–2000` af en cap't tekstvelden (headline 120, bio 2000); negatieve/absurde
   bedragen en script-strings worden server-side door Zod geweigerd. KvK/BTW via `superRefine`.
 
-### B1 — MEDIUM · Cross-role pagina's buiten `/admin` & `/franchise` crashen i.p.v. nette weigering
+### B1 — MEDIUM · Cross-role pagina's buiten `/admin` & `/franchise` crashen — OPGELOST (PR #395)
+
+> **Status: dicht.** Gefixt in PR #395 (commit `2d686c2`) — `roleForPath()` in
+> `src/lib/route-guards.ts` + middleware-redirect, exact de voorkeursoptie hieronder. Gemerged ná de
+> basis-commit van deze sweep; tekst blijft staan als record.
 
 - **Rol/scherm:** elke verkeerde rol op een role-gated pagina die **niet** onder `/admin` of
   `/franchise` valt. Bevestigd: FREELANCER → `/kandidaten`, FREELANCER → `/bedrijf`,
