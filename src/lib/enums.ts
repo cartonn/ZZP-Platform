@@ -75,6 +75,14 @@ export const NO_SHOW_VERDICTS = ["PENDING", "JUSTIFIED", "UNJUSTIFIED"] as const
 export type NoShowVerdict = (typeof NO_SHOW_VERDICTS)[number];
 export const noShowVerdictSchema = z.enum(NO_SHOW_VERDICTS);
 
+// Shift-overname (productbesluit 16-6-2026): de huidige ZZP'er biedt een actieve inzet ter overname
+// aan; de franchiser/admin keurt goed of af. OPEN = wacht op beoordeling, APPROVED = goedgekeurd
+// (legt alléén de beslissing vast — geen herschikking), REJECTED = afgewezen (reden verplicht),
+// CANCELLED = door de aanvrager ingetrokken. De overgangsmap leeft in src/lib/shift-handoff.ts.
+export const SHIFT_HANDOFF_STATUSES = ["OPEN", "APPROVED", "REJECTED", "CANCELLED"] as const;
+export type ShiftHandoffStatus = (typeof SHIFT_HANDOFF_STATUSES)[number];
+export const shiftHandoffStatusSchema = z.enum(SHIFT_HANDOFF_STATUSES);
+
 // Weekdagen voor het optionele per-dag-weekrooster op een samenwerking (ADR-0004). Maandag eerst
 // (ISO-volgorde); opgeslagen als JSON-array van deze codes in Collaboration.weekdays.
 export const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
