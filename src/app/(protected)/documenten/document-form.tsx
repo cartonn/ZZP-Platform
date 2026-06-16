@@ -56,6 +56,7 @@ export function DocumentForm() {
             id="document"
             name="document"
             accept="application/pdf,image/png,image/jpeg,image/webp"
+            capture
           />
         </Field>
       </div>

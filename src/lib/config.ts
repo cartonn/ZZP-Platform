@@ -3,6 +3,7 @@
 // basispunten) — nooit floats voor geld.
 
 import { z } from "zod";
+import { DEFAULT_REVIEW_BLIND_DAYS } from "@/lib/reviews";
 
 // --- BTW-regimes ------------------------------------------------------------
 // Tarieven in basispunten (bps): 2100 = 21%. Zo blijft alles integer-rekenen.
@@ -145,6 +146,17 @@ export function parseGraceDays(raw: string | undefined): number {
 /** Geconfigureerd grace-venster in dagen; 0 = uitgeschakeld (geen auto-goedkeuring). */
 export function performanceGraceDays(): number {
   return parseGraceDays(process.env.PERFORMANCE_GRACE_DAYS);
+}
+
+// Blind beoordelingsvenster (double-blind reveal): dagen na afronding waarin beide partijen kunnen
+// beoordelen vóór de simultane onthulling. Anders dan het grace-venster staat dit standaard AAN
+// (DEFAULT_REVIEW_BLIND_DAYS) — een ongeldige/lege env valt terug op de standaard, nooit op 0.
+export function reviewBlindDays(): number {
+  const raw = process.env.REVIEW_BLIND_DAYS;
+  if (raw === undefined || raw.trim() === "") return DEFAULT_REVIEW_BLIND_DAYS;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_REVIEW_BLIND_DAYS;
+  return Math.floor(n);
 }
 
 // --- Annuleringstermijn (productbesluit eigenaar 12-6-2026) ----------------

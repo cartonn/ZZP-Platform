@@ -46,9 +46,9 @@ semantische token via Tailwind (`bg-primary`, `text-muted-foreground`, …).
 | `--muted-foreground`                 | `226 12% 40%`                 | subtekst (AA-veilig)             |
 | `--card`                             | `0 0% 100%`                   | wit vel (kaartvlak)              |
 | `--border` / `--input`               | `218 24% 89%` / `218 24% 86%` | randen / invoerranden            |
-| `--ring`                             | `234 71% 48%`                 | focus-ring (merkkleur)           |
-| `--primary` / `--primary-foreground` | `234 71% 45%` / `0 0% 100%`   | klein-blauw CTA / tekst erop     |
-| `--accent` / `--accent-foreground`   | `231 56% 95%` / `234 60% 38%` | merk-tint-vlak / tekst           |
+| `--ring`                             | `227 82% 55%`                 | focus-ring (merkkleur)           |
+| `--primary` / `--primary-foreground` | `227 82% 55%` / `0 0% 100%`   | royaalblauw CTA / tekst erop     |
+| `--accent` / `--accent-foreground`   | `226 96% 95%` / `227 66% 42%` | merk-tint-vlak / tekst           |
 | `--success`                          | `155 75% 27%`                 | zegelgroen — geverifieerd/actief |
 | `--warning`                          | `36 90% 36%`                  | let op / verloopt                |
 | `--danger`                           | `0 64% 44%`                   | fout / destructief               |

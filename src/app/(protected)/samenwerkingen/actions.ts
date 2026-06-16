@@ -246,7 +246,13 @@ async function applyCollaborationStatusChange(
   const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.collaboration.update({
       where: { id: collaborationId },
-      data: { status: targetStatus, ...(cancellationData ?? {}) },
+      // Stempel het afrondingsmoment bij de handmatige afronding — net als de cascade-applier dat doet
+      // bij de betalings-cascade (één semantiek, twee paden). Ankert het blinde beoordelingsvenster.
+      data: {
+        status: targetStatus,
+        ...(targetStatus === "COMPLETED" ? { completedAt: now } : {}),
+        ...(cancellationData ?? {}),
+      },
     }),
     prisma.notification.create({
       data: {

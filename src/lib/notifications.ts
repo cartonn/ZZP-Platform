@@ -44,6 +44,8 @@ const META: Record<string, NotificationMeta> = {
   COLLABORATION_PROPOSED: { category: "collaboration", tone: "info" },
   COLLABORATION_STATUS: { category: "collaboration", tone: "info" },
   COLLABORATION_REPLACEMENT: { category: "collaboration", tone: "attention" },
+  REVIEW_RECEIVED: { category: "collaboration", tone: "info" }, // uitnodiging om terug te beoordelen (zonder score)
+  REVIEW_PUBLISHED: { category: "collaboration", tone: "success" }, // onthuld — score nu zichtbaar
   IDEA_STATUS: { category: "idea", tone: "info" },
   IDEA_COMMENT: { category: "idea", tone: "info" },
   VAT_REMINDER: { category: "system", tone: "info" },

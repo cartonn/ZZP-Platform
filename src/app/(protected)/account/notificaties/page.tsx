@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { requireActor } from "@/lib/authz";
 import { loadEmailPreferences } from "@/lib/notification-preferences-data";
 import { PreferencesForm } from "./preferences-form";
+import { PushToggle } from "./push-toggle";
 
 export const metadata: Metadata = { title: "Notificaties · ZZP Platform" };
 
@@ -18,6 +19,8 @@ export default async function NotificatiesPage() {
           ontvangt.
         </p>
       </header>
+
+      <PushToggle />
 
       <PreferencesForm prefs={prefs} />
     </div>
