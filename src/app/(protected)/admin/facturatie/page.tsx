@@ -84,7 +84,7 @@ export default async function FacturatiePage({
   const aging = summarizeAging(invoices, now);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Facturatie"
         description="De facturen van het platform aan bemiddelingen (transactie-fee) en ZZP'ers (abonnement). Bundel de openstaande bijdragen en beheer de status. Er wordt nog niets automatisch geïncasseerd."

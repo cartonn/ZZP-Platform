@@ -30,7 +30,7 @@ export default async function ImporteerPage() {
   }));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link
           href="/diensten"

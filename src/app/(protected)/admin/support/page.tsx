@@ -38,7 +38,7 @@ export default async function AdminSupportPage() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Helpdesk"
         description={<>Tickets die door de {ASSISTANT_NAME} naar een medewerker zijn doorgezet.</>}

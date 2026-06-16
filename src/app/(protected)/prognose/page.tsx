@@ -90,7 +90,7 @@ export default async function PrognosePage() {
   const hasItems = items.length > 0;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Inkomstenprognose"
         description="Verwachte inkomsten op een tijdlijn — inclusief concepten die je nog moet factureren."

@@ -60,7 +60,7 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
   });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Mijn opdrachten"
         description="Beheer je opdrachten en publiceer ze voor ZZP'ers."
@@ -215,7 +215,7 @@ async function BrowseJobs({
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Opdrachten</h1>
         <p className="text-sm text-muted-foreground">Vind opdrachten die bij je passen.</p>

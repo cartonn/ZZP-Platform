@@ -20,7 +20,7 @@ export default async function AcademiePage() {
   const isAdmin = actor.role === "ADMIN";
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Academie"
         description="Korte cursussen over je vak, compliance en administratie — leer in je eigen tempo."

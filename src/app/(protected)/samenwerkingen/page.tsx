@@ -162,7 +162,7 @@ export default async function SamenwerkingenPage({
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Samenwerkingen"
         description="Voorgestelde en lopende samenwerkingen."

@@ -135,7 +135,7 @@ export default async function CertificatenPage() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Certificaten"
         description={`Beheer je bewijsstukken en vraag verificatie aan. ${credentials.length > 0 ? `${validCount} van ${credentials.length} geldig geverifieerd.` : ""}`}

@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 // navigatie, zodat het systeem snel aanvoelt. Route-specifiek — raakt notFound() elders niet.
 export default function DashboardLoading() {
   return (
-    <div className="mx-auto max-w-5xl space-y-6" aria-busy="true" aria-label="Dashboard laden">
+    <div className="space-y-6" aria-busy="true" aria-label="Dashboard laden">
       <div className="space-y-2">
         <Skeleton className="h-3 w-40" />
         <Skeleton className="h-6 w-64" />

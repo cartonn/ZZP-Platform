@@ -103,7 +103,7 @@ export default async function KandidatenPage() {
     : null;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-24">
+    <div className="space-y-6 pb-24">
       <PageHeader
         title="Kandidaten"
         description="Reacties op je opdrachten, met match en compliance."

@@ -38,7 +38,7 @@ export default async function AdminDbaPage({ searchParams }: { searchParams: Sea
   const disclaimer = rows[0]?.assessment.disclaimer ?? DBA_DISCLAIMER;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="DBA-monitor"
         description="Signalering van mogelijke schijnzelfstandigheid over actieve samenwerkingen. Dit is geen juridisch oordeel — het platform signaleert en informeert alleen."

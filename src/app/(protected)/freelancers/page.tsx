@@ -19,7 +19,7 @@ export default async function FreelancersPage() {
   const freelancers = await getAllPublicFreelancers(visibleFreelancersWhere(actor));
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="ZZP'ers"
         description="Zoek beschikbare zelfstandigen voor uw opdrachten en bekijk hun profiel."

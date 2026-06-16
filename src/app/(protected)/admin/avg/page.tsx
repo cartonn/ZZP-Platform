@@ -35,7 +35,7 @@ export default async function AdminAvgPage({ searchParams }: { searchParams: Sea
   const filtered = filterByLegalBasis(PROCESSING_REGISTER, activeBasis);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="text-xl font-semibold tracking-tight">Verwerkingsregister</h1>
         <p className="text-sm text-muted-foreground">

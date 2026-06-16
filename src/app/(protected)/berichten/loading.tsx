@@ -4,7 +4,7 @@ import { PageHeaderSkeleton, DenseListSkeleton } from "@/components/ui/skeleton"
 // Zonder dit had het gespreksdetail geen laadstaat (route-group-boundary dekt siblings niet).
 export default function Loading() {
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeaderSkeleton />
       <DenseListSkeleton rows={5} />
     </div>

@@ -24,7 +24,7 @@ export default async function CredentialBewerkenPage({
   if (!credential || credential.freelancerProfileId !== profile!.id) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div>
         <Link
           href="/certificaten"

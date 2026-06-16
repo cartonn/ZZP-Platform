@@ -48,7 +48,7 @@ export default async function CourseDetailPage({
   const firstOpen = course.lessons.find((l) => !l.completed) ?? course.lessons[0];
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
         <Link href="/academie">
           <ArrowLeft className="size-4" aria-hidden /> Academie

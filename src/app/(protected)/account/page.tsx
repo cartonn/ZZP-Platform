@@ -32,7 +32,7 @@ export default async function AccountPage() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Account & privacy"
         description="Je accountgegevens en je rechten onder de AVG."

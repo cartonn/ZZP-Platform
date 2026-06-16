@@ -158,7 +158,7 @@ export default async function NotificatiesPage() {
   const earlier = notifications.filter((n) => !isSameDay(n.createdAt, now));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Notificaties"
         description="Updates over je certificaten, reacties en berichten."

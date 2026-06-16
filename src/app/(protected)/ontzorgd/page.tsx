@@ -42,7 +42,7 @@ export default async function OntzorgdPage() {
   // Het Ontzorgd-dashboard (IB-jaaroverzicht) is een betaalde feature (IB_VOORBEREIDING).
   if (!(await userHasEntitlement(actor.id, "IB_VOORBEREIDING"))) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="space-y-6">
         <Card>
           <EmptyState
             icon={Lock}
@@ -99,7 +99,7 @@ export default async function OntzorgdPage() {
   const hasData = entries.length > 0 || directHours > 0 || indirectHoursTotal > 0;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <header className="space-y-1">
         <div className="flex items-center gap-2">
           <Sparkles className="size-5 text-primary" aria-hidden />

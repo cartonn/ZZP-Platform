@@ -44,7 +44,7 @@ export default async function PrestatiesPage({
   const actor = await requireActor();
   if (actor.role !== "CLIENT") {
     return (
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="space-y-6">
         <PageHeader
           title="Prestaties"
           description="Het prestatie-overzicht is er voor opdrachtgevers."
@@ -73,7 +73,7 @@ export default async function PrestatiesPage({
   const queue = summarizePerformanceApproval(submitted, now);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Prestaties</h1>

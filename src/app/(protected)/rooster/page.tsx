@@ -127,7 +127,7 @@ export default async function RoosterPage({
     match === "sterk" && profile !== null && strongCalendar.total === 0;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Rooster"
         description="Open diensten met een startdatum — gegroepeerd per dag."
