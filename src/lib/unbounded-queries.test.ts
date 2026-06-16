@@ -83,7 +83,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // aanvragen is structureel klein (dagelijkse verwerking door beheerders).
   {
     file: "(protected)/admin/verificaties/page.tsx",
-    line: 32,
+    line: 33,
     reason: "verificatiewachtrij is structureel klein (dagelijks verwerkt)",
   },
 

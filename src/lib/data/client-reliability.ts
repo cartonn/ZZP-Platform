@@ -36,14 +36,21 @@ export async function getClientReliabilityForCompany(
     }),
   ]);
 
-  const ownerUserId = company?.userId ?? null;
+  // Zonder bekende eigenaar kunnen we annuleringen niet aan de opdrachtgever toeschrijven
+  // (alleen de chargeable-snapshot zou nog meetellen) → het signaal zou te positief uitvallen.
+  // Geef dan een neutraal "unknown" terug i.p.v. een misleidend goed signaal.
+  if (company == null) {
+    return { sampleSize: 0, cancellations: 0, lastMinute: 0, cancelRate: null, tone: "unknown" };
+  }
+
+  const ownerUserId = company.userId;
 
   const rows: CancellationRow[] = collaborations.map((c) => ({
     status: c.status,
     cancelledAt: c.cancelledAt,
     // Door de opdrachtgever gestart: chargeable is definitioneel een opdrachtgever-annulering;
     // anders vergelijken met de eigenaar van het bedrijf (zie attributie in client-reliability.ts).
-    byClient: c.cancellationChargeable || (ownerUserId != null && c.cancelledById === ownerUserId),
+    byClient: c.cancellationChargeable || c.cancelledById === ownerUserId,
     chargeable: c.cancellationChargeable,
   }));
 

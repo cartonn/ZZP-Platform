@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -8,6 +9,12 @@ interface Props {
   name: string;
   accept?: string;
   required?: boolean;
+  /**
+   * Toon naast "Bestand kiezen" ook een "Scan met camera"-knop op toestellen met een camera (mobiel).
+   * Handig om een VOG/diploma direct te fotograferen i.p.v. eerst zelf een bestand te maken. Beide
+   * knoppen bedienen dezelfde named input, zodat de keuze gewoon meeverstuurt met het formulier.
+   */
+  capture?: boolean;
   /** Optionele callback met het gekozen bestand (of null) — voor formulieren met eigen state. */
   onChange?: (file: File | null) => void;
 }
@@ -17,9 +24,34 @@ interface Props {
  * "Choose File / No file chosen" toont) achter een eigen knop + bestandsnaam. De input blijft in het
  * formulier zodat hij gewoon meeverstuurt. DESIGN.md: UI-taal = Nederlands.
  */
-export function FileInput({ id, name, accept, required, onChange }: Props) {
+export function FileInput({ id, name, accept, required, capture, onChange }: Props) {
   const ref = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [canScan, setCanScan] = useState(false);
+
+  // De cameraknop alleen op toestellen met een grove aanwijzer (telefoon/tablet); op desktop negeert
+  // de browser `capture` en zou de knop simpelweg een tweede bestandskiezer openen (verwarrend).
+  // Post-mount gezet → geen hydratie-mismatch (server rendert 'm niet, de client voegt 'm toe).
+  useEffect(() => {
+    if (!capture) return;
+    const coarse = window.matchMedia?.("(pointer: coarse)").matches || "ontouchstart" in window;
+    setCanScan(Boolean(coarse));
+  }, [capture]);
+
+  // Eén named input, twee triggers: voor de camera zet de input tijdelijk op `capture=environment` +
+  // `image/*` (foto); voor "Bestand kiezen" herstellen we de volledige accept (pdf óf afbeelding).
+  const open = (asCamera: boolean) => {
+    const el = ref.current;
+    if (!el) return;
+    if (asCamera) {
+      el.setAttribute("capture", "environment");
+      el.accept = "image/*";
+    } else {
+      el.removeAttribute("capture");
+      el.accept = accept ?? "";
+    }
+    el.click();
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -37,9 +69,21 @@ export function FileInput({ id, name, accept, required, onChange }: Props) {
           onChange?.(file);
         }}
       />
-      <Button type="button" variant="secondary" size="sm" onClick={() => ref.current?.click()}>
+      <Button type="button" variant="secondary" size="sm" onClick={() => open(false)}>
         Bestand kiezen
       </Button>
+      {canScan && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => open(true)}
+        >
+          <Camera className="size-4" aria-hidden />
+          Scan met camera
+        </Button>
+      )}
       <span className="truncate text-sm text-muted-foreground">
         {fileName ?? "Geen bestand gekozen"}
       </span>

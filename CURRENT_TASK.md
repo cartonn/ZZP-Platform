@@ -211,26 +211,32 @@ Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct 
 
 > Uit de adversariële reviews van de 6 gemergde nachtfeatures. Geen van alle een blocker; pak ze
 > mee wanneer je toch in het betreffende bestand zit, of als losse kleine PR.
+> **Stand 15-6:** #367/#368/#372 GEDAAN (review-should-fixes deel 2, deze PR). #369 (PR #387) +
+> #370 (PR #383) in-flight. **#371 open** — bewust overgeslagen (geen jsdom/testing-library, Vitest
+> op `node`; een render-test zou een infra-wijziging vergen die niet in verhouding staat).
 
-- **#367 betrouwbaarheidssignaal** (`lib/client-reliability.ts`): defensieve guard zodat `completed`
-  geen rij telt die óók een client-annulering is (`status==="COMPLETED" && !(byClient && cancelledAt)`);
-  en in `lib/data/client-reliability.ts`: geef `unknown` terug als `company` null is i.p.v. een te
-  positief signaal.
-- **#368 rooster sterke-match** (`rooster/page.tsx`): toon een nette "geen sterke matches"-melding
-  wanneer `?match=sterk` handmatig actief is maar `strongCalendar.total === 0` (nu valt het stil terug).
-- **#369 markttarief-band** (`lib/market-rate.ts` + `JobRateBandCard`): bewaar de niet-afgeronde
-  `p25Raw`/`p75Raw` in `MarketBand` en gebruik die voor `ratePosition`, zodat de grensclassificatie
-  consistent is met `/profiel/bewerken`. _(AVG art.6-bevestiging AFGEROND 15-6: eigenaar koos
+- [x] **#367 betrouwbaarheidssignaal** (`lib/client-reliability.ts`): defensieve guard zodat `completed`
+      geen rij telt die óók een client-annulering is (`status==="COMPLETED" && !(byClient && cancelledAt)`);
+      en in `lib/data/client-reliability.ts`: geef `unknown` terug als `company` null is i.p.v. een te
+      positief signaal. **GEDAAN** (15-6, +2 tests).
+- [x] **#368 rooster sterke-match** (`rooster/page.tsx`): toon een nette "geen sterke matches"-melding
+      wanneer `?match=sterk` handmatig actief is maar `strongCalendar.total === 0` (nu valt het stil terug).
+      **GEDAAN** (15-6).
+- **#369 markttarief-band** — **GEDAAN** (15-6, PR voor #369): `MarketBand` heeft nu `p25Raw`/`p75Raw`
+  (niet-afgerond); `JobRateBandCard` gebruikt die voor `ratePosition` → grensclassificatie consistent met
+  `/profiel/bewerken`. _(AVG art.6-bevestiging AFGEROND 15-6: eigenaar koos
   gerechtvaardigd belang (1f); vastgelegd als verwerkingsactiviteit "markttarief-indicatie" in
   `lib/compliance/processing-register.ts` met k-anonimiteit (≥10) als waarborg.)_
-- **#370 verificatie-wachtrij** (`prisma/schema.prisma` + `certificaten/actions.ts` + `verification-queue.ts`):
-  dedicated `submittedAt DateTime?` op `Credential` (eenmalig gezet bij → SUBMITTED) i.p.v. `updatedAt`
-  voor de wachtrij-leeftijd; + composite index `@@index([status, submittedAt])`.
+- ~~**#370 verificatie-wachtrij**~~ **AFGEROND** — dedicated `submittedAt DateTime?` op `Credential`
+  (eenmalig gezet bij → SUBMITTED) i.p.v. `updatedAt` voor de wachtrij-leeftijd; composite index
+  `@@index([status, submittedAt])`; `waitingSince`-fallback voor legacy-records; gewired in
+  `/admin/verificaties` + `admin-stats.ts`; seed-spreiding. Zie PROGRESS.md top.
 - **#371 vervalkalender** (`components/credentials/expiry-overview-card.tsx`): component-test voor
   `ExpiryOverviewCard` (render/labels/empty). _(De misleidende labels zijn al gefixt bij merge.)_
-- **#372 betaalverplichtingen** (`verplichtingen/page.tsx`): scope op `counterpartyUserId` + de
-  bestaande `@@index([counterpartyUserId, lifecycleStatus])` i.p.v. de 3-way join; en vang
-  OVERDUE-items zónder `dueAt` op die nu door de `take: 200` + `nulls: last` kunnen wegvallen.
+- [x] **#372 betaalverplichtingen** (`verplichtingen/page.tsx`): scope op `counterpartyUserId` + de
+      bestaande `@@index([counterpartyUserId, lifecycleStatus])` i.p.v. de 3-way join; en vang
+      OVERDUE-items zónder `dueAt` op die nu door de `take: 200` + `nulls: last` kunnen wegvallen.
+      **GEDAAN** (15-6, begrensd vangnet + dedup op id).
 
 ### QA-loop — gequarantainede test (15-6-2026)
 
