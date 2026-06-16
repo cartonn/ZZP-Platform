@@ -10,7 +10,9 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
+import { OutcomesSummary } from "@/components/applications/outcomes-summary";
 import { ComplianceBadge } from "@/components/compliance-badge";
+import { summarizeApplicationOutcomes } from "@/lib/application-outcomes";
 import { type ApplicationStatus, type CredentialType, type CredentialStatus } from "@/lib/enums";
 
 export const metadata: Metadata = { title: "Mijn reacties · ZZP Platform" };
@@ -66,9 +68,18 @@ export default async function ReactiesPage() {
       })
     : [];
 
+  const outcomes = summarizeApplicationOutcomes(
+    applications.map((app) => ({
+      status: app.status as ApplicationStatus,
+      hasCollaboration: app.collaboration != null,
+    })),
+  );
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader title="Mijn reacties" description="Je reacties op opdrachten en hun status." />
+
+      <OutcomesSummary outcomes={outcomes} />
 
       {applications.length === 0 ? (
         <Card>

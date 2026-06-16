@@ -31,7 +31,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // --- reacties/page.tsx ---
   // Reacties zijn altijd van één freelancer; groei is lineair en in de praktijk
   // beperkt (een ZZP'er heeft doorgaans < 100 actieve reacties).
-  { file: "(protected)/reacties/page.tsx", line: 52, reason: "eigenaar-scoped, inherent begrensd" },
+  { file: "(protected)/reacties/page.tsx", line: 54, reason: "eigenaar-scoped, inherent begrensd" },
 
   // --- administratie/page.tsx ---
   // Boekhoudregels van één gebruiker; aggregatiequery die alle regels nodig heeft
@@ -83,7 +83,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // aanvragen is structureel klein (dagelijkse verwerking door beheerders).
   {
     file: "(protected)/admin/verificaties/page.tsx",
-    line: 32,
+    line: 33,
     reason: "verificatiewachtrij is structureel klein (dagelijks verwerkt)",
   },
 

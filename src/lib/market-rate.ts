@@ -31,6 +31,14 @@ export interface MarketBand {
   p25: number | null;
   /** 75e percentiel, afgerond op heel getal (euro); null bij scope "none". */
   p75: number | null;
+  /**
+   * 25e percentiel, NIET afgerond; null bij scope "none". Gebruik dit (niet de
+   * afgeronde `p25`) voor `ratePosition`, zodat de grensclassificatie consistent is
+   * met `computeMarketRate` op `/profiel/bewerken` (vermijdt grensruis bij afronden).
+   */
+  p25Raw: number | null;
+  /** 75e percentiel, NIET afgerond; null bij scope "none". Zie `p25Raw`. */
+  p75Raw: number | null;
 }
 
 /** Volledig marktband-inzicht voor één ZZP'er. */
@@ -156,6 +164,8 @@ export function computeMarketBand(input: {
       median: null,
       p25: null,
       p75: null,
+      p25Raw: null,
+      p75Raw: null,
     };
   }
 
@@ -169,6 +179,8 @@ export function computeMarketBand(input: {
     median: medianRaw !== null ? Math.round(medianRaw) : null,
     p25: p25Raw !== null ? Math.round(p25Raw) : null,
     p75: p75Raw !== null ? Math.round(p75Raw) : null,
+    p25Raw,
+    p75Raw,
   };
 }
 
