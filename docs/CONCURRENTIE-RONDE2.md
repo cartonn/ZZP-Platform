@@ -45,8 +45,10 @@ Per item: principe → onze schermen → omvang (S/M/L) → **klasse** (BOUWEN/P
    franchise-tenant nog niet als gerichte, gescoorde suggesties met de bestaande `matching.ts`-redenen.
    Schermen: `/opdrachten` ("voor jou"-band), `/rooster`, `src/lib/franchise/dienst-detail.ts`.
    _Leunt op bestaande matching — geen nieuwe rekenlogica._
-2. **Vooruitkijkende dekkingsprognose voor de franchiser** _(M, Zorgwerk + PIDZ)_ — niet alleen de
-   huidige vulgraad, maar per opdrachtgever/afdeling én vooruit (welke roosterweken dreigen onderbezet).
+2. **Vooruitkijkende dekkingsprognose voor de franchiser** _(M, Zorgwerk + PIDZ)_ — **slice 1 GEBOUWD**
+   (`coverage-forecast.ts` + dekkingsband op `/franchise/diensten`: gepubliceerde diensten gebucket per
+   komende ISO-week op startdatum, met een vroeg signaal welke week dreigt onder te bezetten). Open
+   vervolg: uitsplitsing per opdrachtgever/afdeling en een dashboard-band op `/franchise`.
    Schermen: `/franchise/diensten`, `/franchise/samenwerkingen` (weekdays), `/franchise` (dashboard-band).
 3. **Shift-ruil/overname binnen tenant** _(L, Zorgwerk)_ — een ZZP'er biedt een ingeplande dienst aan
    ter overname door een collega, met compliance-check op de overnemer. Schermen: `/samenwerkingen/[id]`

@@ -3,6 +3,42 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(franchise): vooruitkijkende dekkingsprognose op /franchise/diensten (ronde2 #2)
+
+Concurrentie-ronde2-backlog **item #2** (Zorgwerk + PIDZ). De diensten-pagina toonde alleen de
+huidige vulgraad — geen zicht op welke komende roosterweken dreigen onder te bezetten. Dit voegt een
+vooruitkijkende dekkingsprognose toe: gepubliceerde diensten gebucket per komende ISO-week op
+startdatum, met een vroeg signaal welke week een dekkingsgat heeft. Read-only, server-side,
+deterministisch, **geen schemawijziging, geen extra query** (hergebruikt de al opgehaalde diensten;
+`startDate` is een scalar veld op `Job`). Geen payroll/uitzendtak — leunt op de bestaande matching/
+plaatsing.
+
+- [x] `src/lib/franchise/coverage-forecast.ts` — pure `buildCoverageForecast(diensten, now,
+    horizonWeeks=4)` → `CoverageForecast`: bucket gepubliceerde diensten per ISO-week-offset binnen
+      de horizon (gevuld = actieve samenwerking), per week `total/filled/open/fillRate`,
+      `firstGapWeekOffset` (vroegste week met een gat), `later*`-samenvatting voorbij de horizon en
+      `undatedOpen` (open diensten zonder startdatum). Verleden starts genegeerd; horizon geklemd op
+      ≥ 1. Hergebruikt `startOfIsoWeek`; muteert de invoer niet, geen I/O.
+- [x] `src/lib/franchise/coverage-forecast.test.ts` — 12 unit-tests: lege invoer, weekbucketing op
+      offset, gevuld/open + vulgraad, firstGap-signaal (+ null als alles gevuld), verleden genegeerd,
+      later-samenvatting, horizon-grens (laatste erin/eerste erbuiten), undatedOpen-splitsing,
+      horizon-klemming op 1, non-mutatie.
+- [x] `src/components/franchise/coverage-forecast-band.tsx` — presentationele server-component
+      (geen client-JS): waarschuwingsregel bij een dekkingsgat, per-week-grid (gevuld/open-badge) en
+      voetnoten voor open diensten ná de horizon / zonder startdatum. Verbergt zichzelf als er niets
+      vooruit te plannen is.
+- [x] `src/app/(protected)/franchise/diensten/page.tsx` — prognose berekend uit de al opgehaalde
+      gepubliceerde diensten; band gerenderd ná de huidige-vulgraad-kaart. Allowlist-regel bijgewerkt
+      (findMany 25 → 27 door de extra imports).
+- [x] `src/lib/unbounded-queries.test.ts` — meelift-fix: pre-existing allowlist-drift van
+      `franchise/zzpers/page.tsx` (23/32 → 30/39, geïntroduceerd door #397 zonder allowlist-update)
+      gecorrigeerd; de vangrail-test was hierdoor rood op main.
+
+Gates groen: typecheck ✓, lint ✓, test 2141 ✓ (+12), build ✓, `prettier --write .` ✓.
+(E2e niet in de routine — geen browser-channel; CI draait e2e.)
+
+---
+
 ## feat(admin): disputen-gezondheid (doorlooptijd + urgent) op /admin/statistieken
 
 De platform-statistieken toonden voor disputen alleen een kale "Open disputen"-telling — geen zicht

@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import { CoverageForecastBand } from "@/components/franchise/coverage-forecast-band";
+import { buildCoverageForecast } from "@/lib/franchise/coverage-forecast";
 import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Diensten · Franchise" };
@@ -48,6 +50,13 @@ export default async function FranchiseDienstenPage() {
   const openCount = published.length - filledCount;
   const atRiskCount = published.filter((r) => r.atRisk).length;
   const vulgraad = published.length > 0 ? Math.round((filledCount / published.length) * 100) : null;
+
+  // Vooruitkijkende dekking: gepubliceerde diensten gebucket per komende roosterweek op startdatum.
+  // Hergebruikt de al opgehaalde rijen (startDate is een scalar veld op Job) — geen extra query.
+  const coverageForecast = buildCoverageForecast(
+    published.map((r) => ({ jobId: r.d.id, startDate: r.d.startDate, filled: r.filled })),
+    new Date(now),
+  );
 
   // Aandacht eerst: open diensten met de langste looptijd bovenaan, dan de rest op aanmaakdatum.
   const sorted = [...rows].sort((a, b) => {
@@ -97,6 +106,8 @@ export default async function FranchiseDienstenPage() {
           </CardContent>
         </Card>
       )}
+
+      {published.length > 0 && <CoverageForecastBand forecast={coverageForecast} />}
 
       {diensten.length === 0 ? (
         <Card>
