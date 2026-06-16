@@ -2,22 +2,29 @@ import { type Metadata } from "next";
 import { Building2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { computeCompanyCompleteness } from "@/lib/profile";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader } from "@/components/ui/page-header";
-import { Progress } from "@/components/ui/progress";
-import { CompanyForm } from "./company-form";
+import { CompanyProfileScreen } from "@/components/company/company-profile-screen";
 
 export const metadata: Metadata = { title: "Bedrijfsprofiel · ZZP Platform" };
 
-export default async function BedrijfPage() {
+/**
+ * Bedrijfsprofiel-hub: de opdrachtgever ziet zijn eigen bedrijfsprofiel (kopkaart + tabs:
+ * bedrijf, flexpool, beoordelingen) binnen de app-schil. Strikt eigenaar-gescoped op
+ * `actor.id` — er bestaat geen publiek bedrijfsprofiel. Bewerken op /bedrijf/bewerken.
+ */
+export default async function BedrijfPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const actor = await requireRole("CLIENT");
+  const { tab } = await searchParams;
 
-  const [company, industries] = await Promise.all([
-    prisma.company.findUnique({ where: { userId: actor.id } }),
-    prisma.industry.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-  ]);
+  const company = await prisma.company.findUnique({
+    where: { userId: actor.id },
+    select: { id: true },
+  });
 
   if (!company) {
     return (
@@ -35,49 +42,9 @@ export default async function BedrijfPage() {
     );
   }
 
-  const { score, missing } = computeCompanyCompleteness({
-    description: company.description,
-    location: company.location,
-    website: company.website,
-    hasIndustry: !!company.industryId,
-    hasLogo: !!company.logoKey,
-  });
-
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Bedrijfsprofiel"
-        description="Een compleet profiel wekt vertrouwen bij ZZP'ers die op je opdrachten reageren."
-      />
-
-      <Card>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Profiel-compleetheid</span>
-            <span className="text-sm tabular-nums text-muted-foreground">{score}%</span>
-          </div>
-          <Progress value={score} />
-          {missing.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Nog aan te vullen: {missing.map((m) => m.label).join(", ")}.
-            </p>
-          ) : (
-            <p className="text-xs text-success">Je bedrijfsprofiel is compleet.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <CompanyForm
-        initial={{
-          name: company.name,
-          description: company.description ?? "",
-          website: company.website ?? "",
-          location: company.location ?? "",
-          industryId: company.industryId ?? "",
-          logoKey: company.logoKey,
-        }}
-        industries={industries}
-      />
+      <CompanyProfileScreen companyUserId={actor.id} tab={tab} />
     </div>
   );
 }

@@ -422,9 +422,14 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     reason: "eigenaar-scoped support-tickets; structureel klein",
   },
 
-  // --- bedrijf/page.tsx ---
-  // Industries-referentielijst voor bedrijfsprofielformulier; kleine referentietabel.
-  { file: "(protected)/bedrijf/page.tsx", line: 19, reason: "kleine referentietabel industries" },
+  // --- bedrijf/bewerken/page.tsx ---
+  // Industries-referentielijst voor het bedrijfsprofielformulier (verplaatst van /bedrijf naar
+  // /bedrijf/bewerken toen /bedrijf de hub werd); kleine, vaste referentietabel.
+  {
+    file: "(protected)/bedrijf/bewerken/page.tsx",
+    line: 19,
+    reason: "kleine referentietabel industries",
+  },
 
   // --- ontzorgd/aangifte/actions.ts ---
   // Administratie-entries voor de aangifte-actie; eigenaar-scoped aggregatie.

@@ -20,7 +20,7 @@ test("ZZP'er ziet info over de opdrachtgever bij een opdracht", async ({ page, b
   await page.getByRole("button", { name: "Account aanmaken" }).click();
   await page.waitForURL("**/dashboard");
 
-  await page.goto("/bedrijf");
+  await page.goto("/bedrijf/bewerken");
   await page.fill("#location", "Utrecht");
   await page.fill("#website", "https://voorbeeld-bedrijf.nl");
   await page.fill("#description", about);

@@ -25,8 +25,9 @@ test("bedrijfsprofiel toont compleetheid en concrete aanvulpunten", async ({ pag
   await page.goto("/dashboard");
   await expect(page.getByText("Bedrijfsprofiel is 0% compleet").first()).toBeVisible();
 
-  // Aanvullen: omschrijving, locatie, website, branche -> 90% (alleen logo open).
-  await page.goto("/bedrijf");
+  // Aanvullen via het bewerken-formulier (de /bedrijf-hub is read-only; het formulier staat op
+  // /bedrijf/bewerken sinds de bedrijfsprofiel-hub) -> 90% (alleen logo open).
+  await page.goto("/bedrijf/bewerken");
   await page.fill("#description", "Wij bouwen duurzame software voor het MKB.");
   await page.fill("#location", "Utrecht");
   await page.fill("#website", "https://compleet-bedrijf.nl");
