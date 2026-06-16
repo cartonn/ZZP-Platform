@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { Bell, LogOut } from "lucide-react";
 import { type Session } from "next-auth";
 import { signOut } from "@/auth";
@@ -46,6 +47,10 @@ export async function AppShell({
   // Vervaag-bij-ingeklapt: tekst verschijnt bij hover/focus van de rail (de `group`).
   const fadeText =
     "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100";
+
+  // Schermvullende dashboards lopen breed door (geen 6xl-klem); de rest blijft op leesbare breedte.
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const fullBleed = pathname === "/inzicht" || pathname === "/admin/statistieken";
 
   return (
     <div className="relative min-h-screen md:pl-16">
@@ -133,7 +138,9 @@ export async function AppShell({
           {/* Gecentreerde inhoudskolom — elke pagina krijgt dezelfde breedte/centrering als
               "Mijn profiel" (max-w-6xl). Pagina's met een eigen smallere max-w blijven smaller,
               maar nog steeds gecentreerd. */}
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
+          <div className={cn("mx-auto w-full", fullBleed ? "max-w-none" : "max-w-6xl")}>
+            {children}
+          </div>
         </main>
       </div>
       <CommandPalette />

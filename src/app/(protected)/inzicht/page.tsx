@@ -33,11 +33,10 @@ import {
   APPLICATION_SEGMENTS,
 } from "@/lib/status-breakdown";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RevenueTrendCard } from "@/components/insight/revenue-trend-card";
 import {
-  BiSection,
   KpiTile,
   GaugeRing,
   TrendBadge,
@@ -61,7 +60,7 @@ export default async function InzichtPage() {
       : "Je cijfers in één overzicht — verdiensten, werk en activiteit.";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title="Inzicht" description={description} />
       {role === "FREELANCER" ? (
         <FreelancerInzicht userId={actor.id} />
@@ -110,6 +109,309 @@ function StatusDonutWidget({
   );
 }
 
+async function FreelancerInzicht({ userId }: { userId: string }) {
+  const [s, membership, trend, quality] = await Promise.all([
+    getFreelancerStats(userId),
+    getFreelancerMembership(userId),
+    getFreelancerRevenueTrend(userId),
+    getDeliveryQuality(userId),
+  ]);
+  if (!s) {
+    return (
+      <Card>
+        <EmptyState
+          icon={BarChart3}
+          title="Nog geen profiel"
+          description="Maak je ZZP-profiel compleet; je cijfers verschijnen hier zodra je aan de slag bent."
+        />
+      </Card>
+    );
+  }
+  const hasQuality = quality !== null && quality.tone !== "INSUFFICIENT";
+  return (
+    <div className="space-y-4">
+      {/* Verdiensten — KPI-strip */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiTile
+          icon={Receipt}
+          label="Betaald"
+          value={formatEuro(s.earnedCents)}
+          tone="success"
+          badge={<TrendBadge deltaPct={trend.deltaPct} />}
+        />
+        <KpiTile
+          icon={CreditCard}
+          label="Openstaand"
+          value={formatEuro(s.pendingCents)}
+          sub="nog niet betaald"
+        />
+        <KpiTile icon={Clock} label="Goedgekeurde uren" value={s.approvedHours} sub="totaal" />
+        <KpiTile
+          icon={TrendingUp}
+          label="Reacties"
+          value={s.applicationsTotal}
+          sub={`${s.applicationsAccepted} geaccepteerd`}
+          href="/reacties"
+        />
+      </div>
+
+      {/* Widget-grid (12 koloms) */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-8">
+          <RevenueTrendCard
+            trend={trend}
+            title="Omzet per maand"
+            emptyDescription="Zodra je facturen verstuurt, zie je hier je omzet per maand."
+          />
+        </div>
+        <div className="lg:col-span-4">
+          <StatusDonutWidget
+            title="Status van je reacties"
+            data={toDonutData(s.applicationsByStatus, APPLICATION_SEGMENTS)}
+            centerLabel="reacties"
+            emptyText="Zodra je op opdrachten reageert, zie je hier de verdeling per status."
+          />
+        </div>
+
+        <div className="lg:col-span-4">
+          <BiWidget title="Leverbetrouwbaarheid">
+            {hasQuality ? (
+              <div className="space-y-4">
+                <GaugeRing
+                  bare
+                  value={quality.firstTimeRightRate}
+                  label="In één keer akkoord"
+                  sub="van je goedgekeurde prestaties"
+                  tone={rateTone(quality.firstTimeRightRate, 90, 70)}
+                />
+                <BiStatList
+                  items={[
+                    {
+                      label: "Gem. goedkeuringstijd",
+                      value:
+                        quality.avgApprovalDays != null
+                          ? `${quality.avgApprovalDays} ${quality.avgApprovalDays === 1 ? "dag" : "dagen"}`
+                          : "—",
+                    },
+                    {
+                      label: "Beoordeling",
+                      value: DELIVERY_TONE_LABEL[quality.tone],
+                      sub: `${quality.approvedPerformances} goedgekeurde prestaties`,
+                      tone:
+                        quality.tone === "EXCELLENT"
+                          ? "success"
+                          : quality.tone === "DEVELOPING"
+                            ? "warning"
+                            : "default",
+                    },
+                  ]}
+                />
+              </div>
+            ) : (
+              <EmptyState
+                icon={Gauge}
+                title="Nog geen signaal"
+                description="Zodra je urenstaten en opleveringen zijn goedgekeurd, zie je hier hoe vaak je werk in één keer akkoord is."
+              />
+            )}
+          </BiWidget>
+        </div>
+
+        <div className="lg:col-span-4">
+          <BiWidget title="Activiteit">
+            <div className="grid grid-cols-2 gap-4">
+              <GaugeRing
+                bare
+                size={108}
+                value={s.winRate}
+                label="Gewonnen"
+                sub="van je reacties"
+                tone={rateTone(s.winRate, 50, 25)}
+              />
+              {s.avgMatchScore != null ? (
+                <GaugeRing
+                  bare
+                  size={108}
+                  value={s.avgMatchScore}
+                  label="Match-score"
+                  sub="gemiddeld"
+                  tone="accent"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-1 text-center">
+                  <Target className="size-5 text-muted-foreground" aria-hidden />
+                  <p className="font-mono text-2xl font-semibold">—</p>
+                  <p className="text-sm font-medium">Match-score</p>
+                </div>
+              )}
+            </div>
+          </BiWidget>
+        </div>
+
+        <div className="lg:col-span-4">
+          <StatusDonutWidget
+            title="Je samenwerkingen"
+            data={toDonutData(s.collaborationsByStatus, COLLABORATION_SEGMENTS)}
+            centerLabel="totaal"
+            emptyText="Zodra je samenwerkingen lopen, zie je hier de verdeling per status."
+          />
+        </div>
+
+        {membership.enabled && (
+          <div className="lg:col-span-8">
+            <BiWidget title="Platformabonnement">
+              <BiStatList
+                items={[
+                  {
+                    label: "Deze maand",
+                    value: membership.billedThisMonth
+                      ? formatEuro(membership.monthlyTotalCents)
+                      : "—",
+                    sub: membership.billedThisMonth
+                      ? "incl. btw — je had werk deze maand"
+                      : "geen werk deze maand, dus geen bijdrage",
+                    tone: membership.billedThisMonth ? "default" : "success",
+                  },
+                  {
+                    label: "Openstaand",
+                    value: formatEuro(membership.openCents),
+                    sub:
+                      membership.openMonths > 0
+                        ? `${plural(membership.openMonths, "maand", "maanden")} nog te voldoen`
+                        : "niets openstaand",
+                  },
+                ]}
+              />
+              <p className="mt-3 text-xs text-muted-foreground">
+                Het platformabonnement is {formatEuro(membership.monthlyTotalCents)} per maand
+                (incl. btw) en geldt alleen in maanden waarin je werkt.
+              </p>
+            </BiWidget>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+async function ClientInzicht({ userId }: { userId: string }) {
+  const [s, trend] = await Promise.all([getClientStats(userId), getClientRevenueTrend(userId)]);
+  if (!s) {
+    return (
+      <Card>
+        <EmptyState
+          icon={BarChart3}
+          title="Nog geen bedrijfsprofiel"
+          description="Vul je bedrijfsprofiel aan; je cijfers verschijnen hier zodra je opdrachten plaatst."
+        />
+      </Card>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      {/* Uitgaven — KPI-strip */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiTile
+          icon={Receipt}
+          label="Betaald"
+          value={formatEuro(s.spentCents)}
+          tone="success"
+          badge={<TrendBadge deltaPct={trend.deltaPct} />}
+        />
+        <KpiTile
+          icon={CreditCard}
+          label="Openstaand"
+          value={formatEuro(s.openCents)}
+          sub="nog niet betaald"
+        />
+        <KpiTile
+          icon={Building2}
+          label="Geplaatst"
+          value={s.publishedJobs}
+          sub="opdrachten"
+          href="/opdrachten"
+        />
+        <KpiTile
+          icon={ShieldCheck}
+          label="Lopend"
+          value={s.activeCollaborations}
+          sub="samenwerkingen"
+          href="/samenwerkingen"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-8">
+          <RevenueTrendCard
+            trend={trend}
+            title="Uitgaven per maand"
+            emptyDescription="Zodra je facturen ontvangt, zie je hier je uitgaven per maand."
+          />
+        </div>
+        <div className="lg:col-span-4">
+          <StatusDonutWidget
+            title="Samenwerkingen per status"
+            data={toDonutData(s.collaborationsByStatus, COLLABORATION_SEGMENTS)}
+            centerLabel="totaal"
+            emptyText="Zodra er samenwerkingen lopen, zie je hier de verdeling per status."
+          />
+        </div>
+
+        <div className="lg:col-span-6">
+          <BiWidget title="Opdrachten">
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
+              <GaugeRing
+                bare
+                value={s.fillRate}
+                label="Vervullingsgraad"
+                sub={`${s.filledJobs} van ${s.publishedJobs} vervuld`}
+                tone={rateTone(s.fillRate)}
+              />
+              <div className="w-full">
+                <BiStatList
+                  items={[
+                    { label: "Geplaatst", value: s.publishedJobs, href: "/opdrachten" },
+                    { label: "Vervuld", value: `${s.filledJobs}/${s.publishedJobs}` },
+                    {
+                      label: "Lopende samenwerkingen",
+                      value: s.activeCollaborations,
+                      href: "/samenwerkingen",
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+          </BiWidget>
+        </div>
+
+        <div className="lg:col-span-6">
+          <BiWidget title="Compliance">
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
+              <GaugeRing
+                bare
+                value={s.complianceRate}
+                label="Zonder waarschuwing"
+                sub={`${s.compliantPlacements} van ${s.activeCollaborations} actief`}
+                tone={
+                  s.complianceRate >= 100
+                    ? "success"
+                    : s.complianceRate >= 80
+                      ? "warning"
+                      : "danger"
+                }
+              />
+              <p className="text-sm text-muted-foreground">
+                Het aandeel van je lopende inzetten zonder ontbrekend of verlopen vereist
+                certificaat. 100% betekent dat elke actieve samenwerking compliant is.
+              </p>
+            </div>
+          </BiWidget>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 async function FranchiserInzicht({ actor }: { actor: Actor }) {
   const [s, byCompany, trend] = await Promise.all([
     getTenantStats(actor),
@@ -129,365 +431,143 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
   }
   const withActivity = byCompany.filter((r) => r.totalJobs > 0 || r.revenuePaidCents > 0);
   return (
-    <div className="space-y-8">
-      <BiSection icon={Receipt} title="Omzet">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiTile
-            icon={Receipt}
-            label="Betaald"
-            value={formatEuro(s.revenuePaidCents)}
-            tone="success"
-            badge={<TrendBadge deltaPct={trend.deltaPct} />}
-          />
-          <KpiTile
-            icon={CreditCard}
-            label="Openstaand"
-            value={formatEuro(s.revenueOpenCents)}
-            sub="verstuurd, nog niet betaald"
-          />
-          <GaugeRing
-            value={s.fillRate}
-            label="Vulgraad"
-            sub={`${s.filledJobs} van ${s.totalJobs} vervuld`}
-            tone={rateTone(s.fillRate)}
-          />
-        </div>
-      </BiSection>
+    <div className="space-y-4">
+      {/* Omzet & roster — KPI-strip */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiTile
+          icon={Receipt}
+          label="Betaald"
+          value={formatEuro(s.revenuePaidCents)}
+          tone="success"
+          badge={<TrendBadge deltaPct={trend.deltaPct} />}
+        />
+        <KpiTile
+          icon={CreditCard}
+          label="Openstaand"
+          value={formatEuro(s.revenueOpenCents)}
+          sub="nog niet betaald"
+        />
+        <KpiTile
+          icon={Building2}
+          label="Opdrachtgevers"
+          value={s.companies}
+          href="/franchise/opdrachtgevers"
+        />
+        <KpiTile
+          icon={TrendingUp}
+          label="Open diensten"
+          value={s.openJobs}
+          sub="nog in te vullen"
+          href="/franchise/diensten"
+          tone={s.openJobs > 0 ? "warning" : "default"}
+        />
+      </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-8">
           <RevenueTrendCard
             trend={trend}
             title="Omzet per maand"
             emptyDescription="Zodra er facturen lopen in je bemiddeling, zie je hier de omzet per maand."
           />
         </div>
-        <StatusDonutWidget
-          title="Samenwerkingen per status"
-          data={toDonutData(s.collaborationsByStatus, COLLABORATION_SEGMENTS)}
-          centerLabel="totaal"
-          emptyText="Zodra er samenwerkingen lopen, zie je hier de verdeling per status."
-        />
-        <BiWidget title="Roster & diensten">
-          <BiStatList
-            items={[
-              { label: "ZZP'ers", value: s.rosterFreelancers, href: "/franchise/zzpers" },
-              {
-                label: "Inzetbaar",
-                value: `${s.engageableFreelancers}/${s.rosterFreelancers}`,
-                sub: `${s.engageabilityRate}% van je roster`,
-                href: "/franchise/zzpers",
-                tone: rateTone(s.engageabilityRate),
-              },
-              { label: "Opdrachtgevers", value: s.companies, href: "/franchise/opdrachtgevers" },
-              {
-                label: "Open diensten",
-                value: s.openJobs,
-                sub: "nog in te vullen",
-                href: "/franchise/diensten",
-                tone: s.openJobs > 0 ? "warning" : "default",
-              },
-              {
-                label: "Lopende samenwerkingen",
-                value: s.activeCollaborations,
-                href: "/franchise/samenwerkingen",
-              },
-            ]}
-          />
-        </BiWidget>
-      </div>
-
-      <BiSection icon={Building2} title="Per opdrachtgever">
-        {withActivity.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={Building2}
-              title="Nog geen activiteit"
-              description="Zodra je diensten uitzet en facturen lopen, zie je hier de omzet en vulgraad per opdrachtgever."
-            />
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="divide-y divide-border p-0">
-              {withActivity.map((r) => (
-                <div key={r.companyId} className="space-y-2 px-4 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="min-w-0 truncate text-sm font-medium">{r.name}</p>
-                    <span className="font-mono text-sm font-medium tabular-nums">
-                      {formatEuro(r.revenuePaidCents)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${Math.max(r.fillRate > 0 ? 3 : 0, r.fillRate)}%` }}
-                      />
-                    </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {r.filledJobs}/{r.totalJobs} vervuld · {r.fillRate}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-      </BiSection>
-    </div>
-  );
-}
-
-async function FreelancerInzicht({ userId }: { userId: string }) {
-  const [s, membership, trend, quality] = await Promise.all([
-    getFreelancerStats(userId),
-    getFreelancerMembership(userId),
-    getFreelancerRevenueTrend(userId),
-    getDeliveryQuality(userId),
-  ]);
-  if (!s) {
-    return (
-      <Card>
-        <EmptyState
-          icon={BarChart3}
-          title="Nog geen profiel"
-          description="Maak je ZZP-profiel compleet; je cijfers verschijnen hier zodra je aan de slag bent."
-        />
-      </Card>
-    );
-  }
-  return (
-    <div className="space-y-8">
-      <BiSection icon={Receipt} title="Verdiensten">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiTile
-            icon={Receipt}
-            label="Betaald"
-            value={formatEuro(s.earnedCents)}
-            tone="success"
-            badge={<TrendBadge deltaPct={trend.deltaPct} />}
-          />
-          <KpiTile
-            icon={CreditCard}
-            label="Openstaand"
-            value={formatEuro(s.pendingCents)}
-            sub="verstuurd, nog niet betaald"
-          />
-          <KpiTile icon={Clock} label="Goedgekeurde uren" value={s.approvedHours} sub="totaal" />
-        </div>
-      </BiSection>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="lg:col-span-2">
-          <RevenueTrendCard
-            trend={trend}
-            title="Omzet per maand"
-            emptyDescription="Zodra je facturen verstuurt, zie je hier je omzet per maand."
+        <div className="lg:col-span-4">
+          <StatusDonutWidget
+            title="Samenwerkingen per status"
+            data={toDonutData(s.collaborationsByStatus, COLLABORATION_SEGMENTS)}
+            centerLabel="totaal"
+            emptyText="Zodra er samenwerkingen lopen, zie je hier de verdeling per status."
           />
         </div>
-        <StatusDonutWidget
-          title="Status van je reacties"
-          data={toDonutData(s.applicationsByStatus, APPLICATION_SEGMENTS)}
-          centerLabel="reacties"
-          emptyText="Zodra je op opdrachten reageert, zie je hier de verdeling per status."
-        />
-        <StatusDonutWidget
-          title="Je samenwerkingen"
-          data={toDonutData(s.collaborationsByStatus, COLLABORATION_SEGMENTS)}
-          centerLabel="totaal"
-          emptyText="Zodra je samenwerkingen lopen, zie je hier de verdeling per status."
-        />
-      </div>
 
-      <BiSection icon={Gauge} title="Leverbetrouwbaarheid">
-        {quality === null || quality.tone === "INSUFFICIENT" ? (
-          <Card>
-            <EmptyState
-              icon={Gauge}
-              title="Nog geen betrouwbaarheidssignaal"
-              description="Zodra je urenstaten en opleveringen zijn goedgekeurd, zie je hier hoe vaak je werk in één keer akkoord is en hoe snel het wordt goedgekeurd."
-            />
-          </Card>
-        ) : (
-          <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="lg:col-span-4">
+          <BiWidget title="Vulgraad">
+            <div className="space-y-4">
               <GaugeRing
-                value={quality.firstTimeRightRate}
-                label="In één keer akkoord"
-                sub="van je goedgekeurde prestaties"
-                tone={rateTone(quality.firstTimeRightRate, 90, 70)}
+                bare
+                value={s.fillRate}
+                label="Diensten vervuld"
+                sub={`${s.filledJobs} van ${s.totalJobs}`}
+                tone={rateTone(s.fillRate)}
               />
-              <KpiTile
-                icon={Clock}
-                label="Gem. goedkeuringstijd"
-                value={
-                  quality.avgApprovalDays != null
-                    ? `${quality.avgApprovalDays} ${quality.avgApprovalDays === 1 ? "dag" : "dagen"}`
-                    : "—"
-                }
-                sub="van indienen tot akkoord"
-              />
-              <KpiTile
-                icon={ShieldCheck}
-                label="Beoordeling"
-                value={DELIVERY_TONE_LABEL[quality.tone]}
-                sub={`${quality.approvedPerformances} goedgekeurde prestaties`}
-                tone={
-                  quality.tone === "EXCELLENT"
-                    ? "success"
-                    : quality.tone === "DEVELOPING"
-                      ? "warning"
-                      : "default"
-                }
+              <BiStatList
+                items={[
+                  {
+                    label: "Open diensten",
+                    value: s.openJobs,
+                    href: "/franchise/diensten",
+                    tone: s.openJobs > 0 ? "warning" : "default",
+                  },
+                  {
+                    label: "Lopende samenwerkingen",
+                    value: s.activeCollaborations,
+                    href: "/franchise/samenwerkingen",
+                  },
+                ]}
               />
             </div>
-            {quality.correctedPerformances > 0 && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                {quality.correctedPerformances}{" "}
-                {quality.correctedPerformances === 1 ? "prestatie werd" : "prestaties werden"} na
-                een correctie alsnog goedgekeurd.
-              </p>
+          </BiWidget>
+        </div>
+
+        <div className="lg:col-span-4">
+          <BiWidget title="Roster">
+            <div className="space-y-4">
+              <GaugeRing
+                bare
+                value={s.engageabilityRate}
+                label="Inzetbaar"
+                sub={`${s.engageableFreelancers} van ${s.rosterFreelancers}`}
+                tone={rateTone(s.engageabilityRate)}
+              />
+              <BiStatList
+                items={[
+                  { label: "ZZP'ers", value: s.rosterFreelancers, href: "/franchise/zzpers" },
+                  {
+                    label: "Opdrachtgevers",
+                    value: s.companies,
+                    href: "/franchise/opdrachtgevers",
+                  },
+                ]}
+              />
+            </div>
+          </BiWidget>
+        </div>
+
+        <div className="lg:col-span-4">
+          <BiWidget title="Per opdrachtgever">
+            {withActivity.length === 0 ? (
+              <EmptyState
+                icon={Building2}
+                title="Nog geen activiteit"
+                description="Zodra je diensten uitzet en facturen lopen, zie je hier omzet en vulgraad per opdrachtgever."
+              />
+            ) : (
+              <div className="space-y-3">
+                {withActivity.map((r) => (
+                  <div key={r.companyId} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="min-w-0 truncate text-sm font-medium">{r.name}</p>
+                      <span className="shrink-0 font-mono text-sm font-medium tabular-nums">
+                        {formatEuro(r.revenuePaidCents)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${Math.max(r.fillRate > 0 ? 3 : 0, r.fillRate)}%` }}
+                        />
+                      </div>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {r.filledJobs}/{r.totalJobs} · {r.fillRate}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-          </>
-        )}
-      </BiSection>
-
-      <BiSection icon={TrendingUp} title="Activiteit">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiTile
-            icon={TrendingUp}
-            label="Reacties"
-            value={s.applicationsTotal}
-            sub={`${s.applicationsAccepted} geaccepteerd`}
-            href="/reacties"
-          />
-          <GaugeRing
-            value={s.winRate}
-            label="Gewonnen"
-            sub="geaccepteerd van je reacties"
-            tone={rateTone(s.winRate, 50, 25)}
-          />
-          {s.avgMatchScore != null ? (
-            <GaugeRing
-              value={s.avgMatchScore}
-              label="Gem. match-score"
-              sub="over je reacties"
-              tone="accent"
-            />
-          ) : (
-            <KpiTile icon={Target} label="Gem. match-score" value="—" sub="over je reacties" />
-          )}
+          </BiWidget>
         </div>
-      </BiSection>
-
-      {membership.enabled && (
-        <BiSection icon={CreditCard} title="Platformabonnement">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <KpiTile
-              icon={CreditCard}
-              label="Deze maand"
-              value={membership.billedThisMonth ? formatEuro(membership.monthlyTotalCents) : "—"}
-              sub={
-                membership.billedThisMonth
-                  ? "incl. btw — je had werk deze maand"
-                  : "geen werk deze maand, dus geen bijdrage"
-              }
-              tone={membership.billedThisMonth ? "default" : "success"}
-            />
-            <KpiTile
-              icon={Receipt}
-              label="Openstaand"
-              value={formatEuro(membership.openCents)}
-              sub={
-                membership.openMonths > 0
-                  ? `${plural(membership.openMonths, "maand", "maanden")} nog te voldoen`
-                  : "niets openstaand"
-              }
-            />
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Het platformabonnement is {formatEuro(membership.monthlyTotalCents)} per maand (incl.
-            btw) en geldt alleen in maanden waarin je werkt.
-          </p>
-        </BiSection>
-      )}
-    </div>
-  );
-}
-
-async function ClientInzicht({ userId }: { userId: string }) {
-  const [s, trend] = await Promise.all([getClientStats(userId), getClientRevenueTrend(userId)]);
-  if (!s) {
-    return (
-      <Card>
-        <EmptyState
-          icon={BarChart3}
-          title="Nog geen bedrijfsprofiel"
-          description="Vul je bedrijfsprofiel aan; je cijfers verschijnen hier zodra je opdrachten plaatst."
-        />
-      </Card>
-    );
-  }
-  return (
-    <div className="space-y-8">
-      <BiSection icon={Receipt} title="Uitgaven">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiTile
-            icon={Receipt}
-            label="Betaald"
-            value={formatEuro(s.spentCents)}
-            tone="success"
-            badge={<TrendBadge deltaPct={trend.deltaPct} />}
-          />
-          <KpiTile
-            icon={CreditCard}
-            label="Openstaand"
-            value={formatEuro(s.openCents)}
-            sub="ontvangen, nog niet betaald"
-          />
-          <GaugeRing
-            value={s.complianceRate}
-            label="Compliance"
-            sub={`${s.compliantPlacements} van ${s.activeCollaborations} actief`}
-            tone={
-              s.complianceRate >= 100 ? "success" : s.complianceRate >= 80 ? "warning" : "danger"
-            }
-          />
-        </div>
-      </BiSection>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="lg:col-span-2">
-          <RevenueTrendCard
-            trend={trend}
-            title="Uitgaven per maand"
-            emptyDescription="Zodra je facturen ontvangt, zie je hier je uitgaven per maand."
-          />
-        </div>
-        <StatusDonutWidget
-          title="Samenwerkingen per status"
-          data={toDonutData(s.collaborationsByStatus, COLLABORATION_SEGMENTS)}
-          centerLabel="totaal"
-          emptyText="Zodra er samenwerkingen lopen, zie je hier de verdeling per status."
-        />
-        <BiWidget title="Opdrachten">
-          <BiStatList
-            items={[
-              { label: "Geplaatst", value: s.publishedJobs, href: "/opdrachten" },
-              {
-                label: "Vervuld",
-                value: `${s.filledJobs}/${s.publishedJobs}`,
-                sub: `${s.fillRate}% vervullingsgraad`,
-                tone: rateTone(s.fillRate),
-              },
-              {
-                label: "Lopende samenwerkingen",
-                value: s.activeCollaborations,
-                href: "/samenwerkingen",
-              },
-            ]}
-          />
-        </BiWidget>
       </div>
     </div>
   );

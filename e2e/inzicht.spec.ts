@@ -17,7 +17,7 @@ test("inzicht: ZZP'er ziet zijn cijferoverzicht", async ({ page }) => {
   await login(page, "zzp@zzp-platform.local");
   await page.goto("/inzicht");
   await expect(page.getByRole("heading", { name: "Inzicht" })).toBeVisible();
-  await expect(page.getByText("Verdiensten")).toBeVisible();
+  await expect(page.getByText("Omzet per maand")).toBeVisible();
   await expect(page.getByText("Activiteit")).toBeVisible();
   await shot(page, "inzicht-freelancer");
 });
