@@ -4,6 +4,7 @@ import { Inter, Schibsted_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { HydrationFlag } from "@/components/system/hydration-flag";
 import { PwaRegister } from "@/components/system/pwa-register";
+import { InstallPrompt } from "@/components/system/install-prompt";
 
 // Vakwerk-typografie (DESIGN.md): Inter voor UI, Schibsted Grotesk voor koppen,
 // JetBrains Mono voor cijfers. Via next/font zelfgehost — geen runtime-request.
@@ -62,6 +63,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-screen antialiased">
         <HydrationFlag />
         <PwaRegister />
+        <InstallPrompt />
         {children}
       </body>
     </html>

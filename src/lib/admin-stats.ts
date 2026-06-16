@@ -6,6 +6,7 @@ import {
   type VerificationQueueHealth,
   daysWaiting,
   staleThreshold,
+  waitingSince,
 } from "@/lib/verification-queue";
 
 // ---------------------------------------------------------------------------
@@ -131,15 +132,22 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     }),
     // Openstaande certificaat-verificaties
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
-    // Langst wachtende aanvraag (alleen het indientijdstip nodig)
+    // Langst wachtende aanvraag (alleen het indientijdstip nodig; legacy null → updatedAt)
     prisma.credential.findFirst({
       where: { status: "SUBMITTED" },
-      orderBy: { updatedAt: "asc" },
-      select: { updatedAt: true },
+      orderBy: [{ submittedAt: { sort: "asc", nulls: "last" } }, { updatedAt: "asc" }],
+      select: { submittedAt: true, updatedAt: true },
     }),
-    // Aanvragen die al te lang wachten (>= VERIFICATION_STALE_DAYS) — goedkope count
+    // Aanvragen die al te lang wachten (>= VERIFICATION_STALE_DAYS) — goedkope count.
+    // submittedAt is leidend; records van vóór dat veld (null) vallen terug op updatedAt.
     prisma.credential.count({
-      where: { status: "SUBMITTED", updatedAt: { lte: staleThreshold(now) } },
+      where: {
+        status: "SUBMITTED",
+        OR: [
+          { submittedAt: { lte: staleThreshold(now) } },
+          { submittedAt: null, updatedAt: { lte: staleThreshold(now) } },
+        ],
+      },
     }),
     // Open disputen (samenwerking met disputedAt)
     prisma.collaboration.count({ where: { disputedAt: { not: null }, status: "ACTIVE" } }),
@@ -188,7 +196,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     },
     verificationQueue: {
       pending: pendingVerifications,
-      oldestDays: oldestVerification ? daysWaiting(oldestVerification.updatedAt, now) : 0,
+      oldestDays: oldestVerification ? daysWaiting(waitingSince(oldestVerification), now) : 0,
       staleCount: staleVerifications,
     },
     openDisputes,

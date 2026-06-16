@@ -17,6 +17,7 @@ import {
   VERIFICATION_STALE_DAYS,
   daysWaiting,
   waitingLabel,
+  waitingSince,
   summarizeVerificationQueue,
 } from "@/lib/verification-queue";
 
@@ -31,7 +32,8 @@ export default async function VerificatiesPage() {
 
   const queue = await prisma.credential.findMany({
     where: { status: "SUBMITTED" },
-    orderBy: { updatedAt: "asc" }, // oudste aanvraag eerst
+    // Oudste aanvraag eerst op het indientijdstip; legacy-records zonder submittedAt achteraan.
+    orderBy: [{ submittedAt: { sort: "asc", nulls: "last" } }, { updatedAt: "asc" }],
     include: {
       document: { select: { id: true } },
       freelancerProfile: { select: { user: { select: { name: true, email: true } } } },
@@ -79,7 +81,7 @@ export default async function VerificatiesPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium">{c.title}</p>
                     {(() => {
-                      const days = daysWaiting(c.updatedAt, now);
+                      const days = daysWaiting(waitingSince(c), now);
                       return (
                         <Badge variant={days >= VERIFICATION_STALE_DAYS ? "warning" : "muted"}>
                           {waitingLabel(days)}
