@@ -30,6 +30,58 @@ Gates groen: typecheck ✓, lint ✓, test 2083 ✓ (+2), build ✓, `prettier -
 
 ---
 
+## fix(markttarief): niet-afgeronde p25/p75 in de marktband — consistente grensclassificatie (#369)
+
+Review-should-fix **#369** uit de nachtbatch. `JobRateBandCard` (op `/opdrachten/nieuw` +
+`/opdrachten/[id]/bewerken`) bepaalde de tariefpositie via `ratePosition` op de **afgeronde** `p25`/`p75`
+uit de marktband, terwijl `/profiel/bewerken` (`computeMarketRate`) de **niet-afgeronde** percentielen
+gebruikt. Bij een tarief vlak bij een grens kon dezelfde waarde op de twee oppervlakken anders
+classificeren (below/within/above). Opgelost door de niet-afgeronde percentielen in de band mee te geven.
+
+- [x] `src/lib/market-rate.ts` — `MarketBand` uitgebreid met `p25Raw`/`p75Raw` (niet-afgerond, null bij
+      scope "none"); `computeMarketBand` geeft ze terug. De afgeronde `p25`/`p75` blijven voor weergave.
+- [x] `src/components/jobs/job-rate-band-card.tsx` — `ratePosition(p25Raw, p75Raw, rateMin)` i.p.v. de
+      afgeronde grenswaarden; weergave (mediaan + middenmoot) ongewijzigd op de afgeronde waarden.
+- [x] `src/lib/market-rate.test.ts` — +3 tests: p25Raw/p75Raw gelijk aan afgerond bij hele percentielen,
+      niet-afgeronde grenswaarden bewaard bij niet-hele percentielen (40.75/42.25) + consistente
+      classificatie, en null bij scope "none". Suite: 37 (markt-rate), 2064 totaal.
+
+Read-only consumer, server-side waarheid, geen schemawijziging, geen extra query. Gate lokaal groen:
+typecheck ✓ · lint ✓ · test 2064 ✓ · build ✓ · prettier ✓. E2e via CI.
+
+---
+
+## fix(verificatie): dedicated `submittedAt` voor de wachtrij-leeftijd (review-should-fix #370)
+
+De verificatie-wachtrij (kerndifferentiator) berekende de wachttijd uit `Credential.updatedAt`. Elke
+bewerking van een ingediend certificaat (titel, zichtbaarheid, opnieuw uploaden) zette `updatedAt`
+terug, waardoor de "N dagen wachtend"-leeftijd en de "te lang in wachtrij"-telling te laag uitvielen.
+Dit voegt een eigen `submittedAt`-tijdstip toe dat alléén bij de overgang → SUBMITTED wordt gezet,
+zodat de doorlooptijd klopt ongeacht latere edits.
+
+- [x] `prisma/schema.prisma` — `Credential.submittedAt DateTime?` + composite index
+      `@@index([status, submittedAt])` voor oudste-eerst + de stale-`count`.
+- [x] `src/app/(protected)/certificaten/actions.ts` — `submittedAt: new Date()` gezet bij de drie
+      overgangen naar SUBMITTED (resubmit met nieuw bewijsstuk, herverificatie na feitwijziging,
+      `requestVerification`).
+- [x] `src/lib/verification-queue.ts` — `waitingSince({submittedAt, updatedAt})` (valt terug op
+      `updatedAt` voor legacy-records zonder `submittedAt`); `summarizeVerificationQueue` rekent nu op
+      `submittedAt`. `staleThreshold`-doc bijgewerkt.
+- [x] `src/app/(protected)/admin/verificaties/page.tsx` — orderBy op `submittedAt asc (nulls last)`,
+      `daysWaiting(waitingSince(c), now)` voor de per-rij-badge.
+- [x] `src/lib/admin-stats.ts` — oudste-aanvraag findFirst + stale-`count` op `submittedAt` met
+      legacy-fallback (`OR submittedAt null → updatedAt`).
+- [x] `prisma/seed.ts` — `submittedAt` voor SUBMITTED-demo-credentials met deterministische spreiding
+      (2–8 dagen) zodat de wachtrij realistisch oogt; idempotent (alleen op `create`).
+- [x] `src/lib/verification-queue.test.ts` — +6 tests (waitingSince fallback + "edit zet wachttijd niet
+      terug", summarize op submittedAt, legacy-null-fallback). `unbounded-queries.test.ts`-allowlist
+      regelnummer bijgewerkt (32 → 33 door de extra import).
+
+Gates groen: typecheck ✓, lint ✓, test 2019 ✓ (+6), build ✓, `prettier --write .` ✓.
+(E2e niet in de routine — geen browser-channel, zie CLAUDE.md; CI draait e2e.)
+
+---
+
 ## feat(reviews): tweezijdige beoordelingen — double-blind (simultane onthulling) (#384, 15-6-2026)
 
 De geparkeerde reviews-feature live gebracht, maar als **trust-primitive met double-blind reveal**

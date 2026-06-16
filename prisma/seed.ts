@@ -473,6 +473,9 @@ async function main() {
           issuedAt: daysFromNow(-400),
           expiresAt: c.expiresInDays ? daysFromNow(c.expiresInDays) : null,
           verifiedAt: c.status === "VERIFIED" ? daysFromNow(-30) : null,
+          // Deterministische spreiding (2–8 dagen) zodat de wachtrij realistisch oogt en sommige
+          // aanvragen "te lang wachtend" (>= 5 dagen) zijn, zonder dat de seed niet-idempotent wordt.
+          submittedAt: c.status === "SUBMITTED" ? daysFromNow(-(2 + (id.length % 7))) : null,
           rejectionReason: c.status === "REJECTED" ? (c.reason ?? "Onleesbaar document.") : null,
         },
       });

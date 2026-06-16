@@ -122,6 +122,7 @@ export function CredentialForm({
             name="document"
             accept="application/pdf,image/png,image/jpeg,image/webp"
             required={!isEdit}
+            capture
           />
           {isEdit && (
             <p className="text-xs text-muted-foreground">
