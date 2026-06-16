@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, Check, ChevronRight, MapPin, Minus } from "lucide-react";
+import { CalendarDays, Check, ChevronRight, CircleAlert, MapPin, Minus } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { visibleJobsWhere } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
@@ -121,6 +121,10 @@ export default async function RoosterPage({
   const showStrongFilter = profile !== null && strongCalendar.total > 0;
   const strongActive = showStrongFilter && match === "sterk";
   const calendar = strongActive ? strongCalendar : fullCalendar;
+  // Iemand kan handmatig naar ?match=sterk navigeren terwijl er geen sterke matches zijn; dan
+  // valt het filter stil terug op alle diensten. Maak dat expliciet i.p.v. stilzwijgend.
+  const requestedStrongButNone =
+    match === "sterk" && profile !== null && strongCalendar.total === 0;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -160,6 +164,13 @@ export default async function RoosterPage({
             </Link>
           ))}
         </div>
+      )}
+
+      {requestedStrongButNone && (
+        <p className="flex items-start gap-1.5 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>Geen sterke matches op dit moment — hieronder staan alle open diensten.</span>
+        </p>
       )}
 
       {calendar.total === 0 ? (

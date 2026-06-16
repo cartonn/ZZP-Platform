@@ -123,6 +123,30 @@ describe("computeClientReliability", () => {
     });
   });
 
+  describe("defensieve noemer-guard", () => {
+    it("telt een COMPLETED-rij die óók een eigen annulering is niet dubbel", () => {
+      // Pathologische rij: status COMPLETED maar wél door de opdrachtgever geannuleerd.
+      // Mag alleen via de teller (cancellations) tellen, niet ook nog als afgerond.
+      const weird: CancellationRow = {
+        status: "COMPLETED",
+        cancelledAt: WHEN,
+        byClient: true,
+        chargeable: false,
+      };
+      const result = computeClientReliability([completed(), completed(), weird]);
+      // 2 afgerond + 1 annulering = noemer 3 (niet 4), teller 1.
+      expect(result.sampleSize).toBe(3);
+      expect(result.cancellations).toBe(1);
+      expect(result.cancelRate).toBe(33);
+    });
+
+    it("een COMPLETED-rij zónder annulering telt gewoon mee in de noemer", () => {
+      const result = computeClientReliability([completed(), completed(), completed()]);
+      expect(result.sampleSize).toBe(3);
+      expect(result.cancellations).toBe(0);
+    });
+  });
+
   it("muteert de invoer niet", () => {
     const rows = Object.freeze([completed(), clientCancel(true)]) as CancellationRow[];
     expect(() => computeClientReliability(rows)).not.toThrow();

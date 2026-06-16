@@ -6,7 +6,9 @@ import {
   type VerificationQueueHealth,
   daysWaiting,
   staleThreshold,
+  waitingSince,
 } from "@/lib/verification-queue";
+import { type DisputeHealth, disputeAgeDays, disputeUrgentThreshold } from "@/lib/disputes";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,7 +52,7 @@ export interface PlatformStats {
   performances: PerformanceStats;
   invoices: InvoiceStats;
   verificationQueue: VerificationQueueHealth;
-  openDisputes: number;
+  disputes: DisputeHealth;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +105,8 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     oldestVerification,
     staleVerifications,
     openDisputes,
+    oldestDispute,
+    urgentDisputes,
   ] = await Promise.all([
     // Gebruikers per rol
     prisma.user.groupBy({ by: ["role"], _count: { _all: true } }),
@@ -131,18 +135,38 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     }),
     // Openstaande certificaat-verificaties
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
-    // Langst wachtende aanvraag (alleen het indientijdstip nodig)
+    // Langst wachtende aanvraag (alleen het indientijdstip nodig; legacy null → updatedAt)
     prisma.credential.findFirst({
       where: { status: "SUBMITTED" },
-      orderBy: { updatedAt: "asc" },
-      select: { updatedAt: true },
+      orderBy: [{ submittedAt: { sort: "asc", nulls: "last" } }, { updatedAt: "asc" }],
+      select: { submittedAt: true, updatedAt: true },
     }),
-    // Aanvragen die al te lang wachten (>= VERIFICATION_STALE_DAYS) — goedkope count
+    // Aanvragen die al te lang wachten (>= VERIFICATION_STALE_DAYS) — goedkope count.
+    // submittedAt is leidend; records van vóór dat veld (null) vallen terug op updatedAt.
     prisma.credential.count({
-      where: { status: "SUBMITTED", updatedAt: { lte: staleThreshold(now) } },
+      where: {
+        status: "SUBMITTED",
+        OR: [
+          { submittedAt: { lte: staleThreshold(now) } },
+          { submittedAt: null, updatedAt: { lte: staleThreshold(now) } },
+        ],
+      },
     }),
     // Open disputen (samenwerking met disputedAt)
     prisma.collaboration.count({ where: { disputedAt: { not: null }, status: "ACTIVE" } }),
+    // Langst openstaande dispuut (alleen het anker nodig)
+    prisma.collaboration.findFirst({
+      where: { disputedAt: { not: null }, status: "ACTIVE" },
+      orderBy: { disputedAt: "asc" },
+      select: { disputedAt: true },
+    }),
+    // Disputen die al >= urgentDays openstaan (URGENT) — goedkope count
+    prisma.collaboration.count({
+      where: {
+        status: "ACTIVE",
+        disputedAt: { not: null, lte: disputeUrgentThreshold(now) },
+      },
+    }),
   ]);
 
   // Rol-verdeling
@@ -188,9 +212,13 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     },
     verificationQueue: {
       pending: pendingVerifications,
-      oldestDays: oldestVerification ? daysWaiting(oldestVerification.updatedAt, now) : 0,
+      oldestDays: oldestVerification ? daysWaiting(waitingSince(oldestVerification), now) : 0,
       staleCount: staleVerifications,
     },
-    openDisputes,
+    disputes: {
+      open: openDisputes,
+      oldestAgeDays: oldestDispute?.disputedAt ? disputeAgeDays(oldestDispute.disputedAt, now) : 0,
+      urgentCount: urgentDisputes,
+    },
   };
 }

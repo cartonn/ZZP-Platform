@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   disputeAgeDays,
   disputeUrgency,
+  disputeUrgentThreshold,
   rankDisputeUrgency,
   sortDisputeRows,
   summarizeDisputes,
   buildDisputeRow,
+  DISPUTE_URGENCY_THRESHOLDS,
   type DisputeRow,
   type DisputeUrgency,
 } from "./disputes";
@@ -31,6 +33,39 @@ function makeRow(id: string, urgency: DisputeUrgency, ageDays: number): DisputeR
     urgency,
   };
 }
+
+// ---------------------------------------------------------------------------
+// disputeUrgentThreshold
+// ---------------------------------------------------------------------------
+describe("disputeUrgentThreshold", () => {
+  it("ligt precies urgentDays vóór now", () => {
+    const threshold = disputeUrgentThreshold(NOW);
+    const expected = daysAgo(DISPUTE_URGENCY_THRESHOLDS.urgentDays);
+    expect(threshold.getTime()).toBe(expected.getTime());
+  });
+
+  it("is consistent met disputeAgeDays: dispuut precies op de drempel telt als URGENT", () => {
+    const threshold = disputeUrgentThreshold(NOW);
+    // Op de drempel: leeftijd == urgentDays → URGENT, en disputedAt <= threshold.
+    expect(disputeAgeDays(threshold, NOW)).toBe(DISPUTE_URGENCY_THRESHOLDS.urgentDays);
+    expect(disputeUrgency(disputeAgeDays(threshold, NOW))).toBe("URGENT");
+  });
+
+  it("een dispuut net jonger dan de drempel valt erbuiten (niet URGENT)", () => {
+    const threshold = disputeUrgentThreshold(NOW);
+    const justYounger = new Date(threshold.getTime() + 1); // 1 ms ná de drempel
+    expect(disputeAgeDays(justYounger, NOW)).toBe(DISPUTE_URGENCY_THRESHOLDS.urgentDays - 1);
+    expect(justYounger.getTime()).toBeGreaterThan(threshold.getTime()); // valt buiten `lte`
+  });
+
+  it("gebruikt de huidige tijd als now wordt weggelaten", () => {
+    const before = Date.now() - DISPUTE_URGENCY_THRESHOLDS.urgentDays * 24 * 60 * 60 * 1000;
+    const threshold = disputeUrgentThreshold().getTime();
+    const after = Date.now() - DISPUTE_URGENCY_THRESHOLDS.urgentDays * 24 * 60 * 60 * 1000;
+    expect(threshold).toBeGreaterThanOrEqual(before);
+    expect(threshold).toBeLessThanOrEqual(after);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // disputeAgeDays
