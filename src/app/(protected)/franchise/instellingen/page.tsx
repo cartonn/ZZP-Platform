@@ -1,34 +1,25 @@
 import { type Metadata } from "next";
 import { requireRole } from "@/lib/authz";
-import { prisma } from "@/lib/db";
-import { PageHeader } from "@/components/ui/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import { BrandingForm } from "./branding-form";
+import { BemiddelingHubScreen } from "@/components/franchise/bemiddeling-hub-screen";
 
-export const metadata: Metadata = { title: "Instellingen · Bemiddeling" };
+export const metadata: Metadata = { title: "Mijn bemiddeling · ZZP Platform" };
 
-export default async function FranchiseInstellingenPage() {
+/**
+ * Bemiddeling-hub: de FRANCHISER ziet zijn eigen bureau (kopkaart + tabs: bemiddeling, facturatie)
+ * binnen de app-schil. Strikt eigenaar/tenant-gescoped via de actor. Bewerken (white-label branding)
+ * op /franchise/instellingen/bewerken.
+ */
+export default async function FranchiseInstellingenPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const actor = await requireRole("FRANCHISER");
-  const tenant = await prisma.tenant.findUnique({
-    where: { ownerUserId: actor.id },
-    select: { name: true, brandColor: true, openOverflow: true },
-  });
+  const { tab } = await searchParams;
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <PageHeader
-        title="Instellingen"
-        description="De white-label uitstraling van je bemiddeling — naam en accentkleur in de werkplek."
-      />
-      <Card>
-        <CardContent className="p-5">
-          <BrandingForm
-            initialName={tenant?.name ?? ""}
-            initialColor={tenant?.brandColor ?? null}
-            initialOverflow={tenant?.openOverflow ?? false}
-          />
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <BemiddelingHubScreen actor={actor} tab={tab} />
     </div>
   );
 }

@@ -20,7 +20,7 @@ const DIENST_TITEL = /Nachtdienst verpleegkundige/;
 // Zet de "diensten openstellen"-schakelaar op de franchise-instellingen. De pagina (fpage) is al
 // ingelogd als Franchiser; dit togglet alleen en bevestigt de opslag.
 async function setOverflow(page: Page, on: boolean) {
-  await page.goto("/franchise/instellingen");
+  await page.goto("/franchise/instellingen/bewerken");
   const box = page.getByRole("checkbox");
   if ((await box.isChecked()) !== on) await box.setChecked(on);
   await page.getByRole("button", { name: "Opslaan" }).click();
