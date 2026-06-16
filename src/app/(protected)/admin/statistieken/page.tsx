@@ -107,12 +107,6 @@ export default async function StatistiekenPage() {
             tone={stats.collaborations.proposed > 0 ? "warning" : "default"}
             href="/admin/samenwerkingen"
           />
-          <StatCard
-            label="Open disputen"
-            value={stats.disputes.open}
-            tone={stats.disputes.open > 0 ? "danger" : "default"}
-            href="/admin/disputen"
-          />
         </div>
       </section>
 
@@ -228,7 +222,13 @@ export default async function StatistiekenPage() {
           <StatCard
             label="Urgent"
             value={stats.disputes.urgentCount}
-            tone={stats.disputes.urgentCount > 0 ? "danger" : "success"}
+            tone={
+              stats.disputes.open === 0
+                ? "default"
+                : stats.disputes.urgentCount > 0
+                  ? "danger"
+                  : "success"
+            }
             sub={`${DISPUTE_URGENCY_THRESHOLDS.urgentDays}+ dagen open`}
             href="/admin/disputen"
           />
