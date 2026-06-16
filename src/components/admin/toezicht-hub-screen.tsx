@@ -9,11 +9,13 @@ import { BewakingPanel } from "@/components/admin/bewaking-panel";
 import { DbaPanel } from "@/components/admin/dba-panel";
 import { AvgPanel } from "@/components/admin/avg-panel";
 import { AuditPanel } from "@/components/admin/audit-panel";
+import { EventStreamPanel } from "@/components/admin/event-stream-panel";
 
 const TABS = [
   { key: "statistieken", label: "Statistieken" },
   { key: "bewaking", label: "Platform-bewaking" },
   { key: "dba", label: "DBA-monitor" },
+  { key: "cascade", label: "Cascade-events" },
   { key: "audit", label: "Audit log" },
   { key: "avg", label: "Verwerkingsregister" },
 ] as const;
@@ -23,8 +25,8 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 
 /**
  * Toezicht-hub (kopkaart + tabs + tabinhoud), gemodelleerd op ProfileScreen / BemiddelingHubScreen.
- * Consolideert de vijf toezicht-pagina's (statistieken, platform-bewaking, DBA-monitor, audit-log,
- * verwerkingsregister) achter één ?tab=-navigatie. ADMIN-only — de route gate't via requireRole.
+ * Consolideert de toezicht-overzichten (statistieken, platform-bewaking, DBA-monitor, cascade-events,
+ * audit-log, verwerkingsregister) achter één ?tab=-navigatie. ADMIN-only — de route gate't via requireRole.
  * Alleen het ACTIEVE tabpaneel wordt server-side gerenderd, zodat enkel die data laadt. De resterende
  * searchParams (cursor/filter) stromen door naar het actieve paneel met basePath
  * `/admin/toezicht?tab=<tab>`, zodat paginatie/filter-links binnen de hub blijven.
@@ -125,6 +127,9 @@ export function ToezichtHubScreen({
       {tab === "statistieken" && <StatsPanel stats={stats} />}
       {tab === "bewaking" && <BewakingPanel />}
       {tab === "dba" && <DbaPanel niveau={first(searchParams.niveau)} basePath={basePath} />}
+      {tab === "cascade" && (
+        <EventStreamPanel categorie={first(searchParams.categorie)} basePath={basePath} />
+      )}
       {tab === "audit" && (
         <AuditPanel filters={normalizeAuditFilters(searchParams)} basePath={basePath} />
       )}

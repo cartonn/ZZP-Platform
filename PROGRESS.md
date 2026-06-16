@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(admin): cascade-gebeurtenissen (domein-event-stream) in de toezicht-hub
+
+De domein-event-stream (de backbone van de facturatiecascade: contract → urenstaat → factuur →
+betaling) was nergens in de app zichtbaar — alleen per samenwerking via `buildChainSteps` en als
+generiek audit-logboek. Voor operationeel toezicht is er nu een read-only ADMIN-weergave die de
+events platform-breed toont, **gegroepeerd per correlatie** zodat één cascade als geheel leesbaar is.
+Read-only, server-side, **geen schemawijziging** (leunt op het bestaande `DomainEvent`-model).
+
+- [x] `src/lib/event-stream.ts` — pure presentatielaag: `eventTypeLabel`/`actorRoleLabel` (NL),
+      `eventCategory` (core/side/monitoring) + `EVENT_CATEGORY_LABELS`, `groupByCorrelation`
+      (ketens nieuwste-eerst, binnen-keten op tijd, deterministisch op id, muteert invoer niet),
+      `summarizeEventStream` (totaal/cascades/per categorie) en `EVENT_TYPE_OPTIONS`.
+- [x] `src/lib/event-stream.test.ts` — 15 unit-tests (labels + fallbacks, categorisatie, groepering
+      incl. non-mutatie/stabiliteit, samenvatting, dekking van alle event-typen).
+- [x] `src/lib/data/event-stream.ts` — `fetchRecentDomainEvents()` met harde `EVENT_STREAM_LIMIT=200`
+      (geen ongebonden findMany), nieuwste eerst, payload geparset; `server-only`.
+- [x] `src/components/admin/event-stream-panel.tsx` — paneel met categorie-filterpills + samenvatting +
+      per-cascade tijdlijn (badge per categorie, tijd, actorrol, subject); empty-state.
+- [x] `src/components/admin/toezicht-hub-screen.tsx` — nieuwe tab "Cascade-events"
+      (`?tab=cascade`), tussen DBA-monitor en Audit log.
+
+Gates groen: typecheck ✓, lint ✓, test **2184 passed** (+15) ✓, build ✓, `prettier --check .` ✓.
+
 ## docs: persona-sweep-backlog 2026-06-16 reconciliëren (beide bevindingen al geadresseerd)
 
 De persona-sweep van 16-6 draaide tegen basis-commit `f3652c5` en kruiste de bevindingen niet met
