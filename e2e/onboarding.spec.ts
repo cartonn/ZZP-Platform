@@ -90,7 +90,8 @@ test("opdrachtgever registreert en bewerkt bedrijfsprofiel", async ({ page }) =>
   const email = `client-${uniq()}@test.local`;
   await registerClient(page, email);
 
-  await page.goto("/bedrijf");
+  // Het bedrijfsprofiel-formulier staat op /bedrijf/bewerken (de /bedrijf-hub is read-only).
+  await page.goto("/bedrijf/bewerken");
   await expect(page.getByRole("heading", { name: "Bedrijfsprofiel" })).toBeVisible();
   await expect(page.locator("#name")).toHaveValue("Testbedrijf B.V.");
 
