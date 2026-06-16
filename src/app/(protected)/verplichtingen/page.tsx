@@ -55,25 +55,46 @@ export default async function VerplichtingenPage() {
     redirect("/administratie");
   }
 
+  // Scope direct op de tegenpartij (`counterpartyUserId` = de opdrachtgever op de cascade-factuur),
+  // dezelfde gezaghebbende sleutel als signals/pending-tasks, met de dedicated index
+  // [counterpartyUserId, lifecycleStatus] i.p.v. een join door collaboration → company → user.
+  const include = {
+    collaboration: {
+      select: {
+        job: { select: { title: true } },
+        freelancer: { select: { user: { select: { name: true } } } },
+      },
+    },
+  } as const;
+
   // Cap: een prognose over de eerstvolgende ~200 openstaande facturen is ruim voldoende;
   // dichtstbijzijnde vervaldag eerst zodat de meest urgente verplichting nooit buiten de cap valt.
   // DRAFT valt weg: een concept is nog niet naar de opdrachtgever verstuurd en dus geen verplichting.
-  const invoices = await prisma.invoice.findMany({
-    where: {
-      collaboration: { company: { userId: actor.id } },
-      lifecycleStatus: { in: ["SUBMITTED", "APPROVED", "OVERDUE"] },
-    },
-    orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],
-    take: 200,
-    include: {
-      collaboration: {
-        select: {
-          job: { select: { title: true } },
-          freelancer: { select: { user: { select: { name: true } } } },
-        },
+  const [scheduled, overdueNoDue] = await Promise.all([
+    prisma.invoice.findMany({
+      where: {
+        counterpartyUserId: actor.id,
+        lifecycleStatus: { in: ["SUBMITTED", "APPROVED", "OVERDUE"] },
       },
-    },
-  });
+      orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],
+      take: 200,
+      include,
+    }),
+    // Vangnet: een OVERDUE-factuur zónder vervaldag sorteert door `nulls: "last"` achteraan en kan
+    // bij veel openstaande facturen buiten de cap vallen — terwijl een te-late verplichting juist
+    // het meest urgent is. Haal die gericht (en begrensd) op zodat ze nooit onzichtbaar wordt.
+    prisma.invoice.findMany({
+      where: { counterpartyUserId: actor.id, lifecycleStatus: "OVERDUE", dueAt: null },
+      orderBy: { id: "asc" },
+      take: 200,
+      include,
+    }),
+  ]);
+
+  // Samenvoegen + dedupliceren op factuur-id (de OVERDUE-vangnet-query kan overlappen met de hoofdset).
+  const invoices = [
+    ...new Map([...scheduled, ...overdueNoDue].map((inv) => [inv.id, inv])).values(),
+  ];
 
   const items: ObligationItem[] = invoices.map((inv) => ({
     invoiceId: inv.id,

@@ -54,8 +54,12 @@ export function computeClientReliability(rows: CancellationRow[]): ClientReliabi
   const cancellations = clientCancellations.length;
   const lastMinute = clientCancellations.filter((r) => r.chargeable).length;
 
-  // Noemer: afgeronde samenwerkingen + de eigen annuleringen van de opdrachtgever.
-  const completed = rows.filter((r) => r.status === "COMPLETED").length;
+  // Noemer: afgeronde samenwerkingen + de eigen annuleringen van de opdrachtgever. Defensief:
+  // een rij die zowel COMPLETED is als een eigen annulering draagt mag niet dubbel tellen (in de
+  // noemer via `completed` én via `cancellations`) — annulering wint, zodat de noemer klopt.
+  const completed = rows.filter(
+    (r) => r.status === "COMPLETED" && !(r.byClient && r.cancelledAt != null),
+  ).length;
   const sampleSize = completed + cancellations;
 
   if (sampleSize < MIN_SAMPLE_SIZE) {
