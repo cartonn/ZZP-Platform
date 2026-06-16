@@ -252,7 +252,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Franchise-diensten (opdrachten) van één tenant; eigenaar-scoped en beheerbaar.
   {
     file: "(protected)/franchise/diensten/page.tsx",
-    line: 25,
+    line: 26,
     reason: "franchise-tenant-scoped diensten; beheerbaar volume",
   },
 
