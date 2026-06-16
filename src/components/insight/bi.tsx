@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { ringGeometry, barHeights, sharePct } from "@/lib/bi-geometry";
+import { donutSegments } from "@/lib/donut-geometry";
 import { cn } from "@/lib/utils";
 
 /**
@@ -323,5 +325,162 @@ export function DistributionBars({
         </div>
       ))}
     </div>
+  );
+}
+
+export interface DonutDatum {
+  label: string;
+  value: number;
+  tone?: BiTone;
+}
+
+/**
+ * Segment-donut met centertotaal en legenda — de status-verdeling in één ring. Lege segmenten
+ * (waarde 0) worden niet getekend maar blijven wél in de legenda staan. Geometrie in
+ * `donut-geometry.ts`; hier alleen de SVG + legenda.
+ */
+export function DonutChart({
+  data,
+  centerLabel,
+  size = 168,
+}: {
+  data: DonutDatum[];
+  centerLabel?: string;
+  size?: number;
+}) {
+  const stroke = 16;
+  const radius = (size - stroke) / 2;
+  const cx = size / 2;
+  const circumference = 2 * Math.PI * radius;
+  const { total, segments } = donutSegments(
+    data.map((d) => d.value),
+    circumference,
+  );
+  return (
+    <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-6">
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+          <circle
+            cx={cx}
+            cy={cx}
+            r={radius}
+            fill="none"
+            stroke="hsl(var(--muted))"
+            strokeWidth={stroke}
+          />
+          {segments.map((s, i) =>
+            s.dash > 0 ? (
+              <circle
+                key={i}
+                cx={cx}
+                cy={cx}
+                r={radius}
+                fill="none"
+                className={TONE_TEXT[data[i]?.tone ?? "accent"]}
+                stroke="currentColor"
+                strokeWidth={stroke}
+                strokeDasharray={`${s.dash} ${s.gap}`}
+                transform={`rotate(${s.rotation} ${cx} ${cx})`}
+              />
+            ) : null,
+          )}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-mono text-3xl font-semibold tabular-nums">{total}</span>
+          {centerLabel && <span className="text-xs text-muted-foreground">{centerLabel}</span>}
+        </div>
+      </div>
+      <ul className="w-full space-y-2">
+        {data.map((d) => (
+          <li key={d.label} className="flex items-center justify-between gap-2 text-sm">
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                className={cn("size-2.5 shrink-0 rounded-full", TONE_BAR[d.tone ?? "accent"])}
+                aria-hidden
+              />
+              <span className="truncate text-muted-foreground">{d.label}</span>
+            </span>
+            <span className="shrink-0 font-mono tabular-nums">
+              {d.value}
+              {total > 0 ? ` · ${sharePct(d.value, total)}%` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Label/waarde-lijst binnen een widget-kaart (geen geneste kaarten — DESIGN.md). Elke regel is
+ * optioneel een link; de waarde staat mono-rechts en kan een tone krijgen.
+ */
+export function BiStatList({
+  items,
+}: {
+  items: { label: string; value: string | number; sub?: string; href?: string; tone?: BiTone }[];
+}) {
+  return (
+    <ul className="-my-1 divide-y divide-border">
+      {items.map((it) => {
+        const row = (
+          <div className="flex items-center justify-between gap-2 py-2.5">
+            <span className="min-w-0">
+              <span className="block truncate text-sm">{it.label}</span>
+              {it.sub && (
+                <span className="block truncate text-xs text-muted-foreground">{it.sub}</span>
+              )}
+            </span>
+            <span
+              className={cn(
+                "shrink-0 font-mono text-sm font-medium tabular-nums",
+                TONE_TEXT[it.tone ?? "default"],
+              )}
+            >
+              {it.value}
+            </span>
+          </div>
+        );
+        return (
+          <li key={it.label}>
+            {it.href ? (
+              <Link href={it.href} className="focus-ring -mx-1 block rounded px-1 hover:opacity-80">
+                {row}
+              </Link>
+            ) : (
+              row
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * Widget-kaart: witte kaart met een titelregel (+ optionele actie/meta rechts) en de inhoud
+ * eronder. Geeft de inzicht-schermen de dashboard-uitstraling van losse panelen.
+ */
+export function BiWidget({
+  title,
+  action,
+  children,
+  className,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <Card className={className}>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-medium">{title}</h2>
+          {action}
+        </div>
+        {children}
+      </CardContent>
+    </Card>
   );
 }

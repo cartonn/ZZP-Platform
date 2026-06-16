@@ -12,7 +12,15 @@ import { type PlatformStats, approvalRate, sharePercent, formatStatsEuro } from 
 import { VERIFICATION_STALE_DAYS } from "@/lib/verification-queue";
 import { DISPUTE_URGENCY_THRESHOLDS } from "@/lib/disputes";
 import { Card, CardContent } from "@/components/ui/card";
-import { BiSection, KpiTile, GaugeRing, DistributionBars } from "@/components/insight/bi";
+import {
+  BiSection,
+  KpiTile,
+  GaugeRing,
+  DistributionBars,
+  DonutChart,
+  BiWidget,
+} from "@/components/insight/bi";
+import { toDonutData, COLLABORATION_SEGMENTS } from "@/lib/status-breakdown";
 
 /**
  * Statistieken-paneel: platform-brede kerncijfers (gebruikers, samenwerkingen, prestaties,
@@ -57,27 +65,52 @@ export function StatsPanel({ stats }: { stats: PlatformStats }) {
 
       {/* Samenwerkingen */}
       <BiSection icon={Handshake} title="Samenwerkingen">
-        <div className="grid gap-4 lg:grid-cols-3">
-          <KpiTile
-            icon={Handshake}
-            label="Totaal"
-            value={stats.collaborations.total}
-            href="/admin/samenwerkingen"
-          />
-          <KpiTile
-            label="Actief"
-            value={stats.collaborations.active}
-            tone={stats.collaborations.active > 0 ? "success" : "default"}
-            sub={`${sharePercent(stats.collaborations.active, stats.collaborations.total)}% van totaal`}
-            href="/admin/samenwerkingen"
-          />
-          <KpiTile
-            label="Voorgesteld"
-            value={stats.collaborations.proposed}
-            tone={stats.collaborations.proposed > 0 ? "warning" : "default"}
-            sub="wacht op acceptatie"
-            href="/admin/samenwerkingen"
-          />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <KpiTile
+              icon={Handshake}
+              label="Totaal"
+              value={stats.collaborations.total}
+              href="/admin/samenwerkingen"
+            />
+            <KpiTile
+              label="Actief"
+              value={stats.collaborations.active}
+              tone={stats.collaborations.active > 0 ? "success" : "default"}
+              sub={`${sharePercent(stats.collaborations.active, stats.collaborations.total)}% van totaal`}
+              href="/admin/samenwerkingen"
+            />
+            <KpiTile
+              label="Voorgesteld"
+              value={stats.collaborations.proposed}
+              tone={stats.collaborations.proposed > 0 ? "warning" : "default"}
+              sub="wacht op acceptatie"
+              href="/admin/samenwerkingen"
+            />
+            <KpiTile
+              label="Met dispuut"
+              value={stats.collaborations.disputed}
+              tone={stats.collaborations.disputed > 0 ? "danger" : "default"}
+              sub="cascade staat stil"
+              href="/admin/disputen"
+            />
+          </div>
+          {stats.collaborations.total > 0 ? (
+            <BiWidget title="Verdeling per status">
+              <DonutChart
+                data={toDonutData(
+                  {
+                    PROPOSED: stats.collaborations.proposed,
+                    ACTIVE: stats.collaborations.active,
+                    COMPLETED: stats.collaborations.completed,
+                    CANCELLED: stats.collaborations.cancelled,
+                  },
+                  COLLABORATION_SEGMENTS,
+                )}
+                centerLabel="totaal"
+              />
+            </BiWidget>
+          ) : null}
         </div>
       </BiSection>
 

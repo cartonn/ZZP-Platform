@@ -24,6 +24,8 @@ export interface TenantStats {
   openJobs: number;
   activeCollaborations: number;
   completedCollaborations: number;
+  /** Samenwerkingen per status (CollaborationStatus → aantal), voor de statusdonut. */
+  collaborationsByStatus: Record<string, number>;
   rosterFreelancers: number;
   /** ZZP'ers met inzetbaarheidsstatus ACTIEF. */
   engageableFreelancers: number;
@@ -159,6 +161,7 @@ export async function getTenantStats(
     openJobs,
     activeCollaborations: byStatus.get("ACTIVE") ?? 0,
     completedCollaborations: byStatus.get("COMPLETED") ?? 0,
+    collaborationsByStatus: Object.fromEntries(byStatus),
     rosterFreelancers: rosterProfiles.length,
     engageableFreelancers,
     engageabilityRate: ratePercent(engageableFreelancers, rosterProfiles.length),
