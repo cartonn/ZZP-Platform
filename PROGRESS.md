@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(reacties): reactie-uitkomsten samenvatting voor de ZZP'er (slaagkans)
+
+`/reacties` toonde elke reactie los met haar status, maar de ZZP'er kreeg geen totaalbeeld: hoeveel
+van mijn reacties worden bekeken, staan op de shortlist en worden geaccepteerd? Dit voegt een
+compacte uitkomsten-samenvatting toe boven de lijst, met de slaagkans (responspercentage +
+acceptatiegraad). Read-only, server-side, deterministisch, **geen schemawijziging, geen extra query**
+(afgeleid uit de al opgehaalde reacties).
+
+- [x] `src/lib/application-outcomes.ts` — pure `summarizeApplicationOutcomes(applications, minSample)`
+      → `ApplicationOutcomes`: tellingen (total/open/shortlisted/accepted/rejected/seen/collaborations) + `responseRate` (bekeken/totaal) en `acceptanceRate` (geaccepteerd / beoordeeld =
+      geaccepteerd+afgewezen); percentages `null` onder `APPLICATION_OUTCOME_MIN_SAMPLE = 4` zodat de
+      UI nooit met een misleidende "100%" uit één reactie pronkt. Open = NEW+VIEWED+SHORTLIST, seen =
+      status ≠ NEW; commerciële afronding; muteert de invoer niet, geen I/O.
+- [x] `src/lib/application-outcomes.test.ts` — 11 unit-tests: lege lijst → nullen, per-status-telling,
+      seen-definitie, samenwerkingen, response/acceptance-drempel (op/onder), beoordeeld-noemer sluit
+      open reacties uit, afronding, aangepaste minSample, non-mutatie.
+- [x] `src/components/applications/outcomes-summary.tsx` — presentationele 4-koloms StatCard-strip
+      (Verstuurd/Bekeken/Op shortlist/Geaccepteerd) met sub-teksten (responspercentage,
+      acceptatiegraad of gestarte samenwerkingen). Verbergt zichzelf bij < 3 reacties (rustige pagina).
+- [x] `src/app/(protected)/reacties/page.tsx` — uitkomsten berekend uit de bestaande reacties + strip
+      boven de lijst; `unbounded-queries.test.ts`-allowlist regelnummer bijgewerkt (52 → 54).
+
+Gates groen: typecheck ✓, lint ✓, test 2092 ✓ (+11), build ✓ (`/reacties` aanwezig), prettier --check . ✓.
+
+---
+
 ## fix(review-batch): should-fixes deel 2 — #367 / #368 / #372 (15-6-2026)
 
 Drie review-should-fixes uit de nachtbatch #367–#372 verwerkt (geen blockers, opportunistisch).

@@ -260,6 +260,11 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Reactie-uitkomsten samenvatting op `/reacties`** — pure
+> `summarizeApplicationOutcomes` (`lib/application-outcomes.ts`, 11 tests) + `OutcomesSummary`-strip
+> (Verstuurd/Bekeken/Op shortlist/Geaccepteerd) met responspercentage + acceptatiegraad
+> (drempel `APPLICATION_OUTCOME_MIN_SAMPLE = 4`, anders geen misleidende "100%"); read-only,
+> geen schemawijziging, geen extra query.
 > Gedaan (niet opnieuw): **Matchredenen op de opdracht-kaart** (`/opdrachten`, Linear ZZP2-188) —
 > troef (`topPositiveReason`) én minpunt (`topGapReason`) onder elke kaart; uitlegbaarheid uit de
 > bestaande matchmotor, geen extra query. Sluit een deel van `docs/PLAN-WERELDKLASSE.md` Fase 2

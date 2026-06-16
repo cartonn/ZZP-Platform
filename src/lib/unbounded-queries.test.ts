@@ -31,7 +31,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // --- reacties/page.tsx ---
   // Reacties zijn altijd van één freelancer; groei is lineair en in de praktijk
   // beperkt (een ZZP'er heeft doorgaans < 100 actieve reacties).
-  { file: "(protected)/reacties/page.tsx", line: 52, reason: "eigenaar-scoped, inherent begrensd" },
+  { file: "(protected)/reacties/page.tsx", line: 54, reason: "eigenaar-scoped, inherent begrensd" },
 
   // --- administratie/page.tsx ---
   // Boekhoudregels van één gebruiker; aggregatiequery die alle regels nodig heeft
