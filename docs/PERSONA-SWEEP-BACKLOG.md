@@ -1,157 +1,150 @@
 # Persona-sweep — gaten-backlog
 
-> **Datum:** 2026-06-15 · **main-commit:** `12019b0` (12019b0faa08d5c7e92bbadb90edfaa476103809)
-> **Methode:** productie-build + idempotente demo-seed (`SEED_DEMO=true`) op een ephemere
-> SQLite-DB (`qa.db`); Playwright/Edge per rol ingelogd (wachtwoord `demo1234`).
-> Bewijs-screenshots: `docs/persona-sweep-2026-06-15/`.
-> Accounts: FREELANCER `zzp@`, CLIENT `opdrachtgever@`, ADMIN `admin@zzp-platform.local`,
-> FRANCHISER `franchise@zzp-platform.local`.
+> **Datum:** 2026-06-16 · **main-commit:** `f3652c5` (f3652c5da15674a6457acff2601760a4f79991cf)
+> **Methode:** productie-build (`npm run build`) + idempotente demo-seed (`SEED_DEMO=true`) op een
+> ephemere SQLite-DB (`qa.db`); productie-server (`CI=true npm run start`) met
+> `LOGIN_RATE_LIMIT/REGISTER_RATE_LIMIT=100000`; Playwright/Edge per rol ingelogd (wachtwoord
+> `demo1234`). Bewijs-screenshots: `docs/persona-sweep-2026-06-16/`.
+> Accounts: FREELANCER `zzp@` (Sanne), CLIENT `opdrachtgever@` (Mark/Zorgcentrum Jansen),
+> ADMIN `admin@zzp-platform.local`, FRANCHISER `franchise@zzp-platform.local` (tenant
+> "Zorgbemiddeling Noord").
 
 Twee doelen per run: **(1) werkt het** per rol, en **(2) stress/adversarieel** — bewust proberen
 wat NIET mag (privilege-escalatie, IDOR/cross-tenant, authz-keten omzeilen, verboden
 statusovergangen, malicieuze input, robuustheid). Verwacht bij doel 2: altijd geweigerd
-(404/403/redirect/Zod-fout), nooit een 500 of stille toegang.
+(404/403/redirect/Zod-fout), nooit een 500/crashpagina of stille toegang.
+
+## Opgelost sinds de vorige sweep (2026-06-15)
+
+De vorige run vond geen beveiligingsgaten (alleen 1 lage soft-404-observatie A1). Die soft-404 is
+**nog niet** geadresseerd (zie A1 hieronder, ongewijzigd). Nieuw onderzocht deze run: de role-gated
+pagina's **buiten** `/admin` en `/franchise` (vorige run testte alleen de `/admin/*`-escalatie).
+Daar komt het enige nieuwe gat van deze run uit (B1).
 
 ---
 
 ## Samenvatting
 
-**Een schone run.** Alle kernschermen voor de vier rollen laden en renderen echte inhoud (geen
-500's, geen dode schermen in de geteste set). Alle adversariële pogingen werden correct geweigerd:
-privilege-escalatie, cross-partij/cross-tenant IDOR, privé-document-toegang, onzin-/injectie-id's en
-XSS. De mutatie-commando's (cascade) dwingen stuk voor stuk `actor.id`/rol af vóór ze schrijven.
+**Geen toegangs-/datalekken.** Alle vier rollen laden hun kernschermen met echte inhoud (geen
+500's, geen dode schermen). Alle pogingen tot **privilege-escalatie**, **IDOR/cross-partij** en
+**cross-tenant**-toegang werden correct geweigerd; geen enkel privé-document of vreemde
+factuur/samenwerking/profiel werd zichtbaar. Server-side validatie (Zod) op de profiel-/tariefvelden
+weigert negatieve/absurde waarden en cap te lange tekst.
 
-- **Sectie A — functionele defecten:** geen blokkerende defecten gevonden; 1 lage observatie
-  (soft-404 levert HTTP 200 i.p.v. 404 op de detailroutes).
-- **Sectie B — beveiligings-/robuustheidsgaten:** **geen gaten gevonden in deze run.**
-
-Dit is de eerste vastgelegde persona-sweep-backlog; er is geen vorige run om "opgelost sinds"
-tegen af te zetten.
+- **Sectie A — functionele defecten:** geen blokkerende defecten; 1 lage observatie (soft-404 →
+  HTTP 200, ongewijzigd t.o.v. 15-6).
+- **Sectie B — beveiligings-/robuustheidsgaten:** **1 MEDIUM** — role-gated pagina's buiten
+  `/admin` en `/franchise` weigeren toegang via een **ongevangen `AuthorizationError`** die als de
+  generieke crashpagina "Er ging iets mis" rendert (+ server-error-log), i.p.v. een nette
+  redirect/403 zoals `/admin` en `/franchise` wél krijgen. Geen datalek, wél verkeerd
+  weigerings-mechanisme.
 
 ---
 
 ## A. Werkt niet zoals het hoort (functionele defecten — doel 1)
 
-Per rol doorlopen kernschermen + één kernflow; alle gaven HTTP 200 met echte inhoud, geen 500's.
+Per rol de kernschermen doorlopen; alle gaven HTTP 200 met echte inhoud, geen 500's.
 
-| Rol        | Geteste schermen                                                                                                                                             | Resultaat                |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
-| FREELANCER | dashboard, certificaten, opdrachten, samenwerkingen, prestaties, facturen, diensten, rooster, inzicht, prognose, profiel/bewerken, eigen samenwerking-detail | alle 200, inhoud rendert |
-| CLIENT     | dashboard, opdrachten, kandidaten, prestaties, facturen, verplichtingen, samenwerkingen, opdrachten/nieuw, inzicht                                           | alle 200, inhoud rendert |
-| ADMIN      | verificaties, disputen, statistieken, no-shows, dba, gebruikers, facturatie, support, audit                                                                  | alle 200, inhoud rendert |
-| FRANCHISER | opdrachtgevers, zzpers, diensten, samenwerkingen, leads, facturatie                                                                                          | alle 200, inhoud rendert |
+| Rol        | Geteste schermen                                                                                                                  | Resultaat                |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| FREELANCER | dashboard, certificaten, opdrachten, samenwerkingen, prestaties, facturen, diensten, rooster, inzicht, prognose, profiel/bewerken | alle 200, inhoud rendert |
+| CLIENT     | dashboard, opdrachten, kandidaten, prestaties, facturen, verplichtingen, samenwerkingen, opdrachten/nieuw, inzicht                | alle 200, inhoud rendert |
+| ADMIN      | verificaties, disputen, statistieken, no-shows, dba, gebruikers, facturatie, support, audit                                       | alle 200, inhoud rendert |
+| FRANCHISER | opdrachtgevers, zzpers, diensten, samenwerkingen, leads, facturatie                                                               | alle 200, inhoud rendert |
 
-**Kernflow geverifieerd (ADMIN):** verificatie-wachtrij goedkeuren werkt — een goedgekeurd
-certificaat verlaat de wachtrij (6 → 5 kaarten na één goedkeuring). Afwijzen vereist een reden
-(client-side `required minLength`, server-side afgedwongen in `statusForDecision`).
-Bewijs: `verif_debug.png`, `verif_after_approve.png`.
+Bewijs: `admin-verificaties.png`, `admin-statistieken.png`, `freelancer-dashboard.png`,
+`freelancer-samenwerkingen.png`, `client-dashboard.png`, `client-kandidaten.png`,
+`franchiser-zzpers.png`. Een eigen factuur (Sanne, `Factuur 2026-0001`/`collab-1`) opent correct met
+volledige inhoud; de admin-verificatiewachtrij laadt kaarten met goedkeur-/afkeur-acties (afkeuren
+vereist een reden, server-side afgedwongen).
 
-### A1 — LAAG · Soft-404 op detailroutes geeft HTTP 200 i.p.v. 404
+### A1 — LAAG · Soft-404 op detailroutes geeft HTTP 200 i.p.v. 404 (ongewijzigd t.o.v. 15-6)
 
 - **Rol/scherm:** alle rollen, detailroutes `/samenwerkingen/[id]`, `/facturen/[id]`,
   `/opdrachten/[id]`.
-- **Waarneming:** een onbestaand of niet-toegankelijk id rendert correct de nette
-  "Niet gevonden / je hebt er geen toegang toe"-pagina (geen datalek, zie sectie B), maar de
-  HTTP-statuscode van het document is **200**. De route `/zzp/[id]` geeft daarentegen wél een
-  echte **404**. Inconsistent.
-- **Repro:** log in als willekeurige rol → open `/samenwerkingen/zzz-nonexistent-123` → pagina toont
-  "Niet gevonden", netwerk-status 200. Vergelijk `/zzp/zzz-nonexistent-123` → status 404.
-- **Geschonden regel:** geen architectuurregel; wel een lichte correctheids-/SEO-/API-hygiëne-afwijking
-  (een notFound hoort 404 te zijn). Komt waarschijnlijk doordat `notFound()` na het starten van de
-  streaming-shell wordt aangeroepen, waardoor de status al op 200 vaststaat.
-- **Prioriteit:** LAAG — geen functioneel of veiligheidsprobleem; de gebruiker ziet de juiste
-  melding en er lekt niets.
-- **Suggestie:** als consistentie gewenst is, de toegangs-/bestaanscheck vóór de eerste streaming-render
-  uitvoeren (of een dedicated `not-found.tsx` met expliciete status), zodat detailroutes net als
-  `/zzp/[id]` een echte 404 teruggeven. Optioneel, kosten/baten afwegen.
+- **Waarneming:** een onbestaand of niet-toegankelijk id rendert correct de nette "Niet gevonden /
+  geen toegang"-pagina (geen datalek), maar de HTTP-statuscode is **200**. `/zzp/[id]` geeft
+  daarentegen wél een echte **404**. Inconsistent.
+- **Repro:** elke rol → `/samenwerkingen/zzz-nonexistent-999` → "Niet gevonden", netwerk-status 200.
+  Vergelijk `/zzp/ghost` → status 404, en `/this-route-does-not-exist` → 404.
+- **Geschonden regel:** geen architectuurregel; lichte correctheids-/API-hygiëne-afwijking (een
+  `notFound()` hoort 404 te zijn). Komt doordat `notFound()` na het starten van de streaming-render
+  wordt aangeroepen; de shell is dan al met 200 verzonden.
+- **Suggestie:** de access-/bestaanscheck vóór de eerste render (in de page-loader) uitvoeren zodat
+  `notFound()` de 404-status nog kan zetten — of expliciet documenteren dat dit acceptabel is en de
+  observatie sluiten.
 
 ---
 
 ## B. Beveiligings-/robuustheidsgaten (doel 2)
 
-**Geen gaten gevonden in deze run.** Alle onderstaande adversariële pogingen werden geweigerd zoals
-de architectuurregels voorschrijven. Wat is geprobeerd en het resultaat:
+### Wat correct werd geweigerd (geen gaten)
 
-### Privilege-escalatie naar /admin/\*
+- **Privilege-escalatie:** FREELANCER/CLIENT/FRANCHISER op `/admin/*` → schone **redirect naar
+  `/dashboard`** (middleware `isAdminPath`); wrong-role op `/franchise/*` idem
+  (`isFranchisePath`); ADMIN op `/franchise/*` → redirect. Bewijs: `OK-freelancer-on-admin-redirect.png`.
+- **IDOR / cross-partij:** FREELANCER (Sanne) op andermans samenwerkingen (`cmqg6nkw6…` ZorgGroep,
+  `cmqg6nl43…` Datic) → **geweigerd** ("Niet gevonden/geen toegang"). CLIENT (Mark) op
+  facturen/samenwerkingen van een andere opdrachtgever (emma/iris ↔ ZorgGroep) → **geweigerd**. Een
+  eigen factuur opent wél — correct (geverifieerd tegen de DB: `collab-1` hoort bij Sanne).
+- **Cross-tenant (franchiser):** FRANCHISER "Noord" op een opdrachtgever (`Zorgcentrum Jansen`),
+  ZZP'er (Sanne) en samenwerking buiten de eigen tenant → **geweigerd** (`/franchise/opdrachtgevers/…`
+  en `/franchise/zzpers/…` tonen "geen toegang"; `/franchise/samenwerkingen/…` → 404). Tenant-scoping
+  leunt correct op `tenantId`.
+- **Robuustheid (onzin-/injectie-id's):** `/zzp/ghost` → 404, `/this-route-does-not-exist` → 404,
+  `/admin/verificaties/junk` → 404, `/franchise/samenwerkingen/junk` → 404. Geen enkele 500.
+- **Malicieuze input:** profiel-/tariefvalidatie (`freelancerProfileSchema`) dwingt
+  `hourlyRate = int, 0–2000` af en cap't tekstvelden (headline 120, bio 2000); negatieve/absurde
+  bedragen en script-strings worden server-side door Zod geweigerd. KvK/BTW via `superRefine`.
 
-- **Geprobeerd:** als FREELANCER, CLIENT én FRANCHISER de admin-schermen openen:
-  `/admin/verificaties`, `/disputen`, `/statistieken`, `/gebruikers`, `/no-shows`, `/dba`,
-  `/facturatie`, `/import`, `/configuratie`, `/audit`, `/avg` (33 pogingen).
-- **Resultaat:** elke poging → **redirect naar `/dashboard`**, geen admin-inhoud. ✅ Geweigerd.
+### B1 — MEDIUM · Cross-role pagina's buiten `/admin` & `/franchise` crashen i.p.v. nette weigering
 
-### IDOR / cross-partij
-
-- **Geprobeerd:** CLIENT `opdrachtgever@` (Jansen) opent samenwerking, factuur én dossier van een
-  **andere** opdrachtgever (zorggroep): `/samenwerkingen/<andere>`, `/facturen/<andere-draft>`,
-  `/samenwerkingen/<andere>/dossier`.
-- **Resultaat:** "Niet gevonden / je hebt er geen toegang toe", geen data van de andere partij. ✅
-  Geweigerd. Bewijs: `idor_client_other-client-collab.png`, `idor_client_other-client-invoice.png`.
-- **Geprobeerd:** FREELANCER `zzp@` (Sanne) opent een samenwerking van een **andere** ZZP'er →
-  geweigerd. ✅
-- **Bevestigd in code:** `samenwerkingen/[id]/page.tsx` regel 121–125 (`notFound()` als de actor noch
-  client, noch freelancer, noch admin is).
-
-### Privé-document van een ander
-
-- **Geprobeerd:** FREELANCER `zzp@` haalt via `/api/documents/<id van youssef>` het privé-document
-  van een andere gebruiker op.
-- **Resultaat:** **403** (en de poging wordt geaudit als `DOCUMENT_ACCESS_DENIED`). Eigen document
-  geeft 200. ✅ Geweigerd (CLAUDE.md regel 4 + 5).
-
-### Cross-tenant (franchiser)
-
-- **Geprobeerd:** FRANCHISER `franchise@` (tenant Zorgbemiddeling Noord) opent een samenwerking,
-  factuur en opdracht van de **niet-franchise** tenant (Jansen + Sanne): `/samenwerkingen/collab-1`,
-  `/facturen/<collab-1-factuur>`, `/opdrachten/job-8`.
-- **Resultaat:** "Niet gevonden / geen toegang". ✅ Geweigerd. Bewijs:
-  `xtenant_other-tenant-collab.png`.
-
-### Authz-keten omzeilen (verboden mutaties)
-
-- **Bevestigd in code (read + grep over alle cascade-commando's):** elke mutatie checkt eigenaarschap
-  - rol vóór de schrijfactie:
-  * prestatie vastleggen/indienen → alleen de ZZP'er (`actor.id === col.freelancer.userId`);
-  * prestatie goedkeuren/afkeuren → alleen de opdrachtgever (`actor.id === perf.clientUserId`);
-  * factuur indienen/crediteren → alleen de uitschrijver (`inv.issuerUserId`);
-  * factuur goedkeuren/afkeuren → alleen de tegenpartij (`inv.counterpartyUserId`);
-  * betaling registreren → uitschrijver óf tegenpartij;
-  * dispuut oplossen → alleen ADMIN.
-    Bij overtreding: `CascadeError` met leesbare melding, geen schrijfactie. ✅
-- **UI-bevestiging:** de detailpagina's van een niet-eigen samenwerking renderen sowieso `notFound()`,
-  dus de mutatieknoppen zijn niet eens bereikbaar.
-
-### Verboden statusovergangen
-
-- **Bevestigd:** credential-afwijzing zonder reden wordt geweigerd door `statusForDecision`
-  (gooit bij lege reden of ongeldige overgang); statusovergangen lopen via expliciete maps
-  (CLAUDE.md regel 3). ✅
-
-### Malicieuze input / XSS
-
-- **Geprobeerd:** opdracht-formulier (CLIENT) met `<script>alert(1)</script>` als titel en een
-  negatief tarief.
-- **Resultaat:** geen scriptuitvoering, de ruwe `<script>`-string wordt **niet** rauw in de DOM
-  gereflecteerd; het formulier bleef op `/opdrachten/nieuw` staan (validatie hield het tegen). ✅
-  Bewijs: `client_opdracht_nieuw_form.png`.
-
-### Robuustheid (onzin-/injectie-id's, niet-bestaande routes)
-
-- **Geprobeerd:** `/samenwerkingen/zzz-nonexistent`, `/facturen/zzz-nonexistent`,
-  `/zzp/zzz-nonexistent`, `/opdrachten/zzz-nonexistent`, `/samenwerkingen/' OR 1=1--`,
-  `/facturen/%00null`, `/zzp/../../etc/passwd`.
-- **Resultaat:** **geen enkele 500.** Alles leverde een nette "Niet gevonden"-pagina of een echte
-  404 op. ✅ (Zie sectie A1 voor de status-code-inconsistentie — geen veiligheidsprobleem.)
+- **Rol/scherm:** elke verkeerde rol op een role-gated pagina die **niet** onder `/admin` of
+  `/franchise` valt. Bevestigd: FREELANCER → `/kandidaten`, FREELANCER → `/bedrijf`,
+  CLIENT → `/certificaten`, CLIENT → `/reacties`. Geldt voor ~14 pagina's met `requireRole(...)`
+  buiten die twee prefixes (o.a. `documenten`, `beschikbaarheid`, `profiel`, `facturen/nieuw`,
+  `favorieten`, `opdrachten/nieuw`, `opdrachten/[id]/bewerken`).
+- **Waarneming:** `requireRole("CLIENT")`/`requireRole("FREELANCER")` werpt een
+  `AuthorizationError` (403) die **niet wordt gevangen/geredirect**. Hij bubbelt naar de
+  protected-foutgrens (`src/app/(protected)/error.tsx`) en rendert de **generieke crashpagina
+  "Er ging iets mis"** (HTTP 200), terwijl de server hem als `⨯ Error [AuthorizationError]: Geen
+toegang: vereist rol …` logt. Contrast: `/admin/*` en `/franchise/*` worden door de middleware
+  **schoon geredirect** naar `/dashboard`.
+- **Repro:**
+  1. Log in als FREELANCER (`zzp@`, `demo1234`).
+  2. Open `/kandidaten` (CLIENT-only) → pagina toont "Er ging iets mis" (de crashgrens), HTTP 200.
+     Idem `/bedrijf`. Server-log: `⨯ Error [AuthorizationError]: Geen toegang: vereist rol CLIENT.`
+  3. Log in als CLIENT (`opdrachtgever@`) → open `/certificaten` of `/reacties` (FREELANCER-only) →
+     "Er ging iets mis"; server-log `… vereist rol FREELANCER.`
+  4. Vergelijk FREELANCER → `/admin/gebruikers` → schone redirect naar `/dashboard` (geen crash,
+     geen error-log).
+  - Bewijs: `BUG-freelancer-on-kandidaten.png`, `BUG-freelancer-on-bedrijf.png`,
+    `BUG-client-on-certificaten.png`, `BUG-client-on-reacties.png` vs.
+    `OK-freelancer-on-admin-redirect.png`.
+- **Geschonden regel:** de sweep-/DoD-norm "een verboden actie wordt **geweigerd via 403/redirect/
+  notFound — NOOIT een 500/crashpagina**". Geen datalek (de foutgrens toont niets gevoeligs), maar
+  het weigerings-mechanisme is verkeerd: een crashpagina i.p.v. een nette weigering, en elke poging
+  vervuilt de server-error-log (`⨯ Error`) — dat maskeert echte fouten in productie-monitoring en is
+  een afwijking van de "elke view heeft een nette state"-designregel.
+- **Severity:** MEDIUM (geen leak/escalatie; wél verkeerd gedrag + log-vervuiling + slechte UX).
+- **Suggestie (klein, gericht):** kies één van:
+  1. **Voorkeur — middleware uitbreiden:** een role→toegestane-routes-map in `lib/route-guards.ts`
+     en in `middleware.ts` analoog aan `isAdminPath`/`isFranchisePath` een schone redirect naar
+     `/dashboard` doen voor role-gated niet-prefix-pagina's. Houdt de weigering uniform en uit de
+     error-log.
+  2. **Foutgrens-fix:** `AuthorizationError` herkennen (status 401/403) in
+     `src/app/(protected)/error.tsx` en dan een rustige "Geen toegang"-state tonen i.p.v. "Er ging
+     iets mis" — zonder `console.error` voor die klasse, zodat de log schoon blijft. (Minste code;
+     lost UX + log-ruis op, maar laat de HTTP-200 staan.)
+     Optie 1 is het meest in lijn met de bestaande defense-in-depth (`/admin`, `/franchise` worden óók
+     in de middleware afgevangen).
 
 ---
 
-## Reproductie
+## Methodenoot
 
-```bash
-# Build + seed + start (ephemere DB; abuse is veilig, nooit tegen productie)
-DATABASE_URL="file:./qa.db" AUTH_SECRET="ci-dummy-secret-minstens-16-tekens-lang" \
-  STORAGE_DRIVER=local SEED_DEMO=true npm run build
-DATABASE_URL="file:./qa.db" npx prisma db push --skip-generate && npm run db:seed
-CI=true DATABASE_URL="file:./qa.db" AUTH_SECRET="ci-dummy-secret-minstens-16-tekens-lang" \
-  STORAGE_DRIVER=local LOGIN_RATE_LIMIT=100000 REGISTER_RATE_LIMIT=100000 npm run start
-# Daarna per rol inloggen (demo1234) en de bovenstaande paden/aanvallen aflopen.
-```
+Statusbepaling adversarieel: per pad de **HTTP-status**, de **uiteindelijke URL** (detecteert
+redirects) en de **`<h1>`** vastgelegd (onderscheidt een gerenderde doelpagina van een
+"Niet gevonden"/"Er ging iets mis"-state). Eigendoms-claims (welke factuur/samenwerking van wie is)
+zijn tegen de seed-DB geverifieerd, niet alleen uit de UI afgeleid. De DB is ephemeer (`qa.db`);
+geen enkele poging raakte productie.
