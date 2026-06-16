@@ -167,19 +167,27 @@ export function GaugeRing({
   sub,
   tone = "accent",
   size = 132,
+  bare = false,
 }: {
   value: number;
   label: string;
   sub?: string;
   tone?: BiTone;
   size?: number;
+  /** Zonder eigen kaart-omhulsel — voor inbedding in een `BiWidget` (geen kaart-in-kaart). */
+  bare?: boolean;
 }) {
   const stroke = 10;
   const radius = (size - stroke) / 2;
   const cx = size / 2;
   const { dash, gap, pct } = ringGeometry(value, radius);
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-5">
+    <div
+      className={cn(
+        "flex flex-col items-center gap-3",
+        !bare && "rounded-lg border border-border bg-card p-5",
+      )}
+    >
       <div className="relative" style={{ width: size, height: size }}>
         <svg
           width={size}

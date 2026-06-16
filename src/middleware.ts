@@ -19,6 +19,8 @@ function nextWithCsp(request: Request): NextResponse {
   const csp = buildCsp({ nonce, isDev });
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
+  // Pad meegeven zodat de app-shell breedte per route kan bepalen (bv. schermvullend dashboard).
+  requestHeaders.set("x-pathname", new URL(request.url).pathname);
   requestHeaders.set("content-security-policy", csp);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", csp);
