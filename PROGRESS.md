@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(admin): disputen-gezondheid (doorlooptijd + urgent) op /admin/statistieken
+
+De platform-statistieken toonden voor disputen alleen een kale "Open disputen"-telling — geen zicht
+op hóe lang een dispuut al openstaat of hoeveel er urgent zijn geworden. Zolang een dispuut openstaat
+ligt de betalingscascade stil, dus leeftijd is het signaal dat telt. Dit trekt de disputen-sectie
+gelijk met de bestaande verificatie-wachtrij-gezondheid (oudste + stale-telling). Read-only,
+server-side, deterministisch, **geen schemawijziging** (afgeleid uit de bestaande `disputedAt`).
+
+- [x] `src/lib/disputes.ts` — `DisputeHealth` interface (`open`/`oldestAgeDays`/`urgentCount`) +
+      pure `disputeUrgentThreshold(now)`: drempeldatum waarvóór een dispuut >= `urgentDays` openstaat
+      (URGENT), zodat een goedkope `count` volstaat zonder alle rijen te laden. Consistent met
+      `disputeAgeDays` (een dispuut precies op de drempel telt als URGENT).
+- [x] `src/lib/disputes.test.ts` — 4 nieuwe unit-tests: drempel ligt exact `urgentDays` vóór now,
+      consistentie met `disputeAgeDays`/`disputeUrgency` op de grens, net-jonger valt buiten de `lte`,
+      en de now-default. Totaal 49 in dit + admin-stats-bestand.
+- [x] `src/lib/admin-stats.ts` — `openDisputes: number` op `PlatformStats` vervangen door
+      `disputes: DisputeHealth`; query uitgebreid met een begrensde `findFirst` (oudste open dispuut,
+      alleen `disputedAt`) + een `count` op `disputeUrgentThreshold(now)`. Beide begrensd, geen findMany.
+- [x] `src/app/(protected)/admin/statistieken/page.tsx` — nieuwe sectie "Disputen" (Gavel-icoon) met
+      3 gezondheidskaarten: Open disputen, Langst open (tone op de raised/urgent-drempels), Urgent
+      (`urgentDays`+ open). De misplaatste "Open disputen"-kaart uit de Certificaten-sectie verwijderd;
+      de waarschuwingsbanner benoemt nu ook het urgent-aantal.
+
+Gates groen: typecheck ✓, lint ✓, test 2085 ✓ (+4), build ✓, `prettier --check .` ✓.
+
+---
+
 ## feat(reacties): reactie-uitkomsten samenvatting voor de ZZP'er (slaagkans)
 
 `/reacties` toonde elke reactie los met haar status, maar de ZZP'er kreeg geen totaalbeeld: hoeveel

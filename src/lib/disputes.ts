@@ -32,6 +32,18 @@ export interface DisputeSummary {
 }
 
 /**
+ * Gezondheid van de disputen-wachtrij voor het platform-overzicht (spiegel van
+ * VerificationQueueHealth): hoeveel disputen staan open, hoe lang staat het oudste open,
+ * en hoeveel zijn URGENT geworden (>= urgentDays). Zolang een dispuut openstaat ligt de
+ * betalingscascade stil — leeftijd is dus het signaal dat telt.
+ */
+export interface DisputeHealth {
+  open: number;
+  oldestAgeDays: number; // 0 als er geen open disputen zijn
+  urgentCount: number; // disputen die >= urgentDays openstaan (URGENT-niveau)
+}
+
+/**
  * Hele dagen dat het dispuut openstaat: nooit negatief (toekomstige/now → 0); floor.
  * Standaard vergelijkt met de huidige systeemtijd.
  */
@@ -50,6 +62,18 @@ export function disputeUrgency(ageDays: number): DisputeUrgency {
   if (ageDays >= DISPUTE_URGENCY_THRESHOLDS.urgentDays) return "URGENT";
   if (ageDays >= DISPUTE_URGENCY_THRESHOLDS.raisedDays) return "VERHOOGD";
   return "NORMAAL";
+}
+
+/**
+ * Drempeldatum: een dispuut dat op of vóór dit tijdstip is geopend, staat >= urgentDays open
+ * en geldt dus als URGENT. Maakt een goedkope `count` mogelijk zonder alle rijen te laden.
+ * Consistent met `disputeAgeDays`: een dispuut precies op de drempel telt als URGENT.
+ */
+export function disputeUrgentThreshold(now?: Date): Date {
+  const reference = now ?? new Date();
+  return new Date(
+    reference.getTime() - DISPUTE_URGENCY_THRESHOLDS.urgentDays * 24 * 60 * 60 * 1000,
+  );
 }
 
 /** Numerieke rangorde: URGENT=0, VERHOOGD=1, NORMAAL=2 (lager = hogere prioriteit). */

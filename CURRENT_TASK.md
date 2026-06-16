@@ -289,6 +289,11 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 3. Cutover zelf uitvoeren (Railway + branch-switch + seed-verify) — mensenwerk of expliciete
    sessie mét browser.
 
+> Reeds gedaan (niet opnieuw): disputen-gezondheid op /admin/statistieken
+> (`lib/disputes.ts` — `DisputeHealth` + pure `disputeUrgentThreshold(now)` voor een goedkope
+> URGENT-count; `admin-stats.ts` `openDisputes` → `disputes: DisputeHealth` via begrensde
+> findFirst+count; nieuwe "Disputen"-sectie met 3 gezondheidskaarten (Open / Langst open / Urgent),
+> spiegelt de verificatie-wachtrij-gezondheid; 4 unit-tests; geen schemawijziging),
 > Reeds gedaan (niet opnieuw): wachttijd-zicht op de prestatie-goedkeuringswachtrij
 > (`lib/performance-approval.ts` — pure `summarizePerformanceApproval` + `PERFORMANCE_APPROVAL_STALE_DAYS=3`,
 > hergebruikt `daysWaiting`/`waitingLabel` uit `verification-queue.ts`; 8 unit-tests; `/prestaties` toont
