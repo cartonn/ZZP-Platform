@@ -9,7 +9,7 @@ import { audit } from "@/lib/audit";
 import { generateTempPassword } from "@/lib/onboarding/password";
 
 const schema = z.object({
-  tenantName: z.string().trim().min(2, "Franchise-naam is te kort.").max(120),
+  tenantName: z.string().trim().min(2, "Bemiddeling-naam is te kort.").max(120),
   franchiserName: z.string().trim().min(2, "Naam is te kort.").max(120),
   franchiserEmail: z.string().trim().toLowerCase().email("Ongeldig e-mailadres."),
 });

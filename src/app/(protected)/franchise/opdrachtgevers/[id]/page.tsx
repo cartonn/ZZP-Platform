@@ -17,7 +17,7 @@ import { DepartmentForm } from "./department-form";
 import { DienstInlineForm } from "./dienst-inline-form";
 import { removeDepartment } from "../actions";
 
-export const metadata: Metadata = { title: "Opdrachtgever · Franchise" };
+export const metadata: Metadata = { title: "Opdrachtgever · Bemiddeling" };
 
 export default async function OpdrachtgeverDetailPage({
   params,

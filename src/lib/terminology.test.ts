@@ -115,16 +115,12 @@ describe("terminology", () => {
       expect(item!.label).toBe(TERM_PLURAL.message);
     });
 
-    it("FREELANCER /certificaten label === TERM_PLURAL.credential", () => {
-      const item = itemFor("FREELANCER", "/certificaten");
-      expect(item, "nav item /certificaten niet gevonden voor FREELANCER").toBeDefined();
-      expect(item!.label).toBe(TERM_PLURAL.credential);
-    });
-
-    it("FREELANCER /documenten label === TERM_PLURAL.document", () => {
-      const item = itemFor("FREELANCER", "/documenten");
-      expect(item, "nav item /documenten niet gevonden voor FREELANCER").toBeDefined();
-      expect(item!.label).toBe(TERM_PLURAL.document);
+    // /certificaten, /documenten en /beschikbaarheid staan niet meer in de FREELANCER-zijbalk:
+    // ze zijn samengevoegd in de "Mijn profiel"-hub (tabs), dus geen nav-guardrail meer.
+    it("FREELANCER zijbalk bevat /certificaten en /documenten NIET (samengevoegd in profiel-hub)", () => {
+      expect(itemFor("FREELANCER", "/certificaten")).toBeUndefined();
+      expect(itemFor("FREELANCER", "/documenten")).toBeUndefined();
+      expect(itemFor("FREELANCER", "/beschikbaarheid")).toBeUndefined();
     });
 
     it("CLIENT /prestaties label === TERM_PLURAL.performance", () => {

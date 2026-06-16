@@ -14,7 +14,7 @@ import { formatDateTimeNl, formatDateShortNl } from "@/lib/format-date";
 import { StatusControl } from "../status-control";
 import { ContactForm } from "./contact-form";
 
-export const metadata: Metadata = { title: "Lead · Franchise" };
+export const metadata: Metadata = { title: "Lead · Bemiddeling" };
 
 // Een opvolgdatum is "te laat" als die vóór vandaag valt (op dagniveau, UTC-datuminvoer).
 function followUpState(date: Date | null, now: Date): "overdue" | "upcoming" | null {

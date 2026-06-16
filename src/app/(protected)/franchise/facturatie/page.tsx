@@ -11,7 +11,7 @@ import { formatEuro } from "@/lib/invoices";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 
-export const metadata: Metadata = { title: "Facturatie · Franchise" };
+export const metadata: Metadata = { title: "Facturatie · Bemiddeling" };
 
 const STATUS_LABEL: Record<TenantSubscriptionStatus, string> = {
   ACTIVE: "Actief",
@@ -40,12 +40,15 @@ export default async function FranchiseFacturatiePage() {
   if (!overview) {
     return (
       <div className="mx-auto max-w-2xl space-y-6">
-        <PageHeader title="Facturatie" description="Het abonnement en de fees van je franchise." />
+        <PageHeader
+          title="Facturatie"
+          description="Het abonnement en de fees van je bemiddeling."
+        />
         <Card>
           <EmptyState
             icon={ReceiptText}
-            title="Geen franchise gekoppeld"
-            description="Dit overzicht is beschikbaar zodra je een franchise beheert."
+            title="Geen bemiddeling gekoppeld"
+            description="Dit overzicht is beschikbaar zodra je een bemiddeling beheert."
           />
         </Card>
       </div>

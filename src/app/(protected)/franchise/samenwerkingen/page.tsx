@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { formatDateShortNl } from "@/lib/format-date";
 
-export const metadata: Metadata = { title: "Samenwerkingen · Franchise" };
+export const metadata: Metadata = { title: "Samenwerkingen · Bemiddeling" };
 
 const STATUS: Record<
   CollaborationStatus,

@@ -43,7 +43,7 @@ export async function createLead(_prev: LeadFormState, formData: FormData): Prom
     if (e instanceof AuthorizationError) return { error: e.message };
     throw e;
   }
-  if (!hasTenant(actor)) return { error: "Geen franchise gekoppeld." };
+  if (!hasTenant(actor)) return { error: "Geen bemiddeling gekoppeld." };
 
   const parsed = createSchema.safeParse({
     organizationName: formData.get("organizationName"),

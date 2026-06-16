@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 
-export const metadata: Metadata = { title: "Opdrachtgevers · Franchise" };
+export const metadata: Metadata = { title: "Opdrachtgevers · Bemiddeling" };
 
 export default async function FranchiseOpdrachtgeversPage() {
   const actor = await requireRole("FRANCHISER");
@@ -28,7 +28,7 @@ export default async function FranchiseOpdrachtgeversPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title="Opdrachtgevers"
-        description="De opdrachtgevers die je in je franchise hebt gebracht, met hun afdelingen."
+        description="De opdrachtgevers die je in je bemiddeling hebt gebracht, met hun afdelingen."
         action={
           <Button asChild>
             <Link href="/franchise/opdrachtgevers/nieuw">

@@ -78,7 +78,7 @@ export async function requestShiftHandoff(
     if (candidate.userId === actor.id)
       return { error: "Je kunt jezelf niet als overnemer voorstellen." };
     if ((candidate.tenantId ?? null) !== (collaboration.job.tenantId ?? null))
-      return { error: "De voorgestelde overnemer valt buiten deze franchise." };
+      return { error: "De voorgestelde overnemer valt buiten deze bemiddeling." };
     candidateFreelancerId = candidate.id;
   }
 

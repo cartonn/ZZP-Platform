@@ -48,7 +48,7 @@ export async function reportNoShow(
     actor.tenantId != null &&
     actor.tenantId === collaboration.job.tenantId;
   if (!isClient && !isTenantFranchiser)
-    return { error: "Alleen de opdrachtgever of de franchiser kan een no-show melden." };
+    return { error: "Alleen de opdrachtgever of de bemiddelaar kan een no-show melden." };
 
   // Alleen op een lopende of (recent) geannuleerde inzet — een no-show leidt vaak tot annulering.
   if (collaboration.status !== "ACTIVE" && collaboration.status !== "CANCELLED")

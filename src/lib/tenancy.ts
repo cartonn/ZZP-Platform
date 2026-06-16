@@ -21,7 +21,7 @@ export function hasTenant(actor: Actor | null | undefined): actor is Actor & { t
 export function tenantScopeWhere(actor: Actor | null | undefined): { tenantId?: string } {
   if (actor?.role === "ADMIN") return {};
   if (hasTenant(actor)) return { tenantId: actor.tenantId };
-  throw new AuthorizationError("Geen toegang: geen franchise gekoppeld.", 403);
+  throw new AuthorizationError("Geen toegang: geen bemiddeling gekoppeld.", 403);
 }
 
 /** Werpt 403 als de entiteit niet in de tenant van de actor valt (ADMIN mag alles). */
@@ -31,7 +31,7 @@ export function assertSameTenant(
 ): void {
   if (actor?.role === "ADMIN") return;
   if (!hasTenant(actor) || actor.tenantId !== entityTenantId) {
-    throw new AuthorizationError("Geen toegang tot deze franchise-resource.", 403);
+    throw new AuthorizationError("Geen toegang tot deze bemiddeling-resource.", 403);
   }
 }
 
