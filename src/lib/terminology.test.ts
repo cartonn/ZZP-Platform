@@ -97,10 +97,27 @@ describe("terminology", () => {
       expect(item!.label).toBe(TERM_PLURAL.shift);
     });
 
-    it("FREELANCER /facturen label === TERM_PLURAL.invoice", () => {
-      const item = itemFor("FREELANCER", "/facturen");
-      expect(item, "nav item /facturen niet gevonden voor FREELANCER").toBeDefined();
-      expect(item!.label).toBe(TERM_PLURAL.invoice);
+    // /facturen, /openstaand, /administratie, /ontzorgd en /prognose staan niet meer apart in de
+    // FREELANCER-zijbalk: ze zijn samengevoegd in de Administratie-hub (/financien, tabs).
+    it("FREELANCER Administratie-items zitten in de hub /financien (niet meer los in de zijbalk)", () => {
+      expect(itemFor("FREELANCER", "/facturen")).toBeUndefined();
+      expect(itemFor("FREELANCER", "/openstaand")).toBeUndefined();
+      expect(itemFor("FREELANCER", "/administratie")).toBeUndefined();
+      expect(itemFor("FREELANCER", "/ontzorgd")).toBeUndefined();
+      expect(itemFor("FREELANCER", "/prognose")).toBeUndefined();
+      const hub = itemFor("FREELANCER", "/financien");
+      expect(hub, "nav item /financien niet gevonden voor FREELANCER").toBeDefined();
+      expect(hub!.label).toBe("Administratie");
+    });
+
+    it("CLIENT Administratie-items zitten in de hub /financien (niet meer los in de zijbalk)", () => {
+      expect(itemFor("CLIENT", "/facturen")).toBeUndefined();
+      expect(itemFor("CLIENT", "/openstaand")).toBeUndefined();
+      expect(itemFor("CLIENT", "/administratie")).toBeUndefined();
+      expect(itemFor("CLIENT", "/verplichtingen")).toBeUndefined();
+      const hub = itemFor("CLIENT", "/financien");
+      expect(hub, "nav item /financien niet gevonden voor CLIENT").toBeDefined();
+      expect(hub!.label).toBe("Administratie");
     });
 
     it("FREELANCER /acties label === TERM_PLURAL.action", () => {

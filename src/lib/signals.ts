@@ -36,7 +36,9 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   draftJobs: "/opdrachten",
   pendingVerifications: "/admin/verificaties",
   unreadMessages: "/berichten",
-  overdueInvoices: "/facturen",
+  // Facturen zijn samengevoegd in de Administratie-hub (/financien); de overdue-badge hangt
+  // daarom aan het hub-item in de zijbalk.
+  overdueInvoices: "/financien",
   cascadeWork: "/samenwerkingen",
   openDisputes: "/admin/disputen",
   pendingPerformances: "/prestaties",

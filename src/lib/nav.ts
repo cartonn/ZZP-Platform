@@ -53,11 +53,9 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Mijn profiel", href: "/profiel", icon: "user", section: "Profiel", enabled: true },
     { label: TERM_PLURAL.shift, href: "/diensten", icon: "clock", section: "Profiel", enabled: true }, // prettier-ignore
     { label: "Academie", href: "/academie", icon: "graduationCap", section: "Profiel", enabled: true }, // prettier-ignore
-    { label: TERM_PLURAL.invoice, href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
-    { label: "Boekhouding", href: "/administratie", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
-    { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
-    { label: "Ontzorgd", href: "/ontzorgd", icon: "barChart", section: "Administratie", enabled: true }, // prettier-ignore
-    { label: "Prognose", href: "/prognose", icon: "trendingUp", section: "Administratie", enabled: true }, // prettier-ignore
+    // Facturen, Boekhouding, Openstaand, Ontzorgd en Prognose zitten nu als tabs in de
+    // Administratie-hub (/financien), dus niet meer apart in de zijbalk.
+    { label: "Administratie", href: "/financien", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", section: "Account", enabled: true }, // prettier-ignore
     { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Account", enabled: true }, // prettier-ignore
     { label: "Support", href: "/support", icon: "messages", section: "Account", enabled: true },
@@ -73,10 +71,9 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: TERM_PLURAL.collaboration, href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.performance, href: "/prestaties", icon: "fileCheck", section: "Werk", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.message, href: "/berichten", icon: "messages", section: "Werk", enabled: true }, // prettier-ignore
-    { label: TERM_PLURAL.invoice, href: "/facturen", icon: "receipt", section: "Administratie", enabled: true }, // prettier-ignore
-    { label: "Boekhouding", href: "/administratie", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
-    { label: "Openstaand", href: "/openstaand", icon: "wallet", section: "Administratie", enabled: true }, // prettier-ignore
-    { label: "Verplichtingen", href: "/verplichtingen", icon: "trendingUp", section: "Administratie", enabled: true }, // prettier-ignore
+    // Facturen, Boekhouding, Openstaand en Verplichtingen zitten nu als tabs in de
+    // Administratie-hub (/financien), dus niet meer apart in de zijbalk.
+    { label: "Administratie", href: "/financien", icon: "fileText", section: "Administratie", enabled: true }, // prettier-ignore
     { label: "Bedrijfsprofiel", href: "/bedrijf", icon: "building", section: "Account", enabled: true }, // prettier-ignore
     { label: "Academie", href: "/academie", icon: "graduationCap", section: "Account", enabled: true }, // prettier-ignore
     { label: "Abonnement", href: "/abonnement", icon: "creditCard", section: "Account", enabled: true }, // prettier-ignore

@@ -32,9 +32,9 @@ describe("buildBadges", () => {
     });
   });
 
-  it("mapt verlopen facturen naar /facturen met attention-toon", () => {
+  it("mapt verlopen facturen naar /financien (Administratie-hub) met attention-toon", () => {
     expect(buildBadges({ overdueInvoices: 1 })).toEqual({
-      "/facturen": { count: 1, tone: "attention" },
+      "/financien": { count: 1, tone: "attention" },
     });
   });
 
@@ -53,7 +53,7 @@ describe("buildBadges", () => {
   it("combineert cascade-acties en verlopen facturen op aparte hrefs", () => {
     const badges = buildBadges({ cascadeWork: 2, overdueInvoices: 1 });
     expect(badges["/samenwerkingen"]).toEqual({ count: 2, tone: "attention" });
-    expect(badges["/facturen"]).toEqual({ count: 1, tone: "attention" });
+    expect(badges["/financien"]).toEqual({ count: 1, tone: "attention" });
   });
 
   it("mapt openstaande prestaties naar /prestaties met attention-toon", () => {
