@@ -59,8 +59,25 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   settings: Settings,
 };
 
-export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBadges }) {
+export function SidebarNav({
+  items,
+  badges,
+  collapsible = false,
+}: {
+  items: NavItem[];
+  badges?: NavBadges;
+  /**
+   * Inklapbare rail-modus: labels, sectiekoppen en badges vervagen als de rail is ingeklapt en
+   * verschijnen bij hover/focus van de rail (de `group`). De iconen blijven altijd zichtbaar.
+   * Uit (standaard) in de mobiele lade, waar alles altijd zichtbaar is.
+   */
+  collapsible?: boolean;
+}) {
   const pathname = usePathname();
+  // Vervaag-bij-ingeklapt: hoge specificiteit van group-hover/-focus-within wint van de basis.
+  const fade =
+    collapsible &&
+    "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100";
 
   return (
     <nav className="flex flex-col gap-0.5" aria-label="Hoofdnavigatie">
@@ -78,8 +95,13 @@ export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBa
             title="Binnenkort beschikbaar"
           >
             <Icon className="size-4 shrink-0" aria-hidden />
-            <span className="truncate">{item.label}</span>
-            <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground/40">
+            <span className={cn("truncate", fade)}>{item.label}</span>
+            <span
+              className={cn(
+                "ml-auto text-[10px] uppercase tracking-wide text-muted-foreground/40",
+                fade,
+              )}
+            >
               soon
             </span>
           </span>
@@ -87,6 +109,7 @@ export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBa
           <Link
             href={item.href}
             aria-current={isActive ? "page" : undefined}
+            title={collapsible ? item.label : undefined}
             className={cn(
               "focus-ring flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
               isActive
@@ -95,7 +118,7 @@ export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBa
             )}
           >
             <Icon className="size-4 shrink-0" aria-hidden />
-            <span className="truncate">{item.label}</span>
+            <span className={cn("truncate", fade)}>{item.label}</span>
             {badge && (
               <span
                 className={cn(
@@ -103,6 +126,7 @@ export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBa
                   badge.tone === "attention"
                     ? "bg-primary text-primary-foreground"
                     : "border border-border bg-background text-muted-foreground",
+                  fade,
                 )}
                 aria-label={`${badge.count} ${badge.tone === "attention" ? "vraagt actie" : "open"}`}
               >
@@ -115,7 +139,12 @@ export function SidebarNav({ items, badges }: { items: NavItem[]; badges?: NavBa
         return (
           <Fragment key={item.href}>
             {showHeader && (
-              <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              <p
+                className={cn(
+                  "px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60",
+                  fade,
+                )}
+              >
                 {item.section}
               </p>
             )}
