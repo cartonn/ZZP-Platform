@@ -145,7 +145,9 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
             data: {
               ...fields,
               documentId: doc.id,
-              ...(resubmit ? { status: "SUBMITTED", rejectionReason: null } : {}),
+              ...(resubmit
+                ? { status: "SUBMITTED", rejectionReason: null, submittedAt: new Date() }
+                : {}),
             },
           });
           if (resubmit) await tx.verificationRequest.create({ data: { credentialId } });
@@ -171,7 +173,12 @@ async function persistCredential(formData: FormData): Promise<CredentialState> {
           await prisma.$transaction(async (tx) => {
             await tx.credential.update({
               where: { id: credentialId },
-              data: { ...fields, status: "SUBMITTED", rejectionReason: null },
+              data: {
+                ...fields,
+                status: "SUBMITTED",
+                rejectionReason: null,
+                submittedAt: new Date(),
+              },
             });
             await tx.verificationRequest.create({ data: { credentialId } });
           });
@@ -259,7 +266,7 @@ export async function requestVerification(credentialId: string): Promise<void> {
   await prisma.$transaction([
     prisma.credential.update({
       where: { id: credentialId },
-      data: { status: "SUBMITTED", rejectionReason: null },
+      data: { status: "SUBMITTED", rejectionReason: null, submittedAt: new Date() },
     }),
     prisma.verificationRequest.create({ data: { credentialId } }),
   ]);

@@ -3,6 +3,7 @@ import {
   VERIFICATION_STALE_DAYS,
   daysWaiting,
   waitingLabel,
+  waitingSince,
   summarizeVerificationQueue,
   staleThreshold,
 } from "@/lib/verification-queue";
@@ -47,6 +48,29 @@ describe("waitingLabel", () => {
   });
 });
 
+/** Wachtrij-item met indientijdstip; updatedAt staat los (mag recenter zijn). */
+function submitted(days: number): { submittedAt: Date; updatedAt: Date } {
+  return { submittedAt: daysAgo(days), updatedAt: NOW };
+}
+
+describe("waitingSince", () => {
+  it("gebruikt submittedAt wanneer aanwezig", () => {
+    const item = { submittedAt: daysAgo(6), updatedAt: NOW };
+    expect(waitingSince(item)).toBe(item.submittedAt);
+  });
+
+  it("valt terug op updatedAt bij een legacy-record zonder submittedAt", () => {
+    const item = { submittedAt: null, updatedAt: daysAgo(4) };
+    expect(waitingSince(item)).toBe(item.updatedAt);
+  });
+
+  it("negeert een latere bewerking: updatedAt mag de wachttijd niet terugzetten", () => {
+    // submittedAt 8 dagen geleden, maar het certificaat is vandaag nog bewerkt.
+    const item = { submittedAt: daysAgo(8), updatedAt: NOW };
+    expect(daysWaiting(waitingSince(item), NOW)).toBe(8);
+  });
+});
+
 describe("summarizeVerificationQueue", () => {
   it("geeft nullen bij een lege wachtrij", () => {
     expect(summarizeVerificationQueue([], NOW)).toEqual({
@@ -56,22 +80,32 @@ describe("summarizeVerificationQueue", () => {
     });
   });
 
-  it("telt pending en bepaalt de oudste", () => {
-    const result = summarizeVerificationQueue(
-      [{ updatedAt: daysAgo(1) }, { updatedAt: daysAgo(8) }, { updatedAt: daysAgo(3) }],
-      NOW,
-    );
+  it("telt pending en bepaalt de oudste op het indientijdstip", () => {
+    const result = summarizeVerificationQueue([submitted(1), submitted(8), submitted(3)], NOW);
     expect(result.pending).toBe(3);
     expect(result.oldestDays).toBe(8);
+  });
+
+  it("rekent op submittedAt, niet op het (recentere) updatedAt", () => {
+    // Allemaal vandaag bewerkt (updatedAt = NOW) maar lang geleden ingediend.
+    const result = summarizeVerificationQueue([submitted(8), submitted(3)], NOW);
+    expect(result.oldestDays).toBe(8);
+    expect(result.staleCount).toBe(1);
+  });
+
+  it("valt terug op updatedAt voor legacy-records zonder submittedAt", () => {
+    const result = summarizeVerificationQueue([{ submittedAt: null, updatedAt: daysAgo(9) }], NOW);
+    expect(result.oldestDays).toBe(9);
+    expect(result.staleCount).toBe(1);
   });
 
   it("telt alleen aanvragen >= VERIFICATION_STALE_DAYS als stale", () => {
     const result = summarizeVerificationQueue(
       [
-        { updatedAt: daysAgo(0) },
-        { updatedAt: daysAgo(VERIFICATION_STALE_DAYS - 1) },
-        { updatedAt: daysAgo(VERIFICATION_STALE_DAYS) }, // grensgeval: telt mee
-        { updatedAt: daysAgo(VERIFICATION_STALE_DAYS + 4) },
+        submitted(0),
+        submitted(VERIFICATION_STALE_DAYS - 1),
+        submitted(VERIFICATION_STALE_DAYS), // grensgeval: telt mee
+        submitted(VERIFICATION_STALE_DAYS + 4),
       ],
       NOW,
     );
@@ -79,13 +113,13 @@ describe("summarizeVerificationQueue", () => {
   });
 
   it("muteert de invoer niet", () => {
-    const items = Object.freeze([{ updatedAt: daysAgo(6) }]);
+    const items = Object.freeze([submitted(6)]);
     expect(() => summarizeVerificationQueue(items, NOW)).not.toThrow();
     expect(items).toHaveLength(1);
   });
 
   it("werkt met now als getal", () => {
-    const result = summarizeVerificationQueue([{ updatedAt: daysAgo(10) }], NOW.getTime());
+    const result = summarizeVerificationQueue([submitted(10)], NOW.getTime());
     expect(result.oldestDays).toBe(10);
     expect(result.staleCount).toBe(1);
   });
@@ -99,11 +133,13 @@ describe("staleThreshold", () => {
 
   it("is consistent met summarizeVerificationQueue op de grens", () => {
     // Een aanvraag exact op de drempel telt als stale (>= grens) én valt onder
-    // updatedAt <= staleThreshold(now) — beide paden moeten het eens zijn.
+    // submittedAt <= staleThreshold(now) — beide paden moeten het eens zijn.
     const onBoundary = daysAgo(VERIFICATION_STALE_DAYS);
     const threshold = staleThreshold(NOW);
     expect(onBoundary.getTime() <= threshold.getTime()).toBe(true);
-    expect(summarizeVerificationQueue([{ updatedAt: onBoundary }], NOW).staleCount).toBe(1);
+    expect(
+      summarizeVerificationQueue([{ submittedAt: onBoundary, updatedAt: NOW }], NOW).staleCount,
+    ).toBe(1);
   });
 
   it("accepteert now als getal", () => {

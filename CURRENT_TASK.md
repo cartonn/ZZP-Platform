@@ -223,9 +223,10 @@ Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct 
   consistent is met `/profiel/bewerken`. _(AVG art.6-bevestiging AFGEROND 15-6: eigenaar koos
   gerechtvaardigd belang (1f); vastgelegd als verwerkingsactiviteit "markttarief-indicatie" in
   `lib/compliance/processing-register.ts` met k-anonimiteit (≥10) als waarborg.)_
-- **#370 verificatie-wachtrij** (`prisma/schema.prisma` + `certificaten/actions.ts` + `verification-queue.ts`):
-  dedicated `submittedAt DateTime?` op `Credential` (eenmalig gezet bij → SUBMITTED) i.p.v. `updatedAt`
-  voor de wachtrij-leeftijd; + composite index `@@index([status, submittedAt])`.
+- ~~**#370 verificatie-wachtrij**~~ **AFGEROND** — dedicated `submittedAt DateTime?` op `Credential`
+  (eenmalig gezet bij → SUBMITTED) i.p.v. `updatedAt` voor de wachtrij-leeftijd; composite index
+  `@@index([status, submittedAt])`; `waitingSince`-fallback voor legacy-records; gewired in
+  `/admin/verificaties` + `admin-stats.ts`; seed-spreiding. Zie PROGRESS.md top.
 - **#371 vervalkalender** (`components/credentials/expiry-overview-card.tsx`): component-test voor
   `ExpiryOverviewCard` (render/labels/empty). _(De misleidende labels zijn al gefixt bij merge.)_
 - **#372 betaalverplichtingen** (`verplichtingen/page.tsx`): scope op `counterpartyUserId` + de
