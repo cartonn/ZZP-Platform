@@ -93,11 +93,9 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Shift-overnames", href: "/admin/shift-overnames", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Helpdesk", href: "/admin/support", icon: "messages", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Opdrachten", href: "/admin/opdrachten", icon: "briefcase", section: "Operatie", enabled: true }, // prettier-ignore
-    { label: "Platform-bewaking", href: "/admin/bewaking", icon: "shield", section: "Toezicht", enabled: true }, // prettier-ignore
-    { label: "DBA-monitor", href: "/admin/dba", icon: "shield", section: "Toezicht", enabled: true }, // prettier-ignore
-    { label: "Verwerkingsregister", href: "/admin/avg", icon: "shield", section: "Toezicht", enabled: true }, // prettier-ignore
-    { label: "Audit log", href: "/admin/audit", icon: "shield", section: "Toezicht", enabled: true }, // prettier-ignore
-    { label: "Statistieken", href: "/admin/statistieken", icon: "barChart", section: "Toezicht", enabled: true }, // prettier-ignore
+    // De vijf toezicht-pagina's (statistieken, platform-bewaking, DBA-monitor, audit-log,
+    // verwerkingsregister) zitten nu als tabs in de toezicht-hub, dus niet meer apart in de zijbalk.
+    { label: "Toezicht", href: "/admin/toezicht", icon: "shield", section: "Toezicht", enabled: true }, // prettier-ignore
     { label: "Gebruikers", href: "/admin/gebruikers", icon: "users", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Bemiddelaars", href: "/admin/franchises", icon: "building", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Importeren", href: "/admin/import", icon: "users", section: "Beheer", enabled: true },
