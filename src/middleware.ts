@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
 import { buildCsp, generateNonce } from "@/lib/csp";
-import { isAdminPath, isFranchisePath } from "@/lib/route-guards";
+import { isAdminPath, isFranchisePath, roleForPath } from "@/lib/route-guards";
 
 const { auth } = NextAuth(authConfig);
 
@@ -95,6 +95,14 @@ export default auth((request) => {
   // /franchise alleen voor de Franchiser (tenant-admin). De platform-admin houdt toezicht
   // via /admin/franchises; tenant-scoping leunt op de eigen tenantId van de Franchiser.
   if (isFranchisePath(pathname) && request.auth.user.role !== "FRANCHISER") {
+    return NextResponse.redirect(new URL("/dashboard", origin));
+  }
+
+  // Overige enkel-rol-gated pagina's (buiten /admin & /franchise) krijgen dezelfde nette redirect
+  // i.p.v. de crashpagina die een ongevangen AuthorizationError oplevert (B1). Spiegelt de
+  // `requireRole(<één rol>)` op die pagina's; die blijft als defense-in-depth staan.
+  const requiredRole = roleForPath(pathname);
+  if (requiredRole && request.auth.user.role !== requiredRole) {
     return NextResponse.redirect(new URL("/dashboard", origin));
   }
 
