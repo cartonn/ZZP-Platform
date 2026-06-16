@@ -91,6 +91,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: TERM_PLURAL.collaboration, href: "/admin/samenwerkingen", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Disputen", href: "/admin/disputen", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "No-shows", href: "/admin/no-shows", icon: "users", section: "Operatie", enabled: true }, // prettier-ignore
+    { label: "Shift-overnames", href: "/admin/shift-overnames", icon: "handshake", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Helpdesk", href: "/admin/support", icon: "messages", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Opdrachten", href: "/admin/opdrachten", icon: "briefcase", section: "Operatie", enabled: true }, // prettier-ignore
     { label: "Platform-bewaking", href: "/admin/bewaking", icon: "shield", section: "Toezicht", enabled: true }, // prettier-ignore
@@ -116,6 +117,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "ZZP'ers", href: "/franchise/zzpers", icon: "users", section: "Franchise", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.shift, href: "/franchise/diensten", icon: "clock", section: "Franchise", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.collaboration, href: "/franchise/samenwerkingen", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
+    { label: "Shift-overnames", href: "/franchise/shift-overnames", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Inzicht", href: "/inzicht", icon: "barChart", section: "Franchise", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.message, href: "/berichten", icon: "messages", section: "Account", enabled: true }, // prettier-ignore
     { label: "Facturatie", href: "/franchise/facturatie", icon: "receipt", section: "Account", enabled: true }, // prettier-ignore

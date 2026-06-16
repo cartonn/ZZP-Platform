@@ -721,6 +721,7 @@ model Collaboration {
   performances  Performance[]
   fee           CollaborationFee?
   noShowReports NoShowReport[]
+  shiftHandoffs ShiftHandoff[]
   reviews       Review[]
 
   // Hot paths: dashboards/admin/zoeken filteren op partij + status (Postgres indexeert FK's niet
@@ -755,6 +756,32 @@ model NoShowReport {
   @@index([freelancerProfileId, verdict])
   @@index([verdict])
   @@index([collaborationId])
+}
+
+// Shift-overname (productbesluit 16-6-2026, concurrentie-backlog punt 3): de huidige ZZP'er van een
+// ACTIEVE samenwerking biedt de inzet ter overname aan ("kan deze inzet niet voortzetten"), eventueel
+// met een voorgestelde overnemer. De franchiser (tenant) of admin keurt de overname-aanvraag goed of
+// af. Spiegelt de no-show-governance: een melder (ZZP'er) opent de aanvraag, een beheerder beoordeelt.
+//
+// VEILIGE SCOPE (Wet-DBA): goedkeuring legt alléén de beslissing vast en informeert; ze verplaatst geen
+// contract/modelovereenkomst en herschikt de samenwerking niet automatisch. De feitelijke herplaatsing
+// blijft via de bestaande annuleer/vervang-flow — een nieuwe ZZP'er heeft een eigen contract nodig.
+model ShiftHandoff {
+  id                    String    @id @default(cuid())
+  collaborationId       String
+  requestedByUserId     String //                userId van de huidige ZZP'er die de overname aanvraagt
+  reason                String //                verplichte reden waarom de inzet niet voortgezet kan worden
+  status                String    @default("OPEN") // ShiftHandoffStatus: OPEN | APPROVED | REJECTED | CANCELLED
+  candidateFreelancerId String? //               FreelancerProfile.id van de voorgestelde overnemer (optioneel)
+  decidedByUserId       String? //               franchiser/admin die besliste
+  decidedAt             DateTime?
+  decisionNote          String? //               verplichte reden bij afwijzing (server-side afgedwongen)
+  createdAt             DateTime  @default(now())
+
+  collaboration Collaboration @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+
+  @@index([collaborationId])
+  @@index([status])
 }
 
 // Tweezijdige beoordeling na een afgeronde samenwerking: beide partijen kunnen elkaar

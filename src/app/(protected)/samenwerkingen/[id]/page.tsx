@@ -25,7 +25,10 @@ import { TurnBanner } from "@/components/ui/turn-banner";
 import { OrtBreakdown } from "@/components/collaborations/ort-breakdown";
 import { ReplacementPanel } from "@/components/collaborations/replacement-panel";
 import { NoShowReportForm } from "@/components/collaborations/no-show-form";
+import { ShiftHandoffForm } from "@/components/collaborations/shift-handoff-form";
+import { ShiftHandoffCancelForm } from "@/components/collaborations/shift-handoff-cancel-form";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
+import { type ShiftHandoffStatus } from "@/lib/enums";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -120,6 +123,18 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       performances: { orderBy: { createdAt: "desc" } },
       invoices: { where: { lifecycleStatus: { not: null } }, orderBy: { createdAt: "desc" } },
       noShowReports: { orderBy: { occurredOn: "desc" }, take: 20 },
+      shiftHandoffs: {
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: {
+          id: true,
+          status: true,
+          reason: true,
+          createdAt: true,
+          decisionNote: true,
+          requestedByUserId: true,
+        },
+      },
       reviews: {
         select: {
           id: true,
@@ -174,6 +189,11 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
 
   const counterparty = isClient ? col.freelancer.user.name : col.company.name;
   const active = col.status === "ACTIVE";
+
+  // Shift-overname (productbesluit 16-6-2026): de huidige ZZP'er kan een actieve inzet ter overname
+  // aanbieden. Maximaal één OPEN aanvraag tegelijk; goedkeuring legt alléén de beslissing vast.
+  const hasOpenHandoff = col.shiftHandoffs.some((h) => h.status === "OPEN");
+  const canOfferHandoff = isFreelancer && active && !frozen && !hasOpenHandoff;
   const weekdays = parseWeekdays(col.weekdays);
 
   // Tweezijdige beoordeling (double-blind reveal): één per partij, alleen binnen het blinde venster.
@@ -392,6 +412,60 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             {isClient && (col.status === "ACTIVE" || col.status === "CANCELLED") && (
               <NoShowReportForm collaborationId={col.id} />
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Shift-overname (productbesluit 16-6-2026): de huidige ZZP'er biedt een actieve inzet ter
+          overname aan; een beheerder/franchiser beoordeelt. Goedkeuring legt alleen de beslissing
+          vast — de herplaatsing (met eigen contract voor de overnemer) blijft een aparte stap. */}
+      {(canOfferHandoff || (isFreelancer && col.shiftHandoffs.length > 0)) && (
+        <Card>
+          <CardContent className="space-y-3 py-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Overname
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Kun je deze inzet niet voortzetten? Bied ze ter overname aan. Een beheerder of
+                franchiser beoordeelt; de overname wordt pas effectief via de gebruikelijke
+                herplaatsing, waarbij de overnemer een eigen contract krijgt.
+              </p>
+            </div>
+            {col.shiftHandoffs.length > 0 && (
+              <ul className="divide-y divide-border">
+                {col.shiftHandoffs.map((h) => {
+                  const status = h.status as ShiftHandoffStatus;
+                  const badge =
+                    status === "OPEN"
+                      ? { label: "In beoordeling", variant: "warning" as const }
+                      : status === "APPROVED"
+                        ? { label: "Goedgekeurd", variant: "success" as const }
+                        : status === "REJECTED"
+                          ? { label: "Afgewezen", variant: "danger" as const }
+                          : { label: "Ingetrokken", variant: "muted" as const };
+                  return (
+                    <li key={h.id} className="space-y-0.5 py-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-medium">
+                          Aangevraagd op {formatDateShortNl(h.createdAt)}
+                        </span>
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Reden: {h.reason}</p>
+                      {status === "REJECTED" && h.decisionNote && (
+                        <p className="text-sm text-muted-foreground">Afgewezen: {h.decisionNote}</p>
+                      )}
+                      {status === "OPEN" &&
+                        isFreelancer &&
+                        h.requestedByUserId === actor.id &&
+                        !frozen && <ShiftHandoffCancelForm handoffId={h.id} />}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {canOfferHandoff && <ShiftHandoffForm collaborationId={col.id} />}
           </CardContent>
         </Card>
       )}

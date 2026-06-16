@@ -263,6 +263,27 @@ export const noShowReportSchema = z.object({
 });
 export type NoShowReportInput = z.infer<typeof noShowReportSchema>;
 
+// --- Shift-overname: de huidige ZZP'er biedt een actieve inzet ter overname aan ---
+export const shiftHandoffRequestSchema = z.object({
+  reason: trimmed(500).min(
+    5,
+    "Geef aan waarom je deze inzet niet kunt voortzetten (minimaal 5 tekens).",
+  ),
+  // Optionele voorgestelde overnemer (FreelancerProfile.id); lege string => geen voorstel.
+  candidateFreelancerId: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
+});
+export type ShiftHandoffRequestInput = z.infer<typeof shiftHandoffRequestSchema>;
+
+// --- Shift-overname: afwijzing vereist een reden (server-side afgedwongen) ---
+export const shiftHandoffRejectSchema = z.object({
+  note: trimmed(500).min(5, "Geef een reden voor de afwijzing (minimaal 5 tekens)."),
+});
+export type ShiftHandoffRejectInput = z.infer<typeof shiftHandoffRejectSchema>;
+
 // --- Factuurregel (unitCents wordt server-side uit euro's berekend) ---
 export const invoiceLineSchema = z.object({
   description: trimmed(200).min(1, "Omschrijving is verplicht."),
