@@ -9,9 +9,12 @@ import {
   Receipt,
   FolderOpen,
   History,
+  AlertTriangle,
 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getRosterDossier, type RosterDossier } from "@/lib/franchise/roster-dossier";
+import { summarizeExpiry } from "@/lib/credential-expiry-overview";
+import { plural } from "@/lib/plural";
 import { type PerformanceState } from "@/lib/lifecycles";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { formatEuro } from "@/lib/invoices";
@@ -26,7 +29,6 @@ import { EngageabilityBadge } from "@/components/engageability-badge";
 import { EngageabilityExplanation } from "@/components/engageability-explanation";
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
-import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "ZZP'er · Franchise" };
 
@@ -74,6 +76,10 @@ export default async function RosterDetailPage({
   const tab: Tab = (TABS as readonly string[]).includes(sp.tab ?? "") ? (sp.tab as Tab) : "profiel";
   const { profile, counts } = dossier;
 
+  // Proactief vervalsignaal: meest urgente verlopende/verlopen certificaten bovenaan, zodat de
+  // franchiser actie kan ondernemen vóórdat een verplicht bewijsstuk verloopt.
+  const expiry = summarizeExpiry(dossier.credentials);
+
   const tabCount: Record<Tab, number | null> = {
     profiel: null,
     overeenkomsten: counts.collaborations,
@@ -113,6 +119,8 @@ export default async function RosterDetailPage({
         }
       />
 
+      {expiry.total > 0 && <ExpiryAlertBand expiry={expiry} />}
+
       <nav className="flex flex-wrap gap-2 text-sm" aria-label="Dossier-onderdelen">
         {TABS.map((t) => {
           const active = t === tab;
@@ -145,6 +153,44 @@ export default async function RosterDetailPage({
       {tab === "facturen" && <FacturenTab dossier={dossier} />}
       {tab === "bestanden" && <BestandenTab dossier={dossier} />}
       {tab === "logboek" && <LogboekTab dossier={dossier} />}
+    </div>
+  );
+}
+
+function ExpiryAlertBand({ expiry }: { expiry: ReturnType<typeof summarizeExpiry> }) {
+  // Toon de twee meest urgente bewijsstukken expliciet; de rest in een telling.
+  const lead = expiry.items.slice(0, 2);
+  const rest = expiry.total - lead.length;
+  // Verlopen = danger, anders bijna-verlopen = warning. Eén band, geen kaart-in-kaart.
+  const hasExpired = expiry.expired > 0;
+  const tone = hasExpired
+    ? "border-danger/30 bg-danger/10 text-danger"
+    : "border-warning/30 bg-warning/15 text-warning";
+
+  const heading = hasExpired
+    ? `${plural(expiry.expired, "certificaat is", "certificaten zijn")} verlopen`
+    : `${plural(expiry.total, "certificaat verloopt", "certificaten verlopen")} binnenkort`;
+
+  return (
+    <div className={`flex items-start gap-3 rounded-lg border p-4 ${tone}`} role="status">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+      <div className="min-w-0 text-sm">
+        <p className="font-medium">{heading}</p>
+        <p className="mt-0.5 text-xs">
+          {lead.map((i, idx) => (
+            <span key={i.id}>
+              {idx > 0 && " · "}
+              {i.title}{" "}
+              {i.days < 0
+                ? "verlopen"
+                : i.days === 0
+                  ? "verloopt vandaag"
+                  : `verloopt over ${i.days} d`}
+            </span>
+          ))}
+          {rest > 0 && ` · +${plural(rest, "ander bewijsstuk", "andere bewijsstukken")}`}
+        </p>
+      </div>
     </div>
   );
 }

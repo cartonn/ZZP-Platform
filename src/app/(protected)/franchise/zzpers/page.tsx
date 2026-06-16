@@ -7,8 +7,15 @@ import { tenantScopeWhere } from "@/lib/tenancy";
 import { type Availability } from "@/lib/enums";
 import { type FreelancerCredential } from "@/lib/matching";
 import { computeEngageability } from "@/lib/engageability";
+import {
+  summarizeExpiryAlert,
+  expiryAlertLabel,
+  expiryAlertTone,
+} from "@/lib/franchise/credential-alerts";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EngageabilityBadge } from "@/components/engageability-badge";
 import { plural } from "@/lib/plural";
@@ -31,6 +38,22 @@ export default async function FranchiseZzpersPage() {
     }),
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
+
+  const expiryAlertById = new Map(
+    freelancers.map((f) => [
+      f.id,
+      summarizeExpiryAlert(
+        f.credentials.map((c) => ({
+          id: `${f.id}:${c.type}`,
+          title: CREDENTIAL_TYPE_LABEL[c.type as keyof typeof CREDENTIAL_TYPE_LABEL] ?? c.type,
+          type: c.type as FreelancerCredential["type"],
+          status: c.status as FreelancerCredential["status"],
+          expiresAt: c.expiresAt,
+        })),
+        now,
+      ),
+    ]),
+  );
 
   const engageabilityById = new Map(
     freelancers.map((f) => [
@@ -84,6 +107,9 @@ export default async function FranchiseZzpersPage() {
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {freelancers.map((f) => {
             const eng = engageabilityById.get(f.id)!;
+            const alert = expiryAlertById.get(f.id)!;
+            const alertLabel = expiryAlertLabel(alert);
+            const alertTone = expiryAlertTone(alert);
             return (
               <Link
                 key={f.id}
@@ -110,6 +136,11 @@ export default async function FranchiseZzpersPage() {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  {alertLabel && alertTone && (
+                    <Badge variant={alertTone} className="hidden sm:inline-flex">
+                      {alertLabel}
+                    </Badge>
+                  )}
                   <EngageabilityBadge status={eng.status} />
                   <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
                 </div>
