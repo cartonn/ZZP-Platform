@@ -36,8 +36,9 @@ test("FREELANCER logt in en ziet role-aware dashboard", async ({ page }) => {
   // Profielkaart-kop: de h1 toont de naam (publieke-profiel-stijl), de werkplek staat erboven.
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Sanne");
   await expect(page.getByText("ZZP-werkplek")).toBeVisible();
-  // role-aware nav: freelancer ziet "Certificaten", niet "Verificaties"
-  await expect(nav.getByText("Certificaten")).toBeVisible();
+  // role-aware nav: freelancer ziet "Mijn profiel" (de hub), niet "Verificaties".
+  // (Certificaten/Beschikbaarheid/Documenten zitten nu in de profiel-hub-tabs, niet in de zijbalk.)
+  await expect(nav.getByText("Mijn profiel")).toBeVisible();
   await expect(nav.getByText("Verificaties")).toHaveCount(0);
   await shot(page, "02-dashboard-freelancer");
 });
