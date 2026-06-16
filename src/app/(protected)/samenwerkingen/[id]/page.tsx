@@ -26,6 +26,7 @@ import { OrtBreakdown } from "@/components/collaborations/ort-breakdown";
 import { ReplacementPanel } from "@/components/collaborations/replacement-panel";
 import { NoShowReportForm } from "@/components/collaborations/no-show-form";
 import { ShiftHandoffForm } from "@/components/collaborations/shift-handoff-form";
+import { ShiftHandoffCancelForm } from "@/components/collaborations/shift-handoff-cancel-form";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
 import { type ShiftHandoffStatus } from "@/lib/enums";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
@@ -125,7 +126,14 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       shiftHandoffs: {
         orderBy: { createdAt: "desc" },
         take: 10,
-        select: { id: true, status: true, reason: true, createdAt: true, decisionNote: true },
+        select: {
+          id: true,
+          status: true,
+          reason: true,
+          createdAt: true,
+          decisionNote: true,
+          requestedByUserId: true,
+        },
       },
       reviews: {
         select: {
@@ -448,6 +456,10 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                       {status === "REJECTED" && h.decisionNote && (
                         <p className="text-sm text-muted-foreground">Afgewezen: {h.decisionNote}</p>
                       )}
+                      {status === "OPEN" &&
+                        isFreelancer &&
+                        h.requestedByUserId === actor.id &&
+                        !frozen && <ShiftHandoffCancelForm handoffId={h.id} />}
                     </li>
                   );
                 })}

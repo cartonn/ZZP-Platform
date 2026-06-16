@@ -117,7 +117,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "ZZP'ers", href: "/franchise/zzpers", icon: "users", section: "Franchise", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.shift, href: "/franchise/diensten", icon: "clock", section: "Franchise", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.collaboration, href: "/franchise/samenwerkingen", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
-    { label: "Shift-overnames", href: "/admin/shift-overnames", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
+    { label: "Shift-overnames", href: "/franchise/shift-overnames", icon: "handshake", section: "Franchise", enabled: true }, // prettier-ignore
     { label: "Inzicht", href: "/inzicht", icon: "barChart", section: "Franchise", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.message, href: "/berichten", icon: "messages", section: "Account", enabled: true }, // prettier-ignore
     { label: "Facturatie", href: "/franchise/facturatie", icon: "receipt", section: "Account", enabled: true }, // prettier-ignore

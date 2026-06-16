@@ -14,7 +14,10 @@ import { assertSameTenant } from "@/lib/tenancy";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { assertHandoffTransition } from "@/lib/shift-handoff";
+import { type ShiftHandoffStatus } from "@/lib/enums";
 import { shiftHandoffRejectSchema } from "@/lib/validation";
+
+export type ShiftHandoffDecisionState = { error?: string; ok?: boolean } | undefined;
 
 /** Laadt een OPEN handoff + dwingt tenant-isolatie af. Werpt bij ontbreken/cross-tenant/al-beslist. */
 async function loadDecidableHandoff(handoffId: string, actor: Actor) {
@@ -32,22 +35,43 @@ async function loadDecidableHandoff(handoffId: string, actor: Actor) {
   if (!handoff) throw new Error("Overname-aanvraag niet gevonden.");
   // Tenant-isolatie: een franchiser beslist alleen binnen de eigen tenant; ADMIN mag alles.
   assertSameTenant(actor, handoff.collaboration.job.tenantId);
-  if (handoff.status !== "OPEN") throw new Error("Deze aanvraag is al beoordeeld.");
+  if (handoff.status !== "OPEN") throw new Error("Dit verzoek is al beoordeeld.");
   return handoff;
 }
 
-export async function approveShiftHandoff(handoffId: string): Promise<void> {
-  const actor = await requireRole("ADMIN", "FRANCHISER");
-  const handoff = await loadDecidableHandoff(handoffId, actor);
+/** Beide routes (admin + franchise) tonen dezelfde lijst; revalideer ze samen. */
+function revalidateGovernance(collaborationId: string) {
+  revalidatePath("/admin/shift-overnames");
+  revalidatePath("/franchise/shift-overnames");
+  revalidatePath(`/samenwerkingen/${collaborationId}`);
+}
 
-  // Statusovergang via de expliciete map (OPEN → APPROVED).
-  assertHandoffTransition("OPEN", "APPROVED");
+export async function approveShiftHandoff(
+  handoffId: string,
+  _prev: ShiftHandoffDecisionState,
+): Promise<ShiftHandoffDecisionState> {
+  const actor = await requireRole("ADMIN", "FRANCHISER");
+
+  let handoff;
+  try {
+    handoff = await loadDecidableHandoff(handoffId, actor);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Aanvraag kon niet worden beoordeeld." };
+  }
+
+  // Statusovergang via de expliciete map, op basis van de GEFETCHTE status (OPEN → APPROVED).
+  assertHandoffTransition(handoff.status as ShiftHandoffStatus, "APPROVED");
+
+  // Atomaire status-guard: alleen een nog-OPEN aanvraag wordt beslist. Bij een gelijktijdige
+  // tweede beslissing schrijft alleen de eerste; de tweede ziet count===0 en stopt vóór de
+  // notificatie/audit (geen dubbele schrijf, geen dubbele notificatie).
+  const updated = await prisma.shiftHandoff.updateMany({
+    where: { id: handoffId, status: "OPEN" },
+    data: { status: "APPROVED", decidedByUserId: actor.id, decidedAt: new Date() },
+  });
+  if (updated.count !== 1) return { error: "Dit verzoek is al beoordeeld." };
 
   await prisma.$transaction([
-    prisma.shiftHandoff.update({
-      where: { id: handoffId },
-      data: { status: "APPROVED", decidedByUserId: actor.id, decidedAt: new Date() },
-    }),
     // De ZZP'er hoort het oordeel; de tekst maakt expliciet dat herplaatsing een aparte stap blijft.
     prisma.notification.create({
       data: {
@@ -72,11 +96,11 @@ export async function approveShiftHandoff(handoffId: string): Promise<void> {
     }),
   ]);
 
-  revalidatePath("/admin/shift-overnames");
-  revalidatePath(`/samenwerkingen/${handoff.collaboration.id}`);
+  revalidateGovernance(handoff.collaboration.id);
+  return { ok: true };
 }
 
-export type ShiftHandoffRejectState = { error?: string; ok?: boolean } | undefined;
+export type ShiftHandoffRejectState = ShiftHandoffDecisionState;
 
 export async function rejectShiftHandoff(
   handoffId: string,
@@ -95,19 +119,22 @@ export async function rejectShiftHandoff(
     return { error: err instanceof Error ? err.message : "Aanvraag kon niet worden beoordeeld." };
   }
 
-  // Statusovergang via de expliciete map (OPEN → REJECTED).
-  assertHandoffTransition("OPEN", "REJECTED");
+  // Statusovergang via de expliciete map, op basis van de GEFETCHTE status (OPEN → REJECTED).
+  assertHandoffTransition(handoff.status as ShiftHandoffStatus, "REJECTED");
+
+  // Atomaire status-guard tegen een dubbele beslissing (zie approveShiftHandoff).
+  const updated = await prisma.shiftHandoff.updateMany({
+    where: { id: handoffId, status: "OPEN" },
+    data: {
+      status: "REJECTED",
+      decidedByUserId: actor.id,
+      decidedAt: new Date(),
+      decisionNote: parsed.data.note,
+    },
+  });
+  if (updated.count !== 1) return { error: "Dit verzoek is al beoordeeld." };
 
   await prisma.$transaction([
-    prisma.shiftHandoff.update({
-      where: { id: handoffId },
-      data: {
-        status: "REJECTED",
-        decidedByUserId: actor.id,
-        decidedAt: new Date(),
-        decisionNote: parsed.data.note,
-      },
-    }),
     prisma.notification.create({
       data: {
         userId: handoff.requestedByUserId,
@@ -130,7 +157,6 @@ export async function rejectShiftHandoff(
     }),
   ]);
 
-  revalidatePath("/admin/shift-overnames");
-  revalidatePath(`/samenwerkingen/${handoff.collaboration.id}`);
+  revalidateGovernance(handoff.collaboration.id);
   return { ok: true };
 }

@@ -13,7 +13,8 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { canRequestHandoff } from "@/lib/shift-handoff";
+import { assertHandoffTransition, canRequestHandoff } from "@/lib/shift-handoff";
+import { type ShiftHandoffStatus } from "@/lib/enums";
 import { shiftHandoffRequestSchema } from "@/lib/validation";
 
 export type ShiftHandoffRequestState = { error?: string; ok?: boolean } | undefined;
@@ -38,6 +39,7 @@ export async function requestShiftHandoff(
     select: {
       id: true,
       status: true,
+      disputedAt: true,
       freelancer: { select: { userId: true } },
       job: { select: { title: true, tenantId: true } },
     },
@@ -57,12 +59,11 @@ export async function requestShiftHandoff(
     };
   }
 
-  // Maximaal één OPEN aanvraag per samenwerking (server-side afgedwongen).
-  const existing = await prisma.shiftHandoff.findFirst({
-    where: { collaborationId, status: "OPEN" },
-    select: { id: true },
-  });
-  if (existing) return { error: "Er staat al een openstaande overname-aanvraag voor deze inzet." };
+  // Bevroren bij dispuut: de UI verbergt deze actie tijdens een dispuut, maar een directe POST
+  // mag die rem niet omzeilen (server is de waarheid).
+  if (collaboration.disputedAt) {
+    return { error: "Niet mogelijk tijdens een lopend dispuut." };
+  }
 
   // Een voorgestelde overnemer moet binnen dezelfde tenant vallen (tenant-isolatie) en niet de
   // huidige ZZP'er zelf zijn. Bij een platform-inzet (tenantId null) moet de kandidaat ook tenantloos
@@ -81,15 +82,24 @@ export async function requestShiftHandoff(
     candidateFreelancerId = candidate.id;
   }
 
-  // actie + audit (atomair).
-  const handoff = await prisma.shiftHandoff.create({
-    data: {
-      collaborationId,
-      requestedByUserId: actor.id,
-      reason: parsed.data.reason,
-      candidateFreelancerId,
-    },
+  // actie: maximaal één OPEN aanvraag per samenwerking. De check + create worden in één interactieve
+  // transactie geserialiseerd, zodat twee gelijktijdige aanvragen er niet beide doorheen glippen.
+  const handoff = await prisma.$transaction(async (tx) => {
+    const existing = await tx.shiftHandoff.findFirst({
+      where: { collaborationId, status: "OPEN" },
+      select: { id: true },
+    });
+    if (existing) return null;
+    return tx.shiftHandoff.create({
+      data: {
+        collaborationId,
+        requestedByUserId: actor.id,
+        reason: parsed.data.reason,
+        candidateFreelancerId,
+      },
+    });
   });
+  if (!handoff) return { error: "Er staat al een openstaande overname-aanvraag voor deze inzet." };
 
   // De franchiser (tenant-eigenaar) en/of de admins beoordelen de aanvraag. Tenant-isolatie: bij een
   // tenant-inzet wordt de franchiser geïnformeerd; admins zien alles platformbreed.
@@ -100,12 +110,19 @@ export async function requestShiftHandoff(
     take: 50,
   });
   for (const a of admins) recipients.set(a.id, true);
+  // De franchise-eigenaar beoordeelt op zijn eigen route; admins op de admin-route. Onthoud
+  // welke recipient de tenant-eigenaar is, zodat zijn notificatie naar /franchise/... linkt
+  // (de admin-route zou hem via de middleware terug naar het dashboard sturen).
+  let tenantOwnerUserId: string | null = null;
   if (collaboration.job.tenantId) {
     const tenant = await prisma.tenant.findUnique({
       where: { id: collaboration.job.tenantId },
       select: { ownerUserId: true, owner: { select: { status: true } } },
     });
-    if (tenant?.owner.status === "ACTIVE") recipients.set(tenant.ownerUserId, true);
+    if (tenant?.owner.status === "ACTIVE") {
+      recipients.set(tenant.ownerUserId, true);
+      tenantOwnerUserId = tenant.ownerUserId;
+    }
   }
 
   await prisma.$transaction([
@@ -118,7 +135,8 @@ export async function requestShiftHandoff(
           body:
             `Een ZZP'er kan de inzet "${collaboration.job.title}" niet voortzetten en biedt deze ` +
             `ter overname aan. Beoordeel de aanvraag.`,
-          link: `/admin/shift-overnames`,
+          link:
+            userId === tenantOwnerUserId ? `/franchise/shift-overnames` : `/admin/shift-overnames`,
         },
       }),
     ),
@@ -138,5 +156,62 @@ export async function requestShiftHandoff(
 
   revalidatePath(`/samenwerkingen/${collaborationId}`);
   revalidatePath("/admin/shift-overnames");
+  revalidatePath("/franchise/shift-overnames");
+  return { ok: true };
+}
+
+export type ShiftHandoffCancelState = { error?: string; ok?: boolean } | undefined;
+
+/**
+ * De aanvragende ZZP'er trekt een nog-OPEN overname-aanvraag in (OPEN → CANCELLED).
+ *
+ * Mutatieketen: auth → rol (FREELANCER) → ownership (de actor is de aanvrager van een OPEN
+ * aanvraag) → transitie via de map → atomaire status-guard → audit. Geen notificatie nodig:
+ * de beoordelaars hoeven niet apart te worden geïnformeerd dat een aanvraag is teruggetrokken
+ * (ze zien ze simpelweg niet meer in hun queue).
+ */
+export async function cancelShiftHandoff(
+  handoffId: string,
+  _prev: ShiftHandoffCancelState,
+): Promise<ShiftHandoffCancelState> {
+  const actor = await requireRole("FREELANCER");
+
+  const handoff = await prisma.shiftHandoff.findUnique({
+    where: { id: handoffId },
+    select: { id: true, status: true, requestedByUserId: true, collaborationId: true },
+  });
+  if (!handoff) return { error: "Overname-aanvraag niet gevonden." };
+  // ownership: alleen de ZZP'er die de aanvraag opende mag ze intrekken.
+  if (handoff.requestedByUserId !== actor.id) {
+    return { error: "Alleen de aanvrager kan deze overname-aanvraag intrekken." };
+  }
+
+  // Transitie via de expliciete map (OPEN → CANCELLED), op basis van de gefetchte status.
+  try {
+    assertHandoffTransition(handoff.status as ShiftHandoffStatus, "CANCELLED");
+  } catch {
+    return { error: "Deze aanvraag is al beoordeeld of ingetrokken." };
+  }
+
+  // Atomaire status-guard: alleen een nog-OPEN aanvraag wordt ingetrokken (geen dubbele intrekking).
+  const updated = await prisma.shiftHandoff.updateMany({
+    where: { id: handoffId, status: "OPEN" },
+    data: { status: "CANCELLED" },
+  });
+  if (updated.count !== 1) return { error: "Deze aanvraag is al beoordeeld of ingetrokken." };
+
+  await prisma.auditLog.create({
+    data: auditData({
+      actorId: actor.id,
+      action: "SHIFT_HANDOFF_CANCELLED",
+      entityType: "ShiftHandoff",
+      entityId: handoffId,
+      metadata: { collaborationId: handoff.collaborationId },
+    }),
+  });
+
+  revalidatePath(`/samenwerkingen/${handoff.collaborationId}`);
+  revalidatePath("/admin/shift-overnames");
+  revalidatePath("/franchise/shift-overnames");
   return { ok: true };
 }

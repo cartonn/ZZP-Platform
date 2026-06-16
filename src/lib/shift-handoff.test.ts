@@ -44,6 +44,14 @@ describe("assertHandoffTransition", () => {
     expect(() => assertHandoffTransition("OPEN", "APPROVED")).not.toThrow();
   });
 
+  it("laat OPEN → CANCELLED door (intrekken door de aanvrager) maar weigert het omgekeerde", () => {
+    expect(() => assertHandoffTransition("OPEN", "CANCELLED")).not.toThrow();
+    expect(() => assertHandoffTransition("CANCELLED", "OPEN")).toThrow(ShiftHandoffTransitionError);
+    expect(() => assertHandoffTransition("CANCELLED", "APPROVED")).toThrow(
+      ShiftHandoffTransitionError,
+    );
+  });
+
   it("werpt ShiftHandoffTransitionError bij een ongeldige overgang", () => {
     expect(() => assertHandoffTransition("APPROVED", "REJECTED")).toThrow(
       ShiftHandoffTransitionError,
