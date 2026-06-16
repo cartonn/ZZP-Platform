@@ -117,6 +117,149 @@ export function buildRosterCalendar(
   return { days, total, beyondHorizon };
 }
 
+/** Een vastgelegde/geboekte samenwerking van de ZZP'er zelf (ADR-0004 weekrooster). */
+export interface BookedCollaborationInput {
+  collaborationId: string;
+  jobTitle: string;
+  clientName: string;
+  rate: number | null; // uurtarief in EURO, of null
+  startDate: Date | null;
+  endDate: Date | null;
+  weekdays?: Weekday[]; // ADR-0004; leeg/ontbrekend = niet vastgelegd
+}
+
+/** Eén geprojecteerde geplande dienst op een agendadag. */
+export interface BookedShiftEntry {
+  collaborationId: string;
+  jobTitle: string;
+  clientName: string;
+  rate: number | null;
+  scheduled: boolean; // true = uit vastgelegd weekrooster; false = afgeleid uit looptijd
+}
+
+/** Eén agendadag: jouw geplande diensten plus open kansen die dag. */
+export interface AgendaDay {
+  date: Date; // UTC-middernacht van de kalenderdag
+  weekday: Weekday; // "MON".."SUN"
+  isToday: boolean;
+  booked: BookedShiftEntry[]; // jouw geplande diensten die dag
+  open: RosterShiftInput[]; // open kansen die dag (1-op-1 uit de RosterCalendar-dag)
+}
+
+/** Geïntegreerde agenda: eigen geplande diensten over de open-kansen-kalender. */
+export interface Agenda {
+  days: AgendaDay[]; // dagen met booked OF open, oplopend op datum
+  openTotal: number; // = open.total
+  bookedTotal: number; // som van booked-entries over alle dagen
+  beyondHorizon: number; // = open.beyondHorizon
+}
+
+/**
+ * Legt de eigen geboekte/geplande diensten van een ZZP'er over de open-kansen-kalender,
+ * zodat /rooster een echte agenda kan tonen. Pure logica, muteert geen enkele input.
+ *
+ * Projectie per samenwerking over de horizon (vanaf vandaag t/m horizonDays dagen):
+ * - Open start → loopt al, vanaf vandaag; open eind → t/m de horizon.
+ * - Venster geklemd op [vandaag, horizon]; venster met start > eind draagt niets bij.
+ * - Met niet-lege `weekdays`: alleen op die weekdagen (scheduled=true).
+ * - Zonder/lege `weekdays`: elke dag in het venster (scheduled=false).
+ */
+export function buildAgenda(
+  open: RosterCalendar,
+  collaborations: readonly BookedCollaborationInput[],
+  now: Date = new Date(),
+  horizonDays = 21,
+): Agenda {
+  const todayMs = utcMidnightMs(now);
+  const horizonMs = todayMs + horizonDays * 86_400_000;
+
+  // Start vanuit de open-kansen-kalender: één AgendaDay per dag met open diensten.
+  const dayIndex = new Map<number, number>();
+  const days: AgendaDay[] = [];
+
+  for (const day of open.days) {
+    const dayMs = day.date.getTime();
+    const idx = days.length;
+    dayIndex.set(dayMs, idx);
+    days.push({
+      date: day.date,
+      weekday: day.weekday,
+      isToday: day.isToday,
+      booked: [],
+      open: day.shifts, // overnemen, niet hersorteren
+    });
+  }
+
+  const ensureDay = (dayMs: number): AgendaDay => {
+    const existing = dayIndex.get(dayMs);
+    if (existing !== undefined) return days[existing]!;
+    const idx = days.length;
+    dayIndex.set(dayMs, idx);
+    const date = new Date(dayMs);
+    const agendaDay: AgendaDay = {
+      date,
+      weekday: utcDayToWeekday(date.getUTCDay()),
+      isToday: dayMs === todayMs,
+      booked: [],
+      open: [],
+    };
+    days.push(agendaDay);
+    return agendaDay;
+  };
+
+  for (const collab of collaborations) {
+    // Actief venster bepalen, geklemd op [vandaag, horizon].
+    let winStart = collab.startDate ? utcMidnightMs(collab.startDate) : todayMs;
+    let winEnd = collab.endDate ? utcMidnightMs(collab.endDate) : horizonMs;
+    winStart = Math.max(winStart, todayMs);
+    winEnd = Math.min(winEnd, horizonMs);
+    if (winStart > winEnd) continue; // volledig in verleden of na de horizon
+
+    const hasWeekdays = collab.weekdays !== undefined && collab.weekdays.length > 0;
+
+    for (let dayMs = winStart; dayMs <= winEnd; dayMs += 86_400_000) {
+      let scheduled: boolean;
+      if (hasWeekdays) {
+        const weekday = utcDayToWeekday(new Date(dayMs).getUTCDay());
+        if (!collab.weekdays!.includes(weekday)) continue;
+        scheduled = true;
+      } else {
+        scheduled = false;
+      }
+      ensureDay(dayMs).booked.push({
+        collaborationId: collab.collaborationId,
+        jobTitle: collab.jobTitle,
+        clientName: collab.clientName,
+        rate: collab.rate,
+        scheduled,
+      });
+    }
+  }
+
+  // Dagen oplopend op datum.
+  days.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  // Booked binnen een dag: clientName, dan jobTitle, dan collaborationId.
+  for (const day of days) {
+    day.booked.sort((a, b) => {
+      const byClient = a.clientName.localeCompare(b.clientName);
+      if (byClient !== 0) return byClient;
+      const byTitle = a.jobTitle.localeCompare(b.jobTitle);
+      if (byTitle !== 0) return byTitle;
+      return a.collaborationId.localeCompare(b.collaborationId);
+    });
+  }
+
+  const bookedTotal = days.reduce((sum, d) => sum + d.booked.length, 0);
+
+  return {
+    days,
+    openTotal: open.total,
+    bookedTotal,
+    beyondHorizon: open.beyondHorizon,
+  };
+}
+
 /** Drempel waarboven een dienst als "sterke match" voor de ZZP'er telt. */
 export const ROSTER_STRONG_MATCH_MIN = 70;
 
