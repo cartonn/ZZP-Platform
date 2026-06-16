@@ -74,9 +74,10 @@ test("verlopen factuur vraagt aandacht op dashboard en zijbalk", async ({ page, 
   // Het systeem trekt het verband: op het dashboard én de zijbalk.
   await fp.goto("/dashboard");
   await expect(fp.getByText(/over de vervaldatum/)).toBeVisible();
+  // Facturen zitten nu in de Administratie-hub (/financien); de overdue-badge hangt aan dat item.
   const facturenNav = fp
     .locator('nav[aria-label="Hoofdnavigatie"]')
-    .getByRole("link", { name: /Facturen/ });
+    .getByRole("link", { name: /Administratie/ });
   await expect(facturenNav).toContainText("1");
   await shot(fp, "31-overdue-invoice");
 

@@ -33,14 +33,8 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // beperkt (een ZZP'er heeft doorgaans < 100 actieve reacties).
   { file: "(protected)/reacties/page.tsx", line: 54, reason: "eigenaar-scoped, inherent begrensd" },
 
-  // --- administratie/page.tsx ---
-  // Boekhoudregels van één gebruiker; aggregatiequery die alle regels nodig heeft
-  // voor saldo/btw-berekening (paginatie niet zinvol hier).
-  {
-    file: "(protected)/administratie/page.tsx",
-    line: 77,
-    reason: "volledig financieel overzicht vereist alle regels van eigenaar",
-  },
+  // (De boekhoud-findMany van /administratie is verplaatst naar de BoekhoudingPanel onder
+  // src/components/administratie; panels worden niet door deze vangrail gescand.)
 
   // --- beschikbaarheid/page.tsx ---
   // Beschikbaarheidvensters van één freelancer; kalender-aggregatie die de
@@ -178,22 +172,9 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     reason: "eigenaar-scoped keuzelijst; inherent klein",
   },
 
-  // --- facturen/(index)/page.tsx ---
-  // Volledige factuurhistorie van één gebruiker; aggregatiesommen vereisen alle
-  // facturen van de gebruiker.
-  {
-    file: "(protected)/facturen/(index)/page.tsx",
-    line: 41,
-    reason: "eigenaar-scoped; aggregatiesommen vereisen volledigheid",
-  },
-
-  // --- openstaand/page.tsx ---
-  // Openstaande facturen van één gebruiker; eigenaar-scoped en inherent klein.
-  {
-    file: "(protected)/openstaand/page.tsx",
-    line: 32,
-    reason: "eigenaar-scoped openstaande facturen; inherent klein",
-  },
+  // (De factuur- en openstaand-findMany's van /facturen en /openstaand zijn verplaatst naar de
+  // FacturenPanel/OpenstaandPanel onder src/components/administratie; panels worden niet door
+  // deze vangrail gescand.)
 
   // --- ideeen/actions.ts ---
   // Stemgevers ophalen voor een specifiek idee; maximaal het totaal aantal gebruikers
@@ -447,13 +428,8 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     reason: "eigenaar-scoped aggregatie voor aangifte-pagina",
   },
 
-  // --- ontzorgd/page.tsx ---
-  // Ontzorgd-overzicht; eigenaar-scoped samenwerkingen.
-  {
-    file: "(protected)/ontzorgd/page.tsx",
-    line: 62,
-    reason: "eigenaar-scoped samenwerkingen voor ontzorgd-overzicht",
-  },
+  // (De ontzorgd-findMany van /ontzorgd is verplaatst naar de OntzorgdPanel onder
+  // src/components/administratie; panels worden niet door deze vangrail gescand.)
 
   // --- kandidaten/page.tsx ---
   // Kandidaten (freelancers) voor een opdrachtgever; gefilterd en beperkt door matching.

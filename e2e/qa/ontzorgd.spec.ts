@@ -24,10 +24,13 @@ test.describe("QA: Ontzorgd-dashboard", () => {
     await shot(page, "ontzorgd-freelancer");
   });
 
-  test("nav bevat Ontzorgd voor de ZZP'er", async ({ page }) => {
+  test("nav bevat Administratie-hub met Ontzorgd-tab voor de ZZP'er", async ({ page }) => {
     await login(page, "zzp@zzp-platform.local");
+    // Ontzorgd zit nu als tab in de Administratie-hub (/financien), niet meer los in de zijbalk.
     const nav = page.getByRole("navigation", { name: "Hoofdnavigatie" });
-    await expect(nav.getByText("Ontzorgd")).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Administratie" })).toBeVisible();
+    await page.goto("/financien");
+    await expect(page.getByRole("link", { name: "Ontzorgd" })).toBeVisible();
   });
 
   test("opdrachtgever wordt doorgestuurd (geen eigen ontzorg-scherm)", async ({ page }) => {
