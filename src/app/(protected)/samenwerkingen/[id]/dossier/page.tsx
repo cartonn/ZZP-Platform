@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { buildComplianceDossier, type DossierInput } from "@/lib/compliance/dossier";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
+import { inzetvormSignaal } from "@/lib/inzetvorm-signaal";
+import { type DbaRisk } from "@/lib/dba";
 
 export const metadata: Metadata = { title: "Compliance-dossier · ZZP Platform" };
 
@@ -76,6 +78,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
     createdAt: col.createdAt,
   };
   const dossier = buildComplianceDossier(input);
+  const signaal = inzetvormSignaal(col.job.dbaRisk as DbaRisk | null);
   const totalInvoiced = col.invoices.reduce((s, i) => s + i.totalCents, 0);
 
   return (
@@ -116,6 +119,26 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
           </Card>
         ))}
       </section>
+
+      {/* Eén-regel inzetvorm-guidance: dezelfde synthese van het DBA-risico als bij de plaatsing,
+          consistent met de franchise-dienstweergave. Signalering, geen juridisch oordeel. */}
+      <Card
+        className={
+          signaal.tone === "danger"
+            ? "border-danger/40"
+            : signaal.tone === "warning"
+              ? "border-warning/40"
+              : "border-success/40"
+        }
+      >
+        <CardContent className="flex flex-wrap items-center justify-between gap-2 py-3">
+          <div>
+            <p className="text-sm font-medium">Inzetvorm</p>
+            <p className="text-sm text-muted-foreground">{signaal.hint}</p>
+          </div>
+          <Badge variant={signaal.tone}>{signaal.label}</Badge>
+        </CardContent>
+      </Card>
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold">Totaal gefactureerd</h2>

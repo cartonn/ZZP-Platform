@@ -29,6 +29,8 @@ export interface DienstDetail {
   rateMax: number | null;
   companyName: string;
   departmentName: string | null;
+  /** Reeds server-berekend DBA-risico van de dienst (DbaRisk: LAAG | MIDDEN | HOOG), of null. */
+  dbaRisk: string | null;
   applicants: DienstApplicant[];
 }
 
@@ -110,6 +112,7 @@ export async function getDienstDetail(actor: Actor, jobId: string): Promise<Dien
     rateMax: job.rateMax,
     companyName: job.company.name,
     departmentName: job.department?.name ?? null,
+    dbaRisk: job.dbaRisk,
     applicants,
   };
 }

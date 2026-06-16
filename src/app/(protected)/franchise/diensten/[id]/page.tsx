@@ -1,12 +1,15 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Users, CircleAlert } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getDienstDetail } from "@/lib/franchise/dienst-detail";
 import { JOB_TRANSITIONS } from "@/lib/jobs";
 import { type JobStatus, type ApplicationStatus, type WorkMode } from "@/lib/enums";
 import { type ComplianceStatus } from "@/lib/matching";
+import { type DbaRisk } from "@/lib/dba";
+import { inzetvormSignaal } from "@/lib/inzetvorm-signaal";
+import { DBA_DISCLAIMER } from "@/lib/config";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +53,7 @@ export default async function FranchiseDienstDetailPage({
   if (!dienst) notFound();
 
   const rate = rateLabel(dienst.rateMin, dienst.rateMax);
+  const signaal = inzetvormSignaal(dienst.dbaRisk as DbaRisk | null);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -93,6 +97,30 @@ export default async function FranchiseDienstDetailPage({
               </form>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Inzetvorm-signaal bij de plaatsingskeuze: synthese van het reeds berekende DBA-risico van de
+          dienst. Signalering, geen juridisch oordeel — de DBA-disclaimer staat eronder. */}
+      <Card
+        className={
+          signaal.tone === "danger"
+            ? "border-danger/40"
+            : signaal.tone === "warning"
+              ? "border-warning/40"
+              : "border-success/40"
+        }
+      >
+        <CardContent className="space-y-2 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">Inzetvorm</p>
+            <Badge variant={signaal.tone}>{signaal.label}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">{signaal.hint}</p>
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+            <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            {DBA_DISCLAIMER}
+          </p>
         </CardContent>
       </Card>
 
