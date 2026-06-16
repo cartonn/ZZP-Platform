@@ -15,6 +15,7 @@ import { pendingTaskCount } from "@/lib/actions/pending-tasks";
 import { getTenantBranding } from "@/lib/franchise/branding";
 import { Brand } from "@/components/franchise/brand";
 import { prisma } from "@/lib/db";
+import { cn } from "@/lib/utils";
 import { type UserRole } from "@/lib/enums";
 
 export async function AppShell({
@@ -42,47 +43,58 @@ export async function AppShell({
     .slice(0, 2)
     .toUpperCase();
 
+  // Vervaag-bij-ingeklapt: tekst verschijnt bij hover/focus van de rail (de `group`).
+  const fadeText =
+    "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100";
+
   return (
-    <div className="grid min-h-screen grid-cols-[16rem_1fr] max-md:grid-cols-1">
+    <div className="relative min-h-screen md:pl-16">
       {/* Skip-link: eerste focusbare element, springt naar de hoofdinhoud (toetsenbord/screenreader). */}
       <SkipLink />
-      {/* Vakwerk-shell: witte zijbalk en topbalk als "vellen" op het pastel canvas. */}
-      <aside className="hidden flex-col border-r border-border bg-card md:flex">
-        <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-          <Brand branding={branding} />
-        </div>
-        <div className="flex-1 overflow-y-auto p-3">
-          <SidebarNav items={navForRole(role)} badges={badges} />
-        </div>
-        <div className="border-t border-border p-3">
-          <Link
-            href="/account"
-            className="focus-ring flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted"
-            aria-label="Account & privacy"
-          >
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{user.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>
-            </div>
-          </Link>
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-            className="mt-2"
-          >
-            <Button type="submit" variant="secondary" size="sm" className="w-full">
-              Uitloggen
-            </Button>
-          </form>
+      {/* Vakwerk-shell: de zijbalk is een smalle icoon-rail (4rem) die bij hover/focus uitklapt naar
+          16rem en over de inhoud zweeft — de inhoud schuift niet mee. Toetsenbord: focus-within klapt
+          'm ook uit. Op mobiel verborgen; daar regelt de header-hamburger de navigatie. */}
+      <aside className="group fixed inset-y-0 left-0 z-30 hidden w-16 overflow-hidden border-r border-border bg-card transition-[width] duration-200 focus-within:w-64 hover:w-64 md:flex">
+        <div className="flex h-full w-64 flex-col">
+          <div className="flex h-14 items-center gap-2 border-b border-border px-4">
+            <Brand branding={branding} collapsible />
+          </div>
+          <div className="flex-1 overflow-y-auto p-3">
+            <SidebarNav items={navForRole(role)} badges={badges} collapsible />
+          </div>
+          <div className="border-t border-border p-3">
+            <Link
+              href="/account"
+              className="focus-ring flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted"
+              aria-label="Account & privacy"
+            >
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
+                {initials}
+              </div>
+              <div className={cn("min-w-0 flex-1", fadeText)}>
+                <p className="truncate text-sm font-medium">{user.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>
+              </div>
+            </Link>
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirectTo: "/login" });
+              }}
+              className={cn(
+                "pointer-events-none mt-2 group-focus-within:pointer-events-auto group-hover:pointer-events-auto",
+                fadeText,
+              )}
+            >
+              <Button type="submit" variant="secondary" size="sm" className="w-full">
+                Uitloggen
+              </Button>
+            </form>
+          </div>
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-col">
+      <div className="flex min-h-screen flex-col">
         <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
           <div className="flex items-center gap-2 md:hidden">
             <MobileNav items={navForRole(role)} badges={badges} />
