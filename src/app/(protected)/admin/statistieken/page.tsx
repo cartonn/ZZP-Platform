@@ -8,10 +8,12 @@ import {
   ShieldCheck,
   AlertTriangle,
   ClipboardList,
+  Gavel,
 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getPlatformStats, approvalRate, sharePercent, formatStatsEuro } from "@/lib/admin-stats";
 import { VERIFICATION_STALE_DAYS } from "@/lib/verification-queue";
+import { DISPUTE_URGENCY_THRESHOLDS } from "@/lib/disputes";
 import { StatCard } from "@/components/ui/stat-card";
 
 export const metadata: Metadata = { title: "Platform statistieken · ZZP Platform" };
@@ -107,8 +109,8 @@ export default async function StatistiekenPage() {
           />
           <StatCard
             label="Open disputen"
-            value={stats.openDisputes}
-            tone={stats.openDisputes > 0 ? "danger" : "default"}
+            value={stats.disputes.open}
+            tone={stats.disputes.open > 0 ? "danger" : "default"}
             href="/admin/disputen"
           />
         </div>
@@ -196,22 +198,55 @@ export default async function StatistiekenPage() {
             sub={`${VERIFICATION_STALE_DAYS}+ dagen onbehandeld`}
             href="/admin/verificaties"
           />
+        </div>
+      </section>
+
+      {/* Disputen */}
+      <section className="space-y-3">
+        <SectionHeader icon={Gavel} title="Disputen" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
             label="Open disputen"
-            value={stats.openDisputes}
-            tone={stats.openDisputes > 0 ? "danger" : "success"}
-            sub={stats.openDisputes === 0 ? "Geen open disputen" : "Vergt bemiddeling"}
+            value={stats.disputes.open}
+            tone={stats.disputes.open > 0 ? "danger" : "success"}
+            sub={stats.disputes.open === 0 ? "Geen open disputen" : "Cascade staat stil"}
+            href="/admin/disputen"
+          />
+          <StatCard
+            label="Langst open"
+            value={stats.disputes.open === 0 ? "—" : `${stats.disputes.oldestAgeDays} d`}
+            tone={
+              stats.disputes.oldestAgeDays >= DISPUTE_URGENCY_THRESHOLDS.urgentDays
+                ? "danger"
+                : stats.disputes.oldestAgeDays >= DISPUTE_URGENCY_THRESHOLDS.raisedDays
+                  ? "warning"
+                  : "default"
+            }
+            sub={stats.disputes.open === 0 ? "Geen open disputen" : "Oudste dispuut"}
+            href="/admin/disputen"
+          />
+          <StatCard
+            label="Urgent"
+            value={stats.disputes.urgentCount}
+            tone={stats.disputes.urgentCount > 0 ? "danger" : "success"}
+            sub={`${DISPUTE_URGENCY_THRESHOLDS.urgentDays}+ dagen open`}
             href="/admin/disputen"
           />
         </div>
       </section>
 
-      {stats.openDisputes > 0 && (
+      {stats.disputes.open > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm text-warning">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
-            Er {stats.openDisputes === 1 ? "is" : "zijn"} {stats.openDisputes} open{" "}
-            {stats.openDisputes === 1 ? "dispuut" : "disputen"} die bemiddeling vragen.{" "}
+            Er {stats.disputes.open === 1 ? "is" : "zijn"} {stats.disputes.open} open{" "}
+            {stats.disputes.open === 1 ? "dispuut" : "disputen"} die bemiddeling vragen
+            {stats.disputes.urgentCount > 0
+              ? ` — ${stats.disputes.urgentCount} ${
+                  stats.disputes.urgentCount === 1 ? "ervan is" : "ervan zijn"
+                } urgent`
+              : ""}
+            .{" "}
             <Link href="/admin/disputen" className="underline underline-offset-2 hover:opacity-80">
               Bekijk disputen →
             </Link>

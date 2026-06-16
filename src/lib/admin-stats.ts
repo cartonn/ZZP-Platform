@@ -7,6 +7,7 @@ import {
   daysWaiting,
   staleThreshold,
 } from "@/lib/verification-queue";
+import { type DisputeHealth, disputeAgeDays, disputeUrgentThreshold } from "@/lib/disputes";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,7 +51,7 @@ export interface PlatformStats {
   performances: PerformanceStats;
   invoices: InvoiceStats;
   verificationQueue: VerificationQueueHealth;
-  openDisputes: number;
+  disputes: DisputeHealth;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +104,8 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     oldestVerification,
     staleVerifications,
     openDisputes,
+    oldestDispute,
+    urgentDisputes,
   ] = await Promise.all([
     // Gebruikers per rol
     prisma.user.groupBy({ by: ["role"], _count: { _all: true } }),
@@ -143,6 +146,19 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     }),
     // Open disputen (samenwerking met disputedAt)
     prisma.collaboration.count({ where: { disputedAt: { not: null }, status: "ACTIVE" } }),
+    // Langst openstaande dispuut (alleen het anker nodig)
+    prisma.collaboration.findFirst({
+      where: { disputedAt: { not: null }, status: "ACTIVE" },
+      orderBy: { disputedAt: "asc" },
+      select: { disputedAt: true },
+    }),
+    // Disputen die al >= urgentDays openstaan (URGENT) — goedkope count
+    prisma.collaboration.count({
+      where: {
+        status: "ACTIVE",
+        disputedAt: { not: null, lte: disputeUrgentThreshold(now) },
+      },
+    }),
   ]);
 
   // Rol-verdeling
@@ -191,6 +207,10 @@ export async function getPlatformStats(): Promise<PlatformStats> {
       oldestDays: oldestVerification ? daysWaiting(oldestVerification.updatedAt, now) : 0,
       staleCount: staleVerifications,
     },
-    openDisputes,
+    disputes: {
+      open: openDisputes,
+      oldestAgeDays: oldestDispute?.disputedAt ? disputeAgeDays(oldestDispute.disputedAt, now) : 0,
+      urgentCount: urgentDisputes,
+    },
   };
 }
