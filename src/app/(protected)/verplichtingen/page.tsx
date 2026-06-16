@@ -112,7 +112,7 @@ export default async function VerplichtingenPage() {
   const hasItems = items.length > 0;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Betaalverplichtingen"
         description="Wat je nog moet betalen, op een tijdlijn — inclusief facturen die je nog moet goedkeuren."

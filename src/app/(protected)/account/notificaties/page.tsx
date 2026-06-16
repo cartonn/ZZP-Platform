@@ -11,7 +11,7 @@ export default async function NotificatiesPage() {
   const prefs = await loadEmailPreferences(actor.id);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Notificatie-voorkeuren</h1>
         <p className="mt-1 text-sm text-muted-foreground">

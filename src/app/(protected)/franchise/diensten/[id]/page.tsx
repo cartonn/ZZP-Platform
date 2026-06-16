@@ -56,7 +56,7 @@ export default async function FranchiseDienstDetailPage({
   const signaal = inzetvormSignaal(dienst.dbaRisk as DbaRisk | null);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <Link
         href="/franchise/diensten"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"

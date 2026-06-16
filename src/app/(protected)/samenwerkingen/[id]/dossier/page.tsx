@@ -82,7 +82,7 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
   const totalInvoiced = col.invoices.reduce((s, i) => s + i.totalCents, 0);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">

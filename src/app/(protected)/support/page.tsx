@@ -23,7 +23,7 @@ export default async function SupportPage() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Support"
         description="Stel je vraag — vaak heb je direct antwoord, anders pakt de helpdesk het op."

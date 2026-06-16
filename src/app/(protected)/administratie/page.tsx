@@ -27,7 +27,7 @@ export default async function AdministratiePage() {
   // Boekhouding (grootboek/btw/debiteuren) is een betaalde feature (ADMINISTRATIE). Admin mag altijd.
   if (actor.role !== "ADMIN" && !(await userHasEntitlement(actor.id, "ADMINISTRATIE"))) {
     return (
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="space-y-6">
         <PageHeader title="Boekhouding" description="Onderdeel van een betaald plan." />
         <Card>
           <EmptyState
@@ -47,7 +47,7 @@ export default async function AdministratiePage() {
   if (!party) {
     const isAdmin = actor.role === "ADMIN";
     return (
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="space-y-6">
         <PageHeader
           title="Boekhouding"
           description="Persoonlijke boekhouding is er voor ZZP'ers en opdrachtgevers."
@@ -93,7 +93,7 @@ export default async function AdministratiePage() {
   const annual = annualSummary(entries, party, year);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title={`Boekhouding ${year}`}
         description="Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt rechtstreeks; het platform houdt alleen de status bij."

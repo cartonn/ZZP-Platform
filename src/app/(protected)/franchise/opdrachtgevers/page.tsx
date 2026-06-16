@@ -25,7 +25,7 @@ export default async function FranchiseOpdrachtgeversPage() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Opdrachtgevers"
         description="De opdrachtgevers die je in je bemiddeling hebt gebracht, met hun afdelingen."

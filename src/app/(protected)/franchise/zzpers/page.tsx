@@ -78,7 +78,7 @@ export default async function FranchiseZzpersPage() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="ZZP'ers"
         description="De ZZP'ers in je roster — degenen die je in je bemiddeling hebt gebracht."

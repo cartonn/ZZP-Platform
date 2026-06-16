@@ -27,7 +27,7 @@ export default async function IndirectUrenPage() {
   // Betaalde feature: IB_VOORBEREIDING-entitlement vereist.
   if (!(await userHasEntitlement(actor.id, "IB_VOORBEREIDING"))) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="space-y-6">
         <Card>
           <EmptyState
             icon={Lock}
@@ -62,7 +62,7 @@ export default async function IndirectUrenPage() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="space-y-6">
       {/* Terug-link */}
       <Link
         href="/ontzorgd"

@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Nieuwe cursus · Academie" };
 export default async function NieuweCursusPage() {
   await requireRole("ADMIN");
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
         <Link href="/academie">
           <ArrowLeft className="size-4" aria-hidden /> Academie

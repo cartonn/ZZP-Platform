@@ -34,7 +34,7 @@ export default async function LesBewerkenPage({
   if (!lesson || lesson.course.slug !== slug) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
         <Link href={`/academie/${slug}`}>
           <ArrowLeft className="size-4" aria-hidden /> Terug naar cursus

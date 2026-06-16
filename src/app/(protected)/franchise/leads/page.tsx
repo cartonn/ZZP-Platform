@@ -61,7 +61,7 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
   ];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Leads"
         description="Je acquisitie-pijplijn: organisaties die je nog wilt binnenhalen, met hun contactgeschiedenis."

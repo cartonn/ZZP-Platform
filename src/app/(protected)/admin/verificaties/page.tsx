@@ -44,7 +44,7 @@ export default async function VerificatiesPage() {
   const health = summarizeVerificationQueue(queue, now);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Verificaties"
         description={

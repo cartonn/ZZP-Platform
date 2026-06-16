@@ -100,7 +100,7 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
   const isAdmin = actor.role === "ADMIN";
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Ideeën"
         description="Stel verbeteringen voor en stem op de ideeën van anderen. De meest gewenste staan bovenaan."

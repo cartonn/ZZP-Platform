@@ -19,7 +19,7 @@ export default async function NieuweFactuurPage() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div>
         <Link
           href="/facturen"

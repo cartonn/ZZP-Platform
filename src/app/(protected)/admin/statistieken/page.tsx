@@ -43,7 +43,7 @@ export default async function StatistiekenPage() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="space-y-8">
       <header className="space-y-1">
         <div className="flex items-center gap-2">
           <BarChart3 className="size-5 text-muted-foreground" aria-hidden />

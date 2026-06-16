@@ -15,7 +15,7 @@ export default async function DocumentenPage({
   const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Documenten"
         description="Je geüploade documenten. Alleen jij (en beheer) kunt ze openen."

@@ -24,7 +24,7 @@ export default async function FranchisesPage() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Bemiddelingen"
         description="Bemiddelaars (tenant-admins) en hun tenants. Een bemiddelaar brengt eigen opdrachtgevers en ZZP'ers in het platform."

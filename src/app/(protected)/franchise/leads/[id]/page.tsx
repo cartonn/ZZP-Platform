@@ -48,7 +48,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     (lead.email ? `&email=${encodeURIComponent(lead.email)}` : "");
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
           <Link href="/franchise/leads">

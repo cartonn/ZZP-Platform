@@ -71,7 +71,7 @@ export default async function FacturenPage() {
     (await prisma.collaboration.count({ where: invoiceableCollaborationsWhere(actor.id) })) > 0;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Facturen"
         description={

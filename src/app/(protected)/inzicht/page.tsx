@@ -61,7 +61,7 @@ export default async function InzichtPage() {
       : "Je cijfers in één overzicht — verdiensten, werk en activiteit.";
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="space-y-8">
       <PageHeader title="Inzicht" description={description} />
       {role === "FREELANCER" ? (
         <FreelancerInzicht userId={actor.id} />

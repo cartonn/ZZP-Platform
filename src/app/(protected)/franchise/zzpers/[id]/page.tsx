@@ -90,7 +90,7 @@ export default async function RosterDetailPage({
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <Link
         href="/franchise/zzpers"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"

@@ -66,7 +66,7 @@ export default async function FranchiseDienstenPage() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Diensten"
         description="Een overzicht van alle diensten die je hebt uitgezet. Nieuwe diensten zet je uit bij een opdrachtgever."

@@ -88,7 +88,7 @@ export default async function ProfielPage() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="break-words font-display text-2xl font-semibold tracking-tight">

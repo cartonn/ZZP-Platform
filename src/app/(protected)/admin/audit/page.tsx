@@ -48,7 +48,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader title="Audit log" description={`${total} gebeurtenis(sen). Alleen-lezen.`} />
 
       <form

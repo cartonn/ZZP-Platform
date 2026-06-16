@@ -782,7 +782,7 @@ export default async function DashboardPage() {
         : `Er zijn ${tasks.length} punten die je aandacht vragen.`;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       {/* Profielkaart — zelfde taal als de publieke-profielkop (/zzp/[id]): avatar, naam +
           zegel, subtitel, kerncijfers. Elke rol krijgt dezelfde opzet; de inhoud verschilt. */}
       <header className="rounded-lg border border-border bg-card p-5">

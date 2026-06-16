@@ -57,7 +57,7 @@ export default async function BerichtenPage() {
   );
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader title="Berichten" description="Je gesprekken met opdrachtgevers en ZZP'ers." />
 
       {conversations.length === 0 ? (

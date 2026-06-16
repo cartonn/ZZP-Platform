@@ -39,7 +39,7 @@ export default async function DienstenPage({
   const actor = await requireActor();
   if (actor.role !== "FREELANCER") {
     return (
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="space-y-6">
         <PageHeader title="Diensten" description="Het diensten-overzicht is er voor ZZP'ers." />
         <Card>
           <EmptyState
@@ -60,7 +60,7 @@ export default async function DienstenPage({
     : allDiensten;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Diensten</h1>

@@ -35,7 +35,7 @@ export default async function AangiftePage() {
   const entitled = hasEntitlement(planKey, "VOLLEDIG_ONTZORGD");
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Wij doen je aangifte"
         description={

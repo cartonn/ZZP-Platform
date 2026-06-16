@@ -120,7 +120,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
     !["PAID", "PROCESSED", "CREDITED"].includes(invoice.lifecycleStatus ?? "");
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div className="print-hide flex items-center justify-between">
         <Link
           href="/facturen"

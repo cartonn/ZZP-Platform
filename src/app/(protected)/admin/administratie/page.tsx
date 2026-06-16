@@ -88,7 +88,7 @@ export default async function AdminAdministratiePage() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="space-y-8">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-xl font-semibold tracking-tight">Platform Administratie</h1>

@@ -21,7 +21,7 @@ export default async function ActiesPage() {
   const drawerData = await loadDrawerData(actor, tasks);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Acties"
         description={

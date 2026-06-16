@@ -82,7 +82,7 @@ export default async function WizardPage({
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-semibold tracking-tight">Opdrachtgever opzetten</h1>
         <Link

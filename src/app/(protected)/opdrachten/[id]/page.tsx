@@ -218,7 +218,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   })();
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="space-y-6">
       <Link
         href="/opdrachten"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"

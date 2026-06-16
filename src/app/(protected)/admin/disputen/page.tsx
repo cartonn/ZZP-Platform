@@ -39,7 +39,7 @@ export default async function AdminDisputenPage() {
   const summary = summarizeDisputes(rows);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Disputen"
         description="Samenwerkingen met een open dispuut. Het werkproces is bevroren tot het platform bemiddelt en het dispuut oplost."

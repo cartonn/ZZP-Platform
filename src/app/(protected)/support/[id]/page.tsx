@@ -37,7 +37,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
   const isOwner = ticket.userId === actor.id;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="space-y-5">
       <header className="space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-lg font-semibold tracking-tight">{ticket.subject}</h1>

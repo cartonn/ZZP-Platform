@@ -39,7 +39,7 @@ export default async function FranchiseFacturatiePage() {
 
   if (!overview) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="space-y-6">
         <PageHeader
           title="Facturatie"
           description="Het abonnement en de fees van je bemiddeling."
@@ -56,7 +56,7 @@ export default async function FranchiseFacturatiePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Facturatie"
         description="Je abonnement en de transactie-fees per gevulde samenwerking."

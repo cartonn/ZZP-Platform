@@ -11,7 +11,7 @@ export default async function ConfiguratiePage() {
   const thresholds = await getDbaThresholds();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Configuratie"
         description="Pas de drempelwaarden voor de DBA-monitor aan. Wijzigingen worden direct van kracht."
