@@ -1,9 +1,8 @@
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import type { RevenueTrend } from "@/lib/revenue-trend";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Sparkline } from "@/components/ui/sparkline";
+import { BarSeries, TrendBadge } from "@/components/insight/bi";
 import { formatEuro } from "@/lib/invoices";
 
 export interface RevenueTrendCardProps {
@@ -15,9 +14,8 @@ export interface RevenueTrendCardProps {
 }
 
 /**
- * RevenueTrendCard — toont een 6-maands trendgrafiek (sparkline) met het
- * huidige maandbedrag, delta-badge en een compacte maandstrip.
- * Puur presentationeel server component; geen client hooks.
+ * RevenueTrendCard — toont een 6-maands trend als staafdiagram (BI-kit) met het huidige
+ * maandbedrag en een delta-badge. Puur presentationeel server component; geen client hooks.
  */
 export function RevenueTrendCard({ trend, title, emptyDescription }: RevenueTrendCardProps) {
   if (!trend.hasData) {
@@ -29,7 +27,6 @@ export function RevenueTrendCard({ trend, title, emptyDescription }: RevenueTren
   }
 
   const lastLabel = trend.series.at(-1)?.label ?? "";
-  const values = trend.series.map((m) => m.cents);
 
   return (
     <Card>
@@ -37,7 +34,7 @@ export function RevenueTrendCard({ trend, title, emptyDescription }: RevenueTren
         {/* Kopregel: titel links, delta-badge rechts */}
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium">{title}</span>
-          <DeltaBadge deltaPct={trend.deltaPct} />
+          <TrendBadge deltaPct={trend.deltaPct} />
         </div>
 
         {/* Groot bedrag + maand-label */}
@@ -48,54 +45,13 @@ export function RevenueTrendCard({ trend, title, emptyDescription }: RevenueTren
           <p className="mt-0.5 text-xs text-muted-foreground">deze maand · {lastLabel}</p>
         </div>
 
-        {/* Sparkline */}
-        <Sparkline
-          values={values}
-          width={160}
-          height={40}
+        {/* 6-maands staafdiagram */}
+        <BarSeries
+          data={trend.series.map((m) => ({ key: m.key, label: m.label, value: m.cents }))}
+          formatValue={formatEuro}
           label={`${title} laatste 6 maanden`}
-          className="text-primary"
         />
-
-        {/* 6-maands strip */}
-        <div className="grid grid-cols-6 gap-1">
-          {trend.series.map((m) => (
-            <div key={m.key} className="min-w-0 space-y-0.5 text-center">
-              <p className="truncate text-xs uppercase text-muted-foreground">{m.label}</p>
-              <p className="truncate font-mono text-xs tabular-nums">{formatEuro(m.cents)}</p>
-            </div>
-          ))}
-        </div>
       </CardContent>
     </Card>
-  );
-}
-
-function DeltaBadge({ deltaPct }: { deltaPct: number | null }) {
-  if (deltaPct === null) {
-    return <Badge variant="muted">—</Badge>;
-  }
-  if (deltaPct > 0) {
-    return (
-      <Badge variant="success" className="gap-0.5">
-        <TrendingUp className="size-3" aria-hidden />
-        {`+${deltaPct}%`}
-      </Badge>
-    );
-  }
-  if (deltaPct < 0) {
-    return (
-      <Badge variant="danger" className="gap-0.5">
-        <TrendingDown className="size-3" aria-hidden />
-        {`${deltaPct}%`}
-      </Badge>
-    );
-  }
-  // deltaPct === 0
-  return (
-    <Badge variant="muted" className="gap-0.5">
-      <Minus className="size-3" aria-hidden />
-      {"0%"}
-    </Badge>
   );
 }
