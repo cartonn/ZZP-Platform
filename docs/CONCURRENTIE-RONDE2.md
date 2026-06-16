@@ -65,6 +65,20 @@ Per item: principe → onze schermen → omvang (S/M/L) → **klasse** (BOUWEN/P
    `/samenwerkingen/[id]/dossier`, `src/lib/engageability.ts`. _Hergebruikt `computeEngageability` +
    DBA-monitor; vertaalt "meerdere contractvormen" naar onze ZZP-only realiteit als risico-sturing._
 
+### Uitvoeringsstatus (na verificatie tegen de codebase)
+
+Bij het bouwen bleken twee "bouwen"-items al aanwezig — de deepdive telde meer gaten dan er zijn.
+Eerlijk vastgelegd om dubbel werk (slop) te voorkomen.
+
+| #   | Item                               | Status             | Toelichting                                                                                                                                                                                                                                                                                                                 |
+| --- | ---------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Open-dienst-pool met match-score   | **AL-AANWEZIG**    | `/opdrachten` scoort elke zichtbare opdracht al (Match %, troef + minpunt via `scoreJobForFreelancer`, incl. franchise-tenant via `visibleJobsWhere`); `/rooster` toont gescoorde open-dienst-suggesties met een "sterke match"-filter; dashboard gebruikt `recommendedJobs`. Een extra "voor jou"-band zou duplicaat zijn. |
+| 2   | Vooruitkijkende dekkingsprognose   | **GEBOUWD** (#401) | Per-opdrachtgever dekking bestond al (`buildCompanyBreakdown` op `/inzicht`); toegevoegd: de ontbrekende periode-projectie "wat dreigt onbezet" op `/franchise/diensten`.                                                                                                                                                   |
+| 3   | Shift-overname binnen tenant       | **GEBOUWD** (#402) | Gegoverneerd verzoek (overname + goedkeuring); geen contract-/cascade-mutatie. Adversariële review: 2 blockers (bereikbaarheid franchiser, beslis-races) + should-fixes verwerkt.                                                                                                                                           |
+| 4   | Selfbilling-akkoordstap            | **AL-AANWEZIG**    | De cascade genereert al een concept-factuur (DRAFT) uit de goedgekeurde uren; de ZZP'er beoordeelt + dient die zelf in (`submitInvoiceAction`, DRAFT→SUBMITTED) — dat ís de akkoord-stap. `franchise/billing.ts`/PENDING uit de backlog was de tenant-FEE, niet de ZZP-factuur.                                             |
+| 5   | Proactieve credential-expiry-alert | **GEBOUWD** (#397) | Hergebruikt de bestaande expiry-engine.                                                                                                                                                                                                                                                                                     |
+| 6   | Per-dienst inzetvorm-signaal       | **GEBOUWD** (#398) | Hergebruikt het bestaande DBA-risico.                                                                                                                                                                                                                                                                                       |
+
 ### PARKEREN (eigenaars-/strategiebeslissing — niet autonoom bouwen)
 
 7. **Externe roostersysteem-integratie** _(L, Zorgwerk + Bendy)_ — ingest van flex-aanvragen uit
