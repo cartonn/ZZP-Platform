@@ -11,155 +11,139 @@ import {
 import { type PlatformStats, approvalRate, sharePercent, formatStatsEuro } from "@/lib/admin-stats";
 import { VERIFICATION_STALE_DAYS } from "@/lib/verification-queue";
 import { DISPUTE_URGENCY_THRESHOLDS } from "@/lib/disputes";
-import { StatCard } from "@/components/ui/stat-card";
-
-function SectionHeader({
-  icon: Icon,
-  title,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-}) {
-  return (
-    <div className="flex items-center gap-2 text-sm font-medium">
-      <Icon className="size-4 text-muted-foreground" aria-hidden />
-      <span>{title}</span>
-    </div>
-  );
-}
+import { Card, CardContent } from "@/components/ui/card";
+import { BiSection, KpiTile, GaugeRing, DistributionBars } from "@/components/insight/bi";
 
 /**
  * Statistieken-paneel: platform-brede kerncijfers (gebruikers, samenwerkingen, prestaties,
- * facturen, certificaten, disputen). Pure presentatie — de aanroeper levert de reeds berekende
- * stats. Rendert geen eigen paginakop; de route en de hub leveren de titel.
+ * facturen, certificaten, disputen) in de BI-kit — KPI-tegels, verdeelbalken en een
+ * gauge-ring. Pure presentatie; de aanroeper levert de reeds berekende stats. Geen eigen
+ * paginakop; de route en de hub leveren de titel.
  */
 export function StatsPanel({ stats }: { stats: PlatformStats }) {
-  const perfApprovalPct = approvalRate(
-    stats.performances.approved,
-    stats.performances.approved + stats.performances.rejected,
-  );
+  const perfDecided = stats.performances.approved + stats.performances.rejected;
+  const perfApprovalPct = approvalRate(stats.performances.approved, perfDecided);
 
   return (
     <div className="space-y-8">
       {/* Gebruikers */}
-      <section className="space-y-3">
-        <SectionHeader icon={Users} title="Gebruikers" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Totaal" value={stats.users.total} href="/admin/gebruikers" />
-          <StatCard
-            label="ZZP'ers"
-            value={stats.users.freelancers}
-            sub={`${sharePercent(stats.users.freelancers, stats.users.total)}% van totaal`}
-            href="/admin/gebruikers"
-          />
-          <StatCard
-            label="Opdrachtgevers"
-            value={stats.users.clients}
-            sub={`${sharePercent(stats.users.clients, stats.users.total)}% van totaal`}
-            href="/admin/gebruikers"
-          />
-          <StatCard
-            label="Beheerders"
-            value={stats.users.admins}
-            sub={`${sharePercent(stats.users.admins, stats.users.total)}% van totaal`}
-            href="/admin/gebruikers"
-          />
-          <StatCard
+      <BiSection icon={Users} title="Gebruikers">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <KpiTile icon={Users} label="Totaal" value={stats.users.total} href="/admin/gebruikers" />
+          <KpiTile
             label="Geschorst"
             value={stats.users.suspended}
             tone={stats.users.suspended > 0 ? "warning" : "default"}
+            sub={stats.users.suspended === 0 ? "Niemand geschorst" : "Toegang ingetrokken"}
             href="/admin/gebruikers"
           />
+          <Card>
+            <CardContent className="space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Verdeling per rol
+              </p>
+              <DistributionBars
+                total={stats.users.total}
+                items={[
+                  { label: "ZZP'ers", value: stats.users.freelancers, tone: "accent" },
+                  { label: "Opdrachtgevers", value: stats.users.clients, tone: "success" },
+                  { label: "Beheerders", value: stats.users.admins, tone: "default" },
+                ]}
+              />
+            </CardContent>
+          </Card>
         </div>
-      </section>
+      </BiSection>
 
       {/* Samenwerkingen */}
-      <section className="space-y-3">
-        <SectionHeader icon={Handshake} title="Samenwerkingen" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
+      <BiSection icon={Handshake} title="Samenwerkingen">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <KpiTile
+            icon={Handshake}
             label="Totaal"
             value={stats.collaborations.total}
             href="/admin/samenwerkingen"
           />
-          <StatCard
+          <KpiTile
             label="Actief"
             value={stats.collaborations.active}
             tone={stats.collaborations.active > 0 ? "success" : "default"}
+            sub={`${sharePercent(stats.collaborations.active, stats.collaborations.total)}% van totaal`}
             href="/admin/samenwerkingen"
           />
-          <StatCard
+          <KpiTile
             label="Voorgesteld"
             value={stats.collaborations.proposed}
             tone={stats.collaborations.proposed > 0 ? "warning" : "default"}
+            sub="wacht op acceptatie"
             href="/admin/samenwerkingen"
           />
         </div>
-      </section>
+      </BiSection>
 
       {/* Prestaties */}
-      <section className="space-y-3">
-        <SectionHeader icon={ClipboardList} title="Prestaties (urenstaaten & opleveringen)" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Totaal" value={stats.performances.total} />
-          <StatCard
+      <BiSection icon={ClipboardList} title="Prestaties (urenstaten & opleveringen)">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiTile icon={ClipboardList} label="Totaal" value={stats.performances.total} />
+          <KpiTile
             label="Ter goedkeuring"
             value={stats.performances.pending}
             tone={stats.performances.pending > 0 ? "warning" : "default"}
             href="/admin/samenwerkingen"
           />
-          <StatCard
+          <KpiTile
             label="Goedgekeurd"
             value={stats.performances.approved}
             tone={stats.performances.approved > 0 ? "success" : "default"}
           />
-          <StatCard
+          <GaugeRing
+            value={perfApprovalPct}
             label="Goedkeuringspercentage"
-            value={`${perfApprovalPct}%`}
-            sub={`${stats.performances.approved} van ${stats.performances.approved + stats.performances.rejected}`}
+            sub={`${stats.performances.approved} van ${perfDecided}`}
+            tone={perfDecided === 0 ? "default" : perfApprovalPct >= 80 ? "success" : "warning"}
           />
         </div>
-      </section>
+      </BiSection>
 
       {/* Facturen */}
-      <section className="space-y-3">
-        <SectionHeader icon={FileText} title="Facturen" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
+      <BiSection icon={FileText} title="Facturen">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiTile
+            icon={FileText}
             label="Totaal"
             value={stats.invoices.total}
             sub={`${stats.invoices.cascadeCount} via werkproces`}
           />
-          <StatCard
+          <KpiTile
             label="Wacht op verwerking"
             value={stats.invoices.pendingApproval}
             tone={stats.invoices.pendingApproval > 0 ? "warning" : "default"}
           />
-          <StatCard
+          <KpiTile
             label="Verwerkt"
             value={stats.invoices.processed}
             tone={stats.invoices.processed > 0 ? "success" : "default"}
           />
-          <StatCard
+          <KpiTile
             label="Totaal verwerkt"
             value={formatStatsEuro(stats.invoices.totalProcessedCents)}
             sub="excl. BTW"
           />
         </div>
-      </section>
+      </BiSection>
 
       {/* Verificaties */}
-      <section className="space-y-3">
-        <SectionHeader icon={ShieldCheck} title="Certificaten" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
+      <BiSection icon={ShieldCheck} title="Certificaten">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <KpiTile
+            icon={ShieldCheck}
             label="Wachtrij verificaties"
             value={stats.verificationQueue.pending}
             tone={stats.verificationQueue.pending > 0 ? "warning" : "success"}
             sub={stats.verificationQueue.pending === 0 ? "Wachtrij leeg" : "Wacht op beoordeling"}
             href="/admin/verificaties"
           />
-          <StatCard
+          <KpiTile
             label="Langst wachtend"
             value={
               stats.verificationQueue.pending === 0
@@ -172,7 +156,7 @@ export function StatsPanel({ stats }: { stats: PlatformStats }) {
             sub={stats.verificationQueue.pending === 0 ? "Geen wachtenden" : "Oudste aanvraag"}
             href="/admin/verificaties"
           />
-          <StatCard
+          <KpiTile
             label="Te lang in wachtrij"
             value={stats.verificationQueue.staleCount}
             tone={stats.verificationQueue.staleCount > 0 ? "warning" : "success"}
@@ -180,20 +164,20 @@ export function StatsPanel({ stats }: { stats: PlatformStats }) {
             href="/admin/verificaties"
           />
         </div>
-      </section>
+      </BiSection>
 
       {/* Disputen */}
-      <section className="space-y-3">
-        <SectionHeader icon={Gavel} title="Disputen" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <StatCard
+      <BiSection icon={Gavel} title="Disputen">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <KpiTile
+            icon={Gavel}
             label="Open disputen"
             value={stats.disputes.open}
             tone={stats.disputes.open > 0 ? "danger" : "success"}
             sub={stats.disputes.open === 0 ? "Geen open disputen" : "Cascade staat stil"}
             href="/admin/disputen"
           />
-          <StatCard
+          <KpiTile
             label="Langst open"
             value={stats.disputes.open === 0 ? "—" : `${stats.disputes.oldestAgeDays} d`}
             tone={
@@ -206,7 +190,7 @@ export function StatsPanel({ stats }: { stats: PlatformStats }) {
             sub={stats.disputes.open === 0 ? "Geen open disputen" : "Oudste dispuut"}
             href="/admin/disputen"
           />
-          <StatCard
+          <KpiTile
             label="Urgent"
             value={stats.disputes.urgentCount}
             tone={
@@ -220,7 +204,7 @@ export function StatsPanel({ stats }: { stats: PlatformStats }) {
             href="/admin/disputen"
           />
         </div>
-      </section>
+      </BiSection>
 
       {stats.disputes.open > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm text-warning">
