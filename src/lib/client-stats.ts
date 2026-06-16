@@ -18,6 +18,8 @@ export interface ClientStats {
   fillRate: number;
   activeCollaborations: number;
   completedCollaborations: number;
+  /** Samenwerkingen per status (CollaborationStatus → aantal), voor de statusdonut. */
+  collaborationsByStatus: Record<string, number>;
   /** Actieve inzetten zonder compliance-waarschuwing. */
   compliantPlacements: number;
   /** Compliance-graad over de actieve inzetten (100 bij geen actieve inzetten). */
@@ -77,6 +79,7 @@ export async function getClientStats(userId: string): Promise<ClientStats | null
     fillRate: ratePercent(filledJobs, publishedJobs),
     activeCollaborations: collabByStatus.get("ACTIVE") ?? 0,
     completedCollaborations: collabByStatus.get("COMPLETED") ?? 0,
+    collaborationsByStatus: Object.fromEntries(collabByStatus),
     compliantPlacements,
     complianceRate: activeCount === 0 ? 100 : ratePercent(compliantPlacements, activeCount),
   };

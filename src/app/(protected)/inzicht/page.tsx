@@ -2,16 +2,14 @@ import { type Metadata } from "next";
 import { redirect } from "next/navigation";
 import {
   BarChart3,
-  Briefcase,
   Clock,
   CreditCard,
   Gauge,
-  Handshake,
+  PieChart,
   Receipt,
   ShieldCheck,
   Target,
   TrendingUp,
-  Users,
   Building2,
 } from "lucide-react";
 import { requireActor, type Actor } from "@/lib/authz";
@@ -28,11 +26,25 @@ import {
 } from "@/lib/revenue-trend";
 import { formatEuro } from "@/lib/invoices";
 import { plural } from "@/lib/plural";
+import {
+  toDonutData,
+  type DonutDatum,
+  COLLABORATION_SEGMENTS,
+  APPLICATION_SEGMENTS,
+} from "@/lib/status-breakdown";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RevenueTrendCard } from "@/components/insight/revenue-trend-card";
-import { BiSection, KpiTile, GaugeRing, TrendBadge } from "@/components/insight/bi";
+import {
+  BiSection,
+  KpiTile,
+  GaugeRing,
+  TrendBadge,
+  DonutChart,
+  BiWidget,
+  BiStatList,
+} from "@/components/insight/bi";
 
 export const metadata: Metadata = { title: "Inzicht · ZZP Platform" };
 
@@ -74,6 +86,30 @@ function rateTone(pct: number, good = 80, ok = 50): "success" | "warning" | "def
   return pct >= good ? "success" : pct >= ok ? "warning" : "default";
 }
 
+/** Donut-widget met lege staat als er nog geen tellingen zijn. */
+function StatusDonutWidget({
+  title,
+  data,
+  centerLabel,
+  emptyText,
+}: {
+  title: string;
+  data: DonutDatum[];
+  centerLabel: string;
+  emptyText: string;
+}) {
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  return (
+    <BiWidget title={title}>
+      {total === 0 ? (
+        <EmptyState icon={PieChart} title="Nog geen verdeling" description={emptyText} />
+      ) : (
+        <DonutChart data={data} centerLabel={centerLabel} />
+      )}
+    </BiWidget>
+  );
+}
+
 async function FranchiserInzicht({ actor }: { actor: Actor }) {
   const [s, byCompany, trend] = await Promise.all([
     getTenantStats(actor),
@@ -109,61 +145,57 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
             value={formatEuro(s.revenueOpenCents)}
             sub="verstuurd, nog niet betaald"
           />
-        </div>
-        <RevenueTrendCard
-          trend={trend}
-          title="Omzet per maand"
-          emptyDescription="Zodra er facturen lopen in je bemiddeling, zie je hier de omzet per maand."
-        />
-      </BiSection>
-
-      <BiSection icon={Briefcase} title="Diensten">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiTile
-            icon={Briefcase}
-            label="Open diensten"
-            value={s.openJobs}
-            sub="nog in te vullen"
-            href="/franchise/diensten"
-            tone={s.openJobs > 0 ? "warning" : "default"}
-          />
-          <KpiTile
-            icon={Handshake}
-            label="Lopende samenwerkingen"
-            value={s.activeCollaborations}
-            href="/franchise/samenwerkingen"
-          />
           <GaugeRing
             value={s.fillRate}
             label="Vulgraad"
-            sub={`${s.filledJobs} vervuld`}
+            sub={`${s.filledJobs} van ${s.totalJobs} vervuld`}
             tone={rateTone(s.fillRate)}
           />
         </div>
       </BiSection>
 
-      <BiSection icon={Users} title="Roster">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiTile
-            icon={Users}
-            label="ZZP'ers"
-            value={s.rosterFreelancers}
-            href="/franchise/zzpers"
-          />
-          <KpiTile
-            icon={Building2}
-            label="Opdrachtgevers"
-            value={s.companies}
-            href="/franchise/opdrachtgevers"
-          />
-          <GaugeRing
-            value={s.engageabilityRate}
-            label="Inzetbaar"
-            sub={`${s.engageableFreelancers} van ${s.rosterFreelancers}`}
-            tone={rateTone(s.engageabilityRate)}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="lg:col-span-2">
+          <RevenueTrendCard
+            trend={trend}
+            title="Omzet per maand"
+            emptyDescription="Zodra er facturen lopen in je bemiddeling, zie je hier de omzet per maand."
           />
         </div>
-      </BiSection>
+        <StatusDonutWidget
+          title="Samenwerkingen per status"
+          data={toDonutData(s.collaborationsByStatus, COLLABORATION_SEGMENTS)}
+          centerLabel="totaal"
+          emptyText="Zodra er samenwerkingen lopen, zie je hier de verdeling per status."
+        />
+        <BiWidget title="Roster & diensten">
+          <BiStatList
+            items={[
+              { label: "ZZP'ers", value: s.rosterFreelancers, href: "/franchise/zzpers" },
+              {
+                label: "Inzetbaar",
+                value: `${s.engageableFreelancers}/${s.rosterFreelancers}`,
+                sub: `${s.engageabilityRate}% van je roster`,
+                href: "/franchise/zzpers",
+                tone: rateTone(s.engageabilityRate),
+              },
+              { label: "Opdrachtgevers", value: s.companies, href: "/franchise/opdrachtgevers" },
+              {
+                label: "Open diensten",
+                value: s.openJobs,
+                sub: "nog in te vullen",
+                href: "/franchise/diensten",
+                tone: s.openJobs > 0 ? "warning" : "default",
+              },
+              {
+                label: "Lopende samenwerkingen",
+                value: s.activeCollaborations,
+                href: "/franchise/samenwerkingen",
+              },
+            ]}
+          />
+        </BiWidget>
+      </div>
 
       <BiSection icon={Building2} title="Per opdrachtgever">
         {withActivity.length === 0 ? (
@@ -243,28 +275,29 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
           />
           <KpiTile icon={Clock} label="Goedgekeurde uren" value={s.approvedHours} sub="totaal" />
         </div>
-        <RevenueTrendCard
-          trend={trend}
-          title="Omzet per maand"
-          emptyDescription="Zodra je facturen verstuurt, zie je hier je omzet per maand."
-        />
       </BiSection>
 
-      <BiSection icon={Briefcase} title="Werk">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiTile
-            icon={Handshake}
-            label="Lopende samenwerkingen"
-            value={s.activeCollaborations}
-            href="/samenwerkingen"
-          />
-          <KpiTile
-            icon={Briefcase}
-            label="Afgeronde samenwerkingen"
-            value={s.completedCollaborations}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="lg:col-span-2">
+          <RevenueTrendCard
+            trend={trend}
+            title="Omzet per maand"
+            emptyDescription="Zodra je facturen verstuurt, zie je hier je omzet per maand."
           />
         </div>
-      </BiSection>
+        <StatusDonutWidget
+          title="Status van je reacties"
+          data={toDonutData(s.applicationsByStatus, APPLICATION_SEGMENTS)}
+          centerLabel="reacties"
+          emptyText="Zodra je op opdrachten reageert, zie je hier de verdeling per status."
+        />
+        <StatusDonutWidget
+          title="Je samenwerkingen"
+          data={toDonutData(s.collaborationsByStatus, COLLABORATION_SEGMENTS)}
+          centerLabel="totaal"
+          emptyText="Zodra je samenwerkingen lopen, zie je hier de verdeling per status."
+        />
+      </div>
 
       <BiSection icon={Gauge} title="Leverbetrouwbaarheid">
         {quality === null || quality.tone === "INSUFFICIENT" ? (
@@ -309,7 +342,7 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
               />
             </div>
             {quality.correctedPerformances > 0 && (
-              <p className="text-xs text-muted-foreground">
+              <p className="mt-3 text-xs text-muted-foreground">
                 {quality.correctedPerformances}{" "}
                 {quality.correctedPerformances === 1 ? "prestatie werd" : "prestaties werden"} na
                 een correctie alsnog goedgekeurd.
@@ -372,7 +405,7 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
               }
             />
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="mt-3 text-xs text-muted-foreground">
             Het platformabonnement is {formatEuro(membership.monthlyTotalCents)} per maand (incl.
             btw) en geldt alleen in maanden waarin je werkt.
           </p>
@@ -412,37 +445,9 @@ async function ClientInzicht({ userId }: { userId: string }) {
             value={formatEuro(s.openCents)}
             sub="ontvangen, nog niet betaald"
           />
-        </div>
-        <RevenueTrendCard
-          trend={trend}
-          title="Uitgaven per maand"
-          emptyDescription="Zodra je facturen ontvangt, zie je hier je uitgaven per maand."
-        />
-      </BiSection>
-
-      <BiSection icon={Briefcase} title="Opdrachten">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiTile icon={Briefcase} label="Geplaatst" value={s.publishedJobs} href="/opdrachten" />
-          <KpiTile
-            icon={Handshake}
-            label="Lopende samenwerkingen"
-            value={s.activeCollaborations}
-            href="/samenwerkingen"
-          />
-          <GaugeRing
-            value={s.fillRate}
-            label="Vervullingsgraad"
-            sub={`${s.filledJobs} vervuld`}
-            tone={rateTone(s.fillRate)}
-          />
-        </div>
-      </BiSection>
-
-      <BiSection icon={ShieldCheck} title="Compliance">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <GaugeRing
             value={s.complianceRate}
-            label="Inzetten zonder waarschuwing"
+            label="Compliance"
             sub={`${s.compliantPlacements} van ${s.activeCollaborations} actief`}
             tone={
               s.complianceRate >= 100 ? "success" : s.complianceRate >= 80 ? "warning" : "danger"
@@ -450,6 +455,40 @@ async function ClientInzicht({ userId }: { userId: string }) {
           />
         </div>
       </BiSection>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="lg:col-span-2">
+          <RevenueTrendCard
+            trend={trend}
+            title="Uitgaven per maand"
+            emptyDescription="Zodra je facturen ontvangt, zie je hier je uitgaven per maand."
+          />
+        </div>
+        <StatusDonutWidget
+          title="Samenwerkingen per status"
+          data={toDonutData(s.collaborationsByStatus, COLLABORATION_SEGMENTS)}
+          centerLabel="totaal"
+          emptyText="Zodra er samenwerkingen lopen, zie je hier de verdeling per status."
+        />
+        <BiWidget title="Opdrachten">
+          <BiStatList
+            items={[
+              { label: "Geplaatst", value: s.publishedJobs, href: "/opdrachten" },
+              {
+                label: "Vervuld",
+                value: `${s.filledJobs}/${s.publishedJobs}`,
+                sub: `${s.fillRate}% vervullingsgraad`,
+                tone: rateTone(s.fillRate),
+              },
+              {
+                label: "Lopende samenwerkingen",
+                value: s.activeCollaborations,
+                href: "/samenwerkingen",
+              },
+            ]}
+          />
+        </BiWidget>
+      </div>
     </div>
   );
 }

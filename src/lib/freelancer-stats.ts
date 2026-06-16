@@ -15,6 +15,10 @@ export interface FreelancerStats {
   completedCollaborations: number;
   applicationsTotal: number;
   applicationsAccepted: number;
+  /** Reacties per status (ApplicationStatus → aantal), voor de statusdonut. */
+  applicationsByStatus: Record<string, number>;
+  /** Samenwerkingen per status (CollaborationStatus → aantal), voor de statusdonut. */
+  collaborationsByStatus: Record<string, number>;
   /** Gewonnen-percentage: geaccepteerde reacties t.o.v. totaal. */
   winRate: number;
   /** Gemiddelde match-score over de reacties (0–100), of null zonder reacties. */
@@ -82,6 +86,8 @@ export async function getFreelancerStats(userId: string): Promise<FreelancerStat
     completedCollaborations: collabByStatus.get("COMPLETED") ?? 0,
     applicationsTotal,
     applicationsAccepted,
+    applicationsByStatus: Object.fromEntries(appByStatus),
+    collaborationsByStatus: Object.fromEntries(collabByStatus),
     winRate: ratePercent(applicationsAccepted, applicationsTotal),
     avgMatchScore: avg != null ? Math.round(avg) : null,
     availability: profile.availability as Availability,
