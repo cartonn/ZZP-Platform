@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell } from "lucide-react";
+import { Bell, LogOut } from "lucide-react";
 import { type Session } from "next-auth";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
@@ -76,18 +76,23 @@ export async function AppShell({
                 <p className="truncate text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>
               </div>
             </Link>
+            {/* Ingeklapt: een icoon-knop binnen de rail (klikbaar, behoudt de naam "Uitloggen").
+                Uitgeklapt: groeit naar de volle knop met label. */}
             <form
               action={async () => {
                 "use server";
                 await signOut({ redirectTo: "/login" });
               }}
-              className={cn(
-                "pointer-events-none mt-2 group-focus-within:pointer-events-auto group-hover:pointer-events-auto",
-                fadeText,
-              )}
+              className="mt-2"
             >
-              <Button type="submit" variant="secondary" size="sm" className="w-full">
-                Uitloggen
+              <Button
+                type="submit"
+                variant="secondary"
+                size="sm"
+                className="w-9 justify-center gap-2 overflow-hidden px-0 transition-all group-focus-within:w-full group-focus-within:justify-start group-focus-within:px-3 group-hover:w-full group-hover:justify-start group-hover:px-3"
+              >
+                <LogOut className="size-4 shrink-0" aria-hidden />
+                <span className={fadeText}>Uitloggen</span>
               </Button>
             </form>
           </div>
