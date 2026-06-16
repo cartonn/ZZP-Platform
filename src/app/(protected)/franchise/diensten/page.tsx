@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
+import { buildDekkingsprognose } from "@/lib/franchise/dekkingsprognose";
 
 export const metadata: Metadata = { title: "Diensten · Franchise" };
 
@@ -48,6 +49,14 @@ export default async function FranchiseDienstenPage() {
   const openCount = published.length - filledCount;
   const atRiskCount = published.filter((r) => r.atRisk).length;
   const vulgraad = published.length > 0 ? Math.round((filledCount / published.length) * 100) : null;
+
+  // Vooruitkijkende dekkingsprognose: welke aankomende periodes dreigen onbezet? Zelfde
+  // filled/published-definitie als hierboven; new Date(now) zodat de buckets t.o.v. nu vallen.
+  const prognose = buildDekkingsprognose(
+    published.map((r) => ({ startDate: r.d.startDate, filled: r.filled })),
+    new Date(now),
+  );
+  const dezeWeekOpen = prognose.buckets.find((b) => b.key === "DEZE_WEEK")?.openCount ?? 0;
 
   // Aandacht eerst: open diensten met de langste looptijd bovenaan, dan de rest op aanmaakdatum.
   const sorted = [...rows].sort((a, b) => {
@@ -94,6 +103,40 @@ export default async function FranchiseDienstenPage() {
                 </p>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {prognose.totalOpen > 0 && (
+        <Card
+          className={dezeWeekOpen > 0 ? "border-warning/40 bg-warning/5" : "border-border bg-card"}
+        >
+          <CardContent className="space-y-3 py-4">
+            <div className="flex items-center gap-2">
+              {dezeWeekOpen > 0 && (
+                <AlertTriangle className="size-4 shrink-0 text-warning" aria-hidden />
+              )}
+              <p className="text-sm font-medium text-foreground">Wat dreigt onbezet</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {dezeWeekOpen > 0
+                ? `${plural(dezeWeekOpen, "dienst", "diensten")} deze week nog zonder plaatsing — vraagt nu actie.`
+                : `${plural(prognose.totalOpen, "open dienst", "open diensten")} in de planning. Deze week is alles gedekt.`}
+            </p>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {prognose.buckets.map((b) => (
+                <div key={b.key}>
+                  <p
+                    className={`text-lg font-semibold tabular-nums ${
+                      b.key === "DEZE_WEEK" ? "text-warning" : "text-foreground"
+                    }`}
+                  >
+                    {b.openCount}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{b.label}</p>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
