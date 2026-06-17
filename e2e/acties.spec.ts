@@ -198,8 +198,9 @@ test("actiecentrum: dashboard-zone handelt inline af + advanced", async ({ page,
   test.slow();
   await setupCollaboration(page, browser as Browser);
 
-  // De dashboard-zone "Wat vraagt aandacht" toont het te-tekenen contract als inline-actie.
-  await page.goto("/dashboard");
+  // Het actiecentrum toont het te-tekenen contract als inline-actie (de dashboard-rail linkt
+  // hiernaartoe; inline-afhandeling leeft op /acties).
+  await page.goto("/acties");
   await hydrated(page);
   const signRow = page.locator("li", { hasText: "Contract ondertekenen" });
   await expect(signRow).toBeVisible({ timeout: 15000 });
