@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(prestaties): leverbetrouwbaarheid van je ZZP'ers (opdrachtgever)
+
+De opdrachtgever zag op `/prestaties` wel elke urenstaat/oplevering los, maar geen geaggregeerd
+beeld van hóe betrouwbaar zijn ZZP'ers leveren. Het FREELANCER-signaal "Leverbetrouwbaarheid"
+(`collaboration-quality.ts`) stond alleen op `/inzicht` voor de ZZP'er zelf. Dit voegt de CLIENT-
+spiegel toe op `/prestaties` (niet op het recent herziene `/inzicht`), met exact dezelfde maatstaf —
+het hergebruikt de geteste pure `computeDeliveryQuality`. Read-only, server-side, deterministisch,
+geen schemawijziging.
+
+- [x] `src/lib/client-delivery-reliability.ts` — `getClientDeliveryReliability(userId)` aggregeert
+      over `collaboration.company.userId` (gelijk aan `getPrestatiesForClient`): begrensde count
+      (afgeronde samenwerkingen) + `findMany` goedgekeurde prestaties (`take: 1000`), via
+      `computeDeliveryQuality`. Pure `clientReliabilityCaption` voor de NL-toelichting (te kleine
+      steekproef / schoon dossier / N gecorrigeerd, enkel-/meervoud).
+- [x] `src/lib/client-delivery-reliability.test.ts` — 5 unit-tests op de caption (drempel,
+      schoon dossier, enkelvoud/meervoud correcties, cijfer exact op de drempel-steekproef).
+- [x] `src/app/(protected)/prestaties/page.tsx` — Card "Leverbetrouwbaarheid van je ZZP'ers" met
+      tone-badge + 4 cijfers (in één keer akkoord %, gecorrigeerd, goedgekeurde prestaties,
+      afgeronde samenwerkingen); verbergt zichzelf bij geen goedgekeurde prestaties.
+
+Gates groen: typecheck ✓, lint ✓, test 2174 ✓ (+5), build ✓, `prettier --check .` ✓.
+
 ## docs: persona-sweep-backlog 2026-06-16 reconciliëren (beide bevindingen al geadresseerd)
 
 De persona-sweep van 16-6 draaide tegen basis-commit `f3652c5` en kruiste de bevindingen niet met
