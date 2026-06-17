@@ -24,7 +24,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Dit is een aggregatie-query voor een widget (geen lijst-view); typisch < 10 items.
   {
     file: "(protected)/dashboard/page.tsx",
-    line: 212,
+    line: 204,
     reason: "dashboard-widget aggregatie; eigenaar-scoped, inherent begrensd",
   },
 
@@ -283,12 +283,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Freelancers en skills van deze franchise; tenant-scoped.
   {
     file: "(protected)/franchise/zzpers/page.tsx",
-    line: 43,
+    line: 44,
     reason: "franchise-tenant-scoped freelancers; beheerbaar volume",
   },
   {
     file: "(protected)/franchise/zzpers/page.tsx",
-    line: 53,
+    line: 54,
     reason: "skills-referentielijst voor formulier",
   },
 

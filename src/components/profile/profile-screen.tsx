@@ -4,6 +4,7 @@ import { Calendar, MapPin } from "lucide-react";
 import { currentActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { profileVisibleTo, computeFreelancerCompleteness } from "@/lib/profile";
+import { avatarAccent } from "@/lib/avatar-accent";
 import { tenantEntityVisibleTo } from "@/lib/tenancy";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
@@ -300,7 +301,7 @@ export async function ProfileScreen({
           <div className="flex flex-wrap items-start gap-5">
             <div
               aria-hidden
-              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
+              className={`flex size-16 shrink-0 items-center justify-center rounded-full font-display text-xl font-semibold sm:size-20 sm:text-2xl ${avatarAccent(profile.user.name)}`}
             >
               {initials(profile.user.name)}
             </div>

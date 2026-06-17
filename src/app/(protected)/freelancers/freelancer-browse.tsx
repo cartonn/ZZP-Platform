@@ -9,6 +9,7 @@ import {
   type FreelancerSearchFilters,
 } from "@/lib/freelancer-search";
 import { trackRecordHighlights } from "@/lib/freelancer-track-record";
+import { avatarAccent } from "@/lib/avatar-accent";
 import type { TrustLevel } from "@/lib/trust";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -141,7 +142,9 @@ function FreelancerCardItem({ card: f }: { card: FreelancerCard }) {
     <Card className="flex flex-col gap-3 p-4 transition-shadow hover:shadow-md">
       {/* Header: avatar + naam + badge */}
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarAccent(f.id)}`}
+        >
           {initials}
         </div>
         <div className="min-w-0 flex-1">
