@@ -211,15 +211,16 @@ export function WorkspaceDashboard({
         </div>
       </main>
 
-      {/* Rechter contextrail — volle hoogte, eigen scroll (zoals #19) */}
-      <aside className="hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border bg-card px-4 py-5 lg:flex">
+      {/* Rechter contextrail — volle hoogte, eigen scroll (zoals #19). Zelfde crème vlak als de
+          hoofdkolom; alleen de border-l scheidt ze. Witte kaarten (bg-card) zetten zich erop af. */}
+      <aside className="hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border px-4 py-5 lg:flex">
         {/* Volgende acties */}
         <section>
           <h3 className="mb-2 px-1 font-display text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Volgende acties
           </h3>
           {nextActions.length === 0 ? (
-            <p className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+            <p className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
               Niets dat nu aandacht vraagt. Goed bezig.
             </p>
           ) : (
@@ -228,7 +229,7 @@ export function WorkspaceDashboard({
                 <li key={action.id}>
                   <Link
                     href={action.href}
-                    className="focus-ring flex items-start gap-2.5 rounded-lg border border-border bg-background p-2.5 transition-colors hover:bg-muted/50"
+                    className="focus-ring flex items-start gap-2.5 rounded-lg border border-border bg-card p-2.5 transition-colors hover:bg-muted/50"
                   >
                     <span
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${TONE_SOFT[action.tone]}`}
@@ -257,7 +258,7 @@ export function WorkspaceDashboard({
               </h3>
               <span className="font-mono text-[11px] text-muted-foreground">{week.count}</span>
             </div>
-            <div className="grid grid-cols-7 gap-1 rounded-lg border border-border bg-background p-2">
+            <div className="grid grid-cols-7 gap-1 rounded-lg border border-border bg-card p-2">
               {week.days.map((day) => (
                 <div
                   key={day.label + day.date}
@@ -291,7 +292,7 @@ export function WorkspaceDashboard({
 
         {/* Compliance-zegel */}
         {seal && (
-          <section className="rounded-xl border border-border bg-background p-4 shadow-sm ring-1 ring-success/15">
+          <section className="rounded-xl border border-border bg-card p-4 shadow-sm ring-1 ring-success/15">
             <div className="flex items-center gap-2">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success/10 text-success">
                 <ShieldCheck className="h-5 w-5" aria-hidden />
@@ -323,7 +324,7 @@ export function WorkspaceDashboard({
             {seal.reportHref && (
               <Link
                 href={seal.reportHref}
-                className="focus-ring mt-3 flex w-full items-center justify-center gap-1 rounded-lg border border-input bg-card py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                className="focus-ring mt-3 flex w-full items-center justify-center gap-1 rounded-lg border border-input bg-background py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
               >
                 Rapport openen
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />

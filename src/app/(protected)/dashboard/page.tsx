@@ -904,8 +904,8 @@ export default async function DashboardPage() {
           title: "Compliance-zegel",
           subtitle:
             complianceSnapshot.total === 0
-              ? "Geen lopende inzetten"
-              : `${complianceSnapshot.total - complianceSnapshot.nonCompliant - complianceSnapshot.warning}/${complianceSnapshot.total} inzetten in orde`,
+              ? "Geen lopende diensten"
+              : `${complianceSnapshot.total - complianceSnapshot.nonCompliant - complianceSnapshot.warning}/${complianceSnapshot.total} diensten in orde`,
           items: [
             {
               label: "Ontbrekend/verlopen",
@@ -929,7 +929,7 @@ export default async function DashboardPage() {
     const activeCount = cs?.activeCollaborations ?? 0;
     const wk = buildCurrentWeek(
       new Date(),
-      `${activeCount} ${activeCount === 1 ? "inzet" : "inzetten"}`,
+      `${activeCount} ${activeCount === 1 ? "dienst" : "diensten"}`,
     );
     return (
       <WorkspaceDashboard
