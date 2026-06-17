@@ -27,6 +27,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
+import { DeliveryQualityBlock } from "@/components/freelancer/delivery-quality-block";
+import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-quality";
 import { changeApplicationStatus } from "./actions";
 import { ApplicationNoteForm } from "./application-note-form";
 import { BulkTriageBar } from "./bulk-triage-bar";
@@ -83,6 +85,12 @@ export default async function KandidatenPage() {
       collaboration: { select: { id: true } },
     },
   });
+
+  // Leverbetrouwbaarheid per kandidaat: spiegel van de opdrachtgever-signalen die de ZZP'er op de
+  // opdracht ziet. Eén gebatchte fetch over alle reagerende profielen (geen N+1).
+  const deliveryByProfile = await getDeliveryQualityForProfiles(
+    applications.map((a) => a.freelancer.id),
+  );
 
   // Werkstroom-volgorde: NEW → VIEWED → SHORTLIST → REJECTED → ACCEPTED (actie-vragend eerst,
   // afgehandeld onderaan). Stabiel, dus binnen één status blijft de match-volgorde (hoogste eerst) staan.
@@ -231,6 +239,11 @@ export default async function KandidatenPage() {
                   </div>
 
                   <VerificationMarks credentials={app.freelancer.credentials} />
+
+                  {(() => {
+                    const delivery = deliveryByProfile.get(app.freelancer.id);
+                    return delivery ? <DeliveryQualityBlock quality={delivery} /> : null;
+                  })()}
 
                   {compliance && compliance.status !== "COMPLIANT" && (
                     <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">

@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(kandidaten): leverbetrouwbaarheid-signaal ZZP'er voor de opdrachtgever (PR #447)
+
+De opdrachtgever ziet nu per kandidaat op `/kandidaten` de **leverbetrouwbaarheid** van de ZZP'er —
+het spiegelbeeld van de vertrouwenssignalen (betaalgedrag/annuleringsgedrag/reactiebereidheid) die de
+ZZP'er over de opdrachtgever op `/opdrachten/[id]` ziet. Read-only, server-side, geen schemawijziging,
+geen mutatie. Verbergt zich bij een te kleine steekproef (geen misleidende cijfers).
+
+- [x] `src/lib/collaboration-quality.ts` — pure batch-aggregator `computeDeliveryQualityByProfile`
+      (+ `ProfilePerfRow`): groepeert goedgekeurde prestaties + completed-tellingen naar één
+      `DeliveryQuality` per profiel; hergebruikt de bestaande `computeDeliveryQuality`.
+- [x] `src/lib/data/freelancer-delivery-quality.ts` — `getDeliveryQualityForProfiles(profileIds)`:
+      twee gebatchte, begrensde queries (geen N+1), `groupBy` voor afgeronde samenwerkingen +
+      `findMany` (take 5000) voor goedgekeurde prestaties.
+- [x] `src/components/freelancer/delivery-quality-block.tsx` — `DeliveryQualityBlock`: compacte regel
+      met toon-badge + in-één-keer-akkoord %/gecorrigeerd/gem. doorlooptijd; null bij INSUFFICIENT.
+- [x] `src/app/(protected)/kandidaten/page.tsx` — één gebatchte fetch over alle reagerende profielen,
+      blok per kandidaat onder de verificatiemarkers.
+- [x] Tests: `collaboration-quality.test.ts` +5 (groepering per profiel, dedup, lege set,
+      geen cross-contaminatie). typecheck ✓ · lint ✓ · test 2225 ✓ · build ✓ · prettier ✓.
+
 ## feat(dashboard): #19-werkruimte voor álle rollen (ZZP'er, opdrachtgever, bemiddelaar, admin)
 
 Het dashboard is voor elke rol omgezet naar de gekozen ontwerprichting **#19** (drie-koloms
