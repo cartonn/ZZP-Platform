@@ -283,12 +283,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Freelancers en skills van deze franchise; tenant-scoped.
   {
     file: "(protected)/franchise/zzpers/page.tsx",
-    line: 36,
+    line: 43,
     reason: "franchise-tenant-scoped freelancers; beheerbaar volume",
   },
   {
     file: "(protected)/franchise/zzpers/page.tsx",
-    line: 45,
+    line: 53,
     reason: "skills-referentielijst voor formulier",
   },
 
