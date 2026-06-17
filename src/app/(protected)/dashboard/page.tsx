@@ -13,7 +13,11 @@ import {
   Inbox,
 } from "lucide-react";
 import { auth } from "@/auth";
-import { WorkspaceDashboard, type WsAction } from "@/components/dashboard/workspace-dashboard";
+import {
+  WorkspaceDashboard,
+  type WsAction,
+  type WsWeekDay,
+} from "@/components/dashboard/workspace-dashboard";
 import { getClientStats } from "@/lib/client-stats";
 import { formatEuro } from "@/lib/invoices";
 import { requireActor } from "@/lib/authz";
@@ -162,15 +166,52 @@ const AVAILABILITY_LABEL: Record<string, { label: string; cls: string }> = {
 
 const ACTION_ICON = { attention: AlertTriangle, info: Bell, success: CheckCircle2 } as const;
 const ACTION_TONE = { attention: "warning", info: "primary", success: "success" } as const;
-const WEEKDAY_NL: Record<string, string> = {
-  MON: "ma",
-  TUE: "di",
-  WED: "wo",
-  THU: "do",
-  FRI: "vr",
-  SAT: "za",
-  SUN: "zo",
-};
+
+// Avatar-accenten cyclisch per rij (zoals #19: elke initialen-cirkel een andere kleur).
+const ROW_ACCENTS = [
+  "bg-primary/15 text-primary",
+  "bg-success/15 text-success",
+  "bg-accent text-accent-foreground",
+  "bg-warning/15 text-warning",
+];
+const rowAccent = (i: number): string => ROW_ACCENTS[i % ROW_ACCENTS.length] ?? ROW_ACCENTS[0]!;
+
+/** ISO-weeknummer (maandag-gebaseerd) — voor de "Week NN"-strip in de rail (#19). */
+function isoWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = (d.getUTCDay() + 6) % 7; // ma=0 … zo=6
+  d.setUTCDate(d.getUTCDate() - dayNum + 3); // donderdag van deze week
+  const firstThursday = d.getTime();
+  d.setUTCMonth(0, 1);
+  if (d.getUTCDay() !== 4) d.setUTCMonth(0, 1 + ((4 - d.getUTCDay() + 7) % 7));
+  return 1 + Math.ceil((firstThursday - d.getTime()) / 604800000);
+}
+
+/**
+ * Huidige week (ma–zo) als #19-strip. `loadByDate` (sleutel YYYY-MM-DD) overlayt het echte
+ * aantal diensten per dag; ontbreekt het, dan 0. De strip toont altijd de week + "vandaag".
+ */
+function buildCurrentWeek(
+  now: Date,
+  count: string,
+  loadByDate?: Map<string, number>,
+): { title: string; count: string; days: WsWeekDay[] } {
+  const labels = ["ma", "di", "wo", "do", "vr", "za", "zo"];
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const days: WsWeekDay[] = labels.map((label, i) => {
+    const dt = new Date(monday);
+    dt.setDate(monday.getDate() + i);
+    const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    return {
+      label,
+      date: String(dt.getDate()),
+      load: Math.min(loadByDate?.get(key) ?? 0, 3),
+      today: dt.toDateString() === now.toDateString(),
+    };
+  });
+  return { title: `Week ${isoWeekNumber(now)}`, count, days };
+}
 
 /** Open taken -> #19 "Volgende acties"-items voor de rechterrail. */
 function tasksToActions(
@@ -771,10 +812,10 @@ export default async function DashboardPage() {
       label: st.label,
       value: String(st.value),
     }));
-    const rows = matches.map((m) => ({
+    const rows = matches.map((m, i) => ({
       id: m.jobId,
       initials: initials(m.title),
-      accent: "bg-primary/10 text-primary",
+      accent: rowAccent(i),
       name: m.title,
       role: m.companyName,
       match: m.score,
@@ -782,19 +823,19 @@ export default async function DashboardPage() {
       statusClass: AVAILABILITY_LABEL[m.availability]?.cls,
       href: `/opdrachten/${m.jobId}`,
     }));
-    const wk =
-      week && weekStrip?.hasAny
-        ? {
-            title: "Deze week",
-            count: `${week.entries.length} ${week.entries.length === 1 ? "dienst" : "diensten"}`,
-            days: weekStrip.days.map((d) => ({
-              label: WEEKDAY_NL[d.weekday] ?? d.weekday,
-              date: String(d.date.getUTCDate()),
-              load: Math.min(d.entries.length, 3),
-              today: d.isToday,
-            })),
-          }
-        : undefined;
+    // Week-strip: altijd de huidige week (#19); echte dienst-belasting waar bekend.
+    const loadByDate = new Map<string, number>();
+    if (weekStrip?.hasAny) {
+      for (const d of weekStrip.days) {
+        const dt = d.date;
+        const key = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+        loadByDate.set(key, d.entries.length);
+      }
+    }
+    const weekCount = week
+      ? `${week.entries.length} ${week.entries.length === 1 ? "dienst" : "diensten"}`
+      : "0 diensten";
+    const wk = buildCurrentWeek(new Date(), weekCount, loadByDate);
     const openPunten = engageability
       ? engageability.blockers.length + engageability.attention.length
       : 0;
@@ -814,7 +855,6 @@ export default async function DashboardPage() {
         header={{
           title: user.name ?? "Werkruimte",
           subtitle: identity?.subtitle ?? undefined,
-          primaryAction: { label: "Opdrachten zoeken", href: "/opdrachten" },
         }}
         kpis={fKpis}
         list={{
@@ -845,10 +885,10 @@ export default async function DashboardPage() {
           { icon: Wallet, label: "Uitgaven", value: formatEuro(cs.spentCents) },
         ]
       : stats.map((st) => ({ icon: Briefcase, label: st.label, value: String(st.value) }));
-    const rows = (suggestedFreelancers ?? []).map((fr) => ({
+    const rows = (suggestedFreelancers ?? []).map((fr, i) => ({
       id: fr.freelancerId,
       initials: initials(fr.name),
-      accent: "bg-primary/10 text-primary",
+      accent: rowAccent(i),
       name: fr.name,
       verified: fr.trustLevel === "VOLLEDIG",
       role: fr.headline ?? fr.jobTitle,
@@ -886,12 +926,16 @@ export default async function DashboardPage() {
           reportHref: "/samenwerkingen",
         }
       : undefined;
+    const activeCount = cs?.activeCollaborations ?? 0;
+    const wk = buildCurrentWeek(
+      new Date(),
+      `${activeCount} ${activeCount === 1 ? "inzet" : "inzetten"}`,
+    );
     return (
       <WorkspaceDashboard
         header={{
           title: user.name ?? "Werkruimte",
           subtitle: identity?.subtitle ?? undefined,
-          primaryAction: { label: "Nieuwe opdracht", href: "/opdrachten/nieuw" },
         }}
         kpis={clientKpis}
         list={{
@@ -901,6 +945,7 @@ export default async function DashboardPage() {
           empty: "Plaats een opdracht om geschikte ZZP'ers voorgesteld te krijgen.",
         }}
         nextActions={tasksToActions(tasks)}
+        week={wk}
         seal={seal}
       />
     );
