@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { JobFilters } from "@/components/jobs/job-filters";
+import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Opdrachten · ZZP Platform" };
@@ -35,13 +36,7 @@ export default async function OpdrachtenPage({ searchParams }: { searchParams: S
   return <BrowseJobs searchParams={sp} actor={actor} />;
 }
 
-// --- CLIENT: beheeroverzicht van eigen opdrachten als kanban-pijplijn (Concept → Gepubliceerd → Gesloten) ---
-const JOB_COLUMNS: { status: JobStatus; label: string }[] = [
-  { status: "DRAFT", label: "Concept" },
-  { status: "PUBLISHED", label: "Gepubliceerd" },
-  { status: "CLOSED", label: "Gesloten" },
-];
-
+// --- CLIENT: beheeroverzicht van eigen opdrachten als kaartgrid (zelfde stijl als de ZZP'er-kaarten) ---
 async function ClientJobs({ userId }: { userId: string }) {
   const jobs = await prisma.job.findMany({
     where: { company: { userId } },
@@ -53,7 +48,7 @@ async function ClientJobs({ userId }: { userId: string }) {
     <div className="space-y-6">
       <PageHeader
         title="Mijn opdrachten"
-        description="Beheer je opdrachten in de pijplijn — van concept tot gesloten."
+        description="Beheer je opdrachten en publiceer ze voor ZZP'ers."
         action={
           <Button asChild>
             <Link href="/opdrachten/nieuw">
@@ -73,41 +68,36 @@ async function ClientJobs({ userId }: { userId: string }) {
           />
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-3">
-          {JOB_COLUMNS.map((col) => {
-            const colJobs = jobs.filter((j) => (j.status as JobStatus) === col.status);
-            return (
-              <div key={col.status} className="rounded-xl bg-muted/40 p-3">
-                <div className="mb-3 flex items-center justify-between px-1">
-                  <span className="text-sm font-medium">{col.label}</span>
-                  <span className="rounded-full bg-card px-2 py-0.5 font-mono text-xs text-muted-foreground shadow-card">
-                    {colJobs.length}
-                  </span>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {jobs.map((job) => (
+            <Card key={job.id} className="flex flex-col gap-3 p-4">
+              {/* Kop: icoon + titel + status — zelfde kaartopbouw als de ZZP'er-kaarten */}
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Briefcase className="h-5 w-5" aria-hidden />
                 </div>
-                <div className="space-y-2">
-                  {colJobs.length === 0 ? (
-                    <p className="px-1 py-8 text-center text-xs text-muted-foreground">
-                      Geen opdrachten
-                    </p>
-                  ) : (
-                    colJobs.map((job) => (
-                      <Link
-                        key={job.id}
-                        href={`/opdrachten/${job.id}`}
-                        className="focus-ring hover:shadow-card-hover block rounded-lg border border-border bg-card p-3 shadow-card transition-all hover:-translate-y-0.5"
-                      >
-                        <p className="truncate text-sm font-medium">{job.title}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {plural(job._count.applications, "reactie", "reacties")}
-                          {job.location ? ` · ${job.location}` : ""}
-                        </p>
-                      </Link>
-                    ))
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{job.title}</p>
+                  {job.location && (
+                    <p className="truncate text-xs text-muted-foreground">{job.location}</p>
                   )}
                 </div>
+                <span className="shrink-0">
+                  <JobStatusBadge status={job.status as JobStatus} />
+                </span>
               </div>
-            );
-          })}
+
+              <p className="text-xs text-muted-foreground">
+                {plural(job._count.applications, "reactie", "reacties")}
+              </p>
+
+              <div className="mt-auto pt-1">
+                <Button asChild variant="secondary" size="sm" className="w-full">
+                  <Link href={`/opdrachten/${job.id}`}>Bekijk opdracht</Link>
+                </Button>
+              </div>
+            </Card>
+          ))}
         </div>
       )}
     </div>
