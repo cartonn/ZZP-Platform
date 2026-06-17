@@ -157,7 +157,7 @@ export async function AppShell({
           tabIndex={-1}
           className={cn(
             "flex-1 outline-none",
-            flush ? "flex flex-col overflow-hidden" : "overflow-y-auto p-4 md:p-6",
+            flush ? "flex flex-col overflow-hidden p-4 md:p-6" : "overflow-y-auto p-4 md:p-6",
           )}
         >
           {flush ? (
