@@ -48,9 +48,14 @@ export async function AppShell({
   const fadeText =
     "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100";
 
-  // Schermvullende dashboards lopen breed door (geen 6xl-klem); de rest blijft op leesbare breedte.
+  // Schermvullende pagina's lopen breed door (geen 6xl-klem); de rest blijft op leesbare breedte.
+  // De werkruimte (#19) is bovendien "flush": geen main-padding, zodat de hoofdkolom + contextrail
+  // edge-to-edge lopen en de rail tegen de schermrand plakt (volle hoogte, eigen scroll).
   const pathname = (await headers()).get("x-pathname") ?? "";
-  const fullBleed = pathname === "/inzicht" || pathname === "/admin/statistieken";
+  // De #19-werkruimte draait alleen voor rollen die de WorkspaceDashboard renderen (ZZP'er +
+  // opdrachtgever). Bemiddelaar/admin houden voorlopig hun eigen padded dashboardindeling.
+  const flush = pathname === "/dashboard" && (role === "FREELANCER" || role === "CLIENT");
+  const fullBleed = flush || pathname === "/inzicht" || pathname === "/admin/statistieken";
 
   return (
     <div className="relative min-h-screen md:pl-16">
@@ -133,14 +138,21 @@ export async function AppShell({
         <main
           id="hoofdinhoud"
           tabIndex={-1}
-          className="flex-1 overflow-y-auto p-4 outline-none md:p-6"
+          className={cn(
+            "flex-1 outline-none",
+            flush ? "flex flex-col overflow-hidden" : "overflow-y-auto p-4 md:p-6",
+          )}
         >
-          {/* Gecentreerde inhoudskolom — elke pagina krijgt dezelfde breedte/centrering als
-              "Mijn profiel" (max-w-6xl). Pagina's met een eigen smallere max-w blijven smaller,
-              maar nog steeds gecentreerd. */}
-          <div className={cn("mx-auto w-full", fullBleed ? "max-w-none" : "max-w-6xl")}>
-            {children}
-          </div>
+          {flush ? (
+            // Werkruimte beheert zijn eigen layout (volle hoogte, eigen scroll per kolom).
+            children
+          ) : (
+            // Gecentreerde inhoudskolom — elke pagina krijgt dezelfde breedte/centrering als
+            // "Mijn profiel" (max-w-6xl). Pagina's met een eigen smallere max-w blijven smaller.
+            <div className={cn("mx-auto w-full", fullBleed ? "max-w-none" : "max-w-6xl")}>
+              {children}
+            </div>
+          )}
         </main>
       </div>
       <CommandPalette />

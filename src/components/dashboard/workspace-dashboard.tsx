@@ -91,18 +91,19 @@ export function WorkspaceDashboard({
   seal,
 }: WorkspaceDashboardProps) {
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+    <div className="flex min-h-0 flex-1">
       {/* Hoofdkolom */}
-      <div className="min-w-0 space-y-5">
-        <header className="flex flex-wrap items-start justify-between gap-3">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {/* Kop met onderlijn (zoals #19) */}
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 md:px-6">
           <div className="min-w-0">
-            <h1 className="font-display text-xl font-semibold tracking-tight">{header.title}</h1>
+            <h1 className="font-display text-lg font-semibold tracking-tight">{header.title}</h1>
             {header.subtitle && <p className="text-sm text-muted-foreground">{header.subtitle}</p>}
           </div>
           {header.primaryAction && (
             <Link
               href={header.primaryAction.href}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:opacity-90"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
             >
               <Plus className="h-4 w-4" aria-hidden />
               {header.primaryAction.label}
@@ -110,119 +111,127 @@ export function WorkspaceDashboard({
           )}
         </header>
 
-        {/* KPI-tegels */}
-        <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-          {kpis.map((kpi) => (
-            <div
-              key={kpi.label}
-              className="rounded-xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40"
-            >
-              <div className="flex items-center justify-between">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <kpi.icon className="h-4 w-4" aria-hidden />
-                </span>
-                {kpi.delta && (
-                  <span
-                    className={`font-mono text-xs font-medium ${TONE_TEXT[kpi.deltaTone ?? "primary"]}`}
-                  >
-                    {kpi.delta}
-                  </span>
-                )}
-              </div>
-              <p className="mt-3 font-mono text-2xl font-semibold tracking-tight">{kpi.value}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{kpi.label}</p>
-            </div>
-          ))}
-        </section>
-
-        {/* Lijst */}
-        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm ring-1 ring-border/40">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="font-display text-sm font-semibold">{list.title}</h2>
-            {list.href && (
-              <Link
-                href={list.href}
-                className="focus-ring flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 md:px-6">
+          {/* KPI-tegels */}
+          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            {kpis.map((kpi) => (
+              <div
+                key={kpi.label}
+                className="rounded-xl border border-border bg-card p-4 shadow-sm ring-1 ring-border/40"
               >
-                Alles tonen
-                <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-            )}
-          </div>
-          {list.rows.length === 0 ? (
-            <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-              {list.empty ?? "Nog niets om te tonen."}
-            </p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {list.rows.map((row) => (
-                <li key={row.id}>
-                  <Link
-                    href={row.href}
-                    className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
-                  >
-                    <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display text-sm font-semibold ${row.accent}`}
+                <div className="flex items-center justify-between">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <kpi.icon className="h-4 w-4" aria-hidden />
+                  </span>
+                  {kpi.delta && (
+                    <span
+                      className={`font-mono text-xs font-medium ${TONE_TEXT[kpi.deltaTone ?? "primary"]}`}
                     >
-                      {row.initials}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate text-sm font-medium">{row.name}</p>
-                        {row.verified && (
-                          <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden />
-                        )}
-                      </div>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {row.role}
-                        {row.institution ? ` · ${row.institution}` : ""}
-                      </p>
-                    </div>
-                    {row.location && (
-                      <div className="hidden items-center gap-1 text-xs text-muted-foreground md:flex">
-                        <MapPin className="h-3.5 w-3.5" aria-hidden />
-                        {row.location}
-                      </div>
-                    )}
-                    {row.rate != null && (
-                      <div className="hidden flex-col items-end sm:flex">
-                        <span className="font-mono text-sm font-semibold">€ {row.rate}</span>
-                        <span className="text-[10px] text-muted-foreground">per uur</span>
-                      </div>
-                    )}
-                    {row.match != null && (
-                      <div className="flex w-16 flex-col items-end">
-                        <span className="font-mono text-sm font-semibold text-primary">
-                          {row.match}%
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">match</span>
-                      </div>
-                    )}
-                    {row.status && (
-                      <span
-                        className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium lg:inline-block ${row.statusClass ?? "bg-muted text-muted-foreground"}`}
-                      >
-                        {row.status}
-                      </span>
-                    )}
-                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
+                      {kpi.delta}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-3 font-mono text-2xl font-semibold tracking-tight">{kpi.value}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{kpi.label}</p>
+              </div>
+            ))}
+          </section>
 
-      {/* Rechter contextrail */}
-      <aside className="flex flex-col gap-4">
+          {/* Lijst */}
+          <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm ring-1 ring-border/40">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h2 className="font-display text-sm font-semibold">{list.title}</h2>
+              {list.href && (
+                <Link
+                  href={list.href}
+                  className="focus-ring flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  Alles tonen
+                  <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              )}
+            </div>
+            {list.rows.length === 0 ? (
+              <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+                {list.empty ?? "Nog niets om te tonen."}
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {list.rows.map((row) => (
+                  <li key={row.id}>
+                    <Link
+                      href={row.href}
+                      className="focus-ring flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
+                    >
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display text-sm font-semibold ${row.accent}`}
+                      >
+                        {row.initials}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-sm font-medium">{row.name}</p>
+                          {row.verified && (
+                            <ShieldCheck
+                              className="h-3.5 w-3.5 shrink-0 text-success"
+                              aria-hidden
+                            />
+                          )}
+                        </div>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {row.role}
+                          {row.institution ? ` · ${row.institution}` : ""}
+                        </p>
+                      </div>
+                      {row.location && (
+                        <div className="hidden items-center gap-1 text-xs text-muted-foreground md:flex">
+                          <MapPin className="h-3.5 w-3.5" aria-hidden />
+                          {row.location}
+                        </div>
+                      )}
+                      {row.rate != null && (
+                        <div className="hidden flex-col items-end sm:flex">
+                          <span className="font-mono text-sm font-semibold">€ {row.rate}</span>
+                          <span className="text-[10px] text-muted-foreground">per uur</span>
+                        </div>
+                      )}
+                      {row.match != null && (
+                        <div className="flex w-16 flex-col items-end">
+                          <span className="font-mono text-sm font-semibold text-primary">
+                            {row.match}%
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">match</span>
+                        </div>
+                      )}
+                      {row.status && (
+                        <span
+                          className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium lg:inline-block ${row.statusClass ?? "bg-muted text-muted-foreground"}`}
+                        >
+                          {row.status}
+                        </span>
+                      )}
+                      <ArrowUpRight
+                        className="h-4 w-4 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </main>
+
+      {/* Rechter contextrail — volle hoogte, eigen scroll (zoals #19) */}
+      <aside className="hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border bg-card px-4 py-5 lg:flex">
         {/* Volgende acties */}
         <section>
           <h3 className="mb-2 px-1 font-display text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Volgende acties
           </h3>
           {nextActions.length === 0 ? (
-            <p className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+            <p className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
               Niets dat nu aandacht vraagt. Goed bezig.
             </p>
           ) : (
@@ -231,7 +240,7 @@ export function WorkspaceDashboard({
                 <li key={action.id}>
                   <Link
                     href={action.href}
-                    className="focus-ring flex items-start gap-2.5 rounded-lg border border-border bg-card p-2.5 transition-colors hover:bg-muted/50"
+                    className="focus-ring flex items-start gap-2.5 rounded-lg border border-border bg-background p-2.5 transition-colors hover:bg-muted/50"
                   >
                     <span
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${TONE_SOFT[action.tone]}`}
@@ -260,7 +269,7 @@ export function WorkspaceDashboard({
               </h3>
               <span className="font-mono text-[11px] text-muted-foreground">{week.count}</span>
             </div>
-            <div className="grid grid-cols-7 gap-1 rounded-lg border border-border bg-card p-2">
+            <div className="grid grid-cols-7 gap-1 rounded-lg border border-border bg-background p-2">
               {week.days.map((day) => (
                 <div
                   key={day.label + day.date}
@@ -294,7 +303,7 @@ export function WorkspaceDashboard({
 
         {/* Compliance-zegel */}
         {seal && (
-          <section className="rounded-xl border border-border bg-card p-4 shadow-sm ring-1 ring-success/15">
+          <section className="rounded-xl border border-border bg-background p-4 shadow-sm ring-1 ring-success/15">
             <div className="flex items-center gap-2">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success/10 text-success">
                 <ShieldCheck className="h-5 w-5" aria-hidden />

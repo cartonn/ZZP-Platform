@@ -9,6 +9,8 @@ import {
   Briefcase,
   Bell,
   CheckCircle2,
+  ShieldCheck,
+  Inbox,
 } from "lucide-react";
 import { auth } from "@/auth";
 import { WorkspaceDashboard, type WsAction } from "@/components/dashboard/workspace-dashboard";
@@ -43,7 +45,6 @@ import { franchiserNextActions, type NextAction, type NextActionTone } from "@/l
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
 import { buildWeekStrip } from "@/lib/week-strip";
-import { WeekStripView } from "@/components/dashboard/week-strip";
 import { RUNNING_ZONE_LIMIT, runningZonePlan } from "@/lib/running-zone";
 import { parseWeekdays } from "@/lib/weekdays";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
@@ -51,12 +52,7 @@ import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { type FreelancerCredential } from "@/lib/matching";
 import { Badge } from "@/components/ui/badge";
-import { MatchMeter } from "@/components/ui/match-meter";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ComplianceBadge } from "@/components/compliance-badge";
-import { AvailabilityBadge } from "@/components/availability-badge";
-import { EngageabilityExplanation } from "@/components/engageability-explanation";
 import { parseLanguages } from "@/lib/parse-languages";
 
 export const metadata: Metadata = { title: "Dashboard · ZZP Platform" };
@@ -166,6 +162,15 @@ const AVAILABILITY_LABEL: Record<string, { label: string; cls: string }> = {
 
 const ACTION_ICON = { attention: AlertTriangle, info: Bell, success: CheckCircle2 } as const;
 const ACTION_TONE = { attention: "warning", info: "primary", success: "success" } as const;
+const WEEKDAY_NL: Record<string, string> = {
+  MON: "ma",
+  TUE: "di",
+  WED: "wo",
+  THU: "do",
+  FRI: "vr",
+  SAT: "za",
+  SUN: "zo",
+};
 
 /** Open taken -> #19 "Volgende acties"-items voor de rechterrail. */
 function tasksToActions(
@@ -611,68 +616,6 @@ function RunningCard({ collab }: { collab: RunningCollab }) {
   );
 }
 
-function MatchesSection({ matches, prominent }: { matches: JobMatch[]; prominent: boolean }) {
-  return (
-    <section className="rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <div>
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Wat kan ik oppakken
-          </h2>
-          {prominent && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Opdrachten die bij je profiel passen — reageer direct.
-            </p>
-          )}
-        </div>
-        <Link
-          href="/opdrachten"
-          className="focus-ring text-xs text-muted-foreground hover:text-foreground"
-        >
-          Alle opdrachten
-        </Link>
-      </div>
-      <ul className="divide-y divide-border">
-        {matches.map((m) => (
-          <li key={m.jobId}>
-            <Link
-              href={`/opdrachten/${m.jobId}`}
-              className="focus-ring flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/40"
-            >
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{m.title}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {m.companyName}
-                </span>
-                {m.reason ? (
-                  <span className="block truncate text-xs text-primary">{m.reason}</span>
-                ) : m.related ? (
-                  <span className="block truncate text-xs text-primary">
-                    Sluit inhoudelijk aan op je profiel
-                  </span>
-                ) : null}
-              </span>
-              <span className="flex shrink-0 items-center gap-3">
-                {/* Rustig houden: badges alleen als ze iets signaleren — "beschikbaar" en
-                    "voldoet aan eisen" zijn de norm en hoeven geen aandacht te vragen. */}
-                {m.availability !== "AVAILABLE" && <AvailabilityBadge status={m.availability} />}
-                {m.compliance !== "COMPLIANT" && <ComplianceBadge status={m.compliance} />}
-                <span className="flex flex-col items-end gap-1">
-                  <span className="font-mono text-sm font-semibold tracking-tight text-primary">
-                    {m.score}%
-                  </span>
-                  <MatchMeter score={m.score} />
-                </span>
-                <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 export default async function DashboardPage() {
   const session = await auth();
   const user = session!.user;
@@ -820,44 +763,70 @@ export default async function DashboardPage() {
     </section>
   );
 
-  // --- ZZP'ER: #19 drie-koloms workspace ---
+  // --- ZZP'ER: #19 drie-koloms workspace met echte data ---
   if (role === "FREELANCER") {
+    const fKpiIcons = [Gauge, ShieldCheck, Inbox];
+    const fKpis = stats.map((st, i) => ({
+      icon: fKpiIcons[i] ?? Gauge,
+      label: st.label,
+      value: String(st.value),
+    }));
+    const rows = matches.map((m) => ({
+      id: m.jobId,
+      initials: initials(m.title),
+      accent: "bg-primary/10 text-primary",
+      name: m.title,
+      role: m.companyName,
+      match: m.score,
+      status: AVAILABILITY_LABEL[m.availability]?.label,
+      statusClass: AVAILABILITY_LABEL[m.availability]?.cls,
+      href: `/opdrachten/${m.jobId}`,
+    }));
+    const wk =
+      week && weekStrip?.hasAny
+        ? {
+            title: "Deze week",
+            count: `${week.entries.length} ${week.entries.length === 1 ? "dienst" : "diensten"}`,
+            days: weekStrip.days.map((d) => ({
+              label: WEEKDAY_NL[d.weekday] ?? d.weekday,
+              date: String(d.date.getUTCDate()),
+              load: Math.min(d.entries.length, 3),
+              today: d.isToday,
+            })),
+          }
+        : undefined;
+    const openPunten = engageability
+      ? engageability.blockers.length + engageability.attention.length
+      : 0;
+    const seal = engageability
+      ? {
+          title: "Inzetbaarheid",
+          subtitle: engageability.label,
+          items: [
+            { label: "Status", value: engageability.label, ok: engageability.status === "ACTIEF" },
+            { label: "Open aandachtspunten", value: String(openPunten), ok: openPunten === 0 },
+          ],
+          reportHref: "/certificaten",
+        }
+      : undefined;
     return (
-      <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-        <div className="min-w-0 space-y-5">
-          {profileHeader}
-          {kpiTiles}
-          {matches.length > 0 && <MatchesSection matches={matches} prominent={!hasRunning} />}
-          {runningSection}
-        </div>
-        <aside className="space-y-5">
-          <DashboardActions tasks={tasks} drawerData={drawerData} title="Wat vraagt aandacht" />
-          {weekStrip?.hasAny && (
-            <section className="rounded-lg border border-border bg-card p-4 shadow-card">
-              <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Deze week
-              </h2>
-              <WeekStripView strip={weekStrip} />
-            </section>
-          )}
-          {engageability && engageability.status !== "ACTIEF" && (
-            <section className="rounded-lg border border-border bg-card p-5 shadow-card">
-              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Jouw inzetbaarheid
-              </h2>
-              <EngageabilityExplanation result={engageability} self />
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="secondary">
-                  <Link href="/certificaten">Naar certificaten</Link>
-                </Button>
-                <Button asChild size="sm" variant="ghost">
-                  <Link href="/profiel/bewerken">Profiel aanvullen</Link>
-                </Button>
-              </div>
-            </section>
-          )}
-        </aside>
-      </div>
+      <WorkspaceDashboard
+        header={{
+          title: user.name ?? "Werkruimte",
+          subtitle: identity?.subtitle ?? undefined,
+          primaryAction: { label: "Opdrachten zoeken", href: "/opdrachten" },
+        }}
+        kpis={fKpis}
+        list={{
+          title: "Opdrachten voor jou",
+          href: "/opdrachten",
+          rows,
+          empty: "Nog geen passende opdrachten — maak je profiel compleet voor betere matches.",
+        }}
+        nextActions={tasksToActions(tasks)}
+        week={wk}
+        seal={seal}
+      />
     );
   }
 
