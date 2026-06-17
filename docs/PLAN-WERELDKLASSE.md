@@ -54,7 +54,8 @@ afzonderlijk missen.
 - **Portable vertrouwensdossier**: exporteerbaar/deelbaar geverifieerd dossier
   (PDF + verifieerbare link) — verificatie wordt een asset voor de ZZP'er.
 - **Rooster-marktplaats**: diensten per kalender publiceren/claimen naast
-  vacature-achtige opdrachten.
+  vacature-achtige opdrachten. _Discovery (open diensten gescoord per dag) + agenda (eigen geboekte
+  diensten naast open kansen, `buildAgenda`) staan; de publiceer-/claim-mutatie blijft open._
 
 ## Fase 4 — Backend-hardening (vóór livegang)
 
