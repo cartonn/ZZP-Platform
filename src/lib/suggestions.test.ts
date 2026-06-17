@@ -13,6 +13,9 @@ const s = (freelancerId: string, score: number): FreelancerSuggestion => ({
   compliance: "COMPLIANT",
   trustLevel: "BASIS",
   availability: "AVAILABLE",
+  headline: null,
+  location: null,
+  rate: null,
 });
 
 const cs = (
@@ -27,6 +30,9 @@ const cs = (
   compliance: "COMPLIANT",
   trustLevel: "BASIS",
   availability: "AVAILABLE",
+  headline: null,
+  location: null,
+  rate: null,
   jobId,
   jobTitle: `Opdracht ${jobId}`,
   ...(relatedness !== undefined ? { relatedness } : {}),

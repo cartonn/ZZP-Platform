@@ -1,7 +1,19 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, AlertTriangle } from "lucide-react";
+import {
+  ArrowRight,
+  AlertTriangle,
+  Gauge,
+  Handshake,
+  Wallet,
+  Briefcase,
+  Bell,
+  CheckCircle2,
+} from "lucide-react";
 import { auth } from "@/auth";
+import { WorkspaceDashboard, type WsAction } from "@/components/dashboard/workspace-dashboard";
+import { getClientStats } from "@/lib/client-stats";
+import { formatEuro } from "@/lib/invoices";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { pendingTasks } from "@/lib/actions/pending-tasks";
@@ -19,14 +31,12 @@ import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecyc
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { suggestedFreelancersForClient, type ClientFreelancerSuggestion } from "@/lib/suggestions";
 import { TrustBadge } from "@/components/trust/trust-badge";
-import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import {
   clientCredentialAlerts,
   shortCredentialAlert,
   summarizeClientCompliance,
   type ClientComplianceSnapshot,
 } from "@/lib/collaboration-alerts";
-import { ComplianceSnapshotCard } from "@/components/dashboard/compliance-snapshot-card";
 import { computeFreelancerCompleteness } from "@/lib/profile";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { franchiserNextActions, type NextAction, type NextActionTone } from "@/lib/next-actions";
@@ -145,6 +155,30 @@ function initials(name: string | null): string {
   const first = parts[0]?.[0] ?? "";
   const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
   return (first + last).toUpperCase() || "?";
+}
+
+// Beschikbaarheid -> status-badge in de professionals-lijst (#19).
+const AVAILABILITY_LABEL: Record<string, { label: string; cls: string }> = {
+  AVAILABLE: { label: "Beschikbaar", cls: "bg-success/10 text-success" },
+  LIMITED: { label: "Beperkt", cls: "bg-warning/10 text-warning" },
+  UNAVAILABLE: { label: "Niet beschikbaar", cls: "bg-muted text-muted-foreground" },
+};
+
+const ACTION_ICON = { attention: AlertTriangle, info: Bell, success: CheckCircle2 } as const;
+const ACTION_TONE = { attention: "warning", info: "primary", success: "success" } as const;
+
+/** Open taken -> #19 "Volgende acties"-items voor de rechterrail. */
+function tasksToActions(
+  tasks: { title: string; subtitle?: string; tone: NextActionTone; href: string }[],
+): WsAction[] {
+  return tasks.slice(0, 6).map((t, i) => ({
+    id: `${i}-${t.href}`,
+    icon: ACTION_ICON[t.tone],
+    title: t.title,
+    detail: t.subtitle,
+    href: t.href,
+    tone: ACTION_TONE[t.tone],
+  }));
 }
 
 async function dashboardData(role: UserRole, userId: string): Promise<DashboardData> {
@@ -639,79 +673,6 @@ function MatchesSection({ matches, prominent }: { matches: JobMatch[]; prominent
   );
 }
 
-function ClientSuggestionsSection({
-  suggestions,
-  prominent,
-}: {
-  suggestions: ClientFreelancerSuggestion[];
-  prominent: boolean;
-}) {
-  return (
-    <section className="rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <div>
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Wat kan ik oppakken
-          </h2>
-          {prominent && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Geschikte ZZP&apos;ers voor je opdrachten — benader ze direct.
-            </p>
-          )}
-        </div>
-        <Link
-          href="/kandidaten"
-          className="focus-ring text-xs text-muted-foreground hover:text-foreground"
-        >
-          Alle kandidaten
-        </Link>
-      </div>
-      <ul className="divide-y divide-border">
-        {suggestions.map((f) => (
-          <li key={f.freelancerId} className="px-5 py-3">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="min-w-0">
-                <span className="flex flex-wrap items-center gap-1.5">
-                  <Link
-                    href={`/zzp/${f.freelancerId}`}
-                    target="_blank"
-                    className="focus-ring truncate font-medium hover:text-primary"
-                  >
-                    {f.name}
-                  </Link>
-                  <TrustBadge level={f.trustLevel} />
-                </span>
-                {f.related && (
-                  <span className="block truncate text-xs text-primary">
-                    Sluit inhoudelijk aan op je opdracht
-                  </span>
-                )}
-                <span className="block truncate text-xs text-muted-foreground">{f.jobTitle}</span>
-              </span>
-              <span className="flex shrink-0 flex-wrap items-center gap-3">
-                {/* Rustig: badges alleen als ze iets signaleren — beschikbaar/compliant is de norm. */}
-                {f.availability !== "AVAILABLE" && <AvailabilityBadge status={f.availability} />}
-                {f.compliance !== "COMPLIANT" && <ComplianceBadge status={f.compliance} />}
-                <span className="flex flex-col items-end gap-1">
-                  <span className="font-mono text-sm font-semibold tracking-tight text-primary">
-                    {f.score}%
-                  </span>
-                  <MatchMeter score={f.score} />
-                </span>
-                <form action={startConversationWithFreelancer.bind(null, f.jobId, f.freelancerId)}>
-                  <Button type="submit" variant="secondary" size="sm">
-                    Bericht sturen
-                  </Button>
-                </form>
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 export default async function DashboardPage() {
   const session = await auth();
   const user = session!.user;
@@ -900,76 +861,79 @@ export default async function DashboardPage() {
     );
   }
 
-  // --- OPDRACHTGEVER: #19 drie-koloms workspace (hoofdkolom + contextuele rechterrail) ---
+  // --- OPDRACHTGEVER: #19 drie-koloms workspace met echte data ---
   if (role === "CLIENT") {
+    const cs = await getClientStats(user.id!);
+    const clientKpis = cs
+      ? [
+          { icon: Gauge, label: "Vervullingsgraad", value: `${cs.fillRate}%` },
+          {
+            icon: Handshake,
+            label: "Actieve samenwerkingen",
+            value: String(cs.activeCollaborations),
+          },
+          { icon: Briefcase, label: "Geplaatste opdrachten", value: String(cs.publishedJobs) },
+          { icon: Wallet, label: "Uitgaven", value: formatEuro(cs.spentCents) },
+        ]
+      : stats.map((st) => ({ icon: Briefcase, label: st.label, value: String(st.value) }));
+    const rows = (suggestedFreelancers ?? []).map((fr) => ({
+      id: fr.freelancerId,
+      initials: initials(fr.name),
+      accent: "bg-primary/10 text-primary",
+      name: fr.name,
+      verified: fr.trustLevel === "VOLLEDIG",
+      role: fr.headline ?? fr.jobTitle,
+      location: fr.location,
+      rate: fr.rate,
+      match: fr.score,
+      status: AVAILABILITY_LABEL[fr.availability]?.label,
+      statusClass: AVAILABILITY_LABEL[fr.availability]?.cls,
+      href: `/zzp/${fr.freelancerId}`,
+    }));
+    const seal = complianceSnapshot
+      ? {
+          title: "Compliance-zegel",
+          subtitle:
+            complianceSnapshot.total === 0
+              ? "Geen lopende inzetten"
+              : `${complianceSnapshot.total - complianceSnapshot.nonCompliant - complianceSnapshot.warning}/${complianceSnapshot.total} inzetten in orde`,
+          items: [
+            {
+              label: "Ontbrekend/verlopen",
+              value: String(complianceSnapshot.missing + complianceSnapshot.expired),
+              ok: complianceSnapshot.missing + complianceSnapshot.expired === 0,
+            },
+            {
+              label: "Verloopt binnenkort",
+              value: String(complianceSnapshot.expiringSoon),
+              ok: complianceSnapshot.expiringSoon === 0,
+            },
+            {
+              label: "In beoordeling",
+              value: String(complianceSnapshot.inReview),
+              ok: complianceSnapshot.inReview === 0,
+            },
+          ],
+          reportHref: "/samenwerkingen",
+        }
+      : undefined;
     return (
-      <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-        {/* Hoofdkolom */}
-        <div className="min-w-0 space-y-5">
-          {profileHeader}
-
-          {/* KPI-tegels */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-            {stats.map((s) => (
-              <Link
-                key={s.label}
-                href={s.href}
-                className="focus-ring hover:shadow-card-hover rounded-lg border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5"
-              >
-                <p className="font-mono text-2xl font-semibold tracking-tight">{s.value}</p>
-                <p className="mt-1 text-sm font-medium">{s.label}</p>
-                {s.sub && <p className="mt-0.5 text-xs text-muted-foreground">{s.sub}</p>}
-              </Link>
-            ))}
-          </div>
-
-          {/* Voorgestelde professionals */}
-          {(suggestedFreelancers?.length ?? 0) > 0 && (
-            <ClientSuggestionsSection suggestions={suggestedFreelancers!} prominent={!hasRunning} />
-          )}
-
-          {/* Wat loopt er nu */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Wat loopt er nu
-              </h2>
-              <Link
-                href={SAMENWERKINGEN_HREF[role]}
-                className="focus-ring text-xs text-muted-foreground hover:text-foreground"
-              >
-                Alle samenwerkingen
-              </Link>
-            </div>
-            {hasRunning ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {running.map((c) => (
-                  <RunningCard key={c.id} collab={c} />
-                ))}
-                {runningOverflow > 0 && (
-                  <Link
-                    href={SAMENWERKINGEN_HREF[role]}
-                    className="card-interactive flex items-center justify-center rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground"
-                  >
-                    Nog {runningOverflow} lopende samenwerkingen →
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground shadow-card">
-                Nog geen lopende samenwerkingen — zodra een ZZP&apos;er een voorstel accepteert,
-                verschijnt het hier.
-              </div>
-            )}
-          </section>
-        </div>
-
-        {/* Contextuele rechterrail */}
-        <aside className="space-y-5">
-          <DashboardActions tasks={tasks} drawerData={drawerData} title="Wat vraagt aandacht" />
-          {complianceSnapshot && <ComplianceSnapshotCard snapshot={complianceSnapshot} />}
-        </aside>
-      </div>
+      <WorkspaceDashboard
+        header={{
+          title: user.name ?? "Werkruimte",
+          subtitle: identity?.subtitle ?? undefined,
+          primaryAction: { label: "Nieuwe opdracht", href: "/opdrachten/nieuw" },
+        }}
+        kpis={clientKpis}
+        list={{
+          title: "Voorgestelde professionals",
+          href: "/freelancers",
+          rows,
+          empty: "Plaats een opdracht om geschikte ZZP'ers voorgesteld te krijgen.",
+        }}
+        nextActions={tasksToActions(tasks)}
+        seal={seal}
+      />
     );
   }
 
