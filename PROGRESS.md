@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(admin): platform-doorzet-trend (gefactureerd volume per maand) op /admin/statistieken
+
+`/admin/statistieken` toonde uitsluitend punt-in-tijd-tellingen — geen doorzet-/groeitrend over de
+tijd. `buildRevenueTrend` had al FREELANCER/CLIENT/TENANT-fetchers maar geen platform-brede variant.
+Dit voegt die toe en wired de bestaande `RevenueTrendCard` als doorzet-hero boven de statistieken.
+Read-only, server-side, geen schemawijziging, geen mutatie.
+
+- [x] `src/lib/revenue-trend.ts` — `getPlatformRevenueTrend(now, months)`: totaal gefactureerd
+      volume per maand over álle facturen (`status != CANCELLED`, binnen het maandvenster,
+      `issuerUserId not null`). Sommeren over `issuerUserId not null` telt elke cascade-transactie
+      precies één keer (de ZZP'er factureert de opdrachtgever één keer) en sluit eventuele
+      platform-fee-facturen uit — doorzet/GMV, geen platform-inkomsten (Besluit 1: het platform
+      boekt niets). Tevens pure `toRevenueRows(invoices)` geëxtraheerd die de 4× gedupliceerde
+      factuur→`RevenueSource`-mapping centraliseert; de drie bestaande fetchers gebruiken hem nu ook
+      (gedragsbehoudend).
+- [x] `src/lib/revenue-trend.test.ts` — 4 nieuwe tests voor `toRevenueRows` (mapping
+      `issuedAt`→`occurredAt`, `totalCents` null → 0, volgorde/lengte behouden, lege invoer).
+- [x] `src/app/(protected)/admin/statistieken/page.tsx` — parallelle fetch + nieuwe BI-sectie
+      "Doorzet" met de `RevenueTrendCard` ("Gefactureerd volume per maand") + een toelichtingsregel
+      dat dit doorzet is, geen platform-inkomsten. Spiegelt de omzettrend op /inzicht naar de
+      platform-brede admin-context.
+
+Gates groen: typecheck ✓, lint ✓, test 2220 ✓ (+4), build ✓ (`/admin/statistieken` aanwezig),
+`prettier --check .` ✓.
+
+---
+
 ## feat(rooster): agenda — eigen geplande diensten naast open kansen
 
 `/rooster` toonde alleen open diensten (PUBLISHED jobs met startdatum); de ZZP'er zag z'n eigen
