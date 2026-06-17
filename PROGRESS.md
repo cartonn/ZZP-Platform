@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(berichten): aan-zet-signaal — wiens beurt + stilte op /berichten
+
+`/berichten` toonde per gesprek het laatste bericht + ongelezen-telling, maar niet **wiens beurt**
+het is of dat een gesprek **stilligt**. Dit voegt een read-only "aan zet"-signaal toe in lijn met de
+dashboard-/cascade-taal "wat moet ik nu doen": jouw beurt (tegenpartij wacht) vs. wacht op antwoord
+(jij wacht), met een stilte-noot bij gesprekken die te lang geen reactie kregen — gespiegeld op het
+verification-queue stale-patroon. Server-side, deterministisch, **geen schemawijziging, geen extra
+query** (leunt op het al opgehaalde laatste bericht + de bestaande ongelezen-COUNT).
+
+- [x] `src/lib/conversation-turn.ts` — pure helpers: `conversationTurn` (yours/theirs/none; ongelezen
+      is leidend voor "jouw beurt"), `daysSince`, `isStaleAwaitingReply` (alleen voor de wachtende
+      kant, drempel `CONVERSATION_STALE_DAYS=3`), `staleLabel`, `summarizeConversationTurns`
+      (awaitingYou/awaitingThem/stale, muteert invoer niet).
+- [x] `src/lib/conversation-turn.test.ts` — 16 unit-tests (beurt-bepaling incl. ongelezen-primaat,
+      dagen-telling, stale op/onder drempel + custom drempel, label enkel/meervoud, samenvatting +
+      non-mutatie).
+- [x] `src/app/(protected)/berichten/(index)/page.tsx` — `senderId` toegevoegd aan de laatste-bericht-
+      select; kopstrip met telling (wacht op jou / op antwoord / aantal stil); per-gesprek een
+      `muted` chip "Wacht op antwoord" / "N dagen geen reactie" wanneer de kijker wacht (de bestaande
+      "N nieuw"-badge dekt "jouw beurt").
+
+Gates groen: typecheck ✓, lint ✓, test **2185 passed (+16)** ✓, build ✓ (`/berichten`), prettier ✓.
+
 ## docs: persona-sweep-backlog 2026-06-16 reconciliëren (beide bevindingen al geadresseerd)
 
 De persona-sweep van 16-6 draaide tegen basis-commit `f3652c5` en kruiste de bevindingen niet met
