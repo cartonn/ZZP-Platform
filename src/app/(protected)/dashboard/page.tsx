@@ -804,11 +804,124 @@ export default async function DashboardPage() {
           {identity?.subtitle && (
             <p className="mt-0.5 text-sm text-muted-foreground">{identity.subtitle}</p>
           )}
-          <p className="mt-1.5 text-sm text-muted-foreground">{headerLead}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            {identity?.meta.map((m, i) => (
+              <span
+                key={m}
+                className={i === 0 ? "font-mono font-semibold" : "text-muted-foreground"}
+              >
+                {m}
+              </span>
+            ))}
+            <span className="text-muted-foreground">{headerLead}</span>
+          </div>
+          {identity?.editHref && (
+            <Link
+              href={identity.editHref}
+              className="focus-ring mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+            >
+              Bewerk jouw profiel
+              <ArrowRight className="size-3.5" aria-hidden />
+            </Link>
+          )}
         </div>
       </div>
     </header>
   );
+
+  // KPI-tegelrij — gedeeld tussen de rol-workspaces.
+  const kpiTiles = stats.length > 0 && (
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      {stats.map((s) => (
+        <Link
+          key={s.label}
+          href={s.href}
+          className="focus-ring hover:shadow-card-hover rounded-lg border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5"
+        >
+          <p className="font-mono text-2xl font-semibold tracking-tight">{s.value}</p>
+          <p className="mt-1 text-sm font-medium">{s.label}</p>
+          {s.sub && <p className="mt-0.5 text-xs text-muted-foreground">{s.sub}</p>}
+        </Link>
+      ))}
+    </div>
+  );
+
+  // Lopende samenwerkingen-sectie — gedeeld tussen de rol-workspaces.
+  const runningSection = (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Wat loopt er nu
+        </h2>
+        <Link
+          href={SAMENWERKINGEN_HREF[role]}
+          className="focus-ring text-xs text-muted-foreground hover:text-foreground"
+        >
+          Alle samenwerkingen
+        </Link>
+      </div>
+      {hasRunning ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {running.map((c) => (
+            <RunningCard key={c.id} collab={c} />
+          ))}
+          {runningOverflow > 0 && (
+            <Link
+              href={SAMENWERKINGEN_HREF[role]}
+              className="card-interactive flex items-center justify-center rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground"
+            >
+              Nog {runningOverflow} lopende samenwerkingen →
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground shadow-card">
+          Nog geen lopende samenwerkingen.
+        </div>
+      )}
+    </section>
+  );
+
+  // --- ZZP'ER: #19 drie-koloms workspace ---
+  if (role === "FREELANCER") {
+    return (
+      <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+        <div className="min-w-0 space-y-5">
+          {profileHeader}
+          {kpiTiles}
+          {matches.length > 0 && <MatchesSection matches={matches} prominent={!hasRunning} />}
+          {runningSection}
+        </div>
+        <aside className="space-y-5">
+          <DashboardActions tasks={tasks} drawerData={drawerData} title="Wat vraagt aandacht" />
+          {weekStrip?.hasAny && (
+            <section className="rounded-lg border border-border bg-card p-4 shadow-card">
+              <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Deze week
+              </h2>
+              <WeekStripView strip={weekStrip} />
+            </section>
+          )}
+          {engageability && engageability.status !== "ACTIEF" && (
+            <section className="rounded-lg border border-border bg-card p-5 shadow-card">
+              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Jouw inzetbaarheid
+              </h2>
+              <EngageabilityExplanation result={engageability} self />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="secondary">
+                  <Link href="/certificaten">Naar certificaten</Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost">
+                  <Link href="/profiel/bewerken">Profiel aanvullen</Link>
+                </Button>
+              </div>
+            </section>
+          )}
+        </aside>
+      </div>
+    );
+  }
 
   // --- OPDRACHTGEVER: #19 drie-koloms workspace (hoofdkolom + contextuele rechterrail) ---
   if (role === "CLIENT") {
@@ -1013,25 +1126,6 @@ export default async function DashboardPage() {
           opdrachtgever het beschikbare aanbod. Verbergt zichzelf zonder relevante activiteit. */}
       {activity && <ActivitySignalBar signal={activity} role={role} />}
 
-      {/* Eigen inzetbaarheid — toont de ZZP'er wat een opdrachtgever ziet, met een concreet herstelpad.
-          Verschijnt alleen als er iets te verbeteren valt (rustig houden zodra je inzetbaar bent). */}
-      {role === "FREELANCER" && engageability && engageability.status !== "ACTIEF" && (
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Jouw inzetbaarheid
-          </h2>
-          <EngageabilityExplanation result={engageability} self />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="secondary">
-              <Link href="/certificaten">Naar certificaten</Link>
-            </Button>
-            <Button asChild size="sm" variant="ghost">
-              <Link href="/profiel/bewerken">Profiel aanvullen</Link>
-            </Button>
-          </div>
-        </section>
-      )}
-
       {/* Franchiser-activatie — geleide opzet van de franchise. Klikbare stappen die de eerstvolgende
           concrete actie tonen (opdrachtgever → dienst → roster); verdwijnt zodra de franchise staat. */}
       {role === "FRANCHISER" && activation.length > 0 && (
@@ -1059,17 +1153,6 @@ export default async function DashboardPage() {
             ))}
           </ul>
         </section>
-      )}
-
-      {/* Zone 3 prominent — bij weinig lopend werk eerst de matches. */}
-      {role === "FREELANCER" && !hasRunning && matches.length > 0 && (
-        <MatchesSection matches={matches} prominent />
-      )}
-
-      {/* Zone 3 compact — naast lopend werk de matches eronder. (CLIENT heeft een eigen
-          #19-workspace hierboven en bereikt deze gedeelde render niet.) */}
-      {role === "FREELANCER" && hasRunning && matches.length > 0 && (
-        <MatchesSection matches={matches} prominent={false} />
       )}
 
       {/* Aan de slag — onboarding alleen voor nieuwe accounts, en alleen als het actiecentrum
