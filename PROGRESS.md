@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: job-engagement-signaal (weinig reacties) voor de opdrachtgever
+
+Spiegelbeeld van `job-alerts` (die ZZP'ers naar passende nieuwe opdrachten duwt): een geplande taak
+waarschuwt nu de **opdrachtgever** wanneer een gepubliceerde opdracht "koud" blijft — lang open zonder
+noemenswaardige respons. Tot nu toe kreeg de opdrachtgever géén signaal dat zijn opdracht weinig
+reacties trekt (tarief-/zichtbaarheid-/skill-mismatch); hij kon alleen blind wachten. Read-only afgeleid
+uit bestaande data, **geen schemawijziging, geen geldstroom, geen UI-redesign** (de melding verschijnt in
+de bestaande meldingenlijst en linkt naar de opdracht).
+
+- [x] `src/lib/job-engagement.ts` — pure `planJobEngagement(jobs, { now, minAgeDays?, maxApplications? })` + `jobAgeInDays` + drempels `JOB_COLD_MIN_AGE_DAYS=7` / `JOB_COLD_MAX_APPLICATIONS=2`. Een opdracht is
+      koud wanneer hij ≥ `minAgeDays` geleden is gepubliceerd én ≤ `maxApplications` reacties heeft;
+      niet-gepubliceerde opdrachten worden genegeerd. dedupeKey `job-cold:<jobId>` (per opdracht hooguit
+      één waarschuwing, geen herhaald gezeur). Reactie-tekst schaalt (0 / 1 / meer).
+- [x] `src/lib/job-engagement-task.ts` — `runJobEngagementTask` (plan/apply zoals `runJobAlertsTask`):
+      begrensde query (`status PUBLISHED`, `publishedAt <= now-7d`, `take: 200`, `_count.applications`),
+      idempotent via DomainEvent-dedupeKey, schrijft `DomainEvent` (type `JOB_COLD`, zoals `JOB_MATCH`
+      buiten de cascade-enum) + `Notification` + `AuditLog` (`JOB_ENGAGEMENT_ALERT_SENT`) atomair per alert.
+- [x] `src/app/api/tasks/run-all/route.ts` — taak `job-engagement` toegevoegd aan de cron-keten.
+- [x] `src/lib/notifications.ts` — `JOB_COLD` → categorie `system`, toon `attention`.
+- [x] Tests: `job-engagement.test.ts` (12, grenzen leeftijd/reacties/null/drempels/multi-job) +
+      `job-engagement-task.test.ts` (4, mocked prisma: leeg / happy path / idempotentie / dubbele run).
+
+Gates groen: typecheck ✓, lint ✓, test 2232 ✓ (+16), build ✓ (`/api/tasks/run-all` aanwezig),
+`prettier --check .` ✓.
+
+---
+
 ## feat(rooster): agenda — eigen geplande diensten naast open kansen
 
 `/rooster` toonde alleen open diensten (PUBLISHED jobs met startdatum); de ZZP'er zag z'n eigen

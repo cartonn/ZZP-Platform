@@ -260,6 +260,12 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Job-engagement-signaal (koude opdracht) voor de opdrachtgever** —
+> `lib/job-engagement.ts` `planJobEngagement` (pure) + `lib/job-engagement-task.ts`
+> `runJobEngagementTask` (plan/apply, idempotent via DomainEvent `job-cold:<jobId>`, gewired in
+> `run-all`): waarschuwt de opdrachtgever wanneer een gepubliceerde opdracht ≥7 dagen open staat met
+> <3 reacties (spiegel van `job-alerts`). `JOB_COLD`-notificatie (system/attention) in de bestaande
+> meldingenlijst, linkt naar de opdracht; 16 unit-tests; geen schemawijziging, geen geldstroom.
 > Gedaan (niet opnieuw): **Reactie-uitkomsten samenvatting op `/reacties`** — pure
 > `summarizeApplicationOutcomes` (`lib/application-outcomes.ts`, 11 tests) + `OutcomesSummary`-strip
 > (Verstuurd/Bekeken/Op shortlist/Geaccepteerd) met responspercentage + acceptatiegraad
