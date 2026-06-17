@@ -6,9 +6,7 @@ import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { pendingTasks } from "@/lib/actions/pending-tasks";
 import { loadDrawerData } from "@/lib/actions/drawer-data";
-import { getActivitySignal } from "@/lib/activity-signal";
 import { DashboardActions } from "@/components/actions/dashboard-actions";
-import { ActivitySignalBar } from "@/components/dashboard/activity-signal";
 import {
   type UserRole,
   type CollaborationStatus,
@@ -49,7 +47,6 @@ import { Progress } from "@/components/ui/progress";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { EngageabilityExplanation } from "@/components/engageability-explanation";
-import { plural } from "@/lib/plural";
 import { parseLanguages } from "@/lib/parse-languages";
 
 export const metadata: Metadata = { title: "Dashboard · ZZP Platform" };
@@ -536,23 +533,6 @@ const SAMENWERKINGEN_HREF: Record<UserRole, string> = {
   FRANCHISER: "/franchise/samenwerkingen",
 };
 
-/** Lege staat van de "Wat loopt er nu"-zone: wat is de eerstvolgende stap richting lopend werk? */
-const NO_RUNNING: Record<UserRole, { text: string; cta?: { label: string; href: string } }> = {
-  FREELANCER: {
-    text: "Geen lopende samenwerkingen. Reageer op een opdracht die bij je past om te starten.",
-    cta: { label: "Bekijk opdrachten", href: "/opdrachten" },
-  },
-  CLIENT: {
-    text: "Geen lopende samenwerkingen. Plaats een opdracht om ZZP'ers voorgesteld te krijgen.",
-    cta: { label: "Opdracht plaatsen", href: "/opdrachten/nieuw" },
-  },
-  ADMIN: { text: "Geen lopende samenwerkingen op het platform." },
-  FRANCHISER: {
-    text: "Geen lopende samenwerkingen in je bemiddeling. Zet een dienst uit om te starten.",
-    cta: { label: "Naar diensten", href: "/franchise/diensten" },
-  },
-};
-
 function RunningCard({ collab }: { collab: RunningCollab }) {
   const { stage } = collab;
   const pct = Math.round((stage.step / stage.totalSteps) * 100);
@@ -751,7 +731,6 @@ export default async function DashboardPage() {
       running,
       runningOverflow,
       week,
-      isNewAccount,
       activation,
       engageability,
       complianceSnapshot,
@@ -760,12 +739,10 @@ export default async function DashboardPage() {
     },
     matches,
     tasks,
-    activity,
   ] = await Promise.all([
     dashboardData(role, user.id!),
     role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
     pendingTasks(actor),
-    role === "FREELANCER" || role === "CLIENT" ? getActivitySignal() : Promise.resolve(null),
   ]);
   // Dezelfde item-niveau taken als /acties, hier inline-afhandelbaar in de aandacht-zone.
   const drawerData = await loadDrawerData(actor, tasks);
@@ -996,185 +973,59 @@ export default async function DashboardPage() {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Profielkaart — zelfde taal als de publieke-profielkop (/zzp/[id]): avatar, naam +
-          zegel, subtitel, kerncijfers. Elke rol krijgt dezelfde opzet; de inhoud verschilt. */}
-      <header className="rounded-lg border border-border bg-card p-5">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {WERKPLEK[role]} · {today}
-        </p>
-        <div className="mt-3 flex items-start gap-4">
-          <div
-            aria-hidden
-            className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-lg font-semibold text-primary"
-          >
-            {initials(user.name ?? null)}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
-                {user.name ?? `Welkom terug, ${firstName}`}
-              </h1>
-              {identity?.trustLevel && <TrustBadge level={identity.trustLevel} />}
-            </div>
-            {identity?.subtitle && (
-              <p className="mt-0.5 text-sm text-muted-foreground">{identity.subtitle}</p>
-            )}
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              {identity?.meta.map((m, i) => (
-                <span
-                  key={m}
-                  className={i === 0 ? "font-mono font-semibold" : "text-muted-foreground"}
-                >
-                  {m}
-                </span>
-              ))}
-              <span className="text-muted-foreground">{headerLead}</span>
-            </div>
-            {identity?.editHref && (
-              <Link
-                href={identity.editHref}
-                className="focus-ring mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-              >
-                Bewerk jouw profiel
-                <ArrowRight className="size-3.5" aria-hidden />
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Zone 1 — Wat vraagt aandacht: direct onder de profielkaart, voor élke rol (voor de
-          admin is dit de operationele wachtrij). Inline-afhandelbaar, zelfde resolvers als /acties. */}
-      <DashboardActions
-        tasks={tasks}
-        drawerData={drawerData}
-        title={role === "ADMIN" ? "Operationele wachtrij" : "Wat vraagt aandacht"}
-      />
-
-      {/* Zone 2 — Wat loopt er nu (lopende samenwerkingen + cascade-fase). Altijd zichtbaar,
-          voor elke rol dezelfde plek; zonder lopend werk een lege staat met de eerstvolgende stap. */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Wat loopt er nu
-          </h2>
-          {week && (
-            <p className="text-xs text-muted-foreground">
-              Deze week: {plural(week.entries.length, "samenwerking", "samenwerkingen")} bij{" "}
-              {plural(week.clientCount, "opdrachtgever", "opdrachtgevers")}
-            </p>
+  // --- BEMIDDELAAR: #19 drie-koloms workspace ---
+  if (role === "FRANCHISER") {
+    return (
+      <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+        <div className="min-w-0 space-y-5">
+          {profileHeader}
+          {kpiTiles}
+          {activation.length > 0 && (
+            <section className="rounded-lg border border-border bg-card p-5 shadow-card">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Aan de slag
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Richt je bemiddeling stap voor stap in.
+              </p>
+              <ul className="mt-3 space-y-1">
+                {activation.map((a, i) => (
+                  <li key={a.id}>
+                    <Link
+                      href={a.href}
+                      className="focus-ring -mx-2 flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted/40"
+                    >
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] font-medium text-foreground">
+                        {i + 1}
+                      </span>
+                      <span className="flex-1 font-medium">{a.title}</span>
+                      <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
-          <Link
-            href={SAMENWERKINGEN_HREF[role]}
-            className="focus-ring text-xs text-muted-foreground hover:text-foreground"
-          >
-            Alle samenwerkingen
-          </Link>
+          {runningSection}
         </div>
-        {weekStrip?.hasAny && <WeekStripView strip={weekStrip} />}
-        {hasRunning ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {running.map((c) => (
-              <RunningCard key={c.id} collab={c} />
-            ))}
-            {runningOverflow > 0 && (
-              <Link
-                href={SAMENWERKINGEN_HREF[role]}
-                className="focus-ring flex min-h-24 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-              >
-                Nog {plural(runningOverflow, "lopende samenwerking", "lopende samenwerkingen")}
-                <ArrowRight className="size-4" aria-hidden />
-              </Link>
-            )}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-border bg-card p-5">
-            <p className="text-sm text-muted-foreground">{NO_RUNNING[role].text}</p>
-            {NO_RUNNING[role].cta && (
-              <Button asChild size="sm" variant="secondary" className="mt-3">
-                <Link href={NO_RUNNING[role].cta.href}>{NO_RUNNING[role].cta.label}</Link>
-              </Button>
-            )}
-          </div>
-        )}
-      </section>
+        <aside className="space-y-5">
+          <DashboardActions tasks={tasks} drawerData={drawerData} title="Wat vraagt aandacht" />
+        </aside>
+      </div>
+    );
+  }
 
-      {/* Certificaat-compliance over álle lopende samenwerkingen (ook buiten de top-6 zone),
-          zodat de opdrachtgever in één oogopslag ziet of er ergens een vereist certificaat
-          ontbreekt of verloopt. Verbergt zichzelf wanneer alles op orde is. */}
-      {complianceSnapshot && <ComplianceSnapshotCard snapshot={complianceSnapshot} />}
-
-      <section className="grid gap-4 sm:grid-cols-3">
-        {stats.map((s) => (
-          <Link
-            key={s.label}
-            href={s.href}
-            className="focus-ring rounded-lg border border-border bg-card p-5 transition-colors hover:bg-muted/40"
-          >
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {s.label}
-            </p>
-            <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">{s.value}</p>
-            {s.sub && <p className="mt-0.5 text-xs text-muted-foreground">{s.sub}</p>}
-          </Link>
-        ))}
-      </section>
-
-      {/* Live, geanonimiseerd liquiditeitssignaal: een ZZP'er ziet de hoeveelheid werk, een
-          opdrachtgever het beschikbare aanbod. Verbergt zichzelf zonder relevante activiteit. */}
-      {activity && <ActivitySignalBar signal={activity} role={role} />}
-
-      {/* Franchiser-activatie — geleide opzet van de franchise. Klikbare stappen die de eerstvolgende
-          concrete actie tonen (opdrachtgever → dienst → roster); verdwijnt zodra de franchise staat. */}
-      {role === "FRANCHISER" && activation.length > 0 && (
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Aan de slag
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Richt je bemiddeling stap voor stap in.
-          </p>
-          <ul className="mt-3 space-y-1">
-            {activation.map((a, i) => (
-              <li key={a.id}>
-                <Link
-                  href={a.href}
-                  className="focus-ring -mx-2 flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted/40"
-                >
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] font-medium text-foreground">
-                    {i + 1}
-                  </span>
-                  <span className="flex-1 font-medium">{a.title}</span>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Aan de slag — onboarding alleen voor nieuwe accounts, en alleen als het actiecentrum
-          niets concreets toont (anders verschijnen profiel/identiteit dubbel). De franchiser heeft
-          hierboven al zijn eigen, klikbare activatie-sectie. */}
-      {isNewAccount && tasks.length === 0 && role !== "FRANCHISER" && (
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Aan de slag
-          </h2>
-          <ul className="mt-3 space-y-2">
-            {intro.next.map((step, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] font-medium text-foreground">
-                  {i + 1}
-                </span>
-                <span>{step}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+  // --- ADMIN: #19 drie-koloms workspace (operationele wachtrij in de rail) ---
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+      <div className="min-w-0 space-y-5">
+        {profileHeader}
+        {kpiTiles}
+        {runningSection}
+      </div>
+      <aside className="space-y-5">
+        <DashboardActions tasks={tasks} drawerData={drawerData} title="Operationele wachtrij" />
+      </aside>
     </div>
   );
 }
