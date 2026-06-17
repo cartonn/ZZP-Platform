@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(opdracht): reactiebereidheid-signaal opdrachtgever op /opdrachten/[id]
+
+Derde opdrachtgever-vertrouwenssignaal voor de ZZP'er op de opdracht-detail, naast betaalgedrag
+(`payment-behavior.ts`) en annuleringsgedrag (`client-reliability.ts`): **pakt deze opdrachtgever
+binnengekomen reacties op of laat hij ze op `NEW` liggen?** Deterministisch afgeleid uit de
+onveranderlijke `Application.createdAt` + de huidige `status` (geen afhankelijkheid van het
+driftgevoelige `updatedAt`). Read-only, server-side, geaggregeerd (privacy — geen reactie van een
+andere ZZP'er zichtbaar), geen schemawijziging, geen mutatie.
+
+- [x] `src/lib/client-responsiveness.ts` — pure `computeClientResponsiveness(rows, now)`: "opgepakt"
+      = status !== "NEW"; openstaand = nog `NEW` + leeftijd (now − createdAt, op 0 geklemd bij
+      data-ruis). Toon: `good` (≥ 80% opgepakt én niets > 14 dagen open), `warning` (< 50% opgepakt
+      óf een reactie > 14 dagen op NEW), `neutral` ertussenin, `unknown` < 3 reacties.
+- [x] `src/lib/data/client-responsiveness.ts` — `getClientResponsivenessForCompany(companyId, now)`:
+      begrensde query (`application.findMany where job.companyId`, `take: 100`, nieuwste eerst).
+- [x] `src/components/jobs/client-responsiveness-block.tsx` — `ClientResponsivenessBlock`: compact
+      blok (toon-badge + %-opgepakt / nog-open / oudste-open), spiegelt de twee bestaande blokken.
+- [x] `src/app/(protected)/opdrachten/[id]/page.tsx` — meegefetcht in de bestaande
+      `showClientSignals`-`Promise.all` (alleen niet-eigenaar FREELANCER) en gerenderd onder de twee
+      bestaande signaalblokken.
+- [x] Tests: `client-responsiveness.test.ts` (10) — grenzen toon/steekproef, oudste-open + stale,
+      toekomst-createdAt klem, lege lijst. Gate groen: typecheck ✓, lint ✓, test **2226** ✓ (+10),
+      prettier ✓, build ✓ (`/opdrachten/[id]` aanwezig).
+
 ## feat(dashboard): #19-werkruimte voor álle rollen (ZZP'er, opdrachtgever, bemiddelaar, admin)
 
 Het dashboard is voor elke rol omgezet naar de gekozen ontwerprichting **#19** (drie-koloms

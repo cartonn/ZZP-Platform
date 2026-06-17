@@ -275,6 +275,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > `/opdrachten/nieuw` + `/opdrachten/[id]/bewerken`; geanonimiseerde band per branche met
 > opdrachtgever-positie op het minimumtarief (spiegel van de ZZP'er-marktband). Geen schemawijziging.
 
+> Reeds gedaan (niet opnieuw): reactiebereidheid-signaal opdrachtgever op /opdrachten/[id]
+> (`client-responsiveness.ts` `computeClientResponsiveness` + `data/client-responsiveness.ts` +
+> `ClientResponsivenessBlock`): derde opdrachtgever-vertrouwenssignaal naast betaalgedrag en
+> annuleringsgedrag — pakt de opdrachtgever binnengekomen reacties op of laat hij ze op `NEW` liggen?
+> Deterministisch uit onveranderlijke `Application.createdAt` + huidige `status`; toon good/neutral/
+> warning/unknown (steekproef ≥ 3, stale-grens 14 dagen); read-only, geaggregeerd, geen
+> schemawijziging; 10 unit-tests.
+
 0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`.
    **VOLLEDIG GEBORGEN (12-6-2026):** afronden-rem, CSV-injectie-hardening, rol-fallback
    boekhouding, AVG-verwerkingsregister (#334), KvK-/BTW-validatie (#335),
