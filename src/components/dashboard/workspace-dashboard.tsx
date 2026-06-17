@@ -90,7 +90,7 @@ export function WorkspaceDashboard({
   seal,
 }: WorkspaceDashboardProps) {
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
       {/* Hoofdkolom */}
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Kop met onderlijn (zoals #19) — de primaire actie staat in de bovenbalk (app-shell). */}
