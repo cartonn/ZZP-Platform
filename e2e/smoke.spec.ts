@@ -46,7 +46,7 @@ test("FREELANCER logt in en ziet role-aware dashboard", async ({ page }) => {
 test("ADMIN logt in en ziet beheer-navigatie", async ({ page }) => {
   await login(page, "admin@zzp-platform.local");
   const nav = page.getByRole("navigation", { name: "Hoofdnavigatie" });
-  await expect(page.getByText("Beheerwerkplek")).toBeVisible();
+  await expect(page.getByText("Platformstatus")).toBeVisible();
   await expect(nav.getByText("Verificaties")).toBeVisible();
   await expect(nav.getByText("Gebruikers")).toBeVisible();
   await shot(page, "03-dashboard-admin");

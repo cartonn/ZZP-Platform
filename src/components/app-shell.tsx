@@ -52,9 +52,8 @@ export async function AppShell({
   // De werkruimte (#19) is bovendien "flush": geen main-padding, zodat de hoofdkolom + contextrail
   // edge-to-edge lopen en de rail tegen de schermrand plakt (volle hoogte, eigen scroll).
   const pathname = (await headers()).get("x-pathname") ?? "";
-  // De #19-werkruimte draait alleen voor rollen die de WorkspaceDashboard renderen (ZZP'er +
-  // opdrachtgever). Bemiddelaar/admin houden voorlopig hun eigen padded dashboardindeling.
-  const flush = pathname === "/dashboard" && (role === "FREELANCER" || role === "CLIENT");
+  // De #19-werkruimte is de dashboardindeling voor álle rollen.
+  const flush = pathname === "/dashboard";
   const fullBleed = flush || pathname === "/inzicht" || pathname === "/admin/statistieken";
 
   // Primaire actie in de bovenbalk (één strip met zoeken + bel + actie, gelijke hoogte — #19).
@@ -62,6 +61,7 @@ export async function AppShell({
   const DASH_ACTION: Partial<Record<UserRole, { label: string; href: string }>> = {
     CLIENT: { label: "Nieuwe opdracht", href: "/opdrachten/nieuw" },
     FREELANCER: { label: "Opdrachten zoeken", href: "/opdrachten" },
+    FRANCHISER: { label: "Dienst uitzetten", href: "/franchise/opdrachtgevers" },
   };
   const topAction = flush ? DASH_ACTION[role] : undefined;
 
