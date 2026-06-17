@@ -152,8 +152,12 @@ Bouw nieuwe UI met deze primitives. Voeg geen ad-hoc varianten per pagina toe �
 
 ## 6. Diepte & elevatie
 
-Vlak met crisp borders + **één** subtiele schaduwlaag (`shadow-sm` op cards). Geen zware schaduwen,
-geen gestapelde niveaus. Hover op klikbare rijen/cards = `bg-muted/40` (`.card-interactive`), geen schaal.
+**Gelaagde elevatie** (Pastel Elevated): crisp border + `shadow-card` — een fijne contactschaduw
+plus een wijdere, lage-opacity blauw-getinte ambient (zie `.shadow-card` in globals.css). Tilt
+kaarten van het canvas; premium, niet vlak. De `Card`-primitive past `shadow-card` automatisch toe;
+losse tegels (KpiTile/GaugeRing/StatCard) ook. Klikbare rijen/cards (`.card-interactive`) krijgen op
+hover lichte extra elevatie (`hover:shadow-card`) + `bg-muted/40`, geen schaal. Zwaardere niveaus
+(`shadow-lg`/`shadow-xl`) blijven voorbehouden aan overlays (drawer, dialog, command-palette).
 
 ---
 
