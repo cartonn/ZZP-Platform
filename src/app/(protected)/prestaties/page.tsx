@@ -11,6 +11,11 @@ import {
   summarizePerformanceApproval,
   waitingLabel,
 } from "@/lib/performance-approval";
+import { DELIVERY_TONE_LABEL, type DeliveryTone } from "@/lib/collaboration-quality";
+import {
+  clientReliabilityCaption,
+  getClientDeliveryReliability,
+} from "@/lib/client-delivery-reliability";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,6 +39,13 @@ const FILTER_LABELS: Record<string, string> = {
   SUBMITTED: "Ter goedkeuring",
   APPROVED: "Goedgekeurd",
   REJECTED: "Afgekeurd",
+};
+
+const RELIABILITY_TONE_VARIANT: Record<DeliveryTone, "success" | "warning" | "muted"> = {
+  EXCELLENT: "success",
+  RELIABLE: "success",
+  DEVELOPING: "warning",
+  INSUFFICIENT: "muted",
 };
 
 export default async function PrestatiesPage({
@@ -62,7 +74,10 @@ export default async function PrestatiesPage({
   }
 
   const { status: filterStatus = "" } = await searchParams;
-  const allPrestaties = await getPrestatiesForClient(actor.id);
+  const [allPrestaties, reliability] = await Promise.all([
+    getPrestatiesForClient(actor.id),
+    getClientDeliveryReliability(actor.id),
+  ]);
   const prestaties = filterStatus
     ? allPrestaties.filter((p) => p.status === filterStatus)
     : allPrestaties;
@@ -102,6 +117,48 @@ export default async function PrestatiesPage({
           </Button>
         )}
       </header>
+
+      {reliability.approvedPerformances > 0 && (
+        <Card className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Leverbetrouwbaarheid van je ZZP&apos;ers</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {clientReliabilityCaption(reliability)}
+              </p>
+            </div>
+            <Badge variant={RELIABILITY_TONE_VARIANT[reliability.tone]}>
+              {DELIVERY_TONE_LABEL[reliability.tone]}
+            </Badge>
+          </div>
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <dt className="text-xs text-muted-foreground">In één keer akkoord</dt>
+              <dd className="text-lg font-semibold tabular-nums">
+                {reliability.firstTimeRightRate}%
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Gecorrigeerd</dt>
+              <dd className="text-lg font-semibold tabular-nums">
+                {reliability.correctedPerformances}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Goedgekeurde prestaties</dt>
+              <dd className="text-lg font-semibold tabular-nums">
+                {reliability.approvedPerformances}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Afgeronde samenwerkingen</dt>
+              <dd className="text-lg font-semibold tabular-nums">
+                {reliability.completedCollaborations}
+              </dd>
+            </div>
+          </dl>
+        </Card>
+      )}
 
       {/* Statusfilter */}
       <nav className="flex flex-wrap gap-2 text-sm" aria-label="Filter op status">
