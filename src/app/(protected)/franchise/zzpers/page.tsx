@@ -1,12 +1,12 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Users, ChevronRight } from "lucide-react";
+import { Users } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
 import { type Availability } from "@/lib/enums";
 import { type FreelancerCredential } from "@/lib/matching";
-import { computeEngageability } from "@/lib/engageability";
+import { computeEngageability, type EngageabilityStatus } from "@/lib/engageability";
 import {
   summarizeExpiryAlert,
   expiryAlertLabel,
@@ -17,11 +17,17 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { EngageabilityBadge } from "@/components/engageability-badge";
 import { plural } from "@/lib/plural";
 import { ZzperForm } from "./zzper-form";
 
 export const metadata: Metadata = { title: "ZZP'ers · Bemiddeling" };
+
+// Kanban-kolommen op inzetbaarheidsstatus (Actief → Aandacht → Inactief).
+const ENG_COLUMNS: { status: EngageabilityStatus; label: string }[] = [
+  { status: "ACTIEF", label: "Inzetbaar" },
+  { status: "AANDACHT", label: "Aandacht" },
+  { status: "INACTIEF", label: "Nog niet inzetbaar" },
+];
 
 export default async function FranchiseZzpersPage() {
   const actor = await requireRole("FRANCHISER");
@@ -104,47 +110,62 @@ export default async function FranchiseZzpersPage() {
           />
         </Card>
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {freelancers.map((f) => {
-            const eng = engageabilityById.get(f.id)!;
-            const alert = expiryAlertById.get(f.id)!;
-            const alertLabel = expiryAlertLabel(alert);
-            const alertTone = expiryAlertTone(alert);
+        <div className="grid gap-4 lg:grid-cols-3">
+          {ENG_COLUMNS.map((col) => {
+            const colFreelancers = freelancers.filter(
+              (f) => engageabilityById.get(f.id)!.status === col.status,
+            );
             return (
-              <Link
-                key={f.id}
-                href={`/franchise/zzpers/${f.id}`}
-                className="focus-ring flex items-center justify-between gap-3 p-4 hover:bg-muted/40"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{f.user.name}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {f.headline ?? f.user.email}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {plural(f._count.skills, "skill", "skills")} ·{" "}
-                    {plural(f._count.credentials, "certificaat", "certificaten")} · profiel{" "}
-                    {f.completeness}%
-                  </p>
-                  {/* Waaróm niet-inzetbaar in één oogopslag, zodat de franchiser de blokkade ziet
-                      zonder door te klikken. Eerste blokkade + telling van de rest. */}
-                  {eng.blockers.length > 0 && (
-                    <p className="mt-0.5 truncate text-xs text-danger">
-                      {eng.blockers[0]}
-                      {eng.blockers.length > 1 ? ` +${eng.blockers.length - 1}` : ""}
+              <div key={col.status} className="rounded-xl bg-muted/40 p-3">
+                <div className="mb-3 flex items-center justify-between px-1">
+                  <span className="text-sm font-medium">{col.label}</span>
+                  <span className="rounded-full bg-card px-2 py-0.5 font-mono text-xs text-muted-foreground shadow-card">
+                    {colFreelancers.length}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {colFreelancers.length === 0 ? (
+                    <p className="px-1 py-8 text-center text-xs text-muted-foreground">
+                      Geen ZZP&apos;ers
                     </p>
+                  ) : (
+                    colFreelancers.map((f) => {
+                      const eng = engageabilityById.get(f.id)!;
+                      const alert = expiryAlertById.get(f.id)!;
+                      const alertLabel = expiryAlertLabel(alert);
+                      const alertTone = expiryAlertTone(alert);
+                      return (
+                        <Link
+                          key={f.id}
+                          href={`/franchise/zzpers/${f.id}`}
+                          className="focus-ring hover:shadow-card-hover block rounded-lg border border-border bg-card p-3 shadow-card transition-all hover:-translate-y-0.5"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="min-w-0 truncate text-sm font-medium">{f.user.name}</p>
+                            {alertLabel && alertTone && (
+                              <Badge variant={alertTone} className="shrink-0">
+                                {alertLabel}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {f.headline ?? f.user.email}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {plural(f._count.skills, "skill", "skills")} · profiel {f.completeness}%
+                          </p>
+                          {eng.blockers.length > 0 && (
+                            <p className="mt-1 truncate text-xs text-danger">
+                              {eng.blockers[0]}
+                              {eng.blockers.length > 1 ? ` +${eng.blockers.length - 1}` : ""}
+                            </p>
+                          )}
+                        </Link>
+                      );
+                    })
                   )}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  {alertLabel && alertTone && (
-                    <Badge variant={alertTone} className="hidden sm:inline-flex">
-                      {alertLabel}
-                    </Badge>
-                  )}
-                  <EngageabilityBadge status={eng.status} />
-                  <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-                </div>
-              </Link>
+              </div>
             );
           })}
         </div>
