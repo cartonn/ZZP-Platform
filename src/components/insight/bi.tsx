@@ -492,3 +492,63 @@ export function BiWidget({
     </Card>
   );
 }
+
+/**
+ * Analytics-hero (richting #17): één grote headline-KPI met delta-trend en optionele
+ * secundaire cijfers, met daaronder een breed staafdiagram. Het ankerpunt van een
+ * inzicht-/analytics-scherm — cijfers en grafiek staan centraal.
+ */
+export function RevenueHero({
+  label,
+  value,
+  deltaPct,
+  caption,
+  bars,
+  formatValue,
+  secondary = [],
+}: {
+  label: string;
+  value: string;
+  deltaPct: number | null;
+  caption?: string;
+  bars: BarPoint[];
+  formatValue: (n: number) => string;
+  secondary?: { label: string; value: string }[];
+}) {
+  return (
+    <Card>
+      <CardContent className="space-y-5">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {label}
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <span className="font-mono text-4xl font-semibold tabular-nums tracking-tight">
+                {value}
+              </span>
+              <TrendBadge deltaPct={deltaPct} />
+            </div>
+            {caption && <p className="mt-1 text-xs text-muted-foreground">{caption}</p>}
+          </div>
+          {secondary.length > 0 && (
+            <div className="flex flex-wrap gap-x-8 gap-y-3">
+              {secondary.map((s) => (
+                <div key={s.label}>
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="mt-0.5 font-mono text-lg font-semibold tabular-nums">{s.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <BarSeries
+          data={bars}
+          formatValue={formatValue}
+          height={160}
+          label={`${label} per maand`}
+        />
+      </CardContent>
+    </Card>
+  );
+}
