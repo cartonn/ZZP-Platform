@@ -28,7 +28,7 @@ export function ComplianceSnapshotCard({ snapshot }: { snapshot: ClientComplianc
   return (
     <section className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-center gap-2">
-        <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+        <ShieldAlert className="size-4 shrink-0 text-warning" aria-hidden />
         <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Certificaten van je ZZP&apos;ers
         </h2>

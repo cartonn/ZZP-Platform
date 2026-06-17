@@ -10,44 +10,44 @@
    Contrast WCAG AA geverifieerd (fg/bg, kaart, subtekst, knop, accent, status).
 --------------------------------------------------------------------------- */
 :root {
-  --background: 216 42% 97%;
-  --foreground: 228 20% 11%;
-  --muted: 217 32% 93%;
-  --muted-foreground: 226 12% 40%;
+  --background: 216 44% 96%;
+  --foreground: 228 26% 10%;
+  --muted: 217 34% 92%;
+  --muted-foreground: 226 14% 38%;
   --card: 0 0% 100%;
-  --card-foreground: 228 20% 11%;
-  --border: 218 24% 89%;
-  --input: 218 24% 86%;
-  --ring: 227 82% 55%;
-  --primary: 227 82% 55%;
+  --card-foreground: 228 26% 10%;
+  --border: 218 28% 85%;
+  --input: 218 28% 80%;
+  --ring: 226 80% 48%;
+  --primary: 226 80% 48%;
   --primary-foreground: 0 0% 100%;
-  --accent: 226 96% 95%;
-  --accent-foreground: 227 66% 42%;
-  --success: 155 75% 27%;
-  --warning: 36 90% 36%;
-  --danger: 0 64% 44%;
+  --accent: 224 92% 94%;
+  --accent-foreground: 226 72% 38%;
+  --success: 156 78% 25%;
+  --warning: 34 92% 34%;
+  --danger: 0 66% 43%;
   --radius: 0.75rem;
 }
 
 /* Donker thema — gebruikerskeuze (toggle), niet geforceerd. Zelfde semantische tokens met
    donkere waarden; status-tinten iets lichter zodat ze leesbaar blijven op donker. */
 .dark {
-  --background: 230 16% 8%;
-  --foreground: 222 20% 94%;
-  --muted: 230 14% 14%;
-  --muted-foreground: 226 12% 66%;
-  --card: 230 15% 11%;
-  --card-foreground: 222 20% 94%;
-  --border: 229 13% 19%;
-  --input: 229 13% 21%;
-  --ring: 228 95% 76%;
-  --primary: 228 95% 76%;
-  --primary-foreground: 230 20% 10%;
-  --accent: 228 38% 24%;
-  --accent-foreground: 228 90% 86%;
-  --success: 152 50% 55%;
-  --warning: 40 85% 60%;
-  --danger: 0 75% 67%;
+  --background: 230 22% 7%;
+  --foreground: 222 24% 95%;
+  --muted: 230 18% 13%;
+  --muted-foreground: 224 16% 68%;
+  --card: 230 20% 10%;
+  --card-foreground: 222 24% 95%;
+  --border: 229 16% 20%;
+  --input: 229 16% 24%;
+  --ring: 226 96% 78%;
+  --primary: 226 96% 78%;
+  --primary-foreground: 230 24% 9%;
+  --accent: 227 42% 22%;
+  --accent-foreground: 227 94% 88%;
+  --success: 152 56% 58%;
+  --warning: 40 88% 62%;
+  --danger: 0 78% 70%;
 }
 
 html {
