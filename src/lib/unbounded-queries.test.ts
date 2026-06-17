@@ -365,17 +365,17 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Industry- en skill-lijsten (regels 169-170) zijn kleine referentielijsten.
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 46,
+    line: 41,
     reason: "eigenaar-scoped kanban van eigen opdrachten; kandidaat toekomstige paginatie",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 169,
+    line: 159,
     reason: "branches-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 170,
+    line: 160,
     reason: "skills-referentielijst voor filter",
   },
 
