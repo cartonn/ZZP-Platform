@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   ArrowUpRight,
-  Plus,
   type LucideIcon,
 } from "lucide-react";
 
@@ -63,7 +62,7 @@ export interface WsSealItem {
 }
 
 export interface WorkspaceDashboardProps {
-  header: { title: string; subtitle?: string; primaryAction?: { label: string; href: string } };
+  header: { title: string; subtitle?: string };
   kpis: WsKpi[];
   list: { title: string; href?: string; rows: WsRow[]; empty?: string };
   nextActions: WsAction[];
@@ -94,21 +93,10 @@ export function WorkspaceDashboard({
     <div className="flex min-h-0 flex-1">
       {/* Hoofdkolom */}
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {/* Kop met onderlijn (zoals #19) */}
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 md:px-6">
-          <div className="min-w-0">
-            <h1 className="font-display text-lg font-semibold tracking-tight">{header.title}</h1>
-            {header.subtitle && <p className="text-sm text-muted-foreground">{header.subtitle}</p>}
-          </div>
-          {header.primaryAction && (
-            <Link
-              href={header.primaryAction.href}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              {header.primaryAction.label}
-            </Link>
-          )}
+        {/* Kop met onderlijn (zoals #19) — de primaire actie staat in de bovenbalk (app-shell). */}
+        <header className="border-b border-border px-5 py-4 md:px-6">
+          <h1 className="font-display text-lg font-semibold tracking-tight">{header.title}</h1>
+          {header.subtitle && <p className="text-sm text-muted-foreground">{header.subtitle}</p>}
         </header>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 md:px-6">

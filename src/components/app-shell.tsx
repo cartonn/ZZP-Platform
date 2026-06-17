@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { Bell, LogOut } from "lucide-react";
+import { Bell, LogOut, Plus } from "lucide-react";
 import { type Session } from "next-auth";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,14 @@ export async function AppShell({
   // opdrachtgever). Bemiddelaar/admin houden voorlopig hun eigen padded dashboardindeling.
   const flush = pathname === "/dashboard" && (role === "FREELANCER" || role === "CLIENT");
   const fullBleed = flush || pathname === "/inzicht" || pathname === "/admin/statistieken";
+
+  // Primaire actie in de bovenbalk (één strip met zoeken + bel + actie, gelijke hoogte — #19).
+  // Rolspecifiek en alleen op de werkruimte; elders geen actieknop in de balk.
+  const DASH_ACTION: Partial<Record<UserRole, { label: string; href: string }>> = {
+    CLIENT: { label: "Nieuwe opdracht", href: "/opdrachten/nieuw" },
+    FREELANCER: { label: "Opdrachten zoeken", href: "/opdrachten" },
+  };
+  const topAction = flush ? DASH_ACTION[role] : undefined;
 
   return (
     <div className="relative min-h-screen md:pl-16">
@@ -115,22 +123,31 @@ export async function AppShell({
             <MobileNav items={navForRole(role)} badges={badges} />
             <Brand branding={branding} />
           </div>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2">
             <SearchTrigger />
             <ThemeToggle />
             <Link
               href="/notificaties"
               aria-label={`Notificaties${unread > 0 ? ` (${unread} ongelezen)` : ""}`}
-              className="focus-ring relative inline-flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="focus-ring relative inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-              <Bell className="size-5" aria-hidden />
+              <Bell className="size-4" aria-hidden />
               {unread > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-medium leading-4 text-white">
                   {unread > 9 ? "9+" : unread}
                 </span>
               )}
             </Link>
-            <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+            {topAction && (
+              <Link
+                href={topAction.href}
+                className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+              >
+                <Plus className="size-4" aria-hidden />
+                <span className="hidden sm:inline">{topAction.label}</span>
+              </Link>
+            )}
+            <span className="hidden rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground sm:inline">
               {ROLE_LABEL[role]}
             </span>
           </div>
