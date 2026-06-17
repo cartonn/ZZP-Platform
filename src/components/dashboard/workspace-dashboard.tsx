@@ -90,16 +90,16 @@ export function WorkspaceDashboard({
   seal,
 }: WorkspaceDashboardProps) {
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-2xl border border-border bg-background shadow-sm lg:flex-row lg:overflow-hidden">
       {/* Hoofdkolom */}
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <main className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
         {/* Kop met onderlijn (zoals #19) — de primaire actie staat in de bovenbalk (app-shell). */}
         <header className="border-b border-border px-5 py-4 md:px-6">
           <h1 className="font-display text-lg font-semibold tracking-tight">{header.title}</h1>
           {header.subtitle && <p className="text-sm text-muted-foreground">{header.subtitle}</p>}
         </header>
 
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 md:px-6">
+        <div className="space-y-5 px-5 py-5 md:px-6 lg:flex-1 lg:overflow-y-auto">
           {/* KPI-tegels */}
           <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             {kpis.map((kpi) => (
@@ -211,9 +211,11 @@ export function WorkspaceDashboard({
         </div>
       </main>
 
-      {/* Rechter contextrail — volle hoogte, eigen scroll (zoals #19). Zelfde crème vlak als de
-          hoofdkolom; alleen de border-l scheidt ze. Witte kaarten (bg-card) zetten zich erop af. */}
-      <aside className="hidden w-[22.5rem] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border px-4 py-5 lg:flex">
+      {/* Rechter contextrail — op desktop volle hoogte met eigen scroll (zoals #19); op mobiel
+          gestapeld ónder de hoofdkolom (volle breedte, scheidingslijn boven i.p.v. links) zodat
+          'Volgende acties' / week / zegel ook op klein scherm zichtbaar blijven. Zelfde crème vlak
+          als de hoofdkolom; witte kaarten (bg-card) zetten zich erop af. */}
+      <aside className="flex w-full flex-col gap-4 border-t border-border px-4 py-5 lg:w-[22.5rem] lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-t-0">
         {/* Volgende acties */}
         <section>
           <h3 className="mb-2 px-1 font-display text-xs font-semibold uppercase tracking-wide text-muted-foreground">
