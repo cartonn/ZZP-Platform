@@ -781,6 +781,108 @@ export default async function DashboardPage() {
         ? "Er is 1 punt dat je aandacht vraagt."
         : `Er zijn ${tasks.length} punten die je aandacht vragen.`;
 
+  // Profielkop (gedeeld tussen de #19-workspace en de klassieke render).
+  const profileHeader = (
+    <header className="rounded-lg border border-border bg-card p-5 shadow-card">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {WERKPLEK[role]} · {today}
+      </p>
+      <div className="mt-3 flex items-start gap-4">
+        <div
+          aria-hidden
+          className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-lg font-semibold text-primary"
+        >
+          {initials(user.name ?? null)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
+              {user.name ?? `Welkom terug, ${firstName}`}
+            </h1>
+            {identity?.trustLevel && <TrustBadge level={identity.trustLevel} />}
+          </div>
+          {identity?.subtitle && (
+            <p className="mt-0.5 text-sm text-muted-foreground">{identity.subtitle}</p>
+          )}
+          <p className="mt-1.5 text-sm text-muted-foreground">{headerLead}</p>
+        </div>
+      </div>
+    </header>
+  );
+
+  // --- OPDRACHTGEVER: #19 drie-koloms workspace (hoofdkolom + contextuele rechterrail) ---
+  if (role === "CLIENT") {
+    return (
+      <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+        {/* Hoofdkolom */}
+        <div className="min-w-0 space-y-5">
+          {profileHeader}
+
+          {/* KPI-tegels */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+            {stats.map((s) => (
+              <Link
+                key={s.label}
+                href={s.href}
+                className="focus-ring hover:shadow-card-hover rounded-lg border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5"
+              >
+                <p className="font-mono text-2xl font-semibold tracking-tight">{s.value}</p>
+                <p className="mt-1 text-sm font-medium">{s.label}</p>
+                {s.sub && <p className="mt-0.5 text-xs text-muted-foreground">{s.sub}</p>}
+              </Link>
+            ))}
+          </div>
+
+          {/* Voorgestelde professionals */}
+          {(suggestedFreelancers?.length ?? 0) > 0 && (
+            <ClientSuggestionsSection suggestions={suggestedFreelancers!} prominent={!hasRunning} />
+          )}
+
+          {/* Wat loopt er nu */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Wat loopt er nu
+              </h2>
+              <Link
+                href={SAMENWERKINGEN_HREF[role]}
+                className="focus-ring text-xs text-muted-foreground hover:text-foreground"
+              >
+                Alle samenwerkingen
+              </Link>
+            </div>
+            {hasRunning ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {running.map((c) => (
+                  <RunningCard key={c.id} collab={c} />
+                ))}
+                {runningOverflow > 0 && (
+                  <Link
+                    href={SAMENWERKINGEN_HREF[role]}
+                    className="card-interactive flex items-center justify-center rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground"
+                  >
+                    Nog {runningOverflow} lopende samenwerkingen →
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground shadow-card">
+                Nog geen lopende samenwerkingen — zodra een ZZP&apos;er een voorstel accepteert,
+                verschijnt het hier.
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* Contextuele rechterrail */}
+        <aside className="space-y-5">
+          <DashboardActions tasks={tasks} drawerData={drawerData} title="Wat vraagt aandacht" />
+          {complianceSnapshot && <ComplianceSnapshotCard snapshot={complianceSnapshot} />}
+        </aside>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Profielkaart — zelfde taal als de publieke-profielkop (/zzp/[id]): avatar, naam +
@@ -964,36 +1066,10 @@ export default async function DashboardPage() {
         <MatchesSection matches={matches} prominent />
       )}
 
-      {/* Zone 3 prominent (CLIENT) — geschikte ZZP'ers wanneer er weinig loopt. */}
-      {role === "CLIENT" && !hasRunning && (suggestedFreelancers?.length ?? 0) > 0 && (
-        <ClientSuggestionsSection suggestions={suggestedFreelancers!} prominent />
-      )}
-
-      {/* Zone 3 leeg (CLIENT) — geen lopend werk en geen suggesties: nodig uit tot plaatsen.
-          Niet tonen bovenop het onboarding-scherm (isNewAccount zonder taken). */}
-      {role === "CLIENT" &&
-        !hasRunning &&
-        (suggestedFreelancers?.length ?? 0) === 0 &&
-        !(isNewAccount && tasks.length === 0) && (
-          <section className="rounded-lg border border-border bg-card p-5">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Wat kan ik oppakken
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Plaats een opdracht om geschikte ZZP&apos;ers voorgesteld te krijgen.
-            </p>
-            <Button asChild size="sm" variant="secondary" className="mt-3">
-              <Link href="/opdrachten/nieuw">Opdracht plaatsen</Link>
-            </Button>
-          </section>
-        )}
-
-      {/* Zone 3 compact — naast lopend werk de matches eronder. */}
+      {/* Zone 3 compact — naast lopend werk de matches eronder. (CLIENT heeft een eigen
+          #19-workspace hierboven en bereikt deze gedeelde render niet.) */}
       {role === "FREELANCER" && hasRunning && matches.length > 0 && (
         <MatchesSection matches={matches} prominent={false} />
-      )}
-      {role === "CLIENT" && hasRunning && (suggestedFreelancers?.length ?? 0) > 0 && (
-        <ClientSuggestionsSection suggestions={suggestedFreelancers!} prominent={false} />
       )}
 
       {/* Aan de slag — onboarding alleen voor nieuwe accounts, en alleen als het actiecentrum
