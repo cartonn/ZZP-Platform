@@ -121,7 +121,7 @@ export function KpiTile({
   badge?: React.ReactNode;
 }) {
   const inner = (
-    <div className="flex h-full flex-col rounded-lg border border-border bg-card p-5">
+    <div className="flex h-full flex-col rounded-lg border border-border bg-card p-5 shadow-card">
       <div className="flex items-start justify-between gap-2">
         {Icon ? (
           <span className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -185,7 +185,7 @@ export function GaugeRing({
     <div
       className={cn(
         "flex flex-col items-center gap-3",
-        !bare && "rounded-lg border border-border bg-card p-5",
+        !bare && "rounded-lg border border-border bg-card p-5 shadow-card",
       )}
     >
       <div className="relative" style={{ width: size, height: size }}>

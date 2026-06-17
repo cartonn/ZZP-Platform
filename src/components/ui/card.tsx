@@ -1,10 +1,11 @@
 import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  // Subtiele diepte (shadow-sm) i.p.v. enkel een rand: premium, minder "wireframe".
+  // Gelaagde elevatie (shadow-card): fijne contactschaduw + zachte blauw-getinte ambient —
+  // premium en niet vlak (vervangt de enkele shadow-sm).
   return (
     <div
-      className={cn("rounded-lg border border-border bg-card shadow-sm", className)}
+      className={cn("rounded-lg border border-border bg-card shadow-card", className)}
       {...props}
     />
   );
