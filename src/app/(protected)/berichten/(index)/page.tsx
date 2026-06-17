@@ -8,6 +8,15 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatDateShortNl } from "@/lib/format-date";
+import {
+  CONVERSATION_STALE_DAYS,
+  conversationTurn,
+  daysSince,
+  isStaleAwaitingReply,
+  staleLabel,
+  summarizeConversationTurns,
+  type ConversationTurn,
+} from "@/lib/conversation-turn";
 
 export const metadata: Metadata = { title: "Berichten · ZZP Platform" };
 
@@ -35,7 +44,7 @@ export default async function BerichtenPage() {
       messages: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { body: true, createdAt: true },
+        select: { body: true, createdAt: true, senderId: true },
       },
     },
   });
@@ -56,9 +65,46 @@ export default async function BerichtenPage() {
     ),
   );
 
+  // Aan-zet-signaal per gesprek: wiens beurt + (voor de wachtende kant) of het stilligt.
+  // Leunt op het al opgehaalde laatste bericht + de bestaande ongelezen-telling.
+  const now = new Date();
+  const turnByConversation = new Map<string, { turn: ConversationTurn; staleDays: number }>(
+    conversations.map((c) => {
+      const last = c.messages[0] ?? null;
+      const turn = conversationTurn({
+        lastMessage: last,
+        unreadFromOther: unreadByConversation.get(c.id) ?? 0,
+        viewerId: actor.id,
+      });
+      const stale = isStaleAwaitingReply(turn, last, now);
+      return [c.id, { turn, staleDays: stale && last ? daysSince(last.createdAt, now) : 0 }];
+    }),
+  );
+
+  const summary = summarizeConversationTurns(
+    [...turnByConversation.values()].map((t) => ({ turn: t.turn, stale: t.staleDays > 0 })),
+  );
+  const hasSignal = summary.awaitingYou > 0 || summary.awaitingThem > 0;
+
   return (
     <div className="space-y-6">
       <PageHeader title="Berichten" description="Je gesprekken met opdrachtgevers en ZZP'ers." />
+
+      {hasSignal && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {summary.awaitingYou > 0 && (
+            <Badge variant="warning">{summary.awaitingYou} wacht op jouw antwoord</Badge>
+          )}
+          {summary.awaitingThem > 0 && (
+            <Badge variant="muted">{summary.awaitingThem} wacht op antwoord</Badge>
+          )}
+          {summary.stale > 0 && (
+            <span className="text-muted-foreground">
+              waarvan {summary.stale} al {CONVERSATION_STALE_DAYS}+ dagen stil
+            </span>
+          )}
+        </div>
+      )}
 
       {conversations.length === 0 ? (
         <Card>
@@ -74,6 +120,7 @@ export default async function BerichtenPage() {
             const other = c.participants.find((p) => p.user.id !== actor.id);
             const last = c.messages[0];
             const unread = unreadByConversation.get(c.id) ?? 0;
+            const turnInfo = turnByConversation.get(c.id);
             return (
               <Link
                 key={c.id}
@@ -83,10 +130,18 @@ export default async function BerichtenPage() {
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-2">
                     <p className="truncate text-sm font-medium">{other?.user.name ?? "Onbekend"}</p>
-                    {unread > 0 && (
+                    {unread > 0 ? (
                       <Badge variant="default" className="shrink-0">
                         {unread} nieuw
                       </Badge>
+                    ) : (
+                      turnInfo?.turn === "theirs" && (
+                        <Badge variant="muted" className="shrink-0">
+                          {turnInfo.staleDays > 0
+                            ? staleLabel(turnInfo.staleDays)
+                            : "Wacht op antwoord"}
+                        </Badge>
+                      )
                     )}
                   </div>
                   {c.job && (

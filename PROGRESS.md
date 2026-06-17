@@ -3,27 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## feat(prestaties): leverbetrouwbaarheid van je ZZP'ers (opdrachtgever)
+## feat(rooster): agenda — eigen geplande diensten naast open kansen
 
-De opdrachtgever zag op `/prestaties` wel elke urenstaat/oplevering los, maar geen geaggregeerd
-beeld van hóe betrouwbaar zijn ZZP'ers leveren. Het FREELANCER-signaal "Leverbetrouwbaarheid"
-(`collaboration-quality.ts`) stond alleen op `/inzicht` voor de ZZP'er zelf. Dit voegt de CLIENT-
-spiegel toe op `/prestaties` (niet op het recent herziene `/inzicht`), met exact dezelfde maatstaf —
-het hergebruikt de geteste pure `computeDeliveryQuality`. Read-only, server-side, deterministisch,
-geen schemawijziging.
+`/rooster` toonde alleen open diensten (PUBLISHED jobs met startdatum); de ZZP'er zag z'n eigen
+geboekte/geplande diensten (uit actieve samenwerkingen) nergens op de kalender — alleen de
+dashboard-week-strip dekt de huidige ISO-week. Dit maakt `/rooster` een echte agenda over de
+21-daagse horizon: eigen geboekte diensten + open kansen, visueel onderscheiden. Read-only,
+server-side, afgeleid uit bestaande data, **geen schemawijziging, geen mutatie**.
 
-- [x] `src/lib/client-delivery-reliability.ts` — `getClientDeliveryReliability(userId)` aggregeert
-      over `collaboration.company.userId` (gelijk aan `getPrestatiesForClient`): begrensde count
-      (afgeronde samenwerkingen) + `findMany` goedgekeurde prestaties (`take: 1000`), via
-      `computeDeliveryQuality`. Pure `clientReliabilityCaption` voor de NL-toelichting (te kleine
-      steekproef / schoon dossier / N gecorrigeerd, enkel-/meervoud).
-- [x] `src/lib/client-delivery-reliability.test.ts` — 5 unit-tests op de caption (drempel,
-      schoon dossier, enkelvoud/meervoud correcties, cijfer exact op de drempel-steekproef).
-- [x] `src/app/(protected)/prestaties/page.tsx` — Card "Leverbetrouwbaarheid van je ZZP'ers" met
-      tone-badge + 4 cijfers (in één keer akkoord %, gecorrigeerd, goedgekeurde prestaties,
-      afgeronde samenwerkingen); verbergt zichzelf bij geen goedgekeurde prestaties.
+- [x] `src/lib/roster-market.ts` — pure `buildAgenda(open, collaborations, now, horizonDays)`:
+      projecteert elke actieve samenwerking over het geklemde venster `[vandaag, horizon]` (open
+      start → vanaf vandaag, open eind → t/m horizon), respecteert het ADR-0004-weekrooster
+      (`weekdays` → `scheduled:true` op de vastgelegde dagen; anders elke venster-dag
+      `scheduled:false`) en overlayt de geboekte diensten op de open-kalenderdagen (nieuwe dagen voor
+      booked-only). Hergebruikt de bestaande helpers `utcMidnightMs`/`utcDayToWeekday`; bestaande
+      exports/gedrag ongemoeid; muteert geen input.
+- [x] `src/lib/roster-market.test.ts` — 11 nieuwe tests (weekdays-projectie, venster-defaults +
+      horizon-klem, verleden/na-horizon dragen niets bij, merge open+booked / booked-only,
+      intra-dag-sortering, totalen, non-mutatie). Totaal 31 in dit bestand.
+- [x] `src/app/(protected)/rooster/page.tsx` — FREELANCER-only `collaboration.findMany`
+      (PROPOSED/ACTIVE, `take: 100`) → `bookedInputs` via `parseWeekdays`; `buildAgenda(calendar, …)`
+      (sterke-match-filter blijft alleen op open diensten, booked altijd zichtbaar). Per dag een
+      "Jouw diensten"-groep (success-accent, "Geboekt"-badge, link naar `/samenwerkingen/[id]`,
+      "volgens looptijd"-noot bij afgeleide dagen) boven de "Open diensten"-groep; empty-state alleen
+      bij geen booked én geen open.
 
-Gates groen: typecheck ✓, lint ✓, test 2174 ✓ (+5), build ✓, `prettier --check .` ✓.
+Gates groen: typecheck ✓, lint ✓, test 2173 ✓ (+11), build ✓ (`/rooster` aanwezig),
+`prettier --check .` ✓.
+
+---
 
 ## docs: persona-sweep-backlog 2026-06-16 reconciliëren (beide bevindingen al geadresseerd)
 
