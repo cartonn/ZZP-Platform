@@ -360,22 +360,22 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   },
 
   // --- opdrachten/(index)/page.tsx (drie findMany's) ---
-  // Client-overzicht van eigen opdrachten (regel 56); geen take maar altijd
-  // gefilterd op company.userId (eigenaar-scoped).
-  // Industry- en skill-lijsten (regels 178-179) zijn kleine referentielijsten.
+  // Client-kanban van eigen opdrachten (regel 46); geen take maar altijd
+  // gefilterd op company.userId (eigenaar-scoped) — kolommen Concept/Gepubliceerd/Gesloten.
+  // Industry- en skill-lijsten (regels 169-170) zijn kleine referentielijsten.
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 56,
-    reason: "eigenaar-scoped lijst van eigen opdrachten; kandidaat toekomstige paginatie",
+    line: 46,
+    reason: "eigenaar-scoped kanban van eigen opdrachten; kandidaat toekomstige paginatie",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 178,
+    line: 169,
     reason: "branches-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 179,
+    line: 170,
     reason: "skills-referentielijst voor filter",
   },
 

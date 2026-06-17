@@ -7,15 +7,13 @@ import { visibleJobsWhere } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
 import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/matching";
-import { JOB_STATUSES, type JobStatus, type WorkMode } from "@/lib/enums";
+import { type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Select } from "@/components/ui/select";
 import { JobFilters } from "@/components/jobs/job-filters";
-import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Opdrachten · ZZP Platform" };
@@ -26,35 +24,27 @@ const WORK_MODE: Record<WorkMode, string> = {
   HYBRID: "Hybride",
 };
 
-const JOB_STATUS_LABEL: Record<JobStatus, string> = {
-  DRAFT: "Concept",
-  PUBLISHED: "Gepubliceerd",
-  CLOSED: "Gesloten",
-};
-
-const isJobStatus = (v: string): v is JobStatus => (JOB_STATUSES as readonly string[]).includes(v);
-
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function OpdrachtenPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await requireActor();
   const sp = await searchParams;
   if (actor.role === "CLIENT") {
-    const statusParam = first(sp.status);
-    const status = isJobStatus(statusParam) ? statusParam : undefined;
-    return <ClientJobs userId={actor.id} status={status} />;
+    return <ClientJobs userId={actor.id} />;
   }
   return <BrowseJobs searchParams={sp} actor={actor} />;
 }
 
-// --- CLIENT: beheeroverzicht van eigen opdrachten ---
-async function ClientJobs({ userId, status }: { userId: string; status?: JobStatus }) {
-  const where: Prisma.JobWhereInput = { company: { userId } };
-  if (status) where.status = status;
+// --- CLIENT: beheeroverzicht van eigen opdrachten als kanban-pijplijn (Concept → Gepubliceerd → Gesloten) ---
+const JOB_COLUMNS: { status: JobStatus; label: string }[] = [
+  { status: "DRAFT", label: "Concept" },
+  { status: "PUBLISHED", label: "Gepubliceerd" },
+  { status: "CLOSED", label: "Gesloten" },
+];
 
+async function ClientJobs({ userId }: { userId: string }) {
   const jobs = await prisma.job.findMany({
-    where,
+    where: { company: { userId } },
     orderBy: { updatedAt: "desc" },
     include: { _count: { select: { applications: true } } },
   });
@@ -63,7 +53,7 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
     <div className="space-y-6">
       <PageHeader
         title="Mijn opdrachten"
-        description="Beheer je opdrachten en publiceer ze voor ZZP'ers."
+        description="Beheer je opdrachten in de pijplijn — van concept tot gesloten."
         action={
           <Button asChild>
             <Link href="/opdrachten/nieuw">
@@ -72,23 +62,6 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
           </Button>
         }
       />
-
-      <form
-        method="get"
-        className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto]"
-      >
-        <Select name="status" defaultValue={status ?? ""} aria-label="Status">
-          <option value="">Alle statussen</option>
-          {JOB_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {JOB_STATUS_LABEL[s]}
-            </option>
-          ))}
-        </Select>
-        <Button type="submit" variant="secondary">
-          Filteren
-        </Button>
-      </form>
 
       {jobs.length === 0 ? (
         <Card>
@@ -100,23 +73,41 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
           />
         </Card>
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {jobs.map((job) => (
-            <Link
-              key={job.id}
-              href={`/opdrachten/${job.id}`}
-              className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{job.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {plural(job._count.applications, "reactie", "reacties")}
-                  {job.location ? ` · ${job.location}` : ""}
-                </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {JOB_COLUMNS.map((col) => {
+            const colJobs = jobs.filter((j) => (j.status as JobStatus) === col.status);
+            return (
+              <div key={col.status} className="rounded-xl bg-muted/40 p-3">
+                <div className="mb-3 flex items-center justify-between px-1">
+                  <span className="text-sm font-medium">{col.label}</span>
+                  <span className="rounded-full bg-card px-2 py-0.5 font-mono text-xs text-muted-foreground shadow-card">
+                    {colJobs.length}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {colJobs.length === 0 ? (
+                    <p className="px-1 py-8 text-center text-xs text-muted-foreground">
+                      Geen opdrachten
+                    </p>
+                  ) : (
+                    colJobs.map((job) => (
+                      <Link
+                        key={job.id}
+                        href={`/opdrachten/${job.id}`}
+                        className="focus-ring hover:shadow-card-hover block rounded-lg border border-border bg-card p-3 shadow-card transition-all hover:-translate-y-0.5"
+                      >
+                        <p className="truncate text-sm font-medium">{job.title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {plural(job._count.applications, "reactie", "reacties")}
+                          {job.location ? ` · ${job.location}` : ""}
+                        </p>
+                      </Link>
+                    ))
+                  )}
+                </div>
               </div>
-              <JobStatusBadge status={job.status as JobStatus} />
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
