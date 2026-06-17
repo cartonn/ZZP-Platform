@@ -213,7 +213,7 @@ export function WorkspaceDashboard({
 
       {/* Rechter contextrail — volle hoogte, eigen scroll (zoals #19). Zelfde crème vlak als de
           hoofdkolom; alleen de border-l scheidt ze. Witte kaarten (bg-card) zetten zich erop af. */}
-      <aside className="hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border px-4 py-5 lg:flex">
+      <aside className="hidden w-[22.5rem] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border px-4 py-5 lg:flex">
         {/* Volgende acties */}
         <section>
           <h3 className="mb-2 px-1 font-display text-xs font-semibold uppercase tracking-wide text-muted-foreground">
