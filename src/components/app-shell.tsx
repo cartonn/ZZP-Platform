@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { Bell, LogOut } from "lucide-react";
+import { Bell, LogOut, Plus } from "lucide-react";
 import { type Session } from "next-auth";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { getTenantBranding } from "@/lib/franchise/branding";
 import { Brand } from "@/components/franchise/brand";
 import { prisma } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { avatarAccent } from "@/lib/avatar-accent";
 import { type UserRole } from "@/lib/enums";
 
 export async function AppShell({
@@ -48,9 +49,22 @@ export async function AppShell({
   const fadeText =
     "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100";
 
-  // Schermvullende dashboards lopen breed door (geen 6xl-klem); de rest blijft op leesbare breedte.
+  // Schermvullende pagina's lopen breed door (geen 6xl-klem); de rest blijft op leesbare breedte.
+  // De werkruimte (#19) is bovendien "flush": geen main-padding, zodat de hoofdkolom + contextrail
+  // edge-to-edge lopen en de rail tegen de schermrand plakt (volle hoogte, eigen scroll).
   const pathname = (await headers()).get("x-pathname") ?? "";
-  const fullBleed = pathname === "/inzicht" || pathname === "/admin/statistieken";
+  // De #19-werkruimte is de dashboardindeling voor álle rollen.
+  const flush = pathname === "/dashboard";
+  const fullBleed = flush || pathname === "/inzicht" || pathname === "/admin/statistieken";
+
+  // Primaire actie in de bovenbalk (één strip met zoeken + bel + actie, gelijke hoogte — #19).
+  // Rolspecifiek en alleen op de werkruimte; elders geen actieknop in de balk.
+  const DASH_ACTION: Partial<Record<UserRole, { label: string; href: string }>> = {
+    CLIENT: { label: "Nieuwe opdracht", href: "/opdrachten/nieuw" },
+    FREELANCER: { label: "Opdrachten zoeken", href: "/opdrachten" },
+    FRANCHISER: { label: "Dienst uitzetten", href: "/franchise/opdrachtgevers" },
+  };
+  const topAction = flush ? DASH_ACTION[role] : undefined;
 
   return (
     <div className="relative min-h-screen md:pl-16">
@@ -73,7 +87,9 @@ export async function AppShell({
               className="focus-ring flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted"
               aria-label="Account & privacy"
             >
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
+              <div
+                className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${avatarAccent(user.name ?? user.email)}`}
+              >
                 {initials}
               </div>
               <div className={cn("min-w-0 flex-1", fadeText)}>
@@ -110,22 +126,31 @@ export async function AppShell({
             <MobileNav items={navForRole(role)} badges={badges} />
             <Brand branding={branding} />
           </div>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2">
             <SearchTrigger />
             <ThemeToggle />
             <Link
               href="/notificaties"
               aria-label={`Notificaties${unread > 0 ? ` (${unread} ongelezen)` : ""}`}
-              className="focus-ring relative inline-flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="focus-ring relative inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-              <Bell className="size-5" aria-hidden />
+              <Bell className="size-4" aria-hidden />
               {unread > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-medium leading-4 text-white">
                   {unread > 9 ? "9+" : unread}
                 </span>
               )}
             </Link>
-            <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+            {topAction && (
+              <Link
+                href={topAction.href}
+                className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+              >
+                <Plus className="size-4" aria-hidden />
+                <span className="hidden sm:inline">{topAction.label}</span>
+              </Link>
+            )}
+            <span className="hidden rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground sm:inline">
               {ROLE_LABEL[role]}
             </span>
           </div>
@@ -133,14 +158,21 @@ export async function AppShell({
         <main
           id="hoofdinhoud"
           tabIndex={-1}
-          className="flex-1 overflow-y-auto p-4 outline-none md:p-6"
+          className={cn(
+            "flex-1 outline-none",
+            flush ? "flex flex-col overflow-hidden p-4 md:p-6" : "overflow-y-auto p-4 md:p-6",
+          )}
         >
-          {/* Gecentreerde inhoudskolom — elke pagina krijgt dezelfde breedte/centrering als
-              "Mijn profiel" (max-w-6xl). Pagina's met een eigen smallere max-w blijven smaller,
-              maar nog steeds gecentreerd. */}
-          <div className={cn("mx-auto w-full", fullBleed ? "max-w-none" : "max-w-6xl")}>
-            {children}
-          </div>
+          {flush ? (
+            // Werkruimte beheert zijn eigen layout (volle hoogte, eigen scroll per kolom).
+            children
+          ) : (
+            // Gecentreerde inhoudskolom — elke pagina krijgt dezelfde breedte/centrering als
+            // "Mijn profiel" (max-w-6xl). Pagina's met een eigen smallere max-w blijven smaller.
+            <div className={cn("mx-auto w-full", fullBleed ? "max-w-none" : "max-w-6xl")}>
+              {children}
+            </div>
+          )}
         </main>
       </div>
       <CommandPalette />

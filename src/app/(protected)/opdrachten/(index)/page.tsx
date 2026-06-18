@@ -7,13 +7,12 @@ import { visibleJobsWhere } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
 import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/matching";
-import { JOB_STATUSES, type JobStatus, type WorkMode } from "@/lib/enums";
+import { type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Select } from "@/components/ui/select";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
@@ -26,35 +25,21 @@ const WORK_MODE: Record<WorkMode, string> = {
   HYBRID: "Hybride",
 };
 
-const JOB_STATUS_LABEL: Record<JobStatus, string> = {
-  DRAFT: "Concept",
-  PUBLISHED: "Gepubliceerd",
-  CLOSED: "Gesloten",
-};
-
-const isJobStatus = (v: string): v is JobStatus => (JOB_STATUSES as readonly string[]).includes(v);
-
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function OpdrachtenPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await requireActor();
   const sp = await searchParams;
   if (actor.role === "CLIENT") {
-    const statusParam = first(sp.status);
-    const status = isJobStatus(statusParam) ? statusParam : undefined;
-    return <ClientJobs userId={actor.id} status={status} />;
+    return <ClientJobs userId={actor.id} />;
   }
   return <BrowseJobs searchParams={sp} actor={actor} />;
 }
 
-// --- CLIENT: beheeroverzicht van eigen opdrachten ---
-async function ClientJobs({ userId, status }: { userId: string; status?: JobStatus }) {
-  const where: Prisma.JobWhereInput = { company: { userId } };
-  if (status) where.status = status;
-
+// --- CLIENT: beheeroverzicht van eigen opdrachten als kaartgrid (zelfde stijl als de ZZP'er-kaarten) ---
+async function ClientJobs({ userId }: { userId: string }) {
   const jobs = await prisma.job.findMany({
-    where,
+    where: { company: { userId } },
     orderBy: { updatedAt: "desc" },
     include: { _count: { select: { applications: true } } },
   });
@@ -73,23 +58,6 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
         }
       />
 
-      <form
-        method="get"
-        className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto]"
-      >
-        <Select name="status" defaultValue={status ?? ""} aria-label="Status">
-          <option value="">Alle statussen</option>
-          {JOB_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {JOB_STATUS_LABEL[s]}
-            </option>
-          ))}
-        </Select>
-        <Button type="submit" variant="secondary">
-          Filteren
-        </Button>
-      </form>
-
       {jobs.length === 0 ? (
         <Card>
           <EmptyState
@@ -100,22 +68,35 @@ async function ClientJobs({ userId, status }: { userId: string; status?: JobStat
           />
         </Card>
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {jobs.map((job) => (
-            <Link
-              key={job.id}
-              href={`/opdrachten/${job.id}`}
-              className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{job.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {plural(job._count.applications, "reactie", "reacties")}
-                  {job.location ? ` · ${job.location}` : ""}
-                </p>
+            <Card key={job.id} className="flex flex-col gap-3 p-4">
+              {/* Kop: icoon + titel + status — zelfde kaartopbouw als de ZZP'er-kaarten */}
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Briefcase className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{job.title}</p>
+                  {job.location && (
+                    <p className="truncate text-xs text-muted-foreground">{job.location}</p>
+                  )}
+                </div>
+                <span className="shrink-0">
+                  <JobStatusBadge status={job.status as JobStatus} />
+                </span>
               </div>
-              <JobStatusBadge status={job.status as JobStatus} />
-            </Link>
+
+              <p className="text-xs text-muted-foreground">
+                {plural(job._count.applications, "reactie", "reacties")}
+              </p>
+
+              <div className="mt-auto pt-1">
+                <Button asChild variant="secondary" size="sm" className="w-full">
+                  <Link href={`/opdrachten/${job.id}`}>Bekijk opdracht</Link>
+                </Button>
+              </div>
+            </Card>
           ))}
         </div>
       )}

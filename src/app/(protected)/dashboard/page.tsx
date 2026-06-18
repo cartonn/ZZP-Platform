@@ -1,14 +1,30 @@
 import { type Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, AlertTriangle } from "lucide-react";
+import {
+  AlertTriangle,
+  Gauge,
+  Handshake,
+  Wallet,
+  Briefcase,
+  Bell,
+  CheckCircle2,
+  ShieldCheck,
+  Inbox,
+  Users,
+} from "lucide-react";
 import { auth } from "@/auth";
+import {
+  WorkspaceDashboard,
+  type WsAction,
+  type WsWeekDay,
+  type WsRow,
+  type WsSealItem,
+} from "@/components/dashboard/workspace-dashboard";
+import { getClientStats } from "@/lib/client-stats";
+import { avatarAccent } from "@/lib/avatar-accent";
+import { formatEuro } from "@/lib/invoices";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { pendingTasks } from "@/lib/actions/pending-tasks";
-import { loadDrawerData } from "@/lib/actions/drawer-data";
-import { getActivitySignal } from "@/lib/activity-signal";
-import { DashboardActions } from "@/components/actions/dashboard-actions";
-import { ActivitySignalBar } from "@/components/dashboard/activity-signal";
 import {
   type UserRole,
   type CollaborationStatus,
@@ -20,82 +36,27 @@ import { activeVerifiedCount } from "@/lib/credentials";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { suggestedFreelancersForClient, type ClientFreelancerSuggestion } from "@/lib/suggestions";
-import { TrustBadge } from "@/components/trust/trust-badge";
-import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import {
   clientCredentialAlerts,
   shortCredentialAlert,
   summarizeClientCompliance,
   type ClientComplianceSnapshot,
 } from "@/lib/collaboration-alerts";
-import { ComplianceSnapshotCard } from "@/components/dashboard/compliance-snapshot-card";
 import { computeFreelancerCompleteness } from "@/lib/profile";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { franchiserNextActions, type NextAction, type NextActionTone } from "@/lib/next-actions";
 import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
 import { buildWeekStrip } from "@/lib/week-strip";
-import { WeekStripView } from "@/components/dashboard/week-strip";
 import { RUNNING_ZONE_LIMIT, runningZonePlan } from "@/lib/running-zone";
 import { parseWeekdays } from "@/lib/weekdays";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { type FreelancerCredential } from "@/lib/matching";
-import { Badge } from "@/components/ui/badge";
-import { MatchMeter } from "@/components/ui/match-meter";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { ComplianceBadge } from "@/components/compliance-badge";
-import { AvailabilityBadge } from "@/components/availability-badge";
-import { EngageabilityExplanation } from "@/components/engageability-explanation";
-import { plural } from "@/lib/plural";
 import { parseLanguages } from "@/lib/parse-languages";
 
 export const metadata: Metadata = { title: "Dashboard · ZZP Platform" };
-
-const WERKPLEK: Record<UserRole, string> = {
-  FREELANCER: "ZZP-werkplek",
-  CLIENT: "Opdrachtgever-werkplek",
-  ADMIN: "Beheerwerkplek",
-  FRANCHISER: "Bemiddelaar-werkplek",
-};
-
-// Onboarding-checklist: alleen voor nieuwe accounts (zie isNewAccount).
-const INTRO: Record<UserRole, { lead: string; next: string[] }> = {
-  FREELANCER: {
-    lead: "Beheer je profiel, certificaten en reacties op opdrachten op één plek.",
-    next: [
-      "Maak je profiel compleet zodat opdrachtgevers je vinden.",
-      "Upload je VOG en diploma's en vraag verificatie aan.",
-      "Reageer op opdrachten die bij je passen.",
-    ],
-  },
-  CLIENT: {
-    lead: "Plaats opdrachten en zie in één oogopslag welke kandidaten geverifieerd zijn.",
-    next: [
-      "Vul je bedrijfsprofiel aan.",
-      "Plaats je eerste opdracht met de vereiste certificaten.",
-      "Bekijk kandidaten en hun compliance-status.",
-    ],
-  },
-  ADMIN: {
-    lead: "Verifieer certificaten, beheer gebruikers en bewaak de kwaliteit van het platform.",
-    next: [
-      "Werk de verificatiequeue bij.",
-      "Controleer gebruikers en rollen.",
-      "Bekijk de audit trail van gevoelige acties.",
-    ],
-  },
-  FRANCHISER: {
-    lead: "Breng opdrachtgevers en ZZP'ers in je bemiddeling en zet diensten voor ze uit.",
-    next: [
-      "Voeg je eerste opdrachtgever toe met zijn afdelingen.",
-      "Breng ZZP'ers in je roster.",
-      "Zet diensten uit voor een afdeling.",
-    ],
-  },
-};
 
 interface Stat {
   label: string;
@@ -130,6 +91,10 @@ interface DashboardData {
   suggestedFreelancers?: ClientFreelancerSuggestion[];
   /** Profielkaart-gegevens voor de kop (publieke-profiel-stijl); per rol gevuld. */
   identity?: IdentityCard;
+  /** Roster-lijst voor de #19-werkruimte (alleen FRANCHISER). */
+  professionals?: WsRow[];
+  /** Compliance-zegel voor de rail (alleen FRANCHISER; andere rollen bouwen 'm in de render). */
+  seal?: { title: string; subtitle: string; items: WsSealItem[]; reportHref?: string };
 }
 
 /** Kopkaart in de stijl van het publieke profiel: subtitel, kerncijfers, zegel, publieke link. */
@@ -148,6 +113,67 @@ function initials(name: string | null): string {
   const first = parts[0]?.[0] ?? "";
   const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
   return (first + last).toUpperCase() || "?";
+}
+
+// Beschikbaarheid -> status-badge in de professionals-lijst (#19).
+const AVAILABILITY_LABEL: Record<string, { label: string; cls: string }> = {
+  AVAILABLE: { label: "Beschikbaar", cls: "bg-success/10 text-success" },
+  LIMITED: { label: "Beperkt", cls: "bg-warning/10 text-warning" },
+  UNAVAILABLE: { label: "Niet beschikbaar", cls: "bg-muted text-muted-foreground" },
+};
+
+const ACTION_ICON = { attention: AlertTriangle, info: Bell, success: CheckCircle2 } as const;
+const ACTION_TONE = { attention: "warning", info: "primary", success: "success" } as const;
+
+/** ISO-weeknummer (maandag-gebaseerd) — voor de "Week NN"-strip in de rail (#19). */
+function isoWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = (d.getUTCDay() + 6) % 7; // ma=0 … zo=6
+  d.setUTCDate(d.getUTCDate() - dayNum + 3); // donderdag van deze week
+  const firstThursday = d.getTime();
+  d.setUTCMonth(0, 1);
+  if (d.getUTCDay() !== 4) d.setUTCMonth(0, 1 + ((4 - d.getUTCDay() + 7) % 7));
+  return 1 + Math.ceil((firstThursday - d.getTime()) / 604800000);
+}
+
+/**
+ * Huidige week (ma–zo) als #19-strip. `loadByDate` (sleutel YYYY-MM-DD) overlayt het echte
+ * aantal diensten per dag; ontbreekt het, dan 0. De strip toont altijd de week + "vandaag".
+ */
+function buildCurrentWeek(
+  now: Date,
+  count: string,
+  loadByDate?: Map<string, number>,
+): { title: string; count: string; days: WsWeekDay[] } {
+  const labels = ["ma", "di", "wo", "do", "vr", "za", "zo"];
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const days: WsWeekDay[] = labels.map((label, i) => {
+    const dt = new Date(monday);
+    dt.setDate(monday.getDate() + i);
+    const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    return {
+      label,
+      date: String(dt.getDate()),
+      load: Math.min(loadByDate?.get(key) ?? 0, 3),
+      today: dt.toDateString() === now.toDateString(),
+    };
+  });
+  return { title: `Week ${isoWeekNumber(now)}`, count, days };
+}
+
+/** Open taken -> #19 "Volgende acties"-items voor de rechterrail. */
+function tasksToActions(
+  tasks: { title: string; subtitle?: string; tone: NextActionTone; href: string }[],
+): WsAction[] {
+  return tasks.slice(0, 6).map((t, i) => ({
+    id: `${i}-${t.href}`,
+    icon: ACTION_ICON[t.tone],
+    title: t.title,
+    detail: t.subtitle,
+    href: t.href,
+    tone: ACTION_TONE[t.tone],
+  }));
 }
 
 async function dashboardData(role: UserRole, userId: string): Promise<DashboardData> {
@@ -418,6 +444,9 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     // Tenant-overzicht: opdrachtgevers + ZZP'ers + open diensten binnen de eigen franchise.
     const me = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
     const tenantId = me?.tenantId ?? null;
+    const now = new Date();
+    const soon = new Date(now);
+    soon.setDate(now.getDate() + 30);
     const [
       companies,
       freelancers,
@@ -425,6 +454,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       activeCollabs,
       companiesWithoutDiensten,
       openLeads,
+      verifiedFreelancers,
+      expiringSoon,
     ] = tenantId
       ? await Promise.all([
           prisma.company.count({ where: { tenantId } }),
@@ -434,8 +465,85 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           prisma.company.count({ where: { tenantId, jobs: { none: { status: "PUBLISHED" } } } }),
           // Lopende acquisitie: leads die nog niet klant of afgevallen zijn.
           prisma.lead.count({ where: { tenantId, status: { in: ["KOUD", "WARM"] } } }),
+          // Compliance-zegel: identiteit geverifieerd + bewijsstukken die binnenkort verlopen.
+          prisma.freelancerProfile.count({
+            where: { tenantId, user: { identityVerifiedAt: { not: null } } },
+          }),
+          prisma.credential.count({
+            where: {
+              freelancerProfile: { tenantId },
+              status: "VERIFIED",
+              expiresAt: { gte: now, lte: soon },
+            },
+          }),
         ])
-      : [0, 0, 0, 0, 0, 0];
+      : [0, 0, 0, 0, 0, 0, 0, 0];
+    // Roster-selectie voor de #19-lijst (meest recent bewogen bovenaan, begrensd tot de zone).
+    const rosterRaw = tenantId
+      ? await prisma.freelancerProfile.findMany({
+          where: { tenantId },
+          orderBy: { updatedAt: "desc" },
+          take: RUNNING_ZONE_LIMIT,
+          select: {
+            id: true,
+            headline: true,
+            location: true,
+            hourlyRate: true,
+            availability: true,
+            user: { select: { name: true, identityVerifiedAt: true } },
+            credentials: { select: { type: true, status: true, expiresAt: true } },
+          },
+        })
+      : [];
+    const professionals: WsRow[] = rosterRaw.map((f) => {
+      const fcreds = f.credentials.map(
+        (c): FreelancerCredential => ({
+          type: c.type as FreelancerCredential["type"],
+          status: c.status as FreelancerCredential["status"],
+          expiresAt: c.expiresAt,
+        }),
+      );
+      const trust = computeTrustLevel({
+        identityVerified: f.user.identityVerifiedAt != null,
+        verifiedCredentialCount: activeVerifiedCount(
+          f.credentials.map((c) => ({
+            status: c.status as CredentialStatus,
+            expiresAt: c.expiresAt,
+          })),
+        ),
+        mandatoryDocsComplete: mandatoryDocuments(fcreds, now).allSatisfied,
+      });
+      const av = AVAILABILITY_LABEL[f.availability];
+      return {
+        id: f.id,
+        initials: initials(f.user.name ?? null),
+        accent: avatarAccent(f.user.name ?? f.id),
+        name: f.user.name ?? "—",
+        verified: trust.level === "VOLLEDIG",
+        role: f.headline ?? "ZZP'er",
+        location: f.location,
+        rate: f.hourlyRate,
+        status: av?.label,
+        statusClass: av?.cls,
+        href: `/franchise/zzpers/${f.id}`,
+      };
+    });
+    const seal = {
+      title: "Roster-compliance",
+      subtitle:
+        freelancers === 0
+          ? "Nog geen ZZP'ers"
+          : `${verifiedFreelancers}/${freelancers} geverifieerd`,
+      items: [
+        {
+          label: "Identiteit geverifieerd",
+          value: `${verifiedFreelancers}/${freelancers}`,
+          ok: freelancers > 0 && verifiedFreelancers === freelancers,
+        },
+        { label: "Verloopt binnenkort", value: String(expiringSoon), ok: expiringSoon === 0 },
+      ],
+      reportHref: "/franchise/zzpers",
+    };
     return {
       stats: [
         { label: "Opdrachtgevers", value: companies, href: "/franchise/opdrachtgevers" },
@@ -456,6 +564,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         rosterFreelancers: freelancers,
         companiesWithoutDiensten,
       }),
+      professionals,
+      seal,
     };
   }
 
@@ -522,500 +632,268 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
 
 // --- Presentatie-helpers ---------------------------------------------------
 
-const TONE_BADGE: Record<NextActionTone, "warning" | "muted" | "success"> = {
-  attention: "warning",
-  info: "muted",
-  success: "success",
+/** Cascade-fase-toon → status-chip-klasse voor de #19-lijst (admin "Wat loopt er nu"). */
+const STAGE_STATUS_CLASS: Record<NextActionTone, string> = {
+  attention: "bg-warning/10 text-warning",
+  info: "bg-primary/10 text-primary",
+  success: "bg-success/10 text-success",
 };
-
-/** Overzichtslink van de "Wat loopt er nu"-zone, per rol. */
-const SAMENWERKINGEN_HREF: Record<UserRole, string> = {
-  FREELANCER: "/samenwerkingen",
-  CLIENT: "/samenwerkingen",
-  ADMIN: "/admin/samenwerkingen",
-  FRANCHISER: "/franchise/samenwerkingen",
-};
-
-/** Lege staat van de "Wat loopt er nu"-zone: wat is de eerstvolgende stap richting lopend werk? */
-const NO_RUNNING: Record<UserRole, { text: string; cta?: { label: string; href: string } }> = {
-  FREELANCER: {
-    text: "Geen lopende samenwerkingen. Reageer op een opdracht die bij je past om te starten.",
-    cta: { label: "Bekijk opdrachten", href: "/opdrachten" },
-  },
-  CLIENT: {
-    text: "Geen lopende samenwerkingen. Plaats een opdracht om ZZP'ers voorgesteld te krijgen.",
-    cta: { label: "Opdracht plaatsen", href: "/opdrachten/nieuw" },
-  },
-  ADMIN: { text: "Geen lopende samenwerkingen op het platform." },
-  FRANCHISER: {
-    text: "Geen lopende samenwerkingen in je bemiddeling. Zet een dienst uit om te starten.",
-    cta: { label: "Naar diensten", href: "/franchise/diensten" },
-  },
-};
-
-function RunningCard({ collab }: { collab: RunningCollab }) {
-  const { stage } = collab;
-  const pct = Math.round((stage.step / stage.totalSteps) * 100);
-  return (
-    <Link
-      href={stage.cta.href}
-      className="focus-ring flex flex-col gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/40"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate font-medium">{collab.jobTitle}</p>
-          <p className="truncate text-xs text-muted-foreground">{collab.counterpartyName}</p>
-        </div>
-        <Badge variant={TONE_BADGE[stage.tone]} className="shrink-0" title={stage.label}>
-          {stage.badgeLabel}
-        </Badge>
-      </div>
-      <p className="text-sm text-muted-foreground">{stage.label}</p>
-      {collab.complianceWarning && (
-        <p className="flex items-center gap-1.5 text-xs font-medium text-danger">
-          <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
-          {collab.complianceWarning}
-        </p>
-      )}
-      <div className="space-y-1">
-        <Progress value={pct} />
-        <p className="text-xs text-muted-foreground">
-          Stap {stage.step} van {stage.totalSteps}
-        </p>
-      </div>
-      <span
-        className={
-          stage.youAreUp
-            ? "inline-flex items-center gap-1 text-sm font-medium text-foreground"
-            : "inline-flex items-center gap-1 text-sm text-muted-foreground"
-        }
-      >
-        {stage.youAreUp ? stage.cta.label : "Wacht op de andere partij"}
-        <ArrowRight className="size-4" aria-hidden />
-      </span>
-    </Link>
-  );
-}
-
-function MatchesSection({ matches, prominent }: { matches: JobMatch[]; prominent: boolean }) {
-  return (
-    <section className="rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <div>
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Wat kan ik oppakken
-          </h2>
-          {prominent && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Opdrachten die bij je profiel passen — reageer direct.
-            </p>
-          )}
-        </div>
-        <Link
-          href="/opdrachten"
-          className="focus-ring text-xs text-muted-foreground hover:text-foreground"
-        >
-          Alle opdrachten
-        </Link>
-      </div>
-      <ul className="divide-y divide-border">
-        {matches.map((m) => (
-          <li key={m.jobId}>
-            <Link
-              href={`/opdrachten/${m.jobId}`}
-              className="focus-ring flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/40"
-            >
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{m.title}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {m.companyName}
-                </span>
-                {m.reason ? (
-                  <span className="block truncate text-xs text-primary">{m.reason}</span>
-                ) : m.related ? (
-                  <span className="block truncate text-xs text-primary">
-                    Sluit inhoudelijk aan op je profiel
-                  </span>
-                ) : null}
-              </span>
-              <span className="flex shrink-0 items-center gap-3">
-                {/* Rustig houden: badges alleen als ze iets signaleren — "beschikbaar" en
-                    "voldoet aan eisen" zijn de norm en hoeven geen aandacht te vragen. */}
-                {m.availability !== "AVAILABLE" && <AvailabilityBadge status={m.availability} />}
-                {m.compliance !== "COMPLIANT" && <ComplianceBadge status={m.compliance} />}
-                <span className="flex flex-col items-end gap-1">
-                  <span className="font-mono text-sm font-semibold tracking-tight text-primary">
-                    {m.score}%
-                  </span>
-                  <MatchMeter score={m.score} />
-                </span>
-                <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function ClientSuggestionsSection({
-  suggestions,
-  prominent,
-}: {
-  suggestions: ClientFreelancerSuggestion[];
-  prominent: boolean;
-}) {
-  return (
-    <section className="rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <div>
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Wat kan ik oppakken
-          </h2>
-          {prominent && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Geschikte ZZP&apos;ers voor je opdrachten — benader ze direct.
-            </p>
-          )}
-        </div>
-        <Link
-          href="/kandidaten"
-          className="focus-ring text-xs text-muted-foreground hover:text-foreground"
-        >
-          Alle kandidaten
-        </Link>
-      </div>
-      <ul className="divide-y divide-border">
-        {suggestions.map((f) => (
-          <li key={f.freelancerId} className="px-5 py-3">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="min-w-0">
-                <span className="flex flex-wrap items-center gap-1.5">
-                  <Link
-                    href={`/zzp/${f.freelancerId}`}
-                    target="_blank"
-                    className="focus-ring truncate font-medium hover:text-primary"
-                  >
-                    {f.name}
-                  </Link>
-                  <TrustBadge level={f.trustLevel} />
-                </span>
-                {f.related && (
-                  <span className="block truncate text-xs text-primary">
-                    Sluit inhoudelijk aan op je opdracht
-                  </span>
-                )}
-                <span className="block truncate text-xs text-muted-foreground">{f.jobTitle}</span>
-              </span>
-              <span className="flex shrink-0 flex-wrap items-center gap-3">
-                {/* Rustig: badges alleen als ze iets signaleren — beschikbaar/compliant is de norm. */}
-                {f.availability !== "AVAILABLE" && <AvailabilityBadge status={f.availability} />}
-                {f.compliance !== "COMPLIANT" && <ComplianceBadge status={f.compliance} />}
-                <span className="flex flex-col items-end gap-1">
-                  <span className="font-mono text-sm font-semibold tracking-tight text-primary">
-                    {f.score}%
-                  </span>
-                  <MatchMeter score={f.score} />
-                </span>
-                <form action={startConversationWithFreelancer.bind(null, f.jobId, f.freelancerId)}>
-                  <Button type="submit" variant="secondary" size="sm">
-                    Bericht sturen
-                  </Button>
-                </form>
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 
 export default async function DashboardPage() {
   const session = await auth();
   const user = session!.user;
   const role = user.role as UserRole;
-  const intro = INTRO[role];
-  const firstName = (user.name ?? "").split(" ")[0] || "daar";
-  const today = new Date().toLocaleDateString("nl-NL", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "Europe/Amsterdam",
-  });
   const actor = await requireActor();
   const [
     {
       stats,
       running,
-      runningOverflow,
       week,
-      isNewAccount,
       activation,
       engageability,
       complianceSnapshot,
       suggestedFreelancers,
       identity,
+      professionals,
+      seal: franchiserSeal,
     },
     matches,
     tasks,
-    activity,
   ] = await Promise.all([
     dashboardData(role, user.id!),
     role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
     pendingTasks(actor),
-    role === "FREELANCER" || role === "CLIENT" ? getActivitySignal() : Promise.resolve(null),
   ]);
-  // Dezelfde item-niveau taken als /acties, hier inline-afhandelbaar in de aandacht-zone.
-  const drawerData = await loadDrawerData(actor, tasks);
-
-  const hasRunning = running.length > 0;
   const weekStrip = week ? buildWeekStrip(week) : null;
-  const headerLead =
-    tasks.length === 0
-      ? hasRunning
-        ? "Je lopende werk staat op schema."
-        : intro.lead
-      : tasks.length === 1
-        ? "Er is 1 punt dat je aandacht vraagt."
-        : `Er zijn ${tasks.length} punten die je aandacht vragen.`;
 
-  return (
-    <div className="space-y-6">
-      {/* Profielkaart — zelfde taal als de publieke-profielkop (/zzp/[id]): avatar, naam +
-          zegel, subtitel, kerncijfers. Elke rol krijgt dezelfde opzet; de inhoud verschilt. */}
-      <header className="rounded-lg border border-border bg-card p-5">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {WERKPLEK[role]} · {today}
-        </p>
-        <div className="mt-3 flex items-start gap-4">
-          <div
-            aria-hidden
-            className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-lg font-semibold text-primary"
-          >
-            {initials(user.name ?? null)}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
-                {user.name ?? `Welkom terug, ${firstName}`}
-              </h1>
-              {identity?.trustLevel && <TrustBadge level={identity.trustLevel} />}
-            </div>
-            {identity?.subtitle && (
-              <p className="mt-0.5 text-sm text-muted-foreground">{identity.subtitle}</p>
-            )}
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              {identity?.meta.map((m, i) => (
-                <span
-                  key={m}
-                  className={i === 0 ? "font-mono font-semibold" : "text-muted-foreground"}
-                >
-                  {m}
-                </span>
-              ))}
-              <span className="text-muted-foreground">{headerLead}</span>
-            </div>
-            {identity?.editHref && (
-              <Link
-                href={identity.editHref}
-                className="focus-ring mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-              >
-                Bewerk jouw profiel
-                <ArrowRight className="size-3.5" aria-hidden />
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Zone 1 — Wat vraagt aandacht: direct onder de profielkaart, voor élke rol (voor de
-          admin is dit de operationele wachtrij). Inline-afhandelbaar, zelfde resolvers als /acties. */}
-      <DashboardActions
-        tasks={tasks}
-        drawerData={drawerData}
-        title={role === "ADMIN" ? "Operationele wachtrij" : "Wat vraagt aandacht"}
+  // --- ZZP'ER: #19 drie-koloms workspace met echte data ---
+  if (role === "FREELANCER") {
+    const fKpiIcons = [Gauge, ShieldCheck, Inbox];
+    const fKpis = stats.map((st, i) => ({
+      icon: fKpiIcons[i] ?? Gauge,
+      label: st.label,
+      value: String(st.value),
+    }));
+    const rows = matches.map((m) => ({
+      id: m.jobId,
+      initials: initials(m.title),
+      accent: avatarAccent(m.jobId),
+      name: m.title,
+      role: m.companyName,
+      match: m.score,
+      status: AVAILABILITY_LABEL[m.availability]?.label,
+      statusClass: AVAILABILITY_LABEL[m.availability]?.cls,
+      href: `/opdrachten/${m.jobId}`,
+    }));
+    // Week-strip: altijd de huidige week (#19); echte dienst-belasting waar bekend.
+    const loadByDate = new Map<string, number>();
+    if (weekStrip?.hasAny) {
+      for (const d of weekStrip.days) {
+        const dt = d.date;
+        const key = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+        loadByDate.set(key, d.entries.length);
+      }
+    }
+    const weekCount = week
+      ? `${week.entries.length} ${week.entries.length === 1 ? "dienst" : "diensten"}`
+      : "0 diensten";
+    const wk = buildCurrentWeek(new Date(), weekCount, loadByDate);
+    const openPunten = engageability
+      ? engageability.blockers.length + engageability.attention.length
+      : 0;
+    const seal = engageability
+      ? {
+          title: "Inzetbaarheid",
+          subtitle: engageability.label,
+          items: [
+            { label: "Status", value: engageability.label, ok: engageability.status === "ACTIEF" },
+            { label: "Open aandachtspunten", value: String(openPunten), ok: openPunten === 0 },
+          ],
+          reportHref: "/certificaten",
+        }
+      : undefined;
+    return (
+      <WorkspaceDashboard
+        header={{
+          title: user.name ?? "Werkruimte",
+          subtitle: identity?.subtitle ?? undefined,
+        }}
+        kpis={fKpis}
+        list={{
+          title: "Opdrachten voor jou",
+          href: "/opdrachten",
+          rows,
+          empty: "Nog geen passende opdrachten — maak je profiel compleet voor betere matches.",
+        }}
+        nextActions={tasksToActions(tasks)}
+        week={wk}
+        seal={seal}
       />
+    );
+  }
 
-      {/* Zone 2 — Wat loopt er nu (lopende samenwerkingen + cascade-fase). Altijd zichtbaar,
-          voor elke rol dezelfde plek; zonder lopend werk een lege staat met de eerstvolgende stap. */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Wat loopt er nu
-          </h2>
-          {week && (
-            <p className="text-xs text-muted-foreground">
-              Deze week: {plural(week.entries.length, "samenwerking", "samenwerkingen")} bij{" "}
-              {plural(week.clientCount, "opdrachtgever", "opdrachtgevers")}
-            </p>
-          )}
-          <Link
-            href={SAMENWERKINGEN_HREF[role]}
-            className="focus-ring text-xs text-muted-foreground hover:text-foreground"
-          >
-            Alle samenwerkingen
-          </Link>
-        </div>
-        {weekStrip?.hasAny && <WeekStripView strip={weekStrip} />}
-        {hasRunning ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {running.map((c) => (
-              <RunningCard key={c.id} collab={c} />
-            ))}
-            {runningOverflow > 0 && (
-              <Link
-                href={SAMENWERKINGEN_HREF[role]}
-                className="focus-ring flex min-h-24 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-              >
-                Nog {plural(runningOverflow, "lopende samenwerking", "lopende samenwerkingen")}
-                <ArrowRight className="size-4" aria-hidden />
-              </Link>
-            )}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-border bg-card p-5">
-            <p className="text-sm text-muted-foreground">{NO_RUNNING[role].text}</p>
-            {NO_RUNNING[role].cta && (
-              <Button asChild size="sm" variant="secondary" className="mt-3">
-                <Link href={NO_RUNNING[role].cta.href}>{NO_RUNNING[role].cta.label}</Link>
-              </Button>
-            )}
-          </div>
-        )}
-      </section>
+  // --- OPDRACHTGEVER: #19 drie-koloms workspace met echte data ---
+  if (role === "CLIENT") {
+    const cs = await getClientStats(user.id!);
+    const clientKpis = cs
+      ? [
+          { icon: Gauge, label: "Vervullingsgraad", value: `${cs.fillRate}%` },
+          {
+            icon: Handshake,
+            label: "Actieve samenwerkingen",
+            value: String(cs.activeCollaborations),
+          },
+          { icon: Briefcase, label: "Geplaatste opdrachten", value: String(cs.publishedJobs) },
+          { icon: Wallet, label: "Uitgaven", value: formatEuro(cs.spentCents) },
+        ]
+      : stats.map((st) => ({ icon: Briefcase, label: st.label, value: String(st.value) }));
+    const rows = (suggestedFreelancers ?? []).map((fr) => ({
+      id: fr.freelancerId,
+      initials: initials(fr.name),
+      accent: avatarAccent(fr.freelancerId),
+      name: fr.name,
+      verified: fr.trustLevel === "VOLLEDIG",
+      role: fr.headline ?? fr.jobTitle,
+      location: fr.location,
+      rate: fr.rate,
+      match: fr.score,
+      status: AVAILABILITY_LABEL[fr.availability]?.label,
+      statusClass: AVAILABILITY_LABEL[fr.availability]?.cls,
+      href: `/zzp/${fr.freelancerId}`,
+    }));
+    const seal = complianceSnapshot
+      ? {
+          title: "Compliance-zegel",
+          subtitle:
+            complianceSnapshot.total === 0
+              ? "Geen lopende diensten"
+              : `${complianceSnapshot.total - complianceSnapshot.nonCompliant - complianceSnapshot.warning}/${complianceSnapshot.total} diensten in orde`,
+          items: [
+            {
+              label: "Ontbrekend/verlopen",
+              value: String(complianceSnapshot.missing + complianceSnapshot.expired),
+              ok: complianceSnapshot.missing + complianceSnapshot.expired === 0,
+            },
+            {
+              label: "Verloopt binnenkort",
+              value: String(complianceSnapshot.expiringSoon),
+              ok: complianceSnapshot.expiringSoon === 0,
+            },
+            {
+              label: "In beoordeling",
+              value: String(complianceSnapshot.inReview),
+              ok: complianceSnapshot.inReview === 0,
+            },
+          ],
+          reportHref: "/samenwerkingen",
+        }
+      : undefined;
+    const activeCount = cs?.activeCollaborations ?? 0;
+    const wk = buildCurrentWeek(
+      new Date(),
+      `${activeCount} ${activeCount === 1 ? "dienst" : "diensten"}`,
+    );
+    return (
+      <WorkspaceDashboard
+        header={{
+          title: user.name ?? "Werkruimte",
+          subtitle: identity?.subtitle ?? undefined,
+        }}
+        kpis={clientKpis}
+        list={{
+          title: "Voorgestelde professionals",
+          href: "/freelancers",
+          rows,
+          empty: "Plaats een opdracht om geschikte ZZP'ers voorgesteld te krijgen.",
+        }}
+        nextActions={tasksToActions(tasks)}
+        week={wk}
+        seal={seal}
+      />
+    );
+  }
 
-      {/* Certificaat-compliance over álle lopende samenwerkingen (ook buiten de top-6 zone),
-          zodat de opdrachtgever in één oogopslag ziet of er ergens een vereist certificaat
-          ontbreekt of verloopt. Verbergt zichzelf wanneer alles op orde is. */}
-      {complianceSnapshot && <ComplianceSnapshotCard snapshot={complianceSnapshot} />}
+  // --- BEMIDDELAAR: #19 drie-koloms workspace met echte data ---
+  if (role === "FRANCHISER") {
+    const fKpiIcons = [Briefcase, Users, Inbox, Gauge];
+    const fKpis = stats.slice(0, 4).map((st, i) => ({
+      icon: fKpiIcons[i] ?? Gauge,
+      label: st.label,
+      value: String(st.value),
+    }));
+    const openD = Number(stats.find((s) => s.label === "Open diensten")?.value ?? 0);
+    const wk = buildCurrentWeek(new Date(), `${openD} ${openD === 1 ? "dienst" : "diensten"}`);
+    // Volgende acties: lopende attentiepunten; bij een verse franchise de geleide opzet-stappen.
+    const fActions = tasks.length > 0 ? tasksToActions(tasks) : tasksToActions(activation);
+    return (
+      <WorkspaceDashboard
+        header={{ title: user.name ?? "Werkruimte", subtitle: "Bemiddeling" }}
+        kpis={fKpis}
+        list={{
+          title: "ZZP'ers in je bemiddeling",
+          href: "/franchise/zzpers",
+          rows: professionals ?? [],
+          empty: "Breng ZZP'ers in je roster om ze hier te zien.",
+        }}
+        nextActions={fActions}
+        week={wk}
+        seal={franchiserSeal}
+      />
+    );
+  }
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        {stats.map((s) => (
-          <Link
-            key={s.label}
-            href={s.href}
-            className="focus-ring rounded-lg border border-border bg-card p-5 transition-colors hover:bg-muted/40"
-          >
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {s.label}
-            </p>
-            <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">{s.value}</p>
-            {s.sub && <p className="mt-0.5 text-xs text-muted-foreground">{s.sub}</p>}
-          </Link>
-        ))}
-      </section>
-
-      {/* Live, geanonimiseerd liquiditeitssignaal: een ZZP'er ziet de hoeveelheid werk, een
-          opdrachtgever het beschikbare aanbod. Verbergt zichzelf zonder relevante activiteit. */}
-      {activity && <ActivitySignalBar signal={activity} role={role} />}
-
-      {/* Eigen inzetbaarheid — toont de ZZP'er wat een opdrachtgever ziet, met een concreet herstelpad.
-          Verschijnt alleen als er iets te verbeteren valt (rustig houden zodra je inzetbaar bent). */}
-      {role === "FREELANCER" && engageability && engageability.status !== "ACTIEF" && (
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Jouw inzetbaarheid
-          </h2>
-          <EngageabilityExplanation result={engageability} self />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="secondary">
-              <Link href="/certificaten">Naar certificaten</Link>
-            </Button>
-            <Button asChild size="sm" variant="ghost">
-              <Link href="/profiel/bewerken">Profiel aanvullen</Link>
-            </Button>
-          </div>
-        </section>
-      )}
-
-      {/* Franchiser-activatie — geleide opzet van de franchise. Klikbare stappen die de eerstvolgende
-          concrete actie tonen (opdrachtgever → dienst → roster); verdwijnt zodra de franchise staat. */}
-      {role === "FRANCHISER" && activation.length > 0 && (
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Aan de slag
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Richt je bemiddeling stap voor stap in.
-          </p>
-          <ul className="mt-3 space-y-1">
-            {activation.map((a, i) => (
-              <li key={a.id}>
-                <Link
-                  href={a.href}
-                  className="focus-ring -mx-2 flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted/40"
-                >
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] font-medium text-foreground">
-                    {i + 1}
-                  </span>
-                  <span className="flex-1 font-medium">{a.title}</span>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Zone 3 prominent — bij weinig lopend werk eerst de matches. */}
-      {role === "FREELANCER" && !hasRunning && matches.length > 0 && (
-        <MatchesSection matches={matches} prominent />
-      )}
-
-      {/* Zone 3 prominent (CLIENT) — geschikte ZZP'ers wanneer er weinig loopt. */}
-      {role === "CLIENT" && !hasRunning && (suggestedFreelancers?.length ?? 0) > 0 && (
-        <ClientSuggestionsSection suggestions={suggestedFreelancers!} prominent />
-      )}
-
-      {/* Zone 3 leeg (CLIENT) — geen lopend werk en geen suggesties: nodig uit tot plaatsen.
-          Niet tonen bovenop het onboarding-scherm (isNewAccount zonder taken). */}
-      {role === "CLIENT" &&
-        !hasRunning &&
-        (suggestedFreelancers?.length ?? 0) === 0 &&
-        !(isNewAccount && tasks.length === 0) && (
-          <section className="rounded-lg border border-border bg-card p-5">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Wat kan ik oppakken
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Plaats een opdracht om geschikte ZZP&apos;ers voorgesteld te krijgen.
-            </p>
-            <Button asChild size="sm" variant="secondary" className="mt-3">
-              <Link href="/opdrachten/nieuw">Opdracht plaatsen</Link>
-            </Button>
-          </section>
-        )}
-
-      {/* Zone 3 compact — naast lopend werk de matches eronder. */}
-      {role === "FREELANCER" && hasRunning && matches.length > 0 && (
-        <MatchesSection matches={matches} prominent={false} />
-      )}
-      {role === "CLIENT" && hasRunning && (suggestedFreelancers?.length ?? 0) > 0 && (
-        <ClientSuggestionsSection suggestions={suggestedFreelancers!} prominent={false} />
-      )}
-
-      {/* Aan de slag — onboarding alleen voor nieuwe accounts, en alleen als het actiecentrum
-          niets concreets toont (anders verschijnen profiel/identiteit dubbel). De franchiser heeft
-          hierboven al zijn eigen, klikbare activatie-sectie. */}
-      {isNewAccount && tasks.length === 0 && role !== "FRANCHISER" && (
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Aan de slag
-          </h2>
-          <ul className="mt-3 space-y-2">
-            {intro.next.map((step, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] font-medium text-foreground">
-                  {i + 1}
-                </span>
-                <span>{step}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
+  // --- ADMIN: #19 drie-koloms workspace met echte data ---
+  const aKpiIcons = [ShieldCheck, Users, Briefcase];
+  const aKpis = stats.map((st, i) => ({
+    icon: aKpiIcons[i] ?? Gauge,
+    label: st.label,
+    value: String(st.value),
+  }));
+  const aRows = running.map((c) => ({
+    id: c.id,
+    initials: initials(c.jobTitle),
+    accent: avatarAccent(c.id),
+    name: c.jobTitle,
+    role: c.counterpartyName,
+    status: c.stage.badgeLabel,
+    statusClass: STAGE_STATUS_CLASS[c.stage.tone],
+    href: c.stage.cta.href,
+  }));
+  const aWk = buildCurrentWeek(
+    new Date(),
+    `${running.length} ${running.length === 1 ? "dienst" : "diensten"}`,
+  );
+  const pendingVerifications = Number(stats[0]?.value ?? 0);
+  const aSeal = {
+    title: "Platformstatus",
+    subtitle:
+      pendingVerifications === 0
+        ? "Geen openstaande verificaties"
+        : `${pendingVerifications} ter verificatie`,
+    items: [
+      {
+        label: "Open verificaties",
+        value: String(stats[0]?.value ?? 0),
+        ok: pendingVerifications === 0,
+      },
+      { label: "Gebruikers", value: String(stats[1]?.value ?? 0), ok: true },
+      { label: "Opdrachten", value: String(stats[2]?.value ?? 0), ok: true },
+    ],
+    reportHref: "/admin/verificaties",
+  };
+  return (
+    <WorkspaceDashboard
+      header={{ title: user.name ?? "Beheer", subtitle: "Platformbeheer" }}
+      kpis={aKpis}
+      list={{
+        title: "Wat loopt er nu",
+        href: "/admin/samenwerkingen",
+        rows: aRows,
+        empty: "Geen lopende samenwerkingen op het platform.",
+      }}
+      nextActions={tasksToActions(tasks)}
+      week={aWk}
+      seal={aSeal}
+    />
   );
 }

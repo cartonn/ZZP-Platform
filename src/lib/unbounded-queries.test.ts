@@ -24,7 +24,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Dit is een aggregatie-query voor een widget (geen lijst-view); typisch < 10 items.
   {
     file: "(protected)/dashboard/page.tsx",
-    line: 178,
+    line: 204,
     reason: "dashboard-widget aggregatie; eigenaar-scoped, inherent begrensd",
   },
 
@@ -283,12 +283,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Freelancers en skills van deze franchise; tenant-scoped.
   {
     file: "(protected)/franchise/zzpers/page.tsx",
-    line: 30,
+    line: 44,
     reason: "franchise-tenant-scoped freelancers; beheerbaar volume",
   },
   {
     file: "(protected)/franchise/zzpers/page.tsx",
-    line: 39,
+    line: 54,
     reason: "skills-referentielijst voor formulier",
   },
 
@@ -360,22 +360,22 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   },
 
   // --- opdrachten/(index)/page.tsx (drie findMany's) ---
-  // Client-overzicht van eigen opdrachten (regel 56); geen take maar altijd
-  // gefilterd op company.userId (eigenaar-scoped).
-  // Industry- en skill-lijsten (regels 178-179) zijn kleine referentielijsten.
+  // Client-kanban van eigen opdrachten (regel 46); geen take maar altijd
+  // gefilterd op company.userId (eigenaar-scoped) — kolommen Concept/Gepubliceerd/Gesloten.
+  // Industry- en skill-lijsten (regels 169-170) zijn kleine referentielijsten.
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 56,
-    reason: "eigenaar-scoped lijst van eigen opdrachten; kandidaat toekomstige paginatie",
+    line: 41,
+    reason: "eigenaar-scoped kanban van eigen opdrachten; kandidaat toekomstige paginatie",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 178,
+    line: 159,
     reason: "branches-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 179,
+    line: 160,
     reason: "skills-referentielijst voor filter",
   },
 

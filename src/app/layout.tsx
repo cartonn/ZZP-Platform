@@ -1,19 +1,19 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Inter, Schibsted_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Figtree, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { HydrationFlag } from "@/components/system/hydration-flag";
 import { PwaRegister } from "@/components/system/pwa-register";
 import { InstallPrompt } from "@/components/system/install-prompt";
 
-// Vakwerk-typografie (DESIGN.md): Inter voor UI, Schibsted Grotesk voor koppen,
+// Editorial Warm-typografie (richting #19): Figtree voor UI, Fraunces (serif) voor koppen,
 // JetBrains Mono voor cijfers. Via next/font zelfgehost — geen runtime-request.
-const fontSans = Inter({
+const fontSans = Figtree({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
-const fontDisplay = Schibsted_Grotesk({
+const fontDisplay = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
@@ -37,8 +37,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f0f4f9" },
-    { media: "(prefers-color-scheme: dark)", color: "#0e0f16" },
+    { media: "(prefers-color-scheme: light)", color: "#faf8f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#1d1916" },
   ],
 };
 

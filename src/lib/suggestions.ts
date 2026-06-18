@@ -20,6 +20,12 @@ export interface FreelancerSuggestion {
   compliance: ComplianceStatus;
   trustLevel: TrustLevel;
   availability: Availability;
+  /** Korte functietitel/headline van de ZZP'er (bv. "Verpleegkundige (BIG)"). */
+  headline: string | null;
+  /** Standplaats. */
+  location: string | null;
+  /** Uurtarief in euro (heel getal), of null. */
+  rate: number | null;
   /** Inhoudelijke gelijkenis met de opdracht, 0..1. Tiebreaker bij gelijke score. */
   relatedness?: number;
   /** Sluit inhoudelijk sterk aan (boven de drempel) — voor de verklaring in de UI. */
@@ -193,6 +199,9 @@ export async function suggestedFreelancersForJob(
         compliance: match.compliance.status,
         trustLevel: trust.level,
         availability: match.availability.status,
+        headline: p.headline,
+        location: p.location,
+        rate: p.hourlyRate,
         relatedness,
         related: relatedness >= SEMANTIC_HIGHLIGHT_THRESHOLD,
       };

@@ -3,51 +3,50 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   Standaardpalet — "Vakwerk" (zie docs/ontwerpen/VAKWERK.md). Pastelblauw papier
-   als canvas, witte vellen (kaarten), klein-blauw als merkkleur en zegelgroen
-   voor geverifieerd. Fonts komen uit next/font (layout.tsx): --font-sans (Inter),
-   --font-display (Schibsted Grotesk), --font-mono (JetBrains Mono).
+   Palet — "Editorial Warm" (ontwerprichting #19): crème/ivoor papier als canvas,
+   terracotta als merkkleur, warme neutralen. Fonts komen uit next/font (layout.tsx):
+   --font-sans (Figtree), --font-display (Fraunces, serif), --font-mono (JetBrains Mono).
    Contrast WCAG AA geverifieerd (fg/bg, kaart, subtekst, knop, accent, status).
 --------------------------------------------------------------------------- */
 :root {
-  --background: 216 44% 96%;
-  --foreground: 228 26% 10%;
-  --muted: 217 34% 92%;
-  --muted-foreground: 226 14% 38%;
-  --card: 0 0% 100%;
-  --card-foreground: 228 26% 10%;
-  --border: 218 28% 85%;
-  --input: 218 28% 80%;
-  --ring: 226 80% 48%;
-  --primary: 226 80% 48%;
-  --primary-foreground: 0 0% 100%;
-  --accent: 224 92% 94%;
-  --accent-foreground: 226 72% 38%;
-  --success: 156 78% 25%;
-  --warning: 34 92% 34%;
-  --danger: 0 66% 43%;
-  --radius: 0.75rem;
+  --background: 40 38% 97%;
+  --foreground: 30 12% 12%;
+  --muted: 40 30% 93%;
+  --muted-foreground: 32 9% 38%;
+  --card: 42 50% 99%;
+  --card-foreground: 30 12% 12%;
+  --border: 38 22% 87%;
+  --input: 38 20% 80%;
+  --ring: 16 72% 48%;
+  --primary: 16 72% 48%;
+  --primary-foreground: 40 50% 98%;
+  --accent: 26 60% 92%;
+  --accent-foreground: 18 60% 28%;
+  --success: 152 48% 30%;
+  --warning: 33 78% 36%;
+  --danger: 4 68% 44%;
+  --radius: 0.625rem;
 }
 
 /* Donker thema — gebruikerskeuze (toggle), niet geforceerd. Zelfde semantische tokens met
    donkere waarden; status-tinten iets lichter zodat ze leesbaar blijven op donker. */
 .dark {
-  --background: 230 22% 7%;
-  --foreground: 222 24% 95%;
-  --muted: 230 18% 13%;
-  --muted-foreground: 224 16% 68%;
-  --card: 230 20% 10%;
-  --card-foreground: 222 24% 95%;
-  --border: 229 16% 20%;
-  --input: 229 16% 24%;
-  --ring: 226 96% 78%;
-  --primary: 226 96% 78%;
-  --primary-foreground: 230 24% 9%;
-  --accent: 227 42% 22%;
-  --accent-foreground: 227 94% 88%;
-  --success: 152 56% 58%;
-  --warning: 40 88% 62%;
-  --danger: 0 78% 70%;
+  --background: 28 14% 10%;
+  --foreground: 40 30% 92%;
+  --muted: 28 12% 16%;
+  --muted-foreground: 36 14% 66%;
+  --card: 28 13% 13%;
+  --card-foreground: 40 30% 92%;
+  --border: 28 11% 22%;
+  --input: 28 12% 28%;
+  --ring: 18 78% 58%;
+  --primary: 18 78% 58%;
+  --primary-foreground: 28 30% 10%;
+  --accent: 20 30% 22%;
+  --accent-foreground: 26 70% 84%;
+  --success: 150 50% 64%;
+  --warning: 38 82% 64%;
+  --danger: 6 78% 68%;
 }
 
 html {
@@ -74,9 +73,23 @@ body {
     @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring;
   }
 
-  /* Klikbare lijstrij/card: subtiele, rustige hover + zichtbare focus. Premium, geen drukte. */
+  /* Gelaagde elevatie (Pastel Elevated #8): fijne contactschaduw + wijdere, lage-opacity
+     blauw-getinte ambient. Tilt kaarten van het canvas zonder "zware" schaduw — premium,
+     niet vlak. In donker dragen border + card-contrast de diepte (schaduw is daar subtiel). */
+  .shadow-card {
+    box-shadow:
+      0 1px 2px hsl(226 40% 18% / 0.06),
+      0 8px 24px -12px hsl(226 50% 28% / 0.14);
+  }
+  .shadow-card-hover {
+    box-shadow:
+      0 2px 4px hsl(226 40% 18% / 0.08),
+      0 16px 36px -14px hsl(226 50% 28% / 0.22);
+  }
+
+  /* Klikbare lijstrij/card: rustige hover met lichte elevatie + zichtbare focus. */
   .card-interactive {
-    @apply outline-none transition-colors hover:border-foreground/20 hover:bg-muted/40 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply outline-none transition-all hover:border-foreground/20 hover:bg-muted/40 hover:shadow-card focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 
   /* Eén canonieke metadata-regel onder lijstitems: rustige, compacte subtekst. */
