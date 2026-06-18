@@ -1,7 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { buildRevenueTrend } from "./revenue-trend";
+import { buildRevenueTrend, toRevenueRows } from "./revenue-trend";
 
 const now = new Date("2026-06-09T10:00:00Z");
+
+describe("toRevenueRows", () => {
+  it("vertaalt factuurrijen naar RevenueSource met issuedAt → occurredAt", () => {
+    const d1 = new Date("2026-05-01T00:00:00Z");
+    const d2 = new Date("2026-06-01T00:00:00Z");
+    expect(
+      toRevenueRows([
+        { issuedAt: d1, totalCents: 100_00 },
+        { issuedAt: d2, totalCents: 250_00 },
+      ]),
+    ).toEqual([
+      { occurredAt: d1, totalCents: 100_00 },
+      { occurredAt: d2, totalCents: 250_00 },
+    ]);
+  });
+
+  it("valt terug op 0 cent wanneer totalCents null is (legacy)", () => {
+    const d = new Date("2026-06-01T00:00:00Z");
+    expect(toRevenueRows([{ issuedAt: d, totalCents: null }])).toEqual([
+      { occurredAt: d, totalCents: 0 },
+    ]);
+  });
+
+  it("behoudt de volgorde en lengte van de invoer", () => {
+    const rows = toRevenueRows([
+      { issuedAt: new Date("2026-04-01T00:00:00Z"), totalCents: 1 },
+      { issuedAt: new Date("2026-03-01T00:00:00Z"), totalCents: 2 },
+      { issuedAt: new Date("2026-05-01T00:00:00Z"), totalCents: 3 },
+    ]);
+    expect(rows.map((r) => r.totalCents)).toEqual([1, 2, 3]);
+  });
+
+  it("geeft een lege rij terug voor lege invoer", () => {
+    expect(toRevenueRows([])).toEqual([]);
+  });
+});
 
 describe("buildRevenueTrend", () => {
   it("groepeert bedragen oud naar nieuw met juiste currentCents en totalCents", () => {

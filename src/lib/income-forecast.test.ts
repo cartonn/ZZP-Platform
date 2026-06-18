@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildIncomeForecast, type ForecastItem } from "@/lib/income-forecast";
+import { buildIncomeForecast, exportForecastCsv, type ForecastItem } from "@/lib/income-forecast";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -493,5 +493,66 @@ describe("buildIncomeForecast — boundary: dueAt exactly at UTC midnight today"
     // Should be THIS_MONTH, not OVERDUE.
     expect(forecast.buckets[0]!.key).toBe("THIS_MONTH");
     expect(forecast.overdueGrossCents).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CSV-export
+// ---------------------------------------------------------------------------
+
+const CSV_HEADER =
+  "Categorie;Status;Tegenpartij;Opdracht;Factuurnummer;Verwachte datum;Netto (EUR);BTW (EUR);Bruto (EUR)";
+
+describe("exportForecastCsv", () => {
+  it("emits the header row first", () => {
+    const csv = exportForecastCsv([], NOW);
+    expect(csv.split("\r\n")[0]).toBe(CSV_HEADER);
+  });
+
+  it("empty items → header only", () => {
+    const csv = exportForecastCsv([], NOW);
+    expect(csv).toBe(CSV_HEADER);
+    expect(csv.split("\r\n")).toHaveLength(1);
+  });
+
+  it("emits one row per item plus the header", () => {
+    const items: ForecastItem[] = [
+      item({ invoiceId: "c-1", stage: "APPROVED", expectedDate: utc(2026, 6, 20) }),
+      item({ invoiceId: "c-2", stage: "DRAFT", expectedDate: null }),
+      item({ invoiceId: "c-3", stage: "OVERDUE", expectedDate: null }),
+    ];
+    const lines = exportForecastCsv(items, NOW).split("\r\n");
+    expect(lines).toHaveLength(4); // header + 3 items
+  });
+
+  it("uses the bucket label as Categorie", () => {
+    const csv = exportForecastCsv(
+      [item({ invoiceId: "tm-1", stage: "APPROVED", expectedDate: utc(2026, 6, 28) })],
+      NOW,
+    );
+    const row = csv.split("\r\n")[1]!;
+    expect(row.startsWith("Deze maand;")).toBe(true);
+    expect(row).toContain(";Goedgekeurd;");
+  });
+
+  it("formats euro amounts with comma decimals and ISO expected date", () => {
+    const csv = exportForecastCsv(
+      [
+        item({
+          invoiceId: "e-1",
+          stage: "APPROVED",
+          netCents: 1000,
+          vatCents: 210,
+          grossCents: 1210,
+          expectedDate: utc(2026, 6, 20),
+        }),
+      ],
+      NOW,
+    );
+    const cols = csv.split("\r\n")[1]!.split(";");
+    expect(cols[5]).toBe("2026-06-20");
+    expect(cols[6]).toBe("10,00");
+    expect(cols[7]).toBe("2,10");
+    expect(cols[8]).toBe("12,10");
   });
 });

@@ -275,6 +275,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > `/opdrachten/nieuw` + `/opdrachten/[id]/bewerken`; geanonimiseerde band per branche met
 > opdrachtgever-positie op het minimumtarief (spiegel van de ZZP'er-marktband). Geen schemawijziging.
 
+> Reeds gedaan (niet opnieuw): reactiebereidheid-signaal opdrachtgever op /opdrachten/[id]
+> (`client-responsiveness.ts` `computeClientResponsiveness` + `data/client-responsiveness.ts` +
+> `ClientResponsivenessBlock`): derde opdrachtgever-vertrouwenssignaal naast betaalgedrag en
+> annuleringsgedrag — pakt de opdrachtgever binnengekomen reacties op of laat hij ze op `NEW` liggen?
+> Deterministisch uit onveranderlijke `Application.createdAt` + huidige `status`; toon good/neutral/
+> warning/unknown (steekproef ≥ 3, stale-grens 14 dagen); read-only, geaggregeerd, geen
+> schemawijziging; 10 unit-tests.
+
 0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`.
    **VOLLEDIG GEBORGEN (12-6-2026):** afronden-rem, CSV-injectie-hardening, rol-fallback
    boekhouding, AVG-verwerkingsregister (#334), KvK-/BTW-validatie (#335),
@@ -366,6 +374,12 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > (goedgekeurd zonder eerdere afkeuring), gecorrigeerde prestaties, gem. goedkeuringstijd
 > `submittedAt`→`approvedAt`, toon-oordeel met min-steekproef 3; sectie "Leverbetrouwbaarheid" op
 > /inzicht voor de FREELANCER; read-only, server-side, geen schemawijziging; 19 unit-tests).
+> leverbetrouwbaarheid-signaal ZZP'er voor de OPDRACHTGEVER op /kandidaten (PR #447: spiegelbeeld van
+> de opdrachtgever-vertrouwenssignalen op /opdrachten/[id]; hergebruikt `collaboration-quality.ts` via
+> nieuwe pure batch-aggregator `computeDeliveryQualityByProfile` + gebatchte fetcher
+> `lib/data/freelancer-delivery-quality.ts` (geen N+1) + `DeliveryQualityBlock`; per kandidaat
+> in-één-keer-akkoord %/gecorrigeerd/gem. doorlooptijd, verbergt zich bij te kleine steekproef;
+> read-only, geen schemawijziging; +5 unit-tests).
 > track record per ZZP'er op /freelancers (`freelancer-track-record.ts` — pure `trackRecordHighlights`
 > met betekenis-drempels: afgeronde samenwerkingen ≥ 1 + gewerkte uren round ≥ 8; server-berekend in
 > `freelancer-search.ts` via bulk-queries, getoond op de browse-kaart; spiegelt het betaalgedrag-signaal
