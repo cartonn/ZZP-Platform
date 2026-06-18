@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 // notFound() aanroepen (factuur, opdracht, bericht, ticket, dossier) landen hier.
 export default function NotFound() {
   return (
-    <div className="mx-auto max-w-2xl py-12">
+    <div className="py-12">
       <EmptyState
         icon={FileQuestion}
         title="Niet gevonden"

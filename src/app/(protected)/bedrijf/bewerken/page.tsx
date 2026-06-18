@@ -21,7 +21,7 @@ export default async function BedrijfBewerkenPage() {
 
   if (!company) {
     return (
-      <div className="mx-auto max-w-4xl">
+      <div>
         <Card>
           <CardContent className="p-0">
             <EmptyState

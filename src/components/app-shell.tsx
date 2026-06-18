@@ -50,13 +50,11 @@ export async function AppShell({
   const fadeText =
     "opacity-0 transition-opacity duration-150 group-data-[expanded=true]:opacity-100";
 
-  // Schermvullende pagina's lopen breed door (geen 6xl-klem); de rest blijft op leesbare breedte.
-  // De werkruimte (#19) is bovendien "flush": geen main-padding, zodat de hoofdkolom + contextrail
-  // edge-to-edge lopen en de rail tegen de schermrand plakt (volle hoogte, eigen scroll).
+  // Elke pagina krijgt dezelfde leesbare breedte (max-w-6xl), gecentreerd — gelijke paginaranden
+  // overal. De werkruimte (#19, /dashboard) is "flush": volle hoogte met eigen scroll per kolom,
+  // maar óók geklemd op max-w-6xl zodat de randen gelijk zijn aan de rest.
   const pathname = (await headers()).get("x-pathname") ?? "";
-  // De #19-werkruimte is de dashboardindeling voor álle rollen.
   const flush = pathname === "/dashboard";
-  const fullBleed = flush || pathname === "/inzicht" || pathname === "/admin/statistieken";
 
   // Primaire actie in de bovenbalk (één strip met zoeken + bel + actie, gelijke hoogte — #19).
   // Rolspecifiek en alleen op de werkruimte; elders geen actieknop in de balk.
@@ -166,14 +164,13 @@ export async function AppShell({
           )}
         >
           {flush ? (
-            // Werkruimte beheert zijn eigen layout (volle hoogte, eigen scroll per kolom).
-            children
+            // Werkruimte: volle hoogte met eigen scroll per kolom, maar geklemd + gecentreerd op
+            // max-w-6xl zodat de randen gelijk zijn aan elke andere pagina.
+            <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">{children}</div>
           ) : (
             // Gecentreerde inhoudskolom — elke pagina krijgt dezelfde breedte/centrering als
-            // "Mijn profiel" (max-w-6xl). Pagina's met een eigen smallere max-w blijven smaller.
-            <div className={cn("mx-auto w-full", fullBleed ? "max-w-none" : "max-w-6xl")}>
-              {children}
-            </div>
+            // "Mijn profiel" (max-w-6xl).
+            <div className="mx-auto w-full max-w-6xl">{children}</div>
           )}
         </main>
       </div>

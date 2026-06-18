@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Nieuwe vraag · ZZP Platform" };
 export default async function NewTicketPage() {
   await requireActor();
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Nieuwe vraag"
         description="Beschrijf je vraag zo concreet mogelijk. Vaak krijg je meteen antwoord; lukt dat niet, dan pakt de helpdesk het op."

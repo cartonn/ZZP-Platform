@@ -11,7 +11,7 @@ export default async function ChangePasswordPage() {
   const forced = actor.mustChangePassword;
 
   return (
-    <div className="mx-auto max-w-md space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Wachtwoord wijzigen"
         description="Kies een eigen, sterk wachtwoord voor je account."

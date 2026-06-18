@@ -30,7 +30,7 @@ export default async function ProfielPage() {
 
   if (!profile) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div>
         <Card>
           <CardContent className="p-0">
             <EmptyState
