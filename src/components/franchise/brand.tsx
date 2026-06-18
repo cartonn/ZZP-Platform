@@ -29,7 +29,7 @@ export function Brand({
         className={cn(
           "truncate text-sm font-semibold",
           collapsible &&
-            "opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100",
+            "opacity-0 transition-opacity duration-150 group-data-[expanded=true]:opacity-100",
         )}
       >
         {name}

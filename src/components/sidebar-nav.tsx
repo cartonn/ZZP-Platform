@@ -74,10 +74,10 @@ export function SidebarNav({
   collapsible?: boolean;
 }) {
   const pathname = usePathname();
-  // Vervaag-bij-ingeklapt: hoge specificiteit van group-hover/-focus-within wint van de basis.
+  // Vervaag-bij-ingeklapt: labels/badges verschijnen zodra de rail is uitgeklapt (`data-expanded`).
   const fade =
     collapsible &&
-    "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100";
+    "opacity-0 transition-opacity duration-150 group-data-[expanded=true]:opacity-100";
 
   return (
     <nav className="flex flex-col gap-0.5" aria-label="Hoofdnavigatie">

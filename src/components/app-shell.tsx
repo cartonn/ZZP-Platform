@@ -5,6 +5,7 @@ import { type Session } from "next-auth";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { SidebarRail } from "@/components/sidebar-rail";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SkipLink } from "@/components/ui/skip-link";
@@ -45,9 +46,9 @@ export async function AppShell({
     .slice(0, 2)
     .toUpperCase();
 
-  // Vervaag-bij-ingeklapt: tekst verschijnt bij hover/focus van de rail (de `group`).
+  // Vervaag-bij-ingeklapt: tekst verschijnt zodra de rail is uitgeklapt (`data-expanded` op de `group`).
   const fadeText =
-    "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100";
+    "opacity-0 transition-opacity duration-150 group-data-[expanded=true]:opacity-100";
 
   // Schermvullende pagina's lopen breed door (geen 6xl-klem); de rest blijft op leesbare breedte.
   // De werkruimte (#19) is bovendien "flush": geen main-padding, zodat de hoofdkolom + contextrail
@@ -71,9 +72,10 @@ export async function AppShell({
       {/* Skip-link: eerste focusbare element, springt naar de hoofdinhoud (toetsenbord/screenreader). */}
       <SkipLink />
       {/* Vakwerk-shell: de zijbalk is een smalle icoon-rail (4rem) die bij hover/focus uitklapt naar
-          16rem en over de inhoud zweeft — de inhoud schuift niet mee. Toetsenbord: focus-within klapt
-          'm ook uit. Op mobiel verborgen; daar regelt de header-hamburger de navigatie. */}
-      <aside className="group fixed inset-y-0 left-0 z-30 hidden w-16 overflow-hidden border-r border-border bg-card transition-[width] duration-200 focus-within:w-64 hover:w-64 md:flex">
+          16rem en over de inhoud zweeft — de inhoud schuift niet mee. Klapt weer in bij muis-weg,
+          focusverlies én na navigatie (SidebarRail). Op mobiel verborgen; daar regelt de
+          header-hamburger de navigatie. */}
+      <SidebarRail>
         <div className="flex h-full w-64 flex-col">
           <div className="flex h-14 items-center gap-2 border-b border-border px-4">
             <Brand branding={branding} collapsible />
@@ -110,7 +112,7 @@ export async function AppShell({
                 type="submit"
                 variant="secondary"
                 size="sm"
-                className="w-9 justify-center gap-2 overflow-hidden px-0 transition-all group-focus-within:w-full group-focus-within:justify-start group-focus-within:px-3 group-hover:w-full group-hover:justify-start group-hover:px-3"
+                className="w-9 justify-center gap-2 overflow-hidden px-0 transition-all group-data-[expanded=true]:w-full group-data-[expanded=true]:justify-start group-data-[expanded=true]:px-3"
               >
                 <LogOut className="size-4 shrink-0" aria-hidden />
                 <span className={fadeText}>Uitloggen</span>
@@ -118,7 +120,7 @@ export async function AppShell({
             </form>
           </div>
         </div>
-      </aside>
+      </SidebarRail>
 
       <div className="flex min-h-screen flex-col">
         <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">

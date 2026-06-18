@@ -51,6 +51,9 @@
 
 html {
   color-scheme: light;
+  /* Reserveer altijd ruimte voor de verticale scrollbar, zodat gecentreerde inhoud niet
+     horizontaal verspringt tussen een korte pagina/tab (geen scrollbar) en een lange (wel). */
+  scrollbar-gutter: stable;
 }
 html.dark {
   color-scheme: dark;

@@ -41,9 +41,7 @@ export default async function ProfielPage({
     );
   }
 
-  return (
-    <div className="mx-auto max-w-6xl">
-      <ProfileScreen profileId={profile.id} tab={tab} basePath="/profiel" />
-    </div>
-  );
+  // Geen eigen breedte-wrapper: de app-schil centreert elke pagina al op max-w-6xl, zodat het
+  // profiel op elke tab exact dezelfde paginaranden heeft als de rest van de pagina's.
+  return <ProfileScreen profileId={profile.id} tab={tab} basePath="/profiel" />;
 }
