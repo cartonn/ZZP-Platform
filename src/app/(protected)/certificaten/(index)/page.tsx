@@ -23,12 +23,15 @@ import {
 } from "@/lib/credentials";
 import { computeTrustLevel } from "@/lib/trust";
 import { summarizeExpiry } from "@/lib/credential-expiry-overview";
+import { linkExpiryToInzet } from "@/lib/freelancer-compliance";
+import { getActiveCollaborationRequirements } from "@/lib/data/freelancer-compliance";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { dossierShareToken, shareTokenSecret } from "@/lib/share-token";
 import { plural } from "@/lib/plural";
 import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { MandatoryDocuments } from "@/components/credentials/mandatory-documents";
 import { ExpiryOverviewCard } from "@/components/credentials/expiry-overview-card";
+import { InzetImpactCard } from "@/components/credentials/inzet-impact-card";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -134,6 +137,13 @@ export default async function CertificatenPage() {
     })),
   );
 
+  // Compliance-ripple ZZP-zijde: koppel de vervalkalender aan de lopende inzetten, zodat de ZZP'er ziet
+  // welke samenwerking risico loopt door een (bijna-)vervallend vereist certificaat. Server-side waarheid.
+  const inzetImpact = linkExpiryToInzet(
+    expiryOverview,
+    profile ? await getActiveCollaborationRequirements(actor.id) : [],
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -200,6 +210,8 @@ export default async function CertificatenPage() {
       <MandatoryDocuments items={mandatory.items} allSatisfied={mandatory.allSatisfied} />
 
       <ExpiryOverviewCard overview={expiryOverview} />
+
+      <InzetImpactCard impact={inzetImpact} />
 
       {credentials.length === 0 ? (
         <Card>
