@@ -94,7 +94,7 @@ export function WorkspaceDashboard({
       {/* Hoofdkolom */}
       <main className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
         {/* Oranje naam-kop (de primaire actie staat in de bovenbalk, app-shell). */}
-        <header className="bg-primary px-5 py-4 text-primary-foreground md:px-6">
+        <header className="bg-hero px-5 py-4 text-primary-foreground md:px-6">
           <h1 className="font-display text-lg font-semibold tracking-tight">{header.title}</h1>
           {header.subtitle && (
             <p className="text-sm text-primary-foreground/80">{header.subtitle}</p>

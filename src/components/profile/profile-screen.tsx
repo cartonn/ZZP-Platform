@@ -295,7 +295,7 @@ export async function ProfileScreen({
   return (
     <div className="space-y-6">
       {/* Profielkop — Warmte-ontwerp: oranje hero met avatar, naam + status, subtitel, kerncijfers. */}
-      <Card className="border-primary bg-primary text-primary-foreground">
+      <Card className="border-hero bg-hero text-primary-foreground">
         <CardContent className="space-y-4 p-6 sm:p-8">
           <div className="flex flex-wrap items-start gap-5">
             <div

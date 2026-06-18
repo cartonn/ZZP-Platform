@@ -120,12 +120,12 @@ export async function CompanyProfileScreen({
   return (
     <div className="space-y-6">
       {/* Bedrijfskop — Warmte-ontwerp: logo/avatar, naam + badges, subtitel, kerncijfers. */}
-      <Card>
+      <Card className="border-hero bg-hero text-primary-foreground">
         <CardContent className="space-y-4 p-6 sm:p-8">
           <div className="flex flex-wrap items-start gap-5">
             <div
               aria-hidden
-              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
+              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary-foreground font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
             >
               {initials(company.name)}
             </div>
@@ -144,23 +144,23 @@ export async function CompanyProfileScreen({
                   />
                 )}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground sm:text-base">{subtitle}</p>
+              <p className="mt-1 text-sm text-primary-foreground/90 sm:text-base">{subtitle}</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-primary-foreground/90">
                   {plural(company._count.jobs, "opdracht", "opdrachten")}
                 </span>
                 {completedCollabs > 0 && (
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-primary-foreground/90">
                     {plural(completedCollabs, "afgeronde samenwerking", "afgeronde samenwerkingen")}
                   </span>
                 )}
-                <span className="text-sm text-muted-foreground">{score}% compleet</span>
+                <span className="text-sm text-primary-foreground/90">{score}% compleet</span>
               </div>
             </div>
             {/* Eigen bedrijfsprofiel: direct door naar bewerken. */}
             <Link
               href="/bedrijf/bewerken"
-              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-primary-foreground/30 px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary-foreground/10"
             >
               Bewerk bedrijfsprofiel
             </Link>

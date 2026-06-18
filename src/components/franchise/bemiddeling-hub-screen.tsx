@@ -87,15 +87,14 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
     <div className="space-y-6">
       {/* Bureaukop — Warmte-ontwerp: avatar (initialen, getint met de accentkleur), naam + badge,
           subtitel, kerncijfers van het bureau. */}
-      <Card>
+      <Card className="border-hero bg-hero text-primary-foreground">
         <CardContent className="space-y-4 p-6 sm:p-8">
           <div className="flex flex-wrap items-start gap-5">
             <div
               aria-hidden
-              className="flex size-16 shrink-0 items-center justify-center rounded-full font-display text-xl font-semibold sm:size-20 sm:text-2xl"
-              style={accent ? { backgroundColor: `${accent}1a`, color: accent } : undefined}
+              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary-foreground font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
             >
-              <span className={accent ? undefined : "text-primary"}>{initials(tenant.name)}</span>
+              {initials(tenant.name)}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2.5">
@@ -109,15 +108,15 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
                   </Badge>
                 )}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground sm:text-base">{subtitle}</p>
+              <p className="mt-1 text-sm text-primary-foreground/90 sm:text-base">{subtitle}</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-primary-foreground/90">
                   {plural(stats?.companies ?? 0, "opdrachtgever", "opdrachtgevers")}
                 </span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-primary-foreground/90">
                   {plural(stats?.rosterFreelancers ?? 0, "ZZP'er", "ZZP'ers")}
                 </span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-primary-foreground/90">
                   {plural(
                     stats?.activeCollaborations ?? 0,
                     "lopende samenwerking",
@@ -125,7 +124,7 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
                   )}
                 </span>
                 {(stats?.completedCollaborations ?? 0) > 0 && (
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-primary-foreground/90">
                     {plural(
                       stats?.completedCollaborations ?? 0,
                       "afgeronde samenwerking",
@@ -133,7 +132,7 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
                     )}
                   </span>
                 )}
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-primary-foreground/90">
                   {stats?.fillRate ?? 0}% vulgraad
                 </span>
               </div>
@@ -141,7 +140,7 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
             {/* Eigen bemiddeling: direct door naar het bewerken van de white-label branding. */}
             <Link
               href="/franchise/instellingen/bewerken"
-              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-primary-foreground/30 px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary-foreground/10"
             >
               Bewerk bemiddeling
             </Link>
