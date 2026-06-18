@@ -1,5 +1,7 @@
 // Pure, deterministic helper for computing an income forecast from a list of
-// cascade invoice items. No I/O, no external imports.
+// cascade invoice items. No I/O.
+
+import { toCsv } from "./csv";
 
 export type ForecastStage = "DRAFT" | "SUBMITTED" | "APPROVED" | "OVERDUE";
 
@@ -218,4 +220,59 @@ export function buildIncomeForecast(items: ForecastItem[], now: Date): IncomeFor
     inFlightGrossCents,
     overdueGrossCents,
   };
+}
+
+// --- CSV-export ------------------------------------------------------------
+
+// NL stage-labels voor de export (los van de UI-componenten zodat de export puur blijft).
+const STAGE_EXPORT_LABELS: Record<ForecastStage, string> = {
+  DRAFT: "Concept",
+  SUBMITTED: "In beoordeling",
+  APPROVED: "Goedgekeurd",
+  OVERDUE: "Te laat",
+};
+
+/** Formatteert centen als bedrag met komma-decimaal (bv. 1210 → "12,10"). */
+function formatEuroAmount(cents: number): string {
+  return (cents / 100).toFixed(2).replace(".", ",");
+}
+
+/**
+ * Pure CSV-export van de inkomstenprognose. Bouwt eerst de prognose (zodat de
+ * bucket-indeling en sortering identiek zijn aan de UI) en emit per item één rij,
+ * gegroepeerd per bucket. Gebruikt de canonieke `toCsv` (escaping + formule-guard).
+ */
+export function exportForecastCsv(items: ForecastItem[], now: Date): string {
+  const report = buildIncomeForecast(items, now);
+
+  const header = [
+    "Categorie",
+    "Status",
+    "Tegenpartij",
+    "Opdracht",
+    "Factuurnummer",
+    "Verwachte datum",
+    "Netto (EUR)",
+    "BTW (EUR)",
+    "Bruto (EUR)",
+  ];
+
+  const rows: string[][] = [];
+  for (const bucket of report.buckets) {
+    for (const item of bucket.items) {
+      rows.push([
+        bucket.label,
+        STAGE_EXPORT_LABELS[item.stage],
+        item.counterpartyName,
+        item.jobTitle ?? "",
+        item.number ?? "",
+        item.expectedDate ? item.expectedDate.toISOString().slice(0, 10) : "",
+        formatEuroAmount(item.netCents),
+        formatEuroAmount(item.vatCents),
+        formatEuroAmount(item.grossCents),
+      ]);
+    }
+  }
+
+  return toCsv([header, ...rows]);
 }
