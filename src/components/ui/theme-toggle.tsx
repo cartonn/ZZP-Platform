@@ -37,7 +37,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={toDark ? "Schakel naar donkere modus" : "Schakel naar lichte modus"}
       title={toDark ? "Donkere modus" : "Lichte modus"}
-      className="focus-ring inline-flex size-10 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      className="focus-ring inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       {toDark ? <Moon className="size-4" aria-hidden /> : <Sun className="size-4" aria-hidden />}
     </button>

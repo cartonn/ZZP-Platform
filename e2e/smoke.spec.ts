@@ -33,9 +33,9 @@ test("guard: ongeauthenticeerd /dashboard -> /login", async ({ page }) => {
 test("FREELANCER logt in en ziet role-aware dashboard", async ({ page }) => {
   await login(page, "zzp@zzp-platform.local");
   const nav = page.getByRole("navigation", { name: "Hoofdnavigatie" });
-  // Profielkaart-kop: de h1 toont de naam (publieke-profiel-stijl), de werkplek staat erboven.
+  // Werkruimte-kop (#19): de h1 toont de naam; de hoofdkolom toont de opdrachtenlijst.
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Sanne");
-  await expect(page.getByText("ZZP-werkplek")).toBeVisible();
+  await expect(page.getByText("Opdrachten voor jou")).toBeVisible();
   // role-aware nav: freelancer ziet "Mijn profiel" (de hub), niet "Verificaties".
   // (Certificaten/Beschikbaarheid/Documenten zitten nu in de profiel-hub-tabs, niet in de zijbalk.)
   await expect(nav.getByText("Mijn profiel")).toBeVisible();
@@ -46,7 +46,7 @@ test("FREELANCER logt in en ziet role-aware dashboard", async ({ page }) => {
 test("ADMIN logt in en ziet beheer-navigatie", async ({ page }) => {
   await login(page, "admin@zzp-platform.local");
   const nav = page.getByRole("navigation", { name: "Hoofdnavigatie" });
-  await expect(page.getByText("Beheerwerkplek")).toBeVisible();
+  await expect(page.getByText("Platformstatus")).toBeVisible();
   await expect(nav.getByText("Verificaties")).toBeVisible();
   await expect(nav.getByText("Gebruikers")).toBeVisible();
   await shot(page, "03-dashboard-admin");

@@ -30,6 +30,30 @@ Gates groen: typecheck ✓, lint ✓, test 2232 ✓ (+16), build ✓ (`/api/task
 
 ---
 
+## feat(dashboard): #19-werkruimte voor álle rollen (ZZP'er, opdrachtgever, bemiddelaar, admin)
+
+Het dashboard is voor elke rol omgezet naar de gekozen ontwerprichting **#19** (drie-koloms
+werkruimte: icoon-navigatierail + hoofdkolom + contextuele rechterrail), 1:1 met de lab-referentie
+`src/components/ontwerp/layouts/ontwerp-9.tsx`. Echte, server-side data per rol — geen slop.
+
+- [x] `src/components/dashboard/workspace-dashboard.tsx` — gedeelde, presentationele #19-werkruimte:
+      onderlijnde kop, KPI-tegels, lijst (avatar + naam + verificatie + rol + locatie + tarief +
+      match + statuschip), en een **volle-hoogte `border-l` contextrail** met "Volgende acties",
+      week-strip en compliance-zegel. Witte kaarten (`bg-card`) op een crème vlak (`bg-background`),
+      gescheiden door de border-lijn — net als #19.
+- [x] `src/components/app-shell.tsx` — `/dashboard` rendert **flush** (geen 6xl-klem, eigen layout)
+      voor alle rollen, omkaderd als `rounded-2xl`-kaart met marge. Bovenbalk uitgelijnd op `h-9`
+      (zoeken + thema + bel + rolspecifieke primaire actie) — één strip, zoals #19.
+- [x] `src/app/(protected)/dashboard/page.tsx` — data + mapping per rol: FREELANCER (matches +
+      inzetbaarheid), CLIENT (`getClientStats` + voorgestelde ZZP'ers + compliance-zegel),
+      FRANCHISER (roster-lijst + roster-compliance-zegel), ADMIN (platformbrede "Wat loopt er nu" +
+      platformstatus-zegel). Week-strip altijd de huidige ISO-week ("vandaag" gemarkeerd); spreekt
+      van **"diensten"**. Avatar-accenten cyclen per rij. Oude tweekoloms-helpers verwijderd.
+- [x] Tests: `e2e/smoke.spec.ts`-ankers bijgewerkt (werkplek-tekst verviel); `acties.spec` dashboard-
+      zone wijst naar `/acties` (inline-afhandeling leeft daar). Gate groen: typecheck, lint, 2216
+      unit-tests, prettier, build. PR's #435/#437/#438/#439/#440 gemerged; #441 (bemiddelaar+admin)
+      in de poort.
+
 ## feat(rooster): agenda — eigen geplande diensten naast open kansen
 
 `/rooster` toonde alleen open diensten (PUBLISHED jobs met startdatum); de ZZP'er zag z'n eigen
