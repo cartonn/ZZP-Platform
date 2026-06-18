@@ -260,6 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Certificaat-impact op lopende inzet (ZZP'er)** — `freelancer-compliance.ts`
+> `linkExpiryToInzet` koppelt de vervalkalender (`summarizeExpiry`) aan de actieve samenwerkingen wier
+> verplichte certificaattypen een (bijna-)vervallend certificaat raakt; `data/freelancer-compliance.ts`
+> `getActiveCollaborationRequirements` (freelancer-gescopet, take:200) levert de data; `InzetImpactCard`
+> op `/certificaten` toont dagaftelling + vernieuw-deeplink + geraakte inzetten. Mirror van de bestaande
+> opdrachtgever-`clientCredentialAlerts`/compliance-momentopname; read-only, geen schemawijziging.
+> 11 unit-tests.
 > Gedaan (niet opnieuw): **Job-engagement-signaal (koude opdracht) voor de opdrachtgever** —
 > `lib/job-engagement.ts` `planJobEngagement` (pure) + `lib/job-engagement-task.ts`
 > `runJobEngagementTask` (plan/apply, idempotent via DomainEvent `job-cold:<jobId>`, gewired in

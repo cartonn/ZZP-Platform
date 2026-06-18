@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
+
+De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
+verlopen, maar niet de **consequentie** ervan: welke lopende inzet komt in gevaar als een vereist
+certificaat verloopt? De opdrachtgever had die koppeling al (`clientCredentialAlerts` +
+compliance-momentopname op het CLIENT-dashboard); de ZZP'er zag enkel een abstracte vervaldatum. Dit
+sluit die mirror-asymmetrie op de kerndifferentiatie (verificatie/compliance). Read-only,
+**geen schemawijziging, geen mutatie, geen extra ongebonden query**.
+
+- [x] `src/lib/freelancer-compliance.ts` — pure `linkExpiryToInzet(overview, collaborations)`: koppelt
+      elk `ExpiryItem` uit de vervalkalender aan de actieve samenwerkingen wier verplichte
+      certificaattypen het raakt; behoudt de urgentst-eerst-volgorde van de vervalkalender, sorteert de
+      geraakte inzetten deterministisch (clientName→jobTitle→id), laat items zonder geraakte inzet weg,
+      en telt `collaborationsAtRisk` = distinct samenwerkingen geraakt door een EXPIRED/WITHIN_30-item.
+      Muteert de invoer niet.
+- [x] `src/lib/data/freelancer-compliance.ts` — `getActiveCollaborationRequirements(userId)`: spiegel
+      van `clientCredentialAlerts`, freelancer-gescoped (`freelancerId`, `status ACTIVE`, `take: 200`),
+      haalt opdrachttitel + verplichte certificaateisen + opdrachtgevernaam op; laat inzet zonder eis weg.
+- [x] `src/components/credentials/inzet-impact-card.tsx` — `InzetImpactCard`: compacte sectie onder de
+      vervalkalender met per (bijna-)vervallend certificaat een dagaftelling (verlopen/over N dagen) +
+      "Vernieuwen"-deeplink (`credentialEditPath`) en de geraakte inzetten (link naar `/samenwerkingen/[id]`).
+      Verbergt zichzelf zodra er geen risico is. Gewired in `certificaten/(index)/page.tsx` direct na
+      `ExpiryOverviewCard`.
+- [x] Tests: `freelancer-compliance.test.ts` (11: matching/multi-collab/geen-match-weglaten/
+      distinct-telling per venster/volgorde/no-mutation). Allowlist-regel in `unbounded-queries.test.ts`
+      bijgewerkt (verschoven regelnummer van de bestaande eigenaar-gescopete certificaat-`findMany`).
+
+Gate groen: typecheck ✓, lint ✓, test **2297** ✓, build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): herstel-deeplink + contextbanner bij afgewezen/verlopen certificaat
 
 De verificatieflow (kerndifferentiatie) had een herstel-UX-gat: een afgewezen/verlopen certificaat
