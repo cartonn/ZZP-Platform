@@ -53,6 +53,7 @@ const META: Record<string, NotificationMeta> = {
   VAT_REMINDER: { category: "system", tone: "info" },
   INVOICE_DRAFT_ESCALATION: { category: "invoice", tone: "attention" },
   JOB_MATCH: { category: "system", tone: "info" },
+  JOB_COLD: { category: "system", tone: "attention" }, // opdracht koud: weinig respons, vraagt actie
   POOL_INVITE: { category: "collaboration", tone: "attention" },
 };
 
