@@ -54,8 +54,8 @@ const PERF_STATUS: Record<
   REJECTED: { label: "Afgekeurd", variant: "danger" },
 };
 
-const STAGE_VARIANT: Record<string, "warning" | "muted" | "success"> = {
-  attention: "warning",
+const STAGE_VARIANT: Record<string, "accent" | "muted" | "success"> = {
+  attention: "accent",
   info: "muted",
   success: "success",
 };

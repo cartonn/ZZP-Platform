@@ -28,7 +28,7 @@ import { setUserStatus } from "@/app/(protected)/admin/gebruikers/actions";
 type FormAction = (formData: FormData) => void | Promise<void>;
 
 const TONE: Record<TaskTone, { Icon: LucideIcon; className: string }> = {
-  attention: { Icon: AlertTriangle, className: "text-warning" },
+  attention: { Icon: AlertTriangle, className: "text-primary" },
   info: { Icon: Info, className: "text-muted-foreground" },
   success: { Icon: CheckCircle2, className: "text-success" },
 };
@@ -138,7 +138,7 @@ function Resolver({
 
 /** Tint per toon voor de held-kaart (eerste actie op het dashboard). */
 const HERO_BG: Record<TaskTone, string> = {
-  attention: "bg-warning/10",
+  attention: "bg-primary/10",
   info: "bg-accent/50",
   success: "bg-success/10",
 };

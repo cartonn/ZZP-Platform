@@ -292,7 +292,7 @@ export default async function SamenwerkingenPage({
                         >
                           <div className="flex items-center justify-between gap-3">
                             <span className="text-sm">{stage.label}</span>
-                            {stage.youAreUp && <Badge variant="warning">Aan zet</Badge>}
+                            {stage.youAreUp && <Badge variant="accent">Aan zet</Badge>}
                           </div>
                           <div className="mt-2 flex items-center gap-3">
                             <Progress
