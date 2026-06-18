@@ -13,6 +13,7 @@ import {
   expiryAlertTone,
 } from "@/lib/franchise/credential-alerts";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { avatarAccent } from "@/lib/avatar-accent";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -137,7 +138,9 @@ export default async function FranchiseZzpersPage() {
               <Card key={f.id} className="flex flex-col gap-3 p-4">
                 {/* Kop: avatar + naam + inzetbaarheid */}
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarAccent(f.user.name ?? f.id)}`}
+                  >
                     {initials}
                   </div>
                   <div className="min-w-0 flex-1">

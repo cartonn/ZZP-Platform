@@ -20,6 +20,7 @@ import {
   type WsSealItem,
 } from "@/components/dashboard/workspace-dashboard";
 import { getClientStats } from "@/lib/client-stats";
+import { avatarAccent } from "@/lib/avatar-accent";
 import { formatEuro } from "@/lib/invoices";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -123,15 +124,6 @@ const AVAILABILITY_LABEL: Record<string, { label: string; cls: string }> = {
 
 const ACTION_ICON = { attention: AlertTriangle, info: Bell, success: CheckCircle2 } as const;
 const ACTION_TONE = { attention: "warning", info: "primary", success: "success" } as const;
-
-// Avatar-accenten cyclisch per rij (zoals #19: elke initialen-cirkel een andere kleur).
-const ROW_ACCENTS = [
-  "bg-primary/15 text-primary",
-  "bg-success/15 text-success",
-  "bg-accent text-accent-foreground",
-  "bg-warning/15 text-warning",
-];
-const rowAccent = (i: number): string => ROW_ACCENTS[i % ROW_ACCENTS.length] ?? ROW_ACCENTS[0]!;
 
 /** ISO-weeknummer (maandag-gebaseerd) — voor de "Week NN"-strip in de rail (#19). */
 function isoWeekNumber(date: Date): number {
@@ -503,7 +495,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           },
         })
       : [];
-    const professionals: WsRow[] = rosterRaw.map((f, i) => {
+    const professionals: WsRow[] = rosterRaw.map((f) => {
       const fcreds = f.credentials.map(
         (c): FreelancerCredential => ({
           type: c.type as FreelancerCredential["type"],
@@ -525,7 +517,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       return {
         id: f.id,
         initials: initials(f.user.name ?? null),
-        accent: rowAccent(i),
+        accent: avatarAccent(f.user.name ?? f.id),
         name: f.user.name ?? "—",
         verified: trust.level === "VOLLEDIG",
         role: f.headline ?? "ZZP'er",
@@ -682,10 +674,10 @@ export default async function DashboardPage() {
       label: st.label,
       value: String(st.value),
     }));
-    const rows = matches.map((m, i) => ({
+    const rows = matches.map((m) => ({
       id: m.jobId,
       initials: initials(m.title),
-      accent: rowAccent(i),
+      accent: avatarAccent(m.jobId),
       name: m.title,
       role: m.companyName,
       match: m.score,
@@ -755,10 +747,10 @@ export default async function DashboardPage() {
           { icon: Wallet, label: "Uitgaven", value: formatEuro(cs.spentCents) },
         ]
       : stats.map((st) => ({ icon: Briefcase, label: st.label, value: String(st.value) }));
-    const rows = (suggestedFreelancers ?? []).map((fr, i) => ({
+    const rows = (suggestedFreelancers ?? []).map((fr) => ({
       id: fr.freelancerId,
       initials: initials(fr.name),
-      accent: rowAccent(i),
+      accent: avatarAccent(fr.freelancerId),
       name: fr.name,
       verified: fr.trustLevel === "VOLLEDIG",
       role: fr.headline ?? fr.jobTitle,
@@ -857,10 +849,10 @@ export default async function DashboardPage() {
     label: st.label,
     value: String(st.value),
   }));
-  const aRows = running.map((c, i) => ({
+  const aRows = running.map((c) => ({
     id: c.id,
     initials: initials(c.jobTitle),
-    accent: rowAccent(i),
+    accent: avatarAccent(c.id),
     name: c.jobTitle,
     role: c.counterpartyName,
     status: c.stage.badgeLabel,

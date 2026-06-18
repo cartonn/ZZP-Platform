@@ -17,6 +17,7 @@ import { getTenantBranding } from "@/lib/franchise/branding";
 import { Brand } from "@/components/franchise/brand";
 import { prisma } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { avatarAccent } from "@/lib/avatar-accent";
 import { type UserRole } from "@/lib/enums";
 
 export async function AppShell({
@@ -86,7 +87,9 @@ export async function AppShell({
               className="focus-ring flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted"
               aria-label="Account & privacy"
             >
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
+              <div
+                className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${avatarAccent(user.name ?? user.email)}`}
+              >
                 {initials}
               </div>
               <div className={cn("min-w-0 flex-1", fadeText)}>
