@@ -54,7 +54,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Certificaten van één freelancer; dit zijn er typisch < 20 per persoon.
   {
     file: "(protected)/certificaten/(index)/page.tsx",
-    line: 68,
+    line: 71,
     reason: "eigenaar-scoped, inherent begrensd tot persoonlijk certificaatdossier",
   },
 
