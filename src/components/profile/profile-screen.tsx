@@ -4,7 +4,6 @@ import { Calendar, MapPin } from "lucide-react";
 import { currentActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { profileVisibleTo, computeFreelancerCompleteness } from "@/lib/profile";
-import { avatarAccent } from "@/lib/avatar-accent";
 import { tenantEntityVisibleTo } from "@/lib/tenancy";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
@@ -295,13 +294,13 @@ export async function ProfileScreen({
 
   return (
     <div className="space-y-6">
-      {/* Profielkop — Warmte-ontwerp: avatar, naam + status, subtitel, kerncijfers. */}
-      <Card>
+      {/* Profielkop — Warmte-ontwerp: oranje hero met avatar, naam + status, subtitel, kerncijfers. */}
+      <Card className="border-primary bg-primary text-primary-foreground">
         <CardContent className="space-y-4 p-6 sm:p-8">
           <div className="flex flex-wrap items-start gap-5">
             <div
               aria-hidden
-              className={`flex size-16 shrink-0 items-center justify-center rounded-full font-display text-xl font-semibold sm:size-20 sm:text-2xl ${avatarAccent(profile.user.name)}`}
+              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary-foreground font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
             >
               {initials(profile.user.name)}
             </div>
@@ -321,7 +320,7 @@ export async function ProfileScreen({
                   />
                 )}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+              <p className="mt-1 text-sm text-primary-foreground/80 sm:text-base">
                 {[profile.headline, profile.location, `op het platform sinds ${memberSince}`]
                   .filter(Boolean)
                   .join(" · ")}
@@ -332,18 +331,18 @@ export async function ProfileScreen({
                     <span className="font-mono text-lg font-semibold tracking-tight">
                       € {profile.hourlyRate}
                     </span>
-                    <span className="text-sm text-muted-foreground">/uur</span>
+                    <span className="text-sm text-primary-foreground/80">/uur</span>
                   </span>
                 )}
                 {hoursPerWeek != null && (
-                  <span className="text-sm text-muted-foreground">{hoursPerWeek} u/wk</span>
+                  <span className="text-sm text-primary-foreground/80">{hoursPerWeek} u/wk</span>
                 )}
                 {completed > 0 && (
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-primary-foreground/80">
                     {plural(completed, "afgeronde samenwerking", "afgeronde samenwerkingen")}
                   </span>
                 )}
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-primary-foreground/80">
                   {WORK_MODE[profile.workMode as WorkMode]}
                 </span>
               </div>
@@ -361,7 +360,7 @@ export async function ProfileScreen({
             {viewer?.id === profile.userId ? (
               <Link
                 href="/profiel/bewerken"
-                className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+                className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-primary-foreground/30 px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary-foreground/10"
               >
                 Bewerk jouw profiel
               </Link>
