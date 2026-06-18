@@ -260,6 +260,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Gevraagde-certificaten-gat (skill-demand) voor de ZZP'er** —
+> `credential-demand.ts` `computeCredentialDemand` (pure: satisfied/pending/missing per vereist type,
+> distinct-opdracht-telling, deterministische sortering, now-injectie; 16 tests) +
+> `data/freelancer-credential-demand.ts` (begrensde scan via `visibleJobsWhereForTenant` + `take:100`,
+> sluit reeds-gereageerde opdrachten uit) + `CredentialDemandCard` op `/certificaten` na de
+> `InzetImpactCard`: welke vereiste certificaattypen vragen de open opdrachten die de ZZP'er mág zien,
+> terwijl hij ze nog niet geverifieerd heeft — gerangschikt op het aantal opdrachten dat elk type zou
+> ontsluiten (verklaarbare matching als next-action). Read-only, geen schemawijziging, geen mutatie.
 > Gedaan (niet opnieuw): **Certificaat-impact op lopende inzet (ZZP'er)** — `freelancer-compliance.ts`
 > `linkExpiryToInzet` koppelt de vervalkalender (`summarizeExpiry`) aan de actieve samenwerkingen wier
 > verplichte certificaattypen een (bijna-)vervallend certificaat raakt; `data/freelancer-compliance.ts`

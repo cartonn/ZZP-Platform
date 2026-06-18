@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(certificaten): gevraagde-certificaten-gat (skill-demand) voor de ZZP'er
+
+`/certificaten` toonde wélke eigen certificaten (bijna) verlopen (ExpiryOverviewCard) en welke
+lopende inzet daardoor risico loopt (InzetImpactCard), maar niet de **omgekeerde, vooruitkijkende**
+vraag: welke vereiste certificaattypen vragen de open opdrachten die de ZZP'er mág zien, terwijl hij
+ze nog niet (geldig) geverifieerd heeft? Dit maakt de matchmotor uitlegbaar als next-action ("een VOG
+zou je voor X open opdrachten kwalificeren"). Read-only, **geen schemawijziging, geen mutatie, geen
+extra ongebonden query**.
+
+- [x] `src/lib/credential-demand.ts` — pure `computeCredentialDemand(requirements, credentials, now)`:
+      per vereist type satisfied (VERIFIED + niet-verlopen) / pending (DRAFT|SUBMITTED) / missing
+      (geen of alleen REJECTED/EXPIRED); `opportunityCount` = distinct open opdrachten per onvervuld
+      type; `blockedOpportunities` = distinct opdrachten met ≥1 onvervuld type; sortering
+      opportunityCount desc → type asc; defensieve (jobId, type)-dedup; now-injectie voor de
+      verloop-grens. Leaf-module, geen server-only imports.
+- [x] `src/lib/data/freelancer-credential-demand.ts` — `getCredentialDemandRequirements(userId)`:
+      begrensde scan van PUBLISHED-opdrachten via `visibleJobsWhereForTenant` (tenant-gesloten +
+      overflow), `take: 100` (mirror van `recommendations.ts`), sluit reeds-gereageerde opdrachten
+      uit; geeft `{ jobId, credentialType }[]` van de verplichte eisen.
+- [x] `src/components/credentials/credential-demand-card.tsx` — `CredentialDemandCard`: compacte
+      sectie, top-5 gaten met per type opportunity-telling + `Ontbreekt`/`In behandeling`-badge +
+      `Toevoegen`-deeplink naar `/certificaten/nieuw`; verbergt zich zonder gat. Gewired op
+      `/certificaten` direct na de `InzetImpactCard`.
+- [x] Tests: `credential-demand.test.ts` (16: empty, satisfied-exclusie, verloop-grens (toekomst/
+      verleden/exact-now), pending DRAFT+SUBMITTED, REJECTED-only & EXPIRED-only → missing,
+      distinct-job-telling, (jobId,type)-dedup, twee-types-één-opdracht, sortering, precedentie).
+      Allowlist-regel in `unbounded-queries.test.ts` bijgewerkt (verschoven certificaat-`findMany` 68→71).
+
+Gate groen: typecheck ✓, lint ✓, test **2313** ✓, build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
