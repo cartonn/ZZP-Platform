@@ -41,7 +41,7 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
   const other = conversation.participants.find((p) => p.user.id !== actor.id);
 
   return (
-    <div className="mx-auto flex h-full max-w-2xl flex-col gap-4">
+    <div className="flex h-full flex-col gap-4">
       <MarkRead conversationId={conversation.id} />
 
       <div>

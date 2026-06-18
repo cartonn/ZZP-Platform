@@ -22,7 +22,7 @@ export default async function FranchiseInstellingenBewerkenPage() {
   });
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <div className="space-y-6">
       <Link
         href="/franchise/instellingen"
         className="focus-ring inline-flex items-center gap-1.5 rounded text-sm text-muted-foreground hover:text-foreground"

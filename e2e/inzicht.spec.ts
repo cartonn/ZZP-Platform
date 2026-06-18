@@ -18,7 +18,7 @@ test("inzicht: ZZP'er ziet zijn cijferoverzicht", async ({ page }) => {
   await page.goto("/inzicht");
   await expect(page.getByRole("heading", { name: "Inzicht" })).toBeVisible();
   await expect(page.getByText("Betaalde omzet")).toBeVisible();
-  await expect(page.getByText("Activiteit")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Activiteit" })).toBeVisible();
   await shot(page, "inzicht-freelancer");
 });
 
@@ -27,6 +27,6 @@ test("inzicht: opdrachtgever ziet uitgaven en vervulling", async ({ page }) => {
   await page.goto("/inzicht");
   await expect(page.getByRole("heading", { name: "Inzicht" })).toBeVisible();
   await expect(page.getByText("Uitgaven")).toBeVisible();
-  await expect(page.getByText("Opdrachten")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Opdrachten" })).toBeVisible();
   await shot(page, "inzicht-client");
 });
