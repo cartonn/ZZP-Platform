@@ -165,6 +165,12 @@ hover lichte extra elevatie (`hover:shadow-card`) + `bg-muted/40`, geen schaal. 
 
 - **"Aan zet"-principe.** Elke rol ziet bovenaan glashelder wat er nú van hém/haar wordt verwacht
   ("2 urenstaten wachten op je goedkeuring"). Gevoed door de next-action-engine. Geen zoeken.
+- **Actie-kleur = merkkleur (diep oranje).** Alles wat een handeling van de gebruiker vraagt draagt de
+  `primary`-merkkleur: de next-action-engine-toon `attention`, de "Aan zet"-signalen, de
+  "vraagt actie"-telbadges in de zijbalk en de actieve cascade-stap. Gebruik `text-primary` /
+  `bg-primary/10` (of `Badge variant="accent"` voor een chip). Dit is **niet** hetzelfde als de
+  status-`warning` (amber): die beschrijft de **toestand** van een object (ingediend / verloopt), niet
+  een persoonlijke call-to-action. Eén regel: _"jij moet iets doen" → oranje; "dit is de status" → statuskleur._
 - **Statushelderheid — één badge-taal** over álle objecten (opdracht/contract/urenstaat/factuur/betaling):
 
   | Toestand                                              | Token              |

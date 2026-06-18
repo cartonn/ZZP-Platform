@@ -106,13 +106,13 @@ export default async function DossierPage({ params }: { params: Promise<{ id: st
 
       <section className="space-y-2">
         {dossier.sections.map((s) => (
-          <Card key={s.key} className={s.attention ? "border-warning/40" : ""}>
+          <Card key={s.key} className={s.attention ? "border-primary/40" : ""}>
             <CardContent className="flex items-start justify-between gap-3 py-3">
               <div>
                 <p className="text-sm font-medium">{s.title}</p>
                 <p className="text-sm text-muted-foreground">{s.summary}</p>
               </div>
-              <Badge variant={s.attention ? "warning" : "success"}>
+              <Badge variant={s.attention ? "accent" : "success"}>
                 {s.attention ? "Let op" : "Compleet"}
               </Badge>
             </CardContent>

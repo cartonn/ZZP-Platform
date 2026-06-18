@@ -42,7 +42,7 @@ const CATEGORY_ICON: Record<NotificationCategory, typeof Bell> = {
 };
 
 const TONE_CLASS: Record<NotificationTone, string> = {
-  attention: "text-warning",
+  attention: "text-primary",
   info: "text-muted-foreground",
   success: "text-success",
 };

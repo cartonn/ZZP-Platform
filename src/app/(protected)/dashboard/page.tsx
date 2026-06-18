@@ -123,7 +123,7 @@ const AVAILABILITY_LABEL: Record<string, { label: string; cls: string }> = {
 };
 
 const ACTION_ICON = { attention: AlertTriangle, info: Bell, success: CheckCircle2 } as const;
-const ACTION_TONE = { attention: "warning", info: "primary", success: "success" } as const;
+const ACTION_TONE = { attention: "primary", info: "primary", success: "success" } as const;
 
 /** ISO-weeknummer (maandag-gebaseerd) — voor de "Week NN"-strip in de rail (#19). */
 function isoWeekNumber(date: Date): number {
@@ -634,7 +634,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
 
 /** Cascade-fase-toon → status-chip-klasse voor de #19-lijst (admin "Wat loopt er nu"). */
 const STAGE_STATUS_CLASS: Record<NextActionTone, string> = {
-  attention: "bg-warning/10 text-warning",
+  attention: "bg-primary/10 text-primary",
   info: "bg-primary/10 text-primary",
   success: "bg-success/10 text-success",
 };
