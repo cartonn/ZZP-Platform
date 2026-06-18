@@ -85,6 +85,38 @@ export function computeDeliveryQuality(
   };
 }
 
+/** Goedgekeurde prestatie-rij met het profiel waartoe ze hoort (voor batch-aggregatie). */
+export interface ProfilePerfRow extends ApprovedPerfRow {
+  freelancerId: string;
+}
+
+/**
+ * Pure batch-aggregator: groepeer ruwe goedgekeurde prestaties + completed-tellingen naar één
+ * DeliveryQuality per opgegeven profiel. Elk profiel uit `profileIds` krijgt een resultaat (een
+ * profiel zonder prestaties levert een INSUFFICIENT-signaal). Los testbaar, geen DB.
+ */
+export function computeDeliveryQualityByProfile(
+  profileIds: string[],
+  approvedRows: ProfilePerfRow[],
+  completedByProfile: Map<string, number>,
+): Map<string, DeliveryQuality> {
+  const rowsByProfile = new Map<string, ApprovedPerfRow[]>();
+  for (const r of approvedRows) {
+    const list = rowsByProfile.get(r.freelancerId);
+    if (list) list.push(r);
+    else rowsByProfile.set(r.freelancerId, [r]);
+  }
+
+  const result = new Map<string, DeliveryQuality>();
+  for (const pid of new Set(profileIds)) {
+    result.set(
+      pid,
+      computeDeliveryQuality(rowsByProfile.get(pid) ?? [], completedByProfile.get(pid) ?? 0),
+    );
+  }
+  return result;
+}
+
 /** DB: signaal voor de ingelogde ZZP'er, of null als er geen freelancer-profiel is. */
 export async function getDeliveryQuality(userId: string): Promise<DeliveryQuality | null> {
   const profile = await prisma.freelancerProfile.findUnique({

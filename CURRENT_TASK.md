@@ -367,6 +367,12 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > (goedgekeurd zonder eerdere afkeuring), gecorrigeerde prestaties, gem. goedkeuringstijd
 > `submittedAt`→`approvedAt`, toon-oordeel met min-steekproef 3; sectie "Leverbetrouwbaarheid" op
 > /inzicht voor de FREELANCER; read-only, server-side, geen schemawijziging; 19 unit-tests).
+> leverbetrouwbaarheid-signaal ZZP'er voor de OPDRACHTGEVER op /kandidaten (PR #447: spiegelbeeld van
+> de opdrachtgever-vertrouwenssignalen op /opdrachten/[id]; hergebruikt `collaboration-quality.ts` via
+> nieuwe pure batch-aggregator `computeDeliveryQualityByProfile` + gebatchte fetcher
+> `lib/data/freelancer-delivery-quality.ts` (geen N+1) + `DeliveryQualityBlock`; per kandidaat
+> in-één-keer-akkoord %/gecorrigeerd/gem. doorlooptijd, verbergt zich bij te kleine steekproef;
+> read-only, geen schemawijziging; +5 unit-tests).
 > track record per ZZP'er op /freelancers (`freelancer-track-record.ts` — pure `trackRecordHighlights`
 > met betekenis-drempels: afgeronde samenwerkingen ≥ 1 + gewerkte uren round ≥ 8; server-berekend in
 > `freelancer-search.ts` via bulk-queries, getoond op de browse-kaart; spiegelt het betaalgedrag-signaal

@@ -4,7 +4,9 @@
 // with client semantics: a DRAFT invoice is not yet sent to the client and is
 // never an obligation, so only SUBMITTED / APPROVED / OVERDUE count.
 //
-// No I/O, no external imports.
+// No I/O. Only the CSV-kern (puur) wordt geïmporteerd voor de export.
+
+import { toCsv } from "./csv";
 
 export type ObligationStage = "SUBMITTED" | "APPROVED" | "OVERDUE";
 
@@ -203,4 +205,63 @@ export function buildPaymentObligations(items: ObligationItem[], now: Date): Pay
     scheduledGrossCents,
     overdueGrossCents,
   };
+}
+
+// --- CSV-export ------------------------------------------------------------
+
+const STAGE_CSV_LABELS: Record<ObligationStage, string> = {
+  SUBMITTED: "Goed te keuren",
+  APPROVED: "Te betalen",
+  OVERDUE: "Te laat",
+};
+
+/** Formatteert een centenbedrag als euro met komma-decimaal (bv. 12100 → "121,00"); null → "". */
+function eurosFromCents(cents: number | null): string {
+  if (cents === null) return "";
+  return (cents / 100).toFixed(2).replace(".", ",");
+}
+
+/** Vervaldatum als ISO yyyy-mm-dd in UTC, of "" wanneer er nog geen vervaldag is. */
+function isoDate(date: Date | null): string {
+  if (date === null) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Pure CSV-export van de betaalverplichtingen, gegroepeerd in dezelfde bucket-volgorde als het
+ * scherm (`buildPaymentObligations`). Eén rij per factuur; bedragen met komma-decimaal voor Excel-NL.
+ */
+export function exportObligationsCsv(items: ObligationItem[], now: Date): string {
+  const report = buildPaymentObligations(items, now);
+
+  const header = [
+    "Categorie",
+    "Status",
+    "Tegenpartij",
+    "Opdracht",
+    "Factuurnummer",
+    "Vervaldatum",
+    "Netto (EUR)",
+    "BTW (EUR)",
+    "Bruto (EUR)",
+  ];
+
+  const rows: string[][] = [];
+  for (const bucket of report.buckets) {
+    for (const item of bucket.items) {
+      rows.push([
+        bucket.label,
+        STAGE_CSV_LABELS[item.stage],
+        item.counterpartyName,
+        item.jobTitle ?? "",
+        item.number ?? "",
+        isoDate(item.dueDate),
+        eurosFromCents(item.netCents),
+        eurosFromCents(item.vatCents),
+        eurosFromCents(item.grossCents),
+      ]);
+    }
+  }
+
+  return toCsv([header, ...rows]);
 }

@@ -27,6 +27,56 @@ andere ZZP'er zichtbaar), geen schemawijziging, geen mutatie.
       toekomst-createdAt klem, lege lijst. Gate groen: typecheck ✓, lint ✓, test **2226** ✓ (+10),
       prettier ✓, build ✓ (`/opdrachten/[id]` aanwezig).
 
+## feat(kandidaten): leverbetrouwbaarheid-signaal ZZP'er voor de opdrachtgever (PR #447)
+
+De opdrachtgever ziet nu per kandidaat op `/kandidaten` de **leverbetrouwbaarheid** van de ZZP'er —
+het spiegelbeeld van de vertrouwenssignalen (betaalgedrag/annuleringsgedrag/reactiebereidheid) die de
+ZZP'er over de opdrachtgever op `/opdrachten/[id]` ziet. Read-only, server-side, geen schemawijziging,
+geen mutatie. Verbergt zich bij een te kleine steekproef (geen misleidende cijfers).
+
+- [x] `src/lib/collaboration-quality.ts` — pure batch-aggregator `computeDeliveryQualityByProfile`
+      (+ `ProfilePerfRow`): groepeert goedgekeurde prestaties + completed-tellingen naar één
+      `DeliveryQuality` per profiel; hergebruikt de bestaande `computeDeliveryQuality`.
+- [x] `src/lib/data/freelancer-delivery-quality.ts` — `getDeliveryQualityForProfiles(profileIds)`:
+      twee gebatchte, begrensde queries (geen N+1), `groupBy` voor afgeronde samenwerkingen +
+      `findMany` (take 5000) voor goedgekeurde prestaties.
+- [x] `src/components/freelancer/delivery-quality-block.tsx` — `DeliveryQualityBlock`: compacte regel
+      met toon-badge + in-één-keer-akkoord %/gecorrigeerd/gem. doorlooptijd; null bij INSUFFICIENT.
+- [x] `src/app/(protected)/kandidaten/page.tsx` — één gebatchte fetch over alle reagerende profielen,
+      blok per kandidaat onder de verificatiemarkers.
+- [x] Tests: `collaboration-quality.test.ts` +5 (groepering per profiel, dedup, lege set,
+      geen cross-contaminatie). typecheck ✓ · lint ✓ · test 2225 ✓ · build ✓ · prettier ✓.
+
+## routine: CSV-export voor /verplichtingen (opdrachtgever) + /prognose (ZZP'er)
+
+`/prestaties` en `/diensten` hadden al een "Exporteren"-knop + CSV-route; de spiegelpagina's
+`/verplichtingen` (CLIENT betaalverplichtingen) en `/prognose` (FREELANCER inkomstenprognose) niet,
+terwijl de pure motor (`buildPaymentObligations` / `buildIncomeForecast`) al bestond. Symmetrisch
+gesloten met een gebucketteerde CSV-export per pagina (zelfde bucket-volgorde als het scherm).
+Read-only, server-side, rolgegate, **geen schemawijziging, geen mutatie**.
+
+- [x] `src/lib/data/payment-obligations.ts` (nieuw) — `getObligationItemsForClient(userId)`: de twee
+      bestaande `invoice.findMany`-queries (scheduled + OVERDUE-zonder-vervaldag-vangnet, gemerged +
+      gededupliceerd op factuur-id) verhuisd uit het paneel → één bron voor paneel én export.
+- [x] `src/lib/data/income-forecast.ts` (nieuw) — `getForecastItemsForFreelancer(userId)`: idem voor
+      de prognose-query.
+- [x] `src/lib/payment-obligations.ts` / `src/lib/income-forecast.ts` — pure `exportObligationsCsv` /
+      `exportForecastCsv(items, now)`: bouwen via `buildPaymentObligations`/`buildIncomeForecast`,
+      één rij per factuur in bucket-volgorde, 9 NL-kolommen (Categorie/Status/Tegenpartij/Opdracht/
+      Factuurnummer/Vervaldatum (of Verwachte datum)/Netto/BTW/Bruto EUR), via de canonieke `toCsv`
+      uit `lib/csv.ts` (RFC4180 + formule-injectie-guard); komma-decimaal voor Excel-NL.
+- [x] `src/app/(protected)/verplichtingen/export/route.ts` + `…/prognose/export/route.ts` (nieuw) —
+      GET, rolgegate (CLIENT resp. FREELANCER → anders 403), `text/csv` + gedateerde
+      `Content-Disposition`-bestandsnaam; spiegelen de prestaties/diensten-route exact.
+- [x] `verplichtingen-panel.tsx` / `prognose-panel.tsx` — optionele `items?`-prop (anders zelf
+      fetchen via de data-laag); de hub-render blijft ongemoeid. `…/verplichtingen/page.tsx` +
+      `…/prognose/page.tsx` — fetchen `items`, geven die door aan het paneel (geen dubbele query) en
+      tonen de "Exporteren"-knop in `PageHeader.action` alleen bij data.
+- [x] Tests: `payment-obligations.test.ts` (+6) en `income-forecast.test.ts` (+5) voor de exporters
+      (kop aanwezig, één rij per item, bucket-label als Categorie, komma-decimaal, lege set → kop).
+      Gate groen: typecheck ✓, lint ✓, test **2231** ✓, prettier ✓, build ✓ (beide `/…/export`-routes
+      aanwezig).
+
 ## feat(dashboard): #19-werkruimte voor álle rollen (ZZP'er, opdrachtgever, bemiddelaar, admin)
 
 Het dashboard is voor elke rol omgezet naar de gekozen ontwerprichting **#19** (drie-koloms
