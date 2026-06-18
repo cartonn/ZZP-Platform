@@ -41,7 +41,7 @@ export default async function ProfielPage({
     );
   }
 
-  // Geen eigen breedte-wrapper: de app-schil centreert elke pagina al op max-w-6xl, zodat het
-  // profiel op elke tab exact dezelfde paginaranden heeft als de rest van de pagina's.
+  // Geen eigen breedte-wrapper: de app-schil geeft elke pagina dezelfde volle breedte met kleine,
+  // gelijke marges, zodat het profiel op elke tab exact dezelfde paginaranden heeft als de rest.
   return <ProfileScreen profileId={profile.id} tab={tab} basePath="/profiel" />;
 }

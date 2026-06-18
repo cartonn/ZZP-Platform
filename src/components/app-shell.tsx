@@ -50,9 +50,9 @@ export async function AppShell({
   const fadeText =
     "opacity-0 transition-opacity duration-150 group-data-[expanded=true]:opacity-100";
 
-  // Elke pagina krijgt dezelfde leesbare breedte (max-w-6xl), gecentreerd — gelijke paginaranden
-  // overal. De werkruimte (#19, /dashboard) is "flush": volle hoogte met eigen scroll per kolom,
-  // maar óók geklemd op max-w-6xl zodat de randen gelijk zijn aan de rest.
+  // Elke pagina vult de breedte; de symmetrische main-padding geeft een kleine, gelijke marge
+  // tegen beide schermranden (geen max-w-klem, dus geen grote lege banen op brede schermen). De
+  // werkruimte (#19, /dashboard) is "flush": volle hoogte met eigen scroll per kolom, zelfde marges.
   const pathname = (await headers()).get("x-pathname") ?? "";
   const flush = pathname === "/dashboard";
 
@@ -164,13 +164,13 @@ export async function AppShell({
           )}
         >
           {flush ? (
-            // Werkruimte: volle hoogte met eigen scroll per kolom, maar geklemd + gecentreerd op
-            // max-w-6xl zodat de randen gelijk zijn aan elke andere pagina.
-            <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">{children}</div>
+            // Werkruimte: volle hoogte met eigen scroll per kolom. Vult de breedte; de symmetrische
+            // main-padding geeft een kleine, gelijke marge links én rechts (geen eigen breedte-klem).
+            <div className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
           ) : (
-            // Gecentreerde inhoudskolom — elke pagina krijgt dezelfde breedte/centrering als
-            // "Mijn profiel" (max-w-6xl).
-            <div className="mx-auto w-full max-w-6xl">{children}</div>
+            // Inhoud vult de breedte; de symmetrische main-padding (p-4/md:p-6) geeft een kleine,
+            // gelijke marge tegen beide schermranden — gecentreerd, geen grote lege banen.
+            <div className="w-full">{children}</div>
           )}
         </main>
       </div>
