@@ -120,12 +120,12 @@ export async function CompanyProfileScreen({
   return (
     <div className="space-y-6">
       {/* Bedrijfskop — Warmte-ontwerp: logo/avatar, naam + badges, subtitel, kerncijfers. */}
-      <Card>
+      <Card className="border-hero bg-hero text-white">
         <CardContent className="space-y-4 p-6 sm:p-8">
           <div className="flex flex-wrap items-start gap-5">
             <div
               aria-hidden
-              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
+              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-white font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
             >
               {initials(company.name)}
             </div>
@@ -134,7 +134,11 @@ export async function CompanyProfileScreen({
                 <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">
                   {company.name}
                 </h1>
-                {company.industry?.name && <Badge variant="muted">{company.industry.name}</Badge>}
+                {company.industry?.name && (
+                  <Badge variant="muted" className="border-transparent bg-white">
+                    {company.industry.name}
+                  </Badge>
+                )}
                 {reviewAgg.count > 0 && (
                   <RatingStars
                     average={reviewAgg.average}
@@ -144,23 +148,23 @@ export async function CompanyProfileScreen({
                   />
                 )}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground sm:text-base">{subtitle}</p>
+              <p className="mt-1 text-sm font-medium text-white sm:text-base">{subtitle}</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm font-medium text-white">
                   {plural(company._count.jobs, "opdracht", "opdrachten")}
                 </span>
                 {completedCollabs > 0 && (
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm font-medium text-white">
                     {plural(completedCollabs, "afgeronde samenwerking", "afgeronde samenwerkingen")}
                   </span>
                 )}
-                <span className="text-sm text-muted-foreground">{score}% compleet</span>
+                <span className="text-sm font-medium text-white">{score}% compleet</span>
               </div>
             </div>
             {/* Eigen bedrijfsprofiel: direct door naar bewerken. */}
             <Link
               href="/bedrijf/bewerken"
-              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10"
             >
               Bewerk bedrijfsprofiel
             </Link>

@@ -20,6 +20,8 @@
   --ring: 16 72% 48%;
   --primary: 16 72% 48%;
   --primary-foreground: 40 50% 98%;
+  /* Naam-hero: dezelfde merk-hue, lichter dan --primary. */
+  --hero: 18 78% 68%;
   --accent: 26 60% 92%;
   --accent-foreground: 18 60% 28%;
   --success: 152 48% 30%;
@@ -42,6 +44,7 @@
   --ring: 18 78% 58%;
   --primary: 18 78% 58%;
   --primary-foreground: 28 30% 10%;
+  --hero: 20 76% 74%;
   --accent: 20 30% 22%;
   --accent-foreground: 26 70% 84%;
   --success: 150 50% 64%;

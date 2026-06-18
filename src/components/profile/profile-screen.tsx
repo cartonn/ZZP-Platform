@@ -295,12 +295,12 @@ export async function ProfileScreen({
   return (
     <div className="space-y-6">
       {/* Profielkop — Warmte-ontwerp: oranje hero met avatar, naam + status, subtitel, kerncijfers. */}
-      <Card className="border-primary bg-primary text-primary-foreground">
+      <Card className="border-hero bg-hero text-white">
         <CardContent className="space-y-4 p-6 sm:p-8">
           <div className="flex flex-wrap items-start gap-5">
             <div
               aria-hidden
-              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary-foreground font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
+              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-white font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
             >
               {initials(profile.user.name)}
             </div>
@@ -309,8 +309,10 @@ export async function ProfileScreen({
                 <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">
                   {profile.user.name}
                 </h1>
-                <Badge variant={availability.variant}>{availability.label}</Badge>
-                <TrustBadge level={trust.level} />
+                <Badge variant={availability.variant} className="border-transparent bg-white">
+                  {availability.label}
+                </Badge>
+                <TrustBadge level={trust.level} className="border-transparent bg-white" />
                 {reviewAgg.count > 0 && (
                   <RatingStars
                     average={reviewAgg.average}
@@ -320,7 +322,7 @@ export async function ProfileScreen({
                   />
                 )}
               </div>
-              <p className="mt-1 text-sm text-primary-foreground/80 sm:text-base">
+              <p className="mt-1 text-sm font-medium text-white sm:text-base">
                 {[profile.headline, profile.location, `op het platform sinds ${memberSince}`]
                   .filter(Boolean)
                   .join(" · ")}
@@ -331,18 +333,18 @@ export async function ProfileScreen({
                     <span className="font-mono text-lg font-semibold tracking-tight">
                       € {profile.hourlyRate}
                     </span>
-                    <span className="text-sm text-primary-foreground/80">/uur</span>
+                    <span className="text-sm font-medium text-white">/uur</span>
                   </span>
                 )}
                 {hoursPerWeek != null && (
-                  <span className="text-sm text-primary-foreground/80">{hoursPerWeek} u/wk</span>
+                  <span className="text-sm font-medium text-white">{hoursPerWeek} u/wk</span>
                 )}
                 {completed > 0 && (
-                  <span className="text-sm text-primary-foreground/80">
+                  <span className="text-sm font-medium text-white">
                     {plural(completed, "afgeronde samenwerking", "afgeronde samenwerkingen")}
                   </span>
                 )}
-                <span className="text-sm text-primary-foreground/80">
+                <span className="text-sm font-medium text-white">
                   {WORK_MODE[profile.workMode as WorkMode]}
                 </span>
               </div>
@@ -353,6 +355,7 @@ export async function ProfileScreen({
                     status: "VERIFIED",
                     expiresAt: c.expiresAt,
                   }))}
+                  chipClassName="border-transparent bg-white"
                 />
               </div>
             </div>
@@ -360,7 +363,7 @@ export async function ProfileScreen({
             {viewer?.id === profile.userId ? (
               <Link
                 href="/profiel/bewerken"
-                className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-primary-foreground/30 px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary-foreground/10"
+                className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10"
               >
                 Bewerk jouw profiel
               </Link>

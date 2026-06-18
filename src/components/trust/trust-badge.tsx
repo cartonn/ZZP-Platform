@@ -11,11 +11,11 @@ const MAP: Record<
 };
 
 /** Toont het vertrouwensniveau. Voor BASIS (niets geverifieerd) tonen we niets. */
-export function TrustBadge({ level }: { level: TrustLevel }) {
+export function TrustBadge({ level, className }: { level: TrustLevel; className?: string }) {
   if (level === "BASIS") return null;
   const s = MAP[level];
   return (
-    <Badge variant={s.variant}>
+    <Badge variant={s.variant} className={className}>
       <ShieldCheck className="mr-1 size-3" aria-hidden /> {s.label}
     </Badge>
   );

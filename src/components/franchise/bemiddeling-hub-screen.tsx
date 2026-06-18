@@ -87,37 +87,38 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
     <div className="space-y-6">
       {/* Bureaukop — Warmte-ontwerp: avatar (initialen, getint met de accentkleur), naam + badge,
           subtitel, kerncijfers van het bureau. */}
-      <Card>
+      <Card className="border-hero bg-hero text-white">
         <CardContent className="space-y-4 p-6 sm:p-8">
           <div className="flex flex-wrap items-start gap-5">
             <div
               aria-hidden
-              className="flex size-16 shrink-0 items-center justify-center rounded-full font-display text-xl font-semibold sm:size-20 sm:text-2xl"
-              style={accent ? { backgroundColor: `${accent}1a`, color: accent } : undefined}
+              className="flex size-16 shrink-0 items-center justify-center rounded-full bg-white font-display text-xl font-semibold text-primary sm:size-20 sm:text-2xl"
             >
-              <span className={accent ? undefined : "text-primary"}>{initials(tenant.name)}</span>
+              {initials(tenant.name)}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">
                   {tenant.name}
                 </h1>
-                <Badge variant="accent">Bemiddeling</Badge>
+                <Badge variant="accent" className="border-transparent bg-white">
+                  Bemiddeling
+                </Badge>
                 {billing && (
-                  <Badge variant="muted">
+                  <Badge variant="muted" className="border-transparent bg-white">
                     Abonnement: {tenantBillingStatusLabel(billing.status)}
                   </Badge>
                 )}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground sm:text-base">{subtitle}</p>
+              <p className="mt-1 text-sm font-medium text-white sm:text-base">{subtitle}</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm font-medium text-white">
                   {plural(stats?.companies ?? 0, "opdrachtgever", "opdrachtgevers")}
                 </span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm font-medium text-white">
                   {plural(stats?.rosterFreelancers ?? 0, "ZZP'er", "ZZP'ers")}
                 </span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm font-medium text-white">
                   {plural(
                     stats?.activeCollaborations ?? 0,
                     "lopende samenwerking",
@@ -125,7 +126,7 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
                   )}
                 </span>
                 {(stats?.completedCollaborations ?? 0) > 0 && (
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm font-medium text-white">
                     {plural(
                       stats?.completedCollaborations ?? 0,
                       "afgeronde samenwerking",
@@ -133,7 +134,7 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
                     )}
                   </span>
                 )}
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm font-medium text-white">
                   {stats?.fillRate ?? 0}% vulgraad
                 </span>
               </div>
@@ -141,7 +142,7 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
             {/* Eigen bemiddeling: direct door naar het bewerken van de white-label branding. */}
             <Link
               href="/franchise/instellingen/bewerken"
-              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10"
             >
               Bewerk bemiddeling
             </Link>

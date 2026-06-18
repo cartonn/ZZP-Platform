@@ -1,6 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
+import { cn } from "@/lib/utils";
 
 interface VMCred {
   type: string;
@@ -15,7 +16,14 @@ const ORDER: CredentialType[] = ["VOG", "LICENSE", "DIPLOMA", "INSURANCE", "CERT
  * Compacte rij van GEVERIFIEERDE (geldige, niet-verlopen) certificaten — etaleert de grootste moat
  * (geverifieerde bevoegdheid) in één oogopslag. Server-component; toont niets als er niets verified is.
  */
-export function VerificationMarks({ credentials }: { credentials: readonly VMCred[] }) {
+export function VerificationMarks({
+  credentials,
+  chipClassName,
+}: {
+  credentials: readonly VMCred[];
+  /** Override voor de chip-stijl (bv. een crisp witte pil op een gekleurde hero). */
+  chipClassName?: string;
+}) {
   const now = Date.now();
   const verified = new Set(
     credentials
@@ -29,7 +37,10 @@ export function VerificationMarks({ credentials }: { credentials: readonly VMCre
       {shown.map((t) => (
         <span
           key={t}
-          className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success",
+            chipClassName,
+          )}
           title={`${CREDENTIAL_TYPE_LABEL[t]} geverifieerd`}
         >
           <ShieldCheck className="size-3" aria-hidden />
