@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPaymentObligations,
+  exportObligationsCsv,
   type ObligationItem,
   type ObligationStage,
 } from "./payment-obligations";
@@ -203,5 +204,79 @@ describe("buildPaymentObligations", () => {
     expect(() => buildPaymentObligations(items, NOW)).not.toThrow();
     expect(items[0]!.invoiceId).toBe("a");
     expect(items[1]!.invoiceId).toBe("b");
+  });
+});
+
+describe("exportObligationsCsv", () => {
+  const HEADER =
+    "Categorie;Status;Tegenpartij;Opdracht;Factuurnummer;Vervaldatum;Netto (EUR);BTW (EUR);Bruto (EUR)";
+
+  it("emits the header row", () => {
+    const csv = exportObligationsCsv(
+      [item({ invoiceId: "a", dueDate: new Date("2026-06-20T00:00:00.000Z") })],
+      NOW,
+    );
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toBe(HEADER);
+  });
+
+  it("emits one data row per item (plus the header)", () => {
+    const csv = exportObligationsCsv(
+      [
+        item({ invoiceId: "a", dueDate: new Date("2026-06-20T00:00:00.000Z") }),
+        item({ invoiceId: "b", dueDate: new Date("2026-07-10T00:00:00.000Z") }),
+      ],
+      NOW,
+    );
+    const lines = csv.split("\r\n");
+    expect(lines).toHaveLength(3);
+  });
+
+  it("uses the bucket label as Categorie", () => {
+    const csv = exportObligationsCsv(
+      [item({ invoiceId: "a", dueDate: new Date("2026-06-25T00:00:00.000Z") })],
+      NOW,
+    );
+    const dataRow = csv.split("\r\n")[1]!;
+    expect(dataRow.startsWith("Deze maand;")).toBe(true);
+  });
+
+  it("formats euro amounts with comma decimals", () => {
+    const csv = exportObligationsCsv(
+      [
+        item({
+          invoiceId: "a",
+          netCents: 10000,
+          vatCents: 2100,
+          grossCents: 12100,
+          dueDate: new Date("2026-06-20T00:00:00.000Z"),
+        }),
+      ],
+      NOW,
+    );
+    const dataRow = csv.split("\r\n")[1]!;
+    expect(dataRow).toContain(";100,00;21,00;121,00");
+  });
+
+  it("emits the Dutch stage label and ISO due date", () => {
+    const csv = exportObligationsCsv(
+      [
+        item({
+          invoiceId: "a",
+          stage: "OVERDUE",
+          dueDate: new Date("2026-06-01T00:00:00.000Z"),
+        }),
+      ],
+      NOW,
+    );
+    const dataRow = csv.split("\r\n")[1]!;
+    expect(dataRow).toContain(";Te laat;");
+    expect(dataRow).toContain(";2026-06-01;");
+  });
+
+  it("returns only the header for an empty list (one line)", () => {
+    const csv = exportObligationsCsv([], NOW);
+    expect(csv).toBe(HEADER);
+    expect(csv.split("\r\n")).toHaveLength(1);
   });
 });

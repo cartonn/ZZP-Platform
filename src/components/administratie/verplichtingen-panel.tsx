@@ -1,6 +1,6 @@
 import { CircleAlert, Wallet } from "lucide-react";
 import { type Actor } from "@/lib/authz";
-import { prisma } from "@/lib/db";
+import { getObligationItemsForClient } from "@/lib/data/payment-obligations";
 import { formatEuro } from "@/lib/invoices";
 import {
   buildPaymentObligations,
@@ -45,65 +45,21 @@ function formatNlDate(date: Date): string {
 
 /**
  * Verplichtingen-paneel: wat de opdrachtgever nog moet betalen op een tijdlijn, inclusief facturen
- * die nog goedgekeurd moeten worden. Alleen CLIENT (de route/hub gate't rol). Laadt zelf zijn data,
- * rendert geen eigen paginakop — de route en de Administratie-hub leveren de titel.
+ * die nog goedgekeurd moeten worden. Alleen CLIENT (de route/hub gate't rol). Laadt zelf zijn data
+ * tenzij de aanroeper de items al heeft opgehaald (`items`), rendert geen eigen paginakop — de route
+ * en de Administratie-hub leveren de titel.
  */
-export async function VerplichtingenPanel({ actor }: { actor: Actor }) {
-  // Scope direct op de tegenpartij (`counterpartyUserId` = de opdrachtgever op de cascade-factuur),
-  // dezelfde gezaghebbende sleutel als signals/pending-tasks, met de dedicated index
-  // [counterpartyUserId, lifecycleStatus] i.p.v. een join door collaboration → company → user.
-  const include = {
-    collaboration: {
-      select: {
-        job: { select: { title: true } },
-        freelancer: { select: { user: { select: { name: true } } } },
-      },
-    },
-  } as const;
+export async function VerplichtingenPanel({
+  actor,
+  items,
+}: {
+  actor: Actor;
+  items?: ObligationItem[];
+}) {
+  const obligationItems = items ?? (await getObligationItemsForClient(actor.id));
 
-  // Cap: een prognose over de eerstvolgende ~200 openstaande facturen is ruim voldoende;
-  // dichtstbijzijnde vervaldag eerst zodat de meest urgente verplichting nooit buiten de cap valt.
-  // DRAFT valt weg: een concept is nog niet naar de opdrachtgever verstuurd en dus geen verplichting.
-  const [scheduled, overdueNoDue] = await Promise.all([
-    prisma.invoice.findMany({
-      where: {
-        counterpartyUserId: actor.id,
-        lifecycleStatus: { in: ["SUBMITTED", "APPROVED", "OVERDUE"] },
-      },
-      orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],
-      take: 200,
-      include,
-    }),
-    // Vangnet: een OVERDUE-factuur zónder vervaldag sorteert door `nulls: "last"` achteraan en kan
-    // bij veel openstaande facturen buiten de cap vallen — terwijl een te-late verplichting juist
-    // het meest urgent is. Haal die gericht (en begrensd) op zodat ze nooit onzichtbaar wordt.
-    prisma.invoice.findMany({
-      where: { counterpartyUserId: actor.id, lifecycleStatus: "OVERDUE", dueAt: null },
-      orderBy: { id: "asc" },
-      take: 200,
-      include,
-    }),
-  ]);
-
-  // Samenvoegen + dedupliceren op factuur-id (de OVERDUE-vangnet-query kan overlappen met de hoofdset).
-  const invoices = [
-    ...new Map([...scheduled, ...overdueNoDue].map((inv) => [inv.id, inv])).values(),
-  ];
-
-  const items: ObligationItem[] = invoices.map((inv) => ({
-    invoiceId: inv.id,
-    stage: inv.lifecycleStatus as ObligationStage,
-    netCents: inv.subtotalCents ?? 0,
-    vatCents: inv.vatCents ?? 0,
-    grossCents: inv.totalCents,
-    dueDate: inv.dueAt,
-    counterpartyName: inv.collaboration?.freelancer.user.name ?? "—",
-    number: inv.partyInvoiceNumber ?? null,
-    jobTitle: inv.collaboration?.job.title ?? null,
-  }));
-
-  const obligations = buildPaymentObligations(items, new Date());
-  const hasItems = items.length > 0;
+  const obligations = buildPaymentObligations(obligationItems, new Date());
+  const hasItems = obligationItems.length > 0;
 
   if (!hasItems) {
     return (
