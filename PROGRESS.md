@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(reminders): prestatie-goedkeuring-reminder voor de opdrachtgever (cascade-deblokkering)
+
+Het grace-venster (`performance-grace-task`, auto-goedkeuring) staat **default UIT** (financieel
+beleid). Met grace uit blijft een SUBMITTED-prestatie die de opdrachtgever nooit keurt eindeloos
+liggen en stalt de hele facturatie-cascade (geen concept-factuur → geen betaling). Er was alleen een
+read-only "N dagen wachtend"-melding op `/prestaties`; **geen actieve nudge**. Toegevoegd: een
+geplande reminder-taak die de opdrachtgever herinnert (dag 3/7) en daarna escaleert naar de admins —
+spiegelbeeld van `concept-invoice-reminders` (die de ZZP'er aan de niet-ingediende factuur herinnert).
+Plan/apply, idempotent via DomainEvent dedupeKey, read-only afgeleid, geen schemawijziging, geen
+geldstroom.
+
+- [x] `src/lib/performance-approval-reminders.ts` — pure `planPerformanceApprovalReminders(candidates,
+now)` + `daysSince`. Alleen SUBMITTED + submittedAt op een niet-geannuleerde, niet-betwiste
+      samenwerking (zelfde poort als het grace-venster); herinnering op `REMINDERS.performanceApprovalDays`
+      (`[3, 7]`), escalatie ná de laatste dag. Per signaal een stabiele dedupeKey (één per dag/per
+      prestatie → geen dagelijks gezeur).
+- [x] `src/lib/performance-approval-reminders-task.ts` — runner: begrensde query (`take: 500`,
+      Performance → collaboration → company.userId), filtert al-gevuurde dedupeKeys, schrijft per
+      signaal atomair DomainEvent (`PERFORMANCE_APPROVAL_REMINDER`/`_ESCALATION`) + Notification (naar
+      opdrachtgever `/prestaties`; escalatie naar elke actieve admin `/admin/disputen`) + AuditLog.
+- [x] `src/lib/config.ts` — `REMINDERS.performanceApprovalDays = [3, 7]`.
+- [x] `src/lib/notifications.ts` — `PERFORMANCE_APPROVAL_REMINDER` + `_ESCALATION` → categorie
+      `workflow`, toon `attention`.
+- [x] `src/app/api/tasks/run-all/route.ts` — taak `performance-approval-reminders` in de cron-keten,
+      naast `performance-grace`.
+- [x] Tests: `performance-approval-reminders.test.ts` (11) + `…-task.test.ts` (5): dag-grenzen,
+      escalatie-drempel, status-/annulering-/dispuut-poort, non-mutatie, idempotentie, milestone-label,
+      ontbrekende opdrachtgever. Gate groen: typecheck ✓, lint ✓, test **2236** ✓ (+16), prettier ✓,
+      build ✓ (`/api/tasks/run-all` aanwezig).
+
 ## feat(admin): platform-doorzet-trend (gefactureerd volume per maand) op /admin/statistieken
 
 `/admin/statistieken` toonde uitsluitend punt-in-tijd-tellingen — geen doorzet-/groeitrend over de

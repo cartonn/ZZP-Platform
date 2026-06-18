@@ -121,6 +121,12 @@ export const ZZP_MEMBERSHIP: ZzpMembershipConfig = {
 export const REMINDERS = {
   /** Concept-factuur door ZZP'er nog niet ingediend (na Event B2). */
   conceptInvoiceDays: [0, 3, 7] as const,
+  /**
+   * Ingediende prestatie (urenstaat/oplevering) nog niet door de opdrachtgever gekeurd (na Event B1).
+   * Herinneringsdagen ná indienen; na de laatste dag escaleert het platform naar de admins. Zo blijft
+   * de cascade niet eindeloos hangen wanneer het grace-venster (auto-goedkeuring) uitstaat.
+   */
+  performanceApprovalDays: [3, 7] as const,
   /** Betaaltermijn opdrachtgever (na Event D): dagen vóór/na vervaldag. */
   paymentBeforeDueDays: [5, 1] as const,
   /**
