@@ -93,10 +93,12 @@ export function WorkspaceDashboard({
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-2xl border border-border bg-background shadow-sm lg:flex-row lg:overflow-hidden">
       {/* Hoofdkolom */}
       <main className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
-        {/* Kop met onderlijn (zoals #19) — de primaire actie staat in de bovenbalk (app-shell). */}
-        <header className="border-b border-border px-5 py-4 md:px-6">
+        {/* Oranje naam-kop (de primaire actie staat in de bovenbalk, app-shell). */}
+        <header className="bg-primary px-5 py-4 text-primary-foreground md:px-6">
           <h1 className="font-display text-lg font-semibold tracking-tight">{header.title}</h1>
-          {header.subtitle && <p className="text-sm text-muted-foreground">{header.subtitle}</p>}
+          {header.subtitle && (
+            <p className="text-sm text-primary-foreground/80">{header.subtitle}</p>
+          )}
         </header>
 
         <div className="space-y-5 px-5 py-5 md:px-6 lg:flex-1 lg:overflow-y-auto">
