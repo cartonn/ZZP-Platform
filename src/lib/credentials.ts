@@ -58,6 +58,45 @@ export function statusForDecision(
   return next;
 }
 
+/** Pad naar het bewerken-scherm van een certificaat — de plek waar je een nieuw bewijsstuk uploadt
+ * (en daarmee een afgewezen/verlopen certificaat opnieuw ter verificatie aanbiedt). Eén bron zodat
+ * notificaties en knoppen naar exact dezelfde herstelactie linken. */
+export function credentialEditPath(id: string): string {
+  return `/certificaten/${id}/bewerken`;
+}
+
+export interface RecoveryNotice {
+  tone: "danger" | "warning";
+  title: string;
+  message: string;
+}
+
+/**
+ * Contextuele herstelmelding voor het bewerken-formulier: wat is er aan de hand en wat moet de
+ * ZZP'er doen om weer geverifieerd te raken. Alleen voor de statussen die herstel vragen
+ * (REJECTED/EXPIRED); anders `null`. De herstelactie is overal dezelfde: een nieuw bewijsstuk
+ * uploaden zet het certificaat terug naar "in beoordeling".
+ */
+export function credentialRecoveryNotice(status: CredentialStatus): RecoveryNotice | null {
+  if (status === "REJECTED") {
+    return {
+      tone: "danger",
+      title: "Dit certificaat is afgewezen",
+      message:
+        "Upload hieronder een nieuw, correct bewijsstuk. Daarmee bied je het certificaat opnieuw ter verificatie aan.",
+    };
+  }
+  if (status === "EXPIRED") {
+    return {
+      tone: "warning",
+      title: "Dit certificaat is verlopen",
+      message:
+        "Upload hieronder het vernieuwde bewijsstuk met de nieuwe vervaldatum. Daarmee bied je het certificaat opnieuw ter verificatie aan.",
+    };
+  }
+  return null;
+}
+
 export interface ExpiryInput {
   status: CredentialStatus;
   expiresAt?: Date | null;

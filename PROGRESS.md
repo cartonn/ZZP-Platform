@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(certificaten): herstel-deeplink + contextbanner bij afgewezen/verlopen certificaat
+
+De verificatieflow (kerndifferentiatie) had een herstel-UX-gat: een afgewezen/verlopen certificaat
+notificeerde de ZZP'er met een link naar de **generieke** `/certificaten`-lijst, waar hij bij veel
+certificaten moest zoeken welke is afgekeurd én zelf moest afleiden dat een nieuw bewijsstuk
+uploaden het opnieuw ter verificatie aanbiedt. Read-only logica, **geen schemawijziging, geen
+mutatie**.
+
+- [x] `src/lib/credentials.ts` — pure `credentialEditPath(id)` (één bron voor de herstel-URL
+      `/certificaten/[id]/bewerken`) + `credentialRecoveryNotice(status)`: contextuele
+      herstelmelding (tone/title/message) voor REJECTED (danger) en EXPIRED (warning), anders `null`.
+- [x] Deep-links naar het specifieke certificaat i.p.v. de lijst: `admin/verificaties/actions.ts`
+      (CREDENTIAL_REJECTED-notificatie) en `lib/expiry-task.ts` (CREDENTIAL_EXPIRED +
+      CREDENTIAL_EXPIRING) linken nu via `credentialEditPath(...)`.
+- [x] `certificaten/credential-form.tsx` — contextbanner bovenaan het bewerken-formulier bij
+      REJECTED (incl. afwijzingsreden) / EXPIRED, gestuurd door `credentialRecoveryNotice`; nieuwe
+      optionele `status`/`rejectionReason` op `CredentialFormInitial`.
+- [x] `certificaten/[id]/bewerken/page.tsx` — geeft `status` + `rejectionReason` door.
+- [x] Tests: `credentials.test.ts` (+6) voor `credentialEditPath` en `credentialRecoveryNotice`
+      (danger/warning/null-grenzen). Gate groen: typecheck ✓, lint ✓, test **2224** ✓, build ✓,
+      `prettier --check .` ✓.
+
 ## feat(dashboard): #19-werkruimte voor álle rollen (ZZP'er, opdrachtgever, bemiddelaar, admin)
 
 Het dashboard is voor elke rol omgezet naar de gekozen ontwerprichting **#19** (drie-koloms

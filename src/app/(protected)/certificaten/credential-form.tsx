@@ -6,6 +6,8 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { FileInput } from "@/components/ui/file-input";
 import { Select } from "@/components/ui/select";
+import { credentialRecoveryNotice } from "@/lib/credentials";
+import { type CredentialStatus } from "@/lib/enums";
 import { saveCredential, type CredentialState } from "./actions";
 
 type CredentialAction = (prev: CredentialState, formData: FormData) => Promise<CredentialState>;
@@ -29,6 +31,10 @@ export interface CredentialFormInitial {
   visibility: string;
   hasDocument: boolean;
   documentId?: string | null;
+  /** Huidige status — stuurt de herstel-contextbanner bij REJECTED/EXPIRED. */
+  status?: string;
+  /** Afwijzingsreden, getoond in de herstelbanner bij REJECTED. */
+  rejectionReason?: string | null;
 }
 
 export function CredentialForm({
@@ -52,10 +58,27 @@ export function CredentialForm({
   const fe = state?.fieldErrors ?? {};
   const [type, setType] = useState(initial.type);
   const isEdit = !!initial.id;
+  const recovery = initial.status
+    ? credentialRecoveryNotice(initial.status as CredentialStatus)
+    : null;
 
   return (
     <form action={formAction} className="space-y-5">
       {initial.id && <input type="hidden" name="credentialId" value={initial.id} />}
+
+      {recovery && (
+        <div
+          className={`rounded-md px-3 py-2.5 text-sm ${
+            recovery.tone === "danger" ? "bg-danger/10 text-danger" : "bg-warning/10 text-warning"
+          }`}
+        >
+          <p className="font-medium">{recovery.title}</p>
+          {initial.status === "REJECTED" && initial.rejectionReason && (
+            <p className="mt-0.5">Reden: {initial.rejectionReason}</p>
+          )}
+          <p className="mt-0.5">{recovery.message}</p>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Type" htmlFor="type" required error={fe.type}>
