@@ -26,6 +26,8 @@ const META: Record<string, NotificationMeta> = {
   PERFORMANCE_SUBMITTED: { category: "workflow", tone: "attention" },
   PERFORMANCE_APPROVED: { category: "workflow", tone: "success" },
   PERFORMANCE_REJECTED: { category: "workflow", tone: "attention" },
+  PERFORMANCE_APPROVAL_REMINDER: { category: "workflow", tone: "attention" },
+  PERFORMANCE_APPROVAL_ESCALATION: { category: "workflow", tone: "attention" },
   INVOICE_DRAFT_READY: { category: "invoice", tone: "attention" },
   INVOICE_SUBMITTED: { category: "invoice", tone: "attention" },
   INVOICE_APPROVED: { category: "invoice", tone: "success" },

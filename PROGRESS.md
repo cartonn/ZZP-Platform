@@ -26,9 +26,137 @@ de bestaande meldingenlijst en linkt naar de opdracht).
       `job-engagement-task.test.ts` (4, mocked prisma: leeg / happy path / idempotentie / dubbele run).
 
 Gates groen: typecheck ✓, lint ✓, test 2232 ✓ (+16), build ✓ (`/api/tasks/run-all` aanwezig),
+
+## feat(reminders): prestatie-goedkeuring-reminder voor de opdrachtgever (cascade-deblokkering)
+
+Het grace-venster (`performance-grace-task`, auto-goedkeuring) staat **default UIT** (financieel
+beleid). Met grace uit blijft een SUBMITTED-prestatie die de opdrachtgever nooit keurt eindeloos
+liggen en stalt de hele facturatie-cascade (geen concept-factuur → geen betaling). Er was alleen een
+read-only "N dagen wachtend"-melding op `/prestaties`; **geen actieve nudge**. Toegevoegd: een
+geplande reminder-taak die de opdrachtgever herinnert (dag 3/7) en daarna escaleert naar de admins —
+spiegelbeeld van `concept-invoice-reminders` (die de ZZP'er aan de niet-ingediende factuur herinnert).
+Plan/apply, idempotent via DomainEvent dedupeKey, read-only afgeleid, geen schemawijziging, geen
+geldstroom.
+
+- [x] `src/lib/performance-approval-reminders.ts` — pure `planPerformanceApprovalReminders(candidates,
+now)` + `daysSince`. Alleen SUBMITTED + submittedAt op een niet-geannuleerde, niet-betwiste
+      samenwerking (zelfde poort als het grace-venster); herinnering op `REMINDERS.performanceApprovalDays`
+      (`[3, 7]`), escalatie ná de laatste dag. Per signaal een stabiele dedupeKey (één per dag/per
+      prestatie → geen dagelijks gezeur).
+- [x] `src/lib/performance-approval-reminders-task.ts` — runner: begrensde query (`take: 500`,
+      Performance → collaboration → company.userId), filtert al-gevuurde dedupeKeys, schrijft per
+      signaal atomair DomainEvent (`PERFORMANCE_APPROVAL_REMINDER`/`_ESCALATION`) + Notification (naar
+      opdrachtgever `/prestaties`; escalatie naar elke actieve admin `/admin/disputen`) + AuditLog.
+- [x] `src/lib/config.ts` — `REMINDERS.performanceApprovalDays = [3, 7]`.
+- [x] `src/lib/notifications.ts` — `PERFORMANCE_APPROVAL_REMINDER` + `_ESCALATION` → categorie
+      `workflow`, toon `attention`.
+- [x] `src/app/api/tasks/run-all/route.ts` — taak `performance-approval-reminders` in de cron-keten,
+      naast `performance-grace`.
+- [x] Tests: `performance-approval-reminders.test.ts` (11) + `…-task.test.ts` (5): dag-grenzen,
+      escalatie-drempel, status-/annulering-/dispuut-poort, non-mutatie, idempotentie, milestone-label,
+      ontbrekende opdrachtgever. Gate groen: typecheck ✓, lint ✓, test **2236** ✓ (+16), prettier ✓,
+      build ✓ (`/api/tasks/run-all` aanwezig).
+
+## feat(admin): platform-doorzet-trend (gefactureerd volume per maand) op /admin/statistieken
+
+`/admin/statistieken` toonde uitsluitend punt-in-tijd-tellingen — geen doorzet-/groeitrend over de
+tijd. `buildRevenueTrend` had al FREELANCER/CLIENT/TENANT-fetchers maar geen platform-brede variant.
+Dit voegt die toe en wired de bestaande `RevenueTrendCard` als doorzet-hero boven de statistieken.
+Read-only, server-side, geen schemawijziging, geen mutatie.
+
+- [x] `src/lib/revenue-trend.ts` — `getPlatformRevenueTrend(now, months)`: totaal gefactureerd
+      volume per maand over álle facturen (`status != CANCELLED`, binnen het maandvenster,
+      `issuerUserId not null`). Sommeren over `issuerUserId not null` telt elke cascade-transactie
+      precies één keer (de ZZP'er factureert de opdrachtgever één keer) en sluit eventuele
+      platform-fee-facturen uit — doorzet/GMV, geen platform-inkomsten (Besluit 1: het platform
+      boekt niets). Tevens pure `toRevenueRows(invoices)` geëxtraheerd die de 4× gedupliceerde
+      factuur→`RevenueSource`-mapping centraliseert; de drie bestaande fetchers gebruiken hem nu ook
+      (gedragsbehoudend).
+- [x] `src/lib/revenue-trend.test.ts` — 4 nieuwe tests voor `toRevenueRows` (mapping
+      `issuedAt`→`occurredAt`, `totalCents` null → 0, volgorde/lengte behouden, lege invoer).
+- [x] `src/app/(protected)/admin/statistieken/page.tsx` — parallelle fetch + nieuwe BI-sectie
+      "Doorzet" met de `RevenueTrendCard` ("Gefactureerd volume per maand") + een toelichtingsregel
+      dat dit doorzet is, geen platform-inkomsten. Spiegelt de omzettrend op /inzicht naar de
+      platform-brede admin-context.
+
+Gates groen: typecheck ✓, lint ✓, test 2220 ✓ (+4), build ✓ (`/admin/statistieken` aanwezig),
 `prettier --check .` ✓.
 
 ---
+
+## feat(opdracht): reactiebereidheid-signaal opdrachtgever op /opdrachten/[id]
+
+Derde opdrachtgever-vertrouwenssignaal voor de ZZP'er op de opdracht-detail, naast betaalgedrag
+(`payment-behavior.ts`) en annuleringsgedrag (`client-reliability.ts`): **pakt deze opdrachtgever
+binnengekomen reacties op of laat hij ze op `NEW` liggen?** Deterministisch afgeleid uit de
+onveranderlijke `Application.createdAt` + de huidige `status` (geen afhankelijkheid van het
+driftgevoelige `updatedAt`). Read-only, server-side, geaggregeerd (privacy — geen reactie van een
+andere ZZP'er zichtbaar), geen schemawijziging, geen mutatie.
+
+- [x] `src/lib/client-responsiveness.ts` — pure `computeClientResponsiveness(rows, now)`: "opgepakt"
+      = status !== "NEW"; openstaand = nog `NEW` + leeftijd (now − createdAt, op 0 geklemd bij
+      data-ruis). Toon: `good` (≥ 80% opgepakt én niets > 14 dagen open), `warning` (< 50% opgepakt
+      óf een reactie > 14 dagen op NEW), `neutral` ertussenin, `unknown` < 3 reacties.
+- [x] `src/lib/data/client-responsiveness.ts` — `getClientResponsivenessForCompany(companyId, now)`:
+      begrensde query (`application.findMany where job.companyId`, `take: 100`, nieuwste eerst).
+- [x] `src/components/jobs/client-responsiveness-block.tsx` — `ClientResponsivenessBlock`: compact
+      blok (toon-badge + %-opgepakt / nog-open / oudste-open), spiegelt de twee bestaande blokken.
+- [x] `src/app/(protected)/opdrachten/[id]/page.tsx` — meegefetcht in de bestaande
+      `showClientSignals`-`Promise.all` (alleen niet-eigenaar FREELANCER) en gerenderd onder de twee
+      bestaande signaalblokken.
+- [x] Tests: `client-responsiveness.test.ts` (10) — grenzen toon/steekproef, oudste-open + stale,
+      toekomst-createdAt klem, lege lijst. Gate groen: typecheck ✓, lint ✓, test **2226** ✓ (+10),
+      prettier ✓, build ✓ (`/opdrachten/[id]` aanwezig).
+
+## feat(kandidaten): leverbetrouwbaarheid-signaal ZZP'er voor de opdrachtgever (PR #447)
+
+De opdrachtgever ziet nu per kandidaat op `/kandidaten` de **leverbetrouwbaarheid** van de ZZP'er —
+het spiegelbeeld van de vertrouwenssignalen (betaalgedrag/annuleringsgedrag/reactiebereidheid) die de
+ZZP'er over de opdrachtgever op `/opdrachten/[id]` ziet. Read-only, server-side, geen schemawijziging,
+geen mutatie. Verbergt zich bij een te kleine steekproef (geen misleidende cijfers).
+
+- [x] `src/lib/collaboration-quality.ts` — pure batch-aggregator `computeDeliveryQualityByProfile`
+      (+ `ProfilePerfRow`): groepeert goedgekeurde prestaties + completed-tellingen naar één
+      `DeliveryQuality` per profiel; hergebruikt de bestaande `computeDeliveryQuality`.
+- [x] `src/lib/data/freelancer-delivery-quality.ts` — `getDeliveryQualityForProfiles(profileIds)`:
+      twee gebatchte, begrensde queries (geen N+1), `groupBy` voor afgeronde samenwerkingen +
+      `findMany` (take 5000) voor goedgekeurde prestaties.
+- [x] `src/components/freelancer/delivery-quality-block.tsx` — `DeliveryQualityBlock`: compacte regel
+      met toon-badge + in-één-keer-akkoord %/gecorrigeerd/gem. doorlooptijd; null bij INSUFFICIENT.
+- [x] `src/app/(protected)/kandidaten/page.tsx` — één gebatchte fetch over alle reagerende profielen,
+      blok per kandidaat onder de verificatiemarkers.
+- [x] Tests: `collaboration-quality.test.ts` +5 (groepering per profiel, dedup, lege set,
+      geen cross-contaminatie). typecheck ✓ · lint ✓ · test 2225 ✓ · build ✓ · prettier ✓.
+
+## routine: CSV-export voor /verplichtingen (opdrachtgever) + /prognose (ZZP'er)
+
+`/prestaties` en `/diensten` hadden al een "Exporteren"-knop + CSV-route; de spiegelpagina's
+`/verplichtingen` (CLIENT betaalverplichtingen) en `/prognose` (FREELANCER inkomstenprognose) niet,
+terwijl de pure motor (`buildPaymentObligations` / `buildIncomeForecast`) al bestond. Symmetrisch
+gesloten met een gebucketteerde CSV-export per pagina (zelfde bucket-volgorde als het scherm).
+Read-only, server-side, rolgegate, **geen schemawijziging, geen mutatie**.
+
+- [x] `src/lib/data/payment-obligations.ts` (nieuw) — `getObligationItemsForClient(userId)`: de twee
+      bestaande `invoice.findMany`-queries (scheduled + OVERDUE-zonder-vervaldag-vangnet, gemerged +
+      gededupliceerd op factuur-id) verhuisd uit het paneel → één bron voor paneel én export.
+- [x] `src/lib/data/income-forecast.ts` (nieuw) — `getForecastItemsForFreelancer(userId)`: idem voor
+      de prognose-query.
+- [x] `src/lib/payment-obligations.ts` / `src/lib/income-forecast.ts` — pure `exportObligationsCsv` /
+      `exportForecastCsv(items, now)`: bouwen via `buildPaymentObligations`/`buildIncomeForecast`,
+      één rij per factuur in bucket-volgorde, 9 NL-kolommen (Categorie/Status/Tegenpartij/Opdracht/
+      Factuurnummer/Vervaldatum (of Verwachte datum)/Netto/BTW/Bruto EUR), via de canonieke `toCsv`
+      uit `lib/csv.ts` (RFC4180 + formule-injectie-guard); komma-decimaal voor Excel-NL.
+- [x] `src/app/(protected)/verplichtingen/export/route.ts` + `…/prognose/export/route.ts` (nieuw) —
+      GET, rolgegate (CLIENT resp. FREELANCER → anders 403), `text/csv` + gedateerde
+      `Content-Disposition`-bestandsnaam; spiegelen de prestaties/diensten-route exact.
+- [x] `verplichtingen-panel.tsx` / `prognose-panel.tsx` — optionele `items?`-prop (anders zelf
+      fetchen via de data-laag); de hub-render blijft ongemoeid. `…/verplichtingen/page.tsx` +
+      `…/prognose/page.tsx` — fetchen `items`, geven die door aan het paneel (geen dubbele query) en
+      tonen de "Exporteren"-knop in `PageHeader.action` alleen bij data.
+- [x] Tests: `payment-obligations.test.ts` (+6) en `income-forecast.test.ts` (+5) voor de exporters
+      (kop aanwezig, één rij per item, bucket-label als Categorie, komma-decimaal, lege set → kop).
+      Gate groen: typecheck ✓, lint ✓, test **2231** ✓, prettier ✓, build ✓ (beide `/…/export`-routes
+      aanwezig).
 
 ## feat(dashboard): #19-werkruimte voor álle rollen (ZZP'er, opdrachtgever, bemiddelaar, admin)
 
