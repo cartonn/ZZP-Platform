@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { statusForDecision, TransitionError } from "@/lib/credentials";
+import { credentialEditPath, statusForDecision, TransitionError } from "@/lib/credentials";
 import { runExpiryTask } from "@/lib/expiry-task";
 import { type CredentialStatus } from "@/lib/enums";
 import { type ResolveState } from "@/lib/actions/resolve-state";
@@ -106,7 +106,7 @@ export async function rejectCredential(credentialId: string, formData: FormData)
         type: "CREDENTIAL_REJECTED",
         title: "Certificaat afgewezen",
         body: `Je certificaat "${credential.title}" is afgewezen: ${reason}`,
-        link: "/certificaten",
+        link: credentialEditPath(credentialId),
       },
     });
     await tx.auditLog.create({

@@ -45,6 +45,8 @@ export default async function CredentialBewerkenPage({
           visibility: credential.visibility,
           hasDocument: !!credential.documentId,
           documentId: credential.documentId,
+          status: credential.status,
+          rejectionReason: credential.rejectionReason,
         }}
       />
     </div>

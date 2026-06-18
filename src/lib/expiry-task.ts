@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
 import { planExpiryRun, EXPIRY_REMINDER_WINDOW_DAYS, type ExpiryCandidate } from "@/lib/expiry";
+import { credentialEditPath } from "@/lib/credentials";
 import { type CredentialStatus } from "@/lib/enums";
 import { plural } from "@/lib/plural";
 
@@ -83,7 +84,7 @@ export async function runExpiryTask(opts: {
             type: "CREDENTIAL_EXPIRED",
             title: "Certificaat verlopen",
             body: `Je certificaat "${item.title}" is verlopen. Vernieuw het en vraag opnieuw verificatie aan.`,
-            link: "/certificaten",
+            link: credentialEditPath(item.id),
           },
         }),
       );
@@ -115,7 +116,7 @@ export async function runExpiryTask(opts: {
             type: "CREDENTIAL_EXPIRING",
             title: "Certificaat verloopt binnenkort",
             body: `Je certificaat "${item.title}" verloopt over ${plural(item.daysLeft, "dag", "dagen")}. Vernieuw het op tijd om geverifieerd te blijven.`,
-            link: "/certificaten",
+            link: credentialEditPath(item.id),
           },
         }),
       );

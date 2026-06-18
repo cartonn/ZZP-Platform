@@ -3,6 +3,8 @@ import {
   activeVerifiedCount,
   assertTransition,
   canTransition,
+  credentialEditPath,
+  credentialRecoveryNotice,
   daysUntilExpiry,
   expiryTransition,
   isExpired,
@@ -130,5 +132,31 @@ describe("activeVerifiedCount", () => {
   it("is 0 zonder geldige geverifieerde certificaten", () => {
     expect(activeVerifiedCount([], nu)).toBe(0);
     expect(activeVerifiedCount([{ status: "SUBMITTED" }, { status: "EXPIRED" }], nu)).toBe(0);
+  });
+});
+
+describe("credentialEditPath", () => {
+  it("wijst naar het bewerken-scherm van het specifieke certificaat", () => {
+    expect(credentialEditPath("cred-123")).toBe("/certificaten/cred-123/bewerken");
+  });
+});
+
+describe("credentialRecoveryNotice", () => {
+  it("geeft een afwijs-herstelmelding (danger) bij REJECTED", () => {
+    const notice = credentialRecoveryNotice("REJECTED");
+    expect(notice?.tone).toBe("danger");
+    expect(notice?.message).toContain("nieuw");
+  });
+
+  it("geeft een verloop-herstelmelding (warning) bij EXPIRED", () => {
+    const notice = credentialRecoveryNotice("EXPIRED");
+    expect(notice?.tone).toBe("warning");
+    expect(notice?.message).toContain("vervaldatum");
+  });
+
+  it("geeft geen melding bij statussen die geen herstel vragen", () => {
+    expect(credentialRecoveryNotice("DRAFT")).toBeNull();
+    expect(credentialRecoveryNotice("SUBMITTED")).toBeNull();
+    expect(credentialRecoveryNotice("VERIFIED")).toBeNull();
   });
 });
