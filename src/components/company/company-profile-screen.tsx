@@ -134,7 +134,11 @@ export async function CompanyProfileScreen({
                 <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">
                   {company.name}
                 </h1>
-                {company.industry?.name && <Badge variant="muted">{company.industry.name}</Badge>}
+                {company.industry?.name && (
+                  <Badge variant="muted" className="border-transparent bg-primary-foreground">
+                    {company.industry.name}
+                  </Badge>
+                )}
                 {reviewAgg.count > 0 && (
                   <RatingStars
                     average={reviewAgg.average}
@@ -144,23 +148,23 @@ export async function CompanyProfileScreen({
                   />
                 )}
               </div>
-              <p className="mt-1 text-sm text-primary-foreground/90 sm:text-base">{subtitle}</p>
+              <p className="mt-1 text-sm text-primary-foreground sm:text-base">{subtitle}</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-                <span className="text-sm text-primary-foreground/90">
+                <span className="text-sm text-primary-foreground">
                   {plural(company._count.jobs, "opdracht", "opdrachten")}
                 </span>
                 {completedCollabs > 0 && (
-                  <span className="text-sm text-primary-foreground/90">
+                  <span className="text-sm text-primary-foreground">
                     {plural(completedCollabs, "afgeronde samenwerking", "afgeronde samenwerkingen")}
                   </span>
                 )}
-                <span className="text-sm text-primary-foreground/90">{score}% compleet</span>
+                <span className="text-sm text-primary-foreground">{score}% compleet</span>
               </div>
             </div>
             {/* Eigen bedrijfsprofiel: direct door naar bewerken. */}
             <Link
               href="/bedrijf/bewerken"
-              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-primary-foreground/30 px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary-foreground/10"
+              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-primary-foreground/55 px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary-foreground/10"
             >
               Bewerk bedrijfsprofiel
             </Link>
