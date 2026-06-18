@@ -94,7 +94,7 @@ export function WorkspaceDashboard({
       {/* Vol-brede oranje naam-balk boven beide kolommen. */}
       <header className="bg-hero px-5 py-4 text-white md:px-6">
         <h1 className="font-display text-lg font-semibold tracking-tight">{header.title}</h1>
-        {header.subtitle && <p className="text-sm text-white">{header.subtitle}</p>}
+        {header.subtitle && <p className="text-sm font-medium text-white">{header.subtitle}</p>}
       </header>
       {/* Twee kolommen onder de balk: hoofdkolom + contextrail (elk eigen scroll). */}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">

@@ -110,15 +110,15 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
                   </Badge>
                 )}
               </div>
-              <p className="mt-1 text-sm text-white sm:text-base">{subtitle}</p>
+              <p className="mt-1 text-sm font-medium text-white sm:text-base">{subtitle}</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-                <span className="text-sm text-white">
+                <span className="text-sm font-medium text-white">
                   {plural(stats?.companies ?? 0, "opdrachtgever", "opdrachtgevers")}
                 </span>
-                <span className="text-sm text-white">
+                <span className="text-sm font-medium text-white">
                   {plural(stats?.rosterFreelancers ?? 0, "ZZP'er", "ZZP'ers")}
                 </span>
-                <span className="text-sm text-white">
+                <span className="text-sm font-medium text-white">
                   {plural(
                     stats?.activeCollaborations ?? 0,
                     "lopende samenwerking",
@@ -126,7 +126,7 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
                   )}
                 </span>
                 {(stats?.completedCollaborations ?? 0) > 0 && (
-                  <span className="text-sm text-white">
+                  <span className="text-sm font-medium text-white">
                     {plural(
                       stats?.completedCollaborations ?? 0,
                       "afgeronde samenwerking",
@@ -134,13 +134,15 @@ export async function BemiddelingHubScreen({ actor, tab: rawTab }: { actor: Acto
                     )}
                   </span>
                 )}
-                <span className="text-sm text-white">{stats?.fillRate ?? 0}% vulgraad</span>
+                <span className="text-sm font-medium text-white">
+                  {stats?.fillRate ?? 0}% vulgraad
+                </span>
               </div>
             </div>
             {/* Eigen bemiddeling: direct door naar het bewerken van de white-label branding. */}
             <Link
               href="/franchise/instellingen/bewerken"
-              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm text-white hover:bg-white/10"
+              className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10"
             >
               Bewerk bemiddeling
             </Link>

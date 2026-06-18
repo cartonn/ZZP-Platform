@@ -322,7 +322,7 @@ export async function ProfileScreen({
                   />
                 )}
               </div>
-              <p className="mt-1 text-sm text-white sm:text-base">
+              <p className="mt-1 text-sm font-medium text-white sm:text-base">
                 {[profile.headline, profile.location, `op het platform sinds ${memberSince}`]
                   .filter(Boolean)
                   .join(" · ")}
@@ -333,18 +333,18 @@ export async function ProfileScreen({
                     <span className="font-mono text-lg font-semibold tracking-tight">
                       € {profile.hourlyRate}
                     </span>
-                    <span className="text-sm text-white">/uur</span>
+                    <span className="text-sm font-medium text-white">/uur</span>
                   </span>
                 )}
                 {hoursPerWeek != null && (
-                  <span className="text-sm text-white">{hoursPerWeek} u/wk</span>
+                  <span className="text-sm font-medium text-white">{hoursPerWeek} u/wk</span>
                 )}
                 {completed > 0 && (
-                  <span className="text-sm text-white">
+                  <span className="text-sm font-medium text-white">
                     {plural(completed, "afgeronde samenwerking", "afgeronde samenwerkingen")}
                   </span>
                 )}
-                <span className="text-sm text-white">
+                <span className="text-sm font-medium text-white">
                   {WORK_MODE[profile.workMode as WorkMode]}
                 </span>
               </div>
@@ -363,7 +363,7 @@ export async function ProfileScreen({
             {viewer?.id === profile.userId ? (
               <Link
                 href="/profiel/bewerken"
-                className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm text-white hover:bg-white/10"
+                className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10"
               >
                 Bewerk jouw profiel
               </Link>
