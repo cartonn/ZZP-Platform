@@ -28,6 +28,20 @@ function revenueWindowStart(now: Date, months: number): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
 }
 
+/**
+ * Pure mapper: factuurrijen (`issuedAt` gegarandeerd aanwezig in de query) → `RevenueSource`.
+ * Centraliseert de identieke vertaling die elke fetcher anders zou dupliceren; `totalCents`
+ * valt terug op 0 wanneer (legacy) niet gezet.
+ */
+export function toRevenueRows(
+  invoices: { issuedAt: Date | null; totalCents: number | null }[],
+): RevenueSource[] {
+  return invoices.map((inv) => ({
+    occurredAt: inv.issuedAt!,
+    totalCents: inv.totalCents ?? 0,
+  }));
+}
+
 /** Pure aggregator: bouwt een RevenueTrend op uit een rij RevenueSource-waarden. */
 export function buildRevenueTrend(rows: RevenueSource[], now: Date, months = 6): RevenueTrend {
   const series = monthlyRevenue(rows, now, months);
@@ -56,12 +70,7 @@ export async function getFreelancerRevenueTrend(
     select: { issuedAt: true, totalCents: true },
   });
 
-  const rows: RevenueSource[] = invoices.map((inv) => ({
-    occurredAt: inv.issuedAt!,
-    totalCents: inv.totalCents ?? 0,
-  }));
-
-  return buildRevenueTrend(rows, now, months);
+  return buildRevenueTrend(toRevenueRows(invoices), now, months);
 }
 
 /**
@@ -82,12 +91,7 @@ export async function getClientRevenueTrend(
     select: { issuedAt: true, totalCents: true },
   });
 
-  const rows: RevenueSource[] = invoices.map((inv) => ({
-    occurredAt: inv.issuedAt!,
-    totalCents: inv.totalCents ?? 0,
-  }));
-
-  return buildRevenueTrend(rows, now, months);
+  return buildRevenueTrend(toRevenueRows(invoices), now, months);
 }
 
 /**
@@ -114,10 +118,29 @@ export async function getTenantRevenueTrend(
     select: { issuedAt: true, totalCents: true },
   });
 
-  const rows: RevenueSource[] = invoices.map((inv) => ({
-    occurredAt: inv.issuedAt!,
-    totalCents: inv.totalCents ?? 0,
-  }));
+  return buildRevenueTrend(toRevenueRows(invoices), now, months);
+}
 
-  return buildRevenueTrend(rows, now, months);
+/**
+ * Doorzettrend voor het hele platform (admin): het totale gefactureerde volume per maand —
+ * elke cascade-transactie wordt door de ZZP'er één keer aan de opdrachtgever gefactureerd, dus
+ * sommeren over `issuerUserId not null` telt elke transactie precies één keer en sluit
+ * eventuele platform-fee-facturen (`issuerUserId` null) uit. Dit is doorzet/GMV dat via het
+ * platform loopt, geen platform-inkomsten (het platform boekt niets — Besluit 1). Excl.
+ * geannuleerde facturen en facturen zonder factuurdatum.
+ */
+export async function getPlatformRevenueTrend(
+  now: Date = new Date(),
+  months = 6,
+): Promise<RevenueTrend> {
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      issuedAt: { gte: revenueWindowStart(now, months) },
+      status: { not: "CANCELLED" },
+      issuerUserId: { not: null },
+    },
+    select: { issuedAt: true, totalCents: true },
+  });
+
+  return buildRevenueTrend(toRevenueRows(invoices), now, months);
 }
