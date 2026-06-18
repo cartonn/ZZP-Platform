@@ -294,6 +294,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > URGENT-count; `admin-stats.ts` `openDisputes` → `disputes: DisputeHealth` via begrensde
 > findFirst+count; nieuwe "Disputen"-sectie met 3 gezondheidskaarten (Open / Langst open / Urgent),
 > spiegelt de verificatie-wachtrij-gezondheid; 4 unit-tests; geen schemawijziging),
+> Reeds gedaan (niet opnieuw): prestatie-goedkeuring-reminder voor de opdrachtgever
+> (`performance-approval-reminders.ts` `planPerformanceApprovalReminders` + `…-task.ts`
+> `runPerformanceApprovalReminderTask`): actieve nudge (dag 3/7) + admin-escalatie wanneer een
+> ingediende prestatie ongekeurd blijft en de cascade stalt — spiegelbeeld van
+> `concept-invoice-reminders`. Vult het gat dat het grace-venster (auto-goedkeuring) default UIT
+> staat. `REMINDERS.performanceApprovalDays=[3,7]`; plan/apply, idempotent via DomainEvent dedupeKey;
+> gewired in `/api/tasks/run-all`; 16 unit-tests; read-only, geen schemawijziging, geen geldstroom.
 > Reeds gedaan (niet opnieuw): wachttijd-zicht op de prestatie-goedkeuringswachtrij
 > (`lib/performance-approval.ts` — pure `summarizePerformanceApproval` + `PERFORMANCE_APPROVAL_STALE_DAYS=3`,
 > hergebruikt `daysWaiting`/`waitingLabel` uit `verification-queue.ts`; 8 unit-tests; `/prestaties` toont
