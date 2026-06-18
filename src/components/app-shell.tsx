@@ -50,9 +50,10 @@ export async function AppShell({
   const fadeText =
     "opacity-0 transition-opacity duration-150 group-data-[expanded=true]:opacity-100";
 
-  // Elke pagina krijgt dezelfde leesbare breedte (max-w-6xl), gecentreerd — gelijke paginaranden
-  // overal. De werkruimte (#19, /dashboard) is "flush": volle hoogte met eigen scroll per kolom,
-  // maar óók geklemd op max-w-6xl zodat de randen gelijk zijn aan de rest.
+  // Elke pagina krijgt dezelfde leesbare breedte (max-w-6xl), maar links uitgelijnd (geen mx-auto):
+  // de inhoud begint direct naast de zijbalk — geen grote lege band aan de linkerkant op brede
+  // schermen. De werkruimte (#19, /dashboard) is "flush": volle hoogte met eigen scroll per kolom,
+  // óók op max-w-6xl en links uitgelijnd zodat de randen gelijk zijn aan de rest.
   const pathname = (await headers()).get("x-pathname") ?? "";
   const flush = pathname === "/dashboard";
 
@@ -165,12 +166,12 @@ export async function AppShell({
         >
           {flush ? (
             // Werkruimte: volle hoogte met eigen scroll per kolom, maar geklemd + gecentreerd op
-            // max-w-6xl zodat de randen gelijk zijn aan elke andere pagina.
-            <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">{children}</div>
+            // max-w-6xl, links uitgelijnd, zodat de randen gelijk zijn aan elke andere pagina.
+            <div className="flex min-h-0 w-full max-w-6xl flex-1 flex-col">{children}</div>
           ) : (
-            // Gecentreerde inhoudskolom — elke pagina krijgt dezelfde breedte/centrering als
-            // "Mijn profiel" (max-w-6xl).
-            <div className="mx-auto w-full max-w-6xl">{children}</div>
+            // Links uitgelijnde inhoudskolom (max-w-6xl) — start direct naast de zijbalk, geen
+            // grote lege marge links op brede schermen. Zelfde breedte als "Mijn profiel".
+            <div className="w-full max-w-6xl">{children}</div>
           )}
         </main>
       </div>
