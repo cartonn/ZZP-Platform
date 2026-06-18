@@ -82,7 +82,7 @@ export async function ShiftHandoffGovernanceScreen({ actor }: { actor: Actor }) 
   const candidateById = new Map(candidates.map((c) => [c.id, c]));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Shift-overnames"
         description="Een ZZP'er kan een actieve inzet niet voortzetten en biedt deze ter overname aan. Keur goed of af. Een goedkeuring legt alleen de beslissing vast en informeert — de herplaatsing blijft een aparte stap (de overnemer krijgt een eigen contract)."
