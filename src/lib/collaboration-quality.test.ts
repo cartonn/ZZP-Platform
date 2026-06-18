@@ -5,8 +5,10 @@ import {
   approvalDays,
   deliveryTone,
   computeDeliveryQuality,
+  computeDeliveryQualityByProfile,
   DELIVERY_MIN_SAMPLE,
   type ApprovedPerfRow,
+  type ProfilePerfRow,
 } from "./collaboration-quality";
 
 // ---------------------------------------------------------------------------
@@ -203,5 +205,89 @@ describe("computeDeliveryQuality", () => {
     ];
     const result = computeDeliveryQuality(rows, 3);
     expect(result.avgApprovalDays).toBe(1.5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeDeliveryQualityByProfile
+// ---------------------------------------------------------------------------
+
+describe("computeDeliveryQualityByProfile", () => {
+  const ftr = (freelancerId: string): ProfilePerfRow => ({
+    freelancerId,
+    submittedAt: new Date("2024-01-01T00:00:00Z"),
+    approvedAt: new Date("2024-01-02T00:00:00Z"),
+    rejectedAt: null,
+  });
+
+  it("returns an entry for every requested profile, even without rows", () => {
+    const result = computeDeliveryQualityByProfile(["a", "b"], [], new Map());
+    expect([...result.keys()].sort()).toEqual(["a", "b"]);
+    expect(result.get("a")?.tone).toBe("INSUFFICIENT");
+    expect(result.get("b")?.approvedPerformances).toBe(0);
+  });
+
+  it("returns an empty map for no profiles", () => {
+    expect(computeDeliveryQualityByProfile([], [], new Map()).size).toBe(0);
+  });
+
+  it("groups rows to the right profile and ignores rows for unrequested profiles", () => {
+    const rows: ProfilePerfRow[] = [
+      ftr("a"),
+      ftr("a"),
+      ftr("a"),
+      ftr("b"),
+      // belongs to a profile we did not ask for → must be ignored
+      ftr("c"),
+    ];
+    const result = computeDeliveryQualityByProfile(["a", "b"], rows, new Map([["a", 5]]));
+
+    expect(result.get("a")?.approvedPerformances).toBe(3);
+    expect(result.get("a")?.completedCollaborations).toBe(5);
+    expect(result.get("a")?.tone).toBe("EXCELLENT");
+    // b has only 1 approved → below the min sample
+    expect(result.get("b")?.approvedPerformances).toBe(1);
+    expect(result.get("b")?.tone).toBe("INSUFFICIENT");
+    expect(result.has("c")).toBe(false);
+  });
+
+  it("dedupes repeated profile ids in the requested list", () => {
+    const result = computeDeliveryQualityByProfile(["a", "a", "a"], [ftr("a")], new Map());
+    expect(result.size).toBe(1);
+    expect(result.get("a")?.approvedPerformances).toBe(1);
+  });
+
+  it("separates corrected rows per profile (no cross-contamination)", () => {
+    const rows: ProfilePerfRow[] = [
+      ftr("a"),
+      ftr("a"),
+      ftr("a"),
+      // profile b: three approved, all corrected
+      {
+        freelancerId: "b",
+        submittedAt: null,
+        approvedAt: null,
+        rejectedAt: new Date("2024-02-01"),
+      },
+      {
+        freelancerId: "b",
+        submittedAt: null,
+        approvedAt: null,
+        rejectedAt: new Date("2024-02-02"),
+      },
+      {
+        freelancerId: "b",
+        submittedAt: null,
+        approvedAt: null,
+        rejectedAt: new Date("2024-02-03"),
+      },
+    ];
+    const result = computeDeliveryQualityByProfile(["a", "b"], rows, new Map());
+
+    expect(result.get("a")?.correctedPerformances).toBe(0);
+    expect(result.get("a")?.firstTimeRightRate).toBe(100);
+    expect(result.get("b")?.correctedPerformances).toBe(3);
+    expect(result.get("b")?.firstTimeRightRate).toBe(0);
+    expect(result.get("b")?.tone).toBe("DEVELOPING");
   });
 });

@@ -1,14 +1,17 @@
 import { type Metadata } from "next";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, TrendingUp } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getPlatformStats } from "@/lib/admin-stats";
+import { getPlatformRevenueTrend } from "@/lib/revenue-trend";
 import { StatsPanel } from "@/components/admin/stats-panel";
+import { RevenueTrendCard } from "@/components/insight/revenue-trend-card";
+import { BiSection } from "@/components/insight/bi";
 
 export const metadata: Metadata = { title: "Platform statistieken · ZZP Platform" };
 
 export default async function StatistiekenPage() {
   await requireRole("ADMIN");
-  const stats = await getPlatformStats();
+  const [stats, throughput] = await Promise.all([getPlatformStats(), getPlatformRevenueTrend()]);
 
   return (
     <div className="space-y-8">
@@ -21,6 +24,18 @@ export default async function StatistiekenPage() {
           Actueel overzicht van gebruikers, samenwerkingen en administratie op het platform.
         </p>
       </header>
+
+      <BiSection icon={TrendingUp} title="Doorzet">
+        <RevenueTrendCard
+          trend={throughput}
+          title="Gefactureerd volume per maand"
+          emptyDescription="Zodra er facturen via het werkproces lopen, verschijnt hier het gefactureerde volume per maand."
+        />
+        <p className="text-xs text-muted-foreground">
+          Totaal bedrag dat via het platform wordt gefactureerd (doorzet, incl. BTW) — geen
+          platform-inkomsten; het platform boekt zelf niets.
+        </p>
+      </BiSection>
 
       <StatsPanel stats={stats} />
     </div>

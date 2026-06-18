@@ -11,10 +11,12 @@ import { runDbaMonitorTask } from "@/lib/dba-monitor-task";
 import { runConceptInvoiceReminderTask } from "@/lib/concept-invoice-reminders-task";
 import { runVatReminderTask } from "@/lib/vat-reminder-task";
 import { runJobAlertsTask } from "@/lib/job-alerts-task";
+import { runJobEngagementTask } from "@/lib/job-engagement-task";
 import { runSubscriptionPastDueTask } from "@/lib/past-due-task";
 import { runMonitorTask } from "@/lib/monitoring/monitor-task";
 import { runZzpMembershipTask } from "@/lib/zzp-membership-task";
 import { runPerformanceGraceTask } from "@/lib/performance-grace-task";
+import { runPerformanceApprovalReminderTask } from "@/lib/performance-approval-reminders-task";
 import { runNotificationDigestTask } from "@/lib/notification-digest-task";
 import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
 import { runPushDeliveryTask } from "@/lib/push-delivery-task";
@@ -41,9 +43,14 @@ export async function POST(request: Request): Promise<Response> {
     },
     { name: "vat-reminders", fn: () => runVatReminderTask({ actorId: null }) },
     { name: "job-alerts", fn: () => runJobAlertsTask({ actorId: null }) },
+    { name: "job-engagement", fn: () => runJobEngagementTask({ actorId: null }) },
     { name: "subscription-past-due", fn: () => runSubscriptionPastDueTask({ actorId: null }) },
     { name: "zzp-membership", fn: () => runZzpMembershipTask({}) },
     { name: "performance-grace", fn: () => runPerformanceGraceTask({ actorId: null }) },
+    {
+      name: "performance-approval-reminders",
+      fn: () => runPerformanceApprovalReminderTask({ actorId: null }),
+    },
     { name: "reviews-reveal", fn: () => runReviewsRevealTask({ actorId: null }) },
     { name: "push-delivery", fn: () => runPushDeliveryTask({}) },
     { name: "notification-digest", fn: () => runNotificationDigestTask({ actorId: null }) },

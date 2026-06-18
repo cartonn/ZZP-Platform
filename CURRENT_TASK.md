@@ -260,6 +260,12 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Job-engagement-signaal (koude opdracht) voor de opdrachtgever** —
+> `lib/job-engagement.ts` `planJobEngagement` (pure) + `lib/job-engagement-task.ts`
+> `runJobEngagementTask` (plan/apply, idempotent via DomainEvent `job-cold:<jobId>`, gewired in
+> `run-all`): waarschuwt de opdrachtgever wanneer een gepubliceerde opdracht ≥7 dagen open staat met
+> <3 reacties (spiegel van `job-alerts`). `JOB_COLD`-notificatie (system/attention) in de bestaande
+> meldingenlijst, linkt naar de opdracht; 16 unit-tests; geen schemawijziging, geen geldstroom.
 > Gedaan (niet opnieuw): **Reactie-uitkomsten samenvatting op `/reacties`** — pure
 > `summarizeApplicationOutcomes` (`lib/application-outcomes.ts`, 11 tests) + `OutcomesSummary`-strip
 > (Verstuurd/Bekeken/Op shortlist/Geaccepteerd) met responspercentage + acceptatiegraad
@@ -274,6 +280,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > `ratePosition` in `lib/market-rate.ts`, `lib/data/job-rate-bands.ts`, `JobRateBandCard` op
 > `/opdrachten/nieuw` + `/opdrachten/[id]/bewerken`; geanonimiseerde band per branche met
 > opdrachtgever-positie op het minimumtarief (spiegel van de ZZP'er-marktband). Geen schemawijziging.
+
+> Reeds gedaan (niet opnieuw): reactiebereidheid-signaal opdrachtgever op /opdrachten/[id]
+> (`client-responsiveness.ts` `computeClientResponsiveness` + `data/client-responsiveness.ts` +
+> `ClientResponsivenessBlock`): derde opdrachtgever-vertrouwenssignaal naast betaalgedrag en
+> annuleringsgedrag — pakt de opdrachtgever binnengekomen reacties op of laat hij ze op `NEW` liggen?
+> Deterministisch uit onveranderlijke `Application.createdAt` + huidige `status`; toon good/neutral/
+> warning/unknown (steekproef ≥ 3, stale-grens 14 dagen); read-only, geaggregeerd, geen
+> schemawijziging; 10 unit-tests.
 
 0. **Bergings-backlog uit de branch-sanering** — zie `docs/BRANCH-SANERING-2026-06-11.md`.
    **VOLLEDIG GEBORGEN (12-6-2026):** afronden-rem, CSV-injectie-hardening, rol-fallback
@@ -294,6 +308,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > URGENT-count; `admin-stats.ts` `openDisputes` → `disputes: DisputeHealth` via begrensde
 > findFirst+count; nieuwe "Disputen"-sectie met 3 gezondheidskaarten (Open / Langst open / Urgent),
 > spiegelt de verificatie-wachtrij-gezondheid; 4 unit-tests; geen schemawijziging),
+> Reeds gedaan (niet opnieuw): prestatie-goedkeuring-reminder voor de opdrachtgever
+> (`performance-approval-reminders.ts` `planPerformanceApprovalReminders` + `…-task.ts`
+> `runPerformanceApprovalReminderTask`): actieve nudge (dag 3/7) + admin-escalatie wanneer een
+> ingediende prestatie ongekeurd blijft en de cascade stalt — spiegelbeeld van
+> `concept-invoice-reminders`. Vult het gat dat het grace-venster (auto-goedkeuring) default UIT
+> staat. `REMINDERS.performanceApprovalDays=[3,7]`; plan/apply, idempotent via DomainEvent dedupeKey;
+> gewired in `/api/tasks/run-all`; 16 unit-tests; read-only, geen schemawijziging, geen geldstroom.
 > Reeds gedaan (niet opnieuw): wachttijd-zicht op de prestatie-goedkeuringswachtrij
 > (`lib/performance-approval.ts` — pure `summarizePerformanceApproval` + `PERFORMANCE_APPROVAL_STALE_DAYS=3`,
 > hergebruikt `daysWaiting`/`waitingLabel` uit `verification-queue.ts`; 8 unit-tests; `/prestaties` toont
@@ -359,6 +380,12 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > (goedgekeurd zonder eerdere afkeuring), gecorrigeerde prestaties, gem. goedkeuringstijd
 > `submittedAt`→`approvedAt`, toon-oordeel met min-steekproef 3; sectie "Leverbetrouwbaarheid" op
 > /inzicht voor de FREELANCER; read-only, server-side, geen schemawijziging; 19 unit-tests).
+> leverbetrouwbaarheid-signaal ZZP'er voor de OPDRACHTGEVER op /kandidaten (PR #447: spiegelbeeld van
+> de opdrachtgever-vertrouwenssignalen op /opdrachten/[id]; hergebruikt `collaboration-quality.ts` via
+> nieuwe pure batch-aggregator `computeDeliveryQualityByProfile` + gebatchte fetcher
+> `lib/data/freelancer-delivery-quality.ts` (geen N+1) + `DeliveryQualityBlock`; per kandidaat
+> in-één-keer-akkoord %/gecorrigeerd/gem. doorlooptijd, verbergt zich bij te kleine steekproef;
+> read-only, geen schemawijziging; +5 unit-tests).
 > track record per ZZP'er op /freelancers (`freelancer-track-record.ts` — pure `trackRecordHighlights`
 > met betekenis-drempels: afgeronde samenwerkingen ≥ 1 + gewerkte uren round ≥ 8; server-berekend in
 > `freelancer-search.ts` via bulk-queries, getoond op de browse-kaart; spiegelt het betaalgedrag-signaal
