@@ -11,8 +11,8 @@ doorlooptijd. Een samenwerking die in `PROPOSED` blijft staan stalt de hele fact
 in tegenstelling tot de verificatie-wachtrij en de disputen, die hun gezondheid al tonen.
 Read-only, **geen schemawijziging, geen mutatie, geen geldstroom**.
 
-- [x] `src/lib/contract-signing.ts` — pure `summarizeContractSigning(items, now)` → `{ pending,
-  oldestDays, staleCount }`, gemeten vanaf het **immutable `createdAt`** (het voorstelmoment;
+- [x] `src/lib/contract-signing.ts` — pure `summarizeContractSigning(items, now)` met pending,
+      oldestDays en staleCount, gemeten vanaf het **immutable `createdAt`** (het voorstelmoment;
       niet `updatedAt`, dat opschuift). `CONTRACT_SIGNING_STALE_DAYS = 5` +
       `contractSigningStaleThreshold(now)` voor een goedkope `count` (geen onbegrensde findMany).
       Hergebruikt `daysWaiting`/`waitingLabel` uit `verification-queue.ts` (spiegel van
