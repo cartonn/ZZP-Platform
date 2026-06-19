@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: open-urenstaat-herinnering (ZZP'er) (PR #465)
+
+De facturatiecascade kende al twee stall-reminders: `concept-invoice-reminders` (ZZP'er → concept-
+factuur indienen, ná Event B2) en `performance-approval-reminders` (opdrachtgever → ingediende
+prestatie keuren, ná Event B1). De stap dáárvoor — de ZZP'er die nog géén uren heeft ingediend voor
+een lopende uurtarief-inzet — had geen nudge. Daardoor kon de cascade stilvallen doordat er simpelweg
+geen urenstaat werd geboekt. Dit sluit dat gat. Read-only, **geen schemawijziging, geen geldstroom**,
+deterministisch en idempotent via DomainEvent dedupeKey.
+
+- [x] `src/lib/performance-submission-reminders.ts` — pure `planPerformanceSubmissionReminders`:
+      herinnert (dag 7/14, `REMINDERS.performanceSubmissionDays`) wanneer de laatste **goedgekeurde**
+      uren-prestatie van een samenwerking dat aantal dagen geleden is en er **niets meer in concept
+      (DRAFT) of ter beoordeling (SUBMITTED)** staat. Slaat verse inzet zonder eerdere indiening over
+      (geen cadans), en ankert de dedupeKey op de laatste indiening (`...-${collaborationId}-${isoDate}-${d}`)
+      zodat een nieuwe periode opnieuw mag herinneren.
+- [x] `src/lib/performance-submission-reminders-task.ts` — plan/apply-runner zoals
+      `runConceptInvoiceReminderTask`: scant ACTIVE+SIGNED samenwerkingen (cap 1000), bouwt per inzet
+      `lastHoursSubmittedAt`/`hasOpenSubmission` uit de prestaties, filtert al-gevuurde signalen op
+      DomainEvent dedupeKey en schrijft per herinnering atomair een `PERFORMANCE_REMINDER`-DomainEvent +
+      in-app notificatie (link `/samenwerkingen/[id]`) + auditregel. In-app kanaal (server-side waarheid).
+- [x] `src/lib/events.ts` — nieuw `DomainEventType` `PERFORMANCE_REMINDER`; `src/lib/event-stream.ts`
+      — label + zijpad-categorie (`SIDE_PATH_TYPES`) bijgewerkt (admin-eventstroom).
+- [x] `src/lib/config.ts` — `REMINDERS.performanceSubmissionDays = [7, 14]`.
+- [x] `src/app/api/tasks/run-all/route.ts` — taak `performance-submission-reminders` gewired.
+- [x] Tests: `performance-submission-reminders.test.ts` (6: dag 7/14, tussenliggende dag, open-
+      submission-skip, nooit-ingediend-skip, periode-anker dedupeKey) + `…-task.test.ts` (5: lege
+      state, happy path notificatie/event/audit, open-submission-skip, idempotentie, tussenliggende dag).
+- Gate groen: typecheck ✓, lint ✓, test **2308** ✓, build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
