@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: contract-ondertekening-wachtrij gezondheid op /admin/statistieken
+
+Cascade-stap A (voorgestelde samenwerking → contract ondertekenen) had **geen admin-zicht** op
+doorlooptijd. Een samenwerking die in `PROPOSED` blijft staan stalt de hele facturatiecascade
+(geen getekend contract → geen uren, geen factuur, geen betaling), maar dat bleef onzichtbaar —
+in tegenstelling tot de verificatie-wachtrij en de disputen, die hun gezondheid al tonen.
+Read-only, **geen schemawijziging, geen mutatie, geen geldstroom**.
+
+- [x] `src/lib/contract-signing.ts` — pure `summarizeContractSigning(items, now)` → `{ pending,
+  oldestDays, staleCount }`, gemeten vanaf het **immutable `createdAt`** (het voorstelmoment;
+      niet `updatedAt`, dat opschuift). `CONTRACT_SIGNING_STALE_DAYS = 5` +
+      `contractSigningStaleThreshold(now)` voor een goedkope `count` (geen onbegrensde findMany).
+      Hergebruikt `daysWaiting`/`waitingLabel` uit `verification-queue.ts` (spiegel van
+      `performance-approval.ts`). Muteert de invoer niet.
+- [x] `src/lib/admin-stats.ts` — `PlatformStats.contractSigning: ContractSigningHealth`; drie
+      bounded queries in de bestaande `Promise.all` (`count`/`findFirst` op `status: "PROPOSED"` —
+      een PROPOSED-samenwerking is per definitie nog niet getekend, ondertekenen → ACTIVE).
+- [x] `src/components/admin/stats-panel.tsx` — nieuwe BiSection "Contract-ondertekening" met drie
+      KPI-tegels (Wacht op ondertekening / Langst open / Te lang open), gelijk aan de verificatie-
+      en disputen-gezondheid; linkt naar `/admin/samenwerkingen`.
+- [x] Tests: `contract-signing.test.ts` (9: lege invoer, pending-telling, oudste ongeacht volgorde,
+      stale-grens incl. exact op de drempel, vandaag-aangemaakt niet stale, no-mutation, threshold).
+
+Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
