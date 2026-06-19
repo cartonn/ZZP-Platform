@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: actiecentrum voor de bemiddelaar (tenant-taken)
+
+De bemiddelaar (FRANCHISER) kreeg in het actiecentrum (`/acties`), de dashboard-rail "Volgende
+acties" én de zijbalk-badge **geen enkele taak** — `computeTasks` gaf hard `[]` terug voor FRANCHISER
+("nog geen eigen actie-items"). Daardoor was de differentiërende next-action-engine voor deze rol
+leeg, terwijl de bemiddelaar juist operationele tenant-taken heeft. Dit vult dat gat met twee
+doorlopende, tenant-gescopete taaksoorten. Read-only, server-side, **geen schemawijziging, geen
+mutatie, geen geldstroom**. De dashboard-rail wiret al generiek op `pendingTasks` (toont nu de taken,
+valt terug op de geleide-opzet-stappen wanneer er geen zijn), dus geen wijziging aan `dashboard/page.tsx`.
+
+- [x] `src/lib/actions/tasks.ts` — pure builders `franchiseCredentialExpiryTask(profileId, name, count)`
+      (per ZZP'er, link naar `/franchise/zzpers/[id]`, tone attention, `P.franchiserCredentialExpiring`)
+      en `franchiseLeadFollowupTask(count)` (aggregaat, link naar `/franchise/leads`, tone attention,
+      `P.franchiserLeadFollowup`); twee nieuwe `PendingTask`-varianten.
+- [x] `src/lib/next-actions.ts` — twee operationele franchiser-prioriteitsbanden
+      (`franchiserCredentialExpiring=70`, `franchiserLeadFollowup=50`); rol-geïsoleerd zoals de bestaande
+      activatie-banden.
+- [x] `src/lib/actions/pending-tasks.ts` — `franchiserTasks(userId)`: tenant-scoped, begrensde queries
+      (`take: MAX`). VERIFIED-certificaten van tenant-ZZP'ers in het venster `[now, now+30d]`
+      (zelfde grens als de roster-compliance-zegel op het bemiddelaar-dashboard), geaggregeerd per
+      ZZP'er; leads in KOUD/WARM met `nextFollowUp <= now`. `computeTasks` roept dit nu aan i.p.v. `[]`;
+      de admin-fallthrough blijft uitgesloten.
+- [x] Tests: `tasks.test.ts` (+2): per-ZZP'er-unieke id + enkelvoud/meervoud + link-doel + roster
+      weegt zwaarder dan lead-opvolging. Suite **2299 passed**.
+- [x] Gate: typecheck ✓ · lint ✓ · test 2299 ✓ · build ✓ · `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
