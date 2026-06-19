@@ -3,6 +3,39 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(rooster): claim direct vanuit de rooster-kalender (ZZP'er)
+
+De `/rooster`-kalender was read-only discovery: een open dienst linkte naar de opdrachtdetail, waar
+de ZZP'er pas kon reageren. Dit sluit de open **publiceer-/claim-kant van de Rooster-marktplaats**
+(PLAN-WERELDKLASSE Fase 3): de ZZP'er reageert nu **direct vanuit de kalender** op een open dienst en
+blijft op het overzicht. Hergebruikt exact de bestaande applicatie-/matchketen — **geen nieuwe
+entiteit, geen schemawijziging, geen nieuwe statusovergang** (de claim is een gewone `Application`,
+die downstream het ongewijzigde accepteren→voorstellen→tekenen-pad volgt).
+
+- [x] `src/lib/applications-create.ts` — `createApplicationForJob(actor, jobId, raw)`: één bron van
+      waarheid voor het aanmaken van een reactie (rate-limit → profiel → opdracht + tenant-zichtbaarheid
+      → dubbel-check → plan-gating → Zod → server-berekende matchscore + compliance → create → audit →
+      notificatie naar de opdrachtgever). Retourneert een discriminated `{ ok, applicationId }` /
+      `{ ok:false, error, fieldErrors }`; raakt geen Next-cache (de aanroeper doet revalidate/redirect).
+- [x] `src/app/(protected)/opdrachten/actions.ts` — `createApplication` (het reageer-formulier op de
+      opdrachtdetail) geëxtraheerd naar de gedeelde helper; ~120 r. dubbele logica weg, gedrag identiek
+      (zelfde redirect naar `/reacties`). Ongebruikt geworden imports opgeruimd.
+- [x] `src/app/(protected)/rooster/actions.ts` — `claimShift(jobId, prev, formData)`-server-action:
+      `requireRole("FREELANCER")` → gedeelde helper → bij succes `revalidatePath("/rooster")` + `{ ok }`
+      (geen navigatie weg; de kalender hertekent met de "Gereageerd"-badge).
+- [x] `src/app/(protected)/rooster/claim-shift.tsx` — `ClaimShift` (client): ingeklapte "Reageren"-knop
+      die uitklapt naar een compacte motivatie (verplicht, min. 10) + optioneel tariefvoorstel; verstuurt
+      via `useActionState`, toont veld-/algemene fouten, en een "Verstuurd"-bevestiging bij succes.
+- [x] `src/app/(protected)/rooster/page.tsx` — open-dienst-rij geherstructureerd (titel + chevron linken
+      naar de detail; claim-affordance eronder). Alleen een ZZP'er met profiel ziet de knop (`canClaim`),
+      en niet voor reeds-gereageerde diensten.
+- [x] Tests: `applications-create.test.ts` (9: happy path + notificatie/audit, rate-limit, geen profiel,
+      onbekende/niet-gepubliceerde opdracht, buiten-tenant, dubbele reactie, plan-max, te-korte motivatie).
+      Allowlist-regelnummers in `unbounded-queries.test.ts` voor `opdrachten/actions.ts` bijgewerkt (door
+      de extractie verschoven, 72→69 / 250→247).
+
+Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)

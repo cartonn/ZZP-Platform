@@ -204,8 +204,12 @@ portable vertrouwensdossier (#313), **Flexpool/favorieten slice 1 (ZZP2-187, com
 noot** af. Beoordelingen = **GEDAAN** (#384, 15-6): tweezijdig met double-blind reveal (simultane
 onthulling tegen vergelding) — zie PROGRESS.md-top. **Rooster-marktplaats slice 1
 (discovery)** af — `roster-market.ts` `buildRosterCalendar` + read-only `/rooster`-agenda van open
-diensten met startdatum, per dag, met matchscore. Open Fase 3: de **publiceer-/claim-kant** van de
-Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct vanuit de kalender).
+diensten met startdatum, per dag, met matchscore. **Claim-kant GEDAAN** — de ZZP'er reageert direct
+vanuit de `/rooster`-kalender op een open dienst (`rooster/actions.ts` `claimShift` + `ClaimShift`,
+hergebruikt de nieuwe gedeelde `lib/applications-create.ts` `createApplicationForJob` waar ook het
+reageer-formulier nu op draait); een claim is een gewone `Application`, geen nieuwe entiteit/status.
+De publiceer-kant verloopt via de bestaande opdracht-/dienst-aanmaak (een Job met `startDate` ís een
+roosteritem). Fase 3 rooster-marktplaats daarmee afgerond.
 
 ### Review-should-fixes nachtbatch #367–#372 (15-6-2026 — geen blockers, opportunistisch)
 

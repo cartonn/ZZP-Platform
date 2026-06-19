@@ -55,7 +55,10 @@ afzonderlijk missen.
   (PDF + verifieerbare link) — verificatie wordt een asset voor de ZZP'er.
 - **Rooster-marktplaats**: diensten per kalender publiceren/claimen naast
   vacature-achtige opdrachten. _Discovery (open diensten gescoord per dag) + agenda (eigen geboekte
-  diensten naast open kansen, `buildAgenda`) staan; de publiceer-/claim-mutatie blijft open._
+  diensten naast open kansen, `buildAgenda`) staan. **Claim-kant gebouwd:** de ZZP'er reageert direct
+  vanuit de kalender (`claimShift` + `ClaimShift`, hergebruikt `createApplicationForJob`); een claim is
+  een gewone `Application`, geen nieuwe entiteit. De publiceer-kant verloopt via de bestaande
+  opdracht-/dienst-aanmaak (een Job met `startDate` is een roosteritem)._
 
 ## Fase 4 — Backend-hardening (vóór livegang)
 
