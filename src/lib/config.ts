@@ -127,6 +127,13 @@ export const REMINDERS = {
    * de cascade niet eindeloos hangen wanneer het grace-venster (auto-goedkeuring) uitstaat.
    */
   performanceApprovalDays: [3, 7] as const,
+  /**
+   * Open dispuut (zijpad §4): zolang een dispuut openstaat is de facturatiecascade bevroren.
+   * Herinneringsdagen ná het openen van het dispuut naar béíde partijen; na de laatste dag
+   * escaleert het platform naar de admins voor bemiddeling. Zonder nudge blijft de cascade
+   * (en dus de betaling) eindeloos bevroren.
+   */
+  disputeReminderDays: [3, 7] as const,
   /** Betaaltermijn opdrachtgever (na Event D): dagen vóór/na vervaldag. */
   paymentBeforeDueDays: [5, 1] as const,
   /**

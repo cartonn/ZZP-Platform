@@ -260,6 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Stale-dispuut-escalatie-reminder** — `lib/dispute-reminders.ts`
+> `planDisputeReminders` (pure) + `lib/dispute-reminders-task.ts` `runDisputeReminderTask` (plan/apply,
+> idempotent via DomainEvent dedupeKey, gewired in `run-all`): een open dispuut bevriest de cascade maar
+> had geen actieve nudge (stond alleen passief op `/admin/statistieken`). Herinnert nu béíde partijen
+> (dag 3/7) en escaleert daarna naar de admins — spiegel van `performance-approval-reminders`. Nieuwe
+> `DISPUTE_REMINDER`/`DISPUTE_ESCALATION`-eventtypes + `REMINDERS.disputeReminderDays`; 12 unit-tests;
+> read-only t.o.v. de cascade, geen schemawijziging, geen geldstroom.
 > Gedaan (niet opnieuw): **Certificaat-impact op lopende inzet (ZZP'er)** — `freelancer-compliance.ts`
 > `linkExpiryToInzet` koppelt de vervalkalender (`summarizeExpiry`) aan de actieve samenwerkingen wier
 > verplichte certificaattypen een (bijna-)vervallend certificaat raakt; `data/freelancer-compliance.ts`

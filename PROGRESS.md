@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: stale-dispuut-escalatie-reminder
+
+Een open dispuut bevriest de hele facturatiecascade (§4 zijpad: geen factuur-goedkeuring, geen
+betaling, geen afronding tot opgelost), maar kende — anders dan álle andere cascade-stalls
+(`performance-approval-reminders`, `concept-invoice-reminders`, `payment-reminders`) — **geen
+actieve nudge**. Disputen stonden alleen passief op `/admin/statistieken` (`DisputeHealth`). Deze
+taak sluit dat gat als spiegel van `performance-approval-reminders`. Read-only t.o.v. de cascade,
+**geen schemawijziging, geen geldstroom, geen cascade-mutatie**.
+
+- [x] `src/lib/dispute-reminders.ts` — pure `planDisputeReminders(candidates, now)`: voor elke
+      samenwerking met een open dispuut (`disputedAt != null`, niet CANCELLED) op een
+      herinneringsdag (`REMINDERS.disputeReminderDays = [3, 7]`) een herinnering naar **béíde
+      partijen** (ZZP'er + opdrachtgever — beiden zijn geblokkeerd); ná de laatste dag (> 7) een
+      escalatie naar het platform. `disputeAgeDays` lokaal (leaf-module, geen prisma-import).
+      dedupeKey per (collaboratie, ontvanger, dag) resp. per collaboratie; muteert de invoer niet.
+- [x] `src/lib/dispute-reminders-task.ts` — plan/apply-runner (idempotent via DomainEvent dedupeKey),
+      schrijft per herinnering atomair een `DISPUTE_REMINDER`-event + in-app notificatie
+      (`/samenwerkingen/[id]`) + auditregel; bij escalatie een `DISPUTE_ESCALATION`-event +
+      notificatie naar alle actieve admins (`/admin/disputen`) + audit. Begrensde queries (take: 500).
+- [x] `src/lib/events.ts` — nieuwe `DomainEventType`s `DISPUTE_REMINDER` + `DISPUTE_ESCALATION`;
+      `src/lib/event-stream.ts` — NL-labels + zijpad-categorie. `src/lib/config.ts` — `disputeReminderDays`.
+- [x] `src/app/api/tasks/run-all/route.ts` — taak `dispute-reminders` gewired ná
+      `performance-approval-reminders`.
+- [x] Tests: `dispute-reminders.test.ts` (12: leeftijd, beide-partijen op dag 3/7, tussendag geen
+      nudge, escalatie >7 / niet exact op 7, geen-dispuut/CANCELLED weglaten, dedupeKey-vorm,
+      no-mutation + ongesorteerde input, tekstinhoud).
+
+Gate groen: typecheck ✓, lint ✓, test **2309** ✓, build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
