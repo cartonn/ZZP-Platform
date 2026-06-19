@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: vervaldatum-aftelling op het facturen-overzicht
+
+Het facturen-overzicht (`/facturen`, `FacturenPanel`) toonde per factuur alleen een statuslabel
+(bv. "Goedgekeurd"), maar geen real-time zicht op de vervaldatum. Een cascade-factuur die op betaling
+wacht (`lifecycleStatus=APPROVED`) heeft wél een `dueAt`, maar werd pas zichtbaar "Te laat" nadat de
+payment-reminders-taak APPROVED→OVERDUE flipt. Dit voegt een deterministische aftel-chip toe op het
+kern-"wat-vraagt-aandacht"-scherm. Read-only, **geen schemawijziging, geen mutatie, geen geldstroom**;
+symmetrisch (dezelfde aftelling voor beide partijen).
+
+- [x] `src/lib/invoice-due.ts` — pure `invoiceDueStatus({ dueAt, outstanding }, now)`: leidt
+      `tense` (overdue/today/upcoming) + `days` + label + badge-variant af uit `dueAt`, los van de
+      cron-taak. Geeft `null` als de factuur niet openstaand is of geen vervaldatum heeft.
+      `daysUntil`/`daysOverdue` hergebruikt uit `payment-reminders.ts` (één bron voor de dag-telling);
+      `INVOICE_DUE_SOON_DAYS=7` als warning-drempel. Server-side waarheid: toont, beslist niet — de
+      statusovergang blijft van de payment-reminders-taak.
+- [x] `src/components/administratie/facturen-panel.tsx` — aftel-chip naast het statuslabel per rij,
+      alleen getoond wanneer ze aandacht vraagt (`variant !== "muted"`: binnenkort verschuldigd of te
+      laat), zodat de lijst rustig blijft. `outstanding` via de bestaande `isInvoiceOutstanding`.
+- [x] Tests: `invoice-due.test.ts` (9: niet-openstaand/geen-dueAt → null, te laat enkel-/meervoud,
+      net-over-de-vervaldag, vervalt-vandaag, drempel warning/muted, "over 1 dag" enkelvoud).
+
+Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
