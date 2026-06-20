@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: statusfilter op /reacties (ZZP'er)
+
+`/reacties` toonde alle reacties in één platte lijst (createdAt desc) zonder filter. De ZZP'er kon
+zijn lopende reacties niet scheiden van afgewezen/ingetrokken oude reacties. Toegevoegd: een
+statusfilter (Alle / Lopend / Geaccepteerd / Afgewezen / Ingetrokken) — server-side via de
+URL-searchParams, spiegel van het `/notificaties`-filterpatroon en consistent met de
+`OutcomesSummary`-buckets. Read-only, **geen schemawijziging, geen extra query** (filtert de al
+opgehaalde reacties).
+
+- [x] `src/lib/application-filter.ts` — pure helpers: `ApplicationFilterGroup` (all/open/accepted/
+      rejected/withdrawn) + `applicationGroup(status)` (NEW/VIEWED/SHORTLIST → "open", consistent met
+      `summarizeApplicationOutcomes`), `parseApplicationFilter` (onbekend → "all", array → eerste),
+      `filterApplications` (behoudt volgorde, muteert niet), `summarizeApplicationGroups` (totaal +
+      per aanwezige groep in canonieke volgorde), `applicationFilterParams` (laat "all" weg).
+- [x] `src/lib/application-filter.test.ts` — 14 unit-tests: groep-mapping, parse-fallbacks, filtering +
+      non-mutatie, samenvatting (volgorde/lege groepen/lege invoer/elke groep gedekt), filter-params.
+- [x] `src/app/(protected)/reacties/page.tsx` — `searchParams` ingelezen, filter-pills (telling per
+      groep) boven de lijst, eigen empty-state per leeg filter; status één keer naar de enum gecast
+      zodat de pure helpers hun type houden, de nu-overbodige per-rij casts opgeruimd.
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummer van de reacties-`findMany`
+      bijgewerkt (58 → 101, door de extra imports).
+
+Gates groen: typecheck ✓, lint ✓, test **2440** ✓ (+14), build ✓ (`/reacties` aanwezig),
+`prettier --check .` ✓.
+
 ## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
 Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
