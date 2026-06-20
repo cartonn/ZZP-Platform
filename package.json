@@ -54,7 +54,7 @@
     "@playwright/test": "^1.49.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.5",
-    "@types/nodemailer": "^8.0.0",
+    "@types/nodemailer": "^7.0.12",
     "@types/react": "^19.0.6",
     "@types/react-dom": "^19.0.3",
     "@types/web-push": "^3.6.4",

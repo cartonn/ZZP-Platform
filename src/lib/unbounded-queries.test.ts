@@ -31,7 +31,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // --- reacties/page.tsx ---
   // Reacties zijn altijd van één freelancer; groei is lineair en in de praktijk
   // beperkt (een ZZP'er heeft doorgaans < 100 actieve reacties).
-  { file: "(protected)/reacties/page.tsx", line: 54, reason: "eigenaar-scoped, inherent begrensd" },
+  { file: "(protected)/reacties/page.tsx", line: 58, reason: "eigenaar-scoped, inherent begrensd" },
 
   // (De boekhoud-findMany van /administratie is verplaatst naar de BoekhoudingPanel onder
   // src/components/administratie; panels worden niet door deze vangrail gescand.)
@@ -419,7 +419,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Kandidaten (freelancers) voor een opdrachtgever; gefilterd en beperkt door matching.
   {
     file: "(protected)/kandidaten/page.tsx",
-    line: 51,
+    line: 52,
     reason: "kandidaten-matching; volume beperkt door filter",
   },
 

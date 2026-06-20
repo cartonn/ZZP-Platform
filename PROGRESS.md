@@ -3,35 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## feat(certificaten): gevraagde-certificaten-gat (skill-demand) voor de ZZP'er
+## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
-`/certificaten` toonde wélke eigen certificaten (bijna) verlopen (ExpiryOverviewCard) en welke
-lopende inzet daardoor risico loopt (InzetImpactCard), maar niet de **omgekeerde, vooruitkijkende**
-vraag: welke vereiste certificaattypen vragen de open opdrachten die de ZZP'er mág zien, terwijl hij
-ze nog niet (geldig) geverifieerd heeft? Dit maakt de matchmotor uitlegbaar als next-action ("een VOG
-zou je voor X open opdrachten kwalificeren"). Read-only, **geen schemawijziging, geen mutatie, geen
-extra ongebonden query**.
+Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
+bleef hij als kandidaat zichtbaar bij de opdrachtgever (en kon hij niet opnieuw reageren). Nieuwe
+`WITHDRAWN`-status + freelancer-only intrek-actie, met nette afhandeling in alle afgeleide
+oppervlakken. Server-side keten (auth → rol → ownership → toegestane overgang → mutatie + audit +
+notificatie). **Geen schemawijziging** (status is een string-kolom, geen native db-enum).
 
-- [x] `src/lib/credential-demand.ts` — pure `computeCredentialDemand(requirements, credentials, now)`:
-      per vereist type satisfied (VERIFIED + niet-verlopen) / pending (DRAFT|SUBMITTED) / missing
-      (geen of alleen REJECTED/EXPIRED); `opportunityCount` = distinct open opdrachten per onvervuld
-      type; `blockedOpportunities` = distinct opdrachten met ≥1 onvervuld type; sortering
-      opportunityCount desc → type asc; defensieve (jobId, type)-dedup; now-injectie voor de
-      verloop-grens. Leaf-module, geen server-only imports.
-- [x] `src/lib/data/freelancer-credential-demand.ts` — `getCredentialDemandRequirements(userId)`:
-      begrensde scan van PUBLISHED-opdrachten via `visibleJobsWhereForTenant` (tenant-gesloten +
-      overflow), `take: 100` (mirror van `recommendations.ts`), sluit reeds-gereageerde opdrachten
-      uit; geeft `{ jobId, credentialType }[]` van de verplichte eisen.
-- [x] `src/components/credentials/credential-demand-card.tsx` — `CredentialDemandCard`: compacte
-      sectie, top-5 gaten met per type opportunity-telling + `Ontbreekt`/`In behandeling`-badge +
-      `Toevoegen`-deeplink naar `/certificaten/nieuw`; verbergt zich zonder gat. Gewired op
-      `/certificaten` direct na de `InzetImpactCard`.
-- [x] Tests: `credential-demand.test.ts` (16: empty, satisfied-exclusie, verloop-grens (toekomst/
-      verleden/exact-now), pending DRAFT+SUBMITTED, REJECTED-only & EXPIRED-only → missing,
-      distinct-job-telling, (jobId,type)-dedup, twee-types-één-opdracht, sortering, precedentie).
-      Allowlist-regel in `unbounded-queries.test.ts` bijgewerkt (verschoven certificaat-`findMany` 68→71).
+- [x] `src/lib/enums.ts` — `WITHDRAWN` toegevoegd aan `APPLICATION_STATUSES` (achteraan: werkstroom-
+      sortering op `/kandidaten` houdt ingetrokken reacties onderaan).
+- [x] `src/lib/applications.ts` — `WITHDRAWN: []` (terminaal voor de opdrachtgever) +
+      pure `canWithdrawApplication(from)` (alleen NEW/VIEWED/SHORTLIST). WITHDRAWN is nooit een doel
+      van een opdrachtgever-overgang.
+- [x] `src/app/(protected)/reacties/actions.ts` — `withdrawApplication(appId)`: ownership +
+      geen-samenwerking + `canWithdrawApplication`-gate; transactie status→WITHDRAWN + audit
+      (`APPLICATION_WITHDRAWN`) + notificatie naar de opdrachtgever. Intrek-knop (ConfirmButton) op
+      `/reacties`; status-hint + badge ("Ingetrokken").
+- [x] Re-apply na intrekken: `opdrachten/actions.ts` hergebruikt de bestaande rij (heropent →
+      NEW, verbruikt geen extra plan-slot); `opdrachten/[id]/page.tsx` toont weer het reageer-
+      formulier; `rooster/page.tsx` + `recommendations.ts` + `suggestions.ts` sluiten WITHDRAWN uit
+      ("Gereageerd"-badge / aanbevelingen / kandidaat-suggesties komen terug).
+- [x] Afgeleide oppervlakken sluiten WITHDRAWN correct uit/af: `application-outcomes.ts`
+      (buiten tellingen + percentage-noemers), `client-responsiveness.ts` (uit de steekproef),
+      `status-breakdown.ts` + badge + audit-labels + notificatie-categorie.
+- [x] `/kandidaten`: ingetrokken reactie toont een nette "ZZP'er heeft ingetrokken"-noot i.p.v. een
+      lege actierij; uitgesloten van de "Beste match"-etalage.
+- [x] Tests: `applications.test.ts` (+4: canWithdraw-grenzen + terminaliteit), `application-outcomes.test.ts`
+      (+3), `client-responsiveness.test.ts` (+2). Allowlist-regels `unbounded-queries.test.ts` bijgewerkt
+      (verschoven regelnummers).
 
-Gate groen: typecheck ✓, lint ✓, test **2313** ✓, build ✓, `prettier --check .` ✓.
+Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
 
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
