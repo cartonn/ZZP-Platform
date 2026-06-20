@@ -67,27 +67,35 @@ export async function createApplicationForJob(
   if (!canViewJob(actor, job))
     return { ok: false, error: "Deze opdracht is niet zichtbaar voor jou." };
 
+  // Een eerder ingetrokken reactie blokkeert niet: de ZZP'er mag opnieuw reageren. De bestaande rij
+  // (unieke jobId+freelancerId) wordt dan hergebruikt en heropend i.p.v. een tweede te maken.
   const existing = await prisma.application.findUnique({
     where: { jobId_freelancerId: { jobId, freelancerId: profile.id } },
-    select: { id: true },
+    select: { id: true, status: true },
   });
-  if (existing) return { ok: false, error: "Je hebt al op deze opdracht gereageerd." };
+  if (existing && existing.status !== "WITHDRAWN") {
+    return { ok: false, error: "Je hebt al op deze opdracht gereageerd." };
+  }
 
-  // Plan-gating (server-side). Zonder abonnement geldt het FREE-plan.
-  const [count, subscription, freePlan] = await Promise.all([
-    prisma.application.count({ where: { freelancerId: profile.id } }),
-    prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
-    prisma.plan.findUnique({ where: { key: "FREE" } }),
-  ]);
-  // Alleen een ACTIEF abonnement telt; anders geldt het FREE-plan (CLAUDE.md regel 1).
-  const activePlanMax =
-    subscription?.status === "ACTIVE" ? subscription.plan.maxApplications : undefined;
-  const maxApplications = activePlanMax ?? freePlan?.maxApplications ?? 5;
-  if (!canApply(maxApplications, count)) {
-    return {
-      ok: false,
-      error: `Je hebt het maximum aantal reacties (${maxApplications}) van je plan bereikt. Upgrade je abonnement voor meer reacties.`,
-    };
+  // Plan-gating (server-side) alleen bij een echt nieuwe reactie. Het heropenen van een eerder
+  // ingetrokken reactie hergebruikt een bestaande rij en verbruikt dus geen extra plan-slot.
+  if (!existing) {
+    // Zonder abonnement geldt het FREE-plan.
+    const [count, subscription, freePlan] = await Promise.all([
+      prisma.application.count({ where: { freelancerId: profile.id } }),
+      prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
+      prisma.plan.findUnique({ where: { key: "FREE" } }),
+    ]);
+    // Alleen een ACTIEF abonnement telt; anders geldt het FREE-plan (CLAUDE.md regel 1).
+    const activePlanMax =
+      subscription?.status === "ACTIVE" ? subscription.plan.maxApplications : undefined;
+    const maxApplications = activePlanMax ?? freePlan?.maxApplications ?? 5;
+    if (!canApply(maxApplications, count)) {
+      return {
+        ok: false,
+        error: `Je hebt het maximum aantal reacties (${maxApplications}) van je plan bereikt. Upgrade je abonnement voor meer reacties.`,
+      };
+    }
   }
 
   const parsed = applicationSchema.safeParse({
@@ -114,18 +122,32 @@ export async function createApplicationForJob(
       : null;
   const match = scoreJobForFreelancer(job, { ...profile, routedTravelMinutesToJob });
 
-  const application = await prisma.application.create({
-    data: {
-      jobId,
-      freelancerId: profile.id,
-      status: "NEW",
-      motivation: data.motivation,
-      proposedRate: data.proposedRate ?? null,
-      availability: data.availability ?? null,
-      matchScore: match.score,
-      complianceSnapshot: JSON.stringify(match.compliance),
-    },
-  });
+  // Heropen een eerder ingetrokken reactie (zelfde rij) of maak een nieuwe aan. Beide krijgen verse
+  // motivatie/tarief + een opnieuw berekende matchscore en compliance-snapshot.
+  const application = existing
+    ? await prisma.application.update({
+        where: { id: existing.id },
+        data: {
+          status: "NEW",
+          motivation: data.motivation,
+          proposedRate: data.proposedRate ?? null,
+          availability: data.availability ?? null,
+          matchScore: match.score,
+          complianceSnapshot: JSON.stringify(match.compliance),
+        },
+      })
+    : await prisma.application.create({
+        data: {
+          jobId,
+          freelancerId: profile.id,
+          status: "NEW",
+          motivation: data.motivation,
+          proposedRate: data.proposedRate ?? null,
+          availability: data.availability ?? null,
+          matchScore: match.score,
+          complianceSnapshot: JSON.stringify(match.compliance),
+        },
+      });
 
   await audit({
     actorId: actor.id,

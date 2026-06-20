@@ -3,36 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## feat(rooster): claim direct vanuit de rooster-kalender (ZZP'er)
+## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
-De `/rooster`-kalender was read-only discovery: een open dienst linkte naar de opdrachtdetail, waar
-de ZZP'er pas kon reageren. Dit sluit de open **publiceer-/claim-kant van de Rooster-marktplaats**
-(PLAN-WERELDKLASSE Fase 3): de ZZP'er reageert nu **direct vanuit de kalender** op een open dienst en
-blijft op het overzicht. Hergebruikt exact de bestaande applicatie-/matchketen — **geen nieuwe
-entiteit, geen schemawijziging, geen nieuwe statusovergang** (de claim is een gewone `Application`,
-die downstream het ongewijzigde accepteren→voorstellen→tekenen-pad volgt).
+Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
+bleef hij als kandidaat zichtbaar bij de opdrachtgever (en kon hij niet opnieuw reageren). Nieuwe
+`WITHDRAWN`-status + freelancer-only intrek-actie, met nette afhandeling in alle afgeleide
+oppervlakken. Server-side keten (auth → rol → ownership → toegestane overgang → mutatie + audit +
+notificatie). **Geen schemawijziging** (status is een string-kolom, geen native db-enum).
 
-- [x] `src/lib/applications-create.ts` — `createApplicationForJob(actor, jobId, raw)`: één bron van
-      waarheid voor het aanmaken van een reactie (rate-limit → profiel → opdracht + tenant-zichtbaarheid
-      → dubbel-check → plan-gating → Zod → server-berekende matchscore + compliance → create → audit →
-      notificatie naar de opdrachtgever). Retourneert een discriminated `{ ok, applicationId }` /
-      `{ ok:false, error, fieldErrors }`; raakt geen Next-cache (de aanroeper doet revalidate/redirect).
-- [x] `src/app/(protected)/opdrachten/actions.ts` — `createApplication` (het reageer-formulier op de
-      opdrachtdetail) geëxtraheerd naar de gedeelde helper; ~120 r. dubbele logica weg, gedrag identiek
-      (zelfde redirect naar `/reacties`). Ongebruikt geworden imports opgeruimd.
-- [x] `src/app/(protected)/rooster/actions.ts` — `claimShift(jobId, prev, formData)`-server-action:
-      `requireRole("FREELANCER")` → gedeelde helper → bij succes `revalidatePath("/rooster")` + `{ ok }`
-      (geen navigatie weg; de kalender hertekent met de "Gereageerd"-badge).
-- [x] `src/app/(protected)/rooster/claim-shift.tsx` — `ClaimShift` (client): ingeklapte "Reageren"-knop
-      die uitklapt naar een compacte motivatie (verplicht, min. 10) + optioneel tariefvoorstel; verstuurt
-      via `useActionState`, toont veld-/algemene fouten, en een "Verstuurd"-bevestiging bij succes.
-- [x] `src/app/(protected)/rooster/page.tsx` — open-dienst-rij geherstructureerd (titel + chevron linken
-      naar de detail; claim-affordance eronder). Alleen een ZZP'er met profiel ziet de knop (`canClaim`),
-      en niet voor reeds-gereageerde diensten.
-- [x] Tests: `applications-create.test.ts` (9: happy path + notificatie/audit, rate-limit, geen profiel,
-      onbekende/niet-gepubliceerde opdracht, buiten-tenant, dubbele reactie, plan-max, te-korte motivatie).
-      Allowlist-regelnummers in `unbounded-queries.test.ts` voor `opdrachten/actions.ts` bijgewerkt (door
-      de extractie verschoven, 72→69 / 250→247).
+- [x] `src/lib/enums.ts` — `WITHDRAWN` toegevoegd aan `APPLICATION_STATUSES` (achteraan: werkstroom-
+      sortering op `/kandidaten` houdt ingetrokken reacties onderaan).
+- [x] `src/lib/applications.ts` — `WITHDRAWN: []` (terminaal voor de opdrachtgever) +
+      pure `canWithdrawApplication(from)` (alleen NEW/VIEWED/SHORTLIST). WITHDRAWN is nooit een doel
+      van een opdrachtgever-overgang.
+- [x] `src/app/(protected)/reacties/actions.ts` — `withdrawApplication(appId)`: ownership +
+      geen-samenwerking + `canWithdrawApplication`-gate; transactie status→WITHDRAWN + audit
+      (`APPLICATION_WITHDRAWN`) + notificatie naar de opdrachtgever. Intrek-knop (ConfirmButton) op
+      `/reacties`; status-hint + badge ("Ingetrokken").
+- [x] Re-apply na intrekken: `opdrachten/actions.ts` hergebruikt de bestaande rij (heropent →
+      NEW, verbruikt geen extra plan-slot); `opdrachten/[id]/page.tsx` toont weer het reageer-
+      formulier; `rooster/page.tsx` + `recommendations.ts` + `suggestions.ts` sluiten WITHDRAWN uit
+      ("Gereageerd"-badge / aanbevelingen / kandidaat-suggesties komen terug).
+- [x] Afgeleide oppervlakken sluiten WITHDRAWN correct uit/af: `application-outcomes.ts`
+      (buiten tellingen + percentage-noemers), `client-responsiveness.ts` (uit de steekproef),
+      `status-breakdown.ts` + badge + audit-labels + notificatie-categorie.
+- [x] `/kandidaten`: ingetrokken reactie toont een nette "ZZP'er heeft ingetrokken"-noot i.p.v. een
+      lege actierij; uitgesloten van de "Beste match"-etalage.
+- [x] Tests: `applications.test.ts` (+4: canWithdraw-grenzen + terminaliteit), `application-outcomes.test.ts`
+      (+3), `client-responsiveness.test.ts` (+2). Allowlist-regels `unbounded-queries.test.ts` bijgewerkt
+      (verschoven regelnummers).
 
 Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
 

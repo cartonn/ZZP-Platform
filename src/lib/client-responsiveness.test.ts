@@ -101,3 +101,23 @@ describe("computeClientResponsiveness", () => {
     expect(result.tone).toBe("unknown");
   });
 });
+
+describe("computeClientResponsiveness — WITHDRAWN", () => {
+  it("sluit ingetrokken reacties uit de steekproef uit", () => {
+    // 3 echte reacties (2 opgepakt, 1 open) + 1 ingetrokken die niet mag meetellen.
+    const rows = [row("VIEWED"), row("SHORTLIST"), row("NEW"), row("WITHDRAWN")];
+    const result = computeClientResponsiveness(rows, NOW);
+    expect(result.sampleSize).toBe(3);
+    expect(result.handled).toBe(2);
+    expect(result.pending).toBe(1);
+  });
+
+  it("telt een ingetrokken reactie niet als 'opgepakt'", () => {
+    // Zonder uitsluiting zou WITHDRAWN (status !== NEW) ten onrechte als handled meetellen.
+    const rows = [row("NEW"), row("NEW"), row("NEW"), row("WITHDRAWN")];
+    const result = computeClientResponsiveness(rows, NOW);
+    expect(result.sampleSize).toBe(3);
+    expect(result.handled).toBe(0);
+    expect(result.handledPct).toBe(0);
+  });
+});

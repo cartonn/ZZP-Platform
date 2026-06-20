@@ -204,12 +204,8 @@ portable vertrouwensdossier (#313), **Flexpool/favorieten slice 1 (ZZP2-187, com
 noot** af. Beoordelingen = **GEDAAN** (#384, 15-6): tweezijdig met double-blind reveal (simultane
 onthulling tegen vergelding) — zie PROGRESS.md-top. **Rooster-marktplaats slice 1
 (discovery)** af — `roster-market.ts` `buildRosterCalendar` + read-only `/rooster`-agenda van open
-diensten met startdatum, per dag, met matchscore. **Claim-kant GEDAAN** — de ZZP'er reageert direct
-vanuit de `/rooster`-kalender op een open dienst (`rooster/actions.ts` `claimShift` + `ClaimShift`,
-hergebruikt de nieuwe gedeelde `lib/applications-create.ts` `createApplicationForJob` waar ook het
-reageer-formulier nu op draait); een claim is een gewone `Application`, geen nieuwe entiteit/status.
-De publiceer-kant verloopt via de bestaande opdracht-/dienst-aanmaak (een Job met `startDate` ís een
-roosteritem). Fase 3 rooster-marktplaats daarmee afgerond.
+diensten met startdatum, per dag, met matchscore. Open Fase 3: de **publiceer-/claim-kant** van de
+Rooster-marktplaats (opdrachtgever dateert losse diensten; ZZP'er claimt direct vanuit de kalender).
 
 ### Review-should-fixes nachtbatch #367–#372 (15-6-2026 — geen blockers, opportunistisch)
 
@@ -264,6 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er kan eigen reactie intrekken (WITHDRAWN)** — nieuwe
+> `APPLICATION_STATUSES`-waarde `WITHDRAWN` + pure `canWithdrawApplication` (alleen NEW/VIEWED/
+> SHORTLIST, geen samenwerking); freelancer-only `withdrawApplication` server-action op `/reacties`
+> (ownership + audit `APPLICATION_WITHDRAWN` + notificatie naar de opdrachtgever). Re-apply hergebruikt
+> de bestaande rij (geen extra plan-slot); WITHDRAWN uitgesloten in outcomes-samenvatting,
+> reactiebereidheid-signaal, "Gereageerd"-badge (rooster), aanbevelingen en kandidaat-suggesties; nette
+> noot op `/kandidaten`. Geen schemawijziging; +9 unit-tests. Zie PROGRESS.md-top.
 > Gedaan (niet opnieuw): **Certificaat-impact op lopende inzet (ZZP'er)** — `freelancer-compliance.ts`
 > `linkExpiryToInzet` koppelt de vervalkalender (`summarizeExpiry`) aan de actieve samenwerkingen wier
 > verplichte certificaattypen een (bijna-)vervallend certificaat raakt; `data/freelancer-compliance.ts`

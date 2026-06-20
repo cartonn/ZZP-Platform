@@ -98,8 +98,9 @@ export default async function RoosterPage({
   const appliedJobIds = new Set<string>();
   if (profile && jobs.length > 0) {
     const jobIds = jobs.map((j) => j.id);
+    // Een ingetrokken reactie telt niet als "gereageerd": de ZZP'er kan opnieuw reageren.
     const applications = await prisma.application.findMany({
-      where: { freelancerId: profile.id, jobId: { in: jobIds } },
+      where: { freelancerId: profile.id, jobId: { in: jobIds }, status: { not: "WITHDRAWN" } },
       select: { jobId: true },
       take: 200,
     });

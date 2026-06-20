@@ -4,6 +4,7 @@ import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro, invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
+import { invoiceDueStatus } from "@/lib/invoice-due";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { Button } from "@/components/ui/button";
@@ -132,6 +133,13 @@ export async function FacturenPanel({ actor }: { actor: Actor }) {
             const displayNumber = cascade
               ? (inv.partyInvoiceNumber ?? "Concept-factuur")
               : inv.number;
+            // Real-time vervaldatum-aftelling voor een openstaande factuur; alleen tonen wanneer ze
+            // aandacht vraagt (binnenkort verschuldigd of te laat), om de lijst rustig te houden.
+            const due = invoiceDueStatus({
+              dueAt: inv.dueAt,
+              outstanding: isInvoiceOutstanding(inv),
+            });
+            const showDue = due != null && due.variant !== "muted";
             return (
               <Link
                 key={inv.id}
@@ -146,6 +154,7 @@ export async function FacturenPanel({ actor }: { actor: Actor }) {
                     ) : (
                       <InvoiceStatusBadge status={inv.status as InvoiceStatus} dueAt={inv.dueAt} />
                     )}
+                    {showDue && <Badge variant={due.variant}>{due.label}</Badge>}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
                     {isFreelancer

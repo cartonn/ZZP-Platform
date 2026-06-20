@@ -9,6 +9,7 @@ import {
   waitingSince,
 } from "@/lib/verification-queue";
 import { type DisputeHealth, disputeAgeDays, disputeUrgentThreshold } from "@/lib/disputes";
+import { type ContractSigningHealth, contractSigningStaleThreshold } from "@/lib/contract-signing";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,6 +53,7 @@ export interface PlatformStats {
   performances: PerformanceStats;
   invoices: InvoiceStats;
   verificationQueue: VerificationQueueHealth;
+  contractSigning: ContractSigningHealth;
   disputes: DisputeHealth;
 }
 
@@ -104,6 +106,9 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     pendingVerifications,
     oldestVerification,
     staleVerifications,
+    pendingContracts,
+    oldestContract,
+    staleContracts,
     openDisputes,
     oldestDispute,
     urgentDisputes,
@@ -151,6 +156,19 @@ export async function getPlatformStats(): Promise<PlatformStats> {
           { submittedAt: null, updatedAt: { lte: staleThreshold(now) } },
         ],
       },
+    }),
+    // Samenwerkingen die op contractondertekening wachten (cascade-stap A). Een PROPOSED-
+    // samenwerking is per definitie nog niet getekend (ondertekenen → status ACTIVE).
+    prisma.collaboration.count({ where: { status: "PROPOSED" } }),
+    // Langst wachtende voorgestelde samenwerking (alleen het voorstelmoment nodig).
+    prisma.collaboration.findFirst({
+      where: { status: "PROPOSED" },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
+    // Voorstellen die al te lang op ondertekening wachten (>= CONTRACT_SIGNING_STALE_DAYS).
+    prisma.collaboration.count({
+      where: { status: "PROPOSED", createdAt: { lte: contractSigningStaleThreshold(now) } },
     }),
     // Open disputen (samenwerking met disputedAt)
     prisma.collaboration.count({ where: { disputedAt: { not: null }, status: "ACTIVE" } }),
@@ -214,6 +232,11 @@ export async function getPlatformStats(): Promise<PlatformStats> {
       pending: pendingVerifications,
       oldestDays: oldestVerification ? daysWaiting(waitingSince(oldestVerification), now) : 0,
       staleCount: staleVerifications,
+    },
+    contractSigning: {
+      pending: pendingContracts,
+      oldestDays: oldestContract ? daysWaiting(oldestContract.createdAt, now) : 0,
+      staleCount: staleContracts,
     },
     disputes: {
       open: openDisputes,

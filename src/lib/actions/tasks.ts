@@ -58,7 +58,9 @@ export type PendingTask =
   | (TaskBase & { kind: "no-show-warning" })
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
   | (TaskBase & { kind: "applications-review" })
-  | (TaskBase & { kind: "draft-jobs" });
+  | (TaskBase & { kind: "draft-jobs" })
+  | (TaskBase & { kind: "franchise-credential-expiry"; profileId: string })
+  | (TaskBase & { kind: "franchise-lead-followup" });
 
 export type TaskKind = PendingTask["kind"];
 
@@ -453,5 +455,44 @@ export function draftJobsTask(count: number): PendingTask {
     priority: P.drafts,
     resolver: "link",
     href: "/opdrachten",
+  };
+}
+
+// --- Bemiddelaar (FRANCHISER) — doorlopende tenant-taken ------------------------------------------
+
+/**
+ * Eén taak per tenant-ZZP'er met geverifieerde certificaten die binnenkort verlopen — de
+ * bemiddelaar staat in voor de roster-compliance. Geaggregeerd per ZZP'er (niet per certificaat)
+ * zodat de lijst rustig blijft; deep-link naar het ZZP'er-detail om de vernieuwing op te volgen.
+ */
+export function franchiseCredentialExpiryTask(
+  profileId: string,
+  name: string,
+  count: number,
+): PendingTask {
+  return {
+    kind: "franchise-credential-expiry",
+    id: `franchise-credential-expiry:${profileId}`,
+    title: `${name}: ${plural(count, "certificaat verloopt", "certificaten verlopen")} binnenkort`,
+    subtitle: "Vraag de ZZP'er om te vernieuwen — roster-compliance",
+    tone: "attention",
+    priority: P.franchiserCredentialExpiring,
+    resolver: "link",
+    href: `/franchise/zzpers/${profileId}`,
+    profileId,
+  };
+}
+
+/** Leads waarvan de geplande opvolgdatum is verstreken (acquisitie-nudge voor de bemiddelaar). */
+export function franchiseLeadFollowupTask(count: number): PendingTask {
+  return {
+    kind: "franchise-lead-followup",
+    id: "franchise-lead-followup",
+    title: `${plural(count, "lead wacht", "leads wachten")} op opvolging`,
+    subtitle: "De geplande opvolgdatum is verstreken",
+    tone: "attention",
+    priority: P.franchiserLeadFollowup,
+    resolver: "link",
+    href: "/franchise/leads",
   };
 }

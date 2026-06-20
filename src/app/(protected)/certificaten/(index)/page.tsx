@@ -25,6 +25,8 @@ import { computeTrustLevel } from "@/lib/trust";
 import { summarizeExpiry } from "@/lib/credential-expiry-overview";
 import { linkExpiryToInzet } from "@/lib/freelancer-compliance";
 import { getActiveCollaborationRequirements } from "@/lib/data/freelancer-compliance";
+import { computeCredentialDemand } from "@/lib/credential-demand";
+import { getCredentialDemandRequirements } from "@/lib/data/freelancer-credential-demand";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { dossierShareToken, shareTokenSecret } from "@/lib/share-token";
 import { plural } from "@/lib/plural";
@@ -32,6 +34,7 @@ import { TrustExplanation } from "@/components/trust/trust-explanation";
 import { MandatoryDocuments } from "@/components/credentials/mandatory-documents";
 import { ExpiryOverviewCard } from "@/components/credentials/expiry-overview-card";
 import { InzetImpactCard } from "@/components/credentials/inzet-impact-card";
+import { CredentialDemandCard } from "@/components/credentials/credential-demand-card";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -144,6 +147,18 @@ export default async function CertificatenPage() {
     profile ? await getActiveCollaborationRequirements(actor.id) : [],
   );
 
+  // Gevraagde certificaten die de ZZP'er nog mist: welke verplichte certificaattypen vragen de open
+  // opdrachten die hij mag zien, maar heeft hij nog niet geverifieerd — gerangschikt op het aantal
+  // opdrachten dat elk type zou ontsluiten. Verklaarbare matching als next-action. Server-side waarheid.
+  const credentialDemand = computeCredentialDemand(
+    profile ? await getCredentialDemandRequirements(actor.id) : [],
+    credentials.map((c) => ({
+      type: c.type as CredentialType,
+      status: c.status as CredentialStatus,
+      expiresAt: c.expiresAt,
+    })),
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -212,6 +227,8 @@ export default async function CertificatenPage() {
       <ExpiryOverviewCard overview={expiryOverview} />
 
       <InzetImpactCard impact={inzetImpact} />
+
+      <CredentialDemandCard demand={credentialDemand} />
 
       {credentials.length === 0 ? (
         <Card>

@@ -17,8 +17,18 @@ import {
   summarizeConversationTurns,
   type ConversationTurn,
 } from "@/lib/conversation-turn";
+import {
+  conversationFilterParams,
+  countConversations,
+  filterConversations,
+  parseConversationFilter,
+  type ConversationFilterStatus,
+  type FilterableConversation,
+} from "@/lib/conversation-filter";
 
 export const metadata: Metadata = { title: "Berichten · ZZP Platform" };
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function relativeTime(d: Date): string {
   const diff = Date.now() - d.getTime();
@@ -30,8 +40,9 @@ function relativeTime(d: Date): string {
   return formatDateShortNl(d);
 }
 
-export default async function BerichtenPage() {
+export default async function BerichtenPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await requireActor();
+  const filter = parseConversationFilter(await searchParams);
 
   // Alleen het laatste bericht meeladen; ongelezen tellen we per conversatie met een
   // goedkope COUNT (niet alle berichten ophalen) — perf-fix Sessie 9.
@@ -86,6 +97,24 @@ export default async function BerichtenPage() {
   );
   const hasSignal = summary.awaitingYou > 0 || summary.awaitingThem > 0;
 
+  // Filter + zoeken (server-side, via de URL). De rijen dragen het al-berekende aan-zet-
+  // signaal + de tegenpartij/opdrachttitel zodat de pure filter erop kan matchen.
+  type Row = FilterableConversation & { conversation: (typeof conversations)[number] };
+  const rows: Row[] = conversations.map((c) => ({
+    conversation: c,
+    turn: turnByConversation.get(c.id)?.turn ?? "none",
+    otherName: c.participants.find((p) => p.user.id !== actor.id)?.user.name ?? "Onbekend",
+    jobTitle: c.job?.title ?? null,
+  }));
+  const counts = countConversations(rows, filter.query);
+  const visibleRows = filterConversations(rows, filter);
+
+  const filterTabs: { key: ConversationFilterStatus; label: string; count: number }[] = [
+    { key: "all", label: "Alle", count: counts.all },
+    { key: "awaiting-you", label: "Wacht op jou", count: counts.awaitingYou },
+    { key: "awaiting-them", label: "Wacht op antwoord", count: counts.awaitingThem },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader title="Berichten" description="Je gesprekken met opdrachtgevers en ZZP'ers." />
@@ -115,51 +144,102 @@ export default async function BerichtenPage() {
           />
         </Card>
       ) : (
-        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {conversations.map((c) => {
-            const other = c.participants.find((p) => p.user.id !== actor.id);
-            const last = c.messages[0];
-            const unread = unreadByConversation.get(c.id) ?? 0;
-            const turnInfo = turnByConversation.get(c.id);
-            return (
-              <Link
-                key={c.id}
-                href={`/berichten/${c.id}`}
-                className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <p className="truncate text-sm font-medium">{other?.user.name ?? "Onbekend"}</p>
-                    {unread > 0 ? (
-                      <Badge variant="default" className="shrink-0">
-                        {unread} nieuw
-                      </Badge>
-                    ) : (
-                      turnInfo?.turn === "theirs" && (
-                        <Badge variant="muted" className="shrink-0">
-                          {turnInfo.staleDays > 0
-                            ? staleLabel(turnInfo.staleDays)
-                            : "Wacht op antwoord"}
-                        </Badge>
-                      )
-                    )}
-                  </div>
-                  {c.job && (
-                    <p className="truncate text-xs text-muted-foreground">Over: {c.job.title}</p>
-                  )}
-                  {last && (
-                    <>
-                      <p className="truncate text-xs text-muted-foreground">{last.body}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {relativeTime(last.createdAt)}
-                      </p>
-                    </>
-                  )}
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        <>
+          {/* Filter (aan zet) + zoeken — server-side via de URL, deelbaar/herlaadbaar. */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              {filterTabs.map((tab) => {
+                const active = filter.status === tab.key;
+                return (
+                  <Link
+                    key={tab.key}
+                    href={`/berichten${conversationFilterParams({ status: tab.key, query: filter.query })}`}
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      active
+                        ? "border-border bg-foreground text-background"
+                        : "border-border bg-card text-foreground hover:bg-accent"
+                    }`}
+                  >
+                    {tab.label} ({tab.count})
+                  </Link>
+                );
+              })}
+            </div>
+            <form method="get" action="/berichten" className="flex items-center gap-2">
+              {filter.status !== "all" && (
+                <input type="hidden" name="status" value={filter.status} />
+              )}
+              <input
+                type="search"
+                name="q"
+                defaultValue={filter.query}
+                placeholder="Zoek op naam of opdracht"
+                aria-label="Zoek in gesprekken"
+                className="h-8 w-full rounded-md border border-border bg-card px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring sm:w-56"
+              />
+            </form>
+          </div>
+
+          {visibleRows.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={MessageSquare}
+                title="Geen gesprekken in deze selectie"
+                description="Pas het filter of de zoekterm aan om meer gesprekken te zien."
+              />
+            </Card>
+          ) : (
+            <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+              {visibleRows.map(({ conversation: c }) => {
+                const other = c.participants.find((p) => p.user.id !== actor.id);
+                const last = c.messages[0];
+                const unread = unreadByConversation.get(c.id) ?? 0;
+                const turnInfo = turnByConversation.get(c.id);
+                return (
+                  <Link
+                    key={c.id}
+                    href={`/berichten/${c.id}`}
+                    className="card-interactive flex items-center justify-between gap-4 px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="truncate text-sm font-medium">
+                          {other?.user.name ?? "Onbekend"}
+                        </p>
+                        {unread > 0 ? (
+                          <Badge variant="default" className="shrink-0">
+                            {unread} nieuw
+                          </Badge>
+                        ) : (
+                          turnInfo?.turn === "theirs" && (
+                            <Badge variant="muted" className="shrink-0">
+                              {turnInfo.staleDays > 0
+                                ? staleLabel(turnInfo.staleDays)
+                                : "Wacht op antwoord"}
+                            </Badge>
+                          )
+                        )}
+                      </div>
+                      {c.job && (
+                        <p className="truncate text-xs text-muted-foreground">
+                          Over: {c.job.title}
+                        </p>
+                      )}
+                      {last && (
+                        <>
+                          <p className="truncate text-xs text-muted-foreground">{last.body}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {relativeTime(last.createdAt)}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
