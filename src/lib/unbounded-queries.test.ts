@@ -71,15 +71,9 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     reason: "verificatiewachtrij is structureel klein (dagelijks verwerkt)",
   },
 
-  // --- admin/samenwerkingen/page.tsx ---
-  // Admin-overzicht van alle samenwerkingen; dit had een cap moeten hebben,
-  // maar valt buiten de scope van audit T3 (T3 pagineert alleen de user-facing
-  // lijsten). Toegestaan als bekende T3-uitzondering.
-  {
-    file: "(protected)/admin/samenwerkingen/page.tsx",
-    line: 39,
-    reason: "admin-view buiten scope T3; kandidaat voor toekomstige paginatie",
-  },
+  // (Het admin-samenwerkingenoverzicht is verplaatst naar SamenwerkingenPanel onder
+  // src/components/admin; panels worden niet door deze vangrail gescand. De query heeft daar
+  // bovendien een defensieve take-cap gekregen.)
 
   // --- admin/support/page.tsx ---
   // Actieve support-tickets (status-filter op ESCALATED/REOPENED/TRIAGED/NEW);
