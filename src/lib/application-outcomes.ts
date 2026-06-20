@@ -49,7 +49,12 @@ export function summarizeApplicationOutcomes(
   let seen = 0;
   let collaborations = 0;
 
-  for (const app of applications) {
+  // Door de ZZP'er ingetrokken reacties zeggen niets over zijn aantrekkelijkheid op de markt: ze
+  // worden volledig buiten de samenvatting (en de percentage-noemers) gehouden, zodat een eigen
+  // intrekking het responspercentage of de acceptatiegraad niet vertekent.
+  const active = applications.filter((app) => app.status !== "WITHDRAWN");
+
+  for (const app of active) {
     if (app.status !== "NEW") seen += 1;
     if (app.hasCollaboration) collaborations += 1;
     switch (app.status) {
@@ -70,7 +75,7 @@ export function summarizeApplicationOutcomes(
     }
   }
 
-  const total = applications.length;
+  const total = active.length;
   const decided = accepted + rejected;
 
   return {

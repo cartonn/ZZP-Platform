@@ -10,6 +10,7 @@ const MAP: Record<
   SHORTLIST: { label: "Shortlist", variant: "warning" },
   ACCEPTED: { label: "Geaccepteerd", variant: "success" },
   REJECTED: { label: "Afgewezen", variant: "danger" },
+  WITHDRAWN: { label: "Ingetrokken", variant: "muted" },
 };
 
 export function ApplicationStatusBadge({ status }: { status: ApplicationStatus }) {
@@ -23,4 +24,5 @@ export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
   SHORTLIST: "Shortlist",
   ACCEPTED: "Geaccepteerd",
   REJECTED: "Afgewezen",
+  WITHDRAWN: "Ingetrokken",
 };
