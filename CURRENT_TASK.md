@@ -260,6 +260,11 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Sorteeropties op de ZZP'er-browse (`/freelancers`, opdrachtgever)** — pure
+> `sortFreelancers` in `lib/freelancer-search.ts` (relevance/available/trust/track-record/rate-asc/
+> rate-desc) over de reeds server-berekende kaartdata + sorteer-`Select` in `freelancer-browse.tsx`;
+> deterministische naam→id-tiebreaker, "geen tarief" altijd achteraan, muteert de invoer niet; +8
+> unit-tests; read-only, geen schemawijziging, geen extra query.
 > Gedaan (niet opnieuw): **ZZP'er kan eigen reactie intrekken (WITHDRAWN)** — nieuwe
 > `APPLICATION_STATUSES`-waarde `WITHDRAWN` + pure `canWithdrawApplication` (alleen NEW/VIEWED/
 > SHORTLIST, geen samenwerking); freelancer-only `withdrawApplication` server-action op `/reacties`
