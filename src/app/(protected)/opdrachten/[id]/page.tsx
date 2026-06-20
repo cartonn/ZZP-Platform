@@ -155,6 +155,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         where: { jobId_freelancerId: { jobId: job.id, freelancerId: profile.id } },
         select: { status: true, matchScore: true, complianceSnapshot: true },
       });
+      // Een ingetrokken reactie telt voor de UI als "nog niet gereageerd": de ZZP'er ziet weer het
+      // reageer-formulier en zijn aansluiting, en kan opnieuw reageren (server hergebruikt de rij).
+      if (myApplication?.status === "WITHDRAWN") myApplication = null;
       if (!myApplication && status === "PUBLISHED") {
         const routedTravelMinutesToJob =
           profile.maxTravelMinutes != null &&

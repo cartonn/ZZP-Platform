@@ -3,34 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: stale-dispuut-escalatie-reminder
+## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
-Een open dispuut bevriest de hele facturatiecascade (§4 zijpad: geen factuur-goedkeuring, geen
-betaling, geen afronding tot opgelost), maar kende — anders dan álle andere cascade-stalls
-(`performance-approval-reminders`, `concept-invoice-reminders`, `payment-reminders`) — **geen
-actieve nudge**. Disputen stonden alleen passief op `/admin/statistieken` (`DisputeHealth`). Deze
-taak sluit dat gat als spiegel van `performance-approval-reminders`. Read-only t.o.v. de cascade,
-**geen schemawijziging, geen geldstroom, geen cascade-mutatie**.
+Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
+bleef hij als kandidaat zichtbaar bij de opdrachtgever (en kon hij niet opnieuw reageren). Nieuwe
+`WITHDRAWN`-status + freelancer-only intrek-actie, met nette afhandeling in alle afgeleide
+oppervlakken. Server-side keten (auth → rol → ownership → toegestane overgang → mutatie + audit +
+notificatie). **Geen schemawijziging** (status is een string-kolom, geen native db-enum).
 
-- [x] `src/lib/dispute-reminders.ts` — pure `planDisputeReminders(candidates, now)`: voor elke
-      samenwerking met een open dispuut (`disputedAt != null`, niet CANCELLED) op een
-      herinneringsdag (`REMINDERS.disputeReminderDays = [3, 7]`) een herinnering naar **béíde
-      partijen** (ZZP'er + opdrachtgever — beiden zijn geblokkeerd); ná de laatste dag (> 7) een
-      escalatie naar het platform. `disputeAgeDays` lokaal (leaf-module, geen prisma-import).
-      dedupeKey per (collaboratie, ontvanger, dag) resp. per collaboratie; muteert de invoer niet.
-- [x] `src/lib/dispute-reminders-task.ts` — plan/apply-runner (idempotent via DomainEvent dedupeKey),
-      schrijft per herinnering atomair een `DISPUTE_REMINDER`-event + in-app notificatie
-      (`/samenwerkingen/[id]`) + auditregel; bij escalatie een `DISPUTE_ESCALATION`-event +
-      notificatie naar alle actieve admins (`/admin/disputen`) + audit. Begrensde queries (take: 500).
-- [x] `src/lib/events.ts` — nieuwe `DomainEventType`s `DISPUTE_REMINDER` + `DISPUTE_ESCALATION`;
-      `src/lib/event-stream.ts` — NL-labels + zijpad-categorie. `src/lib/config.ts` — `disputeReminderDays`.
-- [x] `src/app/api/tasks/run-all/route.ts` — taak `dispute-reminders` gewired ná
-      `performance-approval-reminders`.
-- [x] Tests: `dispute-reminders.test.ts` (12: leeftijd, beide-partijen op dag 3/7, tussendag geen
-      nudge, escalatie >7 / niet exact op 7, geen-dispuut/CANCELLED weglaten, dedupeKey-vorm,
-      no-mutation + ongesorteerde input, tekstinhoud).
+- [x] `src/lib/enums.ts` — `WITHDRAWN` toegevoegd aan `APPLICATION_STATUSES` (achteraan: werkstroom-
+      sortering op `/kandidaten` houdt ingetrokken reacties onderaan).
+- [x] `src/lib/applications.ts` — `WITHDRAWN: []` (terminaal voor de opdrachtgever) +
+      pure `canWithdrawApplication(from)` (alleen NEW/VIEWED/SHORTLIST). WITHDRAWN is nooit een doel
+      van een opdrachtgever-overgang.
+- [x] `src/app/(protected)/reacties/actions.ts` — `withdrawApplication(appId)`: ownership +
+      geen-samenwerking + `canWithdrawApplication`-gate; transactie status→WITHDRAWN + audit
+      (`APPLICATION_WITHDRAWN`) + notificatie naar de opdrachtgever. Intrek-knop (ConfirmButton) op
+      `/reacties`; status-hint + badge ("Ingetrokken").
+- [x] Re-apply na intrekken: `opdrachten/actions.ts` hergebruikt de bestaande rij (heropent →
+      NEW, verbruikt geen extra plan-slot); `opdrachten/[id]/page.tsx` toont weer het reageer-
+      formulier; `rooster/page.tsx` + `recommendations.ts` + `suggestions.ts` sluiten WITHDRAWN uit
+      ("Gereageerd"-badge / aanbevelingen / kandidaat-suggesties komen terug).
+- [x] Afgeleide oppervlakken sluiten WITHDRAWN correct uit/af: `application-outcomes.ts`
+      (buiten tellingen + percentage-noemers), `client-responsiveness.ts` (uit de steekproef),
+      `status-breakdown.ts` + badge + audit-labels + notificatie-categorie.
+- [x] `/kandidaten`: ingetrokken reactie toont een nette "ZZP'er heeft ingetrokken"-noot i.p.v. een
+      lege actierij; uitgesloten van de "Beste match"-etalage.
+- [x] Tests: `applications.test.ts` (+4: canWithdraw-grenzen + terminaliteit), `application-outcomes.test.ts`
+      (+3), `client-responsiveness.test.ts` (+2). Allowlist-regels `unbounded-queries.test.ts` bijgewerkt
+      (verschoven regelnummers).
 
-Gate groen: typecheck ✓, lint ✓, test **2309** ✓, build ✓, `prettier --check .` ✓.
+Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
 
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 

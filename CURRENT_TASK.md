@@ -260,13 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
-> Gedaan (niet opnieuw): **Stale-dispuut-escalatie-reminder** — `lib/dispute-reminders.ts`
-> `planDisputeReminders` (pure) + `lib/dispute-reminders-task.ts` `runDisputeReminderTask` (plan/apply,
-> idempotent via DomainEvent dedupeKey, gewired in `run-all`): een open dispuut bevriest de cascade maar
-> had geen actieve nudge (stond alleen passief op `/admin/statistieken`). Herinnert nu béíde partijen
-> (dag 3/7) en escaleert daarna naar de admins — spiegel van `performance-approval-reminders`. Nieuwe
-> `DISPUTE_REMINDER`/`DISPUTE_ESCALATION`-eventtypes + `REMINDERS.disputeReminderDays`; 12 unit-tests;
-> read-only t.o.v. de cascade, geen schemawijziging, geen geldstroom.
+> Gedaan (niet opnieuw): **ZZP'er kan eigen reactie intrekken (WITHDRAWN)** — nieuwe
+> `APPLICATION_STATUSES`-waarde `WITHDRAWN` + pure `canWithdrawApplication` (alleen NEW/VIEWED/
+> SHORTLIST, geen samenwerking); freelancer-only `withdrawApplication` server-action op `/reacties`
+> (ownership + audit `APPLICATION_WITHDRAWN` + notificatie naar de opdrachtgever). Re-apply hergebruikt
+> de bestaande rij (geen extra plan-slot); WITHDRAWN uitgesloten in outcomes-samenvatting,
+> reactiebereidheid-signaal, "Gereageerd"-badge (rooster), aanbevelingen en kandidaat-suggesties; nette
+> noot op `/kandidaten`. Geen schemawijziging; +9 unit-tests. Zie PROGRESS.md-top.
 > Gedaan (niet opnieuw): **Certificaat-impact op lopende inzet (ZZP'er)** — `freelancer-compliance.ts`
 > `linkExpiryToInzet` koppelt de vervalkalender (`summarizeExpiry`) aan de actieve samenwerkingen wier
 > verplichte certificaattypen een (bijna-)vervallend certificaat raakt; `data/freelancer-compliance.ts`
