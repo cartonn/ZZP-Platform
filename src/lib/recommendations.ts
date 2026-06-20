@@ -54,6 +54,18 @@ export function topMatches(
     .slice(0, opts.limit);
 }
 
+/**
+ * Pure: sluit de bekeken opdracht uit de aanbevelingen en begrens. Testbaar zonder DB.
+ * (Een ZZP'er die opdracht X bekijkt, krijgt X niet als "soortgelijke opdracht" terug.)
+ */
+export function excludeAndLimit(
+  matches: readonly JobMatch[],
+  excludeJobId: string,
+  limit: number,
+): JobMatch[] {
+  return matches.filter((m) => m.jobId !== excludeJobId).slice(0, limit);
+}
+
 /** Best passende gepubliceerde opdrachten voor een ZZP'er waarop hij nog niet reageerde. */
 export async function recommendedJobs(userId: string, limit = 4): Promise<JobMatch[]> {
   const profile = await prisma.freelancerProfile.findUnique({
@@ -108,4 +120,19 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
     });
 
   return topMatches(scored, { minScore: MATCH_MIN_SCORE, limit });
+}
+
+/**
+ * Soortgelijke open opdrachten voor de ZZP'er die opdracht `excludeJobId` bekijkt: dezelfde
+ * verklaarbare matchmotor als `recommendedJobs`, maar zonder de opdracht die hij nu open heeft.
+ * We vragen er één extra op zodat we, ná het uitsluiten van de bekeken opdracht, alsnog `limit`
+ * suggesties kunnen tonen.
+ */
+export async function relatedJobsForFreelancer(
+  userId: string,
+  excludeJobId: string,
+  limit = 3,
+): Promise<JobMatch[]> {
+  const matches = await recommendedJobs(userId, limit + 1);
+  return excludeAndLimit(matches, excludeJobId, limit);
 }

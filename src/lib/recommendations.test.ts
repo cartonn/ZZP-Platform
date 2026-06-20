@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type JobMatch, topMatches } from "./recommendations";
+import { excludeAndLimit, type JobMatch, topMatches } from "./recommendations";
 
 const m = (jobId: string, score: number): JobMatch => ({
   jobId,
@@ -34,5 +34,26 @@ describe("topMatches", () => {
       limit: 10,
     });
     expect(out.map((x) => x.availability)).toEqual(["LIMITED"]);
+  });
+});
+
+describe("excludeAndLimit", () => {
+  it("sluit de bekeken opdracht uit en behoudt de volgorde", () => {
+    const out = excludeAndLimit([m("a", 90), m("b", 85), m("c", 80)], "b", 3);
+    expect(out.map((x) => x.jobId)).toEqual(["a", "c"]);
+  });
+
+  it("begrenst op limit ná het uitsluiten", () => {
+    const out = excludeAndLimit([m("a", 90), m("b", 85), m("c", 80), m("d", 75)], "a", 2);
+    expect(out.map((x) => x.jobId)).toEqual(["b", "c"]);
+  });
+
+  it("is een no-op wanneer de uit te sluiten opdracht ontbreekt", () => {
+    const out = excludeAndLimit([m("a", 90), m("b", 85)], "zzz", 5);
+    expect(out.map((x) => x.jobId)).toEqual(["a", "b"]);
+  });
+
+  it("geeft een lege lijst voor een lege invoer", () => {
+    expect(excludeAndLimit([], "a", 3)).toEqual([]);
   });
 });

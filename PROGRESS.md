@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: soortgelijke open opdrachten op de opdracht-detail (ZZP'er)
+
+De opdracht-detailpagina (`/opdrachten/[id]`) toonde de ZZP'er wél zijn eigen aansluiting op déze
+opdracht, maar geen route naar de volgende: hij moest terug naar de lijst om verder te ontdekken. Nu
+ziet een ZZP'er die een gepubliceerde opdracht bekijkt onderaan **soortgelijke open opdrachten** die
+bij zijn profiel passen — dezelfde server-berekende, verklaarbare matchmotor (`recommendedJobs`), met
+de bekeken opdracht uitgesloten. Drijft ontdekking/liquiditeit (concurrentie-rode-draad) zónder
+nieuwe rekenlogica. Read-only, **geen schemawijziging, geen mutatie, geen extra ongebonden query**.
+
+- [x] `src/lib/recommendations.ts` — pure `excludeAndLimit(matches, excludeJobId, limit)` (sluit de
+      bekeken opdracht uit, behoudt de score-volgorde, begrenst) + `relatedJobsForFreelancer(userId,
+    excludeJobId, limit=3)`: hergebruikt `recommendedJobs` (één extra opgevraagd zodat na uitsluiten
+      alsnog `limit` overblijven). Geen nieuwe query of scoringslogica.
+- [x] `src/components/jobs/related-jobs-section.tsx` — `RelatedJobsSection`: compacte sectie (titel,
+      opdrachtgever + sterkste matchreden, match% + `MatchMeter`) in dezelfde stijl als "Geschikte
+      ZZP'ers"; verbergt zich zonder suggesties. Doorklik naar de opdracht.
+- [x] `src/app/(protected)/opdrachten/[id]/page.tsx` — laadt `relatedJobsForFreelancer` alleen voor een
+      niet-eigenaar FREELANCER op een PUBLISHED-opdracht; rendert de sectie onderaan.
+- [x] Tests: `recommendations.test.ts` (+4 voor `excludeAndLimit`: uitsluiten/volgorde/limit-ná-uitsluiten/
+      ontbrekend-id/leeg).
+
+Gate groen: typecheck ✓, lint ✓, test **2301** ✓ (+4), build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
