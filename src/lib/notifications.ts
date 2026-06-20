@@ -54,6 +54,7 @@ const META: Record<string, NotificationMeta> = {
   INVOICE_DRAFT_ESCALATION: { category: "invoice", tone: "attention" },
   JOB_MATCH: { category: "system", tone: "info" },
   JOB_COLD: { category: "system", tone: "attention" }, // opdracht koud: weinig respons, vraagt actie
+  APPLICATION_WITHDRAWN: { category: "system", tone: "info" }, // ZZP'er trok zijn reactie in
   POOL_INVITE: { category: "collaboration", tone: "attention" },
 };
 

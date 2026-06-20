@@ -54,8 +54,11 @@ export function computeClientResponsiveness(
   rows: ResponseRow[],
   now: Date = new Date(),
 ): ClientResponsiveness {
-  const sampleSize = rows.length;
-  const pendingRows = rows.filter((r) => r.status === "NEW");
+  // Een door de ZZP'er ingetrokken reactie zegt niets over de bereidheid van de opdrachtgever en zou
+  // (omdat de status niet meer NEW is) ten onrechte als "opgepakt" meetellen — daarom uit de steekproef.
+  const considered = rows.filter((r) => r.status !== "WITHDRAWN");
+  const sampleSize = considered.length;
+  const pendingRows = considered.filter((r) => r.status === "NEW");
   const pending = pendingRows.length;
   const handled = sampleSize - pending;
 

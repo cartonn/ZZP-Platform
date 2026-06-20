@@ -138,3 +138,41 @@ describe("summarizeApplicationOutcomes", () => {
     expect(input).toHaveLength(2);
   });
 });
+
+describe("summarizeApplicationOutcomes — WITHDRAWN", () => {
+  it("sluit ingetrokken reacties volledig uit de tellingen uit", () => {
+    const out = summarizeApplicationOutcomes([
+      app("ACCEPTED"),
+      app("REJECTED"),
+      app("WITHDRAWN"),
+      app("WITHDRAWN"),
+    ]);
+    expect(out.total).toBe(2);
+    expect(out.accepted).toBe(1);
+    expect(out.rejected).toBe(1);
+    expect(out.seen).toBe(2);
+  });
+
+  it("vertekent het responspercentage niet (noemer telt WITHDRAWN niet mee)", () => {
+    // 4 actieve reacties, alle minstens bekeken => 100%; de twee WITHDRAWN tellen niet mee.
+    const out = summarizeApplicationOutcomes([
+      app("VIEWED"),
+      app("SHORTLIST"),
+      app("ACCEPTED"),
+      app("REJECTED"),
+      app("WITHDRAWN"),
+      app("WITHDRAWN"),
+    ]);
+    expect(out.total).toBe(4);
+    expect(out.responseRate).toBe(100);
+    // decided (accepted+rejected) = 2 < default minSample (4) → geen misleidend percentage.
+    expect(out.acceptanceRate).toBeNull();
+  });
+
+  it("een lijst met enkel ingetrokken reacties geeft nullen + null-percentages", () => {
+    const out = summarizeApplicationOutcomes([app("WITHDRAWN"), app("WITHDRAWN")]);
+    expect(out.total).toBe(0);
+    expect(out.responseRate).toBeNull();
+    expect(out.acceptanceRate).toBeNull();
+  });
+});

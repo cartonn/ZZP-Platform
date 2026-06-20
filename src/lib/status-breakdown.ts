@@ -25,6 +25,7 @@ export const APPLICATION_SEGMENTS: StatusSegmentConfig[] = [
   { status: "SHORTLIST", label: "Shortlist", tone: "warning" },
   { status: "ACCEPTED", label: "Geaccepteerd", tone: "success" },
   { status: "REJECTED", label: "Afgewezen", tone: "danger" },
+  { status: "WITHDRAWN", label: "Ingetrokken", tone: "default" },
 ];
 
 export interface DonutDatum {
