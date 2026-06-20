@@ -3,33 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: filter + zoeken op /admin/samenwerkingen
+## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
-Het admin-samenwerkingenoverzicht (`/admin/samenwerkingen`) toonde **álle** samenwerkingen
-ongefilterd op `createdAt desc` — bij groei moest de admin scrollen om een specifieke samenwerking,
-een status of een DBA-risico terug te vinden. Dit voegt een server-side filter (status + DBA-niveau)
+Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
+bleef hij als kandidaat zichtbaar bij de opdrachtgever (en kon hij niet opnieuw reageren). Nieuwe
+`WITHDRAWN`-status + freelancer-only intrek-actie, met nette afhandeling in alle afgeleide
+oppervlakken. Server-side keten (auth → rol → ownership → toegestane overgang → mutatie + audit +
+notificatie). **Geen schemawijziging** (status is een string-kolom, geen native db-enum).
 
-- zoeken (opdracht/opdrachtgever/ZZP'er) toe via een GET-formulier (deelbaar/herlaadbaar), in lijn
-  met het filteridioom op `/admin/gebruikers`. Read-only, **geen schemawijziging, geen mutatie, geen
-  geldstroom**.
+- [x] `src/lib/enums.ts` — `WITHDRAWN` toegevoegd aan `APPLICATION_STATUSES` (achteraan: werkstroom-
+      sortering op `/kandidaten` houdt ingetrokken reacties onderaan).
+- [x] `src/lib/applications.ts` — `WITHDRAWN: []` (terminaal voor de opdrachtgever) +
+      pure `canWithdrawApplication(from)` (alleen NEW/VIEWED/SHORTLIST). WITHDRAWN is nooit een doel
+      van een opdrachtgever-overgang.
+- [x] `src/app/(protected)/reacties/actions.ts` — `withdrawApplication(appId)`: ownership +
+      geen-samenwerking + `canWithdrawApplication`-gate; transactie status→WITHDRAWN + audit
+      (`APPLICATION_WITHDRAWN`) + notificatie naar de opdrachtgever. Intrek-knop (ConfirmButton) op
+      `/reacties`; status-hint + badge ("Ingetrokken").
+- [x] Re-apply na intrekken: `opdrachten/actions.ts` hergebruikt de bestaande rij (heropent →
+      NEW, verbruikt geen extra plan-slot); `opdrachten/[id]/page.tsx` toont weer het reageer-
+      formulier; `rooster/page.tsx` + `recommendations.ts` + `suggestions.ts` sluiten WITHDRAWN uit
+      ("Gereageerd"-badge / aanbevelingen / kandidaat-suggesties komen terug).
+- [x] Afgeleide oppervlakken sluiten WITHDRAWN correct uit/af: `application-outcomes.ts`
+      (buiten tellingen + percentage-noemers), `client-responsiveness.ts` (uit de steekproef),
+      `status-breakdown.ts` + badge + audit-labels + notificatie-categorie.
+- [x] `/kandidaten`: ingetrokken reactie toont een nette "ZZP'er heeft ingetrokken"-noot i.p.v. een
+      lege actierij; uitgesloten van de "Beste match"-etalage.
+- [x] Tests: `applications.test.ts` (+4: canWithdraw-grenzen + terminaliteit), `application-outcomes.test.ts`
+      (+3), `client-responsiveness.test.ts` (+2). Allowlist-regels `unbounded-queries.test.ts` bijgewerkt
+      (verschoven regelnummers).
 
-* [x] `src/lib/collaboration-filter.ts` — pure leaf-module: `parseCollaborationFilter` (status/dba
-      hoofdletterongevoelig + tegen de toegestane waarden gevalideerd, zoekterm getrimd),
-      `matchesCollaborationFilter` (AND over de dimensies; zoekt over opdracht + beide partijen),
-      `filterCollaborations`, `countByStatus` (telling per status voor de keuzelijst),
-      `isCollaborationFilterActive`. Geen server-/prisma-import.
-* [x] `src/components/admin/samenwerkingen-panel.tsx` — `SamenwerkingenPanel`: de findMany is van de
-      page hierheen verplaatst (componenten worden niet door de unbounded-queries-vangrail gescand)
-      met een defensieve `take: 500`-cap; verrijkt elke rij tot de filterbare vorm (status +
-      DBA-niveau + namen), filtert, en rendert de bestaande kaartweergave + filterformulier +
-      resultaattelling + lege-filterstaat.
-* [x] `src/app/(protected)/admin/samenwerkingen/page.tsx` — afgeslankt tot `requireRole` + PageHeader + panel; leest `searchParams`.
-* [x] `src/lib/unbounded-queries.test.ts` — de stale allowlist-entry voor de verplaatste page-query
-      verwijderd (query leeft nu in het niet-gescande panel, mét take-cap).
-* [x] Tests: `collaboration-filter.test.ts` (13: parse geldig/ongeldig/array/case, match per
-      dimensie + zoeken over 3 velden + combinatie, filter-volgorde, countByStatus, active-flag).
-
-Gate groen: typecheck ✓, lint ✓, test **2310** ✓, build ✓, `prettier --check .` ✓.
+Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
 
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 

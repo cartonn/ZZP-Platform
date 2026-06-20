@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  APPLICATION_TRANSITIONS,
   ApplicationTransitionError,
   assertApplicationTransition,
   canApply,
   canTransitionApplication,
+  canWithdrawApplication,
   planBulkApplicationTransition,
   type BulkTransitionItem,
 } from "@/lib/applications";
@@ -91,5 +93,31 @@ describe("planBulkApplicationTransition", () => {
     const plan = planBulkApplicationTransition(items, "REJECTED");
     expect(plan.eligible).toEqual(["n", "v", "s"]);
     expect(plan.skipped).toEqual(["a"]);
+  });
+});
+
+describe("canWithdrawApplication", () => {
+  it("staat intrekken toe vóór een beslissing van de opdrachtgever", () => {
+    expect(canWithdrawApplication("NEW")).toBe(true);
+    expect(canWithdrawApplication("VIEWED")).toBe(true);
+    expect(canWithdrawApplication("SHORTLIST")).toBe(true);
+  });
+
+  it("weigert intrekken na een beslissing of een eerdere intrekking", () => {
+    expect(canWithdrawApplication("ACCEPTED")).toBe(false);
+    expect(canWithdrawApplication("REJECTED")).toBe(false);
+    expect(canWithdrawApplication("WITHDRAWN")).toBe(false);
+  });
+});
+
+describe("WITHDRAWN-status", () => {
+  it("is terminaal voor de opdrachtgever (geen uitgaande overgangen)", () => {
+    expect(APPLICATION_TRANSITIONS.WITHDRAWN).toEqual([]);
+  });
+
+  it("is nooit een doel van een opdrachtgever-overgang", () => {
+    for (const targets of Object.values(APPLICATION_TRANSITIONS)) {
+      expect(targets).not.toContain("WITHDRAWN");
+    }
   });
 });
