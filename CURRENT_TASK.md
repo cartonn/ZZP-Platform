@@ -260,14 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
-> Gedaan (niet opnieuw): **Open-urenstaat-herinnering (ZZP'er)** (PR #465) — `performance-submission-reminders.ts`
-> `planPerformanceSubmissionReminders` (pure) + `…-task.ts` `runPerformanceSubmissionReminderTask`
-> (plan/apply, idempotent via DomainEvent dedupeKey, gewired in `run-all`): nudge naar de ZZP'er
-> wanneer een lopende uurtarief-inzet al 7/14 dagen geen nieuwe ingediende prestatie heeft en er niets
-> meer in concept/ter beoordeling staat. Vult het gat vóór Event B1 — spiegel van
-> `concept-invoice-reminders` (ná B2) en `performance-approval-reminders`. Nieuw `DomainEventType`
-> `PERFORMANCE_REMINDER` + label/zijpad-categorie; `REMINDERS.performanceSubmissionDays=[7,14]`;
-> in-app notificatie, geen schemawijziging, geen geldstroom; 11 unit-tests.
+> Gedaan (niet opnieuw): **ZZP'er kan eigen reactie intrekken (WITHDRAWN)** — nieuwe
+> `APPLICATION_STATUSES`-waarde `WITHDRAWN` + pure `canWithdrawApplication` (alleen NEW/VIEWED/
+> SHORTLIST, geen samenwerking); freelancer-only `withdrawApplication` server-action op `/reacties`
+> (ownership + audit `APPLICATION_WITHDRAWN` + notificatie naar de opdrachtgever). Re-apply hergebruikt
+> de bestaande rij (geen extra plan-slot); WITHDRAWN uitgesloten in outcomes-samenvatting,
+> reactiebereidheid-signaal, "Gereageerd"-badge (rooster), aanbevelingen en kandidaat-suggesties; nette
+> noot op `/kandidaten`. Geen schemawijziging; +9 unit-tests. Zie PROGRESS.md-top.
 > Gedaan (niet opnieuw): **Certificaat-impact op lopende inzet (ZZP'er)** — `freelancer-compliance.ts`
 > `linkExpiryToInzet` koppelt de vervalkalender (`summarizeExpiry`) aan de actieve samenwerkingen wier
 > verplichte certificaattypen een (bijna-)vervallend certificaat raakt; `data/freelancer-compliance.ts`
