@@ -26,6 +26,8 @@ export const DOMAIN_EVENT_TYPES = [
   "PERFORMANCE_REMINDER", //     herinnering: open urenstaat nog niet ingediend (reminder-engine)
   "INVOICE_CREDITED", //         zijpad: creditfactuur
   "DISPUTE_OPENED", //           zijpad: dispuut/escalatie
+  "DISPUTE_REMINDER", //         herinnering aan beide partijen dat het dispuut de cascade bevriest
+  "DISPUTE_ESCALATION", //       escalatie naar de admins na de laatste dispuut-herinnering
   "DISPUTE_RESOLVED", //         dispuut opgelost (cascade weer vrij)
   "PLATFORM_FEE_INVOICED", //    F  (optioneel, default uit)
   "DBA_SIGNAL_RAISED", //        DBA-monitoring (§6)

@@ -17,6 +17,7 @@ import { runMonitorTask } from "@/lib/monitoring/monitor-task";
 import { runZzpMembershipTask } from "@/lib/zzp-membership-task";
 import { runPerformanceGraceTask } from "@/lib/performance-grace-task";
 import { runPerformanceApprovalReminderTask } from "@/lib/performance-approval-reminders-task";
+import { runDisputeReminderTask } from "@/lib/dispute-reminders-task";
 import { runPerformanceSubmissionReminderTask } from "@/lib/performance-submission-reminders-task";
 import { runNotificationDigestTask } from "@/lib/notification-digest-task";
 import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
@@ -52,6 +53,7 @@ export async function POST(request: Request): Promise<Response> {
       name: "performance-approval-reminders",
       fn: () => runPerformanceApprovalReminderTask({ actorId: null }),
     },
+    { name: "dispute-reminders", fn: () => runDisputeReminderTask({ actorId: null }) },
     {
       name: "performance-submission-reminders",
       fn: () => runPerformanceSubmissionReminderTask({ actorId: null }),

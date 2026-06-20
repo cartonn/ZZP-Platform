@@ -128,6 +128,13 @@ export const REMINDERS = {
    */
   performanceApprovalDays: [3, 7] as const,
   /**
+   * Open dispuut (zijpad §4): zolang een dispuut openstaat is de facturatiecascade bevroren.
+   * Herinneringsdagen ná het openen van het dispuut naar béíde partijen; na de laatste dag
+   * escaleert het platform naar de admins voor bemiddeling. Zonder nudge blijft de cascade
+   * (en dus de betaling) eindeloos bevroren.
+   */
+  disputeReminderDays: [3, 7] as const,
+  /**
    * Open urenstaat: een lopende uurtarief-samenwerking waarvan de laatst ingediende prestatie al dit
    * aantal dagen geleden is en er niets meer in concept/ter beoordeling staat. Herinnert de ZZP'er om
    * de volgende urenstaat in te dienen zodat de facturatiecascade niet stilvalt (stap vóór Event B1).

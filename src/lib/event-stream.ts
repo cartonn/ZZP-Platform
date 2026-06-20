@@ -27,6 +27,8 @@ const DOMAIN_EVENT_LABELS: Record<DomainEventType, string> = {
   PERFORMANCE_REMINDER: "Urenstaat-herinnering verstuurd",
   INVOICE_CREDITED: "Creditfactuur opgemaakt",
   DISPUTE_OPENED: "Dispuut geopend",
+  DISPUTE_REMINDER: "Dispuut-herinnering verstuurd",
+  DISPUTE_ESCALATION: "Dispuut geëscaleerd",
   DISPUTE_RESOLVED: "Dispuut opgelost",
   PLATFORM_FEE_INVOICED: "Platformfee gefactureerd",
   DBA_SIGNAL_RAISED: "DBA-signaal geconstateerd",
@@ -74,6 +76,8 @@ const SIDE_PATH_TYPES = new Set<DomainEventType>([
   "PERFORMANCE_REMINDER",
   "INVOICE_CREDITED",
   "DISPUTE_OPENED",
+  "DISPUTE_REMINDER",
+  "DISPUTE_ESCALATION",
   "DISPUTE_RESOLVED",
   "PLATFORM_FEE_INVOICED",
 ]);
