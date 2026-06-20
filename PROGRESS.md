@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: filter + zoeken op /berichten
+
+De berichtenlijst (`/berichten`) toonde tot nu toe álle gesprekken op `updatedAt desc` met een
+aan-zet-signaal per rij, maar **geen manier om te filteren of zoeken**. Bij veel gesprekken moest de
+gebruiker scrollen om "wacht op jou", een specifieke tegenpartij of een opdracht terug te vinden. Dit
+voegt een server-side filter (aan-zet-status) + zoeken (naam/opdracht) toe via de URL-searchParams
+(deelbaar/herlaadbaar), in lijn met de filter-pills op `/admin/facturatie` en `/admin/dba`.
+
+- [x] `src/lib/conversation-filter.ts` — pure leaf-module: `parseConversationFilter` (status tegen
+      `CONVERSATION_FILTER_STATUSES` gevalideerd, zoekterm getrimd + lowercase), `filterConversations`
+      (status `all`/`awaiting-you`/`awaiting-them` × zoekterm op tegenpartij-naam + opdrachttitel,
+      ordebehoudend, geen mutatie), `countConversations` (tellingen per status binnen de zoekscope voor
+      de pills) en `conversationFilterParams` (canonieke `?status=…&q=…`-suffix, default weggelaten).
+      Hergebruikt `ConversationTurn` uit `conversation-turn.ts`.
+- [x] `src/app/(protected)/berichten/(index)/page.tsx` — leest `searchParams`, mapt de al opgehaalde
+      gesprekken op `{ turn, otherName, jobTitle }`, rendert drie filter-pills (Alle / Wacht op jou /
+      Wacht op antwoord, met telling) + een GET-zoekformulier (status behouden via hidden field), en
+      toont de gefilterde set met een nette "geen gesprekken in deze selectie"-empty-state. De
+      bestaande aan-zet-samenvattingsstrip blijft globaal.
+- [x] `src/lib/conversation-filter.test.ts` — 20 tests (parse-defaults/herhaalde param, status- +
+      zoekfilter + combinatie, no-mutation, tellingen binnen scope, param-bouw).
+
+Read-only, **geen schemawijziging, geen mutatie, geen extra query** — filtert de reeds geladen set.
+Gate groen: typecheck ✓, lint ✓, test **2317** (+20) ✓, build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
