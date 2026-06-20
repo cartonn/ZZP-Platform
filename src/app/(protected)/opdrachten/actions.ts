@@ -1,20 +1,17 @@
 "use server";
 
-import { applicationRateLimiter } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertOwnership, AuthorizationError, requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { canApply } from "@/lib/applications";
+import { createApplicationForJob } from "@/lib/applications-create";
 import { assessDbaRisk } from "@/lib/dba";
 import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs";
-import { scoreJobForFreelancer } from "@/lib/matching";
-import { estimateTravelMinutesWithRouting } from "@/lib/services/routing";
-import { canViewJob } from "@/lib/tenancy";
 import { planPoolInvites, type PoolMember } from "@/lib/pool-routing";
 import { type Availability, type JobStatus, jobStatusSchema } from "@/lib/enums";
-import { applicationSchema, jobSchema } from "@/lib/validation";
+import { jobSchema } from "@/lib/validation";
 
 export type JobFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -326,136 +323,12 @@ export async function createApplication(
     throw e;
   }
 
-  // Reactie-rem: begrens massa-reageren per ZZP'er (spam richting opdrachtgevers).
-  if (!applicationRateLimiter.check(`apply:${actor.id}`).allowed) {
-    return { error: "Te veel reacties kort achter elkaar. Probeer het later opnieuw." };
-  }
-
-  const profile = await prisma.freelancerProfile.findUnique({
-    where: { userId: actor.id },
-    include: {
-      skills: true,
-      credentials: { select: { type: true, status: true, expiresAt: true } },
-    },
-  });
-  if (!profile) return { error: "Maak eerst je profiel aan." };
-
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: {
-      skills: true,
-      credentialRequirements: true,
-      company: { select: { userId: true } },
-      tenant: { select: { openOverflow: true } },
-    },
-  });
-  if (!job) return { error: "Opdracht niet gevonden." };
-  if (job.status !== "PUBLISHED")
-    return { error: "Je kunt alleen op gepubliceerde opdrachten reageren." };
-  // Tenant-zichtbaarheid: een tenant-dienst is alleen reageerbaar voor de eigen roster (of als de
-  // franchise hem heeft opengesteld via overflow). Niet alleen op de detailpagina afdwingen.
-  if (!canViewJob(actor, job)) return { error: "Deze opdracht is niet zichtbaar voor jou." };
-
-  // Een eerder ingetrokken reactie blokkeert niet: de ZZP'er mag opnieuw reageren. De bestaande rij
-  // (unieke jobId+freelancerId) wordt dan hergebruikt en heropend i.p.v. een tweede te maken.
-  const existing = await prisma.application.findUnique({
-    where: { jobId_freelancerId: { jobId, freelancerId: profile.id } },
-    select: { id: true, status: true },
-  });
-  if (existing && existing.status !== "WITHDRAWN") {
-    return { error: "Je hebt al op deze opdracht gereageerd." };
-  }
-
-  // Plan-gating (server-side) alleen bij een echt nieuwe reactie. Het heropenen van een eerder
-  // ingetrokken reactie hergebruikt een bestaande rij en verbruikt dus geen extra plan-slot (die rij
-  // telt al mee in `count`).
-  if (!existing) {
-    // Zonder abonnement geldt het FREE-plan.
-    const [count, subscription, freePlan] = await Promise.all([
-      prisma.application.count({ where: { freelancerId: profile.id } }),
-      prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
-      prisma.plan.findUnique({ where: { key: "FREE" } }),
-    ]);
-    // Alleen een ACTIEF abonnement telt; anders geldt het FREE-plan (CLAUDE.md regel 1).
-    const activePlanMax =
-      subscription?.status === "ACTIVE" ? subscription.plan.maxApplications : undefined;
-    const maxApplications = activePlanMax ?? freePlan?.maxApplications ?? 5;
-    if (!canApply(maxApplications, count)) {
-      return {
-        error: `Je hebt het maximum aantal reacties (${maxApplications}) van je plan bereikt. Upgrade je abonnement voor meer reacties.`,
-      };
-    }
-  }
-
-  const parsed = applicationSchema.safeParse({
+  const result = await createApplicationForJob(actor, jobId, {
     motivation: formData.get("motivation"),
     proposedRate: formData.get("proposedRate") ?? "",
     availability: formData.get("availability") || undefined,
   });
-  if (!parsed.success) {
-    const flat = parsed.error.flatten().fieldErrors;
-    const fieldErrors: Record<string, string> = {};
-    for (const [k, v] of Object.entries(flat)) if (v && v[0]) fieldErrors[k] = v[0];
-    return { error: "Controleer de ingevoerde gegevens.", fieldErrors };
-  }
-  const data = parsed.data;
-
-  // Server-berekende matchscore + compliance-snapshot (CLAUDE.md regel 1). Echte routed reistijd
-  // (Geoapify) als provider actief is; anders de offline schatting — beide via één seam.
-  const routedTravelMinutesToJob =
-    profile.maxTravelMinutes != null &&
-    profile.maxTravelMinutes > 0 &&
-    profile.workMode !== "REMOTE" &&
-    job.workMode !== "REMOTE"
-      ? await estimateTravelMinutesWithRouting(profile.location, job.location)
-      : null;
-  const match = scoreJobForFreelancer(job, { ...profile, routedTravelMinutesToJob });
-
-  // Heropen een eerder ingetrokken reactie (zelfde rij) of maak een nieuwe aan. Beide krijgen verse
-  // motivatie/tarief + een opnieuw berekende matchscore en compliance-snapshot.
-  const application = existing
-    ? await prisma.application.update({
-        where: { id: existing.id },
-        data: {
-          status: "NEW",
-          motivation: data.motivation,
-          proposedRate: data.proposedRate ?? null,
-          availability: data.availability ?? null,
-          matchScore: match.score,
-          complianceSnapshot: JSON.stringify(match.compliance),
-        },
-      })
-    : await prisma.application.create({
-        data: {
-          jobId,
-          freelancerId: profile.id,
-          status: "NEW",
-          motivation: data.motivation,
-          proposedRate: data.proposedRate ?? null,
-          availability: data.availability ?? null,
-          matchScore: match.score,
-          complianceSnapshot: JSON.stringify(match.compliance),
-        },
-      });
-
-  await audit({
-    actorId: actor.id,
-    action: "APPLICATION_CREATED",
-    entityType: "Application",
-    entityId: application.id,
-    metadata: { jobId, matchScore: match.score, compliance: match.compliance.status },
-  });
-
-  // Meld de nieuwe reactie aan de opdrachtgever.
-  await prisma.notification.create({
-    data: {
-      userId: job.company.userId,
-      type: "APPLICATION_RECEIVED",
-      title: "Nieuwe reactie",
-      body: `Nieuwe reactie op "${job.title}".`,
-      link: "/kandidaten",
-    },
-  });
+  if (!result.ok) return { error: result.error, fieldErrors: result.fieldErrors };
 
   revalidatePath("/reacties");
   revalidatePath(`/opdrachten/${jobId}`);
