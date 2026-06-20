@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: categorie-/ongelezen-filter op /notificaties
+
+De notificatielijst (`/notificaties`) toonde tot 100 meldingen gegroepeerd op dag, met een
+categorie-icoon per rij, maar **geen manier om te filteren**: bij veel meldingen moest de gebruiker
+scrollen om een categorie (facturen, certificaten, …) of enkel de ongelezen te vinden. Dit voegt een
+server-side filter toe via de URL-searchParams (deelbaar/herlaadbaar), in lijn met de bestaande
+filter-pills op `/admin/facturatie`. Read-only, **geen schemawijziging, geen mutatie, geen extra query**
+(filtert de al opgehaalde set; de tellingen blijven over álle meldingen).
+
+- [x] `src/lib/notification-filter.ts` — pure helpers: `parseNotificationFilter(searchParams)`
+      (categorie tegen `NOTIFICATION_CATEGORIES` gevalideerd, `status=ongelezen`), `filterNotifications`
+      (categorie + alleen-ongelezen, behoudt volgorde, muteert niet), `summarizeNotifications`
+      (totaal/ongelezen + per aanwezige categorie in canonieke volgorde), `unreadInScope`
+      (ongelezen binnen de huidige categorie-scope), `notificationFilterParams` (link-params, laat
+      standaardwaarden weg). Leaf-module, geen server-only imports.
+- [x] `src/app/(protected)/notificaties/page.tsx` — leest de filter uit `searchParams`, twee pill-rijen
+      (categorie met telling + alle/alleen-ongelezen-toggle), filtert de groepering vandaag/eerder,
+      nette "geen meldingen in deze selectie"-staat; de "terwijl je weg was"-banner verbergt zich onder
+      een actief filter. `FilterPill` hergebruikt de bestaande accent-actieve-stijl.
+- [x] Tests: `notification-filter.test.ts` (15: parse/fallback/array-param, filter per categorie incl.
+      system-fallback, alleen-ongelezen, combinatie, no-mutation, summarize-volgorde/leeg, scope-unread,
+      link-params). Gate groen: typecheck ✓, lint ✓, test **2312** ✓, build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
