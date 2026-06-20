@@ -144,7 +144,8 @@ export async function suggestedFreelancersForJob(
     include: {
       skills: { include: { skill: { select: { name: true } } } },
       credentialRequirements: true,
-      applications: { select: { freelancerId: true } },
+      // Ingetrokken reacties uitsluiten: zo'n ZZP'er mag weer als suggestie verschijnen.
+      applications: { where: { status: { not: "WITHDRAWN" } }, select: { freelancerId: true } },
     },
   });
   if (!job || job.status !== "PUBLISHED") return [];

@@ -43,6 +43,7 @@ const ACTION_LABEL: Record<ApplicationStatus, string> = {
   SHORTLIST: "Shortlist",
   ACCEPTED: "Accepteren",
   REJECTED: "Afwijzen",
+  WITHDRAWN: "Ingetrokken", // nooit een actieknop (geen overgangen), label voor de volledigheid
 };
 
 export default async function KandidatenPage() {
@@ -104,7 +105,7 @@ export default async function KandidatenPage() {
   // belangrijkste reden, want geen enkele concurrent toont leesbare match-redenen aan de beslisser.
   const best =
     [...applications]
-      .filter((a) => a.status !== "REJECTED" && a.matchScore != null)
+      .filter((a) => a.status !== "REJECTED" && a.status !== "WITHDRAWN" && a.matchScore != null)
       .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0] ?? null;
   const bestReason = best
     ? topPositiveReason(scoreJobForFreelancer(best.job, best.freelancer).reasons)
@@ -309,33 +310,39 @@ export default async function KandidatenPage() {
                     })()}
                   </div>
 
-                  <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                    {APPLICATION_TRANSITIONS[status].map((to) =>
-                      to === "REJECTED" ? (
-                        <ConfirmButton
-                          key={to}
-                          action={changeApplicationStatus.bind(null, app.id, to)}
-                          triggerVariant="destructive"
-                          size="sm"
-                          title="Reactie afwijzen?"
-                          description="De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist."
-                          confirmLabel="Afwijzen"
-                        >
-                          {ACTION_LABEL[to]}
-                        </ConfirmButton>
-                      ) : (
-                        <form key={to} action={changeApplicationStatus.bind(null, app.id, to)}>
-                          <Button
-                            type="submit"
+                  {status === "WITHDRAWN" ? (
+                    <p className="border-t border-border pt-3 text-sm text-muted-foreground">
+                      De ZZP&apos;er heeft deze reactie ingetrokken.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+                      {APPLICATION_TRANSITIONS[status].map((to) =>
+                        to === "REJECTED" ? (
+                          <ConfirmButton
+                            key={to}
+                            action={changeApplicationStatus.bind(null, app.id, to)}
+                            triggerVariant="destructive"
                             size="sm"
-                            variant={to === "ACCEPTED" ? "primary" : "secondary"}
+                            title="Reactie afwijzen?"
+                            description="De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist."
+                            confirmLabel="Afwijzen"
                           >
                             {ACTION_LABEL[to]}
-                          </Button>
-                        </form>
-                      ),
-                    )}
-                  </div>
+                          </ConfirmButton>
+                        ) : (
+                          <form key={to} action={changeApplicationStatus.bind(null, app.id, to)}>
+                            <Button
+                              type="submit"
+                              size="sm"
+                              variant={to === "ACCEPTED" ? "primary" : "secondary"}
+                            >
+                              {ACTION_LABEL[to]}
+                            </Button>
+                          </form>
+                        ),
+                      )}
+                    </div>
+                  )}
 
                   <ApplicationNoteForm appId={app.id} defaultNote={app.note ?? ""} />
 

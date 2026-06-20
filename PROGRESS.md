@@ -3,28 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: categorie-/ongelezen-filter op /notificaties
+## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
-De notificatielijst (`/notificaties`) toonde tot 100 meldingen gegroepeerd op dag, met een
-categorie-icoon per rij, maar **geen manier om te filteren**: bij veel meldingen moest de gebruiker
-scrollen om een categorie (facturen, certificaten, …) of enkel de ongelezen te vinden. Dit voegt een
-server-side filter toe via de URL-searchParams (deelbaar/herlaadbaar), in lijn met de bestaande
-filter-pills op `/admin/facturatie`. Read-only, **geen schemawijziging, geen mutatie, geen extra query**
-(filtert de al opgehaalde set; de tellingen blijven over álle meldingen).
+Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
+bleef hij als kandidaat zichtbaar bij de opdrachtgever (en kon hij niet opnieuw reageren). Nieuwe
+`WITHDRAWN`-status + freelancer-only intrek-actie, met nette afhandeling in alle afgeleide
+oppervlakken. Server-side keten (auth → rol → ownership → toegestane overgang → mutatie + audit +
+notificatie). **Geen schemawijziging** (status is een string-kolom, geen native db-enum).
 
-- [x] `src/lib/notification-filter.ts` — pure helpers: `parseNotificationFilter(searchParams)`
-      (categorie tegen `NOTIFICATION_CATEGORIES` gevalideerd, `status=ongelezen`), `filterNotifications`
-      (categorie + alleen-ongelezen, behoudt volgorde, muteert niet), `summarizeNotifications`
-      (totaal/ongelezen + per aanwezige categorie in canonieke volgorde), `unreadInScope`
-      (ongelezen binnen de huidige categorie-scope), `notificationFilterParams` (link-params, laat
-      standaardwaarden weg). Leaf-module, geen server-only imports.
-- [x] `src/app/(protected)/notificaties/page.tsx` — leest de filter uit `searchParams`, twee pill-rijen
-      (categorie met telling + alle/alleen-ongelezen-toggle), filtert de groepering vandaag/eerder,
-      nette "geen meldingen in deze selectie"-staat; de "terwijl je weg was"-banner verbergt zich onder
-      een actief filter. `FilterPill` hergebruikt de bestaande accent-actieve-stijl.
-- [x] Tests: `notification-filter.test.ts` (15: parse/fallback/array-param, filter per categorie incl.
-      system-fallback, alleen-ongelezen, combinatie, no-mutation, summarize-volgorde/leeg, scope-unread,
-      link-params). Gate groen: typecheck ✓, lint ✓, test **2312** ✓, build ✓, `prettier --check .` ✓.
+- [x] `src/lib/enums.ts` — `WITHDRAWN` toegevoegd aan `APPLICATION_STATUSES` (achteraan: werkstroom-
+      sortering op `/kandidaten` houdt ingetrokken reacties onderaan).
+- [x] `src/lib/applications.ts` — `WITHDRAWN: []` (terminaal voor de opdrachtgever) +
+      pure `canWithdrawApplication(from)` (alleen NEW/VIEWED/SHORTLIST). WITHDRAWN is nooit een doel
+      van een opdrachtgever-overgang.
+- [x] `src/app/(protected)/reacties/actions.ts` — `withdrawApplication(appId)`: ownership +
+      geen-samenwerking + `canWithdrawApplication`-gate; transactie status→WITHDRAWN + audit
+      (`APPLICATION_WITHDRAWN`) + notificatie naar de opdrachtgever. Intrek-knop (ConfirmButton) op
+      `/reacties`; status-hint + badge ("Ingetrokken").
+- [x] Re-apply na intrekken: `opdrachten/actions.ts` hergebruikt de bestaande rij (heropent →
+      NEW, verbruikt geen extra plan-slot); `opdrachten/[id]/page.tsx` toont weer het reageer-
+      formulier; `rooster/page.tsx` + `recommendations.ts` + `suggestions.ts` sluiten WITHDRAWN uit
+      ("Gereageerd"-badge / aanbevelingen / kandidaat-suggesties komen terug).
+- [x] Afgeleide oppervlakken sluiten WITHDRAWN correct uit/af: `application-outcomes.ts`
+      (buiten tellingen + percentage-noemers), `client-responsiveness.ts` (uit de steekproef),
+      `status-breakdown.ts` + badge + audit-labels + notificatie-categorie.
+- [x] `/kandidaten`: ingetrokken reactie toont een nette "ZZP'er heeft ingetrokken"-noot i.p.v. een
+      lege actierij; uitgesloten van de "Beste match"-etalage.
+- [x] Tests: `applications.test.ts` (+4: canWithdraw-grenzen + terminaliteit), `application-outcomes.test.ts`
+      (+3), `client-responsiveness.test.ts` (+2). Allowlist-regels `unbounded-queries.test.ts` bijgewerkt
+      (verschoven regelnummers).
+
+Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
 
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
