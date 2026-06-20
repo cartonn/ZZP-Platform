@@ -3,28 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: soortgelijke open opdrachten op de opdracht-detail (ZZP'er)
+## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
-De opdracht-detailpagina (`/opdrachten/[id]`) toonde de ZZP'er wél zijn eigen aansluiting op déze
-opdracht, maar geen route naar de volgende: hij moest terug naar de lijst om verder te ontdekken. Nu
-ziet een ZZP'er die een gepubliceerde opdracht bekijkt onderaan **soortgelijke open opdrachten** die
-bij zijn profiel passen — dezelfde server-berekende, verklaarbare matchmotor (`recommendedJobs`), met
-de bekeken opdracht uitgesloten. Drijft ontdekking/liquiditeit (concurrentie-rode-draad) zónder
-nieuwe rekenlogica. Read-only, **geen schemawijziging, geen mutatie, geen extra ongebonden query**.
+Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
+bleef hij als kandidaat zichtbaar bij de opdrachtgever (en kon hij niet opnieuw reageren). Nieuwe
+`WITHDRAWN`-status + freelancer-only intrek-actie, met nette afhandeling in alle afgeleide
+oppervlakken. Server-side keten (auth → rol → ownership → toegestane overgang → mutatie + audit +
+notificatie). **Geen schemawijziging** (status is een string-kolom, geen native db-enum).
 
-- [x] `src/lib/recommendations.ts` — pure `excludeAndLimit(matches, excludeJobId, limit)` (sluit de
-      bekeken opdracht uit, behoudt de score-volgorde, begrenst) + `relatedJobsForFreelancer(userId,
-    excludeJobId, limit=3)`: hergebruikt `recommendedJobs` (één extra opgevraagd zodat na uitsluiten
-      alsnog `limit` overblijven). Geen nieuwe query of scoringslogica.
-- [x] `src/components/jobs/related-jobs-section.tsx` — `RelatedJobsSection`: compacte sectie (titel,
-      opdrachtgever + sterkste matchreden, match% + `MatchMeter`) in dezelfde stijl als "Geschikte
-      ZZP'ers"; verbergt zich zonder suggesties. Doorklik naar de opdracht.
-- [x] `src/app/(protected)/opdrachten/[id]/page.tsx` — laadt `relatedJobsForFreelancer` alleen voor een
-      niet-eigenaar FREELANCER op een PUBLISHED-opdracht; rendert de sectie onderaan.
-- [x] Tests: `recommendations.test.ts` (+4 voor `excludeAndLimit`: uitsluiten/volgorde/limit-ná-uitsluiten/
-      ontbrekend-id/leeg).
+- [x] `src/lib/enums.ts` — `WITHDRAWN` toegevoegd aan `APPLICATION_STATUSES` (achteraan: werkstroom-
+      sortering op `/kandidaten` houdt ingetrokken reacties onderaan).
+- [x] `src/lib/applications.ts` — `WITHDRAWN: []` (terminaal voor de opdrachtgever) +
+      pure `canWithdrawApplication(from)` (alleen NEW/VIEWED/SHORTLIST). WITHDRAWN is nooit een doel
+      van een opdrachtgever-overgang.
+- [x] `src/app/(protected)/reacties/actions.ts` — `withdrawApplication(appId)`: ownership +
+      geen-samenwerking + `canWithdrawApplication`-gate; transactie status→WITHDRAWN + audit
+      (`APPLICATION_WITHDRAWN`) + notificatie naar de opdrachtgever. Intrek-knop (ConfirmButton) op
+      `/reacties`; status-hint + badge ("Ingetrokken").
+- [x] Re-apply na intrekken: `opdrachten/actions.ts` hergebruikt de bestaande rij (heropent →
+      NEW, verbruikt geen extra plan-slot); `opdrachten/[id]/page.tsx` toont weer het reageer-
+      formulier; `rooster/page.tsx` + `recommendations.ts` + `suggestions.ts` sluiten WITHDRAWN uit
+      ("Gereageerd"-badge / aanbevelingen / kandidaat-suggesties komen terug).
+- [x] Afgeleide oppervlakken sluiten WITHDRAWN correct uit/af: `application-outcomes.ts`
+      (buiten tellingen + percentage-noemers), `client-responsiveness.ts` (uit de steekproef),
+      `status-breakdown.ts` + badge + audit-labels + notificatie-categorie.
+- [x] `/kandidaten`: ingetrokken reactie toont een nette "ZZP'er heeft ingetrokken"-noot i.p.v. een
+      lege actierij; uitgesloten van de "Beste match"-etalage.
+- [x] Tests: `applications.test.ts` (+4: canWithdraw-grenzen + terminaliteit), `application-outcomes.test.ts`
+      (+3), `client-responsiveness.test.ts` (+2). Allowlist-regels `unbounded-queries.test.ts` bijgewerkt
+      (verschoven regelnummers).
 
-Gate groen: typecheck ✓, lint ✓, test **2301** ✓ (+4), build ✓, `prettier --check .` ✓.
+Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
 
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 

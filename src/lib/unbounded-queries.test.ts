@@ -31,7 +31,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // --- reacties/page.tsx ---
   // Reacties zijn altijd van één freelancer; groei is lineair en in de praktijk
   // beperkt (een ZZP'er heeft doorgaans < 100 actieve reacties).
-  { file: "(protected)/reacties/page.tsx", line: 54, reason: "eigenaar-scoped, inherent begrensd" },
+  { file: "(protected)/reacties/page.tsx", line: 58, reason: "eigenaar-scoped, inherent begrensd" },
 
   // (De boekhoud-findMany van /administratie is verplaatst naar de BoekhoudingPanel onder
   // src/components/administratie; panels worden niet door deze vangrail gescand.)
@@ -54,7 +54,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Certificaten van één freelancer; dit zijn er typisch < 20 per persoon.
   {
     file: "(protected)/certificaten/(index)/page.tsx",
-    line: 68,
+    line: 71,
     reason: "eigenaar-scoped, inherent begrensd tot persoonlijk certificaatdossier",
   },
 
@@ -71,15 +71,9 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     reason: "verificatiewachtrij is structureel klein (dagelijks verwerkt)",
   },
 
-  // --- admin/samenwerkingen/page.tsx ---
-  // Admin-overzicht van alle samenwerkingen; dit had een cap moeten hebben,
-  // maar valt buiten de scope van audit T3 (T3 pagineert alleen de user-facing
-  // lijsten). Toegestaan als bekende T3-uitzondering.
-  {
-    file: "(protected)/admin/samenwerkingen/page.tsx",
-    line: 39,
-    reason: "admin-view buiten scope T3; kandidaat voor toekomstige paginatie",
-  },
+  // (Het admin-samenwerkingenoverzicht is verplaatst naar SamenwerkingenPanel onder
+  // src/components/admin; panels worden niet door deze vangrail gescand. De query heeft daar
+  // bovendien een defensieve take-cap gekregen.)
 
   // --- admin/support/page.tsx ---
   // Actieve support-tickets (status-filter op ESCALATED/REOPENED/TRIAGED/NEW);
@@ -419,7 +413,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Kandidaten (freelancers) voor een opdrachtgever; gefilterd en beperkt door matching.
   {
     file: "(protected)/kandidaten/page.tsx",
-    line: 51,
+    line: 52,
     reason: "kandidaten-matching; volume beperkt door filter",
   },
 

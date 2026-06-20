@@ -12,8 +12,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { OutcomesSummary } from "@/components/applications/outcomes-summary";
 import { ComplianceBadge } from "@/components/compliance-badge";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { summarizeApplicationOutcomes } from "@/lib/application-outcomes";
+import { canWithdrawApplication } from "@/lib/applications";
 import { type ApplicationStatus, type CredentialType, type CredentialStatus } from "@/lib/enums";
+import { withdrawApplication } from "./actions";
 
 export const metadata: Metadata = { title: "Mijn reacties · ZZP Platform" };
 
@@ -24,6 +27,7 @@ const STATUS_HINT: Record<ApplicationStatus, string> = {
   SHORTLIST: "Je staat op de shortlist — je wordt mogelijk benaderd.",
   ACCEPTED: "Geaccepteerd! Houd je berichten in de gaten voor een samenwerkingsvoorstel.",
   REJECTED: "Deze keer niet geselecteerd. Reageer gerust op andere opdrachten.",
+  WITHDRAWN: "Je hebt deze reactie ingetrokken.",
 };
 
 // Zodra er een samenwerking is, volgt de hint de actuele samenwerkingsstatus i.p.v. een vaste tekst.
@@ -106,53 +110,72 @@ export default async function ReactiesPage() {
               ? (COLLAB_HINT[app.collaboration.status] ??
                 "Samenwerking gestart — bekijk het werkproces.")
               : STATUS_HINT[app.status as ApplicationStatus];
+            // De ZZP'er kan zijn reactie intrekken zolang de opdrachtgever nog geen beslissing nam en
+            // er geen samenwerking uit voortkwam. Server-side blijft dit de waarheid (zie actions.ts).
+            const canWithdraw =
+              !app.collaboration && canWithdrawApplication(app.status as ApplicationStatus);
             return (
-              <Link
-                key={app.id}
-                href={
-                  app.collaboration
-                    ? `/samenwerkingen/${app.collaboration.id}`
-                    : `/opdrachten/${app.job.id}`
-                }
-                className="card-interactive block rounded-lg border border-border bg-card p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{app.job.title}</p>
-                    <p className="text-sm text-muted-foreground">{app.job.company.name}</p>
+              <div key={app.id} className="rounded-lg border border-border bg-card p-4">
+                <Link
+                  href={
+                    app.collaboration
+                      ? `/samenwerkingen/${app.collaboration.id}`
+                      : `/opdrachten/${app.job.id}`
+                  }
+                  className="block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{app.job.title}</p>
+                      <p className="text-sm text-muted-foreground">{app.job.company.name}</p>
+                    </div>
+                    <ApplicationStatusBadge status={app.status as ApplicationStatus} />
                   </div>
-                  <ApplicationStatusBadge status={app.status as ApplicationStatus} />
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {app.matchScore != null && (
-                    <Badge variant="accent">Match {app.matchScore}%</Badge>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {app.matchScore != null && (
+                      <Badge variant="accent">Match {app.matchScore}%</Badge>
+                    )}
+                    {compliance && <ComplianceBadge status={compliance.status} />}
+                  </div>
+                  {compliance && compliance.status !== "COMPLIANT" && (
+                    <p className="mt-1.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      {compliance.missing.length > 0 && (
+                        <span className="text-danger">
+                          Je mist:{" "}
+                          {compliance.missing.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                        </span>
+                      )}
+                      {compliance.expired.length > 0 && (
+                        <span className="text-danger">
+                          Verlopen:{" "}
+                          {compliance.expired.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                        </span>
+                      )}
+                      {compliance.inReview.length > 0 && (
+                        <span className="text-warning">
+                          In beoordeling:{" "}
+                          {compliance.inReview.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                        </span>
+                      )}
+                    </p>
                   )}
-                  {compliance && <ComplianceBadge status={compliance.status} />}
-                </div>
-                {compliance && compliance.status !== "COMPLIANT" && (
-                  <p className="mt-1.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                    {compliance.missing.length > 0 && (
-                      <span className="text-danger">
-                        Je mist:{" "}
-                        {compliance.missing.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
-                      </span>
-                    )}
-                    {compliance.expired.length > 0 && (
-                      <span className="text-danger">
-                        Verlopen:{" "}
-                        {compliance.expired.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
-                      </span>
-                    )}
-                    {compliance.inReview.length > 0 && (
-                      <span className="text-warning">
-                        In beoordeling:{" "}
-                        {compliance.inReview.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
-                      </span>
-                    )}
-                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
+                </Link>
+                {canWithdraw && (
+                  <div className="mt-3 flex justify-end border-t border-border pt-3">
+                    <ConfirmButton
+                      action={withdrawApplication.bind(null, app.id)}
+                      triggerVariant="ghost"
+                      size="xs"
+                      title="Reactie intrekken?"
+                      description="Je reactie verdwijnt uit de selectie van de opdrachtgever. Je kunt later opnieuw op deze opdracht reageren."
+                      confirmLabel="Intrekken"
+                    >
+                      Reactie intrekken
+                    </ConfirmButton>
+                  </div>
                 )}
-                <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
-              </Link>
+              </div>
             );
           })}
         </div>

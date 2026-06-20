@@ -63,6 +63,9 @@ export const P = {
   franchiserFirstService: 80, // opdrachtgever(s), maar nog geen enkele dienst uitgezet
   franchiserRoster: 70, // nog geen ZZP'ers in het roster
   franchiserClientsWithoutService: 40, // opdrachtgever(s) zonder diensten (doorlopende nudge)
+  // Franchiser-operationeel: doorlopende tenant-taken zodra de franchise draait (item-niveau).
+  franchiserCredentialExpiring: 70, // roster-certificaat van een tenant-ZZP'er verloopt binnenkort
+  franchiserLeadFollowup: 50, // lead met verstreken geplande opvolgdatum
 } as const;
 
 export interface FreelancerActionInput {

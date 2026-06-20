@@ -23,6 +23,7 @@ export const DOMAIN_EVENT_TYPES = [
   "PAYMENT_CONFIRMED", //        E  (ontvangst bevestigd)
   "PAYMENT_OVERDUE", //          zijpad: betaling te laat
   "PAYMENT_REMINDER", //         herinnering vóór de vervaldag (reminder-engine)
+  "PERFORMANCE_REMINDER", //     herinnering: open urenstaat nog niet ingediend (reminder-engine)
   "INVOICE_CREDITED", //         zijpad: creditfactuur
   "DISPUTE_OPENED", //           zijpad: dispuut/escalatie
   "DISPUTE_RESOLVED", //         dispuut opgelost (cascade weer vrij)

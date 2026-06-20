@@ -41,6 +41,8 @@ import {
   overdueInvoiceTask,
   applicationsReviewTask,
   draftJobsTask,
+  franchiseCredentialExpiryTask,
+  franchiseLeadFollowupTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 
@@ -108,9 +110,9 @@ async function unreadConversations(userId: string): Promise<UnreadConversation[]
 const computeTasks = cache(async (userId: string, role: string): Promise<PendingTask[]> => {
   if (role === "FREELANCER") return rankTasks(await freelancerTasks(userId));
   if (role === "CLIENT") return rankTasks(await clientTasks(userId));
-  // Franchise-werkplek heeft (nog) geen eigen actie-items; voorkomt dat een FRANCHISER
-  // de admin-taken te zien krijgt via de fallthrough.
-  if (role === "FRANCHISER") return [];
+  // Bemiddelaar: doorlopende tenant-taken (roster-compliance + lead-opvolging). De fallthrough naar
+  // de admin-taken blijft uitgesloten — een FRANCHISER ziet nooit platform-brede admin-items.
+  if (role === "FRANCHISER") return rankTasks(await franchiserTasks(userId));
   return rankTasks(await adminTasks());
 });
 
@@ -325,6 +327,58 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   if (overdue > 0) tasks.push(overdueInvoiceTask(overdue, "CLIENT"));
   if (newApplications > 0) tasks.push(applicationsReviewTask(newApplications));
   if (draftJobs > 0) tasks.push(draftJobsTask(draftJobs));
+  return tasks;
+}
+
+async function franchiserTasks(userId: string): Promise<PendingTask[]> {
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } });
+  const tenantId = me?.tenantId ?? null;
+  if (!tenantId) return [];
+
+  const tasks: PendingTask[] = [];
+  const now = new Date();
+  const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
+
+  const [expiringCreds, dueLeads] = await Promise.all([
+    // Geverifieerde, nog-geldige certificaten van tenant-ZZP'ers die binnenkort verlopen — zelfde
+    // venster als de roster-compliance-zegel op het bemiddelaar-dashboard (gte now, lte soon).
+    prisma.credential.findMany({
+      where: {
+        freelancerProfile: { tenantId },
+        status: "VERIFIED",
+        expiresAt: { gte: now, lte: soon },
+      },
+      select: {
+        freelancerProfileId: true,
+        freelancerProfile: { select: { user: { select: { name: true } } } },
+      },
+      orderBy: { expiresAt: "asc" },
+      take: MAX,
+    }),
+    // Leads met een verstreken geplande opvolgdatum (alleen lopende acquisitie: KOUD/WARM).
+    prisma.lead.count({
+      where: {
+        tenantId,
+        status: { in: ["KOUD", "WARM"] },
+        nextFollowUp: { not: null, lte: now },
+      },
+    }),
+  ]);
+
+  // Aggregeer per ZZP'er: één taak per professional met het aantal (bijna-)verlopende certificaten.
+  const expiringByProfile = new Map<string, { name: string; count: number }>();
+  for (const c of expiringCreds) {
+    const entry = expiringByProfile.get(c.freelancerProfileId) ?? {
+      name: c.freelancerProfile.user.name ?? "ZZP'er",
+      count: 0,
+    };
+    entry.count += 1;
+    expiringByProfile.set(c.freelancerProfileId, entry);
+  }
+  for (const [profileId, e] of expiringByProfile)
+    tasks.push(franchiseCredentialExpiryTask(profileId, e.name, e.count));
+
+  if (dueLeads > 0) tasks.push(franchiseLeadFollowupTask(dueLeads));
   return tasks;
 }
 

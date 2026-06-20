@@ -260,6 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **ZZP'er kan eigen reactie intrekken (WITHDRAWN)** — nieuwe
+> `APPLICATION_STATUSES`-waarde `WITHDRAWN` + pure `canWithdrawApplication` (alleen NEW/VIEWED/
+> SHORTLIST, geen samenwerking); freelancer-only `withdrawApplication` server-action op `/reacties`
+> (ownership + audit `APPLICATION_WITHDRAWN` + notificatie naar de opdrachtgever). Re-apply hergebruikt
+> de bestaande rij (geen extra plan-slot); WITHDRAWN uitgesloten in outcomes-samenvatting,
+> reactiebereidheid-signaal, "Gereageerd"-badge (rooster), aanbevelingen en kandidaat-suggesties; nette
+> noot op `/kandidaten`. Geen schemawijziging; +9 unit-tests. Zie PROGRESS.md-top.
 > Gedaan (niet opnieuw): **Certificaat-impact op lopende inzet (ZZP'er)** — `freelancer-compliance.ts`
 > `linkExpiryToInzet` koppelt de vervalkalender (`summarizeExpiry`) aan de actieve samenwerkingen wier
 > verplichte certificaattypen een (bijna-)vervallend certificaat raakt; `data/freelancer-compliance.ts`
@@ -267,12 +274,6 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > op `/certificaten` toont dagaftelling + vernieuw-deeplink + geraakte inzetten. Mirror van de bestaande
 > opdrachtgever-`clientCredentialAlerts`/compliance-momentopname; read-only, geen schemawijziging.
 > 11 unit-tests.
-> Gedaan (niet opnieuw): **Soortgelijke open opdrachten op de opdracht-detail (ZZP'er)** —
-> `recommendations.ts` pure `excludeAndLimit` + `relatedJobsForFreelancer` (hergebruikt
-> `recommendedJobs`, sluit de bekeken opdracht uit) + `RelatedJobsSection` onderaan `/opdrachten/[id]`
-> voor een niet-eigenaar FREELANCER op een PUBLISHED-opdracht; verklaarbare matchscore + sterkste reden,
-> doorklik naar de opdracht. Drijft ontdekking/liquiditeit; read-only, geen schemawijziging, geen extra
-> query, +4 unit-tests.
 > Gedaan (niet opnieuw): **Job-engagement-signaal (koude opdracht) voor de opdrachtgever** —
 > `lib/job-engagement.ts` `planJobEngagement` (pure) + `lib/job-engagement-task.ts`
 > `runJobEngagementTask` (plan/apply, idempotent via DomainEvent `job-cold:<jobId>`, gewired in
