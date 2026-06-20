@@ -3,26 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: vervaldatum-aftelling op het facturen-overzicht
+## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
-Het facturen-overzicht (`/facturen`, `FacturenPanel`) toonde per factuur alleen een statuslabel
-(bv. "Goedgekeurd"), maar geen real-time zicht op de vervaldatum. Een cascade-factuur die op betaling
-wacht (`lifecycleStatus=APPROVED`) heeft wél een `dueAt`, maar werd pas zichtbaar "Te laat" nadat de
-payment-reminders-taak APPROVED→OVERDUE flipt. Dit voegt een deterministische aftel-chip toe op het
-kern-"wat-vraagt-aandacht"-scherm. Read-only, **geen schemawijziging, geen mutatie, geen geldstroom**;
-symmetrisch (dezelfde aftelling voor beide partijen).
+Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
+bleef hij als kandidaat zichtbaar bij de opdrachtgever (en kon hij niet opnieuw reageren). Nieuwe
+`WITHDRAWN`-status + freelancer-only intrek-actie, met nette afhandeling in alle afgeleide
+oppervlakken. Server-side keten (auth → rol → ownership → toegestane overgang → mutatie + audit +
+notificatie). **Geen schemawijziging** (status is een string-kolom, geen native db-enum).
 
-- [x] `src/lib/invoice-due.ts` — pure `invoiceDueStatus({ dueAt, outstanding }, now)`: leidt
-      `tense` (overdue/today/upcoming) + `days` + label + badge-variant af uit `dueAt`, los van de
-      cron-taak. Geeft `null` als de factuur niet openstaand is of geen vervaldatum heeft.
-      `daysUntil`/`daysOverdue` hergebruikt uit `payment-reminders.ts` (één bron voor de dag-telling);
-      `INVOICE_DUE_SOON_DAYS=7` als warning-drempel. Server-side waarheid: toont, beslist niet — de
-      statusovergang blijft van de payment-reminders-taak.
-- [x] `src/components/administratie/facturen-panel.tsx` — aftel-chip naast het statuslabel per rij,
-      alleen getoond wanneer ze aandacht vraagt (`variant !== "muted"`: binnenkort verschuldigd of te
-      laat), zodat de lijst rustig blijft. `outstanding` via de bestaande `isInvoiceOutstanding`.
-- [x] Tests: `invoice-due.test.ts` (9: niet-openstaand/geen-dueAt → null, te laat enkel-/meervoud,
-      net-over-de-vervaldag, vervalt-vandaag, drempel warning/muted, "over 1 dag" enkelvoud).
+- [x] `src/lib/enums.ts` — `WITHDRAWN` toegevoegd aan `APPLICATION_STATUSES` (achteraan: werkstroom-
+      sortering op `/kandidaten` houdt ingetrokken reacties onderaan).
+- [x] `src/lib/applications.ts` — `WITHDRAWN: []` (terminaal voor de opdrachtgever) +
+      pure `canWithdrawApplication(from)` (alleen NEW/VIEWED/SHORTLIST). WITHDRAWN is nooit een doel
+      van een opdrachtgever-overgang.
+- [x] `src/app/(protected)/reacties/actions.ts` — `withdrawApplication(appId)`: ownership +
+      geen-samenwerking + `canWithdrawApplication`-gate; transactie status→WITHDRAWN + audit
+      (`APPLICATION_WITHDRAWN`) + notificatie naar de opdrachtgever. Intrek-knop (ConfirmButton) op
+      `/reacties`; status-hint + badge ("Ingetrokken").
+- [x] Re-apply na intrekken: `opdrachten/actions.ts` hergebruikt de bestaande rij (heropent →
+      NEW, verbruikt geen extra plan-slot); `opdrachten/[id]/page.tsx` toont weer het reageer-
+      formulier; `rooster/page.tsx` + `recommendations.ts` + `suggestions.ts` sluiten WITHDRAWN uit
+      ("Gereageerd"-badge / aanbevelingen / kandidaat-suggesties komen terug).
+- [x] Afgeleide oppervlakken sluiten WITHDRAWN correct uit/af: `application-outcomes.ts`
+      (buiten tellingen + percentage-noemers), `client-responsiveness.ts` (uit de steekproef),
+      `status-breakdown.ts` + badge + audit-labels + notificatie-categorie.
+- [x] `/kandidaten`: ingetrokken reactie toont een nette "ZZP'er heeft ingetrokken"-noot i.p.v. een
+      lege actierij; uitgesloten van de "Beste match"-etalage.
+- [x] Tests: `applications.test.ts` (+4: canWithdraw-grenzen + terminaliteit), `application-outcomes.test.ts`
+      (+3), `client-responsiveness.test.ts` (+2). Allowlist-regels `unbounded-queries.test.ts` bijgewerkt
+      (verschoven regelnummers).
 
 Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
 
