@@ -3,31 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: actiecentrum voor de bemiddelaar (tenant-taken)
+## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
-De bemiddelaar (FRANCHISER) kreeg in het actiecentrum (`/acties`), de dashboard-rail "Volgende
-acties" én de zijbalk-badge **geen enkele taak** — `computeTasks` gaf hard `[]` terug voor FRANCHISER
-("nog geen eigen actie-items"). Daardoor was de differentiërende next-action-engine voor deze rol
-leeg, terwijl de bemiddelaar juist operationele tenant-taken heeft. Dit vult dat gat met twee
-doorlopende, tenant-gescopete taaksoorten. Read-only, server-side, **geen schemawijziging, geen
-mutatie, geen geldstroom**. De dashboard-rail wiret al generiek op `pendingTasks` (toont nu de taken,
-valt terug op de geleide-opzet-stappen wanneer er geen zijn), dus geen wijziging aan `dashboard/page.tsx`.
+Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
+bleef hij als kandidaat zichtbaar bij de opdrachtgever (en kon hij niet opnieuw reageren). Nieuwe
+`WITHDRAWN`-status + freelancer-only intrek-actie, met nette afhandeling in alle afgeleide
+oppervlakken. Server-side keten (auth → rol → ownership → toegestane overgang → mutatie + audit +
+notificatie). **Geen schemawijziging** (status is een string-kolom, geen native db-enum).
 
-- [x] `src/lib/actions/tasks.ts` — pure builders `franchiseCredentialExpiryTask(profileId, name, count)`
-      (per ZZP'er, link naar `/franchise/zzpers/[id]`, tone attention, `P.franchiserCredentialExpiring`)
-      en `franchiseLeadFollowupTask(count)` (aggregaat, link naar `/franchise/leads`, tone attention,
-      `P.franchiserLeadFollowup`); twee nieuwe `PendingTask`-varianten.
-- [x] `src/lib/next-actions.ts` — twee operationele franchiser-prioriteitsbanden
-      (`franchiserCredentialExpiring=70`, `franchiserLeadFollowup=50`); rol-geïsoleerd zoals de bestaande
-      activatie-banden.
-- [x] `src/lib/actions/pending-tasks.ts` — `franchiserTasks(userId)`: tenant-scoped, begrensde queries
-      (`take: MAX`). VERIFIED-certificaten van tenant-ZZP'ers in het venster `[now, now+30d]`
-      (zelfde grens als de roster-compliance-zegel op het bemiddelaar-dashboard), geaggregeerd per
-      ZZP'er; leads in KOUD/WARM met `nextFollowUp <= now`. `computeTasks` roept dit nu aan i.p.v. `[]`;
-      de admin-fallthrough blijft uitgesloten.
-- [x] Tests: `tasks.test.ts` (+2): per-ZZP'er-unieke id + enkelvoud/meervoud + link-doel + roster
-      weegt zwaarder dan lead-opvolging. Suite **2299 passed**.
-- [x] Gate: typecheck ✓ · lint ✓ · test 2299 ✓ · build ✓ · `prettier --check .` ✓.
+- [x] `src/lib/enums.ts` — `WITHDRAWN` toegevoegd aan `APPLICATION_STATUSES` (achteraan: werkstroom-
+      sortering op `/kandidaten` houdt ingetrokken reacties onderaan).
+- [x] `src/lib/applications.ts` — `WITHDRAWN: []` (terminaal voor de opdrachtgever) +
+      pure `canWithdrawApplication(from)` (alleen NEW/VIEWED/SHORTLIST). WITHDRAWN is nooit een doel
+      van een opdrachtgever-overgang.
+- [x] `src/app/(protected)/reacties/actions.ts` — `withdrawApplication(appId)`: ownership +
+      geen-samenwerking + `canWithdrawApplication`-gate; transactie status→WITHDRAWN + audit
+      (`APPLICATION_WITHDRAWN`) + notificatie naar de opdrachtgever. Intrek-knop (ConfirmButton) op
+      `/reacties`; status-hint + badge ("Ingetrokken").
+- [x] Re-apply na intrekken: `opdrachten/actions.ts` hergebruikt de bestaande rij (heropent →
+      NEW, verbruikt geen extra plan-slot); `opdrachten/[id]/page.tsx` toont weer het reageer-
+      formulier; `rooster/page.tsx` + `recommendations.ts` + `suggestions.ts` sluiten WITHDRAWN uit
+      ("Gereageerd"-badge / aanbevelingen / kandidaat-suggesties komen terug).
+- [x] Afgeleide oppervlakken sluiten WITHDRAWN correct uit/af: `application-outcomes.ts`
+      (buiten tellingen + percentage-noemers), `client-responsiveness.ts` (uit de steekproef),
+      `status-breakdown.ts` + badge + audit-labels + notificatie-categorie.
+- [x] `/kandidaten`: ingetrokken reactie toont een nette "ZZP'er heeft ingetrokken"-noot i.p.v. een
+      lege actierij; uitgesloten van de "Beste match"-etalage.
+- [x] Tests: `applications.test.ts` (+4: canWithdraw-grenzen + terminaliteit), `application-outcomes.test.ts`
+      (+3), `client-responsiveness.test.ts` (+2). Allowlist-regels `unbounded-queries.test.ts` bijgewerkt
+      (verschoven regelnummers).
+
+Gate groen: typecheck ✓, lint ✓, test **2306** ✓ (+9), build ✓, `prettier --check .` ✓.
 
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 

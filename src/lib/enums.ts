@@ -28,7 +28,16 @@ export const JOB_STATUSES = ["DRAFT", "PUBLISHED", "CLOSED"] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 export const jobStatusSchema = z.enum(JOB_STATUSES);
 
-export const APPLICATION_STATUSES = ["NEW", "VIEWED", "SHORTLIST", "REJECTED", "ACCEPTED"] as const;
+// WITHDRAWN staat bewust achteraan: de werkstroom-volgorde (zie /kandidaten) sorteert op deze
+// index, en een door de ZZP'er ingetrokken reactie hoort onderaan — afgehandeld, geen actie meer.
+export const APPLICATION_STATUSES = [
+  "NEW",
+  "VIEWED",
+  "SHORTLIST",
+  "REJECTED",
+  "ACCEPTED",
+  "WITHDRAWN",
+] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export const applicationStatusSchema = z.enum(APPLICATION_STATUSES);
 
