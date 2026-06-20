@@ -7,9 +7,11 @@ import {
   AlertTriangle,
   ClipboardList,
   Gavel,
+  PenLine,
 } from "lucide-react";
 import { type PlatformStats, approvalRate, sharePercent, formatStatsEuro } from "@/lib/admin-stats";
 import { VERIFICATION_STALE_DAYS } from "@/lib/verification-queue";
+import { CONTRACT_SIGNING_STALE_DAYS } from "@/lib/contract-signing";
 import { DISPUTE_URGENCY_THRESHOLDS } from "@/lib/disputes";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -111,6 +113,44 @@ export function StatsPanel({ stats }: { stats: PlatformStats }) {
               />
             </BiWidget>
           ) : null}
+        </div>
+      </BiSection>
+
+      {/* Contract-ondertekening (cascade-stap A) */}
+      <BiSection icon={PenLine} title="Contract-ondertekening">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <KpiTile
+            icon={PenLine}
+            label="Wacht op ondertekening"
+            value={stats.contractSigning.pending}
+            tone={stats.contractSigning.pending > 0 ? "warning" : "success"}
+            sub={
+              stats.contractSigning.pending === 0
+                ? "Geen voorstellen open"
+                : "Voorgesteld — nog niet getekend"
+            }
+            href="/admin/samenwerkingen"
+          />
+          <KpiTile
+            label="Langst open"
+            value={
+              stats.contractSigning.pending === 0 ? "—" : `${stats.contractSigning.oldestDays} d`
+            }
+            tone={
+              stats.contractSigning.oldestDays >= CONTRACT_SIGNING_STALE_DAYS
+                ? "warning"
+                : "default"
+            }
+            sub={stats.contractSigning.pending === 0 ? "Geen wachtenden" : "Oudste voorstel"}
+            href="/admin/samenwerkingen"
+          />
+          <KpiTile
+            label="Te lang open"
+            value={stats.contractSigning.staleCount}
+            tone={stats.contractSigning.staleCount > 0 ? "warning" : "success"}
+            sub={`${CONTRACT_SIGNING_STALE_DAYS}+ dagen niet getekend`}
+            href="/admin/samenwerkingen"
+          />
         </div>
       </BiSection>
 
