@@ -18,6 +18,7 @@ import { runZzpMembershipTask } from "@/lib/zzp-membership-task";
 import { runPerformanceGraceTask } from "@/lib/performance-grace-task";
 import { runPerformanceApprovalReminderTask } from "@/lib/performance-approval-reminders-task";
 import { runDisputeReminderTask } from "@/lib/dispute-reminders-task";
+import { runPerformanceSubmissionReminderTask } from "@/lib/performance-submission-reminders-task";
 import { runNotificationDigestTask } from "@/lib/notification-digest-task";
 import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
 import { runPushDeliveryTask } from "@/lib/push-delivery-task";
@@ -53,6 +54,10 @@ export async function POST(request: Request): Promise<Response> {
       fn: () => runPerformanceApprovalReminderTask({ actorId: null }),
     },
     { name: "dispute-reminders", fn: () => runDisputeReminderTask({ actorId: null }) },
+    {
+      name: "performance-submission-reminders",
+      fn: () => runPerformanceSubmissionReminderTask({ actorId: null }),
+    },
     { name: "reviews-reveal", fn: () => runReviewsRevealTask({ actorId: null }) },
     { name: "push-delivery", fn: () => runPushDeliveryTask({}) },
     { name: "notification-digest", fn: () => runNotificationDigestTask({ actorId: null }) },

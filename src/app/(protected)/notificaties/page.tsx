@@ -1,4 +1,5 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import {
   Bell,
   Handshake,
@@ -22,6 +23,14 @@ import {
   type NotificationCategory,
   type NotificationTone,
 } from "@/lib/notifications";
+import {
+  filterNotifications,
+  notificationFilterParams,
+  parseNotificationFilter,
+  summarizeNotifications,
+  unreadInScope,
+  type NotificationFilter,
+} from "@/lib/notification-filter";
 import { missedWhileAway } from "@/lib/missed-notifications";
 import { plural } from "@/lib/plural";
 import { markAllNotificationsRead, markNotificationRead, openNotification } from "./actions";
@@ -131,8 +140,43 @@ function NotificationGroup({ heading, items }: { heading: string; items: Notific
   );
 }
 
-export default async function NotificatiesPage() {
+function filterHref(filter: NotificationFilter): string {
+  const qs = new URLSearchParams(notificationFilterParams(filter)).toString();
+  return qs ? `/notificaties?${qs}` : "/notificaties";
+}
+
+function FilterPill({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "focus-ring inline-flex items-center rounded-md border px-3 py-1 text-sm transition-colors",
+        active
+          ? "border-accent-foreground/20 bg-accent text-accent-foreground"
+          : "border-border bg-background text-muted-foreground hover:bg-muted",
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
+export default async function NotificatiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const actor = await requireActor();
+  const filter = parseNotificationFilter(await searchParams);
   const [notifications, me] = await Promise.all([
     prisma.notification.findMany({
       where: { userId: actor.id },
@@ -153,9 +197,15 @@ export default async function NotificatiesPage() {
     notifications,
   });
 
+  // Filter server-side op de al opgehaalde set; de tellingen blijven over álle meldingen.
+  const summary = summarizeNotifications(notifications);
+  const filtered = filterNotifications(notifications, filter);
+  const scopeUnread = unreadInScope(summary, filter);
+  const filterActive = filter.category !== null || filter.unreadOnly;
+
   const now = new Date();
-  const today = notifications.filter((n) => isSameDay(n.createdAt, now));
-  const earlier = notifications.filter((n) => !isSameDay(n.createdAt, now));
+  const today = filtered.filter((n) => isSameDay(n.createdAt, now));
+  const earlier = filtered.filter((n) => !isSameDay(n.createdAt, now));
 
   return (
     <div className="space-y-6">
@@ -183,7 +233,7 @@ export default async function NotificatiesPage() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {missed && (
+          {missed && !filterActive && (
             <p className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
               <Bell className="size-4 shrink-0" aria-hidden />
               <span>
@@ -195,8 +245,54 @@ export default async function NotificatiesPage() {
               </span>
             </p>
           )}
-          <NotificationGroup heading="Vandaag" items={today} />
-          <NotificationGroup heading="Eerder" items={earlier} />
+
+          {/* Filter op categorie + alleen-ongelezen — server-side via de URL (deelbaar/herlaadbaar). */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              <FilterPill
+                href={filterHref({ category: null, unreadOnly: filter.unreadOnly })}
+                active={filter.category === null}
+              >
+                Alle ({summary.total})
+              </FilterPill>
+              {summary.categories.map((c) => (
+                <FilterPill
+                  key={c.category}
+                  href={filterHref({ category: c.category, unreadOnly: filter.unreadOnly })}
+                  active={filter.category === c.category}
+                >
+                  {c.label} ({c.total})
+                </FilterPill>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <FilterPill
+                href={filterHref({ category: filter.category, unreadOnly: false })}
+                active={!filter.unreadOnly}
+              >
+                Alle meldingen
+              </FilterPill>
+              <FilterPill
+                href={filterHref({ category: filter.category, unreadOnly: true })}
+                active={filter.unreadOnly}
+              >
+                Alleen ongelezen ({scopeUnread})
+              </FilterPill>
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <Card>
+              <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                Geen meldingen in deze selectie.
+              </div>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              <NotificationGroup heading="Vandaag" items={today} />
+              <NotificationGroup heading="Eerder" items={earlier} />
+            </div>
+          )}
         </div>
       )}
     </div>

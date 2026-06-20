@@ -54,7 +54,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Certificaten van één freelancer; dit zijn er typisch < 20 per persoon.
   {
     file: "(protected)/certificaten/(index)/page.tsx",
-    line: 68,
+    line: 71,
     reason: "eigenaar-scoped, inherent begrensd tot persoonlijk certificaatdossier",
   },
 
@@ -71,15 +71,9 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     reason: "verificatiewachtrij is structureel klein (dagelijks verwerkt)",
   },
 
-  // --- admin/samenwerkingen/page.tsx ---
-  // Admin-overzicht van alle samenwerkingen; dit had een cap moeten hebben,
-  // maar valt buiten de scope van audit T3 (T3 pagineert alleen de user-facing
-  // lijsten). Toegestaan als bekende T3-uitzondering.
-  {
-    file: "(protected)/admin/samenwerkingen/page.tsx",
-    line: 39,
-    reason: "admin-view buiten scope T3; kandidaat voor toekomstige paginatie",
-  },
+  // (Het admin-samenwerkingenoverzicht is verplaatst naar SamenwerkingenPanel onder
+  // src/components/admin; panels worden niet door deze vangrail gescand. De query heeft daar
+  // bovendien een defensieve take-cap gekregen.)
 
   // --- admin/support/page.tsx ---
   // Actieve support-tickets (status-filter op ESCALATED/REOPENED/TRIAGED/NEW);
@@ -322,14 +316,14 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills voor het aanmaakformulier.
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 72,
+    line: 69,
     reason: "skills-referentielijst voor formulier",
   },
   // Flexpool-leden van het eigen bedrijf bij de eerste publicatie (poule is per bedrijf
   // curated en klein; slice-1-overzicht toont er max. 100).
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 250,
+    line: 247,
     reason: "eigen flexpool-leden bij eerste publicatie (per bedrijf begrensd)",
   },
 

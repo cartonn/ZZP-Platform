@@ -134,6 +134,12 @@ export const REMINDERS = {
    * (en dus de betaling) eindeloos bevroren.
    */
   disputeReminderDays: [3, 7] as const,
+  /**
+   * Open urenstaat: een lopende uurtarief-samenwerking waarvan de laatst ingediende prestatie al dit
+   * aantal dagen geleden is en er niets meer in concept/ter beoordeling staat. Herinnert de ZZP'er om
+   * de volgende urenstaat in te dienen zodat de facturatiecascade niet stilvalt (stap vóór Event B1).
+   */
+  performanceSubmissionDays: [7, 14] as const,
   /** Betaaltermijn opdrachtgever (na Event D): dagen vóór/na vervaldag. */
   paymentBeforeDueDays: [5, 1] as const,
   /**

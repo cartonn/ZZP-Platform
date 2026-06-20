@@ -14,6 +14,8 @@ import {
   adminResolveDisputeTask,
   applicationsReviewTask,
   draftJobsTask,
+  franchiseCredentialExpiryTask,
+  franchiseLeadFollowupTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 
@@ -149,5 +151,46 @@ describe("task builders", () => {
     expect(drafts.priority).toBe(P.drafts);
     // Concept-opdrachten wegen lichter dan nieuwe reacties.
     expect(drafts.priority).toBeLessThan(apps.priority);
+  });
+
+  it("bemiddelaar: roster-certificaat-verloop is een per-ZZP'er link-taak naar het ZZP'er-detail", () => {
+    const single = franchiseCredentialExpiryTask("prof-1", "Lars Bakker", 1);
+    expect(single).toMatchObject({
+      kind: "franchise-credential-expiry",
+      profileId: "prof-1",
+      resolver: "link",
+      href: "/franchise/zzpers/prof-1",
+      tone: "attention",
+    });
+    // Stabiele, per-ZZP'er-unieke id (React-key/dedupe) en enkelvoud.
+    expect(single.id).toBe("franchise-credential-expiry:prof-1");
+    expect(single.priority).toBe(P.franchiserCredentialExpiring);
+    expect(single.title).toContain("Lars Bakker");
+    expect(single.title).toContain("verloopt");
+
+    // Meervoud telt de certificaten van die ene ZZP'er.
+    const many = franchiseCredentialExpiryTask("prof-2", "Sanne de Vries", 3);
+    expect(many.title).toContain("3");
+    expect(many.title).toContain("verlopen");
+    expect(many.id).toBe("franchise-credential-expiry:prof-2");
+  });
+
+  it("bemiddelaar: lead-opvolging is een aggregaat link-taak naar /franchise/leads", () => {
+    const one = franchiseLeadFollowupTask(1);
+    expect(one).toMatchObject({
+      kind: "franchise-lead-followup",
+      id: "franchise-lead-followup",
+      resolver: "link",
+      href: "/franchise/leads",
+      tone: "attention",
+    });
+    expect(one.priority).toBe(P.franchiserLeadFollowup);
+    expect(one.title).toContain("wacht");
+
+    const many = franchiseLeadFollowupTask(4);
+    expect(many.title).toContain("4");
+    expect(many.title).toContain("wachten");
+    // Roster-compliance weegt zwaarder dan lead-opvolging.
+    expect(franchiseCredentialExpiryTask("p", "x", 1).priority).toBeGreaterThan(many.priority);
   });
 });

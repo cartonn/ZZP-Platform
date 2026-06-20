@@ -61,6 +61,8 @@ import { getClientReliabilityForCompany } from "@/lib/data/client-reliability";
 import { ClientReliabilityBlock } from "@/components/jobs/client-reliability-block";
 import { getClientResponsivenessForCompany } from "@/lib/data/client-responsiveness";
 import { ClientResponsivenessBlock } from "@/components/jobs/client-responsiveness-block";
+import { relatedJobsForFreelancer } from "@/lib/recommendations";
+import { RelatedJobsSection } from "@/components/jobs/related-jobs-section";
 
 export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
 
@@ -202,6 +204,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   // Spiegelbeeld voor de opdrachtgever: openbare ZZP'ers die passen en nog niet reageerden.
   const suggestions =
     isOwner && status === "PUBLISHED" ? await suggestedFreelancersForJob(job.id) : [];
+
+  // Voor de ZZP'er die deze opdracht bekijkt: andere open opdrachten die bij zijn profiel passen
+  // (dezelfde verklaarbare matchmotor), met deze opdracht uitgesloten. Drijft ontdekking.
+  const relatedJobs =
+    !isOwner && actor.role === "FREELANCER" && status === "PUBLISHED"
+      ? await relatedJobsForFreelancer(actor.id, job.id)
+      : [];
 
   // Flexpool "eerst eigen mensen": toon de eigenaar hoeveel poule-leden bij de eerste publicatie
   // direct zijn geïnformeerd (de gezaghebbende telling staat in het POOL_INVITED-auditrecord, niet
@@ -641,6 +650,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           </div>
         ) : null)
       )}
+
+      <RelatedJobsSection jobs={relatedJobs} />
     </div>
   );
 }
