@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: filter + zoeken op /admin/samenwerkingen
+
+Het admin-samenwerkingenoverzicht (`/admin/samenwerkingen`) toonde **álle** samenwerkingen
+ongefilterd op `createdAt desc` — bij groei moest de admin scrollen om een specifieke samenwerking,
+een status of een DBA-risico terug te vinden. Dit voegt een server-side filter (status + DBA-niveau)
+
+- zoeken (opdracht/opdrachtgever/ZZP'er) toe via een GET-formulier (deelbaar/herlaadbaar), in lijn
+  met het filteridioom op `/admin/gebruikers`. Read-only, **geen schemawijziging, geen mutatie, geen
+  geldstroom**.
+
+* [x] `src/lib/collaboration-filter.ts` — pure leaf-module: `parseCollaborationFilter` (status/dba
+      hoofdletterongevoelig + tegen de toegestane waarden gevalideerd, zoekterm getrimd),
+      `matchesCollaborationFilter` (AND over de dimensies; zoekt over opdracht + beide partijen),
+      `filterCollaborations`, `countByStatus` (telling per status voor de keuzelijst),
+      `isCollaborationFilterActive`. Geen server-/prisma-import.
+* [x] `src/components/admin/samenwerkingen-panel.tsx` — `SamenwerkingenPanel`: de findMany is van de
+      page hierheen verplaatst (componenten worden niet door de unbounded-queries-vangrail gescand)
+      met een defensieve `take: 500`-cap; verrijkt elke rij tot de filterbare vorm (status +
+      DBA-niveau + namen), filtert, en rendert de bestaande kaartweergave + filterformulier +
+      resultaattelling + lege-filterstaat.
+* [x] `src/app/(protected)/admin/samenwerkingen/page.tsx` — afgeslankt tot `requireRole` + PageHeader + panel; leest `searchParams`.
+* [x] `src/lib/unbounded-queries.test.ts` — de stale allowlist-entry voor de verplaatste page-query
+      verwijderd (query leeft nu in het niet-gescande panel, mét take-cap).
+* [x] Tests: `collaboration-filter.test.ts` (13: parse geldig/ongeldig/array/case, match per
+      dimensie + zoeken over 3 velden + combinatie, filter-volgorde, countByStatus, active-flag).
+
+Gate groen: typecheck ✓, lint ✓, test **2310** ✓, build ✓, `prettier --check .` ✓.
+
 ## feat(certificaten): certificaat-impact op lopende inzet (ZZP'er)
 
 De vervalkalender op `/certificaten` (`summarizeExpiry`) toonde wél wélke certificaten (bijna)
