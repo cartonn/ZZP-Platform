@@ -16,7 +16,18 @@ export const APPLICATION_TRANSITIONS: Record<ApplicationStatus, readonly Applica
   SHORTLIST: ["ACCEPTED", "REJECTED", "VIEWED"],
   REJECTED: ["VIEWED", "SHORTLIST"], // heroverwegen
   ACCEPTED: ["SHORTLIST"], //           acceptatie terugdraaien
+  WITHDRAWN: [], //                     terminaal: door de ZZP'er ingetrokken
 };
+
+/**
+ * Mag de ZZP'er zijn reactie nog intrekken? Alleen vóór een beslissing van de opdrachtgever (NEW/
+ * VIEWED/SHORTLIST) en zolang er geen samenwerking uit voortkwam (die check gebeurt server-side
+ * bovenop dit). Een afgewezen, geaccepteerde of al ingetrokken reactie kan niet (meer) worden
+ * ingetrokken. Pure functie — server-side waarheid (CLAUDE.md regel 1).
+ */
+export function canWithdrawApplication(from: ApplicationStatus): boolean {
+  return from === "NEW" || from === "VIEWED" || from === "SHORTLIST";
+}
 
 export function canTransitionApplication(from: ApplicationStatus, to: ApplicationStatus): boolean {
   return APPLICATION_TRANSITIONS[from].includes(to);
