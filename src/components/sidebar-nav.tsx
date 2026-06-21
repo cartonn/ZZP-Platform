@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart,
+  Bookmark,
   Briefcase,
   Building2,
   CalendarDays,
@@ -57,6 +58,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   contact: Contact,
   graduationCap: GraduationCap,
   settings: Settings,
+  bookmark: Bookmark,
 };
 
 export function SidebarNav({
