@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: zoek + type-filter op /admin/verificaties
+
+De admin-verificatiewachtrij (`/admin/verificaties`) toonde SUBMITTED-certificaten altijd
+oudste-eerst, zónder zoek- of filtermogelijkheid — terwijl het peer-overzicht
+`/admin/samenwerkingen` die wél heeft. Een beheerder die een specifieke ZZP'er of een
+certificaattype zoekt moest de hele wachtrij doorscrollen. Toegevoegd: zoeken (naam/titel/uitgever)
+
+- filter op certificaattype, server-side via URL-searchParams. Read-only, **geen schemawijziging,
+  geen extra query** (filtert de al opgehaalde wachtrij). De wachtrij-gezondheid in de header telt
+  bewust de **volledige** backlog, niet de gefilterde weergave.
+
+* [x] `src/lib/verification-filter.ts` — pure module: `parseVerificationFilter` (leest `q`+`type`
+      uit searchParams, normaliseert, valt terug op geen-filter), `filterVerificationQueue`
+      (case-insensitieve substring over titel/uitgever/ZZP'er-naam + type-match, AND, behoudt de
+      invoervolgorde oudste-eerst, muteert niet, geeft dezelfde referentie terug zonder actieve
+      filter), `isVerificationFilterActive`, `countByType` (telling per certificaattype).
+* [x] `src/app/(protected)/admin/verificaties/page.tsx` — GET-filterform (Input + type-`Select` met
+      tellingen, afwezige typen `disabled`) gelijk aan het samenwerkingen-paneel; "X van Y
+      aanvragen"-telregel; nette "geen match"-staat naast de bestaande "alles afgehandeld"-empty.
+* [x] Tests: `verification-filter.test.ts` (+11). Allowlist-regel `unbounded-queries.test.ts`
+      bijgewerkt (query verschoven naar regel 47 door de searchParams-wiring).
+
+Gate groen: typecheck ✓, lint ✓, test **2503** ✓ (+11), build ✓, `prettier --check .` ✓.
+
 ## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
 
 De opdrachtgever-browse (`/freelancers`) had wél filters (zoeken, vertrouwensniveau, alleen
