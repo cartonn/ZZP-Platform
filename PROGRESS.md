@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine(facturen): statusfilter op /facturen (ZZP'er + opdrachtgever)
+
+De facturenlijst (`/facturen` én de Administratie-hub-tab `/financien`) toonde alle facturen in één
+platte lijst (`createdAt desc`) zonder filter — de gebruiker kon zijn **openstaande** facturen niet
+scheiden van concepten, betaalde of afgehandelde. Dit voegt een **cascade-bewust** statusfilter toe
+(**Alle / Concept / Openstaand / Betaald / Afgehandeld**), server-side via de `status`-searchParam.
+De lijst mengt cascade-facturen (bewegen via `lifecycleStatus`, `status` blijft 'DRAFT') en losse
+legacy-facturen (bewegen via `status`); het filter mapt beide herkomsten naar één gebruikersgerichte
+groep. Read-only, **geen schemawijziging, geen extra query** (filtert de al opgehaalde facturen).
+
+- [x] `src/lib/invoice-filter.ts` — pure helpers: `InvoiceFilterGroup` (`all/concept/open/paid/
+    afgehandeld`), `invoiceGroup(inv)` (cascade-bewust: openstaand eerst via `isInvoiceOutstanding`,
+      daarna concept/betaald/afgehandeld; exhaustief over lifecycle- én legacy-status),
+      `parseInvoiceFilter` (onbekend → `all`), `filterInvoices` (behoudt volgorde, muteert niet),
+      `summarizeInvoiceGroups` (totaal + per groep), `INVOICE_FILTER_LABEL`/`INVOICE_FILTER_ORDER`.
+- [x] `src/components/administratie/facturen-panel.tsx` — `searchParams` + `basePath` props; filter-
+      pills met telling per groep (KPI-kaarten blijven over de volledige lijst), eigen empty-state bij
+      een leeg filter. Pills wijzen naar `basePath` (via `withParams`) zodat het paneel standalone op
+      `/facturen` én binnen de hub (`/financien`) werkt.
+- [x] `src/app/(protected)/facturen/(index)/page.tsx` — `searchParams` ingelezen, doorgegeven met
+      `basePath="/facturen"`. `administratie-hub-screen.tsx` + `financien/page.tsx` geven `searchParams`
+      door aan de FacturenPanel met `basePath="/financien"`.
+- [x] Tests: `invoice-filter.test.ts` (+16: cascade- én legacy-mapping per status, parse-grenzen,
+      filter-volgorde/no-mutation, exhaustieve telling).
+
+Gate groen: typecheck ✓, lint ✓, test **2442** ✓ (+16), build ✓, `prettier --check .` ✓.
+
 ## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
 Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan

@@ -260,6 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Statusfilter op /facturen (ZZP'er + opdrachtgever)** — cascade-bewust
+> statusfilter (Alle/Concept/Openstaand/Betaald/Afgehandeld) op `/facturen` én de Administratie-hub-tab
+> `/financien`, server-side via de `status`-searchParam. Pure `lib/invoice-filter.ts`
+> (`invoiceGroup`/`parseInvoiceFilter`/`filterInvoices`/`summarizeInvoiceGroups`) mapt cascade- (via
+> `lifecycleStatus`) én legacy-facturen (via `status`) naar één gebruikersgroep; FacturenPanel kreeg
+> `searchParams`+`basePath` met filter-pills (telling per groep) + lege-filter-staat, KPI-kaarten over
+> de volledige lijst. Read-only, geen schemawijziging, geen extra query; +16 unit-tests.
 > Gedaan (niet opnieuw): **ZZP'er kan eigen reactie intrekken (WITHDRAWN)** — nieuwe
 > `APPLICATION_STATUSES`-waarde `WITHDRAWN` + pure `canWithdrawApplication` (alleen NEW/VIEWED/
 > SHORTLIST, geen samenwerking); freelancer-only `withdrawApplication` server-action op `/reacties`
