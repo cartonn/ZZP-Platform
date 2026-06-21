@@ -14,7 +14,7 @@ legacy-facturen (bewegen via `status`); het filter mapt beide herkomsten naar é
 groep. Read-only, **geen schemawijziging, geen extra query** (filtert de al opgehaalde facturen).
 
 - [x] `src/lib/invoice-filter.ts` — pure helpers: `InvoiceFilterGroup` (`all/concept/open/paid/
-    afgehandeld`), `invoiceGroup(inv)` (cascade-bewust: openstaand eerst via `isInvoiceOutstanding`,
+afgehandeld`), `invoiceGroup(inv)` (cascade-bewust: openstaand eerst via `isInvoiceOutstanding`,
       daarna concept/betaald/afgehandeld; exhaustief over lifecycle- én legacy-status),
       `parseInvoiceFilter` (onbekend → `all`), `filterInvoices` (behoudt volgorde, muteert niet),
       `summarizeInvoiceGroups` (totaal + per groep), `INVOICE_FILTER_LABEL`/`INVOICE_FILTER_ORDER`.
