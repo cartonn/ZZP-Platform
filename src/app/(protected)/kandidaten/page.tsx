@@ -4,6 +4,12 @@ import { Users, Check, TriangleAlert } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { APPLICATION_TRANSITIONS } from "@/lib/applications";
+import {
+  KANDIDATEN_FILTER_LABELS,
+  countApplicationsByStatus,
+  filterApplicationsByStatus,
+  normalizeKandidatenFilter,
+} from "@/lib/kandidaten-filter";
 import { computeCompliance, scoreJobForFreelancer, topPositiveReason } from "@/lib/matching";
 import { VerificationMarks } from "@/components/credentials/verification-marks";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
@@ -46,8 +52,13 @@ const ACTION_LABEL: Record<ApplicationStatus, string> = {
   WITHDRAWN: "Ingetrokken", // nooit een actieknop (geen overgangen), label voor de volledigheid
 };
 
-export default async function KandidatenPage() {
+export default async function KandidatenPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>;
+}) {
   const actor = await requireRole("CLIENT");
+  const filterStatus = normalizeKandidatenFilter((await searchParams).status);
 
   const applications = await prisma.application.findMany({
     where: { job: { company: { userId: actor.id } } },
@@ -111,6 +122,10 @@ export default async function KandidatenPage() {
     ? topPositiveReason(scoreJobForFreelancer(best.job, best.freelancer).reasons)
     : null;
 
+  // Statusfilter (pill-tabs met tellingen) — zelfde idioom als /prestaties en /diensten.
+  const counts = countApplicationsByStatus(applications);
+  const visible = filterApplicationsByStatus(applications, filterStatus);
+
   return (
     <div className="space-y-6 pb-24">
       <PageHeader
@@ -128,7 +143,32 @@ export default async function KandidatenPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {best && (
+          {/* Statusfilter */}
+          <nav className="flex flex-wrap gap-2 text-sm" aria-label="Filter op status">
+            {Object.entries(KANDIDATEN_FILTER_LABELS).map(([val, label]) => {
+              const active = val === filterStatus;
+              const href = val ? `/kandidaten?status=${val}` : "/kandidaten";
+              const count = val === "" ? applications.length : counts[val as ApplicationStatus];
+              return (
+                <Link
+                  key={val}
+                  href={href}
+                  className={
+                    active
+                      ? "rounded-full bg-primary px-3 py-1 text-primary-foreground"
+                      : "rounded-full border border-border px-3 py-1 text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                  }
+                >
+                  {label}
+                  {count > 0 && (
+                    <span className="ml-1 tabular-nums text-muted-foreground/70">({count})</span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {!filterStatus && best && (
             <Card className="border-accent/40 bg-accent/5">
               <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
                 <div className="min-w-0">
@@ -149,224 +189,244 @@ export default async function KandidatenPage() {
               </CardContent>
             </Card>
           )}
-          <BulkTriageBar />
-          {applications.map((app) => {
-            const status = app.status as ApplicationStatus;
-            // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
-            // reactiemoment (een VOG kan intussen verlopen zijn). De volledige uitsplitsing
-            // (missing/expired/inReview) maakt voor de opdrachtgever concreet WAT er ontbreekt.
-            const requiredTypes = app.job.credentialRequirements
-              .filter((r) => r.required)
-              .map((r) => r.credentialType as CredentialType);
-            const compliance =
-              requiredTypes.length > 0
-                ? computeCompliance(
-                    requiredTypes,
+          {visible.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="Geen reacties met deze status"
+              description="Er zijn geen reacties in deze categorie. Pas het filter aan."
+            />
+          ) : (
+            <>
+              <BulkTriageBar />
+              {visible.map((app) => {
+                const status = app.status as ApplicationStatus;
+                // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
+                // reactiemoment (een VOG kan intussen verlopen zijn). De volledige uitsplitsing
+                // (missing/expired/inReview) maakt voor de opdrachtgever concreet WAT er ontbreekt.
+                const requiredTypes = app.job.credentialRequirements
+                  .filter((r) => r.required)
+                  .map((r) => r.credentialType as CredentialType);
+                const compliance =
+                  requiredTypes.length > 0
+                    ? computeCompliance(
+                        requiredTypes,
+                        app.freelancer.credentials.map((c) => ({
+                          type: c.type as CredentialType,
+                          status: c.status as CredentialStatus,
+                          expiresAt: c.expiresAt,
+                        })),
+                      )
+                    : null;
+                const isPublic = (app.freelancer.visibility as Visibility) === "PUBLIC";
+                const nowMs = Date.now();
+                const trust = computeTrustLevel({
+                  identityVerified: !!app.freelancer.user.identityVerifiedAt,
+                  verifiedCredentialCount: app.freelancer.credentials.filter(
+                    (c) =>
+                      c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > nowMs),
+                  ).length,
+                  mandatoryDocsComplete: mandatoryDocuments(
                     app.freelancer.credentials.map((c) => ({
                       type: c.type as CredentialType,
                       status: c.status as CredentialStatus,
                       expiresAt: c.expiresAt,
                     })),
-                  )
-                : null;
-            const isPublic = (app.freelancer.visibility as Visibility) === "PUBLIC";
-            const nowMs = Date.now();
-            const trust = computeTrustLevel({
-              identityVerified: !!app.freelancer.user.identityVerifiedAt,
-              verifiedCredentialCount: app.freelancer.credentials.filter(
-                (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > nowMs),
-              ).length,
-              mandatoryDocsComplete: mandatoryDocuments(
-                app.freelancer.credentials.map((c) => ({
-                  type: c.type as CredentialType,
-                  status: c.status as CredentialStatus,
-                  expiresAt: c.expiresAt,
-                })),
-              ).allSatisfied,
-            });
-            // Live onderbouwing van de match (waarom past deze kandidaat) — dezelfde server-side
-            // regels als de ZZP'er op de opdracht ziet, zodat de opdrachtgever niet alleen "Match X%" leest.
-            const fitReasons = scoreJobForFreelancer(app.job, app.freelancer).reasons;
-            return (
-              <Card key={app.id}>
-                <CardContent className="space-y-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex min-w-0 items-center gap-2">
-                        {!app.collaboration && (
-                          <input
-                            type="checkbox"
-                            name="appId"
-                            value={app.id}
-                            form="kandidaten-bulk"
-                            aria-label={`Selecteer ${app.freelancer.user.name}`}
-                            className="focus-ring size-4 shrink-0 rounded border-input accent-accent"
-                          />
-                        )}
-                        {isPublic ? (
-                          <Link
-                            href={`/zzp/${app.freelancer.id}`}
-                            target="_blank"
-                            className="min-w-0 truncate font-medium underline-offset-4 hover:underline"
-                          >
-                            {app.freelancer.user.name}
-                          </Link>
-                        ) : (
-                          <span className="min-w-0 truncate font-medium">
-                            {app.freelancer.user.name}
-                          </span>
-                        )}
-                        <span className="flex shrink-0 items-center gap-2">
-                          <ApplicationStatusBadge status={status} />
-                          <TrustBadge level={trust.level} />
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {app.freelancer.headline ?? "—"} · op{" "}
-                        <Link
-                          href={`/opdrachten/${app.job.id}`}
-                          className="underline-offset-4 hover:underline"
-                        >
-                          {app.job.title}
-                        </Link>
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {app.matchScore != null && (
-                        <Badge variant="accent">Match {app.matchScore}%</Badge>
-                      )}
-                      {compliance && <ComplianceBadge status={compliance.status} />}
-                    </div>
-                  </div>
-
-                  <VerificationMarks credentials={app.freelancer.credentials} />
-
-                  {(() => {
-                    const delivery = deliveryByProfile.get(app.freelancer.id);
-                    return delivery ? <DeliveryQualityBlock quality={delivery} /> : null;
-                  })()}
-
-                  {compliance && compliance.status !== "COMPLIANT" && (
-                    <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                      {compliance.missing.length > 0 && (
-                        <span className="text-danger">
-                          Mist: {compliance.missing.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
-                        </span>
-                      )}
-                      {compliance.expired.length > 0 && (
-                        <span className="text-danger">
-                          Verlopen:{" "}
-                          {compliance.expired.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
-                        </span>
-                      )}
-                      {compliance.inReview.length > 0 && (
-                        <span className="text-warning">
-                          In beoordeling:{" "}
-                          {compliance.inReview.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
-                        </span>
-                      )}
-                    </p>
-                  )}
-
-                  {fitReasons.length > 0 && (
-                    <details className="text-sm">
-                      <summary className="focus-ring cursor-pointer text-muted-foreground">
-                        Waarom deze match?
-                      </summary>
-                      <ul className="mt-2 space-y-1.5">
-                        {fitReasons.map((r, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            {r.kind === "positive" ? (
-                              <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-                            ) : (
-                              <TriangleAlert
-                                className="mt-0.5 size-4 shrink-0 text-warning"
-                                aria-hidden
+                  ).allSatisfied,
+                });
+                // Live onderbouwing van de match (waarom past deze kandidaat) — dezelfde server-side
+                // regels als de ZZP'er op de opdracht ziet, zodat de opdrachtgever niet alleen "Match X%" leest.
+                const fitReasons = scoreJobForFreelancer(app.job, app.freelancer).reasons;
+                return (
+                  <Card key={app.id}>
+                    <CardContent className="space-y-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex min-w-0 items-center gap-2">
+                            {!app.collaboration && (
+                              <input
+                                type="checkbox"
+                                name="appId"
+                                value={app.id}
+                                form="kandidaten-bulk"
+                                aria-label={`Selecteer ${app.freelancer.user.name}`}
+                                className="focus-ring size-4 shrink-0 rounded border-input accent-accent"
                               />
                             )}
-                            <span className={r.kind === "gap" ? "text-muted-foreground" : ""}>
-                              {r.label}
+                            {isPublic ? (
+                              <Link
+                                href={`/zzp/${app.freelancer.id}`}
+                                target="_blank"
+                                className="min-w-0 truncate font-medium underline-offset-4 hover:underline"
+                              >
+                                {app.freelancer.user.name}
+                              </Link>
+                            ) : (
+                              <span className="min-w-0 truncate font-medium">
+                                {app.freelancer.user.name}
+                              </span>
+                            )}
+                            <span className="flex shrink-0 items-center gap-2">
+                              <ApplicationStatusBadge status={status} />
+                              <TrustBadge level={trust.level} />
                             </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-
-                  <p className="whitespace-pre-line text-sm">{app.motivation}</p>
-                  <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground">
-                    {app.proposedRate != null && (
-                      <span>Tariefvoorstel: € {app.proposedRate}/uur</span>
-                    )}
-                    {app.availability && <span>Aangegeven bij reactie: {app.availability}</span>}
-                    {(() => {
-                      const s = summarizeAvailability(
-                        app.freelancer.availabilityWindows.map((w) => ({
-                          ...w,
-                          type: w.type as AvailabilityWindowType,
-                        })),
-                      );
-                      return s ? <span>Agenda: {s}</span> : null;
-                    })()}
-                  </div>
-
-                  {status === "WITHDRAWN" ? (
-                    <p className="border-t border-border pt-3 text-sm text-muted-foreground">
-                      De ZZP&apos;er heeft deze reactie ingetrokken.
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                      {APPLICATION_TRANSITIONS[status].map((to) =>
-                        to === "REJECTED" ? (
-                          <ConfirmButton
-                            key={to}
-                            action={changeApplicationStatus.bind(null, app.id, to)}
-                            triggerVariant="destructive"
-                            size="sm"
-                            title="Reactie afwijzen?"
-                            description="De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist."
-                            confirmLabel="Afwijzen"
-                          >
-                            {ACTION_LABEL[to]}
-                          </ConfirmButton>
-                        ) : (
-                          <form key={to} action={changeApplicationStatus.bind(null, app.id, to)}>
-                            <Button
-                              type="submit"
-                              size="sm"
-                              variant={to === "ACCEPTED" ? "primary" : "secondary"}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {app.freelancer.headline ?? "—"} · op{" "}
+                            <Link
+                              href={`/opdrachten/${app.job.id}`}
+                              className="underline-offset-4 hover:underline"
                             >
-                              {ACTION_LABEL[to]}
-                            </Button>
-                          </form>
-                        ),
+                              {app.job.title}
+                            </Link>
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {app.matchScore != null && (
+                            <Badge variant="accent">Match {app.matchScore}%</Badge>
+                          )}
+                          {compliance && <ComplianceBadge status={compliance.status} />}
+                        </div>
+                      </div>
+
+                      <VerificationMarks credentials={app.freelancer.credentials} />
+
+                      {(() => {
+                        const delivery = deliveryByProfile.get(app.freelancer.id);
+                        return delivery ? <DeliveryQualityBlock quality={delivery} /> : null;
+                      })()}
+
+                      {compliance && compliance.status !== "COMPLIANT" && (
+                        <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                          {compliance.missing.length > 0 && (
+                            <span className="text-danger">
+                              Mist:{" "}
+                              {compliance.missing.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                            </span>
+                          )}
+                          {compliance.expired.length > 0 && (
+                            <span className="text-danger">
+                              Verlopen:{" "}
+                              {compliance.expired.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                            </span>
+                          )}
+                          {compliance.inReview.length > 0 && (
+                            <span className="text-warning">
+                              In beoordeling:{" "}
+                              {compliance.inReview.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                            </span>
+                          )}
+                        </p>
                       )}
-                    </div>
-                  )}
 
-                  <ApplicationNoteForm appId={app.id} defaultNote={app.note ?? ""} />
+                      {fitReasons.length > 0 && (
+                        <details className="text-sm">
+                          <summary className="focus-ring cursor-pointer text-muted-foreground">
+                            Waarom deze match?
+                          </summary>
+                          <ul className="mt-2 space-y-1.5">
+                            {fitReasons.map((r, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                {r.kind === "positive" ? (
+                                  <Check
+                                    className="mt-0.5 size-4 shrink-0 text-success"
+                                    aria-hidden
+                                  />
+                                ) : (
+                                  <TriangleAlert
+                                    className="mt-0.5 size-4 shrink-0 text-warning"
+                                    aria-hidden
+                                  />
+                                )}
+                                <span className={r.kind === "gap" ? "text-muted-foreground" : ""}>
+                                  {r.label}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
 
-                  <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                    <form action={startConversationForApplication.bind(null, app.id)}>
-                      <Button type="submit" variant="secondary" size="sm">
-                        Bericht sturen
-                      </Button>
-                    </form>
-                    {app.collaboration && (
-                      <Button asChild variant="secondary" size="sm">
-                        <Link href={`/samenwerkingen/${app.collaboration.id}`}>
-                          Bekijk samenwerking
-                        </Link>
-                      </Button>
-                    )}
-                  </div>
-                  {status === "ACCEPTED" && !app.collaboration && (
-                    <ProposeCollaboration applicationId={app.id} />
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                      <p className="whitespace-pre-line text-sm">{app.motivation}</p>
+                      <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground">
+                        {app.proposedRate != null && (
+                          <span>Tariefvoorstel: € {app.proposedRate}/uur</span>
+                        )}
+                        {app.availability && (
+                          <span>Aangegeven bij reactie: {app.availability}</span>
+                        )}
+                        {(() => {
+                          const s = summarizeAvailability(
+                            app.freelancer.availabilityWindows.map((w) => ({
+                              ...w,
+                              type: w.type as AvailabilityWindowType,
+                            })),
+                          );
+                          return s ? <span>Agenda: {s}</span> : null;
+                        })()}
+                      </div>
+
+                      {status === "WITHDRAWN" ? (
+                        <p className="border-t border-border pt-3 text-sm text-muted-foreground">
+                          De ZZP&apos;er heeft deze reactie ingetrokken.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+                          {APPLICATION_TRANSITIONS[status].map((to) =>
+                            to === "REJECTED" ? (
+                              <ConfirmButton
+                                key={to}
+                                action={changeApplicationStatus.bind(null, app.id, to)}
+                                triggerVariant="destructive"
+                                size="sm"
+                                title="Reactie afwijzen?"
+                                description="De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist."
+                                confirmLabel="Afwijzen"
+                              >
+                                {ACTION_LABEL[to]}
+                              </ConfirmButton>
+                            ) : (
+                              <form
+                                key={to}
+                                action={changeApplicationStatus.bind(null, app.id, to)}
+                              >
+                                <Button
+                                  type="submit"
+                                  size="sm"
+                                  variant={to === "ACCEPTED" ? "primary" : "secondary"}
+                                >
+                                  {ACTION_LABEL[to]}
+                                </Button>
+                              </form>
+                            ),
+                          )}
+                        </div>
+                      )}
+
+                      <ApplicationNoteForm appId={app.id} defaultNote={app.note ?? ""} />
+
+                      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                        <form action={startConversationForApplication.bind(null, app.id)}>
+                          <Button type="submit" variant="secondary" size="sm">
+                            Bericht sturen
+                          </Button>
+                        </form>
+                        {app.collaboration && (
+                          <Button asChild variant="secondary" size="sm">
+                            <Link href={`/samenwerkingen/${app.collaboration.id}`}>
+                              Bekijk samenwerking
+                            </Link>
+                          </Button>
+                        )}
+                      </div>
+                      {status === "ACCEPTED" && !app.collaboration && (
+                        <ProposeCollaboration applicationId={app.id} />
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </>
+          )}
         </div>
       )}
     </div>
