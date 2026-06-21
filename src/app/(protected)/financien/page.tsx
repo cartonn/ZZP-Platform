@@ -25,7 +25,7 @@ export default async function FinancienPage({ searchParams }: { searchParams: Se
 
   return (
     <div className="space-y-6">
-      <AdministratieHubScreen actor={actor} tab={tab} />
+      <AdministratieHubScreen actor={actor} tab={tab} searchParams={sp} />
     </div>
   );
 }

@@ -5,9 +5,12 @@ import { FacturenPanel } from "@/components/administratie/facturen-panel";
 
 export const metadata: Metadata = { title: "Facturen · ZZP Platform" };
 
-export default async function FacturenPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function FacturenPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await requireActor();
   const isFreelancer = actor.role === "FREELANCER";
+  const sp = await searchParams;
 
   return (
     <div className="space-y-6">
@@ -19,7 +22,7 @@ export default async function FacturenPage() {
             : "Ontvangen facturen van je samenwerkingen."
         }
       />
-      <FacturenPanel actor={actor} />
+      <FacturenPanel actor={actor} searchParams={sp} basePath="/facturen" />
     </div>
   );
 }
