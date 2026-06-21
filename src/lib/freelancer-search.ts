@@ -39,6 +39,72 @@ export interface FreelancerSearchFilters {
   availableOnly?: boolean;
 }
 
+export type FreelancerSortKey =
+  | "relevance"
+  | "available"
+  | "rate-asc"
+  | "rate-desc"
+  | "trust"
+  | "track-record";
+
+// Hoger = sterker geverifieerd; gebruikt voor "Vertrouwensniveau" + als tiebreaker bij beschikbaarheid.
+const TRUST_RANK: Record<TrustLevel, number> = { VOLLEDIG: 3, DEELS: 2, BASIS: 1 };
+
+// Deterministische eindtiebreaker zodat dezelfde invoer altijd dezelfde volgorde geeft (stabiel,
+// onafhankelijk van de sorteer-implementatie van de runtime).
+function byNameThenId(a: FreelancerCard, b: FreelancerCard): number {
+  return a.name.localeCompare(b.name, "nl") || a.id.localeCompare(b.id);
+}
+
+// Tarief-vergelijking met "geen tarief opgegeven" altijd achteraan, ongeacht de richting.
+function compareRate(a: number | null, b: number | null, dir: "asc" | "desc"): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return dir === "asc" ? a - b : b - a;
+}
+
+/**
+ * Pure, stabiele sortering over vooraf geladen kaartdata — testbaar zonder DB. "relevance" behoudt de
+ * server-volgorde (recent bijgewerkt eerst). Muteert de invoer niet.
+ */
+export function sortFreelancers(
+  cards: FreelancerCard[],
+  sort: FreelancerSortKey,
+): FreelancerCard[] {
+  const result = [...cards];
+  switch (sort) {
+    case "relevance":
+      return result;
+    case "available":
+      return result.sort(
+        (a, b) =>
+          Number(b.availabilitySummary !== null) - Number(a.availabilitySummary !== null) ||
+          TRUST_RANK[b.trustLevel] - TRUST_RANK[a.trustLevel] ||
+          byNameThenId(a, b),
+      );
+    case "rate-asc":
+      return result.sort(
+        (a, b) => compareRate(a.hourlyRate, b.hourlyRate, "asc") || byNameThenId(a, b),
+      );
+    case "rate-desc":
+      return result.sort(
+        (a, b) => compareRate(a.hourlyRate, b.hourlyRate, "desc") || byNameThenId(a, b),
+      );
+    case "trust":
+      return result.sort(
+        (a, b) => TRUST_RANK[b.trustLevel] - TRUST_RANK[a.trustLevel] || byNameThenId(a, b),
+      );
+    case "track-record":
+      return result.sort(
+        (a, b) =>
+          b.trackRecord.completedCollaborations - a.trackRecord.completedCollaborations ||
+          b.trackRecord.approvedHours - a.trackRecord.approvedHours ||
+          byNameThenId(a, b),
+      );
+  }
+}
+
 /** Pure filter over vooraf geladen kaartdata — testbaar zonder DB. */
 export function applyFreelancerFilters(
   cards: FreelancerCard[],
