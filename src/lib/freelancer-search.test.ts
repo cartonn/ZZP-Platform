@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { applyFreelancerFilters, type FreelancerCard } from "@/lib/freelancer-search";
+import {
+  applyFreelancerFilters,
+  sortFreelancers,
+  type FreelancerCard,
+} from "@/lib/freelancer-search";
 
 const sanne: FreelancerCard = {
   id: "fp-1",
@@ -111,5 +115,87 @@ describe("applyFreelancerFilters", () => {
 
   it("lege cards-lijst geeft leeg terug", () => {
     expect(applyFreelancerFilters([], { query: "test" })).toHaveLength(0);
+  });
+});
+
+describe("sortFreelancers", () => {
+  // Extra kaarten voor eenduidige sorteervolgordes.
+  const piet: FreelancerCard = {
+    ...jan,
+    id: "fp-3",
+    userId: "u-3",
+    name: "Piet Klaassen",
+    trustLevel: "VOLLEDIG",
+    availabilitySummary: "Direct beschikbaar",
+    hourlyRate: 100,
+    trackRecord: { completedCollaborations: 5, approvedHours: 200 },
+  };
+  const noRate: FreelancerCard = {
+    ...jan,
+    id: "fp-4",
+    userId: "u-4",
+    name: "Anna Zonder",
+    hourlyRate: null,
+    availabilitySummary: null,
+  };
+  const all = [sanne, jan, piet, noRate];
+
+  it("'relevance' behoudt de invoervolgorde", () => {
+    expect(sortFreelancers(all, "relevance").map((c) => c.id)).toEqual([
+      "fp-1",
+      "fp-2",
+      "fp-3",
+      "fp-4",
+    ]);
+  });
+
+  it("muteert de invoer niet", () => {
+    const input = [...all];
+    sortFreelancers(input, "rate-desc");
+    expect(input.map((c) => c.id)).toEqual(["fp-1", "fp-2", "fp-3", "fp-4"]);
+  });
+
+  it("'available' zet beschikbare ZZP'ers eerst, tiebreak op vertrouwen", () => {
+    const r = sortFreelancers(all, "available").map((c) => c.id);
+    // Beschikbaar: piet (VOLLEDIG) vóór sanne (DEELS); daarna de niet-beschikbare op naam.
+    expect(r).toEqual(["fp-3", "fp-1", "fp-4", "fp-2"]);
+  });
+
+  it("'trust' sorteert op vertrouwensniveau (hoog → laag)", () => {
+    const r = sortFreelancers(all, "trust").map((c) => c.trustLevel);
+    expect(r).toEqual(["VOLLEDIG", "DEELS", "BASIS", "BASIS"]);
+  });
+
+  it("'rate-asc' sorteert oplopend met 'geen tarief' achteraan", () => {
+    expect(sortFreelancers(all, "rate-asc").map((c) => c.id)).toEqual([
+      "fp-2", // 75
+      "fp-1", // 85
+      "fp-3", // 100
+      "fp-4", // null → achteraan
+    ]);
+  });
+
+  it("'rate-desc' sorteert aflopend met 'geen tarief' achteraan", () => {
+    expect(sortFreelancers(all, "rate-desc").map((c) => c.id)).toEqual([
+      "fp-3", // 100
+      "fp-1", // 85
+      "fp-2", // 75
+      "fp-4", // null → achteraan
+    ]);
+  });
+
+  it("'track-record' sorteert op afgeronde samenwerkingen (dan uren)", () => {
+    expect(sortFreelancers(all, "track-record").map((c) => c.id)).toEqual([
+      "fp-3", // 5
+      "fp-1", // 3
+      "fp-4", // 0/0 — tiebreak op naam: "Anna" vóór "Jan"
+      "fp-2", // 0/0
+    ]);
+  });
+
+  it("breekt gelijke sleutels deterministisch op naam", () => {
+    // jan en noRate hebben beide 0/0 track record → naam beslist (Anna < Jan).
+    const r = sortFreelancers([jan, noRate], "track-record").map((c) => c.id);
+    expect(r).toEqual(["fp-4", "fp-2"]);
   });
 });
