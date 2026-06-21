@@ -29,6 +29,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { AgendaExportButton } from "@/components/agenda/agenda-export-button";
+import { hasExportableSchedule } from "@/lib/calendar/exportable";
 import { ClaimShift } from "./claim-shift";
 
 export const metadata: Metadata = { title: "Rooster · ZZP Platform" };
@@ -117,6 +119,7 @@ export default async function RoosterPage({
           take: 100,
           select: {
             id: true,
+            status: true,
             rate: true,
             startDate: true,
             endDate: true,
@@ -126,6 +129,9 @@ export default async function RoosterPage({
           },
         })
       : [];
+
+  // Agenda-export (.ics) tonen zodra er een actieve, geplande samenwerking is — geen dode knop.
+  const canExportAgenda = hasExportableSchedule(collabRows);
 
   const bookedInputs: BookedCollaborationInput[] = collabRows.map((c) => ({
     collaborationId: c.id,
@@ -177,7 +183,11 @@ export default async function RoosterPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Rooster" description="Jouw geplande diensten en open kansen — per dag." />
+      <PageHeader
+        title="Rooster"
+        description="Jouw geplande diensten en open kansen — per dag."
+        action={canExportAgenda ? <AgendaExportButton /> : undefined}
+      />
 
       {showStrongFilter && (
         <div className="flex flex-wrap gap-1.5">
