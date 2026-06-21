@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: urgentiefilter op /admin/disputen
+
+De urgentie-samenvattingsstrip op `/admin/disputen` (Alle / Urgent / Verhoogd / Normaal) toonde
+alleen tellingen. Een beheerder kon niet direct inzoomen op de urgentste bevroren samenwerkingen —
+zolang een dispuut openstaat ligt de betalingscascade stil, dus urgentie is het signaal dat telt.
+De chips zijn nu klikbare filtertabs (server-side via de URL, deelbaar/herlaadbaar). Spiegel van het
+statusfilter-patroon (`/reacties`, `/admin/samenwerkingen`). Read-only, **geen schemawijziging, geen
+extra query**.
+
+- [x] `src/lib/dispute-filter.ts` — pure module: `parseDisputeFilter` (leest `urgency`,
+      case-insensitief, valt terug op `null`), `matchesDisputeFilter`, `filterDisputeRows`
+      (muteert de invoer niet, geeft een nieuwe array terug), `isDisputeFilterActive`,
+      `disputeFilterParams` (querystring-helper voor de filterlinks).
+- [x] `src/app/(protected)/admin/disputen/page.tsx` — chips → `FilterPill`-links; de tellingen tonen
+      altijd de **volledige** backlog (niet de gefilterde weergave); "X van Y disputen"-telregel +
+      nette "geen disputen in dit filter"-lege staat naast de bestaande "geen open disputen"-empty.
+- [x] Tests: `dispute-filter.test.ts` (+12). Gate: typecheck ✓, lint ✓, test **2505** ✓ (+12),
+      build ✓, `prettier --check .` ✓.
+
 ## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
 
 De opdrachtgever-browse (`/freelancers`) had wél filters (zoeken, vertrouwensniveau, alleen

@@ -260,6 +260,11 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Urgentiefilter op `/admin/disputen`** — `lib/dispute-filter.ts`
+> (`parseDisputeFilter`/`filterDisputeRows`/`isDisputeFilterActive`/`disputeFilterParams`, +12 tests);
+> de urgentie-chips (Alle/Urgent/Verhoogd/Normaal) zijn klikbare server-side filtertabs (URL-param),
+> tellingen tonen de volledige backlog, "X van Y"-telregel + eigen lege staat. Read-only, geen
+> schemawijziging, geen extra query. Spiegel van het statusfilter-patroon (`/reacties`).
 > Gedaan (niet opnieuw): **Sorteeropties op de ZZP'er-browse (`/freelancers`, opdrachtgever)** — pure
 > `sortFreelancers` in `lib/freelancer-search.ts` (relevance/available/trust/track-record/rate-asc/
 > rate-desc) over de reeds server-berekende kaartdata + sorteer-`Select` in `freelancer-browse.tsx`;
