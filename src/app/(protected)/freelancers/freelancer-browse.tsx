@@ -5,8 +5,10 @@ import Link from "next/link";
 import { MapPin, Search, Calendar, Euro, CircleCheck, Clock } from "lucide-react";
 import {
   applyFreelancerFilters,
+  sortFreelancers,
   type FreelancerCard,
   type FreelancerSearchFilters,
+  type FreelancerSortKey,
 } from "@/lib/freelancer-search";
 import { trackRecordHighlights } from "@/lib/freelancer-track-record";
 import { avatarAccent } from "@/lib/avatar-accent";
@@ -36,10 +38,20 @@ const WORK_MODE_LABEL: Record<string, string> = {
   HYBRID: "Hybride",
 };
 
+const SORT_OPTIONS: { value: FreelancerSortKey; label: string }[] = [
+  { value: "relevance", label: "Aanbevolen" },
+  { value: "available", label: "Beschikbaar eerst" },
+  { value: "trust", label: "Vertrouwensniveau" },
+  { value: "track-record", label: "Meeste ervaring" },
+  { value: "rate-asc", label: "Tarief (laag → hoog)" },
+  { value: "rate-desc", label: "Tarief (hoog → laag)" },
+];
+
 export function FreelancerBrowse({ freelancers }: { freelancers: FreelancerCard[] }) {
   const [query, setQuery] = useState("");
   const [trustLevel, setTrustLevel] = useState<TrustLevel | "">("");
   const [availableOnly, setAvailableOnly] = useState(false);
+  const [sort, setSort] = useState<FreelancerSortKey>("relevance");
 
   const filters: FreelancerSearchFilters = useMemo(
     () => ({ query, trustLevel, availableOnly }),
@@ -47,8 +59,8 @@ export function FreelancerBrowse({ freelancers }: { freelancers: FreelancerCard[
   );
 
   const results = useMemo(
-    () => applyFreelancerFilters(freelancers, filters),
-    [freelancers, filters],
+    () => sortFreelancers(applyFreelancerFilters(freelancers, filters), sort),
+    [freelancers, filters, sort],
   );
 
   return (
@@ -79,6 +91,18 @@ export function FreelancerBrowse({ freelancers }: { freelancers: FreelancerCard[
           <option value="VOLLEDIG">Volledig geverifieerd</option>
           <option value="DEELS">Deels geverifieerd</option>
           <option value="BASIS">Basisprofiel</option>
+        </Select>
+        <Select
+          aria-label="Sorteren"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as FreelancerSortKey)}
+          className="sm:w-56"
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </Select>
         <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm">
           <input
@@ -113,6 +137,7 @@ export function FreelancerBrowse({ freelancers }: { freelancers: FreelancerCard[
                 setQuery("");
                 setTrustLevel("");
                 setAvailableOnly(false);
+                setSort("relevance");
               }}
             >
               Filters wissen

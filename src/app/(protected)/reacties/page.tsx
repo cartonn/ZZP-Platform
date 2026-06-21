@@ -14,8 +14,16 @@ import { OutcomesSummary } from "@/components/applications/outcomes-summary";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { summarizeApplicationOutcomes } from "@/lib/application-outcomes";
+import {
+  type ApplicationFilterGroup,
+  applicationFilterParams,
+  filterApplications,
+  parseApplicationFilter,
+  summarizeApplicationGroups,
+} from "@/lib/application-filter";
 import { canWithdrawApplication } from "@/lib/applications";
 import { type ApplicationStatus, type CredentialType, type CredentialStatus } from "@/lib/enums";
+import { cn } from "@/lib/utils";
 import { withdrawApplication } from "./actions";
 
 export const metadata: Metadata = { title: "Mijn reacties · ZZP Platform" };
@@ -38,8 +46,43 @@ const COLLAB_HINT: Record<string, string> = {
   CANCELLED: "Samenwerking geannuleerd — bekijk het werkproces.",
 };
 
-export default async function ReactiesPage() {
+function filterHref(group: ApplicationFilterGroup): string {
+  const qs = new URLSearchParams(applicationFilterParams(group)).toString();
+  return qs ? `/reacties?${qs}` : "/reacties";
+}
+
+function FilterPill({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "focus-ring inline-flex items-center rounded-md border px-3 py-1 text-sm transition-colors",
+        active
+          ? "border-accent-foreground/20 bg-accent text-accent-foreground"
+          : "border-border bg-background text-muted-foreground hover:bg-muted",
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
+export default async function ReactiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const actor = await requireRole("FREELANCER");
+  const filter = parseApplicationFilter(await searchParams);
   const profile = await prisma.freelancerProfile.findUnique({
     where: { userId: actor.id },
     select: {
@@ -72,12 +115,17 @@ export default async function ReactiesPage() {
       })
     : [];
 
+  // status komt als string uit Prisma; cast één keer naar de enum zodat de pure helpers (filter +
+  // samenvatting) hun nauwere type houden. De overige velden blijven behouden voor de weergave.
+  const typed = applications.map((app) => ({ ...app, status: app.status as ApplicationStatus }));
+
   const outcomes = summarizeApplicationOutcomes(
-    applications.map((app) => ({
-      status: app.status as ApplicationStatus,
-      hasCollaboration: app.collaboration != null,
-    })),
+    typed.map((app) => ({ status: app.status, hasCollaboration: app.collaboration != null })),
   );
+
+  // Tellingen over álle reacties; de filter werkt server-side op de al opgehaalde set.
+  const groupSummary = summarizeApplicationGroups(typed);
+  const visible = filterApplications(typed, filter);
 
   return (
     <div className="space-y-6">
@@ -95,89 +143,113 @@ export default async function ReactiesPage() {
           />
         </Card>
       ) : (
-        <div className="space-y-3">
-          {applications.map((app) => {
-            // Live compliance uit de actuele certificaten i.p.v. de bevroren snapshot. De volledige
-            // uitsplitsing maakt voor de ZZP'er concreet wat hij nog moet regelen om te voldoen.
-            const requiredTypes = app.job.credentialRequirements
-              .filter((r) => r.required)
-              .map((r) => r.credentialType as CredentialType);
-            const compliance =
-              requiredTypes.length > 0 ? computeCompliance(requiredTypes, myCredentials) : null;
-            // Zodra er een samenwerking uit de reactie is voortgekomen, wijst de kaart naar het
-            // werkproces (de logische volgende stap) i.p.v. terug naar de opdracht.
-            const hint = app.collaboration
-              ? (COLLAB_HINT[app.collaboration.status] ??
-                "Samenwerking gestart — bekijk het werkproces.")
-              : STATUS_HINT[app.status as ApplicationStatus];
-            // De ZZP'er kan zijn reactie intrekken zolang de opdrachtgever nog geen beslissing nam en
-            // er geen samenwerking uit voortkwam. Server-side blijft dit de waarheid (zie actions.ts).
-            const canWithdraw =
-              !app.collaboration && canWithdrawApplication(app.status as ApplicationStatus);
-            return (
-              <div key={app.id} className="rounded-lg border border-border bg-card p-4">
-                <Link
-                  href={
-                    app.collaboration
-                      ? `/samenwerkingen/${app.collaboration.id}`
-                      : `/opdrachten/${app.job.id}`
-                  }
-                  className="block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{app.job.title}</p>
-                      <p className="text-sm text-muted-foreground">{app.job.company.name}</p>
-                    </div>
-                    <ApplicationStatusBadge status={app.status as ApplicationStatus} />
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {app.matchScore != null && (
-                      <Badge variant="accent">Match {app.matchScore}%</Badge>
-                    )}
-                    {compliance && <ComplianceBadge status={compliance.status} />}
-                  </div>
-                  {compliance && compliance.status !== "COMPLIANT" && (
-                    <p className="mt-1.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                      {compliance.missing.length > 0 && (
-                        <span className="text-danger">
-                          Je mist:{" "}
-                          {compliance.missing.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
-                        </span>
-                      )}
-                      {compliance.expired.length > 0 && (
-                        <span className="text-danger">
-                          Verlopen:{" "}
-                          {compliance.expired.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
-                        </span>
-                      )}
-                      {compliance.inReview.length > 0 && (
-                        <span className="text-warning">
-                          In beoordeling:{" "}
-                          {compliance.inReview.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
-                        </span>
-                      )}
-                    </p>
-                  )}
-                  <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
-                </Link>
-                {canWithdraw && (
-                  <div className="mt-3 flex justify-end border-t border-border pt-3">
-                    <ConfirmButton
-                      action={withdrawApplication.bind(null, app.id)}
-                      triggerVariant="ghost"
-                      size="xs"
-                      title="Reactie intrekken?"
-                      description="Je reactie verdwijnt uit de selectie van de opdrachtgever. Je kunt later opnieuw op deze opdracht reageren."
-                      confirmLabel="Intrekken"
+        <div className="space-y-4">
+          {/* Statusfilter — server-side via de URL (deelbaar/herlaadbaar). */}
+          <div className="flex flex-wrap gap-1.5">
+            <FilterPill href={filterHref("all")} active={filter === "all"}>
+              Alle ({groupSummary.total})
+            </FilterPill>
+            {groupSummary.groups.map((g) => (
+              <FilterPill key={g.group} href={filterHref(g.group)} active={filter === g.group}>
+                {g.label} ({g.count})
+              </FilterPill>
+            ))}
+          </div>
+
+          {visible.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={FileText}
+                title="Geen reacties in dit filter"
+                description="Pas het filter aan om je andere reacties te zien."
+                action={{ label: "Alle reacties", href: "/reacties" }}
+              />
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {visible.map((app) => {
+                // Live compliance uit de actuele certificaten i.p.v. de bevroren snapshot. De volledige
+                // uitsplitsing maakt voor de ZZP'er concreet wat hij nog moet regelen om te voldoen.
+                const requiredTypes = app.job.credentialRequirements
+                  .filter((r) => r.required)
+                  .map((r) => r.credentialType as CredentialType);
+                const compliance =
+                  requiredTypes.length > 0 ? computeCompliance(requiredTypes, myCredentials) : null;
+                // Zodra er een samenwerking uit de reactie is voortgekomen, wijst de kaart naar het
+                // werkproces (de logische volgende stap) i.p.v. terug naar de opdracht.
+                const hint = app.collaboration
+                  ? (COLLAB_HINT[app.collaboration.status] ??
+                    "Samenwerking gestart — bekijk het werkproces.")
+                  : STATUS_HINT[app.status];
+                // De ZZP'er kan zijn reactie intrekken zolang de opdrachtgever nog geen beslissing nam en
+                // er geen samenwerking uit voortkwam. Server-side blijft dit de waarheid (zie actions.ts).
+                const canWithdraw = !app.collaboration && canWithdrawApplication(app.status);
+                return (
+                  <div key={app.id} className="rounded-lg border border-border bg-card p-4">
+                    <Link
+                      href={
+                        app.collaboration
+                          ? `/samenwerkingen/${app.collaboration.id}`
+                          : `/opdrachten/${app.job.id}`
+                      }
+                      className="block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      Reactie intrekken
-                    </ConfirmButton>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{app.job.title}</p>
+                          <p className="text-sm text-muted-foreground">{app.job.company.name}</p>
+                        </div>
+                        <ApplicationStatusBadge status={app.status} />
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {app.matchScore != null && (
+                          <Badge variant="accent">Match {app.matchScore}%</Badge>
+                        )}
+                        {compliance && <ComplianceBadge status={compliance.status} />}
+                      </div>
+                      {compliance && compliance.status !== "COMPLIANT" && (
+                        <p className="mt-1.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                          {compliance.missing.length > 0 && (
+                            <span className="text-danger">
+                              Je mist:{" "}
+                              {compliance.missing.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                            </span>
+                          )}
+                          {compliance.expired.length > 0 && (
+                            <span className="text-danger">
+                              Verlopen:{" "}
+                              {compliance.expired.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                            </span>
+                          )}
+                          {compliance.inReview.length > 0 && (
+                            <span className="text-warning">
+                              In beoordeling:{" "}
+                              {compliance.inReview.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
+                    </Link>
+                    {canWithdraw && (
+                      <div className="mt-3 flex justify-end border-t border-border pt-3">
+                        <ConfirmButton
+                          action={withdrawApplication.bind(null, app.id)}
+                          triggerVariant="ghost"
+                          size="xs"
+                          title="Reactie intrekken?"
+                          description="Je reactie verdwijnt uit de selectie van de opdrachtgever. Je kunt later opnieuw op deze opdracht reageren."
+                          confirmLabel="Intrekken"
+                        >
+                          Reactie intrekken
+                        </ConfirmButton>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
