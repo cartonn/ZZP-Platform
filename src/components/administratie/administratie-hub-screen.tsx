@@ -72,9 +72,11 @@ async function headlineStats(actor: Actor): Promise<{ openCents: number; paidCen
 export async function AdministratieHubScreen({
   actor,
   tab: rawTab,
+  searchParams = {},
 }: {
   actor: Actor;
   tab?: string;
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const tabs = tabsForRole(actor.role);
   const tab: TabKey = (tabs as readonly string[]).includes(rawTab ?? "")
@@ -152,7 +154,9 @@ export async function AdministratieHubScreen({
       </nav>
 
       {/* Alleen het actieve tabpaneel rendert — zo laadt enkel die data server-side. */}
-      {tab === "facturen" && <FacturenPanel actor={actor} />}
+      {tab === "facturen" && (
+        <FacturenPanel actor={actor} searchParams={searchParams} basePath="/financien" />
+      )}
       {tab === "openstaand" && <OpenstaandPanel actor={actor} />}
       {tab === "boekhouding" && <BoekhoudingPanel actor={actor} />}
       {tab === "prognose" && <PrognosePanel actor={actor} />}
