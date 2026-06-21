@@ -260,6 +260,11 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Statusfilter op /kandidaten (opdrachtgever)** — pure
+> `lib/kandidaten-filter.ts` (`normalizeKandidatenFilter`/`filterApplicationsByStatus`/
+> `countApplicationsByStatus`, 13 tests) + pill-tabs met tellingen op `/kandidaten`, zelfde idioom als
+> `/prestaties`+`/diensten`; "Beste match" verbergt onder een actief filter; in-memory filter, geen
+> schemawijziging, geen extra query.
 > Gedaan (niet opnieuw): **ZZP'er kan eigen reactie intrekken (WITHDRAWN)** — nieuwe
 > `APPLICATION_STATUSES`-waarde `WITHDRAWN` + pure `canWithdrawApplication` (alleen NEW/VIEWED/
 > SHORTLIST, geen samenwerking); freelancer-only `withdrawApplication` server-action op `/reacties`

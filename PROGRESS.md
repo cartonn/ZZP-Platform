@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(kandidaten): statusfilter op /kandidaten (opdrachtgever)
+
+De kandidaten-/reactielijst toonde alle reacties in werkstroom-volgorde zonder manier om snel op
+status te filteren — bij veel reacties werd het zoeken. De zusterschermen `/prestaties` en
+`/diensten` hadden dit filter-idioom al; dit sluit die asymmetrie. Read-only, **geen schemawijziging,
+geen extra query** (filtert in-memory op de reeds opgehaalde set).
+
+- [x] `src/lib/kandidaten-filter.ts` — pure helpers: `KANDIDATEN_FILTER_LABELS` (Alle + de zes
+      applicatie-statussen in lees-volgorde), `isApplicationStatus`, `normalizeKandidatenFilter`
+      (rauwe `?status=` → geldige status of "", weert onbekende waarden), `filterApplicationsByStatus`
+      (kopieert, muteert niet) en `countApplicationsByStatus` (telling per status, alle op 0
+      geïnitialiseerd, negeert onbekende waarden) voor de tab-badges.
+- [x] `src/app/(protected)/kandidaten/page.tsx` — pill-tabs (`<nav aria-label="Filter op status">`)
+      met tellingen, exact het idioom van `/prestaties`; `searchParams.status` → `normalizeKandidatenFilter`;
+      "Beste match"-etalage verbergt zich onder een actief filter (kan buiten de selectie vallen); nette
+      empty-state per filter.
+- [x] Tests: `kandidaten-filter.test.ts` (+13: guard/normalisatie/filter-no-mutation/telling-leeg/
+      onbekende-status/label-dekking). Allowlist-regel in `unbounded-queries.test.ts` bijgewerkt
+      (verschoven regelnummer 52 → 63 van de bestaande opdrachtgever-gescopete `application.findMany`).
+
+Gate groen: typecheck ✓, lint ✓, test **2437** ✓ (+13), build ✓, `prettier --check .` ✓.
+
 ## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
 Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
