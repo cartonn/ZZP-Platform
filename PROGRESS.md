@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
+
+De opdrachtgever-browse (`/freelancers`) had wél filters (zoeken, vertrouwensniveau, alleen
+beschikbaar) maar geen sorteervolgorde — de lijst stond vast op server-volgorde (`updatedAt desc`).
+Een opdrachtgever die op tarief, vertrouwen, beschikbaarheid of ervaring wil vergelijken moest
+handmatig scannen. Toegevoegd: een pure, stabiele sorteerfunctie over de reeds server-berekende
+kaartdata + een sorteer-`Select`. Read-only, **geen schemawijziging, geen extra query**.
+
+- [x] `src/lib/freelancer-search.ts` — `FreelancerSortKey` + pure `sortFreelancers(cards, sort)`:
+      `relevance` (behoudt server-volgorde), `available` (beschikbaar eerst, tiebreak vertrouwen),
+      `trust` (vertrouwensniveau hoog→laag), `track-record` (afgeronde samenwerkingen, dan uren),
+      `rate-asc`/`rate-desc` (tarief, "geen tarief" altijd achteraan). Deterministische
+      eindtiebreaker (naam → id) zodat dezelfde invoer altijd dezelfde volgorde geeft; muteert de
+      invoer niet.
+- [x] `src/app/(protected)/freelancers/freelancer-browse.tsx` — sorteer-`Select` (NL-labels) naast de
+      bestaande filters; `sortFreelancers(applyFreelancerFilters(...), sort)`; "Filters wissen" reset
+      ook de sortering naar `relevance`.
+- [x] Tests: `freelancer-search.test.ts` (+8: relevance-behoud, no-mutation, available-volgorde,
+      trust, rate-asc/desc met nulls-last, track-record + naam-tiebreaker).
+
+Gate groen: typecheck ✓, lint ✓, test **2434** ✓, build ✓, `prettier --check .` ✓.
+
 ## feat(reacties): ZZP'er kan eigen reactie intrekken (WITHDRAWN)
 
 Een ZZP'er kon zijn eigen reactie op een opdracht niet terugtrekken. Werd hij onbeschikbaar, dan
