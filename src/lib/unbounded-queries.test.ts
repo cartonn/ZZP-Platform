@@ -357,24 +357,29 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     reason: "branches-referentielijst voor formulier",
   },
 
-  // --- opdrachten/(index)/page.tsx (drie findMany's) ---
-  // Client-kanban van eigen opdrachten (regel 46); geen take maar altijd
-  // gefilterd op company.userId (eigenaar-scoped) — kolommen Concept/Gepubliceerd/Gesloten.
-  // Industry- en skill-lijsten (regels 169-170) zijn kleine referentielijsten.
+  // --- opdrachten/(index)/page.tsx (vier findMany's) ---
+  // Client-kanban van eigen opdrachten; geen take maar altijd gefilterd op company.userId
+  // (eigenaar-scoped). Industry-/skill-lijsten zijn kleine referentielijsten. De savedJob-query
+  // is begrensd tot de zichtbare (gepagineerde) opdrachten via jobId: { in: [...] }.
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 41,
+    line: 42,
     reason: "eigenaar-scoped kanban van eigen opdrachten; kandidaat toekomstige paginatie",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 159,
+    line: 160,
     reason: "branches-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 160,
+    line: 161,
     reason: "skills-referentielijst voor filter",
+  },
+  {
+    file: "(protected)/opdrachten/(index)/page.tsx",
+    line: 192,
+    reason: "bewaarde opdrachten, begrensd tot de zichtbare pagina via jobId: { in: [...] }",
   },
 
   // --- support/page.tsx ---
