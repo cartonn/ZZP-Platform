@@ -17,6 +17,7 @@ import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
 import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/matching";
 import { jobStartProximity } from "@/lib/job-start-proximity";
+import { getTranslator } from "@/lib/i18n/server";
 import { type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -239,6 +240,7 @@ async function BrowseJobs({
 
   // Eén klok voor alle start-proximity-signalen in deze render (deterministisch, geen drift per rij).
   const now = new Date();
+  const { t } = await getTranslator();
 
   // Persoonlijke match per opdracht: score plus de zwaarst wegende troef én het zwaarst wegende
   // minpunt — uitlegbaarheid. De ZZP'er ziet niet alleen *of* het matcht, maar *waarom* (en wat niet).
@@ -280,8 +282,8 @@ async function BrowseJobs({
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold tracking-tight">Opdrachten</h1>
-        <p className="text-sm text-muted-foreground">Vind opdrachten die bij je passen.</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t("Opdrachten")}</h1>
+        <p className="text-sm text-muted-foreground">{t("Vind opdrachten die bij je passen.")}</p>
       </header>
 
       <JobFilters industries={industries} skills={skills} />
@@ -290,14 +292,14 @@ async function BrowseJobs({
         <Card>
           <EmptyState
             icon={SearchX}
-            title="Geen opdrachten gevonden"
-            description="Pas je filters aan om meer resultaten te zien."
+            title={t("Geen opdrachten gevonden")}
+            description={t("Pas je filters aan om meer resultaten te zien.")}
           />
         </Card>
       ) : (
         <>
           <p className="text-xs text-muted-foreground">
-            {plural(total, "opdracht", "opdrachten")} gevonden
+            {plural(total, t("opdracht"), t("opdrachten"))} {t("gevonden")}
           </p>
           <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             {jobs.map((job) => {
@@ -323,15 +325,22 @@ async function BrowseJobs({
                           <MapPin className="size-3" aria-hidden /> {job.location}
                         </span>
                       )}
-                      <span>{WORK_MODE[job.workMode as WorkMode]}</span>
+                      <span>{t(WORK_MODE[job.workMode as WorkMode])}</span>
                       {job.industry && <span>{job.industry.name}</span>}
                       {(() => {
                         const start = jobStartProximity(job.startDate, now);
-                        return start ? (
+                        if (!start) return null;
+                        const label =
+                          start.days === 0
+                            ? t("begint vandaag")
+                            : start.days === 1
+                              ? t("begint morgen")
+                              : t("begint over N dagen").replace("N", String(start.days));
+                        return (
                           <span className="inline-flex items-center gap-1 font-medium text-warning">
-                            <CalendarClock className="size-3" aria-hidden /> {start.label}
+                            <CalendarClock className="size-3" aria-hidden /> {label}
                           </span>
-                        ) : null;
+                        );
                       })()}
                     </p>
                     {match && (match.reason || match.gap) && (
@@ -339,13 +348,13 @@ async function BrowseJobs({
                         {match.reason && (
                           <span className="inline-flex items-center gap-1 text-success">
                             <Check className="size-3 shrink-0" aria-hidden />
-                            <span className="truncate">{match.reason}</span>
+                            <span className="truncate">{t(match.reason)}</span>
                           </span>
                         )}
                         {match.gap && (
                           <span className="inline-flex items-center gap-1 text-muted-foreground">
                             <Minus className="size-3 shrink-0" aria-hidden />
-                            <span className="truncate">{match.gap}</span>
+                            <span className="truncate">{t(match.gap)}</span>
                           </span>
                         )}
                       </p>
@@ -355,10 +364,15 @@ async function BrowseJobs({
                     {(job.rateMin != null || job.rateMax != null) && (
                       <span className="hidden text-sm tabular-nums text-muted-foreground sm:inline">
                         € {job.rateMin ?? "?"}
-                        {job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
+                        {job.rateMax != null ? `–${job.rateMax}` : "+"}
+                        {t("/uur")}
                       </span>
                     )}
-                    {match && <Badge variant="accent">Match {match.score}%</Badge>}
+                    {match && (
+                      <Badge variant="accent">
+                        {t("Match")} {match.score}%
+                      </Badge>
+                    )}
                     {profile && (
                       <span className="relative z-10">
                         <SaveJobButton jobId={job.id} saved={savedJobIds.has(job.id)} />
@@ -372,20 +386,20 @@ async function BrowseJobs({
           </div>
 
           {totalPages > 1 && (
-            <nav className="flex items-center justify-between pt-2" aria-label="Paginering">
+            <nav className="flex items-center justify-between pt-2" aria-label={t("Paginering")}>
               {f.page > 1 ? (
                 <Button asChild variant="secondary" size="sm">
-                  <Link href={mkPageHref(f.page - 1)}>Vorige</Link>
+                  <Link href={mkPageHref(f.page - 1)}>{t("Vorige")}</Link>
                 </Button>
               ) : (
                 <span />
               )}
               <span className="text-xs text-muted-foreground">
-                Pagina {f.page} van {totalPages}
+                {t("Pagina N van M").replace("N", String(f.page)).replace("M", String(totalPages))}
               </span>
               {f.page < totalPages ? (
                 <Button asChild variant="secondary" size="sm">
-                  <Link href={mkPageHref(f.page + 1)}>Volgende</Link>
+                  <Link href={mkPageHref(f.page + 1)}>{t("Volgende")}</Link>
                 </Button>
               ) : (
                 <span />

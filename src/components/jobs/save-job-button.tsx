@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/components/i18n/locale-provider";
 import { toggleSavedJob } from "@/app/(protected)/opdrachten/actions";
 
 /**
@@ -11,6 +12,7 @@ import { toggleSavedJob } from "@/app/(protected)/opdrachten/actions";
  * SavedJob-rij, niet uit client-state.
  */
 export function SaveJobButton({ jobId, saved }: { jobId: string; saved: boolean }) {
+  const t = useT();
   const [isPending, startTransition] = useTransition();
 
   return (
@@ -24,11 +26,11 @@ export function SaveJobButton({ jobId, saved }: { jobId: string; saved: boolean 
     >
       {saved ? (
         <>
-          <BookmarkCheck className="size-4" aria-hidden /> Bewaard
+          <BookmarkCheck className="size-4" aria-hidden /> {t("Bewaard")}
         </>
       ) : (
         <>
-          <Bookmark className="size-4" aria-hidden /> Bewaren
+          <Bookmark className="size-4" aria-hidden /> {t("Bewaren")}
         </>
       )}
     </Button>
