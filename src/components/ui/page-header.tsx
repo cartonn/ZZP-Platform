@@ -1,9 +1,12 @@
 import { type ReactNode } from "react";
+import { getTranslator } from "@/lib/i18n/server";
 
 // Canonieke paginakop (DESIGN.md §5): titel + optionele subtitel, met een optionele actie rechts.
 // Eén bron voor de ~38 pagina's die nu elk hun eigen <header><h1><p> herhalen — consistente
 // typografie, spacing en landmark. `description`/`title` accepteren ReactNode (voor inline-expressies).
-export function PageHeader({
+// Server-component: vertaalt automatisch een string-titel/-subtitel (ReactNode-waarden passeren
+// onveranderd) zodat de paginakoppen meebewegen met de taalkeuze zonder elke pagina te wijzigen.
+export async function PageHeader({
   title,
   description,
   action,
@@ -12,10 +15,14 @@ export function PageHeader({
   description?: ReactNode;
   action?: ReactNode;
 }) {
+  const { t } = await getTranslator();
+  const tr = (v: ReactNode): ReactNode => (typeof v === "string" ? t(v) : v);
   const heading = (
     <>
-      <h1 className="break-words font-display text-2xl font-semibold tracking-tight">{title}</h1>
-      {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+      <h1 className="break-words font-display text-2xl font-semibold tracking-tight">
+        {tr(title)}
+      </h1>
+      {description ? <p className="text-sm text-muted-foreground">{tr(description)}</p> : null}
     </>
   );
 

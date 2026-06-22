@@ -345,6 +345,37 @@ const EN: Record<string, string> = {
   "nog open": "still open",
   "oudste al": "oldest already",
   "dagen open": "days open",
+
+  // --- Menupagina-koppen (PageHeader-subtitels + lege-staat-titels) ---
+  "Jouw geplande diensten en open kansen — per dag.":
+    "Your scheduled shifts and open opportunities — by day.",
+  "Je reacties op opdrachten en hun status.": "Your applications to assignments and their status.",
+  "Opdrachten die je hebt bewaard.": "Assignments you've saved.",
+  "Voorgestelde en lopende samenwerkingen.": "Proposed and ongoing collaborations.",
+  "Het diensten-overzicht is er voor ZZP'ers.": "The shifts overview is for freelancers.",
+  "Korte cursussen over je vak, compliance en administratie — leer in je eigen tempo.":
+    "Short courses on your trade, compliance and admin — learn at your own pace.",
+  "Stel verbeteringen voor en stem op de ideeën van anderen. De meest gewenste staan bovenaan.":
+    "Suggest improvements and vote on others' ideas. The most wanted rise to the top.",
+  "Stel je vraag — vaak heb je direct antwoord, anders pakt de helpdesk het op.":
+    "Ask your question — often you get an instant answer, otherwise the help desk picks it up.",
+  "Niets te doen": "Nothing to do",
+  "Geen inzicht beschikbaar": "No insights available",
+
+  // --- Administratie-hub (kop + tabs) ---
+  Administratiesecties: "Administration sections",
+  openstaand: "outstanding",
+  Openstaand: "Outstanding",
+  "Betaalde omzet": "Paid revenue",
+  "Je facturen, openstaande posten en boekhouding op één plek.":
+    "Your invoices, outstanding items and bookkeeping in one place.",
+  "Je facturen, openstaande posten en verplichtingen op één plek.":
+    "Your invoices, outstanding items and obligations in one place.",
+  Facturen: "Invoices",
+  Boekhouding: "Bookkeeping",
+  Prognose: "Forecast",
+  Ontzorgd: "Done-for-you",
+  Verplichtingen: "Obligations",
 };
 
 const TABLES: Record<Locale, Record<string, string>> = {
