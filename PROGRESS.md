@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: CSV-export van het audit-log (admin, AVG/compliance)
+
+De admin kon het audit-log wél filteren en doorbladeren (`/admin/audit`), maar niet exporteren —
+terwijl een audittrail-uitdraai juist het bewijsstuk is voor een AVG-verantwoording of een
+bedrijfsbezoek. Toegevoegd: een admin-only CSV-export die **dezelfde actie-/entiteit-filters**
+toepast als het audit-paneel (server-side waarheid) en de export zelf als auditregel logt. Spiegelt
+de bestaande export-routes (`/admin/avg/export`, `/api/admin/export/invoices`).
+
+- [x] `src/lib/audit-export.ts` — pure leaf-module (geen DB-import): `AuditExportEntry`,
+      `AUDIT_EXPORT_HEADER` (Tijdstip · Actie + omschrijving · Entiteit + omschrijving · Entiteit-ID ·
+      Actor · Details), `auditExportRows` (ruwe code + NL-label via `auditActionLabel`/
+      `auditEntityLabel`, metadata leesbaar via `formatAuditMetadata`, actor-fallback "systeem";
+      muteert niet) + `auditExportCsv` via de canonieke `toCsv`-kern (CSV-injectie-/escaping-veilig).
+- [x] `src/app/(protected)/admin/audit/export/route.ts` — GET, `requireRole("ADMIN")` (403 bij
+      AuthorizationError), leest `action`/`entityType` uit searchParams en bouwt hetzelfde
+      `contains`-where als `AuditPanel`; `take: 10000` (defensieve bovengrens, meest recent eerst);
+      logt `AUDIT_LOG_EXPORTED`; `Content-Disposition: attachment` met datum-bestandsnaam.
+- [x] `src/app/(protected)/admin/audit/page.tsx` — "Exporteer (CSV)"-knop in de `PageHeader`-actie die
+      de actieve filters meeneemt (niet de paginering); verborgen bij een leeg log.
+- [x] `src/lib/audit-labels.ts` — labels `AUDIT_LOG_EXPORTED` + entiteit `AuditLog`.
+- [x] Tests: `audit-export.test.ts` (+8: rij-mapping, actor-fallback, metadata-format, onbekende-code-
+      fallback, no-mutation, kopregel, delimiter-escaping, lege selectie). `take` houdt de
+      unbounded-queries-vangrail groen zonder allowlist-entry.
+
+Gate groen: typecheck ✓, lint ✓, test **2489** ✓, build ✓, `prettier --check .` ✓. Read-only voor de
+data; geen schemawijziging, geen extra query, geen geldstroom, geen scope-creep.
+
 ## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
 
 De opdrachtgever-browse (`/freelancers`) had wél filters (zoeken, vertrouwensniveau, alleen
