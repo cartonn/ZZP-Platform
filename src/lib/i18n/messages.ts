@@ -305,6 +305,46 @@ const EN: Record<string, string> = {
     "Submit your required documents (police certificate and insurance)",
   "Je profiel is volledig geverifieerd — het sterkste signaal naar opdrachtgevers.":
     "Your profile is fully verified — the strongest signal to clients.",
+
+  // --- Opdrachtgever-gedrag-blokken (op opdracht-detail) ---
+  // Gedeelde toon-labels
+  Goed: "Good",
+  Gemiddeld: "Average",
+  "Let op": "Caution",
+  Onbekend: "Unknown",
+  "op basis van": "based on",
+  // Betaalgedrag
+  "Betaalgedrag opdrachtgever": "Client payment behaviour",
+  Betaalgedrag: "Payment behaviour",
+  "Nog te weinig betalingen om iets te zeggen.": "Too few payments to say anything yet.",
+  dagen: "days",
+  betaaltijd: "to pay",
+  "op tijd": "on time",
+  betaling: "payment",
+  betalingen: "payments",
+  // Annuleringsgedrag
+  "Annuleringsbetrouwbaarheid opdrachtgever": "Client cancellation reliability",
+  Annuleringsgedrag: "Cancellation behaviour",
+  "Nog te weinig afgewikkelde samenwerkingen om iets te zeggen.":
+    "Too few settled collaborations to say anything yet.",
+  "Geen enkele afspraak geannuleerd over": "Not a single booking cancelled across",
+  samenwerking: "collaboration",
+  samenwerkingen: "collaborations",
+  geannuleerd: "cancelled",
+  waarvan: "of which",
+  "last-minute": "last-minute",
+  // Reactiebereidheid
+  "Reactiebereidheid opdrachtgever": "Client responsiveness",
+  Reactiebereidheid: "Responsiveness",
+  "Nog te weinig reacties ontvangen om iets te zeggen.":
+    "Too few applications received to say anything yet.",
+  Alle: "All",
+  opgepakt: "handled",
+  reactie: "application",
+  reacties: "applications",
+  "nog open": "still open",
+  "oudste al": "oldest already",
+  "dagen open": "days open",
 };
 
 const TABLES: Record<Locale, Record<string, string>> = {

@@ -1,6 +1,7 @@
 import { CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { type PaymentBehavior, type PaymentTone } from "@/lib/payment-behavior";
+import { getTranslator } from "@/lib/i18n/server";
 
 const TONE_VARIANT: Record<PaymentTone, "success" | "muted" | "warning" | "default"> = {
   good: "success",
@@ -25,38 +26,44 @@ interface Props {
  * opdracht-detailpagina. Toont alleen geaggregeerde statistieken — geen individuele
  * factuurdata.
  */
-export function PaymentBehaviorBlock({ behavior }: Props) {
+export async function PaymentBehaviorBlock({ behavior }: Props) {
   const { sampleSize, avgDaysToPay, onTimePct, tone } = behavior;
+  const { t } = await getTranslator();
 
   return (
     <section
-      aria-label="Betaalgedrag opdrachtgever"
+      aria-label={t("Betaalgedrag opdrachtgever")}
       className="space-y-2 rounded-lg border border-border bg-card p-5"
     >
       <div className="flex items-center gap-2">
         <CreditCard className="size-4 text-muted-foreground" aria-hidden />
-        <h2 className="text-sm font-medium">Betaalgedrag</h2>
-        <Badge variant={TONE_VARIANT[tone]}>{TONE_LABEL[tone]}</Badge>
+        <h2 className="text-sm font-medium">{t("Betaalgedrag")}</h2>
+        <Badge variant={TONE_VARIANT[tone]}>{t(TONE_LABEL[tone])}</Badge>
       </div>
 
       {tone === "unknown" ? (
-        <p className="text-sm text-muted-foreground">Nog te weinig betalingen om iets te zeggen.</p>
+        <p className="text-sm text-muted-foreground">
+          {t("Nog te weinig betalingen om iets te zeggen.")}
+        </p>
       ) : (
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
           {avgDaysToPay != null && (
             <span>
-              Gemiddeld{" "}
-              <span className="font-medium tabular-nums text-foreground">{avgDaysToPay} dagen</span>{" "}
-              betaaltijd
+              {t("Gemiddeld")}{" "}
+              <span className="font-medium tabular-nums text-foreground">
+                {avgDaysToPay} {t("dagen")}
+              </span>{" "}
+              {t("betaaltijd")}
             </span>
           )}
           {onTimePct != null && (
             <span>
-              <span className="font-medium tabular-nums text-foreground">{onTimePct}%</span> op tijd
+              <span className="font-medium tabular-nums text-foreground">{onTimePct}%</span>{" "}
+              {t("op tijd")}
             </span>
           )}
           <span className="text-xs">
-            op basis van {sampleSize} {sampleSize === 1 ? "betaling" : "betalingen"}
+            {t("op basis van")} {sampleSize} {t(sampleSize === 1 ? "betaling" : "betalingen")}
           </span>
         </div>
       )}
