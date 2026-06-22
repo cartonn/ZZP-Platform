@@ -28,6 +28,7 @@ interface SignalCounts {
   cascadeWork?: number; // FREELANCER + CLIENT: cascade-acties "aan zet" in werkproces
   openDisputes?: number; // ADMIN: open disputen die bemiddeling vragen
   pendingPerformances?: number; // CLIENT: ingediende prestaties wachten op goedkeuring
+  savedJobs?: number; // FREELANCER: bewaarde opdrachten die nog open staan (PUBLISHED)
 }
 
 const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
@@ -42,6 +43,7 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   cascadeWork: "/samenwerkingen",
   openDisputes: "/admin/disputen",
   pendingPerformances: "/prestaties",
+  savedJobs: "/opgeslagen",
 };
 
 const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
@@ -54,6 +56,8 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   cascadeWork: "attention",
   openDisputes: "attention",
   pendingPerformances: "attention",
+  // Bewaarde opdrachten zijn een rustige telling (de ZZP'er koos ze zelf), geen actie-alarm.
+  savedJobs: "info",
 };
 
 const EXPIRY_WINDOW_MS = 30 * 86_400_000; // 30 dagen, gelijk aan het dashboard
@@ -146,29 +150,41 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     if (!profile) return {};
     const now = new Date();
     const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
-    const [rejected, expiring, unreadMessages, overdueInvoices, cascadeDraft, cascadeApproved] =
-      await Promise.all([
-        prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
-        prisma.credential.count({
-          where: {
-            freelancerProfileId: profile.id,
-            status: "VERIFIED",
-            expiresAt: { gt: now, lte: soon },
-          },
-        }),
-        unreadConversationCount(userId),
-        overdueInvoiceCount("FREELANCER", userId),
-        // cascade: concept-facturen indienen
-        prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "DRAFT" } }),
-        // cascade: betaling registreren na goedkeuring
-        prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "APPROVED" } }),
-      ]);
+    const [
+      rejected,
+      expiring,
+      unreadMessages,
+      overdueInvoices,
+      cascadeDraft,
+      cascadeApproved,
+      savedJobs,
+    ] = await Promise.all([
+      prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
+      prisma.credential.count({
+        where: {
+          freelancerProfileId: profile.id,
+          status: "VERIFIED",
+          expiresAt: { gt: now, lte: soon },
+        },
+      }),
+      unreadConversationCount(userId),
+      overdueInvoiceCount("FREELANCER", userId),
+      // cascade: concept-facturen indienen
+      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "DRAFT" } }),
+      // cascade: betaling registreren na goedkeuring
+      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "APPROVED" } }),
+      // bewaarde opdrachten die nog open staan (PUBLISHED) — gelijk aan de "open"-partitie op /opgeslagen
+      prisma.savedJob.count({
+        where: { freelancerProfileId: profile.id, job: { status: "PUBLISHED" } },
+      }),
+    ]);
     const cascadeWork = cascadeDraft + cascadeApproved;
     return buildBadges({
       credentialAlerts: rejected + expiring,
       unreadMessages,
       overdueInvoices,
       cascadeWork,
+      savedJobs,
     });
   }
 
