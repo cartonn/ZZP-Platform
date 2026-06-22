@@ -63,6 +63,7 @@ import { getClientResponsivenessForCompany } from "@/lib/data/client-responsiven
 import { ClientResponsivenessBlock } from "@/components/jobs/client-responsiveness-block";
 import { relatedJobsForFreelancer } from "@/lib/recommendations";
 import { RelatedJobsSection } from "@/components/jobs/related-jobs-section";
+import { getTranslator } from "@/lib/i18n/server";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
 
 export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
@@ -242,13 +243,15 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
     }
   })();
 
+  const { t } = await getTranslator();
+
   return (
     <div className="space-y-6">
       <Link
         href="/opdrachten"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-3.5" aria-hidden /> Terug naar opdrachten
+        <ArrowLeft className="size-3.5" aria-hidden /> {t("Terug naar opdrachten")}
       </Link>
 
       <Card>
@@ -282,15 +285,20 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                 <MapPin className="size-3.5" aria-hidden /> {job.location}
               </span>
             )}
-            <span>{WORK_MODE[job.workMode as WorkMode]}</span>
+            <span>{t(WORK_MODE[job.workMode as WorkMode])}</span>
             {(job.rateMin != null || job.rateMax != null) && (
               <span className="font-mono font-semibold text-foreground">
                 € {job.rateMin ?? "?"}
-                {job.rateMax != null ? `–${job.rateMax}` : "+"}/uur
+                {job.rateMax != null ? `–${job.rateMax}` : "+"}
+                {t("/uur")}
               </span>
             )}
             {job.industry && <span>{job.industry.name}</span>}
-            {job.startDate && <span>Start: {formatDateShortNl(job.startDate)}</span>}
+            {job.startDate && (
+              <span>
+                {t("Start:")} {formatDateShortNl(job.startDate)}
+              </span>
+            )}
           </div>
 
           <p className="whitespace-pre-line text-sm leading-relaxed">{job.description}</p>
@@ -332,7 +340,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           {requiredSkills.length > 0 && (
             <div className="space-y-2">
               <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Vereiste skills
+                {t("Vereiste skills")}
               </h2>
               <div className="flex flex-wrap gap-2">
                 {requiredSkills.map((s) => (
@@ -344,7 +352,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           {optionalSkills.length > 0 && (
             <div className="space-y-2">
               <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Gewenste skills
+                {t("Gewenste skills")}
               </h2>
               <div className="flex flex-wrap gap-2">
                 {optionalSkills.map((s) => (
@@ -363,7 +371,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           {requiredCreds.length > 0 && (
             <div className="space-y-2">
               <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Vereiste certificaten
+                {t("Vereiste certificaten")}
               </h2>
               <div className="flex flex-wrap gap-2">
                 {requiredCreds.map((c) => (
@@ -377,7 +385,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           {optionalCreds.length > 0 && (
             <div className="space-y-2">
               <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Gewenste certificaten
+                {t("Gewenste certificaten")}
               </h2>
               <div className="flex flex-wrap gap-2">
                 {optionalCreds.map((c) => (
@@ -516,7 +524,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           job.company.industry) && (
           <section className="space-y-2 rounded-lg border border-border bg-card p-5">
             <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Over de opdrachtgever
+              {t("Over de opdrachtgever")}
             </h2>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
               {job.company.location && (
@@ -532,7 +540,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
                 >
-                  Website <ExternalLink className="size-3.5" aria-hidden />
+                  {t("Website")} <ExternalLink className="size-3.5" aria-hidden />
                 </a>
               )}
             </div>
@@ -566,14 +574,16 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         actor.role === "FREELANCER" &&
         (myApplication ? (
           <div className="space-y-2 border-t border-border pt-4">
-            <p className="text-sm font-medium">Je hebt op deze opdracht gereageerd.</p>
+            <p className="text-sm font-medium">{t("Je hebt op deze opdracht gereageerd.")}</p>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               {myApplication.matchScore != null && (
-                <Badge variant="accent">Match {myApplication.matchScore}%</Badge>
+                <Badge variant="accent">
+                  {t("Match")} {myApplication.matchScore}%
+                </Badge>
               )}
               {myCompliance && <ComplianceBadge status={myCompliance} />}
               <Link href="/reacties" className="underline-offset-4 hover:underline">
-                Bekijk mijn reacties
+                {t("Bekijk mijn reacties")}
               </Link>
             </div>
           </div>
@@ -584,13 +594,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Jouw aansluiting
+                      {t("Jouw aansluiting")}
                     </h2>
                     {myFit.compliance.status !== "COMPLIANT" && (
                       <ComplianceBadge status={myFit.compliance.status} />
                     )}
                   </div>
-                  <ScoreRing value={myFit.score} label="Match" size={64} />
+                  <ScoreRing value={myFit.score} label={t("Match")} size={64} />
                 </div>
                 {myFit.reasons.length > 0 && (
                   <ul className="space-y-1.5 text-sm">
@@ -605,7 +615,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                           />
                         )}
                         <span className={r.kind === "gap" ? "text-muted-foreground" : ""}>
-                          {r.label}
+                          {t(r.label)}
                         </span>
                       </li>
                     ))}
@@ -613,7 +623,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                 )}
                 <details className="text-sm">
                   <summary className="focus-ring cursor-pointer text-muted-foreground">
-                    Hoe is deze score opgebouwd?
+                    {t("Hoe is deze score opgebouwd?")}
                   </summary>
                   <div className="mt-3">
                     <MatchBreakdown breakdown={myFit.breakdown} />
@@ -637,14 +647,14 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                           )}
                           <span>{CREDENTIAL_TYPE_LABEL[type]}</span>
                           <span className="text-xs text-muted-foreground">
-                            {CRED_STATE_LABEL[state]}
+                            {t(CRED_STATE_LABEL[state])}
                           </span>
                           {urgent && (
                             <Link
                               href="/certificaten"
                               className="text-xs font-medium underline underline-offset-2"
                             >
-                              Toevoegen
+                              {t("Toevoegen")}
                             </Link>
                           )}
                         </li>
@@ -654,7 +664,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                 )}
                 {myFit.compliance.status === "NON_COMPLIANT" && (
                   <p className="text-xs text-muted-foreground">
-                    Je kunt nog reageren, maar je voldoet nog niet aan alle vereisten.
+                    {t("Je kunt nog reageren, maar je voldoet nog niet aan alle vereisten.")}
                   </p>
                 )}
               </section>

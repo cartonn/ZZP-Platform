@@ -207,6 +207,42 @@ const EN: Record<string, string> = {
   "Tarief past binnen het budget": "Rate fits the budget",
   "Werkmodus komt overeen": "Work mode matches",
   "Werkmodus sluit niet aan": "Work mode doesn't match",
+
+  // --- Opdracht-detail (ZZP'er) ---
+  "Terug naar opdrachten": "Back to assignments",
+  "Start:": "Starts:",
+  "Vereiste skills": "Required skills",
+  "Gewenste skills": "Preferred skills",
+  "Vereiste certificaten": "Required credentials",
+  "Gewenste certificaten": "Preferred credentials",
+  "Over de opdrachtgever": "About the client",
+  Website: "Website",
+  "Je hebt op deze opdracht gereageerd.": "You've applied to this assignment.",
+  "Bekijk mijn reacties": "View my applications",
+  "Jouw aansluiting": "Your fit",
+  "Hoe is deze score opgebouwd?": "How is this score calculated?",
+  Toevoegen: "Add",
+  "Je kunt nog reageren, maar je voldoet nog niet aan alle vereisten.":
+    "You can still apply, but you don't yet meet all the requirements.",
+  // Certificaat-status (op detail)
+  "in orde": "in order",
+  "in beoordeling": "under review",
+  verlopen: "expired",
+  ontbreekt: "missing",
+  // Soortgelijke opdrachten
+  "Soortgelijke opdrachten": "Similar assignments",
+  "Andere open opdrachten die bij jouw profiel passen.":
+    "Other open assignments that fit your profile.",
+  // Reageer-formulier
+  "Reageren op deze opdracht": "Apply to this assignment",
+  Motivatie: "Motivation",
+  "Waarom past deze opdracht bij jou?": "Why does this assignment fit you?",
+  "Tariefvoorstel (€/uur)": "Proposed rate (€/hr)",
+  "bijv. 85": "e.g. 85",
+  Beschikbaarheid: "Availability",
+  "bijv. per 1 september, 32 uur": "e.g. from 1 September, 32 hours",
+  "Versturen…": "Sending…",
+  "Reactie versturen": "Send application",
 };
 
 const TABLES: Record<Locale, Record<string, string>> = {
