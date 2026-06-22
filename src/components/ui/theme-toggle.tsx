@@ -6,7 +6,17 @@ import { type Theme, nextTheme, isTheme, applyTheme } from "@/lib/theme";
 
 /** Light/dark-themaknop. Persisteert de keuze in localStorage; de no-flash-script in de
  *  root-layout zet het thema al vóór de eerste paint. Dark mode = gebruikerskeuze. */
-export function ThemeToggle() {
+export function ThemeToggle({
+  toDarkLabel = "Schakel naar donkere modus",
+  toLightLabel = "Schakel naar lichte modus",
+  darkTitle = "Donkere modus",
+  lightTitle = "Lichte modus",
+}: {
+  toDarkLabel?: string;
+  toLightLabel?: string;
+  darkTitle?: string;
+  lightTitle?: string;
+} = {}) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
@@ -35,8 +45,8 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      aria-label={toDark ? "Schakel naar donkere modus" : "Schakel naar lichte modus"}
-      title={toDark ? "Donkere modus" : "Lichte modus"}
+      aria-label={toDark ? toDarkLabel : toLightLabel}
+      title={toDark ? darkTitle : lightTitle}
       className="focus-ring inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       {toDark ? <Moon className="size-4" aria-hidden /> : <Sun className="size-4" aria-hidden />}

@@ -12,6 +12,8 @@ import { SkipLink } from "@/components/ui/skip-link";
 import { SearchTrigger } from "@/components/search/search-trigger";
 import { CommandPalette } from "@/components/search/command-palette";
 import { navForRole, ROLE_LABEL } from "@/lib/nav";
+import { LanguageToggle } from "@/components/i18n/language-toggle";
+import { getTranslator } from "@/lib/i18n/server";
 import { navBadges, withActionCenterBadge } from "@/lib/signals";
 import { pendingTaskCount } from "@/lib/actions/pending-tasks";
 import { getTenantBranding } from "@/lib/franchise/branding";
@@ -29,14 +31,22 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   const role = user.role as UserRole;
-  const [unread, rawBadges, actionCount, branding] = await Promise.all([
+  const [unread, rawBadges, actionCount, branding, { locale, t }] = await Promise.all([
     user.id
       ? prisma.notification.count({ where: { userId: user.id, readAt: null } })
       : Promise.resolve(0),
     user.id ? navBadges(role, user.id) : Promise.resolve({}),
     user.id ? pendingTaskCount(user.id, role) : Promise.resolve(0),
     user.id ? getTenantBranding(user.id) : Promise.resolve(null),
+    getTranslator(),
   ]);
+  // Navigatie + sectiekoppen vertaald op het render-moment (nav.ts blijft ongemoeid); de client-nav
+  // krijgt al-vertaalde labels en blijft taal-onbewust.
+  const navItems = navForRole(role).map((item) => ({
+    ...item,
+    label: t(item.label),
+    section: item.section ? t(item.section) : item.section,
+  }));
   // De /acties-badge telt exact de openstaande taken (zoals de pagina ze toont).
   const badges = withActionCenterBadge(rawBadges, actionCount);
   const initials = (user.name ?? user.email ?? "?")
@@ -79,13 +89,13 @@ export async function AppShell({
             <Brand branding={branding} collapsible />
           </div>
           <div className="flex-1 overflow-y-auto p-3">
-            <SidebarNav items={navForRole(role)} badges={badges} collapsible />
+            <SidebarNav items={navItems} badges={badges} collapsible />
           </div>
           <div className="border-t border-border p-3">
             <Link
               href="/account"
               className="focus-ring flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted"
-              aria-label="Account & privacy"
+              aria-label={t("Account & privacy")}
             >
               <div
                 className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${avatarAccent(user.name ?? user.email)}`}
@@ -94,7 +104,7 @@ export async function AppShell({
               </div>
               <div className={cn("min-w-0 flex-1", fadeText)}>
                 <p className="truncate text-sm font-medium">{user.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>
+                <p className="truncate text-xs text-muted-foreground">{t(ROLE_LABEL[role])}</p>
               </div>
             </Link>
             {/* Ingeklapt: een icoon-knop binnen de rail (klikbaar, behoudt de naam "Uitloggen").
@@ -113,7 +123,7 @@ export async function AppShell({
                 className="w-9 justify-center gap-2 overflow-hidden px-0 transition-all group-data-[expanded=true]:w-full group-data-[expanded=true]:justify-start group-data-[expanded=true]:px-3"
               >
                 <LogOut className="size-4 shrink-0" aria-hidden />
-                <span className={fadeText}>Uitloggen</span>
+                <span className={fadeText}>{t("Uitloggen")}</span>
               </Button>
             </form>
           </div>
@@ -123,15 +133,21 @@ export async function AppShell({
       <div className="flex min-h-screen flex-col">
         <header className="flex h-14 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
           <div className="flex items-center gap-2 md:hidden">
-            <MobileNav items={navForRole(role)} badges={badges} />
+            <MobileNav items={navItems} badges={badges} />
             <Brand branding={branding} />
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <SearchTrigger />
-            <ThemeToggle />
+            <LanguageToggle current={locale} label={t("Taal")} />
+            <SearchTrigger label={t("Zoeken…")} ariaLabel={t("Snelzoeker openen (Ctrl K)")} />
+            <ThemeToggle
+              toDarkLabel={t("Schakel naar donkere modus")}
+              toLightLabel={t("Schakel naar lichte modus")}
+              darkTitle={t("Donkere modus")}
+              lightTitle={t("Lichte modus")}
+            />
             <Link
               href="/notificaties"
-              aria-label={`Notificaties${unread > 0 ? ` (${unread} ongelezen)` : ""}`}
+              aria-label={t("Notificaties")}
               className="focus-ring relative inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Bell className="size-4" aria-hidden />
@@ -147,11 +163,11 @@ export async function AppShell({
                 className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
               >
                 <Plus className="size-4" aria-hidden />
-                <span className="hidden sm:inline">{topAction.label}</span>
+                <span className="hidden sm:inline">{t(topAction.label)}</span>
               </Link>
             )}
             <span className="hidden rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground sm:inline">
-              {ROLE_LABEL[role]}
+              {t(ROLE_LABEL[role])}
             </span>
           </div>
         </header>
