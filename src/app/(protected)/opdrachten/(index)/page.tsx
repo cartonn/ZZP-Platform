@@ -1,12 +1,22 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Briefcase, Check, ChevronRight, MapPin, Minus, Plus, SearchX } from "lucide-react";
+import {
+  Briefcase,
+  CalendarClock,
+  Check,
+  ChevronRight,
+  MapPin,
+  Minus,
+  Plus,
+  SearchX,
+} from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
 import { visibleJobsWhere } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
 import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
 import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/matching";
+import { jobStartProximity } from "@/lib/job-start-proximity";
 import { type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -227,6 +237,9 @@ async function BrowseJobs({
       : Promise.resolve(null),
   ]);
 
+  // Eén klok voor alle start-proximity-signalen in deze render (deterministisch, geen drift per rij).
+  const now = new Date();
+
   // Persoonlijke match per opdracht: score plus de zwaarst wegende troef én het zwaarst wegende
   // minpunt — uitlegbaarheid. De ZZP'er ziet niet alleen *of* het matcht, maar *waarom* (en wat niet).
   type JobMatch = { score: number; reason: string | null; gap: string | null };
@@ -312,6 +325,14 @@ async function BrowseJobs({
                       )}
                       <span>{WORK_MODE[job.workMode as WorkMode]}</span>
                       {job.industry && <span>{job.industry.name}</span>}
+                      {(() => {
+                        const start = jobStartProximity(job.startDate, now);
+                        return start ? (
+                          <span className="inline-flex items-center gap-1 font-medium text-warning">
+                            <CalendarClock className="size-3" aria-hidden /> {start.label}
+                          </span>
+                        ) : null;
+                      })()}
                     </p>
                     {match && (match.reason || match.gap) && (
                       <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
