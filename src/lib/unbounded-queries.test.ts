@@ -71,7 +71,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // aanvragen is structureel klein (dagelijkse verwerking door beheerders).
   {
     file: "(protected)/admin/verificaties/page.tsx",
-    line: 33,
+    line: 47,
     reason: "verificatiewachtrij is structureel klein (dagelijks verwerkt)",
   },
 
@@ -223,7 +223,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Franchise-samenwerkingen; eigenaar-scoped en beheerbaar.
   {
     file: "(protected)/franchise/samenwerkingen/page.tsx",
-    line: 29,
+    line: 58,
     reason: "franchise-tenant-scoped; beheerbaar volume",
   },
 
@@ -281,12 +281,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Freelancers en skills van deze franchise; tenant-scoped.
   {
     file: "(protected)/franchise/zzpers/page.tsx",
-    line: 44,
+    line: 80,
     reason: "franchise-tenant-scoped freelancers; beheerbaar volume",
   },
   {
     file: "(protected)/franchise/zzpers/page.tsx",
-    line: 54,
+    line: 90,
     reason: "skills-referentielijst voor formulier",
   },
 
@@ -320,14 +320,14 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills voor het aanmaakformulier.
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 69,
+    line: 70,
     reason: "skills-referentielijst voor formulier",
   },
   // Flexpool-leden van het eigen bedrijf bij de eerste publicatie (poule is per bedrijf
   // curated en klein; slice-1-overzicht toont er max. 100).
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 247,
+    line: 248,
     reason: "eigen flexpool-leden bij eerste publicatie (per bedrijf begrensd)",
   },
 

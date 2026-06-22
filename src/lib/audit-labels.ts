@@ -148,6 +148,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   PLATFORM_BILLING_GENERATED: "Facturatie gegenereerd",
   PLATFORM_BILLING_STATUS_SET: "Facturatiestatus gewijzigd",
   PLATFORM_INVOICES_EXPORTED: "Platformfacturen geëxporteerd",
+  AUDIT_LOG_EXPORTED: "Audit-log geëxporteerd",
   PLATFORM_CONFIG_UPDATED: "Platforminstelling bijgewerkt",
   ADMINISTRATION_EXPORTED: "Boekhouding geëxporteerd",
   OPEN_ITEMS_EXPORTED: "Openstaande posten geëxporteerd",
@@ -185,6 +186,7 @@ const AUDIT_ENTITY_LABEL: Record<string, string> = {
   Subscription: "Abonnement",
   HealthIncident: "Bewaking-incident",
   Notification: "Notificatie",
+  AuditLog: "Auditlog",
 };
 
 /** NL-label voor een audit-entiteitstype; valt terug op de ruwe naam voor onbekende typen. */
