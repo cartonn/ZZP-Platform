@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import { SaveJobButton } from "@/components/jobs/save-job-button";
 import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Opdrachten · ZZP Platform" };
@@ -184,6 +185,17 @@ async function BrowseJobs({
     }
   }
 
+  // Bewaarde opdrachten (alleen ZZP'er): welke van de zichtbare opdrachten al gebookmarkt zijn, zodat
+  // de bewaar-knop direct de juiste staat toont. Eén query, begrensd tot de zichtbare pagina.
+  const savedJobIds = new Set<string>();
+  if (profile && jobs.length > 0) {
+    const saved = await prisma.savedJob.findMany({
+      where: { freelancerProfileId: profile.id, jobId: { in: jobs.map((j) => j.id) } },
+      select: { jobId: true },
+    });
+    for (const s of saved) savedJobIds.add(s.jobId);
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / JOBS_PER_PAGE));
   const mkPageHref = (page: number) => {
     const p = new URLSearchParams();
@@ -221,13 +233,19 @@ async function BrowseJobs({
             {jobs.map((job) => {
               const match = matchByJob.get(job.id);
               return (
-                <Link
+                <div
                   key={job.id}
-                  href={`/opdrachten/${job.id}`}
-                  className="card-interactive flex items-center justify-between gap-4 px-5 py-3.5"
+                  className="card-interactive relative flex items-center justify-between gap-4 px-5 py-3.5"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{job.title}</p>
+                    {/* Stretched link: de titel-link bedekt de hele rij (before:inset-0), zodat de
+                        rij klikbaar blijft én de bewaar-knop er bovenop (z-10) los klikbaar is. */}
+                    <Link
+                      href={`/opdrachten/${job.id}`}
+                      className="truncate font-medium before:absolute before:inset-0 hover:underline"
+                    >
+                      {job.title}
+                    </Link>
                     <p className="metadata-row mt-0.5">
                       <span className="font-medium text-foreground/70">{job.company.name}</span>
                       {job.location && (
@@ -263,9 +281,14 @@ async function BrowseJobs({
                       </span>
                     )}
                     {match && <Badge variant="accent">Match {match.score}%</Badge>}
+                    {profile && (
+                      <span className="relative z-10">
+                        <SaveJobButton jobId={job.id} saved={savedJobIds.has(job.id)} />
+                      </span>
+                    )}
                     <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>

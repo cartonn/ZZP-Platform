@@ -383,5 +383,6 @@ export async function toggleSavedJob(jobId: string): Promise<void> {
   }
 
   revalidatePath("/opgeslagen");
+  revalidatePath("/opdrachten");
   revalidatePath(`/opdrachten/${jobId}`);
 }
