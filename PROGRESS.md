@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: status-/zoekfilter op /franchise/samenwerkingen
+
+`/franchise/samenwerkingen` (het franchise-toezicht op samenwerkingen) was het enige rol-overzicht
+zonder filter — FREELANCER/CLIENT/ADMIN hebben die ergonomie al (o.a. `/reacties`, `/facturen`,
+`/admin/samenwerkingen`). Bij een groeiend tenant-volume moest de bemiddelaar handmatig scannen.
+Toegevoegd: een server-side status-/zoekfilter dat de bestaande pure `collaboration-filter.ts`
+**hergebruikt** (DRY, gespiegeld op het admin-overzicht). Read-only, **geen schemawijziging, geen
+extra query, geen geldstroom**.
+
+- [x] `src/app/(protected)/franchise/samenwerkingen/page.tsx` — verrijkt de tenant-collabs één keer
+      tot een `Row` (`FilterableCollaboration` + kaartvelden), past dan `parseCollaborationFilter` /
+      `countByStatus` / `filterCollaborations` / `isCollaborationFilterActive` toe. GET-filterform
+      (zoek-`Input` over opdracht/opdrachtgever/ZZP'er + status-`Select` met tellingen + Filteren),
+      "X van Y"-telregel + nette "geen match"-lege staat naast de bestaande "nog geen
+      samenwerkingen"-empty. De tellingen lopen over de volledige (ongefilterde) set; de query kreeg
+      een defensieve `take: 100`-cap (was unbounded). De DBA-dimensie wordt bewust niet getoond (hoort
+      bij het admin-overzicht) — alleen status + zoeken.
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummer bijgewerkt (findMany verschoven naar
+      regel 58 door de searchParams-wiring).
+
+Gate groen: typecheck ✓, lint ✓, test **2481** ✓, build ✓ (`/franchise/samenwerkingen` 206 B),
+`prettier --check .` ✓. Geen nieuwe pure logica — de filterlogica is al gedekt door
+`collaboration-filter.test.ts`.
+
 ## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
 
 De opdrachtgever-browse (`/freelancers`) had wél filters (zoeken, vertrouwensniveau, alleen
