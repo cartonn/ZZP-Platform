@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(i18n): ZZP'er — opgeslagen opdrachten (/opgeslagen) + opdrachtstatus-badge (EN)
+
+Vervolg op de ZZP'er-i18n-reeks (#491–#499). Het scherm "Opgeslagen" (`/opgeslagen`) was nog
+volledig Nederlands; nu vertaald via `t()` (server-side `getTranslator`, NL-fallback — `nl` blijft
+de standaard, geen gedragswijziging in de NL-UI).
+
+- [x] `src/app/(protected)/opgeslagen/page.tsx` — kop + subtitel, beide lege staten ("Eerst een
+      profiel" / "Nog niets bewaard"), sectiekoppen "Nog open" / "Niet meer beschikbaar", "Bewaard
+      {datum}"-regels en de gesloten/teruggetrokken-zin via `plural(n, t(…), t(…))`.
+- [x] `src/components/jobs/job-status-badge.tsx` — async gemaakt (zoals `InvoiceStatusBadge` in #498
+      en `ApplicationStatusBadge` in #499) met `getTranslator`; labels Concept/Gepubliceerd/Gesloten
+      via `t()`. Alle call-sites zijn server-componenten (RSC rendert async componenten zonder
+      `await`) — geverifieerd, geen call-site-wijziging nodig.
+- [x] `src/lib/i18n/messages.ts` — woordenboek uitgebreid met de "Opgeslagen"-sectie +
+      opdrachtstatus-labels (Gepubliceerd → Published, Gesloten → Closed); "Concept" en "Opgeslagen"
+      stonden er al, geen dubbele sleutels.
+- [x] `src/lib/i18n/messages.test.ts` — assertions voor Gepubliceerd/Gesloten/Niet meer beschikbaar.
+- Gate: typecheck ✓, lint ✓, test 2561 ✓, build ✓, prettier ✓.
+
 ## routine: statusfilter op /opdrachten (opdrachtgever-overzicht)
 
 Het opdrachtgever-overzicht "Mijn opdrachten" (`/opdrachten`) toonde alle eigen opdrachten in één

@@ -404,6 +404,28 @@ const EN: Record<string, string> = {
   Gecrediteerd: "Credited",
   Verzonden: "Sent",
   Geannuleerd: "Cancelled",
+
+  // --- Opdrachtstatus-badge ---
+  Gepubliceerd: "Published",
+  Gesloten: "Closed",
+
+  // --- Opgeslagen opdrachten (/opgeslagen) — "Opdrachten die je hebt bewaard." staat al hierboven ---
+  "Opdrachten die je hebt bewaard om er later op terug te komen.":
+    "Assignments you've saved to come back to later.",
+  "Eerst een profiel": "Set up a profile first",
+  "Rond je ZZP'er-profiel af om opdrachten te kunnen bewaren.":
+    "Complete your freelancer profile to start saving assignments.",
+  "Naar profiel": "Go to profile",
+  "Nog niets bewaard": "Nothing saved yet",
+  "Bewaar een opdracht via de knop “Bewaren” op de opdracht om er hier op terug te komen.":
+    "Save an assignment with the “Save” button on the assignment to find it here.",
+  "Opdrachten bekijken": "View assignments",
+  "Nog open": "Still open",
+  "Niet meer beschikbaar": "No longer available",
+  "opdracht is": "assignment is",
+  "opdrachten zijn": "assignments are",
+  "gesloten of teruggetrokken. Je kunt er niet meer op reageren.":
+    "closed or withdrawn. You can no longer apply.",
 };
 
 const TABLES: Record<Locale, Record<string, string>> = {
