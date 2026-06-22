@@ -63,6 +63,7 @@ import { getClientResponsivenessForCompany } from "@/lib/data/client-responsiven
 import { ClientResponsivenessBlock } from "@/components/jobs/client-responsiveness-block";
 import { relatedJobsForFreelancer } from "@/lib/recommendations";
 import { RelatedJobsSection } from "@/components/jobs/related-jobs-section";
+import { SaveJobButton } from "@/components/jobs/save-job-button";
 
 export const metadata: Metadata = { title: "Opdracht · ZZP Platform" };
 
@@ -144,6 +145,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
     reasons: MatchReason[];
   } | null = null;
   let myCompliance: ComplianceStatus | null = null;
+  // Bewaard-status voor de bewaar-knop (alleen relevant voor een niet-eigenaar ZZP'er).
+  let isSaved = false;
   if (actor.role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
       where: { userId: actor.id },
@@ -153,6 +156,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       },
     });
     if (profile) {
+      if (!isOwner) {
+        const saved = await prisma.savedJob.findUnique({
+          where: { freelancerProfileId_jobId: { freelancerProfileId: profile.id, jobId: job.id } },
+          select: { id: true },
+        });
+        isSaved = saved !== null;
+      }
       myApplication = await prisma.application.findUnique({
         where: { jobId_freelancerId: { jobId: job.id, freelancerId: profile.id } },
         select: { status: true, matchScore: true, complianceSnapshot: true },
@@ -253,13 +263,16 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               </div>
               <p className="text-sm text-muted-foreground">{job.company.name}</p>
             </div>
-            {isOwner && (
+            {isOwner ? (
               <Link
                 href={`/opdrachten/${job.id}/bewerken`}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
               >
                 <Pencil className="size-3.5" aria-hidden /> Bewerken
               </Link>
+            ) : (
+              actor.role === "FREELANCER" &&
+              status === "PUBLISHED" && <SaveJobButton jobId={job.id} saved={isSaved} />
             )}
           </div>
 

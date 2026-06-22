@@ -365,6 +365,7 @@ model FreelancerProfile {
   availabilityWindows AvailabilityWindow[]
   noShowReports       NoShowReport[]
   favoritedBy         FavoriteFreelancer[]
+  savedJobs           SavedJob[]
 
   @@index([tenantId])
 }
@@ -489,6 +490,7 @@ model Job {
   applications           Application[]
   conversations          Conversation[]
   collaborations         Collaboration[]
+  savedBy                SavedJob[]
 
   @@index([status])
   @@index([companyId])
@@ -1340,6 +1342,23 @@ model FavoriteFreelancer {
   @@unique([companyId, freelancerProfileId])
   @@index([companyId])
   @@index([freelancerProfileId])
+}
+
+// Bewaarde opdracht: een ZZP'er markeert een opdracht om er later op terug te komen
+// (bookmark). Spiegelbeeld van FavoriteFreelancer (opdrachtgever → ZZP'er). Cascade-delete
+// houdt de lijst schoon als het profiel of de opdracht verdwijnt.
+model SavedJob {
+  id                  String   @id @default(cuid())
+  freelancerProfileId String
+  jobId               String
+  createdAt           DateTime @default(now())
+
+  freelancer FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+  job        Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([freelancerProfileId, jobId])
+  @@index([freelancerProfileId])
+  @@index([jobId])
 }
 
 model LessonCompletion {

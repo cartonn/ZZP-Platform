@@ -3,30 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## feat(franchise): zoek/filter/sorteer op het ZZP'er-roster (`/franchise/zzpers`)
+## feat(opgeslagen): bewaarde opdrachten voor de ZZP'er
 
-De franchiser-roster toonde alle tenant-ZZP'ers als kaartraster zónder enige zoek-/filter-/
-sorteeroptie — de enige rolgroep zonder die ergonomie (FREELANCER/CLIENT/ADMIN hebben die al). Bij
-een groeiend roster moest de franchiser handmatig scannen om iemand of een groep (bv. "wie heeft een
-certificaat-waarschuwing?") te vinden. Toegevoegd: server-side zoeken + filteren + sorteren, gespiegeld
-op `collaboration-filter.ts`/`freelancer-search.ts`. Read-only, **geen schemawijziging, geen extra
-query** (filter/sort over de reeds geladen, tenant-gescopete kaartdata).
+Een ZZP'er kon een interessante opdracht alleen onthouden door erop te reageren of de URL te
+kopiëren. Toegevoegd: opdrachten **bewaren** (bookmark) en terugvinden op een eigen overzicht —
+spiegelbeeld van de bestaande Flexpool (opdrachtgever bewaart ZZP'er via `FavoriteFreelancer`).
+Server-side keten (auth → rol → eigen profiel als anker → zichtbaarheidscheck → mutatie + audit);
+additieve schemawijziging.
 
-- [x] `src/lib/franchise/zzper-roster-filter.ts` — pure leaf-module (geen server-/prisma-import):
-      `parseRosterFilter` (leest `q`/`availability`/`status`/`alerts`/`sort`, normaliseert hoofdletters,
-      valt onbekende waarden terug op `null`/`recent`), `matchesRosterFilter` + `filterRoster`
-      (zoekt over naam/headline/locatie/skills, AND-combinatie van beschikbaarheid + inzetbaarheid +
-      certificaat-waarschuwing), `sortRoster` (recent/naam/tarief-asc/-desc met "geen tarief" achteraan + deterministische naam→id-tiebreaker, muteert de invoer niet), `isRosterFilterActive`.
-- [x] `src/app/(protected)/franchise/zzpers/page.tsx` — bouwt de bestaande kaartdata één keer op tot
-      `RosterCard` (inzetbaarheid + verval-alert al berekend), past dan `filterRoster`+`sortRoster` toe;
-      GET-filterform (zoek-Input + beschikbaarheid-/inzetbaarheid-/sorteer-Select + "alleen
-      certificaat-waarschuwing"-checkbox + Filteren/Wissen); "X van Y"-telregel + nette "geen match"-
-      lege staat naast de bestaande "nog geen ZZP'ers"-empty.
-- [x] Tests: `zzper-roster-filter.test.ts` (+21). Allowlist `unbounded-queries.test.ts` bijgewerkt
-      (de twee findMany's verschoven naar regel 76/86 door de searchParams-wiring).
+- [x] `prisma/schema.prisma` — nieuw `SavedJob`-model (anker op `FreelancerProfile`,
+      `@@unique([freelancerProfileId, jobId])`, cascade-delete) + back-relations op
+      `FreelancerProfile.savedJobs` en `Job.savedBy`.
+- [x] `src/lib/saved-jobs.ts` — pure `partitionSavedJobs` (splitst open vs. niet-meer-beschikbaar,
+      sorteert meest recent bewaard eerst, deterministische tiebreaker, muteert niet) +
+      `isSavedJobOpen`. Tests: `saved-jobs.test.ts` (7).
+- [x] `src/app/(protected)/opdrachten/actions.ts` — `toggleSavedJob(jobId)`: idempotente toggle;
+      bewaren alleen voor een gepubliceerde, voor deze ZZP'er zichtbare opdracht
+      (`visibleJobsWhere`); audit `JOB_SAVED`/`JOB_UNSAVED`.
+- [x] `src/components/jobs/save-job-button.tsx` — client-toggle (Bewaren/Bewaard), `useTransition`,
+      `aria-pressed`. Gewired op de opdracht-detail (FREELANCER, niet-eigenaar, PUBLISHED).
+- [x] `src/app/(protected)/opgeslagen/{page,loading}.tsx` — overzicht: "Nog open" (klikbaar naar
+      detail + verwijder-toggle) en "Niet meer beschikbaar" (gesloten/teruggetrokken, met
+      statusbadge); empty-states (geen profiel / niets bewaard). `take: 200`.
+- [x] `src/lib/nav.ts` + `src/components/sidebar-nav.tsx` — nav-item "Opgeslagen" (bookmark-icoon)
+      onder Werk; nieuwe `bookmark` `NavIcon`.
+- [x] `prisma/seed.ts` — Sanne bewaart job-13 + job-18 (open) en job-7 (DRAFT → "niet meer
+      beschikbaar"), idempotent.
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummers opgeschoven (nieuwe import).
 
-Gate groen: typecheck ✓, lint ✓, test **2494** ✓, build ✓ (`/franchise/zzpers` 3.56 kB),
-`prettier --check .` ✓.
+Gate groen: typecheck ✓, lint ✓, test **2487** ✓ (+7), build ✓ (`/opgeslagen` 2.51 kB),
+`prettier --check .` ✓. Seed-smoke geverifieerd tegen scratch-DB (2 open + 1 unavailable).
 
 ## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
 

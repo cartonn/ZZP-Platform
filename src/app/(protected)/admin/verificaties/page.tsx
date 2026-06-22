@@ -8,11 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ExpiryButton } from "./expiry-button";
 import { rejectCredential, verifyCredential } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
+import { plural } from "@/lib/plural";
+import { CREDENTIAL_TYPES } from "@/lib/enums";
 import {
   VERIFICATION_STALE_DAYS,
   daysWaiting,
@@ -20,15 +24,25 @@ import {
   waitingSince,
   summarizeVerificationQueue,
 } from "@/lib/verification-queue";
+import {
+  countByType,
+  filterVerificationQueue,
+  isVerificationFilterActive,
+  parseVerificationFilter,
+  type FilterableCredential,
+} from "@/lib/verification-filter";
 
 export const metadata: Metadata = { title: "Verificaties · ZZP Platform" };
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function fmt(d: Date | null) {
   return d ? formatDateShortNl(d) : null;
 }
 
-export default async function VerificatiesPage() {
+export default async function VerificatiesPage({ searchParams }: { searchParams: SearchParams }) {
   await requireRole("ADMIN");
+  const sp = await searchParams;
 
   const queue = await prisma.credential.findMany({
     where: { status: "SUBMITTED" },
@@ -41,7 +55,27 @@ export default async function VerificatiesPage() {
   });
 
   const now = Date.now();
+  // De wachtrij-gezondheid telt altijd de volledige backlog (niet de gefilterde weergave).
   const health = summarizeVerificationQueue(queue, now);
+
+  const filter = parseVerificationFilter(sp);
+  const typeCounts = countByType(
+    queue.map<FilterableCredential>((c) => ({
+      type: c.type as CredentialType,
+      title: c.title,
+      issuer: c.issuer,
+      freelancerName: c.freelancerProfile.user.name ?? "",
+    })),
+  );
+  const visible = filterVerificationQueue(
+    queue.map((c) => ({
+      ...c,
+      type: c.type as CredentialType,
+      freelancerName: c.freelancerProfile.user.name ?? "",
+    })),
+    filter,
+  );
+  const filterActive = isVerificationFilterActive(filter);
 
   return (
     <div className="space-y-6">
@@ -74,73 +108,119 @@ export default async function VerificatiesPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {queue.map((c) => (
-            <Card key={c.id}>
-              <CardContent className="space-y-3">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{c.title}</p>
-                    {(() => {
-                      const days = daysWaiting(waitingSince(c), now);
-                      return (
-                        <Badge variant={days >= VERIFICATION_STALE_DAYS ? "warning" : "muted"}>
-                          {waitingLabel(days)}
-                        </Badge>
-                      );
-                    })()}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {CREDENTIAL_TYPE_LABEL[c.type as CredentialType]}
-                    {c.issuer ? ` · ${c.issuer}` : ""}
-                    {fmt(c.issuedAt) ? ` · uitgegeven ${fmt(c.issuedAt)}` : ""}
-                    {fmt(c.expiresAt) ? ` · vervalt ${fmt(c.expiresAt)}` : ""}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Ingediend door {c.freelancerProfile.user.name} ({c.freelancerProfile.user.email}
-                    )
-                  </p>
-                </div>
+          <form
+            method="get"
+            className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-[1fr_auto_auto]"
+          >
+            <Input
+              name="q"
+              defaultValue={filter.q}
+              placeholder="Zoek op naam, titel of uitgever…"
+              aria-label="Zoeken"
+            />
+            <Select name="type" defaultValue={filter.type ?? ""} aria-label="Certificaattype">
+              <option value="">Alle typen ({queue.length})</option>
+              {CREDENTIAL_TYPES.map((t) => (
+                <option key={t} value={t} disabled={typeCounts[t] === 0}>
+                  {CREDENTIAL_TYPE_LABEL[t]} ({typeCounts[t]})
+                </option>
+              ))}
+            </Select>
+            <Button type="submit" variant="secondary">
+              Filteren
+            </Button>
+          </form>
 
-                {c.document && (
-                  <Button asChild variant="secondary" size="sm">
-                    <a href={`/api/documents/${c.document.id}`} target="_blank" rel="noreferrer">
-                      <Download className="size-3.5" aria-hidden /> Bewijsstuk bekijken
-                    </a>
-                  </Button>
-                )}
+          <p className="text-sm text-muted-foreground">
+            {filterActive
+              ? `${visible.length} van ${queue.length} ${plural(queue.length, "aanvraag", "aanvragen")}`
+              : `${queue.length} ${plural(queue.length, "aanvraag", "aanvragen")}`}
+          </p>
 
-                <div className="space-y-3 border-t border-border pt-3">
-                  <form action={verifyCredential.bind(null, c.id)}>
-                    <Button type="submit" size="sm">
-                      Goedkeuren
-                    </Button>
-                  </form>
-                  <form
-                    action={rejectCredential.bind(null, c.id)}
-                    className="flex flex-col gap-2 sm:flex-row sm:items-end"
-                  >
-                    <div className="flex-1">
-                      <label htmlFor={`reason-${c.id}`} className="mb-1 block text-xs font-medium">
-                        Reden van afwijzing
-                      </label>
-                      <Textarea
-                        id={`reason-${c.id}`}
-                        name="reason"
-                        rows={2}
-                        required
-                        minLength={3}
-                        maxLength={500}
-                        placeholder="Verplicht bij afwijzen…"
-                      />
-                    </div>
-                    <Button type="submit" variant="destructive" size="sm">
-                      Afwijzen
-                    </Button>
-                  </form>
-                </div>
+          {visible.length === 0 ? (
+            <Card>
+              <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                Geen aanvragen die overeenkomen met de huidige filters.
               </CardContent>
             </Card>
-          ))}
+          ) : (
+            <div className="space-y-4">
+              {visible.map((c) => (
+                <Card key={c.id}>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">{c.title}</p>
+                        {(() => {
+                          const days = daysWaiting(waitingSince(c), now);
+                          return (
+                            <Badge variant={days >= VERIFICATION_STALE_DAYS ? "warning" : "muted"}>
+                              {waitingLabel(days)}
+                            </Badge>
+                          );
+                        })()}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {CREDENTIAL_TYPE_LABEL[c.type as CredentialType]}
+                        {c.issuer ? ` · ${c.issuer}` : ""}
+                        {fmt(c.issuedAt) ? ` · uitgegeven ${fmt(c.issuedAt)}` : ""}
+                        {fmt(c.expiresAt) ? ` · vervalt ${fmt(c.expiresAt)}` : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Ingediend door {c.freelancerProfile.user.name} (
+                        {c.freelancerProfile.user.email})
+                      </p>
+                    </div>
+
+                    {c.document && (
+                      <Button asChild variant="secondary" size="sm">
+                        <a
+                          href={`/api/documents/${c.document.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <Download className="size-3.5" aria-hidden /> Bewijsstuk bekijken
+                        </a>
+                      </Button>
+                    )}
+
+                    <div className="space-y-3 border-t border-border pt-3">
+                      <form action={verifyCredential.bind(null, c.id)}>
+                        <Button type="submit" size="sm">
+                          Goedkeuren
+                        </Button>
+                      </form>
+                      <form
+                        action={rejectCredential.bind(null, c.id)}
+                        className="flex flex-col gap-2 sm:flex-row sm:items-end"
+                      >
+                        <div className="flex-1">
+                          <label
+                            htmlFor={`reason-${c.id}`}
+                            className="mb-1 block text-xs font-medium"
+                          >
+                            Reden van afwijzing
+                          </label>
+                          <Textarea
+                            id={`reason-${c.id}`}
+                            name="reason"
+                            rows={2}
+                            required
+                            minLength={3}
+                            maxLength={500}
+                            placeholder="Verplicht bij afwijzen…"
+                          />
+                        </div>
+                        <Button type="submit" variant="destructive" size="sm">
+                          Afwijzen
+                        </Button>
+                      </form>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
