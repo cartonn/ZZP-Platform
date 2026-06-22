@@ -3,32 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: CSV-export van het audit-log (admin, AVG/compliance)
+## feat(opgeslagen): bewaarde opdrachten voor de ZZP'er
 
-De admin kon het audit-log wél filteren en doorbladeren (`/admin/audit`), maar niet exporteren —
-terwijl een audittrail-uitdraai juist het bewijsstuk is voor een AVG-verantwoording of een
-bedrijfsbezoek. Toegevoegd: een admin-only CSV-export die **dezelfde actie-/entiteit-filters**
-toepast als het audit-paneel (server-side waarheid) en de export zelf als auditregel logt. Spiegelt
-de bestaande export-routes (`/admin/avg/export`, `/api/admin/export/invoices`).
+Een ZZP'er kon een interessante opdracht alleen onthouden door erop te reageren of de URL te
+kopiëren. Toegevoegd: opdrachten **bewaren** (bookmark) en terugvinden op een eigen overzicht —
+spiegelbeeld van de bestaande Flexpool (opdrachtgever bewaart ZZP'er via `FavoriteFreelancer`).
+Server-side keten (auth → rol → eigen profiel als anker → zichtbaarheidscheck → mutatie + audit);
+additieve schemawijziging.
 
-- [x] `src/lib/audit-export.ts` — pure leaf-module (geen DB-import): `AuditExportEntry`,
-      `AUDIT_EXPORT_HEADER` (Tijdstip · Actie + omschrijving · Entiteit + omschrijving · Entiteit-ID ·
-      Actor · Details), `auditExportRows` (ruwe code + NL-label via `auditActionLabel`/
-      `auditEntityLabel`, metadata leesbaar via `formatAuditMetadata`, actor-fallback "systeem";
-      muteert niet) + `auditExportCsv` via de canonieke `toCsv`-kern (CSV-injectie-/escaping-veilig).
-- [x] `src/app/(protected)/admin/audit/export/route.ts` — GET, `requireRole("ADMIN")` (403 bij
-      AuthorizationError), leest `action`/`entityType` uit searchParams en bouwt hetzelfde
-      `contains`-where als `AuditPanel`; `take: 10000` (defensieve bovengrens, meest recent eerst);
-      logt `AUDIT_LOG_EXPORTED`; `Content-Disposition: attachment` met datum-bestandsnaam.
-- [x] `src/app/(protected)/admin/audit/page.tsx` — "Exporteer (CSV)"-knop in de `PageHeader`-actie die
-      de actieve filters meeneemt (niet de paginering); verborgen bij een leeg log.
-- [x] `src/lib/audit-labels.ts` — labels `AUDIT_LOG_EXPORTED` + entiteit `AuditLog`.
-- [x] Tests: `audit-export.test.ts` (+8: rij-mapping, actor-fallback, metadata-format, onbekende-code-
-      fallback, no-mutation, kopregel, delimiter-escaping, lege selectie). `take` houdt de
-      unbounded-queries-vangrail groen zonder allowlist-entry.
+- [x] `prisma/schema.prisma` — nieuw `SavedJob`-model (anker op `FreelancerProfile`,
+      `@@unique([freelancerProfileId, jobId])`, cascade-delete) + back-relations op
+      `FreelancerProfile.savedJobs` en `Job.savedBy`.
+- [x] `src/lib/saved-jobs.ts` — pure `partitionSavedJobs` (splitst open vs. niet-meer-beschikbaar,
+      sorteert meest recent bewaard eerst, deterministische tiebreaker, muteert niet) +
+      `isSavedJobOpen`. Tests: `saved-jobs.test.ts` (7).
+- [x] `src/app/(protected)/opdrachten/actions.ts` — `toggleSavedJob(jobId)`: idempotente toggle;
+      bewaren alleen voor een gepubliceerde, voor deze ZZP'er zichtbare opdracht
+      (`visibleJobsWhere`); audit `JOB_SAVED`/`JOB_UNSAVED`.
+- [x] `src/components/jobs/save-job-button.tsx` — client-toggle (Bewaren/Bewaard), `useTransition`,
+      `aria-pressed`. Gewired op de opdracht-detail (FREELANCER, niet-eigenaar, PUBLISHED).
+- [x] `src/app/(protected)/opgeslagen/{page,loading}.tsx` — overzicht: "Nog open" (klikbaar naar
+      detail + verwijder-toggle) en "Niet meer beschikbaar" (gesloten/teruggetrokken, met
+      statusbadge); empty-states (geen profiel / niets bewaard). `take: 200`.
+- [x] `src/lib/nav.ts` + `src/components/sidebar-nav.tsx` — nav-item "Opgeslagen" (bookmark-icoon)
+      onder Werk; nieuwe `bookmark` `NavIcon`.
+- [x] `prisma/seed.ts` — Sanne bewaart job-13 + job-18 (open) en job-7 (DRAFT → "niet meer
+      beschikbaar"), idempotent.
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummers opgeschoven (nieuwe import).
 
-Gate groen: typecheck ✓, lint ✓, test **2489** ✓, build ✓, `prettier --check .` ✓. Read-only voor de
-data; geen schemawijziging, geen extra query, geen geldstroom, geen scope-creep.
+Gate groen: typecheck ✓, lint ✓, test **2487** ✓ (+7), build ✓ (`/opgeslagen` 2.51 kB),
+`prettier --check .` ✓. Seed-smoke geverifieerd tegen scratch-DB (2 open + 1 unavailable).
 
 ## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
 
