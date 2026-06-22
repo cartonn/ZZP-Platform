@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { type ApplicationStatus } from "@/lib/enums";
+import { getTranslator } from "@/lib/i18n/server";
 
 const MAP: Record<
   ApplicationStatus,
@@ -13,9 +14,10 @@ const MAP: Record<
   WITHDRAWN: { label: "Ingetrokken", variant: "muted" },
 };
 
-export function ApplicationStatusBadge({ status }: { status: ApplicationStatus }) {
+export async function ApplicationStatusBadge({ status }: { status: ApplicationStatus }) {
   const s = MAP[status];
-  return <Badge variant={s.variant}>{s.label}</Badge>;
+  const { t } = await getTranslator();
+  return <Badge variant={s.variant}>{t(s.label)}</Badge>;
 }
 
 export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {

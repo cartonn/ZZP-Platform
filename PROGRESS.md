@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
+
+Vervolg op de ZZP'er-i18n-reeks (#491–#498). Het reactieoverzicht `/reacties` was nog volledig
+Nederlands. Nu via `t()` (server-side `getTranslator`, NL-fallback) vertaald: kop + uitkomsten-
+samenvatting, statusfilter-pills, statushints per reactie, compliance-regels, intrek-bevestiging.
+Drie gedeelde badges meegenomen (ook elders gebruikt) — async gemaakt zoals `InvoiceStatusBadge`
+(#498); alle call-sites zijn server-componenten.
+
+- [x] `src/lib/i18n/messages.ts` — sectie "Mijn reacties": reactiestatus-labels (New/Viewed/
+      Shortlist/Rejected/Withdrawn/Accepted), compliance-badge (Meets requirements/Attention point/
+      Does not meet), uitkomsten-subteksten, statushints, samenwerkings-hints, intrek-bevestiging,
+      filter-/lege-staten, "Other".
+- [x] `src/components/applications/application-status-badge.tsx` — `async` + `t(label)`
+      (gedeeld: ook /kandidaten, /franchise/diensten/[id]).
+- [x] `src/components/compliance-badge.tsx` — `async` + `t(label)` (gedeeld: /reacties,
+      /kandidaten, /opdrachten/[id], replacement-panel, franchise/diensten/[id]).
+- [x] `src/components/applications/outcomes-summary.tsx` — `async` + `t()`; subteksten met
+      `plural(t(...), t(...))` en N-fragmenten via `t()`.
+- [x] `src/app/(protected)/reacties/page.tsx` — `getTranslator`; alle UI-strings via `t()`,
+      credentialtypes via `t(CREDENTIAL_TYPE_LABEL[type])`, filterlabels via `t(g.label)`.
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummer 101 → 103 (nieuwe import).
+
+Gate groen: typecheck ✓, lint ✓, test **2561** ✓, build ✓, `prettier --check .` ✓.
+
 ## routine: statusfilter op /opdrachten (opdrachtgever-overzicht)
 
 Het opdrachtgever-overzicht "Mijn opdrachten" (`/opdrachten`) toonde alle eigen opdrachten in één
