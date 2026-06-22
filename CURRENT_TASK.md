@@ -260,51 +260,56 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
-> Gedaan (niet opnieuw): **Bewaarde opdrachten voor de ZZP'er (`/opgeslagen`)** — `SavedJob`-model
-> (anker op `FreelancerProfile`, additief), pure `lib/saved-jobs.ts` `partitionSavedJobs` (open vs.
-> niet-meer-beschikbaar), `toggleSavedJob`-action (auth → rol → profiel-anker → `visibleJobsWhere` →
-> mutatie + audit `JOB_SAVED`/`JOB_UNSAVED`), bewaar-knop op de opdracht-detail, `/opgeslagen`-
-> overzicht + nav-item (bookmark) + demo-seed (Sanne 2 open + 1 DRAFT). Spiegelbeeld van de Flexpool
-> (opdrachtgever→ZZP'er). 7 unit-tests; PR #479.
-> Gedaan (niet opnieuw): **Sorteeropties op de ZZP'er-browse (`/freelancers`, opdrachtgever)** — pure
-> `sortFreelancers` in `lib/freelancer-search.ts` (relevance/available/trust/track-record/rate-asc/
-> rate-desc) over de reeds server-berekende kaartdata + sorteer-`Select` in `freelancer-browse.tsx`;
-> deterministische naam→id-tiebreaker, "geen tarief" altijd achteraan, muteert de invoer niet; +8
-> unit-tests; read-only, geen schemawijziging, geen extra query.
-> Gedaan (niet opnieuw): **ZZP'er kan eigen reactie intrekken (WITHDRAWN)** — nieuwe
-> `APPLICATION_STATUSES`-waarde `WITHDRAWN` + pure `canWithdrawApplication` (alleen NEW/VIEWED/
-> SHORTLIST, geen samenwerking); freelancer-only `withdrawApplication` server-action op `/reacties`
-> (ownership + audit `APPLICATION_WITHDRAWN` + notificatie naar de opdrachtgever). Re-apply hergebruikt
-> de bestaande rij (geen extra plan-slot); WITHDRAWN uitgesloten in outcomes-samenvatting,
-> reactiebereidheid-signaal, "Gereageerd"-badge (rooster), aanbevelingen en kandidaat-suggesties; nette
-> noot op `/kandidaten`. Geen schemawijziging; +9 unit-tests. Zie PROGRESS.md-top.
-> Gedaan (niet opnieuw): **Certificaat-impact op lopende inzet (ZZP'er)** — `freelancer-compliance.ts`
-> `linkExpiryToInzet` koppelt de vervalkalender (`summarizeExpiry`) aan de actieve samenwerkingen wier
-> verplichte certificaattypen een (bijna-)vervallend certificaat raakt; `data/freelancer-compliance.ts`
-> `getActiveCollaborationRequirements` (freelancer-gescopet, take:200) levert de data; `InzetImpactCard`
-> op `/certificaten` toont dagaftelling + vernieuw-deeplink + geraakte inzetten. Mirror van de bestaande
-> opdrachtgever-`clientCredentialAlerts`/compliance-momentopname; read-only, geen schemawijziging.
-> 11 unit-tests.
-> Gedaan (niet opnieuw): **Job-engagement-signaal (koude opdracht) voor de opdrachtgever** —
-> `lib/job-engagement.ts` `planJobEngagement` (pure) + `lib/job-engagement-task.ts`
-> `runJobEngagementTask` (plan/apply, idempotent via DomainEvent `job-cold:<jobId>`, gewired in
-> `run-all`): waarschuwt de opdrachtgever wanneer een gepubliceerde opdracht ≥7 dagen open staat met
-> <3 reacties (spiegel van `job-alerts`). `JOB_COLD`-notificatie (system/attention) in de bestaande
-> meldingenlijst, linkt naar de opdracht; 16 unit-tests; geen schemawijziging, geen geldstroom.
-> Gedaan (niet opnieuw): **Reactie-uitkomsten samenvatting op `/reacties`** — pure
-> `summarizeApplicationOutcomes` (`lib/application-outcomes.ts`, 11 tests) + `OutcomesSummary`-strip
-> (Verstuurd/Bekeken/Op shortlist/Geaccepteerd) met responspercentage + acceptatiegraad
-> (drempel `APPLICATION_OUTCOME_MIN_SAMPLE = 4`, anders geen misleidende "100%"); read-only,
-> geen schemawijziging, geen extra query.
-> Gedaan (niet opnieuw): **Matchredenen op de opdracht-kaart** (`/opdrachten`, Linear ZZP2-188) —
-> troef (`topPositiveReason`) én minpunt (`topGapReason`) onder elke kaart; uitlegbaarheid uit de
-> bestaande matchmotor, geen extra query. Sluit een deel van `docs/PLAN-WERELDKLASSE.md` Fase 2
-> "Matchredenen zichtbaar maken op kaarten" af (kandidaten-kaart blijft open).
-> NB: tariefinzicht (Fase 3) was op deze branch al gebouwd (ZZP2-184, `lib/market-rate.ts`).
-> Gedaan (niet opnieuw): **Markttarief-band op het opdracht-formulier** — `computeMarketBand` +
-> `ratePosition` in `lib/market-rate.ts`, `lib/data/job-rate-bands.ts`, `JobRateBandCard` op
-> `/opdrachten/nieuw` + `/opdrachten/[id]/bewerken`; geanonimiseerde band per branche met
-> opdrachtgever-positie op het minimumtarief (spiegel van de ZZP'er-marktband). Geen schemawijziging.
+> Gedaan (niet opnieuw): **Statusfilter op het opdrachtgever-overzicht `/opdrachten`** — pure
+> `lib/job-status-filter.ts` (`parseJobStatusFilter`/`filterJobsByStatus`/`summarizeJobStatusGroups`)
+>
+> - filter-pills (Alle/Concept/Gepubliceerd/Gesloten met tellingen) op `ClientJobs`, spiegel van het
+>   #474/#475/#477-pill-patroon; read-only, geen schemawijziging, geen extra query, 12 unit-tests. PR #488.
+>   Gedaan (niet opnieuw): **Bewaarde opdrachten voor de ZZP'er (`/opgeslagen`)** — `SavedJob`-model
+>   (anker op `FreelancerProfile`, additief), pure `lib/saved-jobs.ts` `partitionSavedJobs` (open vs.
+>   niet-meer-beschikbaar), `toggleSavedJob`-action (auth → rol → profiel-anker → `visibleJobsWhere` →
+>   mutatie + audit `JOB_SAVED`/`JOB_UNSAVED`), bewaar-knop op de opdracht-detail, `/opgeslagen`-
+>   overzicht + nav-item (bookmark) + demo-seed (Sanne 2 open + 1 DRAFT). Spiegelbeeld van de Flexpool
+>   (opdrachtgever→ZZP'er). 7 unit-tests; PR #479.
+>   Gedaan (niet opnieuw): **Sorteeropties op de ZZP'er-browse (`/freelancers`, opdrachtgever)** — pure
+>   `sortFreelancers` in `lib/freelancer-search.ts` (relevance/available/trust/track-record/rate-asc/
+>   rate-desc) over de reeds server-berekende kaartdata + sorteer-`Select` in `freelancer-browse.tsx`;
+>   deterministische naam→id-tiebreaker, "geen tarief" altijd achteraan, muteert de invoer niet; +8
+>   unit-tests; read-only, geen schemawijziging, geen extra query.
+>   Gedaan (niet opnieuw): **ZZP'er kan eigen reactie intrekken (WITHDRAWN)** — nieuwe
+>   `APPLICATION_STATUSES`-waarde `WITHDRAWN` + pure `canWithdrawApplication` (alleen NEW/VIEWED/
+>   SHORTLIST, geen samenwerking); freelancer-only `withdrawApplication` server-action op `/reacties`
+>   (ownership + audit `APPLICATION_WITHDRAWN` + notificatie naar de opdrachtgever). Re-apply hergebruikt
+>   de bestaande rij (geen extra plan-slot); WITHDRAWN uitgesloten in outcomes-samenvatting,
+>   reactiebereidheid-signaal, "Gereageerd"-badge (rooster), aanbevelingen en kandidaat-suggesties; nette
+>   noot op `/kandidaten`. Geen schemawijziging; +9 unit-tests. Zie PROGRESS.md-top.
+>   Gedaan (niet opnieuw): **Certificaat-impact op lopende inzet (ZZP'er)** — `freelancer-compliance.ts`
+>   `linkExpiryToInzet` koppelt de vervalkalender (`summarizeExpiry`) aan de actieve samenwerkingen wier
+>   verplichte certificaattypen een (bijna-)vervallend certificaat raakt; `data/freelancer-compliance.ts`
+>   `getActiveCollaborationRequirements` (freelancer-gescopet, take:200) levert de data; `InzetImpactCard`
+>   op `/certificaten` toont dagaftelling + vernieuw-deeplink + geraakte inzetten. Mirror van de bestaande
+>   opdrachtgever-`clientCredentialAlerts`/compliance-momentopname; read-only, geen schemawijziging.
+>   11 unit-tests.
+>   Gedaan (niet opnieuw): **Job-engagement-signaal (koude opdracht) voor de opdrachtgever** —
+>   `lib/job-engagement.ts` `planJobEngagement` (pure) + `lib/job-engagement-task.ts`
+>   `runJobEngagementTask` (plan/apply, idempotent via DomainEvent `job-cold:<jobId>`, gewired in
+>   `run-all`): waarschuwt de opdrachtgever wanneer een gepubliceerde opdracht ≥7 dagen open staat met
+>   <3 reacties (spiegel van `job-alerts`). `JOB_COLD`-notificatie (system/attention) in de bestaande
+>   meldingenlijst, linkt naar de opdracht; 16 unit-tests; geen schemawijziging, geen geldstroom.
+>   Gedaan (niet opnieuw): **Reactie-uitkomsten samenvatting op `/reacties`** — pure
+>   `summarizeApplicationOutcomes` (`lib/application-outcomes.ts`, 11 tests) + `OutcomesSummary`-strip
+>   (Verstuurd/Bekeken/Op shortlist/Geaccepteerd) met responspercentage + acceptatiegraad
+>   (drempel `APPLICATION_OUTCOME_MIN_SAMPLE = 4`, anders geen misleidende "100%"); read-only,
+>   geen schemawijziging, geen extra query.
+>   Gedaan (niet opnieuw): **Matchredenen op de opdracht-kaart** (`/opdrachten`, Linear ZZP2-188) —
+>   troef (`topPositiveReason`) én minpunt (`topGapReason`) onder elke kaart; uitlegbaarheid uit de
+>   bestaande matchmotor, geen extra query. Sluit een deel van `docs/PLAN-WERELDKLASSE.md` Fase 2
+>   "Matchredenen zichtbaar maken op kaarten" af (kandidaten-kaart blijft open).
+>   NB: tariefinzicht (Fase 3) was op deze branch al gebouwd (ZZP2-184, `lib/market-rate.ts`).
+>   Gedaan (niet opnieuw): **Markttarief-band op het opdracht-formulier** — `computeMarketBand` +
+>   `ratePosition` in `lib/market-rate.ts`, `lib/data/job-rate-bands.ts`, `JobRateBandCard` op
+>   `/opdrachten/nieuw` + `/opdrachten/[id]/bewerken`; geanonimiseerde band per branche met
+>   opdrachtgever-positie op het minimumtarief (spiegel van de ZZP'er-marktband). Geen schemawijziging.
 
 > Reeds gedaan (niet opnieuw): reactiebereidheid-signaal opdrachtgever op /opdrachten/[id]
 > (`client-responsiveness.ts` `computeClientResponsiveness` + `data/client-responsiveness.ts` +

@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: statusfilter op /opdrachten (opdrachtgever-overzicht)
+
+Het opdrachtgever-overzicht "Mijn opdrachten" (`/opdrachten`) toonde alle eigen opdrachten in één
+ongefilterde lijst. Toegevoegd: een statusfilter (Alle/Concept/Gepubliceerd/Gesloten) met
+pill-tellingen, spiegelt het bestaande pill-patroon van `/facturen`, `/reacties` en `/kandidaten`.
+Read-only, geen schemawijziging, geen extra query (filtert de reeds-geladen lijst client-side van de
+server-component).
+
+- [x] `src/lib/job-status-filter.ts` — pure helpers: `parseJobStatusFilter` (onbekend/malicieus →
+      "all"), `filterJobsByStatus` (behoudt volgorde, muteert niet), `summarizeJobStatusGroups`
+      (telling per groep, "all" = totaal); labels gelijk aan `JobStatusBadge`.
+- [x] `src/app/(protected)/opdrachten/(index)/page.tsx` — `ClientJobs` leest `?status=`, toont
+      filter-pills (`withParams`) + een lege-staat "Geen opdrachten met deze status".
+- [x] `src/lib/job-status-filter.test.ts` — 12 unit-tests (parse-fallback, filter, telling, mutatie).
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummers bijgewerkt (edit verschoof de regels).
+- Gate: typecheck ✓, lint ✓, test 2540 ✓, build ✓, prettier ✓.
+
 ## feat(opgeslagen): bewaarde opdrachten voor de ZZP'er
 
 Een ZZP'er kon een interessante opdracht alleen onthouden door erop te reageren of de URL te
