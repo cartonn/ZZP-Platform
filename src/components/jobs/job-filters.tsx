@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 
 const CREDENTIALS = [
@@ -22,6 +23,7 @@ export function JobFilters({
   industries: { id: string; name: string }[];
   skills: { id: string; name: string }[];
 }) {
+  const translate = useT();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -74,18 +76,18 @@ export function JobFilters({
     <div className="space-y-3 rounded-lg border border-border bg-card p-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Input
-          aria-label="Zoeken"
-          placeholder="Zoek op titel of omschrijving…"
+          aria-label={translate("Zoeken")}
+          placeholder={translate("Zoek op titel of omschrijving…")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="sm:col-span-2 lg:col-span-2"
         />
         <Select
-          aria-label="Branche"
+          aria-label={translate("Branche")}
           value={params.get("industryId") ?? ""}
           onChange={(e) => set("industryId", e.target.value)}
         >
-          <option value="">Alle branches</option>
+          <option value="">{translate("Alle branches")}</option>
           {industries.map((i) => (
             <option key={i.id} value={i.id}>
               {i.name}
@@ -93,56 +95,56 @@ export function JobFilters({
           ))}
         </Select>
         <Select
-          aria-label="Werkmodus"
+          aria-label={translate("Werkmodus")}
           value={params.get("workMode") ?? ""}
           onChange={(e) => set("workMode", e.target.value)}
         >
-          <option value="">Alle werkmodi</option>
-          <option value="REMOTE">Remote</option>
-          <option value="ONSITE">Op locatie</option>
-          <option value="HYBRID">Hybride</option>
+          <option value="">{translate("Alle werkmodi")}</option>
+          <option value="REMOTE">{translate("Remote")}</option>
+          <option value="ONSITE">{translate("Op locatie")}</option>
+          <option value="HYBRID">{translate("Hybride")}</option>
         </Select>
         <Input
-          aria-label="Locatie"
-          placeholder="Plaats of regio…"
+          aria-label={translate("Locatie")}
+          placeholder={translate("Plaats of regio…")}
           defaultValue={params.get("location") ?? ""}
           onBlur={(e) => set("location", e.target.value.trim())}
         />
         <Input
           type="number"
           min={0}
-          aria-label="Minimumtarief"
-          placeholder="Min. €/uur"
+          aria-label={translate("Minimumtarief")}
+          placeholder={translate("Min. €/uur")}
           defaultValue={params.get("rateMin") ?? ""}
           onBlur={(e) => set("rateMin", e.target.value)}
         />
         <Input
           type="number"
           min={0}
-          aria-label="Maximumtarief"
-          placeholder="Max. €/uur"
+          aria-label={translate("Maximumtarief")}
+          placeholder={translate("Max. €/uur")}
           defaultValue={params.get("rateMax") ?? ""}
           onBlur={(e) => set("rateMax", e.target.value)}
         />
         <Select
-          aria-label="Vereist certificaat"
+          aria-label={translate("Vereist certificaat")}
           value={params.get("requiredCredential") ?? ""}
           onChange={(e) => set("requiredCredential", e.target.value)}
         >
           {CREDENTIALS.map(([v, l]) => (
             <option key={v} value={v}>
-              {l}
+              {translate(l)}
             </option>
           ))}
         </Select>
         <Select
-          aria-label="Sorteren"
+          aria-label={translate("Sorteren")}
           value={params.get("sort") ?? "recent"}
           onChange={(e) => set("sort", e.target.value)}
         >
-          <option value="recent">Nieuwste eerst</option>
-          <option value="rate_desc">Tarief hoog → laag</option>
-          <option value="rate_asc">Tarief laag → hoog</option>
+          <option value="recent">{translate("Nieuwste eerst")}</option>
+          <option value="rate_desc">{translate("Tarief hoog → laag")}</option>
+          <option value="rate_asc">{translate("Tarief laag → hoog")}</option>
         </Select>
       </div>
 
