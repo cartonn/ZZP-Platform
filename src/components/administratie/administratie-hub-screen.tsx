@@ -12,6 +12,7 @@ import { BoekhoudingPanel } from "@/components/administratie/boekhouding-panel";
 import { PrognosePanel } from "@/components/administratie/prognose-panel";
 import { OntzorgdPanel } from "@/components/administratie/ontzorgd-panel";
 import { VerplichtingenPanel } from "@/components/administratie/verplichtingen-panel";
+import { getTranslator } from "@/lib/i18n/server";
 
 const TAB_LABEL = {
   facturen: "Facturen",
@@ -78,6 +79,7 @@ export async function AdministratieHubScreen({
   tab?: string;
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  const { t } = await getTranslator();
   const tabs = tabsForRole(actor.role);
   const tab: TabKey = (tabs as readonly string[]).includes(rawTab ?? "")
     ? (rawTab as TabKey)
@@ -89,8 +91,8 @@ export async function AdministratieHubScreen({
   const tabHref = (key: TabKey) => (key === "facturen" ? "/financien" : `/financien?tab=${key}`);
 
   const subtitle = isFreelancer
-    ? "Je facturen, openstaande posten en boekhouding op één plek."
-    : "Je facturen, openstaande posten en verplichtingen op één plek.";
+    ? t("Je facturen, openstaande posten en boekhouding op één plek.")
+    : t("Je facturen, openstaande posten en verplichtingen op één plek.");
 
   return (
     <div className="space-y-6">
@@ -107,22 +109,24 @@ export async function AdministratieHubScreen({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-                  Administratie
+                  {t("Administratie")}
                 </h1>
-                <Badge variant="accent">{ROLE_LABEL[actor.role]}</Badge>
+                <Badge variant="accent">{t(ROLE_LABEL[actor.role])}</Badge>
                 {openCents > 0 && (
-                  <Badge variant="warning">{formatEuro(openCents)} openstaand</Badge>
+                  <Badge variant="warning">
+                    {formatEuro(openCents)} {t("openstaand")}
+                  </Badge>
                 )}
               </div>
               <p className="mt-1 text-sm text-muted-foreground sm:text-base">{subtitle}</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
                 <span className="text-sm text-muted-foreground">
-                  Openstaand{" "}
+                  {t("Openstaand")}{" "}
                   <span className="font-medium tabular-nums">{formatEuro(openCents)}</span>
                 </span>
                 {isFreelancer && (
                   <span className="text-sm text-muted-foreground">
-                    Betaalde omzet{" "}
+                    {t("Betaalde omzet")}{" "}
                     <span className="font-medium tabular-nums">{formatEuro(paidCents)}</span>
                   </span>
                 )}
@@ -134,7 +138,7 @@ export async function AdministratieHubScreen({
 
       {/* Tabs — server-gerenderd via ?tab=, geen client-JS nodig. */}
       <nav
-        aria-label="Administratiesecties"
+        aria-label={t("Administratiesecties")}
         className="flex flex-wrap gap-1 border-b border-border text-sm"
       >
         {tabs.map((key) => (
@@ -148,7 +152,7 @@ export async function AdministratieHubScreen({
                 : "focus-ring -mb-px border-b-2 border-transparent px-3 py-2 text-muted-foreground hover:text-foreground"
             }
           >
-            {TAB_LABEL[key]}
+            {t(TAB_LABEL[key])}
           </Link>
         ))}
       </nav>
