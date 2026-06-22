@@ -16,7 +16,17 @@ import { PageHeader } from "@/components/ui/page-header";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
+import { withParams } from "@/components/admin/base-path";
 import { plural } from "@/lib/plural";
+import {
+  JOB_STATUS_FILTER_LABEL,
+  JOB_STATUS_FILTER_ORDER,
+  filterJobsByStatus,
+  parseJobStatusFilter,
+  summarizeJobStatusGroups,
+} from "@/lib/job-status-filter";
+
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export const metadata: Metadata = { title: "Opdrachten · ZZP Platform" };
 
@@ -32,18 +42,30 @@ export default async function OpdrachtenPage({ searchParams }: { searchParams: S
   const actor = await requireActor();
   const sp = await searchParams;
   if (actor.role === "CLIENT") {
-    return <ClientJobs userId={actor.id} />;
+    return <ClientJobs userId={actor.id} searchParams={sp} />;
   }
   return <BrowseJobs searchParams={sp} actor={actor} />;
 }
 
 // --- CLIENT: beheeroverzicht van eigen opdrachten als kaartgrid (zelfde stijl als de ZZP'er-kaarten) ---
-async function ClientJobs({ userId }: { userId: string }) {
+async function ClientJobs({
+  userId,
+  searchParams,
+}: {
+  userId: string;
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
   const jobs = await prisma.job.findMany({
     where: { company: { userId } },
     orderBy: { updatedAt: "desc" },
     include: { _count: { select: { applications: true } } },
   });
+
+  // Statusfilter (Alle/Concept/Gepubliceerd/Gesloten) — tellingen over de volledige lijst voor de
+  // pill-labels, de gefilterde lijst voor de weergave. Spiegelt het pill-patroon van /facturen.
+  const activeFilter = parseJobStatusFilter(first(searchParams.status));
+  const groupCounts = summarizeJobStatusGroups(jobs);
+  const filtered = filterJobsByStatus(jobs, activeFilter);
 
   return (
     <div className="space-y-6">
@@ -69,36 +91,71 @@ async function ClientJobs({ userId }: { userId: string }) {
           />
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {jobs.map((job) => (
-            <Card key={job.id} className="flex flex-col gap-3 p-4">
-              {/* Kop: icoon + titel + status — zelfde kaartopbouw als de ZZP'er-kaarten */}
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <Briefcase className="h-5 w-5" aria-hidden />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{job.title}</p>
-                  {job.location && (
-                    <p className="truncate text-xs text-muted-foreground">{job.location}</p>
-                  )}
-                </div>
-                <span className="shrink-0">
-                  <JobStatusBadge status={job.status as JobStatus} />
-                </span>
-              </div>
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-1.5">
+            {JOB_STATUS_FILTER_ORDER.map((group) => {
+              const active = activeFilter === group;
+              return (
+                <Link
+                  key={group}
+                  href={
+                    group === "all" ? "/opdrachten" : withParams("/opdrachten", { status: group })
+                  }
+                  aria-current={active ? "page" : undefined}
+                  className={[
+                    "focus-ring inline-flex items-center rounded-md border px-3 py-1 text-sm transition-colors",
+                    active
+                      ? "border-accent-foreground/20 bg-accent text-accent-foreground"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted",
+                  ].join(" ")}
+                >
+                  {JOB_STATUS_FILTER_LABEL[group]} ({groupCounts[group]})
+                </Link>
+              );
+            })}
+          </div>
 
-              <p className="text-xs text-muted-foreground">
-                {plural(job._count.applications, "reactie", "reacties")}
-              </p>
-
-              <div className="mt-auto pt-1">
-                <Button asChild variant="secondary" size="sm" className="w-full">
-                  <Link href={`/opdrachten/${job.id}`}>Bekijk opdracht</Link>
-                </Button>
-              </div>
+          {filtered.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={Briefcase}
+                title="Geen opdrachten met deze status"
+                description="Pas het filter aan om meer opdrachten te zien."
+              />
             </Card>
-          ))}
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((job) => (
+                <Card key={job.id} className="flex flex-col gap-3 p-4">
+                  {/* Kop: icoon + titel + status — zelfde kaartopbouw als de ZZP'er-kaarten */}
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <Briefcase className="h-5 w-5" aria-hidden />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{job.title}</p>
+                      {job.location && (
+                        <p className="truncate text-xs text-muted-foreground">{job.location}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0">
+                      <JobStatusBadge status={job.status as JobStatus} />
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    {plural(job._count.applications, "reactie", "reacties")}
+                  </p>
+
+                  <div className="mt-auto pt-1">
+                    <Button asChild variant="secondary" size="sm" className="w-full">
+                      <Link href={`/opdrachten/${job.id}`}>Bekijk opdracht</Link>
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
