@@ -1,5 +1,6 @@
 import { Check, FileCheck, FolderCheck, ScrollText, ShieldCheck, Target } from "lucide-react";
 import { type PublicTrustStats, trustHighlights } from "@/lib/public-trust";
+import { getTranslator } from "@/lib/i18n/server";
 
 const PILLARS = [
   {
@@ -37,12 +38,13 @@ const KEURMERK = ["VOG", "Diploma", "BIG", "Verzekering"] as const;
  * altijd waar zijn over hoe het platform werkt, een verificatie-keurmerk-rij, en — alleen wanneer
  * betekenisvol — echte platformcijfers. Etaleert de bestaande sterktes vroeg in de funnel.
  */
-export function TrustStrip({ stats }: { stats: PublicTrustStats }) {
+export async function TrustStrip({ stats }: { stats: PublicTrustStats }) {
   const highlights = trustHighlights(stats);
+  const { locale, t } = await getTranslator();
 
   return (
     <section
-      aria-label="Waarom ZZP Platform"
+      aria-label={t("Waarom ZZP Platform")}
       className="mt-4 space-y-3 rounded-lg border border-border bg-card/60 p-4"
     >
       <ul className="space-y-3">
@@ -50,8 +52,8 @@ export function TrustStrip({ stats }: { stats: PublicTrustStats }) {
           <li key={p.title} className="flex gap-2.5">
             <p.icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
             <div className="min-w-0">
-              <p className="text-sm font-medium leading-tight">{p.title}</p>
-              <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{p.desc}</p>
+              <p className="text-sm font-medium leading-tight">{t(p.title)}</p>
+              <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{t(p.desc)}</p>
             </div>
           </li>
         ))}
@@ -61,14 +63,18 @@ export function TrustStrip({ stats }: { stats: PublicTrustStats }) {
         {KEURMERK.map((k) => (
           <span key={k} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <Check className="size-3 text-success" aria-hidden />
-            {k}
+            {t(k)}
           </span>
         ))}
       </div>
 
       {highlights.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          {highlights.map((h) => `${h.value.toLocaleString("nl-NL")} ${h.label}`).join(" · ")}
+          {highlights
+            .map(
+              (h) => `${h.value.toLocaleString(locale === "en" ? "en-US" : "nl-NL")} ${t(h.label)}`,
+            )
+            .join(" · ")}
         </p>
       )}
     </section>
