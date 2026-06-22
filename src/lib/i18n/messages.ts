@@ -376,6 +376,34 @@ const EN: Record<string, string> = {
   Prognose: "Forecast",
   Ontzorgd: "Done-for-you",
   Verplichtingen: "Obligations",
+
+  // --- Facturen-paneel (inhoud) ---
+  "Nieuwe factuur": "New invoice",
+  Betaald: "Paid",
+  "Nog geen facturen": "No invoices yet",
+  "Nog geen facturen ontvangen": "No invoices received yet",
+  "Stel een factuur op vanuit een actieve samenwerking.":
+    "Create an invoice from an active collaboration.",
+  "Zodra een opdracht tot een samenwerking leidt, kun je hier factureren.":
+    "Once an assignment becomes a collaboration, you can invoice here.",
+  "Factuur opstellen": "Create invoice",
+  "Bekijk opdrachten": "View assignments",
+  "Geen facturen met deze status.": "No invoices with this status.",
+  "Concept-factuur": "Draft invoice",
+  "via werkproces": "via workflow",
+  "incl. btw": "incl. VAT",
+  // Factuurstatus-filter (pills) — "Alle" staat al in het woordenboek
+  Afgehandeld: "Settled",
+  // Factuur-lifecycle / statusbadges — "Verlopen" (→ Expired) staat al in het woordenboek
+  Concept: "Draft",
+  Ingediend: "Submitted",
+  Goedgekeurd: "Approved",
+  Verwerkt: "Processed",
+  Afgekeurd: "Rejected",
+  "Te laat": "Overdue",
+  Gecrediteerd: "Credited",
+  Verzonden: "Sent",
+  Geannuleerd: "Cancelled",
 };
 
 const TABLES: Record<Locale, Record<string, string>> = {
