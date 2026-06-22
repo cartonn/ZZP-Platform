@@ -1,35 +1,27 @@
 import Link from "next/link";
 import { CalendarClock } from "lucide-react";
 import { type ExpiryOverview } from "@/lib/credential-expiry-overview";
+import {
+  EXPIRY_CARD_MAX_LISTED,
+  expiryCardHidden,
+  expiryChips,
+  expiryDaysLabel,
+  expiryRemaining,
+} from "@/lib/credential-expiry-overview-view";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { plural } from "@/lib/plural";
-
-const MAX_LISTED = 5;
-
-function daysLabel(days: number): string {
-  if (days < 0) return "verlopen";
-  if (days === 0) return "verloopt vandaag";
-  return `over ${plural(days, "dag", "dagen")}`;
-}
 
 /**
  * Vervalkalender: een rustige momentopname van wat er aan certificaten vernieuwd moet worden.
  * Verbergt zichzelf zodra er niets binnen de horizon verloopt — geen lege ruis op de pagina.
+ * De presentatielogica (chips, labels, lijst-limiet) leeft in credential-expiry-overview-view.ts.
  */
 export function ExpiryOverviewCard({ overview }: { overview: ExpiryOverview }) {
-  if (overview.total === 0) return null;
+  if (expiryCardHidden(overview)) return null;
 
-  // De vensters zijn exclusieve buckets (within60 = 31–60, within90 = 61–90), dus toon
-  // expliciete reeksen i.p.v. "binnen N dagen" — dat laatste leest cumulatief en zou misleiden.
-  const chips = [
-    { count: overview.expired, label: "verlopen", tone: "danger" as const },
-    { count: overview.within30, label: "binnen 30 dagen", tone: "warning" as const },
-    { count: overview.within60, label: "31–60 dagen", tone: "muted" as const },
-    { count: overview.within90, label: "61–90 dagen", tone: "muted" as const },
-  ].filter((c) => c.count > 0);
-
-  const listed = overview.items.slice(0, MAX_LISTED);
-  const remaining = overview.total - listed.length;
+  const chips = expiryChips(overview);
+  const listed = overview.items.slice(0, EXPIRY_CARD_MAX_LISTED);
+  const remaining = expiryRemaining(overview);
 
   return (
     <section
@@ -89,7 +81,7 @@ export function ExpiryOverviewCard({ overview }: { overview: ExpiryOverview }) {
                     : "text-muted-foreground")
               }
             >
-              {daysLabel(item.days)}
+              {expiryDaysLabel(item.days)}
             </span>
           </li>
         ))}
