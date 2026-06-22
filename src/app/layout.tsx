@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Figtree, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { getLocale } from "@/lib/i18n/server";
 import { HydrationFlag } from "@/components/system/hydration-flag";
 import { PwaRegister } from "@/components/system/pwa-register";
 import { InstallPrompt } from "@/components/system/install-prompt";
@@ -51,9 +52,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // productie-policy. Het lezen van headers() maakt de hele app request-gebonden (dynamisch),
   // zodat er geen statisch gebakken HTML zónder nonce meer bestaat — bewuste afweging.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const locale = await getLocale();
   return (
     <html
-      lang="nl"
+      lang={locale}
       suppressHydrationWarning
       className={`${fontSans.variable} ${fontDisplay.variable} ${fontMono.variable}`}
     >
