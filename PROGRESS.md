@@ -3,24 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: urgentiefilter op /admin/disputen
+## feat(opgeslagen): bewaarde opdrachten voor de ZZP'er
 
-De urgentie-samenvattingsstrip op `/admin/disputen` (Alle / Urgent / Verhoogd / Normaal) toonde
-alleen tellingen. Een beheerder kon niet direct inzoomen op de urgentste bevroren samenwerkingen —
-zolang een dispuut openstaat ligt de betalingscascade stil, dus urgentie is het signaal dat telt.
-De chips zijn nu klikbare filtertabs (server-side via de URL, deelbaar/herlaadbaar). Spiegel van het
-statusfilter-patroon (`/reacties`, `/admin/samenwerkingen`). Read-only, **geen schemawijziging, geen
-extra query**.
+Een ZZP'er kon een interessante opdracht alleen onthouden door erop te reageren of de URL te
+kopiëren. Toegevoegd: opdrachten **bewaren** (bookmark) en terugvinden op een eigen overzicht —
+spiegelbeeld van de bestaande Flexpool (opdrachtgever bewaart ZZP'er via `FavoriteFreelancer`).
+Server-side keten (auth → rol → eigen profiel als anker → zichtbaarheidscheck → mutatie + audit);
+additieve schemawijziging.
 
-- [x] `src/lib/dispute-filter.ts` — pure module: `parseDisputeFilter` (leest `urgency`,
-      case-insensitief, valt terug op `null`), `matchesDisputeFilter`, `filterDisputeRows`
-      (muteert de invoer niet, geeft een nieuwe array terug), `isDisputeFilterActive`,
-      `disputeFilterParams` (querystring-helper voor de filterlinks).
-- [x] `src/app/(protected)/admin/disputen/page.tsx` — chips → `FilterPill`-links; de tellingen tonen
-      altijd de **volledige** backlog (niet de gefilterde weergave); "X van Y disputen"-telregel +
-      nette "geen disputen in dit filter"-lege staat naast de bestaande "geen open disputen"-empty.
-- [x] Tests: `dispute-filter.test.ts` (+12). Gate: typecheck ✓, lint ✓, test **2505** ✓ (+12),
-      build ✓, `prettier --check .` ✓.
+- [x] `prisma/schema.prisma` — nieuw `SavedJob`-model (anker op `FreelancerProfile`,
+      `@@unique([freelancerProfileId, jobId])`, cascade-delete) + back-relations op
+      `FreelancerProfile.savedJobs` en `Job.savedBy`.
+- [x] `src/lib/saved-jobs.ts` — pure `partitionSavedJobs` (splitst open vs. niet-meer-beschikbaar,
+      sorteert meest recent bewaard eerst, deterministische tiebreaker, muteert niet) +
+      `isSavedJobOpen`. Tests: `saved-jobs.test.ts` (7).
+- [x] `src/app/(protected)/opdrachten/actions.ts` — `toggleSavedJob(jobId)`: idempotente toggle;
+      bewaren alleen voor een gepubliceerde, voor deze ZZP'er zichtbare opdracht
+      (`visibleJobsWhere`); audit `JOB_SAVED`/`JOB_UNSAVED`.
+- [x] `src/components/jobs/save-job-button.tsx` — client-toggle (Bewaren/Bewaard), `useTransition`,
+      `aria-pressed`. Gewired op de opdracht-detail (FREELANCER, niet-eigenaar, PUBLISHED).
+- [x] `src/app/(protected)/opgeslagen/{page,loading}.tsx` — overzicht: "Nog open" (klikbaar naar
+      detail + verwijder-toggle) en "Niet meer beschikbaar" (gesloten/teruggetrokken, met
+      statusbadge); empty-states (geen profiel / niets bewaard). `take: 200`.
+- [x] `src/lib/nav.ts` + `src/components/sidebar-nav.tsx` — nav-item "Opgeslagen" (bookmark-icoon)
+      onder Werk; nieuwe `bookmark` `NavIcon`.
+- [x] `prisma/seed.ts` — Sanne bewaart job-13 + job-18 (open) en job-7 (DRAFT → "niet meer
+      beschikbaar"), idempotent.
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummers opgeschoven (nieuwe import).
+
+Gate groen: typecheck ✓, lint ✓, test **2487** ✓ (+7), build ✓ (`/opgeslagen` 2.51 kB),
+`prettier --check .` ✓. Seed-smoke geverifieerd tegen scratch-DB (2 open + 1 unavailable).
 
 ## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
 
