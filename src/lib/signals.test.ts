@@ -56,6 +56,13 @@ describe("buildBadges", () => {
     expect(badges["/financien"]).toEqual({ count: 1, tone: "attention" });
   });
 
+  it("mapt bewaarde opdrachten naar /opgeslagen met info-toon (rustige telling)", () => {
+    expect(buildBadges({ savedJobs: 4 })).toEqual({
+      "/opgeslagen": { count: 4, tone: "info" },
+    });
+    expect(buildBadges({ savedJobs: 0 })).toEqual({});
+  });
+
   it("mapt openstaande prestaties naar /prestaties met attention-toon", () => {
     expect(buildBadges({ pendingPerformances: 4 })).toEqual({
       "/prestaties": { count: 4, tone: "attention" },
