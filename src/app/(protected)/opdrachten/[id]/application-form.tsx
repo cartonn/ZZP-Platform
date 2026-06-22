@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useT } from "@/components/i18n/locale-provider";
 import { type ApplyState } from "../actions";
 
 export function ApplicationForm({
@@ -12,39 +13,40 @@ export function ApplicationForm({
 }: {
   action: (prev: ApplyState, formData: FormData) => Promise<ApplyState>;
 }) {
+  const t = useT();
   const [state, formAction, isPending] = useActionState<ApplyState, FormData>(action, undefined);
   const fe = state?.fieldErrors ?? {};
 
   return (
     <form action={formAction} className="space-y-4 rounded-lg border border-border bg-card p-5">
-      <h2 className="text-sm font-semibold">Reageren op deze opdracht</h2>
+      <h2 className="text-sm font-semibold">{t("Reageren op deze opdracht")}</h2>
 
-      <Field label="Motivatie" htmlFor="motivation" required error={fe.motivation}>
+      <Field label={t("Motivatie")} htmlFor="motivation" required error={fe.motivation}>
         <Textarea
           id="motivation"
           name="motivation"
           rows={4}
           maxLength={2000}
-          placeholder="Waarom past deze opdracht bij jou?"
+          placeholder={t("Waarom past deze opdracht bij jou?")}
         />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Tariefvoorstel (€/uur)" htmlFor="proposedRate" error={fe.proposedRate}>
+        <Field label={t("Tariefvoorstel (€/uur)")} htmlFor="proposedRate" error={fe.proposedRate}>
           <Input
             id="proposedRate"
             name="proposedRate"
             type="number"
             min={0}
             max={2000}
-            placeholder="bijv. 85"
+            placeholder={t("bijv. 85")}
           />
         </Field>
-        <Field label="Beschikbaarheid" htmlFor="availability" error={fe.availability}>
+        <Field label={t("Beschikbaarheid")} htmlFor="availability" error={fe.availability}>
           <Input
             id="availability"
             name="availability"
-            placeholder="bijv. per 1 september, 32 uur"
+            placeholder={t("bijv. per 1 september, 32 uur")}
           />
         </Field>
       </div>
@@ -56,7 +58,7 @@ export function ApplicationForm({
       )}
 
       <Button type="submit" disabled={isPending}>
-        {isPending ? "Versturen…" : "Reactie versturen"}
+        {isPending ? t("Versturen…") : t("Reactie versturen")}
       </Button>
     </form>
   );
