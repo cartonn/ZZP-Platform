@@ -819,6 +819,17 @@ async function main() {
     });
   }
 
+  // --- Bewaarde opdrachten (Sanne) — bookmarks om er later op terug te komen ---
+  // Twee open opdrachten waar ze nog niet op reageerde + één DRAFT (job-7) zodat het
+  // overzicht óók de "niet meer beschikbaar"-sectie demonstreert.
+  for (const jobId of ["job-13", "job-18", "job-7"]) {
+    await prisma.savedJob.upsert({
+      where: { freelancerProfileId_jobId: { freelancerProfileId: pid["sanne"]!, jobId } },
+      update: {},
+      create: { freelancerProfileId: pid["sanne"]!, jobId },
+    });
+  }
+
   // --- Werkproces-cascade via de ÉCHTE commands (geen directe upserts) ---
   // Demo-data, maar elke samenwerking/urenstaat/factuur ontstaat via dezelfde command-paden als de
   // app: signContract -> createPerformance -> submitPerformance -> approvePerformance ->

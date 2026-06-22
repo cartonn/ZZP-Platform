@@ -3,29 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: status-/zoekfilter op /franchise/samenwerkingen
+## feat(opgeslagen): bewaarde opdrachten voor de ZZP'er
 
-`/franchise/samenwerkingen` (het franchise-toezicht op samenwerkingen) was het enige rol-overzicht
-zonder filter — FREELANCER/CLIENT/ADMIN hebben die ergonomie al (o.a. `/reacties`, `/facturen`,
-`/admin/samenwerkingen`). Bij een groeiend tenant-volume moest de bemiddelaar handmatig scannen.
-Toegevoegd: een server-side status-/zoekfilter dat de bestaande pure `collaboration-filter.ts`
-**hergebruikt** (DRY, gespiegeld op het admin-overzicht). Read-only, **geen schemawijziging, geen
-extra query, geen geldstroom**.
+Een ZZP'er kon een interessante opdracht alleen onthouden door erop te reageren of de URL te
+kopiëren. Toegevoegd: opdrachten **bewaren** (bookmark) en terugvinden op een eigen overzicht —
+spiegelbeeld van de bestaande Flexpool (opdrachtgever bewaart ZZP'er via `FavoriteFreelancer`).
+Server-side keten (auth → rol → eigen profiel als anker → zichtbaarheidscheck → mutatie + audit);
+additieve schemawijziging.
 
-- [x] `src/app/(protected)/franchise/samenwerkingen/page.tsx` — verrijkt de tenant-collabs één keer
-      tot een `Row` (`FilterableCollaboration` + kaartvelden), past dan `parseCollaborationFilter` /
-      `countByStatus` / `filterCollaborations` / `isCollaborationFilterActive` toe. GET-filterform
-      (zoek-`Input` over opdracht/opdrachtgever/ZZP'er + status-`Select` met tellingen + Filteren),
-      "X van Y"-telregel + nette "geen match"-lege staat naast de bestaande "nog geen
-      samenwerkingen"-empty. De tellingen lopen over de volledige (ongefilterde) set; de query kreeg
-      een defensieve `take: 100`-cap (was unbounded). De DBA-dimensie wordt bewust niet getoond (hoort
-      bij het admin-overzicht) — alleen status + zoeken.
-- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummer bijgewerkt (findMany verschoven naar
-      regel 58 door de searchParams-wiring).
+- [x] `prisma/schema.prisma` — nieuw `SavedJob`-model (anker op `FreelancerProfile`,
+      `@@unique([freelancerProfileId, jobId])`, cascade-delete) + back-relations op
+      `FreelancerProfile.savedJobs` en `Job.savedBy`.
+- [x] `src/lib/saved-jobs.ts` — pure `partitionSavedJobs` (splitst open vs. niet-meer-beschikbaar,
+      sorteert meest recent bewaard eerst, deterministische tiebreaker, muteert niet) +
+      `isSavedJobOpen`. Tests: `saved-jobs.test.ts` (7).
+- [x] `src/app/(protected)/opdrachten/actions.ts` — `toggleSavedJob(jobId)`: idempotente toggle;
+      bewaren alleen voor een gepubliceerde, voor deze ZZP'er zichtbare opdracht
+      (`visibleJobsWhere`); audit `JOB_SAVED`/`JOB_UNSAVED`.
+- [x] `src/components/jobs/save-job-button.tsx` — client-toggle (Bewaren/Bewaard), `useTransition`,
+      `aria-pressed`. Gewired op de opdracht-detail (FREELANCER, niet-eigenaar, PUBLISHED).
+- [x] `src/app/(protected)/opgeslagen/{page,loading}.tsx` — overzicht: "Nog open" (klikbaar naar
+      detail + verwijder-toggle) en "Niet meer beschikbaar" (gesloten/teruggetrokken, met
+      statusbadge); empty-states (geen profiel / niets bewaard). `take: 200`.
+- [x] `src/lib/nav.ts` + `src/components/sidebar-nav.tsx` — nav-item "Opgeslagen" (bookmark-icoon)
+      onder Werk; nieuwe `bookmark` `NavIcon`.
+- [x] `prisma/seed.ts` — Sanne bewaart job-13 + job-18 (open) en job-7 (DRAFT → "niet meer
+      beschikbaar"), idempotent.
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummers opgeschoven (nieuwe import).
 
-Gate groen: typecheck ✓, lint ✓, test **2481** ✓, build ✓ (`/franchise/samenwerkingen` 206 B),
-`prettier --check .` ✓. Geen nieuwe pure logica — de filterlogica is al gedekt door
-`collaboration-filter.test.ts`.
+Gate groen: typecheck ✓, lint ✓, test **2487** ✓ (+7), build ✓ (`/opgeslagen` 2.51 kB),
+`prettier --check .` ✓. Seed-smoke geverifieerd tegen scratch-DB (2 open + 1 unavailable).
 
 ## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
 
