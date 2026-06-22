@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Calendar, MapPin } from "lucide-react";
 import { currentActor } from "@/lib/authz";
+import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
 import { profileVisibleTo, computeFreelancerCompleteness } from "@/lib/profile";
 import { tenantEntityVisibleTo } from "@/lib/tenancy";
@@ -125,6 +126,7 @@ export async function ProfileScreen({
   basePath: string;
 }) {
   const id = profileId;
+  const { t } = await getTranslator();
 
   const profile = await prisma.freelancerProfile.findUnique({
     where: { id },
@@ -310,7 +312,7 @@ export async function ProfileScreen({
                   {profile.user.name}
                 </h1>
                 <Badge variant={availability.variant} className="border-transparent bg-white">
-                  {availability.label}
+                  {t(availability.label)}
                 </Badge>
                 <TrustBadge level={trust.level} className="border-transparent bg-white" />
                 {reviewAgg.count > 0 && (
@@ -323,7 +325,11 @@ export async function ProfileScreen({
                 )}
               </div>
               <p className="mt-1 text-sm font-medium text-white sm:text-base">
-                {[profile.headline, profile.location, `op het platform sinds ${memberSince}`]
+                {[
+                  profile.headline,
+                  profile.location,
+                  `${t("op het platform sinds")} ${memberSince}`,
+                ]
                   .filter(Boolean)
                   .join(" · ")}
               </p>
@@ -341,11 +347,11 @@ export async function ProfileScreen({
                 )}
                 {completed > 0 && (
                   <span className="text-sm font-medium text-white">
-                    {plural(completed, "afgeronde samenwerking", "afgeronde samenwerkingen")}
+                    {plural(completed, t("afgeronde samenwerking"), t("afgeronde samenwerkingen"))}
                   </span>
                 )}
                 <span className="text-sm font-medium text-white">
-                  {WORK_MODE[profile.workMode as WorkMode]}
+                  {t(WORK_MODE[profile.workMode as WorkMode])}
                 </span>
               </div>
               <div className="mt-3">
@@ -365,7 +371,7 @@ export async function ProfileScreen({
                 href="/profiel/bewerken"
                 className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/70 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10"
               >
-                Bewerk jouw profiel
+                {t("Bewerk jouw profiel")}
               </Link>
             ) : clientFavorited !== null ? (
               <FavoriteButton freelancerProfileId={profile.id} initialFavorited={clientFavorited} />
@@ -376,21 +382,21 @@ export async function ProfileScreen({
 
       {/* Tabs — server-gerenderd via ?tab=, geen client-JS nodig. */}
       <nav
-        aria-label="Profielsecties"
+        aria-label={t("Profielsecties")}
         className="flex flex-wrap gap-1 border-b border-border text-sm"
       >
-        {visibleTabs.map((t) => (
+        {visibleTabs.map((tabItem) => (
           <Link
-            key={t.key}
-            href={tabHref(t.key)}
-            aria-current={tab === t.key ? "page" : undefined}
+            key={tabItem.key}
+            href={tabHref(tabItem.key)}
+            aria-current={tab === tabItem.key ? "page" : undefined}
             className={
-              tab === t.key
+              tab === tabItem.key
                 ? "focus-ring -mb-px border-b-2 border-primary px-3 py-2 font-medium text-foreground"
                 : "focus-ring -mb-px border-b-2 border-transparent px-3 py-2 text-muted-foreground hover:text-foreground"
             }
           >
-            {t.label}
+            {t(tabItem.label)}
           </Link>
         ))}
       </nav>
@@ -401,25 +407,25 @@ export async function ProfileScreen({
             <Card>
               <CardContent className="py-4">
                 <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Stamgegevens
+                  {t("Stamgegevens")}
                 </h2>
                 <dl className="mt-2 divide-y divide-border">
-                  {profile.headline && <Stat label="Functie" value={profile.headline} />}
+                  {profile.headline && <Stat label={t("Functie")} value={profile.headline} />}
                   {profile.skills.length > 0 && (
                     <Stat
-                      label="Specialisaties"
+                      label={t("Specialisaties")}
                       value={profile.skills.map((s) => s.skill.name).join(", ")}
                     />
                   )}
                   {profile.industries.length > 0 && (
                     <Stat
-                      label="Branches"
+                      label={t("Branches")}
                       value={profile.industries.map((i) => i.industry.name).join(", ")}
                     />
                   )}
                   {profile.location && (
                     <Stat
-                      label="Locatie"
+                      label={t("Locatie")}
                       value={
                         <span className="inline-flex items-center gap-1">
                           <MapPin className="size-3.5 text-muted-foreground" aria-hidden />
@@ -431,11 +437,11 @@ export async function ProfileScreen({
                     />
                   )}
                   {profile.hourlyRate != null && (
-                    <Stat label="Uurtarief" value={`€ ${profile.hourlyRate}`} />
+                    <Stat label={t("Uurtarief")} value={`€ ${profile.hourlyRate}`} />
                   )}
-                  {profile.kvkNumber && <Stat label="KvK-nummer" value={profile.kvkNumber} />}
-                  {languages.length > 0 && <Stat label="Talen" value={languages.join(", ")} />}
-                  <Stat label="Op het platform sinds" value={memberSince} />
+                  {profile.kvkNumber && <Stat label={t("KvK-nummer")} value={profile.kvkNumber} />}
+                  {languages.length > 0 && <Stat label={t("Talen")} value={languages.join(", ")} />}
+                  <Stat label={t("Op het platform sinds")} value={memberSince} />
                 </dl>
               </CardContent>
             </Card>
@@ -444,7 +450,7 @@ export async function ProfileScreen({
               <Card>
                 <CardContent className="py-4">
                   <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Over
+                    {t("Over")}
                   </h2>
                   <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">{profile.bio}</p>
                 </CardContent>
@@ -456,7 +462,7 @@ export async function ProfileScreen({
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between gap-2">
                     <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Beoordelingen door opdrachtgevers
+                      {t("Beoordelingen door opdrachtgevers")}
                     </h2>
                     <RatingStars average={reviewAgg.average} count={reviewAgg.count} showValue />
                   </div>
@@ -480,19 +486,22 @@ export async function ProfileScreen({
             <Card>
               <CardContent className="py-4">
                 <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Profielkracht
+                  {t("Profielkracht")}
                 </h2>
                 <div className="mt-3 flex justify-center">
-                  <ScoreRing value={completeness.score} label="Profielkracht" />
+                  <ScoreRing value={completeness.score} label={t("Profielkracht")} />
                 </div>
                 <div className="mt-4 space-y-3">
-                  <SignalBar label="Identiteit" value={profile.user.identityVerifiedAt ? 100 : 0} />
                   <SignalBar
-                    label="Verplichte documenten"
+                    label={t("Identiteit")}
+                    value={profile.user.identityVerifiedAt ? 100 : 0}
+                  />
+                  <SignalBar
+                    label={t("Verplichte documenten")}
                     value={mandatory.allSatisfied ? 100 : 0}
                   />
                   <SignalBar
-                    label="Certificaten geldig"
+                    label={t("Certificaten geldig")}
                     value={
                       publicCredentials.length > 0
                         ? (publicValid.length / publicCredentials.length) * 100
@@ -501,7 +510,9 @@ export async function ProfileScreen({
                   />
                 </div>
                 <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                  Server-side berekend uit verifieerbare signalen — eerlijk vermeld, geen black box.
+                  {t(
+                    "Server-side berekend uit verifieerbare signalen — eerlijk vermeld, geen black box.",
+                  )}
                 </p>
               </CardContent>
             </Card>
@@ -509,30 +520,33 @@ export async function ProfileScreen({
             <Card>
               <CardContent className="py-4">
                 <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Vertrouwen
+                  {t("Vertrouwen")}
                 </h2>
                 <dl className="mt-2 divide-y divide-border">
                   <Stat
-                    label="Identiteit"
+                    label={t("Identiteit")}
                     value={
                       profile.user.identityVerifiedAt ? (
-                        <span className="text-success">Geverifieerd via iDIN</span>
+                        <span className="text-success">{t("Geverifieerd via iDIN")}</span>
                       ) : (
-                        <span className="text-muted-foreground">Niet geverifieerd</span>
+                        <span className="text-muted-foreground">{t("Niet geverifieerd")}</span>
                       )
                     }
                   />
                   <Stat
-                    label="Verplichte documenten"
+                    label={t("Verplichte documenten")}
                     value={
                       mandatory.allSatisfied ? (
-                        <span className="text-success">Volledig ✓</span>
+                        <span className="text-success">{t("Volledig ✓")}</span>
                       ) : (
-                        <span className="text-muted-foreground">Onvolledig</span>
+                        <span className="text-muted-foreground">{t("Onvolledig")}</span>
                       )
                     }
                   />
-                  <Stat label="Geverifieerde certificaten" value={String(verifiedActive.length)} />
+                  <Stat
+                    label={t("Geverifieerde certificaten")}
+                    value={String(verifiedActive.length)}
+                  />
                 </dl>
               </CardContent>
             </Card>
@@ -541,7 +555,7 @@ export async function ProfileScreen({
               <Card>
                 <CardContent className="py-4">
                   <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Recente samenwerkingen
+                    {t("Recente samenwerkingen")}
                   </h2>
                   <ul className="mt-2 divide-y divide-border">
                     {profile.collaborations.slice(0, 3).map((c) => {
@@ -553,7 +567,7 @@ export async function ProfileScreen({
                         >
                           <span className="min-w-0 truncate">{c.job.title}</span>
                           <Badge variant={st.variant} className="shrink-0">
-                            {st.label}
+                            {t(st.label)}
                           </Badge>
                         </li>
                       );
@@ -571,7 +585,7 @@ export async function ProfileScreen({
           <CardContent className="py-4">
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Certificaten — servergeverifieerd
+                {t("Certificaten — servergeverifieerd")}
               </h2>
               {publicCredentials.length > 0 && (
                 <span className="text-xs text-muted-foreground">
@@ -616,11 +630,11 @@ export async function ProfileScreen({
                           {SOURCE_TAG[c.type as CredentialType] ?? "ADMIN"}
                         </span>
                         {expired ? (
-                          <Badge variant="danger">Verlopen</Badge>
+                          <Badge variant="danger">{t("Verlopen")}</Badge>
                         ) : expiringSoon ? (
-                          <Badge variant="warning">Verloopt</Badge>
+                          <Badge variant="warning">{t("Verloopt")}</Badge>
                         ) : (
-                          <Badge variant="success">Geverifieerd</Badge>
+                          <Badge variant="success">{t("Geverifieerd")}</Badge>
                         )}
                       </div>
                     </li>
@@ -639,12 +653,12 @@ export async function ProfileScreen({
               <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Beschikbaarheid
               </h2>
-              <Badge variant={availability.variant}>{availability.label}</Badge>
+              <Badge variant={availability.variant}>{t(availability.label)}</Badge>
             </div>
             {availabilitySummary && <p className="mt-2 text-sm">{availabilitySummary}</p>}
             {profile.availabilityWindows.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                Geen beschikbaarheidsvensters gedeeld.
+                {t("Geen beschikbaarheidsvensters gedeeld.")}
               </p>
             ) : (
               <ul className="mt-2 divide-y divide-border">
@@ -665,7 +679,7 @@ export async function ProfileScreen({
                           </span>
                         </span>
                         <Badge variant={wt.variant} className="shrink-0">
-                          {wt.label}
+                          {t(wt.label)}
                         </Badge>
                       </li>
                     );
@@ -680,14 +694,14 @@ export async function ProfileScreen({
         <Card>
           <CardContent className="py-4">
             <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Samenwerkingen via het platform
+              {t("Samenwerkingen via het platform")}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               Om privacyredenen tonen we de opdracht, niet de opdrachtgever.
             </p>
             {profile.collaborations.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                Nog geen samenwerkingen via het platform.
+                {t("Nog geen samenwerkingen via het platform.")}
               </p>
             ) : (
               <ul className="mt-2 divide-y divide-border">
@@ -700,11 +714,11 @@ export async function ProfileScreen({
                         <p className="text-xs text-muted-foreground">
                           {st.label === "Afgerond"
                             ? `Afgerond · ${formatDateShortNl(c.updatedAt)}`
-                            : st.label}
+                            : t(st.label)}
                         </p>
                       </div>
                       <Badge variant={st.variant} className="shrink-0">
-                        {st.label}
+                        {t(st.label)}
                       </Badge>
                     </li>
                   );
@@ -723,7 +737,7 @@ export async function ProfileScreen({
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Het beoordelingssysteem is in voorbereiding. Tot die tijd is het dossier het bewijs:{" "}
-              {plural(completed, "afgeronde samenwerking", "afgeronde samenwerkingen")},{" "}
+              {plural(completed, t("afgeronde samenwerking"), t("afgeronde samenwerkingen"))},{" "}
               {plural(
                 verifiedActive.length,
                 "geverifieerd certificaat",
@@ -745,10 +759,10 @@ export async function ProfileScreen({
           <CardContent className="py-4">
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Documenten — privé
+                {t("Documenten — privé")}
               </h2>
               <span className="text-xs text-muted-foreground">
-                Alleen jij (en beheer) kunt deze openen.
+                {t("Alleen jij (en beheer) kunt deze openen.")}
               </span>
             </div>
             <div className="mt-3">
