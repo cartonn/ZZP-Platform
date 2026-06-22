@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslator } from "@/lib/i18n/server";
 import { Plus, Receipt } from "lucide-react";
 import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -53,6 +54,7 @@ export async function FacturenPanel({
   searchParams?: Record<string, string | string[] | undefined>;
   basePath?: string;
 }) {
+  const { t } = await getTranslator();
   const isFreelancer = actor.role === "FREELANCER";
   const activeFilter = parseInvoiceFilter(first(searchParams.status));
 
@@ -102,7 +104,7 @@ export async function FacturenPanel({
         <div className="flex justify-end">
           <Button asChild>
             <Link href="/facturen/nieuw">
-              <Plus className="size-4" aria-hidden /> Nieuwe factuur
+              <Plus className="size-4" aria-hidden /> {t("Nieuwe factuur")}
             </Link>
           </Button>
         </div>
@@ -112,13 +114,13 @@ export async function FacturenPanel({
         <div className="flex gap-3">
           <Card className="flex-1">
             <CardContent className="space-y-1 p-4">
-              <p className="text-xs text-muted-foreground">Betaald</p>
+              <p className="text-xs text-muted-foreground">{t("Betaald")}</p>
               <p className="text-lg font-semibold tabular-nums">{formatEuro(paidCents)}</p>
             </CardContent>
           </Card>
           <Card className="flex-1">
             <CardContent className="space-y-1 p-4">
-              <p className="text-xs text-muted-foreground">Openstaand</p>
+              <p className="text-xs text-muted-foreground">{t("Openstaand")}</p>
               <p className="text-lg font-semibold tabular-nums">{formatEuro(openCents)}</p>
             </CardContent>
           </Card>
@@ -129,19 +131,19 @@ export async function FacturenPanel({
         <Card>
           <EmptyState
             icon={Receipt}
-            title={isFreelancer ? "Nog geen facturen" : "Nog geen facturen ontvangen"}
+            title={isFreelancer ? t("Nog geen facturen") : t("Nog geen facturen ontvangen")}
             description={
               isFreelancer
                 ? canInvoice
-                  ? "Stel een factuur op vanuit een actieve samenwerking."
-                  : "Zodra een opdracht tot een samenwerking leidt, kun je hier factureren."
+                  ? t("Stel een factuur op vanuit een actieve samenwerking.")
+                  : t("Zodra een opdracht tot een samenwerking leidt, kun je hier factureren.")
                 : undefined
             }
             action={
               isFreelancer
                 ? canInvoice
-                  ? { label: "Factuur opstellen", href: "/facturen/nieuw" }
-                  : { label: "Bekijk opdrachten", href: "/opdrachten" }
+                  ? { label: t("Factuur opstellen"), href: "/facturen/nieuw" }
+                  : { label: t("Bekijk opdrachten"), href: "/opdrachten" }
                 : undefined
             }
           />
@@ -164,7 +166,7 @@ export async function FacturenPanel({
                       : "border-border bg-background text-muted-foreground hover:bg-muted",
                   ].join(" ")}
                 >
-                  {INVOICE_FILTER_LABEL[group]} ({groupCounts[group]})
+                  {t(INVOICE_FILTER_LABEL[group])} ({groupCounts[group]})
                 </Link>
               );
             })}
@@ -173,7 +175,7 @@ export async function FacturenPanel({
           {filtered.length === 0 ? (
             <Card>
               <CardContent className="py-6 text-center text-sm text-muted-foreground">
-                Geen facturen met deze status.
+                {t("Geen facturen met deze status.")}
               </CardContent>
             </Card>
           ) : (
@@ -187,7 +189,7 @@ export async function FacturenPanel({
                   ? CASCADE_LABEL[inv.lifecycleStatus as InvoiceLifecycleState]
                   : null;
                 const displayNumber = cascade
-                  ? (inv.partyInvoiceNumber ?? "Concept-factuur")
+                  ? (inv.partyInvoiceNumber ?? t("Concept-factuur"))
                   : inv.number;
                 // Real-time vervaldatum-aftelling voor een openstaande factuur; alleen tonen wanneer ze
                 // aandacht vraagt (binnenkort verschuldigd of te laat), om de lijst rustig te houden.
@@ -206,7 +208,7 @@ export async function FacturenPanel({
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium tabular-nums">{displayNumber}</p>
                         {cascadeMeta ? (
-                          <Badge variant={cascadeMeta.variant}>{cascadeMeta.label}</Badge>
+                          <Badge variant={cascadeMeta.variant}>{t(cascadeMeta.label)}</Badge>
                         ) : (
                           <InvoiceStatusBadge
                             status={inv.status as InvoiceStatus}
@@ -220,14 +222,16 @@ export async function FacturenPanel({
                           ? inv.collaboration?.company.name
                           : inv.collaboration?.freelancer.user.name}
                         {inv.collaboration?.job.title ? ` · ${inv.collaboration.job.title}` : ""}
-                        {cascade ? " · via werkproces" : ""}
+                        {cascade ? ` · ${t("via werkproces")}` : ""}
                       </p>
                     </div>
                     <span className="shrink-0 text-right">
                       <span className="block text-sm font-semibold tabular-nums">
                         {formatEuro(inv.totalCents)}
                       </span>
-                      <span className="block text-[10px] text-muted-foreground">incl. btw</span>
+                      <span className="block text-[10px] text-muted-foreground">
+                        {t("incl. btw")}
+                      </span>
                     </span>
                   </Link>
                 );

@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { isOverdue } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
+import { getTranslator } from "@/lib/i18n/server";
 
 const MAP: Record<
   InvoiceStatus,
@@ -14,7 +15,7 @@ const MAP: Record<
 };
 
 /** Toont de afgeleide status: een SENT-factuur over de vervaldatum is VERLOPEN. */
-export function InvoiceStatusBadge({
+export async function InvoiceStatusBadge({
   status,
   dueAt,
 }: {
@@ -23,5 +24,6 @@ export function InvoiceStatusBadge({
 }) {
   const effective: InvoiceStatus = isOverdue({ status, dueAt }) ? "OVERDUE" : status;
   const s = MAP[effective];
-  return <Badge variant={s.variant}>{s.label}</Badge>;
+  const { t } = await getTranslator();
+  return <Badge variant={s.variant}>{t(s.label)}</Badge>;
 }
