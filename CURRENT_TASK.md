@@ -260,12 +260,12 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
-> Gedaan (niet opnieuw): **Zoek + type-filter op `/admin/verificaties`** — pure
-> `lib/verification-filter.ts` (`parseVerificationFilter`/`filterVerificationQueue`/
-> `isVerificationFilterActive`/`countByType`, 11 tests): zoeken op naam/titel/uitgever + filter op
-> certificaattype, server-side via searchParams; GET-form (Input + type-`Select` met tellingen)
-> gelijk aan het samenwerkingen-paneel. Wachtrij-gezondheid telt de volledige backlog; read-only,
-> geen schemawijziging, geen extra query.
+> Gedaan (niet opnieuw): **Bewaarde opdrachten voor de ZZP'er (`/opgeslagen`)** — `SavedJob`-model
+> (anker op `FreelancerProfile`, additief), pure `lib/saved-jobs.ts` `partitionSavedJobs` (open vs.
+> niet-meer-beschikbaar), `toggleSavedJob`-action (auth → rol → profiel-anker → `visibleJobsWhere` →
+> mutatie + audit `JOB_SAVED`/`JOB_UNSAVED`), bewaar-knop op de opdracht-detail, `/opgeslagen`-
+> overzicht + nav-item (bookmark) + demo-seed (Sanne 2 open + 1 DRAFT). Spiegelbeeld van de Flexpool
+> (opdrachtgever→ZZP'er). 7 unit-tests; PR #479.
 > Gedaan (niet opnieuw): **Sorteeropties op de ZZP'er-browse (`/freelancers`, opdrachtgever)** — pure
 > `sortFreelancers` in `lib/freelancer-search.ts` (relevance/available/trust/track-record/rate-asc/
 > rate-desc) over de reeds server-berekende kaartdata + sorteer-`Select` in `freelancer-browse.tsx`;

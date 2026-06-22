@@ -3,29 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: zoek + type-filter op /admin/verificaties
+## feat(opgeslagen): bewaarde opdrachten voor de ZZP'er
 
-De admin-verificatiewachtrij (`/admin/verificaties`) toonde SUBMITTED-certificaten altijd
-oudste-eerst, zónder zoek- of filtermogelijkheid — terwijl het peer-overzicht
-`/admin/samenwerkingen` die wél heeft. Een beheerder die een specifieke ZZP'er of een
-certificaattype zoekt moest de hele wachtrij doorscrollen. Toegevoegd: zoeken (naam/titel/uitgever)
+Een ZZP'er kon een interessante opdracht alleen onthouden door erop te reageren of de URL te
+kopiëren. Toegevoegd: opdrachten **bewaren** (bookmark) en terugvinden op een eigen overzicht —
+spiegelbeeld van de bestaande Flexpool (opdrachtgever bewaart ZZP'er via `FavoriteFreelancer`).
+Server-side keten (auth → rol → eigen profiel als anker → zichtbaarheidscheck → mutatie + audit);
+additieve schemawijziging.
 
-- filter op certificaattype, server-side via URL-searchParams. Read-only, **geen schemawijziging,
-  geen extra query** (filtert de al opgehaalde wachtrij). De wachtrij-gezondheid in de header telt
-  bewust de **volledige** backlog, niet de gefilterde weergave.
+- [x] `prisma/schema.prisma` — nieuw `SavedJob`-model (anker op `FreelancerProfile`,
+      `@@unique([freelancerProfileId, jobId])`, cascade-delete) + back-relations op
+      `FreelancerProfile.savedJobs` en `Job.savedBy`.
+- [x] `src/lib/saved-jobs.ts` — pure `partitionSavedJobs` (splitst open vs. niet-meer-beschikbaar,
+      sorteert meest recent bewaard eerst, deterministische tiebreaker, muteert niet) +
+      `isSavedJobOpen`. Tests: `saved-jobs.test.ts` (7).
+- [x] `src/app/(protected)/opdrachten/actions.ts` — `toggleSavedJob(jobId)`: idempotente toggle;
+      bewaren alleen voor een gepubliceerde, voor deze ZZP'er zichtbare opdracht
+      (`visibleJobsWhere`); audit `JOB_SAVED`/`JOB_UNSAVED`.
+- [x] `src/components/jobs/save-job-button.tsx` — client-toggle (Bewaren/Bewaard), `useTransition`,
+      `aria-pressed`. Gewired op de opdracht-detail (FREELANCER, niet-eigenaar, PUBLISHED).
+- [x] `src/app/(protected)/opgeslagen/{page,loading}.tsx` — overzicht: "Nog open" (klikbaar naar
+      detail + verwijder-toggle) en "Niet meer beschikbaar" (gesloten/teruggetrokken, met
+      statusbadge); empty-states (geen profiel / niets bewaard). `take: 200`.
+- [x] `src/lib/nav.ts` + `src/components/sidebar-nav.tsx` — nav-item "Opgeslagen" (bookmark-icoon)
+      onder Werk; nieuwe `bookmark` `NavIcon`.
+- [x] `prisma/seed.ts` — Sanne bewaart job-13 + job-18 (open) en job-7 (DRAFT → "niet meer
+      beschikbaar"), idempotent.
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummers opgeschoven (nieuwe import).
 
-* [x] `src/lib/verification-filter.ts` — pure module: `parseVerificationFilter` (leest `q`+`type`
-      uit searchParams, normaliseert, valt terug op geen-filter), `filterVerificationQueue`
-      (case-insensitieve substring over titel/uitgever/ZZP'er-naam + type-match, AND, behoudt de
-      invoervolgorde oudste-eerst, muteert niet, geeft dezelfde referentie terug zonder actieve
-      filter), `isVerificationFilterActive`, `countByType` (telling per certificaattype).
-* [x] `src/app/(protected)/admin/verificaties/page.tsx` — GET-filterform (Input + type-`Select` met
-      tellingen, afwezige typen `disabled`) gelijk aan het samenwerkingen-paneel; "X van Y
-      aanvragen"-telregel; nette "geen match"-staat naast de bestaande "alles afgehandeld"-empty.
-* [x] Tests: `verification-filter.test.ts` (+11). Allowlist-regel `unbounded-queries.test.ts`
-      bijgewerkt (query verschoven naar regel 47 door de searchParams-wiring).
-
-Gate groen: typecheck ✓, lint ✓, test **2503** ✓ (+11), build ✓, `prettier --check .` ✓.
+Gate groen: typecheck ✓, lint ✓, test **2487** ✓ (+7), build ✓ (`/opgeslagen` 2.51 kB),
+`prettier --check .` ✓. Seed-smoke geverifieerd tegen scratch-DB (2 open + 1 unavailable).
 
 ## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
 

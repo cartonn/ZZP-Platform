@@ -12,6 +12,7 @@ import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs"
 import { planPoolInvites, type PoolMember } from "@/lib/pool-routing";
 import { type Availability, type JobStatus, jobStatusSchema } from "@/lib/enums";
 import { jobSchema } from "@/lib/validation";
+import { visibleJobsWhere } from "@/lib/tenancy";
 
 export type JobFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -333,4 +334,54 @@ export async function createApplication(
   revalidatePath("/reacties");
   revalidatePath(`/opdrachten/${jobId}`);
   redirect("/reacties");
+}
+
+/**
+ * Bewaart of verwijdert een opdracht uit de bewaarlijst van de ZZP'er (toggle, idempotent).
+ * Keten: auth → rol (FREELANCER) → eigen profiel als anker → zichtbaarheidscheck op de opdracht
+ * (alleen een gepubliceerde, voor deze ZZP'er zichtbare opdracht kan worden bewaard) → mutatie +
+ * audit. Een reeds-verdwenen bookmark verwijderen is een no-op zonder audit.
+ */
+export async function toggleSavedJob(jobId: string): Promise<void> {
+  const actor = await requireRole("FREELANCER");
+
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { userId: actor.id },
+    select: { id: true },
+  });
+  if (!profile) throw new Error("Geen ZZP'er-profiel gevonden.");
+  const freelancerProfileId = profile.id;
+
+  const existing = await prisma.savedJob.findUnique({
+    where: { freelancerProfileId_jobId: { freelancerProfileId, jobId } },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await prisma.savedJob.delete({ where: { id: existing.id } });
+    await audit({
+      actorId: actor.id,
+      action: "JOB_UNSAVED",
+      entityType: "Job",
+      entityId: jobId,
+    });
+  } else {
+    // Bewaren mag alleen voor een gepubliceerde opdracht die voor deze ZZP'er zichtbaar is.
+    const job = await prisma.job.findFirst({
+      where: { id: jobId, status: "PUBLISHED", AND: [visibleJobsWhere(actor)] },
+      select: { id: true },
+    });
+    if (!job) throw new Error("Opdracht niet gevonden.");
+
+    await prisma.savedJob.create({ data: { freelancerProfileId, jobId } });
+    await audit({
+      actorId: actor.id,
+      action: "JOB_SAVED",
+      entityType: "Job",
+      entityId: jobId,
+    });
+  }
+
+  revalidatePath("/opgeslagen");
+  revalidatePath(`/opdrachten/${jobId}`);
 }
