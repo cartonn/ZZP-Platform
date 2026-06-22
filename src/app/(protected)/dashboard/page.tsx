@@ -20,6 +20,7 @@ import {
   type WsSealItem,
 } from "@/components/dashboard/workspace-dashboard";
 import { getClientStats } from "@/lib/client-stats";
+import { getTranslator } from "@/lib/i18n/server";
 import { avatarAccent } from "@/lib/avatar-accent";
 import { formatEuro } from "@/lib/invoices";
 import { requireActor } from "@/lib/authz";
@@ -144,6 +145,7 @@ function buildCurrentWeek(
   now: Date,
   count: string,
   loadByDate?: Map<string, number>,
+  t: (s: string) => string = (s) => s,
 ): { title: string; count: string; days: WsWeekDay[] } {
   const labels = ["ma", "di", "wo", "do", "vr", "za", "zo"];
   const monday = new Date(now);
@@ -153,13 +155,13 @@ function buildCurrentWeek(
     dt.setDate(monday.getDate() + i);
     const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
     return {
-      label,
+      label: t(label),
       date: String(dt.getDate()),
       load: Math.min(loadByDate?.get(key) ?? 0, 3),
       today: dt.toDateString() === now.toDateString(),
     };
   });
-  return { title: `Week ${isoWeekNumber(now)}`, count, days };
+  return { title: `${t("Week")} ${isoWeekNumber(now)}`, count, days };
 }
 
 /** Open taken -> #19 "Volgende acties"-items voor de rechterrail. */
@@ -643,7 +645,7 @@ export default async function DashboardPage() {
   const session = await auth();
   const user = session!.user;
   const role = user.role as UserRole;
-  const actor = await requireActor();
+  const [actor, { t }] = await Promise.all([requireActor(), getTranslator()]);
   const [
     {
       stats,
@@ -671,20 +673,23 @@ export default async function DashboardPage() {
     const fKpiIcons = [Gauge, ShieldCheck, Inbox];
     const fKpis = stats.map((st, i) => ({
       icon: fKpiIcons[i] ?? Gauge,
-      label: st.label,
+      label: t(st.label),
       value: String(st.value),
     }));
-    const rows = matches.map((m) => ({
-      id: m.jobId,
-      initials: initials(m.title),
-      accent: avatarAccent(m.jobId),
-      name: m.title,
-      role: m.companyName,
-      match: m.score,
-      status: AVAILABILITY_LABEL[m.availability]?.label,
-      statusClass: AVAILABILITY_LABEL[m.availability]?.cls,
-      href: `/opdrachten/${m.jobId}`,
-    }));
+    const rows = matches.map((m) => {
+      const av = AVAILABILITY_LABEL[m.availability];
+      return {
+        id: m.jobId,
+        initials: initials(m.title),
+        accent: avatarAccent(m.jobId),
+        name: m.title,
+        role: m.companyName,
+        match: m.score,
+        status: av ? t(av.label) : undefined,
+        statusClass: av?.cls,
+        href: `/opdrachten/${m.jobId}`,
+      };
+    });
     // Week-strip: altijd de huidige week (#19); echte dienst-belasting waar bekend.
     const loadByDate = new Map<string, number>();
     if (weekStrip?.hasAny) {
@@ -695,19 +700,27 @@ export default async function DashboardPage() {
       }
     }
     const weekCount = week
-      ? `${week.entries.length} ${week.entries.length === 1 ? "dienst" : "diensten"}`
-      : "0 diensten";
-    const wk = buildCurrentWeek(new Date(), weekCount, loadByDate);
+      ? `${week.entries.length} ${t(week.entries.length === 1 ? "dienst" : "diensten")}`
+      : `0 ${t("diensten")}`;
+    const wk = buildCurrentWeek(new Date(), weekCount, loadByDate, t);
     const openPunten = engageability
       ? engageability.blockers.length + engageability.attention.length
       : 0;
     const seal = engageability
       ? {
-          title: "Inzetbaarheid",
-          subtitle: engageability.label,
+          title: t("Inzetbaarheid"),
+          subtitle: t(engageability.label),
           items: [
-            { label: "Status", value: engageability.label, ok: engageability.status === "ACTIEF" },
-            { label: "Open aandachtspunten", value: String(openPunten), ok: openPunten === 0 },
+            {
+              label: t("Status"),
+              value: t(engageability.label),
+              ok: engageability.status === "ACTIEF",
+            },
+            {
+              label: t("Open aandachtspunten"),
+              value: String(openPunten),
+              ok: openPunten === 0,
+            },
           ],
           reportHref: "/certificaten",
         }
@@ -715,15 +728,15 @@ export default async function DashboardPage() {
     return (
       <WorkspaceDashboard
         header={{
-          title: user.name ?? "Werkruimte",
+          title: user.name ?? t("Werkruimte"),
           subtitle: identity?.subtitle ?? undefined,
         }}
         kpis={fKpis}
         list={{
-          title: "Opdrachten voor jou",
+          title: t("Opdrachten voor jou"),
           href: "/opdrachten",
           rows,
-          empty: "Nog geen passende opdrachten — maak je profiel compleet voor betere matches.",
+          empty: t("Nog geen passende opdrachten — maak je profiel compleet voor betere matches."),
         }}
         nextActions={tasksToActions(tasks)}
         week={wk}

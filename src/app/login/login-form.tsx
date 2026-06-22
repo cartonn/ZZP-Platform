@@ -4,9 +4,11 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/components/i18n/locale-provider";
 import { authenticate, type LoginState } from "./actions";
 
 export function LoginForm() {
+  const t = useT();
   const [state, formAction, isPending] = useActionState<LoginState, FormData>(
     authenticate,
     undefined,
@@ -14,7 +16,7 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="space-y-4">
-      <Field label="E-mail" htmlFor="email" required>
+      <Field label={t("E-mail")} htmlFor="email" required>
         <Input
           id="email"
           name="email"
@@ -25,7 +27,7 @@ export function LoginForm() {
         />
       </Field>
 
-      <Field label="Wachtwoord" htmlFor="password" required>
+      <Field label={t("Wachtwoord")} htmlFor="password" required>
         <Input
           id="password"
           name="password"
@@ -43,7 +45,7 @@ export function LoginForm() {
       )}
 
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Bezig met inloggen…" : "Inloggen"}
+        {isPending ? t("Bezig met inloggen…") : t("Inloggen")}
       </Button>
     </form>
   );

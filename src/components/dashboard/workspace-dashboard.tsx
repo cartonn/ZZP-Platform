@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslator } from "@/lib/i18n/server";
 import {
   ChevronRight,
   MapPin,
@@ -81,7 +82,7 @@ const TONE_SOFT: Record<ActionTone, string> = {
   primary: "bg-primary/10 text-primary",
 };
 
-export function WorkspaceDashboard({
+export async function WorkspaceDashboard({
   header,
   kpis,
   list,
@@ -89,6 +90,7 @@ export function WorkspaceDashboard({
   week,
   seal,
 }: WorkspaceDashboardProps) {
+  const { t } = await getTranslator();
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
       {/* Vol-brede oranje naam-balk boven beide kolommen. */}
@@ -137,14 +139,14 @@ export function WorkspaceDashboard({
                     href={list.href}
                     className="focus-ring flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                   >
-                    Alles tonen
+                    {t("Alles tonen")}
                     <ChevronRight className="h-3.5 w-3.5" aria-hidden />
                   </Link>
                 )}
               </div>
               {list.rows.length === 0 ? (
                 <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                  {list.empty ?? "Nog niets om te tonen."}
+                  {list.empty ?? t("Nog niets om te tonen.")}
                 </p>
               ) : (
                 <ul className="divide-y divide-border">
@@ -183,7 +185,9 @@ export function WorkspaceDashboard({
                         {row.rate != null && (
                           <div className="hidden flex-col items-end sm:flex">
                             <span className="font-mono text-sm font-semibold">€ {row.rate}</span>
-                            <span className="text-[10px] text-muted-foreground">per uur</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {t("per uur")}
+                            </span>
                           </div>
                         )}
                         {row.match != null && (
@@ -191,7 +195,7 @@ export function WorkspaceDashboard({
                             <span className="font-mono text-sm font-semibold text-primary">
                               {row.match}%
                             </span>
-                            <span className="text-[10px] text-muted-foreground">match</span>
+                            <span className="text-[10px] text-muted-foreground">{t("match")}</span>
                           </div>
                         )}
                         {row.status && (
@@ -222,11 +226,11 @@ export function WorkspaceDashboard({
           {/* Volgende acties */}
           <section>
             <h3 className="mb-2 px-1 font-display text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Volgende acties
+              {t("Volgende acties")}
             </h3>
             {nextActions.length === 0 ? (
               <p className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
-                Niets dat nu aandacht vraagt. Goed bezig.
+                {t("Niets dat nu aandacht vraagt. Goed bezig.")}
               </p>
             ) : (
               <ul className="space-y-2">
@@ -333,7 +337,7 @@ export function WorkspaceDashboard({
                   href={seal.reportHref}
                   className="focus-ring mt-3 flex w-full items-center justify-center gap-1 rounded-lg border border-input bg-background py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                 >
-                  Rapport openen
+                  {t("Rapport openen")}
                   <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
                 </Link>
               )}

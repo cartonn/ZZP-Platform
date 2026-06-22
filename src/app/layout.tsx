@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { Figtree, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { getLocale } from "@/lib/i18n/server";
+import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { HydrationFlag } from "@/components/system/hydration-flag";
 import { PwaRegister } from "@/components/system/pwa-register";
 import { InstallPrompt } from "@/components/system/install-prompt";
@@ -63,10 +64,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="min-h-screen antialiased">
-        <HydrationFlag />
-        <PwaRegister />
-        <InstallPrompt />
-        {children}
+        <LocaleProvider locale={locale}>
+          <HydrationFlag />
+          <PwaRegister />
+          <InstallPrompt />
+          {children}
+        </LocaleProvider>
       </body>
     </html>
   );
