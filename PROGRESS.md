@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(franchise): zoek/filter/sorteer op het ZZP'er-roster (`/franchise/zzpers`)
+
+De franchiser-roster toonde alle tenant-ZZP'ers als kaartraster zónder enige zoek-/filter-/
+sorteeroptie — de enige rolgroep zonder die ergonomie (FREELANCER/CLIENT/ADMIN hebben die al). Bij
+een groeiend roster moest de franchiser handmatig scannen om iemand of een groep (bv. "wie heeft een
+certificaat-waarschuwing?") te vinden. Toegevoegd: server-side zoeken + filteren + sorteren, gespiegeld
+op `collaboration-filter.ts`/`freelancer-search.ts`. Read-only, **geen schemawijziging, geen extra
+query** (filter/sort over de reeds geladen, tenant-gescopete kaartdata).
+
+- [x] `src/lib/franchise/zzper-roster-filter.ts` — pure leaf-module (geen server-/prisma-import):
+      `parseRosterFilter` (leest `q`/`availability`/`status`/`alerts`/`sort`, normaliseert hoofdletters,
+      valt onbekende waarden terug op `null`/`recent`), `matchesRosterFilter` + `filterRoster`
+      (zoekt over naam/headline/locatie/skills, AND-combinatie van beschikbaarheid + inzetbaarheid +
+      certificaat-waarschuwing), `sortRoster` (recent/naam/tarief-asc/-desc met "geen tarief" achteraan + deterministische naam→id-tiebreaker, muteert de invoer niet), `isRosterFilterActive`.
+- [x] `src/app/(protected)/franchise/zzpers/page.tsx` — bouwt de bestaande kaartdata één keer op tot
+      `RosterCard` (inzetbaarheid + verval-alert al berekend), past dan `filterRoster`+`sortRoster` toe;
+      GET-filterform (zoek-Input + beschikbaarheid-/inzetbaarheid-/sorteer-Select + "alleen
+      certificaat-waarschuwing"-checkbox + Filteren/Wissen); "X van Y"-telregel + nette "geen match"-
+      lege staat naast de bestaande "nog geen ZZP'ers"-empty.
+- [x] Tests: `zzper-roster-filter.test.ts` (+21). Allowlist `unbounded-queries.test.ts` bijgewerkt
+      (de twee findMany's verschoven naar regel 76/86 door de searchParams-wiring).
+
+Gate groen: typecheck ✓, lint ✓, test **2494** ✓, build ✓ (`/franchise/zzpers` 3.56 kB),
+`prettier --check .` ✓.
+
 ## feat(freelancers): sorteeropties op de ZZP'er-browse (opdrachtgever)
 
 De opdrachtgever-browse (`/freelancers`) had wél filters (zoeken, vertrouwensniveau, alleen
