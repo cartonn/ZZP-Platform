@@ -260,6 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Documenttype-filter op `/documenten` (ZZP'er)** — pure
+> `lib/document-kind-filter.ts` (`parseDocumentKindFilter`/`documentKindWhere`/
+> `summarizeDocumentKindGroups`) + filter-pills (Alle/Credential/VOG/Verzekering/Contract/Overig met
+> tellingen) op `DocumentsPanel`, spiegel van het #488-pill-patroon. Server-side gefilterd (de lijst is
+> cursor-gepagineerd → `documentKindWhere` in de Prisma-`where`); pill-tellingen uit één goedkope
+> `groupBy` op `ownerId`; "Meer laden" behoudt het filter. Profieltab toont de pills bewust niet. Geen
+> schemawijziging; 8 unit-tests. PR #511.
 > Gedaan (niet opnieuw): **Statusfilter op het opdrachtgever-overzicht `/opdrachten`** — pure
 > `lib/job-status-filter.ts` (`parseJobStatusFilter`/`filterJobsByStatus`/`summarizeJobStatusGroups`)
 >

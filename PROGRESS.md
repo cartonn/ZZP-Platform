@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: documenttype-filter op /documenten (ZZP'er)
+
+Het documentenoverzicht `/documenten` toonde alle geüploade documenten in één ongefilterde lijst.
+Toegevoegd: een typefilter (Alle/Credential/VOG/Verzekering/Contract/Overig) met pill-tellingen —
+spiegelt het bestaande pill-patroon van `/opdrachten`, `/facturen` en `/reacties`. Server-side
+gefilterd (de lijst is cursor-gepagineerd, dus het filter zit in de Prisma-`where`, niet client-side);
+geen schemawijziging.
+
+- [x] `src/lib/document-kind-filter.ts` — pure helpers: `parseDocumentKindFilter` (onbekend/malicieus
+      → "all"), `documentKindWhere` (Prisma-`where`-fragment, "all" → geen constraint),
+      `summarizeDocumentKindGroups` (telling per groep uit een groupBy, "all" = totaal; onbekende
+      legacy-kinds tellen in het totaal maar in geen pill), labels gelijk aan het paneel.
+- [x] `src/components/documents/documents-panel.tsx` — optionele `kind`-prop + `showKindFilter`-vlag.
+      Pill-tellingen uit één goedkope `groupBy` op de geïndexeerde `ownerId` (alleen wanneer de pills
+      getoond worden); `documentKindWhere` in de `findMany`-`where`; "Meer laden" behoudt het filter;
+      eigen lege-staat "Geen documenten van dit type". De profieltab toont de pills bewust niet
+      (geen `showKindFilter`) → ongewijzigd gedrag daar.
+- [x] `src/app/(protected)/documenten/page.tsx` — leest `?kind=` en geeft `kind` + `showKindFilter`.
+- [x] `src/lib/document-kind-filter.test.ts` — 8 unit-tests (parse-fallback, where, telling incl.
+      legacy/leeg, pill-volgorde).
+
+Gate groen: typecheck ✓, lint ✓, test **2577** ✓ (+8), build ✓, `prettier --check .` ✓.
+
 ## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
 
 Vervolg op de ZZP'er-i18n-reeks (#491–#498). Het reactieoverzicht `/reacties` was nog volledig
