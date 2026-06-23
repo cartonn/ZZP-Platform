@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { type JobStatus } from "@/lib/enums";
+import { getTranslator } from "@/lib/i18n/server";
 
 const MAP: Record<JobStatus, { label: string; variant: "muted" | "success" | "default" }> = {
   DRAFT: { label: "Concept", variant: "muted" },
@@ -7,7 +8,8 @@ const MAP: Record<JobStatus, { label: string; variant: "muted" | "success" | "de
   CLOSED: { label: "Gesloten", variant: "default" },
 };
 
-export function JobStatusBadge({ status }: { status: JobStatus }) {
+export async function JobStatusBadge({ status }: { status: JobStatus }) {
   const s = MAP[status];
-  return <Badge variant={s.variant}>{s.label}</Badge>;
+  const { t } = await getTranslator();
+  return <Badge variant={s.variant}>{t(s.label)}</Badge>;
 }

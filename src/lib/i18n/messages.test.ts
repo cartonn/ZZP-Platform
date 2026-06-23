@@ -13,6 +13,9 @@ describe("translate", () => {
     expect(translate("en", "Rooster")).toBe("Schedule");
     expect(translate("en", "Opgeslagen")).toBe("Saved");
     expect(translate("en", "ZZP'er")).toBe("Freelancer");
+    expect(translate("en", "Gepubliceerd")).toBe("Published");
+    expect(translate("en", "Gesloten")).toBe("Closed");
+    expect(translate("en", "Niet meer beschikbaar")).toBe("No longer available");
   });
 
   it("valt voor een onbekende brontekst terug op de NL-tekst (nooit leeg)", () => {
@@ -31,5 +34,16 @@ describe("translate", () => {
   it("laat het documentenscherm in het Nederlands onveranderd", () => {
     expect(translate("nl", "Document uploaden")).toBe("Document uploaden");
     expect(translate("nl", "Overig")).toBe("Overig");
+  });
+
+  it("vertaalt de notificatie-strings + categorielabels", () => {
+    expect(translate("en", "Alles als gelezen markeren")).toBe("Mark all as read");
+    expect(translate("en", "Geen notificaties")).toBe("No notifications");
+    expect(translate("en", "Alleen ongelezen")).toBe("Unread only");
+    expect(translate("en", "Werkproces")).toBe("Workflow");
+    expect(translate("en", "Betalingen")).toBe("Payments");
+    expect(translate("en", "zojuist")).toBe("just now");
+    // NL blijft onveranderd (geen regressie in de standaardtaal)
+    expect(translate("nl", "Werkproces")).toBe("Werkproces");
   });
 });
