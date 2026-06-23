@@ -23,6 +23,7 @@ import {
 } from "@/lib/application-filter";
 import { canWithdrawApplication } from "@/lib/applications";
 import { type ApplicationStatus, type CredentialType, type CredentialStatus } from "@/lib/enums";
+import { getTranslator } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
 import { withdrawApplication } from "./actions";
 
@@ -82,6 +83,7 @@ export default async function ReactiesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const actor = await requireRole("FREELANCER");
+  const { t } = await getTranslator();
   const filter = parseApplicationFilter(await searchParams);
   const profile = await prisma.freelancerProfile.findUnique({
     where: { userId: actor.id },
@@ -129,7 +131,10 @@ export default async function ReactiesPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Mijn reacties" description="Je reacties op opdrachten en hun status." />
+      <PageHeader
+        title={t("Mijn reacties")}
+        description={t("Je reacties op opdrachten en hun status.")}
+      />
 
       <OutcomesSummary outcomes={outcomes} />
 
@@ -137,9 +142,9 @@ export default async function ReactiesPage({
         <Card>
           <EmptyState
             icon={FileText}
-            title="Nog geen reacties"
-            description="Je hebt nog niet gereageerd op een opdracht."
-            action={{ label: "Bekijk opdrachten", href: "/opdrachten" }}
+            title={t("Nog geen reacties")}
+            description={t("Je hebt nog niet gereageerd op een opdracht.")}
+            action={{ label: t("Bekijk opdrachten"), href: "/opdrachten" }}
           />
         </Card>
       ) : (
@@ -147,11 +152,11 @@ export default async function ReactiesPage({
           {/* Statusfilter — server-side via de URL (deelbaar/herlaadbaar). */}
           <div className="flex flex-wrap gap-1.5">
             <FilterPill href={filterHref("all")} active={filter === "all"}>
-              Alle ({groupSummary.total})
+              {t("Alle")} ({groupSummary.total})
             </FilterPill>
             {groupSummary.groups.map((g) => (
               <FilterPill key={g.group} href={filterHref(g.group)} active={filter === g.group}>
-                {g.label} ({g.count})
+                {t(g.label)} ({g.count})
               </FilterPill>
             ))}
           </div>
@@ -160,9 +165,9 @@ export default async function ReactiesPage({
             <Card>
               <EmptyState
                 icon={FileText}
-                title="Geen reacties in dit filter"
-                description="Pas het filter aan om je andere reacties te zien."
-                action={{ label: "Alle reacties", href: "/reacties" }}
+                title={t("Geen reacties in dit filter")}
+                description={t("Pas het filter aan om je andere reacties te zien.")}
+                action={{ label: t("Alle reacties"), href: "/reacties" }}
               />
             </Card>
           ) : (
@@ -203,7 +208,9 @@ export default async function ReactiesPage({
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {app.matchScore != null && (
-                          <Badge variant="accent">Match {app.matchScore}%</Badge>
+                          <Badge variant="accent">
+                            {t("Match")} {app.matchScore}%
+                          </Badge>
                         )}
                         {compliance && <ComplianceBadge status={compliance.status} />}
                       </div>
@@ -211,25 +218,31 @@ export default async function ReactiesPage({
                         <p className="mt-1.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                           {compliance.missing.length > 0 && (
                             <span className="text-danger">
-                              Je mist:{" "}
-                              {compliance.missing.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                              {t("Je mist:")}{" "}
+                              {compliance.missing
+                                .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
+                                .join(", ")}
                             </span>
                           )}
                           {compliance.expired.length > 0 && (
                             <span className="text-danger">
-                              Verlopen:{" "}
-                              {compliance.expired.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                              {t("Verlopen:")}{" "}
+                              {compliance.expired
+                                .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
+                                .join(", ")}
                             </span>
                           )}
                           {compliance.inReview.length > 0 && (
                             <span className="text-warning">
-                              In beoordeling:{" "}
-                              {compliance.inReview.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                              {t("In beoordeling:")}{" "}
+                              {compliance.inReview
+                                .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
+                                .join(", ")}
                             </span>
                           )}
                         </p>
                       )}
-                      <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">{t(hint)}</p>
                     </Link>
                     {canWithdraw && (
                       <div className="mt-3 flex justify-end border-t border-border pt-3">
@@ -237,11 +250,13 @@ export default async function ReactiesPage({
                           action={withdrawApplication.bind(null, app.id)}
                           triggerVariant="ghost"
                           size="xs"
-                          title="Reactie intrekken?"
-                          description="Je reactie verdwijnt uit de selectie van de opdrachtgever. Je kunt later opnieuw op deze opdracht reageren."
-                          confirmLabel="Intrekken"
+                          title={t("Reactie intrekken?")}
+                          description={t(
+                            "Je reactie verdwijnt uit de selectie van de opdrachtgever. Je kunt later opnieuw op deze opdracht reageren.",
+                          )}
+                          confirmLabel={t("Intrekken")}
                         >
-                          Reactie intrekken
+                          {t("Reactie intrekken")}
                         </ConfirmButton>
                       </div>
                     )}

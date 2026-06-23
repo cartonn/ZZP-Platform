@@ -35,6 +35,7 @@ import { missedWhileAway } from "@/lib/missed-notifications";
 import { plural } from "@/lib/plural";
 import { markAllNotificationsRead, markNotificationRead, openNotification } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
+import { getTranslator, type Translator } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Notificaties · ZZP Platform" };
 
@@ -56,13 +57,13 @@ const TONE_CLASS: Record<NotificationTone, string> = {
   success: "text-success",
 };
 
-function relativeTime(d: Date): string {
+function relativeTime(d: Date, t: Translator): string {
   const diff = Date.now() - d.getTime();
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "zojuist";
-  if (min < 60) return `${min} min geleden`;
+  if (min < 1) return t("zojuist");
+  if (min < 60) return `${min} ${t("min geleden")}`;
   const h = Math.floor(min / 60);
-  if (h < 24) return `${h} uur geleden`;
+  if (h < 24) return `${h} ${t("uur geleden")}`;
   return formatDateShortNl(d);
 }
 
@@ -76,7 +77,7 @@ function isSameDay(a: Date, b: Date): boolean {
   );
 }
 
-function NotificationRow({ n }: { n: NotificationItem }) {
+function NotificationRow({ n, t }: { n: NotificationItem; t: Translator }) {
   const unread = !n.readAt;
   const meta = notificationMeta(n.type);
   const Icon = CATEGORY_ICON[meta.category];
@@ -91,10 +92,10 @@ function NotificationRow({ n }: { n: NotificationItem }) {
       />
       <Icon className={cn("mt-0.5 size-4 shrink-0", TONE_CLASS[meta.tone])} aria-hidden />
       <div className="min-w-0 flex-1">
-        {unread && <span className="sr-only">Ongelezen: </span>}
+        {unread && <span className="sr-only">{t("Ongelezen: ")}</span>}
         <p className={cn("text-sm", unread ? "font-medium" : "")}>{n.title}</p>
         {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}
-        <p className="mt-0.5 text-xs text-muted-foreground">{relativeTime(n.createdAt)}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{relativeTime(n.createdAt, t)}</p>
       </div>
     </div>
   );
@@ -116,7 +117,7 @@ function NotificationRow({ n }: { n: NotificationItem }) {
       {unread && (
         <form action={markNotificationRead.bind(null, n.id)} className="shrink-0">
           <Button type="submit" variant="ghost" size="sm">
-            Gelezen
+            {t("Gelezen")}
           </Button>
         </form>
       )}
@@ -124,7 +125,15 @@ function NotificationRow({ n }: { n: NotificationItem }) {
   );
 }
 
-function NotificationGroup({ heading, items }: { heading: string; items: NotificationItem[] }) {
+function NotificationGroup({
+  heading,
+  items,
+  t,
+}: {
+  heading: string;
+  items: NotificationItem[];
+  t: Translator;
+}) {
   if (items.length === 0) return null;
   return (
     <section className="space-y-2">
@@ -133,7 +142,7 @@ function NotificationGroup({ heading, items }: { heading: string; items: Notific
       </h2>
       <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
         {items.map((n) => (
-          <NotificationRow key={n.id} n={n} />
+          <NotificationRow key={n.id} n={n} t={t} />
         ))}
       </div>
     </section>
@@ -176,6 +185,7 @@ export default async function NotificatiesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const actor = await requireActor();
+  const { t } = await getTranslator();
   const filter = parseNotificationFilter(await searchParams);
   const [notifications, me] = await Promise.all([
     prisma.notification.findMany({
@@ -216,7 +226,7 @@ export default async function NotificatiesPage({
           hasUnread ? (
             <form action={markAllNotificationsRead}>
               <Button type="submit" variant="secondary" size="sm">
-                Alles als gelezen markeren
+                {t("Alles als gelezen markeren")}
               </Button>
             </form>
           ) : undefined
@@ -227,8 +237,8 @@ export default async function NotificatiesPage({
         <Card>
           <EmptyState
             icon={Bell}
-            title="Geen notificaties"
-            description="Je hebt op dit moment geen nieuwe meldingen."
+            title={t("Geen notificaties")}
+            description={t("Je hebt op dit moment geen nieuwe meldingen.")}
           />
         </Card>
       ) : (
@@ -237,11 +247,11 @@ export default async function NotificatiesPage({
             <p className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
               <Bell className="size-4 shrink-0" aria-hidden />
               <span>
-                Terwijl je weg was:{" "}
+                {t("Terwijl je weg was:")}{" "}
                 <span className="font-medium text-foreground">
-                  {plural(missed.count, "ongelezen melding", "ongelezen meldingen")}
+                  {plural(missed.count, t("ongelezen melding"), t("ongelezen meldingen"))}
                 </span>{" "}
-                sinds je vorige bezoek op {formatDateShortNl(missed.from)}.
+                {t("sinds je vorige bezoek op")} {formatDateShortNl(missed.from)}.
               </span>
             </p>
           )}
@@ -253,7 +263,7 @@ export default async function NotificatiesPage({
                 href={filterHref({ category: null, unreadOnly: filter.unreadOnly })}
                 active={filter.category === null}
               >
-                Alle ({summary.total})
+                {t("Alle")} ({summary.total})
               </FilterPill>
               {summary.categories.map((c) => (
                 <FilterPill
@@ -261,7 +271,7 @@ export default async function NotificatiesPage({
                   href={filterHref({ category: c.category, unreadOnly: filter.unreadOnly })}
                   active={filter.category === c.category}
                 >
-                  {c.label} ({c.total})
+                  {t(c.label)} ({c.total})
                 </FilterPill>
               ))}
             </div>
@@ -270,13 +280,13 @@ export default async function NotificatiesPage({
                 href={filterHref({ category: filter.category, unreadOnly: false })}
                 active={!filter.unreadOnly}
               >
-                Alle meldingen
+                {t("Alle meldingen")}
               </FilterPill>
               <FilterPill
                 href={filterHref({ category: filter.category, unreadOnly: true })}
                 active={filter.unreadOnly}
               >
-                Alleen ongelezen ({scopeUnread})
+                {t("Alleen ongelezen")} ({scopeUnread})
               </FilterPill>
             </div>
           </div>
@@ -284,13 +294,13 @@ export default async function NotificatiesPage({
           {filtered.length === 0 ? (
             <Card>
               <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                Geen meldingen in deze selectie.
+                {t("Geen meldingen in deze selectie.")}
               </div>
             </Card>
           ) : (
             <div className="space-y-6">
-              <NotificationGroup heading="Vandaag" items={today} />
-              <NotificationGroup heading="Eerder" items={earlier} />
+              <NotificationGroup heading={t("Vandaag")} items={today} t={t} />
+              <NotificationGroup heading={t("Eerder")} items={earlier} t={t} />
             </div>
           )}
         </div>
