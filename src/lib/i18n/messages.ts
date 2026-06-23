@@ -405,6 +405,9 @@ const EN: Record<string, string> = {
   Verzonden: "Sent",
   Geannuleerd: "Cancelled",
 
+  // --- Opgeslagen: bulk-opschonen ---
+  Opschonen: "Clean up",
+
   // --- Documenten (ZZP'er-scherm + gedeeld documentenpaneel) ---
   "Je geüploade documenten. Alleen jij (en beheer) kunt ze openen.":
     "Your uploaded documents. Only you (and admins) can open them.",

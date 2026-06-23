@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
+import { ClearUnavailableButton } from "@/components/jobs/clear-unavailable-button";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { getTranslator } from "@/lib/i18n/server";
@@ -125,9 +126,12 @@ export default async function OpgeslagenPage() {
 
           {unavailable.length > 0 && (
             <section className="space-y-2">
-              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t("Niet meer beschikbaar")} ({unavailable.length})
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("Niet meer beschikbaar")} ({unavailable.length})
+                </h2>
+                <ClearUnavailableButton />
+              </div>
               <p className="text-xs text-muted-foreground">
                 {plural(unavailable.length, t("opdracht is"), t("opdrachten zijn"))}{" "}
                 {t("gesloten of teruggetrokken. Je kunt er niet meer op reageren.")}
