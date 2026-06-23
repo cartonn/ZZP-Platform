@@ -750,16 +750,16 @@ export default async function DashboardPage() {
     const cs = await getClientStats(user.id!);
     const clientKpis = cs
       ? [
-          { icon: Gauge, label: "Vervullingsgraad", value: `${cs.fillRate}%` },
+          { icon: Gauge, label: t("Vervullingsgraad"), value: `${cs.fillRate}%` },
           {
             icon: Handshake,
-            label: "Actieve samenwerkingen",
+            label: t("Actieve samenwerkingen"),
             value: String(cs.activeCollaborations),
           },
-          { icon: Briefcase, label: "Geplaatste opdrachten", value: String(cs.publishedJobs) },
-          { icon: Wallet, label: "Uitgaven", value: formatEuro(cs.spentCents) },
+          { icon: Briefcase, label: t("Geplaatste opdrachten"), value: String(cs.publishedJobs) },
+          { icon: Wallet, label: t("Uitgaven"), value: formatEuro(cs.spentCents) },
         ]
-      : stats.map((st) => ({ icon: Briefcase, label: st.label, value: String(st.value) }));
+      : stats.map((st) => ({ icon: Briefcase, label: t(st.label), value: String(st.value) }));
     const rows = (suggestedFreelancers ?? []).map((fr) => ({
       id: fr.freelancerId,
       initials: initials(fr.name),
@@ -776,24 +776,24 @@ export default async function DashboardPage() {
     }));
     const seal = complianceSnapshot
       ? {
-          title: "Compliance-zegel",
+          title: t("Compliance-zegel"),
           subtitle:
             complianceSnapshot.total === 0
-              ? "Geen lopende diensten"
-              : `${complianceSnapshot.total - complianceSnapshot.nonCompliant - complianceSnapshot.warning}/${complianceSnapshot.total} diensten in orde`,
+              ? t("Geen lopende diensten")
+              : `${complianceSnapshot.total - complianceSnapshot.nonCompliant - complianceSnapshot.warning}/${complianceSnapshot.total} ${t("diensten in orde")}`,
           items: [
             {
-              label: "Ontbrekend/verlopen",
+              label: t("Ontbrekend/verlopen"),
               value: String(complianceSnapshot.missing + complianceSnapshot.expired),
               ok: complianceSnapshot.missing + complianceSnapshot.expired === 0,
             },
             {
-              label: "Verloopt binnenkort",
+              label: t("Verloopt binnenkort"),
               value: String(complianceSnapshot.expiringSoon),
               ok: complianceSnapshot.expiringSoon === 0,
             },
             {
-              label: "In beoordeling",
+              label: t("In beoordeling"),
               value: String(complianceSnapshot.inReview),
               ok: complianceSnapshot.inReview === 0,
             },
@@ -804,20 +804,22 @@ export default async function DashboardPage() {
     const activeCount = cs?.activeCollaborations ?? 0;
     const wk = buildCurrentWeek(
       new Date(),
-      `${activeCount} ${activeCount === 1 ? "dienst" : "diensten"}`,
+      `${activeCount} ${t(activeCount === 1 ? "dienst" : "diensten")}`,
+      undefined,
+      t,
     );
     return (
       <WorkspaceDashboard
         header={{
-          title: user.name ?? "Werkruimte",
+          title: user.name ?? t("Werkruimte"),
           subtitle: identity?.subtitle ?? undefined,
         }}
         kpis={clientKpis}
         list={{
-          title: "Voorgestelde professionals",
+          title: t("Voorgestelde professionals"),
           href: "/freelancers",
           rows,
-          empty: "Plaats een opdracht om geschikte ZZP'ers voorgesteld te krijgen.",
+          empty: t("Plaats een opdracht om geschikte ZZP'ers voorgesteld te krijgen."),
         }}
         nextActions={tasksToActions(tasks)}
         week={wk}
