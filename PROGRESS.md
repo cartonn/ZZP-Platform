@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(franchise): nav-signalen voor de FRANCHISER (overdue leads + open shift-overnames)
+
+De FRANCHISER-tak van `navBadges` gaf `return {}` ("nog geen per-nav-signalen"). Nu twee
+tenant-gescopete, server-side actiesignalen in de zijbalk — spiegel van het bestaande
+FREELANCER/CLIENT/ADMIN-patroon. De franchiser ziet vanaf elke pagina wat openstaat.
+
+- [x] `src/lib/signals.ts` — `SignalCounts`/`SIGNAL_HREF`/`SIGNAL_TONE` uitgebreid met
+      `overdueLeads` → `/franchise/leads` (attention) en `openHandoffs` →
+      `/franchise/shift-overnames` (attention). FRANCHISER-tak resolvet `tenantId` uit de user
+      (geen franchise → geen badges) en telt: actieve leads (KOUD/WARM) met `nextFollowUp` vóór
+      vandaag (UTC-dag, gelijk aan de leads-pagina), en OPEN `ShiftHandoff` binnen de tenant
+      (via `collaboration.job.tenantId`). Twee begrensde counts, geen N+1.
+- [x] `src/lib/signals.ts` — pure `startOfUtcDay(now)` als dag-grens (los testbaar).
+- [x] `src/lib/signals.test.ts` — +6 tests (buildBadges-mapping van beide signalen + de
+      dag-grens-semantiek: gisteren = te laat, vandaag = niet te laat).
+
+Geen schemawijziging, geen extra UI (de badges hangen aan de bestaande nav-items). Gate groen:
+typecheck ✓, lint ✓, test **2575** ✓ (+6), build ✓, `prettier --check` ✓.
+
 ## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
 
 Vervolg op de ZZP'er-i18n-reeks (#491–#498). Het reactieoverzicht `/reacties` was nog volledig

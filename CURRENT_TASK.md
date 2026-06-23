@@ -260,6 +260,11 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **FRANCHISER nav-signalen (overdue leads + open shift-overnames)** —
+> `signals.ts` FRANCHISER-tak (was `return {}`): tenant-gescopete attention-badges `overdueLeads`
+> → `/franchise/leads` (actieve leads KOUD/WARM met `nextFollowUp` < vandaag, UTC-dag) en
+> `openHandoffs` → `/franchise/shift-overnames` (OPEN `ShiftHandoff` via `collaboration.job.tenantId`);
+> pure `startOfUtcDay`; +6 tests; geen schemawijziging, twee begrensde counts.
 > Gedaan (niet opnieuw): **Statusfilter op het opdrachtgever-overzicht `/opdrachten`** — pure
 > `lib/job-status-filter.ts` (`parseJobStatusFilter`/`filterJobsByStatus`/`summarizeJobStatusGroups`)
 >
