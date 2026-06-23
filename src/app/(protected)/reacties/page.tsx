@@ -25,6 +25,7 @@ import { canWithdrawApplication } from "@/lib/applications";
 import { type ApplicationStatus, type CredentialType, type CredentialStatus } from "@/lib/enums";
 import { getTranslator } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
+import { relativeTime } from "@/lib/relative-time";
 import { withdrawApplication } from "./actions";
 
 export const metadata: Metadata = { title: "Mijn reacties · ZZP Platform" };
@@ -202,7 +203,10 @@ export default async function ReactiesPage({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-medium">{app.job.title}</p>
-                          <p className="text-sm text-muted-foreground">{app.job.company.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {app.job.company.name} · {t("Gereageerd")}{" "}
+                            {relativeTime(app.createdAt, t)}
+                          </p>
                         </div>
                         <ApplicationStatusBadge status={app.status} />
                       </div>
