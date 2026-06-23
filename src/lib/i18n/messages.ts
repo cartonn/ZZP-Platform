@@ -465,6 +465,7 @@ const EN: Record<string, string> = {
   "Nog geen reacties": "No applications yet",
   "Je hebt nog niet gereageerd op een opdracht.": "You haven't applied to any assignment yet.",
   "Geen reacties in dit filter": "No applications in this filter",
+  Gereageerd: "Applied",
   "Alle reacties": "All applications",
   "Je mist:": "You're missing:",
   "Verlopen:": "Expired:",

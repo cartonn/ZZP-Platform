@@ -33,7 +33,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // beperkt (een ZZP'er heeft doorgaans < 100 actieve reacties).
   {
     file: "(protected)/reacties/page.tsx",
-    line: 103,
+    line: 104,
     reason: "eigenaar-scoped, inherent begrensd",
   },
 
