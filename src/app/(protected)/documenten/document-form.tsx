@@ -7,6 +7,7 @@ import { FileInput } from "@/components/ui/file-input";
 import { Select } from "@/components/ui/select";
 import { uploadDocument, type DocumentState } from "./actions";
 import { FormStatus } from "@/components/ui/form-status";
+import { useT } from "@/components/i18n/locale-provider";
 
 const KINDS = [
   ["OTHER", "Overig"],
@@ -17,6 +18,7 @@ const KINDS = [
 ] as const;
 
 export function DocumentForm() {
+  const t = useT();
   const [state, formAction, isPending] = useActionState<DocumentState, FormData>(
     uploadDocument,
     undefined,
@@ -35,22 +37,22 @@ export function DocumentForm() {
       action={formAction}
       className="space-y-4 rounded-lg border border-border bg-card p-5"
     >
-      <h2 className="text-sm font-semibold">Document uploaden</h2>
+      <h2 className="text-sm font-semibold">{t("Document uploaden")}</h2>
       <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
-        <Field label="Type" htmlFor="kind" error={fe.kind}>
+        <Field label={t("Type")} htmlFor="kind" error={fe.kind}>
           <Select id="kind" name="kind" defaultValue="OTHER">
             {KINDS.map(([v, l]) => (
               <option key={v} value={v}>
-                {l}
+                {t(l)}
               </option>
             ))}
           </Select>
         </Field>
         <Field
-          label="Bestand"
+          label={t("Bestand")}
           htmlFor="document"
           error={fe.document}
-          hint="PDF, PNG, JPEG of WEBP, max 10 MB. Privé."
+          hint={t("PDF, PNG, JPEG of WEBP, max 10 MB. Privé.")}
         >
           <FileInput
             id="document"
@@ -67,9 +69,9 @@ export function DocumentForm() {
       )}
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Uploaden…" : "Uploaden"}
+          {isPending ? t("Uploaden…") : t("Uploaden")}
         </Button>
-        <FormStatus success={state?.ok && "Geüpload."} />
+        <FormStatus success={state?.ok && t("Geüpload.")} />
       </div>
     </form>
   );

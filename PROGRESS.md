@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(i18n): ZZP'er — documentenscherm (/documenten) vertaald (EN)
+
+Vervolg op de ZZP'er-i18n-reeks (#491–#501). Het documentenscherm (`/documenten`) én het gedeelde
+documentenpaneel (ook op de profiel-"Documenten"-tab) waren nog volledig Nederlands; nu vertaald via
+`t()`/`useT()` (server-side `getTranslator`, client `useT`, NL-fallback — `nl` blijft de standaard).
+Geen schemawijziging, geen gedragswijziging in de NL-UI (fallback identiek aan de brontekst).
+
+- [x] `src/components/documents/documents-panel.tsx` — server-component, `getTranslator`:
+      documenttype-badge (`t(KIND_LABEL[…])`), beide lege staten, "gekoppeld aan een credential",
+      "Openen", de verwijder-bevestiging (titel/omschrijving/knop) + aria-label, "Meer laden".
+- [x] `src/app/(protected)/documenten/document-form.tsx` — client-component, `useT`: "Document
+      uploaden", veld-labels (Type/Bestand), de hint, de type-opties (`t(l)`), "Uploaden…"/"Uploaden",
+      "Geüpload.".
+- [x] `src/lib/i18n/messages.ts` — woordenboek-sectie "Documenten" toegevoegd; PageHeader vertaalt de
+      paginasubtitel automatisch via de nieuwe sleutel. "Documenten"/"Verzekering"/"Meer laden" stonden
+      er al — geen dubbele sleutels.
+- [x] `src/lib/i18n/messages.test.ts` — +2 tests (EN-vertaling + NL-onveranderd voor het scherm).
+- Gate: typecheck ✓, lint ✓, test **2563** ✓, build ✓, prettier ✓.
+
 ## routine: statusfilter op /opdrachten (opdrachtgever-overzicht)
 
 Het opdrachtgever-overzicht "Mijn opdrachten" (`/opdrachten`) toonde alle eigen opdrachten in één

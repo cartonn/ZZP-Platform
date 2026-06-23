@@ -404,6 +404,32 @@ const EN: Record<string, string> = {
   Gecrediteerd: "Credited",
   Verzonden: "Sent",
   Geannuleerd: "Cancelled",
+
+  // --- Documenten (ZZP'er-scherm + gedeeld documentenpaneel) ---
+  "Je geüploade documenten. Alleen jij (en beheer) kunt ze openen.":
+    "Your uploaded documents. Only you (and admins) can open them.",
+  "Nog geen documenten geüpload": "No documents uploaded yet",
+  "Gebruik het formulier hierboven om je eerste document toe te voegen.":
+    "Use the form above to add your first document.",
+  "Geen verdere documenten": "No further documents",
+  "Je hebt alle documenten bekeken.": "You've viewed all documents.",
+  "gekoppeld aan een credential": "linked to a credential",
+  Openen: "Open",
+  "Document verwijderen?": "Delete document?",
+  "Dit document wordt permanent uit je opslag verwijderd. Dit kan niet ongedaan worden gemaakt.":
+    "This document will be permanently removed from your storage. This cannot be undone.",
+  Verwijderen: "Delete",
+  Verwijder: "Delete",
+  // Documenttypes (KIND_LABEL) — "Verzekering" → "Insurance" staat al in het woordenboek
+  Overig: "Other",
+  // Uploadformulier
+  "Document uploaden": "Upload document",
+  Type: "Type",
+  Bestand: "File",
+  "PDF, PNG, JPEG of WEBP, max 10 MB. Privé.": "PDF, PNG, JPEG or WEBP, max 10 MB. Private.",
+  "Uploaden…": "Uploading…",
+  Uploaden: "Upload",
+  "Geüpload.": "Uploaded.",
 };
 
 const TABLES: Record<Locale, Record<string, string>> = {
