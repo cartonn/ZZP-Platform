@@ -18,4 +18,15 @@ describe("translate", () => {
   it("valt voor een onbekende brontekst terug op de NL-tekst (nooit leeg)", () => {
     expect(translate("en", "Een nog niet vertaalde zin")).toBe("Een nog niet vertaalde zin");
   });
+
+  it("vertaalt de notificatie-strings + categorielabels", () => {
+    expect(translate("en", "Alles als gelezen markeren")).toBe("Mark all as read");
+    expect(translate("en", "Geen notificaties")).toBe("No notifications");
+    expect(translate("en", "Alleen ongelezen")).toBe("Unread only");
+    expect(translate("en", "Werkproces")).toBe("Workflow");
+    expect(translate("en", "Betalingen")).toBe("Payments");
+    expect(translate("en", "zojuist")).toBe("just now");
+    // NL blijft onveranderd (geen regressie in de standaardtaal)
+    expect(translate("nl", "Werkproces")).toBe("Werkproces");
+  });
 });

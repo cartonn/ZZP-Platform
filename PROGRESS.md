@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(i18n): notificaties-scherm (/notificaties) vertaald (EN)
+
+Vervolg op de i18n-reeks (#491–#500). Het notificatie-overzicht `/notificaties` (rol-agnostisch:
+ZZP'er, opdrachtgever, beheerder, bemiddelaar) was nog volledig Nederlands; nu vertaald via `t()`
+(server-side `getTranslator`, NL-fallback — `nl` blijft de standaard). Geen schemawijziging, geen
+gedragswijziging in de NL-UI (fallback identiek aan de brontekst).
+
+- [x] `src/app/(protected)/notificaties/page.tsx` — kop/subtitel (auto via `PageHeader`),
+      "Alles als gelezen markeren", beide lege staten, "Gelezen"-knop, de sr-only "Ongelezen:"-prefix,
+      relatieve tijd (`zojuist`/`min geleden`/`uur geleden`), de "Terwijl je weg was"-strip
+      (`plural(t(…), t(…))`), de filter-pills (Alle/Alle meldingen/Alleen ongelezen) en de
+      categorielabels (`t(c.label)`), de groepskoppen Vandaag/Eerder en de lege-selectie-melding.
+      `relativeTime`, `NotificationRow` en `NotificationGroup` krijgen de `Translator` als parameter.
+- [x] `src/lib/i18n/messages.ts` — notificatie-sectie toegevoegd (paginatekst + relatieve-tijd-
+      suffixen + categorielabels Werkproces/Betalingen/DBA-signalen/Ideeënbox/Overig); bestaande
+      sleutels (Notificaties/Alle/Facturen/Certificaten/Samenwerkingen/Disputen) hergebruikt.
+- [x] `src/lib/i18n/messages.test.ts` — +1 test (notificatie-strings + categorielabels + NL-no-regressie).
+
+Gate: typecheck ✓, lint ✓, test 2562 ✓, build ✓, prettier ✓.
+
 ## routine: statusfilter op /opdrachten (opdrachtgever-overzicht)
 
 Het opdrachtgever-overzicht "Mijn opdrachten" (`/opdrachten`) toonde alle eigen opdrachten in één
