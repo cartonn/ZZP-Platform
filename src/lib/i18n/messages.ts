@@ -405,62 +405,27 @@ const EN: Record<string, string> = {
   Verzonden: "Sent",
   Geannuleerd: "Cancelled",
 
-  // --- Mijn reacties (ZZP'er-reactieoverzicht) ---
-  "Nog geen reacties": "No applications yet",
-  "Je hebt nog niet gereageerd op een opdracht.": "You haven't applied to any assignment yet.",
-  "Geen reacties in dit filter": "No applications in this filter",
-  "Pas het filter aan om je andere reacties te zien.":
-    "Adjust the filter to see your other applications.",
-  "Alle reacties": "All applications",
-  "Je mist:": "You're missing:",
-  "Verlopen:": "Expired:",
-  "In beoordeling:": "Under review:",
-  Overig: "Other",
-  // Reactiestatus-badge (gedeeld; ook op /kandidaten) — "Geaccepteerd" staat hieronder
-  Nieuw: "New",
-  Bekeken: "Viewed",
-  Shortlist: "Shortlist",
-  Afgewezen: "Rejected",
-  Ingetrokken: "Withdrawn",
-  Geaccepteerd: "Accepted",
-  // Compliance-badge (gedeeld)
-  "Voldoet aan eisen": "Meets requirements",
-  Aandachtspunt: "Attention point",
-  "Voldoet niet": "Does not meet",
-  // Uitkomsten-samenvatting (StatCards + subteksten)
-  Verstuurd: "Sent",
-  "Op shortlist": "Shortlisted",
-  "lopen nog": "still open",
-  "kans op een voorstel": "chance of a proposal",
-  "van je reacties": "of your applications",
-  van: "of",
-  "van de beoordeelde reacties": "of reviewed applications",
-  "samenwerking gestart": "collaboration started",
-  "samenwerkingen gestart": "collaborations started",
-  "nog niet genoeg beoordeeld": "not enough reviewed yet",
-  // Statushints per reactie
-  "De opdrachtgever heeft je reactie nog niet bekeken.":
-    "The client hasn't viewed your application yet.",
-  "De opdrachtgever heeft je reactie bekeken.": "The client has viewed your application.",
-  "Je staat op de shortlist — je wordt mogelijk benaderd.":
-    "You're on the shortlist — you may be contacted.",
-  "Geaccepteerd! Houd je berichten in de gaten voor een samenwerkingsvoorstel.":
-    "Accepted! Keep an eye on your messages for a collaboration proposal.",
-  "Deze keer niet geselecteerd. Reageer gerust op andere opdrachten.":
-    "Not selected this time. Feel free to apply to other assignments.",
-  "Je hebt deze reactie ingetrokken.": "You've withdrawn this application.",
-  // Samenwerkings-hints (zodra er een samenwerking uit de reactie volgt)
-  "Samenwerking voorgesteld — bekijk het voorstel.": "Collaboration proposed — view the proposal.",
-  "Samenwerking gestart — bekijk het werkproces.": "Collaboration started — view the workflow.",
-  "Samenwerking afgerond — bekijk het werkproces.": "Collaboration completed — view the workflow.",
-  "Samenwerking geannuleerd — bekijk het werkproces.":
-    "Collaboration cancelled — view the workflow.",
-  // Reactie intrekken (bevestiging)
-  "Reactie intrekken?": "Withdraw application?",
-  "Je reactie verdwijnt uit de selectie van de opdrachtgever. Je kunt later opnieuw op deze opdracht reageren.":
-    "Your application disappears from the client's selection. You can apply to this assignment again later.",
-  Intrekken: "Withdraw",
-  "Reactie intrekken": "Withdraw application",
+  // --- Opdrachtstatus-badge ---
+  Gepubliceerd: "Published",
+  Gesloten: "Closed",
+
+  // --- Opgeslagen opdrachten (/opgeslagen) — "Opdrachten die je hebt bewaard." staat al hierboven ---
+  "Opdrachten die je hebt bewaard om er later op terug te komen.":
+    "Assignments you've saved to come back to later.",
+  "Eerst een profiel": "Set up a profile first",
+  "Rond je ZZP'er-profiel af om opdrachten te kunnen bewaren.":
+    "Complete your freelancer profile to start saving assignments.",
+  "Naar profiel": "Go to profile",
+  "Nog niets bewaard": "Nothing saved yet",
+  "Bewaar een opdracht via de knop “Bewaren” op de opdracht om er hier op terug te komen.":
+    "Save an assignment with the “Save” button on the assignment to find it here.",
+  "Opdrachten bekijken": "View assignments",
+  "Nog open": "Still open",
+  "Niet meer beschikbaar": "No longer available",
+  "opdracht is": "assignment is",
+  "opdrachten zijn": "assignments are",
+  "gesloten of teruggetrokken. Je kunt er niet meer op reageren.":
+    "closed or withdrawn. You can no longer apply.",
 };
 
 const TABLES: Record<Locale, Record<string, string>> = {
