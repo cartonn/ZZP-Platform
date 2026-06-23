@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { formatDateShortNl } from "@/lib/format-date";
+import { relativeTime } from "@/lib/relative-time";
 import {
   CONVERSATION_STALE_DAYS,
   conversationTurn,
@@ -30,15 +30,9 @@ export const metadata: Metadata = { title: "Berichten · ZZP Platform" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-function relativeTime(d: Date): string {
-  const diff = Date.now() - d.getTime();
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return "zojuist";
-  if (min < 60) return `${min} min geleden`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h} uur geleden`;
-  return formatDateShortNl(d);
-}
+// Gedeelde recency-helper (DRY, één bron met /reacties + /notificaties). Deze lijst is NL; we
+// geven een identiteits-translator mee zodat de teksten onveranderd blijven.
+const nl = (s: string) => s;
 
 export default async function BerichtenPage({ searchParams }: { searchParams: SearchParams }) {
   const actor = await requireActor();
@@ -227,9 +221,14 @@ export default async function BerichtenPage({ searchParams }: { searchParams: Se
                       )}
                       {last && (
                         <>
-                          <p className="truncate text-xs text-muted-foreground">{last.body}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {last.senderId === actor.id && (
+                              <span className="font-medium text-foreground/70">Jij: </span>
+                            )}
+                            {last.body}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            {relativeTime(last.createdAt)}
+                            {relativeTime(last.createdAt, nl)}
                           </p>
                         </>
                       )}
