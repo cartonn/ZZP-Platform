@@ -1,0 +1,887 @@
+{
+  "functional": [
+    {
+      "role": "FREELANCER",
+      "path": "/dashboard",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Sanne de Vries",
+      "main": "Sanne de Vries Verpleegkundige (BIG-geregistreerd) · Amsterdam 100% Profielvelden 1 Geverifieerde certificaten 3 Mijn reacties Opdrachten voor jou Alles tonen W",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/certificaten",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/certificaten",
+      "h1": "Certificaten",
+      "main": "Certificaten Beheer je bewijsstukken en vraag verificatie aan. 1 van 2 geldig geverifieerd. Nieuw certificaat Vertrouwensniveau: Deels geverifieerd Basis Deels ",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/opdrachten",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/opdrachten",
+      "h1": "Opdrachten",
+      "main": "Opdrachten Vind opdrachten die bij je passen. Alle branches Bouw ICT Logistiek Zorg Alle werkmodi Remote Op locatie Hybride Alle certificaten VOG Diploma Certif",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/opdrachten/job-1",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/opdrachten/job-1",
+      "h1": "Verpleegkundige (somatiek)",
+      "main": "Terug naar opdrachten Verpleegkundige (somatiek) Zorgcentrum Jansen Bewaren Utrecht Op locatie € 45–62/uur Zorg Inzet op een somatische afdeling; dag- en avondd",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/samenwerkingen",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/samenwerkingen",
+      "h1": "Samenwerkingen",
+      "main": "Samenwerkingen Voorgestelde en lopende samenwerkingen. Verpleegkundige (detachering) Afgerond Met Zorgcentrum Jansen € 60/uur Start: 25 mei 2026 Werkproces beki",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/samenwerkingen/collab-1",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/samenwerkingen/collab-1",
+      "h1": "Verpleegkundige (detachering)",
+      "main": "Samenwerkingen Verpleegkundige (detachering) Afgerond Werkproces met Zorgcentrum Jansen · betaling verloopt rechtstreeks; het platform houdt alleen de status bi",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/prestaties",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/prestaties",
+      "h1": "Prestaties",
+      "main": "Prestaties Het prestatie-overzicht is er voor opdrachtgevers. Alleen voor opdrachtgevers Urenstaten en opleveringen van je ZZP'ers bekijk je hier als opdrachtge",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/facturen",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/facturen",
+      "h1": "Facturen",
+      "main": "Facturen Je opgestelde en verzonden facturen. Betaald € 708,58 Openstaand € 0,00 Alle (1) Concept (0) Openstaand (0) Betaald (1) Afgehandeld (0) 2026-0001 Betaa",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/diensten",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/diensten",
+      "h1": "Diensten",
+      "main": "Diensten Alle urenstaaten en opleveringen die je hebt ingediend of in concept hebt staan. Exporteren Importeren Alle(1) Concept Ter goedkeuring Goedgekeurd Afge",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/rooster",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/rooster",
+      "h1": "Rooster",
+      "main": "Rooster Jouw geplande diensten en open kansen — per dag. Niets in je rooster Je hebt geen geplande diensten en er staan nu geen open diensten met een startdatum",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/inzicht",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/inzicht",
+      "h1": "Inzicht",
+      "main": "Inzicht Je cijfers in één overzicht — verdiensten, werk en activiteit. BETAALDE OMZET € 708,58 — totaal ontvangen · trend per maand Openstaand € 0,00 Goedgekeur",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/prognose",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/prognose",
+      "h1": "Inkomstenprognose",
+      "main": "Inkomstenprognose Verwachte inkomsten op een tijdlijn — inclusief concepten die je nog moet factureren. Nog geen verwachte inkomsten Zodra je samenwerkingen en ",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/profiel/bewerken",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/profiel/bewerken",
+      "h1": "Profiel bewerken",
+      "main": "Profiel bewerken Houd je profiel actueel zodat opdrachtgevers je goed kunnen vinden. Naar mijn profiel Profiel-compleetheid 100% Je profiel is compleet. Jouw ta",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/documenten",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/documenten",
+      "h1": "Documenten",
+      "main": "Documenten Je geüploade documenten. Alleen jij (en beheer) kunt ze openen. Document uploaden Type Overig Credential VOG Verzekering Contract Bestand Bestand kie",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/notificaties",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/notificaties",
+      "h1": "Notificaties",
+      "main": "Notificaties Updates over je certificaten, reacties en berichten. Alles als gelezen markeren Alle (4) Werkproces (1) Facturen (2) Betalingen (1) Alle meldingen ",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/reacties",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/reacties",
+      "h1": "Mijn reacties",
+      "main": "Mijn reacties Je reacties op opdrachten en hun status. VERSTUURD 3 1 lopen nog BEKEKEN 2 van 3 reacties OP SHORTLIST 0 kans op een voorstel GEACCEPTEERD 2 1 sam",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/opgeslagen",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/opgeslagen",
+      "h1": "Opgeslagen",
+      "main": "Opgeslagen Opdrachten die je hebt bewaard om er later op terug te komen. NOG OPEN (2) Frontend Developer Datic Solutions Bewaard 23 jun 2026 Bewaard Supply Chai",
+      "markers": []
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/verplichtingen",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/administratie",
+      "h1": "Boekhouding",
+      "main": "Boekhouding Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt rechtstreeks; het platform houdt alleen de status bij. Grootboek CSV",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/dashboard",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Mark Jansen",
+      "main": "Mark Jansen Zorgcentrum Jansen · Utrecht 29% Vervullingsgraad 1 Actieve samenwerkingen 7 Geplaatste opdrachten € 708,58 Uitgaven Voorgestelde professionals Alle",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/opdrachten",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/opdrachten",
+      "h1": "Mijn opdrachten",
+      "main": "Mijn opdrachten Beheer je opdrachten en publiceer ze voor ZZP'ers. Nieuwe opdracht Alle (8) Concept (1) Gepubliceerd (7) Gesloten (0) Scrum Master Utrecht Gepub",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/opdrachten/nieuw",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/opdrachten/nieuw",
+      "h1": "Nieuwe opdracht",
+      "main": "Terug naar opdrachten Nieuwe opdracht Basisgegevens Wat houdt de opdracht in en onder welke voorwaarden? Titel * Omschrijving * Branche — Kies een branche — Bou",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/kandidaten",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/kandidaten",
+      "h1": "Kandidaten",
+      "main": "Kandidaten Reacties op je opdrachten, met match en compliance. Alle(8) Nieuw(3) Bekeken Shortlist(1) Geaccepteerd(3) Afgewezen(1) Ingetrokken BESTE MATCH Fatima",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/prestaties",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/prestaties",
+      "h1": "Prestaties",
+      "main": "Prestaties Urenstaten en opleveringen van jouw ZZP'ers — overzicht over alle samenwerkingen. Exporteren Leverbetrouwbaarheid van je ZZP'ers Nog te weinig goedge",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/facturen",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/facturen",
+      "h1": "Facturen",
+      "main": "Facturen Ontvangen facturen van je samenwerkingen. Betaald € 708,58 Openstaand € 0,00 Alle (1) Concept (0) Openstaand (0) Betaald (1) Afgehandeld (0) 2026-0001 ",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/verplichtingen",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/verplichtingen",
+      "h1": "Betaalverplichtingen",
+      "main": "Betaalverplichtingen Wat je nog moet betalen, op een tijdlijn — inclusief facturen die je nog moet goedkeuren. Geen openstaande verplichtingen Zodra een ZZP'er ",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/samenwerkingen",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/samenwerkingen",
+      "h1": "Samenwerkingen",
+      "main": "Samenwerkingen Voorgestelde en lopende samenwerkingen. Rooster exporteren (.ics) Scrum Master Actief Met Nadia Haddad € 88/uur Start: 4 jun 2026 Wacht op uren/o",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/bedrijf",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/bedrijf",
+      "h1": "Zorgcentrum Jansen",
+      "main": "ZJ Zorgcentrum Jansen Zorg 5,0 (1) Zorg · Utrecht · op het platform sinds 23 jun 2026 8 opdrachten 1 afgeronde samenwerking 90% compleet Bewerk bedrijfsprofiel ",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/inzicht",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/inzicht",
+      "h1": "Inzicht",
+      "main": "",
+      "markers": []
+    },
+    {
+      "role": "CLIENT",
+      "path": "/administratie",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/administratie",
+      "h1": "Boekhouding",
+      "main": "Boekhouding Automatisch afgeleid uit goedgekeurde prestaties en facturen. Betaling verloopt rechtstreeks; het platform houdt alleen de status bij. Grootboek CSV",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/verificaties",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/verificaties",
+      "h1": "Verificaties",
+      "main": "Verificaties Beoordeel ingediende certificaten. 6 in de wachtrij, langst wachtend 8 dagen · 4 langer dan 5 dagen. Verlopen certificaten verwerken Alle typen (6)",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/disputen",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/disputen",
+      "h1": "Disputen",
+      "main": "Disputen Samenwerkingen met een open dispuut. Het werkproces is bevroren tot het platform bemiddelt en het dispuut oplost. Geen open disputen Er zijn op dit mom",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/statistieken",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/statistieken",
+      "h1": "Platform statistieken",
+      "main": "",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/no-shows",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/no-shows",
+      "h1": "No-shows",
+      "main": "No-shows Meldingen van niet-verschenen ZZP'ers. Beoordeel of de reden gegrond is — alleen ongegronde no-shows tellen mee; bij 3 volgt uitschrijving. Geen openst",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/dba",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/dba",
+      "h1": "DBA-monitor",
+      "main": "DBA-monitor Signalering van mogelijke schijnzelfstandigheid over actieve samenwerkingen. Dit is geen juridisch oordeel — het platform signaleert en informeert a",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/gebruikers",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/gebruikers",
+      "h1": "Gebruikers",
+      "main": "Gebruikers Beheer accounts: status, schorsing en anonimisering. De rol staat per account vermeld. Importeren Alle rollen ZZP'er Opdrachtgever Beheerder Alle sta",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/facturatie",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/facturatie",
+      "h1": "Facturatie",
+      "main": "Facturatie De facturen van het platform aan bemiddelingen (transactie-fee) en ZZP'ers (abonnement). Bundel de openstaande bijdragen en beheer de status. Er word",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/samenwerkingen",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/samenwerkingen",
+      "h1": "Samenwerkingen",
+      "main": "",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/support",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/support",
+      "h1": "Helpdesk",
+      "main": "Helpdesk Tickets die door de Support-assistent naar een medewerker zijn doorgezet. Mijn VOG is afgewezen — hoe dien ik opnieuw in? Nieuw Daan Visser · Certifica",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/audit",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/audit",
+      "h1": "Audit log",
+      "main": "",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/configuratie",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/configuratie",
+      "h1": "Configuratie",
+      "main": "Configuratie Pas de drempelwaarden voor de DBA-monitor aan. Wijzigingen worden direct van kracht. DBA-MONITOR DREMPELWAARDEN Eerste duursignaal (maanden) Verhoo",
+      "markers": []
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/import",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/admin/import",
+      "h1": "Onboarding importeren",
+      "main": "",
+      "markers": []
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/franchise/opdrachtgevers",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/franchise/opdrachtgevers",
+      "h1": "Opdrachtgevers",
+      "main": "Opdrachtgevers De opdrachtgevers die je in je bemiddeling hebt gebracht, met hun afdelingen. Nieuwe opdrachtgever Verpleeghuis De Noorderbrug noorderbrug@zzp-pl",
+      "markers": []
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/franchise/zzpers",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/franchise/zzpers",
+      "h1": "ZZP'ers",
+      "main": "ZZP'ers De ZZP'ers in je roster — degenen die je in je bemiddeling hebt gebracht. Nieuwe ZZP'er toevoegen Zoeken Beschikbaarheid Alle Beschikbaar Beperkt beschi",
+      "markers": []
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/franchise/diensten",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/franchise/diensten",
+      "h1": "Diensten",
+      "main": "Diensten Een overzicht van alle diensten die je hebt uitgezet. Nieuwe diensten zet je uit bij een opdrachtgever. Naar opdrachtgevers Vulgraad 0% 0 van 1 dienst ",
+      "markers": []
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/franchise/samenwerkingen",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/franchise/samenwerkingen",
+      "h1": "Samenwerkingen",
+      "main": "Samenwerkingen Toezicht op de samenwerkingen die uit je diensten zijn voortgekomen. Nog geen samenwerkingen Zodra een ZZP'er op een dienst reageert en je opdrac",
+      "markers": []
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/franchise/leads",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/franchise/leads",
+      "h1": "Leads",
+      "main": "Leads Je acquisitie-pijplijn: organisaties die je nog wilt binnenhalen, met hun contactgeschiedenis. Nieuwe lead Alle Koud Warm Klant Afgevallen GGZ Drenthe — l",
+      "markers": []
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/franchise/facturatie",
+      "kind": "functional",
+      "status": 200,
+      "finalUrl": "/franchise/facturatie",
+      "h1": "Facturatie",
+      "main": "Facturatie Je abonnement en de transactie-fees per gevulde samenwerking. Abonnement: Actief De automatische incasso is nog niet actief. Het overzicht en de bere",
+      "markers": []
+    }
+  ],
+  "adversarial": [
+    {
+      "role": "FREELANCER",
+      "path": "/admin/verificaties",
+      "kind": "priv-esc admin",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Sanne de Vries",
+      "main": "Sanne de Vries Verpleegkundige (BIG-geregistreerd) · Amsterdam 100% Profielvelden 1 Geverifieerde certificaten 3 Mijn reacties Opdrachten voor jou Alles tonen W",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/admin/gebruikers",
+      "kind": "priv-esc admin",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Sanne de Vries",
+      "main": "",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/kandidaten",
+      "kind": "priv-esc client",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Sanne de Vries",
+      "main": "Sanne de Vries Verpleegkundige (BIG-geregistreerd) · Amsterdam 100% Profielvelden 1 Geverifieerde certificaten 3 Mijn reacties Opdrachten voor jou Alles tonen W",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/franchise/opdrachtgevers",
+      "kind": "priv-esc franchise",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Sanne de Vries",
+      "main": "Sanne de Vries Verpleegkundige (BIG-geregistreerd) · Amsterdam 100% Profielvelden 1 Geverifieerde certificaten 3 Mijn reacties Opdrachten voor jou Alles tonen W",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/samenwerkingen/cmqq6q4y100597dmzdy5vjp90",
+      "kind": "idor other-collab",
+      "status": 200,
+      "finalUrl": "/samenwerkingen/cmqq6q4y100597dmzdy5vjp90",
+      "h1": "",
+      "main": "Niet gevonden Dit item bestaat niet (meer) of je hebt er geen toegang toe. Controleer de link of ga terug naar je dashboard. Naar dashboard",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/facturen/cmqq6q4z0005n7dmzodkr9gtv",
+      "kind": "idor other-invoice",
+      "status": 200,
+      "finalUrl": "/facturen/cmqq6q4z0005n7dmzodkr9gtv",
+      "h1": "",
+      "main": "Niet gevonden Dit item bestaat niet (meer) of je hebt er geen toegang toe. Controleer de link of ga terug naar je dashboard. Naar dashboard",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/opdrachten/job-7",
+      "kind": "idor draft-job",
+      "status": 200,
+      "finalUrl": "/opdrachten/job-7",
+      "h1": "",
+      "main": "Niet gevonden Dit item bestaat niet (meer) of je hebt er geen toegang toe. Controleer de link of ga terug naar je dashboard. Naar dashboard",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/samenwerkingen/onzin-id-xyz",
+      "kind": "robust nonsense",
+      "status": 200,
+      "finalUrl": "/samenwerkingen/onzin-id-xyz",
+      "h1": "",
+      "main": "Niet gevonden Dit item bestaat niet (meer) of je hebt er geen toegang toe. Controleer de link of ga terug naar je dashboard. Naar dashboard",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/facturen/does-not-exist-123",
+      "kind": "robust nonsense",
+      "status": 200,
+      "finalUrl": "/facturen/does-not-exist-123",
+      "h1": "",
+      "main": "Niet gevonden Dit item bestaat niet (meer) of je hebt er geen toegang toe. Controleer de link of ga terug naar je dashboard. Naar dashboard",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/opdrachten/nope-9999",
+      "kind": "robust nonsense",
+      "status": 200,
+      "finalUrl": "/opdrachten/nope-9999",
+      "h1": "",
+      "main": "Niet gevonden Dit item bestaat niet (meer) of je hebt er geen toegang toe. Controleer de link of ga terug naar je dashboard. Naar dashboard",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/this-route-does-not-exist",
+      "kind": "robust unknown-route",
+      "status": 404,
+      "finalUrl": "/this-route-does-not-exist",
+      "h1": "",
+      "main": "",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/facturen?status=<script>window.__x=1</script>",
+      "kind": "xss filter",
+      "status": 200,
+      "finalUrl": "/facturen?status=%3Cscript%3Ewindow.__x=1%3C/script%3E",
+      "h1": "Facturen",
+      "main": "Facturen Je opgestelde en verzonden facturen. Betaald € 708,58 Openstaand € 0,00 Alle (1) Concept (0) Openstaand (0) Betaald (1) Afgehandeld (0) 2026-0001 Betaa",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/reacties?status=' OR 1=1--",
+      "kind": "sqli filter",
+      "status": 200,
+      "finalUrl": "/reacties?status=%27%20OR%201=1--",
+      "h1": "Mijn reacties",
+      "main": "Mijn reacties Je reacties op opdrachten en hun status. VERSTUURD 3 1 lopen nog BEKEKEN 2 van 3 reacties OP SHORTLIST 0 kans op een voorstel GEACCEPTEERD 2 1 sam",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/rooster?match=<img src=x onerror=window.__x=1>",
+      "kind": "xss filter",
+      "status": 200,
+      "finalUrl": "/rooster?match=%3Cimg%20src=x%20onerror=window.__x=1%3E",
+      "h1": "Rooster",
+      "main": "Rooster Jouw geplande diensten en open kansen — per dag. Niets in je rooster Je hebt geen geplande diensten en er staan nu geen open diensten met een startdatum",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": true
+    },
+    {
+      "role": "CLIENT",
+      "path": "/admin/no-shows",
+      "kind": "priv-esc admin",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Mark Jansen",
+      "main": "",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "CLIENT",
+      "path": "/certificaten",
+      "kind": "priv-esc freelancer",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Mark Jansen",
+      "main": "Mark Jansen Zorgcentrum Jansen · Utrecht 29% Vervullingsgraad 1 Actieve samenwerkingen 7 Geplaatste opdrachten € 708,58 Uitgaven Voorgestelde professionals Alle",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "CLIENT",
+      "path": "/franchise/zzpers",
+      "kind": "priv-esc franchise",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Mark Jansen",
+      "main": "Mark Jansen Zorgcentrum Jansen · Utrecht 29% Vervullingsgraad 1 Actieve samenwerkingen 7 Geplaatste opdrachten € 708,58 Uitgaven Voorgestelde professionals Alle",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "CLIENT",
+      "path": "/samenwerkingen/cmqq6q4y100597dmzdy5vjp90",
+      "kind": "idor other-collab",
+      "status": 200,
+      "finalUrl": "/samenwerkingen/cmqq6q4y100597dmzdy5vjp90",
+      "h1": "",
+      "main": "Niet gevonden Dit item bestaat niet (meer) of je hebt er geen toegang toe. Controleer de link of ga terug naar je dashboard. Naar dashboard",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "CLIENT",
+      "path": "/facturen/cmqq6q4z0005n7dmzodkr9gtv",
+      "kind": "idor other-invoice",
+      "status": 200,
+      "finalUrl": "/facturen/cmqq6q4z0005n7dmzodkr9gtv",
+      "h1": "",
+      "main": "Niet gevonden Dit item bestaat niet (meer) of je hebt er geen toegang toe. Controleer de link of ga terug naar je dashboard. Naar dashboard",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "CLIENT",
+      "path": "/zzp/cmqq6q5pd00jp7dmzigroxcuj",
+      "kind": "cross-tenant zzp-profile",
+      "status": 404,
+      "finalUrl": "/zzp/cmqq6q5pd00jp7dmzigroxcuj",
+      "h1": "",
+      "main": "",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "CLIENT",
+      "path": "/opdrachten?status=<script>window.__x=1</script>",
+      "kind": "xss filter",
+      "status": 200,
+      "finalUrl": "/opdrachten?status=%3Cscript%3Ewindow.__x=1%3C/script%3E",
+      "h1": "Mijn opdrachten",
+      "main": "Mijn opdrachten Beheer je opdrachten en publiceer ze voor ZZP'ers. Nieuwe opdracht Alle (8) Concept (1) Gepubliceerd (7) Gesloten (0) Scrum Master Utrecht Gepub",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/admin/verificaties",
+      "kind": "priv-esc admin",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Femke Franchise",
+      "main": "Femke Franchise Bemiddeling 1 Opdrachtgevers 2 ZZP'ers 1 Open diensten 0 Lopende samenwerkingen ZZP'ers in je bemiddeling Alles tonen SJ Sofia Janssen Verzorgen",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/certificaten",
+      "kind": "priv-esc freelancer",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Femke Franchise",
+      "main": "Femke Franchise Bemiddeling 1 Opdrachtgevers 2 ZZP'ers 1 Open diensten 0 Lopende samenwerkingen ZZP'ers in je bemiddeling Alles tonen SJ Sofia Janssen Verzorgen",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/kandidaten",
+      "kind": "priv-esc client",
+      "status": 200,
+      "finalUrl": "/dashboard",
+      "h1": "Femke Franchise",
+      "main": "",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/franchise/opdrachtgevers/cmqq6q4px00367dmzf8hu264y",
+      "kind": "cross-tenant company",
+      "status": 200,
+      "finalUrl": "/franchise/opdrachtgevers/cmqq6q4px00367dmzf8hu264y",
+      "h1": "",
+      "main": "Niet gevonden Dit item bestaat niet (meer) of je hebt er geen toegang toe. Controleer de link of ga terug naar je dashboard. Naar dashboard",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/franchise/zzpers/cmqq6q3zq000j7dmzstecgau0",
+      "kind": "cross-tenant zzp",
+      "status": 200,
+      "finalUrl": "/franchise/zzpers/cmqq6q3zq000j7dmzstecgau0",
+      "h1": "",
+      "main": "Niet gevonden Dit item bestaat niet (meer) of je hebt er geen toegang toe. Controleer de link of ga terug naar je dashboard. Naar dashboard",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/samenwerkingen?q=<script>window.__x=1</script>",
+      "kind": "xss search",
+      "status": 200,
+      "finalUrl": "/admin/samenwerkingen?q=%3Cscript%3Ewindow.__x=1%3C/script%3E",
+      "h1": "Samenwerkingen",
+      "main": "Samenwerkingen Overzicht van alle samenwerkingen — contract tot betaling. Filter op status of DBA-niveau, of zoek op opdracht, opdrachtgever en ZZP'er. Klik om ",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": false
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/gebruikers?q='%3E%3Cimg%20src%3Dx%20onerror%3Dwindow.__x%3D1%3E",
+      "kind": "xss search",
+      "status": 200,
+      "finalUrl": "/admin/gebruikers?q=%27%3E%3Cimg%20src%3Dx%20onerror%3Dwindow.__x%3D1%3E",
+      "h1": "Gebruikers",
+      "main": "Gebruikers Beheer accounts: status, schorsing en anonimisering. De rol staat per account vermeld. Importeren Alle rollen ZZP'er Opdrachtgever Beheerder Alle sta",
+      "markers": [],
+      "xssExecuted": false,
+      "rawScript": true
+    }
+  ],
+  "api": [
+    {
+      "role": "CLIENT",
+      "path": "/api/documents/cmqq6q41l000l7dmz62i4nbg2",
+      "kind": "doc-privacy other-owner",
+      "status": 403,
+      "ctype": "application/json",
+      "bodyStart": "{\"error\":\"Geen toegang.\"}"
+    },
+    {
+      "role": "FRANCHISER",
+      "path": "/api/documents/cmqq6q41l000l7dmz62i4nbg2",
+      "kind": "doc-privacy other-owner",
+      "status": 403,
+      "ctype": "application/json",
+      "bodyStart": "{\"error\":\"Geen toegang.\"}"
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/api/documents/cmqq6q4h300257dmzrw96z5ia",
+      "kind": "doc-privacy other-freelancer",
+      "status": 403,
+      "ctype": "application/json",
+      "bodyStart": "{\"error\":\"Geen toegang.\"}"
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/api/documents/cmqq6q41l000l7dmz62i4nbg2",
+      "kind": "doc-privacy owner-OK",
+      "status": 200,
+      "ctype": "application/pdf",
+      "bodyStart": "%PDF-1.7 %���� 7 0 obj << /Filter /FlateDecode /Length 496 >> stream x���Ko\u0013A �"
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/api/samenwerkingen/cmqq6q4y100597dmzdy5vjp90/dba-dossier",
+      "kind": "dba foreign",
+      "status": 403,
+      "ctype": "application/json",
+      "bodyStart": "{\"error\":\"Geen toegang.\"}"
+    },
+    {
+      "role": "CLIENT",
+      "path": "/api/samenwerkingen/cmqq6q4y100597dmzdy5vjp90/dba-dossier",
+      "kind": "dba foreign",
+      "status": 403,
+      "ctype": "application/json",
+      "bodyStart": "{\"error\":\"Geen toegang.\"}"
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/verplichtingen/export",
+      "kind": "export client-route",
+      "status": 403,
+      "ctype": "application/json",
+      "bodyStart": "{\"error\":\"Niet toegestaan\"}"
+    },
+    {
+      "role": "CLIENT",
+      "path": "/prognose/export",
+      "kind": "export freelancer-route",
+      "status": 403,
+      "ctype": "application/json",
+      "bodyStart": "{\"error\":\"Niet toegestaan\"}"
+    },
+    {
+      "role": "FREELANCER",
+      "path": "/api/admin/export/invoices",
+      "kind": "export admin-route",
+      "status": 403,
+      "ctype": "text/plain;charset=UTF-8",
+      "bodyStart": "Geen toegang: vereist rol ADMIN."
+    }
+  ],
+  "serverErrors": 2
+}
