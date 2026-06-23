@@ -405,27 +405,35 @@ const EN: Record<string, string> = {
   Verzonden: "Sent",
   Geannuleerd: "Cancelled",
 
-  // --- Opdrachtstatus-badge ---
-  Gepubliceerd: "Published",
-  Gesloten: "Closed",
-
-  // --- Opgeslagen opdrachten (/opgeslagen) — "Opdrachten die je hebt bewaard." staat al hierboven ---
-  "Opdrachten die je hebt bewaard om er later op terug te komen.":
-    "Assignments you've saved to come back to later.",
-  "Eerst een profiel": "Set up a profile first",
-  "Rond je ZZP'er-profiel af om opdrachten te kunnen bewaren.":
-    "Complete your freelancer profile to start saving assignments.",
-  "Naar profiel": "Go to profile",
-  "Nog niets bewaard": "Nothing saved yet",
-  "Bewaar een opdracht via de knop “Bewaren” op de opdracht om er hier op terug te komen.":
-    "Save an assignment with the “Save” button on the assignment to find it here.",
-  "Opdrachten bekijken": "View assignments",
-  "Nog open": "Still open",
-  "Niet meer beschikbaar": "No longer available",
-  "opdracht is": "assignment is",
-  "opdrachten zijn": "assignments are",
-  "gesloten of teruggetrokken. Je kunt er niet meer op reageren.":
-    "closed or withdrawn. You can no longer apply.",
+  // --- Notificaties (/notificaties) ---
+  // "Notificaties", "Alle", "Facturen", "Certificaten", "Samenwerkingen", "Disputen" staan al
+  // in het woordenboek (nav/factuur-secties) — geen dubbele sleutels.
+  "Updates over je certificaten, reacties en berichten.":
+    "Updates about your certificates, applications and messages.",
+  "Alles als gelezen markeren": "Mark all as read",
+  "Geen notificaties": "No notifications",
+  "Je hebt op dit moment geen nieuwe meldingen.": "You have no new notifications right now.",
+  Gelezen: "Mark read",
+  "Ongelezen: ": "Unread: ",
+  Vandaag: "Today",
+  Eerder: "Earlier",
+  "Alle meldingen": "All notifications",
+  "Alleen ongelezen": "Unread only",
+  "Geen meldingen in deze selectie.": "No notifications in this selection.",
+  "Terwijl je weg was:": "While you were away:",
+  "ongelezen melding": "unread notification",
+  "ongelezen meldingen": "unread notifications",
+  "sinds je vorige bezoek op": "since your previous visit on",
+  // Relatieve tijd (suffixen achter een getal; NL pluraliseert "uur" niet, EN volgt dezelfde stijl)
+  zojuist: "just now",
+  "min geleden": "min ago",
+  "uur geleden": "hr ago",
+  // Notificatiecategorie-labels (filter-pills) — overige labels hergebruiken bestaande sleutels
+  Werkproces: "Workflow",
+  Betalingen: "Payments",
+  "DBA-signalen": "DBA signals",
+  Ideeënbox: "Ideas box",
+  Overig: "Other",
 };
 
 const TABLES: Record<Locale, Record<string, string>> = {
