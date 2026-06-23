@@ -386,3 +386,37 @@ export async function toggleSavedJob(jobId: string): Promise<void> {
   revalidatePath("/opdrachten");
   revalidatePath(`/opdrachten/${jobId}`);
 }
+
+/**
+ * Verwijdert in één keer alle bewaarde opdrachten van de ZZP'er die niet meer open staan (de opdracht
+ * is niet langer PUBLISHED — gesloten of teruggetrokken). Houdt de "Opgeslagen"-lijst relevant zonder
+ * dat de ZZP'er stuk voor stuk hoeft te verwijderen. Eigenaar-scoped: raakt alleen de eigen rijen.
+ */
+export async function clearUnavailableSavedJobs(): Promise<void> {
+  const actor = await requireRole("FREELANCER");
+
+  const profile = await prisma.freelancerProfile.findUnique({
+    where: { userId: actor.id },
+    select: { id: true },
+  });
+  if (!profile) throw new Error("Geen ZZP'er-profiel gevonden.");
+
+  const { count } = await prisma.savedJob.deleteMany({
+    where: {
+      freelancerProfileId: profile.id,
+      job: { status: { not: "PUBLISHED" } },
+    },
+  });
+
+  if (count > 0) {
+    await audit({
+      actorId: actor.id,
+      action: "JOB_UNSAVED",
+      entityType: "Job",
+      entityId: "bulk",
+      metadata: { clearedUnavailable: count },
+    });
+  }
+
+  revalidatePath("/opgeslagen");
+}
