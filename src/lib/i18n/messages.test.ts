@@ -22,6 +22,20 @@ describe("translate", () => {
     expect(translate("en", "Een nog niet vertaalde zin")).toBe("Een nog niet vertaalde zin");
   });
 
+  it("vertaalt het documentenscherm naar het Engels", () => {
+    expect(translate("en", "Document uploaden")).toBe("Upload document");
+    expect(translate("en", "Nog geen documenten geüpload")).toBe("No documents uploaded yet");
+    expect(translate("en", "gekoppeld aan een credential")).toBe("linked to a credential");
+    expect(translate("en", "Document verwijderen?")).toBe("Delete document?");
+    expect(translate("en", "Overig")).toBe("Other");
+    expect(translate("en", "Geüpload.")).toBe("Uploaded.");
+  });
+
+  it("laat het documentenscherm in het Nederlands onveranderd", () => {
+    expect(translate("nl", "Document uploaden")).toBe("Document uploaden");
+    expect(translate("nl", "Overig")).toBe("Overig");
+  });
+
   it("vertaalt de notificatie-strings + categorielabels", () => {
     expect(translate("en", "Alles als gelezen markeren")).toBe("Mark all as read");
     expect(translate("en", "Geen notificaties")).toBe("No notifications");

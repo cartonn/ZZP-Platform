@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { type DocumentKind } from "@/lib/enums";
 import { pageArgs, splitPage } from "@/lib/pagination";
 import { formatDateShortNl } from "@/lib/format-date";
+import { getTranslator } from "@/lib/i18n/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -45,6 +46,7 @@ export async function DocumentsPanel({
   cursor?: string | null;
   basePath?: string;
 }) {
+  const { t } = await getTranslator();
   const rows = await prisma.document.findMany({
     where: { ownerId },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -62,16 +64,16 @@ export async function DocumentsPanel({
         <Card>
           <EmptyState
             icon={FileText}
-            title="Nog geen documenten geüpload"
-            description="Gebruik het formulier hierboven om je eerste document toe te voegen."
+            title={t("Nog geen documenten geüpload")}
+            description={t("Gebruik het formulier hierboven om je eerste document toe te voegen.")}
           />
         </Card>
       ) : documents.length === 0 ? (
         <Card>
           <EmptyState
             icon={FileText}
-            title="Geen verdere documenten"
-            description="Je hebt alle documenten bekeken."
+            title={t("Geen verdere documenten")}
+            description={t("Je hebt alle documenten bekeken.")}
           />
         </Card>
       ) : (
@@ -83,26 +85,28 @@ export async function DocumentsPanel({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium">{doc.filename}</p>
-                    <Badge variant="muted">{KIND_LABEL[doc.kind as DocumentKind]}</Badge>
+                    <Badge variant="muted">{t(KIND_LABEL[doc.kind as DocumentKind])}</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {formatSize(doc.size)} · {formatDateShortNl(doc.createdAt)}
-                    {linked ? " · gekoppeld aan een credential" : ""}
+                    {linked ? ` · ${t("gekoppeld aan een credential")}` : ""}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Button asChild variant="secondary" size="sm">
                     <a href={`/api/documents/${doc.id}`} target="_blank" rel="noreferrer">
-                      <Download className="size-3.5" aria-hidden /> Openen
+                      <Download className="size-3.5" aria-hidden /> {t("Openen")}
                     </a>
                   </Button>
                   {!linked && (
                     <ConfirmButton
                       action={deleteDocument.bind(null, doc.id)}
-                      title="Document verwijderen?"
-                      description="Dit document wordt permanent uit je opslag verwijderd. Dit kan niet ongedaan worden gemaakt."
-                      confirmLabel="Verwijderen"
-                      aria-label={`Verwijder ${doc.filename}`}
+                      title={t("Document verwijderen?")}
+                      description={t(
+                        "Dit document wordt permanent uit je opslag verwijderd. Dit kan niet ongedaan worden gemaakt.",
+                      )}
+                      confirmLabel={t("Verwijderen")}
+                      aria-label={`${t("Verwijder")} ${doc.filename}`}
                     >
                       <Trash2 className="size-3.5" aria-hidden />
                     </ConfirmButton>
@@ -117,7 +121,7 @@ export async function DocumentsPanel({
       {nextCursor && (
         <div className="flex justify-center py-2">
           <Button asChild variant="secondary">
-            <Link href={`${basePath}?cursor=${nextCursor}`}>Meer laden</Link>
+            <Link href={`${basePath}?cursor=${nextCursor}`}>{t("Meer laden")}</Link>
           </Button>
         </div>
       )}

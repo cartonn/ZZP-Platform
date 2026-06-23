@@ -405,6 +405,31 @@ const EN: Record<string, string> = {
   Verzonden: "Sent",
   Geannuleerd: "Cancelled",
 
+  // --- Documenten (ZZP'er-scherm + gedeeld documentenpaneel) ---
+  "Je geüploade documenten. Alleen jij (en beheer) kunt ze openen.":
+    "Your uploaded documents. Only you (and admins) can open them.",
+  "Nog geen documenten geüpload": "No documents uploaded yet",
+  "Gebruik het formulier hierboven om je eerste document toe te voegen.":
+    "Use the form above to add your first document.",
+  "Geen verdere documenten": "No further documents",
+  "Je hebt alle documenten bekeken.": "You've viewed all documents.",
+  "gekoppeld aan een credential": "linked to a credential",
+  Openen: "Open",
+  "Document verwijderen?": "Delete document?",
+  "Dit document wordt permanent uit je opslag verwijderd. Dit kan niet ongedaan worden gemaakt.":
+    "This document will be permanently removed from your storage. This cannot be undone.",
+  Verwijderen: "Delete",
+  Verwijder: "Delete",
+  // Documenttypes (KIND_LABEL) — "Verzekering" → "Insurance" staat al in het woordenboek
+  Overig: "Other",
+  // Uploadformulier
+  "Document uploaden": "Upload document",
+  Type: "Type",
+  Bestand: "File",
+  "PDF, PNG, JPEG of WEBP, max 10 MB. Privé.": "PDF, PNG, JPEG or WEBP, max 10 MB. Private.",
+  "Uploaden…": "Uploading…",
+  Uploaden: "Upload",
+  "Geüpload.": "Uploaded.",
   // --- Notificaties (/notificaties) ---
   // "Notificaties", "Alle", "Facturen", "Certificaten", "Samenwerkingen", "Disputen" staan al
   // in het woordenboek (nav/factuur-secties) — geen dubbele sleutels.
@@ -433,7 +458,6 @@ const EN: Record<string, string> = {
   Betalingen: "Payments",
   "DBA-signalen": "DBA signals",
   Ideeënbox: "Ideas box",
-  Overig: "Other",
   // Hersteld na merge-resolutie (#499/#500/#501 dict-entries):
   "Nog geen reacties": "No applications yet",
   "Je hebt nog niet gereageerd op een opdracht.": "You haven't applied to any assignment yet.",
