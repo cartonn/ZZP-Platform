@@ -13,6 +13,9 @@ describe("translate", () => {
     expect(translate("en", "Rooster")).toBe("Schedule");
     expect(translate("en", "Opgeslagen")).toBe("Saved");
     expect(translate("en", "ZZP'er")).toBe("Freelancer");
+    expect(translate("en", "Gepubliceerd")).toBe("Published");
+    expect(translate("en", "Gesloten")).toBe("Closed");
+    expect(translate("en", "Niet meer beschikbaar")).toBe("No longer available");
   });
 
   it("valt voor een onbekende brontekst terug op de NL-tekst (nooit leeg)", () => {

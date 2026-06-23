@@ -12,11 +12,13 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
+import { getTranslator } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Opgeslagen · ZZP Platform" };
 
 export default async function OpgeslagenPage() {
   const actor = await requireRole("FREELANCER");
+  const { t } = await getTranslator();
 
   const profile = await prisma.freelancerProfile.findUnique({
     where: { userId: actor.id },
@@ -26,13 +28,13 @@ export default async function OpgeslagenPage() {
   if (!profile) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Opgeslagen" description="Opdrachten die je hebt bewaard." />
+        <PageHeader title={t("Opgeslagen")} description={t("Opdrachten die je hebt bewaard.")} />
         <Card>
           <EmptyState
             icon={Bookmark}
-            title="Eerst een profiel"
-            description="Rond je ZZP'er-profiel af om opdrachten te kunnen bewaren."
-            action={{ label: "Naar profiel", href: "/profiel/bewerken" }}
+            title={t("Eerst een profiel")}
+            description={t("Rond je ZZP'er-profiel af om opdrachten te kunnen bewaren.")}
+            action={{ label: t("Naar profiel"), href: "/profiel/bewerken" }}
           />
         </Card>
       </div>
@@ -69,17 +71,19 @@ export default async function OpgeslagenPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Opgeslagen"
-        description="Opdrachten die je hebt bewaard om er later op terug te komen."
+        title={t("Opgeslagen")}
+        description={t("Opdrachten die je hebt bewaard om er later op terug te komen.")}
       />
 
       {items.length === 0 ? (
         <Card>
           <EmptyState
             icon={Bookmark}
-            title="Nog niets bewaard"
-            description="Bewaar een opdracht via de knop “Bewaren” op de opdracht om er hier op terug te komen."
-            action={{ label: "Opdrachten bekijken", href: "/opdrachten" }}
+            title={t("Nog niets bewaard")}
+            description={t(
+              "Bewaar een opdracht via de knop “Bewaren” op de opdracht om er hier op terug te komen.",
+            )}
+            action={{ label: t("Opdrachten bekijken"), href: "/opdrachten" }}
           />
         </Card>
       ) : (
@@ -87,7 +91,7 @@ export default async function OpgeslagenPage() {
           {open.length > 0 && (
             <section className="space-y-2">
               <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Nog open ({open.length})
+                {t("Nog open")} ({open.length})
               </h2>
               <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
                 {open.map((item) => (
@@ -104,7 +108,9 @@ export default async function OpgeslagenPage() {
                             <MapPin className="size-3" aria-hidden /> {item.location}
                           </span>
                         )}
-                        <span>Bewaard {formatDateShortNl(item.savedAt)}</span>
+                        <span>
+                          {t("Bewaard")} {formatDateShortNl(item.savedAt)}
+                        </span>
                       </p>
                     </Link>
                     <div className="flex shrink-0 items-center gap-2">
@@ -120,11 +126,11 @@ export default async function OpgeslagenPage() {
           {unavailable.length > 0 && (
             <section className="space-y-2">
               <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Niet meer beschikbaar ({unavailable.length})
+                {t("Niet meer beschikbaar")} ({unavailable.length})
               </h2>
               <p className="text-xs text-muted-foreground">
-                {plural(unavailable.length, "opdracht is", "opdrachten zijn")} gesloten of
-                teruggetrokken. Je kunt er niet meer op reageren.
+                {plural(unavailable.length, t("opdracht is"), t("opdrachten zijn"))}{" "}
+                {t("gesloten of teruggetrokken. Je kunt er niet meer op reageren.")}
               </p>
               <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
                 {unavailable.map((item) => (
@@ -136,7 +142,9 @@ export default async function OpgeslagenPage() {
                       <p className="truncate font-medium text-muted-foreground">{item.title}</p>
                       <p className="metadata-row mt-0.5">
                         <span>{item.companyName}</span>
-                        <span>Bewaard {formatDateShortNl(item.savedAt)}</span>
+                        <span>
+                          {t("Bewaard")} {formatDateShortNl(item.savedAt)}
+                        </span>
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
