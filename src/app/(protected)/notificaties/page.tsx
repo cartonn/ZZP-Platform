@@ -35,6 +35,7 @@ import { missedWhileAway } from "@/lib/missed-notifications";
 import { plural } from "@/lib/plural";
 import { markAllNotificationsRead, markNotificationRead, openNotification } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
+import { relativeTime } from "@/lib/relative-time";
 import { getTranslator, type Translator } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Notificaties · ZZP Platform" };
@@ -56,16 +57,6 @@ const TONE_CLASS: Record<NotificationTone, string> = {
   info: "text-muted-foreground",
   success: "text-success",
 };
-
-function relativeTime(d: Date, t: Translator): string {
-  const diff = Date.now() - d.getTime();
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return t("zojuist");
-  if (min < 60) return `${min} ${t("min geleden")}`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h} ${t("uur geleden")}`;
-  return formatDateShortNl(d);
-}
 
 type NotificationItem = Awaited<ReturnType<typeof prisma.notification.findMany>>[number];
 

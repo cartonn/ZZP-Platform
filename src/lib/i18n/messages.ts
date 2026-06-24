@@ -422,6 +422,9 @@ const EN: Record<string, string> = {
   Verzonden: "Sent",
   Geannuleerd: "Cancelled",
 
+  // --- Opgeslagen: bulk-opschonen ---
+  Opschonen: "Clean up",
+
   // --- Documenten (ZZP'er-scherm + gedeeld documentenpaneel) ---
   "Je geüploade documenten. Alleen jij (en beheer) kunt ze openen.":
     "Your uploaded documents. Only you (and admins) can open them.",
@@ -479,6 +482,7 @@ const EN: Record<string, string> = {
   "Nog geen reacties": "No applications yet",
   "Je hebt nog niet gereageerd op een opdracht.": "You haven't applied to any assignment yet.",
   "Geen reacties in dit filter": "No applications in this filter",
+  Gereageerd: "Applied",
   "Alle reacties": "All applications",
   "Je mist:": "You're missing:",
   "Verlopen:": "Expired:",
