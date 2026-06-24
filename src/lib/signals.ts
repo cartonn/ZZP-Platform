@@ -29,6 +29,8 @@ interface SignalCounts {
   openDisputes?: number; // ADMIN: open disputen die bemiddeling vragen
   pendingPerformances?: number; // CLIENT: ingediende prestaties wachten op goedkeuring
   savedJobs?: number; // FREELANCER: bewaarde opdrachten die nog open staan (PUBLISHED)
+  overdueLeads?: number; // FRANCHISER: actieve leads met een verstreken opvolgdatum
+  openHandoffs?: number; // FRANCHISER: open shift-overname-aanvragen binnen de tenant
 }
 
 const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
@@ -44,6 +46,8 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   openDisputes: "/admin/disputen",
   pendingPerformances: "/prestaties",
   savedJobs: "/opgeslagen",
+  overdueLeads: "/franchise/leads",
+  openHandoffs: "/franchise/shift-overnames",
 };
 
 const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
@@ -58,7 +62,19 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   pendingPerformances: "attention",
   // Bewaarde opdrachten zijn een rustige telling (de ZZP'er koos ze zelf), geen actie-alarm.
   savedJobs: "info",
+  // Verstreken opvolg en open overname-aanvragen vragen actie van de franchiser.
+  overdueLeads: "attention",
+  openHandoffs: "attention",
 };
+
+/**
+ * Begin van de UTC-dag — de grens voor "verstreken opvolgdatum". Een opvolgdatum vóór deze grens
+ * (dus op een eerdere kalenderdag) is te laat; vandaag telt niet als te laat. Gelijk aan de
+ * dag-vergelijking op de leads-pagina (`/franchise/leads`). Pure functie, los testbaar.
+ */
+export function startOfUtcDay(now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
 
 const EXPIRY_WINDOW_MS = 30 * 86_400_000; // 30 dagen, gelijk aan het dashboard
 
@@ -218,9 +234,29 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
   }
 
   if (role === "FRANCHISER") {
-    // Franchise-werkplek: nog geen per-nav-signalen (tenant-signalen volgen met de
-    // oversight-increment). Ongelezen berichten lopen al via de notificatiebel.
-    return {};
+    // Tenant-gescopete actiesignalen. Zonder franchise (tenantId) zijn er geen tenant-lijsten,
+    // dus geen badges. Ongelezen berichten lopen al via de notificatiebel (geen /berichten-nav).
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { tenantId: true },
+    });
+    if (!user?.tenantId) return {};
+    const tenantId = user.tenantId;
+    const [overdueLeads, openHandoffs] = await Promise.all([
+      // Actieve leads (KOUD/WARM — KLANT/NO_DEAL zijn afgerond) met een opvolgdatum vóór vandaag.
+      prisma.lead.count({
+        where: {
+          tenantId,
+          status: { in: ["KOUD", "WARM"] },
+          nextFollowUp: { lt: startOfUtcDay(new Date()) },
+        },
+      }),
+      // Open shift-overname-aanvragen binnen de eigen tenant (via de opdracht van de samenwerking).
+      prisma.shiftHandoff.count({
+        where: { status: "OPEN", collaboration: { job: { tenantId } } },
+      }),
+    ]);
+    return buildBadges({ overdueLeads, openHandoffs });
   }
 
   const [pendingVerifications, openDisputes] = await Promise.all([
