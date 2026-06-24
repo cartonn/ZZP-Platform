@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: server-side hardening — cron-foutmaskering + helpdesk-audit + import-rol-guard
+
+Drie gedocumenteerde hardening-items uit `docs/SECURITY-PRIVACY-BACKLOG.md`, elk server-side
+(geen UI), die elke rol geruster maken (robuustheid/accountability eerst). Geen schemawijziging.
+
+- [x] **[HOOG · A09 error-leak]** `src/app/api/tasks/run-all/route.ts` lekte ruwe `e.message`
+      (mogelijk Prisma-schema-detail) per mislukte taak in de JSON-respons. Nieuwe pure
+      `src/lib/scheduled-tasks.ts` (`runScheduledTasks(tasks, logError?)`): bij een fout zet hij de
+      **statische** string `"Taak mislukt."` in `errors[name]` en geeft het echte foutobject via
+      `logError` door zodat de route het **alleen server-side** logt (`console.error`). De
+      auth/CRON-poort en de responsvorm blijven gedragsbehoudend. Tests: `scheduled-tasks.test.ts`
+      (4 — all-success, maskering + geen lek van de ruwe boodschap, `logError`-detail, doorlopen na fout).
+- [x] **[MIDDEL · A09 audit-volledigheid]** `adminReply` (`admin/support/actions.ts`): de vier
+      mutaties (bericht, notificatie, conditionele toewijzing, conditionele status→AWAITING_USER)
+      staan nu in één `prisma.$transaction`; de auditregel `SUPPORT_AGENT_REPLY` legt
+      `{ statusChanged, assignedTo }` vast. Test: `admin-reply.test.ts` (3).
+- [x] **[MIDDEL · A04 mass-assignment]** `commitImport` (`admin/import/actions.ts`): runtime
+      `z.enum(["FREELANCER","CLIENT"])`-guard (`src/lib/import-role.ts` `assertImportRole`) vlak vóór
+      `user.create`, binnen de bestaande per-rij-try (ongeldige rol → nette rij-fout, geen
+      mass-assignment). Test: `import-role.test.ts` (4). Allowlist-regelnummers in
+      `unbounded-queries.test.ts` bijgewerkt (+1 door de extra import).
+
+Gate groen: typecheck ✓, lint ✓, test **2660** ✓, build ✓, `prettier --write .` ✓.
+
 ## routine: AVG account-export compleet maken (art. 15/20 — inzage/portabiliteit)
 
 `GET /api/account/export` (recht op inzage/dataportabiliteit) bevatte alleen `sentMessages` naast

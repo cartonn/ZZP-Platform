@@ -81,10 +81,12 @@ design, A07 auth failures, A09 logging) + AVG art. 5/15/17/30 als kader.
 
 ### GEPARKEERD — security / hardening
 
-- **[HOOG · A09 — error-leak]** `src/app/api/tasks/run-all/route.ts` zet rauwe `e.message`
-  (mogelijk Prisma-schema-detail) in de JSON-respons. CRON-gated, dus beperkt, maar inconsistent met
-  de losse taakroutes die een vaste string teruggeven. Fix: statische foutstring in de respons,
-  detail alleen server-side loggen.
+- **[HOOG · A09 — error-leak] — OPGELOST (#528)** `src/app/api/tasks/run-all/route.ts` zette rauwe
+  `e.message` (mogelijk Prisma-schema-detail) in de JSON-respons. Gefixt: nieuwe pure
+  `src/lib/scheduled-tasks.ts` (`runScheduledTasks(tasks, logError?)`) zet de statische string
+  `"Taak mislukt."` in `errors[name]` en geeft het echte foutobject via `logError` door; de route
+  logt dat **alleen server-side** (`console.error`). Test: `src/lib/scheduled-tasks.test.ts`
+  (maskering + geen lek van de ruwe boodschap).
 
 - **[MIDDEL · A04 — resource exhaustion]** `src/app/api/push/subscribe/route.ts` heeft geen
   per-gebruiker rate-limit; een ingelogde gebruiker kan veel push-endpoints registreren. Fix:
@@ -103,13 +105,17 @@ design, A07 auth failures, A09 logging) + AVG art. 5/15/17/30 als kader.
   bij het schrijven én een defense-in-depth grens in `parseOrtCustomRates` (`ort.ts`) bij het lezen
   (legacy/bewerkte rijen vallen terug op het sectorprofiel). Test: `ort.test.ts`.
 
-- **[MIDDEL · A09 — audit-volledigheid]** `adminReply` (`admin/support/actions.ts`) wijzigt
-  ticketstatus + `assignedToId` zonder dat in de auditregel op te nemen en zonder transactie rond de
-  drie mutaties. Fix: `$transaction` + `{ statusChanged, assignedTo }` in metadata.
+- **[MIDDEL · A09 — audit-volledigheid] — OPGELOST (#528)** `adminReply`
+  (`admin/support/actions.ts`) wijzigde ticketstatus + `assignedToId` zonder dat in de auditregel op
+  te nemen en zonder transactie rond de mutaties. Gefixt: de vier mutaties in één
+  `prisma.$transaction`; `{ statusChanged, assignedTo }` in de `SUPPORT_AGENT_REPLY`-metadata. Test:
+  `admin-reply.test.ts`.
 
-- **[MIDDEL · A04 — mass-assignment defense-in-depth]** `commitImport` (`admin/import/actions.ts`)
-  vertrouwt op het TypeScript-type `ImportRole` voor de rol bij `user.create`; geen runtime-guard.
-  Fix: `z.enum(["FREELANCER","CLIENT"]).parse(role)` vlak vóór de DB-write.
+- **[MIDDEL · A04 — mass-assignment defense-in-depth] — OPGELOST (#528)** `commitImport`
+  (`admin/import/actions.ts`) vertrouwde op het TypeScript-type `ImportRole` voor de rol bij
+  `user.create`; geen runtime-guard. Gefixt: `assertImportRole` (`src/lib/import-role.ts`,
+  `z.enum(["FREELANCER","CLIENT"])`) vlak vóór de DB-write, binnen de bestaande per-rij-try. Test:
+  `import-role.test.ts`.
 
 - **[LAAG · defense-in-depth IDOR]** `deleteDocumentById` (`certificaten/actions.ts`) doet geen
   eigen ownership-check (vertrouwt op de aanroepers die een eigen credential-document doorgeven). Nu

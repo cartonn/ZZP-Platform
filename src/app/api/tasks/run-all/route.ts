@@ -22,6 +22,7 @@ import { runPerformanceSubmissionReminderTask } from "@/lib/performance-submissi
 import { runNotificationDigestTask } from "@/lib/notification-digest-task";
 import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
 import { runPushDeliveryTask } from "@/lib/push-delivery-task";
+import { runScheduledTasks, type ScheduledTask } from "@/lib/scheduled-tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Niet geautoriseerd." }, { status: 401 });
   }
 
-  const tasks: Array<{ name: string; fn: () => Promise<unknown> }> = [
+  const tasks: ScheduledTask[] = [
     { name: "expiry", fn: () => runExpiryTask({ actorId: null }) },
     { name: "payment-reminders", fn: () => runPaymentReminderTask({ actorId: null }) },
     { name: "dba-monitor", fn: () => runDbaMonitorTask({ actorId: null }) },
@@ -64,17 +65,11 @@ export async function POST(request: Request): Promise<Response> {
     { name: "monitor", fn: () => runMonitorTask({}) },
   ];
 
-  const results: Record<string, unknown> = {};
-  const errors: Record<string, string> = {};
-
-  for (const { name, fn } of tasks) {
-    try {
-      results[name] = await fn();
-    } catch (e) {
-      errors[name] = e instanceof Error ? e.message : String(e);
-    }
-  }
+  // Ruwe foutdetails alleen server-side loggen; de respons krijgt een statische boodschap.
+  const { ok, results, errors } = await runScheduledTasks(tasks, (name, e) =>
+    console.error(`[run-all] taak "${name}" mislukt:`, e),
+  );
 
   const hasErrors = Object.keys(errors).length > 0;
-  return NextResponse.json({ ok: !hasErrors, results, ...(hasErrors ? { errors } : {}) });
+  return NextResponse.json({ ok, results, ...(hasErrors ? { errors } : {}) });
 }

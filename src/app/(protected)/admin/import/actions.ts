@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
+import { assertImportRole } from "@/lib/import-role";
 import { requestMeta } from "@/lib/request-meta";
 import {
   buildImportPreview,
@@ -249,13 +250,16 @@ export async function commitImport(formData: FormData): Promise<ImportCommitResu
           };
 
     try {
+      // Defense-in-depth (A04 mass-assignment): valideer de rol op runtime vlak vóór de write.
+      // Het `ImportRole`-type biedt geen runtime-garantie; alleen "FREELANCER"/"CLIENT" mag erdoor.
+      const safeRole = assertImportRole(role);
       await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
           data: {
             name: row.name,
             email: row.email,
             passwordHash,
-            role,
+            role: safeRole,
             status: "ACTIVE",
             mustChangePassword: true,
             ...profile,

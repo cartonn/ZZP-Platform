@@ -19,42 +19,52 @@ export async function adminReply(ticketId: string, formData: FormData): Promise<
   const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
   if (!ticket) return;
 
-  await prisma.supportMessage.create({
-    data: { ticketId, authorId: actor.id, authorKind: "AGENT", body: parsed.data.body },
-  });
-  // De aanvrager moet wéten dat de helpdesk heeft gereageerd — anders eindigt de escalatie doodlopend
-  // (hij zou bij toeval /support/[id] moeten heropenen). Notificatie + bel-teller, consistent met
-  // sendMessage in de berichtenflow.
-  await prisma.notification.create({
-    data: {
-      userId: ticket.userId,
-      type: "SUPPORT_REPLY",
-      title: "Reactie van de helpdesk",
-      body: parsed.data.body.slice(0, 120),
-      link: `/support/${ticketId}`,
-    },
-  });
-  // Een onbehandeld ticket toewijzen aan de reagerende medewerker.
-  if (!ticket.assignedToId) {
-    await prisma.supportTicket.update({
-      where: { id: ticketId },
-      data: { assignedToId: actor.id },
+  // Bepaal de neveneffecten vóór de writes, zodat ze atomair in één transactie meegaan én
+  // verifieerbaar in het auditlogboek terechtkomen.
+  const assignNow = !ticket.assignedToId;
+  const statusChanged = canSupportTransition(ticket.status as SupportTicketStatus, "AWAITING_USER");
+
+  // Alle vier de mutaties atomair: óf alles slaagt, óf niets — geen halve reactie zonder
+  // notificatie/assignment/statuswijziging (A09 audit-volledigheid).
+  await prisma.$transaction(async (tx) => {
+    await tx.supportMessage.create({
+      data: { ticketId, authorId: actor.id, authorKind: "AGENT", body: parsed.data.body },
     });
-  }
-  // Na een helpdesk-reactie ligt de bal bij de aanvrager → "wacht op je reactie" (uit de wachtrij).
-  // Voorheen bleef het ticket ESCALATED en dus eeuwig in de helpdesk-wachtrij staan na een antwoord.
-  // Een reactie van de aanvrager zet het via replyToTicket terug op ESCALATED (terug in de wachtrij).
-  if (canSupportTransition(ticket.status as SupportTicketStatus, "AWAITING_USER")) {
-    await prisma.supportTicket.update({
-      where: { id: ticketId },
-      data: { status: "AWAITING_USER" },
+    // De aanvrager moet wéten dat de helpdesk heeft gereageerd — anders eindigt de escalatie doodlopend
+    // (hij zou bij toeval /support/[id] moeten heropenen). Notificatie + bel-teller, consistent met
+    // sendMessage in de berichtenflow.
+    await tx.notification.create({
+      data: {
+        userId: ticket.userId,
+        type: "SUPPORT_REPLY",
+        title: "Reactie van de helpdesk",
+        body: parsed.data.body.slice(0, 120),
+        link: `/support/${ticketId}`,
+      },
     });
-  }
+    // Een onbehandeld ticket toewijzen aan de reagerende medewerker.
+    if (assignNow) {
+      await tx.supportTicket.update({
+        where: { id: ticketId },
+        data: { assignedToId: actor.id },
+      });
+    }
+    // Na een helpdesk-reactie ligt de bal bij de aanvrager → "wacht op je reactie" (uit de wachtrij).
+    // Voorheen bleef het ticket ESCALATED en dus eeuwig in de helpdesk-wachtrij staan na een antwoord.
+    // Een reactie van de aanvrager zet het via replyToTicket terug op ESCALATED (terug in de wachtrij).
+    if (statusChanged) {
+      await tx.supportTicket.update({
+        where: { id: ticketId },
+        data: { status: "AWAITING_USER" },
+      });
+    }
+  });
   await audit({
     actorId: actor.id,
     action: "SUPPORT_AGENT_REPLY",
     entityType: "SupportTicket",
     entityId: ticketId,
+    metadata: { statusChanged, assignedTo: assignNow ? actor.id : null },
   });
   revalidatePath(`/admin/support`);
 }
