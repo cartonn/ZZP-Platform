@@ -15,6 +15,7 @@ import {
 } from "@/lib/cascade/handlers";
 import { type OrtSegment, resolveOrtRates } from "@/lib/ort";
 import { DEFAULT_VAT_REGIME } from "@/lib/config";
+import { MAX_PERFORMANCE_HOURS, MAX_MILESTONE_CENTS } from "@/lib/validation";
 import {
   CascadeError,
   assertNotDisputed,
@@ -56,11 +57,36 @@ function serializeShifts(shifts: { start: Date; end: Date }[] | null | undefined
   );
 }
 
+/**
+ * Harde bovengrens op uren/bedrag — server-side waarheid (CLAUDE.md regel 1), onafhankelijk van het
+ * formulier. Dekt élk pad naar createPerformance/updatePerformance (handmatige urenstaat én de
+ * CSV-diensten-import). Zonder deze grens overschrijdt het bij goedkeuring afgeleide factuurbedrag de
+ * `Int`-kolom `totalCents` (int4) → Prisma-conversiefout → 500 i.p.v. een nette weigering.
+ */
+function assertPerformanceWithinLimits(input: {
+  type: "HOURS" | "MILESTONE";
+  hours?: number | null;
+  amountCents?: number | null;
+}): void {
+  if (input.type === "HOURS") {
+    if ((input.hours ?? 0) > MAX_PERFORMANCE_HOURS) {
+      throw new CascadeError(
+        `Het aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`,
+      );
+    }
+  } else if ((input.amountCents ?? 0) > MAX_MILESTONE_CENTS) {
+    throw new CascadeError(
+      "Het bedrag is onrealistisch hoog (maximaal € 1.000.000 per oplevering).",
+    );
+  }
+}
+
 /** ZZP'er legt een concept-urenstaat/oplevering vast (nog geen event; pas indienen triggert B1). */
 export async function createPerformance(
   actor: Actor,
   input: CreatePerformanceInput,
 ): Promise<string> {
+  assertPerformanceWithinLimits(input);
   const col = await prisma.collaboration.findUnique({
     where: { id: input.collaborationId },
     include: { freelancer: { select: { userId: true } }, company: { select: { userId: true } } },
@@ -104,6 +130,7 @@ export async function updatePerformance(
   performanceId: string,
   input: Omit<CreatePerformanceInput, "collaborationId">,
 ): Promise<void> {
+  assertPerformanceWithinLimits(input);
   const perf = await loadPerformance(performanceId);
   if (actor.role !== "ADMIN" && actor.id !== perf.freelancerUserId) {
     throw new CascadeError("Alleen de ZZP'er kan de prestatie aanpassen.");

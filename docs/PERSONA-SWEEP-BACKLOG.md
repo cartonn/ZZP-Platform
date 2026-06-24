@@ -1,5 +1,29 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-06-24 (run 2) · **main-commit basis:** `70cf3b6`
+> **Methode:** verse productie-build + schema-push + idempotente demo-seed (`SEED_DEMO=true`) op een
+> ephemere SQLite-DB (`qa.db`); productie-server (`CI=true npm run start`, poort 3100). Echte
+> doorklik-/actie-flows met Playwright/Chromium per rol (wachtwoord `demo1234`), plus DB-verificatie
+> van elke statusovergang. DOEL 1 (acties uitvoeren), 1b (next-action-engine) en 2 (adversarieel).
+>
+> ## OPGELOST in deze run — int-overflow bij prestatie-goedkeuring (HOOG: 500-crash)
+>
+> **Gat (gevonden + gefixt):** een ZZP'er kon een prestatie met absurd veel uren indienen (browser-
+> `max` omzeild via geknutselde POST); het uren-/bedragveld had geen **server-side** bovengrens. Bij
+> goedkeuring overschreed het afgeleide `Invoice.totalCents` (int4) de kolomgrens → `prisma.invoice
+.create()` faalde → **HTTP 500-crashpagina** op de goedkeuractie van de opdrachtgever
+> (reproduceerbaar: 999.999 u × €88 + BTW = 10.647.989.352 cent). Schending CLAUDE.md regel 1 +
+> DOEL-2 (absurde input → weigeren, nooit 500).
+> **Fix:** `MAX_PERFORMANCE_HOURS=1000` + `MAX_MILESTONE_CENTS=€1 mln` in `validatePerformanceForm`
+> (form-UX) én een harde `assertPerformanceWithinLimits`-guard in `createPerformance`/
+> `updatePerformance` (dekt óók de CSV-diensten-import die het formulier omzeilt). +4 unit-tests.
+> **Overige doelen groen:** verificatie-goedkeuring (queue 6→5 + audit), prestatie-goedkeuring →
+> concept-factuur, next-action-handoff klopt (ZZP'er krijgt "factuur indienen", opdrachtgever-actie
+> verdwijnt), IDOR/cross-collab → "Niet gevonden", priv-esc → redirect, doc-API → 404 JSON, negatieve
+> uren → server-side geweigerd. Geen verdere gaten.
+
+---
+
 > **Datum:** 2026-06-24 · **main-commit:** `37357e6` (37357e67ba45cd7304486acf8030b1469b394888)
 > **Methode:** verse `npm install` (de container miste opnieuw een runtime-module bij de eerste build) →
 > productie-build (`npm run build`) + schema-push + idempotente demo-seed (`SEED_DEMO=true`) op een

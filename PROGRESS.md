@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## persona-sweep: bovengrens op prestatie-uren/bedrag — voorkomt int-overflow → 500 bij goedkeuring
+
+**Gat gevonden én gefixt (live, kritische-gebruiker-sweep).** Een ZZP'er kon via een geknutselde
+POST (browser-`max` omzeild) een prestatie met een absurd aantal uren indienen (bv. 999.999 uur).
+Het uren-veld kende geen **server-side** bovengrens (alleen `hours <= 0` werd geweigerd). Bij
+goedkeuring door de opdrachtgever berekent de cascade `totalCents = uren × tarief + BTW`; bij
+999.999 × €88 + 21% = 10.647.989.352 cent, wat de `Int`-kolom (`Invoice.totalCents`, int4 ≈ €21,4
+mln) overschrijdt → `prisma.invoice.create()` faalt → **500-crashpagina** op de goedkeuractie
+(reproduceerbaar op SQLite én productie-Postgres). Schending CLAUDE.md regel 1 (server-side waarheid)
+en DOEL-2-spec (absurde uren/bedrag → weigeren, nooit 500).
+
+- [x] `src/lib/validation.ts` — `validatePerformanceForm` krijgt bovengrenzen: `MAX_PERFORMANCE_HOURS`
+      (1.000 u/urenstaat, incl. ORT-totaal) en `MAX_MILESTONE_CENTS` (€1 mln/oplevering). Beide ruim
+      onder int4 (zelfs bij max tarief €2.000/u + ORT-toeslag + 21% BTW). Heldere NL-foutmelding.
+- [x] `src/lib/cascade/performance-commands.ts` — harde `assertPerformanceWithinLimits`-guard in
+      `createPerformance` én `updatePerformance` (werpt `CascadeError`). Dekt élk pad, óók de
+      **CSV-diensten-import** (`/diensten/importeer`) die rechtstreeks `createPerformance` aanroept en
+      het formulier-`validatePerformanceForm` omzeilt.
+- [x] `src/lib/validation.test.ts` — +4 tests (absurde uren, ORT-totaal, mijlpaalbedrag; grens 1.000
+      u toegestaan). Gate groen: typecheck ✓, lint ✓, test ✓, build ✓, prettier ✓.
+
+Overige doelen deze run **groen, geen verdere gaten**: admin keurt verificatie goed (queue 6→5, audit
+`CREDENTIAL_VERIFIED`); opdrachtgever keurt prestatie goed → concept-factuur gegenereerd; next-action-
+handoff klopt (ZZP'er krijgt "factuur indienen", opdrachtgever's actie verdwijnt — geen stale/dubbele
+actie); IDOR/cross-collab → "Niet gevonden", priv-esc → redirect, doc-API → 404 JSON, negatieve uren →
+server-side geweigerd.
+
 ## routine: tariefpassendheid-signaal op /kandidaten (proposedRate vs. budget)
 
 De kandidatenkaart toonde het tariefvoorstel van de ZZP'er (`proposedRate`) zonder vergelijking met
