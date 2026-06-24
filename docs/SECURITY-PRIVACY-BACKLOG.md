@@ -85,14 +85,18 @@ design, A07 auth failures, A09 logging) + AVG art. 5/15/17/30 als kader.
   per-gebruiker rate-limit; een ingelogde gebruiker kan veel push-endpoints registreren. Fix:
   `exportRateLimiter`-patroon toepassen (bv. 20/u).
 
-- **[MIDDEL · datameintegriteit]** `noShowReportSchema` (`src/lib/validation.ts`) accepteert een
-  `occurredOn` in de toekomst; een no-show kan vooraf op een ZZP'er worden geboekt. Fix:
-  `.refine(d => d <= new Date(), …)`.
+- **[MIDDEL · datameintegriteit] — OPGELOST (#523)** `noShowReportSchema` (`src/lib/validation.ts`)
+  accepteerde een `occurredOn` in de toekomst; een no-show kon vooraf op een ZZP'er worden geboekt
+  (telt mee in de schorsingsladder). Gefixt: `.refine(d => d.getTime() <= Date.now(), …)` op het
+  schema (server-side, beide melders). Test: `validation.test.ts` (verleden/vandaag toegestaan,
+  toekomst geweigerd).
 
-- **[MIDDEL · datameintegriteit]** `setOrtProfileAction` (`samenwerkingen/[id]/actions.ts`) heeft
-  geen bovengrens op de maatwerk-ORT-percentages (alleen `>= 0`); de eigenaar-CLIENT kan absurde
-  toeslagen instellen die in alle toekomstige facturen doorwerken. Fix: Zod-schema met `max` per
-  categorie (bv. 500%).
+- **[MIDDEL · datameintegriteit] — OPGELOST (#523)** `setOrtProfileAction`
+  (`samenwerkingen/[id]/actions.ts`) had geen bovengrens op de maatwerk-ORT-percentages (alleen
+  `>= 0`); de eigenaar-CLIENT kon absurde toeslagen instellen die in alle toekomstige facturen
+  doorwerken. Gefixt: `MAX_ORT_CUSTOM_BPS = 50000` (+500%) in `config.ts`; harde guard in de actie
+  bij het schrijven én een defense-in-depth grens in `parseOrtCustomRates` (`ort.ts`) bij het lezen
+  (legacy/bewerkte rijen vallen terug op het sectorprofiel). Test: `ort.test.ts`.
 
 - **[MIDDEL · A09 — audit-volledigheid]** `adminReply` (`admin/support/actions.ts`) wijzigt
   ticketstatus + `assignedToId` zonder dat in de auditregel op te nemen en zonder transactie rond de

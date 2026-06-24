@@ -24,7 +24,13 @@ import { prisma } from "@/lib/db";
 import { eurosToCents } from "@/lib/invoices";
 import { type OrtSegment, resolveOrtRates } from "@/lib/ort";
 import { segmentShifts, dutchHolidays, type Shift } from "@/lib/shift";
-import { type OrtCategory, ORT_SECTORS, ORT_CATEGORIES, type OrtSector } from "@/lib/config";
+import {
+  type OrtCategory,
+  ORT_SECTORS,
+  ORT_CATEGORIES,
+  type OrtSector,
+  MAX_ORT_CUSTOM_BPS,
+} from "@/lib/config";
 import { validatePerformanceForm, type PerformanceFormData } from "@/lib/validation";
 import { weekdaySchema, type Weekday } from "@/lib/enums";
 import { serializeWeekdays } from "@/lib/weekdays";
@@ -248,7 +254,11 @@ export async function setOrtProfileAction(
       const pct = Number(formData.get(`custom_${cat}`) ?? 0);
       if (!Number.isFinite(pct) || pct < 0)
         throw new Error("Maatwerkpercentages moeten 0 of hoger zijn.");
-      rates[cat] = Math.round(pct * 100); // procent → bps
+      const bps = Math.round(pct * 100); // procent → bps
+      // Bovengrens: een absurde toeslag werkt anders door in elke toekomstige prestatie/factuur.
+      if (bps > MAX_ORT_CUSTOM_BPS)
+        throw new Error(`Maatwerkpercentages mogen maximaal ${MAX_ORT_CUSTOM_BPS / 100}% zijn.`);
+      rates[cat] = bps;
     }
     customRates = JSON.stringify(rates);
   }

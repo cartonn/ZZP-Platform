@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: input-hardening — no-show-datum niet in de toekomst + ORT-maatwerk bovengrens
+
+Twee server-side datameintegriteit-fixes uit `docs/SECURITY-PRIVACY-BACKLOG.md` (MIDDEL); beide
+beschermen een rol tegen absurde/misbruik-invoer (DOEL-2-thema van de persona-sweep).
+
+- [x] **No-show niet in de toekomst** (`src/lib/validation.ts`): `noShowReportSchema.occurredOn`
+      krijgt `.refine(d => d.getTime() <= Date.now())`. Zonder deze grens kon een opdrachtgever/
+      bemiddelaar een no-show vooruit op een ZZP'er boeken — die telt mee in de 3-strikes-
+      schorsingsladder, dus de ZZP'er moest hiertegen beschermd worden. +4 tests
+      (`validation.test.ts`: verleden/vandaag toegestaan, toekomst geweigerd, te korte reden).
+- [x] **ORT-maatwerk bovengrens** (`config.ts` `MAX_ORT_CUSTOM_BPS = 50000` = +500%): harde guard
+      in `setOrtProfileAction` (`samenwerkingen/[id]/actions.ts`) bij het schrijven + defense-in-
+      depth grens in `parseOrtCustomRates` (`ort.ts`) bij het lezen (legacy/bewerkte rijen vallen
+      terug op het sectorprofiel i.p.v. een absurde toeslag in elke factuur). +1 test (`ort.test.ts`).
+
+Gate groen: typecheck ✓, lint ✓, test **2629** ✓, build ✓, `prettier --check .` ✓.
+
 ## persona-sweep: bovengrens op prestatie-uren/bedrag — voorkomt int-overflow → 500 bij goedkeuring
 
 **Gat gevonden én gefixt (live, kritische-gebruiker-sweep).** Een ZZP'er kon via een geknutselde
