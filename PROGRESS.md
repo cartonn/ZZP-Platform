@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## bereik-signaal voor de opdrachtgever op de opdracht-detail (2026-06-24)
+
+Liquiditeit-inzicht dat concurrenten (Pidz/Zorgwerk) via auto-uitnodiging "binnen uren" oplossen,
+vertaald naar onze bestaande verklaarbare matching-engine: de eigenaar van een gepubliceerde opdracht
+ziet vooraf hoeveel passende, publiek-vindbare ZZP'ers hij bereikt (los van wie al reageerde) en
+hoeveel daarvan nu beschikbaar zijn — met een sturingstip bij beperkt bereik (tarief/eisen/werkvorm).
+
+- [x] **Pure logica** — `src/lib/job-reach.ts` `summarizeJobReach`: buckets `total` (score ≥ 50),
+      `strong` (≥ 70), `available`, `strongAvailable`; bereik-niveau good/moderate/low + tip. Grenzen
+      inclusief, elke kandidaat hoogstens één keer per bucket. 10 unit-tests.
+- [x] **Server-fetcher** — `src/lib/data/job-reach.ts` `getJobReach`: begrensde tenant-gescopete scan
+      (`discoverableFreelancerWhere` + `take: 200`), sluit ingetrokken reacties + reeds-reagerenden uit,
+      scoort via `scoreJobForFreelancer` en vat samen. Cross-tenant lekt niet (op `job.tenantId`).
+      Alleen voor PUBLISHED-opdrachten, anders `null`.
+- [x] **UI** — `src/components/jobs/job-reach-card.tsx` `JobReachCard` op `/opdrachten/[id]` (alleen
+      eigenaar, PUBLISHED): bereik-niveau-stip, tellingen, sturingstip. Parallel opgehaald naast de
+      bestaande suggesties. Geen schemawijziging, server-side waarheid, geen dode knoppen.
+
+Gate groen: typecheck ✓, lint ✓, prettier ✓, test **2703** ✓, build ✓.
+
 ## security/privacy-audit ronde 2026-06-24b — IDOR-tariefinjectie + AVG-erasure dichtgezet
 
 4 parallelle audit-subagents (API-routes, tenant-isolatie, server-actions, AVG). Twee top-bevindingen

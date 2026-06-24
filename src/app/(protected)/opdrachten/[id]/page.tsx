@@ -41,6 +41,8 @@ import {
   type MatchResult,
 } from "@/lib/matching";
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
+import { getJobReach } from "@/lib/data/job-reach";
+import { JobReachCard } from "@/components/jobs/job-reach-card";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
@@ -212,9 +214,12 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       ])
     : [null, null, null];
 
-  // Spiegelbeeld voor de opdrachtgever: openbare ZZP'ers die passen en nog niet reageerden.
-  const suggestions =
-    isOwner && status === "PUBLISHED" ? await suggestedFreelancersForJob(job.id) : [];
+  // Spiegelbeeld voor de opdrachtgever: openbare ZZP'ers die passen en nog niet reageerden,
+  // plus de geaggregeerde bereik-indicatie (hoeveel passend/beschikbaar). Parallel opgehaald.
+  const [suggestions, reach] =
+    isOwner && status === "PUBLISHED"
+      ? await Promise.all([suggestedFreelancersForJob(job.id), getJobReach(job.id)])
+      : [[], null];
 
   // Voor de ZZP'er die deze opdracht bekijkt: andere open opdrachten die bij zijn profiel passen
   // (dezelfde verklaarbare matchmotor), met deze opdracht uitgesloten. Drijft ontdekking.
@@ -468,6 +473,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             </section>
           ) : null;
         })()}
+
+      {isOwner && reach && <JobReachCard reach={reach} />}
 
       {isOwner && suggestions.length > 0 && (
         <section className="rounded-lg border border-border bg-card">
