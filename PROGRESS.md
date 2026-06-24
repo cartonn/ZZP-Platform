@@ -2994,3 +2994,5 @@ Eigenaar koos de lichte richting met pastel achtergrond; Vakwerk is nu het stand
   alleen nog bij een afwijking.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
+
+<!-- #517 door de bindende cross-check-poort (check·e2e·audit·secret-scan·CodeQL·agent-review) -->
