@@ -2,6 +2,13 @@ import Link from "next/link";
 import { Download, FileText, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { type DocumentKind } from "@/lib/enums";
+import {
+  DOCUMENT_KIND_FILTER_LABEL,
+  DOCUMENT_KIND_FILTER_ORDER,
+  documentKindWhere,
+  parseDocumentKindFilter,
+  summarizeDocumentKindGroups,
+} from "@/lib/document-kind-filter";
 import { pageArgs, splitPage } from "@/lib/pagination";
 import { formatDateShortNl } from "@/lib/format-date";
 import { getTranslator } from "@/lib/i18n/server";
@@ -33,34 +40,89 @@ function formatSize(bytes: number) {
  * (ownerId === ingelogde gebruiker) gerenderd worden. Server-side gescoped op ownerId.
  * Wordt gebruikt op /documenten én op de eigenaar-only "Documenten"-tab van het profiel.
  *
- * @param ownerId  de ingelogde eigenaar; bepaalt server-side de scope van de query.
- * @param cursor   cursor voor paginatie (uit searchParams van de hostpagina).
- * @param basePath pad waar de "Meer laden"-link heen wijst (default /documenten).
+ * @param ownerId       de ingelogde eigenaar; bepaalt server-side de scope van de query.
+ * @param cursor        cursor voor paginatie (uit searchParams van de hostpagina).
+ * @param basePath      pad waar de "Meer laden"-link heen wijst (default /documenten).
+ * @param kind          actieve typefilter-searchParam (server-side toegepast); default geen filter.
+ * @param showKindFilter render de typefilter-pills (alleen op /documenten; profieltab toont ze niet).
  */
 export async function DocumentsPanel({
   ownerId,
   cursor = null,
   basePath = "/documenten",
+  kind,
+  showKindFilter = false,
 }: {
   ownerId: string;
   cursor?: string | null;
   basePath?: string;
+  kind?: string;
+  showKindFilter?: boolean;
 }) {
   const { t } = await getTranslator();
+  const activeFilter = parseDocumentKindFilter(kind);
+
+  // Pill-tellingen over de volledige eigenaar-scope (los van het actieve filter), zodat elke pill
+  // zijn eigen totaal toont. Eén goedkope groupBy op de geïndexeerde ownerId; alleen wanneer de
+  // pills getoond worden.
+  const groupCounts = showKindFilter
+    ? summarizeDocumentKindGroups(
+        (
+          await prisma.document.groupBy({
+            by: ["kind"],
+            where: { ownerId },
+            _count: { _all: true },
+          })
+        ).map((row) => ({ kind: row.kind, count: row._count._all })),
+      )
+    : null;
+
   const rows = await prisma.document.findMany({
-    where: { ownerId },
+    where: { ownerId, ...documentKindWhere(activeFilter) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     ...pageArgs(cursor),
     include: { _count: { select: { credentials: true } } },
   });
 
   const { items: documents, nextCursor } = splitPage(rows);
+  const filtering = activeFilter !== "all";
 
   return (
     <div className="space-y-6">
       <DocumentForm />
 
-      {documents.length === 0 && !cursor ? (
+      {showKindFilter && groupCounts && groupCounts.all > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {DOCUMENT_KIND_FILTER_ORDER.map((group) => {
+            const active = activeFilter === group;
+            return (
+              <Link
+                key={group}
+                href={group === "all" ? basePath : `${basePath}?kind=${group}`}
+                aria-current={active ? "page" : undefined}
+                className={[
+                  "focus-ring inline-flex items-center rounded-md border px-3 py-1 text-sm transition-colors",
+                  active
+                    ? "border-accent-foreground/20 bg-accent text-accent-foreground"
+                    : "border-border bg-background text-muted-foreground hover:bg-muted",
+                ].join(" ")}
+              >
+                {t(DOCUMENT_KIND_FILTER_LABEL[group])} ({groupCounts[group]})
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {documents.length === 0 && !cursor && filtering ? (
+        <Card>
+          <EmptyState
+            icon={FileText}
+            title={t("Geen documenten van dit type")}
+            description={t("Pas het filter aan om meer documenten te zien.")}
+          />
+        </Card>
+      ) : documents.length === 0 && !cursor ? (
         <Card>
           <EmptyState
             icon={FileText}
@@ -121,7 +183,11 @@ export async function DocumentsPanel({
       {nextCursor && (
         <div className="flex justify-center py-2">
           <Button asChild variant="secondary">
-            <Link href={`${basePath}?cursor=${nextCursor}`}>{t("Meer laden")}</Link>
+            <Link
+              href={`${basePath}?${filtering ? `kind=${activeFilter}&` : ""}cursor=${nextCursor}`}
+            >
+              {t("Meer laden")}
+            </Link>
           </Button>
         </div>
       )}

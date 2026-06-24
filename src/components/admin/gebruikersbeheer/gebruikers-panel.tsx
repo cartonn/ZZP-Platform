@@ -122,6 +122,7 @@ export async function GebruikersPanel({
           <option value="">Alle rollen</option>
           <option value="FREELANCER">ZZP&apos;er</option>
           <option value="CLIENT">Opdrachtgever</option>
+          <option value="FRANCHISER">Bemiddelaar</option>
           <option value="ADMIN">Beheerder</option>
         </Select>
         <Select name="status" defaultValue={status} aria-label="Status">
