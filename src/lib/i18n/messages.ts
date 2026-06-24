@@ -524,6 +524,54 @@ const EN: Record<string, string> = {
   "Niet meer beschikbaar": "No longer available",
   "opdracht is": "assignment is",
   "opdrachten zijn": "assignments are",
+
+  // --- CLIENT — kandidatenscherm (/kandidaten) ---
+  "Reacties op je opdrachten, met match en compliance.":
+    "Responses to your assignments, with match and compliance.",
+  "Zodra ZZP'ers reageren op je opdrachten, zie je ze hier.":
+    "As soon as freelancers respond to your assignments, you'll see them here.",
+  "Filter op status": "Filter by status",
+  "Beste match": "Best match",
+  "Geen reacties met deze status": "No applications with this status",
+  "Er zijn geen reacties in deze categorie. Pas het filter aan.":
+    "There are no applications in this category. Adjust the filter.",
+  Selecteer: "Select",
+  op: "on", // verbindingswoord "{headline} · op {opdracht}"
+  "Mist:": "Missing:",
+  "Waarom deze match?": "Why this match?",
+  Tariefvoorstel: "Rate proposal",
+  "Aangegeven bij reactie": "Stated on application",
+  Agenda: "Calendar",
+  "De ZZP'er heeft deze reactie ingetrokken.": "The freelancer has withdrawn this application.",
+  // Actieknoppen op een reactie
+  "Terug naar nieuw": "Back to new",
+  "Markeer als bekeken": "Mark as viewed",
+  Accepteren: "Accept",
+  Afwijzen: "Reject",
+  "Reactie afwijzen?": "Reject application?",
+  "De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist.":
+    "The freelancer will be notified that the application was rejected. You can still revert this to the shortlist later.",
+  "Bericht sturen": "Send message",
+  "Bekijk samenwerking": "View collaboration",
+  // Interne notitie (client-component)
+  "Interne notitie (alleen voor jou)…": "Internal note (for your eyes only)…",
+  "Opslaan…": "Saving…",
+  "Notitie opslaan": "Save note",
+  // Samenwerking voorstellen (client-component)
+  "Samenwerking voorstellen": "Propose collaboration",
+  "Tarief €/uur": "Rate €/hr",
+  Tarief: "Rate",
+  Startdatum: "Start date",
+  Einddatum: "End date",
+  "Voorstel versturen": "Send proposal",
+  // Bulk-triage (client-component)
+  "Geselecteerde reacties afwijzen? De ZZP'ers krijgen hiervan bericht.":
+    "Reject selected applications? The freelancers will be notified.",
+  geselecteerd: "selected",
+  "Bulk statuswijziging": "Bulk status change",
+  "Nieuwe status": "New status",
+  "Toepassen op": "Apply to",
+  "Bezig…": "Working…",
 };
 
 const TABLES: Record<Locale, Record<string, string>> = {
