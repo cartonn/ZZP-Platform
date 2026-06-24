@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## ontwerp-lab: publiek design-lab `/ontwerp` — scaffold + concept 01 & 02
+
+Een publiek, inlogvrij design-lab (`noindex`) waar de eigenaar via één URL tien onderscheidende,
+top-1% redesign-concepten van het hele platform naast elkaar bekijkt en kiest. Additief: geen
+wijziging aan de live-app, alleen nieuwe bestanden onder `src/app/ontwerp` + `src/components/ontwerp/concepts`.
+
+- [x] **Scaffold** — `src/app/ontwerp/layout.tsx` (fonts via next/font + `noindex`),
+      `page.tsx` (galerij-index die alle 10 richtingen toont met preview/rationale/trends; gebouwde
+      concepten klikbaar, rest "binnenkort"), `[id]/page.tsx` (dynamische route → concept-component-map,
+      `generateStaticParams` over de gebouwde concepten).
+- [x] **Registry + mock** — `src/components/ontwerp/concepts/registry.ts` (metadata van alle 10
+      richtingen, `available`-vlag) en `mock.ts` (gedeelde Nederlandse demo-content: opdrachten,
+      certificaten, acties, facturen, KPI's — consistent over alle concepten).
+- [x] **Concept 01 "Stille Precisie"** (`concept-01-mono.tsx`) — ultra-minimaal mono (Geist + Geist
+      Mono), hairline-randen i.p.v. schaduw, mono tabular cijfers, ⌘K-trigger, 6 kernschermen via
+      interne scherm-tabs.
+- [x] **Concept 02 "Redactie"** (`concept-02-editorial.tsx`) — editorial/redactioneel warm (Fraunces
+      display-serif + Inter + mono), edge-to-edge hero-cijfer, crème/terracotta, magazine-section-nav,
+      dezelfde 6 kernschermen.
+- [x] **Docs** — `docs/DESIGN-LAB.md` (architectuur, de 10 richtingen, onderzochte 2026-trends).
+
+Onderzocht (2026, via WebSearch): OKLCH-tokens, mono tabular cijfers, ⌘K + J/K-navigatie, calm-over-
+crammed, dark-glassmorphism (glas alléén op chrome), motion = state-communicatie, en concurrent-analyse
+(Pidz/Zorgwerk/Temper/Malt/Deel → ons trio verklaarbare matching + next-best-action + verificatie).
+
+Gate groen: typecheck ✓, lint ✓, prettier ✓, build ✓ (routes `/ontwerp`, `/ontwerp/01`, `/ontwerp/02`),
+test **2660** ✓. **Volgende:** concept 03 (Cockpit / data-dense pro) en 04 (Glas / depth).
+
 ## routine: server-side hardening — cron-foutmaskering + helpdesk-audit + import-rol-guard
 
 Drie gedocumenteerde hardening-items uit `docs/SECURITY-PRIVACY-BACKLOG.md`, elk server-side
