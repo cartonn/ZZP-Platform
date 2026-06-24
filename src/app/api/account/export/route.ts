@@ -4,9 +4,11 @@ import { auditData } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
 import { exportRateLimiter } from "@/lib/rate-limit";
+import { buildAccountExport } from "@/lib/account-export";
 
 // AVG recht op inzage/dataportabiliteit: exporteer de eigen gegevens als JSON.
-// Alleen de eigen persoonsgegevens (geen documentinhoud, geen data van derden).
+// Alleen de eigen persoonsgegevens (geen documentinhoud, geen vrije-tekst-PII van derden).
+// De dataverzameling zit in buildAccountExport (testbaar, gedeeld).
 export async function GET() {
   let actor;
   try {
@@ -25,76 +27,7 @@ export async function GET() {
     );
   }
 
-  const [user, profile, company, applications, documents, notifications, sentMessages] =
-    await Promise.all([
-      prisma.user.findUnique({
-        where: { id: actor.id },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          status: true,
-          createdAt: true,
-          deletionRequestedAt: true,
-        },
-      }),
-      prisma.freelancerProfile.findUnique({
-        where: { userId: actor.id },
-        include: {
-          skills: { select: { skillId: true } },
-          industries: { select: { industryId: true } },
-          credentials: {
-            select: {
-              type: true,
-              title: true,
-              issuer: true,
-              status: true,
-              issuedAt: true,
-              expiresAt: true,
-              visibility: true,
-            },
-          },
-        },
-      }),
-      prisma.company.findUnique({ where: { userId: actor.id } }),
-      prisma.application.findMany({
-        where: { freelancer: { userId: actor.id } },
-        select: {
-          jobId: true,
-          status: true,
-          motivation: true,
-          proposedRate: true,
-          matchScore: true,
-          createdAt: true,
-        },
-      }),
-      prisma.document.findMany({
-        where: { ownerId: actor.id },
-        select: { kind: true, filename: true, mimeType: true, size: true, createdAt: true },
-      }),
-      prisma.notification.findMany({
-        where: { userId: actor.id },
-        select: { type: true, title: true, body: true, readAt: true, createdAt: true },
-      }),
-      prisma.message.findMany({
-        where: { senderId: actor.id },
-        select: { conversationId: true, body: true, createdAt: true },
-      }),
-    ]);
-
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    notice:
-      "Dit zijn je eigen persoonsgegevens in dit platform (geen documentinhoud, geen gegevens van anderen).",
-    user,
-    freelancerProfile: profile,
-    company,
-    applications,
-    documents,
-    notifications,
-    sentMessages,
-  };
+  const payload = await buildAccountExport(prisma, actor.id);
 
   await prisma.auditLog.create({
     data: auditData({
