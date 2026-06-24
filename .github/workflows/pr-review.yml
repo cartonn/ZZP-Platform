@@ -38,7 +38,15 @@ jobs:
           prompt: |
             Je bent een ONAFHANKELIJKE, adversariële reviewer — een andere agent dan wie deze PR
             schreef. Je taak is de merge tegenhouden als er iets mis is. Default naar BLOCK bij twijfel.
-            Lees CLAUDE.md, .claude/agents/reviewer.md en .claude/agents/security.md.
+
+            STAP 0 (VERPLICHT, ALLEREERSTE ACTIE): schrijf met het Write-tool het bestand
+            `agent-review-verdict.txt` in de repo-root met als enige inhoud exact:
+              BLOCK
+              pending — review nog niet afgerond
+            Dit is het fail-safe-vangnet: als je crasht of stopt vóór je klaar bent, blokkeert de
+            merge automatisch. Pas in STAP 9 overschrijf je dit met je eindoordeel.
+
+            Lees daarna CLAUDE.md, .claude/agents/reviewer.md en .claude/agents/security.md.
             Bekijk de volledige diff t.o.v. de basis-branch:
               git diff origin/${{ github.event.pull_request.base.ref }}...HEAD
 
@@ -55,12 +63,14 @@ jobs:
             Plaats een beknopte, gegroepeerde review-comment (blocker / should-fix / nit) met file:line en
             de concrete fix. Wijzig GEEN code en merge NIET.
 
-            Schrijf daarna je eindoordeel naar het bestand `agent-review-verdict.txt` in de repo-root:
-            de ALLEREERSTE regel is exact `PASS` (geen enkele blocker) of `BLOCK` (ten minste één
-            blocker), gevolgd door een korte motivatie. Twijfel je of mist bewijs -> `BLOCK`.
+            STAP 9 (VERPLICHT, ALLERLAATSTE ACTIE): overschrijf met het Write-tool het bestand
+            `agent-review-verdict.txt` in de repo-root. De ALLEREERSTE regel is exact `PASS` (geen
+            enkele blocker gevonden) of `BLOCK` (ten minste één blocker), gevolgd door een korte
+            motivatie op de volgende regels. Twijfel je of mist bewijs -> laat `BLOCK` staan.
           claude_args: |
             --model claude-opus-4-8
             --max-turns 40
+            --allowedTools Read,Grep,Glob,Bash,Write
 
       - name: Enforce verdict (blocks merge on BLOCK)
         run: |
