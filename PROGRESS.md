@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## feat(admin): Bemiddelaars (franchisers) zichtbaar in admin-oversight
+
+De FRANCHISER-rol (UI-label "Bemiddelaar") is een eersteklas platformactor maar viel uit de
+admin-oversight: `getPlatformStats` telde gebruikers per rol via `groupBy`, maar `UserStats` liet
+`FRANCHISER` vallen — bemiddelaars zaten wél in `total` maar in geen categorie, dus de "Verdeling
+per rol"-balken sommeerden niet op tot het totaal (onverklaard ontbrekend volume). Daarnaast miste
+het rol-filter op `/admin/gebruikers` de FRANCHISER-optie. Read-only, geen schemawijziging.
+
+- [x] `src/lib/admin-stats.ts` — `franchisers` toegevoegd aan `UserStats`; nieuwe pure, testbare
+      `buildUserStats(roleRows, suspended)` (total = som over álle rollen, elke rol in eigen
+      categorie, onbekende legacy-rollen tellen in total maar in geen categorie); `getPlatformStats`
+      gebruikt nu de helper i.p.v. de inline rol-map.
+- [x] `src/components/admin/stats-panel.tsx` — "Bemiddelaars"-balk (tone warning) toegevoegd aan de
+      "Verdeling per rol"-`DistributionBars`, zodat de verdeling optelt tot het totaal.
+- [x] `src/components/admin/gebruikersbeheer/gebruikers-panel.tsx` — FRANCHISER-optie ("Bemiddelaar")
+      aan het rol-filter; de server-`where` accepteerde de waarde al, alleen de UI-optie ontbrak.
+- [x] `src/lib/admin-stats.test.ts` — 4 unit-tests voor `buildUserStats` (per-rol incl. FRANCHISER,
+      som = totaal, legacy-rol in total, lege invoer).
+
+Gate groen: typecheck ✓, lint ✓, test **2573** ✓ (+4), build ✓, `prettier --check .` ✓.
+Niet-overlappend met de open i18n-/filter-PR's (#505/#509/#510/#511/#512).
+
 ## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
 
 Vervolg op de ZZP'er-i18n-reeks (#491–#498). Het reactieoverzicht `/reacties` was nog volledig

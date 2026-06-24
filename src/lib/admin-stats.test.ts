@@ -1,5 +1,59 @@
 import { describe, it, expect } from "vitest";
-import { approvalRate, sharePercent, formatStatsEuro } from "./admin-stats";
+import { approvalRate, sharePercent, formatStatsEuro, buildUserStats } from "./admin-stats";
+
+describe("buildUserStats", () => {
+  it("telt elke rol in zijn eigen categorie, inclusief FRANCHISER", () => {
+    const stats = buildUserStats(
+      [
+        { role: "FREELANCER", count: 30 },
+        { role: "CLIENT", count: 15 },
+        { role: "FRANCHISER", count: 3 },
+        { role: "ADMIN", count: 2 },
+      ],
+      4,
+    );
+    expect(stats).toEqual({
+      total: 50,
+      freelancers: 30,
+      clients: 15,
+      franchisers: 3,
+      admins: 2,
+      suspended: 4,
+    });
+  });
+
+  it("laat de rolverdeling optellen tot het totaal (geen verdwijnende bemiddelaars)", () => {
+    const stats = buildUserStats(
+      [
+        { role: "FREELANCER", count: 8 },
+        { role: "FRANCHISER", count: 2 },
+      ],
+      0,
+    );
+    expect(stats.freelancers + stats.clients + stats.franchisers + stats.admins).toBe(stats.total);
+  });
+
+  it("geeft 0 voor ontbrekende rollen en telt onbekende legacy-rollen wel in total", () => {
+    const stats = buildUserStats([{ role: "LEGACY_ROLE", count: 5 }], 1);
+    expect(stats.total).toBe(5);
+    expect(stats.freelancers).toBe(0);
+    expect(stats.clients).toBe(0);
+    expect(stats.franchisers).toBe(0);
+    expect(stats.admins).toBe(0);
+    expect(stats.suspended).toBe(1);
+  });
+
+  it("geeft een nul-verdeling bij lege invoer", () => {
+    expect(buildUserStats([], 0)).toEqual({
+      total: 0,
+      freelancers: 0,
+      clients: 0,
+      franchisers: 0,
+      admins: 0,
+      suspended: 0,
+    });
+  });
+});
 
 describe("approvalRate", () => {
   it("geeft 0 bij total = 0", () => {

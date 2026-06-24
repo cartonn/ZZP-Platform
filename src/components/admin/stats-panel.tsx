@@ -57,6 +57,7 @@ export function StatsPanel({ stats }: { stats: PlatformStats }) {
                 items={[
                   { label: "ZZP'ers", value: stats.users.freelancers, tone: "accent" },
                   { label: "Opdrachtgevers", value: stats.users.clients, tone: "success" },
+                  { label: "Bemiddelaars", value: stats.users.franchisers, tone: "warning" },
                   { label: "Beheerders", value: stats.users.admins, tone: "default" },
                 ]}
               />
