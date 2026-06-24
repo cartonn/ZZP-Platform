@@ -1,7 +1,10 @@
-name: PR review (reviewer + security)
+name: agent-review
 
-# Reviewpoort: op elke PR draait een review-agent (correctheid + security). Hij ADVISEERT —
-# merget nooit. Samen met CI (ci.yml) en menselijke goedkeuring vormt dit de gate vóór merge.
+# BLOKKERENDE onafhankelijke cross-check vóór merge (functiescheiding): een aparte review-agent —
+# een ander, sterk model dan de bouwende loops, met een adversariële houding — beoordeelt de diff
+# langs meerdere lenzen en zet een PASS/BLOCK-oordeel. Bij BLOCK faalt de job, en omdat `agent-review`
+# een VEREISTE statuscheck is op `main` kan de PR niet auto-mergen. De agent wijzigt nooit code en
+# merget nooit; hij plaatst alleen een review-comment en schrijft het oordeel.
 #
 # Draait op Claude Max (OAuth) — geen API-kosten per token.
 
@@ -14,11 +17,12 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: pr-review-${{ github.event.pull_request.number }}
+  group: agent-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  review:
+  agent-review:
+    name: agent-review
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
@@ -26,19 +30,58 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Review
+      - name: Independent adversarial review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
-            Review deze PR-diff tegen de basis-branch. Volg de rollen in .claude/agents/reviewer.md
-            en .claude/agents/security.md en de regels in CLAUDE.md.
-            Geef beknopte, gegroepeerde bevindingen (blocker / should-fix / nit) met file:line en de
-            concrete fix. Controleer expliciet: de mutatie-keten (auth/rol/ownership/Zod/audit),
-            RBAC op /admin, geen secrets, geen injectie/XSS, documentprivacy, en dat het woord "AI"
-            nergens in product-UI/teksten/comments staat. Merge niet en wijzig geen code — plaats
-            alleen een review-comment. Hou het kort en hoog-signaal.
+            Je bent een ONAFHANKELIJKE, adversariële reviewer — een andere agent dan wie deze PR
+            schreef. Je taak is de merge tegenhouden als er iets mis is. Default naar BLOCK bij twijfel.
+
+            STAP 0 (VERPLICHT, ALLEREERSTE ACTIE): schrijf met het Write-tool het bestand
+            `agent-review-verdict.txt` in de repo-root met als enige inhoud exact:
+              BLOCK
+              pending — review nog niet afgerond
+            Dit is het fail-safe-vangnet: als je crasht of stopt vóór je klaar bent, blokkeert de
+            merge automatisch. Pas in STAP 9 overschrijf je dit met je eindoordeel.
+
+            Lees daarna CLAUDE.md, .claude/agents/reviewer.md en .claude/agents/security.md.
+            Bekijk de volledige diff t.o.v. de basis-branch:
+              git diff origin/${{ github.event.pull_request.base.ref }}...HEAD
+
+            Review langs deze lenzen en zoek ACTIEF naar problemen (geen "ziet er goed uit"):
+            1. Correctheid/regressie: bugs, ontbrekende edge-cases, race-conditions, breekt het bestaand
+               gedrag? Doet de code wat de PR-titel/body claimt?
+            2. Security/authz: de mutatie-keten auth->rol->ownership->Zod->actie->audit op ELKE mutatie;
+               RBAC op /admin; IDOR/cross-tenant; injectie/XSS; secrets in code/log; veilige uploads.
+            3. Privacy/AVG: documenten prive, dataminimalisatie, geen PII-lek, audit op gevoelige acties.
+            4. Architectuur/kwaliteit: server-side waarheid (client beslist niets kritieks), duplicatie,
+               dode knoppen, loading/empty/error-states, het woord "AI" NERGENS in UI/teksten/comments.
+            5. Tests: dekt nieuwe/gewijzigde logica een test af? Faalt die zonder de wijziging?
+
+            Plaats een beknopte, gegroepeerde review-comment (blocker / should-fix / nit) met file:line en
+            de concrete fix. Wijzig GEEN code en merge NIET.
+
+            STAP 9 (VERPLICHT, ALLERLAATSTE ACTIE): overschrijf met het Write-tool het bestand
+            `agent-review-verdict.txt` in de repo-root. De ALLEREERSTE regel is exact `PASS` (geen
+            enkele blocker gevonden) of `BLOCK` (ten minste één blocker), gevolgd door een korte
+            motivatie op de volgende regels. Twijfel je of mist bewijs -> laat `BLOCK` staan.
           claude_args: |
-            --model claude-sonnet-4-6
-            --max-turns 30
+            --model claude-opus-4-8
+            --max-turns 40
+            --allowedTools Read,Grep,Glob,Bash,Write
+
+      - name: Enforce verdict (blocks merge on BLOCK)
+        run: |
+          if [ ! -f agent-review-verdict.txt ]; then
+            echo "::error::Geen agent-review-verdict.txt geschreven — review onbetrouwbaar, blokkeer (fail-safe)."
+            exit 1
+          fi
+          echo "----- verdict -----"; cat agent-review-verdict.txt; echo "-------------------"
+          if head -1 agent-review-verdict.txt | grep -qx "PASS"; then
+            echo "agent-review: PASS"
+            exit 0
+          fi
+          echo "::error::agent-review BLOKKEERT deze PR — los de blockers op."
+          exit 1

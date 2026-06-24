@@ -52,6 +52,11 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   in-memory; bij meerdere Railway-instances zijn de limieten per instance. De
   `RateLimitStore`-interface is pluggbaar — Upstash/Redis past er direct achter. Niet nodig
   zolang er één instance draait.
+- **Dependency graph + Dependabot aanzetten** (laag, web-toggle): de `dependency-review`-poort
+  vereist GitHub's Dependency graph. Zet die (en Dependabot security updates) aan op
+  github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check draait
+  nu al via `npm audit` (de `audit`-poort); dependency-review is een extra laag (licenties +
+  PR-diff) die je daarna kunt terugzetten als vereiste check.
 
 ## §1. Hosting, database, opslag, domein, geheimen
 
