@@ -1,0 +1,36 @@
+name: CodeQL
+
+# Deterministische SAST (GitHub CodeQL) als cross-check vóór merge: vangt security-klassen die
+# een review kan missen — injectie, onveilige data-flow, pad-traversal, hardcoded secrets-patronen.
+# Draait op PR's en op main. Het check-resultaat ("CodeQL") wordt een vereiste merge-poort.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 4 * * 1" # wekelijks, maandagochtend (vangt nieuwe advisories op bestaande code)
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
