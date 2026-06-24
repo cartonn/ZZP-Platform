@@ -1,20 +1,56 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { validateEnv } from "@/lib/env";
+import { envWarnings, validateEnv, type Env } from "@/lib/env";
 
 const ORIGINAL = process.env;
 
+// Integratie-secrets die de sandbox/CI kan injecteren (bv. proxy-geïnjecteerde AWS-creds);
+// per test wissen zodat de flag→companion-checks deterministisch zijn.
+const INTEGRATION_VARS = [
+  "STORAGE_S3_BUCKET",
+  "STORAGE_S3_REGION",
+  "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY",
+  "GEOAPIFY_API_KEY",
+  "EMAIL_SMTP_HOST",
+  "EMAIL_SMTP_PORT",
+  "EMAIL_SMTP_USER",
+  "EMAIL_SMTP_PASS",
+  "EMAIL_FROM",
+  "MOLLIE_API_KEY",
+  "DUO_API_BASE",
+  "DUO_API_KEY",
+  "BIG_API_BASE",
+  "BIG_API_KEY",
+  "IDENTITY_API_BASE",
+  "IDENTITY_API_KEY",
+  "SHARE_TOKEN_SECRET",
+  "AUTH_URL",
+  "NEXTAUTH_URL",
+];
+
+/** Zet een env-var (omzeilt de readonly-typing van bv. NODE_ENV). */
+function setEnv(key: string, value: string) {
+  (process.env as Record<string, string | undefined>)[key] = value;
+}
+
 beforeEach(() => {
   process.env = { ...ORIGINAL };
+  for (const key of INTEGRATION_VARS) delete process.env[key];
 });
 afterEach(() => {
   process.env = ORIGINAL;
 });
 
+/** Minimale geldige basis (lokaal); per test aangevuld. */
+function baseValid() {
+  process.env.DATABASE_URL = "file:./dev.db";
+  process.env.AUTH_SECRET = "x".repeat(32);
+  process.env.STORAGE_DRIVER = "local";
+}
+
 describe("validateEnv", () => {
   it("accepteert een geldige lokale configuratie", () => {
-    process.env.DATABASE_URL = "file:./dev.db";
-    process.env.AUTH_SECRET = "x".repeat(32);
-    process.env.STORAGE_DRIVER = "local";
+    baseValid();
     expect(() => validateEnv()).not.toThrow();
   });
 
@@ -24,19 +60,145 @@ describe("validateEnv", () => {
     expect(() => validateEnv()).toThrow(/AUTH_SECRET/);
   });
 
-  it("vereist een bucket bij STORAGE_DRIVER=s3", () => {
-    process.env.DATABASE_URL = "file:./dev.db";
-    process.env.AUTH_SECRET = "x".repeat(32);
+  it("vereist bucket, regio én sleutels bij STORAGE_DRIVER=s3", () => {
+    baseValid();
     process.env.STORAGE_DRIVER = "s3";
     delete process.env.STORAGE_S3_BUCKET;
     expect(() => validateEnv()).toThrow(/STORAGE_S3_BUCKET/);
+
+    process.env.STORAGE_S3_BUCKET = "docs";
+    process.env.STORAGE_S3_REGION = "eu-central-1";
+    expect(() => validateEnv()).toThrow(/AWS_ACCESS_KEY_ID/);
+
+    process.env.AWS_ACCESS_KEY_ID = "AKIA";
+    process.env.AWS_SECRET_ACCESS_KEY = "secret";
+    expect(() => validateEnv()).not.toThrow();
   });
 
   it("vereist een Geoapify-key bij echte routing", () => {
-    process.env.DATABASE_URL = "file:./dev.db";
-    process.env.AUTH_SECRET = "x".repeat(32);
+    baseValid();
     process.env.ROUTING_PROVIDER = "geoapify";
     delete process.env.GEOAPIFY_API_KEY;
     expect(() => validateEnv()).toThrow(/GEOAPIFY_API_KEY/);
+  });
+
+  it("vereist de SMTP-variabelen bij EMAIL_DRIVER=smtp", () => {
+    baseValid();
+    process.env.EMAIL_DRIVER = "smtp";
+    expect(() => validateEnv()).toThrow(/EMAIL_SMTP_HOST/);
+  });
+
+  it("vereist MOLLIE_API_KEY bij BILLING_PROVIDER=mollie", () => {
+    baseValid();
+    process.env.BILLING_PROVIDER = "mollie";
+    expect(() => validateEnv()).toThrow(/MOLLIE_API_KEY/);
+  });
+
+  it("vereist de DUO-endpoints bij DIPLOMA_VERIFIER=duo", () => {
+    baseValid();
+    process.env.DIPLOMA_VERIFIER = "duo";
+    expect(() => validateEnv()).toThrow(/DUO_API_BASE/);
+  });
+
+  it("vereist de BIG-endpoints bij BIG_VERIFIER=bigregister", () => {
+    baseValid();
+    process.env.BIG_VERIFIER = "bigregister";
+    expect(() => validateEnv()).toThrow(/BIG_API_BASE/);
+  });
+
+  it("vereist de iDIN-endpoints bij IDENTITY_VERIFIER=idin", () => {
+    baseValid();
+    process.env.IDENTITY_VERIFIER = "idin";
+    expect(() => validateEnv()).toThrow(/IDENTITY_API_BASE/);
+  });
+
+  it("blijft inert (geen fout) zolang een integratie niet is ingeschakeld", () => {
+    baseValid();
+    // Alle integratie-secrets ontbreken, maar de flags staan op de veilige default.
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  describe("productie-specifieke eisen", () => {
+    function baseProd() {
+      setEnv("NODE_ENV", "production");
+      process.env.DATABASE_URL = "postgresql://localhost/zzp";
+      process.env.AUTH_SECRET = "x".repeat(32);
+      process.env.AUTH_URL = "https://app.zzp-platform.nl";
+      process.env.SHARE_TOKEN_SECRET = "y".repeat(32);
+    }
+
+    it("dwingt SHARE_TOKEN_SECRET af in productie (H-1)", () => {
+      baseProd();
+      delete process.env.SHARE_TOKEN_SECRET;
+      expect(() => validateEnv()).toThrow(/SHARE_TOKEN_SECRET/);
+    });
+
+    it("dwingt AUTH_URL af in productie", () => {
+      baseProd();
+      delete process.env.AUTH_URL;
+      delete process.env.NEXTAUTH_URL;
+      expect(() => validateEnv()).toThrow(/AUTH_URL/);
+    });
+
+    it("accepteert NEXTAUTH_URL als alternatief voor AUTH_URL", () => {
+      baseProd();
+      delete process.env.AUTH_URL;
+      process.env.NEXTAUTH_URL = "https://app.zzp-platform.nl";
+      expect(() => validateEnv()).not.toThrow();
+    });
+
+    it("vereist een sterke AUTH_SECRET (≥32) in productie", () => {
+      baseProd();
+      process.env.AUTH_SECRET = "x".repeat(20); // geldig lokaal (≥16), te zwak in prod
+      expect(() => validateEnv()).toThrow(/AUTH_SECRET/);
+    });
+
+    it("accepteert een complete productieconfiguratie", () => {
+      baseProd();
+      expect(() => validateEnv()).not.toThrow();
+    });
+  });
+});
+
+describe("envWarnings", () => {
+  const prod = (over: Partial<Env>): Env =>
+    ({
+      NODE_ENV: "production",
+      DATABASE_URL: "postgresql://localhost/zzp",
+      AUTH_SECRET: "x".repeat(32),
+      STORAGE_DRIVER: "s3",
+      EMAIL_DRIVER: "smtp",
+      CRON_SECRET: "cron",
+      ROUTING_PROVIDER: "offline",
+      SEMANTIC_MATCHER: "local",
+      BILLING_PROVIDER: "noop",
+      DIPLOMA_VERIFIER: "demo",
+      BIG_VERIFIER: "demo",
+      IDENTITY_VERIFIER: "demo",
+      ...over,
+    }) as Env;
+
+  it("geeft geen waarschuwingen buiten productie", () => {
+    expect(envWarnings(prod({ NODE_ENV: "development", STORAGE_DRIVER: "local" }))).toEqual([]);
+  });
+
+  it("waarschuwt voor lokale opslag in productie", () => {
+    const w = envWarnings(prod({ STORAGE_DRIVER: "local" }));
+    expect(w.some((m) => /STORAGE_DRIVER=local/.test(m))).toBe(true);
+  });
+
+  it("waarschuwt voor het noop-mailkanaal in productie", () => {
+    const w = envWarnings(prod({ EMAIL_DRIVER: "noop" }));
+    expect(w.some((m) => /EMAIL_DRIVER=noop/.test(m))).toBe(true);
+  });
+
+  it("waarschuwt voor een ontbrekende CRON_SECRET en SQLite in productie", () => {
+    const w = envWarnings(prod({ CRON_SECRET: undefined, DATABASE_URL: "file:./dev.db" }));
+    expect(w.some((m) => /CRON_SECRET/.test(m))).toBe(true);
+    expect(w.some((m) => /SQLite/.test(m))).toBe(true);
+  });
+
+  it("zwijgt bij een volledig geconfigureerde productie", () => {
+    expect(envWarnings(prod({}))).toEqual([]);
   });
 });

@@ -48,6 +48,10 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
 - **SHARE_TOKEN_SECRET zetten in productie** (H-1): zonder eigen sleutel vallen deelbare
   dossier-links terug op AUTH_SECRET — rotatie van het één breekt dan het ander. Genereer met
   `openssl rand -base64 32` en zet hem in de Railway-secrets vóór de eerste echte deel-link.
+  **Code-kant GEDAAN (24-6-2026):** de env-validatie (`src/lib/env.ts`) dwingt dit nu **af in
+  productie** — bij `NODE_ENV=production` faalt de boot duidelijk zonder `SHARE_TOKEN_SECRET`
+  (idem voor `AUTH_URL` en een AUTH_SECRET ≥ 32 tekens). Resterend mensenwerk: alleen de secret
+  genereren + plakken in de Railway-secrets.
 - **Gedeelde rate-limit-store vóór horizontale schaling** (H-2): de limiters zijn per-proces
   in-memory; bij meerdere Railway-instances zijn de limieten per instance. De
   `RateLimitStore`-interface is pluggbaar — Upstash/Redis past er direct achter. Niet nodig
@@ -321,6 +325,14 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).
+>
+> **Validatie bij boot (code-kant GEDAAN, 24-6-2026):** `src/lib/env.ts` controleert al deze secrets
+> coherent. Schakel je een integratie in (`STORAGE_DRIVER=s3`, `EMAIL_DRIVER=smtp`,
+> `BILLING_PROVIDER=mollie`, `DIPLOMA_VERIFIER=duo`, `BIG_VERIFIER=bigregister`,
+> `IDENTITY_VERIFIER=idin`) maar mist een bijbehorende sleutel/endpoint, dan **faalt de boot meteen
+> en duidelijk** (geen halve activering). In productie geeft de boot bovendien een **waarschuwing**
+> bij een veilige-maar-tijdelijke fallback (lokale opslag, geen mailkanaal, ontbrekende
+> `CRON_SECRET`, SQLite i.p.v. PostgreSQL) zonder te crashen — de pilot blijft draaien.
 
 ---
 
