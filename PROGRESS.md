@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## security/privacy-audit ronde 2026-06-24b — IDOR-tariefinjectie + AVG-erasure dichtgezet
+
+4 parallelle audit-subagents (API-routes, tenant-isolatie, server-actions, AVG). Twee top-bevindingen
+volledig gefixt (rood→groen), rest geparkeerd in `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-06-24b).
+
+- [x] **[HOOG · A01 — IDOR/financiële manipulatie]** `editAndResubmitPerformanceAction`
+      (`samenwerkingen/[id]/actions.ts`) bond `performanceId` (ownership) en `collaborationId`
+      (tarief-bron) niet → een ZZP'er kon zijn prestatie corrigeren met het tarief van een ándere
+      samenwerking en zijn factuur opblazen. Fix: tarief-bron hard gebonden aan de eigen samenwerking
+      van de prestatie; afwijkend id geweigerd. Test: `edit-resubmit-authz.test.ts`.
+- [x] **[KRITIEK · AVG art. 17]** `anonymizeUser()` (`admin/gebruikers/actions.ts`) liet PII achter:
+      `IndirectHoursEntry.note`, eigen `Idea.title/description`, `Collaboration.cancellationReason`
+      (eigen) en alle `PushSubscription`-rijen (toestel-identifier). Fix: vier extra mutaties in de
+      anonimiseringstransactie. Test: `anonymize-erasure.test.ts` (+4 cases).
+- Gate groen: typecheck, lint, 2667 unit-tests, prettier, build.
+
 ## prod: observability-seam — gestructureerde logging + error-reporting + readiness
 
 Productie-rijpheid: server-side waarneembaarheid die nu nog ontbrak. Additief; geen auth- of

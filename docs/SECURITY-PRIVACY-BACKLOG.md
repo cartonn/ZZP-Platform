@@ -4,6 +4,86 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-06-24b (basis: `main` @ 5229656)
+
+Audit: 4 parallelle security/privacy-subagents (API route-handlers, franchise-/admin-tenant-isolatie,
+non-admin server actions, AVG/anonimisering). OWASP Top 10 (A01 broken access control, A09 logging) +
+AVG art. 5/15/17/30 als kader. Twee top-bevindingen volledig gefixt (rood→groen), de rest geverifieerd
+en hieronder geparkeerd met repro + severity.
+
+### OPGELOST in deze ronde
+
+- **[HOOG · A01 — IDOR / financiële manipulatie]** `editAndResubmitPerformanceAction`
+  (`samenwerkingen/[id]/actions.ts`) kreeg twee onafhankelijke client-id's: `performanceId` (waarop
+  ownership werd gecheckt) én `collaborationId` (waaruit `parsePerformanceInput` het uurtarief/ORT
+  snapshot). De twee werden NIET aan elkaar gebonden; `updatePerformance` schreef het meegestuurde
+  `rateCents` weg zonder te verifiëren dat de samenwerking bij de prestatie hoort. Repro: een ZZP'er
+  met twee samenwerkingen (bv. €40 en €80) corrigeert een afgekeurde prestatie op de €40-samenwerking
+  met `collaborationId` van de €80-samenwerking → de prestatie krijgt €80/u; na het grace-venster
+  auto-goedgekeurd → opgeblazen factuur. Tevens werd andermans tarief leesbaar op de eigen prestatie.
+  Geschonden: CLAUDE.md regel 1 (server-side waarheid) & 2 (ownership vóór actie); OWASP A01. Gefixt:
+  de actie laadt nu de eigen `collaborationId` + eigenaar van de prestatie, weigert een afwijkend
+  `collaborationId` en gebruikt de eigen samenwerking als tarief-bron. Test:
+  `src/app/(protected)/samenwerkingen/[id]/edit-resubmit-authz.test.ts` (rood→groen: mismatch →
+  geweigerd, geen `updatePerformance`; niet-eigenaar → geweigerd; eigen+match → door).
+
+- **[KRITIEK · AVG art. 17 — recht op verwijdering onvolledig]** `anonymizeUser()`
+  (`admin/gebruikers/actions.ts`) redacteerde de eerder gevonden vrije-tekstvelden, maar liet nog
+  herleidbare/persoonsgebonden data van de betrokkene achter (een `user.update` triggert geen cascade
+  op kindrijen): `IndirectHoursEntry.note` (vrije tekst), eigen `Idea.title/description`,
+  `Collaboration.cancellationReason` (waar `cancelledById == userId`) en — het ergst — alle
+  `PushSubscription`-rijen (`endpoint` is een persistente toestel-/browser-identifier). Gefixt: vier
+  extra mutaties in dezelfde anonimiseringstransactie (note→null, idee-titel/omschrijving geredact,
+  eigen annuleerreden→null, push-abonnementen `deleteMany`). Test:
+  `anonymize-erasure.test.ts` (4 nieuwe cases, rood→groen).
+
+### GEPARKEERD — privacy/AVG (ronde 2026-06-24b)
+
+- **[HOOG · AVG art. 17 — DomainEvent.payload onverwijderbaar]** `DISPUTE_OPENED`-events bewaren de
+  vrije-tekst `reason` in de append-only event-store (`dispute-commands.ts`); structureel niet te
+  wissen bij anonimisering. **Mens/DPO-keuze vereist**: payloads pseudonimiseren óf de event-store
+  expliciet classificeren onder art. 17 lid 3 (archief/rechtsvordering). MENSENWERK.
+- **[HOOG · AVG art. 15/20 — export onvolledig]** `buildAccountExport` (`src/lib/account-export.ts`)
+  mist de eigen `Idea` (title/description), `Collaboration.cancellationReason` (eigen) en
+  `PushSubscription`. Fix: toevoegen met strikte `select`.
+- **[MIDDEL · AVG art. 30]** `PushSubscription`, `IndirectHoursEntry` (urencriterium, 7 jr fiscaal) en
+  `HealthIncident` (bevat klartekst-IP in `summary`, `monitoring/detectors.ts`) ontbreken in
+  `processing-register.ts`. Fix: register-entries + bewaartermijn/opruimtaak.
+- **[MIDDEL · k-anonimiteit testdrempel]** `market-rate.test.ts` gebruikt een lokale `MIN = 3` i.p.v.
+  `MARKET_RATE_MIN_SAMPLE` (=10) uit `config.ts`; een per ongeluk verlaagde productiedrempel wordt niet
+  gedetecteerd. Fix: importeer de echte constante + assert `>= 10`.
+- **[MIDDEL · AVG art. 5 lid 1f — storageKey in hosting-logs]** mislukte storage-opruiming logt de
+  `storageKey` (`admin/gebruikers/actions.ts`, `documenten/actions.ts`, `certificaten/actions.ts`)
+  naar `console.error` zonder `NODE_ENV`-guard. Fix: in productie de key maskeren of naar een
+  beveiligde audittabel schrijven i.p.v. de console.
+- **[MIDDEL · AVG art. 15/20]** `db.company.findUnique` in de export heeft geen `select` → interne
+  velden (`tenantId`, `logoKey`) lekken mee. Fix: expliciete `select`.
+
+### GEPARKEERD — security / hardening (ronde 2026-06-24b)
+
+- **[MIDDEL · A09 — audit-volledigheid]** `/api/admin/facturatie/[id]/pdf` serveert een
+  platform-factuur-PDF (financiële PII) zonder auditregel, terwijl de andere PDF-routes dat wél doen.
+  Fix: `actor = requireRole("ADMIN")` opvangen + `PLATFORM_BILLING_PDF_ACCESSED`-audit.
+- **[MIDDEL · CLAUDE.md regel 2 — Zod-grens]** `saveApplicationNote` (`kandidaten/actions.ts`) schrijft
+  het `note`-veld via `String().slice(2000)` i.p.v. een Zod-schema. Niet injecteerbaar (Prisma
+  parametriseert), maar buiten de gevalideerde grens. Fix: `z.string().trim().max(2000)`.
+- **[MIDDEL · A04 — error-leak]** `activate` (`abonnement/actions.ts`) gebruikt `planKeySchema.parse`
+  → rauwe `ZodError` (met geldige enum-waarden) naar de boundary. Fix: `safeParse` + nette fout.
+- **[LAAG · A09 — audit-volledigheid]** audit niet-atomair met de statuswijziging in
+  `setBillingStatusAction` (`from` ontbreekt in metadata), `adminResolve` (support) en
+  `setDienstStatus` (franchise); statusguard ís aanwezig (geen TOCTOU). Fix: mutatie + auditLog in één
+  `$transaction`; `{ from, to }` in metadata.
+- **[LAAG · A09 — orphaned storage]** mislukte storage-delete bij `deleteDocument`/`deleteDocumentById`
+  /logo-upload markeert geen `storageOrphaned` in de audit → onzichtbaar verweesd S3-object. Fix:
+  `metadata: { storageOrphaned: true, key }` bij de `.catch`.
+- **[LAAG · A05 — CSP-sandbox]** `/api/media/[...key]` zet geen `Content-Security-Policy: sandbox` op
+  een (theoretisch) als logo opgeslagen PDF, anders dan `/api/documents/[id]`. Fix: sandbox-header bij
+  `application/pdf`.
+- **[LAAG · A09]** `/api/agenda` (.ics-export van alle actieve samenwerkingen) schrijft geen
+  auditregel, anders dan de overige bulk-exports. Fix: `AGENDA_EXPORTED`-audit.
+- **[LAAG · CLAUDE.md regel 3]** `setUserStatus` kent geen expliciete `USER_STATUS_TRANSITIONS`-map
+  (ACTIVE→PENDING mogelijk). Fix: transitiemap toevoegen.
+
 ## Ronde 2026-06-24 (basis: `main` @ 70cf3b6)
 
 Audit: 4 parallelle security/privacy-subagents over server actions, franchise-/admin-actions,

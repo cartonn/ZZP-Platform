@@ -121,6 +121,30 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { requestedByUserId: userId },
       data: { reason: "[Verwijderd op verzoek van de gebruiker]" },
     }),
+    // Indirecte-uren-notities (urencriterium): vrije tekst die de betrokkene zelf schreef en
+    // namen/details kan bevatten. De urenadministratie blijft staan (fiscale grond), maar de noot wist.
+    prisma.indirectHoursEntry.updateMany({
+      where: { userId },
+      data: { note: null },
+    }),
+    // Eigen ideeën: titel + omschrijving zijn door de betrokkene geschreven vrije tekst (PII-risico);
+    // het idee blijft als geanonimiseerd record op het bord staan.
+    prisma.idea.updateMany({
+      where: { authorId: userId },
+      data: {
+        title: "[Verwijderd op verzoek van de gebruiker]",
+        description: "[Verwijderd op verzoek van de gebruiker]",
+      },
+    }),
+    // Annuleerreden die de betrokkene zélf schreef (cancelledById == userId). Alleen de eigen tekst —
+    // een door de tegenpartij geschreven reden blijft (die valt onder diens eigen verwerking).
+    prisma.collaboration.updateMany({
+      where: { cancelledById: userId },
+      data: { cancellationReason: null },
+    }),
+    // Push-abonnementen: het endpoint is een persistente toestel-/browser-identifier (en userAgent
+    // aanvullende PII). Een `user.update` triggert geen cascade-delete → expliciet verwijderen.
+    prisma.pushSubscription.deleteMany({ where: { userId } }),
     prisma.auditLog.create({
       data: auditData({
         actorId: actor.id,
