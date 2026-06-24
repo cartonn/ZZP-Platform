@@ -96,17 +96,17 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // deduplicatie; batch-operaties, niet voor eindgebruikers.
   {
     file: "(protected)/admin/import/actions.ts",
-    line: 102,
+    line: 103,
     reason: "deduplicatiecheck voor import-batch",
   },
   {
     file: "(protected)/admin/import/actions.ts",
-    line: 111,
+    line: 112,
     reason: "skill-lijst voor import-mapping",
   },
   {
     file: "(protected)/admin/import/actions.ts",
-    line: 178,
+    line: 179,
     reason: "skill-lookup voor import-mapping",
   },
 
