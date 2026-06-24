@@ -49,6 +49,8 @@ function isPublicPath(pathname: string) {
     pathname === "/api/health" ||
     pathname.startsWith("/zzp/") ||
     pathname.startsWith("/vertrouwen/") || // publiek vertrouwensdossier (token-beveiligd, geen sessie)
+    pathname === "/ontwerp" ||
+    pathname.startsWith("/ontwerp/") || // publiek, inlogvrij design-lab (alleen fictieve mock-data)
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/tasks/") // eigen token-guard (CRON_SECRET), geen sessie
   );
