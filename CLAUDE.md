@@ -181,6 +181,13 @@ Leer van Linear/Vercel/Stripe. Refined minimalism, geen drukte.
    document-toegang → `src/lib/audit.ts`.
 6. **Enums als strings + Zod.** Eén schema draait op SQLite én Postgres. Geen native db-enums.
 7. **Geen scope-creep.** Bouw wat in `CURRENT_TASK.md` staat. Niets erbij verzinnen.
+8. **Env-validatie breekt de boot nooit op een go-live-secret die de mens nog moet zetten.**
+   Een ontbrekende productie-secret met een veilige fallback (bv. `SHARE_TOKEN_SECRET` → `AUTH_SECRET`,
+   `AUTH_URL`, sterkere `AUTH_SECRET`) is een **niet-fatale waarschuwing** (`envWarnings`), nooit een
+   harde `validateEnv`-fout — anders crasht de deploy vóór de secret er is (les 24-6: #524 brak de
+   Railway-deploy zo). Harde boot-eisen alleen voor: basisvariabelen (`DATABASE_URL`, `AUTH_SECRET`
+   ≥16) en een **expliciet ingeschakelde** integratie die zijn secrets mist (halve activering is
+   gevaarlijker dan geen). Integraties staan default UIT/inert.
 
 ---
 
