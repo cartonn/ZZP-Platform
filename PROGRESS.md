@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## kans-/concurrentiesignaal voor de ZZP'er op opdracht-detail (2026-06-24)
+
+Spiegelbeeld van het opdrachtgever-bereiksignaal (`job-reach`): waar dat de vraagkant samenvat
+(hoeveel passende ZZP'ers bereikt de opdracht), vat dit de aanbodkant samen voor de ZZP'er die
+overweegt te reageren. Op een gepubliceerde opdracht waarop hij nog niet reageerde ziet de ZZP'er nu
+hoeveel kandidaten al reageerden en — gecombineerd met zijn eigen matchscore — hoe sterk hij ervoor
+staat en of snel handelen loont. Vertaalt de "binnen uren"-liquiditeit van Temper/Pidz/Zorgwerk naar
+onze verklaarbare matching, zonder gegevens van andere kandidaten te lekken (alleen hun aantal telt).
+
+- [x] **Pure motor** `src/lib/job-competition.ts` — `summarizeJobCompetition({ applicantCount,
+myScore })` + helpers `competitionLevel`/`chanceLevel`. Concurrentieniveau (low/moderate/high op
+      3/8 reacties) × kansniveau uit de eigen score (strong/fair/longshot op 70/50) → kop, sturingstip
+      en `urgent`-vlag (veel reacties + niet-kansloze match → reageer snel). Nul-reacties = "Wees de
+      eerste"-nudge. Normaliseert negatieve/fractionele telling. Geen schemawijziging.
+- [x] **Card** `src/components/jobs/job-competition-card.tsx` — presentationeel, toont alleen de
+      geaggregeerde telling + kop/tip; gewired in `/opdrachten/[id]` bij "Jouw aansluiting" (alleen
+      niet-eigenaar FREELANCER, PUBLISHED, nog niet gereageerd). Server-side telling via begrensde
+      `application.count` (ingetrokken reacties tellen niet mee).
+- [x] **15 unit-tests** (`job-competition.test.ts`) over niveaus, grenzen, nul-reacties, onbekende
+      score en de kop/urgent-matrix. Gate lokaal groen: typecheck, lint, 2718 tests, `next build`,
+      `prettier --write .`.
+
 ## ontwerp-lab: verse, sterkere set van 10 concepten (2026-06-24)
 
 Volledige refresh van `/ontwerp`: de vorige set (Stille Precisie, Redactie, Cockpit, Glas, Stelling,
