@@ -19,8 +19,31 @@ export interface UserStats {
   total: number;
   freelancers: number;
   clients: number;
+  franchisers: number;
   admins: number;
   suspended: number;
+}
+
+/**
+ * Bouwt de gebruikersverdeling uit de `groupBy({ by: ["role"] })`-rijen + het aantal geschorste
+ * accounts. Pure helper (los getest): `total` = som over álle rollen, zodat de verdeling per rol
+ * altijd optelt tot het totaal — ook de FRANCHISER-rol ("Bemiddelaar") telt expliciet mee i.p.v.
+ * stilletjes uit de verdeling te vallen. Onbekende legacy-rollen tellen wel in `total`, maar in
+ * geen enkele rol-categorie.
+ */
+export function buildUserStats(
+  roleRows: ReadonlyArray<{ role: string; count: number }>,
+  suspended: number,
+): UserStats {
+  const roleMap = Object.fromEntries(roleRows.map((r) => [r.role, r.count]));
+  return {
+    total: roleRows.reduce((sum, r) => sum + r.count, 0),
+    freelancers: roleMap["FREELANCER"] ?? 0,
+    clients: roleMap["CLIENT"] ?? 0,
+    franchisers: roleMap["FRANCHISER"] ?? 0,
+    admins: roleMap["ADMIN"] ?? 0,
+    suspended,
+  };
 }
 
 export interface CollaborationStats {
@@ -187,9 +210,11 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     }),
   ]);
 
-  // Rol-verdeling
-  const roleMap = Object.fromEntries(userRows.map((r) => [r.role, r._count._all]));
-  const userTotal = userRows.reduce((s, r) => s + r._count._all, 0);
+  // Rol-verdeling (FRANCHISER telt expliciet mee — zie buildUserStats)
+  const users = buildUserStats(
+    userRows.map((r) => ({ role: r.role, count: r._count._all })),
+    suspendedCount,
+  );
 
   // Samenwerkingen per status
   const collabMap = Object.fromEntries(collabRaw.map((r) => [r.status, r._count._all]));
@@ -200,13 +225,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   const perfTotal = perfRaw.reduce((s, r) => s + r._count._all, 0);
 
   return {
-    users: {
-      total: userTotal,
-      freelancers: roleMap["FREELANCER"] ?? 0,
-      clients: roleMap["CLIENT"] ?? 0,
-      admins: roleMap["ADMIN"] ?? 0,
-      suspended: suspendedCount,
-    },
+    users,
     collaborations: {
       total: collabTotal,
       proposed: collabMap["PROPOSED"] ?? 0,
