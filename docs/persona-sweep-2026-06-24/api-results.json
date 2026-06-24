@@ -1,0 +1,92 @@
+[
+  {
+    "role": "CLIENT",
+    "p": "/api/documents/cmqrm4kvu000l7d6jwib9043e",
+    "kind": "doc-privacy other-owner",
+    "status": 403,
+    "type": "basic",
+    "ctype": "application/json",
+    "location": "",
+    "bodyStart": "{\"error\":\"Geen toegang.\"}"
+  },
+  {
+    "role": "FRANCHISER",
+    "p": "/api/documents/cmqrm4kvu000l7d6jwib9043e",
+    "kind": "doc-privacy other-owner",
+    "status": 403,
+    "type": "basic",
+    "ctype": "application/json",
+    "location": "",
+    "bodyStart": "{\"error\":\"Geen toegang.\"}"
+  },
+  {
+    "role": "FREELANCER",
+    "p": "/api/documents/cmqrm4l9q00257d6j7b57lo7t",
+    "kind": "doc-privacy other-freelancer",
+    "status": 403,
+    "type": "basic",
+    "ctype": "application/json",
+    "location": "",
+    "bodyStart": "{\"error\":\"Geen toegang.\"}"
+  },
+  {
+    "role": "FREELANCER",
+    "p": "/api/documents/cmqrm4kvu000l7d6jwib9043e",
+    "kind": "doc-privacy owner-OK",
+    "status": 200,
+    "type": "basic",
+    "ctype": "application/pdf",
+    "location": "",
+    "bodyStart": "%PDF-1.7\n%\n\n7 0 obj\n<<\n/Filter /FlateDecode\n/Length 493\n"
+  },
+  {
+    "role": "FREELANCER",
+    "p": "/api/samenwerkingen/cmqrm4lpb00597d6j5ss6n883/dba-dossier",
+    "kind": "dba foreign",
+    "status": 403,
+    "type": "basic",
+    "ctype": "application/json",
+    "location": "",
+    "bodyStart": "{\"error\":\"Geen toegang.\"}"
+  },
+  {
+    "role": "CLIENT",
+    "p": "/api/samenwerkingen/cmqrm4lpb00597d6j5ss6n883/dba-dossier",
+    "kind": "dba foreign",
+    "status": 403,
+    "type": "basic",
+    "ctype": "application/json",
+    "location": "",
+    "bodyStart": "{\"error\":\"Geen toegang.\"}"
+  },
+  {
+    "role": "FREELANCER",
+    "p": "/verplichtingen/export",
+    "kind": "export client-route",
+    "status": 403,
+    "type": "basic",
+    "ctype": "application/json",
+    "location": "",
+    "bodyStart": "{\"error\":\"Niet toegestaan\"}"
+  },
+  {
+    "role": "CLIENT",
+    "p": "/prognose/export",
+    "kind": "export freelancer-route",
+    "status": 403,
+    "type": "basic",
+    "ctype": "application/json",
+    "location": "",
+    "bodyStart": "{\"error\":\"Niet toegestaan\"}"
+  },
+  {
+    "role": "FREELANCER",
+    "p": "/api/admin/export/invoices",
+    "kind": "export admin-route",
+    "status": 403,
+    "type": "basic",
+    "ctype": "text/plain;charset=UTF-8",
+    "location": "",
+    "bodyStart": "Geen toegang: vereist rol ADMIN."
+  }
+]
