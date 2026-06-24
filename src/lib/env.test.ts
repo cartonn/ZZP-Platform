@@ -166,6 +166,7 @@ describe("envWarnings", () => {
       AUTH_SECRET: "x".repeat(32),
       SHARE_TOKEN_SECRET: "y".repeat(32),
       AUTH_URL: "https://app.zzp-platform.nl",
+      SENTRY_DSN: "https://example@o0.ingest.sentry.io/0",
       STORAGE_DRIVER: "s3",
       EMAIL_DRIVER: "smtp",
       CRON_SECRET: "cron",

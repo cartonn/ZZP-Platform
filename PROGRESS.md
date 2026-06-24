@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## prod: observability-seam — gestructureerde logging + error-reporting + readiness
+
+Productie-rijpheid: server-side waarneembaarheid die nu nog ontbrak. Additief; geen auth- of
+gedragswijziging, geen nieuwe harde dependency. Integraties inert achter env-flags (graceful
+fallback zonder secret/package).
+
+- [x] **Gestructureerde, PII-veilige logger** — `src/lib/observability/logger.ts`. Eén JSON-regel
+      per log (`{level,msg,time,...}`), drempel via `LOG_LEVEL` (default `info`). `redact()` maskeert
+      secret-achtige keys (password/token/authorization/dsn/iban/bsn/…) én e-mailadressen in
+      string-waarden, recursief, met diepte-cap; muteert input niet; nooit throw (serialisatie-fallback).
+- [x] **Error-reporting-seam** — `src/lib/observability/report.ts`. `reportError()` → default
+      `ConsoleErrorReporter` (logt gestructureerd); `SentryErrorReporter` actief zodra `SENTRY_DSN`
+      gezet is, lazy-import van `@sentry/nextjs` via variabele specifier (`webpackIgnore`) zodat het
+      build niet breekt zolang het pakket niet geïnstalleerd is — één keer waarschuwen, dan console-
+      fallback. `reportError` slikt alle fouten (rapportage faalt nooit de request).
+- [x] **`onRequestError`-wiring** — `src/instrumentation.ts`: Next.js 15 routeert gevangen server-
+      fouten (RSC/route handlers/server actions) naar de seam; robuust, nooit throw.
+- [x] **Readiness-endpoint** — `src/app/api/readiness/route.ts` + pure `evaluateReadiness`
+      (`src/lib/observability/readiness.ts`). Strenger dan liveness `/api/health`: DB-ping **én**
+      schema-probe (kerntabel queryable) → 200/`ready` of 503. PII-vrije fout-details (alleen error-naam).
+- [x] **env-validatie** — `SENTRY_DSN` + `LOG_LEVEL` toegevoegd (`src/lib/env.ts`); productie-
+      waarschuwing wanneer `SENTRY_DSN` ontbreekt (niet-fataal).
+
+Tests: logger (13), readiness (5), report+env (27) — incl. de fallback-zonder-secret/zonder-package.
+Gate groen: typecheck ✓, lint ✓, prettier ✓, build ✓ (route `/api/readiness`), test **2686** ✓.
+**Menselijke reststap:** `SENTRY_DSN` zetten + `npm i @sentry/nextjs` voor externe error-monitoring;
+zonder dat draait alles veilig door op gestructureerd loggen.
+
 ## ontwerp-lab: publiek design-lab `/ontwerp` — volledige set van 10 concepten live
 
 Een publiek, inlogvrij design-lab (`noindex`) waar de eigenaar via één URL tien onderscheidende,
