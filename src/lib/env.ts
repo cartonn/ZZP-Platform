@@ -146,7 +146,7 @@ export function envWarnings(env: Env): string[] {
       "CRON_SECRET ontbreekt — de taak-endpoints (/api/tasks/*) zijn uitgeschakeld; geplande runners draaien niet.",
     );
   }
-  if (/^file:|sqlite/i.test(env.DATABASE_URL)) {
+  if (/^(file:|sqlite)/i.test(env.DATABASE_URL)) {
     warnings.push(
       "DATABASE_URL wijst naar SQLite — gebruik in productie een managed PostgreSQL (EU-regio, back-ups).",
     );
