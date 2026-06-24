@@ -59,6 +59,11 @@ const schema = z
     BILLING_PROVIDER: z.enum(["noop", "mollie"]).default("noop"),
     MOLLIE_API_KEY: z.string().optional(),
 
+    // Foutmonitoring: optionele externe error-reporting (Sentry). Zonder DSN worden
+    // server-fouten alleen gestructureerd gelogd. LOG_LEVEL stelt de logdrempel in.
+    SENTRY_DSN: z.string().optional(),
+    LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
+
     // Externe verificatie-adapters. Elke waarde behalve de echte provider ("duo"/"bigregister"/
     // "idin") betekent de ingebouwde demo-verifier (conventie in .env.example: "mock") — daarom
     // een vrije string i.p.v. een strikte enum, zodat bestaande config niet breekt.
@@ -158,6 +163,11 @@ export function envWarnings(env: Env): string[] {
   if (env.AUTH_SECRET.length < 32) {
     warnings.push(
       "AUTH_SECRET is korter dan 32 tekens — gebruik in productie een sterke sleutel (`openssl rand -base64 32`).",
+    );
+  }
+  if (!env.SENTRY_DSN) {
+    warnings.push(
+      "SENTRY_DSN ontbreekt — server-fouten worden alleen gestructureerd gelogd (geen externe error-monitoring). Zet SENTRY_DSN + installeer @sentry/nextjs voor productie-monitoring.",
     );
   }
   return warnings;

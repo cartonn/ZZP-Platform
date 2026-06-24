@@ -56,6 +56,13 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   in-memory; bij meerdere Railway-instances zijn de limieten per instance. De
   `RateLimitStore`-interface is pluggbaar — Upstash/Redis past er direct achter. Niet nodig
   zolang er één instance draait.
+- **Externe error-monitoring (Sentry) aanzetten** (laag, code-kant GEDAAN 24-6-2026): server-fouten
+  worden nu gestructureerd en PII-veilig gelogd (`src/lib/observability/`), met een readiness-endpoint
+  (`/api/readiness`, los van `/api/health`) en een error-reporting-grens die Next.js-server-fouten
+  opvangt (`onRequestError`). De grens is **Sentry-ready achter een vlag**: zet `SENTRY_DSN` in de
+  secrets én installeer `@sentry/nextjs` (`npm i @sentry/nextjs`) en externe monitoring activeert
+  vanzelf. Zolang dat ontbreekt draait alles veilig door op gestructureerd loggen — niets te doen
+  voor de pilot. Optioneel: `LOG_LEVEL` (debug/info/warn/error, default info).
 - **Dependency graph + Dependabot aanzetten** (laag, web-toggle): de `dependency-review`-poort
   vereist GitHub's Dependency graph. Zet die (en Dependabot security updates) aan op
   github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check draait
@@ -327,6 +334,8 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`             | Echte DUO-controle                            | DUO (§4a)            | Voor echte diplomacontrole     |
 | `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`         | Echte BIG-controle                            | CIBG (§4b)           | Voor echte zorgcontrole        |
 | `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY` | Echte identiteitscontrole                     | PSP/iDIN (§4c)       | Voor echte identiteitscontrole |
+| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                           | Externe error-monitoring (anders alleen logs) | Sentry (§0b)         | Optioneel (aanbevolen prod)    |
+| `LOG_LEVEL`                                                       | Logdrempel (debug/info/warn/error)            | —                    | Optioneel (default info)       |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).
