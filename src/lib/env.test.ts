@@ -118,7 +118,7 @@ describe("validateEnv", () => {
     expect(() => validateEnv()).not.toThrow();
   });
 
-  describe("productie-specifieke eisen", () => {
+  describe("productie-aanbevelingen (waarschuwingen, geen harde boot-fail)", () => {
     function baseProd() {
       setEnv("NODE_ENV", "production");
       process.env.DATABASE_URL = "postgresql://localhost/zzp";
@@ -127,35 +127,33 @@ describe("validateEnv", () => {
       process.env.SHARE_TOKEN_SECRET = "y".repeat(32);
     }
 
-    it("dwingt SHARE_TOKEN_SECRET af in productie (H-1)", () => {
+    it("breekt de boot NIET als SHARE_TOKEN_SECRET ontbreekt, maar waarschuwt (graceful fallback, H-1)", () => {
       baseProd();
       delete process.env.SHARE_TOKEN_SECRET;
-      expect(() => validateEnv()).toThrow(/SHARE_TOKEN_SECRET/);
+      expect(() => validateEnv()).not.toThrow();
+      expect(envWarnings(validateEnv()).some((m) => /SHARE_TOKEN_SECRET/.test(m))).toBe(true);
     });
 
-    it("dwingt AUTH_URL af in productie", () => {
+    it("breekt de boot NIET als AUTH_URL/NEXTAUTH_URL ontbreekt, maar waarschuwt", () => {
       baseProd();
       delete process.env.AUTH_URL;
       delete process.env.NEXTAUTH_URL;
-      expect(() => validateEnv()).toThrow(/AUTH_URL/);
-    });
-
-    it("accepteert NEXTAUTH_URL als alternatief voor AUTH_URL", () => {
-      baseProd();
-      delete process.env.AUTH_URL;
-      process.env.NEXTAUTH_URL = "https://app.zzp-platform.nl";
       expect(() => validateEnv()).not.toThrow();
+      expect(envWarnings(validateEnv()).some((m) => /AUTH_URL/.test(m))).toBe(true);
     });
 
-    it("vereist een sterke AUTH_SECRET (≥32) in productie", () => {
+    it("breekt de boot NIET bij een AUTH_SECRET < 32, maar waarschuwt", () => {
       baseProd();
-      process.env.AUTH_SECRET = "x".repeat(20); // geldig lokaal (≥16), te zwak in prod
-      expect(() => validateEnv()).toThrow(/AUTH_SECRET/);
+      process.env.AUTH_SECRET = "x".repeat(20); // geldig (≥16), zwak voor prod
+      expect(() => validateEnv()).not.toThrow();
+      expect(envWarnings(validateEnv()).some((m) => /AUTH_SECRET/.test(m))).toBe(true);
     });
 
-    it("accepteert een complete productieconfiguratie", () => {
+    it("accepteert een complete productieconfiguratie zonder deze waarschuwingen", () => {
       baseProd();
       expect(() => validateEnv()).not.toThrow();
+      const w = envWarnings(validateEnv());
+      expect(w.some((m) => /SHARE_TOKEN_SECRET|AUTH_URL|AUTH_SECRET/.test(m))).toBe(false);
     });
   });
 });
@@ -166,6 +164,8 @@ describe("envWarnings", () => {
       NODE_ENV: "production",
       DATABASE_URL: "postgresql://localhost/zzp",
       AUTH_SECRET: "x".repeat(32),
+      SHARE_TOKEN_SECRET: "y".repeat(32),
+      AUTH_URL: "https://app.zzp-platform.nl",
       STORAGE_DRIVER: "s3",
       EMAIL_DRIVER: "smtp",
       CRON_SECRET: "cron",
