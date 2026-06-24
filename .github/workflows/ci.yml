@@ -31,6 +31,10 @@ jobs:
       DATABASE_URL: "file:./ci.db"
       AUTH_SECRET: "ci-dummy-secret-minstens-16-tekens-lang"
       STORAGE_DRIVER: "local"
+      # De e2e-server draait in productiemodus (`next start`); de env-validatie dwingt dan
+      # SHARE_TOKEN_SECRET + AUTH_URL af. Dummy-waarden (zoals AUTH_SECRET hierboven) volstaan.
+      SHARE_TOKEN_SECRET: "ci-dummy-share-token-secret-minstens-16"
+      AUTH_URL: "http://localhost:3000"
       CI: "true"
       SEED_DEMO: "true"
       # De héle e2e-suite draait vanaf één IP met dezelfde seed-accounts; de strenge
