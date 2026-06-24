@@ -3,34 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## feat(i18n): CLIENT — kandidatenscherm (/kandidaten) vertaald (EN)
+## routine: i18n opdrachtgever-dashboard (/dashboard, CLIENT-tak) vertaald (EN)
 
-Vervolg op de i18n-reeks (#491–#502 ZZP'er-pad, #505 CLIENT-dashboard). Het CLIENT-kandidatenscherm
-`/kandidaten` was nog volledig Nederlands. Nu via `t()` (server-side `getTranslator`, NL-fallback)
-vertaald: kop + omschrijving, statusfilter-pills, "Beste match"-kaart, match-/compliance-regels
-(Mist/Verlopen/In beoordeling), "Waarom deze match?", tarief-/agenda-regels, actieknoppen
-(terug/bekeken/accepteren/afwijzen + afwijs-bevestiging), bericht/samenwerking-knoppen. De drie
-client-subcomponenten krijgen hun teksten als **labels-prop** vanaf de server-pagina (server is de
-vertaalbron — geen client-only vertaalstate): note-form, samenwerking-voorstel, bulk-triage-bar.
+Vervolg op de i18n-reeks (#491–#502, ZZP'er-pad). De FREELANCER-tak van het werkruimte-dashboard is
+in #492 vertaald; de **CLIENT (opdrachtgever)-tak van `/dashboard` was nog volledig Nederlands**.
+Nu via `t()` (server-side `getTranslator`, NL-fallback) vertaald: KPI-labels (Fill rate/Active
+collaborations/Posted assignments/Spending + de stats-fallback), lijst "Suggested professionals" +
+lege staat, compliance-zegel (titel + subtitel "X/Y shifts compliant" + items Missing-expired/
+Expiring soon/In review), header-fallback en de week-strip (labels + dienst/diensten via de gedeelde
+`t`-parameter van `buildCurrentWeek`). Geen schemawijziging, geen gedragswijziging in de NL-UI.
 
-- [x] `src/lib/i18n/messages.ts` — sectie "CLIENT — kandidatenscherm": ~40 nieuwe paren (omschrijving,
-      filter-aria, "Beste match", lege-staten, "Mist:", "Waarom deze match?", actielabels +
-      afwijs-bevestiging, propose-/note-/bulk-labels). Hergebruikt bestaande sleutels (Nieuw/Bekeken/
-      Shortlist/Geaccepteerd/Afgewezen/Ingetrokken, "Verlopen:", "In beoordeling:", Match, /uur,
-      Versturen…).
-- [x] `src/app/(protected)/kandidaten/page.tsx` — `getTranslator`; alle UI-strings via `t()`,
-      filterlabels via `t(label)`, credentialtypes via `t(CREDENTIAL_TYPE_LABEL[type])`; bouwt de
-      labels-props voor de drie client-componenten.
-- [x] `…/bulk-triage-bar.tsx`, `…/propose-collaboration.tsx`, `…/application-note-form.tsx` —
-      exporteren een `*Labels`-type + accepteren een `labels`-prop (geen hardgecodeerde NL meer).
+- [x] `src/lib/i18n/messages.ts` — sectie "Opdrachtgever-dashboard": 15 brontekst→EN-paren.
+- [x] `src/app/(protected)/dashboard/page.tsx` — CLIENT-tak: alle hardgecodeerde NL-strings via `t()`;
+      `buildCurrentWeek` krijgt nu `t` (week-labels + dienst/diensten meertalig, gelijk aan de
+      FREELANCER-tak).
 - [x] `src/lib/i18n/messages.test.ts` — +2 tests (EN-vertaling + NL-onveranderd).
-- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummer kandidaten 63 → 91 (nieuwe import +
-      labels-blokken vóór de findMany).
 
-Gate groen: typecheck ✓, lint ✓, test **2571** ✓, build ✓, `prettier --check .` ✓.
-
-> Open (follow-up, gedeelde componenten — bewust buiten deze increment): `VerificationMarks`,
-> `TrustBadge`, `DeliveryQualityBlock` renderen nog NL; die worden per gedeelde-component-PR vertaald.
+Gate groen: typecheck ✓, lint ✓, test **2566** ✓, build ✓, `prettier --check .` ✓.
 
 ## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
 
