@@ -50,6 +50,10 @@ vi.mock("@/lib/db", () => ({
     ideaComment: { updateMany: op("ideaComment.updateMany") },
     review: { updateMany: op("review.updateMany") },
     shiftHandoff: { updateMany: op("shiftHandoff.updateMany") },
+    indirectHoursEntry: { updateMany: op("indirectHoursEntry.updateMany") },
+    idea: { updateMany: op("idea.updateMany") },
+    collaboration: { updateMany: op("collaboration.updateMany") },
+    pushSubscription: { deleteMany: op("pushSubscription.deleteMany") },
     auditLog: { create: op("auditLog.create") },
     $transaction: vi.fn(async (ops: Array<{ model: string; args: unknown }>) => {
       tx.ops = ops;
@@ -103,6 +107,39 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     const o = find("shiftHandoff.updateMany") as { args: { where: unknown; data: unknown } };
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ requestedByUserId: "user-42" });
+  });
+
+  it("wist de vrije-tekstnoot op indirecte-uren-rijen (IndirectHoursEntry.note)", async () => {
+    await anonymizeUser("user-42");
+    const o = find("indirectHoursEntry.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ userId: "user-42" });
+    expect((o.args.data as { note: string | null }).note).toBeNull();
+  });
+
+  it("redact titel + omschrijving van eigen ideeën (Idea)", async () => {
+    await anonymizeUser("user-42");
+    const o = find("idea.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ authorId: "user-42" });
+    const data = o.args.data as { title: string; description: string };
+    expect(data.title).toMatch(/verwijderd/i);
+    expect(data.description).toMatch(/verwijderd/i);
+  });
+
+  it("wist de zelf-geschreven annuleerreden (Collaboration.cancellationReason)", async () => {
+    await anonymizeUser("user-42");
+    const o = find("collaboration.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ cancelledById: "user-42" });
+    expect((o.args.data as { cancellationReason: string | null }).cancellationReason).toBeNull();
+  });
+
+  it("verwijdert push-abonnementen (PushSubscription — toestel-identifier)", async () => {
+    await anonymizeUser("user-42");
+    const o = find("pushSubscription.deleteMany") as { args: { where: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ userId: "user-42" });
   });
 
   it("schrijft nog steeds een ACCOUNT_ANONYMIZED-auditregel", async () => {

@@ -206,7 +206,30 @@ export async function editAndResubmitPerformanceAction(
   formData: FormData,
 ): Promise<string | null> {
   const actor = await requireActor();
-  const parsed = await parsePerformanceInput(collaborationId, formData);
+
+  // Server-side waarheid + ownership vóór actie (CLAUDE.md regel 1 & 2). De prestatie bepaalt zélf
+  // bij welke samenwerking ze hoort; parsePerformanceInput snapshot daaruit het uurtarief/ORT-profiel.
+  // Het meegestuurde `collaborationId` is NIET te vertrouwen: zonder deze binding kon een ZZP'er een
+  // eigen (afgekeurde) prestatie corrigeren met het — mogelijk hogere — tarief van een ándere
+  // samenwerking, en zo zijn eigen (auto-)goedgekeurde factuur opblazen (A01/IDOR — financiële
+  // manipulatie + inzage in andermans tarief). Bind de tarief-bron daarom hard aan de eigen
+  // samenwerking van de prestatie en weiger een afwijkend id.
+  const perf = await prisma.performance.findUnique({
+    where: { id: performanceId },
+    select: {
+      collaborationId: true,
+      collaboration: { select: { freelancer: { select: { userId: true } } } },
+    },
+  });
+  if (!perf) return "Prestatie niet gevonden.";
+  if (actor.role !== "ADMIN" && actor.id !== perf.collaboration.freelancer.userId) {
+    return "Je hebt geen toegang tot deze prestatie.";
+  }
+  if (perf.collaborationId !== collaborationId) {
+    return "De samenwerking komt niet overeen met de prestatie.";
+  }
+
+  const parsed = await parsePerformanceInput(perf.collaborationId, formData);
   if ("error" in parsed) return parsed.error;
   try {
     const { collaborationId: _cid, ...fields } = parsed.input;
