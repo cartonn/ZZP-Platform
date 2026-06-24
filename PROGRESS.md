@@ -3,24 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## feat(franchise): nav-signalen voor de FRANCHISER (overdue leads + open shift-overnames)
+## routine: i18n opdrachtgever-dashboard (/dashboard, CLIENT-tak) vertaald (EN)
 
-De FRANCHISER-tak van `navBadges` gaf `return {}` ("nog geen per-nav-signalen"). Nu twee
-tenant-gescopete, server-side actiesignalen in de zijbalk — spiegel van het bestaande
-FREELANCER/CLIENT/ADMIN-patroon. De franchiser ziet vanaf elke pagina wat openstaat.
+Vervolg op de i18n-reeks (#491–#502, ZZP'er-pad). De FREELANCER-tak van het werkruimte-dashboard is
+in #492 vertaald; de **CLIENT (opdrachtgever)-tak van `/dashboard` was nog volledig Nederlands**.
+Nu via `t()` (server-side `getTranslator`, NL-fallback) vertaald: KPI-labels (Fill rate/Active
+collaborations/Posted assignments/Spending + de stats-fallback), lijst "Suggested professionals" +
+lege staat, compliance-zegel (titel + subtitel "X/Y shifts compliant" + items Missing-expired/
+Expiring soon/In review), header-fallback en de week-strip (labels + dienst/diensten via de gedeelde
+`t`-parameter van `buildCurrentWeek`). Geen schemawijziging, geen gedragswijziging in de NL-UI.
 
-- [x] `src/lib/signals.ts` — `SignalCounts`/`SIGNAL_HREF`/`SIGNAL_TONE` uitgebreid met
-      `overdueLeads` → `/franchise/leads` (attention) en `openHandoffs` →
-      `/franchise/shift-overnames` (attention). FRANCHISER-tak resolvet `tenantId` uit de user
-      (geen franchise → geen badges) en telt: actieve leads (KOUD/WARM) met `nextFollowUp` vóór
-      vandaag (UTC-dag, gelijk aan de leads-pagina), en OPEN `ShiftHandoff` binnen de tenant
-      (via `collaboration.job.tenantId`). Twee begrensde counts, geen N+1.
-- [x] `src/lib/signals.ts` — pure `startOfUtcDay(now)` als dag-grens (los testbaar).
-- [x] `src/lib/signals.test.ts` — +6 tests (buildBadges-mapping van beide signalen + de
-      dag-grens-semantiek: gisteren = te laat, vandaag = niet te laat).
+- [x] `src/lib/i18n/messages.ts` — sectie "Opdrachtgever-dashboard": 15 brontekst→EN-paren.
+- [x] `src/app/(protected)/dashboard/page.tsx` — CLIENT-tak: alle hardgecodeerde NL-strings via `t()`;
+      `buildCurrentWeek` krijgt nu `t` (week-labels + dienst/diensten meertalig, gelijk aan de
+      FREELANCER-tak).
+- [x] `src/lib/i18n/messages.test.ts` — +2 tests (EN-vertaling + NL-onveranderd).
 
-Geen schemawijziging, geen extra UI (de badges hangen aan de bestaande nav-items). Gate groen:
-typecheck ✓, lint ✓, test **2575** ✓ (+6), build ✓, `prettier --check` ✓.
+Gate groen: typecheck ✓, lint ✓, test **2566** ✓, build ✓, `prettier --check .` ✓.
 
 ## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
 
