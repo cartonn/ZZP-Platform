@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: tariefpassendheid-signaal op /kandidaten (proposedRate vs. budget)
+
+De kandidatenkaart toonde het tariefvoorstel van de ZZP'er (`proposedRate`) zonder vergelijking met
+het gepubliceerde opdrachtbudget (`rateMin`..`rateMax`). De matchreden "Tarief past binnen het budget"
+gebruikt bovendien het profiel-`hourlyRate`, niet de `proposedRate` (de werkelijke vraag voor déze
+opdracht). Toegevoegd: een budgetpassendheid-badge naast het tariefvoorstel (Binnen/Onder/Boven budget)
+als beslis-hulp voor de opdrachtgever bij het triëren op kosten. Read-only, geen schemawijziging, geen
+extra query (leunt op de reeds geladen `job.rateMin/rateMax` + `app.proposedRate`).
+
+- [x] `src/lib/rate-fit.ts` — pure `classifyProposedRateFit(proposedRate, rateMin, rateMax)` →
+      `within`/`below`/`above`/`unknown` (grenzen inclusief, plafond vóór bodem, één grens volstaat,
+      `unknown` zonder voorstel of zonder budget) + `RATE_FIT_LABEL` + `RATE_FIT_VARIANT`.
+- [x] `src/lib/rate-fit.test.ts` — 9 unit-tests (alle grensgevallen + label/variant-dekking).
+- [x] `src/app/(protected)/kandidaten/page.tsx` — badge naast "Tariefvoorstel" (verbergt zich bij
+      `unknown`); `t()`-gewikkeld zoals de rest van de pagina, geen woordenboek-werk.
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regel kandidaten 91 → 92 (nieuwe import).
+
+Gate groen: typecheck ✓, lint ✓, test **2608** ✓, build ✓, `prettier --check .` ✓.
+
 ## routine: i18n opdrachtgever-dashboard (/dashboard, CLIENT-tak) vertaald (EN)
 
 Vervolg op de i18n-reeks (#491–#502, ZZP'er-pad). De FREELANCER-tak van het werkruimte-dashboard is
