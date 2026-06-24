@@ -1,5 +1,17 @@
 // Env-validatie. Draait bij server-boot (zie src/instrumentation.ts) zodat een ontbrekende
 // of zwakke configuratie meteen en duidelijk faalt in plaats van later mysterieus.
+//
+// Twee niveaus:
+//   1. HARDE fouten (validateEnv werpt): de app kan niet veilig of correct draaien.
+//      - basisvariabelen ontbreken/zwak (DATABASE_URL, AUTH_SECRET);
+//      - een ingeschakelde integratie (s3/smtp/mollie/duo/...) mist zijn vereiste secrets —
+//        dan is een halve activering gevaarlijker dan geen;
+//      - productie-specifieke eisen (SHARE_TOKEN_SECRET, AUTH_URL, sterke AUTH_SECRET).
+//   2. ZACHTE waarschuwingen (envWarnings, gelogd bij boot): de app draait door met een
+//      veilige fallback, maar in productie wil je dit waarschijnlijk anders (geen mailkanaal,
+//      lokale documentopslag, geen taak-cron). Nooit fataal — de pilot blijft werken.
+//
+// Integraties staan default UIT/inert; ze activeren pas zodra de bijbehorende secret er is.
 
 import { z } from "zod";
 
@@ -7,36 +19,140 @@ const schema = z
   .object({
     DATABASE_URL: z.string().min(1, "DATABASE_URL is verplicht."),
     AUTH_SECRET: z.string().min(16, "AUTH_SECRET moet minstens 16 tekens zijn."),
+    // Productie-webadres (NextAuth + deelbare dossier-links). In productie verplicht; lokaal optioneel.
+    AUTH_URL: z.string().url("AUTH_URL moet een geldige URL zijn.").optional(),
+    NEXTAUTH_URL: z.string().url("NEXTAUTH_URL moet een geldige URL zijn.").optional(),
+    // Eigen sleutel voor deelbare dossier-links (security-review H-1). Valt lokaal terug op
+    // AUTH_SECRET; in productie verplicht zodat rotatie van het één niet het ander breekt.
+    SHARE_TOKEN_SECRET: z
+      .string()
+      .min(16, "SHARE_TOKEN_SECRET moet minstens 16 tekens zijn.")
+      .optional(),
+
+    // Documentopslag: lokale .gitignore'de map (default) of S3 / S3-compatibel (productie).
     STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
     STORAGE_S3_BUCKET: z.string().optional(),
+    STORAGE_S3_REGION: z.string().optional(),
+    STORAGE_S3_ENDPOINT: z.string().optional(),
+    AWS_ACCESS_KEY_ID: z.string().optional(),
+    AWS_SECRET_ACCESS_KEY: z.string().optional(),
+
     // Echte reistijd-routing: offline fallback (default) of Geoapify met API-key.
     ROUTING_PROVIDER: z.enum(["offline", "geoapify"]).default("offline"),
     GEOAPIFY_API_KEY: z.string().optional(),
     // Semantische matching: local (default, in-memory) of pgvector (productie).
     SEMANTIC_MATCHER: z.enum(["local", "pgvector"]).default("local"),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-    // Beveiligt POST /api/tasks/expiry (verloopdetectie + herinneringen). Optioneel;
-    // zonder waarde is het endpoint uitgeschakeld (503).
+    // Beveiligt POST /api/tasks/* (verloopdetectie, herinneringen, cascade-runners). Optioneel;
+    // zonder waarde zijn de taak-endpoints uitgeschakeld (503).
     CRON_SECRET: z.string().optional(),
+
+    // E-mailkanaal: noop (default, in-app meldingen blijven werken) of echte SMTP-verzending.
+    EMAIL_DRIVER: z.enum(["noop", "smtp"]).default("noop"),
+    EMAIL_SMTP_HOST: z.string().optional(),
+    EMAIL_SMTP_PORT: z.string().optional(),
+    EMAIL_SMTP_USER: z.string().optional(),
+    EMAIL_SMTP_PASS: z.string().optional(),
+    EMAIL_FROM: z.string().optional(),
+
+    // Betaalprovider: noop (default, demo-abonnementsflow) of Mollie.
+    BILLING_PROVIDER: z.enum(["noop", "mollie"]).default("noop"),
+    MOLLIE_API_KEY: z.string().optional(),
+
+    // Externe verificatie-adapters. Elke waarde behalve de echte provider ("duo"/"bigregister"/
+    // "idin") betekent de ingebouwde demo-verifier (conventie in .env.example: "mock") — daarom
+    // een vrije string i.p.v. een strikte enum, zodat bestaande config niet breekt.
+    DIPLOMA_VERIFIER: z.string().optional(),
+    DUO_API_BASE: z.string().optional(),
+    DUO_API_KEY: z.string().optional(),
+    BIG_VERIFIER: z.string().optional(),
+    BIG_API_BASE: z.string().optional(),
+    BIG_API_KEY: z.string().optional(),
+    IDENTITY_VERIFIER: z.string().optional(),
+    IDENTITY_API_BASE: z.string().optional(),
+    IDENTITY_API_KEY: z.string().optional(),
   })
   .superRefine((v, ctx) => {
-    if (v.STORAGE_DRIVER === "s3" && !v.STORAGE_S3_BUCKET) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["STORAGE_S3_BUCKET"],
-        message: "Verplicht bij STORAGE_DRIVER=s3.",
-      });
+    const isProd = v.NODE_ENV === "production";
+    const require = (cond: boolean, path: string, message: string) => {
+      if (!cond) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+    };
+
+    // Integratie ingeschakeld → de bijbehorende secrets zijn verplicht (geen halve activering).
+    if (v.STORAGE_DRIVER === "s3") {
+      require(!!v.STORAGE_S3_BUCKET, "STORAGE_S3_BUCKET", "Verplicht bij STORAGE_DRIVER=s3.");
+      require(!!v.STORAGE_S3_REGION, "STORAGE_S3_REGION", "Verplicht bij STORAGE_DRIVER=s3.");
+      require(!!v.AWS_ACCESS_KEY_ID, "AWS_ACCESS_KEY_ID", "Verplicht bij STORAGE_DRIVER=s3.");
+      require(!!v.AWS_SECRET_ACCESS_KEY, "AWS_SECRET_ACCESS_KEY", "Verplicht bij STORAGE_DRIVER=s3.");
     }
-    if (v.ROUTING_PROVIDER === "geoapify" && !v.GEOAPIFY_API_KEY) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["GEOAPIFY_API_KEY"],
-        message: "Verplicht bij ROUTING_PROVIDER=geoapify.",
-      });
+    if (v.ROUTING_PROVIDER === "geoapify") {
+      require(!!v.GEOAPIFY_API_KEY, "GEOAPIFY_API_KEY", "Verplicht bij ROUTING_PROVIDER=geoapify.");
+    }
+    if (v.EMAIL_DRIVER === "smtp") {
+      require(!!v.EMAIL_SMTP_HOST, "EMAIL_SMTP_HOST", "Verplicht bij EMAIL_DRIVER=smtp.");
+      require(!!v.EMAIL_SMTP_PORT, "EMAIL_SMTP_PORT", "Verplicht bij EMAIL_DRIVER=smtp.");
+      require(!!v.EMAIL_SMTP_USER, "EMAIL_SMTP_USER", "Verplicht bij EMAIL_DRIVER=smtp.");
+      require(!!v.EMAIL_SMTP_PASS, "EMAIL_SMTP_PASS", "Verplicht bij EMAIL_DRIVER=smtp.");
+      require(!!v.EMAIL_FROM, "EMAIL_FROM", "Verplicht bij EMAIL_DRIVER=smtp.");
+    }
+    if (v.BILLING_PROVIDER === "mollie") {
+      require(!!v.MOLLIE_API_KEY, "MOLLIE_API_KEY", "Verplicht bij BILLING_PROVIDER=mollie.");
+    }
+    if (v.DIPLOMA_VERIFIER === "duo") {
+      require(!!v.DUO_API_BASE, "DUO_API_BASE", "Verplicht bij DIPLOMA_VERIFIER=duo.");
+      require(!!v.DUO_API_KEY, "DUO_API_KEY", "Verplicht bij DIPLOMA_VERIFIER=duo.");
+    }
+    if (v.BIG_VERIFIER === "bigregister") {
+      require(!!v.BIG_API_BASE, "BIG_API_BASE", "Verplicht bij BIG_VERIFIER=bigregister.");
+      require(!!v.BIG_API_KEY, "BIG_API_KEY", "Verplicht bij BIG_VERIFIER=bigregister.");
+    }
+    if (v.IDENTITY_VERIFIER === "idin") {
+      require(!!v.IDENTITY_API_BASE, "IDENTITY_API_BASE", "Verplicht bij IDENTITY_VERIFIER=idin.");
+      require(!!v.IDENTITY_API_KEY, "IDENTITY_API_KEY", "Verplicht bij IDENTITY_VERIFIER=idin.");
+    }
+
+    // Productie-specifieke harde eisen.
+    if (isProd) {
+      require(v.AUTH_SECRET.length >=
+        32, "AUTH_SECRET", "In productie moet AUTH_SECRET minstens 32 tekens zijn (genereer met `openssl rand -base64 32`).");
+      require(!!v.SHARE_TOKEN_SECRET, "SHARE_TOKEN_SECRET", "In productie verplicht (security-review H-1): zonder eigen sleutel breekt rotatie van AUTH_SECRET alle deelbare dossier-links. Genereer met `openssl rand -base64 32`.");
+      require(!!(
+        v.AUTH_URL || v.NEXTAUTH_URL
+      ), "AUTH_URL", "In productie verplicht: zet AUTH_URL (of NEXTAUTH_URL) op je productie-webadres.");
     }
   });
 
 export type Env = z.infer<typeof schema>;
+
+/**
+ * Niet-fatale waarschuwingen voor productie: integraties die op een veilige fallback draaien
+ * maar die je in productie waarschijnlijk wilt activeren. Puur (testbaar); validateEnv logt ze.
+ */
+export function envWarnings(env: Env): string[] {
+  if (env.NODE_ENV !== "production") return [];
+  const warnings: string[] = [];
+  if (env.STORAGE_DRIVER === "local") {
+    warnings.push(
+      "STORAGE_DRIVER=local — geüploade documenten gaan naar de lokale schijf (vluchtig bij redeploy). Zet STORAGE_DRIVER=s3 voor productie.",
+    );
+  }
+  if (env.EMAIL_DRIVER === "noop") {
+    warnings.push(
+      "EMAIL_DRIVER=noop — er wordt geen e-mail afgeleverd (alleen in-app meldingen). Configureer EMAIL_DRIVER=smtp voor e-mailmeldingen.",
+    );
+  }
+  if (!env.CRON_SECRET) {
+    warnings.push(
+      "CRON_SECRET ontbreekt — de taak-endpoints (/api/tasks/*) zijn uitgeschakeld; geplande runners draaien niet.",
+    );
+  }
+  if (/^(file:|sqlite)/i.test(env.DATABASE_URL)) {
+    warnings.push(
+      "DATABASE_URL wijst naar SQLite — gebruik in productie een managed PostgreSQL (EU-regio, back-ups).",
+    );
+  }
+  return warnings;
+}
 
 /** Valideert process.env; werpt een leesbare fout als er iets ontbreekt/zwak is. */
 export function validateEnv(): Env {
@@ -46,6 +162,9 @@ export function validateEnv(): Env {
       .map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`)
       .join("\n");
     throw new Error(`Ongeldige omgevingsvariabelen:\n${details}`);
+  }
+  for (const warning of envWarnings(result.data)) {
+    console.warn(`[env] waarschuwing: ${warning}`);
   }
   return result.data;
 }

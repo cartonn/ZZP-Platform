@@ -20,6 +20,26 @@ beschermen een rol tegen absurde/misbruik-invoer (DOEL-2-thema van de persona-sw
 
 Gate groen: typecheck ✓, lint ✓, test **2629** ✓, build ✓, `prettier --check .` ✓.
 
+## prod: volledige env-validatie + SHARE_TOKEN_SECRET-afdwinging in productie
+
+De env-validatie (`src/lib/env.ts`) dekte slechts een paar variabelen. Nu **productie-rijp**: alle
+§7-secrets worden coherent gevalideerd met flag→companion-checks, en productie-specifieke eisen
+worden afgedwongen (MENSENWERK §0b H-1).
+
+- **Harde fouten (boot faalt):** integratie ingeschakeld maar secret(s) ontbreken — `STORAGE_DRIVER=s3`
+  (bucket + regio + AWS-sleutels), `EMAIL_DRIVER=smtp` (SMTP-host/poort/user/pass + from),
+  `BILLING_PROVIDER=mollie` (key), `DIPLOMA_VERIFIER=duo`/`BIG_VERIFIER=bigregister`/
+  `IDENTITY_VERIFIER=idin` (base + key). Productie-eisen: `SHARE_TOKEN_SECRET` verplicht (H-1),
+  `AUTH_URL`/`NEXTAUTH_URL` verplicht, `AUTH_SECRET` ≥ 32 tekens.
+- **Zachte waarschuwingen (gelogd, niet fataal) in productie:** lokale opslag, noop-mailkanaal,
+  ontbrekende `CRON_SECRET`, SQLite-`DATABASE_URL` — pure `envWarnings(env)`. De pilot blijft draaien;
+  integraties zijn default inert tot de secret er is.
+- [x] `src/lib/env.ts` — schema uitgebreid (alle §7-vars), `superRefine` flag→companion + prod-eisen,
+      `envWarnings()` (puur), `validateEnv()` logt waarschuwingen.
+- [x] `src/lib/env.test.ts` — 20 tests (8 → 20): elke integratie-poort, prod-afdwinging, inert-zonder-secret.
+- Verificatie: typecheck ✓ · lint ✓ · test **2615** ✓ · build ✓ · prettier ✓ · check:env ✓.
+- Resterend mensenwerk: alleen de secrets genereren + in de Railway-kluis plakken.
+
 ## persona-sweep: bovengrens op prestatie-uren/bedrag — voorkomt int-overflow → 500 bij goedkeuring
 
 **Gat gevonden én gefixt (live, kritische-gebruiker-sweep).** Een ZZP'er kon via een geknutselde
