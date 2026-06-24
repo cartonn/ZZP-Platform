@@ -29,20 +29,24 @@ UI-taal = Nederlands.
 | `src/components/ontwerp/concepts/mock.ts`            | Gedeelde Nederlandse demo-content                 |
 | `src/components/ontwerp/concepts/concept-<nn>-*.tsx` | De uitgewerkte concept-componenten ('use client') |
 
-## De tien richtingen
+## De tien richtingen (run 24-6-2026 — verse set)
 
-| #   | Naam            | Designrichting                 | Kerntrends (2026)                                           |
-| --- | --------------- | ------------------------------ | ----------------------------------------------------------- |
-| 01  | Stille Precisie | Ultra-minimaal mono            | Mono tabular cijfers · hairline OKLCH-randen · mono-labels  |
-| 02  | Redactie        | Editorial / redactioneel warm  | Edge-to-edge display-type · noise-textuur · warme neutralen |
-| 03  | Cockpit         | Data-dense pro                 | 32px-rijen · J/K-navigatie · geen glas op data              |
-| 04  | Glas            | Glass / depth (digital luxury) | backdrop-blur op chrome · elevatie = urgentie               |
-| 05  | Stelling        | Neo-brutalist — verfijnd       | 2px-randen + offset-schaduw · oversized type                |
-| 06  | Nacht           | Premium-dark (Linear/Raycast)  | OKLCH-elevatie · ⌘K-palet · low-chroma                      |
-| 07  | Klare Taal      | High-contrast toegankelijk     | Contrast-locked tokens · focus-ringen · reduced-motion      |
-| 08  | Warm Onthaal    | Warm-human                     | Grote radii · humanist letterwerk · zachte bevestiging      |
-| 09  | Stroom          | Linear-grade product           | Progressieve onthulling · FLIP-overgangen · ⌘K + shortcuts  |
-| 10  | Onderweg        | Mobiel-eerst                   | Bottom-sheet/-nav · duim-zone · optimistisch claimen        |
+| #   | Naam      | Designrichting                   | Kerntrends (2026)                                         |
+| --- | --------- | -------------------------------- | --------------------------------------------------------- |
+| 01  | Atelier   | Editorial Swiss — koel           | Instrument-Serif display · hairline-raster · mono-kicker  |
+| 02  | Spectraal | Premium spatial dark             | Gelaagde elevatie · luminous accent-glow · glas op chrome |
+| 03  | Kompas    | Keyboard-first command console   | Open ⌘K-palet · sneltoets-hints · J/K-navigatie           |
+| 04  | Tij       | Ambient aurora-light             | Aurora gradient-mesh · translucente kaarten · grote radii |
+| 05  | Krijt     | Neo-brutalism — verfijnd         | 2px-randen + offset · oversized grotesk · lime-accent     |
+| 06  | Prisma    | Confident color system           | Bento-raster · rol-gecodeerde accenten · grafiek-fills    |
+| 07  | Stratum   | Ops console — terminal-dichtheid | Monospace datagrids · sticky headers · J/K + Enter        |
+| 08  | Onthaal   | Warm-human, trust-first          | Vertrouwensmeter · humanist type · geruststellende staten |
+| 09  | Veld      | Mobiel-eerst                     | Bottom-nav + bottom-sheet · duim-zone · trust-badges      |
+| 10  | Maan      | Refined minimal dark             | Hairline low-chroma · één accent/scherm · tabular mono    |
+
+> Elke run is een **verse, sterkere set**: de vorige set (Stille Precisie, Redactie, Cockpit, Glas,
+> Stelling, Nacht, Klare Taal, Warm Onthaal, Stroom, Onderweg) is vervangen door bovenstaande tien,
+> gekozen op grond van verse 2026-research en een kritische zelf-review om het niveau op te tillen.
 
 ## Onderzochte trends (2026 — bron voor de richtingen)
 
@@ -67,6 +71,4 @@ UI-taal = Nederlands.
 
 ## Status
 
-- **01 Stille Precisie** — gebouwd.
-- **02 Redactie** — gebouwd.
-- 03–10 — gepland (in de galerij als "binnenkort").
+- **01–10** — alle tien volledig uitgewerkt en klikbaar op `/ontwerp` (verse set, run 24-6-2026).

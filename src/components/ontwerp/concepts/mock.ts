@@ -24,10 +24,28 @@ export const SCREENS: { key: ScreenKey; label: string }[] = [
 export type CredStatus = "VERIFIED" | "SUBMITTED" | "EXPIRING" | "REJECTED";
 
 export const KPIS = [
-  { label: "Match-percentage", value: "92%", trend: "+4", up: true },
-  { label: "Open reacties", value: "7", trend: "+2", up: true },
-  { label: "Omzet (mnd)", value: "€ 8.240", trend: "+12%", up: true },
-  { label: "Te factureren", value: "€ 1.350", trend: "2 open", up: false },
+  {
+    label: "Match-percentage",
+    value: "92%",
+    trend: "+4",
+    up: true,
+    spark: [78, 80, 79, 84, 86, 88, 92],
+  },
+  { label: "Open reacties", value: "7", trend: "+2", up: true, spark: [3, 4, 4, 5, 6, 5, 7] },
+  {
+    label: "Omzet (mnd)",
+    value: "€ 8.240",
+    trend: "+12%",
+    up: true,
+    spark: [5.1, 5.8, 6.2, 6.0, 7.1, 7.6, 8.24],
+  },
+  {
+    label: "Te factureren",
+    value: "€ 1.350",
+    trend: "2 open",
+    up: false,
+    spark: [2.4, 1.9, 2.2, 1.6, 1.35, 1.5, 1.35],
+  },
 ];
 
 export type Opdracht = {
@@ -161,3 +179,73 @@ export const NAV = [
   "Facturen",
   "Berichten",
 ] as const;
+
+// Optionele, gedeelde extra demo-content — concepten mogen hier extra schermen/tabs (berichten,
+// documenten) mee verrijken. Niet verplicht; de zes kernschermen blijven de basis.
+
+export const BERICHTEN: {
+  van: string;
+  initialen: string;
+  preview: string;
+  tijd: string;
+  ongelezen: boolean;
+}[] = [
+  {
+    van: "Thuiszorg De Linde",
+    initialen: "TL",
+    preview: "Top, we plannen je graag in voor de avonddienst per 1 juli.",
+    tijd: "09:24",
+    ongelezen: true,
+  },
+  {
+    van: "Zorggroep Almere",
+    initialen: "ZA",
+    preview: "Kun je je VIG-diploma nog even toevoegen aan je profiel?",
+    tijd: "Gisteren",
+    ongelezen: true,
+  },
+  {
+    van: "Kwintes — Team GGZ",
+    initialen: "KW",
+    preview: "Bedankt voor je reactie, we nemen contact op zodra de planning rond is.",
+    tijd: "Ma",
+    ongelezen: false,
+  },
+];
+
+export const DOCUMENTEN: {
+  naam: string;
+  type: string;
+  grootte: string;
+  status: CredStatus;
+  bijgewerkt: string;
+}[] = [
+  {
+    naam: "BIG-registratie.pdf",
+    type: "PDF",
+    grootte: "284 kB",
+    status: "VERIFIED",
+    bijgewerkt: "14 mei",
+  },
+  {
+    naam: "Diploma hbo-v.pdf",
+    type: "PDF",
+    grootte: "1,2 MB",
+    status: "VERIFIED",
+    bijgewerkt: "14 mei",
+  },
+  {
+    naam: "VOG-zorg-2024.pdf",
+    type: "PDF",
+    grootte: "196 kB",
+    status: "EXPIRING",
+    bijgewerkt: "2 jun",
+  },
+  {
+    naam: "Reanimatie-BLS.jpg",
+    type: "JPG",
+    grootte: "612 kB",
+    status: "SUBMITTED",
+    bijgewerkt: "21 jun",
+  },
+];

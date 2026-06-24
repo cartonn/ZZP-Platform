@@ -3,16 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { CONCEPTS, BUILT } from "@/components/ontwerp/concepts/registry";
-import { Concept01 } from "@/components/ontwerp/concepts/concept-01-mono";
-import { Concept02 } from "@/components/ontwerp/concepts/concept-02-editorial";
-import { Concept03 } from "@/components/ontwerp/concepts/concept-03-cockpit";
-import { Concept04 } from "@/components/ontwerp/concepts/concept-04-glas";
-import { Concept05 } from "@/components/ontwerp/concepts/concept-05-stelling";
-import { Concept06 } from "@/components/ontwerp/concepts/concept-06-nacht";
-import { Concept07 } from "@/components/ontwerp/concepts/concept-07-klare-taal";
-import { Concept08 } from "@/components/ontwerp/concepts/concept-08-warm";
-import { Concept09 } from "@/components/ontwerp/concepts/concept-09-stroom";
-import { Concept10 } from "@/components/ontwerp/concepts/concept-10-onderweg";
+import { Concept01 } from "@/components/ontwerp/concepts/concept-01-atelier";
+import { Concept02 } from "@/components/ontwerp/concepts/concept-02-spectraal";
+import { Concept03 } from "@/components/ontwerp/concepts/concept-03-kompas";
+import { Concept04 } from "@/components/ontwerp/concepts/concept-04-tij";
+import { Concept05 } from "@/components/ontwerp/concepts/concept-05-krijt";
+import { Concept06 } from "@/components/ontwerp/concepts/concept-06-prisma";
+import { Concept07 } from "@/components/ontwerp/concepts/concept-07-stratum";
+import { Concept08 } from "@/components/ontwerp/concepts/concept-08-onthaal";
+import { Concept09 } from "@/components/ontwerp/concepts/concept-09-veld";
+import { Concept10 } from "@/components/ontwerp/concepts/concept-10-maan";
 
 // Koppelt het URL-segment aan de uitgewerkte concept-component. Alleen `available` concepten staan
 // hier; de rest valt terug op notFound() (en is in de galerij als "binnenkort" gemarkeerd).
