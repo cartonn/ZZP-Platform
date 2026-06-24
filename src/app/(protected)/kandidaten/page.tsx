@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { Users, Check, TriangleAlert } from "lucide-react";
 import { requireRole } from "@/lib/authz";
+import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
 import { APPLICATION_TRANSITIONS } from "@/lib/applications";
 import {
@@ -58,7 +59,34 @@ export default async function KandidatenPage({
   searchParams: Promise<Record<string, string>>;
 }) {
   const actor = await requireRole("CLIENT");
+  const { t } = await getTranslator();
   const filterStatus = normalizeKandidatenFilter((await searchParams).status);
+
+  const noteLabels = {
+    placeholder: t("Interne notitie (alleen voor jou)…"),
+    saving: t("Opslaan…"),
+    save: t("Notitie opslaan"),
+  };
+  const proposeLabels = {
+    title: t("Samenwerking voorstellen"),
+    ratePlaceholder: t("Tarief €/uur"),
+    rate: t("Tarief"),
+    startDate: t("Startdatum"),
+    endDate: t("Einddatum"),
+    sending: t("Versturen…"),
+    send: t("Voorstel versturen"),
+  };
+  const bulkLabels = {
+    viewed: t("Bekeken"),
+    shortlist: t("Shortlist"),
+    reject: t("Afwijzen"),
+    selected: t("geselecteerd"),
+    apply: t("Toepassen op"),
+    working: t("Bezig…"),
+    confirmReject: t("Geselecteerde reacties afwijzen? De ZZP'ers krijgen hiervan bericht."),
+    ariaForm: t("Bulk statuswijziging"),
+    ariaStatus: t("Nieuwe status"),
+  };
 
   const applications = await prisma.application.findMany({
     where: { job: { company: { userId: actor.id } } },
@@ -129,22 +157,22 @@ export default async function KandidatenPage({
   return (
     <div className="space-y-6 pb-24">
       <PageHeader
-        title="Kandidaten"
-        description="Reacties op je opdrachten, met match en compliance."
+        title={t("Kandidaten")}
+        description={t("Reacties op je opdrachten, met match en compliance.")}
       />
 
       {applications.length === 0 ? (
         <Card>
           <EmptyState
             icon={Users}
-            title="Nog geen reacties"
-            description="Zodra ZZP'ers reageren op je opdrachten, zie je ze hier."
+            title={t("Nog geen reacties")}
+            description={t("Zodra ZZP'ers reageren op je opdrachten, zie je ze hier.")}
           />
         </Card>
       ) : (
         <div className="space-y-4">
           {/* Statusfilter */}
-          <nav className="flex flex-wrap gap-2 text-sm" aria-label="Filter op status">
+          <nav className="flex flex-wrap gap-2 text-sm" aria-label={t("Filter op status")}>
             {Object.entries(KANDIDATEN_FILTER_LABELS).map(([val, label]) => {
               const active = val === filterStatus;
               const href = val ? `/kandidaten?status=${val}` : "/kandidaten";
@@ -159,7 +187,7 @@ export default async function KandidatenPage({
                       : "rounded-full border border-border px-3 py-1 text-muted-foreground hover:border-foreground/40 hover:text-foreground"
                   }
                 >
-                  {label}
+                  {t(label)}
                   {count > 0 && (
                     <span className="ml-1 tabular-nums text-muted-foreground/70">({count})</span>
                   )}
@@ -173,13 +201,13 @@ export default async function KandidatenPage({
               <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
                 <div className="min-w-0">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Beste match
+                    {t("Beste match")}
                   </p>
                   <p className="truncate text-sm font-semibold">
                     {best.freelancer.user.name}
                     {best.matchScore != null && (
                       <span className="ml-2 font-normal text-muted-foreground">
-                        Match {best.matchScore}%
+                        {t("Match")} {best.matchScore}%
                       </span>
                     )}
                   </p>
@@ -192,12 +220,12 @@ export default async function KandidatenPage({
           {visible.length === 0 ? (
             <EmptyState
               icon={Users}
-              title="Geen reacties met deze status"
-              description="Er zijn geen reacties in deze categorie. Pas het filter aan."
+              title={t("Geen reacties met deze status")}
+              description={t("Er zijn geen reacties in deze categorie. Pas het filter aan.")}
             />
           ) : (
             <>
-              <BulkTriageBar />
+              <BulkTriageBar labels={bulkLabels} />
               {visible.map((app) => {
                 const status = app.status as ApplicationStatus;
                 // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
@@ -248,7 +276,7 @@ export default async function KandidatenPage({
                                 name="appId"
                                 value={app.id}
                                 form="kandidaten-bulk"
-                                aria-label={`Selecteer ${app.freelancer.user.name}`}
+                                aria-label={`${t("Selecteer")} ${app.freelancer.user.name}`}
                                 className="focus-ring size-4 shrink-0 rounded border-input accent-accent"
                               />
                             )}
@@ -271,7 +299,7 @@ export default async function KandidatenPage({
                             </span>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {app.freelancer.headline ?? "—"} · op{" "}
+                            {app.freelancer.headline ?? "—"} · {t("op")}{" "}
                             <Link
                               href={`/opdrachten/${app.job.id}`}
                               className="underline-offset-4 hover:underline"
@@ -282,7 +310,9 @@ export default async function KandidatenPage({
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                           {app.matchScore != null && (
-                            <Badge variant="accent">Match {app.matchScore}%</Badge>
+                            <Badge variant="accent">
+                              {t("Match")} {app.matchScore}%
+                            </Badge>
                           )}
                           {compliance && <ComplianceBadge status={compliance.status} />}
                         </div>
@@ -299,20 +329,26 @@ export default async function KandidatenPage({
                         <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                           {compliance.missing.length > 0 && (
                             <span className="text-danger">
-                              Mist:{" "}
-                              {compliance.missing.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                              {t("Mist:")}{" "}
+                              {compliance.missing
+                                .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
+                                .join(", ")}
                             </span>
                           )}
                           {compliance.expired.length > 0 && (
                             <span className="text-danger">
-                              Verlopen:{" "}
-                              {compliance.expired.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                              {t("Verlopen:")}{" "}
+                              {compliance.expired
+                                .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
+                                .join(", ")}
                             </span>
                           )}
                           {compliance.inReview.length > 0 && (
                             <span className="text-warning">
-                              In beoordeling:{" "}
-                              {compliance.inReview.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ")}
+                              {t("In beoordeling:")}{" "}
+                              {compliance.inReview
+                                .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
+                                .join(", ")}
                             </span>
                           )}
                         </p>
@@ -321,7 +357,7 @@ export default async function KandidatenPage({
                       {fitReasons.length > 0 && (
                         <details className="text-sm">
                           <summary className="focus-ring cursor-pointer text-muted-foreground">
-                            Waarom deze match?
+                            {t("Waarom deze match?")}
                           </summary>
                           <ul className="mt-2 space-y-1.5">
                             {fitReasons.map((r, i) => (
@@ -349,10 +385,15 @@ export default async function KandidatenPage({
                       <p className="whitespace-pre-line text-sm">{app.motivation}</p>
                       <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground">
                         {app.proposedRate != null && (
-                          <span>Tariefvoorstel: € {app.proposedRate}/uur</span>
+                          <span>
+                            {t("Tariefvoorstel")}: € {app.proposedRate}
+                            {t("/uur")}
+                          </span>
                         )}
                         {app.availability && (
-                          <span>Aangegeven bij reactie: {app.availability}</span>
+                          <span>
+                            {t("Aangegeven bij reactie")}: {app.availability}
+                          </span>
                         )}
                         {(() => {
                           const s = summarizeAvailability(
@@ -361,13 +402,17 @@ export default async function KandidatenPage({
                               type: w.type as AvailabilityWindowType,
                             })),
                           );
-                          return s ? <span>Agenda: {s}</span> : null;
+                          return s ? (
+                            <span>
+                              {t("Agenda")}: {s}
+                            </span>
+                          ) : null;
                         })()}
                       </div>
 
                       {status === "WITHDRAWN" ? (
                         <p className="border-t border-border pt-3 text-sm text-muted-foreground">
-                          De ZZP&apos;er heeft deze reactie ingetrokken.
+                          {t("De ZZP'er heeft deze reactie ingetrokken.")}
                         </p>
                       ) : (
                         <div className="flex flex-wrap gap-2 border-t border-border pt-3">
@@ -378,11 +423,13 @@ export default async function KandidatenPage({
                                 action={changeApplicationStatus.bind(null, app.id, to)}
                                 triggerVariant="destructive"
                                 size="sm"
-                                title="Reactie afwijzen?"
-                                description="De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist."
-                                confirmLabel="Afwijzen"
+                                title={t("Reactie afwijzen?")}
+                                description={t(
+                                  "De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist.",
+                                )}
+                                confirmLabel={t("Afwijzen")}
                               >
-                                {ACTION_LABEL[to]}
+                                {t(ACTION_LABEL[to])}
                               </ConfirmButton>
                             ) : (
                               <form
@@ -394,7 +441,7 @@ export default async function KandidatenPage({
                                   size="sm"
                                   variant={to === "ACCEPTED" ? "primary" : "secondary"}
                                 >
-                                  {ACTION_LABEL[to]}
+                                  {t(ACTION_LABEL[to])}
                                 </Button>
                               </form>
                             ),
@@ -402,24 +449,28 @@ export default async function KandidatenPage({
                         </div>
                       )}
 
-                      <ApplicationNoteForm appId={app.id} defaultNote={app.note ?? ""} />
+                      <ApplicationNoteForm
+                        appId={app.id}
+                        defaultNote={app.note ?? ""}
+                        labels={noteLabels}
+                      />
 
                       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                         <form action={startConversationForApplication.bind(null, app.id)}>
                           <Button type="submit" variant="secondary" size="sm">
-                            Bericht sturen
+                            {t("Bericht sturen")}
                           </Button>
                         </form>
                         {app.collaboration && (
                           <Button asChild variant="secondary" size="sm">
                             <Link href={`/samenwerkingen/${app.collaboration.id}`}>
-                              Bekijk samenwerking
+                              {t("Bekijk samenwerking")}
                             </Link>
                           </Button>
                         )}
                       </div>
                       {status === "ACCEPTED" && !app.collaboration && (
-                        <ProposeCollaboration applicationId={app.id} />
+                        <ProposeCollaboration applicationId={app.id} labels={proposeLabels} />
                       )}
                     </CardContent>
                   </Card>

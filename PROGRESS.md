@@ -3,32 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: statusfilter op /samenwerkingen (ZZP'er + opdrachtgever)
+## routine: i18n opdrachtgever-dashboard (/dashboard, CLIENT-tak) vertaald (EN)
 
-De FREELANCER+CLIENT `/samenwerkingen`-lijst had geen statusfilter, terwijl `/opdrachten` (#488),
-`/facturen`, `/prestaties` en de admin-variant (`/admin/samenwerkingen`) er wel één hebben.
-Toegevoegd: status-pills (Alle/Voorgesteld/Actief/Afgerond/Geannuleerd) met tellingen — spiegel van
-het pill-patroon van `/opdrachten`. De lijst is server-side cursor-gepagineerd, dus het filter gaat
-in de Prisma-`where` (niet client-side over één pagina) en de pill-tellingen komen uit één goedkope
-`groupBy` op de eigen samenwerkingen (spiegel van #511 /documenten). Read-only, **geen
-schemawijziging**, geen extra geldstroom.
+Vervolg op de i18n-reeks (#491–#502, ZZP'er-pad). De FREELANCER-tak van het werkruimte-dashboard is
+in #492 vertaald; de **CLIENT (opdrachtgever)-tak van `/dashboard` was nog volledig Nederlands**.
+Nu via `t()` (server-side `getTranslator`, NL-fallback) vertaald: KPI-labels (Fill rate/Active
+collaborations/Posted assignments/Spending + de stats-fallback), lijst "Suggested professionals" +
+lege staat, compliance-zegel (titel + subtitel "X/Y shifts compliant" + items Missing-expired/
+Expiring soon/In review), header-fallback en de week-strip (labels + dienst/diensten via de gedeelde
+`t`-parameter van `buildCurrentWeek`). Geen schemawijziging, geen gedragswijziging in de NL-UI.
 
-- [x] `src/lib/collaboration-status-filter.ts` — pure helpers: `parseCollaborationStatusFilter`
-      (onbekend/lege/malicieuze waarde → "all"), `collaborationStatusWhere` (Prisma-`where`-fragment;
-      "all" → geen constraint), `summarizeCollaborationStatusGroups` (telling per status uit een
-      `groupBy`-resultaat; "all" = som, onbekende legacy-status telt wel in het totaal maar in geen
-      pill). Labels gelijk aan de status-badge op de kaart.
-- [x] `src/app/(protected)/samenwerkingen/page.tsx` — leest `?status=`, voegt het where-fragment toe
-      aan de eigenaars-`where`, telt via `groupBy`, rendert de pills; "Meer laden" behoudt het filter;
-      eigen lege-staat "Geen samenwerkingen met deze status".
-- [x] `src/lib/collaboration-status-filter.test.ts` — 8 unit-tests (parse-fallback incl.
-      injectiepogingen, where, telling incl. legacy/leeg, pill-volgorde).
-- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummers (149/162) bijgewerkt na de
-      regelverschuiving.
+- [x] `src/lib/i18n/messages.ts` — sectie "Opdrachtgever-dashboard": 15 brontekst→EN-paren.
+- [x] `src/app/(protected)/dashboard/page.tsx` — CLIENT-tak: alle hardgecodeerde NL-strings via `t()`;
+      `buildCurrentWeek` krijgt nu `t` (week-labels + dienst/diensten meertalig, gelijk aan de
+      FREELANCER-tak).
+- [x] `src/lib/i18n/messages.test.ts` — +2 tests (EN-vertaling + NL-onveranderd).
 
-Gate lokaal groen: typecheck ✓, lint ✓, test **2577** ✓ (+8), build ✓, `prettier --check .` ✓.
-Niet-overlappend met de open i18n-PR's (messages.ts), #510 (signals.ts) en #511
-(document-kind-filter.ts).
+Gate groen: typecheck ✓, lint ✓, test **2566** ✓, build ✓, `prettier --check .` ✓.
 
 ## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
 
