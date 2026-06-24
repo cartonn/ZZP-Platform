@@ -1,0 +1,127 @@
+# SECURITY & PRIVACY BACKLOG — ZZP Platform
+
+> Bevindingen uit de security-/privacy-auditronde. Gefixt = **OPGELOST** (met PR-referentie);
+> geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
+> Pak per run de 1–3 belangrijkste; werk dit bestand bij.
+
+## Ronde 2026-06-24 (basis: `main` @ 70cf3b6)
+
+Audit: 4 parallelle security/privacy-subagents over server actions, franchise-/admin-actions,
+API route-handlers en AVG/anonimisering, plus handmatige verificatie van auth/sessie, deeltoken,
+wachtwoordherstel, cron-auth en storage. OWASP Top 10 (A01 broken access control, A04 insecure
+design, A07 auth failures, A09 logging) + AVG art. 5/15/17/30 als kader.
+
+### OPGELOST in deze ronde
+
+- **[HOOG · A09 / AVG art. 30 — accountability]** Drie on-demand PDF-routes serveerden gevoelige
+  PII-documenten **zonder auditregel**, in tegenstelling tot de dossier-routes en
+  `/api/documents/[id]`. Geschonden: CLAUDE.md regel 5 ("audit alles wat telt — documenttoegang").
+  Gefixt: `audit()` (met IP/UA via `requestMeta`) toegevoegd ná de ownership-check in
+  `src/app/api/facturen/[id]/pdf/route.ts` (`INVOICE_PDF_ACCESSED`),
+  `src/app/api/prestaties/[id]/pdf/route.ts` (`PERFORMANCE_PDF_ACCESSED`) en
+  `src/app/api/samenwerkingen/[id]/modelovereenkomst/route.ts` (`MODEL_AGREEMENT_ACCESSED`).
+  NL-labels in `src/lib/audit-labels.ts`. Test: `src/app/api/pdf-routes-audit.test.ts` (rood→groen:
+  geautoriseerd → auditregel; niet-partij → 403 + geen audit/serve).
+
+- **[KRITIEK · AVG art. 17 — recht op verwijdering]** `anonymizeUser()` overschreef de PII op
+  `User`/`FreelancerProfile`/`Company` en wiste `Credential`/`Document`/`Message`, maar liet
+  herleidbare vrije-tekst-PII van de betrokkene achter in kindrijen (een `user.update` triggert geen
+  cascade). Geschonden: CLAUDE.md "documenten/PII echt verwijderen", AVG art. 17. Gefixt: de
+  anonimiseringstransactie in `src/app/(protected)/admin/gebruikers/actions.ts` redact nu ook
+  `Application.motivation`, `SupportMessage.body` (eigen), `IdeaComment.body` (eigen),
+  `Review.comment` (eigen) en `ShiftHandoff.reason` (eigen). Test:
+  `src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (rood→groen).
+
+### GEPARKEERD — privacy/AVG
+
+- **[HOOG · AVG art. 30 — Lead-PII zonder grondslag/bewaartermijn]** Het `Lead`-model bewaart PII
+  van derden (prospects): `contactName`, `email`, `phone`, `notes`, `LeadContact.body`. Ontbreekt
+  volledig in `src/lib/compliance/processing-register.ts` (geen verwerkingsactiviteit, geen
+  `RetentionRule`). Repro: `/franchise/leads` → lead aanmaken → PII blijft onbeperkt staan.
+  Fix: registerentry "Acquisitie-/leadbeheer franchise" (grondslag GERECHTVAARDIGD_BELANG),
+  bewaartermijn (bv. 12 mnd na `NO_DEAL`/laatste activiteit) + opruimtaak of MENSENWERK-notitie.
+  **Mens bevestigen vóór livegang** (mogelijke art. 6-overtreding bij echte data).
+
+- **[HOOG · AVG art. 5 lid 1f — PII in serverlogs]**
+  `src/app/(protected)/admin/import/actions.ts` (welkomstmail-fout) logt `row.email` in
+  `console.error` zonder `NODE_ENV`-guard; host-/Railway-logs vallen buiten de auditdatabase.
+  Fix: vervang door een niet-herleidbare `user.id` (CUID) i.p.v. het e-mailadres.
+
+- **[HOOG · AVG art. 30 — transparantie auditmetadata]** E-mailadressen (ook van niet-leden) worden
+  in `AuditLog.metadata` opgeslagen bij `AUTH_RATE_LIMITED`/`USER_LOGIN_FAILED` (`src/auth.ts`),
+  `REGISTER_RATE_LIMITED` (`src/app/register/actions.ts`) en `USER_IMPORTED`
+  (`admin/import/actions.ts`) en geëxporteerd via de admin-audit-CSV, maar niet vermeld in de
+  `dataCategories` van de beveiligings-entry in `processing-register.ts`. Fix: dataCategorie
+  documenteren (gerechtvaardigd beveiligingsbelang) en heroverwegen of het e-mailadres bij een
+  bekende `userId` nodig is.
+
+- **[MIDDEL · AVG art. 15/20 — inzage/portabiliteit onvolledig]** `GET /api/account/export` bevat
+  alleen `sentMessages`; ontbreekt: ontvangen berichten, `TaxFilingRequest`, eigen `Review`,
+  `IdeaComment`, eigen `SupportTicket`/`SupportMessage`, `IndirectHoursEntry`. Fix: ontbrekende
+  eigen-data toevoegen met strikte `select` (geen PII van derden).
+
+- **[MIDDEL · AVG art. 5 lid 1c — dataminimalisatie]** KvK-nummer staat op het publieke profiel
+  (`src/components/profile/profile-screen.tsx`), zichtbaar voor anonieme bezoekers op `/zzp/[id]`;
+  voor een eenmanszaak herleidbaar tot woonadres via het KvK-register. Fix: KvK alleen tonen aan
+  eigenaar/admin/actieve-samenwerking-CLIENT, of een duidelijke uitleg bij het veld.
+
+- **[MIDDEL · AVG art. 13/46 — doorgifte aan derde]** Bij `ROUTING_PROVIDER=geoapify` gaan
+  locatiestrings (profiel/opdracht) naar Geoapify (`src/lib/services/routing.ts`) en wordt de query
+  in `GeocodeCache.query` bewaard; geen verwerker-entry. Fix: registerentry "Reistijdberekening" +
+  MENSENWERK-notitie (verwerkersovereenkomst + EU-regio vereist vóór activering).
+
+- **[LAAG · AVG art. 30]** `TaxFilingRequest` (machtigingen DigiD/eHerkenning, `partnerName`,
+  bedragen) ontbreekt in het verwerkingsregister. Fix: entry "Belastingaangifte-delegatie"
+  (grondslag TOESTEMMING, bewaartermijn 7 jaar fiscaal).
+
+### GEPARKEERD — security / hardening
+
+- **[HOOG · A09 — error-leak]** `src/app/api/tasks/run-all/route.ts` zet rauwe `e.message`
+  (mogelijk Prisma-schema-detail) in de JSON-respons. CRON-gated, dus beperkt, maar inconsistent met
+  de losse taakroutes die een vaste string teruggeven. Fix: statische foutstring in de respons,
+  detail alleen server-side loggen.
+
+- **[MIDDEL · A04 — resource exhaustion]** `src/app/api/push/subscribe/route.ts` heeft geen
+  per-gebruiker rate-limit; een ingelogde gebruiker kan veel push-endpoints registreren. Fix:
+  `exportRateLimiter`-patroon toepassen (bv. 20/u).
+
+- **[MIDDEL · datameintegriteit]** `noShowReportSchema` (`src/lib/validation.ts`) accepteert een
+  `occurredOn` in de toekomst; een no-show kan vooraf op een ZZP'er worden geboekt. Fix:
+  `.refine(d => d <= new Date(), …)`.
+
+- **[MIDDEL · datameintegriteit]** `setOrtProfileAction` (`samenwerkingen/[id]/actions.ts`) heeft
+  geen bovengrens op de maatwerk-ORT-percentages (alleen `>= 0`); de eigenaar-CLIENT kan absurde
+  toeslagen instellen die in alle toekomstige facturen doorwerken. Fix: Zod-schema met `max` per
+  categorie (bv. 500%).
+
+- **[MIDDEL · A09 — audit-volledigheid]** `adminReply` (`admin/support/actions.ts`) wijzigt
+  ticketstatus + `assignedToId` zonder dat in de auditregel op te nemen en zonder transactie rond de
+  drie mutaties. Fix: `$transaction` + `{ statusChanged, assignedTo }` in metadata.
+
+- **[MIDDEL · A04 — mass-assignment defense-in-depth]** `commitImport` (`admin/import/actions.ts`)
+  vertrouwt op het TypeScript-type `ImportRole` voor de rol bij `user.create`; geen runtime-guard.
+  Fix: `z.enum(["FREELANCER","CLIENT"]).parse(role)` vlak vóór de DB-write.
+
+- **[LAAG · defense-in-depth IDOR]** `deleteDocumentById` (`certificaten/actions.ts`) doet geen
+  eigen ownership-check (vertrouwt op de aanroepers die een eigen credential-document doorgeven). Nu
+  niet exploiteerbaar; een toekomstige call-site met een form-id zou het wel maken. Fix: in de
+  functie `doc.ownerId !== actorId` checken (en `ownerId` selecteren).
+
+- **[LAAG · audit-volledigheid]** `removeDepartment`/`removeAfdelingStep` (franchise) auditen geen
+  count van geraakte `Job.departmentId`-cascades. Fix: `affectedJobIds` in metadata.
+
+- **[LAAG · consistentie]** `setUserStatus` (`admin/gebruikers/actions.ts`) gebruikt
+  `userStatusSchema.parse` (throwt 500) i.p.v. `safeParse` + nette fout.
+
+### BEKEKEN — geen kwetsbaarheid (vals positief)
+
+- **Billing-webhook ontbeert HMAC-handtekening** (`api/billing/webhook/route.ts`) — gemeld als
+  KRITIEK, maar **niet exploiteerbaar**: Mollie ondertekent payment-webhooks niet; de route haalt de
+  status autoritatief opnieuw op bij Mollie met de eigen API-key (de re-fetch ÍS de control, conform
+  Mollie-docs). Onder de Noop-provider (dev) hebben abonnementen `providerRef = null`, dus de
+  `findFirst({ where: { providerRef } })` matcht nooit. Geen HMAC nodig; niet aangepast.
+- **CSV-formula-injectie in exports** — `escapeCsvField` (`src/lib/csv.ts`) dekt `= + - @` correct;
+  alle exports lopen via `toCsv`. Schoon.
+- **Cron-auth, deeltoken, wachtwoordherstel, document-/media-serving, tenant-isolatie** (franchise/
+  admin-actions) — geverifieerd correct (timing-safe vergelijkingen, ownership/`assertSameTenant`,
+  geen informatielek). Schoon.

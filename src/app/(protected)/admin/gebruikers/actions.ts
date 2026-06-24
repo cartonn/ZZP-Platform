@@ -95,6 +95,32 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { senderId: userId },
       data: { body: "[Bericht verwijderd op verzoek van de gebruiker]" },
     }),
+    // AVG art. 17 (recht op verwijdering): álle vrije-tekstvelden die de betrokkene zélf schreef en
+    // die PII kunnen bevatten worden onomkeerbaar overschreven. Een `user.update` triggert geen
+    // cascade op deze kindrijen, dus ze moeten expliciet mee in de transactie — anders blijft
+    // herleidbare PII (naam/adres/telefoon) achter in motivatiebrieven, support-, idee- en
+    // beoordelingsteksten. (NoShowReport.reason is door een ándere partij geschreven over de ZZP'er
+    // en heeft mogelijk een bewaargrond bij een arbeidsgeschil — bewust niet hier; zie backlog.)
+    prisma.application.updateMany({
+      where: { freelancer: { userId } },
+      data: { motivation: "[Verwijderd op verzoek van de gebruiker]" },
+    }),
+    prisma.supportMessage.updateMany({
+      where: { authorId: userId },
+      data: { body: "[Bericht verwijderd op verzoek van de gebruiker]" },
+    }),
+    prisma.ideaComment.updateMany({
+      where: { authorId: userId },
+      data: { body: "[Reactie verwijderd op verzoek van de gebruiker]" },
+    }),
+    prisma.review.updateMany({
+      where: { authorId: userId },
+      data: { comment: null },
+    }),
+    prisma.shiftHandoff.updateMany({
+      where: { requestedByUserId: userId },
+      data: { reason: "[Verwijderd op verzoek van de gebruiker]" },
+    }),
     prisma.auditLog.create({
       data: auditData({
         actorId: actor.id,

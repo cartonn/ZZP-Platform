@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { recommendModelAgreement } from "@/lib/model-agreement";
 import { buildModelAgreementContent, resolveAgreementType } from "@/lib/contract-agreement";
 import { buildModelAgreementPdf, type ModelAgreementSignatory } from "@/lib/contract-pdf";
+import { audit } from "@/lib/audit";
+import { requestMeta } from "@/lib/request-meta";
 
 export const runtime = "nodejs";
 
@@ -55,6 +57,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const allowed =
     actor.role === "ADMIN" || actor.id === col.company.userId || actor.id === col.freelancer.userId;
   if (!allowed) return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+
+  // AVG/compliance (CLAUDE.md regel 5): de modelovereenkomst is een juridisch document (Wet DBA)
+  // met PII van beide partijen; inzage vastleggen zoals de dossier-routes en /api/documents/[id].
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "MODEL_AGREEMENT_ACCESSED",
+    entityType: "Collaboration",
+    entityId: id,
+    metadata: { viewerRole: actor.role },
+    ...meta,
+  });
 
   const recommendation = recommendModelAgreement({
     directSupervision: col.job.dbaDirectSupervision,
