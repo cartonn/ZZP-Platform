@@ -86,8 +86,18 @@ werkt volgens dit contract:
   reviewer, security, devops, docs). De lopende sessie is de **orchestrator**: splitst werk,
   delegeert naar 2–4 workers op niet-overlappende bestanden, integreert en draait de checks.
   Zie `SWARM.md` voor het volledige contract en `docs/decisions/0002-agent-architecture.md`.
-- **Pijplijn:** Taak → Plan → Build → Test → Review → (Draft) PR → menselijke goedkeuring → Deploy.
-  CI (`ci.yml`) + `pr-review.yml` (reviewer + security) vormen de poort; **agents mergen nooit zelf**.
+- **Pijplijn:** Taak → Plan → Build → Test → (Draft) PR → **CI-poort groen → zelf mergen** → Deploy.
+  CI (`ci.yml`) + `pr-review.yml` (reviewer + security) vormen de poort. **Update 24-6-2026 (eigenaar):
+  agents/routines mergen nu ZELF naar `main` ná een geverifieerd groene CI-poort** (audit/check/e2e/
+  secret-scan groen; `review` is adviserend, niet-blokkerend) — `gh pr merge <nr> --squash --admin`.
+  Nooit vóór groen. Dit verruimt de eerdere "agents mergen nooit zelf"-regel (de eigenaar wil
+  autonome, doorlopende verbetering zonder zelf te hoeven mergen). Bij parallelle dict/docs-conflicten:
+  **UNION-resolutie** (beide kanten behouden + dedup), nooit `--ours`.
+- **Routine-missie & scope (24-6-2026):** de "ZZP auto-build"-routine (elke 4u) verbetert het
+  platform **in alle aspecten** met als enige maatstaf: **maak het leven van ZZP'er, opdrachtgever
+  en bemiddelaar aantoonbaar makkelijker** — benchmark tegen concurrenten (Pidz/Bendy/Zorgwerk/
+  Malt/Temper/Deel; Linear/Stripe/Vercel voor UX) en wees beter. **Géén i18n/vertaalwerk meer** in
+  de routines (dat spoor is afgesloten).
 - **Veiligheidsregels (hard):** nooit naar `main` pushen zonder toestemming; geen secrets in
   git/log/code; auth nooit uitschakelen; **geen automatische productie-deploy** (zie
   `docs/decisions/0001-deploy-gating.md`); **stop na 2 mislukte herstelpogingen** en meld de blocker.
