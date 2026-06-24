@@ -43,6 +43,8 @@ import {
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { getJobReach } from "@/lib/data/job-reach";
 import { JobReachCard } from "@/components/jobs/job-reach-card";
+import { summarizeJobCompetition, type CompetitionSummary } from "@/lib/job-competition";
+import { JobCompetitionCard } from "@/components/jobs/job-competition-card";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
@@ -148,6 +150,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
     reasons: MatchReason[];
   } | null = null;
   let myCompliance: ComplianceStatus | null = null;
+  // Kans-/concurrentiesignaal: hoeveel kandidaten reageerden al + hoe de ZZP'er ervoor staat.
+  let jobCompetition: CompetitionSummary | null = null;
   // Bewaard-status voor de bewaar-knop (alleen relevant voor een niet-eigenaar ZZP'er).
   let isSaved = false;
   if (actor.role === "FREELANCER") {
@@ -188,6 +192,12 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           compliance: match.compliance,
           reasons: match.reasons,
         };
+        // Concurrentie: actieve reacties van ándere ZZP'ers (ingetrokken telt niet mee). De huidige
+        // ZZP'er heeft geen actieve reactie (anders was myFit niet gezet), dus dit zijn allemaal anderen.
+        const applicantCount = await prisma.application.count({
+          where: { jobId: job.id, status: { not: "WITHDRAWN" } },
+        });
+        jobCompetition = summarizeJobCompetition({ applicantCount, myScore: match.score });
       }
       // Live compliance voor een reeds verstuurde reactie (i.p.v. de bevroren snapshot).
       if (myApplication) {
@@ -676,6 +686,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                 )}
               </section>
             )}
+            {jobCompetition && <JobCompetitionCard competition={jobCompetition} />}
             <ApplicationForm action={createApplication.bind(null, job.id)} />
           </div>
         ) : null)

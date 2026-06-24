@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Kans-/concurrentiesignaal voor de ZZP'er op /opdrachten/[id]** — pure
+> `lib/job-competition.ts` `summarizeJobCompetition({ applicantCount, myScore })` (+ helpers
+> `competitionLevel`/`chanceLevel`): concurrentieniveau (low/moderate/high op 3/8 reacties) × kansniveau
+> uit de eigen matchscore (strong/fair/longshot op 70/50) → kop, sturingstip en `urgent`-vlag; nul-reacties
+> = "Wees de eerste"-nudge. `JobCompetitionCard` op de "Jouw aansluiting"-sectie (niet-eigenaar FREELANCER,
+> PUBLISHED, nog niet gereageerd); server-side telling via begrensde `application.count` (WITHDRAWN telt
+> niet mee), toont nooit gegevens van andere kandidaten. Spiegelbeeld van het bereiksignaal (`job-reach`),
+> vertaalt de "binnen uren"-liquiditeit van Temper/Pidz/Zorgwerk naar onze verklaarbare matching. 15
+> unit-tests; read-only, geen schemawijziging. PR #536.
 > Gedaan (niet opnieuw): **Bereik-signaal voor de opdrachtgever op /opdrachten/[id]** — pure
 > `lib/job-reach.ts` `summarizeJobReach` (buckets total≥50 / strong≥70 / available / strongAvailable
 > → niveau good/moderate/low + sturingstip; 10 tests) + server-fetcher `lib/data/job-reach.ts`
