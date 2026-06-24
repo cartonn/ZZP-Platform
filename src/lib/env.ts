@@ -3,13 +3,13 @@
 //
 // Twee niveaus:
 //   1. HARDE fouten (validateEnv werpt): de app kan niet veilig of correct draaien.
-//      - basisvariabelen ontbreken/zwak (DATABASE_URL, AUTH_SECRET);
+//      - basisvariabelen ontbreken/zwak (DATABASE_URL, AUTH_SECRET ≥16);
 //      - een ingeschakelde integratie (s3/smtp/mollie/duo/...) mist zijn vereiste secrets —
-//        dan is een halve activering gevaarlijker dan geen;
-//      - productie-specifieke eisen (SHARE_TOKEN_SECRET, AUTH_URL, sterke AUTH_SECRET).
+//        dan is een halve activering gevaarlijker dan geen.
 //   2. ZACHTE waarschuwingen (envWarnings, gelogd bij boot): de app draait door met een
 //      veilige fallback, maar in productie wil je dit waarschijnlijk anders (geen mailkanaal,
-//      lokale documentopslag, geen taak-cron). Nooit fataal — de pilot blijft werken.
+//      lokale documentopslag, geen taak-cron, en de productie-aanbevelingen SHARE_TOKEN_SECRET,
+//      AUTH_URL en een sterke AUTH_SECRET ≥32). Nooit fataal — de deploy/pilot blijft werken.
 //
 // Integraties staan default UIT/inert; ze activeren pas zodra de bijbehorende secret er is.
 
@@ -73,7 +73,6 @@ const schema = z
     IDENTITY_API_KEY: z.string().optional(),
   })
   .superRefine((v, ctx) => {
-    const isProd = v.NODE_ENV === "production";
     const require = (cond: boolean, path: string, message: string) => {
       if (!cond) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
     };
@@ -111,15 +110,10 @@ const schema = z
       require(!!v.IDENTITY_API_KEY, "IDENTITY_API_KEY", "Verplicht bij IDENTITY_VERIFIER=idin.");
     }
 
-    // Productie-specifieke harde eisen.
-    if (isProd) {
-      require(v.AUTH_SECRET.length >=
-        32, "AUTH_SECRET", "In productie moet AUTH_SECRET minstens 32 tekens zijn (genereer met `openssl rand -base64 32`).");
-      require(!!v.SHARE_TOKEN_SECRET, "SHARE_TOKEN_SECRET", "In productie verplicht (security-review H-1): zonder eigen sleutel breekt rotatie van AUTH_SECRET alle deelbare dossier-links. Genereer met `openssl rand -base64 32`.");
-      require(!!(
-        v.AUTH_URL || v.NEXTAUTH_URL
-      ), "AUTH_URL", "In productie verplicht: zet AUTH_URL (of NEXTAUTH_URL) op je productie-webadres.");
-    }
+    // Productie-aanbevelingen (sterke AUTH_SECRET, SHARE_TOKEN_SECRET, AUTH_URL) zijn bewust GEEN
+    // harde boot-eisen: ze hebben een veilige fallback (SHARE_TOKEN_SECRET valt terug op AUTH_SECRET,
+    // MENSENWERK §0b H-1) en mogen een productie-deploy niet breken vóór de mens de secret heeft
+    // gezet. Ze worden als niet-fatale waarschuwing gelogd via envWarnings().
   });
 
 export type Env = z.infer<typeof schema>;
@@ -149,6 +143,21 @@ export function envWarnings(env: Env): string[] {
   if (/^(file:|sqlite)/i.test(env.DATABASE_URL)) {
     warnings.push(
       "DATABASE_URL wijst naar SQLite — gebruik in productie een managed PostgreSQL (EU-regio, back-ups).",
+    );
+  }
+  if (!env.SHARE_TOKEN_SECRET) {
+    warnings.push(
+      "SHARE_TOKEN_SECRET ontbreekt — deelbare dossier-links vallen terug op AUTH_SECRET; rotatie van AUTH_SECRET breekt dan bestaande links. Aanbevolen (security-review H-1): genereer met `openssl rand -base64 32`.",
+    );
+  }
+  if (!env.AUTH_URL && !env.NEXTAUTH_URL) {
+    warnings.push(
+      "AUTH_URL/NEXTAUTH_URL ontbreekt — zet je productie-webadres voor betrouwbare login-callbacks en deelbare links.",
+    );
+  }
+  if (env.AUTH_SECRET.length < 32) {
+    warnings.push(
+      "AUTH_SECRET is korter dan 32 tekens — gebruik in productie een sterke sleutel (`openssl rand -base64 32`).",
     );
   }
   return warnings;
