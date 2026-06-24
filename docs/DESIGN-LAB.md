@@ -13,8 +13,10 @@ hele ZZP Platform naast elkaar bekijkt en daaruit kiest voor de echte herontwerp
   (interne scherm-tabs, hover, nav). Puur frontend, mock-data uit
   `src/components/ontwerp/concepts/mock.ts`. **Géén backend, géén wijziging aan de live-app.**
 
-Cadans: 1–2 nieuwe concepten per run; daarna itereren op het zwakste. Kwaliteit boven snelheid.
-Het woord "AI" komt nergens voor; UI-taal = Nederlands.
+Cadans: **elke run levert de volledige, verse set van tien volwaardige concepten** (alle 10 klikbaar
+en uitgewerkt), met een kritische zelf-review die het niveau elke run omhoog tilt. Kwaliteit boven
+snelheid binnen elk concept, maar altijd alle tien live. Het woord "AI" komt nergens voor;
+UI-taal = Nederlands.
 
 ## Architectuur
 
