@@ -1,5 +1,16 @@
 import { type Metadata } from "next";
-import { Inter, Geist, Geist_Mono, Fraunces, JetBrains_Mono } from "next/font/google";
+import {
+  Inter,
+  Geist,
+  Geist_Mono,
+  Fraunces,
+  JetBrains_Mono,
+  Plus_Jakarta_Sans,
+  Space_Grotesk,
+  Sora,
+  Manrope,
+  Instrument_Serif,
+} from "next/font/google";
 
 // Het ontwerp-lab is een PUBLIEK, inlogvrij design-lab (geen (protected)-groep) zodat de eigenaar
 // het via de URL kan openen. noindex zodat zoekmachines de concept-pagina's nooit indexeren.
@@ -19,8 +30,35 @@ const geistMono = Geist_Mono({
 });
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-lab-fraunces", display: "swap" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-lab-mono", display: "swap" });
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-lab-jakarta",
+  display: "swap",
+});
+const space = Space_Grotesk({ subsets: ["latin"], variable: "--font-lab-space", display: "swap" });
+const sora = Sora({ subsets: ["latin"], variable: "--font-lab-sora", display: "swap" });
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-lab-manrope", display: "swap" });
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-lab-instrument-serif",
+  display: "swap",
+});
 
-const fontVars = [inter, geist, geistMono, fraunces, mono].map((f) => f.variable).join(" ");
+const fontVars = [
+  inter,
+  geist,
+  geistMono,
+  fraunces,
+  mono,
+  jakarta,
+  space,
+  sora,
+  manrope,
+  instrumentSerif,
+]
+  .map((f) => f.variable)
+  .join(" ");
 
 export default function OntwerpLabLayout({ children }: { children: React.ReactNode }) {
   return <div className={fontVars}>{children}</div>;

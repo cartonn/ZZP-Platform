@@ -3,7 +3,7 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## ontwerp-lab: publiek design-lab `/ontwerp` — scaffold + concept 01 & 02
+## ontwerp-lab: publiek design-lab `/ontwerp` — volledige set van 10 concepten live
 
 Een publiek, inlogvrij design-lab (`noindex`) waar de eigenaar via één URL tien onderscheidende,
 top-1% redesign-concepten van het hele platform naast elkaar bekijkt en kiest. Additief: geen
@@ -22,14 +22,31 @@ wijziging aan de live-app, alleen nieuwe bestanden onder `src/app/ontwerp` + `sr
 - [x] **Concept 02 "Redactie"** (`concept-02-editorial.tsx`) — editorial/redactioneel warm (Fraunces
       display-serif + Inter + mono), edge-to-edge hero-cijfer, crème/terracotta, magazine-section-nav,
       dezelfde 6 kernschermen.
+- [x] **Concept 03 "Cockpit"** (`concept-03-cockpit.tsx`) — data-dense pro (donker slate), compacte
+      rijen, sticky tabel-headers, bulk-select + J/K-toetsenbordhint, color-graded match-pills.
+- [x] **Concept 04 "Glas"** (`concept-04-glas.tsx`) — dark-glassmorphism: `backdrop-blur` alléén op
+      chrome/nav/chips, data-panels solide; **elevatie = urgentie** (glow schaalt met urgentie).
+- [x] **Concept 05 "Stelling"** (`concept-05-stelling.tsx`) — verfijnd neo-brutalisme: 2px-randen,
+      harde offset-schaduw die "indrukt" bij hover, oversized Space Grotesk, één elektrisch accent.
+- [x] **Concept 06 "Nacht"** (`concept-06-nacht.tsx`) — premium-dark (Linear/Raycast): elevatieschaal,
+      hairline-borders, low-chroma indigo, volwaardig **⌘K command-palet** (overlay + zoek + empty-state).
+- [x] **Concept 07 "Klare Taal"** (`concept-07-klare-taal.tsx`) — high-contrast/WCAG-AAA als esthetiek:
+      3px focus-ringen, ≥44px tikdoelen, `motion-reduce`, status via icoon + tekst + onderstrepingspatroon.
+- [x] **Concept 08 "Warm Onthaal"** (`concept-08-warm.tsx`) — warm-human: zachte vormen/grote radii,
+      Jakarta + Instrument-Serif-accent, mint/perzik, vriendelijke lege-staten en bevestigingen.
+- [x] **Concept 09 "Stroom"** (`concept-09-stroom.tsx`) — Linear-grade: kalm/toetsenbord-eerst,
+      progressieve onthulling (uitklap-rijen), shortcut-kbd's + ⌘K, lijsten boven kaarten.
+- [x] **Concept 10 "Onderweg"** (`concept-10-onderweg.tsx`) — mobiel-eerst: telefoon-frame, bottom-nav,
+      bottom-sheet opdracht-detail, optimistisch claimen met directe bevestiging.
 - [x] **Docs** — `docs/DESIGN-LAB.md` (architectuur, de 10 richtingen, onderzochte 2026-trends).
 
-Onderzocht (2026, via WebSearch): OKLCH-tokens, mono tabular cijfers, ⌘K + J/K-navigatie, calm-over-
-crammed, dark-glassmorphism (glas alléén op chrome), motion = state-communicatie, en concurrent-analyse
+Onderzocht (2026, via WebSearch): strategische minimalisme + progressieve onthulling (Linear/Vercel/
+Stripe), kinetische/variable typografie, verfijnde glassmorphism (blur = informatiehiërarchie, niet ruis),
+tactiel neo-brutalisme, OKLCH/dark-light-keuze, ⌘K + J/K-navigatie, en concurrent-analyse
 (Pidz/Zorgwerk/Temper/Malt/Deel → ons trio verklaarbare matching + next-best-action + verificatie).
 
-Gate groen: typecheck ✓, lint ✓, prettier ✓, build ✓ (routes `/ontwerp`, `/ontwerp/01`, `/ontwerp/02`),
-test **2660** ✓. **Volgende:** concept 03 (Cockpit / data-dense pro) en 04 (Glas / depth).
+Gate groen: typecheck ✓, lint ✓, prettier ✓, build ✓ (`/ontwerp` + `/ontwerp/01..10` SSG-geprerenderd),
+test **2660** ✓. Alle tien concepten zijn nu klikbaar en volledig uitgewerkt op `/ontwerp`.
 
 ## routine: server-side hardening — cron-foutmaskering + helpdesk-audit + import-rol-guard
 

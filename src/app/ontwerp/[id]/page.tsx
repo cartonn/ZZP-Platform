@@ -5,12 +5,28 @@ import { ArrowLeft } from "lucide-react";
 import { CONCEPTS, BUILT } from "@/components/ontwerp/concepts/registry";
 import { Concept01 } from "@/components/ontwerp/concepts/concept-01-mono";
 import { Concept02 } from "@/components/ontwerp/concepts/concept-02-editorial";
+import { Concept03 } from "@/components/ontwerp/concepts/concept-03-cockpit";
+import { Concept04 } from "@/components/ontwerp/concepts/concept-04-glas";
+import { Concept05 } from "@/components/ontwerp/concepts/concept-05-stelling";
+import { Concept06 } from "@/components/ontwerp/concepts/concept-06-nacht";
+import { Concept07 } from "@/components/ontwerp/concepts/concept-07-klare-taal";
+import { Concept08 } from "@/components/ontwerp/concepts/concept-08-warm";
+import { Concept09 } from "@/components/ontwerp/concepts/concept-09-stroom";
+import { Concept10 } from "@/components/ontwerp/concepts/concept-10-onderweg";
 
 // Koppelt het URL-segment aan de uitgewerkte concept-component. Alleen `available` concepten staan
 // hier; de rest valt terug op notFound() (en is in de galerij als "binnenkort" gemarkeerd).
 const COMPONENTS: Record<string, () => React.ReactElement> = {
   "01": Concept01,
   "02": Concept02,
+  "03": Concept03,
+  "04": Concept04,
+  "05": Concept05,
+  "06": Concept06,
+  "07": Concept07,
+  "08": Concept08,
+  "09": Concept09,
+  "10": Concept10,
 };
 
 export function generateStaticParams() {

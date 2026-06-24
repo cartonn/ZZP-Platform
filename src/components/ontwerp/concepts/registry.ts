@@ -59,7 +59,7 @@ export const CONCEPTS: ConceptMeta[] = [
     accent: "#0ea5e9",
     bg: "#0f1729",
     fg: "#e2e8f0",
-    available: false,
+    available: true,
   },
   {
     id: "04",
@@ -72,7 +72,7 @@ export const CONCEPTS: ConceptMeta[] = [
     accent: "#a78bfa",
     bg: "#10131c",
     fg: "#eef0f7",
-    available: false,
+    available: true,
   },
   {
     id: "05",
@@ -85,7 +85,7 @@ export const CONCEPTS: ConceptMeta[] = [
     accent: "#16a34a",
     bg: "#fbf9f4",
     fg: "#101010",
-    available: false,
+    available: true,
   },
   {
     id: "06",
@@ -98,7 +98,7 @@ export const CONCEPTS: ConceptMeta[] = [
     accent: "#7c93ff",
     bg: "#15171f",
     fg: "#e7e9f2",
-    available: false,
+    available: true,
   },
   {
     id: "07",
@@ -115,7 +115,7 @@ export const CONCEPTS: ConceptMeta[] = [
     accent: "#1d4ed8",
     bg: "#ffffff",
     fg: "#0a0a0a",
-    available: false,
+    available: true,
   },
   {
     id: "08",
@@ -132,7 +132,7 @@ export const CONCEPTS: ConceptMeta[] = [
     accent: "#0f9d77",
     bg: "#fbf7f0",
     fg: "#1f2421",
-    available: false,
+    available: true,
   },
   {
     id: "09",
@@ -145,7 +145,7 @@ export const CONCEPTS: ConceptMeta[] = [
     accent: "#5b5bd6",
     bg: "#fbfbfd",
     fg: "#1c1c1f",
-    available: false,
+    available: true,
   },
   {
     id: "10",
@@ -162,7 +162,7 @@ export const CONCEPTS: ConceptMeta[] = [
     accent: "#e0562d",
     bg: "#ffffff",
     fg: "#16181d",
-    available: false,
+    available: true,
   },
 ];
 
