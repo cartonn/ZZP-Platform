@@ -87,9 +87,16 @@ werkt volgens dit contract:
   delegeert naar 2–4 workers op niet-overlappende bestanden, integreert en draait de checks.
   Zie `SWARM.md` voor het volledige contract en `docs/decisions/0002-agent-architecture.md`.
 - **Pijplijn:** Taak → Plan → Build → Test → (Draft) PR → **CI-poort groen → zelf mergen** → Deploy.
-  CI (`ci.yml`) + `pr-review.yml` (reviewer + security) vormen de poort. **Update 24-6-2026 (eigenaar):
-  agents/routines mergen nu ZELF naar `main` ná een geverifieerd groene CI-poort** (audit/check/e2e/
-  secret-scan groen; `review` is adviserend, niet-blokkerend) — `gh pr merge <nr> --squash --admin`.
+  **Bindende cross-check-poort (24-6-2026):** elke merge naar `main` wordt hard geblokkeerd door
+  **6 vereiste statuschecks** — `check`, `e2e`, `audit`, `secret-scan`, `CodeQL` (deterministische
+  SAST) én **`agent-review`** (een ONAFHANKELIJKE, adversariële reviewer — een ander, sterk model dan
+  de bouwende loops — die de diff langs correctheid/security/privacy/architectuur/tests beoordeelt en
+  PASS/BLOCK zet; functiescheiding). `enforce_admins` staat AAN: **niets omzeilt de poort** — ook
+  `--admin` werkt niet meer als bypass; gebruik het NIET. De verplichte menselijke review is vervangen
+  door deze geautomatiseerde cross-check. **Update 24-6-2026 (eigenaar): agents/routines mergen ZELF**
+  na groen, via **`gh pr merge <nr> --squash --auto`** (GitHub merget zodra alle 6 checks groen zijn).
+  Zet `agent-review` BLOCK of een rode check: lees de review-comment/het falende logboek, fix élke
+  blocker, push (auto-merge her-evalueert) — max 2 pogingen, anders PR open laten met de blocker.
   Nooit vóór groen. Dit verruimt de eerdere "agents mergen nooit zelf"-regel (de eigenaar wil
   autonome, doorlopende verbetering zonder zelf te hoeven mergen). Bij parallelle dict/docs-conflicten:
   **UNION-resolutie** (beide kanten behouden + dedup), nooit `--ours`.
