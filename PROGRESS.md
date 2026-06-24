@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: statusfilter op /samenwerkingen (ZZP'er + opdrachtgever)
+
+De FREELANCER+CLIENT `/samenwerkingen`-lijst had geen statusfilter, terwijl `/opdrachten` (#488),
+`/facturen`, `/prestaties` en de admin-variant (`/admin/samenwerkingen`) er wel één hebben.
+Toegevoegd: status-pills (Alle/Voorgesteld/Actief/Afgerond/Geannuleerd) met tellingen — spiegel van
+het pill-patroon van `/opdrachten`. De lijst is server-side cursor-gepagineerd, dus het filter gaat
+in de Prisma-`where` (niet client-side over één pagina) en de pill-tellingen komen uit één goedkope
+`groupBy` op de eigen samenwerkingen (spiegel van #511 /documenten). Read-only, **geen
+schemawijziging**, geen extra geldstroom.
+
+- [x] `src/lib/collaboration-status-filter.ts` — pure helpers: `parseCollaborationStatusFilter`
+      (onbekend/lege/malicieuze waarde → "all"), `collaborationStatusWhere` (Prisma-`where`-fragment;
+      "all" → geen constraint), `summarizeCollaborationStatusGroups` (telling per status uit een
+      `groupBy`-resultaat; "all" = som, onbekende legacy-status telt wel in het totaal maar in geen
+      pill). Labels gelijk aan de status-badge op de kaart.
+- [x] `src/app/(protected)/samenwerkingen/page.tsx` — leest `?status=`, voegt het where-fragment toe
+      aan de eigenaars-`where`, telt via `groupBy`, rendert de pills; "Meer laden" behoudt het filter;
+      eigen lege-staat "Geen samenwerkingen met deze status".
+- [x] `src/lib/collaboration-status-filter.test.ts` — 8 unit-tests (parse-fallback incl.
+      injectiepogingen, where, telling incl. legacy/leeg, pill-volgorde).
+- [x] `src/lib/unbounded-queries.test.ts` — allowlist-regelnummers (149/162) bijgewerkt na de
+      regelverschuiving.
+
+Gate lokaal groen: typecheck ✓, lint ✓, test **2577** ✓ (+8), build ✓, `prettier --check .` ✓.
+Niet-overlappend met de open i18n-PR's (messages.ts), #510 (signals.ts) en #511
+(document-kind-filter.ts).
+
 ## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
 
 Vervolg op de ZZP'er-i18n-reeks (#491–#498). Het reactieoverzicht `/reacties` was nog volledig

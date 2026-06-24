@@ -17,6 +17,14 @@ import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecyc
 import { cascadeStage } from "@/lib/cascade/stage";
 import { assessCancellation } from "@/lib/cancellation";
 import { pageArgs, splitPage } from "@/lib/pagination";
+import { withParams } from "@/components/admin/base-path";
+import {
+  COLLAB_STATUS_FILTER_LABEL,
+  COLLAB_STATUS_FILTER_ORDER,
+  collaborationStatusWhere,
+  parseCollaborationStatusFilter,
+  summarizeCollaborationStatusGroups,
+} from "@/lib/collaboration-status-filter";
 import { CancelCollaborationForm } from "@/components/collaborations/cancel-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,9 +86,25 @@ export default async function SamenwerkingenPage({
   const actor = await requireActor();
   const sp = await searchParams;
   const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
+  const statusFilter = parseCollaborationStatusFilter(
+    typeof sp.status === "string" ? sp.status : undefined,
+  );
+
+  const ownerWhere = {
+    OR: [{ company: { userId: actor.id } }, { freelancer: { userId: actor.id } }],
+  };
+
+  // Pill-tellingen over de volledige (ongefilterde) eigen lijst — één goedkope groupBy op de
+  // geïndexeerde relatie, niet per pagina.
+  const statusCounts = await prisma.collaboration.groupBy({
+    by: ["status"],
+    where: ownerWhere,
+    _count: { _all: true },
+  });
+  const groupCounts = summarizeCollaborationStatusGroups(statusCounts);
 
   const rows = await prisma.collaboration.findMany({
-    where: { OR: [{ company: { userId: actor.id } }, { freelancer: { userId: actor.id } }] },
+    where: { ...ownerWhere, ...collaborationStatusWhere(statusFilter) },
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     ...pageArgs(cursor),
     include: {
@@ -168,7 +192,7 @@ export default async function SamenwerkingenPage({
         action={canExportAgenda ? <AgendaExportButton /> : undefined}
       />
 
-      {collaborations.length === 0 && !cursor ? (
+      {groupCounts.all === 0 ? (
         <Card>
           <EmptyState
             icon={Handshake}
@@ -176,235 +200,282 @@ export default async function SamenwerkingenPage({
             description="Een opdrachtgever stelt een samenwerking voor vanuit een geaccepteerde reactie."
           />
         </Card>
-      ) : collaborations.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={Handshake}
-            title="Geen verdere samenwerkingen"
-            description="Je hebt alle samenwerkingen bekeken."
-          />
-        </Card>
       ) : (
         <div className="space-y-4">
-          {collaborations.map((c) => {
-            const status = c.status as CollaborationStatus;
-            const isClient = c.company.userId === actor.id;
-            const counterparty = isClient ? c.freelancer.user.name : c.company.name;
-            const completionBlock = completionBlockReason({
-              otherInvoices: invoicesByCollab.get(c.id) ?? [],
-              submittedPerformances: submittedPerfByCollab.get(c.id) ?? 0,
-            });
+          <div className="flex flex-wrap gap-1.5">
+            {COLLAB_STATUS_FILTER_ORDER.map((group) => {
+              const active = statusFilter === group;
+              return (
+                <Link
+                  key={group}
+                  href={
+                    group === "all"
+                      ? "/samenwerkingen"
+                      : withParams("/samenwerkingen", { status: group })
+                  }
+                  aria-current={active ? "page" : undefined}
+                  className={[
+                    "focus-ring inline-flex items-center rounded-md border px-3 py-1 text-sm transition-colors",
+                    active
+                      ? "border-accent-foreground/20 bg-accent text-accent-foreground"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted",
+                  ].join(" ")}
+                >
+                  {COLLAB_STATUS_FILTER_LABEL[group]} ({groupCounts[group]})
+                </Link>
+              );
+            })}
+          </div>
 
-            const requiredTypes = c.job.credentialRequirements.map(
-              (r) => r.credentialType as CredentialType,
-            );
-            const credentials: FreelancerCredential[] = c.freelancer.credentials.map((cr) => ({
-              type: cr.type as CredentialType,
-              status: cr.status as FreelancerCredential["status"],
-              expiresAt: cr.expiresAt,
-            }));
-            const alert =
-              requiredTypes.length > 0 && (status === "ACTIVE" || status === "PROPOSED")
-                ? assessCollaborationCredentials(requiredTypes, credentials)
-                : null;
-            const showAlert = alert && alert.status !== "COMPLIANT";
-            const urgent = alert?.status === "NON_COMPLIANT";
-            const dba =
-              status === "ACTIVE"
-                ? assessCollaborationDba({
-                    collaborationId: c.id,
-                    startDate: c.startDate,
-                    ...jobDbaIndicators(c.job),
-                  })
-                : null;
-            return (
-              <Card key={c.id}>
-                <CardContent className="space-y-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Link
-                          href={`/opdrachten/${c.job.id}`}
-                          className="min-w-0 truncate font-medium underline-offset-4 hover:underline"
-                        >
-                          {c.job.title}
-                        </Link>
-                        <span className="flex shrink-0 items-center gap-2">
-                          <Badge variant={STATUS[status].variant}>{STATUS[status].label}</Badge>
-                          {dba && dba.level !== "LAAG" && (
-                            <Badge
-                              variant={dba.level === "HOOG" ? "warning" : "muted"}
-                              title="DBA-aandachtspunt — geen juridisch oordeel"
-                            >
-                              {DBA_LEVEL_LABEL[dba.level]}
-                            </Badge>
-                          )}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Met {counterparty}</p>
-                    </div>
-                  </div>
+          {collaborations.length === 0 && cursor ? (
+            <Card>
+              <EmptyState
+                icon={Handshake}
+                title="Geen verdere samenwerkingen"
+                description="Je hebt alle samenwerkingen bekeken."
+              />
+            </Card>
+          ) : collaborations.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={Handshake}
+                title="Geen samenwerkingen met deze status"
+                description="Pas het filter aan om meer samenwerkingen te zien."
+              />
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {collaborations.map((c) => {
+                const status = c.status as CollaborationStatus;
+                const isClient = c.company.userId === actor.id;
+                const counterparty = isClient ? c.freelancer.user.name : c.company.name;
+                const completionBlock = completionBlockReason({
+                  otherInvoices: invoicesByCollab.get(c.id) ?? [],
+                  submittedPerformances: submittedPerfByCollab.get(c.id) ?? 0,
+                });
 
-                  <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    {c.rate != null && (
-                      <span className="font-mono text-sm font-semibold text-foreground">
-                        € {c.rate}
-                        <span className="font-sans text-xs font-normal text-muted-foreground">
-                          /uur
-                        </span>
-                      </span>
-                    )}
-                    {fmt(c.startDate) && <span>Start: {fmt(c.startDate)}</span>}
-                    {fmt(c.endDate) && <span>Eind: {fmt(c.endDate)}</span>}
-                  </div>
-
-                  {/* Werkproces-fase — zelfde afleiding als de dashboard-kaarten: waar staat het,
-                      wie is aan zet, met voortgang. Terminale statussen volstaan met een stille link. */}
-                  {status === "PROPOSED" || status === "ACTIVE" ? (
-                    (() => {
-                      const stage = cascadeStage({
-                        viewer: isClient ? "CLIENT" : "FREELANCER",
+                const requiredTypes = c.job.credentialRequirements.map(
+                  (r) => r.credentialType as CredentialType,
+                );
+                const credentials: FreelancerCredential[] = c.freelancer.credentials.map((cr) => ({
+                  type: cr.type as CredentialType,
+                  status: cr.status as FreelancerCredential["status"],
+                  expiresAt: cr.expiresAt,
+                }));
+                const alert =
+                  requiredTypes.length > 0 && (status === "ACTIVE" || status === "PROPOSED")
+                    ? assessCollaborationCredentials(requiredTypes, credentials)
+                    : null;
+                const showAlert = alert && alert.status !== "COMPLIANT";
+                const urgent = alert?.status === "NON_COMPLIANT";
+                const dba =
+                  status === "ACTIVE"
+                    ? assessCollaborationDba({
                         collaborationId: c.id,
-                        collaborationStatus: status,
-                        contractStatus: c.contractStatus as ContractStatus,
-                        disputed: c.disputedAt !== null,
-                        latestPerformanceStatus: (c.performances[0]?.status ??
-                          null) as PerformanceState | null,
-                        latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
-                          null) as InvoiceLifecycleState | null,
-                      });
-                      return (
-                        <Link
-                          href={stage.cta.href}
-                          className="focus-ring block rounded-md border border-border px-3 py-2.5 transition-colors hover:bg-muted/40"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm">{stage.label}</span>
-                            {stage.youAreUp && <Badge variant="accent">Aan zet</Badge>}
-                          </div>
-                          <div className="mt-2 flex items-center gap-3">
-                            <Progress
-                              value={Math.round((stage.step / stage.totalSteps) * 100)}
-                              className="h-1.5 flex-1"
-                            />
-                            <span className="shrink-0 text-xs text-muted-foreground">
-                              Stap {stage.step} van {stage.totalSteps}
+                        startDate: c.startDate,
+                        ...jobDbaIndicators(c.job),
+                      })
+                    : null;
+                return (
+                  <Card key={c.id}>
+                    <CardContent className="space-y-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <Link
+                              href={`/opdrachten/${c.job.id}`}
+                              className="min-w-0 truncate font-medium underline-offset-4 hover:underline"
+                            >
+                              {c.job.title}
+                            </Link>
+                            <span className="flex shrink-0 items-center gap-2">
+                              <Badge variant={STATUS[status].variant}>{STATUS[status].label}</Badge>
+                              {dba && dba.level !== "LAAG" && (
+                                <Badge
+                                  variant={dba.level === "HOOG" ? "warning" : "muted"}
+                                  title="DBA-aandachtspunt — geen juridisch oordeel"
+                                >
+                                  {DBA_LEVEL_LABEL[dba.level]}
+                                </Badge>
+                              )}
                             </span>
                           </div>
-                        </Link>
-                      );
-                    })()
-                  ) : (
-                    <div>
-                      <Link
-                        href={`/samenwerkingen/${c.id}`}
-                        className="focus-ring text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                      >
-                        Werkproces bekijken →
-                      </Link>
-                    </div>
-                  )}
+                          <p className="text-sm text-muted-foreground">Met {counterparty}</p>
+                        </div>
+                      </div>
 
-                  {showAlert && alert && (
-                    <div
-                      className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${
-                        urgent
-                          ? "border-danger/30 bg-danger/10 text-danger"
-                          : "border-warning/30 bg-warning/10 text-warning"
-                      }`}
-                    >
-                      <AlertTriangle className="size-4 shrink-0" aria-hidden />
-                      <span>
-                        {alertPhrase(alert, counterparty, isClient)}
-                        {!isClient && (
-                          <>
-                            {" "}
-                            <Link
-                              href="/certificaten"
-                              className="font-medium underline underline-offset-2"
-                            >
-                              Bijwerken
-                            </Link>
-                          </>
-                        )}
-                      </span>
-                    </div>
-                  )}
-
-                  {(COLLABORATION_TRANSITIONS[status].length > 0 ||
-                    (!isClient && invoiceableIds.has(c.id))) && (
-                    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                      {/* Activeren kan alleen door het contract te ondertekenen — niet als losse
-                          statuswijziging. Voor PROPOSED tonen we daarom "Contract ondertekenen". */}
-                      {status === "PROPOSED" &&
-                        (urgent ? (
-                          <span className="text-xs font-medium text-danger">
-                            {isClient
-                              ? "Ondertekenen kan pas als de ZZP'er aan de certificaateisen voldoet."
-                              : "Ondertekenen kan pas als je aan de certificaateisen voldoet."}
+                      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {c.rate != null && (
+                          <span className="font-mono text-sm font-semibold text-foreground">
+                            € {c.rate}
+                            <span className="font-sans text-xs font-normal text-muted-foreground">
+                              /uur
+                            </span>
                           </span>
-                        ) : (
-                          <form action={signContractFromList.bind(null, c.id)}>
-                            <Button type="submit" size="sm" variant="primary">
-                              Contract ondertekenen
-                            </Button>
-                          </form>
-                        ))}
-                      {COLLABORATION_TRANSITIONS[status]
-                        .filter((to) => !(status === "PROPOSED" && to === "ACTIVE"))
-                        .map((to) => {
-                          if (to === "COMPLETED" && completionBlock)
-                            return (
-                              <span key={to} className="text-xs font-medium text-danger">
-                                {completionBlock}
-                              </span>
-                            );
-                          if (to === "CANCELLED") {
-                            // Annuleren vraagt een reden; de 7-dagen-kostenregel (opdrachtgever)
-                            // wordt getoond — de server legt het oordeel vast.
-                            const cancelTerms = assessCancellation({
-                              byClient: isClient,
-                              active: status === "ACTIVE",
-                              startDate: c.startDate,
-                              now: new Date(),
-                            });
-                            return (
-                              <CancelCollaborationForm
-                                key={to}
-                                collaborationId={c.id}
-                                chargeable={cancelTerms.chargeable}
-                                freeUntilLabel={
-                                  cancelTerms.freeUntil ? fmt(cancelTerms.freeUntil) : null
-                                }
-                              />
-                            );
-                          }
+                        )}
+                        {fmt(c.startDate) && <span>Start: {fmt(c.startDate)}</span>}
+                        {fmt(c.endDate) && <span>Eind: {fmt(c.endDate)}</span>}
+                      </div>
+
+                      {/* Werkproces-fase — zelfde afleiding als de dashboard-kaarten: waar staat het,
+                      wie is aan zet, met voortgang. Terminale statussen volstaan met een stille link. */}
+                      {status === "PROPOSED" || status === "ACTIVE" ? (
+                        (() => {
+                          const stage = cascadeStage({
+                            viewer: isClient ? "CLIENT" : "FREELANCER",
+                            collaborationId: c.id,
+                            collaborationStatus: status,
+                            contractStatus: c.contractStatus as ContractStatus,
+                            disputed: c.disputedAt !== null,
+                            latestPerformanceStatus: (c.performances[0]?.status ??
+                              null) as PerformanceState | null,
+                            latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
+                              null) as InvoiceLifecycleState | null,
+                          });
                           return (
-                            <form key={to} action={changeCollaborationStatus.bind(null, c.id, to)}>
-                              <Button type="submit" size="sm" variant="secondary">
-                                {ACTION_LABEL[to]}
-                              </Button>
-                            </form>
+                            <Link
+                              href={stage.cta.href}
+                              className="focus-ring block rounded-md border border-border px-3 py-2.5 transition-colors hover:bg-muted/40"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm">{stage.label}</span>
+                                {stage.youAreUp && <Badge variant="accent">Aan zet</Badge>}
+                              </div>
+                              <div className="mt-2 flex items-center gap-3">
+                                <Progress
+                                  value={Math.round((stage.step / stage.totalSteps) * 100)}
+                                  className="h-1.5 flex-1"
+                                />
+                                <span className="shrink-0 text-xs text-muted-foreground">
+                                  Stap {stage.step} van {stage.totalSteps}
+                                </span>
+                              </div>
+                            </Link>
                           );
-                        })}
-                      {!isClient && invoiceableIds.has(c.id) && (
-                        <Button asChild variant="secondary" size="sm">
-                          <Link href="/facturen/nieuw">Factuur opstellen</Link>
-                        </Button>
+                        })()
+                      ) : (
+                        <div>
+                          <Link
+                            href={`/samenwerkingen/${c.id}`}
+                            className="focus-ring text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                          >
+                            Werkproces bekijken →
+                          </Link>
+                        </div>
                       )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+
+                      {showAlert && alert && (
+                        <div
+                          className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${
+                            urgent
+                              ? "border-danger/30 bg-danger/10 text-danger"
+                              : "border-warning/30 bg-warning/10 text-warning"
+                          }`}
+                        >
+                          <AlertTriangle className="size-4 shrink-0" aria-hidden />
+                          <span>
+                            {alertPhrase(alert, counterparty, isClient)}
+                            {!isClient && (
+                              <>
+                                {" "}
+                                <Link
+                                  href="/certificaten"
+                                  className="font-medium underline underline-offset-2"
+                                >
+                                  Bijwerken
+                                </Link>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      )}
+
+                      {(COLLABORATION_TRANSITIONS[status].length > 0 ||
+                        (!isClient && invoiceableIds.has(c.id))) && (
+                        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                          {/* Activeren kan alleen door het contract te ondertekenen — niet als losse
+                          statuswijziging. Voor PROPOSED tonen we daarom "Contract ondertekenen". */}
+                          {status === "PROPOSED" &&
+                            (urgent ? (
+                              <span className="text-xs font-medium text-danger">
+                                {isClient
+                                  ? "Ondertekenen kan pas als de ZZP'er aan de certificaateisen voldoet."
+                                  : "Ondertekenen kan pas als je aan de certificaateisen voldoet."}
+                              </span>
+                            ) : (
+                              <form action={signContractFromList.bind(null, c.id)}>
+                                <Button type="submit" size="sm" variant="primary">
+                                  Contract ondertekenen
+                                </Button>
+                              </form>
+                            ))}
+                          {COLLABORATION_TRANSITIONS[status]
+                            .filter((to) => !(status === "PROPOSED" && to === "ACTIVE"))
+                            .map((to) => {
+                              if (to === "COMPLETED" && completionBlock)
+                                return (
+                                  <span key={to} className="text-xs font-medium text-danger">
+                                    {completionBlock}
+                                  </span>
+                                );
+                              if (to === "CANCELLED") {
+                                // Annuleren vraagt een reden; de 7-dagen-kostenregel (opdrachtgever)
+                                // wordt getoond — de server legt het oordeel vast.
+                                const cancelTerms = assessCancellation({
+                                  byClient: isClient,
+                                  active: status === "ACTIVE",
+                                  startDate: c.startDate,
+                                  now: new Date(),
+                                });
+                                return (
+                                  <CancelCollaborationForm
+                                    key={to}
+                                    collaborationId={c.id}
+                                    chargeable={cancelTerms.chargeable}
+                                    freeUntilLabel={
+                                      cancelTerms.freeUntil ? fmt(cancelTerms.freeUntil) : null
+                                    }
+                                  />
+                                );
+                              }
+                              return (
+                                <form
+                                  key={to}
+                                  action={changeCollaborationStatus.bind(null, c.id, to)}
+                                >
+                                  <Button type="submit" size="sm" variant="secondary">
+                                    {ACTION_LABEL[to]}
+                                  </Button>
+                                </form>
+                              );
+                            })}
+                          {!isClient && invoiceableIds.has(c.id) && (
+                            <Button asChild variant="secondary" size="sm">
+                              <Link href="/facturen/nieuw">Factuur opstellen</Link>
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
       {nextCursor && (
         <div className="flex justify-center">
           <Button asChild variant="secondary">
-            <Link href={`/samenwerkingen?cursor=${nextCursor}`}>Meer laden</Link>
+            <Link
+              href={withParams("/samenwerkingen", {
+                cursor: nextCursor,
+                ...(statusFilter === "all" ? {} : { status: statusFilter }),
+              })}
+            >
+              Meer laden
+            </Link>
           </Button>
         </div>
       )}

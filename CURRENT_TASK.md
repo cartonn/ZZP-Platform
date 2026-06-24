@@ -260,6 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Statusfilter op /samenwerkingen (ZZP'er + opdrachtgever)** — pure
+> `lib/collaboration-status-filter.ts` (`parseCollaborationStatusFilter`/`collaborationStatusWhere`/
+> `summarizeCollaborationStatusGroups`) + status-pills (Alle/Voorgesteld/Actief/Afgerond/Geannuleerd)
+> met tellingen op `/samenwerkingen`. De lijst is server-side cursor-gepagineerd → filter in de
+> Prisma-`where`, tellingen via `groupBy` (spiegel van #511 /documenten). "Meer laden" behoudt het
+> filter; eigen lege-staat. 8 unit-tests; read-only, geen schemawijziging. PR #512.
+>
 > Gedaan (niet opnieuw): **Statusfilter op het opdrachtgever-overzicht `/opdrachten`** — pure
 > `lib/job-status-filter.ts` (`parseJobStatusFilter`/`filterJobsByStatus`/`summarizeJobStatusGroups`)
 >
