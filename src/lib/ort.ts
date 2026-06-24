@@ -11,6 +11,7 @@ import {
   ORT_SECTOR_PROFILES,
   ORT_SECTORS,
   ORT_CATEGORIES,
+  MAX_ORT_CUSTOM_BPS,
 } from "@/lib/config";
 
 /** Een gewerkte categorie; "NORMAL" = geen toeslag. */
@@ -113,7 +114,10 @@ export function parseOrtCustomRates(raw?: string | null): Record<OrtCategory, nu
   const out = {} as Record<OrtCategory, number>;
   for (const cat of ORT_CATEGORIES) {
     const v = obj[cat];
-    if (typeof v !== "number" || !Number.isInteger(v) || v < 0) return null;
+    // Bovengrens als defense-in-depth: de schrijver (setOrtProfileAction) begrenst al, maar
+    // legacy of bewerkte rijen mogen geen absurde toeslag in de facturen laten doorwerken.
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v > MAX_ORT_CUSTOM_BPS)
+      return null;
     out[cat] = v;
   }
   return out;

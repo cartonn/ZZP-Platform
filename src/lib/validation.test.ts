@@ -5,6 +5,7 @@ import {
   credentialSchema,
   freelancerProfileSchema,
   jobSchema,
+  noShowReportSchema,
   registerSchema,
   validatePerformanceForm,
   type PerformanceFormData,
@@ -154,6 +155,39 @@ describe("applicationSchema", () => {
 
   it("weigert een te korte motivatie", () => {
     expect(applicationSchema.safeParse({ motivation: "kort" }).success).toBe(false);
+  });
+});
+
+describe("noShowReportSchema", () => {
+  it("accepteert een no-show in het verleden", () => {
+    const r = noShowReportSchema.safeParse({
+      reason: "Niet komen opdagen zonder bericht.",
+      occurredOn: "2020-01-01",
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepteert een no-show van vandaag", () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const r = noShowReportSchema.safeParse({
+      reason: "Niet komen opdagen zonder bericht.",
+      occurredOn: today,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("weigert een no-show in de toekomst", () => {
+    const r = noShowReportSchema.safeParse({
+      reason: "Niet komen opdagen zonder bericht.",
+      occurredOn: "3000-01-01",
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.message).toContain("toekomst");
+  });
+
+  it("weigert een te korte reden", () => {
+    const r = noShowReportSchema.safeParse({ reason: "x", occurredOn: "2020-01-01" });
+    expect(r.success).toBe(false);
   });
 });
 

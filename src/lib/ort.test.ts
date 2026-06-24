@@ -134,6 +134,14 @@ describe("parseOrtCustomRates — maatwerk JSON", () => {
     expect(parseOrtCustomRates(JSON.stringify({ ...JSON.parse(valid), NIGHT: -1 }))).toBeNull();
     expect(parseOrtCustomRates(JSON.stringify({ ...JSON.parse(valid), NIGHT: 1.5 }))).toBeNull();
   });
+
+  it("weigert een absurde toeslag boven de bovengrens (defense-in-depth)", () => {
+    // 500% = 50000 bps is de grens (inclusief); daarboven valt het terug op het sectorprofiel.
+    expect(parseOrtCustomRates(JSON.stringify({ ...JSON.parse(valid), NIGHT: 50001 }))).toBeNull();
+    expect(
+      parseOrtCustomRates(JSON.stringify({ ...JSON.parse(valid), NIGHT: 50000 })),
+    ).not.toBeNull();
+  });
 });
 
 describe("resolveOrtRates — maatwerk vóór sector vóór default", () => {

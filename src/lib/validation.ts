@@ -259,7 +259,14 @@ export type CollaborationCancellationInput = z.infer<typeof collaborationCancell
 // --- No-show melden (reden + dag van de gemiste dienst verplicht) ---
 export const noShowReportSchema = z.object({
   reason: trimmed(500).min(5, "Geef de reden op zoals de ZZP'er die opgaf (minimaal 5 tekens)."),
-  occurredOn: z.coerce.date({ message: "Geef de dag van de gemiste dienst op." }),
+  // Een no-show kan niet in de toekomst plaatsvinden. Zonder deze grens kan een opdrachtgever/
+  // bemiddelaar een no-show vooruit op een ZZP'er boeken — die telt mee in de schorsingsladder
+  // (3 ongegronde → uitschrijf-taak), dus de ZZP'er moet hiertegen beschermd zijn (server-side).
+  occurredOn: z.coerce
+    .date({ message: "Geef de dag van de gemiste dienst op." })
+    .refine((d) => d.getTime() <= Date.now(), {
+      message: "De dag van de gemiste dienst kan niet in de toekomst liggen.",
+    }),
 });
 export type NoShowReportInput = z.infer<typeof noShowReportSchema>;
 

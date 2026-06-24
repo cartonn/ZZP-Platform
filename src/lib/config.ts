@@ -246,6 +246,12 @@ export const DEFAULT_ORT_RATES_BPS: Record<OrtCategory, number> = {
   HOLIDAY: 10000, //  +100%
 };
 
+// Bovengrens voor een maatwerk-ORT-percentage per categorie (in bps). Voorkomt dat een
+// opdrachtgever absurde toeslagen instelt die ongemerkt in elke toekomstige prestatie/factuur
+// doorwerken (datameintegriteit). 500% ligt ruim boven de hoogste reële CAO-toeslag (feestdag,
+// +100%) en houdt het afgeleide factuurbedrag veilig binnen de int4-kolomgrens.
+export const MAX_ORT_CUSTOM_BPS = 50000; // +500%
+
 // Tijdvensters voor automatische ORT-categorisatie uit diensttijden (uur, lokale tijd).
 // Avond = [eveningStartHour, nightStartHour); Nacht = [nightStartHour, 24) ∪ [0, nightEndHour).
 // Configureerbaar per CAO; dit zijn gangbare zorg-grenzen. Weekend/feestdag gaan via de datum.
