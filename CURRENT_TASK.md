@@ -260,6 +260,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bereik-signaal voor de opdrachtgever op /opdrachten/[id]** — pure
+> `lib/job-reach.ts` `summarizeJobReach` (buckets total≥50 / strong≥70 / available / strongAvailable
+> → niveau good/moderate/low + sturingstip; 10 tests) + server-fetcher `lib/data/job-reach.ts`
+> `getJobReach` (begrensde tenant-gescopete scan via `discoverableFreelancerWhere`, sluit reeds-
+> reagerenden/WITHDRAWN uit, scoort met `scoreJobForFreelancer`) + `JobReachCard` (eigenaar, PUBLISHED).
+> Hoeveel passende, vindbare ZZP'ers bereikt deze opdracht en hoeveel zijn nu beschikbaar — vertaalt de
+> "auto-uitnodiging binnen uren"-liquiditeit van Pidz/Zorgwerk naar onze verklaarbare matching. Geen
+> schemawijziging, server-side waarheid. PR #534.
 > Gedaan (niet opnieuw): **Tariefpassendheid-signaal op /kandidaten** — `lib/rate-fit.ts`
 > `classifyProposedRateFit(proposedRate, rateMin, rateMax)` (puur: within/below/above/unknown, grenzen
 > inclusief, plafond vóór bodem, één grens volstaat) + budgetpassendheid-badge naast het tariefvoorstel
