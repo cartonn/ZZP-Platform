@@ -13,7 +13,7 @@ staat en of snel handelen loont. Vertaalt de "binnen uren"-liquiditeit van Tempe
 onze verklaarbare matching, zonder gegevens van andere kandidaten te lekken (alleen hun aantal telt).
 
 - [x] **Pure motor** `src/lib/job-competition.ts` — `summarizeJobCompetition({ applicantCount,
-  myScore })` + helpers `competitionLevel`/`chanceLevel`. Concurrentieniveau (low/moderate/high op
+myScore })` + helpers `competitionLevel`/`chanceLevel`. Concurrentieniveau (low/moderate/high op
       3/8 reacties) × kansniveau uit de eigen score (strong/fair/longshot op 70/50) → kop, sturingstip
       en `urgent`-vlag (veel reacties + niet-kansloze match → reageer snel). Nul-reacties = "Wees de
       eerste"-nudge. Normaliseert negatieve/fractionele telling. Geen schemawijziging.
