@@ -12,6 +12,7 @@ import {
   normalizeKandidatenFilter,
 } from "@/lib/kandidaten-filter";
 import { computeCompliance, scoreJobForFreelancer, topPositiveReason } from "@/lib/matching";
+import { RATE_FIT_LABEL, RATE_FIT_VARIANT, classifyProposedRateFit } from "@/lib/rate-fit";
 import { VerificationMarks } from "@/components/credentials/verification-marks";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { summarizeAvailability } from "@/lib/availability";
@@ -384,12 +385,25 @@ export default async function KandidatenPage({
 
                       <p className="whitespace-pre-line text-sm">{app.motivation}</p>
                       <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground">
-                        {app.proposedRate != null && (
-                          <span>
-                            {t("Tariefvoorstel")}: € {app.proposedRate}
-                            {t("/uur")}
-                          </span>
-                        )}
+                        {app.proposedRate != null &&
+                          (() => {
+                            const fit = classifyProposedRateFit(
+                              app.proposedRate,
+                              app.job.rateMin,
+                              app.job.rateMax,
+                            );
+                            return (
+                              <span className="inline-flex items-center gap-1.5">
+                                {t("Tariefvoorstel")}: € {app.proposedRate}
+                                {t("/uur")}
+                                {fit !== "unknown" && (
+                                  <Badge variant={RATE_FIT_VARIANT[fit]}>
+                                    {t(RATE_FIT_LABEL[fit])}
+                                  </Badge>
+                                )}
+                              </span>
+                            );
+                          })()}
                         {app.availability && (
                           <span>
                             {t("Aangegeven bij reactie")}: {app.availability}
