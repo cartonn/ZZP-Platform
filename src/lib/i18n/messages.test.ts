@@ -36,6 +36,21 @@ describe("translate", () => {
     expect(translate("nl", "Overig")).toBe("Overig");
   });
 
+  it("vertaalt het opdrachtgever-dashboard naar het Engels", () => {
+    expect(translate("en", "Vervullingsgraad")).toBe("Fill rate");
+    expect(translate("en", "Geplaatste opdrachten")).toBe("Posted assignments");
+    expect(translate("en", "Voorgestelde professionals")).toBe("Suggested professionals");
+    expect(translate("en", "Compliance-zegel")).toBe("Compliance seal");
+    expect(translate("en", "Geen lopende diensten")).toBe("No active shifts");
+    expect(translate("en", "diensten in orde")).toBe("shifts compliant");
+    expect(translate("en", "In beoordeling")).toBe("In review");
+  });
+
+  it("laat het opdrachtgever-dashboard in het Nederlands onveranderd", () => {
+    expect(translate("nl", "Vervullingsgraad")).toBe("Vervullingsgraad");
+    expect(translate("nl", "Compliance-zegel")).toBe("Compliance-zegel");
+  });
+
   it("vertaalt de notificatie-strings + categorielabels", () => {
     expect(translate("en", "Alles als gelezen markeren")).toBe("Mark all as read");
     expect(translate("en", "Geen notificaties")).toBe("No notifications");

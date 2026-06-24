@@ -125,6 +125,23 @@ const EN: Record<string, string> = {
   Beperkt: "Limited",
   "Niet beschikbaar": "Unavailable",
 
+  // --- Opdrachtgever-dashboard: KPI's, voorgestelde professionals, compliance-zegel ---
+  Vervullingsgraad: "Fill rate",
+  "Geplaatste opdrachten": "Posted assignments",
+  Uitgaven: "Spending",
+  "Actieve samenwerkingen": "Active collaborations",
+  "Gepubliceerde opdrachten": "Published assignments",
+  "Nieuwe reacties": "New applications",
+  "Voorgestelde professionals": "Suggested professionals",
+  "Plaats een opdracht om geschikte ZZP'ers voorgesteld te krijgen.":
+    "Post an assignment to get suitable freelancers suggested.",
+  "Compliance-zegel": "Compliance seal",
+  "Geen lopende diensten": "No active shifts",
+  "diensten in orde": "shifts compliant",
+  "Ontbrekend/verlopen": "Missing/expired",
+  "Verloopt binnenkort": "Expiring soon",
+  "In beoordeling": "In review",
+
   // --- Login: vertrouwens-strip (marketing) ---
   "Waarom ZZP Platform": "Why ZZP Platform",
   "Certificaten geverifieerd": "Credentials verified",

@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: i18n opdrachtgever-dashboard (/dashboard, CLIENT-tak) vertaald (EN)
+
+Vervolg op de i18n-reeks (#491–#502, ZZP'er-pad). De FREELANCER-tak van het werkruimte-dashboard is
+in #492 vertaald; de **CLIENT (opdrachtgever)-tak van `/dashboard` was nog volledig Nederlands**.
+Nu via `t()` (server-side `getTranslator`, NL-fallback) vertaald: KPI-labels (Fill rate/Active
+collaborations/Posted assignments/Spending + de stats-fallback), lijst "Suggested professionals" +
+lege staat, compliance-zegel (titel + subtitel "X/Y shifts compliant" + items Missing-expired/
+Expiring soon/In review), header-fallback en de week-strip (labels + dienst/diensten via de gedeelde
+`t`-parameter van `buildCurrentWeek`). Geen schemawijziging, geen gedragswijziging in de NL-UI.
+
+- [x] `src/lib/i18n/messages.ts` — sectie "Opdrachtgever-dashboard": 15 brontekst→EN-paren.
+- [x] `src/app/(protected)/dashboard/page.tsx` — CLIENT-tak: alle hardgecodeerde NL-strings via `t()`;
+      `buildCurrentWeek` krijgt nu `t` (week-labels + dienst/diensten meertalig, gelijk aan de
+      FREELANCER-tak).
+- [x] `src/lib/i18n/messages.test.ts` — +2 tests (EN-vertaling + NL-onveranderd).
+
+Gate groen: typecheck ✓, lint ✓, test **2566** ✓, build ✓, `prettier --check .` ✓.
+
 ## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
 
 Vervolg op de ZZP'er-i18n-reeks (#491–#498). Het reactieoverzicht `/reacties` was nog volledig
