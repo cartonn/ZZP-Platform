@@ -305,6 +305,17 @@ export interface PerformanceFormData {
   rateCents: number | null;
 }
 
+/**
+ * Bovengrenzen voor een enkele prestatie. Server-side waarheid (CLAUDE.md regel 1): het
+ * `max`-attribuut op het formulier is geen garantie — een geknutselde POST omzeilt het. Zonder deze
+ * grens persisteert een absurd aantal uren/bedrag en overschrijdt het afgeleide factuurbedrag bij
+ * goedkeuring de `Int`-kolom (`totalCents`, int4 ≈ €21,4 mln) → 500 i.p.v. een nette weigering.
+ * 1.000 uur per urenstaat is meer dan een half jaar voltijd; €1 mln per oplevering ruim zat. Beide
+ * houden het factuurbedrag (incl. ORT-toeslag + 21% BTW, max tarief €2.000/u) ruim onder int4.
+ */
+export const MAX_PERFORMANCE_HOURS = 1000;
+export const MAX_MILESTONE_CENTS = 100_000_000; // €1.000.000
+
 /** Pure validatie van performance-invoer. Geeft een foutmelding terug, of null bij geldig. */
 export function validatePerformanceForm(data: PerformanceFormData): string | null {
   if (data.type === "HOURS") {
@@ -312,8 +323,12 @@ export function validatePerformanceForm(data: PerformanceFormData): string | nul
       return "Er is geen uurtarief ingesteld voor deze samenwerking. Neem contact op met de opdrachtgever.";
     if (data.hasOrt) {
       if (data.ortTotal <= 0) return "Vul minstens één uur in bij de ORT-categorieën.";
+      if (data.ortTotal > MAX_PERFORMANCE_HOURS)
+        return `Het totaal aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`;
     } else {
       if (data.hours <= 0) return "Vul het aantal uren in (minimaal 0,25 uur).";
+      if (data.hours > MAX_PERFORMANCE_HOURS)
+        return `Het aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`;
     }
     if (data.periodStartRaw && data.periodEndRaw) {
       const s = new Date(data.periodStartRaw);
@@ -324,6 +339,8 @@ export function validatePerformanceForm(data: PerformanceFormData): string | nul
     }
   } else {
     if (data.amount <= 0) return "Voer een bedrag in van minimaal €0,01.";
+    if (data.amount * 100 > MAX_MILESTONE_CENTS)
+      return "Het bedrag is onrealistisch hoog (maximaal € 1.000.000 per oplevering).";
     if (!data.milestoneTitle.trim()) return "Geef de oplevering een titel.";
   }
   return null;

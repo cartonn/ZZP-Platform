@@ -230,6 +230,27 @@ describe("validatePerformanceForm", () => {
     expect(validatePerformanceForm(hoursBase)).toBeNull();
   });
 
+  it("HOURS: absurd veel uren (> max) geeft een fout — voorkomt int-overflow op de factuur", () => {
+    const result = validatePerformanceForm({ ...hoursBase, hours: 999999 });
+    expect(result).not.toBeNull();
+    expect(result).toContain("onrealistisch hoog");
+  });
+
+  it("HOURS: precies op de bovengrens (1000 uur) is toegestaan", () => {
+    expect(validatePerformanceForm({ ...hoursBase, hours: 1000 })).toBeNull();
+  });
+
+  it("HOURS ORT: absurd ortTotal (> max) geeft een fout", () => {
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      hasOrt: true,
+      ortTotal: 999999,
+      hours: 999999,
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("onrealistisch hoog");
+  });
+
   it("HOURS: ORT met ortTotal=0 geeft een fout", () => {
     const result = validatePerformanceForm({ ...hoursBase, hasOrt: true, ortTotal: 0 });
     expect(result).not.toBeNull();
@@ -276,6 +297,12 @@ describe("validatePerformanceForm", () => {
 
   it("MILESTONE: geldig bedrag en titel geeft null", () => {
     expect(validatePerformanceForm(milestoneBase)).toBeNull();
+  });
+
+  it("MILESTONE: absurd bedrag (> €1 mln) geeft een fout", () => {
+    const result = validatePerformanceForm({ ...milestoneBase, amount: 2_000_000 });
+    expect(result).not.toBeNull();
+    expect(result).toContain("onrealistisch hoog");
   });
 
   it("HOURS ORT: geldige ORT + periodedata geeft null", () => {
