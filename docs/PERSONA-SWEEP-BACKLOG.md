@@ -1,5 +1,58 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-06-24 (run 3) · **main-commit basis:** `c6736b8`
+> **Methode:** verse productie-build (`npm install` → `npm run build`) + schema-push + idempotente
+> demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
+> (`CI=true PORT=3100 npm run start`, `LOGIN_RATE_LIMIT/REGISTER_RATE_LIMIT=100000`,
+> `STORAGE_DRIVER=local`, `AUTH_SECRET=ci-dummy-…`). Playwright met de vooraf-geïnstalleerde Chromium
+> (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, expliciete `executablePath`). Per rol
+> ingelogd via het echte login-formulier (wachtwoord `demo1234`). DOEL 1 (acties uitvoeren), 1b
+> (next-action-engine) en 2 (adversarieel). De DB is ephemeer; geen poging raakte productie.
+>
+> ## Samenvatting — GEEN GATEN GEVONDEN
+>
+> **Alle vier rollen + de cascade- en authz-poorten houden stand op `c6736b8`.** Geen nieuwe
+> regressies sinds run 2; de toen-opgeloste int-overflow-guard staat nog (`MAX_PERFORMANCE_HOURS`).
+>
+> **DOEL 1 (werkt + echte acties):** 54 kernschermen over 4 rollen laadden HTTP 200, juiste `<h1>`,
+> nul 500's/crashes/redirect-weg-van-toegestaan. Échte mutaties uitgevoerd en tegen de DB
+> geverifieerd:
+>
+> - **ADMIN keurt verificatie goed** → wachtrij 6→5, `CREDENTIAL_VERIFIED`-audit, notificatie
+>   "Certificaat goedgekeurd" naar de ZZP'er; de `/acties`-tegel verdween.
+> - **CLIENT keurt ingediende prestatie goed** (cascade B2) → `Performance` SUBMITTED→APPROVED,
+>   `PERFORMANCE_APPROVED`-audit, **automatisch een concept-factuur** (DRAFT, €1703,68) +
+>   `INVOICE_DRAFT_READY`-notificatie. Bedrag/BTW kloppen.
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol kruis-gecheckt tegen
+> `pending-tasks.ts`/`cascade/stage.ts`. De acties klopten met de echte status; na de
+> prestatie-goedkeuring verdween de CLIENT-goedkeurtaak en kwam de FREELANCER "aan zet" voor de
+> factuur (correcte handoff). De **lege FRANCHISER-actielijst is correct** — tegen de DB bevestigd:
+> 0 due leads (de enige WARM-lead heeft een follow-up in de toekomst) en 0 (bijna-)verlopende
+> tenant-certificaten.
+>
+> **DOEL 2 (adversarieel):** alle pogingen correct geweigerd, nul 500's/leaks/scriptuitvoering.
+>
+> - **Privilege-escalatie:** FREELANCER/CLIENT/FRANCHISER → rol-vreemde routes (`/admin/*`,
+>   `/kandidaten`, `/certificaten`, `/franchise/*`) → redirect naar `/dashboard`.
+> - **IDOR/cross-partij:** FREELANCER → andermans `/samenwerkingen/<id>` + `/facturen/<id>` →
+>   "Niet gevonden — geen toegang" (soft-404, ADR-0009), geen veldlek.
+> - **Cross-tenant:** FRANCHISER (Noord) → default-tenant `/franchise/zzpers/<Sanne>` +
+>   `/franchise/opdrachtgevers/<Mark>` → "Niet gevonden"; CLIENT → cross-tenant `/zzp/<Lars>` →
+>   **echte 404**.
+> - **Document-privacy:** niet-eigenaar (CLIENT + FRANCHISER) → `GET /api/documents/<Sanne>` →
+>   **403** `{"error":"Geen toegang."}`; eigenaar → **200 `application/pdf`**.
+> - **Authz-keten/rol-export:** FREELANCER → `/verplichtingen/export` **403**,
+>   `/api/admin/export/invoices` **403**, `/api/samenwerkingen/<vreemd>/dba-dossier` **403**;
+>   CLIENT → `/prognose/export` **403**.
+> - **Malicieuze input:** `/facturen?status=<script>…` genegeerd, geen scriptuitvoering
+>   (`window.__x` ongezet); `'OR 1=1--`-filter genegeerd (Prisma geparametriseerd).
+>
+> Bewijs: `docs/persona-sweep-2026-06-24/` (run-2 artefacts blijven leidend) + de live verificatie
+> hierboven tegen de seed-DB. Geen codewijziging nodig; deze run is een docs-/backlog-update.
+>
+> ---
+>
 > **Datum:** 2026-06-24 (run 2) · **main-commit basis:** `70cf3b6`
 > **Methode:** verse productie-build + schema-push + idempotente demo-seed (`SEED_DEMO=true`) op een
 > ephemere SQLite-DB (`qa.db`); productie-server (`CI=true npm run start`, poort 3100). Echte
