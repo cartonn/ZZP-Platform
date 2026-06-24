@@ -3,27 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## feat(admin): Bemiddelaars (franchisers) zichtbaar in admin-oversight
+## routine: i18n opdrachtgever-dashboard (/dashboard, CLIENT-tak) vertaald (EN)
 
-De FRANCHISER-rol (UI-label "Bemiddelaar") is een eersteklas platformactor maar viel uit de
-admin-oversight: `getPlatformStats` telde gebruikers per rol via `groupBy`, maar `UserStats` liet
-`FRANCHISER` vallen — bemiddelaars zaten wél in `total` maar in geen categorie, dus de "Verdeling
-per rol"-balken sommeerden niet op tot het totaal (onverklaard ontbrekend volume). Daarnaast miste
-het rol-filter op `/admin/gebruikers` de FRANCHISER-optie. Read-only, geen schemawijziging.
+Vervolg op de i18n-reeks (#491–#502, ZZP'er-pad). De FREELANCER-tak van het werkruimte-dashboard is
+in #492 vertaald; de **CLIENT (opdrachtgever)-tak van `/dashboard` was nog volledig Nederlands**.
+Nu via `t()` (server-side `getTranslator`, NL-fallback) vertaald: KPI-labels (Fill rate/Active
+collaborations/Posted assignments/Spending + de stats-fallback), lijst "Suggested professionals" +
+lege staat, compliance-zegel (titel + subtitel "X/Y shifts compliant" + items Missing-expired/
+Expiring soon/In review), header-fallback en de week-strip (labels + dienst/diensten via de gedeelde
+`t`-parameter van `buildCurrentWeek`). Geen schemawijziging, geen gedragswijziging in de NL-UI.
 
-- [x] `src/lib/admin-stats.ts` — `franchisers` toegevoegd aan `UserStats`; nieuwe pure, testbare
-      `buildUserStats(roleRows, suspended)` (total = som over álle rollen, elke rol in eigen
-      categorie, onbekende legacy-rollen tellen in total maar in geen categorie); `getPlatformStats`
-      gebruikt nu de helper i.p.v. de inline rol-map.
-- [x] `src/components/admin/stats-panel.tsx` — "Bemiddelaars"-balk (tone warning) toegevoegd aan de
-      "Verdeling per rol"-`DistributionBars`, zodat de verdeling optelt tot het totaal.
-- [x] `src/components/admin/gebruikersbeheer/gebruikers-panel.tsx` — FRANCHISER-optie ("Bemiddelaar")
-      aan het rol-filter; de server-`where` accepteerde de waarde al, alleen de UI-optie ontbrak.
-- [x] `src/lib/admin-stats.test.ts` — 4 unit-tests voor `buildUserStats` (per-rol incl. FRANCHISER,
-      som = totaal, legacy-rol in total, lege invoer).
+- [x] `src/lib/i18n/messages.ts` — sectie "Opdrachtgever-dashboard": 15 brontekst→EN-paren.
+- [x] `src/app/(protected)/dashboard/page.tsx` — CLIENT-tak: alle hardgecodeerde NL-strings via `t()`;
+      `buildCurrentWeek` krijgt nu `t` (week-labels + dienst/diensten meertalig, gelijk aan de
+      FREELANCER-tak).
+- [x] `src/lib/i18n/messages.test.ts` — +2 tests (EN-vertaling + NL-onveranderd).
 
-Gate groen: typecheck ✓, lint ✓, test **2573** ✓ (+4), build ✓, `prettier --check .` ✓.
-Niet-overlappend met de open i18n-/filter-PR's (#505/#509/#510/#511/#512).
+Gate groen: typecheck ✓, lint ✓, test **2566** ✓, build ✓, `prettier --check .` ✓.
 
 ## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
 

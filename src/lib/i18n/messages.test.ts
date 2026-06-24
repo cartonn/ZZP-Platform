@@ -31,9 +31,54 @@ describe("translate", () => {
     expect(translate("en", "Geüpload.")).toBe("Uploaded.");
   });
 
+  it("vertaalt het CLIENT-kandidatenscherm naar het Engels", () => {
+    expect(translate("en", "Reacties op je opdrachten, met match en compliance.")).toBe(
+      "Responses to your assignments, with match and compliance.",
+    );
+    expect(translate("en", "Beste match")).toBe("Best match");
+    expect(translate("en", "Geen reacties met deze status")).toBe(
+      "No applications with this status",
+    );
+    expect(translate("en", "Waarom deze match?")).toBe("Why this match?");
+    expect(translate("en", "Mist:")).toBe("Missing:");
+    expect(translate("en", "Terug naar nieuw")).toBe("Back to new");
+    expect(translate("en", "Markeer als bekeken")).toBe("Mark as viewed");
+    expect(translate("en", "Accepteren")).toBe("Accept");
+    expect(translate("en", "Afwijzen")).toBe("Reject");
+    expect(translate("en", "Bericht sturen")).toBe("Send message");
+    expect(translate("en", "Bekijk samenwerking")).toBe("View collaboration");
+    // Client-subcomponenten (labels via props)
+    expect(translate("en", "Samenwerking voorstellen")).toBe("Propose collaboration");
+    expect(translate("en", "Voorstel versturen")).toBe("Send proposal");
+    expect(translate("en", "Notitie opslaan")).toBe("Save note");
+    expect(translate("en", "Toepassen op")).toBe("Apply to");
+    expect(translate("en", "geselecteerd")).toBe("selected");
+  });
+
+  it("laat het kandidatenscherm in het Nederlands onveranderd", () => {
+    expect(translate("nl", "Beste match")).toBe("Beste match");
+    expect(translate("nl", "Afwijzen")).toBe("Afwijzen");
+    expect(translate("nl", "Samenwerking voorstellen")).toBe("Samenwerking voorstellen");
+  });
+
   it("laat het documentenscherm in het Nederlands onveranderd", () => {
     expect(translate("nl", "Document uploaden")).toBe("Document uploaden");
     expect(translate("nl", "Overig")).toBe("Overig");
+  });
+
+  it("vertaalt het opdrachtgever-dashboard naar het Engels", () => {
+    expect(translate("en", "Vervullingsgraad")).toBe("Fill rate");
+    expect(translate("en", "Geplaatste opdrachten")).toBe("Posted assignments");
+    expect(translate("en", "Voorgestelde professionals")).toBe("Suggested professionals");
+    expect(translate("en", "Compliance-zegel")).toBe("Compliance seal");
+    expect(translate("en", "Geen lopende diensten")).toBe("No active shifts");
+    expect(translate("en", "diensten in orde")).toBe("shifts compliant");
+    expect(translate("en", "In beoordeling")).toBe("In review");
+  });
+
+  it("laat het opdrachtgever-dashboard in het Nederlands onveranderd", () => {
+    expect(translate("nl", "Vervullingsgraad")).toBe("Vervullingsgraad");
+    expect(translate("nl", "Compliance-zegel")).toBe("Compliance-zegel");
   });
 
   it("vertaalt de notificatie-strings + categorielabels", () => {

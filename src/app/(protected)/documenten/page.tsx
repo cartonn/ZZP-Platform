@@ -13,6 +13,7 @@ export default async function DocumentenPage({
   const actor = await requireRole("FREELANCER");
   const sp = await searchParams;
   const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
+  const kind = typeof sp.kind === "string" ? sp.kind : undefined;
 
   return (
     <div className="space-y-6">
@@ -21,7 +22,13 @@ export default async function DocumentenPage({
         description="Je geüploade documenten. Alleen jij (en beheer) kunt ze openen."
       />
 
-      <DocumentsPanel ownerId={actor.id} cursor={cursor} basePath="/documenten" />
+      <DocumentsPanel
+        ownerId={actor.id}
+        cursor={cursor}
+        basePath="/documenten"
+        kind={kind}
+        showKindFilter
+      />
     </div>
   );
 }
