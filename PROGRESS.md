@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## ontwerp-lab: verse, sterkere set van 10 concepten (2026-06-24)
+
+Volledige refresh van `/ontwerp`: de vorige set (Stille Precisie, Redactie, Cockpit, Glas, Stelling,
+Nacht, Klare Taal, Warm Onthaal, Stroom, Onderweg) is vervangen door tien nieuwe, onderscheidende
+richtingen, gekozen op grond van verse 2026-research (Linear/Vercel/Stripe/Raycast/Family + Pidz/
+Temper/Malt/Deel) en een kritische zelf-review om het niveau op te tillen. Additief: alleen bestanden
+onder `src/app/ontwerp` + `src/components/ontwerp/concepts`, geen wijziging aan de live-app.
+
+- [x] **Tien nieuwe concepten** (alle klikbaar, zes kernschermen via interne tabs, verklaarbare
+      matching + verificatiezegel + facturen): 01 **Atelier** (editorial Swiss), 02 **Spectraal**
+      (premium spatial dark), 03 **Kompas** (keyboard-first ⌘K-console), 04 **Tij** (ambient
+      aurora-light), 05 **Krijt** (verfijnd neo-brutalism), 06 **Prisma** (confident color system),
+      07 **Stratum** (ops console / terminal-dichtheid), 08 **Onthaal** (warm-human, trust-first),
+      09 **Veld** (mobiel-eerst), 10 **Maan** (refined minimal dark).
+- [x] **Mock verrijkt** — `spark`-reeksen op KPI's + gedeelde `BERICHTEN`/`DOCUMENTEN` voor optionele
+      extra schermen (zes kernschermen blijven de basis).
+- [x] **Registry + route-map + galerij-index** bijgewerkt; oude concept-bestanden verwijderd.
+- [x] **Gate groen lokaal** — typecheck, lint, prettier (`--check .`), 2703 tests, `next build`
+      (alle 10 `/ontwerp/01..10` geprerenderd). Docs: `docs/DESIGN-LAB.md` + dit blok.
+
 ## bereik-signaal voor de opdrachtgever op de opdracht-detail (2026-06-24)
 
 Liquiditeit-inzicht dat concurrenten (Pidz/Zorgwerk) via auto-uitnodiging "binnen uren" oplossen,
