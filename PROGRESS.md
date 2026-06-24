@@ -3,28 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
-## routine: documenttype-filter op /documenten (ZZP'er)
+## routine: i18n opdrachtgever-dashboard (/dashboard, CLIENT-tak) vertaald (EN)
 
-Het documentenoverzicht `/documenten` toonde alle geüploade documenten in één ongefilterde lijst.
-Toegevoegd: een typefilter (Alle/Credential/VOG/Verzekering/Contract/Overig) met pill-tellingen —
-spiegelt het bestaande pill-patroon van `/opdrachten`, `/facturen` en `/reacties`. Server-side
-gefilterd (de lijst is cursor-gepagineerd, dus het filter zit in de Prisma-`where`, niet client-side);
-geen schemawijziging.
+Vervolg op de i18n-reeks (#491–#502, ZZP'er-pad). De FREELANCER-tak van het werkruimte-dashboard is
+in #492 vertaald; de **CLIENT (opdrachtgever)-tak van `/dashboard` was nog volledig Nederlands**.
+Nu via `t()` (server-side `getTranslator`, NL-fallback) vertaald: KPI-labels (Fill rate/Active
+collaborations/Posted assignments/Spending + de stats-fallback), lijst "Suggested professionals" +
+lege staat, compliance-zegel (titel + subtitel "X/Y shifts compliant" + items Missing-expired/
+Expiring soon/In review), header-fallback en de week-strip (labels + dienst/diensten via de gedeelde
+`t`-parameter van `buildCurrentWeek`). Geen schemawijziging, geen gedragswijziging in de NL-UI.
 
-- [x] `src/lib/document-kind-filter.ts` — pure helpers: `parseDocumentKindFilter` (onbekend/malicieus
-      → "all"), `documentKindWhere` (Prisma-`where`-fragment, "all" → geen constraint),
-      `summarizeDocumentKindGroups` (telling per groep uit een groupBy, "all" = totaal; onbekende
-      legacy-kinds tellen in het totaal maar in geen pill), labels gelijk aan het paneel.
-- [x] `src/components/documents/documents-panel.tsx` — optionele `kind`-prop + `showKindFilter`-vlag.
-      Pill-tellingen uit één goedkope `groupBy` op de geïndexeerde `ownerId` (alleen wanneer de pills
-      getoond worden); `documentKindWhere` in de `findMany`-`where`; "Meer laden" behoudt het filter;
-      eigen lege-staat "Geen documenten van dit type". De profieltab toont de pills bewust niet
-      (geen `showKindFilter`) → ongewijzigd gedrag daar.
-- [x] `src/app/(protected)/documenten/page.tsx` — leest `?kind=` en geeft `kind` + `showKindFilter`.
-- [x] `src/lib/document-kind-filter.test.ts` — 8 unit-tests (parse-fallback, where, telling incl.
-      legacy/leeg, pill-volgorde).
+- [x] `src/lib/i18n/messages.ts` — sectie "Opdrachtgever-dashboard": 15 brontekst→EN-paren.
+- [x] `src/app/(protected)/dashboard/page.tsx` — CLIENT-tak: alle hardgecodeerde NL-strings via `t()`;
+      `buildCurrentWeek` krijgt nu `t` (week-labels + dienst/diensten meertalig, gelijk aan de
+      FREELANCER-tak).
+- [x] `src/lib/i18n/messages.test.ts` — +2 tests (EN-vertaling + NL-onveranderd).
 
-Gate groen: typecheck ✓, lint ✓, test **2577** ✓ (+8), build ✓, `prettier --check .` ✓.
+Gate groen: typecheck ✓, lint ✓, test **2566** ✓, build ✓, `prettier --check .` ✓.
 
 ## feat(i18n): ZZP'er — reactieoverzicht (/reacties) vertaald (EN)
 

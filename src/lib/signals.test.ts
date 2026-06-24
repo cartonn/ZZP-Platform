@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildBadges, countUnreadConversations, withActionCenterBadge } from "./signals";
+import {
+  buildBadges,
+  countUnreadConversations,
+  startOfUtcDay,
+  withActionCenterBadge,
+} from "./signals";
 
 describe("buildBadges", () => {
   it("laat items met telling 0 of ontbrekend weg", () => {
@@ -73,6 +78,43 @@ describe("buildBadges", () => {
     const badges = buildBadges({ pendingPerformances: 2, cascadeWork: 3 });
     expect(badges["/prestaties"]).toEqual({ count: 2, tone: "attention" });
     expect(badges["/samenwerkingen"]).toEqual({ count: 3, tone: "attention" });
+  });
+
+  it("mapt verstreken leads (franchiser) naar /franchise/leads met attention-toon", () => {
+    expect(buildBadges({ overdueLeads: 3 })).toEqual({
+      "/franchise/leads": { count: 3, tone: "attention" },
+    });
+    expect(buildBadges({ overdueLeads: 0 })).toEqual({});
+  });
+
+  it("mapt open shift-overnames (franchiser) naar /franchise/shift-overnames met attention-toon", () => {
+    expect(buildBadges({ openHandoffs: 2 })).toEqual({
+      "/franchise/shift-overnames": { count: 2, tone: "attention" },
+    });
+  });
+
+  it("toont beide franchiser-signalen op aparte hrefs als ze niet-nul zijn", () => {
+    const badges = buildBadges({ overdueLeads: 1, openHandoffs: 4 });
+    expect(badges["/franchise/leads"]).toEqual({ count: 1, tone: "attention" });
+    expect(badges["/franchise/shift-overnames"]).toEqual({ count: 4, tone: "attention" });
+  });
+});
+
+describe("startOfUtcDay", () => {
+  it("kapt naar middernacht UTC van dezelfde kalenderdag", () => {
+    expect(startOfUtcDay(new Date("2026-06-23T14:37:11Z")).toISOString()).toBe(
+      "2026-06-23T00:00:00.000Z",
+    );
+  });
+
+  it("een opvolgdatum op een eerdere dag valt vóór de grens (te laat)", () => {
+    const boundary = startOfUtcDay(new Date("2026-06-23T08:00:00Z"));
+    expect(new Date("2026-06-22T23:00:00Z").getTime()).toBeLessThan(boundary.getTime());
+  });
+
+  it("een opvolgdatum van vandaag valt niet vóór de grens (niet te laat)", () => {
+    const boundary = startOfUtcDay(new Date("2026-06-23T08:00:00Z"));
+    expect(new Date("2026-06-23T00:00:00Z").getTime()).toBeGreaterThanOrEqual(boundary.getTime());
   });
 });
 

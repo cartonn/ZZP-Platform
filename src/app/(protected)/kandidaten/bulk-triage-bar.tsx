@@ -8,6 +8,18 @@ import { bulkChangeApplicationStatus, type BulkTriageState } from "./actions";
 
 const FORM_ID = "kandidaten-bulk";
 
+export type BulkTriageLabels = {
+  viewed: string;
+  shortlist: string;
+  reject: string;
+  selected: string;
+  apply: string;
+  working: string;
+  confirmReject: string;
+  ariaForm: string;
+  ariaStatus: string;
+};
+
 /**
  * Sticky bulk-triage bar voor de kandidatenlijst.
  *
@@ -18,7 +30,7 @@ const FORM_ID = "kandidaten-bulk";
  * De bar telt checked inputs via een document-wide change listener en toont
  * zichzelf alleen wanneer er ≥ 1 reactie geselecteerd is.
  */
-export function BulkTriageBar() {
+export function BulkTriageBar({ labels }: { labels: BulkTriageLabels }) {
   const [state, formAction, isPending] = useActionState<BulkTriageState, FormData>(
     bulkChangeApplicationStatus,
     undefined,
@@ -62,9 +74,7 @@ export function BulkTriageBar() {
     const form = e.currentTarget;
     const select = form.elements.namedItem("target") as HTMLSelectElement | null;
     if (select?.value === "REJECTED") {
-      const confirmed = window.confirm(
-        "Geselecteerde reacties afwijzen? De ZZP'ers krijgen hiervan bericht.",
-      );
+      const confirmed = window.confirm(labels.confirmReject);
       if (!confirmed) {
         e.preventDefault();
       }
@@ -75,12 +85,7 @@ export function BulkTriageBar() {
     <>
       {/* Het form-element moet altijd in de DOM aanwezig zijn zodat checkboxes met
           form="kandidaten-bulk" er naar kunnen refereren, ook als de bar visueel verborgen is. */}
-      <form
-        id={FORM_ID}
-        action={formAction}
-        onSubmit={handleSubmit}
-        aria-label="Bulk statuswijziging"
-      />
+      <form id={FORM_ID} action={formAction} onSubmit={handleSubmit} aria-label={labels.ariaForm} />
 
       {/* Visuele sticky bar — alleen zichtbaar als er ≥1 reactie geselecteerd is */}
       <div
@@ -92,18 +97,20 @@ export function BulkTriageBar() {
         }
       >
         <div className="fixed inset-x-0 bottom-4 z-30 mx-auto flex max-w-4xl items-center gap-3 rounded-lg border border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur">
-          <span className="shrink-0 text-sm text-muted-foreground">{count} geselecteerd</span>
+          <span className="shrink-0 text-sm text-muted-foreground">
+            {count} {labels.selected}
+          </span>
 
           <Select
             name="target"
             form={FORM_ID}
             defaultValue="SHORTLIST"
             className="w-40"
-            aria-label="Nieuwe status"
+            aria-label={labels.ariaStatus}
           >
-            <option value="VIEWED">Bekeken</option>
-            <option value="SHORTLIST">Shortlist</option>
-            <option value="REJECTED">Afwijzen</option>
+            <option value="VIEWED">{labels.viewed}</option>
+            <option value="SHORTLIST">{labels.shortlist}</option>
+            <option value="REJECTED">{labels.reject}</option>
           </Select>
 
           <Button
@@ -113,7 +120,7 @@ export function BulkTriageBar() {
             variant="primary"
             disabled={count === 0 || isPending}
           >
-            {isPending ? "Bezig…" : `Toepassen op ${count}`}
+            {isPending ? labels.working : `${labels.apply} ${count}`}
           </Button>
 
           <FormStatus success={state?.ok} error={state?.error} />
