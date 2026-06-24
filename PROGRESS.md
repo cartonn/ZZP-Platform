@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## routine: AVG account-export compleet maken (art. 15/20 — inzage/portabiliteit)
+
+`GET /api/account/export` (recht op inzage/dataportabiliteit) bevatte alleen `sentMessages` naast
+het profiel/de basisdata. Een betrokkene kreeg dus een **onvolledige** kopie van zijn eigen
+gegevens — schending AVG art. 15/20, MIDDEL uit `docs/SECURITY-PRIVACY-BACKLOG.md`. Dit raakt direct
+elke rol (ZZP'er/opdrachtgever): één-klik een volledige, eerlijke data-export.
+
+- [x] **`src/lib/account-export.ts`** — nieuwe testbare, gedeelde `buildAccountExport(db, actorId)`
+      verzamelt alle eigen-data-secties. Toegevoegd t.o.v. de oude route: **ontvangen berichten**,
+      **`TaxFilingRequest`**, **eigen `Review`**, **`IdeaComment`**, **eigen `SupportTicket`/
+      `SupportMessage`** en **`IndirectHoursEntry`**. Strikte `select`-clauses — geen vrije-tekst-PII
+      van derden: ontvangen berichten gescopet op gesprekken waarin de actor deelneemt
+      (`senderId != actor` + `participants.some.userId == actor`), ondersteuningsberichten op
+      `authorId == actor` (geen admin-/assistent-antwoorden), en de eigen `Review` laat `subjectId`
+      weg (verbergt de identiteit van de beoordeelde tegenpartij).
+- [x] **`src/app/api/account/export/route.ts`** — gerefactord naar `buildAccountExport`; auth,
+      rate-limit (`exportRateLimiter`) en audit (`ACCOUNT_DATA_EXPORTED`) blijven in de route.
+- [x] **`src/lib/account-export.test.ts`** — 5 tests (alle secties present, scoping ontvangen
+      berichten, support-berichten alleen eigen, `Review` zonder `subjectId`, canned doorgifte).
+
+Gate groen: typecheck ✓, lint ✓, test **2649** ✓, build ✓, `prettier --check .` ✓.
+
 ## routine: input-hardening — no-show-datum niet in de toekomst + ORT-maatwerk bovengrens
 
 Twee server-side datameintegriteit-fixes uit `docs/SECURITY-PRIVACY-BACKLOG.md` (MIDDEL); beide

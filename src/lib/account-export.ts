@@ -1,0 +1,198 @@
+import type { PrismaClient } from "@prisma/client";
+
+// AVG recht op inzage/dataportabiliteit (art. 15/20): bundelt de eigen persoonsgegevens van de
+// actor tot één JSON-export. Server-side waarheid; uitsluitend de eigen gegevens — geen
+// documentinhoud en geen vrije-tekst-PII van derden. De selects zijn bewust smal: van
+// tegenpartijen lekt hooguit een onveranderlijke id (geen naam/e-mail), zoals de actor die ook
+// in-app al ziet. Pure dataverzamelaar: de aanroeper (route) doet auth, rate-limit en audit.
+//
+// De `db`-parameter is structureel getypeerd zodat de unit-test een fake Prisma-client kan
+// injecteren (zoals apply.test.ts) — geen module-mocks, geen database.
+
+export interface AccountExportPayload {
+  exportedAt: string;
+  notice: string;
+  user: unknown;
+  freelancerProfile: unknown;
+  company: unknown;
+  applications: unknown;
+  documents: unknown;
+  notifications: unknown;
+  sentMessages: unknown;
+  receivedMessages: unknown;
+  reviews: unknown;
+  taxFilingRequests: unknown;
+  supportTickets: unknown;
+  supportMessages: unknown;
+  ideaComments: unknown;
+  indirectHours: unknown;
+}
+
+const EXPORT_NOTICE =
+  "Dit zijn je eigen persoonsgegevens in dit platform (geen documentinhoud, geen gegevens van anderen). " +
+  "Bij ontvangen berichten en ondersteuningsgesprekken is alleen de aan jou gerichte communicatie opgenomen.";
+
+export async function buildAccountExport(
+  db: PrismaClient,
+  actorId: string,
+  now: Date = new Date(),
+): Promise<AccountExportPayload> {
+  const [
+    user,
+    profile,
+    company,
+    applications,
+    documents,
+    notifications,
+    sentMessages,
+    receivedMessages,
+    reviews,
+    taxFilingRequests,
+    supportTickets,
+    supportMessages,
+    ideaComments,
+    indirectHours,
+  ] = await Promise.all([
+    db.user.findUnique({
+      where: { id: actorId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        deletionRequestedAt: true,
+      },
+    }),
+    db.freelancerProfile.findUnique({
+      where: { userId: actorId },
+      include: {
+        skills: { select: { skillId: true } },
+        industries: { select: { industryId: true } },
+        credentials: {
+          select: {
+            type: true,
+            title: true,
+            issuer: true,
+            status: true,
+            issuedAt: true,
+            expiresAt: true,
+            visibility: true,
+          },
+        },
+      },
+    }),
+    db.company.findUnique({ where: { userId: actorId } }),
+    db.application.findMany({
+      where: { freelancer: { userId: actorId } },
+      select: {
+        jobId: true,
+        status: true,
+        motivation: true,
+        proposedRate: true,
+        matchScore: true,
+        createdAt: true,
+      },
+    }),
+    db.document.findMany({
+      where: { ownerId: actorId },
+      select: { kind: true, filename: true, mimeType: true, size: true, createdAt: true },
+    }),
+    db.notification.findMany({
+      where: { userId: actorId },
+      select: { type: true, title: true, body: true, readAt: true, createdAt: true },
+    }),
+    db.message.findMany({
+      where: { senderId: actorId },
+      select: { conversationId: true, body: true, createdAt: true },
+    }),
+    // Ontvangen berichten: aan de actor gerichte communicatie (gesprekken waarin hij deelneemt,
+    // niet door hemzelf verstuurd). senderId is een onveranderlijke id van de tegenpartij die de
+    // actor in-app al ziet — geen naam/e-mail.
+    db.message.findMany({
+      where: {
+        senderId: { not: actorId },
+        conversation: { participants: { some: { userId: actorId } } },
+      },
+      select: { conversationId: true, senderId: true, body: true, createdAt: true },
+    }),
+    // Eigen beoordelingen (door de actor geschreven). Het oordeel/de toelichting is eigen tekst;
+    // subjectId blijft eruit (zou de identiteit van de beoordeelde tegenpartij prijsgeven).
+    db.review.findMany({
+      where: { authorId: actorId },
+      select: {
+        collaborationId: true,
+        direction: true,
+        rating: true,
+        comment: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+      },
+    }),
+    db.taxFilingRequest.findMany({
+      where: { userId: actorId },
+      select: {
+        taxYear: true,
+        kind: true,
+        quarter: true,
+        status: true,
+        partnerName: true,
+        mandateKind: true,
+        consentShareAt: true,
+        consentMandateAt: true,
+        conceptAmountCents: true,
+        clientApprovedAt: true,
+        submittedAt: true,
+        aanslagCents: true,
+        revokedAt: true,
+        createdAt: true,
+      },
+    }),
+    db.supportTicket.findMany({
+      where: { userId: actorId },
+      select: {
+        subject: true,
+        category: true,
+        status: true,
+        priority: true,
+        resolvedAt: true,
+        createdAt: true,
+      },
+    }),
+    // Eigen ondersteuningsberichten: alleen door de actor geschreven (USER). Antwoorden van een
+    // admin/assistent (andere authorId) blijven eruit — dat is communicatie van derden.
+    db.supportMessage.findMany({
+      where: { authorId: actorId },
+      select: { ticketId: true, body: true, createdAt: true },
+    }),
+    db.ideaComment.findMany({
+      where: { authorId: actorId },
+      select: { ideaId: true, body: true, createdAt: true },
+    }),
+    db.indirectHoursEntry.findMany({
+      where: { userId: actorId },
+      select: { workedOn: true, hours: true, category: true, note: true, createdAt: true },
+    }),
+  ]);
+
+  return {
+    exportedAt: now.toISOString(),
+    notice: EXPORT_NOTICE,
+    user,
+    freelancerProfile: profile,
+    company,
+    applications,
+    documents,
+    notifications,
+    sentMessages,
+    receivedMessages,
+    reviews,
+    taxFilingRequests,
+    supportTickets,
+    supportMessages,
+    ideaComments,
+    indirectHours,
+  };
+}

@@ -55,10 +55,15 @@ design, A07 auth failures, A09 logging) + AVG art. 5/15/17/30 als kader.
   documenteren (gerechtvaardigd beveiligingsbelang) en heroverwegen of het e-mailadres bij een
   bekende `userId` nodig is.
 
-- **[MIDDEL · AVG art. 15/20 — inzage/portabiliteit onvolledig]** `GET /api/account/export` bevat
-  alleen `sentMessages`; ontbreekt: ontvangen berichten, `TaxFilingRequest`, eigen `Review`,
-  `IdeaComment`, eigen `SupportTicket`/`SupportMessage`, `IndirectHoursEntry`. Fix: ontbrekende
-  eigen-data toevoegen met strikte `select` (geen PII van derden).
+- **[MIDDEL · AVG art. 15/20 — inzage/portabiliteit onvolledig] — OPGELOST (#527)**
+  `GET /api/account/export` bevatte alleen `sentMessages`. Toegevoegd: ontvangen berichten,
+  `TaxFilingRequest`, eigen `Review`, `IdeaComment`, eigen `SupportTicket`/`SupportMessage`,
+  `IndirectHoursEntry`. Dataverzameling verhuisd naar de testbare, gedeelde
+  `src/lib/account-export.ts` (`buildAccountExport`) met strikte `select`-clauses (geen
+  vrije-tekst-PII van derden): ontvangen berichten zijn gescopet op gesprekken waarin de actor
+  deelneemt (`senderId != actor`), ondersteuningsberichten op `authorId == actor` (geen
+  admin-/assistent-antwoorden), en de eigen `Review` laat `subjectId` weg (geen identiteit van de
+  beoordeelde tegenpartij). Test: `src/lib/account-export.test.ts` (5 tests).
 
 - **[MIDDEL · AVG art. 5 lid 1c — dataminimalisatie]** KvK-nummer staat op het publieke profiel
   (`src/components/profile/profile-screen.tsx`), zichtbaar voor anonieme bezoekers op `/zzp/[id]`;
