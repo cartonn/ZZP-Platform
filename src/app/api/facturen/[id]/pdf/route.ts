@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
+import { audit } from "@/lib/audit";
+import { requestMeta } from "@/lib/request-meta";
 
 export const runtime = "nodejs";
 
@@ -59,6 +61,19 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     actor.id === inv.collaboration?.company.userId ||
     actor.id === inv.collaboration?.freelancer.userId;
   if (!allowed) return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+
+  // AVG/compliance (CLAUDE.md regel 5): inzage van een gevoelig financieel document met PII
+  // (naam, KvK, btw-nummer, bedragen) vastleggen — wie-zag-welke-factuur-wanneer. Spiegelt de
+  // dossier-routes en /api/documents/[id], die documenttoegang ook auditen.
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "INVOICE_PDF_ACCESSED",
+    entityType: "Invoice",
+    entityId: id,
+    metadata: { viewerRole: actor.role },
+    ...meta,
+  });
 
   const bytes = await buildInvoicePdf({
     number: inv.partyInvoiceNumber ?? inv.number,

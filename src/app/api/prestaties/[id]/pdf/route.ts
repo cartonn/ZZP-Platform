@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { buildPerformancePdf } from "@/lib/performance-pdf";
+import { audit } from "@/lib/audit";
+import { requestMeta } from "@/lib/request-meta";
 
 export const runtime = "nodejs";
 
@@ -52,6 +54,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     actor.id === perf.collaboration?.company.userId ||
     actor.id === perf.collaboration?.freelancer.userId;
   if (!allowed) return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+
+  // AVG/compliance (CLAUDE.md regel 5): inzage van de urenstaat/oplevering (PII: naam, periode,
+  // uren, tarief) vastleggen, net als de dossier-routes en /api/documents/[id].
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "PERFORMANCE_PDF_ACCESSED",
+    entityType: "Performance",
+    entityId: id,
+    metadata: { viewerRole: actor.role },
+    ...meta,
+  });
 
   const bytes = await buildPerformancePdf({
     perfType: perf.type,

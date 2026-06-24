@@ -73,6 +73,9 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   INVOICE_CREDITED: "Factuur gecrediteerd",
   INVOICE_DRAFT_REMINDER: "Herinnering conceptfactuur",
   INVOICE_DRAFT_ESCALATED: "Conceptfactuur geëscaleerd",
+  INVOICE_PDF_ACCESSED: "Factuur-PDF ingezien",
+  PERFORMANCE_PDF_ACCESSED: "Urenstaat/oplevering ingezien",
+  MODEL_AGREEMENT_ACCESSED: "Modelovereenkomst ingezien",
   PAYMENT_CONFIRMED: "Betaling bevestigd",
   PAYMENT_OVERDUE: "Betaling te laat",
 

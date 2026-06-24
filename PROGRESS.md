@@ -22,6 +22,31 @@ extra query (leunt op de reeds geladen `job.rateMin/rateMax` + `app.proposedRate
 
 Gate groen: typecheck ✓, lint ✓, test **2608** ✓, build ✓, `prettier --check .` ✓.
 
+## security/privacy: PDF-toegang geaudit + AVG-anonimisering dekt vrije-tekst-PII
+
+Security-/privacy-auditronde (2026-06-24, basis `main` @ 70cf3b6) met 4 parallelle subagents over
+server actions, franchise-/admin-actions, API-routes en AVG/anonimisering + handmatige verificatie
+van auth/sessie, deeltoken, wachtwoordherstel, cron-auth en storage. Twee bevindingen volledig
+gefixt (rood→groen), de rest geparkeerd in `docs/SECURITY-PRIVACY-BACKLOG.md`.
+
+- [x] **KRITIEK (AVG art. 17, recht op verwijdering):** `anonymizeUser()` liet herleidbare
+      vrije-tekst-PII van de betrokkene achter in kindrijen (een `user.update` cascadeert niet). De
+      anonimiseringstransactie in `src/app/(protected)/admin/gebruikers/actions.ts` redact nu ook
+      `Application.motivation`, `SupportMessage.body`, `IdeaComment.body`, `Review.comment` en
+      `ShiftHandoff.reason` (alle door de betrokkene zelf geschreven). `NoShowReport.reason` bewust
+      niet (door een andere partij geschreven; mogelijke bewaargrond) — geparkeerd.
+- [x] **HOOG (CLAUDE.md regel 5, AVG art. 30 accountability):** drie PDF-routes serveerden gevoelige
+      PII zonder auditregel. `audit()` (met IP/UA) toegevoegd in `facturen/[id]/pdf`,
+      `prestaties/[id]/pdf` en `samenwerkingen/[id]/modelovereenkomst`; NL-labels in
+      `src/lib/audit-labels.ts`.
+- [x] Tests: `src/app/api/pdf-routes-audit.test.ts` (+6) en
+      `src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (+6) — beide rood zonder de fix.
+- [x] `docs/SECURITY-PRIVACY-BACKLOG.md` aangemaakt: geparkeerde bevindingen (Lead-PII zonder
+      grondslag, PII in import-log, run-all error-leak, push-subscribe rate-limit, no-show-datum,
+      ORT-bovengrens e.a.) + één vals-positief gedocumenteerd (Mollie-webhook re-fetch ÍS de control).
+
+Gate groen: typecheck ✓, lint ✓, test **2611** ✓, build ✓, `prettier --write .` ✓.
+
 ## routine: i18n opdrachtgever-dashboard (/dashboard, CLIENT-tak) vertaald (EN)
 
 Vervolg op de i18n-reeks (#491–#502, ZZP'er-pad). De FREELANCER-tak van het werkruimte-dashboard is
