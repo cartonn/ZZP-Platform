@@ -11,7 +11,7 @@ voor de béste kandidaten, want die raken elders aan de slag. Spiegel van het ZZ
 (`application-wait.ts`, #545), maar gewogen naar matchkwaliteit i.p.v. enkel de fase.
 
 - [x] **`lib/candidate-decision.ts`** (puur, geen schemawijziging) — `summarizeCandidateDecision({status,
-  matchScore, createdAt, hasCollaboration}, now)` → `{daysWaiting, tier, attention, urgency}` of `null`
+matchScore, createdAt, hasCollaboration}, now)` → `{daysWaiting, tier, attention, urgency}` of `null`
       bij besloten/samenwerking. `candidateTier` klasseert op `STRONG_MATCH_MIN=70`/`MODERATE_MATCH_MIN=50`
       (ontbrekende score = bescheiden). Omgekeerd gewogen geduld `DECISION_PATIENCE_DAYS`
       (strong 2 / moderate 4 / modest 8 dagen): hoe sterker de match, hoe sneller beslissen. Urgency
