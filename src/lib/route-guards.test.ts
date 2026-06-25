@@ -7,8 +7,23 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/readiness")).toBe(true);
   });
 
+  it("staat de betaal-webhook inlogvrij toe (provider pingt zonder sessie; verifieert zelf via provider)", () => {
+    // Regressie: stond achter de inlogmuur → een live Mollie-ping werd naar /login geredirect,
+    // waardoor een betaald abonnement nooit activeerde (SUBSCRIPTION_ACTIVATED bleef uit).
+    expect(isPublicPath("/api/billing/webhook")).toBe(true);
+  });
+
   it("houdt beschermde routes achter de inlogmuur", () => {
-    for (const p of ["/dashboard", "/admin/gebruikers", "/api/account/export", "/samenwerkingen"]) {
+    for (const p of [
+      "/dashboard",
+      "/admin/gebruikers",
+      "/api/account/export",
+      "/samenwerkingen",
+      // De rest van /api/billing blijft beschermd: alleen de exacte webhook-route is publiek.
+      "/api/billing",
+      "/api/billing/webhook/extra",
+      "/api/media/logo.png",
+    ]) {
       expect(isPublicPath(p)).toBe(false);
     }
   });

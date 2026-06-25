@@ -23,7 +23,13 @@ export function isPublicPath(pathname: string): boolean {
     pathname === "/ontwerp" ||
     pathname.startsWith("/ontwerp/") || // publiek, inlogvrij design-lab (alleen fictieve mock-data)
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/tasks/") // eigen token-guard (CRON_SECRET), geen sessie
+    pathname.startsWith("/api/tasks/") || // eigen token-guard (CRON_SECRET), geen sessie
+    // Betaal-provider-webhook (Mollie): de provider pingt zonder sessie-cookie. De handler
+    // vertrouwt de request-body nooit blind — hij vraagt de betaalstatus opnieuw op bij de
+    // provider (bron van waarheid) en antwoordt altijd 200 zonder data te lekken. Stond ten
+    // onrechte achter de inlogmuur, waardoor een live webhook naar /login zou worden geredirect
+    // en abonnementen na betaling nooit zouden activeren.
+    pathname === "/api/billing/webhook"
   );
 }
 

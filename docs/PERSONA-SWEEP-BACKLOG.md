@@ -1,5 +1,54 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-06-25 (run 5) · **main-commit basis:** `d738b77`
+> **Methode:** verse productie-build + schema-push + idempotente demo-seed (`SEED_DEMO=true`) op een
+> ephemere SQLite-DB (`qa.db`); productie-server (`CI=true PORT=3100 npm run start`,
+> `LOGIN_RATE_LIMIT/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`, `AUTH_SECRET=ci-dummy-…`).
+> Playwright met de vooraf-geïnstalleerde Chromium (expliciete `executablePath`), vier rollen in losse
+> contexts, ingelogd via het echte formulier (`demo1234`). Doel-1 (acties), 1b (next-actions), 2
+> (adversarieel). De DB is ephemeer; geen poging raakte productie.
+>
+> ## Samenvatting — 1 DEFECT GEVONDEN & GEFIXT (betaal-webhook achter de inlogmuur)
+>
+> **DOEL 1 + 1b:** 43 kernschermen over 4 rollen laadden HTTP 200, juiste shell, **nul 500's**. Alle 4
+> logins slaagden. De next-action-zone (`/acties` per rol) + dashboard kruis-gecheckt tegen
+> `next-actions.ts`/`pending-tasks.ts`/`cascade/stage.ts`: rol-geïsoleerde prioriteitsbanden,
+> ownership-/tenant-gescopete queries, handoff-correcte fasering. Geen tegenstrijdige/dubbele/niet-
+> verdwijnende actie.
+>
+> **DOEL 2 (adversarieel, ~60 probes):** privilege-escalatie (FREELANCER/CLIENT/FRANCHISER → `/admin/*`,
+> rol-vreemde routes) → **opaque redirect** naar het eigen dashboard; IDOR/cross-partij (andermans
+> `/samenwerkingen/<id>`, `/facturen/<SUBMITTED>`, onzin-id) → **soft-404 "Niet gevonden — geen
+> toegang"** (bodyLen ~400, nul leak-markers — geverifieerd tegen de echte foreign-collab-velden);
+> cross-tenant (FRANCHISER Noord → default-tenant `collab-1` + `/franchise/zzpers/<Sanne>`) → soft-404;
+> document-privacy (eigenaar → 200 `application/pdf`; niet-eigenaar CLIENT/FRANCHISER → **403**);
+> rol-exports (`/verplichtingen/export`, `/prognose/export`, `/api/admin/export/invoices`,
+> `/api/samenwerkingen/<vreemd>/dba-dossier`) → **403**; XSS in query-params → **0 scriptuitvoering**;
+> onbekende routes → echte 404. **Mutatie-laag:** `/api/tasks/*` zonder/met-fout-Bearer → **503/401**
+> (geen uitvoering, timing-safe `authorizeCron`); `/api/push/subscribe` zonder sessie → 307→login.
+>
+> ### DEFECT (functioneel, GEFIXT deze run) — betaal-webhook geredirect naar /login
+>
+> - **Repro:** `POST /api/billing/webhook` zónder sessie-cookie (zoals een echte Mollie-ping) →
+>   **HTTP 307 → `/login`**. De webhook-handler draaide nooit.
+> - **Geschonden regel:** correctheid van de betaal-cascade. `isPublicPath` allowlist bevatte
+>   `/api/tasks/` en `/api/auth` (eigen guard, geen sessie) maar **niet** `/api/billing/webhook`,
+>   terwijl een provider-webhook per definitie geen sessie meedraagt.
+> - **Impact (latent):** zodra Mollie/billing live gaat, zou een `paid`-ping naar `/login` worden
+>   geredirect → `SUBSCRIPTION_ACTIVATED` zou nooit vuren (betaalde abonnementen activeren niet) en een
+>   `failed`-ping zou `PAST_DUE` nooit zetten. Nu inert (billing default-uit), dus geen productie-impact
+>   vandaag, maar een gegarandeerde breuk bij go-live.
+> - **Fix:** exact-match `pathname === "/api/billing/webhook"` toegevoegd aan `isPublicPath`
+>   (`src/lib/route-guards.ts`). Veilig om publiek te zijn: de handler vertrouwt de request-body nooit
+>   blind — hij haalt de betaalstatus opnieuw op bij de provider (bron van waarheid), muteert alleen op
+>   provider-bevestigd `paid`/`failed`, en antwoordt altijd 200 zonder data te lekken (zelfde patroon
+>   als `/api/tasks/`). Exact-match houdt `/api/billing` en `/api/billing/webhook/extra` beschermd.
+> - **Bewijs:** na de fix + herbouw geeft `POST /api/billing/webhook` (geen sessie) **200 "ok"**, terwijl
+>   `/api/account/export`, `/api/billing/webhook/extra` en `/dashboard` 307→login blijven. +1 unit-test in
+>   `route-guards.test.ts` (rood→groen). Gate: typecheck + lint + test (2766) + build + prettier groen.
+>
+> ---
+>
 > **Datum:** 2026-06-25 (run 4) · **main-commit basis:** `e457d25`
 > **Methode:** verse productie-build (`npm install` → `npm run build`) + schema-push (`prisma db push`) +
 > idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
