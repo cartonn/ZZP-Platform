@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Opdrachtgever — "beslis nu"-signaal per kandidaat op /kandidaten (2026-06-25)
+
+Vertaalt de "binnen uren"-liquiditeit van Pidz/Temper/Zorgwerk naar onze verklaarbare kant: de
+opdrachtgever krijgt een rustige nudge wanneer een nog-onbesliste reactie te lang ligt — het hardst
+voor de béste kandidaten, want die raken elders aan de slag. Spiegel van het ZZP'er-wachttijdsignaal
+(`application-wait.ts`, #545), maar gewogen naar matchkwaliteit i.p.v. enkel de fase.
+
+- [x] **`lib/candidate-decision.ts`** (puur, geen schemawijziging) — `summarizeCandidateDecision({status,
+matchScore, createdAt, hasCollaboration}, now)` → `{daysWaiting, tier, attention, urgency}` of `null`
+      bij besloten/samenwerking. `candidateTier` klasseert op `STRONG_MATCH_MIN=70`/`MODERATE_MATCH_MIN=50`
+      (ontbrekende score = bescheiden). Omgekeerd gewogen geduld `DECISION_PATIENCE_DAYS`
+      (strong 2 / moderate 4 / modest 8 dagen): hoe sterker de match, hoe sneller beslissen. Urgency
+      high/medium/low per klasse. `summarizeCandidatesAwaitingDecision` telt de aandacht-vragende set +
+      de sterke subset voor de strip. `createdAt` in de toekomst → 0 dagen (nooit negatief).
+- [x] **UI op `/kandidaten`** — tellende warning-strip ("N kandidaten wachten op je beslissing, waaronder
+      M sterke matches die je elders kunt verliezen") boven de lijst (alleen zonder statusfilter) + per-kaart
+      nudge (alleen bij `attention`): sterke match toont de dag-aftelling + "beslis nu"-tekst (warning),
+      overige bescheidener. Afgeleid uit de reeds opgehaalde lijst (geen extra query), één gedeelde `now`.
+- Bestanden: `src/lib/candidate-decision.ts` (+ `.test.ts`, 11 tests), `src/app/(protected)/kandidaten/page.tsx`,
+  allowlist-regel in `src/lib/unbounded-queries.test.ts` bijgewerkt. Gate: typecheck + lint + prettier +
+  test (**2796 groen**) + build groen.
+
 ## Productie-rijpheid — gedeelde rate-limit-store (Upstash Redis REST) achter env-flag (2026-06-25)
 
 Sluit MENSENWERK §0b **H-2**: de rate-limiters waren per-proces in-memory; bij meerdere Railway-

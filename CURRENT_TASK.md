@@ -269,6 +269,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > de telling. Afgeleid uit onveranderlijke `createdAt` + status (geen `updatedAt`, geen extra query,
 > geen schemawijziging); 7 unit-tests. PR #545.
 >
+> Gedaan (niet opnieuw): **"Beslis nu"-signaal per kandidaat (opdrachtgever) op `/kandidaten`** — pure
+> `lib/candidate-decision.ts` `summarizeCandidateDecision`/`summarizeCandidatesAwaitingDecision`
+> (kwaliteitsgewogen: `STRONG_MATCH_MIN=70`/`MODERATE_MATCH_MIN=50`, omgekeerd geduld
+> `DECISION_PATIENCE_DAYS` strong 2 / moderate 4 / modest 8 dagen, urgency high/medium/low; `null` bij
+> besloten/samenwerking; toekomstige `createdAt`→0; 11 tests) + tellende warning-strip ("N wachten op je
+> beslissing, waaronder M sterke matches die je elders kunt verliezen") + per-kaart nudge bij `attention`.
+> Vertaalt de "binnen uren"-liquiditeit van Pidz/Temper naar onze verklaarbare kant; spiegel van het
+> ZZP'er-wachttijdsignaal (#545) maar gewogen naar matchkwaliteit. Afgeleid uit de reeds opgehaalde lijst
+> (geen extra query), geen schemawijziging. PR #549.
+>
 > Gedaan (niet opnieuw): **Kandidaten-vergelijking per opdracht (opdrachtgever)** — pure
 > `lib/candidate-compare.ts` `buildCandidateComparison`/`pickUniqueBest` (uniek-beste per dimensie:
 > match/scherpste tarief/vertrouwen/compliance/leverbetrouwbaarheid; gelijkspel → geen winnaar; <2 →
