@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab: verse set van 10 concepten — run 25-6-2026 (2026-06-25)
+
+`/ontwerp` (publiek, inlogvrij, noindex) toont opnieuw 10 onderscheidende, top-1% redesign-concepten
+van het hele platform. De vorige set (Atelier, Spectraal, Kompas, Tij, Krijt, Prisma, Stratum,
+Onthaal, Veld, Maan) is vervangen door een sterkere, verse set, gekozen op grond van verse
+2026-research (strategisch minimalisme/calm UI, kinetische variable typografie, functionele motion,
+spatial depth/layering, glassmorphism contrast-bewust, bento, tactiel brutalisme/monospace, editorial
+reveal, OKLCH, single-metric focus, dark-mode-first cockpits).
+
+- [x] **10 nieuwe concepten** in `src/components/ontwerp/concepts/concept-<nn>-*.tsx` (elk
+      self-contained `"use client"`, leest gedeelde mock, rendert alle 6 kernschermen via tab-state):
+      01 Helder (Linear-grade licht), 02 Orbit (OLED-dark spatial), 03 Folio (redactioneel/kinetisch),
+      04 Haven (warm-menselijk, vertrouwensmeter-hero), 05 Cockpit (data-dicht, 3-paneel), 06 Puls
+      (expressieve kleur/motion), 07 Vitre (glas/vibrancy), 08 Beton (tactiel brutalisme), 09 Mobiel
+      (telefoonframe, duim-zone), 10 Nocturne (quiet luxury dark).
+- [x] `registry.ts` herschreven met de 10 nieuwe richtingen + rationale + onderzochte trends;
+      `[id]/page.tsx` imports bijgewerkt; galerij-index `/ontwerp` toont alle 10 klikbaar.
+- [x] Additief: alleen `src/app/ontwerp` + `src/components/ontwerp` aangeraakt; live-app ongemoeid.
+- [x] `docs/DESIGN-LAB.md` bijgewerkt (richtingen-tabel + trends).
+- Gates: typecheck + lint + test + build + prettier groen vóór PR; CI-poort verifiëren.
+
 ## Verwachte-betaaldatum per openstaande ZZP-factuur (2026-06-25)
 
 De #1 cashflow-vraag van een ZZP'er is "wanneer krijg ik mijn geld?". Het facturen-overzicht toonde

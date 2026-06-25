@@ -29,24 +29,26 @@ UI-taal = Nederlands.
 | `src/components/ontwerp/concepts/mock.ts`            | Gedeelde Nederlandse demo-content                 |
 | `src/components/ontwerp/concepts/concept-<nn>-*.tsx` | De uitgewerkte concept-componenten ('use client') |
 
-## De tien richtingen (run 24-6-2026 — verse set)
+## De tien richtingen (run 25-6-2026 — verse set)
 
-| #   | Naam      | Designrichting                   | Kerntrends (2026)                                         |
-| --- | --------- | -------------------------------- | --------------------------------------------------------- |
-| 01  | Atelier   | Editorial Swiss — koel           | Instrument-Serif display · hairline-raster · mono-kicker  |
-| 02  | Spectraal | Premium spatial dark             | Gelaagde elevatie · luminous accent-glow · glas op chrome |
-| 03  | Kompas    | Keyboard-first command console   | Open ⌘K-palet · sneltoets-hints · J/K-navigatie           |
-| 04  | Tij       | Ambient aurora-light             | Aurora gradient-mesh · translucente kaarten · grote radii |
-| 05  | Krijt     | Neo-brutalism — verfijnd         | 2px-randen + offset · oversized grotesk · lime-accent     |
-| 06  | Prisma    | Confident color system           | Bento-raster · rol-gecodeerde accenten · grafiek-fills    |
-| 07  | Stratum   | Ops console — terminal-dichtheid | Monospace datagrids · sticky headers · J/K + Enter        |
-| 08  | Onthaal   | Warm-human, trust-first          | Vertrouwensmeter · humanist type · geruststellende staten |
-| 09  | Veld      | Mobiel-eerst                     | Bottom-nav + bottom-sheet · duim-zone · trust-badges      |
-| 10  | Maan      | Refined minimal dark             | Hairline low-chroma · één accent/scherm · tabular mono    |
+| #   | Naam     | Designrichting                         | Kerntrends (2026)                                          |
+| --- | -------- | -------------------------------------- | ---------------------------------------------------------- |
+| 01  | Helder   | Strategische rust — Linear-grade licht | Calm UI · OKLCH-neutralen · single-metric + tabular        |
+| 02  | Orbit    | Ruimtelijke diepte — OLED-dark         | Spatial depth/layering · true-black · luminous accent      |
+| 03  | Folio    | Redactioneel — kinetische typografie   | Oversized variable serif · editorial reveal · asym. raster |
+| 04  | Haven    | Warm-menselijk — vertrouwen eerst      | Trust-first · vertrouwensmeter hero · zachte staten        |
+| 05  | Cockpit  | Data-dicht pro — financiële cockpit    | Data-heavy dichtheid · inline-sparklines · bento-KPI-rail  |
+| 06  | Puls     | Expressieve kleur — functionele motion | Expressieve kleur/gradients · motion · rol-gecodeerd       |
+| 07  | Vitre    | Glas & vibrancy — visionOS-diepte      | Glassmorphism (contrast-bewust) · vibrancy · floating      |
+| 08  | Beton    | Tactiel brutalisme — verfijnd          | Tactile brutalism · monospace-everything · harde offset    |
+| 09  | Mobiel   | Mobiel-eerst — duim-zone               | Thumb-zone · bottom-nav + sheets · optimistisch claimen    |
+| 10  | Nocturne | Verfijnd minimaal — quiet luxury dark  | Quiet luxury · hairline low-chroma · één accent/scherm     |
 
-> Elke run is een **verse, sterkere set**: de vorige set (Stille Precisie, Redactie, Cockpit, Glas,
-> Stelling, Nacht, Klare Taal, Warm Onthaal, Stroom, Onderweg) is vervangen door bovenstaande tien,
-> gekozen op grond van verse 2026-research en een kritische zelf-review om het niveau op te tillen.
+> Elke run is een **verse, sterkere set**: de vorige set (Atelier, Spectraal, Kompas, Tij, Krijt,
+> Prisma, Stratum, Onthaal, Veld, Maan) is vervangen door bovenstaande tien, gekozen op grond van
+> verse 2026-research en een kritische zelf-review om het niveau op te tillen. De drie licht-minimale
+> (Helder/Cockpit/Beton) en drie donkere (Orbit/Vitre/Nocturne) richtingen zijn bewust onderscheidend
+> gehouden: rust vs. dichtheid vs. brutalisme; diepte vs. glas vs. quiet-luxury.
 
 ## Onderzochte trends (2026 — bron voor de richtingen)
 
@@ -71,4 +73,4 @@ UI-taal = Nederlands.
 
 ## Status
 
-- **01–10** — alle tien volledig uitgewerkt en klikbaar op `/ontwerp` (verse set, run 24-6-2026).
+- **01–10** — alle tien volledig uitgewerkt en klikbaar op `/ontwerp` (verse set, run 25-6-2026).
