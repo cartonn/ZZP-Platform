@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 5 — betaal-webhook publiek gemaakt (2026-06-25)
+
+Kritische-gebruiker-sweep over alle vier rollen (ZZP'er/opdrachtgever/franchiser/admin). Eén defect
+gevonden en gefixt; de rest van de authz-/IDOR-/tenant-/mutatie-poorten houdt stand (zie
+`docs/PERSONA-SWEEP-BACKLOG.md` run 5 voor de volledige probe-lijst).
+
+- [x] **Defect:** `POST /api/billing/webhook` werd door de middleware naar `/login` geredirect (307),
+      omdat de route niet in de `isPublicPath`-allowlist stond. Een provider-webhook (Mollie) draagt
+      geen sessie-cookie, dus de handler draaide nooit → bij go-live zouden betaalde abonnementen niet
+      activeren (`SUBSCRIPTION_ACTIVATED`/`PAST_DUE` vuren niet). Inert vandaag (billing default-uit),
+      gegarandeerde breuk bij livegang.
+- [x] **Fix** (`src/lib/route-guards.ts`): exact-match `/api/billing/webhook` aan `isPublicPath`
+      toegevoegd. Veilig publiek: de handler haalt de betaalstatus opnieuw op bij de provider (bron van
+      waarheid), vertrouwt de request-body nooit blind en antwoordt altijd 200 zonder lek. Exact-match
+      houdt `/api/billing` en sub-paden beschermd.
+- Bewijs: na herbouw geeft de webhook (geen sessie) **200 "ok"**; `/api/account/export`,
+  `/api/billing/webhook/extra`, `/dashboard` blijven 307→login. +1 test in `route-guards.test.ts`.
+  Gate: typecheck + lint + test (2766 groen) + build + prettier groen. Read-only m.u.v. de allowlist;
+  geen schemawijziging.
+
 ## Wachttijd-signaal per reactie voor de ZZP'er (2026-06-25)
 
 De ZZP'er zag op `/reacties` wel de status en "Gereageerd X geleden", maar niet of een reactie
