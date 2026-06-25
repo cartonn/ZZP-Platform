@@ -29,27 +29,30 @@ UI-taal = Nederlands.
 | `src/components/ontwerp/concepts/mock.ts`            | Gedeelde Nederlandse demo-content                 |
 | `src/components/ontwerp/concepts/concept-<nn>-*.tsx` | De uitgewerkte concept-componenten ('use client') |
 
-## De tien richtingen (run 25-6-2026 — verse set v2)
+## De tien richtingen (run 25-6-2026 — verse set v3)
 
-| #   | Naam     | Designrichting                        | Kerntrends (2026)                                           |
-| --- | -------- | ------------------------------------- | ----------------------------------------------------------- |
-| 01  | Atlas    | Zwitsers besturingssysteem — raster   | Swiss/ITS-grid · tabular-cijfers · keyboard-first (⌘K)      |
-| 02  | Aurora   | Lichtgevend donker — aurora-ambient   | Ambient/luminous dark · iridescent · glow-as-hierarchy      |
-| 03  | Pers     | Riso/krantdruk — redactioneel         | Riso/newsprint · twee-kleuren halftoon · broadsheet-raster  |
-| 04  | Kompas   | Warm-menselijk — wegwijs              | Trust-first · begeleidende wegwijzer · zachte staten        |
-| 05  | Console  | Terminal/IDE — toetsenbord-eerst      | Operator-UI · ⌘K + statusregel · J/K-rijnavigatie           |
-| 06  | Spectra  | Expressieve duotone kleur — kinetisch | Mesh-gradients · rol-gecodeerd · kinetische voortgang       |
-| 07  | Lumen    | Glas & vibrancy — visionOS-diepte     | Glassmorphism (contrast-bewust) · vibrancy · floating       |
-| 08  | Graphite | Tactiel brutalisme — blauwdruk        | Tactile brutalism · harde offset · maatlijn-annotaties      |
-| 09  | Zak      | Mobiel-eerst — duim-zone              | Thumb-zone · bottom-nav + sheets · optimistisch claimen     |
-| 10  | Onyx     | Quiet luxury — verfijnd donker        | Quiet luxury matte · hairline low-chroma · champagne-accent |
+| #   | Naam    | Designrichting                          | Kerntrends (2026)                                                 |
+| --- | ------- | --------------------------------------- | ----------------------------------------------------------------- |
+| 01  | Veld    | Bento-grid — modulair besturingssysteem | Bento-grid IA · ruimtelijk gewicht per datapunt · zachte elevatie |
+| 02  | Folio   | Redactioneel luxe — modegevoel          | Oversized serif-display · crème papier · typografie-als-held      |
+| 03  | Helder  | Toegankelijk hoog-contrast — inclusief  | WCAG-AAA · dikke focus-states · status met label + icoon          |
+| 04  | Tij     | Kalme interface — sereen verloop        | Calm interfaces · zacht pastel-verloop · royale radii             |
+| 05  | Beurs   | Data-dicht pro — handelsterminal        | Death of white space · tabular + sparklines · lijst+detail        |
+| 06  | Klei    | Zacht 3D — claymorphism                 | Claymorphism · tactiele dubbele schaduw · mollige pills           |
+| 07  | Puls    | Dopamine kleurblok — kinetisch          | Dopamine-kleur · vlakke kleurvlakken · kinetische micro's         |
+| 08  | Nebula  | Techno-futurist — cyber-grid            | Techno-futurist dark · neon-randen op raster · glow-status        |
+| 09  | Index   | Database-werkblad — Notion-grade        | Database-views · strategisch minimalisme · typografie-als-UI      |
+| 10  | Bastion | Vertrouwen-fintech — marine & messing   | Dark-finance · kluis/schild-motieven · serif-displaymoment        |
 
-> Elke run is een **verse, sterkere set**: de vorige set (Helder, Orbit, Folio, Haven, Cockpit, Puls,
-> Vitre, Beton, Mobiel, Nocturne) is vervangen door bovenstaande tien, gekozen op grond van verse
-> 2026-research en een kritische zelf-review om het niveau op te tillen. De ontwerp-ruimte is bewust
-> gespreid: licht-precisie (Atlas) vs. print (Pers) vs. terminal (Console) vs. brutalisme (Graphite);
-> en drie onderscheiden donkere richtingen — ambient-gloed (Aurora) vs. glas (Lumen) vs. matte
-> quiet-luxury (Onyx) — zodat geen twee concepten op dezelfde esthetiek leunen.
+> Elke run is een **verse, sterkere set**: de vorige set (Atlas, Aurora, Pers, Kompas, Console,
+> Spectra, Lumen, Graphite, Zak, Onyx) is vervangen door bovenstaande tien, gekozen op grond van
+> verse 2026-research (twee dominante 2026-esthetieken: techno-futurist dark vs. editorial crème,
+> plus bento, calm interfaces, dopamine-kleur, claymorphism, data-dichtheid en accessibility-als-
+> esthetiek) en een kritische zelf-review om het niveau op te tillen. De ontwerp-ruimte is bewust
+> gespreid: licht-modulair (Veld) vs. redactioneel luxe (Folio) vs. data-dicht (Beurs) vs. database-
+> werkblad (Index); kalm-zacht (Tij/Klei) vs. luid-kleur (Puls); en twee onderscheiden donkere
+> richtingen — cyber-grid (Nebula) vs. fintech-vertrouwen (Bastion) — plus een toegankelijkheids-
+> statement (Helder), zodat geen twee concepten op dezelfde esthetiek leunen.
 
 ## Onderzochte trends (2026 — bron voor de richtingen)
 
@@ -74,5 +77,5 @@ UI-taal = Nederlands.
 
 ## Status
 
-- **01–10** — alle tien volledig uitgewerkt en klikbaar op `/ontwerp` (verse set v2, run 25-6-2026:
-  Atlas · Aurora · Pers · Kompas · Console · Spectra · Lumen · Graphite · Zak · Onyx).
+- **01–10** — alle tien volledig uitgewerkt en klikbaar op `/ontwerp` (verse set v3, run 25-6-2026:
+  Veld · Folio · Helder · Tij · Beurs · Klei · Puls · Nebula · Index · Bastion).

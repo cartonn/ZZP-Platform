@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab — verse set v3: 10 nieuwe top-1% concepten op /ontwerp (2026-06-25)
+
+Volledige, verse vervanging van de v2-set (Atlas…Onyx) door tien sterkere, onderscheidende
+redesign-richtingen op basis van verse 2026-research (twee dominante esthetieken: techno-futurist
+dark vs. editorial crème; plus bento-grid, calm interfaces, dopamine-kleur, claymorphism,
+data-dichtheid en accessibility-als-esthetiek). Gebouwd door 4 parallelle workers op
+niet-overlappende bestanden; orchestrator heeft geïntegreerd, oude set verwijderd en de poort gedraaid.
+
+- [x] **10 nieuwe concepten** (`src/components/ontwerp/concepts/concept-01-veld.tsx` … `concept-10-bastion.tsx`):
+      01 Veld (bento-grid modulair), 02 Folio (redactioneel luxe), 03 Helder (toegankelijk hoog-contrast),
+      04 Tij (kalme interface), 05 Beurs (data-dicht handelsterminal), 06 Klei (claymorphism),
+      07 Puls (dopamine kleurblok), 08 Nebula (techno-futurist cyber-grid), 09 Index (database-werkblad),
+      10 Bastion (vertrouwen-fintech, marine & messing). Elk: volledige app-shell, alle 6 kernschermen,
+      werkende marktplaats-filter + empty-state, a11y (aria/focus-visible/tabular-nums), Nederlands, geen "AI".
+- [x] **Wiring**: `registry.ts` (metadata 10 richtingen), `[id]/page.tsx` (route-map), oude 10 conceptbestanden verwijderd.
+- [x] **Docs**: `docs/DESIGN-LAB.md` (richtingen-tabel + trends → v3).
+- Gate groen: typecheck + lint + prettier + test (2796) + build (alle 10 SSG: /ontwerp/01..10). Viewbaar op `/ontwerp`.
+
 ## Opdrachtgever — "beslis nu"-signaal per kandidaat op /kandidaten (2026-06-25)
 
 Vertaalt de "binnen uren"-liquiditeit van Pidz/Temper/Zorgwerk naar onze verklaarbare kant: de
