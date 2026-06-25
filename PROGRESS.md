@@ -13,7 +13,7 @@ billing-diepte van Bendy/Zorgwerk naar onze bestaande, verklaarbare betaalgedrag
 server-side, geen schemawijziging, geen extra query.
 
 - [x] **Pure motor** `src/lib/invoice-payment-forecast.ts` — `forecastInvoicePayout({ issuedAt, dueAt,
-  avgDaysToPay, sampleSize })`. Genoeg historie (≥ `PAYOUT_FORECAST_MIN_SAMPLE` = 3 betaalde
+avgDaysToPay, sampleSize })`. Genoeg historie (≥ `PAYOUT_FORECAST_MIN_SAMPLE` = 3 betaalde
       facturen) → `issuedAt + avgDaysToPay` (basis `history`, `confident`); anders terugval op de
       vervaldatum (basis `due`). Projecteert op de factuurdatum omdat `computePaymentBehavior` de
       termijn vanaf `issuedAt` meet (meet- en projectie-anker gelijk). Clampt data-ruis (negatief
