@@ -4,6 +4,29 @@
 
 import { type UserRole } from "@/lib/enums";
 
+/**
+ * Inlogvrije (publieke) routes. Bewust een expliciete allowlist: de middleware redirect al het
+ * andere naar /login. De health-/readinessprobes horen hier — zonder dat zou een Railway/monitoring-
+ * probe naar /login geredirect worden en permanent falen rapporteren. Beide lekken alleen booleans +
+ * een 7-tekens commit-SHA (geen PII/secrets).
+ */
+export function isPublicPath(pathname: string): boolean {
+  return (
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/wachtwoord-vergeten" ||
+    pathname.startsWith("/wachtwoord-herstellen/") ||
+    pathname === "/api/health" ||
+    pathname === "/api/readiness" ||
+    pathname.startsWith("/zzp/") ||
+    pathname.startsWith("/vertrouwen/") || // publiek vertrouwensdossier (token-beveiligd, geen sessie)
+    pathname === "/ontwerp" ||
+    pathname.startsWith("/ontwerp/") || // publiek, inlogvrij design-lab (alleen fictieve mock-data)
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/tasks/") // eigen token-guard (CRON_SECRET), geen sessie
+  );
+}
+
 /** Hoort dit pad bij het admin-paneel? Matcht op de segmentgrens, niet op losse prefix. */
 export function isAdminPath(pathname: string): boolean {
   return pathname === "/admin" || pathname.startsWith("/admin/");

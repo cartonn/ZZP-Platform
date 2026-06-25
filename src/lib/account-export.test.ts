@@ -33,6 +33,9 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     supportMessage: { findMany: make("supportMessage", "findMany") },
     ideaComment: { findMany: make("ideaComment", "findMany") },
     indirectHoursEntry: { findMany: make("indirectHoursEntry", "findMany") },
+    idea: { findMany: make("idea", "findMany") },
+    collaboration: { findMany: make("collaboration", "findMany") },
+    pushSubscription: { findMany: make("pushSubscription", "findMany") },
   };
   return { db: db as unknown as PrismaClient, calls };
 }
@@ -54,6 +57,9 @@ describe("buildAccountExport", () => {
       "supportMessages",
       "ideaComments",
       "indirectHours",
+      "ideas",
+      "cancelledCollaborations",
+      "pushSubscriptions",
     ] as const) {
       expect(payload).toHaveProperty(key);
     }
@@ -101,6 +107,42 @@ describe("buildAccountExport", () => {
     expect((review?.args.where as Record<string, unknown>).authorId).toBe(ACTOR);
     expect((review?.args.select as Record<string, unknown>).subjectId).toBeUndefined();
     expect((review?.args.select as Record<string, unknown>).comment).toBe(true);
+  });
+
+  it("scope't de eigen ideeën, annuleerredenen en push-abonnementen op de actor (AVG art. 15)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const idea = calls.find((c) => c.table === "idea");
+    expect((idea?.args.where as Record<string, unknown>).authorId).toBe(ACTOR);
+    expect((idea?.args.select as Record<string, unknown>).description).toBe(true);
+
+    // Annuleerreden alleen waar de actor zelf annuleerde; identiteit van de derde lekt niet mee.
+    const collab = calls.find((c) => c.table === "collaboration");
+    expect((collab?.args.where as Record<string, unknown>).cancelledById).toBe(ACTOR);
+    expect((collab?.args.select as Record<string, unknown>).cancellationReason).toBe(true);
+    expect((collab?.args.select as Record<string, unknown>).companyId).toBeUndefined();
+    expect((collab?.args.select as Record<string, unknown>).freelancerId).toBeUndefined();
+
+    // Push-abonnementen: endpoint/userAgent wel, cryptografische secrets niet.
+    const push = calls.find((c) => c.table === "pushSubscription");
+    expect((push?.args.where as Record<string, unknown>).userId).toBe(ACTOR);
+    expect((push?.args.select as Record<string, unknown>).endpoint).toBe(true);
+    expect((push?.args.select as Record<string, unknown>).p256dh).toBeUndefined();
+    expect((push?.args.select as Record<string, unknown>).auth).toBeUndefined();
+  });
+
+  it("over-fetcht het bedrijfsprofiel niet: geen interne tenantId/logoKey (AVG art. 5 dataminimalisatie)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const company = calls.find((c) => c.table === "company");
+    const select = company?.args.select as Record<string, unknown> | undefined;
+    // Smalle select verplicht (geen kale findUnique die alle kolommen teruggeeft).
+    expect(select).toBeDefined();
+    expect(select?.name).toBe(true);
+    expect(select?.tenantId).toBeUndefined();
+    expect(select?.logoKey).toBeUndefined();
   });
 
   it("geeft de canned rijen door in de juiste secties", async () => {

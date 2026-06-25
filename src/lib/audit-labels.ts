@@ -150,6 +150,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   // Platform & beheer
   PLATFORM_BILLING_GENERATED: "Facturatie gegenereerd",
   PLATFORM_BILLING_STATUS_SET: "Facturatiestatus gewijzigd",
+  PLATFORM_BILLING_PDF_ACCESSED: "Platformfactuur-PDF ingezien",
   PLATFORM_INVOICES_EXPORTED: "Platformfacturen geëxporteerd",
   AUDIT_LOG_EXPORTED: "Audit-log geëxporteerd",
   PLATFORM_CONFIG_UPDATED: "Platforminstelling bijgewerkt",
