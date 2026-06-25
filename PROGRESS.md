@@ -10,10 +10,10 @@ welke opdracht _nieuwe, nog niet bekeken_ kandidaten heeft wachten. Daarmee blee
 "welke opdracht vraagt nu mijn aandacht?" onbeantwoord op het overzicht. Nu toont elke kaart een
 compacte reactie-pijplijn die nieuwe reacties uitlicht.
 
-- [x] **Pure motor** (`src/lib/job-pipeline.ts`): `summarizeJobPipeline(statuses)` → `{ total,
-    newCount, viewed, shortlist, accepted, rejected, needsAttention }`. Ingetrokken reacties
-      (WITHDRAWN) tellen niet mee in het totaal; `needsAttention` is waar zodra er NEW-reacties
-      klaarstaan. Geen I/O, muteert de invoer niet.
+- [x] **Pure motor** (`src/lib/job-pipeline.ts`): `summarizeJobPipeline(statuses)` levert
+      `total` / `newCount` / `viewed` / `shortlist` / `accepted` / `rejected` / `needsAttention`.
+      Ingetrokken reacties (WITHDRAWN) tellen niet mee in het totaal; `needsAttention` is waar zodra
+      er NEW-reacties klaarstaan. Geen I/O, muteert de invoer niet.
 - [x] **UI** (`src/components/jobs/job-pipeline-strip.tsx`): compacte strip op de opdrachtgever-
       `/opdrachten`-kaart — "N reacties", uitgelicht "N nieuw"-chip (primair) bij niet-bekeken
       reacties, plus "op shortlist"/"geaccepteerd" alleen als ze tellen. Lege staat:
