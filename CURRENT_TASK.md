@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Wachttijd-signaal per reactie voor de ZZP'er op `/reacties`** — pure
+> `lib/application-wait.ts` `summarizeApplicationWait({status,createdAt,hasCollaboration},now)` →
+> `{daysWaiting,stage,attention}` voor nog-onbesliste reacties (NEW/VIEWED/SHORTLIST), `null` bij
+> besloten/samenwerking; fase-bewuste drempels `WAIT_ATTENTION_DAYS` (7/14/21 dagen);
+> `countApplicationsAwaitingAttention` voor de strip. `WaitSignal`-component toont alleen op
+> aandacht een rustige warning-regel + deeplink "Bekijk andere opdrachten"; strip boven de lijst met
+> de telling. Afgeleid uit onveranderlijke `createdAt` + status (geen `updatedAt`, geen extra query,
+> geen schemawijziging); 7 unit-tests. PR #545.
+>
 > Gedaan (niet opnieuw): **Kandidaten-vergelijking per opdracht (opdrachtgever)** — pure
 > `lib/candidate-compare.ts` `buildCandidateComparison`/`pickUniqueBest` (uniek-beste per dimensie:
 > match/scherpste tarief/vertrouwen/compliance/leverbetrouwbaarheid; gelijkspel → geen winnaar; <2 →

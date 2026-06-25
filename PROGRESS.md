@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Wachttijd-signaal per reactie voor de ZZP'er (2026-06-25)
+
+De ZZP'er zag op `/reacties` wel de status en "Gereageerd X geleden", maar niet of een reactie
+_langer dan gebruikelijk_ blijft liggen — de #1 kandidaat-onzekerheid ("hoor ik nog iets, of kan ik
+beter verder kijken?"). Concurrenten (Malt/Temper/Deel) tonen kandidaten de versheid van hun
+sollicitatie en nudgen tot her-engagement; nu doen wij dat fase-bewust en eerlijk.
+
+- [x] **Pure motor** (`src/lib/application-wait.ts`): `summarizeApplicationWait({ status, createdAt,
+  hasCollaboration }, now)` geeft `{ daysWaiting, stage, attention }` voor een nog-onbesliste
+      reactie (NEW/VIEWED/SHORTLIST) en `null` zodra ze besloten is of er een samenwerking uit
+      voortkwam. Fase-bewuste drempels `WAIT_ATTENTION_DAYS` (NEW 7 / VIEWED 14 / SHORTLIST 21 dagen);
+      toekomstige `createdAt` klemt op 0. `countApplicationsAwaitingAttention` telt de set. Puur,
+      afgeleid uit de onveranderlijke `createdAt` + status — geen `updatedAt`-drift.
+- [x] **UI** (`src/components/applications/wait-signal.tsx` + `/reacties`): subtiele warning-regel
+      onder een kaart **alleen** wanneer de reactie aandacht vraagt (rustig bij een verse reactie),
+      met fase-tekst + deeplink "Bekijk andere opdrachten". Plus een strip boven de lijst met de
+      telling. Geen geneste links (signaal staat buiten de kaart-`Link`).
+- Tests: `application-wait.test.ts` (7). Allowlist-regelnummer reacties bijgewerkt in
+  `unbounded-queries.test.ts` (import-shift, geen nieuwe query). Gate: typecheck + lint + test
+  (2765 groen) + build + prettier groen. Read-only, geen schemawijziging, geen extra query.
+
 ## Ontwerp-lab `/ontwerp` — verse set v2 van 10 concepten (2026-06-25)
 
 Het publieke, inlogvrije design-lab onder `/ontwerp` is ververst met een **nieuwe, sterkere set van
