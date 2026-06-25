@@ -11,7 +11,7 @@ beter verder kijken?"). Concurrenten (Malt/Temper/Deel) tonen kandidaten de vers
 sollicitatie en nudgen tot her-engagement; nu doen wij dat fase-bewust en eerlijk.
 
 - [x] **Pure motor** (`src/lib/application-wait.ts`): `summarizeApplicationWait({ status, createdAt,
-  hasCollaboration }, now)` geeft `{ daysWaiting, stage, attention }` voor een nog-onbesliste
+hasCollaboration }, now)` geeft `{ daysWaiting, stage, attention }` voor een nog-onbesliste
       reactie (NEW/VIEWED/SHORTLIST) en `null` zodra ze besloten is of er een samenwerking uit
       voortkwam. Fase-bewuste drempels `WAIT_ATTENTION_DAYS` (NEW 7 / VIEWED 14 / SHORTLIST 21 dagen);
       toekomstige `createdAt` klemt op 0. `countApplicationsAwaitingAttention` telt de set. Puur,
