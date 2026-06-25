@@ -33,7 +33,7 @@ export default async function TrustDossierPage({
   // Brute-force-/scrape-rem (security-review M-4): sessieloze route, dus per IP begrensd.
   // Bij overschrijding tonen we dezelfde 404 als bij een ongeldig token (geen oracle).
   const { ipAddress } = await requestMeta();
-  if (!dossierViewRateLimiter.check(`dossier:${ipAddress ?? "onbekend"}`).allowed) {
+  if (!(await dossierViewRateLimiter.check(`dossier:${ipAddress ?? "onbekend"}`)).allowed) {
     notFound();
   }
 

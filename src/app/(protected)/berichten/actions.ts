@@ -32,7 +32,7 @@ export async function sendMessage(
   }
 
   // Spam-rem: begrens het verzendtempo per gebruiker vóór de duurdere queries.
-  if (!messageRateLimiter.check(`msg:${actor.id}`).allowed) {
+  if (!(await messageRateLimiter.check(`msg:${actor.id}`)).allowed) {
     return { error: "Te veel berichten kort achter elkaar. Wacht even en probeer het opnieuw." };
   }
 

@@ -1,7 +1,13 @@
 // Rate-limiter abstractie (fixed-window). Pluggbare store, dezelfde driver-aanpak
-// als storage.ts: lokale MemoryRateLimitStore als default, later vervangbaar door
-// een gedeelde/durable store (Redis, Upstash) achter dezelfde RateLimitStore-interface —
-// net zoals de S3-driver achter StorageDriver zit.
+// als storage.ts: lokale MemoryRateLimitStore als default, en een gedeelde/durable
+// store (Upstash Redis REST) achter dezelfde RateLimitStore-interface voor horizontale
+// schaling — net zoals de S3-driver achter StorageDriver zit (MENSENWERK §0b H-2).
+//
+// De store is async: de in-memory variant lost direct op, de Upstash-variant doet een
+// HTTP-round-trip. Alle call-sites draaien al in async-context (server actions, route
+// handlers, NextAuth authorize) en awaiten het resultaat.
+
+import { logger } from "@/lib/observability/logger";
 
 /** Resultaat van een enkelvoudige rate-limit-check. */
 export interface RateLimitResult {
@@ -21,11 +27,12 @@ export interface RateLimitStore {
    * @param limit      Maximum toegestane verzoeken per venster.
    * @param windowMs   Venstergrootte in milliseconden.
    * @param now        Huidige tijdstempel in milliseconden (injecteerbaar voor tests).
+   *                   De Upstash-store negeert dit en gebruikt de Redis-TTL.
    */
-  consume(key: string, limit: number, windowMs: number, now: number): RateLimitResult;
+  consume(key: string, limit: number, windowMs: number, now: number): Promise<RateLimitResult>;
 
   /** Verwijdert de teller voor een key (bv. na succesvolle login). */
-  reset(key: string): void;
+  reset(key: string): Promise<void>;
 }
 
 /** Interne state per key voor de in-memory store. */
@@ -45,13 +52,18 @@ const SWEEP_THRESHOLD = 1000;
  * In-memory implementatie van RateLimitStore (fixed-window algoritme).
  *
  * Geschikt voor single-process gebruik (Next.js Node-server, lokaal). Voor
- * multi-instance / horizontale schaling: vervang door een gedeelde store (zie
- * het interface boven) zonder de rest van de code te hoeven aanpassen.
+ * multi-instance / horizontale schaling: zet RATE_LIMIT_STORE=upstash (zie
+ * UpstashRateLimitStore) — de rest van de code verandert niet.
  */
 export class MemoryRateLimitStore implements RateLimitStore {
   private readonly entries = new Map<string, WindowEntry>();
 
-  consume(key: string, limit: number, windowMs: number, now: number): RateLimitResult {
+  async consume(
+    key: string,
+    limit: number,
+    windowMs: number,
+    now: number,
+  ): Promise<RateLimitResult> {
     const existing = this.entries.get(key);
 
     let entry: WindowEntry;
@@ -77,7 +89,7 @@ export class MemoryRateLimitStore implements RateLimitStore {
     return { allowed, remaining, retryAfterMs };
   }
 
-  reset(key: string): void {
+  async reset(key: string): Promise<void> {
     this.entries.delete(key);
   }
 
@@ -95,14 +107,130 @@ export class MemoryRateLimitStore implements RateLimitStore {
 }
 
 /**
- * Dunne wrapper rondom een RateLimitStore. Koppelt limit + windowMs aan een store
- * zodat call-sites alleen een key (en optioneel now) hoeven mee te geven.
+ * Gedeelde, durable RateLimitStore op basis van de Upstash Redis REST-API. Activeer met
+ * RATE_LIMIT_STORE=upstash + UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN. Geen extra
+ * SDK-dependency: we praten rechtstreeks met de REST-API via fetch, zodat de bundel licht blijft
+ * (zelfde aanpak als de Mollie-provider).
+ *
+ * Fixed-window, atomair via één pipeline-round-trip:
+ *   INCR key            → teller binnen het venster
+ *   PEXPIRE key ms NX   → zet de TTL alleen bij de eerste hit (venster begint)
+ *   PTTL key            → resterende venstertijd voor retryAfterMs
+ *
+ * Fail-open: valt de Upstash-call uit (netwerk/Redis), dan staan we het verzoek toe en loggen we
+ * de fout. Een transiënte Redis-storing mag login/registratie niet platleggen — beschikbaarheid
+ * boven een tijdelijk zwakkere limiet (architectuurprincipe: de app blijft draaien).
+ */
+export class UpstashRateLimitStore implements RateLimitStore {
+  private readonly base: string;
+
+  constructor(
+    url: string,
+    private readonly token: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {
+    // Trailing slash weghalen zodat `${base}/pipeline` altijd klopt.
+    this.base = url.replace(/\/+$/, "");
+  }
+
+  /** Namespacet de key in Redis zodat hij niet botst met ander gebruik van dezelfde Redis. */
+  private redisKey(key: string): string {
+    return `rl:${key}`;
+  }
+
+  private async pipeline(commands: (string | number)[][]): Promise<unknown[]> {
+    const res = await this.fetchImpl(`${this.base}/pipeline`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(commands),
+    });
+    if (!res.ok) {
+      throw new Error(`Upstash: pipeline mislukte (status ${res.status}).`);
+    }
+    const json = (await res.json()) as Array<{ result?: unknown; error?: string }>;
+    return json.map((entry) => {
+      if (entry && typeof entry === "object" && "error" in entry && entry.error) {
+        throw new Error(`Upstash: commando-fout (${entry.error}).`);
+      }
+      return entry?.result;
+    });
+  }
+
+  async consume(
+    key: string,
+    limit: number,
+    windowMs: number,
+    _now: number,
+  ): Promise<RateLimitResult> {
+    const rkey = this.redisKey(key);
+    try {
+      const [count, , ttl] = await this.pipeline([
+        ["INCR", rkey],
+        ["PEXPIRE", rkey, windowMs, "NX"],
+        ["PTTL", rkey],
+      ]);
+
+      const used = Number(count);
+      const ttlMs = Number(ttl);
+      const allowed = used <= limit;
+      const remaining = Math.max(0, limit - used);
+      // PTTL geeft -1 (geen TTL) of -2 (geen key); val dan terug op het volledige venster.
+      const retryAfterMs = allowed ? 0 : ttlMs > 0 ? ttlMs : windowMs;
+
+      return { allowed, remaining, retryAfterMs };
+    } catch (err) {
+      logger.error("rate-limit: Upstash consume mislukt — fail-open", {
+        scope: "rate-limit",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // Fail-open: beschikbaarheid boven een tijdelijk zwakkere limiet.
+      return { allowed: true, remaining: limit, retryAfterMs: 0 };
+    }
+  }
+
+  async reset(key: string): Promise<void> {
+    try {
+      await this.pipeline([["DEL", this.redisKey(key)]]);
+    } catch (err) {
+      logger.error("rate-limit: Upstash reset mislukt", {
+        scope: "rate-limit",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+}
+
+/**
+ * Bouwt de geconfigureerde store: Upstash bij RATE_LIMIT_STORE=upstash (met REST-URL + token),
+ * anders de veilige in-memory default. De env-validatie (src/lib/env.ts) eist de Upstash-secrets
+ * af zodra de driver op "upstash" staat; deze fallback is defensief.
+ */
+export function createRateLimitStore(): RateLimitStore {
+  if (process.env.RATE_LIMIT_STORE === "upstash") {
+    const url = process.env.UPSTASH_REDIS_REST_URL;
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (url && token) {
+      return new UpstashRateLimitStore(url, token);
+    }
+  }
+  return new MemoryRateLimitStore();
+}
+
+/**
+ * Dunne wrapper rondom een RateLimitStore. Koppelt limit + windowMs (en een vaste namespace) aan
+ * een store zodat call-sites alleen een key (en optioneel now) hoeven mee te geven. De namespace
+ * voorkomt dat verschillende limiters met dezelfde key-vorm (bv. een IP) op elkaars teller botsen
+ * in een gedeelde store.
  */
 export class RateLimiter {
   constructor(
     private readonly store: RateLimitStore,
     private readonly limit: number,
     private readonly windowMs: number,
+    private readonly keyPrefix: string = "",
   ) {}
 
   /**
@@ -110,21 +238,20 @@ export class RateLimiter {
    * @param key  Identifier (bv. IP, user-id).
    * @param now  Tijdstempel in ms; default Date.now(). Injecteerbaar voor tests.
    */
-  check(key: string, now: number = Date.now()): RateLimitResult {
-    return this.store.consume(key, this.limit, this.windowMs, now);
+  check(key: string, now: number = Date.now()): Promise<RateLimitResult> {
+    return this.store.consume(this.keyPrefix + key, this.limit, this.windowMs, now);
   }
 
   /** Verwijdert de teller voor een key in de onderliggende store. */
-  reset(key: string): void {
-    this.store.reset(key);
+  reset(key: string): Promise<void> {
+    return this.store.reset(this.keyPrefix + key);
   }
 }
 
 // ─── Geconfigureerde singletons ────────────────────────────────────────────────
-// Per-proces in-memory. Voor een enkel Node-proces is dit prima; bij meerdere
-// instanties (horizontale schaling, serverless) is een gedeelde/durable store
-// nodig achter dezelfde RateLimitStore-interface — net zoals de S3-storagedriver
-// achter StorageDriver zit.
+// Store-keuze via RATE_LIMIT_STORE: per-proces in-memory (default) of gedeeld via
+// Upstash Redis REST (horizontale schaling). Elke limiter krijgt een eigen namespace
+// zodat tellers van verschillende limiters elkaar nooit raken in een gedeelde store.
 
 /**
  * Drempel uit env met veilige fallback. Hiermee kan een specifieke omgeving de limiet
@@ -141,16 +268,18 @@ function limitFromEnv(name: string, fallback: number): number {
 
 /** Maximaal LOGIN_RATE_LIMIT (default 5) inlogpogingen per IP+e-mail per 15 minuten. */
 export const loginRateLimiter = new RateLimiter(
-  new MemoryRateLimitStore(),
+  createRateLimitStore(),
   limitFromEnv("LOGIN_RATE_LIMIT", 5),
   15 * 60_000,
+  "login:",
 );
 
 /** Maximaal REGISTER_RATE_LIMIT (default 5) registraties per IP per uur. */
 export const registerRateLimiter = new RateLimiter(
-  new MemoryRateLimitStore(),
+  createRateLimitStore(),
   limitFromEnv("REGISTER_RATE_LIMIT", 5),
   60 * 60_000,
+  "register:",
 );
 
 /**
@@ -159,9 +288,10 @@ export const registerRateLimiter = new RateLimiter(
  * (uniforme respons) te doorbreken.
  */
 export const resetRateLimiter = new RateLimiter(
-  new MemoryRateLimitStore(),
+  createRateLimitStore(),
   limitFromEnv("RESET_RATE_LIMIT", 3),
   60 * 60_000,
+  "reset:",
 );
 
 /**
@@ -170,9 +300,10 @@ export const resetRateLimiter = new RateLimiter(
  * het gokken van een (publiek opzoekbaar) BIG-nummer of DUO-code geautomatiseerd brute-forcebaar.
  */
 export const credentialVerifyRateLimiter = new RateLimiter(
-  new MemoryRateLimitStore(),
+  createRateLimitStore(),
   limitFromEnv("CREDENTIAL_VERIFY_RATE_LIMIT", 10),
   60 * 60_000,
+  "credverify:",
 );
 
 /**
@@ -180,9 +311,10 @@ export const credentialVerifyRateLimiter = new RateLimiter(
  * het 1-op-1-kanaal; ruim boven normaal gebruik, maar stopt scripts en plak-loops.
  */
 export const messageRateLimiter = new RateLimiter(
-  new MemoryRateLimitStore(),
+  createRateLimitStore(),
   limitFromEnv("MESSAGE_RATE_LIMIT", 30),
   5 * 60_000,
+  "message:",
 );
 
 /**
@@ -190,9 +322,10 @@ export const messageRateLimiter = new RateLimiter(
  * Begrenst massa-reageren (spam richting opdrachtgevers) zonder serieus gebruik te hinderen.
  */
 export const applicationRateLimiter = new RateLimiter(
-  new MemoryRateLimitStore(),
+  createRateLimitStore(),
   limitFromEnv("APPLICATION_RATE_LIMIT", 10),
   60 * 60_000,
+  "application:",
 );
 
 /**
@@ -200,9 +333,10 @@ export const applicationRateLimiter = new RateLimiter(
  * storage-vulling en misbruik van de upload-pijplijn; validatie per bestand blijft leidend.
  */
 export const uploadRateLimiter = new RateLimiter(
-  new MemoryRateLimitStore(),
+  createRateLimitStore(),
   limitFromEnv("UPLOAD_RATE_LIMIT", 20),
   60 * 60_000,
+  "upload:",
 );
 
 /**
@@ -210,9 +344,10 @@ export const uploadRateLimiter = new RateLimiter(
  * veel queries in één verzoek; de limiet voorkomt CPU-amplificatie via een scripted loop.
  */
 export const exportRateLimiter = new RateLimiter(
-  new MemoryRateLimitStore(),
+  createRateLimitStore(),
   limitFromEnv("EXPORT_RATE_LIMIT", 5),
   60 * 60_000,
+  "export:",
 );
 
 /**
@@ -222,7 +357,8 @@ export const exportRateLimiter = new RateLimiter(
  * (security-review M-4).
  */
 export const dossierViewRateLimiter = new RateLimiter(
-  new MemoryRateLimitStore(),
+  createRateLimitStore(),
   limitFromEnv("DOSSIER_VIEW_RATE_LIMIT", 30),
   5 * 60_000,
+  "dossier:",
 );

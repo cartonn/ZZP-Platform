@@ -45,6 +45,11 @@ const schema = z
     GEOAPIFY_API_KEY: z.string().optional(),
     // Semantische matching: local (default, in-memory) of pgvector (productie).
     SEMANTIC_MATCHER: z.enum(["local", "pgvector"]).default("local"),
+    // Rate-limit-store: in-memory per proces (default) of gedeeld via Upstash Redis REST
+    // (horizontale schaling, MENSENWERK §0b H-2). Bij "upstash" zijn URL + token verplicht.
+    RATE_LIMIT_STORE: z.enum(["memory", "upstash"]).default("memory"),
+    UPSTASH_REDIS_REST_URL: z.string().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     // Beveiligt POST /api/tasks/* (verloopdetectie, herinneringen, cascade-runners). Optioneel;
     // zonder waarde zijn de taak-endpoints uitgeschakeld (503).
@@ -104,6 +109,10 @@ const schema = z
     }
     if (v.BILLING_PROVIDER === "mollie") {
       require(!!v.MOLLIE_API_KEY, "MOLLIE_API_KEY", "Verplicht bij BILLING_PROVIDER=mollie.");
+    }
+    if (v.RATE_LIMIT_STORE === "upstash") {
+      require(!!v.UPSTASH_REDIS_REST_URL, "UPSTASH_REDIS_REST_URL", "Verplicht bij RATE_LIMIT_STORE=upstash.");
+      require(!!v.UPSTASH_REDIS_REST_TOKEN, "UPSTASH_REDIS_REST_TOKEN", "Verplicht bij RATE_LIMIT_STORE=upstash.");
     }
     if (v.DIPLOMA_VERIFIER === "duo") {
       require(!!v.DUO_API_BASE, "DUO_API_BASE", "Verplicht bij DIPLOMA_VERIFIER=duo.");
@@ -171,6 +180,11 @@ export function envWarnings(env: Env): string[] {
   if (!env.SENTRY_DSN) {
     warnings.push(
       "SENTRY_DSN ontbreekt — server-fouten worden alleen gestructureerd gelogd (geen externe error-monitoring). Zet SENTRY_DSN + installeer @sentry/nextjs voor productie-monitoring.",
+    );
+  }
+  if (env.RATE_LIMIT_STORE === "memory") {
+    warnings.push(
+      "RATE_LIMIT_STORE=memory — rate-limits gelden per proces; bij meerdere instances zijn de limieten per instance. Zet RATE_LIMIT_STORE=upstash (met UPSTASH_REDIS_REST_URL/TOKEN) vóór horizontale schaling.",
     );
   }
   return warnings;

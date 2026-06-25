@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Productie-rijpheid — gedeelde rate-limit-store (Upstash Redis REST) achter env-flag (2026-06-25)
+
+Sluit MENSENWERK §0b **H-2**: de rate-limiters waren per-proces in-memory; bij meerdere Railway-
+instances golden de limieten per instance. De `RateLimitStore`-interface is nu echt pluggbaar.
+
+- [x] **`UpstashRateLimitStore`** (`src/lib/rate-limit.ts`) — gedeelde, durable store via de Upstash
+      Redis REST-API (geen extra SDK-dependency; praat via `fetch`, zelfde aanpak als de Mollie-
+      provider). Fixed-window in één atomaire pipeline: `INCR` + `PEXPIRE … NX` + `PTTL`. Genamespacete
+      keys (`rl:…`). **Fail-open** bij Redis-storing (logt de fout) zodat een blip login/registratie
+      niet platlegt — beschikbaarheid boven een tijdelijk zwakkere limiet.
+- [x] **Async store-interface** — `RateLimitStore.consume`/`reset` en `RateLimiter.check`/`reset` zijn
+      nu async (alle 11 call-sites awaiten; draaiden al in async-context). `MemoryRateLimitStore` blijft
+      de veilige default. `RateLimiter` kreeg een **namespace** per limiter (login:/register:/… ) zodat
+      tellers van verschillende limiters elkaar nooit raken in een gedeelde store.
+- [x] **`createRateLimitStore()`-factory** + env: `RATE_LIMIT_STORE=memory|upstash` +
+      `UPSTASH_REDIS_REST_URL`/`_TOKEN`. Env-validatie eist de twee secrets af bij `upstash` en
+      waarschuwt in productie zolang hij op `memory` staat. `.env.example` bijgewerkt.
+- Bestanden: `src/lib/rate-limit.ts`, `src/lib/rate-limit.test.ts` (+Upstash/factory/namespace-tests),
+  `src/lib/env.ts`, `src/lib/env.test.ts`, `.env.example`, MENSENWERK §0b/§7. Call-sites (await):
+  `src/auth.ts`, `src/lib/applications-create.ts`, `src/app/vertrouwen/[…]/page.tsx`,
+  `src/app/wachtwoord-vergeten/actions.ts`, `src/app/register/actions.ts`,
+  `src/app/api/account/export/route.ts`, `src/app/(protected)/{berichten,documenten,certificaten}/actions.ts`.
+  Gate: typecheck + lint + prettier + check:env + test (**2785 groen**) + build groen.
+- Resterend mensenwerk: Upstash-Redis (EU-regio) aanmaken, REST-URL/token in Railway-secrets,
+  `RATE_LIMIT_STORE=upstash` zetten.
+
 ## Security-/privacy-audit ronde 2026-06-25b — dossier-auditplicht + 2 AVG-erasure-gaten (2026-06-25)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle Opus-subagents (API-routes, tenant-isolatie, non-admin
