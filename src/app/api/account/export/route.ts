@@ -20,7 +20,7 @@ export async function GET() {
   }
 
   // Export-rem: de export bundelt veel queries; begrens scripted loops (HTTP 429).
-  if (!exportRateLimiter.check(`export:${actor.id}`).allowed) {
+  if (!(await exportRateLimiter.check(`export:${actor.id}`)).allowed) {
     return NextResponse.json(
       { error: "Te veel exportverzoeken. Probeer het later opnieuw." },
       { status: 429 },

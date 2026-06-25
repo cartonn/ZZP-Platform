@@ -37,7 +37,7 @@ export async function createApplicationForJob(
   raw: ApplicationRawInput,
 ): Promise<CreateApplicationResult> {
   // Reactie-rem: begrens massa-reageren per ZZP'er (spam richting opdrachtgevers).
-  if (!applicationRateLimiter.check(`apply:${actor.id}`).allowed) {
+  if (!(await applicationRateLimiter.check(`apply:${actor.id}`)).allowed) {
     return { ok: false, error: "Te veel reacties kort achter elkaar. Probeer het later opnieuw." };
   }
 

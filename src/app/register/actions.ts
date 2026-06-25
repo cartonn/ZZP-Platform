@@ -37,7 +37,7 @@ export async function register(_prev: RegisterState, formData: FormData): Promis
   // weigeren + auditregel; geen enumeratie-informatie in de respons.
   const meta = await requestMeta();
   const limitKey = meta.ipAddress ?? "unknown";
-  if (!registerRateLimiter.check(limitKey).allowed) {
+  if (!(await registerRateLimiter.check(limitKey)).allowed) {
     await audit({
       action: "REGISTER_RATE_LIMITED",
       entityType: "User",

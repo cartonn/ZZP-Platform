@@ -405,7 +405,7 @@ export async function verifyCredentialViaDuo(
   }
   // Anti-brute-force: zelf-verificatie zet direct op VERIFIED zonder admin; begrens het gokken van
   // een DUO-code/BIG-nummer (gedeelde budget met BIG, per ZZP'er per uur).
-  if (!credentialVerifyRateLimiter.check(`verify:${actor.id}`).allowed) {
+  if (!(await credentialVerifyRateLimiter.check(`verify:${actor.id}`)).allowed) {
     return { error: "Te veel verificatiepogingen. Probeer het later opnieuw." };
   }
   const profile = await requireProfile(actor.id);
@@ -457,7 +457,7 @@ export async function verifyCredentialViaBig(
   }
   // Anti-brute-force: zelf-verificatie zet direct op VERIFIED zonder admin; begrens het gokken van
   // een BIG-nummer/DUO-code (gedeelde budget met DUO, per ZZP'er per uur).
-  if (!credentialVerifyRateLimiter.check(`verify:${actor.id}`).allowed) {
+  if (!(await credentialVerifyRateLimiter.check(`verify:${actor.id}`)).allowed) {
     return { error: "Te veel verificatiepogingen. Probeer het later opnieuw." };
   }
   const profile = await requireProfile(actor.id);

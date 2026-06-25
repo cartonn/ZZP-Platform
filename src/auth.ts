@@ -73,7 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // beslist; bij overschrijding wordt de poging geweigerd en geaudit. E-mail
         // genormaliseerd zodat hoofdletter-varianten niet om de limiet heen kunnen.
         const limitKey = `${meta.ipAddress ?? "unknown"}:${email.toLowerCase()}`;
-        if (!loginRateLimiter.check(limitKey).allowed) {
+        if (!(await loginRateLimiter.check(limitKey)).allowed) {
           await audit({
             action: "AUTH_RATE_LIMITED",
             entityType: "User",
@@ -102,7 +102,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Geslaagde login: reset de teller zodat een legitieme gebruiker na eerdere
         // misfires niet onnodig wordt geblokkeerd.
-        loginRateLimiter.reset(limitKey);
+        await loginRateLimiter.reset(limitKey);
 
         return {
           id: user.id,

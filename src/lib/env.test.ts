@@ -23,6 +23,8 @@ const INTEGRATION_VARS = [
   "BIG_API_KEY",
   "IDENTITY_API_BASE",
   "IDENTITY_API_KEY",
+  "UPSTASH_REDIS_REST_URL",
+  "UPSTASH_REDIS_REST_TOKEN",
   "SHARE_TOKEN_SECRET",
   "AUTH_URL",
   "NEXTAUTH_URL",
@@ -112,6 +114,20 @@ describe("validateEnv", () => {
     expect(() => validateEnv()).toThrow(/IDENTITY_API_BASE/);
   });
 
+  it("vereist de Upstash-secrets bij RATE_LIMIT_STORE=upstash", () => {
+    baseValid();
+    process.env.RATE_LIMIT_STORE = "upstash";
+    expect(() => validateEnv()).toThrow(/UPSTASH_REDIS_REST_URL/);
+  });
+
+  it("accepteert RATE_LIMIT_STORE=upstash mét beide Upstash-secrets", () => {
+    baseValid();
+    process.env.RATE_LIMIT_STORE = "upstash";
+    process.env.UPSTASH_REDIS_REST_URL = "https://example.upstash.io";
+    process.env.UPSTASH_REDIS_REST_TOKEN = "token";
+    expect(() => validateEnv()).not.toThrow();
+  });
+
   it("blijft inert (geen fout) zolang een integratie niet is ingeschakeld", () => {
     baseValid();
     // Alle integratie-secrets ontbreken, maar de flags staan op de veilige default.
@@ -176,6 +192,9 @@ describe("envWarnings", () => {
       DIPLOMA_VERIFIER: "demo",
       BIG_VERIFIER: "demo",
       IDENTITY_VERIFIER: "demo",
+      RATE_LIMIT_STORE: "upstash",
+      UPSTASH_REDIS_REST_URL: "https://example.upstash.io",
+      UPSTASH_REDIS_REST_TOKEN: "token",
       ...over,
     }) as Env;
 
@@ -197,6 +216,11 @@ describe("envWarnings", () => {
     const w = envWarnings(prod({ CRON_SECRET: undefined, DATABASE_URL: "file:./dev.db" }));
     expect(w.some((m) => /CRON_SECRET/.test(m))).toBe(true);
     expect(w.some((m) => /SQLite/.test(m))).toBe(true);
+  });
+
+  it("waarschuwt voor de in-memory rate-limit-store in productie", () => {
+    const w = envWarnings(prod({ RATE_LIMIT_STORE: "memory" }));
+    expect(w.some((m) => /RATE_LIMIT_STORE=memory/.test(m))).toBe(true);
   });
 
   it("zwijgt bij een volledig geconfigureerde productie", () => {

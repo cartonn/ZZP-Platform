@@ -52,10 +52,17 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   productie** — bij `NODE_ENV=production` faalt de boot duidelijk zonder `SHARE_TOKEN_SECRET`
   (idem voor `AUTH_URL` en een AUTH_SECRET ≥ 32 tekens). Resterend mensenwerk: alleen de secret
   genereren + plakken in de Railway-secrets.
-- **Gedeelde rate-limit-store vóór horizontale schaling** (H-2): de limiters zijn per-proces
-  in-memory; bij meerdere Railway-instances zijn de limieten per instance. De
-  `RateLimitStore`-interface is pluggbaar — Upstash/Redis past er direct achter. Niet nodig
-  zolang er één instance draait.
+- **Gedeelde rate-limit-store vóór horizontale schaling** (H-2, **code-kant GEDAAN 25-6-2026**):
+  de limiters zijn per-proces in-memory; bij meerdere Railway-instances zijn de limieten per
+  instance. De `RateLimitStore`-interface is nu echt pluggbaar: naast de in-memory default zit er
+  een **Upstash Redis REST**-adapter achter (`src/lib/rate-limit.ts`, `UpstashRateLimitStore`,
+  fixed-window via atomaire pipeline INCR/PEXPIRE NX/PTTL, fail-open bij Redis-storing zodat een
+  blip login/registratie niet platlegt). Activeer met `RATE_LIMIT_STORE=upstash` +
+  `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`; de env-validatie eist die twee secrets af
+  zodra de driver op upstash staat en waarschuwt in productie zolang hij op memory staat. Geen extra
+  SDK-dependency (praat via fetch met de REST-API). Resterend mensenwerk: alleen een (gratis)
+  Upstash-Redis-database in een EU-regio aanmaken, de REST-URL + token in de Railway-secrets zetten
+  en `RATE_LIMIT_STORE=upstash` zetten — daarna gelden de limieten over alle instances samen.
 - **Externe error-monitoring (Sentry) aanzetten** (laag, code-kant GEDAAN 24-6-2026): server-fouten
   worden nu gestructureerd en PII-veilig gelogd (`src/lib/observability/`), met een readiness-endpoint
   (`/api/readiness`, los van `/api/health`) en een error-reporting-grens die Next.js-server-fouten
@@ -343,6 +350,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY` | Echte identiteitscontrole                     | PSP/iDIN (§4c)       | Voor echte identiteitscontrole |
 | `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                           | Externe error-monitoring (anders alleen logs) | Sentry (§0b)         | Optioneel (aanbevolen prod)    |
 | `LOG_LEVEL`                                                       | Logdrempel (debug/info/warn/error)            | —                    | Optioneel (default info)       |
+| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`    | Gedeelde rate-limits over instances           | Upstash (§0b H-2)    | Bij horizontale schaling       |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).

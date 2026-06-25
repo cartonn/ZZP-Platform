@@ -44,7 +44,7 @@ export async function requestPasswordReset(
   // Begrens reset-aanvragen per IP+e-mail (mail-bombing / CPU-amplificatie). Bij overschrijding
   // dezelfde uniforme respons teruggeven — geen enumeratie-lek, geen werk uitvoeren.
   const limitKey = `${meta.ipAddress ?? "unknown"}:${email.toLowerCase()}`;
-  if (!resetRateLimiter.check(limitKey).allowed) {
+  if (!(await resetRateLimiter.check(limitKey)).allowed) {
     return { submitted: true };
   }
 

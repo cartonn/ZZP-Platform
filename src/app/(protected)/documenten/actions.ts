@@ -31,7 +31,7 @@ export async function uploadDocument(
   }
 
   // Upload-rem: begrens het aantal uploads per gebruiker per uur (storage/misbruik).
-  if (!uploadRateLimiter.check(`upload:${actor.id}`).allowed) {
+  if (!(await uploadRateLimiter.check(`upload:${actor.id}`)).allowed) {
     return { error: "Te veel uploads kort achter elkaar. Probeer het later opnieuw." };
   }
 
