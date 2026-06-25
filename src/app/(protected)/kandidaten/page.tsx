@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Users, Check, TriangleAlert, GitCompare } from "lucide-react";
+import { Users, Check, TriangleAlert, GitCompare, Clock } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
@@ -12,6 +12,10 @@ import {
   normalizeKandidatenFilter,
 } from "@/lib/kandidaten-filter";
 import { computeCompliance, scoreJobForFreelancer, topPositiveReason } from "@/lib/matching";
+import {
+  summarizeCandidateDecision,
+  summarizeCandidatesAwaitingDecision,
+} from "@/lib/candidate-decision";
 import { RATE_FIT_LABEL, RATE_FIT_VARIANT, classifyProposedRateFit } from "@/lib/rate-fit";
 import { VerificationMarks } from "@/components/credentials/verification-marks";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
@@ -169,6 +173,20 @@ export default async function KandidatenPage({
     .filter(([, v]) => v.count >= 2)
     .map(([id, v]) => ({ id, title: v.title, count: v.count }));
 
+  // Beslis-nu-signaal: hoeveel nog-onbesliste reacties liggen langer dan past bij hun matchkwaliteit?
+  // Sterke kandidaten raken elders aan de slag als je te lang wacht — afgeleid uit de reeds opgehaalde
+  // lijst (geen extra query). Eén `now` zodat strip- en kaart-signaal consistent zijn.
+  const now = new Date();
+  const decisionSummary = summarizeCandidatesAwaitingDecision(
+    applications.map((a) => ({
+      status: a.status,
+      matchScore: a.matchScore,
+      createdAt: a.createdAt,
+      hasCollaboration: !!a.collaboration,
+    })),
+    now,
+  );
+
   return (
     <div className="space-y-6 pb-24">
       <PageHeader
@@ -255,6 +273,26 @@ export default async function KandidatenPage({
               </CardContent>
             </Card>
           )}
+          {!filterStatus && decisionSummary.total > 0 && (
+            <Card className="border-warning/40 bg-warning/5">
+              <CardContent className="flex items-start gap-2.5 py-3 text-sm">
+                <Clock className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+                <p>
+                  {decisionSummary.total === 1
+                    ? t("1 kandidaat wacht op je beslissing")
+                    : `${decisionSummary.total} ${t("kandidaten wachten op je beslissing")}`}
+                  {decisionSummary.strong > 0 && (
+                    <span className="text-muted-foreground">
+                      {" — "}
+                      {decisionSummary.strong === 1
+                        ? t("waaronder een sterke match die je elders kunt verliezen.")
+                        : `${decisionSummary.strong} ${t("sterke matches die je elders kunt verliezen.")}`}
+                    </span>
+                  )}
+                </p>
+              </CardContent>
+            </Card>
+          )}
           {visible.length === 0 ? (
             <EmptyState
               icon={Users}
@@ -302,6 +340,17 @@ export default async function KandidatenPage({
                 // Live onderbouwing van de match (waarom past deze kandidaat) — dezelfde server-side
                 // regels als de ZZP'er op de opdracht ziet, zodat de opdrachtgever niet alleen "Match X%" leest.
                 const fitReasons = scoreJobForFreelancer(app.job, app.freelancer).reasons;
+                // Beslis-nu-nudge: alleen tonen wanneer de reactie langer onbeslist ligt dan past bij
+                // de matchkwaliteit. Zwijgt voor verse of besloten reacties.
+                const decision = summarizeCandidateDecision(
+                  {
+                    status: app.status,
+                    matchScore: app.matchScore,
+                    createdAt: app.createdAt,
+                    hasCollaboration: !!app.collaboration,
+                  },
+                  now,
+                );
                 return (
                   <Card key={app.id}>
                     <CardContent className="space-y-3">
@@ -357,6 +406,19 @@ export default async function KandidatenPage({
                       </div>
 
                       <VerificationMarks credentials={app.freelancer.credentials} />
+
+                      {decision?.attention && (
+                        <p
+                          className={`flex items-center gap-1.5 text-xs ${
+                            decision.urgency === "high" ? "text-warning" : "text-muted-foreground"
+                          }`}
+                        >
+                          <Clock className="size-3.5 shrink-0" aria-hidden />
+                          {decision.tier === "strong"
+                            ? `${t("Sterke match — wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing. Beslis nu voordat hij elders aan de slag gaat.")}`
+                            : `${t("Wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing.")}`}
+                        </p>
+                      )}
 
                       {(() => {
                         const delivery = deliveryByProfile.get(app.freelancer.id);
