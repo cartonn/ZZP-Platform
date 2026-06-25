@@ -18,7 +18,7 @@ import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
 import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/matching";
 import { jobStartProximity } from "@/lib/job-start-proximity";
 import { getTranslator } from "@/lib/i18n/server";
-import { type JobStatus, type WorkMode } from "@/lib/enums";
+import { type ApplicationStatus, type JobStatus, type WorkMode } from "@/lib/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,8 +27,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
+import { JobPipelineStrip } from "@/components/jobs/job-pipeline-strip";
 import { withParams } from "@/components/admin/base-path";
 import { plural } from "@/lib/plural";
+import { summarizeJobPipeline } from "@/lib/job-pipeline";
 import {
   JOB_STATUS_FILTER_LABEL,
   JOB_STATUS_FILTER_ORDER,
@@ -69,8 +71,21 @@ async function ClientJobs({
   const jobs = await prisma.job.findMany({
     where: { company: { userId } },
     orderBy: { updatedAt: "desc" },
-    include: { _count: { select: { applications: true } } },
   });
+
+  // Reactie-pijplijn per opdracht in één query (geen N+1): tel per (opdracht, status). De pure
+  // `summarizeJobPipeline` vouwt de statussen samen tot het "wat vraagt actie?"-overzicht per kaart.
+  const pipelineGroups = await prisma.application.groupBy({
+    by: ["jobId", "status"],
+    where: { job: { company: { userId } } },
+    _count: { _all: true },
+  });
+  const statusesByJob = new Map<string, ApplicationStatus[]>();
+  for (const g of pipelineGroups) {
+    const list = statusesByJob.get(g.jobId) ?? [];
+    for (let i = 0; i < g._count._all; i += 1) list.push(g.status as ApplicationStatus);
+    statusesByJob.set(g.jobId, list);
+  }
 
   // Statusfilter (Alle/Concept/Gepubliceerd/Gesloten) — tellingen over de volledige lijst voor de
   // pill-labels, de gefilterde lijst voor de weergave. Spiegelt het pill-patroon van /facturen.
@@ -154,9 +169,9 @@ async function ClientJobs({
                     </span>
                   </div>
 
-                  <p className="text-xs text-muted-foreground">
-                    {plural(job._count.applications, "reactie", "reacties")}
-                  </p>
+                  <JobPipelineStrip
+                    pipeline={summarizeJobPipeline(statusesByJob.get(job.id) ?? [])}
+                  />
 
                   <div className="mt-auto pt-1">
                     <Button asChild variant="secondary" size="sm" className="w-full">

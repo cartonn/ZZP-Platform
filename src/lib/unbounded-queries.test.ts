@@ -363,22 +363,22 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // is begrensd tot de zichtbare (gepagineerde) opdrachten via jobId: { in: [...] }.
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 69,
+    line: 71,
     reason: "eigenaar-scoped kanban van eigen opdrachten; kandidaat toekomstige paginatie",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 228,
+    line: 243,
     reason: "branches-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 229,
+    line: 244,
     reason: "skills-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 264,
+    line: 279,
     reason: "bewaarde opdrachten, begrensd tot de zichtbare pagina via jobId: { in: [...] }",
   },
 
