@@ -31,7 +31,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string[] 
   if (!(await storage.exists(key))) {
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
-  const data = await storage.get(key);
   const ext = key.split(".").pop()?.toLowerCase();
   const type =
     ext === "png"
@@ -42,6 +41,20 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string[] 
           ? "application/pdf"
           : "image/jpeg";
 
+  // Productie (S3): redirect naar een kortlevende presigned URL zodat de logo-bytes rechtstreeks
+  // bij de opslag worden opgehaald i.p.v. door de app-server te streamen. Logo's zijn niet-gevoelig
+  // (zichtbaar voor elke ingelogde gebruiker), dus de redirect introduceert geen privacyrisico. De
+  // toegangscontrole (requireActor + bekende logoKey) is hierboven al server-side afgehandeld.
+  // Lokaal/pilot geeft de driver `null` → val terug op streamen (gedrag ongewijzigd).
+  const signed = await storage.getSignedDownloadUrl(key, {
+    contentType: type,
+    disposition: { type: "inline" },
+  });
+  if (signed) {
+    return NextResponse.redirect(signed, 302);
+  }
+
+  const data = await storage.get(key);
   return new NextResponse(new Uint8Array(data), {
     headers: {
       "Content-Type": type,

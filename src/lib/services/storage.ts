@@ -109,11 +109,60 @@ export interface StoredObject {
   size: number;
 }
 
+/** Opties voor een kortlevende, ondertekende download-URL. */
+export interface SignedUrlOptions {
+  /** Geldigheidsduur in seconden. Wordt geklemd op [30, 3600]; default uit STORAGE_S3_URL_TTL of 300. */
+  expiresInSeconds?: number;
+  /** Forceer de Content-Type die de opslag teruggeeft (override van de object-metadata). */
+  contentType?: string;
+  /** Tonen in de browser (inline) of downloaden (attachment), met optionele bestandsnaam. */
+  disposition?: { type: "inline" | "attachment"; filename?: string };
+}
+
+export const SIGNED_URL_TTL_MIN = 30;
+export const SIGNED_URL_TTL_MAX = 3600;
+export const SIGNED_URL_TTL_DEFAULT = 300;
+
+/**
+ * Bepaalt de TTL (seconden) voor een presigned URL: expliciete waarde > STORAGE_S3_URL_TTL > default,
+ * altijd geklemd op [30, 3600]. Een ongeldige/lege env-waarde valt veilig terug op de default.
+ */
+export function resolveSignedUrlTtl(explicit?: number): number {
+  const fromEnv = Number(process.env.STORAGE_S3_URL_TTL);
+  const base =
+    typeof explicit === "number" && Number.isFinite(explicit)
+      ? explicit
+      : Number.isFinite(fromEnv) && fromEnv > 0
+        ? fromEnv
+        : SIGNED_URL_TTL_DEFAULT;
+  return Math.min(SIGNED_URL_TTL_MAX, Math.max(SIGNED_URL_TTL_MIN, Math.round(base)));
+}
+
+/**
+ * Bouwt een veilige `Content-Disposition`-headerwaarde. De bestandsnaam wordt ontdaan van tekens
+ * die de header (of een traversal) kunnen breken; ontbreekt een naam, dan alleen het type.
+ */
+export function buildContentDisposition(disposition: {
+  type: "inline" | "attachment";
+  filename?: string;
+}): string {
+  if (!disposition.filename) return disposition.type;
+  const safe = disposition.filename.replace(/[^\w.\-]+/g, "_").slice(0, 200) || "bestand";
+  return `${disposition.type}; filename="${safe}"`;
+}
+
 export interface StorageDriver {
   put(key: string, data: Buffer, mimeType: string): Promise<StoredObject>;
   get(key: string): Promise<Buffer>;
   delete(key: string): Promise<void>;
   exists(key: string): Promise<boolean>;
+  /**
+   * Geeft een kortlevende, ondertekende GET-URL waarmee de client het object rechtstreeks bij de
+   * opslag ophaalt (bespaart bandbreedte + geheugen op de app-server, productie-standaard voor S3).
+   * Geeft `null` wanneer de driver geen presigning ondersteunt (lokale opslag) — de caller valt
+   * dan terug op het streamen van de bytes via de server. Authz/audit blijven altijd server-side.
+   */
+  getSignedDownloadUrl(key: string, opts?: SignedUrlOptions): Promise<string | null>;
 }
 
 class LocalStorageDriver implements StorageDriver {
@@ -151,6 +200,11 @@ class LocalStorageDriver implements StorageDriver {
     } catch {
       return false;
     }
+  }
+
+  // Lokale opslag kent geen presigning: de caller valt terug op streamen via de server.
+  async getSignedDownloadUrl(): Promise<string | null> {
+    return null;
   }
 }
 
@@ -213,6 +267,23 @@ class S3StorageDriver implements StorageDriver {
       if (err?.name === "NotFound" || err?.$metadata?.httpStatusCode === 404) return false;
       throw e;
     }
+  }
+
+  async getSignedDownloadUrl(key: string, opts?: SignedUrlOptions): Promise<string | null> {
+    const { client, bucket, lib } = await this.svc();
+    // Lazy import zoals @aws-sdk/client-s3: houdt de bundel licht als S3 niet wordt gebruikt.
+    const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+    const cmd = new lib.GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      // Forceer content-type + disposition via response-override-params zodat de browser het object
+      // correct toont/downloadt, ongeacht de opgeslagen metadata.
+      ...(opts?.contentType ? { ResponseContentType: opts.contentType } : {}),
+      ...(opts?.disposition
+        ? { ResponseContentDisposition: buildContentDisposition(opts.disposition) }
+        : {}),
+    });
+    return getSignedUrl(client, cmd, { expiresIn: resolveSignedUrlTtl(opts?.expiresInSeconds) });
   }
 }
 

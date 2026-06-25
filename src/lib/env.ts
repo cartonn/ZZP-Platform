@@ -36,6 +36,9 @@ const schema = z
     STORAGE_S3_ENDPOINT: z.string().optional(),
     AWS_ACCESS_KEY_ID: z.string().optional(),
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
+    // Geldigheidsduur (seconden) van presigned download-URLs. Optioneel; geklemd op [30, 3600],
+    // default 300. Een ongeldige waarde valt veilig terug op de default.
+    STORAGE_S3_URL_TTL: z.string().optional(),
 
     // Echte reistijd-routing: offline fallback (default) of Geoapify met API-key.
     ROUTING_PROVIDER: z.enum(["offline", "geoapify"]).default("offline"),

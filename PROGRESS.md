@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod: presigned S3 download-URLs in de storage-abstractie (2026-06-25)
+
+Productie-rijpe S3-levering: documenten/logo's hoeven niet langer als volledige buffer door de
+app-server te streamen. De `StorageDriver`-abstractie krijgt een `getSignedDownloadUrl`-seam.
+
+- [x] **Storage-seam** (`src/lib/services/storage.ts`): `getSignedDownloadUrl(key, opts)` op de
+      interface; **S3-driver** levert een kortlevende presigned GET-URL via
+      `@aws-sdk/s3-request-presigner` (lazy import, zoals `@aws-sdk/client-s3`) met
+      `ResponseContentType`/`ResponseContentDisposition`-overrides; **lokale driver** geeft `null`
+      → caller valt terug op streamen (gedrag lokaal/pilot ongewijzigd). Pure helpers
+      `resolveSignedUrlTtl` (TTL geklemd op [30, 3600], default 300, env `STORAGE_S3_URL_TTL`) +
+      `buildContentDisposition` (saneert bestandsnaam tegen header-injectie).
+- [x] **Media/logo-route** (`src/app/api/media/[...key]/route.ts`): na de server-side authz
+      (`requireActor` + bekende `logoKey`) een **302-redirect** naar de presigned URL wanneer de
+      driver er een levert; anders streamen. Logo's zijn niet-gevoelig → geen privacyrisico.
+- [x] **Gevoelige document-route ongemoeid**: `/api/documents/[id]` behoudt bewust
+      server-streaming + `Content-Security-Policy: sandbox` (audit: document-privacy niet aanraken
+      buiten tests). Presigned adoptie daar is een gedocumenteerde seam na security-review.
+- [x] **Env**: optionele `STORAGE_S3_URL_TTL` in `src/lib/env.ts` + `.env.example`.
+- Tests: `storage.test.ts` (+helpers/local-null, 18) + nieuwe `media/[...key]/route.test.ts` (4:
+  401/404/redirect/stream). Gate: typecheck + lint + test (2742 groen) + build + prettier groen.
+- Mensenwerk-rest: alleen `STORAGE_DRIVER=s3` + bucket/credentials zetten (MENSENWERK §1c); de
+  code activeert presigning dan vanzelf.
+
 ## Security-/privacy-audit: AVG-inzage compleet + auditplicht + readiness-probe (2026-06-25)
 
 Auditronde (orchestrator + 1 parallelle security-subagent) over de nieuwste commits (#532–#537) met
