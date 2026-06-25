@@ -4,6 +4,7 @@
 
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { audit } from "@/lib/audit";
+import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
 import { buildComplianceDossier, type DossierInput } from "@/lib/compliance/dossier";
 
@@ -62,6 +63,19 @@ export async function GET(
     col.freelancer.userId !== actor.id &&
     actor.role !== "ADMIN"
   ) {
+    // Een poging om andermans compliance-dossier (cross-party PII: namen, KvK, certificaatstatus)
+    // te openen is beveiligingsrelevant — leg de geweigerde inzage vast naast de geslaagde export
+    // hieronder (CLAUDE.md regel 5, parity met /api/documents/[id]). Zo is IDOR-enumeratie op
+    // collaboration-id's zichtbaar in het auditspoor i.p.v. onzichtbaar.
+    const meta = await requestMeta();
+    await audit({
+      actorId: actor.id,
+      action: "DOSSIER_ACCESS_DENIED",
+      entityType: "Collaboration",
+      entityId: id,
+      metadata: { viewerRole: actor.role },
+      ...meta,
+    });
     return new Response("Geen toegang.", { status: 403 });
   }
 
@@ -102,12 +116,14 @@ export async function GET(
   ];
   const body = lines.join("\n");
 
+  const meta = await requestMeta();
   await audit({
     actorId: actor.id,
     action: "DOSSIER_EXPORTED",
     entityType: "Collaboration",
     entityId: id,
     metadata: { attentionCount: dossier.attentionCount },
+    ...meta,
   });
 
   return new Response(body, {

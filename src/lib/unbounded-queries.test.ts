@@ -127,6 +127,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     line: 76,
     reason: "account-verwijdering-actie, niet een lijst-view",
   },
+  {
+    file: "(protected)/admin/gebruikers/actions.ts",
+    line: 86,
+    reason:
+      "AVG-verwijdering: eigen DISPUTE_OPENED-events van één gebruiker; bewust geen take (alle eigen dispuutredenen moeten gewist worden, een cap zou er stilletjes overslaan)",
+  },
 
   // --- abonnement/page.tsx ---
   // Plan-tabel: er zijn exact 3 plannen (FREE/PRO/BUSINESS); onbegrensd is prima.

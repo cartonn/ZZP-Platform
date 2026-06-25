@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
+import { requestMeta } from "@/lib/request-meta";
 import { buildDbaAuditData } from "@/lib/dba-audit";
 import { buildDbaAuditPdf } from "@/lib/dba-audit-pdf";
 
@@ -77,7 +78,21 @@ export async function GET(
   // Toegang: de betrokken ZZP'er, de opdrachtgever, of admin.
   const allowed =
     actor.role === "ADMIN" || actor.id === col.company.userId || actor.id === col.freelancer.userId;
-  if (!allowed) return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+  if (!allowed) {
+    // Geweigerde inzage van het DBA-dossier (cross-party PII: namen, KvK/BTW, certificaatstatus)
+    // vastleggen — beveiligingsrelevant, parity met /api/documents/[id] en de dossier-route
+    // (CLAUDE.md regel 5). Maakt IDOR-enumeratie op collaboration-id's zichtbaar in het auditspoor.
+    const meta = await requestMeta();
+    await audit({
+      actorId: actor.id,
+      action: "DBA_DOSSIER_ACCESS_DENIED",
+      entityType: "Collaboration",
+      entityId: id,
+      metadata: { viewerRole: actor.role },
+      ...meta,
+    });
+    return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+  }
 
   const now = new Date();
   const auditData = buildDbaAuditData(
@@ -108,6 +123,7 @@ export async function GET(
 
   const pdfBytes = await buildDbaAuditPdf(auditData);
 
+  const meta = await requestMeta();
   await audit({
     actorId: actor.id,
     action: "DBA_DOSSIER_EXPORTED",
@@ -117,6 +133,7 @@ export async function GET(
       dbaLevel: auditData.dbaAssessment.level,
       verifiedCredentials: auditData.entrepreneurship.verifiedCredentialCount,
     },
+    ...meta,
   });
 
   return new NextResponse(new Uint8Array(pdfBytes), {
