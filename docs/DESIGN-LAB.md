@@ -29,26 +29,27 @@ UI-taal = Nederlands.
 | `src/components/ontwerp/concepts/mock.ts`            | Gedeelde Nederlandse demo-content                 |
 | `src/components/ontwerp/concepts/concept-<nn>-*.tsx` | De uitgewerkte concept-componenten ('use client') |
 
-## De tien richtingen (run 25-6-2026 — verse set)
+## De tien richtingen (run 25-6-2026 — verse set v2)
 
-| #   | Naam     | Designrichting                         | Kerntrends (2026)                                          |
-| --- | -------- | -------------------------------------- | ---------------------------------------------------------- |
-| 01  | Helder   | Strategische rust — Linear-grade licht | Calm UI · OKLCH-neutralen · single-metric + tabular        |
-| 02  | Orbit    | Ruimtelijke diepte — OLED-dark         | Spatial depth/layering · true-black · luminous accent      |
-| 03  | Folio    | Redactioneel — kinetische typografie   | Oversized variable serif · editorial reveal · asym. raster |
-| 04  | Haven    | Warm-menselijk — vertrouwen eerst      | Trust-first · vertrouwensmeter hero · zachte staten        |
-| 05  | Cockpit  | Data-dicht pro — financiële cockpit    | Data-heavy dichtheid · inline-sparklines · bento-KPI-rail  |
-| 06  | Puls     | Expressieve kleur — functionele motion | Expressieve kleur/gradients · motion · rol-gecodeerd       |
-| 07  | Vitre    | Glas & vibrancy — visionOS-diepte      | Glassmorphism (contrast-bewust) · vibrancy · floating      |
-| 08  | Beton    | Tactiel brutalisme — verfijnd          | Tactile brutalism · monospace-everything · harde offset    |
-| 09  | Mobiel   | Mobiel-eerst — duim-zone               | Thumb-zone · bottom-nav + sheets · optimistisch claimen    |
-| 10  | Nocturne | Verfijnd minimaal — quiet luxury dark  | Quiet luxury · hairline low-chroma · één accent/scherm     |
+| #   | Naam     | Designrichting                        | Kerntrends (2026)                                           |
+| --- | -------- | ------------------------------------- | ----------------------------------------------------------- |
+| 01  | Atlas    | Zwitsers besturingssysteem — raster   | Swiss/ITS-grid · tabular-cijfers · keyboard-first (⌘K)      |
+| 02  | Aurora   | Lichtgevend donker — aurora-ambient   | Ambient/luminous dark · iridescent · glow-as-hierarchy      |
+| 03  | Pers     | Riso/krantdruk — redactioneel         | Riso/newsprint · twee-kleuren halftoon · broadsheet-raster  |
+| 04  | Kompas   | Warm-menselijk — wegwijs              | Trust-first · begeleidende wegwijzer · zachte staten        |
+| 05  | Console  | Terminal/IDE — toetsenbord-eerst      | Operator-UI · ⌘K + statusregel · J/K-rijnavigatie           |
+| 06  | Spectra  | Expressieve duotone kleur — kinetisch | Mesh-gradients · rol-gecodeerd · kinetische voortgang       |
+| 07  | Lumen    | Glas & vibrancy — visionOS-diepte     | Glassmorphism (contrast-bewust) · vibrancy · floating       |
+| 08  | Graphite | Tactiel brutalisme — blauwdruk        | Tactile brutalism · harde offset · maatlijn-annotaties      |
+| 09  | Zak      | Mobiel-eerst — duim-zone              | Thumb-zone · bottom-nav + sheets · optimistisch claimen     |
+| 10  | Onyx     | Quiet luxury — verfijnd donker        | Quiet luxury matte · hairline low-chroma · champagne-accent |
 
-> Elke run is een **verse, sterkere set**: de vorige set (Atelier, Spectraal, Kompas, Tij, Krijt,
-> Prisma, Stratum, Onthaal, Veld, Maan) is vervangen door bovenstaande tien, gekozen op grond van
-> verse 2026-research en een kritische zelf-review om het niveau op te tillen. De drie licht-minimale
-> (Helder/Cockpit/Beton) en drie donkere (Orbit/Vitre/Nocturne) richtingen zijn bewust onderscheidend
-> gehouden: rust vs. dichtheid vs. brutalisme; diepte vs. glas vs. quiet-luxury.
+> Elke run is een **verse, sterkere set**: de vorige set (Helder, Orbit, Folio, Haven, Cockpit, Puls,
+> Vitre, Beton, Mobiel, Nocturne) is vervangen door bovenstaande tien, gekozen op grond van verse
+> 2026-research en een kritische zelf-review om het niveau op te tillen. De ontwerp-ruimte is bewust
+> gespreid: licht-precisie (Atlas) vs. print (Pers) vs. terminal (Console) vs. brutalisme (Graphite);
+> en drie onderscheiden donkere richtingen — ambient-gloed (Aurora) vs. glas (Lumen) vs. matte
+> quiet-luxury (Onyx) — zodat geen twee concepten op dezelfde esthetiek leunen.
 
 ## Onderzochte trends (2026 — bron voor de richtingen)
 
@@ -73,4 +74,5 @@ UI-taal = Nederlands.
 
 ## Status
 
-- **01–10** — alle tien volledig uitgewerkt en klikbaar op `/ontwerp` (verse set, run 25-6-2026).
+- **01–10** — alle tien volledig uitgewerkt en klikbaar op `/ontwerp` (verse set v2, run 25-6-2026:
+  Atlas · Aurora · Pers · Kompas · Console · Spectra · Lumen · Graphite · Zak · Onyx).

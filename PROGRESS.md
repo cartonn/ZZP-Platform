@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab `/ontwerp` — verse set v2 van 10 concepten (2026-06-25)
+
+Het publieke, inlogvrije design-lab onder `/ontwerp` is ververst met een **nieuwe, sterkere set van
+tien onderscheidende top-1% redesign-concepten** (additief; de live-app is niet aangeraakt). De
+vorige set (Helder/Orbit/Folio/Haven/Cockpit/Puls/Vitre/Beton/Mobiel/Nocturne) is vervangen.
+
+- [x] **10 verse richtingen** — 01 Atlas (Zwitsers raster), 02 Aurora (ambient-gloed donker),
+      03 Pers (riso/krantdruk), 04 Kompas (warm-menselijk wegwijs), 05 Console (terminal/IDE),
+      06 Spectra (expressieve duotone), 07 Lumen (glas/vibrancy), 08 Graphite (blauwdruk-brutalisme),
+      09 Zak (mobiel-eerst), 10 Onyx (quiet-luxury matte). De ontwerp-ruimte is bewust gespreid zodat
+      geen twee concepten op dezelfde esthetiek leunen (vier lichte richtingen + drie onderscheiden
+      donkere: ambient vs. glas vs. matte).
+- [x] Elk concept toont de zes kernschermen (dashboard, marktplaats, opdracht-detail met verklaarbare
+      matching, verificatie/zegel, acties, facturen) met realistische NL demo-content uit
+      `mock.ts`, interne scherm-tabs, hover/focus en complete loading/empty/error-staten.
+- Bestanden: `src/components/ontwerp/concepts/concept-01-atlas.tsx` … `concept-10-onyx.tsx`,
+  `registry.ts` (metadata), `src/app/ontwerp/[id]/page.tsx` (route-map). `docs/DESIGN-LAB.md`
+  bijgewerkt. Het woord "AI" komt nergens voor; UI-taal NL.
+- Gate: typecheck + lint + test + build + prettier groen → PR → CI-poort.
+
 ## Kandidaten-vergelijking per opdracht voor de opdrachtgever (2026-06-25)
 
 De opdrachtgever shortlist reacties, maar moest ze tot nu toe één voor één doorscrollen om te
