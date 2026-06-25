@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Verwachte-betaaldatum per openstaande ZZP-factuur (2026-06-25)
+
+De #1 cashflow-vraag van een ZZP'er is "wanneer krijg ik mijn geld?". Het facturen-overzicht toonde
+alleen de contractuele vervaldatum (`invoice-due.ts`) — de juridische deadline, niet wanneer het geld
+realistisch binnenkomt. Nu toont elke openstaande factuur een verwachte betaaldatum, afgeleid uit hoe
+déze opdrachtgever de ZZP'er historisch betaalt (gemiddeld aantal dagen na factuurdatum). Vertaalt de
+billing-diepte van Bendy/Zorgwerk naar onze bestaande, verklaarbare betaalgedrag-engine; read-only,
+server-side, geen schemawijziging, geen extra query.
+
+- [x] **Pure motor** `src/lib/invoice-payment-forecast.ts` — `forecastInvoicePayout({ issuedAt, dueAt,
+avgDaysToPay, sampleSize })`. Genoeg historie (≥ `PAYOUT_FORECAST_MIN_SAMPLE` = 3 betaalde
+      facturen) → `issuedAt + avgDaysToPay` (basis `history`, `confident`); anders terugval op de
+      vervaldatum (basis `due`). Projecteert op de factuurdatum omdat `computePaymentBehavior` de
+      termijn vanaf `issuedAt` meet (meet- en projectie-anker gelijk). Clampt data-ruis (negatief
+      gemiddelde) weg; `daysAfterDue` legt uit hoeveel later dan de vervaldag.
+- [x] **Wiring** `src/components/administratie/facturen-panel.tsx` — alleen ZZP'er: per opdrachtgever
+      het betaalgedrag uit de **eigen** betaalde facturen (privacy — nooit data van andere ZZP'ers)
+      via `computePaymentBehavior`, geen extra query (de hele lijst is al geladen). Toont een rustige
+      muted-regel "Verwacht rond <datum> · doorgaans N dagen na de vervaldag" alleen bij een
+      betrouwbare historie-projectie (anders dupliceert het slechts de vervaldatum-chip).
+- [x] **7 unit-tests** (`invoice-payment-forecast.test.ts`). Gate lokaal groen: typecheck, lint,
+      2725 tests, `next build`, prettier.
+
 ## kans-/concurrentiesignaal voor de ZZP'er op opdracht-detail (2026-06-24)
 
 Spiegelbeeld van het opdrachtgever-bereiksignaal (`job-reach`): waar dat de vraagkant samenvat
