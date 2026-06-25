@@ -108,6 +108,13 @@ nodig met back-ups en beveiligde opslag.
 3. Maak een toegangssleutel/IAM-gebruiker met **alleen** lees-/schrijfrechten op die ene bucket.
    **Opleveren:** bucketnaam, regio en de sleutels → secrets `STORAGE_DRIVER=s3`,
    `STORAGE_S3_BUCKET`, `STORAGE_S3_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (§7).
+   **Code-kant GEDAAN (25-6-2026):** de S3-driver levert nu **presigned download-URLs**
+   (`getSignedDownloadUrl`, kortlevend, default 300 s — instelbaar via `STORAGE_S3_URL_TTL`), zodat
+   logo's/documenten rechtstreeks bij de opslag worden opgehaald i.p.v. door de app-server gestreamd
+   (bandbreedte/geheugen). Gewired in de logo-route; de gevoelige document-route blijft bewust
+   server-streamen (sandbox-CSP) tot een security-review presigned daar vrijgeeft. Resterend
+   mensenwerk: alleen de bucket + sleutels aanmaken en `STORAGE_DRIVER=s3` zetten — de rest is
+   automatisch.
 
 ### 1d. Domein + HTTPS
 

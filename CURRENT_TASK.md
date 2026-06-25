@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Presigned S3 download-URLs in de storage-abstractie** (prod-rijpheid) —
+> `StorageDriver.getSignedDownloadUrl(key, opts)`: S3-driver levert kortlevende presigned GET-URLs
+> via `@aws-sdk/s3-request-presigner` (lazy import, `ResponseContentType`/`-Disposition`-overrides),
+> lokale driver geeft `null` → caller streamt (pilot ongewijzigd). Pure helpers `resolveSignedUrlTtl`
+> (geklemd [30,3600], default 300, env `STORAGE_S3_URL_TTL`) + `buildContentDisposition`. Gewired in
+> de niet-gevoelige logo-route (`/api/media/[...key]`, 302-redirect bij S3). De gevoelige
+> `/api/documents/[id]` blijft bewust server-streamen + sandbox-CSP (audit: document-privacy niet
+> aanraken buiten tests) — presigned daar is een seam na security-review. 22 tests (storage +
+> media-route); geen schemawijziging. PR #540.
 > Gedaan (niet opnieuw): **Verwachte-betaaldatum per openstaande ZZP-factuur** — pure
 > `lib/invoice-payment-forecast.ts` `forecastInvoicePayout({ issuedAt, dueAt, avgDaysToPay,
 sampleSize })`: genoeg betaalhistorie van deze opdrachtgever (≥3 betaalde facturen) → `issuedAt +

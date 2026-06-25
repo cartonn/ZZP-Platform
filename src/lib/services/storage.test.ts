@@ -4,9 +4,14 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   assertContentMatchesMime,
+  buildContentDisposition,
   generateStorageKey,
   getStorage,
   MAX_UPLOAD_BYTES,
+  resolveSignedUrlTtl,
+  SIGNED_URL_TTL_DEFAULT,
+  SIGNED_URL_TTL_MAX,
+  SIGNED_URL_TTL_MIN,
   sniffMimeType,
   UploadValidationError,
   validateUpload,
@@ -105,5 +110,56 @@ describe("LocalStorageDriver", () => {
   it("weigert path traversal", async () => {
     const storage = getStorage();
     await expect(storage.get("../../etc/passwd")).rejects.toThrow();
+  });
+
+  it("ondersteunt geen presigning (geeft null → caller streamt)", async () => {
+    const storage = getStorage();
+    expect(await storage.getSignedDownloadUrl("2026/x.pdf")).toBeNull();
+  });
+});
+
+describe("resolveSignedUrlTtl", () => {
+  const original = process.env.STORAGE_S3_URL_TTL;
+  afterAll(() => {
+    if (original === undefined) delete process.env.STORAGE_S3_URL_TTL;
+    else process.env.STORAGE_S3_URL_TTL = original;
+  });
+
+  it("gebruikt de default zonder env/expliciete waarde", () => {
+    delete process.env.STORAGE_S3_URL_TTL;
+    expect(resolveSignedUrlTtl()).toBe(SIGNED_URL_TTL_DEFAULT);
+  });
+
+  it("leest een geldige env-waarde", () => {
+    process.env.STORAGE_S3_URL_TTL = "600";
+    expect(resolveSignedUrlTtl()).toBe(600);
+  });
+
+  it("valt bij een ongeldige env-waarde terug op de default", () => {
+    process.env.STORAGE_S3_URL_TTL = "niet-een-getal";
+    expect(resolveSignedUrlTtl()).toBe(SIGNED_URL_TTL_DEFAULT);
+  });
+
+  it("klemt op [min, max] en geeft voorrang aan de expliciete waarde", () => {
+    process.env.STORAGE_S3_URL_TTL = "600";
+    expect(resolveSignedUrlTtl(10)).toBe(SIGNED_URL_TTL_MIN);
+    expect(resolveSignedUrlTtl(99999)).toBe(SIGNED_URL_TTL_MAX);
+    expect(resolveSignedUrlTtl(120)).toBe(120);
+  });
+});
+
+describe("buildContentDisposition", () => {
+  it("geeft alleen het type zonder bestandsnaam", () => {
+    expect(buildContentDisposition({ type: "inline" })).toBe("inline");
+    expect(buildContentDisposition({ type: "attachment" })).toBe("attachment");
+  });
+
+  it("saneert de bestandsnaam tegen header-injectie/traversal", () => {
+    expect(buildContentDisposition({ type: "attachment", filename: "diploma.pdf" })).toBe(
+      'attachment; filename="diploma.pdf"',
+    );
+    const value = buildContentDisposition({ type: "inline", filename: '../e"vil\r\n.pdf' });
+    expect(value).not.toMatch(/[\r\n]/); // geen header-splitsing
+    expect(value).toBe('inline; filename=".._e_vil_.pdf"'); // ingesloten quote/CRLF/slash gesaneerd
   });
 });
