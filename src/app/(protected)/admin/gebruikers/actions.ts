@@ -78,6 +78,17 @@ export async function anonymizeUser(userId: string): Promise<void> {
     select: { storageKey: true },
   });
 
+  // De attributie van een dispuutreden zit niet op de Collaboration-rij maar in het
+  // DISPUTE_OPENED-domeinevent (actorId) — net zoals cancellationReason via cancelledById wordt
+  // gescopet. Verzamel de samenwerkingen waar déze betrokkene het dispuut opende, zodat we straks
+  // alleen zíjn eigen vrije tekst wissen en niet die van de tegenpartij.
+  const ownDisputeCollabIds = (
+    await prisma.domainEvent.findMany({
+      where: { type: "DISPUTE_OPENED", actorId: userId },
+      select: { subjectId: true },
+    })
+  ).map((e) => e.subjectId);
+
   const now = new Date();
   const meta = await requestMeta();
   await prisma.$transaction([
@@ -121,6 +132,13 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { requestedByUserId: userId },
       data: { reason: "[Verwijderd op verzoek van de gebruiker]" },
     }),
+    // Beschikbaarheidsnoten: vrije tekst die de ZZP'er zelf schreef en die een reden of (medische)
+    // details kan bevatten ("ziek", agenda-info). FreelancerProfile wordt geüpdatet (niet verwijderd),
+    // dus de onDelete:Cascade op AvailabilityWindow vuurt niet → expliciet wissen.
+    prisma.availabilityWindow.updateMany({
+      where: { freelancerProfile: { userId } },
+      data: { note: null },
+    }),
     // Indirecte-uren-notities (urencriterium): vrije tekst die de betrokkene zelf schreef en
     // namen/details kan bevatten. De urenadministratie blijft staan (fiscale grond), maar de noot wist.
     prisma.indirectHoursEntry.updateMany({
@@ -141,6 +159,14 @@ export async function anonymizeUser(userId: string): Promise<void> {
     prisma.collaboration.updateMany({
       where: { cancelledById: userId },
       data: { cancellationReason: null },
+    }),
+    // Eigen dispuutreden: vrije tekst die de betrokkene schreef bij het openen van een dispuut.
+    // resolveDispute wist 'm normaliter bij oplossing; staat een dispuut nog open op het moment van
+    // anonimisering, dan blijft die tekst anders herleidbaar achter. Gescopet op de eigen
+    // DISPUTE_OPENED-events (zie ownDisputeCollabIds) — nooit de reden van de tegenpartij.
+    prisma.collaboration.updateMany({
+      where: { id: { in: ownDisputeCollabIds }, disputeReason: { not: null } },
+      data: { disputeReason: null },
     }),
     // Push-abonnementen: het endpoint is een persistente toestel-/browser-identifier (en userAgent
     // aanvullende PII). Een `user.update` triggert geen cascade-delete → expliciet verwijderen.

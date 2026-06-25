@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security-/privacy-audit ronde 2026-06-25b — dossier-auditplicht + 2 AVG-erasure-gaten (2026-06-25)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle Opus-subagents (API-routes, tenant-isolatie, non-admin
+actions, AVG/anonimisering). Kader OWASP Top 10 + AVG art. 5/15/17/30. Drie bevindingen volledig gefixt
+(rood→groen); de rest geparkeerd in `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-06-25b).
+
+- [x] **MIDDEL · A09/AVG art. 30** — `GET /api/samenwerkingen/[id]/dossier` en `/dba-dossier` logden de
+      geweigerde inzage (403) niet, anders dan `/api/documents/[id]`. IDOR-enumeratie op collaboration-id's
+      was onzichtbaar in het auditspoor. Fix: `DOSSIER_ACCESS_DENIED`/`DBA_DOSSIER_ACCESS_DENIED`-audit
+      (IP/UA) op het 403-pad + IP/UA op de export-audits; NL-labels. Test: `dossier-routes-audit.test.ts`.
+- [x] **HOOG · AVG art. 17** — `anonymizeUser` wiste `AvailabilityWindow.note` niet (vrije tekst, kan
+      medische/persoonsdetails bevatten; geen cascade want profiel wordt geüpdatet). Fix: `note`→null in
+      de anonimiseringstransactie.
+- [x] **HOOG · AVG art. 17** — idem `Collaboration.disputeReason` bij een open dispuut; attributie via het
+      `DISPUTE_OPENED`-domeinevent (`actorId`), alleen de eigen reden gewist (nooit die van de tegenpartij).
+- Bestanden: `src/app/api/samenwerkingen/[id]/dossier/route.ts`, `…/dba-dossier/route.ts`,
+  `src/lib/audit-labels.ts`, `src/app/(protected)/admin/gebruikers/actions.ts`. Tests:
+  `dossier-routes-audit.test.ts` (nieuw, 4) + `anonymize-erasure.test.ts` (+2) + allowlist-entry in
+  `unbounded-queries.test.ts`. Gate: typecheck + lint + prettier + test (2772 groen) + build groen.
+
 ## Persona-sweep run 5 — betaal-webhook publiek gemaakt (2026-06-25)
 
 Kritische-gebruiker-sweep over alle vier rollen (ZZP'er/opdrachtgever/franchiser/admin). Eén defect

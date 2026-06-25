@@ -4,6 +4,99 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-06-25b (basis: `main` @ d1116a1)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle Opus security/privacy-subagents op niet-overlappende
+oppervlakken — (1) API route-handlers, (2) franchise-/admin-tenant-isolatie, (3) non-admin server
+actions, (4) AVG/anonimisering + dataminimalisatie. Kader: OWASP Top 10 (A01 broken access control,
+A04 insecure design, A05 misconfig, A07 auth, A09 logging) + AVG art. 5/15/17/30. Focus op de nieuwste
+features (#540 presigned S3-URLs, #541 reactie-pijplijn, #543 kandidaten-vergelijking, #545
+wachttijd-signaal, #546 publieke betaal-webhook). Drie bevindingen volledig gefixt (rood→groen); de
+rest geverifieerd en hieronder geparkeerd.
+
+**Expliciet geverifieerd schoon:** tenant-isolatie over ALLE franchise-/admin-actions en -pagina's
+(elke mutatie volgt auth→rol→`assertSameTenant`/`tenantScopeWhere`→Zod→actie→audit; geen cross-tenant
+lees-/schrijfpad voor een FRANCHISER; geen privilege-escalatie FRANCHISER→ADMIN). De presigned
+S3-download-URL (#540) wordt alléén voor logo's gebruikt (niet-gevoelig, `requireActor`+bekende
+`logoKey` vóór de redirect) — geen gevoelig document gaat via presigning langs de audit. De nieuwe
+pijplijn-/vergelijk-/wachttijd-modules zijn puur en deterministisch; de `/kandidaten/vergelijk`-pagina
+heeft een harde ownership-poort (`company: { userId: actor.id }`). De publieke betaal-webhook (#546)
+vertrouwt de body nooit en herhaalt de status autoritatief bij de provider.
+
+### OPGELOST in deze ronde
+
+- **[MIDDEL · A09 / AVG art. 30 — auditplicht geweigerde inzage]** `GET /api/samenwerkingen/[id]/dossier`
+  en `/dba-dossier` serveren een cross-party compliance-/DBA-dossier (PII: namen, KvK/BTW,
+  certificaatstatus) en logden wél de geslaagde export, maar NIET de geweigerde inzage — anders dan
+  `/api/documents/[id]` (`DOCUMENT_ACCESS_DENIED`). Daardoor was IDOR-enumeratie op collaboration-id's
+  onzichtbaar in het auditspoor. Repro: niet-partij doet `GET …/dossier` met een gegokt id → 403,
+  geen auditregel. Gefixt: `DOSSIER_ACCESS_DENIED` / `DBA_DOSSIER_ACCESS_DENIED`-audit (met IP/UA via
+  `requestMeta`) op het 403-pad + IP/UA op de bestaande export-audits; NL-labels in `audit-labels.ts`.
+  Geschonden: CLAUDE.md regel 5. Test: `src/app/api/dossier-routes-audit.test.ts` (4 cases,
+  geautoriseerd→export-audit; niet-partij→403 + denied-audit, geen serve; rood→groen).
+
+- **[HOOG · AVG art. 17 — recht op verwijdering onvolledig: AvailabilityWindow.note]** `anonymizeUser()`
+  (`admin/gebruikers/actions.ts`) updatet `FreelancerProfile` (niet verwijderen), dus de `onDelete:
+Cascade` op de kindtabel `AvailabilityWindow` vuurt niet → de vrije-tekst `note` (kan reden/medische
+  details bevatten, bv. "ziek") bleef na anonimisering herleidbaar staan. Gefixt:
+  `availabilityWindow.updateMany({ where: { freelancerProfile: { userId } }, data: { note: null } })`
+  in de anonimiseringstransactie. Test: nieuwe case in `anonymize-erasure.test.ts` (rood→groen).
+
+- **[HOOG · AVG art. 17 — recht op verwijdering onvolledig: Collaboration.disputeReason]** Dezelfde
+  anonimisering wiste `cancellationReason` (gescopet op `cancelledById`), maar niet `disputeReason` —
+  de vrije tekst die de betrokkene schreef bij het openen van een dispuut. `resolveDispute` wist 'm
+  normaliter, maar bij anonimisering vóór oplossing van een open dispuut bleef hij staan. De attributie
+  zit niet op de rij maar in het `DISPUTE_OPENED`-domeinevent (`actorId`); de fix verzamelt de eigen
+  DISPUTE_OPENED-events en wist `disputeReason` alléén op díe samenwerkingen (nooit de reden van de
+  tegenpartij). Test: nieuwe case in `anonymize-erasure.test.ts` (rood→groen). De append-only
+  `DomainEvent.payload` met dezelfde tekst blijft apart geparkeerd (mens/DPO-keuze, zie 2026-06-24b).
+
+### GEPARKEERD — privacy / AVG (ronde 2026-06-25b)
+
+- **[MIDDEL · AVG art. 15/20 — inzage/portabiliteit onvolledig]** `buildAccountExport`
+  (`src/lib/account-export.ts`) mist nog vier eigen-data-categorieën: ontvangen `Review` (waar
+  `subjectId == actor`, beoordelingen ÓVER de betrokkene; alleen PUBLISHED, zonder `authorId`), eigen
+  `ShiftHandoff.reason` (`requestedByUserId == actor`), `AvailabilityWindow.note` (eigen) en — bij open
+  dispuut — `Collaboration.disputeReason` (waar de actor het dispuut opende). Fix: vier extra `select`-
+  gescopete queries (geen derde-partij-PII).
+- **[LAAG · AVG art. 15/20 + art. 17]** `FavoriteFreelancer.note` (privé CLIENT-notitie over een ZZP'er)
+  ontbreekt in zowel de export als de anonimisering van een CLIENT-account (`Company` wordt geüpdatet,
+  niet verwijderd → geen cascade). Fix: export + `favoriteFreelancer.updateMany({ note: null })`.
+- **[MIDDEL · AVG art. 5 lid 1c — dataminimalisatie]** `ProfileScreen` (`profile-screen.tsx`) selecteert
+  `AvailabilityWindow.note` maar rendert die niet; onnodige verwerking van vrije-tekst-PII op het
+  public-facing pad `/zzp/[id]` (server component, gaat niet naar de browser). Fix: `note` uit de select
+  halen.
+
+### GEPARKEERD — security / hardening (ronde 2026-06-25b)
+
+- **[MIDDEL · A04 — onbegrensde vrije-tekst-invoer buiten Zod (terugkerend thema)]** Diverse mutatie-
+  grenzen lezen vrije tekst via `String(formData.get(...))` zonder Zod-`max()`: `rejectCredential.reason`
+  (`admin/verificaties/actions.ts:80`), `rejectPerformance`/`rejectInvoice`/`creditInvoice`/`openDispute`
+  `.reason` (`samenwerkingen/[id]/actions.ts`), en `parsePerformanceInput` `description`/`milestoneTitle`
+  (idem). Niet injecteerbaar (Prisma parametriseert, JSX escapet), maar onbegrensde payload belandt in
+  PII-tabellen, notificaties én audit-metadata (bloat). Past in het reeds geparkeerde
+  `saveApplicationNote`-patroon. Fix: per veld `z.string().trim().max(N)` aan de grens + defense-in-depth
+  in de cascade-handlers.
+- **[MIDDEL · A01 / A05 / AVG art. 5 lid 1c — over-fetch via `include` zonder top-level `select`]**
+  `administratie/openstaand/route.ts`, `admin/export/invoices/route.ts` en
+  `samenwerkingen/[id]/dossier/route.ts` doen `findMany/findUnique` met `include` zonder top-level
+  `select` → alle scalar-kolommen (o.a. `cancellationReason`, `disputeReason`, `cancelledById`) komen in
+  het geheugen, ook al projecteert de mapping ze weg. Niet in de respons gelekt, maar regressierisico.
+  Fix: top-level `select` met alleen de gebruikte velden.
+- **[MIDDEL · A04 — geen rate-limit op financiële exports]** `administratie/openstaand|export|btw`-routes
+  hebben geen per-gebruiker rate-limit (anders dan `/api/account/export` met `exportRateLimiter`). Fix:
+  `exportRateLimiter.check(`export:${actor.id}`)` + 429.
+- **[MIDDEL · A09 — audit niet-atomair bij statuswijziging]** `replyToTicket` (`support/actions.ts`)
+  wijzigt ticketstatus (REOPENED/ESCALATED) in losse `await`s, niet in één `$transaction` met de audit;
+  bovendien mist de audit `{ from, to }`. Spiegelt de opgeloste `adminResolve`-fix. Fix: mutatie + audit
+  in één transactie, status-delta in metadata.
+- **[LAAG · A09 / AVG art. 7 — misleidende audit bij upsert-no-op]** `startFiling`
+  (`ontzorgd/aangifte/actions.ts`) doet `upsert` met `update: {}`; bij een bestaand record (ook
+  INGEDIEND) verandert niets, maar er wordt tóch een `TAX_FILING_REQUESTED`-audit geschreven (suggereert
+  hernieuwde toestemming die niet is gegeven). Fix: alleen auditen bij echte create.
+- **[LAAG · A09]** `setBillingStatusAction` (`admin/facturatie/actions.ts:74`) mist `from` in de
+  audit-metadata (al genoemd 2026-06-24b; lijn bevestigd).
+
 ## Ronde 2026-06-25 (basis: `main` @ d81a0aa)
 
 Audit: orchestrator (statisch lezen + reparatie) + één parallelle security-subagent op de nieuwste

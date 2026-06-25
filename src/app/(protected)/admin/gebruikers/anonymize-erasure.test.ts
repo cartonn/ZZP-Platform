@@ -50,9 +50,11 @@ vi.mock("@/lib/db", () => ({
     ideaComment: { updateMany: op("ideaComment.updateMany") },
     review: { updateMany: op("review.updateMany") },
     shiftHandoff: { updateMany: op("shiftHandoff.updateMany") },
+    availabilityWindow: { updateMany: op("availabilityWindow.updateMany") },
     indirectHoursEntry: { updateMany: op("indirectHoursEntry.updateMany") },
     idea: { updateMany: op("idea.updateMany") },
     collaboration: { updateMany: op("collaboration.updateMany") },
+    domainEvent: { findMany: vi.fn(async () => [{ subjectId: "col-7" }]) },
     pushSubscription: { deleteMany: op("pushSubscription.deleteMany") },
     auditLog: { create: op("auditLog.create") },
     $transaction: vi.fn(async (ops: Array<{ model: string; args: unknown }>) => {
@@ -65,6 +67,7 @@ vi.mock("@/lib/db", () => ({
 import { anonymizeUser } from "./actions";
 
 const find = (model: string) => tx.ops.find((o) => o.model === model);
+const findAll = (model: string) => tx.ops.filter((o) => o.model === model);
 
 beforeEach(() => {
   tx.ops = [];
@@ -133,6 +136,27 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ cancelledById: "user-42" });
     expect((o.args.data as { cancellationReason: string | null }).cancellationReason).toBeNull();
+  });
+
+  it("wist de vrije-tekstnoot op beschikbaarheidsvensters (AvailabilityWindow.note)", async () => {
+    await anonymizeUser("user-42");
+    const o = find("availabilityWindow.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ freelancerProfile: { userId: "user-42" } });
+    expect((o.args.data as { note: string | null }).note).toBeNull();
+  });
+
+  it("wist de eigen dispuutreden, gescopet op de eigen DISPUTE_OPENED-events", async () => {
+    await anonymizeUser("user-42");
+    // Twee collaboration.updateMany's: cancellationReason (cancelledById) én disputeReason (id in ...).
+    const ops = findAll("collaboration.updateMany") as Array<{
+      args: { where: { id?: { in: string[] }; disputeReason?: unknown }; data: unknown };
+    }>;
+    const disputeOp = ops.find((o) => o.args.where.id !== undefined);
+    expect(disputeOp).toBeDefined();
+    // De ids komen uit de DISPUTE_OPENED-events van de betrokkene (mock geeft col-7).
+    expect(disputeOp!.args.where.id).toEqual({ in: ["col-7"] });
+    expect((disputeOp!.args.data as { disputeReason: string | null }).disputeReason).toBeNull();
   });
 
   it("verwijdert push-abonnementen (PushSubscription — toestel-identifier)", async () => {
