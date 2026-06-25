@@ -11,6 +11,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { OutcomesSummary } from "@/components/applications/outcomes-summary";
+import { WaitSignal } from "@/components/applications/wait-signal";
+import {
+  countApplicationsAwaitingAttention,
+  summarizeApplicationWait,
+} from "@/lib/application-wait";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { summarizeApplicationOutcomes } from "@/lib/application-outcomes";
@@ -130,6 +135,16 @@ export default async function ReactiesPage({
   const groupSummary = summarizeApplicationGroups(typed);
   const visible = filterApplications(typed, filter);
 
+  // Hoeveel eigen reacties liggen langer dan gebruikelijk onbeslist? Server-berekend uit de
+  // onveranderlijke createdAt + status (geen extra query); stuurt de strip boven de lijst.
+  const awaitingAttention = countApplicationsAwaitingAttention(
+    typed.map((app) => ({
+      status: app.status,
+      createdAt: app.createdAt,
+      hasCollaboration: app.collaboration != null,
+    })),
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -138,6 +153,14 @@ export default async function ReactiesPage({
       />
 
       <OutcomesSummary outcomes={outcomes} />
+
+      {awaitingAttention > 0 && (
+        <p className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">
+          {awaitingAttention === 1
+            ? t("1 reactie wacht al langer dan gebruikelijk — overweeg ook andere opdrachten.")
+            : `${awaitingAttention} ${t("reacties wachten al langer dan gebruikelijk — overweeg ook andere opdrachten.")}`}
+        </p>
+      )}
 
       {applications.length === 0 ? (
         <Card>
@@ -190,6 +213,12 @@ export default async function ReactiesPage({
                 // De ZZP'er kan zijn reactie intrekken zolang de opdrachtgever nog geen beslissing nam en
                 // er geen samenwerking uit voortkwam. Server-side blijft dit de waarheid (zie actions.ts).
                 const canWithdraw = !app.collaboration && canWithdrawApplication(app.status);
+                // Wachttijd-signaal: ligt deze reactie langer dan gebruikelijk onbeslist?
+                const wait = summarizeApplicationWait({
+                  status: app.status,
+                  createdAt: app.createdAt,
+                  hasCollaboration: app.collaboration != null,
+                });
                 return (
                   <div key={app.id} className="rounded-lg border border-border bg-card p-4">
                     <Link
@@ -248,6 +277,7 @@ export default async function ReactiesPage({
                       )}
                       <p className="mt-2 text-xs text-muted-foreground">{t(hint)}</p>
                     </Link>
+                    {wait && <WaitSignal wait={wait} t={t} />}
                     {canWithdraw && (
                       <div className="mt-3 flex justify-end border-t border-border pt-3">
                         <ConfirmButton
