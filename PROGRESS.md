@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Kandidaten-vergelijking per opdracht voor de opdrachtgever (2026-06-25)
+
+De opdrachtgever shortlist reacties, maar moest ze tot nu toe één voor één doorscrollen om te
+kiezen. Geen concurrent (Malt/Temper/Pidz) zet kandidaten leesbaar naast elkaar mét uitlegbare
+uitspringers. Nu kan de opdrachtgever per opdracht de actieve kandidaten side-by-side vergelijken.
+
+- [x] **Pure motor** (`src/lib/candidate-compare.ts`): `buildCandidateComparison(candidates)` zet de
+      set naast elkaar en wijst per dimensie (match / scherpste tarief / vertrouwen / compliance /
+      leverbetrouwbaarheid) de **uniek beste** aan via `pickUniqueBest`. Bij gelijkspel geen winnaar
+      (eerlijk, geen willekeurige uitlichting); <2 kandidaten → geen winnaars. Geen I/O, muteert de
+      invoer niet.
+- [x] **Vergelijkpagina** (`/kandidaten/vergelijk?job=<id>`, CLIENT-only): ownership-poort
+      (`job.company.userId === actor.id`, anders `notFound`), haalt de actieve reacties
+      (NEW/VIEWED/SHORTLIST/ACCEPTED, `take: 8`) en hergebruikt de bestaande motoren
+      (`computeTrustLevel`, `computeCompliance`, `getDeliveryQualityForProfiles`,
+      `summarizeAvailability`). Vergelijkingstabel met trofee-markering op de uitspringer per
+      onderdeel; loading/empty-states.
+- [x] **Entry-link** op `/kandidaten`: per opdracht met ≥2 actieve reacties een "vergelijken"-chip,
+      server-side afgeleid uit de reeds opgehaalde lijst (geen extra query).
+- Tests: `candidate-compare.test.ts` (11). Gate: typecheck + lint + test (2758 groen) + build +
+  prettier groen. Read-only, geen schemawijziging.
+
 ## Persona-sweep run 4 — geen gaten (2026-06-25)
 
 Kritische-gebruiker-sweep over alle vier rollen op `e457d25` (4 rollen parallel via Playwright/Chromium).

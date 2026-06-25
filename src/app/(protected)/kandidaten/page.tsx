@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Users, Check, TriangleAlert } from "lucide-react";
+import { Users, Check, TriangleAlert, GitCompare } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
@@ -155,6 +155,20 @@ export default async function KandidatenPage({
   const counts = countApplicationsByStatus(applications);
   const visible = filterApplicationsByStatus(applications, filterStatus);
 
+  // Vergelijk-instap: per opdracht met ≥2 actieve reacties (nog in de race) een link naar de
+  // side-by-side vergelijking. Afgewezen/ingetrokken reacties tellen niet mee. Geen extra query —
+  // afgeleid uit de reeds opgehaalde lijst.
+  const comparableByJob = new Map<string, { title: string; count: number }>();
+  for (const a of applications) {
+    if (a.status === "REJECTED" || a.status === "WITHDRAWN") continue;
+    const entry = comparableByJob.get(a.job.id) ?? { title: a.job.title, count: 0 };
+    entry.count += 1;
+    comparableByJob.set(a.job.id, entry);
+  }
+  const comparableJobs = [...comparableByJob.entries()]
+    .filter(([, v]) => v.count >= 2)
+    .map(([id, v]) => ({ id, title: v.title, count: v.count }));
+
   return (
     <div className="space-y-6 pb-24">
       <PageHeader
@@ -196,6 +210,29 @@ export default async function KandidatenPage({
               );
             })}
           </nav>
+
+          {comparableJobs.length > 0 && (
+            <Card>
+              <CardContent className="space-y-2 py-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("Kandidaten vergelijken")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {comparableJobs.map((j) => (
+                    <Link
+                      key={j.id}
+                      href={`/kandidaten/vergelijk?job=${j.id}`}
+                      className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-sm text-foreground hover:border-foreground/40"
+                    >
+                      <GitCompare className="size-3.5 text-muted-foreground" aria-hidden />
+                      <span className="max-w-[16rem] truncate">{j.title}</span>
+                      <span className="tabular-nums text-muted-foreground">({j.count})</span>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {!filterStatus && best && (
             <Card className="border-accent/40 bg-accent/5">

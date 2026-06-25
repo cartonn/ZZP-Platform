@@ -260,6 +260,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Kandidaten-vergelijking per opdracht (opdrachtgever)** — pure
+> `lib/candidate-compare.ts` `buildCandidateComparison`/`pickUniqueBest` (uniek-beste per dimensie:
+> match/scherpste tarief/vertrouwen/compliance/leverbetrouwbaarheid; gelijkspel → geen winnaar; <2 →
+> geen winnaars; 11 tests) + CLIENT-only `/kandidaten/vergelijk?job=<id>` (ownership-poort →
+> `notFound`, actieve reacties `take:8`, hergebruikt trust/compliance/delivery/availability-motoren,
+> tabel met trofee-uitlichting) + "vergelijken"-chip per opdracht met ≥2 actieve reacties op
+> `/kandidaten` (afgeleid, geen extra query). Read-only, geen schemawijziging. PR #543.
+>
 > Gedaan (niet opnieuw): **Reactie-pijplijn per opdracht voor de opdrachtgever op `/opdrachten`** —
 > pure `lib/job-pipeline.ts` `summarizeJobPipeline(statuses)` (`total`/`newCount`/`viewed`/`shortlist`/
 > `accepted`/`rejected`/`needsAttention`; WITHDRAWN telt niet mee, `needsAttention` bij NEW>0; 5 tests)
