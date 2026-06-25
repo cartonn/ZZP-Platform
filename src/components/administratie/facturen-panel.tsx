@@ -6,6 +6,9 @@ import { prisma } from "@/lib/db";
 import { formatEuro, invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
 import { invoiceDueStatus } from "@/lib/invoice-due";
+import { computePaymentBehavior, type PaymentBehavior } from "@/lib/payment-behavior";
+import { forecastInvoicePayout } from "@/lib/invoice-payment-forecast";
+import { formatDateShortNl } from "@/lib/format-date";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { Button } from "@/components/ui/button";
@@ -69,7 +72,7 @@ export async function FacturenPanel({
       collaboration: {
         select: {
           job: { select: { title: true } },
-          company: { select: { name: true } },
+          company: { select: { id: true, name: true } },
           freelancer: { select: { user: { select: { name: true } } } },
         },
       },
@@ -97,6 +100,32 @@ export async function FacturenPanel({
   // Tellingen over de volledige lijst (voor de pill-labels); gefilterde lijst voor de weergave.
   const groupCounts = summarizeInvoiceGroups(invoices);
   const filtered = filterInvoices(invoices, activeFilter);
+
+  // Verwachte-betaaldatum (alleen ZZP'er): per opdrachtgever het betaalgedrag uit de eigen
+  // betaalde facturen afleiden (privacy — nooit data van andere ZZP'ers), zodat we per openstaande
+  // factuur kunnen tonen wanneer betaling realistisch binnenkomt. Geen extra query: we hebben de
+  // hele factuurlijst al. paidAt = Invoice.updatedAt bij status PAID (zie payment-behavior.ts).
+  const behaviorByCompany = new Map<string, PaymentBehavior>();
+  if (isFreelancer) {
+    const rowsByCompany = new Map<
+      string,
+      { issuedAt: Date | null; dueAt: Date | null; paidAt: Date | null }[]
+    >();
+    for (const inv of invoices) {
+      const companyId = inv.collaboration?.company.id;
+      if (!companyId) continue;
+      const rows = rowsByCompany.get(companyId) ?? [];
+      rows.push({
+        issuedAt: inv.issuedAt,
+        dueAt: inv.dueAt,
+        paidAt: inv.status === "PAID" ? inv.updatedAt : null,
+      });
+      rowsByCompany.set(companyId, rows);
+    }
+    for (const [companyId, rows] of rowsByCompany) {
+      behaviorByCompany.set(companyId, computePaymentBehavior(rows));
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -193,11 +222,24 @@ export async function FacturenPanel({
                   : inv.number;
                 // Real-time vervaldatum-aftelling voor een openstaande factuur; alleen tonen wanneer ze
                 // aandacht vraagt (binnenkort verschuldigd of te laat), om de lijst rustig te houden.
-                const due = invoiceDueStatus({
-                  dueAt: inv.dueAt,
-                  outstanding: isInvoiceOutstanding(inv),
-                });
+                const outstanding = isInvoiceOutstanding(inv);
+                const due = invoiceDueStatus({ dueAt: inv.dueAt, outstanding });
                 const showDue = due != null && due.variant !== "muted";
+                // Verwachte betaaldatum: alleen voor de ZZP'er, alleen op een betrouwbare
+                // historie-projectie (anders dupliceert het slechts de vervaldatum-chip).
+                const companyId = inv.collaboration?.company.id;
+                const behavior =
+                  isFreelancer && companyId ? behaviorByCompany.get(companyId) : null;
+                const forecast =
+                  isFreelancer && outstanding && behavior
+                    ? forecastInvoicePayout({
+                        issuedAt: inv.issuedAt,
+                        dueAt: inv.dueAt,
+                        avgDaysToPay: behavior.avgDaysToPay,
+                        sampleSize: behavior.sampleSize,
+                      })
+                    : null;
+                const showForecast = forecast != null && forecast.confident;
                 return (
                   <Link
                     key={inv.id}
@@ -224,6 +266,14 @@ export async function FacturenPanel({
                         {inv.collaboration?.job.title ? ` · ${inv.collaboration.job.title}` : ""}
                         {cascade ? ` · ${t("via werkproces")}` : ""}
                       </p>
+                      {showForecast && (
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {t("Verwacht rond")} {formatDateShortNl(forecast.expectedAt)}
+                          {forecast.daysAfterDue != null && forecast.daysAfterDue > 0
+                            ? ` · ${t("doorgaans")} ${forecast.daysAfterDue} ${forecast.daysAfterDue === 1 ? t("dag na de vervaldag") : t("dagen na de vervaldag")}`
+                            : ` · ${t("op basis van eerdere betalingen")}`}
+                        </p>
+                      )}
                     </div>
                     <span className="shrink-0 text-right">
                       <span className="block text-sm font-semibold tabular-nums">

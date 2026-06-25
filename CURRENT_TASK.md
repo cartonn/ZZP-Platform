@@ -260,6 +260,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Verwachte-betaaldatum per openstaande ZZP-factuur** — pure
+> `lib/invoice-payment-forecast.ts` `forecastInvoicePayout({ issuedAt, dueAt, avgDaysToPay,
+sampleSize })`: genoeg betaalhistorie van deze opdrachtgever (≥3 betaalde facturen) → `issuedAt +
+avgDaysToPay` (basis `history`/`confident`), anders terugval op de vervaldatum. Beantwoordt de #1
+> cashflow-vraag "wanneer krijg ik mijn geld?" — refinement bovenop `invoice-due` (contractuele
+> deadline). In `facturen-panel.tsx` alleen voor de ZZP'er, betaalgedrag per opdrachtgever uit de
+> **eigen** betaalde facturen via `computePaymentBehavior` (privacy, geen extra query); rustige
+> muted-regel alleen bij betrouwbare historie. 7 unit-tests; read-only, geen schemawijziging. PR #537.
 > Gedaan (niet opnieuw): **Kans-/concurrentiesignaal voor de ZZP'er op /opdrachten/[id]** — pure
 > `lib/job-competition.ts` `summarizeJobCompetition({ applicantCount, myScore })` (+ helpers
 > `competitionLevel`/`chanceLevel`): concurrentieniveau (low/moderate/high op 3/8 reacties) × kansniveau
