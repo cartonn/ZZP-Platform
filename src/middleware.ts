@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
 import { buildCsp, generateNonce } from "@/lib/csp";
-import { isAdminPath, isFranchisePath, roleForPath } from "@/lib/route-guards";
+import { isAdminPath, isFranchisePath, isPublicPath, roleForPath } from "@/lib/route-guards";
 
 const { auth } = NextAuth(authConfig);
 
@@ -38,22 +38,6 @@ function getPublicOrigin(request: Request, fallbackOrigin: string) {
   const protocol =
     request.headers.get("x-forwarded-proto") ?? new URL(fallbackOrigin).protocol.replace(":", "");
   return `${protocol}://${host}`;
-}
-
-function isPublicPath(pathname: string) {
-  return (
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/wachtwoord-vergeten" ||
-    pathname.startsWith("/wachtwoord-herstellen/") ||
-    pathname === "/api/health" ||
-    pathname.startsWith("/zzp/") ||
-    pathname.startsWith("/vertrouwen/") || // publiek vertrouwensdossier (token-beveiligd, geen sessie)
-    pathname === "/ontwerp" ||
-    pathname.startsWith("/ontwerp/") || // publiek, inlogvrij design-lab (alleen fictieve mock-data)
-    pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/tasks/") // eigen token-guard (CRON_SECRET), geen sessie
-  );
 }
 
 export default auth((request) => {

@@ -26,6 +26,9 @@ export interface AccountExportPayload {
   supportMessages: unknown;
   ideaComments: unknown;
   indirectHours: unknown;
+  ideas: unknown;
+  cancelledCollaborations: unknown;
+  pushSubscriptions: unknown;
 }
 
 const EXPORT_NOTICE =
@@ -52,6 +55,9 @@ export async function buildAccountExport(
     supportMessages,
     ideaComments,
     indirectHours,
+    ideas,
+    cancelledCollaborations,
+    pushSubscriptions,
   ] = await Promise.all([
     db.user.findUnique({
       where: { id: actorId },
@@ -83,7 +89,20 @@ export async function buildAccountExport(
         },
       },
     }),
-    db.company.findUnique({ where: { userId: actorId } }),
+    // Eigen bedrijfsprofiel. Smalle select: interne velden (tenantId, logoKey, userId) blijven eruit —
+    // dat is geen persoonsgegeven van de betrokkene maar interne tenant-/storage-administratie.
+    db.company.findUnique({
+      where: { userId: actorId },
+      select: {
+        name: true,
+        industryId: true,
+        description: true,
+        website: true,
+        location: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
     db.application.findMany({
       where: { freelancer: { userId: actorId } },
       select: {
@@ -175,6 +194,33 @@ export async function buildAccountExport(
       where: { userId: actorId },
       select: { workedOn: true, hours: true, category: true, note: true, createdAt: true },
     }),
+    // Eigen ideeën (vrije tekst van de actor). declineReason is door het platform geschreven maar gaat
+    // rechtstreeks over het eigen idee van de actor — hoort bij de inzage.
+    db.idea.findMany({
+      where: { authorId: actorId },
+      select: {
+        title: true,
+        description: true,
+        status: true,
+        audience: true,
+        theme: true,
+        declineReason: true,
+        createdAt: true,
+      },
+    }),
+    // Annuleerredenen die de actor zelf schreef (vrije tekst). Scoping op cancelledById == actor zodat
+    // de reden van de tegenpartij niet meelekt; companyId/freelancerId blijven eruit (identiteit derde).
+    db.collaboration.findMany({
+      where: { cancelledById: actorId },
+      select: { cancellationReason: true, cancelledAt: true, createdAt: true },
+    }),
+    // Eigen push-abonnementen. endpoint is een persistente toestel-/browser-identifier van de actor —
+    // een persoonsgegeven dat onder de inzage valt. De cryptografische sleutels (p256dh/auth) blijven
+    // eruit: dat zijn secrets, geen voor de betrokkene betekenisvolle persoonsgegevens.
+    db.pushSubscription.findMany({
+      where: { userId: actorId },
+      select: { endpoint: true, userAgent: true, createdAt: true },
+    }),
   ]);
 
   return {
@@ -194,5 +240,8 @@ export async function buildAccountExport(
     supportMessages,
     ideaComments,
     indirectHours,
+    ideas,
+    cancelledCollaborations,
+    pushSubscriptions,
   };
 }

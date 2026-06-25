@@ -4,6 +4,70 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-06-25 (basis: `main` @ d81a0aa)
+
+Audit: orchestrator (statisch lezen + reparatie) + één parallelle security-subagent op de nieuwste
+commits (#532 observability, #533 IDOR/AVG-fix, #534/#536/#537 signal-/forecast-features). Kader: OWASP
+Top 10 (A01 broken access control, A05 misconfig, A09 logging) + AVG art. 5/15/17/30. Drie bevindingen
+volledig gefixt (rood→groen); de rest geverifieerd en hieronder geparkeerd. De nieuwe
+signal-/forecast-features (#534/#536/#537) zijn expliciet geverifieerd schoon: alle aggregaten zijn
+gescopet op de eigen data van de actor of op `job.tenantId`, geen per-individu PII onder de
+k-anonimiteitsdrempel, geen cross-tenant/cross-party-lek.
+
+### OPGELOST in deze ronde
+
+- **[HOOG · AVG art. 15/20 — inzage/portabiliteit onvolledig]** `buildAccountExport`
+  (`src/lib/account-export.ts`) miste drie eigen-data-categorieën: eigen `Idea`
+  (title/description/declineReason), eigen annuleerredenen (`Collaboration.cancellationReason` waar
+  `cancelledById == actor`) en `PushSubscription` (endpoint = persistente toestel-/browser-identifier).
+  Repro: `GET /api/account/export` → betrokkene kreeg een onvolledige inzage (art. 15-tekortkoming).
+  Gefixt: drie extra `findMany`'s met strikte `select` (annuleerreden gescopet op `cancelledById`, geen
+  `companyId/freelancerId`; push zonder cryptografische secrets `p256dh/auth`). Geschonden: CLAUDE.md
+  regel 1 (server-side waarheid), AVG art. 15/20. Test: `src/lib/account-export.test.ts` (2 nieuwe
+  cases, rood→groen).
+
+- **[MIDDEL · AVG art. 5 lid 1c — dataminimalisatie]** Diezelfde export deed
+  `db.company.findUnique({ where })` **zonder `select`** → interne velden (`tenantId`, `logoKey`,
+  `userId`) lekten mee in de inzage-JSON. Gefixt: expliciete `select` (alleen
+  name/industryId/description/website/location/timestamps). Test: nieuwe case in
+  `account-export.test.ts` assert dat `tenantId`/`logoKey` afwezig zijn in de select (rood→groen).
+
+- **[MIDDEL · A09 / AVG art. 30 — auditplicht]** `GET /api/admin/facturatie/[id]/pdf` serveerde een
+  platformfactuur-PDF (financiële PII: bedrijfsnaam, bedragen) **zonder auditregel**, anders dan
+  `/api/facturen/[id]/pdf` e.a. Geschonden: CLAUDE.md regel 5 ("audit alles wat telt — documenttoegang").
+  Gefixt: `PLATFORM_BILLING_PDF_ACCESSED`-audit (met IP/UA via `requestMeta`) ná de admin-rolcheck +
+  NL-label in `audit-labels.ts`. Test: `src/app/api/admin/facturatie/[id]/pdf/route.test.ts`
+  (geautoriseerd → audit; niet-admin → 403 + geen serve/audit; rood→groen).
+
+- **[HOOG · A05 — security-/availability-misconfig]** `/api/readiness` stond niet in de inlogvrije
+  allowlist (`isPublicPath`), terwijl de middleware-matcher het pad wél raakt → een
+  Railway/monitoring-readinessprobe werd naar `/login` geredirect (302) i.p.v. 200/503 JSON, en
+  rapporteerde permanent falen (kans op onnodige restarts/geblokkeerde deploys). Repro: anonieme
+  `GET /api/readiness` → 302 naar `/login`. Gefixt: `isPublicPath` verplaatst naar het pure, geteste
+  `src/lib/route-guards.ts` en `/api/readiness` toegevoegd (lekt alleen booleans + 7-tekens commit-SHA,
+  net als `/api/health`). Test: `src/lib/route-guards.test.ts` (health+readiness publiek; beschermde
+  routes niet; rood→groen).
+
+### GEPARKEERD — security / privacy (ronde 2026-06-25)
+
+- **[MIDDEL · AVG art. 5 lid 1f — PII-lek via Sentry]** `SentryErrorReporter.capture()`
+  (`src/lib/observability/report.ts`) geeft het rauwe `Error`-object door aan `sentry.captureException`
+  **buiten** de logger-`redact()`/`maskEmails()`-pijplijn. Latent: `@sentry/nextjs` is nog niet
+  geïnstalleerd (fallback = `ConsoleErrorReporter` via de gemaskeerde logger), maar het lekt zodra het
+  pakket + `SENTRY_DSN` live gaan (bv. een Prisma-/Zod-fout met e-mail in `.message`). Fix: vóór
+  `captureException` `describeError()` draaien en alleen `{ name, message: maskEmail(...), stack:
+maskEmail(...) }` als `extra` doorgeven. **MENSENWERK: fix vóór Sentry in productie wordt ingeschakeld.**
+- **[MIDDEL · AVG art. 5 lid 1f — PII/fout in serverlogs zonder logger]** Vier call-sites loggen via rauwe
+  `console.error` i.p.v. de nieuwe gestructureerde logger (geen `redact()`/email-masking):
+  `admin/gebruikers/actions.ts:168` (storage-opruimfout, rauw `err`), `documenten/actions.ts:99`,
+  `certificaten/actions.ts:73` en — het ergst — `admin/import/actions.ts:298` (logt `row.email`
+  rechtstreeks). Fix: vervang door `logger.error(..., { error: describeError(err) })`; voor import het
+  e-mailadres weglaten (gebruik `user.id`).
+- **[LAAG · logger over-redactie]** `REDACT_KEY_SUBSTRINGS` bevat de brede substring `"auth"`
+  (`src/lib/observability/logger.ts:27`) → maskeert ook `authorId`/`author` in debug-logs, wat
+  audit-correlatie kan vertroebelen. Geen security-gat (over-redactie). Fix: vervang door specifiekere
+  sleutels (`authorization` blijft).
+
 ## Ronde 2026-06-24b (basis: `main` @ 5229656)
 
 Audit: 4 parallelle security/privacy-subagents (API route-handlers, franchise-/admin-tenant-isolatie,
@@ -43,9 +107,9 @@ en hieronder geparkeerd met repro + severity.
   vrije-tekst `reason` in de append-only event-store (`dispute-commands.ts`); structureel niet te
   wissen bij anonimisering. **Mens/DPO-keuze vereist**: payloads pseudonimiseren óf de event-store
   expliciet classificeren onder art. 17 lid 3 (archief/rechtsvordering). MENSENWERK.
-- **[HOOG · AVG art. 15/20 — export onvolledig]** `buildAccountExport` (`src/lib/account-export.ts`)
-  mist de eigen `Idea` (title/description), `Collaboration.cancellationReason` (eigen) en
-  `PushSubscription`. Fix: toevoegen met strikte `select`.
+- **[HOOG · AVG art. 15/20 — export onvolledig] — OPGELOST (ronde 2026-06-25)** `buildAccountExport`
+  (`src/lib/account-export.ts`) miste de eigen `Idea` (title/description), `Collaboration.cancellationReason`
+  (eigen) en `PushSubscription`. Toegevoegd met strikte `select` (zie ronde 2026-06-25 boven).
 - **[MIDDEL · AVG art. 30]** `PushSubscription`, `IndirectHoursEntry` (urencriterium, 7 jr fiscaal) en
   `HealthIncident` (bevat klartekst-IP in `summary`, `monitoring/detectors.ts`) ontbreken in
   `processing-register.ts`. Fix: register-entries + bewaartermijn/opruimtaak.
@@ -56,14 +120,14 @@ en hieronder geparkeerd met repro + severity.
   `storageKey` (`admin/gebruikers/actions.ts`, `documenten/actions.ts`, `certificaten/actions.ts`)
   naar `console.error` zonder `NODE_ENV`-guard. Fix: in productie de key maskeren of naar een
   beveiligde audittabel schrijven i.p.v. de console.
-- **[MIDDEL · AVG art. 15/20]** `db.company.findUnique` in de export heeft geen `select` → interne
-  velden (`tenantId`, `logoKey`) lekken mee. Fix: expliciete `select`.
+- **[MIDDEL · AVG art. 15/20] — OPGELOST (ronde 2026-06-25)** `db.company.findUnique` in de export had
+  geen `select` → interne velden (`tenantId`, `logoKey`) lekten mee. Gefixt met expliciete `select`.
 
 ### GEPARKEERD — security / hardening (ronde 2026-06-24b)
 
-- **[MIDDEL · A09 — audit-volledigheid]** `/api/admin/facturatie/[id]/pdf` serveert een
-  platform-factuur-PDF (financiële PII) zonder auditregel, terwijl de andere PDF-routes dat wél doen.
-  Fix: `actor = requireRole("ADMIN")` opvangen + `PLATFORM_BILLING_PDF_ACCESSED`-audit.
+- **[MIDDEL · A09 — audit-volledigheid] — OPGELOST (ronde 2026-06-25)** `/api/admin/facturatie/[id]/pdf`
+  serveerde een platform-factuur-PDF (financiële PII) zonder auditregel. Gefixt met
+  `PLATFORM_BILLING_PDF_ACCESSED`-audit (zie ronde 2026-06-25 boven).
 - **[MIDDEL · CLAUDE.md regel 2 — Zod-grens]** `saveApplicationNote` (`kandidaten/actions.ts`) schrijft
   het `note`-veld via `String().slice(2000)` i.p.v. een Zod-schema. Niet injecteerbaar (Prisma
   parametriseert), maar buiten de gevalideerde grens. Fix: `z.string().trim().max(2000)`.

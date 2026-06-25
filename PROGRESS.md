@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security-/privacy-audit: AVG-inzage compleet + auditplicht + readiness-probe (2026-06-25)
+
+Auditronde (orchestrator + 1 parallelle security-subagent) over de nieuwste commits (#532–#537) met
+OWASP Top 10 + AVG art. 5/15/17/30 als kader. Vier bevindingen volledig gefixt (rood→groen), de rest
+geparkeerd in `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-06-25). De nieuwe signal-/forecast-features
+(#534/#536/#537) zijn geverifieerd schoon (alle aggregaten gescopet op eigen data / `job.tenantId`).
+
+- [x] **AVG art. 15/20 — inzage compleet** (`src/lib/account-export.ts`): eigen `Idea`, eigen
+      `Collaboration.cancellationReason` (`cancelledById == actor`) en `PushSubscription` (zonder
+      crypto-secrets) toegevoegd met strikte `select`. Tegelijk `company`-over-fetch gedicht
+      (`tenantId`/`logoKey` lekten) via expliciete `select`. Test: `account-export.test.ts` (+3).
+- [x] **A09 / AVG art. 30 — auditplicht** (`src/app/api/admin/facturatie/[id]/pdf/route.ts`):
+      `PLATFORM_BILLING_PDF_ACCESSED`-audit op de platformfactuur-PDF (financiële PII), spiegelt de
+      overige PDF-routes. Nieuw NL-label in `audit-labels.ts`. Test: nieuwe `route.test.ts` (+2).
+- [x] **A05 — readiness-probe inlogvrij** (`src/lib/route-guards.ts` + `src/middleware.ts`):
+      `/api/readiness` werd door de middleware naar `/login` geredirect; `isPublicPath` verplaatst naar
+      het pure, geteste route-guards-module + readiness toegevoegd. Test: `route-guards.test.ts` (+2).
+- Geparkeerd (MENSENWERK/volgende run): Sentry geeft rauw `Error` door (PII-lek zodra Sentry live),
+  vier `console.error`-call-sites buiten de logger (o.a. `import/actions.ts` logt `row.email`).
+- Gates: typecheck + lint + test (2731 groen) + build + `prettier --check .` groen. CI-poort verifiëren.
+
 ## Ontwerp-lab: verse set van 10 concepten — run 25-6-2026 (2026-06-25)
 
 `/ontwerp` (publiek, inlogvrij, noindex) toont opnieuw 10 onderscheidende, top-1% redesign-concepten

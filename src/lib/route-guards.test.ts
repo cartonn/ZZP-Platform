@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { isAdminPath, roleForPath } from "@/lib/route-guards";
+import { isAdminPath, isPublicPath, roleForPath } from "@/lib/route-guards";
+
+describe("isPublicPath", () => {
+  it("staat de health- en readinessprobes inlogvrij toe (anders redirect de probe naar /login)", () => {
+    expect(isPublicPath("/api/health")).toBe(true);
+    expect(isPublicPath("/api/readiness")).toBe(true);
+  });
+
+  it("houdt beschermde routes achter de inlogmuur", () => {
+    for (const p of ["/dashboard", "/admin/gebruikers", "/api/account/export", "/samenwerkingen"]) {
+      expect(isPublicPath(p)).toBe(false);
+    }
+  });
+});
 
 describe("isAdminPath", () => {
   it("matcht het admin-paneel", () => {
