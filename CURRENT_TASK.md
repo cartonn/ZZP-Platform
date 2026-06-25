@@ -260,55 +260,63 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
-> Gedaan (niet opnieuw): **Presigned S3 download-URLs in de storage-abstractie** (prod-rijpheid) —
-> `StorageDriver.getSignedDownloadUrl(key, opts)`: S3-driver levert kortlevende presigned GET-URLs
-> via `@aws-sdk/s3-request-presigner` (lazy import, `ResponseContentType`/`-Disposition`-overrides),
-> lokale driver geeft `null` → caller streamt (pilot ongewijzigd). Pure helpers `resolveSignedUrlTtl`
-> (geklemd [30,3600], default 300, env `STORAGE_S3_URL_TTL`) + `buildContentDisposition`. Gewired in
-> de niet-gevoelige logo-route (`/api/media/[...key]`, 302-redirect bij S3). De gevoelige
-> `/api/documents/[id]` blijft bewust server-streamen + sandbox-CSP (audit: document-privacy niet
-> aanraken buiten tests) — presigned daar is een seam na security-review. 22 tests (storage +
-> media-route); geen schemawijziging. PR #540.
-> Gedaan (niet opnieuw): **Verwachte-betaaldatum per openstaande ZZP-factuur** — pure
-> `lib/invoice-payment-forecast.ts` `forecastInvoicePayout({ issuedAt, dueAt, avgDaysToPay,
+> Gedaan (niet opnieuw): **Reactie-pijplijn per opdracht voor de opdrachtgever op `/opdrachten`** —
+> pure `lib/job-pipeline.ts` `summarizeJobPipeline(statuses)` (`total`/`newCount`/`viewed`/`shortlist`/
+> `accepted`/`rejected`/`needsAttention`; WITHDRAWN telt niet mee, `needsAttention` bij NEW>0; 5 tests)
+>
+> - `JobPipelineStrip` op de opdrachtgever-kaart die nieuwe (nog niet bekeken) reacties uitlicht
+>   ("N nieuw"-chip) i.p.v. de kale `_count`-regel. Beantwoordt "welke opdracht vraagt nu actie?" op het
+>   overzicht. Per-status telling via één `application.groupBy({ by:["jobId","status"] })` gescopet op
+>   `company.userId` (geen N+1); read-only, geen schemawijziging. PR #541.
+>   Gedaan (niet opnieuw): **Presigned S3 download-URLs in de storage-abstractie** (prod-rijpheid) —
+>   `StorageDriver.getSignedDownloadUrl(key, opts)`: S3-driver levert kortlevende presigned GET-URLs
+>   via `@aws-sdk/s3-request-presigner` (lazy import, `ResponseContentType`/`-Disposition`-overrides),
+>   lokale driver geeft `null` → caller streamt (pilot ongewijzigd). Pure helpers `resolveSignedUrlTtl`
+>   (geklemd [30,3600], default 300, env `STORAGE_S3_URL_TTL`) + `buildContentDisposition`. Gewired in
+>   de niet-gevoelige logo-route (`/api/media/[...key]`, 302-redirect bij S3). De gevoelige
+>   `/api/documents/[id]` blijft bewust server-streamen + sandbox-CSP (audit: document-privacy niet
+>   aanraken buiten tests) — presigned daar is een seam na security-review. 22 tests (storage +
+>   media-route); geen schemawijziging. PR #540.
+>   Gedaan (niet opnieuw): **Verwachte-betaaldatum per openstaande ZZP-factuur** — pure
+>   `lib/invoice-payment-forecast.ts` `forecastInvoicePayout({ issuedAt, dueAt, avgDaysToPay,
 sampleSize })`: genoeg betaalhistorie van deze opdrachtgever (≥3 betaalde facturen) → `issuedAt +
 avgDaysToPay` (basis `history`/`confident`), anders terugval op de vervaldatum. Beantwoordt de #1
-> cashflow-vraag "wanneer krijg ik mijn geld?" — refinement bovenop `invoice-due` (contractuele
-> deadline). In `facturen-panel.tsx` alleen voor de ZZP'er, betaalgedrag per opdrachtgever uit de
-> **eigen** betaalde facturen via `computePaymentBehavior` (privacy, geen extra query); rustige
-> muted-regel alleen bij betrouwbare historie. 7 unit-tests; read-only, geen schemawijziging. PR #537.
-> Gedaan (niet opnieuw): **Kans-/concurrentiesignaal voor de ZZP'er op /opdrachten/[id]** — pure
-> `lib/job-competition.ts` `summarizeJobCompetition({ applicantCount, myScore })` (+ helpers
-> `competitionLevel`/`chanceLevel`): concurrentieniveau (low/moderate/high op 3/8 reacties) × kansniveau
-> uit de eigen matchscore (strong/fair/longshot op 70/50) → kop, sturingstip en `urgent`-vlag; nul-reacties
-> = "Wees de eerste"-nudge. `JobCompetitionCard` op de "Jouw aansluiting"-sectie (niet-eigenaar FREELANCER,
-> PUBLISHED, nog niet gereageerd); server-side telling via begrensde `application.count` (WITHDRAWN telt
-> niet mee), toont nooit gegevens van andere kandidaten. Spiegelbeeld van het bereiksignaal (`job-reach`),
-> vertaalt de "binnen uren"-liquiditeit van Temper/Pidz/Zorgwerk naar onze verklaarbare matching. 15
-> unit-tests; read-only, geen schemawijziging. PR #536.
-> Gedaan (niet opnieuw): **Bereik-signaal voor de opdrachtgever op /opdrachten/[id]** — pure
-> `lib/job-reach.ts` `summarizeJobReach` (buckets total≥50 / strong≥70 / available / strongAvailable
-> → niveau good/moderate/low + sturingstip; 10 tests) + server-fetcher `lib/data/job-reach.ts`
-> `getJobReach` (begrensde tenant-gescopete scan via `discoverableFreelancerWhere`, sluit reeds-
-> reagerenden/WITHDRAWN uit, scoort met `scoreJobForFreelancer`) + `JobReachCard` (eigenaar, PUBLISHED).
-> Hoeveel passende, vindbare ZZP'ers bereikt deze opdracht en hoeveel zijn nu beschikbaar — vertaalt de
-> "auto-uitnodiging binnen uren"-liquiditeit van Pidz/Zorgwerk naar onze verklaarbare matching. Geen
-> schemawijziging, server-side waarheid. PR #534.
-> Gedaan (niet opnieuw): **Tariefpassendheid-signaal op /kandidaten** — `lib/rate-fit.ts`
-> `classifyProposedRateFit(proposedRate, rateMin, rateMax)` (puur: within/below/above/unknown, grenzen
-> inclusief, plafond vóór bodem, één grens volstaat) + budgetpassendheid-badge naast het tariefvoorstel
-> op de kandidatenkaart (Binnen/Onder/Boven budget). Vult het gat dat de matchreden het profiel-
-> `hourlyRate` gebruikt i.p.v. de `proposedRate` van de reactie. Read-only, geen schemawijziging, geen
-> extra query; 9 unit-tests. PR #516.
-> Gedaan (niet opnieuw): **FRANCHISER nav-signalen (overdue leads + open shift-overnames)** —
-> `signals.ts` FRANCHISER-tak (was `return {}`): tenant-gescopete attention-badges `overdueLeads`
-> → `/franchise/leads` (actieve leads KOUD/WARM met `nextFollowUp` < vandaag, UTC-dag) en
-> `openHandoffs` → `/franchise/shift-overnames` (OPEN `ShiftHandoff` via `collaboration.job.tenantId`);
-> pure `startOfUtcDay`; +6 tests; geen schemawijziging, twee begrensde counts.
-> Gedaan (niet opnieuw): **Statusfilter op het opdrachtgever-overzicht `/opdrachten`** — pure
-> `lib/job-status-filter.ts` (`parseJobStatusFilter`/`filterJobsByStatus`/`summarizeJobStatusGroups`)
+>   cashflow-vraag "wanneer krijg ik mijn geld?" — refinement bovenop `invoice-due` (contractuele
+>   deadline). In `facturen-panel.tsx` alleen voor de ZZP'er, betaalgedrag per opdrachtgever uit de
+>   **eigen** betaalde facturen via `computePaymentBehavior` (privacy, geen extra query); rustige
+>   muted-regel alleen bij betrouwbare historie. 7 unit-tests; read-only, geen schemawijziging. PR #537.
+>   Gedaan (niet opnieuw): **Kans-/concurrentiesignaal voor de ZZP'er op /opdrachten/[id]** — pure
+>   `lib/job-competition.ts` `summarizeJobCompetition({ applicantCount, myScore })` (+ helpers
+>   `competitionLevel`/`chanceLevel`): concurrentieniveau (low/moderate/high op 3/8 reacties) × kansniveau
+>   uit de eigen matchscore (strong/fair/longshot op 70/50) → kop, sturingstip en `urgent`-vlag; nul-reacties
+>   = "Wees de eerste"-nudge. `JobCompetitionCard` op de "Jouw aansluiting"-sectie (niet-eigenaar FREELANCER,
+>   PUBLISHED, nog niet gereageerd); server-side telling via begrensde `application.count` (WITHDRAWN telt
+>   niet mee), toont nooit gegevens van andere kandidaten. Spiegelbeeld van het bereiksignaal (`job-reach`),
+>   vertaalt de "binnen uren"-liquiditeit van Temper/Pidz/Zorgwerk naar onze verklaarbare matching. 15
+>   unit-tests; read-only, geen schemawijziging. PR #536.
+>   Gedaan (niet opnieuw): **Bereik-signaal voor de opdrachtgever op /opdrachten/[id]** — pure
+>   `lib/job-reach.ts` `summarizeJobReach` (buckets total≥50 / strong≥70 / available / strongAvailable
+>   → niveau good/moderate/low + sturingstip; 10 tests) + server-fetcher `lib/data/job-reach.ts`
+>   `getJobReach` (begrensde tenant-gescopete scan via `discoverableFreelancerWhere`, sluit reeds-
+>   reagerenden/WITHDRAWN uit, scoort met `scoreJobForFreelancer`) + `JobReachCard` (eigenaar, PUBLISHED).
+>   Hoeveel passende, vindbare ZZP'ers bereikt deze opdracht en hoeveel zijn nu beschikbaar — vertaalt de
+>   "auto-uitnodiging binnen uren"-liquiditeit van Pidz/Zorgwerk naar onze verklaarbare matching. Geen
+>   schemawijziging, server-side waarheid. PR #534.
+>   Gedaan (niet opnieuw): **Tariefpassendheid-signaal op /kandidaten** — `lib/rate-fit.ts`
+>   `classifyProposedRateFit(proposedRate, rateMin, rateMax)` (puur: within/below/above/unknown, grenzen
+>   inclusief, plafond vóór bodem, één grens volstaat) + budgetpassendheid-badge naast het tariefvoorstel
+>   op de kandidatenkaart (Binnen/Onder/Boven budget). Vult het gat dat de matchreden het profiel-
+>   `hourlyRate` gebruikt i.p.v. de `proposedRate` van de reactie. Read-only, geen schemawijziging, geen
+>   extra query; 9 unit-tests. PR #516.
+>   Gedaan (niet opnieuw): **FRANCHISER nav-signalen (overdue leads + open shift-overnames)** —
+>   `signals.ts` FRANCHISER-tak (was `return {}`): tenant-gescopete attention-badges `overdueLeads`
+>   → `/franchise/leads` (actieve leads KOUD/WARM met `nextFollowUp` < vandaag, UTC-dag) en
+>   `openHandoffs` → `/franchise/shift-overnames` (OPEN `ShiftHandoff` via `collaboration.job.tenantId`);
+>   pure `startOfUtcDay`; +6 tests; geen schemawijziging, twee begrensde counts.
+>   Gedaan (niet opnieuw): **Statusfilter op het opdrachtgever-overzicht `/opdrachten`** — pure
+>   `lib/job-status-filter.ts` (`parseJobStatusFilter`/`filterJobsByStatus`/`summarizeJobStatusGroups`)
 >
-> - filter-pills (Alle/Concept/Gepubliceerd/Gesloten met tellingen) op `ClientJobs`, spiegel van het
+> * filter-pills (Alle/Concept/Gepubliceerd/Gesloten met tellingen) op `ClientJobs`, spiegel van het
 >   #474/#475/#477-pill-patroon; read-only, geen schemawijziging, geen extra query, 12 unit-tests. PR #488.
 >   Gedaan (niet opnieuw): **Bewaarde opdrachten voor de ZZP'er (`/opgeslagen`)** — `SavedJob`-model
 >   (anker op `FreelancerProfile`, additief), pure `lib/saved-jobs.ts` `partitionSavedJobs` (open vs.

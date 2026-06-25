@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Reactie-pijplijn per opdracht voor de opdrachtgever (2026-06-25)
+
+De opdrachtgever-`/opdrachten`-kaarten toonden alleen een kale "N reacties"-regel — geen signaal
+welke opdracht _nieuwe, nog niet bekeken_ kandidaten heeft wachten. Daarmee bleef de kernvraag
+"welke opdracht vraagt nu mijn aandacht?" onbeantwoord op het overzicht. Nu toont elke kaart een
+compacte reactie-pijplijn die nieuwe reacties uitlicht.
+
+- [x] **Pure motor** (`src/lib/job-pipeline.ts`): `summarizeJobPipeline(statuses)` levert
+      `total` / `newCount` / `viewed` / `shortlist` / `accepted` / `rejected` / `needsAttention`.
+      Ingetrokken reacties (WITHDRAWN) tellen niet mee in het totaal; `needsAttention` is waar zodra
+      er NEW-reacties klaarstaan. Geen I/O, muteert de invoer niet.
+- [x] **UI** (`src/components/jobs/job-pipeline-strip.tsx`): compacte strip op de opdrachtgever-
+      `/opdrachten`-kaart — "N reacties", uitgelicht "N nieuw"-chip (primair) bij niet-bekeken
+      reacties, plus "op shortlist"/"geaccepteerd" alleen als ze tellen. Lege staat:
+      "Nog geen reacties".
+- [x] **Wiring** (`src/app/(protected)/opdrachten/(index)/page.tsx`): per-status telling via één
+      `application.groupBy({ by: ["jobId","status"] })` over de eigen opdrachten (geen N+1),
+      server-side gescopet op `company.userId`. Vervangt de `_count`-regel.
+- Tests: `job-pipeline.test.ts` (5). Allowlist-regelnummers bijgewerkt in `unbounded-queries.test.ts`.
+- Gate: typecheck + lint + test (2747 groen) + build + prettier groen. Read-only, geen schemawijziging.
+
 ## Prod: presigned S3 download-URLs in de storage-abstractie (2026-06-25)
 
 Productie-rijpe S3-levering: documenten/logo's hoeven niet langer als volledige buffer door de
