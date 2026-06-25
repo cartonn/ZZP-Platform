@@ -1,5 +1,72 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-06-25 (run 4) · **main-commit basis:** `e457d25`
+> **Methode:** verse productie-build (`npm install` → `npm run build`) + schema-push (`prisma db push`) +
+> idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
+> (`CI=true PORT=3100 npm run start`, `LOGIN_RATE_LIMIT/REGISTER_RATE_LIMIT=100000`,
+> `STORAGE_DRIVER=local`, `AUTH_SECRET=ci-dummy-…`). Playwright met de vooraf-geïnstalleerde Chromium
+> (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, expliciete `executablePath`), de **vier rollen
+> parallel** in losse browser-contexts. Per rol ingelogd via het echte login-formulier (`demo1234`).
+> Doel-1 (acties), 1b (next-actions) en 2 (adversarieel). De DB is ephemeer; geen poging raakte productie.
+>
+> ## Samenvatting — GEEN GATEN GEVONDEN (4e opeenvolgende schone run)
+>
+> **Alle vier rollen + de cascade-, authz- en tenant-poorten houden stand op `e457d25`.** Geen nieuwe
+> regressies sinds run 3 (de toen-bevestigde poorten — int-overflow-guard `MAX_PERFORMANCE_HOURS`,
+> soft-404 ADR-0009, document-privacy — staan nog).
+>
+> **DOEL 1 (werkt + échte actie uitgevoerd):** 56 kernschermen over 4 rollen laadden HTTP 200, correcte
+> `<h1>`, nul 500's/crashes. Alle 4 logins (Sanne / Mark Jansen / Femke Franchise / Admin Beheerder)
+> slaagden via het echte formulier. **Echte mutatie tegen de DB geverifieerd:** ADMIN keurt een
+> verificatie goed via de "Goedkeuren"-knop op `/admin/verificaties` → wachtrij **6→5**
+> (knoptelling én `Credential.status=SUBMITTED`-count), `CREDENTIAL_VERIFIED`-audit geschreven (0→1,
+> `actorId`=admin, `entityId`=`cred-bram-VOG`), `verifiedAt` gezet, en de UI revalideerde (de tegel
+> verdween direct). De goedkeur-schrijfketen werkt dus end-to-end op de actuele `main`.
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol geladen (200) + de engine kruis-gecheckt tegen
+> `next-actions.ts` / `actions/pending-tasks.ts` / `cascade/stage.ts`: pure, deterministische logica met
+> rol-geïsoleerde prioriteitsbanden, ownership-/tenant-gescopete queries (geen N+1, `take`-begrensd) en
+> handoff-correcte fasering (contract → uren → goedkeuring → factuur → goedkeuring → betaald). De
+> credential-goedkeuring hierboven liet de handoff in de praktijk zien: na de actie verdween de
+> admin-taak uit de wachtrij (revalidatie). Geen tegenstrijdige, dubbele of niet-verdwijnende actie
+> aangetroffen.
+>
+> **DOEL 2 (adversarieel — 101 probes, alle correct geweigerd):**
+>
+> - **Privilege-escalatie:** FREELANCER/CLIENT/FRANCHISER → rol-vreemde routes (`/admin/*`,
+>   `/kandidaten`, `/certificaten`, `/franchise/*`) → redirect naar het eigen rol-dashboard. De
+>   boekhouding-aliassen FREELANCER→`/verplichtingen` (CLIENT-route) en CLIENT→`/prognose`
+>   (FREELANCER-route) **redirecten beide naar het rol-eigen `/administratie` ("Boekhouding")** —
+>   geverifieerd met een settle-wait + raw-fetch; géén cross-rol-data. (Een eerdere meting toonde door
+>   een te-vroeg afgelezen `finalPath` schijnbaar "geen redirect"; settle-verificatie bevestigt de
+>   redirect — meetartefact, geen platformregressie.)
+> - **IDOR/cross-partij:** FREELANCER/CLIENT/FRANCHISER → andermans `/samenwerkingen/<vreemd>`,
+>   `/facturen/<vreemd, SUBMITTED>`, onzin-id's → **"Niet gevonden — geen toegang"** (soft-404,
+>   `len≈137`), geen veldlek. Een legitieme partij ziet zijn eigen factuur wél (collab-1 factuur
+>   `2026-0001`: zowel uitschrijver Sanne als tegenpartij Mark — correct, geen IDOR; tegen de DB
+>   geverifieerd dat beide partij zijn).
+> - **Cross-tenant:** FRANCHISER (Noord) → default-tenant `/samenwerkingen/<x>` + `/franchise/zzpers/<Sanne>`
+>   → "Niet gevonden"; CLIENT → `/zzp/onzin` → **echte 404**.
+> - **Document-privacy (geauth. in-page fetch):** eigenaar (Sanne) → `GET /api/documents/<eigen>` →
+>   **200 `application/pdf`** (`%PDF-1.7…`); niet-eigenaar (CLIENT, FRANCHISER, andere FREELANCER) →
+>   **403** `{"error":"Geen toegang."}`.
+> - **Authz-keten / rol-export:** FREELANCER → `/verplichtingen/export` **403**, `/prognose/export`
+>   (CLIENT) **403**, `/api/admin/export/invoices` **403** ("vereist rol ADMIN"),
+>   `/api/samenwerkingen/<vreemd>/dba-dossier` **403**.
+> - **Malicieuze input:** `<script>`/`<img onerror>`/`' OR 1=1--` in query-params (`/facturen`,
+>   `/reacties`, `/rooster`, `/opdrachten`, `/admin/*?q=`) → **0 scriptuitvoering** (`window.__x`
+>   ongezet), ongeldige filters genegeerd (Prisma geparametriseerd, enums gevalideerd).
+> - **Robuustheid:** volledig onbekende routes (`/this-route-does-not-exist`,
+>   `/admin/this-admin-route-nope`) → **echte 404**; **0 HTTP-500's, 0 crash-/Prisma-markers** over alle
+>   101 probes.
+>
+> Code-niveau bevestigd (naast de live-probes): de cascade-mutaties (`performance-commands.ts` e.a.)
+> dragen de ownership-keten (`actor.id` vs. `freelancer.userId`/`clientUserId`, ADMIN-uitzondering);
+> de document-route auditeert zowel toegestane als geweigerde toegang met sandbox-CSP. Geen
+> codewijziging nodig; deze run is een backlog-/PROGRESS-update.
+>
+> ---
+>
 > **Datum:** 2026-06-24 (run 3) · **main-commit basis:** `c6736b8`
 > **Methode:** verse productie-build (`npm install` → `npm run build`) + schema-push + idempotente
 > demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server

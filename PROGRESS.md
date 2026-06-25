@@ -3,6 +3,16 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 4 — geen gaten (2026-06-25)
+
+Kritische-gebruiker-sweep over alle vier rollen op `e457d25` (4 rollen parallel via Playwright/Chromium).
+**Geen gaten gevonden** (4e schone run op rij). DOEL 1: 56 schermen 200, en een échte mutatie geverifieerd
+(ADMIN keurt verificatie goed → wachtrij 6→5, `CREDENTIAL_VERIFIED`-audit, `verifiedAt`, UI gerevalideerd).
+DOEL 1b: next-action-engine kruis-gecheckt (rol-geïsoleerd, ownership/tenant-gescopet, handoff-correct).
+DOEL 2: 101 adversariële probes — priv-esc → redirect, IDOR/cross-tenant/cross-partij → soft-404/404,
+document-privacy 403 (eigenaar 200 pdf), rol-exports + dba-dossier 403, 0 scriptuitvoering, 0 HTTP-500.
+Details + reproductie in `docs/PERSONA-SWEEP-BACKLOG.md` (run 4). Docs-only PR.
+
 ## Reactie-pijplijn per opdracht voor de opdrachtgever (2026-06-25)
 
 De opdrachtgever-`/opdrachten`-kaarten toonden alleen een kale "N reacties"-regel — geen signaal
