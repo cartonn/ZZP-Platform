@@ -76,6 +76,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   INVOICE_PDF_ACCESSED: "Factuur-PDF ingezien",
   PERFORMANCE_PDF_ACCESSED: "Urenstaat/oplevering ingezien",
   MODEL_AGREEMENT_ACCESSED: "Modelovereenkomst ingezien",
+  MODEL_AGREEMENT_ACCESS_DENIED: "Modelovereenkomsttoegang geweigerd",
   PAYMENT_CONFIRMED: "Betaling bevestigd",
   PAYMENT_OVERDUE: "Betaling te laat",
 

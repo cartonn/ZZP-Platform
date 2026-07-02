@@ -6,6 +6,8 @@ import { getTranslator } from "@/lib/i18n/server";
 // typografie, spacing en landmark. `description`/`title` accepteren ReactNode (voor inline-expressies).
 // Server-component: vertaalt automatisch een string-titel/-subtitel (ReactNode-waarden passeren
 // onveranderd) zodat de paginakoppen meebewegen met de taalkeuze zonder elke pagina te wijzigen.
+// LET OP: async servercomponent — niet bruikbaar vanuit een "use client"-component; geef daar
+// een eigen <header> of til de PageHeader naar de dichtstbijzijnde server-parent.
 export async function PageHeader({
   title,
   description,

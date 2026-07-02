@@ -46,6 +46,9 @@ export async function runPerformanceApprovalReminderTask(opts: {
         },
       },
     },
+    // Oudste indiening eerst: zonder orderBy is de selectie boven de cap ongedefinieerd
+    // en kan een prestatie structureel buiten de 500 vallen (starvation).
+    orderBy: { submittedAt: "asc" },
     take: 500,
   });
 

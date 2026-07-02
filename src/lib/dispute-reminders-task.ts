@@ -29,6 +29,9 @@ export async function runDisputeReminderTask(opts: {
       freelancer: { select: { userId: true } },
       company: { select: { userId: true } },
     },
+    // Oudste dispuut eerst: zonder orderBy is de selectie boven de cap ongedefinieerd
+    // en kan een record structureel buiten de 500 vallen (starvation).
+    orderBy: { disputedAt: "asc" },
     take: 500,
   });
 

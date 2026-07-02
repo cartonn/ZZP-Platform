@@ -175,10 +175,20 @@ describe("PDF-routes auditen documenttoegang (AVG, CLAUDE.md regel 5)", () => {
     );
   });
 
-  it("modelovereenkomst-PDF: niet-partij krijgt 403, geen audit", async () => {
+  it("modelovereenkomst-PDF: niet-partij krijgt 403 én een ACCESS_DENIED-auditregel", async () => {
+    // Parity met de dba-dossier/dossier-routes: geweigerde inzage van dit juridische document
+    // hoort in het auditspoor (maakt IDOR-enumeratie op collaboration-id's zichtbaar).
     actor = { id: "outsider", role: "FREELANCER", status: "ACTIVE", tenantId: null };
     const res = await modelAgreementPdf(req, ctx("col-1"));
     expect(res.status).toBe(403);
-    expect(auditMock).not.toHaveBeenCalled();
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "MODEL_AGREEMENT_ACCESS_DENIED",
+        entityType: "Collaboration",
+        entityId: "col-1",
+        actorId: "outsider",
+      }),
+    );
   });
 });

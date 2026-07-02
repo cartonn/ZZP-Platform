@@ -1,21 +1,7 @@
 import { MailCheck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { type ClientResponsiveness, type ResponsivenessTone } from "@/lib/client-responsiveness";
+import { BehaviorToneBadge } from "@/components/jobs/signal-chips";
+import { type ClientResponsiveness } from "@/lib/client-responsiveness";
 import { getTranslator } from "@/lib/i18n/server";
-
-const TONE_VARIANT: Record<ResponsivenessTone, "success" | "muted" | "warning" | "default"> = {
-  good: "success",
-  neutral: "default",
-  warning: "warning",
-  unknown: "muted",
-};
-
-const TONE_LABEL: Record<ResponsivenessTone, string> = {
-  good: "Goed",
-  neutral: "Gemiddeld",
-  warning: "Let op",
-  unknown: "Onbekend",
-};
 
 interface Props {
   responsiveness: ClientResponsiveness;
@@ -42,7 +28,7 @@ export async function ClientResponsivenessBlock({ responsiveness }: Props) {
       <div className="flex items-center gap-2">
         <MailCheck className="size-4 text-muted-foreground" aria-hidden />
         <h2 className="text-sm font-medium">{t("Reactiebereidheid")}</h2>
-        <Badge variant={TONE_VARIANT[tone]}>{t(TONE_LABEL[tone])}</Badge>
+        <BehaviorToneBadge tone={tone} />
       </div>
 
       {tone === "unknown" ? (

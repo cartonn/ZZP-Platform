@@ -41,6 +41,11 @@ export async function runExpiryTask(opts: {
     include: {
       freelancerProfile: { select: { userId: true } },
     },
+    // Defensieve cap (patroon van de andere taakrunners): eerst wat het eerst verloopt.
+    // Een datapiek kan één cron-tick anders in een zeer grote transactie veranderen;
+    // de rest volgt vanzelf in de volgende run.
+    orderBy: { expiresAt: "asc" },
+    take: 2000,
   });
 
   // Zet Prisma-rijen om naar het pure ExpiryCandidate-model.

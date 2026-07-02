@@ -1,4 +1,5 @@
 import { Users } from "lucide-react";
+import { LevelChip } from "@/components/jobs/signal-chips";
 import { type ReachSummary } from "@/lib/job-reach";
 
 const LEVEL_STYLE: Record<ReachSummary["level"], { dot: string; hint: string }> = {
@@ -28,10 +29,7 @@ export function JobReachCard({ reach }: { reach: ReachSummary }) {
         <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           <Users className="size-4" aria-hidden /> Bereik van je opdracht
         </p>
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <span className={`size-2 rounded-full ${style.dot}`} aria-hidden />
-          {LEVEL_LABEL[reach.level]}
-        </span>
+        <LevelChip dotClass={style.dot} label={LEVEL_LABEL[reach.level]} />
       </div>
 
       {reach.total === 0 ? (

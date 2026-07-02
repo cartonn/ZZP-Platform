@@ -29,8 +29,8 @@ export type Dekkingsprognose = {
   /** Totaal aantal open (onbezette) gepubliceerde diensten. */
   totalOpen: number;
   /**
-   * Aantal dagen tot de eerstvolgende open dienst met een startdatum (0 als die nu/in het
-   * verleden ligt). null als er geen open dienst met datum is.
+   * Aantal kalenderdagen tot de eerstvolgende open dienst met een startdatum (0 als die
+   * vandaag of in het verleden ligt, 1 = morgen). null als er geen open dienst met datum is.
    */
   soonestOpenDays: number | null;
 };
@@ -44,13 +44,17 @@ const BUCKET_LABELS: Record<PrognoseBucketKey, string> = {
 
 const BUCKET_ORDER: PrognoseBucketKey[] = ["DEZE_WEEK", "VOLGENDE_WEEK", "LATER", "GEEN_DATUM"];
 
+/** Middernacht (00:00 lokaal) van de kalenderdag waarin `d` valt. */
+function startOfLocalDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
 /** Begin (maandag, 00:00 lokaal) van de ISO-week waarin `d` valt. */
 function startOfIsoWeek(d: Date): Date {
-  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const r = startOfLocalDay(d);
   // getDay(): 0=zondag..6=zaterdag. ISO-week start op maandag.
   const offset = (r.getDay() + 6) % 7;
   r.setDate(r.getDate() - offset);
-  r.setHours(0, 0, 0, 0);
   return r;
 }
 
@@ -81,7 +85,7 @@ export function buildDekkingsprognose(
     GEEN_DATUM: 0,
   };
   let totalOpen = 0;
-  let soonestTime: number | null = null;
+  let soonest: Date | null = null;
 
   for (const d of diensten) {
     if (d.filled) continue; // alleen onbezette diensten tellen
@@ -91,8 +95,7 @@ export function buildDekkingsprognose(
       continue;
     }
     counts[bucketFor(d.startDate, now)] += 1;
-    const t = d.startDate.getTime();
-    if (soonestTime == null || t < soonestTime) soonestTime = t;
+    if (soonest == null || d.startDate.getTime() < soonest.getTime()) soonest = d.startDate;
   }
 
   const buckets = BUCKET_ORDER.filter((k) => counts[k] > 0).map((key) => ({
@@ -101,8 +104,19 @@ export function buildDekkingsprognose(
     openCount: counts[key],
   }));
 
+  // Kalenderdag-verschil (middernacht-tot-middernacht), zelfde lokale-tijd-semantiek als de
+  // weekbuckets. Een rauw wall-clock-verschil zou 's avonds "0 dagen" melden voor een dienst
+  // die morgenochtend start, terwijl de bucket hem wél kalendermatig indeelt. Math.round
+  // absorbeert de DST-uurverschuiving (±1u rond een zomer-/wintertijdgrens).
   const soonestOpenDays =
-    soonestTime == null ? null : Math.max(0, Math.floor((soonestTime - now.getTime()) / DAY_MS));
+    soonest == null
+      ? null
+      : Math.max(
+          0,
+          Math.round(
+            (startOfLocalDay(soonest).getTime() - startOfLocalDay(now).getTime()) / DAY_MS,
+          ),
+        );
 
   return { buckets, totalOpen, soonestOpenDays };
 }

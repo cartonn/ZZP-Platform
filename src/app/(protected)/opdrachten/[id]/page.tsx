@@ -179,6 +179,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       // reageer-formulier en zijn aansluiting, en kan opnieuw reageren (server hergebruikt de rij).
       if (myApplication?.status === "WITHDRAWN") myApplication = null;
       if (!myApplication && status === "PUBLISHED") {
+        // Concurrentie: actieve reacties van ándere ZZP'ers (ingetrokken telt niet mee). De huidige
+        // ZZP'er heeft geen actieve reactie (anders was myFit niet gezet), dus dit zijn allemaal
+        // anderen. De telling start vóór de (trage) externe routing-call: ze zijn onafhankelijk,
+        // dus de netwerk-latency hoort niet serieel vóór deze DB-query te staan.
+        const applicantCountPromise = prisma.application.count({
+          where: { jobId: job.id, status: { not: "WITHDRAWN" } },
+        });
         const routedTravelMinutesToJob =
           profile.maxTravelMinutes != null &&
           profile.maxTravelMinutes > 0 &&
@@ -193,12 +200,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           compliance: match.compliance,
           reasons: match.reasons,
         };
-        // Concurrentie: actieve reacties van ándere ZZP'ers (ingetrokken telt niet mee). De huidige
-        // ZZP'er heeft geen actieve reactie (anders was myFit niet gezet), dus dit zijn allemaal anderen.
-        const applicantCount = await prisma.application.count({
-          where: { jobId: job.id, status: { not: "WITHDRAWN" } },
+        jobCompetition = summarizeJobCompetition({
+          applicantCount: await applicantCountPromise,
+          myScore: match.score,
         });
-        jobCompetition = summarizeJobCompetition({ applicantCount, myScore: match.score });
       }
       // Live compliance voor een reeds verstuurde reactie (i.p.v. de bevroren snapshot).
       if (myApplication) {

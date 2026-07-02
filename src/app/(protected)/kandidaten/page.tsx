@@ -159,6 +159,9 @@ export default async function KandidatenPage({
   const counts = countApplicationsByStatus(applications);
   const visible = filterApplicationsByStatus(applications, filterStatus);
 
+  // Eén tijdstempel per request (patroon van /reacties en /kandidaten/vergelijk), niet per rij.
+  const nowMs = Date.now();
+
   // Vergelijk-instap: per opdracht met ≥2 actieve reacties (nog in de race) een link naar de
   // side-by-side vergelijking. Afgewezen/ingetrokken reacties tellen niet mee. Geen extra query —
   // afgeleid uit de reeds opgehaalde lijst.
@@ -322,7 +325,6 @@ export default async function KandidatenPage({
                       )
                     : null;
                 const isPublic = (app.freelancer.visibility as Visibility) === "PUBLIC";
-                const nowMs = Date.now();
                 const trust = computeTrustLevel({
                   identityVerified: !!app.freelancer.user.identityVerifiedAt,
                   verifiedCredentialCount: app.freelancer.credentials.filter(

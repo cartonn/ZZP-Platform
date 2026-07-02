@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Kwaliteitsronde — review van alle code sinds 15-6, 10 verbeteringen (2026-07-02)
+
+Vier parallelle reviewers (lib-domein, app-routes, API/cron-security, components) over de
+~169 commits sinds de model-switch van 15-6 (#377). Oordeel: geen blockers — authz-ketens,
+transitie-maps en query-bounds consequent op orde. Tien geverifieerde SAFE-verbeteringen toegepast:
+
+- [x] **Cron-starvation**: `orderBy` (oudste eerst) op de gecapte queries in
+      `dispute-reminders-task.ts` en `performance-approval-reminders-task.ts`; defensieve
+      `take: 2000` + `orderBy expiresAt` in `expiry-task.ts`.
+- [x] **Audit-parity**: geweigerde inzage van de modelovereenkomst-PDF logt nu
+      `MODEL_AGREEMENT_ACCESS_DENIED` (zoals de dossier-routes); label + regressietest bijgewerkt.
+- [x] **Kalenderdag-fix**: `soonestOpenDays` in `franchise/dekkingsprognose.ts` rekent nu
+      middernacht-tot-middernacht (was wall-clock-floor → "0 dagen" 's avonds voor een dienst
+      morgenochtend); 2 nieuwe tests.
+- [x] **Perf opdracht-detail**: concurrentie-telling start parallel met de externe routing-call
+      (`opdrachten/[id]/page.tsx`); `Date.now()` per request i.p.v. per rij op `/kandidaten`.
+- [x] **Dedup components**: gedeelde `BehaviorToneBadge` + `LevelChip` in
+      `src/components/jobs/signal-chips.tsx`; 3 gedragsblokken + 2 level-kaarten omgezet
+      (3× identieke TONE-maps verwijderd).
+- [x] **UI-robuustheid**: bestandsnaam in `file-input.tsx` kan weer truncaten (min-w-0/flex-1);
+      doc-note op async `PageHeader` (niet bruikbaar vanuit client components).
+- Geparkeerd (RISKY, backlog): dashboard-dubbelfetch `clientCredentialAlerts`, per-job-fanout in
+  `suggestions.ts`, `savedJobIds`-batching op /opdrachten.
+- Gate groen: typecheck + lint + prettier + test + build.
+
 ## Opdrachtgever — opdracht dupliceren als startpunt voor een nieuwe (2026-07-02)
 
 Vertaalt de "duplicate"-friction-reducer van Linear/Stripe/GitHub naar de opdrachtgever: terugkerend/

@@ -1,4 +1,5 @@
 import { Users, Zap } from "lucide-react";
+import { LevelChip } from "@/components/jobs/signal-chips";
 import { type CompetitionSummary } from "@/lib/job-competition";
 
 const LEVEL_STYLE: Record<CompetitionSummary["level"], { dot: string }> = {
@@ -29,10 +30,7 @@ export function JobCompetitionCard({ competition }: { competition: CompetitionSu
         <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           <Users className="size-4" aria-hidden /> Jouw kans
         </p>
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <span className={`size-2 rounded-full ${style.dot}`} aria-hidden />
-          {LEVEL_LABEL[competition.level]}
-        </span>
+        <LevelChip dotClass={style.dot} label={LEVEL_LABEL[competition.level]} />
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-3">

@@ -622,6 +622,15 @@ in-browser-verificatie (interactieve sessie).
 ### Backlog (na de overhaul-fasen)
 
 1. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
+2. **Perf-refactors uit de kwaliteitsronde 2-7 (RISKY, apart oppakken):**
+   - `clientCredentialAlerts` (src/lib/collaboration-alerts.ts) her-queryt op het CLIENT-dashboard
+     dezelfde company + ACTIVE-collaborations die `dashboard/page.tsx` al heeft — geef de functie
+     een overload met voorgefetchte rijen (2 queries minder per dashboard-load).
+   - `suggestedFreelancersForClient` (src/lib/suggestions.ts) fan-out: per job (≤10) een findMany
+     over ≤200 profielen met 4 includes — pool één keer fetchen en in-memory scoren.
+   - `savedJobIds`-query op /opdrachten (index) in de bestaande `Promise.all` vouwen.
+   - Denial-audit ook op factuur-/urenstaat-PDF-routes (INVOICE\_/PERFORMANCE_PDF_ACCESS_DENIED),
+     parity met modelovereenkomst/dossier-routes; denial-tests omkeren.
 
 Gereed (pre-overhaul): bedrijfsprofiel-compleetheid · admin gebruikers "vraagt aandacht" ·
 nieuwe-reactie-notificatie · uitlegbare matching (match-reasons) · next-action-engine
