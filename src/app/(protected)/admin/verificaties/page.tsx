@@ -133,8 +133,8 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
 
           <p className="text-sm text-muted-foreground">
             {filterActive
-              ? `${visible.length} van ${queue.length} ${plural(queue.length, "aanvraag", "aanvragen")}`
-              : `${queue.length} ${plural(queue.length, "aanvraag", "aanvragen")}`}
+              ? `${visible.length} van ${plural(queue.length, "aanvraag", "aanvragen")}`
+              : plural(queue.length, "aanvraag", "aanvragen")}
           </p>
 
           {visible.length === 0 ? (

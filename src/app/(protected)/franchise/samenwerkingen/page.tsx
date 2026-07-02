@@ -134,8 +134,8 @@ export default async function FranchiseSamenwerkingenPage({
 
           <p className="text-sm text-muted-foreground">
             {filterActive
-              ? `${visible.length} van ${rows.length} ${plural(rows.length, "samenwerking", "samenwerkingen")}`
-              : `${rows.length} ${plural(rows.length, "samenwerking", "samenwerkingen")}`}
+              ? `${visible.length} van ${plural(rows.length, "samenwerking", "samenwerkingen")}`
+              : plural(rows.length, "samenwerking", "samenwerkingen")}
           </p>
 
           {visible.length === 0 ? (

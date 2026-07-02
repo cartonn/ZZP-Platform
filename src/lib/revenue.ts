@@ -54,10 +54,14 @@ export function monthlyRevenue(rows: RevenueSource[], now: Date, months = 6): Re
   return result;
 }
 
-/** Procentuele verandering t.o.v. de vorige maand; null zonder vergelijkbare basis. */
+/**
+ * Procentuele verandering t.o.v. de vorige maand; null zonder vergelijkbare basis.
+ * Null (i.p.v. een misleidend "-100%") zolang de lopende maand nog leeg is: begin van de
+ * maand vult de bucket nog, dus een daling t.o.v. een gevulde vorige maand is geen echte trend.
+ */
 export function monthDeltaPct(series: RevenueMonth[]): number | null {
   const prev = series.at(-2);
   const cur = series.at(-1);
-  if (!prev || !cur || prev.cents <= 0) return null;
+  if (!prev || !cur || prev.cents <= 0 || cur.cents <= 0) return null;
   return Math.round(((cur.cents - prev.cents) / prev.cents) * 100);
 }
