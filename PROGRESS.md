@@ -3,6 +3,38 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## UX-offensief — volledige walkthrough-backlog afgewerkt in 18 PR's (2026-07-02/03)
+
+Vervolg op de UX-walkthrough (83 schermen, 4 rollen, docs/UX-WALKTHROUGH-2026-07-02.md): álle
+bevindingen gefixt via parallelle builder-agents in eigen worktrees, elk increment door de
+6-checks-poort (#557–#574, alle gemerged):
+
+- [x] **Bugs**: dubbele tellers + seed-drift + "-100%"-trend (#557) · dd-mm-jjjj-hint op 11
+      formulieren via gedeelde DateInput (#558) · openstaand-tegenspraak (#560).
+- [x] **Navigatie**: zijbalk standaard uitgeklapt met labels, sectiekoppen per rol en
+      wachtrij-tellers; voorkeur in cookie (#559).
+- [x] **Terminologie**: Urenstaten, Uren goedkeuren, Reacties, ZZP'ers vinden, samenwerking
+      (i.p.v. werkproces), Dienst-overnames, Document toevoegen + type-afhankelijke
+      placeholders; incl. i18n + e2e (#564; #574 ORT-mensentaal).
+- [x] **Statuswaarheid**: één inzetbaarheids-bron zzp (dashboard+profiel, #570);
+      franchiser-next-actions + roster-badge + dekkingsprognose (#566);
+      vervullingsgraad-context (#573).
+- [x] **Matching-vertrouwen**: branche-factor (-25/cap 60) in álle 8 scoring-paden met
+      transparante breakdown-regel; ringkleur ↔ score; herlabel profiel-matches (#561).
+- [x] **Bemiddelaar-werkwoorden**: ZZP'er voordragen op open dienst (#562) · zelf gesprek
+      starten (#563) · fee-percentage + volume/fee-splitsing (#565) · leads-dagen-stil +
+      kleurkiezer (#572).
+- [x] **Beslisacties**: compacte kandidaten-triage + vergelijk-keuzeknoppen (#569) ·
+      VOG-herinnering, "Urenstaat indienen", no-show secundair + status-zin (#571) ·
+      admin-gebruikersdossier (#573).
+- [x] **Formulieren**: DBA-check in mensentaal + oordeel-na-input, modelovereenkomst
+      "Automatisch", concept/publiceren-knoppen (#568).
+- [x] **Admin-wachtrijen**: inline bewijsstuk-preview, afwijzen-achter-klik, support-triage,
+      compleet acties-centrum (#567). Login-uitleg in gewone taal (#572).
+- Proces-les (memory): parallelle builders ALTIJD in eigen git-worktree — gedeelde working tree
+  wist elkaars werk. agent-review ving 3 échte bugs vóór merge (breakdown-som,
+  SUBMITTED-als-ontbrekend, gemiste e2e-specs).
+
 ## Kwaliteitsronde — review van alle code sinds 15-6, 10 verbeteringen (2026-07-02)
 
 Vier parallelle reviewers (lib-domein, app-routes, API/cron-security, components) over de
