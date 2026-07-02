@@ -442,7 +442,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
 
   // --- berichten/actions.ts ---
   // Berichten/gesprekken voor één gebruiker; eigenaar-scoped.
-  { file: "(protected)/berichten/actions.ts", line: 15, reason: "eigenaar-scoped gesprekken" },
+  { file: "(protected)/berichten/actions.ts", line: 16, reason: "eigenaar-scoped gesprekken" },
 
   // --- api/administratie/openstaand/route.ts ---
   // API-route voor openstaand; eigenaar-scoped aggregatie.
