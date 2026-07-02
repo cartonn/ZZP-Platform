@@ -58,6 +58,7 @@ export async function getDienstDetail(actor: Actor, jobId: string): Promise<Dien
               availability: true,
               user: { select: { name: true } },
               skills: { select: { skillId: true } },
+              industries: { select: { industryId: true } },
               availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
               credentials: { select: { type: true, status: true, expiresAt: true } },
             },

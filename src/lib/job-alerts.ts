@@ -15,6 +15,8 @@ export interface JobAlertJob {
   rateMax: number | null;
   workMode: string;
   location: string | null;
+  /** Branche van de opdracht — voedt de branche-factor in de matchscore. */
+  industryId?: string | null;
   /** Tenant-zichtbaarheid: een franchise-dienst alert alleen de eigen roster, tenzij opengezet. */
   tenantId: string | null;
   openOverflow: boolean;
@@ -35,6 +37,8 @@ export interface JobAlertFreelancer {
   /** Franchise-lidmaatschap; null = directe platform-ZZP'er. */
   tenantId: string | null;
   availabilityWindows?: readonly { startDate: Date; endDate: Date; type: string }[];
+  /** Branche(s) van het profiel — voedt de branche-factor in de matchscore. */
+  industries?: readonly { industryId: string }[];
 }
 
 /** Mag deze ZZP'er deze opdracht zien? Eigen-tenant of een opengestelde (overflow) dienst. */

@@ -33,6 +33,7 @@ export async function runJobAlertsTask(opts?: {
     include: {
       skills: { select: { skillId: true } },
       credentials: { select: { type: true, status: true, expiresAt: true } },
+      industries: { select: { industryId: true } },
       availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
     },
   });
@@ -49,6 +50,7 @@ export async function runJobAlertsTask(opts?: {
     rateMax: j.rateMax,
     workMode: j.workMode,
     location: j.location,
+    industryId: j.industryId,
     tenantId: j.tenantId,
     openOverflow: j.tenant?.openOverflow ?? false,
     applicantProfileIds: j.applications.map((a) => a.freelancerId),
@@ -66,6 +68,7 @@ export async function runJobAlertsTask(opts?: {
     availability: p.availability,
     tenantId: p.tenantId,
     availabilityWindows: p.availabilityWindows,
+    industries: p.industries,
   }));
 
   const plan = planJobAlerts(jobs, freelancers, { now });

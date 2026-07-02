@@ -41,6 +41,7 @@ export async function getJobReach(jobId: string): Promise<ReachSummary | null> {
       availability: true,
       skills: { select: { skillId: true } },
       credentials: { select: { type: true, status: true, expiresAt: true } },
+      industries: { select: { industryId: true } },
       availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
     },
   });
@@ -57,6 +58,7 @@ export async function getJobReach(jobId: string): Promise<ReachSummary | null> {
         maxTravelMinutes: p.maxTravelMinutes,
         availability: p.availability,
         availabilityWindows: p.availabilityWindows,
+        industries: p.industries,
       });
       return { score: match.score, available: match.availability.status === "AVAILABLE" };
     });

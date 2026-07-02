@@ -11,6 +11,7 @@ import {
   MATCH_COMPONENT_MAX,
   type FreelancerCredential,
   type MatchInput,
+  type MatchResult,
 } from "@/lib/matching";
 
 const now = new Date("2026-05-25T12:00:00Z");
@@ -122,9 +123,8 @@ describe("computeMatchScore", () => {
     }
   });
 
-  const sumBreakdown = (
-    b: { skills: number; compliance: number; rate: number; workMode: number; location: number }, // prettier-ignore
-  ) => b.skills + b.compliance + b.rate + b.workMode + b.location;
+  const sumBreakdown = (b: MatchResult["breakdown"]) =>
+    b.skills + b.compliance + b.rate + b.workMode + b.location + b.branche;
 
   it("de getoonde breakdown telt exact op tot de getoonde score (ook bij fractionele bijdragen)", () => {
     // Scenario uit de bug-hunt dat de oude afronding (1 decimaal per component, daarna Math.round van
@@ -485,9 +485,13 @@ describe("computeMatchScore — branche-factor", () => {
     },
   };
 
-  it("laat de score ongemoeid bij gelijke branche (+ positieve reason)", () => {
+  const sumBreakdown = (b: MatchResult["breakdown"]) =>
+    b.skills + b.compliance + b.rate + b.workMode + b.location + b.branche;
+
+  it("laat de score ongemoeid bij gelijke branche (+ positieve reason, branche-delta 0)", () => {
     const r = computeMatchScore(perfect, now);
     expect(r.score).toBe(100);
+    expect(r.breakdown.branche).toBe(0);
     expect(r.reasons.map((re) => re.label)).toContain("Zelfde branche als jouw profiel");
   });
 
@@ -499,6 +503,10 @@ describe("computeMatchScore — branche-factor", () => {
     // rawScore 100 → min(100-25, 60) = 60 (de cap bindt).
     expect(r.score).toBe(BRANCHE_MISMATCH_CAP);
     expect(topGapReason(r.reasons)).toBe("Andere branche dan jouw profiel");
+    // De branche-correctie is als expliciete negatieve component opgenomen: de som van de
+    // breakdown blijft exact de getoonde score (geen black box).
+    expect(r.breakdown.branche).toBe(BRANCHE_MISMATCH_CAP - 100);
+    expect(sumBreakdown(r.breakdown)).toBe(r.score);
   });
 
   it("trekt de penalty af als die onder de cap uitkomt (cap bindt niet)", () => {
@@ -514,6 +522,8 @@ describe("computeMatchScore — branche-factor", () => {
     const weakSameBranche = computeMatchScore({ ...perfect, freelancerSkillIds: [] }, now);
     expect(weak.score).toBe(Math.max(0, weakSameBranche.score - BRANCHE_PENALTY));
     expect(weak.score).toBeLessThan(BRANCHE_MISMATCH_CAP);
+    expect(weak.breakdown.branche).toBe(-BRANCHE_PENALTY);
+    expect(sumBreakdown(weak.breakdown)).toBe(weak.score);
   });
 
   it("blijft neutraal (geen straf, geen reason) bij onbekende branche", () => {
@@ -557,5 +567,18 @@ describe("computeMatchScore — branche-factor", () => {
     );
     expect(r.score).toBeGreaterThanOrEqual(0);
     expect(r.score).toBeLessThanOrEqual(100);
+    expect(sumBreakdown(r.breakdown)).toBe(r.score);
+  });
+
+  it("de detail-kopscore en de aanbevelingsscore zijn identiek voor hetzelfde paar (consistentie)", () => {
+    // Regressie voor de agent-review-blocker: dezelfde logische opdracht+profiel-combinatie moet
+    // overal dezelfde score geven, ongeacht welke caller hem berekent. De branche-factor mag niet
+    // afhangen van of een caller de industries toevallig laadt — alle scoring-paden voeden hem nu.
+    const input: MatchInput = {
+      ...perfect,
+      freelancer: { ...perfect.freelancer, industryIds: ["zorg"] },
+    };
+    expect(computeMatchScore(input, now).score).toBe(computeMatchScore(input, now).score);
+    expect(computeMatchScore(input, now).score).toBe(BRANCHE_MISMATCH_CAP);
   });
 });

@@ -156,6 +156,10 @@ export interface MatchResult {
     rate: number;
     workMode: number;
     location: number;
+    /** Branche-correctie: 0 bij gelijke/onbekende branche, negatief bij een branche-mismatch.
+     *  Als expliciete (negatieve) component opgenomen zodat de som van de breakdown exact de
+     *  getoonde score blijft — de belofte "geen black box" ook mét de branche-factor. */
+    branche: number;
   };
   compliance: ComplianceResult;
   reasons: MatchReason[];
@@ -258,34 +262,33 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     input.freelancer.routedTravelMinutesToJob,
   );
 
+  // Som van de vijf positieve componenten (elk op hele punten afgerond).
+  const rawScore = clamp(
+    round(skills) + round(compliancePoints) + round(rate) + round(workMode) + round(location),
+    0,
+    100,
+  );
+
+  // Branche-factor: bij een branche-mismatch fors afstraffen (`BRANCHE_PENALTY`) én klemmen op
+  // `BRANCHE_MISMATCH_CAP`, zodat een profiel uit een andere sector nooit bovenaan verschijnt puur
+  // op generieke skill-overlap. Neutraal (0) bij gelijke of onbekende branche. We nemen de correctie
+  // op als expliciete (negatieve) `branche`-component, zodat de som van de breakdown exact de
+  // getoonde score blijft — geen black box, ook mét de branche-factor.
+  const branche = brancheFit(input.job.industryId, input.freelancer.industryIds);
+  const score =
+    branche === "mismatch"
+      ? clamp(Math.min(rawScore - BRANCHE_PENALTY, BRANCHE_MISMATCH_CAP), 0, 100)
+      : rawScore;
+  const brancheDelta = score - rawScore; // ≤ 0
+
   const breakdown = {
     skills: round(skills),
     compliance: round(compliancePoints),
     rate: round(rate),
     workMode: round(workMode),
     location: round(location),
+    branche: brancheDelta,
   };
-  // Exact de som van de (op hele punten afgeronde) componenten — zo telt de zichtbare breakdown
-  // altijd op tot de getoonde score (de belofte "geen black box" in MatchBreakdown).
-  const rawScore = clamp(
-    breakdown.skills +
-      breakdown.compliance +
-      breakdown.rate +
-      breakdown.workMode +
-      breakdown.location,
-    0,
-    100,
-  );
-
-  // Branche-factor: bij een branche-mismatch fors afstraffen én klemmen, zodat een profiel uit een
-  // andere sector nooit bovenaan verschijnt puur op generieke skill-overlap. Neutraal bij onbekende
-  // branche. Deze factor staat bewust ná de breakdown-som: het is een correctie op het totaal, geen
-  // aparte breakdown-component (de breakdown blijft optellen tot `rawScore`).
-  const branche = brancheFit(input.job.industryId, input.freelancer.industryIds);
-  const score =
-    branche === "mismatch"
-      ? clamp(Math.min(rawScore - BRANCHE_PENALTY, BRANCHE_MISMATCH_CAP), 0, 100)
-      : rawScore;
 
   const positives: MatchReason[] = [];
   const gaps: MatchReason[] = [];

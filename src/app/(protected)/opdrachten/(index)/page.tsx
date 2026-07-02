@@ -248,6 +248,7 @@ async function BrowseJobs({
           include: {
             skills: { select: { skillId: true } },
             credentials: { select: { type: true, status: true, expiresAt: true } },
+            industries: { select: { industryId: true } },
           },
         })
       : Promise.resolve(null),
