@@ -57,7 +57,7 @@ async function setupCollaboration(
   await page.fill("#description", "Test cascade-opdracht voor end-to-end verificatie.");
   // Robuust klikken: server-action-knoppen reageren pas na hydratie (zie _robust).
   await clickUntil(
-    page.getByRole("button", { name: "Opdracht aanmaken" }),
+    page.getByRole("button", { name: "Opslaan als concept" }),
     page.getByRole("heading", { name: title }),
   );
   const detailUrl = page.url();

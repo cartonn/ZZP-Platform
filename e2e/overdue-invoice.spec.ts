@@ -25,7 +25,7 @@ test("verlopen factuur vraagt aandacht op dashboard en zijbalk", async ({ page, 
   await page.fill("#title", title);
   await page.fill("#description", "Project met facturatie.");
   await page.selectOption("#workMode", "REMOTE");
-  await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+  await page.getByRole("button", { name: "Opslaan als concept" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const detailUrl = page.url();
   await page.getByRole("button", { name: "Publiceren" }).click();

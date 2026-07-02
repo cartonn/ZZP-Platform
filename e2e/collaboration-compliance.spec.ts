@@ -31,7 +31,7 @@ test("inzetbaarheid-gate: ontbrekend vereist certificaat blokkeert de plaatsing"
     .locator("fieldset", { hasText: "Vereiste certificaten" })
     .getByText("VOG", { exact: true })
     .click();
-  await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+  await page.getByRole("button", { name: "Opslaan als concept" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const detailUrl = page.url();
   await page.getByRole("button", { name: "Publiceren" }).click();

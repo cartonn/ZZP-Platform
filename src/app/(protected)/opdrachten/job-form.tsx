@@ -21,13 +21,41 @@ import { type MarketBand } from "@/lib/market-rate";
 import { type CredentialType } from "@/lib/enums";
 import { saveJob, type JobFormState } from "./actions";
 
+// Elke DBA-indicator als gewone-mensen-vraag met een voorbeeldzin eronder. De koppeling met de
+// bestaande dba-velden (namen) en de risicologica in @/lib/dba blijft ongewijzigd; alleen de
+// formulering is toegankelijker. De trefwoorden ("directe aansturing", "structureel ingebed",
+// "vrije vervanging") blijven bewust in de tekst staan voor herkenbaarheid en checks.
 const DBA_FACTORS = [
-  ["dbaDirectSupervision", "De ZZP'er werkt onder directe aansturing/instructies"],
-  ["dbaEmbedded", "De rol is structureel ingebed in de organisatie/het team"],
-  ["dbaFixedSchedule", "Vaste uren/rooster zoals een werknemer"],
-  ["dbaNoSubstitution", "Vrije vervanging is niet toegestaan"],
-  ["dbaExclusive", "De ZZP'er werkt exclusief voor dit bedrijf"],
-  ["dbaWeakEntrepreneurship", "Tarief onder marktconform / nauwelijks andere opdrachtgevers"],
+  [
+    "dbaDirectSupervision",
+    "Bepaal jij hoe en wanneer het werk gebeurt?",
+    "Bijv. vaste werktijden, directe aansturing of een leidinggevende die de ZZP'er dagelijks instructies geeft.",
+  ],
+  [
+    "dbaEmbedded",
+    "Is de ZZP'er onderdeel van je vaste team?",
+    "Bijv. structureel ingebed: doet mee aan teamoverleg, staat op de teampagina, doet hetzelfde werk als je werknemers.",
+  ],
+  [
+    "dbaFixedSchedule",
+    "Werkt de ZZP'er op vaste uren of een rooster?",
+    "Bijv. elke maandag t/m vrijdag van 9 tot 5, net als een werknemer.",
+  ],
+  [
+    "dbaNoSubstitution",
+    "Moet deze persoon het werk per se zelf doen?",
+    "Bijv. vrije vervanging is niet toegestaan — een andere zelfstandige mag niet invallen.",
+  ],
+  [
+    "dbaExclusive",
+    "Werkt de ZZP'er (vrijwel) alleen voor jou?",
+    "Bijv. exclusief voor dit bedrijf, nauwelijks tijd of ruimte voor andere opdrachtgevers.",
+  ],
+  [
+    "dbaWeakEntrepreneurship",
+    "Ligt het tarief onder wat gebruikelijk is in de markt?",
+    "Bijv. een uurtarief lager dan wat andere zelfstandigen voor dit werk vragen, of nauwelijks andere klanten.",
+  ],
 ] as const;
 
 const WORK_MODE = [
@@ -113,6 +141,18 @@ export function JobForm({
   // Marktband voor de gekozen branche (server-side berekend); terugval op platformbreed.
   const rateBand = (industryId && rateBands[industryId]) || platformRateBand;
   const rateMinEuro = rateMin !== "" && Number.isFinite(Number(rateMin)) ? Number(rateMin) : null;
+
+  // De inschatting verschijnt pas nadat de opdrachtgever iets heeft aangeraakt — anders zou het blok
+  // "Laag DBA-risico" tonen vóór enige input (valse geruststelling). Aangeraakt = minstens één
+  // indicator aangevinkt óf een verwachte duur ingevuld.
+  const dbaTouched =
+    dba.dbaDirectSupervision ||
+    dba.dbaEmbedded ||
+    dba.dbaFixedSchedule ||
+    dba.dbaNoSubstitution ||
+    dba.dbaExclusive ||
+    dba.dbaWeakEntrepreneurship ||
+    dba.dbaDurationMonths.trim() !== "";
 
   // Live, deterministische DBA-inschatting (zelfde pure functie als de server gebruikt).
   const dbaResult = assessDbaRisk({
@@ -286,9 +326,9 @@ export function JobForm({
           Vink aan wat van toepassing is. We tonen direct het risico op schijnzelfstandigheid met
           uitleg. Dit is een hulpmiddel, geen juridisch advies.
         </p>
-        <div className="space-y-2">
-          {DBA_FACTORS.map(([name, label]) => (
-            <label key={name} className="flex items-start gap-2 text-sm">
+        <div className="space-y-3">
+          {DBA_FACTORS.map(([name, question, example]) => (
+            <label key={name} className="flex items-start gap-2.5 text-sm">
               <input
                 type="checkbox"
                 name={name}
@@ -296,7 +336,10 @@ export function JobForm({
                 onChange={(e) => setDba((d) => ({ ...d, [name]: e.target.checked }))}
                 className="mt-0.5"
               />
-              <span>{label}</span>
+              <span className="space-y-0.5">
+                <span className="block">{question}</span>
+                <span className="block text-xs text-muted-foreground">{example}</span>
+              </span>
             </label>
           ))}
         </div>
@@ -313,22 +356,28 @@ export function JobForm({
           />
         </Field>
 
-        <div className="rounded-md border border-border bg-muted/40 p-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Inschatting:</span>
-            <DbaRiskBadge level={dbaResult.level} />
+        {!dbaTouched ? (
+          <p className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            Vink aan wat van toepassing is — daarna zie je direct de risico-inschatting.
+          </p>
+        ) : (
+          <div className="rounded-md border border-border bg-muted/40 p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Inschatting:</span>
+              <DbaRiskBadge level={dbaResult.level} />
+            </div>
+            <p className="mt-1.5 text-xs text-muted-foreground">{dbaAdvice(dbaResult.level)}</p>
+            {dbaResult.reasons.length > 0 && (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                {dbaResult.reasons.map((r) => (
+                  <li key={r.factor}>{r.message}</li>
+                ))}
+              </ul>
+            )}
           </div>
-          <p className="mt-1.5 text-xs text-muted-foreground">{dbaAdvice(dbaResult.level)}</p>
-          {dbaResult.reasons.length > 0 && (
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-              {dbaResult.reasons.map((r) => (
-                <li key={r.factor}>{r.message}</li>
-              ))}
-            </ul>
-          )}
-        </div>
+        )}
 
-        {modelRec.recommended && (
+        {dbaTouched && modelRec.recommended && (
           <div className="rounded-md border border-border bg-muted/40 p-3">
             <p className="text-sm font-medium">Aanbevolen modelovereenkomst: {modelRec.label}</p>
             {modelRec.reasons.length > 0 && (
@@ -349,24 +398,51 @@ export function JobForm({
             value={modelAgreementType}
             onChange={(e) => setModelAgreementType(e.target.value)}
           >
-            <option value="">Geen modelovereenkomst</option>
+            <option value="">Automatisch — aanbevolen op basis van de risicocheck</option>
             {MODEL_AGREEMENT_TYPES.map((t) => (
               <option key={t} value={t}>
                 {MODEL_AGREEMENT_LABELS[t]}
               </option>
             ))}
           </Select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Laat je dit op &laquo;Automatisch&raquo; staan, dan kiezen we bij elke opdracht de best
+            passende modelovereenkomst op basis van de risicocheck hierboven. Je kunt altijd zelf
+            een vorm vastleggen.
+          </p>
         </Field>
       </fieldset>
 
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Opslaan…" : initial.id ? "Wijzigingen opslaan" : "Opdracht aanmaken"}
-        </Button>
-        <span className="text-xs text-muted-foreground">
-          Nieuwe opdrachten starten als concept. Publiceren doe je daarna op de detailpagina.
-        </span>
-      </div>
+      {initial.id ? (
+        <div className="flex items-center gap-3">
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Opslaan…" : "Wijzigingen opslaan"}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Twee expliciete paden. "intent" bepaalt server-side of we na het aanmaken direct
+              publiceren (via de bestaande JOB_TRANSITIONS-overgang, met dezelfde validaties als de
+              detailpagina). De publiceer-knop staat als een submit-button met eigen name/value zodat
+              de gekozen knop meekomt in de FormData. */}
+          <Button type="submit" name="intent" value="publish" disabled={isPending}>
+            {isPending ? "Opslaan…" : "Opslaan & publiceren"}
+          </Button>
+          <Button
+            type="submit"
+            name="intent"
+            value="draft"
+            variant="secondary"
+            disabled={isPending}
+          >
+            {isPending ? "Opslaan…" : "Opslaan als concept"}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Publiceren maakt de opdracht direct zichtbaar voor ZZP&apos;ers. Als concept opslaan kan
+            altijd; publiceren doe je later ook op de detailpagina.
+          </span>
+        </div>
+      )}
       {state?.error && !Object.keys(fe).length && (
         <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
           {state.error}

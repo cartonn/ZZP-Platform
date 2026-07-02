@@ -27,7 +27,7 @@ test("Wet DBA-check: hoog risico live + op detail", async ({ page }) => {
   await expect(page.getByText(/gezagsverhouding/).first()).toBeVisible();
   await shot(page, "34-dba-form");
 
-  await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+  await page.getByRole("button", { name: "Opslaan als concept" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
   // Server-berekende snapshot zichtbaar op de detailpagina (eigenaar).

@@ -47,7 +47,7 @@ test("admin schorst gebruiker (self-guard), sluit opdracht en ziet auditregel", 
   await cp.goto("/opdrachten/nieuw");
   await cp.fill("#title", jobTitle);
   await cp.fill("#description", "Te modereren opdracht voor admin-test.");
-  await cp.getByRole("button", { name: "Opdracht aanmaken" }).click();
+  await cp.getByRole("button", { name: "Opslaan als concept" }).click();
   await expect(cp.getByRole("heading", { name: jobTitle })).toBeVisible();
   await cp.getByRole("button", { name: "Publiceren" }).click();
   await expect(cp.getByText("Gepubliceerd")).toBeVisible();

@@ -42,7 +42,7 @@ test("weekrooster op een samenwerking vastleggen blijft bewaard", async ({ page,
   await page.fill("#title", title);
   await page.fill("#description", "Opdracht met een vaste weekindeling bij de opdrachtgever.");
   await page.selectOption("#workMode", "ONSITE");
-  await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+  await page.getByRole("button", { name: "Opslaan als concept" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const jobUrl = page.url();
   await page.getByRole("button", { name: "Publiceren" }).click();
