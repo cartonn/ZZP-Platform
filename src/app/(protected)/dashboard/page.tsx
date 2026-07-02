@@ -741,12 +741,16 @@ export default async function DashboardPage() {
       icon: fKpiIcons[i] ?? Gauge,
       label: t(st.label),
       value: String(st.value),
-      // Eerste tegel = inzetbaarheid: benoem de blokkade (warning) of bevestig inzetbaarheid (success),
-      // zodat de status nooit zonder reden naast een percentage staat.
+      // Eerste tegel = inzetbaarheid: de delta-toon volgt exact het niveau — INACTIEF benoemt de
+      // blokkade (warning), AANDACHT toont het aandachtspunt-signaal (warning), ACTIEF bevestigt
+      // inzetbaarheid (success). Zo staat de status nooit met een tegenstrijdig gekleurd signaal.
       ...(i === 0 && employability
-        ? employability.blocker
-          ? { delta: t(employability.blocker), deltaTone: "warning" as const }
-          : { delta: t("Inzetbaar"), deltaTone: "success" as const }
+        ? employability.level === "ACTIEF"
+          ? { delta: t("Inzetbaar"), deltaTone: "success" as const }
+          : {
+              delta: t(employability.blocker ?? "Aandacht nodig"),
+              deltaTone: "warning" as const,
+            }
         : {}),
     }));
     const rows = matches.map((m) => {

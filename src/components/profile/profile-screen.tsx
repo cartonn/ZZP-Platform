@@ -8,7 +8,7 @@ import { profileVisibleTo, computeFreelancerCompleteness } from "@/lib/profile";
 import { tenantEntityVisibleTo } from "@/lib/tenancy";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
-import { mandatoryDocuments } from "@/lib/mandatory-documents";
+import { mandatoryDocuments, MANDATORY_CREDENTIAL_TYPES } from "@/lib/mandatory-documents";
 import { computeEngageability } from "@/lib/engageability";
 import { employabilitySummary } from "@/lib/employability-summary";
 import { formatDateShortNl } from "@/lib/format-date";
@@ -16,6 +16,7 @@ import { plural } from "@/lib/plural";
 import {
   type Availability,
   type AvailabilityWindowType,
+  type CredentialStatus,
   type CredentialType,
   type Visibility,
   type WorkMode,
@@ -288,26 +289,41 @@ export async function ProfileScreen({
     industryCount: profile.industries.length,
   });
   // Inzetbaarheids-samenvatting: hetzelfde oordeel als op het dashboard, uit dezelfde bron. De
-  // blokkerende status (ontbrekend/verlopen verplicht document) staat als warning-badge in de kop,
-  // zodat "Profiel compleet" nooit los naast een niet-inzetbaar profiel staat. lastActiveAt is hier
-  // niet nodig — blokkades komen uitsluitend uit de verplichte documenten.
-  const employability = employabilitySummary(
-    computeEngageability(
-      {
-        credentials: verifiedActive.map((c) => ({
-          type: c.type as CredentialType,
-          status: "VERIFIED" as const,
-          expiresAt: c.expiresAt,
-        })),
-        completeness: completeness.score,
-        availability: profile.availability as Availability,
-        identityVerified: !!profile.user.identityVerifiedAt,
-        lastActiveAt: null,
-      },
-      new Date(now),
-    ),
-    mandatory,
-  );
+  // blokkerende status staat als warning-badge in de kop, zodat "Profiel compleet" nooit los naast
+  // een niet-inzetbaar profiel staat. Alleen voor de eigenaar (de badge is owner-only) — daarom
+  // wordt hij alleen dan berekend.
+  //
+  // BELANGRIJK: de getoonde `profile.credentials` zijn gefilterd op status VERIFIED (publieke
+  // weergave). Voor de inzetbaarheid moeten we óók niet-geverifieerde verplichte documenten kennen —
+  // een INGEDIENDE (SUBMITTED) VOG is "in beoordeling", niet "ontbrekend". Anders spreekt het profiel
+  // het dashboard tegen (dat álle statussen ziet) en toont het een onjuiste "ontbreekt"-blocker.
+  // Daarom een eigenaar-scoped query op de échte statussen van de verplichte documenttypes.
+  let employability: ReturnType<typeof employabilitySummary> | null = null;
+  if (isOwner) {
+    const mandatoryCreds = await prisma.credential.findMany({
+      where: { freelancerProfileId: id, type: { in: [...MANDATORY_CREDENTIAL_TYPES] } },
+      select: { type: true, status: true, expiresAt: true },
+    });
+    const ownerMandatoryInput = mandatoryCreds.map((c) => ({
+      type: c.type as CredentialType,
+      status: c.status as CredentialStatus,
+      expiresAt: c.expiresAt,
+    }));
+    const ownerMandatory = mandatoryDocuments(ownerMandatoryInput, new Date(now));
+    employability = employabilitySummary(
+      computeEngageability(
+        {
+          credentials: ownerMandatoryInput,
+          completeness: completeness.score,
+          availability: profile.availability as Availability,
+          identityVerified: !!profile.user.identityVerifiedAt,
+          lastActiveAt: null,
+        },
+        new Date(now),
+      ),
+      ownerMandatory,
+    );
+  }
   const completed = profile.collaborations.filter((c) => c.status === "COMPLETED").length;
   const hoursPerWeek =
     profile.availabilityWindows.find(
@@ -341,7 +357,7 @@ export async function ProfileScreen({
                 {/* Blokkerende inzetbaarheidsstatus — alleen voor de eigenaar, met doorklik naar de
                     ontbrekende stap. Voorkomt dat "Beschikbaar" + "Profiel compleet" een niet-inzetbaar
                     profiel maskeren; de blokkade wordt altijd benoemd. */}
-                {isOwner && employability.blocker && (
+                {isOwner && employability?.blocker && (
                   <Link
                     href={employability.href}
                     className="focus-ring inline-flex items-center gap-1 rounded-full border-transparent bg-white px-2.5 py-0.5 text-xs font-medium text-warning hover:bg-white/90"

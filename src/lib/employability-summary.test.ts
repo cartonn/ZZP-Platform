@@ -61,6 +61,19 @@ describe("employabilitySummary", () => {
     expect(s.href).toBe("/certificaten/nieuw?type=INSURANCE");
   });
 
+  it("leest een INGEDIEND (SUBMITTED) verplicht document als 'in beoordeling', niet als blocker", () => {
+    // Regressie: dashboard (alle statussen) en profiel (owner-scoped, alle statussen) moeten
+    // hetzelfde oordeel geven. Een SUBMITTED VOG mag geen harde 'ontbreekt'-blocker opleveren.
+    const s = summarize([
+      { type: "VOG", status: "SUBMITTED", expiresAt: null },
+      { type: "INSURANCE", status: "VERIFIED", expiresAt: future },
+    ]);
+    expect(s.level).toBe("AANDACHT");
+    expect(s.blocker).toBeNull();
+    expect(s.labelWithBlocker).toBe("Aandacht nodig");
+    expect(s.href).toBe("/certificaten");
+  });
+
   it("toont bij AANDACHT (geen harde blocker) het kale label en geen deep-link", () => {
     // Alle verplichte documenten in orde, maar profiel onvolledig → AANDACHT, geen blocker.
     const s = summarize(validMandatory, 40);
