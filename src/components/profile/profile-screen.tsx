@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Calendar, MapPin } from "lucide-react";
+import { AlertTriangle, Calendar, MapPin } from "lucide-react";
 import { currentActor } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
@@ -9,6 +9,8 @@ import { tenantEntityVisibleTo } from "@/lib/tenancy";
 import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
+import { computeEngageability } from "@/lib/engageability";
+import { employabilitySummary } from "@/lib/employability-summary";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import {
@@ -285,6 +287,27 @@ export async function ProfileScreen({
     skillCount: profile.skills.length,
     industryCount: profile.industries.length,
   });
+  // Inzetbaarheids-samenvatting: hetzelfde oordeel als op het dashboard, uit dezelfde bron. De
+  // blokkerende status (ontbrekend/verlopen verplicht document) staat als warning-badge in de kop,
+  // zodat "Profiel compleet" nooit los naast een niet-inzetbaar profiel staat. lastActiveAt is hier
+  // niet nodig — blokkades komen uitsluitend uit de verplichte documenten.
+  const employability = employabilitySummary(
+    computeEngageability(
+      {
+        credentials: verifiedActive.map((c) => ({
+          type: c.type as CredentialType,
+          status: "VERIFIED" as const,
+          expiresAt: c.expiresAt,
+        })),
+        completeness: completeness.score,
+        availability: profile.availability as Availability,
+        identityVerified: !!profile.user.identityVerifiedAt,
+        lastActiveAt: null,
+      },
+      new Date(now),
+    ),
+    mandatory,
+  );
   const completed = profile.collaborations.filter((c) => c.status === "COMPLETED").length;
   const hoursPerWeek =
     profile.availabilityWindows.find(
@@ -315,6 +338,18 @@ export async function ProfileScreen({
                   {t(availability.label)}
                 </Badge>
                 <TrustBadge level={trust.level} className="border-transparent bg-white" />
+                {/* Blokkerende inzetbaarheidsstatus — alleen voor de eigenaar, met doorklik naar de
+                    ontbrekende stap. Voorkomt dat "Beschikbaar" + "Profiel compleet" een niet-inzetbaar
+                    profiel maskeren; de blokkade wordt altijd benoemd. */}
+                {isOwner && employability.blocker && (
+                  <Link
+                    href={employability.href}
+                    className="focus-ring inline-flex items-center gap-1 rounded-full border-transparent bg-white px-2.5 py-0.5 text-xs font-medium text-warning hover:bg-white/90"
+                  >
+                    <AlertTriangle className="size-3.5" aria-hidden />
+                    {t(employability.labelWithBlocker)}
+                  </Link>
+                )}
                 {reviewAgg.count > 0 && (
                   <RatingStars
                     average={reviewAgg.average}
@@ -486,10 +521,10 @@ export async function ProfileScreen({
             <Card>
               <CardContent className="py-4">
                 <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t("Profielkracht")}
+                  {t("Profiel compleet")}
                 </h2>
                 <div className="mt-3 flex justify-center">
-                  <ScoreRing value={completeness.score} label={t("Profielkracht")} />
+                  <ScoreRing value={completeness.score} label={t("Profiel compleet")} />
                 </div>
                 <div className="mt-4 space-y-3">
                   <SignalBar
