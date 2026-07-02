@@ -70,13 +70,13 @@ export async function FinancienHubScreen({
                 </h1>
                 <Badge variant="accent">ZZP Platform</Badge>
                 {openCents > 0 && (
-                  <Badge variant="warning">{formatEuro(openCents)} openstaand</Badge>
+                  <Badge variant="warning">{formatEuro(openCents)} facturatie open</Badge>
                 )}
               </div>
               <p className="mt-1 text-sm text-muted-foreground sm:text-base">{subtitle}</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
                 <span className="text-sm text-muted-foreground">
-                  Openstaand{" "}
+                  Platform-facturatie openstaand{" "}
                   <span className="font-medium tabular-nums">{formatEuro(openCents)}</span>
                 </span>
                 <span className="text-sm text-muted-foreground">
