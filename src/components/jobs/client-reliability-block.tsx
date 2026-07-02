@@ -1,21 +1,7 @@
 import { CalendarX2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { type ClientReliability, type ReliabilityTone } from "@/lib/client-reliability";
+import { BehaviorToneBadge } from "@/components/jobs/signal-chips";
+import { type ClientReliability } from "@/lib/client-reliability";
 import { getTranslator } from "@/lib/i18n/server";
-
-const TONE_VARIANT: Record<ReliabilityTone, "success" | "muted" | "warning" | "default"> = {
-  good: "success",
-  neutral: "default",
-  warning: "warning",
-  unknown: "muted",
-};
-
-const TONE_LABEL: Record<ReliabilityTone, string> = {
-  good: "Goed",
-  neutral: "Gemiddeld",
-  warning: "Let op",
-  unknown: "Onbekend",
-};
 
 interface Props {
   reliability: ClientReliability;
@@ -38,7 +24,7 @@ export async function ClientReliabilityBlock({ reliability }: Props) {
       <div className="flex items-center gap-2">
         <CalendarX2 className="size-4 text-muted-foreground" aria-hidden />
         <h2 className="text-sm font-medium">{t("Annuleringsgedrag")}</h2>
-        <Badge variant={TONE_VARIANT[tone]}>{t(TONE_LABEL[tone])}</Badge>
+        <BehaviorToneBadge tone={tone} />
       </div>
 
       {tone === "unknown" ? (

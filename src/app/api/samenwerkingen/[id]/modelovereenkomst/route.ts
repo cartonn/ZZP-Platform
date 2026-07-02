@@ -56,7 +56,20 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const allowed =
     actor.role === "ADMIN" || actor.id === col.company.userId || actor.id === col.freelancer.userId;
-  if (!allowed) return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+  if (!allowed) {
+    // Geweigerde inzage ook vastleggen — parity met de dba-dossier/dossier-routes (CLAUDE.md
+    // regel 5). Maakt IDOR-enumeratie op collaboration-id's zichtbaar in het auditspoor.
+    const meta = await requestMeta();
+    await audit({
+      actorId: actor.id,
+      action: "MODEL_AGREEMENT_ACCESS_DENIED",
+      entityType: "Collaboration",
+      entityId: id,
+      metadata: { viewerRole: actor.role },
+      ...meta,
+    });
+    return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+  }
 
   // AVG/compliance (CLAUDE.md regel 5): de modelovereenkomst is een juridisch document (Wet DBA)
   // met PII van beide partijen; inzage vastleggen zoals de dossier-routes en /api/documents/[id].

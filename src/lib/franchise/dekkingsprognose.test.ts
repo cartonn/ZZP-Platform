@@ -72,7 +72,7 @@ describe("buildDekkingsprognose", () => {
     expect(result.soonestOpenDays).toBeNull();
   });
 
-  it("soonestOpenDays = dagen tot eerstvolgende open dienst", () => {
+  it("soonestOpenDays = kalenderdagen tot eerstvolgende open dienst", () => {
     const result = buildDekkingsprognose(
       [
         dienst({ startDate: onDay(2026, 6, 23) }),
@@ -81,8 +81,21 @@ describe("buildDekkingsprognose", () => {
       ],
       NOW,
     );
-    // 17 juni 12:00 → 20 juni 09:00 = ~2,9 dagen → floor 2
-    expect(result.soonestOpenDays).toBe(2);
+    // wo 17 juni → za 20 juni = 3 kalenderdagen (middernacht-tot-middernacht, niet wall-clock)
+    expect(result.soonestOpenDays).toBe(3);
+  });
+
+  it("soonestOpenDays is 1 voor een dienst morgenochtend, ook 's avonds laat", () => {
+    // 22:30 vanavond → morgen 09:00 is < 24u wall-clock, maar wél 1 kalenderdag.
+    const eveningNow = new Date(2026, 5, 17, 22, 30, 0);
+    const result = buildDekkingsprognose([dienst({ startDate: onDay(2026, 6, 18) })], eveningNow);
+    expect(result.soonestOpenDays).toBe(1);
+  });
+
+  it("soonestOpenDays is 0 voor een dienst later vandaag", () => {
+    const morningNow = new Date(2026, 5, 17, 7, 0, 0);
+    const result = buildDekkingsprognose([dienst({ startDate: onDay(2026, 6, 17) })], morningNow);
+    expect(result.soonestOpenDays).toBe(0);
   });
 
   it("soonestOpenDays is 0 bij een open dienst in het verleden (acuut)", () => {

@@ -84,7 +84,11 @@ export function FileInput({ id, name, accept, required, capture, onChange }: Pro
           Scan met camera
         </Button>
       )}
-      <span className="truncate text-sm text-muted-foreground">
+      {/* min-w-0 + flex-1: zonder deze kan truncate niet clippen in een wrappende flex-rij en
+          duwt een lange bestandsnaam de rij kapot i.p.v. af te korten (DESIGN.md: tekst valt
+          nooit buiten knoppen/cards). basis-full laat de naam op smalle schermen netjes onder
+          de knoppen vallen. */}
+      <span className="min-w-0 flex-1 basis-full truncate text-sm text-muted-foreground sm:basis-auto">
         {fileName ?? "Geen bestand gekozen"}
       </span>
     </div>

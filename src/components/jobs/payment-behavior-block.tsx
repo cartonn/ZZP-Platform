@@ -1,21 +1,7 @@
 import { CreditCard } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { type PaymentBehavior, type PaymentTone } from "@/lib/payment-behavior";
+import { BehaviorToneBadge } from "@/components/jobs/signal-chips";
+import { type PaymentBehavior } from "@/lib/payment-behavior";
 import { getTranslator } from "@/lib/i18n/server";
-
-const TONE_VARIANT: Record<PaymentTone, "success" | "muted" | "warning" | "default"> = {
-  good: "success",
-  neutral: "default",
-  warning: "warning",
-  unknown: "muted",
-};
-
-const TONE_LABEL: Record<PaymentTone, string> = {
-  good: "Goed",
-  neutral: "Gemiddeld",
-  warning: "Let op",
-  unknown: "Onbekend",
-};
 
 interface Props {
   behavior: PaymentBehavior;
@@ -38,7 +24,7 @@ export async function PaymentBehaviorBlock({ behavior }: Props) {
       <div className="flex items-center gap-2">
         <CreditCard className="size-4 text-muted-foreground" aria-hidden />
         <h2 className="text-sm font-medium">{t("Betaalgedrag")}</h2>
-        <Badge variant={TONE_VARIANT[tone]}>{t(TONE_LABEL[tone])}</Badge>
+        <BehaviorToneBadge tone={tone} />
       </div>
 
       {tone === "unknown" ? (
