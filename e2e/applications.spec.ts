@@ -80,7 +80,7 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
 
   // Opdrachtgever beheert de kandidaat.
   await page.goto("/kandidaten");
-  await expect(page.getByText("Reactie Freelancer")).toBeVisible();
+  await expect(page.getByText("Reactie Freelancer").first()).toBeVisible();
 
   // Meedenken: de zijbalk toont vanaf elke pagina dat er een nieuwe reactie wacht.
   const kandidatenNav = page

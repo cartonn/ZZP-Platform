@@ -49,10 +49,13 @@ test("verlopen factuur vraagt aandacht op dashboard en zijbalk", async ({ page, 
   await page.goto("/kandidaten");
   await page.getByRole("button", { name: "Toon details" }).click();
   await page.getByRole("button", { name: "Accepteren" }).click();
-  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
+  // Accepteren houdt de kandidaat (nog zonder samenwerking) in de actieve lijst; de rij klapt dicht.
+  await page.getByRole("button", { name: "Toon details" }).click();
   await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
   await page.locator('input[name="rate"]').fill("90");
   await page.getByRole("button", { name: "Voorstel versturen" }).click();
+  // Met een samenwerking verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd"; open die.
+  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
   await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible();
 
   // ZZP'er activeert samenwerking en stuurt een factuur met een vervaldatum in het verleden.

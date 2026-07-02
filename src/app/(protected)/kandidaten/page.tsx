@@ -600,7 +600,14 @@ export default async function KandidatenPage({
                     )}
                   </>
                 );
-                return { app, status, lead, header, body };
+                return {
+                  app,
+                  status,
+                  hasCollaboration: !!app.collaboration,
+                  lead,
+                  header,
+                  body,
+                };
               });
 
               const { active, accepted: acceptedItems } = partitionTriage(rendered);

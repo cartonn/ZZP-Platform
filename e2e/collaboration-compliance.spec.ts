@@ -53,13 +53,16 @@ test("inzetbaarheid-gate: ontbrekend vereist certificaat blokkeert de plaatsing"
 
   // Opdrachtgever accepteert en stelt een samenwerking voor.
   await page.goto("/kandidaten");
-  await expect(page.getByText("Comp Freelancer")).toBeVisible();
+  await expect(page.getByText("Comp Freelancer").first()).toBeVisible();
   await page.getByRole("button", { name: "Toon details" }).click();
   await page.getByRole("button", { name: "Accepteren" }).click();
-  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
+  // Accepteren houdt de kandidaat (nog zonder samenwerking) in de actieve lijst; de rij klapt dicht.
+  await page.getByRole("button", { name: "Toon details" }).click();
   await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
   await page.locator('input[name="rate"]').fill("90");
   await page.getByRole("button", { name: "Voorstel versturen" }).click();
+  // Met een samenwerking verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd"; open die.
+  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
   await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible();
 
   // ZZP'er: de samenwerking kan NIET starten zolang de VOG ontbreekt — ondertekenen is geblokkeerd

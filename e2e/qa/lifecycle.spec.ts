@@ -94,11 +94,13 @@ test.describe("QA: Complete lifecycle cascade", () => {
     await page.goto("/kandidaten");
     await page.getByRole("button", { name: "Toon details" }).click();
     await page.getByRole("button", { name: "Accepteren" }).click();
-    // Geaccepteerde kandidaat verhuist naar de ingeklapte sectie "Geaccepteerd — zie Samenwerkingen".
-    await page.getByRole("button", { name: /Geaccepteerd/ }).click();
+    // Accepteren houdt de kandidaat (nog zonder samenwerking) in de actieve lijst; de rij klapt dicht.
+    await page.getByRole("button", { name: "Toon details" }).click();
     await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
     await page.locator('input[name="rate"]').fill("75");
     await page.getByRole("button", { name: "Voorstel versturen" }).click();
+    // Met een samenwerking verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd".
+    await page.getByRole("button", { name: /Geaccepteerd/ }).click();
     await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible({
       timeout: 15000,
     });

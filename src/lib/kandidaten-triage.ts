@@ -2,19 +2,21 @@ import { type ApplicationStatus } from "@/lib/enums";
 
 /**
  * Splitst reacties in twee triage-groepen voor het kandidatenscherm:
- * - `active`: nog te beslissen (NEW/VIEWED/SHORTLIST/REJECTED/WITHDRAWN) — compacte, uitklapbare rijen.
- * - `accepted`: al geaccepteerd (status ACCEPTED) — apart, ingeklapt onderaan ("zie Samenwerkingen"),
- *   want de beslissing is gemaakt en de samenwerking loopt al.
+ * - `active`: nog een actie nodig — alle niet-geaccepteerde reacties, PLUS geaccepteerde reacties
+ *   die nog geen samenwerking hebben (die vragen nog om "Samenwerking voorstellen").
+ * - `accepted`: afgehandeld — geaccepteerd én de samenwerking loopt al. Deze verhuizen naar de
+ *   aparte, ingeklapte sectie onderaan ("zie Samenwerkingen"); ze vragen geen beslissing meer.
  *
- * Pure functie: behoudt de invoervolgorde binnen elke groep, muteert de invoer niet.
+ * Een `hasCollaboration`-vlag i.p.v. alleen status voorkomt dat het propose-formulier (een openstaande
+ * actie) in de ingeklapte sectie verdwijnt. Pure functie: behoudt de invoervolgorde, muteert niet.
  */
-export function partitionTriage<T extends { status: ApplicationStatus | string }>(
-  items: T[],
-): { active: T[]; accepted: T[] } {
+export function partitionTriage<
+  T extends { status: ApplicationStatus | string; hasCollaboration: boolean },
+>(items: T[]): { active: T[]; accepted: T[] } {
   const active: T[] = [];
   const accepted: T[] = [];
   for (const item of items) {
-    if (item.status === "ACCEPTED") accepted.push(item);
+    if (item.status === "ACCEPTED" && item.hasCollaboration) accepted.push(item);
     else active.push(item);
   }
   return { active, accepted };
