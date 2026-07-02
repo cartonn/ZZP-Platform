@@ -1,14 +1,15 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import { Headphones } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { cn } from "@/lib/utils";
 import { ASSISTANT_NAME } from "@/lib/support/knowledge-base";
-import { SUPPORT_STATUS_LABEL, SUPPORT_CATEGORY_LABEL, statusVariant } from "@/lib/support/labels";
+import { SUPPORT_STATUS_LABEL, SUPPORT_CATEGORY_LABEL } from "@/lib/support/labels";
+import { ticketAgeLabel } from "@/lib/support/ticket-age";
 import {
   type SupportTicketStatus,
   type SupportCategory,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/enums";
 import { adminReply, adminResolve } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
+import { TicketList, type TicketRow } from "./ticket-list";
 
 export const metadata: Metadata = { title: "Helpdesk · ZZP Platform" };
 
@@ -25,17 +27,86 @@ const AUTHOR_LABEL: Record<SupportAuthorKind, string> = {
   ASSISTANT: ASSISTANT_NAME,
 };
 
-export default async function AdminSupportPage() {
+// De helpdesk-wachtrij: alles wat een medewerker nog moet oppakken. AWAITING_USER hoort erbij zodat
+// een lopend gesprek zichtbaar blijft; opgeloste tickets vallen buiten de queue.
+const QUEUE_STATUSES = [
+  "ESCALATED",
+  "REOPENED",
+  "TRIAGED",
+  "NEW",
+  "AWAITING_USER",
+] as const satisfies readonly SupportTicketStatus[];
+
+function parseStatusFilter(value: string | string[] | undefined): SupportTicketStatus | null {
+  const v = Array.isArray(value) ? value[0] : value;
+  return v && (QUEUE_STATUSES as readonly string[]).includes(v) ? (v as SupportTicketStatus) : null;
+}
+
+function FilterPill({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "focus-ring inline-flex items-center gap-1.5 rounded-md border px-3 py-1 text-sm transition-colors",
+        active
+          ? "border-accent-foreground/20 bg-accent text-accent-foreground"
+          : "border-border bg-background text-muted-foreground hover:bg-muted",
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
+export default async function AdminSupportPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireRole("ADMIN");
-  // Wachtrij: open tickets eerst (geëscaleerd/heropend), opgeloste onderaan.
+  const filter = parseStatusFilter((await searchParams).status);
+
+  // Hele wachtrij ophalen; server sorteert oudst-bijgewerkt eerst (langst stil bovenaan).
   const tickets = await prisma.supportTicket.findMany({
-    where: { status: { in: ["ESCALATED", "REOPENED", "TRIAGED", "NEW"] } },
+    where: { status: { in: [...QUEUE_STATUSES] } },
     orderBy: { updatedAt: "asc" },
     include: {
       user: { select: { name: true, email: true } },
-      messages: { orderBy: { createdAt: "asc" } },
+      messages: { orderBy: { createdAt: "asc" }, select: { authorKind: true, body: true } },
     },
   });
+
+  // Tellingen per status (over de volledige queue) voor de filter-pills.
+  const counts = new Map<SupportTicketStatus, number>();
+  for (const t of tickets) {
+    const s = t.status as SupportTicketStatus;
+    counts.set(s, (counts.get(s) ?? 0) + 1);
+  }
+
+  const now = Date.now();
+  const visible = filter ? tickets.filter((t) => t.status === filter) : tickets;
+  const rows: TicketRow[] = visible.map((t) => ({
+    id: t.id,
+    subject: t.subject,
+    status: t.status as SupportTicketStatus,
+    userName: t.user.name ?? "Onbekend",
+    categoryLabel: SUPPORT_CATEGORY_LABEL[t.category as SupportCategory],
+    updatedLabel: formatDateShortNl(t.updatedAt),
+    ageLabel: ticketAgeLabel(t.updatedAt, now),
+    messages: t.messages.map((m) => ({
+      authorKind: m.authorKind as SupportAuthorKind,
+      body: m.body,
+    })),
+  }));
 
   return (
     <div className="space-y-6">
@@ -53,52 +124,34 @@ export default async function AdminSupportPage() {
           />
         </Card>
       ) : (
-        <div className="space-y-3">
-          {tickets.map((t) => {
-            const status = t.status as SupportTicketStatus;
-            const last = t.messages[t.messages.length - 1];
-            return (
-              <Card key={t.id}>
-                <CardContent className="space-y-3 py-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-medium">{t.subject}</span>
-                    <Badge variant={statusVariant(status)}>{SUPPORT_STATUS_LABEL[status]}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {t.user.name} · {SUPPORT_CATEGORY_LABEL[t.category as SupportCategory]} ·{" "}
-                    {formatDateShortNl(t.updatedAt)}
-                  </p>
-                  {last && (
-                    <div className="rounded-md bg-muted/40 px-3 py-2 text-sm">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {AUTHOR_LABEL[last.authorKind as SupportAuthorKind]}:{" "}
-                      </span>
-                      <span className="whitespace-pre-wrap">{last.body}</span>
-                    </div>
-                  )}
-                  <form action={adminReply.bind(null, t.id)} className="space-y-2">
-                    <textarea
-                      name="body"
-                      rows={2}
-                      required
-                      className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground"
-                      placeholder="Antwoord van de helpdesk…"
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="submit" size="sm">
-                        Antwoord versturen
-                      </Button>
-                    </div>
-                  </form>
-                  <form action={adminResolve.bind(null, t.id)}>
-                    <Button type="submit" variant="secondary" size="sm">
-                      Markeer als opgelost
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            );
-          })}
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <FilterPill href="/admin/support" active={filter === null}>
+              Alle ({tickets.length})
+            </FilterPill>
+            {QUEUE_STATUSES.filter((s) => (counts.get(s) ?? 0) > 0).map((s) => (
+              <FilterPill key={s} href={`/admin/support?status=${s}`} active={filter === s}>
+                {SUPPORT_STATUS_LABEL[s]} ({counts.get(s)})
+              </FilterPill>
+            ))}
+          </div>
+
+          {rows.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={Headphones}
+                title="Geen tickets met dit filter"
+                description="Kies een ander filter om andere tickets te zien."
+              />
+            </Card>
+          ) : (
+            <TicketList
+              tickets={rows}
+              authorLabels={AUTHOR_LABEL}
+              adminReply={adminReply}
+              adminResolve={adminResolve}
+            />
+          )}
         </div>
       )}
     </div>

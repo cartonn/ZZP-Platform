@@ -202,6 +202,8 @@ const allClearAdmin = {
   pendingVerifications: 0,
   pendingUsers: 0,
   openDisputes: 0,
+  openSupportTickets: 0,
+  expiringCredentials: 0,
 };
 
 describe("adminNextActions", () => {
@@ -211,10 +213,10 @@ describe("adminNextActions", () => {
 
   it("ranks AVG deletion requests highest", () => {
     const ranked = adminNextActions({
+      ...allClearAdmin,
       deletionRequests: 1,
       pendingVerifications: 5,
       pendingUsers: 3,
-      openDisputes: 0,
     });
     expect(ranked.map((x) => x.id)).toEqual([
       "admin-deletion-requests",
@@ -233,15 +235,48 @@ describe("adminNextActions", () => {
 
   it("uses admin hrefs", () => {
     const ranked = adminNextActions({
+      ...allClearAdmin,
       deletionRequests: 1,
       pendingVerifications: 1,
       pendingUsers: 1,
-      openDisputes: 0,
     });
     const byId = Object.fromEntries(ranked.map((x) => [x.id, x.href]));
     expect(byId["admin-deletion-requests"]).toBe("/admin/gebruikers?deletion=1");
     expect(byId["admin-pending-verifications"]).toBe("/admin/verificaties");
     expect(byId["admin-pending-users"]).toBe("/admin/gebruikers?status=PENDING");
+  });
+
+  it("toont openstaande supporttickets tussen verificaties en pending-users", () => {
+    const ranked = adminNextActions({
+      ...allClearAdmin,
+      pendingVerifications: 1,
+      openSupportTickets: 3,
+      pendingUsers: 1,
+    });
+    expect(ranked.map((x) => x.id)).toEqual([
+      "admin-pending-verifications",
+      "admin-open-support-tickets",
+      "admin-pending-users",
+    ]);
+    const support = ranked.find((x) => x.id === "admin-open-support-tickets");
+    expect(support?.href).toBe("/admin/support");
+    expect(support?.tone).toBe("attention");
+    expect(support?.title).toContain("3 supporttickets");
+  });
+
+  it("gebruikt enkelvoud voor één supportticket", () => {
+    const ranked = adminNextActions({ ...allClearAdmin, openSupportTickets: 1 });
+    expect(ranked[0]?.title).toBe("1 supportticket wacht op antwoord");
+  });
+
+  it("toont de vervalcontrole-batch onderaan (info, doorklik naar verificaties)", () => {
+    const ranked = adminNextActions({ ...allClearAdmin, expiringCredentials: 4, pendingUsers: 2 });
+    const expiry = ranked.find((x) => x.id === "admin-expiring-credentials");
+    expect(expiry?.href).toBe("/admin/verificaties");
+    expect(expiry?.tone).toBe("info");
+    expect(expiry?.title).toContain("4 certificaat/certificaten");
+    // Batch staat onder pending-users.
+    expect(ranked[ranked.length - 1]?.id).toBe("admin-expiring-credentials");
   });
 });
 

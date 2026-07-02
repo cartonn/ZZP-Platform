@@ -71,7 +71,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // aanvragen is structureel klein (dagelijkse verwerking door beheerders).
   {
     file: "(protected)/admin/verificaties/page.tsx",
-    line: 47,
+    line: 48,
     reason: "verificatiewachtrij is structureel klein (dagelijks verwerkt)",
   },
 
@@ -80,11 +80,11 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // bovendien een defensieve take-cap gekregen.)
 
   // --- admin/support/page.tsx ---
-  // Actieve support-tickets (status-filter op ESCALATED/REOPENED/TRIAGED/NEW);
+  // Actieve support-tickets (status-filter op ESCALATED/REOPENED/TRIAGED/NEW/AWAITING_USER);
   // dit zijn altijd onopgeloste items; structureel klein voor goed beheerde queue.
   {
     file: "(protected)/admin/support/page.tsx",
-    line: 31,
+    line: 79,
     reason: "actieve queue met status-filter; structureel klein bij goede SLA",
   },
 

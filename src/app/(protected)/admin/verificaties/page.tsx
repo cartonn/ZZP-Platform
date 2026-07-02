@@ -1,5 +1,5 @@
 import { type Metadata } from "next";
-import { CheckCircle2, Download } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
@@ -11,8 +11,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { ExpiryButton } from "./expiry-button";
+import { RejectForm } from "./reject-form";
+import { DocumentPreview } from "./document-preview";
 import { rejectCredential, verifyCredential } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
@@ -49,7 +50,7 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
     // Oudste aanvraag eerst op het indientijdstip; legacy-records zonder submittedAt achteraan.
     orderBy: [{ submittedAt: { sort: "asc", nulls: "last" } }, { updatedAt: "asc" }],
     include: {
-      document: { select: { id: true } },
+      document: { select: { id: true, mimeType: true } },
       freelancerProfile: { select: { user: { select: { name: true, email: true } } } },
     },
   });
@@ -173,48 +174,21 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
                     </div>
 
                     {c.document && (
-                      <Button asChild variant="secondary" size="sm">
-                        <a
-                          href={`/api/documents/${c.document.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <Download className="size-3.5" aria-hidden /> Bewijsstuk bekijken
-                        </a>
-                      </Button>
+                      <DocumentPreview documentId={c.document.id} mimeType={c.document.mimeType} />
                     )}
 
                     <div className="space-y-3 border-t border-border pt-3">
-                      <form action={verifyCredential.bind(null, c.id)}>
-                        <Button type="submit" size="sm">
-                          Goedkeuren
-                        </Button>
-                      </form>
-                      <form
-                        action={rejectCredential.bind(null, c.id)}
-                        className="flex flex-col gap-2 sm:flex-row sm:items-end"
-                      >
-                        <div className="flex-1">
-                          <label
-                            htmlFor={`reason-${c.id}`}
-                            className="mb-1 block text-xs font-medium"
-                          >
-                            Reden van afwijzing
-                          </label>
-                          <Textarea
-                            id={`reason-${c.id}`}
-                            name="reason"
-                            rows={2}
-                            required
-                            minLength={3}
-                            maxLength={500}
-                            placeholder="Verplicht bij afwijzen…"
-                          />
-                        </div>
-                        <Button type="submit" variant="destructive" size="sm">
-                          Afwijzen
-                        </Button>
-                      </form>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <form action={verifyCredential.bind(null, c.id)}>
+                          <Button type="submit" size="sm">
+                            Goedkeuren
+                          </Button>
+                        </form>
+                        <RejectForm
+                          credentialId={c.id}
+                          action={rejectCredential.bind(null, c.id)}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
