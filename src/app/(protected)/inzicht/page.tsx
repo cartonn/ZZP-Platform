@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, Gauge, PieChart, Target, Building2 } from "lucide-react";
+import { ArrowRight, BarChart3, Gauge, PieChart, Target, Building2 } from "lucide-react";
 import { requireActor, type Actor } from "@/lib/authz";
 import { type UserRole } from "@/lib/enums";
 import { getFreelancerStats } from "@/lib/freelancer-stats";
@@ -216,7 +217,19 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
           emptyText="Zodra je samenwerkingen lopen, zie je hier de verdeling per status."
         />
         {membership.enabled && (
-          <BiWidget title="Platformabonnement" className="lg:col-span-2">
+          <BiWidget
+            title="Platformabonnement"
+            className="lg:col-span-2"
+            action={
+              <Link
+                href="/abonnement"
+                className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
+              >
+                Bekijk abonnement
+                <ArrowRight className="size-3.5" aria-hidden />
+              </Link>
+            }
+          >
             <BiStatList
               items={[
                 {
@@ -230,7 +243,7 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
                   tone: membership.billedThisMonth ? "default" : "success",
                 },
                 {
-                  label: "Openstaand",
+                  label: "Openstaand abonnement",
                   value: formatEuro(membership.openCents),
                   sub:
                     membership.openMonths > 0

@@ -152,16 +152,21 @@ export async function AdminAdministratiePanel() {
         )}
       </section>
 
-      {/* Openstaande betalingen */}
+      {/* Openstaande facturen van gebruikers — losstaand van de platform-facturatie in de tab
+          'Facturatie'; dit zijn facturen tussen ZZP'er en opdrachtgever, geen platform-facturen. */}
       <section className="space-y-3">
-        <h2 className="text-base font-medium">Openstaande betalingen</h2>
+        <h2 className="text-base font-medium">Openstaande facturen van gebruikers</h2>
+        <p className="text-sm text-muted-foreground">
+          Goedgekeurde of verlopen facturen tussen ZZP&apos;ers en opdrachtgevers. Los van de
+          platform-facturatie in de tab &lsquo;Facturatie&rsquo;.
+        </p>
 
         {collaborations.length === 0 ? (
           <Card>
             <EmptyState
               icon={BarChart}
-              title="Geen openstaande betalingen"
-              description="Er zijn op dit moment geen goedgekeurde of verlopen facturen zonder betaling."
+              title="Geen openstaande facturen van gebruikers"
+              description="Er zijn op dit moment geen goedgekeurde of verlopen facturen tussen ZZP'ers en opdrachtgevers."
             />
           </Card>
         ) : (

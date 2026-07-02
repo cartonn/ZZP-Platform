@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
 import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
+import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { ROLE_LABEL } from "@/lib/nav";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -88,6 +90,12 @@ export async function AdministratieHubScreen({
   const { openCents, paidCents } = await headlineStats(actor);
   const isFreelancer = actor.role === "FREELANCER";
 
+  // Platformabonnement-achterstand is een aparte, niet-factuur-openstaande post (dezelfde helper die
+  // /inzicht gebruikt). Alleen voor de ZZP'er; tonen we enkel als er daadwerkelijk iets openstaat,
+  // zodat het "openstaand"-cijfer op de kopkaart (facturen) niet met het abonnement botst.
+  const membership = isFreelancer ? await getFreelancerMembership(actor.id) : null;
+  const membershipOpenCents = membership?.enabled ? membership.openCents : 0;
+
   const tabHref = (key: TabKey) => (key === "facturen" ? "/financien" : `/financien?tab=${key}`);
 
   const subtitle = isFreelancer
@@ -114,14 +122,14 @@ export async function AdministratieHubScreen({
                 <Badge variant="accent">{t(ROLE_LABEL[actor.role])}</Badge>
                 {openCents > 0 && (
                   <Badge variant="warning">
-                    {formatEuro(openCents)} {t("openstaand")}
+                    {formatEuro(openCents)} {t("aan facturen open")}
                   </Badge>
                 )}
               </div>
               <p className="mt-1 text-sm text-muted-foreground sm:text-base">{subtitle}</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
                 <span className="text-sm text-muted-foreground">
-                  {t("Openstaand")}{" "}
+                  {t("Openstaande facturen")}{" "}
                   <span className="font-medium tabular-nums">{formatEuro(openCents)}</span>
                 </span>
                 {isFreelancer && (
@@ -129,6 +137,18 @@ export async function AdministratieHubScreen({
                     {t("Betaalde omzet")}{" "}
                     <span className="font-medium tabular-nums">{formatEuro(paidCents)}</span>
                   </span>
+                )}
+                {membershipOpenCents > 0 && (
+                  <Link
+                    href="/abonnement"
+                    className="focus-ring inline-flex items-center gap-1 rounded text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    {t("Openstaand abonnement")}{" "}
+                    <span className="font-medium tabular-nums">
+                      {formatEuro(membershipOpenCents)}
+                    </span>
+                    <ArrowRight className="size-3.5" aria-hidden />
+                  </Link>
                 )}
               </div>
             </div>
