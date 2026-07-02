@@ -127,6 +127,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   FRANCHISE_CREATED: "Bemiddeling aangemaakt",
   FRANCHISE_CLIENT_ADDED: "Opdrachtgever toegevoegd",
   FRANCHISE_FREELANCER_ADDED: "Aan roster toegevoegd",
+  FRANCHISE_FREELANCER_PROPOSED: "ZZP'er voorgedragen op dienst",
   FRANCHISE_DEPARTMENT_ADDED: "Afdeling toegevoegd",
   FRANCHISE_DEPARTMENT_REMOVED: "Afdeling verwijderd",
   FRANCHISE_DIENST_STATUS_SET: "Dienststatus gewijzigd",

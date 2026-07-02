@@ -1,9 +1,10 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Users, CircleAlert } from "lucide-react";
+import { ArrowLeft, Users, CircleAlert, UserPlus } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getDienstDetail } from "@/lib/franchise/dienst-detail";
+import { getRosterCandidatesForDienst } from "@/lib/franchise/dienst-voordracht";
 import { JOB_TRANSITIONS } from "@/lib/jobs";
 import { type JobStatus, type ApplicationStatus, type WorkMode } from "@/lib/enums";
 import { type ComplianceStatus } from "@/lib/matching";
@@ -20,6 +21,7 @@ import { ApplicationStatusBadge } from "@/components/applications/application-st
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { plural } from "@/lib/plural";
 import { setDienstStatus } from "../actions";
+import { VoordragenSection } from "./voordragen";
 
 export const metadata: Metadata = { title: "Dienst · Bemiddeling" };
 
@@ -54,6 +56,10 @@ export default async function FranchiseDienstDetailPage({
 
   const rate = rateLabel(dienst.rateMin, dienst.rateMax);
   const signaal = inzetvormSignaal(dienst.dbaRisk as DbaRisk | null);
+
+  // Voordragen kan alleen op een open (gepubliceerde) dienst — anders geen actie te bieden.
+  const rosterCandidates =
+    dienst.status === "PUBLISHED" ? await getRosterCandidatesForDienst(actor, id) : null;
 
   return (
     <div className="space-y-6">
@@ -123,6 +129,39 @@ export default async function FranchiseDienstDetailPage({
           </p>
         </CardContent>
       </Card>
+
+      {/* Voordragen uit je roster — de bemiddelaar vult een open dienst actief door eigen ZZP'ers
+          voor te dragen. Alleen zichtbaar bij een gepubliceerde dienst; inzetbaarheid inline, een
+          niet-inzetbare ZZP'er is disabled (server-side ook geweigerd). */}
+      {rosterCandidates != null && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <UserPlus className="size-4 text-muted-foreground" aria-hidden />
+            Voordragen uit je roster
+            {rosterCandidates.length > 0 && (
+              <span className="text-muted-foreground">
+                ({plural(rosterCandidates.length, "ZZP'er", "ZZP'ers")})
+              </span>
+            )}
+          </div>
+
+          {rosterCandidates.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={UserPlus}
+                title="Nog geen ZZP'ers in je roster"
+                description="Voeg ZZP'ers toe aan je roster om ze op deze dienst voor te dragen."
+              />
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <VoordragenSection jobId={id} candidates={rosterCandidates} />
+              </CardContent>
+            </Card>
+          )}
+        </section>
+      )}
 
       <section className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium">
