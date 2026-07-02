@@ -3,8 +3,15 @@ import {
   type ClientFreelancerSuggestion,
   type FreelancerSuggestion,
   mergeClientSuggestions,
+  scoreProfilesForJob,
+  SEMANTIC_HIGHLIGHT_THRESHOLD,
+  SUGGESTION_MIN_SCORE,
   topSuggestions,
 } from "./suggestions";
+import { scoreJobForFreelancer } from "./matching";
+import { computeTrustLevel } from "./trust";
+import { mandatoryDocuments } from "./mandatory-documents";
+import { getSemanticMatcher, safeRelatedness } from "./services/semantic-matcher";
 
 const s = (freelancerId: string, score: number): FreelancerSuggestion => ({
   freelancerId,
@@ -104,5 +111,221 @@ describe("mergeClientSuggestions", () => {
     // f2 has relatedness 0.4, f1 has 0.6 → f1 sorts first
     expect(out[0]?.freelancerId).toBe("f1");
     expect(out[1]?.freelancerId).toBe("f2");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Parity-borging voor de pool-refactor: `scoreProfilesForJob` (nieuw, één pool voor
+// meerdere opdrachten) moet exact dezelfde output geven als de oude, per-opdracht inline
+// scoring. We bouwen de oude implementatie hier op fixtures na en vergelijken 1-op-1.
+// ---------------------------------------------------------------------------
+
+interface FixtureJob {
+  id: string;
+  title: string;
+  description: string | null;
+  industryId: string | null;
+  rateMin: number | null;
+  rateMax: number | null;
+  workMode: string;
+  location: string | null;
+  skills: Array<{ skillId: string; required: boolean; skill: { name: string } | null }>;
+  credentialRequirements: Array<{ credentialType: string; required: boolean }>;
+}
+
+interface FixtureProfile {
+  id: string;
+  headline: string | null;
+  bio: string | null;
+  location: string | null;
+  hourlyRate: number | null;
+  workMode: string;
+  availability: string;
+  maxTravelMinutes: number | null;
+  user: { name: string | null; identityVerifiedAt: Date | null };
+  skills: Array<{ skillId: string; skill: { name: string } | null }>;
+  credentials: Array<{ type: string; status: string; expiresAt: Date | null }>;
+  industries: Array<{ industryId: string }>;
+  availabilityWindows: Array<{ startDate: Date; endDate: Date; type: string }>;
+}
+
+function joinText(parts: ReadonlyArray<string | null | undefined>): string {
+  return parts.filter((p): p is string => !!p && p.trim().length > 0).join(" ");
+}
+
+/** Exacte reconstructie van de oude, per-opdracht inline scoring (vóór de pool-refactor). */
+function legacyScore(
+  job: FixtureJob,
+  profiles: readonly FixtureProfile[],
+  applied: ReadonlySet<string>,
+  limit: number,
+  now: number,
+): FreelancerSuggestion[] {
+  const matcher = getSemanticMatcher();
+  const jobText = joinText([job.title, job.description, ...job.skills.map((s) => s.skill?.name)]);
+  const scored: FreelancerSuggestion[] = profiles
+    .filter((p) => !applied.has(p.id))
+    .map((p) => {
+      const match = scoreJobForFreelancer(job, p);
+      const verifiedCredentialCount = p.credentials.filter(
+        (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > now),
+      ).length;
+      const trust = computeTrustLevel({
+        identityVerified: !!p.user.identityVerifiedAt,
+        verifiedCredentialCount,
+        mandatoryDocsComplete: mandatoryDocuments(
+          p.credentials.map((c) => ({
+            type: c.type as never,
+            status: c.status as never,
+            expiresAt: c.expiresAt,
+          })),
+        ).allSatisfied,
+      });
+      const profileText = joinText([p.headline, p.bio, ...p.skills.map((s) => s.skill?.name)]);
+      const relatedness = safeRelatedness(matcher, jobText, profileText);
+      return {
+        freelancerId: p.id,
+        name: p.user.name ?? "—",
+        score: match.score,
+        compliance: match.compliance.status,
+        trustLevel: trust.level,
+        availability: match.availability.status,
+        headline: p.headline,
+        location: p.location,
+        rate: p.hourlyRate,
+        relatedness,
+        related: relatedness >= SEMANTIC_HIGHLIGHT_THRESHOLD,
+      };
+    });
+  return scored
+    .filter((x) => x.score >= SUGGESTION_MIN_SCORE)
+    .sort((a, b) => b.score - a.score || (b.relatedness ?? 0) - (a.relatedness ?? 0))
+    .slice(0, limit);
+}
+
+describe("scoreProfilesForJob — parity met de oude per-opdracht scoring", () => {
+  const now = Date.UTC(2026, 5, 1);
+  const future = new Date(Date.UTC(2030, 0, 1));
+
+  const jobA: FixtureJob = {
+    id: "job-a",
+    title: "Verpleegkundige IC",
+    description: "Ervaren IC-verpleegkundige gezocht voor nachtdiensten",
+    industryId: "ind-zorg",
+    rateMin: 40,
+    rateMax: 70,
+    workMode: "ONSITE",
+    location: "Amsterdam",
+    skills: [
+      { skillId: "sk-ic", required: true, skill: { name: "Intensive care" } },
+      { skillId: "sk-nacht", required: false, skill: { name: "Nachtdienst" } },
+    ],
+    credentialRequirements: [{ credentialType: "BIG", required: true }],
+  };
+
+  const jobB: FixtureJob = {
+    id: "job-b",
+    title: "Wijkverpleegkundige",
+    description: "Thuiszorg in de wijk, flexibele uren",
+    industryId: "ind-zorg",
+    rateMin: 35,
+    rateMax: 60,
+    workMode: "ONSITE",
+    location: "Amsterdam",
+    skills: [{ skillId: "sk-wijk", required: true, skill: { name: "Wijkzorg" } }],
+    credentialRequirements: [],
+  };
+
+  const profiles: FixtureProfile[] = [
+    {
+      id: "prof-1",
+      headline: "IC-verpleegkundige",
+      bio: "Ruime ervaring op de intensive care en nachtdiensten",
+      location: "Amsterdam",
+      hourlyRate: 55,
+      workMode: "ONSITE",
+      availability: "AVAILABLE",
+      maxTravelMinutes: null,
+      user: { name: "Anne", identityVerifiedAt: future },
+      skills: [
+        { skillId: "sk-ic", skill: { name: "Intensive care" } },
+        { skillId: "sk-nacht", skill: { name: "Nachtdienst" } },
+      ],
+      credentials: [{ type: "BIG", status: "VERIFIED", expiresAt: future }],
+      industries: [{ industryId: "ind-zorg" }],
+      availabilityWindows: [],
+    },
+    {
+      id: "prof-2",
+      headline: "Wijkverpleegkundige",
+      bio: "Thuiszorg specialist in de wijk",
+      location: "Amsterdam",
+      hourlyRate: 45,
+      workMode: "ONSITE",
+      availability: "AVAILABLE",
+      maxTravelMinutes: null,
+      user: { name: "Bram", identityVerifiedAt: null },
+      skills: [{ skillId: "sk-wijk", skill: { name: "Wijkzorg" } }],
+      credentials: [],
+      industries: [{ industryId: "ind-zorg" }],
+      availabilityWindows: [],
+    },
+    {
+      id: "prof-3",
+      headline: "Frontend developer",
+      bio: "React en TypeScript, geen zorgachtergrond",
+      location: "Rotterdam",
+      hourlyRate: 90,
+      workMode: "REMOTE",
+      availability: "LIMITED",
+      maxTravelMinutes: null,
+      user: { name: "Cas", identityVerifiedAt: null },
+      skills: [{ skillId: "sk-react", skill: { name: "React" } }],
+      credentials: [],
+      industries: [{ industryId: "ind-it" }],
+      availabilityWindows: [],
+    },
+  ];
+
+  it("levert identieke output voor 2 opdrachten × 3 profielen (geen reacties)", () => {
+    const empty = new Set<string>();
+    for (const job of [jobA, jobB]) {
+      const legacy = legacyScore(job, profiles, empty, 4, now);
+      const refactored = scoreProfilesForJob(job, profiles, empty, 4, now);
+      expect(refactored).toEqual(legacy);
+    }
+  });
+
+  it("respecteert de applied-set identiek aan de oude implementatie", () => {
+    const applied = new Set(["prof-1"]);
+    for (const job of [jobA, jobB]) {
+      const legacy = legacyScore(job, profiles, applied, 4, now);
+      const refactored = scoreProfilesForJob(job, profiles, applied, 4, now);
+      expect(refactored).toEqual(legacy);
+      expect(refactored.some((r) => r.freelancerId === "prof-1")).toBe(false);
+    }
+  });
+
+  it("aggregeert twee opdrachten net als de oude fan-out (dedup op hoogste score)", () => {
+    const empty = new Set<string>();
+    // Nieuwe aanpak: pool één keer scoren tegen beide opdrachten, dan mergen.
+    const merged: ClientFreelancerSuggestion[] = [];
+    for (const job of [jobA, jobB]) {
+      for (const s of scoreProfilesForJob(job, profiles, empty, 4, now)) {
+        merged.push({ ...s, jobId: job.id, jobTitle: job.title });
+      }
+    }
+    const outNew = mergeClientSuggestions(merged, { limit: 4 });
+
+    // Oude aanpak: legacy-score per opdracht, dan mergen.
+    const legacyMerged: ClientFreelancerSuggestion[] = [];
+    for (const job of [jobA, jobB]) {
+      for (const s of legacyScore(job, profiles, empty, 4, now)) {
+        legacyMerged.push({ ...s, jobId: job.id, jobTitle: job.title });
+      }
+    }
+    const outOld = mergeClientSuggestions(legacyMerged, { limit: 4 });
+
+    expect(outNew).toEqual(outOld);
   });
 });
