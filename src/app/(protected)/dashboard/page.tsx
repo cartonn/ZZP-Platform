@@ -52,6 +52,7 @@ import { buildWeekStrip } from "@/lib/week-strip";
 import { RUNNING_ZONE_LIMIT, runningZonePlan } from "@/lib/running-zone";
 import { parseWeekdays } from "@/lib/weekdays";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
+import { employabilitySummary, type EmployabilitySummary } from "@/lib/employability-summary";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { type FreelancerCredential } from "@/lib/matching";
@@ -88,6 +89,8 @@ interface DashboardData {
   complianceSnapshot?: ClientComplianceSnapshot;
   /** Inzetbaarheidsstatus van de ZZP'er zelf (alleen FREELANCER). */
   engageability?: EngageabilityResult | null;
+  /** Afgeleide inzetbaarheids-samenvatting (alleen FREELANCER): één oordeel voor tegel + zegel. */
+  employability?: EmployabilitySummary | null;
   /** Voorgestelde ZZP'ers voor de opdrachtgever (alleen CLIENT). */
   suggestedFreelancers?: ClientFreelancerSuggestion[];
   /** Profielkaart-gegevens voor de kop (publieke-profiel-stijl); per rol gevuld. */
@@ -292,16 +295,18 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         )
       : null;
 
+    const mandatoryCreds = creds.map(
+      (c): FreelancerCredential => ({
+        type: c.type as FreelancerCredential["type"],
+        status: c.status as FreelancerCredential["status"],
+        expiresAt: c.expiresAt,
+      }),
+    );
+    const md = mandatoryDocuments(mandatoryCreds, now);
     const engageability = profile
       ? computeEngageability(
           {
-            credentials: creds.map(
-              (c): FreelancerCredential => ({
-                type: c.type as FreelancerCredential["type"],
-                status: c.status as FreelancerCredential["status"],
-                expiresAt: c.expiresAt,
-              }),
-            ),
+            credentials: mandatoryCreds,
             completeness: completeness.score,
             availability: profile.availability as Availability,
             identityVerified: me?.identityVerifiedAt != null,
@@ -310,27 +315,31 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           now,
         )
       : null;
+    // Eén afgeleid oordeel voor zowel de tegel als het inzetbaarheids-zegel, uit dezelfde bron.
+    const employability = engageability ? employabilitySummary(engageability, md) : null;
 
     // Vertrouwenszegel — zelfde berekening als het publieke profiel en het deelbare dossier,
     // zodat de ZZP'er op het dashboard exact ziet wat een opdrachtgever ziet.
     const trust = computeTrustLevel({
       identityVerified: me?.identityVerifiedAt != null,
       verifiedCredentialCount: verified,
-      mandatoryDocsComplete: mandatoryDocuments(
-        creds.map(
-          (c): FreelancerCredential => ({
-            type: c.type as FreelancerCredential["type"],
-            status: c.status as FreelancerCredential["status"],
-            expiresAt: c.expiresAt,
-          }),
-        ),
-        now,
-      ).allSatisfied,
+      mandatoryDocsComplete: md.allSatisfied,
     });
+
+    // Eerste tegel = inzetbaarheid (het echte "sta ik er goed voor?"-oordeel), niet een los
+    // profielpercentage — één statuswaarheid, met de blokkade benoemd en doorklik naar de stap.
+    const employabilityStat: Stat = employability
+      ? {
+          label: "Inzetbaarheid",
+          value: employability.label,
+          href: employability.href,
+          sub: employability.blocker ?? undefined,
+        }
+      : { label: "Profielvelden", value: `${completeness.score}%`, href: "/profiel/bewerken" };
 
     return {
       stats: [
-        { label: "Profielvelden", value: `${completeness.score}%`, href: "/profiel/bewerken" },
+        employabilityStat,
         { label: "Geverifieerde certificaten", value: verified, href: "/certificaten" },
         { label: "Mijn reacties", value: applications, href: "/reacties" },
       ],
@@ -340,6 +349,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       isNewAccount: applications === 0 && runningTotal === 0,
       activation: [],
       engageability,
+      employability,
       identity: {
         subtitle: [profile?.headline, profile?.location].filter(Boolean).join(" · ") || null,
         meta: profile?.hourlyRate != null ? [`€ ${profile.hourlyRate}/uur`] : [],
@@ -708,6 +718,7 @@ export default async function DashboardPage() {
       week,
       activation,
       engageability,
+      employability,
       complianceSnapshot,
       suggestedFreelancers,
       identity,
@@ -730,6 +741,17 @@ export default async function DashboardPage() {
       icon: fKpiIcons[i] ?? Gauge,
       label: t(st.label),
       value: String(st.value),
+      // Eerste tegel = inzetbaarheid: de delta-toon volgt exact het niveau — INACTIEF benoemt de
+      // blokkade (warning), AANDACHT toont het aandachtspunt-signaal (warning), ACTIEF bevestigt
+      // inzetbaarheid (success). Zo staat de status nooit met een tegenstrijdig gekleurd signaal.
+      ...(i === 0 && employability
+        ? employability.level === "ACTIEF"
+          ? { delta: t("Inzetbaar"), deltaTone: "success" as const }
+          : {
+              delta: t(employability.blocker ?? "Aandacht nodig"),
+              deltaTone: "warning" as const,
+            }
+        : {}),
     }));
     const rows = matches.map((m) => {
       const av = AVAILABILITY_LABEL[m.availability];
@@ -761,14 +783,15 @@ export default async function DashboardPage() {
     const openPunten = engageability
       ? engageability.blockers.length + engageability.attention.length
       : 0;
+    // Het zegel gebruikt exact dezelfde afgeleide samenvatting als de tegel — geen tweede oordeel.
     const seal = engageability
       ? {
           title: t("Inzetbaarheid"),
-          subtitle: t(engageability.label),
+          subtitle: employability ? t(employability.label) : t(engageability.label),
           items: [
             {
               label: t("Status"),
-              value: t(engageability.label),
+              value: employability ? t(employability.labelWithBlocker) : t(engageability.label),
               ok: engageability.status === "ACTIEF",
             },
             {
@@ -777,7 +800,7 @@ export default async function DashboardPage() {
               ok: openPunten === 0,
             },
           ],
-          reportHref: "/certificaten",
+          reportHref: employability?.href ?? "/certificaten",
         }
       : undefined;
     return (
