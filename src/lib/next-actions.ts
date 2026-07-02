@@ -64,7 +64,9 @@ export const P = {
   franchiserRoster: 70, // nog geen ZZP'ers in het roster
   franchiserClientsWithoutService: 40, // opdrachtgever(s) zonder diensten (doorlopende nudge)
   // Franchiser-operationeel: doorlopende tenant-taken zodra de franchise draait (item-niveau).
+  franchiserRosterNotEngageable: 84, // roster-ZZP'er niet inzetbaar (ontbrekend doc/verificatie) — blokkeert plaatsing
   franchiserCredentialExpiring: 70, // roster-certificaat van een tenant-ZZP'er verloopt binnenkort
+  franchiserServiceStale: 65, // gepubliceerde dienst staat lang open zonder plaatsing
   franchiserLeadFollowup: 50, // lead met verstreken geplande opvolgdatum
 } as const;
 
@@ -314,12 +316,39 @@ export interface FranchiserActionInput {
   rosterFreelancers: number;
   /** Opdrachtgevers zonder ook maar één gepubliceerde dienst. */
   companiesWithoutDiensten: number;
+  /**
+   * Gepubliceerde, ongedekte diensten die ≥ de drempel dagen open staan zonder plaatsing —
+   * oudste eerst (de aanroeper sorteert). Elk item wordt één concrete actie.
+   */
+  staleDiensten?: readonly FranchiserStaleDienst[];
+  /**
+   * Roster-ZZP'ers die (nog) niet inzetbaar zijn — een ontbrekend/verlopen verplicht document of
+   * niet-geverifieerde identiteit blokkeert plaatsing. Zelfde inzetbaarheid-helper als /franchise/zzpers.
+   */
+  notEngageable?: readonly FranchiserNotEngageable[];
+}
+
+/** Eén gepubliceerde dienst die te lang ongedekt open staat. */
+export interface FranchiserStaleDienst {
+  id: string;
+  title: string;
+  /** Kalenderdagen dat de dienst open staat (server berekent). */
+  openDays: number;
+}
+
+/** Eén roster-ZZP'er die (nog) niet inzetbaar is, met de blokkerende reden(en). */
+export interface FranchiserNotEngageable {
+  id: string;
+  name: string;
+  /** Blokkerende redenen (bv. "VOG ontbreekt"); leeg → generieke "verificatie nog niet compleet". */
+  blockers: readonly string[];
 }
 
 /**
  * Geleide opzet van een franchise: toont de eerstvolgende, concrete stap(pen) om de tenant
  * werkend te krijgen — opdrachtgever → dienst → roster. Begeleidend (tone "info"), niet
- * alarmerend, en leeg zodra de franchise staat (≥1 opdrachtgever met diensten én een roster).
+ * alarmerend. Zodra de franchise draait komen de operationele attentiepunten erbij: roster-ZZP'ers
+ * die niet inzetbaar zijn en gepubliceerde diensten die te lang ongedekt open staan (tone "attention").
  */
 export function franchiserNextActions(input: FranchiserActionInput): NextAction[] {
   const actions: NextAction[] = [];
@@ -360,6 +389,30 @@ export function franchiserNextActions(input: FranchiserActionInput): NextAction[
       href: "/franchise/zzpers",
       tone: "info",
       priority: P.franchiserRoster,
+    });
+  }
+
+  // Operationeel — draait de franchise, dan blijven dit de dingen die aandacht vragen. Roster-ZZP'ers
+  // die niet inzetbaar zijn (blokkeert plaatsing) wegen zwaarder dan een ongedekte dienst.
+  for (const z of input.notEngageable ?? []) {
+    const reason = z.blockers.length ? formatMissing(z.blockers) : "verificatie nog niet compleet";
+    actions.push({
+      id: `franchiser-not-engageable-${z.id}`,
+      title: `${z.name} is nog niet inzetbaar — ${reason}`,
+      href: `/franchise/zzpers/${z.id}`,
+      tone: "attention",
+      priority: P.franchiserRosterNotEngageable,
+    });
+  }
+  // Ongedekte diensten die te lang open staan — oudste eerst (aanroeper sorteert), max 3 zodat de
+  // lijst rustig blijft; de volledige lijst staat op /franchise/diensten.
+  for (const d of (input.staleDiensten ?? []).slice(0, 3)) {
+    actions.push({
+      id: `franchiser-stale-service-${d.id}`,
+      title: `Dienst ${d.title} staat ${plural(d.openDays, "dag", "dagen")} open zonder plaatsing`,
+      href: `/franchise/diensten/${d.id}`,
+      tone: "attention",
+      priority: P.franchiserServiceStale,
     });
   }
 

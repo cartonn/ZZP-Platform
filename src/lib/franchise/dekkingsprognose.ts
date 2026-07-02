@@ -33,6 +33,12 @@ export type Dekkingsprognose = {
    * vandaag of in het verleden ligt, 1 = morgen). null als er geen open dienst met datum is.
    */
   soonestOpenDays: number | null;
+  /**
+   * Open diensten die NU aandacht vragen: deze week (incl. een startdatum in het verleden) óf zonder
+   * startdatum (onplanbaar → acuut). Alleen als dit 0 is, mag de UI "Deze week is alles gedekt" tonen —
+   * anders zou dat een dienst zonder datum of met verstreken start ten onrechte geruststellen.
+   */
+  needsAttentionNow: number;
 };
 
 const BUCKET_LABELS: Record<PrognoseBucketKey, string> = {
@@ -49,8 +55,9 @@ function startOfLocalDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-/** Begin (maandag, 00:00 lokaal) van de ISO-week waarin `d` valt. */
-function startOfIsoWeek(d: Date): Date {
+/** Begin (maandag, 00:00 lokaal) van de ISO-week waarin `d` valt. Geëxporteerd zodat de
+ *  diensten-pagina exact dezelfde weekgrens gebruikt bij het bepalen van "acuut deze week". */
+export function startOfIsoWeek(d: Date): Date {
   const r = startOfLocalDay(d);
   // getDay(): 0=zondag..6=zaterdag. ISO-week start op maandag.
   const offset = (r.getDay() + 6) % 7;
@@ -118,5 +125,7 @@ export function buildDekkingsprognose(
           ),
         );
 
-  return { buckets, totalOpen, soonestOpenDays };
+  const needsAttentionNow = counts.DEZE_WEEK + counts.GEEN_DATUM;
+
+  return { buckets, totalOpen, soonestOpenDays, needsAttentionNow };
 }
