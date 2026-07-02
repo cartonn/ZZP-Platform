@@ -176,6 +176,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#e8edf6",
     available: true,
   },
+  // ── Reeks 2 (run 2-7-2026) — nrs 11–20, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "11",
+    name: "Terra",
+    direction: "Warm-humanist — organisch & menselijk",
+    rationale:
+      "Zorg is mensenwerk: warme aarde- en salietinten, organische vormen, zachte ronde hoeken en een humanistische serif. Rustgevend en vertrouwd rond gevoelige documenten, zonder ook maar iets aan dichtheid in te leveren.",
+    trends: [
+      "Warm-humanist / natuurpalet",
+      "Organische vormen als canvas",
+      "Humanistische serif + zachte grotesk",
+    ],
+    fonts: "Newsreader + Libre Franklin",
+    accent: "#b4552d",
+    bg: "#f5efe6",
+    fg: "#2a2620",
+    available: true,
+  },
+  {
+    id: "12",
+    name: "Glas",
+    direction: "Glasmorfisme 2.0 — diepte & laagwerk",
+    rationale:
+      "Bevroren glas met echte diepte: translucente panelen, backdrop-blur en laag-op-laag hiërarchie boven een levendig maar bewaakt verloop. Modern en premium, mét bewaakt contrast op elk glasvlak — legibiliteit gaat vóór effect.",
+    trends: [
+      "Glasmorfisme met diepte-lagen",
+      "Backdrop-blur + translucente chrome",
+      "Contrast-first op glas",
+    ],
+    fonts: "Bricolage Grotesque + Inter",
+    accent: "#6d5cf5",
+    bg: "#eef1fb",
+    fg: "#191a2e",
+    available: true,
+  },
+  {
+    id: "13",
+    name: "Prisma",
+    direction: "Verfijnd neo-brutalisme — structureel",
+    rationale:
+      "Neo-brutalisme, maar getemd tot productiekwaliteit: dikke zwarte hairlines, harde offset-schaduwen en zichtbaar raster, gecombineerd met strakke spacing en tabulaire cijfers. Zelfverzekerd en onmiskenbaar, nooit rommelig.",
+    trends: [
+      "Neo-brutalisme (refined)",
+      "Harde offset-schaduw + dikke rand",
+      "Zichtbaar raster als structuur",
+    ],
+    fonts: "Space Grotesk + Spline Sans Mono",
+    accent: "#ffd23f",
+    bg: "#f4f4ef",
+    fg: "#111111",
+    available: true,
+  },
+  {
+    id: "14",
+    name: "Raster",
+    direction: "Zwitsers monochroom — typografisch raster",
+    rationale:
+      "Zuiver Zwitsers: alleen zwart, wit en één rode signaalkleur op een streng typografisch hairline-raster. Cijfers en labels dragen de hiërarchie, geen decoratie. Tijdloos, streng en messcherp leesbaar.",
+    trends: [
+      "Zwitsers/International Style-raster",
+      "Monochroom + één signaalrood",
+      "Typografie-als-UI, hairline-kolommen",
+    ],
+    fonts: "Libre Franklin + Spline Sans Mono",
+    accent: "#e4002b",
+    bg: "#ffffff",
+    fg: "#0a0a0a",
+    available: true,
+  },
+  {
+    id: "15",
+    name: "Zenit",
+    direction: "Mobiel-first — native app-shell",
+    rationale:
+      "Ontworpen voor de duim: een telefoon-app-shell met onderste tab-bar, sheets, grote raakvlakken en een verticale kaartstroom. De ZZP'er regelt reacties, uren en documenten onderweg — snel, native aanvoelend, foutloos.",
+    trends: [
+      "Mobiel-first / thumb-zone-navigatie",
+      "Bottom-tab + bottom-sheets",
+      "Kaartstroom + grote raakvlakken",
+    ],
+    fonts: "Plus Jakarta Sans + Inter",
+    accent: "#0ea5e9",
+    bg: "#f2f5f9",
+    fg: "#0f172a",
+    available: true,
+  },
+  {
+    id: "16",
+    name: "Aurora",
+    direction: "Levendig verloop — mesh & gloed",
+    rationale:
+      "Een premium-consument-esthetiek: zachte aurora-verlopen en gloed als sfeer, op strakke witte kaarten die de data helder houden. Kleur schept emotie en merkgevoel; de inhoud blijft rustig en scanbaar.",
+    trends: [
+      "Aurora/mesh-gradient als sfeer",
+      "Gloed-accenten + kleurrijke depth",
+      "Premium-consumer op strakke kaarten",
+    ],
+    fonts: "Sora + Inter",
+    accent: "#d946ef",
+    bg: "#0f1020",
+    fg: "#f2ecff",
+    available: true,
+  },
+  {
+    id: "17",
+    name: "Kanaal",
+    direction: "Command-first — toetsenbord & spotlight",
+    rationale:
+      "Voor de power-user en bemiddelaar: een zwevend ⌘K-spotlight-palet staat centraal, elke actie heeft een toetsafkorting en een J/K-navigeerbare lijst. Snelheid als product — bereik alles in twee toetsaanslagen.",
+    trends: [
+      "Command-palette-first (⌘K)",
+      "Keyboard-first + toetshints overal",
+      "Spotlight/launcher als hoofdnavigatie",
+    ],
+    fonts: "Geist + IBM Plex Mono",
+    accent: "#7c8cff",
+    bg: "#101216",
+    fg: "#e7e9ee",
+    available: true,
+  },
+  {
+    id: "18",
+    name: "Kompas",
+    direction: "Reis & tijdlijn — wayfinding",
+    rationale:
+      "Elke opdracht is een reis: een horizontale tijdlijn met haltes (reactie → match → verificatie → contract → factuur) maakt voortgang en de volgende beste stap letterlijk zichtbaar. Oriëntatie boven abstractie.",
+    trends: [
+      "Journey/timeline-wayfinding",
+      "Pipeline-as-narrative + haltes",
+      "Next-best-step visueel verankerd",
+    ],
+    fonts: "Bricolage Grotesque + Geist Mono",
+    accent: "#0d9488",
+    bg: "#f6f8f7",
+    fg: "#132420",
+    available: true,
+  },
+  {
+    id: "19",
+    name: "Puur",
+    direction: "Whitespace-maximalisme — kalme luxe",
+    rationale:
+      "Het tegenovergestelde van druk: royale witruimte, dunne typografie, één actie per blik en progressive disclosure. Apple-achtige kalme luxe die vertrouwen wekt door rust — precies wat gevoelige documenten verdienen.",
+    trends: [
+      "Whitespace-maximalisme / calm luxe",
+      "Progressive disclosure (één beslissing)",
+      "Dunne display-type + veel lucht",
+    ],
+    fonts: "Manrope + Newsreader",
+    accent: "#111827",
+    bg: "#fbfbfa",
+    fg: "#111827",
+    available: true,
+  },
+  {
+    id: "20",
+    name: "Karbon",
+    direction: "OLED-donker — expressief high-contrast",
+    rationale:
+      "Puur zwart OLED-canvas met één vurig accent en messcherp contrast: dark-mode-first zoals 2026 het wil. Minimalistisch en expressief tegelijk, cijfers gloeien, chrome verdwijnt — de data en de status zijn de show.",
+    trends: [
+      "OLED-zwart / dark-mode-first",
+      "Eén vurig accent + high-contrast",
+      "Expressief minimalisme, gloei-cijfers",
+    ],
+    fonts: "Geist + IBM Plex Mono",
+    accent: "#ff5c39",
+    bg: "#000000",
+    fg: "#f4f4f5",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);

@@ -10,6 +10,11 @@ import {
   Sora,
   Manrope,
   Instrument_Serif,
+  Bricolage_Grotesque,
+  Newsreader,
+  Spline_Sans_Mono,
+  Libre_Franklin,
+  IBM_Plex_Mono,
 } from "next/font/google";
 
 // Het ontwerp-lab is een PUBLIEK, inlogvrij design-lab (geen (protected)-groep) zodat de eigenaar
@@ -44,6 +49,32 @@ const instrumentSerif = Instrument_Serif({
   variable: "--font-lab-instrument-serif",
   display: "swap",
 });
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  variable: "--font-lab-bricolage",
+  display: "swap",
+});
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  variable: "--font-lab-newsreader",
+  display: "swap",
+});
+const splineMono = Spline_Sans_Mono({
+  subsets: ["latin"],
+  variable: "--font-lab-spline-mono",
+  display: "swap",
+});
+const franklin = Libre_Franklin({
+  subsets: ["latin"],
+  variable: "--font-lab-franklin",
+  display: "swap",
+});
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-lab-plex-mono",
+  display: "swap",
+});
 
 const fontVars = [
   inter,
@@ -56,6 +87,11 @@ const fontVars = [
   sora,
   manrope,
   instrumentSerif,
+  bricolage,
+  newsreader,
+  splineMono,
+  franklin,
+  plexMono,
 ]
   .map((f) => f.variable)
   .join(" ");

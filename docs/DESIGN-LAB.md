@@ -77,5 +77,18 @@ UI-taal = Nederlands.
 
 ## Status
 
-- **01–10** — alle tien volledig uitgewerkt en klikbaar op `/ontwerp` (verse set v3, run 25-6-2026:
+> De galerij **accumuleert**: elke run voegt 10 concepten toe, de vorige blijven staan. `/ontwerp`
+> toont alle concepten die ooit zijn gebouwd (index groeit automatisch mee met `CONCEPTS`).
+
+- **01–10** — reeks 1, volledig uitgewerkt en klikbaar op `/ontwerp` (set v3, run 25-6-2026:
   Veld · Folio · Helder · Tij · Beurs · Klei · Puls · Nebula · Index · Bastion).
+- **11–20** — reeks 2, toegevoegd bovenop reeks 1 (run 2-7-2026): Terra (warm-humanist organisch) ·
+  Glas (glasmorfisme 2.0, diepte) · Prisma (verfijnd neo-brutalisme) · Raster (Zwitsers monochroom,
+  typografisch raster) · Zenit (mobiel-first native app-shell) · Aurora (levendig aurora/mesh-verloop) ·
+  Kanaal (command-first, ⌘K-spotlight) · Kompas (reis/tijdlijn wayfinding) · Puur (whitespace-maximalisme,
+  kalme luxe) · Karbon (OLED-donker, expressief high-contrast). Nieuwe fonts toegevoegd aan de lab-layout:
+  Bricolage Grotesque, Newsreader, Spline Sans Mono, Libre Franklin, IBM Plex Mono.
+- Onderzochte 2026-trends deze reeks: glasmorfisme-met-diepte, verfijnd neo-brutalisme,
+  whitespace-maximalisme/calm-luxe & progressive disclosure, dark-mode-first (OLED), command-palette
+  als standaardverwachting, mobiel-first/thumb-zone, aurora/mesh-gradient, Zwitsers/International-Style
+  monochroom, warm-humanist natuurpalet en journey/timeline-wayfinding.
