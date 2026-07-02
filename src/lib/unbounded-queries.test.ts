@@ -384,7 +384,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 279,
+    line: 280,
     reason: "bewaarde opdrachten, begrensd tot de zichtbare pagina via jobId: { in: [...] }",
   },
 

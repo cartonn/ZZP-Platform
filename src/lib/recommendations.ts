@@ -73,6 +73,8 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
     include: {
       skills: { select: { skillId: true, skill: { select: { name: true } } } },
       credentials: { select: { type: true, status: true, expiresAt: true } },
+      // Branche(s) van het profiel — voedt de branche-factor in de matchscore.
+      industries: { select: { industryId: true } },
       // Ingetrokken reacties uitsluiten: zo'n opdracht mag weer als aanbeveling terugkomen.
       applications: { where: { status: { not: "WITHDRAWN" } }, select: { jobId: true } },
       availabilityWindows: { select: { startDate: true, endDate: true, type: true } },

@@ -161,6 +161,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       include: {
         skills: { select: { skillId: true } },
         credentials: { select: { type: true, status: true, expiresAt: true } },
+        industries: { select: { industryId: true } },
       },
     });
     if (profile) {

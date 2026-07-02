@@ -46,6 +46,7 @@ export async function createApplicationForJob(
     include: {
       skills: true,
       credentials: { select: { type: true, status: true, expiresAt: true } },
+      industries: { select: { industryId: true } },
     },
   });
   if (!profile) return { ok: false, error: "Maak eerst je profiel aan." };

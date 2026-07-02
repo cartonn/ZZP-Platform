@@ -250,10 +250,10 @@ const EN: Record<string, string> = {
   "in beoordeling": "under review",
   verlopen: "expired",
   ontbreekt: "missing",
-  // Soortgelijke opdrachten
-  "Soortgelijke opdrachten": "Similar assignments",
-  "Andere open opdrachten die bij jouw profiel passen.":
-    "Other open assignments that fit your profile.",
+  // Ook passend bij jouw profiel
+  "Ook passend bij jouw profiel": "Also a fit for your profile",
+  "Andere open opdrachten die aansluiten op jouw profiel.":
+    "Other open assignments that match your profile.",
   // Reageer-formulier
   "Reageren op deze opdracht": "Apply to this assignment",
   Motivatie: "Motivation",
