@@ -196,7 +196,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // dit is een ID-set-query (select: {id: true}), geen volledige lijst.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 149,
+    line: 150,
     reason: "ID-set-query voor factureerbare samenwerkingen; geen volledige lijst",
   },
 
@@ -205,7 +205,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // afgerond"-knop niet als dode knop aan te bieden. Begrensd door de page-of-collaborations.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 162,
+    line: 163,
     reason: "factuurstatus-snapshot per zichtbare samenwerking (afronden-rem); page-begrensd",
   },
 
@@ -213,7 +213,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Factuurstatussen van één samenwerking om afronden server-side te weigeren bij open geld.
   {
     file: "(protected)/samenwerkingen/actions.ts",
-    line: 205,
+    line: 219,
     reason: "factuurstatus van één samenwerking voor de afronden-rem; per-collab begrensd",
   },
 

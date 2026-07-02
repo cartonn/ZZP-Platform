@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { Clock, Download, Upload } from "lucide-react";
 import { requireActor } from "@/lib/authz";
+import { prisma } from "@/lib/db";
 import { getDienstenForFreelancer } from "@/lib/diensten";
 import { formatEuro } from "@/lib/invoices";
 import { formatDateRangeNl } from "@/lib/format-date";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { SubmitHoursMenu, type ActiveCollaborationOption } from "./submit-hours-menu";
 
 export const metadata: Metadata = { title: "Urenstaten · ZZP Platform" };
 
@@ -54,30 +56,49 @@ export default async function DienstenPage({
   }
 
   const { status: filterStatus = "" } = await searchParams;
-  const allDiensten = await getDienstenForFreelancer(actor.id);
+  const [allDiensten, activeCollabRows] = await Promise.all([
+    getDienstenForFreelancer(actor.id),
+    // Actieve samenwerkingen bepalen waar een urenstaat kán worden ingediend — het indienformulier
+    // staat op het samenwerkingsdetail (uren-sectie). Hier alleen routeren, geen indien-logica.
+    prisma.collaboration.findMany({
+      where: { freelancer: { userId: actor.id }, status: "ACTIVE" },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+      select: { id: true, job: { select: { title: true } }, company: { select: { name: true } } },
+    }),
+  ]);
   const diensten = filterStatus
     ? allDiensten.filter((d) => d.status === filterStatus)
     : allDiensten;
 
+  const activeCollaborations: ActiveCollaborationOption[] = activeCollabRows.map((c) => ({
+    id: c.id,
+    jobTitle: c.job.title,
+    companyName: c.company.name,
+  }));
+
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Urenstaten</h1>
           <p className="text-sm text-muted-foreground">
             Alle urenstaten en opleveringen die je hebt ingediend of in concept hebt staan.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Primaire ingang: een urenstaat indienen. Het indienformulier zelf staat op het
+              samenwerkingsdetail (uren-sectie); deze knop routeert daarheen (of laat kiezen). */}
+          <SubmitHoursMenu collaborations={activeCollaborations} />
           {allDiensten.length > 0 && (
-            <Button asChild size="sm" variant="secondary">
+            <Button asChild size="sm" variant="ghost">
               <a href="/diensten/export">
                 <Download className="mr-1.5 size-4" aria-hidden />
                 Exporteren
               </a>
             </Button>
           )}
-          <Button asChild size="sm" variant="secondary">
+          <Button asChild size="sm" variant="ghost">
             <Link href="/diensten/importeer">
               <Upload className="mr-1.5 size-4" aria-hidden />
               Importeren

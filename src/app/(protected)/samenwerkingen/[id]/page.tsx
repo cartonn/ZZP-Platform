@@ -10,7 +10,13 @@ import { computeCompliance } from "@/lib/matching";
 import { complianceBlocksPlacement } from "@/lib/collaborations";
 import { getSharedCredentialsForClient } from "@/lib/shared-credentials";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
-import { type CredentialType, type CredentialStatus, type NoShowVerdict } from "@/lib/enums";
+import {
+  type CredentialType,
+  type CredentialStatus,
+  type NoShowVerdict,
+  type CollaborationStatus,
+  type ContractStatus,
+} from "@/lib/enums";
 import { assessCollaborationDba, jobDbaIndicators, DBA_LEVEL_LABEL } from "@/lib/dba-monitor";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
 import { recommendModelAgreement } from "@/lib/model-agreement";
@@ -20,6 +26,7 @@ import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecyc
 import { parseOrtSegments } from "@/lib/ort";
 import { ORT_SECTORS, ORT_SECTOR_LABEL, reviewBlindDays } from "@/lib/config";
 import { buildChainSteps } from "@/lib/cascade/chain-steps";
+import { collaborationStatusLine } from "@/lib/collaboration-status-line";
 import { CascadeStepper } from "@/components/ui/cascade-stepper";
 import { TurnBanner } from "@/components/ui/turn-banner";
 import { OrtBreakdown } from "@/components/collaborations/ort-breakdown";
@@ -281,6 +288,22 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       );
   }
 
+  // Eén status-regel bovenaan: "wat wordt er nú van wie verwacht?" — hergebruikt de cascade-fase.
+  // Zo opent het detail met handelingsperspectief in plaats van met het no-show-blok (dat is
+  // verplaatst naar onderaan). Alleen voor de betrokken partijen.
+  const statusLine = isParticipant
+    ? collaborationStatusLine({
+        viewer: isClient ? "CLIENT" : "FREELANCER",
+        collaborationId: col.id,
+        collaborationStatus: col.status as CollaborationStatus,
+        contractStatus: col.contractStatus as ContractStatus,
+        disputed: frozen,
+        latestPerformanceStatus: (col.performances[0]?.status ?? null) as PerformanceState | null,
+        latestInvoiceStatus: (col.invoices[0]?.lifecycleStatus ??
+          null) as InvoiceLifecycleState | null,
+      })
+    : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -329,6 +352,20 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         </div>
       </header>
 
+      {/* Status-regel: wat wordt er nú van wie verwacht? Afgeleid uit de cascade-fase. Rustig als
+          je niets hoeft te doen, nadrukkelijk als er actie nodig is. */}
+      {statusLine && (
+        <div
+          className={`rounded-md border px-3 py-2 text-sm ${
+            statusLine.youAreUp
+              ? "border-primary/30 bg-primary/10 font-medium text-foreground"
+              : "border-border bg-muted/40 text-muted-foreground"
+          }`}
+        >
+          {statusLine.text}
+        </div>
+      )}
+
       {/* Annuleringsregistratie: wie, wanneer, waarom — en of de 7-dagen-kostenregel geldt. */}
       {col.status === "CANCELLED" && col.cancellationReason && (
         <Card>
@@ -359,61 +396,6 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           direct passende, beschikbare ZZP'ers voor om de dienst opnieuw in te vullen. */}
       {isClient && col.status === "CANCELLED" && (
         <ReplacementPanel jobId={col.job.id} suggestions={replacementSuggestions} />
-      )}
-
-      {/* No-show-registratie (productbesluit 12-6-2026): de opdrachtgever meldt mét reden; de
-          ZZP'er ziet hier elke melding terug inclusief het admin-oordeel. Alleen ongegronde
-          no-shows tellen mee richting uitschrijving (grens: NO_SHOW_LIMIT). */}
-      {(col.noShowReports.length > 0 ||
-        (isClient && (col.status === "ACTIVE" || col.status === "CANCELLED"))) && (
-        <Card>
-          <CardContent className="space-y-3 py-4">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                No-shows
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Een beheerder beoordeelt elke melding; alleen ongegronde no-shows tellen mee — bij{" "}
-                {NO_SHOW_LIMIT} volgt uitschrijving van het platform.
-              </p>
-            </div>
-            {col.noShowReports.length > 0 && (
-              <ul className="divide-y divide-border">
-                {col.noShowReports.map((r) => {
-                  const verdict = r.verdict as NoShowVerdict;
-                  return (
-                    <li key={r.id} className="space-y-0.5 py-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-sm font-medium">
-                          Dienst van {formatDateShortNl(r.occurredOn)}
-                        </span>
-                        <Badge
-                          variant={
-                            verdict === "PENDING"
-                              ? "warning"
-                              : verdict === "JUSTIFIED"
-                                ? "success"
-                                : "danger"
-                          }
-                        >
-                          {verdict === "PENDING"
-                            ? "In beoordeling"
-                            : verdict === "JUSTIFIED"
-                              ? "Gegrond"
-                              : "Ongegrond"}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Reden: {r.reason}</p>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {isClient && (col.status === "ACTIVE" || col.status === "CANCELLED") && (
-              <NoShowReportForm collaborationId={col.id} />
-            )}
-          </CardContent>
-        </Card>
       )}
 
       {/* Shift-overname (productbesluit 16-6-2026): de huidige ZZP'er biedt een actieve inzet ter
@@ -736,8 +718,9 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         )
       )}
 
-      {/* Prestaties: urenstaat / oplevering */}
-      <section className="space-y-3">
+      {/* Prestaties: urenstaat / oplevering. Anker "uren" — de deep-link vanaf de Urenstaten-pagina
+          ("Urenstaat indienen") landt hier op het indienformulier. */}
+      <section id="uren" className="scroll-mt-20 space-y-3">
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-muted-foreground" aria-hidden />
           <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -979,6 +962,62 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           </div>
         )}
       </section>
+
+      {/* No-show-registratie (productbesluit 12-6-2026): naar onderen verplaatst — het is een
+          uitzondering, geen openingsscherm. De opdrachtgever meldt mét reden; de ZZP'er ziet elke
+          melding terug inclusief het admin-oordeel. Alleen ongegronde no-shows tellen mee richting
+          uitschrijving (grens: NO_SHOW_LIMIT). */}
+      {(col.noShowReports.length > 0 ||
+        (isClient && (col.status === "ACTIVE" || col.status === "CANCELLED"))) && (
+        <Card>
+          <CardContent className="space-y-3 py-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                No-shows
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Een beheerder beoordeelt elke melding; alleen ongegronde no-shows tellen mee — bij{" "}
+                {NO_SHOW_LIMIT} volgt uitschrijving van het platform.
+              </p>
+            </div>
+            {col.noShowReports.length > 0 && (
+              <ul className="divide-y divide-border">
+                {col.noShowReports.map((r) => {
+                  const verdict = r.verdict as NoShowVerdict;
+                  return (
+                    <li key={r.id} className="space-y-0.5 py-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-medium">
+                          Dienst van {formatDateShortNl(r.occurredOn)}
+                        </span>
+                        <Badge
+                          variant={
+                            verdict === "PENDING"
+                              ? "warning"
+                              : verdict === "JUSTIFIED"
+                                ? "success"
+                                : "danger"
+                          }
+                        >
+                          {verdict === "PENDING"
+                            ? "In beoordeling"
+                            : verdict === "JUSTIFIED"
+                              ? "Gegrond"
+                              : "Ongegrond"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Reden: {r.reason}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {isClient && (col.status === "ACTIVE" || col.status === "CANCELLED") && (
+              <NoShowReportForm collaborationId={col.id} />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {col.status === "COMPLETED" && (
         <section className="space-y-3 rounded-lg border border-border bg-card p-5">
