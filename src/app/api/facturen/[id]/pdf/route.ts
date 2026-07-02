@@ -60,7 +60,20 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     actor.id === inv.counterpartyUserId ||
     actor.id === inv.collaboration?.company.userId ||
     actor.id === inv.collaboration?.freelancer.userId;
-  if (!allowed) return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+  if (!allowed) {
+    // Geweigerde inzage ook vastleggen — parity met de dossier-/modelovereenkomst-routes
+    // (CLAUDE.md regel 5). Maakt IDOR-enumeratie op factuur-id's zichtbaar in het auditspoor.
+    const meta = await requestMeta();
+    await audit({
+      actorId: actor.id,
+      action: "INVOICE_PDF_ACCESS_DENIED",
+      entityType: "Invoice",
+      entityId: id,
+      metadata: { viewerRole: actor.role },
+      ...meta,
+    });
+    return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+  }
 
   // AVG/compliance (CLAUDE.md regel 5): inzage van een gevoelig financieel document met PII
   // (naam, KvK, btw-nummer, bedragen) vastleggen — wie-zag-welke-factuur-wanneer. Spiegelt de
