@@ -89,16 +89,20 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           {lead.notes && <p className="text-sm text-muted-foreground">{lead.notes}</p>}
 
           {lead.nextFollowUp && (
-            <p className="text-sm">
-              <span className="text-muted-foreground">Volgende opvolging: </span>
-              <span
-                className={
-                  followUp === "overdue" ? "font-medium text-danger" : "font-medium text-foreground"
-                }
-              >
-                {formatDateShortNl(lead.nextFollowUp)}
-                {followUp === "overdue" && " — te laat"}
+            <p className="flex flex-wrap items-center gap-2 text-sm">
+              <span>
+                <span className="text-muted-foreground">Volgende opvolging: </span>
+                <span
+                  className={
+                    followUp === "overdue"
+                      ? "font-medium text-danger"
+                      : "font-medium text-foreground"
+                  }
+                >
+                  {formatDateShortNl(lead.nextFollowUp)}
+                </span>
               </span>
+              {followUp === "overdue" && <Badge variant="danger">Opvolging verlopen</Badge>}
             </p>
           )}
 

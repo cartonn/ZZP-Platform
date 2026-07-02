@@ -5,7 +5,13 @@ import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/enums";
-import { LEAD_STATUS_LABEL, LEAD_STATUS_VARIANT } from "@/lib/leads";
+import {
+  LEAD_STATUS_LABEL,
+  LEAD_STATUS_VARIANT,
+  compareLeadsForList,
+  daysSinceContact,
+  isLeadStale,
+} from "@/lib/leads";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +37,7 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
   const q = first(sp.q).trim();
   const hasFilter = Boolean(statusFilter || q);
 
-  const leads = await prisma.lead.findMany({
+  const rows = await prisma.lead.findMany({
     where: {
       ...tenantScopeWhere(actor),
       ...(statusFilter ? { status: statusFilter } : {}),
@@ -40,14 +46,31 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
         : {}),
     },
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { contacts: true } } },
+    include: {
+      _count: { select: { contacts: true } },
+      // Laatste contactmoment bepaalt de stilte-teller (anders: sinds aanmaak).
+      contacts: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
+    },
   });
 
+  const now = new Date();
+  // Verrijk met de "dagen geen contact"-teller en het stilte-signaal (server-side waarheid),
+  // en sorteer stille warme leads bovenaan via de pure comparator.
+  const leads = rows
+    .map((l) => {
+      const status = l.status as LeadStatus;
+      const stillDays = daysSinceContact(now, l.createdAt, l.contacts[0]?.createdAt ?? null);
+      return { ...l, status, stillDays, stale: isLeadStale(status, stillDays) };
+    })
+    .sort((a, b) =>
+      compareLeadsForList(
+        { status: a.status, daysSinceContact: a.stillDays, createdAt: a.createdAt },
+        { status: b.status, daysSinceContact: b.stillDays, createdAt: b.createdAt },
+      ),
+    );
+
   // Een opvolgdatum vóór vandaag is "te laat" (op dagniveau, UTC-datuminvoer).
-  const todayUTC = (() => {
-    const n = new Date();
-    return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
-  })();
+  const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const isOverdue = (d: Date | null) =>
     !!d && Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) < todayUTC;
 
@@ -116,12 +139,19 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
               <div className="min-w-0">
                 <div className="flex min-w-0 items-center gap-2">
                   <p className="truncate font-medium">{l.organizationName}</p>
-                  <Badge variant={LEAD_STATUS_VARIANT[l.status as LeadStatus]} className="shrink-0">
-                    {LEAD_STATUS_LABEL[l.status as LeadStatus]}
+                  <Badge variant={LEAD_STATUS_VARIANT[l.status]} className="shrink-0">
+                    {LEAD_STATUS_LABEL[l.status]}
                   </Badge>
                 </div>
                 <p className="truncate text-sm text-muted-foreground">
                   {l.contactName || l.email || "Geen contactpersoon"}
+                </p>
+                <p
+                  className={`mt-0.5 text-xs ${l.stale ? "font-medium text-warning" : "text-muted-foreground"}`}
+                >
+                  {l.stillDays === 0
+                    ? "Vandaag nog contact gehad"
+                    : `${plural(l.stillDays, "dag", "dagen")} geen contact`}
                 </p>
                 {l.nextFollowUp && (
                   <p

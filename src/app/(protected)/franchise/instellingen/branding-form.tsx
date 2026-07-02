@@ -34,22 +34,26 @@ export function BrandingForm({
       <Field
         label="Accentkleur"
         htmlFor="brandColor"
-        hint="Hex-kleur (bv. #2563eb), getoond in de werkplek-header van je hele bemiddeling. Leeg = standaard."
+        hint="Getoond in de werkplek-header van je hele bemiddeling. Kies een kleur of laat leeg voor de standaard."
         error={fe.brandColor}
       >
         <div className="flex items-center gap-2">
+          {/* Kleurkiezer stuurt het hex-tekstveld aan; het tekstveld (name="brandColor") blijft de
+              enige form-waarde, zodat "leeg = standaard" en de bestaande validatie behouden blijven. */}
+          <input
+            type="color"
+            aria-label="Kies accentkleur"
+            value={valid ? color : "#2563eb"}
+            onChange={(e) => setColor(e.target.value)}
+            className="size-9 shrink-0 cursor-pointer rounded-md border border-border bg-transparent p-1"
+          />
           <Input
             id="brandColor"
             name="brandColor"
             value={color}
             onChange={(e) => setColor(e.target.value)}
             placeholder="#2563eb"
-            className="max-w-40"
-          />
-          <span
-            aria-hidden
-            className="size-9 shrink-0 rounded-md border border-border"
-            style={{ backgroundColor: valid ? color : "transparent" }}
+            className="max-w-28 font-mono"
           />
         </div>
       </Field>
