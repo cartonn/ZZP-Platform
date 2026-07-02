@@ -53,7 +53,20 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     actor.role === "ADMIN" ||
     actor.id === perf.collaboration?.company.userId ||
     actor.id === perf.collaboration?.freelancer.userId;
-  if (!allowed) return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+  if (!allowed) {
+    // Geweigerde inzage ook vastleggen — parity met de dossier-/modelovereenkomst-routes
+    // (CLAUDE.md regel 5). Maakt IDOR-enumeratie op prestatie-id's zichtbaar in het auditspoor.
+    const meta = await requestMeta();
+    await audit({
+      actorId: actor.id,
+      action: "PERFORMANCE_PDF_ACCESS_DENIED",
+      entityType: "Performance",
+      entityId: id,
+      metadata: { viewerRole: actor.role },
+      ...meta,
+    });
+    return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+  }
 
   // AVG/compliance (CLAUDE.md regel 5): inzage van de urenstaat/oplevering (PII: naam, periode,
   // uren, tarief) vastleggen, net als de dossier-routes en /api/documents/[id].

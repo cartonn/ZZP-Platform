@@ -3,7 +3,8 @@
 // fix logden deze routes géén toegang (in tegenstelling tot de dossier-routes en /api/documents/[id]).
 // De test faalt zonder de audit()-aanroep in elke route en bewaakt dat:
 //   1. een geautoriseerde inzage een audit-regel met de juiste actie schrijft, en
-//   2. een geweigerde inzage (geen partij) een 403 geeft en niets serveert.
+//   2. een geweigerde inzage (geen partij) een 403 geeft, niets serveert én een
+//      …_ACCESS_DENIED-auditregel schrijft (IDOR-enumeratie zichtbaar in het auditspoor).
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { type Actor } from "@/lib/authz";
@@ -137,11 +138,21 @@ describe("PDF-routes auditen documenttoegang (AVG, CLAUDE.md regel 5)", () => {
     );
   });
 
-  it("factuur-PDF: niet-partij krijgt 403 en er wordt niets geaudit/geserveerd", async () => {
+  it("factuur-PDF: niet-partij krijgt 403 én een ACCESS_DENIED-auditregel", async () => {
+    // Parity met de dossier-/modelovereenkomst-routes: geweigerde inzage hoort in het
+    // auditspoor (maakt IDOR-enumeratie op factuur-id's zichtbaar).
     actor = { id: "outsider", role: "FREELANCER", status: "ACTIVE", tenantId: null };
     const res = await invoicePdf(req, ctx("inv-1"));
     expect(res.status).toBe(403);
-    expect(auditMock).not.toHaveBeenCalled();
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "INVOICE_PDF_ACCESS_DENIED",
+        entityType: "Invoice",
+        entityId: "inv-1",
+        actorId: "outsider",
+      }),
+    );
   });
 
   it("urenstaat-PDF: geautoriseerde inzage schrijft PERFORMANCE_PDF_ACCESSED", async () => {
@@ -156,11 +167,19 @@ describe("PDF-routes auditen documenttoegang (AVG, CLAUDE.md regel 5)", () => {
     );
   });
 
-  it("urenstaat-PDF: niet-partij krijgt 403, geen audit", async () => {
+  it("urenstaat-PDF: niet-partij krijgt 403 én een ACCESS_DENIED-auditregel", async () => {
     actor = { id: "outsider", role: "FREELANCER", status: "ACTIVE", tenantId: null };
     const res = await performancePdf(req, ctx("perf-1"));
     expect(res.status).toBe(403);
-    expect(auditMock).not.toHaveBeenCalled();
+    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "PERFORMANCE_PDF_ACCESS_DENIED",
+        entityType: "Performance",
+        entityId: "perf-1",
+        actorId: "outsider",
+      }),
+    );
   });
 
   it("modelovereenkomst-PDF: geautoriseerde inzage schrijft MODEL_AGREEMENT_ACCESSED", async () => {
