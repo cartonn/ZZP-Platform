@@ -19,7 +19,7 @@ import {
   type WsRow,
   type WsSealItem,
 } from "@/components/dashboard/workspace-dashboard";
-import { getClientStats } from "@/lib/client-stats";
+import { getClientStats, fillRateHint } from "@/lib/client-stats";
 import { getTranslator } from "@/lib/i18n/server";
 import { avatarAccent } from "@/lib/avatar-accent";
 import { formatEuro } from "@/lib/invoices";
@@ -805,7 +805,12 @@ export default async function DashboardPage() {
     const cs = await getClientStats(user.id!);
     const clientKpis = cs
       ? [
-          { icon: Gauge, label: t("Vervullingsgraad"), value: `${cs.fillRate}%` },
+          {
+            icon: Gauge,
+            label: t("Vervullingsgraad"),
+            value: `${cs.fillRate}%`,
+            hint: fillRateHint(cs.filledJobs, cs.publishedJobs),
+          },
           {
             icon: Handshake,
             label: t("Actieve samenwerkingen"),

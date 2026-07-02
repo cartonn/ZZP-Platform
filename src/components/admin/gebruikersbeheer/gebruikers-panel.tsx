@@ -156,7 +156,10 @@ export async function GebruikersPanel({
                 key={u.id}
                 className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
               >
-                <div className="min-w-0">
+                <Link
+                  href={`/admin/gebruikersbeheer/${u.id}`}
+                  className="focus-ring -m-1 min-w-0 rounded-md p-1 hover:bg-muted/40"
+                >
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium">{u.name}</p>
                     {isSelf && <span className="text-xs text-muted-foreground">(jij)</span>}
@@ -169,7 +172,7 @@ export async function GebruikersPanel({
                     )}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-                </div>
+                </Link>
                 {!isSelf && !u.anonymizedAt && (
                   <div className="flex items-center gap-2">
                     {u.deletionRequestedAt && u.role !== "ADMIN" && (
