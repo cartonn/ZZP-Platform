@@ -1,9 +1,11 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, BarChart3, Gauge, PieChart, Target, Building2 } from "lucide-react";
+import { ArrowRight, BarChart3, Coins, Gauge, PieChart, Target, Building2 } from "lucide-react";
+import { prisma } from "@/lib/db";
 import { requireActor, type Actor } from "@/lib/authz";
 import { type UserRole } from "@/lib/enums";
+import { computeTenantFee } from "@/lib/tenant-fee";
 import { getFreelancerStats } from "@/lib/freelancer-stats";
 import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-quality";
@@ -66,6 +68,11 @@ export default async function InzichtPage() {
 
 function rateTone(pct: number, good = 80, ok = 50): "success" | "warning" | "default" {
   return pct >= good ? "success" : pct >= ok ? "warning" : "default";
+}
+
+/** Percentage in nl-NL, max één decimaal (bv. "12,5%"). */
+function formatPercent(pct: number): string {
+  return `${pct.toLocaleString("nl-NL", { maximumFractionDigits: 1 })}%`;
 }
 
 function bars(trend: RevenueTrend) {
@@ -336,10 +343,16 @@ async function ClientInzicht({ userId }: { userId: string }) {
 }
 
 async function FranchiserInzicht({ actor }: { actor: Actor }) {
-  const [s, byCompany, trend] = await Promise.all([
+  const [s, byCompany, trend, tenant] = await Promise.all([
     getTenantStats(actor),
     getTenantCompanyBreakdown(actor),
     getTenantRevenueTrend(actor),
+    actor.tenantId
+      ? prisma.tenant.findUnique({
+          where: { id: actor.tenantId },
+          select: { feePercent: true },
+        })
+      : Promise.resolve(null),
   ]);
   if (!s) {
     return (
@@ -353,13 +366,16 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
     );
   }
   const withActivity = byCompany.filter((r) => r.totalJobs > 0 || r.revenuePaidCents > 0);
+  const feePercent = tenant?.feePercent ?? 0;
+  const feeSet = feePercent > 0;
+  const feeCents = computeTenantFee(s.revenuePaidCents, feePercent);
   return (
     <div className="space-y-4">
       <RevenueHero
-        label="Betaalde omzet"
+        label="Doorgezet volume"
         value={formatEuro(s.revenuePaidCents)}
         deltaPct={trend.deltaPct}
-        caption="bemiddeling · trend per maand"
+        caption="betaald via je bemiddeling · trend per maand"
         bars={bars(trend)}
         formatValue={formatEuro}
         secondary={[
@@ -368,6 +384,37 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
           { label: "Opdrachtgevers", value: `${s.companies}` },
         ]}
       />
+
+      <BiWidget title="Jouw fee">
+        {feeSet ? (
+          <BiStatList
+            items={[
+              {
+                label: "Fee over doorgezet volume",
+                value: formatEuro(feeCents),
+                sub: `${formatPercent(feePercent)} van ${formatEuro(s.revenuePaidCents)}`,
+                tone: "success",
+              },
+              {
+                label: "Fee-percentage",
+                value: formatPercent(feePercent),
+                href: "/franchise/instellingen/bewerken",
+                sub: "aanpassen in instellingen",
+              },
+            ]}
+          />
+        ) : (
+          <EmptyState
+            icon={Coins}
+            title="Nog geen fee ingesteld"
+            description="Stel je fee-percentage in om te zien wat je verdient over het doorgezette volume."
+            action={{
+              label: "Stel je fee-percentage in",
+              href: "/franchise/instellingen/bewerken",
+            }}
+          />
+        )}
+      </BiWidget>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <StatusDonutWidget
