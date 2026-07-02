@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Opdrachtgever — opdracht dupliceren als startpunt voor een nieuwe (2026-07-02)
+
+Vertaalt de "duplicate"-friction-reducer van Linear/Stripe/GitHub naar de opdrachtgever: terugkerend/
+seizoenswerk plaatsen zonder alles opnieuw te typen. Één klik neemt titel, omschrijving, tarief, skills,
+certificaateisen, DBA-antwoorden en modelovereenkomst over in een vers **concept**; reacties, status en
+startdatum lekken nooit mee.
+
+- [x] **`lib/job-duplicate.ts`** (puur, geen schemawijziging) — `buildJobDuplicateInitial(job)` vormt een
+      bron-opdracht om tot de `JobFormInitial` van de nieuwe-opdracht-form **zonder `id`** (zo maakt de form
+      een nieuwe opdracht i.p.v. de bron te wijzigen), met lege `startDate` en een `duplicateJobTitle`
+      "(kopie)"-titel (dubbel-suffix-guard, hoofdletterongevoelig, ingekort tot `JOB_TITLE_MAX=160` — spiegelt
+      `jobSchema.title`). Skills/certificaateisen gesplitst in verplicht/optioneel. 12 unit-tests.
+- [x] **`/opdrachten/nieuw?from=<id>`** — server-side ophalen van de bron + **ownership-poort** (`owns`);
+      niet-eigen/onbekende `from` valt stil terug op een leeg formulier (geen lek, `from` is een gemak, geen
+      autorisatiegrens). Kop "Opdracht dupliceren" + rustige overgenomen-uit-notitie bij een geldige bron.
+- [x] **"Dupliceren"-knop** naast "Bewerken" op de opdracht-detail (alleen eigenaar) → `/opdrachten/nieuw?from=<id>`.
+- Bestanden: `src/lib/job-duplicate.ts` (+ `.test.ts`), `src/app/(protected)/opdrachten/nieuw/page.tsx`,
+  `src/app/(protected)/opdrachten/[id]/page.tsx`, allowlist-regels (line-shift) in `unbounded-queries.test.ts`.
+  Gate: typecheck + lint + prettier + test (**2808 groen**) + build groen.
+
 ## Ontwerp-lab — verse set v3: 10 nieuwe top-1% concepten op /ontwerp (2026-06-25)
 
 Volledige, verse vervanging van de v2-set (Atlas…Onyx) door tien sterkere, onderscheidende
