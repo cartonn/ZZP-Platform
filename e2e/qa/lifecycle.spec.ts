@@ -92,7 +92,10 @@ test.describe("QA: Complete lifecycle cascade", () => {
     // STAP 3 — CLIENT accepteert en stelt samenwerking voor
     // =====================================================================
     await page.goto("/kandidaten");
+    await page.getByRole("button", { name: "Toon details" }).click();
     await page.getByRole("button", { name: "Accepteren" }).click();
+    // Geaccepteerde kandidaat verhuist naar de ingeklapte sectie "Geaccepteerd — zie Samenwerkingen".
+    await page.getByRole("button", { name: /Geaccepteerd/ }).click();
     await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
     await page.locator('input[name="rate"]').fill("75");
     await page.getByRole("button", { name: "Voorstel versturen" }).click();

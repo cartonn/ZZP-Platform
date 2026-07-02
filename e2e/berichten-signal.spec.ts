@@ -46,6 +46,7 @@ test("ongelezen bericht toont een badge op Berichten in de zijbalk", async ({ pa
 
   // Opdrachtgever stuurt een bericht naar de kandidaat.
   await page.goto("/kandidaten");
+  await page.getByRole("button", { name: "Toon details" }).click();
   await page.getByRole("button", { name: "Bericht sturen" }).click();
   await page.waitForURL(/\/berichten\/[a-z0-9]+$/);
   await page.locator('textarea[name="body"]').fill("Hoi, wanneer kun je starten?");

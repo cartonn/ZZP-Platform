@@ -54,7 +54,9 @@ test("inzetbaarheid-gate: ontbrekend vereist certificaat blokkeert de plaatsing"
   // Opdrachtgever accepteert en stelt een samenwerking voor.
   await page.goto("/kandidaten");
   await expect(page.getByText("Comp Freelancer")).toBeVisible();
+  await page.getByRole("button", { name: "Toon details" }).click();
   await page.getByRole("button", { name: "Accepteren" }).click();
+  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
   await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
   await page.locator('input[name="rate"]').fill("90");
   await page.getByRole("button", { name: "Voorstel versturen" }).click();

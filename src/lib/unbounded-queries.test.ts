@@ -428,7 +428,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Kandidaten (freelancers) voor een opdrachtgever; gefilterd en beperkt door matching.
   {
     file: "(protected)/kandidaten/page.tsx",
-    line: 96,
+    line: 102,
     reason: "kandidaten-matching; volume beperkt door filter",
   },
 

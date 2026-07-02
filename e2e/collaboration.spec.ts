@@ -56,6 +56,7 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
   // Opdrachtgever start een gesprek vanuit de kandidaat.
   await page.goto("/kandidaten");
   await expect(page.getByText("Coll Freelancer")).toBeVisible();
+  await page.getByRole("button", { name: "Toon details" }).click();
   await page.getByRole("button", { name: "Bericht sturen" }).click();
   await page.waitForURL(/\/berichten\/[a-z0-9]+$/);
   await page
@@ -78,7 +79,10 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
 
   // Opdrachtgever accepteert de reactie en stelt een samenwerking voor.
   await page.goto("/kandidaten");
+  await page.getByRole("button", { name: "Toon details" }).click();
   await page.getByRole("button", { name: "Accepteren" }).click();
+  // Na accepteren staat de kandidaat in de sectie "Geaccepteerd — zie Samenwerkingen"; open die.
+  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
   await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
   await page.locator('input[name="rate"]').fill("90");
   await page.getByRole("button", { name: "Voorstel versturen" }).click();
