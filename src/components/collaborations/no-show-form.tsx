@@ -6,6 +6,7 @@ import {
   type NoShowReportState,
 } from "@/app/(protected)/samenwerkingen/no-show-actions";
 import { Button } from "@/components/ui/button";
+import { DateInput } from "@/components/ui/date-input";
 import { Textarea } from "@/components/ui/textarea";
 
 // No-show melden (opdrachtgever; productbesluit 12-6-2026). De reden gaat direct als notificatie
@@ -36,13 +37,7 @@ export function NoShowReportForm({ collaborationId }: { collaborationId: string 
         <label htmlFor={dateId} className="block text-xs font-medium">
           Dag van de gemiste dienst
         </label>
-        <input
-          id={dateId}
-          name="occurredOn"
-          type="date"
-          required
-          className="focus-ring h-8 rounded-md border border-input bg-background px-2 text-sm"
-        />
+        <DateInput id={dateId} name="occurredOn" required className="h-8 px-2" />
       </div>
       <div className="space-y-1">
         <label htmlFor={reasonId} className="block text-xs font-medium">

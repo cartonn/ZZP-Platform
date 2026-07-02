@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CheckChip } from "@/components/ui/check-chip";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
@@ -232,7 +233,7 @@ export function JobForm({
           />
         </Field>
         <Field label="Startdatum" htmlFor="startDate" error={fe.startDate}>
-          <Input id="startDate" name="startDate" type="date" defaultValue={initial.startDate} />
+          <DateInput id="startDate" name="startDate" defaultValue={initial.startDate} />
         </Field>
       </div>
 

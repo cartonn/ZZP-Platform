@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Select } from "@/components/ui/select";
 import { addAvailabilityWindow, type AvailabilityState } from "./actions";
 import { FormStatus } from "@/components/ui/form-status";
@@ -29,10 +30,10 @@ export function AvailabilityForm() {
       <h2 className="text-sm font-medium">Beschikbaarheid toevoegen</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Van" htmlFor="startDate" required error={fe.startDate}>
-          <Input id="startDate" name="startDate" type="date" required />
+          <DateInput id="startDate" name="startDate" required />
         </Field>
         <Field label="Tot en met" htmlFor="endDate" required error={fe.endDate}>
-          <Input id="endDate" name="endDate" type="date" required />
+          <DateInput id="endDate" name="endDate" required />
         </Field>
         <Field label="Type" htmlFor="type" error={fe.type}>
           <Select id="type" name="type" defaultValue="AVAILABLE">

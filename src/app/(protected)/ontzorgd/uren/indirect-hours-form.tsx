@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { DateInput } from "@/components/ui/date-input";
 import { INDIRECT_HOUR_CATEGORIES, INDIRECT_HOUR_CATEGORY_LABEL } from "@/lib/tax/indirect-hours";
 import { addIndirectHours, type IndirectHoursState } from "./actions";
 
@@ -33,14 +34,12 @@ export function IndirectHoursForm() {
           <label htmlFor="workedOn" className="block text-sm font-medium">
             Datum
           </label>
-          <input
+          <DateInput
             id="workedOn"
             name="workedOn"
-            type="date"
             defaultValue={todayString()}
             max={todayString()}
             required
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 

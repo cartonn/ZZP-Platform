@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { publishDienst, type DienstInlineState } from "../actions";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -84,7 +85,7 @@ export function DienstInlineForm({
             <Input id={id("location")} name="location" placeholder="Plaats" />
           </Field>
           <Field label="Startdatum" htmlFor={id("startDate")}>
-            <Input id={id("startDate")} name="startDate" type="date" />
+            <DateInput id={id("startDate")} name="startDate" />
           </Field>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
