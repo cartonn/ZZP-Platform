@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { Bell, LogOut, Plus } from "lucide-react";
 import { type Session } from "next-auth";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { SidebarRail } from "@/components/sidebar-rail";
+import { SidebarToggle } from "@/components/sidebar-toggle";
+import { SIDEBAR_COOKIE, parseSidebarState } from "@/lib/sidebar";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SkipLink } from "@/components/ui/skip-link";
@@ -66,6 +68,12 @@ export async function AppShell({
   const pathname = (await headers()).get("x-pathname") ?? "";
   const flush = pathname === "/dashboard";
 
+  // Zijbalk-voorkeur (uitgeklapt = labels zichtbaar). Server-side gelezen zodat de eerste render
+  // meteen de juiste breedte zet (geen flits). Uitgeklapt duwt de inhoud (pl-64); ingeklapt houdt
+  // de smalle icoon-rail (pl-16) die op hover tijdelijk uitklapt over de inhoud.
+  const sidebarState = parseSidebarState((await cookies()).get(SIDEBAR_COOKIE)?.value);
+  const sidebarExpanded = sidebarState === "expanded";
+
   // Primaire actie in de bovenbalk (één strip met zoeken + bel + actie, gelijke hoogte — #19).
   // Rolspecifiek en alleen op de werkruimte; elders geen actieknop in de balk.
   const DASH_ACTION: Partial<Record<UserRole, { label: string; href: string }>> = {
@@ -76,14 +84,15 @@ export async function AppShell({
   const topAction = flush ? DASH_ACTION[role] : undefined;
 
   return (
-    <div className="relative min-h-screen md:pl-16">
+    <div className={cn("relative min-h-screen", sidebarExpanded ? "md:pl-64" : "md:pl-16")}>
       {/* Skip-link: eerste focusbare element, springt naar de hoofdinhoud (toetsenbord/screenreader). */}
       <SkipLink />
-      {/* Vakwerk-shell: de zijbalk is een smalle icoon-rail (4rem) die bij hover/focus uitklapt naar
-          16rem en over de inhoud zweeft — de inhoud schuift niet mee. Klapt weer in bij muis-weg,
-          focusverlies én na navigatie (SidebarRail). Op mobiel verborgen; daar regelt de
-          header-hamburger de navigatie. */}
-      <SidebarRail>
+      {/* Vakwerk-shell: de zijbalk staat standaard uitgeklapt (16rem) met zichtbare labels +
+          sectiekoppen en duwt de inhoud opzij. De gebruiker kan inklappen naar een smalle icoon-rail
+          (4rem) die bij hover/focus tijdelijk uitklapt over de inhoud en weer inklapt bij muis-weg,
+          focusverlies én na navigatie (SidebarRail). De keuze wordt onthouden (cookie). Op mobiel
+          verborgen; daar regelt de header-hamburger de navigatie. */}
+      <SidebarRail initialState={sidebarState}>
         <div className="flex h-full w-64 flex-col">
           <div className="flex h-14 items-center gap-2 border-b border-border px-4">
             <Brand branding={branding} collapsible />
@@ -92,6 +101,7 @@ export async function AppShell({
             <SidebarNav items={navItems} badges={badges} collapsible />
           </div>
           <div className="border-t border-border p-3">
+            <SidebarToggle state={sidebarState} />
             <Link
               href="/account"
               className="focus-ring flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted"
