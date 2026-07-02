@@ -1,9 +1,10 @@
 # UX-walkthrough 2026-07-02 — verwarpunten & verbeterbacklog
 
 > Methode: geautomatiseerde walkthrough (Playwright, 1440×900) op de live test-omgeving met de
-> drie demo-accounts; alle nav-routes per rol + detailpagina's bezocht (64 full-page screenshots,
-> 0 console-errors). Beoordeling door drie onafhankelijke persona-reviews (kritische zorg-ZZP'er,
-> zorgplanner gewend aan Pidz/Zorgwerk, compliance-beheerder) + eigen inspectie van de kernflows.
+> vier demo-accounts (zzp@, opdrachtgever@, franchise@, admin@); alle nav-routes per rol +
+> detailpagina's bezocht (83 full-page screenshots, 0 console-errors). Beoordeling door vier
+> onafhankelijke persona-reviews (kritische zorg-ZZP'er, zorgplanner gewend aan Pidz/Zorgwerk,
+> bureau-bemiddelaar, compliance-beheerder) + eigen inspectie van de kernflows.
 > Benchmarks: Pidz/Temper (flow), Linear/Stripe (UI).
 
 **Oordeel:** de basis is sterk — geen kapotte pagina's, elke rol heeft een logisch dashboard met
@@ -16,8 +17,8 @@ plaats van gebruikerstaal.
 - [ ] **Dubbele tellers** op ≥3 schermen: "3 3 aanvragen" (admin/verificaties), "13 13
       samenwerkingen" (admin/samenwerkingen), "0/3 3 lessen" (academie) — count-rendering
       dedupliceren.
-- [ ] **Date-inputs en-US**: mm/dd/yyyy in nieuwe-opdracht, samenwerking-voorstellen en
-      certificaat-upload — nl-locale afdwingen (dd-mm-jjjj).
+- [ ] **Date-inputs en-US**: mm/dd/yyyy in nieuwe-opdracht, samenwerking-voorstellen,
+      certificaat-upload én lead-opvolging (bemiddelaar) — nl-locale afdwingen (dd-mm-jjjj).
 - [ ] **Status-mismatch admin/opdrachten**: rij "Frontend Developer (concept)" draagt badge
       "Gesloten".
 - [ ] **"-100%"-trend** op Inzicht wanneer de lopende maand nog leeg is — trend onderdrukken
@@ -62,6 +63,33 @@ plaats van gebruikerstaal.
    Inline preview, reden-veld pas bij Afwijzen, "X dagen in wachtrij" met kleur ≥5d, compacte
    support-lijst met filters, actiecentrum voeden met álle wachtrijen.
 
+## Rode draad 8 — de bemiddelaar kan niet actief bemiddelen (hoog)
+
+Het kernvak van een bureau ontbreekt als werkwoord in de UI:
+
+- [ ] **"ZZP'er voordragen/koppelen" ontbreekt op een open dienst** — een dienst staat 27 dagen
+      open ("nog geen reacties") terwijl er 2 beschikbare roster-ZZP'ers zijn; de bemiddelaar kan
+      alleen wachten. → Voordraag-actie op dienst-detail met inline compliance-check.
+- [ ] **Geen fee/marge-inzicht**: Inzicht toont "Betaalde omzet € 0,00 · bemiddeling" zonder
+      onderscheid doorgezet volume vs bureaufee; fee-percentage nergens instelbaar. → Splits
+      Inzicht en voeg fee-instelling toe aan Instellingen.
+- [ ] **Zelf geen gesprek kunnen starten** (berichten-lege-staat: "een opdrachtgever start een
+      gesprek…") — haaks op hoe een bureau werkt. → "Nieuw gesprek" richting eigen roster en
+      opdrachtgevers.
+- [ ] **Lead → opdrachtgever-conversie ontbreekt**: een lead met status "Klant" is een dood
+      eind. → Actie "Maak opdrachtgever aan" die de gegevens meeneemt.
+- [ ] **Instellingen zijn speelgoed**: alleen naam + hex-kleurveld + cryptische
+      platform-openstellen-toggle; zakelijke instellingen (fee, standaardeisen, regio) ontbreken.
+
+Versterkt bovendien bestaande draden: next-actions zegt "Niets dat nu aandacht vraagt. Goed
+bezig." naast 0/2 identiteit-geverifieerd én een 27-dagen-open dienst (draad 2); dashboard
+"Beschikbaar" (groen) vs ZZP'ers-pagina "Nog niet inzetbaar" (rood) voor dezelfde personen
+(draad 2); "Vulgraad 0%" + "dreigt onvervuld" naast "Deze week is alles gedekt"
+(draad 2, dekkingsprognose-presentatie); "Inzetvorm nog niet beoordeeld"-waarschuwing zonder
+actieknop, "VOG ontbreekt +1" zonder herinner-actie, leads zonder dagen-stil-signaal (draad 5);
+"Shift-overnames" (half Engels) + drie regels beleidsproza die uitleggen wat goedkeuren níet
+doet (draad 3).
+
 ## Kleinere punten (per rol)
 
 - **ZZP**: login-pagina legt boven de vouw niet uit wat het platform is; bel-teller "7" vs
@@ -71,5 +99,8 @@ plaats van gebruikerstaal.
   zonder context/tooltip; vergelijkingstabel toont "Deels"/"—" zonder uitleg.
 - **Admin**: gebruikersrijen alleen "Schorsen", geen dossier-doorklik; ORT-jargon op
   samenwerkingsdetail zonder "wat wordt van mij verwacht"-regel.
+- **Bemiddelaar**: ZZP'ers-lijst verbergt ontbrekende items achter "+1" zonder ze uit te
+  schrijven; "Bemiddeling bewerken" hex-veld zonder kleurkiezer; shift-overname-flow mist
+  2-stappen-schema (1. keur aanvraag, 2. plaats overnemer).
 
 Volledig rapport (Artifact): zie sessie 2-7-2026; screenshots in de sessie-scratchpad.
