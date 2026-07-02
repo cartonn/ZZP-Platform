@@ -34,7 +34,7 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
   await page.goto("/opdrachten/nieuw");
   await page.fill("#title", title);
   await page.fill("#description", "Project met facturatie.");
-  await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+  await page.getByRole("button", { name: "Opslaan als concept" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const detailUrl = page.url();
   await page.getByRole("button", { name: "Publiceren" }).click();

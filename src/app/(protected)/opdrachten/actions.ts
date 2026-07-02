@@ -155,6 +155,21 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
     });
     savedId = created.id;
     await audit({ actorId: actor.id, action: "JOB_CREATED", entityType: "Job", entityId: savedId });
+
+    // "Opslaan & publiceren": maak de opdracht aan als concept en publiceer haar direct via de
+    // BESTAANDE statusovergang (changeJobStatus → JOB_TRANSITIONS + canPublish + plan-gating + pool),
+    // exact zoals de publiceer-knop op de detailpagina. Geen nieuwe transitie-logica. Alleen op
+    // aanmaken (nieuwe opdracht); bij bewerken blijft het gedrag ongewijzigd. Lukt publiceren
+    // (bv. plan-limiet), dan blijft de opdracht als concept bewaard en valt de flow terug op de
+    // redirect naar de detailpagina, waar de opdrachtgever alsnog kan publiceren.
+    if (formData.get("intent") === "publish") {
+      const published = await changeJobStatus(savedId, "PUBLISHED");
+      // changeJobStatus redirect zelf bij succes; komen we hier, dan is het misgegaan.
+      if (published?.error) {
+        revalidatePath("/opdrachten");
+        redirect(`/opdrachten/${savedId}`);
+      }
+    }
   }
 
   revalidatePath("/opdrachten");

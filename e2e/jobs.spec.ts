@@ -49,7 +49,7 @@ test("opdrachtgever maakt, publiceert en ZZP'er vindt de opdracht", async ({ pag
     .locator("fieldset", { hasText: "Vereiste certificaten" })
     .getByText("VOG", { exact: true })
     .click();
-  await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+  await page.getByRole("button", { name: "Opslaan als concept" }).click();
 
   // Redirect naar de detailpagina (concept). Wacht op de heading, leg dán de URL vast.
   await expect(page.getByRole("heading", { name: title })).toBeVisible();

@@ -105,7 +105,7 @@ test("opdrachtgever journey", async ({ page }) => {
     await pg.fill("#description", "Test-opdracht door de persona-lus om de plaats-flow te lopen.");
   });
   await p.step(page, "opdracht-aanmaken", async (pg) => {
-    await pg.getByRole("button", { name: "Opdracht aanmaken" }).click({ timeout: 5000 });
+    await pg.getByRole("button", { name: "Opslaan als concept" }).click({ timeout: 5000 });
     await pg.waitForLoadState("networkidle").catch(() => {});
   });
   await p.step(page, "opdrachten", (pg) => pg.goto("/opdrachten"));

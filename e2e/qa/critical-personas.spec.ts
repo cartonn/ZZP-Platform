@@ -92,7 +92,7 @@ test.describe("Opdrachtgever — autorisatiegrenzen & robuustheid", () => {
     await login(page, ACCOUNTS.client);
     await page.goto("/opdrachten/nieuw");
     await page.fill("#description", "Opdracht zonder titel — validatietest.");
-    await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+    await page.getByRole("button", { name: "Opslaan als concept" }).click();
     await page.waitForTimeout(1500);
     // Zonder titel mag er geen opdracht-detail ontstaan; we blijven op het formulier.
     expect(new URL(page.url()).pathname).toBe("/opdrachten/nieuw");
@@ -146,7 +146,7 @@ test.describe("Cross-rol / IDOR (twee browsercontexten)", () => {
     await page.goto("/opdrachten/nieuw");
     await page.fill("#title", title);
     await page.fill("#description", "Privé concept van opdrachtgever A.");
-    await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+    await page.getByRole("button", { name: "Opslaan als concept" }).click();
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
     const detailUrl = new URL(page.url()).pathname; // concept (DRAFT)
 

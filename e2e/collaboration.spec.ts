@@ -38,7 +38,7 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
   await page.fill("#title", title);
   await page.fill("#description", "Samenwerkingsproject, ervaren ontwikkelaar gezocht.");
   await page.selectOption("#workMode", "REMOTE");
-  await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+  await page.getByRole("button", { name: "Opslaan als concept" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const detailUrl = page.url();
   await page.getByRole("button", { name: "Publiceren" }).click();

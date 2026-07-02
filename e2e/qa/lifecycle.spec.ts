@@ -56,7 +56,7 @@ test.describe("QA: Complete lifecycle cascade", () => {
     await page.goto("/opdrachten/nieuw");
     await page.fill("#title", title);
     await page.fill("#description", "Lifecycle-test: volledige cascade van opdracht tot betaling.");
-    await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+    await page.getByRole("button", { name: "Opslaan als concept" }).click();
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
     const jobUrl = page.url();
     await shot(page, "lifecycle-02-job-created");

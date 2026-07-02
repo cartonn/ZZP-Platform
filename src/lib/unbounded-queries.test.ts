@@ -333,7 +333,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // curated en klein; slice-1-overzicht toont er max. 100).
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 248,
+    line: 263,
     reason: "eigen flexpool-leden bij eerste publicatie (per bedrijf begrensd)",
   },
 

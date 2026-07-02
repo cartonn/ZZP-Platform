@@ -32,7 +32,7 @@ test("ZZP'er ziet info over de opdrachtgever bij een opdracht", async ({ page, b
   await page.fill("#title", title);
   await page.fill("#description", "Remote project.");
   await page.selectOption("#workMode", "REMOTE");
-  await page.getByRole("button", { name: "Opdracht aanmaken" }).click();
+  await page.getByRole("button", { name: "Opslaan als concept" }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const detailUrl = page.url();
   await page.getByRole("button", { name: "Publiceren" }).click();

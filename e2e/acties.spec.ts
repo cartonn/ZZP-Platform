@@ -53,7 +53,7 @@ async function setupCollaboration(
   await page.fill("#title", title);
   await page.fill("#description", "Test-opdracht voor het Actiecentrum (end-to-end).");
   await clickUntil(
-    page.getByRole("button", { name: "Opdracht aanmaken" }),
+    page.getByRole("button", { name: "Opslaan als concept" }),
     page.getByRole("heading", { name: title }),
   );
   const detailUrl = page.url();
