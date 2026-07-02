@@ -40,6 +40,8 @@ test("FREELANCER logt in en ziet role-aware dashboard", async ({ page }) => {
   // (Certificaten/Beschikbaarheid/Documenten zitten nu in de profiel-hub-tabs, niet in de zijbalk.)
   await expect(nav.getByText("Mijn profiel")).toBeVisible();
   await expect(nav.getByText("Verificaties")).toHaveCount(0);
+  // Zijbalk is standaard uitgeklapt: labels én sectiekoppen zijn meteen zichtbaar (geen naamloze rail).
+  await expect(nav.getByText("Werk", { exact: true })).toBeVisible();
   await shot(page, "02-dashboard-freelancer");
 });
 
