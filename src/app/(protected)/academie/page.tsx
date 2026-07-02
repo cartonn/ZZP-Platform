@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
-import { plural } from "@/lib/plural";
+import { pluralWord } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Academie · ZZP Platform" };
 
@@ -69,7 +69,7 @@ export default async function AcademiePage() {
                     <p className="text-xs tabular-nums text-muted-foreground">
                       {c.progress.completed
                         ? "Voltooid"
-                        : `${c.progress.done}/${c.progress.total} ${plural(c.progress.total, "les", "lessen")} · ${c.progress.pct}%`}
+                        : `${c.progress.done}/${c.progress.total} ${pluralWord(c.progress.total, "les", "lessen")} · ${c.progress.pct}%`}
                     </p>
                   </div>
                 </CardContent>

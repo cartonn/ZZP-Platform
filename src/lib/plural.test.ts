@@ -17,4 +17,14 @@ describe("plural", () => {
     expect(pluralWord(1, "samenwerking", "samenwerkingen")).toBe("samenwerking");
     expect(pluralWord(4, "samenwerking", "samenwerkingen")).toBe("samenwerkingen");
   });
+
+  it("plural bevat al het telwoord — een count-prefix zou dubbel tellen", () => {
+    // Regressie: `${n} ${plural(n, ...)}` gaf UI als "3 3 aanvragen".
+    // plural() bevat het getal zelf, dus de aanroeper mag het niet nogmaals plakken.
+    expect(plural(3, "aanvraag", "aanvragen")).toBe("3 aanvragen");
+    expect(plural(13, "samenwerking", "samenwerkingen")).toBe("13 samenwerkingen");
+    // Voor een "0/3 lessen"-teller hoort pluralWord (zonder getal), niet plural.
+    expect(`0/3 ${pluralWord(3, "les", "lessen")}`).toBe("0/3 lessen");
+    expect(`0/3 ${plural(3, "les", "lessen")}`).not.toBe("0/3 lessen");
+  });
 });

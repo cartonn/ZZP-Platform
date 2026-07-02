@@ -683,7 +683,15 @@ async function main() {
     ];
     await prisma.job.upsert({
       where: { id: j.id },
-      update: {},
+      // Reconcileer de canonieke scalar-velden zodat gedrifte demo-data (bv. een
+      // concept-opdracht die tijdens testen op CLOSED is gezet) bij her-seed terugkeert
+      // naar de bedoelde titel/status. Relaties blijven create-only (idempotent).
+      update: {
+        title: j.title,
+        description: j.description,
+        status: j.status,
+        publishedAt: j.status === "PUBLISHED" ? now : null,
+      },
       create: {
         id: j.id,
         companyId: companyIdByKey[j.company ?? "jansen"]!,

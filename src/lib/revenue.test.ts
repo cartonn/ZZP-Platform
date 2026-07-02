@@ -70,4 +70,15 @@ describe("monthDeltaPct", () => {
     expect(monthDeltaPct(monthlyRevenue([], now, 6))).toBeNull();
     expect(monthDeltaPct([])).toBeNull();
   });
+
+  it("onderdrukt de trend (null) zolang de lopende maand nog leeg is", () => {
+    // Vorige maand (mei) gevuld, lopende maand (juni) nog 0 → geen misleidend "-100%".
+    const series = monthlyRevenue(
+      [{ occurredAt: new Date("2026-05-10T08:00:00Z"), totalCents: 100_00 }],
+      now,
+      6,
+    );
+    expect(series.at(-1)?.cents).toBe(0);
+    expect(monthDeltaPct(series)).toBeNull();
+  });
 });

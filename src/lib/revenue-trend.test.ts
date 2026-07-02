@@ -100,6 +100,17 @@ describe("buildRevenueTrend", () => {
     expect(trend.deltaPct).toBeNull();
   });
 
+  it("deltaPct is null zolang de lopende maand nog leeg is (geen -100%)", () => {
+    // Vorige maand gevuld, lopende maand nog zonder omzet → geen misleidende daling.
+    const trend = buildRevenueTrend(
+      [{ occurredAt: new Date("2026-05-10T08:00:00Z"), totalCents: 100_00 }],
+      now,
+      6,
+    );
+    expect(trend.currentCents).toBe(0);
+    expect(trend.deltaPct).toBeNull();
+  });
+
   it("overbrugt een jaargrens correct", () => {
     const nowFeb = new Date("2026-02-10T10:00:00Z");
     const trend = buildRevenueTrend(

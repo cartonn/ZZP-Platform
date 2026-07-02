@@ -258,8 +258,8 @@ export default async function FranchiseZzpersPage({
 
           <p className="text-xs text-muted-foreground">
             {visible.length === cards.length
-              ? `${plural(cards.length, "ZZP'er", "ZZP'ers")}`
-              : `${visible.length} van ${cards.length} ${plural(cards.length, "ZZP'er", "ZZP'ers")}`}
+              ? plural(cards.length, "ZZP'er", "ZZP'ers")
+              : `${visible.length} van ${plural(cards.length, "ZZP'er", "ZZP'ers")}`}
           </p>
 
           {visible.length === 0 ? (

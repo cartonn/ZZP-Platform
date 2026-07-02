@@ -126,8 +126,8 @@ export default async function AdminDisputenPage({
             <>
               <p className="text-sm text-muted-foreground">
                 {filterActive
-                  ? `${visible.length} van ${rows.length} ${plural(rows.length, "dispuut", "disputen")}`
-                  : `${rows.length} ${plural(rows.length, "dispuut", "disputen")}`}
+                  ? `${visible.length} van ${plural(rows.length, "dispuut", "disputen")}`
+                  : plural(rows.length, "dispuut", "disputen")}
               </p>
 
               <div className="space-y-3">
