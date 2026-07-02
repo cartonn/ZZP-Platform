@@ -22,6 +22,7 @@ startdatum lekken nooit mee.
 - Bestanden: `src/lib/job-duplicate.ts` (+ `.test.ts`), `src/app/(protected)/opdrachten/nieuw/page.tsx`,
   `src/app/(protected)/opdrachten/[id]/page.tsx`, allowlist-regels (line-shift) in `unbounded-queries.test.ts`.
   Gate: typecheck + lint + prettier + test (**2808 groen**) + build groen.
+
 ## Ontwerp-lab — reeks 2: +10 concepten (nrs 11–20) op /ontwerp (2026-07-02)
 
 Additieve uitbreiding: de galerij accumuleert nu (10 → 20). Reeks 1 (01–10) blijft ongewijzigd
