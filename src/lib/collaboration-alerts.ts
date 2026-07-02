@@ -143,32 +143,51 @@ export function summarizeClientCompliance(
   };
 }
 
-/** Lopende samenwerkingen van een opdrachtgever waarvan de certificaat-compliance actie vraagt. */
-export async function clientCredentialAlerts(userId: string): Promise<ClientCredentialAlert[]> {
-  const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
-  if (!company) return [];
+/**
+ * Rij-vorm van een lopende samenwerking zoals de certificaat-melding die nodig heeft: de
+ * vereiste certificaten van de opdracht + de certificaten van de ZZP'er. Callers die deze rijen
+ * al hebben opgehaald (bv. het opdrachtgever-dashboard) geven ze rechtstreeks aan
+ * `clientCredentialAlertsFromRows` en vermijden zo een tweede database-query.
+ */
+export interface CollaborationAlertRow {
+  id: string;
+  job: {
+    id: string;
+    title: string;
+    credentialRequirements: { credentialType: string }[];
+  };
+  freelancer: {
+    user: { name: string | null };
+    credentials: { type: string; status: string; expiresAt: Date | null }[];
+  };
+}
 
-  const collaborations = await prisma.collaboration.findMany({
-    where: { companyId: company.id, status: "ACTIVE" },
-    take: 200,
-    include: {
-      job: {
-        select: {
-          id: true,
-          title: true,
-          credentialRequirements: { where: { required: true }, select: { credentialType: true } },
-        },
-      },
-      freelancer: {
-        select: {
-          user: { select: { name: true } },
-          credentials: { select: { type: true, status: true, expiresAt: true } },
-        },
-      },
+/** Prisma-`include` die exact `CollaborationAlertRow` oplevert — één bron voor query én type. */
+export const COLLABORATION_ALERT_INCLUDE = {
+  job: {
+    select: {
+      id: true,
+      title: true,
+      credentialRequirements: { where: { required: true }, select: { credentialType: true } },
     },
-  });
+  },
+  freelancer: {
+    select: {
+      user: { select: { name: true } },
+      credentials: { select: { type: true, status: true, expiresAt: true } },
+    },
+  },
+} as const;
 
-  const now = new Date();
+/**
+ * Zet voorgefetchte samenwerkingsrijen om in certificaat-meldingen. Pure functie (geen I/O):
+ * identiek gedrag aan `clientCredentialAlerts`, maar zonder eigen queries — voor callers die de
+ * rijen (via `COLLABORATION_ALERT_INCLUDE`) al hebben opgehaald en een dubbele fetch vermijden.
+ */
+export function clientCredentialAlertsFromRows(
+  collaborations: readonly CollaborationAlertRow[],
+  now: Date = new Date(),
+): ClientCredentialAlert[] {
   const alerts: ClientCredentialAlert[] = [];
   for (const c of collaborations) {
     const requiredTypes = c.job.credentialRequirements.map(
@@ -192,4 +211,18 @@ export async function clientCredentialAlerts(userId: string): Promise<ClientCred
     }
   }
   return alerts;
+}
+
+/** Lopende samenwerkingen van een opdrachtgever waarvan de certificaat-compliance actie vraagt. */
+export async function clientCredentialAlerts(userId: string): Promise<ClientCredentialAlert[]> {
+  const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
+  if (!company) return [];
+
+  const collaborations = await prisma.collaboration.findMany({
+    where: { companyId: company.id, status: "ACTIVE" },
+    take: 200,
+    include: COLLABORATION_ALERT_INCLUDE,
+  });
+
+  return clientCredentialAlertsFromRows(collaborations, new Date());
 }

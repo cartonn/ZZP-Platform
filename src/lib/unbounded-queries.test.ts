@@ -24,7 +24,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Dit is een aggregatie-query voor een widget (geen lijst-view); typisch < 10 items.
   {
     file: "(protected)/dashboard/page.tsx",
-    line: 215,
+    line: 216,
     reason: "dashboard-widget aggregatie; eigenaar-scoped, inherent begrensd",
   },
 
@@ -366,7 +366,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // --- opdrachten/(index)/page.tsx (vier findMany's) ---
   // Client-kanban van eigen opdrachten; geen take maar altijd gefilterd op company.userId
   // (eigenaar-scoped). Industry-/skill-lijsten zijn kleine referentielijsten. De savedJob-query
-  // is begrensd tot de zichtbare (gepagineerde) opdrachten via jobId: { in: [...] }.
+  // is eigenaar-scoped (freelancerProfileId) en levert alleen id-referenties op.
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
     line: 71,
@@ -374,18 +374,19 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 243,
+    line: 258,
     reason: "branches-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 244,
+    line: 259,
     reason: "skills-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 280,
-    reason: "bewaarde opdrachten, begrensd tot de zichtbare pagina via jobId: { in: [...] }",
+    line: 264,
+    reason:
+      "bewaarde opdrachten, eigenaar-scoped op freelancerProfileId; alleen jobId-referenties, membership in-memory",
   },
 
   // --- support/page.tsx ---

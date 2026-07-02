@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   assessCollaborationCredentials,
+  clientCredentialAlertsFromRows,
   describeCredentialAlert,
   summarizeClientCompliance,
   type ClientCredentialAlert,
+  type CollaborationAlertRow,
 } from "./collaboration-alerts";
 import { type FreelancerCredential } from "./matching";
 
@@ -179,5 +181,83 @@ describe("summarizeClientCompliance", () => {
     const snap = summarizeClientCompliance(frozen);
     expect(snap.total).toBe(1);
     expect(snap.inReview).toBe(1);
+  });
+});
+
+describe("clientCredentialAlertsFromRows", () => {
+  const row = (o: {
+    id: string;
+    jobId: string;
+    jobTitle: string;
+    name: string | null;
+    required: string[];
+    creds: { type: string; status: string; expiresAt: Date | null }[];
+  }): CollaborationAlertRow => ({
+    id: o.id,
+    job: {
+      id: o.jobId,
+      title: o.jobTitle,
+      credentialRequirements: o.required.map((credentialType) => ({ credentialType })),
+    },
+    freelancer: { user: { name: o.name }, credentials: o.creds },
+  });
+
+  it("levert een melding op bij een ontbrekend vereist certificaat en vult alle velden", () => {
+    const rows = [
+      row({
+        id: "collab-1",
+        jobId: "job-1",
+        jobTitle: "Dakproject",
+        name: "Jan",
+        required: ["VOG"],
+        creds: [],
+      }),
+    ];
+    const alerts = clientCredentialAlertsFromRows(rows, now);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({
+      collaborationId: "collab-1",
+      jobId: "job-1",
+      jobTitle: "Dakproject",
+      freelancerName: "Jan",
+    });
+    expect(alerts[0]?.alert.status).toBe("NON_COMPLIANT");
+    expect(alerts[0]?.alert.missing).toEqual(["VOG"]);
+  });
+
+  it("slaat samenwerkingen zonder vereiste certificaten en zonder gat over", () => {
+    const rows = [
+      row({
+        id: "c-no-req",
+        jobId: "j1",
+        jobTitle: "Vrij",
+        name: "A",
+        required: [],
+        creds: [],
+      }),
+      row({
+        id: "c-compliant",
+        jobId: "j2",
+        jobTitle: "In orde",
+        name: "B",
+        required: ["VOG"],
+        creds: [{ type: "VOG", status: "VERIFIED", expiresAt: inDays(300) }],
+      }),
+    ];
+    expect(clientCredentialAlertsFromRows(rows, now)).toEqual([]);
+  });
+
+  it("valt terug op '—' als de ZZP'er geen naam heeft", () => {
+    const rows = [
+      row({
+        id: "c1",
+        jobId: "j1",
+        jobTitle: "Klus",
+        name: null,
+        required: ["VOG"],
+        creds: [],
+      }),
+    ];
+    expect(clientCredentialAlertsFromRows(rows, now)[0]?.freelancerName).toBe("—");
   });
 });
