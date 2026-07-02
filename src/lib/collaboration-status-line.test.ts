@@ -47,4 +47,18 @@ describe("collaborationStatusLine", () => {
     expect(line.youAreUp).toBe(false);
     expect(line.text).toMatch(/dispuut/i);
   });
+
+  it("herhaalt de status-badge-woorden niet (voorkomt strict-mode-botsing in de UI/e2e)", () => {
+    // Een PROPOSED-samenwerking met nog niet getekend contract mag het woord "Voorgesteld" niet
+    // in de status-zin herhalen — anders matcht getByText('Voorgesteld') twee elementen.
+    const draft = collaborationStatusLine(
+      base({ collaborationStatus: "PROPOSED", contractStatus: "DRAFT" }),
+    );
+    expect(draft.text).not.toMatch(/voorgesteld/i);
+    const toSign = collaborationStatusLine(
+      base({ collaborationStatus: "PROPOSED", contractStatus: "SENT" }),
+    );
+    expect(toSign.text).not.toMatch(/voorgesteld/i);
+    expect(toSign.text).toMatch(/onderteken het contract/i);
+  });
 });
