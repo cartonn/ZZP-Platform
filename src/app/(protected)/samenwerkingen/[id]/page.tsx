@@ -67,7 +67,7 @@ import { parseWeekdays, formatWeekdays } from "@/lib/weekdays";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 
-export const metadata: Metadata = { title: "Werkproces · ZZP Platform" };
+export const metadata: Metadata = { title: "Samenwerking · ZZP Platform" };
 
 const PERF_STATUS: Record<
   PerformanceState,
@@ -663,11 +663,12 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
             <CardContent className="space-y-2 py-4">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  ORT-profiel (onregelmatigheidstoeslagen)
+                  Toeslagen voor onregelmatige uren (ORT)
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Bepaalt de toeslagen voor avond/nacht/weekend/feestdag. Kies de CAO-sector of
-                  maatwerk; standaard = geen specifieke CAO.
+                  Avond-, nacht-, weekend- en feestdaguren tellen zwaarder mee op de urenstaat. Kies
+                  de CAO-sector van jouw organisatie, of &ldquo;Maatwerk&rdquo; met eigen
+                  percentages. Kies je niets, dan rekent de urenstaat zonder toeslagen.
                 </p>
               </div>
               <OrtProfileForm
