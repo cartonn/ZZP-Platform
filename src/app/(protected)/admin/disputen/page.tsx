@@ -87,7 +87,7 @@ export default async function AdminDisputenPage({
     <div className="space-y-6">
       <PageHeader
         title="Disputen"
-        description="Samenwerkingen met een open dispuut. Het werkproces is bevroren tot het platform bemiddelt en het dispuut oplost."
+        description="Samenwerkingen met een open dispuut. De samenwerking is bevroren tot het platform bemiddelt en het dispuut oplost."
       />
 
       {rows.length === 0 ? (
@@ -156,7 +156,7 @@ export default async function AdminDisputenPage({
                         href={`/samenwerkingen/${row.collaborationId}`}
                         className="inline-flex text-sm font-medium underline underline-offset-4"
                       >
-                        Open werkproces om te bemiddelen →
+                        Open samenwerking om te bemiddelen →
                       </Link>
                     </CardContent>
                   </Card>

@@ -75,7 +75,7 @@ const FREELANCER_TIERS: Record<PlanKey, TierInfo> = {
     highlighted: true,
     features: [
       "Onbeperkt reageren en samenwerken",
-      "Volledige facturatie via het werkproces",
+      "Volledige facturatie via de samenwerking",
       "Administratie: grootboek, BTW per kwartaal, debiteuren",
       "Automatische betalingsherinneringen",
       "IB-jaaroverzicht ter eigen voorbereiding",

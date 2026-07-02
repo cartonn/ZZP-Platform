@@ -110,7 +110,7 @@ export default async function AbonnementPage() {
       <div className="space-y-1 text-xs text-muted-foreground">
         <p>
           {
-            "Betalingen lopen rechtstreeks tussen ZZP'er en opdrachtgever; het platform verwerkt geen geld uit het werkproces. Het abonnement is een platformdienst, geen percentage over je omzet."
+            "Betalingen lopen rechtstreeks tussen ZZP'er en opdrachtgever; het platform verwerkt geen geld uit de samenwerking. Het abonnement is een platformdienst, geen percentage over je omzet."
           }
         </p>
         <p>

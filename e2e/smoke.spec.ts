@@ -58,7 +58,7 @@ test("CLIENT logt in en ziet opdrachtgever-navigatie", async ({ page }) => {
   await login(page, "opdrachtgever@zzp-platform.local");
   const nav = page.getByRole("navigation", { name: "Hoofdnavigatie" });
   await expect(nav.getByText("Bedrijfsprofiel")).toBeVisible();
-  await expect(nav.getByText("Kandidaten")).toBeVisible();
+  await expect(nav.getByText("Reacties")).toBeVisible();
   await shot(page, "04-dashboard-client");
 });
 

@@ -115,7 +115,7 @@ export async function DbaPanel({ niveau, basePath }: { niveau: string; basePath:
                   href={`/samenwerkingen/${row.collaborationId}`}
                   className="inline-flex text-sm font-medium underline underline-offset-4"
                 >
-                  Open werkproces →
+                  Open samenwerking →
                 </Link>
               </CardContent>
             </Card>

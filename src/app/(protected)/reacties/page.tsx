@@ -48,9 +48,9 @@ const STATUS_HINT: Record<ApplicationStatus, string> = {
 // Zodra er een samenwerking is, volgt de hint de actuele samenwerkingsstatus i.p.v. een vaste tekst.
 const COLLAB_HINT: Record<string, string> = {
   PROPOSED: "Samenwerking voorgesteld — bekijk het voorstel.",
-  ACTIVE: "Samenwerking gestart — bekijk het werkproces.",
-  COMPLETED: "Samenwerking afgerond — bekijk het werkproces.",
-  CANCELLED: "Samenwerking geannuleerd — bekijk het werkproces.",
+  ACTIVE: "Samenwerking gestart — bekijk de samenwerking.",
+  COMPLETED: "Samenwerking afgerond — bekijk de samenwerking.",
+  CANCELLED: "Samenwerking geannuleerd — bekijk de samenwerking.",
 };
 
 function filterHref(group: ApplicationFilterGroup): string {
@@ -208,7 +208,7 @@ export default async function ReactiesPage({
                 // werkproces (de logische volgende stap) i.p.v. terug naar de opdracht.
                 const hint = app.collaboration
                   ? (COLLAB_HINT[app.collaboration.status] ??
-                    "Samenwerking gestart — bekijk het werkproces.")
+                    "Samenwerking gestart — bekijk de samenwerking.")
                   : STATUS_HINT[app.status];
                 // De ZZP'er kan zijn reactie intrekken zolang de opdrachtgever nog geen beslissing nam en
                 // er geen samenwerking uit voortkwam. Server-side blijft dit de waarheid (zie actions.ts).

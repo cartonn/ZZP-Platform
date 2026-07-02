@@ -106,7 +106,7 @@ export async function BoekhoudingPanel({ actor }: { actor: Actor }) {
           <EmptyState
             icon={Receipt}
             title="Nog geen boekhouding"
-            description="Zodra er facturen via het werkproces lopen, verschijnen hier je BTW- en debiteuren-/crediteurenoverzichten."
+            description="Zodra er facturen via een samenwerking lopen, verschijnen hier je BTW- en debiteuren-/crediteurenoverzichten."
           />
         </Card>
       ) : (

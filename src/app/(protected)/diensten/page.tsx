@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 
-export const metadata: Metadata = { title: "Diensten · ZZP Platform" };
+export const metadata: Metadata = { title: "Urenstaten · ZZP Platform" };
 
 const STATUS_MAP: Record<
   string,
@@ -40,7 +40,7 @@ export default async function DienstenPage({
   if (actor.role !== "FREELANCER") {
     return (
       <div className="space-y-6">
-        <PageHeader title="Diensten" description="Het diensten-overzicht is er voor ZZP'ers." />
+        <PageHeader title="Urenstaten" description="Het urenstaten-overzicht is er voor ZZP'ers." />
         <Card>
           <EmptyState
             icon={Clock}
@@ -63,9 +63,9 @@ export default async function DienstenPage({
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Diensten</h1>
+          <h1 className="text-xl font-semibold">Urenstaten</h1>
           <p className="text-sm text-muted-foreground">
-            Alle urenstaaten en opleveringen die je hebt ingediend of in concept hebt staan.
+            Alle urenstaten en opleveringen die je hebt ingediend of in concept hebt staan.
           </p>
         </div>
         <div className="flex gap-2">
@@ -115,13 +115,13 @@ export default async function DienstenPage({
       {diensten.length === 0 ? (
         <EmptyState
           icon={Clock}
-          title="Geen diensten gevonden"
+          title="Geen urenstaten gevonden"
           description={
             filterStatus
-              ? "Er zijn geen diensten met deze status. Pas het filter aan of importeer nieuwe diensten."
-              : "Je hebt nog geen diensten ingediend. Begin via een samenwerking of importeer bestaande diensten."
+              ? "Er zijn geen urenstaten met deze status. Pas het filter aan of importeer nieuwe urenstaten."
+              : "Je hebt nog geen urenstaten ingediend. Begin via een samenwerking of importeer bestaande urenstaten."
           }
-          action={{ label: "Diensten importeren", href: "/diensten/importeer" }}
+          action={{ label: "Urenstaten importeren", href: "/diensten/importeer" }}
         />
       ) : (
         <div className="divide-y divide-border rounded-lg border border-border">
@@ -174,7 +174,8 @@ export default async function DienstenPage({
 
       {allDiensten.length > 0 && (
         <footer className="text-xs text-muted-foreground">
-          {allDiensten.length} dienst{allDiensten.length !== 1 ? "en" : ""} in totaal.
+          {allDiensten.length} urenstaat{allDiensten.length !== 1 ? "/oplevering(en)" : ""} in
+          totaal.
         </footer>
       )}
     </div>

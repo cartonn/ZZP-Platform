@@ -409,7 +409,7 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
               href={`/samenwerkingen/${invoice.collaboration.id}`}
               className="inline-flex items-center gap-1 font-medium underline underline-offset-4"
             >
-              Open het werkproces →
+              Open de samenwerking →
             </Link>
           </CardContent>
         </Card>

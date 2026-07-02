@@ -22,7 +22,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 
-export const metadata: Metadata = { title: "Prestaties · ZZP Platform" };
+export const metadata: Metadata = { title: "Uren goedkeuren · ZZP Platform" };
 
 const STATUS_MAP: Record<
   string,
@@ -58,8 +58,8 @@ export default async function PrestatiesPage({
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Prestaties"
-          description="Het prestatie-overzicht is er voor opdrachtgevers."
+          title="Uren goedkeuren"
+          description="Het overzicht van in te dienen uren en opleveringen is er voor opdrachtgevers."
         />
         <Card>
           <EmptyState
@@ -91,7 +91,7 @@ export default async function PrestatiesPage({
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Prestaties</h1>
+          <h1 className="text-xl font-semibold">Uren goedkeuren</h1>
           <p className="text-sm text-muted-foreground">
             Urenstaten en opleveringen van jouw ZZP&apos;ers — overzicht over alle samenwerkingen.
             {pendingCount > 0 && (
@@ -102,7 +102,7 @@ export default async function PrestatiesPage({
           </p>
           {queue.staleCount > 0 && (
             <p className="mt-1 text-xs font-medium text-warning">
-              {queue.staleCount} {queue.staleCount === 1 ? "prestatie wacht" : "prestaties wachten"}{" "}
+              {queue.staleCount} {queue.staleCount === 1 ? "urenstaat wacht" : "urenstaten wachten"}{" "}
               al {PERFORMANCE_APPROVAL_STALE_DAYS} dagen of langer — langer wachten houdt de
               facturatie tegen.
             </p>
@@ -145,7 +145,7 @@ export default async function PrestatiesPage({
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Goedgekeurde prestaties</dt>
+              <dt className="text-xs text-muted-foreground">Goedgekeurde urenstaten</dt>
               <dd className="text-lg font-semibold tabular-nums">
                 {reliability.approvedPerformances}
               </dd>
@@ -189,10 +189,10 @@ export default async function PrestatiesPage({
       {prestaties.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title="Geen prestaties gevonden"
+          title="Geen urenstaten gevonden"
           description={
             filterStatus
-              ? "Er zijn geen prestaties met deze status. Pas het filter aan."
+              ? "Er zijn geen urenstaten met deze status. Pas het filter aan."
               : "Je ZZP'ers hebben nog geen urenstaten of opleveringen ingediend."
           }
         />
@@ -269,7 +269,8 @@ export default async function PrestatiesPage({
 
       {allPrestaties.length > 0 && (
         <footer className="text-xs text-muted-foreground">
-          {allPrestaties.length} prestatie{allPrestaties.length !== 1 ? "s" : ""} in totaal
+          {allPrestaties.length} urenstaat{allPrestaties.length !== 1 ? "/oplevering(en)" : ""} in
+          totaal
           {pendingCount > 0 && (
             <span className="ml-1 font-medium text-foreground">
               · {pendingCount} wacht op goedkeuring

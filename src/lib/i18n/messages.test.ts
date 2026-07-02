@@ -69,7 +69,7 @@ describe("translate", () => {
   it("vertaalt het opdrachtgever-dashboard naar het Engels", () => {
     expect(translate("en", "Vervullingsgraad")).toBe("Fill rate");
     expect(translate("en", "Geplaatste opdrachten")).toBe("Posted assignments");
-    expect(translate("en", "Voorgestelde professionals")).toBe("Suggested professionals");
+    expect(translate("en", "Voorgestelde ZZP'ers")).toBe("Suggested freelancers");
     expect(translate("en", "Compliance-zegel")).toBe("Compliance seal");
     expect(translate("en", "Geen lopende diensten")).toBe("No active shifts");
     expect(translate("en", "diensten in orde")).toBe("shifts compliant");

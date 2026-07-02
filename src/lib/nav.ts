@@ -53,7 +53,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     // Certificaten, Beschikbaarheid en Documenten zitten nu als tabs in "Mijn profiel"
     // (de profielhub), dus niet meer apart in de zijbalk.
     { label: "Mijn profiel", href: "/profiel", icon: "user", section: "Dossier", enabled: true }, // prettier-ignore
-    { label: TERM_PLURAL.shift, href: "/diensten", icon: "clock", section: "Dossier", enabled: true }, // prettier-ignore
+    { label: "Urenstaten", href: "/diensten", icon: "clock", section: "Dossier", enabled: true }, // prettier-ignore
     // Facturen, Boekhouding, Openstaand, Ontzorgd en Prognose zitten nu als tabs in de
     // Administratie-hub (/financien), dus niet meer apart in de zijbalk.
     { label: "Administratie", href: "/financien", icon: "fileText", section: "Zakelijk", enabled: true }, // prettier-ignore
@@ -68,11 +68,11 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", section: "Werk", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.action, href: "/acties", icon: "inbox", section: "Werk", enabled: true }, // prettier-ignore
     { label: `Mijn ${TERM_PLURAL.job.toLowerCase()}`, href: "/opdrachten", icon: "briefcase", section: "Werk", enabled: true }, // prettier-ignore
-    { label: "ZZP'ers", href: "/freelancers", icon: "users", section: "Werk", enabled: true }, // prettier-ignore
+    { label: "ZZP'ers vinden", href: "/freelancers", icon: "users", section: "Werk", enabled: true }, // prettier-ignore
     // Flexpool zit nu als tab in de bedrijfsprofiel-hub (/bedrijf?tab=flexpool), niet meer apart.
-    { label: TERM_PLURAL.candidate, href: "/kandidaten", icon: "users", section: "Werk", enabled: true }, // prettier-ignore
+    { label: "Reacties", href: "/kandidaten", icon: "users", section: "Werk", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.collaboration, href: "/samenwerkingen", icon: "handshake", section: "Werk", enabled: true }, // prettier-ignore
-    { label: TERM_PLURAL.performance, href: "/prestaties", icon: "fileCheck", section: "Werk", enabled: true }, // prettier-ignore
+    { label: "Uren goedkeuren", href: "/prestaties", icon: "fileCheck", section: "Werk", enabled: true }, // prettier-ignore
     // Facturen, Boekhouding, Openstaand en Verplichtingen zitten nu als tabs in de
     // Administratie-hub (/financien), dus niet meer apart in de zijbalk.
     { label: "Administratie", href: "/financien", icon: "fileText", section: "Zakelijk", enabled: true }, // prettier-ignore
@@ -94,7 +94,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: TERM_PLURAL.collaboration, href: "/admin/samenwerkingen", icon: "handshake", section: "Wachtrijen", enabled: true }, // prettier-ignore
     { label: "Disputen", href: "/admin/disputen", icon: "handshake", section: "Wachtrijen", enabled: true }, // prettier-ignore
     { label: "No-shows", href: "/admin/no-shows", icon: "users", section: "Wachtrijen", enabled: true }, // prettier-ignore
-    { label: "Shift-overnames", href: "/admin/shift-overnames", icon: "handshake", section: "Wachtrijen", enabled: true }, // prettier-ignore
+    { label: "Dienst-overnames", href: "/admin/shift-overnames", icon: "handshake", section: "Wachtrijen", enabled: true }, // prettier-ignore
     { label: "Helpdesk", href: "/admin/support", icon: "messages", section: "Wachtrijen", enabled: true }, // prettier-ignore
     { label: "Opdrachten", href: "/admin/opdrachten", icon: "briefcase", section: "Beheer", enabled: true }, // prettier-ignore
     // Gebruikers, Bemiddelaars en Importeren zitten nu als tabs in de Gebruikers-hub
@@ -114,7 +114,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "ZZP'ers", href: "/franchise/zzpers", icon: "users", section: "Bemiddeling", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.shift, href: "/franchise/diensten", icon: "clock", section: "Bemiddeling", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.collaboration, href: "/franchise/samenwerkingen", icon: "handshake", section: "Bemiddeling", enabled: true }, // prettier-ignore
-    { label: "Shift-overnames", href: "/franchise/shift-overnames", icon: "handshake", section: "Bemiddeling", enabled: true }, // prettier-ignore
+    { label: "Dienst-overnames", href: "/franchise/shift-overnames", icon: "handshake", section: "Bemiddeling", enabled: true }, // prettier-ignore
     { label: "Inzicht", href: "/inzicht", icon: "barChart", section: "Bemiddeling", enabled: true }, // prettier-ignore
     { label: TERM_PLURAL.message, href: "/berichten", icon: "messages", section: "Overig", enabled: true }, // prettier-ignore
     // Facturatie zit nu als tab in de bemiddeling-hub (/franchise/instellingen?tab=facturatie).

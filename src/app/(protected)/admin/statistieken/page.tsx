@@ -29,7 +29,7 @@ export default async function StatistiekenPage() {
         <RevenueTrendCard
           trend={throughput}
           title="Gefactureerd volume per maand"
-          emptyDescription="Zodra er facturen via het werkproces lopen, verschijnt hier het gefactureerde volume per maand."
+          emptyDescription="Zodra er facturen via een samenwerking lopen, verschijnt hier het gefactureerde volume per maand."
         />
         <p className="text-xs text-muted-foreground">
           Totaal bedrag dat via het platform wordt gefactureerd (doorzet, incl. BTW) — geen

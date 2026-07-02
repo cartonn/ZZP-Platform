@@ -507,7 +507,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           <CardContent className="space-y-2 py-4">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-danger">
-                Dispuut open — werkproces bevroren
+                Dispuut open — samenwerking bevroren
               </span>
               <Badge variant="danger">Bevroren</Badge>
             </div>

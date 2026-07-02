@@ -344,7 +344,7 @@ export function adminResolveDisputeTask(collabId: string, jobTitle: string): Pen
   return {
     kind: "admin-resolve-dispute",
     id: `admin-resolve-dispute:${collabId}`,
-    title: "Beoordeel het dispuut — werkproces bevroren",
+    title: "Beoordeel het dispuut — samenwerking bevroren",
     subtitle: jobTitle,
     tone: "attention",
     priority: P.disputeOpen,
