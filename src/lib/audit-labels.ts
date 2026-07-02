@@ -12,6 +12,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   USER_IMPORTED: "Gebruiker geïmporteerd",
   USERS_IMPORTED: "Gebruikers geïmporteerd",
   USER_STATUS_CHANGED: "Accountstatus gewijzigd",
+  ADMIN_USER_VIEWED: "Gebruikersdossier ingezien",
   PASSWORD_CHANGED: "Wachtwoord gewijzigd",
   PASSWORD_RESET_REQUESTED: "Wachtwoordherstel aangevraagd",
   PASSWORD_RESET_COMPLETED: "Wachtwoord hersteld",

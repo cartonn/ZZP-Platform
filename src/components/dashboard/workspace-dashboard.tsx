@@ -20,6 +20,8 @@ export interface WsKpi {
   icon: LucideIcon;
   label: string;
   value: string;
+  /** Optionele korte context onder het label (bv. "3 van je 14 opdrachten heeft een plaatsing"). */
+  hint?: string;
   delta?: string;
   deltaTone?: ActionTone;
 }
@@ -126,6 +128,11 @@ export async function WorkspaceDashboard({
                     {kpi.value}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{kpi.label}</p>
+                  {kpi.hint && (
+                    <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground/80">
+                      {kpi.hint}
+                    </p>
+                  )}
                 </div>
               ))}
             </section>

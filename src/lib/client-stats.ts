@@ -5,6 +5,17 @@ import { prisma } from "@/lib/db";
 import { clientCredentialAlerts } from "@/lib/collaboration-alerts";
 import { ratePercent } from "@/lib/freelancer-stats";
 import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
+import { plural } from "@/lib/plural";
+
+/**
+ * Korte NL-context onder de vervullingsgraad-tegel: "X van je Y opdrachten heeft een plaatsing".
+ * Maakt het kale percentage duidbaar. Zonder gepubliceerde opdrachten valt het percentage weg,
+ * dus tonen we de uitnodiging om te plaatsen. Pure functie (geen I/O) — unit-testbaar.
+ */
+export function fillRateHint(filledJobs: number, publishedJobs: number): string {
+  if (publishedJobs === 0) return "Nog geen opdrachten geplaatst";
+  return `${filledJobs} van je ${plural(publishedJobs, "opdracht", "opdrachten")} heeft een plaatsing`;
+}
 
 export interface ClientStats {
   /** Betaalde facturen (uitgaven die voldaan zijn). */
