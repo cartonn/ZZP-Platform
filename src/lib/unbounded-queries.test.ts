@@ -341,12 +341,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills en branches voor nieuw-opdrachtformulier.
   {
     file: "(protected)/opdrachten/nieuw/page.tsx",
-    line: 14,
+    line: 46,
     reason: "skills-referentielijst voor formulier",
   },
   {
     file: "(protected)/opdrachten/nieuw/page.tsx",
-    line: 15,
+    line: 47,
     reason: "branches-referentielijst voor formulier",
   },
 

@@ -260,6 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdracht dupliceren (opdrachtgever)** — pure `lib/job-duplicate.ts`
+> `buildJobDuplicateInitial`/`duplicateJobTitle` (bron→`JobFormInitial` zonder `id`, lege startDate,
+> "(kopie)"-titel met dubbel-suffix-guard + inkorten tot `JOB_TITLE_MAX=160`; 12 tests) + `/opdrachten/nieuw?from=<id>`
+> met server-side ownership-poort (niet-eigen `from` → stil leeg formulier) + "Dupliceren"-knop op de
+> opdracht-detail (eigenaar). Linear/Stripe/GitHub-friction-reducer: terugkerend werk plaatsen zonder
+> opnieuw te typen; kopie start altijd als vers concept (geen reacties/status/startdatum-lek). PR #551.
+
 > Gedaan (niet opnieuw): **Wachttijd-signaal per reactie voor de ZZP'er op `/reacties`** — pure
 > `lib/application-wait.ts` `summarizeApplicationWait({status,createdAt,hasCollaboration},now)` →
 > `{daysWaiting,stage,attention}` voor nog-onbesliste reacties (NEW/VIEWED/SHORTLIST), `null` bij

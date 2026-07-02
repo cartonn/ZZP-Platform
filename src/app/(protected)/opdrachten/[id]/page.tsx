@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   Check,
+  Copy,
   ExternalLink,
   MapPin,
   Pencil,
@@ -282,12 +283,20 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               <p className="text-sm text-muted-foreground">{job.company.name}</p>
             </div>
             {isOwner ? (
-              <Link
-                href={`/opdrachten/${job.id}/bewerken`}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
-              >
-                <Pencil className="size-3.5" aria-hidden /> Bewerken
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/opdrachten/nieuw?from=${job.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+                >
+                  <Copy className="size-3.5" aria-hidden /> Dupliceren
+                </Link>
+                <Link
+                  href={`/opdrachten/${job.id}/bewerken`}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+                >
+                  <Pencil className="size-3.5" aria-hidden /> Bewerken
+                </Link>
+              </div>
             ) : (
               actor.role === "FREELANCER" &&
               status === "PUBLISHED" && <SaveJobButton jobId={job.id} saved={isSaved} />
