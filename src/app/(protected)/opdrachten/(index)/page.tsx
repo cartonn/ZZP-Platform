@@ -226,7 +226,22 @@ async function BrowseJobs({
         ? { rateMin: "asc" }
         : { publishedAt: "desc" };
 
-  const [total, jobs, industries, skills, profile] = await Promise.all([
+  // Profiel eerst apart: het is de enige `where`-afhankelijkheid van de bewaarde-opdrachten-query,
+  // waardoor die daarna in dezelfde parallelle batch als de opdrachten kan meedraaien i.p.v. een
+  // extra seriële roundtrip achteraf.
+  const profile =
+    actor.role === "FREELANCER"
+      ? await prisma.freelancerProfile.findUnique({
+          where: { userId: actor.id },
+          include: {
+            skills: { select: { skillId: true } },
+            credentials: { select: { type: true, status: true, expiresAt: true } },
+            industries: { select: { industryId: true } },
+          },
+        })
+      : null;
+
+  const [total, jobs, industries, skills, savedRows] = await Promise.all([
     prisma.job.count({ where }),
     prisma.job.findMany({
       where,
@@ -242,16 +257,15 @@ async function BrowseJobs({
     }),
     prisma.industry.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    actor.role === "FREELANCER"
-      ? prisma.freelancerProfile.findUnique({
-          where: { userId: actor.id },
-          include: {
-            skills: { select: { skillId: true } },
-            credentials: { select: { type: true, status: true, expiresAt: true } },
-            industries: { select: { industryId: true } },
-          },
+    // Bewaarde opdrachten van de ZZP'er (alleen op profiel-id — onafhankelijk van de zichtbare
+    // pagina) draaien nu in dezelfde batch. De membership-check per zichtbare opdracht hieronder
+    // levert exact dezelfde staat op als de eerdere `jobId in`-begrensde query.
+    profile
+      ? prisma.savedJob.findMany({
+          where: { freelancerProfileId: profile.id },
+          select: { jobId: true },
         })
-      : Promise.resolve(null),
+      : Promise.resolve<{ jobId: string }[]>([]),
   ]);
 
   // Eén klok voor alle start-proximity-signalen in deze render (deterministisch, geen drift per rij).
@@ -273,16 +287,10 @@ async function BrowseJobs({
     }
   }
 
-  // Bewaarde opdrachten (alleen ZZP'er): welke van de zichtbare opdrachten al gebookmarkt zijn, zodat
-  // de bewaar-knop direct de juiste staat toont. Eén query, begrensd tot de zichtbare pagina.
+  // Bewaarde opdrachten (alleen ZZP'er): welke opdrachten al gebookmarkt zijn, zodat de bewaar-knop
+  // per zichtbare opdracht direct de juiste staat toont. Rijen komen uit de parallelle batch hierboven.
   const savedJobIds = new Set<string>();
-  if (profile && jobs.length > 0) {
-    const saved = await prisma.savedJob.findMany({
-      where: { freelancerProfileId: profile.id, jobId: { in: jobs.map((j) => j.id) } },
-      select: { jobId: true },
-    });
-    for (const s of saved) savedJobIds.add(s.jobId);
-  }
+  for (const s of savedRows) savedJobIds.add(s.jobId);
 
   const totalPages = Math.max(1, Math.ceil(total / JOBS_PER_PAGE));
   const mkPageHref = (page: number) => {

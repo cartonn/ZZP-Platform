@@ -38,7 +38,8 @@ import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecyc
 import { recommendedJobs, type JobMatch } from "@/lib/recommendations";
 import { suggestedFreelancersForClient, type ClientFreelancerSuggestion } from "@/lib/suggestions";
 import {
-  clientCredentialAlerts,
+  clientCredentialAlertsFromRows,
+  COLLABORATION_ALERT_INCLUDE,
   shortCredentialAlert,
   summarizeClientCompliance,
   type ClientComplianceSnapshot,
@@ -373,6 +374,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       runningRows,
       suggestedFreelancers,
       runningTotal,
+      credentialAlertRows,
     ] = await Promise.all([
       cid
         ? prisma.job.count({ where: { companyId: cid, status: "PUBLISHED" } })
@@ -412,12 +414,21 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       prisma.collaboration.count({
         where: { company: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
       }),
+      // Actieve samenwerkingen met certificaat-context — dezelfde selectie als
+      // clientCredentialAlerts, maar in deze parallelle batch (het bedrijf is al bekend, dus
+      // geen tweede company-lookup). De volledige lijst (take 200) voedt zowel de per-kaart
+      // melding als de geaggregeerde momentopname, ook buiten de top-6 zone.
+      cid
+        ? prisma.collaboration.findMany({
+            where: { companyId: cid, status: "ACTIVE" },
+            take: 200,
+            include: COLLABORATION_ALERT_INCLUDE,
+          })
+        : Promise.resolve([]),
     ]);
     // Compliance-waarschuwingen per lopende samenwerking (ZZP'er mist/verlopen vereist certificaat),
     // zodat de opdrachtgever dit ook op het dashboard ziet — niet alleen op /samenwerkingen.
-    // De volledige lijst voedt zowel de per-kaart melding als de geaggregeerde momentopname,
-    // zodat ook samenwerkingen buiten de top-6 zone in de telling meetellen.
-    const credentialAlerts = await clientCredentialAlerts(userId);
+    const credentialAlerts = clientCredentialAlertsFromRows(credentialAlertRows, new Date());
     const complianceByCollab = new Map(
       credentialAlerts.map((a) => [a.collaborationId, shortCredentialAlert(a.alert)]),
     );
