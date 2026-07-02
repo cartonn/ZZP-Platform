@@ -50,7 +50,9 @@ test("factuur opstellen, versturen en als betaald markeren", async ({ page, brow
 
   // Accepteren + samenwerking voorstellen.
   await page.goto("/kandidaten");
+  await page.getByRole("button", { name: "Toon details" }).click();
   await page.getByRole("button", { name: "Accepteren" }).click();
+  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
   await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
   await page.locator('input[name="rate"]').fill("90");
   await page.getByRole("button", { name: "Voorstel versturen" }).click();

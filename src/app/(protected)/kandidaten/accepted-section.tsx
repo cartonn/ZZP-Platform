@@ -13,13 +13,16 @@ export function AcceptedSection({
   title,
   hint,
   children,
+  defaultOpen = false,
 }: {
   count: number;
   title: string;
   hint: string;
   children: ReactNode;
+  /** Deeplink naar een geaccepteerde kandidaat: sectie meteen open zodat het anker zichtbaar is. */
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <Card>
       <CardContent className="space-y-3">

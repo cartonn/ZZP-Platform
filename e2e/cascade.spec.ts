@@ -73,10 +73,16 @@ async function setupCollaboration(
   await fp.fill("#motivation", "Ik pas perfect bij dit cascade-project en lever op tijd.");
   await clickForUrl(fp.getByRole("button", { name: "Reactie versturen" }), fp, "**/reacties");
 
-  // Client accepteert en stelt samenwerking voor.
+  // Client accepteert en stelt samenwerking voor. Compacte triage: eerst de rij uitklappen.
   await page.goto("/kandidaten");
-  await clickUntil(
+  await page.getByRole("button", { name: "Toon details" }).click();
+  await clickUntilGone(
     page.getByRole("button", { name: "Accepteren" }),
+    page.getByRole("button", { name: "Accepteren" }),
+  );
+  // Geaccepteerde kandidaat staat nu in de ingeklapte sectie "Geaccepteerd — zie Samenwerkingen".
+  await clickUntil(
+    page.getByRole("button", { name: /Geaccepteerd/ }),
     page.getByText("Samenwerking voorstellen"),
   );
   await page.locator('input[name="rate"]').fill("85");

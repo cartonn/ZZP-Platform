@@ -627,6 +627,9 @@ export default async function KandidatenPage({
                       count={acceptedItems.length}
                       title={t("Geaccepteerd — zie Samenwerkingen")}
                       hint={t("Deze kandidaten zijn geaccepteerd; de samenwerking loopt al.")}
+                      // Deeplink ("Kies X") naar een al geaccepteerde kandidaat: open de sectie meteen,
+                      // anders leidt het anker naar een verborgen rij.
+                      defaultOpen={acceptedItems.some((r) => r.app.id === openId)}
                     >
                       {acceptedItems.map((r) => (
                         <Card key={r.app.id} id={`app-${r.app.id}`}>

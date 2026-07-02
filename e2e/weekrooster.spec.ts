@@ -59,7 +59,9 @@ test("weekrooster op een samenwerking vastleggen blijft bewaard", async ({ page,
 
   // Opdrachtgever accepteert en stelt een samenwerking voor.
   await page.goto("/kandidaten");
+  await page.getByRole("button", { name: "Toon details" }).click();
   await page.getByRole("button", { name: "Accepteren" }).click();
+  await page.getByRole("button", { name: /Geaccepteerd/ }).click();
   await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
   await page.locator('input[name="rate"]').fill("85");
   await page.getByRole("button", { name: "Voorstel versturen" }).click();
