@@ -90,6 +90,7 @@ model Tenant {
   ownerUserId  String   @unique //          de Franchiser die deze tenant beheert
   status       String   @default("ACTIVE") // TenantStatus: ACTIVE | SUSPENDED
   brandColor   String? //                   white-label accentkleur (hex), getoond in de werkplek-header
+  feePercent   Float    @default(0) //       bemiddelaars-fee als % van doorgezet volume (0–50, één decimaal); getoond op /inzicht als "Jouw fee"
   openOverflow Boolean  @default(false) //  true = niet-gevulde diensten vallen terug naar het hele platform (v2)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

@@ -132,6 +132,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   FRANCHISE_DEPARTMENT_REMOVED: "Afdeling verwijderd",
   FRANCHISE_DIENST_STATUS_SET: "Dienststatus gewijzigd",
   FRANCHISE_BRANDING_UPDATED: "Bemiddeling-branding bijgewerkt",
+  FRANCHISE_FEE_PERCENT_UPDATED: "Fee-percentage ingesteld",
   TENANT_FEE_RECORDED: "Fee geboekt",
 
   // Support

@@ -10,10 +10,12 @@ import { FormStatus } from "@/components/ui/form-status";
 export function BrandingForm({
   initialName,
   initialColor,
+  initialFeePercent,
   initialOverflow,
 }: {
   initialName: string;
   initialColor: string | null;
+  initialFeePercent: number;
   initialOverflow: boolean;
 }) {
   const [state, action, pending] = useActionState<BrandingState, FormData>(
@@ -49,6 +51,29 @@ export function BrandingForm({
             className="size-9 shrink-0 rounded-md border border-border"
             style={{ backgroundColor: valid ? color : "transparent" }}
           />
+        </div>
+      </Field>
+      <Field
+        label="Fee-percentage"
+        htmlFor="feePercent"
+        hint="Jouw marge als percentage van het doorgezette volume (0–50%, één decimaal). Zichtbaar als “Jouw fee” op je inzicht."
+        error={fe.feePercent}
+      >
+        <div className="flex items-center gap-2">
+          <Input
+            id="feePercent"
+            name="feePercent"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={50}
+            step={0.1}
+            defaultValue={String(initialFeePercent)}
+            className="max-w-32"
+          />
+          <span aria-hidden className="text-sm text-muted-foreground">
+            %
+          </span>
         </div>
       </Field>
       <label className="flex items-start gap-2.5 border-t border-border pt-4 text-sm">
