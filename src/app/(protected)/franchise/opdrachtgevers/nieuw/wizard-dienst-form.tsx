@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { addDienstStep, type WizardDienstState } from "./actions";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,7 @@ export function WizardDienstForm({
           <Input id="location" name="location" placeholder="Plaats" />
         </Field>
         <Field label="Startdatum" htmlFor="startDate">
-          <Input id="startDate" name="startDate" type="date" />
+          <DateInput id="startDate" name="startDate" />
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">

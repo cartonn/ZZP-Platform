@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { proposeCollaboration, type ProposalState } from "@/app/(protected)/samenwerkingen/actions";
 
 export type ProposeCollaborationLabels = {
@@ -38,8 +39,8 @@ export function ProposeCollaboration({
           placeholder={labels.ratePlaceholder}
           aria-label={labels.rate}
         />
-        <Input name="startDate" type="date" aria-label={labels.startDate} />
-        <Input name="endDate" type="date" aria-label={labels.endDate} />
+        <DateInput name="startDate" aria-label={labels.startDate} />
+        <DateInput name="endDate" aria-label={labels.endDate} />
       </div>
       {fe.endDate && (
         <p role="alert" className="text-xs text-danger">

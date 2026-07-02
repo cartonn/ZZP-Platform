@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Button } from "@/components/ui/button";
 import { addLeadContact } from "../actions";
 
@@ -40,10 +40,9 @@ export function ContactForm({
         <label htmlFor="nextFollowUp" className="text-xs text-muted-foreground">
           Volgende opvolging
         </label>
-        <Input
+        <DateInput
           id="nextFollowUp"
           name="nextFollowUp"
-          type="date"
           defaultValue={defaultFollowUp ?? ""}
           className="h-8 w-40 text-sm"
         />

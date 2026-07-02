@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DateInput } from "@/components/ui/date-input";
 import { segmentShifts, dutchHolidays, type Shift } from "@/lib/shift";
 import { computeOrt, resolveOrtRates } from "@/lib/ort";
 import { ORT_CATEGORY_LABEL, type OrtCategory } from "@/lib/config";
@@ -124,21 +125,11 @@ export function PerformanceForm({
             </label>
             <label className="text-sm">
               <span className="mb-1 block text-muted-foreground">Periode van (bij uurtarief)</span>
-              <input
-                name="periodStart"
-                type="date"
-                defaultValue={defaults?.periodStart}
-                className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
+              <DateInput name="periodStart" defaultValue={defaults?.periodStart} />
             </label>
             <label className="text-sm">
               <span className="mb-1 block text-muted-foreground">Periode t/m (bij uurtarief)</span>
-              <input
-                name="periodEnd"
-                type="date"
-                defaultValue={defaults?.periodEnd}
-                className="focus-ring w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
+              <DateInput name="periodEnd" defaultValue={defaults?.periodEnd} />
             </label>
             <label className="text-sm">
               <span className="mb-1 block text-muted-foreground">Bedrag € (bij oplevering)</span>

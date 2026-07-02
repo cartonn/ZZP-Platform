@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Select } from "@/components/ui/select";
 import { createInvoice, type InvoiceState } from "./actions";
 
@@ -62,7 +63,7 @@ export function InvoiceForm({
           error={state?.fieldErrors?.dueAt}
           hint="Leeg = 14 dagen na versturen."
         >
-          <Input id="dueAt" name="dueAt" type="date" />
+          <DateInput id="dueAt" name="dueAt" />
         </Field>
       </div>
 

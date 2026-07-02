@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { FileInput } from "@/components/ui/file-input";
 import { Select } from "@/components/ui/select";
 import { credentialRecoveryNotice } from "@/lib/credentials";
@@ -110,7 +111,7 @@ export function CredentialForm({
         </Field>
         <div />
         <Field label="Uitgiftedatum" htmlFor="issuedAt" error={fe.issuedAt}>
-          <Input id="issuedAt" name="issuedAt" type="date" defaultValue={initial.issuedAt} />
+          <DateInput id="issuedAt" name="issuedAt" defaultValue={initial.issuedAt} />
         </Field>
         <Field
           label="Vervaldatum"
@@ -118,7 +119,7 @@ export function CredentialForm({
           error={fe.expiresAt}
           hint="Leeg = verloopt niet."
         >
-          <Input id="expiresAt" name="expiresAt" type="date" defaultValue={initial.expiresAt} />
+          <DateInput id="expiresAt" name="expiresAt" defaultValue={initial.expiresAt} />
         </Field>
       </div>
 

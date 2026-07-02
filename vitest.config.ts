@@ -4,6 +4,8 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  // Automatische JSX-runtime (zoals Next) zodat componenttests geen expliciete React-import nodig hebben.
+  esbuild: { jsx: "automatic" },
   resolve: {
     alias: {
       // `server-only` gooit bij import buiten een RSC-context; in Node-tests is dat een no-op.
