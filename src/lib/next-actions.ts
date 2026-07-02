@@ -50,8 +50,10 @@ export const P = {
   contractSign: 72, // contract ter ondertekening — deblokkeert de samenwerking
   credentialExpiring: 70, // certificaat verloopt binnenkort
   verificationQueue: 70, // wacht op verificatie (admin)
+  supportOpen: 66, // openstaande supporttickets — onbeantwoord/nieuw (admin)
   overdueInvoice: 60, // factuur over de vervaldatum
   pendingUsers: 60, // gebruikers met PENDING-status (admin)
+  credentialExpiryBatch: 58, // verlopen/verlopende certificaten — draai de expiry-check (admin)
   messagesAwaiting: 55, // berichten van de andere partij wachten op antwoord
   applications: 50, // nieuwe reacties
   completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)
@@ -260,6 +262,10 @@ export interface AdminActionInput {
   pendingUsers: number;
   /** Open disputen — het werkproces is bevroren tot opgelost. */
   openDisputes: number;
+  /** Openstaande supporttickets (nieuw/onbeantwoord) die een medewerker moet oppakken. */
+  openSupportTickets: number;
+  /** VERIFIED-certificaten die al verlopen of binnenkort verlopen — draai de expiry-check. */
+  expiringCredentials: number;
 }
 
 export function adminNextActions(input: AdminActionInput): NextAction[] {
@@ -292,6 +298,15 @@ export function adminNextActions(input: AdminActionInput): NextAction[] {
       priority: P.verificationQueue,
     });
   }
+  if (input.openSupportTickets > 0) {
+    actions.push({
+      id: "admin-open-support-tickets",
+      title: `${plural(input.openSupportTickets, "supportticket", "supporttickets")} ${input.openSupportTickets === 1 ? "wacht" : "wachten"} op antwoord`,
+      href: "/admin/support",
+      tone: "attention",
+      priority: P.supportOpen,
+    });
+  }
   if (input.pendingUsers > 0) {
     actions.push({
       id: "admin-pending-users",
@@ -299,6 +314,15 @@ export function adminNextActions(input: AdminActionInput): NextAction[] {
       href: "/admin/gebruikers?status=PENDING",
       tone: "info",
       priority: P.pendingUsers,
+    });
+  }
+  if (input.expiringCredentials > 0) {
+    actions.push({
+      id: "admin-expiring-credentials",
+      title: `${input.expiringCredentials} certificaat/certificaten verlopen of verlopen binnenkort — draai de vervalcontrole`,
+      href: "/admin/verificaties",
+      tone: "info",
+      priority: P.credentialExpiryBatch,
     });
   }
 
