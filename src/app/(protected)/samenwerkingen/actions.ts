@@ -12,8 +12,22 @@ import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
 import { completionBlockReason } from "@/lib/cascade/completion";
 import { signContract, CascadeError } from "@/lib/cascade/commands";
 import { assessCancellation } from "@/lib/cancellation";
-import { type CollaborationStatus, type JobStatus, collaborationStatusSchema } from "@/lib/enums";
+import {
+  type CollaborationStatus,
+  type CredentialType,
+  type JobStatus,
+  collaborationStatusSchema,
+  credentialTypeSchema,
+} from "@/lib/enums";
 import { collaborationProposalSchema, collaborationCancellationSchema } from "@/lib/validation";
+import { assessCollaborationCredentials } from "@/lib/collaboration-alerts";
+import { type FreelancerCredential } from "@/lib/matching";
+import {
+  reminderDayStart,
+  credentialReminderLink,
+  credentialReminderMessage,
+} from "@/lib/collaboration-reminder";
+import { z } from "zod";
 
 export type ProposalState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -353,4 +367,123 @@ export async function signContractFromList(collaborationId: string): Promise<voi
   revalidatePath("/samenwerkingen");
   revalidatePath("/acties");
   revalidatePath("/dashboard");
+}
+
+const credentialReminderSchema = z.object({
+  collaborationId: z.string().min(1),
+  type: credentialTypeSchema,
+});
+
+export type ReminderState = { error?: string; message?: string } | undefined;
+
+/**
+ * Certificaatherinnering (rode draad 5): de opdrachtgever stuurt de ZZP'er bij een lopende
+ * samenwerking een gerichte notificatie om een ontbrekend/vereist certificaat aan te leveren.
+ * Keten: auth → rol (CLIENT) → ownership (company.userId) → Zod → server-herbevestiging dat het
+ * type écht openstaat → idempotentie (max één per samenwerking+type per kalenderdag) → notify + audit.
+ */
+export async function sendCredentialReminder(
+  collaborationId: string,
+  type: string,
+  _prev: ReminderState,
+  _formData: FormData,
+): Promise<ReminderState> {
+  let actor: Actor;
+  try {
+    actor = await requireRole("CLIENT");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
+
+  const parsed = credentialReminderSchema.safeParse({ collaborationId, type });
+  if (!parsed.success) return { error: "Ongeldige herinnering." };
+  const reminderType = parsed.data.type as CredentialType;
+
+  const collaboration = await prisma.collaboration.findUnique({
+    where: { id: parsed.data.collaborationId },
+    include: {
+      company: { select: { userId: true, name: true } },
+      freelancer: {
+        select: {
+          userId: true,
+          credentials: { select: { type: true, status: true, expiresAt: true } },
+        },
+      },
+      job: {
+        select: {
+          credentialRequirements: { where: { required: true }, select: { credentialType: true } },
+        },
+      },
+    },
+  });
+  if (!collaboration) return { error: "Samenwerking niet gevonden." };
+  // Ownership: alleen de betrokken opdrachtgever mag herinneren.
+  if (collaboration.company.userId !== actor.id)
+    return { error: "Geen toegang tot deze samenwerking." };
+  if (collaboration.status !== "ACTIVE" && collaboration.status !== "PROPOSED")
+    return { error: "Herinneren kan alleen bij een lopende samenwerking." };
+
+  // Server is de waarheid: bevestig dat dit type écht openstaat (ontbrekend of verlopen). Nooit
+  // vertrouwen op de client-side melding — anders kan men om een willekeurig certificaat vragen.
+  const requiredTypes = collaboration.job.credentialRequirements.map(
+    (r) => r.credentialType as CredentialType,
+  );
+  const credentials: FreelancerCredential[] = collaboration.freelancer.credentials.map((c) => ({
+    type: c.type as CredentialType,
+    status: c.status as FreelancerCredential["status"],
+    expiresAt: c.expiresAt,
+  }));
+  const alert = assessCollaborationCredentials(requiredTypes, credentials);
+  const outstanding = new Set<CredentialType>([...alert.missing, ...alert.expired]);
+  if (!outstanding.has(reminderType))
+    return { error: "Dit certificaat is niet (meer) vereist voor deze samenwerking." };
+
+  // Idempotentie: geen spam. Eén herinnering per samenwerking+type per kalenderdag. We lezen de
+  // audit-regels van vandaag voor deze samenwerking en filteren op het type in de metadata.
+  const dayStart = reminderDayStart(new Date());
+  const todayReminders = await prisma.auditLog.findMany({
+    where: {
+      action: "CREDENTIAL_REMINDER_SENT",
+      entityType: "Collaboration",
+      entityId: collaboration.id,
+      createdAt: { gte: dayStart },
+    },
+    select: { metadata: true },
+    take: 50,
+  });
+  const alreadyReminded = todayReminders.some((r) => {
+    if (!r.metadata) return false;
+    try {
+      return (JSON.parse(r.metadata) as { type?: string }).type === reminderType;
+    } catch {
+      return false;
+    }
+  });
+  if (alreadyReminded) return { message: "Je hebt vandaag al herinnerd." };
+
+  const { title, body } = credentialReminderMessage(collaboration.company.name, reminderType);
+  await prisma.$transaction([
+    prisma.notification.create({
+      data: {
+        userId: collaboration.freelancer.userId,
+        type: "CREDENTIAL_REMINDER",
+        title,
+        body,
+        link: credentialReminderLink(reminderType),
+      },
+    }),
+    prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "CREDENTIAL_REMINDER_SENT",
+        entityType: "Collaboration",
+        entityId: collaboration.id,
+        metadata: { type: reminderType },
+      }),
+    }),
+  ]);
+
+  revalidatePath("/samenwerkingen");
+  return { message: "Herinnering verstuurd." };
 }

@@ -26,6 +26,7 @@ import {
   summarizeCollaborationStatusGroups,
 } from "@/lib/collaboration-status-filter";
 import { CancelCollaborationForm } from "@/components/collaborations/cancel-form";
+import { CredentialReminderButton } from "@/components/collaborations/credential-reminder-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -364,31 +365,46 @@ export default async function SamenwerkingenPage({
                         </div>
                       )}
 
-                      {showAlert && alert && (
-                        <div
-                          className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${
-                            urgent
-                              ? "border-danger/30 bg-danger/10 text-danger"
-                              : "border-warning/30 bg-warning/10 text-warning"
-                          }`}
-                        >
-                          <AlertTriangle className="size-4 shrink-0" aria-hidden />
-                          <span>
-                            {alertPhrase(alert, counterparty, isClient)}
-                            {!isClient && (
-                              <>
-                                {" "}
-                                <Link
-                                  href="/certificaten"
-                                  className="font-medium underline underline-offset-2"
-                                >
-                                  Bijwerken
-                                </Link>
-                              </>
-                            )}
-                          </span>
-                        </div>
-                      )}
+                      {showAlert &&
+                        alert &&
+                        (() => {
+                          // Handelingsperspectief bij een gat: de opdrachtgever kan de ZZP'er
+                          // gericht herinneren het ontbrekende/verlopen certificaat aan te leveren.
+                          const reminderType = alert.missing[0] ?? alert.expired[0] ?? null;
+                          return (
+                            <div
+                              className={`rounded-md border px-3 py-2 text-xs ${
+                                urgent
+                                  ? "border-danger/30 bg-danger/10 text-danger"
+                                  : "border-warning/30 bg-warning/10 text-warning"
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <AlertTriangle className="size-4 shrink-0" aria-hidden />
+                                <span>
+                                  {alertPhrase(alert, counterparty, isClient)}
+                                  {!isClient && (
+                                    <>
+                                      {" "}
+                                      <Link
+                                        href="/certificaten"
+                                        className="font-medium underline underline-offset-2"
+                                      >
+                                        Bijwerken
+                                      </Link>
+                                    </>
+                                  )}
+                                </span>
+                              </div>
+                              {isClient && reminderType && (
+                                <CredentialReminderButton
+                                  collaborationId={c.id}
+                                  type={reminderType}
+                                />
+                              )}
+                            </div>
+                          );
+                        })()}
 
                       {(COLLABORATION_TRANSITIONS[status].length > 0 ||
                         (!isClient && invoiceableIds.has(c.id))) && (

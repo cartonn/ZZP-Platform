@@ -20,7 +20,7 @@ export function NoShowReportForm({ collaborationId }: { collaborationId: string 
 
   if (!open) {
     return (
-      <Button type="button" size="sm" variant="destructive" onClick={() => setOpen(true)}>
+      <Button type="button" size="sm" variant="secondary" onClick={() => setOpen(true)}>
         No-show melden
       </Button>
     );
