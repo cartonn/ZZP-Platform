@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AuthorizationError, requireActor, requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { visibleFreelancersWhere } from "@/lib/tenancy";
+import { hasTenant, visibleFreelancersWhere } from "@/lib/tenancy";
+import { audit } from "@/lib/audit";
 import { isParticipant } from "@/lib/messaging";
 import { messageRateLimiter } from "@/lib/rate-limit";
 import { messageSchema } from "@/lib/validation";
@@ -201,6 +202,67 @@ export async function startConversationWithFreelancer(
       },
     });
     conversationId = created.id;
+  }
+
+  redirect(`/berichten/${conversationId}`);
+}
+
+/**
+ * FRANCHISER start (of heropent) een gesprek met iemand binnen de eigen bemiddeling: een ZZP'er
+ * uit het eigen roster of een opdrachtgever-contact. Gesloten per tenant — de ontvanger moet in de
+ * eigen tenant vallen, anders 403. Dit gesprek hangt niet aan een opdracht (jobId blijft leeg).
+ * Idempotent: een bestaand tweegesprek (zonder job) wordt heropend i.p.v. gedupliceerd.
+ */
+export async function startFranchiseConversation(recipientUserId: string): Promise<void> {
+  const actor = await requireRole("FRANCHISER");
+  if (!hasTenant(actor)) throw new AuthorizationError("Geen bemiddeling gekoppeld.", 403);
+  if (recipientUserId === actor.id) throw new Error("Je kunt geen gesprek met jezelf starten.");
+
+  // De ontvanger moet een tenant-gebonden ZZP'er of opdrachtgever van dezelfde bemiddeling zijn.
+  // Server-side is de waarheid: we bevestigen de tenant-match op de user zelf (niet op wat de
+  // client aanlevert) en accepteren alleen de rollen FREELANCER en CLIENT binnen de eigen tenant.
+  const recipient = await prisma.user.findUnique({
+    where: { id: recipientUserId },
+    select: { id: true, role: true, tenantId: true, status: true },
+  });
+  if (
+    !recipient ||
+    recipient.tenantId !== actor.tenantId ||
+    (recipient.role !== "FREELANCER" && recipient.role !== "CLIENT") ||
+    recipient.status !== "ACTIVE"
+  ) {
+    throw new AuthorizationError("Contact niet gevonden in je bemiddeling.", 403);
+  }
+
+  // Hergebruik een bestaand opdracht-loos tweegesprek tussen deze twee (idempotent). Een gesprek
+  // dat aan een opdracht hangt is een aparte context en wordt niet heropend voor het vrije gesprek.
+  const existing = await prisma.conversation.findFirst({
+    where: {
+      jobId: null,
+      AND: [
+        { participants: { some: { userId: actor.id } } },
+        { participants: { some: { userId: recipient.id } } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  let conversationId = existing?.id;
+  if (!conversationId) {
+    const created = await prisma.conversation.create({
+      data: {
+        participants: { create: [{ userId: actor.id }, { userId: recipient.id }] },
+      },
+      select: { id: true },
+    });
+    conversationId = created.id;
+    await audit({
+      actorId: actor.id,
+      action: "CONVERSATION_STARTED",
+      entityType: "Conversation",
+      entityId: conversationId,
+      metadata: { tenantId: actor.tenantId, recipientId: recipient.id, recipientRole: recipient.role }, // prettier-ignore
+    });
   }
 
   redirect(`/berichten/${conversationId}`);

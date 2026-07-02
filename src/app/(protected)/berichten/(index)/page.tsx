@@ -1,9 +1,10 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Plus } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -109,9 +110,23 @@ export default async function BerichtenPage({ searchParams }: { searchParams: Se
     { key: "awaiting-them", label: "Wacht op antwoord", count: counts.awaitingThem },
   ];
 
+  const isFranchiser = actor.role === "FRANCHISER";
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Berichten" description="Je gesprekken met opdrachtgevers en ZZP'ers." />
+      <PageHeader
+        title="Berichten"
+        description="Je gesprekken met opdrachtgevers en ZZP'ers."
+        action={
+          isFranchiser ? (
+            <Button asChild size="sm">
+              <Link href="/berichten/nieuw">
+                <Plus className="size-4" aria-hidden /> Nieuw gesprek
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       {hasSignal && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -134,7 +149,12 @@ export default async function BerichtenPage({ searchParams }: { searchParams: Se
           <EmptyState
             icon={MessageSquare}
             title="Nog geen gesprekken"
-            description="Een opdrachtgever start een gesprek vanuit een reactie op een opdracht."
+            description={
+              isFranchiser
+                ? "Start zelf een gesprek met een ZZP'er uit je roster of een opdrachtgever."
+                : "Een opdrachtgever start een gesprek vanuit een reactie op een opdracht."
+            }
+            action={isFranchiser ? { label: "Nieuw gesprek", href: "/berichten/nieuw" } : undefined}
           />
         </Card>
       ) : (
