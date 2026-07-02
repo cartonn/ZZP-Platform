@@ -2,7 +2,7 @@ import { type Metadata } from "next";
 import { requireRole } from "@/lib/authz";
 import { ShiftHandoffGovernanceScreen } from "@/components/shift-overname/governance-screen";
 
-export const metadata: Metadata = { title: "Shift-overnames · Bemiddeling" };
+export const metadata: Metadata = { title: "Dienst-overnames · Bemiddeling" };
 
 export default async function FranchiseShiftHandoffsPage() {
   // auth + rol: FRANCHISER ziet alleen de openstaande overname-aanvragen binnen de eigen tenant

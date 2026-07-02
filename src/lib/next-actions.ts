@@ -268,7 +268,7 @@ export function adminNextActions(input: AdminActionInput): NextAction[] {
   if (input.openDisputes > 0) {
     actions.push({
       id: "admin-open-disputes",
-      title: `${input.openDisputes} open dispuut/disputen — werkproces bevroren, beoordeel`,
+      title: `${input.openDisputes} open dispuut/disputen — samenwerking bevroren, beoordeel`,
       href: "/admin/disputen",
       tone: "attention",
       priority: P.disputeOpen,

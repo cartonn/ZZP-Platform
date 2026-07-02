@@ -179,7 +179,7 @@ describe("buildPaymentConfirmedEmail", () => {
     expect(msg.html).toContain("750,00");
   });
 
-  it("bevat de link naar het werkproces", () => {
+  it("bevat de link naar de samenwerking", () => {
     const msg = buildPaymentConfirmedEmail({
       recipient: client,
       jobTitle: "Job",

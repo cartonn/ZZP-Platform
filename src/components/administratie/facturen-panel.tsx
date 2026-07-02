@@ -264,7 +264,7 @@ export async function FacturenPanel({
                           ? inv.collaboration?.company.name
                           : inv.collaboration?.freelancer.user.name}
                         {inv.collaboration?.job.title ? ` · ${inv.collaboration.job.title}` : ""}
-                        {cascade ? ` · ${t("via werkproces")}` : ""}
+                        {cascade ? ` · ${t("via samenwerking")}` : ""}
                       </p>
                       {showForecast && (
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">

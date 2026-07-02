@@ -84,8 +84,13 @@ export async function ShiftHandoffGovernanceScreen({ actor }: { actor: Actor }) 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Shift-overnames"
-        description="Een ZZP'er kan een actieve inzet niet voortzetten en biedt deze ter overname aan. Keur goed of af. Een goedkeuring legt alleen de beslissing vast en informeert — de herplaatsing blijft een aparte stap (de overnemer krijgt een eigen contract)."
+        title="Dienst-overnames"
+        description={
+          <span className="text-sm text-muted-foreground">
+            Een ZZP&apos;er kan een actieve inzet niet voortzetten en biedt deze ter overname aan.
+            <span className="mt-1 block">1. Keur de aanvraag · 2. Plaats de overnemer</span>
+          </span>
+        }
       />
 
       {open.length === 0 ? (
@@ -175,7 +180,7 @@ export async function ShiftHandoffGovernanceScreen({ actor }: { actor: Actor }) 
                       href={`/samenwerkingen/${h.collaboration.id}`}
                       className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:underline"
                     >
-                      Werkproces →
+                      Samenwerking →
                     </Link>
                   </div>
                 </CardContent>

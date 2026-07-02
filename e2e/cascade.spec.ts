@@ -406,13 +406,13 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   await fp.locator('input[name="reason"]').fill("Factuur klopt niet, bedrag onjuist");
   await clickUntil(
     fp.getByRole("button", { name: "Dispuut openen" }),
-    fp.getByText("Dispuut open — werkproces bevroren"),
+    fp.getByText("Dispuut open — samenwerking bevroren"),
   );
   await shot(fp, "cascade-dispute-frozen");
 
   // Goedkeuren/betaling-knoppen zijn geblokkeerd (factuur-actieknoppen verdwenen)
   await page.reload();
-  await expect(page.getByText("Dispuut open — werkproces bevroren")).toBeVisible({
+  await expect(page.getByText("Dispuut open — samenwerking bevroren")).toBeVisible({
     timeout: 15000,
   });
   // De goedkeuren-knop voor de factuur mag niet meer aanwezig zijn
@@ -434,18 +434,20 @@ test("cascade dispuut bevriest werkproces", async ({ page, browser }) => {
   await ap.waitForURL("**/dashboard");
 
   await ap.goto("/admin/disputen");
-  // Dispuut staat in de lijst; klik door naar het werkproces
+  // Dispuut staat in de lijst; klik door naar de samenwerking
   await ap
-    .getByRole("link", { name: /Open werkproces/ })
+    .getByRole("link", { name: /Open samenwerking/ })
     .first()
     .click();
   await ap.waitForURL("**/samenwerkingen/**");
-  await expect(ap.getByText("Dispuut open — werkproces bevroren")).toBeVisible({ timeout: 15000 });
+  await expect(ap.getByText("Dispuut open — samenwerking bevroren")).toBeVisible({
+    timeout: 15000,
+  });
 
   // Admin lost op
   await clickUntilGone(
     ap.getByRole("button", { name: "Dispuut oplossen" }),
-    ap.getByText("Dispuut open — werkproces bevroren"),
+    ap.getByText("Dispuut open — samenwerking bevroren"),
   );
   await shot(ap, "cascade-dispute-resolved");
 

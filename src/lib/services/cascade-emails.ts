@@ -66,9 +66,9 @@ export function buildContractSignedEmail(input: ContractSignedEmailInput): MailM
   const text = [
     `Hallo ${input.recipient.name},`,
     "",
-    `Het contract voor "${input.jobTitle}" is getekend. Het werkproces is gestart.`,
+    `Het contract voor "${input.jobTitle}" is getekend. De samenwerking is gestart.`,
     "",
-    `Bekijk het werkproces: ${input.link}`,
+    `Bekijk de samenwerking: ${input.link}`,
     "",
     `Met vriendelijke groet, ${PLATFORM}`,
   ].join("\n");
@@ -78,8 +78,8 @@ export function buildContractSignedEmail(input: ContractSignedEmailInput): MailM
     text,
     html: wrap(
       `<p style="margin:0 0 16px">Hallo ${esc(input.recipient.name)},</p>
-       <p style="margin:0 0 16px">Het contract voor <strong>${esc(input.jobTitle)}</strong> is getekend. Het werkproces is gestart.</p>
-       <p style="margin:0">${btn(input.link, "Werkproces openen")}</p>`,
+       <p style="margin:0 0 16px">Het contract voor <strong>${esc(input.jobTitle)}</strong> is getekend. De samenwerking is gestart.</p>
+       <p style="margin:0">${btn(input.link, "Samenwerking openen")}</p>`,
     ),
   };
 }
@@ -99,7 +99,7 @@ export function buildPerformanceSubmittedEmail(input: PerformanceSubmittedEmailI
     `Hallo ${input.recipient.name},`,
     "",
     `${input.freelancerName} heeft een urenstaat/oplevering ingediend voor "${input.jobTitle}".`,
-    "Beoordeel en keur goed of af in het werkproces.",
+    "Beoordeel en keur goed of af in de samenwerking.",
     "",
     `Bekijk de urenstaat: ${input.link}`,
     "",
@@ -131,9 +131,9 @@ export function buildPerformanceApprovedEmail(input: PerformanceApprovedEmailInp
     `Hallo ${input.recipient.name},`,
     "",
     `Je urenstaat/oplevering voor "${input.jobTitle}" is goedgekeurd.`,
-    "Er is een concept-factuur aangemaakt. Controleer en dien de factuur in via het werkproces.",
+    "Er is een concept-factuur aangemaakt. Controleer en dien de factuur in via de samenwerking.",
     "",
-    `Bekijk het werkproces: ${input.link}`,
+    `Bekijk de samenwerking: ${input.link}`,
     "",
     `Met vriendelijke groet, ${PLATFORM}`,
   ].join("\n");
@@ -167,9 +167,9 @@ export function buildPerformanceRejectedEmail(input: PerformanceRejectedEmailInp
     "",
     `Reden: ${input.reason}`,
     "",
-    "Pas de urenstaat aan en dien opnieuw in via het werkproces.",
+    "Pas de urenstaat aan en dien opnieuw in via de samenwerking.",
     "",
-    `Bekijk het werkproces: ${input.link}`,
+    `Bekijk de samenwerking: ${input.link}`,
     "",
     `Met vriendelijke groet, ${PLATFORM}`,
   ].join("\n");
@@ -182,7 +182,7 @@ export function buildPerformanceRejectedEmail(input: PerformanceRejectedEmailInp
        <p style="margin:0 0 16px">Je urenstaat/oplevering voor <strong>${esc(input.jobTitle)}</strong> is afgekeurd.</p>
        <blockquote style="margin:0 0 16px;padding:12px 16px;background:#f4f4f5;border-left:3px solid #e4e4e7;border-radius:4px"><strong>Reden:</strong> ${esc(input.reason)}</blockquote>
        <p style="margin:0 0 16px">Pas de urenstaat aan en dien opnieuw in.</p>
-       <p style="margin:0">${btn(input.link, "Werkproces openen")}</p>`,
+       <p style="margin:0">${btn(input.link, "Samenwerking openen")}</p>`,
     ),
   };
 }
@@ -204,7 +204,7 @@ export function buildInvoiceSubmittedEmail(input: InvoiceSubmittedEmailInput): M
     `Hallo ${input.recipient.name},`,
     "",
     `${input.freelancerName} heeft een factuur van ${amount} ingediend voor "${input.jobTitle}".`,
-    "Keur goed of af in het werkproces.",
+    "Keur goed of af in de samenwerking.",
     "",
     `Bekijk de factuur: ${input.link}`,
     "",
@@ -242,7 +242,7 @@ export function buildInvoiceApprovedEmail(input: InvoiceApprovedEmailInput): Mai
     `Je factuur van ${amount} voor "${input.jobTitle}" is goedgekeurd.`,
     ...(dueStr ? [`Betaaldatum: ${dueStr}.`] : []),
     "",
-    `Bekijk het werkproces: ${input.link}`,
+    `Bekijk de samenwerking: ${input.link}`,
     "",
     `Met vriendelijke groet, ${PLATFORM}`,
   ].join("\n");
@@ -253,7 +253,7 @@ export function buildInvoiceApprovedEmail(input: InvoiceApprovedEmailInput): Mai
     html: wrap(
       `<p style="margin:0 0 16px">Hallo ${esc(input.recipient.name)},</p>
        <p style="margin:0 0 16px">Je factuur van <strong>${esc(amount)}</strong> voor <strong>${esc(input.jobTitle)}</strong> is goedgekeurd.${dueStr ? ` Betaaldatum: <strong>${esc(dueStr)}</strong>.` : ""}</p>
-       <p style="margin:0">${btn(input.link, "Werkproces openen")}</p>`,
+       <p style="margin:0">${btn(input.link, "Samenwerking openen")}</p>`,
     ),
   };
 }
@@ -278,7 +278,7 @@ export function buildInvoiceRejectedEmail(input: InvoiceRejectedEmailInput): Mai
     "",
     "Pas de factuur aan en dien opnieuw in.",
     "",
-    `Bekijk het werkproces: ${input.link}`,
+    `Bekijk de samenwerking: ${input.link}`,
     "",
     `Met vriendelijke groet, ${PLATFORM}`,
   ].join("\n");
@@ -291,7 +291,7 @@ export function buildInvoiceRejectedEmail(input: InvoiceRejectedEmailInput): Mai
        <p style="margin:0 0 16px">Je factuur voor <strong>${esc(input.jobTitle)}</strong> is afgekeurd.</p>
        <blockquote style="margin:0 0 16px;padding:12px 16px;background:#f4f4f5;border-left:3px solid #e4e4e7;border-radius:4px"><strong>Reden:</strong> ${esc(input.reason)}</blockquote>
        <p style="margin:0 0 16px">Pas de factuur aan en dien opnieuw in.</p>
-       <p style="margin:0">${btn(input.link, "Werkproces openen")}</p>`,
+       <p style="margin:0">${btn(input.link, "Samenwerking openen")}</p>`,
     ),
   };
 }
@@ -313,7 +313,7 @@ export function buildPaymentConfirmedEmail(input: PaymentConfirmedEmailInput): M
     "",
     `De betaling van ${amount} voor "${input.jobTitle}" is bevestigd.`,
     "",
-    `Bekijk het werkproces: ${input.link}`,
+    `Bekijk de samenwerking: ${input.link}`,
     "",
     `Met vriendelijke groet, ${PLATFORM}`,
   ].join("\n");
@@ -324,7 +324,7 @@ export function buildPaymentConfirmedEmail(input: PaymentConfirmedEmailInput): M
     html: wrap(
       `<p style="margin:0 0 16px">Hallo ${esc(input.recipient.name)},</p>
        <p style="margin:0 0 16px">De betaling van <strong>${esc(amount)}</strong> voor <strong>${esc(input.jobTitle)}</strong> is bevestigd.</p>
-       <p style="margin:0">${btn(input.link, "Werkproces openen")}</p>`,
+       <p style="margin:0">${btn(input.link, "Samenwerking openen")}</p>`,
     ),
   };
 }

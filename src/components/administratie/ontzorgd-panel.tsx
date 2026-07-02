@@ -99,7 +99,7 @@ export async function OntzorgdPanel({ actor }: { actor: Actor }) {
         <EmptyState
           icon={Sparkles}
           title="Nog niets te ontzorgen"
-          description="Zodra je eerste opdracht via het werkproces loopt, zie je hier je BTW-stand, wat je opzij moet zetten en je voortgang naar de zelfstandigenaftrek."
+          description="Zodra je eerste opdracht via een samenwerking loopt, zie je hier je BTW-stand, wat je opzij moet zetten en je voortgang naar de zelfstandigenaftrek."
         />
       </Card>
     );

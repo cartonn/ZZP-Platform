@@ -91,10 +91,10 @@ describe("terminology", () => {
       expect(item!.label).toBe(TERM_PLURAL.collaboration);
     });
 
-    it("FREELANCER /diensten label === TERM_PLURAL.shift", () => {
+    it("FREELANCER /diensten label === 'Urenstaten'", () => {
       const item = itemFor("FREELANCER", "/diensten");
       expect(item, "nav item /diensten niet gevonden voor FREELANCER").toBeDefined();
-      expect(item!.label).toBe(TERM_PLURAL.shift);
+      expect(item!.label).toBe("Urenstaten");
     });
 
     // /facturen, /openstaand, /administratie, /ontzorgd en /prognose staan niet meer apart in de
@@ -140,16 +140,16 @@ describe("terminology", () => {
       expect(itemFor("FREELANCER", "/beschikbaarheid")).toBeUndefined();
     });
 
-    it("CLIENT /prestaties label === TERM_PLURAL.performance", () => {
+    it("CLIENT /prestaties label === 'Uren goedkeuren'", () => {
       const item = itemFor("CLIENT", "/prestaties");
       expect(item, "nav item /prestaties niet gevonden voor CLIENT").toBeDefined();
-      expect(item!.label).toBe(TERM_PLURAL.performance);
+      expect(item!.label).toBe("Uren goedkeuren");
     });
 
-    it("CLIENT /kandidaten label === TERM_PLURAL.candidate", () => {
+    it("CLIENT /kandidaten label === 'Reacties'", () => {
       const item = itemFor("CLIENT", "/kandidaten");
       expect(item, "nav item /kandidaten niet gevonden voor CLIENT").toBeDefined();
-      expect(item!.label).toBe(TERM_PLURAL.candidate);
+      expect(item!.label).toBe("Reacties");
     });
 
     it("CLIENT /opdrachten label === `Mijn ${TERM_PLURAL.job.toLowerCase()}`", () => {

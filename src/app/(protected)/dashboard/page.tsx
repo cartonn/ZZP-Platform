@@ -816,7 +816,7 @@ export default async function DashboardPage() {
         }}
         kpis={clientKpis}
         list={{
-          title: t("Voorgestelde professionals"),
+          title: t("Voorgestelde ZZP'ers"),
           href: "/freelancers",
           rows,
           empty: t("Plaats een opdracht om geschikte ZZP'ers voorgesteld te krijgen."),

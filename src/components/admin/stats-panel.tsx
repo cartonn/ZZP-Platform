@@ -186,7 +186,7 @@ export function StatsPanel({ stats }: { stats: PlatformStats }) {
             icon={FileText}
             label="Totaal"
             value={stats.invoices.total}
-            sub={`${stats.invoices.cascadeCount} via werkproces`}
+            sub={`${stats.invoices.cascadeCount} via samenwerking`}
           />
           <KpiTile
             label="Wacht op verwerking"

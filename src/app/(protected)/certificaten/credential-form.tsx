@@ -22,6 +22,15 @@ const TYPES = [
   ["OTHER", "Overig"],
 ] as const;
 
+// Type-afhankelijke voorbeelden houden de invulhulp concreet: het veld "titel" en "uitgever"
+// tonen een passend voorbeeld bij het gekozen documenttype. Onbekende types vallen terug op default.
+const PLACEHOLDERS: Record<string, { title: string; issuer: string }> = {
+  VOG: { title: "bijv. VOG 2026", issuer: "bijv. Justis" },
+  DIPLOMA: { title: "bijv. HBO Verpleegkunde", issuer: "bijv. Fontys" },
+  INSURANCE: { title: "bijv. AVB-polis 2026", issuer: "bijv. Centraal Beheer" },
+};
+const DEFAULT_PLACEHOLDER = { title: "bijv. VOG 2026", issuer: "bijv. Justis, ROC, NEN" };
+
 export interface CredentialFormInitial {
   id?: string;
   type: string;
@@ -58,6 +67,7 @@ export function CredentialForm({
   }, [state, onResolved]);
   const fe = state?.fieldErrors ?? {};
   const [type, setType] = useState(initial.type);
+  const placeholder = PLACEHOLDERS[type] ?? DEFAULT_PLACEHOLDER;
   const isEdit = !!initial.id;
   const recovery = initial.status
     ? credentialRecoveryNotice(initial.status as CredentialStatus)
@@ -98,7 +108,7 @@ export function CredentialForm({
             defaultValue={initial.title}
             required
             maxLength={160}
-            placeholder="bijv. VOG 2026"
+            placeholder={placeholder.title}
           />
         </Field>
         <Field label="Uitgever" htmlFor="issuer" error={fe.issuer}>
@@ -106,7 +116,7 @@ export function CredentialForm({
             id="issuer"
             name="issuer"
             defaultValue={initial.issuer}
-            placeholder="bijv. Justis, ROC, NEN"
+            placeholder={placeholder.issuer}
           />
         </Field>
         <div />

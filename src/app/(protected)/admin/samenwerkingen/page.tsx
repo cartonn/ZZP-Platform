@@ -19,7 +19,7 @@ export default async function AdminSamenwerkingenPage({
     <div className="space-y-6">
       <PageHeader
         title="Samenwerkingen"
-        description="Overzicht van alle samenwerkingen — contract tot betaling. Filter op status of DBA-niveau, of zoek op opdracht, opdrachtgever en ZZP'er. Klik om naar het werkproces te gaan."
+        description="Overzicht van alle samenwerkingen — contract tot betaling. Filter op status of DBA-niveau, of zoek op opdracht, opdrachtgever en ZZP'er. Klik om naar de samenwerking te gaan."
       />
       <SamenwerkingenPanel searchParams={sp} />
     </div>

@@ -85,7 +85,7 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
   // Meedenken: de zijbalk toont vanaf elke pagina dat er een nieuwe reactie wacht.
   const kandidatenNav = page
     .locator('nav[aria-label="Hoofdnavigatie"]')
-    .getByRole("link", { name: /Kandidaten/ });
+    .getByRole("link", { name: /Reacties/ });
   await expect(kandidatenNav).toContainText("1");
   await shot(page, "17-nav-badge");
 

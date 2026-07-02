@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/authz";
 import { CREDENTIAL_TYPES, type CredentialType } from "@/lib/enums";
 import { CredentialForm } from "../credential-form";
 
-export const metadata: Metadata = { title: "Nieuw certificaat · ZZP Platform" };
+export const metadata: Metadata = { title: "Document toevoegen · ZZP Platform" };
 
 export default async function NieuweCredentialPage({
   searchParams,
@@ -28,7 +28,7 @@ export default async function NieuweCredentialPage({
         >
           <ArrowLeft className="size-3.5" aria-hidden /> Terug naar certificaten
         </Link>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight">Nieuw certificaat</h1>
+        <h1 className="mt-2 text-xl font-semibold tracking-tight">Document toevoegen</h1>
       </div>
       <CredentialForm
         initial={{
