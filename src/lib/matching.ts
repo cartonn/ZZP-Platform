@@ -126,11 +126,15 @@ export interface MatchInput {
     rateMax?: number | null;
     workMode: WorkMode;
     location?: string | null;
+    /** Branche (industry) van de opdracht. null/undefined = onbekend → geen branche-factor. */
+    industryId?: string | null;
   };
   freelancer: {
     hourlyRate?: number | null;
     workMode: WorkMode;
     location?: string | null;
+    /** Branche(s) van het ZZP-profiel. Leeg/undefined = onbekend → geen branche-factor. */
+    industryIds?: readonly string[];
     /** Max. reistijd (minuten) die de ZZP'er accepteert; null/undefined = geen limiet → stad-vergelijking. */
     maxTravelMinutes?: number | null;
     /** Optioneel: echte routed reistijd, vooraf asynchroon berekend door de aanroeper. */
@@ -184,6 +188,30 @@ const WEIGHTS = {
   workMode: 5,
   location: 5,
 };
+
+/**
+ * Branche-factor (industry). Skills alleen zeggen niet genoeg: een frontend-developer met wat
+ * generieke overlap kan anders hoog scoren op een zorgopdracht (en omgekeerd). Als de opdracht een
+ * branche heeft én het profiel branche(s), maar er is geen overlap, dan straffen we de score fors af
+ * (`BRANCHE_PENALTY`) én klemmen we hem op `BRANCHE_MISMATCH_CAP`. Zo verschijnt "Verpleegkundige (IC)
+ * — 97%" niet meer bij een softwarebedrijf. Onbekende branche aan één van beide kanten = neutraal:
+ * we straffen nooit op ontbrekende data (server-side waarheid, deterministisch).
+ */
+export const BRANCHE_PENALTY = 25;
+export const BRANCHE_MISMATCH_CAP = 60;
+
+type BrancheFit = "match" | "mismatch" | "unknown";
+
+/** Bepaalt of opdracht-branche en profiel-branche(s) overlappen. Puur, deterministisch. */
+export function brancheFit(
+  jobIndustryId: string | null | undefined,
+  freelancerIndustryIds: readonly string[] | undefined,
+): BrancheFit {
+  if (!jobIndustryId) return "unknown";
+  const own = freelancerIndustryIds ?? [];
+  if (own.length === 0) return "unknown";
+  return own.includes(jobIndustryId) ? "match" : "mismatch";
+}
 
 /** Maximale punten per match-component (som = 100). Afgeleid van WEIGHTS zodat het in sync blijft;
  *  gebruikt door de breakdown-weergave om elke component als aandeel van zijn maximum te tonen. */
@@ -239,7 +267,7 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
   };
   // Exact de som van de (op hele punten afgeronde) componenten — zo telt de zichtbare breakdown
   // altijd op tot de getoonde score (de belofte "geen black box" in MatchBreakdown).
-  const score = clamp(
+  const rawScore = clamp(
     breakdown.skills +
       breakdown.compliance +
       breakdown.rate +
@@ -248,6 +276,16 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     0,
     100,
   );
+
+  // Branche-factor: bij een branche-mismatch fors afstraffen én klemmen, zodat een profiel uit een
+  // andere sector nooit bovenaan verschijnt puur op generieke skill-overlap. Neutraal bij onbekende
+  // branche. Deze factor staat bewust ná de breakdown-som: het is een correctie op het totaal, geen
+  // aparte breakdown-component (de breakdown blijft optellen tot `rawScore`).
+  const branche = brancheFit(input.job.industryId, input.freelancer.industryIds);
+  const score =
+    branche === "mismatch"
+      ? clamp(Math.min(rawScore - BRANCHE_PENALTY, BRANCHE_MISMATCH_CAP), 0, 100)
+      : rawScore;
 
   const positives: MatchReason[] = [];
   const gaps: MatchReason[] = [];
@@ -261,6 +299,15 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
       const missing = required.length - matched;
       gaps.push({ kind: "gap", label: `Mist ${missing} van ${required.length} vereiste skills` });
     }
+  }
+
+  // Branche reason: verklaart de correctie hierboven. Positief bij overlap, gap bij mismatch,
+  // niets bij onbekende branche. Bewust vroeg gepusht zodat de mismatch als bepalend minpunt bovenaan
+  // komt (topGapReason) en de match als sterke troef (topPositiveReason).
+  if (branche === "match") {
+    positives.push({ kind: "positive", label: "Zelfde branche als jouw profiel" });
+  } else if (branche === "mismatch") {
+    gaps.push({ kind: "gap", label: "Andere branche dan jouw profiel" });
   }
 
   // Compliance reasons
@@ -356,6 +403,8 @@ export interface JobMatchSource {
   rateMax: number | null;
   workMode: string;
   location: string | null;
+  /** Branche van de opdracht. Optioneel: aanwezig levert de branche-factor, afwezig = neutraal. */
+  industryId?: string | null;
 }
 export interface FreelancerMatchSource {
   skills: readonly { skillId: string }[];
@@ -367,6 +416,8 @@ export interface FreelancerMatchSource {
   routedTravelMinutesToJob?: number | null;
   availability: string;
   availabilityWindows?: readonly { startDate: Date; endDate: Date; type: string }[];
+  /** Branche(s) van het profiel. Optioneel: aanwezig levert de branche-factor, afwezig = neutraal. */
+  industries?: readonly { industryId: string }[];
 }
 
 /** Scoort een opdracht voor een ZZP'er vanuit de ruwe Prisma-vormen. */
@@ -393,6 +444,7 @@ export function scoreJobForFreelancer(
         rateMax: job.rateMax,
         workMode: job.workMode as WorkMode,
         location: job.location,
+        industryId: job.industryId ?? null,
       },
       freelancer: {
         hourlyRate: freelancer.hourlyRate,
@@ -401,6 +453,7 @@ export function scoreJobForFreelancer(
         maxTravelMinutes: freelancer.maxTravelMinutes ?? null,
         routedTravelMinutesToJob: freelancer.routedTravelMinutesToJob ?? null,
         availability: freelancer.availability as Availability,
+        industryIds: freelancer.industries?.map((i) => i.industryId),
         availabilityWindows: freelancer.availabilityWindows?.map((w) => ({
           startDate: w.startDate,
           endDate: w.endDate,

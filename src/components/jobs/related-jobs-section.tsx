@@ -4,9 +4,11 @@ import { type JobMatch } from "@/lib/recommendations";
 import { getTranslator } from "@/lib/i18n/server";
 
 /**
- * "Soortgelijke opdrachten": andere open opdrachten die bij het profiel van de ZZP'er passen,
- * getoond op de opdracht-detailpagina. Hergebruikt de server-berekende matchscore + sterkste
- * reden uit `recommendedJobs`; de ZZP'er hoeft niet zelf te zoeken. Verbergt zich zonder suggesties.
+ * "Ook passend bij jouw profiel": andere open opdrachten die bij het profiel van de ZZP'er passen,
+ * getoond op de opdracht-detailpagina. Dit zijn profiel-matches, geen inhoudelijk "soortgelijke"
+ * opdrachten — onder een installatievacature horen geen frontend-suggesties als "soortgelijk".
+ * Hergebruikt de server-berekende matchscore + sterkste reden uit `recommendedJobs`; de ZZP'er hoeft
+ * niet zelf te zoeken. Verbergt zich zonder suggesties.
  */
 export async function RelatedJobsSection({ jobs }: { jobs: JobMatch[] }) {
   if (jobs.length === 0) return null;
@@ -15,10 +17,10 @@ export async function RelatedJobsSection({ jobs }: { jobs: JobMatch[] }) {
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-5 py-3">
         <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t("Soortgelijke opdrachten")}
+          {t("Ook passend bij jouw profiel")}
         </h2>
         <p className="text-xs text-muted-foreground">
-          {t("Andere open opdrachten die bij jouw profiel passen.")}
+          {t("Andere open opdrachten die aansluiten op jouw profiel.")}
         </p>
       </div>
       <ul className="divide-y divide-border">

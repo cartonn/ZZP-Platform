@@ -5,6 +5,9 @@ import {
   liveComplianceStatus,
   topPositiveReason,
   topGapReason,
+  brancheFit,
+  BRANCHE_PENALTY,
+  BRANCHE_MISMATCH_CAP,
   MATCH_COMPONENT_MAX,
   type FreelancerCredential,
   type MatchInput,
@@ -444,5 +447,115 @@ describe("topGapReason", () => {
   it("geeft null zonder minpunt", () => {
     expect(topGapReason([{ kind: "positive", label: "Tarief past binnen het budget" }])).toBeNull();
     expect(topGapReason([])).toBeNull();
+  });
+});
+
+describe("brancheFit", () => {
+  it("is unknown als de opdracht geen branche heeft", () => {
+    expect(brancheFit(null, ["zorg"])).toBe("unknown");
+    expect(brancheFit(undefined, ["zorg"])).toBe("unknown");
+  });
+
+  it("is unknown als het profiel geen branche(s) heeft", () => {
+    expect(brancheFit("zorg", [])).toBe("unknown");
+    expect(brancheFit("zorg", undefined)).toBe("unknown");
+  });
+
+  it("is match bij overlap en mismatch zonder overlap", () => {
+    expect(brancheFit("zorg", ["zorg", "onderwijs"])).toBe("match");
+    expect(brancheFit("it", ["zorg", "onderwijs"])).toBe("mismatch");
+  });
+});
+
+describe("computeMatchScore — branche-factor", () => {
+  // Perfecte match (100) op alle andere assen, zodat we de branche-factor geïsoleerd zien.
+  const perfect: MatchInput = {
+    requiredSkillIds: ["react", "ts"],
+    optionalSkillIds: ["next"],
+    freelancerSkillIds: ["react", "ts", "next"],
+    requiredCredentialTypes: ["VOG"],
+    credentials: [{ type: "VOG", status: "VERIFIED", expiresAt: future }],
+    job: { rateMin: 60, rateMax: 90, workMode: "HYBRID", location: "Amsterdam", industryId: "it" },
+    freelancer: {
+      hourlyRate: 75,
+      workMode: "HYBRID",
+      location: "Amsterdam",
+      availability: "AVAILABLE",
+      industryIds: ["it"],
+    },
+  };
+
+  it("laat de score ongemoeid bij gelijke branche (+ positieve reason)", () => {
+    const r = computeMatchScore(perfect, now);
+    expect(r.score).toBe(100);
+    expect(r.reasons.map((re) => re.label)).toContain("Zelfde branche als jouw profiel");
+  });
+
+  it("cap't en straft de score fors af bij een branche-mismatch (+ gap-reason)", () => {
+    const r = computeMatchScore(
+      { ...perfect, freelancer: { ...perfect.freelancer, industryIds: ["zorg"] } },
+      now,
+    );
+    // rawScore 100 → min(100-25, 60) = 60 (de cap bindt).
+    expect(r.score).toBe(BRANCHE_MISMATCH_CAP);
+    expect(topGapReason(r.reasons)).toBe("Andere branche dan jouw profiel");
+  });
+
+  it("trekt de penalty af als die onder de cap uitkomt (cap bindt niet)", () => {
+    // Zwakkere basis zodat rawScore-25 onder de cap zakt: mist alle vereiste skills.
+    const weak = computeMatchScore(
+      {
+        ...perfect,
+        freelancerSkillIds: [],
+        freelancer: { ...perfect.freelancer, industryIds: ["zorg"] },
+      },
+      now,
+    );
+    const weakSameBranche = computeMatchScore({ ...perfect, freelancerSkillIds: [] }, now);
+    expect(weak.score).toBe(Math.max(0, weakSameBranche.score - BRANCHE_PENALTY));
+    expect(weak.score).toBeLessThan(BRANCHE_MISMATCH_CAP);
+  });
+
+  it("blijft neutraal (geen straf, geen reason) bij onbekende branche", () => {
+    const noJobIndustry = computeMatchScore(
+      { ...perfect, job: { ...perfect.job, industryId: null } },
+      now,
+    );
+    expect(noJobIndustry.score).toBe(100);
+    expect(noJobIndustry.reasons.map((re) => re.label)).not.toContain(
+      "Andere branche dan jouw profiel",
+    );
+    expect(noJobIndustry.reasons.map((re) => re.label)).not.toContain(
+      "Zelfde branche als jouw profiel",
+    );
+
+    const noProfileIndustry = computeMatchScore(
+      { ...perfect, freelancer: { ...perfect.freelancer, industryIds: [] } },
+      now,
+    );
+    expect(noProfileIndustry.score).toBe(100);
+  });
+
+  it("houdt de score binnen 0-100 bij mismatch op een lage basis", () => {
+    const r = computeMatchScore(
+      {
+        ...perfect,
+        requiredSkillIds: ["x"],
+        optionalSkillIds: [],
+        freelancerSkillIds: [],
+        credentials: [],
+        job: { rateMin: null, rateMax: null, workMode: "ONSITE", location: "A", industryId: "it" },
+        freelancer: {
+          hourlyRate: null,
+          workMode: "REMOTE",
+          location: "B",
+          availability: "AVAILABLE",
+          industryIds: ["zorg"],
+        },
+      },
+      now,
+    );
+    expect(r.score).toBeGreaterThanOrEqual(0);
+    expect(r.score).toBeLessThanOrEqual(100);
   });
 });

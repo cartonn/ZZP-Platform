@@ -165,6 +165,9 @@ export async function suggestedFreelancersForJob(
       user: { select: { name: true, identityVerifiedAt: true } },
       skills: { select: { skillId: true, skill: { select: { name: true } } } },
       credentials: { select: { type: true, status: true, expiresAt: true } },
+      // Branche(s) van het profiel — voedt de branche-factor: een profiel uit een andere sector
+      // dan de opdracht verschijnt niet meer bovenaan bij de opdrachtgever.
+      industries: { select: { industryId: true } },
       availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
     },
   });
