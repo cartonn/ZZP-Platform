@@ -12,18 +12,27 @@ acties-lijst, de flows werken. De verwarring zit in drie structurele patronen: n
 moet raden (iconen zonder labels), meerdere waarheden voor dezelfde status, en systeemtaal in
 plaats van gebruikerstaal.
 
+> **STATUS 3-7-2026: VOLLEDIG AFGEWERKT.** Alle bugs en rode draden zijn opgelost in 18 PR's
+> (#557–#574), elk door de 6-checks-poort: draad 1 zijbalk → #559 · draad 2 statuswaarheid →
+> #566 (franchiser) + #570 (zzp) + #573 (vervullingsgraad) · draad 3 terminologie → #564 + #574
+> (ORT) · draad 4 matching → #561 · draad 5 beslisacties → #569 (kandidaten-triage/vergelijk) +
+> #571 (VOG-herinnering, urenstaat-knop, no-show) + #573 (gebruikersdossier) · draad 6
+> formulieren → #568 (DBA/modelovereenkomst/concept-publiceren) · draad 7 admin-wachtrijen →
+> #567 · draad 8 bemiddelaar → #562/#563/#565 · kleinere punten → #572 (leads-stil,
+> login-uitleg, kleurkiezer). Niet opnieuw oppakken.
+
 ## Bugs (direct te fixen, geen UX-mening)
 
-- [ ] **Dubbele tellers** op ≥3 schermen: "3 3 aanvragen" (admin/verificaties), "13 13
+- [x] **Dubbele tellers** (✅ #557) op ≥3 schermen: "3 3 aanvragen" (admin/verificaties), "13 13
       samenwerkingen" (admin/samenwerkingen), "0/3 3 lessen" (academie) — count-rendering
       dedupliceren.
-- [ ] **Date-inputs en-US**: mm/dd/yyyy in nieuwe-opdracht, samenwerking-voorstellen,
+- [x] **Date-inputs en-US** (✅ #558): mm/dd/yyyy in nieuwe-opdracht, samenwerking-voorstellen,
       certificaat-upload én lead-opvolging (bemiddelaar) — nl-locale afdwingen (dd-mm-jjjj).
-- [ ] **Status-mismatch admin/opdrachten**: rij "Frontend Developer (concept)" draagt badge
+- [x] **Status-mismatch admin/opdrachten** (✅ #557): rij "Frontend Developer (concept)" draagt badge
       "Gesloten".
-- [ ] **"-100%"-trend** op Inzicht wanneer de lopende maand nog leeg is — trend onderdrukken
+- [x] **"-100%"-trend** (✅ #557) op Inzicht wanneer de lopende maand nog leeg is — trend onderdrukken
       zonder data.
-- [ ] **Openstaand-tegenspraak**: Inzicht (ZZP) toont "Platformabonnement openstaand € 48,40",
+- [x] **Openstaand-tegenspraak** (✅ #560): Inzicht (ZZP) toont "Platformabonnement openstaand € 48,40",
       Financiën zegt "€ 0,00" en biedt geen betaalactie; admin/financien-header "€ 0,00" boven
       een lijst met € 496 openstaand — per scherm één consistente definitie + betaalactie.
 
@@ -67,18 +76,18 @@ plaats van gebruikerstaal.
 
 Het kernvak van een bureau ontbreekt als werkwoord in de UI:
 
-- [ ] **"ZZP'er voordragen/koppelen" ontbreekt op een open dienst** — een dienst staat 27 dagen
+- [x] **"ZZP'er voordragen/koppelen" op een open dienst** (✅ #562) — een dienst staat 27 dagen
       open ("nog geen reacties") terwijl er 2 beschikbare roster-ZZP'ers zijn; de bemiddelaar kan
       alleen wachten. → Voordraag-actie op dienst-detail met inline compliance-check.
-- [ ] **Geen fee/marge-inzicht**: Inzicht toont "Betaalde omzet € 0,00 · bemiddeling" zonder
+- [x] **Geen fee/marge-inzicht** (✅ #565): Inzicht toont "Betaalde omzet € 0,00 · bemiddeling" zonder
       onderscheid doorgezet volume vs bureaufee; fee-percentage nergens instelbaar. → Splits
       Inzicht en voeg fee-instelling toe aan Instellingen.
-- [ ] **Zelf geen gesprek kunnen starten** (berichten-lege-staat: "een opdrachtgever start een
+- [x] **Zelf geen gesprek kunnen starten** (✅ #563) (berichten-lege-staat: "een opdrachtgever start een
       gesprek…") — haaks op hoe een bureau werkt. → "Nieuw gesprek" richting eigen roster en
       opdrachtgevers.
-- [ ] **Lead → opdrachtgever-conversie ontbreekt**: een lead met status "Klant" is een dood
+- [x] **Lead → opdrachtgever-conversie** (bestond al — geverifieerd in #563): een lead met status "Klant" is een dood
       eind. → Actie "Maak opdrachtgever aan" die de gegevens meeneemt.
-- [ ] **Instellingen zijn speelgoed**: alleen naam + hex-kleurveld + cryptische
+- [x] **Instellingen zijn speelgoed** (✅ fee: #565, kleurkiezer: #572): alleen naam + hex-kleurveld + cryptische
       platform-openstellen-toggle; zakelijke instellingen (fee, standaardeisen, regio) ontbreken.
 
 Versterkt bovendien bestaande draden: next-actions zegt "Niets dat nu aandacht vraagt. Goed
