@@ -122,6 +122,12 @@ const AVAILABILITY_LABEL: Record<string, { label: string; cls: string }> = {
   LIMITED: { label: "Beperkt", cls: "bg-warning/10 text-warning" },
   UNAVAILABLE: { label: "Niet beschikbaar", cls: "bg-muted text-muted-foreground" },
 };
+// Badge-klasse voor een niet-inzetbare roster-ZZP'er op het bemiddelaar-dashboard (warning gaat vóór
+// de kale beschikbaarheid — anders spreekt de lijst de rosterpagina tegen).
+const ENGAGEABILITY_WARNING_CLS = "bg-warning/10 text-warning";
+// Gepubliceerde dienst die zo lang ongedekt open staat vraagt aandacht (zelfde drempel als
+// /franchise/diensten AT_RISK_DAYS). Server-side; de franchiser kan dan bijsturen.
+const STALE_DIENST_DAYS = 7;
 
 const ACTION_ICON = { attention: AlertTriangle, info: Bell, success: CheckCircle2 } as const;
 const ACTION_TONE = { attention: "primary", info: "primary", success: "success" } as const;
@@ -492,12 +498,32 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
             location: true,
             hourlyRate: true,
             availability: true,
-            user: { select: { name: true, identityVerifiedAt: true } },
+            completeness: true,
+            user: {
+              select: { name: true, identityVerifiedAt: true, lastLoginAt: true },
+            },
             credentials: { select: { type: true, status: true, expiresAt: true } },
           },
         })
       : [];
-    const professionals: WsRow[] = rosterRaw.map((f) => {
+    // Ongedekte diensten die te lang open staan: gepubliceerd, zonder actieve samenwerking, ≥ de drempel
+    // dagen sinds aanmaak. Oudste eerst zodat de dringendste bovenaan komt (zelfde drempel als /franchise/diensten).
+    const staleDienstenRaw = tenantId
+      ? await prisma.job.findMany({
+          where: {
+            tenantId,
+            status: "PUBLISHED",
+            collaborations: { none: { status: "ACTIVE" } },
+            createdAt: { lte: new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000) },
+          },
+          orderBy: { createdAt: "asc" },
+          take: RUNNING_ZONE_LIMIT,
+          select: { id: true, title: true, createdAt: true },
+        })
+      : [];
+    // Inzetbaarheid per roster-ZZP'er — zelfde helper/bron als /franchise/zzpers, zodat de
+    // dashboard-lijst en de rosterpagina nooit tegenspreken.
+    const rosterEng = rosterRaw.map((f) => {
       const fcreds = f.credentials.map(
         (c): FreelancerCredential => ({
           type: c.type as FreelancerCredential["type"],
@@ -505,6 +531,19 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           expiresAt: c.expiresAt,
         }),
       );
+      const eng = computeEngageability(
+        {
+          credentials: fcreds,
+          completeness: f.completeness,
+          availability: f.availability as Availability,
+          identityVerified: f.user.identityVerifiedAt != null,
+          lastActiveAt: f.user.lastLoginAt ?? null,
+        },
+        now,
+      );
+      return { f, fcreds, eng };
+    });
+    const professionals: WsRow[] = rosterEng.map(({ f, fcreds, eng }) => {
       const trust = computeTrustLevel({
         identityVerified: f.user.identityVerifiedAt != null,
         verifiedCredentialCount: activeVerifiedCount(
@@ -515,7 +554,10 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         ),
         mandatoryDocsComplete: mandatoryDocuments(fcreds, now).allSatisfied,
       });
+      // Blokkerende inzetbaarheidsstatus gaat vóór de kale beschikbaarheid: een niet-inzetbare
+      // ZZP'er mag hier nooit als "Beschikbaar" tonen (dat sprak de rosterpagina tegen).
       const av = AVAILABILITY_LABEL[f.availability];
+      const status = eng.status === "INACTIEF" ? { label: eng.label, cls: ENGAGEABILITY_WARNING_CLS } : av; // prettier-ignore
       return {
         id: f.id,
         initials: initials(f.user.name ?? null),
@@ -525,8 +567,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         role: f.headline ?? "ZZP'er",
         location: f.location,
         rate: f.hourlyRate,
-        status: av?.label,
-        statusClass: av?.cls,
+        status: status?.label,
+        statusClass: status?.cls,
         href: `/franchise/zzpers/${f.id}`,
       };
     });
@@ -558,13 +600,26 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       runningOverflow: 0,
       week: null,
       isNewAccount: companies === 0 && freelancers === 0,
-      // Geleide opzet: verschijnt zolang de franchise nog niet volledig staat (ook bij gedeeltelijke
-      // inrichting), en verdwijnt zodra er een opdrachtgever met diensten én een roster is.
+      // Geleide opzet + operationele attentiepunten: geleide stappen zolang de franchise nog niet
+      // volledig staat; zodra hij draait komen niet-inzetbare roster-ZZP'ers en te lang ongedekte
+      // diensten erbij, zodat "Volgende acties" nooit ten onrechte "niets te doen" toont.
       activation: franchiserNextActions({
         companies,
         publishedDiensten: openDiensten,
         rosterFreelancers: freelancers,
         companiesWithoutDiensten,
+        notEngageable: rosterEng
+          .filter(({ eng }) => eng.status === "INACTIEF")
+          .map(({ f, eng }) => ({
+            id: f.id,
+            name: f.user.name ?? "ZZP'er",
+            blockers: eng.blockers,
+          })),
+        staleDiensten: staleDienstenRaw.map((d) => ({
+          id: d.id,
+          title: d.title,
+          openDays: Math.floor((now.getTime() - d.createdAt.getTime()) / 86_400_000),
+        })),
       }),
       professionals,
       seal,
@@ -838,8 +893,12 @@ export default async function DashboardPage() {
     }));
     const openD = Number(stats.find((s) => s.label === "Open diensten")?.value ?? 0);
     const wk = buildCurrentWeek(new Date(), `${openD} ${openD === 1 ? "dienst" : "diensten"}`);
-    // Volgende acties: lopende attentiepunten; bij een verse franchise de geleide opzet-stappen.
-    const fActions = tasks.length > 0 ? tasksToActions(tasks) : tasksToActions(activation);
+    // Volgende acties: de item-niveau taken (roster-compliance, leads) én de aggregaat-acties
+    // (geleide opzet + operationele attentiepunten zoals niet-inzetbare ZZP'ers en te lang open
+    // diensten) samen, gerangschikt op dezelfde prioriteitsbanden (stabiel). Zo verdwijnt een open
+    // dienst niet zodra er toevallig één andere taak is — beide oppervlakken vullen elkaar aan.
+    const fActionSource = [...tasks, ...activation].sort((a, b) => b.priority - a.priority);
+    const fActions = tasksToActions(fActionSource);
     return (
       <WorkspaceDashboard
         header={{ title: user.name ?? "Werkruimte", subtitle: "Bemiddeling" }}

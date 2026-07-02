@@ -25,6 +25,7 @@ describe("buildDekkingsprognose", () => {
       buckets: [],
       totalOpen: 0,
       soonestOpenDays: null,
+      needsAttentionNow: 0,
     });
   });
 
@@ -109,5 +110,35 @@ describe("buildDekkingsprognose", () => {
       NOW,
     );
     expect(result.buckets.map((b) => b.key)).toEqual(["LATER", "GEEN_DATUM"]);
+  });
+
+  describe("needsAttentionNow", () => {
+    it("telt deze week + geen-startdatum (acuut), niet volgende week / later", () => {
+      const result = buildDekkingsprognose(
+        [
+          dienst({ startDate: onDay(2026, 6, 18) }), // deze week
+          dienst({ startDate: onDay(2026, 6, 1) }), // verleden → deze week
+          dienst({ startDate: null }), // geen datum → acuut
+          dienst({ startDate: onDay(2026, 6, 23) }), // volgende week
+          dienst({ startDate: onDay(2026, 7, 1) }), // later
+        ],
+        NOW,
+      );
+      expect(result.needsAttentionNow).toBe(3);
+    });
+
+    it("is 0 als alles pas volgende week of later start (dan mag 'alles gedekt' getoond worden)", () => {
+      const result = buildDekkingsprognose(
+        [dienst({ startDate: onDay(2026, 6, 23) }), dienst({ startDate: onDay(2026, 7, 1) })],
+        NOW,
+      );
+      expect(result.totalOpen).toBe(2);
+      expect(result.needsAttentionNow).toBe(0);
+    });
+
+    it("een dienst zonder startdatum houdt needsAttentionNow > 0 (geen valse 'alles gedekt')", () => {
+      const result = buildDekkingsprognose([dienst({ startDate: null })], NOW);
+      expect(result.needsAttentionNow).toBe(1);
+    });
   });
 });

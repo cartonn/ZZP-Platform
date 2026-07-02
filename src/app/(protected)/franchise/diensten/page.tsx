@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
-import { buildDekkingsprognose } from "@/lib/franchise/dekkingsprognose";
+import { buildDekkingsprognose, startOfIsoWeek } from "@/lib/franchise/dekkingsprognose";
 
 export const metadata: Metadata = { title: "Diensten · Bemiddeling" };
 
@@ -56,7 +56,22 @@ export default async function FranchiseDienstenPage() {
     published.map((r) => ({ startDate: r.d.startDate, filled: r.filled })),
     new Date(now),
   );
-  const dezeWeekOpen = prognose.buckets.find((b) => b.key === "DEZE_WEEK")?.openCount ?? 0;
+
+  // Eén eenduidige regel per ongedekte dienst die NU aandacht vraagt (deze week, verstreken start, of
+  // geen startdatum) — met "X dagen open" én een bucket-label, zodat de kaart nooit "alles gedekt"
+  // naast een acute dienst zet. Zelfde weekgrenzen als de prognose (maandag-start).
+  const thisWeekStart = startOfIsoWeek(new Date(now)).getTime();
+  const nextWeekStart = thisWeekStart + 7 * DAY;
+  const attentionNow = published
+    .filter((r) => !r.filled)
+    .map((r) => {
+      const sd = r.d.startDate;
+      const acute = sd == null || sd.getTime() < nextWeekStart; // geen datum of deze week / verleden
+      const bucketLabel = sd == null ? "Geen startdatum" : "Deze week";
+      return { r, acute, bucketLabel };
+    })
+    .filter((x) => x.acute)
+    .sort((a, b) => (b.r.openDays ?? 0) - (a.r.openDays ?? 0));
 
   // Aandacht eerst: open diensten met de langste looptijd bovenaan, dan de rest op aanmaakdatum.
   const sorted = [...rows].sort((a, b) => {
@@ -109,34 +124,63 @@ export default async function FranchiseDienstenPage() {
 
       {prognose.totalOpen > 0 && (
         <Card
-          className={dezeWeekOpen > 0 ? "border-warning/40 bg-warning/5" : "border-border bg-card"}
+          className={
+            prognose.needsAttentionNow > 0
+              ? "border-warning/40 bg-warning/5"
+              : "border-border bg-card"
+          }
         >
           <CardContent className="space-y-3 py-4">
             <div className="flex items-center gap-2">
-              {dezeWeekOpen > 0 && (
+              {prognose.needsAttentionNow > 0 && (
                 <AlertTriangle className="size-4 shrink-0 text-warning" aria-hidden />
               )}
               <p className="text-sm font-medium text-foreground">Wat dreigt onbezet</p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {dezeWeekOpen > 0
-                ? `${plural(dezeWeekOpen, "dienst", "diensten")} deze week nog zonder plaatsing — vraagt nu actie.`
-                : `${plural(prognose.totalOpen, "open dienst", "open diensten")} in de planning. Deze week is alles gedekt.`}
-            </p>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
-              {prognose.buckets.map((b) => (
-                <div key={b.key}>
-                  <p
-                    className={`text-lg font-semibold tabular-nums ${
-                      b.key === "DEZE_WEEK" ? "text-warning" : "text-foreground"
-                    }`}
-                  >
-                    {b.openCount}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{b.label}</p>
-                </div>
-              ))}
-            </div>
+            {prognose.needsAttentionNow > 0 ? (
+              // Eén regel per acute dienst: titel + "X dagen open" + bucket-label. Geen kaal cijfer
+              // meer dat een "geen startdatum"-dienst tegenspreekt.
+              <ul className="space-y-1.5">
+                {attentionNow.map(({ r, bucketLabel }) => (
+                  <li key={r.d.id} className="flex items-baseline justify-between gap-3 text-sm">
+                    <Link
+                      href={`/franchise/diensten/${r.d.id}`}
+                      className="truncate font-medium text-foreground hover:underline"
+                    >
+                      {r.d.title}
+                    </Link>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {r.openDays === 0
+                        ? "vandaag uitgezet"
+                        : `${plural(r.openDays ?? 0, "dag", "dagen")} open`}
+                      {" · "}
+                      {bucketLabel}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {plural(prognose.totalOpen, "open dienst", "open diensten")} in de planning,
+                allemaal met een startdatum verderop. Deze week is alles gedekt.
+              </p>
+            )}
+            {/* Vooruitblik: de latere periodes als context onder de acute regels (geen "deze week"-cijfer
+                meer als los blok — dat staat nu expliciet per dienst hierboven). */}
+            {prognose.buckets.some((b) => b.key === "VOLGENDE_WEEK" || b.key === "LATER") && (
+              <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border/60 pt-3">
+                {prognose.buckets
+                  .filter((b) => b.key === "VOLGENDE_WEEK" || b.key === "LATER")
+                  .map((b) => (
+                    <div key={b.key}>
+                      <p className="text-lg font-semibold tabular-nums text-foreground">
+                        {b.openCount}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{b.label}</p>
+                    </div>
+                  ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

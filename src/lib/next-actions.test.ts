@@ -359,6 +359,64 @@ describe("franchiserNextActions", () => {
     expect(ranked.map((x) => x.id)).toEqual(["franchiser-roster-empty"]);
     expect(ranked[0]?.href).toBe("/franchise/zzpers");
   });
+
+  it("toont een actie per niet-inzetbare roster-ZZP'er met de blokkerende reden + doorklik", () => {
+    const ranked = franchiserNextActions({
+      ...allClearFranchiser,
+      notEngageable: [{ id: "z1", name: "Anna", blockers: ["VOG ontbreekt", "Identiteit niet geverifieerd"] }], // prettier-ignore
+    });
+    expect(ranked.map((x) => x.id)).toEqual(["franchiser-not-engageable-z1"]);
+    expect(ranked[0]?.title).toBe(
+      "Anna is nog niet inzetbaar — VOG ontbreekt, Identiteit niet geverifieerd",
+    );
+    expect(ranked[0]?.href).toBe("/franchise/zzpers/z1");
+    expect(ranked[0]?.tone).toBe("attention");
+  });
+
+  it("valt terug op een generieke reden als er geen blokker-labels zijn", () => {
+    const ranked = franchiserNextActions({
+      ...allClearFranchiser,
+      notEngageable: [{ id: "z2", name: "Bram", blockers: [] }],
+    });
+    expect(ranked[0]?.title).toBe("Bram is nog niet inzetbaar — verificatie nog niet compleet");
+  });
+
+  it("toont een actie per te lang open dienst (oudste eerst, max 3)", () => {
+    const ranked = franchiserNextActions({
+      ...allClearFranchiser,
+      staleDiensten: [
+        { id: "d1", title: "Nachtdienst", openDays: 27 },
+        { id: "d2", title: "Weekenddienst", openDays: 14 },
+        { id: "d3", title: "Dagdienst", openDays: 9 },
+        { id: "d4", title: "Vierde", openDays: 8 },
+      ],
+    });
+    expect(ranked.map((x) => x.id)).toEqual([
+      "franchiser-stale-service-d1",
+      "franchiser-stale-service-d2",
+      "franchiser-stale-service-d3",
+    ]);
+    expect(ranked[0]?.title).toBe("Dienst Nachtdienst staat 27 dagen open zonder plaatsing");
+    expect(ranked[0]?.href).toBe("/franchise/diensten/d1");
+  });
+
+  it("rangschikt een niet-inzetbare ZZP'er (84) boven een open dienst (65)", () => {
+    const ranked = franchiserNextActions({
+      ...allClearFranchiser,
+      notEngageable: [{ id: "z1", name: "Anna", blockers: ["VOG ontbreekt"] }],
+      staleDiensten: [{ id: "d1", title: "Nachtdienst", openDays: 27 }],
+    });
+    expect(ranked.map((x) => x.id)).toEqual([
+      "franchiser-not-engageable-z1",
+      "franchiser-stale-service-d1",
+    ]);
+  });
+
+  it("blijft leeg bij een draaiende franchise zonder operationele attentiepunten", () => {
+    expect(
+      franchiserNextActions({ ...allClearFranchiser, notEngageable: [], staleDiensten: [] }),
+    ).toEqual([]);
+  });
 });
 
 describe("formatMissing", () => {
