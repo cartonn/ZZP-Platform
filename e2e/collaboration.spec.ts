@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { clickUntil, clickUntilGone } from "./_robust";
 
 const SHOTS = path.join("e2e", "screenshots");
 const shot = (page: Page, name: string) =>
@@ -55,7 +56,8 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
 
   // Opdrachtgever start een gesprek vanuit de kandidaat.
   await page.goto("/kandidaten");
-  await expect(page.getByText("Coll Freelancer")).toBeVisible();
+  await expect(page.getByText("Coll Freelancer").first()).toBeVisible();
+  await page.getByRole("button", { name: "Toon details" }).click();
   await page.getByRole("button", { name: "Bericht sturen" }).click();
   await page.waitForURL(/\/berichten\/[a-z0-9]+$/);
   await page
@@ -78,11 +80,23 @@ test("berichten, reactie accepteren, samenwerking voorstellen/activeren, notific
 
   // Opdrachtgever accepteert de reactie en stelt een samenwerking voor.
   await page.goto("/kandidaten");
-  await page.getByRole("button", { name: "Accepteren" }).click();
-  await expect(page.getByText("Samenwerking voorstellen")).toBeVisible();
+  await page.getByRole("button", { name: "Toon details" }).click();
+  // Accepteren houdt de kandidaat (nog zonder samenwerking) in de actieve lijst; de rij klapt dicht.
+  await clickUntilGone(
+    page.getByRole("button", { name: "Accepteren" }),
+    page.getByRole("button", { name: "Accepteren" }),
+  );
+  await clickUntil(
+    page.getByRole("button", { name: "Toon details" }),
+    page.getByText("Samenwerking voorstellen"),
+  );
   await page.locator('input[name="rate"]').fill("90");
   await page.getByRole("button", { name: "Voorstel versturen" }).click();
-  await expect(page.getByRole("link", { name: "Bekijk samenwerking" })).toBeVisible();
+  // Met een samenwerking verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd"; open die.
+  await clickUntil(
+    page.getByRole("button", { name: /Geaccepteerd/ }),
+    page.getByRole("link", { name: "Bekijk samenwerking" }),
+  );
 
   // ZZP'er ziet de samenwerking en activeert die.
   await fp.goto("/samenwerkingen");

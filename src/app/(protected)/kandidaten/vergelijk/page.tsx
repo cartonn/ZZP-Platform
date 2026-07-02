@@ -6,16 +6,18 @@ import { requireRole } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
 import { computeCompliance } from "@/lib/matching";
-import { computeTrustLevel } from "@/lib/trust";
+import { computeTrustLevel, TRUST_LEVEL_EXPLANATION } from "@/lib/trust";
 import { summarizeAvailability } from "@/lib/availability";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-quality";
 import { type CompareCandidate, buildCandidateComparison } from "@/lib/candidate-compare";
+import { firstName } from "@/lib/kandidaten-triage";
 import {
   type AvailabilityWindowType,
   type CredentialType,
   type CredentialStatus,
 } from "@/lib/enums";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -118,6 +120,9 @@ export default async function VergelijkKandidatenPage({
 
   const comparison = buildCandidateComparison(candidates);
 
+  // Lege cel: geen kille "—" maar een leesbaar, gedempt signaal dat er (nog) geen gegeven is.
+  const noData = <span className="text-muted-foreground">{t("Nog geen gegevens")}</span>;
+
   return (
     <div className="space-y-6 pb-16">
       <div>
@@ -164,27 +169,36 @@ export default async function VergelijkKandidatenPage({
                   label={t("Match")}
                   candidates={candidates}
                   winnerId={comparison.bestMatchId}
-                  render={(c) => (c.matchScore != null ? `${c.matchScore}%` : "—")}
+                  render={(c) => (c.matchScore != null ? `${c.matchScore}%` : noData)}
                 />
                 <CompareRow
                   label={t("Tariefvoorstel")}
                   hint={t("scherpste")}
                   candidates={candidates}
                   winnerId={comparison.bestRateId}
-                  render={(c) => (c.proposedRate != null ? `€ ${c.proposedRate}${t("/uur")}` : "—")}
+                  render={(c) =>
+                    c.proposedRate != null ? `€ ${c.proposedRate}${t("/uur")}` : noData
+                  }
                 />
                 <CompareRow
                   label={t("Vertrouwen")}
                   candidates={candidates}
                   winnerId={comparison.bestTrustId}
-                  render={(c) => t(TRUST_LABEL[c.trustLevel])}
+                  render={(c) => (
+                    <span
+                      className="cursor-help underline decoration-dotted underline-offset-4"
+                      title={t(TRUST_LEVEL_EXPLANATION[c.trustLevel])}
+                    >
+                      {t(TRUST_LABEL[c.trustLevel])}
+                    </span>
+                  )}
                 />
                 <CompareRow
                   label={t("Compliance")}
                   candidates={candidates}
                   winnerId={comparison.bestComplianceId}
                   render={(c) =>
-                    c.complianceStatus ? <ComplianceBadge status={c.complianceStatus} /> : "—"
+                    c.complianceStatus ? <ComplianceBadge status={c.complianceStatus} /> : noData
                   }
                 />
                 <CompareRow
@@ -192,14 +206,38 @@ export default async function VergelijkKandidatenPage({
                   hint={t("in één keer akkoord")}
                   candidates={candidates}
                   winnerId={comparison.bestDeliveryId}
-                  render={(c) => (c.firstTimeRightRate != null ? `${c.firstTimeRightRate}%` : "—")}
+                  render={(c) =>
+                    c.firstTimeRightRate != null ? `${c.firstTimeRightRate}%` : noData
+                  }
                 />
                 <CompareRow
                   label={t("Beschikbaarheid")}
                   candidates={candidates}
                   winnerId={null}
-                  render={(c) => (c.available ? t("Agenda gedeeld") : "—")}
+                  render={(c) => (c.available ? t("Agenda gedeeld") : noData)}
                 />
+                <tr>
+                  <th scope="row" className="px-4 py-3 text-left align-top">
+                    <span className="sr-only">{t("Keuze")}</span>
+                  </th>
+                  {candidates.map((c) => (
+                    <td key={c.id} className="px-4 py-3 align-top">
+                      <div className="flex flex-col items-start gap-1.5">
+                        <Button asChild size="sm" variant="primary">
+                          <Link href={`/kandidaten?open=${c.id}#app-${c.id}`}>
+                            {t("Kies")} {firstName(c.name)}
+                          </Link>
+                        </Button>
+                        <Link
+                          href={`/kandidaten?open=${c.id}#app-${c.id}`}
+                          className="focus-ring text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                        >
+                          {t("Bericht")}
+                        </Link>
+                      </div>
+                    </td>
+                  ))}
+                </tr>
               </tbody>
             </table>
           </CardContent>

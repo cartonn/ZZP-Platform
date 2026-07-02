@@ -29,6 +29,18 @@ const LABEL: Record<TrustLevel, string> = {
   VOLLEDIG: "Volledig geverifieerd",
 };
 
+/**
+ * Korte uitleg per niveau, voor tooltips/hovertekst waar de volledige `TrustExplanation`-kaart niet
+ * past (bv. de vergelijk-tabel). Spiegelt exact de regels in `computeTrustLevel` — één bron.
+ */
+export const TRUST_LEVEL_EXPLANATION: Record<TrustLevel, string> = {
+  BASIS: "Nog niets geverifieerd: geen identiteit en geen geverifieerd certificaat.",
+  DEELS:
+    "Identiteit óf minstens één certificaat is geverifieerd — nog niet allebei plus de verplichte documenten.",
+  VOLLEDIG:
+    "Identiteit én minstens één certificaat geverifieerd, met alle verplichte documenten geldig.",
+};
+
 export function computeTrustLevel(input: TrustInput): TrustResult {
   const reasons: string[] = [];
   const missing: string[] = [];

@@ -80,7 +80,7 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
 
   // Opdrachtgever beheert de kandidaat.
   await page.goto("/kandidaten");
-  await expect(page.getByText("Reactie Freelancer")).toBeVisible();
+  await expect(page.getByText("Reactie Freelancer").first()).toBeVisible();
 
   // Meedenken: de zijbalk toont vanaf elke pagina dat er een nieuwe reactie wacht.
   const kandidatenNav = page
@@ -89,11 +89,13 @@ test("ZZP'er reageert en opdrachtgever beheert de kandidaat", async ({ page, bro
   await expect(kandidatenNav).toContainText("1");
   await shot(page, "17-nav-badge");
 
-  await expect(page.getByText("Voldoet niet")).toBeVisible(); // geen VOG -> non-compliant
+  await expect(page.getByText("Voldoet niet")).toBeVisible(); // geen VOG -> non-compliant (in de compacte kop)
+  // Compacte triage: de kandidaat is eerst een rij; klap hem uit om de acties te tonen.
+  await page.getByRole("button", { name: "Toon details" }).click();
   await page.getByRole("button", { name: "Shortlist" }).click();
-  // Status is Shortlist zodra de "Shortlist"-actie verdwijnt (badge toont dan Shortlist).
-  await expect(page.getByRole("button", { name: "Shortlist" })).toHaveCount(0);
+  // Na de statuswijziging herlaadt de pagina en klapt de rij weer dicht; de statusbadge staat in de kop.
   await expect(page.getByText("Shortlist")).toBeVisible();
+  await page.getByRole("button", { name: "Toon details" }).click();
   await page.fill('textarea[name="note"]', "Sterke kandidaat, uitnodigen voor gesprek.");
   await page.getByRole("button", { name: "Notitie opslaan" }).click();
   await expect(page.locator('textarea[name="note"]')).toHaveValue(

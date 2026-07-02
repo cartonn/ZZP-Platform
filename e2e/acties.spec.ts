@@ -70,13 +70,21 @@ async function setupCollaboration(
   await clickForUrl(fp.getByRole("button", { name: "Reactie versturen" }), fp, "**/reacties");
 
   await page.goto("/kandidaten");
-  await clickUntil(
+  await page.getByRole("button", { name: "Toon details" }).click();
+  // Accepteren: kandidaat blijft (nog zonder samenwerking) in de actieve lijst; de rij klapt dicht.
+  await clickUntilGone(
     page.getByRole("button", { name: "Accepteren" }),
+    page.getByRole("button", { name: "Accepteren" }),
+  );
+  await clickUntil(
+    page.getByRole("button", { name: "Toon details" }),
     page.getByText("Samenwerking voorstellen"),
   );
   await page.locator('input[name="rate"]').fill("85");
+  await page.getByRole("button", { name: "Voorstel versturen" }).click();
+  // Na het voorstel verhuist de kandidaat naar de ingeklapte sectie "Geaccepteerd"; open die.
   await clickUntil(
-    page.getByRole("button", { name: "Voorstel versturen" }),
+    page.getByRole("button", { name: /Geaccepteerd/ }),
     page.getByRole("link", { name: "Bekijk samenwerking" }),
   );
 

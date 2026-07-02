@@ -46,6 +46,9 @@ import { ApplicationNoteForm } from "./application-note-form";
 import { BulkTriageBar } from "./bulk-triage-bar";
 import { startConversationForApplication } from "@/app/(protected)/berichten/actions";
 import { ProposeCollaboration } from "./propose-collaboration";
+import { TriageList, type TriageItem } from "./triage-list";
+import { AcceptedSection } from "./accepted-section";
+import { partitionTriage } from "@/lib/kandidaten-triage";
 
 export const metadata: Metadata = { title: "Kandidaten · ZZP Platform" };
 
@@ -65,7 +68,10 @@ export default async function KandidatenPage({
 }) {
   const actor = await requireRole("CLIENT");
   const { t } = await getTranslator();
-  const filterStatus = normalizeKandidatenFilter((await searchParams).status);
+  const params = await searchParams;
+  const filterStatus = normalizeKandidatenFilter(params.status);
+  // Deeplink vanuit /kandidaten/vergelijk ("Kies X") of een gedeelde link: open deze rij meteen.
+  const openId = params.open || null;
 
   const noteLabels = {
     placeholder: t("Interne notitie (alleen voor jou)…"),
@@ -305,9 +311,10 @@ export default async function KandidatenPage({
               description={t("Er zijn geen reacties in deze categorie. Pas het filter aan.")}
             />
           ) : (
-            <>
-              <BulkTriageBar labels={bulkLabels} />
-              {visible.map((app) => {
+            (() => {
+              // Bouw per zichtbare kandidaat een compacte kop + uitklapbare inhoud. Geaccepteerde
+              // kandidaten gaan naar een aparte, ingeklapte sectie onderaan (de samenwerking loopt al).
+              const rendered = visible.map((app) => {
                 const status = app.status as ApplicationStatus;
                 // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
                 // reactiemoment (een VOG kan intussen verlopen zijn). De volledige uitsplitsing
@@ -355,245 +362,295 @@ export default async function KandidatenPage({
                   },
                   now,
                 );
-                return (
-                  <Card key={app.id}>
-                    <CardContent className="space-y-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex min-w-0 items-center gap-2">
-                            {!app.collaboration && (
-                              <input
-                                type="checkbox"
-                                name="appId"
-                                value={app.id}
-                                form="kandidaten-bulk"
-                                aria-label={`${t("Selecteer")} ${app.freelancer.user.name}`}
-                                className="focus-ring size-4 shrink-0 rounded border-input accent-accent"
-                              />
-                            )}
-                            {isPublic ? (
-                              <Link
-                                href={`/zzp/${app.freelancer.id}`}
-                                target="_blank"
-                                className="min-w-0 truncate font-medium underline-offset-4 hover:underline"
-                              >
-                                {app.freelancer.user.name}
-                              </Link>
-                            ) : (
-                              <span className="min-w-0 truncate font-medium">
-                                {app.freelancer.user.name}
-                              </span>
-                            )}
-                            <span className="flex shrink-0 items-center gap-2">
-                              <ApplicationStatusBadge status={status} />
-                              <TrustBadge level={trust.level} />
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {app.freelancer.headline ?? "—"} · {t("op")}{" "}
-                            <Link
-                              href={`/opdrachten/${app.job.id}`}
-                              className="underline-offset-4 hover:underline"
-                            >
-                              {app.job.title}
-                            </Link>
-                          </p>
+                const lead = !app.collaboration ? (
+                  <input
+                    type="checkbox"
+                    name="appId"
+                    value={app.id}
+                    form="kandidaten-bulk"
+                    aria-label={`${t("Selecteer")} ${app.freelancer.user.name}`}
+                    className="focus-ring size-4 shrink-0 rounded border-input accent-accent"
+                  />
+                ) : null;
+                const header = (
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 items-center gap-2">
+                          {/* Naam als tekst — links (profiel/opdracht) staan in de uitgeklapte inhoud;
+                              een anchor in de expand-knop zou ongeldige geneste interactie geven. */}
+                          <span className="min-w-0 truncate font-medium">
+                            {app.freelancer.user.name}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-2">
+                            <ApplicationStatusBadge status={status} />
+                            <TrustBadge level={trust.level} />
+                          </span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {app.matchScore != null && (
-                            <Badge variant="accent">
-                              {t("Match")} {app.matchScore}%
-                            </Badge>
-                          )}
-                          {compliance && <ComplianceBadge status={compliance.status} />}
-                        </div>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {app.freelancer.headline ?? "—"} · {t("op")} {app.job.title}
+                        </p>
                       </div>
-
-                      <VerificationMarks credentials={app.freelancer.credentials} />
-
-                      {decision?.attention && (
-                        <p
-                          className={`flex items-center gap-1.5 text-xs ${
-                            decision.urgency === "high" ? "text-warning" : "text-muted-foreground"
-                          }`}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {app.matchScore != null && (
+                          <Badge variant="accent">
+                            {t("Match")} {app.matchScore}%
+                          </Badge>
+                        )}
+                        {compliance && <ComplianceBadge status={compliance.status} />}
+                      </div>
+                    </div>
+                    {decision?.attention && (
+                      <p
+                        className={`flex items-center gap-1.5 text-xs ${
+                          decision.urgency === "high" ? "text-warning" : "text-muted-foreground"
+                        }`}
+                      >
+                        <Clock className="size-3.5 shrink-0" aria-hidden />
+                        {decision.tier === "strong"
+                          ? `${t("Sterke match — wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing. Beslis nu voordat hij elders aan de slag gaat.")}`
+                          : `${t("Wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing.")}`}
+                      </p>
+                    )}
+                  </div>
+                );
+                const body = (
+                  <>
+                    <p className="flex flex-wrap gap-x-3 text-xs">
+                      {isPublic && (
+                        <Link
+                          href={`/zzp/${app.freelancer.id}`}
+                          target="_blank"
+                          className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                         >
-                          <Clock className="size-3.5 shrink-0" aria-hidden />
-                          {decision.tier === "strong"
-                            ? `${t("Sterke match — wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing. Beslis nu voordat hij elders aan de slag gaat.")}`
-                            : `${t("Wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing.")}`}
-                        </p>
+                          {t("Profiel bekijken")}
+                        </Link>
                       )}
+                      <Link
+                        href={`/opdrachten/${app.job.id}`}
+                        className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                      >
+                        {t("Naar opdracht")}: {app.job.title}
+                      </Link>
+                    </p>
 
-                      {(() => {
-                        const delivery = deliveryByProfile.get(app.freelancer.id);
-                        return delivery ? <DeliveryQualityBlock quality={delivery} /> : null;
-                      })()}
+                    <VerificationMarks credentials={app.freelancer.credentials} />
 
-                      {compliance && compliance.status !== "COMPLIANT" && (
-                        <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                          {compliance.missing.length > 0 && (
-                            <span className="text-danger">
-                              {t("Mist:")}{" "}
-                              {compliance.missing
-                                .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
-                                .join(", ")}
-                            </span>
-                          )}
-                          {compliance.expired.length > 0 && (
-                            <span className="text-danger">
-                              {t("Verlopen:")}{" "}
-                              {compliance.expired
-                                .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
-                                .join(", ")}
-                            </span>
-                          )}
-                          {compliance.inReview.length > 0 && (
-                            <span className="text-warning">
-                              {t("In beoordeling:")}{" "}
-                              {compliance.inReview
-                                .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
-                                .join(", ")}
-                            </span>
-                          )}
-                        </p>
-                      )}
+                    {(() => {
+                      const delivery = deliveryByProfile.get(app.freelancer.id);
+                      return delivery ? <DeliveryQualityBlock quality={delivery} /> : null;
+                    })()}
 
-                      {fitReasons.length > 0 && (
-                        <details className="text-sm">
-                          <summary className="focus-ring cursor-pointer text-muted-foreground">
-                            {t("Waarom deze match?")}
-                          </summary>
-                          <ul className="mt-2 space-y-1.5">
-                            {fitReasons.map((r, i) => (
-                              <li key={i} className="flex items-start gap-2">
-                                {r.kind === "positive" ? (
-                                  <Check
-                                    className="mt-0.5 size-4 shrink-0 text-success"
-                                    aria-hidden
-                                  />
-                                ) : (
-                                  <TriangleAlert
-                                    className="mt-0.5 size-4 shrink-0 text-warning"
-                                    aria-hidden
-                                  />
-                                )}
-                                <span className={r.kind === "gap" ? "text-muted-foreground" : ""}>
-                                  {r.label}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </details>
-                      )}
-
-                      <p className="whitespace-pre-line text-sm">{app.motivation}</p>
-                      <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground">
-                        {app.proposedRate != null &&
-                          (() => {
-                            const fit = classifyProposedRateFit(
-                              app.proposedRate,
-                              app.job.rateMin,
-                              app.job.rateMax,
-                            );
-                            return (
-                              <span className="inline-flex items-center gap-1.5">
-                                {t("Tariefvoorstel")}: € {app.proposedRate}
-                                {t("/uur")}
-                                {fit !== "unknown" && (
-                                  <Badge variant={RATE_FIT_VARIANT[fit]}>
-                                    {t(RATE_FIT_LABEL[fit])}
-                                  </Badge>
-                                )}
-                              </span>
-                            );
-                          })()}
-                        {app.availability && (
-                          <span>
-                            {t("Aangegeven bij reactie")}: {app.availability}
+                    {compliance && compliance.status !== "COMPLIANT" && (
+                      <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                        {compliance.missing.length > 0 && (
+                          <span className="text-danger">
+                            {t("Mist:")}{" "}
+                            {compliance.missing
+                              .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
+                              .join(", ")}
                           </span>
                         )}
-                        {(() => {
-                          const s = summarizeAvailability(
-                            app.freelancer.availabilityWindows.map((w) => ({
-                              ...w,
-                              type: w.type as AvailabilityWindowType,
-                            })),
-                          );
-                          return s ? (
-                            <span>
-                              {t("Agenda")}: {s}
-                            </span>
-                          ) : null;
-                        })()}
-                      </div>
+                        {compliance.expired.length > 0 && (
+                          <span className="text-danger">
+                            {t("Verlopen:")}{" "}
+                            {compliance.expired
+                              .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
+                              .join(", ")}
+                          </span>
+                        )}
+                        {compliance.inReview.length > 0 && (
+                          <span className="text-warning">
+                            {t("In beoordeling:")}{" "}
+                            {compliance.inReview
+                              .map((type) => t(CREDENTIAL_TYPE_LABEL[type]))
+                              .join(", ")}
+                          </span>
+                        )}
+                      </p>
+                    )}
 
-                      {status === "WITHDRAWN" ? (
-                        <p className="border-t border-border pt-3 text-sm text-muted-foreground">
-                          {t("De ZZP'er heeft deze reactie ingetrokken.")}
-                        </p>
-                      ) : (
-                        <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                          {APPLICATION_TRANSITIONS[status].map((to) =>
-                            to === "REJECTED" ? (
-                              <ConfirmButton
-                                key={to}
-                                action={changeApplicationStatus.bind(null, app.id, to)}
-                                triggerVariant="destructive"
+                    {fitReasons.length > 0 && (
+                      <details className="text-sm">
+                        <summary className="focus-ring cursor-pointer text-muted-foreground">
+                          {t("Waarom deze match?")}
+                        </summary>
+                        <ul className="mt-2 space-y-1.5">
+                          {fitReasons.map((r, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              {r.kind === "positive" ? (
+                                <Check
+                                  className="mt-0.5 size-4 shrink-0 text-success"
+                                  aria-hidden
+                                />
+                              ) : (
+                                <TriangleAlert
+                                  className="mt-0.5 size-4 shrink-0 text-warning"
+                                  aria-hidden
+                                />
+                              )}
+                              <span className={r.kind === "gap" ? "text-muted-foreground" : ""}>
+                                {r.label}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+
+                    <p className="whitespace-pre-line text-sm">{app.motivation}</p>
+                    <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground">
+                      {app.proposedRate != null &&
+                        (() => {
+                          const fit = classifyProposedRateFit(
+                            app.proposedRate,
+                            app.job.rateMin,
+                            app.job.rateMax,
+                          );
+                          return (
+                            <span className="inline-flex items-center gap-1.5">
+                              {t("Tariefvoorstel")}: € {app.proposedRate}
+                              {t("/uur")}
+                              {fit !== "unknown" && (
+                                <Badge variant={RATE_FIT_VARIANT[fit]}>
+                                  {t(RATE_FIT_LABEL[fit])}
+                                </Badge>
+                              )}
+                            </span>
+                          );
+                        })()}
+                      {app.availability && (
+                        <span>
+                          {t("Aangegeven bij reactie")}: {app.availability}
+                        </span>
+                      )}
+                      {(() => {
+                        const s = summarizeAvailability(
+                          app.freelancer.availabilityWindows.map((w) => ({
+                            ...w,
+                            type: w.type as AvailabilityWindowType,
+                          })),
+                        );
+                        return s ? (
+                          <span>
+                            {t("Agenda")}: {s}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
+
+                    {status === "WITHDRAWN" ? (
+                      <p className="border-t border-border pt-3 text-sm text-muted-foreground">
+                        {t("De ZZP'er heeft deze reactie ingetrokken.")}
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+                        {APPLICATION_TRANSITIONS[status].map((to) =>
+                          to === "REJECTED" ? (
+                            <ConfirmButton
+                              key={to}
+                              action={changeApplicationStatus.bind(null, app.id, to)}
+                              triggerVariant="destructive"
+                              size="sm"
+                              title={t("Reactie afwijzen?")}
+                              description={t(
+                                "De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist.",
+                              )}
+                              confirmLabel={t("Afwijzen")}
+                            >
+                              {t(ACTION_LABEL[to])}
+                            </ConfirmButton>
+                          ) : (
+                            <form key={to} action={changeApplicationStatus.bind(null, app.id, to)}>
+                              <Button
+                                type="submit"
                                 size="sm"
-                                title={t("Reactie afwijzen?")}
-                                description={t(
-                                  "De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist.",
-                                )}
-                                confirmLabel={t("Afwijzen")}
+                                variant={to === "ACCEPTED" ? "primary" : "secondary"}
                               >
                                 {t(ACTION_LABEL[to])}
-                              </ConfirmButton>
-                            ) : (
-                              <form
-                                key={to}
-                                action={changeApplicationStatus.bind(null, app.id, to)}
-                              >
-                                <Button
-                                  type="submit"
-                                  size="sm"
-                                  variant={to === "ACCEPTED" ? "primary" : "secondary"}
-                                >
-                                  {t(ACTION_LABEL[to])}
-                                </Button>
-                              </form>
-                            ),
-                          )}
-                        </div>
-                      )}
-
-                      <ApplicationNoteForm
-                        appId={app.id}
-                        defaultNote={app.note ?? ""}
-                        labels={noteLabels}
-                      />
-
-                      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                        <form action={startConversationForApplication.bind(null, app.id)}>
-                          <Button type="submit" variant="secondary" size="sm">
-                            {t("Bericht sturen")}
-                          </Button>
-                        </form>
-                        {app.collaboration && (
-                          <Button asChild variant="secondary" size="sm">
-                            <Link href={`/samenwerkingen/${app.collaboration.id}`}>
-                              {t("Bekijk samenwerking")}
-                            </Link>
-                          </Button>
+                              </Button>
+                            </form>
+                          ),
                         )}
                       </div>
-                      {status === "ACCEPTED" && !app.collaboration && (
-                        <ProposeCollaboration applicationId={app.id} labels={proposeLabels} />
+                    )}
+
+                    <ApplicationNoteForm
+                      appId={app.id}
+                      defaultNote={app.note ?? ""}
+                      labels={noteLabels}
+                    />
+
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                      <form action={startConversationForApplication.bind(null, app.id)}>
+                        <Button type="submit" variant="secondary" size="sm">
+                          {t("Bericht sturen")}
+                        </Button>
+                      </form>
+                      {app.collaboration && (
+                        <Button asChild variant="secondary" size="sm">
+                          <Link href={`/samenwerkingen/${app.collaboration.id}`}>
+                            {t("Bekijk samenwerking")}
+                          </Link>
+                        </Button>
                       )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                    {status === "ACCEPTED" && !app.collaboration && (
+                      <ProposeCollaboration applicationId={app.id} labels={proposeLabels} />
+                    )}
+                  </>
                 );
-              })}
-            </>
+                return {
+                  app,
+                  status,
+                  hasCollaboration: !!app.collaboration,
+                  lead,
+                  header,
+                  body,
+                };
+              });
+
+              const { active, accepted: acceptedItems } = partitionTriage(rendered);
+              const activeItems: TriageItem[] = active.map((r) => ({
+                id: r.app.id,
+                lead: r.lead,
+                header: r.header,
+                body: r.body,
+              }));
+
+              return (
+                <>
+                  <BulkTriageBar labels={bulkLabels} />
+                  {activeItems.length > 0 && (
+                    <TriageList
+                      items={activeItems}
+                      defaultOpenId={openId}
+                      expandLabel={t("Toon details")}
+                      collapseLabel={t("Verberg details")}
+                    />
+                  )}
+                  {acceptedItems.length > 0 && (
+                    <AcceptedSection
+                      count={acceptedItems.length}
+                      title={t("Geaccepteerd — zie Samenwerkingen")}
+                      hint={t("Deze kandidaten zijn geaccepteerd; de samenwerking loopt al.")}
+                      // Deeplink ("Kies X") naar een al geaccepteerde kandidaat: open de sectie meteen,
+                      // anders leidt het anker naar een verborgen rij.
+                      defaultOpen={acceptedItems.some((r) => r.app.id === openId)}
+                    >
+                      {acceptedItems.map((r) => (
+                        <Card key={r.app.id} id={`app-${r.app.id}`}>
+                          <CardContent className="space-y-3">
+                            {r.header}
+                            <div className="space-y-3 border-t border-border pt-3">{r.body}</div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </AcceptedSection>
+                  )}
+                </>
+              );
+            })()
           )}
         </div>
       )}
