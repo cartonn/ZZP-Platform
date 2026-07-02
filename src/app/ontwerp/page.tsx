@@ -4,7 +4,7 @@ import { ArrowRight, Lock } from "lucide-react";
 import { CONCEPTS, BUILT } from "@/components/ontwerp/concepts/registry";
 
 export const metadata: Metadata = {
-  title: "Ontwerp-lab — 10 richtingen",
+  title: "Ontwerp-lab — redesign-concepten",
   robots: { index: false, follow: false },
 };
 
@@ -17,7 +17,7 @@ export default function OntwerpIndexPage() {
             ZZP Platform · design lab
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Tien richtingen voor de herontwerp
+            {CONCEPTS.length} richtingen voor de herontwerp
           </h1>
           <p className="mt-4 text-[15px] leading-relaxed text-neutral-600">
             Elk concept toont dezelfde kernschermen — dashboard, marktplaats, opdracht, verificatie,

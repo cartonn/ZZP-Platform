@@ -22,6 +22,26 @@ startdatum lekken nooit mee.
 - Bestanden: `src/lib/job-duplicate.ts` (+ `.test.ts`), `src/app/(protected)/opdrachten/nieuw/page.tsx`,
   `src/app/(protected)/opdrachten/[id]/page.tsx`, allowlist-regels (line-shift) in `unbounded-queries.test.ts`.
   Gate: typecheck + lint + prettier + test (**2808 groen**) + build groen.
+## Ontwerp-lab — reeks 2: +10 concepten (nrs 11–20) op /ontwerp (2026-07-02)
+
+Additieve uitbreiding: de galerij accumuleert nu (10 → 20). Reeks 1 (01–10) blijft ongewijzigd
+staan; er is niets overschreven of verwijderd. Tien nieuwe, onderscheidende richtingen op basis van
+verse 2026-research (glasmorfisme-met-diepte, verfijnd neo-brutalisme, whitespace-maximalisme/
+calm-luxe, dark-mode-first/OLED, command-palette-als-standaard, mobiel-first/thumb-zone, aurora-mesh,
+Zwitsers monochroom, warm-humanist, journey/timeline). Gebouwd door 4 parallelle workers op
+niet-overlappende bestanden; orchestrator heeft alleen TOEGEVOEGD aan `registry.ts` + `[id]/page.tsx`.
+
+- [x] **10 nieuwe concepten** (`concept-11-terra.tsx` … `concept-20-karbon.tsx`):
+      11 Terra (warm-humanist organisch), 12 Glas (glasmorfisme 2.0), 13 Prisma (verfijnd neo-brutalisme),
+      14 Raster (Zwitsers monochroom), 15 Zenit (mobiel-first app-shell), 16 Aurora (aurora/mesh-verloop),
+      17 Kanaal (command-first ⌘K-spotlight), 18 Kompas (reis/tijdlijn wayfinding), 19 Puur (whitespace-
+      maximalisme), 20 Karbon (OLED-donker high-contrast). Elk: volledige app-shell, alle 6 kernschermen,
+      empty-/interactie-states, a11y (aria/focus-visible/tabular-nums), Nederlands, geen "AI".
+- [x] **Wiring (additief)**: `registry.ts` (10 nieuwe ConceptMeta APPEND), `[id]/page.tsx` (10 imports +
+      id→component APPEND), `ontwerp/layout.tsx` (5 fonts toegevoegd), `ontwerp/page.tsx` (kop count-driven).
+      Bestaande entries/koppelingen ongemoeid.
+- [x] **Docs**: `docs/DESIGN-LAB.md` (reeks-2-status + trends), dit PROGRESS-blok.
+- Totaal nu **20 concepten** klikbaar op `/ontwerp`.
 
 ## Ontwerp-lab — verse set v3: 10 nieuwe top-1% concepten op /ontwerp (2026-06-25)
 
