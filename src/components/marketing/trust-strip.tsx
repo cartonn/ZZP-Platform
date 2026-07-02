@@ -5,28 +5,28 @@ import { getTranslator } from "@/lib/i18n/server";
 const PILLARS = [
   {
     icon: ShieldCheck,
-    title: "Certificaten geverifieerd",
-    desc: "VOG, diploma's en BIG-registratie worden handmatig gecontroleerd.",
+    title: "Certificaten één keer uploaden, overal geldig",
+    desc: "VOG, diploma's en BIG-registratie worden handmatig gecontroleerd — daarna staan ze klaar bij elke opdracht.",
   },
   {
     icon: ScrollText,
-    title: "Wet-DBA-proof",
-    desc: "Bij elke opdracht een modelovereenkomst — geen schijnzelfstandigheid.",
+    title: "Modelovereenkomst bij elke opdracht",
+    desc: "Standaard Wet-DBA-proof, zodat je geen gedoe hebt met schijnzelfstandigheid.",
   },
   {
     icon: Target,
-    title: "Verklaarbare match",
-    desc: "Je ziet bij elke opdracht waaróm die bij je past.",
+    title: "Je ziet waarom een opdracht bij je past",
+    desc: "Bij elke opdracht laten we de reden van de match zien — geen giswerk.",
   },
   {
     icon: FolderCheck,
-    title: "Geverifieerd dossier is je startkapitaal",
-    desc: "Je hebt geen reviews nodig om te beginnen — een volledig dossier spreekt voor zich.",
+    title: "Een volledig dossier is je startpunt",
+    desc: "Je hebt geen reviews nodig om te beginnen — een geverifieerd dossier spreekt voor zich.",
   },
   {
     icon: FileCheck,
-    title: "Gatenvrije factuurnummering",
-    desc: "Facturen krijgen een eigen, doorlopende nummering per partij — jouw boekhouding sluit altijd aan.",
+    title: "Facturen en urenstaten op één plek",
+    desc: "Elke partij krijgt een eigen doorlopende factuurnummering, zodat je boekhouding altijd aansluit.",
   },
 ] as const;
 

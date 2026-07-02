@@ -22,6 +22,8 @@ test("franchise-leads: nieuwe lead vastleggen, loggen, status zetten en naar onb
   await page.goto("/franchise/leads");
   await expect(page.getByRole("heading", { name: "Leads" })).toBeVisible();
   await expect(page.getByText("Thuiszorg Het Hoge Noorden").first()).toBeVisible();
+  // Elke lead toont het stilte-signaal ("X dagen geen contact" / "Vandaag nog contact gehad").
+  await expect(page.getByText(/geen contact|Vandaag nog contact gehad/).first()).toBeVisible();
   await shot(page, "franchise-leads-lijst");
 
   // Nieuwe lead: het formulier ontvouwt pas na de klik.

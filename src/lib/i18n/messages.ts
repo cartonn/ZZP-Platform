@@ -84,7 +84,8 @@ const EN: Record<string, string> = {
   Wachtwoord: "Password",
   Inloggen: "Sign in",
   "Bezig met inloggen…": "Signing in…",
-  "Log in om verder te gaan naar je dashboard.": "Sign in to continue to your dashboard.",
+  "Vind en beheer zorgopdrachten — geverifieerd, Wet-DBA-proof en zonder papierwerk.":
+    "Find and manage healthcare assignments — verified, compliant with Dutch labour law and paperwork-free.",
   "Je wachtwoord is gewijzigd. Log in met je nieuwe wachtwoord.":
     "Your password has been changed. Sign in with your new password.",
   "Wachtwoord vergeten?": "Forgot your password?",
@@ -148,21 +149,21 @@ const EN: Record<string, string> = {
 
   // --- Login: vertrouwens-strip (marketing) ---
   "Waarom ZZP Platform": "Why ZZP Platform",
-  "Certificaten geverifieerd": "Credentials verified",
-  "VOG, diploma's en BIG-registratie worden handmatig gecontroleerd.":
-    "Police certificates, diplomas and professional registrations are checked manually.",
-  "Wet-DBA-proof": "Compliant with Dutch labour law",
-  "Bij elke opdracht een modelovereenkomst — geen schijnzelfstandigheid.":
-    "A model agreement with every assignment — no bogus self-employment.",
-  "Verklaarbare match": "Explainable matching",
-  "Je ziet bij elke opdracht waaróm die bij je past.":
-    "For every assignment you see exactly why it fits you.",
-  "Geverifieerd dossier is je startkapitaal": "A verified profile is your head start",
-  "Je hebt geen reviews nodig om te beginnen — een volledig dossier spreekt voor zich.":
-    "You don't need reviews to start — a complete profile speaks for itself.",
-  "Gatenvrije factuurnummering": "Gap-free invoice numbering",
-  "Facturen krijgen een eigen, doorlopende nummering per partij — jouw boekhouding sluit altijd aan.":
-    "Invoices get their own sequential numbering per party — your bookkeeping always reconciles.",
+  "Certificaten één keer uploaden, overal geldig": "Upload credentials once, valid everywhere",
+  "VOG, diploma's en BIG-registratie worden handmatig gecontroleerd — daarna staan ze klaar bij elke opdracht.":
+    "Police certificates, diplomas and professional registrations are checked manually — then ready for every assignment.",
+  "Modelovereenkomst bij elke opdracht": "A model agreement with every assignment",
+  "Standaard Wet-DBA-proof, zodat je geen gedoe hebt met schijnzelfstandigheid.":
+    "Compliant with Dutch labour law by default, so bogus self-employment is never a worry.",
+  "Je ziet waarom een opdracht bij je past": "You see why an assignment fits you",
+  "Bij elke opdracht laten we de reden van de match zien — geen giswerk.":
+    "For every assignment we show the reason for the match — no guesswork.",
+  "Een volledig dossier is je startpunt": "A complete profile is your starting point",
+  "Je hebt geen reviews nodig om te beginnen — een geverifieerd dossier spreekt voor zich.":
+    "You don't need reviews to start — a verified profile speaks for itself.",
+  "Facturen en urenstaten op één plek": "Invoices and timesheets in one place",
+  "Elke partij krijgt een eigen doorlopende factuurnummering, zodat je boekhouding altijd aansluit.":
+    "Each party gets its own sequential invoice numbering, so your bookkeeping always reconciles.",
   Diploma: "Diploma",
   Verzekering: "Insurance",
   "geverifieerde certificaten": "verified credentials",
