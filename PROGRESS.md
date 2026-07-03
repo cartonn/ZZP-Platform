@@ -3,6 +3,18 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 6 — GEEN GATEN GEVONDEN (2026-07-03)
+
+Kritische-gebruiker-sweep over 4 rollen op `5ee4d74` (verse build + seed + productie-server,
+Playwright/Chromium). **DOEL 1:** echte end-to-end mutatie server-side geverifieerd (FREELANCER
+reageert op `job-8` → `Application` `NEW` in DB + `/reacties`; reactie intrekken → `WITHDRAWN`,
+geauditeerd). ~40 schermen 200, nul 500's. **DOEL 1b:** `/acties` per rol kruis-gecheckt tegen
+`next-actions.ts` + echte DB-staat — alle acties correct, rol-geïsoleerd, niets tegenstrijdigs.
+**DOEL 2 (~60 adversariële probes):** privilege-escalatie → redirect; IDOR/cross-partij + cross-tenant
+→ soft-404 (geen leak); document-privacy → 403 voor niet-eigenaar; garbage-id's → 404/soft-404 (nul
+500's); XSS → niet ge-echood; malicieuze factuur-input → server-side geweigerd. Geen enkel gat.
+Alleen doc-update: `docs/PERSONA-SWEEP-BACKLOG.md` (run 6-entry).
+
 ## ZZP'er — "Mijn vakgebied"-quickfilter op /opdrachten (2026-07-03)
 
 Open UX-walkthrough-punt (2026-07-02, "kleinere punten"): de ZZP'er-opdrachtenlijst was niet op
