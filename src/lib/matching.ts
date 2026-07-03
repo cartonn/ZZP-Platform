@@ -139,6 +139,12 @@ export interface MatchInput {
     maxTravelMinutes?: number | null;
     /** Optioneel: echte routed reistijd, vooraf asynchroon berekend door de aanroeper. */
     routedTravelMinutesToJob?: number | null;
+    /**
+     * Optioneel: inhoudelijke gelijkenis (0..1) tussen opdracht- en profieltekst, vooraf berekend
+     * door de aanroeper (matching.ts blijft puur/I/O-vrij — geen tekstbron hier). Afwezig → semantic = 0
+     * en de bestaande score verandert niet. Straft nooit op ontbrekende tekst.
+     */
+    relatednessScore?: number;
     availability: Availability;
     availabilityWindows?: readonly {
       startDate: Date;
@@ -156,6 +162,9 @@ export interface MatchResult {
     rate: number;
     workMode: number;
     location: number;
+    /** Inhoudelijke aansluiting: 0..WEIGHTS.semantic. 0 als de aanroeper geen relatednessScore meegaf
+     *  (bestaand gedrag ongewijzigd). Opgenomen als expliciete positieve component in de som. */
+    semantic: number;
     /** Branche-correctie: 0 bij gelijke/onbekende branche, negatief bij een branche-mismatch.
      *  Als expliciete (negatieve) component opgenomen zodat de som van de breakdown exact de
      *  getoonde score blijft — de belofte "geen black box" ook mét de branche-factor. */
@@ -185,13 +194,21 @@ export function availabilityReason(status: Availability): MatchReason | null {
 }
 
 const WEIGHTS = {
-  requiredSkills: 35,
-  optionalSkills: 15,
+  requiredSkills: 32,
+  optionalSkills: 13,
   compliance: 25,
   rate: 15,
   workMode: 5,
   location: 5,
+  // Inhoudelijke aansluiting (semantische gelijkenis tussen opdracht- en profieltekst) als kleine,
+  // uitlegbare scorecomponent. Klein gehouden (≤ 5): grover dan de harde velden, dus het nuanceert de
+  // ranking en bepaalt hem niet. De 5 punten zijn afgehaald van de skill-gewichten (35→32, 15→13).
+  semantic: 5,
 };
+
+/** Inhoudelijke gelijkenis vanaf deze waarde tonen we als aparte positieve reason. Gelijk aan de
+ *  drempel in de aanbevelings-/suggestie-modules, zodat "sluit inhoudelijk aan" overal hetzelfde betekent. */
+export const SEMANTIC_HIGHLIGHT_THRESHOLD = 0.3;
 
 /**
  * Branche-factor (industry). Skills alleen zeggen niet genoeg: een frontend-developer met wat
@@ -225,6 +242,7 @@ export const MATCH_COMPONENT_MAX = {
   rate: WEIGHTS.rate,
   workMode: WEIGHTS.workMode,
   location: WEIGHTS.location,
+  semantic: WEIGHTS.semantic,
 } as const;
 
 /** Server-berekende matchscore (0-100) + onderverdeling + compliance-snapshot. */
@@ -262,9 +280,20 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     input.freelancer.routedTravelMinutesToJob,
   );
 
-  // Som van de vijf positieve componenten (elk op hele punten afgerond).
+  // Inhoudelijke aansluiting: kleine positieve bijdrage uit de vooraf berekende gelijkenis (0..1).
+  // Afwezig → 0, dus bestaande callers/scores blijven identiek. Nooit negatief: geen straf op
+  // ontbrekende tekst.
+  const relatednessScore = clamp(input.freelancer.relatednessScore ?? 0, 0, 1);
+  const semanticPoints = round(relatednessScore * WEIGHTS.semantic);
+
+  // Som van de positieve componenten (elk op hele punten afgerond).
   const rawScore = clamp(
-    round(skills) + round(compliancePoints) + round(rate) + round(workMode) + round(location),
+    round(skills) +
+      round(compliancePoints) +
+      round(rate) +
+      round(workMode) +
+      round(location) +
+      semanticPoints,
     0,
     100,
   );
@@ -287,6 +316,7 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     rate: round(rate),
     workMode: round(workMode),
     location: round(location),
+    semantic: semanticPoints,
     branche: brancheDelta,
   };
 
@@ -311,6 +341,12 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     positives.push({ kind: "positive", label: "Zelfde branche als jouw profiel" });
   } else if (branche === "mismatch") {
     gaps.push({ kind: "gap", label: "Andere branche dan jouw profiel" });
+  }
+
+  // Inhoudelijke aansluiting: positieve reason zodra de gelijkenis boven de drempel ligt. Ná
+  // skills/branche gepusht (kleiner gewicht) en alleen positief — ontbrekende tekst is nooit een minpunt.
+  if (relatednessScore >= SEMANTIC_HIGHLIGHT_THRESHOLD) {
+    positives.push({ kind: "positive", label: "Omschrijving sluit aan bij jouw profiel" });
   }
 
   // Compliance reasons
@@ -417,6 +453,8 @@ export interface FreelancerMatchSource {
   location: string | null;
   maxTravelMinutes?: number | null;
   routedTravelMinutesToJob?: number | null;
+  /** Optioneel: vooraf berekende inhoudelijke gelijkenis (0..1) tussen opdracht- en profieltekst. */
+  relatednessScore?: number;
   availability: string;
   availabilityWindows?: readonly { startDate: Date; endDate: Date; type: string }[];
   /** Branche(s) van het profiel. Optioneel: aanwezig levert de branche-factor, afwezig = neutraal. */
@@ -455,6 +493,7 @@ export function scoreJobForFreelancer(
         location: freelancer.location,
         maxTravelMinutes: freelancer.maxTravelMinutes ?? null,
         routedTravelMinutesToJob: freelancer.routedTravelMinutesToJob ?? null,
+        relatednessScore: freelancer.relatednessScore,
         availability: freelancer.availability as Availability,
         industryIds: freelancer.industries?.map((i) => i.industryId),
         availabilityWindows: freelancer.availabilityWindows?.map((w) => ({

@@ -33,6 +33,22 @@ export function MatchBreakdown({ breakdown }: { breakdown: MatchResult["breakdow
           </div>
         );
       })}
+      {breakdown.semantic > 0 && (
+        <div className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-3 text-sm">
+          <dt className="text-muted-foreground">Aansluiting</dt>
+          <div className="h-1.5 rounded-full bg-muted" aria-hidden>
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{
+                width: `${Math.round((breakdown.semantic / MATCH_COMPONENT_MAX.semantic) * 100)}%`,
+              }}
+            />
+          </div>
+          <dd className="text-xs tabular-nums text-muted-foreground">
+            {breakdown.semantic} / {MATCH_COMPONENT_MAX.semantic}
+          </dd>
+        </div>
+      )}
       {breakdown.branche < 0 && (
         <div className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-3 text-sm">
           <dt className="text-muted-foreground">Branche</dt>

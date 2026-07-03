@@ -106,9 +106,11 @@ export async function recommendedJobs(userId: string, limit = 4): Promise<JobMat
   const scored: JobMatch[] = jobs
     .filter((j) => !appliedJobIds.has(j.id))
     .map((j) => {
-      const match = scoreJobForFreelancer(j, profile);
       const jobText = joinText([j.title, j.description, ...j.skills.map((s) => s.skill?.name)]);
       const relatedness = safeRelatedness(matcher, jobText, profileText);
+      // Inhoudelijke aansluiting voedt nu de score als kleine, uitlegbare component (niet slechts een
+      // tiebreaker). De tiebreaker in topMatches blijft als secundaire sort bij exact gelijke score.
+      const match = scoreJobForFreelancer(j, { ...profile, relatednessScore: relatedness });
       return {
         jobId: j.id,
         title: j.title,

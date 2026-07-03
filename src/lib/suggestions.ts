@@ -120,7 +120,11 @@ export function scoreProfilesForJob(
   const scored: FreelancerSuggestion[] = profiles
     .filter((p) => !applied.has(p.id))
     .map((p) => {
-      const match = scoreJobForFreelancer(job, p);
+      const profileText = joinText([p.headline, p.bio, ...p.skills.map((s) => s.skill?.name)]);
+      const relatedness = safeRelatedness(matcher, jobText, profileText);
+      // Inhoudelijke aansluiting voedt nu de score als kleine, uitlegbare component (niet slechts een
+      // tiebreaker). De tiebreaker in topSuggestions/mergeClientSuggestions blijft als secundaire sort.
+      const match = scoreJobForFreelancer(job, { ...p, relatednessScore: relatedness });
       const verifiedCredentialCount = p.credentials.filter(
         (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > now),
       ).length;
@@ -135,8 +139,6 @@ export function scoreProfilesForJob(
           })),
         ).allSatisfied,
       });
-      const profileText = joinText([p.headline, p.bio, ...p.skills.map((s) => s.skill?.name)]);
-      const relatedness = safeRelatedness(matcher, jobText, profileText);
       return {
         freelancerId: p.id,
         name: p.user.name ?? "—",
