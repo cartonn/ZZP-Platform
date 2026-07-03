@@ -11,6 +11,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { MarketRateCard } from "@/components/profile/market-rate-card";
+import { SkillDemandCard } from "@/components/profile/skill-demand-card";
+import { computeSkillDemand } from "@/lib/skill-demand";
+import { getSkillDemandRequirements } from "@/lib/data/freelancer-skill-demand";
 import { ProfileForm } from "../profile-form";
 import { parseLanguages } from "@/lib/parse-languages";
 
@@ -87,6 +90,10 @@ export default async function ProfielPage() {
     industryCount: industryIds.length,
   });
 
+  // Gevraagde-vaardigheden-signaal: welke vereiste skills vragen de open opdrachten die deze ZZP'er
+  // ziet, terwijl ze nog niet in zijn profiel staan? Nudge om het skills-veld te vervolledigen.
+  const skillDemand = computeSkillDemand(await getSkillDemandRequirements(actor.id), skillIds);
+
   return (
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
@@ -124,6 +131,8 @@ export default async function ProfielPage() {
       </Card>
 
       <MarketRateCard insight={marketRate} />
+
+      <SkillDemandCard demand={skillDemand} />
 
       <ProfileForm
         initial={{
