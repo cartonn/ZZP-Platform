@@ -126,4 +126,26 @@ UI-taal = Nederlands.
   gouden-uur gradient-craft (Stripe/Vercel-niveau), isometrisch/axonometrisch 3D, dopamine/verzadigde
   duotone met reuze-typografie, biofiel/botanisch design en analytische beslismatrix-/scatter-
   positionering.
-- **Totaal nu op `/ontwerp`: 40 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40).
+- **41–50** — reeks 5, toegevoegd bovenop reeks 1–4 (run 3-7-2026): Beton (neo-brutalisme verfijnd:
+  dikke zwarte randen, harde offset-schaduw die verspringt bij hover, monospace labels, elektrisch
+  lime-accent) · Helvetia (Zwitserse typografie: streng basislijnraster, flush-left, reuze tabulaire
+  cijfers, zwart-wit + signaalrood) · Aqua (Frutiger Aero/Neo-Aero revival: glossy gel-oppervlak,
+  luchtige blauwgroen-verlopen, bubbelvormen, professioneel getemperd) · Grootboek (green-bar kasboek:
+  zebra-geruite regels, kolomlijnen, tabulaire debet/credit/saldo, perforatie-marge) · Duim
+  (mobiel-first duimzone-app in telefoonframe: bottom-tab, grote raakvlakken, veegbare kaarten,
+  onderaan verankerde acties) · Palet (command-first spotlight/donker: ⌘K-palette als primaire
+  navigatie, live resultatenlijst, toetshints, scherm verandert per commando) · Ruimte (spatial glas/
+  donker: gelaagde doorschijnende panelen op geordende z-diepte, backdrop-blur-lagen, vibrancy,
+  hover-lift) · Paspoort (identiteitsdocument: guilloché-lijnpatroon, MRZ-strip, stempelmotieven voor
+  verificatie, holografisch zegel) · Meter (instrumentencluster/donker: radiale SVG-meters met naald +
+  tick-boog, dial-multiples, digitale uitlezing, indicatielampen) · Handleiding (technische docs/licht:
+  twee-koloms TOC-zijbalk, op-deze-pagina-rail, monospace-annotaties, notice-boxen, ankerlinks). Alle
+  tien gebruiken bestaande lab-fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks (bron: SaaSUI/Tubik/Setproduct/WeAreTenet/Kittl/aigoodies e.a.):
+  neo-brutalisme & "intentional incompleteness" (ruwe, schematische, brutaal heldere layouts), Swiss/
+  internationale typografische stijl, Frutiger Aero/Neo-Aero revival (glossy blauwgroen als reactie op
+  minimalisme), green-bar ledger/tabulaire dichtheid, mobile-first thumb-zone-ergonomie, command-palette
+  als primaire navigatie (menu's schalen niet), spatial UI/visionOS-vibrancy met terughoudendheid,
+  security-engraving/guilloché & MRZ als vertrouwensmotief, skeuomorf instrument/gauge-cluster en
+  technical-mono docs-referentie-esthetiek.
+- **Totaal nu op `/ontwerp`: 50 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50).

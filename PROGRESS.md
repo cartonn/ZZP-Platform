@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab — reeks 5: +10 concepten (nrs 41–50), totaal nu 50 (2026-07-03e, main-basis `bd488f9`)
+
+Additieve uitbreiding van het publieke design-lab op `/ontwerp` (KERNREGEL: accumuleren, nooit vervangen).
+Tien nieuwe, onderling en t.o.v. de bestaande 40 duidelijk onderscheidende designrichtingen, gebouwd door
+4 parallelle builders op niet-overlappende bestanden; orchestrator wire de registry + route en draaide de poort.
+
+- [x] Nieuwe concept-componenten `src/components/ontwerp/concepts/concept-41..50-*.tsx` (elk `use client`,
+      leest `./mock`, dekt de zes kernschermen + berichten/documenten, alleen `--font-lab-*`-fonts, geen "AI"):
+      41 **Beton** (neo-brutalisme verfijnd) · 42 **Helvetia** (Zwitserse typografie) · 43 **Aqua** (Frutiger
+      Aero revival) · 44 **Grootboek** (green-bar kasboek) · 45 **Duim** (mobiel-first duimzone-app) · 46 **Palet**
+      (command-first ⌘K-spotlight) · 47 **Ruimte** (spatial glas, donker) · 48 **Paspoort** (ID-document/guilloché/
+      MRZ, verificatie als held) · 49 **Meter** (analoge SVG-instrumentcluster) · 50 **Handleiding** (docs-referentie).
+- [x] `registry.ts` — 10 `ConceptMeta`-entries toegevoegd (append, bestaande niet aangeraakt); `[id]/page.tsx`
+      — 10 imports + id→component-koppelingen toegevoegd. `docs/DESIGN-LAB.md` bijgewerkt (reeks 5 + trends, totaal 50).
+- [x] Poort lokaal groen: `typecheck` ✓, `lint` ✓ (0 warnings), `prettier --check .` ✓, `test` ✓ (2967),
+      `build` ✓ (exit 0). Onderzochte 2026-trends: neo-brutalisme/intentional-incompleteness, Swiss-typografie,
+      Frutiger-Aero/Neo-Aero, ledger-dichtheid, thumb-zone mobile-first, command-palette-navigatie, spatial/
+      visionOS-vibrancy, security-engraving (guilloché/MRZ), gauge-cluster-skeuomorfisme, technical-mono docs.
+
 ## UX — beschikbaarheid-op-startdatum-signaal voor de opdrachtgever (2026-07-03d, main-basis `fea6769`)
 
 De opdrachtgever zag op `/kandidaten` en `/kandidaten/vergelijk` alleen een generieke agenda-samenvatting

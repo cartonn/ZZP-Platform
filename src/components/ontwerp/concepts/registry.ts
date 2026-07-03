@@ -689,6 +689,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#101318",
     available: true,
   },
+  // ── Reeks 5 (run 3-7-2026) — nrs 41–50, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "41",
+    name: "Beton",
+    direction: "Neo-brutalisme, verfijnd — structuur als stijl",
+    rationale:
+      "Ruwe, eerlijke structuur maar premium uitgevoerd: dikke zwarte randen, harde offset-slagschaduwen die verspringen bij hover, monospace micro-labels en één elektrische accentkleur. Bold en zelfverzekerd, tóch messcherp leesbaar — brutalisme als raster, niet als chaos.",
+    trends: [
+      "Neo-brutalisme / intentional incompleteness (2026)",
+      "Harde offset-schaduw + dikke randen",
+      "Zichtbare rasterstructuur, status met label+icoon",
+    ],
+    fonts: "Space Grotesk + IBM Plex Mono",
+    accent: "#b8f000",
+    bg: "#f4f1e9",
+    fg: "#14110c",
+    available: true,
+  },
+  {
+    id: "42",
+    name: "Helvetia",
+    direction: "Zwitserse typografie — rasterstreng",
+    rationale:
+      "Internationale typografische stijl (Müller-Brockmann): strak basislijnraster, flush-left, wiskundige witruimte, hairline-regels en reuze tabulaire cijfers als held. Zwart-wit met één signaalrood — rigoureus, tijdloos en glashelder, zonder één decoratie te veel.",
+    trends: [
+      "Swiss / internationale typografische stijl",
+      "Rasterrigueur + hairline-systeem",
+      "Cijfer-als-held, minimale kleur",
+    ],
+    fonts: "Inter + IBM Plex Mono",
+    accent: "#e2231a",
+    bg: "#ffffff",
+    fg: "#111111",
+    available: true,
+  },
+  {
+    id: "43",
+    name: "Aqua",
+    direction: "Frutiger Aero revival — glanzend & fris",
+    rationale:
+      "De glossy 2000's-esthetiek keert in 2026 terug als 'Neo-Aero': lichtgevende gel-oppervlakken, luchtige blauwgroene verlopen en bubbelvormen, professioneel getemperd. Optimistisch en fris rond vertrouwen, met gloss als accent — nooit als ruis; data blijft leesbaar.",
+    trends: [
+      "Frutiger Aero / Neo-Aero revival (2026)",
+      "Glossy gel-oppervlak + blauwgroen verloop",
+      "Bubbelvormen, luchtige helderheid",
+    ],
+    fonts: "Sora + Inter",
+    accent: "#12b5c9",
+    bg: "#eef6fb",
+    fg: "#0b2a3a",
+    available: true,
+  },
+  {
+    id: "44",
+    name: "Grootboek",
+    direction: "Geruit kasboek — grootboek & saldo",
+    rationale:
+      "Het klassieke groen-gestreepte boekhoudpapier als rustige financiële werkplek: zebra-geruite regels, verticale kolomlijnen, tabulaire cijfers en meelopende saldi met perforatie-marge. De facturen- en omzetschermen schitteren — een kalm gedrukt grootboek, geen live terminal.",
+    trends: [
+      "Ledger / green-bar accounting revival",
+      "Zebra-geruite regels + kolomlijnen",
+      "Tabulaire debet/credit/saldo-dichtheid",
+    ],
+    fonts: "IBM Plex Mono + Newsreader",
+    accent: "#2f6b3f",
+    bg: "#f5f3e7",
+    fg: "#1c2417",
+    available: true,
+  },
+  {
+    id: "45",
+    name: "Duim",
+    direction: "Mobiel-first — duimzone-app",
+    rationale:
+      "Het hele platform als een top-mobiele app, getoond in een telefoonframe: bottom-tab-bar in de duimzone, grote raakvlakken, veegbare opdrachtkaarten en onderaan verankerde primaire acties. Eén-hand-ergonomie eerst — het voelt als een verzonden iOS/Android-app.",
+    trends: [
+      "Mobile-first / thumb-zone ergonomie",
+      "Bottom-tab + sheet-navigatie",
+      "Grote raakvlakken, veeggebaren",
+    ],
+    fonts: "Manrope + Inter",
+    accent: "#4f46e5",
+    bg: "#eceef2",
+    fg: "#12141a",
+    available: true,
+  },
+  {
+    id: "46",
+    name: "Palet",
+    direction: "Command-first — toetsenbord-spotlight",
+    rationale:
+      "Menu's schalen niet; een command-palette wel. Een centrale ⌘K-spotlight is de primaire navigatie, met live resultatenlijst, toetshints (↑↓ ⏎ esc) en secties (Navigatie/Acties/Opdrachten). Het scherm verandert terwijl je een commando 'uitvoert' — toetsenbord-first, Raycast/Superhuman-energie.",
+    trends: [
+      "Command palette als primaire navigatie (2026)",
+      "Toetsenbord-first / spotlight-flow",
+      "Kalme dark, live fuzzy-resultaten",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#7c5cff",
+    bg: "#0b0d12",
+    fg: "#e6e9f0",
+    available: true,
+  },
+  {
+    id: "47",
+    name: "Ruimte",
+    direction: "Ruimtelijke diepte — spatial glas (dark)",
+    rationale:
+      "De spatial-UI-trend met terughoudendheid: doorschijnende glaspanelen op geordende z-dieptes boven een dimensionele achtergrond, echte diepte via schaal/blur/schaduwlagen en vibrancy. Panelen liften naar de kijker bij hover — gloss verhult nooit de data. Donker, gelaagd, premium.",
+    trends: [
+      "Spatial UI / visionOS-vibrancy (2026)",
+      "Geordende z-diepte + backdrop-blur-lagen",
+      "Vibrancy met behoud van leesbaarheid",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#64d2ff",
+    bg: "#0e1220",
+    fg: "#eef1f8",
+    available: true,
+  },
+  {
+    id: "48",
+    name: "Paspoort",
+    direction: "Identiteitsdocument — beveiligingsgravure",
+    rationale:
+      "De verificatielaag als officieel ID-document: fijne guilloché-lijnpatronen, een MRZ-achtige machine-leesbare strip, stempelmotieven voor VERIFIED/EXPIRING en een holografisch zegel. Vertrouwen via de beeldtaal van paspoort en identiteitskaart — de verificatie is onmiskenbaar de held.",
+    trends: [
+      "Security-engraving / guilloché & MRZ",
+      "Stempel- & zegelmotief voor vertrouwen",
+      "ID-document-layout, officiële beeldtaal",
+    ],
+    fonts: "IBM Plex Mono + Libre Franklin",
+    accent: "#1e40af",
+    bg: "#ece7d9",
+    fg: "#16233f",
+    available: true,
+  },
+  {
+    id: "49",
+    name: "Meter",
+    direction: "Instrumentenpaneel — analoge meters",
+    rationale:
+      "Een cockpit-instrumentencluster: KPI's en match-scores als radiale meters met naalden en tick-bogen, kleine dial-multiples en digitale uitlezingen. Verificatiestatussen als indicatielampen. Precisie-engineering-gevoel — ronde analoge meters, geen dienstregeling.",
+    trends: [
+      "Skeuomorf instrument / gauge-cluster",
+      "SVG-meters met naald + tick-boog",
+      "Digitale uitlezing + indicatielampen",
+    ],
+    fonts: "Space Grotesk + Spline Sans Mono",
+    accent: "#34d399",
+    bg: "#0f1417",
+    fg: "#e8ece8",
+    available: true,
+  },
+  {
+    id: "50",
+    name: "Handleiding",
+    direction: "Technische documentatie — docs-referentie",
+    rationale:
+      "De docs-esthetiek (Stripe/dev-docs) toegepast op het product zelf: twee-koloms layout met TOC-zijbalk, 'op deze pagina'-rail, monospace-annotaties, notice-boxen en gedocumenteerde tabellen met ankerlinks. Kalm, precies en ultra-leesbaar — de anti-decoratieve, informatie-eerst richting.",
+    trends: [
+      "Technical mono / docs-referentie-UI",
+      "Twee-koloms TOC + op-deze-pagina-rail",
+      "Informatie-eerst, ankerlinks & notices",
+    ],
+    fonts: "Inter + Geist Mono",
+    accent: "#635bff",
+    bg: "#fbfbfd",
+    fg: "#1a1f2b",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);
