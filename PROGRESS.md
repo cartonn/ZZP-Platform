@@ -3,6 +3,17 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 7 — geen gaten (2026-07-03, main-basis `edcb354`)
+
+Kritische-gebruiker-sweep over 4 rollen (ZZP'er/opdrachtgever/franchiser/admin), verse prod-build +
+seed op ephemere `qa.db`, Playwright/Chromium. **DOEL 1:** ADMIN keurt een verificatie goed →
+server-side geverifieerd (`SUBMITTED` 6→5, `VERIFIED` 24→25, `verifiedAt` gezet, `CREDENTIAL_VERIFIED`-
+audit + "Certificaat goedgekeurd"-notificatie); 58 schermen HTTP 200, nul echte 500's. **DOEL 1b:**
+`/acties` per rol klopt tegen de DB (admin 6 review-taken = 6 SUBMITTED; client "3 nieuwe reacties" = 3
+NEW; franchiser terecht leeg). **DOEL 2 (~42 probes):** priv-esc → redirect, IDOR/cross-partij/cross-
+tenant → soft-404, document-privacy 200-eigenaar/403-vreemd, exports/dba-dossier 403, XSS 0-uitvoering,
+garbage 404. **Geen gaten.** Details: `docs/PERSONA-SWEEP-BACKLOG.md` (run 7). Geen codewijziging.
+
 ## Security/hardening — rate-limit op financiële/PDF-exports (2026-07-03)
 
 Dicht het geparkeerde SECURITY-PRIVACY-BACKLOG-item [MIDDEL · A04]: `exportRateLimiter` bestond,
