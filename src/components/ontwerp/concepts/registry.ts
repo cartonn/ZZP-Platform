@@ -347,6 +347,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#f4f4f5",
     available: true,
   },
+  // ── Reeks 3 (run 3-7-2026) — nrs 21–30, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "21",
+    name: "Atlas",
+    direction: "Cartografisch — kaart-first matching",
+    rationale:
+      "Matching wordt ruimtelijk: een gestileerd topografisch kaart-canvas met locatie-pins, reistijd-radiusringen en regio-filters maakt afstand en bereik letterlijk zichtbaar. Cartografische precisie boven abstracte lijsten — de kern-differentiatie van een bemiddelplatform.",
+    trends: [
+      "Spatial/kaart-first datavisualisatie",
+      "Cartografische hairline-contouren",
+      "Reistijd/geo als primaire matchfactor",
+    ],
+    fonts: "Inter + Spline Sans Mono",
+    accent: "#167a6b",
+    bg: "#f4f1ea",
+    fg: "#24312e",
+    available: true,
+  },
+  {
+    id: "22",
+    name: "Dossier",
+    direction: "Neo-skeuomorf archief — tastbare kluis",
+    rationale:
+      "De neo-skeuomorfisme-golf van 2026, precies toegepast: manila-maptabbladen, kraftpapier, een lakzegel voor geverifieerde certificaten en gestanste ringband geven affordance terug rond gevoelige documenten. Fysieke metaforen wekken vertrouwen waar flat design het verliest.",
+    trends: [
+      "Neo-skeuomorphism / tactiele revival",
+      "Fysieke document-metaforen (map, zegel)",
+      "Diepte + dubbele schaduw voor affordance",
+    ],
+    fonts: "Newsreader + JetBrains Mono",
+    accent: "#9a2b1e",
+    bg: "#ece4d3",
+    fg: "#33291c",
+    available: true,
+  },
+  {
+    id: "23",
+    name: "Blauwdruk",
+    direction: "Technische blauwdruk — drafting-precisie",
+    rationale:
+      "De blueprint-esthetiek van 2026: wireframe-logica als eindontwerp. Diep navy met millimeter-raster, cyaan lijnwerk, gedimensioneerde annotaties en constructielijnen. Systeemdenken wordt zichtbaar — technisch, exact en onderscheidend van neon-cyber.",
+    trends: [
+      "Blueprint/drafting-esthetiek",
+      "Zichtbaar raster + dimensie-annotaties",
+      "Monospace labels, function-forward",
+    ],
+    fonts: "Geist + IBM Plex Mono",
+    accent: "#4db8ff",
+    bg: "#0d2137",
+    fg: "#cfe3f2",
+    available: true,
+  },
+  {
+    id: "24",
+    name: "Console",
+    direction: "Terminal — monospace phosphor-TUI",
+    rationale:
+      "Een volwaardige tekst-terminal: alles monospace, een command-prompt met knipperende cursor, box-drawing-randen en toetsafkortingen. Phosphor-groen op bijna-zwart, messcherp leesbaar. Voor de power-user die snelheid boven chrome verkiest — de raw/terminal-trend van 2026.",
+    trends: [
+      "Terminal/raw aesthetic",
+      "Monospace-overal + toetsbediening",
+      "Box-drawing + phosphor-contrast",
+    ],
+    fonts: "IBM Plex Mono",
+    accent: "#5df08a",
+    bg: "#05080a",
+    fg: "#cfe8d4",
+    available: true,
+  },
+  {
+    id: "25",
+    name: "Reliëf",
+    direction: "Soft UI — neumorfisme 2.0",
+    rationale:
+      "New Neumorphism, verfijnd en toegankelijk: monochrome oppervlakken uit één materiaal geboetseerd met dubbele licht/donker-schaduw en inset-velden, mét een sterk indigo-accent zodat contrast op niveau blijft. Tactiel op high-refresh schermen, zonder de grijs-op-grijs-valkuil.",
+    trends: [
+      "Soft UI / neumorfisme-revival",
+      "Dubbele schaduw + inset-affordance",
+      "Toegankelijk accent tegen grijs-op-grijs",
+    ],
+    fonts: "Manrope + Plus Jakarta Sans",
+    accent: "#5b6cf0",
+    bg: "#e6e9ef",
+    fg: "#2b3242",
+    available: true,
+  },
+  {
+    id: "26",
+    name: "Perforatie",
+    direction: "Ticket & instapkaart — tastbaar-speels",
+    rationale:
+      "Elke opdracht, factuur en certificaat wordt een ticket: geperforeerde randen, een afscheurbare stub, streepjescode en statusstempels maken status fysiek voelbaar. Speels maar strak en premium — een tastbare metafoor die scanbaarheid en plezier combineert.",
+    trends: [
+      "Skeuomorfe ticket/stub-metafoor",
+      "Perforatie + tear-lines als structuur",
+      "Stempels als statustaal",
+    ],
+    fonts: "Space Grotesk + Spline Sans Mono",
+    accent: "#d1462f",
+    bg: "#eef0f3",
+    fg: "#1c2530",
+    available: true,
+  },
+  {
+    id: "27",
+    name: "Courant",
+    direction: "Broadsheet — redactionele krant",
+    rationale:
+      "Een kwaliteitskrant die software werd: masthead met datumlijn, meerkoloms opmaak, drop caps, hairline-kolomregels en één spot-rood. Hoge dichtheid en gezag via journalistieke typografie — tijdloos en onderscheidend van glossy mode-editorial.",
+    trends: [
+      "Broadsheet/editorial met masthead",
+      "Meerkoloms + drop caps + hairlines",
+      "Hoog-contrast serif, spaarzaam spot-rood",
+    ],
+    fonts: "Fraunces + Libre Franklin",
+    accent: "#a11d1d",
+    bg: "#f7f4ec",
+    fg: "#1a1a17",
+    available: true,
+  },
+  {
+    id: "28",
+    name: "Riso",
+    direction: "Risograph — duotone drukwerk",
+    rationale:
+      "Risograph-drukwerk als interface: twee-inkts duotone (kobalt + fluor-roze) op ongebleekt papier, halftoon-textuur, lichte misregister en korrel. Bold, grafisch en craft-vol — draait om druktechniek en overdruk, niet om vlakke kleurblokken.",
+    trends: [
+      "Risograph/duotone print-craft",
+      "Halftoon-textuur + misregister",
+      "Bold grafische koppen op papier",
+    ],
+    fonts: "Bricolage Grotesque + Space Grotesk",
+    accent: "#ff3d8b",
+    bg: "#f3efe3",
+    fg: "#16161d",
+    available: true,
+  },
+  {
+    id: "29",
+    name: "Signaal",
+    direction: "Hi-vis workwear — industrieel signaal",
+    rationale:
+      "Werkkleding-esthetiek voor veldwerkers: antraciet met veiligheids-oranje en hi-vis geel, spaarzame hazard-strepen, stencil-vette koppen en industriële labels. Stoer én premium, met functionele signaaltaal en hoge leesbaarheid — herkenbaar voor wie in het veld staat.",
+    trends: [
+      "Industrieel/workwear signaaldesign",
+      "Hazard-stripes als spaarzaam accent",
+      "Stencil-koppen + functionele labels",
+    ],
+    fonts: "Space Grotesk + Spline Sans Mono",
+    accent: "#ff6a00",
+    bg: "#17181a",
+    fg: "#f2f2ef",
+    available: true,
+  },
+  {
+    id: "30",
+    name: "Vitrine",
+    direction: "Museale curatie — galerie & wandlabel",
+    rationale:
+      "Een gecureerde, museale presentatie: royale passe-partout, elegante wandlabel-onderschriften, zachte spotlight en veel ademruimte. Elke opdracht en elk certificaat wordt als tentoongesteld object gepresenteerd — reverent en premium, met museale motieven boven kale witruimte.",
+    trends: [
+      "Museale curatie / wandlabel-typografie",
+      "Passe-partout + spotlight-belichting",
+      "Object-als-exponaat, ingetogen luxe",
+    ],
+    fonts: "Instrument Serif + Manrope",
+    accent: "#7c6a45",
+    bg: "#f6f4f0",
+    fg: "#1e1c19",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);

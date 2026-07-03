@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab — reeks 3: +10 concepten (21–30) op /ontwerp (2026-07-03)
+
+Accumulerende galerij: 10 nieuwe top-1% redesign-concepten toegevoegd bovenop de bestaande 20 —
+`/ontwerp` toont nu **30 richtingen** naast elkaar. Geen bestaand concept aangeraakt; puur additief.
+
+- [x] **10 nieuwe concept-componenten** `src/components/ontwerp/concepts/concept-21..30-*.tsx`
+      (client-only, elk de 6 kernschermen uit gedeelde `mock.ts`, werkende marktplaats-filter +
+      empty-state, statusbadges label+icoon, toegankelijk, responsive, geen "AI"-token):
+      21 Atlas (cartografisch/kaart-first) · 22 Dossier (neo-skeuomorf archief + lakzegel) ·
+      23 Blauwdruk (technische blueprint) · 24 Console (terminal/TUI phosphor) ·
+      25 Reliëf (Soft-UI/neumorfisme 2.0) · 26 Perforatie (ticket/instapkaart) ·
+      27 Courant (broadsheet-krant) · 28 Riso (risograph duotone) ·
+      29 Signaal (hi-vis workwear) · 30 Vitrine (museale curatie).
+- [x] **registry.ts** — 10 `ConceptMeta`-entries toegevoegd (append; bestaande 01–20 ongemoeid).
+- [x] **`app/ontwerp/[id]/page.tsx`** — imports + id→component-koppeling voor 21–30 toegevoegd
+      (append). Galerij-index groeit automatisch mee (mapt over `CONCEPTS`).
+- [x] **docs/DESIGN-LAB.md** bijgewerkt met reeks 3 + onderzochte 2026-trends (blueprint/drafting,
+      terminal/raw, neo-skeuomorphism & Soft-UI-revival, spatial/kaart-first, risograph/duotone,
+      broadsheet, ticket-skeuomorfie, workwear-signaal, museale curatie).
+- Gate groen: typecheck + lint + prettier (hele repo) + test (2927) + build (alle 30 `/ontwerp/<id>`
+  SSG-pagina's gegenereerd). Bouwwerk gedelegeerd aan 4 parallelle builder-subagents op niet-
+  overlappende bestanden; orchestrator koppelde registry + route en draaide de poort.
+
 ## ZZP'er — gevraagde-vaardigheden-signaal op /profiel/bewerken (2026-07-03)
 
 Spiegel van het certificaat-vraagsignaal (`credential-demand`), maar voor vaardigheden: over de open
