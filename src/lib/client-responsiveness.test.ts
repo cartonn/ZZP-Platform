@@ -154,7 +154,11 @@ describe("describeApplicantResponsiveness", () => {
     const rows = [row("VIEWED"), row("SHORTLIST"), row("ACCEPTED"), row("NEW", 20)];
     const responsiveness = computeClientResponsiveness(rows, NOW);
     expect(responsiveness.tone).toBe("warning");
-    expect(describeApplicantResponsiveness(responsiveness)?.tone).toBe("warning");
+    const note = describeApplicantResponsiveness(responsiveness);
+    expect(note?.tone).toBe("warning");
+    // Hoge oppak-graad (75%) → de tekst mag niet "vaak niet op" zeggen, maar de stale-oorzaak volgen.
+    expect(note?.label).toContain("lang liggen");
+    expect(note?.label).not.toContain("niet op");
   });
 
   it("geeft null bij een neutraal signaal (geen beslissingswaarde)", () => {

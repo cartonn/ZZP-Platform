@@ -14,9 +14,10 @@ signaal dat al op de opdracht-detail staat, maar gericht op de wacht-beslissing 
 - [x] `client-responsiveness.ts` — pure `describeApplicantResponsiveness(responsiveness)` →
       `{tone:"good"|"warning", label} | null`. Geruststelling bij tone `good`, gekwantificeerde waarschuwing
       (`N% opgepakt`) bij `warning`; `null` bij `neutral`/`unknown` (dan voegt een boodschap niets toe).
-- [x] `lib/data/client-responsiveness.ts` — gebatchte `getClientResponsivenessForCompanies(companyIds)` →
-      `Map<companyId, ClientResponsiveness>` (één query, geen N+1; per opdrachtgever in-geheugen op
-      `MAX_APPLICATIONS` begrensd, gelijk aan de single-variant). Alleen geaggregeerde tellingen — privacy by design.
+- [x] `lib/data/client-responsiveness.ts` — `getClientResponsivenessForCompanies(companyIds)` →
+      `Map<companyId, ClientResponsiveness>`, hergebruikt de single-variant per opdrachtgever (parallel);
+      die begrenst de fetch al op DB-niveau met `take: MAX_APPLICATIONS` (geen onbegrensde findMany). Set is
+      inherent klein. Alleen geaggregeerde tellingen — privacy by design.
 - [x] `components/applications/applicant-responsiveness-note.tsx` — presentationele één-regel-noot (muted bij
       good, warning-kleur bij warning); rendert niets zonder beslissingswaarde.
 - [x] `/reacties` — batcht de reactiebereidheid alleen voor nog-openstaande reacties (NEW/VIEWED/SHORTLIST,

@@ -107,12 +107,20 @@ export function describeApplicantResponsiveness(
   }
 
   if (tone === "warning") {
-    // Alleen kwantificeren als er een betekenisvol percentage is (bij tone warning met
-    // sampleSize ≥ MIN_SAMPLE_SIZE is er altijd één, maar we blijven defensief).
-    const quant = handledPct != null ? ` (${handledPct}% opgepakt)` : "";
+    // De waarschuwing kan twee oorzaken hebben (zie determineTone): een lage oppak-graad óf reacties
+    // die te lang blijven liggen. Laat de tekst de oorzaak volgen — "pakt reacties vaak niet op" bij
+    // een hoog percentage (stale-gedreven) leest tegenstrijdig.
+    const lowPickup = handledPct != null && handledPct < WARNING_MAX_HANDLED_PCT;
+    if (lowPickup) {
+      return {
+        tone: "warning",
+        label: `Deze opdrachtgever pakt reacties vaak niet op (${handledPct}% opgepakt) — overweeg ook andere opdrachten.`,
+      };
+    }
+    // Redelijke oppak-graad maar iets blijft lang liggen (stalePending > 0).
     return {
       tone: "warning",
-      label: `Deze opdrachtgever pakt reacties vaak niet op${quant} — overweeg ook andere opdrachten.`,
+      label: "Deze opdrachtgever laat reacties soms lang liggen — overweeg ook andere opdrachten.",
     };
   }
 

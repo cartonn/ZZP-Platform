@@ -35,44 +35,20 @@ export async function getClientResponsivenessForCompany(
 }
 
 /**
- * Gebatchte variant voor meerdere opdrachtgevers ineens (bv. de reactie-lijst van een ZZP'er, waar
- * elke kaart een andere opdrachtgever kan hebben). Eén query i.p.v. N — geen N+1. De set opdrachtgevers
- * is inherent klein (de opdrachtgevers waarmee de ZZP'er nog een openstaande reactie heeft) en per
- * opdrachtgever wegen we de nieuwste `MAX_APPLICATIONS` reacties mee (gelijk aan de single-variant, in
- * geheugen begrensd). Geeft alleen geaggregeerde tellingen terug — geen individuele reactie van een
- * andere ZZP'er is zichtbaar (privacy by design).
+ * Variant voor meerdere opdrachtgevers ineens (bv. de reactie-lijst van een ZZP'er, waar elke kaart
+ * een andere opdrachtgever kan hebben). De set opdrachtgevers is inherent klein (die waarmee de ZZP'er
+ * nog een openstaande reactie heeft), dus we hergebruiken de single-variant per opdrachtgever — die
+ * begrenst de fetch al met `take: MAX_APPLICATIONS` op DB-niveau (geen onbegrensde findMany die alle
+ * reacties van een druk bureau in geheugen trekt). De queries lopen parallel. Geeft alleen
+ * geaggregeerde tellingen terug — geen individuele reactie van een andere ZZP'er is zichtbaar.
  */
 export async function getClientResponsivenessForCompanies(
   companyIds: string[],
   now: Date = new Date(),
 ): Promise<Map<string, ClientResponsiveness>> {
   const unique = [...new Set(companyIds)];
-  const result = new Map<string, ClientResponsiveness>();
-  if (unique.length === 0) return result;
-
-  const applications = await prisma.application.findMany({
-    where: { job: { companyId: { in: unique } } },
-    select: { status: true, createdAt: true, job: { select: { companyId: true } } },
-    orderBy: { createdAt: "desc" },
-  });
-
-  // Groepeer per opdrachtgever en respecteer per opdrachtgever dezelfde cap als de single-variant.
-  // De query staat al op `createdAt desc`, dus de eerste MAX_APPLICATIONS per bucket zijn de nieuwste.
-  const buckets = new Map<string, ResponseRow[]>();
-  for (const a of applications) {
-    const companyId = a.job.companyId;
-    const bucket = buckets.get(companyId);
-    if (bucket) {
-      if (bucket.length < MAX_APPLICATIONS)
-        bucket.push({ status: a.status, createdAt: a.createdAt });
-    } else {
-      buckets.set(companyId, [{ status: a.status, createdAt: a.createdAt }]);
-    }
-  }
-
-  for (const companyId of unique) {
-    result.set(companyId, computeClientResponsiveness(buckets.get(companyId) ?? [], now));
-  }
-
-  return result;
+  const entries = await Promise.all(
+    unique.map(async (id) => [id, await getClientResponsivenessForCompany(id, now)] as const),
+  );
+  return new Map(entries);
 }
