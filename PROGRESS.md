@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/privacy-audit — AVG art. 17 erasure-gaten gedicht (2026-07-03)
+
+Audit-ronde (orchestrator Opus 4.8 + 3 parallelle security-subagents op niet-overlappende
+oppervlakken: recente server actions, alle API-routes/upload/SSRF/headers, AVG-erasure vs. schema).
+Server actions & API-routes: geen KRITIEK/HOOG IDOR, cross-tenant, SSRF of path-traversal. De
+nieuwe tweezijdige double-blind beoordelingen expliciet schoon (PENDING_REVEAL lekt nergens vóór
+onthulling). Drie art.-17-gaten (recht op verwijdering onvolledig) gefixt in `anonymizeUser`:
+
+- [x] **`Application.note`** (interne kandidaatnotitie van de CLIENT) → `updateMany({ note: null })`
+      gescopet op `job.company.userId`.
+- [x] **`ShiftHandoff.decisionNote`** (afwijsnotitie van de FRANCHISER/beslisser) → `null`, gescopet
+      op `decidedByUserId` (spiegel van de bestaande reason-redactie op de aanvragerskant).
+- [x] **`LeadContact.body`** (bel-/gespreksnotities van de FRANCHISER) → redactiestring (niet-null
+      veld), gescopet op `createdById`.
+- Bestanden: `src/app/(protected)/admin/gebruikers/actions.ts` + `anonymize-erasure.test.ts`
+  (12→15 tests, rood→groen). Rest geparkeerd in `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde
+  2026-07-03): NoShowReport/rejectionReason-erasure (DPO-afweging), export-uitbreiding,
+  FavoriteFreelancer.note, rate-limit op financiële/PDF-exports.
+
 ## Ontwerp-lab — reeks 3: +10 concepten (21–30) op /ontwerp (2026-07-03)
 
 Accumulerende galerij: 10 nieuwe top-1% redesign-concepten toegevoegd bovenop de bestaande 20 —

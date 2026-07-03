@@ -116,6 +116,13 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { freelancer: { userId } },
       data: { motivation: "[Verwijderd op verzoek van de gebruiker]" },
     }),
+    // Interne kandidaatnotitie die de betrokkene als CLIENT zelf schreef bij reacties op de eigen
+    // opdrachten (Application.note, vrije tekst met mogelijk persoonlijke opmerkingen). Gescopet op de
+    // eigen bedrijfsopdrachten (job.company.userId) — nooit de motivatie/notitie van een andere partij.
+    prisma.application.updateMany({
+      where: { job: { company: { userId } } },
+      data: { note: null },
+    }),
     prisma.supportMessage.updateMany({
       where: { authorId: userId },
       data: { body: "[Bericht verwijderd op verzoek van de gebruiker]" },
@@ -131,6 +138,13 @@ export async function anonymizeUser(userId: string): Promise<void> {
     prisma.shiftHandoff.updateMany({
       where: { requestedByUserId: userId },
       data: { reason: "[Verwijderd op verzoek van de gebruiker]" },
+    }),
+    // Beslisnotitie die de betrokkene als FRANCHISER/beslisser zelf schreef bij het afwijzen van een
+    // shift-overname (ShiftHandoff.decisionNote, vrije tekst die de aanvrager/kandidaat kan benoemen).
+    // Gescopet op decidedByUserId — het spiegelbeeld van de reason-redactie hierboven (aanvragerskant).
+    prisma.shiftHandoff.updateMany({
+      where: { decidedByUserId: userId },
+      data: { decisionNote: null },
     }),
     // Beschikbaarheidsnoten: vrije tekst die de ZZP'er zelf schreef en die een reden of (medische)
     // details kan bevatten ("ziek", agenda-info). FreelancerProfile wordt geüpdatet (niet verwijderd),
@@ -167,6 +181,15 @@ export async function anonymizeUser(userId: string): Promise<void> {
     prisma.collaboration.updateMany({
       where: { id: { in: ownDisputeCollabIds }, disputeReason: { not: null } },
       data: { disputeReason: null },
+    }),
+    // Contactnotities die de betrokkene als FRANCHISER zelf schreef bij leads (LeadContact.body,
+    // vrije tekst — bel-/gespreksnotities die de betrokkene identificeren). Gescopet op createdById.
+    // Het veld is niet-nullable, dus overschrijven met een neutrale redactiestring i.p.v. null.
+    // (De derde-partij-lead-PII zelf — contactName/email/phone/notes — valt onder de aparte
+    // verwerkingsregister-/bewaartermijn-backlogitem, niet onder de erasure van déze betrokkene.)
+    prisma.leadContact.updateMany({
+      where: { createdById: userId },
+      data: { body: "[Verwijderd op verzoek van de gebruiker]" },
     }),
     // Push-abonnementen: het endpoint is een persistente toestel-/browser-identifier (en userAgent
     // aanvullende PII). Een `user.update` triggert geen cascade-delete → expliciet verwijderen.
