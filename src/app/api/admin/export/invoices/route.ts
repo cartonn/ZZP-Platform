@@ -6,6 +6,8 @@ import { AuthorizationError, requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { platformInvoicesCsv } from "@/lib/administration/csv";
+import { exportRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,10 @@ export async function GET(): Promise<Response> {
     if (e instanceof AuthorizationError) return new Response(e.message, { status: e.status });
     throw e;
   }
+
+  // Deze export dumpt ÁLLE platformfacturen met tegenpartij-PII per call — grootste amplificatie.
+  const limited = await enforceRateLimit(exportRateLimiter, `admin-invoices:${actor.id}`);
+  if (limited) return limited;
 
   const invoices = await prisma.invoice.findMany({
     where: { lifecycleStatus: { not: null } },

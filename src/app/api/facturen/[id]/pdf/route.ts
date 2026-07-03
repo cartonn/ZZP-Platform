@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { documentPdfRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const runtime = "nodejs";
 
@@ -20,6 +22,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ error: e.message }, { status: e.status });
     throw e;
   }
+
+  // On-demand PDF-generatie is CPU-belastend; rem een scripted loop (authz blijft de bron van toegang).
+  const limited = await enforceRateLimit(documentPdfRateLimiter, actor.id);
+  if (limited) return limited;
 
   const { id } = await ctx.params;
   const inv = await prisma.invoice.findUnique({

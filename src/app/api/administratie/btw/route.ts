@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db";
 import { type LedgerParty } from "@/lib/administration/ledger";
 import { vatYear, type LedgerEntry } from "@/lib/administration/overview";
 import { vatReturnsCsv } from "@/lib/administration/csv";
+import { exportRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,9 @@ export async function GET(): Promise<Response> {
     if (e instanceof AuthorizationError) return new Response(e.message, { status: e.status });
     throw e;
   }
+
+  const limited = await enforceRateLimit(exportRateLimiter, `administratie-btw:${actor.id}`);
+  if (limited) return limited;
 
   const party: LedgerParty = actor.role === "CLIENT" ? "CLIENT" : "FREELANCER";
   const year = new Date().getFullYear();

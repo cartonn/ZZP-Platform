@@ -5,6 +5,8 @@ import { AuthorizationError, requireActor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { buildAgingReport, agingCsv, type OpenInvoice } from "@/lib/administration/aging";
+import { exportRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +63,9 @@ export async function GET(): Promise<Response> {
     if (e instanceof AuthorizationError) return new Response(e.message, { status: e.status });
     throw e;
   }
+
+  const limited = await enforceRateLimit(exportRateLimiter, `administratie-open:${actor.id}`);
+  if (limited) return limited;
 
   const isFreelancer = actor.role === "FREELANCER";
   const openInvoices =

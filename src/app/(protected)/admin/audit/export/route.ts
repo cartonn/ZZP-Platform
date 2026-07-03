@@ -8,6 +8,8 @@ import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { normalizeAuditFilters } from "@/lib/admin";
 import { auditExportCsv } from "@/lib/audit-export";
+import { exportRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,9 @@ export async function GET(request: Request): Promise<Response> {
     if (e instanceof AuthorizationError) return new Response(e.message, { status: e.status });
     throw e;
   }
+
+  const limited = await enforceRateLimit(exportRateLimiter, `admin-audit:${actor.id}`);
+  if (limited) return limited;
 
   const { searchParams } = new URL(request.url);
   const filters = normalizeAuditFilters(Object.fromEntries(searchParams.entries()));

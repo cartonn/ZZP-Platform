@@ -6,12 +6,17 @@ import {
   PROCESSING_REGISTER,
   RETENTION_SCHEDULE,
 } from "@/lib/compliance/processing-register";
+import { exportRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export async function GET() {
   const actor = await requireActor();
   if (actor.role !== "ADMIN") {
     return NextResponse.json({ error: "Niet toegestaan" }, { status: 403 });
   }
+
+  const limited = await enforceRateLimit(exportRateLimiter, `admin-avg:${actor.id}`);
+  if (limited) return limited;
 
   const registerHeader = [
     "Verwerking",

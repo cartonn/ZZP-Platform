@@ -74,13 +74,18 @@ where: { company: { userId } }, data: { note: null } })` + export-query.
 
 ### GEPARKEERD — security / hardening (ronde 2026-07-03)
 
-- **[MIDDEL · A04 — geen rate-limit op financiële/PDF-exports (uitbreiding)]** `exportRateLimiter`
-  bestaat (`rate-limit.ts`) maar is alléén op `/api/account/export` bedraad. De CSV-/PDF-routes doen
-  DB-joins + on-demand PDF-generatie zónder per-gebruiker-rem: `admin/export/invoices` (dumpt ÁLLE
-  platformfacturen met tegenpartij-PII per call — grootste amplificatie), `administratie/{btw,export,
-openstaand}`, en de PDF-routes `facturen/[id]/pdf`, `prestaties/[id]/pdf`, `admin/facturatie/[id]/
-pdf`, plus de dossier-routes. Ownership/authz is intact — dit is availability/defense-in-depth. Fix:
-  `exportRateLimiter.check(`export:${actor.id}`)` + 429, spiegel van `account/export`.
+- **[OPGELOST 2026-07-03 · MIDDEL · A04 — geen rate-limit op financiële/PDF-exports]** `exportRateLimiter`
+  was alléén op `/api/account/export` bedraad; de CSV-/PDF-/dossier-routes deden DB-joins + on-demand
+  generatie zónder per-gebruiker-rem (`admin/export/invoices` dumpt ÁLLE platformfacturen met
+  tegenpartij-PII per call — grootste amplificatie). Ownership/authz was intact — availability/
+  defense-in-depth. Gefixt via een gedeelde `enforceRateLimit`-guard (`lib/rate-limit-guard.ts`,
+  429 + `Retry-After`): de bulk CSV/JSON-exports (`admin/export/invoices`, `administratie/{export,btw,
+openstaand}`, `diensten|prestaties|prognose|verplichtingen/export`, `admin/{audit,avg}/export`) op
+  `exportRateLimiter` (5/uur, per-route-key tegen kruis-starvatie), en de per-document PDF/dossier-routes
+  (`facturen/[id]/pdf`, `prestaties/[id]/pdf`, `admin/facturatie/[id]/pdf`,
+  `samenwerkingen/[id]/{dossier,dba-dossier}`) op een nieuwe `documentPdfRateLimiter` (60/uur, env
+  `DOCUMENT_PDF_RATE_LIMIT`). Check zit ná auth, vóór DB/generatie; `account/export` hergebruikt nu
+  dezelfde helper. Tests: `rate-limit-guard.test.ts` + `admin/export/invoices/route.test.ts`. PR #586.
 - **[LAAG · CLAUDE.md regel 6 — Zod-grens]** `saveApplicationNote` (`kandidaten/actions.ts`) begrenst
   `note` met een handmatige `.slice(0, 2000)` i.p.v. een Zod-`trimmed(2000)` (conventie in de rest van
   de codebase). Niet exploiteerbaar; consistentie. (Terugkerend thema, zie eerdere rondes.)

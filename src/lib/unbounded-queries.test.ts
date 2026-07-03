@@ -449,7 +449,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // API-route voor openstaand; eigenaar-scoped aggregatie.
   {
     file: "api/administratie/openstaand/route.ts",
-    line: 16,
+    line: 18,
     reason: "API-route; eigenaar-scoped aggregatie",
   },
 
@@ -457,7 +457,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Export-route; verwerkt alle records van eigenaar (export vereist volledigheid).
   {
     file: "api/administratie/export/route.ts",
-    line: 20,
+    line: 25,
     reason: "export-route; volledigheid vereist",
   },
 
@@ -465,7 +465,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // BTW-berekening; alle regels nodig voor correcte aangifte.
   {
     file: "api/administratie/btw/route.ts",
-    line: 24,
+    line: 29,
     reason: "BTW-aggregatie; volledigheid vereist",
   },
 
@@ -473,7 +473,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Admin-export; volledigheid vereist voor boekhouding.
   {
     file: "api/admin/export/invoices/route.ts",
-    line: 21,
+    line: 27,
     reason: "admin-export; volledigheid vereist",
   },
 

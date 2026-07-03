@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/hardening — rate-limit op financiële/PDF-exports (2026-07-03)
+
+Dicht het geparkeerde SECURITY-PRIVACY-BACKLOG-item [MIDDEL · A04]: `exportRateLimiter` bestond,
+maar was alléén op `/api/account/export` bedraad. De overige CSV-/PDF-/dossier-routes doen zware
+DB-joins + on-demand generatie zonder per-gebruiker-rem (grootste amplificatie:
+`/api/admin/export/invoices` dumpt álle platformfacturen met tegenpartij-PII per call). Ownership/
+authz was intact — dit is availability/defense-in-depth.
+
+- [x] **`lib/rate-limit-guard.ts`** — gedeelde `enforceRateLimit(limiter, key, message?)`: één
+      rem-en-respons voor alle download-routes → 429 (met `Retry-After`-header in seconden) of `null`.
+- [x] **`lib/rate-limit.ts`** — nieuwe `documentPdfRateLimiter` (default 60/uur, env
+      `DOCUMENT_PDF_RATE_LIMIT`) voor per-document PDF/dossier-generatie (ruim boven normaal gebruik,
+      stopt een scripted loop).
+- [x] **Bulk CSV/JSON-exports → `exportRateLimiter` (5/uur), per-route-key** (geen kruis-starvatie
+      van legit multi-exports): `admin/export/invoices`, `administratie/{export,btw,openstaand}`,
+      `diensten/export`, `prestaties/export`, `prognose/export`, `verplichtingen/export`,
+      `admin/audit/export`, `admin/avg/export`.
+- [x] **Per-document PDF/dossier → `documentPdfRateLimiter` (60/uur, actor-key):**
+      `facturen/[id]/pdf`, `prestaties/[id]/pdf`, `admin/facturatie/[id]/pdf`,
+      `samenwerkingen/[id]/dossier`, `samenwerkingen/[id]/dba-dossier`. Check zit ná auth, vóór de
+      DB/generatie; de ownership-/denied-audit-keten blijft ongewijzigd.
+- [x] **`account/export`** hergebruikt nu dezelfde helper (consistentie + `Retry-After`).
+- Tests: `rate-limit-guard.test.ts` (5 cases: allowed→null, over-limiet→429 + `Retry-After`, per-key,
+  eigen bericht) + `admin/export/invoices/route.test.ts` (integratie: 2e call → 429, geen query/audit).
+  Geen schemawijziging. Gate groen: typecheck + lint + prettier + test (2937) + build. PR #586.
+
 ## Persona-sweep run 6 — GEEN GATEN GEVONDEN (2026-07-03)
 
 Kritische-gebruiker-sweep over 4 rollen op `5ee4d74` (verse build + seed + productie-server,
