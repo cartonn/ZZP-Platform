@@ -92,3 +92,19 @@ UI-taal = Nederlands.
   whitespace-maximalisme/calm-luxe & progressive disclosure, dark-mode-first (OLED), command-palette
   als standaardverwachting, mobiel-first/thumb-zone, aurora/mesh-gradient, Zwitsers/International-Style
   monochroom, warm-humanist natuurpalet en journey/timeline-wayfinding.
+- **21–30** — reeks 3, toegevoegd bovenop reeks 1+2 (run 3-7-2026): Atlas (cartografisch, kaart-first
+  matching met contouren/pins/reistijd-ringen) · Dossier (neo-skeuomorf archief: maptabbladen,
+  kraftpapier, lakzegel) · Blauwdruk (technische blueprint: mm-raster, cyaan lijnwerk, dimensie-
+  annotaties) · Console (terminal/TUI, phosphor-groen, command-prompt, box-drawing) · Reliëf (Soft-UI/
+  neumorfisme 2.0, dubbele schaduw + inset, indigo-accent voor contrast) · Perforatie (ticket/instap-
+  kaart: perforatie, afscheurstub, streepjescode, stempels) · Courant (broadsheet-krant: masthead,
+  meerkoloms, drop caps, spot-rood) · Riso (risograph duotone: kobalt+fluor-roze, halftoon, misregister) ·
+  Signaal (hi-vis workwear: antraciet + veiligheids-oranje, hazard-strepen, stencil-koppen) · Vitrine
+  (museale curatie: passe-partout, wandlabels, spotlight, cat.nr). Alle tien gebruiken bestaande lab-
+  fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks (bron: Tubik/SaaSUI/Setproduct/Userology e.a.): blueprint-/
+  drafting-esthetiek (wireframe-logica als eindontwerp), terminal/raw aesthetic, neo-skeuomorphism &
+  Soft-UI/neumorfisme-revival (affordance terug na de "usability ceiling" van flat design), spatial/
+  kaart-first datavisualisatie, risograph/duotone print-craft, broadsheet-editorial, ticket/stub-
+  skeuomorfie, industrieel-workwear signaaldesign en museale wandlabel-curatie.
+- **Totaal nu op `/ontwerp`: 30 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30).
