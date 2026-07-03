@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## UX — beschikbaarheid-op-startdatum-signaal voor de opdrachtgever (2026-07-03d, main-basis `fea6769`)
+
+De opdrachtgever zag op `/kandidaten` en `/kandidaten/vergelijk` alleen een generieke agenda-samenvatting
+("Agenda gedeeld" / "Beschikbaar t/m X") — niet of de kandidaat kán starten op de **startdatum van déze
+opdracht**. Pidz/Temper/Zorgwerk gaten hier hard op (beschikbaar-voor-de-shift-datum). Nu een concreet,
+verklaarbaar signaal, afgeleid uit de reeds opgehaalde beschikbaarheidsvensters (geen extra query, geen
+schemawijziging, server-side waarheid).
+
+- [x] `availability.ts` — pure `availabilityOnDate(windows, date)` → `AVAILABLE|LIMITED|UNAVAILABLE|NONE`
+      (één bron voor de inclusieve-einddatum-logica; UNAVAILABLE domineert een overlappend inzetbaar venster).
+- [x] `candidate-availability.ts` (nieuw) — `classifyStartFit(windows, jobStart)` → `available|limited|blocked|none|unknown`
+      (`unknown` bij geen startdatum óf geen gedeelde agenda) + label-/short-label-/variant-maps
+      (available=success, limited=warning, blocked=danger, none=muted). `CompareCandidate.startFit` toegevoegd (optioneel).
+- [x] `/kandidaten`: `startDate` in de job-select; per kandidaat een badge "Startdatum <datum>: Beschikbaar/
+      Niet beschikbaar/…" bij de agenda-regel (verbergt zich bij `unknown`).
+- [x] `/kandidaten/vergelijk`: `startDate` in de job-select; de "Beschikbaarheid"-rij toont nu de start-fit-badge
+      met de startdatum in de rij-hint (val terug op "Agenda gedeeld" als de opdracht geen startdatum heeft).
+- [x] Tests: `candidate-availability.test.ts` (12) + `availability.test.ts` (+7 `availabilityOnDate`); allowlist-regel
+      `unbounded-queries.test.ts` bijgewerkt (regelverschuiving door de extra select). Gate: typecheck + lint +
+      prettier + **test 2967** + build groen. PR #590.
+
 ## Prod — HTTP-API e-mailadapter (Resend) achter `EMAIL_DRIVER=resend` (2026-07-03c, main-basis `523a496`)
 
 Het e-mailkanaal was **SMTP-only**, maar Railway (de productie-host) blokkeert uitgaande SMTP-poorten

@@ -8,6 +8,11 @@ import { prisma } from "@/lib/db";
 import { computeCompliance } from "@/lib/matching";
 import { computeTrustLevel, TRUST_LEVEL_EXPLANATION } from "@/lib/trust";
 import { summarizeAvailability } from "@/lib/availability";
+import {
+  START_FIT_SHORT_LABEL,
+  START_FIT_VARIANT,
+  classifyStartFit,
+} from "@/lib/candidate-availability";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-quality";
 import { type CompareCandidate, buildCandidateComparison } from "@/lib/candidate-compare";
@@ -17,6 +22,8 @@ import {
   type CredentialType,
   type CredentialStatus,
 } from "@/lib/enums";
+import { formatDateShortNl } from "@/lib/format-date";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -47,6 +54,7 @@ export default async function VergelijkKandidatenPage({
     select: {
       id: true,
       title: true,
+      startDate: true,
       rateMin: true,
       rateMax: true,
       workMode: true,
@@ -100,6 +108,10 @@ export default async function VergelijkKandidatenPage({
       mandatoryDocsComplete: mandatoryDocuments(creds).allSatisfied,
     });
     const delivery = deliveryByProfile.get(app.freelancer.id);
+    const windows = app.freelancer.availabilityWindows.map((w) => ({
+      ...w,
+      type: w.type as AvailabilityWindowType,
+    }));
     return {
       id: app.id,
       name: app.freelancer.user.name ?? "—",
@@ -109,12 +121,8 @@ export default async function VergelijkKandidatenPage({
       complianceStatus: compliance,
       firstTimeRightRate:
         delivery && delivery.tone !== "INSUFFICIENT" ? delivery.firstTimeRightRate : null,
-      available: !!summarizeAvailability(
-        app.freelancer.availabilityWindows.map((w) => ({
-          ...w,
-          type: w.type as AvailabilityWindowType,
-        })),
-      ),
+      available: !!summarizeAvailability(windows),
+      startFit: job.startDate ? classifyStartFit(windows, job.startDate) : undefined,
     };
   });
 
@@ -212,9 +220,22 @@ export default async function VergelijkKandidatenPage({
                 />
                 <CompareRow
                   label={t("Beschikbaarheid")}
+                  hint={
+                    job.startDate ? `${t("op")} ${formatDateShortNl(job.startDate)}` : undefined
+                  }
                   candidates={candidates}
                   winnerId={null}
-                  render={(c) => (c.available ? t("Agenda gedeeld") : noData)}
+                  render={(c) =>
+                    c.startFit && c.startFit !== "unknown" ? (
+                      <Badge variant={START_FIT_VARIANT[c.startFit]}>
+                        {t(START_FIT_SHORT_LABEL[c.startFit])}
+                      </Badge>
+                    ) : c.available ? (
+                      t("Agenda gedeeld")
+                    ) : (
+                      noData
+                    )
+                  }
                 />
                 <tr>
                   <th scope="row" className="px-4 py-3 text-left align-top">

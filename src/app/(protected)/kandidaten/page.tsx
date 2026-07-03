@@ -20,6 +20,8 @@ import { RATE_FIT_LABEL, RATE_FIT_VARIANT, classifyProposedRateFit } from "@/lib
 import { VerificationMarks } from "@/components/credentials/verification-marks";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { summarizeAvailability } from "@/lib/availability";
+import { START_FIT_LABEL, START_FIT_VARIANT, classifyStartFit } from "@/lib/candidate-availability";
+import { formatDateShortNl } from "@/lib/format-date";
 import { computeTrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { TrustBadge } from "@/components/trust/trust-badge";
@@ -109,6 +111,7 @@ export default async function KandidatenPage({
         select: {
           id: true,
           title: true,
+          startDate: true,
           rateMin: true,
           rateMax: true,
           workMode: true,
@@ -525,17 +528,30 @@ export default async function KandidatenPage({
                         </span>
                       )}
                       {(() => {
-                        const s = summarizeAvailability(
-                          app.freelancer.availabilityWindows.map((w) => ({
-                            ...w,
-                            type: w.type as AvailabilityWindowType,
-                          })),
+                        const windows = app.freelancer.availabilityWindows.map((w) => ({
+                          ...w,
+                          type: w.type as AvailabilityWindowType,
+                        }));
+                        const s = summarizeAvailability(windows);
+                        const jobStart = app.job.startDate;
+                        const fit = jobStart ? classifyStartFit(windows, jobStart) : "unknown";
+                        return (
+                          <>
+                            {s && (
+                              <span>
+                                {t("Agenda")}: {s}
+                              </span>
+                            )}
+                            {jobStart && fit !== "unknown" && (
+                              <span className="inline-flex items-center gap-1.5">
+                                {t("Startdatum")} {formatDateShortNl(jobStart)}:
+                                <Badge variant={START_FIT_VARIANT[fit]}>
+                                  {t(START_FIT_LABEL[fit])}
+                                </Badge>
+                              </span>
+                            )}
+                          </>
                         );
-                        return s ? (
-                          <span>
-                            {t("Agenda")}: {s}
-                          </span>
-                        ) : null;
                       })()}
                     </div>
 
