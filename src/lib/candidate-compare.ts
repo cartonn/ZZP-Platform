@@ -5,6 +5,7 @@
 
 import { type ComplianceStatus } from "@/lib/matching";
 import { type TrustLevel } from "@/lib/trust";
+import { type StartFit } from "@/lib/candidate-availability";
 
 /** Eén kandidaat zoals de opdrachtgever die vergelijkt. Velden komen uit de bestaande motoren. */
 export interface CompareCandidate {
@@ -22,6 +23,8 @@ export interface CompareCandidate {
   firstTimeRightRate: number | null;
   /** Heeft de kandidaat een actueel beschikbaarheidsvenster aangegeven? */
   available: boolean;
+  /** Beschikbaarheid op de startdatum van déze opdracht; `undefined` als de opdracht geen start heeft. */
+  startFit?: StartFit;
 }
 
 export interface CandidateComparison {

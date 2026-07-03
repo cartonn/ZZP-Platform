@@ -52,6 +52,24 @@ export function currentOrNextAvailable<T extends WindowLike>(
   return covering ?? next ?? null;
 }
 
+/**
+ * Beschikbaarheid op één specifieke datum (bv. de startdatum van een opdracht). Een
+ * UNAVAILABLE-venster dat de datum dekt DOMINEERT (de ZZP'er heeft zich expliciet
+ * onbeschikbaar gemaakt), ook als er een ruimer inzetbaar venster overlapt. Anders wint
+ * AVAILABLE boven LIMITED. Dekt geen enkel venster de datum → "NONE".
+ */
+export function availabilityOnDate(
+  windows: readonly WindowLike[],
+  date: Date,
+): "AVAILABLE" | "LIMITED" | "UNAVAILABLE" | "NONE" {
+  const dateMs = date.getTime();
+  const covering = windows.filter((w) => covers(w, dateMs));
+  if (covering.some((w) => w.type === "UNAVAILABLE")) return "UNAVAILABLE";
+  if (covering.some((w) => w.type === "AVAILABLE")) return "AVAILABLE";
+  if (covering.some((w) => w.type === "LIMITED")) return "LIMITED";
+  return "NONE";
+}
+
 /** Korte NL-samenvatting van de beschikbaarheid, of `null` als er niets inzetbaars is. */
 export function summarizeAvailability(
   windows: readonly WindowLike[],

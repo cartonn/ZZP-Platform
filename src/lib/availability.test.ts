@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  availabilityOnDate,
   currentOrNextAvailable,
   summarizeAvailability,
   upcomingWindows,
@@ -56,6 +57,38 @@ describe("currentOrNextAvailable", () => {
     ];
     expect(currentOrNextAvailable(conflict, now)).toBeNull();
     expect(summarizeAvailability(conflict, now)).toBeNull();
+  });
+});
+
+describe("availabilityOnDate", () => {
+  const start = d("2026-06-15T00:00:00Z");
+  it("AVAILABLE als een inzetbaar venster de datum dekt", () => {
+    expect(availabilityOnDate(windows, start)).toBe("AVAILABLE");
+  });
+  it("NONE als geen enkel venster de datum dekt", () => {
+    expect(availabilityOnDate(windows, d("2026-07-15T00:00:00Z"))).toBe("NONE");
+  });
+  it("LIMITED als alleen een LIMITED-venster de datum dekt", () => {
+    expect(availabilityOnDate(windows, d("2026-08-15T00:00:00Z"))).toBe("LIMITED");
+  });
+  it("UNAVAILABLE als een onbeschikbaar venster de datum dekt", () => {
+    expect(availabilityOnDate(windows, d("2026-10-15T00:00:00Z"))).toBe("UNAVAILABLE");
+  });
+  it("UNAVAILABLE domineert een overlappend inzetbaar venster", () => {
+    const conflict: WindowLike[] = [
+      { startDate: d("2026-01-01"), endDate: d("2026-12-31"), type: "AVAILABLE" },
+      { startDate: d("2026-06-01"), endDate: d("2026-06-30"), type: "UNAVAILABLE" },
+    ];
+    expect(availabilityOnDate(conflict, start)).toBe("UNAVAILABLE");
+  });
+  it("behandelt de einddatum INCLUSIEF: een venster t/m de startdatum dekt die dag nog", () => {
+    const sameDay: WindowLike[] = [
+      { startDate: d("2026-06-10"), endDate: d("2026-06-15"), type: "AVAILABLE" },
+    ];
+    expect(availabilityOnDate(sameDay, start)).toBe("AVAILABLE");
+  });
+  it("NONE bij een lege agenda", () => {
+    expect(availabilityOnDate([], start)).toBe("NONE");
   });
 });
 

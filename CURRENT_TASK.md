@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Beschikbaarheid-op-startdatum-signaal voor de opdrachtgever** — pure
+> `availability.ts` `availabilityOnDate(windows,date)` (`AVAILABLE|LIMITED|UNAVAILABLE|NONE`, één bron voor de
+> inclusieve-einddatum-logica, UNAVAILABLE domineert een overlappend inzetbaar venster) + `candidate-availability.ts`
+> `classifyStartFit(windows,jobStart)` (`available|limited|blocked|none|unknown`; `unknown` bij geen startdatum óf geen
+> gedeelde agenda) + label/short-label/variant-maps. Op `/kandidaten` een badge "Startdatum <datum>: Beschikbaar/Niet
+> beschikbaar/…" bij de agenda-regel; op `/kandidaten/vergelijk` toont de "Beschikbaarheid"-rij de start-fit met de datum
+> in de rij-hint (val terug op "Agenda gedeeld" zonder startdatum). Antwoordt "kan deze kandidaat starten wanneer ik hem
+> nodig heb?" — vertaalt de beschikbaar-voor-de-shift-datum van Pidz/Temper/Zorgwerk naar onze gedeelde vensters.
+> Afgeleid uit de reeds opgehaalde `availabilityWindows` (geen extra query), read-only, geen schemawijziging; 19
+> unit-tests. PR #590.
+
 > Gedaan (niet opnieuw): **Productie-cron voor `/api/tasks/run-all`** (MENSENWERK §10, code-kant) —
 > `.github/workflows/run-all-tasks.yml` roept dagelijks (05:00 UTC) het beveiligde run-all-endpoint aan
 > met `Authorization: Bearer $CRON_SECRET`, zodat alle 16 taakrunners idempotent draaien i.p.v. alleen
