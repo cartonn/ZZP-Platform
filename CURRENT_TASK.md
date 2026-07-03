@@ -260,6 +260,13 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Productie-cron voor `/api/tasks/run-all`** (MENSENWERK §10, code-kant) —
+> `.github/workflows/run-all-tasks.yml` roept dagelijks (05:00 UTC) het beveiligde run-all-endpoint aan
+> met `Authorization: Bearer $CRON_SECRET`, zodat alle 16 taakrunners idempotent draaien i.p.v. alleen
+> handmatig (voorheen was enkel `expiry-check.yml` = één taak gewired). Inert zonder secrets (skip zonder
+> falen), `concurrency`-guard, faalt bij HTTP≠200 én bij `ok:false` in de body (jq). Resterend mensenwerk:
+> repo-secrets `RUN_ALL_TASK_URL` + `CRON_SECRET`. Geen code-/schemawijziging. PR #581.
+
 > Gedaan (niet opnieuw): **Opdracht dupliceren (opdrachtgever)** — pure `lib/job-duplicate.ts`
 > `buildJobDuplicateInitial`/`duplicateJobTitle` (bron→`JobFormInitial` zonder `id`, lege startDate,
 > "(kopie)"-titel met dubbel-suffix-guard + inkorten tot `JOB_TITLE_MAX=160`; 12 tests) + `/opdrachten/nieuw?from=<id>`

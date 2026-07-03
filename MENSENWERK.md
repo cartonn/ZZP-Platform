@@ -413,16 +413,26 @@ Het platform heeft een eindpunt `/api/tasks/run-all` dat alle geplande taakrunne
 aanroep uitvoert (expiry, betalingsherinneringen, DBA-monitor, concept-factuur-reminders,
 BTW-herinnering, job-alerts, PAST_DUE-ladder, ZZP-lidmaatschapsbijdrage, grace-venster).
 
-Op dit moment is **alleen** de dagelijkse expiry-check gewired via een GitHub Actions-workflow
-(`.github/workflows/expiry-check.yml`, elke dag om 06:00 UTC → `/api/tasks/expiry`).
-**`/api/tasks/run-all` heeft géén productie-cron.** Dat is bewust uitgesteld (mensenwerk):
+**Code-kant GEDAAN (3-7-2026):** `/api/tasks/run-all` heeft nu een geplande GitHub Actions-workflow
+(`.github/workflows/run-all-tasks.yml`, elke dag om 05:00 UTC) die het endpoint aanroept met de
+`Authorization: Bearer $CRON_SECRET`-header. Die run voert **alle 16 taakrunners** idempotent uit
+(verloopdetectie, betaalherinneringen, DBA-monitor, concept-factuur- en BTW-herinneringen, job-alerts,
+PAST_DUE-aanmaningsladder, ZZP-lidmaatschapsbijdrage, prestatie-grace/-goedkeuring-/-indien-reminders,
+dispuut-reminders, beoordelingen-onthulling, push-delivery, notificatie-digest, monitor). De workflow
+is **inert zonder secrets**: ontbreken `RUN_ALL_TASK_URL`/`CRON_SECRET`, dan slaat de job over zonder
+te falen. Dit dekt óók de expiry-check; `expiry-check.yml` blijft draaien maar is hiermee overbodig
+(dubbel draaien is dankzij idempotentie onschadelijk).
 
-**Wat je moet doen:**
+**Resterend mensenwerk (eenmalig, anders draait de cron niet):**
 
-1. Kies een host-cron (GitHub Actions-schema, Railway Cron Service, of een externe planner).
-2. Voeg een cron-job toe die dagelijks (of meerdere keren per dag, afhankelijk van de taak)
-   `POST /api/tasks/run-all` aanroept met de interne `TASK_SECRET`-header.
-3. Zet `TASK_SECRET` als secret (§7) — het eindpunt weigert aanroepen zonder dit geheim.
-4. Test éénmaal handmatig via `curl -X POST -H "x-task-secret: <geheim>" https://jouwdomein.nl/api/tasks/run-all`.
+1. Zet repo-secret **`RUN_ALL_TASK_URL`** = `https://<productie-host>/api/tasks/run-all`
+   (Settings → Secrets and variables → Actions).
+2. Zet repo-secret **`CRON_SECRET`** = dezelfde waarde als de `CRON_SECRET` van de server (§7).
+   _(Al gezet voor `expiry-check.yml`? Dan is dit klaar — dezelfde secret wordt hergebruikt.)_
+3. Test éénmaal handmatig via de Actions-tab ("Run workflow") of met
+   `curl -X POST -H "Authorization: Bearer <geheim>" https://jouwdomein.nl/api/tasks/run-all`.
 
-Zolang deze cron ontbreekt, draaien de overige taakrunners **alleen bij handmatige aanroep**.
+Wil je een andere cadans (bv. meerdere keren per dag)? Pas de `cron`-expressie in de workflow aan;
+de runners blijven idempotent. Alternatief blijft een Railway Cron Service of externe planner die
+hetzelfde endpoint aanroept. Zolang de twee secrets ontbreken, draaien de overige taakrunners
+**alleen bij handmatige aanroep**.
