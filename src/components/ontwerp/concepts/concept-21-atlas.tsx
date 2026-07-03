@@ -898,7 +898,7 @@ function Marktplaats({ onOpen, matches }: { onOpen: () => void; matches: number[
               </button>
             </Panel>
           ) : (
-            filtered.map((o, i) => (
+            filtered.map((o) => (
               <button
                 key={o.id}
                 onClick={onOpen}
@@ -917,8 +917,7 @@ function Marktplaats({ onOpen, matches }: { onOpen: () => void; matches: number[
                   <span
                     className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-[12px] text-[13px] font-semibold tabular-nums text-white"
                     style={{
-                      background:
-                        shownMatches[i] >= 90 ? C.teal : shownMatches[i] >= 85 ? C.water : C.amber,
+                      background: o.match >= 90 ? C.teal : o.match >= 85 ? C.water : C.amber,
                       ...mono,
                     }}
                   >
@@ -986,7 +985,7 @@ function OpdrachtDetail({ opdracht }: { opdracht: Opdracht }) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.1fr]">
         <Panel className="overflow-hidden p-3">
-          <TopoMap matches={[opdracht.match]} pins={[PINS[0]]} height={260} />
+          <TopoMap matches={[opdracht.match]} pins={PINS.slice(0, 1)} height={260} />
           <div
             className="mt-2.5 flex items-center gap-2 px-1 text-[11px]"
             style={{ ...mono, color: C.muted }}

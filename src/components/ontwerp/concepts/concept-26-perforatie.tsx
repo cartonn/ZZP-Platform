@@ -32,7 +32,6 @@ import {
   ACTIES,
   FACTUREN,
   PROFIEL,
-  NAV,
   BERICHTEN,
   DOCUMENTEN,
   type ScreenKey,
