@@ -366,7 +366,7 @@ function Dashboard({ onOpen }: { onOpen: () => void }) {
           <span style={{ color: C.phosphor }}>$</span> whoami --greet
         </p>
         <h1 className="mt-1.5 text-[26px] font-semibold leading-tight" style={{ color: C.ink }}>
-          goedemorgen, {PROFIEL.naam.split(" ")[0].toLowerCase()}
+          goedemorgen, {PROFIEL.naam.split(" ")[0]?.toLowerCase()}
         </h1>
         <p className="mt-1.5 max-w-xl text-[12.5px] leading-relaxed" style={{ color: C.inkSoft }}>
           {"// 3 matches boven 85%, 1 certificaat vraagt aandacht, 2 facturen open."}

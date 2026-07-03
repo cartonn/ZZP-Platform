@@ -234,38 +234,40 @@ function TopoMap({
       </svg>
 
       {/* pins met poot + schaduw + match% */}
-      {pins.map((p, i) => (
-        <div
-          key={i}
-          className="absolute -translate-x-1/2 -translate-y-full"
-          style={{ left: `${p.x}%`, top: `${p.y}%` }}
-        >
-          <div className="relative flex flex-col items-center">
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums text-white"
-              style={{
-                background: matches[i] >= 90 ? C.teal : matches[i] >= 85 ? C.water : C.amber,
-                boxShadow: "0 6px 12px -4px rgba(36,49,46,0.5)",
-                ...mono,
-              }}
-            >
-              {matches[i]}
+      {pins.map((p, i) => {
+        const m = matches[i] ?? 0;
+        const pinColor = m >= 90 ? C.teal : m >= 85 ? C.water : C.amber;
+        return (
+          <div
+            key={i}
+            className="absolute -translate-x-1/2 -translate-y-full"
+            style={{ left: `${p.x}%`, top: `${p.y}%` }}
+          >
+            <div className="relative flex flex-col items-center">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums text-white"
+                style={{
+                  background: pinColor,
+                  boxShadow: "0 6px 12px -4px rgba(36,49,46,0.5)",
+                  ...mono,
+                }}
+              >
+                {m}
+              </div>
+              <div
+                className="h-2 w-2 -translate-y-1 rotate-45"
+                style={{ background: pinColor }}
+                aria-hidden="true"
+              />
+              <div
+                className="h-1 w-3 rounded-full opacity-30"
+                style={{ background: C.ink, filter: "blur(1px)" }}
+                aria-hidden="true"
+              />
             </div>
-            <div
-              className="h-2 w-2 -translate-y-1 rotate-45"
-              style={{
-                background: matches[i] >= 90 ? C.teal : matches[i] >= 85 ? C.water : C.amber,
-              }}
-              aria-hidden="true"
-            />
-            <div
-              className="h-1 w-3 rounded-full opacity-30"
-              style={{ background: C.ink, filter: "blur(1px)" }}
-              aria-hidden="true"
-            />
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* coördinaat-label */}
       <div
@@ -631,7 +633,7 @@ function Dashboard({ onOpen, matches }: { onOpen: () => void; matches: number[] 
               <TopoMap matches={matches} height={220} />
             </div>
             <div className="flex flex-col gap-1 px-2.5 pb-2.5">
-              {OPDRACHTEN.map((o, i) => (
+              {OPDRACHTEN.map((o) => (
                 <button
                   key={o.id}
                   onClick={onOpen}
@@ -640,7 +642,7 @@ function Dashboard({ onOpen, matches }: { onOpen: () => void; matches: number[] 
                   <span
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums text-white"
                     style={{
-                      background: matches[i] >= 90 ? C.teal : matches[i] >= 85 ? C.water : C.amber,
+                      background: o.match >= 90 ? C.teal : o.match >= 85 ? C.water : C.amber,
                       ...mono,
                     }}
                   >
@@ -788,8 +790,8 @@ function Marktplaats({ onOpen, matches }: { onOpen: () => void; matches: number[
     const inRegio = !regio || o.plaats === regio;
     return inQ && inRegio;
   });
-  const shownMatches = filtered.map((o) => matches[OPDRACHTEN.indexOf(o)]);
-  const shownPins = filtered.map((_, i) => PINS[i] ?? PINS[0]);
+  const shownMatches = filtered.map((o) => o.match);
+  const shownPins = filtered.map((_, i) => PINS[i] ?? { x: 50, y: 50 });
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
