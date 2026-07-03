@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { computeClientResponsiveness, type ResponseRow } from "@/lib/client-responsiveness";
+import {
+  computeClientResponsiveness,
+  describeApplicantResponsiveness,
+  type ResponseRow,
+} from "@/lib/client-responsiveness";
 
 const NOW = new Date("2026-06-17T12:00:00Z");
 
@@ -119,5 +123,55 @@ describe("computeClientResponsiveness — WITHDRAWN", () => {
     expect(result.sampleSize).toBe(3);
     expect(result.handled).toBe(0);
     expect(result.handledPct).toBe(0);
+  });
+});
+
+describe("describeApplicantResponsiveness", () => {
+  it("geeft een geruststellende noot bij tone 'good'", () => {
+    // 4 opgepakt, 0 open → 100% opgepakt, niets stale → good.
+    const rows = [row("VIEWED"), row("SHORTLIST"), row("ACCEPTED"), row("REJECTED")];
+    const responsiveness = computeClientResponsiveness(rows, NOW);
+    expect(responsiveness.tone).toBe("good");
+    const note = describeApplicantResponsiveness(responsiveness);
+    expect(note).not.toBeNull();
+    expect(note?.tone).toBe("good");
+    expect(note?.label).toContain("doorgaans");
+  });
+
+  it("waarschuwt met percentage bij tone 'warning' (weinig opgepakt)", () => {
+    // 3 open, 1 opgepakt → 25% opgepakt → warning.
+    const rows = [row("NEW"), row("NEW"), row("NEW"), row("VIEWED")];
+    const responsiveness = computeClientResponsiveness(rows, NOW);
+    expect(responsiveness.tone).toBe("warning");
+    const note = describeApplicantResponsiveness(responsiveness);
+    expect(note?.tone).toBe("warning");
+    expect(note?.label).toContain("25% opgepakt");
+    expect(note?.label).toContain("andere opdrachten");
+  });
+
+  it("waarschuwt ook bij een reactie die te lang blijft liggen (stale)", () => {
+    // Hoog oppak-percentage maar één reactie > 14 dagen op NEW → warning.
+    const rows = [row("VIEWED"), row("SHORTLIST"), row("ACCEPTED"), row("NEW", 20)];
+    const responsiveness = computeClientResponsiveness(rows, NOW);
+    expect(responsiveness.tone).toBe("warning");
+    const note = describeApplicantResponsiveness(responsiveness);
+    expect(note?.tone).toBe("warning");
+    // Hoge oppak-graad (75%) → de tekst mag niet "vaak niet op" zeggen, maar de stale-oorzaak volgen.
+    expect(note?.label).toContain("lang liggen");
+    expect(note?.label).not.toContain("niet op");
+  });
+
+  it("geeft null bij een neutraal signaal (geen beslissingswaarde)", () => {
+    // 2 opgepakt, 2 open → 50% opgepakt, niets stale → neutral.
+    const rows = [row("VIEWED"), row("SHORTLIST"), row("NEW"), row("NEW")];
+    const responsiveness = computeClientResponsiveness(rows, NOW);
+    expect(responsiveness.tone).toBe("neutral");
+    expect(describeApplicantResponsiveness(responsiveness)).toBeNull();
+  });
+
+  it("geeft null bij te weinig historie (unknown)", () => {
+    const responsiveness = computeClientResponsiveness([row("VIEWED"), row("NEW")], NOW);
+    expect(responsiveness.tone).toBe("unknown");
+    expect(describeApplicantResponsiveness(responsiveness)).toBeNull();
   });
 });

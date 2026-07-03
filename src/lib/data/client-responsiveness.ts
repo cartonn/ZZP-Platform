@@ -33,3 +33,22 @@ export async function getClientResponsivenessForCompany(
 
   return computeClientResponsiveness(rows, now);
 }
+
+/**
+ * Variant voor meerdere opdrachtgevers ineens (bv. de reactie-lijst van een ZZP'er, waar elke kaart
+ * een andere opdrachtgever kan hebben). De set opdrachtgevers is inherent klein (die waarmee de ZZP'er
+ * nog een openstaande reactie heeft), dus we hergebruiken de single-variant per opdrachtgever — die
+ * begrenst de fetch al met `take: MAX_APPLICATIONS` op DB-niveau (geen onbegrensde findMany die alle
+ * reacties van een druk bureau in geheugen trekt). De queries lopen parallel. Geeft alleen
+ * geaggregeerde tellingen terug — geen individuele reactie van een andere ZZP'er is zichtbaar.
+ */
+export async function getClientResponsivenessForCompanies(
+  companyIds: string[],
+  now: Date = new Date(),
+): Promise<Map<string, ClientResponsiveness>> {
+  const unique = [...new Set(companyIds)];
+  const entries = await Promise.all(
+    unique.map(async (id) => [id, await getClientResponsivenessForCompany(id, now)] as const),
+  );
+  return new Map(entries);
+}

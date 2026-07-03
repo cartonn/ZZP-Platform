@@ -12,6 +12,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { OutcomesSummary } from "@/components/applications/outcomes-summary";
 import { WaitSignal } from "@/components/applications/wait-signal";
+import { ApplicantResponsivenessNote } from "@/components/applications/applicant-responsiveness-note";
+import { getClientResponsivenessForCompanies } from "@/lib/data/client-responsiveness";
 import {
   countApplicationsAwaitingAttention,
   summarizeApplicationWait,
@@ -114,7 +116,7 @@ export default async function ReactiesPage({
             select: {
               id: true,
               title: true,
-              company: { select: { name: true } },
+              company: { select: { id: true, name: true } },
               credentialRequirements: { select: { credentialType: true, required: true } },
             },
           },
@@ -144,6 +146,16 @@ export default async function ReactiesPage({
       hasCollaboration: app.collaboration != null,
     })),
   );
+
+  // Reactiebereidheid van de opdrachtgever, alleen voor nog-openstaande reacties (die waarbij
+  // afwachten nog aan de orde is). Eén gebatchte query over de betrokken opdrachtgevers (geen N+1);
+  // de set is inherent klein. Geeft de ZZP'er context om door te wachten of verder te kijken.
+  const pendingCompanyIds = typed
+    .filter(
+      (app) => app.collaboration == null && ["NEW", "VIEWED", "SHORTLIST"].includes(app.status),
+    )
+    .map((app) => app.job.company.id);
+  const responsivenessByCompany = await getClientResponsivenessForCompanies(pendingCompanyIds);
 
   return (
     <div className="space-y-6">
@@ -219,6 +231,11 @@ export default async function ReactiesPage({
                   createdAt: app.createdAt,
                   hasCollaboration: app.collaboration != null,
                 });
+                // Alleen bij een nog-openstaande reactie (wait != null) is de reactiebereidheid van
+                // de opdrachtgever relevant voor de wacht-beslissing.
+                const responsiveness = wait
+                  ? responsivenessByCompany.get(app.job.company.id)
+                  : undefined;
                 return (
                   <div key={app.id} className="rounded-lg border border-border bg-card p-4">
                     <Link
@@ -278,6 +295,9 @@ export default async function ReactiesPage({
                       <p className="mt-2 text-xs text-muted-foreground">{t(hint)}</p>
                     </Link>
                     {wait && <WaitSignal wait={wait} t={t} />}
+                    {responsiveness && (
+                      <ApplicantResponsivenessNote responsiveness={responsiveness} />
+                    )}
                     {canWithdraw && (
                       <div className="mt-3 flex justify-end border-t border-border pt-3">
                         <ConfirmButton

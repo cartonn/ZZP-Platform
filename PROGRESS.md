@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## UX — reactiebereidheid-context per openstaande reactie (ZZP'er) (2026-07-03f, main-basis `5710cc7`)
+
+Op `/reacties` zag de ZZP'er bij een nog-onbesliste reactie wel de eigen wachttijd (#545), maar niet of
+_deze opdrachtgever_ reacties überhaupt oppakt of laat liggen. Concurrenten geven kandidaten die geruststelling/
+sturing (Malt/Temper/Deel); wij maken het verklaarbaar en eerlijk. Toegevoegd: een subtiel signaal per
+openstaande reactie dat de opdrachtgever-brede reactiebereidheid duidt — hergebruikt hetzelfde geaggregeerde
+signaal dat al op de opdracht-detail staat, maar gericht op de wacht-beslissing (doorwachten of verder kijken).
+
+- [x] `client-responsiveness.ts` — pure `describeApplicantResponsiveness(responsiveness)` →
+      `{tone:"good"|"warning", label} | null`. Geruststelling bij tone `good`, gekwantificeerde waarschuwing
+      (`N% opgepakt`) bij `warning`; `null` bij `neutral`/`unknown` (dan voegt een boodschap niets toe).
+- [x] `lib/data/client-responsiveness.ts` — `getClientResponsivenessForCompanies(companyIds)` →
+      `Map<companyId, ClientResponsiveness>`, hergebruikt de single-variant per opdrachtgever (parallel);
+      die begrenst de fetch al op DB-niveau met `take: MAX_APPLICATIONS` (geen onbegrensde findMany). Set is
+      inherent klein. Alleen geaggregeerde tellingen — privacy by design.
+- [x] `components/applications/applicant-responsiveness-note.tsx` — presentationele één-regel-noot (muted bij
+      good, warning-kleur bij warning); rendert niets zonder beslissingswaarde.
+- [x] `/reacties` — batcht de reactiebereidheid alleen voor nog-openstaande reacties (NEW/VIEWED/SHORTLIST,
+      geen samenwerking) en toont de noot onder het bestaande wachttijd-signaal. `company.id` toegevoegd aan de
+      select; allowlist-regel `unbounded-queries.test.ts` bijgewerkt (regelverschuiving door de imports).
+- [x] Tests: `client-responsiveness.test.ts` (+5: good/warning-met-%/stale-warning/neutral-null/unknown-null;
+      totaal 17). Gate: typecheck + lint + prettier (hele repo) + **test 2972** + build groen. PR #592.
+
 ## Ontwerp-lab — reeks 5: +10 concepten (nrs 41–50), totaal nu 50 (2026-07-03e, main-basis `bd488f9`)
 
 Additieve uitbreiding van het publieke design-lab op `/ontwerp` (KERNREGEL: accumuleren, nooit vervangen).
