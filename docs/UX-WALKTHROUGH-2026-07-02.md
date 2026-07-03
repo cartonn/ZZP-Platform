@@ -102,7 +102,9 @@ doet (draad 3).
 ## Kleinere punten (per rol)
 
 - **ZZP**: login-pagina legt boven de vouw niet uit wat het platform is; bel-teller "7" vs
-  1 open actie; opdrachtenlijst en filterchips niet op profielbranche gefilterd.
+  1 open actie; ~~opdrachtenlijst en filterchips niet op profielbranche gefilterd~~ (✅ PR #582:
+  "Mijn vakgebied"-quickfilter op `/opdrachten` beperkt de lijst met één klik tot de eigen
+  profielbranches).
 - **Opdrachtgever**: kandidatenpagina = eindeloze scroll met alles uitgeklapt incl.
   geaccepteerden (→ compacte rijen, geaccepteerden naar Samenwerkingen); "Vervullingsgraad 22%"
   zonder context/tooltip; vergelijkingstabel toont "Deels"/"—" zonder uitleg.

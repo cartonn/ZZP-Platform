@@ -209,7 +209,6 @@ async function BrowseJobs({
   // AND-clausule zodat de tekstzoek-OR hieronder de zichtbaarheids-OR niet overschrijft.
   const where: Prisma.JobWhereInput = { status: "PUBLISHED", AND: and };
   if (f.q) where.OR = [{ title: { contains: f.q } }, { description: { contains: f.q } }];
-  if (f.industryId) where.industryId = f.industryId;
   if (f.location) where.location = { contains: f.location };
   if (f.workMode) where.workMode = f.workMode;
   if (f.skillIds.length) where.skills = { some: { skillId: { in: f.skillIds } } };
@@ -240,6 +239,16 @@ async function BrowseJobs({
           },
         })
       : null;
+
+  // Branchefilter: een expliciet gekozen branche (`industryId`) is het meest specifiek en wint. Anders,
+  // wanneer de ZZP'er de "Mijn vakgebied"-quickfilter aanzet, beperk tot de eigen profielbranches. Zo
+  // ziet een zorg-ZZP'er in één klik geen IT-opdrachten meer. Zonder profielbranches doet `mine` niets.
+  const myIndustryIds = profile ? profile.industries.map((i) => i.industryId) : [];
+  if (f.industryId) {
+    where.industryId = f.industryId;
+  } else if (f.mine && myIndustryIds.length > 0) {
+    where.industryId = { in: myIndustryIds };
+  }
 
   const [total, jobs, industries, skills, savedRows] = await Promise.all([
     prisma.job.count({ where }),
@@ -310,7 +319,7 @@ async function BrowseJobs({
         <p className="text-sm text-muted-foreground">{t("Vind opdrachten die bij je passen.")}</p>
       </header>
 
-      <JobFilters industries={industries} skills={skills} />
+      <JobFilters industries={industries} skills={skills} myIndustryCount={myIndustryIds.length} />
 
       {jobs.length === 0 ? (
         <Card>

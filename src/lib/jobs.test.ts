@@ -83,4 +83,13 @@ describe("normalizeJobFilters", () => {
     expect(normalizeJobFilters({}).location).toBeUndefined();
     expect(normalizeJobFilters({ location: "x".repeat(200) }).location).toHaveLength(80);
   });
+
+  it("parseert de 'Mijn vakgebied'-quickfilter alleen bij exact '1'", () => {
+    expect(normalizeJobFilters({}).mine).toBe(false);
+    expect(normalizeJobFilters({ mine: "1" }).mine).toBe(true);
+    expect(normalizeJobFilters({ mine: "0" }).mine).toBe(false);
+    expect(normalizeJobFilters({ mine: "true" }).mine).toBe(false);
+    // Bij een herhaalde param telt de eerste waarde.
+    expect(normalizeJobFilters({ mine: ["1", "0"] }).mine).toBe(true);
+  });
 });

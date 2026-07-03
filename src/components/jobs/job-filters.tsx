@@ -19,9 +19,12 @@ const CREDENTIALS = [
 export function JobFilters({
   industries,
   skills,
+  myIndustryCount = 0,
 }: {
   industries: { id: string; name: string }[];
   skills: { id: string; name: string }[];
+  /** Aantal profielbranches van de ZZP'er; >0 toont de "Mijn vakgebied"-quickfilter. */
+  myIndustryCount?: number;
 }) {
   const translate = useT();
   const router = useRouter();
@@ -62,6 +65,17 @@ export function JobFilters({
       else p.delete(key);
     });
 
+  const mineActive = params.get("mine") === "1";
+  const toggleMine = () =>
+    push((p) => {
+      if (mineActive) {
+        p.delete("mine");
+      } else {
+        p.set("mine", "1");
+        p.delete("industryId"); // "Mijn vakgebied" overkoepelt de expliciete branchekeuze
+      }
+    });
+
   const selectedSkills = new Set(params.getAll("skillIds"));
   const toggleSkill = (id: string) =>
     push((p) => {
@@ -74,6 +88,28 @@ export function JobFilters({
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+      {myIndustryCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleMine}
+            aria-pressed={mineActive}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+              mineActive
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border hover:bg-muted",
+            )}
+          >
+            {translate("Mijn vakgebied")}
+          </button>
+          {mineActive && (
+            <span className="text-xs text-muted-foreground">
+              {translate("Alleen opdrachten in jouw branche(s).")}
+            </span>
+          )}
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Input
           aria-label={translate("Zoeken")}
@@ -84,7 +120,8 @@ export function JobFilters({
         />
         <Select
           aria-label={translate("Branche")}
-          value={params.get("industryId") ?? ""}
+          value={mineActive ? "" : (params.get("industryId") ?? "")}
+          disabled={mineActive}
           onChange={(e) => set("industryId", e.target.value)}
         >
           <option value="">{translate("Alle branches")}</option>
