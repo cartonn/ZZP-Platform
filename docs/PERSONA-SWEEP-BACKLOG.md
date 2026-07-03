@@ -1,5 +1,54 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-03 (run 7) · **main-commit basis:** `edcb354`
+> **Methode:** verse productie-build (`npm install` → `npm run build`), schema-push (`prisma db push`)
+> en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
+> (`CI=true PORT=3100 npx next start`, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`,
+> `AUTH_SECRET=ci-dummy-…`). Playwright met de vooraf-geïnstalleerde Chromium (expliciete
+> `executablePath=/opt/pw-browsers/chromium-1194/…`), vier rollen in losse contexts, ingelogd via het
+> echte formulier (`demo1234`). Entity-id's uit de seed-DB via Prisma (niet geraden). Doel-1 (acties),
+> 1b (next-actions), 2 (adversarieel). De DB is ephemeer; geen poging raakte productie.
+>
+> ## Samenvatting — GEEN GATEN GEVONDEN
+>
+> **DOEL 1 (echte actie + server-side geverifieerd):** ADMIN keurt een verificatie goed via de
+> "Goedkeuren"-knop op `/admin/verificaties` → knoptelling **6→5**, en tegen de DB bevestigd:
+> `Credential SUBMITTED` **6→5** / `VERIFIED` **24→25**, `cred-bram-VOG` op `VERIFIED` met `verifiedAt`
+> gezet, `CREDENTIAL_VERIFIED`-audit geschreven (`actorId`=admin, `entityId`=`cred-bram-VOG`) en een
+> "Certificaat goedgekeurd"-notificatie naar de ZZP'er. De goedkeur-schrijfketen werkt dus end-to-end.
+> **58 kernschermen** over 4 rollen laadden HTTP 200 met de juiste rol-shell en `<h1>`; **nul echte
+> 500's** (server-log schoon over de hele run); alle 4 logins slaagden. (Twee meet-artefacten: één
+> `crash`-vlag op `/admin/audit` was een transiënte `/500/`-substringmatch op een audit-rijwaarde — bij
+> herophalen HTTP 200, `<h1>`="Audit log", nul regex-match; twee `status=null`-metingen op
+> `/samenwerkingen/collab-1` en `/admin/import` renderden hun correcte `<h1>` — een Playwright
+> `goto`-quirk bij redirect/`networkidle`, geen defect.)
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol kruis-gecheckt tegen de echte DB-staat. ADMIN: 6
+> "Beoordeel het certificaat van …"-taken = exact de 6 SUBMITTED-credentials (Anna/Bram/Nadia/Peter/
+> Sanne/Sofie). FREELANCER (Sanne): "Verplicht document ontbreekt: Verzekering" + "Beantwoord Mark
+> Jansen" (samenwerking collab-1) — klopt. CLIENT (Mark): "3 nieuwe reacties" = 3 `Application`-rijen op
+> `NEW`, + 2 bericht-antwoorden + 90%-bedrijfsprofiel + 1 concept-opdracht — klopt. FRANCHISER: terecht
+> "Alles is afgehandeld" (geen valse setup-nudge). Rol-geïsoleerde prioriteitsbanden; geen
+> tegenstrijdige/dubbele/niet-verdwijnende actie (na de goedkeuring verdween de admin-taak).
+>
+> **DOEL 2 (adversarieel, ~42 probes):** privilege-escalatie (FREELANCER/CLIENT/FRANCHISER →
+> `/admin/*`, rol-vreemde + franchise-only routes) → **redirect naar het eigen dashboard**;
+> IDOR/cross-partij (andermans `/samenwerkingen/<id>`, `/facturen/<id>`, foreign DRAFT-`job-7`,
+> garbage-id's) → **soft-404 "Niet gevonden — geen toegang"** (geen veldlek); cross-tenant (FRANCHISER
+> Noord → default-tenant `collab-1` + `/franchise/zzpers/<Sanne>` + `/franchise/opdrachtgevers/<Jansen>`)
+> → soft-404; CLIENT → cross-tenant `/zzp/<Lars>` → **echte 404**; document-privacy
+> (`/api/documents/<Sanne VOG>`: eigenaar + ADMIN → **200 `application/pdf`**; CLIENT/FRANCHISER/andere
+> FREELANCER → **403** `{"error":"Geen toegang."}`; garbage-doc → **404**); rol-exports
+> (`/verplichtingen/export`, `/prognose/export`, `/api/admin/export/invoices`, foreign
+> `/api/samenwerkingen/<x>/dba-dossier`) → **403**; XSS in query-params (`?status=`/`?q=`/`?match=` met
+> `<script>`/`<img onerror>`/`' OR 1=1--`) → **0 scriptuitvoering**, 0 levende `<img onerror>`,
+> URL-encoded reflectie; `/api/tasks/run-all` via GET → **405** (geen uitvoering). **Nul 500's, nul
+> leaks, nul gaten.**
+>
+> Geen codewijziging nodig; deze run is een backlog-/PROGRESS-update.
+>
+> ---
+>
 > **Datum:** 2026-07-03 (run 6) · **main-commit basis:** `5ee4d74`
 > **Methode:** verse productie-build (`npm install` → `npm run build`), schema-push (`prisma db push`)
 > en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
