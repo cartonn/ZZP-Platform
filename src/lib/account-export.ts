@@ -28,6 +28,7 @@ export interface AccountExportPayload {
   indirectHours: unknown;
   ideas: unknown;
   cancelledCollaborations: unknown;
+  favoriteNotes: unknown;
   pushSubscriptions: unknown;
 }
 
@@ -57,6 +58,7 @@ export async function buildAccountExport(
     indirectHours,
     ideas,
     cancelledCollaborations,
+    favoriteNotes,
     pushSubscriptions,
   ] = await Promise.all([
     db.user.findUnique({
@@ -214,6 +216,14 @@ export async function buildAccountExport(
       where: { cancelledById: actorId },
       select: { cancellationReason: true, cancelledAt: true, createdAt: true },
     }),
+    // Eigen favorieten-notities die de actor als CLIENT schreef over een ZZP'er (FavoriteFreelancer.note).
+    // Dit is eigen vrije tekst en valt onder de inzage. Gescopet op de eigen bedrijven (company.userId);
+    // de identiteit van de gemarkeerde ZZP'er blijft eruit (freelancerProfileId is een interne id, geen
+    // naam/e-mail) — net als de actor die al in-app ziet. Alleen rijen met een notitie.
+    db.favoriteFreelancer.findMany({
+      where: { company: { userId: actorId }, note: { not: null } },
+      select: { note: true, createdAt: true },
+    }),
     // Eigen push-abonnementen. endpoint is een persistente toestel-/browser-identifier van de actor —
     // een persoonsgegeven dat onder de inzage valt. De cryptografische sleutels (p256dh/auth) blijven
     // eruit: dat zijn secrets, geen voor de betrokkene betekenisvolle persoonsgegevens.
@@ -242,6 +252,7 @@ export async function buildAccountExport(
     indirectHours,
     ideas,
     cancelledCollaborations,
+    favoriteNotes,
     pushSubscriptions,
   };
 }
