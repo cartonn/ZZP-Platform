@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## ZZP'er — gevraagde-vaardigheden-signaal op /profiel/bewerken (2026-07-03)
+
+Spiegel van het certificaat-vraagsignaal (`credential-demand`), maar voor vaardigheden: over de open
+opdrachten die de ZZP'er mag zien, welke vereiste skills staan nog niet in zijn profiel — gerangschikt
+op hoeveel opdrachten elke skill zou ontsluiten. Een verklaarbare nudge om het skills-veld te
+vervolledigen zodat de matching (die skills weegt) meer opdrachten oplevert. Het signaal staat direct
+boven het Vaardigheden-formulier, zodat de actie één scroll weg is.
+
+- [x] **`lib/skill-demand.ts`** (puur, geen schemawijziging) — `computeSkillDemand(requirements,
+ownedSkillIds)` → `{ gaps: [{ skillId, name, opportunityCount }], blockedOpportunities }`.
+      Skills zijn binair (geen status/verloop zoals certificaten); distinct-job-telling per skill via
+      Set (dedupliceert dubbele (job, skill)-rijen defensief), sortering opportunityCount desc → naam
+      asc (nl, case-insensitief) → skillId. 7 unit-tests.
+- [x] **`lib/data/freelancer-skill-demand.ts`** — `getSkillDemandRequirements(userId)` haalt de
+      vereiste `JobSkill` (`required: true`) op van de zichtbare open opdrachten waarop nog niet is
+      gereageerd; tenant-gesloten (`visibleJobsWhereForTenant`), begrensd op SCAN_LIMIT=100. Spiegelt
+      exact de credential-demand-fetcher. Server-side waarheid, geen extra schema.
+- [x] **`components/profile/skill-demand-card.tsx`** — chip-lijst (top 6 + "+N meer"), verbergt zich
+      zonder gaten; read-only. Gewired op `/profiel/bewerken` tussen marktband en het formulier.
+- Gate groen: typecheck + lint + prettier + test (2927) + build. Allowlist-line-shift in
+  `unbounded-queries.test.ts` bijgewerkt (pre-existing skill/industry-findMany's).
+
 ## UX-offensief — volledige walkthrough-backlog afgewerkt in 18 PR's (2026-07-02/03)
 
 Vervolg op de UX-walkthrough (83 schermen, 4 rollen, docs/UX-WALKTHROUGH-2026-07-02.md): álle
