@@ -150,13 +150,22 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
 **Waarom:** zonder geverifieerd e-maildomein komen mails in spam of worden ze geweigerd.
 **Stappen:**
 
-1. Maak een account bij een transactionele mailprovider (bijv. **Postmark**, **SendGrid**, **Amazon SES**).
+1. Maak een account bij een transactionele mailprovider (bijv. **Resend**, **Postmark**, **SendGrid**, **Amazon SES**).
 2. **Verifieer je domein**: de provider geeft een paar DNS-regels (SPF, DKIM, DMARC). Zet die bij
    je domeinregistrar (§1d). Dit voorkomt dat mail als spam wordt gezien.
 3. Maak een **API-sleutel** aan.
-   **Opleveren:** API-sleutel + afzendadres (bijv. `geen-antwoord@jouwdomein.nl`) → geef door aan je
-   ontwikkelaar/agent; die koppelt de mailverzending (de in-app meldingen bestaan al).
+   **Opleveren:** API-sleutel + afzendadres (bijv. `geen-antwoord@jouwdomein.nl`) → zet in de secrets;
+   de mailverzending (in-app meldingen bestaan al) koppelt vanzelf.
    **Let op:** gebruik **geen** privé-e-mailadres in code/instellingen; gebruik een zakelijk adres.
+
+   **Code-kant GEDAAN (3-7-2026): twee productie-drivers, kies er één via `EMAIL_DRIVER`.**
+   - `EMAIL_DRIVER=smtp` — eigen SMTP-relay (`EMAIL_SMTP_HOST/PORT/USER/PASS` + `EMAIL_FROM`).
+   - `EMAIL_DRIVER=resend` — **Resend HTTP-API** (`RESEND_API_KEY` + `EMAIL_FROM`), praat via HTTPS
+     met `api.resend.com` (geen extra SDK-dependency). **Kies dit op Railway** (en andere PaaS-hosts):
+     die **blokkeren uitgaande SMTP-poorten** (25/465/587), waardoor `smtp` daar niets aflevert — een
+     HTTP-API is dan de enige werkende route. Zonder `EMAIL_DRIVER` blijft het kanaal `noop` (alleen
+     in-app meldingen; niets te doen voor de pilot). Resterend mensenwerk: account aanmaken, domein
+     verifiëren (DNS), en `RESEND_API_KEY` + `EMAIL_FROM` in de Railway-secrets zetten.
 
 ---
 
@@ -343,7 +352,8 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `STORAGE_DRIVER=s3`                                               | Schakelt productie-opslag in                  | —                    | Bij echte uploads              |
 | `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                         | Bucketnaam + regio                            | Opslagdienst (§1c)   | Bij echte uploads              |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                     | Opslag-toegangssleutels                       | Opslagdienst (§1c)   | Bij echte uploads              |
-| Mail-API-sleutel + afzender                                       | Voor e-mailverzending                         | Mailprovider (§2)    | Voor e-mail                    |
+| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`           | E-mail via Resend HTTP-API (Railway-proof)    | Resend (§2)          | Voor e-mail                    |
+| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`               | E-mail via eigen SMTP-relay                   | Mailprovider (§2)    | Voor e-mail (niet op Railway)  |
 | Betaal-API-sleutels + webhook-secret                              | Voor abonnementen                             | Stripe/Mollie (§3)   | Voor betalingen                |
 | `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`             | Echte DUO-controle                            | DUO (§4a)            | Voor echte diplomacontrole     |
 | `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`         | Echte BIG-controle                            | CIBG (§4b)           | Voor echte zorgcontrole        |
