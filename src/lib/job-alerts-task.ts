@@ -41,6 +41,7 @@ export async function runJobAlertsTask(opts?: {
   const jobs: JobAlertJob[] = rawJobs.map((j) => ({
     id: j.id,
     title: j.title,
+    description: j.description,
     skills: j.skills,
     credentialRequirements: j.credentialRequirements.map((c) => ({
       credentialType: c.credentialType,
@@ -59,6 +60,8 @@ export async function runJobAlertsTask(opts?: {
   const freelancers: JobAlertFreelancer[] = freelancerProfiles.map((p) => ({
     userId: p.userId,
     freelancerProfileId: p.id,
+    headline: p.headline,
+    bio: p.bio,
     skills: p.skills,
     credentials: p.credentials,
     hourlyRate: p.hourlyRate,

@@ -158,8 +158,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   if (actor.role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
       where: { userId: actor.id },
+      // headline/bio + skill-namen voeden de inhoudelijke aansluiting (semantic-scorecomponent),
+      // zodat het detailscherm exact dezelfde score toont als dashboard/aanbevelingen (geen drift).
       include: {
-        skills: { select: { skillId: true } },
+        skills: { select: { skillId: true, skill: { select: { name: true } } } },
         credentials: { select: { type: true, status: true, expiresAt: true } },
         industries: { select: { industryId: true } },
       },

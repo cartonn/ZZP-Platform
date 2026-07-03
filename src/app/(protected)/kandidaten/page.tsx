@@ -111,6 +111,9 @@ export default async function KandidatenPage({
         select: {
           id: true,
           title: true,
+          // description voedt (met de headline/bio van de kandidaat) de inhoudelijke aansluiting
+          // in de matchscore, zodat de kandidatenlijst dezelfde score toont als de overige schermen.
+          description: true,
           startDate: true,
           rateMin: true,
           rateMax: true,
@@ -125,6 +128,7 @@ export default async function KandidatenPage({
         select: {
           id: true,
           headline: true,
+          bio: true,
           visibility: true,
           hourlyRate: true,
           workMode: true,

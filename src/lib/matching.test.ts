@@ -9,6 +9,9 @@ import {
   BRANCHE_PENALTY,
   BRANCHE_MISMATCH_CAP,
   MATCH_COMPONENT_MAX,
+  SEMANTIC_HIGHLIGHT_THRESHOLD,
+  jobProfileRelatedness,
+  scoreJobForFreelancer,
   type FreelancerCredential,
   type MatchInput,
   type MatchResult,
@@ -92,6 +95,9 @@ describe("computeMatchScore", () => {
       workMode: "HYBRID",
       location: "Amsterdam",
       availability: "AVAILABLE",
+      // Volledige inhoudelijke aansluiting → semantic-component vol; een perfecte match haalt nu alle
+      // zes componenten (skills/compliance/rate/workMode/location/semantic) op hun maximum.
+      relatednessScore: 1,
     },
   };
 
@@ -124,7 +130,7 @@ describe("computeMatchScore", () => {
   });
 
   const sumBreakdown = (b: MatchResult["breakdown"]) =>
-    b.skills + b.compliance + b.rate + b.workMode + b.location + b.branche;
+    b.skills + b.compliance + b.rate + b.workMode + b.location + b.semantic + b.branche;
 
   it("de getoonde breakdown telt exact op tot de getoonde score (ook bij fractionele bijdragen)", () => {
     // Scenario uit de bug-hunt dat de oude afronding (1 decimaal per component, daarna Math.round van
@@ -160,6 +166,91 @@ describe("computeMatchScore", () => {
     const r = computeMatchScore({ ...base, credentials: [] }, now);
     expect(r.compliance.status).toBe("NON_COMPLIANT");
     expect(r.breakdown.compliance).toBe(0);
+  });
+
+  describe("semantische component (inhoudelijke aansluiting)", () => {
+    // base zonder de vaste relatednessScore, zodat we de bijdrage geïsoleerd variëren.
+    const noText: MatchInput = {
+      ...base,
+      freelancer: { ...base.freelancer, relatednessScore: undefined },
+    };
+
+    it("zonder relatednessScore is de semantic-component 0 (geen bonus, geen straf)", () => {
+      const r = computeMatchScore(noText, now);
+      expect(r.breakdown.semantic).toBe(0);
+      // Perfect op alle overige assen, zonder tekst: exact 100 − WEIGHTS.semantic = 95.
+      expect(r.score).toBe(100 - MATCH_COMPONENT_MAX.semantic);
+      // De som van de breakdown blijft exact de getoonde score (geen black box).
+      expect(sumBreakdown(r.breakdown)).toBe(r.score);
+      expect(r.reasons.map((re) => re.label)).not.toContain(
+        "Omschrijving sluit aan bij jouw profiel",
+      );
+    });
+
+    it("volledige aansluiting geeft de volle semantic-punten en telt exact op tot de score", () => {
+      const r = computeMatchScore(
+        { ...noText, freelancer: { ...noText.freelancer, relatednessScore: 1 } },
+        now,
+      );
+      expect(r.breakdown.semantic).toBe(MATCH_COMPONENT_MAX.semantic);
+      expect(r.score).toBe(100);
+      expect(sumBreakdown(r.breakdown)).toBe(r.score);
+    });
+
+    it("houdt de semantic-bijdrage altijd binnen 0..max, ook bij grenswaarden", () => {
+      for (const rel of [0, 0.2, 0.5, 0.75, 1]) {
+        const r = computeMatchScore(
+          { ...noText, freelancer: { ...noText.freelancer, relatednessScore: rel } },
+          now,
+        );
+        expect(r.breakdown.semantic).toBeGreaterThanOrEqual(0);
+        expect(r.breakdown.semantic).toBeLessThanOrEqual(MATCH_COMPONENT_MAX.semantic);
+        expect(sumBreakdown(r.breakdown)).toBe(r.score);
+      }
+    });
+
+    it("hogere aansluiting scoort hoger dan lagere (monotone, uitlegbare bijdrage)", () => {
+      const low = computeMatchScore(
+        { ...noText, freelancer: { ...noText.freelancer, relatednessScore: 0.1 } },
+        now,
+      );
+      const high = computeMatchScore(
+        { ...noText, freelancer: { ...noText.freelancer, relatednessScore: 0.9 } },
+        now,
+      );
+      expect(high.score).toBeGreaterThan(low.score);
+    });
+
+    it("voegt de positieve reason toe vanaf de drempel, en niet eronder", () => {
+      const below = computeMatchScore(
+        {
+          ...noText,
+          freelancer: {
+            ...noText.freelancer,
+            relatednessScore: SEMANTIC_HIGHLIGHT_THRESHOLD - 0.01,
+          },
+        },
+        now,
+      );
+      const atOrAbove = computeMatchScore(
+        {
+          ...noText,
+          freelancer: { ...noText.freelancer, relatednessScore: SEMANTIC_HIGHLIGHT_THRESHOLD },
+        },
+        now,
+      );
+      expect(below.reasons.map((re) => re.label)).not.toContain(
+        "Omschrijving sluit aan bij jouw profiel",
+      );
+      expect(atOrAbove.reasons.map((re) => re.label)).toContain(
+        "Omschrijving sluit aan bij jouw profiel",
+      );
+      // De semantische reason komt ná skills en branche (kleiner gewicht).
+      const labels = atOrAbove.reasons.map((re) => re.label);
+      const skillIdx = labels.indexOf("Alle vereiste skills aanwezig");
+      const semIdx = labels.indexOf("Omschrijving sluit aan bij jouw profiel");
+      expect(semIdx).toBeGreaterThan(skillIdx);
+    });
   });
 
   it("blijft binnen 0-100", () => {
@@ -416,6 +507,85 @@ describe("computeMatchScore", () => {
   });
 });
 
+describe("jobProfileRelatedness", () => {
+  it("is 0 als aan één kant geen tekst staat (geen straf op ontbrekende tekst)", () => {
+    expect(
+      jobProfileRelatedness({ title: "IC-verpleegkundige" }, { headline: null, bio: null }),
+    ).toBe(0);
+    expect(
+      jobProfileRelatedness({ title: null, description: null }, { bio: "React developer" }),
+    ).toBe(0);
+  });
+
+  it("is hoger bij inhoudelijk aansluitende tekst dan bij niet-aansluitende", () => {
+    const job = {
+      title: "Intensive care verpleegkundige",
+      description: "IC-verpleegkundige gezocht voor nachtdiensten op de intensive care",
+    };
+    const aligned = jobProfileRelatedness(job, {
+      headline: "Intensive care verpleegkundige",
+      bio: "Ervaren op de intensive care met nachtdiensten",
+    });
+    const unrelated = jobProfileRelatedness(job, {
+      headline: "Frontend developer",
+      bio: "React en TypeScript, webapplicaties",
+    });
+    expect(aligned).toBeGreaterThan(unrelated);
+  });
+});
+
+describe("scoreJobForFreelancer — centrale, consistente relatedness (geen cross-view drift)", () => {
+  const job = {
+    title: "Intensive care verpleegkundige",
+    description: "Ervaren IC-verpleegkundige gezocht voor de nachtdiensten op de intensive care",
+    skills: [{ skillId: "sk-ic", required: true }],
+    credentialRequirements: [] as { credentialType: string; required: boolean }[],
+    rateMin: 40,
+    rateMax: 70,
+    workMode: "ONSITE",
+    location: "Amsterdam",
+    industryId: "zorg",
+  };
+  const freelancer = {
+    headline: "Intensive care verpleegkundige",
+    bio: "Jarenlange ervaring op de intensive care met nachtdiensten",
+    skills: [{ skillId: "sk-ic" }],
+    credentials: [] as { type: string; status: string; expiresAt: Date | null }[],
+    hourlyRate: 55,
+    workMode: "ONSITE",
+    location: "Amsterdam",
+    availability: "AVAILABLE",
+    industries: [{ industryId: "zorg" }],
+  };
+
+  it("leidt relatedness af uit de tekstvelden als de aanroeper er geen meegeeft", () => {
+    const derived = scoreJobForFreelancer(job, freelancer, now);
+    expect(derived.breakdown.semantic).toBeGreaterThan(0);
+  });
+
+  it("scoort identiek of de relatedness nu is afgeleid of expliciet (zelfde paar → zelfde score)", () => {
+    const rel = jobProfileRelatedness(
+      { title: job.title, description: job.description },
+      { headline: freelancer.headline, bio: freelancer.bio },
+    );
+    const derived = scoreJobForFreelancer(job, freelancer, now);
+    const explicit = scoreJobForFreelancer(job, { ...freelancer, relatednessScore: rel }, now);
+    expect(derived.score).toBe(explicit.score);
+    expect(derived.breakdown).toEqual(explicit.breakdown);
+  });
+
+  it("een profiel zonder tekst scoort lager dan hetzelfde profiel mét aansluitende tekst", () => {
+    const withText = scoreJobForFreelancer(job, freelancer, now);
+    const withoutText = scoreJobForFreelancer(
+      job,
+      { ...freelancer, headline: null, bio: null },
+      now,
+    );
+    expect(withText.score).toBeGreaterThan(withoutText.score);
+    expect(withoutText.breakdown.semantic).toBe(0);
+  });
+});
+
 describe("topPositiveReason", () => {
   it("geeft de eerste positieve reden (zwaarst wegende troef)", () => {
     expect(
@@ -482,11 +652,13 @@ describe("computeMatchScore — branche-factor", () => {
       location: "Amsterdam",
       availability: "AVAILABLE",
       industryIds: ["it"],
+      // Volledige inhoudelijke aansluiting, zodat de branche-factor geïsoleerd tegen een 100-basis staat.
+      relatednessScore: 1,
     },
   };
 
   const sumBreakdown = (b: MatchResult["breakdown"]) =>
-    b.skills + b.compliance + b.rate + b.workMode + b.location + b.branche;
+    b.skills + b.compliance + b.rate + b.workMode + b.location + b.semantic + b.branche;
 
   it("laat de score ongemoeid bij gelijke branche (+ positieve reason, branche-delta 0)", () => {
     const r = computeMatchScore(perfect, now);

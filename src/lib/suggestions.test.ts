@@ -4,14 +4,16 @@ import {
   type FreelancerSuggestion,
   mergeClientSuggestions,
   scoreProfilesForJob,
-  SEMANTIC_HIGHLIGHT_THRESHOLD,
   SUGGESTION_MIN_SCORE,
   topSuggestions,
 } from "./suggestions";
-import { scoreJobForFreelancer } from "./matching";
+import {
+  jobProfileRelatedness,
+  scoreJobForFreelancer,
+  SEMANTIC_HIGHLIGHT_THRESHOLD,
+} from "./matching";
 import { computeTrustLevel } from "./trust";
 import { mandatoryDocuments } from "./mandatory-documents";
-import { getSemanticMatcher, safeRelatedness } from "./services/semantic-matcher";
 
 const s = (freelancerId: string, score: number): FreelancerSuggestion => ({
   freelancerId,
@@ -149,11 +151,7 @@ interface FixtureProfile {
   availabilityWindows: Array<{ startDate: Date; endDate: Date; type: string }>;
 }
 
-function joinText(parts: ReadonlyArray<string | null | undefined>): string {
-  return parts.filter((p): p is string => !!p && p.trim().length > 0).join(" ");
-}
-
-/** Exacte reconstructie van de oude, per-opdracht inline scoring (vóór de pool-refactor). */
+/** Reconstructie van de per-opdracht inline scoring (parity-borging voor de pool-refactor). */
 function legacyScore(
   job: FixtureJob,
   profiles: readonly FixtureProfile[],
@@ -161,12 +159,14 @@ function legacyScore(
   limit: number,
   now: number,
 ): FreelancerSuggestion[] {
-  const matcher = getSemanticMatcher();
-  const jobText = joinText([job.title, job.description, ...job.skills.map((s) => s.skill?.name)]);
   const scored: FreelancerSuggestion[] = profiles
     .filter((p) => !applied.has(p.id))
     .map((p) => {
-      const match = scoreJobForFreelancer(job, p);
+      const relatedness = jobProfileRelatedness(
+        { title: job.title, description: job.description },
+        { headline: p.headline, bio: p.bio },
+      );
+      const match = scoreJobForFreelancer(job, { ...p, relatednessScore: relatedness });
       const verifiedCredentialCount = p.credentials.filter(
         (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > now),
       ).length;
@@ -181,8 +181,6 @@ function legacyScore(
           })),
         ).allSatisfied,
       });
-      const profileText = joinText([p.headline, p.bio, ...p.skills.map((s) => s.skill?.name)]);
-      const relatedness = safeRelatedness(matcher, jobText, profileText);
       return {
         freelancerId: p.id,
         name: p.user.name ?? "—",
@@ -327,5 +325,55 @@ describe("scoreProfilesForJob — parity met de oude per-opdracht scoring", () =
     const outOld = mergeClientSuggestions(legacyMerged, { limit: 4 });
 
     expect(outNew).toEqual(outOld);
+  });
+
+  it("inhoudelijk aansluitende tekst scoort aantoonbaar hoger dan geen tekstoverlap (niet slechts bij gelijkspel)", () => {
+    const empty = new Set<string>();
+    // Twee profielen die identiek zijn op alle harde velden (skills/branche/tarief/werkmodus/locatie/
+    // beschikbaarheid/credentials) — alleen de vrije tekst verschilt. Zonder skill-overlap forceren we
+    // dat de semantische component het enige onderscheid is.
+    const jobText: FixtureJob = {
+      id: "job-text",
+      title: "Intensive care verpleegkundige",
+      description: "Ervaren intensive care verpleegkundige gezocht voor de nachtdiensten op de IC",
+      industryId: "ind-zorg",
+      rateMin: 40,
+      rateMax: 70,
+      workMode: "ONSITE",
+      location: "Amsterdam",
+      skills: [{ skillId: "sk-zorg", required: true, skill: { name: "Zorg" } }],
+      credentialRequirements: [],
+    };
+    const baseProfile: FixtureProfile = {
+      id: "with-text",
+      headline: "Intensive care verpleegkundige",
+      bio: "Jarenlange ervaring op de intensive care met nachtdiensten op de IC",
+      location: "Amsterdam",
+      hourlyRate: 55,
+      workMode: "ONSITE",
+      availability: "AVAILABLE",
+      maxTravelMinutes: null,
+      user: { name: "Aligned", identityVerifiedAt: null },
+      skills: [{ skillId: "sk-zorg", skill: { name: "Zorg" } }],
+      credentials: [],
+      industries: [{ industryId: "ind-zorg" }],
+      availabilityWindows: [],
+    };
+    const withoutText: FixtureProfile = {
+      ...baseProfile,
+      id: "no-text",
+      headline: null,
+      bio: null,
+      user: { name: "Blank", identityVerifiedAt: null },
+    };
+
+    const out = scoreProfilesForJob(jobText, [baseProfile, withoutText], empty, 4, now);
+    const aligned = out.find((x) => x.freelancerId === "with-text");
+    const blank = out.find((x) => x.freelancerId === "no-text");
+    expect(aligned).toBeDefined();
+    expect(blank).toBeDefined();
+    // Strikt hoger: de inhoudelijke aansluiting tilt de score echt op, niet slechts als tiebreaker.
+    expect(aligned!.relatedness ?? 0).toBeGreaterThan(blank!.relatedness ?? 0);
+    expect(aligned!.score).toBeGreaterThan(blank!.score);
   });
 });

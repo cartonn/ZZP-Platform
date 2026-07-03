@@ -51,6 +51,8 @@ export async function getDienstDetail(actor: Actor, jobId: string): Promise<Dien
             select: {
               id: true,
               headline: true,
+              // bio voedt (met de opdrachttekst) de inhoudelijke aansluiting in de matchscore.
+              bio: true,
               hourlyRate: true,
               workMode: true,
               location: true,
