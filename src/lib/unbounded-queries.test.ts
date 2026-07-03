@@ -374,17 +374,17 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 258,
+    line: 267,
     reason: "branches-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 259,
+    line: 268,
     reason: "skills-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 264,
+    line: 273,
     reason:
       "bewaarde opdrachten, eigenaar-scoped op freelancerProfileId; alleen jobId-referenties, membership in-memory",
   },

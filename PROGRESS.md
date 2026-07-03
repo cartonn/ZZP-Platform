@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## ZZP'er — "Mijn vakgebied"-quickfilter op /opdrachten (2026-07-03)
+
+Open UX-walkthrough-punt (2026-07-02, "kleinere punten"): de ZZP'er-opdrachtenlijst was niet op
+profielbranche te filteren — een zorg-ZZP'er zag IT-opdrachten als ruis. Nieuw: een één-klik
+"Mijn vakgebied"-quickfilter beperkt de lijst tot de branches uit het eigen profiel. Sluit direct
+aan op de bestaande matching-scoring (die branche al weegt): scoring rangschikt, de quickfilter
+schoont de lijst op.
+
+- [x] **`lib/jobs.ts`** — `JobFilters.mine: boolean` + parse `params.mine === "1"` in
+      `normalizeJobFilters` (exact-match; `"0"`/`"true"` → false). +1 unit-test (11 in `jobs.test.ts`).
+- [x] **`opdrachten/(index)/page.tsx`** (BrowseJobs, FREELANCER/ADMIN) — na de profiel-fetch: expliciete
+      `industryId` wint (meest specifiek), anders `mine` → `where.industryId = { in: profielbranches }`.
+      Zonder profielbranches (o.a. ADMIN) doet `mine` niets. `myIndustryCount` doorgegeven aan de filters.
+- [x] **`components/jobs/job-filters.tsx`** — "Mijn vakgebied"-toggle-chip (alleen bij
+      `myIndustryCount > 0`), `aria-pressed`, met uitleg-regel; branche-`Select` uitgeschakeld zolang
+      de quickfilter actief is (mine overkoepelt de expliciete branchekeuze).
+- Server-side waarheid (Prisma-`where`), geen extra query (profielbranches al geladen), geen
+  schemawijziging. Gate groen: typecheck + lint + prettier (hele repo) + test (2931) + build. PR #582.
+
 ## Productie-cron voor /api/tasks/run-all — geplande workflow (2026-07-03)
 
 Productie-rijpheid (MENSENWERK §10, code-kant). Tot nu was **alleen** de dagelijkse expiry-check
