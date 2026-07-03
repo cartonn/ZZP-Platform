@@ -89,6 +89,36 @@ export function computeClientResponsiveness(
   return { sampleSize, handled, pending, handledPct, oldestPendingDays, stalePending, tone };
 }
 
+/**
+ * Vertaalt het (opdrachtgever-brede) reactiebereidheid-signaal naar een korte context voor de ZZP'er
+ * die nog op antwoord wacht: is het zinvol door te wachten, of pakt deze opdrachtgever reacties
+ * doorgaans niet op? Spiegelt hetzelfde geaggregeerde signaal dat op de opdracht-detail staat, maar
+ * gericht op de wacht-beslissing. Geeft `null` terug wanneer het signaal geen beslissingswaarde
+ * toevoegt (te weinig historie → `unknown`, of `neutral` — dan is elke boodschap misleidend). Puur en
+ * deterministisch. Toont uitsluitend geaggregeerde tellingen — nooit een reactie van een andere ZZP'er.
+ */
+export function describeApplicantResponsiveness(
+  responsiveness: ClientResponsiveness,
+): { tone: "good" | "warning"; label: string } | null {
+  const { tone, handledPct } = responsiveness;
+
+  if (tone === "good") {
+    return { tone: "good", label: "Deze opdrachtgever pakt reacties doorgaans op." };
+  }
+
+  if (tone === "warning") {
+    // Alleen kwantificeren als er een betekenisvol percentage is (bij tone warning met
+    // sampleSize ≥ MIN_SAMPLE_SIZE is er altijd één, maar we blijven defensief).
+    const quant = handledPct != null ? ` (${handledPct}% opgepakt)` : "";
+    return {
+      tone: "warning",
+      label: `Deze opdrachtgever pakt reacties vaak niet op${quant} — overweeg ook andere opdrachten.`,
+    };
+  }
+
+  return null;
+}
+
 function determineTone(handledPct: number, stalePending: number): ResponsivenessTone {
   // Goed: bijna alles opgepakt én niets te lang laten liggen.
   if (handledPct >= GOOD_MIN_HANDLED_PCT && stalePending === 0) return "good";
