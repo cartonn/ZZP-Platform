@@ -4,6 +4,87 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-03 (basis: `main` @ 90a5374)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle Opus security/privacy-subagents op niet-overlappende
+oppervlakken — (1) recente non-admin/franchise server actions (berichten/opdrachten/samenwerkingen/
+kandidaten/leads + kandidaten-triage), (2) ALLE API route-handlers + upload/storage + SSRF + headers,
+(3) AVG recht-op-verwijdering (`anonymizeUser`) + inzage-export vs. het volledige Prisma-schema.
+Kader: OWASP Top 10 (A01 broken access control, A04 insecure design, A05 misconfig, A09 logging) +
+AVG art. 5/15/17/30. De nieuwste feature — de tweezijdige double-blind beoordelingen (#579-reeks,
+`reviews.ts`/`review-actions.ts`/`reviews-reveal-task.ts`) — is expliciet geverifieerd schoon: de
+PENDING_REVEAL-status lekt nergens vóór de simultane onthulling (publieke profielen filteren op
+`status: "PUBLISHED"`; de samenwerking-detailpagina toont een deelnemer alleen zijn eigen review +
+de PUBLISHED-review van de tegenpartij; de volledige `col.reviews`-array wordt uitsluitend in de
+admin-moderatietak gerenderd). Server actions & API-routes: **geen** KRITIEK/HOOG IDOR, cross-tenant-
+lek, SSRF, path-traversal of ontbrekende ownership gevonden (elke mutatie herleidt ownership/tenant
+uit een verse DB-rij; storage weigert traversal; de enige externe `fetch` — Geoapify — heeft een
+hardcoded host). Drie AVG-art.-17-bevindingen (recht op verwijdering onvolledig) volledig gefixt
+(rood→groen); de rest geparkeerd.
+
+### OPGELOST in deze ronde
+
+- **[HOOG · AVG art. 17 — recht op verwijdering onvolledig: Application.note]** `anonymizeUser()`
+  (`admin/gebruikers/actions.ts`) redacteerde `Application.motivation` (freelancer-scoped), maar niet
+  `Application.note` — de interne kandidaatnotitie die de betrokkene als CLIENT zélf schreef bij
+  reacties op de eigen opdrachten (vrije tekst, mogelijk persoonlijke opmerkingen over een ZZP'er).
+  Een `user.update` triggert geen cascade → bleef verbatim en herleidbaar staan. Repro: CLIENT
+  schrijft een notitie bij een sollicitant → CLIENT wordt geanonimiseerd → `Application.note` blijft.
+  Gefixt: `application.updateMany({ where: { job: { company: { userId } } }, data: { note: null } })`
+  in de anonimiseringstransactie (gescopet op de eigen bedrijfsopdrachten — nooit andermans tekst).
+  Geschonden: CLAUDE.md-verificatieflow/AVG art. 17. Test: nieuwe case in `anonymize-erasure.test.ts`.
+
+- **[HOOG · AVG art. 17 — recht op verwijdering onvolledig: ShiftHandoff.decisionNote]** Dezelfde
+  anonimisering wiste `ShiftHandoff.reason` (aanvragerskant, `requestedByUserId`), maar niet
+  `decisionNote` — de verplichte afwijsreden die de betrokkene als FRANCHISER/beslisser zelf schreef
+  (`decidedByUserId`), vrije tekst die de aanvrager/kandidaat kan benoemen. Gefixt:
+  `shiftHandoff.updateMany({ where: { decidedByUserId: userId }, data: { decisionNote: null } })` —
+  het spiegelbeeld van de bestaande reason-redactie. Test: nieuwe case (rood→groen).
+
+- **[HOOG · AVG art. 17 — recht op verwijdering onvolledig: LeadContact.body]** `anonymizeUser`
+  raakte `Lead`/`LeadContact` niet aan; de bel-/gespreksnotities die de betrokkene als FRANCHISER
+  zelf schreef (`LeadContact.body`, `createdById`) bleven volledig intact en attribueerbaar. Gefixt:
+  `leadContact.updateMany({ where: { createdById: userId }, data: { body: "[Verwijderd…]" } })` (veld
+  is niet-nullable → neutrale redactiestring). De derde-partij-lead-PII (contactName/email/phone/
+  notes) valt onder het aparte verwerkingsregister-/bewaartermijn-item, niet onder déze erasure. Test:
+  nieuwe case (rood→groen).
+
+### GEPARKEERD — privacy / AVG (ronde 2026-07-03)
+
+- **[MIDDEL · AVG art. 17 — NoShowReport.reason bij de melder]** `NoShowReport.reason` (vrije tekst,
+  `reportedById` = CLIENT of FRANCHISER — beide anonimiseerbaar) wordt bij anonimisering van de melder
+  niet gewist. NB: `anonymizeUser` sluit `NoShowReport.reason` bewust uit wanneer de ZZP'er (het
+  subject) wordt geanonimiseerd (mogelijke bewaargrond bij arbeidsgeschil). Voor de melderskant is
+  dat een aparte DPO-afweging (eigen vrije tekst vs. bewijsbewaring). Fix na DPO-akkoord:
+  `noShowReport.updateMany({ where: { reportedById: userId }, data: { reason: "[Verwijderd…]" } })`.
+- **[MIDDEL · AVG art. 17 — Performance/Invoice.rejectionReason]** De afwijsreden die een partij
+  (meestal CLIENT) bij een prestatie/factuur schreef blijft na anonimisering staan. Deze rijen hebben
+  een eigen fiscale bewaargrond (factuur = 7 jr); alleen de _reden-tekst_ zou geredact moeten worden,
+  bedragen/nummers/data behouden — spiegelt `Collaboration.cancellationReason`. Er is geen
+  `rejectedById`-kolom; scope via de `actorId` op het domein-/auditevent van de afwijzing (zoals
+  `disputeReason` via `DISPUTE_OPENED`). DPO-afweging. Fix in een aparte increment.
+- **[MIDDEL · AVG art. 15/20 — inzage-export onvolledig (uitbreiding)]** `buildAccountExport`
+  (`account-export.ts`) mist naast de eerder geparkeerde categorieën (ontvangen `Review`, eigen
+  `ShiftHandoff.reason`, `AvailabilityWindow.note`, open `Collaboration.disputeReason`) nu ook: eigen
+  `Application.note` (CLIENT), `NoShowReport` (melder), `ShiftHandoff.decisionNote` (beslisser),
+  `LeadContact.body` (franchiser). Fix: per categorie een strikt-`select`-query (geen derde-partij-PII).
+- **[LAAG · AVG art. 15/20 + 17]** `FavoriteFreelancer.note` (privé CLIENT-notitie) ontbreekt nog in
+  zowel `anonymizeUser` als de export (bevestigd nog open). Fix: `favoriteFreelancer.updateMany({
+where: { company: { userId } }, data: { note: null } })` + export-query.
+
+### GEPARKEERD — security / hardening (ronde 2026-07-03)
+
+- **[MIDDEL · A04 — geen rate-limit op financiële/PDF-exports (uitbreiding)]** `exportRateLimiter`
+  bestaat (`rate-limit.ts`) maar is alléén op `/api/account/export` bedraad. De CSV-/PDF-routes doen
+  DB-joins + on-demand PDF-generatie zónder per-gebruiker-rem: `admin/export/invoices` (dumpt ÁLLE
+  platformfacturen met tegenpartij-PII per call — grootste amplificatie), `administratie/{btw,export,
+openstaand}`, en de PDF-routes `facturen/[id]/pdf`, `prestaties/[id]/pdf`, `admin/facturatie/[id]/
+pdf`, plus de dossier-routes. Ownership/authz is intact — dit is availability/defense-in-depth. Fix:
+  `exportRateLimiter.check(`export:${actor.id}`)` + 429, spiegel van `account/export`.
+- **[LAAG · CLAUDE.md regel 6 — Zod-grens]** `saveApplicationNote` (`kandidaten/actions.ts`) begrenst
+  `note` met een handmatige `.slice(0, 2000)` i.p.v. een Zod-`trimmed(2000)` (conventie in de rest van
+  de codebase). Niet exploiteerbaar; consistentie. (Terugkerend thema, zie eerdere rondes.)
+
 ## Ronde 2026-06-25b (basis: `main` @ d1116a1)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle Opus security/privacy-subagents op niet-overlappende

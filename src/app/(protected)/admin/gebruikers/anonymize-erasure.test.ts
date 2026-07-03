@@ -50,6 +50,7 @@ vi.mock("@/lib/db", () => ({
     ideaComment: { updateMany: op("ideaComment.updateMany") },
     review: { updateMany: op("review.updateMany") },
     shiftHandoff: { updateMany: op("shiftHandoff.updateMany") },
+    leadContact: { updateMany: op("leadContact.updateMany") },
     availabilityWindow: { updateMany: op("availabilityWindow.updateMany") },
     indirectHoursEntry: { updateMany: op("indirectHoursEntry.updateMany") },
     idea: { updateMany: op("idea.updateMany") },
@@ -110,6 +111,40 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     const o = find("shiftHandoff.updateMany") as { args: { where: unknown; data: unknown } };
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ requestedByUserId: "user-42" });
+  });
+
+  it("wist de eigen kandidaatnotitie op reacties op de eigen opdrachten (Application.note)", async () => {
+    await anonymizeUser("user-42");
+    // Application.updateMany wordt twee keer aangeroepen: motivation (freelancer-scoped) én note
+    // (opdrachtgever-scoped). Pak de note-variant op zijn where-vorm.
+    const ops = findAll("application.updateMany") as Array<{
+      args: { where: { job?: unknown; freelancer?: unknown }; data: { note?: unknown } };
+    }>;
+    const noteOp = ops.find((o) => o.args.where.job !== undefined);
+    expect(noteOp).toBeDefined();
+    expect(noteOp!.args.where).toEqual({ job: { company: { userId: "user-42" } } });
+    expect(noteOp!.args.data.note).toBeNull();
+  });
+
+  it("wist de eigen beslisnotitie bij afgewezen shift-overnames (ShiftHandoff.decisionNote)", async () => {
+    await anonymizeUser("user-42");
+    // ShiftHandoff.updateMany wordt twee keer aangeroepen: reason (requestedByUserId) én decisionNote
+    // (decidedByUserId). Pak de beslisserskant.
+    const ops = findAll("shiftHandoff.updateMany") as Array<{
+      args: { where: { decidedByUserId?: string }; data: { decisionNote?: unknown } };
+    }>;
+    const decisionOp = ops.find((o) => o.args.where.decidedByUserId !== undefined);
+    expect(decisionOp).toBeDefined();
+    expect(decisionOp!.args.where).toEqual({ decidedByUserId: "user-42" });
+    expect(decisionOp!.args.data.decisionNote).toBeNull();
+  });
+
+  it("redact eigen lead-contactnotities (LeadContact.body)", async () => {
+    await anonymizeUser("user-42");
+    const o = find("leadContact.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ createdById: "user-42" });
+    expect((o.args.data as { body: string }).body).toMatch(/verwijderd/i);
   });
 
   it("wist de vrije-tekstnoot op indirecte-uren-rijen (IndirectHoursEntry.note)", async () => {
