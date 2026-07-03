@@ -1,0 +1,62 @@
+name: Geplande taken (run-all)
+
+# Productie-cron (code-kant) voor ALLE geplande taakrunners in één aanroep:
+# POST /api/tasks/run-all voert achtereenvolgens uit: verloopdetectie, betaalherinneringen,
+# DBA-monitor, concept-factuur-reminders, BTW-herinnering, job-alerts, job-engagement,
+# PAST_DUE-aanmaningsladder, ZZP-lidmaatschapsbijdrage, prestatie-grace/-goedkeuring-reminders,
+# dispuut-reminders, prestatie-indien-reminders, beoordelingen-onthulling, push-delivery,
+# notificatie-digest en monitor. Elke runner is idempotent (voortgangsmarkering + DomainEvent
+# dedupeKey), dus meermaals draaien stuurt geen dubbele meldingen/facturen.
+#
+# Cadans: één keer per dag. De digest bundelt notificaties ouder dan 24u tot één e-mail per
+# gebruiker (config.REMINDERS.notificationDigestMinAgeHours); een daglijkse run houdt dat "één
+# digest per dag". Bijstellen kan door de cron-expressie te wijzigen (idempotentie blijft gelden).
+# Deze workflow dekt óók de verloopdetectie; expiry-check.yml blijft draaien maar is hiermee
+# feitelijk overbodig (dubbel draaien is dankzij idempotentie onschadelijk).
+#
+# Mensenwerk (eenmalig, anders draait dit niet — de job slaat dan over zonder te falen):
+#   - Repo-secret RUN_ALL_TASK_URL = https://<productie-host>/api/tasks/run-all
+#   - Repo-secret CRON_SECRET      = dezelfde waarde als de CRON_SECRET van de server
+# Zonder deze secrets stopt de job vroegtijdig (exit 0), zodat de pilot niet rood kleurt.
+
+on:
+  schedule:
+    - cron: "0 5 * * *" # elke dag om 05:00 UTC
+  workflow_dispatch: {}
+
+# Voorkom overlappende runs (een trage taakketen mag niet stapelen met de volgende cron-tick).
+concurrency:
+  group: run-all-tasks
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Endpoint aanroepen
+        env:
+          RUN_ALL_TASK_URL: ${{ secrets.RUN_ALL_TASK_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$RUN_ALL_TASK_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "RUN_ALL_TASK_URL of CRON_SECRET ontbreekt — taak overgeslagen (configureer de repo-secrets)."
+            exit 0
+          fi
+          status=$(curl -sS -o /tmp/run-all-response.json -w "%{http_code}" \
+            -X POST "$RUN_ALL_TASK_URL" \
+            -H "Authorization: Bearer $CRON_SECRET")
+          echo "HTTP $status"
+          cat /tmp/run-all-response.json || true
+          echo
+          if [ "$status" != "200" ]; then
+            echo "run-all faalde op transportniveau (HTTP $status)."
+            exit 1
+          fi
+          # Het endpoint antwoordt 200 óók als een individuele taak faalt; de body draagt dan
+          # ok:false + een errors-object. Faal de job zodat de fout zichtbaar wordt in Actions.
+          ok=$(jq -r '.ok' /tmp/run-all-response.json 2>/dev/null || echo "unknown")
+          if [ "$ok" != "true" ]; then
+            echo "run-all rapporteerde een taakfout (ok=$ok). Zie het errors-object hierboven."
+            exit 1
+          fi
+          echo "Alle geplande taken zijn zonder fout uitgevoerd."

@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Productie-cron voor /api/tasks/run-all — geplande workflow (2026-07-03)
+
+Productie-rijpheid (MENSENWERK §10, code-kant). Tot nu was **alleen** de dagelijkse expiry-check
+gewired (`expiry-check.yml`, één taak); de overige 15 taakrunners draaiden **alleen bij handmatige
+aanroep** in productie. Nieuw: `.github/workflows/run-all-tasks.yml` roept elke dag om 05:00 UTC
+`POST /api/tasks/run-all` aan met `Authorization: Bearer $CRON_SECRET`, waardoor **alle 16 runners**
+idempotent draaien (dunning/PAST_DUE, betaal-/concept-factuur-/BTW-herinneringen, DBA-monitor,
+job-alerts/-engagement, ZZP-lidmaatschap, prestatie-grace/-goedkeuring/-indien-reminders,
+dispuut-reminders, beoordelingen-onthulling, push-delivery, notificatie-digest, monitor).
+
+- Mirror van het bewezen `expiry-check.yml`-patroon; **inert zonder secrets** (skip zonder falen).
+- `concurrency`-guard tegen overlappende runs; faalt de job bij transportfout (HTTP≠200) én bij een
+  taakfout in de body (`ok:false` via `jq`), zodat fouten zichtbaar worden in Actions.
+- Cadans daglijks: de digest bundelt notificaties ouder dan 24u tot één e-mail/dag; idempotentie
+  laat een andere cadans toe. Dekt óók de expiry-check (die overbodig maar onschadelijk blijft).
+- Resterend mensenwerk: repo-secrets `RUN_ALL_TASK_URL` + `CRON_SECRET` zetten (§7 / MENSENWERK §10).
+- Bestand: `.github/workflows/run-all-tasks.yml`. Geen code-/schemawijziging.
+
 ## Security/privacy-audit — AVG art. 17 erasure-gaten gedicht (2026-07-03)
 
 Audit-ronde (orchestrator Opus 4.8 + 3 parallelle security-subagents op niet-overlappende
