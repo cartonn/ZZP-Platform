@@ -1,5 +1,44 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-03 (run 6) · **main-commit basis:** `5ee4d74`
+> **Methode:** verse productie-build (`npm install` → `npm run build`), schema-push (`prisma db push`)
+> en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
+> (`CI=true PORT=3100 npm run start`, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`,
+> `AUTH_SECRET=ci-dummy-…`). Playwright met de vooraf-geïnstalleerde Chromium (expliciete
+> `executablePath`), vier rollen in losse contexts, ingelogd via het echte formulier (`demo1234`).
+> Doel-1 (acties), 1b (next-actions), 2 (adversarieel). De DB is ephemeer; geen poging raakte productie.
+>
+> ## Samenvatting — GEEN GATEN GEVONDEN
+>
+> **DOEL 1 (acties uitvoeren):** een echte end-to-end mutatie gedreven en server-side geverifieerd —
+> FREELANCER (Sanne) reageert op `job-8` (Wijkverpleegkundige) → `Application` aangemaakt met status
+> `NEW` + correcte motivatie in de DB, zichtbaar op `/reacties`; daarna **reactie intrekken** via de
+> bevestig-dialoog → status-overgang naar `WITHDRAWN` (server-side, geauditeerd, display "ingetrokken").
+> Alle ~40 kernschermen over 4 rollen laadden HTTP 200 met de juiste rol-shell, **nul 500's**; alle 4
+> logins slaagden.
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol kruis-gecheckt tegen `next-actions.ts` en de
+> echte DB-staat. FREELANCER: "Verplicht document ontbreekt: Verzekering" + "Beantwoord Mark Jansen" —
+> klopt. CLIENT: 3 nieuwe reacties + 2 berichten + concept-opdracht + 90%-bedrijfsprofiel — klopt.
+> ADMIN: 6 certificaten in de verificatie-wachtrij — klopt tegen de queue. FRANCHISER: tenant is
+> volledig opgezet (opdrachtgever + gepubliceerde dienst + roster) → terecht "Alles is afgehandeld"
+> (geen valse setup-nudge). Rol-geïsoleerde prioriteitsbanden; geen tegenstrijdige/dubbele/niet-
+> verdwijnende actie.
+>
+> **DOEL 2 (adversarieel, ~60 probes):** privilege-escalatie (FREELANCER/CLIENT/FRANCHISER →
+> `/admin/*` en franchise-only routes) → **307-redirect naar het eigen dashboard**; IDOR/cross-partij
+> (andermans `/samenwerkingen/<id>`, `/facturen/<id>`) → **soft-404 "Niet gevonden — geen toegang"**
+> (geen data-leak: body toont enkel de deny-tekst, geverifieerd tegen de echte foreign-velden);
+> cross-tenant (FRANCHISER Noord → default-tenant `collab-1` + `/franchise/zzpers/<Sanne>`) → soft-404;
+> document-privacy (`/api/documents/<foreign VOG>`: eigenaar + ADMIN → 200 `application/pdf`;
+> niet-eigenaar FREELANCER/CLIENT/FRANCHISER → **403**); dossier-/pdf-/modelovereenkomst-endpoints van
+> een vreemde samenwerking → **403**; garbage-id's → **404** (API) / soft-404 (pagina's), **nul 500's**;
+> XSS in query-params (`?q=<script>`) → **niet uitgevoerd, niet onge-escaped ge-echood**; malicieuze
+> factuur-input server-side afgevangen (`invoiceLineSchema`: quantity min 1/max 100000, unitCents
+> 0..100M — negatief/absurd geweigerd). **Geen enkel gat.**
+>
+> ---
+>
 > **Datum:** 2026-06-25 (run 5) · **main-commit basis:** `d738b77`
 > **Methode:** verse productie-build + schema-push + idempotente demo-seed (`SEED_DEMO=true`) op een
 > ephemere SQLite-DB (`qa.db`); productie-server (`CI=true PORT=3100 npm run start`,
