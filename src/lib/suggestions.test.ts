@@ -4,14 +4,16 @@ import {
   type FreelancerSuggestion,
   mergeClientSuggestions,
   scoreProfilesForJob,
-  SEMANTIC_HIGHLIGHT_THRESHOLD,
   SUGGESTION_MIN_SCORE,
   topSuggestions,
 } from "./suggestions";
-import { scoreJobForFreelancer } from "./matching";
+import {
+  jobProfileRelatedness,
+  scoreJobForFreelancer,
+  SEMANTIC_HIGHLIGHT_THRESHOLD,
+} from "./matching";
 import { computeTrustLevel } from "./trust";
 import { mandatoryDocuments } from "./mandatory-documents";
-import { getSemanticMatcher, safeRelatedness } from "./services/semantic-matcher";
 
 const s = (freelancerId: string, score: number): FreelancerSuggestion => ({
   freelancerId,
@@ -149,11 +151,7 @@ interface FixtureProfile {
   availabilityWindows: Array<{ startDate: Date; endDate: Date; type: string }>;
 }
 
-function joinText(parts: ReadonlyArray<string | null | undefined>): string {
-  return parts.filter((p): p is string => !!p && p.trim().length > 0).join(" ");
-}
-
-/** Exacte reconstructie van de oude, per-opdracht inline scoring (vóór de pool-refactor). */
+/** Reconstructie van de per-opdracht inline scoring (parity-borging voor de pool-refactor). */
 function legacyScore(
   job: FixtureJob,
   profiles: readonly FixtureProfile[],
@@ -161,13 +159,13 @@ function legacyScore(
   limit: number,
   now: number,
 ): FreelancerSuggestion[] {
-  const matcher = getSemanticMatcher();
-  const jobText = joinText([job.title, job.description, ...job.skills.map((s) => s.skill?.name)]);
   const scored: FreelancerSuggestion[] = profiles
     .filter((p) => !applied.has(p.id))
     .map((p) => {
-      const profileText = joinText([p.headline, p.bio, ...p.skills.map((s) => s.skill?.name)]);
-      const relatedness = safeRelatedness(matcher, jobText, profileText);
+      const relatedness = jobProfileRelatedness(
+        { title: job.title, description: job.description },
+        { headline: p.headline, bio: p.bio },
+      );
       const match = scoreJobForFreelancer(job, { ...p, relatednessScore: relatedness });
       const verifiedCredentialCount = p.credentials.filter(
         (c) => c.status === "VERIFIED" && (!c.expiresAt || c.expiresAt.getTime() > now),

@@ -12,16 +12,24 @@ scorecomponent in de matchscore i.p.v. alleen als tiebreaker. Fundering was er a
 - [x] `src/lib/matching.ts` — `semantic` toegevoegd aan `WEIGHTS` (requiredSkills 35→32, optionalSkills
       15→13, `semantic` 5; som blijft 100). Optionele `relatednessScore?` (0..1) op `MatchInput` +
       `FreelancerMatchSource`; bijdrage `round(relatednessScore * WEIGHTS.semantic)` als expliciete
-      `semantic`-breakdown-component (patroon van `branche`). Afwezig → semantic 0 (bestaande callers
-      ongewijzigd). Positieve reason "Omschrijving sluit aan bij jouw profiel" vanaf de drempel (0.3),
-      gepusht ná skills/branche. Nooit straffen op ontbrekende tekst. Puur/I/O-vrij: de aanroeper
-      berekent relatedness.
+      `semantic`-breakdown-component (patroon van `branche`). Positieve reason "Omschrijving sluit aan
+      bij jouw profiel" vanaf de drempel (0.3), ná skills/branche. Nooit straffen op ontbrekende tekst.
+- [x] **Cross-view consistentie (fix agent-review-blocker):** `jobProfileRelatedness(job, profile)`
+      exporteert één canonieke, pure/deterministische relatedness (title+description ↔ headline+bio;
+      bewust géén skill-namen — die zitten al in de skills-component en zouden per scherm kunnen
+      verschillen). `scoreJobForFreelancer` leidt de relatedness zelf af uit die scalaire tekstvelden,
+      tenzij de aanroeper hem expliciet meegeeft. Zo scoort elk scherm hetzelfde paar identiek. Eén
+      drempel-constante (`SEMANTIC_HIGHLIGHT_THRESHOLD` uit matching.ts) i.p.v. drie duplicaten.
 - [x] `src/components/match/match-breakdown.tsx` — `semantic`-rij ("Aansluiting"), alleen bij > 0.
-- [x] `src/lib/suggestions.ts` + `src/lib/recommendations.ts` — de al berekende `relatedness` wordt nu
-      als `relatednessScore` in de score gevoed; de tiebreaker blijft als secundaire sort.
-- [x] Tests: `matching.test.ts` (semantic sum-invariant, grenzen 0..max, drempel-reason, regressie
-      zonder relatednessScore); `suggestions.test.ts` (aansluitende tekst scoort strikt hoger dan geen
-      overlap; parity-fixture meegetrokken). Gate: typecheck + lint + prettier (hele repo) + **test 2978** + build groen. Demo-seed-rankings kunnen licht verschuiven (gewenst effect).
+- [x] Tekstvelden bijgeschakeld op de scoor-callers zodat de `semantic`-component overal vult:
+      `opdrachten/[id]` (myFit; headline/bio + skill-namen), `kandidaten` (job.description + freelancer.bio),
+      `franchise/dienst-detail` (freelancer.bio), `data/job-reach` (headline/bio), `job-alerts(-task)`
+      (JobAlertJob.description + JobAlertFreelancer.headline/bio). `suggestions.ts`/`recommendations.ts`
+      voeden de al berekende relatedness in de score; de tiebreaker blijft als secundaire sort.
+- [x] Tests: `matching.test.ts` (semantic sum-invariant, grenzen 0..max, drempel-reason, `jobProfileRelatedness`,
+      afgeleide==expliciete score, tekst-tilt-score); `suggestions.test.ts` (aansluitende tekst scoort
+      strikt hoger dan geen overlap; parity-fixture meegetrokken). Gate: typecheck + lint + prettier (hele
+      repo) + **test 2978** + build groen. Demo-seed-rankings kunnen licht verschuiven (gewenst effect).
 
 ## ADR — semantische matching: lokale embedder houden, pgvector parkeren (2026-07-03g)
 

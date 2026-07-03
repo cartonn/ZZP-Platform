@@ -5,6 +5,7 @@
 import { currentOrNextAvailable } from "@/lib/availability";
 import { isExpired } from "@/lib/credentials";
 import { estimateTravelMinutes } from "@/lib/services/travel-distance";
+import { getSemanticMatcher, safeRelatedness } from "@/lib/services/semantic-matcher";
 import {
   type Availability,
   type AvailabilityWindowType,
@@ -140,9 +141,11 @@ export interface MatchInput {
     /** Optioneel: echte routed reistijd, vooraf asynchroon berekend door de aanroeper. */
     routedTravelMinutesToJob?: number | null;
     /**
-     * Optioneel: inhoudelijke gelijkenis (0..1) tussen opdracht- en profieltekst, vooraf berekend
-     * door de aanroeper (matching.ts blijft puur/I/O-vrij — geen tekstbron hier). Afwezig → semantic = 0
-     * en de bestaande score verandert niet. Straft nooit op ontbrekende tekst.
+     * Optioneel: inhoudelijke gelijkenis (0..1) tussen opdracht- en profieltekst. `computeMatchScore`
+     * zelf blijft puur/I/O-vrij (geen tekstbron hier) — de aanroeper geeft de score mee, of
+     * `scoreJobForFreelancer` leidt hem af uit de tekstvelden. Afwezig → de `semantic`-component is 0
+     * (geen bonus, geen straf). N.B.: de losse skill-gewichten zijn 5 punten lager dan vóór de
+     * semantic-component, dus zonder tekst valt de totaalscore navenant lager uit.
      */
     relatednessScore?: number;
     availability: Availability;
@@ -206,9 +209,36 @@ const WEIGHTS = {
   semantic: 5,
 };
 
-/** Inhoudelijke gelijkenis vanaf deze waarde tonen we als aparte positieve reason. Gelijk aan de
- *  drempel in de aanbevelings-/suggestie-modules, zodat "sluit inhoudelijk aan" overal hetzelfde betekent. */
+/** Inhoudelijke gelijkenis vanaf deze waarde tonen we als aparte positieve reason. Eén canonieke
+ *  drempel voor álle schermen (aanbevelingen, suggesties, breakdown), zodat "sluit inhoudelijk aan"
+ *  overal exact hetzelfde betekent. */
 export const SEMANTIC_HIGHLIGHT_THRESHOLD = 0.3;
+
+/** Voegt tekstdelen samen tot één inhoudelijke tekst (lege/whitespace delen weg). */
+function joinText(parts: ReadonlyArray<string | null | undefined>): string {
+  return parts.filter((p): p is string => !!p && p.trim().length > 0).join(" ");
+}
+
+/**
+ * Canonieke inhoudelijke gelijkenis (0..1) tussen een opdracht en een profiel. Puur en
+ * deterministisch (lokale feature-hashing via de matcher-service; `safeRelatedness` vangt een
+ * niet-geconfigureerde driver af met 0). Eén bron van waarheid zodat elk scherm exact dezelfde
+ * relatedness — en dus dezelfde `semantic`-score — voor hetzelfde paar berekent (geen cross-view drift).
+ *
+ * Bewust alléén op de vrije tekst (opdracht: title+description; profiel: headline+bio): dat zijn
+ * scalaire velden die op elke aanroepplek geladen zijn, dus de uitkomst is view-onafhankelijk.
+ * Skill-overlap zit al in de aparte skills-component; die hier meenemen zou dubbeltellen én zou
+ * afhangen van of een scherm de skill-namen toevallig laadt (bron van drift). Ontbrekende tekst → 0.
+ */
+export function jobProfileRelatedness(
+  job: { title?: string | null; description?: string | null },
+  profile: { headline?: string | null; bio?: string | null },
+): number {
+  const jobText = joinText([job.title, job.description]);
+  const profileText = joinText([profile.headline, profile.bio]);
+  if (!jobText || !profileText) return 0;
+  return safeRelatedness(getSemanticMatcher(), jobText, profileText);
+}
 
 /**
  * Branche-factor (industry). Skills alleen zeggen niet genoeg: een frontend-developer met wat
@@ -280,9 +310,8 @@ export function computeMatchScore(input: MatchInput, now: Date = new Date()): Ma
     input.freelancer.routedTravelMinutesToJob,
   );
 
-  // Inhoudelijke aansluiting: kleine positieve bijdrage uit de vooraf berekende gelijkenis (0..1).
-  // Afwezig → 0, dus bestaande callers/scores blijven identiek. Nooit negatief: geen straf op
-  // ontbrekende tekst.
+  // Inhoudelijke aansluiting: kleine positieve bijdrage uit de gelijkenis (0..1). Afwezig → 0 (geen
+  // bonus). Nooit negatief: geen straf op ontbrekende tekst.
   const relatednessScore = clamp(input.freelancer.relatednessScore ?? 0, 0, 1);
   const semanticPoints = round(relatednessScore * WEIGHTS.semantic);
 
@@ -444,6 +473,10 @@ export interface JobMatchSource {
   location: string | null;
   /** Branche van de opdracht. Optioneel: aanwezig levert de branche-factor, afwezig = neutraal. */
   industryId?: string | null;
+  /** Optioneel: opdrachttitel — voedt (met description/skills) de inhoudelijke aansluiting. */
+  title?: string | null;
+  /** Optioneel: opdrachtomschrijving — voedt de inhoudelijke aansluiting. */
+  description?: string | null;
 }
 export interface FreelancerMatchSource {
   skills: readonly { skillId: string }[];
@@ -453,8 +486,16 @@ export interface FreelancerMatchSource {
   location: string | null;
   maxTravelMinutes?: number | null;
   routedTravelMinutesToJob?: number | null;
-  /** Optioneel: vooraf berekende inhoudelijke gelijkenis (0..1) tussen opdracht- en profieltekst. */
+  /**
+   * Optioneel: vooraf berekende inhoudelijke gelijkenis (0..1). Meestal niet nodig — als hij ontbreekt
+   * berekent `scoreJobForFreelancer` hem zelf uit de tekstvelden (title/description ↔ headline/bio +
+   * skills), zodat elk scherm consistent scoort. Expliciet meegeven overschrijft die berekening.
+   */
   relatednessScore?: number;
+  /** Optioneel: functietitel/headline — voedt (met bio/skills) de inhoudelijke aansluiting. */
+  headline?: string | null;
+  /** Optioneel: bio — voedt de inhoudelijke aansluiting. */
+  bio?: string | null;
   availability: string;
   availabilityWindows?: readonly { startDate: Date; endDate: Date; type: string }[];
   /** Branche(s) van het profiel. Optioneel: aanwezig levert de branche-factor, afwezig = neutraal. */
@@ -467,6 +508,16 @@ export function scoreJobForFreelancer(
   freelancer: FreelancerMatchSource,
   now: Date = new Date(),
 ): MatchResult {
+  // Inhoudelijke aansluiting: expliciete score wint; anders centraal en consistent afgeleid uit de
+  // tekstvelden. Zo scoort elk scherm hetzelfde paar identiek (geen cross-view drift). Ontbreekt de
+  // tekst op een bron → 0 (geen straf op ontbrekende tekst).
+  const relatednessScore =
+    freelancer.relatednessScore ??
+    jobProfileRelatedness(
+      { title: job.title, description: job.description },
+      { headline: freelancer.headline, bio: freelancer.bio },
+    );
+
   return computeMatchScore(
     {
       requiredSkillIds: job.skills.filter((s) => s.required).map((s) => s.skillId),
@@ -493,7 +544,7 @@ export function scoreJobForFreelancer(
         location: freelancer.location,
         maxTravelMinutes: freelancer.maxTravelMinutes ?? null,
         routedTravelMinutesToJob: freelancer.routedTravelMinutesToJob ?? null,
-        relatednessScore: freelancer.relatednessScore,
+        relatednessScore,
         availability: freelancer.availability as Availability,
         industryIds: freelancer.industries?.map((i) => i.industryId),
         availabilityWindows: freelancer.availabilityWindows?.map((w) => ({

@@ -9,6 +9,8 @@ export const JOB_ALERT_THRESHOLD = 70;
 export interface JobAlertJob {
   id: string;
   title: string;
+  /** Opdrachtomschrijving — voedt (met de headline/bio van de ZZP'er) de inhoudelijke aansluiting. */
+  description?: string | null;
   skills: readonly { skillId: string; required: boolean }[];
   credentialRequirements: readonly { credentialType: string; required: boolean }[];
   rateMin: number | null;
@@ -27,6 +29,10 @@ export interface JobAlertJob {
 export interface JobAlertFreelancer {
   userId: string;
   freelancerProfileId: string;
+  /** Functietitel/headline — voedt (met bio + opdrachttekst) de inhoudelijke aansluiting. */
+  headline?: string | null;
+  /** Bio — voedt de inhoudelijke aansluiting. */
+  bio?: string | null;
   skills: readonly { skillId: string }[];
   credentials: readonly { type: string; status: string; expiresAt: Date | null }[];
   hourlyRate: number | null;

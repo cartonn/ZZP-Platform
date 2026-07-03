@@ -2,13 +2,18 @@
 // systeem zélf welke (openbare) ZZP'ers passen en nog niet reageerden. Spiegelbeeld van
 // recommendations.ts. Hergebruikt de server-berekende matchscore + compliance + vertrouwensniveau.
 //
-// Inhoudelijke (semantische) gelijkenis tussen opdracht en profiel weegt mee als
-// deterministische tiebreaker bij gelijke score en als verklaring — nooit in de score zelf.
+// Inhoudelijke (semantische) gelijkenis tussen opdracht en profiel voedt de matchscore als kleine,
+// uitlegbare `semantic`-component (zie matching.ts) én dient als verklaring; de tiebreaker bij exact
+// gelijke score blijft als secundaire sort.
 
 import { prisma } from "@/lib/db";
 import { type Availability, type CredentialType, type CredentialStatus } from "@/lib/enums";
-import { scoreJobForFreelancer, type ComplianceStatus } from "@/lib/matching";
-import { getSemanticMatcher, safeRelatedness } from "@/lib/services/semantic-matcher";
+import {
+  jobProfileRelatedness,
+  scoreJobForFreelancer,
+  SEMANTIC_HIGHLIGHT_THRESHOLD,
+  type ComplianceStatus,
+} from "@/lib/matching";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { discoverableFreelancerWhere } from "@/lib/freelancer-visibility";
@@ -26,7 +31,7 @@ export interface FreelancerSuggestion {
   location: string | null;
   /** Uurtarief in euro (heel getal), of null. */
   rate: number | null;
-  /** Inhoudelijke gelijkenis met de opdracht, 0..1. Tiebreaker bij gelijke score. */
+  /** Inhoudelijke gelijkenis met de opdracht, 0..1. Voedt de `semantic`-scorecomponent; tiebreaker bij gelijke score. */
   relatedness?: number;
   /** Sluit inhoudelijk sterk aan (boven de drempel) — voor de verklaring in de UI. */
   related?: boolean;
@@ -34,14 +39,8 @@ export interface FreelancerSuggestion {
 
 /** Drempel waaronder een ZZP'er niet relevant genoeg is om voor te stellen. */
 export const SUGGESTION_MIN_SCORE = 70;
-/** Inhoudelijke gelijkenis vanaf deze waarde tonen we als aparte verklaring. */
-export const SEMANTIC_HIGHLIGHT_THRESHOLD = 0.3;
 /** Maximaal aantal openbare profielen dat we scoren (begrenst het werk). */
 const SCAN_LIMIT = 200;
-
-function joinText(parts: ReadonlyArray<string | null | undefined>): string {
-  return parts.filter((p): p is string => !!p && p.trim().length > 0).join(" ");
-}
 
 /**
  * Vorm van een gescoorde opdracht: precies de velden die `scoreProfilesForJob` nodig heeft.
@@ -114,15 +113,15 @@ export function scoreProfilesForJob(
   limit: number,
   now: number = Date.now(),
 ): FreelancerSuggestion[] {
-  const matcher = getSemanticMatcher();
-  const jobText = joinText([job.title, job.description, ...job.skills.map((s) => s.skill?.name)]);
-
   const scored: FreelancerSuggestion[] = profiles
     .filter((p) => !applied.has(p.id))
     .map((p) => {
-      const profileText = joinText([p.headline, p.bio, ...p.skills.map((s) => s.skill?.name)]);
-      const relatedness = safeRelatedness(matcher, jobText, profileText);
-      // Inhoudelijke aansluiting voedt nu de score als kleine, uitlegbare component (niet slechts een
+      // Eén canonieke relatedness voor score (via scoreJobForFreelancer) én verklaring/tiebreaker.
+      const relatedness = jobProfileRelatedness(
+        { title: job.title, description: job.description },
+        { headline: p.headline, bio: p.bio },
+      );
+      // Inhoudelijke aansluiting voedt de score als kleine, uitlegbare component (niet slechts een
       // tiebreaker). De tiebreaker in topSuggestions/mergeClientSuggestions blijft als secundaire sort.
       const match = scoreJobForFreelancer(job, { ...p, relatednessScore: relatedness });
       const verifiedCredentialCount = p.credentials.filter(

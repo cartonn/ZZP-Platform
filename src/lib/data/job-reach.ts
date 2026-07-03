@@ -34,6 +34,8 @@ export async function getJobReach(jobId: string): Promise<ReachSummary | null> {
     take: REACH_SCAN_LIMIT,
     select: {
       id: true,
+      headline: true,
+      bio: true,
       hourlyRate: true,
       workMode: true,
       location: true,
@@ -49,7 +51,11 @@ export async function getJobReach(jobId: string): Promise<ReachSummary | null> {
   const candidates = profiles
     .filter((p) => !applied.has(p.id))
     .map((p) => {
+      // headline/bio + de opdrachttekst voeden de inhoudelijke aansluiting, zodat het bereik-signaal
+      // dezelfde score gebruikt als de overige schermen.
       const match = scoreJobForFreelancer(job, {
+        headline: p.headline,
+        bio: p.bio,
         skills: p.skills,
         credentials: p.credentials,
         hourlyRate: p.hourlyRate,

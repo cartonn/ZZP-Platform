@@ -10,6 +10,8 @@ import {
   BRANCHE_MISMATCH_CAP,
   MATCH_COMPONENT_MAX,
   SEMANTIC_HIGHLIGHT_THRESHOLD,
+  jobProfileRelatedness,
+  scoreJobForFreelancer,
   type FreelancerCredential,
   type MatchInput,
   type MatchResult,
@@ -173,7 +175,7 @@ describe("computeMatchScore", () => {
       freelancer: { ...base.freelancer, relatednessScore: undefined },
     };
 
-    it("zonder relatednessScore is semantic 0 en verandert de score niet t.o.v. voorheen (regressie)", () => {
+    it("zonder relatednessScore is de semantic-component 0 (geen bonus, geen straf)", () => {
       const r = computeMatchScore(noText, now);
       expect(r.breakdown.semantic).toBe(0);
       // Perfect op alle overige assen, zonder tekst: exact 100 − WEIGHTS.semantic = 95.
@@ -502,6 +504,85 @@ describe("computeMatchScore", () => {
     );
     expect(r.availability.status).toBe("AVAILABLE");
     expect(r.availability.reason).toEqual({ kind: "positive", label: "Direct beschikbaar" });
+  });
+});
+
+describe("jobProfileRelatedness", () => {
+  it("is 0 als aan één kant geen tekst staat (geen straf op ontbrekende tekst)", () => {
+    expect(
+      jobProfileRelatedness({ title: "IC-verpleegkundige" }, { headline: null, bio: null }),
+    ).toBe(0);
+    expect(
+      jobProfileRelatedness({ title: null, description: null }, { bio: "React developer" }),
+    ).toBe(0);
+  });
+
+  it("is hoger bij inhoudelijk aansluitende tekst dan bij niet-aansluitende", () => {
+    const job = {
+      title: "Intensive care verpleegkundige",
+      description: "IC-verpleegkundige gezocht voor nachtdiensten op de intensive care",
+    };
+    const aligned = jobProfileRelatedness(job, {
+      headline: "Intensive care verpleegkundige",
+      bio: "Ervaren op de intensive care met nachtdiensten",
+    });
+    const unrelated = jobProfileRelatedness(job, {
+      headline: "Frontend developer",
+      bio: "React en TypeScript, webapplicaties",
+    });
+    expect(aligned).toBeGreaterThan(unrelated);
+  });
+});
+
+describe("scoreJobForFreelancer — centrale, consistente relatedness (geen cross-view drift)", () => {
+  const job = {
+    title: "Intensive care verpleegkundige",
+    description: "Ervaren IC-verpleegkundige gezocht voor de nachtdiensten op de intensive care",
+    skills: [{ skillId: "sk-ic", required: true }],
+    credentialRequirements: [] as { credentialType: string; required: boolean }[],
+    rateMin: 40,
+    rateMax: 70,
+    workMode: "ONSITE",
+    location: "Amsterdam",
+    industryId: "zorg",
+  };
+  const freelancer = {
+    headline: "Intensive care verpleegkundige",
+    bio: "Jarenlange ervaring op de intensive care met nachtdiensten",
+    skills: [{ skillId: "sk-ic" }],
+    credentials: [] as { type: string; status: string; expiresAt: Date | null }[],
+    hourlyRate: 55,
+    workMode: "ONSITE",
+    location: "Amsterdam",
+    availability: "AVAILABLE",
+    industries: [{ industryId: "zorg" }],
+  };
+
+  it("leidt relatedness af uit de tekstvelden als de aanroeper er geen meegeeft", () => {
+    const derived = scoreJobForFreelancer(job, freelancer, now);
+    expect(derived.breakdown.semantic).toBeGreaterThan(0);
+  });
+
+  it("scoort identiek of de relatedness nu is afgeleid of expliciet (zelfde paar → zelfde score)", () => {
+    const rel = jobProfileRelatedness(
+      { title: job.title, description: job.description },
+      { headline: freelancer.headline, bio: freelancer.bio },
+    );
+    const derived = scoreJobForFreelancer(job, freelancer, now);
+    const explicit = scoreJobForFreelancer(job, { ...freelancer, relatednessScore: rel }, now);
+    expect(derived.score).toBe(explicit.score);
+    expect(derived.breakdown).toEqual(explicit.breakdown);
+  });
+
+  it("een profiel zonder tekst scoort lager dan hetzelfde profiel mét aansluitende tekst", () => {
+    const withText = scoreJobForFreelancer(job, freelancer, now);
+    const withoutText = scoreJobForFreelancer(
+      job,
+      { ...freelancer, headline: null, bio: null },
+      now,
+    );
+    expect(withText.score).toBeGreaterThan(withoutText.score);
+    expect(withoutText.breakdown.semantic).toBe(0);
   });
 });
 
