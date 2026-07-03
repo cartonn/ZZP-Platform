@@ -208,7 +208,10 @@ export function Concept24() {
             style={{ borderColor: C.line }}
             aria-label="Schermen"
           >
-            <p className="px-2 pb-2 text-[10.5px] uppercase tracking-[0.24em]" style={{ color: C.dim }}>
+            <p
+              className="px-2 pb-2 text-[10.5px] uppercase tracking-[0.24em]"
+              style={{ color: C.dim }}
+            >
               ── modules ──
             </p>
             <ul className="flex flex-col gap-0.5">
@@ -238,7 +241,10 @@ export function Concept24() {
               })}
             </ul>
 
-            <p className="mt-6 px-2 pb-2 text-[10.5px] uppercase tracking-[0.24em]" style={{ color: C.dim }}>
+            <p
+              className="mt-6 px-2 pb-2 text-[10.5px] uppercase tracking-[0.24em]"
+              style={{ color: C.dim }}
+            >
               ── overig ──
             </p>
             <div className="flex flex-col gap-1 px-2">
@@ -298,7 +304,10 @@ export function Concept24() {
             </div>
 
             {/* Mobiele module-tabs */}
-            <div className="flex gap-1 overflow-x-auto border-b px-3 py-2 md:hidden" style={{ borderColor: C.line }}>
+            <div
+              className="flex gap-1 overflow-x-auto border-b px-3 py-2 md:hidden"
+              style={{ borderColor: C.line }}
+            >
               {SCREENS.map((s) => {
                 const on = s.key === screen;
                 return (
@@ -374,7 +383,7 @@ function Dashboard({ onOpen }: { onOpen: () => void }) {
                 {k.label}
               </p>
               <p
-                className="mt-2 text-[24px] font-semibold leading-none tabular-nums"
+                className="mt-2 text-[24px] font-semibold tabular-nums leading-none"
                 style={{ color: C.phosphor }}
               >
                 {k.value}
@@ -583,7 +592,9 @@ function Marktplaats({ onOpen }: { onOpen: () => void }) {
             {"grep: geen resultaten"}
           </p>
           <p className="mx-auto mt-2 max-w-sm text-[12px]" style={{ color: C.inkSoft }}>
-            {"// pas je zoekterm aan of verbreed je beschikbaarheid — we melden nieuwe matches zodra ze binnenkomen."}
+            {
+              "// pas je zoekterm aan of verbreed je beschikbaarheid — we melden nieuwe matches zodra ze binnenkomen."
+            }
           </p>
         </Box>
       ) : (
@@ -599,7 +610,10 @@ function Marktplaats({ onOpen }: { onOpen: () => void }) {
                 <span className="text-[11px] tabular-nums" style={{ color: C.dim }}>
                   {o.id}
                 </span>
-                <span className="text-[12px] font-semibold tabular-nums" style={{ color: C.phosphor }}>
+                <span
+                  className="text-[12px] font-semibold tabular-nums"
+                  style={{ color: C.phosphor }}
+                >
                   {o.match}% match
                 </span>
               </div>
@@ -669,7 +683,10 @@ function OpdrachtDetail({ opdracht }: { opdracht: Opdracht }) {
             <p className="text-[10.5px] uppercase tracking-[0.12em]" style={{ color: C.dim }}>
               {m.l}
             </p>
-            <p className="mt-1.5 text-[15px] font-semibold tabular-nums" style={{ color: C.phosphor }}>
+            <p
+              className="mt-1.5 text-[15px] font-semibold tabular-nums"
+              style={{ color: C.phosphor }}
+            >
               {m.v}
             </p>
           </Box>
@@ -685,7 +702,11 @@ function OpdrachtDetail({ opdracht }: { opdracht: Opdracht }) {
             </p>
             <ul className="mt-3 space-y-2">
               {opdracht.redenen.plus.map((r) => (
-                <li key={r} className="flex items-start gap-2 text-[12.5px]" style={{ color: C.ink }}>
+                <li
+                  key={r}
+                  className="flex items-start gap-2 text-[12.5px]"
+                  style={{ color: C.ink }}
+                >
                   <span aria-hidden="true" style={{ color: C.phosphor }}>
                     [✓]
                   </span>
@@ -775,7 +796,10 @@ function Verificatie() {
                 className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0"
                 style={{ borderColor: C.lineSoft }}
               >
-                <span className="w-16 text-[12px] font-semibold tabular-nums" style={{ color: st.fg }}>
+                <span
+                  className="w-16 text-[12px] font-semibold tabular-nums"
+                  style={{ color: st.fg }}
+                >
                   {st.label}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -814,7 +838,10 @@ function Verificatie() {
                     {d.type} · {d.grootte} · {d.bijgewerkt}
                   </span>
                 </span>
-                <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: st.fg }}>
+                <span
+                  className="shrink-0 text-[11px] font-semibold tabular-nums"
+                  style={{ color: st.fg }}
+                >
                   {st.label}
                 </span>
               </div>
@@ -865,7 +892,11 @@ function Acties() {
                 </div>
                 <button
                   className="shrink-0 rounded-[3px] px-3 py-1.5 text-[12px] font-semibold transition-colors hover:brightness-110 focus-visible:outline-none focus-visible:ring-1"
-                  style={{ background: warn ? C.amberSoft : C.phosphorSoft, color: fg, border: `1px solid ${fg}` }}
+                  style={{
+                    background: warn ? C.amberSoft : C.phosphorSoft,
+                    color: fg,
+                    border: `1px solid ${fg}`,
+                  }}
                 >
                   &gt; {a.cta.toLowerCase()}
                 </button>

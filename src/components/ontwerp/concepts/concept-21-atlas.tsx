@@ -39,7 +39,6 @@ import {
   ACTIES,
   FACTUREN,
   PROFIEL,
-  NAV,
   BERICHTEN,
   DOCUMENTEN,
   type ScreenKey,
@@ -121,7 +120,13 @@ function Sparkline({ data, color = C.teal }: { data: number[]; color?: string })
   const line = pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
   const area = `0,${h} ${line} ${w},${h}`;
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className="overflow-visible">
+    <svg
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      aria-hidden="true"
+      className="overflow-visible"
+    >
       <polygon points={area} fill={color} opacity={0.1} />
       <polyline
         points={line}
@@ -155,7 +160,11 @@ function TopoMap({
       className={`relative overflow-hidden ${className}`}
       style={{ background: C.beige, height, border: `1px solid ${C.line}`, borderRadius: 18 }}
     >
-      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="xMidYMid slice"
+        className="absolute inset-0 h-full w-full"
+      >
         {/* water-vlak */}
         <path
           d="M0,74 C14,70 22,80 34,78 C50,75 58,86 74,84 C86,82 94,88 100,86 L100,100 L0,100 Z"
@@ -213,7 +222,15 @@ function TopoMap({
           ))}
         {/* eigen locatie */}
         <circle cx={46} cy={50} r={1.7} fill={C.teal} />
-        <circle cx={46} cy={50} r={3.2} fill="none" stroke={C.teal} strokeWidth={0.5} opacity={0.6} />
+        <circle
+          cx={46}
+          cy={50}
+          r={3.2}
+          fill="none"
+          stroke={C.teal}
+          strokeWidth={0.5}
+          opacity={0.6}
+        />
       </svg>
 
       {/* pins met poot + schaduw + match% */}
@@ -225,7 +242,7 @@ function TopoMap({
         >
           <div className="relative flex flex-col items-center">
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-semibold text-white tabular-nums"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums text-white"
               style={{
                 background: matches[i] >= 90 ? C.teal : matches[i] >= 85 ? C.water : C.amber,
                 boxShadow: "0 6px 12px -4px rgba(36,49,46,0.5)",
@@ -236,7 +253,9 @@ function TopoMap({
             </div>
             <div
               className="h-2 w-2 -translate-y-1 rotate-45"
-              style={{ background: matches[i] >= 90 ? C.teal : matches[i] >= 85 ? C.water : C.amber }}
+              style={{
+                background: matches[i] >= 90 ? C.teal : matches[i] >= 85 ? C.water : C.amber,
+              }}
               aria-hidden="true"
             />
             <div
@@ -251,7 +270,12 @@ function TopoMap({
       {/* coördinaat-label */}
       <div
         className="absolute left-3 top-3 rounded-md px-2 py-0.5 text-[9.5px] tracking-wide"
-        style={{ ...mono, background: "rgba(255,253,248,0.82)", color: C.inkSoft, border: `1px solid ${C.line}` }}
+        style={{
+          ...mono,
+          background: "rgba(255,253,248,0.82)",
+          color: C.inkSoft,
+          border: `1px solid ${C.line}`,
+        }}
       >
         52.09° N · 5.12° O
       </div>
@@ -259,7 +283,15 @@ function TopoMap({
       {/* kompasroosje (subtiel) */}
       <div className="absolute right-3 top-3" aria-hidden="true">
         <svg width="26" height="26" viewBox="0 0 26 26">
-          <circle cx="13" cy="13" r="11" fill="none" stroke={C.faint} strokeWidth="0.6" opacity="0.7" />
+          <circle
+            cx="13"
+            cy="13"
+            r="11"
+            fill="none"
+            stroke={C.faint}
+            strokeWidth="0.6"
+            opacity="0.7"
+          />
           <path d="M13 3 L15.5 13 L13 11 L10.5 13 Z" fill={C.rose} opacity="0.85" />
           <path d="M13 23 L10.5 13 L13 15 L15.5 13 Z" fill={C.faint} opacity="0.7" />
           <text x="13" y="2.4" textAnchor="middle" fontSize="3.2" fill={C.muted} style={mono}>
@@ -272,7 +304,15 @@ function TopoMap({
       <div className="absolute bottom-3 left-3 flex items-center gap-1.5" aria-hidden="true">
         <div className="flex h-1.5 items-end">
           <span style={{ width: 18, height: 6, background: C.ink, opacity: 0.55 }} />
-          <span style={{ width: 18, height: 6, background: "transparent", border: `1px solid ${C.ink}`, opacity: 0.4 }} />
+          <span
+            style={{
+              width: 18,
+              height: 6,
+              background: "transparent",
+              border: `1px solid ${C.ink}`,
+              opacity: 0.4,
+            }}
+          />
         </div>
         <span className="text-[8.5px]" style={{ ...mono, color: C.muted }}>
           5 km
@@ -284,7 +324,10 @@ function TopoMap({
 
 function Kicker({ children, color = C.teal }: { children: React.ReactNode; color?: string }) {
   return (
-    <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.22em]" style={{ ...mono, color }}>
+    <p
+      className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.22em]"
+      style={{ ...mono, color }}
+    >
       <Navigation size={11} aria-hidden="true" />
       {children}
     </p>
@@ -383,7 +426,10 @@ export function Concept21() {
 
           {/* Legenda */}
           <div className="mt-7 px-2">
-            <p className="pb-2.5 text-[9.5px] font-semibold uppercase tracking-[0.2em]" style={{ ...mono, color: C.faint }}>
+            <p
+              className="pb-2.5 text-[9.5px] font-semibold uppercase tracking-[0.2em]"
+              style={{ ...mono, color: C.faint }}
+            >
               Legenda
             </p>
             <div className="space-y-2 text-[11px]" style={{ color: C.muted }}>
@@ -393,12 +439,20 @@ export function Concept21() {
                 { c: C.amber, l: "Match < 85%" },
               ].map((x) => (
                 <div key={x.l} className="flex items-center gap-2.5">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: x.c }} aria-hidden="true" />
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ background: x.c }}
+                    aria-hidden="true"
+                  />
                   {x.l}
                 </div>
               ))}
               <div className="flex items-center gap-2.5">
-                <span className="h-2.5 w-4 rounded-full" style={{ background: C.waterSoft }} aria-hidden="true" />
+                <span
+                  className="h-2.5 w-4 rounded-full"
+                  style={{ background: C.waterSoft }}
+                  aria-hidden="true"
+                />
                 Reistijd-radius
               </div>
             </div>
@@ -439,7 +493,12 @@ export function Concept21() {
             <div className="ml-auto flex items-center gap-2.5">
               <button
                 className="flex items-center gap-2.5 rounded-[12px] px-4 py-2.5 text-[12.5px] transition-all hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2"
-                style={{ background: C.surface, color: C.muted, boxShadow: SHADOW_SM, border: `1px solid ${C.line}` }}
+                style={{
+                  background: C.surface,
+                  color: C.muted,
+                  boxShadow: SHADOW_SM,
+                  border: `1px solid ${C.line}`,
+                }}
                 aria-label="Zoeken openen"
               >
                 <Search size={14} aria-hidden="true" />
@@ -447,11 +506,20 @@ export function Concept21() {
               </button>
               <button
                 className="relative rounded-[12px] p-2.5 transition-all hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2"
-                style={{ background: C.surface, color: C.muted, boxShadow: SHADOW_SM, border: `1px solid ${C.line}` }}
+                style={{
+                  background: C.surface,
+                  color: C.muted,
+                  boxShadow: SHADOW_SM,
+                  border: `1px solid ${C.line}`,
+                }}
                 aria-label="Meldingen"
               >
                 <Bell size={16} aria-hidden="true" />
-                <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full" style={{ background: C.rose }} aria-hidden="true" />
+                <span
+                  className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full"
+                  style={{ background: C.rose }}
+                  aria-hidden="true"
+                />
               </button>
             </div>
           </header>
@@ -479,8 +547,12 @@ export function Concept21() {
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-7 lg:px-9 lg:py-8">
-            {screen === "dashboard" && <Dashboard onOpen={() => setScreen("opdracht")} matches={matches} />}
-            {screen === "marktplaats" && <Marktplaats onOpen={() => setScreen("opdracht")} matches={matches} />}
+            {screen === "dashboard" && (
+              <Dashboard onOpen={() => setScreen("opdracht")} matches={matches} />
+            )}
+            {screen === "marktplaats" && (
+              <Marktplaats onOpen={() => setScreen("opdracht")} matches={matches} />
+            )}
             {screen === "opdracht" && <OpdrachtDetail opdracht={active} />}
             {screen === "verificatie" && <Verificatie />}
             {screen === "acties" && <Acties />}
@@ -514,15 +586,26 @@ function Dashboard({ onOpen, matches }: { onOpen: () => void; matches: number[] 
             <p className="text-[11.5px]" style={{ color: C.muted }}>
               {k.label}
             </p>
-            <p className="mt-2 text-[26px] font-semibold leading-none tracking-tight" style={{ ...mono, color: C.ink }}>
+            <p
+              className="mt-2 text-[26px] font-semibold leading-none tracking-tight"
+              style={{ ...mono, color: C.ink }}
+            >
               {k.value}
             </p>
             <div className="mt-3.5 flex items-center justify-between">
               <span
                 className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium tabular-nums"
-                style={{ color: k.up ? C.tealDeep : C.amber, background: k.up ? C.tealSoft : C.amberSoft, ...mono }}
+                style={{
+                  color: k.up ? C.tealDeep : C.amber,
+                  background: k.up ? C.tealSoft : C.amberSoft,
+                  ...mono,
+                }}
               >
-                {k.up ? <ArrowUpRight size={11} aria-hidden="true" /> : <ArrowDownRight size={11} aria-hidden="true" />}
+                {k.up ? (
+                  <ArrowUpRight size={11} aria-hidden="true" />
+                ) : (
+                  <ArrowDownRight size={11} aria-hidden="true" />
+                )}
                 {k.trend}
               </span>
               <Sparkline data={k.spark} color={k.up ? C.teal : C.amber} />
@@ -537,7 +620,8 @@ function Dashboard({ onOpen, matches }: { onOpen: () => void; matches: number[] 
           <Panel className="overflow-hidden p-0">
             <div className="flex items-center justify-between px-4 py-3">
               <h2 className="flex items-center gap-2 text-[15px] font-semibold" style={ui}>
-                <MapIcon size={15} aria-hidden="true" style={{ color: C.teal }} /> Matches op de kaart
+                <MapIcon size={15} aria-hidden="true" style={{ color: C.teal }} /> Matches op de
+                kaart
               </h2>
               <span className="text-[10.5px]" style={{ ...mono, color: C.muted }}>
                 straal 24 min
@@ -554,8 +638,11 @@ function Dashboard({ onOpen, matches }: { onOpen: () => void; matches: number[] 
                   className="flex w-full items-center gap-3.5 rounded-[13px] px-3.5 py-3 text-left transition-colors hover:bg-[#f9f6ee] focus-visible:outline-none focus-visible:ring-2"
                 >
                   <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white tabular-nums"
-                    style={{ background: matches[i] >= 90 ? C.teal : matches[i] >= 85 ? C.water : C.amber, ...mono }}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums text-white"
+                    style={{
+                      background: matches[i] >= 90 ? C.teal : matches[i] >= 85 ? C.water : C.amber,
+                      ...mono,
+                    }}
                   >
                     {o.match}
                   </span>
@@ -565,7 +652,10 @@ function Dashboard({ onOpen, matches }: { onOpen: () => void; matches: number[] 
                       {o.opdrachtgever} · {o.plaats}
                     </p>
                   </div>
-                  <span className="hidden text-[11.5px] tabular-nums sm:block" style={{ color: C.inkSoft, ...mono }}>
+                  <span
+                    className="hidden text-[11.5px] tabular-nums sm:block"
+                    style={{ color: C.inkSoft, ...mono }}
+                  >
                     {o.tarief.replace(" / uur", "")}
                   </span>
                   <ChevronRight size={15} aria-hidden="true" style={{ color: C.faint }} />
@@ -587,7 +677,10 @@ function Dashboard({ onOpen, matches }: { onOpen: () => void; matches: number[] 
             <Panel className="p-2">
               <div className="flex flex-col gap-0.5">
                 {BERICHTEN.map((b) => (
-                  <div key={b.van} className="flex items-center gap-3 rounded-[13px] px-3 py-2.5 transition-colors hover:bg-[#f9f6ee]">
+                  <div
+                    key={b.van}
+                    className="flex items-center gap-3 rounded-[13px] px-3 py-2.5 transition-colors hover:bg-[#f9f6ee]"
+                  >
                     <div
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] text-[10.5px] font-semibold text-white"
                       style={{ background: b.ongelezen ? C.teal : C.faint }}
@@ -598,14 +691,21 @@ function Dashboard({ onOpen, matches }: { onOpen: () => void; matches: number[] 
                       <div className="flex items-center gap-2">
                         <p className="truncate text-[12.5px] font-semibold">{b.van}</p>
                         {b.ongelezen && (
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: C.rose }} aria-hidden="true" />
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{ background: C.rose }}
+                            aria-hidden="true"
+                          />
                         )}
                       </div>
                       <p className="truncate text-[11.5px]" style={{ color: C.muted }}>
                         {b.preview}
                       </p>
                     </div>
-                    <span className="shrink-0 text-[10.5px] tabular-nums" style={{ ...mono, color: C.faint }}>
+                    <span
+                      className="shrink-0 text-[10.5px] tabular-nums"
+                      style={{ ...mono, color: C.faint }}
+                    >
                       {b.tijd}
                     </span>
                   </div>
@@ -649,7 +749,10 @@ function Dashboard({ onOpen, matches }: { onOpen: () => void; matches: number[] 
 
           <Panel className="overflow-hidden p-0">
             <div className="px-4 py-3.5" style={{ background: C.teal }}>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80" style={mono}>
+              <p
+                className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80"
+                style={mono}
+              >
                 Volgende beste stap
               </p>
               <p className="mt-1.5 text-[15px] font-semibold leading-snug text-white" style={ui}>
@@ -746,9 +849,17 @@ function Marktplaats({ onOpen, matches }: { onOpen: () => void; matches: number[
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_1fr]">
         {/* Kaart */}
-        <Panel className="order-2 overflow-hidden p-3 lg:order-1 lg:sticky lg:top-4 lg:self-start">
-          <TopoMap matches={shownMatches.length ? shownMatches : matches} pins={shownPins.length ? shownPins : PINS} height={380} showRings />
-          <div className="mt-3 flex items-center justify-between px-1 text-[11px]" style={{ color: C.muted }}>
+        <Panel className="order-2 overflow-hidden p-3 lg:sticky lg:top-4 lg:order-1 lg:self-start">
+          <TopoMap
+            matches={shownMatches.length ? shownMatches : matches}
+            pins={shownPins.length ? shownPins : PINS}
+            height={380}
+            showRings
+          />
+          <div
+            className="mt-3 flex items-center justify-between px-1 text-[11px]"
+            style={{ color: C.muted }}
+          >
             <span className="flex items-center gap-1.5" style={mono}>
               <Layers size={12} aria-hidden="true" /> {filtered.length} pins zichtbaar
             </span>
@@ -760,7 +871,10 @@ function Marktplaats({ onOpen, matches }: { onOpen: () => void; matches: number[
         <div className="order-1 space-y-4 lg:order-2">
           {filtered.length === 0 ? (
             <Panel className="flex flex-col items-center px-6 py-14 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full" style={{ background: C.waterSoft }}>
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-full"
+                style={{ background: C.waterSoft }}
+              >
                 <Compass size={24} aria-hidden="true" style={{ color: C.water }} />
               </div>
               <p className="mt-4 text-[16px] font-semibold" style={ui}>
@@ -799,24 +913,38 @@ function Marktplaats({ onOpen, matches }: { onOpen: () => void; matches: number[
                     </p>
                   </div>
                   <span
-                    className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-[12px] text-[13px] font-semibold text-white tabular-nums"
-                    style={{ background: shownMatches[i] >= 90 ? C.teal : shownMatches[i] >= 85 ? C.water : C.amber, ...mono }}
+                    className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-[12px] text-[13px] font-semibold tabular-nums text-white"
+                    style={{
+                      background:
+                        shownMatches[i] >= 90 ? C.teal : shownMatches[i] >= 85 ? C.water : C.amber,
+                      ...mono,
+                    }}
                   >
                     {o.match}
                     <span className="text-[7.5px] font-medium opacity-80">MATCH</span>
                   </span>
                 </div>
-                <p className="mt-1.5 flex items-center gap-1.5 text-[12px]" style={{ color: C.muted }}>
+                <p
+                  className="mt-1.5 flex items-center gap-1.5 text-[12px]"
+                  style={{ color: C.muted }}
+                >
                   <MapPin size={12} aria-hidden="true" /> {o.opdrachtgever} · {o.plaats}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {o.tags.map((t) => (
-                    <span key={t} className="rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ background: C.lineSoft, color: C.inkSoft }}>
+                    <span
+                      key={t}
+                      className="rounded-full px-2.5 py-1 text-[10px] font-medium"
+                      style={{ background: C.lineSoft, color: C.inkSoft }}
+                    >
                       {t}
                     </span>
                   ))}
                 </div>
-                <div className="mt-3.5 flex items-center justify-between border-t pt-3.5 text-[12px]" style={{ borderColor: C.line }}>
+                <div
+                  className="mt-3.5 flex items-center justify-between border-t pt-3.5 text-[12px]"
+                  style={{ borderColor: C.line }}
+                >
                   <span className="font-semibold tabular-nums" style={{ ...mono, color: C.teal }}>
                     {o.tarief}
                   </span>
@@ -857,8 +985,12 @@ function OpdrachtDetail({ opdracht }: { opdracht: Opdracht }) {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.1fr]">
         <Panel className="overflow-hidden p-3">
           <TopoMap matches={[opdracht.match]} pins={[PINS[0]]} height={260} />
-          <div className="mt-2.5 flex items-center gap-2 px-1 text-[11px]" style={{ ...mono, color: C.muted }}>
-            <Route size={12} aria-hidden="true" style={{ color: C.teal }} /> reistijd ≈ 12 min · 6,4 km
+          <div
+            className="mt-2.5 flex items-center gap-2 px-1 text-[11px]"
+            style={{ ...mono, color: C.muted }}
+          >
+            <Route size={12} aria-hidden="true" style={{ color: C.teal }} /> reistijd ≈ 12 min · 6,4
+            km
           </div>
         </Panel>
 
@@ -873,7 +1005,10 @@ function OpdrachtDetail({ opdracht }: { opdracht: Opdracht }) {
               <p className="text-[10.5px]" style={{ color: C.muted }}>
                 {m.l}
               </p>
-              <p className="mt-1.5 text-[16px] font-semibold tabular-nums tracking-tight" style={{ ...mono, color: C.ink }}>
+              <p
+                className="mt-1.5 text-[16px] font-semibold tabular-nums tracking-tight"
+                style={{ ...mono, color: C.ink }}
+              >
                 {m.v}
               </p>
             </Panel>
@@ -890,13 +1025,20 @@ function OpdrachtDetail({ opdracht }: { opdracht: Opdracht }) {
         </p>
         <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="rounded-[14px] p-4" style={{ background: C.tealSoft }}>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ ...mono, color: C.tealDeep }}>
+            <p
+              className="text-[10.5px] font-semibold uppercase tracking-[0.18em]"
+              style={{ ...mono, color: C.tealDeep }}
+            >
               Pluspunten
             </p>
             <ul className="mt-3 space-y-2.5">
               {opdracht.redenen.plus.map((r) => (
                 <li key={r} className="flex items-start gap-2.5 text-[12.5px]">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: C.teal }} aria-hidden="true">
+                  <span
+                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: C.teal }}
+                    aria-hidden="true"
+                  >
                     <Check size={12} className="text-white" />
                   </span>
                   {r}
@@ -905,13 +1047,24 @@ function OpdrachtDetail({ opdracht }: { opdracht: Opdracht }) {
             </ul>
           </div>
           <div className="rounded-[14px] p-4" style={{ background: C.amberSoft }}>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ ...mono, color: C.amber }}>
+            <p
+              className="text-[10.5px] font-semibold uppercase tracking-[0.18em]"
+              style={{ ...mono, color: C.amber }}
+            >
               Aandachtspunten
             </p>
             <ul className="mt-3 space-y-2.5">
               {opdracht.redenen.min.map((r) => (
-                <li key={r} className="flex items-start gap-2.5 text-[12.5px]" style={{ color: C.inkSoft }}>
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(192,138,46,0.22)" }} aria-hidden="true">
+                <li
+                  key={r}
+                  className="flex items-start gap-2.5 text-[12.5px]"
+                  style={{ color: C.inkSoft }}
+                >
+                  <span
+                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: "rgba(192,138,46,0.22)" }}
+                    aria-hidden="true"
+                  >
                     <Minus size={12} style={{ color: C.amber }} />
                   </span>
                   {r}
@@ -937,7 +1090,10 @@ function Verificatie() {
       </div>
 
       <Panel className="flex items-center gap-5 p-5">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px]" style={{ background: C.tealSoft }}>
+        <div
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px]"
+          style={{ background: C.tealSoft }}
+        >
           <ShieldCheck size={26} aria-hidden="true" style={{ color: C.tealDeep }} />
         </div>
         <div>
@@ -945,8 +1101,9 @@ function Verificatie() {
             {PROFIEL.trust}
           </p>
           <p className="mt-0.5 text-[12px]" style={{ color: C.inkSoft }}>
-            <span style={mono}>{verified}</span> van <span style={mono}>{CREDENTIALS.length}</span> certificaten geverifieerd ·{" "}
-            <span style={mono}>1</span> vraagt om actie. Alles versleuteld bewaard.
+            <span style={mono}>{verified}</span> van <span style={mono}>{CREDENTIALS.length}</span>{" "}
+            certificaten geverifieerd · <span style={mono}>1</span> vraagt om actie. Alles
+            versleuteld bewaard.
           </p>
         </div>
       </Panel>
@@ -956,8 +1113,14 @@ function Verificatie() {
           {CREDENTIALS.map((c) => {
             const st = statusStyle(c.status);
             return (
-              <div key={c.naam} className="flex items-center gap-4 rounded-[13px] px-3.5 py-3.5 transition-colors hover:bg-[#f9f6ee]">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]" style={{ background: st.bg }}>
+              <div
+                key={c.naam}
+                className="flex items-center gap-4 rounded-[13px] px-3.5 py-3.5 transition-colors hover:bg-[#f9f6ee]"
+              >
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]"
+                  style={{ background: st.bg }}
+                >
                   {c.status === "VERIFIED" ? (
                     <Check size={17} aria-hidden="true" style={{ color: st.fg }} />
                   ) : c.status === "SUBMITTED" ? (
@@ -972,7 +1135,10 @@ function Verificatie() {
                     {c.detail}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold" style={{ color: st.fg, background: st.bg }}>
+                <span
+                  className="shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold"
+                  style={{ color: st.fg, background: st.bg }}
+                >
                   {st.label}
                 </span>
               </div>
@@ -990,8 +1156,15 @@ function Verificatie() {
             {DOCUMENTEN.map((d) => {
               const st = statusStyle(d.status);
               return (
-                <div key={d.naam} className="flex items-center gap-3.5 rounded-[13px] px-3.5 py-3 transition-colors hover:bg-[#f9f6ee]">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]" style={{ background: C.lineSoft }} aria-hidden="true">
+                <div
+                  key={d.naam}
+                  className="flex items-center gap-3.5 rounded-[13px] px-3.5 py-3 transition-colors hover:bg-[#f9f6ee]"
+                >
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+                    style={{ background: C.lineSoft }}
+                    aria-hidden="true"
+                  >
                     <FileText size={16} style={{ color: C.muted }} />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -1000,7 +1173,10 @@ function Verificatie() {
                       {d.type} · {d.grootte} · {d.bijgewerkt}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold" style={{ color: st.fg, background: st.bg }}>
+                  <span
+                    className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+                    style={{ color: st.fg, background: st.bg }}
+                  >
                     {st.label}
                   </span>
                 </div>
@@ -1034,7 +1210,10 @@ function Acties() {
           const t = tone[a.urgentie];
           return (
             <Panel key={a.titel} className="flex items-start gap-4 p-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]" style={{ background: t.bg }}>
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
+                style={{ background: t.bg }}
+              >
                 <t.Icon size={19} aria-hidden="true" style={{ color: t.fg }} />
               </div>
               <div className="min-w-0 flex-1">
@@ -1091,7 +1270,10 @@ function Facturen() {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="text-[10px] uppercase tracking-[0.12em]" style={{ ...mono, color: C.muted }}>
+              <tr
+                className="text-[10px] uppercase tracking-[0.12em]"
+                style={{ ...mono, color: C.muted }}
+              >
                 <th className="px-5 py-3 font-semibold">Nummer</th>
                 <th className="px-5 py-3 font-semibold">Klant</th>
                 <th className="px-5 py-3 font-semibold">Datum</th>
@@ -1103,7 +1285,11 @@ function Facturen() {
               {FACTUREN.map((f) => {
                 const t = statusTone[f.status] ?? { fg: C.muted, bg: C.lineSoft };
                 return (
-                  <tr key={f.nr} className="border-t transition-colors hover:bg-[#f9f6ee]" style={{ borderColor: C.lineSoft }}>
+                  <tr
+                    key={f.nr}
+                    className="border-t transition-colors hover:bg-[#f9f6ee]"
+                    style={{ borderColor: C.lineSoft }}
+                  >
                     <td className="px-5 py-3.5 text-[12px]" style={{ ...mono, color: C.inkSoft }}>
                       {f.nr}
                     </td>
@@ -1111,7 +1297,10 @@ function Facturen() {
                     <td className="px-5 py-3.5 text-[12px]" style={{ ...mono, color: C.muted }}>
                       {f.datum}
                     </td>
-                    <td className="px-5 py-3.5 text-right text-[13px] font-semibold tabular-nums" style={{ ...mono, color: C.ink }}>
+                    <td
+                      className="px-5 py-3.5 text-right text-[13px] font-semibold tabular-nums"
+                      style={{ ...mono, color: C.ink }}
+                    >
                       {f.bedrag}
                     </td>
                     <td className="px-5 py-3.5 text-right">
@@ -1119,7 +1308,11 @@ function Facturen() {
                         className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold"
                         style={{ color: t.fg, background: t.bg }}
                       >
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.fg }} aria-hidden="true" />
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ background: t.fg }}
+                          aria-hidden="true"
+                        />
                         {f.status}
                       </span>
                     </td>
