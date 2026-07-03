@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckChip } from "@/components/ui/check-chip";
 import { Field } from "@/components/ui/field";
@@ -16,9 +16,11 @@ import {
   MODEL_AGREEMENT_TYPES,
 } from "@/lib/model-agreement";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
+import { groupSkillsByCategory, type SkillOption } from "@/lib/skill-categories";
 import { JobRateBandCard } from "@/components/jobs/job-rate-band-card";
 import { type MarketBand } from "@/lib/market-rate";
 import { type CredentialType } from "@/lib/enums";
+import { cn } from "@/lib/utils";
 import { saveJob, type JobFormState } from "./actions";
 
 // Elke DBA-indicator als gewone-mensen-vraag met een voorbeeldzin eronder. De koppeling met de
@@ -133,6 +135,11 @@ export function JobForm({
   const [dba, setDba] = useState(initial.dba);
   const [modelAgreementType, setModelAgreementType] = useState(initial.modelAgreementType);
   const [rateMin, setRateMin] = useState(initial.rateMin);
+  // Live set van vereiste skill-ids zodat de "Gewenst"-picker dezelfde skill kan uitschakelen
+  // (dubbel selecteren voorkomen — alleen in de UI; de server-validatie blijft ongewijzigd).
+  const [requiredSkillIds, setRequiredSkillIds] = useState<string[]>(initial.requiredSkillIds);
+
+  const skillOptions: SkillOption[] = skills.map((s) => ({ value: s.id, label: s.name }));
 
   // Live rechtsvermoeden-drempelcheck op het minimumtarief (pure functie, centen).
   const rateMinCents = rateMin !== "" ? Number(rateMin) * 100 : null;
@@ -286,19 +293,21 @@ export function JobForm({
         </p>
       </div>
 
-      <ChipGroup
+      <SkillPicker
         legend="Vereiste skills"
         name="requiredSkillIds"
-        options={skills.map((s) => ({ value: s.id, label: s.name }))}
-        selected={initial.requiredSkillIds}
-        emptyText="Geen skills beschikbaar."
+        options={skillOptions}
+        selected={requiredSkillIds}
+        onSelectedChange={setRequiredSkillIds}
       />
-      <ChipGroup
+      <SkillPicker
         legend="Gewenste skills"
         name="optionalSkillIds"
-        options={skills.map((s) => ({ value: s.id, label: s.name }))}
+        options={skillOptions}
         selected={initial.optionalSkillIds}
-        emptyText="Geen skills beschikbaar."
+        // Al als "vereist" gekozen skills kunnen niet óók "gewenst" zijn (zou dubbel tellen).
+        disabledValues={requiredSkillIds}
+        disabledHint="al vereist"
       />
       <ChipGroup
         legend="Vereiste certificaten"
@@ -481,6 +490,133 @@ function ChipGroup({
               defaultChecked={selected.includes(o.value)}
             />
           ))}
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
+/**
+ * Skill-kiezer: groepeert pills onder rustige categorie-kopjes, met een klein zoekveld dat de
+ * zichtbare pills client-side filtert (op label én categorie, case-insensitief). Geselecteerde
+ * skills blijven altijd zichtbaar. Waarden in `disabledValues` worden uitgeschakeld met een hint
+ * (bijv. "al vereist") — puur UI-preventie; de server-validatie verandert niet.
+ */
+function SkillPicker({
+  legend,
+  name,
+  options,
+  selected,
+  onSelectedChange,
+  disabledValues = [],
+  disabledHint,
+}: {
+  legend: string;
+  name: string;
+  options: SkillOption[];
+  selected: string[];
+  onSelectedChange?: (next: string[]) => void;
+  disabledValues?: string[];
+  disabledHint?: string;
+}) {
+  const [query, setQuery] = useState("");
+  // Interne selectie zodat geselecteerde skills altijd zichtbaar blijven, ook bij een actief filter.
+  const [chosen, setChosen] = useState<string[]>(selected);
+  const disabledSet = new Set(disabledValues);
+
+  // Wordt een gekozen skill later uitgeschakeld (bijv. nu ook als "vereist" gekozen), verwijder
+  // 'm uit deze selectie zodat de pill niet als aangevinkt blijft ogen. Een disabled checkbox
+  // wordt sowieso niet meegepost, dus dit is puur cosmetisch/consistent.
+  useEffect(() => {
+    if (disabledValues.length === 0) return;
+    setChosen((prev) => {
+      const next = prev.filter((v) => !disabledSet.has(v));
+      return next.length === prev.length ? prev : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disabledValues.join(",")]);
+
+  function toggle(value: string, checked: boolean) {
+    const next = checked ? [...chosen, value] : chosen.filter((v) => v !== value);
+    setChosen(next);
+    onSelectedChange?.(next);
+  }
+
+  const groups = useMemo(() => groupSkillsByCategory(options), [options]);
+  const needle = query.trim().toLowerCase();
+
+  const visibleGroups = groups
+    .map((group) => ({
+      category: group.category,
+      options: group.options.filter((o) => {
+        if (chosen.includes(o.value)) return true; // gekozen skills blijven altijd zichtbaar
+        if (needle === "") return true;
+        return (
+          o.label.toLowerCase().includes(needle) || group.category.toLowerCase().includes(needle)
+        );
+      }),
+    }))
+    .filter((group) => group.options.length > 0);
+
+  return (
+    <fieldset>
+      <legend className="mb-2 block text-sm font-medium">{legend}</legend>
+      {options.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Geen skills beschikbaar.</p>
+      ) : (
+        <div className="space-y-3">
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Zoek skill…"
+            aria-label={`Zoek in ${legend.toLowerCase()}`}
+            className="max-w-xs"
+          />
+          {visibleGroups.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Geen skills gevonden voor “{query}”.</p>
+          ) : (
+            <div className="space-y-3">
+              {visibleGroups.map((group) => (
+                <div key={group.category} className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">{group.category}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {group.options.map((o) => {
+                      const isDisabled = disabledSet.has(o.value);
+                      return (
+                        <label
+                          key={o.value}
+                          title={isDisabled ? disabledHint : undefined}
+                          className={cn(
+                            "select-none rounded-full border px-3 py-1 text-sm transition-colors",
+                            isDisabled
+                              ? "cursor-not-allowed border-border bg-muted/50 text-muted-foreground"
+                              : "cursor-pointer border-border hover:bg-muted has-[:checked]:border-primary has-[:checked]:bg-accent has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background",
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            name={name}
+                            value={o.value}
+                            checked={chosen.includes(o.value)}
+                            disabled={isDisabled}
+                            onChange={(e) => toggle(o.value, e.target.checked)}
+                            className="sr-only"
+                          />
+                          {o.label}
+                          {isDisabled && disabledHint && (
+                            <span className="ml-1.5 text-xs text-muted-foreground/80">
+                              · {disabledHint}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </fieldset>
