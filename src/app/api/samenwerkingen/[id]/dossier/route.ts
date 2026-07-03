@@ -7,6 +7,8 @@ import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
 import { buildComplianceDossier, type DossierInput } from "@/lib/compliance/dossier";
+import { documentPdfRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,11 @@ export async function GET(
     if (e instanceof AuthorizationError) return new Response(e.message, { status: e.status });
     throw e;
   }
+
+  // Het dossier joint cross-party PII + genereert on-demand; rem een scripted loop (authz blijft leidend).
+  const limited = await enforceRateLimit(documentPdfRateLimiter, actor.id);
+  if (limited) return limited;
+
   const { id } = await ctx.params;
 
   const col = await prisma.collaboration.findUnique({

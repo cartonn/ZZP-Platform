@@ -4,6 +4,7 @@ import { auditData } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
 import { exportRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 import { buildAccountExport } from "@/lib/account-export";
 
 // AVG recht op inzage/dataportabiliteit: exporteer de eigen gegevens als JSON.
@@ -20,12 +21,12 @@ export async function GET() {
   }
 
   // Export-rem: de export bundelt veel queries; begrens scripted loops (HTTP 429).
-  if (!(await exportRateLimiter.check(`export:${actor.id}`)).allowed) {
-    return NextResponse.json(
-      { error: "Te veel exportverzoeken. Probeer het later opnieuw." },
-      { status: 429 },
-    );
-  }
+  const limited = await enforceRateLimit(
+    exportRateLimiter,
+    `account:${actor.id}`,
+    "Te veel exportverzoeken. Probeer het later opnieuw.",
+  );
+  if (limited) return limited;
 
   const payload = await buildAccountExport(prisma, actor.id);
 

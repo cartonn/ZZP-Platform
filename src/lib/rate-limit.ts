@@ -351,6 +351,20 @@ export const exportRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal DOCUMENT_PDF_RATE_LIMIT (default 60) per-document downloads (factuur-/prestatie-/
+ * platformfactuur-PDF's en de compliance-/DBA-dossiers) per gebruiker per uur. Deze routes doen
+ * per verzoek een DB-join + on-demand PDF/dossier-generatie; de rem stopt een scripted loop die de
+ * server CPU-matig belast (defense-in-depth — de ownership-/authz-poort blijft de bron van toegang).
+ * Ruim boven normaal gebruik (een boekhouder/admin die veel documenten na elkaar inziet).
+ */
+export const documentPdfRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("DOCUMENT_PDF_RATE_LIMIT", 60),
+  60 * 60_000,
+  "docpdf:",
+);
+
+/**
  * Maximaal DOSSIER_VIEW_RATE_LIMIT (default 30) weergaven van het publieke vertrouwensdossier
  * per IP per 5 minuten. De token-entropie is hoog (HMAC-SHA256), maar de route is sessieloos en
  * elke poging kost een DB-query — deze rem maakt brute-force/scraping onaantrekkelijk

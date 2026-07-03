@@ -9,6 +9,8 @@ import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { buildDbaAuditData } from "@/lib/dba-audit";
 import { buildDbaAuditPdf } from "@/lib/dba-audit-pdf";
+import { documentPdfRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +27,10 @@ export async function GET(
       return NextResponse.json({ error: e.message }, { status: e.status });
     throw e;
   }
+
+  // De DBA-PDF joint cross-party PII + genereert on-demand; rem een scripted loop (authz blijft leidend).
+  const limited = await enforceRateLimit(documentPdfRateLimiter, actor.id);
+  if (limited) return limited;
 
   const { id } = await ctx.params;
 

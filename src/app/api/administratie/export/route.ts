@@ -5,6 +5,8 @@ import { AuthorizationError, requireActor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { administrationCsv } from "@/lib/administration/csv";
+import { exportRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,9 @@ export async function GET(): Promise<Response> {
     if (e instanceof AuthorizationError) return new Response(e.message, { status: e.status });
     throw e;
   }
+
+  const limited = await enforceRateLimit(exportRateLimiter, `administratie:${actor.id}`);
+  if (limited) return limited;
 
   const rows = await prisma.administrationEntry.findMany({
     where: { ownerUserId: actor.id },
