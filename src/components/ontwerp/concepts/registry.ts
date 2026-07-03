@@ -518,6 +518,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#1e1c19",
     available: true,
   },
+  // ── Reeks 4 (run 3-7-2026) — nrs 31–40, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "31",
+    name: "Perron",
+    direction: "Split-flap vertrekbord — mechanisch tijdschema",
+    rationale:
+      "Een station-vertrekbord als interface: mechanische split-flap-tegels klappen om voor koppen en cijfers, amber signaalkleur op antraciet, opdrachten als dienstregeling-rijen. Analoog-kinetisch en scanbaar — geen scanlines, echt mechaniek.",
+    trends: [
+      "Mechanisch/retro-futuristisch",
+      "Split-flap kinetische tegels",
+      "Dienstregeling-dichtheid",
+    ],
+    fonts: "Spline Sans Mono + Space Grotesk",
+    accent: "#f5a623",
+    bg: "#0d0f12",
+    fg: "#f0ede4",
+    available: true,
+  },
+  {
+    id: "32",
+    name: "Parel",
+    direction: "Iriserend holografisch — parelmoer & chroom",
+    rationale:
+      "Parelmoer-sheen op een licht canvas: iriserende randen, chroom-metallic accenten en glanzende pill-knoppen boven rustige, leesbare inhoud. Modern en premium — legibiliteit gaat vóór het effect.",
+    trends: [
+      "Holografisch/iriserend (2026)",
+      "Chroom & metallic accenten",
+      "Contrast-first op glans",
+    ],
+    fonts: "Bricolage Grotesque + Inter",
+    accent: "#a78bfa",
+    bg: "#f4f2fb",
+    fg: "#1b1a2e",
+    available: true,
+  },
+  {
+    id: "33",
+    name: "Zegel",
+    direction: "Letterpress & lakzegel — ambachtelijk vertrouwen",
+    rationale:
+      "Katoenpapier met deboss-typografie en een lakzegel-motief als vertrouwensteken: de verificatielaag is de held. Warm, tastbaar en ambachtelijk rond gevoelige documenten — analoge craft tegen slop.",
+    trends: [
+      "Letterpress/analoge textuur",
+      "Tactiele deboss-typografie",
+      "Zegel als vertrouwensmotief",
+    ],
+    fonts: "Fraunces + Spline Sans Mono",
+    accent: "#8a3324",
+    bg: "#f0e9dc",
+    fg: "#241f1a",
+    available: true,
+  },
+  {
+    id: "34",
+    name: "Redactie",
+    direction: "Datajournalistiek — geannoteerde grafiek-editorial",
+    rationale:
+      "NYT/FT-stijl data-storytelling: mooie inline-grafieken met redactionele annotaties en 'hoe te lezen'-notities, serif-koppen boven zakelijke body. Data-ink minimalisme — de cijfers vertellen het verhaal, niet de chrome.",
+    trends: [
+      "Datajournalistiek / micrographics",
+      "Tufte data-ink minimalisme",
+      "Geannoteerde inline-charts",
+    ],
+    fonts: "Newsreader + Inter",
+    accent: "#1a5e63",
+    bg: "#fbfaf7",
+    fg: "#14181a",
+    available: true,
+  },
+  {
+    id: "35",
+    name: "Deco",
+    direction: "Art-deco geometrie — jewel & goud",
+    rationale:
+      "Art-deco luxe: symmetrische gouden linework-ornamenten, getrapte geometrie en zonnestraal-motieven in diepe juweeltinten, met één verfijnd serif-displaymoment. Elegant, symmetrisch en onmiskenbaar premium.",
+    trends: [
+      "Art-deco / geometrische revival",
+      "Goud linework op juweeltinten",
+      "Symmetrie & getrapte ornamentiek",
+    ],
+    fonts: "Fraunces + Manrope",
+    accent: "#c9a24b",
+    bg: "#10231f",
+    fg: "#f2ede0",
+    available: true,
+  },
+  {
+    id: "36",
+    name: "Schemer",
+    direction: "Gouden uur — warm verloop, optimistisch",
+    rationale:
+      "Gouden-uur-sfeer: warme perzik/amber/roze verlopen op Stripe/Vercel-niveau, zacht en licht, met glow achter primaire acties. Optimistisch en menselijk, veel lucht — vertrouwen via warmte in plaats van strengheid.",
+    trends: [
+      "Warm gradient-craft (light)",
+      "Gouden-uur / optimistische kleur",
+      "Glow-accent op primaire actie",
+    ],
+    fonts: "Sora + Inter",
+    accent: "#f97362",
+    bg: "#fdf3ec",
+    fg: "#2a1f22",
+    available: true,
+  },
+  {
+    id: "37",
+    name: "Isometrie",
+    direction: "Isometrisch 3D — axonometrische diepte",
+    rationale:
+      "Axonometrische diepte, speels maar strak: kaarten en KPI-blokken met echte 3D-projectie, zichtbare dikte en zachte slagschaduw, data als iso-blokken. Bij hover komt een blok naar voren — dimensie zonder rommel.",
+    trends: [
+      "Isometrisch/axonometrisch 3D (2026)",
+      "Diepte via echte transform",
+      "Kinetische hover-lift",
+    ],
+    fonts: "Space Grotesk + Inter",
+    accent: "#6366f1",
+    bg: "#eef0f7",
+    fg: "#1c1e2b",
+    available: true,
+  },
+  {
+    id: "38",
+    name: "Spectrum",
+    direction: "Duotone jaaroverzicht — bold type & verloop",
+    rationale:
+      "Jaaroverzicht-energie: reuze bold koppen, levendige duotone-verlopen (magenta→violet→cyaan) en cijfers-als-held, met kleurblok-secties die per scherm van tint wisselen. Dopamine-design dat leesbaar blijft.",
+    trends: [
+      "Dopamine / verzadigde duotone",
+      "Reuze-typografie als held",
+      "Gradient-secties per scherm",
+    ],
+    fonts: "Bricolage Grotesque + Space Grotesk",
+    accent: "#ff2d78",
+    bg: "#120a1f",
+    fg: "#f6ecff",
+    available: true,
+  },
+  {
+    id: "39",
+    name: "Botanie",
+    direction: "Herbarium — botanisch specimen & inkt",
+    rationale:
+      "Biofiele herbarium-esthetiek: papier met fijne inkt-lijnillustraties van bladeren, specimen-labels en geperste-plant-composities in salie-groen en inktbruin. Rustgevend en natuurlijk — elk certificaat als tentoongesteld specimen.",
+    trends: [
+      "Biofiel/botanisch (2026)",
+      "Inkt-lijnillustratie als canvas",
+      "Herbarium specimen-labels",
+    ],
+    fonts: "Newsreader + Libre Franklin",
+    accent: "#3f6b3a",
+    bg: "#f2f1e6",
+    fg: "#23271f",
+    available: true,
+  },
+  {
+    id: "40",
+    name: "Kwadrant",
+    direction: "Beslismatrix — analytisch coördinatenveld",
+    rationale:
+      "Matching zichtbaar als positie: opdrachten geplot op een 2×2-beslismatrix (match × tarief) met kwadrant-labels, rasterlijnen en kruisdraden. Hover licht een punt uit met tooltip — strak analytisch, coördinaten in plaats van geografie.",
+    trends: [
+      "Analytisch coördinatenveld",
+      "Beslismatrix / scatter-positionering",
+      "Interactieve tooltip-uitlichting",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#2563eb",
+    bg: "#f7f8fa",
+    fg: "#101318",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);
