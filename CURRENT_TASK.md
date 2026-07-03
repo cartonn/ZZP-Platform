@@ -639,7 +639,9 @@ in-browser-verificatie (interactieve sessie).
 
 ### Backlog (na de overhaul-fasen)
 
-1. Semantisch matchen met pgvector zodra productie-Postgres draait (nu al: Postgres ✓).
+1. Semantiek als uitlegbare scorecomponent (fundering staat er: `src/lib/semantic.ts` +
+   `src/lib/services/semantic-matcher.ts`); pgvector geparkeerd achter de ADR-trigger — zie
+   `docs/decisions/0010-semantische-matching.md` (> ~50k discoverable profielen óf scoring > ~50ms p95).
 2. ~~UX-walkthrough-backlog~~ — **VOLLEDIG AFGEWERKT 3-7-2026** in PR #557–#574 (zie de
    status-banner in docs/UX-WALKTHROUGH-2026-07-02.md). Niet opnieuw oppakken.
 3. **Perf-refactors uit de kwaliteitsronde 2-7 (RISKY, apart oppakken):**

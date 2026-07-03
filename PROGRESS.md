@@ -3,6 +3,13 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## ADR — semantische matching: lokale embedder houden, pgvector parkeren (2026-07-03g)
+
+ADR-0010 vastgelegd: deterministische lokale feature-hashing-embedder (`semantic.ts` + matcher-service)
+blijft de bron van inhoudelijke gelijkenis; geen pgvector/vector-kolom nu (breekt gedeeld SQLite+Postgres-schema,
+lost een niet-bestaand schaalprobleem op). Expliciete trigger vastgelegd om pgvector wél te bouwen. Backlog-item 1
+in CURRENT_TASK.md geherformuleerd naar "semantiek als uitlegbare scorecomponent". Docs-only.
+
 ## UX — reactiebereidheid-context per openstaande reactie (ZZP'er) (2026-07-03f, main-basis `5710cc7`)
 
 Op `/reacties` zag de ZZP'er bij een nog-onbesliste reactie wel de eigen wachttijd (#545), maar niet of
