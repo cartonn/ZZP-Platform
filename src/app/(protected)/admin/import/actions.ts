@@ -17,15 +17,15 @@ import {
 } from "@/lib/onboarding/import";
 import { generateTempPassword } from "@/lib/onboarding/password";
 import { buildWelcomeEmail } from "@/lib/onboarding/welcome-email";
-import { getMailSender } from "@/lib/services/mail-sender";
+import { getMailSender, isMailDeliveryConfigured } from "@/lib/services/mail-sender";
 
 const MAX_CSV_BYTES = 2 * 1024 * 1024; // 2 MB
 const MAX_ROWS = 500; // bovengrens per import (bewaakt looptijd van het hashen)
 
-/** True als het SMTP-mailkanaal is geconfigureerd (welkomstmails kunnen dan verzonden worden). */
+/** True als er een echt mailkanaal is geconfigureerd (welkomstmails kunnen dan verzonden worden). */
 export async function isEmailConfigured(): Promise<boolean> {
   await requireRole("ADMIN");
-  return process.env.EMAIL_DRIVER === "smtp";
+  return isMailDeliveryConfigured();
 }
 
 /** Bouwt de absolute inlog-URL uit de request-headers (val terug op een relatieve link). */
@@ -182,8 +182,8 @@ export async function commitImport(formData: FormData): Promise<ImportCommitResu
     ]),
   );
 
-  // Welkomstmail versturen? Alleen als de admin dit kiest én SMTP is geconfigureerd.
-  const sendEmail = formData.get("sendEmail") === "1" && process.env.EMAIL_DRIVER === "smtp";
+  // Welkomstmail versturen? Alleen als de admin dit kiest én er een echt mailkanaal is.
+  const sendEmail = formData.get("sendEmail") === "1" && isMailDeliveryConfigured();
   const mailer = sendEmail ? getMailSender() : null;
   const url = sendEmail ? await loginUrl() : "/login";
 

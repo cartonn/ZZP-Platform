@@ -55,13 +55,15 @@ const schema = z
     // zonder waarde zijn de taak-endpoints uitgeschakeld (503).
     CRON_SECRET: z.string().optional(),
 
-    // E-mailkanaal: noop (default, in-app meldingen blijven werken) of echte SMTP-verzending.
-    EMAIL_DRIVER: z.enum(["noop", "smtp"]).default("noop"),
+    // E-mailkanaal: noop (default, in-app meldingen blijven werken), echte SMTP-verzending, of de
+    // Resend HTTP-API (nodig op hosts die uitgaande SMTP blokkeren, zoals Railway).
+    EMAIL_DRIVER: z.enum(["noop", "smtp", "resend"]).default("noop"),
     EMAIL_SMTP_HOST: z.string().optional(),
     EMAIL_SMTP_PORT: z.string().optional(),
     EMAIL_SMTP_USER: z.string().optional(),
     EMAIL_SMTP_PASS: z.string().optional(),
     EMAIL_FROM: z.string().optional(),
+    RESEND_API_KEY: z.string().optional(),
 
     // Betaalprovider: noop (default, demo-abonnementsflow) of Mollie.
     BILLING_PROVIDER: z.enum(["noop", "mollie"]).default("noop"),
@@ -106,6 +108,10 @@ const schema = z
       require(!!v.EMAIL_SMTP_USER, "EMAIL_SMTP_USER", "Verplicht bij EMAIL_DRIVER=smtp.");
       require(!!v.EMAIL_SMTP_PASS, "EMAIL_SMTP_PASS", "Verplicht bij EMAIL_DRIVER=smtp.");
       require(!!v.EMAIL_FROM, "EMAIL_FROM", "Verplicht bij EMAIL_DRIVER=smtp.");
+    }
+    if (v.EMAIL_DRIVER === "resend") {
+      require(!!v.RESEND_API_KEY, "RESEND_API_KEY", "Verplicht bij EMAIL_DRIVER=resend.");
+      require(!!v.EMAIL_FROM, "EMAIL_FROM", "Verplicht bij EMAIL_DRIVER=resend.");
     }
     if (v.BILLING_PROVIDER === "mollie") {
       require(!!v.MOLLIE_API_KEY, "MOLLIE_API_KEY", "Verplicht bij BILLING_PROVIDER=mollie.");

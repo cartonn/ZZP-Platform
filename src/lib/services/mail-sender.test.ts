@@ -1,5 +1,10 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getMailSender, _resetMailSender, type MailMessage } from "./mail-sender";
+import {
+  getMailSender,
+  isMailDeliveryConfigured,
+  _resetMailSender,
+  type MailMessage,
+} from "./mail-sender";
 
 const SMTP_VARS = [
   "EMAIL_SMTP_HOST",
@@ -12,6 +17,7 @@ const SMTP_VARS = [
 afterEach(() => {
   _resetMailSender();
   delete process.env.EMAIL_DRIVER;
+  delete process.env.RESEND_API_KEY;
   for (const v of SMTP_VARS) delete process.env[v];
   vi.restoreAllMocks();
   vi.resetModules();
@@ -99,6 +105,89 @@ describe("getMailSender", () => {
     expect(createTransport).toHaveBeenCalledWith(
       expect.objectContaining({ port: 465, secure: true }),
     );
+  });
+
+  it("geeft een ResendMailSender terug als EMAIL_DRIVER=resend", () => {
+    process.env.EMAIL_DRIVER = "resend";
+    const sender = getMailSender();
+    expect(sender).toBeDefined();
+  });
+
+  it("ResendMailSender.send() gooit een fout als RESEND_API_KEY/EMAIL_FROM ontbreken", async () => {
+    process.env.EMAIL_DRIVER = "resend";
+    const sender = getMailSender();
+    await expect(sender.send(msg)).rejects.toThrow("Resend-mailkanaal is niet geconfigureerd");
+  });
+
+  it("ResendMailSender noemt de ontbrekende variabelen in de foutmelding", async () => {
+    process.env.EMAIL_DRIVER = "resend";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+    const sender = getMailSender();
+    await expect(sender.send(msg)).rejects.toThrow("RESEND_API_KEY");
+  });
+
+  it("ResendMailSender POST't naar de Resend-API met Bearer-auth en de e-mailvelden", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ id: "abc" }), { status: 200 }));
+
+    process.env.EMAIL_DRIVER = "resend";
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    const sender = getMailSender();
+    await sender.send({ to: "jan@test.nl", subject: "Hoi", text: "Tekst", html: "<b>Tekst</b>" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://api.resend.com/emails");
+    expect(init?.method).toBe("POST");
+    expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer re_test_key");
+    const body = JSON.parse(init?.body as string);
+    expect(body).toMatchObject({
+      from: "ZZP <noreply@test.nl>",
+      to: "jan@test.nl",
+      subject: "Hoi",
+      text: "Tekst",
+      html: "<b>Tekst</b>",
+    });
+  });
+
+  it("ResendMailSender laat html weg als er geen html is meegegeven", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+
+    process.env.EMAIL_DRIVER = "resend";
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await getMailSender().send({ to: "jan@test.nl", subject: "Hoi", text: "Alleen tekst" });
+
+    const body = JSON.parse(fetchMock.mock.calls[0]![1]?.body as string);
+    expect(body).not.toHaveProperty("html");
+  });
+
+  it("ResendMailSender gooit een fout bij een non-2xx-respons van de API", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("invalid api key", { status: 401 }),
+    );
+
+    process.env.EMAIL_DRIVER = "resend";
+    process.env.RESEND_API_KEY = "re_bad";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await expect(getMailSender().send(msg)).rejects.toThrow("status 401");
+  });
+
+  it("isMailDeliveryConfigured is true voor smtp en resend, false voor noop", () => {
+    expect(isMailDeliveryConfigured()).toBe(false);
+    process.env.EMAIL_DRIVER = "smtp";
+    expect(isMailDeliveryConfigured()).toBe(true);
+    process.env.EMAIL_DRIVER = "resend";
+    expect(isMailDeliveryConfigured()).toBe(true);
+    process.env.EMAIL_DRIVER = "noop";
+    expect(isMailDeliveryConfigured()).toBe(false);
   });
 
   it("NoopMailSender logt buiten testomgeving (NODE_ENV=development)", async () => {

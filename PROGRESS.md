@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod — HTTP-API e-mailadapter (Resend) achter `EMAIL_DRIVER=resend` (2026-07-03c, main-basis `523a496`)
+
+Het e-mailkanaal was **SMTP-only**, maar Railway (de productie-host) blokkeert uitgaande SMTP-poorten
+(25/465/587) op de meeste plannen — daar levert `smtp` niets af. Toegevoegd: een tweede echte driver die
+via de **Resend HTTP-API** (`fetch` naar `api.resend.com`, géén SDK-dependency) verzendt, zelfde
+driver-patroon als noop/smtp en de Upstash-rate-limit-adapter. Inert zonder secret; app draait door.
+
+- [x] `ResendMailSender` in `src/lib/services/mail-sender.ts` — POST `/emails`, Bearer-auth, `text` altijd,
+      `html` optioneel; PII-veilige foutmelding bij non-2xx (geen adres/onderwerp gelogd). Vereist
+      `RESEND_API_KEY` + `EMAIL_FROM`, anders duidelijke fout. `isMailDeliveryConfigured()` telt nu smtp+resend.
+- [x] Env-validatie (`src/lib/env.ts`): `EMAIL_DRIVER` enum uitgebreid met `resend`; `RESEND_API_KEY`
+      toegevoegd; superRefine eist key+afzender bij `EMAIL_DRIVER=resend` (geen halve activering).
+- [x] De twee hardcoded `EMAIL_DRIVER === "smtp"`-checks in `admin/import/actions.ts` gebruiken nu
+      `isMailDeliveryConfigured()` (welkomstmails werken ook onder resend).
+- [x] Tests: `mail-sender.test.ts` (+7: driver-keuze, ontbrekende secrets, POST-payload, html weglaten,
+      non-2xx-fout, helper) en `env.test.ts` (+2). `.env.example` + MENSENWERK §2/§7 bijgewerkt.
+- Resterend mensenwerk: Resend-account + domeinverificatie (DNS/SPF/DKIM), `RESEND_API_KEY` + `EMAIL_FROM`
+  - `EMAIL_DRIVER=resend` in de Railway-secrets. Gate: typecheck + lint + prettier + test + build groen.
+
 ## Security/privacy-audit — FavoriteFreelancer-erasure + modelovereenkomst-rate-limit (2026-07-03b, main-basis `cabe0f0`)
 
 Auditronde (orchestrator Opus 4.8 + 2 parallelle security/privacy-subagents, niet-overlappend). IDOR/

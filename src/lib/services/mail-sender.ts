@@ -1,9 +1,12 @@
 // E-mailkanaal-abstractie (PLATFORM_OVERHAUL.md §3 punt 5). Dezelfde service-grens als
 // StorageDriver (lokaal/S3), DiplomaVerifier (mock/duo), BigVerifier (mock/bigregister):
-// een interface + een noop-implementatie als veilige standaard + een echte SMTP-implementatie.
-// EMAIL_DRIVER bepaalt welke wordt geladen. nodemailer wordt lazy geladen (zoals de S3-driver
-// @aws-sdk), zodat de bundel licht blijft als SMTP niet wordt gebruikt. De SMTP-credentials +
-// productie-onboarding (DNS/SPF/DKIM) blijven mensenwerk — de code is hierop voorbereid.
+// een interface + een noop-implementatie als veilige standaard + twee echte drivers:
+//   - smtp   → nodemailer (lazy geladen, zoals de S3-driver @aws-sdk), voor eigen SMTP-relays.
+//   - resend → HTTP-API (Resend) via fetch, géén SDK-dependency. Nodig omdat veel PaaS-hosts
+//              (o.a. Railway) uitgaande SMTP-poorten (25/465/587) blokkeren; een HTTP-API is dan
+//              de enige route die e-mail daadwerkelijk aflevert.
+// EMAIL_DRIVER bepaalt welke wordt geladen. De credentials + productie-onboarding (DNS/SPF/DKIM)
+// blijven mensenwerk — de code is hierop voorbereid.
 
 export interface MailMessage {
   /** Ontvanger, bv. "jan@voorbeeld.nl" of "Jan Jansen <jan@voorbeeld.nl>". */
@@ -92,13 +95,69 @@ class SmtpMailSender implements MailSender {
   }
 }
 
+/** De Resend-variabelen die voor verzending aanwezig moeten zijn. */
+const RESEND_REQUIRED = ["RESEND_API_KEY", "EMAIL_FROM"] as const;
+
 /**
- * Of er een kanaal is dat e-mail daadwerkelijk aflevert (EMAIL_DRIVER=smtp). Taken waarvan
+ * Echte verzending via de Resend HTTP-API (POST https://api.resend.com/emails). Praat via `fetch`
+ * met de REST-API — géén SDK-dependency, net als de Upstash-rate-limit-adapter. Activeer met
+ * EMAIL_DRIVER=resend + RESEND_API_KEY + EMAIL_FROM. Werkt op hosts die uitgaande SMTP blokkeren.
+ */
+class ResendMailSender implements MailSender {
+  private readonly endpoint = "https://api.resend.com/emails";
+
+  constructor(private readonly fetchImpl: typeof fetch = fetch) {}
+
+  async send(message: MailMessage): Promise<void> {
+    const missing = RESEND_REQUIRED.filter((k) => !process.env[k]);
+    if (missing.length > 0) {
+      throw new Error(
+        `Resend-mailkanaal is niet geconfigureerd. Ontbrekende omgevingsvariabelen: ${missing.join(", ")}. ` +
+          "Zie .env.example voor instructies. Productie-onboarding (domeinverificatie) = mensenwerk.",
+      );
+    }
+
+    // Resend eist ten minste één van html/text; `text` is in ons contract verplicht, dus altijd aanwezig.
+    const body: Record<string, unknown> = {
+      from: process.env.EMAIL_FROM,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+    };
+    if (message.html) body.html = message.html;
+
+    const res = await this.fetchImpl(this.endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      // De responsbody kan een leesbare Resend-fout bevatten; nooit het adres/onderwerp loggen (PII).
+      let detail = "";
+      try {
+        detail = (await res.text()).slice(0, 300);
+      } catch {
+        // negeer: de status alleen is voldoende signaal
+      }
+      throw new Error(
+        `Resend: e-mail versturen mislukte (status ${res.status})${detail ? ` — ${detail}` : ""}.`,
+      );
+    }
+  }
+}
+
+/**
+ * Of er een kanaal is dat e-mail daadwerkelijk aflevert (EMAIL_DRIVER=smtp of resend). Taken waarvan
  * e-mail het enige effect is (zoals de notificatie-digest) horen zonder echt kanaal over te
  * slaan, zodat hun voortgangsmarkering niet wordt gezet terwijl er niets is verzonden.
  */
 export function isMailDeliveryConfigured(): boolean {
-  return (process.env.EMAIL_DRIVER ?? "noop") === "smtp";
+  const driver = process.env.EMAIL_DRIVER ?? "noop";
+  return driver === "smtp" || driver === "resend";
 }
 
 let cached: MailSender | null = null;
@@ -107,7 +166,9 @@ let cached: MailSender | null = null;
 export function getMailSender(): MailSender {
   if (cached) return cached;
   const driver = process.env.EMAIL_DRIVER ?? "noop";
-  cached = driver === "smtp" ? new SmtpMailSender() : new NoopMailSender();
+  if (driver === "smtp") cached = new SmtpMailSender();
+  else if (driver === "resend") cached = new ResendMailSender();
+  else cached = new NoopMailSender();
   return cached;
 }
 

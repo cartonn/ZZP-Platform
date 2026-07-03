@@ -16,6 +16,7 @@ const INTEGRATION_VARS = [
   "EMAIL_SMTP_USER",
   "EMAIL_SMTP_PASS",
   "EMAIL_FROM",
+  "RESEND_API_KEY",
   "MOLLIE_API_KEY",
   "DUO_API_BASE",
   "DUO_API_KEY",
@@ -88,6 +89,20 @@ describe("validateEnv", () => {
     baseValid();
     process.env.EMAIL_DRIVER = "smtp";
     expect(() => validateEnv()).toThrow(/EMAIL_SMTP_HOST/);
+  });
+
+  it("vereist RESEND_API_KEY en EMAIL_FROM bij EMAIL_DRIVER=resend", () => {
+    baseValid();
+    process.env.EMAIL_DRIVER = "resend";
+    expect(() => validateEnv()).toThrow(/RESEND_API_KEY/);
+  });
+
+  it("accepteert EMAIL_DRIVER=resend met key en afzender", () => {
+    baseValid();
+    process.env.EMAIL_DRIVER = "resend";
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+    expect(() => validateEnv()).not.toThrow();
   });
 
   it("vereist MOLLIE_API_KEY bij BILLING_PROVIDER=mollie", () => {
