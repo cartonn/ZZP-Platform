@@ -55,6 +55,7 @@ vi.mock("@/lib/db", () => ({
     indirectHoursEntry: { updateMany: op("indirectHoursEntry.updateMany") },
     idea: { updateMany: op("idea.updateMany") },
     collaboration: { updateMany: op("collaboration.updateMany") },
+    favoriteFreelancer: { updateMany: op("favoriteFreelancer.updateMany") },
     domainEvent: { findMany: vi.fn(async () => [{ subjectId: "col-7" }]) },
     pushSubscription: { deleteMany: op("pushSubscription.deleteMany") },
     auditLog: { create: op("auditLog.create") },
@@ -192,6 +193,14 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     // De ids komen uit de DISPUTE_OPENED-events van de betrokkene (mock geeft col-7).
     expect(disputeOp!.args.where.id).toEqual({ in: ["col-7"] });
     expect((disputeOp!.args.data as { disputeReason: string | null }).disputeReason).toBeNull();
+  });
+
+  it("wist de privé favorieten-notitie van de CLIENT (FavoriteFreelancer.note)", async () => {
+    await anonymizeUser("user-42");
+    const o = find("favoriteFreelancer.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ company: { userId: "user-42" } });
+    expect((o.args.data as { note: string | null }).note).toBeNull();
   });
 
   it("verwijdert push-abonnementen (PushSubscription — toestel-identifier)", async () => {

@@ -4,6 +4,70 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-03b (basis: `main` @ cabe0f0)
+
+Audit: orchestrator (Opus 4.8) + 2 parallelle Opus security/privacy-subagents op niet-overlappende
+oppervlakken — (1) IDOR/authz/cross-tenant over de nieuwste server actions (reacties/kandidaten/
+samenwerkingen-cascade/franchise + de #582 `Mijn vakgebied`-filter), (2) AVG-/privacy-dekking over
+ALLE `src/app/api/**`-routes, het verwerkingsregister vs. het volledige schema, k-anonimiteit en
+PII-in-logs. Kader: OWASP Top 10 (A01 broken access control, A04 insecure design, A09 logging) +
+AVG art. 5/15/17/30. **IDOR/cross-tenant: geen nieuwe gaten** — elke cascade-actie herleidt owner/
+tenant uit een verse DB-rij op de primaire id (`collaborationId` dient alleen `revalidatePath`),
+`assertSameTenant`/`tenantScopeWhere` overal aanwezig, het #582-filter is puur additief op de eigen
+profielbranches achter `visibleJobsWhere`. Twee bevindingen volledig gefixt (rood→groen); de rest
+geparkeerd.
+
+### OPGELOST in deze ronde
+
+- **[LAAG→OPGELOST · AVG art. 17 + 15/20 — FavoriteFreelancer.note]** De privé favorieten-notitie die
+  een CLIENT over een ZZP'er schrijft (vrije tekst, subjectief oordeel dat de betrokkene als auteur
+  identificeert) ontbrak in **zowel** `anonymizeUser` (`admin/gebruikers/actions.ts`) als de inzage-
+  export (`account-export.ts`) — bevestigd al langer open (zie GEPARKEERD-items 2026-06-25b/07-03).
+  `Company` wordt bij anonimisering geüpdatet (niet verwijderd), dus de `onDelete:Cascade` op
+  `FavoriteFreelancer` vuurt niet → de notitie bleef verbatim en attribueerbaar staan. Gefixt:
+  `favoriteFreelancer.updateMany({ where: { company: { userId } }, data: { note: null } })` in de
+  anonimiseringstransactie (gescopet op de eigen bedrijven — nooit andermans notitie) + een strikt-
+  `select`-query in `buildAccountExport` (`where: { company: { userId }, note: { not: null } }`, alleen
+  `note`/`createdAt`, geen `freelancerProfileId` → geen identiteit van de gemarkeerde ZZP'er). Geschonden:
+  CLAUDE.md-verificatieflow/AVG art. 17 + 15/20. Tests: nieuwe case in `anonymize-erasure.test.ts` +
+  `account-export.test.ts` (rood→groen).
+
+- **[MIDDEL→OPGELOST · A04 / AVG art. 5 — geen rate-limit op de modelovereenkomst-PDF]**
+  `GET /api/samenwerkingen/[id]/modelovereenkomst` genereert on-demand een juridisch DBA-document met
+  cross-party PII (namen, KvK-nabije jobomschrijving, DBA-indicatoren, bedrijfsnaam) — exact dezelfde
+  vorm als `facturen|prestaties/[id]/pdf`, `admin/facturatie/[id]/pdf` en de `dossier|dba-dossier`-routes,
+  die állen `documentPdfRateLimiter` kregen in PR #586. Déze route werd bij #586 gemist: geen enkele rem
+  → een partij kan een scripted loop draaien (onbegrensde PDF-generatie + cross-party PII-join, nooit 429).
+  Ownership/authz + audit waren intact — availability/defense-in-depth. Gefixt: `enforceRateLimit(
+documentPdfRateLimiter, actor.id)` ná `requireActor()`, vóór de DB-query — identiek aan de zusterroutes
+  (60/uur, `DOCUMENT_PDF_RATE_LIMIT`). Geschonden: OWASP A04. Test:
+  `modelovereenkomst-ratelimit.test.ts` (429→geen PDF/geen audit; toestemming→200+audit; sleutel=actor.id;
+  rood→groen).
+
+### GEPARKEERD — privacy / AVG (ronde 2026-07-03b)
+
+- **[MIDDEL · AVG art. 30 — support/helpdesk-PII ontbreekt in het verwerkingsregister]**
+  `SupportTicket` (`schema.prisma`, `subject`/`category`/`priority`) en `SupportMessage` (`body`, vrije
+  tekst door de gebruiker) houden PII vast met **geen** `ProcessingActivity` in `PROCESSING_REGISTER` en
+  **geen** `RetentionRule` in `RETENTION_SCHEDULE` (grep: nul treffers op "support"/"ticket" in
+  `processing-register.ts`). Supporttickets bevatten vaak gevoelige context (bv. een ZZP'er die een
+  afgewezen VOG/diploma-verificatie betwist, of een betaalgeschil). Fix: register-entry `support-helpdesk`
+  (grondslag OVEREENKOMST/GERECHTVAARDIGD_BELANG, betrokkenen ZZP'ers/opdrachtgevers, categorieën
+  onderwerp/body/categorie/prioriteit, ontvangers "intern platformbeheer") + bewaartermijn (bv. opgelost +
+  N maanden). **MENSENWERK**: bewaartermijn met de eigenaar bevestigen.
+- **[LAAG · AVG art. 5 lid 1f — storageKey + rauwe fout naar console (nieuwe call-site)]**
+  `bedrijf/actions.ts:80` logt bij mislukte logo-opruiming de `storageKey` + het rauwe `err`-object via
+  `console.error` zonder `NODE_ENV`-guard, buiten de `redact()`/logger-pijplijn — hetzelfde antipatroon als
+  de vier reeds geparkeerde call-sites (`admin/gebruikers`, `documenten`, `certificaten`, `admin/import`),
+  maar dit logo-pad stond niet in die lijst. Lager risico (een logo-key is geen gevoelig document), maar
+  hoort in dezelfde opruimslag. Fix: `logger.error(..., { error: describeError(err) })`, key maskeren in prod.
+- **[LAAG · AVG art. 5 lid 1f — rauwe foutobjecten naar console, twee extra call-sites]**
+  `api/tasks/run-all/route.ts:70` (`console.error("[run-all] taak … mislukt:", e)` — een e-mail-/Prisma-fout
+  van een van de 16 taken kan PII in `.message` dragen; #528 dekte alleen het níet-lekken naar de client, de
+  rauwe serverlog omzeilt nog steeds de redactie) en `wachtwoord-vergeten/actions.ts:72,83` (nodemailer-
+  send-fout kan het ontvangeradres in `err.message` bevatten). Fix: beide via `logger.error(msg, { error:
+describeError(err) })`, consistent met de al geparkeerde logger-migratie.
+
 ## Ronde 2026-07-03 (basis: `main` @ 90a5374)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle Opus security/privacy-subagents op niet-overlappende
@@ -68,9 +132,9 @@ hardcoded host). Drie AVG-art.-17-bevindingen (recht op verwijdering onvolledig)
   `ShiftHandoff.reason`, `AvailabilityWindow.note`, open `Collaboration.disputeReason`) nu ook: eigen
   `Application.note` (CLIENT), `NoShowReport` (melder), `ShiftHandoff.decisionNote` (beslisser),
   `LeadContact.body` (franchiser). Fix: per categorie een strikt-`select`-query (geen derde-partij-PII).
-- **[LAAG · AVG art. 15/20 + 17]** `FavoriteFreelancer.note` (privé CLIENT-notitie) ontbreekt nog in
-  zowel `anonymizeUser` als de export (bevestigd nog open). Fix: `favoriteFreelancer.updateMany({
-where: { company: { userId } }, data: { note: null } })` + export-query.
+- **[OPGELOST 2026-07-03b · AVG art. 15/20 + 17]** `FavoriteFreelancer.note` (privé CLIENT-notitie)
+  ontbrak in zowel `anonymizeUser` als de export. Gefixt (zie ronde 2026-07-03b): `updateMany({ note:
+null })` in de anonimiseringstransactie + strikt-`select`-export-query.
 
 ### GEPARKEERD — security / hardening (ronde 2026-07-03)
 
@@ -145,9 +209,8 @@ Cascade` op de kindtabel `AvailabilityWindow` vuurt niet → de vrije-tekst `not
   `ShiftHandoff.reason` (`requestedByUserId == actor`), `AvailabilityWindow.note` (eigen) en — bij open
   dispuut — `Collaboration.disputeReason` (waar de actor het dispuut opende). Fix: vier extra `select`-
   gescopete queries (geen derde-partij-PII).
-- **[LAAG · AVG art. 15/20 + art. 17]** `FavoriteFreelancer.note` (privé CLIENT-notitie over een ZZP'er)
-  ontbreekt in zowel de export als de anonimisering van een CLIENT-account (`Company` wordt geüpdatet,
-  niet verwijderd → geen cascade). Fix: export + `favoriteFreelancer.updateMany({ note: null })`.
+- **[OPGELOST 2026-07-03b · AVG art. 15/20 + art. 17]** `FavoriteFreelancer.note` (privé CLIENT-notitie
+  over een ZZP'er) ontbrak in zowel de export als de anonimisering. Gefixt in ronde 2026-07-03b.
 - **[MIDDEL · AVG art. 5 lid 1c — dataminimalisatie]** `ProfileScreen` (`profile-screen.tsx`) selecteert
   `AvailabilityWindow.note` maar rendert die niet; onnodige verwerking van vrije-tekst-PII op het
   public-facing pad `/zzp/[id]` (server component, gaat niet naar de browser). Fix: `note` uit de select

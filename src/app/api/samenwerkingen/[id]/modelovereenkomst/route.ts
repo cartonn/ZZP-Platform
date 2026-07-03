@@ -6,6 +6,8 @@ import { buildModelAgreementContent, resolveAgreementType } from "@/lib/contract
 import { buildModelAgreementPdf, type ModelAgreementSignatory } from "@/lib/contract-pdf";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { documentPdfRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 export const runtime = "nodejs";
 
@@ -23,6 +25,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ error: e.message }, { status: e.status });
     throw e;
   }
+
+  // On-demand PDF-generatie is CPU-belastend; rem een scripted loop (authz blijft de bron van toegang).
+  // Parity met de zuster-PDF/dossier-routes (facturen/prestaties/dossier/dba-dossier) — deze route werd
+  // gemist bij PR #586.
+  const limited = await enforceRateLimit(documentPdfRateLimiter, actor.id);
+  if (limited) return limited;
 
   const { id } = await ctx.params;
   const col = await prisma.collaboration.findUnique({

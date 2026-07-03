@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/privacy-audit — FavoriteFreelancer-erasure + modelovereenkomst-rate-limit (2026-07-03b, main-basis `cabe0f0`)
+
+Auditronde (orchestrator Opus 4.8 + 2 parallelle security/privacy-subagents, niet-overlappend). IDOR/
+cross-tenant over de nieuwste server actions: **geen nieuwe gaten** (cascade-acties herleiden owner/tenant
+uit een verse DB-rij; `assertSameTenant` overal; #582-branchefilter puur additief). Twee bevindingen
+gefixt (rood→groen); drie geparkeerd. Kader: OWASP A01/A04/A09 + AVG art. 5/15/17/30.
+
+- [x] **AVG art. 17 + 15/20 — `FavoriteFreelancer.note`** (privé CLIENT-notitie over een ZZP'er) ontbrak in
+      `anonymizeUser` (`admin/gebruikers/actions.ts`) én in `buildAccountExport` (`account-export.ts`). `Company`
+      wordt geüpdatet, niet verwijderd → geen cascade → notitie bleef attribueerbaar staan. Erasure:
+      `favoriteFreelancer.updateMany({ where: { company: { userId } }, data: { note: null } })`. Export: strikt-
+      `select`-query (alleen `note`/`createdAt`, geen `freelancerProfileId`). Tests: `anonymize-erasure.test.ts`
+  - `account-export.test.ts`.
+- [x] **A04 / AVG art. 5 — rate-limit op `GET /api/samenwerkingen/[id]/modelovereenkomst`**. On-demand
+      DBA-modelovereenkomst-PDF (cross-party PII) miste als enige PDF-route de `documentPdfRateLimiter` die de
+      zusterroutes in PR #586 kregen. Toegevoegd: `enforceRateLimit(documentPdfRateLimiter, actor.id)` ná auth,
+      vóór de DB-query. Test: `modelovereenkomst-ratelimit.test.ts`.
+- Geparkeerd (zie `docs/SECURITY-PRIVACY-BACKLOG.md`, ronde 2026-07-03b): support/helpdesk-PII ontbreekt in
+  het verwerkingsregister (MIDDEL, art. 30); twee LAAG-items rauwe `console.error`-PII (`bedrijf/actions.ts`,
+  `tasks/run-all`, `wachtwoord-vergeten/actions.ts`).
+- Gate: typecheck + lint + prettier + **test 2942** + build groen.
+
 ## Persona-sweep run 7 — geen gaten (2026-07-03, main-basis `edcb354`)
 
 Kritische-gebruiker-sweep over 4 rollen (ZZP'er/opdrachtgever/franchiser/admin), verse prod-build +

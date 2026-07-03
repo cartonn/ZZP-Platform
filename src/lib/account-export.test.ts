@@ -35,6 +35,7 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     indirectHoursEntry: { findMany: make("indirectHoursEntry", "findMany") },
     idea: { findMany: make("idea", "findMany") },
     collaboration: { findMany: make("collaboration", "findMany") },
+    favoriteFreelancer: { findMany: make("favoriteFreelancer", "findMany") },
     pushSubscription: { findMany: make("pushSubscription", "findMany") },
   };
   return { db: db as unknown as PrismaClient, calls };
@@ -59,6 +60,7 @@ describe("buildAccountExport", () => {
       "indirectHours",
       "ideas",
       "cancelledCollaborations",
+      "favoriteNotes",
       "pushSubscriptions",
     ] as const) {
       expect(payload).toHaveProperty(key);
@@ -130,6 +132,21 @@ describe("buildAccountExport", () => {
     expect((push?.args.select as Record<string, unknown>).endpoint).toBe(true);
     expect((push?.args.select as Record<string, unknown>).p256dh).toBeUndefined();
     expect((push?.args.select as Record<string, unknown>).auth).toBeUndefined();
+  });
+
+  it("neemt de eigen favorieten-notities mee, gescopet op de eigen bedrijven, zonder derde-partij-identiteit (AVG art. 15)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const fav = calls.find((c) => c.table === "favoriteFreelancer");
+    expect(fav).toBeDefined();
+    const where = fav?.args.where as Record<string, unknown>;
+    expect(where.company).toEqual({ userId: ACTOR });
+    // Alleen rijen met een notitie; de eigen vrije tekst wel, de id van de ZZP'er niet.
+    expect((where.note as Record<string, unknown>).not).toBeNull();
+    const select = fav?.args.select as Record<string, unknown>;
+    expect(select.note).toBe(true);
+    expect(select.freelancerProfileId).toBeUndefined();
   });
 
   it("over-fetcht het bedrijfsprofiel niet: geen interne tenantId/logoKey (AVG art. 5 dataminimalisatie)", async () => {

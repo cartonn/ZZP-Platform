@@ -191,6 +191,15 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { createdById: userId },
       data: { body: "[Verwijderd op verzoek van de gebruiker]" },
     }),
+    // Privé favorieten-notitie die de betrokkene als CLIENT zelf schreef over een ZZP'er
+    // (FavoriteFreelancer.note, vrije tekst — een subjectief oordeel dat de betrokkene identificeert
+    // als auteur). De Company wordt geüpdatet (niet verwijderd), dus de onDelete:Cascade op
+    // FavoriteFreelancer vuurt niet → expliciet wissen. Gescopet op de eigen bedrijven (company.userId)
+    // — nooit de notitie van een andere opdrachtgever.
+    prisma.favoriteFreelancer.updateMany({
+      where: { company: { userId } },
+      data: { note: null },
+    }),
     // Push-abonnementen: het endpoint is een persistente toestel-/browser-identifier (en userAgent
     // aanvullende PII). Een `user.update` triggert geen cascade-delete → expliciet verwijderen.
     prisma.pushSubscription.deleteMany({ where: { userId } }),
