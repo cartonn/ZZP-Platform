@@ -33,6 +33,16 @@ import { Concept27 } from "@/components/ontwerp/concepts/concept-27-courant";
 import { Concept28 } from "@/components/ontwerp/concepts/concept-28-riso";
 import { Concept29 } from "@/components/ontwerp/concepts/concept-29-signaal";
 import { Concept30 } from "@/components/ontwerp/concepts/concept-30-vitrine";
+import { Concept31 } from "@/components/ontwerp/concepts/concept-31-perron";
+import { Concept32 } from "@/components/ontwerp/concepts/concept-32-parel";
+import { Concept33 } from "@/components/ontwerp/concepts/concept-33-zegel";
+import { Concept34 } from "@/components/ontwerp/concepts/concept-34-redactie";
+import { Concept35 } from "@/components/ontwerp/concepts/concept-35-deco";
+import { Concept36 } from "@/components/ontwerp/concepts/concept-36-schemer";
+import { Concept37 } from "@/components/ontwerp/concepts/concept-37-isometrie";
+import { Concept38 } from "@/components/ontwerp/concepts/concept-38-spectrum";
+import { Concept39 } from "@/components/ontwerp/concepts/concept-39-botanie";
+import { Concept40 } from "@/components/ontwerp/concepts/concept-40-kwadrant";
 
 // Koppelt het URL-segment aan de uitgewerkte concept-component. Alleen `available` concepten staan
 // hier; de rest valt terug op notFound() (en is in de galerij als "binnenkort" gemarkeerd).
@@ -67,6 +77,16 @@ const COMPONENTS: Record<string, () => React.ReactElement> = {
   "28": Concept28,
   "29": Concept29,
   "30": Concept30,
+  "31": Concept31,
+  "32": Concept32,
+  "33": Concept33,
+  "34": Concept34,
+  "35": Concept35,
+  "36": Concept36,
+  "37": Concept37,
+  "38": Concept38,
+  "39": Concept39,
+  "40": Concept40,
 };
 
 export function generateStaticParams() {

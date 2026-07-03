@@ -71,6 +71,30 @@ onthulling). Drie art.-17-gaten (recht op verwijdering onvolledig) gefixt in `an
   2026-07-03): NoShowReport/rejectionReason-erasure (DPO-afweging), export-uitbreiding,
   FavoriteFreelancer.note, rate-limit op financiële/PDF-exports.
 
+## Ontwerp-lab — reeks 4: +10 concepten (31–40) op /ontwerp (2026-07-03)
+
+Accumulerende galerij: 10 nieuwe top-1% redesign-concepten toegevoegd bovenop de bestaande 30 —
+`/ontwerp` toont nu **40 richtingen** naast elkaar. Geen bestaand concept aangeraakt; puur additief.
+
+- [x] **10 nieuwe concept-componenten** `src/components/ontwerp/concepts/concept-31..40-*.tsx`
+      (client-only, elk de 6 kernschermen uit gedeelde `mock.ts`, complete loading/empty/error-states,
+      statusbadges label+icoon, toegankelijk, responsive, geen "AI"-token):
+      31 Perron (split-flap vertrekbord, mechanisch) · 32 Parel (iriserend holografisch/chroom, licht) ·
+      33 Zegel (letterpress & lakzegel) · 34 Redactie (datajournalistiek/geannoteerde charts) ·
+      35 Deco (art-deco geometrie/goud) · 36 Schemer (gouden uur/warm verloop) ·
+      37 Isometrie (axonometrisch 3D) · 38 Spectrum (duotone jaaroverzicht/bold type) ·
+      39 Botanie (herbarium/botanisch) · 40 Kwadrant (interactieve beslismatrix/scatter).
+- [x] **registry.ts** — 10 `ConceptMeta`-entries toegevoegd (append; bestaande 01–30 ongemoeid).
+- [x] **`app/ontwerp/[id]/page.tsx`** — imports + id→component-koppeling voor 31–40 toegevoegd
+      (append). Galerij-index groeit automatisch mee (mapt over `CONCEPTS`).
+- [x] **docs/DESIGN-LAB.md** bijgewerkt met reeks 4 + onderzochte 2026-trends (holografisch/iriserend,
+      mechanisch/retro-futurist, letterpress/tactile-rebellion, datajournalistiek/micrographics,
+      art-deco-revival, gouden-uur gradient-craft, isometrisch 3D, dopamine-duotone, biofiel/botanisch,
+      analytische beslismatrix).
+- Gate groen: typecheck + lint + prettier (hele repo) + test (2931) + build (alle 40 `/ontwerp/<id>`
+  SSG-pagina's gegenereerd). Bouwwerk gedelegeerd aan 4 parallelle builder-subagents op niet-
+  overlappende bestanden; orchestrator koppelde registry + route en draaide de poort.
+
 ## Ontwerp-lab — reeks 3: +10 concepten (21–30) op /ontwerp (2026-07-03)
 
 Accumulerende galerij: 10 nieuwe top-1% redesign-concepten toegevoegd bovenop de bestaande 20 —

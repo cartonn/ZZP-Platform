@@ -107,4 +107,23 @@ UI-taal = Nederlands.
   Soft-UI/neumorfisme-revival (affordance terug na de "usability ceiling" van flat design), spatial/
   kaart-first datavisualisatie, risograph/duotone print-craft, broadsheet-editorial, ticket/stub-
   skeuomorfie, industrieel-workwear signaaldesign en museale wandlabel-curatie.
-- **Totaal nu op `/ontwerp`: 30 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30).
+- **31–40** — reeks 4, toegevoegd bovenop reeks 1+2+3 (run 3-7-2026): Perron (split-flap vertrekbord:
+  mechanische omklappende tegels, amber op antraciet, dienstregeling-rijen) · Parel (iriserend
+  holografisch/licht: parelmoer-sheen, chroom-metallic, contrast-first op glans) · Zegel (letterpress
+  & lakzegel: katoenpapier-grain, deboss-typografie, wax-seal als verificatie-held) · Redactie
+  (datajournalistiek: geannoteerde inline-charts, "hoe te lezen"-notities, Tufte data-ink) · Deco
+  (art-deco geometrie: gouden linework-ornamenten, zonnestraal/chevron, diepe juweeltinten) · Schemer
+  (gouden uur/licht warm: perzik-amber-koraal verlopen, glow achter primaire acties) · Isometrie
+  (isometrisch/axonometrisch 3D: echte transform-diepte, blokken met zichtbare dikte, hover-lift) ·
+  Spectrum (duotone jaaroverzicht/donker: verzadigde magenta→violet→cyaan verlopen, reuze-typografie) ·
+  Botanie (herbarium/licht: inkt-lijnillustratie van bladeren, specimen-labels, geperste-plant-montage) ·
+  Kwadrant (beslismatrix/licht: interactief 2×2-coördinatenveld, scatter met kruisdraden + tooltip-
+  uitlichting op hover én keyboard). Alle tien gebruiken bestaande lab-fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks (bron: Pixelmatters/Tubik/CreativeBloq/Canva/925studios/Figma
+  e.a.): holografisch/iriserend & chroom-metallic, mechanisch/retro-futuristische interfaces,
+  letterpress/analoge textuur & "tactile rebellion" (anti-slop, human-made), datajournalistiek/
+  micrographics ("aesthetics of technical information"), art-deco/geometrische revival, warm
+  gouden-uur gradient-craft (Stripe/Vercel-niveau), isometrisch/axonometrisch 3D, dopamine/verzadigde
+  duotone met reuze-typografie, biofiel/botanisch design en analytische beslismatrix-/scatter-
+  positionering.
+- **Totaal nu op `/ontwerp`: 40 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40).
