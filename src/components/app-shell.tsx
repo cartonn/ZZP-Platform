@@ -157,7 +157,12 @@ export async function AppShell({
             />
             <Link
               href="/notificaties"
-              aria-label={t("Notificaties")}
+              // De bel gaat over meldingen (gelezen/ongelezen historie), niet over openstaande acties;
+              // het expliciete label voorkomt dat de bel-badge met de /acties-teller verward wordt.
+              aria-label={
+                unread > 0 ? `${t("Meldingen")} (${unread} ${t("ongelezen")})` : t("Meldingen")
+              }
+              title={t("Meldingen")}
               className="focus-ring relative inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Bell className="size-4" aria-hidden />

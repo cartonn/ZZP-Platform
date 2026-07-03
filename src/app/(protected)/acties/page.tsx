@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ActionList } from "@/components/actions/action-list";
+import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Acties · ZZP Platform" };
 
@@ -22,11 +23,13 @@ export default async function ActiesPage() {
 
   return (
     <div className="space-y-6">
+      {/* De paginakop noemt de eigen telling ("X acties open") zodat dit scherm zijn getal uitlegt —
+          los van de meldingen-bel (die de gelezen/ongelezen historie telt, een ander soort teller). */}
       <PageHeader
         title="Acties"
         description={
           tasks.length > 0
-            ? "Handel hier alles af wat op je wacht — afgehandelde acties verdwijnen vanzelf."
+            ? `${plural(tasks.length, "actie open", "acties open")} — handel hier alles af wat op je wacht; afgehandelde acties verdwijnen vanzelf.`
             : "Alles is afgehandeld."
         }
       />

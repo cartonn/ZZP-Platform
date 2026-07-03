@@ -32,6 +32,7 @@ import {
   type NotificationFilter,
 } from "@/lib/notification-filter";
 import { missedWhileAway } from "@/lib/missed-notifications";
+import { pendingTaskCount } from "@/lib/actions/pending-tasks";
 import { plural } from "@/lib/plural";
 import { markAllNotificationsRead, markNotificationRead, openNotification } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
@@ -178,7 +179,7 @@ export default async function NotificatiesPage({
   const actor = await requireActor();
   const { t } = await getTranslator();
   const filter = parseNotificationFilter(await searchParams);
-  const [notifications, me] = await Promise.all([
+  const [notifications, me, actionCount] = await Promise.all([
     prisma.notification.findMany({
       where: { userId: actor.id },
       orderBy: { createdAt: "desc" },
@@ -188,6 +189,9 @@ export default async function NotificatiesPage({
       where: { id: actor.id },
       select: { previousLoginAt: true, lastLoginAt: true },
     }),
+    // Openstaande acties = exact wat /acties toont (dezelfde helper die de sidebar-badge voedt).
+    // Meldingen (deze pagina) en acties zijn semantisch verschillend; de doorklik hieronder scheidt ze.
+    pendingTaskCount(actor.id, actor.role),
   ]);
   const hasUnread = notifications.some((n) => !n.readAt);
   // "Terwijl je weg was" — ongelezen meldingen die tussen de vorige en de huidige login
@@ -223,6 +227,18 @@ export default async function NotificatiesPage({
           ) : undefined
         }
       />
+
+      {/* Meldingen ≠ acties: deze pagina toont de gelezen/ongelezen historie; wat nú van je gevraagd
+          wordt staat op /acties. Een rustige doorklik scheidt de twee tellers expliciet. */}
+      {actionCount > 0 && (
+        <Link
+          href="/acties"
+          className="focus-ring -mt-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {plural(actionCount, t("actie wacht op je"), t("acties wachten op je"))} —{" "}
+          {t("naar Acties")}
+        </Link>
+      )}
 
       {notifications.length === 0 ? (
         <Card>
