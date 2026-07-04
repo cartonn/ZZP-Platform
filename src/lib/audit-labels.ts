@@ -70,6 +70,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   INVOICE_APPROVED: "Factuur goedgekeurd",
   INVOICE_REJECTED: "Factuur afgekeurd",
   INVOICE_SENT: "Factuur verzonden",
+  INVOICE_REMINDER_SENT: "Betaalherinnering verstuurd",
   INVOICE_PAID: "Factuur betaald",
   INVOICE_CANCELLED: "Factuur geannuleerd",
   INVOICE_CREDITED: "Factuur gecrediteerd",

@@ -14,9 +14,14 @@ import {
   invoiceTotalCents,
 } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
+import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { invoiceLineSchema } from "@/lib/validation";
+import { canSendPaymentReminder } from "@/lib/manual-payment-reminder";
+import { plural } from "@/lib/plural";
 
 export type InvoiceState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
+
+export type ReminderState = { error?: string; message?: string } | undefined;
 
 interface ParsedLine {
   description: string;
@@ -235,6 +240,86 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
   ]);
   revalidatePath("/facturen");
   revalidatePath(`/facturen/${invoiceId}`);
+}
+
+/**
+ * Handmatige betaalherinnering (crediteur → opdrachtgever). De ZZP'er stuurt vanaf een openstaande,
+ * verzonden factuur eenmalig per afkoelperiode een in-platform nudge — náást de automatische
+ * aanmaningsladder (`payment-reminders.ts`). Keten: auth → rol (FREELANCER) → ownership (uitschrijver)
+ * → server-herbevestiging dat de factuur écht op betaling wacht + afkoelperiode (uit het auditlogboek)
+ * → notify + audit. Geen geldstroom (Besluit 1): status­registratie + signalering, geen incasso.
+ */
+export async function sendPaymentReminder(
+  invoiceId: string,
+  _prev: ReminderState,
+  _formData: FormData,
+): Promise<ReminderState> {
+  let actor;
+  try {
+    actor = await requireRole("FREELANCER");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
+
+  const invoice = await loadInvoiceParty(invoiceId);
+  if (!invoice || invoice.collaboration?.freelancer.userId !== actor.id)
+    return { error: "Factuur niet gevonden." };
+
+  // Afkoelperiode: het tijdstip van de laatste handmatige herinnering uit het auditlogboek
+  // (de audit is de bron van waarheid, geen extra kolom nodig).
+  const last = await prisma.auditLog.findFirst({
+    where: { action: "INVOICE_REMINDER_SENT", entityId: invoiceId },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+
+  const eligibility = canSendPaymentReminder({
+    isFreelancerOwner: true,
+    status: invoice.status,
+    lifecycleStatus: invoice.lifecycleStatus as InvoiceLifecycleState | null,
+    issuedAt: invoice.issuedAt,
+    dueAt: invoice.dueAt,
+    lastReminderAt: last?.createdAt ?? null,
+  });
+  if (!eligibility.eligible) {
+    if (eligibility.reason === "cooldown" && eligibility.nextAllowedAt)
+      return {
+        error: `Je hebt onlangs al herinnerd. Probeer het na ${eligibility.nextAllowedAt.toLocaleDateString("nl-NL")}.`,
+      };
+    return { error: "Je kunt nu geen herinnering sturen voor deze factuur." };
+  }
+
+  const num = invoice.partyInvoiceNumber ?? invoice.number;
+  const body =
+    eligibility.daysOverdue > 0
+      ? `Factuur ${num} is ${plural(eligibility.daysOverdue, "dag", "dagen")} over de vervaldag. Betaal rechtstreeks aan de ZZP'er en markeer de betaling.`
+      : `Factuur ${num} staat open. Betaal rechtstreeks aan de ZZP'er en markeer de betaling.`;
+
+  await prisma.$transaction([
+    prisma.notification.create({
+      data: {
+        userId: invoice.collaboration.company.userId,
+        type: "PAYMENT_REMINDER",
+        title: "Betaalherinnering",
+        body,
+        link: "/facturen",
+      },
+    }),
+    prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "INVOICE_REMINDER_SENT",
+        entityType: "Invoice",
+        entityId: invoiceId,
+        metadata: { daysOverdue: eligibility.daysOverdue },
+      }),
+    }),
+  ]);
+
+  revalidatePath("/facturen");
+  revalidatePath(`/facturen/${invoiceId}`);
+  return { message: "Herinnering verstuurd." };
 }
 
 export async function cancelInvoice(invoiceId: string): Promise<void> {
