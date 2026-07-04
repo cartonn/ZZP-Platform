@@ -14,6 +14,8 @@ import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { overdueInvoiceCount } from "@/lib/signals";
+import { summarizeAvailabilityFreshness } from "@/lib/availability";
+import { type AvailabilityWindowType } from "@/lib/enums";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
 import { parseLanguages } from "@/lib/parse-languages";
 import {
@@ -40,6 +42,7 @@ import {
   noShowWarningTask,
   overdueInvoiceTask,
   applicationsReviewTask,
+  availabilityRefreshTask,
   draftJobsTask,
   franchiseCredentialExpiryTask,
   franchiseLeadFollowupTask,
@@ -199,6 +202,22 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
             doc.state,
           ),
         );
+    }
+
+    // Beschikbaarheidsagenda verlopen? Alleen zinvol voor een vindbaar (niet-privé) profiel: een
+    // privé-profiel krijgt al de profilePrivateTask en is toch niet vindbaar. Alleen bij een volledig
+    // verlopen agenda (nooit gedeeld = onboarding, geen nudge hier).
+    if (profile.visibility !== "PRIVATE") {
+      const windows = await prisma.availabilityWindow.findMany({
+        where: { freelancerProfileId: profile.id },
+        select: { startDate: true, endDate: true, type: true },
+        take: MAX,
+      });
+      const freshness = summarizeAvailabilityFreshness(
+        windows.map((w) => ({ ...w, type: w.type as AvailabilityWindowType })),
+        now,
+      );
+      if (freshness.status === "expired") tasks.push(availabilityRefreshTask());
     }
   }
 

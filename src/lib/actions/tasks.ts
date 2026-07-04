@@ -58,6 +58,7 @@ export type PendingTask =
   | (TaskBase & { kind: "no-show-warning" })
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
   | (TaskBase & { kind: "applications-review" })
+  | (TaskBase & { kind: "availability-refresh" })
   | (TaskBase & { kind: "draft-jobs" })
   | (TaskBase & { kind: "franchise-credential-expiry"; profileId: string })
   | (TaskBase & { kind: "franchise-lead-followup" });
@@ -442,6 +443,24 @@ export function applicationsReviewTask(count: number): PendingTask {
     priority: P.applications,
     resolver: "link",
     href: "/kandidaten",
+  };
+}
+
+/**
+ * De ZZP'er heeft een beschikbaarheidsagenda gedeeld die volledig is verlopen (alle vensters in het
+ * verleden). Opdrachtgevers zien daardoor niet meer wanneer hij kan starten — een verholen rem op de
+ * matching. Zachte findability-nudge (tone "info"): deep-link naar de beschikbaarheidspagina.
+ */
+export function availabilityRefreshTask(): PendingTask {
+  return {
+    kind: "availability-refresh",
+    id: "availability-refresh:stale",
+    title: "Je gedeelde beschikbaarheid is verlopen",
+    subtitle: "Werk je agenda bij zodat opdrachtgevers zien wanneer je kunt starten",
+    tone: "info",
+    priority: P.availabilityStale,
+    resolver: "link",
+    href: "/beschikbaarheid",
   };
 }
 

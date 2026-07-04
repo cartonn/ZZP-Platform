@@ -3,6 +3,7 @@ import {
   availabilityOnDate,
   currentOrNextAvailable,
   summarizeAvailability,
+  summarizeAvailabilityFreshness,
   upcomingWindows,
   type WindowLike,
 } from "@/lib/availability";
@@ -104,5 +105,33 @@ describe("summarizeAvailability", () => {
   });
   it("null als er niets inzetbaars is", () => {
     expect(summarizeAvailability([], now)).toBeNull();
+  });
+});
+
+describe("summarizeAvailabilityFreshness", () => {
+  it("empty bij een lege agenda", () => {
+    expect(summarizeAvailabilityFreshness([], now)).toEqual({ status: "empty", total: 0 });
+  });
+  it("fresh zolang er een venster nu of in de toekomst eindigt", () => {
+    expect(summarizeAvailabilityFreshness(windows, now)).toEqual({ status: "fresh", total: 4 });
+  });
+  it("expired als alle einddata in het verleden liggen", () => {
+    const past: WindowLike[] = [
+      { startDate: d("2026-01-01"), endDate: d("2026-02-01"), type: "AVAILABLE" },
+      { startDate: d("2026-03-01"), endDate: d("2026-04-01"), type: "LIMITED" },
+    ];
+    expect(summarizeAvailabilityFreshness(past, now)).toEqual({ status: "expired", total: 2 });
+  });
+  it("een toekomstig UNAVAILABLE-venster telt óók als fresh (agenda is bijgehouden)", () => {
+    const onlyBlockedFuture: WindowLike[] = [
+      { startDate: d("2026-08-01"), endDate: d("2026-09-01"), type: "UNAVAILABLE" },
+    ];
+    expect(summarizeAvailabilityFreshness(onlyBlockedFuture, now).status).toBe("fresh");
+  });
+  it("een venster dat t/m vandaag loopt is nog fresh (einddatum inclusief)", () => {
+    const endsToday: WindowLike[] = [
+      { startDate: d("2026-06-01"), endDate: d("2026-06-15"), type: "AVAILABLE" },
+    ];
+    expect(summarizeAvailabilityFreshness(endsToday, now).status).toBe("fresh");
   });
 });

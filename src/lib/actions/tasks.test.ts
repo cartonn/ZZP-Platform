@@ -13,6 +13,7 @@ import {
   adminDeletionRequestTask,
   adminResolveDisputeTask,
   applicationsReviewTask,
+  availabilityRefreshTask,
   draftJobsTask,
   franchiseCredentialExpiryTask,
   franchiseLeadFollowupTask,
@@ -151,6 +152,20 @@ describe("task builders", () => {
     expect(drafts.priority).toBe(P.drafts);
     // Concept-opdrachten wegen lichter dan nieuwe reacties.
     expect(drafts.priority).toBeLessThan(apps.priority);
+  });
+
+  it("verlopen beschikbaarheid is een rustige link-taak naar /beschikbaarheid", () => {
+    const task = availabilityRefreshTask();
+    expect(task).toMatchObject({
+      kind: "availability-refresh",
+      resolver: "link",
+      href: "/beschikbaarheid",
+      tone: "info",
+    });
+    expect(task.priority).toBe(P.availabilityStale);
+    // Findability-nudge: lichter dan een nieuwe reactie, zwaarder dan een cosmetisch compleetheidsgat.
+    expect(task.priority).toBeLessThan(P.applications);
+    expect(task.priority).toBeGreaterThan(P.completeness);
   });
 
   it("bemiddelaar: roster-certificaat-verloop is een per-ZZP'er link-taak naar het ZZP'er-detail", () => {

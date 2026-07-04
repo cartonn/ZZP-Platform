@@ -56,6 +56,7 @@ export const P = {
   credentialExpiryBatch: 58, // verlopen/verlopende certificaten — draai de expiry-check (admin)
   messagesAwaiting: 55, // berichten van de andere partij wachten op antwoord
   applications: 50, // nieuwe reacties
+  availabilityStale: 40, // gedeelde beschikbaarheidsagenda verlopen — findability-nudge (ZZP'er)
   completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)
   drafts: 20, // concept-opdrachten
   // Franchiser-activatie: geleide opzet van een nieuwe tenant (begeleidend, niet alarmerend).

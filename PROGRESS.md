@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## UX — "beschikbaarheid verlopen"-nudge voor de ZZP'er (2026-07-04a, main-basis `db9613d`)
+
+Een vindbare (niet-privé) ZZP'er met een volledig verlopen beschikbaarheidsagenda (alle vensters in
+het verleden) verdween stil uit de start-fit die opdrachtgevers op `/kandidaten` zien — een verholen
+rem op de matching. Concurrenten (Pidz/Temper) porren flexkrachten juist actief om hun agenda vers te
+houden. Toegevoegd: een rustige actie-centrum-taak die de ZZP'er terugstuurt naar `/beschikbaarheid`.
+
+- [x] `lib/availability.ts` — pure `summarizeAvailabilityFreshness(windows, now)` →
+      `{status:"fresh"|"expired"|"empty", total}`. Puur afgeleid uit de einddata (inclusief, via
+      `upcomingWindows`); `type` doet er niet toe — óók een toekomstig UNAVAILABLE-venster telt als
+      "agenda bijgehouden" (fresh). `expired` = wél vensters maar geen enkele met toekomstwaarde.
+- [x] `lib/next-actions.ts` — prioriteitsband `P.availabilityStale=40` (tussen `completeness`=30 en
+      `applications`=50): findability-nudge weegt zwaarder dan een cosmetisch compleetheidsgat, lichter
+      dan een nieuwe reactie.
+- [x] `lib/actions/tasks.ts` — nieuw taak-type `availability-refresh` + `availabilityRefreshTask()`
+      (tone `info`, resolver `link` → `/beschikbaarheid`; geen resolver-registry-wijziging nodig, de
+      `default`-tak rendert de deep-link).
+- [x] `lib/actions/pending-tasks.ts` — `freelancerTasks` haalt de vensters begrensd op (`take: MAX`)
+      en pusht de taak alleen bij `visibility !== "PRIVATE"` én `status === "expired"` (een privé-
+      profiel krijgt al de eigen taak; een nooit-gedeelde agenda is onboarding, geen nudge hier).
+- [x] Tests: `availability.test.ts` (+5: empty/fresh/expired/toekomstig-UNAVAILABLE=fresh/t-m-vandaag=fresh),
+      `tasks.test.ts` (+1: builder-vorm + prioriteit-ordening). Gate: typecheck + lint + prettier (hele
+      repo) + **test 2996** + build groen. Geen schemawijziging, server-side waarheid, geen extra last
+      (één begrensde query alleen voor een vindbaar profiel).
+
 ## Matching — semantiek als uitlegbare scorecomponent (2026-07-03h, main-basis `4b878a7`)
 
 Inhoudelijke aansluiting (opdrachttekst ↔ profieltekst) weegt nu mee als kleine, uitlegbare
