@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Abonnement-periode-vervalcyclus (prod-rijpheid, PR #608)** — na een
+> eenmalige Mollie-betaling vervalt een betaald abonnement nu echt. Pure `subscription-lifecycle.ts`
+> (`isSubscriptionActive` + `planSubscriptionExpiry`, renewal-herinneringen dag 7/1, per-periode
+> dedupeKey); `entitlement-guard.ts` telt een verlopen betaalde periode direct als FREE (server-side
+> waarheid, óók vóór de taak draait); `subscription-expiry-task.ts` zet verlopen abonnementen idempotent
+> op CANCELLED (→ Gratis) met renewal-notificaties + audit, gewired in `/api/tasks/run-all`. Demo/gratis
+> (`currentPeriodEnd=null`) ongewijzigd perpetueel. 28 unit-tests; geen schemawijziging. Rest = mensenwerk
+> (Mollie-key; recurring-mandaat als vervolgstap).
+
 > Gedaan (niet opnieuw): **Match-ranking bij voordragen uit roster (bemiddelaar)** (PR #601) — de
 > FRANCHISER-voordrachtlijst op `/franchise/diensten/[id]` toonde alleen inzetbaarheid, ongesorteerd
 > (`createdAt`). Nu gerangschikt op matchscore voor déze dienst via de bestaande `scoreJobForFreelancer`:

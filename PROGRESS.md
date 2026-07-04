@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid 2026-07-04 — abonnement-periode-vervalcyclus (PR #608)
+
+**Gat gedicht (billing-correctheid):** na een eenmalige Mollie-betaling zette de webhook
+`currentPeriodEnd = nu + 1 maand`, maar `getActivePlanKey` beschouwde élk `ACTIVE`-abonnement als
+gerechtigd — ongeacht `currentPeriodEnd`. Gevolg: permanente Pro/Business na één betaling
+(omzetlek + onjuiste server-side waarheid). Er was een PAST_DUE-ladder maar geen periode-verval.
+
+- **`src/lib/subscription-lifecycle.ts`** (nieuw, puur): `isSubscriptionActive({status,currentPeriodEnd},now)`
+  (ACTIVE + niet-verlopen; `currentPeriodEnd=null` = perpetueel/demo) + `planSubscriptionExpiry`
+  (renewal-herinneringen op dag 7/1 vóór verval + verval-items; per-periode dedupeKey-token). 14 tests.
+- **`src/lib/entitlement-guard.ts`**: `getActivePlanKey`/`usersWithEntitlement` gebruiken nu
+  `isSubscriptionActive` → een verlopen betaalde periode telt direct als FREE, óók vóór de taak draait.
+  Demo/gratis-activaties (null periode) ongewijzigd. +10 tests (nieuw `entitlement-guard.test.ts`).
+- **`src/lib/subscription-expiry-task.ts`** (nieuw): `runSubscriptionExpiryTask` — query ACTIVE betaalde
+  abonnementen met niet-null `currentPeriodEnd`, plant, dedupt op DomainEvent, stuurt renewal-notificaties
+  en zet verlopen abonnementen op `CANCELLED` (→ Gratis) met audit. Idempotent, geen geldstroom. +4 tests.
+  Gewired in `/api/tasks/run-all` (`subscription-expiry`).
+- Gate: typecheck ✓, lint ✓ (0 warnings), **3048 unit-tests ✓** (28 nieuw), prettier ✓, build ✓.
+- Resterend mensenwerk: Mollie-account/KYC + `MOLLIE_API_KEY`; automatische maandhernieuwing
+  (Mollie-mandaat/recurring) is een vervolgstap bovenop deze verval-cyclus.
+
 ## Security/privacy-audit ronde 2026-07-04b — PII-in-logs sweep afgerond (main-basis `f04d7b3`)
 
 Security-audit van de delta `b86c33b..f04d7b3` (#599–#606) met 1 parallelle Opus security-subagent.

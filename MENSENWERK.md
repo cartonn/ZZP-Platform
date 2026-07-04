@@ -185,6 +185,22 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    demo-abonnementsflow door echte betalingen.
    **Tip:** start de pilot gerust met de demoflow; betalingen kun je later activeren.
 
+   **Code-kant GEDAAN (4-7-2026): volledige abonnementsperiode-levensloop.** De Mollie-koppeling
+   (`BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`) bestond al: checkout-redirect + webhook →
+   `currentPeriodEnd = nu + 1 maand`. Nieuw is dat een betaalde periode nu ook echt **verloopt**:
+   - **Server-side waarheid:** `getActivePlanKey`/`userHasEntitlement` (`src/lib/entitlement-guard.ts`)
+     tellen een betaald abonnement alléén als gerechtigd zolang `currentPeriodEnd` in de toekomst ligt.
+     Een verlopen periode valt direct terug op **Gratis**, óók vóór de verval-taak draait — dus geen
+     permanente Pro/Business meer na één betaling. Demo/gratis-activaties (`currentPeriodEnd = null`)
+     blijven perpetueel gerechtigd.
+   - **Geplande taak `subscription-expiry`** (in `/api/tasks/run-all`, `src/lib/subscription-expiry-task.ts`):
+     stuurt renewal-herinneringen 7 en 1 dag vóór verval en zet een verlopen betaald abonnement
+     idempotent op `CANCELLED` (→ Gratis) met notificatie + audit. Geen geldstroom (registratie/
+     signalering).
+     Resterend mensenwerk voor betaald gebruik: alleen het Mollie-account + KYC + `MOLLIE_API_KEY`; en
+     voor automatische **maandelijkse hernieuwing** (i.p.v. handmatig opnieuw betalen bij verval) een
+     Mollie-mandaat/recurring-koppeling — een vervolgstap bovenop deze verval-cyclus.
+
 ### §3b. Franchise-facturatie (tenant-billing)
 
 **Wat:** de franchise-monetisatie (3+1 hybride: een maandabonnement per vestiging + een lichte
@@ -431,10 +447,11 @@ BTW-herinnering, job-alerts, PAST_DUE-ladder, ZZP-lidmaatschapsbijdrage, grace-v
 
 **Code-kant GEDAAN (3-7-2026):** `/api/tasks/run-all` heeft nu een geplande GitHub Actions-workflow
 (`.github/workflows/run-all-tasks.yml`, elke dag om 05:00 UTC) die het endpoint aanroept met de
-`Authorization: Bearer $CRON_SECRET`-header. Die run voert **alle 16 taakrunners** idempotent uit
+`Authorization: Bearer $CRON_SECRET`-header. Die run voert **alle geplande taakrunners** idempotent uit
 (verloopdetectie, betaalherinneringen, DBA-monitor, concept-factuur- en BTW-herinneringen, job-alerts,
-PAST_DUE-aanmaningsladder, ZZP-lidmaatschapsbijdrage, prestatie-grace/-goedkeuring-/-indien-reminders,
-dispuut-reminders, beoordelingen-onthulling, push-delivery, notificatie-digest, monitor). De workflow
+PAST_DUE-aanmaningsladder, abonnement-periode-verval/renewal, ZZP-lidmaatschapsbijdrage,
+prestatie-grace/-goedkeuring-/-indien-reminders, dispuut-reminders, beoordelingen-onthulling,
+push-delivery, notificatie-digest, monitor). De workflow
 is **inert zonder secrets**: ontbreken `RUN_ALL_TASK_URL`/`CRON_SECRET`, dan slaat de job over zonder
 te falen. Dit dekt óók de expiry-check; `expiry-check.yml` blijft draaien maar is hiermee overbodig
 (dubbel draaien is dankzij idempotentie onschadelijk).
