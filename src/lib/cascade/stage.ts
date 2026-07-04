@@ -64,13 +64,15 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
     return { id: "paid", badgeLabel: "Betaald", label: "Factuur betaald", step: total, totalSteps: total, youAreUp: false, tone: "success", cta: bekijk }; // prettier-ignore
   }
 
-  // Stap 1 — contract ondertekenen.
+  // Stap 1 — contract ondertekenen. In productie kent het contract enkel de overgang DRAFT → SIGNED
+  // (SENT wordt nergens gezet): een voorgestelde samenwerking (PROPOSED) is meteen ondertekenbaar en
+  // élke partij kan tekenen (`assertParty` in signContract), wat de hele cascade deblokkeert. Dus is
+  // voor beide viewers "aan zet" — net als de actiecentrum-taak (`contractSignTask`, aan beide
+  // partijen). Voorheen viel DRAFT in een passieve "wordt nog voorbereid"-tak (youAreUp:false) die de
+  // teken-CTA verborg op precies de schermen die "wat wordt van wie verwacht?" beloven, en die de
+  // actiecentrum-taak tegensprak.
   if (input.contractStatus !== "SIGNED") {
-    if (input.contractStatus === "SENT") {
-      // Beide partijen kunnen tekenen (assertParty); dus voor beide viewers "aan zet".
-      return { id: "contract-sign", badgeLabel: "Contract", label: "Contract ter ondertekening", step: 1, totalSteps: total, youAreUp: true, tone: "attention", cta: { label: "Onderteken contract", href } }; // prettier-ignore
-    }
-    return { id: "contract-draft", badgeLabel: "Voorgesteld", label: "Voorgesteld — in afwachting van het contract", step: 1, totalSteps: total, youAreUp: false, tone: "info", cta: bekijk }; // prettier-ignore
+    return { id: "contract-sign", badgeLabel: "Contract", label: "Contract ter ondertekening", step: 1, totalSteps: total, youAreUp: true, tone: "attention", cta: { label: "Onderteken contract", href } }; // prettier-ignore
   }
 
   // Stap 2 — uren/oplevering indienen (na getekend contract).

@@ -54,11 +54,20 @@ describe("cascadeStage — keten + viewer-perspectief", () => {
     expect(fr.cta.href).toBe("/samenwerkingen/c1");
   });
 
-  it("contract DRAFT: nog niemand aan zet (info)", () => {
-    const s = cascadeStage(base({ contractStatus: "DRAFT", collaborationStatus: "PROPOSED" }));
-    expect(s.id).toBe("contract-draft");
-    expect(s.youAreUp).toBe(false);
-    expect(s.tone).toBe("info");
+  it("contract DRAFT (PROPOSED): beide partijen aan zet — meteen ondertekenbaar", () => {
+    // Productie kent enkel DRAFT → SIGNED; een voorgestelde samenwerking is meteen ondertekenbaar
+    // door beide partijen. De fase mag dus niet als passief "wordt voorbereid" tonen (dat verborg de
+    // teken-CTA en sprak de actiecentrum-taak `contractSignTask` tegen).
+    const fr = cascadeStage(base({ contractStatus: "DRAFT", collaborationStatus: "PROPOSED" }));
+    const cl = cascadeStage(
+      base({ contractStatus: "DRAFT", collaborationStatus: "PROPOSED", viewer: "CLIENT" }),
+    );
+    expect(fr.id).toBe("contract-sign");
+    expect(fr.youAreUp).toBe(true);
+    expect(cl.youAreUp).toBe(true);
+    expect(fr.tone).toBe("attention");
+    expect(fr.step).toBe(1);
+    expect(fr.cta.label).toBe("Onderteken contract");
   });
 
   it("getekend, geen prestatie: ZZP'er dient in, opdrachtgever wacht", () => {
