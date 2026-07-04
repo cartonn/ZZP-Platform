@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { UserPlus, Check } from "lucide-react";
+import { UserPlus, Check, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EngageabilityBadge } from "@/components/engageability-badge";
@@ -44,12 +44,33 @@ function CandidateRow({ jobId, candidate }: { jobId: string; candidate: RosterCa
         {candidate.headline && (
           <p className="truncate text-xs text-muted-foreground">{candidate.headline}</p>
         )}
+        {/* Waarom deze ZZP'er past bij deze dienst — troef + minpunt uit dezelfde matchmotor als de
+            Reacties-lijst en /kandidaten (verklaarbaar, geen black box). */}
+        {(candidate.topReason || candidate.topGap) && (
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {candidate.topReason && (
+              <span className="inline-flex items-center gap-1 text-success">
+                <Check className="size-3 shrink-0" aria-hidden />
+                <span className="truncate">{candidate.topReason}</span>
+              </span>
+            )}
+            {candidate.topGap && (
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                <Minus className="size-3 shrink-0" aria-hidden />
+                <span className="truncate">{candidate.topGap}</span>
+              </span>
+            )}
+          </p>
+        )}
         {notEngageable && candidate.blockers.length > 0 && (
           <p className="truncate text-xs text-danger">{candidate.blockers[0]}</p>
         )}
         {error && <p className="truncate text-xs text-danger">{error}</p>}
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <Badge variant="muted" className="tabular-nums">
+          Match {candidate.matchScore}
+        </Badge>
         <EngageabilityBadge status={candidate.engageabilityStatus} />
         {proposed ? (
           <Badge variant="accent" className="inline-flex items-center gap-1">
