@@ -23,6 +23,8 @@ import { runNotificationDigestTask } from "@/lib/notification-digest-task";
 import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
 import { runPushDeliveryTask } from "@/lib/push-delivery-task";
 import { runScheduledTasks, type ScheduledTask } from "@/lib/scheduled-tasks";
+import { logger } from "@/lib/observability/logger";
+import { describeError } from "@/lib/observability/report";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +69,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Ruwe foutdetails alleen server-side loggen; de respons krijgt een statische boodschap.
   const { ok, results, errors } = await runScheduledTasks(tasks, (name, e) =>
-    console.error(`[run-all] taak "${name}" mislukt:`, e),
+    logger.error("[run-all] taak mislukt", { task: name, error: describeError(e) }),
   );
 
   const hasErrors = Object.keys(errors).length > 0;

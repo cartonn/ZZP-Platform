@@ -22,7 +22,7 @@ export interface ErrorReporter {
 }
 
 /** Haalt naam/message/stack veilig uit een onbekende waarde (kan een niet-Error zijn). */
-function describeError(error: unknown): { name: string; message: string; stack?: string } {
+export function describeError(error: unknown): { name: string; message: string; stack?: string } {
   if (error instanceof Error) {
     return { name: error.name, message: error.message, stack: error.stack };
   }

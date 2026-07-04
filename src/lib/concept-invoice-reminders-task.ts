@@ -12,6 +12,7 @@ import {
 } from "@/lib/concept-invoice-reminders";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { buildConceptInvoiceReminderEmail } from "@/lib/services/reminder-emails";
+import { logMailFailure } from "@/lib/observability/mail-failure";
 import { loadEmailPreferencesFor } from "@/lib/notification-preferences-data";
 import { isEmailEnabled } from "@/lib/notification-preferences";
 
@@ -129,7 +130,7 @@ export async function runConceptInvoiceReminderTask(opts: {
           );
         }
       } catch (err) {
-        console.error("[concept-invoice-reminders-task] e-mail mislukt:", err);
+        logMailFailure("[concept-invoice-reminders-task]", err);
       }
     }
   }

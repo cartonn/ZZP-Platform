@@ -294,11 +294,15 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     dataSubjects: ["ZZP'ers", "Opdrachtgevers", "Beheerders"],
     dataCategories: ["E-mailadres", "Naam", "Notificatietype en -inhoud"],
     sensitive: false,
-    recipients: ["E-maildienstverlener (verwerker)"],
+    recipients: [
+      "E-maildienstverlener (verwerker) — bij EMAIL_DRIVER=resend: Resend (HTTP-API), " +
+        "mogelijk buiten de EER; doorgifte alleen met verwerkersovereenkomst + passende waarborgen (SCC's)",
+    ],
     retention:
       "Notificatiehistorie max. 6 maanden; e-mailadressen bewaard zolang het account actief is",
     securityMeasures: [
       "Verwerkerovereenkomst met e-maildienstverlener",
+      "Bij doorgifte buiten de EER: modelcontractbepalingen (SCC's) en waar mogelijk EU-regio",
       "Versleutelde verbinding (TLS)",
       "Dataminimalisatie in e-mailinhoud",
     ],

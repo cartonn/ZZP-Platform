@@ -278,6 +278,12 @@ beveiligde sleutels. Een agent kan dat contact en die afspraken niet namens jou 
 3. Houd een **verwerkingsregister** bij.
 4. Sluit een **verwerkersovereenkomst (DPA)** met **elke** leverancier die persoonsgegevens
    verwerkt: hosting, database, opslag, mail, betaalprovider, en de verificatiediensten (§4).
+   - **`EMAIL_DRIVER=resend` (internationale doorgifte, AVG art. 44/46):** met Resend gaan
+     ontvangeradres, naam en notificatie-inhoud via HTTPS naar een verwerker die (deels) buiten de
+     EER kan zitten. Bevestig vóór go-live dat de **DPA modelcontractbepalingen (SCC's)** bevat en
+     configureer waar mogelijk een **EU-regio**. Zelfde afweging als de Geoapify-reistijddienst (§4).
+     Tot dat rond is: houd `EMAIL_DRIVER` op `noop`/`smtp` (eigen EER-relay). De code is inert zonder
+     `RESEND_API_KEY`; dit is puur een juridische/DPO-poort, niet een codewijziging.
 5. Bepaal of een **DPIA** (gegevensbeschermingseffectbeoordeling) nodig is — bij gevoelige
    documenten/zorgcontext vaak wel.
 6. Beslis bewust over **identiteitsdocumenten**: bewaar bij voorkeur alleen status/metadata, geen

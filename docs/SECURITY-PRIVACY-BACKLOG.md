@@ -4,6 +4,52 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-04 (basis: `main` @ b86c33b)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle Opus security/privacy-subagents op niet-overlappende
+oppervlakken — (1) object-/functieniveau-autorisatie/IDOR/cross-tenant over ÁLLE server actions +
+API-routes (focus op de delta #588–#598), (2) injectie/upload/secrets/auth-sessie/headers/SSRF/CSRF,
+(3) AVG-recht-op-verwijdering + inzage-export + verwerkingsregister + k-anonimiteit + PII-in-logs.
+Kader: OWASP Top 10 (A01 broken access control, A04 insecure design, A05 misconfig, A09 logging) +
+AVG art. 5/15/17/30/44/46. **Authz/IDOR/cross-tenant: geen nieuwe gaten** (elke recente feature —
+beschikbaarheid-signalen, semantische-matching-scorecomponent, skills-picker, reactiebereidheid-
+context — is puur/deterministisch of gescopet op de eigen data van de actor; `assertSameTenant`/
+`tenantScopeWhere` overal aanwezig). **Injectie/upload/secrets/auth/headers/SSRF: geen nieuwe gaten**
+(de nieuwe Resend HTTP-adapter praat met een hardcoded host, logt geen adres/subject, is inert zonder
+`RESEND_API_KEY`; CSP-nonce, storage-traversalguard en env-gating ongewijzigd). `npm audit`: 0 prod-
+kwetsbaarheden (2 dev-only low/moderate). Eén security- + één privacy-bevinding gefixt (rood→groen);
+de rest geparkeerd.
+
+### OPGELOST in deze ronde
+
+- **[MIDDEL→OPGELOST · A09 / AVG art. 5 lid 1f — ontvangeradres (PII) lekt naar hosting-logs bij
+  mislukte mailverzending]** Vijf geplande taken (`notification-digest-task`, `payment-reminders-task`,
+  `vat-reminder-task`, `dba-monitor-task`, `concept-invoice-reminders-task`) plus de al eerder
+  geparkeerde call-sites (`wachtwoord-vergeten/actions.ts:72,83`, `api/tasks/run-all/route.ts:70`)
+  logden een mislukte `mail.send(...)` via **rauwe `console.error("… mislukt:", err)`** — buiten de
+  redactie-pijplijn en buiten de auditdatabase. Een SMTP-weigering (nodemailer) draagt het adres in
+  `.message`/`.response`/`.rejected`; sinds de Resend HTTP-driver (#589) draagt ook de HTTP-foutbody bij
+  een validatiefout het adres. In productie belanden die objecten onversluierd in de Railway-hostlogs
+  (AVG-lek). Repro: draai een reminder-taak met een mailkanaal dat een adres weigert → het volledige
+  foutobject met `jan@firma.nl` staat in de hostlog. Gefixt: nieuwe `logMailFailure(source, error)`
+  (`src/lib/observability/mail-failure.ts`) stuurt de fout via de bestaande `logger` (maskeert e-mail →
+  `j***@firma.nl`) + `describeError` (reduceert tot naam/message/stack, provider-velden zoals `.rejected`
+  gaan sowieso niet mee). Alle 8 call-sites omgezet; `run-all`/token-fout via `logger.error(…, { error:
+describeError(err) })`. Geschonden: CLAUDE.md regel 5 (audit/geen PII in log) + OWASP A09. Test:
+  `src/lib/observability/mail-failure.test.ts` (SMTP- én Resend-foutvorm → adres gemaskeerd, joint álle
+  console-argumenten zodat een terugval op `console.error(source, err)` óók faalt; rood→groen).
+
+- **[MIDDEL→OPGELOST (register/MENSENWERK; go-live = mensenwerk) · AVG art. 44/46 — Resend-doorgifte
+  naar derde land niet transparant in het register]** Sinds `EMAIL_DRIVER=resend` (#589) gaan
+  ontvangeradres/naam/notificatie-inhoud naar Resend (US-verwerker, mogelijk buiten de EER), maar de
+  `notificaties-email`-entry in `processing-register.ts` noemde slechts een generieke "E-maildienst-
+  verlener" zonder de doorgifte/SCC-waarborg — anders dan de Geoapify-precedent. Gefixt (transparantie):
+  register-entry noemt nu expliciet de mogelijke EER-doorgifte + vereiste modelcontractbepalingen
+  (SCC's)/EU-regio; MENSENWERK.md §5a kreeg een harde DPO-poort ("houd `EMAIL_DRIVER` op `noop`/`smtp`
+  tot SCC's/EU-regio bevestigd"). De **feitelijke** go-live-beslissing (DPA met SCC's tekenen) blijft
+  MENSENWERK — de code is inert zonder `RESEND_API_KEY`. Geschonden: AVG art. 44/46 (transparantie/
+  waarborg doorgifte).
+
 ## Ronde 2026-07-03b (basis: `main` @ cabe0f0)
 
 Audit: orchestrator (Opus 4.8) + 2 parallelle Opus security/privacy-subagents op niet-overlappende

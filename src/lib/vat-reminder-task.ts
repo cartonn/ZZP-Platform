@@ -7,6 +7,7 @@ import { auditData } from "@/lib/audit";
 import { planVatReminders } from "@/lib/vat-reminder";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { buildVatReminderEmail } from "@/lib/services/reminder-emails";
+import { logMailFailure } from "@/lib/observability/mail-failure";
 import { loadEmailPreferencesFor } from "@/lib/notification-preferences-data";
 import { isEmailEnabled } from "@/lib/notification-preferences";
 
@@ -94,7 +95,7 @@ export async function runVatReminderTask(opts: {
           );
         }
       } catch (err) {
-        console.error("[vat-reminder-task] e-mail mislukt:", err);
+        logMailFailure("[vat-reminder-task]", err);
       }
     }
   }
