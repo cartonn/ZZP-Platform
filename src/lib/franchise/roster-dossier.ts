@@ -16,7 +16,11 @@ import {
   type InvoiceStatus,
 } from "@/lib/enums";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
+import {
+  cascadeStage,
+  isPerformanceNewerThanInvoice,
+  type CascadeStage,
+} from "@/lib/cascade/stage";
 import { type FreelancerCredential } from "@/lib/matching";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
 import { parseLanguages } from "@/lib/parse-languages";
@@ -151,13 +155,13 @@ export async function getRosterDossier(
         performances: {
           orderBy: { createdAt: "desc" },
           take: 1,
-          select: { status: true },
+          select: { status: true, createdAt: true },
         },
         invoices: {
           where: { lifecycleStatus: { not: null } },
           orderBy: { createdAt: "desc" },
           take: 1,
-          select: { lifecycleStatus: true },
+          select: { lifecycleStatus: true, createdAt: true },
         },
       },
     }),
@@ -217,6 +221,10 @@ export async function getRosterDossier(
       disputed: c.disputedAt !== null,
       latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
       latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ?? null) as InvoiceLifecycleState | null,
+      performanceNewerThanInvoice: isPerformanceNewerThanInvoice(
+        c.performances[0]?.createdAt ?? null,
+        c.invoices[0]?.createdAt ?? null,
+      ),
     }),
   }));
 

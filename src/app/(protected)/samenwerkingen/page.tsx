@@ -14,7 +14,7 @@ import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type FreelancerCredential } from "@/lib/matching";
 import { type CollaborationStatus, type ContractStatus, type CredentialType } from "@/lib/enums";
 import { type PerformanceState, type InvoiceLifecycleState } from "@/lib/lifecycles";
-import { cascadeStage } from "@/lib/cascade/stage";
+import { cascadeStage, isPerformanceNewerThanInvoice } from "@/lib/cascade/stage";
 import { assessCancellation } from "@/lib/cancellation";
 import { pageArgs, splitPage } from "@/lib/pagination";
 import { withParams } from "@/components/admin/base-path";
@@ -129,12 +129,16 @@ export default async function SamenwerkingenPage({
       },
       // Laatste prestatie + cascade-factuur om de werkproces-fase op de kaart te tonen
       // (zelfde afleiding als de dashboard-kaarten).
-      performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
+      performances: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { status: true, createdAt: true },
+      },
       invoices: {
         where: { lifecycleStatus: { not: null } },
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { lifecycleStatus: true },
+        select: { lifecycleStatus: true, createdAt: true },
       },
     },
   });
@@ -332,6 +336,10 @@ export default async function SamenwerkingenPage({
                               null) as PerformanceState | null,
                             latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
                               null) as InvoiceLifecycleState | null,
+                            performanceNewerThanInvoice: isPerformanceNewerThanInvoice(
+                              c.performances[0]?.createdAt ?? null,
+                              c.invoices[0]?.createdAt ?? null,
+                            ),
                           });
                           return (
                             <Link

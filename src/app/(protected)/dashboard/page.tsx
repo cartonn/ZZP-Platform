@@ -47,7 +47,11 @@ import {
 import { computeFreelancerCompleteness } from "@/lib/profile";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
 import { franchiserNextActions, type NextAction, type NextActionTone } from "@/lib/next-actions";
-import { cascadeStage, type CascadeStage } from "@/lib/cascade/stage";
+import {
+  cascadeStage,
+  isPerformanceNewerThanInvoice,
+  type CascadeStage,
+} from "@/lib/cascade/stage";
 import { weekOverview, type WeekOverview } from "@/lib/week-overview";
 import { buildWeekStrip } from "@/lib/week-strip";
 import { RUNNING_ZONE_LIMIT, runningZonePlan } from "@/lib/running-zone";
@@ -235,12 +239,16 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           weekdays: true,
           company: { select: { id: true, name: true } },
           job: { select: { title: true } },
-          performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
+          performances: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { status: true, createdAt: true },
+          },
           invoices: {
             where: { lifecycleStatus: { not: null } },
             orderBy: { createdAt: "desc" },
             take: 1,
-            select: { lifecycleStatus: true },
+            select: { lifecycleStatus: true, createdAt: true },
           },
         },
         orderBy: { updatedAt: "desc" },
@@ -275,6 +283,10 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
         latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
           null) as InvoiceLifecycleState | null,
+        performanceNewerThanInvoice: isPerformanceNewerThanInvoice(
+          c.performances[0]?.createdAt ?? null,
+          c.invoices[0]?.createdAt ?? null,
+        ),
       }),
     }));
     const zone = runningZonePlan(runningTotal);
@@ -398,12 +410,16 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           disputedAt: true,
           job: { select: { title: true } },
           freelancer: { select: { user: { select: { name: true } } } },
-          performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
+          performances: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { status: true, createdAt: true },
+          },
           invoices: {
             where: { lifecycleStatus: { not: null } },
             orderBy: { createdAt: "desc" },
             take: 1,
-            select: { lifecycleStatus: true },
+            select: { lifecycleStatus: true, createdAt: true },
           },
         },
         orderBy: { updatedAt: "desc" },
@@ -447,6 +463,10 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
         latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ??
           null) as InvoiceLifecycleState | null,
+        performanceNewerThanInvoice: isPerformanceNewerThanInvoice(
+          c.performances[0]?.createdAt ?? null,
+          c.invoices[0]?.createdAt ?? null,
+        ),
       }),
     }));
     return {
@@ -665,12 +685,16 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         job: { select: { title: true } },
         company: { select: { name: true } },
         freelancer: { select: { user: { select: { name: true } } } },
-        performances: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } },
+        performances: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { status: true, createdAt: true },
+        },
         invoices: {
           where: { lifecycleStatus: { not: null } },
           orderBy: { createdAt: "desc" },
           take: 1,
-          select: { lifecycleStatus: true },
+          select: { lifecycleStatus: true, createdAt: true },
         },
       },
     }),
@@ -692,6 +716,10 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       disputed: c.disputedAt !== null,
       latestPerformanceStatus: (c.performances[0]?.status ?? null) as PerformanceState | null,
       latestInvoiceStatus: (c.invoices[0]?.lifecycleStatus ?? null) as InvoiceLifecycleState | null,
+      performanceNewerThanInvoice: isPerformanceNewerThanInvoice(
+        c.performances[0]?.createdAt ?? null,
+        c.invoices[0]?.createdAt ?? null,
+      ),
     }),
   }));
   return {

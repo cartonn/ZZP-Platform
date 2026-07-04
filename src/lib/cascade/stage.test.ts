@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { cascadeStage, CASCADE_TOTAL_STEPS, type CascadeStageInput } from "@/lib/cascade/stage";
+import {
+  cascadeStage,
+  isPerformanceNewerThanInvoice,
+  CASCADE_TOTAL_STEPS,
+  type CascadeStageInput,
+} from "@/lib/cascade/stage";
 
 // Basis: getekend contract, niets ingediend (ACTIVE, niet betwist).
 function base(overrides: Partial<CascadeStageInput> = {}): CascadeStageInput {
@@ -132,6 +137,70 @@ describe("cascadeStage — keten + viewer-perspectief", () => {
     );
     expect(fr.id).toBe("payment");
     expect(fr.tone).toBe("attention");
+  });
+
+  describe("multi-cyclus — betaalde vorige cyclus maskeert geen nieuwe uren", () => {
+    // Regressie (PERSONA-SWEEP run 8 MEDIUM, run 9 gefixt): op één ACTIVE-samenwerking gate't
+    // createPerformance alleen op ACTIVE, dus na een PAID-factuur (cyclus 1) kan de ZZP'er nieuwe
+    // uren indienen (cyclus 2). Zonder `performanceNewerThanInvoice` toonde de fase "Factuur betaald
+    // · niets te doen" terwijl de opdrachtgever de nieuwe uren moet goedkeuren.
+
+    it("PAID-factuur + nieuwere SUBMITTED-prestatie: opdrachtgever moet keuren (geen betaald)", () => {
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "SUBMITTED",
+          latestInvoiceStatus: "PAID",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(cl.id).toBe("performance-approve");
+      expect(cl.youAreUp).toBe(true);
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "SUBMITTED",
+          latestInvoiceStatus: "PAID",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("performance-approve");
+      expect(fr.youAreUp).toBe(false);
+    });
+
+    it("PAID-factuur + nieuwere APPROVED-prestatie: ZZP'er dient nieuwe factuur in", () => {
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "APPROVED",
+          latestInvoiceStatus: "PAID",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("invoice-submit");
+      expect(fr.youAreUp).toBe(true);
+    });
+
+    it("PAID-factuur zonder nieuwere prestatie blijft terminaal betaald (single-cyclus)", () => {
+      const s = cascadeStage(
+        base({
+          latestPerformanceStatus: "APPROVED",
+          latestInvoiceStatus: "PAID",
+          performanceNewerThanInvoice: false,
+        }),
+      );
+      expect(s.id).toBe("paid");
+      expect(s.tone).toBe("success");
+    });
+
+    it("isPerformanceNewerThanInvoice: strikt nieuwer, ontbrekende datum → false", () => {
+      const oud = new Date("2026-01-01T00:00:00Z");
+      const nieuw = new Date("2026-02-01T00:00:00Z");
+      expect(isPerformanceNewerThanInvoice(nieuw, oud)).toBe(true);
+      expect(isPerformanceNewerThanInvoice(oud, nieuw)).toBe(false);
+      expect(isPerformanceNewerThanInvoice(oud, oud)).toBe(false);
+      expect(isPerformanceNewerThanInvoice(null, oud)).toBe(false);
+      expect(isPerformanceNewerThanInvoice(nieuw, null)).toBe(false);
+      expect(isPerformanceNewerThanInvoice(null, null)).toBe(false);
+    });
   });
 
   it("CTA verwijst altijd naar de samenwerking-detailpagina", () => {

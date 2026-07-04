@@ -27,6 +27,7 @@ import { parseOrtSegments } from "@/lib/ort";
 import { ORT_SECTORS, ORT_SECTOR_LABEL, reviewBlindDays } from "@/lib/config";
 import { buildChainSteps } from "@/lib/cascade/chain-steps";
 import { collaborationStatusLine } from "@/lib/collaboration-status-line";
+import { isPerformanceNewerThanInvoice } from "@/lib/cascade/stage";
 import { CascadeStepper } from "@/components/ui/cascade-stepper";
 import { TurnBanner } from "@/components/ui/turn-banner";
 import { OrtBreakdown } from "@/components/collaborations/ort-breakdown";
@@ -301,6 +302,10 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         latestPerformanceStatus: (col.performances[0]?.status ?? null) as PerformanceState | null,
         latestInvoiceStatus: (col.invoices[0]?.lifecycleStatus ??
           null) as InvoiceLifecycleState | null,
+        performanceNewerThanInvoice: isPerformanceNewerThanInvoice(
+          col.performances[0]?.createdAt ?? null,
+          col.invoices[0]?.createdAt ?? null,
+        ),
       })
     : null;
 
