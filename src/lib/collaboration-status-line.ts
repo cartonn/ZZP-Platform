@@ -17,8 +17,6 @@ export interface CollaborationStatusLine {
 function phraseForStage(id: string, viewer: "FREELANCER" | "CLIENT", youAreUp: boolean): string {
   const isFreelancer = viewer === "FREELANCER";
   switch (id) {
-    case "contract-draft":
-      return "het contract wordt nog voorbereid";
     case "contract-sign":
       return "onderteken het contract om te starten";
     case "performance-submit":

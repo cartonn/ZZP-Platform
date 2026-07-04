@@ -55,6 +55,10 @@ describe("collaborationStatusLine", () => {
       base({ collaborationStatus: "PROPOSED", contractStatus: "DRAFT" }),
     );
     expect(draft.text).not.toMatch(/voorgesteld/i);
+    // Een DRAFT-contract op een voorgestelde samenwerking is meteen ondertekenbaar: de status-zin
+    // moet actief tot tekenen aanzetten (niet passief "wordt voorbereid").
+    expect(draft.text).toMatch(/onderteken het contract/i);
+    expect(draft.youAreUp).toBe(true);
     const toSign = collaborationStatusLine(
       base({ collaborationStatus: "PROPOSED", contractStatus: "SENT" }),
     );

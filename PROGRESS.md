@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 8 — cascade-fase sprak actiecentrum tegen bij contract ondertekenen (2026-07-04f, main-basis `bf7395d`)
+
+Kritische-gebruiker-sweep (orchestrator Opus 4.8 + 3 parallelle Opus-audits). DOEL 1 end-to-end
+geverifieerd (CLIENT accepteert reactie → `NEW→ACCEPTED` + audit + notificatie + next-action daalt);
+~90 schermen HTTP 200, nul 500's; ~40 adversariële probes (privilege-escalatie/IDOR/cross-tenant/
+document-privacy/XSS/405) allemaal correct geweigerd; audits van #592–#601 en franchiser-tenant-
+isolatie schoon. **Eén DEFECT gevonden & gefixt:**
+
+- [x] **`src/lib/cascade/stage.ts`** — een niet-getekend contract (`contractStatus !== "SIGNED"`) op
+      een niet-terminale samenwerking is nu één `contract-sign`-fase (`youAreUp:true`, "Onderteken
+      contract"). Voorheen kreeg alléén `contractStatus==="SENT"` die actieve fase, maar productie zet
+      `SENT` **nergens** (levensloop is `DRAFT → SIGNED`); elke echte ondertekenbare `PROPOSED`-
+      samenwerking viel in de dode passieve DRAFT-tak (`youAreUp:false`, "wordt nog voorbereid"). Dat
+      verborg de teken-CTA op het detail/de lijstkaart/de dashboard-cascadezone en sprak het
+      actiecentrum tegen (`/acties` toonde tegelijk "Contract ondertekenen" via `contractSignTask`).
+- [x] **`src/lib/collaboration-status-line.ts`** — dode `contract-draft`-case verwijderd; de status-zin
+      toont nu "Actie nodig: onderteken het contract om te starten."
+- [x] **`stage.test.ts` + `collaboration-status-line.test.ts`** — tests die het defect vastlegden
+      omgezet naar de correcte verwachting (DRAFT = beide partijen aan zet). Live geverifieerd tegen de
+      verse build.
+- [x] Gate lokaal groen: typecheck ✓, lint ✓ (0 warnings), **3012 unit-tests** ✓, `prettier --write .` ✓,
+      `next build` ✓. Overige next-action-audit-bevindingen (multi-cyclus "Betaald"-maskering e.a.)
+      geparkeerd in `docs/PERSONA-SWEEP-BACKLOG.md`.
+
 ## Bemiddelaar — match-ranking bij voordragen uit roster (2026-07-04e, main-basis `c58f465`)
 
 De bemiddelaar (FRANCHISER) draagt op een open dienst eigen roster-ZZP'ers voor

@@ -1,5 +1,90 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-04 (run 8) · **main-commit basis:** `bf7395d`
+> **Methode:** verse productie-build (`npm install` → `npm run build`), schema-push (`prisma db push`)
+> en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
+> (`CI=true PORT=3100 npx next start`, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`,
+> `AUTH_SECRET=ci-dummy-…`). Playwright met de vooraf-geïnstalleerde Chromium (`executablePath=
+/opt/pw-browsers/chromium-1194/…`), vier rollen in losse contexts, ingelogd via het echte formulier
+> (`demo1234`). Entity-id's uit de seed-DB via Prisma. Doel-1 (acties), 1b (next-actions), 2
+> (adversarieel) + drie parallelle Opus-audits (next-action-engine, recente commits, franchiser
+> tenant-isolatie). De DB is ephemeer; geen poging raakte productie.
+>
+> ## Samenvatting — 1 DEFECT GEVONDEN & GEFIXT (next-action-contradictie bij contract ondertekenen)
+>
+> **DOEL 1 (echte actie + server-side geverifieerd):** CLIENT (Mark) accepteert via de echte
+> "Accepteren"-knop op `/kandidaten` de reactie van Daan Visser (`app-7`) → status-overgang
+> `NEW → ACCEPTED` server-side, `APPLICATION_STATUS_CHANGED`-audit (`actorId`=Mark, from/to correct),
+> "Je reactie is geaccepteerd"-notificatie naar Daan, én de next-action "3 nieuwe reacties" daalt
+> naar 2. De volledige keten auth→rol→ownership→Zod→transitie(`assertApplicationTransition`)→audit→
+> notificatie→next-action-cascade werkt end-to-end. **~90 kernschermen** over 4 rollen laadden HTTP 200
+> met de juiste rol-shell; **nul 500's** (server-log schoon), alle 4 logins slaagden.
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol kruis-gecheckt tegen de echte DB. ADMIN: 6
+> "Beoordeel het certificaat"-taken = exact de 6 SUBMITTED-credentials. CLIENT: "3 nieuwe reacties" =
+> 3 NEW-applications, "1 concept-opdracht" = 1 DRAFT-job. FREELANCER (Sanne): ontbrekend
+> Verzekering-document + "Beantwoord Mark Jansen". FRANCHISER: terecht "Alles is afgehandeld".
+> **DEFECT gevonden (zie hieronder): de cascade-fase sprak het actiecentrum tegen bij een nog niet
+> getekend contract.**
+>
+> **DOEL 2 (adversarieel, ~40 probes):** privilege-escalatie (FREELANCER/CLIENT/FRANCHISER →
+> `/admin/*`, franchise-only routes) → redirect naar eigen dashboard; IDOR/cross-partij (andermans
+> `/samenwerkingen/<id>`, `/facturen/<id>`) → soft-404 zonder veldlek (geverifieerd: geen foreign
+> bedrag/naam in de body); cross-tenant (FRANCHISER → default-tenant `collab-1`, `/franchise/zzpers/
+<Sanne>`) → soft-404; garbage-id → 404/soft-404, nul 500; document-privacy (`/api/documents/<Sanne
+VOG>`: eigenaar + ADMIN → 200 `application/pdf`; CLIENT/FRANCHISER/vreemde → 403; garbage → 404);
+> foreign `dba-dossier`/`dossier` → 403; XSS in query → niet uitgevoerd; `/api/tasks/run-all` GET → 405. Drie Opus-audits (recente commits #592–#601, franchiser tenant-isolatie): **geen nieuwe gaten**.
+>
+> ### DEFECT (GEFIXT deze run) — cascade-fase verbergt de teken-CTA en spreekt `/acties` tegen
+>
+> - **Geschonden regel:** DESIGN/next-action-consistentie — "elke pagina beantwoordt: wat moet ik nu
+>   doen?"; de cascade-fase (detail/lijst/dashboard) moet overeenkomen met het actiecentrum.
+> - **Repro:** open een voorgestelde samenwerking (`PROPOSED`, `contractStatus=DRAFT`) als een van de
+>   partijen (bv. `bouwpartners@` → `/samenwerkingen/cmr5wo9iw…`). Het detail/de lijstkaart/de
+>   dashboard-cascadezone toonden **"Voorgesteld — in afwachting van het contract · je hoeft nu niets
+>   te doen — het contract wordt nog voorbereid"** (`youAreUp:false`), terwijl `/acties` én het
+>   dashboard tegelijk **"Contract ondertekenen"** als actieve taak toonden (`contractSignTask`, aan
+>   béíde partijen). De teken-knop is direct beschikbaar (`signContract` tekent een DRAFT-contract; de
+>   inzetbaarheid-gate is de enige blokkade).
+> - **Oorzaak:** `src/lib/cascade/stage.ts` markeerde "aan zet: onderteken" alléén bij
+>   `contractStatus==="SENT"`, maar productie zet `SENT` **nergens** — de echte levensloop is
+>   `DRAFT → SIGNED` (schema-default `DRAFT`; enige toewijzing `SIGNED` in `handlers.ts`). Elke echte
+>   ondertekenbare samenwerking viel dus in de dode passieve DRAFT-tak. De `SENT`-tak was dode code.
+> - **Fix:** een niet-getekend contract op een niet-terminale samenwerking is meteen ondertekenbaar
+>   door beide partijen → één `contract-sign`-fase (`youAreUp:true`, "Onderteken contract",
+>   tone `attention`). Status-zin (`collaboration-status-line.ts`) toont nu "Actie nodig: onderteken
+>   het contract om te starten." Tests bijgewerkt (rood→groen) in `stage.test.ts` +
+>   `collaboration-status-line.test.ts`. **Live geverifieerd** tegen de verse build: de detailpagina
+>   toont nu de actieve teken-CTA i.p.v. "wordt voorbereid".
+>
+> ### GEPARKEERD (uit de next-action-audit — lagere prioriteit, niet reproduceerbaar in de seed)
+>
+> - **[MEDIUM] Stale "Betaald" maskeert een nieuwe uren-cyclus.** `stage.ts:63` zet de PAID/PROCESSED-
+>   terminaaltak vóór de prestatie-evaluatie. Bij een tweede cyclus (cyclus 1 `PAID`, freelancer dient
+>   cyclus-2-uren `SUBMITTED` in vóór er een cyclus-2-factuur is) toont de cascade-fase "Factuur
+>   betaald · niets te doen" terwijl de opdrachtgever de nieuwe uren moet goedkeuren. Het actiecentrum
+>   (`clientTasks`) toont de goedkeurtaak wél; alleen de fase-schermen (detail/lijst/dashboard)
+>   misleiden. Niet reproduceerbaar in de huidige seed (geen multi-cyclus-samenwerking). Fix: evalueer
+>   prestatie/factuur per cyclus i.p.v. de globaal-laatste factuur, of gate de PAID-tak op "geen
+>   nieuwere prestatie".
+> - **[LOW/latent] Freelancer factuur-taak mist issuer-scoping.** `pending-tasks.ts:234-237` filtert de
+>   freelancer-facturen zonder `issuerUserId`, asymmetrisch met de client-kant (`counterpartyUserId`)
+>   en `signals.ts`. Nu ongevaarlijk (alle cascade-facturen zijn freelancer-uitgegeven), maar zodra een
+>   niet-freelancer-factuur aan de samenwerking hangt (platform-fee, Event F — default UIT) zou de
+>   freelancer "factuur indienen/betaling markeren" te zien krijgen voor een factuur die niet van hem
+>   is. Voeg `issuerUserId: userId` toe wanneer platform-fee wordt geactiveerd.
+> - **[LOW] Geen "dien je uren in"-taak voor de freelancer** op een `ACTIVE`-samenwerking zonder
+>   prestatie (`pending-tasks.ts:242-256` mist de spiegel van `performanceApproveTask`). De cascade-fase
+>   zegt wel "aan zet: dien je uren in". Mogelijk bewust (navigatie via de samenwerking), maar het is
+>   een asymmetrie tussen de twee engines.
+> - **[LOW/hardening] `governance-screen.tsx:72`** laadt kandidaat-profielen via `id: { in: … }` zonder
+>   tenant-filter. Niet exploiteerbaar (de ids komen uit reeds tenant-gescopete handoffs; toont enkel
+>   naam+certificaten), maar een expliciete tenant-filter + comment is future-proof.
+>
+> Codewijziging deze run: `stage.ts` + `collaboration-status-line.ts` + 2 testbestanden. DoD groen.
+>
+> ---
+>
 > **Datum:** 2026-07-03 (run 7) · **main-commit basis:** `edcb354`
 > **Methode:** verse productie-build (`npm install` → `npm run build`), schema-push (`prisma db push`)
 > en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
