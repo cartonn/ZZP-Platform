@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Administratie-ontzorging 2026-07-04 — debiteuren-overzicht per opdrachtgever ZZP'er (PR #611)
+
+**Waarde (ZZP'er, cashflow):** het facturen-scherm toonde één "Openstaand"-totaal, maar niet _wie_
+mij nog hoeveel verschuldigd is. Bij meerdere opdrachtgevers is de #1 vraag "achter welke debiteur
+moet ik aan?". Benchmark: Moneybird/e-Boekhouden/Tellow hebben allemaal een debiteuren-/ouderdoms-
+overzicht; wij vertalen dat naar onze server-side openstaand-regel (cascade-bewust) met een
+te-laat-signaal en de ouderdom van de langst openstaande factuur.
+
+- **`src/lib/debtor-summary.ts`** (nieuw, puur): `summarizeDebtors(invoices, now)` groepeert de
+  openstaande facturen (`isInvoiceOutstanding`, cascade + legacy) per opdrachtgever →
+  `{outstandingCents, overdueCents (dueAt<now), invoiceCount, overdueCount, oldestIssuedAt,
+oldestDaysOutstanding}`; sortering te-laat → openstaand → naam; losstaande facturen (geen company)
+  tellen niet mee. `shouldShowDebtorSummary` toont de kaart alleen bij ≥2 debiteuren óf een te-laat
+  bedrag (anders voegt ze niets toe aan het enkele totaal). 13 unit-tests.
+- **`components/administratie/debtor-summary-card.tsx`** (nieuw): "Openstaand per opdrachtgever"-kaart
+  met per debiteur naam, openstaand bedrag, aantal facturen + ouderdom en een te-laat-badge; kop-badge
+  met het totale te-late bedrag.
+- **`facturen-panel.tsx`**: alleen voor de ZZP'er, afgeleid uit de reeds geladen factuurlijst (geen
+  extra query), gerenderd onder de Betaald/Openstaand-totaalkaarten.
+- Gate: typecheck ✓, lint ✓ (0 warnings), **3076 unit-tests ✓** (13 nieuw), prettier ✓, build ✓.
+  Read-only, geen dode knoppen, geen schemawijziging, server-side openstaand-waarheid.
+
 ## Administratie-ontzorging 2026-07-04 — handmatige betaalherinnering-knop ZZP'er (PR #609)
 
 **Waarde (ZZP'er, cashflow):** achter een openstaande factuur aanzitten is de #1 cashflow-pijn.

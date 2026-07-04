@@ -5,6 +5,8 @@ import { type Actor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro, invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
+import { summarizeDebtors, shouldShowDebtorSummary } from "@/lib/debtor-summary";
+import { DebtorSummaryCard } from "@/components/administratie/debtor-summary-card";
 import { invoiceDueStatus } from "@/lib/invoice-due";
 import { computePaymentBehavior, type PaymentBehavior } from "@/lib/payment-behavior";
 import { forecastInvoicePayout } from "@/lib/invoice-payment-forecast";
@@ -90,6 +92,24 @@ export async function FacturenPanel({
     0,
   );
 
+  // Debiteuren-overzicht (alleen ZZP'er): openstaand saldo per opdrachtgever met te-laat-signaal en
+  // ouderdom. Afgeleid uit de reeds geladen factuurlijst (geen extra query) — beantwoordt "wie moet
+  // mij nog hoeveel betalen?" bovenop het enkele openstaand-totaal.
+  const debtorSummary = isFreelancer
+    ? summarizeDebtors(
+        invoices.map((inv) => ({
+          lifecycleStatus: inv.lifecycleStatus,
+          status: inv.status,
+          totalCents: inv.totalCents,
+          issuedAt: inv.issuedAt,
+          dueAt: inv.dueAt,
+          companyId: inv.collaboration?.company.id ?? null,
+          companyName: inv.collaboration?.company.name ?? null,
+        })),
+        Date.now(),
+      )
+    : null;
+
   // "Nieuwe factuur" alleen tonen als er écht een samenwerking is om een LOSSE factuur uit op te
   // stellen (niet in de cascade). Anders loopt de knop dood op een lege keuzelijst — dezelfde regel
   // als /facturen/nieuw, gedeeld via invoiceableCollaborationsWhere.
@@ -154,6 +174,10 @@ export async function FacturenPanel({
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {debtorSummary && shouldShowDebtorSummary(debtorSummary) && (
+        <DebtorSummaryCard summary={debtorSummary} />
       )}
 
       {invoices.length === 0 ? (
