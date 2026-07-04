@@ -10,6 +10,7 @@ import { auditData } from "@/lib/audit";
 import { planNotificationDigests } from "@/lib/notification-digest";
 import { getMailSender, isMailDeliveryConfigured } from "@/lib/services/mail-sender";
 import { buildNotificationDigestEmail } from "@/lib/services/reminder-emails";
+import { logMailFailure } from "@/lib/observability/mail-failure";
 
 export interface NotificationDigestResult {
   /** Aantal verstuurde digest-e-mails (één per gebruiker). */
@@ -118,7 +119,7 @@ export async function runNotificationDigestTask(opts: {
           }),
         );
       } catch (err) {
-        console.error("[notification-digest-task] e-mail mislukt:", err);
+        logMailFailure("[notification-digest-task]", err);
       }
     }
   }

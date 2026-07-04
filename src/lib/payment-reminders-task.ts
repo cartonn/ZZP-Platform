@@ -18,6 +18,7 @@ import {
 } from "@/lib/services/reminder-emails";
 import { loadEmailPreferencesFor } from "@/lib/notification-preferences-data";
 import { isEmailEnabled } from "@/lib/notification-preferences";
+import { logMailFailure } from "@/lib/observability/mail-failure";
 
 export interface PaymentReminderResult {
   markedOverdue: number;
@@ -177,7 +178,7 @@ export async function runPaymentReminderTask(opts: {
           }
         }
       } catch (err) {
-        console.error("[payment-reminders-task] e-mail mislukt:", err);
+        logMailFailure("[payment-reminders-task]", err);
       }
     }
   }

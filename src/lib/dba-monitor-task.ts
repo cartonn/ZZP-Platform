@@ -16,6 +16,7 @@ import { DBA_DISCLAIMER } from "@/lib/config";
 import { getDbaThresholds } from "@/lib/platform-config";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { buildDbaSignalEmail } from "@/lib/services/reminder-emails";
+import { logMailFailure } from "@/lib/observability/mail-failure";
 import { loadEmailPreferencesFor } from "@/lib/notification-preferences-data";
 import { isEmailEnabled } from "@/lib/notification-preferences";
 
@@ -180,7 +181,7 @@ export async function runDbaMonitorTask(opts: {
             );
           }
         } catch (err) {
-          console.error("[dba-monitor-task] e-mail mislukt:", err);
+          logMailFailure("[dba-monitor-task]", err);
         }
       }
     }

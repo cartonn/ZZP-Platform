@@ -9,6 +9,9 @@ import { getMailSender } from "@/lib/services/mail-sender";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { resetRateLimiter } from "@/lib/rate-limit";
+import { logMailFailure } from "@/lib/observability/mail-failure";
+import { logger } from "@/lib/observability/logger";
+import { describeError } from "@/lib/observability/report";
 
 export interface ForgotPasswordState {
   submitted?: boolean;
@@ -69,7 +72,7 @@ export async function requestPasswordReset(
 
       // Fire-and-forget: e-mailfout blokkeert de flow niet, maar logt wel.
       mailer.send(msg).catch((err: unknown) => {
-        console.error("[password-reset] e-mail verzenden mislukt:", err);
+        logMailFailure("[password-reset]", err);
       });
 
       await audit({
@@ -80,7 +83,7 @@ export async function requestPasswordReset(
         ...meta,
       });
     } catch (err) {
-      console.error("[password-reset] aanmaken token mislukt:", err);
+      logger.error("[password-reset] aanmaken reset-token mislukt", { error: describeError(err) });
       // Geen fout aan de gebruiker tonen (enumeratiebescherming).
     }
   }

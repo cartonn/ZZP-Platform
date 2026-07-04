@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/privacy-audit — mail-fout-PII uit hostlogs + Resend-doorgifte transparant (2026-07-04c, main-basis `b86c33b`)
+
+Auditronde (orchestrator Opus 4.8 + 3 parallelle Opus subagents op niet-overlappende oppervlakken:
+authz/IDOR/cross-tenant, injectie/upload/secrets/auth/headers/SSRF, AVG-erasure/export/register/
+k-anon/PII-logs). Delta #588–#598 + volledige sweep. Authz, injectie/upload/auth/headers/SSRF: **geen
+nieuwe gaten**. `npm audit`: 0 prod-kwetsbaarheden. Twee bevindingen gefixt (rood→groen).
+
+- [x] **A09 / AVG art. 5 lid 1f** — ontvangeradres (PII) lekte naar hostlogs bij mislukte mailverzending.
+      Nieuwe `logMailFailure(source, error)` (`src/lib/observability/mail-failure.ts`) via de redactende
+      `logger` + geëxporteerde `describeError`. 8 call-sites omgezet: 5 geplande taken (`notification-
+digest`, `payment-reminders`, `vat-reminder`, `dba-monitor`, `concept-invoice-reminders`) +
+      `wachtwoord-vergeten/actions.ts` (mail + token-fout) + `api/tasks/run-all/route.ts`. Test:
+      `mail-failure.test.ts` (SMTP-/Resend-foutvorm → adres gemaskeerd; joint álle console-args).
+- [x] **AVG art. 44/46** — Resend-doorgifte (US, mogelijk buiten EER) transparant gemaakt:
+      `processing-register.ts` `notificaties-email` noemt nu de doorgifte + SCC/EU-regio-waarborg;
+      `MENSENWERK.md` §5a kreeg de DPO-poort (houd `EMAIL_DRIVER` op `noop`/`smtp` tot SCC's rond).
+      Feitelijke go-live-beslissing blijft mensenwerk (code inert zonder `RESEND_API_KEY`).
+- [x] Gate lokaal groen: typecheck ✓, lint ✓ (0 warnings), **2999 unit-tests** ✓, `prettier --write .` ✓,
+      `next build` ✓. Backlog bijgewerkt (ronde 2026-07-04, beide items OPGELOST). Geen verboden woord;
+      UI/teksten volledig Nederlands; geen auth verzwakt, geen check verwijderd.
+
 ## Ontwerp-lab — reeks 6: +10 concepten (nrs 51–60) (2026-07-04b, main-basis `b3d20d3`)
 
 Additieve run van het publieke `/ontwerp`-design-lab: 10 nieuwe, onderling sterk onderscheidende
