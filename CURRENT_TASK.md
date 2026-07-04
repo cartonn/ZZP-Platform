@@ -260,6 +260,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — global-error boundary + health-probe hardening + runbook**
+> (PR #600) — `src/app/global-error.tsx` (root-error-boundary, laatste vangnet buiten `error.tsx`,
+> eigen `<html>/<body>` + inline-stijlen, `reset`/harde-navigatie/`digest`); `/api/health` met
+> `force-dynamic` (liveness nooit gecachet — gate't de seed in `start.mjs`) + DB-storing via de
+> observability-reporter; pure kern `src/lib/observability/health.ts` (`buildHealthPayload`/
+> `healthHttpStatus`/`shortCommit`, 8 tests); `docs/RUNBOOK.md` (deploy/rollback/back-up-herstel/
+> incident/secrets-rotatie/monitoring) + MENSENWERK.md §11. Geen schemawijziging.
+
 > Gedaan (niet opnieuw): **Beschikbaarheid-op-startdatum-signaal voor de opdrachtgever** — pure
 > `availability.ts` `availabilityOnDate(windows,date)` (`AVAILABLE|LIMITED|UNAVAILABLE|NONE`, één bron voor de
 > inclusieve-einddatum-logica, UNAVAILABLE domineert een overlappend inzetbaar venster) + `candidate-availability.ts`
