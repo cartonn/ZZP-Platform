@@ -452,3 +452,23 @@ Wil je een andere cadans (bv. meerdere keren per dag)? Pas de `cron`-expressie i
 de runners blijven idempotent. Alternatief blijft een Railway Cron Service of externe planner die
 hetzelfde endpoint aanroept. Zolang de twee secrets ontbreken, draaien de overige taakrunners
 **alleen bij handmatige aanroep**.
+
+---
+
+## §11. Operationeel draaiboek (RUNBOOK)
+
+**Code-kant GEDAAN (4-7-2026):** er is nu een operationeel draaiboek
+[`docs/RUNBOOK.md`](docs/RUNBOOK.md) voor wie de dienst beheert — deploy + verificatie, **rollback**
+(Railway-redeploy of `git revert`), **back-up/herstel** van de database (`pg_dump`/`pg_restore` +
+een herstel-oefening), **incident-respons**, **secrets-rotatie** en monitoring op `/api/health`
+(liveness) + `/api/readiness` (readiness). De liveness-probe is gehard (`force-dynamic`, nooit
+gecachet) en er is een root-error-boundary (`global-error.tsx`) als laatste vangnet met een rustige
+foutpagina.
+
+**Resterend mensenwerk (eenmalig):**
+
+1. Zet **automatische dagelijkse database-back-ups** aan bij je databasedienst (EU-regio; §1b) en
+   doe éénmaal een **herstel-oefening** naar een wegwerp-database vóór go-live (zie RUNBOOK §5).
+2. Hang een **uptime-monitor** op `https://<host>/api/health` (naast de Railway-healthcheck).
+3. Optioneel: zet `SENTRY_DSN` (+ `npm i @sentry/nextjs`) zodat DB-storingen en onverwachte fouten
+   ook extern zichtbaar worden (§0b) i.p.v. alleen in de logs.

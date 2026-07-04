@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid — global-error boundary + health-probe hardening + operationeel runbook (2026-07-04d, main-basis `888951b`)
+
+Drie samenhangende productie-gaten gedicht (PR #600):
+
+- [x] **`src/app/global-error.tsx`** — root-error-boundary (het laatste vangnet). `error.tsx` vangt
+      fouten BINNEN de app-layout; een fout in de root-layout zelf (providers/thema/fonts) viel
+      daarbuiten en toonde het kale Next.js-foutscherm. Nu een rustige NL-fallback met eigen
+      `<html>/<body>` + uitsluitend inline-stijlen (app-CSS/providers zijn hier niet gegarandeerd),
+      "Opnieuw proberen" (`reset`) + harde navigatie naar `/` (bewust: volledige herlaad herstelt de
+      app-context) + korte foutreferentie (`digest`). Server-fouten lopen al via `onRequestError`.
+- [x] **`/api/health` gehard** — `export const dynamic = "force-dynamic"` zodat de liveness-probe
+      nooit statisch gecachet wordt (belangrijk: `scripts/start.mjs` gate't de seed op een echte
+      200 van deze route). DB-storing wordt nu via de observability-reporter gerapporteerd
+      (Sentry-ready). Pure kern geëxtraheerd naar `src/lib/observability/health.ts`
+      (`buildHealthPayload`/`healthHttpStatus`/`shortCommit`) + 8 unit-tests.
+- [x] **`docs/RUNBOOK.md`** — operationeel draaiboek: deploy/verificatie, rollback (Railway-redeploy + git-revert), back-up/herstel (`pg_dump`/`pg_restore` + herstel-oefening), incident-respons,
+      secrets-rotatie, monitoring op /health + /readiness. MENSENWERK.md §11 verwijst ernaar.
+
+Gate: typecheck + lint + prettier groen; health-tests 8/8; build in CI. Geen schemawijziging, geen
+gedragswijziging aan bestaande routes.
+
 ## Security/privacy-audit — mail-fout-PII uit hostlogs + Resend-doorgifte transparant (2026-07-04c, main-basis `b86c33b`)
 
 Auditronde (orchestrator Opus 4.8 + 3 parallelle Opus subagents op niet-overlappende oppervlakken:
