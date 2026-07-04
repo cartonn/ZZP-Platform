@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/privacy-audit ronde 2026-07-04b — PII-in-logs sweep afgerond (main-basis `f04d7b3`)
+
+Security-audit van de delta `b86c33b..f04d7b3` (#599–#606) met 1 parallelle Opus security-subagent.
+**Authz/IDOR/cross-tenant: geen nieuwe gaten** — de nieuwe bemiddelaar-voordracht
+(`franchise/diensten/actions.ts` → `dienst-voordracht.ts`) is end-to-end gepoort (role → Zod →
+tenant-scope op dienst én ZZP'er → engageability-herberekening → audit); health-probe/`global-error`
+lekken niets naar niet-geauthenticeerde callers; de nieuwe `/ontwerp`-conceptbestanden bevatten geen
+injectiesink. **1 privacy-bevinding gefixt (MIDDEL, rood→groen):**
+
+- [x] **`admin/import/actions.ts`** — het admin-bulk-importpad logde `console.error("… mislukt voor",
+row.email, mailErr)` (e-mailadres als los argument + rauwe mailfout) en `console.error(…, e)` bij
+      aanmaakfout — rauwe PII buiten de redactie-pijplijn, het pad met de meeste PII per actie. Omgezet
+      naar `logger.error(…, { email: row.email, error: describeError(e) })` (adres → `j***@firma.nl`).
+- [x] **Nieuwe helper `src/lib/observability/storage-failure.ts`** (`logStorageCleanupFailure`, spiegelt
+      `logMailFailure`) — de vier `storage.delete(...)`-`catch`-sites (`bedrijf`/`documenten`/
+      `certificaten`/`admin/gebruikers`) + `reviews-reveal-task.ts` routen nu via de maskerende logger
+      i.p.v. het rauwe `err`-object. Sluit de parked LOW-items uit ronde 2026-07-03b.
+- [x] **`src/lib/observability/storage-failure.test.ts`** — adres in de storage-fout-message gemaskeerd;
+      provider-veld (`requesterEmail`/`bucketPolicy`) lekt niet mee; niet-Error-input gooit nooit door.
+- [x] Checks: typecheck ✓, lint ✓ (0 warnings), `test` ✓ (+3 nieuw; `unbounded-queries`-
+      allowlist-regelnrs bijgewerkt na de import-shift), `prettier` ✓, `build` ✓ (3020 tests). Backlog
+      bijgewerkt (`docs/SECURITY-PRIVACY-BACKLOG.md` ronde 2026-07-04b).
+
 ## Persona-sweep run 9 — multi-cyclus: betaalde factuur maskeerde geen nieuwe uren meer (2026-07-04, main-basis `757772d`)
 
 Kritische-gebruiker-sweep (4 rollen, live Playwright/Chromium) vond **1 defect, live gereproduceerd

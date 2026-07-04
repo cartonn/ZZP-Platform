@@ -13,6 +13,7 @@ import {
 } from "@/lib/services/storage";
 import { uploadRateLimiter } from "@/lib/rate-limit";
 import { documentSchema } from "@/lib/validation";
+import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
 
 export type DocumentState =
   | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
@@ -95,9 +96,7 @@ export async function deleteDocument(documentId: string): Promise<void> {
   await prisma.document.delete({ where: { id: documentId } });
   await getStorage()
     .delete(doc.storageKey)
-    .catch((err) =>
-      console.error("[documenten] storage-opruiming mislukt voor key", doc.storageKey, err),
-    );
+    .catch((err) => logStorageCleanupFailure("[documenten]", doc.storageKey, err));
   await audit({
     actorId: actor.id,
     action: "DOCUMENT_DELETED",

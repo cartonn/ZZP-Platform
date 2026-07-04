@@ -12,6 +12,7 @@ import {
   validateUpload,
 } from "@/lib/services/storage";
 import { companyProfileSchema } from "@/lib/validation";
+import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
 
 export type CompanyState =
   | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
@@ -76,9 +77,7 @@ export async function updateCompanyProfile(
     if (previous)
       await getStorage()
         .delete(previous)
-        .catch((err) =>
-          console.error("[bedrijf] storage-opruiming mislukt voor key", previous, err),
-        );
+        .catch((err) => logStorageCleanupFailure("[bedrijf]", previous, err));
   }
 
   await prisma.company.update({

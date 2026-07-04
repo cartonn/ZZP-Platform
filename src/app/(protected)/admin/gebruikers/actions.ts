@@ -6,6 +6,7 @@ import { auditData } from "@/lib/audit";
 import { canModerateUser } from "@/lib/admin";
 import { requestMeta } from "@/lib/request-meta";
 import { getStorage } from "@/lib/services/storage";
+import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
 import {
   canAnonymizeUser,
   companyAnonymizationData,
@@ -220,11 +221,11 @@ export async function anonymizeUser(userId: string): Promise<void> {
     const storage = getStorage();
     await Promise.all(
       documents.map((d) =>
-        storage.delete(d.storageKey).catch((err) => {
+        storage.delete(d.storageKey).catch((err) =>
           // Opslag-opruiming is best-effort; de DB-anonimisering is al definitief. Wél loggen,
           // want dit is het AVG-vergetelheidspad — een achtergebleven bestand moet zichtbaar zijn.
-          console.error("[gebruikers] AVG-storage-opruiming mislukt voor key", d.storageKey, err);
-        }),
+          logStorageCleanupFailure("[gebruikers] AVG", d.storageKey, err),
+        ),
       ),
     );
   }
