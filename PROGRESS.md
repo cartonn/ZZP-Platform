@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Bemiddelaar — match-ranking bij voordragen uit roster (2026-07-04e, main-basis `c58f465`)
+
+De bemiddelaar (FRANCHISER) draagt op een open dienst eigen roster-ZZP'ers voor
+(`/franchise/diensten/[id]`). Die lijst toonde tot nu toe alléén inzetbaarheid en stond
+ongesorteerd (`createdAt desc`) — de kernvraag "wie past het best op deze dienst?" bleef onbeantwoord,
+terwijl de matchmotor die het al voor de Reacties-lijst en `/kandidaten` beantwoordt gewoon voorhanden
+is. Nu gerangschikt op matchkwaliteit voor déze specifieke dienst (PR #601):
+
+- [x] **`lib/franchise/dienst-voordracht.ts`** — nieuwe pure kern `buildRosterCandidates` scoort elke
+      roster-ZZP'er met `scoreJobForFreelancer` (dezelfde motor, geen nieuwe rekenlogica) →
+      `matchScore` + `topReason` (troef) + `topGap` (minpunt). Sortering: voordraagbare ZZP'ers
+      bovenaan (INACTIEF kan server-side niet worden voorgedragen → onderaan), daarbinnen aflopende
+      matchscore, tiebreak op naam (`localeCompare "nl"`). `getRosterCandidatesForDienst` laadt nu de
+      job-match-velden (skills/credential-eisen/tarief/werkvorm/locatie/branche/tekst) + de
+      freelancer-match-velden (skills/branches/tarief/werkvorm/locatie/reistijd/bio/
+      beschikbaarheidsvensters) en delegeert naar de pure kern.
+- [x] **`franchise/diensten/[id]/voordragen.tsx`** — "Match NN"-badge per rij (zoals de
+      Reacties-lijst) + troef/minpunt-regel (Check/Minus, spiegel van de `/opdrachten`-kaart).
+      Read-only weergave.
+- [x] **`lib/franchise/dienst-voordracht.test.ts`** — 5 unit-tests: aflopende matchranking, INACTIEF
+      onderaan ondanks hoge match, troef/minpunt-surfacing, voorgedragen/gereageerd-markering,
+      naam-tiebreak bij gelijke score.
+- [x] Gate lokaal groen: typecheck ✓, lint ✓ (0 warnings), **3012 unit-tests** ✓, `prettier --write .` ✓,
+      `next build` ✓. Server-side waarheid, geen schemawijziging, geen extra query, geen verboden woord.
+
 ## Prod-rijpheid — global-error boundary + health-probe hardening + operationeel runbook (2026-07-04d, main-basis `888951b`)
 
 Drie samenhangende productie-gaten gedicht (PR #600):

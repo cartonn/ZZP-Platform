@@ -260,6 +260,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Match-ranking bij voordragen uit roster (bemiddelaar)** (PR #601) — de
+> FRANCHISER-voordrachtlijst op `/franchise/diensten/[id]` toonde alleen inzetbaarheid, ongesorteerd
+> (`createdAt`). Nu gerangschikt op matchscore voor déze dienst via de bestaande `scoreJobForFreelancer`:
+> pure `buildRosterCandidates` (matchScore + troef/minpunt, INACTIEF onderaan, tiebreak op naam),
+> `getRosterCandidatesForDienst` laadt de match-velden en delegeert; `voordragen.tsx` toont "Match NN" +
+> troef/minpunt-regel (spiegel van de Reacties-lijst en `/kandidaten`). 5 unit-tests; read-only, geen
+> schemawijziging, geen extra query.
+
 > Gedaan (niet opnieuw): **Prod-rijpheid — global-error boundary + health-probe hardening + runbook**
 > (PR #600) — `src/app/global-error.tsx` (root-error-boundary, laatste vangnet buiten `error.tsx`,
 > eigen `<html>/<body>` + inline-stijlen, `reset`/harde-navigatie/`digest`); `/api/health` met
