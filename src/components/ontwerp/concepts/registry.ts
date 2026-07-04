@@ -860,6 +860,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#1a1f2b",
     available: true,
   },
+  // ── Reeks 6 (run 4-7-2026) — nrs 51–60, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "51",
+    name: "Teletekst",
+    direction: "Teletekst — Nederlandse retro-informatiedienst",
+    rationale:
+      "Een hommage aan NOS Teletekst (pagina 888), messcherp heruitgevoerd: zwart canvas, blokkerige monospace en de klassieke teletekst-kleuren, met pagina-nummers en een genummerd index-menu. Nostalgisch-Nederlands én verrassend data-dicht en functioneel.",
+    trends: [
+      "Retro-computing / teletekst-revival",
+      "Blokkerige mono + mozaïek-blokgrafiek",
+      "Pagina-index & gekleurde functiebalk",
+    ],
+    fonts: "IBM Plex Mono + Geist Mono",
+    accent: "#00c8c8",
+    bg: "#000000",
+    fg: "#e6e6e6",
+    available: true,
+  },
+  {
+    id: "52",
+    name: "Metrokaart",
+    direction: "Metrokaart — lijndiagram als navigatie",
+    rationale:
+      "De opdracht-pijplijn getekend als een metro-lijndiagram: gekleurde lijnen, stations als nodes en overstap-knooppunten maken voortgang en de volgende halte letterlijk zichtbaar. Transit-heldere geometrie waarin het schema zélf de navigatie is.",
+    trends: [
+      "Transit-diagram / lijnkaart-navigatie",
+      "Stations als interactieve nodes",
+      "45°/90°-geometrie + legenda",
+    ],
+    fonts: "Inter + Spline Sans Mono",
+    accent: "#e11d48",
+    bg: "#f6f7f9",
+    fg: "#111827",
+    available: true,
+  },
+  {
+    id: "53",
+    name: "Bauhaus",
+    direction: "Bauhaus — geometrische primaire vormen",
+    rationale:
+      "Modernistische Bauhaus/De Stijl-taal: primaire kleuren en zwart op warm off-white, dikke kaderlijnen en pure geometrie (cirkels, driehoeken, kwarten) als functionele UI. Streng maar speels, kunsthistorisch en zelfverzekerd.",
+    trends: [
+      "Bauhaus / De Stijl-geometrie",
+      "Primaire kleurvlakken + zwart",
+      "Vormen als functionele UI-elementen",
+    ],
+    fonts: "Space Grotesk + Bricolage Grotesque",
+    accent: "#d62828",
+    bg: "#f4efe4",
+    fg: "#141414",
+    available: true,
+  },
+  {
+    id: "54",
+    name: "Inkt",
+    direction: "E-ink — papierwit & inkt, ultra-rustig",
+    rationale:
+      "Geïnspireerd op e-paper (Kindle/reMarkable): puur monochroom papierwit met inkt-grijs, fijne dither-texturen en harde 1px-lijnen, geen schaduw of kleur. Status altijd via label, icoon én patroon. Low-stimulation en premium-rustig rond gevoelige documenten.",
+    trends: [
+      "E-ink / e-paper-esthetiek",
+      "Monochroom + dither-halftoon",
+      "Low-stimulation, geen depth",
+    ],
+    fonts: "Newsreader + Manrope",
+    accent: "#3a3a3a",
+    bg: "#f4f3ee",
+    fg: "#1a1a1a",
+    available: true,
+  },
+  {
+    id: "55",
+    name: "Aquarel",
+    direction: "Aquarel — geschilderde wassingen",
+    rationale:
+      "Een waterverf-esthetiek: zachte organische kleurwassingen en papier-textuur die in elkaar overlopen, met crisp leesbare content-kaarten erbovenop. Handgeschilderd-warm en verzorgend — vertrouwen door ambacht, niet door digitale gloed.",
+    trends: [
+      "Painterly / waterverf-wassingen",
+      "Organisch warm palet",
+      "Papier-textuur + zachte penseelaccenten",
+    ],
+    fonts: "Fraunces + Newsreader",
+    accent: "#7d97b8",
+    bg: "#f7f3ec",
+    fg: "#2b2723",
+    available: true,
+  },
+  {
+    id: "56",
+    name: "Kiosk",
+    direction: "Kiosk — groot-format touch, 10-voet",
+    rationale:
+      "Ontworpen voor de balie/receptie of tablet-kiosk: XL-raakvlakken, grote typografie en op afstand leesbare status-tegels, met een centrale 'volgende actie'-kaart. Toegankelijk, rustig en foutloos bruikbaar met de handen — de anti-dichtheid-richting.",
+    trends: [
+      "10-voet / groot-format touch-UI",
+      "XL-raakvlakken + hoge leesbaarheid",
+      "Eén heldere volgende-actie centraal",
+    ],
+    fonts: "Manrope + Inter",
+    accent: "#2563eb",
+    bg: "#f4f6f9",
+    fg: "#0f172a",
+    available: true,
+  },
+  {
+    id: "57",
+    name: "Origami",
+    direction: "Origami — gevouwen papier & facetten",
+    rationale:
+      "Panelen als gevouwen papiervlakken: subtiele vouwlijnen en licht/donker-facetten geven diepte via belichting in plaats van zachte schaduw, met een gevouwen-hoek-detail op kaarten. Elegant, ambachtelijk-modern en tactiel.",
+    trends: [
+      "Gevouwen papier / facet-belichting",
+      "Geometrische knik-schaduwen",
+      "Dog-ear micro-details",
+    ],
+    fonts: "Bricolage Grotesque + Inter",
+    accent: "#c05a3c",
+    bg: "#f2efe8",
+    fg: "#272320",
+    available: true,
+  },
+  {
+    id: "58",
+    name: "Textiel",
+    direction: "Textiel — geweven stof & stiksel",
+    rationale:
+      "Een tactiele textiel-taal: geweven-stof-textuur, stiksel-randen en ingenaaide label-tags voor status en certificaten, in warme wol/linnen-tinten. Menselijk en ambachtelijk — zorg als mensenwerk — met crisp leesbare content op de stof.",
+    trends: [
+      "Textiel / geweven-textuur",
+      "Stiksel-randen + stof-labels",
+      "Warm-ambachtelijk, tactiel",
+    ],
+    fonts: "Manrope + Libre Franklin",
+    accent: "#37507a",
+    bg: "#ebe3d4",
+    fg: "#2f2820",
+    available: true,
+  },
+  {
+    id: "59",
+    name: "Memphis",
+    direction: "Memphis — postmodern speels geometrisch",
+    rationale:
+      "Memphis-postmodernisme met smaak: squiggles, terrazzo-spikkels en confetti-vormen in felle maar gebalanceerde kleuren rond crisp, functionele content-kaarten. Energiek en onmiskenbaar, nooit rommelig — decoratie rond, niet over de data.",
+    trends: [
+      "Memphis / 80s-postmodernisme",
+      "Squiggles, terrazzo & confetti",
+      "Felle kleur rond functionele kaarten",
+    ],
+    fonts: "Space Grotesk + Bricolage Grotesque",
+    accent: "#ff5a5f",
+    bg: "#f7f2e7",
+    fg: "#161616",
+    available: true,
+  },
+  {
+    id: "60",
+    name: "Schetsboek",
+    direction: "Schetsboek — hand-getekend & marker",
+    rationale:
+      "Alsof de interface met de hand is geschetst: losse getekende randen, marker-highlights achter koppen, handschrift-annotaties in de kantlijn en plakband-hoekjes op kaarten. Charmant-menselijk als stijl, maar high-fidelity uitgevoerd en volledig functioneel.",
+    trends: [
+      "Hand-drawn / wireframe-als-kunst",
+      "Marker-highlights & kantlijn-annotaties",
+      "Low-fi-esthetiek, high-fi uitvoering",
+    ],
+    fonts: "Newsreader + Space Grotesk",
+    accent: "#eab308",
+    bg: "#f6f2e6",
+    fg: "#2a2a2a",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);

@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab — reeks 6: +10 concepten (nrs 51–60) (2026-07-04b, main-basis `b3d20d3`)
+
+Additieve run van het publieke `/ontwerp`-design-lab: 10 nieuwe, onderling sterk onderscheidende
+top-1% redesign-concepten toegevoegd bovenop de bestaande 50 — niets overschreven of verwijderd.
+Totaal nu **60 concepten** op `/ontwerp`. Gebouwd door 4 parallelle builder-subagents op
+niet-overlappende bestanden; registry + route-koppeling zelf geïntegreerd (append-only).
+
+- [x] `concept-51-teletekst.tsx` (Concept51) — NOS-Teletekst-revival.
+- [x] `concept-52-metrokaart.tsx` (Concept52) — transit-lijndiagram als navigatie.
+- [x] `concept-53-bauhaus.tsx` (Concept53) — Bauhaus/De-Stijl-geometrie, primaire kleuren.
+- [x] `concept-54-eink.tsx` (Concept54) — e-ink/e-paper monochroom, dither-status.
+- [x] `concept-55-aquarel.tsx` (Concept55) — painterly waterverf-wassingen.
+- [x] `concept-56-kiosk.tsx` (Concept56) — 10-voet groot-format touch, XL-targets.
+- [x] `concept-57-origami.tsx` (Concept57) — gevouwen papier, facet-belichting.
+- [x] `concept-58-textiel.tsx` (Concept58) — geweven stof, stiksel & stof-labels.
+- [x] `concept-59-memphis.tsx` (Concept59) — Memphis-postmodern, squiggles/terrazzo.
+- [x] `concept-60-schetsboek.tsx` (Concept60) — hand-getekend, marker & annotaties.
+- [x] `registry.ts` + `src/app/ontwerp/[id]/page.tsx` — 10 ConceptMeta-entries + imports/koppeling
+      TOEGEVOEGD (append-only, bestaande entries ongemoeid). `docs/DESIGN-LAB.md` bijgewerkt.
+- [x] Gate lokaal groen: typecheck ✓, lint ✓ (0 warnings), 2996 unit-tests ✓, `prettier --check .` ✓,
+      `next build` ✓ (`/ontwerp/[id]` SSG, 60 params). Geen enkel voorkomen van het verboden woord;
+      UI volledig Nederlands; alleen bestanden onder `src/app/ontwerp` + `src/components/ontwerp` en
+      de twee koppelbestanden geraakt — live-app-gedrag ongewijzigd.
+
 ## UX — "beschikbaarheid verlopen"-nudge voor de ZZP'er (2026-07-04a, main-basis `db9613d`)
 
 Een vindbare (niet-privé) ZZP'er met een volledig verlopen beschikbaarheidsagenda (alle vensters in
