@@ -170,4 +170,29 @@ UI-taal = Nederlands.
   10-voet/groot-format & accessible XL-touch-interfaces, gevouwen-papier/facet-belichting als depth zonder
   schaduw, textiel/geweven-textuur & "tactile rebellion", Memphis/postmodern-speels geometrisch en
   hand-drawn/wireframe-als-kunst.
-- **Totaal nu op `/ontwerp`: 60 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60).
+- **61–70** — reeks 7, toegevoegd bovenop reeks 1–6 (run 4-7-2026): Stroom (Kanban-flowboard als
+  besturingssysteem: opdrachten/reacties/verificaties/facturen als kaarten in getinte lanes met tellers,
+  drag-affordances, lift-hover; status-als-plaats) · Neonzon (synthwave/retrowave-zonsondergang: magenta→
+  oranje zon met horizon-perspectiefgrid en chroom/neon-koppen in de hero, crisp donkere glazige panelen
+  met neon-hairlines eronder) · Strip (graphic-novel/pop-art: dikke inktcontouren met offset-schaduw,
+  Ben-Day halftone, comic-panelen en tekstballonnen voor matching-redenen, starburst-labels) · Solar
+  (solarpunk techno-optimisme: zon-boog met stralen, blad-glyphs, organische ronde vlakken in amber+groen,
+  hoopvol-warm) · Kinetiek (kinetische typografie als identiteit: ademende variable-font-koppen, lopende
+  KPI-ticker-marquee, hover-kinetische kaarten, diagonale accent-strepen — alles in CSS-keyframes met
+  reduced-motion-respect) · Prikbord (skeuomorf prikbord/scrapbook: kurk-textuur, opgeprikte gedraaide
+  kaartjes met slagschaduw en punaises, washi-tape-hoekjes, rode-draad-SVG tussen opdracht ↔ vereist
+  certificaat) · Parcours (smaakvol gamified vertrouwens-reis: SVG-voortgangsringen, niveau-badges brons/
+  zilver/goud, quest-achtige acties met XP, verificatie als mijlpalen-level-up) · Pictogram (ISOTYPE
+  pictogram-first: zelf-getekend 15-delig SVG-pictogramsysteem + herhaalde ISOTYPE-eenheden voor KPI's,
+  signaletiek-helderheid, altijd label naast pictogram) · Haard (cozy warm-dark: espresso met kaars-amber
+  gloed en koper-hairlines, warme diffuse schaduwen, uitnodigend i.p.v. klinisch, ruime crème-leesbaarheid)
+  · Krijt (schoolbord: leisteen-groen bord met deterministische krijt-textuur en gewiste vegen, met-de-hand-
+  getekende krijt-onderstrepingen/pijlen, serif-italic handgeschreven-aandoende koppen). Alle tien gebruiken
+  bestaande lab-fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks: board/pijplijn-als-informatiearchitectuur (status-als-plaats),
+  synthwave/retrowave-revival & neon-op-donker-glas, pop-art/graphic-novel & Ben-Day-halftone, solarpunk/
+  techno-optimisme & organische curven, kinetische/variable-font-typografie met motion-first + reduced-
+  motion-bewustzijn, skeuomorf scrapbook/rode-draad-relaties, smaakvolle gamified progressie & vertrouwens-
+  level-up, ISOTYPE/pictogram-als-datataal & signaletiek, cozy warm-dark (amber i.p.v. neon) als laag-
+  prikkelende dark-mode, en chalkboard/krijt-textuur als warm-onderwijzende human-made stijl.
+- **Totaal nu op `/ontwerp`: 70 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70).
