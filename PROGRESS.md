@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab reeks 7 — +10 concepten (nrs 61–70) op `/ontwerp` (2026-07-04, main-basis `efb6fce`)
+
+Design-lab uitgebreid van 60 → **70 concepten** (additief; reeks 1–6 ongewijzigd). Orchestrator
+Opus 4.8 + 4 parallelle Opus-builders op niet-overlappende bestanden; registry + route zelf
+geïntegreerd (append-only). Tien nieuwe, onderling én van 1–60 onderscheidende richtingen:
+
+- [x] **61 Stroom** — Kanban-flowboard als besturingssysteem (status-als-plaats, lanes + lift-hover).
+- [x] **62 Neonzon** — synthwave/retrowave-zonsondergang met horizon-grid + crisp glazige panelen.
+- [x] **63 Strip** — graphic-novel/pop-art: inktcontour, Ben-Day-halftone, panelen + tekstballonnen.
+- [x] **64 Solar** — solarpunk techno-optimisme, zon-boog/blad-glyphs in amber+groen.
+- [x] **65 Kinetiek** — kinetische typografie (CSS-keyframes, KPI-marquee) met reduced-motion-respect.
+- [x] **66 Prikbord** — skeuomorf prikbord/scrapbook: kurk, punaises, washi-tape, rode-draad-links.
+- [x] **67 Parcours** — smaakvol gamified vertrouwens-reis: voortgangsringen, brons/zilver/goud-niveaus.
+- [x] **68 Pictogram** — ISOTYPE pictogram-first informatietaal (zelf-getekend 15-delig SVG-systeem).
+- [x] **69 Haard** — cozy warm-dark (espresso + kaars-amber), laag-prikkelende dark-mode.
+- [x] **70 Krijt** — schoolbord/krijt: deterministische textuur, handgetekende krijt-diagrammen.
+
+Bestanden: `src/components/ontwerp/concepts/concept-61-stroom.tsx` … `concept-70-krijt.tsx` (nieuw);
+`registry.ts` (+10 entries, append); `src/app/ontwerp/[id]/page.tsx` (+10 imports + map-entries,
+append). Live-app ongewijzigd. Gate lokaal groen: typecheck ✓, lint ✓, **test 3012** ✓, build ✓
+(70 concepten geprerenderd via `generateStaticParams`), `prettier --write` ✓. Woord "AI" nergens.
+Details in `docs/DESIGN-LAB.md` (reeks 7). Volgende reeks = 71–80.
+
 ## Persona-sweep run 8 — cascade-fase sprak actiecentrum tegen bij contract ondertekenen (2026-07-04f, main-basis `bf7395d`)
 
 Kritische-gebruiker-sweep (orchestrator Opus 4.8 + 3 parallelle Opus-audits). DOEL 1 end-to-end
