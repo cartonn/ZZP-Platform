@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Actiecentrum — "dien je uren in"-taak voor de ZZP'er (2026-07-04g, main-basis `c85cc98`)
+
+De cascade-fase (`stage.ts`) toont op detail/lijst/dashboard "Dien je uren/oplevering in" met
+`youAreUp:true` zodra een samenwerking ACTIVE is (contract getekend) en er nog geen prestatie is
+ingediend — maar het actiecentrum (`/acties`, item-niveau `pending-tasks.ts`) miste die taak. De
+ZZP'er die net een getekende samenwerking had, zag daar dus géén "wat moet ik nu doen"-item en moest
+zelf de samenwerking in navigeren. Geparkeerde next-action-asymmetrie uit
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 8, LOW) gedicht (PR #605):
+
+- [x] **`src/lib/actions/tasks.ts`** — nieuwe pure builder `performanceSubmitTask(collabId, jobTitle)` + union-kind `performance-submit` (tone attention, submit-band `P.messagesAwaiting`=55, resolver
+      "link" → de samenwerking, want indienen is meerstaps: uren/ORT vastleggen → indienen).
+- [x] **`src/lib/actions/pending-tasks.ts`** — de collab-prestatie-select laadt nu de meest recente
+      prestatie (status, `createdAt desc`, take 5) i.p.v. alleen REJECTED-rijen. De ZZP'er-tak spiegelt
+      nu `stage.ts` exact op de laatste prestatie: geen/DRAFT → `performanceSubmitTask`; REJECTED →
+      `performanceResubmitTask`; SUBMITTED → geen ZZP'er-taak (opdrachtgever keurt); APPROVED → de
+      factuur-tak. ACTIVE ⟹ contract getekend (bevestigd in `handlers.ts planContractSigned`), dus de
+      submit-taak verschijnt nooit vóór ondertekening. Geen extra query, geen schemawijziging.
+- [x] **`src/components/actions/action-list.tsx`** — geen wijziging nodig: de nieuwe kind valt in de
+      `default`-tak (OpenLink → `task.href`), geen exhaustieve `never`-switch geraakt.
+- [x] **`src/lib/actions/tasks.test.ts`** — +1 test (link-resolver, submit-prioriteit 55, deep-link,
+      lager dan de goedkeur-taak).
+- [x] Gate lokaal groen: typecheck ✓, lint ✓ (0 warnings), **3013 unit-tests** ✓, `prettier --write .` ✓,
+      `next build` ✓. Server-side waarheid, geen dode knoppen, geen verboden woord.
+
 ## Ontwerp-lab reeks 7 — +10 concepten (nrs 61–70) op `/ontwerp` (2026-07-04, main-basis `efb6fce`)
 
 Design-lab uitgebreid van 60 → **70 concepten** (additief; reeks 1–6 ongewijzigd). Orchestrator

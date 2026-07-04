@@ -3,6 +3,7 @@ import { P } from "@/lib/next-actions";
 import {
   rankTasks,
   contractSignTask,
+  performanceSubmitTask,
   performanceApproveTask,
   invoiceSubmitTask,
   paymentConfirmTask,
@@ -60,6 +61,20 @@ describe("task builders", () => {
       href: "/samenwerkingen/c1",
       collabId: "c1",
     });
+  });
+
+  it("performance-submit: link-resolver naar de samenwerking met submit-prioriteit (55)", () => {
+    const t = performanceSubmitTask("c1", "Job");
+    expect(t.kind).toBe("performance-submit");
+    expect(t.resolver).toBe("link");
+    expect(t.priority).toBe(P.messagesAwaiting);
+    expect(t.id).toBe("performance-submit:c1");
+    expect(t.href).toBe("/samenwerkingen/c1");
+    expect(t.title).toContain("uren/oplevering in");
+    expect(t.tone).toBe("attention");
+    // Ligt onder de goedkeur-taak (65) maar boven een concept-factuur is gelijk; lager dan een
+    // afgekeurde prestatie (62) — een eerste indiening is minder urgent dan een gebroken loop.
+    expect(t.priority).toBeLessThan(performanceApproveTask("p1", "c1", "Job", "X").priority);
   });
 
   it("performance-approve: drawer-resolver (inspecteer-dan-beslis) met approve-prioriteit (65)", () => {
