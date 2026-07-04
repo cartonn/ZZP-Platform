@@ -1201,6 +1201,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#eef1e8",
     available: true,
   },
+  // ── Reeks 8 (run 4-7-2026) — nrs 71–80, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "71",
+    name: "Vertrek",
+    direction: "Split-flap vertrekbord — kinetisch mechanisch",
+    rationale:
+      "Een Solari-vertrekbord als besturing: opdrachten en statussen rollen mechanisch naar hun eindwaarde in klappende split-flap-rijen. De kinetische typografie-trend van 2026, letterlijk mechanisch — voortgang en verandering worden hoorbaar-zichtbaar zonder rommel.",
+    trends: [
+      "Kinetische typografie (mechanisch)",
+      "Split-flap / Solari-bord revival",
+      "Retro-mechanische micro-interactie",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#f4b740",
+    bg: "#16181d",
+    fg: "#f0ead6",
+    available: true,
+  },
+  {
+    id: "72",
+    name: "Bon",
+    direction: "Thermische kassabon — tactiel papier",
+    rationale:
+      "Facturen en cijfers als een kassabon: getande scheurranden, stippellijnen, dot-matrix monospace en opgetelde totaalregels met barcode. De tactiele-print-revival van 2026 — vertrouwd, transparant en onmiskenbaar 'afgerekend'; het facturenscherm schittert.",
+    trends: [
+      "Tactiele print / receipt-esthetiek",
+      "Dot-matrix monospace + scheurrand",
+      "Barcode & totaalregels als UI",
+    ],
+    fonts: "IBM Plex Mono + Libre Franklin",
+    accent: "#d1352b",
+    bg: "#f6f4ee",
+    fg: "#1a1a1a",
+    available: true,
+  },
+  {
+    id: "73",
+    name: "Printplaat",
+    direction: "PCB / circuit board — koperbanen",
+    rationale:
+      "Een echt groen soldeer-masker met koperbanen die 'componenten' verbinden: matching als een IC-pin-diagram, kaarten als chips met silkscreen-labels, soldeer-eilandjes en via's. De techno-revival van 2026, maar warm-technisch groen — onmiskenbaar anders dan neon-cyber.",
+    trends: [
+      "Techno-/retrofuturist revival",
+      "PCB-koperbanen als informatiestroom",
+      "Silkscreen-mono + soldeer-eilandjes",
+    ],
+    fonts: "Spline Sans Mono + Geist",
+    accent: "#e0b64d",
+    bg: "#0a1f16",
+    fg: "#d4e8dc",
+    available: true,
+  },
+  {
+    id: "74",
+    name: "Sterrenbeeld",
+    direction: "Sterrenkaart — constellatie-matching",
+    rationale:
+      "Matching wordt een sterrenhemel: opdrachten en kandidaten zijn sterren, verbonden door haarlijn-constellaties tot een leesbare graaf; helderheid codeert match-sterkte. De data-viz-als-verhaal-trend van 2026 in een rustige, premium-donkere celestiale taal.",
+    trends: [
+      "Data-visualisatie als verhaal",
+      "Constellatie-graaf / node-linking",
+      "Premium-donker + celestiale rust",
+    ],
+    fonts: "Newsreader + Geist Mono",
+    accent: "#f0d68a",
+    bg: "#0b1020",
+    fg: "#e8ecf8",
+    available: true,
+  },
+  {
+    id: "75",
+    name: "Cinema",
+    direction: "Cinematisch letterbox — filmtaal",
+    rationale:
+      "Widescreen letterbox-banden, title-card typografie en scene-genummerde secties maken van het platform een film: dramatisch, editorial en met een scrubber-tijdlijn voor voortgang. Filmkorrel als sfeer, de inhoud altijd scherp in beeld — kinetische editorial luxe.",
+    trends: [
+      "Cinematisch editorial / letterbox",
+      "Title-card serif + scene-nummering",
+      "Filmkorrel-sfeer + scrubber-tijdlijn",
+    ],
+    fonts: "Instrument Serif + Geist",
+    accent: "#e0a458",
+    bg: "#0c0b0a",
+    fg: "#f3ede2",
+    available: true,
+  },
+  {
+    id: "76",
+    name: "Etiket",
+    direction: "Apotheek-label — klinische precisie",
+    rationale:
+      "Alles voelt als een apotheker-/laboratorium-etiket: omkaderde recept-koppen, dossiernummers, gestempelde 'geverifieerd'-zegels en klinische typografie. De skeuomorfe tactiele revival van 2026, precies passend bij zorg — VOG en diploma's als voorschriften die vertrouwen wekken.",
+    trends: [
+      "Tactiele skeuomorf-revival",
+      "Klinisch apotheek-/lab-label",
+      "Gestempelde verificatie-zegels",
+    ],
+    fonts: "Libre Franklin + JetBrains Mono",
+    accent: "#0f6e63",
+    bg: "#f4f2ea",
+    fg: "#23201a",
+    available: true,
+  },
+  {
+    id: "77",
+    name: "Arcade",
+    direction: "Retro-game HUD — 16-bit speels",
+    rationale:
+      "Een game-HUD als interface: match% als power-bar, score-tellers met tabulaire cijfers, 'missie'-labels en een subtiele scanline-gloed. De retrofuturistische arcade-revival van 2026 — luid en energiek, maar strak getemd en messcherp leesbaar, nooit template.",
+    trends: [
+      "Retrofuturisme / arcade-revival",
+      "Game-HUD (power-bars, score-teller)",
+      "Scanline/CRT-gloed getemd",
+    ],
+    fonts: "Space Grotesk + Geist Mono",
+    accent: "#ff3d7f",
+    bg: "#12101f",
+    fg: "#f2f0ff",
+    available: true,
+  },
+  {
+    id: "78",
+    name: "Zilver",
+    direction: "Zilver-gelatine — zwart-wit fotografie",
+    rationale:
+      "Een contactvel-esthetiek: film-frames met sprocket-gaatjes, hoog-contrast grijswaarden, filmkorrel en 'frame 12A'-annotaties. Editorial zwart-wit fotografie als UI — tijdloos, chic en rustig, met sepia als enig warm accent. Redactionele luxe die vertrouwen straalt.",
+    trends: [
+      "Editorial fotografie-as-UI",
+      "Contactvel-raster + sprocket-frames",
+      "Hoog-contrast grijs + filmkorrel",
+    ],
+    fonts: "Fraunces + Inter",
+    accent: "#9a7b52",
+    bg: "#ededea",
+    fg: "#17171a",
+    available: true,
+  },
+  {
+    id: "79",
+    name: "Radar",
+    direction: "Sonar-radarscope — reistijd-matching",
+    rationale:
+      "Een radarscope met concentrische afstandsringen en een draaiende sweep die blips oplicht: afstand tot het centrum is reistijd, de hoek is richting. Perfect voor matching op nabijheid — oscilloscoop-hairlines en phosphor-gloed maken de kern-differentiatie ruimtelijk voelbaar.",
+    trends: [
+      "Radar/sonar-scope datavisualisatie",
+      "Reistijd-nabijheid als hoofdas",
+      "Phosphor-gloed + sweep-kinetiek",
+    ],
+    fonts: "Geist Mono + Geist",
+    accent: "#37e07a",
+    bg: "#06120c",
+    fg: "#c8f0d4",
+    available: true,
+  },
+  {
+    id: "80",
+    name: "Terrazzo",
+    direction: "Terrazzo-steen — gespikkeld & tactiel",
+    rationale:
+      "Warme kalksteen-vlakken met speelse terrazzo-spikkels in salie, oker, klei en hemelblauw: Italiaans-modern, tactiel en premium-speels. De tactiele-oppervlak-trend van 2026 als merkgevoel, terwijl de data messcherp leesbaar blijft op elk steen-vlak.",
+    trends: [
+      "Tactiele oppervlakte-textuur (2026)",
+      "Terrazzo-spikkels als merkgevoel",
+      "Premium-speels, hoge leesbaarheid",
+    ],
+    fonts: "Bricolage Grotesque + Inter",
+    accent: "#e6683c",
+    bg: "#f3efe6",
+    fg: "#2a2620",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);

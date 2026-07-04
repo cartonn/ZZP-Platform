@@ -125,6 +125,28 @@ zelf de samenwerking in navigeren. Geparkeerde next-action-asymmetrie uit
 - [x] Gate lokaal groen: typecheck ✓, lint ✓ (0 warnings), **3013 unit-tests** ✓, `prettier --write .` ✓,
       `next build` ✓. Server-side waarheid, geen dode knoppen, geen verboden woord.
 
+## Ontwerp-lab reeks 8 — +10 concepten (nrs 71–80) op `/ontwerp` (2026-07-04, main-basis `867d764`)
+
+Design-lab uitgebreid van 70 → **80 concepten** (additief; reeks 1–7 ongewijzigd). Orchestrator
+Opus 4.8 + 4 parallelle Opus-builders op niet-overlappende bestanden; registry + route zelf
+geïntegreerd (append-only). Tien nieuwe, onderling én van 1–70 onderscheidende richtingen:
+
+- [x] **71 Vertrek** — Solari split-flap-vertrekbord, kinetisch-mechanisch (antraciet + amber).
+- [x] **72 Bon** — thermische kassabon: scheurranden, dot-matrix, barcode, totaalregels.
+- [x] **73 Printplaat** — PCB/circuit board: koperbanen, chip-kaarten, silkscreen-labels, via's.
+- [x] **74 Sterrenbeeld** — sterrenkaart: constellatie-matching-graaf, helderheid = match-sterkte.
+- [x] **75 Cinema** — cinematisch letterbox: cinemascope-banden, title-cards, filmkorrel, scrubber.
+- [x] **76 Etiket** — apotheek-/lab-label: recept-koppen, dossiernummers, geverifieerd-zegels.
+- [x] **77 Arcade** — retro-game HUD: match% als power-bar, score-tellers, getemde scanline-gloed.
+- [x] **78 Zilver** — zilver-gelatine zwart-wit fotografie: contactvel + sprocket-frames, filmkorrel.
+- [x] **79 Radar** — sonar-radarscope: afstandsringen + sweep, afstand = reistijd, phosphor-gloed.
+- [x] **80 Terrazzo** — gespikkeld terrazzo-steen: deterministische spikkels, tactiel-premium-speels.
+
+Bestanden: `src/components/ontwerp/concepts/concept-71-vertrek.tsx` … `concept-80-terrazzo.tsx`
+(nieuw); `registry.ts` (+10 entries, append); `src/app/ontwerp/[id]/page.tsx` (+10 imports +
+map-entries, append). Live-app ongewijzigd. Details in `docs/DESIGN-LAB.md` (reeks 8). Volgende
+reeks = 81–90.
+
 ## Ontwerp-lab reeks 7 — +10 concepten (nrs 61–70) op `/ontwerp` (2026-07-04, main-basis `efb6fce`)
 
 Design-lab uitgebreid van 60 → **70 concepten** (additief; reeks 1–6 ongewijzigd). Orchestrator

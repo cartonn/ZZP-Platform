@@ -195,4 +195,24 @@ UI-taal = Nederlands.
   motion-bewustzijn, skeuomorf scrapbook/rode-draad-relaties, smaakvolle gamified progressie & vertrouwens-
   level-up, ISOTYPE/pictogram-als-datataal & signaletiek, cozy warm-dark (amber i.p.v. neon) als laag-
   prikkelende dark-mode, en chalkboard/krijt-textuur als warm-onderwijzende human-made stijl.
-- **Totaal nu op `/ontwerp`: 70 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70).
+- **71–80** — reeks 8, toegevoegd bovenop reeks 1–7 (run 4-7-2026): Vertrek (Solari-vertrekbord: split-flap-
+  rijen die kinetisch-mechanisch naar hun eindwaarde rollen, antraciet bord + amber, opdrachten/statussen als
+  klappend bord) · Bon (thermische kassabon: getande scheurranden, dot-matrix monospace, barcode en opgetelde
+  totaalregels, facturen als afgerekende bonnen op warm papier) · Printplaat (PCB/circuit board: groen soldeer-
+  masker met koperbanen die chip-kaarten verbinden, silkscreen-labels, soldeer-eilandjes en via's, matching als
+  pin-diagram) · Sterrenbeeld (sterrenkaart: opdrachten/kandidaten als sterren verbonden door constellatie-
+  haarlijnen tot een matching-graaf, helderheid = match-sterkte, premium-donker celestiaal) · Cinema (cinematisch
+  letterbox: widescreen cinemascope-banden, title-card serif, scene-nummering, filmkorrel en scrubber-tijdlijn) ·
+  Etiket (apotheek-/lab-label: omkaderde recept-koppen, dossiernummers, gestempelde geverifieerd-zegels, klinische
+  precisie passend bij zorg) · Arcade (retro-game HUD: match% als power-bar, score-tellers, missie-labels,
+  getemde scanline/CRT-gloed, speels maar strak) · Zilver (zilver-gelatine zwart-wit fotografie: contactvel-raster
+  met sprocket-frames, hoog-contrast grijs, filmkorrel en frame-annotaties, editorial-luxe) · Radar (sonar-
+  radarscope: concentrische afstandsringen + draaiende sweep die blips oplicht, afstand = reistijd, phosphor-gloed)
+  · Terrazzo (gespikkeld terrazzo-steen: warme kalksteen-vlakken met deterministische spikkels in salie/oker/klei/
+  hemelblauw, tactiel-premium-speels, messcherpe leesbaarheid). Alle tien gebruiken bestaande lab-fonts.
+- Onderzochte 2026-trends deze reeks: kinetische typografie & mechanische split-flap-revival, tactiele print-/
+  receipt-esthetiek, techno-/retrofuturist PCB-revival, data-visualisatie-als-verhaal (constellatie-graaf),
+  cinematisch editorial & letterbox, skeuomorfe tactiele label-revival, retrofuturistische arcade-/game-HUD,
+  editorial zwart-wit fotografie-as-UI, radar/sonar-scope voor nabijheids-matching, en tactiele oppervlakte-
+  textuur (terrazzo) als merkgevoel.
+- **Totaal nu op `/ontwerp`: 80 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80).
