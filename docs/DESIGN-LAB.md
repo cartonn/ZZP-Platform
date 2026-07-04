@@ -148,4 +148,26 @@ UI-taal = Nederlands.
   als primaire navigatie (menu's schalen niet), spatial UI/visionOS-vibrancy met terughoudendheid,
   security-engraving/guilloché & MRZ als vertrouwensmotief, skeuomorf instrument/gauge-cluster en
   technical-mono docs-referentie-esthetiek.
-- **Totaal nu op `/ontwerp`: 50 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50).
+- **51–60** — reeks 6, toegevoegd bovenop reeks 1–5 (run 4-7-2026): Teletekst (NOS-Teletekst-revival:
+  zwart canvas, blokkerige mono, klassieke teletekst-kleuren, genummerd pagina-index-menu, mozaïek-
+  blokgrafiek, gekleurde fastext-functiebalk) · Metrokaart (transit-lijndiagram als navigatie: gekleurde
+  lijnen, stations als klikbare nodes, verificatie-overstapcapsule, 45°/90°-geometrie, credential-haltes
+  met waarschuwingsnodes) · Bauhaus (De Stijl-geometrie: primaire kleuren + zwart op off-white, dikke
+  kaderlijnen, cirkel/driehoek/kwart als functionele glyphs, Mondriaan-KPI-vlakken) · Inkt (e-ink/e-paper:
+  puur monochroom papierwit + inkt-grijs, dither-halftoon-status, harde 1px-lijnen, geen depth, refresh-
+  flits) · Aquarel (waterverf: zachte painterly wassingen + papier-textuur op de achtergrond, crisp
+  content-kaarten erbovenop) · Kiosk (10-voet groot-format touch: XL-raakvlakken, grote type, dikke
+  focus-ringen, één centrale volgende-actie-kaart) · Origami (gevouwen papier: vouwlijnen + licht/donker-
+  facetten voor diepte via belichting, dog-ear-details, geen slagschaduw) · Textiel (geweven stof:
+  kruislingse weefsel-textuur, dashed stiksel-seams, ingenaaide stof-labels voor status/certificaten) ·
+  Memphis (80s-postmodernisme: squiggles, terrazzo, confetti in gebalanceerde felle kleuren rond crisp
+  kaarten met offset-schaduw) · Schetsboek (hand-getekend: hydration-stabiele wiebel-randen, marker-
+  highlights achter koppen, kantlijn-annotaties, plakband-hoekjes op schetspapier). Alle tien gebruiken
+  bestaande lab-fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks: retro-computing/teletekst-revival & nostalgische informatiediensten,
+  transit-/lijndiagram-datavisualisatie als navigatie, Bauhaus/De-Stijl-geometrie-revival, e-ink/e-paper-
+  esthetiek & low-stimulation "calm tech", painterly/waterverf-craft als anti-slop human-made textuur,
+  10-voet/groot-format & accessible XL-touch-interfaces, gevouwen-papier/facet-belichting als depth zonder
+  schaduw, textiel/geweven-textuur & "tactile rebellion", Memphis/postmodern-speels geometrisch en
+  hand-drawn/wireframe-als-kunst.
+- **Totaal nu op `/ontwerp`: 60 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60).
