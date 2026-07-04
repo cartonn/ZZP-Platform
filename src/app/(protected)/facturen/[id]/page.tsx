@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
+import { PaymentReminderButton } from "@/components/invoices/payment-reminder-button";
+import { canSendPaymentReminder, isAwaitingPayment } from "@/lib/manual-payment-reminder";
 import { cancelInvoice, markInvoicePaid, sendInvoice } from "../actions";
 import { PrintButton } from "@/components/ui/print-button";
 import { formatDateShortNl } from "@/lib/format-date";
@@ -109,6 +111,28 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
   // Aanmaningsniveau (rustig informatief) voor te late cascade-facturen.
   const dunning =
     cascade && invoice.lifecycleStatus === "OVERDUE" ? currentDunningStage(invoice.dueAt) : null;
+
+  // Handmatige betaalherinnering: mag de ZZP'er (crediteur) nú de opdrachtgever nudgen? Server is de
+  // waarheid — de afkoelperiode leunt op de laatste herinnering uit het auditlogboek.
+  const lifecycle = invoice.lifecycleStatus as InvoiceLifecycleState | null;
+  const awaitingPayment = isFreelancerOwner && isAwaitingPayment(status, lifecycle);
+  const lastReminder = awaitingPayment
+    ? await prisma.auditLog.findFirst({
+        where: { action: "INVOICE_REMINDER_SENT", entityId: invoice.id },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      })
+    : null;
+  const reminder = awaitingPayment
+    ? canSendPaymentReminder({
+        isFreelancerOwner: true,
+        status,
+        lifecycleStatus: lifecycle,
+        issuedAt: invoice.issuedAt,
+        dueAt: invoice.dueAt,
+        lastReminderAt: lastReminder?.createdAt ?? null,
+      })
+    : null;
 
   // De ZZP'er (crediteur) kan voor een te late, onbetaalde factuur een aanmaning opstellen.
   const overdueForReminder =
@@ -257,6 +281,28 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           )}
         </CardContent>
       </Card>
+
+      {awaitingPayment && reminder && (
+        <Card className="print-hide">
+          <CardContent className="space-y-2 py-4">
+            <p className="text-sm font-medium">Wacht op betaling</p>
+            <p className="text-xs text-muted-foreground">
+              {reminder.daysOverdue > 0
+                ? `Deze factuur is ${plural(reminder.daysOverdue, "dag", "dagen")} over de vervaldag.`
+                : "Deze factuur staat nog open bij de opdrachtgever."}{" "}
+              Stuur een korte herinnering; betaling verloopt rechtstreeks aan jou.
+            </p>
+            {reminder.eligible ? (
+              <PaymentReminderButton invoiceId={invoice.id} />
+            ) : reminder.reason === "cooldown" && reminder.nextAllowedAt ? (
+              <p className="text-xs text-muted-foreground">
+                Je hebt onlangs herinnerd. Opnieuw mogelijk vanaf{" "}
+                <span className="tabular-nums">{fmt(reminder.nextAllowedAt)}</span>.
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      )}
 
       {overdueForReminder && (
         <AanmaningSection

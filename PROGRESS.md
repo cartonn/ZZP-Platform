@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Administratie-ontzorging 2026-07-04 — handmatige betaalherinnering-knop ZZP'er (PR #609)
+
+**Waarde (ZZP'er, cashflow):** achter een openstaande factuur aanzitten is de #1 cashflow-pijn.
+Er waren al de automatische aanmaningsladder (`payment-reminders.ts`, op een schema) én het
+aanmaning-sjabloon (`aanmaning.ts`, "het platform verstuurt geen brieven"). Wat ontbrak: een
+**één-klik in-platform nudge** die de ZZP'er zélf, op het moment dat hij kiest, naar de opdrachtgever
+stuurt vanaf de factuurdetail. Benchmark: Moneybird/Tellow/e-Boekhouden hebben allemaal een "stuur
+herinnering"-knop; wij vertalen dat naar onze server-side waarheid + afkoelperiode.
+
+- **`src/lib/manual-payment-reminder.ts`** (nieuw, puur): `isAwaitingPayment(status, lifecycleStatus)`
+  (cascade → APPROVED/OVERDUE; los → SENT/OVERDUE) + `canSendPaymentReminder(input, now)` →
+  `{eligible, reason, daysOverdue, nextAllowedAt}`. Voorwaarden in volgorde: crediteur-eigenaar →
+  uitgereikt (`issuedAt`) → nog onbetaald → buiten de afkoelperiode (`MANUAL_REMINDER_COOLDOWN_DAYS=2`,
+  strikt kleiner-dan). 15 unit-tests.
+- **`facturen/actions.ts`** — `sendPaymentReminder(invoiceId, prev, formData)` (`ReminderState`):
+  auth → rol (FREELANCER) → ownership (uitschrijver) → server-herbevestiging via de pure helper →
+  afkoelperiode uit het **auditlogboek** (laatste `INVOICE_REMINDER_SENT`, geen schemakolom) → notify
+  (`PAYMENT_REMINDER` naar de opdrachtgever) + audit. Bericht past zich aan op dagen-te-laat. Geen
+  geldstroom (Besluit 1): statusregistratie + signalering.
+- **`components/invoices/payment-reminder-button.tsx`** (nieuw, client) — `useActionState`-knop
+  (spiegel van `credential-reminder-button.tsx`), toont pending + succes/fout inline.
+- **`facturen/[id]/page.tsx`** — "Wacht op betaling"-blok voor de ZZP'er: knop bij eligible, anders een
+  rustige afkoelperiode-noot ("opnieuw mogelijk vanaf <datum>"). `INVOICE_REMINDER_SENT`-auditlabel.
+- Gate: typecheck ✓, lint ✓ (0 warnings), **3063 unit-tests ✓** (15 nieuw), prettier ✓, build ✓.
+  Server-side waarheid, geen dode knoppen, geen schemawijziging, geen extra query op het niet-eligible pad.
+
 ## Prod-rijpheid 2026-07-04 — abonnement-periode-vervalcyclus (PR #608)
 
 **Gat gedicht (billing-correctheid):** na een eenmalige Mollie-betaling zette de webhook
