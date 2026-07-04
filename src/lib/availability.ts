@@ -83,3 +83,35 @@ export function summarizeAvailability(
     ? `${label} t/m ${formatDateShortNl(w.endDate)}`
     : `${label} vanaf ${formatDateShortNl(w.startDate)}`;
 }
+
+/** Versheid van de gedeelde beschikbaarheidsagenda. */
+export type AvailabilityFreshnessStatus = "fresh" | "expired" | "empty";
+
+export interface AvailabilityFreshness {
+  /**
+   * - `fresh`   : minstens één venster dekt nu of de toekomst — opdrachtgevers zien wanneer de ZZP'er kan.
+   * - `expired` : er zijn wél vensters, maar alle einddata liggen in het verleden — de agenda is verouderd
+   *               en zegt opdrachtgevers niets meer over toekomstige inzet.
+   * - `empty`   : er is nooit een venster gedeeld.
+   */
+  status: AvailabilityFreshnessStatus;
+  /** Totaal aantal vensters (vers of verlopen). */
+  total: number;
+}
+
+/**
+ * Duidt of de gedeelde beschikbaarheidsagenda nog toekomstwaarde heeft. Puur afgeleid uit de
+ * einddata (inclusief, zie `inclusiveEndMs`) — het `type` doet er niet toe: ook een toekomstig
+ * UNAVAILABLE-venster betekent dat de ZZP'er de agenda actueel houdt. Basis voor de "werk je
+ * beschikbaarheid bij"-nudge: alleen een `expired`-agenda is misleidend (opdrachtgevers zien geen
+ * enkele toekomstige inzetperiode meer), terwijl `empty` een onboarding-/compleetheidsvraag is.
+ */
+export function summarizeAvailabilityFreshness(
+  windows: readonly WindowLike[],
+  now: Date = new Date(),
+): AvailabilityFreshness {
+  const total = windows.length;
+  if (total === 0) return { status: "empty", total: 0 };
+  const hasUpcoming = upcomingWindows(windows, now).length > 0;
+  return { status: hasUpcoming ? "fresh" : "expired", total };
+}
