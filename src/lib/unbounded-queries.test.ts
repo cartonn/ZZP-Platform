@@ -24,7 +24,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Dit is een aggregatie-query voor een widget (geen lijst-view); typisch < 10 items.
   {
     file: "(protected)/dashboard/page.tsx",
-    line: 216,
+    line: 220,
     reason: "dashboard-widget aggregatie; eigenaar-scoped, inherent begrensd",
   },
 
@@ -196,7 +196,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // dit is een ID-set-query (select: {id: true}), geen volledige lijst.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 150,
+    line: 154,
     reason: "ID-set-query voor factureerbare samenwerkingen; geen volledige lijst",
   },
 
@@ -205,7 +205,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // afgerond"-knop niet als dode knop aan te bieden. Begrensd door de page-of-collaborations.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 163,
+    line: 167,
     reason: "factuurstatus-snapshot per zichtbare samenwerking (afronden-rem); page-begrensd",
   },
 

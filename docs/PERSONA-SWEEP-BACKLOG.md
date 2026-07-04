@@ -1,5 +1,62 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-04 (run 9) · **main-commit basis:** `757772d`
+> **Methode:** verse productie-build (`npm install` → `npm run build`), schema-push (`prisma db push`)
+> en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
+> (`CI=true PORT=3100 npx next start`, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`,
+> `AUTH_SECRET=ci-dummy-…`). Playwright met de vooraf-geïnstalleerde Chromium (`executablePath=
+/opt/pw-browsers/chromium-1194/…`), vier rollen in losse contexts, ingelogd via het echte formulier
+> (`demo1234`). Entity-id's uit de seed-DB via Prisma. Doel-1 (acties), 1b (next-actions), 2
+> (adversarieel). De DB is ephemeer; geen poging raakte productie.
+>
+> ## Samenvatting — 1 DEFECT LIVE GEREPRODUCEERD & GEFIXT (multi-cyclus: betaalde factuur maskeerde nieuwe uren)
+>
+> **DOEL 1 (echte actie + server-side geverifieerd):** ADMIN keurde via de "Goedkeuren"-knop op
+> `/admin/verificaties` twee SUBMITTED-credentials goed (`cred-bram-VOG`, `cred-peter-VOG`) → tegen de
+> DB bevestigd: `SUBMITTED` **6→4**, `VERIFIED` **24→26**, `verifiedAt` gezet, twee
+> `CREDENTIAL_VERIFIED`-audits met `actorId`=admin. De volledige schrijfketen auth→rol→ownership→
+> transitie→audit→notificatie werkt end-to-end. **~40 kernschermen** over 4 rollen laadden HTTP 200 met
+> de juiste rol-shell; **nul 500's** (server-log schoon); alle 4 logins slaagden.
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol laadt 200. ADMIN-verificatietaken = de SUBMITTED-
+> credentials; CLIENT nieuwe-reacties/concept-opdracht; FREELANCER ontbrekend document; FRANCHISER
+> "alles afgehandeld". Kruis-check bracht de multi-cyclus-inconsistentie hieronder aan het licht.
+>
+> **DOEL 2 (adversarieel, ~40 probes):** privilege-escalatie (FREELANCER/CLIENT/FRANCHISER →
+> `/admin/*`, franchise-only) → **redirect naar eigen dashboard**; IDOR/cross-partij (andermans
+> `/samenwerkingen/<id>`, `/facturen/<id>`) → **soft-404 zonder veldlek** (bedrag/naam niet in body,
+> geverifieerd); garbage-id → 200 soft-404 / 404, **nul 500**; document-privacy
+> (`/api/documents/<Sanne VOG>`: eigenaar + ADMIN → 200 `application/pdf`; CLIENT/FRANCHISER → 403;
+> garbage → 404); `/api/tasks/run-all` GET → **405**; XSS in query → **niet uitgevoerd**. Nul nieuwe
+> gaten in de adversariële matrix (consistent met runs 6–8).
+>
+> ### DEFECT (LIVE GEREPRODUCEERD + GEFIXT) — betaalde vorige-cyclus-factuur maskeert nieuwe, goed te keuren uren
+>
+> - **Geschonden regel:** DESIGN/next-action-consistentie — "elke pagina beantwoordt: wat moet ik nu
+>   doen?"; de cascade-fase (detail/lijst/dashboard) moet overeenkomen met het actiecentrum.
+> - **Repro (live bevestigd tegen de draaiende app):** een ACTIVE-samenwerking met een betaalde
+>   cyclus-1-factuur (`lifecycleStatus=PAID`) waarop de ZZP'er nieuwe uren indient (cyclus-2-prestatie
+>   `SUBMITTED`, nieuwer dan de factuur). `createPerformance` gate't alleen op `status==="ACTIVE"`, dus
+>   dit multi-cyclus-pad is echt bereikbaar. De samenwerking-detailpagina toonde als opdrachtgever
+>   **"Je hoeft nu niets te doen — er is nu geen actie van je nodig."** + badge **"Betaald"**, terwijl
+>   het "aan zet"-blok eronder tegelijk **"1 ingediende prestatie wacht op je goedkeuring."** toonde —
+>   een zichzelf tegensprekend scherm. Ook op `/samenwerkingen`-lijst, dashboard-zone en het
+>   bemiddelaar-dossier.
+> - **Oorzaak:** `src/lib/cascade/stage.ts` nam de PAID/PROCESSED-terminaaltak vóór de prestatie-
+>   evaluatie, op de **globaal-laatste** factuur — ongeacht of er daarna een nieuwe prestatie was
+>   ingediend. De cyclus-2-uren vielen zo achter de terminale "Betaald"-tak weg.
+> - **Fix:** nieuwe optionele input `performanceNewerThanInvoice` + pure helper
+>   `isPerformanceNewerThanInvoice(perfCreatedAt, invCreatedAt)`. Is de meest recente prestatie nieuwer
+>   dan de meest recente factuur, dan hoort de factuur bij een vorige cyclus en telt ze niet mee (`inv`
+>   → null): de fase valt terug op de prestatie-evaluatie (opdrachtgever moet keuren). Alle vijf callers
+>   (`dashboard`, `samenwerkingen`-lijst, `samenwerkingen/[id]`, `roster-dossier`) laden nu ook
+>   `createdAt` op de laatste prestatie/factuur en geven de vlag door. **Live geverifieerd na rebuild:**
+>   dezelfde samenwerking toont nu "Actie nodig: keur de ingediende uren of oplevering." + badge
+>   "Ter goedkeuring", consistent met het actiecentrum. Tests: 4 nieuwe cases in `stage.test.ts`
+>   (rood→groen), gate volledig groen (typecheck, lint, **3017 unit-tests**, build, prettier).
+>
+> ---
+>
 > **Datum:** 2026-07-04 (run 8) · **main-commit basis:** `bf7395d`
 > **Methode:** verse productie-build (`npm install` → `npm run build`), schema-push (`prisma db push`)
 > en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
@@ -59,14 +116,13 @@ VOG>`: eigenaar + ADMIN → 200 `application/pdf`; CLIENT/FRANCHISER/vreemde →
 >
 > ### GEPARKEERD (uit de next-action-audit — lagere prioriteit, niet reproduceerbaar in de seed)
 >
-> - **[MEDIUM] Stale "Betaald" maskeert een nieuwe uren-cyclus.** `stage.ts:63` zet de PAID/PROCESSED-
->   terminaaltak vóór de prestatie-evaluatie. Bij een tweede cyclus (cyclus 1 `PAID`, freelancer dient
->   cyclus-2-uren `SUBMITTED` in vóór er een cyclus-2-factuur is) toont de cascade-fase "Factuur
->   betaald · niets te doen" terwijl de opdrachtgever de nieuwe uren moet goedkeuren. Het actiecentrum
->   (`clientTasks`) toont de goedkeurtaak wél; alleen de fase-schermen (detail/lijst/dashboard)
->   misleiden. Niet reproduceerbaar in de huidige seed (geen multi-cyclus-samenwerking). Fix: evalueer
->   prestatie/factuur per cyclus i.p.v. de globaal-laatste factuur, of gate de PAID-tak op "geen
->   nieuwere prestatie".
+> - ~~**[MEDIUM] Stale "Betaald" maskeert een nieuwe uren-cyclus.**~~ **OPGELOST (2026-07-04 run 9)** —
+>   `stage.ts` zette de PAID/PROCESSED-terminaaltak vóór de prestatie-evaluatie op de globaal-laatste
+>   factuur. Bij een tweede cyclus (cyclus 1 `PAID`, freelancer dient cyclus-2-uren `SUBMITTED` in)
+>   toonde de cascade-fase "Factuur betaald · niets te doen" terwijl de opdrachtgever de nieuwe uren
+>   moet goedkeuren — live gereproduceerd en gefixt via `performanceNewerThanInvoice` +
+>   `isPerformanceNewerThanInvoice`; een vorige-cyclus-factuur telt niet meer mee zodra er een nieuwere
+>   prestatie is. Zie de run-9-samenvatting bovenaan.
 > - **[LOW/latent] Freelancer factuur-taak mist issuer-scoping.** `pending-tasks.ts:234-237` filtert de
 >   freelancer-facturen zonder `issuerUserId`, asymmetrisch met de client-kant (`counterpartyUserId`)
 >   en `signals.ts`. Nu ongevaarlijk (alle cascade-facturen zijn freelancer-uitgegeven), maar zodra een

@@ -22,6 +22,14 @@ export interface CascadeStageInput {
   latestPerformanceStatus: PerformanceState | null;
   /** Lifecycle-status van de meest recente cascade-factuur, of null. */
   latestInvoiceStatus: InvoiceLifecycleState | null;
+  /**
+   * Is de meest recente prestatie nieuwer dan de meest recente factuur? Zo ja, dan hoort de factuur
+   * bij een vorige cyclus en telt ze niet voor de huidige fase — de ZZP'er heeft na een betaalde
+   * cyclus nieuwe uren ingediend (multi-cyclus op één ACTIVE-samenwerking; `createPerformance` gate't
+   * alleen op ACTIVE). Zonder deze vlag zou een PAID-factuur van cyclus 1 de nieuwe, goed te keuren
+   * uren van cyclus 2 maskeren met "Factuur betaald · niets te doen". Default false (single-cyclus).
+   */
+  performanceNewerThanInvoice?: boolean;
 }
 
 export interface CascadeStage {
@@ -60,7 +68,12 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
   if (input.disputed) {
     return { id: "disputed", badgeLabel: "Dispuut", label: "Dispuut — werkproces bevroren", step: 0, totalSteps: total, youAreUp: false, tone: "attention", cta: { label: "Bekijk dispuut", href } }; // prettier-ignore
   }
-  if (input.latestInvoiceStatus === "PAID" || input.latestInvoiceStatus === "PROCESSED") {
+
+  // Factuur van een vorige cyclus telt niet mee zodra er een nieuwere prestatie is (multi-cyclus).
+  // Zo maskeert een betaalde cyclus-1-factuur nooit de nieuwe, nog te behandelen cyclus-2-uren; de
+  // fase valt terug op de prestatie-evaluatie hieronder in plaats van op de terminale betaal-tak.
+  const inv = input.performanceNewerThanInvoice ? null : input.latestInvoiceStatus;
+  if (inv === "PAID" || inv === "PROCESSED") {
     return { id: "paid", badgeLabel: "Betaald", label: "Factuur betaald", step: total, totalSteps: total, youAreUp: false, tone: "success", cta: bekijk }; // prettier-ignore
   }
 
@@ -89,8 +102,8 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
     return { id: "performance-approve", badgeLabel: "Ter goedkeuring", label: isFreelancer ? "Ingediend — wacht op goedkeuring" : "Keur de ingediende uren/oplevering", step: 3, totalSteps: total, youAreUp: !isFreelancer, tone: isFreelancer ? "info" : "attention", cta: { label: !isFreelancer ? "Beoordeel prestatie" : "Bekijk samenwerking", href } }; // prettier-ignore
   }
 
-  // perf === "APPROVED" → factuurfase. Beoordeel de factuurstatus.
-  const inv = input.latestInvoiceStatus;
+  // perf === "APPROVED" → factuurfase. Beoordeel de factuurstatus van de huidige cyclus (`inv`;
+  // een vorige-cyclus-factuur is hierboven al genuld bij `performanceNewerThanInvoice`).
   if (inv === "REJECTED") {
     return { id: "invoice-rejected", badgeLabel: "Afgekeurd", label: "Factuur afgekeurd — corrigeer en dien opnieuw in", step: 4, totalSteps: total, youAreUp: isFreelancer, tone: "attention", cta: { label: isFreelancer ? "Corrigeer en dien opnieuw in" : "Bekijk samenwerking", href } }; // prettier-ignore
   }
@@ -113,4 +126,17 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
     tone: inv === "OVERDUE" ? "attention" : "info",
     cta: { label: isFreelancer ? "Betaling markeren" : "Bekijk samenwerking", href },
   };
+}
+
+/**
+ * Hoort de meest recente factuur bij een vorige cyclus? Waar wanneer de meest recente prestatie
+ * strikt nieuwer is dan de meest recente factuur (beide op `createdAt desc`, dus index 0). De caller
+ * geeft de twee `createdAt`-momenten door; ontbreekt er één, dan is er geen nieuwere cyclus (false).
+ */
+export function isPerformanceNewerThanInvoice(
+  latestPerformanceCreatedAt: Date | null | undefined,
+  latestInvoiceCreatedAt: Date | null | undefined,
+): boolean {
+  if (!latestPerformanceCreatedAt || !latestInvoiceCreatedAt) return false;
+  return latestPerformanceCreatedAt.getTime() > latestInvoiceCreatedAt.getTime();
 }

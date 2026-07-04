@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 9 — multi-cyclus: betaalde factuur maskeerde geen nieuwe uren meer (2026-07-04, main-basis `757772d`)
+
+Kritische-gebruiker-sweep (4 rollen, live Playwright/Chromium) vond **1 defect, live gereproduceerd
+en gefixt**: op een ACTIVE-samenwerking waar de ZZP'er ná een betaalde cyclus-1-factuur nieuwe uren
+indient (cyclus 2), toonde de cascade-fase (detail/lijst/dashboard/roster-dossier) "Factuur betaald ·
+niets te doen" terwijl het "aan zet"-blok tegelijk "1 ingediende prestatie wacht op je goedkeuring"
+zei — een zichzelf tegensprekend scherm. `createPerformance` gate't alleen op ACTIVE, dus dit
+multi-cyclus-pad is echt bereikbaar. Geparkeerde MEDIUM uit `docs/PERSONA-SWEEP-BACKLOG.md` (run 8):
+
+- [x] **`src/lib/cascade/stage.ts`** — optionele input `performanceNewerThanInvoice` + pure helper
+      `isPerformanceNewerThanInvoice(perfCreatedAt, invCreatedAt)`. Is de laatste prestatie nieuwer dan
+      de laatste factuur, dan hoort de factuur bij een vorige cyclus en telt ze niet mee (`inv` → null):
+      de PAID-terminaaltak wordt overgeslagen en de fase valt terug op de prestatie-evaluatie. Dezelfde
+      genulde `inv` voedt ook de factuur-fase, zodat cyclus 2 een nieuwe factuur vraagt i.p.v. de oude
+      te herhalen.
+- [x] **Callers geven de vlag door** (`dashboard/page.tsx`, `samenwerkingen/page.tsx`,
+      `samenwerkingen/[id]/page.tsx` via `collaboration-status-line`, `franchise/roster-dossier.ts`):
+      de laatste-prestatie/-factuur-selects laden nu ook `createdAt`; geen extra query, geen
+      schemawijziging. `unbounded-queries.test.ts`-allowlist regelnummers bijgewerkt.
+- [x] **`src/lib/cascade/stage.test.ts`** — +4 cases: PAID + nieuwere SUBMITTED → performance-approve
+      (opdrachtgever aan zet); PAID + nieuwere APPROVED → invoice-submit; PAID zonder nieuwere prestatie
+      blijft terminaal betaald; `isPerformanceNewerThanInvoice`-randgevallen (strikt nieuwer, ontbrekende
+      datum → false).
+- [x] **Live geverifieerd** tegen de verse build: dezelfde samenwerking toont ná de fix "Actie nodig:
+      keur de ingediende uren of oplevering." + badge "Ter goedkeuring", consistent met het actiecentrum.
+- [x] Gate groen: typecheck ✓, lint ✓ (0 warnings), **3017 unit-tests** ✓, `prettier --write .` ✓,
+      `next build` ✓. Server-side waarheid, geen dode knoppen, geen verboden woord.
+
 ## Actiecentrum — "dien je uren in"-taak voor de ZZP'er (2026-07-04g, main-basis `c85cc98`)
 
 De cascade-fase (`stage.ts`) toont op detail/lijst/dashboard "Dien je uren/oplevering in" met
