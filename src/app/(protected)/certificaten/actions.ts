@@ -20,6 +20,7 @@ import {
 } from "@/lib/services/storage";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { credentialSchema } from "@/lib/validation";
+import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
 
 export type CredentialState =
   | { ok?: true; error?: string; fieldErrors?: Record<string, string> }
@@ -69,9 +70,7 @@ async function deleteDocumentById(actorId: string, documentId: string | null) {
   await prisma.document.delete({ where: { id: documentId } });
   await getStorage()
     .delete(doc.storageKey)
-    .catch((err) =>
-      console.error("[certificaten] storage-opruiming mislukt voor key", doc.storageKey, err),
-    );
+    .catch((err) => logStorageCleanupFailure("[certificaten]", doc.storageKey, err));
   // Verwijderen van een (gevoelig) document is een audit-waardige gebeurtenis, ook als het via de
   // credential-levenscyclus loopt (CLAUDE.md regel 5).
   await audit({

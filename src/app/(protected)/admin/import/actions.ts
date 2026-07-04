@@ -18,6 +18,8 @@ import {
 import { generateTempPassword } from "@/lib/onboarding/password";
 import { buildWelcomeEmail } from "@/lib/onboarding/welcome-email";
 import { getMailSender, isMailDeliveryConfigured } from "@/lib/services/mail-sender";
+import { logger } from "@/lib/observability/logger";
+import { describeError } from "@/lib/observability/report";
 
 const MAX_CSV_BYTES = 2 * 1024 * 1024; // 2 MB
 const MAX_ROWS = 500; // bovengrens per import (bewaakt looptijd van het hashen)
@@ -295,7 +297,13 @@ export async function commitImport(formData: FormData): Promise<ImportCommitResu
           );
           emailSent = true;
         } catch (mailErr) {
-          console.error("Import: welkomstmail mislukt voor", row.email, mailErr);
+          // Geen rauwe fout/adres naar de hostlog: de logger maskeert het e-mailadres
+          // ("j***@firma.nl") en describeError reduceert de mailfout tot naam/message/stack
+          // (provider-velden zoals nodemailer's `.rejected` — rauwe adressen — gaan niet mee).
+          logger.error("[import] welkomstmail mislukt", {
+            email: row.email,
+            error: describeError(mailErr),
+          });
           emailSent = false;
           result.emailFailures++;
         }
@@ -311,8 +319,12 @@ export async function commitImport(formData: FormData): Promise<ImportCommitResu
         ...(emailSent === true ? {} : { tempPassword }),
       });
     } catch (e) {
-      // Geen interne foutdetails (bv. Prisma-melding) naar de client lekken; server-side loggen.
-      console.error("Import: aanmaken mislukt voor rij", row.rowNumber, e);
+      // Geen interne foutdetails (bv. Prisma-melding met het e-mailadres uit een unique-constraint)
+      // rauw naar de hostlog: via describeError + de maskerende logger. Ook niet naar de client.
+      logger.error("[import] account aanmaken mislukt", {
+        rowNumber: row.rowNumber,
+        error: describeError(e),
+      });
       result.failed.push({
         rowNumber: row.rowNumber,
         email: row.email,

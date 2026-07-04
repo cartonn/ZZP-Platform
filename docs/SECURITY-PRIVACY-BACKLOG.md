@@ -4,6 +4,43 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-04b (basis: `main` @ f04d7b3)
+
+Audit: orchestrator (Opus 4.8) + 1 parallelle Opus security-subagent op de delta sinds de vorige ronde
+(`b86c33b..f04d7b3`, #599–#606). Kader: OWASP Top 10 (A01 broken access control, A09 logging) + AVG
+art. 5 lid 1f. **Authz/IDOR/cross-tenant: geen nieuwe gaten** — de nieuwe bemiddelaar-voordracht
+(`franchise/diensten/actions.ts` → `dienst-voordracht.ts`) is end-to-end gepoort: `requireRole(
+"FRANCHISER")` → Zod → tenant-scope op **zowel** de dienst (`job.tenantId !== tenantId → "niet
+gevonden"`) **als** de ZZP'er (`freelancerProfile.findFirst({ where: { id, tenantId } })`) →
+engageability server-herberekend → audit → notificatie; het lees-pad `getRosterCandidatesForDienst`
+her-checkt de tenant onafhankelijk. Health-probe + `global-error` lekken niets naar
+niet-geauthenticeerde callers (payload hard begrensd tot `status/db/commit/time`; alleen `error.digest`
+naar de UI). De nieuwe `/ontwerp`-conceptbestanden bevatten geen injectiesink (0 treffers op
+`dangerouslySetInnerHTML|prisma\.|fetch\(|process\.env`), maar de route is bewust inlogvrij —
+**staande waarschuwing:** nooit echte gebruikers-/documentdata in die conceptcomponenten bedraden.
+Eén privacy-bevinding gefixt (rood→groen).
+
+### OPGELOST in deze ronde
+
+- **[MIDDEL→OPGELOST · AVG art. 5 lid 1f / OWASP A09 — rauwe PII (e-mailadres + foutobject) naar de
+  hostlog in het admin-bulk-importpad]** `admin/import/actions.ts` logde bij een mislukte welkomstmail
+  **`console.error("Import: welkomstmail mislukt voor", row.email, mailErr)`** — het e-mailadres stond
+  als los argument (niet eens verstopt in een foutobject) plus de rauwe mailfout (die bij nodemailer/
+  Resend zélf óók het adres draagt) — én bij een mislukte aanmaak `console.error(..., e)` waar een
+  Prisma-unique-constraintfout het adres kan echoën. Buiten de redactie-pijplijn → onversluierd in de
+  Railway-hostlogs. Dit is exact het antipatroon dat #599 (`logMailFailure`) elders dichtte, maar déze
+  drie call-sites (plus vier zuster-`storage.delete(...)`-`catch`-sites in `bedrijf`/`documenten`/
+  `certificaten`/`admin/gebruikers` en `reviews-reveal-task.ts`) bleven over. Extra risico: het import-
+  pad verwerkt in één keer de MEESTE PII (bulk-adressen van geïmporteerde accounts). Gefixt: import-
+  call-sites via `logger.error(..., { email: row.email, error: describeError(e) })` (de logger maskeert
+  e-mailadressen in élke stringwaarde → `j***@firma.nl`, `describeError` reduceert tot naam/message/
+  stack zodat provider-velden zoals `.rejected` niet meegaan); nieuwe gedeelde helper
+  `logStorageCleanupFailure(source, storageKey, error)` (`src/lib/observability/storage-failure.ts`,
+  spiegelt `logMailFailure`) op de vier storage-`catch`-sites; `reviews-reveal-task` idem. Geschonden:
+  CLAUDE.md regel 5 (geen PII in log) + OWASP A09. Test: `src/lib/observability/storage-failure.test.ts`
+  (adres in de storage-fout-message gemaskeerd; provider-veld `requesterEmail`/`bucketPolicy` lekt niet
+  mee; niet-Error-input gooit nooit door — rood→groen).
+
 ## Ronde 2026-07-04 (basis: `main` @ b86c33b)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle Opus security/privacy-subagents op niet-overlappende
@@ -101,18 +138,17 @@ documentPdfRateLimiter, actor.id)` ná `requireActor()`, vóór de DB-query — 
   (grondslag OVEREENKOMST/GERECHTVAARDIGD_BELANG, betrokkenen ZZP'ers/opdrachtgevers, categorieën
   onderwerp/body/categorie/prioriteit, ontvangers "intern platformbeheer") + bewaartermijn (bv. opgelost +
   N maanden). **MENSENWERK**: bewaartermijn met de eigenaar bevestigen.
-- **[LAAG · AVG art. 5 lid 1f — storageKey + rauwe fout naar console (nieuwe call-site)]**
-  `bedrijf/actions.ts:80` logt bij mislukte logo-opruiming de `storageKey` + het rauwe `err`-object via
-  `console.error` zonder `NODE_ENV`-guard, buiten de `redact()`/logger-pijplijn — hetzelfde antipatroon als
-  de vier reeds geparkeerde call-sites (`admin/gebruikers`, `documenten`, `certificaten`, `admin/import`),
-  maar dit logo-pad stond niet in die lijst. Lager risico (een logo-key is geen gevoelig document), maar
-  hoort in dezelfde opruimslag. Fix: `logger.error(..., { error: describeError(err) })`, key maskeren in prod.
-- **[LAAG · AVG art. 5 lid 1f — rauwe foutobjecten naar console, twee extra call-sites]**
-  `api/tasks/run-all/route.ts:70` (`console.error("[run-all] taak … mislukt:", e)` — een e-mail-/Prisma-fout
-  van een van de 16 taken kan PII in `.message` dragen; #528 dekte alleen het níet-lekken naar de client, de
-  rauwe serverlog omzeilt nog steeds de redactie) en `wachtwoord-vergeten/actions.ts:72,83` (nodemailer-
-  send-fout kan het ontvangeradres in `err.message` bevatten). Fix: beide via `logger.error(msg, { error:
-describeError(err) })`, consistent met de al geparkeerde logger-migratie.
+- **[LAAG→OPGELOST (ronde 2026-07-04b) · AVG art. 5 lid 1f — storageKey + rauwe fout naar console]**
+  `bedrijf/actions.ts`, plus de zuster-call-sites `documenten`/`certificaten`/`admin/gebruikers`, logden
+  bij een mislukte `storage.delete(...)` de `storageKey` + het rauwe `err`-object via `console.error`,
+  buiten de redactie-pijplijn. Gefixt in ronde 2026-07-04b: alle vier via de nieuwe gedeelde helper
+  `logStorageCleanupFailure(source, storageKey, error)` (`src/lib/observability/storage-failure.ts`) —
+  `describeError` reduceert de fout tot naam/message/stack en de logger maskeert e-mailadressen. Zie het
+  OPGELOST-item bovenaan ronde 2026-07-04b.
+- **[LAAG→OPGELOST (ronde 2026-07-04, #599) · AVG art. 5 lid 1f — rauwe foutobjecten naar console]**
+  `api/tasks/run-all/route.ts:70` en `wachtwoord-vergeten/actions.ts:72,83` logden een rauwe taak-/
+  mailfout via `console.error`. Beide omgezet naar `logger.error(…, { error: describeError(err) })` /
+  `logMailFailure` in ronde 2026-07-04 (#599, mail-fout-PII-sweep). Zie dat OPGELOST-item.
 
 ## Ronde 2026-07-03 (basis: `main` @ 90a5374)
 

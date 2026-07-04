@@ -96,17 +96,17 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // deduplicatie; batch-operaties, niet voor eindgebruikers.
   {
     file: "(protected)/admin/import/actions.ts",
-    line: 103,
+    line: 105,
     reason: "deduplicatiecheck voor import-batch",
   },
   {
     file: "(protected)/admin/import/actions.ts",
-    line: 112,
+    line: 114,
     reason: "skill-lijst voor import-mapping",
   },
   {
     file: "(protected)/admin/import/actions.ts",
-    line: 179,
+    line: 181,
     reason: "skill-lookup voor import-mapping",
   },
 
@@ -124,12 +124,12 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // gebruiker, geen lijst-view.
   {
     file: "(protected)/admin/gebruikers/actions.ts",
-    line: 76,
+    line: 77,
     reason: "account-verwijdering-actie, niet een lijst-view",
   },
   {
     file: "(protected)/admin/gebruikers/actions.ts",
-    line: 86,
+    line: 87,
     reason:
       "AVG-verwijdering: eigen DISPUTE_OPENED-events van één gebruiker; bewust geen take (alle eigen dispuutredenen moeten gewist worden, een cap zou er stilletjes overslaan)",
   },

@@ -6,6 +6,8 @@
 
 import { prisma } from "@/lib/db";
 import { auditData } from "@/lib/audit";
+import { logger } from "@/lib/observability/logger";
+import { describeError } from "@/lib/observability/report";
 
 export interface RevealTaskResult {
   /** Aantal PENDING_REVEAL-beoordelingen waarvan het venster verstreken was. */
@@ -72,8 +74,12 @@ export async function runReviewsRevealTask(opts: {
       if (didReveal) revealed += 1;
     } catch (e) {
       // Eén falende beoordeling mag de rest niet blokkeren; de volgende run pakt 'm opnieuw op
-      // (de status-guard blijft idempotent). Wél loggen zodat systematische fouten zichtbaar worden.
-      console.error(`[reviews-reveal] onthulling van review ${rev.id} mislukt:`, e);
+      // (de status-guard blijft idempotent). Wél loggen zodat systematische fouten zichtbaar worden —
+      // via describeError + de maskerende logger, zodat een Prisma-/DB-fout geen PII rauw naar de log lekt.
+      logger.error("[reviews-reveal] onthulling mislukt", {
+        reviewId: rev.id,
+        error: describeError(e),
+      });
     }
   }
 
