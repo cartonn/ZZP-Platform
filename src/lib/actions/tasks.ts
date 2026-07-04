@@ -35,6 +35,7 @@ interface TaskBase {
 
 export type PendingTask =
   | (TaskBase & { kind: "contract-sign"; collabId: string })
+  | (TaskBase & { kind: "performance-submit"; collabId: string })
   | (TaskBase & { kind: "performance-approve"; perfId: string; collabId: string })
   | (TaskBase & { kind: "performance-resubmit"; perfId: string; collabId: string })
   | (TaskBase & { kind: "invoice-submit"; invId: string; collabId: string })
@@ -89,6 +90,27 @@ export function contractSignTask(collabId: string, jobTitle: string, party: stri
     tone: "attention",
     priority: P.contractSign,
     resolver: "oneClick",
+    href: collabHref(collabId),
+    collabId,
+  };
+}
+
+/**
+ * De ZZP'er is aan zet om uren/oplevering in te dienen op een actieve samenwerking (getekend
+ * contract, nog geen ingediende prestatie). Spiegelt de cascade-fase `performance-submit`
+ * (`stage.ts`, `youAreUp:true`) die op detail/lijst/dashboard "Dien je uren/oplevering in" toont —
+ * zonder deze taak sprak het actiecentrum die fase tegen ("niets te doen"). Deep-link naar de
+ * samenwerking: het indienen (concept vastleggen → indienen, incl. ORT) gebeurt daar, niet in één klik.
+ */
+export function performanceSubmitTask(collabId: string, jobTitle: string): PendingTask {
+  return {
+    kind: "performance-submit",
+    id: `performance-submit:${collabId}`,
+    title: "Dien je uren/oplevering in",
+    subtitle: jobTitle,
+    tone: "attention",
+    priority: P.messagesAwaiting, // submit-band (55) — gelijk aan de eerste factuur-indiening
+    resolver: "link", // meerstaps (uren/ORT invullen → indienen) → naar de samenwerking
     href: collabHref(collabId),
     collabId,
   };

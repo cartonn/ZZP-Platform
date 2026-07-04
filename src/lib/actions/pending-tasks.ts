@@ -21,6 +21,7 @@ import { parseLanguages } from "@/lib/parse-languages";
 import {
   rankTasks,
   contractSignTask,
+  performanceSubmitTask,
   performanceApproveTask,
   performanceResubmitTask,
   invoiceSubmitTask,
@@ -229,7 +230,13 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       status: true,
       job: { select: { title: true } },
       company: { select: { name: true } },
-      performances: { where: { status: "REJECTED" }, select: { id: true }, take: 5 },
+      // Meest recente prestatie eerst: die bepaalt de fase (spiegelt cascade/stage.ts). We halen
+      // de status op (niet alleen de REJECTED-rijen) zodat we óók "nog geen prestatie" kunnen zien.
+      performances: {
+        select: { id: true, status: true },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      },
       invoices: {
         where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED"] } },
         select: { id: true, lifecycleStatus: true },
@@ -244,7 +251,16 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       tasks.push(contractSignTask(c.id, c.job.title, c.company.name));
       continue;
     }
-    for (const p of c.performances) tasks.push(performanceResubmitTask(p.id, c.id, c.job.title));
+    // ACTIVE ⟹ contract getekend. De meest recente prestatie bepaalt wie aan zet is, exact zoals de
+    // cascade-fase (stage.ts): nog geen/DRAFT = de ZZP'er moet uren indienen; REJECTED = corrigeren
+    // en opnieuw indienen; SUBMITTED = de opdrachtgever keurt (geen ZZP'er-taak); APPROVED = de
+    // factuur-tak hieronder neemt over. Zonder de submit-taak sprak /acties de fase tegen.
+    const latestPerf = c.performances[0];
+    if (!latestPerf || latestPerf.status === "DRAFT") {
+      tasks.push(performanceSubmitTask(c.id, c.job.title));
+    } else if (latestPerf.status === "REJECTED") {
+      tasks.push(performanceResubmitTask(latestPerf.id, c.id, c.job.title));
+    }
     for (const inv of c.invoices) {
       if (inv.lifecycleStatus === "APPROVED")
         tasks.push(paymentConfirmTask(inv.id, c.id, c.job.title));

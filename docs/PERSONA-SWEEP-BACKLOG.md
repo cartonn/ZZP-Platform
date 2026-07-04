@@ -73,10 +73,10 @@ VOG>`: eigenaar + ADMIN → 200 `application/pdf`; CLIENT/FRANCHISER/vreemde →
 >   niet-freelancer-factuur aan de samenwerking hangt (platform-fee, Event F — default UIT) zou de
 >   freelancer "factuur indienen/betaling markeren" te zien krijgen voor een factuur die niet van hem
 >   is. Voeg `issuerUserId: userId` toe wanneer platform-fee wordt geactiveerd.
-> - **[LOW] Geen "dien je uren in"-taak voor de freelancer** op een `ACTIVE`-samenwerking zonder
->   prestatie (`pending-tasks.ts:242-256` mist de spiegel van `performanceApproveTask`). De cascade-fase
->   zegt wel "aan zet: dien je uren in". Mogelijk bewust (navigatie via de samenwerking), maar het is
->   een asymmetrie tussen de twee engines.
+> - ~~**[LOW] Geen "dien je uren in"-taak voor de freelancer**~~ **GEDAAN (2026-07-04g, PR #605)** —
+>   `pending-tasks.ts freelancerTasks` laadt nu de meest recente prestatie en spiegelt `stage.ts`:
+>   geen/DRAFT → nieuwe `performanceSubmitTask` (item-niveau `/acties`), REJECTED → resubmit,
+>   SUBMITTED/APPROVED → elders. Sluit de asymmetrie tussen de cascade-fase en het actiecentrum.
 > - **[LOW/hardening] `governance-screen.tsx:72`** laadt kandidaat-profielen via `id: { in: … }` zonder
 >   tenant-filter. Niet exploiteerbaar (de ids komen uit reeds tenant-gescopete handoffs; toont enkel
 >   naam+certificaten), maar een expliciete tenant-filter + comment is future-proof.
