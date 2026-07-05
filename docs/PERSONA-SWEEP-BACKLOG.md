@@ -1,5 +1,90 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-05 (run 10) · **main-commit basis:** `a86e415`
+> **Methode:** verse productie-build (`npm install` → `npm run build`), schema-push (`prisma db push`)
+> en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
+> (`CI=true PORT=3100 npx next start`, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`,
+> `AUTH_SECRET=ci-dummy-…`). Playwright met de vooraf-geïnstalleerde Chromium (`executablePath=
+/opt/pw-browsers/chromium-1194/…`), vier rollen in losse contexts, ingelogd via het echte formulier
+> (`demo1234`). Entity-id's uit de seed-DB via Prisma. Doel-1 (acties), 1b (next-actions), 2
+> (adversarieel) + twee parallelle Opus-audits (next-action-engine-consistentie, recente commits
+> #605–#617). De DB is ephemeer; geen poging raakte productie.
+>
+> ## Samenvatting — 1 DEFECT LIVE GEREPRODUCEERD & GEFIXT (spiegelbeeld van run 9: APPROVED-factuur maskeert de betaalactie)
+>
+> **DOEL 1 (echte actie + server-side geverifieerd):** (1) ADMIN keurde via de "Goedkeuren"-knop op
+> `/admin/verificaties` een SUBMITTED-credential goed → tegen de DB bevestigd: `SUBMITTED` **6→5**,
+> `cred-bram-VOG` op `VERIFIED` met `verifiedAt`, `CREDENTIAL_VERIFIED`-audit (`actorId`=admin),
+> notificatie "Certificaat goedgekeurd" naar Bram. (2) FREELANCER (Iris) stuurde via de nieuwe knop
+> "Herinner de opdrachtgever" (#609) een handmatige betaalherinnering op een APPROVED-factuur →
+> `PAYMENT_REMINDER`-notificatie naar de opdrachtgever + `INVOICE_REMINDER_SENT`-audit; een tweede
+> directe poging werd door de afkoelperiode geweigerd (knop verdween server-side). **~55 kernschermen**
+> over 4 rollen laadden HTTP 200 met de juiste rol-shell; **nul 500's** (server-log schoon); 4 logins OK.
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol kruis-gecheckt tegen de DB. ADMIN: 5 "Beoordeel
+> het certificaat"-taken = exact de 5 resterende SUBMITTED-credentials (de goedgekeurde verdween).
+> CLIENT: "3 nieuwe reacties" = 3 NEW-applications. FREELANCER (Sanne): ontbrekend Verzekering-document
+>
+> - "Beantwoord Mark Jansen". FRANCHISER: terecht "Alles is afgehandeld". De next-action-audit bracht
+>   het defect hieronder aan het licht.
+>
+> **DOEL 2 (adversarieel, ~40 probes):** privilege-escalatie (FREELANCER/CLIENT/FRANCHISER →
+> `/admin/*`, franchise-only) → **redirect naar eigen dashboard**; IDOR/cross-partij (andermans
+> `/samenwerkingen/<id>`, `/facturen/<id>`, DRAFT `job-7`) → **soft-404 zonder veldlek** (h1 null,
+> len≈461); cross-tenant (FRANCHISER → default-tenant `collab-1`, `/franchise/zzpers/<Sanne>`) →
+> soft-404; CLIENT → `/zzp/<Noord-profiel>` → **echte 404**; document-privacy
+> (`/api/documents/<Sanne VOG>`: eigenaar + ADMIN → 200 `application/pdf`; CLIENT/FRANCHISER/vreemde
+> FREELANCER → 403; garbage → 404); rol-exports (`/verplichtingen/export`, `/prognose/export`,
+> `/api/admin/export/invoices`, foreign `dba-dossier`) → **403**; `/api/tasks/run-all` GET → **405**;
+> XSS in `?status=`/`?q=` → **0 scriptuitvoering**. Nul nieuwe gaten (consistent met runs 6–9). De
+> recente-commits-audit (#605–#617: creditor/debtor-overzicht, reistijd-signaal, betaalherinnering,
+> abonnement-vervalcyclus, PII-redactie) vond **geen** authz-/privacy-/correctheidsdefect.
+>
+> ### DEFECT (LIVE GEREPRODUCEERD + GEFIXT) — APPROVED vorige-cyclus-factuur wordt gemaskeerd, cascade-fase zegt "niets te doen" terwijl het actiecentrum "markeer de betaling" toont
+>
+> - **Geschonden regel:** DESIGN/next-action-consistentie — "elke pagina beantwoordt: wat moet ik nu
+>   doen?"; de cascade-fase (detail/lijst/dashboard) mag het actiecentrum (`/acties`) niet tegenspreken.
+> - **Repro (live bevestigd tegen de draaiende app):** een ACTIVE-samenwerking met een cyclus-1-factuur
+>   op `lifecycleStatus=APPROVED` (opdrachtgever heeft goedgekeurd, ZZP'er moet de betaling nog
+>   markeren) waarop de ZZP'er nieuwe cyclus-2-uren indient (`Performance SUBMITTED`, nieuwer dan de
+>   factuur). Detail-status-regel als ZZP'er: **"Je hoeft nu niets te doen — wacht op goedkeuring van je
+>   uren."** (`youAreUp:false`), terwijl hetzelfde scherm ("markeer de ontvangst") én `/acties`
+>   ("Markeer de betaling zodra je bent betaald") de openstaande betaaltaak tonen — een zichzelf
+>   tegensprekend scherm. Ook op `/samenwerkingen`-lijst en de dashboard-cascadezone.
+> - **Oorzaak:** het spiegelbeeld van de run-9-fix. `performanceNewerThanInvoice` (`stage.ts:75`) nulde
+>   de factuur **onvoorwaardelijk** zodra er een nieuwere prestatie was — óók een APPROVED/OVERDUE/DRAFT/
+>   REJECTED-factuur die nog een openstaande ZZP-actie draagt. Bovendien short-circuit een `SUBMITTED`
+>   prestatie (regel 101, "wacht op goedkeuring", ZZP niet aan zet) vóór de factuur-tak, dus de
+>   betaalactie viel weg. `pending-tasks.ts:264-266` maskeert niets en toonde de taak wél → contradictie.
+> - **Fix:** in de `perf === "SUBMITTED"`-tak van `stage.ts` een ZZP-uitzondering: is er een genulde
+>   vorige-cyclus-factuur die nog een ZZP-actie draagt (DRAFT→indienen, REJECTED→corrigeren,
+>   APPROVED/OVERDUE→betaling markeren; SUBMITTED/PAID/PROCESSED → geen ZZP-actie), toon dan díe fase
+>   voor de ZZP'er (`youAreUp:true`) via de nieuwe pure helper `priorCycleFreelancerPhase`. De
+>   opdrachtgever ziet ongewijzigd de keur-fase (diens actie). **Live geverifieerd na rebuild:** de
+>   ZZP'er ziet nu "Actie nodig: markeer de betaling zodra je bent betaald.", de opdrachtgever "Actie
+>   nodig: keur de ingediende uren of oplevering." — beide consistent met het actiecentrum. Tests: 5
+>   nieuwe cases in `stage.test.ts` (rood→groen), gate volledig groen (typecheck, lint, **3107
+>   unit-tests**, build, prettier).
+>
+> ### GEPARKEERD (uit de next-action-audit — lagere prioriteit, niet deze run gefixt)
+>
+> - **[MEDIUM] FREELANCER `cascadeWork` nav-badge telt de "dien je uren in"-fase niet.**
+>   `signals.ts:188-197` berekent `cascadeWork = cascadeDraft + cascadeApproved` (alleen factuur-DRAFT +
+>   APPROVED). Bij een ACTIVE-samenwerking met getekend contract en nog geen/DRAFT-prestatie is de
+>   ZZP'er "aan zet" om uren in te dienen (`stage.ts:96-97` + `pending-tasks.ts:259-260`), maar de
+>   `/samenwerkingen`-nav-badge telt dat niet mee → badge-onder­telling t.o.v. de echte "aan zet"-lijst.
+>   Geen contradictie-zin (undercount op een secundaire badge), daarom geparkeerd. Repro: verse ACTIVE
+>   samenwerking zonder prestatie → `/acties` toont "Dien je uren in", nav-badge blijft leeg. Fix:
+>   voeg de submit-fase toe aan de freelancer-`cascadeWork`-telling.
+> - **[LOW/latent] Freelancer factuur-taak mist issuer-scoping** (ongewijzigd sinds run 8/9) —
+>   `pending-tasks.ts` filtert de freelancer-facturen zonder `issuerUserId`. Nu ongevaarlijk (alle
+>   cascade-facturen zijn freelancer-uitgegeven); voeg `issuerUserId: userId` toe zodra platform-fee
+>   (Event F) wordt geactiveerd.
+>
+> Codewijziging deze run: `src/lib/cascade/stage.ts` + `src/lib/cascade/stage.test.ts`. DoD groen.
+>
+> ---
+>
 > **Datum:** 2026-07-04 (run 9) · **main-commit basis:** `757772d`
 > **Methode:** verse productie-build (`npm install` → `npm run build`), schema-push (`prisma db push`)
 > en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server

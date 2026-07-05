@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep 2026-07-05 (run 10) — APPROVED vorige-cyclus-factuur maskeert de betaalactie niet meer
+
+**Defect (live gereproduceerd + gefixt):** het spiegelbeeld van de run-9-fix. Op een ACTIVE-
+samenwerking met een cyclus-1-factuur op `lifecycleStatus=APPROVED` (opdrachtgever heeft goedgekeurd,
+ZZP'er moet de betaling nog markeren) waarop de ZZP'er nieuwe cyclus-2-uren indient
+(`Performance SUBMITTED`, nieuwer dan de factuur), toonde de cascade-status-regel op het
+samenwerking-detail als ZZP'er **"Je hoeft nu niets te doen — wacht op goedkeuring van je uren."**,
+terwijl hetzelfde scherm én `/acties` de openstaande betaaltaak ("Markeer de betaling") toonden —
+een zichzelf tegensprekend scherm.
+
+- **Oorzaak:** `performanceNewerThanInvoice` (`src/lib/cascade/stage.ts:75`) nulde de factuur
+  onvoorwaardelijk zodra er een nieuwere prestatie was — óók een niet-terminale factuur die nog een
+  ZZP-actie draagt. Een `SUBMITTED`-prestatie short-circuit bovendien vóór de factuur-tak, dus de
+  betaalactie viel weg. `pending-tasks.ts:264-266` maskeert niets en toonde de taak wél.
+- **Fix:** ZZP-uitzondering in de `perf === "SUBMITTED"`-tak van `stage.ts` via de nieuwe pure helper
+  `priorCycleFreelancerPhase(latestInvoiceStatus, …)`: een genulde vorige-cyclus-factuur met een
+  openstaande ZZP-actie (DRAFT→indienen, REJECTED→corrigeren, APPROVED/OVERDUE→betaling markeren)
+  wordt tóch als ZZP-fase getoond (`youAreUp:true`); SUBMITTED/PAID/PROCESSED → geen ZZP-actie, val
+  terug op de keur-fase. De opdrachtgever ziet ongewijzigd de keur-fase (diens actie).
+- **Live geverifieerd na rebuild:** ZZP'er "Actie nodig: markeer de betaling zodra je bent betaald.";
+  opdrachtgever "Actie nodig: keur de ingediende uren of oplevering." — beide consistent met `/acties`.
+- **Bestanden:** `src/lib/cascade/stage.ts` (+helper), `src/lib/cascade/stage.test.ts` (+5 cases,
+  rood→groen). Gate: typecheck ✓, lint ✓, **3107 unit-tests ✓**, prettier ✓, build ✓. Geen
+  schemawijziging. Adversariële matrix (priv-esc/IDOR/cross-tenant/doc-privacy/exports/XSS/405) + de
+  recente-commits-audit (#605–#617): geen nieuwe gaten. Rest geparkeerd in `docs/PERSONA-SWEEP-BACKLOG.md`.
+
 ## Administratie-ontzorging 2026-07-05 — te-betalen-per-leverancier voor de opdrachtgever (PR #616)
 
 **Waarde (opdrachtgever, cashflow-uit):** `/verplichtingen` toonde de betaalverplichtingen op een

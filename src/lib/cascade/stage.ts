@@ -99,6 +99,18 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
 
   // Stap 3 — prestatie goedkeuren (opdrachtgever).
   if (perf === "SUBMITTED") {
+    // Multi-cyclus-uitzondering: terwijl de opdrachtgever de nieuwe (cyclus-2-)uren keurt, kan een
+    // vorige-cyclus-factuur nog een openstaande actie van de ZZP'er dragen — factuur indienen
+    // (DRAFT), corrigeren (REJECTED) of betaling markeren (APPROVED/OVERDUE). Die factuur is door
+    // `performanceNewerThanInvoice` uit `inv` genuld, maar hij is voor de ZZP'er níet klaar. Zonder
+    // deze tak zou het detail/dashboard de ZZP'er "je hoeft nu niets te doen — wacht op goedkeuring"
+    // tonen terwijl het actiecentrum (`pending-tasks.ts`) diezelfde openstaande factuur-/betaal-taak
+    // toont — een zichzelf tegensprekend scherm. De opdrachtgever ziet gewoon de goedkeur-fase
+    // hieronder (dat is diens actie); alleen de ZZP'er krijgt zijn eigen openstaande factuur-fase.
+    if (isFreelancer && input.performanceNewerThanInvoice) {
+      const prior = priorCycleFreelancerPhase(input.latestInvoiceStatus, href, total);
+      if (prior) return prior;
+    }
     return { id: "performance-approve", badgeLabel: "Ter goedkeuring", label: isFreelancer ? "Ingediend — wacht op goedkeuring" : "Keur de ingediende uren/oplevering", step: 3, totalSteps: total, youAreUp: !isFreelancer, tone: isFreelancer ? "info" : "attention", cta: { label: !isFreelancer ? "Beoordeel prestatie" : "Bekijk samenwerking", href } }; // prettier-ignore
   }
 
@@ -126,6 +138,30 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
     tone: inv === "OVERDUE" ? "attention" : "info",
     cta: { label: isFreelancer ? "Betaling markeren" : "Bekijk samenwerking", href },
   };
+}
+
+/**
+ * Openstaande factuur-fase van een vorige cyclus vanuit ZZP-perspectief (aan zet), of `null` wanneer
+ * die factuur voor de ZZP'er niets meer vraagt (SUBMITTED = wacht op de opdrachtgever; PAID/PROCESSED
+ * = terminaal; geen factuur). Gebruikt in de multi-cyclus-tak zodat een nieuwe, door de opdrachtgever
+ * te keuren prestatie de openstaande factuur-/betaalactie van de ZZP'er niet maskeert. Spiegelt de
+ * bewoording van de reguliere factuur-/betaalfasen zodat het scherm consistent blijft.
+ */
+function priorCycleFreelancerPhase(
+  invoiceStatus: InvoiceLifecycleState | null,
+  href: string,
+  total: number,
+): CascadeStage | null {
+  if (invoiceStatus === "REJECTED") {
+    return { id: "invoice-rejected", badgeLabel: "Afgekeurd", label: "Factuur afgekeurd — corrigeer en dien opnieuw in", step: 4, totalSteps: total, youAreUp: true, tone: "attention", cta: { label: "Corrigeer en dien opnieuw in", href } }; // prettier-ignore
+  }
+  if (invoiceStatus === "DRAFT") {
+    return { id: "invoice-submit", badgeLabel: "Factuur", label: "Dien je factuur in", step: 4, totalSteps: total, youAreUp: true, tone: "attention", cta: { label: "Factuur indienen", href } }; // prettier-ignore
+  }
+  if (invoiceStatus === "APPROVED" || invoiceStatus === "OVERDUE") {
+    return { id: "payment", badgeLabel: "Betaling", label: "Markeer de betaling zodra je bent betaald", step: 6, totalSteps: total, youAreUp: true, tone: invoiceStatus === "OVERDUE" ? "attention" : "info", cta: { label: "Betaling markeren", href } }; // prettier-ignore
+  }
+  return null;
 }
 
 /**

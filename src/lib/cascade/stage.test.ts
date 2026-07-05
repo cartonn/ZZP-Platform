@@ -191,6 +191,86 @@ describe("cascadeStage — keten + viewer-perspectief", () => {
       expect(s.tone).toBe("success");
     });
 
+    // Regressie (PERSONA-SWEEP run 10): het spiegelbeeld van run 9. Een vorige-cyclus-factuur die nog
+    // NIET terminaal is (APPROVED/OVERDUE = betaling markeren, DRAFT = factuur indienen, REJECTED =
+    // corrigeren) draagt nog een openstaande ZZP-actie. Wordt die genuld door een nieuwere, door de
+    // opdrachtgever te keuren prestatie (SUBMITTED), dan mag de fase de ZZP'er niet "niets te doen"
+    // tonen terwijl het actiecentrum (pending-tasks) diezelfde taak toont — een zichzelf tegensprekend
+    // scherm (live gereproduceerd tegen de draaiende app). De opdrachtgever ziet gewoon de keur-fase.
+    it("APPROVED-factuur + nieuwere SUBMITTED-prestatie: ZZP'er blijft aan zet voor de betaling", () => {
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "SUBMITTED",
+          latestInvoiceStatus: "APPROVED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("payment");
+      expect(fr.youAreUp).toBe(true);
+      // Opdrachtgever ziet ongewijzigd de goedkeur-fase (dat is diens actie).
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "SUBMITTED",
+          latestInvoiceStatus: "APPROVED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(cl.id).toBe("performance-approve");
+      expect(cl.youAreUp).toBe(true);
+    });
+
+    it("OVERDUE-factuur + nieuwere SUBMITTED-prestatie: ZZP'er aan zet, tone attention", () => {
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "SUBMITTED",
+          latestInvoiceStatus: "OVERDUE",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("payment");
+      expect(fr.youAreUp).toBe(true);
+      expect(fr.tone).toBe("attention");
+    });
+
+    it("DRAFT-factuur + nieuwere SUBMITTED-prestatie: ZZP'er dient de vorige factuur nog in", () => {
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "SUBMITTED",
+          latestInvoiceStatus: "DRAFT",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("invoice-submit");
+      expect(fr.youAreUp).toBe(true);
+    });
+
+    it("REJECTED-factuur + nieuwere SUBMITTED-prestatie: ZZP'er corrigeert de vorige factuur", () => {
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "SUBMITTED",
+          latestInvoiceStatus: "REJECTED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("invoice-rejected");
+      expect(fr.youAreUp).toBe(true);
+    });
+
+    it("SUBMITTED-factuur (wacht op opdrachtgever) + nieuwere prestatie: geen valse ZZP-actie", () => {
+      // Een vorige-cyclus-factuur die SUBMITTED is, wacht op de opdrachtgever — geen ZZP-actie. De
+      // fase valt terug op de reguliere keur-fase (geen betaal-/indien-tak voor de ZZP'er).
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "SUBMITTED",
+          latestInvoiceStatus: "SUBMITTED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("performance-approve");
+      expect(fr.youAreUp).toBe(false);
+    });
+
     it("isPerformanceNewerThanInvoice: strikt nieuwer, ontbrekende datum → false", () => {
       const oud = new Date("2026-01-01T00:00:00Z");
       const nieuw = new Date("2026-02-01T00:00:00Z");
