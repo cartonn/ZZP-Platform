@@ -376,3 +376,16 @@ export const dossierViewRateLimiter = new RateLimiter(
   5 * 60_000,
   "dossier:",
 );
+
+/**
+ * Maximaal CSP_REPORT_RATE_LIMIT (default 30) CSP-violatie-rapporten per IP per minuut. De
+ * rapport-route (/api/csp-report) is publiek en ongeauthenticeerd (de browser stuurt de ping);
+ * een defecte pagina of een kwaadwillende kan er anders een log-/CPU-flood mee veroorzaken. Ruim
+ * boven een normale pagina-lading (één document rapporteert hooguit een handvol violaties).
+ */
+export const cspReportRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("CSP_REPORT_RATE_LIMIT", 30),
+  60_000,
+  "cspreport:",
+);

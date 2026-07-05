@@ -18,6 +18,11 @@ export function generateNonce(): string {
   return btoa(bin);
 }
 
+/** Endpoint dat violatie-rapporten ontvangt (zie src/app/api/csp-report/route.ts). */
+export const CSP_REPORT_PATH = "/api/csp-report";
+/** Naam van de Reporting-API-endpointgroep (moet matchen met de Reporting-Endpoints-header). */
+export const CSP_REPORT_GROUP = "csp-endpoint";
+
 /** Bouwt de volledige CSP-headerwaarde. `nonce` wordt alleen in productie toegepast. */
 export function buildCsp(opts: { nonce: string; isDev: boolean }): string {
   const scriptSrc = opts.isDev
@@ -38,5 +43,19 @@ export function buildCsp(opts: { nonce: string; isDev: boolean }): string {
     "worker-src 'self'", // service worker (PWA)
     "manifest-src 'self'",
     "form-action 'self'",
+    // Violatie-rapportage: `report-to` (modern, gekoppeld aan de Reporting-Endpoints-header in de
+    // middleware) met `report-uri` als fallback voor browsers die report-to nog niet ondersteunen.
+    // Beide wijzen naar hetzelfde eigen endpoint. Zo zien we in productie wat de policy blokkeert —
+    // nodig om de 'unsafe-inline'-fallback later veilig te laten vallen én om injectie te detecteren.
+    `report-to ${CSP_REPORT_GROUP}`,
+    `report-uri ${CSP_REPORT_PATH}`,
   ].join("; ");
+}
+
+/**
+ * Waarde voor de `Reporting-Endpoints`-responseheader (moderne Reporting API). Koppelt de
+ * groepsnaam uit de `report-to`-directive aan de ontvanger-URL. Puur/testbaar.
+ */
+export function reportingEndpointsHeader(): string {
+  return `${CSP_REPORT_GROUP}="${CSP_REPORT_PATH}"`;
 }

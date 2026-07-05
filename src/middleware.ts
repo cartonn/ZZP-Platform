@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
-import { buildCsp, generateNonce } from "@/lib/csp";
+import { buildCsp, generateNonce, reportingEndpointsHeader } from "@/lib/csp";
 import { isAdminPath, isFranchisePath, isPublicPath, roleForPath } from "@/lib/route-guards";
 
 const { auth } = NextAuth(authConfig);
@@ -24,6 +24,9 @@ function nextWithCsp(request: Request): NextResponse {
   requestHeaders.set("content-security-policy", csp);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", csp);
+  // Reporting API: koppelt de `report-to`-groep uit de policy aan het ontvanger-endpoint. De
+  // `report-uri`-fallback in de policy werkt zonder deze header; oudere browsers gebruiken die.
+  response.headers.set("Reporting-Endpoints", reportingEndpointsHeader());
   return response;
 }
 

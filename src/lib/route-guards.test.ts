@@ -13,6 +13,10 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/billing/webhook")).toBe(true);
   });
 
+  it("staat de CSP-violatie-ontvanger inlogvrij toe (browser POST't zonder sessie, óók vanaf /login)", () => {
+    expect(isPublicPath("/api/csp-report")).toBe(true);
+  });
+
   it("houdt beschermde routes achter de inlogmuur", () => {
     for (const p of [
       "/dashboard",
@@ -23,6 +27,8 @@ describe("isPublicPath", () => {
       "/api/billing",
       "/api/billing/webhook/extra",
       "/api/media/logo.png",
+      // Alleen de exacte csp-report-route is publiek, geen subpaden.
+      "/api/csp-report/extra",
     ]) {
       expect(isPublicPath(p)).toBe(false);
     }

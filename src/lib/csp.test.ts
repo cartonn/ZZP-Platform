@@ -1,7 +1,13 @@
 // Unit-tests voor de CSP-opbouw (missie A — nonce-pipeline).
 
 import { describe, it, expect } from "vitest";
-import { buildCsp, generateNonce } from "@/lib/csp";
+import {
+  buildCsp,
+  CSP_REPORT_GROUP,
+  CSP_REPORT_PATH,
+  generateNonce,
+  reportingEndpointsHeader,
+} from "@/lib/csp";
 
 describe("generateNonce", () => {
   it("levert geldige base64 van 128 bits (24 tekens) en is per aanroep uniek", () => {
@@ -42,5 +48,25 @@ describe("buildCsp", () => {
       expect(csp).toContain("form-action 'self'");
       expect(csp).toContain("worker-src 'self'");
     }
+  });
+
+  it("bevat violatie-rapportage (report-to + report-uri) in beide modi", () => {
+    for (const isDev of [true, false]) {
+      const csp = buildCsp({ nonce: "n", isDev });
+      expect(csp).toContain(`report-to ${CSP_REPORT_GROUP}`);
+      expect(csp).toContain(`report-uri ${CSP_REPORT_PATH}`);
+    }
+  });
+});
+
+describe("reportingEndpointsHeader", () => {
+  it("koppelt de report-to-groep aan het ontvanger-endpoint", () => {
+    expect(reportingEndpointsHeader()).toBe(`${CSP_REPORT_GROUP}="${CSP_REPORT_PATH}"`);
+  });
+
+  it("gebruikt dezelfde groepsnaam als de report-to-directive in de policy", () => {
+    const csp = buildCsp({ nonce: "n", isDev: false });
+    expect(csp).toContain(`report-to ${CSP_REPORT_GROUP}`);
+    expect(reportingEndpointsHeader().startsWith(`${CSP_REPORT_GROUP}=`)).toBe(true);
   });
 });

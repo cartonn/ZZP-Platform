@@ -24,6 +24,11 @@ export function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/ontwerp/") || // publiek, inlogvrij design-lab (alleen fictieve mock-data)
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/tasks/") || // eigen token-guard (CRON_SECRET), geen sessie
+    // CSP-violatie-ontvanger: de browser POST't hier zonder (of ná verlies van) een sessie, óók
+    // vanaf publieke pagina's (login). Eigen rate-limit-guard; logt alleen genormaliseerde,
+    // PII-arme velden. Achter de inlogmuur zou een report naar /login worden geredirect en nooit
+    // aankomen.
+    pathname === "/api/csp-report" ||
     // Betaal-provider-webhook (Mollie): de provider pingt zonder sessie-cookie. De handler
     // vertrouwt de request-body nooit blind — hij vraagt de betaalstatus opnieuw op bij de
     // provider (bron van waarheid) en antwoordt altijd 200 zonder data te lekken. Stond ten
