@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Vacaturetempo-kaart voor de opdrachtgever op /opdrachten/[id] (2026-07-05)
+
+**Waarde (opdrachtgever, "hoe presteert mijn vacature?"):** de opdracht-detailpagina toonde de
+eigenaar wél het bereik (`JobReachCard` — hoeveel passende ZZP'ers) en de reactie-pijplijn per
+status, maar nergens de **doorlooptijd/snelheid**: hoe lang staat de opdracht open, hoeveel reacties
+per week trekt hij, hoe snel kwam de eerste reactie, en is er nog momentum? Het bestaande
+`job-engagement.ts` berekende "koud" (≥7 dagen open, ≤2 reacties) maar stuurde dat alléén als
+achtergrondnotificatie — het rende niets op het scherm. Nu ziet de opdrachtgever het tempo direct en
+kan hij bijsturen (tarief/eisen/zichtbaarheid) i.p.v. blind te wachten. Vertaalt de "binnen
+uren"-liquiditeit van Temper/Pidz/Zorgwerk naar ónze verklaarbare kant; spiegelbeeld van het
+ZZP'er-signaal `job-competition.ts` en de on-screen tegenhanger van de notificatie-only
+`job-engagement.ts` (dezelfde koud-drempels → scherm en signaal spreken elkaar niet tegen).
+
+- **`src/lib/job-vacancy-performance.ts`** (nieuw, puur): `summarizeVacancyPerformance({publishedAt,
+now, applicationDates})` → `{daysOpen, applicationCount, perWeek, firstResponseDays, recentCount,
+pace, momentum, tone, headline, hint, attention}`. `pace` = strong/steady/slow/cold (koud-drempels
+  gelijk aan `job-engagement.ts`), `momentum` = fresh/active/quiet. Een verse opdracht
+  (< 2 dagen) wordt bewust terughoudend getoond zodat één vroege reactie geen opgeblazen "sterk"
+  oplevert; per-week over ≥1 dag; toekomstige/ongeldige tijdstempels genegeerd.
+- **`src/components/jobs/job-vacancy-performance-card.tsx`** (nieuw, presentationeel): dagen open ·
+  reacties · reacties/week + tone-gekleurde tip; alleen zichtbaar voor de eigenaar.
+- **`src/app/(protected)/opdrachten/[id]/page.tsx`**: eigenaar + PUBLISHED laadt de actieve
+  reactie-`createdAt`'s (begrensd `take:500`) en rendert de kaart boven `JobReachCard`.
+- Gate: typecheck ✓, lint ✓ (0 warnings), **3124 unit-tests ✓** (8 nieuw), prettier ✓, build ✓.
+  Read-only signaal, geen dode knoppen, geen schemawijziging, server-side waarheid, geen
+  kandidaatgegevens gelekt.
+
 ## Ontwerp-lab 2026-07-05 — reeks 10: +10 concepten (nrs 91–100), totaal 100 op `/ontwerp`
 
 **Additief, breekt de live-app niet.** Tien nieuwe, onderscheidende redesign-concepten toegevoegd
