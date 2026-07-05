@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab 2026-07-05 — reeks 9: +10 concepten (nrs 81–90) op `/ontwerp`
+
+**Waarde (eigenaar, richtingkeuze herontwerp):** het publieke, inlogvrije design-lab groeide van 80 →
+**90 concepten** (additief; geen bestaand concept aangeraakt). Tien nieuwe, onmiskenbaar verschillende
+2026-designrichtingen, elk als volledig uitgewerkt high-fidelity redesign van de zes kernschermen
+(dashboard, marktplaats, opdracht, verificatie, acties, facturen) met NL mock-content.
+
+- **Nieuw (81–90):** 81 Vloeiglas (Apple Liquid Glass — refractief materiaal 2026) · 82 Japandi
+  (wabi-sabi/quiet-luxury) · 83 Therma (thermografie/infrarood-heatmap datataal) · 84 Draad
+  (Superhuman-grade snelheids-inbox/keyboard-triage) · 85 Focus (enkelvoudige zen-focusmodus) ·
+  86 Revisie (versiebeheer/diff-esthetiek als auditspoor) · 87 Kader (fintech-ops canvas Mercury/Ramp) ·
+  88 Widget (glanceable widget-home iOS/Family) · 89 Lumen (bioluminescente diepzee-dark) · 90 Marmer
+  (klassiek geaderd marmer, erfgoed quiet-luxury).
+- **Bestanden:** 10× `src/components/ontwerp/concepts/concept-8x/9x-*.tsx` (nieuw), plus additieve
+  entries in `registry.ts` en imports/map in `src/app/ontwerp/[id]/page.tsx`. Alle tien gebruiken
+  bestaande `--font-lab-*`-vars; geen nieuwe dependencies; deterministisch (geen random/Date in render).
+- Gate: typecheck ✓, lint ✓, test ✓, build ✓, prettier ✓ — CI-poort geverifieerd op de PR.
+- Details + volledige trend-lijst: `docs/DESIGN-LAB.md` (reeks 9).
+
 ## Matching/keuze-hulp 2026-07-05 — reistijd-signaal per kandidaat voor de opdrachtgever (PR #612)
 
 **Waarde (opdrachtgever, keuze op locatie):** `/kandidaten` toonde per kandidaat al match, tarief,
