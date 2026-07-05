@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { authorizeCron } from "@/lib/cron-auth";
 import { generatePlatformBilling } from "@/lib/platform-billing/billing-run";
+import { reportBackgroundFailure } from "@/lib/observability/report";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,8 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const result = await generatePlatformBilling({});
     return NextResponse.json({ ok: true, ...result });
-  } catch {
+  } catch (e) {
+    void reportBackgroundFailure("cron:platform-billing", e);
     return NextResponse.json(
       { error: "Er is een fout opgetreden bij het uitvoeren van de taak." },
       { status: 500 },

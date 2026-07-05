@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { authorizeCron } from "@/lib/cron-auth";
 import { runDbaMonitorTask } from "@/lib/dba-monitor-task";
+import { reportBackgroundFailure } from "@/lib/observability/report";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,8 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const result = await runDbaMonitorTask({ actorId: null });
     return NextResponse.json({ ok: true, ...result });
-  } catch {
+  } catch (e) {
+    void reportBackgroundFailure("cron:dba-monitor", e);
     return NextResponse.json(
       { error: "Er is een fout opgetreden bij het uitvoeren van de taak." },
       { status: 500 },

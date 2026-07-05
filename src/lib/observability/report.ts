@@ -139,3 +139,31 @@ export async function reportError(error: unknown, context?: ReportContext): Prom
     // Reporting zelf mag nooit doorbreken naar de caller; bewust geslikt.
   }
 }
+
+/**
+ * Rapporteert een mislukte achtergrond-/cron-taak. Anders dan een request-fout (die via
+ * `onRequestError` → `reportError` binnenkomt) worden taakfouten door de taakloper opgevangen en
+ * dus NOOIT door Next's grens gezien — zonder deze helper zou een falende taak op de onbewaakte
+ * dagelijkse cron alleen in de logs verdwijnen en nooit in externe monitoring (Sentry) opduiken.
+ *
+ * Gedrag: ALTIJD een lokale, gestructureerde (PII-geredacteerde) regel loggen, en ADDITIONEEL naar
+ * de externe reporter sturen wanneer die geconfigureerd is (`SENTRY_DSN`). De externe tak wordt op
+ * DSN gepoort zodat de console-fallback niet dubbel logt. Slikt alles: rapportage mag een taak nooit
+ * laten falen (de taakloper telt de fout los als mislukt).
+ */
+export async function reportBackgroundFailure(
+  source: string,
+  error: unknown,
+  extra?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    logger.error("background-failure", { source, ...(extra ?? {}), error: describeError(error) });
+  } catch {
+    // Loggen mag nooit doorbreken; bewust geslikt.
+  }
+  // Alleen wanneer Sentry geconfigureerd is escaleren; anders zou de console-reporter de zojuist
+  // geschreven regel dupliceren.
+  if (process.env.SENTRY_DSN) {
+    await reportError(error, { source, extra });
+  }
+}

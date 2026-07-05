@@ -24,8 +24,7 @@ import { runNotificationDigestTask } from "@/lib/notification-digest-task";
 import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
 import { runPushDeliveryTask } from "@/lib/push-delivery-task";
 import { runScheduledTasks, type ScheduledTask } from "@/lib/scheduled-tasks";
-import { logger } from "@/lib/observability/logger";
-import { describeError } from "@/lib/observability/report";
+import { reportBackgroundFailure } from "@/lib/observability/report";
 
 export const dynamic = "force-dynamic";
 
@@ -69,10 +68,12 @@ export async function POST(request: Request): Promise<Response> {
     { name: "monitor", fn: () => runMonitorTask({}) },
   ];
 
-  // Ruwe foutdetails alleen server-side loggen; de respons krijgt een statische boodschap.
-  const { ok, results, errors } = await runScheduledTasks(tasks, (name, e) =>
-    logger.error("[run-all] taak mislukt", { task: name, error: describeError(e) }),
-  );
+  // Ruwe foutdetails alleen server-side; de respons krijgt een statische boodschap. Een falende
+  // taak escaleert naar de error-reporter (lokaal gestructureerd + Sentry indien geconfigureerd),
+  // zodat een fout op de onbewaakte cron niet stil in de logs verdwijnt.
+  const { ok, results, errors } = await runScheduledTasks(tasks, (name, e) => {
+    void reportBackgroundFailure("cron:run-all", e, { task: name });
+  });
 
   const hasErrors = Object.keys(errors).length > 0;
   return NextResponse.json({ ok, results, ...(hasErrors ? { errors } : {}) });
