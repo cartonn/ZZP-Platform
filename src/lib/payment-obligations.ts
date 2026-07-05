@@ -17,6 +17,7 @@ export interface ObligationItem {
   vatCents: number; // VAT
   grossCents: number; // incl. VAT (total)
   dueDate: Date | null; // dueAt; null while still awaiting approval (SUBMITTED)
+  counterpartyId: string | null; // freelancer (issuer) profile id — stable grouping key; null if unknown
   counterpartyName: string; // freelancer (issuer) name
   number: string | null; // invoice number within the issuer's sequence, or null
   jobTitle: string | null;

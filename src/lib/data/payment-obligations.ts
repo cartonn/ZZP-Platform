@@ -18,7 +18,7 @@ export async function getObligationItemsForClient(userId: string): Promise<Oblig
     collaboration: {
       select: {
         job: { select: { title: true } },
-        freelancer: { select: { user: { select: { name: true } } } },
+        freelancer: { select: { id: true, user: { select: { name: true } } } },
       },
     },
   } as const;
@@ -59,6 +59,7 @@ export async function getObligationItemsForClient(userId: string): Promise<Oblig
     vatCents: inv.vatCents ?? 0,
     grossCents: inv.totalCents,
     dueDate: inv.dueAt,
+    counterpartyId: inv.collaboration?.freelancer.id ?? null,
     counterpartyName: inv.collaboration?.freelancer.user.name ?? "—",
     number: inv.partyInvoiceNumber ?? null,
     jobTitle: inv.collaboration?.job.title ?? null,

@@ -7,9 +7,11 @@ import {
   type ObligationItem,
   type ObligationStage,
 } from "@/lib/payment-obligations";
+import { shouldShowCreditorSummary, summarizeCreditors } from "@/lib/creditor-summary";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CreditorSummaryCard } from "@/components/administratie/creditor-summary-card";
 
 type BadgeVariant = "muted" | "warning" | "danger" | "success";
 
@@ -58,7 +60,9 @@ export async function VerplichtingenPanel({
 }) {
   const obligationItems = items ?? (await getObligationItemsForClient(actor.id));
 
-  const obligations = buildPaymentObligations(obligationItems, new Date());
+  const now = new Date();
+  const obligations = buildPaymentObligations(obligationItems, now);
+  const creditors = summarizeCreditors(obligationItems, now);
   const hasItems = obligationItems.length > 0;
 
   if (!hasItems) {
@@ -119,6 +123,9 @@ export async function VerplichtingenPanel({
           </CardContent>
         </Card>
       </div>
+
+      {/* Te betalen per leverancier — "aan wie moet ik betalen?" */}
+      {shouldShowCreditorSummary(creditors) && <CreditorSummaryCard summary={creditors} />}
 
       {/* Buckets */}
       <div className="space-y-6">

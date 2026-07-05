@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Administratie-ontzorging 2026-07-05 — te-betalen-per-leverancier voor de opdrachtgever (PR #616)
+
+**Waarde (opdrachtgever, cashflow-uit):** `/verplichtingen` toonde de betaalverplichtingen op een
+tijdlijn (deze maand / volgende maand / te laat), maar niet _aan wie_ ik hoeveel moet betalen. Bij
+meerdere leveranciers is de #1 vraag "achter welke crediteur moet ik aan / wie moet ik als eerste
+betalen?". Spiegel van het ZZP'er-debiteurenoverzicht (#611) vanuit de betaal-kant. Benchmark:
+Moneybird/e-Boekhouden/Tellow hebben een crediteuren-/ouderdomsoverzicht; wij vertalen dat naar onze
+server-side verplichtingen-waarheid (cascade-bewust) met te-laat-signaal en eerstvolgende vervaldatum.
+
+- **`src/lib/creditor-summary.ts`** (nieuw, puur): `summarizeCreditors(items, now)` groepeert de
+  openstaande `ObligationItem[]` per leverancier → `{outstandingCents, overdueCents (stage OVERDUE of
+dueDate<now), awaitingApprovalCents (SUBMITTED), invoiceCount, overdueCount, earliestDueDate,
+daysUntilEarliestDue}`; sortering te-laat → openstaand → naam; verplichtingen zonder leverancier-id
+  tellen niet mee. `shouldShowCreditorSummary` toont de kaart alleen bij ≥2 leveranciers óf een
+  te-laat bedrag (anders voegt ze niets toe aan het totaal). 11 unit-tests.
+- **`ObligationItem.counterpartyId`** (additief): stabiele groeperingssleutel (freelancer-profiel-id),
+  gevuld in `data/payment-obligations.ts` (select `freelancer.id`). Enige constructiesite; geen extra query.
+- **`components/administratie/creditor-summary-card.tsx`** (nieuw): "Te betalen per leverancier"-kaart
+  met per leverancier naam, openstaand bedrag, aantal facturen + goed-te-keuren/vervalt-over, en een
+  te-laat-badge; kop-badge met het totale te-late bedrag. Plain NL (geen i18n).
+- **`verplichtingen-panel.tsx`**: gerenderd onder de samenvattingsstrip, afgeleid uit de reeds geladen
+  verplichtingenlijst (geen extra query).
+- Gate: typecheck ✓, lint ✓ (0 warnings), **3101 unit-tests ✓** (11 nieuw), prettier ✓, build ✓.
+  Read-only, geen dode knoppen, geen schemawijziging, server-side verplichtingen-waarheid.
+
 ## Prod-rijpheid 2026-07-05 — cron/achtergrondtaakfouten naar de error-reporter (Sentry-ready)
 
 **Waarde (beheerder, observability):** een gefaalde geplande taak op de onbewaakte dagelijkse

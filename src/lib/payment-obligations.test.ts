@@ -16,6 +16,7 @@ function item(overrides: Partial<ObligationItem> & { invoiceId: string }): Oblig
     vatCents: 2100,
     grossCents: 12100,
     dueDate: new Date("2026-06-20T00:00:00.000Z"),
+    counterpartyId: "prof-sanne",
     counterpartyName: "Sanne de Vries",
     number: "2026-0001",
     jobTitle: "Nachtdienst VVT",
