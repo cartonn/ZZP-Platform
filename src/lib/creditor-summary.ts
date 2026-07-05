@@ -8,6 +8,12 @@ import { type ObligationItem } from "@/lib/payment-obligations";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** UTC-middernacht van een tijdstip — dezelfde dag-grens als het verplichtingen-paneel. */
+function startOfDayUTC(ms: number): number {
+  const d = new Date(ms);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
 /** Te betalen saldo aan één leverancier (crediteur). */
 export interface CreditorRow {
   supplierId: string;
@@ -53,6 +59,9 @@ export function summarizeCreditors(
   now: Date | number,
 ): CreditorSummary {
   const nowMs = typeof now === "number" ? now : now.getTime();
+  // Dag-grens gelijk aan `buildPaymentObligations` (dueDate < startOfToday = te laat), zodat de
+  // crediteuren-kaart en de bucket-lijst op dezelfde pagina op de vervaldag niet uiteenlopen.
+  const startOfToday = startOfDayUTC(nowMs);
   const bySupplier = new Map<string, CreditorRow>();
 
   for (const item of items) {
@@ -75,7 +84,7 @@ export function summarizeCreditors(
     row.invoiceCount += 1;
 
     const isOverdue =
-      item.stage === "OVERDUE" || (item.dueDate != null && item.dueDate.getTime() < nowMs);
+      item.stage === "OVERDUE" || (item.dueDate != null && item.dueDate.getTime() < startOfToday);
 
     if (isOverdue) {
       row.overdueCents += item.grossCents;
@@ -88,7 +97,7 @@ export function summarizeCreditors(
     if (!isOverdue && item.dueDate != null) {
       if (row.earliestDueDate == null || item.dueDate.getTime() < row.earliestDueDate.getTime()) {
         row.earliestDueDate = item.dueDate;
-        row.daysUntilEarliestDue = daysUntil(item.dueDate, nowMs);
+        row.daysUntilEarliestDue = daysUntil(item.dueDate, startOfToday);
       }
     }
 
