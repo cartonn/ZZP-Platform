@@ -21,6 +21,11 @@ import { VerificationMarks } from "@/components/credentials/verification-marks";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { summarizeAvailability } from "@/lib/availability";
 import { START_FIT_LABEL, START_FIT_VARIANT, classifyStartFit } from "@/lib/candidate-availability";
+import {
+  classifyCandidateProximity,
+  proximityLabel,
+  PROXIMITY_VARIANT,
+} from "@/lib/candidate-proximity";
 import { formatDateShortNl } from "@/lib/format-date";
 import { computeTrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
@@ -554,6 +559,21 @@ export default async function KandidatenPage({
                                 </Badge>
                               </span>
                             )}
+                            {(() => {
+                              const proximity = classifyCandidateProximity({
+                                jobWorkMode: app.job.workMode,
+                                jobLocation: app.job.location,
+                                candidateLocation: app.freelancer.location,
+                              });
+                              return proximity ? (
+                                <span className="inline-flex items-center gap-1.5">
+                                  {t("Reistijd")}:
+                                  <Badge variant={PROXIMITY_VARIANT[proximity.level]}>
+                                    {proximityLabel(proximity)}
+                                  </Badge>
+                                </span>
+                              ) : null;
+                            })()}
                           </>
                         );
                       })()}
