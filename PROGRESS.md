@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab 2026-07-05 — reeks 10: +10 concepten (nrs 91–100), totaal 100 op `/ontwerp`
+
+**Additief, breekt de live-app niet.** Tien nieuwe, onderscheidende redesign-concepten toegevoegd
+bovenop de bestaande 90 — alle vorige blijven staan (registry + route uitsluitend geappend).
+
+- **Nieuwe concepten:** 91 Agenda (kalender-first/time-blocking) · 92 Doek (oneindig freeform canvas,
+  tldraw/FigJam) · 93 Kaart (swipe-deck matching, speelkaart-deck, mobiel-first) · 94 Gesprek
+  (conversationeel formulier één-vraag-per-scherm, Typeform-grade) · 95 Bubbel (berichten-first
+  chat-shell, iMessage-grade) · 96 Montage (video-editor tijdlijn/scrubber, dark pro) · 97 Groef
+  (vinyl & hifi album-art warmte) · 98 Ringen (voortgangsringen/activity-app, levendig dark) ·
+  99 Delft (Delfts-blauw tegeltableau, Nederlands erfgoed) · 100 Boekband (Penguin-klassieker
+  redactionele reeks).
+- **Bestanden:** `src/components/ontwerp/concepts/concept-91-agenda.tsx` t/m `concept-100-boekband.tsx`
+  (10 nieuwe). Geappend: 10 `ConceptMeta`-entries in `registry.ts` en 10 imports + map-koppelingen in
+  `src/app/ontwerp/[id]/page.tsx`. Bestaande entries/koppelingen niet aangeraakt.
+- Elk concept: 6 kernschermen (dashboard, marktplaats, opdracht, verificatie, acties, facturen) via
+  `useState<ScreenKey>`, loading/empty/error-states, focus-visible ring, aria-labels, status altijd
+  label+icoon (nooit kleur-alleen), deterministisch (geen random/Date.now), gedeelde NL mock-content.
+  Geen enkel voorkomen van het woord "AI".
+- Gate: typecheck ✓, lint ✓ (0 warnings), **3116 unit-tests ✓**, prettier ✓, build ✓. Docs
+  bijgewerkt (`docs/DESIGN-LAB.md` reeks 10 + totaal 100).
+
 ## Nav-consistentie 2026-07-05 — FREELANCER `/samenwerkingen`-badge telt de indien-fase mee (PR #619)
 
 **Waarde (ZZP'er, "wat vraagt actie?"):** de `/samenwerkingen`-nav-badge (`cascadeWork`) ondertelde
