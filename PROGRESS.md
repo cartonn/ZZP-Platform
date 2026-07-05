@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab reeks 11 — +10 concepten (nrs 101–110), totaal 110 op `/ontwerp` (2026-07-05)
+
+**Waarde:** de galerij op `/ontwerp` groeit additief van 100 → 110 onderscheidende, top-1% redesign-
+concepten waaruit de eigenaar kiest. Tien nieuwe designrichtingen, gebouwd door 4 parallelle workers op
+niet-overlappende bestanden, daarna geïntegreerd zonder één bestaand concept/entry/koppeling te wijzigen:
+**101 Chroom** (retrofuturistisch liquid-metal chroom + neon) · **102 Verhaal** (scrollytelling/data-
+storytelling) · **103 Kliniek** (klinisch medisch dossier, mint) · **104 Meteo** (weerbericht-datakaart,
+isobaren) · **105 Karton** (kraft/karton, duurzaam-tactiel) · **106 Röntgen** (medische scan, lichtgevende
+lijn-art op antraciet) · **107 Perkament** (verlucht manuscript + bladgoud-zegels) · **108 Nachtdienst**
+(blauwlicht-arme nacht-modus voor avond/nachtdiensten) · **109 Constructie** (constructivisme, diagonaal
+rood/zwart) · **110 Fresco** (renaissance-fresco, pigment op kalkpleister). Drie richtingen zijn expliciet
+zorg-native (Kliniek, Röntgen, Nachtdienst).
+
+- **Nieuw:** `src/components/ontwerp/concepts/concept-101..110-*.tsx` (10 bestanden). **Additief
+  bijgewerkt:** `registry.ts` (10 nieuwe `ConceptMeta`-entries append) en `src/app/ontwerp/[id]/page.tsx`
+  (10 imports + id→component-koppelingen append). Geen bestaande app-logica/auth geraakt; lab staat
+  publiek + `noindex` buiten `(protected)`.
+- **Gate:** `npm run typecheck` ✓ · `npm run lint` ✓ (0 warnings) · `npm run test` ✓ (3171 tests) ·
+  `npm run build` ✓ · `npx prettier --check .` ✓ (hele repo). Woord "AI" komt nergens voor. Docs:
+  `docs/DESIGN-LAB.md` bijgewerkt met reeks 11 + onderzochte 2026-trends.
+- **Volgende:** volgende reeks krijgt nrs 111–120 (blijf additief; overschrijf nooit een bestaand slot).
+
 ## Directe uitnodiging — opdrachtgever nodigt passende ZZP'er uit voor een opdracht (2026-07-05, PR #625)
 
 **Waarde (opdrachtgever + ZZP'er, liquiditeit):** de "Geschikte ZZP'ers"-sectie op `/opdrachten/[id]`
