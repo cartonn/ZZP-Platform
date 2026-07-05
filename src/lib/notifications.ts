@@ -58,6 +58,7 @@ const META: Record<string, NotificationMeta> = {
   APPLICATION_WITHDRAWN: { category: "system", tone: "info" }, // ZZP'er trok zijn reactie in
   POOL_INVITE: { category: "collaboration", tone: "attention" },
   JOB_PROPOSAL: { category: "collaboration", tone: "attention" }, // bemiddelaar draagt ZZP'er voor op dienst
+  JOB_INVITE: { category: "collaboration", tone: "attention" }, // opdrachtgever nodigt ZZP'er direct uit voor een opdracht
 };
 
 /** Categorie + toon voor een notificatietype; valt terug op een neutrale systeem-categorie. */

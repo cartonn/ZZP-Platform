@@ -326,14 +326,14 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills voor het aanmaakformulier.
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 70,
+    line: 76,
     reason: "skills-referentielijst voor formulier",
   },
   // Flexpool-leden van het eigen bedrijf bij de eerste publicatie (poule is per bedrijf
   // curated en klein; slice-1-overzicht toont er max. 100).
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 263,
+    line: 269,
     reason: "eigen flexpool-leden bij eerste publicatie (per bedrijf begrensd)",
   },
 

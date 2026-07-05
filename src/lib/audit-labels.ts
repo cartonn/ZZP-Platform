@@ -38,6 +38,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   JOB_CLOSED_BY_ADMIN: "Opdracht gesloten door beheerder",
   JOB_ALERT_SENT: "Opdrachtmelding verstuurd",
   JOB_REOPENED_FOR_REPLACEMENT: "Dienst heropend voor herplaatsing",
+  JOB_INVITED: "ZZP'er uitgenodigd voor opdracht",
   APPLICATION_CREATED: "Gereageerd op opdracht",
   APPLICATION_STATUS_CHANGED: "Reactiestatus gewijzigd",
   APPLICATION_NOTE_SAVED: "Notitie bij reactie opgeslagen",

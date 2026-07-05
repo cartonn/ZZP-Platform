@@ -13,6 +13,12 @@ import { planPoolInvites, type PoolMember } from "@/lib/pool-routing";
 import { type Availability, type JobStatus, jobStatusSchema } from "@/lib/enums";
 import { jobSchema } from "@/lib/validation";
 import { visibleJobsWhere } from "@/lib/tenancy";
+import { discoverableFreelancerWhere } from "@/lib/freelancer-visibility";
+import {
+  assessInviteEligibility,
+  buildJobInviteNotification,
+  JOB_INVITED_AUDIT_ACTION,
+} from "@/lib/job-invite";
 
 export type JobFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -434,4 +440,90 @@ export async function clearUnavailableSavedJobs(): Promise<void> {
   }
 
   revalidatePath("/opgeslagen");
+}
+
+/**
+ * Directe uitnodiging: de opdrachtgever nodigt een passende, openbare ZZP'er uit om op zijn
+ * gepubliceerde opdracht te reageren. Volledige mutatieketen (CLAUDE.md regel 2):
+ * auth → rol CLIENT → ownership van de opdracht → server-side eligibility → actie → audit.
+ *
+ * Geen eigen datamodel: de uitnodiging is een Notification naar de ZZP'er + een gezaghebbend
+ * JOB_INVITED-auditrecord (identiek patroon als flexpool-routing). Het auditrecord is óók de
+ * dedup-/UI-bron: een tweede poging voor hetzelfde (opdracht, ZZP'er)-paar is een stille no-op.
+ * Idempotent en veilig bij races (soft-return i.p.v. een 500).
+ */
+export async function inviteFreelancerToJob(
+  jobId: string,
+  freelancerProfileId: string,
+): Promise<void> {
+  const actor = await requireRole("CLIENT");
+
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      company: { select: { userId: true, name: true } },
+    },
+  });
+  if (!job) return; // opdracht bestaat niet (meer) — geen lek, geen 500.
+  assertOwnership(actor, job.company.userId); // 403 als het niet zijn opdracht is.
+
+  // De ZZP'er moet openbaar vindbaar zijn (PUBLIC + ACTIVE) — precies de pool die de suggesties
+  // voedt. `findFirst` mét de discoverable-where scoped de zichtbaarheid server-side af.
+  const freelancer = await prisma.freelancerProfile.findFirst({
+    where: { id: freelancerProfileId, ...discoverableFreelancerWhere },
+    select: {
+      id: true,
+      user: { select: { id: true } },
+      applications: { where: { jobId }, select: { id: true } },
+    },
+  });
+
+  const alreadyInvited = freelancer
+    ? (await prisma.auditLog.count({
+        where: {
+          entityType: "Job",
+          entityId: jobId,
+          action: JOB_INVITED_AUDIT_ACTION,
+          metadata: { contains: `"freelancerId":"${freelancerProfileId}"` },
+        },
+      })) > 0
+    : false;
+
+  const eligibility = assessInviteEligibility({
+    jobStatus: job.status as JobStatus,
+    alreadyApplied: (freelancer?.applications.length ?? 0) > 0,
+    alreadyInvited,
+    discoverable: freelancer != null,
+  });
+  if (!eligibility.ok || !freelancer) {
+    revalidatePath(`/opdrachten/${jobId}`);
+    return;
+  }
+
+  const notification = buildJobInviteNotification({
+    jobId,
+    jobTitle: job.title,
+    companyName: job.company.name,
+  });
+  await prisma.notification.create({
+    data: {
+      userId: freelancer.user.id,
+      type: notification.type,
+      title: notification.title,
+      body: notification.body,
+      link: notification.link,
+    },
+  });
+  await audit({
+    actorId: actor.id,
+    action: JOB_INVITED_AUDIT_ACTION,
+    entityType: "Job",
+    entityId: jobId,
+    metadata: { freelancerId: freelancerProfileId },
+  });
+
+  revalidatePath(`/opdrachten/${jobId}`);
 }
