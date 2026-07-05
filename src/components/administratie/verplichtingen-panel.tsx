@@ -58,6 +58,13 @@ export async function VerplichtingenPanel({
   actor: Actor;
   items?: ObligationItem[];
 }) {
+  // Defense-in-depth (CLAUDE.md regel 1: server-side is de waarheid, geen client-side-only gating).
+  // Dit paneel laadt en toont de betaalverplichtingen van een OPDRACHTGEVER (CLIENT). De route en de
+  // Administratie-hub gate'n de rol al, maar een herbruikbaar servercomponent dat CLIENT-financiën
+  // ophaalt hoort zichzelf te gaten — anders zou een toekomstige derde aanroeper (of een regressie in
+  // de hub-allowlist) de data onder de verkeerde "wie moet ik betalen"-lens tonen. Non-CLIENT → niets.
+  if (actor.role !== "CLIENT") return null;
+
   const obligationItems = items ?? (await getObligationItemsForClient(actor.id));
 
   const now = new Date();

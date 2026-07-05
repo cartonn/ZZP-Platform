@@ -4,6 +4,71 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-05 (2e — basis: `main` @ 944ee7c)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle Opus security-subagents op niet-overlappende
+oppervlakken, gericht op de vérse code sinds de vorige ronde (opdrachtgever-betaal/crediteuren/
+vacaturetempo-features #616–#621, cron-fout-reporting #615) — (1) IDOR/authz over ÁLLE 24
+`src/app/api/**`-route-handlers (incl. cron-auth, document/media, dossier/PDF/export, billing-webhook,
+push), (2) cross-tenant-isolatie over álle 12 franchise-server-actions + gedeelde tenant-scoped
+data-laag, (3) cross-party-PII/dataminimalisatie/injectie op de non-admin/non-franchise mutatie-
+oppervlakte + de nieuwe payment-obligations/creditor/vacancy-features + CSV-export-escaping. Kader:
+OWASP Top 10 (A01 broken access control, A03 injection, A04 insecure design, A09 logging) + OWASP
+ASVS + AVG art. 5/15/17/30. Zelf onafhankelijk geverifieerd: storage-abstractie (path-traversal-guard
+`LocalStorageDriver.resolve` + magic-byte-sniff `sniffMimeType` + niet-raadbare `generateStorageKey`),
+CSV formule-injectie-guard (`escapeCsvField`: neutraliseert `= + @ TAB CR` + niet-numerieke `-`),
+push-SSRF-allowlist (`isAllowedPushEndpoint`), bulk-import mass-assignment (`assertImportRole` runtime-
+gate + PII-gemaskeerde logs), `anonymizeUser`-erasure-volledigheid (uitputtend t.o.v. het schema),
+geen server-side `fetch` met user-URL (geen SSRF-vector), `npm audit`: **0 prod-kwetsbaarheden**
+(2 dev-only: js-yaml GHSA-h67p-54hq-rp68 — raakt de productie-bundel niet). **Geen KRITIEK/HOOG
+gevonden** — de drie oppervlakken zijn goed gehard: elke ownership-gevoelige route/actie doet
+auth→rol→ownership(DB-hercheck, nooit client-id vertrouwd)→Zod→actie→audit (op allow én deny); élke
+duale/cross-tenant mutatie scopet béide resources op de server-side `Actor.tenantId`. Eén MIDDEL
+defense-in-depth-hardening gefixt (rood→groen); rest geparkeerd (LAAG).
+
+### OPGELOST in deze ronde
+
+- **[MIDDEL→OPGELOST · OWASP A01/A04 + CLAUDE.md regel 1 — `VerplichtingenPanel` had geen eigen
+  rol-gate]** Het herbruikbare servercomponent `verplichtingen-panel.tsx` riep `getObligationItemsFor
+Client(actor.id)` aan en toonde de betaalverplichtingen (crediteuren/facturen/bedragen) van een
+  OPDRACHTGEVER zónder zelf `actor.role === "CLIENT"` te checken — het leunde vólledig op zijn twee
+  aanroepers (`verplichtingen/page.tsx` redirect + de Administratie-hub `tabsForRole`-allowlist). Beide
+  gate'n vandaag correct (niet live-exploiteerbaar), maar een herbruikbaar component dat CLIENT-
+  financiën laadt hoort de rol zélf te gaten: een toekomstige derde aanroeper — of een regressie in de
+  hub-allowlist — zou de data anders onder de verkeerde "wie moet ik betalen"-lens renderen. Dit
+  schendt CLAUDE.md regel 1 (server-side is de waarheid; geen client-/aanroeper-afhankelijke gating van
+  kritieke status) en de eigen "route + page + action"-defense-in-depth-filosofie van het project.
+  Repro: render `<VerplichtingenPanel actor={freelancerActor} />` rechtstreeks → vóór de fix haalt het
+  `getObligationItemsForClient` op i.p.v. niets te tonen. Gefixt: `if (actor.role !== "CLIENT") return
+  null;` vóór élke data-toegang. Test: `verplichtingen-panel.test.tsx` (FREELANCER/ADMIN → `null` én
+  géén data-load; CLIENT → rendert; vooraf-geladen items → geen extra query — rood→groen bewezen:
+  2 cases falen zonder de gate).
+
+### GEPARKEERD in deze ronde
+
+- **[LAAG · AVG art. 5/30 + CLAUDE.md regel 5 — eigen-data CSV-exports zonder audit-entry]** De vier
+  self-scoped CSV-export-routes (`verplichtingen/export`, `prognose/export`, `prestaties/export`,
+  `diensten/export`) doen auth→rol→rate-limit→eigen-data-query→CSV maar loggen geen `audit()`. Een
+  bulk-export van eigen financiële/crediteuren-data (namen tegenpartij, bedragen, vervaldata) valt
+  onder dezelfde traceerbaarheids-intentie als "documenttoegang" (regel 5) + AVG art. 30. Géén
+  cross-party-data, geen security-gat; bestaande platform-brede conventie (niet nieuw geïntroduceerd).
+  Aanbevolen: lichte `EXPORT_DOWNLOADED`-audit-entry op deze routes (wie exporteerde wat, wanneer)
+  voor DPO-/admin-onderzoek. Bewust geparkeerd: audit op élk zelf-export kan ruis geven — eerst
+  DPO-afweging of dit gewenst/consistent-over-álle-exports moet.
+- **[LAAG · OWASP A01 — `pushSubscription.upsert` keyt alleen op `endpoint` (niet ook `userId`)]**
+  `api/push/subscribe/route.ts` upsert op `endpoint` alleen; wie een slachtoffer-endpoint (een
+  cryptografisch willekeurige, per-browser, niet-raadbare bearer-URL) al bezit, kan de rij naar zich
+  toe herbinden en toekomstige push-levering aan dat toestel blokkeren. Vereist voorkennis van het
+  geheim → niet-praktisch; code-comment erkent en accepteert dit al. Aanbevolen (alleen bij strenger
+  dreigingsmodel): compound-key `[endpoint,userId]` of ownership-check vóór herbinden.
+- **[LAAG · CLAUDE.md regel 5 — niet-atomaire audit-writes in enkele franchise-actions]** In o.a.
+  `franchise/diensten/actions.ts:setDienstStatus` en `franchise/opdrachtgevers/actions.ts:createOpdracht
+gever` staan de Prisma-mutatie en de daaropvolgende `audit()` als twee losse statements i.p.v. één
+  `$transaction`; sterft het proces ertussen dan bestaat de mutatie zonder audit-record. Platform-brede
+  bestaande conventie (niet franchise-specifiek), waarschijnlijk geaccepteerde trade-off. Aanbevolen:
+  state-wijzigende write + `auditData()` in `prisma.$transaction([...])` wikkelen (zoals `setLeadStatus`/
+  `addLeadContact` al doen).
+
 ## Ronde 2026-07-05 (basis: `main` @ 201b321)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle Opus security/privacy-subagents op niet-overlappende

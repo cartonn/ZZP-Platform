@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/privacy-auditronde: VerplichtingenPanel self-gate (2026-07-05)
+
+**Audit (orchestrator Opus 4.8 + 3 parallelle Opus security-subagents op niet-overlappende
+oppervlakken):** IDOR/authz over álle 24 `src/app/api/**`-routes, cross-tenant-isolatie over de 12
+franchise-actions + gedeelde data-laag, en cross-party-PII/injectie op de non-admin mutatie-oppervlakte
+
+- de nieuwe payment/creditor/vacancy-features. Kader: OWASP Top 10 + ASVS + AVG art. 5/15/17/30.
+  **Geen KRITIEK/HOOG gevonden** — de crown-jewels (storage path-traversal-guard + magic-byte-sniff,
+  CSV formule-injectie-guard, push-SSRF-allowlist, cron-auth timing-safe Bearer, `anonymizeUser`-erasure,
+  bulk-import mass-assignment-gate, billing-webhook re-fetch) zijn goed gehard; `npm audit` 0 prod-
+  kwetsbaarheden. Eén MIDDEL defense-in-depth-hardening gefixt (rood→groen).
+
+* **`src/components/administratie/verplichtingen-panel.tsx`**: het herbruikbare (CLIENT-only) paneel
+  laadde/toonde opdrachtgever-financiën zónder zelf de rol te checken — het leunde volledig op zijn
+  aanroepers. Nu `if (actor.role !== "CLIENT") return null;` vóór élke data-toegang (CLAUDE.md regel 1:
+  server-side is de waarheid; geen aanroeper-afhankelijke gating van kritieke status). Niet live-
+  exploiteerbaar (beide aanroepers gate'n vandaag), maar defense-in-depth tegen een toekomstige derde
+  aanroeper of hub-allowlist-regressie.
+* **`src/components/administratie/verplichtingen-panel.test.tsx`** (nieuw, 4 tests): FREELANCER/ADMIN →
+  `null` én géén data-load; CLIENT → rendert; vooraf-geladen items → geen extra query. Rood→groen bewezen.
+* **`docs/SECURITY-PRIVACY-BACKLOG.md`**: ronde toegevoegd (OPGELOST + 3 LAAG geparkeerd: eigen-data-
+  export-audit, push-endpoint-upsert-key, niet-atomaire franchise-audit-writes).
+* Gates: typecheck + lint + 3128 unit-tests + prettier + build groen.
+
 ## Vacaturetempo-kaart voor de opdrachtgever op /opdrachten/[id] (2026-07-05)
 
 **Waarde (opdrachtgever, "hoe presteert mijn vacature?"):** de opdracht-detailpagina toonde de
