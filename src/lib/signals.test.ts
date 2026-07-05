@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBadges,
+  countFreelancerCascadeWork,
   countUnreadConversations,
   startOfUtcDay,
   withActionCenterBadge,
 } from "./signals";
+import type { FreelancerCascadeCollab } from "./signals";
 
 describe("buildBadges", () => {
   it("laat items met telling 0 of ontbrekend weg", () => {
@@ -97,6 +99,70 @@ describe("buildBadges", () => {
     const badges = buildBadges({ overdueLeads: 1, openHandoffs: 4 });
     expect(badges["/franchise/leads"]).toEqual({ count: 1, tone: "attention" });
     expect(badges["/franchise/shift-overnames"]).toEqual({ count: 4, tone: "attention" });
+  });
+});
+
+describe("countFreelancerCascadeWork", () => {
+  const collab = (o: Partial<FreelancerCascadeCollab>): FreelancerCascadeCollab => ({
+    status: "ACTIVE",
+    latestPerformanceStatus: null,
+    openInvoiceStatuses: [],
+    ...o,
+  });
+
+  it("telt 0 zonder samenwerkingen", () => {
+    expect(countFreelancerCascadeWork([])).toBe(0);
+  });
+
+  it("telt een voorgestelde samenwerking als één taak (contract ondertekenen)", () => {
+    expect(countFreelancerCascadeWork([collab({ status: "PROPOSED" })])).toBe(1);
+  });
+
+  it("telt de indien-fase mee: ACTIVE zonder prestatie is de ZZP'er aan zet", () => {
+    expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: null })])).toBe(1);
+  });
+
+  it("telt een DRAFT-prestatie als indien-taak", () => {
+    expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: "DRAFT" })])).toBe(1);
+  });
+
+  it("telt een REJECTED-prestatie als corrigeer-taak", () => {
+    expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: "REJECTED" })])).toBe(1);
+  });
+
+  it("telt géén prestatietaak wanneer de opdrachtgever aan zet is (SUBMITTED/APPROVED)", () => {
+    expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: "SUBMITTED" })])).toBe(0);
+    expect(countFreelancerCascadeWork([collab({ latestPerformanceStatus: "APPROVED" })])).toBe(0);
+  });
+
+  it("telt elke openstaande factuur als aparte taak (indienen/corrigeren/betaling markeren)", () => {
+    expect(
+      countFreelancerCascadeWork([
+        collab({
+          latestPerformanceStatus: "SUBMITTED",
+          openInvoiceStatuses: ["DRAFT", "REJECTED", "APPROVED"],
+        }),
+      ]),
+    ).toBe(3);
+  });
+
+  it("combineert de indien-fase met een openstaande factuur op dezelfde samenwerking", () => {
+    // meerdere cycli: prestatie opnieuw in te dienen + een APPROVED-factuur te markeren
+    expect(
+      countFreelancerCascadeWork([
+        collab({ latestPerformanceStatus: "REJECTED", openInvoiceStatuses: ["APPROVED"] }),
+      ]),
+    ).toBe(2);
+  });
+
+  it("sommeert over meerdere samenwerkingen", () => {
+    expect(
+      countFreelancerCascadeWork([
+        collab({ status: "PROPOSED" }),
+        collab({ latestPerformanceStatus: null }),
+        collab({ latestPerformanceStatus: "SUBMITTED", openInvoiceStatuses: ["DRAFT"] }),
+      ]),
+    ).toBe(3);
   });
 });
 
