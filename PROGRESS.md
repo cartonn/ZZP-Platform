@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Matching/keuze-hulp 2026-07-05 — reistijd-signaal per kandidaat voor de opdrachtgever (PR #612)
+
+**Waarde (opdrachtgever, keuze op locatie):** `/kandidaten` toonde per kandidaat al match, tarief,
+agenda, startdatum-fit, vertrouwen en leverbetrouwbaarheid — maar niet _hoe ver_ de kandidaat reist.
+Voor een opdracht op locatie (ONSITE/HYBRID, o.a. zorg) is nabijheid een concrete keuzefactor:
+dichtbij = betrouwbaarder opdagen en minder reisbelasting. Benchmark: Pidz/Temper tonen shift-afstand.
+Dit is het opdrachtgever-spiegelbeeld van het reistijd-signaal dat de ZZP'er al op de
+opdracht-detailpagina ziet.
+
+- **`src/lib/candidate-proximity.ts`** (nieuw, puur): `classifyCandidateProximity({jobWorkMode,
+jobLocation, candidateLocation})` → `{minutes, level}` of `null` (geen chip) wanneer niet relevant
+  (REMOTE-opdracht) of niet te schatten (onbekende plaats aan één kant → `estimateTravelMinutes`
+  → null). Buckets `near ≤30` / `moderate ≤75` / `far`; `proximityLabel` ("Dichtbij · ~18 min"),
+  `PROXIMITY_VARIANT` (success/muted/warning). Hergebruikt de bestaande `estimateTravelMinutes`-stub
+  (mensenwerk vervangt die later door een echte routing-provider — aangrijpingspunt blijft gelijk);
+  raakt de matching-motor niet. 9 unit-tests.
+- **`kandidaten/page.tsx`**: reistijd-chip in de logistiek-regel (naast tarief/agenda/startdatum),
+  afgeleid uit de reeds geladen `job.workMode`/`job.location` + `freelancer.location` (geen extra
+  query). Toont niets bij een remote opdracht of onbekende plaats (geen misleidend signaal).
+- Gate: typecheck ✓, lint ✓ (0 warnings), **3094 unit-tests ✓** (9 nieuw), prettier ✓, build ✓.
+  Read-only, geen dode knoppen, geen schemawijziging.
+
 ## Administratie-ontzorging 2026-07-04 — debiteuren-overzicht per opdrachtgever ZZP'er (PR #611)
 
 **Waarde (ZZP'er, cashflow):** het facturen-scherm toonde één "Openstaand"-totaal, maar niet _wie_
