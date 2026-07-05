@@ -236,4 +236,27 @@ UI-taal = Nederlands.
   progressive disclosure (calm productivity), dev-tool-esthetiek (diff/commit/audit) die naar SaaS overwaait, fintech-
   ops dashboards (Mercury/Ramp/Stripe) met saldo-held & grote afgeronde grafieken, glanceable widget-home-metafoor,
   organisch dark-theme met bio-gloed i.p.v. neon, en erfgoed-materiaal (geaderd marmer + goud) als vertrouwensgebaar.
-- **Totaal nu op `/ontwerp`: 90 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90).
+- **91–100** — reeks 10, toegevoegd bovenop reeks 1–9 (run 5-7-2026): Agenda (kalender-first/time-blocking
+  à la Amie/Cron/Notion Calendar: dag-tijdraster met gekleurde tijdblokken, coral "nu"-lijn, matches als
+  inplanbare blokken) · Doek (oneindig freeform canvas tldraw/FigJam/Muse: zwevende kaarten op gestippeld
+  doek, relatielijnen, werkende zoom-chrome 60–140% + mini-map) · Kaart (swipe-deck matching, opdrachten als
+  speelkaart-deck, mobiel-first telefoon-frame met swipe-stempels en match-dial) · Gesprek (conversationeel
+  formulier à la Typeform: één vraag per scherm, voortgangsbalk, Enter↵-hints, verificatie als stap-voor-stap
+  wizard) · Bubbel (berichten-first chat-shell iMessage/WhatsApp-grade: alles een thread met tijdstempels,
+  lees-bevestiging en quick-replies, dashboard als inbox) · Montage (video-editor tijdlijn/scrubber Final Cut/
+  Premiere-grade dark pro: programma-monitor + tracks met clips, sleepbare playhead, zoombare tijdliniaal) ·
+  Groef (vinyl & hifi-warmte: album-hoes-tegels, concentrische-groeven-plaat, VU-meter uit data, "nu speelt"-
+  balk — Teenage Engineering × Braun) · Ringen (voortgangsringen/activity-app Apple-Fitness-grade, levendig
+  dark: verificatie/match/omzet als kleurrijke arcs, elke ring met numeriek label — nooit alleen kleur) ·
+  Delft (Delfts-blauw tegeltableau, Nederlands erfgoed: porseleinen tegel-velden met kobalt dubbelkader en
+  sierhoekjes, strak-modern niet kitsch) · Boekband (Penguin-klassieker tri-band paperback als redactionele
+  reeks: kop-/voetband + wit middenveld met serif-titel, bandkleur codeert categorie). Alle tien gebruiken
+  bestaande lab-fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks: calendar-first/time-blocking productiviteits-UX (Amie/Cron/Notion Calendar),
+  spatial/infinite-canvas & node-and-edge relatievisualisatie (tldraw/FigJam/Muse), swipe-deck/card-stack als
+  matching-paradigma, conversationeel/één-vraag-per-scherm formulieren (Typeform) voor kalme geleide flows,
+  chat-shell/berichten-first als besturingsmodel, pro-editor-tijdlijn (scrubber/tracks/timecode) die naar SaaS
+  overwaait, hifi/vinyl-materiaaltaal & tactiele nostalgie-premium (Teenage Engineering/Braun), activity-ringen als
+  glanceable voortgangs-metafoor, en cultureel-erfgoed-materiaal (Delfts-blauw keramiek, Penguin-boekomslag-systeem)
+  als vertrouwens- en herkenbaarheidsgebaar.
+- **Totaal nu op `/ontwerp`: 100 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100).
