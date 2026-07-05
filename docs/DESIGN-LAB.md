@@ -259,4 +259,28 @@ UI-taal = Nederlands.
   overwaait, hifi/vinyl-materiaaltaal & tactiele nostalgie-premium (Teenage Engineering/Braun), activity-ringen als
   glanceable voortgangs-metafoor, en cultureel-erfgoed-materiaal (Delfts-blauw keramiek, Penguin-boekomslag-systeem)
   als vertrouwens- en herkenbaarheidsgebaar.
-- **Totaal nu op `/ontwerp`: 100 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100).
+- **101–110** — reeks 11, toegevoegd bovenop reeks 1–10 (run 5-7-2026): Chroom (retrofuturistisch
+  liquid-metal/geborsteld chroom met glossy bevels en één elektrisch cyaan neon-accent, Y2K-optimisme —
+  METAAL als hoofdmateriaal, licht i.p.v. neon-op-zwart) · Verhaal (scrollytelling/data-storytelling:
+  het dashboard leest als een scrollend narratief, cijfers in volzinnen, redactionele koppen en
+  progressive reveal i.p.v. tegelwand) · Kliniek (klinisch medisch dossier: koel mint/teal op wit,
+  medicijn-etiket-monospace-labels, hairlines en status-codes — direct passend bij BIG/VOG/diploma's) ·
+  Meteo (weerbericht-datakaart/KNMI-taal: isobaren-SVG, blauw→rood heatzones voor match-druk,
+  druk/wind/temp-meetwaarden) · Karton (kraft/corrugated-textuur, dashed-stiksel-randen, roterende
+  stempel-badges, eco/sustainability & verzend-metafoor — niet beton) · Röntgen (medische scan: diep
+  antraciet met lichtgevende cyaan lijn-art, scan-glow, contour-percentages — "doorlichten" als
+  vertrouwensmetafoor bij verificatie) · Perkament (verlucht manuscript: warm perkament, kalligrafische
+  koppen, drop-cap sier-initialen en pure-CSS bladgoud/wax-verificatiezegels — herkomst & ambacht) ·
+  Nachtdienst (warme blauwlicht-arme nacht-modus voor avond/nachtdiensten in de zorg: gedimd amber op
+  houtskool, `isNightShift()` licht avond/nacht-opdrachten uit) · Constructie (Russisch constructivisme/
+  agitprop: diagonale rode balk + schuine assen, vette Bricolage-kapitalen, blok-nummering, streng
+  rood/zwart — data blijft rechtop leesbaar) · Fresco (renaissance-fresco: kalkpleister-textuur via
+  radiale gradients, terracotta + azuriet-pigment, klassieke gecentreerde composities/tondo, Instrument
+  Serif-kapitalen). Alle tien gebruiken bestaande lab-fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks: retrofuturisme/Y2K-optimisme & liquid-metal/chrome-materiaaltaal,
+  data-storytelling/scrollytelling (narratief boven dichtheid, progressive disclosure), calm serif +
+  ledger-numerals typografie, sustainability/"machine-experience" met eerlijk-materiaal (kraft/karton),
+  domein-native esthetiek voor de zorg (klinisch dossier, medische scan/doorlicht, blauwlicht-arme
+  nacht-modus voor nachtdiensten), heritage/craft als vertrouwensgebaar (verlucht manuscript + bladgoud),
+  en historische kunststromingen als dashboard-affiche (constructivisme, renaissance-fresco).
+- **Totaal nu op `/ontwerp`: 110 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110).
