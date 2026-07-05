@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Lead-pijplijn-samenvatting voor de bemiddelaar op `/franchise/leads` (2026-07-05, PR #627)
+
+**Waarde (bemiddelaar, "waar staat mijn acquisitie en wat vraagt nu actie?"):** het lead-overzicht
+had per-stadium filter-tabs en een per-lead stilte-signaal, maar geen overzicht bovenaan. Nu een
+samenvattingsstrip die de per-tab-informatie aanvult met precies wat die tabs niet geven: de actieve
+pijplijn (koud + warm), het aandachtssignaal (stille warme + te-laat opgevolgde leads, zonder
+dubbeltelling) en de conversieratio (klant / beslist). Vertaalt de acquisitie-CRM-diepte van de
+concurrenten naar ons verklaarbare, server-berekende overzicht; spiegel van de `JobPipelineStrip`/
+`OutcomesSummary`-patronen die de andere rollen al hebben.
+
+- **`src/lib/lead-pipeline.ts`** (nieuw, puur): `summarizeLeadPipeline(leads, now)` →
+  `{total, byStatus, active, won, decided, stale, overdueFollowUps, attention, conversionRate}`.
+  Deterministisch: telt per stadium, hergebruikt `isLeadStale` (alleen WARM telt als "stil"), rekent
+  een te-late opvolging alleen op een actieve lead (koud/warm), telt stil+te-laat één keer als
+  aandacht, en onderdrukt de conversieratio onder `LEAD_CONVERSION_MIN_SAMPLE=4` (voorkomt misleidende
+  100%). Negeert defensief een onbekend stadium. 8 unit-tests.
+- **`src/components/franchise/lead-pipeline-strip.tsx`** (nieuw, presentationeel): 4 `StatCard`s
+  (Actieve pijplijn / Aandacht nodig / Klant geworden / Totaal in beeld) met status-taal-tonen;
+  verbergt zich bij een lege pijplijn.
+- **`src/app/(protected)/franchise/leads/page.tsx`**: één tenant-gescopete query over de héle pijplijn
+  (de samenvatting is filter-onafhankelijk); status-/zoekfilter + sortering draaien nu in-memory over
+  dezelfde rijen — **geen tweede query**. Strip onder de PageHeader. `unbounded-queries.test.ts`-
+  allowlist-regelnr bijgewerkt (34 → 45).
+- **Gate:** typecheck ✓, lint ✓ (0 warnings), prettier ✓ (hele repo), **3179 unit-tests** ✓ (10 nieuw),
+  build ✓. Server-side waarheid, geen dode knoppen, geen schemawijziging.
+
 ## Ontwerp-lab reeks 11 — +10 concepten (nrs 101–110), totaal 110 op `/ontwerp` (2026-07-05)
 
 **Waarde:** de galerij op `/ontwerp` groeit additief van 100 → 110 onderscheidende, top-1% redesign-

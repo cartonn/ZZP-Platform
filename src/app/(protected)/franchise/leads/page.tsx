@@ -12,6 +12,8 @@ import {
   daysSinceContact,
   isLeadStale,
 } from "@/lib/leads";
+import { summarizeLeadPipeline } from "@/lib/lead-pipeline";
+import { LeadPipelineStrip } from "@/components/franchise/lead-pipeline-strip";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,14 +39,11 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
   const q = first(sp.q).trim();
   const hasFilter = Boolean(statusFilter || q);
 
+  // Eén tenant-gescopete query over de héle pijplijn: de samenvatting bovenaan moet de volledige
+  // acquisitie tonen, onafhankelijk van het actieve status-/zoekfilter. Filteren + zoeken gebeurt
+  // daarna in-memory (leadvolume per franchise is klein) — geen tweede query.
   const rows = await prisma.lead.findMany({
-    where: {
-      ...tenantScopeWhere(actor),
-      ...(statusFilter ? { status: statusFilter } : {}),
-      ...(q
-        ? { OR: [{ organizationName: { contains: q } }, { contactName: { contains: q } }] }
-        : {}),
-    },
+    where: tenantScopeWhere(actor),
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { contacts: true } },
@@ -54,14 +53,35 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
   });
 
   const now = new Date();
-  // Verrijk met de "dagen geen contact"-teller en het stilte-signaal (server-side waarheid),
-  // en sorteer stille warme leads bovenaan via de pure comparator.
-  const leads = rows
-    .map((l) => {
-      const status = l.status as LeadStatus;
-      const stillDays = daysSinceContact(now, l.createdAt, l.contacts[0]?.createdAt ?? null);
-      return { ...l, status, stillDays, stale: isLeadStale(status, stillDays) };
-    })
+  // Verrijk met de "dagen geen contact"-teller en het stilte-signaal (server-side waarheid).
+  const enriched = rows.map((l) => {
+    const status = l.status as LeadStatus;
+    const stillDays = daysSinceContact(now, l.createdAt, l.contacts[0]?.createdAt ?? null);
+    return { ...l, status, stillDays, stale: isLeadStale(status, stillDays) };
+  });
+
+  // Volledige-pijplijn-samenvatting (per-stadium, aandacht = stil/te-laat, conversie) — over álle
+  // leads, niet enkel de gefilterde weergave.
+  const summary = summarizeLeadPipeline(
+    enriched.map((l) => ({
+      status: l.status,
+      daysSinceContact: l.stillDays,
+      nextFollowUp: l.nextFollowUp,
+    })),
+    now,
+  );
+
+  // Pas het gekozen status-/zoekfilter toe op de weergavelijst en sorteer stille warme leads
+  // bovenaan via de pure comparator (zoeken case-insensitief op organisatie of contactpersoon).
+  const qLower = q.toLowerCase();
+  const leads = enriched
+    .filter((l) => (statusFilter ? l.status === statusFilter : true))
+    .filter((l) =>
+      q
+        ? l.organizationName.toLowerCase().includes(qLower) ||
+          (l.contactName?.toLowerCase().includes(qLower) ?? false)
+        : true,
+    )
     .sort((a, b) =>
       compareLeadsForList(
         { status: a.status, daysSinceContact: a.stillDays, createdAt: a.createdAt },
@@ -89,6 +109,8 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
         title="Leads"
         description="Je acquisitie-pijplijn: organisaties die je nog wilt binnenhalen, met hun contactgeschiedenis."
       />
+
+      <LeadPipelineStrip summary={summary} />
 
       <LeadComposer />
 
