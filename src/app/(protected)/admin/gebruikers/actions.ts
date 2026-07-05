@@ -128,6 +128,15 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { authorId: userId },
       data: { body: "[Bericht verwijderd op verzoek van de gebruiker]" },
     }),
+    // Het onderwerp van een eigen supportticket is vrije tekst die de betrokkene zélf typte bij het
+    // openen (kan naam/adres/telefoon/documentdetail bevatten). De ticket blijft als geanonimiseerd
+    // record staan (operationele historie + `userId`), maar het onderwerp moet mee — anders blijft de
+    // persoon herleidbaar uit zijn eigen woorden (spiegelbeeld van de SupportMessage.body-redactie
+    // hierboven; het veld is niet-nullable → neutrale redactiestring).
+    prisma.supportTicket.updateMany({
+      where: { userId },
+      data: { subject: "[Verwijderd op verzoek van de gebruiker]" },
+    }),
     prisma.ideaComment.updateMany({
       where: { authorId: userId },
       data: { body: "[Reactie verwijderd op verzoek van de gebruiker]" },

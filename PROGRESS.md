@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/Privacy-audit 2026-07-05 — `SupportTicket.subject` mee in de erasure (AVG art. 17)
+
+**Waarde (betrokkene, recht op vergetelheid):** een security-/privacy-auditronde (orchestrator Opus 4.8
+
+- 3 parallelle Opus-subagents op cross-tenant/IDOR, AVG-erasure/export-volledigheid en CSV-/PDF-authz)
+  vond één echt gat: `anonymizeUser` redacteerde wél `SupportMessage.body` maar niet het door de gebruiker
+  zélf getypte **onderwerp** van diens supporttickets — dat bleef verbatim en herleidbaar staan (en zit in
+  de AVG-inzage-export). Gedicht: `supportTicket.updateMany({ where: { userId }, data: { subject: … } })`
+  in de anonimiseringstransactie.
+
+* **Bestanden:** `src/app/(protected)/admin/gebruikers/actions.ts` (+redactieregel),
+  `src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (+mock + case, rood→groen bewezen),
+  `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-07-05: OPGELOST + 3 geparkeerde items).
+* **Geparkeerd:** `NoShowReport.reason` (erasure-vs-bewaargrond → MENSENWERK/DPO), export-pariteit voor
+  enkele eigen vrije-tekstvelden (LAAG), `/api/agenda` zonder rate-limit/audit (LAAG, consistentie).
+* **Geen nieuwe gaten** in cross-tenant/IDOR, CSV-/PDF-authz, crown-jewel-endpoints, CSP, cron-auth,
+  billing-webhook, rate-limiters of de ICS-builder; `npm audit` 0 prod-kwetsbaarheden.
+* Gate: typecheck ✓, lint ✓, test ✓, build ✓, prettier ✓ — CI-poort geverifieerd op de PR.
+
 ## Ontwerp-lab 2026-07-05 — reeks 9: +10 concepten (nrs 81–90) op `/ontwerp`
 
 **Waarde (eigenaar, richtingkeuze herontwerp):** het publieke, inlogvrije design-lab groeide van 80 →

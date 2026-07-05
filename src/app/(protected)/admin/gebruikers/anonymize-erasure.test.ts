@@ -47,6 +47,7 @@ vi.mock("@/lib/db", () => ({
     message: { updateMany: op("message.updateMany") },
     application: { updateMany: op("application.updateMany") },
     supportMessage: { updateMany: op("supportMessage.updateMany") },
+    supportTicket: { updateMany: op("supportTicket.updateMany") },
     ideaComment: { updateMany: op("ideaComment.updateMany") },
     review: { updateMany: op("review.updateMany") },
     shiftHandoff: { updateMany: op("shiftHandoff.updateMany") },
@@ -90,6 +91,14 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ authorId: "user-42" });
     expect((o.args.data as { body: string }).body).toMatch(/verwijderd/i);
+  });
+
+  it("redact het onderwerp van eigen supporttickets (SupportTicket.subject)", async () => {
+    await anonymizeUser("user-42");
+    const o = find("supportTicket.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ userId: "user-42" });
+    expect((o.args.data as { subject: string }).subject).toMatch(/verwijderd/i);
   });
 
   it("redact eigen idee-reacties (IdeaComment.body)", async () => {
