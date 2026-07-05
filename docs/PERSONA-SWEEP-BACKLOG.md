@@ -1,5 +1,46 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-05 (run 11) · **main-commit basis:** `99a1b7a`
+> **Uitkomst:** **GEEN nieuwe gaten.** ~62 geautomatiseerde probes over 4 rollen (login, screens,
+> privilege-escalatie, IDOR/cross-partij, cross-tenant, document-privacy, XSS, robuustheid, cron-auth)
+>
+> - een **DB-brede cascade↔next-action-consistentie-audit (0 mismatches over alle 13 samenwerkingen)**
+> - één **live DOEL-1-actie end-to-end** (admin keurt `cred-bram-VOG` goed via de echte knop). Geen
+>   reparatie nodig; deze run is documentatie-only.
+>
+> ## Samenvatting run 11 — CLEAN (spoort met runs 6–10)
+>
+> **DOEL 1 (echte actie + server-side geverifieerd):** ADMIN klikte "Goedkeuren" op
+> `/admin/verificaties` voor Bram's VOG → tegen de DB bevestigd: `cred-bram-VOG` **SUBMITTED→VERIFIED**
+> met `verifiedAt`, audit `CREDENTIAL_VERIFIED` met `actorId`=admin, notificatie "Certificaat
+> goedgekeurd" naar Bram, en de SUBMITTED-teller **6→5** (de actie verdween uit `/acties`). **~55
+> kernschermen** over 4 rollen laadden HTTP 200 met de juiste rol-shell; **nul 500's/crashes**; 4
+> logins OK. Malicieuze prestatie-invoer (negatieve/absurde uren, >1000u, negatief bedrag) wordt
+> server-side geweigerd door `validatePerformanceForm` (aangeroepen vóór persist in
+> `samenwerkingen/[id]/actions.ts`); de resubmit-actie bindt het tarief hard aan de eigen samenwerking
+> (expliciete A01/IDOR-verdediging tegen financiële manipulatie).
+>
+> **DOEL 1b (next-action-engine):** een DB-audit repliceerde `cascade/stage.ts` + de collab-lus van
+> `pending-tasks.ts` voor **elke** PROPOSED/ACTIVE/COMPLETED/CANCELLED-samenwerking en vergeleek
+> `youAreUp` (fase) met de aanwezigheid van een pending-task, per partij → **0 mismatches** in alle
+> cascade-fasen (contract-sign, performance-submit/approve, invoice-submit/approve, payment). `/acties`
+> per rol kruis-gecheckt tegen de DB: ADMIN 6 "Beoordeel het certificaat" = 6 SUBMITTED-credentials;
+> FREELANCER (Sanne) 2 (ontbrekend Verzekering-doc + "Beantwoord Mark Jansen"); CLIENT 5 (2 berichten,
+> 3 nieuwe reacties, bedrijf 90%, 1 concept); FRANCHISER terecht "Alles is afgehandeld".
+>
+> **DOEL 2 (adversarieel, ~35 probes):** privilege-escalatie (FREELANCER/CLIENT/FRANCHISER →
+> `/admin/*`, franchise-only) → **redirect naar eigen dashboard**; IDOR/cross-partij (andermans
+> `/samenwerkingen/<id>`, `/facturen/<id>`) → **soft-404 "Niet gevonden · geen toegang"** zonder
+> veldlek (inhoud identiek aan een garbage-id); cross-tenant (FRANCHISER → default-tenant profiel) →
+> soft-404; document-privacy (`/api/documents/<id>`: eigenaar + ADMIN → 200 `%PDF`; CLIENT/FRANCHISER/
+> vreemde FREELANCER → 403 `Geen toegang`; garbage → 404); XSS in `?status=`/`?q=` → **0
+> scriptuitvoering** (React-escaping); cron-auth (`/api/tasks/run-all`) → **CRON_SECRET-gated** (503
+> zonder secret, 401 bij fout token); robuustheid → soft-404, **0 HTTP-500's over de hele run**. Geen
+> nieuwe gaten. De twee 404-vlaggen (`/admin`, `/franchise/rooster`) waren probe-padfouten — beide
+> routes bestaan niet en geen enkele nav-link verwijst ernaar.
+>
+> ---
+>
 > **Datum:** 2026-07-05 (run 10) · **main-commit basis:** `a86e415`
 > **Methode:** verse productie-build (`npm install` → `npm run build`), schema-push (`prisma db push`)
 > en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`); productie-server
