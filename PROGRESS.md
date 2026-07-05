@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid: CSP-violatie-rapportage-endpoint (2026-07-05, PR #624)
+
+**Wat:** observability-laag onder de al gedeployde Content-Security-Policy. De policy stuurde nog
+nergens violatie-rapporten heen; nu wel — nodig om injectiepogingen te zien én om de policy later
+veilig te verstrakken (de `'unsafe-inline'`-scriptfallback laten vallen).
+
+- **`src/lib/observability/csp-report.ts`** (puur) — `parseCspReport` normaliseert zowel de legacy
+  `report-uri`-vorm (`{ "csp-report": {…} }`) als de moderne Reporting-API-array
+  (`[{ type:"csp-violation", body:{…} }]`) naar een PII-arme `NormalizedCspViolation`. AVG-hardening:
+  document-URL → alleen pad (query/tokens weg), geblokkeerde/bron-URL → alleen origin, referrer/
+  user-agent/original-policy weggegooid, sample afgekapt op `MAX_SAMPLE_LEN`, max
+  `MAX_VIOLATIONS_PER_REPORT`. Helpers `toBlockedOrigin`/`toDocumentPath`/`toSourceFile`.
+- **`src/app/api/csp-report/route.ts`** — publiek (ongeauthenticeerd) POST-endpoint: rate-limit vóór
+  parsen, body-cap 16 KB, altijd 204 (429 bij overschrijding), logt `csp-violation` via de
+  gestructureerde logger. Toegevoegd aan `isPublicPath` (browser POST't zonder sessie, óók vanaf
+  `/login`).
+- **`src/lib/csp.ts`** — `buildCsp` bevat nu `report-to`/`report-uri`; `reportingEndpointsHeader()`
+  gekoppeld in `src/middleware.ts` (`Reporting-Endpoints`-responseheader).
+- **`src/lib/rate-limit.ts`** — `cspReportRateLimiter` (default 30/min/IP, `CSP_REPORT_RATE_LIMIT`).
+
+**Checks:** typecheck ✓, lint ✓ (0 warnings), prettier ✓, **3157 unit-tests** ✓ (39 nieuw: parser +
+route + csp/route-guards), `next build` ✓ (202 pagina's). Geen schemawijziging. Inert/veilig zonder
+externe secrets; alle rapporten landen in de hostlogs. Rest = mensenwerk (optioneel monitoren/
+verstrakken; zie MENSENWERK §0b).
+
 ## Security/privacy-auditronde: VerplichtingenPanel self-gate (2026-07-05)
 
 **Audit (orchestrator Opus 4.8 + 3 parallelle Opus security-subagents op niet-overlappende

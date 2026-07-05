@@ -75,6 +75,19 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   (`npm i @sentry/nextjs`) en externe monitoring activeert vanzelf. Zolang dat ontbreekt draait alles
   veilig door op gestructureerd loggen — niets te doen voor de pilot. Optioneel: `LOG_LEVEL`
   (debug/info/warn/error, default info).
+- **CSP-violatie-rapportage aanzetten/monitoren** (laag, code-kant GEDAAN 5-7-2026): de
+  Content-Security-Policy stuurt nu violatie-rapporten naar een eigen endpoint (`/api/csp-report`)
+  via `report-to` (moderne Reporting API + `Reporting-Endpoints`-header) én `report-uri` (fallback,
+  `src/lib/csp.ts` + `src/middleware.ts`). Rapporten worden PII-arm genormaliseerd
+  (`src/lib/observability/csp-report.ts`: document-URL → alleen pad, geblokkeerde/bron-URL → alleen
+  origin, referrer/user-agent/original-policy weggegooid, sample afgekapt) en gestructureerd gelogd
+  (`csp-violation`, rate-limited per IP). **Waarde:** je ziet nu in productie wat de policy blokkeert
+  → nodig om (a) injectiepogingen te detecteren en (b) de policy later veilig te verstrakken (de
+  `'unsafe-inline'`-scriptfallback laten vallen zodra de logs bevestigen dat legitieme code niet
+  meer geraakt wordt). Resterend mensenwerk: **niets voor de pilot** — de rapporten landen automatisch
+  in de hostlogs (Railway/Datadog). Optioneel: hang na een paar dagen productie een monitor op de
+  `csp-violation`-logregels en verstrak de policy op basis daarvan (of stuur `SENTRY_DSN` mee zodat
+  ze ook extern zichtbaar worden).
 - **Dependency graph + Dependabot aanzetten** (laag, web-toggle): de `dependency-review`-poort
   vereist GitHub's Dependency graph. Zet die (en Dependabot security updates) aan op
   github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check draait

@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **CSP-violatie-rapportage-endpoint (prod-rijpheid, PR #624)** — de al
+> gedeployde CSP stuurt nu violatie-rapporten naar `/api/csp-report` via `report-to`
+> (Reporting-Endpoints-header) + `report-uri`-fallback. Pure `src/lib/observability/csp-report.ts`
+> `parseCspReport` (legacy + moderne vorm → PII-arme `NormalizedCspViolation`: document→pad,
+> blocked/source→origin, referrer/UA/policy weg, sample afgekapt, max 10); publieke rate-limited
+> POST-route (altijd 204, body-cap 16 KB, `cspReportRateLimiter` 30/min/IP), `isPublicPath` +
+> `Reporting-Endpoints`-header in de middleware. Levert de observability om injectie te zien én de
+> policy later te verstrakken (`'unsafe-inline'`-scriptfallback laten vallen). 39 nieuwe tests, geen
+> schemawijziging. Rest = mensenwerk (optioneel monitoren; MENSENWERK §0b).
+
 > Gedaan (niet opnieuw): **Vacaturetempo-kaart voor de opdrachtgever op /opdrachten/[id]** — pure
 > `lib/job-vacancy-performance.ts` `summarizeVacancyPerformance` (dagen open, reacties/week, eerste
 > reactie, momentum, pace strong/steady/slow/cold met dezelfde koud-drempels als `job-engagement.ts`,
