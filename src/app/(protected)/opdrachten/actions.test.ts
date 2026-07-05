@@ -17,6 +17,9 @@ const store = {
   },
   job: null as Record<string, unknown> | null,
   updated: [] as Array<Record<string, unknown>>,
+  freelancer: null as Record<string, unknown> | null,
+  invitedAuditCount: 0,
+  notifications: [] as Array<Record<string, unknown>>,
 };
 
 const auditMock = vi.hoisted(() => vi.fn(async () => {}));
@@ -55,11 +58,19 @@ vi.mock("@/lib/db", () => ({
     plan: { findUnique: vi.fn(async () => ({ maxJobs: 1 })) },
     company: { findUnique: vi.fn(async () => ({ id: "co-1", name: "Testbedrijf" })) },
     favoriteFreelancer: { findMany: vi.fn(async () => []) },
-    notification: { createMany: vi.fn(async () => ({ count: 0 })) },
+    freelancerProfile: { findFirst: vi.fn(async () => store.freelancer) },
+    auditLog: { count: vi.fn(async () => store.invitedAuditCount) },
+    notification: {
+      createMany: vi.fn(async () => ({ count: 0 })),
+      create: vi.fn(async (args: { data: Record<string, unknown> }) => {
+        store.notifications.push(args.data);
+        return { id: "notif-1", ...args.data };
+      }),
+    },
   },
 }));
 
-import { changeJobStatus } from "./actions";
+import { changeJobStatus, inviteFreelancerToJob } from "./actions";
 
 function draftJob(overrides: Record<string, unknown> = {}) {
   return {
@@ -95,5 +106,81 @@ describe("changeJobStatus — publiceer-pad (hergebruikt door 'Opslaan & publice
     const result = await changeJobStatus("job-1", "PUBLISHED");
     expect(result?.error).toMatch(/Ongeldige opdracht-statusovergang/);
     expect(store.updated).toHaveLength(0);
+  });
+});
+
+function publishedJobForInvite(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "job-1",
+    title: "Wijkverpleegkundige",
+    status: "PUBLISHED",
+    company: { userId: "client-1", name: "Thuiszorg Noord" },
+    ...overrides,
+  };
+}
+
+describe("inviteFreelancerToJob — directe uitnodiging", () => {
+  beforeEach(() => {
+    store.notifications = [];
+    store.invitedAuditCount = 0;
+    store.freelancer = { id: "fp-1", user: { id: "user-9" }, applications: [] };
+    auditMock.mockClear();
+  });
+
+  it("nodigt een vindbare ZZP'er uit: notificatie naar de ZZP'er + JOB_INVITED-audit", async () => {
+    store.job = publishedJobForInvite();
+    await inviteFreelancerToJob("job-1", "fp-1");
+    expect(store.notifications).toHaveLength(1);
+    expect(store.notifications[0]).toMatchObject({
+      userId: "user-9",
+      type: "JOB_INVITE",
+      link: "/opdrachten/job-1",
+    });
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "JOB_INVITED",
+        entityType: "Job",
+        entityId: "job-1",
+        metadata: { freelancerId: "fp-1" },
+      }),
+    );
+  });
+
+  it("is een stille no-op op een niet-gepubliceerde opdracht", async () => {
+    store.job = publishedJobForInvite({ status: "CLOSED" });
+    await inviteFreelancerToJob("job-1", "fp-1");
+    expect(store.notifications).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalled();
+  });
+
+  it("is een stille no-op wanneer de ZZP'er niet (meer) vindbaar is", async () => {
+    store.job = publishedJobForInvite();
+    store.freelancer = null;
+    await inviteFreelancerToJob("job-1", "fp-1");
+    expect(store.notifications).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalled();
+  });
+
+  it("nodigt niet nogmaals uit als er al een JOB_INVITED-audit is (idempotent)", async () => {
+    store.job = publishedJobForInvite();
+    store.invitedAuditCount = 1;
+    await inviteFreelancerToJob("job-1", "fp-1");
+    expect(store.notifications).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalled();
+  });
+
+  it("nodigt niet uit als de ZZP'er al reageerde", async () => {
+    store.job = publishedJobForInvite();
+    store.freelancer = { id: "fp-1", user: { id: "user-9" }, applications: [{ id: "app-1" }] };
+    await inviteFreelancerToJob("job-1", "fp-1");
+    expect(store.notifications).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalled();
+  });
+
+  it("is een stille no-op als de opdracht niet bestaat", async () => {
+    store.job = null;
+    await inviteFreelancerToJob("job-x", "fp-1");
+    expect(store.notifications).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalled();
   });
 });

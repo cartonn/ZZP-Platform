@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Directe uitnodiging — opdrachtgever nodigt passende ZZP'er uit voor een
+> opdracht (PR #625)** — vanaf de "Geschikte ZZP'ers"-sectie op `/opdrachten/[id]` nodigt de eigenaar
+> met één klik een gescoorde, openbare, nog-niet-reagerende ZZP'er uit; de ZZP'er krijgt een
+> `JOB_INVITE`-notificatie met deeplink en kan direct reageren. Pure `lib/job-invite.ts`
+> (`assessInviteEligibility` + `buildJobInviteNotification`, 8 tests); server-action
+> `inviteFreelancerToJob` (auth→rol CLIENT→ownership→eligibility→Notification+`JOB_INVITED`-audit,
+> idempotent via het auditrecord, soft-return bij races, 6 action-tests); "Uitgenodigd"-badge voor
+> reeds-uitgenodigde ZZP'ers. Geen schemawijziging (Notification + audit, zoals flexpool-routing).
+> Vertaalt de auto-uitnodiging-liquiditeit van Temper/Pidz naar onze verklaarbare matching; vult het
+> gat naast de publicatie-flexpool (`pool-routing.ts`, alleen eigen poule).
+
 > Gedaan (niet opnieuw): **CSP-violatie-rapportage-endpoint (prod-rijpheid, PR #624)** — de al
 > gedeployde CSP stuurt nu violatie-rapporten naar `/api/csp-report` via `report-to`
 > (Reporting-Endpoints-header) + `report-uri`-fallback. Pure `src/lib/observability/csp-report.ts`

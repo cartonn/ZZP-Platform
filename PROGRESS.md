@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Directe uitnodiging — opdrachtgever nodigt passende ZZP'er uit voor een opdracht (2026-07-05, PR #625)
+
+**Waarde (opdrachtgever + ZZP'er, liquiditeit):** de "Geschikte ZZP'ers"-sectie op `/opdrachten/[id]`
+liet de eigenaar wél passende, nog-niet-reagerende ZZP'ers zien met "Bericht sturen", maar er was geen
+manier om iemand gericht **uit te nodigen om te reageren**. Concurrenten (Temper/Pidz/Zorgwerk) winnen op
+liquiditeit via auto-uitnodiging "binnen uren"; wij vertalen dat naar onze verklaarbare matching: de
+opdrachtgever nodigt met één klik een gescoorde kandidaat uit, de ZZP'er krijgt een notificatie met
+deeplink naar de opdracht en kan direct reageren. Vult het gat naast de automatische flexpool-routing
+bij publicatie (`pool-routing.ts`) — dat raakt alleen eigen poule-leden; dit werkt op elke passende,
+openbare ZZP'er.
+
+- **`src/lib/job-invite.ts`** (nieuw, puur): `assessInviteEligibility({jobStatus, alreadyApplied,
+alreadyInvited, discoverable})` → deterministische poort (PUBLISHED + vindbaar + niet-reagerend +
+  niet-al-uitgenodigd) en `buildJobInviteNotification({jobId,jobTitle,companyName})` → notificatie-
+  inhoud met deeplink (één bron van waarheid, nette fallback-teksten). 8 unit-tests.
+- **`src/app/(protected)/opdrachten/actions.ts`** — `inviteFreelancerToJob(jobId, freelancerProfileId)`:
+  volledige mutatieketen auth→rol CLIENT→ownership→server-side eligibility→actie→audit. Geen
+  schemawijziging: een `Notification` (type `JOB_INVITE`) naar de ZZP'er + een gezaghebbend
+  `JOB_INVITED`-auditrecord (identiek patroon als flexpool-routing); het auditrecord is óók de dedup-/UI-
+  bron. Idempotent + soft-return bij races/afwezige entiteiten (nooit een 500, geen veldlek). 6 nieuwe
+  action-tests (mocked IO) in `actions.test.ts`.
+- **`src/app/(protected)/opdrachten/[id]/page.tsx`** — per geschikte ZZP'er een "Nodig uit"-knop; reeds
+  uitgenodigde ZZP'ers tonen een "Uitgenodigd"-badge (uit de `JOB_INVITED`-audit, begrensd `take:200`).
+  "Bericht sturen" verschoof naar `variant="ghost"` (secundair naast de primaire uitnodiging).
+- **`src/lib/notifications.ts`** `JOB_INVITE` (collaboration/attention) + **`src/lib/audit-labels.ts`**
+  `JOB_INVITED`.
+- Gate: typecheck ✓, lint ✓ (0 warnings), prettier ✓, **3171 unit-tests ✓** (14 nieuw), build ✓.
+  Server-side waarheid, geen dode knoppen, geen schemawijziging.
+
 ## Prod-rijpheid: CSP-violatie-rapportage-endpoint (2026-07-05, PR #624)
 
 **Wat:** observability-laag onder de al gedeployde Content-Security-Policy. De policy stuurde nog

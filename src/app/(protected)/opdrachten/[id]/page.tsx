@@ -57,7 +57,7 @@ import {
   MODEL_AGREEMENT_LABELS,
   type ModelAgreementType,
 } from "@/lib/model-agreement";
-import { createApplication } from "../actions";
+import { createApplication, inviteFreelancerToJob } from "../actions";
 import { JobStatusButton } from "./job-status-button";
 import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import { ApplicationForm } from "./application-form";
@@ -287,6 +287,28 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       return 0;
     }
   })();
+
+  // Directe uitnodigingen die de eigenaar al voor deze opdracht verstuurde (gezaghebbend uit de
+  // JOB_INVITED-auditrecords) → zet de knop per geschikte ZZP'er om in een "Uitgenodigd"-badge.
+  const invitedFreelancerIds = new Set<string>(
+    isOwner && suggestions.length > 0
+      ? (
+          await prisma.auditLog.findMany({
+            where: { entityType: "Job", entityId: job.id, action: "JOB_INVITED" },
+            select: { metadata: true },
+            take: 200,
+          })
+        ).flatMap((log) => {
+          if (!log.metadata) return [];
+          try {
+            const meta = JSON.parse(log.metadata) as { freelancerId?: unknown };
+            return typeof meta.freelancerId === "string" ? [meta.freelancerId] : [];
+          } catch {
+            return [];
+          }
+        })
+      : [],
+  );
 
   const { t } = await getTranslator();
 
@@ -562,8 +584,19 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                     </span>
                     <MatchMeter score={f.score} />
                   </span>
+                  {invitedFreelancerIds.has(f.freelancerId) ? (
+                    <span className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/5 px-2 py-1 text-xs font-medium text-success">
+                      <Check className="size-3.5" aria-hidden /> Uitgenodigd
+                    </span>
+                  ) : (
+                    <form action={inviteFreelancerToJob.bind(null, job.id, f.freelancerId)}>
+                      <Button type="submit" variant="secondary" size="sm">
+                        Nodig uit
+                      </Button>
+                    </form>
+                  )}
                   <form action={startConversationWithFreelancer.bind(null, job.id, f.freelancerId)}>
-                    <Button type="submit" variant="secondary" size="sm">
+                    <Button type="submit" variant="ghost" size="sm">
                       Bericht sturen
                     </Button>
                   </form>
