@@ -260,6 +260,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Vacaturetempo-kaart voor de opdrachtgever op /opdrachten/[id]** — pure
+> `lib/job-vacancy-performance.ts` `summarizeVacancyPerformance` (dagen open, reacties/week, eerste
+> reactie, momentum, pace strong/steady/slow/cold met dezelfde koud-drempels als `job-engagement.ts`,
+> verse opdracht terughoudend) + `JobVacancyPerformanceCard` boven `JobReachCard` (eigenaar, PUBLISHED).
+> Toont de doorlooptijd/snelheid die bereik (`job-reach`) en pijplijn (`job-pipeline`) niet dekken; de
+> on-screen tegenhanger van de notificatie-only `job-engagement.ts`. Begrensde reactie-scan (`take:500`),
+> geen schemawijziging, geen kandidaatgegevens gelekt; 8 unit-tests.
+
 > Gedaan (niet opnieuw): **Abonnement-periode-vervalcyclus (prod-rijpheid, PR #608)** — na een
 > eenmalige Mollie-betaling vervalt een betaald abonnement nu echt. Pure `subscription-lifecycle.ts`
 > (`isSubscriptionActive` + `planSubscriptionExpiry`, renewal-herinneringen dag 7/1, per-periode

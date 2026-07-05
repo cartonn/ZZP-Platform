@@ -44,6 +44,8 @@ import {
 import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { getJobReach } from "@/lib/data/job-reach";
 import { JobReachCard } from "@/components/jobs/job-reach-card";
+import { summarizeVacancyPerformance } from "@/lib/job-vacancy-performance";
+import { JobVacancyPerformanceCard } from "@/components/jobs/job-vacancy-performance-card";
 import { summarizeJobCompetition, type CompetitionSummary } from "@/lib/job-competition";
 import { JobCompetitionCard } from "@/components/jobs/job-competition-card";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
@@ -239,6 +241,25 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
     isOwner && status === "PUBLISHED"
       ? await Promise.all([suggestedFreelancersForJob(job.id), getJobReach(job.id)])
       : [[], null];
+
+  // Vacaturetempo voor de eigenaar: hoe presteert deze gepubliceerde opdracht in de tijd
+  // (dagen open, reacties/week, momentum). Afgeleid uit het publicatiemoment + de actieve
+  // reactie-tijdstempels; begrensde scan.
+  const vacancyPerformance =
+    isOwner && status === "PUBLISHED"
+      ? summarizeVacancyPerformance({
+          publishedAt: job.publishedAt ?? job.createdAt,
+          now: new Date(),
+          applicationDates: (
+            await prisma.application.findMany({
+              where: { jobId: job.id, status: { not: "WITHDRAWN" } },
+              orderBy: { createdAt: "asc" },
+              take: 500,
+              select: { createdAt: true },
+            })
+          ).map((a) => a.createdAt),
+        })
+      : null;
 
   // Voor de ZZP'er die deze opdracht bekijkt: andere open opdrachten die bij zijn profiel passen
   // (dezelfde verklaarbare matchmotor), met deze opdracht uitgesloten. Drijft ontdekking.
@@ -500,6 +521,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             </section>
           ) : null;
         })()}
+
+      {isOwner && vacancyPerformance && <JobVacancyPerformanceCard summary={vacancyPerformance} />}
 
       {isOwner && reach && <JobReachCard reach={reach} />}
 
