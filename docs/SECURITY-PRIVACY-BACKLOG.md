@@ -4,6 +4,64 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-05 (basis: `main` @ 201b321)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle Opus security/privacy-subagents op niet-overlappende
+oppervlakken — (1) cross-tenant/IDOR over ÁLLE franchise-server-actions + tenant-scoped reads,
+(2) AVG art. 17/15/20 erasure-/export-volledigheid van `anonymizeUser` vs. het volledige schema,
+(3) CSV-/formule-injectie in exports + authz/cross-party-PII/rate-limit op alle PDF-/dossier-/export-
+endpoints. Kader: OWASP Top 10 (A01 broken access control, A04 insecure design, A09 logging) +
+AVG art. 5/15/17/30. Zelf geverifieerd: crown-jewel-endpoints (`/api/documents/[id]` ownership+audit+
+CSP-sandbox, `/api/media/[...key]` logoKey-scope), cron-auth (timing-safe Bearer), billing-webhook
+(Mollie re-fetch-patroon: `id` is niet trust-bearing), CSP (nonce + strict-dynamic, `object-src none`,
+`frame-ancestors none`), rate-limiters (login/register/reset/credential-verify/upload/export/pdf/dossier),
+ICS-builder (`escapeIcsText` op SUMMARY/DESCRIPTION/LOCATION → geen iCal-injectie), credential-zelf-
+verificatie (DUO/BIG: auth→rol→rate-limit→ownership→type-guard). `npm audit`: 0 prod-kwetsbaarheden.
+**Cross-tenant/IDOR: geen nieuwe gaten** (tenantId nooit uit client-input; elke duale mutatie scopet
+béide resources). **CSV/PDF-authz: geen nieuwe gaten** (`escapeCsvField` neutraliseert `= + @ TAB CR`
+
+- niet-numerieke `-`; elke PDF-route ownership+audit+rate-limit). Eén privacy-bevinding gefixt
+  (rood→groen); rest geparkeerd.
+
+### OPGELOST in deze ronde
+
+- **[HOOG→OPGELOST · AVG art. 17 (recht op vergetelheid) — `SupportTicket.subject` overleefde de
+  anonimisering onversluierd]** `anonymizeUser` (`admin/gebruikers/actions.ts`) redacteerde wél de
+  `SupportMessage.body` van de betrokkene maar niet het **onderwerp** van diens eigen supporttickets.
+  `SupportTicket.subject` is niet-nullable vrije tekst die de gebruiker zélf typt bij het openen van
+  een ticket (kan naam/adres/telefoon/documentdetail bevatten) en wordt bewijsbaar als persoonsgegeven
+  behandeld — het staat in de AVG-inzage-export (`account-export.ts`). Na anonimisering bleef de ticket
+  met `userId` bestaan en het onderwerp verbatim leesbaar voor elke admin → de persoon bleef herleidbaar
+  uit zijn eigen woorden. `anonymize-erasure.test.ts` had géén assertie op `SupportTicket` (gemist, niet
+  bewust uitgesloten — anders dan `NoShowReport`, dat een expliciete "bewust niet hier"-comment draagt).
+  Repro: open een ticket met een naam/adres in het onderwerp → vraag verwijdering aan → `anonymizeUser`
+  → het onderwerp staat er nog. Gefixt: `supportTicket.updateMany({ where: { userId }, data: { subject:
+"[Verwijderd op verzoek van de gebruiker]" } })` in de anonimiseringstransactie (spiegelbeeld van de
+  `SupportMessage.body`-redactie; veld niet-nullable → neutrale redactiestring). Geschonden: CLAUDE.md-
+  verificatieflow/AVG art. 17. Test: nieuwe case in `anonymize-erasure.test.ts` (onderwerp gemaskeerd,
+  gescopet op de eigen `userId` — rood→groen bewezen: faalt zonder de transactieregel).
+
+### GEPARKEERD in deze ronde
+
+- **[MIDDEL (escalatie MENSENWERK) · AVG art. 17 vs. bewaargrond — `NoShowReport.reason` over de
+  geanonimiseerde ZZP'er]** Vrije tekst die de tégenpartij (`reportedById`) over de no-show van de
+  ZZP'er schreef; de betrokkene blijft daaruit herleidbaar ná anonimisering van het eigen account.
+  Bewust niet in `anonymizeUser` (comment `actions.ts` markeert de arbeidsgeschil-bewaargrond). Dit is
+  een echte erasure-vs-rechtsgrond-afweging (bewaartermijn + of het ZZP'er-identificerende deel wordt
+  geredigeerd terwijl het operationele feit blijft) → menselijke juridische beslissing (MENSENWERK §5),
+  geen agent-fix. Aanbevolen: DPO bepaalt bewaartermijn/redactiestrategie; daarna alsnog scopen.
+- **[LAAG · AVG art. 15/20 — inzage-export mist enkele eigen vrije-tekstvelden]** `buildAccountExport`
+  bevat `AvailabilityWindow.note`, `ShiftHandoff.reason/decisionNote` en `LeadContact.body` niet, terwijl
+  dat eigen vrije tekst van de betrokkene is die bij erasure wél wordt geredigeerd. Voor volledige art.
+  15/20-pariteit toevoegen aan de export (strikte `select`, alleen de eigen rijen). Geen securityrisico.
+- **[LAAG · OWASP A09/consistentie — `/api/agenda` (.ics-rooster-export) zonder rate-limit + audit]**
+  De route is self-scoped (`OR: [{company.userId},{freelancer.userId}]`) en auth-gated, maar mist —
+  anders dan de zusterexports (`account/export`, PDF-routes) — een `exportRateLimiter`-check en een
+  audit-entry. Laag risico (alleen het eigen actieve rooster, geen extra cross-party-PII), maar voor
+  consistentie met "audit alles wat telt" + defense-in-depth tegen een scripted DB-loop: voeg
+  `enforceRateLimit(exportRateLimiter, ...)` + een `AGENDA_EXPORTED`-audit toe. Aanbevolen fix in
+  `src/app/api/agenda/route.ts`.
+
 ## Ronde 2026-07-04b (basis: `main` @ f04d7b3)
 
 Audit: orchestrator (Opus 4.8) + 1 parallelle Opus security-subagent op de delta sinds de vorige ronde
