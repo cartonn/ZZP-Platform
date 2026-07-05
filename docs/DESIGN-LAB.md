@@ -215,4 +215,25 @@ UI-taal = Nederlands.
   cinematisch editorial & letterbox, skeuomorfe tactiele label-revival, retrofuturistische arcade-/game-HUD,
   editorial zwart-wit fotografie-as-UI, radar/sonar-scope voor nabijheids-matching, en tactiele oppervlakte-
   textuur (terrazzo) als merkgevoel.
-- **Totaal nu op `/ontwerp`: 80 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80).
+- **81–90** — reeks 9, toegevoegd bovenop reeks 1–8 (run 5-7-2026): Vloeiglas (Apple **Liquid Glass**
+  2026: lagen als levend, brekend glas met specular-randen, adaptieve doorschijnendheid en refractie-diepte
+  i.p.v. platte vlakken) · Japandi (wabi-sabi/Japandi quiet-luxury: gedempte keramiek-tinten, tatami-achtig
+  asymmetrisch raster, ruime "ma"-negatieve-ruimte, natuurlijke hand-imperfectie) · Therma (thermografie/
+  infrarood-heatmap datataal: colormap indigo→magenta→amber codeert match/urgentie/omzet als gloed, nachtzicht-
+  instrumentatie op bijna-zwart) · Draad (Superhuman/Linear-grade snelheids-inbox: hele platform als toetsenbord-
+  gedreven triage-draden met split lees-paneel, shortcut-hints en inbox-zero-werkmodel) · Focus (enkelvoudige
+  zen-focusmodus: één taak tegelijk oversized en centraal, progressive disclosure dimt de rest weg — Things/iA-rust)
+  · Revisie (versiebeheer/diff-esthetiek: verificatie als reviewbare diff met +/- regels, commit-tijdlijn, review-
+  goot en monospace-metadata als auditspoor) · Kader (fintech-ops canvas à la Mercury/Ramp/Stripe: saldo als held,
+  grote afgeronde area-/staafgrafieken, luchtige financiële helderheid) · Widget (glanceable widget-home iOS/Family:
+  stapelbare levende widget-tegels met diepte en parallax, elk een mini-app met eigen actie) · Lumen (bioluminescente
+  diepzee-dark: bijna-zwart teal met organische gloed/caustics die alleen oplichten waar het telt, expressief zonder
+  neon-hardheid) · Marmer (klassiek geaderd Carrara-marmer, quiet luxury & erfgoed: serif-kapitalen, goud-hairline,
+  plint-rust, erfgoed-bankgevoel). Alle tien gebruiken bestaande lab-fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks: Apple **Liquid Glass** / refractief materiaal (iOS 26→27) als grootste OS-
+  designverschuiving, Japandi/wabi-sabi & "quiet luxury with purpose", expressieve data-viz-colormaps (thermografie/
+  heatmap), keyboard-first speed-triage (Superhuman/Linear) als productiviteitsparadigma, focusmodus/single-tasking &
+  progressive disclosure (calm productivity), dev-tool-esthetiek (diff/commit/audit) die naar SaaS overwaait, fintech-
+  ops dashboards (Mercury/Ramp/Stripe) met saldo-held & grote afgeronde grafieken, glanceable widget-home-metafoor,
+  organisch dark-theme met bio-gloed i.p.v. neon, en erfgoed-materiaal (geaderd marmer + goud) als vertrouwensgebaar.
+- **Totaal nu op `/ontwerp`: 90 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90).
