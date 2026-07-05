@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid 2026-07-05 — cron/achtergrondtaakfouten naar de error-reporter (Sentry-ready)
+
+**Waarde (beheerder, observability):** een gefaalde geplande taak op de onbewaakte dagelijkse
+05:00-cron verdween voorheen stil. `/api/tasks/run-all` logde een taakfout alleen via `logger.error`
+(gaat nooit naar Sentry — `onRequestError` ziet 'm niet, want de taakloper vangt de fout op); de
+losse per-taak-routes **slikten** de fout volledig (leeg `catch {}`, géén log). Precies het faaltype
+waarvoor externe monitoring bestaat, bleef onzichtbaar. Nu bereiken deze fouten de error-reporting-grens.
+
+- **Nieuw:** `reportBackgroundFailure(source, error, extra?)` in `src/lib/observability/report.ts` —
+  logt ALTIJD één lokale, gestructureerde (PII-geredacteerde) regel én escaleert ADDITIONEEL naar de
+  externe reporter wanneer `SENTRY_DSN` gezet is (op DSN gepoort zodat de console-fallback niet dubbelt).
+  Slikt alles (rapportage mag een taak nooit laten falen).
+- **Gewired:** `run-all/route.ts` (callback → `cron:run-all` + `{task}`) en de 12 losse taak-routes
+  (`catch (e)` → `reportBackgroundFailure("cron:<naam>", e)` vóór de 500; return-tekst ongewijzigd).
+- **Bestanden:** `src/lib/observability/report.ts` (+helper), `report.test.ts` (+4 tests, 12 totaal),
+  13 route-bestanden onder `src/app/api/tasks/`, `MENSENWERK.md` §0b.
+- **Resterend mensenwerk:** onveranderd — `SENTRY_DSN` + `npm i @sentry/nextjs` (optioneel, aanbevolen);
+  zonder DSN draait alles veilig door op gestructureerd loggen.
+- Gate: typecheck ✓, lint ✓, test 3090 ✓, prettier ✓, build (CI-poort). Geen schemawijziging.
+
 ## Security/Privacy-audit 2026-07-05 — `SupportTicket.subject` mee in de erasure (AVG art. 17)
 
 **Waarde (betrokkene, recht op vergetelheid):** een security-/privacy-auditronde (orchestrator Opus 4.8

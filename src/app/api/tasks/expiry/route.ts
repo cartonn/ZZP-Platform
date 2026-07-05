@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { authorizeCron } from "@/lib/cron-auth";
 import { runExpiryTask } from "@/lib/expiry-task";
+import { reportBackgroundFailure } from "@/lib/observability/report";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,8 @@ export async function POST(request: Request): Promise<Response> {
     // actorId null = systeemactie (audit ondersteunt null).
     const result = await runExpiryTask({ actorId: null });
     return NextResponse.json({ ok: true, ...result });
-  } catch {
+  } catch (e) {
+    void reportBackgroundFailure("cron:expiry", e);
     return NextResponse.json(
       { error: "Er is een fout opgetreden bij het uitvoeren van de taak." },
       { status: 500 },

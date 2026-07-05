@@ -66,10 +66,15 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
 - **Externe error-monitoring (Sentry) aanzetten** (laag, code-kant GEDAAN 24-6-2026): server-fouten
   worden nu gestructureerd en PII-veilig gelogd (`src/lib/observability/`), met een readiness-endpoint
   (`/api/readiness`, los van `/api/health`) en een error-reporting-grens die Next.js-server-fouten
-  opvangt (`onRequestError`). De grens is **Sentry-ready achter een vlag**: zet `SENTRY_DSN` in de
-  secrets én installeer `@sentry/nextjs` (`npm i @sentry/nextjs`) en externe monitoring activeert
-  vanzelf. Zolang dat ontbreekt draait alles veilig door op gestructureerd loggen — niets te doen
-  voor de pilot. Optioneel: `LOG_LEVEL` (debug/info/warn/error, default info).
+  opvangt (`onRequestError`). **Ook onbewaakte cron-/achtergrondtaakfouten bereiken deze grens
+  (code-kant GEDAAN 5-7-2026):** `/api/tasks/run-all` én de losse taak-routes routeren een gefaalde
+  taak via `reportBackgroundFailure` (`src/lib/observability/report.ts`) — altijd lokaal
+  gestructureerd + naar Sentry als `SENTRY_DSN` gezet is. Voorheen verdween zo'n fout op de
+  dagelijkse 05:00-cron stil in de logs (of werd volledig geslikt in de per-taak-routes). De grens is
+  **Sentry-ready achter een vlag**: zet `SENTRY_DSN` in de secrets én installeer `@sentry/nextjs`
+  (`npm i @sentry/nextjs`) en externe monitoring activeert vanzelf. Zolang dat ontbreekt draait alles
+  veilig door op gestructureerd loggen — niets te doen voor de pilot. Optioneel: `LOG_LEVEL`
+  (debug/info/warn/error, default info).
 - **Dependency graph + Dependabot aanzetten** (laag, web-toggle): de `dependency-review`-poort
   vereist GitHub's Dependency graph. Zet die (en Dependabot security updates) aan op
   github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check draait
