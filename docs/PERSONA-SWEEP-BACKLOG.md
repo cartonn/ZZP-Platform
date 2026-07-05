@@ -68,14 +68,14 @@
 >
 > ### GEPARKEERD (uit de next-action-audit — lagere prioriteit, niet deze run gefixt)
 >
-> - **[MEDIUM] FREELANCER `cascadeWork` nav-badge telt de "dien je uren in"-fase niet.**
->   `signals.ts:188-197` berekent `cascadeWork = cascadeDraft + cascadeApproved` (alleen factuur-DRAFT +
->   APPROVED). Bij een ACTIVE-samenwerking met getekend contract en nog geen/DRAFT-prestatie is de
->   ZZP'er "aan zet" om uren in te dienen (`stage.ts:96-97` + `pending-tasks.ts:259-260`), maar de
->   `/samenwerkingen`-nav-badge telt dat niet mee → badge-onder­telling t.o.v. de echte "aan zet"-lijst.
->   Geen contradictie-zin (undercount op een secundaire badge), daarom geparkeerd. Repro: verse ACTIVE
->   samenwerking zonder prestatie → `/acties` toont "Dien je uren in", nav-badge blijft leeg. Fix:
->   voeg de submit-fase toe aan de freelancer-`cascadeWork`-telling.
+> - ~~**[MEDIUM] FREELANCER `cascadeWork` nav-badge telt de "dien je uren in"-fase niet.**~~
+>   **OPGELOST (2026-07-05, PR #619).** `signals.ts` berekende `cascadeWork = cascadeDraft +
+cascadeApproved` (alleen factuur-DRAFT + APPROVED), dus de indien-/corrigeer-fase (en PROPOSED
+>   contract-teken) viel weg → ondertelling t.o.v. de "aan zet"-lijst. Nu telt de nieuwe pure
+>   `countFreelancerCascadeWork` de samenwerkingtaken exact zoals `freelancerTasks` (pending-tasks.ts):
+>   PROPOSED → contract, ACTIVE geen/DRAFT/REJECTED-prestatie → indienen/corrigeren, + 1 per openstaande
+>   factuur. De FREELANCER-tak laadt daarvoor de PROPOSED/ACTIVE-`disputedAt:null`-samenwerkingen (zelfde
+>   scope als het actiecentrum) i.p.v. twee losse invoice-counts. 9 nieuwe tests; geen schemawijziging.
 > - **[LOW/latent] Freelancer factuur-taak mist issuer-scoping** (ongewijzigd sinds run 8/9) —
 >   `pending-tasks.ts` filtert de freelancer-facturen zonder `issuerUserId`. Nu ongevaarlijk (alle
 >   cascade-facturen zijn freelancer-uitgegeven); voeg `issuerUserId: userId` toe zodra platform-fee

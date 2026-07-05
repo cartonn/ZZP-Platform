@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Nav-consistentie 2026-07-05 — FREELANCER `/samenwerkingen`-badge telt de indien-fase mee (PR #619)
+
+**Waarde (ZZP'er, "wat vraagt actie?"):** de `/samenwerkingen`-nav-badge (`cascadeWork`) ondertelde
+t.o.v. de echte "aan zet"-lijst op `/acties`. Hij telde alléén factuur-DRAFT + -APPROVED, dus bij een
+ACTIVE-samenwerking met getekend contract en nog geen/DRAFT-prestatie (de ZZP'er moet uren indienen)
+bleef de badge leeg terwijl `/acties` "Dien je uren in" toonde — de sidebar sprak het actiecentrum
+tegen (persona-sweep run 8/10 MEDIUM-gap). Ook de PROPOSED-contract-teken-fase en REJECTED-correctie
+werden niet geteld.
+
+- **`src/lib/signals.ts`** (nieuw, puur): `countFreelancerCascadeWork(collabs)` +
+  `FreelancerCascadeCollab`-type — spiegelt de fase-logica van `freelancerTasks` (pending-tasks.ts)
+  exact: PROPOSED → 1 (contract), ACTIVE zonder/DRAFT/REJECTED-prestatie → 1 (indienen/corrigeren),
+  SUBMITTED/APPROVED-prestatie → 0 (opdrachtgever aan zet), + 1 per openstaande factuur
+  (DRAFT/REJECTED indienen, APPROVED betaling markeren).
+- **FREELANCER-tak van `navBadges`**: de twee losse `invoice.count`-queries vervangen door één
+  `collaboration.findMany` met dezelfde scope als het actiecentrum (PROPOSED/ACTIVE, `disputedAt:null`,
+  `take:50`); `cascadeWork` komt nu uit de helper. Netto −1 query, geen dubbeltelling. Overige badges
+  (credentialAlerts/unread/overdue/savedJobs) ongewijzigd.
+- Gate: typecheck ✓, lint ✓ (0 warnings), **3116 unit-tests ✓** (9 nieuw), prettier ✓, build ✓.
+  Read-only signaal, geen dode knoppen, geen schemawijziging, server-side waarheid.
+
 ## Persona-sweep 2026-07-05 (run 10) — APPROVED vorige-cyclus-factuur maskeert de betaalactie niet meer
 
 **Defect (live gereproduceerd + gefixt):** het spiegelbeeld van de run-9-fix. Op een ACTIVE-

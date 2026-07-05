@@ -78,6 +78,47 @@ export function startOfUtcDay(now: Date): Date {
 
 const EXPIRY_WINDOW_MS = 30 * 86_400_000; // 30 dagen, gelijk aan het dashboard
 
+/** Harde bovengrens per lijst — gelijk aan de `MAX` in pending-tasks.ts (voorkomt zware queries). */
+const CASCADE_SCAN_LIMIT = 50;
+
+/**
+ * Eén cascade-samenwerking van de ZZP'er, uitgedund tot wat de fase bepaalt: de status van de
+ * samenwerking, de status van de meest recente prestatie (of `null` = nog geen prestatie) en de
+ * lifecycle-status van de nog-openstaande facturen (DRAFT/REJECTED/APPROVED). Pure invoer.
+ */
+export interface FreelancerCascadeCollab {
+  status: "PROPOSED" | "ACTIVE";
+  latestPerformanceStatus: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | null;
+  openInvoiceStatuses: readonly ("DRAFT" | "REJECTED" | "APPROVED")[];
+}
+
+/**
+ * Aantal cascade-taken waar de ZZP'er "aan zet" is — exact de samenwerkingtaken die het actiecentrum
+ * (`/acties`, pending-tasks.ts) toont, zodat de `/samenwerkingen`-nav-badge de "aan zet"-lijst niet
+ * ondertelt. Spiegelt de fase-logica van `freelancerTasks`:
+ *   - PROPOSED                → 1 (contract ondertekenen);
+ *   - ACTIVE, geen/DRAFT-prestatie → 1 (uren/oplevering indienen);
+ *   - ACTIVE, REJECTED-prestatie   → 1 (corrigeren en opnieuw indienen);
+ *   - ACTIVE, SUBMITTED/APPROVED-prestatie → 0 vanuit de prestatiekant (opdrachtgever is aan zet);
+ *   - per openstaande factuur (DRAFT/REJECTED indienen, APPROVED betaling markeren) → +1.
+ * Vóór deze fix telde de badge alléén factuur-DRAFT + -APPROVED, waardoor de indien-/corrigeer-fase
+ * wegviel. Pure functie, los testbaar.
+ */
+export function countFreelancerCascadeWork(collabs: readonly FreelancerCascadeCollab[]): number {
+  let count = 0;
+  for (const c of collabs) {
+    if (c.status === "PROPOSED") {
+      count += 1; // contract ondertekenen
+      continue;
+    }
+    // ACTIVE ⟹ contract getekend; de meest recente prestatie bepaalt de fase.
+    const perf = c.latestPerformanceStatus;
+    if (perf === null || perf === "DRAFT" || perf === "REJECTED") count += 1;
+    count += c.openInvoiceStatuses.length;
+  }
+  return count;
+}
+
 /** Pure mapping van ruwe tellingen → badges (filtert 0 weg). Testbaar zonder DB. */
 export function buildBadges(counts: SignalCounts): NavBadges {
   const out: NavBadges = {};
@@ -166,35 +207,57 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     if (!profile) return {};
     const now = new Date();
     const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
-    const [
-      rejected,
-      expiring,
-      unreadMessages,
-      overdueInvoices,
-      cascadeDraft,
-      cascadeApproved,
-      savedJobs,
-    ] = await Promise.all([
-      prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
-      prisma.credential.count({
-        where: {
-          freelancerProfileId: profile.id,
-          status: "VERIFIED",
-          expiresAt: { gt: now, lte: soon },
-        },
-      }),
-      unreadConversationCount(userId),
-      overdueInvoiceCount("FREELANCER", userId),
-      // cascade: concept-facturen indienen
-      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "DRAFT" } }),
-      // cascade: betaling registreren na goedkeuring
-      prisma.invoice.count({ where: { issuerUserId: userId, lifecycleStatus: "APPROVED" } }),
-      // bewaarde opdrachten die nog open staan (PUBLISHED) — gelijk aan de "open"-partitie op /opgeslagen
-      prisma.savedJob.count({
-        where: { freelancerProfileId: profile.id, job: { status: "PUBLISHED" } },
-      }),
-    ]);
-    const cascadeWork = cascadeDraft + cascadeApproved;
+    const [rejected, expiring, unreadMessages, overdueInvoices, cascadeCollabs, savedJobs] =
+      await Promise.all([
+        prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
+        prisma.credential.count({
+          where: {
+            freelancerProfileId: profile.id,
+            status: "VERIFIED",
+            expiresAt: { gt: now, lte: soon },
+          },
+        }),
+        unreadConversationCount(userId),
+        overdueInvoiceCount("FREELANCER", userId),
+        // Cascade-werkproces: dezelfde scope als het actiecentrum (pending-tasks.ts) — lopende/
+        // voorgestelde, niet-bevroren samenwerkingen. De meest recente prestatie + openstaande
+        // facturen bepalen wie aan zet is; countFreelancerCascadeWork telt de ZZP'er-taken.
+        prisma.collaboration.findMany({
+          where: {
+            freelancer: { userId },
+            status: { in: ["PROPOSED", "ACTIVE"] },
+            disputedAt: null,
+          },
+          select: {
+            status: true,
+            performances: {
+              select: { status: true },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
+            invoices: {
+              where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED"] } },
+              select: { lifecycleStatus: true },
+              take: 5,
+            },
+          },
+          take: CASCADE_SCAN_LIMIT,
+        }),
+        // bewaarde opdrachten die nog open staan (PUBLISHED) — gelijk aan de "open"-partitie op /opgeslagen
+        prisma.savedJob.count({
+          where: { freelancerProfileId: profile.id, job: { status: "PUBLISHED" } },
+        }),
+      ]);
+    const cascadeWork = countFreelancerCascadeWork(
+      cascadeCollabs.map((c) => ({
+        status: c.status as FreelancerCascadeCollab["status"],
+        latestPerformanceStatus:
+          (c.performances[0]?.status as FreelancerCascadeCollab["latestPerformanceStatus"]) ?? null,
+        openInvoiceStatuses: c.invoices.map(
+          (i) => i.lifecycleStatus as "DRAFT" | "REJECTED" | "APPROVED",
+        ),
+      })),
+    );
     return buildBadges({
       credentialAlerts: rejected + expiring,
       unreadMessages,
