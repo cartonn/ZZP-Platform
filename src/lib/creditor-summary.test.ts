@@ -75,6 +75,17 @@ describe("summarizeCreditors", () => {
     expect(s.totalOverdueCents).toBe(7000);
   });
 
+  it("treats an invoice due today as not-yet-overdue (same day-grens as the bucket view)", () => {
+    // Due 15 June 00:00, now 15 June 12:00 → dueDate == startOfToday, so NOT overdue (dueDate < start).
+    const s = summarizeCreditors(
+      [item({ invoiceId: "a", stage: "APPROVED", dueDate: new Date("2026-06-15T00:00:00.000Z") })],
+      NOW,
+    );
+    const row = s.creditors[0]!;
+    expect(row.overdueCents).toBe(0);
+    expect(row.daysUntilEarliestDue).toBe(0);
+  });
+
   it("tracks amount still awaiting approval (SUBMITTED, no due date)", () => {
     const s = summarizeCreditors(
       [
@@ -98,8 +109,9 @@ describe("summarizeCreditors", () => {
     );
     const row = s.creditors[0]!;
     expect(row.earliestDueDate).toEqual(new Date("2026-06-18T00:00:00.000Z"));
-    // 15 June 12:00 → 18 June 00:00 = 2 whole days (floor).
-    expect(row.daysUntilEarliestDue).toBe(2);
+    // Gemeten vanaf start-of-day (15 June 00:00) → 18 June 00:00 = 3 hele dagen — gelijke dag-grens
+    // als de bucket-lijst, zodat beide op de vervaldag consistent zijn.
+    expect(row.daysUntilEarliestDue).toBe(3);
   });
 
   it("sorts suppliers by overdue, then outstanding, then name", () => {
