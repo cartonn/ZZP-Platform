@@ -39,6 +39,10 @@ const schema = z
     // Geldigheidsduur (seconden) van presigned download-URLs. Optioneel; geklemd op [30, 3600],
     // default 300. Een ongeldige waarde valt veilig terug op de default.
     STORAGE_S3_URL_TTL: z.string().optional(),
+    // Server-side encryption-at-rest voor S3-uploads. AES256 (default, SSE-S3), aws:kms (SSE-KMS)
+    // of none (bewust uit, voor S3-compatibele opslag zonder SSE-header). Zie resolveSseParams().
+    STORAGE_S3_SSE: z.enum(["AES256", "aws:kms", "none"]).optional(),
+    STORAGE_S3_SSE_KMS_KEY_ID: z.string().optional(),
 
     // Echte reistijd-routing: offline fallback (default) of Geoapify met API-key.
     ROUTING_PROVIDER: z.enum(["offline", "geoapify"]).default("offline"),
@@ -160,6 +164,11 @@ export function envWarnings(env: Env): string[] {
   if (env.STORAGE_DRIVER === "local") {
     warnings.push(
       "STORAGE_DRIVER=local — geüploade documenten gaan naar de lokale schijf (vluchtig bij redeploy). Zet STORAGE_DRIVER=s3 voor productie.",
+    );
+  }
+  if (env.STORAGE_DRIVER === "s3" && env.STORAGE_S3_SSE === "none") {
+    warnings.push(
+      "STORAGE_S3_SSE=none — uploads worden zonder expliciete server-side-encryptie-header opgeslagen; gevoelige documenten leunen dan enkel op de bucket-default-encryptie. Zet STORAGE_S3_SSE=AES256 (of aws:kms) tenzij je opslag de header niet accepteert.",
     );
   }
   if (env.EMAIL_DRIVER === "noop") {

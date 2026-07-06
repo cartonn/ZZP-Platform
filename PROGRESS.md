@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-hardening 2026-07-06 — S3 encryptie-at-rest voor gevoelige documenten (#639)
+
+De S3-opslagdriver zette **geen** expliciete server-side-encryptie op uploads en leunde volledig op de
+bucket-default — een verkeerd geconfigureerde bucket zou gevoelige documenten (VOG, diploma's,
+verzekering) stilzwijgend onversleuteld opslaan (AVG-beveiliging/dataminimalisatie). Nu zet elke
+`PutObjectCommand` expliciet SSE via de pure, testbare helper `resolveSseParams()`
+(`src/lib/services/storage.ts`): default `STORAGE_S3_SSE=AES256` (SSE-S3), `aws:kms` schakelt SSE-KMS
+in (optioneel `STORAGE_S3_SSE_KMS_KEY_ID`), `none` laat de header bewust weg voor S3-compatibele
+opslag. Onbekende waarde → veilige terugval op AES256 (nooit onversleuteld). Env-validatie
+(`src/lib/env.ts`) kent de twee nieuwe vars + een productie-waarschuwing bij `none`. Lokale opslag
+onveranderd/inert. Geen extra dependency (velden op de bestaande `@aws-sdk`-command).
+
+- Bestanden: `src/lib/services/storage.ts`, `src/lib/env.ts`, `.env.example`, tests in
+  `storage.test.ts` (5 nieuw voor `resolveSseParams`). Gate: `typecheck` + `lint` + `check:env` +
+  `test` (storage+env groen) + `prettier --write .` + `build` — alle groen. E2e in CI.
+- Resterend mensenwerk: **niets extra** — versleuteling staat aan zodra `STORAGE_DRIVER=s3`; aanrader
+  is bucket-default-encryptie + Block Public Access als tweede laag (MENSENWERK §1c).
+
 ## Security/privacy-audit 2e ronde 2026-07-06 — 1 HOOG + 1 MIDDEL gefixt (basis `main` @ d4b6039)
 
 Adversariële audit (orchestrator Opus 4.8 + 1 parallelle Opus security-subagent) op de delta
