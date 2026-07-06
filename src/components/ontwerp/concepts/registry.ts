@@ -2223,6 +2223,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#2a2015",
     available: true,
   },
+  // ── Reeks 14 (run 6-7-2026) — nrs 131–140, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "131",
+    name: "Atelier",
+    direction: "Couture-naaipatroon — technisch modepatroon",
+    rationale:
+      "Een tissue-papier naaipatroon als interface: crème papier met stippel-kniplijnen, kerf-inkepingen, maatgradatie en patroonstuk-labels, in dun inktblauw lijnwerk met één rood signaal. Match-redenen worden 'pasvorm' — editorial-technisch, onderscheidend van glossy mode (Folio) en herbarium (Botanie).",
+    trends: [
+      "Technisch patroon / drafting-fashion",
+      "Stippel-kniplijnen + kerf-notches",
+      "Maatgradatie als hiërarchie",
+    ],
+    fonts: "Fraunces + Spline Sans Mono",
+    accent: "#c02434",
+    bg: "#f4efe4",
+    fg: "#1c2233",
+    available: true,
+  },
+  {
+    id: "132",
+    name: "Sluis",
+    direction: "Deltawerken — waterpeil-infographic",
+    rationale:
+      "Nederlandse waterbouw als datataal: staalblauw canvas met NAP-peillijnen, sluis-doorsnedes, debiet-pijlen en peilschalen. Verificatie stijgt als 'waterpeil naar geverifieerd'. Data-dicht en ingenieurs-technisch — onderscheidend van meteo (isobaren) en portolaan (zeekaart).",
+    trends: [
+      "Hydraulische infrastructuur-infographic",
+      "NAP-peilschalen + debiet-stroom",
+      "Ingenieurs-datadichtheid",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#1f8bbd",
+    bg: "#0f2a3d",
+    fg: "#e3eef4",
+    available: true,
+  },
+  {
+    id: "133",
+    name: "Wegwijzer",
+    direction: "Snelwegbewegwijzering — ANWB-signage",
+    rationale:
+      "Nederlandse verkeersbebording als navigatie: groene en blauwe borden met witte signage-typografie, routeschilden en afstandsborden. De opdracht-reis wordt een bewegwijzerde route met afritten (reactie → match → contract → factuur). Onderscheidend van metrokaart (lijndiagram) en pictogram (ISOTYPE).",
+    trends: [
+      "Wayfinding / snelweg-bebording",
+      "RWS-groen + ANWB-blauw signage",
+      "Reis-als-route met afritten",
+    ],
+    fonts: "Libre Franklin + JetBrains Mono",
+    accent: "#1b7a3d",
+    bg: "#eef1f0",
+    fg: "#10261a",
+    available: true,
+  },
+  {
+    id: "134",
+    name: "Cockpit",
+    direction: "Avionics glass-cockpit — attention-managed HUD",
+    rationale:
+      "Een modern glass-cockpit: donker antraciet met avionics-groen en amber, een primary-flight-display-statuskern en checklist-blokken. Attentie-hiërarchie is de kern — het systeem toont alleen wat nu actie vraagt. Onderscheidend van analoge meters (Meter) en terminal-tekst (Console).",
+    trends: [
+      "Glass-cockpit / avionics-HUD",
+      "Attention-managed statuskern",
+      "Checklist-first next-action",
+    ],
+    fonts: "Geist Mono + Geist",
+    accent: "#3ee08a",
+    bg: "#0a1014",
+    fg: "#d6e4e2",
+    available: true,
+  },
+  {
+    id: "135",
+    name: "Kaartenbak",
+    direction: "Bibliotheek-kaartcatalogus — indexkaarten",
+    rationale:
+      "Een houten kaartenbak: warm eiken met crème indexkaarten, geponste geleiding, messing labelhouders en A–Z-tabkaarten. Opdrachten en credentials worden doorbladerbare catalogus-kaarten met classificatie-codes. Rustig en ambachtelijk-georganiseerd — onderscheidend van manila-map (Dossier) en Penguin-omslag (Boekband).",
+    trends: [
+      "Kaartcatalogus / index-card-UI",
+      "A–Z-tabkaarten als navigatie",
+      "Getypte catalogus-regels",
+    ],
+    fonts: "Newsreader + JetBrains Mono",
+    accent: "#b07c2b",
+    bg: "#efe6d5",
+    fg: "#2c2418",
+    available: true,
+  },
+  {
+    id: "136",
+    name: "Loep",
+    direction: "Pro-tool inspector — master-detail",
+    rationale:
+      "Een verfijnd professioneel gereedschap: links een compacte lijst, rechts een properties-inspector die het geselecteerde item ontleedt in secties met labels, chips en inline-acties. Ultra-precies, hoge dichtheid zonder rommel — onderscheidend van database-views (Index), diff (Revisie) en fintech-ops (Kader).",
+    trends: [
+      "Master-detail inspector-paradigma",
+      "Properties-paneel + hairline-dichtheid",
+      "Inline-acties op selectie",
+    ],
+    fonts: "Inter + JetBrains Mono",
+    accent: "#4f46e5",
+    bg: "#fbfbfc",
+    fg: "#15181f",
+    available: true,
+  },
+  {
+    id: "137",
+    name: "Neonbord",
+    direction: "Neon-uithangbord — hand-gebogen buislicht",
+    rationale:
+      "Een nachtelijk donker canvas met ambachtelijke neon-uithangborden: gloeiende hand-gebogen buisletters met kern-highlight en warme muurreflectie. Status en rollen lichten op als neon-badges. Onderscheidend van synthwave-zonsondergang (Neonzon) en liquid-metal chroom (Chroom): dit is neon-signage als ambacht.",
+    trends: [
+      "Neon-signage / gebogen buislicht",
+      "Meerlaagse glow als materiaal",
+      "Oplichtende status-badges",
+    ],
+    fonts: "Space Grotesk + JetBrains Mono",
+    accent: "#ff3ea5",
+    bg: "#0b0710",
+    fg: "#f3e9f4",
+    available: true,
+  },
+  {
+    id: "138",
+    name: "Kruissteek",
+    direction: "Geteld kruissteek — borduursampler",
+    rationale:
+      "Een linnen sampler met getelde kruissteek: een pixel-raster van X-steekjes vormt iconen, badges en cijfers, met borduur-rand en DMC-garenchips. Het raster is de layout-grid; status wordt een geborduurd symbool. Warm-nostalgisch handwerk, strak georganiseerd — onderscheidend van geweven stof (Textiel) en Memphis.",
+    trends: [
+      "Geteld kruissteek / pixel-borduren",
+      "X-steek-raster als layout-grid",
+      "Garenkleur-chips als palet",
+    ],
+    fonts: "JetBrains Mono + Manrope",
+    accent: "#c0334d",
+    bg: "#efe7d6",
+    fg: "#33301f",
+    available: true,
+  },
+  {
+    id: "139",
+    name: "Knooppunt",
+    direction: "Relatiegraaf — force-directed matching",
+    rationale:
+      "Matching als levend netwerk: knopen (ZZP'er ↔ opdracht ↔ opdrachtgever ↔ credential) verbonden door edges met gewicht en kleur naar match-sterkte, edge-labels tonen de redenen. Verklaarbare matching als graaf is de kern-differentiatie — onderscheidend van decoratieve constellatie (Sterrenbeeld) en vaste lijnen (Metrokaart).",
+    trends: [
+      "Relatie-/netwerkgraaf-visualisatie",
+      "Edge-gewicht = match-sterkte",
+      "Verklaarbare matching als knopen",
+    ],
+    fonts: "Geist + JetBrains Mono",
+    accent: "#4f7cff",
+    bg: "#0f1320",
+    fg: "#e6ebf5",
+    available: true,
+  },
+  {
+    id: "140",
+    name: "Situatiekamer",
+    direction: "Ops-wallboard — NOC-statusmuur",
+    rationale:
+      "Een operationele controlekamer voor de bemiddelaar: een donker high-density multi-paneel wallboard met status-tegels, een alles-in-één-oogopslag statuskolom, prioriteiten-wachtrij en severity-triage (altijd met label én icoon, nooit kleur-alleen). Onderscheidend van touch-kiosk (Kiosk), stadion-LED (Scorebord) en handelsterminal (Beurs/Kader).",
+    trends: [
+      "NOC / ops-wallboard",
+      "Severity-triage met wachtrij",
+      "Alles-in-één-oogopslag statusmuur",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#22d3c5",
+    bg: "#0b0f14",
+    fg: "#dce7ec",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);

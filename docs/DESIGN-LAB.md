@@ -337,4 +337,30 @@ UI-taal = Nederlands.
   verificatiegebaar (guilloché-horlogerie), organische/natuurlijke data-visualisatie (dendro-jaarringen,
   suminagashi-marmering), gecodeerde signaal-systemen als statustaal (maritieme seinvlaggen) en
   audio-native interfaces (waveform/spectrum-DAW) — elk onderscheidend gehouden van bestaande richtingen.
-- **Totaal nu op `/ontwerp`: 130 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130).
+- **Reeks 14 (run 6-7-2026, nrs 131–140):** Atelier (couture-naaipatroon: tissue-papier met
+  stippel-kniplijnen, kerf-notches en maatgradatie in inktblauw + rood signaal, Fraunces —
+  editorial-technisch, niet Folio/Botanie) · Sluis (Deltawerken/waterpeil-infographic: staalblauw
+  met NAP-peilschalen, sluis-doorsnedes en debiet-stroom, data-dicht ingenieurs, Geist — niet
+  Meteo/Portolaan) · Wegwijzer (ANWB-snelwegbebording: RWS-groene/ANWB-blauwe borden met
+  signage-typografie, de opdracht-reis als bewegwijzerde afritten, Libre Franklin — niet
+  Metrokaart/Pictogram) · Cockpit (avionics glass-cockpit: donker antraciet met avionics-groen/amber,
+  attention-managed statuskern + checklists, Geist Mono — niet Meter/Console) · Kaartenbak
+  (bibliotheek-kaartcatalogus: warm eiken met crème indexkaarten, A–Z-tabkaarten en messing
+  labelhouders, Newsreader — niet Dossier/Boekband) · Loep (pro-tool inspector: master-detail met
+  properties-paneel, chips en inline-acties, ultra-precies, Inter — niet Index/Revisie/Kader) ·
+  Neonbord (hand-gebogen neon-uithangbord: meerlaagse glow-buisletters op donkere muur, oplichtende
+  status-badges, Space Grotesk — niet Neonzon/Chroom) · Kruissteek (geteld kruissteek-sampler:
+  X-steek-pixelraster als layout-grid op linnen met DMC-garenchips, JetBrains Mono — niet
+  Textiel/Memphis) · Knooppunt (force-directed relatiegraaf: knopen ZZP'er↔opdracht↔opdrachtgever↔
+  credential met edge-gewicht = match-sterkte, verklaarbare matching, Geist — niet
+  Sterrenbeeld/Metrokaart) · Situatiekamer (ops-wallboard/NOC: donker high-density statusmuur met
+  severity-triage en verificatie-wachtrij, altijd label+icoon, Geist — niet Kiosk/Scorebord/Beurs).
+  Alle tien gebruiken bestaande lab-fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks: attention-managed interfaces uit high-stakes domeinen
+  (avionics glass-cockpit, NOC-situatiekamer) als antwoord op "toon alleen wat actie vraagt";
+  wayfinding & infrastructuur-datataal met Nederlandse wortels (ANWB-bebording, Deltawerken-peilen);
+  netwerk-/graafvisualisatie voor verklaarbare matching (force-directed relatiegraaf); pro-tool
+  master-detail inspector-paradigma (Figma/Linear-grade dichtheid); en ambachtelijke material- &
+  craft-esthetiek strak hermaakt (hand-gebogen neon-signage, geteld kruissteek-borduren,
+  bibliotheek-kaartcatalogus) — elk onderscheidend gehouden van bestaande richtingen.
+- **Totaal nu op `/ontwerp`: 140 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140).
