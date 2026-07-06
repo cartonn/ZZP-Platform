@@ -283,4 +283,34 @@ UI-taal = Nederlands.
   domein-native esthetiek voor de zorg (klinisch dossier, medische scan/doorlicht, blauwlicht-arme
   nacht-modus voor nachtdiensten), heritage/craft als vertrouwensgebaar (verlucht manuscript + bladgoud),
   en historische kunststromingen als dashboard-affiche (constructivisme, renaissance-fresco).
-- **Totaal nu op `/ontwerp`: 110 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110).
+- **111–120** — reeks 12, toegevoegd bovenop reeks 1–11 (run 6-7-2026): Gebrandschilderd
+  (kathedraal-glas-in-lood: juweelkleurig glas — kobalt/robijn/smaragd/amber — achter near-black
+  loodlijnen op donkere steen, radiale door-glas-gloed, verificatie als gebrandschilderd medaillon —
+  jewel-licht i.p.v. transparant glasmorfisme) · Zellige (Marokkaans mozaïek: islamitische geometrische
+  tessellatie, achtvoudige-ster/rozet-SVG-motieven en interlocking dividers in warm majolica-blauw/
+  saffraan/terra op kalk-wit — patroon als informatie-architectuur, niet Bauhaus/Deco/Delft) ·
+  Filatelie (postzegelalbum: getande zegels met perforatie-gaatjes en ronde frankeerstempels die
+  geverifieerde credentials "afstempelen", crème album-papier, Libre Franklin + mono waarde-cijfers —
+  collectie-metafoor, niet ticket/lakzegel) · Ponskaart (Hollerith/IBM-ponskaart: manila-buff kaart met
+  afgesneden hoek, geponste kolommen 0-9 en drukinkt-rode regels, IBM Plex Mono — vroege-computing
+  telling strak & premium, niet terminal/PCB) · Scorebord (stadion-LED-jumbotron: dot-matrix in amber/
+  groen/rood met glow op zwart-groen, KPI's als scorebord-cijfers, match als team-duel, verificatie als
+  status-lightboard — energiek high-contrast, data glashelder, niet Arcade/split-flap) · Seismograaf
+  (meettrommel: doorlopende deterministische inktlijn met scherpe uitslagen op millimeterpapier, nullijn
+  - tijdmarkeringen, amplitude = urgentie — kalm-technisch, niet Meter/Radar/Therma) · Lakwerk (Japans
+    urushi-lak: gepolijst zwart-lak met maki-e goudpoeder-flecks en gouden hairline-panelen, één
+    cinnaber-accent, Instrument Serif — quiet luxury, verificatie als maki-e zegel) · Entomologie
+    (verzamelaarslade: gespelde specimens met SVG-insectenspeld en wit determinatielabel/catalogusnummer
+    op ivoor cottonboard met houten lade-rand, latijnse annotaties — "gedetermineerd & gelabeld", niet
+    herbarium/vitrine) · Emaille (cloisonné: glanzende vitreus-emaille badges met messing hairline-cloisons
+    en specular glans op licht porselein, Sora — speels-premium keurmerk-schildjes, niet Parel/Klei/Reliëf) ·
+    Batik (Indonesisch was-resist: parang/kawung/ceplok-motieven met craquelé-scheurtjes in indigo/soga/
+    crème, batik-doek-panelen, Newsreader — cultureel-warm-donker, data modern uitgelijnd, niet Textiel/
+    Delft/Aquarel). Alle tien gebruiken bestaande lab-fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks: craft-revival & heritage-materialiteit als vertrouwensgebaar
+  (gebrandschilderd glas, Japans lakwerk, cloisonné-emaille), niet-westerse ornamenttalen als
+  informatie-architectuur (Marokkaanse zellige-tessellatie, Indonesische batik), collectie- &
+  archief-metaforen voor credentials/verificatie (filatelie-album, entomologische specimen-lade),
+  retro-tech "honest computing" strak hermaakt (Hollerith-ponskaart), analoge meet-/registratie-datataal
+  (seismograaf-inktlijn), en expressief high-contrast display met bewaakte leesbaarheid (stadion-LED-scorebord).
+- **Totaal nu op `/ontwerp`: 120 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120).

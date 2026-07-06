@@ -58,6 +58,30 @@ concurrenten naar ons verklaarbare, server-berekende overzicht; spiegel van de `
 - **Gate:** typecheck ✓, lint ✓ (0 warnings), prettier ✓ (hele repo), **3179 unit-tests** ✓ (10 nieuw),
   build ✓. Server-side waarheid, geen dode knoppen, geen schemawijziging.
 
+## Ontwerp-lab reeks 12 — +10 concepten (nrs 111–120), totaal 120 op `/ontwerp` (2026-07-06)
+
+**Waarde:** de galerij op `/ontwerp` groeit additief van 110 → 120 onderscheidende, top-1% redesign-
+concepten waaruit de eigenaar kiest. Tien nieuwe designrichtingen, gebouwd door 4 parallelle workers op
+niet-overlappende bestanden, daarna geïntegreerd zonder één bestaand concept/entry/koppeling te wijzigen:
+**111 Gebrandschilderd** (kathedraal-glas-in-lood, juweelkleurig glas achter loodlijnen) · **112 Zellige**
+(Marokkaanse geometrische mozaïek-tessellatie) · **113 Filatelie** (postzegelalbum, getande zegels +
+frankeerstempels) · **114 Ponskaart** (Hollerith/IBM-ponskaart, geponste kolommen) · **115 Scorebord**
+(stadion-LED-jumbotron, dot-matrix) · **116 Seismograaf** (meettrommel, doorlopende inktlijn op
+millimeterpapier) · **117 Lakwerk** (Japans urushi-lak + maki-e goud) · **118 Entomologie**
+(verzamelaarslade met gespelde specimens + determinatielabels) · **119 Emaille** (cloisonné, geëmailleerde
+badges met messing cloisons) · **120 Batik** (Indonesisch was-resist, parang/kawung in indigo & soga).
+Thema deze reeks: craft-revival/heritage-materialiteit, niet-westerse ornamenttalen, collectie-/archief-
+metaforen voor verificatie, en analoge meet-datataal — elk expliciet onderscheidend van de bestaande 110.
+
+- **Nieuw:** `src/components/ontwerp/concepts/concept-111..120-*.tsx` (10 bestanden). **Additief
+  bijgewerkt:** `registry.ts` (10 nieuwe `ConceptMeta`-entries append) en `src/app/ontwerp/[id]/page.tsx`
+  (10 imports + id→component-koppelingen append). Geen bestaande app-logica/auth geraakt; lab staat
+  publiek + `noindex` buiten `(protected)`.
+- **Gate:** `npm run typecheck` ✓ · `npm run lint` ✓ (0 warnings) · `npm run test` ✓ (3194 tests) ·
+  `npm run build` ✓ · `npx prettier --check .` ✓ (hele repo). Woord "AI" komt nergens voor. Docs:
+  `docs/DESIGN-LAB.md` bijgewerkt met reeks 12 + onderzochte 2026-trends.
+- **Volgende:** volgende reeks krijgt nrs 121–130 (blijf additief; overschrijf nooit een bestaand slot).
+
 ## Ontwerp-lab reeks 11 — +10 concepten (nrs 101–110), totaal 110 op `/ontwerp` (2026-07-05)
 
 **Waarde:** de galerij op `/ontwerp` groeit additief van 100 → 110 onderscheidende, top-1% redesign-
