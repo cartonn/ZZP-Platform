@@ -151,6 +151,37 @@ export function buildContentDisposition(disposition: {
   return `${disposition.type}; filename="${safe}"`;
 }
 
+/**
+ * Server-side-encryption-parameters voor een S3 `PutObjectCommand`. Gevoelige documenten (VOG,
+ * diploma's, verzekering) moeten versleuteld op schijf staan (AVG-dataminimalisatie/beveiliging).
+ * We zetten dit expliciet op elke upload i.p.v. te leunen op de bucket-default-encryptie: een
+ * verkeerd geconfigureerde bucket zou anders stilzwijgend onversleuteld opslaan.
+ *
+ * - `STORAGE_S3_SSE` = `AES256` (default, SSE-S3, door S3 beheerde sleutels) of `aws:kms` (SSE-KMS).
+ * - `STORAGE_S3_SSE_KMS_KEY_ID` (optioneel, alleen bij `aws:kms`): een eigen KMS-sleutel; leeg →
+ *   de door AWS beheerde `aws/s3`-standaardsleutel.
+ * - `STORAGE_S3_SSE=none` schakelt de expliciete header bewust uit (voor S3-compatibele opslag die
+ *   de parameter niet accepteert; de bucket-default-encryptie blijft dan de enige laag).
+ *
+ * Puur/testbaar: leest env en geeft de exacte velden terug die aan de command worden meegegeven.
+ */
+export function resolveSseParams(): {
+  ServerSideEncryption?: "AES256" | "aws:kms";
+  SSEKMSKeyId?: string;
+} {
+  const raw = (process.env.STORAGE_S3_SSE ?? "AES256").trim().toLowerCase();
+  if (raw === "none") return {};
+  if (raw === "aws:kms" || raw === "kms") {
+    const keyId = process.env.STORAGE_S3_SSE_KMS_KEY_ID?.trim();
+    return {
+      ServerSideEncryption: "aws:kms",
+      ...(keyId ? { SSEKMSKeyId: keyId } : {}),
+    };
+  }
+  // Alles anders (incl. de default en een onbekende waarde) → veilige SSE-S3-versleuteling.
+  return { ServerSideEncryption: "AES256" };
+}
+
 export interface StorageDriver {
   put(key: string, data: Buffer, mimeType: string): Promise<StoredObject>;
   get(key: string): Promise<Buffer>;
@@ -239,7 +270,14 @@ class S3StorageDriver implements StorageDriver {
   async put(key: string, data: Buffer, mimeType: string): Promise<StoredObject> {
     const { client, bucket, lib } = await this.svc();
     await client.send(
-      new lib.PutObjectCommand({ Bucket: bucket, Key: key, Body: data, ContentType: mimeType }),
+      new lib.PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: data,
+        ContentType: mimeType,
+        // Encryptie-at-rest expliciet afdwingen (niet leunen op de bucket-default).
+        ...resolveSseParams(),
+      }),
     );
     return { key, size: data.byteLength };
   }

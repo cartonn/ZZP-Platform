@@ -9,6 +9,7 @@ import {
   getStorage,
   MAX_UPLOAD_BYTES,
   resolveSignedUrlTtl,
+  resolveSseParams,
   SIGNED_URL_TTL_DEFAULT,
   SIGNED_URL_TTL_MAX,
   SIGNED_URL_TTL_MIN,
@@ -161,5 +162,47 @@ describe("buildContentDisposition", () => {
     const value = buildContentDisposition({ type: "inline", filename: '../e"vil\r\n.pdf' });
     expect(value).not.toMatch(/[\r\n]/); // geen header-splitsing
     expect(value).toBe('inline; filename=".._e_vil_.pdf"'); // ingesloten quote/CRLF/slash gesaneerd
+  });
+});
+
+describe("resolveSseParams (S3 encryption-at-rest)", () => {
+  const originalSse = process.env.STORAGE_S3_SSE;
+  const originalKey = process.env.STORAGE_S3_SSE_KMS_KEY_ID;
+  afterAll(() => {
+    if (originalSse === undefined) delete process.env.STORAGE_S3_SSE;
+    else process.env.STORAGE_S3_SSE = originalSse;
+    if (originalKey === undefined) delete process.env.STORAGE_S3_SSE_KMS_KEY_ID;
+    else process.env.STORAGE_S3_SSE_KMS_KEY_ID = originalKey;
+  });
+
+  it("versleutelt default met SSE-S3 (AES256) als er niets gezet is", () => {
+    delete process.env.STORAGE_S3_SSE;
+    delete process.env.STORAGE_S3_SSE_KMS_KEY_ID;
+    expect(resolveSseParams()).toEqual({ ServerSideEncryption: "AES256" });
+  });
+
+  it("valt bij een onbekende waarde veilig terug op AES256 (nooit onversleuteld)", () => {
+    process.env.STORAGE_S3_SSE = "rommel";
+    expect(resolveSseParams()).toEqual({ ServerSideEncryption: "AES256" });
+  });
+
+  it("gebruikt SSE-KMS met de door AWS beheerde sleutel als er geen key-id is", () => {
+    process.env.STORAGE_S3_SSE = "aws:kms";
+    delete process.env.STORAGE_S3_SSE_KMS_KEY_ID;
+    expect(resolveSseParams()).toEqual({ ServerSideEncryption: "aws:kms" });
+  });
+
+  it("gebruikt SSE-KMS met een eigen key-id als die gezet is", () => {
+    process.env.STORAGE_S3_SSE = "aws:kms";
+    process.env.STORAGE_S3_SSE_KMS_KEY_ID = "arn:aws:kms:eu-west-1:123:key/abc";
+    expect(resolveSseParams()).toEqual({
+      ServerSideEncryption: "aws:kms",
+      SSEKMSKeyId: "arn:aws:kms:eu-west-1:123:key/abc",
+    });
+  });
+
+  it("laat de SSE-header bewust weg bij 'none' (S3-compatibele opslag zonder SSE)", () => {
+    process.env.STORAGE_S3_SSE = "none";
+    expect(resolveSseParams()).toEqual({});
   });
 });

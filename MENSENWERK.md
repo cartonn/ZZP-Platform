@@ -151,6 +151,16 @@ nodig met back-ups en beveiligde opslag.
    server-streamen (sandbox-CSP) tot een security-review presigned daar vrijgeeft. Resterend
    mensenwerk: alleen de bucket + sleutels aanmaken en `STORAGE_DRIVER=s3` zetten — de rest is
    automatisch.
+   **Code-kant GEDAAN (6-7-2026) — encryptie-at-rest:** elke upload naar S3 zet nu **expliciet**
+   server-side-encryptie (`resolveSseParams` in `src/lib/services/storage.ts`), zodat gevoelige
+   documenten (VOG, diploma's, verzekering) versleuteld op schijf staan **zonder** te leunen op de
+   bucket-default (een verkeerd geconfigureerde bucket zou anders stilzwijgend onversleuteld
+   opslaan — AVG-risico). Default `STORAGE_S3_SSE=AES256` (SSE-S3, door S3 beheerde sleutels);
+   `aws:kms` schakelt SSE-KMS in (optioneel `STORAGE_S3_SSE_KMS_KEY_ID` voor een eigen KMS-sleutel,
+   leeg = AWS-beheerde `aws/s3`-sleutel); `none` schakelt de header bewust uit voor S3-compatibele
+   opslag die 'm niet accepteert (met een productie-waarschuwing in de env-validatie). Resterend
+   mensenwerk: **niets extra** — versleuteling staat standaard aan zodra `STORAGE_DRIVER=s3`.
+   Aanrader voor de bucket: zet óók **default-encryptie + "Block Public Access"** aan als tweede laag.
 
 ### 1d. Domein + HTTPS
 
@@ -403,6 +413,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `STORAGE_DRIVER=s3`                                               | Schakelt productie-opslag in                  | —                    | Bij echte uploads                                |
 | `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                         | Bucketnaam + regio                            | Opslagdienst (§1c)   | Bij echte uploads                                |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                     | Opslag-toegangssleutels                       | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                  | Encryptie-at-rest (default AES256; optioneel) | — (§1c)              | Optioneel (default aan bij s3)                   |
 | `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`           | E-mail via Resend HTTP-API (Railway-proof)    | Resend (§2)          | Voor e-mail                                      |
 | `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`               | E-mail via eigen SMTP-relay                   | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
 | Betaal-API-sleutels + webhook-secret                              | Voor abonnementen                             | Stripe/Mollie (§3)   | Voor betalingen                                  |
