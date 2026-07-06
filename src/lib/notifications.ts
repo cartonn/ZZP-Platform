@@ -60,6 +60,7 @@ const META: Record<string, NotificationMeta> = {
   POOL_INVITE: { category: "collaboration", tone: "attention" },
   JOB_PROPOSAL: { category: "collaboration", tone: "attention" }, // bemiddelaar draagt ZZP'er voor op dienst
   JOB_INVITE: { category: "collaboration", tone: "attention" }, // opdrachtgever nodigt ZZP'er direct uit voor een opdracht
+  JOB_CLOSED: { category: "system", tone: "info" }, // opdracht gesloten: open reactie is niet meer beschikbaar
 };
 
 /** Categorie + toon voor een notificatietype; valt terug op een neutrale systeem-categorie. */
