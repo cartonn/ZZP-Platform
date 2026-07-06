@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/privacy-audit 2e ronde 2026-07-06 — 1 HOOG + 1 MIDDEL gefixt (basis `main` @ d4b6039)
+
+Adversariële audit (orchestrator Opus 4.8 + 1 parallelle Opus security-subagent) op de delta
+`a5abe5a..d4b6039` (#631–#637) + een sibling-diff van de twee publieke, sessieloze deel-surfaces.
+**Twee bevindingen volledig gefixt (rood→groen); geen nieuwe geparkeerd.** Kader: OWASP A01/A04 + AVG
+art. 17. Details: `docs/SECURITY-PRIVACY-BACKLOG.md` (bovenaan).
+
+- **HOOG — `/vertrouwen/[profileId]/[token]` dwong geen liveness/tenant-isolatie af.** De publieke
+  vertrouwensdossier-deelpagina toonde naam + VERIFIED-certificaten + de "Servergeverifieerd"-zegel op
+  een niet-verlopende HMAC-bearer-URL zónder account-liveness- of tenant-check — anders dan zijn sibling
+  `/zzp/[id]` (`profile-screen.tsx`) en de agenda-feed-fix (#630). Een geschorst/geanonimiseerd account
+  (schorsing raakt `visibility` niet) én een tenant-gebonden franchise-roster-ZZP'er bleven zo publiek
+  zichtbaar (OWASP A01 stale-status + cross-tenant; AVG art. 17). Fix: liveness-poort
+  (`status === ACTIVE && !anonymizedAt`) + tenant-poort (`tenantId === null`) in de `isShared`-gate.
+  Test: `src/app/vertrouwen/vertrouwen-liveness.test.ts`.
+- **MIDDEL — company-logo-upload omzeilde de #631-malware-scanner.** `assertUploadClean` was in de
+  document-/certificaat-upload bedraad maar niet in `bedrijf/actions.ts` (de derde stored-binary-upload);
+  bij `UPLOAD_SCANNER=clamav` belandde een besmet "logo" onbekeken in de opslag + via `/api/media`
+  geserveerd (OWASP A04; CLAUDE.md regel 4). Fix: `assertUploadClean` toegevoegd, identiek aan de
+  zuster-call-sites. Test: `src/app/(protected)/bedrijf/actions.scan.test.ts`.
+
+Gate groen: `typecheck` + `lint` + `test` (293 files / 3251 tests) + `prettier --check .` + `build`.
+
 ## Persona-sweep run 13 — geen nieuwe gaten (2026-07-06)
 
 Kritische-gebruiker-sweep over 4 rollen op main-commit `f73a17b`. **76 geautomatiseerde probes** (login,
