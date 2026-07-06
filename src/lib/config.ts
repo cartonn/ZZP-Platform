@@ -185,6 +185,13 @@ export function reviewBlindDays(): number {
 // herplaatsing/no-show-registratie).
 export const CANCELLATION_FREE_DAYS = 7;
 
+// --- Reiskosten (kilometervergoeding) --------------------------------------
+// Belastingvrije kilometervergoeding voor zakelijke ritten: € 0,23 per km (prijspeil 2024–2026,
+// art. 15b Wet LB / Belastingdienst). Standaardtarief waarmee de ZZP'er een reiskosten-regel op een
+// handmatige factuur voorinvult; hij kan het bedrag altijd overschrijven. Geen fiscaal advies —
+// dit is een gemaks-standaard. Bijstellen = mensenwerk zodra het tarief officieel wijzigt.
+export const MILEAGE_RATE_CENTS = 23; // € 0,23 per kilometer
+
 // --- Rechtsvermoeden werknemerschap (wetsvoorstel VBAR, aangenomen 21-4-2026) ----------------
 // Bij een uurtarief onder €38 (prijspeil 2025) kan de werkende een rechtsvermoeden van loondienst
 // inroepen (art. 7:610a BW zoals gewijzigd). Verwachte inwerkingtreding: 1-1-2027.

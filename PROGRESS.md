@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Administratie-ontzorging 2026-07-06 — reiskosten-declaratie op de handmatige factuur (#640)
+
+Een ZZP'er kan op een handmatige factuur (`/facturen/nieuw`) met één klik een correcte reiskosten-regel
+toevoegen: **kilometers × tarief per km → één factuurregel**, standaard voorinvuld met het belastingvrije
+tarief van **€ 0,23/km** (prijspeil 2024–2026, aanpasbaar). Vertaalt Bendy's "declarabele kilometers"
+naar onze bestaande factuurregel-vorm (`quantity × unitCents`) — géén schema-, cascade- of geldstroom-
+wijziging. De regel loopt door de bestaande `createInvoice`-actie die elk bedrag server-side herberekent
+en valideert (server-side waarheid; de client vult alleen voor). Pure helper `buildMileageLine`
+weigert niet-hele/negatieve/te-grote km of een ongeldig tarief met een duidelijke NL-reden vóór het
+ooit de server bereikt.
+
+- Bestanden: `src/lib/mileage.ts` (+ `mileage.test.ts`, 10 tests), `src/lib/config.ts`
+  (`MILEAGE_RATE_CENTS`), `src/app/(protected)/facturen/invoice-form.tsx` (reiskosten-paneel).
+  Gate: `typecheck` + `lint` + `test` (3266 groen) + `build` + `prettier --write .` — alle groen.
+  E2e in CI.
+
 ## Prod-hardening 2026-07-06 — S3 encryptie-at-rest voor gevoelige documenten (#639)
 
 De S3-opslagdriver zette **geen** expliciete server-side-encryptie op uploads en leunde volledig op de
