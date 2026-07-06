@@ -58,7 +58,17 @@ vi.mock("@/lib/db", () => ({
     plan: { findUnique: vi.fn(async () => ({ maxJobs: 1 })) },
     company: { findUnique: vi.fn(async () => ({ id: "co-1", name: "Testbedrijf" })) },
     favoriteFreelancer: { findMany: vi.fn(async () => []) },
-    freelancerProfile: { findFirst: vi.fn(async () => store.freelancer) },
+    freelancerProfile: {
+      // Respecteert de tenant-grens in de where: de discoverable-pool is per-tenant gescopet
+      // (`tenantId: job.tenantId`). Een profiel uit een andere tenant is "niet gevonden" (null),
+      // net als de echte DB-query. `undefined` in de where = geen tenant-constraint (matcht alles).
+      findFirst: vi.fn(async (args: { where?: { tenantId?: string | null } }) => {
+        if (!store.freelancer) return null;
+        const wantTenant = args?.where?.tenantId;
+        if (wantTenant !== undefined && store.freelancer.tenantId !== wantTenant) return null;
+        return store.freelancer;
+      }),
+    },
     auditLog: { count: vi.fn(async () => store.invitedAuditCount) },
     notification: {
       createMany: vi.fn(async () => ({ count: 0 })),
@@ -114,6 +124,7 @@ function publishedJobForInvite(overrides: Record<string, unknown> = {}) {
     id: "job-1",
     title: "Wijkverpleegkundige",
     status: "PUBLISHED",
+    tenantId: null,
     company: { userId: "client-1", name: "Thuiszorg Noord" },
     ...overrides,
   };
@@ -123,7 +134,7 @@ describe("inviteFreelancerToJob — directe uitnodiging", () => {
   beforeEach(() => {
     store.notifications = [];
     store.invitedAuditCount = 0;
-    store.freelancer = { id: "fp-1", user: { id: "user-9" }, applications: [] };
+    store.freelancer = { id: "fp-1", tenantId: null, user: { id: "user-9" }, applications: [] };
     auditMock.mockClear();
   });
 
@@ -171,10 +182,35 @@ describe("inviteFreelancerToJob — directe uitnodiging", () => {
 
   it("nodigt niet uit als de ZZP'er al reageerde", async () => {
     store.job = publishedJobForInvite();
-    store.freelancer = { id: "fp-1", user: { id: "user-9" }, applications: [{ id: "app-1" }] };
+    store.freelancer = {
+      id: "fp-1",
+      tenantId: null,
+      user: { id: "user-9" },
+      applications: [{ id: "app-1" }],
+    };
     await inviteFreelancerToJob("job-1", "fp-1");
     expect(store.notifications).toHaveLength(0);
     expect(auditMock).not.toHaveBeenCalled();
+  });
+
+  it("weigert cross-tenant: een ZZP'er uit een andere franchise-roster wordt niet uitgenodigd (A01)", async () => {
+    // Regressie voor de cross-tenant-IDOR: de uitnodiging scopet de discoverable-pool op
+    // `tenantId: job.tenantId`. Een opdrachtgever in franchise-A (of direct, tenantId null) mag geen
+    // ZZP'er uit de private roster van franchise-B kunnen bereiken — ook al staat dat profiel op
+    // PUBLIC. Zonder de tenant-grens vindt de query het profiel en verstuurt notificatie + audit.
+    store.actor = { id: "client-1", role: "CLIENT", status: "ACTIVE", tenantId: "franchise-A" };
+    store.job = publishedJobForInvite({ tenantId: "franchise-A" });
+    store.freelancer = {
+      id: "fp-1",
+      tenantId: "franchise-B",
+      user: { id: "user-9" },
+      applications: [],
+    };
+    await inviteFreelancerToJob("job-1", "fp-1");
+    expect(store.notifications).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalled();
+    // Herstel de default direct-client-actor voor eventuele volgende tests.
+    store.actor = { id: "client-1", role: "CLIENT", status: "ACTIVE", tenantId: null };
   });
 
   it("is een stille no-op als de opdracht niet bestaat", async () => {
