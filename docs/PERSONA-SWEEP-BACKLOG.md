@@ -1,5 +1,42 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-06 (run 12) · **main-commit basis:** `a7d97bd`
+> **Uitkomst:** **GEEN nieuwe gaten.** ~30 adversariële probes + 1 live DOEL-1-actie end-to-end +
+> DOEL-1b next-action-kruischeck over 4 rollen. Verse prod-build (`npm run build`), schema-push en
+> idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB (`qa.db`), prod-server
+> (`CI=true npx next start`, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen
+> ingelogd via het echte formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium
+> (`/opt/pw-browsers/chromium-1194`). Deze run is documentatie-only.
+>
+> **DOEL 1 (echte actie, server-side geverifieerd):** ADMIN klikte "Goedkeuren" op `/admin/verificaties`
+> → tegen de DB bevestigd: `cred-peter-VOG` én `cred-bram-VOG` **SUBMITTED→VERIFIED** met `verifiedAt`,
+> audit `CREDENTIAL_VERIFIED` (`actorId`=admin), notificatie "Certificaat goedgekeurd" naar de juiste
+> ZZP'ers (Peter/Bram), SUBMITTED-teller **6→4**, en de knoppen verdwenen uit de queue (6→5→4). De
+> volledige authz→actie→audit→notificatie-keten werkt.
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol live gekruist tegen de DB-waarheid: ADMIN toont
+> nog certificaat-taken (4 SUBMITTED resteren; de 2 goedgekeurde verdwenen), FREELANCER (Sanne) en
+> CLIENT niet-leeg, FRANCHISER terecht **"Alles is afgehandeld"** (0 (bijna-)verlopende tenant-certs,
+> 0 openstaande leads). `cascade/stage.ts` + `pending-tasks.ts` gelezen — de multi-cyclus-maskering
+> (`performanceNewerThanInvoice`) en de spiegel FREELANCER/CLIENT-fasen sluiten aan op het actiecentrum.
+>
+> **DOEL 2 (adversarieel, ~30 probes):** privilege-escalatie (FREELANCER/CLIENT/FRANCHISER → `/admin/*`;
+> niet-FRANCHISER → `/franchise`) → **307 redirect naar eigen dashboard**; IDOR/cross-partij + cross-tenant
+> (andermans `/samenwerkingen/<id>`, `/facturen/<id>`; franchiser → default-tenant collab) → **soft-404**
+> zonder veld-/bedrag-/PII-lek (body identiek aan een garbage-id, 0 `€`-bedragen); document-privacy
+> (`/api/documents/<id>` van een ander): eigenaar/ADMIN 200, CLIENT/FRANCHISER/vreemde FREELANCER **403**;
+> garbage-id's → soft-404/404, **0 HTTP-500's over de hele run**. **Nieuwe publieke oppervlakken getest:**
+> CSP-report `POST /api/csp-report` (leeg/malformed/2MB-body → **204**, GET → **405**, geen crash);
+> abonneerbare agenda-feed `GET /api/agenda/feed.ics` (geen/vervalst/kort HMAC-token → **404**, timing-safe,
+> liveness-gate); cron `POST /api/tasks/run-all|expiry` zonder secret → **503**; betaal-webhook
+> `POST /api/billing/webhook` → 200 volgens Mollie's pull-verificatie-patroon (activatie gated door een
+> server-side her-fetch van de betaalstatus, geen signature-forgery-vector). Recente features gereviewd:
+> directe uitnodiging (`inviteFreelancerToJob`: `requireRole('CLIENT')` → `assertOwnership` →
+> tenant-gescoopte discoverable-poort, de #630 cross-tenant-fix aanwezig) en de agenda-feed (HMAC + liveness)
+> — beide solide. Geen nieuwe gaten; spoort met runs 6–11.
+>
+> ---
+>
 > **Datum:** 2026-07-05 (run 11) · **main-commit basis:** `99a1b7a`
 > **Uitkomst:** **GEEN nieuwe gaten.** ~62 geautomatiseerde probes over 4 rollen (login, screens,
 > privilege-escalatie, IDOR/cross-partij, cross-tenant, document-privacy, XSS, robuustheid, cron-auth)
