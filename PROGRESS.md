@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid: malware-scan van uploads (2026-07-06, PR "prod: upload malware-scanning seam")
+
+**Wat:** OWASP-aanbeveling voor gevoelige bestand-uploads (VOG/diploma's/verzekering) — een
+pluggbare scan-abstractie vóór opslag, zelfde patroon als de bestaande StorageDriver/MailSender/
+RateLimitStore-seams.
+
+- **`src/lib/services/upload-scanner.ts`** (nieuw): `UploadScanner`-interface met `NoopUploadScanner`
+  (default, scan overgeslagen → pilot ongewijzigd) en `ClamAvUploadScanner` achter env
+  `UPLOAD_SCANNER=clamav` — praat via het rauwe clamd INSTREAM TCP-protocol met een ClamAV-daemon
+  (`node:net`, geen extra SDK-dependency). Host/poort via `CLAMAV_HOST`/`CLAMAV_PORT` (default 3310).
+  Helper `assertUploadClean(buffer, {mimeType,size})` werpt `UploadValidationError` bij een besmet
+  bestand.
+- Gewired vóór `storage.put` in beide gevoelige upload-paden: `src/app/(protected)/documenten/actions.ts`
+  en `src/app/(protected)/certificaten/actions.ts` (na `assertContentMatchesMime`).
+- **Beleid: fail-closed** bij een onbereikbare scanner (upload geweigerd + gerapporteerd via de
+  error-reporter); `UPLOAD_SCAN_FAIL_OPEN=true` schakelt bewust door naar doorlaten tijdens een
+  clamd-storing.
+- **`src/lib/env.ts`**: `UPLOAD_SCANNER`-enum (noop|clamav, default noop); bij `clamav` is
+  `CLAMAV_HOST` een harde boot-eis; in productie een niet-fatale waarschuwing zolang op `noop`.
+  `.env.example` bijgewerkt.
+- **Tests:** `src/lib/services/upload-scanner.test.ts` (24) + uitbreiding `src/lib/env.test.ts`.
+  Typecheck + lint groen, geen schemawijziging.
+- Rest = mensenwerk (MENSENWERK.md §0b/§7): een ClamAV clamd-daemon draaien + `CLAMAV_HOST`/
+  `CLAMAV_PORT` + `UPLOAD_SCANNER=clamav` in de Railway-secrets zetten.
+
 ## Abonneerbare agenda-feed (webcal) — rooster live in je eigen agenda-app (2026-07-06, PR #628)
 
 **Waarde (ZZP'er + opdrachtgever, "mijn diensten staan altijd bijgewerkt in mijn telefoonagenda"):**

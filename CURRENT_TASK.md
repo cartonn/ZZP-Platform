@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — malware-scan van uploads** (PR "prod: upload
+> malware-scanning seam") — pluggbare `UploadScanner`-seam (`src/lib/services/upload-scanner.ts`,
+> zelfde patroon als StorageDriver/MailSender/RateLimitStore): `NoopUploadScanner` (default) +
+> `ClamAvUploadScanner` achter `UPLOAD_SCANNER=clamav` (rauw clamd INSTREAM-protocol via `node:net`,
+> geen extra dependency, `CLAMAV_HOST`/`CLAMAV_PORT`). `assertUploadClean` gewired vóór `storage.put`
+> in de documenten- én certificaten-upload-actions, na `assertContentMatchesMime`. **Fail-closed** bij
+> onbereikbare scanner (`UPLOAD_SCAN_FAIL_OPEN=true` schakelt bewust door tijdens storing). Env-
+> validatie: `CLAMAV_HOST` harde boot-eis bij `clamav`, niet-fatale prod-waarschuwing op `noop`.
+> 24 nieuwe tests + env-tests uitgebreid, geen schemawijziging. Rest = mensenwerk (MENSENWERK.md
+> §0b/§7): clamd-daemon draaien + secrets zetten.
+
 > Gedaan (niet opnieuw): **Directe uitnodiging — opdrachtgever nodigt passende ZZP'er uit voor een
 > opdracht (PR #625)** — vanaf de "Geschikte ZZP'ers"-sectie op `/opdrachten/[id]` nodigt de eigenaar
 > met één klik een gescoorde, openbare, nog-niet-reagerende ZZP'er uit; de ZZP'er krijgt een

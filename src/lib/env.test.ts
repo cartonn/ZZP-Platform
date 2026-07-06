@@ -26,6 +26,8 @@ const INTEGRATION_VARS = [
   "IDENTITY_API_KEY",
   "UPSTASH_REDIS_REST_URL",
   "UPSTASH_REDIS_REST_TOKEN",
+  "CLAMAV_HOST",
+  "CLAMAV_PORT",
   "SHARE_TOKEN_SECRET",
   "AUTH_URL",
   "NEXTAUTH_URL",
@@ -109,6 +111,15 @@ describe("validateEnv", () => {
     baseValid();
     process.env.BILLING_PROVIDER = "mollie";
     expect(() => validateEnv()).toThrow(/MOLLIE_API_KEY/);
+  });
+
+  it("vereist CLAMAV_HOST bij UPLOAD_SCANNER=clamav", () => {
+    baseValid();
+    process.env.UPLOAD_SCANNER = "clamav";
+    expect(() => validateEnv()).toThrow(/CLAMAV_HOST/);
+
+    process.env.CLAMAV_HOST = "clamd.internal";
+    expect(() => validateEnv()).not.toThrow();
   });
 
   it("vereist de DUO-endpoints bij DIPLOMA_VERIFIER=duo", () => {
@@ -210,6 +221,8 @@ describe("envWarnings", () => {
       RATE_LIMIT_STORE: "upstash",
       UPSTASH_REDIS_REST_URL: "https://example.upstash.io",
       UPSTASH_REDIS_REST_TOKEN: "token",
+      UPLOAD_SCANNER: "clamav",
+      CLAMAV_HOST: "clamd.internal",
       ...over,
     }) as Env;
 
@@ -236,6 +249,11 @@ describe("envWarnings", () => {
   it("waarschuwt voor de in-memory rate-limit-store in productie", () => {
     const w = envWarnings(prod({ RATE_LIMIT_STORE: "memory" }));
     expect(w.some((m) => /RATE_LIMIT_STORE=memory/.test(m))).toBe(true);
+  });
+
+  it("waarschuwt voor de ontbrekende malware-scan in productie", () => {
+    const w = envWarnings(prod({ UPLOAD_SCANNER: "noop" }));
+    expect(w.some((m) => /UPLOAD_SCANNER=noop/.test(m))).toBe(true);
   });
 
   it("zwijgt bij een volledig geconfigureerde productie", () => {

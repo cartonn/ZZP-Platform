@@ -88,6 +88,17 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   in de hostlogs (Railway/Datadog). Optioneel: hang na een paar dagen productie een monitor op de
   `csp-violation`-logregels en verstrak de policy op basis daarvan (of stuur `SENTRY_DSN` mee zodat
   ze ook extern zichtbaar worden).
+- **Malware-scan van uploads** (laag, code-kant GEDAAN 6-7-2026): geüploade bewijsstukken (VOG,
+  diploma's, verzekering) worden vóór opslag nu gecontroleerd via een pluggbare scan-abstractie
+  (`src/lib/services/upload-scanner.ts`, zelfde patroon als de opslag-/mail-/rate-limit-seams):
+  standaard `NoopUploadScanner` (scan overgeslagen, pilot ongewijzigd) of, achter
+  `UPLOAD_SCANNER=clamav`, een `ClamAvUploadScanner` die met een eigen ClamAV-daemon praat (rauw
+  clamd INSTREAM-protocol, geen extra dependency). Gewired vóór opslag in zowel de documenten- als
+  de certificaten-upload. **Fail-closed:** is de scanner niet bereikbaar, dan wordt de upload
+  geweigerd (met foutmelding); `UPLOAD_SCAN_FAIL_OPEN=true` schakelt bewust door naar doorlaten
+  tijdens een storing. Resterend mensenwerk: een ClamAV clamd-daemon draaien (bijv. als sidecar/
+  losse service in een EU-regio), en `CLAMAV_HOST` (+ evt. `CLAMAV_PORT`) + `UPLOAD_SCANNER=clamav`
+  in de Railway-secrets zetten. Zolang dat ontbreekt draait alles veilig door zonder scan.
 - **Dependency graph + Dependabot aanzetten** (laag, web-toggle): de `dependency-review`-poort
   vereist GitHub's Dependency graph. Zet die (en Dependabot security updates) aan op
   github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check draait
@@ -384,23 +395,24 @@ Echte teksten, logo en eventuele huisstijl kun je aanleveren; de agent verwerkt 
 
 Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Zie ook `.env.example`.)
 
-| Instelling                                                        | Wat het is                                    | Waar haal je het     | Wanneer nodig                  |
-| ----------------------------------------------------------------- | --------------------------------------------- | -------------------- | ------------------------------ |
-| `DATABASE_URL`                                                    | Verbindings-URL productie-database            | Databasedienst (§1b) | Altijd (productie)             |
-| `AUTH_SECRET`                                                     | Geheim voor veilige inlogsessies (≥32 tekens) | Zelf genereren (§1e) | Altijd                         |
-| `AUTH_URL`                                                        | Je productie-webadres                         | Je domein (§1d)      | Altijd                         |
-| `STORAGE_DRIVER=s3`                                               | Schakelt productie-opslag in                  | —                    | Bij echte uploads              |
-| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                         | Bucketnaam + regio                            | Opslagdienst (§1c)   | Bij echte uploads              |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                     | Opslag-toegangssleutels                       | Opslagdienst (§1c)   | Bij echte uploads              |
-| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`           | E-mail via Resend HTTP-API (Railway-proof)    | Resend (§2)          | Voor e-mail                    |
-| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`               | E-mail via eigen SMTP-relay                   | Mailprovider (§2)    | Voor e-mail (niet op Railway)  |
-| Betaal-API-sleutels + webhook-secret                              | Voor abonnementen                             | Stripe/Mollie (§3)   | Voor betalingen                |
-| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`             | Echte DUO-controle                            | DUO (§4a)            | Voor echte diplomacontrole     |
-| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`         | Echte BIG-controle                            | CIBG (§4b)           | Voor echte zorgcontrole        |
-| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY` | Echte identiteitscontrole                     | PSP/iDIN (§4c)       | Voor echte identiteitscontrole |
-| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                           | Externe error-monitoring (anders alleen logs) | Sentry (§0b)         | Optioneel (aanbevolen prod)    |
-| `LOG_LEVEL`                                                       | Logdrempel (debug/info/warn/error)            | —                    | Optioneel (default info)       |
-| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`    | Gedeelde rate-limits over instances           | Upstash (§0b H-2)    | Bij horizontale schaling       |
+| Instelling                                                        | Wat het is                                    | Waar haal je het     | Wanneer nodig                                    |
+| ----------------------------------------------------------------- | --------------------------------------------- | -------------------- | ------------------------------------------------ |
+| `DATABASE_URL`                                                    | Verbindings-URL productie-database            | Databasedienst (§1b) | Altijd (productie)                               |
+| `AUTH_SECRET`                                                     | Geheim voor veilige inlogsessies (≥32 tekens) | Zelf genereren (§1e) | Altijd                                           |
+| `AUTH_URL`                                                        | Je productie-webadres                         | Je domein (§1d)      | Altijd                                           |
+| `STORAGE_DRIVER=s3`                                               | Schakelt productie-opslag in                  | —                    | Bij echte uploads                                |
+| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                         | Bucketnaam + regio                            | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                     | Opslag-toegangssleutels                       | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`           | E-mail via Resend HTTP-API (Railway-proof)    | Resend (§2)          | Voor e-mail                                      |
+| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`               | E-mail via eigen SMTP-relay                   | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
+| Betaal-API-sleutels + webhook-secret                              | Voor abonnementen                             | Stripe/Mollie (§3)   | Voor betalingen                                  |
+| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`             | Echte DUO-controle                            | DUO (§4a)            | Voor echte diplomacontrole                       |
+| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`         | Echte BIG-controle                            | CIBG (§4b)           | Voor echte zorgcontrole                          |
+| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY` | Echte identiteitscontrole                     | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
+| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                           | Externe error-monitoring (anders alleen logs) | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
+| `LOG_LEVEL`                                                       | Logdrempel (debug/info/warn/error)            | —                    | Optioneel (default info)                         |
+| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`    | Gedeelde rate-limits over instances           | Upstash (§0b H-2)    | Bij horizontale schaling                         |
+| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`             | Malware-scan van uploads                      | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).

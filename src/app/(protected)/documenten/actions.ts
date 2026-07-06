@@ -11,6 +11,7 @@ import {
   UploadValidationError,
   validateUpload,
 } from "@/lib/services/storage";
+import { assertUploadClean } from "@/lib/services/upload-scanner";
 import { uploadRateLimiter } from "@/lib/rate-limit";
 import { documentSchema } from "@/lib/validation";
 import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
@@ -54,6 +55,7 @@ export async function uploadDocument(
   const buffer = Buffer.from(await file.arrayBuffer());
   try {
     assertContentMatchesMime(buffer, file.type);
+    await assertUploadClean(buffer, { mimeType: file.type, size: file.size });
   } catch (e) {
     if (e instanceof UploadValidationError) return { fieldErrors: { document: e.message } };
     throw e;
