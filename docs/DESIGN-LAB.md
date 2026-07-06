@@ -313,4 +313,28 @@ UI-taal = Nederlands.
   archief-metaforen voor credentials/verificatie (filatelie-album, entomologische specimen-lade),
   retro-tech "honest computing" strak hermaakt (Hollerith-ponskaart), analoge meet-/registratie-datataal
   (seismograaf-inktlijn), en expressief high-contrast display met bewaakte leesbaarheid (stadion-LED-scorebord).
-- **Totaal nu op `/ontwerp`: 120 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120).
+- **Reeks 13 (run 6-7-2026, nrs 121–130):** Compositie (De Stijl / neoplasticisme: orthogonaal
+  zwart hairline-raster met asymmetrische primaire kleurvlakken, Nederlands erfgoed, Space Grotesk —
+  niet Bauhaus/Constructie) · Uurwerk (haute horlogerie: gunmetal wijzerplaat met guilloché-gravure,
+  messing-goud subdial-complicaties voor KPI's, Fraunces — verificatie als chronometer-keurmerk,
+  niet Meter) · Portolaan (historische zeekaart: kompasroos + radiale rhumb-lijnen + dieptelood op
+  perkament, matching als navigatie, Newsreader — niet Atlas/Radar) · Suminagashi (Japanse drijvende
+  inkt-marmering: concentrische inkt-ringen op rijstpapier, sereen/low-stimulation, Sora — niet
+  Aquarel/Japandi) · Typemachine (mechanisch schrift: monospace body op typpapier met rood-zwarte
+  inktlint-tweekleur, IBM Plex Mono — tactiel-ambachtelijk, niet Console/Courant) · Histologie
+  (H&E-kleuring: eosine-magenta/hematoxyline-paars weefsel-textuur op objectglas met meetschaal,
+  klinisch passend bij zorg, niet Kliniek/Röntgen) · Cyanotype (fotografische zonnedruk à la Anna
+  Atkins: witte silhouetten op Pruisisch blauw met belichtings-vignetten, monochroom, niet
+  Blauwdruk/Röntgen) · Spectraal (audio-DAW: waveform-balken, spectraal-analyzer, EQ-banden en
+  VU-gloed, niveau-meters als statustaal, Geist Mono — niet Montage/Groef/Seismograaf) · Seinvlaggen
+  (maritieme codetaal: internationale seinvlag-motieven in rood/geel/blauw/wit als status-alfabet,
+  bold-geordend, Space Grotesk — niet Signaal/Bauhaus) · Jaarringen (dendrochronologie: concentrische
+  boom-groeiringen coderen tijd/mijlpalen in warm spint-/kernhout, organische data-viz, Newsreader —
+  niet Ringen/Groef). Alle tien gebruiken bestaande lab-fonts — geen nieuwe fonts nodig.
+- Onderzochte 2026-trends deze reeks: analoge/cyanotype- en fotografische procédés als
+  vertrouwens-esthetiek (cyanotype-zonnedruk, histologie-objectglas), erfgoed-material­iteit met
+  Nederlandse wortels (De Stijl neoplasticisme, portolaan-zeekaart), haute-craft luxe als
+  verificatiegebaar (guilloché-horlogerie), organische/natuurlijke data-visualisatie (dendro-jaarringen,
+  suminagashi-marmering), gecodeerde signaal-systemen als statustaal (maritieme seinvlaggen) en
+  audio-native interfaces (waveform/spectrum-DAW) — elk onderscheidend gehouden van bestaande richtingen.
+- **Totaal nu op `/ontwerp`: 130 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130).
