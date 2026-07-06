@@ -1,17 +1,26 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Car, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Select } from "@/components/ui/select";
 import { createInvoice, type InvoiceState } from "./actions";
+import { buildMileageLine, centsToEuroInput } from "@/lib/mileage";
+import { eurosToCents } from "@/lib/invoices";
+import { MILEAGE_RATE_CENTS } from "@/lib/config";
 
 type Line = { key: number; description: string; quantity: string; unit: string };
 let counter = 0;
 const newLine = (): Line => ({ key: counter++, description: "", quantity: "1", unit: "" });
+const lineFrom = (description: string, quantity: string, unit: string): Line => ({
+  key: counter++,
+  description,
+  quantity,
+  unit,
+});
 
 export function InvoiceForm({
   collaborations,
@@ -22,6 +31,34 @@ export function InvoiceForm({
   const action = createInvoice.bind(null, collaborationId);
   const [state, formAction, isPending] = useActionState<InvoiceState, FormData>(action, undefined);
   const [lines, setLines] = useState<Line[]>([newLine()]);
+
+  // Reiskosten-declaratie: kilometers × tarief per km → één nette factuurregel.
+  const [mileageOpen, setMileageOpen] = useState(false);
+  const [mileageKm, setMileageKm] = useState("");
+  const [mileageRate, setMileageRate] = useState(centsToEuroInput(MILEAGE_RATE_CENTS));
+  const [mileageError, setMileageError] = useState<string | null>(null);
+
+  const addMileage = () => {
+    const result = buildMileageLine({
+      kilometers: Number(mileageKm),
+      ratePerKmCents: Number.isFinite(Number(mileageRate))
+        ? eurosToCents(Number(mileageRate))
+        : NaN,
+    });
+    if (!result.ok) {
+      setMileageError(result.error);
+      return;
+    }
+    const { line } = result;
+    setLines((ls) => [
+      ...ls,
+      lineFrom(line.description, String(line.kilometers), centsToEuroInput(line.ratePerKmCents)),
+    ]);
+    setMileageKm("");
+    setMileageRate(centsToEuroInput(MILEAGE_RATE_CENTS));
+    setMileageError(null);
+    setMileageOpen(false);
+  };
 
   const total = lines.reduce((sum, l) => {
     const q = Number(l.quantity) || 0;
@@ -70,15 +107,72 @@ export function InvoiceForm({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Regels</span>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setLines((ls) => [...ls, newLine()])}
-          >
-            <Plus className="size-3.5" aria-hidden /> Regel
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setMileageError(null);
+                setMileageOpen((v) => !v);
+              }}
+              aria-expanded={mileageOpen}
+            >
+              <Car className="size-3.5" aria-hidden /> Reiskosten
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setLines((ls) => [...ls, newLine()])}
+            >
+              <Plus className="size-3.5" aria-hidden /> Regel
+            </Button>
+          </div>
         </div>
+
+        {mileageOpen && (
+          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              Kilometers × tarief per km wordt één factuurregel. Standaard is het belastingvrije
+              tarief van {centsToEuroInput(MILEAGE_RATE_CENTS).replace(".", ",")} per km — pas het
+              gerust aan.
+            </p>
+            <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+              <Field label="Kilometers" htmlFor="mileageKm">
+                <Input
+                  id="mileageKm"
+                  type="number"
+                  min={1}
+                  step="1"
+                  inputMode="numeric"
+                  value={mileageKm}
+                  onChange={(e) => setMileageKm(e.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+              <Field label="€ per km" htmlFor="mileageRate">
+                <Input
+                  id="mileageRate"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  inputMode="decimal"
+                  value={mileageRate}
+                  onChange={(e) => setMileageRate(e.target.value)}
+                />
+              </Field>
+              <Button type="button" size="sm" onClick={addMileage}>
+                Toevoegen
+              </Button>
+            </div>
+            {mileageError && (
+              <p role="alert" className="text-sm text-danger">
+                {mileageError}
+              </p>
+            )}
+          </div>
+        )}
         {lines.map((l) => (
           <div key={l.key} className="grid grid-cols-[1fr_4rem_6rem_auto] items-center gap-2">
             <Input
