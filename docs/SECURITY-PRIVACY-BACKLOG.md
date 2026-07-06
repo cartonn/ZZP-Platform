@@ -4,6 +4,73 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-06 (basis: `main` @ a5abe5a)
+
+Audit: orchestrator (Opus 4.8) + 2 parallelle Opus security-subagents op de vérse delta sinds de vorige
+ronde (`944ee7c..a5abe5a`, #623–#629): de nieuwe **abonneerbare agenda-feed** (`/api/agenda/feed.ics`
+
+- `calendar/feed-token.ts` + `user-schedule.ts`, #628), de **directe uitnodiging** (opdrachtgever →
+  ZZP'er, `job-invite.ts` + `inviteFreelancerToJob`, #625), de **lead-pijplijn-samenvatting** (franchise,
+  #627) en de nieuwe **CSP-violatie-ontvanger** (`/api/csp-report` + `observability/csp-report.ts`, #624).
+  Kader: OWASP Top 10 (A01 broken access control/IDOR, A03 injection, A04 insecure design, A09 logging) +
+  OWASP ASVS + AVG art. 5/17/30. Zelf onafhankelijk geverifieerd: CSP-report-endpoint (ongeauthenticeerd,
+  maar rate-limited per IP, 16KB-bodylimiet, altijd 204, AGRESSIEF PII-genormaliseerd — document-URL → pad,
+  bron-URL → origin, referrer/UA/original-policy weggegooid, `sample` afgekapt op 120 tekens; geen
+  log-injectie-/DoS-/PII-vector); agenda-feed-token (128-bit HMAC-SHA256, namespace-gescheiden van het
+  dossier-deeltoken, timing-safe + lengte-check verificatie); lead-pijplijn (read-only, `requireRole
+("FRANCHISER")` + `tenantScopeWhere(actor)` — geen cross-tenant, alleen aggregaten, geen per-individu-PII
+  onder de k-anon-drempel `LEAD_CONVERSION_MIN_SAMPLE`). **Twee bevindingen volledig gefixt (rood→groen);
+  één LAAG geparkeerd.**
+
+### OPGELOST in deze ronde
+
+- **[HOOG→OPGELOST · OWASP A01 (broken access control / cross-tenant IDOR) + CLAUDE.md regel 1 & 2 —
+  `inviteFreelancerToJob` scopet de uitgenodigde ZZP'er niet op de tenant]** De nieuwe directe-
+  uitnodiging (`src/app/(protected)/opdrachten/actions.ts`) deed correct auth → rol `CLIENT` → ownership
+  van de ópdracht (`assertOwnership(actor, job.company.userId)`), maar zocht de uit te nodigen ZZP'er met
+  **alleen** `discoverableFreelancerWhere` (`{ visibility: "PUBLIC", user: { status: "ACTIVE" } }`) —
+  **zonder** `tenantId`-grens. `FreelancerProfile.visibility` staat standaard op `PUBLIC`, dus de query
+  vond óók een ZZP'er uit de private roster van een ándere franchise. Élke andere consument van
+  `discoverableFreelancerWhere` combineert 'm met de tenant (`suggestions.ts:306`:
+  `{ ...discoverableFreelancerWhere, tenantId: job.tenantId }`, met de comment "anders lekt cross-tenant
+  PII" — en dát is precies de functie die déze uitnodigingsknoppen voedt). Repro: een opdrachtgever in
+  franchise-A (of een directe opdrachtgever, `tenantId: null`) roept de server action
+  `inviteFreelancerToJob(eigenJobId, freelancerVanFranchiseB.id)` rechtstreeks aan → vóór de fix: een
+  `Notification` naar die ZZP'er met bedrijfs-/opdrachtnaam van búiten zijn franchise + een `JOB_INVITED`-
+  audit + een PII-join over de tenant-grens. De ownership-stap dekte de opdracht, niet de uitgenodigde
+  (CLAUDE.md regel 2). Niet via de UI zichtbaar (die toont alleen tenant-gescopete suggesties), maar de
+  server mag daar niet op leunen (regel 1: client toont, beslist niet). Gefixt: `tenantId: true` op de
+  job-select + `tenantId: job.tenantId` op de freelancer-`where` (spiegelt `suggestions.ts` exact; een
+  directe opdrachtgever bereikt zo alleen niet-tenant-ZZP'ers). Test: nieuwe case in
+  `opdrachten/actions.test.ts` (`findFirst`-mock respecteert nu de tenant-`where`; franchise-B-ZZP'er →
+  geen notificatie/audit — rood→groen bewezen).
+
+- **[MIDDEL→OPGELOST · OWASP A01 + CLAUDE.md regel 1 (server-side status = waarheid) + AVG art. 17 —
+  publieke agenda-feed dwong geen account-liveness af]** De nieuwe abonneerbare feed
+  `GET /api/agenda/feed.ics` (#628) is bewust sessieloos (een externe agenda-app pollt 'm) en gepoort door
+  een deterministisch, per-gebruiker onveranderlijk HMAC-token. Daardoor blijft een geldig token gelden
+  ná schorsing of anonimisering: de feed serveerde het volledige werkrooster van de gebruiker — inclusief
+  de **NAAM van de tegenpartij (derde-partij-PII)**, jobtitels en data — ook voor een geschorst (bv.
+  wegens fraude/misbruik) of geanonimiseerd/gewist account. De sessie-export (`/api/agenda`) snijdt zo'n
+  account wél live af via `currentActor()` (`status !== "ACTIVE"` of `anonymizedAt` → geen actor;
+  `anonymizeUser` zet `status: "SUSPENDED"` + `anonymizedAt`), maar de publieke feed had die check niet.
+  Repro: schors (of anonimiseer) een account met een actieve samenwerking → open de eerder gedeelde
+  `feed.ics?u=…&t=…`-link → vóór de fix: 200 + rooster met tegenpartij-PII. Gefixt: een liveness-poort
+  ná de tokenverificatie (`prisma.user.findUnique` → `!user || anonymizedAt || status !== "ACTIVE"` →
+  404, vóór elke rooster-DB-I/O; 404 i.p.v. 403 zodat de respons niets over het bestaan/de status
+  prijsgeeft — spiegelt `currentActor()`). Test: `src/app/api/agenda/feed-liveness.test.ts` (actief →
+  200 + rooster; geschorst/geanonimiseerd/onbekend → 404 + géén rooster-load; ongeldig token → 404 vóór
+  DB — rood→groen bewezen: 3 cases falen zonder de poort).
+
+### GEPARKEERD in deze ronde
+
+- **[LAAG · CLAUDE.md regel 2 (Zod-grens) — `inviteFreelancerToJob` valideert de twee id-inputs niet via
+  Zod]** `jobId`/`freelancerProfileId` gaan rauw de `prisma.findUnique/findFirst` in (Prisma
+  parametriseert → geen injectie; consistent met zuster-id-only-actions als `toggleSavedJob`/
+  `changeJobStatus`). Geen exploit; puur consistentie met de "elke mutatie: Zod"-keten. Aanbevolen:
+  triviale `z.string().cuid()`-guard voor defense-in-depth. Terugkerend thema (zie eerdere rondes:
+  `saveApplicationNote`).
+
 ## Ronde 2026-07-05 (2e — basis: `main` @ 944ee7c)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle Opus security-subagents op niet-overlappende

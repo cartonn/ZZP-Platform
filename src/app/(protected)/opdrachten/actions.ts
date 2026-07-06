@@ -464,6 +464,7 @@ export async function inviteFreelancerToJob(
       id: true,
       title: true,
       status: true,
+      tenantId: true,
       company: { select: { userId: true, name: true } },
     },
   });
@@ -471,9 +472,16 @@ export async function inviteFreelancerToJob(
   assertOwnership(actor, job.company.userId); // 403 als het niet zijn opdracht is.
 
   // De ZZP'er moet openbaar vindbaar zijn (PUBLIC + ACTIVE) — precies de pool die de suggesties
-  // voedt. `findFirst` mét de discoverable-where scoped de zichtbaarheid server-side af.
+  // voedt. `findFirst` mét de discoverable-where scoped de zichtbaarheid server-side af. Cruciaal:
+  // óók op de eigen tenant van de opdracht (`tenantId: job.tenantId`) scopen — identiek aan
+  // `suggestedFreelancersForJob` (suggestions.ts), dat exact deze uitnodigingsknoppen voedt. Zonder
+  // die tenant-grens kan een opdrachtgever een ZZP'er uit de private roster van een ándere franchise
+  // uitnodigen (het profiel staat standaard op PUBLIC) — een cross-tenant-lek: de ZZP'er krijgt een
+  // notificatie met bedrijfs-/opdrachtnaam van buiten zijn franchise en er wordt PII gejoind over de
+  // tenant-grens (OWASP A01; CLAUDE.md regel 1 & 2 — ownership dekt óók de uitgenodigde, niet enkel
+  // de opdracht). Een directe opdrachtgever (tenantId null) bereikt zo alleen niet-tenant-ZZP'ers.
   const freelancer = await prisma.freelancerProfile.findFirst({
-    where: { id: freelancerProfileId, ...discoverableFreelancerWhere },
+    where: { id: freelancerProfileId, tenantId: job.tenantId, ...discoverableFreelancerWhere },
     select: {
       id: true,
       user: { select: { id: true } },

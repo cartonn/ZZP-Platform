@@ -4,6 +4,7 @@ import { collaborationScheduleEvents } from "@/lib/calendar/schedule";
 import { loadUserScheduleCollaborations } from "@/lib/calendar/user-schedule";
 import { verifyAgendaFeedToken } from "@/lib/calendar/feed-token";
 import { shareTokenSecret } from "@/lib/share-token";
+import { prisma } from "@/lib/db";
 
 // Publieke, abonneerbare agenda-feed (webcal). Bewust GEEN sessie: een externe agenda-app
 // (Google/Apple) haalt deze URL periodiek op en kan niet inloggen. In plaats daarvan draagt de
@@ -22,6 +23,22 @@ export async function GET(request: NextRequest) {
   // Ongeldig/ontbrekend token → 404 (geen onderscheid tussen "bestaat niet" en "fout token", zodat
   // de respons niets over het bestaan van een gebruiker prijsgeeft). Verificatie vóór elke DB-I/O.
   if (!userId || !token || !verifyAgendaFeedToken(userId, token, secret)) {
+    return new Response("Niet gevonden", { status: 404 });
+  }
+
+  // Liveness-poort (CLAUDE.md regel 1: server-side status is de waarheid). Het HMAC-token is
+  // deterministisch en per gebruiker onveranderlijk, dus een geldig token blijft ná schorsing of
+  // anonimisering (AVG art. 17) geldig. De sessie-export (/api/agenda) snijdt zo'n account live af
+  // via currentActor() (status !== ACTIVE of anonymizedAt → geen actor); deze publieke feed moet
+  // dezelfde liveness afdwingen. Zonder deze check blijft een geschorst (bv. wegens fraude/misbruik)
+  // of gewist account zijn werkrooster — inclusief de NAAM van de tegenpartij (derde-partij-PII) —
+  // serveren op een publieke bearer-URL. 404 (niet 403) zodat de respons niets over het bestaan of
+  // de status van het account prijsgeeft. Vóór elke DB-I/O van het rooster.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { status: true, anonymizedAt: true },
+  });
+  if (!user || user.anonymizedAt || user.status !== "ACTIVE") {
     return new Response("Niet gevonden", { status: 404 });
   }
 
