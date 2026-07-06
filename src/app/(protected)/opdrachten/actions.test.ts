@@ -20,6 +20,8 @@ const store = {
   freelancer: null as Record<string, unknown> | null,
   invitedAuditCount: 0,
   notifications: [] as Array<Record<string, unknown>>,
+  bulkNotifications: [] as Array<Record<string, unknown>>,
+  openApplications: [] as Array<Record<string, unknown>>,
 };
 
 const auditMock = vi.hoisted(() => vi.fn(async () => {}));
@@ -70,8 +72,14 @@ vi.mock("@/lib/db", () => ({
       }),
     },
     auditLog: { count: vi.fn(async () => store.invitedAuditCount) },
+    application: {
+      findMany: vi.fn(async () => store.openApplications),
+    },
     notification: {
-      createMany: vi.fn(async () => ({ count: 0 })),
+      createMany: vi.fn(async (args: { data: Array<Record<string, unknown>> }) => {
+        store.bulkNotifications.push(...args.data);
+        return { count: args.data.length };
+      }),
       create: vi.fn(async (args: { data: Record<string, unknown> }) => {
         store.notifications.push(args.data);
         return { id: "notif-1", ...args.data };
@@ -116,6 +124,63 @@ describe("changeJobStatus — publiceer-pad (hergebruikt door 'Opslaan & publice
     const result = await changeJobStatus("job-1", "PUBLISHED");
     expect(result?.error).toMatch(/Ongeldige opdracht-statusovergang/);
     expect(store.updated).toHaveLength(0);
+  });
+});
+
+describe("changeJobStatus — sluiten informeert open reacties", () => {
+  beforeEach(() => {
+    store.updated = [];
+    store.bulkNotifications = [];
+    store.openApplications = [];
+    auditMock.mockClear();
+  });
+
+  it("notificeert open reacties (NEW/VIEWED/SHORTLIST) bij PUBLISHED → CLOSED + audit", async () => {
+    store.job = draftJob({
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+      title: "Wijkverpleegkundige",
+    });
+    store.openApplications = [
+      { status: "NEW", freelancer: { userId: "zzp-a" } },
+      { status: "SHORTLIST", freelancer: { userId: "zzp-b" } },
+    ];
+    await expect(changeJobStatus("job-1", "CLOSED")).rejects.toMatchObject({
+      url: "/opdrachten/job-1",
+    });
+    expect(store.bulkNotifications.map((n) => n.userId).sort()).toEqual(["zzp-a", "zzp-b"]);
+    for (const n of store.bulkNotifications) {
+      expect(n.type).toBe("JOB_CLOSED");
+      expect(n.link).toBe("/opdrachten");
+      expect(String(n.body)).toContain("Wijkverpleegkundige");
+    }
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "JOB_CLOSED_NOTIFIED", metadata: { count: 2 } }),
+    );
+  });
+
+  it("stuurt geen notificatie en geen audit als er geen open reacties zijn", async () => {
+    store.job = draftJob({ status: "PUBLISHED", publishedAt: new Date() });
+    store.openApplications = [];
+    await expect(changeJobStatus("job-1", "CLOSED")).rejects.toMatchObject({
+      url: "/opdrachten/job-1",
+    });
+    expect(store.bulkNotifications).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "JOB_CLOSED_NOTIFIED" }),
+    );
+  });
+
+  it("informeert niet bij het sluiten van een concept (DRAFT → CLOSED had geen reacties)", async () => {
+    store.job = draftJob({ status: "DRAFT" });
+    store.openApplications = [{ status: "NEW", freelancer: { userId: "zzp-a" } }];
+    await expect(changeJobStatus("job-1", "CLOSED")).rejects.toMatchObject({
+      url: "/opdrachten/job-1",
+    });
+    expect(store.bulkNotifications).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "JOB_CLOSED_NOTIFIED" }),
+    );
   });
 });
 

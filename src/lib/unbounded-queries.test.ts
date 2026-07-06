@@ -326,15 +326,22 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // Skills voor het aanmaakformulier.
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 76,
+    line: 77,
     reason: "skills-referentielijst voor formulier",
   },
   // Flexpool-leden van het eigen bedrijf bij de eerste publicatie (poule is per bedrijf
   // curated en klein; slice-1-overzicht toont er max. 100).
   {
     file: "(protected)/opdrachten/actions.ts",
-    line: 269,
+    line: 270,
     reason: "eigen flexpool-leden bij eerste publicatie (per bedrijf begrensd)",
+  },
+  // Nog-openstaande reacties op één opdracht bij het sluiten (per opdracht begrensd; alleen
+  // NEW/VIEWED/SHORTLIST) om ze te notificeren dat de opdracht weg is.
+  {
+    file: "(protected)/opdrachten/actions.ts",
+    line: 330,
+    reason: "open reacties van één opdracht bij sluiten (per opdracht begrensd)",
   },
 
   // --- opdrachten/nieuw/page.tsx (twee findMany's) ---

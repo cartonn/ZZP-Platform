@@ -10,6 +10,7 @@ import { createApplicationForJob } from "@/lib/applications-create";
 import { assessDbaRisk } from "@/lib/dba";
 import { assertJobTransition, canPublish, JobTransitionError } from "@/lib/jobs";
 import { planPoolInvites, type PoolMember } from "@/lib/pool-routing";
+import { OPEN_APPLICATION_STATUSES, planClosureNotifications } from "@/lib/job-closure";
 import { type Availability, type JobStatus, jobStatusSchema } from "@/lib/enums";
 import { jobSchema } from "@/lib/validation";
 import { visibleJobsWhere } from "@/lib/tenancy";
@@ -318,6 +319,39 @@ export async function changeJobStatus(
           metadata: { count: invites.length },
         });
       }
+    }
+  }
+
+  // Sluit de lus voor de ZZP'er: wordt een LIVE opdracht gesloten, dan verdienen de nog-openstaande
+  // reacties (NEW/VIEWED/SHORTLIST) een seintje dat de opdracht weg is — anders wachten ze voor niets.
+  // Alleen op de PUBLISHED→CLOSED-overgang (een gesloten concept had geen reacties); wie de pure
+  // planner notificeert is server-side waarheid.
+  if (targetStatus === "CLOSED" && from === "PUBLISHED") {
+    const openApplications = await prisma.application.findMany({
+      where: { jobId, status: { in: [...OPEN_APPLICATION_STATUSES] } },
+      select: { status: true, freelancer: { select: { userId: true } } },
+    });
+    const notifications = planClosureNotifications(
+      { id: jobId, title: job.title },
+      openApplications.map((a) => ({ freelancerUserId: a.freelancer.userId, status: a.status })),
+    );
+    if (notifications.length > 0) {
+      await prisma.notification.createMany({
+        data: notifications.map((n) => ({
+          userId: n.userId,
+          type: n.notificationType,
+          title: n.title,
+          body: n.body,
+          link: n.link,
+        })),
+      });
+      await audit({
+        actorId: actor.id,
+        action: "JOB_CLOSED_NOTIFIED",
+        entityType: "Job",
+        entityId: jobId,
+        metadata: { count: notifications.length },
+      });
     }
   }
 

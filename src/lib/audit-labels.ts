@@ -47,6 +47,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   FAVORITE_REMOVED: "ZZP'er uit flexpool verwijderd",
   FAVORITE_NOTE_SAVED: "Notitie bij flexpool-favoriet opgeslagen",
   POOL_INVITED: "Flexpool geïnformeerd bij publicatie",
+  JOB_CLOSED_NOTIFIED: "Open reacties geïnformeerd bij sluiten opdracht",
 
   // Samenwerking & werkproces
   COLLABORATION_PROPOSED: "Samenwerking voorgesteld",

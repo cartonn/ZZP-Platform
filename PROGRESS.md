@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Duidelijkheid ZZP'er 2026-07-06 — open reacties geïnformeerd bij sluiten opdracht (#642)
+
+**Waarde (ZZP'er, geruststelling/duidelijkheid):** wanneer een opdrachtgever een **gepubliceerde**
+opdracht sloot, bleven de nog-openstaande reacties (NEW/VIEWED/SHORTLIST) stil hangen — de ZZP'er wist
+niet dat de opdracht weg was en wachtte voor niets (spiegel van het wachttijd-signaal #545, nu vanaf de
+opdrachtgeverskant gesloten). Nu krijgt elke open reactie één rustige notificatie ("Opdracht gesloten
+— niet meer beschikbaar") met een deeplink naar andere passende opdrachten (`/opdrachten`). Vertaalt de
+"informeer onbeantwoorde kandidaten"-courtoisie van Temper/Malt naar onze rollen. Alleen op de
+PUBLISHED→CLOSED-overgang (een gesloten concept had geen reacties); ACCEPTED/REJECTED/WITHDRAWN zijn al
+afgehandeld en worden overgeslagen.
+
+- Bestanden: `src/lib/job-closure.ts` (pure planner `planClosureNotifications` + `isOpenApplicationStatus`,
+  dedup per ontvanger, stabiel gesorteerd) + `job-closure.test.ts` (11 tests); wiring in
+  `src/app/(protected)/opdrachten/actions.ts` `changeJobStatus` (begrensde `application.findMany` op de
+  open reacties → `notification.createMany` + `JOB_CLOSED_NOTIFIED`-audit met count) + 3 action-tests;
+  `notifications.ts` (`JOB_CLOSED` → system/info), `audit-labels.ts` (nieuw label),
+  `unbounded-queries.test.ts` (allowlist bijgewerkt). Server-side waarheid, geen schemawijziging, geen
+  geldstroom. Gate: typecheck + lint + test (3276 groen) + prettier + build — alle groen. E2e in CI.
+
 ## Administratie-ontzorging 2026-07-06 — reiskosten-declaratie op de handmatige factuur (#640)
 
 Een ZZP'er kan op een handmatige factuur (`/facturen/nieuw`) met één klik een correcte reiskosten-regel
