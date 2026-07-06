@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Abonneerbare agenda-feed (webcal) — rooster live in je eigen agenda-app (2026-07-06, PR #628)
+
+**Waarde (ZZP'er + opdrachtgever, "mijn diensten staan altijd bijgewerkt in mijn telefoonagenda"):**
+de agenda-export was een eenmalige `.ics`-download — na elke roosterwijziging opnieuw downloaden.
+Nu ook een **abonneerbare feed** (webcal-link) die Google/Apple Agenda periodiek zelf ophaalt, zodat
+nieuwe of gewijzigde samenwerkingen vanzelf in de eigen agenda verschijnen. Vertaalt de
+roosterintegratie van de concurrenten (Zorgwerk) naar een frictieloze, self-service koppeling zonder
+externe integratiecontracten. Geen schemawijziging, geen nieuw verplicht secret.
+
+- **`src/lib/calendar/feed-token.ts`** (nieuw, puur): stateless HMAC-SHA256-token over
+  `agenda-feed:{userId}` met het deeltoken-secret (`SHARE_TOKEN_SECRET` → `AUTH_SECRET`), namespace-
+  gescheiden van het dossier-deeltoken (`share-token.ts`) zodat tokens nooit cross-usable zijn.
+  `agendaFeedToken` / `verifyAgendaFeedToken` (timing-safe, length-oracle-proof) / `agendaFeedPath`
+  (bouwt `/api/agenda/feed.ics?u=…&t=…`; `null` zonder secret → feed uit). 17 unit-tests.
+- **`src/lib/calendar/user-schedule.ts`** (nieuw): `loadUserScheduleCollaborations(userId)` — de
+  rooster-query + mapping, geëxtraheerd uit `/api/agenda/route.ts` en gedeeld met de feed-route
+  (één bron van waarheid, één scoping: alleen de eigen partij).
+- **`src/app/api/agenda/feed.ics/route.ts`** (nieuw, publiek): verifieert het token vóór elke DB-I/O;
+  ongeldig/ontbrekend → 404 (geen user-enumeratie). Het punt in `feed.ics` houdt het pad buiten de
+  middleware-matcher zodat een externe agenda-app zonder sessie kan ophalen — de tokenverificatie is
+  de enige poort. Runtime geverifieerd: geldig token → 200 `text/calendar` + geldige VCALENDAR; fout/
+  leeg token → 404; `/api/agenda` (sessie) blijft 307 → login.
+- **`src/components/agenda/agenda-subscribe.tsx`** (nieuw, vervangt `agenda-export-button.tsx`):
+  download-link + "Abonneren"-disclosure met de webcal-openknop, kopieer-naar-klembord en een
+  privacy-notitie. `/rooster` + `/samenwerkingen` geven `agendaFeedPath(actor.id)` door.
+- **Gate:** typecheck ✓, lint ✓ (0 warnings), prettier ✓ (hele repo), **3194 unit-tests** ✓ (17 nieuw),
+  build ✓. Server-side waarheid, geen dode knoppen, geen schemawijziging. `unbounded-queries.test.ts`-
+  allowlist bijgewerkt (rooster-findMany verplaatst naar lib; samenwerkingen-regelnrs +1).
+
 ## Lead-pijplijn-samenvatting voor de bemiddelaar op `/franchise/leads` (2026-07-05, PR #627)
 
 **Waarde (bemiddelaar, "waar staat mijn acquisitie en wat vraagt nu actie?"):** het lead-overzicht
