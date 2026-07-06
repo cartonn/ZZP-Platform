@@ -3,6 +3,17 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 13 — geen nieuwe gaten (2026-07-06)
+
+Kritische-gebruiker-sweep over 4 rollen op main-commit `f73a17b`. **76 geautomatiseerde probes** (login,
+~40 kernschermen, privilege-escalatie, IDOR/cross-partij, cross-tenant, document-privacy, XSS,
+robuustheid, cron/export) + **1 live DOEL-1-actie** (admin keurt `cred-bram-VOG` goed → DB
+SUBMITTED 6→5, audit `CREDENTIAL_VERIFIED` actorId=admin, notificatie 4→5) + **DOEL-1b next-action-
+kruischeck** tegen de DB (ADMIN 5 cert-taken = 5 SUBMITTED; CLIENT Reacties 3 = 3 NEW; FRANCHISER terecht
+"Alles is afgehandeld"). **0 HTTP-500's, 0 leaks, 0 gaten.** Nieuwste oppervlakken gereviewd (#634
+dienst-suggesties tenant-gescoopt, #636 urencriterium-reminder pure/geen-surface, #632 betaalreputatie
+read-only). Spoort met runs 6–12. Details: `docs/PERSONA-SWEEP-BACKLOG.md`. Documentatie-only PR.
+
 ## Proactieve urencriterium-herinnering (ZZP'er) (2026-07-06, PR #636)
 
 **Waarde (ZZP'er, admin-ontzorging):** de ontzorgd-hub toont de urencriterium-stand (1.225 uur →

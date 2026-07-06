@@ -1,5 +1,41 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-06 (run 13) · **main-commit basis:** `f73a17b`
+> **Uitkomst:** **GEEN nieuwe gaten.** 76 geautomatiseerde probes over 4 rollen (login, ~40 kernschermen,
+> privilege-escalatie, IDOR/cross-partij, cross-tenant, document-privacy, XSS, robuustheid, cron/export)
+>
+> - 1 live DOEL-1-actie end-to-end + DOEL-1b next-action-kruischeck tegen de DB-waarheid. Verse prod-build
+>   (`npm run build`), schema-push en idempotente demo-seed (`SEED_DEMO=true`) op een ephemere SQLite-DB
+>   (`qa.db`), prod-server (`CI=true npx next start`, `LOGIN_/REGISTER_RATE_LIMIT=100000`,
+>   `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte formulier (`demo1234`); Playwright met de
+>   vooraf-geïnstalleerde Chromium (`/opt/pw-browsers/chromium-1194`). Deze run is documentatie-only.
+>
+> **DOEL 1 (echte actie, server-side geverifieerd):** ADMIN klikte "Goedkeuren" op `/admin/verificaties`
+> → tegen de DB bevestigd: `cred-bram-VOG` **SUBMITTED→VERIFIED** met `verifiedAt`, audit
+> `CREDENTIAL_VERIFIED` (`actorId`=admin), notificatie naar Bram (4→5), SUBMITTED-teller **6→5**, en de
+> knop verdween uit de queue. De volledige authz→transitie→audit→notificatie-keten werkt.
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol gekruist tegen de DB-waarheid: ADMIN toont exact
+> **5** certificaat-taken = de 5 resterende SUBMITTED-credentials (de goedgekeurde verdween); CLIENT
+> "Reacties 3" = 3 NEW-applications op de eigen company; FRANCHISER terecht **"Alles is afgehandeld"**
+> (0 due leads, 0 (bijna-)verlopende tenant-certs). Geen tegenstrijdige/dubbele/niet-verdwijnende actie.
+>
+> **DOEL 2 (adversarieel, 76 probes — alle correct geweigerd):** privilege-escalatie (FREELANCER/CLIENT/
+> FRANCHISER → `/admin/*`; niet-FRANCHISER → `/franchise/leads`) → **redirect naar eigen dashboard**;
+> IDOR/cross-partij (ZZP'er → andermans `/facturen/<SUBMITTED>`, CLIENT → andermans `/samenwerkingen/<id>`)
+> → **soft-404 zonder veld-/bedrag-/PII-lek**; cross-tenant (FRANCHISER → default-tenant collab/profiel)
+> → soft-404; garbage-id's → soft-404, **0 HTTP-500's over de hele run**; document-privacy
+> (`/api/documents/<Sanne VOG>`: eigenaar + ADMIN → **200 `application/pdf`**; CLIENT/FRANCHISER/vreemde
+> FREELANCER → **403**; garbage → **404**); `GET /api/tasks/run-all` → **405** (geen uitvoering);
+> FRANCHISER → `/api/admin/export/invoices` → **403**; `POST /api/csp-report` → **204**; XSS in `?q=`
+> (`<img onerror>`) → **0 scriptuitvoering** (React-escaping). **Nieuwste oppervlakken gereviewd:**
+> #634 dienst-suggesties (bemiddelaar) — `getDienstSuggestiesForFreelancer` gate't profiel **én** jobs via
+> `tenantScopeWhere(actor)`, page-poort `requireRole("FRANCHISER")` → `getRosterDossier` null-cross-tenant
+> → `notFound()`; #636 urencriterium-herinnering (pure planner, geen HTTP-surface, geen geldstroom); #632
+> betaalreputatie-spiegel (read-only, geaggregeerd). Geen nieuwe gaten; spoort met runs 6–12.
+>
+> ---
+>
 > **Datum:** 2026-07-06 (run 12) · **main-commit basis:** `a7d97bd`
 > **Uitkomst:** **GEEN nieuwe gaten.** ~30 adversariële probes + 1 live DOEL-1-actie end-to-end +
 > DOEL-1b next-action-kruischeck over 4 rollen. Verse prod-build (`npm run build`), schema-push en
