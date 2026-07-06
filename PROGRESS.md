@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Proactieve urencriterium-herinnering (ZZP'er) (2026-07-06, PR #636)
+
+**Waarde (ZZP'er, admin-ontzorging):** de ontzorgd-hub toont de urencriterium-stand (1.225 uur →
+zelfstandigenaftrek) al passief, maar wie de hub niet bezoekt merkt pas ná afloop dat hij achterliep —
+en dan is de aftrek onherstelbaar weg. Dit voegt de ontbrekende **proactieve** laag toe: halverwege het
+jaar (H2) en in het laatste kwartaal (Q4) een gerichte nudge aan de ZZP'ers die op hun huidige koers de
+grens dreigen te missen, zodat ze nog kunnen bijsturen (extra opdrachten of indirecte uren registreren).
+Enige nieuwe reminder-taak naast de bestaande (BTW, betaling, concept-factuur, prestatie-goedkeuring…);
+spiegelt exact het `vat-reminder-task`-patroon.
+
+- **`src/lib/hours-criterion-reminder.ts`** (nieuw, puur): `hoursCriterionCheckpoint(now)` (jul–sep→H2,
+  okt–dec→Q4, jan–jun→null — te vroeg voor een betrouwbare jaarprognose) + `planHoursCriterionReminders`
+  (hergebruikt `hoursCriterion`). Nudge alleen wanneer: uren geregistreerd (>0), criterium niet gehaald,
+  op koers de grens missen (`!projectedMet`), én de prognose ≥60% van 1.225u (`HOURS_REMINDER_MIN_PROJECTED_BPS`
+  = 6000) — anders is de aftrek buiten realistisch bereik en zou een melding louter ontmoedigen.
+- **`src/lib/hours-criterion-reminder-task.ts`** (nieuw): runt alleen in het venster (anders 0 queries),
+  poort op `IB_VOORBEREIDING` via `usersWithEntitlement` (batch — de nudge linkt naar `/ontzorgd`, dus
+  geen melding die op een paywall eindigt), telt per gerechtigde ZZP'er de directe (goedgekeurde
+  prestaties) + indirecte uren (zelfde aggregaten als het ontzorgd-paneel), plan/apply, idempotent via
+  DomainEvent dedupeKey (`hours-criterion-reminder-<user>-<jaar>-<H2|Q4>`), Notification + audit
+  (`HOURS_CRITERION_REMINDER_SENT`) in één transactie.
+- Gewired in `/api/tasks/run-all` + eigen route `/api/tasks/hours-criterion-reminders`; notificatietype
+  `HOURS_CRITERION_REMINDER` (categorie system, toon attention). Geen schemawijziging, geen geldstroom.
+- **Tests:** `hours-criterion-reminder.test.ts` (12) + `hours-criterion-reminder-task.test.ts` (5):
+  checkpoints, drempels (op koers / gehaald / geen uren / buiten bereik / achterlopend-maar-haalbaar),
+  Q4-prognose, entitlement-poort, idempotentie. Gate groen: typecheck, lint, **3244 unit-tests**,
+  prettier, build.
+
 ## Passende open diensten op het ZZP'er-dossier (bemiddelaar) (2026-07-06, PR #634)
 
 **Waarde (bemiddelaar, "waar kan ik deze persoon op plaatsen?"):** de franchise-werkplek toonde per
