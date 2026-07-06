@@ -2052,6 +2052,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#ece3d0",
     available: true,
   },
+  // ── Reeks 13 (run 6-7-2026) — nrs 121–130, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "121",
+    name: "Compositie",
+    direction: "De Stijl — neoplasticisme, orthogonaal",
+    rationale:
+      "Nederlands erfgoed als besturingssysteem: een orthogonaal raster van dikke zwarte hairlines verdeelt het canvas in asymmetrische vlakken, enkele gevuld met zuiver primair rood, geel of blauw. Data leeft in de vlakken — compositorisch, tijdloos, onmiskenbaar De Stijl.",
+    trends: [
+      "Neoplasticisme / De Stijl-vlakverdeling",
+      "Orthogonaal raster + primaire kleurvlakken",
+      "Compositie als informatie-architectuur",
+    ],
+    fonts: "Space Grotesk + Manrope",
+    accent: "#d1352b",
+    bg: "#f4f3ee",
+    fg: "#111111",
+    available: true,
+  },
+  {
+    id: "122",
+    name: "Uurwerk",
+    direction: "Haute horlogerie — guilloché & complicaties",
+    rationale:
+      "Premium uurwerk-luxe voor gevoelige documenten: een gunmetal wijzerplaat met guilloché-gravure, messing-goud accenten en subdial-complicaties voor de cijfers. De verificatielaag wordt het chronometer-keurmerk — vertrouwen als vakmanschap.",
+    trends: [
+      "Haute horlogerie / guilloché-textuur",
+      "Subdial-complicaties als datamodules",
+      "Messing-goud + serif-displaymoment",
+    ],
+    fonts: "Fraunces + JetBrains Mono",
+    accent: "#c8a45a",
+    bg: "#10161c",
+    fg: "#e8e6df",
+    available: true,
+  },
+  {
+    id: "123",
+    name: "Portolaan",
+    direction: "Zeekaart — kompasroos & rhumb-lijnen",
+    rationale:
+      "Matching wordt navigatie: een verweerde portolaan-zeekaart met kompasroos, radiale rhumb-lijnen en dieptelood-cijfers maakt koers en afstand voelbaar. Historische cartografie, modern uitgelijnd — onderscheidend van topografie en radar.",
+    trends: [
+      "Portolaan / historische zeekaart",
+      "Kompasroos + rhumb-lijnen (loxodromen)",
+      "Navigatie-metafoor voor matching",
+    ],
+    fonts: "Newsreader + Spline Sans Mono",
+    accent: "#1f5c66",
+    bg: "#efe6d2",
+    fg: "#33291c",
+    available: true,
+  },
+  {
+    id: "124",
+    name: "Suminagashi",
+    direction: "Drijvende inkt-marmering — sereen",
+    rationale:
+      "Japanse suminagashi: zachte concentrische inkt-ringen drijven over rijstpapier. Laag-prikkelend en meditatief — vertrouwen via rust, precies wat gevoelige documenten verdienen. Onderscheidend van natte aquarel en wabi-sabi-meubelrust.",
+    trends: [
+      "Suminagashi / drijvende inkt-marmering",
+      "Calm interface / low-stimulation",
+      "Concentrische ader-contouren als canvas",
+    ],
+    fonts: "Sora + Inter",
+    accent: "#2b3a67",
+    bg: "#f3f1ec",
+    fg: "#1c1c22",
+    available: true,
+  },
+  {
+    id: "125",
+    name: "Typemachine",
+    direction: "Mechanisch schrift — inktlint & papier",
+    rationale:
+      "Een getypt manuscript dat toevallig software is: monospace body op typpapier, rood-zwarte inktlint-tweekleur en aanslag-details. Ambachtelijk en tastbaar, tegenpool van de terminal — mechanisch schrift op licht papier, niet phosphor op zwart.",
+    trends: [
+      "Typemachine / mechanisch monospace",
+      "Rood-zwart inktlint-tweekleur",
+      "Tactiel papier + aanslag-details",
+    ],
+    fonts: "Newsreader + IBM Plex Mono",
+    accent: "#b5322a",
+    bg: "#f0ece2",
+    fg: "#262019",
+    available: true,
+  },
+  {
+    id: "126",
+    name: "Histologie",
+    direction: "H&E-kleuring — weefselcoupe & objectglas",
+    rationale:
+      "Klinische precisie die bij de zorg past: hematoxyline-eosine gekleurde weefsel-textuur op objectglas, met meetschaal, celkern-stippen en preparaat-etiketten. Data als coupe onder de microscoop — onderscheidend van mint-klinisch en röntgen-lijnart.",
+    trends: [
+      "Histologie / H&E-kleuring",
+      "Objectglas + meetschaal-precisie",
+      "Weefsel-textuur als datataal",
+    ],
+    fonts: "Inter + Spline Sans Mono",
+    accent: "#a83b7a",
+    bg: "#f6f1f4",
+    fg: "#241820",
+    available: true,
+  },
+  {
+    id: "127",
+    name: "Cyanotype",
+    direction: "Zonnedruk — silhouet & Pruisisch blauw",
+    rationale:
+      "Een fotografische cyanotype à la Anna Atkins: witte silhouetten en contouren lichten op tegen diep Pruisisch blauw, met zachte belichtings-vignetten en korrel. Eén samenhangend monochroom-blauw — onderscheidend van technische blueprint en röntgen.",
+    trends: [
+      "Cyanotype / fotografische zonnedruk",
+      "Monochroom Pruisisch blauw + wit licht",
+      "Silhouet-contouren i.p.v. raster",
+    ],
+    fonts: "Libre Franklin + Spline Sans Mono",
+    accent: "#7fb8d4",
+    bg: "#123a5c",
+    fg: "#eaf2f6",
+    available: true,
+  },
+  {
+    id: "128",
+    name: "Spectraal",
+    direction: "Audio-golfvorm — equalizer & spectrum",
+    rationale:
+      "Een digitale audio-workstation: waveform-balken, een spectraal-analyzer, EQ-banden en VU-gloed maken data hoorbaar-zichtbaar. Niveau-meters coderen status en voortgang — onderscheidend van video-tracks, vinyl-warmte en de seismograaf-trommel.",
+    trends: [
+      "DAW / audio-waveform & spectrum",
+      "Equalizer-banden + VU-meter-gloed",
+      "Niveau-meters als statustaal",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#ff4d94",
+    bg: "#0b0d10",
+    fg: "#e6e9ee",
+    available: true,
+  },
+  {
+    id: "129",
+    name: "Seinvlaggen",
+    direction: "Maritieme codetaal — seinvlag-alfabet",
+    rationale:
+      "De internationale seinvlaggen als status-alfabet: elke rol, sectie en status krijgt een gecodeerd vlag-motief in seinrood, geel, blauw en wit. Bold en speels, maar streng geordend — onderscheidend van hi-vis workwear en Bauhaus-primitieven.",
+    trends: [
+      "Maritieme seinvlaggen als codetaal",
+      "Bold color-blocking, streng geordend",
+      "Vlag-motief als statusbadge",
+    ],
+    fonts: "Space Grotesk + Inter",
+    accent: "#e23b2e",
+    bg: "#f2f4f7",
+    fg: "#0f1a2b",
+    available: true,
+  },
+  {
+    id: "130",
+    name: "Jaarringen",
+    direction: "Dendrochronologie — boomringen als tijd",
+    rationale:
+      "Boom-jaarringen als data-taal: concentrische groeiringen coderen periodes en mijlpalen, ringdikte de intensiteit, in warme spint- en kernhout-tinten. Een organische visualisatie van tijd en opgebouwd vertrouwen — onderscheidend van activity-ringen en vinyl-groeven.",
+    trends: [
+      "Dendrochronologie / groeiringen",
+      "Concentrische tijd-codering",
+      "Warm hout / organische data-viz",
+    ],
+    fonts: "Newsreader + Manrope",
+    accent: "#a5642f",
+    bg: "#f4ece0",
+    fg: "#2a2015",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);

@@ -131,6 +131,33 @@ concurrenten naar ons verklaarbare, server-berekende overzicht; spiegel van de `
 - **Gate:** typecheck ✓, lint ✓ (0 warnings), prettier ✓ (hele repo), **3179 unit-tests** ✓ (10 nieuw),
   build ✓. Server-side waarheid, geen dode knoppen, geen schemawijziging.
 
+## Ontwerp-lab reeks 13 — +10 concepten (nrs 121–130), totaal 130 op `/ontwerp` (2026-07-06)
+
+**Waarde:** de galerij op `/ontwerp` groeit additief van 120 → 130 onderscheidende, top-1% redesign-
+concepten waaruit de eigenaar kiest. Tien nieuwe designrichtingen, gebouwd door 4 parallelle workers op
+niet-overlappende bestanden, daarna geïntegreerd zonder één bestaand concept/entry/koppeling te wijzigen:
+**121 Compositie** (De Stijl / neoplasticisme, orthogonaal zwart raster + primaire vlakken) · **122
+Uurwerk** (haute horlogerie, guilloché-wijzerplaat + subdial-complicaties + messing-goud) · **123
+Portolaan** (historische zeekaart, kompasroos + rhumb-lijnen, matching als navigatie) · **124
+Suminagashi** (Japanse drijvende inkt-marmering, concentrische ringen op rijstpapier, sereen) · **125
+Typemachine** (mechanisch monospace schrift op typpapier, rood-zwart inktlint) · **126 Histologie**
+(H&E-kleuring op objectglas, eosine-magenta/hematoxyline-paars weefsel, klinisch) · **127 Cyanotype**
+(fotografische zonnedruk, witte silhouetten op Pruisisch blauw) · **128 Spectraal** (audio-DAW,
+waveform + spectraal-analyzer + EQ-banden + VU-gloed) · **129 Seinvlaggen** (maritieme seinvlag-codetaal
+als status-alfabet in rood/geel/blauw/wit) · **130 Jaarringen** (dendrochronologie, concentrische
+boom-groeiringen coderen tijd/vertrouwen in warm hout). Thema deze reeks: fotografische/analoge procédés,
+Nederlandse & haute-craft erfgoed-materialiteit, organische/natuurlijke data-viz en gecodeerde
+signaal-systemen — elk expliciet onderscheidend van de bestaande 120.
+
+- **Nieuw:** `src/components/ontwerp/concepts/concept-121..130-*.tsx` (10 bestanden). **Additief
+  bijgewerkt:** `registry.ts` (10 nieuwe `ConceptMeta`-entries append) en `src/app/ontwerp/[id]/page.tsx`
+  (10 imports + id→component-koppelingen append). Geen bestaande app-logica/auth geraakt; lab staat
+  publiek + `noindex` buiten `(protected)`.
+- **Gate:** `npm run typecheck` ✓ · `npm run lint` ✓ (0 warnings) · `npm run test` ✓ (3227 tests) ·
+  `npm run build` ✓ (`/ontwerp/[id]` SSG, 130 params) · `npx prettier --write .` ✓. Woord "AI" komt
+  nergens voor. Docs: `docs/DESIGN-LAB.md` bijgewerkt met reeks 13 + onderzochte 2026-trends.
+- **Volgende:** volgende reeks krijgt nrs 131–140 (blijf additief; overschrijf nooit een bestaand slot).
+
 ## Ontwerp-lab reeks 12 — +10 concepten (nrs 111–120), totaal 120 op `/ontwerp` (2026-07-06)
 
 **Waarde:** de galerij op `/ontwerp` groeit additief van 110 → 120 onderscheidende, top-1% redesign-
