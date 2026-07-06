@@ -18,6 +18,7 @@ import {
   UploadValidationError,
   validateUpload,
 } from "@/lib/services/storage";
+import { assertUploadClean } from "@/lib/services/upload-scanner";
 import { type CredentialStatus, type CredentialType, type Visibility } from "@/lib/enums";
 import { credentialSchema } from "@/lib/validation";
 import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
@@ -48,6 +49,7 @@ async function putBlob(ownerId: string, type: CredentialType, file: File) {
   validateUpload({ filename: file.name, mimeType: file.type, size: file.size });
   const buffer = Buffer.from(await file.arrayBuffer());
   assertContentMatchesMime(buffer, file.type);
+  await assertUploadClean(buffer, { mimeType: file.type, size: file.size });
   const key = generateStorageKey(file.name);
   await getStorage().put(key, buffer, file.type);
   return {

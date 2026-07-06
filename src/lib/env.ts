@@ -69,6 +69,12 @@ const schema = z
     BILLING_PROVIDER: z.enum(["noop", "mollie"]).default("noop"),
     MOLLIE_API_KEY: z.string().optional(),
 
+    // Malware-scan van geüploade bewijsstukken: noop (default, geen scan) of ClamAV-daemon.
+    // Bij "clamav" is CLAMAV_HOST verplicht; de poort valt terug op 3310.
+    UPLOAD_SCANNER: z.enum(["noop", "clamav"]).default("noop"),
+    CLAMAV_HOST: z.string().optional(),
+    CLAMAV_PORT: z.string().optional(),
+
     // Foutmonitoring: optionele externe error-reporting (Sentry). Zonder DSN worden
     // server-fouten alleen gestructureerd gelogd. LOG_LEVEL stelt de logdrempel in.
     SENTRY_DSN: z.string().optional(),
@@ -115,6 +121,9 @@ const schema = z
     }
     if (v.BILLING_PROVIDER === "mollie") {
       require(!!v.MOLLIE_API_KEY, "MOLLIE_API_KEY", "Verplicht bij BILLING_PROVIDER=mollie.");
+    }
+    if (v.UPLOAD_SCANNER === "clamav") {
+      require(!!v.CLAMAV_HOST, "CLAMAV_HOST", "Verplicht bij UPLOAD_SCANNER=clamav.");
     }
     if (v.RATE_LIMIT_STORE === "upstash") {
       require(!!v.UPSTASH_REDIS_REST_URL, "UPSTASH_REDIS_REST_URL", "Verplicht bij RATE_LIMIT_STORE=upstash.");
@@ -186,6 +195,11 @@ export function envWarnings(env: Env): string[] {
   if (!env.SENTRY_DSN) {
     warnings.push(
       "SENTRY_DSN ontbreekt — server-fouten worden alleen gestructureerd gelogd (geen externe error-monitoring). Zet SENTRY_DSN + installeer @sentry/nextjs voor productie-monitoring.",
+    );
+  }
+  if (env.UPLOAD_SCANNER === "noop") {
+    warnings.push(
+      "UPLOAD_SCANNER=noop — geüploade bewijsstukken worden niet op malware gescand. Zet UPLOAD_SCANNER=clamav (met CLAMAV_HOST) voor productie met echte gevoelige documenten.",
     );
   }
   if (env.RATE_LIMIT_STORE === "memory") {
