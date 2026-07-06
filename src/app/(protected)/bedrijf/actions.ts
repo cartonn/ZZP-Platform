@@ -11,6 +11,7 @@ import {
   UploadValidationError,
   validateUpload,
 } from "@/lib/services/storage";
+import { assertUploadClean } from "@/lib/services/upload-scanner";
 import { companyProfileSchema } from "@/lib/validation";
 import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
 
@@ -66,6 +67,11 @@ export async function updateCompanyProfile(
     try {
       validateUpload({ filename: logo.name, mimeType: logo.type, size: logo.size });
       assertContentMatchesMime(buffer, logo.type);
+      // Malware-scan vóór de opslag (CLAUDE.md regel 4 — dezelfde poort als de document-/certificaat-
+      // upload). Zonder deze regel omzeilt de logo-upload de scanner die #631 introduceerde: een
+      // besmet bestand belandt dan onbekeken in de opslag én wordt via /api/media aan elke ingelogde
+      // gebruiker geserveerd. Fail-closed bij een onbereikbare scanner (OWASP A04 insecure design).
+      await assertUploadClean(buffer, { mimeType: logo.type, size: logo.size });
     } catch (e) {
       if (e instanceof UploadValidationError) return { fieldErrors: { logo: e.message } };
       throw e;

@@ -47,8 +47,11 @@ export default async function TrustDossierPage({
     select: {
       id: true,
       visibility: true,
+      tenantId: true,
       headline: true,
-      user: { select: { name: true, identityVerifiedAt: true } },
+      user: {
+        select: { name: true, identityVerifiedAt: true, status: true, anonymizedAt: true },
+      },
       credentials: {
         where: { status: "VERIFIED" },
         select: {
@@ -69,8 +72,24 @@ export default async function TrustDossierPage({
     },
   });
 
-  // Token ongeldig of profiel niet PUBLIC → één neutrale melding (geen informatielek).
-  const isShared = validToken && profile?.visibility === "PUBLIC";
+  // Token ongeldig of profiel niet deelbaar → één neutrale melding (geen informatielek). Naast
+  // token + PUBLIC-zichtbaarheid gelden hier dezelfde server-side-waarheidspoorten als op de
+  // sibling-viewer `/zzp/[id]` (profile-screen.tsx) en de agenda-feed-fix (#630):
+  //   1. Account-liveness (CLAUDE.md regel 1): een geschorst of geanonimiseerd account mag zijn
+  //      vertrouwensdossier — naam + VERIFIED-certificaten + "Servergeverifieerd door ZZP Platform" —
+  //      niet blijven serveren op een niet-verlopende publieke bearer-URL. Schorsing/anonimisering
+  //      raakt `visibility` niet, dus zonder deze poort overleeft het deterministische token de
+  //      statuswijziging (AVG art. 17; OWASP A01 — stale server-side status vertrouwen).
+  //   2. Tenant-isolatie: een tenant-gebonden roster-ZZP'er (franchise, `createZzper` zet standaard
+  //      `visibility: "PUBLIC"` + `tenantId`) is elders per tenant afgeschermd (`tenantEntityVisibleTo`).
+  //      Deze ongeauthenticeerde publieke deel-URL heeft geen viewer, dus geldt de anonieme regel:
+  //      alleen een niet-tenant-gebonden (directe) ZZP'er is hier deelbaar (`tenantId === null`).
+  const isShared =
+    validToken &&
+    profile?.visibility === "PUBLIC" &&
+    profile.user.status === "ACTIVE" &&
+    !profile.user.anonymizedAt &&
+    profile.tenantId === null;
 
   if (!isShared) {
     return (

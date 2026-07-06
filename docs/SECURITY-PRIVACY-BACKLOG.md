@@ -4,6 +4,70 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-06 (2e — basis: `main` @ d4b6039)
+
+Audit: orchestrator (Opus 4.8) + 1 parallelle adversariële Opus security-subagent op de vérse delta
+sinds de vorige ronde (`a5abe5a..d4b6039`, #631–#637): de nieuwe **upload-malware-scan-seam**
+(`services/upload-scanner.ts`, ClamAV achter env-flag, #631), de **betaalreputatie-spiegel** voor de
+opdrachtgever (`data/payment-behavior.ts` + `client-payment-reputation.ts`, #632), de **passende open
+diensten op het ZZP'er-dossier** (franchise, `franchise/dienst-suggesties.ts`, #634) en de proactieve
+**urencriterium-herinnering** (`hours-criterion-reminder(-task).ts`, #636). Kader: OWASP Top 10 (A01
+broken access control/IDOR/cross-tenant, A04 insecure design, A03 injection, A09 logging) + OWASP ASVS +
+AVG art. 5/17/30. Zelf onafhankelijk geverifieerd schoon: `dienst-suggesties`/`dienst-voordracht`/
+`roster-dossier` (overal `tenantScopeWhere(actor)`; de audit-log-idempotentie-lookups zijn transitief
+tenant-gescopet via reeds-gecheckte `jobId`), de betaalreputatie-spiegel (alleen aggregaten, `actor.id`-
+gescopet, geen cross-party-lek), `hours-criterion-reminder-task` (geen PII in logs, entitlement-gated,
+mutatie+audit+notificatie in één `$transaction`), de clamd INSTREAM-parser (`interpretClamAvResponse`:
+found-vóór-clean, geankerde single-line-match, fail-closed default). **Twee bevindingen volledig gefixt
+(rood→groen).**
+
+### OPGELOST in deze ronde
+
+- **[HOOG→OPGELOST · OWASP A01 (broken access control — stale server-side status + cross-tenant) +
+  CLAUDE.md regel 1 + tenant-isolatie (`lib/tenancy.ts`) + AVG art. 17 — publieke vertrouwensdossier-
+  deelpagina dwong geen account-liveness of tenant-isolatie af]** De sessieloze, publieke deelpagina
+  `/vertrouwen/[profileId]/[token]` (`src/app/vertrouwen/[profileId]/[token]/page.tsx`) is gepoort door
+  een deterministisch, per-profiel onveranderlijk HMAC-deeltoken + `visibility === "PUBLIC"`, maar
+  checkte — anders dan zijn sibling-viewer `/zzp/[id]` (`profile-screen.tsx`, die het expliciet dóét) en
+  anders dan de één-commit-eerdere agenda-feed-fix (#630) — **noch** account-liveness (`status` /
+  `anonymizedAt`) **noch** tenant-isolatie. Schorsing (`setUserStatus`) en anonimisering (`anonymizeUser`)
+  raken `FreelancerProfile.visibility` niet, dus een geldig token overleeft de statuswijziging: de pagina
+  bleef de **naam + alle VERIFIED-certificaten + de "Servergeverifieerd door ZZP Platform"-zegel**
+  serveren voor een geschorst (bv. wegens fraude/valse VOG) of geanonimiseerd/gewist account — precies
+  het scenario dat de kerndifferentiatie (geverifieerd vertrouwen) hoort te vóórkomen. Bovendien maakt
+  `createZzper` (franchise) roster-ZZP'ers standaard met `visibility: "PUBLIC"` **én** `tenantId` gezet;
+  hun vertrouwensdossier was zo over het hele publieke internet bereikbaar zónder enige tenant-grens,
+  terwijl hetzelfde profiel op `/zzp/[id]` correct per tenant is afgeschermd (`tenantEntityVisibleTo`) —
+  een cross-tenant-lek op een niet-verlopende bearer-URL. Repro: (1) ADMIN schorst/anonimiseert een
+  FREELANCER → de eerder gedeelde `/vertrouwen/{id}/{token}`-link toont nog steeds het geverifieerde
+  dossier; (2) een franchise-roster-ZZP'er (tenant-gebonden) → dossier publiek zonder tenant-check.
+  Gefixt: liveness-poort (`status === "ACTIVE" && !anonymizedAt`) + tenant-poort (`tenantId === null` —
+  de anonieme-viewer-reductie van `tenantEntityVisibleTo`) toegevoegd aan de `isShared`-gate, met
+  `tenantId`/`status`/`anonymizedAt` in de `select`; neutrale "niet (meer) gedeeld"-melding blijft (geen
+  informatielek). Test: `src/app/vertrouwen/vertrouwen-liveness.test.ts` (actief+PUBLIC+geen-tenant →
+  audit/serve; geschorst/geanonimiseerd/tenant-gebonden/ongeldig-token → geen serve, geen audit —
+  rood→groen bewezen: 3 cases falen zonder de poorten).
+
+- **[MIDDEL→OPGELOST · OWASP A04 (insecure design) + CLAUDE.md regel 4 (upload-veiligheid) — company-
+  logo-upload omzeilde de nieuwe malware-scanner]** #631 introduceerde `assertUploadClean` (fail-closed
+  ClamAV-scan vóór opslag) en bedraadde die in de document- én certificaat-upload, maar **niet** in de
+  derde stored-binary-upload-call-site: de company-logo-upload in `src/app/(protected)/bedrijf/actions.ts`
+  (`updateCompanyProfile`). Die deed wél `validateUpload` + `assertContentMatchesMime`, maar geen
+  malware-scan → wanneer een operator `UPLOAD_SCANNER=clamav` inschakelt (in de verwachting dat álle
+  uploads gescand worden), belandde een besmet "logo" onbekeken in de opslag én werd het via
+  `/api/media/[...key]` aan elke ingelogde gebruiker geserveerd. Geen live exploit (scanner default Noop;
+  logo's zijn PDF/PNG/JPEG/WEBP met magic-byte-check + `nosniff` bij serve → geen SVG-stored-XSS), maar
+  een reële completeness-gap die de fail-closed-intentie van #631 voor dít pad ondermijnt. Gefixt:
+  `await assertUploadClean(buffer, { mimeType, size })` toegevoegd binnen de bestaande
+  `UploadValidationError`-try/catch, identiek aan de twee zuster-call-sites. Test:
+  `src/app/(protected)/bedrijf/actions.scan.test.ts` (schoon logo → scanner aangeroepen + `storage.put`;
+  besmet logo → géén `storage.put` + fieldError — rood→groen bewezen: 2 cases falen zonder de regel).
+
+### GEPARKEERD in deze ronde
+
+- Geen nieuwe geparkeerde bevindingen. De onder "Ronde 2026-07-06 (1e)" en eerder geparkeerde LAAG-items
+  (o.a. de Zod-grens op id-only-actions, self-export-audit, push-upsert-key) blijven staan.
+
 ## Ronde 2026-07-06 (basis: `main` @ a5abe5a)
 
 Audit: orchestrator (Opus 4.8) + 2 parallelle Opus security-subagents op de vérse delta sinds de vorige
