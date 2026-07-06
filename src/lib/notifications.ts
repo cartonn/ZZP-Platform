@@ -52,6 +52,7 @@ const META: Record<string, NotificationMeta> = {
   IDEA_STATUS: { category: "idea", tone: "info" },
   IDEA_COMMENT: { category: "idea", tone: "info" },
   VAT_REMINDER: { category: "system", tone: "info" },
+  HOURS_CRITERION_REMINDER: { category: "system", tone: "attention" }, // urencriterium dreigt niet gehaald
   INVOICE_DRAFT_ESCALATION: { category: "invoice", tone: "attention" },
   JOB_MATCH: { category: "system", tone: "info" },
   JOB_COLD: { category: "system", tone: "attention" }, // opdracht koud: weinig respons, vraagt actie

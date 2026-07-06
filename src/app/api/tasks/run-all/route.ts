@@ -10,6 +10,7 @@ import { runPaymentReminderTask } from "@/lib/payment-reminders-task";
 import { runDbaMonitorTask } from "@/lib/dba-monitor-task";
 import { runConceptInvoiceReminderTask } from "@/lib/concept-invoice-reminders-task";
 import { runVatReminderTask } from "@/lib/vat-reminder-task";
+import { runHoursCriterionReminderTask } from "@/lib/hours-criterion-reminder-task";
 import { runJobAlertsTask } from "@/lib/job-alerts-task";
 import { runJobEngagementTask } from "@/lib/job-engagement-task";
 import { runSubscriptionPastDueTask } from "@/lib/past-due-task";
@@ -47,6 +48,10 @@ export async function POST(request: Request): Promise<Response> {
       fn: () => runConceptInvoiceReminderTask({ actorId: null }),
     },
     { name: "vat-reminders", fn: () => runVatReminderTask({ actorId: null }) },
+    {
+      name: "hours-criterion-reminders",
+      fn: () => runHoursCriterionReminderTask({ actorId: null }),
+    },
     { name: "job-alerts", fn: () => runJobAlertsTask({ actorId: null }) },
     { name: "job-engagement", fn: () => runJobEngagementTask({ actorId: null }) },
     { name: "subscription-past-due", fn: () => runSubscriptionPastDueTask({ actorId: null }) },
