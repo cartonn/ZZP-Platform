@@ -196,7 +196,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // dit is een ID-set-query (select: {id: true}), geen volledige lijst.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 154,
+    line: 155,
     reason: "ID-set-query voor factureerbare samenwerkingen; geen volledige lijst",
   },
 
@@ -205,7 +205,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // afgerond"-knop niet als dode knop aan te bieden. Begrensd door de page-of-collaborations.
   {
     file: "(protected)/samenwerkingen/page.tsx",
-    line: 167,
+    line: 168,
     reason: "factuurstatus-snapshot per zichtbare samenwerking (afronden-rem); page-begrensd",
   },
 
@@ -477,9 +477,9 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
     reason: "admin-export; volledigheid vereist",
   },
 
-  // --- api/agenda/route.ts ---
-  // ICS-export: alle actieve samenwerkingen van één eigenaar (inherent klein).
-  { file: "api/agenda/route.ts", line: 21, reason: "eigenaar-scoped rooster-export" },
+  // (De rooster-findMany van /api/agenda is verplaatst naar src/lib/calendar/user-schedule.ts en
+  // gedeeld met /api/agenda/feed.ics; lib-bestanden worden niet door deze vangrail gescand. De
+  // query is eigenaar-scoped en inherent klein — alle actieve samenwerkingen van één gebruiker.)
 
   // --- api/account/export/route.ts (drie findMany's) ---
   // Account-export (AVG); volledigheid vereist voor data-portabiliteit.

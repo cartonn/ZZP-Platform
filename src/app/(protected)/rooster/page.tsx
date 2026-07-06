@@ -29,8 +29,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { AgendaExportButton } from "@/components/agenda/agenda-export-button";
+import { AgendaSubscribe } from "@/components/agenda/agenda-subscribe";
 import { hasExportableSchedule } from "@/lib/calendar/exportable";
+import { agendaFeedPath } from "@/lib/calendar/feed-token";
 import { ClaimShift } from "./claim-shift";
 
 export const metadata: Metadata = { title: "Rooster · ZZP Platform" };
@@ -187,7 +188,9 @@ export default async function RoosterPage({
       <PageHeader
         title="Rooster"
         description="Jouw geplande diensten en open kansen — per dag."
-        action={canExportAgenda ? <AgendaExportButton /> : undefined}
+        action={
+          canExportAgenda ? <AgendaSubscribe feedPath={agendaFeedPath(actor.id)} /> : undefined
+        }
       />
 
       {showStrongFilter && (

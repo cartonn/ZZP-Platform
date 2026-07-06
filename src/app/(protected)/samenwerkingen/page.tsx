@@ -4,7 +4,8 @@ import { AlertTriangle, Handshake } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { hasExportableSchedule } from "@/lib/calendar/exportable";
-import { AgendaExportButton } from "@/components/agenda/agenda-export-button";
+import { AgendaSubscribe } from "@/components/agenda/agenda-subscribe";
+import { agendaFeedPath } from "@/lib/calendar/feed-token";
 import { COLLABORATION_TRANSITIONS } from "@/lib/collaborations";
 import { invoiceableCollaborationsWhere } from "@/lib/invoices";
 import { completionBlockReason } from "@/lib/cascade/completion";
@@ -194,7 +195,9 @@ export default async function SamenwerkingenPage({
       <PageHeader
         title="Samenwerkingen"
         description="Voorgestelde en lopende samenwerkingen."
-        action={canExportAgenda ? <AgendaExportButton /> : undefined}
+        action={
+          canExportAgenda ? <AgendaSubscribe feedPath={agendaFeedPath(actor.id)} /> : undefined
+        }
       />
 
       {groupCounts.all === 0 ? (
