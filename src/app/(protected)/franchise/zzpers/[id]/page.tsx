@@ -13,6 +13,11 @@ import {
 } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getRosterDossier, type RosterDossier } from "@/lib/franchise/roster-dossier";
+import {
+  getDienstSuggestiesForFreelancer,
+  type DienstSuggestie,
+} from "@/lib/franchise/dienst-suggesties";
+import { DienstSuggestiesCard } from "@/components/franchise/dienst-suggesties-card";
 import { summarizeExpiry } from "@/lib/credential-expiry-overview";
 import { plural } from "@/lib/plural";
 import { type PerformanceState } from "@/lib/lifecycles";
@@ -72,6 +77,10 @@ export default async function RosterDetailPage({
   const actor = await requireRole("FRANCHISER");
   const dossier = await getRosterDossier(actor, id);
   if (!dossier) notFound();
+
+  // Passende open diensten voor deze ZZP'er (spiegel van de voordracht-kandidaten). Read-only,
+  // dezelfde tenant-poort als het dossier.
+  const suggesties = (await getDienstSuggestiesForFreelancer(actor, id)) ?? [];
 
   const tab: Tab = (TABS as readonly string[]).includes(sp.tab ?? "") ? (sp.tab as Tab) : "profiel";
   const { profile, counts } = dossier;
@@ -147,7 +156,7 @@ export default async function RosterDetailPage({
         })}
       </nav>
 
-      {tab === "profiel" && <ProfielTab dossier={dossier} />}
+      {tab === "profiel" && <ProfielTab dossier={dossier} suggesties={suggesties} />}
       {tab === "overeenkomsten" && <OvereenkomstenTab dossier={dossier} />}
       {tab === "uren" && <UrenTab dossier={dossier} />}
       {tab === "facturen" && <FacturenTab dossier={dossier} />}
@@ -204,7 +213,13 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ProfielTab({ dossier }: { dossier: RosterDossier }) {
+function ProfielTab({
+  dossier,
+  suggesties,
+}: {
+  dossier: RosterDossier;
+  suggesties: DienstSuggestie[];
+}) {
   const { profile } = dossier;
   const WORKMODE: Record<string, string> = {
     REMOTE: "Remote",
@@ -212,63 +227,68 @@ function ProfielTab({ dossier }: { dossier: RosterDossier }) {
     HYBRID: "Hybride",
   };
   return (
-    <Card>
-      <CardContent className="space-y-5 p-5">
-        <div className="rounded-lg border border-border bg-muted/30 p-4">
-          <h2 className="mb-2 text-sm font-semibold tracking-tight">Inzetbaarheid</h2>
-          <EngageabilityExplanation result={dossier.engageability} />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {profile.hourlyRate != null && <Badge variant="muted">€ {profile.hourlyRate}/uur</Badge>}
-          <Badge variant="muted">Profiel {profile.completeness}%</Badge>
-          {profile.maxTravelMinutes != null && (
-            <Badge variant="muted">max. {profile.maxTravelMinutes} min reizen</Badge>
-          )}
-        </div>
-        {profile.bio && <p className="text-sm text-muted-foreground">{profile.bio}</p>}
-
-        <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Field label="Werkmodus" value={WORKMODE[profile.workMode] ?? profile.workMode} />
-          <Field label="Locatie" value={profile.location ?? "—"} />
-          <Field
-            label="Talen"
-            value={profile.languages.length ? profile.languages.join(", ") : "—"}
-          />
-          <Field label="KvK" value={profile.kvkNumber ?? "—"} />
-          <Field label="Btw" value={profile.btwNumber ?? "—"} />
-          <Field label="E-mail" value={profile.email} />
-        </dl>
-
-        <div>
-          <h2 className="mb-2 text-sm font-semibold tracking-tight">Skills</h2>
-          {profile.skills.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nog geen skills vastgelegd.</p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {profile.skills.map((s) => (
-                <Badge key={s} variant="muted">
-                  {s}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {profile.industries.length > 0 && (
-          <div>
-            <h2 className="mb-2 text-sm font-semibold tracking-tight">Branches</h2>
-            <div className="flex flex-wrap gap-1.5">
-              {profile.industries.map((i) => (
-                <Badge key={i} variant="muted">
-                  {i}
-                </Badge>
-              ))}
-            </div>
+    <div className="space-y-6">
+      <DienstSuggestiesCard suggesties={suggesties} />
+      <Card>
+        <CardContent className="space-y-5 p-5">
+          <div className="rounded-lg border border-border bg-muted/30 p-4">
+            <h2 className="mb-2 text-sm font-semibold tracking-tight">Inzetbaarheid</h2>
+            <EngageabilityExplanation result={dossier.engageability} />
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {profile.hourlyRate != null && (
+              <Badge variant="muted">€ {profile.hourlyRate}/uur</Badge>
+            )}
+            <Badge variant="muted">Profiel {profile.completeness}%</Badge>
+            {profile.maxTravelMinutes != null && (
+              <Badge variant="muted">max. {profile.maxTravelMinutes} min reizen</Badge>
+            )}
+          </div>
+          {profile.bio && <p className="text-sm text-muted-foreground">{profile.bio}</p>}
+
+          <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Field label="Werkmodus" value={WORKMODE[profile.workMode] ?? profile.workMode} />
+            <Field label="Locatie" value={profile.location ?? "—"} />
+            <Field
+              label="Talen"
+              value={profile.languages.length ? profile.languages.join(", ") : "—"}
+            />
+            <Field label="KvK" value={profile.kvkNumber ?? "—"} />
+            <Field label="Btw" value={profile.btwNumber ?? "—"} />
+            <Field label="E-mail" value={profile.email} />
+          </dl>
+
+          <div>
+            <h2 className="mb-2 text-sm font-semibold tracking-tight">Skills</h2>
+            {profile.skills.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nog geen skills vastgelegd.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {profile.skills.map((s) => (
+                  <Badge key={s} variant="muted">
+                    {s}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {profile.industries.length > 0 && (
+            <div>
+              <h2 className="mb-2 text-sm font-semibold tracking-tight">Branches</h2>
+              <div className="flex flex-wrap gap-1.5">
+                {profile.industries.map((i) => (
+                  <Badge key={i} variant="muted">
+                    {i}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

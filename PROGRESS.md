@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Passende open diensten op het ZZP'er-dossier (bemiddelaar) (2026-07-06, PR #634)
+
+**Waarde (bemiddelaar, "waar kan ik deze persoon op plaatsen?"):** de franchise-werkplek toonde per
+ZZP'er wél het dossier (overeenkomsten/uren/facturen/bestanden) maar geen antwoord op de omgekeerde,
+liquiditeit-drijvende vraag: welke van mijn open diensten passen bij déze ZZP'er? Dit is de spiegel
+van de voordracht-lijst (`dienst-voordracht.ts` scoort kandidaten vóór één dienst) — nu scoren we de
+open tenant-diensten vóór één ZZP'er, met dezelfde verklaarbare matchmotor. Vertaalt de auto-plaatsing-
+liquiditeit van PIDZ/Zorgwerk naar onze verklaarbare kant, zonder black box.
+
+- **`src/lib/franchise/dienst-suggesties.ts`** (nieuw): pure `buildDienstSuggesties(freelancer, jobs,
+appliedJobIds, proposedJobIds, now, minScore, limit)` → gescoorde, gerangschikte lijst met
+  troef/minpunt uit `scoreJobForFreelancer`; drempel `DIENST_SUGGESTIE_MIN_SCORE=55` (bewust lager dan
+  de proactieve ZZP-drempel 70 — de bemiddelaar plaatst actief), begrensd tot
+  `DIENST_SUGGESTIE_LIMIT=6`. Data-laag `getDienstSuggestiesForFreelancer(actor, freelancerId)`:
+  tenant-poort via `tenantScopeWhere` (zelfde isolatie als `getRosterDossier`, `null` bij vreemde
+  tenant), laadt PUBLISHED-diensten (`take:100`) + reactie-/voordracht-markering (`in: jobIds`,
+  begrensd). Geen schemawijziging, geen nieuwe rekenlogica.
+- **`src/components/franchise/dienst-suggesties-card.tsx`** (nieuw): read-only "Passende open diensten"
+  met matchscore + troef/minpunt + doorklik naar `/franchise/diensten/[id]` (waar de bestaande
+  voordracht-actie zit) + "Gereageerd"/"Voorgedragen"-badges; rendert niets bij een lege lijst.
+- **`src/app/(protected)/franchise/zzpers/[id]/page.tsx`**: laadt de suggesties naast het dossier en
+  toont de kaart boven de Profiel-tab.
+- **Tests:** `dienst-suggesties.test.ts` (7): sortering, drempel-filter, reactie-/voordracht-vlaggen,
+  troef/minpunt uit de motor, begrenzing. Gate groen: typecheck, lint, **3227 unit-tests**, prettier,
+  build.
+
 ## Betaalreputatie-spiegel voor de opdrachtgever (2026-07-06, PR #632)
 
 **Wat:** de opdrachtgever ziet nu op `/verplichtingen` de betaalreputatie die ZZP'ers over hem
