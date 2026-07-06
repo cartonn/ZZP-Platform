@@ -41,3 +41,19 @@ export async function getPaymentBehaviorForCompany(companyId: string): Promise<P
 
   return computePaymentBehavior(rows);
 }
+
+/**
+ * Betaalgedrag van de opdrachtgever zélf — de reputatie-spiegel die de opdrachtgever op
+ * `/verplichtingen` ziet (dezelfde cijfers die ZZP'ers over hem zien op de opdracht-detailpagina).
+ * Geeft `null` als de gebruiker geen bedrijfsprofiel heeft (dan is er niets te spiegelen).
+ */
+export async function getOwnPaymentBehaviorForClient(
+  userId: string,
+): Promise<PaymentBehavior | null> {
+  const company = await prisma.company.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (!company) return null;
+  return getPaymentBehaviorForCompany(company.id);
+}

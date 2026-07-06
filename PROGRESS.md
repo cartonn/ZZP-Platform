@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Betaalreputatie-spiegel voor de opdrachtgever (2026-07-06, PR #632)
+
+**Wat:** de opdrachtgever ziet nu op `/verplichtingen` de betaalreputatie die ZZP'ers over hem
+zien — dezelfde `computePaymentBehavior`-cijfers (gemiddelde betaaltijd, % op tijd, toon) — als
+zelfverbeter-nudge. Op tijd betalen is een vertrouwenssignaal dat vakmensen sneller doet reageren;
+tot nu toe was dat signaal alléén zichtbaar voor ZZP'ers (opdracht-detailpagina), niet voor de
+opdrachtgever zelf. Dit sluit de spiegel-asymmetrie en zet de opdrachtgever aan tot beter betaalgedrag.
+
+- **`src/lib/client-payment-reputation.ts`** (nieuw, puur): `summarizePaymentReputation(behavior)`
+  → `{tone, headline, tip, hasStats}` — vertaalt de geaggregeerde `PaymentBehavior` naar een
+  zelf-gerichte kop + concrete tip per toon (good/neutral/warning/unknown). 4 unit-tests.
+- **`src/lib/data/payment-behavior.ts`**: `getOwnPaymentBehaviorForClient(userId)` — resolvet de
+  eigen `Company` (userId `@unique`) en hergebruikt `getPaymentBehaviorForCompany`; `null` zonder
+  bedrijfsprofiel.
+- **`src/components/administratie/payment-reputation-card.tsx`** (nieuw, presentationeel):
+  hergebruikt `BehaviorToneBadge`, toont kop, cijfers (alleen bij genoeg historie), tip + de
+  "dit zien ZZP'ers"-context.
+- **`src/app/(protected)/verplichtingen/page.tsx`**: laadt de eigen reputatie parallel met de
+  verplichtingen en rendert de kaart boven het paneel (CLIENT-only route).
+- Server-side waarheid, geen schemawijziging, geen individuele factuurdata van anderen, geen extra
+  query op de hete paden. Gate groen: typecheck, lint, **3220 unit-tests**, prettier, build.
+
 ## Prod-rijpheid: malware-scan van uploads (2026-07-06, PR "prod: upload malware-scanning seam")
 
 **Wat:** OWASP-aanbeveling voor gevoelige bestand-uploads (VOG/diploma's/verzekering) — een
