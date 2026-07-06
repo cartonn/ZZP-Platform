@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Betaalreputatie-spiegel voor de opdrachtgever (PR #632)** — de
+> opdrachtgever ziet nu op `/verplichtingen` de betaalreputatie die ZZP'ers over hem zien
+> (`computePaymentBehavior`: gemiddelde betaaltijd, % op tijd, toon), als zelfverbeter-nudge ("op tijd
+> betalen trekt sneller vakmensen aan"). Sluit de spiegel-asymmetrie: het signaal was tot nu toe alléén
+> zichtbaar voor ZZP'ers (opdracht-detailpagina). Pure `lib/client-payment-reputation.ts`
+> `summarizePaymentReputation` (kop + tip per toon, 4 tests) + `getOwnPaymentBehaviorForClient` (eigen
+> Company → hergebruikt `getPaymentBehaviorForCompany`) + `PaymentReputationCard` boven het
+> verplichtingen-paneel. Server-side, geen schemawijziging, geen factuurdata van anderen.
+
 > Gedaan (niet opnieuw): **Prod-rijpheid — malware-scan van uploads** (PR "prod: upload
 > malware-scanning seam") — pluggbare `UploadScanner`-seam (`src/lib/services/upload-scanner.ts`,
 > zelfde patroon als StorageDriver/MailSender/RateLimitStore): `NoopUploadScanner` (default) +

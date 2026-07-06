@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import { Download } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { getObligationItemsForClient } from "@/lib/data/payment-obligations";
+import { getOwnPaymentBehaviorForClient } from "@/lib/data/payment-behavior";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { VerplichtingenPanel } from "@/components/administratie/verplichtingen-panel";
+import { PaymentReputationCard } from "@/components/administratie/payment-reputation-card";
 
 export const metadata: Metadata = { title: "Betaalverplichtingen · ZZP Platform" };
 
@@ -16,7 +18,10 @@ export default async function VerplichtingenPage() {
     redirect("/administratie");
   }
 
-  const items = await getObligationItemsForClient(actor.id);
+  const [items, ownPaymentBehavior] = await Promise.all([
+    getObligationItemsForClient(actor.id),
+    getOwnPaymentBehaviorForClient(actor.id),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -34,6 +39,7 @@ export default async function VerplichtingenPage() {
           ) : undefined
         }
       />
+      {ownPaymentBehavior && <PaymentReputationCard behavior={ownPaymentBehavior} />}
       <VerplichtingenPanel actor={actor} items={items} />
     </div>
   );
