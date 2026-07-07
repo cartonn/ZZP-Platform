@@ -77,6 +77,7 @@ export default async function FranchiseZzpersPage({
   const filter = parseRosterFilter(sp);
   const now = new Date();
   const [freelancers, skills] = await Promise.all([
+    // unbounded-allow: franchise-tenant-scoped freelancers; beheerbaar volume
     prisma.freelancerProfile.findMany({
       where: tenantScopeWhere(actor),
       orderBy: { createdAt: "desc" },
@@ -87,6 +88,7 @@ export default async function FranchiseZzpersPage({
         _count: { select: { credentials: true, collaborations: true, skills: true } },
       },
     }),
+    // unbounded-allow: skills-referentielijst voor formulier
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 

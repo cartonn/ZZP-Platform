@@ -20,6 +20,7 @@ export default async function AbonnementPage() {
   const actor = await requireActor();
   const role = actor.role as UserRole;
   const [plans, subscription] = await Promise.all([
+    // unbounded-allow: vaste kleine referentietabel (3 plannen)
     prisma.plan.findMany(),
     prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
   ]);

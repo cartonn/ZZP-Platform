@@ -26,6 +26,7 @@ export async function GET(): Promise<Response> {
   const party: LedgerParty = actor.role === "CLIENT" ? "CLIENT" : "FREELANCER";
   const year = new Date().getFullYear();
 
+  // unbounded-allow: BTW-aggregatie; volledigheid vereist
   const rows = await prisma.administrationEntry.findMany({
     where: { ownerUserId: actor.id },
     select: { party: true, account: true, debitCents: true, creditCents: true, occurredAt: true },

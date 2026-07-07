@@ -59,6 +59,7 @@ export async function verifyIdentity(
 export async function requestAccountDeletion(): Promise<void> {
   const actor = await requireActor();
   const meta = await requestMeta();
+  // unbounded-allow: admin-veiligheidscheck; geen lijst-view
   const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
 
   await prisma.$transaction([

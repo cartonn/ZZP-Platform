@@ -13,6 +13,7 @@ import { messageSchema } from "@/lib/validation";
 export type MessageState = { ok?: true; error?: string } | undefined;
 
 async function loadParticipants(conversationId: string) {
+  // unbounded-allow: eigenaar-scoped gesprekken
   return prisma.conversationParticipant.findMany({
     where: { conversationId },
     select: { userId: true },

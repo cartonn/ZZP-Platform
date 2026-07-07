@@ -23,6 +23,7 @@ const AT_RISK_DAYS = 7;
 
 export default async function FranchiseDienstenPage() {
   const actor = await requireRole("FRANCHISER");
+  // unbounded-allow: franchise-tenant-scoped diensten; beheerbaar volume
   const diensten = await prisma.job.findMany({
     where: tenantScopeWhere(actor),
     orderBy: { createdAt: "desc" },

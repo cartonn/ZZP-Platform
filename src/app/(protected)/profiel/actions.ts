@@ -56,7 +56,9 @@ export async function updateFreelancerProfile(
 
   // Alleen bestaande skills/branches koppelen (defensief tegen gemanipuleerde input).
   const [validSkills, validIndustries] = await Promise.all([
+    // unbounded-allow: skills-referentielijst voor profielformulier
     prisma.skill.findMany({ where: { id: { in: data.skillIds } }, select: { id: true } }),
+    // unbounded-allow: branches-referentielijst voor profielformulier
     prisma.industry.findMany({ where: { id: { in: data.industryIds } }, select: { id: true } }),
   ]);
   const skillIds = validSkills.map((s) => s.id);

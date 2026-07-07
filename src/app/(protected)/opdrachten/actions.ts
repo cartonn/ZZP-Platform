@@ -75,6 +75,7 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
 
   // Alleen bestaande skills koppelen; required wint van optional bij overlap.
   const allSkillIds = [...new Set([...data.requiredSkillIds, ...data.optionalSkillIds])];
+  // unbounded-allow: skills-referentielijst voor formulier
   const validSkills = await prisma.skill.findMany({
     where: { id: { in: allSkillIds } },
     select: { id: true },
@@ -268,6 +269,7 @@ export async function changeJobStatus(
       select: { id: true, name: true },
     });
     if (company) {
+      // unbounded-allow: eigen flexpool-leden bij eerste publicatie (per bedrijf begrensd)
       const favorites = await prisma.favoriteFreelancer.findMany({
         where: { companyId: company.id },
         select: {
@@ -328,6 +330,7 @@ export async function changeJobStatus(
   // Alleen op de PUBLISHED→CLOSED-overgang (een gesloten concept had geen reacties); wie de pure
   // planner notificeert is server-side waarheid.
   if (targetStatus === "CLOSED" && from === "PUBLISHED") {
+    // unbounded-allow: open reacties van één opdracht bij sluiten (per opdracht begrensd)
     const openApplications = await prisma.application.findMany({
       where: { jobId, status: { in: [...OPEN_APPLICATION_STATUSES] } },
       select: { status: true, freelancer: { select: { userId: true } } },

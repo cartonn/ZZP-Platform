@@ -27,7 +27,9 @@ export default async function ProfielPage() {
       where: { userId: actor.id },
       include: { skills: true, industries: true },
     }),
+    // unbounded-allow: skills-referentielijst voor profielpagina
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // unbounded-allow: branches-referentielijst voor profielpagina
     prisma.industry.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 

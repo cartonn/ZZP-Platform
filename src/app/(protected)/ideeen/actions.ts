@@ -141,6 +141,7 @@ export async function setIdeaStatus(ideaId: string, formData: FormData): Promise
   });
 
   // Notificeer de indiener + iedereen die stemde (zonder dubbelen, en niet de beheerder zelf).
+  // unbounded-allow: stemgevers van één idee; server action, geen lijst-view
   const voters = await prisma.ideaVote.findMany({ where: { ideaId }, select: { userId: true } });
   const recipients = new Set<string>([idea.authorId, ...voters.map((v) => v.userId)]);
   recipients.delete(actor.id);

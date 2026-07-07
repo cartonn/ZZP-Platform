@@ -22,6 +22,7 @@ export async function GET(): Promise<Response> {
   const limited = await enforceRateLimit(exportRateLimiter, `administratie:${actor.id}`);
   if (limited) return limited;
 
+  // unbounded-allow: export-route; volledigheid vereist
   const rows = await prisma.administrationEntry.findMany({
     where: { ownerUserId: actor.id },
     select: {

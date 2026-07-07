@@ -102,6 +102,7 @@ async function annotate(
 ): Promise<{ rows: ServerImportRow[]; existing: number }> {
   const emails = rows.map((r) => r.email).filter(Boolean);
   const existingEmails = new Set(
+    // unbounded-allow: deduplicatiecheck voor import-batch
     (await prisma.user.findMany({ where: { email: { in: emails } }, select: { email: true } })).map(
       (u) => u.email,
     ),
@@ -111,7 +112,8 @@ async function annotate(
   for (const r of rows) for (const s of r.skills) allSkillNames.add(s.toLowerCase());
   const knownSkills = new Set(
     allSkillNames.size > 0
-      ? (await prisma.skill.findMany({ select: { name: true } }))
+      ? // unbounded-allow: skill-lijst voor import-mapping
+        (await prisma.skill.findMany({ select: { name: true } }))
           .map((s) => s.name.toLowerCase())
           .filter((n) => allSkillNames.has(n))
       : [],
@@ -178,6 +180,7 @@ export async function commitImport(formData: FormData): Promise<ImportCommitResu
 
   // Skill-catalogus eenmalig laden (naam → id) voor het koppelen van vaardigheden.
   const skillByName = new Map(
+    // unbounded-allow: skill-lookup voor import-mapping
     (await prisma.skill.findMany({ select: { id: true, name: true } })).map((s) => [
       s.name.toLowerCase(),
       s.id,

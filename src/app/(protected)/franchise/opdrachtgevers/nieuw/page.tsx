@@ -202,11 +202,13 @@ async function StepDiensten({
   state: OnboardingState;
 }) {
   const [jobs, skills] = await Promise.all([
+    // unbounded-allow: kleine referentielijst voor formulier (tenant-scope)
     prisma.job.findMany({
       where: { companyId: state.companyId, ...tenantScopeWhere(actor) },
       orderBy: { createdAt: "desc" },
       select: { id: true, title: true, status: true, department: { select: { name: true } } },
     }),
+    // unbounded-allow: skills-referentielijst voor formulier
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 

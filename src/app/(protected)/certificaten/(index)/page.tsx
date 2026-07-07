@@ -68,7 +68,8 @@ export default async function CertificatenPage() {
 
   const [credentials, user] = await Promise.all([
     profile
-      ? prisma.credential.findMany({
+      ? // unbounded-allow: eigenaar-scoped, inherent begrensd tot persoonlijk certificaatdossier
+        prisma.credential.findMany({
           where: { freelancerProfileId: profile.id },
           orderBy: { createdAt: "desc" },
           include: {

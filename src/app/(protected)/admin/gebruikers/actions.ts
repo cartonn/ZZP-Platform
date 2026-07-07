@@ -83,6 +83,7 @@ export async function anonymizeUser(userId: string): Promise<void> {
   if (!check.ok) throw new Error(check.reason);
 
   // Storage-sleutels vóór de transactie ophalen voor best-effort opruimen ná het wegschrijven.
+  // unbounded-allow: account-verwijdering-actie, niet een lijst-view
   const documents = await prisma.document.findMany({
     where: { ownerId: userId },
     select: { storageKey: true },
@@ -92,12 +93,14 @@ export async function anonymizeUser(userId: string): Promise<void> {
   // DISPUTE_OPENED-domeinevent (actorId) — net zoals cancellationReason via cancelledById wordt
   // gescopet. Verzamel de samenwerkingen waar déze betrokkene het dispuut opende, zodat we straks
   // alleen zíjn eigen vrije tekst wissen en niet die van de tegenpartij.
-  const ownDisputeCollabIds = (
-    await prisma.domainEvent.findMany({
-      where: { type: "DISPUTE_OPENED", actorId: userId },
-      select: { subjectId: true },
-    })
-  ).map((e) => e.subjectId);
+  const ownDisputeCollabIds =
+    // unbounded-allow: AVG-verwijdering: eigen DISPUTE_OPENED-events van één gebruiker; bewust geen take (alle eigen dispuutredenen moeten gewist worden, een cap zou er stilletjes overslaan)
+    (
+      await prisma.domainEvent.findMany({
+        where: { type: "DISPUTE_OPENED", actorId: userId },
+        select: { subjectId: true },
+      })
+    ).map((e) => e.subjectId);
 
   // AVG art. 17 dekt óók de auditlog: PII van de betrokkene staat in de metadata van eerdere
   // audit-events (e-mail bij mislukte login/rate-limit/bulk-import; de volledige naam bij
@@ -110,6 +113,7 @@ export async function anonymizeUser(userId: string): Promise<void> {
   // substring bevat) raken.
   const originalEmail = user.email;
   const originalName = user.name;
+  // unbounded-allow: AVG art. 17: alle auditregels met PII (e-mail/naam/IP, incl. e-mail-als-entityId) van één gebruiker; bewust geen take (een cap zou stilletjes PII laten staan bij de vergetelheid-actie)
   const piiAuditRows = await prisma.auditLog.findMany({
     where: {
       OR: [

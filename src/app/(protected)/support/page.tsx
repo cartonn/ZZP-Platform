@@ -16,6 +16,7 @@ export const metadata: Metadata = { title: "Support · ZZP Platform" };
 
 export default async function SupportPage() {
   const actor = await requireActor();
+  // unbounded-allow: eigenaar-scoped support-tickets; structureel klein
   const tickets = await prisma.supportTicket.findMany({
     where: { userId: actor.id },
     orderBy: { updatedAt: "desc" },

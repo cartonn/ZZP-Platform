@@ -108,7 +108,8 @@ export default async function ReactiesPage({
   }));
 
   const applications = profile
-    ? await prisma.application.findMany({
+    ? // unbounded-allow: eigenaar-scoped, inherent begrensd
+      await prisma.application.findMany({
         where: { freelancerId: profile.id },
         orderBy: { createdAt: "desc" },
         include: {
