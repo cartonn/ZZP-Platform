@@ -378,6 +378,32 @@ export const dossierViewRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal AGENDA_FEED_RATE_LIMIT (default 30) opvragingen van de publieke agenda-feed
+ * (/api/agenda/feed.ics) per 5 minuten. De route is sessieloos (bearer-token in de querystring),
+ * net als het vertrouwensdossier, en elke poging kost DB-I/O — deze rem maakt brute-force/scraping
+ * van de feed-token-ruimte onaantrekkelijk (security-review M-4, parity met dossierViewRateLimiter).
+ * De call-site keyt op IP én op de `u`-parameter (gebruiker-id uit de URL).
+ */
+export const agendaFeedRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("AGENDA_FEED_RATE_LIMIT", 30),
+  5 * 60_000,
+  "agenda:",
+);
+
+/**
+ * Maximaal INVITE_RATE_LIMIT (default 20) directe uitnodigingen per opdrachtgever per uur.
+ * Begrenst uitnodigings-spam (massa-notificaties richting ZZP'ers) zonder serieus gebruik te
+ * hinderen; de eligibility-/ownership-poort blijft de bron van toegang.
+ */
+export const inviteRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("INVITE_RATE_LIMIT", 20),
+  60 * 60_000,
+  "invite:",
+);
+
+/**
  * Maximaal CSP_REPORT_RATE_LIMIT (default 30) CSP-violatie-rapporten per IP per minuut. De
  * rapport-route (/api/csp-report) is publiek en ongeauthenticeerd (de browser stuurt de ping);
  * een defecte pagina of een kwaadwillende kan er anders een log-/CPU-flood mee veroorzaken. Ruim

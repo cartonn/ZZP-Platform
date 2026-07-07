@@ -20,6 +20,7 @@ import {
   buildJobInviteNotification,
   JOB_INVITED_AUDIT_ACTION,
 } from "@/lib/job-invite";
+import { inviteRateLimiter } from "@/lib/rate-limit";
 
 export type JobFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -491,6 +492,14 @@ export async function inviteFreelancerToJob(
   freelancerProfileId: string,
 ): Promise<void> {
   const actor = await requireRole("CLIENT");
+
+  // Spam-rem (security-review): begrens het aantal directe uitnodigingen per opdrachtgever per uur
+  // vóór de DB-reads/-writes. Zonder bovengrens kan één opdrachtgever een script laten lopen dat de
+  // hele discoverable-pool aanschrijft (massa-notificaties richting ZZP'ers). De eligibility-/
+  // ownership-poort blijft de bron van toegang; dit is een extra volume-rem.
+  if (!(await inviteRateLimiter.check(actor.id)).allowed) {
+    throw new Error("Je hebt het maximum aantal uitnodigingen per uur bereikt.");
+  }
 
   const job = await prisma.job.findUnique({
     where: { id: jobId },

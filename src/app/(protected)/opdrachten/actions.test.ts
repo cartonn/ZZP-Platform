@@ -25,6 +25,8 @@ const store = {
 };
 
 const auditMock = vi.hoisted(() => vi.fn(async () => {}));
+// Standaard toestaan; per test op `false` te zetten om de spam-rem te bewijzen.
+const inviteCheckMock = vi.hoisted(() => vi.fn(async () => ({ allowed: true })));
 
 class RedirectError extends Error {
   constructor(public url: string) {
@@ -46,6 +48,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 vi.mock("@/lib/audit", () => ({ audit: auditMock }));
+vi.mock("@/lib/rate-limit", () => ({ inviteRateLimiter: { check: inviteCheckMock } }));
 vi.mock("@/lib/db", () => ({
   prisma: {
     job: {
@@ -201,6 +204,8 @@ describe("inviteFreelancerToJob — directe uitnodiging", () => {
     store.invitedAuditCount = 0;
     store.freelancer = { id: "fp-1", tenantId: null, user: { id: "user-9" }, applications: [] };
     auditMock.mockClear();
+    inviteCheckMock.mockClear();
+    inviteCheckMock.mockResolvedValue({ allowed: true });
   });
 
   it("nodigt een vindbare ZZP'er uit: notificatie naar de ZZP'er + JOB_INVITED-audit", async () => {
@@ -283,5 +288,18 @@ describe("inviteFreelancerToJob — directe uitnodiging", () => {
     await inviteFreelancerToJob("job-x", "fp-1");
     expect(store.notifications).toHaveLength(0);
     expect(auditMock).not.toHaveBeenCalled();
+  });
+
+  it("weigert bij overschreden uitnodigingslimiet: nette NL-fout, geen notificatie/audit (spam-rem)", async () => {
+    store.job = publishedJobForInvite();
+    inviteCheckMock.mockResolvedValue({ allowed: false });
+    await expect(inviteFreelancerToJob("job-1", "fp-1")).rejects.toThrow(
+      "Je hebt het maximum aantal uitnodigingen per uur bereikt.",
+    );
+    // De rem staat vóór de DB-reads/-writes: geen notificatie, geen audit.
+    expect(store.notifications).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalled();
+    // Gekeyd op de actor-id (per opdrachtgever begrensd).
+    expect(inviteCheckMock).toHaveBeenCalledWith("client-1");
   });
 });
