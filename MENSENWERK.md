@@ -74,7 +74,12 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   **Sentry-ready achter een vlag**: zet `SENTRY_DSN` in de secrets én installeer `@sentry/nextjs`
   (`npm i @sentry/nextjs`) en externe monitoring activeert vanzelf. Zolang dat ontbreekt draait alles
   veilig door op gestructureerd loggen — niets te doen voor de pilot. Optioneel: `LOG_LEVEL`
-  (debug/info/warn/error, default info).
+  (debug/info/warn/error, default info). **Ook browser-fouten bereiken deze grens nu (code-kant GEDAAN
+  7-7-2026):** een gevangen client-side fout (React-render-crash in de error-boundaries
+  `error.tsx`/`global-error.tsx`/`(protected)/error.tsx`) wordt PII-arm naar `/api/client-error`
+  gestuurd en via `reportError` gestructureerd gelogd + (bij `SENTRY_DSN`) naar Sentry geëscaleerd.
+  Voorheen bleef zo'n crash onzichtbaar in de browser-console van de gebruiker. Rate-limited per IP
+  (`CLIENT_ERROR_RATE_LIMIT`, default 20/min). Resterend mensenwerk: **niets voor de pilot**.
 - **CSP-violatie-rapportage aanzetten/monitoren** (laag, code-kant GEDAAN 5-7-2026): de
   Content-Security-Policy stuurt nu violatie-rapporten naar een eigen endpoint (`/api/csp-report`)
   via `report-to` (moderne Reporting API + `Reporting-Endpoints`-header) én `report-uri` (fallback,

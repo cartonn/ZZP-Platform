@@ -7,6 +7,7 @@
 // fallback, geen stacktrace of technische details naar de gebruiker; alleen een korte foutreferentie.
 
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/observability/report-client";
 
 export default function GlobalError({
   error,
@@ -17,8 +18,9 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     // Server-fouten worden al door Next.js' onRequestError-grens gerapporteerd; hier loggen we de
-    // client-kant zodat een fout in de root-layout niet stil verdwijnt.
+    // client-kant én sturen 'm naar de reporter zodat een fout in de root-layout niet stil verdwijnt.
     console.error(error);
+    reportClientError(error, { digest: error.digest });
   }, [error]);
 
   return (

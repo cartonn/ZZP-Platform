@@ -17,6 +17,10 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/csp-report")).toBe(true);
   });
 
+  it("staat de client-fout-ontvanger inlogvrij toe (error-boundary POST't zonder sessie, óók bij root-layout-crash)", () => {
+    expect(isPublicPath("/api/client-error")).toBe(true);
+  });
+
   it("houdt beschermde routes achter de inlogmuur", () => {
     for (const p of [
       "/dashboard",
@@ -29,6 +33,8 @@ describe("isPublicPath", () => {
       "/api/media/logo.png",
       // Alleen de exacte csp-report-route is publiek, geen subpaden.
       "/api/csp-report/extra",
+      // Idem voor de client-fout-ontvanger: alleen de exacte route is publiek.
+      "/api/client-error/extra",
       // Het ontwerp-lab is INTERN (inloggen vereist) — niet langer publiek.
       "/ontwerp",
       "/ontwerp/01",
