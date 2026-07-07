@@ -135,6 +135,12 @@ export default async function RoosterPage({
   // Agenda-export (.ics) tonen zodra er een actieve, geplande samenwerking is — geen dode knop.
   const canExportAgenda = hasExportableSchedule(collabRows);
 
+  // De abonneerlink (feed) is zinvol zodra hij geconfigureerd is: een ZZP'er kan zijn agenda-app
+  // vooraf koppelen, ook al staat er nu nog niets gepland. Zo blijft de feed-URL vindbaar i.p.v.
+  // pas te verschijnen na de eerste boeking. Alleen voor de ZZP'er zelf.
+  const feedPath = actor.role === "FREELANCER" ? agendaFeedPath(actor.id) : null;
+  const showAgendaSubscribe = feedPath !== null || canExportAgenda;
+
   const bookedInputs: BookedCollaborationInput[] = collabRows.map((c) => ({
     collaborationId: c.id,
     jobTitle: c.job.title,
@@ -188,9 +194,7 @@ export default async function RoosterPage({
       <PageHeader
         title="Rooster"
         description="Jouw geplande diensten en open kansen — per dag."
-        action={
-          canExportAgenda ? <AgendaSubscribe feedPath={agendaFeedPath(actor.id)} /> : undefined
-        }
+        action={showAgendaSubscribe ? <AgendaSubscribe feedPath={feedPath} /> : undefined}
       />
 
       {showStrongFilter && (

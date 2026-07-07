@@ -1,7 +1,16 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, BarChart3, Coins, Gauge, PieChart, Target, Building2 } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  Coins,
+  Gauge,
+  PieChart,
+  Target,
+  Building2,
+  Timer,
+} from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireActor, type Actor } from "@/lib/authz";
 import { type UserRole } from "@/lib/enums";
@@ -29,6 +38,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GaugeRing, DonutChart, BiWidget, BiStatList, RevenueHero } from "@/components/insight/bi";
+import {
+  getHoursCriterionSummary,
+  hoursProgressPercent,
+  type HoursCriterionSummary,
+} from "@/lib/tax/hours-criterion-summary";
 
 export const metadata: Metadata = { title: "Inzicht · ZZP Platform" };
 
@@ -103,12 +117,75 @@ function StatusDonutWidget({
   );
 }
 
+/**
+ * Urencriterium-kaart (1.225 uur → zelfstandigenaftrek): voortgangsbalk + één uitlegzin.
+ * De stand komt server-side uit `getHoursCriterionSummary` (hergebruikt de bestaande telling).
+ */
+function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
+  const pct = hoursProgressPercent(summary);
+  const tone = summary.met
+    ? "bg-success"
+    : summary.projectedMet
+      ? "bg-primary"
+      : "bg-muted-foreground";
+  return (
+    <BiWidget
+      title="Urencriterium"
+      action={
+        <Link
+          href="/ontzorgd/uren"
+          className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
+        >
+          Uren registreren
+          <ArrowRight className="size-3.5" aria-hidden />
+        </Link>
+      }
+    >
+      <div className="space-y-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Timer className="size-4 shrink-0" aria-hidden />
+            <span>
+              <span className="font-mono font-semibold tabular-nums text-foreground">
+                {summary.totalHours.toLocaleString("nl-NL")}
+              </span>{" "}
+              van {summary.targetHours.toLocaleString("nl-NL")} uur geboekt in {summary.year}
+            </span>
+          </p>
+          <span className="shrink-0 font-mono text-sm tabular-nums text-muted-foreground">
+            {pct}%
+          </span>
+        </div>
+        <div
+          className="h-2 w-full overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Urencriterium ${summary.year}`}
+        >
+          <div
+            className={`h-full rounded-full ${tone}`}
+            style={{ width: `${Math.max(pct > 0 ? 2 : 0, pct)}%` }}
+          />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {summary.noActivity
+            ? "Je hebt dit jaar nog geen uren geboekt. Directe uren tellen mee zodra ze goedgekeurd zijn; registreer daarnaast je indirecte uren voor de aftrek."
+            : summary.hint}
+        </p>
+      </div>
+    </BiWidget>
+  );
+}
+
 async function FreelancerInzicht({ userId }: { userId: string }) {
-  const [s, membership, trend, quality] = await Promise.all([
+  const [s, membership, trend, quality, hoursCriterion] = await Promise.all([
     getFreelancerStats(userId),
     getFreelancerMembership(userId),
     getFreelancerRevenueTrend(userId),
     getDeliveryQuality(userId),
+    getHoursCriterionSummary(userId),
   ]);
   if (!s) {
     return (
@@ -137,6 +214,8 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
           { label: "Reacties", value: `${s.applicationsTotal}` },
         ]}
       />
+
+      {hoursCriterion && <UrencriteriumCard summary={hoursCriterion} />}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <StatusDonutWidget

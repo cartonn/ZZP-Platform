@@ -124,7 +124,13 @@ export default async function DienstenPage({
             >
               {label}
               {val === "" && allDiensten.length > 0 && (
-                <span className="ml-1 tabular-nums text-muted-foreground/70">
+                <span
+                  className={
+                    active
+                      ? "ml-1 tabular-nums opacity-70"
+                      : "ml-1 tabular-nums text-muted-foreground/70"
+                  }
+                >
                   ({allDiensten.length})
                 </span>
               )}
