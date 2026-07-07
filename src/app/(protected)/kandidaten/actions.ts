@@ -140,6 +140,7 @@ export async function bulkChangeApplicationStatus(
   }
 
   // Load only applications owned by this actor's company — non-owned ids simply won't load.
+  // unbounded-allow: bulk-triage; begrensd door geselecteerde ids (id in ids)
   const loaded = await prisma.application.findMany({
     where: {
       id: { in: ids },

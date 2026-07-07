@@ -12,6 +12,7 @@ export default async function ImporteerPage() {
   const actor = await requireActor();
   if (actor.role !== "FREELANCER") redirect("/diensten");
 
+  // unbounded-allow: franchise-eigenaar-scoped, inherent begrensd
   const collaborations = await prisma.collaboration.findMany({
     where: {
       status: "ACTIVE",

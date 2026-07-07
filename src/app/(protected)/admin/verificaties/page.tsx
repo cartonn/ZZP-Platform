@@ -45,6 +45,7 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
   await requireRole("ADMIN");
   const sp = await searchParams;
 
+  // unbounded-allow: verificatiewachtrij is structureel klein (dagelijks verwerkt)
   const queue = await prisma.credential.findMany({
     where: { status: "SUBMITTED" },
     // Oudste aanvraag eerst op het indientijdstip; legacy-records zonder submittedAt achteraan.

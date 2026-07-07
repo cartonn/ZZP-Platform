@@ -47,9 +47,11 @@ export default async function OpdrachtgeverDetailPage({
         },
       },
     }),
+    // unbounded-allow: skills-referentielijst voor formulier
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     // Diensten zonder afdeling: blijven bestaan (en zichtbaar/matchbaar) nadat hun afdeling is
     // verwijderd (onDelete: SetNull). Apart tonen zodat ze niet stil uit de cockpit verdwijnen.
+    // unbounded-allow: opdrachten per opdrachtgever voor formulier
     prisma.job.findMany({
       where: { companyId: id, departmentId: null, ...tenantScopeWhere(actor) },
       orderBy: { createdAt: "desc" },

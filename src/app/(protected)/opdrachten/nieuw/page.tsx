@@ -43,7 +43,9 @@ export default async function NieuweOpdrachtPage({
   const { from } = await searchParams;
 
   const [skills, industries] = await Promise.all([
+    // unbounded-allow: skills-referentielijst voor formulier
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // unbounded-allow: branches-referentielijst voor formulier
     prisma.industry.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   const rateBands = await getJobRateBands(industries.map((i) => i.id));

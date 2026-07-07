@@ -151,6 +151,7 @@ export default async function SamenwerkingenPage({
   // ZZP'er uren heeft ingediend (dan loopt facturatie via het werkproces).
   // ID-set-query voor factureerbare samenwerkingen; geen volledige lijst
   const invoiceableIds = new Set(
+    // unbounded-allow: ID-set-query voor factureerbare samenwerkingen; geen volledige lijst
     (
       await prisma.collaboration.findMany({
         where: invoiceableCollaborationsWhere(actor.id),
@@ -165,6 +166,7 @@ export default async function SamenwerkingenPage({
   // knop. Server blijft de waarheid (zie changeCollaborationStatus). Bulk-query, geen N+1.
   const collabIds = collaborations.map((c) => c.id);
   const [invoiceRows, pendingPerfRows] = await Promise.all([
+    // unbounded-allow: factuurstatus-snapshot per zichtbare samenwerking (afronden-rem); page-begrensd
     prisma.invoice.findMany({
       where: { collaborationId: { in: collabIds } },
       select: { collaborationId: true, lifecycleStatus: true, status: true },

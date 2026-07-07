@@ -15,6 +15,7 @@ export const metadata: Metadata = { title: "Opdrachtgevers · Bemiddeling" };
 
 export default async function FranchiseOpdrachtgeversPage() {
   const actor = await requireRole("FRANCHISER");
+  // unbounded-allow: franchise-tenant-scoped bedrijven; beheerbaar volume
   const companies = await prisma.company.findMany({
     where: tenantScopeWhere(actor),
     orderBy: { createdAt: "desc" },

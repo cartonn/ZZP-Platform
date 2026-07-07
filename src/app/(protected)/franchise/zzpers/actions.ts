@@ -64,7 +64,8 @@ export async function createZzper(_prev: ZzperState, formData: FormData): Promis
   // Alleen bestaande skills koppelen (defensief tegen gemanipuleerde input).
   const requestedSkillIds = formData.getAll("skillIds").map(String).filter(Boolean);
   const validSkills = requestedSkillIds.length
-    ? await prisma.skill.findMany({
+    ? // unbounded-allow: skills-referentielijst voor actie
+      await prisma.skill.findMany({
         where: { id: { in: requestedSkillIds } },
         select: { id: true },
       })

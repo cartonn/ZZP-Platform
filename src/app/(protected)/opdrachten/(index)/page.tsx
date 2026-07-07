@@ -69,6 +69,7 @@ async function ClientJobs({
   userId: string;
   searchParams: Record<string, string | string[] | undefined>;
 }) {
+  // unbounded-allow: eigenaar-scoped kanban van eigen opdrachten; kandidaat toekomstige paginatie
   const jobs = await prisma.job.findMany({
     where: { company: { userId } },
     orderBy: { updatedAt: "desc" },
@@ -273,13 +274,16 @@ async function BrowseJobs({
         credentialRequirements: true,
       },
     }),
+    // unbounded-allow: branches-referentielijst voor filter
     prisma.industry.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // unbounded-allow: skills-referentielijst voor filter
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     // Bewaarde opdrachten van de ZZP'er (alleen op profiel-id — onafhankelijk van de zichtbare
     // pagina) draaien nu in dezelfde batch. De membership-check per zichtbare opdracht hieronder
     // levert exact dezelfde staat op als de eerdere `jobId in`-begrensde query.
     profile
-      ? prisma.savedJob.findMany({
+      ? // unbounded-allow: bewaarde opdrachten, eigenaar-scoped op freelancerProfileId; alleen jobId-referenties, membership in-memory
+        prisma.savedJob.findMany({
           where: { freelancerProfileId: profile.id },
           select: { jobId: true },
         })

@@ -35,13 +35,15 @@ export default async function BeschikbaarheidPage() {
   });
   const [rows, collabRows] = await Promise.all([
     profile
-      ? prisma.availabilityWindow.findMany({
+      ? // unbounded-allow: kalenderaggregatie vereist alle vensters van eigenaar
+        prisma.availabilityWindow.findMany({
           where: { freelancerProfileId: profile.id },
           orderBy: { startDate: "asc" },
         })
       : Promise.resolve([]),
     profile
-      ? prisma.collaboration.findMany({
+      ? // unbounded-allow: eigenaar-scoped lopende samenwerkingen voor conflictdetectie; inherent klein
+        prisma.collaboration.findMany({
           where: { freelancerId: profile.id, status: { in: ["PROPOSED", "ACTIVE"] } },
           select: {
             id: true,

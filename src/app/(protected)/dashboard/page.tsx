@@ -217,7 +217,8 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
       // Eén query voor alle certificaten van de ZZP'er; de telling leiden we in-memory af.
       pid
-        ? prisma.credential.findMany({
+        ? // unbounded-allow: dashboard-widget aggregatie; eigenaar-scoped, inherent begrensd
+          prisma.credential.findMany({
             where: { freelancerProfileId: pid },
             select: { type: true, status: true, expiresAt: true },
           })

@@ -16,6 +16,7 @@ export default async function BedrijfBewerkenPage() {
 
   const [company, industries] = await Promise.all([
     prisma.company.findUnique({ where: { userId: actor.id } }),
+    // unbounded-allow: kleine referentietabel industries
     prisma.industry.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 

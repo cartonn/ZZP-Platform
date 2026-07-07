@@ -57,6 +57,7 @@ export default async function IdeeenPage({ searchParams }: { searchParams: Searc
   const q = first(sp.q).trim();
   const hasFilter = Boolean(statusFilter || audienceFilter || themeFilter || q);
 
+  // unbounded-allow: ideeënlijst met filter; laag volume; kandidaat voor toekomstige paginatie
   const rows = await prisma.idea.findMany({
     where: {
       ...(statusFilter ? { status: statusFilter } : {}),

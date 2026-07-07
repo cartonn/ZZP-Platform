@@ -216,6 +216,7 @@ async function applyCollaborationStatusChange(
   // met de annuleer-rem; server-side de waarheid. Spiegelt de cascade-afronding (confirmPayment).
   if (targetStatus === "COMPLETED") {
     const [otherInvoices, submittedPerformances] = await Promise.all([
+      // unbounded-allow: factuurstatus van één samenwerking voor de afronden-rem; per-collab begrensd
       prisma.invoice.findMany({
         where: { collaborationId },
         select: { lifecycleStatus: true, status: true },

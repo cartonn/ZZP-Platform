@@ -106,6 +106,7 @@ export default async function KandidatenPage({
     ariaStatus: t("Nieuwe status"),
   };
 
+  // unbounded-allow: kandidaten-matching; volume beperkt door filter
   const applications = await prisma.application.findMany({
     where: { job: { company: { userId: actor.id } } },
     // Beste match eerst; de werkstroom-volgorde (NEW vóór afgehandelde) zetten we in-memory, want

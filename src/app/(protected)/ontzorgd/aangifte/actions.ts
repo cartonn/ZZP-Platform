@@ -48,6 +48,7 @@ async function buildDossier(
   taxYear: number,
   quarter: number,
 ): Promise<TaxDossier> {
+  // unbounded-allow: eigenaar-scoped aggregatie voor aangifte
   const rows = await prisma.administrationEntry.findMany({ where: { ownerUserId: userId } });
   const entries: LedgerEntry[] = rows.map((r) => ({
     party: r.party as LedgerParty,

@@ -26,6 +26,7 @@ export default async function AangiftePage() {
 
   const [sub, requests] = await Promise.all([
     prisma.subscription.findUnique({ where: { userId: actor.id }, include: { plan: true } }),
+    // unbounded-allow: eigenaar-scoped aggregatie voor aangifte-pagina
     prisma.taxFilingRequest.findMany({
       where: { userId: actor.id },
       orderBy: { createdAt: "desc" },

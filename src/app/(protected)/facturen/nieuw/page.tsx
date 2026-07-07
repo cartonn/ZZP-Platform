@@ -18,6 +18,7 @@ export default async function NieuweFactuurPage({
   const { from } = await searchParams;
 
   // Alleen samenwerkingen die NIET in de uren-/prestatie-cascade zitten (gedeelde regel).
+  // unbounded-allow: eigenaar-scoped keuzelijst; inherent klein
   const collaborations = await prisma.collaboration.findMany({
     where: invoiceableCollaborationsWhere(actor.id),
     orderBy: { updatedAt: "desc" },

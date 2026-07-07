@@ -15,6 +15,7 @@ async function fetchOpenInvoices(actorId: string, isFreelancer: boolean): Promis
     ? { collaboration: { freelancer: { userId: actorId } } }
     : { collaboration: { company: { userId: actorId } } };
 
+  // unbounded-allow: API-route; eigenaar-scoped aggregatie
   const invoices = await prisma.invoice.findMany({
     where,
     include: {

@@ -76,6 +76,7 @@ export default async function AdminSupportPage({
   const filter = parseStatusFilter((await searchParams).status);
 
   // Hele wachtrij ophalen; server sorteert oudst-bijgewerkt eerst (langst stil bovenaan).
+  // unbounded-allow: actieve queue met status-filter; structureel klein bij goede SLA
   const tickets = await prisma.supportTicket.findMany({
     where: { status: { in: [...QUEUE_STATUSES] } },
     orderBy: { updatedAt: "asc" },

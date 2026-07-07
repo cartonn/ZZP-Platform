@@ -24,6 +24,7 @@ export async function GET(): Promise<Response> {
   const limited = await enforceRateLimit(exportRateLimiter, `admin-invoices:${actor.id}`);
   if (limited) return limited;
 
+  // unbounded-allow: admin-export; volledigheid vereist
   const invoices = await prisma.invoice.findMany({
     where: { lifecycleStatus: { not: null } },
     include: {
