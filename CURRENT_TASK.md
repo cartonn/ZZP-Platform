@@ -732,7 +732,28 @@ in-browser-verificatie (interactieve sessie).
    `docs/decisions/0010-semantische-matching.md` (> ~50k discoverable profielen óf scoring > ~50ms p95).
 2. ~~UX-walkthrough-backlog~~ — **VOLLEDIG AFGEWERKT 3-7-2026** in PR #557–#574 (zie de
    status-banner in docs/UX-WALKTHROUGH-2026-07-02.md). Niet opnieuw oppakken.
-3. **Perf-refactors uit de kwaliteitsronde 2-7 (RISKY, apart oppakken):**
+3. **Geparkeerde eigenaar-beslissingen uit kwaliteitsronde 2 (7-7-2026)** — pas oppakken na
+   expliciet akkoord van de eigenaar:
+   - **Financiën-consolidatie**: bedragen staan op 5 plekken (dashboard-tegel, Administratie 2×,
+     Inzicht, nieuwe kaarten). Voorstel: Administratie = enige bron (per-leverancier +
+     betaalreputatie als tabs), dashboard/Inzicht alleen doorklik-samenvattingen. Herontwerp.
+   - **Toezicht-tab "Integraties & security"**: Stripe-webhooks/malware-scans/CSP-meldingen zijn
+     voor de admin onzichtbaar; plus een "Platformwijzigingen"-feed (wat bouwde de automatisering
+     vannacht). Nieuwe feature.
+   - **AVG: notificatie-bodies bij erasure**: bedrijfsnaam blijft in oude notificaties van
+     ontvangers staan na anonimisering (MIDDEL; scoping-risico — zelfde aanpak als de
+     auditlog-scrub nodig).
+   - **Actie-engine-consolidatie**: `adminNextActions`/`franchiserNextActions` (next-actions.ts,
+     aggregaat) en `pendingTasks()` (actions/pending-tasks.ts, gerenderd) zijn twee parallelle
+     engines — #567 voedde maandenlang de dode. Samenvoegen tot één bron.
+   - **i18n-beleidsafwijking**: routines voegen nog steeds EN-vertalingen toe aan
+     src/lib/i18n/messages.ts terwijl het i18n-spoor per instructie is afgesloten — routine-prompt
+     aanscherpen óf het beleid herzien.
+   - **Ontwerp-lab archiveren**: 152 concepten (6,8 MB) staan nog in src/ (build is al gefixt
+     via #653); verplaatsen naar design-archive/ buiten de app of een cap per reeks.
+   - **Invite-dedup + Stripe-event-idempotentie** (LAAG): audit-metadata-string-match →
+     DomainEvent.dedupeKey; Stripe event-id expliciet vastleggen.
+4. **Perf-refactors uit de kwaliteitsronde 2-7 (RISKY, apart oppakken):**
    - `clientCredentialAlerts` (src/lib/collaboration-alerts.ts) her-queryt op het CLIENT-dashboard
      dezelfde company + ACTIVE-collaborations die `dashboard/page.tsx` al heeft — geef de functie
      een overload met voorgefetchte rijen (2 queries minder per dashboard-load).
