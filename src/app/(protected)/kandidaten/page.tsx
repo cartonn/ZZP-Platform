@@ -204,12 +204,37 @@ export default async function KandidatenPage({
   // Sterke kandidaten raken elders aan de slag als je te lang wacht — afgeleid uit de reeds opgehaalde
   // lijst (geen extra query). Eén `now` zodat strip- en kaart-signaal consistent zijn.
   const now = new Date();
+
+  // Live compliance één keer per reactie berekenen en hergebruiken — zowel de paginabrede band als de
+  // rij moeten dezelfde compliance-blokkade zien, anders telt de band een niet-inzetbare kandidaat als
+  // "sterke match die je elders kunt verliezen" terwijl de rij "eerst compliance oplossen" toont.
+  const complianceByApp = new Map(
+    applications.map((a) => {
+      const requiredTypes = a.job.credentialRequirements
+        .filter((r) => r.required)
+        .map((r) => r.credentialType as CredentialType);
+      const compliance =
+        requiredTypes.length > 0
+          ? computeCompliance(
+              requiredTypes,
+              a.freelancer.credentials.map((c) => ({
+                type: c.type as CredentialType,
+                status: c.status as CredentialStatus,
+                expiresAt: c.expiresAt,
+              })),
+            )
+          : null;
+      return [a.id, compliance] as const;
+    }),
+  );
+
   const decisionSummary = summarizeCandidatesAwaitingDecision(
     applications.map((a) => ({
       status: a.status,
       matchScore: a.matchScore,
       createdAt: a.createdAt,
       hasCollaboration: !!a.collaboration,
+      complianceBlocked: complianceByApp.get(a.id)?.status === "NON_COMPLIANT",
     })),
     now,
   );
@@ -333,22 +358,10 @@ export default async function KandidatenPage({
               const rendered = visible.map((app) => {
                 const status = app.status as ApplicationStatus;
                 // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
-                // reactiemoment (een VOG kan intussen verlopen zijn). De volledige uitsplitsing
-                // (missing/expired/inReview) maakt voor de opdrachtgever concreet WAT er ontbreekt.
-                const requiredTypes = app.job.credentialRequirements
-                  .filter((r) => r.required)
-                  .map((r) => r.credentialType as CredentialType);
-                const compliance =
-                  requiredTypes.length > 0
-                    ? computeCompliance(
-                        requiredTypes,
-                        app.freelancer.credentials.map((c) => ({
-                          type: c.type as CredentialType,
-                          status: c.status as CredentialStatus,
-                          expiresAt: c.expiresAt,
-                        })),
-                      )
-                    : null;
+                // reactiemoment (een VOG kan intussen verlopen zijn). Eén keer berekend (zie
+                // complianceByApp) en hier hergebruikt, zodat band en rij hetzelfde oordeel tonen. De
+                // volledige uitsplitsing (missing/expired/inReview) maakt concreet WAT er ontbreekt.
+                const compliance = complianceByApp.get(app.id) ?? null;
                 const isPublic = (app.freelancer.visibility as Visibility) === "PUBLIC";
                 const trust = computeTrustLevel({
                   identityVerified: !!app.freelancer.user.identityVerifiedAt,
@@ -435,8 +448,10 @@ export default async function KandidatenPage({
                       (decision.kind === "compliance" ? (
                         <p className="flex items-center gap-1.5 text-xs text-danger">
                           <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+                          {/* firstBlocker is bij NON_COMPLIANT altijd gezet (missing/expired is dan
+                              niet leeg); de fallback is enkel een type-vangnet. */}
                           {firstBlocker
-                            ? `${t("Eerst compliance oplossen:")} ${t(CREDENTIAL_TYPE_LABEL[firstBlocker])}`
+                            ? `${t("Eerst compliance oplossen:")} ${CREDENTIAL_TYPE_LABEL[firstBlocker]}`
                             : t("Eerst compliance oplossen voordat je beslist.")}
                         </p>
                       ) : (
