@@ -12,6 +12,7 @@ import {
   CascadeError,
 } from "@/lib/cascade/commands";
 import { getStorage } from "@/lib/services/storage";
+import { planExpensePostings } from "@/lib/expense";
 import { documentKindForCredential } from "@/lib/documents";
 import { type CredentialType } from "@/lib/enums";
 import { credentialBewijsPdf } from "./seed-credential-pdf";
@@ -1059,6 +1060,87 @@ async function main() {
       await approveInvoice(cActor, draftInvoice.id);
       if (!reaches(s.target, "PAID")) continue;
       await confirmPayment(fActor, draftInvoice.id); // statusupdate, geen betaling (Besluit 1)
+    }
+  }
+
+  // --- Zakelijke uitgaven (Sanne) — demonstreert de uitgaven-/onkostentracker met echte
+  //     grootboekregels, zodat winst, IB-schatting en btw-teruggave met de werkelijke kosten kloppen.
+  //     Idempotent via vaste ids; de bijbehorende AdministrationEntry-regels worden herbouwd via
+  //     planExpensePostings (dezelfde functie als de server-action) i.p.v. handmatige boekingen. ---
+  {
+    const thisYear = new Date().getUTCFullYear();
+    const sanneUserId = uid["sanne"];
+    const demoExpenses: {
+      id: string;
+      description: string;
+      category: string;
+      netCents: number;
+      vatCents: number;
+      occurredAt: Date;
+    }[] = [
+      {
+        id: "expense-sanne-1",
+        description: "Treinabonnement woon-werk opdrachtgever",
+        category: "REISKOSTEN",
+        netCents: 12500,
+        vatCents: 1125, // 9% ov
+        occurredAt: new Date(Date.UTC(thisYear, 1, 12)),
+      },
+      {
+        id: "expense-sanne-2",
+        description: "Bijscholing wondzorg (online cursus)",
+        category: "OPLEIDING",
+        netCents: 34900,
+        vatCents: 7329, // 21%
+        occurredAt: new Date(Date.UTC(thisYear, 2, 3)),
+      },
+      {
+        id: "expense-sanne-3",
+        description: "Boekhoudsoftware jaarabonnement",
+        category: "SOFTWARE",
+        netCents: 14900,
+        vatCents: 3129, // 21%
+        occurredAt: new Date(Date.UTC(thisYear, 0, 20)),
+      },
+    ];
+    if (sanneUserId) {
+      for (const e of demoExpenses) {
+        await prisma.expense.upsert({
+          where: { id: e.id },
+          update: {
+            description: e.description,
+            category: e.category,
+            netCents: e.netCents,
+            vatCents: e.vatCents,
+            occurredAt: e.occurredAt,
+          },
+          create: {
+            id: e.id,
+            userId: sanneUserId,
+            description: e.description,
+            category: e.category,
+            netCents: e.netCents,
+            vatCents: e.vatCents,
+            occurredAt: e.occurredAt,
+          },
+        });
+        // Grootboekregels deterministisch herbouwen (idempotent): eerst weg, dan opnieuw boeken.
+        await prisma.administrationEntry.deleteMany({ where: { expenseId: e.id } });
+        const postings = planExpensePostings({ netCents: e.netCents, vatCents: e.vatCents });
+        if (postings.length > 0) {
+          await prisma.administrationEntry.createMany({
+            data: postings.map((p) => ({
+              party: p.party,
+              ownerUserId: sanneUserId,
+              account: p.account,
+              debitCents: p.debitCents,
+              creditCents: p.creditCents,
+              expenseId: e.id,
+              occurredAt: e.occurredAt,
+            })),
+          });
+        }
+      }
     }
   }
 

@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Uitgaven-/onkostentracker voor de ZZP'er (2026-07-07)** — de ZZP'er legt
+> aftrekbare zakelijke kosten vast die in het grootboek boeken (KOSTEN + BTW-voorbelasting), zodat
+> winst/IB-schatting/reservering/BTW op nettowinst i.p.v. bruto-omzet worden berekend. Additief
+> `Expense`-model + `AdministrationEntry.expenseId` (cascade); pure `expense.ts`
+> (`planExpensePostings`/`summarizeExpenses`/`parseEurosToCents`/`expenseSchema`, 27 tests);
+> acties `createExpense`/`deleteExpense` (auth→rol→ownership→Zod→transactie→audit, 10 tests);
+> "Uitgaven"-tab in de administratie-hub (`/financien?tab=uitgaven`) + link vanuit Ontzorgd; Sanne
+> demo-uitgaven. Sluit het grootste ontzorg-gat t.o.v. Moneybird/Tellow/Bendy. Gate groen.
+
 > Gedaan (niet opnieuw): **Inkomstendoel (maanddoel) voor de ZZP'er (2026-07-07)** — zelfgekozen
 > maanddoel op `/prognose` met voortgang (gefactureerd deze maand + nog te versturen concepten t.o.v.
 > doel). Additief `FreelancerProfile.monthlyIncomeGoalCents`; pure `income-goal.ts`
