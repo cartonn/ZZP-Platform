@@ -4,6 +4,9 @@ import { collaborationScheduleEvents } from "@/lib/calendar/schedule";
 import { loadUserScheduleCollaborations } from "@/lib/calendar/user-schedule";
 import { verifyAgendaFeedToken } from "@/lib/calendar/feed-token";
 import { shareTokenSecret } from "@/lib/share-token";
+import { agendaFeedRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
+import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
 
 // Publieke, abonneerbare agenda-feed (webcal). Bewust GEEN sessie: een externe agenda-app
@@ -19,6 +22,19 @@ export async function GET(request: NextRequest) {
   const userId = request.nextUrl.searchParams.get("u");
   const token = request.nextUrl.searchParams.get("t");
   const secret = shareTokenSecret();
+
+  // Brute-force-/scrape-rem (security-review M-4, parity met het vertrouwensdossier): de route is
+  // sessieloos en elke poging kost DB-I/O. VÓÓR de tokenverificatie zodat het gokken van de
+  // feed-token-ruimte wordt afgeremd. Gekeyd op IP én de `u`-parameter (gebruiker-id uit de URL),
+  // zodat één IP niet alle gebruikers-tokens sequentieel kan aftasten binnen één venster. Bij
+  // overschrijding: 429 + Retry-After (enforceRateLimit), niet de 404-oracle — een limiet is geen
+  // uitspraak over het bestaan van een gebruiker.
+  const { ipAddress } = await requestMeta();
+  const limited = await enforceRateLimit(
+    agendaFeedRateLimiter,
+    `${ipAddress ?? "onbekend"}|${userId ?? "onbekend"}`,
+  );
+  if (limited) return limited;
 
   // Ongeldig/ontbrekend token → 404 (geen onderscheid tussen "bestaat niet" en "fout token", zodat
   // de respons niets over het bestaan van een gebruiker prijsgeeft). Verificatie vóór elke DB-I/O.
