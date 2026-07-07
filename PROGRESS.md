@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Observability: client-side foutrapportage (2026-07-07)
+
+Laatste monitoring-blindvlek gesloten. Server-fouten (`onRequestError`) en achtergrond-/cron-taken
+(`reportBackgroundFailure`) bereikten de error-reporter al; **browser-fouten** (React-render-crashes in
+de error-boundaries) werden alleen `console.error`'d en verdwenen in de console van de gebruiker — in
+productie dus onzichtbaar voor monitoring.
+
+- **`src/lib/observability/client-error.ts`** (nieuw, puur/testbaar): `parseClientError` normaliseert een
+  binnenkomende client-fout **PII-arm** (pagina-URL → alleen pad, query-strings uit stack/componentStack
+  gestript, alle vrije tekst hard afgekapt) en `toReportableError` bouwt er een echte `Error` van zodat
+  Sentry een volwaardige exception met de client-stacktrace krijgt.
+- **`src/app/api/client-error/route.ts`** (nieuw): publieke, ongeauthenticeerde ingest-route (zelfde seam
+  als `/api/csp-report`) — rate-limited per IP vóór parsen, body-cap 32 KB, altijd 204, en route't via
+  `reportError` naar Sentry (indien `SENTRY_DSN`) of gestructureerd loggen.
+- **`src/lib/observability/report-client.ts`** (nieuw): dunne client-helper `reportClientError` —
+  `navigator.sendBeacon` met `fetch({keepalive})`-fallback, best-effort, throwt nooit.
+- **Wiring:** de drie error-boundaries (`error.tsx`, `global-error.tsx`, `(protected)/error.tsx`) sturen
+  de fout nu ook naar de reporter (naast `console.error`).
+- **`src/lib/rate-limit.ts`**: `clientErrorRateLimiter` (default 20/min/IP, `CLIENT_ERROR_RATE_LIMIT`).
+- **Tests:** `client-error.test.ts` (12 puur) + `client-error/route.test.ts` (7 route). Gate groen:
+  typecheck/lint/prettier/build/test. **Inert-veilig:** geen secret nodig — werkt met de console-fallback,
+  escaleert vanzelf naar Sentry zodra `SENTRY_DSN` gezet is. Geen resterend mensenwerk voor de pilot.
+
 ## Security/privacy-audit (2026-07-07, 2e ronde) — KRITIEK: fail-closed poort tegen mock-verificatie
 
 Adversariële audit (orchestrator + 4 Opus-subagents: api-routes, server-actions, AVG-sweep, injectie/

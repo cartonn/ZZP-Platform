@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { reportClientError } from "@/lib/observability/report-client";
 
 // Foutgrens voor de hele protected-omgeving. Vangt onverwachte fouten in pagina's op en
 // toont een rustige, herstelbare staat binnen de app-shell (CLAUDE.md: elke view heeft
@@ -17,6 +18,7 @@ export default function ProtectedError({
 }) {
   useEffect(() => {
     console.error(error);
+    reportClientError(error, { digest: error.digest });
   }, [error]);
 
   return (

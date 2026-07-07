@@ -415,3 +415,16 @@ export const cspReportRateLimiter = new RateLimiter(
   60_000,
   "cspreport:",
 );
+
+/**
+ * Maximaal CLIENT_ERROR_RATE_LIMIT (default 20) client-foutrapporten per IP per minuut. De
+ * ingest-route (/api/client-error) is publiek en ongeauthenticeerd (de browser stuurt de ping
+ * vanuit een error-boundary); een fout-loop op de client of een kwaadwillende kan er anders een
+ * log-/CPU-flood mee veroorzaken. Ruim boven een normale sessie (een crash rapporteert één keer).
+ */
+export const clientErrorRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("CLIENT_ERROR_RATE_LIMIT", 20),
+  60_000,
+  "clienterror:",
+);
