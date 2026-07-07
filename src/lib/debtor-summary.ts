@@ -4,8 +4,7 @@
 // zonder database; de facturen zijn al geladen door het facturen-paneel (geen extra query).
 
 import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { daysSince, isPastDue, startOfDayUTC } from "@/lib/date-boundary";
 
 /** Minimale factuurvorm die de aggregator nodig heeft (subset van Prisma.Invoice + company). */
 export interface DebtorInvoiceInput {
@@ -24,7 +23,7 @@ export interface DebtorRow {
   companyName: string;
   /** Totaal openstaand (verzonden/goedgekeurd/te laat, nog niet betaald) in centen. */
   outstandingCents: number;
-  /** Deel daarvan dat de vervaldatum is gepasseerd (dueAt < now). */
+  /** Deel daarvan dat de vervaldatum is gepasseerd (dueAt < UTC-middernacht van vandaag). */
   overdueCents: number;
   /** Aantal openstaande facturen. */
   invoiceCount: number;
@@ -42,12 +41,6 @@ export interface DebtorSummary {
   totalOverdueCents: number;
 }
 
-/** Hele dagen tussen `since` en `now` (>= 0). */
-function daysSince(since: Date, now: Date | number): number {
-  const nowMs = typeof now === "number" ? now : now.getTime();
-  return Math.max(0, Math.floor((nowMs - since.getTime()) / DAY_MS));
-}
-
 /**
  * Groepeer de openstaande facturen per opdrachtgever en bereken per debiteur het totaal, het
  * te-late deel, de aantallen en de ouderdom van de langst openstaande factuur. Facturen zonder
@@ -61,6 +54,10 @@ export function summarizeDebtors(
   now: Date | number,
 ): DebtorSummary {
   const nowMs = typeof now === "number" ? now : now.getTime();
+  // Dag-grens gelijk aan de crediteuren-kaart (`summarizeCreditors`): een factuur telt pas als te
+  // laat wanneer haar vervaldatum vóór UTC-middernacht van vandaag ligt — op de vervaldag zelf nog
+  // niet. Zo geven de debiteuren- en crediteuren-kaart voor dezelfde factuur hetzelfde oordeel.
+  const startOfToday = startOfDayUTC(nowMs);
   const byCompany = new Map<string, DebtorRow>();
 
   for (const inv of invoices) {
@@ -82,7 +79,7 @@ export function summarizeDebtors(
     row.outstandingCents += inv.totalCents;
     row.invoiceCount += 1;
 
-    const isOverdue = inv.dueAt != null && inv.dueAt.getTime() < nowMs;
+    const isOverdue = isPastDue(inv.dueAt, startOfToday);
     if (isOverdue) {
       row.overdueCents += inv.totalCents;
       row.overdueCount += 1;

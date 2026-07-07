@@ -7,11 +7,10 @@
 
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
 import { daysOverdue } from "@/lib/payment-reminders";
+import { DAY_MS } from "@/lib/date-boundary";
 
 /** Minimale afkoelperiode (dagen) tussen twee handmatige herinneringen op dezelfde factuur. */
 export const MANUAL_REMINDER_COOLDOWN_DAYS = 2;
-
-const DAY_MS = 1000 * 60 * 60 * 24;
 
 // Cascade-lifecycle-statussen waarbij de opdrachtgever nog moet betalen.
 const AWAITING_PAYMENT_LIFECYCLE: readonly InvoiceLifecycleState[] = ["APPROVED", "OVERDUE"];
