@@ -547,6 +547,35 @@ concurrenten naar ons verklaarbare, server-berekende overzicht; spiegel van de `
 - **Gate:** typecheck ✓, lint ✓ (0 warnings), prettier ✓ (hele repo), **3179 unit-tests** ✓ (10 nieuw),
   build ✓. Server-side waarheid, geen dode knoppen, geen schemawijziging.
 
+## Ontwerp-lab reeks 17 — +10 concepten (nrs 161–170), totaal 170 op `/ontwerp` (2026-07-07)
+
+**Waarde:** de galerij op `/ontwerp` groeit additief van 160 → 170 onderscheidende, top-1% redesign-
+concepten waaruit de eigenaar kiest. Tien nieuwe designrichtingen, gebouwd door 4 parallelle workers op
+niet-overlappende bestanden, daarna geïntegreerd zonder één bestaand concept/entry/koppeling te wijzigen:
+**161 Kintsugi** (keramiek met gouden reparatie-naden — breuk hersteld in goud als vertrouwens-metafoor) ·
+**162 Bureaublad** (spatial venster-OS: menubalk + venster-kaarten met traffic-light-chroom + dock-navigatie) ·
+**163 Zwartlicht** (UV-echtheidscontrole op bijna-zwart: security-glow alléén op geverifieerd/echt) ·
+**164 Krijtstreep** (sartoriaal maatpak: pinstripe-wol antraciet/marine + messing accent, quiet luxury) ·
+**165 Vorst** (koel crystalline: frosted glas + ijskristal-fractals + rijp-randen, ijsblauw/zilver) ·
+**166 Legpuzzel** (matching als passende puzzelstukken, ontbrekende credential = ontbrekend stukje) ·
+**167 Marqueterie** (houtinleg/intarsia: ingelegde geometrische banden in noten/eiken/kersen + nerf-textuur) ·
+**168 Weegschaal** (justitie-/apothekersbalans: symmetrisch evenwicht + kantelende weegbalk, messing op papier) ·
+**169 Almanak** (Nederlandse getijden-almanak: perkament + marineblauwe drukinkt + getijtabellen + maanfase-glyphs) ·
+**170 Caleidoscoop** (radiale 12-voudige spiegelsymmetrie via conic-gradients/SVG als accenten boven clean-witte content).
+
+- Thema: material-craft & wabi-sabi ambacht (kintsugi/houtinleg/pinstripe), spatial/OS-metaforen, refined
+  dark mode met luminescentie-als-betekenis, crystalline/frosted materiaal, vorm-als-betekenis & expressief-
+  joyful premium, en print-revival data-density met balans-metafoor voor eerlijke matching — elk
+  onderscheidend van de bestaande 160.
+
+* **Nieuw:** `src/components/ontwerp/concepts/concept-161..170-*.tsx` (10 bestanden). **Additief
+  bijgewerkt:** `registry.ts` (10 nieuwe `ConceptMeta`-entries append) en `src/app/ontwerp/[id]/concept-host.tsx`
+  (10 imports + id→component-koppelingen append). Geen bestaande app-logica/auth geraakt; lab staat
+  intern + `noindex`, concepten renderen on-demand.
+* **Gate:** `npm run typecheck` ✓ · `npm run lint` ✓ · `npm run test` ✓ (3481) · `npm run build` ✓ · `npx prettier --write .` ✓.
+  Woord "AI" komt nergens voor; deterministisch (geen random/Date). Docs: `docs/DESIGN-LAB.md` bijgewerkt met reeks 17 + trends.
+* **Volgende:** volgende reeks krijgt nrs 171–180 (blijf additief; overschrijf nooit een bestaand slot).
+
 ## Ontwerp-lab reeks 16 — +10 concepten (nrs 151–160), totaal 160 op `/ontwerp` (2026-07-07)
 
 **Waarde:** de galerij op `/ontwerp` groeit additief van 150 → 160 onderscheidende, top-1% redesign-

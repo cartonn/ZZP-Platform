@@ -487,6 +487,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "160": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-160-bouwplaats").then((m) => m.Concept160),
   ),
+  "161": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-161-kintsugi").then((m) => m.Concept161),
+  ),
+  "162": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-162-bureaublad").then((m) => m.Concept162),
+  ),
+  "163": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-163-zwartlicht").then((m) => m.Concept163),
+  ),
+  "164": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-164-krijtstreep").then((m) => m.Concept164),
+  ),
+  "165": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-165-vorst").then((m) => m.Concept165),
+  ),
+  "166": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-166-legpuzzel").then((m) => m.Concept166),
+  ),
+  "167": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-167-marqueterie").then((m) => m.Concept167),
+  ),
+  "168": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-168-weegschaal").then((m) => m.Concept168),
+  ),
+  "169": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-169-almanak").then((m) => m.Concept169),
+  ),
+  "170": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-170-caleidoscoop").then((m) => m.Concept170),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
