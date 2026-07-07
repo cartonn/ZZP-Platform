@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText } from "lucide-react";
+import { ArrowLeft, Copy, FileText } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatEuro } from "@/lib/invoices";
@@ -153,6 +153,15 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           <ArrowLeft className="size-3.5" aria-hidden /> Terug naar facturen
         </Link>
         <div className="flex items-center gap-2">
+          {/* Handmatige factuur herhalen: één klik naar een vers concept met dezelfde regels
+              (terugkerende maandfacturatie). Alleen de crediteur, niet voor cascade-facturen. */}
+          {isFreelancerOwner && !cascade && (
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/facturen/nieuw?from=${invoice.id}`}>
+                <Copy className="size-4" aria-hidden /> Herhaal factuur
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="secondary" size="sm">
             <a href={`/api/facturen/${id}/pdf`} target="_blank" rel="noreferrer">
               <FileText className="size-4" aria-hidden /> Open als PDF

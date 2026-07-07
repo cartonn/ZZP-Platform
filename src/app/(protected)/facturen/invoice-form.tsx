@@ -22,15 +22,30 @@ const lineFrom = (description: string, quantity: string, unit: string): Line => 
   unit,
 });
 
+export type InvoiceFormInitialLine = { description: string; quantity: string; unit: string };
+
 export function InvoiceForm({
   collaborations,
+  initialCollaborationId,
+  initialLines,
 }: {
   collaborations: { id: string; label: string }[];
+  initialCollaborationId?: string;
+  initialLines?: InvoiceFormInitialLine[];
 }) {
-  const [collaborationId, setCollaborationId] = useState(collaborations[0]?.id ?? "");
+  // Preselecteer de meegegeven samenwerking alleen als die (nog) factureerbaar is; anders de eerste.
+  const [collaborationId, setCollaborationId] = useState(
+    initialCollaborationId && collaborations.some((c) => c.id === initialCollaborationId)
+      ? initialCollaborationId
+      : (collaborations[0]?.id ?? ""),
+  );
   const action = createInvoice.bind(null, collaborationId);
   const [state, formAction, isPending] = useActionState<InvoiceState, FormData>(action, undefined);
-  const [lines, setLines] = useState<Line[]>([newLine()]);
+  const [lines, setLines] = useState<Line[]>(
+    initialLines && initialLines.length > 0
+      ? initialLines.map((l) => lineFrom(l.description, l.quantity, l.unit))
+      : [newLine()],
+  );
 
   // Reiskosten-declaratie: kilometers × tarief per km → één nette factuurregel.
   const [mileageOpen, setMileageOpen] = useState(false);
