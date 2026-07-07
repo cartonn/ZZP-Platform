@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Bemiddelaar-persona (2026-07-07) — voordragen/roster/leads v2 (5 fixes)
+
+Persona-review (bemiddelaar) rond voordragen + roster afgehandeld in één increment:
+
+1. **Compliance-kloof altijd eerste minpunt.** `matching.ts` — nieuwe pure helpers
+   `topGapReasonComplianceFirst` + `isComplianceGap` + `COMPLIANCE_GAP_LABELS` (additief, geen
+   gedragswijziging aan bestaande exports). `dienst-voordracht.ts` + `dienst-suggesties.ts` gebruiken
+   die nu voor `topGap`, zodat "Mist vereist certificaat" nooit onder een skills-/branchekloof verdwijnt.
+2. **Voordragen-knop ⇆ badge gelijkgetrokken.** Badge én knop-status komen al uit dezelfde
+   `computeEngageability`. Disabled knop mét reden-tooltip ("Eerst <blocker>") in `voordragen.tsx`.
+3. **Twee-staps-voordragen weg op het ZZP-dossier.** `dienst-suggesties-card.tsx` is nu een client-
+   component met een directe **Voordragen**-knop per rij (zelfde `proposeFreelancer` action + gate +
+   idempotentie, stille bevestiging). Toont de inzetbaarheidsblokkade van déze ZZP'er i.p.v. groen.
+4. **Documentherinnering voor de bemiddelaar** (grootste stuk, hergebruik #571-patroon):
+   `sendFranchiseCredentialReminder` (FRANCHISER + roster-ownership + Zod + server-herbevestiging +
+   dag-idempotentie + notify + audit `FRANCHISE_CREDENTIAL_REMINDER_SENT`), pure helper
+   `franchise/credential-reminder.ts` (`outstandingMandatoryTypes`, message, hergebruikte deep-link/
+   dag-venster), knop `FranchiseCredentialReminderButton` op roster-lijst én dossier.
+5. **Dagen-stil-teller consistent.** `leads.ts` — `isActiveLeadStatus` + `showsContactSilence` (één
+   bron); `lead-pipeline.ts` hergebruikt `isActiveLeadStatus`; de lijstregel "X dagen geen contact"
+   toont alleen bij actieve (KOUD/WARM) leads, zelfde definitie als het "X stil"-signaal.
+
+Tests: +matching (compliance-first), +leads (active/silence), +franchise credential-reminder helper
+(6) + action (5), +voordracht compliance-first gap. Gate: typecheck, lint, **3361 unit-tests**, build,
+prettier groen.
+
 ## Robuustheid (2026-07-07) — factuurbedrag begrensd op het int4-kolomplafond
 
 **Gat (GEPARKEERD LOW, persona-sweep run 14):** `invoiceLineSchema` liet per regel `quantity(100000) ×

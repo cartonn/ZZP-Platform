@@ -40,6 +40,30 @@ export function topGapReason(reasons: readonly MatchReason[]): string | null {
   return reasons.find((r) => r.kind === "gap")?.label ?? null;
 }
 
+/** De labels die een compliance-kloof (ontbrekend/verlopen/in-beoordeling vereist certificaat) duiden. */
+export const COMPLIANCE_GAP_LABELS: readonly string[] = [
+  "Mist vereist certificaat",
+  "Vereist certificaat is verlopen",
+  "Certificaat in beoordeling",
+];
+
+/** Is dit een compliance-kloof (ontbrekend/verlopen/in-beoordeling vereist certificaat)? */
+export function isComplianceGap(reason: MatchReason): boolean {
+  return reason.kind === "gap" && COMPLIANCE_GAP_LABELS.includes(reason.label);
+}
+
+/**
+ * Als {@link topGapReason}, maar een compliance-kloof (bv. "Mist vereist certificaat") wordt altijd
+ * eerst getoond wanneer aanwezig. Voor de bemiddelaar is een ontbrekend verplicht bewijsstuk het
+ * zwaarste signaal — dat mag nooit onder een skills-/branchekloof verdwijnen. Valt anders terug op
+ * het zwaarst wegende minpunt. Geeft `null` als er geen minpunt is.
+ */
+export function topGapReasonComplianceFirst(reasons: readonly MatchReason[]): string | null {
+  const compliance = reasons.find(isComplianceGap);
+  if (compliance) return compliance.label;
+  return topGapReason(reasons);
+}
+
 export interface FreelancerCredential {
   type: CredentialType;
   status: CredentialStatus;

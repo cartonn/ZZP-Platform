@@ -8,6 +8,8 @@ import {
   compareLeadsForList,
   daysSinceContact,
   isLeadStale,
+  isActiveLeadStatus,
+  showsContactSilence,
   leadStatusRequiresReason,
 } from "@/lib/leads";
 
@@ -94,6 +96,32 @@ describe("isLeadStale", () => {
     expect(isLeadStale("KOUD", 99)).toBe(false);
     expect(isLeadStale("KLANT", 99)).toBe(false);
     expect(isLeadStale("NO_DEAL", 99)).toBe(false);
+  });
+});
+
+describe("isActiveLeadStatus", () => {
+  it("is actief bij koud en warm (nog in bewerking)", () => {
+    expect(isActiveLeadStatus("KOUD")).toBe(true);
+    expect(isActiveLeadStatus("WARM")).toBe(true);
+  });
+
+  it("is niet actief bij een beslíste lead (klant/afgevallen)", () => {
+    expect(isActiveLeadStatus("KLANT")).toBe(false);
+    expect(isActiveLeadStatus("NO_DEAL")).toBe(false);
+  });
+});
+
+describe("showsContactSilence", () => {
+  it("toont de stiltemeter alleen bij actieve leads", () => {
+    expect(showsContactSilence("KOUD")).toBe(true);
+    expect(showsContactSilence("WARM")).toBe(true);
+  });
+
+  it("verbergt de stiltemeter bij een afgevallen of binnengehaalde lead", () => {
+    // Precies de bug: een afgevallen lead die "30 dagen geen contact" toont leest als een
+    // openstaande actie — dat mag niet. Zelfde definitie als het "X stil"-signaal.
+    expect(showsContactSilence("NO_DEAL")).toBe(false);
+    expect(showsContactSilence("KLANT")).toBe(false);
   });
 });
 

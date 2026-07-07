@@ -5,6 +5,8 @@ import {
   liveComplianceStatus,
   topPositiveReason,
   topGapReason,
+  topGapReasonComplianceFirst,
+  isComplianceGap,
   brancheFit,
   BRANCHE_PENALTY,
   BRANCHE_MISMATCH_CAP,
@@ -617,6 +619,45 @@ describe("topGapReason", () => {
   it("geeft null zonder minpunt", () => {
     expect(topGapReason([{ kind: "positive", label: "Tarief past binnen het budget" }])).toBeNull();
     expect(topGapReason([])).toBeNull();
+  });
+});
+
+describe("isComplianceGap", () => {
+  it("herkent een ontbrekend/verlopen/in-beoordeling vereist certificaat als compliance-kloof", () => {
+    expect(isComplianceGap({ kind: "gap", label: "Mist vereist certificaat" })).toBe(true);
+    expect(isComplianceGap({ kind: "gap", label: "Vereist certificaat is verlopen" })).toBe(true);
+    expect(isComplianceGap({ kind: "gap", label: "Certificaat in beoordeling" })).toBe(true);
+  });
+
+  it("is geen compliance-kloof bij een andere gap of een positieve reden", () => {
+    expect(isComplianceGap({ kind: "gap", label: "Mist 1 van 3 vereiste skills" })).toBe(false);
+    expect(isComplianceGap({ kind: "positive", label: "Mist vereist certificaat" })).toBe(false);
+  });
+});
+
+describe("topGapReasonComplianceFirst", () => {
+  it("tilt een compliance-kloof boven een zwaarder-wegende skills-/branchekloof", () => {
+    const reasons = [
+      { kind: "gap" as const, label: "Mist 1 van 3 vereiste skills" },
+      { kind: "gap" as const, label: "Andere branche dan jouw profiel" },
+      { kind: "gap" as const, label: "Mist vereist certificaat" },
+    ];
+    expect(topGapReasonComplianceFirst(reasons)).toBe("Mist vereist certificaat");
+    // De standaard-helper laat de skills-kloof eerst — dit is precies het verschil dat de
+    // bemiddelaar nodig heeft (compliance-gap altijd zichtbaar als eerste).
+    expect(topGapReason(reasons)).toBe("Mist 1 van 3 vereiste skills");
+  });
+
+  it("valt terug op de zwaarst-wegende gap zonder compliance-kloof", () => {
+    const reasons = [
+      { kind: "gap" as const, label: "Mist 1 van 3 vereiste skills" },
+      { kind: "gap" as const, label: "Tarief ligt boven het budget" },
+    ];
+    expect(topGapReasonComplianceFirst(reasons)).toBe("Mist 1 van 3 vereiste skills");
+  });
+
+  it("geeft null zonder enige gap", () => {
+    expect(topGapReasonComplianceFirst([{ kind: "positive", label: "Tarief past" }])).toBeNull();
   });
 });
 

@@ -14,6 +14,7 @@ import {
   type JobMatchSource,
   type FreelancerMatchSource,
   scoreJobForFreelancer,
+  topGapReasonComplianceFirst,
 } from "@/lib/matching";
 import { PROPOSAL_ACTION } from "@/lib/franchise/dienst-voordracht";
 
@@ -71,7 +72,9 @@ export function buildDienstSuggesties(
         companyName: job.companyName,
         matchScore: match.score,
         topReason: match.reasons.find((r) => r.kind === "positive")?.label ?? null,
-        topGap: match.reasons.find((r) => r.kind === "gap")?.label ?? null,
+        // Compliance-kloof altijd eerst (zie dienst-voordracht): een ontbrekend verplicht bewijsstuk
+        // is het zwaarste signaal voor de bemiddelaar.
+        topGap: topGapReasonComplianceFirst(match.reasons),
         hasApplied: appliedJobIds.has(job.id),
         proposed: proposedJobIds.has(job.id),
       };

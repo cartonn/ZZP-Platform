@@ -109,6 +109,20 @@ describe("buildRosterCandidates", () => {
     expect(candidate.topGap).toBeTruthy();
   });
 
+  it("zet de compliance-kloof altijd als eerste minpunt (ook boven een skills-kloof)", () => {
+    // Mist het vereiste VOG-certificaat én skills — de compliance-kloof moet als topGap bovenaan
+    // staan, zodat de bemiddelaar de blokkade meteen ziet i.p.v. de skills-kloof eerst.
+    const c = freelancer({
+      id: "f-noncompliant",
+      skills: [], // levert óók een skills-kloof op
+      credentials: [{ type: "INSURANCE", status: "VERIFIED", expiresAt: null }], // VOG ontbreekt
+    });
+
+    const candidate = buildRosterCandidates(job, [c], new Set(), new Set(), NOW)[0]!;
+
+    expect(candidate.topGap).toBe("Mist vereist certificaat");
+  });
+
   it("markeert reeds voorgedragen en reeds gereageerde ZZP'ers", () => {
     const a = freelancer({ id: "f-proposed" });
     const b = freelancer({ id: "f-applied" });

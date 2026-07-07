@@ -23,6 +23,7 @@ import {
 } from "@/lib/cascade/stage";
 import { type FreelancerCredential } from "@/lib/matching";
 import { computeEngageability, type EngageabilityResult } from "@/lib/engageability";
+import { outstandingMandatoryTypes } from "@/lib/franchise/credential-reminder";
 import { parseLanguages } from "@/lib/parse-languages";
 
 export interface DossierCollaboration {
@@ -92,6 +93,8 @@ export interface RosterDossier {
     industries: string[];
   };
   engageability: EngageabilityResult;
+  /** Verplichte documenten die openstaan (ontbrekend/verlopen) — waar een herinnering zin heeft. */
+  outstandingCredentialTypes: CredentialType[];
   collaborations: DossierCollaboration[];
   performances: DossierPerformance[];
   invoices: DossierInvoice[];
@@ -228,25 +231,26 @@ export async function getRosterDossier(
     }),
   }));
 
+  const now = new Date();
+  const mappedCredentials: FreelancerCredential[] = profile.credentials.map((c) => ({
+    type: c.type as FreelancerCredential["type"],
+    status: c.status as FreelancerCredential["status"],
+    expiresAt: c.expiresAt,
+  }));
   const engageability = computeEngageability(
     {
-      credentials: profile.credentials.map(
-        (c): FreelancerCredential => ({
-          type: c.type as FreelancerCredential["type"],
-          status: c.status as FreelancerCredential["status"],
-          expiresAt: c.expiresAt,
-        }),
-      ),
+      credentials: mappedCredentials,
       completeness: profile.completeness,
       availability: profile.availability as Availability,
       identityVerified: profile.user.identityVerifiedAt != null,
       lastActiveAt: profile.user.lastLoginAt,
     },
-    new Date(),
+    now,
   );
 
   return {
     engageability,
+    outstandingCredentialTypes: outstandingMandatoryTypes(mappedCredentials, now),
     profile: {
       id: profile.id,
       name: profile.user.name,

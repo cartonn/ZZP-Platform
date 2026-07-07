@@ -6,10 +6,19 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole, AuthorizationError } from "@/lib/authz";
 import { hasTenant } from "@/lib/tenancy";
-import { audit } from "@/lib/audit";
+import { audit, auditData } from "@/lib/audit";
 import { generateTempPassword } from "@/lib/onboarding/password";
-import { availabilitySchema } from "@/lib/enums";
+import { availabilitySchema, credentialTypeSchema, type CredentialType } from "@/lib/enums";
 import { computeFreelancerCompleteness } from "@/lib/profile";
+import { type FreelancerCredential } from "@/lib/matching";
+import {
+  reminderDayStart,
+  credentialReminderLink,
+  outstandingMandatoryTypes,
+  franchiseCredentialReminderMessage,
+  FRANCHISE_REMINDER_ACTION,
+  type FranchiseReminderState,
+} from "@/lib/franchise/credential-reminder";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Naam is te kort.").max(120),
@@ -122,4 +131,116 @@ export async function createZzper(_prev: ZzperState, formData: FormData): Promis
 
   revalidatePath("/franchise/zzpers");
   return { ok: true, email, tempPassword, name };
+}
+
+/** Re-export zodat de knop-component de statustype uit de action-module kan importeren. */
+export type ReminderState = FranchiseReminderState;
+
+const reminderSchema = z.object({
+  freelancerId: z.string().min(1),
+  type: credentialTypeSchema,
+});
+
+/**
+ * De bemiddelaar herinnert een roster-ZZP'er een ontbrekend/verlopen verplicht bewijsstuk aan te
+ * leveren — de franchise-variant van de opdrachtgever-herinnering (#571), zelfde patroon. Keten:
+ * auth → rol (FRANCHISER) → ownership (ZZP'er in eigen roster/tenant) → Zod → server-herbevestiging
+ * dat het type écht openstaat (verplichte-documenten-status) → dag-idempotentie (max één per
+ * ZZP'er+type per kalenderdag) → notify + audit. Server is de waarheid: nooit vertrouwen op de
+ * client-side melding, anders kan men om een willekeurig certificaat vragen.
+ */
+export async function sendFranchiseCredentialReminder(
+  freelancerId: string,
+  type: string,
+  _prev: ReminderState,
+  _formData: FormData,
+): Promise<ReminderState> {
+  let actor;
+  try {
+    actor = await requireRole("FRANCHISER");
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { error: e.message };
+    throw e;
+  }
+  const tenantId = actor.tenantId;
+  if (!tenantId) return { error: "Geen bemiddeling gekoppeld." };
+
+  const parsed = reminderSchema.safeParse({ freelancerId, type });
+  if (!parsed.success) return { error: "Ongeldige herinnering." };
+  const reminderType = parsed.data.type as CredentialType;
+
+  // Ownership: de ZZP'er moet in het eigen roster (tenant) zitten.
+  const profile = await prisma.freelancerProfile.findFirst({
+    where: { id: parsed.data.freelancerId, tenantId },
+    select: {
+      id: true,
+      userId: true,
+      credentials: { select: { type: true, status: true, expiresAt: true } },
+    },
+  });
+  if (!profile) return { error: "ZZP'er niet in je roster." };
+
+  // Server is de waarheid: bevestig dat dit verplichte document écht openstaat (ontbrekend/verlopen).
+  const credentials: FreelancerCredential[] = profile.credentials.map((c) => ({
+    type: c.type as CredentialType,
+    status: c.status as FreelancerCredential["status"],
+    expiresAt: c.expiresAt,
+  }));
+  if (!outstandingMandatoryTypes(credentials).includes(reminderType))
+    return { error: "Dit document is niet (meer) vereist of al aangeleverd." };
+
+  // Naam van de bemiddeling voor de afzender-tekst.
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { name: true },
+  });
+  const franchiseName = tenant?.name ?? "Je bemiddelaar";
+
+  // Idempotentie: geen spam. Eén herinnering per ZZP'er+type per kalenderdag.
+  const dayStart = reminderDayStart(new Date());
+  const todayReminders = await prisma.auditLog.findMany({
+    where: {
+      action: FRANCHISE_REMINDER_ACTION,
+      entityType: "FreelancerProfile",
+      entityId: profile.id,
+      createdAt: { gte: dayStart },
+    },
+    select: { metadata: true },
+    take: 50,
+  });
+  const alreadyReminded = todayReminders.some((r) => {
+    if (!r.metadata) return false;
+    try {
+      return (JSON.parse(r.metadata) as { type?: string }).type === reminderType;
+    } catch {
+      return false;
+    }
+  });
+  if (alreadyReminded) return { message: "Je hebt vandaag al herinnerd." };
+
+  const { title, body } = franchiseCredentialReminderMessage(franchiseName, reminderType);
+  await prisma.$transaction([
+    prisma.notification.create({
+      data: {
+        userId: profile.userId,
+        type: "CREDENTIAL_REMINDER",
+        title,
+        body,
+        link: credentialReminderLink(reminderType),
+      },
+    }),
+    prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: FRANCHISE_REMINDER_ACTION,
+        entityType: "FreelancerProfile",
+        entityId: profile.id,
+        metadata: { type: reminderType, tenantId },
+      }),
+    }),
+  ]);
+
+  revalidatePath("/franchise/zzpers");
+  revalidatePath(`/franchise/zzpers/${profile.id}`);
+  return { message: "Herinnering verstuurd." };
 }

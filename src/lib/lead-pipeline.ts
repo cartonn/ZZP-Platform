@@ -5,7 +5,7 @@
 // De server bepaalt de waarheid; deze helper levert enkel de afgeleide presentatie (CLAUDE.md regel 1).
 
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/enums";
-import { isLeadStale } from "@/lib/leads";
+import { isLeadStale, isActiveLeadStatus } from "@/lib/leads";
 
 /** Onder deze steekproef tonen we geen conversieratio (anders misleidt een "100%"/"0%"). */
 export const LEAD_CONVERSION_MIN_SAMPLE = 4;
@@ -54,11 +54,6 @@ function isFollowUpOverdue(nextFollowUp: Date | null, now: Date): boolean {
   return dueUTC < todayUTC;
 }
 
-/** Is de lead nog in bewerking (koud/warm)? Beslíste leads (klant/afgevallen) vragen geen opvolging. */
-function isActiveStatus(status: LeadStatus): boolean {
-  return status === "KOUD" || status === "WARM";
-}
-
 /**
  * Aggregeer de acquisitie-pijplijn. Puur en deterministisch: telt per stadium, bepaalt de actieve
  * pijplijn, het aandachtssignaal (stille warme + te-laat opgevolgde actieve leads, zonder
@@ -80,7 +75,8 @@ export function summarizeLeadPipeline(
     byStatus[lead.status] += 1;
 
     const leadStale = isLeadStale(lead.status, lead.daysSinceContact);
-    const leadOverdue = isActiveStatus(lead.status) && isFollowUpOverdue(lead.nextFollowUp, now);
+    const leadOverdue =
+      isActiveLeadStatus(lead.status) && isFollowUpOverdue(lead.nextFollowUp, now);
     if (leadStale) stale += 1;
     if (leadOverdue) overdueFollowUps += 1;
     if (leadStale || leadOverdue) attention += 1;
