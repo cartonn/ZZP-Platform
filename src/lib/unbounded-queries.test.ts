@@ -382,22 +382,22 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // is eigenaar-scoped (freelancerProfileId) en levert alleen id-referenties op.
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 71,
+    line: 72,
     reason: "eigenaar-scoped kanban van eigen opdrachten; kandidaat toekomstige paginatie",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 267,
+    line: 276,
     reason: "branches-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 268,
+    line: 277,
     reason: "skills-referentielijst voor filter",
   },
   {
     file: "(protected)/opdrachten/(index)/page.tsx",
-    line: 273,
+    line: 282,
     reason:
       "bewaarde opdrachten, eigenaar-scoped op freelancerProfileId; alleen jobId-referenties, membership in-memory",
   },
