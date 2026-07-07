@@ -29,6 +29,24 @@ export function canLeadTransition(from: LeadStatus, to: LeadStatus): boolean {
 export const LEAD_STALE_WARN_DAYS = 14;
 
 /**
+ * Is de lead nog actief in de pijplijn (koud/warm)? Beslíste leads (KLANT/afgevallen) vragen geen
+ * opvolging meer. Eén bron voor zowel de pijplijn-aggregatie als de lijstweergave, zodat de
+ * "dagen geen contact"-teller en het "X stil"-signaal dezelfde definitie delen.
+ */
+export function isActiveLeadStatus(status: LeadStatus): boolean {
+  return status === "KOUD" || status === "WARM";
+}
+
+/**
+ * Tonen we de "X dagen geen contact"-regel voor deze lead? Alleen bij een actieve lead: bij een
+ * afgevallen (NO_DEAL) of binnengehaalde (KLANT) lead is de stiltemeter betekenisloos en verwarrend
+ * (een afgevallen lead die "30 dagen geen contact" toont leest als een openstaande actie).
+ */
+export function showsContactSilence(status: LeadStatus): boolean {
+  return isActiveLeadStatus(status);
+}
+
+/**
  * Aantal hele dagen sinds het laatste contactmoment (of, bij ontbreken daarvan, sinds aanmaak).
  * Op dagniveau in UTC — consistent met de overige lead-datumlogica. Nooit negatief.
  */

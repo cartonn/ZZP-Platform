@@ -4,9 +4,11 @@ import { Users, MapPin, Euro, Calendar, Search } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
-import { type Availability } from "@/lib/enums";
+import { type Availability, type CredentialType } from "@/lib/enums";
 import { type FreelancerCredential } from "@/lib/matching";
 import { computeEngageability } from "@/lib/engageability";
+import { outstandingMandatoryTypes } from "@/lib/franchise/credential-reminder";
+import { FranchiseCredentialReminderButton } from "@/components/franchise/credential-reminder-button";
 import {
   summarizeExpiryAlert,
   expiryAlertLabel,
@@ -63,6 +65,8 @@ interface RosterCard extends RosterZzper {
   completeness: number;
   credentialCount: number;
   blockers: string[];
+  /** Verplichte documenten die openstaan (ontbrekend/verlopen) — waar een herinnering zin heeft. */
+  outstandingTypes: CredentialType[];
   alertLabel: string | null;
   alertTone: ReturnType<typeof expiryAlertTone>;
 }
@@ -136,6 +140,7 @@ export default async function FranchiseZzpersPage({
       credentialCount: f._count.credentials,
       engageabilityStatus: eng.status,
       blockers: eng.blockers,
+      outstandingTypes: outstandingMandatoryTypes(credentials, now),
       hasAlert: alertLabel != null && alertTone != null,
       alertLabel,
       alertTone,
@@ -335,6 +340,21 @@ export default async function FranchiseZzpersPage({
                         {f.blockers[0]}
                         {f.blockers.length > 1 ? ` +${f.blockers.length - 1}` : ""}
                       </p>
+                    )}
+                    {/* Eén-klik herinnering per openstaand verplicht document — geeft de blokkade
+                        handelingsperspectief (zelfde patroon als de opdrachtgever bij samenwerkingen). */}
+                    {f.outstandingTypes.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {f.outstandingTypes.map((t) => (
+                          <FranchiseCredentialReminderButton
+                            key={t}
+                            freelancerId={f.id}
+                            type={t}
+                            size="xs"
+                            label={CREDENTIAL_TYPE_LABEL[t] ?? t}
+                          />
+                        ))}
+                      </div>
                     )}
 
                     {/* Skills */}

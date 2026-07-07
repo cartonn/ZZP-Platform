@@ -9,14 +9,24 @@ import { EngageabilityBadge } from "@/components/engageability-badge";
 import { proposeFreelancer, type ProposeState } from "../actions";
 import { type RosterCandidate } from "@/lib/franchise/dienst-voordracht";
 
-function SubmitButton({ disabled }: { disabled: boolean }) {
+function SubmitButton({ disabled, blocker }: { disabled: boolean; blocker: string | null }) {
   const { pending } = useFormStatus();
-  return (
+  const button = (
     <Button type="submit" size="sm" variant="secondary" disabled={disabled || pending}>
       <UserPlus className="size-3.5" aria-hidden />
       {pending ? "Bezig…" : "Voordragen"}
     </Button>
   );
+  // Bij een blokkade: een disabled knop mét reden ("Eerst <blocker>"), zodat de badge "Nog niet
+  // inzetbaar" en de knop-status uit dezelfde inzetbaarheidsbron altijd overeenkomen en verklaard zijn.
+  if (disabled && blocker) {
+    return (
+      <span title={`Eerst ${blocker.toLowerCase()}`} className="inline-flex">
+        {button}
+      </span>
+    );
+  }
+  return button;
 }
 
 /**
@@ -83,7 +93,7 @@ function CandidateRow({ jobId, candidate }: { jobId: string; candidate: RosterCa
           <form action={formAction}>
             <input type="hidden" name="jobId" value={jobId} />
             <input type="hidden" name="freelancerId" value={candidate.freelancerId} />
-            <SubmitButton disabled={notEngageable} />
+            <SubmitButton disabled={notEngageable} blocker={candidate.blockers[0] ?? null} />
           </form>
         )}
       </div>

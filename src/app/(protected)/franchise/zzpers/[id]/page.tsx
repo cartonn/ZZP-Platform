@@ -34,6 +34,7 @@ import { EngageabilityBadge } from "@/components/engageability-badge";
 import { EngageabilityExplanation } from "@/components/engageability-explanation";
 import { CredentialStatusBadge } from "@/components/credentials/credential-status-badge";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
+import { FranchiseCredentialReminderButton } from "@/components/franchise/credential-reminder-button";
 
 export const metadata: Metadata = { title: "ZZP'er · Bemiddeling" };
 
@@ -220,20 +221,41 @@ function ProfielTab({
   dossier: RosterDossier;
   suggesties: DienstSuggestie[];
 }) {
-  const { profile } = dossier;
+  const { profile, engageability } = dossier;
   const WORKMODE: Record<string, string> = {
     REMOTE: "Remote",
     ONSITE: "Op locatie",
     HYBRID: "Hybride",
   };
+  const blocked = engageability.status === "INACTIEF";
   return (
     <div className="space-y-6">
-      <DienstSuggestiesCard suggesties={suggesties} />
+      <DienstSuggestiesCard
+        suggesties={suggesties}
+        freelancerId={profile.id}
+        blocked={blocked}
+        blocker={engageability.blockers[0] ?? null}
+      />
       <Card>
         <CardContent className="space-y-5 p-5">
           <div className="rounded-lg border border-border bg-muted/30 p-4">
             <h2 className="mb-2 text-sm font-semibold tracking-tight">Inzetbaarheid</h2>
             <EngageabilityExplanation result={dossier.engageability} />
+            {/* Eén-klik herinnering per openstaand verplicht document — geeft de blokkade
+                handelingsperspectief (zelfde patroon als de opdrachtgever bij samenwerkingen). */}
+            {dossier.outstandingCredentialTypes.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+                {dossier.outstandingCredentialTypes.map((t) => (
+                  <FranchiseCredentialReminderButton
+                    key={t}
+                    freelancerId={profile.id}
+                    type={t}
+                    size="xs"
+                    label={CREDENTIAL_TYPE_LABEL[t] ?? t}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

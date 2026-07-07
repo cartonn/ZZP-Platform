@@ -15,6 +15,7 @@ import {
   type JobMatchSource,
   type FreelancerMatchSource,
   scoreJobForFreelancer,
+  topGapReasonComplianceFirst,
 } from "@/lib/matching";
 import { computeEngageability } from "@/lib/engageability";
 
@@ -126,7 +127,9 @@ export function buildRosterCandidates(
         blockers: eng.blockers,
         matchScore: match.score,
         topReason: match.reasons.find((r) => r.kind === "positive")?.label ?? null,
-        topGap: match.reasons.find((r) => r.kind === "gap")?.label ?? null,
+        // Een compliance-kloof (bv. "Mist vereist certificaat") staat altijd bovenaan — voor de
+        // bemiddelaar is een ontbrekend verplicht bewijsstuk het zwaarste signaal.
+        topGap: topGapReasonComplianceFirst(match.reasons),
         proposed: proposedIds.has(f.id),
         hasApplied: appliedIds.has(f.id),
       };

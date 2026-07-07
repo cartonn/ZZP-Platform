@@ -11,6 +11,7 @@ import {
   compareLeadsForList,
   daysSinceContact,
   isLeadStale,
+  showsContactSilence,
 } from "@/lib/leads";
 import { summarizeLeadPipeline } from "@/lib/lead-pipeline";
 import { LeadPipelineStrip } from "@/components/franchise/lead-pipeline-strip";
@@ -168,13 +169,18 @@ export default async function FranchiseLeadsPage({ searchParams }: { searchParam
                 <p className="truncate text-sm text-muted-foreground">
                   {l.contactName || l.email || "Geen contactpersoon"}
                 </p>
-                <p
-                  className={`mt-0.5 text-xs ${l.stale ? "font-medium text-warning" : "text-muted-foreground"}`}
-                >
-                  {l.stillDays === 0
-                    ? "Vandaag nog contact gehad"
-                    : `${plural(l.stillDays, "dag", "dagen")} geen contact`}
-                </p>
+                {/* Stiltemeter alleen bij een actieve lead (koud/warm): bij een afgevallen of
+                    binnengehaalde lead is "X dagen geen contact" betekenisloos en leest het als een
+                    openstaande actie. Zelfde definitie als het "X stil"-signaal in de samenvatting. */}
+                {showsContactSilence(l.status) && (
+                  <p
+                    className={`mt-0.5 text-xs ${l.stale ? "font-medium text-warning" : "text-muted-foreground"}`}
+                  >
+                    {l.stillDays === 0
+                      ? "Vandaag nog contact gehad"
+                      : `${plural(l.stillDays, "dag", "dagen")} geen contact`}
+                  </p>
+                )}
                 {l.nextFollowUp && (
                   <p
                     className={`mt-0.5 text-xs ${isOverdue(l.nextFollowUp) ? "font-medium text-danger" : "text-muted-foreground"}`}
