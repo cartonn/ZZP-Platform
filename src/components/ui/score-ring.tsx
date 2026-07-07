@@ -24,6 +24,7 @@ export function ScoreRing({
   label,
   size = 96,
   className,
+  strokeClass,
 }: {
   /** 0–100. */
   value: number;
@@ -31,6 +32,12 @@ export function ScoreRing({
   label: string;
   size?: number;
   className?: string;
+  /**
+   * Overschrijft de score-band-kleur. Gebruik dit wanneer de ring-kleur een ánder oordeel moet
+   * volgen dan het kale percentage — bv. het inzetbaarheidsniveau, zodat een "100%"-ring nooit
+   * groen kleurt naast een blokkade. Leeg → de standaard score-band bepaalt de kleur.
+   */
+  strokeClass?: string;
 }) {
   const clamped = Math.max(0, Math.min(100, Math.round(value)));
   const stroke = 8;
@@ -63,7 +70,7 @@ export function ScoreRing({
         strokeLinecap="round"
         strokeDasharray={`${filled} ${c - filled}`}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        className={scoreRingStrokeClass(clamped)}
+        className={strokeClass ?? scoreRingStrokeClass(clamped)}
       />
       <text
         x="50%"

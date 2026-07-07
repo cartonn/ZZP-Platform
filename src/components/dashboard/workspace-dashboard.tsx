@@ -320,19 +320,25 @@ export async function WorkspaceDashboard({
                   <p className="text-[11px] text-success">{seal.subtitle}</p>
                 </div>
               </div>
-              <dl className="mt-3 space-y-1.5 text-xs">
+              <dl className="mt-3 space-y-2 text-xs">
                 {seal.items.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between">
-                    <dt className="flex items-center gap-1.5 text-muted-foreground">
+                  // Label vast links, waarde mag ombreken en naar de volgende regel zakken (min-w-0 +
+                  // break-words): een lange statustekst als "Nog niet inzetbaar — Verzekering ontbreekt"
+                  // loopt zo nooit meer door het label heen (DESIGN.md: tekst valt nooit buiten de kaart).
+                  <div
+                    key={item.label}
+                    className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5"
+                  >
+                    <dt className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
                       {item.ok ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-success" aria-hidden />
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden />
                       ) : (
-                        <AlertTriangle className="h-3.5 w-3.5 text-warning" aria-hidden />
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
                       )}
                       {item.label}
                     </dt>
                     <dd
-                      className={`font-mono font-medium ${item.ok ? "text-success" : "text-warning"}`}
+                      className={`min-w-0 break-words text-right font-medium ${item.ok ? "text-success" : "text-warning"}`}
                     >
                       {item.value}
                     </dd>

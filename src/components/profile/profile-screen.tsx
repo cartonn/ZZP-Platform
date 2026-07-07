@@ -10,7 +10,7 @@ import { summarizeAvailability } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
 import { mandatoryDocuments, MANDATORY_CREDENTIAL_TYPES } from "@/lib/mandatory-documents";
 import { computeEngageability } from "@/lib/engageability";
-import { employabilitySummary } from "@/lib/employability-summary";
+import { employabilitySummary, employabilityRingStrokeClass } from "@/lib/employability-summary";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import {
@@ -537,19 +537,34 @@ export async function ProfileScreen({
             <Card>
               <CardContent className="py-4">
                 <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t("Profiel compleet")}
+                  {t("Profielvelden ingevuld")}
                 </h2>
                 <div className="mt-3 flex justify-center">
-                  <ScoreRing value={completeness.score} label={t("Profiel compleet")} />
+                  {/* De ring meet de ingevulde profielvelden (het percentage), maar de KLEUR volgt — voor
+                      de eigenaar — het inzetbaarheidsniveau. Zo kan de ring nooit groen tonen naast een
+                      "Nog niet inzetbaar"-kop; een openstaande blokkade houdt hem amber. Voor andere
+                      viewers valt hij terug op de standaard score-band. */}
+                  <ScoreRing
+                    value={completeness.score}
+                    label={t("Profielvelden ingevuld")}
+                    strokeClass={
+                      employability ? employabilityRingStrokeClass(employability.level) : undefined
+                    }
+                  />
                 </div>
+                {isOwner && employability?.blocker && (
+                  <Link
+                    href={employability.href}
+                    className="focus-ring mt-3 flex items-center justify-center gap-1.5 rounded-md bg-warning/10 px-3 py-1.5 text-center text-xs font-medium text-warning hover:bg-warning/15"
+                  >
+                    <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+                    <span className="min-w-0">{t(employability.labelWithBlocker)}</span>
+                  </Link>
+                )}
                 <div className="mt-4 space-y-3">
                   <SignalBar
                     label={t("Identiteit")}
                     value={profile.user.identityVerifiedAt ? 100 : 0}
-                  />
-                  <SignalBar
-                    label={t("Verplichte documenten")}
-                    value={mandatory.allSatisfied ? 100 : 0}
                   />
                   <SignalBar
                     label={t("Certificaten geldig")}
