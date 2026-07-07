@@ -28,6 +28,11 @@ export function isPublicPath(pathname: string): boolean {
     // PII-arme velden. Achter de inlogmuur zou een report naar /login worden geredirect en nooit
     // aankomen.
     pathname === "/api/csp-report" ||
+    // Client-fout-ontvanger: de error-boundary POST't hier vanuit de browser zonder (of ná verlies
+    // van) een sessie, óók vanaf publieke pagina's en bij een root-layout-crash. Eigen rate-limit-
+    // guard; rapporteert alleen genormaliseerde, PII-arme velden. Achter de inlogmuur zou het rapport
+    // naar /login worden geredirect en nooit aankomen — precies de crashes die dit zichtbaar maakt.
+    pathname === "/api/client-error" ||
     // Betaal-provider-webhook (Mollie): de provider pingt zonder sessie-cookie. De handler
     // vertrouwt de request-body nooit blind — hij vraagt de betaalstatus opnieuw op bij de
     // provider (bron van waarheid) en antwoordt altijd 200 zonder data te lekken. Stond ten
