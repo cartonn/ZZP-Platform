@@ -401,6 +401,33 @@ concurrenten naar ons verklaarbare, server-berekende overzicht; spiegel van de `
 - **Gate:** typecheck ✓, lint ✓ (0 warnings), prettier ✓ (hele repo), **3179 unit-tests** ✓ (10 nieuw),
   build ✓. Server-side waarheid, geen dode knoppen, geen schemawijziging.
 
+## Ontwerp-lab reeks 16 — +10 concepten (nrs 151–160), totaal 160 op `/ontwerp` (2026-07-07)
+
+**Waarde:** de galerij op `/ontwerp` groeit additief van 150 → 160 onderscheidende, top-1% redesign-
+concepten waaruit de eigenaar kiest. Tien nieuwe designrichtingen, gebouwd door 4 parallelle workers op
+niet-overlappende bestanden, daarna geïntegreerd zonder één bestaand concept/entry/koppeling te wijzigen:
+**151 Fosfor** (fosforgroene CRT-terminal, command-line-first met scanlines/glow + commandopalet) · **152
+Zwerk** (ruimtelijke visionOS-diepte: gelaagde translucente panelen, parallax z-diepte, depth-of-field) ·
+**153 Reglet** (guilloché-veiligheidsgravure: intaglio-hairline-rozetten + microtekst als vertrouwens-
+motief) · **154 Halogeen** (warme dark met amber halo-gloed i.p.v. koud blauw) · **155 Cel** (spreadsheet-
+native: frozen headers + celselectie + keyboard-cel-navigatie) · **156 Marge** (editorial minimalisme/slow
+UI: dramatische witruimte + groot display-type) · **157 Karmijn** (monochroom-tonaal: de hele UI in één
+rijke tint, status via toon + icoon) · **158 Raamwerk** (zichtbare constructielijnen: hairline-grids +
+registratie-ticks + meetlijnen) · **159 Panorama** (horizontaal wide-canvas: schermen als aangrenzende
+panelen met filmstrip-glide) · **160 Bouwplaats** (hi-vis werkplaats: signaalgeel + hazard-diagonaalstrepen
+
+- stencil voor veldwerk). Thema: keyboard-first/command-driven, spatial/visionOS-diepte, warm dark, data-
+  native structuren, editorial slow UI, monochroom-tonaal, horizontale navigatie en domein-materiaal-
+  esthetiek — elk onderscheidend van de bestaande 150.
+
+* **Nieuw:** `src/components/ontwerp/concepts/concept-151..160-*.tsx` (10 bestanden). **Additief
+  bijgewerkt:** `registry.ts` (10 nieuwe `ConceptMeta`-entries append) en `src/app/ontwerp/[id]/concept-host.tsx`
+  (10 imports + id→component-koppelingen append). Geen bestaande app-logica/auth geraakt; lab staat
+  intern + `noindex`, concepten renderen on-demand.
+* **Gate:** `npm run typecheck` · `npm run lint` · `npm run test` · `npm run build` · `npx prettier --write .`.
+  Woord "AI" komt nergens voor. Docs: `docs/DESIGN-LAB.md` bijgewerkt met reeks 16 + onderzochte 2026-trends.
+* **Volgende:** volgende reeks krijgt nrs 161–170 (blijf additief; overschrijf nooit een bestaand slot).
+
 ## Ontwerp-lab reeks 13 — +10 concepten (nrs 121–130), totaal 130 op `/ontwerp` (2026-07-06)
 
 **Waarde:** de galerij op `/ontwerp` groeit additief van 120 → 130 onderscheidende, top-1% redesign-

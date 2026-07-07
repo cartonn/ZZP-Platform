@@ -457,6 +457,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "150": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-150-manifest").then((m) => m.Concept150),
   ),
+  "151": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-151-fosfor").then((m) => m.Concept151),
+  ),
+  "152": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-152-zwerk").then((m) => m.Concept152),
+  ),
+  "153": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-153-reglet").then((m) => m.Concept153),
+  ),
+  "154": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-154-halogeen").then((m) => m.Concept154),
+  ),
+  "155": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-155-cel").then((m) => m.Concept155),
+  ),
+  "156": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-156-marge").then((m) => m.Concept156),
+  ),
+  "157": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-157-karmijn").then((m) => m.Concept157),
+  ),
+  "158": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-158-raamwerk").then((m) => m.Concept158),
+  ),
+  "159": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-159-panorama").then((m) => m.Concept159),
+  ),
+  "160": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-160-bouwplaats").then((m) => m.Concept160),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
