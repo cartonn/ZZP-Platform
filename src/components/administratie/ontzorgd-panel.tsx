@@ -263,6 +263,12 @@ export async function OntzorgdPanel({ actor }: { actor: Actor }) {
         >
           Volledige administratie
         </Link>
+        <Link
+          href="/financien?tab=uitgaven"
+          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+        >
+          Uitgaven bijhouden
+        </Link>
         <a
           href="/api/administratie/btw"
           className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"

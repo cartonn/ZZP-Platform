@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Administratie-ontzorging (2026-07-07) — Uitgaven-/onkostentracker voor de ZZP'er
+
+De ontzorg-cascade (winst → IB-schatting → belastingreservering → BTW-stand) rekende voor de ZZP'er
+op **bruto-omzet**: een ZZP'er kon nergens zijn zakelijke kosten vastleggen, dus `costCents` uit het
+grootboek was altijd ~0 en de winst = omzet (IB/reservering overschat). Toegevoegd: een
+**uitgaven-tracker** die aftrekbare kosten vastlegt en direct in hetzelfde grootboek boekt (KOSTEN +
+BTW-voorbelasting), zodat winst, IB-schatting, reservering én BTW-teruggave kloppen. Benchmark:
+Moneybird/Tellow/Bendy (kostenregistratie als kern) — vertaald naar onze rustige, server-berekende stijl.
+
+- **`prisma/schema.prisma`**: nieuw additief model `Expense` (userId, description, category, netCents,
+  vatCents, occurredAt) + `AdministrationEntry.expenseId` (nullable, `onDelete: Cascade`) + index +
+  back-relations (`User.expenses`, `Expense.entries`).
+- **`src/lib/expense.ts`** (puur): `EXPENSE_CATEGORIES` (11 string-codes) + `EXPENSE_CATEGORY_LABEL`;
+  `expenseSchema` (Zod, plafond `EXPENSE_MAX_CENTS` int4-veilig, weigert nul-uitgave/toekomst);
+  `planExpensePostings` → gebalanceerde grootboekregels (debet KOSTEN + debet BTW_VOORBELASTING tegen
+  credit BETAALD, spiegel van `administration/ledger.ts`); `summarizeExpenses` (netto/btw/totaal +
+  per-categorie); `parseEurosToCents` (NL-euro-invoer → centen). 27 tests.
+- **`src/app/(protected)/uitgaven/actions.ts`**: `createExpense` (auth → rol FREELANCER → Zod →
+  transactie: Expense + `administrationEntry.createMany` + audit `EXPENSE_CREATED`) en `deleteExpense`
+  (auth → rol → ownership → transactie: delete entries + expense + audit `EXPENSE_DELETED`). 10 tests.
+- **UI**: `UitgavenPanel` + `UitgavenForm` als nieuwe **"Uitgaven"-tab** in de administratie-hub
+  (`/financien?tab=uitgaven`, FREELANCER); kerncijfers (kosten dit jaar / aftrekbare btw / aantal),
+  toevoeg-formulier, lijst met verwijderknop, empty-state. Link vanuit het Ontzorgd-paneel.
+- **`prisma/seed.ts`**: Sanne krijgt demo-uitgaven (met grootboekregels) zodat de gevulde staat + het
+  effect op winst/IB zichtbaar is.
+- Server-side waarheid, geen dode knoppen. Gate: typecheck, lint, unit-tests, build, `prettier --write .`.
+
 ## Administratie-ontzorging (2026-07-07) — Inkomstendoel (maanddoel) voor de ZZP'er
 
 De `/prognose`-pagina toonde wél de verwachte inkomsten op een tijdlijn, maar beantwoordde niet de

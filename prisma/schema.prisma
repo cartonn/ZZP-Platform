@@ -75,6 +75,7 @@ model User {
   notificationPreferences NotificationPreference[]
   pushSubscriptions       PushSubscription[]
   indirectHoursEntries    IndirectHoursEntry[]
+  expenses                Expense[]
 
   @@index([role])
   @@index([status])
@@ -877,14 +878,38 @@ model AdministrationEntry {
   creditCents   Int      @default(0)
   invoiceId     String?
   performanceId String?
+  expenseId     String? //  herleidbaar naar een zelf geboekte uitgave (Expense)
   correlationId String?
   eventId       String? //  herleidbaar naar het DomainEvent
   occurredAt    DateTime @default(now())
   createdAt     DateTime @default(now())
 
+  expense Expense? @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
   @@index([ownerUserId])
   @@index([invoiceId])
+  @@index([expenseId])
   @@index([correlationId])
+}
+
+// Zakelijke uitgave (aftrekbare kosten) van een ZZP'er. Voedt het grootboek (KOSTEN +
+// BTW_VOORBELASTING) zodat winst, IB-schatting en belastingreservering op nettowinst i.p.v.
+// bruto-omzet worden berekend. Verwijderen ruimt de bijbehorende grootboekregels op (cascade).
+model Expense {
+  id          String   @id @default(cuid())
+  userId      String //   eigenaar (FREELANCER)
+  description String
+  category    String //   ExpenseCategory (src/lib/expense.ts)
+  netCents    Int //      bedrag exclusief btw
+  vatCents    Int      @default(0) // aftrekbare voorbelasting
+  occurredAt  DateTime //  datum van de uitgave
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries AdministrationEntry[]
+
+  @@index([userId, occurredAt])
 }
 
 model Invoice {

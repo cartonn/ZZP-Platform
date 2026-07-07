@@ -13,6 +13,7 @@ import { OpenstaandPanel } from "@/components/administratie/openstaand-panel";
 import { BoekhoudingPanel } from "@/components/administratie/boekhouding-panel";
 import { PrognosePanel } from "@/components/administratie/prognose-panel";
 import { OntzorgdPanel } from "@/components/administratie/ontzorgd-panel";
+import { UitgavenPanel } from "@/components/administratie/uitgaven-panel";
 import { VerplichtingenPanel } from "@/components/administratie/verplichtingen-panel";
 import { getTranslator } from "@/lib/i18n/server";
 
@@ -20,6 +21,7 @@ const TAB_LABEL = {
   facturen: "Facturen",
   openstaand: "Openstaand",
   boekhouding: "Boekhouding",
+  uitgaven: "Uitgaven",
   prognose: "Prognose",
   ontzorgd: "Ontzorgd",
   verplichtingen: "Verplichtingen",
@@ -30,6 +32,7 @@ const FREELANCER_TABS: readonly TabKey[] = [
   "facturen",
   "openstaand",
   "boekhouding",
+  "uitgaven",
   "prognose",
   "ontzorgd",
 ];
@@ -183,6 +186,7 @@ export async function AdministratieHubScreen({
       )}
       {tab === "openstaand" && <OpenstaandPanel actor={actor} />}
       {tab === "boekhouding" && <BoekhoudingPanel actor={actor} />}
+      {tab === "uitgaven" && <UitgavenPanel actor={actor} />}
       {tab === "prognose" && <PrognosePanel actor={actor} />}
       {tab === "ontzorgd" && <OntzorgdPanel actor={actor} />}
       {tab === "verplichtingen" && <VerplichtingenPanel actor={actor} />}
