@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Administratie-ontzorging ZZP'er 2026-07-07 — herhaal factuur (dupliceer handmatige factuur)
+
+**Waarde (ZZP'er, minder administratie):** terugkerende maandfacturatie aan dezelfde opdrachtgever
+kostte tot nu toe elke maand opnieuw alle regels intypen. Nu dupliceert een ZZP'er een bestaande
+handmatige factuur met één klik ("Herhaal factuur" op de factuurdetail) naar een **vers concept met
+dezelfde samenwerking en regels** — nummer/status/datums lekken bewust niet mee; er komt een nieuw,
+opeenvolgend factuurnummer. Spiegel van "Opdracht dupliceren" (#551); vertaalt de "duplicate invoice"
+van Moneybird/Tellow naar onze vorm. Server-side waarheid: de bron wordt server-side opgehaald en op
+ownership + niet-cascade gecontroleerd, en `createInvoice` herberekent en valideert elke regel opnieuw.
+Alleen voor de crediteur (uitschrijver) en niet voor cascade-facturen (die lopen via het werkproces).
+
+- Bestanden: `src/lib/invoice-duplicate.ts` (pure `buildInvoiceDuplicateInitial`, centen→euro-invoer die
+  exact terug-rondt) + `invoice-duplicate.test.ts` (4 tests); `facturen/invoice-form.tsx`
+  (optionele `initialCollaborationId`/`initialLines`, preselecteert de samenwerking alleen als die nog
+  factureerbaar is); `facturen/nieuw/page.tsx` (`?from=<id>` → ownership+`lifecycleStatus:null`-poort →
+  prefill, vreemde/ongeldige `from` → stil leeg formulier); `facturen/[id]/page.tsx` ("Herhaal
+  factuur"-knop, crediteur + niet-cascade); allowlist-regelnr in `unbounded-queries.test.ts` bijgewerkt.
+  Geen schemawijziging, geen geldstroom. Gate: typecheck + lint + test (3284 groen) + prettier + build
+  — alle groen. E2e in CI.
+
 ## Duidelijkheid ZZP'er 2026-07-06 — open reacties geïnformeerd bij sluiten opdracht (#642)
 
 **Waarde (ZZP'er, geruststelling/duidelijkheid):** wanneer een opdrachtgever een **gepubliceerde**

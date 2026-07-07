@@ -156,7 +156,7 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // inherent klein (alleen actieve samenwerkingen van de gebruiker).
   {
     file: "(protected)/facturen/nieuw/page.tsx",
-    line: 15,
+    line: 21,
     reason: "eigenaar-scoped keuzelijst; inherent klein",
   },
 
