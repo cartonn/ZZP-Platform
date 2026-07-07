@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useId, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -88,7 +88,38 @@ export const DateInput = forwardRef<
     );
     const [error, setError] = useState<string | null>(null);
 
+    // Controlled mode: houd het veld in sync met externe `value`-updates (niet alleen bij mount).
+    const controlled = value !== undefined;
+    const controlledIso = value?.toString() ?? "";
+    useEffect(() => {
+      if (!controlled) return;
+      setDisplay(isoToDisplay(controlledIso));
+      setIso(displayToIso(isoToDisplay(controlledIso)) || controlledIso || "");
+      setError(null);
+    }, [controlled, controlledIso]);
+
+    // `form.reset()` bereikt onze React-state niet vanzelf (het veld is state-controlled).
+    // Vang het native reset-event op het omvattende <form> op en zet terug naar de begintoestand,
+    // zodat het datumveld leegt/reset zoals de vorige uncontrolled versie deed.
+    useEffect(() => {
+      const form = textRef.current?.form;
+      if (!form) return;
+      const onReset = () => {
+        setDisplay(isoToDisplay(initialIso));
+        setIso(displayToIso(isoToDisplay(initialIso)) || initialIso || "");
+        setError(null);
+      };
+      form.addEventListener("reset", onReset);
+      return () => form.removeEventListener("reset", onReset);
+      // initialIso is stabiel voor een gegeven default/value; opnieuw binden bij verandering is prima.
+    }, [initialIso]);
+
+    // Picker-affordance pas ná mount tonen: SSR kent geen HTMLInputElement, dus tonen we
+    // dezelfde markup op server en eerste client-render (voorkomt een hydration-mismatch).
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
     const supportsPicker =
+      mounted &&
       typeof HTMLInputElement !== "undefined" &&
       typeof HTMLInputElement.prototype.showPicker === "function";
 
@@ -153,6 +184,7 @@ export const DateInput = forwardRef<
       <div className="space-y-1">
         <div className="relative">
           <Input
+            {...props}
             ref={textRef}
             id={id}
             type="text"
@@ -167,7 +199,6 @@ export const DateInput = forwardRef<
             aria-describedby={mergedDescribedBy}
             aria-invalid={error ? true : undefined}
             className={cn(supportsPicker && "pr-10", className)}
-            {...props}
           />
           {supportsPicker && (
             <button
