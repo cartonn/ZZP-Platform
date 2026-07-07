@@ -7,6 +7,7 @@ import {
   companyAnonymizationData,
   freelancerProfileAnonymizationData,
   scrubAuditMetadataEmail,
+  scrubAuditMetadataPii,
   userAnonymizationData,
 } from "@/lib/account-anonymization";
 
@@ -50,6 +51,38 @@ describe("scrubAuditMetadataEmail", () => {
 
   it("laat ongeldige JSON ongemoeid (defensief)", () => {
     expect(scrubAuditMetadataEmail("niet-json", "jan@bedrijf.nl")).toBe("niet-json");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// scrubAuditMetadataPii — redact meerdere PII-waarden (e-mail + naam)
+// ---------------------------------------------------------------------------
+
+describe("scrubAuditMetadataPii", () => {
+  it("redact zowel de naam als het e-mailadres (FRANCHISE_FREELANCER_ADDED-metadata)", () => {
+    const out = scrubAuditMetadataPii(
+      JSON.stringify({ tenantId: "t-1", name: "Jan de Vries", skills: 3 }),
+      ["jan@bedrijf.nl", "Jan de Vries"],
+    );
+    const parsed = JSON.parse(out!);
+    expect(parsed.name).toBe(AUDIT_PII_REDACTED);
+    expect(parsed.tenantId).toBe("t-1");
+    expect(parsed.skills).toBe(3);
+  });
+
+  it("negeert lege/whitespace PII-waarden (geen over-redactie van lege velden)", () => {
+    const meta = JSON.stringify({ name: "", note: "iets" });
+    expect(scrubAuditMetadataPii(meta, ["", "   ", null, undefined])).toBe(meta);
+  });
+
+  it("raakt een naam die de doelnaam slechts als substring bevat NIET aan", () => {
+    const meta = JSON.stringify({ name: "Jan de Vries jr." });
+    expect(scrubAuditMetadataPii(meta, ["Jan de Vries"])).toBe(meta);
+  });
+
+  it("geeft null/geen-doel veilig terug", () => {
+    expect(scrubAuditMetadataPii(null, ["x"])).toBeNull();
+    expect(scrubAuditMetadataPii("{}", [])).toBe("{}");
   });
 });
 

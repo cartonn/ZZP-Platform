@@ -32,6 +32,7 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(async () => ({
         id: "user-42",
         role: "FREELANCER",
+        name: "Jan de Vries",
         email: "jan@bedrijf.nl",
         deletionRequestedAt: new Date("2026-05-01"),
         anonymizedAt: null,
@@ -95,6 +96,24 @@ vi.mock("@/lib/db", () => ({
           ipAddress: null,
           userAgent: null,
         },
+        // Franchise-toevoeging: de bemiddelaar (andere actor) voegde deze ZZP'er toe; het event
+        // bewaart het e-mailadres als `entityId` én de volledige naam in de metadata. Beide zijn PII
+        // van de betrokkene en moeten mee, ook al is actorId niet de betrokkene en entityType geen
+        // "User". Wordt geselecteerd via de `entityId: originalEmail`-tak van de OR.
+        {
+          id: "audit-franchise-add",
+          actorId: "franchiser-3",
+          entityType: "FreelancerProfile",
+          entityId: "jan@bedrijf.nl",
+          metadata: JSON.stringify({
+            tenantId: "t-1",
+            name: "Jan de Vries",
+            skills: 2,
+            availability: "FULL_TIME",
+          }),
+          ipAddress: null,
+          userAgent: null,
+        },
         // Auditregel van een ándere gebruiker die dit adres slechts als substring bevat — mag NIET
         // geraakt worden (exact-match + geen eigen actor/entity).
         {
@@ -116,6 +135,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { anonymizeUser } from "./actions";
+import { prisma } from "@/lib/db";
 
 const find = (model: string) => tx.ops.find((o) => o.model === model);
 const findAll = (model: string) => tx.ops.filter((o) => o.model === model);
@@ -310,5 +330,34 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     await anonymizeUser("user-42");
     const updates = findAll("auditLog.update") as Array<{ args: { where: { id: string } } }>;
     expect(updates.some((u) => u.args.where.id === "audit-other")).toBe(false);
+  });
+
+  it("selecteert óók auditregels waar het e-mailadres de entityId is (franchise-toevoeging)", async () => {
+    const findMany = prisma.auditLog.findMany as unknown as {
+      mock: { calls: Array<[{ where: { OR: unknown[] } }]> };
+    };
+    await anonymizeUser("user-42");
+    const firstCall = findMany.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    expect(firstCall![0].where.OR).toContainEqual({ entityId: "jan@bedrijf.nl" });
+  });
+
+  it("redact naam én e-mail uit een FRANCHISE_FREELANCER_ADDED-auditregel (AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    const updates = findAll("auditLog.update") as Array<{
+      args: {
+        where: { id: string };
+        data: { metadata?: string; entityId?: string };
+      };
+    }>;
+    const franchise = updates.find((u) => u.args.where.id === "audit-franchise-add");
+    expect(franchise).toBeDefined();
+    // Het e-mailadres stond als entityId — dat is PII en moet geredact worden.
+    expect(franchise!.args.data.entityId).toBe("[verwijderd]");
+    // De volledige naam stond in de metadata — die moet weg, operationele velden blijven.
+    const meta = JSON.parse(franchise!.args.data.metadata!);
+    expect(meta.name).toBe("[verwijderd]");
+    expect(meta.tenantId).toBe("t-1");
+    expect(franchise!.args.data.metadata).not.toContain("Jan de Vries");
   });
 });

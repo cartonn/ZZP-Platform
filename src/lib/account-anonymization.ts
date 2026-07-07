@@ -15,19 +15,31 @@ export const ANONYMIZED_NAME = "Verwijderde gebruiker";
 export const AUDIT_PII_REDACTED = "[verwijderd]";
 
 /**
- * AVG art. 17 (recht op vergetelheid) dekt óók de auditlog. Meerdere audit-events schrijven het
- * rauwe e-mailadres van de betrokkene in de JSON-metadata (mislukte login, rate-limit, bulk-import);
- * de overschrijving van `User.email` bij anonimisering raakt die kopieën niet. Deze pure helper
- * redact het e-mailadres uit één metadata-string: elk stringveld dat exact (hoofletter-ongevoelig)
- * gelijk is aan het opgegeven adres wordt vervangen door de redactie-marker. Andere velden (bv.
- * `role`, status-overgangen) blijven staan — die zijn niet naar de persoon herleidbaar en
- * operationeel nodig. De exact-match voorkomt dat het adres van een ándere gebruiker (dat dit adres
- * als substring bevat) per ongeluk wordt geraakt. Geeft de invoer ongewijzigd terug als er niets te
- * redacten valt of de metadata geen geldige JSON-object-string is (defensief; `auditData` schrijft
- * altijd JSON, maar we vertrouwen niet blind).
+ * AVG art. 17 (recht op vergetelheid) dekt óók de auditlog. Meerdere audit-events schrijven rauwe
+ * PII van de betrokkene in de JSON-metadata (e-mailadres bij mislukte login/rate-limit/bulk-import;
+ * de volledige naam bij `FRANCHISE_FREELANCER_ADDED`); de overschrijving van `User.email`/`User.name`
+ * bij anonimisering raakt die kopieën niet. Deze pure helper redact elk opgegeven PII-waarde uit één
+ * metadata-string: elk stringveld dat exact (hoofdletter-ongevoelig) gelijk is aan een van de waarden
+ * wordt vervangen door de redactie-marker. Andere velden (bv. `role`, status-overgangen) blijven staan
+ * — die zijn niet naar de persoon herleidbaar en operationeel nodig. De exact-match voorkomt dat de
+ * waarde van een ándere gebruiker (die deze slechts als substring bevat) per ongeluk wordt geraakt.
+ * Geeft de invoer ongewijzigd terug als er niets te redacten valt of de metadata geen geldige
+ * JSON-object-string is (defensief; `auditData` schrijft altijd JSON, maar we vertrouwen niet blind).
  */
-export function scrubAuditMetadataEmail(metadata: string | null, email: string): string | null {
-  if (!metadata || !email) return metadata;
+export function scrubAuditMetadataPii(
+  metadata: string | null,
+  values: readonly (string | null | undefined)[],
+): string | null {
+  if (!metadata) return metadata;
+  // Alleen niet-lege PII-waarden; een leeg/whitespace-adres of -naam zou anders élk leeg
+  // stringveld ten onrechte redacten. Vergelijking is hoofdletter-ongevoelig en exact per veld,
+  // zodat het adres/de naam van een ánder (die de waarde slechts als substring bevat) niet wordt geraakt.
+  const targets = new Set(
+    values
+      .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+      .map((v) => v.toLowerCase()),
+  );
+  if (targets.size === 0) return metadata;
   let parsed: unknown;
   try {
     parsed = JSON.parse(metadata);
@@ -36,15 +48,19 @@ export function scrubAuditMetadataEmail(metadata: string | null, email: string):
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return metadata;
   const obj = parsed as Record<string, unknown>;
-  const target = email.toLowerCase();
   let changed = false;
   for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === "string" && value.toLowerCase() === target) {
+    if (typeof value === "string" && targets.has(value.toLowerCase())) {
       obj[key] = AUDIT_PII_REDACTED;
       changed = true;
     }
   }
   return changed ? JSON.stringify(obj) : metadata;
+}
+
+/** Backwards-compatibele variant die alleen het e-mailadres redact. */
+export function scrubAuditMetadataEmail(metadata: string | null, email: string): string | null {
+  return scrubAuditMetadataPii(metadata, [email]);
 }
 
 /** Deterministisch, uniek pseudo-adres. Behoudt de unique-constraint op `email`

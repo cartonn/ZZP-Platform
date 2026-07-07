@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 14 (2026-07-07) — AVG art. 17-lek in de auditlog gedicht (HOOG)
+
+**Bevinding (HOOG, security/privacy):** de accountverwijdering (`anonymizeUser`) scrubde de auditlog
+onvolledig. Het event **`FRANCHISE_FREELANCER_ADDED`** (bemiddelaar voegt een ZZP'er toe,
+`franchise/zzpers/actions.ts:114-120`) bewaart het **e-mailadres als `entityId`** én de **volledige
+naam in de metadata**. De vergetelheid-query selecteerde die rij niet (actor = bemiddelaar,
+`entityType`≠"User", e-mail zat niet in de metadata maar in `entityId`), en de scrub was e-mail-only —
+dus na "geanonimiseerd" bleven naam + e-mail van de betrokkene volledig herleidbaar in de auditlog
+(zichtbaar in het admin-gebruikersdossier). Geschonden: AVG art. 17 / verificatieflow-privacy.
+
+**Fix:** `src/lib/account-anonymization.ts` — nieuwe pure `scrubAuditMetadataPii(metadata, values[])`
+(redact elk stringveld dat exact = e-mail óf naam; `scrubAuditMetadataEmail` blijft als wrapper).
+`admin/gebruikers/actions.ts` — de vergetelheid-query matcht nu óók `entityId = originalEmail`, laadt
+`User.name`, redact op aantoonbaar-eigen rijen (eigen actor/entity of e-mail-als-entityId) zowel de
+naam (metadata) als het e-mailadres (`entityId → [verwijderd]`). Nooit een rij van een ander (exacte
+match). Tests rood→groen: 4 nieuwe `scrubAuditMetadataPii`-cases + 2 erasure-cases (selecteert de
+franchise-rij via `entityId`; redact naam+e-mail). Gate: typecheck, lint, **3320 unit-tests**, build,
+prettier groen.
+
+**Live sweep (Playwright, verse prod-build + seed op ephemere qa.db):** 4 rollen ingelogd; privilege-
+escalatie (ZZP/CLIENT/FR → `/admin/*`, niet-FR → `/franchise/leads`) → redirect naar dashboard;
+document-privacy (`/api/documents/<foreign>`: CLIENT/FR → 403, ADMIN → 200, garbage → 404); IDOR/garbage
+→ soft-404; `GET /api/tasks/run-all` → 405; FR → `/api/admin/export/invoices` → 403; XSS `?q=` → niet
+uitgevoerd; **0 HTTP-500's**. DOEL-1: ADMIN keurde een certificaat goed (knoppen 6→5, keten werkt).
+Overige nieuwe oppervlakken (#638-647) gereviewd: invoice-duplicate + reiskosten (server-side
+her-berekend/ge-Zod'd, ownership-gescopet), trust-dossier-poort, job-closure-notify — geen extra gaten.
+
 ## UX/matching ZZP'er 2026-07-07 — sorteer opdrachten op beste match (#647)
 
 **Waarde (ZZP'er, snelheid/relevantie):** de marktplaats `/opdrachten` toonde op elke kaart al een
