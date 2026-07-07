@@ -5,14 +5,7 @@
 // verplichtingen-paneel (geen extra query).
 
 import { type ObligationItem } from "@/lib/payment-obligations";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** UTC-middernacht van een tijdstip — dezelfde dag-grens als het verplichtingen-paneel. */
-function startOfDayUTC(ms: number): number {
-  const d = new Date(ms);
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-}
+import { daysUntil, isPastDue, startOfDayUTC } from "@/lib/date-boundary";
 
 /** Te betalen saldo aan één leverancier (crediteur). */
 export interface CreditorRow {
@@ -38,11 +31,6 @@ export interface CreditorSummary {
   creditors: CreditorRow[];
   totalOutstandingCents: number;
   totalOverdueCents: number;
-}
-
-/** Hele dagen tussen `now` en `due` (kan negatief zijn wanneer de vervaldag is gepasseerd). */
-function daysUntil(due: Date, nowMs: number): number {
-  return Math.floor((due.getTime() - nowMs) / DAY_MS);
 }
 
 /**
@@ -83,8 +71,7 @@ export function summarizeCreditors(
     row.outstandingCents += item.grossCents;
     row.invoiceCount += 1;
 
-    const isOverdue =
-      item.stage === "OVERDUE" || (item.dueDate != null && item.dueDate.getTime() < startOfToday);
+    const isOverdue = item.stage === "OVERDUE" || isPastDue(item.dueDate, startOfToday);
 
     if (isOverdue) {
       row.overdueCents += item.grossCents;

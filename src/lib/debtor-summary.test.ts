@@ -59,7 +59,7 @@ describe("summarizeDebtors", () => {
     expect(summary.totalOutstandingCents).toBe(0);
   });
 
-  it("telt te-late facturen (dueAt < now) apart in overdueCents/overdueCount", () => {
+  it("telt te-late facturen (dueAt < UTC-middernacht van vandaag) apart in overdueCents/overdueCount", () => {
     const summary = summarizeDebtors(
       [
         inv({ dueAt: new Date("2026-06-01T00:00:00Z"), totalCents: 20_000 }), // te laat
@@ -73,6 +73,18 @@ describe("summarizeDebtors", () => {
     expect(d.overdueCount).toBe(1);
     expect(d.outstandingCents).toBe(28_000);
     expect(summary.totalOverdueCents).toBe(20_000);
+  });
+
+  it("behandelt een factuur die vandaag vervalt als nog niet te laat (dezelfde dag-grens als de crediteuren-kaart)", () => {
+    // Vervalt 4 juli 00:00, now 4 juli 12:00 → dueAt == startOfToday, dus NIET te laat (dueAt < grens).
+    const summary = summarizeDebtors(
+      [inv({ dueAt: new Date("2026-07-04T00:00:00Z"), totalCents: 15_000 })],
+      NOW,
+    );
+    const d = summary.debtors[0]!;
+    expect(d.overdueCents).toBe(0);
+    expect(d.overdueCount).toBe(0);
+    expect(summary.totalOverdueCents).toBe(0);
   });
 
   it("bepaalt de langst openstaande factuur (oudste issuedAt) en de ouderdom in dagen", () => {
