@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/Privacy 2026-07-07 — AVG art. 17: auditlog-PII gescrubd bij anonimisering (KRITIEK)
+
+**Waarde (privacy/AVG, datalek voorkomen):** het "recht op vergetelheid" was onvolledig. `anonymizeUser`
+overschreef de User-rij en tientallen vrije-tekstvelden, maar liet de **auditlog** onaangeroerd — het
+rauwe e-mailadres van de betrokkene stond nog in `AuditLog.metadata` van eerdere events (mislukte login,
+rate-limit, bulk-import) en IP/user-agent op de eigen auditregels. Na "anonimiseren" bleef de persoon dus
+herleidbaar via een DB-query of het admin-dossier (dat audit-metadata tóónt). Nu redact de anonimisering
+élke auditregel die aan de betrokkene raakt: e-mail uit de metadata (exact-match, geen substring-lek naar
+de auditregel van een ander) + IP/user-agent gewist, atomair in de anonimiseringstransactie.
+
+- Audit: orchestrator (Opus 4.8) + 3 parallelle Opus-subagents (39 API-routes, 46 server-actions, volledige
+  AVG-sweep). OWASP A09 + AVG art. 17. `npm audit` schoon. Rest van de codebase (auth/reset/CSP/exports/
+  cron/webhook/authz-keten) onafhankelijk schoon geverifieerd.
+- Bestanden: `src/lib/account-anonymization.ts` (pure `scrubAuditMetadataEmail` + `AUDIT_PII_REDACTED`);
+  `src/app/(protected)/admin/gebruikers/actions.ts` (`anonymizeUser`: PII-auditregels ophalen + scrub-ops in
+  de transactie); tests `account-anonymization.test.ts` (+6 pure) en `anonymize-erasure.test.ts` (+3, rood→
+  groen); allowlist-regelnrs in `unbounded-queries.test.ts` bijgewerkt. `docs/SECURITY-PRIVACY-BACKLOG.md`
+  bijgewerkt (1 KRITIEK opgelost, 4 geparkeerd: HOOG derde-partij-tekst bij anonimisering — mensenwerk;
+  MIDDEL retentie niet afgedwongen; MIDDEL Geoapify niet in art. 30-register; LAAG IBAN-registerdrift).
+  Gate: typecheck + lint + test + prettier + build groen. E2e in CI.
+
 ## Administratie-ontzorging ZZP'er 2026-07-07 — herhaal factuur (dupliceer handmatige factuur)
 
 **Waarde (ZZP'er, minder administratie):** terugkerende maandfacturatie aan dezelfde opdrachtgever

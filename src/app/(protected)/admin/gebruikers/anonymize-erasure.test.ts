@@ -32,6 +32,7 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(async () => ({
         id: "user-42",
         role: "FREELANCER",
+        email: "jan@bedrijf.nl",
         deletionRequestedAt: new Date("2026-05-01"),
         anonymizedAt: null,
       })),
@@ -59,7 +60,54 @@ vi.mock("@/lib/db", () => ({
     favoriteFreelancer: { updateMany: op("favoriteFreelancer.updateMany") },
     domainEvent: { findMany: vi.fn(async () => [{ subjectId: "col-7" }]) },
     pushSubscription: { deleteMany: op("pushSubscription.deleteMany") },
-    auditLog: { create: op("auditLog.create") },
+    auditLog: {
+      create: op("auditLog.create"),
+      update: op("auditLog.update"),
+      findMany: vi.fn(async () => [
+        // Eigen actie van de betrokkene: IP/user-agent zijn PII en moeten mee gewist.
+        {
+          id: "audit-own",
+          actorId: "user-42",
+          entityType: "User",
+          entityId: "user-42",
+          metadata: JSON.stringify({ from: "ACTIVE", to: "SUSPENDED" }),
+          ipAddress: "203.0.113.5",
+          userAgent: "Mozilla/5.0",
+        },
+        // Mislukte login vóór het account bestond als entity: alleen via het e-mailadres in de
+        // metadata te matchen (actorId null, entityId "unknown").
+        {
+          id: "audit-login-failed",
+          actorId: null,
+          entityType: "User",
+          entityId: "unknown",
+          metadata: JSON.stringify({ email: "jan@bedrijf.nl" }),
+          ipAddress: "198.51.100.7",
+          userAgent: null,
+        },
+        // Bulk-import: rol blijft, e-mailadres eruit.
+        {
+          id: "audit-import",
+          actorId: "admin-9",
+          entityType: "User",
+          entityId: "user-42",
+          metadata: JSON.stringify({ role: "FREELANCER", email: "jan@bedrijf.nl" }),
+          ipAddress: null,
+          userAgent: null,
+        },
+        // Auditregel van een ándere gebruiker die dit adres slechts als substring bevat — mag NIET
+        // geraakt worden (exact-match + geen eigen actor/entity).
+        {
+          id: "audit-other",
+          actorId: "user-99",
+          entityType: "User",
+          entityId: "user-99",
+          metadata: JSON.stringify({ email: "boaz-jan@bedrijf.nl" }),
+          ipAddress: "192.0.2.9",
+          userAgent: "curl/8",
+        },
+      ]),
+    },
     $transaction: vi.fn(async (ops: Array<{ model: string; args: unknown }>) => {
       tx.ops = ops;
       return ops;
@@ -223,5 +271,44 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     await anonymizeUser("user-42");
     const o = find("auditLog.create") as { args: { data: { action: string } } };
     expect(o.args.data.action).toBe("ACCOUNT_ANONYMIZED");
+  });
+
+  it("redact het e-mailadres van de betrokkene uit bestaande auditlog-metadata (AVG art. 17)", async () => {
+    await anonymizeUser("user-42");
+    const updates = findAll("auditLog.update") as Array<{
+      args: {
+        where: { id: string };
+        data: { metadata?: string; ipAddress?: null; userAgent?: null };
+      };
+    }>;
+    const byId = (id: string) => updates.find((u) => u.args.where.id === id);
+
+    // Mislukte-login-regel: e-mailadres eruit, IP eruit.
+    const loginFailed = byId("audit-login-failed");
+    expect(loginFailed).toBeDefined();
+    expect(loginFailed!.args.data.metadata).toBeDefined();
+    expect(loginFailed!.args.data.metadata).not.toContain("jan@bedrijf.nl");
+    expect(JSON.parse(loginFailed!.args.data.metadata!).email).toBe("[verwijderd]");
+    expect(loginFailed!.args.data.ipAddress).toBeNull();
+
+    // Bulk-import-regel: e-mailadres eruit, rol blijft behouden.
+    const imported = byId("audit-import");
+    expect(imported).toBeDefined();
+    const importedMeta = JSON.parse(imported!.args.data.metadata!);
+    expect(importedMeta.email).toBe("[verwijderd]");
+    expect(importedMeta.role).toBe("FREELANCER");
+
+    // Eigen actie zonder e-mail in metadata: IP + user-agent (PII) worden gewist, metadata blijft.
+    const own = byId("audit-own");
+    expect(own).toBeDefined();
+    expect(own!.args.data.ipAddress).toBeNull();
+    expect(own!.args.data.userAgent).toBeNull();
+    expect(own!.args.data.metadata).toBeUndefined();
+  });
+
+  it("raakt de auditregel van een ándere gebruiker NIET aan (exact-match, geen substring-lek)", async () => {
+    await anonymizeUser("user-42");
+    const updates = findAll("auditLog.update") as Array<{ args: { where: { id: string } } }>;
+    expect(updates.some((u) => u.args.where.id === "audit-other")).toBe(false);
   });
 });

@@ -1,12 +1,57 @@
 import { describe, expect, it } from "vitest";
 import {
   ANONYMIZED_NAME,
+  AUDIT_PII_REDACTED,
   anonymizedEmail,
   canAnonymizeUser,
   companyAnonymizationData,
   freelancerProfileAnonymizationData,
+  scrubAuditMetadataEmail,
   userAnonymizationData,
 } from "@/lib/account-anonymization";
+
+// ---------------------------------------------------------------------------
+// scrubAuditMetadataEmail — AVG art. 17 dekt ook de auditlog
+// ---------------------------------------------------------------------------
+
+describe("scrubAuditMetadataEmail", () => {
+  it("redact een exact matchend e-mailadres en behoudt andere velden", () => {
+    const out = scrubAuditMetadataEmail(
+      JSON.stringify({ role: "FREELANCER", email: "jan@bedrijf.nl" }),
+      "jan@bedrijf.nl",
+    );
+    const parsed = JSON.parse(out!);
+    expect(parsed.email).toBe(AUDIT_PII_REDACTED);
+    expect(parsed.role).toBe("FREELANCER");
+  });
+
+  it("matcht hoofdletter-ongevoelig", () => {
+    const out = scrubAuditMetadataEmail(
+      JSON.stringify({ email: "Jan@Bedrijf.NL" }),
+      "jan@bedrijf.nl",
+    );
+    expect(JSON.parse(out!).email).toBe(AUDIT_PII_REDACTED);
+  });
+
+  it("raakt een adres dat het doeladres slechts als substring bevat NIET aan", () => {
+    const meta = JSON.stringify({ email: "boaz-jan@bedrijf.nl" });
+    expect(scrubAuditMetadataEmail(meta, "jan@bedrijf.nl")).toBe(meta);
+  });
+
+  it("laat metadata zonder het adres ongewijzigd", () => {
+    const meta = JSON.stringify({ from: "ACTIVE", to: "SUSPENDED" });
+    expect(scrubAuditMetadataEmail(meta, "jan@bedrijf.nl")).toBe(meta);
+  });
+
+  it("geeft null/lege invoer veilig terug", () => {
+    expect(scrubAuditMetadataEmail(null, "jan@bedrijf.nl")).toBeNull();
+    expect(scrubAuditMetadataEmail("{}", "")).toBe("{}");
+  });
+
+  it("laat ongeldige JSON ongemoeid (defensief)", () => {
+    expect(scrubAuditMetadataEmail("niet-json", "jan@bedrijf.nl")).toBe("niet-json");
+  });
+});
 
 // ---------------------------------------------------------------------------
 // helpers
