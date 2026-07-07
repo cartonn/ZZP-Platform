@@ -11,6 +11,7 @@ import {
   eurosToCents,
   formatInvoiceNumber,
   InvoiceTransitionError,
+  invoiceCentsWithinInt4,
   invoiceTotalCents,
 } from "@/lib/invoices";
 import { type InvoiceStatus } from "@/lib/enums";
@@ -48,6 +49,13 @@ function parseLines(formData: FormData): { lines: ParsedLine[]; error?: string }
     lines.push({ ...parsed.data, amountCents: parsed.data.quantity * parsed.data.unitCents });
   }
   if (lines.length === 0) return { lines: [], error: "Voeg minstens één factuurregel toe." };
+  // De losse regels blijven binnen int4 (invoiceLineSchema), maar hun som kan het plafond alsnog
+  // overschrijden → klem het factuurtotaal vóór de DB-write (server-side waarheid).
+  if (!invoiceCentsWithinInt4(invoiceTotalCents(lines)))
+    return {
+      lines: [],
+      error: "Het totaalbedrag van de factuur is te hoog (maximaal € 21.474.836).",
+    };
   return { lines };
 }
 

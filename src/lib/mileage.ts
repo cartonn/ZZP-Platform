@@ -5,7 +5,7 @@
 // cascadewijziging). De server blijft de waarheid: de client toont/voorinvult, de bestaande
 // createInvoice-actie herberekent en valideert elke regel opnieuw.
 
-import { formatEuro } from "./invoices";
+import { formatEuro, invoiceCentsWithinInt4 } from "./invoices";
 
 // Grenzen die aansluiten op invoiceLineSchema (quantity: int 1..100000, unitCents: 0..100_000_000).
 // Kilometers zijn hele eenheden (quantity), het tarief per km in centen.
@@ -58,6 +58,10 @@ export function buildMileageLine(input: MileageInput): MileageResult {
   }
 
   const amountCents = kilometers * ratePerKmCents;
+  // De losse grenzen (km × tarief) laten samen een bedrag boven de int4-factuurkolom toe → klem het.
+  if (!invoiceCentsWithinInt4(amountCents)) {
+    return { ok: false, error: "Het reiskostenbedrag is te hoog (maximaal € 21.474.836)." };
+  }
   const description = `Reiskosten — ${kilometers} km × ${formatEuro(ratePerKmCents)}/km`;
 
   return { ok: true, line: { description, kilometers, ratePerKmCents, amountCents } };

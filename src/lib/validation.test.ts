@@ -4,12 +4,51 @@ import {
   companyProfileSchema,
   credentialSchema,
   freelancerProfileSchema,
+  invoiceLineSchema,
   jobSchema,
   noShowReportSchema,
   registerSchema,
   validatePerformanceForm,
   type PerformanceFormData,
 } from "@/lib/validation";
+
+describe("invoiceLineSchema", () => {
+  it("accepteert een normale regel", () => {
+    const r = invoiceLineSchema.safeParse({ description: "Advies", quantity: 8, unitCents: 9500 });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepteert een groot bedrag net onder het int4-plafond", () => {
+    // 100 × € 214.748,36 = € 21.474.836 (2.147.483.600 cent) < int4-max.
+    const r = invoiceLineSchema.safeParse({
+      description: "Groot project",
+      quantity: 100,
+      unitCents: 21_474_836,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("weigert een regelbedrag boven het int4-plafond (velden elk binnen hun eigen grens)", () => {
+    const r = invoiceLineSchema.safeParse({
+      description: "Absurd",
+      quantity: 100000,
+      unitCents: 100_000_000,
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.path.includes("unitCents"))).toBe(true);
+    }
+  });
+
+  it("weigert een lege omschrijving en aantal < 1", () => {
+    expect(
+      invoiceLineSchema.safeParse({ description: "", quantity: 1, unitCents: 100 }).success,
+    ).toBe(false);
+    expect(
+      invoiceLineSchema.safeParse({ description: "X", quantity: 0, unitCents: 100 }).success,
+    ).toBe(false);
+  });
+});
 
 describe("registerSchema", () => {
   it("accepteert een geldige freelancer-registratie", () => {

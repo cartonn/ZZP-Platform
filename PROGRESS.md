@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Robuustheid (2026-07-07) — factuurbedrag begrensd op het int4-kolomplafond
+
+**Gat (GEPARKEERD LOW, persona-sweep run 14):** `invoiceLineSchema` liet per regel `quantity(100000) ×
+unitCents(100_000_000) = 1e13` cents toe — ~3 orden boven de Postgres `int4`-kolom (`Invoice.totalCents`/
+`InvoiceLine.amountCents` = Prisma `Int`, max 2.147.483.647). Een schema-toegestane maximale regel
+overschreed dus de kolombreedte → een ruwe DB-schrijffout (500) i.p.v. een nette server-side weigering.
+`mileage.ts` (`MILEAGE_MAX_KM × MILEAGE_MAX_RATE_CENTS`) had hetzelfde.
+
+**Fix:** `src/lib/invoices.ts` — `MAX_INVOICE_CENTS` (int4-plafond) + pure `invoiceCentsWithinInt4(cents)`
+(geheel, ≥0, ≤ plafond). `validation.ts` — `invoiceLineSchema` klemt nu `quantity × unitCents ≤
+MAX_INVOICE_CENTS` (`.refine`, foutpad `unitCents`). `facturen/actions.ts` — `parseLines` weigert een
+factuurtotaal (som van regels) boven het plafond vóór de DB-write. `mileage.ts` — `buildMileageLine`
+weigert een reiskostenbedrag boven het plafond. Server-side waarheid, geen schemawijziging, geen extra
+query. Tests rood→groen: +4 (`invoiceCentsWithinInt4`), +4 (`invoiceLineSchema`), +1 (mileage-overflow).
+Gate: typecheck, lint, **3328 unit-tests**, build, prettier groen.
+
 ## Persona-sweep run 14 (2026-07-07) — AVG art. 17-lek in de auditlog gedicht (HOOG)
 
 **Bevinding (HOOG, security/privacy):** de accountverwijdering (`anonymizeUser`) scrubde de auditlog

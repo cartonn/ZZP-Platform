@@ -23,13 +23,15 @@ metadata FROM AuditLog WHERE action='FRANCHISE_FREELANCER_ADDED'` toont nog `jan
 > dashboard; document-privacy 403/200/404; IDOR/garbage → soft-404; `GET /api/tasks/run-all` → 405; FR →
 > `/api/admin/export/invoices` → 403; XSS `?q=` → niet uitgevoerd; **0 HTTP-500's**. Spoort met runs 6-13.
 >
-> **GEPARKEERD — LOW (robustheid, pre-existing, niet door #640/#643 geïntroduceerd):** de gedeelde
+> ~~**GEPARKEERD — LOW (robustheid, pre-existing, niet door #640/#643 geïntroduceerd):** de gedeelde
 > `invoiceLineSchema` staat per regel `quantity(100000) × unitCents(100_000_000) = 1e13` cents toe (en
-> `mileage.ts` `MILEAGE_MAX_KM × MILEAGE_MAX_RATE_CENTS` idem), ~3 orden boven de Postgres `int4`-kolom
-> (`Invoice.totalCents`/`InvoiceLine.amountCents` = Prisma `Int`, max ~2,15e9). Een schema-toegestane
-> maximale regel overschrijdt dus de kolombreedte → DB-write-fout i.p.v. Zod-afwijzing. Impact laag
-> (zelf-uitgegeven factuur, geen tegenpartij, write faalt netjes). Fix: klem de Zod-max op het int4-plafond
-> (~€21,4M/veld) óf verbreed de kolommen. Repro: factuurregel met aantal `100000` × €/stuk `1000000`.
+> `mileage.ts` `MILEAGE_MAX_KM × MILEAGE_MAX_RATE_CENTS` idem), ~3 orden boven de Postgres
+> `int4`-kolom (`Invoice.totalCents`/`InvoiceLine.amountCents` = Prisma `Int`, max ~2,15e9).~~
+> **OPGELOST (2026-07-07).** `MAX_INVOICE_CENTS` + pure `invoiceCentsWithinInt4` in `invoices.ts`;
+> `invoiceLineSchema` klemt het regelbedrag (`.refine`, foutpad `unitCents`), `parseLines` het
+> factuurtotaal (som van regels) vóór de DB-write, `buildMileageLine` het reiskostenbedrag — alle op
+> het int4-plafond (~€21,4M). Server-side waarheid, geen schemawijziging. +9 tests (rood→groen), gate
+> groen. Zie PROGRESS.md-top.
 >
 > ---
 >

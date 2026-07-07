@@ -53,6 +53,12 @@ describe("buildMileageLine", () => {
     expect(buildMileageLine({ kilometers: 10, ratePerKmCents: 22.5 }).ok).toBe(false);
     expect(buildMileageLine({ kilometers: 10, ratePerKmCents: -1 }).ok).toBe(false);
   });
+
+  it("weigert een bedrag boven het int4-factuurplafond", () => {
+    // km en tarief zitten elk binnen hun eigen grens, maar het product (1e13 cent) overschrijdt int4.
+    const result = buildMileageLine({ kilometers: MILEAGE_MAX_KM, ratePerKmCents: 100_000_000 });
+    expect(result.ok).toBe(false);
+  });
 });
 
 describe("centsToEuroInput", () => {
