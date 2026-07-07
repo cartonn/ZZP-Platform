@@ -400,13 +400,13 @@ export function DonutChart({
       </div>
       <ul className="w-full space-y-2">
         {data.map((d) => (
-          <li key={d.label} className="flex items-center justify-between gap-2 text-sm">
-            <span className="flex min-w-0 items-center gap-2">
+          <li key={d.label} className="flex items-start justify-between gap-2 text-sm">
+            <span className="flex min-w-0 items-start gap-2">
               <span
-                className={cn("size-2.5 shrink-0 rounded-full", TONE_BAR[d.tone ?? "accent"])}
+                className={cn("mt-1 size-2.5 shrink-0 rounded-full", TONE_BAR[d.tone ?? "accent"])}
                 aria-hidden
               />
-              <span className="truncate text-muted-foreground">{d.label}</span>
+              <span className="min-w-0 break-words text-muted-foreground">{d.label}</span>
             </span>
             <span className="shrink-0 font-mono tabular-nums">
               {d.value}
