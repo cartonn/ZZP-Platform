@@ -1,23 +1,39 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-// Het ontwerp-lab is een PUBLIEK, inlogvrij design-lab (alleen fictieve mock-data). Deze smoke
-// borgt dat een niet-ingelogde bezoeker /ontwerp én de concept-pagina's kan openen zonder naar
-// /login te worden geredirect (regressie-vangnet voor de isPublicPath-regel in middleware.ts).
+// Het ontwerp-lab is een INTERN, ingelogd design-lab (alleen fictieve mock-data). Deze smoke borgt
+// dat (1) een niet-ingelogde bezoeker naar /login wordt geredirect — het lab is niet meer publiek —
+// en (2) een ingelogde admin de galerij én de on-demand concept-pagina's kan openen.
 
-test("publiek: /ontwerp opent zonder login en toont de galerij", async ({ page }) => {
+async function loginAdmin(page: Page) {
+  await page.goto("/login");
+  await page.fill("#email", "admin@zzp-platform.local");
+  await page.fill("#password", "demo1234");
+  await page.getByRole("button", { name: "Inloggen" }).click();
+  await page.waitForURL("**/dashboard");
+}
+
+test("intern: /ontwerp redirect een niet-ingelogde bezoeker naar login", async ({ page }) => {
   await page.goto("/ontwerp");
-  await expect(page).toHaveURL(/\/ontwerp$/);
-  await expect(page.getByRole("heading", { name: /Tien richtingen/i })).toBeVisible();
+  await expect(page).toHaveURL(/\/login/);
 });
 
-test("publiek: concept 01 opent zonder login", async ({ page }) => {
+test("intern: admin opent de galerij", async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto("/ontwerp");
+  await expect(page).toHaveURL(/\/ontwerp$/);
+  await expect(page.getByRole("heading", { name: /richtingen voor de herontwerp/i })).toBeVisible();
+});
+
+test("intern: admin opent concept 01 on-demand", async ({ page }) => {
+  await loginAdmin(page);
   await page.goto("/ontwerp/01");
   await expect(page).toHaveURL(/\/ontwerp\/01$/);
   // De route-chrome rendert voor elk concept een terug-link "alle concepten".
   await expect(page.getByRole("link", { name: /alle concepten/i })).toBeVisible();
 });
 
-test("publiek: concept 02 opent zonder login", async ({ page }) => {
+test("intern: admin opent concept 02 on-demand", async ({ page }) => {
+  await loginAdmin(page);
   await page.goto("/ontwerp/02");
   await expect(page).toHaveURL(/\/ontwerp\/02$/);
   await expect(page.getByRole("link", { name: /alle concepten/i })).toBeVisible();

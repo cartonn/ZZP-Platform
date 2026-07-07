@@ -3,6 +3,11 @@
 // (en dus een eigen pagina /ontwerp/<id> hebben). De daadwerkelijke concept-componenten worden in
 // de route-map (src/app/ontwerp/[id]/page.tsx) gekoppeld — dit bestand bevat puur data, geen JSX,
 // zodat zowel de server-index als de route het kunnen importeren.
+//
+// Rendering & toegang: het ontwerp-lab is INTERN (inloggen vereist, geen publieke route). De
+// concept-pagina's renderen ON-DEMAND — /ontwerp/[id] staat op `force-dynamic` met per-id
+// next/dynamic-imports, dus er worden geen ~150 zware "use client"-pagina's meer per build
+// geprerenderd en de nachtroutine kan vrij blijven bijschrijven zonder de bouwtijd op te blazen.
 
 export type ConceptMeta = {
   id: string; // "01".."10" — ook het URL-segment

@@ -20,8 +20,7 @@ export function isPublicPath(pathname: string): boolean {
     pathname === "/api/readiness" ||
     pathname.startsWith("/zzp/") ||
     pathname.startsWith("/vertrouwen/") || // publiek vertrouwensdossier (token-beveiligd, geen sessie)
-    pathname === "/ontwerp" ||
-    pathname.startsWith("/ontwerp/") || // publiek, inlogvrij design-lab (alleen fictieve mock-data)
+    // /ontwerp en /ontwerp-lab zijn NIET publiek: het is een intern design-lab (inloggen vereist).
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/tasks/") || // eigen token-guard (CRON_SECRET), geen sessie
     // CSP-violatie-ontvanger: de browser POST't hier zonder (of ná verlies van) een sessie, óók
