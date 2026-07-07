@@ -54,3 +54,18 @@ export function employabilitySummary(
     href: blocker ? blockerHref(mandatory) : DEFAULT_HREF,
   };
 }
+
+/**
+ * Ring-kleur die het INZETBAARHEIDS-niveau volgt (niet het losse veld-percentage). Zo kan de
+ * "Profielvelden ingevuld"-ring op het profiel nooit groen tonen zolang de inzetbaarheid
+ * geblokkeerd is — de tegenspraak "100% compleet" naast "Nog niet inzetbaar" wordt onmogelijk:
+ * - INACTIEF (harde blokkade) → `stroke-warning` (amber): eerst dít oplossen.
+ * - AANDACHT (zacht aandachtspunt) → `stroke-muted-foreground` (neutraal): oké, geen groen-signaal.
+ * - ACTIEF (inzetbaar) → `stroke-success` (zegelgroen): te vertrouwen.
+ * Puur en deterministisch — los te unit-testen zonder de SVG.
+ */
+export function employabilityRingStrokeClass(level: EmployabilityLevel): string {
+  if (level === "INACTIEF") return "stroke-warning";
+  if (level === "AANDACHT") return "stroke-muted-foreground";
+  return "stroke-success";
+}

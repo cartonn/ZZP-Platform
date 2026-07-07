@@ -823,6 +823,11 @@ export default async function DashboardPage() {
       ? engageability.blockers.length + engageability.attention.length
       : 0;
     // Het zegel gebruikt exact dezelfde afgeleide samenvatting als de tegel — geen tweede oordeel.
+    // Eén bron van prominentie: bij een harde blokkade (bv. verzekering ontbreekt) draagt het
+    // actie-item in "Volgende acties" de enige herstelknop ("Upload verzekering"). Het zegel toont
+    // dan alleen de status en krijgt géén eigen "Rapport openen"-knop naar diezelfde plek, zodat de
+    // waarschuwing niet drie keer met drie knoppen verschijnt. Zonder blokkade is de rapport-link
+    // (naar het certificaten-overzicht) geen duplicaat en blijft hij staan.
     const seal = engageability
       ? {
           title: t("Inzetbaarheid"),
@@ -839,7 +844,7 @@ export default async function DashboardPage() {
               ok: openPunten === 0,
             },
           ],
-          reportHref: employability?.href ?? "/certificaten",
+          ...(employability?.blocker ? {} : { reportHref: "/certificaten" }),
         }
       : undefined;
     return (

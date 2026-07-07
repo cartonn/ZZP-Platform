@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { employabilitySummary } from "@/lib/employability-summary";
+import { employabilitySummary, employabilityRingStrokeClass } from "@/lib/employability-summary";
 import { computeEngageability } from "@/lib/engageability";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { type FreelancerCredential } from "@/lib/matching";
@@ -82,5 +82,32 @@ describe("employabilitySummary", () => {
     expect(s.blocker).toBeNull();
     expect(s.labelWithBlocker).toBe("Aandacht nodig");
     expect(s.href).toBe("/certificaten");
+  });
+});
+
+describe("employabilityRingStrokeClass", () => {
+  it("kleurt de ring amber (warning) bij een harde blokkade — nooit groen naast 'Nog niet inzetbaar'", () => {
+    // Regressie: een 100%-veld-ring mag niet groen tonen zolang de inzetbaarheid geblokkeerd is.
+    const s = summarize([{ type: "INSURANCE", status: "VERIFIED", expiresAt: future }]);
+    expect(s.level).toBe("INACTIEF");
+    expect(employabilityRingStrokeClass(s.level)).toBe("stroke-warning");
+  });
+
+  it("kleurt de ring neutraal (muted) bij een zacht aandachtspunt", () => {
+    const s = summarize(validMandatory, 40);
+    expect(s.level).toBe("AANDACHT");
+    expect(employabilityRingStrokeClass(s.level)).toBe("stroke-muted-foreground");
+  });
+
+  it("kleurt de ring groen (success) alleen wanneer inzetbaar", () => {
+    const s = summarize(validMandatory);
+    expect(s.level).toBe("ACTIEF");
+    expect(employabilityRingStrokeClass(s.level)).toBe("stroke-success");
+  });
+
+  it("dekt alle niveaus expliciet af", () => {
+    expect(employabilityRingStrokeClass("INACTIEF")).toBe("stroke-warning");
+    expect(employabilityRingStrokeClass("AANDACHT")).toBe("stroke-muted-foreground");
+    expect(employabilityRingStrokeClass("ACTIEF")).toBe("stroke-success");
   });
 });
