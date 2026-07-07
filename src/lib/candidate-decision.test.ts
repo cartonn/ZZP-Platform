@@ -53,6 +53,7 @@ describe("summarizeCandidateDecision", () => {
       NOW,
     );
     expect(signal).toEqual({
+      kind: "urgency",
       daysWaiting: DECISION_PATIENCE_DAYS.strong,
       tier: "strong",
       attention: true,
@@ -99,6 +100,30 @@ describe("summarizeCandidateDecision", () => {
     expect(signal?.daysWaiting).toBe(9);
     expect(signal?.tier).toBe("modest");
     expect(signal?.attention).toBe(true); // modest patience is 8 days
+    expect(signal?.kind).toBe("urgency");
+  });
+
+  it("turns a non-compliant strong candidate into a compliance signal, never an urgency nudge", () => {
+    // Zonder blokkade: verse sterke match, geen urgentie.
+    const nudge = summarizeCandidateDecision(input({ matchScore: 90, createdAt: daysAgo(0) }), NOW);
+    expect(nudge).toMatchObject({ kind: "urgency", attention: false });
+
+    // Zelfde reactie, maar compliance-geblokkeerd: altijd aandacht, en als compliance-blokkade.
+    const blocked = summarizeCandidateDecision(
+      input({ matchScore: 90, createdAt: daysAgo(0), complianceBlocked: true }),
+      NOW,
+    );
+    expect(blocked).toMatchObject({ kind: "compliance", attention: true });
+  });
+
+  it("blocks on compliance regardless of how long the reaction has waited", () => {
+    const blocked = summarizeCandidateDecision(
+      input({ matchScore: 95, createdAt: daysAgo(39), complianceBlocked: true }),
+      NOW,
+    );
+    expect(blocked?.kind).toBe("compliance");
+    expect(blocked?.attention).toBe(true);
+    expect(blocked?.daysWaiting).toBe(39);
   });
 });
 
@@ -116,6 +141,18 @@ describe("summarizeCandidatesAwaitingDecision", () => {
       NOW,
     );
     expect(summary).toEqual({ total: 3, strong: 2 });
+  });
+
+  it("excludes compliance-blocked reactions from the page-wide urgency band", () => {
+    const summary = summarizeCandidatesAwaitingDecision(
+      [
+        input({ matchScore: 90, createdAt: daysAgo(5) }), // strong urgency -> counts
+        input({ matchScore: 90, createdAt: daysAgo(5), complianceBlocked: true }), // blocked -> not counted
+        input({ matchScore: 60, createdAt: daysAgo(5), complianceBlocked: true }), // blocked -> not counted
+      ],
+      NOW,
+    );
+    expect(summary).toEqual({ total: 1, strong: 1 });
   });
 
   it("does not mutate its input and returns zero for an empty set", () => {

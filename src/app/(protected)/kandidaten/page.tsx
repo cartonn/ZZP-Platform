@@ -166,11 +166,14 @@ export default async function KandidatenPage({
       APPLICATION_STATUSES.indexOf(b.status as ApplicationStatus),
   );
 
-  // "Beste match": hoogste matchscore onder de nog niet afgewezen reacties — bovenaan etaleren met de
-  // belangrijkste reden, want geen enkele concurrent toont leesbare match-redenen aan de beslisser.
+  // "Beste match": hoogste matchscore onder de reacties die nog een beslissing vragen — bovenaan
+  // etaleren met de belangrijkste reden, want geen enkele concurrent toont leesbare match-redenen aan
+  // de beslisser. Reacties die al zijn afgehandeld (ACCEPTED/REJECTED/WITHDRAWN) horen hier niet: de
+  // band "beste match" naar een al-geaccepteerde kandidaat wijzen is misleidend.
+  const OPEN_STATUSES = new Set(["NEW", "VIEWED", "SHORTLIST"]);
   const best =
     [...applications]
-      .filter((a) => a.status !== "REJECTED" && a.status !== "WITHDRAWN" && a.matchScore != null)
+      .filter((a) => OPEN_STATUSES.has(a.status) && a.matchScore != null)
       .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0] ?? null;
   const bestReason = best
     ? topPositiveReason(scoreJobForFreelancer(best.job, best.freelancer).reasons)
@@ -201,12 +204,37 @@ export default async function KandidatenPage({
   // Sterke kandidaten raken elders aan de slag als je te lang wacht — afgeleid uit de reeds opgehaalde
   // lijst (geen extra query). Eén `now` zodat strip- en kaart-signaal consistent zijn.
   const now = new Date();
+
+  // Live compliance één keer per reactie berekenen en hergebruiken — zowel de paginabrede band als de
+  // rij moeten dezelfde compliance-blokkade zien, anders telt de band een niet-inzetbare kandidaat als
+  // "sterke match die je elders kunt verliezen" terwijl de rij "eerst compliance oplossen" toont.
+  const complianceByApp = new Map(
+    applications.map((a) => {
+      const requiredTypes = a.job.credentialRequirements
+        .filter((r) => r.required)
+        .map((r) => r.credentialType as CredentialType);
+      const compliance =
+        requiredTypes.length > 0
+          ? computeCompliance(
+              requiredTypes,
+              a.freelancer.credentials.map((c) => ({
+                type: c.type as CredentialType,
+                status: c.status as CredentialStatus,
+                expiresAt: c.expiresAt,
+              })),
+            )
+          : null;
+      return [a.id, compliance] as const;
+    }),
+  );
+
   const decisionSummary = summarizeCandidatesAwaitingDecision(
     applications.map((a) => ({
       status: a.status,
       matchScore: a.matchScore,
       createdAt: a.createdAt,
       hasCollaboration: !!a.collaboration,
+      complianceBlocked: complianceByApp.get(a.id)?.status === "NON_COMPLIANT",
     })),
     now,
   );
@@ -330,22 +358,10 @@ export default async function KandidatenPage({
               const rendered = visible.map((app) => {
                 const status = app.status as ApplicationStatus;
                 // Live compliance: actuele certificaatstatus, niet de bevroren snapshot van het
-                // reactiemoment (een VOG kan intussen verlopen zijn). De volledige uitsplitsing
-                // (missing/expired/inReview) maakt voor de opdrachtgever concreet WAT er ontbreekt.
-                const requiredTypes = app.job.credentialRequirements
-                  .filter((r) => r.required)
-                  .map((r) => r.credentialType as CredentialType);
-                const compliance =
-                  requiredTypes.length > 0
-                    ? computeCompliance(
-                        requiredTypes,
-                        app.freelancer.credentials.map((c) => ({
-                          type: c.type as CredentialType,
-                          status: c.status as CredentialStatus,
-                          expiresAt: c.expiresAt,
-                        })),
-                      )
-                    : null;
+                // reactiemoment (een VOG kan intussen verlopen zijn). Eén keer berekend (zie
+                // complianceByApp) en hier hergebruikt, zodat band en rij hetzelfde oordeel tonen. De
+                // volledige uitsplitsing (missing/expired/inReview) maakt concreet WAT er ontbreekt.
+                const compliance = complianceByApp.get(app.id) ?? null;
                 const isPublic = (app.freelancer.visibility as Visibility) === "PUBLIC";
                 const trust = computeTrustLevel({
                   identityVerified: !!app.freelancer.user.identityVerifiedAt,
@@ -365,16 +381,27 @@ export default async function KandidatenPage({
                 // regels als de ZZP'er op de opdracht ziet, zodat de opdrachtgever niet alleen "Match X%" leest.
                 const fitReasons = scoreJobForFreelancer(app.job, app.freelancer).reasons;
                 // Beslis-nu-nudge: alleen tonen wanneer de reactie langer onbeslist ligt dan past bij
-                // de matchkwaliteit. Zwijgt voor verse of besloten reacties.
+                // de matchkwaliteit. Zwijgt voor verse of besloten reacties. Voldoet de kandidaat niet
+                // aan een verplicht certificaat, dan wordt het signaal een compliance-blokkade i.p.v.
+                // een urgentie-nudge — je haalt niemand "snel binnen" die niet compliant is.
                 const decision = summarizeCandidateDecision(
                   {
                     status: app.status,
                     matchScore: app.matchScore,
                     createdAt: app.createdAt,
                     hasCollaboration: !!app.collaboration,
+                    complianceBlocked: compliance?.status === "NON_COMPLIANT",
                   },
                   now,
                 );
+                // Eerste ontbrekende/verlopen certificaat als concrete eerste stap bij een blokkade.
+                const firstBlocker = compliance?.missing[0] ?? compliance?.expired[0] ?? null;
+                // "Nieuw" en een wachttijd/blokkade sluiten elkaar uit én zijn gatloos complementair:
+                // zolang de reactie nog géén aandacht vraagt (`!attention`) heet hij "Nieuw"; zodra hij
+                // dat wél doet, verbergt de badge en vertelt de regel eronder (wachttijd óf compliance)
+                // de echte status. Gekoppeld aan de tier-eigen patience, niet aan een vaste drempel, zodat
+                // er geen NEW-rij zonder enige status-aanduiding ontstaat.
+                const fresh = status === "NEW" && !decision?.attention;
                 const lead = !app.collaboration ? (
                   <input
                     type="checkbox"
@@ -396,7 +423,11 @@ export default async function KandidatenPage({
                             {app.freelancer.user.name}
                           </span>
                           <span className="flex shrink-0 items-center gap-2">
-                            <ApplicationStatusBadge status={status} />
+                            {/* Een oude NEW-reactie krijgt geen "Nieuw"-badge — die zou botsen met de
+                                wachttijd-regel eronder. De wachttijd vertelt dan de echte status. */}
+                            {status === "NEW" && !fresh ? null : (
+                              <ApplicationStatusBadge status={status} />
+                            )}
                             <TrustBadge level={trust.level} />
                           </span>
                         </div>
@@ -413,18 +444,30 @@ export default async function KandidatenPage({
                         {compliance && <ComplianceBadge status={compliance.status} />}
                       </div>
                     </div>
-                    {decision?.attention && (
-                      <p
-                        className={`flex items-center gap-1.5 text-xs ${
-                          decision.urgency === "high" ? "text-warning" : "text-muted-foreground"
-                        }`}
-                      >
-                        <Clock className="size-3.5 shrink-0" aria-hidden />
-                        {decision.tier === "strong"
-                          ? `${t("Sterke match — wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing. Beslis nu voordat hij elders aan de slag gaat.")}`
-                          : `${t("Wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing.")}`}
-                      </p>
-                    )}
+                    {decision?.attention &&
+                      (decision.kind === "compliance" ? (
+                        <p className="flex items-center gap-1.5 text-xs text-danger">
+                          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+                          {/* firstBlocker is bij NON_COMPLIANT altijd gezet (missing/expired is dan
+                              niet leeg); de fallback is enkel een type-vangnet. */}
+                          {firstBlocker
+                            ? `${t("Eerst compliance oplossen:")} ${CREDENTIAL_TYPE_LABEL[firstBlocker]}`
+                            : t("Eerst compliance oplossen voordat je beslist.")}
+                        </p>
+                      ) : (
+                        // Rij-specifiek: de wachttijd van deze kandidaat. Genderneutraal en zonder de
+                        // paginabrede urgentie-zin te herhalen (die staat al één keer in de band boven de lijst).
+                        <p
+                          className={`flex items-center gap-1.5 text-xs ${
+                            decision.urgency === "high" ? "text-warning" : "text-muted-foreground"
+                          }`}
+                        >
+                          <Clock className="size-3.5 shrink-0" aria-hidden />
+                          {decision.tier === "strong"
+                            ? `${t("Sterke match — wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing, beslis voordat deze ZZP'er elders start.")}`
+                            : `${t("Wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing.")}`}
+                        </p>
+                      ))}
                   </div>
                 );
                 const body = (
