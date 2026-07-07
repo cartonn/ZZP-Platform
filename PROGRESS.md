@@ -3,6 +3,18 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 15 (2026-07-07) — GEEN nieuwe gaten (documentatie-only)
+
+Kritische-gebruiker-sweep over 4 rollen op een verse prod-build (SQLite `qa.db`, `SEED_DEMO=true`,
+prod-server poort 3100). **DOEL 1:** admin keurde `cred-bram-VOG` goed → server-side bevestigd
+SUBMITTED→VERIFIED + audit `CREDENTIAL_VERIFIED`, queue 6→5 (knop verdween). **DOEL 1b:** `/acties`
+per rol gekruist tegen DB-waarheid — allemaal kloppend (client "1 nieuwe reactie" = 1 NEW-app;
+franchiser terecht "Alles is afgehandeld" — WARM-lead follow-up 07-10 nog niet due; admin 6 taken =
+6 SUBMITTED). **DOEL 2:** 45+ adversariële probes — privilege-escalatie → redirect; IDOR/cross-partij/
+cross-tenant → `notFound`/403 zonder datalek; admin-export → 403; garbage/traversal → 404; XSS niet
+uitgevoerd; **0 HTTP-500's**. Opus-security-subagent: geen mutatie-keten-gaten. Details:
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 15). Geen codewijziging.
+
 ## Administratie-ontzorging (2026-07-07) — BTW-aangifte-deadline-signaal
 
 Het boekhoudpaneel (`/financien` → Boekhouding) toonde de BTW per kwartaal (bedragen) maar niet

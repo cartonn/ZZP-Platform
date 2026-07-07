@@ -1,5 +1,42 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-07 (run 15) · **main-commit basis:** `3d3cb9a`
+> **Uitkomst:** **GEEN nieuwe gaten.** Verse prod-build (`npm run build`), schema-push + idempotente
+> demo-seed (`SEED_DEMO=true`) op ephemere SQLite (`qa.db`), prod-server (`CI=true node scripts/start.mjs`,
+> poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen ingelogd via het
+> echte formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium (`/opt/pw-browsers/chromium-1194`).
+> Eén parallelle Opus-security-review over alle `"use server"`-mutatie-acties (auth→rol→ownership→Zod→audit).
+>
+> **DOEL 1 (echte actie, server-side geverifieerd):** ADMIN klikte "Goedkeuren" op `/admin/verificaties`
+> → tegen de DB bevestigd: `cred-bram-VOG` **SUBMITTED→VERIFIED**, audit `CREDENTIAL_VERIFIED`
+> (`entityId=cred-bram-VOG`, verse timestamp), SUBMITTED-teller **6→5**, en de knop verdween uit de
+> queue (verse herlaad: 6→5 Goedkeuren-knoppen). De volledige authz→transitie→audit→revalidate-keten werkt.
+>
+> **DOEL 1b (next-action-engine, gekruist tegen DB-waarheid):** ZZP `/acties` = 2 (verplicht document
+> Verzekering ontbreekt + beantwoord Mark Jansen); CLIENT = "1 nieuwe reactie" = exact 1 NEW-application
+> op de eigen company (DB: 1 NEW, 1 SHORTLIST, 1 ACCEPTED) + profiel 90%; FRANCHISER terecht **"Alles is
+> afgehandeld"** — geverifieerd: de enige actieve lead (WARM, Marijke Veenstra) heeft `nextFollowUp=2026-07-10`
+> (nog niet due op 07-07), de KOUD-lead heeft geen follow-up, NO_DEAL is inactief → 0 overdue follow-ups;
+> ADMIN = 6 certificaat-taken = exact de 6 SUBMITTED-credentials + supporttickets. Geen tegenstrijdige,
+> dubbele of niet-verdwijnende actie.
+>
+> **DOEL 2 (adversarieel, 45+ probes — alle correct geweigerd):** privilege-escalatie (FREELANCER/CLIENT/
+> FRANCHISER → `/admin/*`; niet-FRANCHISER → `/franchise/*`) → **redirect naar eigen dashboard**;
+> IDOR/cross-partij (ZZP'er → andermans `/samenwerkingen/<id>` → `notFound()`, ZZP'er/CLIENT → andermans
+> `/facturen/<id>` → "Niet gevonden · geen toegang"-kaart, **geen datalek**); cross-tenant (FRANCHISER →
+> collaboration buiten de eigen tenant → geweigerd); API-IDOR (`/api/documents/<id>`, `/api/samenwerkingen/
+<id>/dossier`, `/api/prestaties/<id>/pdf` op vreemde id's) → **403**; `/api/admin/export/invoices` als
+> niet-admin → **403**; onzin-id → **404**; path-traversal (`/facturen/../../etc/passwd`) → **404**; XSS
+> `?q=<script>` → niet uitgevoerd; **0 HTTP-500's / crashes**. Spoort met runs 6-14.
+>
+> **Security-subagent (statische diepte-audit):** geen mutatie-keten-gaten — élke `"use server"`-actie
+> volgt auth→rol→ownership→Zod→audit via `authz.ts`-helpers, statusovergangen via de expliciete
+> transitie-maps (`assertTransition`/`assertInvoiceTransition`/…), tenant-scoping op franchise-acties,
+> Zod-grenzen op financiële input (`invoiceCentsWithinInt4`, `MAX_PERFORMANCE_HOURS`), geen raw-SQL-injectie.
+> Deze run is documentatie-only.
+>
+> ---
+>
 > **Datum:** 2026-07-07 (run 14) · **main-commit basis:** `7ce69ab`
 > **Uitkomst:** **1 HOOG gat gevonden + GEFIXT** (AVG art. 17-lek in de auditlog). Verse prod-build
 > (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`) op ephemere SQLite
