@@ -33,7 +33,8 @@ describe("canPublish", () => {
 describe("normalizeJobFilters", () => {
   it("levert veilige defaults bij lege input", () => {
     const f = normalizeJobFilters({});
-    expect(f).toMatchObject({ q: "", skillIds: [], sort: "recent", page: 1 });
+    // "match" (beste match eerst) is de standaardsortering — de kern-differentiator van het platform.
+    expect(f).toMatchObject({ q: "", skillIds: [], sort: "match", page: 1 });
     expect(f.workMode).toBeUndefined();
     expect(f.rateMin).toBeUndefined();
   });
@@ -42,7 +43,12 @@ describe("normalizeJobFilters", () => {
     const f = normalizeJobFilters({ workMode: "TELEPORT", requiredCredential: "FOO", sort: "x" });
     expect(f.workMode).toBeUndefined();
     expect(f.requiredCredential).toBeUndefined();
-    expect(f.sort).toBe("recent");
+    expect(f.sort).toBe("match");
+  });
+
+  it("accepteert 'match' als sortering", () => {
+    expect(normalizeJobFilters({ sort: "match" }).sort).toBe("match");
+    expect(normalizeJobFilters({ sort: "recent" }).sort).toBe("recent");
   });
 
   it("accepteert geldige enums en parseert tarief-range", () => {

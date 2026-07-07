@@ -20,11 +20,14 @@ export function JobFilters({
   industries,
   skills,
   myIndustryCount = 0,
+  canSortByMatch = false,
 }: {
   industries: { id: string; name: string }[];
   skills: { id: string; name: string }[];
   /** Aantal profielbranches van de ZZP'er; >0 toont de "Mijn vakgebied"-quickfilter. */
   myIndustryCount?: number;
+  /** Toont "Beste match eerst" als sorteeroptie (alleen zinvol voor een ZZP'er mét profiel). */
+  canSortByMatch?: boolean;
 }) {
   const translate = useT();
   const router = useRouter();
@@ -176,9 +179,10 @@ export function JobFilters({
         </Select>
         <Select
           aria-label={translate("Sorteren")}
-          value={params.get("sort") ?? "recent"}
+          value={params.get("sort") ?? (canSortByMatch ? "match" : "recent")}
           onChange={(e) => set("sort", e.target.value)}
         >
+          {canSortByMatch && <option value="match">{translate("Beste match eerst")}</option>}
           <option value="recent">{translate("Nieuwste eerst")}</option>
           <option value="rate_desc">{translate("Tarief hoog → laag")}</option>
           <option value="rate_asc">{translate("Tarief laag → hoog")}</option>

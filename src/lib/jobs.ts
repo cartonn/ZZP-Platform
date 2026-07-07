@@ -41,10 +41,17 @@ export function canPublish(job: { title?: string | null; description?: string | 
 // veilig, getypeerd filterobject; de pagina bouwt hieruit de Prisma-query.
 // ---------------------------------------------------------------------------
 
-export const JOB_SORTS = ["recent", "rate_desc", "rate_asc"] as const;
+// "match" = beste persoonlijke match eerst (kern-differentiator; alleen zinvol voor een ZZP'er mét
+// profiel — de pagina valt terug op DB-sortering wanneer er geen profiel is). Standaardsortering.
+export const JOB_SORTS = ["match", "recent", "rate_desc", "rate_asc"] as const;
 export type JobSort = (typeof JOB_SORTS)[number];
 
 export const JOBS_PER_PAGE = 10;
+
+// Bovengrens op het aantal opdrachten dat we bij match-sortering in het geheugen scoren+rangschikken.
+// Match wordt per ZZP'er berekend en kan dus niet DB-side gesorteerd worden; we scannen de meest
+// recente opdrachten binnen deze grens. Ruim boven realistische live-volumes (geen extra query).
+export const MATCH_SORT_SCAN_CAP = 200;
 
 export interface JobFilters {
   q: string;
@@ -89,7 +96,7 @@ export function normalizeJobFilters(params: RawParams): JobFilters {
     : undefined;
 
   const sortRaw = first(params.sort);
-  const sort: JobSort = JOB_SORTS.includes(sortRaw as JobSort) ? (sortRaw as JobSort) : "recent";
+  const sort: JobSort = JOB_SORTS.includes(sortRaw as JobSort) ? (sortRaw as JobSort) : "match";
 
   let rateMin = toPositiveInt(first(params.rateMin));
   let rateMax = toPositiveInt(first(params.rateMax));

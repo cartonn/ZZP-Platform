@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## UX/matching ZZP'er 2026-07-07 — sorteer opdrachten op beste match (#647)
+
+**Waarde (ZZP'er, snelheid/relevantie):** de marktplaats `/opdrachten` toonde op elke kaart al een
+matchpercentage (`scoreJobForFreelancer`, mét uitlegbare troef + minpunt), maar je kon er niet op
+sorteren — de opties waren enkel nieuwste/tarief. Nu is **"Beste match eerst" de standaardsortering**
+voor een ZZP'er mét profiel: de best passende opdrachten staan bovenaan, bij gelijke score de nieuwste
+eerst. Vertaalt de "auto-surface de beste match"-sterkte van Pidz/Zorgwerk naar onze verklaarbare,
+server-berekende matching (differentiator). Server-side waarheid; matchscore blijft de bestaande engine.
+
+- Implementatie: match wordt per ZZP'er berekend en kan dus niet DB-side gesorteerd worden. Bij
+  match-sort haalt de pagina de zichtbare set op (begrensd door `MATCH_SORT_SCAN_CAP=200`, nieuwste
+  eerst), scoort in het geheugen en pagineert de gerangschikte lijst — géén extra query (vervangt de
+  paginatie-`skip/take` door één begrensde scan). Zonder profiel (ADMIN) valt de weergave terug op
+  DB-sortering en verschijnt de match-optie niet. `total` blijft de eerlijke "gevonden"-teller.
+- Bestanden: `src/lib/job-match-sort.ts` (pure `sortJobsByMatch` — score desc, tie-break nieuwste)
+  - `job-match-sort.test.ts` (6 tests); `src/lib/jobs.ts` (`"match"` in `JOB_SORTS` + standaard,
+    `MATCH_SORT_SCAN_CAP`); `src/lib/jobs.test.ts` (default→match, +1 test); `opdrachten/(index)/page.tsx`
+    (effectiveMatchSort-tak: begrensde scan → scoren → `sortJobsByMatch` → pagina-slice); `job-filters.tsx`
+    (`canSortByMatch`-prop + "Beste match eerst"-optie, alleen mét profiel); allowlist-regelnrs in
+    `unbounded-queries.test.ts` bijgewerkt (ingevoegde regels verschoven de findMany's). Geen schemawijziging.
+    Gate: typecheck + lint + test (3314 groen) + prettier + build — alle groen. E2e in CI.
+
 ## Prod-rijpheid 2026-07-07 — Stripe billing-adapter (tweede betaalprovider)
 
 **Waarde (prod-rijpheid, keuzevrijheid betaalprovider):** naast Mollie is nu ook **Stripe** een

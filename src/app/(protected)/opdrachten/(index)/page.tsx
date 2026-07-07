@@ -14,8 +14,9 @@ import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
 import { visibleJobsWhere } from "@/lib/tenancy";
 import { prisma } from "@/lib/db";
-import { JOBS_PER_PAGE, normalizeJobFilters } from "@/lib/jobs";
+import { JOBS_PER_PAGE, MATCH_SORT_SCAN_CAP, normalizeJobFilters } from "@/lib/jobs";
 import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/matching";
+import { sortJobsByMatch } from "@/lib/job-match-sort";
 import { jobStartProximity } from "@/lib/job-start-proximity";
 import { getTranslator } from "@/lib/i18n/server";
 import { type ApplicationStatus, type JobStatus, type WorkMode } from "@/lib/enums";
@@ -218,6 +219,8 @@ async function BrowseJobs({
     };
   }
 
+  // "recent" én "match" vallen op publishedAt-desc: bij match-sortering scant dit de nieuwste
+  // opdrachten binnen de cap, die daarna in het geheugen op matchscore worden herrangschikt.
   const orderBy: Prisma.JobOrderByWithRelationInput =
     f.sort === "rate_desc"
       ? { rateMax: "desc" }
@@ -240,6 +243,10 @@ async function BrowseJobs({
         })
       : null;
 
+  // Match-sortering is alleen zinvol met een profiel om tegen te scoren (ADMIN heeft er geen). Zonder
+  // profiel valt de weergave terug op de DB-sortering (publishedAt-desc) en tonen we geen matchbadges.
+  const effectiveMatchSort = f.sort === "match" && profile != null;
+
   // Branchefilter: een expliciet gekozen branche (`industryId`) is het meest specifiek en wint. Anders,
   // wanneer de ZZP'er de "Mijn vakgebied"-quickfilter aanzet, beperk tot de eigen profielbranches. Zo
   // ziet een zorg-ZZP'er in één klik geen IT-opdrachten meer. Zonder profielbranches doet `mine` niets.
@@ -255,8 +262,10 @@ async function BrowseJobs({
     prisma.job.findMany({
       where,
       orderBy,
-      skip: (f.page - 1) * JOBS_PER_PAGE,
-      take: JOBS_PER_PAGE,
+      // Bij match-sortering halen we de volledige (begrensde) zichtbare set op om in het geheugen te
+      // scoren en pagineren; anders laat de database zelf de juiste pagina zien.
+      skip: effectiveMatchSort ? 0 : (f.page - 1) * JOBS_PER_PAGE,
+      take: effectiveMatchSort ? MATCH_SORT_SCAN_CAP : JOBS_PER_PAGE,
       include: {
         company: { select: { name: true } },
         industry: { select: { name: true } },
@@ -287,7 +296,7 @@ async function BrowseJobs({
   const matchByJob = new Map<string, JobMatch>();
   if (profile) {
     for (const job of jobs) {
-      const result = scoreJobForFreelancer(job, profile);
+      const result = scoreJobForFreelancer(job, profile, now);
       matchByJob.set(job.id, {
         score: result.score,
         reason: topPositiveReason(result.reasons),
@@ -296,12 +305,27 @@ async function BrowseJobs({
     }
   }
 
+  // Match-sortering: herrangschik de gescande set op matchscore (bij gelijke score nieuwste eerst) en
+  // knip de huidige pagina eruit. Zonder match-sort is de databank-volgorde al de weergave-volgorde.
+  const visibleJobs = effectiveMatchSort
+    ? sortJobsByMatch(
+        jobs.map((job) => ({
+          job,
+          score: matchByJob.get(job.id)?.score ?? 0,
+          publishedAt: job.publishedAt,
+        })),
+      ).slice((f.page - 1) * JOBS_PER_PAGE, f.page * JOBS_PER_PAGE)
+    : jobs;
+
   // Bewaarde opdrachten (alleen ZZP'er): welke opdrachten al gebookmarkt zijn, zodat de bewaar-knop
   // per zichtbare opdracht direct de juiste staat toont. Rijen komen uit de parallelle batch hierboven.
   const savedJobIds = new Set<string>();
   for (const s of savedRows) savedJobIds.add(s.jobId);
 
-  const totalPages = Math.max(1, Math.ceil(total / JOBS_PER_PAGE));
+  // Bij match-sortering pagineren we de in het geheugen gerangschikte (begrensde) set; anders de
+  // volledige databanktelling. `total` blijft de eerlijke "gevonden"-teller in de kop.
+  const paginationTotal = effectiveMatchSort ? jobs.length : total;
+  const totalPages = Math.max(1, Math.ceil(paginationTotal / JOBS_PER_PAGE));
   const mkPageHref = (page: number) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(searchParams)) {
@@ -319,9 +343,14 @@ async function BrowseJobs({
         <p className="text-sm text-muted-foreground">{t("Vind opdrachten die bij je passen.")}</p>
       </header>
 
-      <JobFilters industries={industries} skills={skills} myIndustryCount={myIndustryIds.length} />
+      <JobFilters
+        industries={industries}
+        skills={skills}
+        myIndustryCount={myIndustryIds.length}
+        canSortByMatch={profile != null}
+      />
 
-      {jobs.length === 0 ? (
+      {visibleJobs.length === 0 ? (
         <Card>
           <EmptyState
             icon={SearchX}
@@ -335,7 +364,7 @@ async function BrowseJobs({
             {plural(total, t("opdracht"), t("opdrachten"))} {t("gevonden")}
           </p>
           <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-            {jobs.map((job) => {
+            {visibleJobs.map((job) => {
               const match = matchByJob.get(job.id);
               return (
                 <div
