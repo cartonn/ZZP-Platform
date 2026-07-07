@@ -14,6 +14,11 @@ import {
   classifyStartFit,
 } from "@/lib/candidate-availability";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
+import {
+  PROXIMITY_VARIANT,
+  classifyCandidateProximity,
+  proximityLabel,
+} from "@/lib/candidate-proximity";
 import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-quality";
 import { type CompareCandidate, buildCandidateComparison } from "@/lib/candidate-compare";
 import { firstName } from "@/lib/kandidaten-triage";
@@ -24,11 +29,11 @@ import {
 } from "@/lib/enums";
 import { formatDateShortNl } from "@/lib/format-date";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ComplianceBadge } from "@/components/compliance-badge";
+import { ChooseCandidateButton } from "./choose-candidate-button";
 
 export const metadata: Metadata = { title: "Kandidaten vergelijken · ZZP Platform" };
 
@@ -75,6 +80,7 @@ export default async function VergelijkKandidatenPage({
           id: true,
           headline: true,
           visibility: true,
+          location: true,
           user: { select: { name: true, identityVerifiedAt: true } },
           availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
           credentials: { select: { type: true, status: true, expiresAt: true } },
@@ -123,6 +129,13 @@ export default async function VergelijkKandidatenPage({
         delivery && delivery.tone !== "INSUFFICIENT" ? delivery.firstTimeRightRate : null,
       available: !!summarizeAvailability(windows),
       startFit: job.startDate ? classifyStartFit(windows, job.startDate) : undefined,
+      // Reistijd naar de opdracht (#612). Pure schatting (geen serieel blokkerende externe call);
+      // null bij remote of onbekende plaats — dan geen chip.
+      proximity: classifyCandidateProximity({
+        jobWorkMode: job.workMode,
+        jobLocation: job.location,
+        candidateLocation: app.freelancer.location,
+      }),
     };
   });
 
@@ -230,8 +243,22 @@ export default async function VergelijkKandidatenPage({
                       <Badge variant={START_FIT_VARIANT[c.startFit]}>
                         {t(START_FIT_SHORT_LABEL[c.startFit])}
                       </Badge>
-                    ) : c.available ? (
-                      t("Agenda gedeeld")
+                    ) : (
+                      // Geen "Agenda gedeeld" meer: dat is geen antwoord op de startdatum. Zonder
+                      // oordeel (geen startdatum óf geen agenda) tonen we eerlijk "Onbekend".
+                      <span className="text-muted-foreground">{t("Onbekend")}</span>
+                    )
+                  }
+                />
+                <CompareRow
+                  label={t("Reistijd")}
+                  candidates={candidates}
+                  winnerId={null}
+                  render={(c) =>
+                    c.proximity ? (
+                      <Badge variant={PROXIMITY_VARIANT[c.proximity.level]}>
+                        {proximityLabel(c.proximity)}
+                      </Badge>
                     ) : (
                       noData
                     )
@@ -244,11 +271,11 @@ export default async function VergelijkKandidatenPage({
                   {candidates.map((c) => (
                     <td key={c.id} className="px-4 py-3 align-top">
                       <div className="flex flex-col items-start gap-1.5">
-                        <Button asChild size="sm" variant="primary">
-                          <Link href={`/kandidaten?open=${c.id}#app-${c.id}`}>
-                            {t("Kies")} {firstName(c.name)}
-                          </Link>
-                        </Button>
+                        <ChooseCandidateButton
+                          href={`/kandidaten?open=${c.id}#app-${c.id}`}
+                          label={`${t("Kies")} ${firstName(c.name)}`}
+                          nonCompliant={c.complianceStatus === "NON_COMPLIANT"}
+                        />
                         <Link
                           href={`/kandidaten?open=${c.id}#app-${c.id}`}
                           className="focus-ring text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"

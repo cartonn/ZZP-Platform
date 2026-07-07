@@ -6,6 +6,7 @@
 import { type ComplianceStatus } from "@/lib/matching";
 import { type TrustLevel } from "@/lib/trust";
 import { type StartFit } from "@/lib/candidate-availability";
+import { type CandidateProximity } from "@/lib/candidate-proximity";
 
 /** Eén kandidaat zoals de opdrachtgever die vergelijkt. Velden komen uit de bestaande motoren. */
 export interface CompareCandidate {
@@ -25,6 +26,8 @@ export interface CompareCandidate {
   available: boolean;
   /** Beschikbaarheid op de startdatum van déze opdracht; `undefined` als de opdracht geen start heeft. */
   startFit?: StartFit;
+  /** Geschatte reistijd naar de opdracht, of null bij remote/onbekende plaats (geen chip). */
+  proximity?: CandidateProximity | null;
 }
 
 export interface CandidateComparison {

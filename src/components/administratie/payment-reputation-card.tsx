@@ -1,8 +1,9 @@
 import { CreditCard, Info } from "lucide-react";
 import { BehaviorToneBadge } from "@/components/jobs/signal-chips";
 import { Card, CardContent } from "@/components/ui/card";
-import { type PaymentBehavior } from "@/lib/payment-behavior";
+import { PAYMENT_MIN_SAMPLE_SIZE, type PaymentBehavior } from "@/lib/payment-behavior";
 import { summarizePaymentReputation } from "@/lib/client-payment-reputation";
+import { insufficientSampleNotice } from "@/lib/sample-size";
 
 /**
  * Betaalreputatie-spiegel voor de opdrachtgever: dezelfde geaggregeerde betaalgedrag-cijfers
@@ -12,6 +13,12 @@ import { summarizePaymentReputation } from "@/lib/client-payment-reputation";
 export function PaymentReputationCard({ behavior }: { behavior: PaymentBehavior }) {
   const { avgDaysToPay, onTimePct, sampleSize } = behavior;
   const reputation = summarizePaymentReputation(behavior);
+  // Onder de minimum-steekproef tonen we geen cijfers; wél concreet hoeveel betalingen er nog nodig
+  // zijn (zelfde presentatie-regel als de leverbetrouwbaarheid-kaart, geen misleidend beeld).
+  const sampleNotice = insufficientSampleNotice(sampleSize, PAYMENT_MIN_SAMPLE_SIZE, {
+    singular: "betaling",
+    plural: "betalingen",
+  });
 
   return (
     <Card>
@@ -45,6 +52,10 @@ export function PaymentReputationCard({ behavior }: { behavior: PaymentBehavior 
               op basis van {sampleSize} {sampleSize === 1 ? "betaling" : "betalingen"}
             </span>
           </div>
+        )}
+
+        {!reputation.hasStats && sampleNotice && (
+          <p className="text-sm text-muted-foreground">{sampleNotice}.</p>
         )}
 
         <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
