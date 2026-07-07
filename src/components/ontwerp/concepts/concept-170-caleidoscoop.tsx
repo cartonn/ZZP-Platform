@@ -122,7 +122,7 @@ function Kaleidoscope({
         transform={`rotate(${rot} ${c} ${c}) ${flip ? `scale(-1 1) translate(${-size} 0)` : ""}`}
       >
         <path
-          d={`M${c},${c} L${c},${c - c} A${c},${c} 0 0 1 ${c + Math.sin((step * Math.PI) / 180) * c},${c - Math.cos((step * Math.PI) / 180) * c} Z`}
+          d={`M${c},${c} L${c},0 A${c},${c} 0 0 1 ${c + Math.sin((step * Math.PI) / 180) * c},${c - Math.cos((step * Math.PI) / 180) * c} Z`}
           fill={col}
           opacity={0.9}
         />
