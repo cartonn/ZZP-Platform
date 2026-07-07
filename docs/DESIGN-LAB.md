@@ -411,4 +411,29 @@ UI-taal = Nederlands.
   tonale één-hue-immersie; interactie-gedreven horizontale navigatie (wide-canvas glide); en material/
   domein-esthetiek strak hermaakt (guilloché-veiligheidsgravure, hi-vis PPE) — elk onderscheidend
   gehouden van de bestaande 150.
-- **Totaal nu op `/ontwerp`: 160 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160).
+- **Reeks 17 (run 7-7-2026, nrs 161–170):** Kintsugi (keramiek met onregelmatige gouden reparatie-naden
+  als scheidslijn — de breuk hersteld in goud als vertrouwens-metafoor, warme crème-steen + craquelé,
+  Fraunces — niet Lakwerk/Perkament) · Bureaublad (spatial venster-OS: menubalk, sleepbare venster-kaarten
+  met traffic-light-chroom en diepte, dock onderaan als navigatie — OS-metafoor, niet Widget/Zwerk) ·
+  Zwartlicht (UV-echtheidscontrole op bijna-zwart: beveiligingskenmerken die oplichten in fluor-magenta/
+  cyaan, gloed alléén op geverifieerd/echt — security-glow, niet Röntgen/Neonbord) · Krijtstreep
+  (sartoriaal maatpak: fijne pinstripe-wol in antraciet/marine met ivoor + messing accent, quiet luxury —
+  afgewerkt pak, niet Textiel/couture-patroon) · Vorst (koel crystalline: frosted glas met ijskristal-
+  fractals en rijp-randen, ijsblauw/zilver — bevroren, niet Vloeiglas/Gel/Glas) · Legpuzzel (matching als
+  in elkaar passende puzzelstukken, ontbrekende credential = ontbrekend stukje — vorm-als-betekenis,
+  speels-strak) · Marqueterie (houtinleg/intarsia: ingelegde geometrische banden in noten/eiken/kersen
+  met nerf-textuur en messing filets — edel hout, niet Karton/Kraft) · Weegschaal (justitie-/apothekers-
+  balans als layout: symmetrisch evenwicht, kantelende weegbalk die plus↔min en geverifieerd↔te-doen
+  weegt, messing op warm papier — eerlijkheid/tweezijdig) · Almanak (Nederlandse getijden-almanak:
+  perkament met marineblauwe drukinkt, dichte getijtabellen, maanfase-glyphs en kompasroos — print-data-
+  density, niet Zeekaart/Beurs) · Caleidoscoop (radiale 12-voudige spiegelsymmetrie via conic-gradients/
+  SVG als strak-begrensde accenten in headers/badges/match-ringen boven clean-witte content — expressief
+  premium, niet Zellige/Memphis). Alle tien gebruiken bestaande lab-fonts.
+- Onderzochte 2026-trends deze reeks: material-craft & wabi-sabi ambacht als vertrouwenstaal (kintsugi
+  gouden naad, houtinleg/intarsia, sartoriale pinstripe-wol); spatial/OS-metaforen (venster-OS met dock);
+  refined dark mode met gerichte luminescentie als betekenis (UV-security-glow, gloed = state, niet
+  decoratie); crystalline/frosted materiaal (ijskristal-fractals, kouder dan liquid-glass); vorm-als-
+  betekenis & expressief-joyful premium (puzzelstuk = match, radiale kaleidoscoop-symmetrie op neutrale
+  basis); en print-revival data-density met symboolrijke informatie (maritieme almanak, evenwicht/balans-
+  metafoor voor eerlijke, verklaarbare matching) — elk onderscheidend gehouden van de bestaande 160.
+- **Totaal nu op `/ontwerp`: 170 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170).
