@@ -40,7 +40,7 @@ test("credential uploaden, verificatie aanvragen en privé-download afdwingen", 
   await page.selectOption("#type", "VOG");
   await page.fill("#title", "VOG 2026");
   await page.fill("#issuer", "Justis");
-  await page.fill("#issuedAt", "2026-01-15");
+  await page.fill("#issuedAt", "15-01-2026"); // DateInput = NL-tekstveld (dd-mm-jjjj)
   await page.setInputFiles("#document", SAMPLE);
   await page.getByRole("button", { name: "Certificaat toevoegen" }).click();
 

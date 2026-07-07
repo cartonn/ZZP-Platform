@@ -14,8 +14,9 @@ test("beschikbaarheid: periode toevoegen, zien en verwijderen", async ({ page })
   await page.waitForURL("**/dashboard");
 
   await page.goto("/beschikbaarheid");
-  await page.fill("#startDate", "2026-09-01");
-  await page.fill("#endDate", "2026-12-01");
+  // DateInput = NL-tekstveld (dd-mm-jjjj); vul in dat formaat.
+  await page.fill("#startDate", "01-09-2026");
+  await page.fill("#endDate", "01-12-2026");
   await page.selectOption("#type", "AVAILABLE");
   await page.fill("#hoursPerWeek", "32");
   await page.getByRole("button", { name: "Toevoegen" }).click();
