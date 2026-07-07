@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Administratie-ontzorging (2026-07-07) — BTW-aangifte-deadline-signaal
+
+Het boekhoudpaneel (`/financien` → Boekhouding) toonde de BTW per kwartaal (bedragen) maar niet
+**wanneer** de aangifte uiterlijk ingediend én betaald moet zijn — de #1 administratie-vraag van de
+ZZP'er ("wanneer moet ik wat doen?"). Toegevoegd: een deadline-signaal bovenaan het paneel dat het
+eerstvolgende aangiftekwartaal, de uiterste datum, de aftelling en het saldo toont met urgentiekleur.
+
+- **`src/lib/administration/vat-deadline.ts`** (puur): `previousQuarter(now)` (meest recent afgesloten
+  kwartaal, rolt in Q1 terug naar Q4 vorig jaar), `vatFilingDeadline(year, quarter)` (NL-regel: einde
+  van de maand ná het kwartaal — Q1→30 apr, Q2→31 jul, Q3→31 okt, Q4→31 jan volgend jaar),
+  `summarizeVatDeadline(entries, party, now)` → `{year, quarter, deadline, daysUntil, status, balanceCents}`.
+  Status `upcoming`/`due-soon` (≤ `VAT_DEADLINE_SOON_DAYS`=14, incl. de deadline-dag zelf)/`overdue`.
+  Hergebruikt de bestaande `vatReturn`-berekening; `now` geïnjecteerd (deterministisch, geen geldstroom).
+- **`src/components/administratie/vat-deadline-card.tsx`** (presentationeel): kwartaal-kop + urgentiebadge
+  (Op schema/Binnenkort/Verstreken), "Uiterlijk <datum> indienen én betalen · nog N dagen / N dagen te
+  laat", te betalen/terug-te-ontvangen bedrag, rol-bewuste voetnoot. Dark-mode-varianten.
+- **`boekhouding-panel.tsx`**: berekent server-side (één `now`), rendert de kaart bovenaan het niet-lege
+  paneel. Read-only, geen schemawijziging, geen extra query (leunt op de reeds-geladen entries).
+
+Tests: +9 (`vat-deadline`: previousQuarter jaargrens, alle 4 deadlines, kwartaal-scoping van het saldo,
+due-soon/upcoming/overdue-grenzen incl. deadline-dag, voorbelasting → negatief saldo). Gate: typecheck,
+lint, **3422 unit-tests**, build, prettier groen.
+
 ## Kwaliteitsronde 2 — hele codebase + UX, 12 fixes gemerged (2026-07-07)
 
 Volledige review (7 agents: lib/routine-code, security-nieuwe-oppervlakte, tech-debt-met-metingen,
