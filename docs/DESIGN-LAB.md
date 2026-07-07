@@ -388,4 +388,27 @@ UI-taal = Nederlands.
   als primaire layout (heatmap-matrices, technische maatvoering met dimension-lines); natuurlijk licht
   & organische vorm (zonnewijzer-schaduw, gooey fluïde blobs); en expressieve, tactiele richtingen
   (gestapelde block-UI, constructivistische diagonaal) — elk onderscheidend gehouden van bestaande.
-- **Totaal nu op `/ontwerp`: 150 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150).
+- **Reeks 16 (run 7-7-2026, nrs 151–160):** Fosfor (fosforgroene CRT-terminal, command-line-first met
+  scanlines/glow en een prominent commandopalet — keyboard-first, niet Teletekst) · Zwerk (ruimtelijke
+  visionOS-diepte: gelaagde translucente panelen met parallax z-diepte en depth-of-field boven een
+  omgevingsgradient — spatial layering, niet Glas/Vloeiglas/Gel) · Reglet (guilloché-veiligheidsgravure:
+  intaglio-hairline-rozetten en microtekst als vertrouwensmotief van waardepapier, ivoor + groen-goud —
+  niet Paspoort/Filatelie/Zegel) · Halogeen (warme dark met amber halo-gloed, houtskool i.p.v. koud
+  blauw — warm-dark-trend, niet Schemer/Noir) · Cel (spreadsheet-native: frozen headers, celselectie en
+  keyboard-cel-navigatie als volledige UI-metafoor — niet Beurs/Grootboek) · Marge (editorial
+  minimalisme/slow UI: dramatische witruimte en groot display-type, Fraunces — niet Tij) · Karmijn
+  (monochroom-tonaal: de hele UI in gradaties van één rijke tint, status via toon + icoon — niet
+  Spectrum/Palet) · Raamwerk (zichtbare constructielijnen: hairline-grids, registratie-ticks en
+  meetlijnen in neutraal papierwit — ingenieurs-esthetiek, niet Blauwdruk) · Panorama (horizontaal
+  wide-canvas: schermen als aangrenzende panelen met filmstrip-glide en mobiel-snap — ruimtelijke
+  horizontale navigatie) · Bouwplaats (hi-vis werkplaats: signaalgeel + zwart, hazard-diagonaalstrepen
+  en stencil-koppen voor veldwerk — industrieel, niet Neon/Scorebord). Alle tien gebruiken bestaande
+  lab-fonts.
+- Onderzochte 2026-trends deze reeks: keyboard-first & command-driven interfaces (terminal-revival,
+  commandopalet als hoofdnavigatie); spatial/visionOS-diepte (gelaagde translucentie, depth-of-field,
+  parallax); warm dark mode (amber halo i.p.v. koud grijs-blauw); data-native structuren (spreadsheet-
+  grid, zichtbare constructie-/meetlijnen); editorial slow UI met dramatische witruimte; monochroom-
+  tonale één-hue-immersie; interactie-gedreven horizontale navigatie (wide-canvas glide); en material/
+  domein-esthetiek strak hermaakt (guilloché-veiligheidsgravure, hi-vis PPE) — elk onderscheidend
+  gehouden van de bestaande 150.
+- **Totaal nu op `/ontwerp`: 160 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160).
