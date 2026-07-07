@@ -13,7 +13,14 @@ productie dus onzichtbaar voor monitoring.
 - **`src/lib/observability/client-error.ts`** (nieuw, puur/testbaar): `parseClientError` normaliseert een
   binnenkomende client-fout **PII-arm** (pagina-URL → alleen pad, query-strings uit stack/componentStack
   gestript, alle vrije tekst hard afgekapt) en `toReportableError` bouwt er een echte `Error` van zodat
-  Sentry een volwaardige exception met de client-stacktrace krijgt.
+  Sentry een volwaardige exception met de client-stacktrace krijgt. **Geheime pad-tokens geredigeerd**
+  (`scrubSecretPathSegments`): `/wachtwoord-herstellen/<reset-token>` en `/vertrouwen/<id>/<deel-token>`
+  dragen het geheim in het PAD (niet de query) — zonder scrub zou een crash op die pagina's het token via
+  `location.href` naar de log/Sentry lekken (account-overname / documenten-lek). Getest dat reset-/deel-
+  tokens nooit in het genormaliseerde resultaat voorkomen (url én stack).
+- **`src/lib/route-guards.ts`**: `/api/client-error` toegevoegd aan `isPublicPath` — anders zou de
+  middleware een ongeauthenticeerd rapport (root-layout-crash / publieke pagina / na sessieverlies) naar
+  `/login` redirecten en de fout alsnog stil weglaten (spiegelt de `/api/csp-report`-uitzondering).
 - **`src/app/api/client-error/route.ts`** (nieuw): publieke, ongeauthenticeerde ingest-route (zelfde seam
   als `/api/csp-report`) — rate-limited per IP vóór parsen, body-cap 32 KB, altijd 204, en route't via
   `reportError` naar Sentry (indien `SENTRY_DSN`) of gestructureerd loggen.

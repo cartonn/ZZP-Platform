@@ -3,6 +3,7 @@ import {
   MAX_MESSAGE_LEN,
   MAX_STACK_LEN,
   parseClientError,
+  scrubSecretPathSegments,
   toPagePath,
   toReportableError,
 } from "@/lib/observability/client-error";
@@ -28,6 +29,44 @@ describe("toPagePath", () => {
     expect(toPagePath(42)).toBeNull();
     expect(toPagePath(undefined)).toBeNull();
   });
+
+  it("redigeert het geheime reset-token in het pad", () => {
+    const token = "a".repeat(43);
+    expect(toPagePath(`https://app.test/wachtwoord-herstellen/${token}`)).toBe(
+      "/wachtwoord-herstellen/[redacted]",
+    );
+    expect(toPagePath(`/wachtwoord-herstellen/${token}?x=1`)).toBe(
+      "/wachtwoord-herstellen/[redacted]",
+    );
+  });
+
+  it("redigeert het deel-token maar behoudt het (niet-geheime) profileId", () => {
+    expect(toPagePath("https://app.test/vertrouwen/user-123/SECRETTOKEN")).toBe(
+      "/vertrouwen/user-123/[redacted]",
+    );
+  });
+});
+
+describe("scrubSecretPathSegments", () => {
+  it("laat paden zonder geheim segment ongemoeid", () => {
+    expect(scrubSecretPathSegments("/dashboard")).toBe("/dashboard");
+    expect(scrubSecretPathSegments("/opdrachten/abc")).toBe("/opdrachten/abc");
+    expect(scrubSecretPathSegments("/")).toBe("/");
+  });
+
+  it("redigeert alle segmenten ná de te-behouden segmenten", () => {
+    expect(scrubSecretPathSegments("/wachtwoord-herstellen/TOKEN")).toBe(
+      "/wachtwoord-herstellen/[redacted]",
+    );
+    expect(scrubSecretPathSegments("/vertrouwen/id/TOKEN/extra")).toBe(
+      "/vertrouwen/id/[redacted]/[redacted]",
+    );
+  });
+
+  it("is veilig op een prefix zonder token-segment", () => {
+    expect(scrubSecretPathSegments("/wachtwoord-herstellen")).toBe("/wachtwoord-herstellen");
+    expect(scrubSecretPathSegments("/vertrouwen/id")).toBe("/vertrouwen/id");
+  });
 });
 
 describe("parseClientError", () => {
@@ -51,6 +90,22 @@ describe("parseClientError", () => {
     expect(JSON.stringify(result)).not.toContain("SECRET");
     expect(result!.stack).toContain("https://app.test/_next/chunk.js");
     expect(result!.stack).not.toContain("?token");
+  });
+
+  it("laat geen reset-/deel-token door — niet via url, niet via de stack", () => {
+    const resetToken = "R".repeat(43);
+    const shareToken = "S".repeat(40);
+    const result = parseClientError({
+      name: "Error",
+      message: "boom",
+      url: `https://app.test/wachtwoord-herstellen/${resetToken}`,
+      stack: `Error: boom\n  at https://app.test/vertrouwen/prof-1/${shareToken}\n  at foo`,
+    });
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain(resetToken);
+    expect(serialized).not.toContain(shareToken);
+    expect(result!.path).toBe("/wachtwoord-herstellen/[redacted]");
+    expect(result!.stack).toContain("/vertrouwen/prof-1/[redacted]");
   });
 
   it("valt terug op veilige defaults bij ontbrekende velden", () => {

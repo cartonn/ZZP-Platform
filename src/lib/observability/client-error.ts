@@ -32,13 +32,52 @@ export const MAX_COMPONENT_STACK_LEN = 2000;
 export const MAX_NAME_LEN = 100;
 export const MAX_DIGEST_LEN = 100;
 
-/** Strip query-string + fragment uit elke http(s)-URL in een vrije-tekst-string (PII-tokens). */
+// Routes die een GEHEIM in het PAD dragen (niet in de query). De waarde per prefix is het aantal
+// pad-segmenten ná de prefix dat je mag behouden; alles daarna wordt geredigeerd. Zonder deze scrub
+// zou een render-crash op zo'n pagina het token via `location.href` naar de logs/Sentry lekken —
+// account-overname (reset-token) of gevoelige-documenten-lek (deel-token). logger.redact scrubt op
+// sleutelnaam, niet op een hex-token binnen een pad-waarde, dus we moeten het hier hard weghalen.
+// LET OP: voeg elke nieuwe token-in-pad-route hier toe.
+const SECRET_PATH_KEEP_AFTER_PREFIX: Record<string, number> = {
+  "wachtwoord-herstellen": 0, // /wachtwoord-herstellen/<reset-token>  → token weg
+  vertrouwen: 1, // /vertrouwen/<profileId>/<deel-token> → profileId blijft, token weg
+};
+
+const REDACTED_SEGMENT = "[redacted]";
+
+/**
+ * Redigeert geheime pad-segmenten van bekende token-in-pad-routes (zie SECRET_PATH_KEEP_AFTER_PREFIX).
+ * Puur: laat een pad zonder geheim segment ongewijzigd.
+ */
+export function scrubSecretPathSegments(path: string): string {
+  // "/a/b" → ["", "a", "b"]; segments[1] is het eerste pad-segment.
+  const segments = path.split("/");
+  const first = segments[1];
+  if (!first || !(first in SECRET_PATH_KEEP_AFTER_PREFIX)) return path;
+  // Redact vanaf (prefix-positie 1) + (te behouden segmenten) + 1.
+  const redactStart = SECRET_PATH_KEEP_AFTER_PREFIX[first]! + 2;
+  for (let i = redactStart; i < segments.length; i += 1) {
+    if (segments[i]) segments[i] = REDACTED_SEGMENT;
+  }
+  return segments.join("/");
+}
+
+/** Reduceert één http(s)-URL tot origin+pad zonder query/fragment én met geredigeerde geheime segmenten. */
+function sanitizeUrl(url: string): string {
+  const cut = url.search(/[?#]/);
+  const base = cut === -1 ? url : url.slice(0, cut);
+  try {
+    const parsed = new URL(base);
+    return `${parsed.origin}${scrubSecretPathSegments(parsed.pathname)}`;
+  } catch {
+    return base;
+  }
+}
+
+/** Sanitize elke http(s)-URL in een vrije-tekst-string: query/fragment weg + geheime segmenten weg. */
 function stripUrlQueries(text: string): string {
-  // Match een http(s)-URL tot de eerste whitespace/haakje/aanhaling; behoud origin+pad, drop ?…/#….
-  return text.replace(/https?:\/\/[^\s)'"]+/g, (url) => {
-    const cut = url.search(/[?#]/);
-    return cut === -1 ? url : url.slice(0, cut);
-  });
+  // Match een http(s)-URL tot de eerste whitespace/haakje/aanhaling.
+  return text.replace(/https?:\/\/[^\s)'"]+/g, (url) => sanitizeUrl(url));
 }
 
 /** Kap een string af op `max` tekens met een ellipsis-marker. */
@@ -51,17 +90,22 @@ function readString(raw: unknown): string | null {
   return typeof raw === "string" && raw.trim() ? raw.trim() : null;
 }
 
-/** Reduceert een pagina-URL tot alleen het pad (dropt host/query/fragment → geen tokens/PII). */
+/**
+ * Reduceert een pagina-URL tot alleen het pad (dropt host/query/fragment → geen tokens/PII) en
+ * redigeert geheime pad-segmenten (reset-/deel-tokens) zodat die nooit in de log/Sentry belanden.
+ */
 export function toPagePath(raw: unknown): string | null {
   const value = readString(raw);
   if (!value) return null;
+  let path: string | null;
   try {
-    return new URL(value).pathname || "/";
+    path = new URL(value).pathname || "/";
   } catch {
     // Relatief pad of onparseerbaar: strip zelf fragment + query.
     const withoutHash = value.split("#", 1)[0] ?? "";
-    return withoutHash.split("?", 1)[0] || null;
+    path = withoutHash.split("?", 1)[0] || null;
   }
+  return path ? scrubSecretPathSegments(path) : null;
 }
 
 /**
