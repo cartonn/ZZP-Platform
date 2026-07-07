@@ -20,6 +20,16 @@ export const DECISION_PATIENCE_DAYS = { strong: 2, moderate: 4, modest: 8 } as c
 export type CandidateTier = keyof typeof DECISION_PATIENCE_DAYS;
 export type DecisionUrgency = "high" | "medium" | "low";
 
+// Aard van het signaal. `compliance` wint van elke urgentie: een kandidaat die niet aan een
+// verplicht certificaat voldoet mag je nooit "snel binnenhalen voordat hij elders start" — dat zou
+// de opdrachtgever richting een onverantwoorde keuze duwen (zorg: VOG/BIG). Dan is de enige juiste
+// volgende stap: eerst de compliance oplossen.
+export type DecisionKind = "urgency" | "compliance";
+
+// Tot deze leeftijd (exclusief) heet een reactie nog "Nieuw"; daarboven toont de UI de wachttijd.
+// De twee sluiten elkaar uit — "Nieuw" én "wacht al 39 dagen" op dezelfde rij is tegenstrijdig.
+export const NEW_CANDIDATE_MAX_DAYS = 3;
+
 const MS_PER_DAY = 86_400_000;
 
 export interface CandidateDecisionInput {
@@ -31,14 +41,21 @@ export interface CandidateDecisionInput {
   createdAt: Date;
   /** Of er al een samenwerking uit de reactie is voortgekomen. */
   hasCollaboration: boolean;
+  /**
+   * De kandidaat voldoet niet aan een verplicht certificaat (server-side `NON_COMPLIANT`). Dan mag er
+   * geen urgentie-nudge komen; het signaal wordt een compliance-blokkade. Default `false`.
+   */
+  complianceBlocked?: boolean;
 }
 
 export interface CandidateDecisionSignal {
+  /** Aard van het signaal: een urgentie-nudge, of een compliance-blokkade die vóórgaat. */
+  kind: DecisionKind;
   /** Aantal hele dagen dat de reactie al onbeslist ligt (≥ 0). */
   daysWaiting: number;
   /** Kwaliteitsklasse uit de matchscore. */
   tier: CandidateTier;
-  /** De reactie ligt langer dan past bij deze kwaliteit — een beslissing dringt zich op. */
+  /** Er is iets te doen: óf de reactie ligt te lang, óf de compliance moet eerst opgelost worden. */
   attention: boolean;
   /** Hoe dringend, oplopend met de kwaliteit: high = sterke match die te lang wacht. */
   urgency: DecisionUrgency;
@@ -78,9 +95,31 @@ export function summarizeCandidateDecision(
     0,
     Math.floor((now.getTime() - input.createdAt.getTime()) / MS_PER_DAY),
   );
-  const attention = daysWaiting >= DECISION_PATIENCE_DAYS[tier];
 
-  return { daysWaiting, tier, attention, urgency: URGENCY_BY_TIER[tier] };
+  // Compliance gaat vóór alles: een niet-voldoende kandidaat krijgt nooit een "haal-hem-snel-binnen"-
+  // nudge, maar een compliance-blokkade die de opdrachtgever naar de juiste eerste stap wijst.
+  if (input.complianceBlocked) {
+    return {
+      kind: "compliance",
+      daysWaiting,
+      tier,
+      attention: true,
+      urgency: URGENCY_BY_TIER[tier],
+    };
+  }
+
+  const attention = daysWaiting >= DECISION_PATIENCE_DAYS[tier];
+  return { kind: "urgency", daysWaiting, tier, attention, urgency: URGENCY_BY_TIER[tier] };
+}
+
+/**
+ * Of een reactie nog als "Nieuw" telt: jonger dan {@link NEW_CANDIDATE_MAX_DAYS} dagen. Sluit uit dat
+ * dezelfde rij zowel "Nieuw" als een wachttijd toont. Een `createdAt` in de toekomst (data-ruis) is
+ * per definitie nieuw.
+ */
+export function isNewCandidate(createdAt: Date, now: Date = new Date()): boolean {
+  const daysOld = Math.floor((now.getTime() - createdAt.getTime()) / MS_PER_DAY);
+  return daysOld < NEW_CANDIDATE_MAX_DAYS;
 }
 
 /**
@@ -96,7 +135,9 @@ export function summarizeCandidatesAwaitingDecision(
   let strong = 0;
   for (const input of inputs) {
     const signal = summarizeCandidateDecision(input, now);
-    if (signal?.attention) {
+    // Alleen echte urgentie telt mee in de paginabrede band; compliance-blokkades hebben een eigen,
+    // rij-specifieke boodschap ("eerst compliance oplossen") en horen niet in de urgentie-telling.
+    if (signal?.attention && signal.kind === "urgency") {
       total += 1;
       if (signal.tier === "strong") strong += 1;
     }

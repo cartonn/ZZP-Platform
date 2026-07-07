@@ -13,6 +13,7 @@ import {
 } from "@/lib/kandidaten-filter";
 import { computeCompliance, scoreJobForFreelancer, topPositiveReason } from "@/lib/matching";
 import {
+  isNewCandidate,
   summarizeCandidateDecision,
   summarizeCandidatesAwaitingDecision,
 } from "@/lib/candidate-decision";
@@ -166,11 +167,14 @@ export default async function KandidatenPage({
       APPLICATION_STATUSES.indexOf(b.status as ApplicationStatus),
   );
 
-  // "Beste match": hoogste matchscore onder de nog niet afgewezen reacties — bovenaan etaleren met de
-  // belangrijkste reden, want geen enkele concurrent toont leesbare match-redenen aan de beslisser.
+  // "Beste match": hoogste matchscore onder de reacties die nog een beslissing vragen — bovenaan
+  // etaleren met de belangrijkste reden, want geen enkele concurrent toont leesbare match-redenen aan
+  // de beslisser. Reacties die al zijn afgehandeld (ACCEPTED/REJECTED/WITHDRAWN) horen hier niet: de
+  // band "beste match" naar een al-geaccepteerde kandidaat wijzen is misleidend.
+  const OPEN_STATUSES = new Set(["NEW", "VIEWED", "SHORTLIST"]);
   const best =
     [...applications]
-      .filter((a) => a.status !== "REJECTED" && a.status !== "WITHDRAWN" && a.matchScore != null)
+      .filter((a) => OPEN_STATUSES.has(a.status) && a.matchScore != null)
       .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0] ?? null;
   const bestReason = best
     ? topPositiveReason(scoreJobForFreelancer(best.job, best.freelancer).reasons)
@@ -365,16 +369,25 @@ export default async function KandidatenPage({
                 // regels als de ZZP'er op de opdracht ziet, zodat de opdrachtgever niet alleen "Match X%" leest.
                 const fitReasons = scoreJobForFreelancer(app.job, app.freelancer).reasons;
                 // Beslis-nu-nudge: alleen tonen wanneer de reactie langer onbeslist ligt dan past bij
-                // de matchkwaliteit. Zwijgt voor verse of besloten reacties.
+                // de matchkwaliteit. Zwijgt voor verse of besloten reacties. Voldoet de kandidaat niet
+                // aan een verplicht certificaat, dan wordt het signaal een compliance-blokkade i.p.v.
+                // een urgentie-nudge — je haalt niemand "snel binnen" die niet compliant is.
                 const decision = summarizeCandidateDecision(
                   {
                     status: app.status,
                     matchScore: app.matchScore,
                     createdAt: app.createdAt,
                     hasCollaboration: !!app.collaboration,
+                    complianceBlocked: compliance?.status === "NON_COMPLIANT",
                   },
                   now,
                 );
+                // Eerste ontbrekende/verlopen certificaat als concrete eerste stap bij een blokkade.
+                const firstBlocker = compliance?.missing[0] ?? compliance?.expired[0] ?? null;
+                // "Nieuw" en een wachttijd sluiten elkaar uit: verse reactie toont "Nieuw", een oudere
+                // NEW-reactie toont de wachttijd (de status-badge zou anders "Nieuw" naast "wacht al
+                // 39 dagen" zetten).
+                const fresh = status === "NEW" && isNewCandidate(app.createdAt, now);
                 const lead = !app.collaboration ? (
                   <input
                     type="checkbox"
@@ -396,7 +409,11 @@ export default async function KandidatenPage({
                             {app.freelancer.user.name}
                           </span>
                           <span className="flex shrink-0 items-center gap-2">
-                            <ApplicationStatusBadge status={status} />
+                            {/* Een oude NEW-reactie krijgt geen "Nieuw"-badge — die zou botsen met de
+                                wachttijd-regel eronder. De wachttijd vertelt dan de echte status. */}
+                            {status === "NEW" && !fresh ? null : (
+                              <ApplicationStatusBadge status={status} />
+                            )}
                             <TrustBadge level={trust.level} />
                           </span>
                         </div>
@@ -413,18 +430,28 @@ export default async function KandidatenPage({
                         {compliance && <ComplianceBadge status={compliance.status} />}
                       </div>
                     </div>
-                    {decision?.attention && (
-                      <p
-                        className={`flex items-center gap-1.5 text-xs ${
-                          decision.urgency === "high" ? "text-warning" : "text-muted-foreground"
-                        }`}
-                      >
-                        <Clock className="size-3.5 shrink-0" aria-hidden />
-                        {decision.tier === "strong"
-                          ? `${t("Sterke match — wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing. Beslis nu voordat hij elders aan de slag gaat.")}`
-                          : `${t("Wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing.")}`}
-                      </p>
-                    )}
+                    {decision?.attention &&
+                      (decision.kind === "compliance" ? (
+                        <p className="flex items-center gap-1.5 text-xs text-danger">
+                          <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+                          {firstBlocker
+                            ? `${t("Eerst compliance oplossen:")} ${t(CREDENTIAL_TYPE_LABEL[firstBlocker])}`
+                            : t("Eerst compliance oplossen voordat je beslist.")}
+                        </p>
+                      ) : (
+                        // Rij-specifiek: de wachttijd van deze kandidaat. Genderneutraal en zonder de
+                        // paginabrede urgentie-zin te herhalen (die staat al één keer in de band boven de lijst).
+                        <p
+                          className={`flex items-center gap-1.5 text-xs ${
+                            decision.urgency === "high" ? "text-warning" : "text-muted-foreground"
+                          }`}
+                        >
+                          <Clock className="size-3.5 shrink-0" aria-hidden />
+                          {decision.tier === "strong"
+                            ? `${t("Sterke match — wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing, beslis voordat deze ZZP'er elders start.")}`
+                            : `${t("Wacht al")} ${decision.daysWaiting} ${t("dagen op je beslissing.")}`}
+                        </p>
+                      ))}
                   </div>
                 );
                 const body = (
