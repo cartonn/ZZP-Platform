@@ -19,6 +19,7 @@ import { SEED_CONVERSATIONS, SEED_TICKETS } from "./seed-berichten-tickets-data"
 import { seedFranchise } from "./seed-franchise";
 import { seedAcademy } from "./seed-academy";
 import { runZzpMembershipTask } from "@/lib/zzp-membership-task";
+import { isSweepableLivecheck, LIVECHECK_MIN_AGE_MS } from "@/lib/livecheck-sweep";
 
 const prisma = new PrismaClient();
 
@@ -62,6 +63,45 @@ async function bootstrapAdminIfConfigured() {
     },
   });
   console.log("[seed] Bootstrap-admin aangemaakt voor %s (wachtwoordwijziging vereist).", email);
+}
+
+/**
+ * Ruimt achtergebleven livecheck-opdrachten op. De 24/7-routines publiceren tijdens een run soms
+ * een tijdelijke opdracht met een titel als "Livecheck publiceren 1781209076945" om te verifiëren
+ * dat publiceren nog werkt; die testrestanten horen niet tussen de echte opdrachten op
+ * /admin/opdrachten. Defensief: alleen DRAFT/CLOSED-opdrachten ouder dan een dag, zónder reacties of
+ * samenwerkingen, worden geruimd (zie isSweepableLivecheck). Draait op elke boot, ook in productie.
+ */
+async function sweepLivecheckJobs() {
+  const cutoff = new Date(Date.now() - LIVECHECK_MIN_AGE_MS);
+  const candidates = await prisma.job.findMany({
+    where: {
+      title: { startsWith: "Livecheck" },
+      status: { in: ["DRAFT", "CLOSED"] },
+      createdAt: { lt: cutoff },
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      createdAt: true,
+      _count: { select: { applications: true, collaborations: true } },
+    },
+  });
+  let removed = 0;
+  for (const c of candidates) {
+    const sweepable = isSweepableLivecheck({
+      title: c.title,
+      status: c.status,
+      createdAt: c.createdAt,
+      applicationCount: c._count.applications,
+      collaborationCount: c._count.collaborations,
+    });
+    if (!sweepable) continue;
+    await prisma.job.delete({ where: { id: c.id } });
+    removed++;
+  }
+  if (removed > 0) console.log(`[seed] ${removed} livecheck-opdracht(en) opgeruimd.`);
 }
 
 async function main() {
@@ -129,6 +169,9 @@ async function main() {
   // productie. De demo-data hieronder (accounts incl. admin/demo1234, opdrachten, samenwerkingen,
   // facturen) draait alleen in de demo-/testfase (SEED_DEMO=true). In productie: alleen een
   // optionele bootstrap-admin; de echte data komt via de CSV-import.
+  // Ruim livecheck-testrestanten van eerdere routine-runs op (ook in productie, vóór de demo-gate).
+  await sweepLivecheckJobs();
+
   if (!SEED_DEMO) {
     await bootstrapAdminIfConfigured();
     console.log(
@@ -596,6 +639,7 @@ async function main() {
       industry: "ict",
       req: ["nodejs"],
       opt: ["typescript", "aws"],
+      company: "datic",
     },
     {
       id: "job-3",
@@ -609,6 +653,7 @@ async function main() {
       industry: "ict",
       req: ["projectmanagement"],
       dbaRisk: "MIDDEN",
+      company: "datic",
     },
     {
       id: "job-4",
@@ -636,6 +681,7 @@ async function main() {
       industry: "bouw",
       req: ["elektrotechniek"],
       reqCreds: ["VOG"],
+      company: "bouwpartners",
     },
     {
       id: "job-6",
@@ -648,6 +694,7 @@ async function main() {
       industry: "ict",
       req: ["aws"],
       opt: ["python", "nodejs"],
+      company: "datic",
     },
     {
       id: "job-7",
@@ -660,6 +707,7 @@ async function main() {
       location: "Utrecht",
       industry: "ict",
       req: ["react"],
+      company: "datic",
     },
     // --- Extra opdrachten, verdeeld over de bedrijven (breedte) ---
     { id: "job-8", title: "Wijkverpleegkundige", description: "Wijkverpleging in de regio Amersfoort; flexibele diensten.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 45, rateMax: 62, location: "Amersfoort", industry: "zorg", req: ["verpleegkunde"], reqCreds: ["LICENSE", "VOG"], dbaRisk: "MIDDEN", company: "zorggroep" }, // prettier-ignore
@@ -671,7 +719,7 @@ async function main() {
     { id: "job-14", title: "Data Engineer", description: "Bouw data-pipelines op AWS voor onze klanten.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 80, rateMax: 110, industry: "ict", req: ["python", "aws"], reqCreds: ["VOG"], company: "datic" }, // prettier-ignore
     { id: "job-15", title: "Cloud Engineer", description: "Beheer en automatiseer cloudinfrastructuur (AWS/Node).", status: "PUBLISHED", workMode: "REMOTE", rateMin: 85, rateMax: 115, industry: "ict", req: ["aws", "nodejs"], company: "datic" }, // prettier-ignore
     { id: "job-16", title: "Fullstack Developer", description: "End-to-end features in React en Node voor ons platform.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 75, rateMax: 100, location: "Utrecht", industry: "ict", req: ["react", "nodejs"], opt: ["typescript"], reqCreds: ["VOG"], company: "datic" }, // prettier-ignore
-    { id: "job-17", title: "Scrum Master", description: "Faciliteer twee teams; verbeter het ontwikkelproces.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 80, rateMax: 100, location: "Utrecht", industry: "ict", req: ["scrum"], company: "jansen" }, // prettier-ignore
+    { id: "job-17", title: "Scrum Master", description: "Faciliteer twee teams; verbeter het ontwikkelproces.", status: "PUBLISHED", workMode: "HYBRID", rateMin: 80, rateMax: 100, location: "Utrecht", industry: "ict", req: ["scrum"], company: "datic" }, // prettier-ignore
     { id: "job-18", title: "Frontend Developer", description: "Toegankelijke UI's met een design-systeem.", status: "PUBLISHED", workMode: "REMOTE", rateMin: 70, rateMax: 95, industry: "ict", req: ["react", "typescript"], company: "datic" }, // prettier-ignore
     { id: "job-19", title: "Installatiemonteur", description: "Werktuigbouw en elektra op locatie; VCA vereist.", status: "PUBLISHED", workMode: "ONSITE", rateMin: 46, rateMax: 64, location: "Tilburg", industry: "bouw", req: ["elektrotechniek"], reqCreds: ["VOG"], company: "bouwpartners" }, // prettier-ignore
   ];
@@ -684,13 +732,17 @@ async function main() {
     await prisma.job.upsert({
       where: { id: j.id },
       // Reconcileer de canonieke scalar-velden zodat gedrifte demo-data (bv. een
-      // concept-opdracht die tijdens testen op CLOSED is gezet) bij her-seed terugkeert
-      // naar de bedoelde titel/status. Relaties blijven create-only (idempotent).
+      // concept-opdracht die tijdens testen op CLOSED is gezet, of een vacature die
+      // onder een branche-vreemd bedrijf is aangemaakt) bij her-seed terugkeert naar de
+      // bedoelde titel/status én het branche-consistente bedrijf. Relaties (skills,
+      // credential-eisen) blijven create-only (idempotent).
       update: {
         title: j.title,
         description: j.description,
         status: j.status,
         publishedAt: j.status === "PUBLISHED" ? now : null,
+        companyId: companyIdByKey[j.company ?? "jansen"]!,
+        industryId: industryId[j.industry]!,
       },
       create: {
         id: j.id,

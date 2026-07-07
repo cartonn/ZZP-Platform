@@ -116,7 +116,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
   {
     id: "c-lisa-pm",
     fk: "lisa",
-    ck: "jansen",
+    ck: "datic",
     jobId: "job-3",
     badge: true,
     messages: [
@@ -128,7 +128,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "freelancer",
         daysAgo: 9,
-        body: "Hi Mark, leuk! Donderdag rond 14:00 zou bij mij passen, of anders vrijdagochtend. Wat komt jou het beste uit?",
+        body: "Hi Erik, leuk! Donderdag rond 14:00 zou bij mij passen, of anders vrijdagochtend. Wat komt jou het beste uit?",
       },
       {
         from: "client",
@@ -155,7 +155,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
   {
     id: "c-youssef-node",
     fk: "youssef",
-    ck: "jansen",
+    ck: "datic",
     jobId: "job-2",
     badge: true,
     messages: [
@@ -167,7 +167,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "freelancer",
         daysAgo: 9,
-        body: "Hi Mark, super! Dinsdag 10:00 komt prima uit. Ik blok het meteen in.",
+        body: "Hi Erik, super! Dinsdag 10:00 komt prima uit. Ik blok het meteen in.",
       },
       {
         from: "freelancer",
@@ -192,7 +192,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "freelancer",
         daysAgo: 4,
-        body: "Perfect, alles binnen en getest. Ik heb de backlog voor sprint 1 alvast doorgenomen, dus dinsdag kunnen we vol gas. Tot dan, Mark!",
+        body: "Perfect, alles binnen en getest. Ik heb de backlog voor sprint 1 alvast doorgenomen, dus dinsdag kunnen we vol gas. Tot dan, Erik!",
       },
     ],
   },
@@ -326,7 +326,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
   {
     id: "c-sofie-fullstack",
     fk: "sofie",
-    ck: "jansen",
+    ck: "datic",
     jobId: "job-16",
     badge: true,
     messages: [
@@ -343,7 +343,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "freelancer",
         daysAgo: 4,
-        body: "Hoi Mark, dank voor het meekijken! Je hebt gelijk over donderdag, ik was die middag eerder weg. Ik pas 'm aan naar 6 uur.",
+        body: "Hoi Erik, dank voor het meekijken! Je hebt gelijk over donderdag, ik was die middag eerder weg. Ik pas 'm aan naar 6 uur.",
       },
       {
         from: "freelancer",
@@ -360,7 +360,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
   {
     id: "c-nadia-scrum",
     fk: "nadia",
-    ck: "jansen",
+    ck: "datic",
     jobId: "job-17",
     badge: true,
     messages: [
@@ -372,7 +372,7 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
       {
         from: "freelancer",
         daysAgo: 9,
-        body: "Hoi Mark, dank je! Helemaal goed. Ik stel sprints van twee weken voor, met de planning op maandagochtend en de review en retro op vrijdagmiddag. Werkt dat ritme voor jullie?",
+        body: "Hoi Erik, dank je! Helemaal goed. Ik stel sprints van twee weken voor, met de planning op maandagochtend en de review en retro op vrijdagmiddag. Werkt dat ritme voor jullie?",
       },
       {
         from: "client",
