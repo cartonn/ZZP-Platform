@@ -2,6 +2,18 @@
 
 import { type SupportTicketStatus, type SupportCategory } from "@/lib/enums";
 
+/**
+ * Statussen waarbij een medewerker aan zet is (het ticket wacht op de helpdesk). AWAITING_USER
+ * valt hier bewust buiten: dan ligt de bal bij de aanvrager, niet bij de admin. Eén bron voor de
+ * actiecentrum-taak (pending-tasks.ts) én de zijbalk-badge (signals.ts), zodat beide nooit afwijken.
+ */
+export const SUPPORT_OPEN_STATUSES = [
+  "NEW",
+  "TRIAGED",
+  "ESCALATED",
+  "REOPENED",
+] as const satisfies readonly SupportTicketStatus[];
+
 export const SUPPORT_STATUS_LABEL: Record<SupportTicketStatus, string> = {
   NEW: "Nieuw",
   TRIAGED: "In behandeling",
