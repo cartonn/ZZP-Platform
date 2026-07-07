@@ -274,6 +274,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > zonder secrets. Activeren via `BILLING_PROVIDER=stripe`. Rest = mensenwerk (MENSENWERK.md §3/§7):
 > Stripe-account + KYC, secrets zetten, webhook-endpoint aanmaken in het Stripe-dashboard.
 
+> Gedaan (niet opnieuw): **BTW-aangifte-deadline-signaal op de boekhouding (PR #664)** — het
+> boekhoudpaneel toonde BTW per kwartaal (bedragen) maar niet de uiterste indienings-/betaaldatum. Nu
+> een deadline-kaart bovenaan `/financien` → Boekhouding: eerstvolgende aangiftekwartaal, NL-deadline
+> (einde maand ná het kwartaal), aftelling + urgentiebadge (Op schema/Binnenkort/Verstreken) en het
+> saldo. Pure `administration/vat-deadline.ts` (`previousQuarter`/`vatFilingDeadline`/
+> `summarizeVatDeadline`, hergebruikt `vatReturn`; 9 tests) + presentationele `VatDeadlineCard`.
+> Read-only, geen schemawijziging, geen extra query, `now` geïnjecteerd.
+
 > Gedaan (niet opnieuw): **Betaalreputatie-spiegel voor de opdrachtgever (PR #632)** — de
 > opdrachtgever ziet nu op `/verplichtingen` de betaalreputatie die ZZP'ers over hem zien
 > (`computePaymentBehavior`: gemiddelde betaaltijd, % op tijd, toon), als zelfverbeter-nudge ("op tijd

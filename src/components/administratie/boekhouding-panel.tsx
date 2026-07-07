@@ -12,7 +12,9 @@ import {
   administrationPartyForRole,
   type LedgerEntry,
 } from "@/lib/administration/overview";
+import { summarizeVatDeadline } from "@/lib/administration/vat-deadline";
 import { Card, CardContent } from "@/components/ui/card";
+import { VatDeadlineCard } from "@/components/administratie/vat-deadline-card";
 import { EmptyState } from "@/components/ui/empty-state";
 
 const QUARTER_LABEL = ["1e kwartaal", "2e kwartaal", "3e kwartaal", "4e kwartaal"];
@@ -62,7 +64,8 @@ export async function BoekhoudingPanel({ actor }: { actor: Actor }) {
     );
   }
 
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const year = now.getFullYear();
 
   const rows = await prisma.administrationEntry.findMany({ where: { ownerUserId: actor.id } });
   const entries: LedgerEntry[] = rows.map((r) => ({
@@ -81,6 +84,7 @@ export async function BoekhoudingPanel({ actor }: { actor: Actor }) {
   const quarters = vatYear(entries, party, year);
   const vatTotal = quarters.reduce((s, q) => s + q.balanceCents, 0);
   const annual = annualSummary(entries, party, year);
+  const vatDeadline = summarizeVatDeadline(entries, party, now);
 
   return (
     <div className="space-y-6">
@@ -111,6 +115,8 @@ export async function BoekhoudingPanel({ actor }: { actor: Actor }) {
         </Card>
       ) : (
         <>
+          <VatDeadlineCard summary={vatDeadline} />
+
           <div className="grid gap-3 sm:grid-cols-3">
             <Card>
               <CardContent className="py-4">
