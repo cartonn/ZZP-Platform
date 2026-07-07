@@ -1,7 +1,8 @@
-// Betaal-webhook: de provider (Mollie) pingt dit endpoint met de payment-id zodra de status
-// wijzigt. We halen de status op via de provider en activeren het PENDING-abonnement bij 'paid'
-// (of zetten het op PAST_DUE bij 'failed'). Geen geheimen in de respons; altijd 200 zodat de
-// provider niet blijft herproberen op een verwerkte ping. Elke activatie wordt geaudit.
+// Betaal-webhook: de provider (Mollie/Stripe) pingt dit endpoint zodra de betaalstatus wijzigt.
+// De actieve provider haalt de referentie uit de request (en verifieert bij Stripe de handtekening);
+// we halen daarna de status gezaghebbend op en activeren het PENDING-abonnement bij 'paid' (of zetten
+// het op PAST_DUE bij 'failed'). Geen geheimen in de respons; altijd 200 zodat de provider niet blijft
+// herproberen op een verwerkte/onbekende ping. Elke activatie wordt geaudit.
 
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
@@ -10,18 +11,15 @@ import { getPaymentProvider } from "@/lib/billing/provider";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request): Promise<Response> {
-  // Mollie stuurt application/x-www-form-urlencoded met veld "id".
-  let paymentId = "";
+  const provider = getPaymentProvider();
+
+  // De rauwe body één keer lezen (Stripe-handtekeningverificatie vereist de exacte, ongeparste body).
+  let paymentId: string | null;
   try {
-    const ct = request.headers.get("content-type") ?? "";
-    if (ct.includes("application/json")) {
-      paymentId = String(((await request.json()) as { id?: unknown }).id ?? "");
-    } else {
-      const form = await request.formData();
-      paymentId = String(form.get("id") ?? "");
-    }
+    const raw = await request.text();
+    paymentId = await provider.resolveWebhookRef(raw, request.headers);
   } catch {
-    return new Response("ok", { status: 200 }); // niets te doen
+    return new Response("ok", { status: 200 }); // niets te doen / ongeldige of niet-geverifieerde ping
   }
   if (!paymentId) return new Response("ok", { status: 200 });
 
@@ -30,7 +28,7 @@ export async function POST(request: Request): Promise<Response> {
 
   let status: "paid" | "open" | "failed";
   try {
-    status = await getPaymentProvider().paymentStatus(paymentId);
+    status = await provider.paymentStatus(paymentId);
   } catch {
     return new Response("ok", { status: 200 }); // provider tijdelijk onbereikbaar; geen retry-storm
   }

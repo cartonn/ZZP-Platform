@@ -18,6 +18,8 @@ const INTEGRATION_VARS = [
   "EMAIL_FROM",
   "RESEND_API_KEY",
   "MOLLIE_API_KEY",
+  "STRIPE_API_KEY",
+  "STRIPE_WEBHOOK_SECRET",
   "DUO_API_BASE",
   "DUO_API_KEY",
   "BIG_API_BASE",
@@ -111,6 +113,18 @@ describe("validateEnv", () => {
     baseValid();
     process.env.BILLING_PROVIDER = "mollie";
     expect(() => validateEnv()).toThrow(/MOLLIE_API_KEY/);
+  });
+
+  it("vereist STRIPE_API_KEY + STRIPE_WEBHOOK_SECRET bij BILLING_PROVIDER=stripe", () => {
+    baseValid();
+    process.env.BILLING_PROVIDER = "stripe";
+    expect(() => validateEnv()).toThrow(/STRIPE_API_KEY/);
+
+    process.env.STRIPE_API_KEY = "sk_test_x";
+    expect(() => validateEnv()).toThrow(/STRIPE_WEBHOOK_SECRET/);
+
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_x";
+    expect(() => validateEnv()).not.toThrow();
   });
 
   it("vereist CLAMAV_HOST bij UPLOAD_SCANNER=clamav", () => {

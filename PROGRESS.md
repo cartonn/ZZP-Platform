@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid 2026-07-07 — Stripe billing-adapter (tweede betaalprovider)
+
+**Waarde (prod-rijpheid, keuzevrijheid betaalprovider):** naast Mollie is nu ook **Stripe** een
+volwaardige betaalprovider achter de bestaande `PaymentProvider`-seam (`src/lib/billing/provider.ts`).
+Activeren via `BILLING_PROVIDER=stripe`. `StripePaymentProvider.startCheckout` maakt een Stripe
+Checkout Session aan (`POST /v1/checkout/sessions`, bedrag in centen/EUR, metadata userId+planKey)
+en geeft de hosted-checkout-URL + session-id terug; `paymentStatus` haalt de sessie gezaghebbend op
+(`GET /v1/checkout/sessions/:id`) en normaliseert de status. Geen extra SDK-dependency (praat via
+HTTPS met `api.stripe.com`). De webhook-route (`src/app/api/billing/webhook/route.ts`) delegeert de
+referentie-extractie nu aan de actieve provider via een nieuwe interface-methode
+`resolveWebhookRef(rawBody, headers)`: Stripe verifieert de **handtekening** (`Stripe-Signature`,
+HMAC-SHA256 over `${timestamp}.${body}`, replay-tolerantie 300s, `src/lib/billing/stripe-signature.ts`)
+vóór verwerking; Mollie-gedrag blijft identiek (leest enkel het payment-id). Env-validatie
+(`src/lib/env.ts`) eist `STRIPE_API_KEY` + `STRIPE_WEBHOOK_SECRET` zodra `BILLING_PROVIDER=stripe`
+(halve activering = boot-fout); inert zonder de secrets, app blijft draaien op de noop-provider.
+
+- Bestanden: `src/lib/billing/provider.ts` (`StripePaymentProvider`), `src/lib/billing/stripe-signature.ts`
+  (handtekeningverificatie), `src/app/api/billing/webhook/route.ts` (`resolveWebhookRef`-delegatie),
+  `src/lib/env.ts` (Stripe-secret-coherentie). Tests: signature-verificatie, Stripe-provider incl.
+  fallback, env-coherentie. Rest = mensenwerk (MENSENWERK.md §3/§7): Stripe-account + KYC, secrets
+  `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET` zetten, webhook-endpoint aanmaken in het Stripe-dashboard,
+  `BILLING_PROVIDER=stripe` zetten.
+
 ## Security/Privacy 2026-07-07 — AVG art. 17: auditlog-PII gescrubd bij anonimisering (KRITIEK)
 
 **Waarde (privacy/AVG, datalek voorkomen):** het "recht op vergetelheid" was onvolledig. `anonymizeUser`

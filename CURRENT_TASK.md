@@ -260,6 +260,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — Stripe billing-adapter (PR "prod: Stripe
+> billing-adapter")** — tweede echte betaalprovider achter de bestaande `PaymentProvider`-seam
+> (`src/lib/billing/provider.ts`), naast Mollie. `StripePaymentProvider`: `startCheckout` maakt een
+> Stripe Checkout Session (`POST /v1/checkout/sessions`, metadata userId+planKey) en geeft de
+> hosted-checkout-URL terug; `paymentStatus` haalt de sessie gezaghebbend op en normaliseert de
+> status. Geen extra SDK-dependency (praat via HTTPS met `api.stripe.com`). Webhook-route
+> (`src/app/api/billing/webhook/route.ts`) delegeert referentie-extractie nu aan de actieve
+> provider via `resolveWebhookRef(rawBody, headers)`; Stripe verifieert de handtekening
+> (`Stripe-Signature`, HMAC-SHA256, replay-tolerantie 300s, `src/lib/billing/stripe-signature.ts`)
+> vóór verwerking, Mollie-gedrag ongewijzigd. Env-validatie eist `STRIPE_API_KEY` +
+> `STRIPE_WEBHOOK_SECRET` zodra `BILLING_PROVIDER=stripe` (halve activering = boot-fout); inert
+> zonder secrets. Activeren via `BILLING_PROVIDER=stripe`. Rest = mensenwerk (MENSENWERK.md §3/§7):
+> Stripe-account + KYC, secrets zetten, webhook-endpoint aanmaken in het Stripe-dashboard.
+
 > Gedaan (niet opnieuw): **Betaalreputatie-spiegel voor de opdrachtgever (PR #632)** — de
 > opdrachtgever ziet nu op `/verplichtingen` de betaalreputatie die ZZP'ers over hem zien
 > (`computePaymentBehavior`: gemiddelde betaaltijd, % op tijd, toon), als zelfverbeter-nudge ("op tijd

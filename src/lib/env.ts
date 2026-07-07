@@ -69,9 +69,11 @@ const schema = z
     EMAIL_FROM: z.string().optional(),
     RESEND_API_KEY: z.string().optional(),
 
-    // Betaalprovider: noop (default, demo-abonnementsflow) of Mollie.
-    BILLING_PROVIDER: z.enum(["noop", "mollie"]).default("noop"),
+    // Betaalprovider: noop (default, demo-abonnementsflow), Mollie of Stripe.
+    BILLING_PROVIDER: z.enum(["noop", "mollie", "stripe"]).default("noop"),
     MOLLIE_API_KEY: z.string().optional(),
+    STRIPE_API_KEY: z.string().optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
     // Malware-scan van geüploade bewijsstukken: noop (default, geen scan) of ClamAV-daemon.
     // Bij "clamav" is CLAMAV_HOST verplicht; de poort valt terug op 3310.
@@ -125,6 +127,11 @@ const schema = z
     }
     if (v.BILLING_PROVIDER === "mollie") {
       require(!!v.MOLLIE_API_KEY, "MOLLIE_API_KEY", "Verplicht bij BILLING_PROVIDER=mollie.");
+    }
+    if (v.BILLING_PROVIDER === "stripe") {
+      require(!!v.STRIPE_API_KEY, "STRIPE_API_KEY", "Verplicht bij BILLING_PROVIDER=stripe.");
+      // Zonder webhook-secret kan de betaalstatus-webhook niet geverifieerd worden (halve activering).
+      require(!!v.STRIPE_WEBHOOK_SECRET, "STRIPE_WEBHOOK_SECRET", "Verplicht bij BILLING_PROVIDER=stripe (webhookverificatie).");
     }
     if (v.UPLOAD_SCANNER === "clamav") {
       require(!!v.CLAMAV_HOST, "CLAMAV_HOST", "Verplicht bij UPLOAD_SCANNER=clamav.");
