@@ -51,6 +51,22 @@ export interface LineInput {
   unitCents: number;
 }
 
+/**
+ * Bovengrens voor een bedrag in centen. `Invoice.totalCents`, `InvoiceLine.amountCents` en
+ * `Performance.amountCents` zijn Prisma `Int` (Postgres `int4`, max 2.147.483.647 ≈ € 21,4 mln).
+ * Een bedrag hierboven overschrijdt de kolombreedte → een ruwe DB-schrijffout (500) i.p.v. een
+ * nette server-side weigering. Klem daarom élk factuur-/regelbedrag hierop (server-side waarheid,
+ * CLAUDE.md regel 1): het `max`-attribuut op een formulier is geen garantie, een geknutselde POST
+ * omzeilt het. `invoiceLineSchema` staat per regel tot 1e13 cents toe (100000 × 100_000_000),
+ * ruim 3 orden hierboven; deze grens vangt dat af vóór de DB.
+ */
+export const MAX_INVOICE_CENTS = 2_147_483_647;
+
+/** Blijft een bedrag in centen binnen de `int4`-kolombreedte? Geheel, niet-negatief, ≤ plafond. */
+export function invoiceCentsWithinInt4(cents: number): boolean {
+  return Number.isInteger(cents) && cents >= 0 && cents <= MAX_INVOICE_CENTS;
+}
+
 /** Regelbedrag in centen. */
 export function lineAmountCents(line: LineInput): number {
   return line.quantity * line.unitCents;

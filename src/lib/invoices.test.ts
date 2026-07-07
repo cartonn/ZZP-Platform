@@ -5,9 +5,11 @@ import {
   eurosToCents,
   formatInvoiceNumber,
   InvoiceTransitionError,
+  invoiceCentsWithinInt4,
   invoiceTotalCents,
   isOverdue,
   lineAmountCents,
+  MAX_INVOICE_CENTS,
 } from "@/lib/invoices";
 
 describe("factuur-statusovergangen", () => {
@@ -59,5 +61,25 @@ describe("formatInvoiceNumber", () => {
   it("pad sequentie naar 4 cijfers", () => {
     expect(formatInvoiceNumber(2026, 7)).toBe("2026-0007");
     expect(formatInvoiceNumber(2026, 1234)).toBe("2026-1234");
+  });
+});
+
+describe("invoiceCentsWithinInt4", () => {
+  it("MAX_INVOICE_CENTS is het int4-plafond", () => {
+    expect(MAX_INVOICE_CENTS).toBe(2_147_483_647);
+  });
+
+  it("accepteert 0, een normaal bedrag en exact het plafond", () => {
+    expect(invoiceCentsWithinInt4(0)).toBe(true);
+    expect(invoiceCentsWithinInt4(123_45)).toBe(true);
+    expect(invoiceCentsWithinInt4(MAX_INVOICE_CENTS)).toBe(true);
+  });
+
+  it("weigert een bedrag boven het plafond, negatief of niet-heel", () => {
+    expect(invoiceCentsWithinInt4(MAX_INVOICE_CENTS + 1)).toBe(false);
+    // De schema-toegestane maximale regel (100000 × 100_000_000 = 1e13) valt ruim buiten int4.
+    expect(invoiceCentsWithinInt4(100_000 * 100_000_000)).toBe(false);
+    expect(invoiceCentsWithinInt4(-1)).toBe(false);
+    expect(invoiceCentsWithinInt4(1.5)).toBe(false);
   });
 });

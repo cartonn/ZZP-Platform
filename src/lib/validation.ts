@@ -13,6 +13,7 @@ import {
 } from "@/lib/enums";
 import { MODEL_AGREEMENT_TYPES } from "./model-agreement";
 import { isValidBtwId, isValidKvk, normalizeBtwId, normalizeKvk } from "@/lib/fiscal";
+import { MAX_INVOICE_CENTS } from "@/lib/invoices";
 
 // --- Academie -------------------------------------------------------------
 const optionalLevel = z.preprocess(
@@ -292,11 +293,18 @@ export const shiftHandoffRejectSchema = z.object({
 export type ShiftHandoffRejectInput = z.infer<typeof shiftHandoffRejectSchema>;
 
 // --- Factuurregel (unitCents wordt server-side uit euro's berekend) ---
-export const invoiceLineSchema = z.object({
-  description: trimmed(200).min(1, "Omschrijving is verplicht."),
-  quantity: z.coerce.number().int().min(1, "Aantal minstens 1.").max(100000),
-  unitCents: z.coerce.number().int().min(0).max(100_000_000),
-});
+// Het regelbedrag (quantity × unitCents) wordt geklemd op het int4-kolomplafond (~€21,4M): de losse
+// grenzen laten samen tot 1e13 cents toe, ruim boven de `Int`-kolom → DB-schrijffout i.p.v. weigering.
+export const invoiceLineSchema = z
+  .object({
+    description: trimmed(200).min(1, "Omschrijving is verplicht."),
+    quantity: z.coerce.number().int().min(1, "Aantal minstens 1.").max(100000),
+    unitCents: z.coerce.number().int().min(0).max(100_000_000),
+  })
+  .refine((line) => line.quantity * line.unitCents <= MAX_INVOICE_CENTS, {
+    message: "Het regelbedrag is te hoog (maximaal € 21.474.836 per regel).",
+    path: ["unitCents"],
+  });
 export type InvoiceLineInput = z.infer<typeof invoiceLineSchema>;
 
 // --- Performance (urenstaat/oplevering) indienen ---
