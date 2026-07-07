@@ -220,6 +220,7 @@ async function main() {
     identityVerified: boolean;
     completeness: number;
     creds: Cred[];
+    incomeGoalCents?: number;
   };
   const freelancers: Freelancer[] = [
     {
@@ -236,6 +237,7 @@ async function main() {
       skills: ["verpleegkunde"],
       identityVerified: true,
       completeness: 100,
+      incomeGoalCents: 600000, // demo: € 6.000 maanddoel
       creds: [
         {
           type: "VOG",
@@ -447,6 +449,8 @@ async function main() {
     const idFields = f.identityVerified
       ? { identityVerifiedAt: daysFromNow(-40), verifiedLegalName: f.name }
       : {};
+    const goalFields =
+      f.incomeGoalCents !== undefined ? { monthlyIncomeGoalCents: f.incomeGoalCents } : {};
     const user = await prisma.user.upsert({
       where: { email: f.email },
       update: idFields,
@@ -470,6 +474,7 @@ async function main() {
             languages: JSON.stringify(["nl", "en"]),
             visibility: "PUBLIC",
             completeness: f.completeness,
+            ...goalFields,
           },
         },
       },

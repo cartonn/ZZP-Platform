@@ -260,6 +260,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Inkomstendoel (maanddoel) voor de ZZP'er (2026-07-07)** — zelfgekozen
+> maanddoel op `/prognose` met voortgang (gefactureerd deze maand + nog te versturen concepten t.o.v.
+> doel). Additief `FreelancerProfile.monthlyIncomeGoalCents`; pure `income-goal.ts`
+> (`summarizeIncomeGoal`/`incomeGoalHeadline`, status none/achieved/on_track/behind); data
+> `getRealizedRevenueThisMonthCents` (TZ-robuust, op `issuedAt`, non-DRAFT); server-action
+> `setMonthlyIncomeGoal` (auth→rol→ownership→Zod→update→audit `INCOME_GOAL_SET/CLEARED`);
+> `IncomeGoalCard` met instel-/wijzig-/wis-formulier; Sanne demo-doel € 6.000. 18 tests, gate groen.
+
 > Gedaan (niet opnieuw): **Prod-rijpheid — Stripe billing-adapter (PR "prod: Stripe
 > billing-adapter")** — tweede echte betaalprovider achter de bestaande `PaymentProvider`-seam
 > (`src/lib/billing/provider.ts`), naast Mollie. `StripePaymentProvider`: `startCheckout` maakt een

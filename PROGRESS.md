@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Administratie-ontzorging (2026-07-07) — Inkomstendoel (maanddoel) voor de ZZP'er
+
+De `/prognose`-pagina toonde wél de verwachte inkomsten op een tijdlijn, maar beantwoordde niet de
+cashflow-vraag "haal ik deze maand mijn doel?". Toegevoegd: een zelfgekozen **maanddoel** met
+voortgang — gefactureerd deze maand (omzet) + nog te versturen concepten t.o.v. het doel. Benchmark:
+doel-setting van Temper/Deel, vertaald naar onze rustige, server-berekende stijl (geen gamificatie).
+
+- **`prisma/schema.prisma`**: additief `FreelancerProfile.monthlyIncomeGoalCents Int?` (null = geen doel).
+- **`src/lib/income-goal.ts`** (puur): `summarizeIncomeGoal({goalCents, realizedCents, expectedCents})`
+  → `{projectedCents, remainingCents, realizedPct, projectedPct, status}` met status
+  `none|achieved|on_track|behind` (realized≥doel → gehaald; realized+concepten≥doel → op koers; anders
+  achter). Clampt negatieve/NaN-invoer, klemt pcts op 0..100. `incomeGoalHeadline` per status. Plafond
+  `MONTHLY_INCOME_GOAL_MAX_EUROS` (int4-veilig). 8 tests.
+- **`src/lib/data/monthly-income.ts`**: `getRealizedRevenueThisMonthCents(userId, now)` — som van de
+  facturen die de ZZP'er deze Amsterdam-maand uitstuurde (op `issuedAt`, non-DRAFT), TZ-robuust
+  (ruime UTC-ondergrens + exacte maandsleutel-filter in JS), begrensd (`take: 300`). 3 tests.
+- **`src/app/(protected)/prognose/actions.ts`** (nieuw): `setMonthlyIncomeGoal` — auth → rol FREELANCER
+  → ownership (eigen profiel) → Zod (heel euro's, duizendtal-punten genegeerd, plafond) → update → audit
+  (`INCOME_GOAL_SET`/`INCOME_GOAL_CLEARED`). Leeg bedrag wist het doel. 7 tests.
+- **`src/components/administratie/income-goal-card.tsx`** (nieuw, client): kaart "Maanddoel" met
+  voortgangsbalk, breakdown (gefactureerd/nog te versturen/nog te gaan), status-koptekst met toon, en een
+  inline instel-/wijzig-/wis-formulier (`useActionState`). Lege staat nudge't om een doel te zetten.
+- **`prisma/seed.ts`**: Sanne krijgt een demo-maanddoel (€ 6.000) zodat de gevulde staat zichtbaar is;
+  andere ZZP'ers tonen de lege nudge.
+- **`src/app/(protected)/prognose/page.tsx`**: laadt doel + realized + expected (concepten uit de
+  forecast), rendert de kaart boven het prognose-paneel. Server-side waarheid, geen extra n+1.
+- Gate groen: typecheck, lint (0 warnings), **3481 unit-tests** (18 nieuw), build, `prettier --write .`.
+
 ## Observability: client-side foutrapportage (2026-07-07)
 
 Laatste monitoring-blindvlek gesloten. Server-fouten (`onRequestError`) en achtergrond-/cron-taken
