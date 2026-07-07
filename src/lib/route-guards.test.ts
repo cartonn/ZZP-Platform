@@ -29,6 +29,11 @@ describe("isPublicPath", () => {
       "/api/media/logo.png",
       // Alleen de exacte csp-report-route is publiek, geen subpaden.
       "/api/csp-report/extra",
+      // Het ontwerp-lab is INTERN (inloggen vereist) — niet langer publiek.
+      "/ontwerp",
+      "/ontwerp/01",
+      "/ontwerp-lab",
+      "/ontwerp-lab/layouts",
     ]) {
       expect(isPublicPath(p)).toBe(false);
     }
