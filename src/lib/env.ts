@@ -98,6 +98,12 @@ const schema = z
     IDENTITY_VERIFIER: z.string().optional(),
     IDENTITY_API_BASE: z.string().optional(),
     IDENTITY_API_KEY: z.string().optional(),
+    // Fail-closed poort tegen mock-verificatie op echte data (security-review 2026-07-07, KRITIEK).
+    // In productie weigert de zelf-verificatie standaard de ingebouwde demo-verifiers, tenzij deze op
+    // "true" staat (bewuste pilotkeuze) of SEED_DEMO=true (demo-dataset). Zie verification-policy.ts.
+    ALLOW_MOCK_VERIFICATION: z.string().optional(),
+    // Demo-dataset-vlag (prisma/seed.ts). In productie mét demo-data mag de mock-verifier draaien.
+    SEED_DEMO: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     const require = (cond: boolean, path: string, message: string) => {
@@ -222,6 +228,24 @@ export function envWarnings(env: Env): string[] {
     warnings.push(
       "RATE_LIMIT_STORE=memory — rate-limits gelden per proces; bij meerdere instances zijn de limieten per instance. Zet RATE_LIMIT_STORE=upstash (met UPSTASH_REDIS_REST_URL/TOKEN) vóór horizontale schaling.",
     );
+  }
+  // Verificatie-vertrouwen (security-review 2026-07-07, KRITIEK). Een verifier die niet op zijn echte
+  // register staat, draait op de demo-verifier (source "MOCK").
+  const mockVerifiers = [
+    env.DIPLOMA_VERIFIER !== "duo" ? "DIPLOMA_VERIFIER=duo" : null,
+    env.BIG_VERIFIER !== "bigregister" ? "BIG_VERIFIER=bigregister" : null,
+    env.IDENTITY_VERIFIER !== "idin" ? "IDENTITY_VERIFIER=idin" : null,
+  ].filter((x): x is string => x !== null);
+  if (mockVerifiers.length > 0) {
+    if (env.ALLOW_MOCK_VERIFICATION === "true" && env.SEED_DEMO !== "true") {
+      warnings.push(
+        `ALLOW_MOCK_VERIFICATION=true met demo-verifier(s) actief (${mockVerifiers.join(", ")}) — een format-geldig maar mogelijk VERZONNEN diploma/BIG-nummer/identiteit wordt als "Geverifieerd" gestempeld en kan de plaatsingspoort passeren. Alleen doen in een bewuste pilot ZONDER echte gevoelige documenten; zet de echte koppelingen vóór echte data live gaat.`,
+      );
+    } else if (env.SEED_DEMO !== "true") {
+      warnings.push(
+        `Verificatie draait op de demo-verifier (${mockVerifiers.join(", ")}) — zelf-verificatie van diploma/BIG/identiteit is in productie GEBLOKKEERD (fail-closed) tot de echte registerkoppelingen zijn gezet. Configureer ze vóór go-live met echte diploma-/VOG-data.`,
+      );
+    }
   }
   return warnings;
 }
