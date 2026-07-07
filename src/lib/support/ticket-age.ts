@@ -16,3 +16,28 @@ export function ticketAgeLabel(since: Date, now: Date | number = Date.now()): st
   if (diff < DAY_MS) return `${Math.floor(diff / HOUR_MS)} u`;
   return `${Math.floor(diff / DAY_MS)} d`;
 }
+
+/** Boven deze leeftijd (sinds aanmaak, in dagen) is een openstaand ticket over de SLA. */
+export const SLA_BREACH_DAYS = 7;
+
+/** Hele dagen dat een ticket al open staat, gerekend sinds `createdAt`. Puur, los testbaar. */
+export function ticketOpenDays(createdAt: Date, now: Date | number = Date.now()): number {
+  const nowMs = typeof now === "number" ? now : now.getTime();
+  return Math.floor(Math.max(0, nowMs - createdAt.getTime()) / DAY_MS);
+}
+
+/**
+ * SLA-status van een openstaand ticket: `breached` zodra het langer dan `SLA_BREACH_DAYS` open
+ * staat, met de bijbehorende "X dagen open"-tekst. Server berekent dit; de lijst toont enkel de chip.
+ */
+export function ticketSla(
+  createdAt: Date,
+  now: Date | number = Date.now(),
+): { breached: boolean; openDays: number; label: string } {
+  const openDays = ticketOpenDays(createdAt, now);
+  return {
+    breached: openDays > SLA_BREACH_DAYS,
+    openDays,
+    label: `${openDays} ${openDays === 1 ? "dag" : "dagen"} open`,
+  };
+}

@@ -59,29 +59,34 @@ export default async function AccountPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-medium">Identiteitsverificatie</h2>
-            {user.identityVerifiedAt && <Badge variant="success">Geverifieerd</Badge>}
-          </div>
-          {user.identityVerifiedAt ? (
-            <p className="text-sm text-muted-foreground">
-              Geverifieerd op {formatDateShortNl(user.identityVerifiedAt)}
-              {user.verifiedLegalName ? ` · ${user.verifiedLegalName}` : ""}. Dit verhoogt je
-              vertrouwensniveau.
-            </p>
-          ) : (
-            <>
+      {/* Identiteitsverificatie is een ZZP'er-concept (houder van certificaten, vertrouwensniveau
+          voor opdrachtgevers). Voor ADMIN/CLIENT/FRANCHISER is die toelichting rolvreemd — de
+          sectie hoort daar niet, dus toon 'm alleen voor de FREELANCER. */}
+      {user.role === "FREELANCER" && (
+        <Card>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-medium">Identiteitsverificatie</h2>
+              {user.identityVerifiedAt && <Badge variant="success">Geverifieerd</Badge>}
+            </div>
+            {user.identityVerifiedAt ? (
               <p className="text-sm text-muted-foreground">
-                Verifieer je identiteit (iDIN/eIDAS) zodat opdrachtgevers zien dat jij echt de
-                houder van je certificaten bent. Verhoogt je vertrouwensniveau.
+                Geverifieerd op {formatDateShortNl(user.identityVerifiedAt)}
+                {user.verifiedLegalName ? ` · ${user.verifiedLegalName}` : ""}. Dit verhoogt je
+                vertrouwensniveau.
               </p>
-              <IdentityForm />
-            </>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Verifieer je identiteit (iDIN/eIDAS) zodat opdrachtgevers zien dat jij echt de
+                  houder van je certificaten bent. Verhoogt je vertrouwensniveau.
+                </p>
+                <IdentityForm />
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="space-y-3">

@@ -14,6 +14,17 @@ export interface TicketMessageRow {
   body: string;
 }
 
+/** Title-tooltip per status: uitleg bij hover, zodat de badge zichzelf verklaart. */
+const STATUS_TITLE: Record<SupportTicketStatus, string> = {
+  NEW: "Net binnen, nog niet opgepakt",
+  TRIAGED: "In behandeling",
+  AUTO_ANSWERED: "Automatisch beantwoord",
+  ESCALATED: "Doorgezet naar de helpdesk",
+  AWAITING_USER: "Wacht op reactie van de aanvrager",
+  RESOLVED: "Opgelost",
+  REOPENED: "Opnieuw geopend na een antwoord",
+};
+
 export interface TicketRow {
   id: string;
   subject: string;
@@ -22,6 +33,10 @@ export interface TicketRow {
   categoryLabel: string;
   updatedLabel: string;
   ageLabel: string;
+  /** true zodra het ticket langer dan de SLA-grens open staat → rode chip. */
+  slaBreached: boolean;
+  /** "X dagen open" — hoe lang het ticket al bestaat (sinds aanmaak). */
+  slaLabel: string;
   messages: TicketMessageRow[];
 }
 
@@ -65,8 +80,18 @@ export function TicketList({
                 ) : (
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 )}
-                <Badge variant={statusVariant(t.status)}>{SUPPORT_STATUS_LABEL[t.status]}</Badge>
+                <Badge variant={statusVariant(t.status)} title={STATUS_TITLE[t.status]}>
+                  {SUPPORT_STATUS_LABEL[t.status]}
+                </Badge>
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{t.subject}</span>
+                {t.slaBreached && (
+                  <span
+                    className="bg-destructive/10 text-destructive shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+                    title={`Langer dan de SLA-grens open — ${t.slaLabel}`}
+                  >
+                    {t.slaLabel}
+                  </span>
+                )}
                 <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
                   {t.userName}
                 </span>

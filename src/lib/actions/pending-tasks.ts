@@ -18,6 +18,8 @@ import { summarizeAvailabilityFreshness } from "@/lib/availability";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
 import { parseLanguages } from "@/lib/parse-languages";
+import { SUPPORT_OPEN_STATUSES, SUPPORT_STATUS_LABEL } from "@/lib/support/labels";
+import { type SupportTicketStatus } from "@/lib/enums";
 import {
   rankTasks,
   contractSignTask,
@@ -40,6 +42,7 @@ import {
   adminDeletionRequestTask,
   adminJudgeNoShowTask,
   adminSuspendNoShowTask,
+  adminSupportTicketTask,
   noShowWarningTask,
   overdueInvoiceTask,
   applicationsReviewTask,
@@ -419,7 +422,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
 
 async function adminTasks(): Promise<PendingTask[]> {
   const tasks: PendingTask[] = [];
-  const [creds, pendingUsers, disputes, deletions, noShowReports, noShowAtLimit] =
+  const [creds, pendingUsers, disputes, deletions, noShowReports, noShowAtLimit, supportTickets] =
     await Promise.all([
       prisma.credential.findMany({
         where: { status: "SUBMITTED" },
@@ -463,6 +466,14 @@ async function adminTasks(): Promise<PendingTask[]> {
         _count: { _all: true },
         having: { freelancerProfileId: { _count: { gte: NO_SHOW_LIMIT } } },
       }),
+      // Openstaande supporttickets waar de helpdesk aan zet is (nieuw/onbeantwoord/geëscaleerd/
+      // heropend). Oudst-bijgewerkt eerst zodat het langst stille ticket bovenaan komt.
+      prisma.supportTicket.findMany({
+        where: { status: { in: [...SUPPORT_OPEN_STATUSES] } },
+        select: { id: true, subject: true, status: true },
+        orderBy: { updatedAt: "asc" },
+        take: MAX,
+      }),
     ]);
   for (const c of creds)
     tasks.push(
@@ -474,6 +485,14 @@ async function adminTasks(): Promise<PendingTask[]> {
   for (const r of noShowReports)
     tasks.push(
       adminJudgeNoShowTask(r.id, r.freelancer.user.name ?? "ZZP'er", r.collaboration.job.title),
+    );
+  for (const t of supportTickets)
+    tasks.push(
+      adminSupportTicketTask(
+        t.id,
+        t.subject,
+        SUPPORT_STATUS_LABEL[t.status as SupportTicketStatus],
+      ),
     );
   if (noShowAtLimit.length > 0) {
     // Alleen nog-actieve accounts: een al geschorste ZZP'er heeft geen uitschrijf-taak meer.

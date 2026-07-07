@@ -56,6 +56,7 @@ export type PendingTask =
   | (TaskBase & { kind: "admin-deletion-request"; userId: string })
   | (TaskBase & { kind: "admin-judge-no-show"; reportId: string })
   | (TaskBase & { kind: "admin-suspend-no-show"; userId: string })
+  | (TaskBase & { kind: "admin-support-ticket"; ticketId: string })
   | (TaskBase & { kind: "no-show-warning" })
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
   | (TaskBase & { kind: "applications-review" })
@@ -424,6 +425,30 @@ export function adminSuspendNoShowTask(
     resolver: "link", // schorsen is ingrijpend → bewust via de no-show-pagina, niet één klik
     href: "/admin/no-shows",
     userId,
+  };
+}
+
+/**
+ * Openstaand supportticket dat een medewerker moet oppakken (nieuw/onbeantwoord/geëscaleerd/heropend).
+ * Eén taak per ticket zodat de admin het concreet ziet; de afhandeling (antwoorden/oplossen) gebeurt
+ * op de helpdesk-pagina (link-resolver). Voorheen ontbrak deze taak volledig op /acties — de
+ * helpdesk-wachtrij was daardoor onzichtbaar in het actiecentrum.
+ */
+export function adminSupportTicketTask(
+  ticketId: string,
+  subject: string,
+  statusLabel: string,
+): PendingTask {
+  return {
+    kind: "admin-support-ticket",
+    id: `admin-support-ticket:${ticketId}`,
+    title: "Beantwoord het supportticket",
+    subtitle: `${subject} · ${statusLabel}`,
+    tone: "attention",
+    priority: P.supportOpen,
+    resolver: "link",
+    href: "/admin/support",
+    ticketId,
   };
 }
 

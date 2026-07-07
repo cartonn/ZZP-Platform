@@ -95,6 +95,39 @@ describe("buildBadges", () => {
     });
   });
 
+  it("mapt openstaande supporttickets (admin) naar /admin/support met attention-toon", () => {
+    expect(buildBadges({ openSupportTickets: 10 })).toEqual({
+      "/admin/support": { count: 10, tone: "attention" },
+    });
+    // Alleen tonen bij > 0 (geen lege badge).
+    expect(buildBadges({ openSupportTickets: 0 })).toEqual({});
+  });
+
+  it("mapt te-beoordelen no-shows (admin) naar /admin/no-shows met attention-toon", () => {
+    expect(buildBadges({ openNoShows: 2 })).toEqual({
+      "/admin/no-shows": { count: 2, tone: "attention" },
+    });
+  });
+
+  it("mapt open dienst-overnames (admin) naar /admin/shift-overnames met attention-toon", () => {
+    expect(buildBadges({ openAdminHandoffs: 3 })).toEqual({
+      "/admin/shift-overnames": { count: 3, tone: "attention" },
+    });
+  });
+
+  it("toont de admin-wachtrij-badges los van elkaar op hun eigen hrefs", () => {
+    const badges = buildBadges({
+      pendingVerifications: 5,
+      openSupportTickets: 10,
+      openNoShows: 1,
+      openAdminHandoffs: 2,
+    });
+    expect(badges["/admin/verificaties"]).toEqual({ count: 5, tone: "attention" });
+    expect(badges["/admin/support"]).toEqual({ count: 10, tone: "attention" });
+    expect(badges["/admin/no-shows"]).toEqual({ count: 1, tone: "attention" });
+    expect(badges["/admin/shift-overnames"]).toEqual({ count: 2, tone: "attention" });
+  });
+
   it("toont beide franchiser-signalen op aparte hrefs als ze niet-nul zijn", () => {
     const badges = buildBadges({ overdueLeads: 1, openHandoffs: 4 });
     expect(badges["/franchise/leads"]).toEqual({ count: 1, tone: "attention" });

@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
+import { SUPPORT_OPEN_STATUSES } from "@/lib/support/labels";
 
 export type BadgeTone = "attention" | "info";
 
@@ -31,6 +32,9 @@ interface SignalCounts {
   savedJobs?: number; // FREELANCER: bewaarde opdrachten die nog open staan (PUBLISHED)
   overdueLeads?: number; // FRANCHISER: actieve leads met een verstreken opvolgdatum
   openHandoffs?: number; // FRANCHISER: open shift-overname-aanvragen binnen de tenant
+  openSupportTickets?: number; // ADMIN: helpdesk-tickets die de helpdesk moet oppakken
+  openNoShows?: number; // ADMIN: no-show-meldingen die op een oordeel wachten
+  openAdminHandoffs?: number; // ADMIN: open shift-overname-aanvragen platform-breed
 }
 
 const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
@@ -48,6 +52,9 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   savedJobs: "/opgeslagen",
   overdueLeads: "/franchise/leads",
   openHandoffs: "/franchise/shift-overnames",
+  openSupportTickets: "/admin/support",
+  openNoShows: "/admin/no-shows",
+  openAdminHandoffs: "/admin/shift-overnames",
 };
 
 const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
@@ -65,6 +72,10 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   // Verstreken opvolg en open overname-aanvragen vragen actie van de franchiser.
   overdueLeads: "attention",
   openHandoffs: "attention",
+  // Admin-wachtrijen die actie vragen (helpdesk, no-shows, dienst-overnames).
+  openSupportTickets: "attention",
+  openNoShows: "attention",
+  openAdminHandoffs: "attention",
 };
 
 /**
@@ -322,9 +333,22 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     return buildBadges({ overdueLeads, openHandoffs });
   }
 
-  const [pendingVerifications, openDisputes] = await Promise.all([
-    prisma.credential.count({ where: { status: "SUBMITTED" } }),
-    prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
-  ]);
-  return buildBadges({ pendingVerifications, openDisputes });
+  const [pendingVerifications, openDisputes, openSupportTickets, openNoShows, openAdminHandoffs] =
+    await Promise.all([
+      prisma.credential.count({ where: { status: "SUBMITTED" } }),
+      prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
+      // Helpdesk-tickets die de medewerker aan zet houden (zelfde bron als /acties).
+      prisma.supportTicket.count({ where: { status: { in: [...SUPPORT_OPEN_STATUSES] } } }),
+      // No-show-meldingen die op een oordeel wachten (te beoordelen).
+      prisma.noShowReport.count({ where: { verdict: "PENDING" } }),
+      // Open dienst-overname-aanvragen, platform-breed (admin ziet ze allemaal).
+      prisma.shiftHandoff.count({ where: { status: "OPEN" } }),
+    ]);
+  return buildBadges({
+    pendingVerifications,
+    openDisputes,
+    openSupportTickets,
+    openNoShows,
+    openAdminHandoffs,
+  });
 }

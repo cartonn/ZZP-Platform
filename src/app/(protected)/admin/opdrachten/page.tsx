@@ -12,7 +12,9 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { adminCloseJob } from "./actions";
+import { adminJobRowAction } from "./row-action";
 import { plural } from "@/lib/plural";
 
 export const metadata: Metadata = { title: "Opdrachten (beheer) · ZZP Platform" };
@@ -93,6 +95,7 @@ export default async function AdminOpdrachtenPage({
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
           {jobs.map((job) => {
             const status = job.status as JobStatus;
+            const rowAction = adminJobRowAction(status);
             return (
               <div
                 key={job.id}
@@ -112,12 +115,22 @@ export default async function AdminOpdrachtenPage({
                     {job.company.name} · {plural(job._count.applications, "reactie", "reacties")}
                   </p>
                 </div>
-                {status !== "CLOSED" && (
-                  <form action={adminCloseJob.bind(null, job.id)}>
-                    <Button type="submit" variant="destructive" size="sm">
-                      Sluiten
-                    </Button>
-                  </form>
+                {rowAction === "view" && (
+                  // Een concept is nog niet live — sluiten is hier zinloos; toon alleen "Bekijken".
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href={`/opdrachten/${job.id}`}>Bekijken</Link>
+                  </Button>
+                )}
+                {rowAction === "close-confirm" && (
+                  // Sluiten is moderatie op een live opdracht — achter een bevestiging (geen one-click).
+                  <ConfirmButton
+                    action={adminCloseJob.bind(null, job.id)}
+                    title="Opdracht sluiten?"
+                    description={`"${job.title}" wordt gesloten en verdwijnt uit de zoekresultaten. Deze actie kan niet ongedaan worden gemaakt.`}
+                    confirmLabel="Sluiten"
+                  >
+                    Sluiten
+                  </ConfirmButton>
                 )}
               </div>
             );

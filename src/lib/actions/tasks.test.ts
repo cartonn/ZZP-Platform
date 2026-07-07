@@ -13,6 +13,7 @@ import {
   adminVerifyCredentialTask,
   adminDeletionRequestTask,
   adminResolveDisputeTask,
+  adminSupportTicketTask,
   applicationsReviewTask,
   availabilityRefreshTask,
   draftJobsTask,
@@ -222,5 +223,24 @@ describe("task builders", () => {
     expect(many.title).toContain("wachten");
     // Roster-compliance weegt zwaarder dan lead-opvolging.
     expect(franchiseCredentialExpiryTask("p", "x", 1).priority).toBeGreaterThan(many.priority);
+  });
+
+  it("admin-support-ticket: link-taak naar de helpdesk met support-prioriteit (66)", () => {
+    const t = adminSupportTicketTask("tkt-1", "Ik kan niet inloggen", "Bij de helpdesk");
+    expect(t).toMatchObject({
+      kind: "admin-support-ticket",
+      id: "admin-support-ticket:tkt-1",
+      resolver: "link",
+      href: "/admin/support",
+      tone: "attention",
+      priority: P.supportOpen,
+      ticketId: "tkt-1",
+    });
+    // Onderwerp + statuslabel in de subtitle, zodat elke rij onderscheidend is.
+    expect(t.subtitle).toContain("Ik kan niet inloggen");
+    expect(t.subtitle).toContain("Bij de helpdesk");
+    // Ligt onder de verificatiewachtrij (70) maar boven pending-gebruikers (60).
+    expect(t.priority).toBeLessThan(adminVerifyCredentialTask("c", "t", "n").priority);
+    expect(t.priority).toBeGreaterThan(60);
   });
 });

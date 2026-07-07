@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { ASSISTANT_NAME } from "@/lib/support/knowledge-base";
 import { SUPPORT_STATUS_LABEL, SUPPORT_CATEGORY_LABEL } from "@/lib/support/labels";
-import { ticketAgeLabel } from "@/lib/support/ticket-age";
+import { ticketAgeLabel, ticketSla, SLA_BREACH_DAYS } from "@/lib/support/ticket-age";
 import {
   type SupportTicketStatus,
   type SupportCategory,
@@ -36,6 +36,16 @@ const QUEUE_STATUSES = [
   "NEW",
   "AWAITING_USER",
 ] as const satisfies readonly SupportTicketStatus[];
+
+// Korte uitleg per wachtrij-status voor de legenda onder de filters — zodat een nieuwe medewerker
+// meteen weet wat elke status betekent zonder de codebase te kennen.
+const STATUS_EXPLAIN: Record<(typeof QUEUE_STATUSES)[number], string> = {
+  NEW: "net binnen, nog niet opgepakt",
+  TRIAGED: "in behandeling",
+  ESCALATED: "doorgezet naar de helpdesk",
+  REOPENED: "opnieuw geopend na een antwoord",
+  AWAITING_USER: "wacht op reactie van de aanvrager",
+};
 
 function parseStatusFilter(value: string | string[] | undefined): SupportTicketStatus | null {
   const v = Array.isArray(value) ? value[0] : value;
@@ -75,11 +85,12 @@ export default async function AdminSupportPage({
   await requireRole("ADMIN");
   const filter = parseStatusFilter((await searchParams).status);
 
-  // Hele wachtrij ophalen; server sorteert oudst-bijgewerkt eerst (langst stil bovenaan).
+  // Hele wachtrij ophalen; server sorteert oudst-aangemaakt eerst (langst open = grootste SLA-risico
+  // bovenaan), zodat de rode SLA-chip logisch van boven naar beneden afneemt.
   // unbounded-allow: actieve queue met status-filter; structureel klein bij goede SLA
   const tickets = await prisma.supportTicket.findMany({
     where: { status: { in: [...QUEUE_STATUSES] } },
-    orderBy: { updatedAt: "asc" },
+    orderBy: { createdAt: "asc" },
     include: {
       user: { select: { name: true, email: true } },
       messages: { orderBy: { createdAt: "asc" }, select: { authorKind: true, body: true } },
@@ -95,19 +106,24 @@ export default async function AdminSupportPage({
 
   const now = Date.now();
   const visible = filter ? tickets.filter((t) => t.status === filter) : tickets;
-  const rows: TicketRow[] = visible.map((t) => ({
-    id: t.id,
-    subject: t.subject,
-    status: t.status as SupportTicketStatus,
-    userName: t.user.name ?? "Onbekend",
-    categoryLabel: SUPPORT_CATEGORY_LABEL[t.category as SupportCategory],
-    updatedLabel: formatDateShortNl(t.updatedAt),
-    ageLabel: ticketAgeLabel(t.updatedAt, now),
-    messages: t.messages.map((m) => ({
-      authorKind: m.authorKind as SupportAuthorKind,
-      body: m.body,
-    })),
-  }));
+  const rows: TicketRow[] = visible.map((t) => {
+    const sla = ticketSla(t.createdAt, now);
+    return {
+      id: t.id,
+      subject: t.subject,
+      status: t.status as SupportTicketStatus,
+      userName: t.user.name ?? "Onbekend",
+      categoryLabel: SUPPORT_CATEGORY_LABEL[t.category as SupportCategory],
+      updatedLabel: formatDateShortNl(t.updatedAt),
+      ageLabel: ticketAgeLabel(t.updatedAt, now),
+      slaBreached: sla.breached,
+      slaLabel: sla.label,
+      messages: t.messages.map((m) => ({
+        authorKind: m.authorKind as SupportAuthorKind,
+        body: m.body,
+      })),
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -136,6 +152,19 @@ export default async function AdminSupportPage({
               </FilterPill>
             ))}
           </div>
+
+          <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {QUEUE_STATUSES.map((s) => (
+              <div key={s} className="flex gap-1.5">
+                <dt className="font-medium text-foreground">{SUPPORT_STATUS_LABEL[s]}</dt>
+                <dd>— {STATUS_EXPLAIN[s]}</dd>
+              </div>
+            ))}
+            <div className="flex gap-1.5">
+              <dt className="text-destructive font-medium">SLA</dt>
+              <dd>— rood na {SLA_BREACH_DAYS} dagen open</dd>
+            </div>
+          </dl>
 
           {rows.length === 0 ? (
             <Card>
