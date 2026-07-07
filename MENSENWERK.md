@@ -215,7 +215,9 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
 **Waarom:** betalingen verwerken mag je niet zelf bouwen; dat doet een vergunninghoudende partij.
 **Stappen:**
 
-1. Open een zakelijk account bij **Stripe** of **Mollie**.
+1. Open een zakelijk account bij **Stripe** of **Mollie**. **Code-kant zijn nu BEIDE providers
+   klaar** (zie hieronder) — je hoeft er maar één te kiezen en te activeren via de instelling
+   `BILLING_PROVIDER` (`stripe` of `mollie`).
 2. Doorloop de **KYC/verificatie**: bedrijfsgegevens, KvK-nummer, zakelijke bankrekening (§6),
    eventueel ID van de eigenaar. Dit kan enkele dagen duren.
 3. Maak de **API-sleutels** aan (test + live) en stel **webhooks** in (je ontwikkelaar/agent geeft
@@ -223,6 +225,15 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    **Opleveren:** API-sleutels + webhook-secret → geef door aan je ontwikkelaar/agent; die vervangt de
    demo-abonnementsflow door echte betalingen.
    **Tip:** start de pilot gerust met de demoflow; betalingen kun je later activeren.
+
+   **Code-kant GEDAAN (7-7-2026): Stripe als tweede betaalprovider.** Naast de Mollie-koppeling
+   is er nu ook een volwaardige **Stripe**-driver achter dezelfde `PaymentProvider`-koppeling
+   (`src/lib/billing/provider.ts`): hosted Checkout Session voor het afrekenen en een gehardende
+   webhook met **handtekeningverificatie** (`Stripe-Signature`). Kies je Stripe: zet een
+   zakelijk Stripe-account op + KYC, maak in het Stripe-dashboard een webhook-endpoint aan naar
+   `https://<jouwdomein>/api/billing/webhook` dat `checkout.session.*`-events stuurt, en zet
+   `STRIPE_API_KEY` + `STRIPE_WEBHOOK_SECRET` + `BILLING_PROVIDER=stripe` in de secrets (§7). Net
+   als bij Mollie wordt er zonder key niets geïncasseerd.
 
    **Code-kant GEDAAN (4-7-2026): volledige abonnementsperiode-levensloop.** De Mollie-koppeling
    (`BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`) bestond al: checkout-redirect + webhook →
@@ -405,25 +416,26 @@ Echte teksten, logo en eventuele huisstijl kun je aanleveren; de agent verwerkt 
 
 Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Zie ook `.env.example`.)
 
-| Instelling                                                        | Wat het is                                    | Waar haal je het     | Wanneer nodig                                    |
-| ----------------------------------------------------------------- | --------------------------------------------- | -------------------- | ------------------------------------------------ |
-| `DATABASE_URL`                                                    | Verbindings-URL productie-database            | Databasedienst (§1b) | Altijd (productie)                               |
-| `AUTH_SECRET`                                                     | Geheim voor veilige inlogsessies (≥32 tekens) | Zelf genereren (§1e) | Altijd                                           |
-| `AUTH_URL`                                                        | Je productie-webadres                         | Je domein (§1d)      | Altijd                                           |
-| `STORAGE_DRIVER=s3`                                               | Schakelt productie-opslag in                  | —                    | Bij echte uploads                                |
-| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                         | Bucketnaam + regio                            | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                     | Opslag-toegangssleutels                       | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                  | Encryptie-at-rest (default AES256; optioneel) | — (§1c)              | Optioneel (default aan bij s3)                   |
-| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`           | E-mail via Resend HTTP-API (Railway-proof)    | Resend (§2)          | Voor e-mail                                      |
-| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`               | E-mail via eigen SMTP-relay                   | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
-| Betaal-API-sleutels + webhook-secret                              | Voor abonnementen                             | Stripe/Mollie (§3)   | Voor betalingen                                  |
-| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`             | Echte DUO-controle                            | DUO (§4a)            | Voor echte diplomacontrole                       |
-| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`         | Echte BIG-controle                            | CIBG (§4b)           | Voor echte zorgcontrole                          |
-| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY` | Echte identiteitscontrole                     | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
-| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                           | Externe error-monitoring (anders alleen logs) | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
-| `LOG_LEVEL`                                                       | Logdrempel (debug/info/warn/error)            | —                    | Optioneel (default info)                         |
-| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`    | Gedeelde rate-limits over instances           | Upstash (§0b H-2)    | Bij horizontale schaling                         |
-| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`             | Malware-scan van uploads                      | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
+| Instelling                                                           | Wat het is                                    | Waar haal je het     | Wanneer nodig                                    |
+| -------------------------------------------------------------------- | --------------------------------------------- | -------------------- | ------------------------------------------------ |
+| `DATABASE_URL`                                                       | Verbindings-URL productie-database            | Databasedienst (§1b) | Altijd (productie)                               |
+| `AUTH_SECRET`                                                        | Geheim voor veilige inlogsessies (≥32 tekens) | Zelf genereren (§1e) | Altijd                                           |
+| `AUTH_URL`                                                           | Je productie-webadres                         | Je domein (§1d)      | Altijd                                           |
+| `STORAGE_DRIVER=s3`                                                  | Schakelt productie-opslag in                  | —                    | Bij echte uploads                                |
+| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                            | Bucketnaam + regio                            | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                        | Opslag-toegangssleutels                       | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                     | Encryptie-at-rest (default AES256; optioneel) | — (§1c)              | Optioneel (default aan bij s3)                   |
+| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`              | E-mail via Resend HTTP-API (Railway-proof)    | Resend (§2)          | Voor e-mail                                      |
+| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                  | E-mail via eigen SMTP-relay                   | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
+| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                         | Betalingen via Mollie                         | Mollie (§3)          | Voor betalingen (kies één provider)              |
+| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET` | Betalingen via Stripe (Checkout + webhook)    | Stripe (§3)          | Voor betalingen (kies één provider)              |
+| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                | Echte DUO-controle                            | DUO (§4a)            | Voor echte diplomacontrole                       |
+| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`            | Echte BIG-controle                            | CIBG (§4b)           | Voor echte zorgcontrole                          |
+| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`    | Echte identiteitscontrole                     | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
+| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                              | Externe error-monitoring (anders alleen logs) | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
+| `LOG_LEVEL`                                                          | Logdrempel (debug/info/warn/error)            | —                    | Optioneel (default info)                         |
+| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`       | Gedeelde rate-limits over instances           | Upstash (§0b H-2)    | Bij horizontale schaling                         |
+| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                | Malware-scan van uploads                      | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).
