@@ -124,20 +124,20 @@ const ALLOWLIST: Array<{ file: string; line: number; reason: string }> = [
   // gebruiker, geen lijst-view.
   {
     file: "(protected)/admin/gebruikers/actions.ts",
-    line: 78,
+    line: 86,
     reason: "account-verwijdering-actie, niet een lijst-view",
   },
   {
     file: "(protected)/admin/gebruikers/actions.ts",
-    line: 88,
+    line: 96,
     reason:
       "AVG-verwijdering: eigen DISPUTE_OPENED-events van één gebruiker; bewust geen take (alle eigen dispuutredenen moeten gewist worden, een cap zou er stilletjes overslaan)",
   },
   {
     file: "(protected)/admin/gebruikers/actions.ts",
-    line: 102,
+    line: 113,
     reason:
-      "AVG art. 17: alle auditregels met PII (e-mail/IP) van één gebruiker; bewust geen take (een cap zou stilletjes PII laten staan bij de vergetelheid-actie)",
+      "AVG art. 17: alle auditregels met PII (e-mail/naam/IP, incl. e-mail-als-entityId) van één gebruiker; bewust geen take (een cap zou stilletjes PII laten staan bij de vergetelheid-actie)",
   },
 
   // --- abonnement/page.tsx ---

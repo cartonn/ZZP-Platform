@@ -8,10 +8,11 @@ import { requestMeta } from "@/lib/request-meta";
 import { getStorage } from "@/lib/services/storage";
 import { logStorageCleanupFailure } from "@/lib/observability/storage-failure";
 import {
+  AUDIT_PII_REDACTED,
   canAnonymizeUser,
   companyAnonymizationData,
   freelancerProfileAnonymizationData,
-  scrubAuditMetadataEmail,
+  scrubAuditMetadataPii,
   userAnonymizationData,
 } from "@/lib/account-anonymization";
 import { prisma } from "@/lib/db";
@@ -67,7 +68,14 @@ export async function anonymizeUser(userId: string): Promise<void> {
   const actor = await requireRole("ADMIN");
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, role: true, email: true, deletionRequestedAt: true, anonymizedAt: true },
+    select: {
+      id: true,
+      role: true,
+      name: true,
+      email: true,
+      deletionRequestedAt: true,
+      anonymizedAt: true,
+    },
   });
   if (!user) throw new Error("Gebruiker niet gevonden.");
 
@@ -91,20 +99,25 @@ export async function anonymizeUser(userId: string): Promise<void> {
     })
   ).map((e) => e.subjectId);
 
-  // AVG art. 17 dekt óók de auditlog: het e-mailadres van de betrokkene staat in de metadata van
-  // eerdere audit-events (mislukte login, rate-limit, bulk-import) en overleeft de overschrijving van
-  // `User.email`. Bovendien is het IP-adres/user-agent op de eigen auditregels van de betrokkene
-  // persoonsgegeven. Zoek elke auditregel die aan deze gebruiker raakt — via actor/entity of via het
-  // originele e-mailadres in de metadata — en redact de PII eruit binnen dezelfde transactie. De
-  // exact-match op het e-mailadres voorkomt dat we de auditregel van een ander (die het adres slechts
-  // als substring bevat) raken.
+  // AVG art. 17 dekt óók de auditlog: PII van de betrokkene staat in de metadata van eerdere
+  // audit-events (e-mail bij mislukte login/rate-limit/bulk-import; de volledige naam bij
+  // `FRANCHISE_FREELANCER_ADDED`, dat óók het e-mailadres als `entityId` bewaart) en overleeft de
+  // overschrijving van `User.email`/`User.name`. Bovendien is het IP-adres/user-agent op de eigen
+  // auditregels van de betrokkene persoonsgegeven. Zoek elke auditregel die aan deze gebruiker raakt —
+  // via actor/entity, via het originele e-mailadres in de metadata, óf via het e-mailadres als
+  // `entityId` (franchise-toevoeging) — en redact de PII eruit binnen dezelfde transactie. De
+  // exact-match op e-mail/naam voorkomt dat we de auditregel van een ander (die de waarde slechts als
+  // substring bevat) raken.
   const originalEmail = user.email;
+  const originalName = user.name;
   const piiAuditRows = await prisma.auditLog.findMany({
     where: {
       OR: [
         { actorId: userId },
         { entityType: "User", entityId: userId },
-        ...(originalEmail ? [{ metadata: { contains: originalEmail } }] : []),
+        ...(originalEmail
+          ? [{ metadata: { contains: originalEmail } }, { entityId: originalEmail }]
+          : []),
       ],
     },
     select: {
@@ -119,15 +132,29 @@ export async function anonymizeUser(userId: string): Promise<void> {
   });
   const auditScrubOps = piiAuditRows.flatMap((row) => {
     const owned = row.actorId === userId || (row.entityType === "User" && row.entityId === userId);
-    const scrubbedMeta = originalEmail
-      ? scrubAuditMetadataEmail(row.metadata, originalEmail)
-      : row.metadata;
-    const emailMatched = scrubbedMeta !== row.metadata;
-    // Alleen rijen die echt over deze betrokkene gaan (eigen actor/entity) of waar zijn e-mailadres
-    // in de metadata stond mogen we wissen — nooit de auditregel van een ander.
-    if (!owned && !emailMatched) return [];
-    const data: { metadata?: string | null; ipAddress?: null; userAgent?: null } = {};
-    if (emailMatched) data.metadata = scrubbedMeta;
+    // Franchise-toevoeging bewaart het e-mailadres als `entityId`: die rij gaat aantoonbaar over deze
+    // betrokkene (e-mail is uniek), dus zowel het adres (entityId) als de naam (metadata) mag weg.
+    const entityIsEmail =
+      !!originalEmail &&
+      typeof row.entityId === "string" &&
+      row.entityId.toLowerCase() === originalEmail.toLowerCase();
+    // Naam alleen redacten op rijen die aantoonbaar over deze betrokkene gaan (eigen actor/entity of
+    // e-mail-als-entityId) — nooit op een rij die zijn adres slechts terloops in de metadata noemt,
+    // waar `name` een derde partij kan zijn.
+    const piiValues = owned || entityIsEmail ? [originalEmail, originalName] : [originalEmail];
+    const scrubbedMeta = scrubAuditMetadataPii(row.metadata, piiValues);
+    const metaMatched = scrubbedMeta !== row.metadata;
+    // Alleen rijen die echt over deze betrokkene gaan (eigen actor/entity, e-mail-als-entityId) of
+    // waar zijn PII in de metadata stond mogen we wissen — nooit de auditregel van een ander.
+    if (!owned && !entityIsEmail && !metaMatched) return [];
+    const data: {
+      metadata?: string | null;
+      ipAddress?: null;
+      userAgent?: null;
+      entityId?: string;
+    } = {};
+    if (metaMatched) data.metadata = scrubbedMeta;
+    if (entityIsEmail) data.entityId = AUDIT_PII_REDACTED;
     if (row.ipAddress !== null) data.ipAddress = null;
     if (row.userAgent !== null) data.userAgent = null;
     if (Object.keys(data).length === 0) return [];

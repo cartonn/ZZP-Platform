@@ -1,5 +1,38 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-07 (run 14) · **main-commit basis:** `7ce69ab`
+> **Uitkomst:** **1 HOOG gat gevonden + GEFIXT** (AVG art. 17-lek in de auditlog). Verse prod-build
+> (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`) op ephemere SQLite
+> (`qa.db`), prod-server (`CI=true node scripts/start.mjs`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=
+100000`, `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte formulier (`demo1234`); Playwright
+> met de vooraf-geïnstalleerde Chromium (`/opt/pw-browsers/chromium-1194`). Twee parallelle Opus-reviews
+> op de nieuwste oppervlakken (#638-647).
+>
+> **GEFIXT — HOOG (AVG art. 17 / verificatieflow-privacy):** `anonymizeUser` liet de
+> `FRANCHISE_FREELANCER_ADDED`-auditrij (bemiddelaar voegt ZZP'er toe) volledig intact — die rij bewaart
+> het e-mailadres als `entityId` én de naam in de metadata, maar de vergetelheid-query selecteerde 'm niet
+> (actor = bemiddelaar, `entityType`≠"User", e-mail in `entityId` i.p.v. metadata) en de scrub was
+> e-mail-only. Repro: bemiddelaar voegt ZZP'er "Jan/jan@x.nl" toe → later erasure → `SELECT entityId,
+metadata FROM AuditLog WHERE action='FRANCHISE_FREELANCER_ADDED'` toont nog `jan@x.nl` + `Jan de Vries`.
+> Fix: query matcht nu `entityId = originalEmail`; scrub redact naam + e-mail (incl. `entityId → [verwijderd]`)
+> op aantoonbaar-eigen rijen. `account-anonymization.ts` + `admin/gebruikers/actions.ts`; 6 nieuwe tests
+> (rood→groen). Zie PROGRESS.md-top.
+>
+> **DOEL 1 (live):** ADMIN keurde een certificaat goed via `/admin/verificaties` → knoppen 6→5 (keten
+> auth→transitie→revalidate werkt). **DOEL 2 (adversarieel, live):** privilege-escalatie → redirect naar
+> dashboard; document-privacy 403/200/404; IDOR/garbage → soft-404; `GET /api/tasks/run-all` → 405; FR →
+> `/api/admin/export/invoices` → 403; XSS `?q=` → niet uitgevoerd; **0 HTTP-500's**. Spoort met runs 6-13.
+>
+> **GEPARKEERD — LOW (robustheid, pre-existing, niet door #640/#643 geïntroduceerd):** de gedeelde
+> `invoiceLineSchema` staat per regel `quantity(100000) × unitCents(100_000_000) = 1e13` cents toe (en
+> `mileage.ts` `MILEAGE_MAX_KM × MILEAGE_MAX_RATE_CENTS` idem), ~3 orden boven de Postgres `int4`-kolom
+> (`Invoice.totalCents`/`InvoiceLine.amountCents` = Prisma `Int`, max ~2,15e9). Een schema-toegestane
+> maximale regel overschrijdt dus de kolombreedte → DB-write-fout i.p.v. Zod-afwijzing. Impact laag
+> (zelf-uitgegeven factuur, geen tegenpartij, write faalt netjes). Fix: klem de Zod-max op het int4-plafond
+> (~€21,4M/veld) óf verbreed de kolommen. Repro: factuurregel met aantal `100000` × €/stuk `1000000`.
+>
+> ---
+>
 > **Datum:** 2026-07-06 (run 13) · **main-commit basis:** `f73a17b`
 > **Uitkomst:** **GEEN nieuwe gaten.** 76 geautomatiseerde probes over 4 rollen (login, ~40 kernschermen,
 > privilege-escalatie, IDOR/cross-partij, cross-tenant, document-privacy, XSS, robuustheid, cron/export)
