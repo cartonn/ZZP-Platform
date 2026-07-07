@@ -18,6 +18,11 @@ const SAMPLE = {
   mimeType: "application/pdf",
   buffer: Buffer.from("%PDF-1.4 bewijsstuk"),
 };
+// DateInput is nu een tekstveld met NL-notatie (dd-mm-jjjj); zet ISO om vóór het invullen.
+const nl = (iso: string) => {
+  const [y, m, d] = iso.split("-");
+  return `${d}-${m}-${y}`;
+};
 
 async function registerFreelancer(page: Page, email: string) {
   await page.goto("/register");
@@ -43,8 +48,8 @@ async function addAndSubmitCredential(
   await page.goto("/certificaten/nieuw");
   await page.selectOption("#type", opts.type);
   await page.fill("#title", opts.title);
-  if (opts.issuedAt) await page.fill("#issuedAt", opts.issuedAt);
-  if (opts.expiresAt) await page.fill("#expiresAt", opts.expiresAt);
+  if (opts.issuedAt) await page.fill("#issuedAt", nl(opts.issuedAt));
+  if (opts.expiresAt) await page.fill("#expiresAt", nl(opts.expiresAt));
   await page.setInputFiles("#document", SAMPLE);
   await page.getByRole("button", { name: "Certificaat toevoegen" }).click();
   await page.waitForURL("**/certificaten");
