@@ -363,4 +363,29 @@ UI-taal = Nederlands.
   master-detail inspector-paradigma (Figma/Linear-grade dichtheid); en ambachtelijke material- &
   craft-esthetiek strak hermaakt (hand-gebogen neon-signage, geteld kruissteek-borduren,
   bibliotheek-kaartcatalogus) — elk onderscheidend gehouden van bestaande richtingen.
-- **Totaal nu op `/ontwerp`: 140 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140).
+- **Reeks 15 (run 7-7-2026, nrs 141–150):** Schijnwerper (cinematische spotlight: donker canvas waar
+  één radiale lichtkegel valt op wat NU actie vraagt, rest gedimd — attention-routing/spatial focus,
+  Space Grotesk — niet Schemer/Nachtdienst) · Rasterpunt (Ben-Day halftone: meters/avatars/dichtheid
+  opgebouwd uit drukkerspunten, twee-tint pop-art newsprint, Space Grotesk — de stip zelf als
+  materiaal, niet Riso/Strip) · Kantlijn (marginalia/geannoteerd manuscript: brede kantlijn met
+  margenoten, verwijstekens en voetnoot-apparaat naast gelinieerde kolom, Newsreader — annotatie als
+  UI, niet Redactie/Courant) · Warmtekaart (heatmap-gedreven: calendar-heatmaps, match-matrices en
+  regio-dichtheid waar intensiteit = kleurverzadiging, sequentiële schaal + cijfer-in-cel, Geist —
+  eerste heatmap-concept) · Meetlint (technische maatvoering: liniaal-schalen, maatlijnen met
+  maatgetallen en tolerantie-notatie, elk datapunt opgemeten, Spline Sans Mono — niet Blauwdruk/Meter)
+  · Noir (film-noir monochroom: diep zwart-wit contrast met één warm amber-accent, venetian-blind-
+  schaduwen en grain, Bricolage — dramatische lichtregie, niet Schemer/Nachtdienst) · Zonnewijzer
+  (schaduw & zonnetijd: warm zandsteen met gnomon-schaduwen over de kaarten, tijd/voortgang als
+  schaduwhoek, Fraunces — niet Uurwerk/Solar) · Totem (gestapelde chunky blokken: kaarten als dikke
+  afgeronde bouwblokken met offset-schaduw en diepte, speels-tactiel verticaal, Bricolage — niet
+  Memphis/Klei) · Gel (gooey fluïde UI: zachte organische blobs met translucente lagen die
+  samensmelten en morphen bij hover, Sora — niet Tij/Klei) · Manifest (constructivistische avant-garde:
+  bold diagonale composities in rood/zwart/crème met zware grotesk, data in geroteerde banners,
+  Bricolage — dynamische diagonaal, niet Bauhaus/Deco). Alle tien gebruiken bestaande lab-fonts.
+- Onderzochte 2026-trends deze reeks: attention-routing & progressive disclosure via belichting/dimming
+  (spotlight-canvas als antwoord op "toon alleen wat telt"); print-revival & material-craft strak
+  hermaakt (Ben-Day halftone, marginalia/voetnoot-apparaat, film-noir fotografische drama); data-viz
+  als primaire layout (heatmap-matrices, technische maatvoering met dimension-lines); natuurlijk licht
+  & organische vorm (zonnewijzer-schaduw, gooey fluïde blobs); en expressieve, tactiele richtingen
+  (gestapelde block-UI, constructivistische diagonaal) — elk onderscheidend gehouden van bestaande.
+- **Totaal nu op `/ontwerp`: 150 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150).
