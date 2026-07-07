@@ -10,6 +10,10 @@ import { assertTransition, TransitionError } from "@/lib/credentials";
 import { documentKindForCredential } from "@/lib/documents";
 import { getDiplomaVerifier } from "@/lib/services/diploma-verifier";
 import { getBigVerifier } from "@/lib/services/big-verifier";
+import {
+  mockVerificationBlocked,
+  MOCK_VERIFICATION_BLOCKED_MESSAGE,
+} from "@/lib/services/verification-policy";
 import { credentialVerifyRateLimiter } from "@/lib/rate-limit";
 import {
   assertContentMatchesMime,
@@ -342,6 +346,27 @@ export async function deleteCredential(credentialId: string): Promise<void> {
 export type ExternalVerifyState = { ok?: true; error?: string } | undefined;
 export type DuoVerifyState = ExternalVerifyState;
 
+/**
+ * Fail-closed afhandeling (security-review 2026-07-07, KRITIEK): een demo-verificatie (source "MOCK")
+ * mag op echte productie-data geen VERIFIED stempelen — dat zou een verzonnen-maar-format-geldig
+ * diploma/BIG-nummer de plaatsingspoort laten passeren. We stempelen niets, auditen de geweigerde
+ * poging (zichtbaar dat de demo-verifier op productie draait) en sturen de ZZP'er naar de handmatige
+ * admin-controle. Buiten productie / bij SEED_DEMO / met expliciete opt-in wordt dit pad nooit bereikt.
+ */
+async function blockMockVerification(
+  actorId: string,
+  credentialId: string,
+): Promise<ExternalVerifyState> {
+  await audit({
+    actorId,
+    action: "CREDENTIAL_VERIFY_BLOCKED",
+    entityType: "Credential",
+    entityId: credentialId,
+    metadata: { reason: "mock-verifier-op-productie" },
+  });
+  return { error: MOCK_VERIFICATION_BLOCKED_MESSAGE };
+}
+
 /** Gedeeld: zet een credential systeem-geverifieerd (bron DUO/BIG) via de transitiemap. */
 async function applyExternalVerification(opts: {
   actorId: string;
@@ -433,6 +458,7 @@ export async function verifyCredentialViaDuo(
     return { error: e instanceof Error ? e.message : "Verificatie mislukt." };
   }
   if (!result.verified) return { error: result.message };
+  if (mockVerificationBlocked(result.source)) return blockMockVerification(actor.id, credentialId);
 
   return applyExternalVerification({
     actorId: actor.id,
@@ -482,6 +508,7 @@ export async function verifyCredentialViaBig(
     return { error: e instanceof Error ? e.message : "Verificatie mislukt." };
   }
   if (!result.verified) return { error: result.message };
+  if (mockVerificationBlocked(result.source)) return blockMockVerification(actor.id, credentialId);
 
   return applyExternalVerification({
     actorId: actor.id,

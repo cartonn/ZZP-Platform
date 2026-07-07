@@ -229,9 +229,9 @@ describe("envWarnings", () => {
       ROUTING_PROVIDER: "offline",
       SEMANTIC_MATCHER: "local",
       BILLING_PROVIDER: "noop",
-      DIPLOMA_VERIFIER: "demo",
-      BIG_VERIFIER: "demo",
-      IDENTITY_VERIFIER: "demo",
+      DIPLOMA_VERIFIER: "duo",
+      BIG_VERIFIER: "bigregister",
+      IDENTITY_VERIFIER: "idin",
       RATE_LIMIT_STORE: "upstash",
       UPSTASH_REDIS_REST_URL: "https://example.upstash.io",
       UPSTASH_REDIS_REST_TOKEN: "token",
@@ -268,6 +268,23 @@ describe("envWarnings", () => {
   it("waarschuwt voor de ontbrekende malware-scan in productie", () => {
     const w = envWarnings(prod({ UPLOAD_SCANNER: "noop" }));
     expect(w.some((m) => /UPLOAD_SCANNER=noop/.test(m))).toBe(true);
+  });
+
+  it("waarschuwt dat zelf-verificatie GEBLOKKEERD is als een demo-verifier op productie draait", () => {
+    const w = envWarnings(prod({ BIG_VERIFIER: "demo" }));
+    expect(w.some((m) => /demo-verifier.*GEBLOKKEERD|GEBLOKKEERD.*demo-verifier/.test(m))).toBe(
+      true,
+    );
+  });
+
+  it("waarschuwt LUID wanneer ALLOW_MOCK_VERIFICATION=true een demo-verifier op productie toestaat", () => {
+    const w = envWarnings(prod({ IDENTITY_VERIFIER: "demo", ALLOW_MOCK_VERIFICATION: "true" }));
+    expect(w.some((m) => /ALLOW_MOCK_VERIFICATION=true/.test(m) && /VERZONNEN/.test(m))).toBe(true);
+  });
+
+  it("zwijgt over verificatie bij een expliciete demo-dataset (SEED_DEMO=true)", () => {
+    const w = envWarnings(prod({ DIPLOMA_VERIFIER: "demo", SEED_DEMO: "true" }));
+    expect(w.some((m) => /demo-verifier/.test(m))).toBe(false);
   });
 
   it("zwijgt bij een volledig geconfigureerde productie", () => {

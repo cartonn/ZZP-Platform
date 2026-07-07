@@ -5,6 +5,10 @@ import { requireActor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { getIdentityVerifier } from "@/lib/services/identity-verifier";
+import {
+  mockVerificationBlocked,
+  MOCK_VERIFICATION_BLOCKED_MESSAGE,
+} from "@/lib/services/verification-policy";
 import { prisma } from "@/lib/db";
 
 export type IdentityState = { ok?: true; error?: string } | undefined;
@@ -34,6 +38,24 @@ export async function verifyIdentity(
   if (!result.verified) return { error: result.message };
 
   const meta = await requestMeta();
+  // Fail-closed poort (security-review 2026-07-07, KRITIEK): een demo-identiteitsverificatie
+  // (source "MOCK") vergelijkt slechts de opgegeven naam met de zelf-gekozen accountnaam en mag op
+  // echte productie-data geen identiteit als geverifieerd vastleggen (basis voor het vertrouwensniveau
+  // + naamcontrole bij credentials). We leggen niets vast, auditen de geweigerde poging en verwijzen
+  // naar de echte iDIN/eIDAS-koppeling. Buiten productie / bij SEED_DEMO / met opt-in nooit bereikt.
+  if (mockVerificationBlocked(result.source)) {
+    await prisma.auditLog.create({
+      data: auditData({
+        actorId: actor.id,
+        action: "IDENTITY_VERIFY_BLOCKED",
+        entityType: "User",
+        entityId: actor.id,
+        metadata: { reason: "mock-verifier-op-productie" },
+        ...meta,
+      }),
+    });
+    return { error: MOCK_VERIFICATION_BLOCKED_MESSAGE };
+  }
   await prisma.$transaction([
     prisma.user.update({
       where: { id: actor.id },

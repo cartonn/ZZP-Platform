@@ -4,7 +4,83 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
-## Ronde 2026-07-07 (basis: `main` @ 3f6cda5)
+## Ronde 2026-07-07 (2e — basis: `main` @ ab6bc99)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-subagents op niet-overlappende
+oppervlakken: (1) alle 39 `src/app/api/**/route.ts` route handlers, (2) alle `"use server"`
+action-bestanden + gedeelde authz/tenancy/cascade-helpers, (3) volledige AVG/privacy-sweep
+(anonimisering/export/dataminimalisatie/k-anonimiteit/register/retentie/derden), (4) cross-cutting
+injectie/SSRF/redirect/secrets/headers/auth/deps (`npm audit`). Kader: OWASP Top 10 (A01/A03/A04/A09)
+
+- ASVS + AVG art. 5/6/15/17/30. `npm audit --production`: **0 kwetsbaarheden** (dev-only: esbuild GHSA-
+  g7r4-m6w7-qqqr LAAG, js-yaml GHSA-h67p-54hq-rp68 MIDDEL — buiten de productie-tree). Next 15.5.19 (voorbij
+  CVE-2025-29927 middleware-bypass), next-auth 5.0.0-beta.31, Prisma 6.19.3 — geen toepasselijke CVE's.
+  **Eén KRITIEKE bevinding volledig gefixt (rood→groen); vijf lager-prioritaire geparkeerd (hieronder).**
+
+### OPGELOST in deze ronde
+
+- **[KRITIEK→OPGELOST · OWASP A04 (insecure design) + kerndifferentiatie-verificatieflow — de
+  ingebouwde demo-verifiers stempelden op productie een verzonnen-maar-format-geldig diploma/BIG-nummer/
+  identiteit stil als "Geverifieerd", wat de plaatsingspoort opent]** In de standaardconfiguratie geven
+  `getDiplomaVerifier`/`getBigVerifier`/`getIdentityVerifier` de `Mock*`-verifier terug (`source: "MOCK"`)
+  tenzij `DIPLOMA_VERIFIER=duo` / `BIG_VERIFIER=bigregister` / `IDENTITY_VERIFIER=idin` expliciet is gezet.
+  De mocks controleren **alleen het formaat** (BIG = 11 cijfers, DUO-code-patroon, naam-match) en geven
+  dan `verified:true`. De zelf-verificatie-acties (`verifyCredentialViaDuo`/`verifyCredentialViaBig` in
+  `src/app/(protected)/certificaten/actions.ts`, `verifyIdentity` in `src/app/(protected)/account/actions.ts`)
+  zetten het resultaat direct op `VERIFIED` — het hoogste vertrouwenssignaal — zónder admin-tussenkomst.
+  `computeCompliance`/`complianceBlocksPlacement` behandelt `Credential.status === "VERIFIED"` als
+  grondwaarheid en laat op grond daarvan het tekenen van een contract voor een BIG-/diploma-plichtige
+  (zorg)opdracht toe (Wkkgz-relevant). **Repro:** een FREELANCER uploadt een willekeurige PDF als
+  "Licentie", roept `verifyCredentialViaBig(id, {bigNumber:"12345678901"})` aan → op een productie-deploy
+  zónder echte BIG-koppeling werd de credential VERIFIED en passeerde de plaatsingspoort — een neppe
+  beroepsregistratie. Er bestond **geen code-level fail-closed poort**; de mock draaide silent-by-omission.
+  **Gefixt:** nieuwe pure poort `src/lib/services/verification-policy.ts` (`isMockVerificationAllowed` /
+  `mockVerificationBlocked`): buiten productie én bij `SEED_DEMO=true` (expliciete demo-dataset) én bij
+  `ALLOW_MOCK_VERIFICATION=true` (bewuste pilot-opt-in) is de mock toegestaan; op een échte productie-
+  deploy (geen demo, geen opt-in) wordt een `source:"MOCK"`-resultaat **geweigerd** (fail-closed) — de
+  drie acties stempelen niets, auditen de geweigerde poging (`CREDENTIAL_VERIFY_BLOCKED` /
+  `IDENTITY_VERIFY_BLOCKED`) en sturen de gebruiker naar de handmatige admin-verificatiequeue (de
+  gezonde vertrouwensroute blijft). Echte registerresultaten (`source !== "MOCK"`) passeren altijd. `env.ts`
+  kent nu `ALLOW_MOCK_VERIFICATION`/`SEED_DEMO` + een productie-`envWarnings` die luid meldt dat zelf-
+  verificatie GEBLOKKEERD is (of, bij opt-in, dat verzonnen credentials geverifieerd kunnen worden). Rule 8
+  gerespecteerd: **geen boot-break** — het is een runtime-actiepoort + waarschuwing, geen harde env-eis.
+  Tests: `src/lib/services/verification-policy.test.ts` (11 pure cases), `verify-failclosed.test.ts`
+  (integratie: geen `$transaction`/VERIFIED-schrijf in productie, wél bij SEED_DEMO/dev — rood→groen: zonder
+  de poort stempelt de actie VERIFIED op een mock-resultaat), + 3 nieuwe `env.test.ts`-cases. **GO-LIVE:
+  zet de echte koppelingen (`=duo`/`=bigregister`/`=idin`) vóór echte diploma-/VOG-data live gaat.**
+
+### Geparkeerd (deze ronde gevonden, nog niet gefixt)
+
+- **[HOOG · AVG art. 30/5/6 — Lead/prospect-PII buiten register, geen bewaartermijn, geen wis-pad]**
+  `model Lead`/`LeadContact` (`prisma/schema.prisma`) bewaart `contactName`/`email`/`phone`/`notes`/`body`
+  van externe opdrachtgever-prospects (géén platform-`User`). Deze verwerking staat **niet** in
+  `PROCESSING_REGISTER`, heeft **geen** `RETENTION_SCHEDULE`-regel en `src/app/(protected)/franchise/leads/
+actions.ts` kent **geen delete/erase-actie** — indefinite retentie, geen grondslag vastgelegd. Fix:
+  register-entry ("Lead-acquisitie", grondslag GERECHTVAARDIGD_BELANG) + retentieregel + tenant-gescopede
+  `deleteLead`-actie (auth→rol FRANCHISER→`assertSameTenant`→cascade delete→audit) + wis-UI-knop.
+- **[MIDDEL · AVG art. 15/20 — inzage-export onvolledig]** `src/lib/account-export.ts` mist zelf-geschreven
+  PII die `anonymizeUser` wél als wisbaar behandelt: `ShiftHandoff.reason`/`decisionNote`,
+  `AvailabilityWindow.note`, `Collaboration.disputeReason` (eigen), `LeadContact.body` (als FRANCHISER),
+  en CLIENT-geschreven `Application.note` (de `applications`-query is op `freelancer.userId` gescoped → voor
+  een CLIENT-actor leeg). Fix: die secties toevoegen met eigen-data-scoping.
+- **[MIDDEL · OWASP A04/A09 — `/api/billing/webhook` heeft geen rate-limit]** `src/app/api/billing/webhook/
+route.ts` is publiek (geen auth) en doet per ping een uitgaande Mollie-API-call (`provider.paymentStatus`)
+  voor een aanvaller-gestuurd `id`. Geen forgeable state-change (server her-verifieert bij Mollie + matcht op
+  bestaande `providerRef`), maar wél een ongelimiteerde outbound-oracle/kostenamplificatie — anders dan
+  `csp-report`/`agenda/feed.ics` die wél `enforceRateLimit` hebben. Fix: IP-gekeyde rate-limiter (bv. nieuwe
+  `billingWebhookRateLimiter`) vóór de provider-call.
+- **[MIDDEL · AVG art. 30/5 — publieke reviewer-naam niet in register]** `src/components/profile/
+profile-screen.tsx` toont de echte `author.name` van een review op de publieke, niet-ingelogde `/zzp/[id]`.
+  Geen register-entry voor deze openbaarmaking van een derde (de reviewer). Fix: register-entry
+  "Beoordelingen (publiek)" + grondslag, of alleen voornaam/initialen tonen, of opt-in bij indienen.
+- **[LAAG · rate-limiter fail-open bij Upstash-storing]** `src/lib/rate-limit.ts:162-192` (`consume`) geeft
+  bij een Redis-fout `allowed:true` (bewuste "beschikbaarheid > limiet"-keuze). Autorisatie faalt nooit open —
+  alleen de throttle — en de ID's zijn `cuid()` (niet enumereerbaar). Menselijke afweging of dit acceptabel is.
+
+_De vier geparkeerde items uit de 1e ronde van 2026-07-07 (Lead-vrije-tekst-derden, retentie-purge-taak,
+Geoapify-register, IBAN-register) blijven eveneens open; zie hieronder._
+
+## Ronde 2026-07-07 (1e — basis: `main` @ 3f6cda5)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende
 oppervlakken: (1) alle 39 `src/app/api/**/route.ts` route handlers, (2) alle 46 `"use server"`

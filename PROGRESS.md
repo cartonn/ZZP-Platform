@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/privacy-audit (2026-07-07, 2e ronde) — KRITIEK: fail-closed poort tegen mock-verificatie
+
+Adversariële audit (orchestrator + 4 Opus-subagents: api-routes, server-actions, AVG-sweep, injectie/
+secrets/deps). **KRITIEK gevonden én gefixt:** de ingebouwde demo-verifiers (DUO/BIG/iDIN, `source:"MOCK"`)
+stempelden op een productie-deploy zónder echte registerkoppeling een format-geldig maar mogelijk verzonnen
+diploma/BIG-nummer/identiteit stil als `VERIFIED` — het hoogste vertrouwenssignaal, dat via
+`complianceBlocksPlacement` de plaatsingspoort (contract tekenen) voor BIG-/diploma-plichtige zorgopdrachten
+opent. Geen code-level fail-closed guard (silent-by-omission). OWASP A04 + kerndifferentiatie-verificatieflow.
+
+- **`src/lib/services/verification-policy.ts`** (nieuw, puur): `isMockVerificationAllowed` /
+  `mockVerificationBlocked`. Mock toegestaan buiten productie, bij `SEED_DEMO=true` (demo-dataset) of
+  `ALLOW_MOCK_VERIFICATION=true` (bewuste pilot-opt-in); anders op productie **geweigerd** (fail-closed).
+- **Wiring:** `certificaten/actions.ts` (`verifyCredentialViaDuo`/`verifyCredentialViaBig` → gedeelde
+  `blockMockVerification`, audit `CREDENTIAL_VERIFY_BLOCKED`) en `account/actions.ts` (`verifyIdentity`,
+  audit `IDENTITY_VERIFY_BLOCKED`). Geweigerde poging stempelt niets en verwijst naar de admin-queue.
+- **`src/lib/env.ts`**: `ALLOW_MOCK_VERIFICATION`/`SEED_DEMO` in schema + productie-`envWarnings`
+  (GEBLOKKEERD-melding, of luide waarschuwing bij opt-in). Geen boot-break (rule 8). `.env.example` gedocumenteerd.
+- **Tests:** `verification-policy.test.ts` (11 puur), `certificaten/verify-failclosed.test.ts` (integratie,
+  rood→groen: geen VERIFIED-schrijf op productie-mock), +3 `env.test.ts`-cases. Gate groen: typecheck/lint/
+  test (3437)/build/prettier. **GO-LIVE:** zet `DIPLOMA_VERIFIER=duo`/`BIG_VERIFIER=bigregister`/
+  `IDENTITY_VERIFIER=idin` vóór echte diploma-/VOG-data live gaat. Vijf lager-prioritaire bevindingen
+  geparkeerd in `docs/SECURITY-PRIVACY-BACKLOG.md` (Lead-PII HOOG, inzage-export, webhook-rate-limit,
+  publieke reviewer-naam, rate-limiter fail-open).
+
 ## Persona-sweep run 15 (2026-07-07) — GEEN nieuwe gaten (documentatie-only)
 
 Kritische-gebruiker-sweep over 4 rollen op een verse prod-build (SQLite `qa.db`, `SEED_DEMO=true`,
