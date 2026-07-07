@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Kwaliteitsronde 2 — hele codebase + UX, 12 fixes gemerged (2026-07-07)
+
+Volledige review (7 agents: lib/routine-code, security-nieuwe-oppervlakte, tech-debt-met-metingen,
+4× persona op 84 verse screenshots) over de ~100 commits sinds ronde 1 (2-7). Oordeel: routines
+bouwen degelijk (geen blockers, geen KRITIEKE security), maar herintroduceren gefixte patronen
+(oordeel-zonder-data, urgentie-zonder-compliance, features zonder ingang). Alle SAFE-fixes
+gemerged door de 6-checks-poort (#650–#660, #662):
+
+- [x] **#653 ontwerp-lab uit het kritieke pad**: 253→103 SSG-pagina's, First Load /ontwerp/[id]
+      833→112 kB, page-chunk 4,3 MB→19,7 kB; lab niet meer publiek. Grootste structurele winst.
+- [x] **#651 rate-limits** op sessieloze agenda-feed (HOOG; patroon dossierViewRateLimiter) +
+      directe uitnodigingen. **#650 dag-grens-spiegels**: debiteuren/crediteuren oordelen
+      identiek op de vervaldag via gedeelde `date-boundary.ts`.
+- [x] **#652 unbounded-guard op inline markers** (`// unbounded-allow: <reden>`, 57 gemigreerd)
+      i.p.v. regelnummer-allowlist (90 commits churn) — bewees zich al tijdens de eigen rebase.
+- [x] **#654 compliance vóór urgentie** in kandidaten-triage ("Eerst compliance oplossen" i.p.v.
+      "Beslis nu!"; genderneutraal; band⇆rij consistent; beste-match nooit een geaccepteerde).
+- [x] **#655 profiel-ring liegt nooit meer** (kleur volgt inzetbaarheid) · **#656 vindbaarheid**
+      (urencriterium-kaart, agenda-koppelkaart, legenda/chip) · **#657 admin-werkvoorraad**
+      (échte oorzaak: dode `adminNextActions`-codepad naast de gerenderde `pendingTasks()`;
+      tickets nu in /acties + 3 ontbrekende zijbalk-badges + SLA-chips + statusafhankelijke
+      rij-acties) · **#658 vergelijk-frictie + meters onder n=3 verborgen** · **#659 voordragen
+      verklaarbaar + bemiddelaar-documentherinnering** · **#660 datumveld definitief**
+      (tekst-eerst dd-mm-jjjj, hidden ISO) · **#662 seed-hygiëne** (branche-consistent +
+      livecheck-sweeper met guards).
+- Canonieke prompt vastgelegd: **docs/REVIEW-PROMPT.md** (dedup vóór bouwen, meten vóór menen,
+  regressie-check in persona's, SAFE/RISKY-splitsing, worktree-isolatie).
+- Geparkeerde eigenaar-beslissingen: zie CURRENT_TASK.md-backlog punt 4.
+
 ## Bemiddelaar-persona (2026-07-07) — voordragen/roster/leads v2 (5 fixes)
 
 Persona-review (bemiddelaar) rond voordragen + roster afgehandeld in één increment:
