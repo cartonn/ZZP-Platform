@@ -40,7 +40,8 @@ const GOOD_MAX_DAYS = 14;
 const GOOD_MIN_ON_TIME_PCT = 90;
 const WARNING_MIN_DAYS = 30;
 const WARNING_MAX_ON_TIME_PCT = 60;
-const MIN_SAMPLE_SIZE = 3;
+/** Minimum aantal betalingen voor een betrouwbaar betaalgedrag-signaal (gedeeld met de UI-kaart). */
+export const PAYMENT_MIN_SAMPLE_SIZE = 3;
 
 /**
  * Berekent het betaalgedrag-signaal voor een opdrachtgever op basis van zijn betalingshistorie.
@@ -55,7 +56,7 @@ export function computePaymentBehavior(rows: PaymentRow[]): PaymentBehavior {
   const paid = rows.filter((r) => r.paidAt != null);
   const sampleSize = paid.length;
 
-  if (sampleSize < MIN_SAMPLE_SIZE) {
+  if (sampleSize < PAYMENT_MIN_SAMPLE_SIZE) {
     return { sampleSize, avgDaysToPay: null, onTimePct: null, tone: "unknown" };
   }
 

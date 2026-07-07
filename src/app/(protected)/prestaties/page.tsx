@@ -11,11 +11,16 @@ import {
   summarizePerformanceApproval,
   waitingLabel,
 } from "@/lib/performance-approval";
-import { DELIVERY_TONE_LABEL, type DeliveryTone } from "@/lib/collaboration-quality";
+import {
+  DELIVERY_MIN_SAMPLE,
+  DELIVERY_TONE_LABEL,
+  type DeliveryTone,
+} from "@/lib/collaboration-quality";
 import {
   clientReliabilityCaption,
   getClientDeliveryReliability,
 } from "@/lib/client-delivery-reliability";
+import { insufficientSampleNotice } from "@/lib/sample-size";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,6 +87,14 @@ export default async function PrestatiesPage({
     ? allPrestaties.filter((p) => p.status === filterStatus)
     : allPrestaties;
 
+  // Onder de minimum-steekproef spreekt een prominent percentage de "Te weinig gegevens"-badge tegen:
+  // toon dan alleen hoeveel prestaties er nog nodig zijn voor een betrouwbaar beeld.
+  const reliabilityNotice = insufficientSampleNotice(
+    reliability.approvedPerformances,
+    DELIVERY_MIN_SAMPLE,
+    { singular: "goedgekeurde prestatie", plural: "goedgekeurde prestaties" },
+  );
+
   const now = Date.now();
   const submitted = allPrestaties.filter((p) => p.status === "SUBMITTED");
   const pendingCount = submitted.length;
@@ -131,32 +144,37 @@ export default async function PrestatiesPage({
               {DELIVERY_TONE_LABEL[reliability.tone]}
             </Badge>
           </div>
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div>
-              <dt className="text-xs text-muted-foreground">In één keer akkoord</dt>
-              <dd className="text-lg font-semibold tabular-nums">
-                {reliability.firstTimeRightRate}%
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Gecorrigeerd</dt>
-              <dd className="text-lg font-semibold tabular-nums">
-                {reliability.correctedPerformances}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Goedgekeurde urenstaten</dt>
-              <dd className="text-lg font-semibold tabular-nums">
-                {reliability.approvedPerformances}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Afgeronde samenwerkingen</dt>
-              <dd className="text-lg font-semibold tabular-nums">
-                {reliability.completedCollaborations}
-              </dd>
-            </div>
-          </dl>
+          {reliabilityNotice ? (
+            // Onder de minimum-steekproef geen misleidend percentage; alleen wat er nog nodig is.
+            <p className="text-sm text-muted-foreground">{reliabilityNotice}.</p>
+          ) : (
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div>
+                <dt className="text-xs text-muted-foreground">In één keer akkoord</dt>
+                <dd className="text-lg font-semibold tabular-nums">
+                  {reliability.firstTimeRightRate}%
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Gecorrigeerd</dt>
+                <dd className="text-lg font-semibold tabular-nums">
+                  {reliability.correctedPerformances}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Goedgekeurde urenstaten</dt>
+                <dd className="text-lg font-semibold tabular-nums">
+                  {reliability.approvedPerformances}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Afgeronde samenwerkingen</dt>
+                <dd className="text-lg font-semibold tabular-nums">
+                  {reliability.completedCollaborations}
+                </dd>
+              </div>
+            </dl>
+          )}
         </Card>
       )}
 
