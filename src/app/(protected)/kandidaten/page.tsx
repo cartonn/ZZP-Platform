@@ -13,7 +13,6 @@ import {
 } from "@/lib/kandidaten-filter";
 import { computeCompliance, scoreJobForFreelancer, topPositiveReason } from "@/lib/matching";
 import {
-  isNewCandidate,
   summarizeCandidateDecision,
   summarizeCandidatesAwaitingDecision,
 } from "@/lib/candidate-decision";
@@ -384,10 +383,12 @@ export default async function KandidatenPage({
                 );
                 // Eerste ontbrekende/verlopen certificaat als concrete eerste stap bij een blokkade.
                 const firstBlocker = compliance?.missing[0] ?? compliance?.expired[0] ?? null;
-                // "Nieuw" en een wachttijd sluiten elkaar uit: verse reactie toont "Nieuw", een oudere
-                // NEW-reactie toont de wachttijd (de status-badge zou anders "Nieuw" naast "wacht al
-                // 39 dagen" zetten).
-                const fresh = status === "NEW" && isNewCandidate(app.createdAt, now);
+                // "Nieuw" en een wachttijd/blokkade sluiten elkaar uit én zijn gatloos complementair:
+                // zolang de reactie nog géén aandacht vraagt (`!attention`) heet hij "Nieuw"; zodra hij
+                // dat wél doet, verbergt de badge en vertelt de regel eronder (wachttijd óf compliance)
+                // de echte status. Gekoppeld aan de tier-eigen patience, niet aan een vaste drempel, zodat
+                // er geen NEW-rij zonder enige status-aanduiding ontstaat.
+                const fresh = status === "NEW" && !decision?.attention;
                 const lead = !app.collaboration ? (
                   <input
                     type="checkbox"

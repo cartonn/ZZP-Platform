@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   candidateTier,
   DECISION_PATIENCE_DAYS,
-  isNewCandidate,
   MODERATE_MATCH_MIN,
-  NEW_CANDIDATE_MAX_DAYS,
   STRONG_MATCH_MIN,
   summarizeCandidateDecision,
   summarizeCandidatesAwaitingDecision,
@@ -126,19 +124,6 @@ describe("summarizeCandidateDecision", () => {
     expect(blocked?.kind).toBe("compliance");
     expect(blocked?.attention).toBe(true);
     expect(blocked?.daysWaiting).toBe(39);
-  });
-});
-
-describe("isNewCandidate", () => {
-  it("is new below the threshold and not at/above it (mutually exclusive with a wait time)", () => {
-    expect(isNewCandidate(daysAgo(0), NOW)).toBe(true);
-    expect(isNewCandidate(daysAgo(NEW_CANDIDATE_MAX_DAYS - 1), NOW)).toBe(true);
-    expect(isNewCandidate(daysAgo(NEW_CANDIDATE_MAX_DAYS), NOW)).toBe(false);
-    expect(isNewCandidate(daysAgo(39), NOW)).toBe(false);
-  });
-
-  it("treats a future createdAt as new", () => {
-    expect(isNewCandidate(daysAgo(-2), NOW)).toBe(true);
   });
 });
 

@@ -26,10 +26,6 @@ export type DecisionUrgency = "high" | "medium" | "low";
 // volgende stap: eerst de compliance oplossen.
 export type DecisionKind = "urgency" | "compliance";
 
-// Tot deze leeftijd (exclusief) heet een reactie nog "Nieuw"; daarboven toont de UI de wachttijd.
-// De twee sluiten elkaar uit — "Nieuw" én "wacht al 39 dagen" op dezelfde rij is tegenstrijdig.
-export const NEW_CANDIDATE_MAX_DAYS = 3;
-
 const MS_PER_DAY = 86_400_000;
 
 export interface CandidateDecisionInput {
@@ -110,16 +106,6 @@ export function summarizeCandidateDecision(
 
   const attention = daysWaiting >= DECISION_PATIENCE_DAYS[tier];
   return { kind: "urgency", daysWaiting, tier, attention, urgency: URGENCY_BY_TIER[tier] };
-}
-
-/**
- * Of een reactie nog als "Nieuw" telt: jonger dan {@link NEW_CANDIDATE_MAX_DAYS} dagen. Sluit uit dat
- * dezelfde rij zowel "Nieuw" als een wachttijd toont. Een `createdAt` in de toekomst (data-ruis) is
- * per definitie nieuw.
- */
-export function isNewCandidate(createdAt: Date, now: Date = new Date()): boolean {
-  const daysOld = Math.floor((now.getTime() - createdAt.getTime()) / MS_PER_DAY);
-  return daysOld < NEW_CANDIDATE_MAX_DAYS;
 }
 
 /**
