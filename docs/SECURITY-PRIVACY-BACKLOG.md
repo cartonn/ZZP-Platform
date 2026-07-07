@@ -4,6 +4,75 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-07 (basis: `main` @ 3f6cda5)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende
+oppervlakken: (1) alle 39 `src/app/api/**/route.ts` route handlers, (2) alle 46 `"use server"`
+action-bestanden + de gedeelde authz/tenancy/enums/audit-helpers, (3) een volledige AVG/privacy-sweep
+(anonimisering/verwijdering, inzage-export, dataminimalisatie, k-anonimiteit, verwerkingsregister,
+logs, retentie, derde-partijen). Kader: OWASP Top 10 (A01 broken access control/IDOR/cross-tenant, A03
+injection, A04 insecure design, A09 logging) + OWASP ASVS + AVG art. 5/15/17/30. `npm audit` schoon (0
+kwetsbaarheden). Zelf onafhankelijk geverifieerd schoon (geen nieuwe gaten): de delta sinds de vorige
+ronde (`d4b6039..3f6cda5`, #638–#644 — reiskosten/mileage, factuur-herhalen, opdracht-sluit-notificatie,
+S3 SSE-at-rest, ontwerpconcepten); alle export-CSV's escapen formule-injectie (`escapeCsvField`); cron-
+routes zijn `timingSafeEqual`-secret-gated; de billing-webhook her-verifieert de status server-side bij
+Mollie; wachtwoord-reset (gehashte tokens, 1u TTL, atomair eenmalig gebruik, enumeratiebescherming, rate-
+limited); CSP met nonce+strict-dynamic; login hardcode-redirect (geen open redirect). **Eén KRITIEKE
+bevinding volledig gefixt (rood→groen); vier lager-prioritaire geparkeerd (hieronder).**
+
+### OPGELOST in deze ronde
+
+- **[KRITIEK→OPGELOST · OWASP A09 (logging) + AVG art. 17 (recht op vergetelheid) — `anonymizeUser`
+  scrubde de auditlog-metadata niet, waardoor het rauwe e-mailadres (en IP/user-agent) van de betrokkene
+  de anonimisering overleefde]** `anonymizeUser` (`src/app/(protected)/admin/gebruikers/actions.ts`)
+  overschrijft `User.email`/`name` en redacteert tientallen vrije-tekstvelden, maar raakte **geen enkele
+  bestaande `AuditLog`-rij** aan. Vier schrijfpunten zetten het rauwe e-mailadres in `AuditLog.metadata`
+  (JSON-string): `src/auth.ts:81` (`AUTH_RATE_LIMITED`) en `:97` (`USER_LOGIN_FAILED`),
+  `src/app/register/actions.ts:45` (`REGISTER_RATE_LIMITED`), `src/app/(protected)/admin/import/actions.ts:285`
+  (`USER_IMPORTED`). Daarnaast staan het IP-adres en de user-agent (beide persoonsgegeven) op de eigen
+  auditregels van de betrokkene. Repro: een gebruiker logt ooit fout in / registreert / wordt geïmporteerd,
+  wordt later op eigen verzoek geanonimiseerd → een `SELECT * FROM AuditLog WHERE entityId = '<userId>'`
+  (of het admin-dossier `src/lib/admin-user-detail.ts`, dat audit-metadata tóónt) levert nog steeds het
+  originele e-mailadres + IP op — de betrokkene blijft herleidbaar ondanks "geanonimiseerd", precies wat
+  art. 17 moet voorkomen. Gefixt: pure helper `scrubAuditMetadataEmail` (exact, hoofdletter-ongevoelig
+  matchend — geen substring-lek naar de auditregel van een ander) + `anonymizeUser` zoekt nu élke
+  auditregel die aan de betrokkene raakt (eigen `actorId`/`entityId`, of het originele e-mailadres in de
+  metadata) en redact e-mail uit de metadata + wist IP/user-agent, atomair binnen dezelfde anonimiserings-
+  transactie. Tests: `src/lib/account-anonymization.test.ts` (6 pure cases incl. substring-niet-raken +
+  hoofdletter-ongevoeligheid) en `src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (3 nieuwe
+  cases: e-mail eruit/IP eruit op login-failed, rol-behoud+e-mail-redact op import, IP+UA-wis op eigen
+  actie, en de auditregel-van-een-ander wordt NIET geraakt — rood→groen: zonder de fix ontbreken de
+  `auditLog.update`-ops volledig).
+
+### Geparkeerd (deze ronde gevonden, nog niet gefixt)
+
+- **[HOOG · AVG art. 17 — vrije tekst van dérden óver de betrokkene overleeft anonimisering]**
+  `src/app/(protected)/admin/gebruikers/actions.ts` redacteert bewust NIET: `NoShowReport.reason` (door de
+  melder over déze ZZP'er geschreven, regel ~114), en analoog `Review.comment` waar de betrokkene
+  `subjectId` is (alleen `authorId`-reviews worden gewist) en `ShiftHandoff.decisionNote`/`reason` van de
+  tegenpartij. Na anonimisering kan zo'n record nog steeds de naam/identificerende details van de
+  "verwijderde gebruiker" tonen. Bewuste architectuurkeuze met reëel PII-risico → **eerst door mens (FG/
+  eigenaar, MENSENWERK.md §5) laten beoordelen** vóór er echte VOG/diploma-houders op productie staan; zo
+  niet acceptabel, redacteren met een bewaargrond-uitzondering alleen bij een lopend geschil (zoals al bij
+  `disputeReason` gebeurt).
+- **[MIDDEL · AVG art. 5 lid 1e (opslagbeperking) — bewaartermijnen niet technisch afgedwongen]**
+  `src/lib/compliance/processing-register.ts` (`RETENTION_SCHEDULE`) claimt termijnen (AuditLog 12 mnd,
+  berichten 12 mnd na samenwerking, reacties 4 wk na selectie), maar `src/app/api/tasks/run-all/route.ts`
+  bevat géén purge/cleanup-taak voor `AuditLog`/`Message`/`Application` — data blijft feitelijk onbeperkt.
+  Fix: een scheduled retentie-taak toevoegen die deze regels afdwingt, of het register bijstellen naar de
+  werkelijke praktijk (nu is het register misleidend).
+- **[MIDDEL · AVG art. 30 — verwerkingsregister mist reistijd-routing + derde-partij Geoapify]**
+  `src/lib/services/routing.ts` stuurt locatiegegevens (plaats/adres uit `FreelancerProfile.location`/
+  `Job.location`) naar `api.geoapify.com` (extern, mogelijk niet-EER), maar
+  `src/lib/compliance/processing-register.ts` noemt deze verwerking/ontvanger nergens (in tegenstelling tot
+  DUO/BIG/iDIN/e-mail, die wél met SCC-taal zijn opgenomen). Fix: activiteit + verwerker/doorgifte-
+  beoordeling (SCC's indien niet-EER) toevoegen. NB: routing staat default op `offline` (inert) — alleen
+  relevant zodra `ROUTING_PROVIDER=geoapify`.
+- **[LAAG · AVG art. 30 — register noemt niet-bestaand gegevenstype]**
+  `src/lib/compliance/processing-register.ts` vermeldt "Bankgegevens (IBAN)" bij facturatie, maar
+  `prisma/schema.prisma` bevat geen IBAN/bankgegevensveld. Fix: verwijderen of expliciet als
+  "toekomstig/nog niet geïmplementeerd" markeren.
+
 ## Ronde 2026-07-06 (2e — basis: `main` @ d4b6039)
 
 Audit: orchestrator (Opus 4.8) + 1 parallelle adversariële Opus security-subagent op de vérse delta

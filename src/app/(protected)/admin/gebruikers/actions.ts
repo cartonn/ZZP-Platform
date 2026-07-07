@@ -11,6 +11,7 @@ import {
   canAnonymizeUser,
   companyAnonymizationData,
   freelancerProfileAnonymizationData,
+  scrubAuditMetadataEmail,
   userAnonymizationData,
 } from "@/lib/account-anonymization";
 import { prisma } from "@/lib/db";
@@ -66,7 +67,7 @@ export async function anonymizeUser(userId: string): Promise<void> {
   const actor = await requireRole("ADMIN");
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, role: true, deletionRequestedAt: true, anonymizedAt: true },
+    select: { id: true, role: true, email: true, deletionRequestedAt: true, anonymizedAt: true },
   });
   if (!user) throw new Error("Gebruiker niet gevonden.");
 
@@ -90,9 +91,53 @@ export async function anonymizeUser(userId: string): Promise<void> {
     })
   ).map((e) => e.subjectId);
 
+  // AVG art. 17 dekt óók de auditlog: het e-mailadres van de betrokkene staat in de metadata van
+  // eerdere audit-events (mislukte login, rate-limit, bulk-import) en overleeft de overschrijving van
+  // `User.email`. Bovendien is het IP-adres/user-agent op de eigen auditregels van de betrokkene
+  // persoonsgegeven. Zoek elke auditregel die aan deze gebruiker raakt — via actor/entity of via het
+  // originele e-mailadres in de metadata — en redact de PII eruit binnen dezelfde transactie. De
+  // exact-match op het e-mailadres voorkomt dat we de auditregel van een ander (die het adres slechts
+  // als substring bevat) raken.
+  const originalEmail = user.email;
+  const piiAuditRows = await prisma.auditLog.findMany({
+    where: {
+      OR: [
+        { actorId: userId },
+        { entityType: "User", entityId: userId },
+        ...(originalEmail ? [{ metadata: { contains: originalEmail } }] : []),
+      ],
+    },
+    select: {
+      id: true,
+      actorId: true,
+      entityType: true,
+      entityId: true,
+      metadata: true,
+      ipAddress: true,
+      userAgent: true,
+    },
+  });
+  const auditScrubOps = piiAuditRows.flatMap((row) => {
+    const owned = row.actorId === userId || (row.entityType === "User" && row.entityId === userId);
+    const scrubbedMeta = originalEmail
+      ? scrubAuditMetadataEmail(row.metadata, originalEmail)
+      : row.metadata;
+    const emailMatched = scrubbedMeta !== row.metadata;
+    // Alleen rijen die echt over deze betrokkene gaan (eigen actor/entity) of waar zijn e-mailadres
+    // in de metadata stond mogen we wissen — nooit de auditregel van een ander.
+    if (!owned && !emailMatched) return [];
+    const data: { metadata?: string | null; ipAddress?: null; userAgent?: null } = {};
+    if (emailMatched) data.metadata = scrubbedMeta;
+    if (row.ipAddress !== null) data.ipAddress = null;
+    if (row.userAgent !== null) data.userAgent = null;
+    if (Object.keys(data).length === 0) return [];
+    return [prisma.auditLog.update({ where: { id: row.id }, data })];
+  });
+
   const now = new Date();
   const meta = await requestMeta();
   await prisma.$transaction([
+    ...auditScrubOps,
     prisma.user.update({ where: { id: userId }, data: userAnonymizationData(userId, now) }),
     prisma.freelancerProfile.updateMany({
       where: { userId },

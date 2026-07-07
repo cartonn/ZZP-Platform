@@ -11,6 +11,42 @@ import { type UserRole } from "@/lib/enums";
 /** Weergavenaam waarmee een geanonimiseerd account wordt getoond. */
 export const ANONYMIZED_NAME = "Verwijderde gebruiker";
 
+/** Redactie-marker die in de plaats komt van uit auditlog-metadata verwijderde persoonsgegevens. */
+export const AUDIT_PII_REDACTED = "[verwijderd]";
+
+/**
+ * AVG art. 17 (recht op vergetelheid) dekt óók de auditlog. Meerdere audit-events schrijven het
+ * rauwe e-mailadres van de betrokkene in de JSON-metadata (mislukte login, rate-limit, bulk-import);
+ * de overschrijving van `User.email` bij anonimisering raakt die kopieën niet. Deze pure helper
+ * redact het e-mailadres uit één metadata-string: elk stringveld dat exact (hoofletter-ongevoelig)
+ * gelijk is aan het opgegeven adres wordt vervangen door de redactie-marker. Andere velden (bv.
+ * `role`, status-overgangen) blijven staan — die zijn niet naar de persoon herleidbaar en
+ * operationeel nodig. De exact-match voorkomt dat het adres van een ándere gebruiker (dat dit adres
+ * als substring bevat) per ongeluk wordt geraakt. Geeft de invoer ongewijzigd terug als er niets te
+ * redacten valt of de metadata geen geldige JSON-object-string is (defensief; `auditData` schrijft
+ * altijd JSON, maar we vertrouwen niet blind).
+ */
+export function scrubAuditMetadataEmail(metadata: string | null, email: string): string | null {
+  if (!metadata || !email) return metadata;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(metadata);
+  } catch {
+    return metadata;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return metadata;
+  const obj = parsed as Record<string, unknown>;
+  const target = email.toLowerCase();
+  let changed = false;
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === "string" && value.toLowerCase() === target) {
+      obj[key] = AUDIT_PII_REDACTED;
+      changed = true;
+    }
+  }
+  return changed ? JSON.stringify(obj) : metadata;
+}
+
 /** Deterministisch, uniek pseudo-adres. Behoudt de unique-constraint op `email`
  *  zonder een herleidbaar adres te bewaren. `.invalid` is per RFC 6761 nooit een
  *  echt domein, dus er kan geen mail naartoe. */
