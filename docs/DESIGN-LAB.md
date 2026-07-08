@@ -436,4 +436,28 @@ UI-taal = Nederlands.
   betekenis & expressief-joyful premium (puzzelstuk = match, radiale kaleidoscoop-symmetrie op neutrale
   basis); en print-revival data-density met symboolrijke informatie (maritieme almanak, evenwicht/balans-
   metafoor voor eerlijke, verklaarbare matching) — elk onderscheidend gehouden van de bestaande 160.
-- **Totaal nu op `/ontwerp`: 170 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170).
+- **Reeks 18 (run 8-7-2026, nrs 171–180):** Diafragma (fotografische scherptediepte: scherm-in-focus
+  messcherp, secundaire panelen bokeh/blur, aperture-lamellenring als match-motief — spatial depth, niet
+  Loep/Cinema) · Notariaat (ledger-serif formeel: perkament-ivoor, serif-koppen + tabulaire ledger-cijfers,
+  geëmbosseerd zegel — leest als aangifte, niet Dossier/Grootboek/Zegel) · Mycelium (biofiel organisch
+  netwerk: mos-en-klei-palet, SVG-schimmeldraden verbinden matches/samenwerkingen — levende warmte, niet
+  Botanie/Knooppunt) · Letterpers (diepdruk/deboss: type en kaarten fysiek in dik papier geperst, inkt-
+  squash-randen, geperst zegel — tactiel drukwerk, niet Typemachine/Riso/Courant) · Parallax (bewegende
+  dieptelagen: lagen zweven op verschillende snelheid mee met de cursor, cast-shadow-scheiding, voorste
+  content scherp — spatial motion) · Magneet (magnetische micro-interacties: knoppen/kaarten/match-ring
+  trekken naar de cursor en veren met snap terug — micro-delight, niet Kinetiek) · Korrel (filmkorrel &
+  scanlines: statisch gegenereerde grain-overlay + CRT-lijnen op strak grid — analoge warmte, niet Riso/
+  Noir/Cyanotype) · Sediment (geologische strata: horizontale aardlagen met band-kleur en depositie-lijnen,
+  diepte = gewicht/tijd — stratigrafie, niet Jaarringen/Terrazzo/Marmer) · Damast (tone-on-tone geweven
+  jacquard: fijn ornament kleur-op-kleur onder strakke content, jacquard-glans bij hover — ingetogen luxe,
+  niet Textiel/Batik/Zellige) · Diorama (papiergesneden dieptelagen: gestapelde uitgesneden papierlagen met
+  cast-shadows, lagen schuiven bij hover uit elkaar — shadowbox-diepte, niet Origami/Karton/Legpuzzel).
+- Onderzochte 2026-trends deze reeks: **spatial depth** graduated van hype naar praktijk (scherptediepte-
+  focusvlakken, muisgestuurde parallax-lagen, papercut-shadowbox) — diepte als informatie-hiërarchie zonder
+  visuele ruis; **type-dominant / ledger-serif** (elegante serif + tabulaire cijfers die "als een aangifte
+  lezen, geen pitch deck"); **tactiele textuur & materiaal-warmte** als tegenwicht voor flat minimalism
+  (letterpress deboss, mathematisch gegenereerde film-grain/scanlines, geweven jacquard); **micro-
+  interactions / magnetic cursor** (magnetische aantrekking + spring-snap als micro-delight); en **biophilic
+  / human-centered warmth** (organische mycelium-netwerken, aardse strata) — elk onderscheidend gehouden van
+  de bestaande 170.
+- **Totaal nu op `/ontwerp`: 180 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180).
