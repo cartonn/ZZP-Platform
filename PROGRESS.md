@@ -3,6 +3,17 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 16 (2026-07-08) — geen nieuwe gaten
+
+Kritische-gebruiker-sweep over 4 rollen (basis `23f34e4`). DOEL 1: CLIENT shortlistte reactie `app-1`
+(NEW→SHORTLIST) via `/kandidaten` → DB + audit `APPLICATION_STATUS_CHANGED` bevestigd. DOEL 1b: de
+CLIENT-next-action "1 nieuwe reactie" verdween daarna correct (`/acties` 2→1, nav-badge "Reacties 1"
+weg). DOEL 2: escalatie→redirect, IDOR→soft-404/geen leak, API-IDOR→403, POST-oppervlakken
+(`client-error`/`csp-report`→204, crons→503/405 fail-closed, `push/subscribe`→307, `billing/webhook`
+inert), 0 HTTP-500's. Parallelle Opus-security-audit over de nieuwste diff (#666-#675): geen
+authz-/ownership-/Zod-/transitie-gaten. Documentatie-only run — details in
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 16).
+
 ## Kandidaat-experience (2026-07-08) — "Eerder samengewerkt"-signaal op /kandidaten
 
 De opdrachtgever zag bij het beoordelen van reacties de match, compliance, leverbetrouwbaarheid en

@@ -1,5 +1,52 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-08 (run 16) · **main-commit basis:** `23f34e4`
+> **Uitkomst:** **GEEN nieuwe gaten.** Verse prod-build (`npm run build`), schema-push + idempotente
+> demo-seed (`SEED_DEMO=true`, `prisma db seed`) op ephemere SQLite (`qa.db`), prod-server
+> (`CI=true node scripts/start.mjs`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`).
+> Vier rollen ingelogd via het echte formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde
+> Chromium (`/opt/pw-browsers/chromium-1194`). Eén parallelle Opus-security-subagent over álle
+> nieuwste mutatie-/data-oppervlakken sinds run 15 (#666-#675).
+>
+> **DOEL 1 (echte actie, server-side geverifieerd):** CLIENT (Mark Jansen) opende `/kandidaten?job=job-1`,
+> klikte op de kaart van Sanne de Vries (reactie `app-1`, status NEW) en drukte **"Shortlist"** → tegen de
+> DB bevestigd: `app-1` **NEW→SHORTLIST**, audit `APPLICATION_STATUS_CHANGED` (`entityId=app-1`,
+> `metadata.from=NEW,to=SHORTLIST`, verse timestamp). De volledige keten auth→rol→ownership
+> (`loadOwnedApplication`)→Zod (`applicationStatusSchema`)→transitie (`assertApplicationTransition`)→
+> audit→revalidate werkt.
+>
+> **DOEL 1b (next-action-engine, gekruist tegen DB-waarheid):** vóór de actie toonde de CLIENT
+> `/acties` = 2 ("1 nieuwe reactie" + "Bedrijfsprofiel 90% compleet") en de nav-badge "Reacties 1"
+> (= exact 1 NEW-application op de eigen company). Ná het shortlisten: `/acties` = **1** (alleen het
+> profiel-item resteert) en de "Reacties"-badge **verdween** (geen NEW meer). De afgehandelde
+> next-action verdween dus correct en spoort met de echte status — geen tegenstrijdige, dubbele of
+> niet-verdwijnende actie. ZZP `/acties` = 2, FRANCHISER terecht "Alles is afgehandeld", ADMIN 16
+> (6 SUBMITTED-certificaten + supporttickets) — consistent met de queues.
+>
+> **DOEL 2 (adversarieel — alle correct geweigerd):** privilege-escalatie (FREELANCER/CLIENT/FRANCHISER
+> → `/admin/*`; niet-FRANCHISER → `/franchise`) → **redirect naar eigen dashboard**; IDOR/cross-partij +
+> cross-tenant (ZZP'er/CLIENT/FRANCHISER → andermans `/samenwerkingen/<id>` + `/facturen/<id>`, incl.
+> een PAID- en een DRAFT-factuur van een andere partij) → **"Niet gevonden · geen toegang"-kaart, geen
+> datalek**; API-IDOR (`/api/documents/<vreemd-id>`) → **403**; onzin-id → soft-404/`notFound()`;
+> path-traversal (`/facturen/..%2F..%2Fetc%2Fpasswd`) → geen leak; XSS `?q=<script>` → niet uitgevoerd.
+> **POST-oppervlakken** (nieuw dit run): `/api/client-error` (leeg/niet-JSON/XSS/40KB-oversized) → **204**,
+> geen 500/log-flood; `/api/csp-report` (junk/array) → **204**; `/api/tasks/run-all` + `/api/tasks/expiry`
+> ongeauthenticeerd → **503** (fail-closed, geen CRON_SECRET), GET → **405**; `/api/push/subscribe`
+> ongeauthenticeerd → **307** (login-redirect); `/api/billing/webhook` ongeauth. → 200 maar **inert**
+> (Noop-provider `resolveWebhookRef=null`; Stripe verifieert handtekening, Mollie haalt de status
+> gezaghebbend op — geen forge-pad om een abonnement te activeren). **0 HTTP-500's / crashes.**
+>
+> **Security-subagent (statische diepte-audit, nieuwste diff `3d3cb9a..23f34e4`):** geen gaten in de
+> nieuwe surfaces — `prognose/setMonthlyIncomeGoal` (auth→Zod-begrensd bedrag→`assertOwnership`→audit),
+> `uitgaven/createExpense+deleteExpense` (Zod niet-negatief/int4-begrensd, ownership op delete, gebalanceerde
+> grootboekboeking + audit), `kandidaten/changeApplicationStatus` (ownership + transitie-map + veilige
+> `safeParse` op afwijzingsreden), `candidate-history`/`monthly-income` (per-opdrachtgever/-ZZP'er gescoopt,
+> begrensde queries — geen cross-tenant-lek), `account-export` expenses (`userId`-gescoopt), `client-error`/
+> `csp-report` (rate-limit vóór body-read, size-cap, PII-normalisatie, altijd 204). Spoort met runs 6-15.
+> Deze run is documentatie-only.
+>
+> ---
+>
 > **Datum:** 2026-07-07 (run 15) · **main-commit basis:** `3d3cb9a`
 > **Uitkomst:** **GEEN nieuwe gaten.** Verse prod-build (`npm run build`), schema-push + idempotente
 > demo-seed (`SEED_DEMO=true`) op ephemere SQLite (`qa.db`), prod-server (`CI=true node scripts/start.mjs`,
