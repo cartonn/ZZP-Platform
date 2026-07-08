@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Kandidaat-experience (2026-07-08) — "Eerder samengewerkt"-signaal op /kandidaten
+
+De opdrachtgever zag bij het beoordelen van reacties de match, compliance, leverbetrouwbaarheid en
+vertrouwen — maar niet of hij **al eerder met deze ZZP'er heeft samengewerkt**. Dat is juist een sterk,
+laag-risico signaal: een bekende die bevalt opnieuw inhuren is sneller en veiliger. Benchmark:
+Malt/LinkedIn/Upwork tonen "worked together before"; wij vertalen dat naar onze verklaarbare,
+server-berekende kandidatenlijst. Nu toont elke kandidaatkaart een subtiele chip "Eerder samengewerkt"
+(met telling bij >1) + de laatste afronddatum in de tooltip, wanneer er afgeronde samenwerkingen met
+déze opdrachtgever zijn.
+
+- **`src/lib/candidate-history.ts`** (puur, +`.test.ts` 10 tests): `summarizeSharedHistory(rows, ids)`
+  → `Map<freelancerId, {count, lastCompletedAt}>` (alleen COMPLETED telt; `completedAt ?? createdAt`,
+  meest recente wint; profielen buiten de set genegeerd) + `sharedHistoryLabel(count)`.
+- **`src/lib/data/candidate-history.ts`**: `getSharedHistoryForCandidates(clientUserId, freelancerIds)`
+  — één gebatchte, per-opdrachtgever gescoopte (`company.userId`) query over COMPLETED-samenwerkingen
+  (geen N+1, `take` begrensd). Bewust GEEN PROPOSED/ACTIVE: dat kan de huidige reactie zelf zijn.
+- **`src/components/freelancer/candidate-history-badge.tsx`**: presentationele success-chip met
+  Handshake-icoon; afronddatum in de `title`-tooltip; rendert niets zonder historie.
+- **`src/lib/format-date.ts`**: nieuwe `formatMonthYearNl` ("mei 2026") voor het compacte label.
+- **`src/app/(protected)/kandidaten/page.tsx`**: fetch gevouwen in de bestaande `Promise.all` naast
+  de leverbetrouwbaarheid; chip in de kaartkop naast de status-/trust-badges.
+
+Read-only, server-side waarheid, geen schemawijziging, geen extra losse query, per opdrachtgever
+gescoopt (geen historie van een andere opdrachtgever). Demo werkt zonder seed-wijziging: Sanne heeft een
+afgeronde samenwerking (collab-1, job-4) én een open reactie (app-1, job-1) bij Zorgcentrum Jansen
+(opdrachtgever@). Gate groen: typecheck, lint, test (+10), build, prettier.
+
 ## Prod-rijpheid (2026-07-08) — Rate-limit op `/api/billing/webhook` (OWASP A04/A09, AVG art. 32)
 
 Geparkeerd MIDDEL-item uit `docs/SECURITY-PRIVACY-BACKLOG.md` gesloten. De publieke, ongeauthenticeerde

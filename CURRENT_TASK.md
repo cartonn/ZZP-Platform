@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **"Eerder samengewerkt"-signaal op /kandidaten (2026-07-08)** — de opdrachtgever
+> ziet bij het beoordelen van reacties nu of hij al eerder een samenwerking met déze ZZP'er heeft afgerond
+> (chip "Eerder samengewerkt" + telling + laatste afronddatum in de tooltip). Sterk, laag-risico
+> vertrouwenssignaal (Malt/LinkedIn "worked together before"). Puur `candidate-history.ts`
+> (`summarizeSharedHistory`/`sharedHistoryLabel`, 10 tests, alleen COMPLETED, `completedAt ?? createdAt`);
+> gebatchte per-opdrachtgever fetcher `data/candidate-history.ts` (`company.userId`-scope, geen N+1, geen
+> PROPOSED/ACTIVE); `CandidateHistoryBadge` + `formatMonthYearNl`; gevouwen in de bestaande `Promise.all`.
+> Read-only, geen schemawijziging. Demo via Sanne (collab-1/job-4 afgerond + app-1/job-1 open bij Jansen).
+
 > Gedaan (niet opnieuw): **Constructieve afwijzingsreden voor de ZZP'er (2026-07-08)** — de opdrachtgever
 > geeft bij het afwijzen van een reactie optioneel een gestructureerde reden mee (6 codes); de ZZP'er ziet
 > die als respectvolle, constructieve feedback op `/reacties` i.p.v. een black-box afwijzing (noord-ster:
