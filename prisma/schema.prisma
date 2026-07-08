@@ -537,6 +537,7 @@ model Application {
   matchScore         Int? //                            server-berekende snapshot 0-100
   complianceSnapshot String? //                         JSON-string, server-berekend
   note               String? //                         interne notitie opdrachtgever
+  rejectionReason    String? //                         gestructureerde afwijzingscode (RejectionReasonCode), zichtbaar voor de ZZP'er
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

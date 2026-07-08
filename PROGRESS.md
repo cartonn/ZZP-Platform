@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Kandidaat-experience (2026-07-08) — Constructieve afwijzingsreden voor de ZZP'er
+
+Een afgewezen ZZP'er kreeg tot nu toe alleen "Je reactie is afgewezen" — een black-box zonder waarom.
+Concurrenten (Temper/Pidz) doen dit óók niet; onze noord-ster is juist **verklaarbaarheid**. De
+opdrachtgever geeft nu bij het afwijzen optioneel een gestructureerde reden mee; de ZZP'er ziet die als
+respectvolle, constructieve feedback op `/reacties`, zodat hij ervan leert i.p.v. in het duister tast.
+
+- **`src/lib/rejection-reason.ts`** (puur, +`.test.ts` 24 tests): `REJECTION_REASONS` (6 codes:
+  POSITION_FILLED/RATE_TOO_HIGH/EXPERIENCE_MISMATCH/AVAILABILITY/LOCATION/OTHER met `label` voor de
+  opdrachtgever + `feedback`-zin voor de ZZP'er); `rejectionReasonCodeSchema` + `optionalRejectionReasonSchema`
+  (leeg → undefined, strings+Zod, geen native enum); `rejectionReasonLabel`/`rejectionReasonFeedback`;
+  `buildRejectionNotificationBody(jobTitle, code)`.
+- **`prisma/schema.prisma`**: additief `Application.rejectionReason String?` (gestructureerde code).
+- **`src/app/(protected)/kandidaten/actions.ts`**: `changeApplicationStatus` leest de optionele reason uit
+  FormData (safeParse → degradeert stil bij misbruik, geen 500), persisteert bij REJECTED en wist 'm bij
+  elke andere overgang; notificatie-body via `buildRejectionNotificationBody`; reason in de audit-metadata.
+- **`src/app/(protected)/kandidaten/reject-application-dialog.tsx`** (nieuw): afwijs-dialoog met optionele
+  reden-`<select>` (zelfde bevestig-/focus-trap-patroon als ConfirmButton, maar met FormData-veld).
+- **`src/app/(protected)/reacties/page.tsx`**: toont de constructieve feedback-zin bij een afgewezen reactie.
+- **`prisma/seed.ts`**: `app-8` (Peter, REJECTED) krijgt reden `EXPERIENCE_MISMATCH` zodat de demo het toont.
+
+Server-side waarheid, geen dode knoppen, geen extra query (`/reacties` gebruikt al `include`). Gate groen:
+typecheck, lint, **3542 unit-tests**, build, prettier.
+
 ## Administratie-ontzorging (2026-07-07) — Uitgaven-/onkostentracker voor de ZZP'er
 
 De ontzorg-cascade (winst → IB-schatting → belastingreservering → BTW-stand) rekende voor de ZZP'er
