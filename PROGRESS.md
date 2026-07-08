@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab (2026-07-08) — reeks 19: +10 concepten (nrs 181–190), totaal nu 190 op `/ontwerp`
+
+Tien nieuwe, onderscheidende redesign-concepten toegevoegd (additief, geen bestaand concept geraakt):
+**181 Refractie** (Liquid Glass / visionOS-2026 optische refractie), **182 Hoogtelijn** (topografische
+contour-cartografie), **183 Halftoon** (CMYK-halftoon drukwerk), **184 Molecuul** (moleculaire
+skeletchemie), **185 Diepzee** (bioluminescent abyssaal donker), **186 Jaloezie** (cinematografisch
+licht & schaduw), **187 Suprematie** (suprematistische zwevende vlakken), **188 Vouwkaart** (gevouwen
+papieren wegenkaart), **189 Passepartout** (museum passe-partout), **190 Amber** (monochroom amber
+editorial). Elk toont alle zes kernschermen via `SCREENS` + `useState<ScreenKey>`, deterministisch
+(geen `Math.random`/`Date`), Nederlandse UI, status via label+icoon (nooit kleur-alleen), loading/
+empty/error-states, responsive + focus-visible/aria. Nieuwe bestanden
+`src/components/ontwerp/concepts/concept-181..190-*.tsx`; wiring toegevoegd in `registry.ts` (10 nieuwe
+`ConceptMeta`) en `src/app/ontwerp/[id]/concept-host.tsx` (10 nieuwe lazy-imports) — bestaande entries
+ongemoeid. Gebouwd door 4 parallelle workers op niet-overlappende bestanden; orchestrator integreerde.
+Gates lokaal groen: `typecheck`, `lint` ("No ESLint warnings or errors"), `test` (321 files / 3568
+tests), `build` en `prettier --check .`. Docs: `docs/DESIGN-LAB.md` reeks 19 + totaal bijgewerkt.
+
 ## Privacy (2026-07-08) — inzage-export compleet: 8 ontbrekende eigen-datacategorieën (AVG art. 15/20)
 
 Het AVG-inzage-/dataportabiliteitsexport (`/api/account/export` → `buildAccountExport`,

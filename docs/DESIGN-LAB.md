@@ -460,4 +460,31 @@ UI-taal = Nederlands.
   interactions / magnetic cursor** (magnetische aantrekking + spring-snap als micro-delight); en **biophilic
   / human-centered warmth** (organische mycelium-netwerken, aardse strata) — elk onderscheidend gehouden van
   de bestaande 170.
-- **Totaal nu op `/ontwerp`: 180 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180).
+- **Reeks 19 (run 8-7-2026, nrs 181–190):** Refractie (Liquid Glass / visionOS-2026: échte optische
+  lenswerking — translucente panelen breken het coördinaatraster erachter via feDisplacement, specular
+  edge-highlights + hover-sweep, koel iris/violet — geen platte glassmorphism) · Hoogtelijn (topografische
+  contour-cartografie: hoogtelijnen + hypsometrische tinten groen→zandbruin, coördinaat-hairlines, match% =
+  hoogte — data-terrein, niet Atlas/Portolaan/Wegwijzer) · Halftoon (CMYK-halftoon drukwerk: fijne dot-
+  gradient beeldvlakken, offset-registratiekruisjes, spot-magenta over zwart, puntdichtheid = waarde —
+  analoog print-revival, niet Riso/Ponskaart) · Molecuul (moleculaire chemie: zeshoekige skeletformules +
+  bal-en-staaf-knopen met exacte bindingshoeken, matching = affiniteit — clinisch-lab, niet Mycelium/
+  Knooppunt) · Diepzee (bioluminescent abyssaal donker: gloeiende aqua/cyaan-accenten + sonar-ping-ringen in
+  inktblauw, KPI's gloeien als kwallen — organisch oceaanlicht, niet CRT/Neon/Nachtdienst) · Jaloezie
+  (cinematografisch licht & schaduw: diagonale goud-amber banden als zonlicht door luxaflex over solide
+  content — filmisch-noir sfeer, niet Noir/Cinema) · Suprematie (suprematisme Malevich/Lissitzky: vrij-
+  zwevende geometrische vlakken + dynamische diagonalen, rood/zwart op warm-wit — spanning & witruimte, niet
+  Bauhaus/Memphis/Manifest) · Vouwkaart (gevouwen papieren wegenkaart: vouwlijnen delen het scherm in
+  panelen, secties vouwen open/dicht, legenda-typografie — het fysieke object, niet kaart-content) ·
+  Passepartout (museum passe-partout: elk blok als kunstwerk in beveled mat-venster met museum-label-
+  typografie + serene marge — galerie-omlijsting, niet Vitrine/Kader) · Amber (monochroom amber: één
+  merkkleur door alles heen op donker-warme basis, rijke lichtheid-ladder, status via lichtheid+vorm+icoon —
+  warm editorial-duotoon, niet Fosfor/Neon).
+- Onderzochte 2026-trends deze reeks: **Liquid Glass / spatiale refractie** als bepalende OS-esthetiek
+  (visionOS/iOS 26 — dynamische optische lenswerking i.p.v. statische blur; refractie, translucentie en
+  diepte als levend materiaal); **cartografische & wetenschappelijke datavisualisatie** (hypsometrische
+  hoogtekaarten, moleculaire skeletgeometrie als informatiesysteem); **analoog print-revival** (CMYK-
+  halftoon, offset-registratie als grafisch systeem); **cinematografisch licht & bioluminescentie** in
+  donkere modi (venetian-blind licht/schaduw, organisch glow-licht met WCAG-contrast i.p.v. neon); en
+  **avant-garde kunsthistorie** (suprematisme, museale passe-partout, monochroom merkkleur-systeem) — elk
+  onderscheidend gehouden van de bestaande 180.
+- **Totaal nu op `/ontwerp`: 190 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190).
