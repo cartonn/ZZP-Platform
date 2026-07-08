@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## ZZP'er (2026-07-08) — standaard-motivatie: sneller reageren (quick-apply)
+
+De ZZP'er bewaart één keer een **standaard-motivatie** op zijn profiel; die vult voortaan het
+motivatieveld op het reageerformulier (`/opdrachten/[id]`) automatisch voor, met een rustige hint
+"pas 'm aan voor deze opdracht". Reduceert de frictie van bij elke opdracht vanaf nul typen
+(benchmark: proposal-templates/quick-apply bij Malt/Upwork/Temper), terwijl de ingezonden motivatie
+server-side de waarheid blijft — het profielveld is enkel een startpunt dat per opdracht wordt
+aangepast (geen dode automatisering, geen verborgen boilerplate richting de opdrachtgever).
+
+- **Schema** (additief): `FreelancerProfile.defaultMotivation String?`. Geen migratiebestand
+  (SQLite/Postgres via `prisma db push`).
+- **Pure lib** `src/lib/application-template.ts`: `normalizeDefaultMotivation` (trim, leeg→null),
+  `hasDefaultMotivation`, `resolveMotivationDraft` (→ `{text, fromTemplate}`), `DEFAULT_MOTIVATION_MAX`.
+  7 unit-tests (`application-template.test.ts`).
+- **Profiel bewerken** (`profile-form.tsx` + `profiel/actions.ts` + `validation.ts`): nieuw veld
+  "Standaard motivatie" (Zod `optionalText(2000)`, `auth→rol→ownership→Zod→update→audit` ongewijzigd).
+  Ook gewired in het Actiecentrum-drawer (`lib/actions/drawer-data.ts`).
+- **Reageren** (`opdrachten/[id]/page.tsx` + `application-form.tsx`): `defaultMotivation` doorgegeven,
+  `resolveMotivationDraft` vult het veld voor + toont de hint bij herkomst uit de standaard.
+- **Inzage-export** (AVG art. 15): het veld valt automatisch onder de bestaande `include` in
+  `account-export.ts` (eigen data). **Seed:** Sanne (`zzp@`) krijgt een demo-standaardtekst.
+
+Read-only op de leeskant, geen extra query (leunt op de reeds opgehaalde profielvelden). Gate lokaal
+groen: typecheck, lint, test, build, `prettier --write .`.
+
 ## Ontwerp-lab (2026-07-08) — reeks 19: +10 concepten (nrs 181–190), totaal nu 190 op `/ontwerp`
 
 Tien nieuwe, onderscheidende redesign-concepten toegevoegd (additief, geen bestaand concept geraakt):

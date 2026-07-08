@@ -126,6 +126,7 @@ export const freelancerProfileSchema = z.object({
     })
     .transform((v) => (v ? normalizeBtwId(v) : undefined)),
   visibility: visibilitySchema,
+  defaultMotivation: optionalText(2000),
   skillIds: z.array(z.string().cuid()).max(50).default([]),
   industryIds: z.array(z.string().cuid()).max(20).default([]),
 });
