@@ -540,6 +540,17 @@ een herstel-oefening), **incident-respons**, **secrets-rotatie** en monitoring o
 gecachet) en er is een root-error-boundary (`global-error.tsx`) als laatste vangnet met een rustige
 foutpagina.
 
+**Code-kant GEDAAN (8-7-2026) — systeemstatus-scherm voor de beheerder:** naast de RUNBOOK is er
+nu een ADMIN-only scherm **Systeemstatus** (`/admin/systeemstatus`) dat de productie-configuratie-
+posture op één scherm toont: welke integraties/drivers actief zijn (opslag, database, e-mail,
+betalingen, verificatie-adapters, upload-scan, rate-limit-store, error-monitoring, taak-cron,
+deel-token-sleutel, productie-webadres), welke nog op een veilige fallback draaien en welke
+**aandacht** vragen vóór livegang, plus de live databank-bereikbaarheid en de boot-waarschuwingen
+(`envWarnings`). Puur afgeleid uit de al-gevalideerde omgeving (`src/lib/system-status.ts`, geen
+sleutelwaarden — alleen driver-modi). Beantwoordt de RUNBOOK-vraag "is productie na de deploy
+correct bekabeld?" zonder de boot-logs te hoeven grepen. Resterend mensenwerk: **niets** — het
+scherm helpt juist bij het afvinken van de mensenwerk-stappen hieronder.
+
 **Resterend mensenwerk (eenmalig):**
 
 1. Zet **automatische dagelijkse database-back-ups** aan bij je databasedienst (EU-regio; §1b) en

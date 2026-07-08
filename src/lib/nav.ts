@@ -25,7 +25,8 @@ export type NavIcon =
   | "contact"
   | "graduationCap"
   | "settings"
-  | "bookmark";
+  | "bookmark"
+  | "activity";
 
 export interface NavItem {
   label: string;
@@ -102,6 +103,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { label: "Gebruikers", href: "/admin/gebruikersbeheer", icon: "users", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Financiën", href: "/admin/financien", icon: "fileText", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Configuratie", href: "/admin/configuratie", icon: "settings", section: "Beheer", enabled: true }, // prettier-ignore
+    { label: "Systeemstatus", href: "/admin/systeemstatus", icon: "activity", section: "Beheer", enabled: true }, // prettier-ignore
     { label: "Academie", href: "/academie", icon: "graduationCap", section: "Overig", enabled: true }, // prettier-ignore
     { label: "Ideeën", href: "/ideeen", icon: "lightbulb", section: "Overig", enabled: true }, // prettier-ignore
   ],

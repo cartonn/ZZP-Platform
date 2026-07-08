@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   BarChart,
   Bookmark,
   Briefcase,
@@ -59,6 +60,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   graduationCap: GraduationCap,
   settings: Settings,
   bookmark: Bookmark,
+  activity: Activity,
 };
 
 export function SidebarNav({

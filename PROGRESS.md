@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid (2026-07-08) — ADMIN systeemstatus-scherm (configuratie-posture)
+
+Een ADMIN-only scherm **Systeemstatus** (`/admin/systeemstatus`) dat de productie-configuratie op
+één scherm samenvat — de operationele go-live-vraag "is productie na de deploy correct bekabeld?".
+Voorheen stonden die signalen alleen in de boot-logs (`envWarnings`, eenmalig) of impliciet in de
+env; nu ziet de beheerder in één oogopslag welke integraties actief zijn, welke op een veilige
+fallback draaien en welke aandacht vragen.
+
+- **Pure lib** `src/lib/system-status.ts`: `collectSystemStatus(env)` → gegroepeerde `StatusItem`s
+  (Opslag & data, Communicatie & betalingen, Verificatie, Beveiliging & observability,
+  Schaalbaarheid) met per item een `level` (ok/fallback/attention), `mode` en toelichting; plus
+  `databaseKind` (URL-scheme → PostgreSQL/SQLite/onbekend), tellingen per niveau en de
+  `envWarnings`. **In productie** telt een fallback als **aandacht** (je wilt 'm activeren),
+  daarbuiten louter informatief. Verifiers die niet op hun echte register staan → demo-verifier
+  (in productie fail-closed → aandacht, tenzij `SEED_DEMO=true`). **Geen sleutelwaarden** — alleen
+  driver-modi en aan/uit. 18 unit-tests (`system-status.test.ts`).
+- **Env** `src/lib/env.ts`: nieuwe `readEnv()` — leest de al-gevalideerde omgeving opnieuw uit
+  (defaults toegepast) zonder opnieuw te waarschuwen/throwen; veilig ná boot.
+- **Pagina** `/admin/systeemstatus` (`requireRole("ADMIN")`, `force-dynamic`): combineert de posture
+  met een **live databank-readiness-ping** (`evaluateReadiness`, hergebruikt) en rendert
+  `SystemStatusPanel` (server-component, badges per niveau, boot-waarschuwingen). Loading-state
+  aanwezig; admin-route ook middleware-gated.
+- **Nav** `src/lib/nav.ts` + `sidebar-nav.tsx`: item "Systeemstatus" (icon `activity`) onder Beheer,
+  naast Configuratie.
+
+Read-only, server-side waarheid, geen schemawijziging, geen extra dependency. Gate lokaal groen:
+typecheck, lint, prettier, unit-tests, build. MENSENWERK §11 bijgewerkt.
+
 ## Security & Privacy (2026-07-08, 2e ronde) — audit (3 subagents) + 2 hardening-fixes
 
 Adversariële audit met 3 parallelle Opus-subagents op niet-overlappende oppervlakken: tenant-isolatie
