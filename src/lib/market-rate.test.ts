@@ -6,6 +6,7 @@ import {
   percentile,
   ratePosition,
 } from "@/lib/market-rate";
+import { MARKET_RATE_MIN_SAMPLE } from "@/lib/config";
 
 // ---------------------------------------------------------------------------
 // median
@@ -76,8 +77,23 @@ describe("percentile", () => {
 // ---------------------------------------------------------------------------
 // computeMarketRate
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// k-anonimiteitsvloer (AVG) — de productieconstante zelf, niet alleen de logica
+// ---------------------------------------------------------------------------
+// De pure computeMarketRate-tests hieronder draaien met een kleine `MIN` om de
+// scope-keuze-logica te toetsen. Dat toetst NIET de daadwerkelijke privacy-garantie:
+// dat de productie-wiring (job-rate-bands.ts) een steekproefdrempel van ten minste 10
+// gebruikt. Zonder deze koppeling zou het per ongeluk verlagen van
+// MARKET_RATE_MIN_SAMPLE naar bv. 3 geen enkele test rood maken, terwijl dat individuele
+// uurtarieven (persoonlijke financiële data, AVG) herleidbaar zou maken uit p25/mediaan/p75.
+describe("k-anonimiteitsvloer MARKET_RATE_MIN_SAMPLE", () => {
+  it("blijft ten minste 10 (marktband nooit op een steekproef die één peer herleidbaar maakt)", () => {
+    expect(MARKET_RATE_MIN_SAMPLE).toBeGreaterThanOrEqual(10);
+  });
+});
+
 describe("computeMarketRate", () => {
-  const MIN = 3; // gebruik dezelfde drempel als MARKET_RATE_MIN_SAMPLE
+  const MIN = 3; // kleine drempel om louter de scope-keuze-logica te toetsen (niet de AVG-vloer)
 
   // --- scope-keuze ---
 

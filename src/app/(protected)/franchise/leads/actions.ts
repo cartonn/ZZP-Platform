@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireRole, AuthorizationError } from "@/lib/authz";
-import { assertSameTenant, hasTenant } from "@/lib/tenancy";
+import { ownsViaTenant, hasTenant } from "@/lib/tenancy";
 import { audit } from "@/lib/audit";
 import { leadStatusSchema, type LeadStatus } from "@/lib/enums";
 import { canLeadTransition, leadStatusRequiresReason, LEAD_STATUS_LABEL } from "@/lib/leads";
@@ -98,8 +98,10 @@ export async function setLeadStatus(leadId: string, formData: FormData): Promise
     where: { id: leadId },
     select: { status: true, tenantId: true, organizationName: true },
   });
-  if (!lead) return; // verwijderd of onbekend id — nette no-op
-  assertSameTenant(actor, lead.tenantId);
+  // Onbekend/verwijderd id én een lead van een ándere tenant leiden tot exact dezelfde stille
+  // no-op: zo verschilt "bestaat niet" niet van "bestaat, andere bemiddeling" (geen cross-tenant
+  // existence-oracle, geen ongevangen 403/500 naar de client).
+  if (!lead || !ownsViaTenant(actor, lead.tenantId)) return;
 
   const current = lead.status as LeadStatus;
   if (current === next || !canLeadTransition(current, next)) return; // ongeldige sprong → no-op
@@ -150,9 +152,9 @@ export async function deleteLead(leadId: string): Promise<void> {
     where: { id: leadId },
     select: { tenantId: true, organizationName: true },
   });
-  if (lead) {
-    assertSameTenant(actor, lead.tenantId);
-
+  // Alleen wissen als de lead bestaat én in de eigen tenant valt; een cross-tenant id gedraagt zich
+  // identiek aan een onbekend id (stille no-op + redirect naar de lijst) — geen existence-oracle.
+  if (lead && ownsViaTenant(actor, lead.tenantId)) {
     // De LeadContact-rijen cascaden mee (schema: `onDelete: Cascade` op `leadId`); zo verdwijnt ook
     // alle vrije tekst uit het contactlogboek in dezelfde operatie.
     await prisma.lead.delete({ where: { id: leadId } });
@@ -165,9 +167,9 @@ export async function deleteLead(leadId: string): Promise<void> {
     });
     revalidatePath("/franchise/leads");
   }
-  // Bij een onbekend/al-verwijderd id (of na een geslaagde wis) sturen we terug naar de lijst —
-  // de detailpagina van een verwijderde lead bestaat niet meer. Buiten de `if` zodat `redirect`
-  // (die intern gooit) niet binnen de assertSameTenant-DB-tak valt.
+  // Bij een onbekend/al-verwijderd/cross-tenant id (of na een geslaagde wis) sturen we terug naar
+  // de lijst — de detailpagina van een verwijderde lead bestaat niet meer. Buiten de `if` zodat
+  // `redirect` (die intern gooit) niet binnen de DB-tak valt.
   redirect("/franchise/leads");
 }
 
@@ -196,8 +198,8 @@ export async function addLeadContact(leadId: string, formData: FormData): Promis
     where: { id: leadId },
     select: { tenantId: true },
   });
-  if (!lead) return;
-  assertSameTenant(actor, lead.tenantId);
+  // Onbekend id én cross-tenant id → dezelfde stille no-op (geen existence-oracle, geen 403/500).
+  if (!lead || !ownsViaTenant(actor, lead.tenantId)) return;
 
   const nextFollowUp = parseNextFollowUp(formData);
   await prisma.$transaction([

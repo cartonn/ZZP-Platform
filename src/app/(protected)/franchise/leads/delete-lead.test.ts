@@ -1,7 +1,10 @@
 // Contract van deleteLead (AVG art. 17 — recht op wissen van prospect-PII): auth → rol FRANCHISER →
-// tenant-ownership (assertSameTenant) → delete (LeadContact cascadet mee) → audit LEAD_DELETED →
+// tenant-ownership (ownsViaTenant) → delete (LeadContact cascadet mee) → audit LEAD_DELETED →
 // redirect naar de lijst. Een lead van een ándere tenant wordt nooit verwijderd; een niet-FRANCHISER
-// evenmin. Rood→groen: zonder de ownership-/rol-poort zou de delete cross-tenant vuren.
+// evenmin. Cross-tenant gedraagt zich IDENTIEK aan een onbekend id (stille redirect, geen thrown
+// 403) zodat er geen cross-tenant existence-oracle lekt. Rood→groen: zonder de ownership-/rol-poort
+// zou de delete cross-tenant vuren; zonder de no-oracle-fix zou cross-tenant een 403 gooien i.p.v.
+// stil te redirecten.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -25,12 +28,8 @@ vi.mock("@/lib/authz", () => ({
 
 vi.mock("@/lib/tenancy", () => ({
   hasTenant: (a: { tenantId?: string } | null) => Boolean(a?.tenantId),
-  assertSameTenant: vi.fn((actor: { role: string; tenantId?: string }, entityTenantId: string) => {
-    if (actor.role === "ADMIN") return;
-    if (!actor.tenantId || actor.tenantId !== entityTenantId) {
-      throw new FakeAuthError("Geen toegang tot deze bemiddeling-resource.");
-    }
-  }),
+  ownsViaTenant: (actor: { role: string; tenantId?: string }, entityTenantId: string) =>
+    actor.role === "ADMIN" || (Boolean(actor.tenantId) && actor.tenantId === entityTenantId),
 }));
 
 const audit = vi.hoisted(() => vi.fn(async () => {}));
@@ -88,11 +87,13 @@ describe("deleteLead", () => {
     expect(res).toEqual({ redirected: true, path: "/franchise/leads" });
   });
 
-  it("weigert het wissen van een lead uit een andere tenant (cross-tenant) — geen delete", async () => {
+  it("wist géén lead uit een andere tenant (cross-tenant) en gedraagt zich als 'niet gevonden' — geen existence-oracle", async () => {
     leadState.found = { tenantId: "tenant-B", organizationName: "Andere Franchise BV" };
-    await expect(deleteLead("lead-1")).rejects.toBeInstanceOf(FakeAuthError);
+    const res = await run("lead-1");
     expect(db.del).not.toHaveBeenCalled();
     expect(audit).not.toHaveBeenCalled();
+    // Identiek aan het onbekend-id-pad: stille redirect, geen thrown 403 die het bestaan verraadt.
+    expect(res).toEqual({ redirected: true, path: "/franchise/leads" });
   });
 
   it("weigert een niet-FRANCHISER", async () => {
