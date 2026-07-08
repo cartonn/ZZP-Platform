@@ -38,6 +38,11 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     favoriteFreelancer: { findMany: make("favoriteFreelancer", "findMany") },
     pushSubscription: { findMany: make("pushSubscription", "findMany") },
     expense: { findMany: make("expense", "findMany") },
+    shiftHandoff: { findMany: make("shiftHandoff", "findMany") },
+    availabilityWindow: { findMany: make("availabilityWindow", "findMany") },
+    noShowReport: { findMany: make("noShowReport", "findMany") },
+    leadContact: { findMany: make("leadContact", "findMany") },
+    domainEvent: { findMany: make("domainEvent", "findMany") },
   };
   return { db: db as unknown as PrismaClient, calls };
 }
@@ -64,6 +69,14 @@ describe("buildAccountExport", () => {
       "favoriteNotes",
       "pushSubscriptions",
       "expenses",
+      "receivedReviews",
+      "clientApplicationNotes",
+      "shiftHandoffRequests",
+      "shiftHandoffDecisions",
+      "availabilityNotes",
+      "noShowReports",
+      "leadContacts",
+      "openDisputeReasons",
     ] as const) {
       expect(payload).toHaveProperty(key);
     }
@@ -177,6 +190,115 @@ describe("buildAccountExport", () => {
     expect(select.vatCents).toBe(true);
     // Interne grootboek-id lekt niet mee.
     expect(select.id).toBeUndefined();
+  });
+
+  it("neemt ontvangen beoordelingen mee (subject == actor), maar alleen PUBLISHED en zonder auteur-identiteit (AVG art. 15 / double-blind)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const reviewCalls = calls.filter((c) => c.table === "review");
+    expect(reviewCalls).toHaveLength(2);
+    const received = reviewCalls.find(
+      (c) => (c.args.where as Record<string, unknown>).subjectId === ACTOR,
+    );
+    expect(received).toBeDefined();
+    // Alleen onthulde beoordelingen — een PENDING_REVEAL-oordeel blijft vóór de reveal verborgen.
+    expect((received?.args.where as Record<string, unknown>).status).toBe("PUBLISHED");
+    const select = received?.args.select as Record<string, unknown>;
+    expect(select.comment).toBe(true);
+    expect(select.rating).toBe(true);
+    // De identiteit van de beoordelende tegenpartij lekt niet mee.
+    expect(select.authorId).toBeUndefined();
+    expect(select.subjectId).toBeUndefined();
+  });
+
+  it("neemt eigen CLIENT-kandidaatnotities mee, gescopet op de eigen bedrijfsopdrachten, zonder sollicitant-identiteit", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const appCalls = calls.filter((c) => c.table === "application");
+    expect(appCalls).toHaveLength(2);
+    const notes = appCalls.find((c) => (c.args.where as Record<string, unknown>).job !== undefined);
+    expect(notes).toBeDefined();
+    expect((notes?.args.where as Record<string, unknown>).job).toEqual({
+      company: { userId: ACTOR },
+    });
+    expect(
+      ((notes?.args.where as Record<string, unknown>).note as Record<string, unknown>).not,
+    ).toBeNull();
+    const select = notes?.args.select as Record<string, unknown>;
+    expect(select.note).toBe(true);
+    // Alleen de eigen notitie — geen motivatie/identiteit van de sollicitant.
+    expect(select.motivation).toBeUndefined();
+    expect(select.freelancerId).toBeUndefined();
+  });
+
+  it("scheidt shift-overname-tekst per zijde: eigen reason (aanvrager) en eigen decisionNote (beslisser), nooit die van de ander", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const handoffCalls = calls.filter((c) => c.table === "shiftHandoff");
+    expect(handoffCalls).toHaveLength(2);
+
+    const requested = handoffCalls.find(
+      (c) => (c.args.where as Record<string, unknown>).requestedByUserId === ACTOR,
+    );
+    expect(requested).toBeDefined();
+    const reqSelect = requested?.args.select as Record<string, unknown>;
+    expect(reqSelect.reason).toBe(true);
+    expect(reqSelect.decisionNote).toBeUndefined();
+
+    const decided = handoffCalls.find(
+      (c) => (c.args.where as Record<string, unknown>).decidedByUserId === ACTOR,
+    );
+    expect(decided).toBeDefined();
+    const decSelect = decided?.args.select as Record<string, unknown>;
+    expect(decSelect.decisionNote).toBe(true);
+    expect(decSelect.reason).toBeUndefined();
+  });
+
+  it("neemt eigen beschikbaarheidsnoten, no-show-meldingen en lead-contactnotities mee, gescopet op de actor", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const avail = calls.find((c) => c.table === "availabilityWindow");
+    expect((avail?.args.where as Record<string, unknown>).freelancerProfile).toEqual({
+      userId: ACTOR,
+    });
+    expect((avail?.args.select as Record<string, unknown>).note).toBe(true);
+
+    const noShow = calls.find((c) => c.table === "noShowReport");
+    expect((noShow?.args.where as Record<string, unknown>).reportedById).toBe(ACTOR);
+    const nsSelect = noShow?.args.select as Record<string, unknown>;
+    expect(nsSelect.reason).toBe(true);
+    // Admin-oordeel en de identiteit van de gemelde ZZP'er lekken niet mee.
+    expect(nsSelect.verdictNote).toBeUndefined();
+    expect(nsSelect.freelancerProfileId).toBeUndefined();
+
+    const lead = calls.find((c) => c.table === "leadContact");
+    expect((lead?.args.where as Record<string, unknown>).createdById).toBe(ACTOR);
+    expect((lead?.args.select as Record<string, unknown>).body).toBe(true);
+  });
+
+  it("scope't open dispuutredenen op de eigen DISPUTE_OPENED-events, nooit die van de tegenpartij (AVG art. 15)", async () => {
+    const { db, calls } = fakeDb({
+      domainEvent: [{ subjectId: "collab-9" }],
+    });
+    await buildAccountExport(db, ACTOR);
+
+    const de = calls.find((c) => c.table === "domainEvent");
+    expect(de?.args.where).toMatchObject({ type: "DISPUTE_OPENED", actorId: ACTOR });
+
+    const collabCalls = calls.filter((c) => c.table === "collaboration");
+    expect(collabCalls).toHaveLength(2);
+    const dispute = collabCalls.find(
+      (c) => (c.args.where as Record<string, unknown>).disputeReason !== undefined,
+    );
+    expect(dispute).toBeDefined();
+    const where = dispute?.args.where as Record<string, unknown>;
+    expect((where.id as Record<string, unknown>).in).toEqual(["collab-9"]);
+    expect((where.disputeReason as Record<string, unknown>).not).toBeNull();
+    expect((dispute?.args.select as Record<string, unknown>).disputeReason).toBe(true);
   });
 
   it("geeft de canned rijen door in de juiste secties", async () => {

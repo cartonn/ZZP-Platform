@@ -31,6 +31,15 @@ export interface AccountExportPayload {
   favoriteNotes: unknown;
   pushSubscriptions: unknown;
   expenses: unknown;
+  // AVG art. 15/20 — eigen-datacategorieën die eerder ontbraken (zie SECURITY-PRIVACY-BACKLOG):
+  receivedReviews: unknown;
+  clientApplicationNotes: unknown;
+  shiftHandoffRequests: unknown;
+  shiftHandoffDecisions: unknown;
+  availabilityNotes: unknown;
+  noShowReports: unknown;
+  leadContacts: unknown;
+  openDisputeReasons: unknown;
 }
 
 const EXPORT_NOTICE =
@@ -42,6 +51,17 @@ export async function buildAccountExport(
   actorId: string,
   now: Date = new Date(),
 ): Promise<AccountExportPayload> {
+  // De attributie van een dispuutreden zit niet op de Collaboration-rij maar in het
+  // DISPUTE_OPENED-domeinevent (actorId) — net als in de anonimisering (`anonymizeUser`). Verzamel
+  // de samenwerkingen waar déze betrokkene het dispuut opende, zodat de export alleen zíjn eigen
+  // vrije tekst bevat en niet die van de tegenpartij.
+  const ownDisputeCollabIds = (
+    await db.domainEvent.findMany({
+      where: { type: "DISPUTE_OPENED", actorId },
+      select: { subjectId: true },
+    })
+  ).map((e) => e.subjectId);
+
   const [
     user,
     profile,
@@ -62,6 +82,14 @@ export async function buildAccountExport(
     favoriteNotes,
     pushSubscriptions,
     expenses,
+    receivedReviews,
+    clientApplicationNotes,
+    shiftHandoffRequests,
+    shiftHandoffDecisions,
+    availabilityNotes,
+    noShowReports,
+    leadContacts,
+    openDisputeReasons,
   ] = await Promise.all([
     db.user.findUnique({
       where: { id: actorId },
@@ -247,6 +275,75 @@ export async function buildAccountExport(
         createdAt: true,
       },
     }),
+    // Ontvangen beoordelingen (over de actor geschreven, subjectId == actor). Het oordeel/de
+    // toelichting gaat over de betrokkene en valt onder de inzage. Uitsluitend PUBLISHED — een
+    // PENDING_REVEAL-beoordeling is bewust nog niet onthuld (double-blind tegen vergelding); die vóór
+    // de reveal via de export prijsgeven zou dat mechanisme breken en de rechten van de auteur raken.
+    // authorId blijft eruit (identiteit van de beoordelende tegenpartij).
+    db.review.findMany({
+      where: { subjectId: actorId, status: "PUBLISHED" },
+      select: {
+        collaborationId: true,
+        direction: true,
+        rating: true,
+        comment: true,
+        publishedAt: true,
+        createdAt: true,
+      },
+    }),
+    // Interne kandidaatnotities die de actor als CLIENT zelf schreef bij reacties op de eigen
+    // opdrachten (Application.note, vrije tekst). Gescopet op de eigen bedrijfsopdrachten
+    // (job.company.userId) — nooit de motivatie/notitie van een andere partij. Alleen rijen met een
+    // notitie; de identiteit van de sollicitant blijft eruit (freelancerId is een interne id).
+    db.application.findMany({
+      where: { job: { company: { userId: actorId } }, note: { not: null } },
+      select: { jobId: true, note: true, createdAt: true },
+    }),
+    // Shift-overname-aanvragen die de actor zelf deed (ShiftHandoff.reason, aanvragerskant). Eigen
+    // vrije tekst; decisionNote (beslisserskant) blijft hier eruit — dat is de tekst van een ander.
+    db.shiftHandoff.findMany({
+      where: { requestedByUserId: actorId },
+      select: { collaborationId: true, reason: true, status: true, createdAt: true },
+    }),
+    // Beslisnotities die de actor als FRANCHISER/beslisser zelf schreef bij het afwijzen van een
+    // shift-overname (ShiftHandoff.decisionNote, beslisserskant). Eigen vrije tekst; reason
+    // (aanvragerskant) blijft eruit. Alleen rijen met een notitie.
+    db.shiftHandoff.findMany({
+      where: { decidedByUserId: actorId, decisionNote: { not: null } },
+      select: { collaborationId: true, decisionNote: true, status: true, decidedAt: true },
+    }),
+    // Beschikbaarheidsnoten die de actor als ZZP'er zelf schreef (AvailabilityWindow.note, vrije
+    // tekst met mogelijk een reden of details). Gescopet op het eigen profiel. Alleen rijen met noot.
+    db.availabilityWindow.findMany({
+      where: { freelancerProfile: { userId: actorId }, note: { not: null } },
+      select: { startDate: true, endDate: true, type: true, note: true, createdAt: true },
+    }),
+    // No-show-meldingen die de actor als melder (opdrachtgever/franchiser) zelf schreef
+    // (NoShowReport.reason). Eigen vrije tekst; verdictNote (admin-oordeel) blijft eruit en de
+    // identiteit van de gemelde ZZP'er (freelancerProfileId) blijft eruit.
+    db.noShowReport.findMany({
+      where: { reportedById: actorId },
+      select: {
+        collaborationId: true,
+        reason: true,
+        occurredOn: true,
+        verdict: true,
+        createdAt: true,
+      },
+    }),
+    // Contactnotities die de actor als FRANCHISER zelf schreef bij leads (LeadContact.body,
+    // bel-/gespreksnotities). Eigen vrije tekst; de derde-partij-lead-PII (naam/e-mail/telefoon van
+    // het prospect) valt onder het aparte verwerkingsregister-item, niet onder deze eigen-data-inzage.
+    db.leadContact.findMany({
+      where: { createdById: actorId },
+      select: { leadId: true, body: true, createdAt: true },
+    }),
+    // Dispuutredenen die de actor zelf schreef en die nog openstaan (resolveDispute wist ze bij
+    // oplossing). Gescopet op de eigen DISPUTE_OPENED-events — nooit de reden van de tegenpartij.
+    db.collaboration.findMany({
+      where: { id: { in: ownDisputeCollabIds }, disputeReason: { not: null } },
+      select: { disputeReason: true, disputedAt: true, createdAt: true },
+    }),
   ]);
 
   return {
@@ -271,5 +368,13 @@ export async function buildAccountExport(
     favoriteNotes,
     pushSubscriptions,
     expenses,
+    receivedReviews,
+    clientApplicationNotes,
+    shiftHandoffRequests,
+    shiftHandoffDecisions,
+    availabilityNotes,
+    noShowReports,
+    leadContacts,
+    openDisputeReasons,
   };
 }
