@@ -13,6 +13,7 @@ import { computeEngageability } from "@/lib/engageability";
 import { employabilitySummary, employabilityRingStrokeClass } from "@/lib/employability-summary";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
+import { formatWorkPeriod, sortWorkExperiences } from "@/lib/work-experience";
 import {
   type Availability,
   type AvailabilityWindowType,
@@ -153,6 +154,16 @@ export async function ProfileScreen({
       availabilityWindows: {
         select: { startDate: true, endDate: true, type: true, hoursPerWeek: true, note: true },
         orderBy: { startDate: "asc" },
+      },
+      workExperiences: {
+        select: {
+          id: true,
+          role: true,
+          organization: true,
+          startYear: true,
+          endYear: true,
+          description: true,
+        },
       },
       // Samenwerkingen geanonimiseerd getoond (alleen opdrachttitel + status — géén bedrijfsnaam
       // van derden op een publiek profiel). Recentste eerst, begrensd.
@@ -504,6 +515,35 @@ export async function ProfileScreen({
                     {t("Over")}
                   </h2>
                   <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">{profile.bio}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {profile.workExperiences.length > 0 && (
+              <Card>
+                <CardContent className="py-4">
+                  <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("Werkervaring")}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("Eigen opgave — niet servergeverifieerd.")}
+                  </p>
+                  <ul className="mt-3 space-y-4">
+                    {sortWorkExperiences(profile.workExperiences).map((w) => (
+                      <li key={w.id} className="border-l-2 border-border pl-3">
+                        <p className="text-sm font-medium">{w.role}</p>
+                        <p className="text-sm text-muted-foreground">{w.organization}</p>
+                        <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                          {formatWorkPeriod(w.startYear, w.endYear)}
+                        </p>
+                        {w.description && (
+                          <p className="mt-1 whitespace-pre-line text-sm leading-relaxed">
+                            {w.description}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 </CardContent>
               </Card>
             )}

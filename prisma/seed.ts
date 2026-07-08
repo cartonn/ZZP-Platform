@@ -1153,6 +1153,68 @@ async function main() {
     }
   }
 
+  // --- Werkervaring (Sanne) — zelf-gerapporteerde rollen naast de geverifieerde certificaten,
+  //     zodat het profiel de trust/credibility-sectie demonstreert. Idempotent via vaste ids. ---
+  {
+    const sanneProfileId = pid["sanne"];
+    const demoExperiences: {
+      id: string;
+      role: string;
+      organization: string;
+      startYear: number;
+      endYear: number | null;
+      description: string | null;
+    }[] = [
+      {
+        id: "we-sanne-1",
+        role: "Verpleegkundige IC",
+        organization: "Academisch ziekenhuis",
+        startYear: 2021,
+        endYear: null,
+        description: "Intensieve zorg op de IC-afdeling, coördinatie rond complexe casussen.",
+      },
+      {
+        id: "we-sanne-2",
+        role: "Wijkverpleegkundige",
+        organization: "Thuiszorgorganisatie",
+        startYear: 2017,
+        endYear: 2021,
+        description: "Zelfstandige wijkzorg met eigen caseload en indicatiestelling.",
+      },
+      {
+        id: "we-sanne-3",
+        role: "Verpleegkundige (afstuderen)",
+        organization: "Regionaal ziekenhuis",
+        startYear: 2015,
+        endYear: 2017,
+        description: null,
+      },
+    ];
+    if (sanneProfileId) {
+      for (const w of demoExperiences) {
+        await prisma.workExperience.upsert({
+          where: { id: w.id },
+          update: {
+            role: w.role,
+            organization: w.organization,
+            startYear: w.startYear,
+            endYear: w.endYear,
+            description: w.description,
+          },
+          create: {
+            id: w.id,
+            freelancerProfileId: sanneProfileId,
+            role: w.role,
+            organization: w.organization,
+            startYear: w.startYear,
+            endYear: w.endYear,
+            description: w.description,
+          },
+        });
+      }
+    }
+  }
+
   // --- Modelovereenkomst digitaal akkoord — een ACTIEVE of AFGERONDE samenwerking hoort een
   //     ondertekende modelovereenkomst te hebben; anders spreekt de voortgangstracker ("contract
   //     getekend") de modelovereenkomst-kaart ("nog niet ondertekend") tegen. Zet beide digitale

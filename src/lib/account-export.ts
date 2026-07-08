@@ -119,6 +119,16 @@ export async function buildAccountExport(
             visibility: true,
           },
         },
+        workExperiences: {
+          select: {
+            role: true,
+            organization: true,
+            startYear: true,
+            endYear: true,
+            description: true,
+            createdAt: true,
+          },
+        },
       },
     }),
     // Eigen bedrijfsprofiel. Smalle select: interne velden (tenantId, logoKey, userId) blijven eruit —

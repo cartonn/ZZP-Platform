@@ -15,6 +15,7 @@ import { SkillDemandCard } from "@/components/profile/skill-demand-card";
 import { computeSkillDemand } from "@/lib/skill-demand";
 import { getSkillDemandRequirements } from "@/lib/data/freelancer-skill-demand";
 import { ProfileForm } from "../profile-form";
+import { WorkExperienceEditor } from "@/components/profile/work-experience-editor";
 import { parseLanguages } from "@/lib/parse-languages";
 
 export const metadata: Metadata = { title: "Profiel bewerken · ZZP Platform" };
@@ -25,7 +26,7 @@ export default async function ProfielPage() {
   const [profile, skills, industries] = await Promise.all([
     prisma.freelancerProfile.findUnique({
       where: { userId: actor.id },
-      include: { skills: true, industries: true },
+      include: { skills: true, industries: true, workExperiences: true },
     }),
     // unbounded-allow: skills-referentielijst voor profielpagina
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -156,6 +157,22 @@ export default async function ProfielPage() {
         skills={skills}
         industries={industries}
       />
+
+      <Card>
+        <CardContent className="py-4">
+          <WorkExperienceEditor
+            items={profile.workExperiences.map((w) => ({
+              id: w.id,
+              role: w.role,
+              organization: w.organization,
+              startYear: w.startYear,
+              endYear: w.endYear,
+              description: w.description,
+              createdAt: w.createdAt,
+            }))}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

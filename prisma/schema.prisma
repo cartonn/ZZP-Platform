@@ -370,8 +370,28 @@ model FreelancerProfile {
   noShowReports       NoShowReport[]
   favoritedBy         FavoriteFreelancer[]
   savedJobs           SavedJob[]
+  workExperiences     WorkExperience[]
 
   @@index([tenantId])
+}
+
+// Zelf-gerapporteerde werkervaring op het ZZP-profiel (trust/credibility, zoals Malt/LinkedIn):
+// eerdere rollen/opdrachten die de ZZP'er toont naast de servergeverifieerde certificaten. Puur
+// self-reported (niet geverifieerd) — de UI benoemt dat expliciet. Jaar-granulariteit; endYear
+// null = "heden".
+model WorkExperience {
+  id                  String   @id @default(cuid())
+  freelancerProfileId String
+  role                String //  functie/rol, bv. "Verpleegkundige IC"
+  organization        String //  organisatie/opdrachtgever
+  startYear           Int //     bv. 2019
+  endYear             Int? //    null = heden
+  description         String? // korte toelichting
+  createdAt           DateTime @default(now())
+
+  freelancerProfile FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([freelancerProfileId])
 }
 
 model AvailabilityWindow {

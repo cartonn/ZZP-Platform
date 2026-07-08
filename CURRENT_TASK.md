@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Werkervaring op het ZZP-profiel (2026-07-08)** — de ZZP'er toont eerdere
+> rollen/opdrachten (trust/credibility zoals Malt/LinkedIn/Deel) naast de servergeverifieerde
+> certificaten; puur self-reported met expliciete "niet servergeverifieerd"-disclaimer (geen
+> vertrouwensinflatie). Additief `WorkExperience`-model (anker op `FreelancerProfile`, cascade); pure
+> `work-experience.ts` (`workExperienceSchema`/`formatWorkPeriod`/`sortWorkExperiences`, jaar-
+> granulariteit, eindjaar ≥ startjaar, `WORK_EXPERIENCE_MAX_PER_PROFILE=30`, 10 tests); acties
+> `addWorkExperience`/`deleteWorkExperience` (auth→rol→ownership→Zod→cap→audit, IDOR-veilige delete);
+> `WorkExperienceEditor` op `/profiel/bewerken` + Werkervaring-sectie op het publieke profiel; in de
+> AVG-inzage-export; Sanne 3 demo-ervaringen. Read-only leeskant, geen extra query op het profiel.
+> Gate groen (3604 tests).
+
 > Gedaan (niet opnieuw): **Prod-rijpheid — ADMIN systeemstatus-scherm (2026-07-08)** — een ADMIN-only
 > `/admin/systeemstatus` dat de productie-configuratie-posture op één scherm toont (opslag/database/
 > e-mail/betalingen/verificatie-adapters/upload-scan/rate-limit-store/error-monitoring/taak-cron/

@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Werkervaring op het ZZP-profiel (2026-07-08) — trust/credibility
+
+De ZZP'er kan nu **werkervaring** (eerdere rollen/opdrachten) op zijn profiel tonen naast de
+servergeverifieerde certificaten — een klassiek trust/credibility-element (benchmark Malt/LinkedIn/
+Deel) dat ontbrak. Puur self-reported; de UI benoemt expliciet dat het **niet servergeverifieerd**
+is (geen vertrouwensinflatie). Beantwoordt de vraag "wat heeft deze persoon eerder gedaan?" die de
+certificaten (wél geverifieerd) niet dekken.
+
+- **Model** `WorkExperience` (additief, anker op `FreelancerProfile`, cascade-delete): role,
+  organization, startYear, endYear (null = heden), description. Jaar-granulariteit.
+- **Pure lib** `src/lib/work-experience.ts`: `workExperienceSchema` (Zod: verplichte rol/organisatie,
+  jaartal-bereik [1970,2100], eindjaar ≥ startjaar), `formatWorkPeriod` ("2019 – heden" / "2019" /
+  "2019 – 2022"), `sortWorkExperiences` (lopend bovenaan, dan eindjaar/startjaar aflopend, stabiele
+  id-tiebreak, muteert niet), constants (max lengtes, `WORK_EXPERIENCE_MAX_PER_PROFILE=30`). 10 tests.
+- **Server-acties** `profiel/actions.ts`: `addWorkExperience` + `deleteWorkExperience` — keten
+  auth→rol FREELANCER→ownership (eigen profiel)→Zod→cap-check→mutatie→audit
+  (`WORK_EXPERIENCE_ADDED/REMOVED`). Delete is IDOR-veilig (rij moet aan het eigen profiel hangen,
+  geen bestaans-orakel).
+- **UI** `WorkExperienceEditor` (client) op `/profiel/bewerken` (lijst + verwijderen + toevoeg-form,
+  cap-melding, empty-state) en een **Werkervaring**-sectie op het publieke profiel
+  (`profile-screen.tsx`, na de bio, met "eigen opgave"-disclaimer).
+- **AVG** `account-export.ts`: werkervaring in de eigen data-inzage/-export.
+- **Seed**: Sanne 3 demo-ervaringen (idempotent, vaste ids).
+- Gate groen: typecheck ✓, lint ✓, unit **3604 tests** ✓, prettier ✓, build (in CI).
+
 ## Prod-rijpheid (2026-07-08) — ADMIN systeemstatus-scherm (configuratie-posture)
 
 Een ADMIN-only scherm **Systeemstatus** (`/admin/systeemstatus`) dat de productie-configuratie op
