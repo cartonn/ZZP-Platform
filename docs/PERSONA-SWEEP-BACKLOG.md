@@ -1,5 +1,55 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-08 (run 17) · **main-commit basis:** `bcd40c1`
+> **Uitkomst:** **GEEN nieuwe gaten.** Verse prod-build (`npm run build`), schema-push + idempotente
+> demo-seed (`SEED_DEMO=true`, `prisma db seed`) op ephemere SQLite (`qa.db`), prod-server
+> (`CI=true node scripts/start.mjs`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`,
+> `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte formulier (`demo1234`); Playwright met de
+> vooraf-geïnstalleerde Chromium (`/opt/pw-browsers/chromium-1194`). Eén parallelle Opus-security-subagent
+> over de nieuwste mutatie-/data-oppervlakken sinds run 16 (#673-#679).
+>
+> **DOEL 1 (echte actie, server-side geverifieerd):** CLIENT (LogiFlow Logistics, `logiflow@`) opende de
+> samenwerking met Julia Vermeer (`cmrc3mf5t007t7d6anndfu59b`) en klikte **"Goedkeuren"** op de ingediende
+> factuur (`cmrc3mf6p...`, € 1.393,92) → tegen de DB bevestigd: `lifecycleStatus` **SUBMITTED→APPROVED**,
+> audit `INVOICE_APPROVED` met een verse timestamp die exact met de klik samenvalt, en de cascade schoof
+> door naar de volgende stap (de knop werd **"Markeer als betaald"** — betaling registreren). De volledige
+> keten auth→rol→ownership (`loadCascadeInvoice`/counterparty-check)→transitie→audit→revalidate werkt.
+>
+> **DOEL 1b (next-action-engine, gekruist tegen DB-waarheid):** vóór de actie toonde `logiflow@` `/acties`
+> = **3** ("Keur de ingediende factuur" + "Beantwoord Kevin Mol" + "Bedrijfsprofiel is 90% compleet"). Ná
+> het goedkeuren: `/acties` = **2** — de factuur-goedkeur-taak **verdween** (de ZZP'er is nu aan zet voor
+> de betaling, niet de opdrachtgever), consistent met de nieuwe DB-status (APPROVED). Geen tegenstrijdige,
+> dubbele of niet-verdwijnende actie. Geverifieerd dat de "Markeer als betaald"-knop op de opdrachtgever-
+> collab-pagina géén defect is: `confirmPayment` (`cascade/payment-commands.ts:21-30`) autoriseert bewust
+> ADMIN + issuer (ZZP'er) + counterparty (opdrachtgever); een derde partij wordt door de `CascadeError`-
+> guard geweigerd en kan de samenwerking sowieso niet laden.
+>
+> **DOEL 2 (adversarieel, 64 probes — alle correct geweigerd, 0 HTTP-500's):** privilege-escalatie
+> (FREELANCER/CLIENT/FRANCHISER → `/admin/verificaties|gebruikers|statistieken|disputen`; niet-FRANCHISER
+> → `/franchise`) → **redirect naar eigen dashboard**; IDOR/cross-partij (ZZP'er/CLIENT → andermans
+> factuur `cmrc3mfdi...` van daan@/BouwPartners + andermans samenwerking `cmrc3mf3b...` van iris@/ZorgGroep)
+> → **"Niet gevonden · geen toegang"-kaart** (`main`-inhoud geverifieerd: 200 met denial, géén factuur-/
+> samenwerkingsdata, geen counterparty-PII gelekt); cross-tenant (FRANCHISER `franchise@` → factuur +
+> samenwerking buiten de eigen tenant) → **"Niet gevonden"**; API-IDOR (`/api/documents/<garbage>`) →
+> **404**; onzin-id's (`/facturen|/samenwerkingen|/opdrachten|/kandidaten/nonexistent-id-999`) → soft-404/
+> `notFound()`/redirect, **nooit 500**; path-traversal (`/facturen/..%2F..%2Fetc%2Fpasswd`) → geen leak;
+> XSS `?q=<script>` → niet rauw gereflecteerd. **Malicieuze forminput** (CLIENT `/opdrachten/nieuw`: XSS
+> in titel `<script>alert(1)</script>` + `<img onerror>` in beschrijving, `rateMin=-50`, `rateMax=
+999999999999`) → **server-side Zod-validatiefouten getoond, formulier niet geaccepteerd, geen redirect,
+> geen 500**; DB-check bevestigt **0 malicieuze opdrachten gepersisteerd** (geen negatieve/absurde tarieven,
+> geen script-titel). Spoort met runs 6-16.
+>
+> **Security-subagent (statische diepte-audit, diff `23f34e4..bcd40c1`):** geen gaten in de nieuwe surfaces
+> — `#679 defaultMotivation` (Zod `optionalText(2000)`, own-profile-scoped pre-fill, server-side her-
+> validatie bij `createApplication`, React `defaultValue` = geen XSS), `#677/#673 account-export` (alle 21
+> queries `actorId`-gescoopt, narrow `select` zonder counterparty-PII, `PUBLISHED`-reviews-filter respecteert
+> double-blind), `#675 candidate-history` (`company.userId`-scope, alleen COMPLETED, gebatcht, begrensd),
+> `#674 billing-webhook rate-limit` (IP-keyed vóór DB-werk), `#673 Lead-PII wis-pad` (auth→rol→
+> `assertSameTenant`→delete→audit, cross-tenant + niet-FRANCHISER geweigerd, geen existentie-lek). Deze run
+> is documentatie-only.
+>
+> ---
+>
 > **Datum:** 2026-07-08 (run 16) · **main-commit basis:** `23f34e4`
 > **Uitkomst:** **GEEN nieuwe gaten.** Verse prod-build (`npm run build`), schema-push + idempotente
 > demo-seed (`SEED_DEMO=true`, `prisma db seed`) op ephemere SQLite (`qa.db`), prod-server
