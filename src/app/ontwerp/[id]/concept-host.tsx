@@ -547,6 +547,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "180": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-180-diorama").then((m) => m.Concept180),
   ),
+  "181": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-181-refractie").then((m) => m.Concept181),
+  ),
+  "182": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-182-hoogtelijn").then((m) => m.Concept182),
+  ),
+  "183": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-183-halftoon").then((m) => m.Concept183),
+  ),
+  "184": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-184-molecuul").then((m) => m.Concept184),
+  ),
+  "185": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-185-diepzee").then((m) => m.Concept185),
+  ),
+  "186": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-186-jaloezie").then((m) => m.Concept186),
+  ),
+  "187": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-187-suprematie").then((m) => m.Concept187),
+  ),
+  "188": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-188-vouwkaart").then((m) => m.Concept188),
+  ),
+  "189": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-189-passepartout").then((m) => m.Concept189),
+  ),
+  "190": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-190-amber").then((m) => m.Concept190),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
