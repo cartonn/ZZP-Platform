@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab reeks 20 — +10 concepten, nrs 191–200 (2026-07-08)
+
+Design-lab op `/ontwerp` uitgebreid van 190 → **200 concepten** (additief; geen bestaand concept
+gewijzigd of verwijderd). Nieuwe richtingen 191–200: Glasvezel (fiber-optic light-routing),
+Nieuwe Beelding (De Stijl/Mondriaan), Kalligrafie (copperplate inkt-editorial), Heraldiek
+(wapenschild-vertrouwenstaal), Sequencer (DAW piano-roll timeline, keyboard-first), Observatorium
+(planetarium orbitale planning), Speelkaart (speelkaarten-suits + hand), Telraam (abacus-
+datavisualisatie), Perspectief (één-punts perspectief spatiale diepte), Hologram (holografische
+iriserende echtheidsfolie · mijlpaal nr. 200).
+
+- **Bestanden:** 10 nieuwe `src/components/ontwerp/concepts/concept-191..200-*.tsx` (elk ~1000–1900
+  regels, high-fidelity, 5 kernschermen via `useState<ScreenKey>`, `credMeta`-statustaal met
+  label+icoon+vorm, empty/loading/error-states, responsive, focus-visible, aria). Registry-entries
+  toegevoegd aan `registry.ts` (append) en id→component-koppelingen aan `concept-host.tsx` (append);
+  bestaande entries ongemoeid. Docs: `docs/DESIGN-LAB.md` reeks 20 + totaal 200.
+- Gebouwd door 4 parallelle workers op niet-overlappende bestanden; orchestrator integreerde registry +
+  route en draaide de poort. Deterministisch, geen woord "AI", UI Nederlands.
+- Gate: typecheck ✓, lint ✓, prettier ✓, unit ✓, build in CI.
+- Volgende: eigenaar kiest uit de gegroeide galerij; volgende routine voegt reeks 21 (201–210) toe.
+
 ## Werkervaring op het ZZP-profiel (2026-07-08) — trust/credibility
 
 De ZZP'er kan nu **werkervaring** (eerdere rollen/opdrachten) op zijn profiel tonen naast de

@@ -487,4 +487,32 @@ UI-taal = Nederlands.
   donkere modi (venetian-blind licht/schaduw, organisch glow-licht met WCAG-contrast i.p.v. neon); en
   **avant-garde kunsthistorie** (suprematisme, museale passe-partout, monochroom merkkleur-systeem) — elk
   onderscheidend gehouden van de bestaande 180.
-- **Totaal nu op `/ontwerp`: 190 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190).
+- **Reeks 20 (run 8-7-2026, nrs 191–200):** Glasvezel (fiber-optic light-routing: dunne lichtgevende
+  glasvezel-strengen verbinden datapunten op donker canvas, deterministische licht-puls langs de vezel als
+  motion-with-purpose, één koel cyaan-accent — licht als informatie, niet Knooppunt/Neon) · Nieuwe Beelding
+  (De Stijl / Mondriaan-Rietveld: streng orthogonaal raster met dikke zwarte scheidingslijnen + primair
+  rood/geel/blauw op wit, gebalanceerd-asymmetrische compositie — iconisch NL, andere uitvoering dan
+  Compositie/Bauhaus/Suprematie) · Kalligrafie (copperplate inkt-editorial: warm perkament + aubergine-inkt,
+  grote italic swash-koppen, gouden hairline-flourishes, ledger-cijfers — vloeiend-formeel vertrouwen, niet
+  Notariaat/Letterpers/Typemachine) · Heraldiek (wapenschild-vertrouwenstaal: verificatie als heraldische
+  schilden met velden/ordinaties, bordeaux/goud/nachtblauw op perkament, geverifieerd = verzegeld wapen —
+  emblematisch, niet Zegel/Paspoort/Passepartout) · Sequencer (DAW piano-roll timeline: diensten als clips
+  op tijdlijn-lanen met playhead + transport + ⌘K command-palette, donkere studio-UI — keyboard-first
+  planning, niet Metrokaart/Agenda) · Observatorium (planetarium orbitale planning: concentrische orbit-
+  ringen met opdrachten/acties als planeten op hun baan, afstand = urgentie, verificatie = uitgelijnde
+  constellatie — orbitaal/hemelbol, niet Sterrenbeeld/Radar) · Speelkaart (speelkaarten-taal: opdrachten als
+  kaarten met suit-indices ♠♥♦♣, licht waaierende hand + 3D kaart-flip op crème vilt — speels-tactiel, niet
+  Kaart/Legpuzzel) · Telraam (abacus-datavisualisatie: KPI's als kralen-op-messingstaven in warm houten
+  frame, waarde = geschoven kralen — tactiel-ambachtelijk, niet Weegschaal/Meetlint) · Perspectief (één-punts
+  lineair perspectief: convergerende vluchtlijnen naar verdwijnpunt + terugwijkend vloerraster, kaarten met
+  echte Z-diepte — spatiale ruimte, niet Isometrie/Diorama/Parallax) · Hologram (holografische iriserende
+  echtheidsfolie: verificatie als kleur-verschuivend echtheidszegel op donker basisvlak, iridescente
+  hairline-randen — security/echtheid, niet Chroom/Zwartlicht/Reglet · mijlpaal nr. 200).
+- Onderzochte 2026-trends deze reeks: **spatiale diepte-hiërarchie** (één-punts perspectief, orbitale
+  planetarium-lagen, fiber-optic diepte — interfaces als ruimte met oppervlakken, niet als plat canvas);
+  **command-/keyboard-first** (DAW-transport + ⌘K-palette als primaire navigatie); **tactiele maximalisme &
+  materiaal-metaforen** (abacus-kralen, speelkaarten-vilt, houten frames — warmte & aanraakbaarheid tegen
+  steriele minimalisme); **editorial serif + ledger-cijfers** (copperplate-kalligrafie, heraldische
+  small-caps); en **motion-with-purpose** (licht-puls langs glasvezel, iriserende folie-shift) — elk
+  onderscheidend gehouden van de bestaande 190.
+- **Totaal nu op `/ontwerp`: 200 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200).
