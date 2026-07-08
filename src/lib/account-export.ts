@@ -30,6 +30,7 @@ export interface AccountExportPayload {
   cancelledCollaborations: unknown;
   favoriteNotes: unknown;
   pushSubscriptions: unknown;
+  expenses: unknown;
 }
 
 const EXPORT_NOTICE =
@@ -60,6 +61,7 @@ export async function buildAccountExport(
     cancelledCollaborations,
     favoriteNotes,
     pushSubscriptions,
+    expenses,
   ] = await Promise.all([
     db.user.findUnique({
       where: { id: actorId },
@@ -231,6 +233,20 @@ export async function buildAccountExport(
       where: { userId: actorId },
       select: { endpoint: true, userAgent: true, createdAt: true },
     }),
+    // Eigen zakelijke uitgaven (kostenregistratie door de ZZP'er). Omschrijving is eigen vrije tekst;
+    // de bedragen/categorie/datum zijn eigen administratie van de betrokkene en vallen onder de inzage.
+    // Gescopet op de eigen userId; interne grootboek-id's blijven eruit.
+    db.expense.findMany({
+      where: { userId: actorId },
+      select: {
+        description: true,
+        category: true,
+        netCents: true,
+        vatCents: true,
+        occurredAt: true,
+        createdAt: true,
+      },
+    }),
   ]);
 
   return {
@@ -254,5 +270,6 @@ export async function buildAccountExport(
     cancelledCollaborations,
     favoriteNotes,
     pushSubscriptions,
+    expenses,
   };
 }

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireRole, AuthorizationError } from "@/lib/authz";
@@ -132,6 +133,42 @@ export async function setLeadStatus(leadId: string, formData: FormData): Promise
 
   revalidatePath("/franchise/leads");
   revalidatePath(`/franchise/leads/${leadId}`);
+}
+
+/**
+ * Verwijdert een lead definitief (recht op wissen — AVG art. 17). Prospect-PII (contactpersoon,
+ * e-mail, telefoon, notities) en het volledige contactlogboek zijn vrije tekst over een externe
+ * betrokkene die géén platform-account heeft; er is dus geen ander wis-pad (`anonymizeUser` raakt
+ * alleen `User`-gebonden data). Keten: auth → rol FRANCHISER → ownership via tenant → transactie
+ * (LeadContact cascadet mee via `onDelete: Cascade` op `leadId`) → audit. Tenant-scoped: een
+ * franchiser wist nooit een lead van een andere bemiddeling.
+ */
+export async function deleteLead(leadId: string): Promise<void> {
+  const actor = await requireRole("FRANCHISER");
+
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { tenantId: true, organizationName: true },
+  });
+  if (lead) {
+    assertSameTenant(actor, lead.tenantId);
+
+    // De LeadContact-rijen cascaden mee (schema: `onDelete: Cascade` op `leadId`); zo verdwijnt ook
+    // alle vrije tekst uit het contactlogboek in dezelfde operatie.
+    await prisma.lead.delete({ where: { id: leadId } });
+    await audit({
+      actorId: actor.id,
+      action: "LEAD_DELETED",
+      entityType: "Lead",
+      entityId: leadId,
+      metadata: { tenantId: lead.tenantId, organizationName: lead.organizationName },
+    });
+    revalidatePath("/franchise/leads");
+  }
+  // Bij een onbekend/al-verwijderd id (of na een geslaagde wis) sturen we terug naar de lijst —
+  // de detailpagina van een verwijderde lead bestaat niet meer. Buiten de `if` zodat `redirect`
+  // (die intern gooit) niet binnen de assertSameTenant-DB-tak valt.
+  redirect("/franchise/leads");
 }
 
 const contactSchema = z.string().trim().min(2, "Schrijf een korte notitie.").max(2000);

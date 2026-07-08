@@ -4,6 +4,81 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-08 (basis: `main` @ 12e30fc)
+
+Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-subagents op niet-overlappende
+oppervlakken: (1) de vérse delta sinds de vorige ronde (`ab6bc99..12e30fc`, #666–#672 — fail-closed
+mock-verificatiepoort, client-fout-rapportage `/api/client-error`, inkomstendoel, uitgaven-tracker,
+constructieve afwijzingsreden) — volledige auth→rol→ownership→Zod→actie→audit-keten + IDOR/injectie/
+SSRF/PII-in-logs; (2) herverificatie van de geparkeerde privacy-items + een privacy-sweep op de nieuwe
+`Expense`-data. Kader: OWASP Top 10 (A01/A03/A04/A09) + ASVS + AVG art. 5/15/17/20/30. **Delta-audit:
+geen nieuwe security-gaten** — de uitgaven-/inkomstendoel-/kandidaten-acties volgen de keten volledig,
+`/api/client-error` is PII-arm genormaliseerd + rate-limited, `rejection-reason` is een gesloten enum
+(geen vrije tekst naar de ZZP'er), `route-guards` matcht op segmentgrens. **Eén HOOG + één MIDDEL
+volledig gefixt (rood→groen); rest herbevestigd/geparkeerd.**
+
+### OPGELOST in deze ronde
+
+- **[HOOG→OPGELOST · AVG art. 17 (recht op wissen) + art. 30/5/6 — prospect-PII in `Lead`/`LeadContact`
+  had geen wis-pad, geen register-entry, geen bewaartermijn]** `model Lead` (`prisma/schema.prisma`)
+  bewaart `contactName`/`email`/`phone`/`notes` van een externe opdrachtgever-prospect (géén platform-
+  `User`) plus een vrije-tekst-`LeadContact.body`-logboek. `src/app/(protected)/franchise/leads/actions.ts`
+  kende **alleen** create/statuswijziging/contact — **geen delete**. `anonymizeUser` raakt uitsluitend
+  `User`-gebonden data, dus er bestond letterlijk geen enkel pad om deze PII te wissen → indefinite
+  retentie, geen grondslag/termijn vastgelegd. Repro: een FRANCHISER legt een lead met naam+e-mail+
+  telefoon+notities vast; de prospect vraagt (art. 17) om verwijdering → vóór de fix kon niemand dat
+  uitvoeren, de PII bleef eeuwig staan. Gefixt: nieuwe `deleteLead(leadId)`-server-action (auth → rol
+  FRANCHISER → `assertSameTenant` (tenant-ownership) → `prisma.lead.delete` — `LeadContact` cascadet mee
+  via `onDelete: Cascade` op `leadId` → `LEAD_DELETED`-audit → redirect naar de lijst); UI-wisknop met
+  bevestiging (`[id]/delete-lead-control.tsx`) op de lead-detailpagina; register-entry "Lead-acquisitie
+  (bemiddelaar)" (grondslag GERECHTVAARDIGD_BELANG, expliciete bewaartermijn + wis-pad) +
+  `RETENTION_SCHEDULE`-regel "Acquisitie-leads". Tenant-gescopet: een franchiser wist nooit een lead van
+  een andere bemiddeling. Tests: `src/app/(protected)/franchise/leads/delete-lead.test.ts` (4 cases —
+  eigen-tenant → delete+audit+redirect; cross-tenant → `AuthorizationError`, géén delete/audit;
+  niet-FRANCHISER → geweigerd; onbekend id → geen delete, wél redirect (geen bestaan-lek) — rood→groen:
+  zonder de tenant-poort zou de delete cross-tenant vuren).
+
+- **[MIDDEL→OPGELOST · AVG art. 15/20 (inzage/dataportabiliteit) — de nieuwe `Expense`-PII ontbrak
+  volledig in de inzage-export]** De uitgaven-tracker (#670) introduceerde `model Expense`
+  (`description` = eigen vrije tekst, `netCents`/`vatCents`/`category`/`occurredAt`), maar
+  `src/lib/account-export.ts` bevatte géén `expense`-sectie — een FREELANCER die zijn eigen data
+  opvraagt kreeg zijn zakelijke uitgaven (incl. eigen omschrijvingen) niet terug, terwijl het platform
+  dit wél als zijn persoonsgegeven/administratie behandelt. Repro: boek een uitgave "Lunch met klant X" →
+  vraag de AVG-inzage-export op → vóór de fix ontbrak de uitgave volledig. Gefixt: smalle, op `userId`
+  gescopete `db.expense.findMany`-sectie toegevoegd (`description`/`category`/`netCents`/`vatCents`/
+  `occurredAt`/`createdAt`; interne grootboek-id's blijven eruit). Test: nieuwe case in
+  `src/lib/account-export.test.ts` (sectie present, op de actor gescopet, geen interne id — rood→groen:
+  zonder de sectie faalt de present-assertie en gooit de fake-db op de ontbrekende `expense`-tabel).
+
+### Geparkeerd / herbevestigd (deze ronde geverifieerd nog steeds open)
+
+- **[MIDDEL · AVG art. 15/20 — inzage-export mist nóg enkele erased-maar-niet-geëxporteerde velden]**
+  Naast `Expense` (nu gefixt) mist `account-export.ts` nog: `ShiftHandoff.reason`/`decisionNote` (eigen),
+  `AvailabilityWindow.note`, `Collaboration.disputeReason` (eigen) en CLIENT-geschreven `Application.note`
+  (de `applications`-query is op `freelancer.userId` gescoped → voor een CLIENT-actor leeg). Fix:
+  vier smalle, eigen-data-gescopete selects toevoegen (spiegel de scoping in `anonymizeUser`). Bewust
+  gesplitst van de Expense-fix om de PR klein te houden; volgende ronde.
+- **[MIDDEL · OWASP A04/A09 (+ AVG art. 32) — `/api/billing/webhook` heeft geen rate-limit]** Herbevestigd
+  nog steeds open: publieke, ongeauthenticeerde webhook doet per ping een uitgaande Mollie-call
+  (`provider.paymentStatus`) voor een aanvaller-gestuurd id — geen forgeable state-change (server
+  her-verifieert + matcht op `providerRef`), maar een ongelimiteerde outbound-oracle/kostenamplificatie.
+  Fix: nieuwe IP-gekeyde `billingWebhookRateLimiter` (spiegel `cspReportRateLimiter`) vóór de provider-call;
+  200 teruggeven (geen 429) om throttle-info/Mollie-retrystorm te vermijden.
+- **[MIDDEL · AVG art. 30 (+5/6) — publieke reviewer-naam niet in register — MENSENWERK]** Herbevestigd:
+  `src/components/profile/profile-screen.tsx:219,524` toont de echte `author.name` van een review op de
+  publieke, niet-ingelogde `/zzp/[id]`; geen register-entry voor deze openbaarmaking van een derde.
+  Productbeslissing (register-entry+grondslag vs. alleen voornaam/initialen vs. opt-in) → eerst mens
+  (FG/eigenaar, MENSENWERK §5), daarna kleine patch.
+- **[LAAG · AVG art. 5(1e)/17 vs. fiscale bewaargrond — `Expense.description` niet geredigeerd bij
+  anonimisering — MENSENWERK]** `Expense` wordt bij `anonymizeUser` niet aangeraakt (spiegelt het bewuste
+  `Invoice`-fiscale-bewaarplicht-precedent). Waarschijnlijk consistente, bewuste architectuur — maar
+  moet een expliciete DPO-beslissing zijn (redigeren zoals `ShiftHandoff`, óf expliciet onder de
+  7-jaars-fiscale-uitzondering houden en dat in het register benoemen), geen stille agent-fix.
+- **[LAAG · body-read-parity — `/api/client-error` + `/api/csp-report` lezen de body vóór de
+  grootte-check]** `request.text()` leest de volledige body in geheugen vóór `MAX_BODY_BYTES`; beide
+  routes zijn IP-rate-limited + upstream begrensd. Bestaand geaccepteerd patroon (niet nieuw). Aanbevolen:
+  vroege `Content-Length`-afwijzing op beide routes.
+
 ## Ronde 2026-07-07 (2e — basis: `main` @ ab6bc99)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-subagents op niet-overlappende

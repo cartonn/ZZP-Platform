@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTimeNl, formatDateShortNl } from "@/lib/format-date";
 import { StatusControl } from "../status-control";
 import { ContactForm } from "./contact-form";
+import { DeleteLeadControl } from "./delete-lead-control";
 
 export const metadata: Metadata = { title: "Lead · Bemiddeling" };
 
@@ -126,6 +127,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               </p>
             </div>
           )}
+
+          <div className="border-t border-border pt-4">
+            <DeleteLeadControl leadId={lead.id} organizationName={lead.organizationName} />
+          </div>
         </CardContent>
       </Card>
 

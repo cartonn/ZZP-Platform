@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/Privacy-audit (2026-07-08) — Lead-PII wis-pad (AVG art. 17) + Expense in inzage-export (art. 15/20)
+
+Auditronde (orchestrator Opus 4.8 + 2 parallelle adversariële Opus-subagents) over de delta #666–#672 +
+herverificatie van geparkeerde items. Delta-audit: geen nieuwe security-gaten. **Eén HOOG + één MIDDEL
+gefixt (rood→groen):**
+
+- **HOOG · AVG art. 17 — prospect-PII in `Lead`/`LeadContact` had geen wis-pad.** Nieuwe
+  `deleteLead(leadId)`-server-action (`src/app/(protected)/franchise/leads/actions.ts`): auth → rol
+  FRANCHISER → `assertSameTenant` → `prisma.lead.delete` (LeadContact cascadet mee) → `LEAD_DELETED`-audit
+  → redirect. UI: `[id]/delete-lead-control.tsx` (bevestig-knop op de lead-detailpagina). Register:
+  entry "Lead-acquisitie (bemiddelaar)" + `RETENTION_SCHEDULE`-regel "Acquisitie-leads" in
+  `src/lib/compliance/processing-register.ts`. Test: `franchise/leads/delete-lead.test.ts` (4 cases,
+  incl. cross-tenant-weigering).
+- **MIDDEL · AVG art. 15/20 — nieuwe `Expense`-PII ontbrak in de inzage-export.** `src/lib/account-export.ts`
+  krijgt een op `userId` gescopete `expense`-sectie. Test: nieuwe case in `account-export.test.ts`.
+- Backlog bijgewerkt: `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-07-08). Geparkeerd/herbevestigd:
+  overige export-parity-velden (MIDDEL), billing-webhook rate-limit (MIDDEL), publieke reviewer-naam in
+  register (MIDDEL, MENSENWERK), `Expense.description`-anonimisering (LAAG, DPO-beslissing), body-read-parity
+  (LAAG).
+- Gate groen: typecheck + lint + test (3547) + build. Prettier toegepast.
+
 ## Kandidaat-experience (2026-07-08) — Constructieve afwijzingsreden voor de ZZP'er
 
 Een afgewezen ZZP'er kreeg tot nu toe alleen "Je reactie is afgewezen" — een black-box zonder waarom.

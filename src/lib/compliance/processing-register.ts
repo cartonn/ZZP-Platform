@@ -380,6 +380,33 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
       "Toegang op rol (RBAC)",
     ],
   },
+
+  // 15. Lead-acquisitie (bemiddelaar) — prospect-PII van externe opdrachtgevers zonder platform-account
+  {
+    key: "lead-acquisitie-bemiddelaar",
+    name: "Lead-acquisitie (bemiddelaar)",
+    purpose:
+      "Vastleggen en opvolgen van acquisitie-leads (potentiële opdrachtgevers) door een bemiddelaar/franchise, inclusief een contactlogboek, zodat de bemiddelaar zijn verkoopproces kan voeren.",
+    legalBasis: "GERECHTVAARDIGD_BELANG",
+    dataSubjects: ["Contactpersonen van potentiële opdrachtgevers (prospects)"],
+    dataCategories: [
+      "Organisatienaam",
+      "Naam contactpersoon",
+      "E-mailadres",
+      "Telefoonnummer",
+      "Vrije notities & contactlogboek",
+    ],
+    sensitive: false,
+    recipients: ["Betreffende bemiddelaar/franchise (tenant-geïsoleerd)", "Intern platformbeheer"],
+    retention:
+      "Tot de lead klant wordt (dan geldt accountbeheer) of afvalt + 12 maanden; op verzoek eerder gewist (art. 17). Handmatig wisbaar via de bemiddelaar (deleteLead).",
+    securityMeasures: [
+      "Strikte tenant-isolatie (assertSameTenant) — geen cross-tenant inzage",
+      "Toegang op rol (RBAC): alleen de eigen FRANCHISER",
+      "Auditlogging (LEAD_CREATED / LEAD_STATUS_SET / LEAD_DELETED)",
+      "Definitief wis-pad incl. contactlogboek (cascade) — recht op vergetelheid",
+    ],
+  },
 ] as const;
 
 // --- Bewaarschema ------------------------------------------------------------
@@ -442,6 +469,14 @@ export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
     period: "Kortlevend; verloopt automatisch",
     rationale:
       "Beveiligingsbeginsel: sessies hebben een korte levensduur en verlopen automatisch na inactiviteit of afmelding",
+  },
+  {
+    key: "acquisitie-leads",
+    category: "Acquisitie-leads (bemiddelaar) & contactlogboek",
+    period:
+      "Tot conversie naar klant of afvallen + max. 12 maanden; eerder wisbaar op verzoek van de betrokkene",
+    rationale:
+      "Gerechtvaardigd belang (acquisitie); na afronding van het verkoopproces vervalt de grondslag. Recht op wissen (art. 17) technisch afgedwongen via een handmatig wis-pad (deleteLead)",
   },
 ] as const;
 
