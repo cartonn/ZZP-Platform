@@ -58,12 +58,19 @@ volledig gefixt (rood→groen); rest herbevestigd/geparkeerd.**
   (de `applications`-query is op `freelancer.userId` gescoped → voor een CLIENT-actor leeg). Fix:
   vier smalle, eigen-data-gescopete selects toevoegen (spiegel de scoping in `anonymizeUser`). Bewust
   gesplitst van de Expense-fix om de PR klein te houden; volgende ronde.
-- **[MIDDEL · OWASP A04/A09 (+ AVG art. 32) — `/api/billing/webhook` heeft geen rate-limit]** Herbevestigd
-  nog steeds open: publieke, ongeauthenticeerde webhook doet per ping een uitgaande Mollie-call
+- **[MIDDEL→OPGELOST · OWASP A04/A09 (+ AVG art. 32) — `/api/billing/webhook` heeft geen rate-limit]**
+  Publieke, ongeauthenticeerde webhook deed per ping een uitgaande Mollie/Stripe-call
   (`provider.paymentStatus`) voor een aanvaller-gestuurd id — geen forgeable state-change (server
-  her-verifieert + matcht op `providerRef`), maar een ongelimiteerde outbound-oracle/kostenamplificatie.
-  Fix: nieuwe IP-gekeyde `billingWebhookRateLimiter` (spiegel `cspReportRateLimiter`) vóór de provider-call;
-  200 teruggeven (geen 429) om throttle-info/Mollie-retrystorm te vermijden.
+  her-verifieert + matcht op `providerRef`), maar een ongelimiteerde outbound-oracle/kostenamplificatie
+  (+ een DB-lookup per ping). Gefixt: nieuwe IP-gekeyde `billingWebhookRateLimiter` (spiegel
+  `cspReportRateLimiter`, default 60/min/IP via `BILLING_WEBHOOK_RATE_LIMIT`) als eerste stap in de
+  POST-handler — vóór de body-read, de provider-referentie-resolutie én de DB-lookup. Bij overschrijding
+  bewust **200** (geen 429): een 429 zou de provider tot een retry-storm aanzetten en throttle-info
+  lekken; de drempel ligt ruim boven een legitieme provider-burst (retries lopen met backoff) zodat een
+  echte webhook niet gemist wordt. Tests: `src/app/api/billing/webhook/route.test.ts` (6 cases —
+  flood→200+géén provider/DB-werk, IP-keying via x-forwarded-for/x-real-ip, doorlaat→resolutie,
+  paid→activatie+audit, geen sub→geen provider-call). Rood→groen: zonder de poort vuurt de provider-call
+  ongelimiteerd.
 - **[MIDDEL · AVG art. 30 (+5/6) — publieke reviewer-naam niet in register — MENSENWERK]** Herbevestigd:
   `src/components/profile/profile-screen.tsx:219,524` toont de echte `author.name` van een review op de
   publieke, niet-ingelogde `/zzp/[id]`; geen register-entry voor deze openbaarmaking van een derde.

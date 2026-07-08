@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid (2026-07-08) — Rate-limit op `/api/billing/webhook` (OWASP A04/A09, AVG art. 32)
+
+Geparkeerd MIDDEL-item uit `docs/SECURITY-PRIVACY-BACKLOG.md` gesloten. De publieke, ongeauthenticeerde
+betaal-webhook (`/api/billing/webhook`) deed per ping een uitgaande Mollie/Stripe-`paymentStatus`-call +
+een DB-lookup zonder enige rem — een ongelimiteerde outbound-oracle/kostenamplificatie (geen forgeable
+state-change: de server her-verifieert de status en matcht op `providerRef`, maar de outbound-call zelf
+was ongelimiteerd).
+
+- **`src/lib/rate-limit.ts`**: nieuwe `billingWebhookRateLimiter` (spiegel `cspReportRateLimiter`,
+  default 60/min/IP via `BILLING_WEBHOOK_RATE_LIMIT`, namespace `billingwebhook:`) — dezelfde pluggbare
+  store (memory/Upstash) als de overige limiters.
+- **`src/app/api/billing/webhook/route.ts`**: rate-limit als **eerste** stap in de POST-handler — vóór
+  de body-read, `resolveWebhookRef` én de `subscription.findFirst`-lookup. Bij overschrijding bewust
+  **200** (geen 429): een 429 zet de provider tot een retry-storm aan en lekt throttle-info; de ruime
+  drempel (retries lopen met backoff) zorgt dat een legitieme webhook niet gemist wordt. Nieuwe
+  `clientIp`-helper (x-forwarded-for → x-real-ip → "unknown").
+- **`src/app/api/billing/webhook/route.test.ts`** (nieuw, 6 cases): flood→200 zonder provider/DB-werk,
+  IP-keying (x-forwarded-for/x-real-ip), doorlaat→resolutie, paid→activatie+audit, geen sub→geen
+  provider-call. **`.env.example`**: `BILLING_WEBHOOK_RATE_LIMIT` gedocumenteerd.
+
+Server-side waarheid, geen auth verzwakt, geen schemawijziging. Gate groen: typecheck, lint, **3553
+unit-tests** (+6), build, `prettier --write .`. Geen resterend mensenwerk (interne hardening).
+
 ## Security/Privacy-audit (2026-07-08) — Lead-PII wis-pad (AVG art. 17) + Expense in inzage-export (art. 15/20)
 
 Auditronde (orchestrator Opus 4.8 + 2 parallelle adversariële Opus-subagents) over de delta #666–#672 +
