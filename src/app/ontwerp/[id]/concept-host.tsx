@@ -577,6 +577,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "190": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-190-amber").then((m) => m.Concept190),
   ),
+  "191": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-191-glasvezel").then((m) => m.Concept191),
+  ),
+  "192": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-192-nieuwe-beelding").then((m) => m.Concept192),
+  ),
+  "193": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-193-kalligrafie").then((m) => m.Concept193),
+  ),
+  "194": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-194-heraldiek").then((m) => m.Concept194),
+  ),
+  "195": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-195-sequencer").then((m) => m.Concept195),
+  ),
+  "196": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-196-observatorium").then((m) => m.Concept196),
+  ),
+  "197": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-197-speelkaart").then((m) => m.Concept197),
+  ),
+  "198": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-198-telraam").then((m) => m.Concept198),
+  ),
+  "199": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-199-perspectief").then((m) => m.Concept199),
+  ),
+  "200": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-200-hologram").then((m) => m.Concept200),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
