@@ -690,11 +690,20 @@ hardcoded host). Drie AVG-art.-17-bevindingen (recht op verwijdering onvolledig)
   bedragen/nummers/data behouden — spiegelt `Collaboration.cancellationReason`. Er is geen
   `rejectedById`-kolom; scope via de `actorId` op het domein-/auditevent van de afwijzing (zoals
   `disputeReason` via `DISPUTE_OPENED`). DPO-afweging. Fix in een aparte increment.
-- **[MIDDEL · AVG art. 15/20 — inzage-export onvolledig (uitbreiding)]** `buildAccountExport`
-  (`account-export.ts`) mist naast de eerder geparkeerde categorieën (ontvangen `Review`, eigen
-  `ShiftHandoff.reason`, `AvailabilityWindow.note`, open `Collaboration.disputeReason`) nu ook: eigen
+- **[OPGELOST 2026-07-08 · AVG art. 15/20 — inzage-export onvolledig (uitbreiding)]** `buildAccountExport`
+  (`account-export.ts`) miste naast de eerder geparkeerde categorieën (ontvangen `Review`, eigen
+  `ShiftHandoff.reason`, `AvailabilityWindow.note`, open `Collaboration.disputeReason`) ook: eigen
   `Application.note` (CLIENT), `NoShowReport` (melder), `ShiftHandoff.decisionNote` (beslisser),
-  `LeadContact.body` (franchiser). Fix: per categorie een strikt-`select`-query (geen derde-partij-PII).
+  `LeadContact.body` (franchiser). **Gefixt:** 8 nieuwe strikt-`select`-secties toegevoegd, elk gescopet
+  op de eigen actor en zonder derde-partij-PII — `receivedReviews` (`subjectId==actor`, **alleen
+  PUBLISHED** zodat de double-blind reveal niet vóór onthulling wordt gebroken; geen authorId),
+  `clientApplicationNotes` (`job.company.userId==actor`, alleen `note`), `shiftHandoffRequests`
+  (`requestedByUserId`, alleen `reason`), `shiftHandoffDecisions` (`decidedByUserId`, alleen
+  `decisionNote`), `availabilityNotes` (eigen profiel), `noShowReports` (`reportedById`, geen
+  `verdictNote`/ZZP-identiteit), `leadContacts` (`createdById`, alleen eigen `body`) en
+  `openDisputeReasons` (gescopet op de eigen `DISPUTE_OPENED`-events, net als `anonymizeUser`). De
+  derde-partij-lead-PII (contactName/email/phone) blijft onder het aparte verwerkingsregister-item. 8
+  nieuwe tests (rood→groen). Geen schemawijziging.
 - **[OPGELOST 2026-07-03b · AVG art. 15/20 + 17]** `FavoriteFreelancer.note` (privé CLIENT-notitie)
   ontbrak in zowel `anonymizeUser` als de export. Gefixt (zie ronde 2026-07-03b): `updateMany({ note:
 null })` in de anonimiseringstransactie + strikt-`select`-export-query.

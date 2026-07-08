@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Privacy (2026-07-08) — inzage-export compleet: 8 ontbrekende eigen-datacategorieën (AVG art. 15/20)
+
+Het AVG-inzage-/dataportabiliteitsexport (`/api/account/export` → `buildAccountExport`,
+`src/lib/account-export.ts`) bundelde de eigen persoonsgegevens van de gebruiker, maar miste 8
+categorieën eigen vrije tekst die de anonimisering (`anonymizeUser`) wél al wist — een asymmetrie
+tussen "recht op wissen" (compleet) en "recht op inzage" (onvolledig). Toegevoegd, elk gescopet op de
+eigen actor met een strikte `select` (geen derde-partij-PII): **`receivedReviews`** (over de actor
+geschreven beoordelingen, `subjectId==actor`, **alleen PUBLISHED** zodat de double-blind reveal niet
+vóór onthulling breekt; auteur-identiteit blijft eruit), **`clientApplicationNotes`** (eigen
+CLIENT-kandidaatnotities, `job.company.userId`), **`shiftHandoffRequests`** (eigen `reason`,
+aanvragerskant) + **`shiftHandoffDecisions`** (eigen `decisionNote`, beslisserskant),
+**`availabilityNotes`** (eigen beschikbaarheidsnoten), **`noShowReports`** (eigen meldingen als melder,
+zonder admin-oordeel/ZZP-identiteit), **`leadContacts`** (eigen franchiser-gespreksnotities) en
+**`openDisputeReasons`** (gescopet op de eigen `DISPUTE_OPENED`-events, exact zoals `anonymizeUser`).
+Read-only, geen schemawijziging, geen route-wijziging. 8 nieuwe tests (14 totaal in
+`account-export.test.ts`); gate groen (typecheck, lint, **3568 unit-tests**, build, prettier).
+Backlog-item `docs/SECURITY-PRIVACY-BACKLOG.md` op OPGELOST.
+
 ## Persona-sweep run 16 (2026-07-08) — geen nieuwe gaten
 
 Kritische-gebruiker-sweep over 4 rollen (basis `23f34e4`). DOEL 1: CLIENT shortlistte reactie `app-1`
