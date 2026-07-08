@@ -37,6 +37,7 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     collaboration: { findMany: make("collaboration", "findMany") },
     favoriteFreelancer: { findMany: make("favoriteFreelancer", "findMany") },
     pushSubscription: { findMany: make("pushSubscription", "findMany") },
+    expense: { findMany: make("expense", "findMany") },
   };
   return { db: db as unknown as PrismaClient, calls };
 }
@@ -62,6 +63,7 @@ describe("buildAccountExport", () => {
       "cancelledCollaborations",
       "favoriteNotes",
       "pushSubscriptions",
+      "expenses",
     ] as const) {
       expect(payload).toHaveProperty(key);
     }
@@ -160,6 +162,21 @@ describe("buildAccountExport", () => {
     expect(select?.name).toBe(true);
     expect(select?.tenantId).toBeUndefined();
     expect(select?.logoKey).toBeUndefined();
+  });
+
+  it("neemt de eigen zakelijke uitgaven mee, gescopet op de actor (AVG art. 15/20)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const expense = calls.find((c) => c.table === "expense");
+    expect(expense).toBeDefined();
+    expect((expense?.args.where as Record<string, unknown>).userId).toBe(ACTOR);
+    const select = expense?.args.select as Record<string, unknown>;
+    expect(select.description).toBe(true);
+    expect(select.netCents).toBe(true);
+    expect(select.vatCents).toBe(true);
+    // Interne grootboek-id lekt niet mee.
+    expect(select.id).toBeUndefined();
   });
 
   it("geeft de canned rijen door in de juiste secties", async () => {
