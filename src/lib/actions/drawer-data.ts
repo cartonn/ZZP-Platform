@@ -138,6 +138,7 @@ export async function loadDrawerData(
             kvkNumber: true,
             btwNumber: true,
             visibility: true,
+            defaultMotivation: true,
             skills: { select: { skillId: true } },
             industries: { select: { industryId: true } },
           },
@@ -158,6 +159,7 @@ export async function loadDrawerData(
         kvkNumber: profile.kvkNumber ?? "",
         btwNumber: profile.btwNumber ?? "",
         visibility: profile.visibility,
+        defaultMotivation: profile.defaultMotivation ?? "",
         skillIds: profile.skills.map((s) => s.skillId),
         industryIds: profile.industries.map((i) => i.industryId),
       };

@@ -42,6 +42,7 @@ export async function updateFreelancerProfile(
     kvkNumber: formData.get("kvkNumber") || undefined,
     btwNumber: formData.get("btwNumber") || undefined,
     visibility: formData.get("visibility"),
+    defaultMotivation: formData.get("defaultMotivation") || undefined,
     skillIds: formData.getAll("skillIds").map(String),
     industryIds: formData.getAll("industryIds").map(String),
   });
@@ -90,6 +91,7 @@ export async function updateFreelancerProfile(
         kvkNumber: data.kvkNumber ?? null,
         btwNumber: data.btwNumber ?? null,
         visibility: data.visibility,
+        defaultMotivation: data.defaultMotivation ?? null,
         completeness,
       },
     }),

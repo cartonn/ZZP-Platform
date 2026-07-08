@@ -354,6 +354,7 @@ model FreelancerProfile {
   visibility       String   @default("PUBLIC") //   Visibility: PUBLIC | PRIVATE
   completeness     Int      @default(0) //           0-100, server-berekend
   monthlyIncomeGoalCents Int? //                     zelfgekozen maanddoel (omzet/maand) in centen; null = geen doel
+  defaultMotivation String? //                        opgeslagen standaardtekst die het reageerveld voorinvult (quick-apply)
   tenantId         String? //                        gedenormaliseerd uit User.tenantId voor tenant-scoping (roster)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

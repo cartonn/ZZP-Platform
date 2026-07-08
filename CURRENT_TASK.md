@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Standaard-motivatie / sneller reageren voor de ZZP'er (2026-07-08)** — de
+> ZZP'er bewaart één keer een standaardtekst op zijn profiel die het motivatieveld op het
+> reageerformulier (`/opdrachten/[id]`) automatisch voorinvult (met hint "pas 'm aan voor deze
+> opdracht"). Reduceert de frictie van bij elke opdracht vanaf nul typen (benchmark: proposal-templates/
+> quick-apply bij Malt/Upwork/Temper); de ingezonden motivatie blijft server-side de waarheid. Additief
+> `FreelancerProfile.defaultMotivation`; pure `application-template.ts` (`normalizeDefaultMotivation`/
+> `hasDefaultMotivation`/`resolveMotivationDraft`/`DEFAULT_MOTIVATION_MAX`, 7 tests); gewired in
+> profiel-bewerken (+ Actiecentrum-drawer) en het reageerformulier; valt onder de bestaande inzage-export.
+> Seed: Sanne demo-standaardtekst. Read-only leeskant, geen extra query. Gate groen.
+
 > Gedaan (niet opnieuw): **"Eerder samengewerkt"-signaal op /kandidaten (2026-07-08)** — de opdrachtgever
 > ziet bij het beoordelen van reacties nu of hij al eerder een samenwerking met déze ZZP'er heeft afgerond
 > (chip "Eerder samengewerkt" + telling + laatste afronddatum in de tooltip). Sterk, laag-risico

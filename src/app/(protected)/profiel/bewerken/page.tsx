@@ -149,6 +149,7 @@ export default async function ProfielPage() {
           kvkNumber: profile.kvkNumber ?? "",
           btwNumber: profile.btwNumber ?? "",
           visibility: profile.visibility,
+          defaultMotivation: profile.defaultMotivation ?? "",
           skillIds,
           industryIds,
         }}

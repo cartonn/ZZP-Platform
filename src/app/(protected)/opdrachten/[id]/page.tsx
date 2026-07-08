@@ -157,6 +157,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   let jobCompetition: CompetitionSummary | null = null;
   // Bewaard-status voor de bewaar-knop (alleen relevant voor een niet-eigenaar ZZP'er).
   let isSaved = false;
+  // Opgeslagen standaard-motivatie: vult het reageerveld voor (quick-apply).
+  let defaultMotivation: string | null = null;
   if (actor.role === "FREELANCER") {
     const profile = await prisma.freelancerProfile.findUnique({
       where: { userId: actor.id },
@@ -169,6 +171,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       },
     });
     if (profile) {
+      defaultMotivation = profile.defaultMotivation;
       if (!isOwner) {
         const saved = await prisma.savedJob.findUnique({
           where: { freelancerProfileId_jobId: { freelancerProfileId: profile.id, jobId: job.id } },
@@ -760,7 +763,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               </section>
             )}
             {jobCompetition && <JobCompetitionCard competition={jobCompetition} />}
-            <ApplicationForm action={createApplication.bind(null, job.id)} />
+            <ApplicationForm
+              action={createApplication.bind(null, job.id)}
+              defaultMotivation={defaultMotivation}
+            />
           </div>
         ) : null)
       )}

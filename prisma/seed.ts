@@ -222,6 +222,7 @@ async function main() {
     completeness: number;
     creds: Cred[];
     incomeGoalCents?: number;
+    defaultMotivation?: string;
   };
   const freelancers: Freelancer[] = [
     {
@@ -239,6 +240,8 @@ async function main() {
       identityVerified: true,
       completeness: 100,
       incomeGoalCents: 600000, // demo: € 6.000 maanddoel
+      defaultMotivation:
+        "Als BIG-geregistreerd verpleegkundige met tien jaar ervaring in de somatische en wijkverpleging ben ik flexibel inzetbaar en snel inwerkbaar. Ik werk zelfstandig en zorgvuldig, en pas graag mijn inzet aan op wat uw team nodig heeft.",
       creds: [
         {
           type: "VOG",
@@ -452,6 +455,8 @@ async function main() {
       : {};
     const goalFields =
       f.incomeGoalCents !== undefined ? { monthlyIncomeGoalCents: f.incomeGoalCents } : {};
+    const motivationFields =
+      f.defaultMotivation !== undefined ? { defaultMotivation: f.defaultMotivation } : {};
     const user = await prisma.user.upsert({
       where: { email: f.email },
       update: idFields,
@@ -476,6 +481,7 @@ async function main() {
             visibility: "PUBLIC",
             completeness: f.completeness,
             ...goalFields,
+            ...motivationFields,
           },
         },
       },

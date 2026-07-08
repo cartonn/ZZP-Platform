@@ -34,6 +34,7 @@ export interface ProfileFormInitial {
   kvkNumber: string;
   btwNumber: string;
   visibility: string;
+  defaultMotivation: string;
   skillIds: string[];
   industryIds: string[];
 }
@@ -223,6 +224,22 @@ export function ProfileForm({
           </div>
         )}
       </fieldset>
+
+      <Field
+        label="Standaard motivatie"
+        htmlFor="defaultMotivation"
+        error={fe.defaultMotivation}
+        hint="Wordt automatisch ingevuld als je op een opdracht reageert. Je past de tekst per opdracht aan — zo begin je niet elke keer vanaf nul."
+      >
+        <Textarea
+          id="defaultMotivation"
+          name="defaultMotivation"
+          defaultValue={initial.defaultMotivation}
+          rows={4}
+          maxLength={2000}
+          placeholder="Bijv. een korte introductie die je bij elke reactie hergebruikt."
+        />
+      </Field>
 
       <fieldset className="space-y-2">
         <legend className="block text-sm font-medium">Zichtbaarheid</legend>
