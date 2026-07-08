@@ -46,7 +46,9 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { DeliveryQualityBlock } from "@/components/freelancer/delivery-quality-block";
+import { CandidateHistoryBadge } from "@/components/freelancer/candidate-history-badge";
 import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-quality";
+import { getSharedHistoryForCandidates } from "@/lib/data/candidate-history";
 import { changeApplicationStatus } from "./actions";
 import { ApplicationNoteForm } from "./application-note-form";
 import { RejectApplicationDialog } from "./reject-application-dialog";
@@ -154,9 +156,13 @@ export default async function KandidatenPage({
 
   // Leverbetrouwbaarheid per kandidaat: spiegel van de opdrachtgever-signalen die de ZZP'er op de
   // opdracht ziet. Eén gebatchte fetch over alle reagerende profielen (geen N+1).
-  const deliveryByProfile = await getDeliveryQualityForProfiles(
-    applications.map((a) => a.freelancer.id),
-  );
+  const profileIds = applications.map((a) => a.freelancer.id);
+  const [deliveryByProfile, historyByProfile] = await Promise.all([
+    getDeliveryQualityForProfiles(profileIds),
+    // "Eerder samengewerkt": afgeronde samenwerkingen tussen déze opdrachtgever en de kandidaat —
+    // een sterk vertrouwenssignaal bij de beslissing. Per opdrachtgever gescoopt, geen N+1.
+    getSharedHistoryForCandidates(actor.id, profileIds),
+  ]);
 
   // Werkstroom-volgorde: NEW → VIEWED → SHORTLIST → REJECTED → ACCEPTED (actie-vragend eerst,
   // afgehandeld onderaan). Stabiel, dus binnen één status blijft de match-volgorde (hoogste eerst) staan.
@@ -428,6 +434,9 @@ export default async function KandidatenPage({
                             {status === "NEW" && !fresh ? null : (
                               <ApplicationStatusBadge status={status} />
                             )}
+                            <CandidateHistoryBadge
+                              history={historyByProfile.get(app.freelancer.id)}
+                            />
                             <TrustBadge level={trust.level} />
                           </span>
                         </div>

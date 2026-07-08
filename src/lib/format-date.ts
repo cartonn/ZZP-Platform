@@ -49,6 +49,16 @@ export function formatDateShortNl(
   });
 }
 
+/** Korte NL-maand + jaar voor compacte historie-labels: "mei 2026". */
+export function formatMonthYearNl(
+  value: Date | string | number | null | undefined,
+  fallback = "—",
+): string {
+  const d = toDate(value);
+  if (!d) return fallback;
+  return d.toLocaleDateString(NL, { month: "short", year: "numeric", timeZone: TZ });
+}
+
 /** NL datum + lokale tijd (Europe/Amsterdam) voor tijdstempels: "7 mei 2026 09:12". */
 export function formatDateTimeNl(
   value: Date | string | number | null | undefined,
