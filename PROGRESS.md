@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Wettelijke-factuureisen-check voor de ZZP'er (2026-07-08) — administratie-ontzorging
+
+De factuurdetailpagina (`/facturen/[id]`) toont de ZZP'er (crediteur) nu of zijn factuur voldoet aan
+de **wettelijke factuureisen** (art. 35a Wet OB / Belastingdienst) en, zo niet, precies wát er
+ontbreekt — met een gerichte fix. Het meest voorkomende, herstelbare gat is een ontbrekend
+**btw-identificatienummer** of **KvK-nummer** op het profiel: die horen op elke factuur, maar niets
+waarschuwde de ZZP'er tot nu toe. Benchmark: Moneybird/Tellow dwingen deze velden af; wij deden dat
+niet. Reduceert het risico dat een opdrachtgever/boekhouder of de Belastingdienst een factuur weigert.
+
+- **Pure lib** `src/lib/invoice-legal.ts`: `assessInvoiceCompliance(input)` → gesorteerde
+  `ComplianceRequirement[]` (factuurnummer, factuurdatum, opdrachtgever, omschrijving, bedrag+btw,
+  btw-id, KvK) met per punt `severity` (`required`/`recommended`), `met`, `fixTarget`
+  (`profile`/null) en actie-`hint`. `level` = "complete" zodra alle **required**-punten voldaan zijn
+  (aanbevelingen tellen niet mee → geen valse "onwettig"-melding). **Nuance:** bij een vrijstelling
+  (`vatRegime==="EXEMPT"`/KOR) rekent de ZZP'er geen btw → het btw-id zakt naar aanbeveling; KvK is
+  altijd slechts aanbevolen (geen strikte OB-eis). `profileFixNeeded` bundelt de profiel-herstelbare
+  gaten. Puur/deterministisch, geen datum-logica. 9 tests.
+- **UI** `src/components/invoices/invoice-compliance-card.tsx` (presentationeel): rustige
+  "voldoet aan de wettelijke factuureisen"-bevestiging óf een gerichte melding met de ontbrekende
+  punten (verplicht = waarschuwing, aanbevolen = info), deeplink "Vul je factuurgegevens aan op je
+  profiel →" (`/profiel/bewerken`) bij een profiel-herstelbaar gat, en een uitklapbare checklist van
+  de al-voldane punten. Alleen zichtbaar voor de crediteur (`isFreelancerOwner`).
+- **Wiring** `/facturen/[id]/page.tsx`: `kvkNumber`/`btwNumber` toegevoegd aan de freelancer-select;
+  `assessInvoiceCompliance` server-side gevoed uit de al opgehaalde factuur (cascade én legacy) en de
+  kaart gerenderd onder de hoofdkaart. Read-only, geen schemawijziging, geen extra query.
+- Gate lokaal: typecheck ✓, lint ✓, prettier ✓, unit ✓ (9 nieuw), build (in CI).
+
 ## Ontwerp-lab reeks 20 — +10 concepten, nrs 191–200 (2026-07-08)
 
 Design-lab op `/ontwerp` uitgebreid van 190 → **200 concepten** (additief; geen bestaand concept

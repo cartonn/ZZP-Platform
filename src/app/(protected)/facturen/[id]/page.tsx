@@ -18,6 +18,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { PaymentReminderButton } from "@/components/invoices/payment-reminder-button";
 import { canSendPaymentReminder, isAwaitingPayment } from "@/lib/manual-payment-reminder";
+import { assessInvoiceCompliance } from "@/lib/invoice-legal";
+import { InvoiceComplianceCard } from "@/components/invoices/invoice-compliance-card";
 import { cancelInvoice, markInvoicePaid, sendInvoice } from "../actions";
 import { PrintButton } from "@/components/ui/print-button";
 import { formatDateShortNl } from "@/lib/format-date";
@@ -84,7 +86,14 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           ortCustomRates: true,
           job: { select: { title: true } },
           company: { select: { name: true, userId: true } },
-          freelancer: { select: { userId: true, user: { select: { name: true } } } },
+          freelancer: {
+            select: {
+              userId: true,
+              kvkNumber: true,
+              btwNumber: true,
+              user: { select: { name: true } },
+            },
+          },
         },
       },
     },
@@ -131,6 +140,26 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
         issuedAt: invoice.issuedAt,
         dueAt: invoice.dueAt,
         lastReminderAt: lastReminder?.createdAt ?? null,
+      })
+    : null;
+
+  // Wettelijke factuureisen (art. 35a Wet OB): toon de crediteur of zijn factuur rechtsgeldig is
+  // en wat er nog ontbreekt (typisch een btw-id/KvK op het profiel). Server-side afgeleid.
+  const compliance = isFreelancerOwner
+    ? assessInvoiceCompliance({
+        invoiceNumber: cascade ? invoice.partyInvoiceNumber : invoice.number,
+        issuedAt: invoice.issuedAt,
+        clientName: invoice.collaboration.company.name,
+        hasDescription:
+          invoice.lines.length > 0 ||
+          invoice.performance != null ||
+          !!invoice.collaboration.job.title,
+        hasAmounts: cascade
+          ? invoice.subtotalCents != null && invoice.vatCents != null
+          : invoice.lines.length > 0 || invoice.totalCents > 0,
+        vatRegime: invoice.vatRegime,
+        issuerBtw: invoice.collaboration.freelancer.btwNumber,
+        issuerKvk: invoice.collaboration.freelancer.kvkNumber,
       })
     : null;
 
@@ -290,6 +319,8 @@ export default async function FactuurDetailPage({ params }: { params: Promise<{ 
           )}
         </CardContent>
       </Card>
+
+      {compliance && <InvoiceComplianceCard compliance={compliance} />}
 
       {awaitingPayment && reminder && (
         <Card className="print-hide">

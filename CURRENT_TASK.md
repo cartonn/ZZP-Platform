@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Wettelijke-factuureisen-check voor de ZZP'er (2026-07-08)** — de
+> factuurdetail (`/facturen/[id]`) toont de crediteur of zijn factuur voldoet aan de wettelijke
+> factuureisen (art. 35a Wet OB) en wat er ontbreekt, met een gerichte fix (typisch btw-id/KvK op het
+> profiel). Puur `src/lib/invoice-legal.ts` `assessInvoiceCompliance` (7 requirements met
+> severity required/recommended, EXEMPT/KOR → btw-id wordt aanbeveling, `profileFixNeeded`; 9 tests);
+> `InvoiceComplianceCard` (bevestiging/melding + deeplink naar profiel-bewerken + uitklapbare
+> checklist), alleen voor `isFreelancerOwner`. Wiring: kvk/btw op de freelancer-select, server-side
+> gevoed. Read-only, geen schemawijziging, geen extra query. Benchmark Moneybird/Tellow. Gate groen.
+
 > Gedaan (niet opnieuw): **Werkervaring op het ZZP-profiel (2026-07-08)** — de ZZP'er toont eerdere
 > rollen/opdrachten (trust/credibility zoals Malt/LinkedIn/Deel) naast de servergeverifieerde
 > certificaten; puur self-reported met expliciete "niet servergeverifieerd"-disclaimer (geen
