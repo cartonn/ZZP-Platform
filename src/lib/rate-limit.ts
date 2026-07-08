@@ -428,3 +428,19 @@ export const clientErrorRateLimiter = new RateLimiter(
   60_000,
   "clienterror:",
 );
+
+/**
+ * Maximaal BILLING_WEBHOOK_RATE_LIMIT (default 60) betaal-webhook-pings per IP per minuut. De
+ * route (/api/billing/webhook) is publiek en ongeauthenticeerd — de betaalprovider (Mollie/Stripe)
+ * pingt zonder sessie. Zonder rem is het een outbound-oracle/kostenamplificatie: elke ping met een
+ * geldige `providerRef` triggert een uitgaande `paymentStatus`-call naar de provider (en per ping
+ * een DB-lookup). De drempel ligt ruim boven een normale provider-burst (retries lopen met backoff),
+ * maar begrenst een geautomatiseerde flood. De call-site geeft bij overschrijding bewust 200 terug
+ * (geen 429): een 429 zou de provider tot een retry-storm aanzetten en throttle-info lekken.
+ */
+export const billingWebhookRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("BILLING_WEBHOOK_RATE_LIMIT", 60),
+  60_000,
+  "billingwebhook:",
+);
