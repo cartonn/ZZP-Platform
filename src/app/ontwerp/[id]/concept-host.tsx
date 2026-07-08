@@ -517,6 +517,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "170": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-170-caleidoscoop").then((m) => m.Concept170),
   ),
+  "171": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-171-diafragma").then((m) => m.Concept171),
+  ),
+  "172": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-172-notariaat").then((m) => m.Concept172),
+  ),
+  "173": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-173-mycelium").then((m) => m.Concept173),
+  ),
+  "174": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-174-letterpers").then((m) => m.Concept174),
+  ),
+  "175": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-175-parallax").then((m) => m.Concept175),
+  ),
+  "176": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-176-magneet").then((m) => m.Concept176),
+  ),
+  "177": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-177-korrel").then((m) => m.Concept177),
+  ),
+  "178": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-178-sediment").then((m) => m.Concept178),
+  ),
+  "179": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-179-damast").then((m) => m.Concept179),
+  ),
+  "180": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-180-diorama").then((m) => m.Concept180),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
