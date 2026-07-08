@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — ADMIN systeemstatus-scherm (2026-07-08)** — een ADMIN-only
+> `/admin/systeemstatus` dat de productie-configuratie-posture op één scherm toont (opslag/database/
+> e-mail/betalingen/verificatie-adapters/upload-scan/rate-limit-store/error-monitoring/taak-cron/
+> deel-token-sleutel/webadres): per onderdeel `level` ok/fallback/attention + modus + toelichting, plus
+> live databank-readiness en de boot-`envWarnings`. Beantwoordt de RUNBOOK-vraag "is productie na de
+> deploy correct bekabeld?" zonder boot-logs te grepen. Pure `src/lib/system-status.ts`
+> (`collectSystemStatus`/`databaseKind`, in prod telt fallback als aandacht, verifiers fail-closed →
+> aandacht tenzij SEED_DEMO; geen sleutelwaarden; 18 tests) + `readEnv()` in `env.ts` +
+> `SystemStatusPanel` + nav-item (icon `activity`) onder Beheer. Read-only, geen schemawijziging, geen
+> dependency. Gate groen (3594 tests). MENSENWERK §11 bijgewerkt.
+
 > Gedaan (niet opnieuw): **Standaard-motivatie / sneller reageren voor de ZZP'er (2026-07-08)** — de
 > ZZP'er bewaart één keer een standaardtekst op zijn profiel die het motivatieveld op het
 > reageerformulier (`/opdrachten/[id]`) automatisch voorinvult (met hint "pas 'm aan voor deze

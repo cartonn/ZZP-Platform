@@ -250,6 +250,16 @@ export function envWarnings(env: Env): string[] {
   return warnings;
 }
 
+/**
+ * Leest de al-gevalideerde omgeving opnieuw uit (met defaults toegepast) ZONDER opnieuw te
+ * waarschuwen of te throwen op ontbrekende aanbevelingen. Veilig ná boot: slaagde `validateEnv`
+ * bij het opstarten, dan slaagt deze parse ook. Werpt alleen als de basisconfig ongeldig is
+ * (wat de boot al zou hebben tegengehouden). Bedoeld voor read-only inspectie (systeemstatus).
+ */
+export function readEnv(): Env {
+  return schema.parse(process.env);
+}
+
 /** Valideert process.env; werpt een leesbare fout als er iets ontbreekt/zwak is. */
 export function validateEnv(): Env {
   const result = schema.safeParse(process.env);
