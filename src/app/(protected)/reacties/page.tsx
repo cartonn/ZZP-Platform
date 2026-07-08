@@ -29,6 +29,7 @@ import {
   summarizeApplicationGroups,
 } from "@/lib/application-filter";
 import { canWithdrawApplication } from "@/lib/applications";
+import { rejectionReasonFeedback } from "@/lib/rejection-reason";
 import { type ApplicationStatus, type CredentialType, type CredentialStatus } from "@/lib/enums";
 import { getTranslator } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
@@ -294,6 +295,19 @@ export default async function ReactiesPage({
                         </p>
                       )}
                       <p className="mt-2 text-xs text-muted-foreground">{t(hint)}</p>
+                      {app.status === "REJECTED" &&
+                        !app.collaboration &&
+                        (() => {
+                          // Constructieve afwijzingsreden van de opdrachtgever (optioneel meegegeven).
+                          // Geen black-box afwijzing: de ZZP'er weet waaróm en kan er iets mee.
+                          const feedback = rejectionReasonFeedback(app.rejectionReason);
+                          return feedback ? (
+                            <p className="mt-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-foreground">
+                              <span className="font-medium">{t("Feedback opdrachtgever:")}</span>{" "}
+                              {t(feedback)}
+                            </p>
+                          ) : null;
+                        })()}
                     </Link>
                     {wait && <WaitSignal wait={wait} t={t} />}
                     {responsiveness && (

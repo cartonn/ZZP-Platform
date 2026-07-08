@@ -784,6 +784,7 @@ async function main() {
     rate: number;
     score: number;
     compliance: string;
+    reason?: string; // gestructureerde afwijzingscode (alleen bij REJECTED)
   };
   const apps: App[] = [
     {
@@ -865,6 +866,7 @@ async function main() {
       rate: 85,
       score: 58,
       compliance: snap("COMPLIANT"),
+      reason: "EXPERIENCE_MISMATCH",
     },
   ];
   for (const a of apps) {
@@ -881,6 +883,7 @@ async function main() {
         availability: "In overleg",
         matchScore: a.score,
         complianceSnapshot: a.compliance,
+        rejectionReason: a.reason ?? null,
       },
     });
   }

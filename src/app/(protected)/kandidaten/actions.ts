@@ -11,6 +11,10 @@ import {
   type BulkTransitionItem,
 } from "@/lib/applications";
 import { type ApplicationStatus, applicationStatusSchema } from "@/lib/enums";
+import {
+  buildRejectionNotificationBody,
+  optionalRejectionReasonSchema,
+} from "@/lib/rejection-reason";
 
 async function loadOwnedApplication(actor: Actor, appId: string) {
   const app = await prisma.application.findUnique({
@@ -26,7 +30,11 @@ async function loadOwnedApplication(actor: Actor, appId: string) {
   return app;
 }
 
-export async function changeApplicationStatus(appId: string, target: string): Promise<void> {
+export async function changeApplicationStatus(
+  appId: string,
+  target: string,
+  formData?: FormData,
+): Promise<void> {
   const actor = await requireRole("CLIENT");
   const targetStatus = applicationStatusSchema.parse(target);
   const app = await loadOwnedApplication(actor, appId);
@@ -47,13 +55,28 @@ export async function changeApplicationStatus(appId: string, target: string): Pr
     throw e;
   }
 
+  // Optionele, constructieve afwijzingsreden (alleen relevant bij REJECTED). Een ongeldige waarde
+  // wordt geweigerd; leeg/afwezig → geen reden. Bij elke andere overgang wissen we een oude reden,
+  // zodat een teruggedraaide afwijzing geen verouderde feedback laat staan.
+  const rawReason = formData?.get("reason");
+  // safeParse: een gemanipuleerde/ongeldige reason degradeert stil naar "geen reden" i.p.v. een 500;
+  // de reden komt normaal uit een vaste <select>, dus dit raakt alleen misbruikpaden.
+  const parsedReason = optionalRejectionReasonSchema.safeParse(
+    typeof rawReason === "string" ? rawReason : undefined,
+  );
+  const rejectionReason =
+    targetStatus === "REJECTED" && parsedReason.success ? (parsedReason.data ?? null) : null;
+
   // Notificeer de ZZP'er bij een definitieve uitkomst — én bij het terugdraaien van een acceptatie,
   // zodat hij niet eindeloos op het beloofde samenwerkingsvoorstel blijft wachten.
   const notify =
     targetStatus === "ACCEPTED"
       ? { title: "Je reactie is geaccepteerd", body: `Voor "${app.job.title}".` }
       : targetStatus === "REJECTED"
-        ? { title: "Je reactie is afgewezen", body: `Voor "${app.job.title}".` }
+        ? {
+            title: "Je reactie is afgewezen",
+            body: buildRejectionNotificationBody(app.job.title, rejectionReason),
+          }
         : from === "ACCEPTED" && targetStatus === "SHORTLIST"
           ? {
               title: "Acceptatie ingetrokken",
@@ -62,14 +85,17 @@ export async function changeApplicationStatus(appId: string, target: string): Pr
           : null;
 
   await prisma.$transaction([
-    prisma.application.update({ where: { id: appId }, data: { status: targetStatus } }),
+    prisma.application.update({
+      where: { id: appId },
+      data: { status: targetStatus, rejectionReason },
+    }),
     prisma.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "APPLICATION_STATUS_CHANGED",
         entityType: "Application",
         entityId: appId,
-        metadata: { from, to: targetStatus },
+        metadata: { from, to: targetStatus, ...(rejectionReason ? { rejectionReason } : {}) },
       }),
     }),
     ...(notify

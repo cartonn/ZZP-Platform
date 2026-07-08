@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Constructieve afwijzingsreden voor de ZZP'er (2026-07-08)** — de opdrachtgever
+> geeft bij het afwijzen van een reactie optioneel een gestructureerde reden mee (6 codes); de ZZP'er ziet
+> die als respectvolle, constructieve feedback op `/reacties` i.p.v. een black-box afwijzing (noord-ster:
+> verklaarbaarheid; beter dan Temper/Pidz). Additief `Application.rejectionReason`; pure `rejection-reason.ts`
+> (`REJECTION_REASONS`/`optionalRejectionReasonSchema`/`rejectionReasonFeedback`/`buildRejectionNotificationBody`,
+> 24 tests); `changeApplicationStatus` leest+persisteert de reden (safeParse, geen 500) en wist 'm bij een
+> teruggedraaide afwijzing; nieuwe `RejectApplicationDialog` met reden-select; feedback op `/reacties`; Peter
+> (app-8) demo-reden. Geen extra query, server-side waarheid. Gate groen (3542 tests).
+
 > Gedaan (niet opnieuw): **Uitgaven-/onkostentracker voor de ZZP'er (2026-07-07)** — de ZZP'er legt
 > aftrekbare zakelijke kosten vast die in het grootboek boeken (KOSTEN + BTW-voorbelasting), zodat
 > winst/IB-schatting/reservering/BTW op nettowinst i.p.v. bruto-omzet worden berekend. Additief

@@ -43,13 +43,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { ConfirmButton } from "@/components/ui/confirm-button";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { DeliveryQualityBlock } from "@/components/freelancer/delivery-quality-block";
 import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-quality";
 import { changeApplicationStatus } from "./actions";
 import { ApplicationNoteForm } from "./application-note-form";
+import { RejectApplicationDialog } from "./reject-application-dialog";
 import { BulkTriageBar } from "./bulk-triage-bar";
 import { startConversationForApplication } from "@/app/(protected)/berichten/actions";
 import { ProposeCollaboration } from "./propose-collaboration";
@@ -631,19 +631,21 @@ export default async function KandidatenPage({
                       <div className="flex flex-wrap gap-2 border-t border-border pt-3">
                         {APPLICATION_TRANSITIONS[status].map((to) =>
                           to === "REJECTED" ? (
-                            <ConfirmButton
+                            <RejectApplicationDialog
                               key={to}
                               action={changeApplicationStatus.bind(null, app.id, to)}
-                              triggerVariant="destructive"
-                              size="sm"
-                              title={t("Reactie afwijzen?")}
-                              description={t(
-                                "De ZZP'er krijgt bericht dat de reactie is afgewezen. Je kunt dit later nog terugdraaien naar de shortlist.",
-                              )}
-                              confirmLabel={t("Afwijzen")}
-                            >
-                              {t(ACTION_LABEL[to])}
-                            </ConfirmButton>
+                              labels={{
+                                trigger: t(ACTION_LABEL[to]),
+                                title: t("Reactie afwijzen?"),
+                                description: t(
+                                  "De ZZP'er krijgt bericht dat de reactie is afgewezen. Geef optioneel een reden mee als constructieve feedback. Je kunt dit later nog terugdraaien naar de shortlist.",
+                                ),
+                                reasonLabel: t("Reden (optioneel, zichtbaar voor de ZZP'er)"),
+                                noReason: t("Geen reden opgeven"),
+                                confirm: t("Afwijzen"),
+                                cancel: t("Annuleren"),
+                              }}
+                            />
                           ) : (
                             <form key={to} action={changeApplicationStatus.bind(null, app.id, to)}>
                               <Button
