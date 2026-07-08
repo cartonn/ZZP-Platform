@@ -6,7 +6,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole, AuthorizationError } from "@/lib/authz";
-import { assertSameTenant, hasTenant } from "@/lib/tenancy";
+import { ownsViaTenant, hasTenant } from "@/lib/tenancy";
 import { audit } from "@/lib/audit";
 import { generateTempPassword } from "@/lib/onboarding/password";
 import { createFranchiseDienst } from "@/lib/franchise/dienst";
@@ -176,12 +176,10 @@ export async function addDepartment(
     where: { id: companyId },
     select: { tenantId: true },
   });
-  if (!company) return { error: "Opdrachtgever niet gevonden." };
-  try {
-    assertSameTenant(actor, company.tenantId);
-  } catch (e) {
-    if (e instanceof AuthorizationError) return { error: e.message };
-    throw e;
+  // Onbekend id én een opdrachtgever van een ándere tenant geven exact dezelfde melding: zo lekt
+  // het verschil "bestaat niet" vs. "bestaat, andere bemiddeling" niet (geen existence-oracle).
+  if (!company || !ownsViaTenant(actor, company.tenantId)) {
+    return { error: "Opdrachtgever niet gevonden." };
   }
   const parsed = deptSchema.safeParse({
     name: formData.get("name"),
@@ -210,8 +208,8 @@ export async function removeDepartment(departmentId: string): Promise<void> {
     where: { id: departmentId },
     select: { companyId: true, company: { select: { tenantId: true } } },
   });
-  if (!dept) return;
-  assertSameTenant(actor, dept.company.tenantId);
+  // Onbekend id én cross-tenant id → dezelfde stille no-op (geen existence-oracle, geen 403/500).
+  if (!dept || !ownsViaTenant(actor, dept.company.tenantId)) return;
   await prisma.department.delete({ where: { id: departmentId } });
   await audit({
     actorId: actor.id,

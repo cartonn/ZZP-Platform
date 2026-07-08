@@ -4,6 +4,49 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-08 (2e — basis: `main` @ fd8826e)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende
+oppervlakken: (1) tenant-isolatie & IDOR over het volledige franchise-oppervlak (leads, zzpers,
+opdrachtgevers, diensten, instellingen), `kandidaten`, `admin/franchises`, `samenwerkingen` +
+`src/lib/tenancy.ts`; (2) API-route-authz, upload/storage, SSRF, injectie over alle `/api/tasks/**`
+(cron-auth), document-/media-/PDF-/dossier-serving, `agenda/feed.ics`, `storage.ts`; (3) privacy/AVG —
+volledigheid van `anonymizeUser`, `account-export.ts`, verwerkingsregister, k-anonimiteit, PII-in-logs.
+Kader: OWASP Top 10 (A01/A03/A04/A09) + ASVS + AVG art. 5/15/17/30/32. **Geen KRITIEK/HOOG/MIDDEL
+nieuwe security-gaten** — de mutatieketen (auth→rol→ownership→Zod→actie→audit), cron-auth
+(`timingSafeEqual` op `CRON_SECRET`), document-serving (ownership + audit op allow én deny),
+`assertSameTenant` (fail-closed), path-traversal-guard in `storage.ts` en de feed-token-HMAC zijn
+consistent en solide. **Twee gerichte hardening-fixes volledig gedaan (rood→groen); MENSENWERK-items
+(erasure van vrije-tekst-`reason` in event-store/notificaties, reviewer-naam in register) herbevestigd
+en geparkeerd voor DPO-sign-off.**
+
+### OPGELOST in deze ronde
+
+- **[MIDDEL→OPGELOST · AVG art. 5/25 (privacy by design), k-anonimiteit — regressietest van de
+  markttarief-drempel was losgekoppeld van de productieconstante]** De k-anonimiteitsvloer op
+  markttarief-aggregaties (`MARKET_RATE_MIN_SAMPLE = 10`, `src/lib/config.ts:209`) voorkomt dat een
+  ZZP'er het uurtarief (persoonlijke financiële data) van één collega herleidt uit p25/mediaan/p75. De
+  productie-wiring (`src/lib/data/job-rate-bands.ts:55,62`) gebruikt de constante correct server-side,
+  maar de enige test (`src/lib/market-rate.test.ts`) draaide met een lokale `MIN = 3` om louter de
+  scope-keuze-logica te toetsen — géén test bond zich aan de échte constante. Repro: verlaag
+  `MARKET_RATE_MIN_SAMPLE` naar 3 → de band toont bij 3 peers → herleidbaar, en **geen enkele test werd
+  rood**. Gefixt: nieuwe `describe("k-anonimiteitsvloer MARKET_RATE_MIN_SAMPLE")` importeert de échte
+  constante en assert `>= 10`. Rood→groen: elke verlaging onder 10 maakt de test nu rood.
+
+- **[LAAG→OPGELOST · OWASP A01 (broken access control) — cross-tenant existence-oracle in franchise
+  void-acties]** `setLeadStatus`/`deleteLead`/`addLeadContact` (`franchise/leads/actions.ts`) en
+  `addDepartment`/`removeDepartment` (`franchise/opdrachtgevers/actions.ts`) laadden met kaal
+  `findUnique({where:{id}})` en riepen dáárna `assertSameTenant` aan. Een onbekend id gaf een stille
+  no-op; een **bestaand id van een ándere tenant** gooide een ongevangen `AuthorizationError` → een
+  cross-tenant existence-oracle (een franchiser kon met een gegokt id onderscheiden of een
+  lead/afdeling van een andere bemiddeling bestáát) + een lelijke 403/500 naar de client. Repro: een
+  FRANCHISER van tenant-A roept `deleteLead("<id-van-tenant-B>")` → vóór de fix een thrown 403 (bestaat)
+  vs. stille redirect (bestaat niet). Gefixt: throwende `assertSameTenant` vervangen door het bestaande
+  fail-closed predicaat `ownsViaTenant` → cross-tenant gedraagt zich nu IDENTIEK aan "niet gevonden"
+  (stille no-op/redirect, geen thrown status, geen oracle). Tests: `delete-lead.test.ts` bijgewerkt —
+  cross-tenant asserteert nu de stille redirect i.p.v. de thrown fout (rood→groen: het oude
+  `assertSameTenant`-pad gooide en faalde de nieuwe assertie).
+
 ## Ronde 2026-07-08 (basis: `main` @ 12e30fc)
 
 Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-subagents op niet-overlappende
@@ -52,12 +95,13 @@ volledig gefixt (rood→groen); rest herbevestigd/geparkeerd.**
 
 ### Geparkeerd / herbevestigd (deze ronde geverifieerd nog steeds open)
 
-- **[MIDDEL · AVG art. 15/20 — inzage-export mist nóg enkele erased-maar-niet-geëxporteerde velden]**
-  Naast `Expense` (nu gefixt) mist `account-export.ts` nog: `ShiftHandoff.reason`/`decisionNote` (eigen),
-  `AvailabilityWindow.note`, `Collaboration.disputeReason` (eigen) en CLIENT-geschreven `Application.note`
-  (de `applications`-query is op `freelancer.userId` gescoped → voor een CLIENT-actor leeg). Fix:
-  vier smalle, eigen-data-gescopete selects toevoegen (spiegel de scoping in `anonymizeUser`). Bewust
-  gesplitst van de Expense-fix om de PR klein te houden; volgende ronde.
+- **[MIDDEL→OPGELOST (verificatie 2e ronde 2026-07-08) · AVG art. 15/20 — inzage-export mist enkele
+  erased-maar-niet-geëxporteerde velden]** ~~Naast `Expense` mist `account-export.ts` nog
+  `ShiftHandoff.reason`/`decisionNote`, `AvailabilityWindow.note`, `Collaboration.disputeReason`,
+  CLIENT-`Application.note`.~~ **Gecorrigeerd:** in de 2e ronde in code geverifieerd dat alle vier de
+  velden inmiddels aanwezig én correct op de actor gescoped zijn in `account-export.ts` (commit
+  `620f926`, PR #677); zie ook de "OPGELOST 2026-07-08"-entry lager in dit bestand. Deze regel bleef
+  per abuis als "open" staan (documenthygiëne, CLAUDE.md regel 6) — hierbij gesloten.
 - **[MIDDEL→OPGELOST · OWASP A04/A09 (+ AVG art. 32) — `/api/billing/webhook` heeft geen rate-limit]**
   Publieke, ongeauthenticeerde webhook deed per ping een uitgaande Mollie/Stripe-call
   (`provider.paymentStatus`) voor een aanvaller-gestuurd id — geen forgeable state-change (server
@@ -917,19 +961,29 @@ en hieronder geparkeerd met repro + severity.
 
 ### GEPARKEERD — privacy/AVG (ronde 2026-06-24b)
 
-- **[HOOG · AVG art. 17 — DomainEvent.payload onverwijderbaar]** `DISPUTE_OPENED`-events bewaren de
-  vrije-tekst `reason` in de append-only event-store (`dispute-commands.ts`); structureel niet te
-  wissen bij anonimisering. **Mens/DPO-keuze vereist**: payloads pseudonimiseren óf de event-store
-  expliciet classificeren onder art. 17 lid 3 (archief/rechtsvordering). MENSENWERK.
+- **[HOOG · AVG art. 17 — dispuut-`reason` (vrije tekst) overleeft erasure op DRIE plekken]**
+  `DISPUTE_OPENED` bewaart de vrije-tekst `reason` in de append-only event-store
+  (`DomainEvent.payload`, `dispute-commands.ts:48`); structureel niet te wissen bij anonimisering.
+  **Uitgebreid (2e ronde 2026-07-08, subagent-verificatie):** dezelfde ruwe `reason`-tekst wordt óók
+  gekopieerd naar (a) `Notification.body` van admins (`dispute-commands.ts:67`) — `anonymizeUser` muteert
+  `Notification` in het geheel niet en deze rijen horen bij de ontvanger (admin), niet de actor; en
+  (b) `AuditLog.metadata.reason` (`dispute-commands.ts:78`) — buiten het bereik van
+  `scrubAuditMetadataPii`, dat alleen hele veldwaarden exact matcht op naam/e-mail, nooit een naam áls
+  substring in een vrije zin. `Collaboration.disputeReason` zélf wordt wél genulld, wat een vals gevoel
+  van "weg" geeft. **Mens/DPO-keuze vereist**: pseudonimiseren/redigeren óf de event-store + admin-
+  notificaties expliciet classificeren onder art. 17 lid 3 (archief/rechtsvordering) én een
+  retentie-opruimtaak toevoegen (die er voor geen van de drie tabellen is). MENSENWERK — geen stille
+  agent-fix op de event-store.
 - **[HOOG · AVG art. 15/20 — export onvolledig] — OPGELOST (ronde 2026-06-25)** `buildAccountExport`
   (`src/lib/account-export.ts`) miste de eigen `Idea` (title/description), `Collaboration.cancellationReason`
   (eigen) en `PushSubscription`. Toegevoegd met strikte `select` (zie ronde 2026-06-25 boven).
 - **[MIDDEL · AVG art. 30]** `PushSubscription`, `IndirectHoursEntry` (urencriterium, 7 jr fiscaal) en
   `HealthIncident` (bevat klartekst-IP in `summary`, `monitoring/detectors.ts`) ontbreken in
   `processing-register.ts`. Fix: register-entries + bewaartermijn/opruimtaak.
-- **[MIDDEL · k-anonimiteit testdrempel]** `market-rate.test.ts` gebruikt een lokale `MIN = 3` i.p.v.
-  `MARKET_RATE_MIN_SAMPLE` (=10) uit `config.ts`; een per ongeluk verlaagde productiedrempel wordt niet
-  gedetecteerd. Fix: importeer de echte constante + assert `>= 10`.
+- **[MIDDEL · k-anonimiteit testdrempel] — OPGELOST (2e ronde 2026-07-08)** `market-rate.test.ts`
+  gebruikte een lokale `MIN = 3` i.p.v. `MARKET_RATE_MIN_SAMPLE` (=10) uit `config.ts`; een per ongeluk
+  verlaagde productiedrempel werd niet gedetecteerd. Gefixt: nieuwe `describe`-block importeert de echte
+  constante en assert `>= 10` (rood→groen). Zie de OPGELOST-entry bovenaan (2e ronde 2026-07-08).
 - **[MIDDEL · AVG art. 5 lid 1f — storageKey in hosting-logs]** mislukte storage-opruiming logt de
   `storageKey` (`admin/gebruikers/actions.ts`, `documenten/actions.ts`, `certificaten/actions.ts`)
   naar `console.error` zonder `NODE_ENV`-guard. Fix: in productie de key maskeren of naar een

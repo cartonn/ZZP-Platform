@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security & Privacy (2026-07-08, 2e ronde) — audit (3 subagents) + 2 hardening-fixes
+
+Adversariële audit met 3 parallelle Opus-subagents op niet-overlappende oppervlakken: tenant-isolatie
+& IDOR (volledig franchise-oppervlak + `tenancy.ts`), API-route-authz/upload/SSRF/injectie (alle
+`/api/tasks/**` cron-auth, document-/media-/PDF-serving, `storage.ts`, `agenda/feed.ics`), en
+privacy/AVG (`anonymizeUser`, `account-export.ts`, verwerkingsregister, k-anonimiteit, PII-in-logs).
+**Geen nieuwe KRITIEK/HOOG/MIDDEL security-gaten** — de mutatieketen, cron-auth (`timingSafeEqual`),
+document-serving (ownership + audit op allow/deny), fail-closed `assertSameTenant` en de path-traversal-
+guard zijn solide. Twee gerichte fixes (rood→groen):
+
+- **k-anonimiteitsvloer test-geborgd** (`src/lib/market-rate.test.ts`): nieuwe test bindt zich aan de
+  échte `MARKET_RATE_MIN_SAMPLE` en assert `>= 10`. Een per ongeluk verlaagde markttarief-drempel maakt
+  de test nu rood (was voorheen ongedetecteerd — de bestaande tests draaiden met een lokale `MIN = 3`).
+  AVG art. 5/25 (privacy by design).
+- **Cross-tenant existence-oracle gedicht** (`franchise/leads/actions.ts` + `franchise/opdrachtgevers/
+actions.ts`): `setLeadStatus`/`deleteLead`/`addLeadContact`/`addDepartment`/`removeDepartment` gebruikten
+  throwende `assertSameTenant` ná een kaal `findUnique` → een bestaand id van een ándere tenant gooide
+  een 403 (existence-oracle + lelijke 500), een onbekend id niet. Nu via het fail-closed predicaat
+  `ownsViaTenant` → cross-tenant gedraagt zich identiek aan "niet gevonden" (stille no-op/redirect).
+  OWASP A01. Test `delete-lead.test.ts` bijgewerkt naar de no-oracle-contract.
+
+Backlog (`docs/SECURITY-PRIVACY-BACKLOG.md`) bijgewerkt: beide fixes als OPGELOST, de al-gefixte
+`account-export`-velden gecorrigeerd (stond per abuis nog open), en de dispuut-`reason`-erasure-HOOG
+uitgebreid met twee nieuw-gevonden kopieën (`Notification.body` + `AuditLog.metadata`) — MENSENWERK/DPO.
+Gate: typecheck + lint + 3576 unit-tests + build + prettier groen.
+
 ## ZZP'er (2026-07-08) — standaard-motivatie: sneller reageren (quick-apply)
 
 De ZZP'er bewaart één keer een **standaard-motivatie** op zijn profiel; die vult voortaan het
