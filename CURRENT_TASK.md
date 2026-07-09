@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Agenda-verouderd signaal in de vindbaarheid-kaart (2026-07-09, PR #692)** —
+> sluit een inconsistentie: de Vindbaarheid-kaart toonde "Beschikbaarheid gedeeld ✓ / goed vindbaar" ook bij
+> een volledig verlopen agenda (alle vensters in het verleden; nog vindbaar via de scalar-fallback), terwijl
+> `/acties` tegelijk "werk je beschikbaarheid bij" nudget. `freelancer-findability.ts` uitgebreid met
+> `availabilityStale` → factor-`stale`-vlag + `advisory` (zachte optimalisatie-nudge náást de blokkade, alleen
+> als `discoverable && hasAvailability && availabilityStale`; leeg ≠ verouderd, privé → zichtbaarheid is het gat).
+> `FindabilityCard` toont klok-icoon + "Verlopen agenda" + doorklik `/beschikbaarheid`. Wiring via
+> `summarizeAvailabilityFreshness(...).status==="expired"` op de reeds-geladen windows (geen extra query, geen
+> schemawijziging). 5 nieuwe tests (3646), gate groen.
+>
 > Gedaan (niet opnieuw): **Vindbaarheid-signaal voor de ZZP'er op /profiel/bewerken (2026-07-09,
 > PR #690)** — beantwoordt "kan een opdrachtgever mij vinden?" (de privé-profiel-val). Pure
 > `src/lib/freelancer-findability.ts` `summarizeFindability({isPublic, hasSkills, hasAvailability})` →

@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Agenda-verouderd signaal in de vindbaarheid-kaart (2026-07-09) — consistentie/liquiditeit
+
+Sluit een inconsistentie tussen twee schermen. De Vindbaarheid-kaart (`/profiel/bewerken`) toonde
+**"Beschikbaarheid gedeeld ✓ / je bent goed vindbaar"** ook wanneer de gedeelde agenda volledig
+**verlopen** is (alle vensters in het verleden). De ZZP'er is dan nog wél vindbaar via de scalar-fallback
+(`summarizeAvailability` → geen toekomstig venster → val terug op scalair AVAILABLE/LIMITED, spiegel van
+`freelancer-search.ts`), maar opdrachtgevers zien geen enkele toekomstige inzetperiode meer — precies de
+`expired`-conditie waarop het actiecentrum (`pending-tasks.ts`) al nudget. De twee schermen spraken elkaar
+tegen. Benchmark: Malt/Temper/Pidz nudgen op een actuele agenda.
+
+- **Pure lib** `src/lib/freelancer-findability.ts`: `FindabilityInput` uitgebreid met optionele
+  `availabilityStale`; de beschikbaarheid-factor krijgt een `stale`-vlag (gehaald, maar verouderd) en de
+  summary een `advisory: {key,hint,href} | null` — een zachte optimalisatie-nudge die **náást** de blokkade
+  kan staan en de vindbaarheid niet blokkeert. Advisory alleen als `discoverable && hasAvailability &&
+availabilityStale` (leeg ≠ verouderd; privé-profiel → zichtbaarheid is het echte gat). 5 nieuwe tests (11 totaal).
+- **Component** `src/components/profile/findability-card.tsx`: verouderde factor krijgt een klok-icoon +
+  "Verlopen agenda"-subnoot (warning-toon); advisory-regel + doorklik "Werk je beschikbaarheid bij" →
+  `/beschikbaarheid` (of "Los dit op" bij een echte blokkade).
+- **Wiring** `profiel/bewerken/page.tsx`: `availabilityStale` via `summarizeAvailabilityFreshness(...)
+.status === "expired"` op de reeds-geladen `availabilityWindows` (geen extra query, geen schemawijziging).
+
+Gate groen: typecheck, lint, **3646 unit-tests**, build, prettier.
+
 ## Vindbaarheid-signaal voor de ZZP'er op /profiel/bewerken (2026-07-09) — liquiditeit/vertrouwen
 
 Beantwoordt de meest impactvolle, vaak onbekende vraag van de ZZP'er: **"kan een opdrachtgever mij
