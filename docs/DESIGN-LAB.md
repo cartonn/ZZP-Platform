@@ -515,4 +515,30 @@ UI-taal = Nederlands.
   steriele minimalisme); **editorial serif + ledger-cijfers** (copperplate-kalligrafie, heraldische
   small-caps); en **motion-with-purpose** (licht-puls langs glasvezel, iriserende folie-shift) — elk
   onderscheidend gehouden van de bestaande 190.
-- **Totaal nu op `/ontwerp`: 200 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200).
+- **Reeks 21 (run 9-7-2026, nrs 201–210):** Sneltoets (keyboard-first command deck: permanente
+  ⌘K-palette stuurt alle navigatie aan, monospace kbd-chips overal, J/K-rijselectie — power-user-snelheid,
+  niet Schijnwerper/Sequencer) · Tijdbalk (swimlane-Gantt: opdrachten/samenwerkingen als balken langs één
+  tijd-as met vandaag-lijn, vervaldatums als markers, facturen als mijlpalen — temporele planning, niet
+  Agenda/Metrokaart/Uurwerk) · Triage (inbox-zero queue: heterogene wachtrij met split-view en snelle
+  triage-acties + kbd-hints, inbox-zero-empty-state — werkfilosofie, niet Kaartenbak/Prikbord) · Kolommen
+  (Kanban-workflowbord: opdracht-pijplijn en verificatie-flow als stadia-kolommen met tellingen en
+  kaart-lift — workflow-board, niet Kwadrant/Widget) · Leder (verfijnd skeuomorfisme: gestikt cognac-leder,
+  embossed labels, wax-zegels voor verificatie — skeuo-revival met smaak, niet Lakwerk/Textiel/Boekband) ·
+  Vuurtoren (maritiem baken: roterende lichtkegel + afstandsringen, opdrachten als schepen op reistijd —
+  nabijheid als matching-hoofdas, niet Radar/Diepzee/Portolaan) · Steendruk (fijnkunst-lithografie: tonale
+  krijt-korrel, beperkt inkt-palet op kalksteen-crème, registratie-kruisjes + plaatrand — ambachtelijke
+  print, niet Riso/Letterpers/Cyanotype) · Parelmoer (nacre/iriserende folie op wit: zachte
+  mint-lila-perzik-glans alleen op sleutelelementen, clean witte basis — premium foil, niet
+  Hologram/Chroom/Spectraal) · Klapbord (split-flap Solari-vertrekbord: KPI's/bedragen als omklappende
+  tegels met middennaad + flip-transitie, amber op antraciet — mechanische nostalgie, niet
+  Teletekst/Scorebord) · Sjabloon (industrieel spray-stencil: uitgesneden-letter-koppen met sjabloon-bruggen,
+  kratlabels, spaarzame waarschuwingstape op kraft/beton — industriële markering, niet
+  Letterpers/Typemachine).
+- Onderzochte 2026-trends deze reeks: **keyboard-/command-first UX** (⌘K-deck, inbox-triage,
+  Superhuman/Linear/Raycast-idioom als primaire interactie i.p.v. decoratie); **temporele & workflow-
+  structuur** (swimlane-Gantt, Kanban-stadia — de structuur ís de UI); **verfijnd skeuomorfisme &
+  mechanische/analoge nostalgie** (gestikt leder, split-flap Solari, industrieel stencil — tactiliteit &
+  materiaal tegen steriel minimalisme); **iriserende folie/nacre** (holographic foil, maar licht & premium
+  op wit); en **ambachtelijke print-esthetiek** (tonale steendruk met beperkt inkt-palet) — elk
+  onderscheidend gehouden van de bestaande 200.
+- **Totaal nu op `/ontwerp`: 210 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210).
