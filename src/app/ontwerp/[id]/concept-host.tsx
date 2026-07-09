@@ -637,6 +637,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "210": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-210-sjabloon").then((m) => m.Concept210),
   ),
+  "211": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-211-getal").then((m) => m.Concept211),
+  ),
+  "212": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-212-loket").then((m) => m.Concept212),
+  ),
+  "213": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-213-contour").then((m) => m.Concept213),
+  ),
+  "214": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-214-marker").then((m) => m.Concept214),
+  ),
+  "215": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-215-kwelder").then((m) => m.Concept215),
+  ),
+  "216": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-216-cassette").then((m) => m.Concept216),
+  ),
+  "217": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-217-blok").then((m) => m.Concept217),
+  ),
+  "218": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-218-middernacht").then((m) => m.Concept218),
+  ),
+  "219": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-219-onthaal").then((m) => m.Concept219),
+  ),
+  "220": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-220-snoep").then((m) => m.Concept220),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
