@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Certificaat-verval-tijdens-opdracht signaal op /kandidaten (2026-07-09, PR #698)** —
+> `computeCompliance` oordeelt op `now`; een vereist certificaat dat nu geldig is maar vóór/kort na de
+> opdracht-**startdatum** verloopt, toonde als COMPLIANT terwijl de kandidaat bij aanvang niet compliant is.
+> Nu een beslismoment-waarschuwing per kandidaat. Pure `src/lib/candidate-credential-expiry.ts`
+> `summarizeCandidateCredentialExpiry` (`CREDENTIAL_JOB_EXPIRY_WINDOW_DAYS=30`, alleen nu-geldig-geverifieerde
+> vereiste certificaten, laatst-vervallende per type, `before-start`/`soon-after-start`, 12 tests) gevoed naar
+> `/kandidaten` (`expiryByApp`, zelfde `now` als live compliance; alleen getoond wanneer compliance niet al
+> blokkeert). Read-only, geen extra query (startDate + expiresAt al geladen), geen schemawijziging. Gate groen (3694).
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — zoekmachine-indexering afgeschermd (2026-07-09, PR #697)** —
 > dit login-gated platform met gevoelige documenten had geen site-brede afscherming tegen indexering
 > (geen robots.txt, geen X-Robots-Tag). Nu standaard privé, env-flag om bij go-live open te zetten.

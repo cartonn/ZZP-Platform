@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Certificaat-verval-tijdens-opdracht signaal op /kandidaten (2026-07-09) — opdrachtgever/beslismoment
+
+`computeCompliance` (matching.ts) beoordeelt of een kandidaat _nu_ aan de certificaateisen voldoet —
+maar een certificaat dat vandaag geldig is, kan vóór of kort na de **startdatum** van de opdracht
+verlopen. Dan toont de kandidaat als COMPLIANT terwijl hij bij aanvang (of vlak erna) alsnog niet
+compliant is. Op precies het beslismoment (`/kandidaten`) miste dit foresight-signaal. Nu een gerichte
+waarschuwingsregel per kandidaat: "VOG verloopt 12 jun 2026 — vóór de startdatum, kandidaat is bij
+aanvang niet compliant." (danger) of "kort na de startdatum, compliance vervalt tijdens de inzet."
+(warning). Spiegelt de bestaande expiry-motor op het selectiemoment; alleen getoond wanneer de live
+compliance niet al blokkeert (dan staat er al een sterker "Mist/Verlopen"-signaal).
+
+- **Pure bron** `src/lib/candidate-credential-expiry.ts`: `summarizeCandidateCredentialExpiry`
+  (`CREDENTIAL_JOB_EXPIRY_WINDOW_DAYS=30`) — beoordeelt alleen nu-geldig-geverifieerde vereiste
+  certificaten (VERIFIED, mét vervaldatum, nog niet verlopen; neemt per type het laatst-vervallende
+  exemplaar waarop de compliance leunt), classificeert `before-start`/`soon-after-start`, sorteert
+  ernstig+vroegste eerst. Geeft `null` zonder startdatum of zonder risico. 12 tests.
+- **Wiring** `src/app/(protected)/kandidaten/page.tsx`: `expiryByApp`-map (zelfde `now` als de live
+  compliance), waarschuwingsregel in de kandidaat-body. Read-only, geen extra query (startDate +
+  expiresAt worden al geladen), geen schemawijziging.
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test **3694** (12 nieuw) ✓, prettier ✓, build (loopt).
+
 ## Prod-rijpheid (2026-07-09) — zoekmachine-indexering afgeschermd (robots + X-Robots-Tag)
 
 Dit login-gated platform met gevoelige documenten (VOG/diploma's/ID) had nog geen site-brede
