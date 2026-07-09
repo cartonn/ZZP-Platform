@@ -1,5 +1,59 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-09 (run 18) · **main-commit basis:** `3c35a78`
+> **Uitkomst:** **GEEN nieuwe gaten.** Verse prod-build (`npm run build`), schema-push + idempotente
+> demo-seed (`SEED_DEMO=true`, `prisma db seed`) op ephemere SQLite (`qa.db`), prod-server
+> (`CI=true node scripts/start.mjs`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`,
+> `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte formulier (`demo1234`); Playwright met de
+> vooraf-geïnstalleerde Chromium (`/opt/pw-browsers/chromium-1194`). Eén parallelle Opus-security-subagent
+> over de nieuwste mutatie-/data-oppervlakken sinds run 17 (diff `bcd40c1..3c35a78`, PR's #680-#690).
+>
+> **DOEL 1 (echte actie, server-side geverifieerd):** ADMIN klikte **"Goedkeuren"** op
+> `/admin/verificaties` → tegen de DB bevestigd: `Credential SUBMITTED` **6→5** / `VERIFIED` **24→25**,
+> `cred-bram-VOG` op `VERIFIED`, `CREDENTIAL_VERIFIED`-audit (`actorId`=admin, `entityId=cred-bram-VOG`,
+> verse timestamp `2026-07-09T05:18:16Z` die exact met de klik samenvalt) en de Goedkeuren-knop verdween
+> uit de queue (verse herlaad: 6→5 knoppen). De volledige keten auth→rol→ownership→transitie→audit→
+> revalidate werkt end-to-end.
+>
+> **DOEL 1b (next-action-engine, gekruist tegen DB-waarheid):** `/acties` per rol laadt 200. ADMIN toont
+> de resterende certificaat-taken (5 SUBMITTED na de goedkeuring), FREELANCER (Sanne) + CLIENT niet-leeg,
+> FRANCHISER terecht **"Alles is afgehandeld"** (geen due leads/tenant-certs). Geen tegenstrijdige, dubbele
+> of niet-verdwijnende actie. Nieuwste ZZP-oppervlakken live geverifieerd: `/profiel/bewerken` toont de
+> **Vindbaarheid-kaart (#690)** + **Werkervaring-editor (#683)**; `/facturen/<eigen PAID>` toont de
+> **wettelijke-factuureisen-kaart (#685)**; op `/samenwerkingen/collab-1` (COMPLETED) verschijnt de
+> **renewal-nudge (#686) terecht NIET** (alleen ACTIVE + einddatum + niet-bevroren) — geen vals signaal.
+>
+> **DOEL 2 (adversarieel, 44 probes — alle correct geweigerd, 0 HTTP-500's):** privilege-escalatie
+> (FREELANCER/CLIENT/FRANCHISER → `/admin/verificaties|gebruikers|statistieken|disputen|audit`;
+> niet-FRANCHISER → `/franchise`) → **redirect naar eigen dashboard**; IDOR/cross-partij (ZZP'er/CLIENT →
+> andermans SUBMITTED- + DRAFT-factuur + andermans samenwerking; FRANCHISER → cross-tenant factuur +
+> samenwerking) → **"Niet gevonden · geen toegang"-kaart, geen €-bedrag/PII-lek**; document-privacy
+> (`/api/documents/<Sanne VOG>`: eigenaar + ADMIN → **200**, CLIENT/FRANCHISER → **403**, garbage → **404**);
+> onzin-id's (`/facturen|/samenwerkingen|/opdrachten|/kandidaten/nonexistent`) → soft-404/redirect,
+> **nooit 500**; path-traversal (`/facturen/..%2F..%2Fetc%2Fpasswd`) → geen leak; XSS `?q=<script>` →
+> React-geëscaped, niet rauw gereflecteerd.
+>
+> **Security-subagent (statische diepte-audit, diff `bcd40c1..3c35a78`):** geen blockers, geen
+> exploiteerbare gaten. `#683/#688 WorkExperience` (add/delete keten auth→rol→`assertOwnership`→Zod
+> (jaar-grenzen + lengte-caps)→cap→audit; `deleteWorkExperience` IDOR-veilig via
+> `existing.freelancerProfileId !== profile.id` + stille no-op zonder bestaans-orakel; anonymisering
+> wist `workExperience` per `userId`, AVG art. 17); `#690 findability` + `#685 invoice-legal` +
+> `#686 collaboration-renewal` (puur, geen I/O, call-sites gaten op bestaande ownership/participant-checks);
+> `#682 system-status` (ADMIN-gated, alleen driver-modi/booleans, **geen secret-waarden**);
+> `#689 fetch-timeout` (vaste provider-URL's, geen SSRF-vector; fail-open-venster juist verkort);
+> `#681 franchise ownsViaTenant` (existence-oracle gedicht). Geen `dangerouslySetInnerHTML`. Spoort met
+> runs 6-17. Deze run is documentatie-only.
+>
+> **Geparkeerd — LOW (informatief, niet gefixt; robuustheid, niet authz/IDOR):** `addWorkExperience`
+> (`profiel/actions.ts:160-167`) doet `count()` en `create()` als twee losse statements — een TOCTOU-race
+> tussen twee gelijktijdige requests van **dezelfde** ZZP'er kan de cap `WORK_EXPERIENCE_MAX_PER_PROFILE`
+> (30) met 1-2 rijen overschrijden. Alleen eigen data, geen toegang/lek; ergste geval een net-te-lange
+> eigen lijst. Een transactie sluit het venster op SQLite maar niet hard op Postgres (READ COMMITTED)
+> zonder DB-constraint/lock — een fragiele half-fix die het probleem niet echt oplost; niet in verhouding
+> tot de impact. Pak mee met een echte DB-constraint als de WorkExperience-cap ooit hard moet zijn.
+>
+> ---
+>
 > **Datum:** 2026-07-08 (run 17) · **main-commit basis:** `bcd40c1`
 > **Uitkomst:** **GEEN nieuwe gaten.** Verse prod-build (`npm run build`), schema-push + idempotente
 > demo-seed (`SEED_DEMO=true`, `prisma db seed`) op ephemere SQLite (`qa.db`), prod-server
