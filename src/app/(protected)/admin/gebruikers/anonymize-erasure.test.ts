@@ -60,7 +60,10 @@ vi.mock("@/lib/db", () => ({
     idea: { updateMany: op("idea.updateMany") },
     collaboration: { updateMany: op("collaboration.updateMany") },
     favoriteFreelancer: { updateMany: op("favoriteFreelancer.updateMany") },
-    domainEvent: { findMany: vi.fn(async () => [{ subjectId: "col-7" }]) },
+    domainEvent: {
+      findMany: vi.fn(async () => [{ subjectId: "col-7" }]),
+      updateMany: op("domainEvent.updateMany"),
+    },
     pushSubscription: { deleteMany: op("pushSubscription.deleteMany") },
     auditLog: {
       create: op("auditLog.create"),
@@ -271,6 +274,19 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     // De ids komen uit de DISPUTE_OPENED-events van de betrokkene (mock geeft col-7).
     expect(disputeOp!.args.where.id).toEqual({ in: ["col-7"] });
     expect((disputeOp!.args.data as { disputeReason: string | null }).disputeReason).toBeNull();
+  });
+
+  it("wist de dispuutreden óók uit de DISPUTE_OPENED-domeinevent-payload (AVG art. 17, event-store)", async () => {
+    await anonymizeUser("user-42");
+    // De vrije tekst leeft in twee kopieën: Collaboration.disputeReason (hierboven getest) én de
+    // payload van het eigen DISPUTE_OPENED-event. Zonder de domainEvent.updateMany blijft de tweede
+    // staan — deze assert faalt dan (rood→groen).
+    const o = find("domainEvent.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    // Gescopet op de eigen events van de betrokkene, nooit die van de tegenpartij.
+    expect(o.args.where).toEqual({ type: "DISPUTE_OPENED", actorId: "user-42" });
+    // Payload volledig geleegd — de reden is het enige (PII-)veld.
+    expect((o.args.data as { payload: string }).payload).toBe("{}");
   });
 
   it("wist de privé favorieten-notitie van de CLIENT (FavoriteFreelancer.note)", async () => {

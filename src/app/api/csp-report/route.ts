@@ -12,22 +12,19 @@
 import { cspReportRateLimiter } from "@/lib/rate-limit";
 import { logger } from "@/lib/observability/logger";
 import { parseCspReport } from "@/lib/observability/csp-report";
+import { clientIpFromRequest } from "@/lib/client-ip";
 
 export const dynamic = "force-dynamic";
 
 // Body-limiet: een CSP-rapport is klein. Een grotere payload negeren we (geen misbruik-oppervlak).
 const MAX_BODY_BYTES = 16 * 1024;
 
-function clientIp(request: Request): string {
-  const fwd = request.headers.get("x-forwarded-for");
-  return (fwd ? fwd.split(",")[0]?.trim() : null) ?? request.headers.get("x-real-ip") ?? "unknown";
-}
-
 export async function POST(request: Request): Promise<Response> {
   const noContent = new Response(null, { status: 204 });
 
-  // Rate-limit vóór het lezen/parsen van de body: een flood mag geen werk veroorzaken.
-  const rl = await cspReportRateLimiter.check(clientIp(request));
+  // Rate-limit vóór het lezen/parsen van de body: een flood mag geen werk veroorzaken. Het IP komt
+  // via de spoof-bestendige helper (rechter X-Forwarded-For-hop), niet de client-linkerkant.
+  const rl = await cspReportRateLimiter.check(clientIpFromRequest(request));
   if (!rl.allowed) return new Response(null, { status: 429 });
 
   let raw: string;

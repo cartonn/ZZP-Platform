@@ -8,21 +8,16 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { getPaymentProvider } from "@/lib/billing/provider";
 import { billingWebhookRateLimiter } from "@/lib/rate-limit";
+import { clientIpFromRequest } from "@/lib/client-ip";
 
 export const dynamic = "force-dynamic";
-
-/** Eerste x-forwarded-for-IP (Railway/PaaS zet dit), met terugval op x-real-ip. */
-function clientIp(request: Request): string {
-  const fwd = request.headers.get("x-forwarded-for");
-  return (fwd ? fwd.split(",")[0]?.trim() : null) ?? request.headers.get("x-real-ip") ?? "unknown";
-}
 
 export async function POST(request: Request): Promise<Response> {
   // Rate-limit vóór álle werk (body-read, provider-call, DB-lookup): een ongeauthenticeerde flood
   // mag geen uitgaande provider-calls of DB-I/O veroorzaken. Bij overschrijding bewust 200 (geen
   // 429): 429 zou de provider tot een retry-storm aanzetten en throttle-info lekken. De drempel
   // ligt ruim boven een legitieme provider-burst, dus een echte webhook wordt hierdoor niet gemist.
-  const rl = await billingWebhookRateLimiter.check(clientIp(request));
+  const rl = await billingWebhookRateLimiter.check(clientIpFromRequest(request));
   if (!rl.allowed) return new Response("ok", { status: 200 });
 
   const provider = getPaymentProvider();
