@@ -8,6 +8,8 @@
 // EMAIL_DRIVER bepaalt welke wordt geladen. De credentials + productie-onboarding (DNS/SPF/DKIM)
 // blijven mensenwerk — de code is hierop voorbereid.
 
+import { fetchWithTimeout, resolveHttpTimeoutMs } from "@/lib/services/fetch-timeout";
+
 export interface MailMessage {
   /** Ontvanger, bv. "jan@voorbeeld.nl" of "Jan Jansen <jan@voorbeeld.nl>". */
   to: string;
@@ -103,10 +105,13 @@ const RESEND_REQUIRED = ["RESEND_API_KEY", "EMAIL_FROM"] as const;
  * met de REST-API — géén SDK-dependency, net als de Upstash-rate-limit-adapter. Activeer met
  * EMAIL_DRIVER=resend + RESEND_API_KEY + EMAIL_FROM. Werkt op hosts die uitgaande SMTP blokkeren.
  */
-class ResendMailSender implements MailSender {
+export class ResendMailSender implements MailSender {
   private readonly endpoint = "https://api.resend.com/emails";
 
-  constructor(private readonly fetchImpl: typeof fetch = fetch) {}
+  constructor(
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs: number = resolveHttpTimeoutMs(process.env.EMAIL_HTTP_TIMEOUT_MS),
+  ) {}
 
   async send(message: MailMessage): Promise<void> {
     const missing = RESEND_REQUIRED.filter((k) => !process.env[k]);
@@ -126,14 +131,18 @@ class ResendMailSender implements MailSender {
     };
     if (message.html) body.html = message.html;
 
-    const res = await this.fetchImpl(this.endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
+    const res = await fetchWithTimeout(
+      this.endpoint,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Resend" },
+    );
 
     if (!res.ok) {
       // De responsbody kan een leesbare Resend-fout bevatten; nooit het adres/onderwerp loggen (PII).

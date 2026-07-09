@@ -4,6 +4,7 @@
 // Geen geld uit het WERKproces via het platform (Besluit 1); dit is uitsluitend de abonnementsfee.
 
 import { verifyStripeSignature } from "@/lib/billing/stripe-signature";
+import { fetchWithTimeout, resolveHttpTimeoutMs } from "@/lib/services/fetch-timeout";
 
 export interface CheckoutInput {
   userId: string;
@@ -88,6 +89,7 @@ export class MolliePaymentProvider implements PaymentProvider {
   constructor(
     private readonly apiKey: string | undefined,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs: number = resolveHttpTimeoutMs(process.env.BILLING_HTTP_TIMEOUT_MS),
   ) {}
 
   private auth() {
@@ -98,17 +100,21 @@ export class MolliePaymentProvider implements PaymentProvider {
   }
 
   async startCheckout(input: CheckoutInput): Promise<CheckoutResult> {
-    const res = await this.fetchImpl(`${this.base}/payments`, {
-      method: "POST",
-      headers: this.auth(),
-      body: JSON.stringify({
-        amount: { currency: "EUR", value: (input.amountCents / 100).toFixed(2) },
-        description: input.description,
-        redirectUrl: input.returnUrl,
-        webhookUrl: input.webhookUrl,
-        metadata: { userId: input.userId, planKey: input.planKey },
-      }),
-    });
+    const res = await fetchWithTimeout(
+      `${this.base}/payments`,
+      {
+        method: "POST",
+        headers: this.auth(),
+        body: JSON.stringify({
+          amount: { currency: "EUR", value: (input.amountCents / 100).toFixed(2) },
+          description: input.description,
+          redirectUrl: input.returnUrl,
+          webhookUrl: input.webhookUrl,
+          metadata: { userId: input.userId, planKey: input.planKey },
+        }),
+      },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Mollie" },
+    );
     if (!res.ok) throw new Error(`Mollie: betaling aanmaken mislukte (status ${res.status}).`);
     const json = (await res.json()) as {
       id?: string;
@@ -121,9 +127,11 @@ export class MolliePaymentProvider implements PaymentProvider {
   }
 
   async paymentStatus(providerRef: string): Promise<PaymentStatus> {
-    const res = await this.fetchImpl(`${this.base}/payments/${encodeURIComponent(providerRef)}`, {
-      headers: this.auth(),
-    });
+    const res = await fetchWithTimeout(
+      `${this.base}/payments/${encodeURIComponent(providerRef)}`,
+      { headers: this.auth() },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Mollie" },
+    );
     if (!res.ok) throw new Error(`Mollie: status ophalen mislukte (status ${res.status}).`);
     const json = (await res.json()) as { status?: string };
     return normalizeMollieStatus(json.status);
@@ -152,6 +160,7 @@ export class StripePaymentProvider implements PaymentProvider {
     private readonly webhookSecret: string | undefined,
     private readonly fetchImpl: typeof fetch = fetch,
     private readonly nowMs?: number,
+    private readonly timeoutMs: number = resolveHttpTimeoutMs(process.env.BILLING_HTTP_TIMEOUT_MS),
   ) {}
 
   private auth() {
@@ -179,11 +188,15 @@ export class StripePaymentProvider implements PaymentProvider {
     body.set("line_items[0][price_data][unit_amount]", String(input.amountCents));
     body.set("line_items[0][price_data][product_data][name]", input.description);
 
-    const res = await this.fetchImpl(`${this.base}/checkout/sessions`, {
-      method: "POST",
-      headers: this.auth(),
-      body: body.toString(),
-    });
+    const res = await fetchWithTimeout(
+      `${this.base}/checkout/sessions`,
+      {
+        method: "POST",
+        headers: this.auth(),
+        body: body.toString(),
+      },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Stripe" },
+    );
     if (!res.ok) throw new Error(`Stripe: sessie aanmaken mislukte (status ${res.status}).`);
     const json = (await res.json()) as { id?: string; url?: string };
     if (!json.id || !json.url) throw new Error("Stripe: onverwacht antwoord bij aanmaken sessie.");
@@ -191,9 +204,10 @@ export class StripePaymentProvider implements PaymentProvider {
   }
 
   async paymentStatus(providerRef: string): Promise<PaymentStatus> {
-    const res = await this.fetchImpl(
+    const res = await fetchWithTimeout(
       `${this.base}/checkout/sessions/${encodeURIComponent(providerRef)}`,
       { headers: this.auth() },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Stripe" },
     );
     if (!res.ok) throw new Error(`Stripe: status ophalen mislukte (status ${res.status}).`);
     const json = (await res.json()) as { status?: string; payment_status?: string };

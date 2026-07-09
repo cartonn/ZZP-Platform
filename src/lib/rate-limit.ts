@@ -8,6 +8,7 @@
 // handlers, NextAuth authorize) en awaiten het resultaat.
 
 import { logger } from "@/lib/observability/logger";
+import { fetchWithTimeout, resolveHttpTimeoutMs } from "@/lib/services/fetch-timeout";
 
 /** Resultaat van een enkelvoudige rate-limit-check. */
 export interface RateLimitResult {
@@ -128,6 +129,12 @@ export class UpstashRateLimitStore implements RateLimitStore {
     url: string,
     private readonly token: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    // Korte deadline: rate-limiting mag de request niet lang ophouden. Een trage/hangende
+    // Upstash-call breekt af en fail-opent (zie consume) i.p.v. login/registratie te blokkeren.
+    private readonly timeoutMs: number = resolveHttpTimeoutMs(
+      process.env.RATE_LIMIT_HTTP_TIMEOUT_MS,
+      2500,
+    ),
   ) {
     // Trailing slash weghalen zodat `${base}/pipeline` altijd klopt.
     this.base = url.replace(/\/+$/, "");
@@ -139,14 +146,18 @@ export class UpstashRateLimitStore implements RateLimitStore {
   }
 
   private async pipeline(commands: (string | number)[][]): Promise<unknown[]> {
-    const res = await this.fetchImpl(`${this.base}/pipeline`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        "Content-Type": "application/json",
+    const res = await fetchWithTimeout(
+      `${this.base}/pipeline`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(commands),
       },
-      body: JSON.stringify(commands),
-    });
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Upstash" },
+    );
     if (!res.ok) {
       throw new Error(`Upstash: pipeline mislukte (status ${res.status}).`);
     }

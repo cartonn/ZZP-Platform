@@ -7,6 +7,26 @@ import {
   normalizeMollieStatus,
   normalizeStripeStatus,
 } from "@/lib/billing/provider";
+import { HttpTimeoutError } from "@/lib/services/fetch-timeout";
+
+/**
+ * Fake fetch die nooit vanzelf oplost, maar wel op `init.signal` naar 'abort' luistert en dan
+ * afwijst met een AbortError — precies zoals de echte `fetch` doet bij een afgebroken request.
+ */
+function hangingFetch(): typeof fetch {
+  const impl = (_url: string | URL | Request, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      if (signal) {
+        signal.addEventListener("abort", () => {
+          const err = new Error("aborted");
+          err.name = "AbortError";
+          reject(err);
+        });
+      }
+    });
+  return impl as unknown as typeof fetch;
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -89,6 +109,16 @@ describe("MolliePaymentProvider", () => {
     expect(await p.resolveWebhookRef(JSON.stringify({ id: "tr_json" }))).toBe("tr_json");
     expect(await p.resolveWebhookRef("")).toBeNull();
     expect(await p.resolveWebhookRef("geenid")).toBeNull();
+  });
+
+  it("werpt HttpTimeoutError als de fetch blijft hangen", async () => {
+    const p = new MolliePaymentProvider("k", hangingFetch(), 20);
+    await expect(p.startCheckout(checkout)).rejects.toBeInstanceOf(HttpTimeoutError);
+  });
+
+  it("paymentStatus werpt HttpTimeoutError bij een hangende fetch", async () => {
+    const p = new MolliePaymentProvider("k", hangingFetch(), 20);
+    await expect(p.paymentStatus("tr_123")).rejects.toBeInstanceOf(HttpTimeoutError);
   });
 });
 
@@ -178,5 +208,10 @@ describe("StripePaymentProvider", () => {
   it("resolveWebhookRef geeft null zonder webhook-secret", async () => {
     const p = new StripePaymentProvider("sk", undefined, fetch, now);
     expect(await p.resolveWebhookRef("{}", new Headers())).toBeNull();
+  });
+
+  it("werpt HttpTimeoutError als de fetch blijft hangen", async () => {
+    const p = new StripePaymentProvider("sk", "whsec_test", hangingFetch(), now, 20);
+    await expect(p.startCheckout(checkout)).rejects.toBeInstanceOf(HttpTimeoutError);
   });
 });

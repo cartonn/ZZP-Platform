@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — uitgaande HTTP-timeouts voor externe koppelingen
+> (2026-07-09, PR #689)** — hardening tegen een hangende externe endpoint (beschikbaarheid/
+> resource-exhaustion). Nieuwe gedeelde `src/lib/services/fetch-timeout.ts` (`fetchWithTimeout` +
+> `resolveHttpTimeoutMs` + `HttpTimeoutError`, AbortController, geklemd [1s,60s], default 10s) gewired
+> in `billing/provider.ts` (Mollie+Stripe, `BILLING_HTTP_TIMEOUT_MS`), `services/mail-sender.ts`
+> (Resend, `EMAIL_HTTP_TIMEOUT_MS`) en `rate-limit.ts` (Upstash, 2.5s default
+> `RATE_LIMIT_HTTP_TIMEOUT_MS`, timeout **fail-opent** via bestaande catch). Voorheen had alleen de
+> verifier-helper een timeout. Gedrag verder identiek, inert zonder secrets, geen schemawijziging.
+> Gate groen (3635 tests). MENSENWERK §0b + §7 bijgewerkt.
+>
 > Gedaan (niet opnieuw): **"Samenwerking loopt af" — vervolgsignaal voor beide partijen (2026-07-09)**
 > — nudge op `/samenwerkingen/[id]` die beide partijen op tijd op een naderende/verstreken einddatum van
 > een lopende inzet wijst zodat ze een vervolg plannen (Temper/Pidz "verleng je serie"). Rolafhankelijke
