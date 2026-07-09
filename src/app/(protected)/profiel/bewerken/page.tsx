@@ -4,7 +4,7 @@ import { ExternalLink, UserX } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { computeFreelancerCompleteness } from "@/lib/profile";
-import { summarizeAvailability } from "@/lib/availability";
+import { summarizeAvailability, summarizeAvailabilityFreshness } from "@/lib/availability";
 import { summarizeFindability } from "@/lib/freelancer-findability";
 import { FindabilityCard } from "@/components/profile/findability-card";
 import { computeMarketRate } from "@/lib/market-rate";
@@ -110,21 +110,25 @@ export default async function ProfielPage() {
   // volgt dezelfde bron als de opdrachtgever-zoeklijst: een inzetbaar venster óf de scalaire fallback
   // AVAILABLE/LIMITED (spiegelt freelancer-search.ts).
   const availabilityScalar = profile.availability as Availability;
+  const availabilityWindows = profile.availabilityWindows as {
+    startDate: Date;
+    endDate: Date;
+    type: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
+  }[];
   const hasAvailability =
-    summarizeAvailability(
-      profile.availabilityWindows as {
-        startDate: Date;
-        endDate: Date;
-        type: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
-      }[],
-      new Date(),
-    ) !== null ||
+    summarizeAvailability(availabilityWindows, new Date()) !== null ||
     availabilityScalar === "AVAILABLE" ||
     availabilityScalar === "LIMITED";
+  // Verouderde agenda: wél vensters gedeeld, maar alle einddata liggen in het verleden. De ZZP'er is
+  // dan nog vindbaar via de scalar-fallback, maar opdrachtgevers zien geen toekomstige inzet meer —
+  // dezelfde `expired`-conditie waar het actiecentrum op nudget (pending-tasks.ts).
+  const availabilityStale =
+    summarizeAvailabilityFreshness(availabilityWindows, new Date()).status === "expired";
   const findability = summarizeFindability({
     isPublic: profile.visibility === "PUBLIC",
     hasSkills: skillIds.length > 0,
     hasAvailability,
+    availabilityStale,
   });
 
   return (

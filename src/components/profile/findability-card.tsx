@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, Circle, Eye, EyeOff, Search } from "lucide-react";
+import { Check, Circle, Clock, Eye, EyeOff, Search } from "lucide-react";
 import { type FindabilitySummary } from "@/lib/freelancer-findability";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -48,25 +48,32 @@ export function FindabilityCard({
         <ul className="mt-4 space-y-2">
           {findability.factors.map((f) => (
             <li key={f.key} className="flex items-start gap-2 text-sm">
-              {f.done ? (
+              {f.stale ? (
+                <Clock className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+              ) : f.done ? (
                 <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
               ) : (
                 <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
               )}
-              <span className={f.done ? "text-foreground" : "text-muted-foreground"}>
+              <span className={f.done && !f.stale ? "text-foreground" : "text-muted-foreground"}>
                 {f.label}
+                {f.stale && <span className="block text-xs text-warning">Verlopen agenda</span>}
                 {!f.done && <span className="block text-xs">{f.hint}</span>}
               </span>
             </li>
           ))}
         </ul>
 
-        {findability.href && (
+        {findability.advisory && (
+          <p className="mt-3 text-sm text-muted-foreground">{findability.advisory.hint}</p>
+        )}
+
+        {(findability.href || findability.advisory) && (
           <Link
-            href={findability.href}
+            href={findability.href ?? findability.advisory!.href}
             className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
           >
-            Los dit op
+            {findability.href ? "Los dit op" : "Werk je beschikbaarheid bij"}
           </Link>
         )}
       </CardContent>
