@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab reeks 23 — +10 concepten (nrs 221–230) (2026-07-09)
+
+Additieve uitbreiding van het design-lab op `/ontwerp`: 10 nieuwe, onderling en t.o.v. de bestaande
+220 duidelijk onderscheidende redesign-concepten toegevoegd — de vorige blijven staan (accumuleren,
+nooit vervangen). Nu **230 concepten** totaal.
+
+- **Nieuwe concepten:** 221 Duplex (duotoon split-screen editorial), 222 Grafiet (monochroom tactiel-mat),
+  223 Kwarts (kristallijn frosted glas / spatial translucency), 224 Veer (ultralicht & luchtig, spring-
+  motion), 225 Anker (maritiem-industrieel solide), 226 Etage (gelaagde z-depth stacking), 227 Kompres
+  (hyperdense keyboard-first command-center, ⌘K), 228 Saffier (juweel premium-dark), 229 Vonk (energiek
+  elektrisch, motion-forward), 230 Horizon (ultra-wide panoramisch, cinematisch kalm).
+- **Bestanden:** `src/components/ontwerp/concepts/concept-221-duplex.tsx` t/m `concept-230-horizon.tsx`
+  (elk export `Concept221`…`Concept230`, `"use client"`, deterministisch — geen Date/random/netwerk).
+  Geïntegreerd via append in `registry.ts` (10 ConceptMeta-entries), `src/app/ontwerp/[id]/concept-host.tsx`
+  (10 lazy `next/dynamic`-koppelingen); de galerij-index groeit automatisch mee. Geen bestaand concept,
+  registry-entry of route-koppeling aangeraakt; live-app ongewijzigd.
+- **Elk concept** dekt de zes kernschermen (dashboard, marktplaats, opdracht-detail met `redenen.plus/min`,
+  verificatie + vertrouwensniveau, acties, facturen) plus documenten/berichten, met `useState`-schermnav,
+  `aria-current`, focus-states en loading/empty/error-voorbeelden. UI Nederlands, geen "AI".
+- **Onderzochte 2026-trends:** bold-duotone split-screen, monochrome-refinement, spatial-translucency 2.0,
+  airy/weightless + spring-motion, industrial-solid trust, z-depth stacking, hyperdense keyboard-first ⌘K,
+  jewel-tone premium-dark, electric glow-on-focus, ultra-wide panoramic/cinematic-calm. Zie `docs/DESIGN-LAB.md`.
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test **3694** ✓, build ✓, prettier ✓ (lokaal). CI-poort volgt op de PR.
+- **Volgende stap:** volgende reeks (231–240) in een volgende run; zelfde additieve patroon.
+
 ## Certificaat-verval-tijdens-opdracht signaal op /kandidaten (2026-07-09) — opdrachtgever/beslismoment
 
 `computeCompliance` (matching.ts) beoordeelt of een kandidaat _nu_ aan de certificaateisen voldoet —
