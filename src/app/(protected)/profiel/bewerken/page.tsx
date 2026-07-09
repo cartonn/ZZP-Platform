@@ -4,6 +4,9 @@ import { ExternalLink, UserX } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { computeFreelancerCompleteness } from "@/lib/profile";
+import { summarizeAvailability } from "@/lib/availability";
+import { summarizeFindability } from "@/lib/freelancer-findability";
+import { FindabilityCard } from "@/components/profile/findability-card";
 import { computeMarketRate } from "@/lib/market-rate";
 import { MARKET_RATE_MIN_SAMPLE, MARKET_RATE_SAMPLE_CAP } from "@/lib/config";
 import { type Availability } from "@/lib/enums";
@@ -26,7 +29,12 @@ export default async function ProfielPage() {
   const [profile, skills, industries] = await Promise.all([
     prisma.freelancerProfile.findUnique({
       where: { userId: actor.id },
-      include: { skills: true, industries: true, workExperiences: true },
+      include: {
+        skills: true,
+        industries: true,
+        workExperiences: true,
+        availabilityWindows: { orderBy: { startDate: "asc" } },
+      },
     }),
     // unbounded-allow: skills-referentielijst voor profielpagina
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -97,6 +105,28 @@ export default async function ProfielPage() {
   // ziet, terwijl ze nog niet in zijn profiel staan? Nudge om het skills-veld te vervolledigen.
   const skillDemand = computeSkillDemand(await getSkillDemandRequirements(actor.id), skillIds);
 
+  // Vindbaarheid-signaal: kan een opdrachtgever dit profiel vinden? Spiegelt exact de server-filters
+  // (discoverableFreelancerWhere: PUBLIC-profiel; surfacing: skills + beschikbaarheid). Beschikbaarheid
+  // volgt dezelfde bron als de opdrachtgever-zoeklijst: een inzetbaar venster óf de scalaire fallback
+  // AVAILABLE/LIMITED (spiegelt freelancer-search.ts).
+  const availabilityScalar = profile.availability as Availability;
+  const hasAvailability =
+    summarizeAvailability(
+      profile.availabilityWindows as {
+        startDate: Date;
+        endDate: Date;
+        type: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
+      }[],
+      new Date(),
+    ) !== null ||
+    availabilityScalar === "AVAILABLE" ||
+    availabilityScalar === "LIMITED";
+  const findability = summarizeFindability({
+    isPublic: profile.visibility === "PUBLIC",
+    hasSkills: skillIds.length > 0,
+    hasAvailability,
+  });
+
   return (
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
@@ -132,6 +162,8 @@ export default async function ProfielPage() {
           )}
         </CardContent>
       </Card>
+
+      <FindabilityCard findability={findability} />
 
       <MarketRateCard insight={marketRate} />
 

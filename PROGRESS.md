@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Vindbaarheid-signaal voor de ZZP'er op /profiel/bewerken (2026-07-09) — liquiditeit/vertrouwen
+
+Beantwoordt de meest impactvolle, vaak onbekende vraag van de ZZP'er: **"kan een opdrachtgever mij
+überhaupt vinden?"** — met name de privé-profiel-val (visibility PRIVATE → onvindbaar, maar de ZZP'er
+weet dat niet). Bestaande signalen dekten dit niet: `computeFreelancerCompleteness` = velden,
+`employabilitySummary` = inzetbaarheid/verplichte documenten. Dit spiegelt exact de server-filters die
+opdrachtgever-gerichte vind-oppervlakken al hanteren (`discoverableFreelancerWhere`: profiel PUBLIC +
+account ACTIVE) plus de twee surfacing-filters (skills, gedeelde beschikbaarheid). Benchmark:
+Malt/LinkedIn "open to work"/zichtbaarheid, Upwork availability-badge.
+
+- **Pure lib** `src/lib/freelancer-findability.ts`: `summarizeFindability({isPublic, hasSkills,
+hasAvailability})` → `{level: hidden|limited|visible, discoverable, headline, blocker, href, factors[]}`.
+  `discoverable` = de harde PUBLIC-eis; `hidden` als niet-vindbaar, `limited` als vindbaar maar een
+  surfacing-factor ontbreekt, `visible` bij alles op orde. Eerste onvervulde factor → `blocker`+`href`
+  (prioriteit: zichtbaarheid > skills > beschikbaarheid). 6 tests.
+- **Component** `src/components/profile/findability-card.tsx` (`FindabilityCard`): presentationele
+  checklist + niveau-accent (hidden=warning, limited=neutraal, visible=success) + "Los dit op"-doorklik.
+- **Wiring** `profiel/bewerken/page.tsx`: kaart bovenaan (boven compleetheid — de hardste poort eerst);
+  `hasAvailability` via dezelfde `summarizeAvailability` + scalar-fallback als de opdrachtgever-zoeklijst
+  (`availabilityWindows` toegevoegd aan de bestaande findUnique-include, geen extra query). Anker-ids
+  `#zichtbaarheid` (`scroll-mt-20`) + `#vaardigheden` in `profile-form.tsx` voor de doorklik.
+
+Read-only, server-side gevoed, geen schemawijziging. DoD groen: typecheck, lint, **3641 unit-tests**
+(6 nieuw), prettier (hele repo), build. PR #690.
+
 ## Prod-rijpheid: uitgaande HTTP-timeouts voor externe koppelingen (2026-07-09)
 
 Hardening (beschikbaarheid/resource-exhaustion; OWASP + Next.js prod-checklist). Alleen de

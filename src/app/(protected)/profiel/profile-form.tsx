@@ -187,7 +187,7 @@ export function ProfileForm({
         </Field>
       </div>
 
-      <fieldset>
+      <fieldset id="vaardigheden">
         <legend className="mb-2 block text-sm font-medium">Skills</legend>
         {skills.length === 0 ? (
           <p className="text-sm text-muted-foreground">Geen skills beschikbaar.</p>
@@ -241,7 +241,7 @@ export function ProfileForm({
         />
       </Field>
 
-      <fieldset className="space-y-2">
+      <fieldset id="zichtbaarheid" className="scroll-mt-20 space-y-2">
         <legend className="block text-sm font-medium">Zichtbaarheid</legend>
         <label className="flex items-center gap-2 text-sm">
           <input

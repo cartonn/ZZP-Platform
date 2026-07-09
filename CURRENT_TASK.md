@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Vindbaarheid-signaal voor de ZZP'er op /profiel/bewerken (2026-07-09,
+> PR #690)** — beantwoordt "kan een opdrachtgever mij vinden?" (de privé-profiel-val). Pure
+> `src/lib/freelancer-findability.ts` `summarizeFindability({isPublic, hasSkills, hasAvailability})` →
+> level hidden/limited/visible + eerste blokkade+doorklik (prioriteit zichtbaarheid>skills>beschikbaarheid);
+> spiegelt `discoverableFreelancerWhere` (PUBLIC) + surfacing-filters (skills, beschikbaarheid zoals
+> freelancer-search: venster óf scalair AVAILABLE/LIMITED). `FindabilityCard` bovenaan de profiel-editor,
+> anker-ids `#zichtbaarheid`/`#vaardigheden`. `availabilityWindows` op de bestaande findUnique (geen extra
+> query), read-only, geen schemawijziging. 6 tests, gate groen (3641).
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — uitgaande HTTP-timeouts voor externe koppelingen
 > (2026-07-09, PR #689)** — hardening tegen een hangende externe endpoint (beschikbaarheid/
 > resource-exhaustion). Nieuwe gedeelde `src/lib/services/fetch-timeout.ts` (`fetchWithTimeout` +
