@@ -1,5 +1,48 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-09 (run 19) · **main-commit basis:** `2eec90d`
+> **Uitkomst:** **1 robuustheidsgat gevonden én OPGELOST** (ADMIN-verificatiequeue → HTTP 500 op
+> lege afwijzingsreden). Verse prod-build (`npm run build`), schema-push + idempotente demo-seed
+> (`SEED_DEMO=true`) op ephemere SQLite (`qa.db`), prod-server (`node scripts/start.mjs`, poort 3100,
+> `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte
+> formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium
+> (`/opt/pw-browsers/chromium-1194`). Eén parallelle Opus-security-subagent over de nieuwste surfaces
+> sinds run 18 (diff `3c35a78..2eec90d`: franchise `dienst-detail`, `freelancer-findability`,
+> `profiel/bewerken`) → geen exploiteerbare gaten (tenant-check sluit vóór PII-verrijking; pure,
+> server-side functies; onzin-id → `notFound()`).
+>
+> **DOEL 1 (echte actie, server-side geverifieerd):** ADMIN klikte **"Goedkeuren"** op
+> `/admin/verificaties` → tegen de DB bevestigd: `Credential SUBMITTED` **6→5** / `VERIFIED` **24→25**,
+> `cred-bram-VOG` op `VERIFIED`, verse `CREDENTIAL_VERIFIED`-audit (`actorId`=admin,
+> `entityId=cred-bram-VOG`, timestamp `2026-07-09T13:20:22Z` die exact met de klik samenvalt). Keten
+> auth→rol→ownership→transitie→audit→revalidate werkt end-to-end.
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol laadt 200 voor alle vier rollen; geen 500,
+> geen tegenstrijdige/dubbele actie.
+>
+> **DOEL 2 (adversarieel):** privilege-escalatie (ZZP/CLIENT/FRANCHISER → `/admin/*`; niet-FRANCHISER
+> → `/franchise`) → **redirect naar eigen dashboard**; IDOR/cross-partij + cross-tenant (foreign
+> factuur PAID/APPROVED/SUBMITTED/DRAFT + foreign samenwerking, elk voor 3 rollen) → **soft-404
+> "niet gevonden", geen €-bedrag/PII-lek**; document-privacy (`/api/documents/<foreign>` → **403**;
+> eigen doc → **200**); onzin-id's → soft-404/redirect, **nooit 500**; path-traversal
+> (`/facturen/..%2F..%2Fetc%2Fpasswd`) → geen leak. **60+ probes, 0 HTTP-500's op de lees-oppervlakken.**
+>
+> **GEVONDEN + GEFIXT (robuustheid, MED):** op `/admin/verificaties` waren de queue-forms gebonden aan
+> de **rauwe void server-acties** (`verifyCredential.bind` / `rejectCredential.bind`). Een afwijzing
+> met een **lege reden** — client-`required` omzeild (adversarieel of niet-JS/scripted POST) — liet
+> `statusForDecision` gooien, wat Next.js als **HTTP 500 + error-boundary** ("Er ging iets mis")
+> toonde i.p.v. een nette weigering. Dezelfde 500 gold voor de **al-beoordeeld-race** (dubbele
+> indiening → `updateMany` count 0 → throw). De data-integriteit was intact (geen foute overgang, DB
+> onveranderd), maar het robuustheidscontract ("adversariële/lege input → geweigerd, **nooit
+> 500/crash**") werd geschonden. **Fix:** beide forms lopen nu via de bestaande `ResolveState`-wrappers
+> (`verifyCredentialState`/`rejectCredentialState`) met `useActionState` — de fout verschijnt **inline**
+> ("Een afwijzing vereist een reden.") zonder de error-boundary te triggeren. Live geverifieerd op de
+> herbouwde server: POST **500→200**, inline-alert getoond, form blijft open, DB onveranderd. Regressie-
+> test `actions-state.test.ts` (4 cases, rood→groen) dekt lege/whitespace-reden + de al-beoordeeld-race.
+> Bestanden: `reject-form.tsx` (+`VerifyForm`), `verificaties/page.tsx`, `actions-state.test.ts`.
+>
+> ---
+>
 > **Datum:** 2026-07-09 (run 18) · **main-commit basis:** `3c35a78`
 > **Uitkomst:** **GEEN nieuwe gaten.** Verse prod-build (`npm run build`), schema-push + idempotente
 > demo-seed (`SEED_DEMO=true`, `prisma db seed`) op ephemere SQLite (`qa.db`), prod-server

@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep run 19: verificatiequeue 500 → nette inline-weigering (2026-07-09) — robuustheid
+
+Kritische-gebruiker-sweep (4 rollen, DOEL 1/1b/2) vond één robuustheidsgat en repareerde het. Op
+`/admin/verificaties` waren de "Goedkeuren"/"Afwijzen"-forms gebonden aan de **rauwe void
+server-acties**. Een afwijzing met een **lege reden** (client-`required` omzeild, of een niet-JS/
+scripted POST) liet `statusForDecision` gooien → Next.js toonde een **HTTP 500 + error-boundary**
+i.p.v. een nette weigering; dezelfde 500 gold voor de al-beoordeeld-race (dubbele indiening,
+`updateMany` count 0). Data-integriteit was intact (geen foute overgang), maar het contract
+"adversariële/lege input → geweigerd, nooit 500/crash" werd geschonden. Beide forms lopen nu via de
+bestaande `ResolveState`-wrappers (`verifyCredentialState`/`rejectCredentialState`) met
+`useActionState`; de fout verschijnt **inline** ("Een afwijzing vereist een reden.") zonder de
+error-boundary. Live geverifieerd (POST 500→200, inline-alert, DB onveranderd).
+
+- **Bestanden:** `src/app/(protected)/admin/verificaties/reject-form.tsx` (nieuwe `VerifyForm` +
+  `RejectForm` op `useActionState`), `.../verificaties/page.tsx` (bindt nu de state-wrappers),
+  `.../verificaties/actions-state.test.ts` (nieuw, 4 regressie-cases rood→groen).
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test **3655** (4 nieuw) ✓, prettier ✓, build ✓.
+  Overige DOEL 1/1b/2-probes (60+, incl. IDOR/cross-tenant/privilege-escalatie) schoon. E2e in CI.
+
 ## Verklaarbare reacties-lijst op de franchise-dienst (2026-07-09) — bemiddelaar/consistentie
 
 De bemiddelaar zag per reactie op `/franchise/diensten/[id]` alleen "Match N + compliance-badge +
