@@ -568,6 +568,7 @@ export default async function KandidatenPage({
                         const expiry = expiryByApp.get(app.id);
                         if (!expiry) return null;
                         const c = expiry.concerns[0];
+                        if (!c) return null;
                         const label = t(CREDENTIAL_TYPE_LABEL[c.type]);
                         const extra = expiry.concerns.length - 1;
                         return (

@@ -43,8 +43,8 @@ describe("summarizeCandidateCredentialExpiry", () => {
     expect(out).not.toBeNull();
     expect(out!.worstPhase).toBe("before-start");
     expect(out!.concerns).toHaveLength(1);
-    expect(out!.concerns[0].type).toBe("VOG");
-    expect(out!.concerns[0].daysFromStartToExpiry).toBe(-10);
+    expect(out!.concerns[0]!.type).toBe("VOG");
+    expect(out!.concerns[0]!.daysFromStartToExpiry).toBe(-10);
   });
 
   it("markeert verval kort ná de start als soon-after-start", () => {
@@ -56,7 +56,7 @@ describe("summarizeCandidateCredentialExpiry", () => {
     });
     expect(out).not.toBeNull();
     expect(out!.worstPhase).toBe("soon-after-start");
-    expect(out!.concerns[0].daysFromStartToExpiry).toBe(10);
+    expect(out!.concerns[0]!.daysFromStartToExpiry).toBe(10);
   });
 
   it("negeert verval ruim ná het venster", () => {
@@ -133,7 +133,7 @@ describe("summarizeCandidateCredentialExpiry", () => {
     // Laatst-vervallende = day(25) → 5 dagen ná start → soon-after-start.
     expect(out).not.toBeNull();
     expect(out!.worstPhase).toBe("soon-after-start");
-    expect(out!.concerns[0].daysFromStartToExpiry).toBe(5);
+    expect(out!.concerns[0]!.daysFromStartToExpiry).toBe(5);
   });
 
   it("sorteert before-start vóór soon-after-start en de vroegste vervaldatum eerst", () => {

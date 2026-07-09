@@ -97,13 +97,14 @@ export function summarizeCandidateCredentialExpiry(input: {
     });
   }
 
-  if (concerns.length === 0) return null;
-
   // Ernstig eerst; binnen een fase de vroegste vervaldatum bovenaan.
   concerns.sort((a, b) => {
     if (a.phase !== b.phase) return a.phase === "before-start" ? -1 : 1;
     return a.expiresAt.getTime() - b.expiresAt.getTime();
   });
 
-  return { concerns, worstPhase: concerns[0].phase };
+  const [worst] = concerns;
+  if (!worst) return null;
+
+  return { concerns, worstPhase: worst.phase };
 }
