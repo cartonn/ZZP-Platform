@@ -12,9 +12,9 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { ExpiryButton } from "./expiry-button";
-import { RejectForm } from "./reject-form";
+import { RejectForm, VerifyForm } from "./reject-form";
 import { DocumentPreview } from "./document-preview";
-import { rejectCredential, verifyCredential } from "./actions";
+import { rejectCredentialState, verifyCredentialState } from "./actions";
 import { formatDateShortNl } from "@/lib/format-date";
 import { plural } from "@/lib/plural";
 import { CREDENTIAL_TYPES } from "@/lib/enums";
@@ -180,15 +180,8 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
 
                     <div className="space-y-3 border-t border-border pt-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <form action={verifyCredential.bind(null, c.id)}>
-                          <Button type="submit" size="sm">
-                            Goedkeuren
-                          </Button>
-                        </form>
-                        <RejectForm
-                          credentialId={c.id}
-                          action={rejectCredential.bind(null, c.id)}
-                        />
+                        <VerifyForm action={verifyCredentialState.bind(null, c.id)} />
+                        <RejectForm action={rejectCredentialState.bind(null, c.id)} />
                       </div>
                     </div>
                   </CardContent>
