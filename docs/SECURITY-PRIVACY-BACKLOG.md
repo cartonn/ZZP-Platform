@@ -4,6 +4,46 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-09 (basis: `main` @ b204e89)
+
+Audit: orchestrator (Opus 4.8) + 1 parallelle adversariële Opus security-subagent, gericht op de vérse
+delta sinds de vorige ronde (`fd8826e..b204e89`, #681–#687 — cross-tenant existence-oracle-fix,
+ADMIN-systeemstatus-scherm, wettelijke-factuureisen-check, "samenwerking loopt af"-nudge, **werkervaring
+op het ZZP-profiel** #683, +20 ontwerpconcepten). Kader: OWASP Top 10 (A01/A03/A04/A09) + ASVS + AVG
+art. 5/15/17/30. Zelf onafhankelijk geverifieerd schoon (subagent + grep): `invoice-legal.ts`/
+`invoice-compliance-card.tsx` (pure/presentationeel, btw/kvk van de ZZP'er nooit naar de opdrachtgever-
+payload — `compliance` is `isFreelancerOwner ? … : null`), `collaboration-renewal.ts`/`renewal-nudge.tsx`
+(participant-gated), **`system-status.ts`/`system-status-panel.tsx`** (ADMIN-only via `requireRole` +
+middleware; leest uitsluitend driver-MODI/booleans — géén sleutelwaarden bereiken de client; de rauwe
+`Env` passeert de server/client-grens nooit, alleen de secret-vrije `SystemStatus`-struct), de 20 nieuwe
+`/ontwerp`-concepten (statisch, geen `dangerouslySetInnerHTML`/Prisma/`fetch`; grep: 0 BSN-achtige
+9-cijferreeksen, 0 e-mailadressen in de mock-data). **Eén HOOG volledig gefixt (rood→groen); geen overige
+nieuwe gaten.**
+
+### OPGELOST in deze ronde
+
+- **[HOOG→OPGELOST · AVG art. 17 (recht op wissen) + CLAUDE.md verificatieflow — de nieuwe
+  `WorkExperience`-PII (#683) overleefde de anonimisering]** De werkervaring-feature introduceerde
+  `model WorkExperience` (`prisma/schema.prisma:382`) met **zelf-gerapporteerde vrije tekst** die de
+  ZZP'er op zijn (publieke) `/zzp/[id]`-profiel toont: `role` ("Verpleegkundige IC"), `organization`
+  (opdrachtgever/instelling) en `description` (vrije toelichting die namen/patiënt-/opdrachtdetails kan
+  bevatten). `anonymizeUser` (`src/app/(protected)/admin/gebruikers/actions.ts`) **updatet** het
+  `FreelancerProfile` (visibility→PRIVATE) i.p.v. het te verwijderen, dus de `onDelete:Cascade` op
+  `WorkExperience.freelancerProfileId` **vuurt niet** — precies het scenario dat de transactie voor élk
+  zustergeval (`AvailabilityWindow.note`, `IndirectHoursEntry.note`, `FavoriteFreelancer.note`,
+  `LeadContact.body`, `Idea`) expliciet met een eigen `updateMany`/`deleteMany` afvangt. Voor
+  `WorkExperience` ontbrak die stap → de rol/organisatie/omschrijving bleven ná een verwijderverzoek
+  onbeperkt in de DB staan (en, tot visibility PRIVATE werd, publiek zichtbaar). Repro: FREELANCER voegt
+  een werkervaring toe → vraagt (art. 17) verwijdering → vóór de fix bleef `WorkExperience` met alle
+  vrije tekst bestaan (herleidbaar uit "Verpleegkundige IC bij [kleine instelling] 2019–2020" +
+  omschrijving). Gefixt: `prisma.workExperience.deleteMany({ where: { freelancerProfile: { userId } } })`
+  toegevoegd aan de anonimiseringstransactie — de hele rij is PII van de betrokkene zónder operationele/
+  fiscale bewaargrond (anders dan `Invoice`/`Expense`), dus volledig wissen (spiegelt `credential`/
+  `document.deleteMany`), gescopet op het eigen profiel (nooit dat van een ander). Test: nieuwe case in
+  `anonymize-erasure.test.ts` (deleteMany aanwezig + `where: { freelancerProfile: { userId } }` —
+  rood→groen bewezen: zonder de regel ontbreekt de op; export/`account-export.ts` bevatte de velden al
+  sinds #683, dus art. 15/20 was reeds gedekt).
+
 ## Ronde 2026-07-08 (2e — basis: `main` @ fd8826e)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende
