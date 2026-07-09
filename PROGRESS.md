@@ -55,6 +55,25 @@ niet. Reduceert het risico dat een opdrachtgever/boekhouder of de Belastingdiens
   kaart gerenderd onder de hoofdkaart. Read-only, geen schemawijziging, geen extra query.
 - Gate lokaal: typecheck ✓, lint ✓, prettier ✓, unit ✓ (9 nieuw), build (in CI).
 
+## Ontwerp-lab reeks 21 — +10 concepten, nrs 201–210 (2026-07-09)
+
+Design-lab op `/ontwerp` uitgebreid van 200 → **210 concepten** (additief; geen bestaand concept
+gewijzigd of verwijderd). Nieuwe richtingen 201–210: Sneltoets (keyboard-first ⌘K command deck),
+Tijdbalk (swimlane-Gantt temporele planning), Triage (inbox-zero queue split-view), Kolommen
+(Kanban-workflowbord), Leder (verfijnd skeuomorfisme, gestikt leder + wax-zegels), Vuurtoren
+(maritiem baken, nabijheid als matching-as), Steendruk (fijnkunst-lithografie, tonale krijt-korrel),
+Parelmoer (nacre/iriserende folie op wit), Klapbord (split-flap Solari-vertrekbord), Sjabloon
+(industrieel spray-stencil).
+
+- **Bestanden:** 10 nieuwe `src/components/ontwerp/concepts/concept-201..210-*.tsx` (elk ~1100–1650
+  regels, high-fidelity, kernschermen via `useState<ScreenKey>`, statustaal met label+icoon+vorm,
+  empty/loading/error-states, responsive, focus-visible, aria). Registry-entries toegevoegd aan
+  `registry.ts` (append) en id→component-koppelingen aan `concept-host.tsx` (append); bestaande
+  entries ongemoeid. Docs: `docs/DESIGN-LAB.md` reeks 21 + totaal 210.
+- Gebouwd door 4 parallelle workers op niet-overlappende bestanden; orchestrator integreerde registry +
+  route en draaide de poort. Deterministisch, geen woord "AI", UI Nederlands.
+- Gate: typecheck ✓, lint ✓, prettier ✓, unit ✓ (3624), build ✓.
+
 ## Ontwerp-lab reeks 20 — +10 concepten, nrs 191–200 (2026-07-08)
 
 Design-lab op `/ontwerp` uitgebreid van 190 → **200 concepten** (additief; geen bestaand concept

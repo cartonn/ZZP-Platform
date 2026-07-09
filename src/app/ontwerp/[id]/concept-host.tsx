@@ -607,6 +607,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "200": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-200-hologram").then((m) => m.Concept200),
   ),
+  "201": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-201-sneltoets").then((m) => m.Concept201),
+  ),
+  "202": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-202-tijdbalk").then((m) => m.Concept202),
+  ),
+  "203": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-203-triage").then((m) => m.Concept203),
+  ),
+  "204": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-204-kolommen").then((m) => m.Concept204),
+  ),
+  "205": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-205-leder").then((m) => m.Concept205),
+  ),
+  "206": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-206-vuurtoren").then((m) => m.Concept206),
+  ),
+  "207": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-207-steendruk").then((m) => m.Concept207),
+  ),
+  "208": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-208-parelmoer").then((m) => m.Concept208),
+  ),
+  "209": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-209-klapbord").then((m) => m.Concept209),
+  ),
+  "210": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-210-sjabloon").then((m) => m.Concept210),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
