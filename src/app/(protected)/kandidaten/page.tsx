@@ -27,6 +27,7 @@ import {
   PROXIMITY_VARIANT,
 } from "@/lib/candidate-proximity";
 import { formatDateShortNl } from "@/lib/format-date";
+import { summarizeCandidateCredentialExpiry } from "@/lib/candidate-credential-expiry";
 import { computeTrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { TrustBadge } from "@/components/trust/trust-badge";
@@ -231,6 +232,30 @@ export default async function KandidatenPage({
             )
           : null;
       return [a.id, compliance] as const;
+    }),
+  );
+
+  // Verval-tijdens-opdracht: een nu-geldig vereist certificaat dat vóór of kort na de startdatum
+  // verloopt. Beslismoment-signaal náást de live compliance (die op `now` oordeelt) — zelfde `now`,
+  // geen extra query (startDate + expiresAt zijn al geladen).
+  const expiryByApp = new Map(
+    applications.map((a) => {
+      const requiredTypes = a.job.credentialRequirements
+        .filter((r) => r.required)
+        .map((r) => r.credentialType as CredentialType);
+      return [
+        a.id,
+        summarizeCandidateCredentialExpiry({
+          requiredTypes,
+          credentials: a.freelancer.credentials.map((c) => ({
+            type: c.type as CredentialType,
+            status: c.status as CredentialStatus,
+            expiresAt: c.expiresAt,
+          })),
+          jobStartDate: a.job.startDate,
+          now,
+        }),
+      ] as const;
     }),
   );
 
@@ -534,6 +559,33 @@ export default async function KandidatenPage({
                         )}
                       </p>
                     )}
+
+                    {/* Verval-tijdens-opdracht: een nu-geldig vereist certificaat dat vóór of kort na
+                        de startdatum verloopt. Alleen tonen wanneer compliance niet al blokkeert (dan
+                        staat er al een sterker "Mist/Verlopen"-signaal). */}
+                    {compliance?.status !== "NON_COMPLIANT" &&
+                      (() => {
+                        const expiry = expiryByApp.get(app.id);
+                        if (!expiry) return null;
+                        const c = expiry.concerns[0];
+                        const label = t(CREDENTIAL_TYPE_LABEL[c.type]);
+                        const extra = expiry.concerns.length - 1;
+                        return (
+                          <p
+                            className={`flex items-start gap-1.5 text-xs ${
+                              expiry.worstPhase === "before-start" ? "text-danger" : "text-warning"
+                            }`}
+                          >
+                            <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                            <span>
+                              {c.phase === "before-start"
+                                ? `${label} ${t("verloopt")} ${formatDateShortNl(c.expiresAt)} — ${t("vóór de startdatum, kandidaat is bij aanvang niet compliant.")}`
+                                : `${label} ${t("verloopt")} ${formatDateShortNl(c.expiresAt)} — ${t("kort na de startdatum, compliance vervalt tijdens de inzet.")}`}
+                              {extra > 0 && ` (${t("en nog")} ${extra})`}
+                            </span>
+                          </p>
+                        );
+                      })()}
 
                     {fitReasons.length > 0 && (
                       <details className="text-sm">
