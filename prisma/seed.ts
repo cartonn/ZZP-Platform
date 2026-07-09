@@ -966,15 +966,24 @@ async function main() {
       target: Target;
       ort?: boolean;
       collabId?: string;
+      endInDays?: number; // zet de einddatum → vult het vervolgsignaal ("loopt af") in de demo
     }[] = [
       // Vlaggenschip: het primaire demo-account Sanne (zzp@) krijgt een volledige reis met de
       // primaire opdrachtgever Jansen (opdrachtgever@) — t/m betaald. Stabiel id "collab-1" zodat
       // het compliance-dossier en de Ontzorgd-/administratie-overzichten een vaste ankerklant hebben.
-      { fk: "sanne", job: "job-4", rate: 60, target: "PAID", collabId: "collab-1", ort: true },
+      {
+        fk: "sanne",
+        job: "job-4",
+        rate: 60,
+        target: "PAID",
+        collabId: "collab-1",
+        ort: true,
+        endInDays: 10,
+      },
       { fk: "emma", job: "job-8", rate: 56, target: "PAID", ort: true },
       { fk: "iris", job: "job-9", rate: 42, target: "INVOICE_APPROVED", ort: true },
       { fk: "ahmed", job: "job-10", rate: 58, target: "PAID" },
-      { fk: "rik", job: "job-11", rate: 90, target: "ACTIVE" },
+      { fk: "rik", job: "job-11", rate: 90, target: "ACTIVE", endInDays: 14 },
       { fk: "julia", job: "job-12", rate: 72, target: "INVOICE_SUBMITTED" },
       { fk: "kevin", job: "job-13", rate: 82, target: "PERF_APPROVED" },
       { fk: "bram", job: "job-14", rate: 95, target: "PAID" },
@@ -1011,6 +1020,7 @@ async function main() {
           contractStatus: "DRAFT",
           rate: s.rate,
           startDate: daysFromNow(-30 + i),
+          ...(s.endInDays !== undefined ? { endDate: daysFromNow(s.endInDays) } : {}),
           ortProfile: s.ort ? "VVT" : null,
         },
       });
