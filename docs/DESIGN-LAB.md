@@ -541,4 +541,31 @@ UI-taal = Nederlands.
   materiaal tegen steriel minimalisme); **iriserende folie/nacre** (holographic foil, maar licht & premium
   op wit); en **ambachtelijke print-esthetiek** (tonale steendruk met beperkt inkt-palet) — elk
   onderscheidend gehouden van de bestaande 200.
-- **Totaal nu op `/ontwerp`: 210 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210).
+- **Reeks 22 (run 9-7-2026, nrs 211–220):** Getal (data-als-typografie: kerncijfers Zwitsers-groot
+  in tabulaire numeralen, hiërarchie via schaal + witruimte i.p.v. kaders — oversized-numeric, niet
+  Beurs/Grootboek) · Loket (digitale-overheid-vertrouwen: Rijkshuisstijl-blauw op wit, "u bent
+  hier"-stappen + statusbalken, institutionele degelijkheid rond VOG/BIG — govtech-civic, niet
+  Helder/Handleiding) · Contour (monoline outline: puur lijnwerk, hairline-randen en outline-iconen,
+  near-zero fills/schaduwen, kleur alleen bij hover/actief — line-art-minimalisme, niet Blauwdruk/Raster) ·
+  Marker (highlighter-annotatie: fluor-markeerstiftvegen achter sleutelwoorden, handgeschreven
+  onderstreping op actieve tabs, marginale notities — redactioneel-menselijke emfase, niet
+  Kantlijn/Redactie) · Kwelder (biofiel-natuurlijk: gedempte salie/klei/zand, organische radii, laag-
+  prikkelend en warm — natural-calm-palet, niet Tij/Japandi/Botanie) · Cassette (retro hi-fi paneel:
+  geborsteld donker vlak, VU-meter-segmenten voor score/omzet, amber displaylicht, cassette-labelstroken —
+  analoge hi-fi-nostalgie, niet Klapbord/Console/Sequencer) · Blok (verfijnd neubrutalisme: harde
+  2px-randen + offset-slagschaduwen, platte heldere vlakken, knoppen die "indrukken" — tactiel color-
+  blocking, niet Memphis/Bauhaus) · Middernacht (premium product-dark: diep blauw-zwart, hairline-glow-
+  borders, elektrisch-indigo accent, ⌘K-command-menu — schoon Linear/Vercel-dark zonder neon, niet
+  Nebula/Noir/Nachtdienst) · Onthaal (warm-menselijk gastvrij: crème/perzik/terracotta, royale radii en
+  grote raakvlakken, hartelijke maar zakelijke toon — human-centered warmte, niet Haard/Klei) · Snoep
+  (kleurrijk-speels: candy roze/lila/mint/citroen op zacht-wit, ronde vormen en bounce-hover, blije
+  empty-states — tasteful-playful, niet Memphis/Arcade).
+- Onderzochte 2026-trends deze reeks: **data-as-typography & oversized-numeric display** (het cijfer
+  zelf als compositie); **govtech/civic-trust & accessibility-first** (institutionele helderheid als
+  vertrouwenstaal rond gevoelige verificatie); **monoline/outline-UI & annotation-emfase** (line-art-
+  minimalisme, highlighter-as-emphasis); **biophilic/natural-calm palettes** (gedempt-aards, low-
+  stimulation); **analoge/mechanische nostalgie & refined neubrutalism** (VU-meter/hi-fi, hard-shadow
+  color-blocking, tactiele press-states); **premium product-dark met hairline-glow & keyboard-first
+  ⌘K**; en **warm human-centered + tasteful-playful maximalism** (gastvrije warmte, candy-kleur met
+  behoud van contrast) — elk onderscheidend gehouden van de bestaande 210.
+- **Totaal nu op `/ontwerp`: 220 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220).

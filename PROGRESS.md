@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab: +10 concepten, nrs 211–220 (2026-07-09) — galerij naar 220
+
+Reeks 22 toegevoegd aan het publieke design-lab `/ontwerp` (additief; niets overschreven). Tien nieuwe,
+onderscheidende richtingen, elk met interne tab-navigatie over de 6 kernschermen en volledige
+loading/empty/error-states, deterministisch (geen random/Date), toegankelijk (status = label + icoon),
+Nederlandse UI, geen "AI":
+
+- **211 Getal** (data-als-typografie, oversized numeriek) · **212 Loket** (digitale-overheid, Rijkshuisstijl-
+  vertrouwen) · **213 Contour** (monoline outline) · **214 Marker** (highlighter-annotatie) · **215 Kwelder**
+  (biofiel-natuurlijk) · **216 Cassette** (retro hi-fi VU-paneel) · **217 Blok** (verfijnd neubrutalisme) ·
+  **218 Middernacht** (premium product-dark + ⌘K) · **219 Onthaal** (warm-menselijk gastvrij) · **220 Snoep**
+  (kleurrijk-speels).
+- Nieuwe bestanden `src/components/ontwerp/concepts/concept-211..220-*.tsx`; entries toegevoegd aan
+  `registry.ts` en route-koppelingen aan `src/app/ontwerp/[id]/concept-host.tsx` (append-only). Trends per
+  reeks staan in `docs/DESIGN-LAB.md`.
+- Gate groen: typecheck, lint (0 warnings), **3646 unit-tests**, build, prettier (hele repo). E2e draait in CI.
+
 ## Agenda-verouderd signaal in de vindbaarheid-kaart (2026-07-09) — consistentie/liquiditeit
 
 Sluit een inconsistentie tussen twee schermen. De Vindbaarheid-kaart (`/profiel/bewerken`) toonde
