@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security-/privacy-audit run (2026-07-09, 2e) — 3 gaten gedicht (KRITIEK/HOOG/MIDDEL)
+
+Adversariële audit (orchestrator Opus 4.8 + 3 parallelle Opus-subagents op niet-overlappende
+oppervlakken: franchise/tenant-isolatie, API/upload/SSRF, privacy/AVG). Drie bevindingen volledig
+gefixt (rood→groen), rest geparkeerd in `docs/SECURITY-PRIVACY-BACKLOG.md`.
+
+- **KRITIEK (OWASP A07) — vervalsbaar `X-Forwarded-For`:** de IP-bepaling nam de client-gestuurde
+  LINKER XFF-entry → elke IP-gebonden rate limiter (incl. login-brute-force `${ip}:${email}`)
+  omzeilbaar. Nieuwe pure helper `src/lib/client-ip.ts` neemt de door de vertrouwde proxy toegevoegde
+  rechter hop (`TRUSTED_PROXY_HOP_COUNT`, default 1 voor Railway); `request-meta.ts` + 3 route-kopieën
+  gecentraliseerd. Escalatie: bevestig de Railway-edge-hopcount vóór go-live.
+- **HOOG (AVG art. 17) — dispuutreden overleefde erasure in de event-store:** `DomainEvent.payload`
+  van `DISPUTE_OPENED` (`{ reason }`) werd niet gescrubd door `anonymizeUser` (alleen de
+  `Collaboration.disputeReason`-kopie). Toegevoegd: `domainEvent.updateMany → payload "{}"`.
+- **MIDDEL (OWASP A01 / CWE-203) — existence-oracle in de onboarding-wizard:**
+  `addAfdelingStep`/`removeAfdelingStep` verrieden cross-tenant bestaan via een afwijkende melding /
+  ongevangen 403. Nu identiek aan "niet gevonden" via `ownsViaTenant` (spiegelt `../actions.ts`).
+
+- **Bestanden:** `src/lib/client-ip.ts` (+`.test.ts`), `src/lib/request-meta.ts`,
+  `src/app/api/{csp-report,client-error,billing/webhook}/route.ts` (+ hun tests),
+  `src/app/(protected)/admin/gebruikers/actions.ts` (+ `anonymize-erasure.test.ts`),
+  `src/app/(protected)/franchise/opdrachtgevers/nieuw/actions.ts` (+ `wizard-oracle.test.ts`),
+  `docs/SECURITY-PRIVACY-BACKLOG.md`.
+- **Checks:** typecheck + lint + prettier + build groen; volledige unit-suite groen.
+
 ## Persona-sweep run 19: verificatiequeue 500 → nette inline-weigering (2026-07-09) — robuustheid
 
 Kritische-gebruiker-sweep (4 rollen, DOEL 1/1b/2) vond één robuustheidsgat en repareerde het. Op

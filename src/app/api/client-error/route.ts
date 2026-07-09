@@ -12,22 +12,19 @@
 import { clientErrorRateLimiter } from "@/lib/rate-limit";
 import { parseClientError, toReportableError } from "@/lib/observability/client-error";
 import { reportError } from "@/lib/observability/report";
+import { clientIpFromRequest } from "@/lib/client-ip";
 
 export const dynamic = "force-dynamic";
 
 // Body-limiet: een client-foutrapport is klein (naam/bericht/stack). Grotere payload negeren we.
 const MAX_BODY_BYTES = 32 * 1024;
 
-function clientIp(request: Request): string {
-  const fwd = request.headers.get("x-forwarded-for");
-  return (fwd ? fwd.split(",")[0]?.trim() : null) ?? request.headers.get("x-real-ip") ?? "unknown";
-}
-
 export async function POST(request: Request): Promise<Response> {
   const noContent = new Response(null, { status: 204 });
 
-  // Rate-limit vóór het lezen/parsen van de body: een flood mag geen werk veroorzaken.
-  const rl = await clientErrorRateLimiter.check(clientIp(request));
+  // Rate-limit vóór het lezen/parsen van de body: een flood mag geen werk veroorzaken. Het IP komt
+  // via de spoof-bestendige helper (rechter X-Forwarded-For-hop), niet de client-linkerkant.
+  const rl = await clientErrorRateLimiter.check(clientIpFromRequest(request));
   if (!rl.allowed) return new Response(null, { status: 429 });
 
   let raw: string;

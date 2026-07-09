@@ -275,6 +275,16 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { id: { in: ownDisputeCollabIds }, disputeReason: { not: null } },
       data: { disputeReason: null },
     }),
+    // Dezelfde dispuutreden staat óók verbatim in de payload van het DISPUTE_OPENED-domeinevent
+    // (`{ reason }`, zie cascade/dispute-commands.ts) — een tweede PII-kopie die de `user.update`
+    // niet raakt en die de erasure-code al kent (ze wordt hierboven gelezen om `ownDisputeCollabIds`
+    // te bepalen). Zonder deze regel overleeft de vrije tekst art. 17 in de event-store. Gescopet op
+    // de eigen events (actorId == de betrokkene); payload → "{}" (spiegelt DISPUTE_RESOLVED, dat al
+    // een lege payload schrijft — de reden is het enige veld en is juist de te wissen PII).
+    prisma.domainEvent.updateMany({
+      where: { type: "DISPUTE_OPENED", actorId: userId },
+      data: { payload: "{}" },
+    }),
     // Contactnotities die de betrokkene als FRANCHISER zelf schreef bij leads (LeadContact.body,
     // vrije tekst — bel-/gespreksnotities die de betrokkene identificeren). Gescopet op createdById.
     // Het veld is niet-nullable, dus overschrijven met een neutrale redactiestring i.p.v. null.

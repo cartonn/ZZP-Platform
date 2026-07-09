@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireRole, AuthorizationError } from "@/lib/authz";
-import { assertSameTenant } from "@/lib/tenancy";
+import { ownsViaTenant } from "@/lib/tenancy";
 import { audit } from "@/lib/audit";
 import { createFranchiseDienst } from "@/lib/franchise/dienst";
 
@@ -37,12 +37,11 @@ export async function addAfdelingStep(
     where: { id: companyId },
     select: { tenantId: true },
   });
-  if (!company) return { error: "Opdrachtgever niet gevonden." };
-  try {
-    assertSameTenant(actor, company.tenantId);
-  } catch (e) {
-    if (e instanceof AuthorizationError) return { error: e.message };
-    throw e;
+  // Onbekend id én een opdrachtgever van een ándere tenant geven exact dezelfde melding: zo lekt het
+  // verschil "bestaat niet" vs. "bestaat, andere bemiddeling" niet (geen existence-oracle, CWE-203).
+  // Spiegelt `addDepartment`/`removeDepartment` in ../actions.ts.
+  if (!company || !ownsViaTenant(actor, company.tenantId)) {
+    return { error: "Opdrachtgever niet gevonden." };
   }
   const parsed = afdSchema.safeParse({
     name: formData.get("name"),
@@ -71,8 +70,9 @@ export async function removeAfdelingStep(departmentId: string): Promise<void> {
     where: { id: departmentId },
     select: { companyId: true, company: { select: { tenantId: true } } },
   });
-  if (!dept) return;
-  assertSameTenant(actor, dept.company.tenantId);
+  // Onbekend id én cross-tenant id → dezelfde stille no-op (geen existence-oracle, geen uncaught
+  // AuthorizationError/500). Spiegelt `removeDepartment` in ../actions.ts.
+  if (!dept || !ownsViaTenant(actor, dept.company.tenantId)) return;
   await prisma.department.delete({ where: { id: departmentId } });
   await audit({
     actorId: actor.id,

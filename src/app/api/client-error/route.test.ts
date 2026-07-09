@@ -59,9 +59,10 @@ describe("POST /api/client-error", () => {
     expect(reportErrorMock).not.toHaveBeenCalled();
   });
 
-  it("keyt de rate-limit op het eerste x-forwarded-for-IP", async () => {
+  it("keyt de rate-limit op het door de vertrouwde proxy toegevoegde (rechter) x-forwarded-for-IP", async () => {
+    // Client-gestuurde linkerkant (198.51.100.1) wordt genegeerd; de rechter (Railway-)hop telt.
     await POST(post("{}", { "x-forwarded-for": "198.51.100.1, 10.0.0.1" }));
-    expect(checkMock).toHaveBeenCalledWith("198.51.100.1");
+    expect(checkMock).toHaveBeenCalledWith("10.0.0.1");
   });
 
   it("antwoordt 204 op onparseerbare JSON zonder te rapporteren", async () => {

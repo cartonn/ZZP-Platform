@@ -4,6 +4,80 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-09 (2e — basis: `main` @ 76a8ca9)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende
+oppervlakken: (1) franchise/tenant-isolatie & IDOR (leads, zzpers, opdrachtgevers, diensten,
+instellingen, `tenancy.ts`, `admin/franchises`, incl. de nieuwe reacties-lijst #694); (2) API-route-
+authz, upload/storage, SSRF, injectie over alle `/api/**` + document-/media-/PDF-/dossier-serving +
+uitgaande `fetch`; (3) privacy/AVG — volledigheid van `anonymizeUser`/`account-export`,
+verwerkingsregister, k-anonimiteit, PII-in-logs. Kader: OWASP Top 10 (A01/A03/A04/A07/A09) + ASVS +
+AVG art. 5/17/30/32. **Drie bevindingen volledig gefixt (rood→groen): één KRITIEK, één HOOG, één
+MIDDEL.** Overige oppervlakken bevestigd schoon (document/media/PDF/dossier IDOR+audit, cron-auth
+`timingSafeEqual`, path-traversal-guard, SSRF-allowlist voor push, geen `$queryRawUnsafe`, geen
+stacktrace-lek, admin-RBAC defense-in-depth).
+
+### OPGELOST in deze ronde
+
+- **[KRITIEK→OPGELOST · OWASP A07 (auth failures) / rate-limit-bypass — vervalsbaar
+  `X-Forwarded-For` omzeilde élke IP-gebonden rate limiter, incl. login-brute-force]**
+  `requestMeta()` (`src/lib/request-meta.ts`) en drie gedupliceerde `clientIp()`-kopieën
+  (`api/csp-report`, `api/client-error`, `api/billing/webhook`) namen de **LINKER** (eerste)
+  `X-Forwarded-For`-entry — precies de waarde die de client zélf kan zetten. Een aanvaller stuurde
+  per request een ander eerste XFF-IP en gaf zich zo telkens voor een nieuw IP uit → onbeperkte
+  wachtwoord-guessing tegen een bekend account (`loginRateLimiter` keyt op `${ip}:${email}`,
+  `src/auth.ts`) plus log-/CPU-flood op de ongeauthenticeerde endpoints. Repro: `POST /api/csp-report`
+  met wisselende `X-Forwarded-For: 1.2.3.<n>` → nooit 429. Gefixt: nieuwe pure helper
+  `src/lib/client-ip.ts` (`clientIpFrom`/`clientIpFromRequest`) neemt de door de vertrouwde proxy
+  toegevoegde **rechter** entry (`TRUSTED_PROXY_HOP_COUNT` hops vanaf rechts, default 1 voor Railway),
+  nooit de client-linkerkant; alle vier de call-sites gecentraliseerd. Test:
+  `src/lib/client-ip.test.ts` + de drie route-tests aangepast (rood→groen: leftmost-spoof verandert
+  het gekozen IP niet meer). **Escalatie (MENSENWERK §5):** de exacte hop-count hangt van de Railway-
+  edge af (append vs. overwrite); default 1 is correct voor één vertrouwde proxy en strikt veiliger
+  dan leftmost, maar bevestig de edge-config vóór go-live en stel zo nodig `TRUSTED_PROXY_HOP_COUNT` in.
+- **[HOOG→OPGELOST · AVG art. 17 (recht op wissen) — dispuutreden overleefde de anonimisering in de
+  event-store]** De vrije-tekst-dispuutreden staat in twee kopieën: `Collaboration.disputeReason`
+  (werd al gewist) én de `payload` van het `DISPUTE_OPENED`-domeinevent
+  (`{ reason }`, `src/lib/cascade/dispute-commands.ts:48`). `anonymizeUser` LAS de events al (om
+  `ownDisputeCollabIds` te bepalen) maar scrubde de payload zelf nooit → de reden (mogelijk medische/
+  persoonlijke details) bleef ná een verwijderverzoek onbeperkt en herleidbaar (`actorId` = de niet-
+  verwijderde `userId`) in `DomainEvent` staan. Repro: FREELANCER opent dispuut met vrije tekst →
+  vraagt art. 17-verwijdering → vóór de fix bleef de tekst in `domainEvent.payload`. Gefixt:
+  `prisma.domainEvent.updateMany({ where: { type: "DISPUTE_OPENED", actorId: userId }, data: { payload: "{}" } })`
+  toegevoegd aan de anonimiseringstransactie (spiegelt `DISPUTE_RESOLVED`, dat al `"{}"` schrijft).
+  Test: nieuwe case in `anonymize-erasure.test.ts` (updateMany aanwezig, where-scope + lege payload).
+- **[MIDDEL→OPGELOST · OWASP A01 / CWE-203 (observable discrepancy) — cross-tenant existence-oracle
+  in de onboarding-wizard]** `addAfdelingStep`/`removeAfdelingStep`
+  (`franchise/opdrachtgevers/nieuw/actions.ts`) laadden met kaal `findUnique` en riepen dáárna
+  `assertSameTenant` aan: een cross-tenant id gaf een **andere** melding ("Geen toegang tot deze
+  bemiddeling-resource.") dan een onbekend id ("Opdrachtgever niet gevonden."), en `removeAfdelingStep`
+  gooide zelfs een **ongevangen** `AuthorizationError` (crash) i.p.v. de stille no-op die het
+  zusterbestand `../actions.ts` gebruikt. Een FRANCHISER kon zo bestaan/eigendom van een id onder een
+  ándere franchise afleiden. Gefixt: `if (!entity || !ownsViaTenant(actor, entity.tenantId)) …` met
+  identieke melding/no-op voor beide gevallen (spiegelt `addDepartment`/`removeDepartment`). Test:
+  `nieuw/wizard-oracle.test.ts` (cross-tenant ≡ onbekend id; geen thrown 403).
+
+### GEPARKEERD (repro + severity + geschonden regel + aanbevolen fix)
+
+- **[MIDDEL · AVG art. 17 — `AuditLog.metadata.reason` (vrije tekst) niet gescrubd bij erasure]**
+  `scrubAuditMetadataPii` (`src/lib/account-anonymization.ts:52-58`) redact alleen velden die **exact**
+  gelijk zijn aan het e-mailadres/de naam; een vrije-tekst-`reason` (DISPUTE_OPENED, PERFORMANCE_REJECTED,
+  INVOICE_REJECTED/CREDITED — `src/lib/cascade/handlers.ts`, `dispute-commands.ts:78`) matcht nooit en
+  blijft staan op auditregels die aantoonbaar over de betrokkene gaan (`owned`). Fix: blank de bekende
+  vrije-tekstsleutel `reason` op owned-rijen (analoog aan de outright-null van `disputeReason`).
+- **[MIDDEL · AVG art. 15/17 — `Performance.rejectionReason` / `Invoice.rejectionReason` (eigen tekst)
+  niet gewist noch geëxporteerd]** De afkeur-/creditreden die de betrokkene als CLIENT/FREELANCER zelf
+  schreef (`src/lib/cascade/handlers.ts:217,372,506`) komt niet voor in `anonymizeUser` of
+  `account-export`. Fix: `updateMany` gescopet op de eigen partij (spiegel `Application.note` via
+  `collaboration.company.userId`), en velden toevoegen aan `buildAccountExport`.
+- **[MIDDEL · OWASP A01 / open redirect — `abonnement/actions.ts` bouwt payment-provider `returnUrl`/
+  `webhookUrl` uit request-`Origin`/`Host` i.p.v. `AUTH_URL`]** Na een echte betaling kan de browser
+  naar een aanvaller-domein worden geredirect (`${origin}/abonnement`). Fix: bouw de URLs uit
+  `AUTH_URL`/`NEXTAUTH_URL` (zoals `getPublicOrigin()` in de middleware), nooit uit request-headers.
+- **[LAAG · CWE-203 — zelfde existence-oracle-melding in `admin/shift-overnames/actions.ts:35`
+  (`loadDecidableHandoff`)]** Door FRANCHISER bereikbaar via de gedeelde shift-overname-forms; wél
+  gevangen (geen crash), alleen melding-onderscheidbaar. Fix: unificeer de melding met "niet gevonden".
+
 ## Ronde 2026-07-09 (basis: `main` @ b204e89)
 
 Audit: orchestrator (Opus 4.8) + 1 parallelle adversariële Opus security-subagent, gericht op de vérse
