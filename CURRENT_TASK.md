@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — zoekmachine-indexering afgeschermd (2026-07-09, PR #697)** —
+> dit login-gated platform met gevoelige documenten had geen site-brede afscherming tegen indexering
+> (geen robots.txt, geen X-Robots-Tag). Nu standaard privé, env-flag om bij go-live open te zetten.
+> Pure `src/lib/indexing.ts` (`isIndexingAllowed`/`robotsHeaderValue`/`buildRobotsRules`/
+> `NOINDEX_DIRECTIVE`, alleen `"true"` → aan; 15 tests) gevoed naar `src/app/robots.ts` (`force-dynamic`,
+> default `Disallow: /`) én een globale `X-Robots-Tag: noindex, nofollow` in `next.config.mjs`
+> (defense-in-depth). `ALLOW_INDEXING` in env-schema + `.env.example`; `/admin/systeemstatus`-item
+> (altijd ok, geen boot-waarschuwing — privé is de veilige default). `/robots.txt` valt buiten de
+> middleware-matcher (dot in het pad) → geen login-redirect voor crawlers. Geen schemawijziging. Gate
+> groen (3682 tests). MENSENWERK §0b + §7 bijgewerkt.
+>
 > Gedaan (niet opnieuw): **Agenda-verouderd signaal in de vindbaarheid-kaart (2026-07-09, PR #692)** —
 > sluit een inconsistentie: de Vindbaarheid-kaart toonde "Beschikbaarheid gedeeld ✓ / goed vindbaar" ook bij
 > een volledig verlopen agenda (alle vensters in het verleden; nog vindbaar via de scalar-fallback), terwijl

@@ -7,6 +7,7 @@
 // De boot-waarschuwingen (envWarnings) noemen env-VARIABELENAMEN, geen waarden.
 
 import { envWarnings, type Env } from "@/lib/env";
+import { isIndexingAllowed } from "@/lib/indexing";
 
 /** ok = productie-klaar; fallback = veilige, bewuste tussenstand; attention = actie vóór livegang. */
 export type StatusLevel = "ok" | "fallback" | "attention";
@@ -211,6 +212,17 @@ export function collectSystemStatus(env: Env): SystemStatus {
           detail: env.CRON_SECRET
             ? "CRON_SECRET gezet — /api/tasks/* draaien de geplande runners."
             : "CRON_SECRET ontbreekt — de taak-endpoints zijn uitgeschakeld (geplande runners draaien niet).",
+        },
+        {
+          key: "search-indexing",
+          label: "Zoekmachine-indexering",
+          mode: isIndexingAllowed(env.ALLOW_INDEXING) ? "geïndexeerd" : "afgeschermd",
+          // Beide toestanden zijn veilig: afgeschermd is de bewuste privé-default (besloten pilot),
+          // geïndexeerd de bewuste go-live-keuze. Geen "aandacht" — niets is misgeconfigureerd.
+          level: "ok",
+          detail: isIndexingAllowed(env.ALLOW_INDEXING)
+            ? "ALLOW_INDEXING=true — robots.txt staat crawlen toe, geen noindex-header (openbaar)."
+            : "robots.txt disallowt alles + X-Robots-Tag noindex (besloten). Zet ALLOW_INDEXING=true bij go-live.",
         },
       ],
     },
