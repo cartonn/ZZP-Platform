@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Verklaarbare reacties-lijst op de franchise-dienst (2026-07-09) — bemiddelaar/consistentie
+
+De bemiddelaar zag per reactie op `/franchise/diensten/[id]` alleen "Match N + compliance-badge +
+status" — géén match-troef/minpunt en géén tariefvoorstel, terwijl de opdrachtgever dat op
+`/kandidaten` én de bemiddelaar's eigen voordraag-lijst er direct boven wél tonen. Op precies de plek
+waar de bemiddelaar de opdrachtgever adviseert, was de reactie-triage het armst. Nu spiegelt de
+reacties-lijst de matchmotor: troef (`topPositiveReason`), minpunt met compliance-kloof eerst
+(`topGapReasonComplianceFirst`), tariefvoorstel + budget-fit (`classifyProposedRateFit`,
+binnen/onder/boven budget) en een "Beste match"-markering op de hoogst-scorende, nog niet aangenomen
+reactie (alleen bij ≥2 reacties). Server-side waarheid, geen nieuwe scoringslogica, geen extra query
+(alle bronvelden werden al geladen; `proposedRate` komt via de default-scalar-include mee).
+
+- **Bestanden:** `src/lib/franchise/dienst-detail.ts` (pure `buildDienstApplicant` + `DienstApplicant`
+  verrijkt met `topReason`/`topGap`/`proposedRate`/`rateFit`), `src/app/(protected)/franchise/
+diensten/[id]/page.tsx` (troef/minpunt + tarief-chip + beste-match-badge, spiegel van `voordragen.tsx`).
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test **3651** (5 nieuw: `dienst-detail.test.ts`) ✓,
+  prettier ✓, build ✓. E2e in CI. PR #694.
+
 ## Ontwerp-lab: +10 concepten, nrs 211–220 (2026-07-09) — galerij naar 220
 
 Reeks 22 toegevoegd aan het publieke design-lab `/ontwerp` (additief; niets overschreven). Tien nieuwe,

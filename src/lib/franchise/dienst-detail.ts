@@ -4,7 +4,16 @@
 
 import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
-import { scoreJobForFreelancer, computeCompliance, type ComplianceStatus } from "@/lib/matching";
+import {
+  scoreJobForFreelancer,
+  computeCompliance,
+  topPositiveReason,
+  topGapReasonComplianceFirst,
+  type ComplianceStatus,
+  type JobMatchSource,
+  type FreelancerMatchSource,
+} from "@/lib/matching";
+import { classifyProposedRateFit, type RateBudgetFit } from "@/lib/rate-fit";
 import { type CredentialType, type CredentialStatus } from "@/lib/enums";
 
 export interface DienstApplicant {
@@ -14,8 +23,64 @@ export interface DienstApplicant {
   name: string;
   headline: string | null;
   matchScore: number;
+  /** Sterkste positieve matchreden (troef), of `null`. */
+  topReason: string | null;
+  /** Grootste matchkloof (minpunt, compliance-kloof eerst), of `null`. */
+  topGap: string | null;
   complianceStatus: ComplianceStatus | null;
+  /** Door de ZZP'er voorgestelde uurtarief bij de reactie (cent-loos, hele euro's), of `null`. */
+  proposedRate: number | null;
+  /** Budgetpassendheid van dat voorstel t.o.v. het dienst-budget. */
+  rateFit: RateBudgetFit;
   hired: boolean;
+}
+
+/** Eén reactie (Application) op een dienst, met alles wat de matchmotor + compliance nodig hebben. */
+export interface DienstApplicationSource {
+  id: string;
+  status: string;
+  proposedRate: number | null;
+  freelancer: FreelancerMatchSource & { id: string; user: { name: string | null } };
+  collaboration: { id: string } | null;
+}
+
+/**
+ * Pure kern: map één reactie naar een `DienstApplicant` met server-berekende matchscore, troef,
+ * minpunt (compliance-kloof eerst) en tarief-fit. Dezelfde motor als de voordraag-lijst en
+ * `/kandidaten` — verklaarbaar, geen black box. Los van de DB-laag testbaar.
+ */
+export function buildDienstApplicant(
+  job: JobMatchSource & { rateMin: number | null; rateMax: number | null },
+  app: DienstApplicationSource,
+  requiredTypes: readonly CredentialType[],
+  now: Date = new Date(),
+): DienstApplicant {
+  const match = scoreJobForFreelancer(job, app.freelancer, now);
+  const complianceStatus =
+    requiredTypes.length > 0
+      ? computeCompliance(
+          requiredTypes,
+          app.freelancer.credentials.map((c) => ({
+            type: c.type as CredentialType,
+            status: c.status as CredentialStatus,
+            expiresAt: c.expiresAt ?? null,
+          })),
+        ).status
+      : null;
+  return {
+    applicationId: app.id,
+    status: app.status,
+    freelancerId: app.freelancer.id,
+    name: app.freelancer.user.name ?? "—",
+    headline: app.freelancer.headline ?? null,
+    matchScore: match.score,
+    topReason: topPositiveReason(match.reasons),
+    topGap: topGapReasonComplianceFirst(match.reasons),
+    complianceStatus,
+    proposedRate: app.proposedRate,
+    rateFit: classifyProposedRateFit(app.proposedRate, job.rateMin, job.rateMax),
+    hired: app.collaboration != null,
+  };
 }
 
 export interface DienstDetail {
@@ -78,30 +143,7 @@ export async function getDienstDetail(actor: Actor, jobId: string): Promise<Dien
     .map((r) => r.credentialType as CredentialType);
 
   const applicants: DienstApplicant[] = job.applications
-    .map((app) => {
-      const matchScore = scoreJobForFreelancer(job, app.freelancer).score;
-      const complianceStatus =
-        requiredTypes.length > 0
-          ? computeCompliance(
-              requiredTypes,
-              app.freelancer.credentials.map((c) => ({
-                type: c.type as CredentialType,
-                status: c.status as CredentialStatus,
-                expiresAt: c.expiresAt,
-              })),
-            ).status
-          : null;
-      return {
-        applicationId: app.id,
-        status: app.status,
-        freelancerId: app.freelancer.id,
-        name: app.freelancer.user.name ?? "—",
-        headline: app.freelancer.headline,
-        matchScore,
-        complianceStatus,
-        hired: app.collaboration != null,
-      };
-    })
+    .map((app) => buildDienstApplicant(job, app, requiredTypes))
     .sort((a, b) => b.matchScore - a.matchScore);
 
   return {
