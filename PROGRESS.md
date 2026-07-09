@@ -3,6 +3,20 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid: uitgaande HTTP-timeouts voor externe koppelingen (2026-07-09)
+
+Hardening (beschikbaarheid/resource-exhaustion; OWASP + Next.js prod-checklist). Alleen de
+verifier-helper (`http-verify.ts`) had een AbortController-timeout; de billing-/e-mail-/rate-limit-
+adapters deden een kale `fetch` zonder deadline — een trage/hangende externe endpoint (Mollie,
+Stripe, Resend, Upstash) hield de server-request dan onbeperkt open. Nieuwe gedeelde helper
+`src/lib/services/fetch-timeout.ts` (`fetchWithTimeout` + `resolveHttpTimeoutMs` + `HttpTimeoutError`,
+AbortController-gebaseerd, geklemd op [1s, 60s], default 10s; 5 tests) gewired in:
+`billing/provider.ts` (Mollie + Stripe, 4 calls, `BILLING_HTTP_TIMEOUT_MS`), `services/mail-sender.ts`
+(Resend, `EMAIL_HTTP_TIMEOUT_MS`), `rate-limit.ts` (Upstash, korte 2.5s default
+`RATE_LIMIT_HTTP_TIMEOUT_MS` — een timeout **fail-opent** via de bestaande catch zodat login/registratie
+niet blokkeert). Gedrag verder identiek (res.ok-checks/JSON/foutmeldingen ongewijzigd), inert zonder
+secrets, geen schemawijziging. Gate: typecheck ✓ lint ✓ prettier ✓ 3635 tests ✓ build ✓. PR #689.
+
 ## Security/privacy: `WorkExperience`-PII wissen bij anonimisering (2026-07-09) — AVG art. 17
 
 Delta-audit `fd8826e..b204e89` (#681–#687). De werkervaring-feature (#683) voegde `model WorkExperience`

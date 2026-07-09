@@ -272,6 +272,26 @@ describe("UpstashRateLimitStore", () => {
     expect(r.remaining).toBe(3);
   });
 
+  it("fail-open: staat het verzoek toe als de Upstash-fetch hangt (timeout)", async () => {
+    // Fetch die nooit oplost, maar op de timeout-abort reageert door te rejecten met een
+    // AbortError — precies zoals de global fetch bij een afgebroken request. fetchWithTimeout
+    // vertaalt dit naar een HttpTimeoutError, die in consume wordt afgevangen (fail-open).
+    const hangingFetch = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            const err = new Error("The operation was aborted.");
+            err.name = "AbortError";
+            reject(err);
+          });
+        }),
+    ) as unknown as typeof fetch;
+    // Korte timeout (20 ms) zodat de test snel afrondt.
+    const store = new UpstashRateLimitStore("https://x.upstash.io", "token", hangingFetch, 20);
+    const r = await store.consume("k", 5, 60_000, Date.now());
+    expect(r.allowed).toBe(true);
+  });
+
   it("reset stuurt een DEL voor de genamespacete key", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,

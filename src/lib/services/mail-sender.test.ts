@@ -3,8 +3,10 @@ import {
   getMailSender,
   isMailDeliveryConfigured,
   _resetMailSender,
+  ResendMailSender,
   type MailMessage,
 } from "./mail-sender";
+import { HttpTimeoutError } from "./fetch-timeout";
 
 const SMTP_VARS = [
   "EMAIL_SMTP_HOST",
@@ -178,6 +180,25 @@ describe("getMailSender", () => {
     process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
 
     await expect(getMailSender().send(msg)).rejects.toThrow("status 401");
+  });
+
+  it("ResendMailSender gooit HttpTimeoutError als de fetch blijft hangen", async () => {
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    // Fake fetch die nooit oplost, maar wél op abort reageert met een AbortError — zoals de
+    // echte fetch doet wanneer de AbortController van fetchWithTimeout de deadline afdwingt.
+    const hangingFetch = ((_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          const err = new Error("The operation was aborted.");
+          err.name = "AbortError";
+          reject(err);
+        });
+      })) as unknown as typeof fetch;
+
+    const sender = new ResendMailSender(hangingFetch, 20);
+    await expect(sender.send(msg)).rejects.toBeInstanceOf(HttpTimeoutError);
   });
 
   it("isMailDeliveryConfigured is true voor smtp en resend, false voor noop", () => {

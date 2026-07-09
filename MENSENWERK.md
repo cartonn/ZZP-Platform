@@ -110,6 +110,15 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   nu al via `npm audit` (de `audit`-poort); dependency-review is een extra laag (licenties +
   PR-diff) die je daarna kunt terugzetten als vereiste check.
 
+- **Uitgaande HTTP-timeouts voor externe koppelingen** (laag, code-kant GEDAAN 9-7-2026): elke
+  uitgaande call naar een externe dienst (Mollie/Stripe voor betalingen, Resend voor e-mail, Upstash
+  voor de gedeelde rate-limit) heeft nu een **harde time-out** (`src/lib/services/fetch-timeout.ts`),
+  net als de verificatie-koppelingen al hadden. Een trage of hangende externe endpoint blokkeert de
+  server-request dus niet meer onbeperkt (beschikbaarheid onder last). Defaults zijn veilig (10 s;
+  rate-limit 2,5 s en **fail-open** zodat login/registratie niet blokkeert bij een Redis-storing).
+  Resterend mensenwerk: **niets** — optioneel bij te stellen via `BILLING_HTTP_TIMEOUT_MS`,
+  `EMAIL_HTTP_TIMEOUT_MS`, `RATE_LIMIT_HTTP_TIMEOUT_MS` (ms, geklemd op 1000–60000).
+
 ## §1. Hosting, database, opslag, domein, geheimen
 
 **Wat:** de plek waar de website draait, waar gegevens worden bewaard en waar documenten veilig
