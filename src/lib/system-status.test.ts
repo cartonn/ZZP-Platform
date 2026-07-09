@@ -101,6 +101,42 @@ describe("collectSystemStatus — productie-fallbacks vragen aandacht", () => {
   });
 });
 
+describe("collectSystemStatus — zoekmachine-indexering", () => {
+  it("afgeschermd (default) = ok met privé-modus", () => {
+    const item = itemByKey(makeEnv(), "search-indexing");
+    expect(item.mode).toBe("afgeschermd");
+    expect(item.level).toBe("ok");
+  });
+  it("ALLOW_INDEXING=true = ok met geïndexeerd-modus", () => {
+    const item = itemByKey(makeEnv({ ALLOW_INDEXING: "true" }), "search-indexing");
+    expect(item.mode).toBe("geïndexeerd");
+    expect(item.level).toBe("ok");
+  });
+  it("voegt geen aandacht/fallback of boot-waarschuwing toe (privé is veilig)", () => {
+    // Volledig bekabelde productie zonder ALLOW_INDEXING mag géén aandacht/fallback/waarschuwing
+    // krijgen door dit item — privé indexeren is de bewuste, veilige pilot-default.
+    const wired = makeEnv({
+      STORAGE_DRIVER: "s3",
+      STORAGE_S3_SSE: "AES256",
+      EMAIL_DRIVER: "resend",
+      BILLING_PROVIDER: "stripe",
+      UPLOAD_SCANNER: "clamav",
+      RATE_LIMIT_STORE: "upstash",
+      SENTRY_DSN: "https://x@sentry.io/1",
+      CRON_SECRET: "s".repeat(20),
+      SHARE_TOKEN_SECRET: "s".repeat(20),
+      AUTH_URL: "https://app.example.nl",
+      DIPLOMA_VERIFIER: "duo",
+      BIG_VERIFIER: "bigregister",
+      IDENTITY_VERIFIER: "idin",
+    });
+    const status = collectSystemStatus(wired);
+    expect(status.counts.attention).toBe(0);
+    expect(status.counts.fallback).toBe(0);
+    expect(status.warnings).toEqual([]);
+  });
+});
+
 describe("collectSystemStatus — buiten productie zijn fallbacks slechts informatief", () => {
   const env = makeEnv({ NODE_ENV: "development", DATABASE_URL: "file:./dev.db" });
 

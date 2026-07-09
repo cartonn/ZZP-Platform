@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid (2026-07-09) — zoekmachine-indexering afgeschermd (robots + X-Robots-Tag)
+
+Dit login-gated platform met gevoelige documenten (VOG/diploma's/ID) had nog geen site-brede
+afscherming tegen zoekmachine-indexering — een besloten pilot hoort niet in Google. Nu standaard
+afgeschermd, met env-flag om bij go-live open te zetten (`ALLOW_INDEXING=true`).
+
+- **Pure bron van waarheid** `src/lib/indexing.ts`: `isIndexingAllowed` (alleen `"true"` → aan,
+  hoofdlettergevoelig zodat niets per ongeluk opent), `robotsHeaderValue`, `buildRobotsRules`,
+  `NOINDEX_DIRECTIVE`. 15 tests.
+- **Twee lagen:** `src/app/robots.ts` (`force-dynamic` /robots.txt: default `Disallow: /`, bij flag
+  `Allow: /`) én een globale `X-Robots-Tag: noindex, nofollow` op alle responses via `next.config.mjs`
+  (defense-in-depth: ook een gelekte URL draagt noindex). Beide vervallen bij `ALLOW_INDEXING=true`.
+- **Env + status:** `ALLOW_INDEXING` in het env-schema (`src/lib/env.ts`) + `.env.example`; een
+  "Zoekmachine-indexering"-item op `/admin/systeemstatus` (altijd `ok`; privé is de veilige default,
+  geen boot-waarschuwing). Geen schemawijziging, inert-veilige default. Gate groen.
+
 ## Security-/privacy-audit run (2026-07-09, 2e) — 3 gaten gedicht (KRITIEK/HOOG/MIDDEL)
 
 Adversariële audit (orchestrator Opus 4.8 + 3 parallelle Opus-subagents op niet-overlappende

@@ -104,6 +104,10 @@ const schema = z
     ALLOW_MOCK_VERIFICATION: z.string().optional(),
     // Demo-dataset-vlag (prisma/seed.ts). In productie mét demo-data mag de mock-verifier draaien.
     SEED_DEMO: z.string().optional(),
+    // Zoekmachine-indexering. Standaard afgeschermd (besloten pilot; login-gated dienst met
+    // gevoelige documenten): /robots.txt disallowt alles + globale X-Robots-Tag noindex. Zet op
+    // "true" om bij go-live te indexeren. Zie src/lib/indexing.ts.
+    ALLOW_INDEXING: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     const require = (cond: boolean, path: string, message: string) => {
