@@ -667,6 +667,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "220": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-220-snoep").then((m) => m.Concept220),
   ),
+  "221": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-221-duplex").then((m) => m.Concept221),
+  ),
+  "222": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-222-grafiet").then((m) => m.Concept222),
+  ),
+  "223": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-223-kwarts").then((m) => m.Concept223),
+  ),
+  "224": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-224-veer").then((m) => m.Concept224),
+  ),
+  "225": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-225-anker").then((m) => m.Concept225),
+  ),
+  "226": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-226-etage").then((m) => m.Concept226),
+  ),
+  "227": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-227-kompres").then((m) => m.Concept227),
+  ),
+  "228": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-228-saffier").then((m) => m.Concept228),
+  ),
+  "229": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-229-vonk").then((m) => m.Concept229),
+  ),
+  "230": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-230-horizon").then((m) => m.Concept230),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

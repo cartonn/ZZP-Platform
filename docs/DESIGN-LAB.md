@@ -568,4 +568,28 @@ UI-taal = Nederlands.
   color-blocking, tactiele press-states); **premium product-dark met hairline-glow & keyboard-first
   ⌘K**; en **warm human-centered + tasteful-playful maximalism** (gastvrije warmte, candy-kleur met
   behoud van contrast) — elk onderscheidend gehouden van de bestaande 210.
-- **Totaal nu op `/ontwerp`: 220 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220).
+- **Reeks 23 (run 9-7-2026, nrs 221–230):** Duplex (duotoon split-screen editorial: dramatische
+  asymmetrische split met harde verticale scheidslijn, oversized display-typografie, twee basiskleuren +
+  één vermiljoen-accent — bold-duotone, niet Folio/Redactie) · Grafiet (monochroom tactiel-mat: potlood-
+  op-papier met deterministische SVG-arcering, warme grijsschaal, exact één oker/roest-accent —
+  monochrome-refinement, niet Krijt/Schetsboek) · Kwarts (kristallijn frosted glas: koele translucente
+  backdrop-blur-panelen, gefacetteerde clip-path-randen, ijsblauw/lila hoek-refractie, gestapelde glaslagen —
+  spatial-translucency-2.0, mineraal i.p.v. Glas/Vloeiglas) · Veer (ultralicht & luchtig: veel witruimte,
+  zwevende kaarten met diffuse schaduw, spring-easing lift op hover — airy/gewichtloos, niet Puur/Ruimte) ·
+  Anker (maritiem-industrieel solide: diep staalblauw + koper-accent, robuuste randen, touw-/ketting-SVG —
+  industrial-trust, niet Beton/Karbon) · Etage (gelaagde z-depth stacking: verdiepingen-metafoor, dubbele
+  offset-schaduwlagen, zichtbare stapelblokjes — layered-depth, niet Relief/Isometrie) · Kompres (hyperdense
+  keyboard-first command-center: mono-grid, ⌘K-palette, sneltoets-chips, tabulaire operator-view — dense-
+  keyboard-first, niet Beurs/Console) · Saffier (juweel premium-dark: diep saffierblauw + goud-champagne,
+  edelsteen-facet-glans, serif-koppen — jewel-tone-luxe, niet Middernacht/Zilver) · Vonk (energiek elektrisch:
+  antraciet met fel volt-lime accent, gloed-op-focus, voltmeter-boog + energiebalken — motion-forward, niet
+  Neonzon/Puls) · Horizon (ultra-wide panoramisch cinematisch: horizontale ritmiek, full-bleed dageraad-
+  gradient met horizon-lijn, opkomende-zon-match-boog — panoramic-calm, niet Panorama/Zwerk).
+- Onderzochte 2026-trends deze reeks: **bold-duotone split-screen editorial** & **monochrome-refinement met
+  tactiele textuur**; **spatial-translucency 2.0** (frosted glas met facet-randen en lichtbreking);
+  **airy/weightless whitespace met spring-motion**; **industrial-solid trust-materialen** (navy + koper,
+  degelijk vakwerk); **z-depth/layered-stacking** als navigatie-metafoor; **hyperdense keyboard-first
+  command-centers** (⌘K, mono-grid); **jewel-tone premium-dark** (saffier + goud); **electric motion-forward
+  met glow-on-focus**; en **ultra-wide panoramic/cinematic-calm** (horizon-ritmiek, dageraad-gradient) — elk
+  onderscheidend gehouden van de bestaande 220.
+- **Totaal nu op `/ontwerp`: 230 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220, reeks 23: 221–230).
