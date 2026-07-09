@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## "Samenwerking loopt af" — vervolgsignaal voor beide partijen (2026-07-09) — continuïteit/liquiditeit
+
+Een rustige, adviserende nudge op de samenwerking-detailpagina (`/samenwerkingen/[id]`) die beide
+partijen op tijd op een **naderende (of verstreken) einddatum** van een lopende inzet wijst, zodat ze
+een vervolg kunnen plannen. Vertaalt de "verleng je serie"-liquiditeit van Temper/Pidz naar onze
+rollen: de opdrachtgever raakt een goede ZZP'er niet ongemerkt kwijt, de ZZP'er lijnt de volgende
+opdracht op tijd op. Rolafhankelijke actie: de opdrachtgever plaatst een **vervolgopdracht**
+(voorgevuld vanuit deze opdracht, `/opdrachten/nieuw?from=<jobId>`), de ZZP'er wordt naar
+**/beschikbaarheid** geleid om zijn agenda actueel te houden. Puur advies — geen blokkade, geen
+statuswijziging.
+
+- **Pure lib** `src/lib/collaboration-renewal.ts`: `summarizeCollaborationRenewal({status, endDate,
+disputed, now, windowDays})` → `{phase: none|on_track|ending_soon|overdue, daysRemaining, attention}`.
+  Alleen ACTIVE + niet-bevroren + met einddatum telt; `RENEWAL_WINDOW_DAYS = 21` (grens inclusief),
+  verstreken datum op een nog-actieve inzet = `overdue`. Dagen in hele UTC-dagen (TZ-robuust, hergebruikt
+  `startOfUtcDay`). `renewalHeadline(phase, daysRemaining)` voor de kop (vandaag/morgen/N dagen). 11 tests.
+- **Component** `src/components/collaborations/renewal-nudge.tsx` (`RenewalNudge`): presentationeel,
+  rendert alleen bij `ending_soon`/`overdue`, rolafhankelijke tekst + deeplink; `overdue` in warning-toon.
+- **Wiring** `samenwerkingen/[id]/page.tsx`: `col.endDate` was al geladen (findUnique), enkel voor de
+  betrokken partijen (`isParticipant`), niet bij een dispuut. Geen schemawijziging, geen extra query.
+- **Seed**: `endInDays` op de scenario-spec → `collab-1` (Sanne↔Jansen, loopt over 10 dagen af) en de
+  Rik-inzet (14 dagen) tonen de nudge in de demo.
+
+DoD groen: typecheck, lint, **3624 unit-tests** (11 nieuw), prettier, build.
+
 ## Wettelijke-factuureisen-check voor de ZZP'er (2026-07-08) — administratie-ontzorging
 
 De factuurdetailpagina (`/facturen/[id]`) toont de ZZP'er (crediteur) nu of zijn factuur voldoet aan

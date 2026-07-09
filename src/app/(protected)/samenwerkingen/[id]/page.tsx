@@ -27,6 +27,8 @@ import { parseOrtSegments } from "@/lib/ort";
 import { ORT_SECTORS, ORT_SECTOR_LABEL, reviewBlindDays } from "@/lib/config";
 import { buildChainSteps } from "@/lib/cascade/chain-steps";
 import { collaborationStatusLine } from "@/lib/collaboration-status-line";
+import { summarizeCollaborationRenewal } from "@/lib/collaboration-renewal";
+import { RenewalNudge } from "@/components/collaborations/renewal-nudge";
 import { isPerformanceNewerThanInvoice } from "@/lib/cascade/stage";
 import { CascadeStepper } from "@/components/ui/cascade-stepper";
 import { TurnBanner } from "@/components/ui/turn-banner";
@@ -309,6 +311,17 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
       })
     : null;
 
+  // Vervolgsignaal: nadert (of passeerde) de einddatum van een lopende inzet? Wijs beide partijen
+  // erop zodat ze tijdig een vervolg plannen. Alleen voor de betrokken partijen, niet bij een dispuut.
+  const renewal =
+    isParticipant && col.endDate
+      ? summarizeCollaborationRenewal({
+          status: col.status,
+          endDate: col.endDate,
+          disputed: frozen,
+        })
+      : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -369,6 +382,18 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
         >
           {statusLine.text}
         </div>
+      )}
+
+      {/* Vervolgsignaal: einddatum nadert/verstreken → plan een vervolg (rolafhankelijke actie). */}
+      {renewal && renewal.attention && col.endDate && (
+        <RenewalNudge
+          phase={renewal.phase}
+          daysRemaining={renewal.daysRemaining}
+          endDate={col.endDate}
+          viewer={isClient ? "CLIENT" : "FREELANCER"}
+          jobId={col.job.id}
+          counterparty={counterparty}
+        />
       )}
 
       {/* Annuleringsregistratie: wie, wanneer, waarom — en of de 7-dagen-kostenregel geldt. */}

@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **"Samenwerking loopt af" — vervolgsignaal voor beide partijen (2026-07-09)**
+> — nudge op `/samenwerkingen/[id]` die beide partijen op tijd op een naderende/verstreken einddatum van
+> een lopende inzet wijst zodat ze een vervolg plannen (Temper/Pidz "verleng je serie"). Rolafhankelijke
+> actie: opdrachtgever → vervolgopdracht (`/opdrachten/nieuw?from=<jobId>`), ZZP'er → `/beschikbaarheid`.
+> Puur `src/lib/collaboration-renewal.ts` `summarizeCollaborationRenewal` (fase none/on_track/ending_soon/
+> overdue, `RENEWAL_WINDOW_DAYS=21`, alleen ACTIVE + niet-bevroren + met einddatum, hele UTC-dagen; 11 tests)
+>
+> - presentationele `RenewalNudge`. `col.endDate` was al geladen (geen extra query), geen schemawijziging;
+>   alleen betrokken partijen, niet bij dispuut. Seed: `endInDays` op collab-1 (10d) + Rik (14d). Gate groen.
+>
 > Gedaan (niet opnieuw): **Wettelijke-factuureisen-check voor de ZZP'er (2026-07-08)** — de
 > factuurdetail (`/facturen/[id]`) toont de crediteur of zijn factuur voldoet aan de wettelijke
 > factuureisen (art. 35a Wet OB) en wat er ontbreekt, met een gerichte fix (typisch btw-id/KvK op het

@@ -1,0 +1,108 @@
+import { describe, expect, it } from "vitest";
+import {
+  RENEWAL_WINDOW_DAYS,
+  renewalHeadline,
+  summarizeCollaborationRenewal,
+} from "./collaboration-renewal";
+
+const NOW = new Date("2026-07-09T12:00:00.000Z");
+
+function endInDays(days: number): Date {
+  return new Date(NOW.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+describe("summarizeCollaborationRenewal", () => {
+  it("geeft geen signaal zonder einddatum", () => {
+    const r = summarizeCollaborationRenewal({ status: "ACTIVE", endDate: null, now: NOW });
+    expect(r).toEqual({ phase: "none", daysRemaining: null, attention: false });
+  });
+
+  it("geeft geen signaal voor een niet-actieve samenwerking", () => {
+    for (const status of ["PROPOSED", "COMPLETED", "CANCELLED"]) {
+      const r = summarizeCollaborationRenewal({ status, endDate: endInDays(5), now: NOW });
+      expect(r.phase).toBe("none");
+      expect(r.attention).toBe(false);
+    }
+  });
+
+  it("geeft geen signaal bij een lopend dispuut (cascade bevroren)", () => {
+    const r = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: endInDays(5),
+      disputed: true,
+      now: NOW,
+    });
+    expect(r.phase).toBe("none");
+  });
+
+  it("markeert een einddatum ver weg als on_track (geen aandacht)", () => {
+    const r = summarizeCollaborationRenewal({ status: "ACTIVE", endDate: endInDays(60), now: NOW });
+    expect(r.phase).toBe("on_track");
+    expect(r.attention).toBe(false);
+    expect(r.daysRemaining).toBe(60);
+  });
+
+  it("markeert binnen het venster als ending_soon", () => {
+    const r = summarizeCollaborationRenewal({ status: "ACTIVE", endDate: endInDays(10), now: NOW });
+    expect(r.phase).toBe("ending_soon");
+    expect(r.attention).toBe(true);
+    expect(r.daysRemaining).toBe(10);
+  });
+
+  it("de venstergrens (precies RENEWAL_WINDOW_DAYS) telt nog als ending_soon", () => {
+    const r = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: endInDays(RENEWAL_WINDOW_DAYS),
+      now: NOW,
+    });
+    expect(r.phase).toBe("ending_soon");
+  });
+
+  it("net buiten het venster is on_track", () => {
+    const r = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: endInDays(RENEWAL_WINDOW_DAYS + 1),
+      now: NOW,
+    });
+    expect(r.phase).toBe("on_track");
+    expect(r.attention).toBe(false);
+  });
+
+  it("een verstreken einddatum op een nog-actieve inzet is overdue", () => {
+    const r = summarizeCollaborationRenewal({ status: "ACTIVE", endDate: endInDays(-3), now: NOW });
+    expect(r.phase).toBe("overdue");
+    expect(r.attention).toBe(true);
+    expect(r.daysRemaining).toBe(-3);
+  });
+
+  it("respecteert een eigen venster", () => {
+    const r = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: endInDays(5),
+      windowDays: 3,
+      now: NOW,
+    });
+    expect(r.phase).toBe("on_track");
+  });
+
+  it("rekent in hele UTC-dagen, ongevoelig voor het tijdstip binnen de dag", () => {
+    // Einddatum eind van vandaag, now vroeg op de dag → 0 dagen resterend, ending_soon.
+    const r = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: new Date("2026-07-09T23:00:00.000Z"),
+      now: new Date("2026-07-09T01:00:00.000Z"),
+    });
+    expect(r.daysRemaining).toBe(0);
+    expect(r.phase).toBe("ending_soon");
+  });
+});
+
+describe("renewalHeadline", () => {
+  it("varieert per fase en resterende dagen", () => {
+    expect(renewalHeadline("overdue", -2)).toMatch(/voorbij de einddatum/i);
+    expect(renewalHeadline("ending_soon", 0)).toMatch(/vandaag/i);
+    expect(renewalHeadline("ending_soon", 1)).toMatch(/morgen/i);
+    expect(renewalHeadline("ending_soon", 7)).toMatch(/7 dagen/);
+    expect(renewalHeadline("on_track", 40)).toMatch(/loopt nog/i);
+  });
+});

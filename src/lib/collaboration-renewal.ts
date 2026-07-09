@@ -1,0 +1,74 @@
+// Vervolgsignaal — wijst beide partijen op een naderende einddatum van een lopende
+// samenwerking, zodat ze tijdig een vervolg plannen (Temper/Pidz: "verleng je serie";
+// de opdrachtgever raakt een goede ZZP'er niet kwijt, de ZZP'er lijnt de volgende opdracht
+// op tijd op). Puur en deterministisch; de server bepaalt de fase, de UI toont alleen.
+import { startOfUtcDay } from "./signals";
+
+export type CollaborationRenewalPhase = "none" | "on_track" | "ending_soon" | "overdue";
+
+export interface CollaborationRenewalInput {
+  /** CollaborationStatus — alleen een ACTIVE inzet vraagt om vervolgplanning. */
+  status: string;
+  /** Einddatum van de samenwerking; null = open einde, geen signaal. */
+  endDate: Date | null;
+  /** Bevroren door een dispuut → geen vervolg-nudge tot dat is opgelost. */
+  disputed?: boolean;
+  now?: Date;
+  /** Aantal dagen vóór de einddatum waarbinnen we waarschuwen (default 21). */
+  windowDays?: number;
+}
+
+export interface CollaborationRenewalSummary {
+  phase: CollaborationRenewalPhase;
+  /** Hele dagen tot de einddatum (UTC-dag), negatief als de datum verstreken is; null bij geen datum. */
+  daysRemaining: number | null;
+  /** ending_soon of overdue → toon de nudge. */
+  attention: boolean;
+}
+
+/** Standaard-venster: binnen drie weken vóór het einde gaan we plannen. */
+export const RENEWAL_WINDOW_DAYS = 21;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** Hele kalenderdagen tussen twee momenten (UTC-dag, TZ-robuust). */
+function wholeDaysBetween(from: Date, to: Date): number {
+  return Math.round((startOfUtcDay(to).getTime() - startOfUtcDay(from).getTime()) / MS_PER_DAY);
+}
+
+export function summarizeCollaborationRenewal(
+  input: CollaborationRenewalInput,
+): CollaborationRenewalSummary {
+  const { status, endDate, disputed = false } = input;
+  const now = input.now ?? new Date();
+  const windowDays = input.windowDays ?? RENEWAL_WINDOW_DAYS;
+
+  const none: CollaborationRenewalSummary = {
+    phase: "none",
+    daysRemaining: null,
+    attention: false,
+  };
+
+  // Alleen lopende, niet-bevroren inzet met een concrete einddatum.
+  if (status !== "ACTIVE" || disputed || !endDate) return none;
+
+  const daysRemaining = wholeDaysBetween(now, endDate);
+
+  if (daysRemaining < 0) return { phase: "overdue", daysRemaining, attention: true };
+  if (daysRemaining <= windowDays) return { phase: "ending_soon", daysRemaining, attention: true };
+  return { phase: "on_track", daysRemaining, attention: false };
+}
+
+/** Compacte, rustige kop per fase/rol — de nudge zelf blijft advies, geen blokkade. */
+export function renewalHeadline(
+  phase: CollaborationRenewalPhase,
+  daysRemaining: number | null,
+): string {
+  if (phase === "overdue") return "Deze samenwerking is voorbij de einddatum";
+  if (phase === "ending_soon") {
+    if (daysRemaining === 0) return "Deze samenwerking loopt vandaag af";
+    if (daysRemaining === 1) return "Deze samenwerking loopt morgen af";
+    return `Deze samenwerking loopt over ${daysRemaining} dagen af`;
+  }
+  return "Deze samenwerking loopt nog";
+}
