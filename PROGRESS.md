@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Reputatie-rating (beoordelingen) op de kandidatenkaart (2026-07-09)
+
+De opdrachtgever ziet op `/kandidaten` — het beslismoment — nu de gemiddelde beoordeling (sterren +
+aantal) die andere opdrachtgevers over een reagerende ZZP'er achterlieten na een afgeronde
+samenwerking. Dit is hét marktplaats-vertrouwenssignaal (Temper/Malt/Upwork tonen het op de
+kandidaatkaart); wij hadden het al op het publieke profiel maar niet waar de opdrachtgever kiest.
+
+- **Server-side waarheid, geen lek:** alleen **PUBLISHED** beoordelingen in de richting
+  **CLIENT_ON_FREELANCER** tellen mee — een nog-blinde (PENDING_REVEAL) beoordeling blijft
+  onzichtbaar tot de simultane onthulling (double-blind reveal). Spiegelt exact de publieke
+  reputatie-query van het profielscherm.
+- **Bestanden:** `src/lib/candidate-reviews.ts` (pure `groupCandidateRatings` → aggregeert per
+  beoordeelde user-id, hergebruikt de al-geteste `aggregateReviews`; kandidaten zonder gepubliceerde
+  beoordeling ontbreken bewust in de Map — nieuwkomer leunt op vertrouwensniveau, geen "0,0 (0)");
+  `src/lib/data/candidate-reviews.ts` (gebatchte `getReviewRatingsForCandidates`, één query, `take`-
+  begrensd, geen N+1); `src/app/(protected)/kandidaten/page.tsx` (fetch in de bestaande `Promise.all`,
+  `user.id` aan de select toegevoegd, `RatingStars` in de badge-rij naast "Eerder samengewerkt" en
+  het vertrouwensniveau).
+- **Tests:** `candidate-reviews.test.ts` (5 cases: aggregatie/gemiddelde, weglaten zonder
+  beoordeling, scope-lek-guard, out-of-range → count 0, lege invoer). Gate groen: typecheck, lint,
+  **3699 unit-tests**, build, prettier. Geen schemawijziging, geen extra los query-rondje.
+
 ## Ontwerp-lab reeks 23 — +10 concepten (nrs 221–230) (2026-07-09)
 
 Additieve uitbreiding van het design-lab op `/ontwerp`: 10 nieuwe, onderling en t.o.v. de bestaande

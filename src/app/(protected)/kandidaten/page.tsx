@@ -48,8 +48,10 @@ import { ApplicationStatusBadge } from "@/components/applications/application-st
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { DeliveryQualityBlock } from "@/components/freelancer/delivery-quality-block";
 import { CandidateHistoryBadge } from "@/components/freelancer/candidate-history-badge";
+import { RatingStars } from "@/components/reviews/rating-stars";
 import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-quality";
 import { getSharedHistoryForCandidates } from "@/lib/data/candidate-history";
+import { getReviewRatingsForCandidates } from "@/lib/data/candidate-reviews";
 import { changeApplicationStatus } from "./actions";
 import { ApplicationNoteForm } from "./application-note-form";
 import { RejectApplicationDialog } from "./reject-application-dialog";
@@ -144,7 +146,7 @@ export default async function KandidatenPage({
           location: true,
           maxTravelMinutes: true,
           availability: true,
-          user: { select: { name: true, identityVerifiedAt: true } },
+          user: { select: { id: true, name: true, identityVerifiedAt: true } },
           skills: { select: { skillId: true } },
           industries: { select: { industryId: true } },
           availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
@@ -158,11 +160,15 @@ export default async function KandidatenPage({
   // Leverbetrouwbaarheid per kandidaat: spiegel van de opdrachtgever-signalen die de ZZP'er op de
   // opdracht ziet. Eén gebatchte fetch over alle reagerende profielen (geen N+1).
   const profileIds = applications.map((a) => a.freelancer.id);
-  const [deliveryByProfile, historyByProfile] = await Promise.all([
+  // Reputatie-rating: gemiddelde opdrachtgever-beoordeling per ZZP'er (op user-id, want een Review
+  // hangt aan de gebruiker, niet aan het profiel). Alleen PUBLISHED CLIENT_ON_FREELANCER.
+  const freelancerUserIds = applications.map((a) => a.freelancer.user.id);
+  const [deliveryByProfile, historyByProfile, ratingByUser] = await Promise.all([
     getDeliveryQualityForProfiles(profileIds),
     // "Eerder samengewerkt": afgeronde samenwerkingen tussen déze opdrachtgever en de kandidaat —
     // een sterk vertrouwenssignaal bij de beslissing. Per opdrachtgever gescoopt, geen N+1.
     getSharedHistoryForCandidates(actor.id, profileIds),
+    getReviewRatingsForCandidates(freelancerUserIds),
   ]);
 
   // Werkstroom-volgorde: NEW → VIEWED → SHORTLIST → REJECTED → ACCEPTED (actie-vragend eerst,
@@ -462,6 +468,18 @@ export default async function KandidatenPage({
                             <CandidateHistoryBadge
                               history={historyByProfile.get(app.freelancer.id)}
                             />
+                            {(() => {
+                              // Reputatie: gemiddelde opdrachtgever-beoordeling. Alleen tonen bij ≥1
+                              // gepubliceerde beoordeling — anders draagt het vertrouwensniveau.
+                              const rating = ratingByUser.get(app.freelancer.user.id);
+                              return rating ? (
+                                <RatingStars
+                                  average={rating.average}
+                                  count={rating.count}
+                                  showValue
+                                />
+                              ) : null;
+                            })()}
                             <TrustBadge level={trust.level} />
                           </span>
                         </div>

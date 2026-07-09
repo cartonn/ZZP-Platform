@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Reputatie-rating (beoordelingen) op de kandidatenkaart (2026-07-09, PR #700)** —
+> de opdrachtgever ziet op `/kandidaten` (beslismoment) de gemiddelde opdrachtgever-beoordeling (sterren
+>
+> - aantal) van een reagerende ZZP'er — hét marktplaats-vertrouwenssignaal (Temper/Malt/Upwork), dat we
+>   al op het profiel hadden maar niet waar de opdrachtgever kiest. Alleen PUBLISHED CLIENT_ON_FREELANCER
+>   (double-blind reveal gerespecteerd). Pure `candidate-reviews.ts` `groupCandidateRatings` (hergebruikt
+>   `aggregateReviews`, kandidaat zonder beoordeling ontbreekt bewust), gebatchte `data/candidate-reviews.ts`
+>   (`getReviewRatingsForCandidates`, geen N+1, `take`-begrensd), `RatingStars` in de badge-rij. 5 tests,
+>   gate groen (3699). Geen schemawijziging.
+>
 > Gedaan (niet opnieuw): **Certificaat-verval-tijdens-opdracht signaal op /kandidaten (2026-07-09, PR #698)** —
 > `computeCompliance` oordeelt op `now`; een vereist certificaat dat nu geldig is maar vóór/kort na de
 > opdracht-**startdatum** verloopt, toonde als COMPLIANT terwijl de kandidaat bij aanvang niet compliant is.
