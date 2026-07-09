@@ -55,6 +55,7 @@ vi.mock("@/lib/db", () => ({
     shiftHandoff: { updateMany: op("shiftHandoff.updateMany") },
     leadContact: { updateMany: op("leadContact.updateMany") },
     availabilityWindow: { updateMany: op("availabilityWindow.updateMany") },
+    workExperience: { deleteMany: op("workExperience.deleteMany") },
     indirectHoursEntry: { updateMany: op("indirectHoursEntry.updateMany") },
     idea: { updateMany: op("idea.updateMany") },
     collaboration: { updateMany: op("collaboration.updateMany") },
@@ -278,6 +279,14 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ company: { userId: "user-42" } });
     expect((o.args.data as { note: string | null }).note).toBeNull();
+  });
+
+  it("verwijdert de zelf-gerapporteerde werkervaring (WorkExperience — vrije-tekst-PII op het profiel)", async () => {
+    await anonymizeUser("user-42");
+    const o = find("workExperience.deleteMany") as { args: { where: unknown } };
+    expect(o).toBeDefined();
+    // Gescopet op het eigen profiel (freelancerProfile.userId), nooit dat van een ander.
+    expect(o.args.where).toEqual({ freelancerProfile: { userId: "user-42" } });
   });
 
   it("verwijdert push-abonnementen (PushSubscription — toestel-identifier)", async () => {

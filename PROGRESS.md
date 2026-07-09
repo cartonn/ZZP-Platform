@@ -3,6 +3,20 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/privacy: `WorkExperience`-PII wissen bij anonimisering (2026-07-09) — AVG art. 17
+
+Delta-audit `fd8826e..b204e89` (#681–#687). De werkervaring-feature (#683) voegde `model WorkExperience`
+toe met zelf-gerapporteerde vrije tekst (rol/organisatie/omschrijving) op het publieke ZZP-profiel, maar
+`anonymizeUser` wiste die rijen niet: het profiel wordt geüpdatet (niet verwijderd), dus de
+`onDelete:Cascade` vuurde niet → PII overleefde het recht-op-verwijdering-verzoek. Gefixt met
+`workExperience.deleteMany({ where: { freelancerProfile: { userId } } })` in de anonimiseringstransactie
+(spiegelt `credential`/`document.deleteMany`; volledige rij = eigen PII zonder bewaargrond). Nieuwe
+rood→groen-test in `anonymize-erasure.test.ts`. Rest van de delta (invoice-legal, collaboration-renewal,
+systeemstatus-scherm — geen sleutelwaarden naar de client, 20 ontwerpconcepten) door een adversariële
+subagent + grep schoon bevonden. Zie `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-07-09).
+
+DoD groen: typecheck, lint, **3625 unit-tests** (1 nieuw), prettier (hele repo), build.
+
 ## "Samenwerking loopt af" — vervolgsignaal voor beide partijen (2026-07-09) — continuïteit/liquiditeit
 
 Een rustige, adviserende nudge op de samenwerking-detailpagina (`/samenwerkingen/[id]`) die beide

@@ -239,6 +239,13 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { freelancerProfile: { userId } },
       data: { note: null },
     }),
+    // Werkervaring: rol/organisatie/omschrijving zijn zelf-gerapporteerde vrije tekst die de
+    // betrokkene op zijn (publieke) profiel toonde — kan namen/opdrachtgevers/identificerende
+    // details bevatten. FreelancerProfile wordt geüpdatet (niet verwijderd), dus de
+    // onDelete:Cascade op WorkExperience vuurt niet → expliciet verwijderen. De hele rij is PII van
+    // de betrokkene zonder operationele/fiscale bewaargrond (anders dan Invoice/Expense), dus
+    // volledig wissen (spiegel credential/document.deleteMany), niet redacten.
+    prisma.workExperience.deleteMany({ where: { freelancerProfile: { userId } } }),
     // Indirecte-uren-notities (urencriterium): vrije tekst die de betrokkene zelf schreef en
     // namen/details kan bevatten. De urenadministratie blijft staan (fiscale grond), maar de noot wist.
     prisma.indirectHoursEntry.updateMany({
