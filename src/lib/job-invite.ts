@@ -43,6 +43,57 @@ export function assessInviteEligibility(input: InviteEligibilityInput): InviteEl
   return { ok: true };
 }
 
+/**
+ * Bovengrens op één bulk-uitnodiging vanaf de "Geschikte ZZP'ers"-lijst. De lijst zelf is al
+ * begrensd (`suggestedFreelancersForJob`, default 4), maar deze cap is een expliciete tweede rem
+ * tegen massa-notificaties — onafhankelijk van de UI-limiet en van de per-uur-rate-limiter.
+ */
+export const MAX_BULK_JOB_INVITES = 10;
+
+/**
+ * Plant een bulk-uitnodiging: uit de gesuggereerde, server-side reeds geschikte ZZP'ers (openbaar,
+ * tenant-gescoopt, gepubliceerde opdracht, nog niet gereageerd — de suggestiebron garandeert dat)
+ * houdt dit de kandidaten over die nog niet zijn uitgenodigd. Ontdubbelt op id, behoudt de
+ * suggestievolgorde (hoogste match eerst) en begrenst op `cap`. Deterministisch, testbaar zonder DB.
+ */
+export function planBulkJobInvites(
+  candidateIds: readonly string[],
+  alreadyInvitedIds: ReadonlySet<string>,
+  cap: number = MAX_BULK_JOB_INVITES,
+): string[] {
+  if (cap <= 0) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of candidateIds) {
+    if (alreadyInvitedIds.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    if (out.length >= cap) break;
+  }
+  return out;
+}
+
+/**
+ * Leidt de reeds uitgenodigde ZZP'er-id's af uit de `JOB_INVITED`-auditrecords van een opdracht.
+ * Gezaghebbende, gedeelde bron voor zowel de "Uitgenodigd"-badge (page) als de bulk-dedup (action),
+ * zodat de JSON-parse-logica niet driftgevoelig gedupliceerd wordt. Robuust tegen malforme metadata.
+ */
+export function parseInvitedFreelancerIds(
+  logs: ReadonlyArray<{ metadata: string | null }>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const log of logs) {
+    if (!log.metadata) continue;
+    try {
+      const meta = JSON.parse(log.metadata) as { freelancerId?: unknown };
+      if (typeof meta.freelancerId === "string") ids.add(meta.freelancerId);
+    } catch {
+      // Malforme metadata: overslaan — nooit de hele lijst laten crashen.
+    }
+  }
+  return ids;
+}
+
 export interface JobInviteNotificationInput {
   jobId: string;
   jobTitle: string;

@@ -59,7 +59,12 @@ import {
   MODEL_AGREEMENT_LABELS,
   type ModelAgreementType,
 } from "@/lib/model-agreement";
-import { createApplication, inviteFreelancerToJob } from "../actions";
+import {
+  createApplication,
+  inviteFreelancerToJob,
+  inviteSuggestedFreelancersToJob,
+} from "../actions";
+import { parseInvitedFreelancerIds } from "@/lib/job-invite";
 import { JobStatusButton } from "./job-status-button";
 import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import { ApplicationForm } from "./application-form";
@@ -328,25 +333,21 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
 
   // Directe uitnodigingen die de eigenaar al voor deze opdracht verstuurde (gezaghebbend uit de
   // JOB_INVITED-auditrecords) → zet de knop per geschikte ZZP'er om in een "Uitgenodigd"-badge.
-  const invitedFreelancerIds = new Set<string>(
+  const invitedFreelancerIds =
     isOwner && suggestions.length > 0
-      ? (
+      ? parseInvitedFreelancerIds(
           await prisma.auditLog.findMany({
             where: { entityType: "Job", entityId: job.id, action: "JOB_INVITED" },
             select: { metadata: true },
             take: 200,
-          })
-        ).flatMap((log) => {
-          if (!log.metadata) return [];
-          try {
-            const meta = JSON.parse(log.metadata) as { freelancerId?: unknown };
-            return typeof meta.freelancerId === "string" ? [meta.freelancerId] : [];
-          } catch {
-            return [];
-          }
-        })
-      : [],
-  );
+          }),
+        )
+      : new Set<string>();
+
+  // Aantal geschikte ZZP'ers dat nog niet is uitgenodigd → voedt de bulk-knop "Nodig alle uit".
+  const uninvitedSuggestionCount = suggestions.filter(
+    (f) => !invitedFreelancerIds.has(f.freelancerId),
+  ).length;
 
   const { t } = await getTranslator();
 
@@ -590,13 +591,22 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
 
       {isOwner && suggestions.length > 0 && (
         <section className="rounded-lg border border-border bg-card">
-          <div className="border-b border-border px-5 py-3">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Geschikte ZZP&apos;ers
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Openbare profielen die bij deze opdracht passen en nog niet reageerden.
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-3">
+            <div className="min-w-0">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Geschikte ZZP&apos;ers
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Openbare profielen die bij deze opdracht passen en nog niet reageerden.
+              </p>
+            </div>
+            {uninvitedSuggestionCount >= 2 && (
+              <form action={inviteSuggestedFreelancersToJob.bind(null, job.id)}>
+                <Button type="submit" size="sm">
+                  Nodig alle uit ({uninvitedSuggestionCount})
+                </Button>
+              </form>
+            )}
           </div>
           <ul className="divide-y divide-border">
             {suggestions.map((f) => (

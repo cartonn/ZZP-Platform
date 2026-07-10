@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertOwnership, AuthorizationError, requireRole } from "@/lib/authz";
-import { audit } from "@/lib/audit";
+import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { canApply } from "@/lib/applications";
 import { createApplicationForJob } from "@/lib/applications-create";
@@ -19,7 +19,10 @@ import {
   assessInviteEligibility,
   buildJobInviteNotification,
   JOB_INVITED_AUDIT_ACTION,
+  parseInvitedFreelancerIds,
+  planBulkJobInvites,
 } from "@/lib/job-invite";
+import { suggestedFreelancersForJob } from "@/lib/suggestions";
 import { inviteRateLimiter } from "@/lib/rate-limit";
 
 export type JobFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
@@ -578,6 +581,132 @@ export async function inviteFreelancerToJob(
     entityId: jobId,
     metadata: { freelancerId: freelancerProfileId },
   });
+
+  revalidatePath(`/opdrachten/${jobId}`);
+}
+
+/**
+ * Bulk-uitnodiging: de opdrachtgever nodigt in één klik álle nog-niet-uitgenodigde geschikte ZZP'ers
+ * voor zijn gepubliceerde opdracht uit. Vertaalt de auto-uitnodiging-liquiditeit van PIDZ/Zorgwerk
+ * naar onze verklaarbare matching, zónder eigen datamodel: per uitnodiging een Notification + een
+ * gezaghebbend JOB_INVITED-auditrecord (identiek aan de enkelvoudige `inviteFreelancerToJob`).
+ *
+ * Volledige mutatieketen (CLAUDE.md regel 2): auth → rol CLIENT → ownership → server-side eligibility.
+ * De kandidatenbron is `suggestedFreelancersForJob` (dezelfde die de UI-knoppen voedt) — die is al
+ * openbaar/tenant-gescoopt/gepubliceerd/niet-gereageerd. Hier resteert de reeds-uitgenodigd-dedup, de
+ * volumecap (`MAX_BULK_JOB_INVITES`) én de per-uur-spam-rem (`inviteRateLimiter`, één token per
+ * daadwerkelijke uitnodiging — stopt zodra het budget op is). Idempotent en race-veilig: een tweede
+ * poging is een stille no-op, een defensieve her-fetch (discoverable + eigen tenant) sluit stale
+ * suggesties uit. Nooit een 500 op lege/afgehandelde input.
+ */
+export async function inviteSuggestedFreelancersToJob(jobId: string): Promise<void> {
+  const actor = await requireRole("CLIENT");
+
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      tenantId: true,
+      company: { select: { userId: true, name: true } },
+    },
+  });
+  if (!job) return; // opdracht bestaat niet (meer) — geen lek, geen 500.
+  assertOwnership(actor, job.company.userId); // 403 als het niet zijn opdracht is.
+
+  if ((job.status as JobStatus) !== "PUBLISHED") {
+    revalidatePath(`/opdrachten/${jobId}`);
+    return;
+  }
+
+  // Gezaghebbende kandidatenbron: exact de lijst die de "Geschikte ZZP'ers"-knoppen voedt.
+  const suggestions = await suggestedFreelancersForJob(jobId);
+  const invited = parseInvitedFreelancerIds(
+    await prisma.auditLog.findMany({
+      where: { entityType: "Job", entityId: jobId, action: JOB_INVITED_AUDIT_ACTION },
+      select: { metadata: true },
+      take: 200,
+    }),
+  );
+  const toInvite = planBulkJobInvites(
+    suggestions.map((s) => s.freelancerId),
+    invited,
+  );
+  if (toInvite.length === 0) {
+    revalidatePath(`/opdrachten/${jobId}`);
+    return;
+  }
+
+  // Defensieve her-fetch: bevestig openbare vindbaarheid + eigen-tenant (identiek aan de
+  // enkelvoudige actie — sluit een stale suggestie of cross-tenant-PII hard uit) en haal de userId's
+  // op voor de notificaties. Ook `alreadyApplied` verifiëren tegen een race sinds de suggestie-fetch.
+  // unbounded-allow: begrensd door de IN-lijst (toInvite ≤ MAX_BULK_JOB_INVITES).
+  const profiles = await prisma.freelancerProfile.findMany({
+    where: { id: { in: toInvite }, tenantId: job.tenantId, ...discoverableFreelancerWhere },
+    select: {
+      id: true,
+      user: { select: { id: true } },
+      applications: { where: { jobId }, select: { id: true } },
+    },
+  });
+  const profileById = new Map(profiles.map((p) => [p.id, p]));
+
+  const notification = buildJobInviteNotification({
+    jobId,
+    jobTitle: job.title,
+    companyName: job.company.name,
+  });
+
+  const notifications: { userId: string }[] = [];
+  const invitedIds: string[] = [];
+  // Behoud de suggestievolgorde (hoogste match eerst) zodat, als het rate-limit-budget opraakt,
+  // de best passende ZZP'ers als eerste worden uitgenodigd.
+  for (const freelancerProfileId of toInvite) {
+    const profile = profileById.get(freelancerProfileId);
+    const eligibility = assessInviteEligibility({
+      jobStatus: job.status as JobStatus,
+      alreadyApplied: (profile?.applications.length ?? 0) > 0,
+      alreadyInvited: invited.has(freelancerProfileId),
+      discoverable: profile != null,
+    });
+    if (!eligibility.ok || !profile) continue;
+
+    // Eén token per daadwerkelijke uitnodiging — spiegelt de enkelvoudige actie en houdt de
+    // massa-notificatie-rem intact. Budget op? Stop; de rest volgt bij een volgende poging.
+    if (!(await inviteRateLimiter.check(actor.id)).allowed) break;
+
+    notifications.push({ userId: profile.user.id });
+    invitedIds.push(freelancerProfileId);
+  }
+
+  if (invitedIds.length === 0) {
+    revalidatePath(`/opdrachten/${jobId}`);
+    return;
+  }
+
+  await prisma.$transaction([
+    prisma.notification.createMany({
+      data: notifications.map((n) => ({
+        userId: n.userId,
+        type: notification.type,
+        title: notification.title,
+        body: notification.body,
+        link: notification.link,
+      })),
+    }),
+    prisma.auditLog.createMany({
+      data: invitedIds.map((freelancerId) =>
+        auditData({
+          actorId: actor.id,
+          action: JOB_INVITED_AUDIT_ACTION,
+          entityType: "Job",
+          entityId: jobId,
+          metadata: { freelancerId },
+        }),
+      ),
+    }),
+  ]);
 
   revalidatePath(`/opdrachten/${jobId}`);
 }

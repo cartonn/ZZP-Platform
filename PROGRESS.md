@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Bulk-uitnodiging geschikte ZZP'ers voor een opdracht (2026-07-10)
+
+- **Waarom:** de opdrachtgever kon geschikte ZZP'ers alleen **één voor één** uitnodigen (`inviteFreelancerToJob`,
+  #625). Concurrenten (PIDZ/Zorgwerk) nodigen matchende krachten automatisch "binnen uren" uit — hun
+  liquiditeit-troef. Nu één klik **"Nodig alle uit (N)"** op de "Geschikte ZZP'ers"-sectie van
+  `/opdrachten/[id]`: alle nog-niet-uitgenodigde suggesties in één keer, met behoud van onze verklaarbare
+  matching. Sneller staffen voor de opdrachtgever, meer relevante uitnodigingen voor de ZZP'er.
+- **Hoe (additief, geen schemawijziging, geen eigen datamodel):**
+  - `src/lib/job-invite.ts` — pure, geteste `planBulkJobInvites(candidateIds, alreadyInvitedIds, cap=MAX_BULK_JOB_INVITES)`
+    (dedup + reeds-uitgenodigd-uitsluiting + volumecap, behoudt suggestievolgorde/hoogste-match-eerst) +
+    gedeelde `parseInvitedFreelancerIds(logs)` (JSON-parse van de `JOB_INVITED`-auditrecords — nu één bron
+    voor page-badge én action-dedup i.p.v. gedupliceerd). `MAX_BULK_JOB_INVITES=10`.
+  - `src/app/(protected)/opdrachten/actions.ts` — `inviteSuggestedFreelancersToJob(jobId)`: keten
+    auth→rol CLIENT→ownership→server-side eligibility. Kandidatenbron = `suggestedFreelancersForJob` (dezelfde
+    die de UI voedt: openbaar/tenant-gescoopt/gepubliceerd/niet-gereageerd). Defensieve her-fetch (discoverable +
+    eigen tenant) sluit stale suggesties/cross-tenant-PII uit; `inviteRateLimiter` verbruikt **één token per
+    daadwerkelijke uitnodiging** (stopt bij budget-op — massa-notificatie-rem intact); notificaties + audits via
+    `createMany` in één transactie. Idempotent, race-veilig, nooit een 500 op lege/afgehandelde input.
+  - `src/app/(protected)/opdrachten/[id]/page.tsx` — bulk-knop in de sectiekop bij `uninvitedSuggestionCount ≥ 2`;
+    `invitedFreelancerIds` gerefactord naar de gedeelde helper.
+- **Gate lokaal groen:** typecheck ✓, lint ✓, **3815 unit-tests** ✓ (+11: `planBulkJobInvites` 6,
+  `parseInvitedFreelancerIds` 2, + bestaande), `prettier --check .` ✓, `next build` ✓. E2e draait in CI.
+
 ## Ontwerp-lab: +10 concepten (reeks 25, nrs 241–250) → 250 op `/ontwerp` (2026-07-10)
 
 - **Additief, geen bestaande concepten geraakt.** Tien nieuwe, onderscheidende designrichtingen bovenop

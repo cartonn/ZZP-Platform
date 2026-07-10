@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bulk-uitnodiging geschikte ZZP'ers voor een opdracht (2026-07-10, PR #715)** —
+> de opdrachtgever kon geschikte ZZP'ers alleen één voor één uitnodigen (`inviteFreelancerToJob`, #625);
+> concurrenten (PIDZ/Zorgwerk) nodigen matchende krachten "binnen uren" automatisch uit. Nu één klik
+> **"Nodig alle uit (N)"** op de "Geschikte ZZP'ers"-sectie van `/opdrachten/[id]` (getoond bij ≥2 nog-niet-
+> uitgenodigde suggesties): alle nog-niet-uitgenodigde suggesties in één keer, met behoud van onze verklaarbare
+> matching. Pure `job-invite.ts` `planBulkJobInvites` (dedup + reeds-uitgenodigd-uitsluiting + cap
+> `MAX_BULK_JOB_INVITES=10`, behoudt hoogste-match-eerst) + gedeelde `parseInvitedFreelancerIds` (één bron voor
+> page-badge én action-dedup) + server-action `inviteSuggestedFreelancersToJob` (auth→rol CLIENT→ownership→
+> server-side eligibility; kandidatenbron = `suggestedFreelancersForJob`; defensieve her-fetch discoverable+eigen
+> tenant; `inviteRateLimiter` één token per uitnodiging; notificaties+audits via `createMany` in één transactie;
+> idempotent, race-veilig, geen 500). Geen schemawijziging, geen eigen datamodel. +11 tests, gate groen (3815).
+>
 > Gedaan (niet opnieuw): **Klant-relatiegezondheid (churn-signaal) voor de bemiddelaar op /franchise/opdrachtgevers (2026-07-10, PR #709)** —
 > de klantenlijst toonde statische afdeling-/dienst-tellingen maar geen antwoord op de CRM-kernvraag "welke klant
 > verdient nu een belletje?": wie plaatst actief werk versus wie is stilgevallen (churn-risico; benchmark Bullhorn/
