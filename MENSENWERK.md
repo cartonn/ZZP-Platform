@@ -581,10 +581,18 @@ sleutelwaarden — alleen driver-modi). Beantwoordt de RUNBOOK-vraag "is product
 correct bekabeld?" zonder de boot-logs te hoeven grepen. Resterend mensenwerk: **niets** — het
 scherm helpt juist bij het afvinken van de mensenwerk-stappen hieronder.
 
+**Code-kant GEDAAN (10-7-2026) — back-up/herstel-helper:** de handmatige `pg_dump`/`pg_restore`-stap
+uit RUNBOOK §5 is nu een veilig, getest hulpmiddel (`npm run db:backup` / `npm run db:restore`, pure
+kern `src/lib/ops/db-backup.ts`): custom-format dump met retentie-snoei, weigert een niet-PostgreSQL-
+`DATABASE_URL`, redigeert het wachtwoord in logs, en weigert blind over de bron-/productie-database te
+herstellen (kies een leeg doel of geef bewust `--force`). Dumps landen in `backups/` (in `.gitignore`).
+De **automatische** dagelijkse back-ups blijven verantwoordelijkheid van de databasedienst.
+
 **Resterend mensenwerk (eenmalig):**
 
 1. Zet **automatische dagelijkse database-back-ups** aan bij je databasedienst (EU-regio; §1b) en
-   doe éénmaal een **herstel-oefening** naar een wegwerp-database vóór go-live (zie RUNBOOK §5).
+   doe éénmaal een **herstel-oefening** naar een wegwerp-database vóór go-live (zie RUNBOOK §5; de
+   `npm run db:backup`/`db:restore`-helper maakt de oefening reproduceerbaar).
 2. Hang een **uptime-monitor** op `https://<host>/api/health` (naast de Railway-healthcheck).
 3. Optioneel: zet `SENTRY_DSN` (+ `npm i @sentry/nextjs`) zodat DB-storingen en onverwachte fouten
    ook extern zichtbaar worden (§0b) i.p.v. alleen in de logs.

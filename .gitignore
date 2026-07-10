@@ -40,6 +40,10 @@ next-env.d.ts
 /storage/
 /uploads/
 
+# database dumps (never commit backups — kunnen productiedata bevatten)
+/backups/
+*.dump
+
 # misc
 .DS_Store
 *.pem
