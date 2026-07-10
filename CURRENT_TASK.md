@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Roster-capaciteit ('vrij inzetbaar') voor de bemiddelaar op /franchise/zzpers (2026-07-10, PR #707)** —
+> de bemiddelaar zag per-kaart de inzetbaarheid maar geen aggregaat "wie kan ik nu aan het werk zetten?".
+> Nu een capaciteitsstrip bovenaan met de **vrij-inzetbare** capaciteit als hoofdmaat (ACTIEF + beschikbaar +
+> geen lopende opdracht; benchmark Pidz/Zorgwerk: bezetting maximaliseren) + één-klik filter `?idle=1`. Pure
+> `src/lib/franchise/roster-capacity.ts` (`isIdleReady` als gedeelde bron voor strip én filter,
+> `summarizeRosterCapacity` partitioneert in placed/needsAttention/idleReady/unavailable — "nu ingezet" wint
+> van een aandachtspunt —, `rosterCapacityHeadline`; 16 tests) + `RosterCapacityStrip` (4 StatCards, "Vrij
+> inzetbaar" klikbaar) + `onlyIdle`-dimensie in `zzper-roster-filter.ts` (+ `activeCollaborations` op
+> `RosterZzper`) + "Alleen vrij inzetbaar"-checkbox. Wiring: `_count.collaborations` gefilterd op
+> `status:"ACTIVE"` (was ongebruikt in de render) → `activeCollaborations`. Geen schemawijziging, geen extra
+> query. Gate groen (3763 tests).
+>
 > Gedaan (niet opnieuw): **'Bewaard, nog niet gereageerd'-signaal op /opgeslagen (2026-07-10, PR #705)** —
 > een ZZP'er die een opdracht bewaart maar niet reageert, verliest die stilletjes; `/opgeslagen` toonde
 > open/niet-beschikbaar maar niet óf je al reageerde of dat de startdatum nadert (Indeed/LinkedIn

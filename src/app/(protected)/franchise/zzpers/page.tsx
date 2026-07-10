@@ -22,6 +22,8 @@ import {
   type RosterZzper,
   type RosterSortKey,
 } from "@/lib/franchise/zzper-roster-filter";
+import { summarizeRosterCapacity } from "@/lib/franchise/roster-capacity";
+import { RosterCapacityStrip } from "@/components/franchise/roster-capacity-strip";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { avatarAccent } from "@/lib/avatar-accent";
 import { PageHeader } from "@/components/ui/page-header";
@@ -89,7 +91,14 @@ export default async function FranchiseZzpersPage({
         user: { select: { name: true, email: true, identityVerifiedAt: true, lastLoginAt: true } },
         credentials: { select: { type: true, status: true, expiresAt: true } },
         skills: { include: { skill: { select: { name: true } } } },
-        _count: { select: { credentials: true, collaborations: true, skills: true } },
+        _count: {
+          select: {
+            credentials: true,
+            // Alleen lopende inzet telt als "nu ingezet" voor het capaciteitsoverzicht.
+            collaborations: { where: { status: "ACTIVE" } },
+            skills: true,
+          },
+        },
       },
     }),
     // unbounded-allow: skills-referentielijst voor formulier
@@ -144,9 +153,11 @@ export default async function FranchiseZzpersPage({
       hasAlert: alertLabel != null && alertTone != null,
       alertLabel,
       alertTone,
+      activeCollaborations: f._count.collaborations,
     };
   });
 
+  const capacity = summarizeRosterCapacity(cards);
   const visible = sortRoster(filterRoster(cards, filter), filter.sort);
   const filterActive = isRosterFilterActive(filter);
 
@@ -178,6 +189,10 @@ export default async function FranchiseZzpersPage({
         </Card>
       ) : (
         <>
+          {/* Capaciteitsoverzicht: "wie kan ik nu aan het werk zetten?" — vrije capaciteit als
+              hoofdmaat, klikbaar naar het idle-filter. */}
+          <RosterCapacityStrip summary={capacity} />
+
           {/* Zoeken + filteren + sorteren (GET → server-side waarheid; deelbaar/herlaadbaar). */}
           <form method="get" className="flex flex-wrap items-end gap-3">
             <div className="min-w-[200px] flex-1">
@@ -254,6 +269,16 @@ export default async function FranchiseZzpersPage({
                 className="size-4 rounded border-input"
               />
               Alleen certificaat-waarschuwing
+            </label>
+            <label className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                name="idle"
+                value="1"
+                defaultChecked={filter.onlyIdle}
+                className="size-4 rounded border-input"
+              />
+              Alleen vrij inzetbaar
             </label>
             <Button type="submit">Filteren</Button>
             {filterActive && (

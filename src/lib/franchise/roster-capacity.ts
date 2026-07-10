@@ -1,0 +1,95 @@
+// Roster-capaciteitsoverzicht voor de bemiddelaar (franchiser) boven het ZZP'er-roster
+// (`/franchise/zzpers`). Pure, deterministische aggregatie over de reeds tenant-gescopet opgehaalde
+// ZZP'ers — geen I/O, los getest. Beantwoordt de kernvraag van de bemiddelaar direct: "wie kan ik nu
+// aan het werk zetten?" De hoofdmaat is de **vrij inzetbare** capaciteit: inzetbaar (ACTIEF),
+// beschikbaar (AVAILABLE/LIMITED) én zonder lopende opdracht — precies de vakmensen die je vandaag
+// nog kunt plaatsen (bezetting maximaliseren, benchmark Pidz/Zorgwerk). De server bepaalt de waarheid;
+// deze helper levert enkel de afgeleide presentatie (CLAUDE.md regel 1).
+
+import { type EngageabilityStatus } from "@/lib/engageability";
+import { plural } from "@/lib/plural";
+
+/** Beschikbaarheidswaarden die als "kan nu ingezet worden" tellen (spiegelt Availability). */
+const AVAILABLE_FOR_WORK = new Set(["AVAILABLE", "LIMITED"]);
+
+/** Minimale invoer per ZZP'er — volledig afleidbaar uit de al opgehaalde roster-rijen. */
+export interface RosterCapacityInput {
+  engageabilityStatus: EngageabilityStatus;
+  availability: string;
+  /** Aantal lopende (ACTIVE) samenwerkingen; > 0 = nu ingezet. */
+  activeCollaborations: number;
+}
+
+export interface RosterCapacitySummary {
+  total: number;
+  /** Vrij inzetbaar: ACTIEF + beschikbaar + geen lopende opdracht — plaats ze nu. */
+  idleReady: number;
+  /** Nu ingezet: minstens één lopende samenwerking. */
+  placed: number;
+  /** Niet ingezet én (nog) niet inzetbaar (AANDACHT/INACTIEF) — pijplijn vóór plaatsing. */
+  needsAttention: number;
+  /** Niet ingezet, inzetbaar, maar bewust niet beschikbaar. */
+  unavailable: number;
+}
+
+/**
+ * Of een ZZP'er nu vrij inzetbaar is: inzetbaar (ACTIEF), beschikbaar (AVAILABLE/LIMITED) én zonder
+ * lopende opdracht. Gedeelde bron van waarheid voor zowel de samenvatting als het roster-filter
+ * (`?idle=1`), zodat de tegel en het gefilterde overzicht nooit uiteenlopen.
+ */
+export function isIdleReady(z: RosterCapacityInput): boolean {
+  return (
+    z.activeCollaborations === 0 &&
+    z.engageabilityStatus === "ACTIEF" &&
+    AVAILABLE_FOR_WORK.has(z.availability)
+  );
+}
+
+/**
+ * Partitioneert het roster in vier elkaar uitsluitende buckets (placed → needsAttention → idleReady
+ * → unavailable), zodat de tellingen samen exact `total` vormen. "Nu ingezet" wint van alle andere
+ * signalen: iemand die werkt telt niet mee als vrije capaciteit, ook niet met een aandachtspunt.
+ */
+export function summarizeRosterCapacity(
+  items: readonly RosterCapacityInput[],
+): RosterCapacitySummary {
+  const summary: RosterCapacitySummary = {
+    total: items.length,
+    idleReady: 0,
+    placed: 0,
+    needsAttention: 0,
+    unavailable: 0,
+  };
+
+  for (const z of items) {
+    if (z.activeCollaborations > 0) {
+      summary.placed += 1;
+    } else if (z.engageabilityStatus !== "ACTIEF") {
+      summary.needsAttention += 1;
+    } else if (AVAILABLE_FOR_WORK.has(z.availability)) {
+      summary.idleReady += 1;
+    } else {
+      summary.unavailable += 1;
+    }
+  }
+
+  return summary;
+}
+
+/**
+ * Eén verklarende regel boven de tegels ("wat vraagt nu mijn aandacht?"). `null` bij een leeg roster
+ * — dan toont de pagina zijn eigen lege staat.
+ */
+export function rosterCapacityHeadline(summary: RosterCapacitySummary): string | null {
+  if (summary.total === 0) return null;
+  if (summary.idleReady > 0) {
+    return `${plural(summary.idleReady, "vakmens", "vakmensen")} nu vrij inzetbaar — beschikbaar, inzetbaar en zonder lopende opdracht.`;
+  }
+  if (summary.needsAttention > 0) {
+    return `Geen vrij-inzetbare vakmensen; ${summary.needsAttention} ${summary.needsAttention === 1 ? "vraagt" : "vragen"} aandacht vóór plaatsing.`;
+  }
+  if (summary.placed === summary.total) {
+    return "Iedereen in je roster is nu ingezet.";
+  }
+  return "Geen vrij-inzetbare vakmensen op dit moment.";
+}

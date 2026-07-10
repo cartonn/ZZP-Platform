@@ -19,6 +19,7 @@ function card(over: Partial<RosterZzper> = {}): RosterZzper {
     engageabilityStatus: "ACTIEF",
     hasAlert: false,
     hourlyRate: 52,
+    activeCollaborations: 0,
     ...over,
   };
 }
@@ -37,6 +38,7 @@ describe("parseRosterFilter", () => {
       availability: "AVAILABLE",
       status: "AANDACHT",
       onlyAlerts: true,
+      onlyIdle: false,
       sort: "rate-asc",
     });
   });
@@ -48,6 +50,7 @@ describe("parseRosterFilter", () => {
       availability: null,
       status: null,
       onlyAlerts: false,
+      onlyIdle: false,
       sort: "recent",
     });
   });
@@ -82,6 +85,23 @@ describe("matchesRosterFilter", () => {
     expect(matchesRosterFilter(card({ hasAlert: false }), { ...base, onlyAlerts: true })).toBe(
       false,
     );
+  });
+
+  it("toont met onlyIdle alleen vrij-inzetbare ZZP'ers", () => {
+    // ACTIEF + AVAILABLE + geen lopende opdracht
+    expect(matchesRosterFilter(card(), { ...base, onlyIdle: true })).toBe(true);
+    // wél ingezet → niet vrij
+    expect(
+      matchesRosterFilter(card({ activeCollaborations: 1 }), { ...base, onlyIdle: true }),
+    ).toBe(false);
+    // niet inzetbaar → niet vrij
+    expect(
+      matchesRosterFilter(card({ engageabilityStatus: "AANDACHT" }), { ...base, onlyIdle: true }),
+    ).toBe(false);
+    // niet beschikbaar → niet vrij
+    expect(
+      matchesRosterFilter(card({ availability: "UNAVAILABLE" }), { ...base, onlyIdle: true }),
+    ).toBe(false);
   });
 
   it("combineert dimensies met AND", () => {
@@ -134,6 +154,7 @@ describe("isRosterFilterActive", () => {
     expect(isRosterFilterActive(parseRosterFilter({ q: "x" }))).toBe(true);
     expect(isRosterFilterActive(parseRosterFilter({ availability: "AVAILABLE" }))).toBe(true);
     expect(isRosterFilterActive(parseRosterFilter({ alerts: "1" }))).toBe(true);
+    expect(isRosterFilterActive(parseRosterFilter({ idle: "1" }))).toBe(true);
     // sort alleen is geen "actief filter" (verandert de set niet)
     expect(isRosterFilterActive(parseRosterFilter({ sort: "name" }))).toBe(false);
   });

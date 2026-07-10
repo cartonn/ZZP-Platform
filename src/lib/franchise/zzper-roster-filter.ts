@@ -8,6 +8,7 @@
  */
 
 import { type EngageabilityStatus } from "@/lib/engageability";
+import { isIdleReady } from "@/lib/franchise/roster-capacity";
 
 export const ROSTER_AVAILABILITY_VALUES = ["AVAILABLE", "LIMITED", "UNAVAILABLE"] as const;
 export type RosterAvailability = (typeof ROSTER_AVAILABILITY_VALUES)[number];
@@ -24,6 +25,8 @@ export interface RosterFilter {
   availability: RosterAvailability | null;
   status: EngageabilityStatus | null;
   onlyAlerts: boolean;
+  /** Alleen vrij-inzetbare ZZP'ers (inzetbaar + beschikbaar + geen lopende opdracht). */
+  onlyIdle: boolean;
   sort: RosterSortKey;
 }
 
@@ -38,6 +41,8 @@ export interface RosterZzper {
   engageabilityStatus: EngageabilityStatus;
   hasAlert: boolean;
   hourlyRate: number | null;
+  /** Aantal lopende (ACTIVE) samenwerkingen; > 0 = nu ingezet (voor het `idle`-filter). */
+  activeCollaborations: number;
 }
 
 function first(v: string | string[] | undefined): string {
@@ -50,6 +55,7 @@ export function parseRosterFilter(sp: Record<string, string | string[] | undefin
   const statusRaw = first(sp.status).trim().toUpperCase();
   const sortRaw = first(sp.sort).trim().toLowerCase();
   const alertsRaw = first(sp.alerts).trim().toLowerCase();
+  const idleRaw = first(sp.idle).trim().toLowerCase();
 
   const availability = (ROSTER_AVAILABILITY_VALUES as readonly string[]).includes(availabilityRaw)
     ? (availabilityRaw as RosterAvailability)
@@ -66,6 +72,7 @@ export function parseRosterFilter(sp: Record<string, string | string[] | undefin
     availability,
     status,
     onlyAlerts: alertsRaw === "1" || alertsRaw === "true",
+    onlyIdle: idleRaw === "1" || idleRaw === "true",
     sort,
   };
 }
@@ -75,6 +82,7 @@ export function matchesRosterFilter(z: RosterZzper, f: RosterFilter): boolean {
   if (f.availability && z.availability !== f.availability) return false;
   if (f.status && z.engageabilityStatus !== f.status) return false;
   if (f.onlyAlerts && !z.hasAlert) return false;
+  if (f.onlyIdle && !isIdleReady(z)) return false;
   if (f.q) {
     const needle = f.q.toLowerCase();
     const haystack =
@@ -125,5 +133,5 @@ export function sortRoster<T extends RosterZzper>(items: T[], sort: RosterSortKe
 
 /** Of er een actieve filterdimensie is (voor de "wis filter"-affordance / lege-staat-tekst). */
 export function isRosterFilterActive(f: RosterFilter): boolean {
-  return f.q !== "" || f.availability !== null || f.status !== null || f.onlyAlerts;
+  return f.q !== "" || f.availability !== null || f.status !== null || f.onlyAlerts || f.onlyIdle;
 }

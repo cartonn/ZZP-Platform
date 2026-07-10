@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Routine: roster-capaciteit ('vrij inzetbaar') voor de bemiddelaar (2026-07-10)
+
+De bemiddelaar beheert een roster ZZP'ers maar had op `/franchise/zzpers` geen antwoord op de
+kernvraag "wie kan ik nu aan het werk zetten?": het overzicht toonde per-kaart de inzetbaarheid, maar
+geen aggregaat van de vrije capaciteit. Nu een capaciteitsstrip bovenaan (benchmark Pidz/Zorgwerk:
+bezetting maximaliseren) met de **vrij-inzetbare** capaciteit als hoofdmaat + één-klik filter.
+
+- **Pure kern `src/lib/franchise/roster-capacity.ts`** (+`.test.ts`, 16 tests): `isIdleReady` (ACTIEF +
+  beschikbaar AVAILABLE/LIMITED + geen lopende opdracht — gedeelde bron voor strip én filter),
+  `summarizeRosterCapacity` (partitioneert het roster in vier elkaar uitsluitende buckets die samen
+  `total` vormen: placed → needsAttention → idleReady → unavailable; "nu ingezet" wint van een
+  aandachtspunt), `rosterCapacityHeadline` (verklarende regel, enkel-/meervoud, `null` bij leeg).
+- **Filter `zzper-roster-filter.ts`**: `onlyIdle`-dimensie (`?idle=1`) via de gedeelde `isIdleReady`;
+  `RosterZzper.activeCollaborations` toegevoegd; parse/matches/isActive + tests uitgebreid.
+- **Strip `components/franchise/roster-capacity-strip.tsx`**: vier `StatCard`-tegels; "Vrij inzetbaar"
+  klikbaar → `/franchise/zzpers?idle=1`. Presentationeel; telwerk server-side.
+- **Wiring `franchise/zzpers/page.tsx`**: `_count.collaborations` nu gefilterd op `status: "ACTIVE"`
+  (was al ongebruikt in de render), gevoed naar `activeCollaborations`; strip boven de filter-form;
+  "Alleen vrij inzetbaar"-checkbox in het filter (behoudt de idle-staat bij herfilteren).
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test ✓ (3763, +16 nieuw), prettier ✓, build ✓.
+  Geen schemawijziging, geen extra query (gefilterde `_count` binnen de bestaande findMany).
+
 ## Persona-sweep: AVG art. 17 — dispuutreden overleefde erasure in auditlog + admin-notificatie (2026-07-10)
 
 Persona-sweep run 20 (main-basis `9b0747a`). De live adversariële matrix (privilege-escalatie, IDOR/
