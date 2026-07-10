@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bezettingsrisico-signaal voor de opdrachtgever op /opdrachten/[id] (2026-07-10, PR #701)** —
+> de opdrachtgever ziet op de eigen opdracht-detail een waarschuwing zodra de **startdatum nadert terwijl er nog
+> niemand is vastgelegd** (geen ACCEPTED reactie, geen niet-geannuleerde samenwerking) — het concrete "dreigt
+> onbezet te starten"-risico dat `job-vacancy-performance.ts` (algemeen tempo) en `franchise/dekkingsprognose.ts`
+> (tenant-breed) niet op opdracht-niveau dekken (benchmark Temper/Zorgwerk). Fasen `none`/`on_track`/`approaching`
+> (≤10d, warning)/`urgent` (≤3d, danger)/`overdue` (verstreken, danger); gerichte volgende stap uit de reactie-stand
+> (shortlist→reacties→bereik). Pure `src/lib/job-staffing-risk.ts` (`summarizeStaffingRisk`/`staffingRiskHeadline`/
+> `staffingRiskActionLabel`, TZ-robuuste UTC-dagen, 17 tests) + presentationele `JobStaffingRiskCard` (rendert alleen
+> bij `attention`) + wiring op `[id]/page.tsx` (één `groupBy` reactie-status + één `collaboration.count`, alleen
+> eigenaar/PUBLISHED/startdatum). Geen schemawijziging, geen extra query op de hoofd-fetch. Gate groen.
+>
 > Gedaan (niet opnieuw): **Reputatie-rating (beoordelingen) op de kandidatenkaart (2026-07-09, PR #700)** —
 > de opdrachtgever ziet op `/kandidaten` (beslismoment) de gemiddelde opdrachtgever-beoordeling (sterren
 >
@@ -356,7 +367,7 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > live databank-readiness en de boot-`envWarnings`. Beantwoordt de RUNBOOK-vraag "is productie na de
 > deploy correct bekabeld?" zonder boot-logs te grepen. Pure `src/lib/system-status.ts`
 > (`collectSystemStatus`/`databaseKind`, in prod telt fallback als aandacht, verifiers fail-closed →
-> aandacht tenzij SEED_DEMO; geen sleutelwaarden; 18 tests) + `readEnv()` in `env.ts` +
+> aandacht tenzij SEED_DEMO; geen sleutelwaarden; 17 tests) + `readEnv()` in `env.ts` +
 > `SystemStatusPanel` + nav-item (icon `activity`) onder Beheer. Read-only, geen schemawijziging, geen
 > dependency. Gate groen (3594 tests). MENSENWERK §11 bijgewerkt.
 
