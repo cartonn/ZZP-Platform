@@ -3,6 +3,9 @@ import {
   assessInviteEligibility,
   buildJobInviteNotification,
   JOB_INVITE_NOTIFICATION_TYPE,
+  MAX_BULK_JOB_INVITES,
+  parseInvitedFreelancerIds,
+  planBulkJobInvites,
 } from "./job-invite";
 
 const base = {
@@ -79,5 +82,54 @@ describe("buildJobInviteNotification", () => {
     expect(n.body).toContain("Een opdrachtgever");
     expect(n.body).toContain("een opdracht");
     expect(n.link).toBe("/opdrachten/job-2");
+  });
+});
+
+describe("planBulkJobInvites", () => {
+  it("houdt alleen de nog-niet-uitgenodigde kandidaten over, in suggestievolgorde", () => {
+    expect(planBulkJobInvites(["a", "b", "c"], new Set(["b"]))).toEqual(["a", "c"]);
+  });
+
+  it("ontdubbelt herhaalde id's", () => {
+    expect(planBulkJobInvites(["a", "a", "b"], new Set())).toEqual(["a", "b"]);
+  });
+
+  it("begrenst op de cap", () => {
+    expect(planBulkJobInvites(["a", "b", "c", "d"], new Set(), 2)).toEqual(["a", "b"]);
+  });
+
+  it("geeft een lege lijst wanneer alles al is uitgenodigd", () => {
+    expect(planBulkJobInvites(["a", "b"], new Set(["a", "b"]))).toEqual([]);
+  });
+
+  it("geeft een lege lijst bij een niet-positieve cap", () => {
+    expect(planBulkJobInvites(["a", "b"], new Set(), 0)).toEqual([]);
+    expect(planBulkJobInvites(["a"], new Set(), -1)).toEqual([]);
+  });
+
+  it("valt terug op MAX_BULK_JOB_INVITES als standaard-cap", () => {
+    const many = Array.from({ length: MAX_BULK_JOB_INVITES + 5 }, (_, i) => `f${i}`);
+    expect(planBulkJobInvites(many, new Set())).toHaveLength(MAX_BULK_JOB_INVITES);
+  });
+});
+
+describe("parseInvitedFreelancerIds", () => {
+  it("leidt de uitgenodigde id's uit de auditrecords af", () => {
+    const ids = parseInvitedFreelancerIds([
+      { metadata: JSON.stringify({ freelancerId: "a" }) },
+      { metadata: JSON.stringify({ freelancerId: "b" }) },
+    ]);
+    expect(ids).toEqual(new Set(["a", "b"]));
+  });
+
+  it("negeert malforme, lege of veldloze metadata zonder te crashen", () => {
+    const ids = parseInvitedFreelancerIds([
+      { metadata: "{not json" },
+      { metadata: null },
+      { metadata: JSON.stringify({ count: 3 }) },
+      { metadata: JSON.stringify({ freelancerId: 42 }) },
+      { metadata: JSON.stringify({ freelancerId: "ok" }) },
+    ]);
+    expect(ids).toEqual(new Set(["ok"]));
   });
 });
