@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Routine: 'bewaard, nog niet gereageerd'-signaal op /opgeslagen (ZZP'er) (2026-07-10)
+
+Een ZZP'er die een opdracht bewaart en er dan niet op reageert, verliest die stilletjes. `/opgeslagen`
+toonde bewaarde opdrachten wél gesplitst in open/niet-meer-beschikbaar, maar niet **of je al hebt
+gereageerd** en of de **startdatum nadert** — precies de "act now"-nudge die Indeed/LinkedIn tonen bij
+opgeslagen-maar-niet-gesolliciteerd. Nu een per-item actie-chip + top-regel.
+
+- **Pure kern `src/lib/saved-jobs-nudge.ts`** (+`.test.ts`, 9 tests): `summarizeSavedJobAction({hasApplied,
+startDate}, now)` → state `applied` | `open` | `start_soon` (nog niet gereageerd én startdatum ≤
+  `SAVED_JOB_START_SOON_DAYS=10`) + `daysUntilStart` (hele UTC-dagen, TZ-robuust, verstreken start → `open`);
+  `countUnactedSavedJobs` voor de top-regel. Reageren = eindstatus (geen nudge meer).
+- **Wiring `/opgeslagen/page.tsx`**: `startDate` op de bestaande job-select; één begrensde
+  `application.findMany` (`freelancerId` + `jobId in openJobIds`, ≤200, composite index
+  `[freelancerId, createdAt]`, `unbounded-allow`-marker) bepaalt `hasApplied`. Per nog-open item een chip
+  ("Start over N dagen" warning / "Nog niet gereageerd" muted / "Gereageerd" muted) + "N wachten nog op je
+  reactie" in de sectiekop.
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test ✓ (3747, +9 nieuw), prettier ✓, build ✓. Read-only,
+  geen schemawijziging, geen extra query op de hoofd-fetch.
+
 ## Prod-rijpheid: security.txt (RFC 9116) — gecoördineerde kwetsbaarheidsmelding (2026-07-10)
 
 Dit platform verwerkt gevoelige documenten en gaat vóór livegang door een pentest (MENSENWERK §5d),

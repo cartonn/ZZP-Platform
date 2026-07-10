@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **'Bewaard, nog niet gereageerd'-signaal op /opgeslagen (2026-07-10, PR #705)** —
+> een ZZP'er die een opdracht bewaart maar niet reageert, verliest die stilletjes; `/opgeslagen` toonde
+> open/niet-beschikbaar maar niet óf je al reageerde of dat de startdatum nadert (Indeed/LinkedIn
+> "opgeslagen, nog niet gesolliciteerd"). Pure `src/lib/saved-jobs-nudge.ts` (`summarizeSavedJobAction` →
+> `applied`/`open`/`start_soon` bij startdatum ≤ `SAVED_JOB_START_SOON_DAYS=10`, TZ-robuuste UTC-dagen,
+> verstreken start → `open`; `countUnactedSavedJobs`; 9 tests) gevoed naar `/opgeslagen` via één begrensde
+> `application.findMany` (`freelancerId`+`jobId in openJobIds`, ≤200). Per nog-open item een actie-chip +
+> "N wachten nog op je reactie" in de kop. Read-only, geen schemawijziging, geen extra query op de
+> hoofd-fetch. Gate groen (3747).
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — security.txt (RFC 9116) (2026-07-10, PR #704)** — een
 > machine-leesbaar meldpunt voor gecoördineerde kwetsbaarheidsmelding op `/.well-known/security.txt`,
 > nodig vóór de pentest (MENSENWERK §5d) voor een platform met gevoelige documenten. Pure
