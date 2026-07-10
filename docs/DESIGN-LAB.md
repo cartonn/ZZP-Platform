@@ -592,4 +592,31 @@ UI-taal = Nederlands.
   command-centers** (⌘K, mono-grid); **jewel-tone premium-dark** (saffier + goud); **electric motion-forward
   met glow-on-focus**; en **ultra-wide panoramic/cinematic-calm** (horizon-ritmiek, dageraad-gradient) — elk
   onderscheidend gehouden van de bestaande 220.
-- **Totaal nu op `/ontwerp`: 230 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220, reeks 23: 221–230).
+- **Reeks 24 (run 10-7-2026, nrs 231–240):** Carson (anti-design / gedeconstrueerd raster: bewust gebroken
+  grid, overlappende & geroteerde Anton-koppen, sterk wisselende schaal, diagonale rode annotatie —
+  kern-data blijft leesbaar; expressieve chaos aan de randen, niet Neubrutalisme/Suprematie) · Draadmodel
+  (wireframe-as-final-UI: lo-fi grijze outline-kaders, kruis-placeholders, hachuur, handgeschreven
+  Architects-callouts met stippellijn-pijltjes, één blauw accent — function-forward, niet Blauwdruk/Constructie) ·
+  Knipsel (ransom-note / zine-collage: uitgeknipte letters in wisselende fonts op papiersnippers, gescheurde
+  randen, plakband-strips, deterministische fotokopie-korrel, stempel-badges — DIY-punk, niet Riso/Courant) ·
+  Systeem (systeem-brutalisme / raw HTML: Times-koppen + system-ui + monospace, blauwe onderstreepte links,
+  native form-controls, zwarte hairline-tabellen, nul decoratie — anti-Liquid-Glass pro-functie, niet
+  Helvetia/Technische-documentatie) · Jugendstil (art nouveau: Mucha-zweeplijnen als SVG-ornament, botanische
+  smeedijzer-frames, salie-goud-palet, Cormorant-serif — organische elegantie, niet Deco/Marmer) · Ukiyo-e
+  (Japanse houtblokdruk: platte kleurvelden, houtsnede-outline, golf-/berg-motief, indigo + vermiljoen op
+  rijstpapier, Shippori-mincho — niet Urushi/Japandi) · Op-art (optische kinetiek: zwart-wit lijnvelden &
+  moiré-accenten die schuiven op hover, één signaalkleur, data op rustige egale vlakken — Vasarely/Riley,
+  niet Meettrommel) · Voxel (isometrische pixelblokken: voxel-torens met dithered kubus-schaduw, KPI's als
+  torens, status-blokjes, Silkscreen-koppen — game-strategiekaart, niet Isometrie/Relief) · Stickervel (die-cut
+  stickers: dikke witte omranding + slagschaduw + lichte kantel, glans-highlight, vrolijke stickerset op grid,
+  Baloo-koppen — verzamel-gevoel, niet Snoep/Memphis) · Glitch (RGB-split & databending: chromatische
+  aberratie op koppen, scanlines, datamosh-hover op donker antraciet, data blijft rotsvast scherp,
+  Space-Mono — digitale-decay met terughoudendheid, respecteert reduced-motion, niet Fosfor/Techno-futurist).
+- Onderzochte 2026-trends deze reeks: **anti-design / broken-grid revival** (David Carson, botsende
+  typografie); **wireframe-as-final-UI** (function-forward, de blauwdruk ís het product); **ransom-note / zine
+  & lo-fi print-esthetiek**; **raw-HTML / systeem-brutalisme** als anti-Liquid-Glass-tegenbeweging;
+  **art-nouveau organische ornament-revival**; **ukiyo-e houtblokdruk / vlakke kleurvelden**; **op-art /
+  optische kinetiek met moiré**; **voxel / isometrische pixel-datavisualisatie**; **die-cut sticker-badges /
+  tasteful-playful maximalism**; en **glitch / RGB-split databending** — elk onderscheidend gehouden van de
+  bestaande 230.
+- **Totaal nu op `/ontwerp`: 240 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220, reeks 23: 221–230, reeks 24: 231–240).

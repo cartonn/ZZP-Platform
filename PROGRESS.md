@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab reeks 24: +10 concepten (nrs 231–240) (2026-07-10)
+
+Tiende reeks van het ontwerp-lab (`/ontwerp`) — **additief**: 10 nieuwe designrichtingen bovenop de
+bestaande 230, niets overschreven. Totaal nu **240 concepten**. Onderzoek naar 2026-trends
+(anti-design/broken-grid, wireframe-as-final-UI, raw-HTML/systeem-brutalisme, art-nouveau- &
+ukiyo-e-revival, op-art, voxel, die-cut stickers, glitch/RGB-split) leverde 10 richtingen op die echt
+verschillen van het bestaande register.
+
+- **Nieuwe concepten (elk een volledig multi-screen redesign, mock-data, puur frontend):**
+  231 Carson (anti-design), 232 Draadmodel (wireframe-as-final-UI), 233 Knipsel (ransom-note/zine),
+  234 Systeem (systeem-brutalisme/raw-HTML), 235 Jugendstil (art nouveau), 236 Ukiyo-e (houtblokdruk),
+  237 Op-art (optische kinetiek/moiré), 238 Voxel (isometrische pixelblokken), 239 Stickervel (die-cut
+  stickers), 240 Glitch (RGB-split/databending).
+- **Bestanden:** `src/components/ontwerp/concepts/concept-231…240-*.tsx` (nieuw); append-only in
+  `registry.ts` (10 ConceptMeta-entries) en `src/app/ontwerp/[id]/concept-host.tsx` (10 dynamic-imports);
+  `src/app/ontwerp/layout.tsx` uitgebreid met 8 display-fonts (Anton, Architects Daughter, Special Elite,
+  Cormorant Garamond, Shippori Mincho, Silkscreen, Baloo 2, Space Mono). Docs: `docs/DESIGN-LAB.md`
+  (reeks 24 + totaal 240) en dit bestand.
+- **Gebouwd door 4 parallelle workers** op niet-overlappende bestanden; orchestrator koppelde registry +
+  host + fonts en draaide de gates. Deterministisch (geen random/Date/netwerk/externe afbeeldingen),
+  status = label + icoon, WCAG-AA, responsive, "AI" komt nergens voor.
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), prettier ✓, build … (in CI-poort geverifieerd). Bestaande
+  live-app niet aangeraakt in gedrag — alleen `src/app/ontwerp` + `src/components/ontwerp` + docs.
+
 ## Routine: roster-capaciteit ('vrij inzetbaar') voor de bemiddelaar (2026-07-10)
 
 De bemiddelaar beheert een roster ZZP'ers maar had op `/franchise/zzpers` geen antwoord op de
