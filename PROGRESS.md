@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab: +10 concepten (reeks 25, nrs 241–250) → 250 op `/ontwerp` (2026-07-10)
+
+- **Additief, geen bestaande concepten geraakt.** Tien nieuwe, onderscheidende designrichtingen bovenop
+  de bestaande 240: **241 Adaptief** (progressive disclosure / rol-adaptieve interface), **242 Etmaal**
+  (circadiaan / tijd-adaptief dag→nacht-dienstritme), **243 Anaglyf** (stereoscopische rood-cyaan diepte,
+  data scherp), **244 Osmose** (fluïde metaballs / gooey), **245 Variabel** (variable fonts als systeem),
+  **246 Zwaartekracht** (spatial physics — objecten met gewicht), **247 Serre** (solarpunk daglicht-
+  optimisme), **248 Choreografie** (motion-first staggered reveals), **249 Warmte** (warm-menselijk,
+  mens & vertrouwen centraal), **250 Duiding** (data-journalistiek / verklarende infographic).
+- **Bestanden:** 10× `src/components/ontwerp/concepts/concept-24{1..9}-*.tsx` + `concept-250-duiding.tsx`
+  (elk ~1000–1500 regels, alle zes kernschermen, complete loading/empty/error-states, reduced-motion-bewust,
+  toegankelijk, NL). Additief gekoppeld: `registry.ts` (+10 ConceptMeta, nu 250), `[id]/concept-host.tsx`
+  (+10 lazy dynamic-imports). `docs/DESIGN-LAB.md` bijgewerkt (reeks 25 + totaal 250).
+- **Gate lokaal groen:** typecheck ✓, lint ✓ (0 warnings), `prettier --check .` ✓, `next build` ✓,
+  **3807 unit-tests** ✓. Geen "AI"-woord, geen `Math.random`/`Date` (deterministisch). Gebouwd door 3
+  parallelle builder-swarms op niet-overlappende bestanden; orchestrator integreerde registry/host/docs.
+- **Volgende:** volgende run voegt reeks 26 (251–260) toe — nooit overschrijven, altijd doortellen.
+
 ## Security/privacy: vrije-tekst-PII overleefde de AVG-erasure in `Notification.body` (2026-07-10)
 
 - **Bevinding (HOOG · OWASP A01/A09 · AVG art. 17):** `anonymizeUser`
