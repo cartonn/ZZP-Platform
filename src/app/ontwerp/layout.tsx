@@ -15,6 +15,14 @@ import {
   Spline_Sans_Mono,
   Libre_Franklin,
   IBM_Plex_Mono,
+  Anton,
+  Architects_Daughter,
+  Special_Elite,
+  Cormorant_Garamond,
+  Shippori_Mincho,
+  Silkscreen,
+  Baloo_2,
+  Space_Mono,
 } from "next/font/google";
 
 // Het ontwerp-lab is een PUBLIEK, inlogvrij design-lab (geen (protected)-groep) zodat de eigenaar
@@ -75,6 +83,50 @@ const plexMono = IBM_Plex_Mono({
   variable: "--font-lab-plex-mono",
   display: "swap",
 });
+// Extra display-fonts voor de nieuwste concept-reeks (231–240): expressieve, kenmerkende koppen.
+const anton = Anton({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-lab-anton",
+  display: "swap",
+});
+const architects = Architects_Daughter({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-lab-architects",
+  display: "swap",
+});
+const specialElite = Special_Elite({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-lab-special-elite",
+  display: "swap",
+});
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-lab-cormorant",
+  display: "swap",
+});
+const shippori = Shippori_Mincho({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+  variable: "--font-lab-shippori",
+  display: "swap",
+});
+const silkscreen = Silkscreen({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-lab-silkscreen",
+  display: "swap",
+});
+const baloo = Baloo_2({ subsets: ["latin"], variable: "--font-lab-baloo", display: "swap" });
+const spaceMono = Space_Mono({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-lab-space-mono",
+  display: "swap",
+});
 
 const fontVars = [
   inter,
@@ -92,6 +144,14 @@ const fontVars = [
   splineMono,
   franklin,
   plexMono,
+  anton,
+  architects,
+  specialElite,
+  cormorant,
+  shippori,
+  silkscreen,
+  baloo,
+  spaceMono,
 ]
   .map((f) => f.variable)
   .join(" ");

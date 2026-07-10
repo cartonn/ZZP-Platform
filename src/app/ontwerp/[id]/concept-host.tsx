@@ -697,6 +697,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "230": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-230-horizon").then((m) => m.Concept230),
   ),
+  "231": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-231-carson").then((m) => m.Concept231),
+  ),
+  "232": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-232-draadmodel").then((m) => m.Concept232),
+  ),
+  "233": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-233-knipsel").then((m) => m.Concept233),
+  ),
+  "234": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-234-systeem").then((m) => m.Concept234),
+  ),
+  "235": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-235-jugendstil").then((m) => m.Concept235),
+  ),
+  "236": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-236-ukiyoe").then((m) => m.Concept236),
+  ),
+  "237": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-237-opart").then((m) => m.Concept237),
+  ),
+  "238": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-238-voxel").then((m) => m.Concept238),
+  ),
+  "239": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-239-stickervel").then((m) => m.Concept239),
+  ),
+  "240": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-240-glitch").then((m) => m.Concept240),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
