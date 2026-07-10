@@ -619,4 +619,29 @@ UI-taal = Nederlands.
   optische kinetiek met moiré**; **voxel / isometrische pixel-datavisualisatie**; **die-cut sticker-badges /
   tasteful-playful maximalism**; en **glitch / RGB-split databending** — elk onderscheidend gehouden van de
   bestaande 230.
-- **Totaal nu op `/ontwerp`: 240 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220, reeks 23: 221–230, reeks 24: 231–240).
+- Reeks 25 (241–250, run 10-7-2026) — tien richtingen die verschillen van de bestaande 240:
+  Adaptief (progressive disclosure / rol-adaptieve interface: rol-schakelaar reflowt het scherm, kaarten
+  klappen op verzoek uit — bewust mínder in de juiste volgorde, niet Widget/Kompres) · Etmaal (circadiaan /
+  tijd-adaptief: dag-tijdlijn kantelt het hele palet van warm daglicht naar koel gedimd nacht, dienstritme
+  voor de zorg — niet Nachtdienst/Schemer) · Anaglyf (stereoscopische rood-cyaan kanaalverschuiving als
+  sfeer op koppen/randen, data blijft rotsvast scherp, respecteert reduced-motion — niet Glitch/Refractie) ·
+  Osmose (fluïde metaballs: gooey-filter laat avatars/statusstippen samensmelten & splitsen, trage organische
+  motion, data crisp — niet Suminagashi/Gel) · Variabel (variable fonts als systeem: één display-face draagt
+  hiërarchie via gewicht/breedte/optische as, gewichtsverschuiving op hover, Bricolage — niet Letterpers/
+  Nieuwe-Beelding) · Zwaartekracht (spatial physics: kaarten als objecten met massa, meebewegende gelaagde
+  schaduw, press-in bij indrukken — niet Etage/Kwarts) · Serre (solarpunk daglicht-optimisme: botanisch groen
+  - warm messing, organische hoeken, bladlijnen omlijsten crisp data, Fraunces — niet Botanie/Japandi) ·
+    Choreografie (motion-first: georkestreerde staggered reveals met per-index delay bij navigatie, sturen de
+    aandacht, strikt reduced-motion-safe — niet Vonk/Kinetiek) · Warmte (warm-menselijk: aardetinten, ronde
+    vormen, diffuse schaduw, mens & vertrouwenssignalen centraal, Fraunces + Manrope — niet Haard/Leder) ·
+    Duiding (data-journalistiek: geannoteerde charts met bijschriften, match-redenen als datastory, redactioneel
+    kolomraster, Newsreader — verklarende infographic, niet Beurs/Grootboek).
+- Onderzochte 2026-trends deze reeks: **progressive disclosure als kernpatroon** & **rol-adaptieve/
+  gepersonaliseerde layout** (het dominante SaaS-dashboard-patroon van 2026); **tijd-adaptief / circadiaans
+  thema** (context-bewuste dag→nacht-modus); **anaglyf / stereoscopische diepte**; **metaball / gooey fluïde
+  vormtaal**; **variable fonts als volledig designsysteem** (assen dragen hiërarchie, kinetische typografie);
+  **spatial UX** (objecten met gewicht & diepte); **solarpunk / verduurzaamd-tech optimisme**; **motion-first
+  choreografie** (staggered reveals, betekenisvolle layout-transities); **warm-menselijk mens-centraal
+  ontwerp**; en **data-journalistiek / verklarende infographic** — elk onderscheidend gehouden van de
+  bestaande 240 en reduced-motion-bewust.
+- **Totaal nu op `/ontwerp`: 250 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220, reeks 23: 221–230, reeks 24: 231–240, reeks 25: 241–250).

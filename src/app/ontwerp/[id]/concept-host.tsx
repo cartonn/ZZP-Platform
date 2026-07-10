@@ -727,6 +727,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "240": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-240-glitch").then((m) => m.Concept240),
   ),
+  "241": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-241-adaptief").then((m) => m.Concept241),
+  ),
+  "242": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-242-etmaal").then((m) => m.Concept242),
+  ),
+  "243": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-243-anaglyf").then((m) => m.Concept243),
+  ),
+  "244": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-244-osmose").then((m) => m.Concept244),
+  ),
+  "245": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-245-variabel").then((m) => m.Concept245),
+  ),
+  "246": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-246-zwaartekracht").then((m) => m.Concept246),
+  ),
+  "247": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-247-serre").then((m) => m.Concept247),
+  ),
+  "248": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-248-choreografie").then((m) => m.Concept248),
+  ),
+  "249": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-249-warmte").then((m) => m.Concept249),
+  ),
+  "250": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-250-duiding").then((m) => m.Concept250),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
