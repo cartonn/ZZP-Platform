@@ -1,5 +1,60 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-10 (run 21) · **main-commit basis:** `666ff53`
+> **Uitkomst:** **1 next-action-defect (DOEL 1b) gevonden én OPGELOST** — de betaal-taak van de ZZP'er
+> verdween stil uit `/acties` zodra een factuur naar `OVERDUE` liep, in tegenspraak met `cascade/stage.ts`.
+> Verse prod-build (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`) op ephemere
+> SQLite (`qa.db`), prod-server (`node scripts/start.mjs`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`,
+> `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte formulier (`demo1234`); Playwright met de
+> vooraf-geïnstalleerde Chromium (`/opt/pw-browsers/chromium-1194`).
+>
+> **DOEL 1 (echte actie, live):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties` → Goedkeuren-
+> knoppen **6→5** (keten auth→rol→ownership→transitie→audit→revalidate werkt). **Malicieuze forminput**
+> (CLIENT `/opdrachten/nieuw`): XSS-titel `<script>` + `rateMin=-50` + `rateMax=999999999999` → **0
+> malicieuze jobs gepersisteerd** (server-side Zod-weigering; client-sessie bleef geldig).
+>
+> **DOEL 1b (next-action-engine):** per rol geverifieerd tegen de DB — ADMIN 6 verificatietaken (= 6
+> SUBMITTED-creds) + 12 supporttickets; ZZP'er "verplicht document ontbreekt (Verzekering)" + 1 bericht;
+> CLIENT "1 nieuwe reactie" (= exact 1 NEW application op job-1) + "bedrijfsprofiel 90% — logo"; FRANCHISER
+> **terecht leeg** (0 verlopende certificaten, 0 overdue leads in tenant). **Gevonden defect:** zie hieronder.
+>
+> **DOEL 2 (adversarieel, ~40 probes — alle correct geweigerd, 0 stille toegang):** privilege-escalatie
+> (ZZP/CLIENT/FRANCHISER → `/admin/verificaties|gebruikers|statistieken|disputen|audit`; niet-FRANCHISER →
+> `/franchise`) → **307 redirect naar eigen dashboard**; IDOR/cross-partij + cross-tenant (foreign
+> factuur PAID/SUBMITTED/DRAFT + foreign samenwerking, 3 rollen) → **soft-404 "niet gevonden", body-inspectie
+> bevestigt géén e-mail/€-bedrag/PII-lek**; document-privacy (`/api/documents/<Sanne VOG>`: eigenaar + ADMIN
+> → **200**, CLIENT/FRANCHISER/andere-FREELANCER → **403**, garbage → **404**); onzin-/sqli-/traversal-id's
+> (`/facturen|/samenwerkingen|/opdrachten/<junk>`, `..%2F..%2Fetc%2Fpasswd`, `1' OR '1'='1`) → soft-404,
+> **nooit 500**; `/api/tasks/*` (expiry/payment-reminders/run-all/monitor/…) → **503 "niet geconfigureerd"**
+> zonder `CRON_SECRET`, **401** met verkeerd secret (nooit ongeauthenticeerde taak-uitvoering); CSV-injectie:
+> formula-guard (`needsFormulaGuard` + `'`-prefix) dekt élke CSV-export (audit/avg/administratie/platform-
+> facturen routen door `escapeCsvField`/`toCsv`). Twee parallelle Opus-subagents (security + correctness):
+> de **mutatie-laag toonde geen exploiteerbaar authz-/ownership-/tenant-/transitie-gat** (elke server-actie
+> volgt auth→rol→ownership/tenant→Zod→actie→audit; #709/#707/#702/#700 zijn puur lees-features, geen nieuwe
+> mutatie-oppervlakken).
+>
+> **GEVONDEN + GEFIXT — MED (next-action-correctheid, DOEL 1b; via de parallelle Opus-correctness-subagent):**
+> `pending-tasks.ts` haalde de factuur-taken van de ZZP'er op met `lifecycleStatus in [DRAFT,REJECTED,
+APPROVED]` — **`OVERDUE` ontbrak**. Zodra de live betaal-herinnering (`payment-reminders-task.ts`) een
+> `APPROVED`-factuur over de vervaldatum naar `OVERDUE` draait, viel diezelfde factuur uit de filter: de
+> specifieke, één-klik **"Markeer de betaling zodra je bent betaald"**-taak **verdween stil** uit `/acties`,
+> terwijl `cascade/stage.ts` de ZZP'er voor exact die factuur nog **`youAreUp: true, tone: "attention"`**
+> toont (fase 6, "Betaling markeren"). De ZZP'er zag in plaats daarvan alleen de generieke roll-up
+> **"factuur over de vervaldatum · Volg op bij de opdrachtgever"** — een materieel andere (en foute)
+> instructie (de ZZP'er registreert een ontvángen betaling; hij "volgt niet op"). **Repro:** ACTIVE-
+> samenwerking, factuur `APPROVED` → ZZP'er ziet de betaal-taak → `dueAt` verstrijkt → cron zet `OVERDUE`
+> → betaal-taak weg uit `/acties`, in tegenspraak met het samenwerkingsscherm. **Geschonden regel:** CLAUDE.md
+> "server-side is de waarheid" + de next-action-lat "vraagt het de juiste eerstvolgende stap, voor de juiste
+> partij aan zet; spreekt de lijst zichzelf niet tegen met de echte status". **Fix:** filter verbreed naar
+> `[DRAFT,REJECTED,APPROVED,OVERDUE]`; `APPROVED`+`OVERDUE` routen beide naar `paymentConfirmTask` (nieuwe
+> `overdue`-vlag → `tone:"attention"` + overdue-prioriteitsband, spiegelt `stage.ts`); **residu-aftrek** zodat
+> dezelfde overdue-factuur niet dubbel verschijnt (specifieke betaal-taak + generieke rij) maar een bevroren
+> disputed-factuur wél nog als generieke rij overblijft. Bestanden: `pending-tasks.ts`, `tasks.ts`,
+> `pending-tasks.test.ts` (+3 tests rood→groen). Gate groen (typecheck, lint, **3782 unit-tests**, build,
+> prettier).
+>
+> ---
+>
 > **Datum:** 2026-07-10 (run 20) · **main-commit basis:** `9b0747a`
 > **Uitkomst:** **1 HOOG AVG-gat gevonden én OPGELOST** (dispuutreden overleefde het recht op
 > vergetelheid in twee kopieën). Verse prod-build (`npm run build`), schema-push + idempotente demo-seed
