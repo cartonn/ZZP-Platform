@@ -3,6 +3,21 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep: ZZP'er-betaal-taak verdween stil bij OVERDUE-factuur (next-action-defect) (2026-07-10)
+
+- **Defect (DOEL 1b, MED):** `pending-tasks.ts` (freelancerTasks) haalde factuur-taken op met
+  `lifecycleStatus in [DRAFT,REJECTED,APPROVED]` — `OVERDUE` ontbrak. Zodra de live betaal-herinnering
+  (`payment-reminders-task.ts`) een `APPROVED`-factuur over de vervaldatum naar `OVERDUE` draaide, viel
+  de specifieke één-klik "Markeer de betaling zodra je bent betaald"-taak stil uit `/acties`, terwijl
+  `cascade/stage.ts` de ZZP'er voor exact die factuur nog `youAreUp:true, tone:"attention"` toont. De
+  ZZP'er zag alleen de generieke, fout-geïnstrueerde roll-up ("Volg op bij de opdrachtgever").
+- **Fix:** filter verbreed naar `[DRAFT,REJECTED,APPROVED,OVERDUE]`; `APPROVED`+`OVERDUE` routen beide
+  naar `paymentConfirmTask` (nieuwe `overdue`-vlag → `tone:"attention"` + overdue-prioriteitsband);
+  residu-aftrek voorkomt dubbele weergave, houdt de generieke rij alleen voor bevroren disputed-facturen.
+- **Bestanden:** `src/lib/actions/pending-tasks.ts`, `src/lib/actions/tasks.ts`,
+  `src/lib/actions/pending-tasks.test.ts` (+3 tests rood→groen). Gate groen: typecheck, lint,
+  **3782 unit-tests**, build, prettier. Detail + volledige sweep-uitkomst in `docs/PERSONA-SWEEP-BACKLOG.md`.
+
 ## Routine: klant-relatiegezondheid (churn-signaal) voor de bemiddelaar (2026-07-10)
 
 De bemiddelaar beheert klantrelaties maar had op `/franchise/opdrachtgevers` geen antwoord op de

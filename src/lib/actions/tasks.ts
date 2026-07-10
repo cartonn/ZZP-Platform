@@ -193,14 +193,24 @@ export function invoiceApproveTask(invId: string, collabId: string, jobTitle: st
   };
 }
 
-export function paymentConfirmTask(invId: string, collabId: string, jobTitle: string): PendingTask {
+export function paymentConfirmTask(
+  invId: string,
+  collabId: string,
+  jobTitle: string,
+  overdue = false,
+): PendingTask {
+  // Een APPROVED-factuur wacht op de betaal-registratie (ZZP'er, na rechtstreekse betaling); zodra de
+  // vervaldatum verstrijkt draait de betaal-herinnering hem naar OVERDUE. In beide gevallen is exact
+  // dezelfde ZZP-actie ("betaling markeren") aan zet — precies zoals cascade/stage.ts. Alleen bij OVERDUE
+  // klimt de toon naar "attention" en de prioriteit naar de overdue-band, zodat het actiecentrum de
+  // fase van het samenwerkingsscherm nooit tegenspreekt.
   return {
     kind: "payment-confirm",
     id: `payment-confirm:${invId}`,
     title: "Markeer de betaling zodra je bent betaald",
-    subtitle: jobTitle,
-    tone: "info",
-    priority: P.overdueInvoice - 2, // payment-band (58)
+    subtitle: overdue ? `${jobTitle} · over de vervaldatum` : jobTitle,
+    tone: overdue ? "attention" : "info",
+    priority: overdue ? P.overdueInvoice : P.overdueInvoice - 2, // overdue-band (60) of payment-band (58)
     resolver: "oneClick",
     href: collabHref(collabId),
     invId,

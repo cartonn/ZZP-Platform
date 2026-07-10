@@ -241,7 +241,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         take: 5,
       },
       invoices: {
-        where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED"] } },
+        where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"] } },
         select: { id: true, lifecycleStatus: true },
         take: 5,
       },
@@ -249,6 +249,9 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     orderBy: { updatedAt: "desc" },
     take: MAX,
   });
+  // Overdue-facturen die hier een eigen, specifieke betaal-taak krijgen, worden niet nóg eens
+  // als generieke "factuur over de vervaldatum"-rij getoond (zie de residu-aftrek onderaan).
+  let surfacedOverdue = 0;
   for (const c of collabs) {
     if (c.status === "PROPOSED") {
       tasks.push(contractSignTask(c.id, c.job.title, c.company.name));
@@ -265,17 +268,28 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       tasks.push(performanceResubmitTask(latestPerf.id, c.id, c.job.title));
     }
     for (const inv of c.invoices) {
-      if (inv.lifecycleStatus === "APPROVED")
+      // APPROVED én OVERDUE dragen dezelfde ZZP-actie (betaling markeren), exact zoals cascade/stage.ts:
+      // een OVERDUE-factuur die uit de oude [DRAFT,REJECTED,APPROVED]-filter viel verdween eerder stil
+      // uit /acties (de betaal-taak sprak de "attention"-fase van het samenwerkingsscherm tegen).
+      if (inv.lifecycleStatus === "APPROVED") {
         tasks.push(paymentConfirmTask(inv.id, c.id, c.job.title));
-      else
+      } else if (inv.lifecycleStatus === "OVERDUE") {
+        tasks.push(paymentConfirmTask(inv.id, c.id, c.job.title, true));
+        surfacedOverdue += 1;
+      } else {
         tasks.push(
           invoiceSubmitTask(inv.id, c.id, c.job.title, inv.lifecycleStatus === "REJECTED"),
         );
+      }
     }
   }
 
   for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));
-  if (overdue > 0) tasks.push(overdueInvoiceTask(overdue, "FREELANCER"));
+  // Alleen de overdue-facturen die géén eigen betaal-taak kregen (bv. op een bevroren, disputed
+  // samenwerking die buiten de collabs-query valt) verschijnen nog als generieke roll-up — anders
+  // zag de ZZP'er dezelfde factuur dubbel (specifieke betaal-taak + generieke rij).
+  const residualOverdue = Math.max(0, overdue - surfacedOverdue);
+  if (residualOverdue > 0) tasks.push(overdueInvoiceTask(residualOverdue, "FREELANCER"));
 
   // No-show-stand (productbesluit 12-6-2026): de ZZP'er ziet ongegronde registraties als
   // waarschuwing — bij de grens volgt uitschrijving (adminbeslissing). Link naar de meest
