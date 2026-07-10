@@ -81,17 +81,29 @@ Neon/Supabase/Railway Postgres). Dit is mensenwerk om aan te zetten — de app k
    gevoelige data.
 3. Noteer wie toegang heeft tot het herstelproces.
 
-**Handmatige back-up (ad hoc, vóór een risicovolle actie):**
+**Handmatige back-up (ad hoc, vóór een risicovolle actie):** er is een veilige, retentie-bewuste
+helper (`scripts/backup-db.ts`, pure kern `src/lib/ops/db-backup.ts` — getest). Hij weigert een
+niet-PostgreSQL-`DATABASE_URL`, logt nooit het wachtwoord en snoeit oude dumps.
 
 ```bash
-pg_dump "$DATABASE_URL" --no-owner --format=custom --file=backup-$(date +%Y%m%d-%H%M%S).dump
+npm run db:backup                       # dump naar ./backups (of $BACKUP_DIR), behoud $BACKUP_RETENTION (14)
+npm run db:backup -- --dir /pad --keep 7
+npm run db:backup -- --dry-run          # toon wat er zou gebeuren, schrijf niets
 ```
 
-**Herstel (op een lege/nieuwe database — nooit blind over productie heen):**
+Onder water: `pg_dump "$DATABASE_URL" --no-owner --no-privileges --format=custom --file=backups/zzp-backup-<UTC>.dump`.
+De map `backups/` staat in `.gitignore` (dumps kunnen productiedata bevatten — nooit committen).
+
+**Herstel (op een lege/nieuwe database — nooit blind over productie heen):** de helper weigert
+standaard over `DATABASE_URL` (de bron) te herstellen; kies een leeg doel of geef bewust `--force`.
 
 ```bash
-pg_restore --no-owner --clean --if-exists --dbname="$TARGET_DATABASE_URL" backup-XXXX.dump
+TARGET_DATABASE_URL="postgres://..." npm run db:restore -- backups/zzp-backup-XXXX.dump
+npm run db:restore -- --target "postgres://..." --dry-run backups/zzp-backup-XXXX.dump
 ```
+
+Onder water: `pg_restore --no-owner --no-privileges --clean --if-exists --dbname="$TARGET_DATABASE_URL" <bestand>`.
+Beide vereisen de PostgreSQL-client (`pg_dump`/`pg_restore`) op het systeem.
 
 **Herstel-oefening (aanbevolen vóór go-live):** herstel een back-up naar een **wegwerp-database**,
 zet `DATABASE_URL` daarheen in een staging-omgeving, en verifieer met `/api/readiness` +
