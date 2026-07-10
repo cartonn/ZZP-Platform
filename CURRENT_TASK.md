@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Klant-relatiegezondheid (churn-signaal) voor de bemiddelaar op /franchise/opdrachtgevers (2026-07-10, PR #709)** —
+> de klantenlijst toonde statische afdeling-/dienst-tellingen maar geen antwoord op de CRM-kernvraag "welke klant
+> verdient nu een belletje?": wie plaatst actief werk versus wie is stilgevallen (churn-risico; benchmark Bullhorn/
+> PIDZ-regiokantoor). Nu een relatiegezondheid-strip bovenaan + per-rij statuschip + filter-tabs. Pure
+> `src/lib/franchise/client-health.ts` (`classifyClientHealth`: `active`=PUBLISHED-opdracht óf ACTIVE-samenwerking,
+> `attention`=niets + laatste activiteit/aanmelding ≥ `CLIENT_IDLE_DAYS=30` geleden, `quiet`=recent; drie buckets die
+> samen `total` vormen; TZ-robuuste UTC-dagen, `now` geïnjecteerd; 16 tests) + `ClientHealthStrip` (3 StatCards,
+> "Stilgevallen" klikbaar → `?status=aandacht`) + wiring op `opdrachtgevers/page.tsx` (filtered nested
+> `_count.collaborations(ACTIVE)` + 2 groupBy-aggregaten voor open-opdracht-presence en laatste activiteit — geen N+1;
+> "laatst actief"-datum per rij). Spiegelt roster-capaciteit (#707) naar de klantkant. Geen schemawijziging. Gate
+> groen (3779).
+>
 > Gedaan (niet opnieuw): **Roster-capaciteit ('vrij inzetbaar') voor de bemiddelaar op /franchise/zzpers (2026-07-10, PR #707)** —
 > de bemiddelaar zag per-kaart de inzetbaarheid maar geen aggregaat "wie kan ik nu aan het werk zetten?".
 > Nu een capaciteitsstrip bovenaan met de **vrij-inzetbare** capaciteit als hoofdmaat (ACTIEF + beschikbaar +

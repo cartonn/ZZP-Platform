@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Routine: klant-relatiegezondheid (churn-signaal) voor de bemiddelaar (2026-07-10)
+
+De bemiddelaar beheert klantrelaties maar had op `/franchise/opdrachtgevers` geen antwoord op de
+CRM-kernvraag "welke klant verdient nu een belletje?": de lijst toonde statische afdeling-/dienst-
+tellingen, maar niet welke klanten actief werk plaatsen versus stilgevallen zijn (churn-risico). Nu
+een relatiegezondheid-strip bovenaan + per-rij statuschip + filter (benchmark Bullhorn/PIDZ-
+regiokantoor). Spiegelt het roster-capaciteit-patroon (#707) naar de klantkant.
+
+- **Pure kern `src/lib/franchise/client-health.ts`** (+`.test.ts`, 16 tests): `classifyClientHealth`
+  (`active` = ≥1 PUBLISHED-opdracht óf ≥1 ACTIVE-samenwerking; `attention` = plaatst niets én laatste
+  activiteit/aanmelding ≥ `CLIENT_IDLE_DAYS=30` geleden → benaderen; `quiet` = recent, geen actie),
+  TZ-robuuste UTC-dagen via `startOfUtcDay`, `now` geïnjecteerd; `summarizeClientHealth` (drie elkaar
+  uitsluitende buckets die samen `total` vormen), `clientHealthHeadline`, `clientHealthLabel`.
+- **Strip `components/franchise/client-health-strip.tsx`**: drie `StatCard`-tegels; "Stilgevallen"
+  klikbaar → `/franchise/opdrachtgevers?status=aandacht`. Presentationeel; telwerk server-side.
+- **Wiring `franchise/opdrachtgevers/page.tsx`**: filtered nested `_count.collaborations(ACTIVE)` +
+  twee gegroepeerde aggregaten (PUBLISHED-jobs count+`_max.createdAt`, collab `_max.updatedAt`) → geen
+  N+1; statuschip + "laatst actief"-datum per rij; filter-tabs (Alle/Stilgevallen/Plaatst nu/Rustig);
+  lege-weergave-staat. Bestaande total-dienst-telling ongewijzigd.
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test ✓ (3779, +16 nieuw), prettier ✓, build ✓. Geen
+  schemawijziging.
+
 ## Ontwerp-lab reeks 24: +10 concepten (nrs 231–240) (2026-07-10)
 
 Tiende reeks van het ontwerp-lab (`/ontwerp`) — **additief**: 10 nieuwe designrichtingen bovenop de
