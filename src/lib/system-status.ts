@@ -8,6 +8,7 @@
 
 import { envWarnings, type Env } from "@/lib/env";
 import { isIndexingAllowed } from "@/lib/indexing";
+import { isSecurityContactConfigured } from "@/lib/security-txt";
 
 /** ok = productie-klaar; fallback = veilige, bewuste tussenstand; attention = actie vóór livegang. */
 export type StatusLevel = "ok" | "fallback" | "attention";
@@ -223,6 +224,17 @@ export function collectSystemStatus(env: Env): SystemStatus {
           detail: isIndexingAllowed(env.ALLOW_INDEXING)
             ? "ALLOW_INDEXING=true — robots.txt staat crawlen toe, geen noindex-header (openbaar)."
             : "robots.txt disallowt alles + X-Robots-Tag noindex (besloten). Zet ALLOW_INDEXING=true bij go-live.",
+        },
+        {
+          key: "security-contact",
+          label: "Beveiligingscontact (security.txt)",
+          mode: isSecurityContactConfigured(env.SECURITY_CONTACT) ? "gezet" : "afgeleid",
+          // Afgeleid mailto:security@<host> is een veilige eindtoestand (security.txt serveert altijd
+          // een plausibel meldpunt), geen misconfiguratie → fallback, geen "aandacht", ook in prod.
+          level: isSecurityContactConfigured(env.SECURITY_CONTACT) ? "ok" : "fallback",
+          detail: isSecurityContactConfigured(env.SECURITY_CONTACT)
+            ? "SECURITY_CONTACT gezet — /.well-known/security.txt (RFC 9116) wijst naar een eigen meldpunt."
+            : "security.txt valt terug op mailto:security@<host>. Zet SECURITY_CONTACT naar een bewaakte mailbox vóór de pentest.",
         },
       ],
     },

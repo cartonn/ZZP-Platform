@@ -108,6 +108,10 @@ const schema = z
     // gevoelige documenten): /robots.txt disallowt alles + globale X-Robots-Tag noindex. Zet op
     // "true" om bij go-live te indexeren. Zie src/lib/indexing.ts.
     ALLOW_INDEXING: z.string().optional(),
+    // Beveiligingscontact voor /.well-known/security.txt (RFC 9116). Komma-gescheiden mailto:/https:
+    // toegestaan; een kaal e-mailadres krijgt automatisch mailto:. Ontbreekt het, dan valt de
+    // security.txt terug op mailto:security@<host>. Zie src/lib/security-txt.ts.
+    SECURITY_CONTACT: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     const require = (cond: boolean, path: string, message: string) => {

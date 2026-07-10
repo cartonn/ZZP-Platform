@@ -127,6 +127,17 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   pilot**; zet bij go-live desgewenst `ALLOW_INDEXING=true` in de Railway-secrets om zoekmachines te
   laten indexeren (dan vervallen robots-disallow én de noindex-header).
 
+- **Beveiligingscontact / security.txt** (laag, code-kant GEDAAN 10-7-2026): dit platform verwerkt
+  gevoelige documenten (VOG, diploma's, ID) en gaat vóór livegang door een securityreview/pentest
+  (§5d). Er is nu een machine-leesbaar meldpunt voor **gecoördineerde kwetsbaarheidsmelding** volgens
+  **RFC 9116** op `/.well-known/security.txt` (`src/app/.well-known/security.txt/route.ts`, bron van
+  waarheid `src/lib/security-txt.ts`): een welwillende onderzoeker vindt zo direct waar hij een
+  kwetsbaarheid verantwoord kan melden i.p.v. publiek te dumpen. Het bestand wordt **altijd** geserveerd
+  (nooit gecachet, `Expires` per request in de toekomst zodat het niet verloopt) en valt zonder config
+  veilig terug op `mailto:security@<host>`. Zichtbaar op `/admin/systeemstatus`. Resterend mensenwerk:
+  **niets voor de pilot**; zet `SECURITY_CONTACT` (komma-gescheiden mailto:/https: toegestaan) naar een
+  **bewaakte mailbox** vóór de pentest zodat meldingen bij een echt persoon landen.
+
 ## §1. Hosting, database, opslag, domein, geheimen
 
 **Wat:** de plek waar de website draait, waar gegevens worden bewaard en waar documenten veilig
@@ -438,27 +449,28 @@ Echte teksten, logo en eventuele huisstijl kun je aanleveren; de agent verwerkt 
 
 Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Zie ook `.env.example`.)
 
-| Instelling                                                           | Wat het is                                     | Waar haal je het     | Wanneer nodig                                    |
-| -------------------------------------------------------------------- | ---------------------------------------------- | -------------------- | ------------------------------------------------ |
-| `DATABASE_URL`                                                       | Verbindings-URL productie-database             | Databasedienst (§1b) | Altijd (productie)                               |
-| `AUTH_SECRET`                                                        | Geheim voor veilige inlogsessies (≥32 tekens)  | Zelf genereren (§1e) | Altijd                                           |
-| `AUTH_URL`                                                           | Je productie-webadres                          | Je domein (§1d)      | Altijd                                           |
-| `STORAGE_DRIVER=s3`                                                  | Schakelt productie-opslag in                   | —                    | Bij echte uploads                                |
-| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                            | Bucketnaam + regio                             | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                        | Opslag-toegangssleutels                        | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                     | Encryptie-at-rest (default AES256; optioneel)  | — (§1c)              | Optioneel (default aan bij s3)                   |
-| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`              | E-mail via Resend HTTP-API (Railway-proof)     | Resend (§2)          | Voor e-mail                                      |
-| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                  | E-mail via eigen SMTP-relay                    | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
-| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                         | Betalingen via Mollie                          | Mollie (§3)          | Voor betalingen (kies één provider)              |
-| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET` | Betalingen via Stripe (Checkout + webhook)     | Stripe (§3)          | Voor betalingen (kies één provider)              |
-| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                | Echte DUO-controle                             | DUO (§4a)            | Voor echte diplomacontrole                       |
-| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`            | Echte BIG-controle                             | CIBG (§4b)           | Voor echte zorgcontrole                          |
-| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`    | Echte identiteitscontrole                      | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
-| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                              | Externe error-monitoring (anders alleen logs)  | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
-| `LOG_LEVEL`                                                          | Logdrempel (debug/info/warn/error)             | —                    | Optioneel (default info)                         |
-| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`       | Gedeelde rate-limits over instances            | Upstash (§0b H-2)    | Bij horizontale schaling                         |
-| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                | Malware-scan van uploads                       | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
-| `ALLOW_INDEXING=true`                                                | Zoekmachine-indexering aanzetten (default uit) | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
+| Instelling                                                           | Wat het is                                       | Waar haal je het     | Wanneer nodig                                    |
+| -------------------------------------------------------------------- | ------------------------------------------------ | -------------------- | ------------------------------------------------ |
+| `DATABASE_URL`                                                       | Verbindings-URL productie-database               | Databasedienst (§1b) | Altijd (productie)                               |
+| `AUTH_SECRET`                                                        | Geheim voor veilige inlogsessies (≥32 tekens)    | Zelf genereren (§1e) | Altijd                                           |
+| `AUTH_URL`                                                           | Je productie-webadres                            | Je domein (§1d)      | Altijd                                           |
+| `STORAGE_DRIVER=s3`                                                  | Schakelt productie-opslag in                     | —                    | Bij echte uploads                                |
+| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                            | Bucketnaam + regio                               | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                        | Opslag-toegangssleutels                          | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                     | Encryptie-at-rest (default AES256; optioneel)    | — (§1c)              | Optioneel (default aan bij s3)                   |
+| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`              | E-mail via Resend HTTP-API (Railway-proof)       | Resend (§2)          | Voor e-mail                                      |
+| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                  | E-mail via eigen SMTP-relay                      | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
+| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                         | Betalingen via Mollie                            | Mollie (§3)          | Voor betalingen (kies één provider)              |
+| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET` | Betalingen via Stripe (Checkout + webhook)       | Stripe (§3)          | Voor betalingen (kies één provider)              |
+| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                | Echte DUO-controle                               | DUO (§4a)            | Voor echte diplomacontrole                       |
+| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`            | Echte BIG-controle                               | CIBG (§4b)           | Voor echte zorgcontrole                          |
+| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`    | Echte identiteitscontrole                        | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
+| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                              | Externe error-monitoring (anders alleen logs)    | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
+| `LOG_LEVEL`                                                          | Logdrempel (debug/info/warn/error)               | —                    | Optioneel (default info)                         |
+| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`       | Gedeelde rate-limits over instances              | Upstash (§0b H-2)    | Bij horizontale schaling                         |
+| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                | Malware-scan van uploads                         | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
+| `ALLOW_INDEXING=true`                                                | Zoekmachine-indexering aanzetten (default uit)   | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
+| `SECURITY_CONTACT`                                                   | Meldpunt in /.well-known/security.txt (RFC 9116) | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).
