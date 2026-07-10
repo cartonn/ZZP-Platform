@@ -46,6 +46,8 @@ import { getJobReach } from "@/lib/data/job-reach";
 import { JobReachCard } from "@/components/jobs/job-reach-card";
 import { summarizeVacancyPerformance } from "@/lib/job-vacancy-performance";
 import { JobVacancyPerformanceCard } from "@/components/jobs/job-vacancy-performance-card";
+import { summarizeStaffingRisk } from "@/lib/job-staffing-risk";
+import { JobStaffingRiskCard } from "@/components/jobs/job-staffing-risk-card";
 import { summarizeJobCompetition, type CompetitionSummary } from "@/lib/job-competition";
 import { JobCompetitionCard } from "@/components/jobs/job-competition-card";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
@@ -262,6 +264,37 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             })
           ).map((a) => a.createdAt),
         })
+      : null;
+
+  // Bezettingsrisico voor de eigenaar: nadert de startdatum terwijl er nog niemand is vastgelegd?
+  // "Vastgelegd" = een ACCEPTED reactie óf een niet-geannuleerde samenwerking. Reactie-tellingen uit
+  // één groupBy; de samenwerking-check uit één count. Alleen relevant voor een gepubliceerde opdracht.
+  const staffingRisk =
+    isOwner && status === "PUBLISHED" && job.startDate
+      ? await (async () => {
+          const [byStatus, activeCollabs] = await Promise.all([
+            prisma.application.groupBy({
+              by: ["status"],
+              where: { jobId: job.id },
+              _count: { _all: true },
+            }),
+            prisma.collaboration.count({
+              where: { jobId: job.id, status: { not: "CANCELLED" } },
+            }),
+          ]);
+          const countFor = (s: string) => byStatus.find((r) => r.status === s)?._count._all ?? 0;
+          const applicantCount = byStatus
+            .filter((r) => r.status !== "WITHDRAWN")
+            .reduce((sum, r) => sum + r._count._all, 0);
+          return summarizeStaffingRisk({
+            status,
+            startDate: job.startDate,
+            lockedIn: activeCollabs > 0 || countFor("ACCEPTED") > 0,
+            applicantCount,
+            shortlistCount: countFor("SHORTLIST"),
+            now: new Date(),
+          });
+        })()
       : null;
 
   // Voor de ZZP'er die deze opdracht bekijkt: andere open opdrachten die bij zijn profiel passen
@@ -546,6 +579,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             </section>
           ) : null;
         })()}
+
+      {isOwner && staffingRisk && <JobStaffingRiskCard summary={staffingRisk} jobId={job.id} />}
 
       {isOwner && vacancyPerformance && <JobVacancyPerformanceCard summary={vacancyPerformance} />}
 

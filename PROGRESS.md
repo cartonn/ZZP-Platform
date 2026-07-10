@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Bezettingsrisico-signaal voor de opdrachtgever op /opdrachten/[id] (2026-07-10)
+
+De opdrachtgever ziet op de eigen opdracht-detail nu een waarschuwing zodra de **startdatum nadert
+terwijl er nog niemand is vastgelegd** — het concrete "dreigt onbezet te starten"-risico dat
+`job-vacancy-performance.ts` (algemeen tempo) en `franchise/dekkingsprognose.ts` (tenant-breed) niet
+op opdracht-niveau dekken. Benchmark: Temper/Zorgwerk waarschuwen wanneer een shift open dreigt te
+blijven; wij vertalen dat naar de individuele opdrachtgever met een gerichte volgende stap.
+
+- **Fasen (server-side, `now` geïnjecteerd):** `none` (geen startdatum, niet-PUBLISHED, of al
+  vastgelegd), `on_track` (>10 dagen), `approaching` (≤10 dagen, warning), `urgent` (≤3 dagen of
+  vandaag, danger), `overdue` (verstreken, danger). "Vastgelegd" = een **ACCEPTED** reactie óf een
+  **niet-geannuleerde samenwerking**. Gerichte actie afgeleid uit de reactie-stand: shortlist →
+  reacties → bereik vergroten.
+- **Bestanden:** `src/lib/job-staffing-risk.ts` (pure `summarizeStaffingRisk` + `staffingRiskHeadline`
+  - `staffingRiskActionLabel`, TZ-robuuste hele UTC-dagen via `startOfUtcDay`); `src/components/jobs/
+job-staffing-risk-card.tsx` (presentationeel, rendert alleen bij `attention`, doorklik naar
+    `/kandidaten?job=` behalve bij widen_reach — de suggesties-sectie staat al onder de kaart);
+    `src/app/(protected)/opdrachten/[id]/page.tsx` (één `groupBy` op reactie-status + één
+    `collaboration.count`, alleen voor de eigenaar van een PUBLISHED opdracht met startdatum).
+- **Tests:** `job-staffing-risk.test.ts` (17 cases: fasegrenzen, lockedIn/status-poorten, UTC-dagen,
+  actie-selectie, aangepaste vensters, koppen/labels). Geen schemawijziging, geen extra query op de
+  hoofd-fetch (aggregaten, unbounded-queries-guard groen).
+
 ## Reputatie-rating (beoordelingen) op de kandidatenkaart (2026-07-09)
 
 De opdrachtgever ziet op `/kandidaten` — het beslismoment — nu de gemiddelde beoordeling (sterren +
