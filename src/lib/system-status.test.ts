@@ -56,6 +56,7 @@ describe("collectSystemStatus — volledig bekabelde productie", () => {
     DIPLOMA_VERIFIER: "duo",
     BIG_VERIFIER: "bigregister",
     IDENTITY_VERIFIER: "idin",
+    SECURITY_CONTACT: "security@example.nl",
   });
 
   it("markeert álles als ok en geeft geen aandacht-items", () => {
@@ -129,11 +130,28 @@ describe("collectSystemStatus — zoekmachine-indexering", () => {
       DIPLOMA_VERIFIER: "duo",
       BIG_VERIFIER: "bigregister",
       IDENTITY_VERIFIER: "idin",
+      SECURITY_CONTACT: "security@example.nl",
     });
     const status = collectSystemStatus(wired);
     expect(status.counts.attention).toBe(0);
     expect(status.counts.fallback).toBe(0);
     expect(status.warnings).toEqual([]);
+  });
+});
+
+describe("collectSystemStatus — beveiligingscontact (security.txt)", () => {
+  it("SECURITY_CONTACT gezet = ok", () => {
+    const item = itemByKey(
+      makeEnv({ SECURITY_CONTACT: "security@example.nl" }),
+      "security-contact",
+    );
+    expect(item.mode).toBe("gezet");
+    expect(item.level).toBe("ok");
+  });
+  it("ontbrekend SECURITY_CONTACT = fallback (afgeleid meldpunt, geen aandacht)", () => {
+    const item = itemByKey(makeEnv(), "security-contact");
+    expect(item.mode).toBe("afgeleid");
+    expect(item.level).toBe("fallback");
   });
 });
 

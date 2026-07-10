@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — security.txt (RFC 9116) (2026-07-10, PR #704)** — een
+> machine-leesbaar meldpunt voor gecoördineerde kwetsbaarheidsmelding op `/.well-known/security.txt`,
+> nodig vóór de pentest (MENSENWERK §5d) voor een platform met gevoelige documenten. Pure
+> `src/lib/security-txt.ts` (`normalizeSecurityContact`/`resolveSecurityContacts`/
+> `isSecurityContactConfigured`/`securityTxtExpires`/`buildSecurityTxt`, 18 tests) → route
+> `src/app/.well-known/security.txt/route.ts` (`force-dynamic`, `text/plain`, Expires per request in de
+> toekomst, origin via `resolvePublicOrigin`, pad met punt → buiten middleware-matcher). `SECURITY_CONTACT`
+> in env-schema + `.env.example`; `/admin/systeemstatus`-item (ok bij gezet, fallback bij afgeleid
+> `mailto:security@<host>` — altijd een geldig meldpunt). Geen schemawijziging, geen dependency. Gate
+> groen (3738 tests). MENSENWERK §0b + §7 bijgewerkt. Rest = mensenwerk: `SECURITY_CONTACT` naar een
+> bewaakte mailbox zetten vóór de pentest.
+>
 > Gedaan (niet opnieuw): **Bezettingsrisico-signaal voor de opdrachtgever op /opdrachten/[id] (2026-07-10, PR #701)** —
 > de opdrachtgever ziet op de eigen opdracht-detail een waarschuwing zodra de **startdatum nadert terwijl er nog
 > niemand is vastgelegd** (geen ACCEPTED reactie, geen niet-geannuleerde samenwerking) — het concrete "dreigt

@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid: security.txt (RFC 9116) — gecoördineerde kwetsbaarheidsmelding (2026-07-10)
+
+Dit platform verwerkt gevoelige documenten en gaat vóór livegang door een pentest (MENSENWERK §5d),
+maar had geen machine-leesbaar meldpunt voor verantwoorde kwetsbaarheidsmelding. Nu een
+**RFC 9116 `/.well-known/security.txt`**, zelfde "veilige default achter een env-flag"-patroon als
+robots.txt (#697).
+
+- **Pure kern `src/lib/security-txt.ts`** (+`.test.ts`, 18 tests): `normalizeSecurityContact`
+  (kaal e-mailadres → `mailto:`, al-geschemed blijft, onbruikbaar → `null`), `resolveSecurityContacts`
+  (komma-gescheiden `SECURITY_CONTACT`; fallback `mailto:security@<host>` uit de origin; dev-fallback
+  localhost), `isSecurityContactConfigured`, `securityTxtExpires` (now+365d ISO, geklemd),
+  `buildSecurityTxt` (RFC 9116-velden in volgorde: Contact → Expires → Preferred-Languages → Canonical).
+- **Route `src/app/.well-known/security.txt/route.ts`** (`force-dynamic`): serveert `text/plain`,
+  `Expires` per request in de toekomst (verloopt nooit), origin via `resolvePublicOrigin`. Pad bevat
+  een punt → buiten de middleware-matcher, publiek zoals /robots.txt.
+- **Env + status:** `SECURITY_CONTACT` in `env.ts` + `.env.example`; item "Beveiligingscontact
+  (security.txt)" op `/admin/systeemstatus` (ok bij gezet, fallback bij afgeleid — geen aandacht, want
+  het meldpunt is altijd geldig).
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test ✓ (3738, +20 nieuw), prettier ✓, build ✓. Geen
+  schemawijziging, geen dependency. MENSENWERK §0b + §7 bijgewerkt. Resterend mensenwerk: `SECURITY_CONTACT`
+  naar een bewaakte mailbox vóór de pentest.
+
 ## Security/privacy: host-header-poisoning, CSV-injectie & open redirect gedicht (2026-07-10)
 
 Security-/privacy-auditronde (orchestrator + 1 adversariële subagent). **Drie bevindingen gefixt
