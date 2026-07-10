@@ -34,10 +34,13 @@ export function JobStaffingRiskCard({
 }) {
   if (!summary.attention) return null;
 
-  // Bij bestaande reacties leidt de doorklik naar de kandidaten van déze opdracht; zonder reacties
-  // (widen_reach) staat de sectie "Geschikte ZZP'ers" met uitnodigen al onder deze kaart op de pagina.
+  // Bij bestaande reacties leidt de doorklik naar de vergelijk-weergave van déze opdracht — de enige
+  // kandidaten-route die op `?job=` scoopt (de lijst op /kandidaten toont alle opdrachten). Zonder
+  // reacties (widen_reach) staat de sectie "Geschikte ZZP'ers" met uitnodigen al onder deze kaart.
   const href =
-    summary.action === "widen_reach" ? null : `/kandidaten?job=${encodeURIComponent(jobId)}`;
+    summary.action === "widen_reach"
+      ? null
+      : `/kandidaten/vergelijk?job=${encodeURIComponent(jobId)}`;
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-5">
@@ -60,7 +63,7 @@ export function JobStaffingRiskCard({
           href={href}
           className="focus-ring inline-flex text-xs font-medium underline underline-offset-2"
         >
-          Naar de kandidaten
+          Vergelijk de kandidaten
         </Link>
       )}
 
