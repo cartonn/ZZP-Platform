@@ -1,5 +1,50 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-10 (run 20) · **main-commit basis:** `9b0747a`
+> **Uitkomst:** **1 HOOG AVG-gat gevonden én OPGELOST** (dispuutreden overleefde het recht op
+> vergetelheid in twee kopieën). Verse prod-build (`npm run build`), schema-push + idempotente demo-seed
+> (`SEED_DEMO=true`) op ephemere SQLite (`qa.db`), prod-server (`node scripts/start.mjs`, poort 3100,
+> `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte
+> formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium (`/opt/pw-browsers/chromium-1194`).
+>
+> **DOEL 1 (echte actie, live):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties` → Goedkeuren-
+> knoppen **6→5** (keten auth→rol→ownership→transitie→audit→revalidate werkt). **Malicieuze forminput**
+> (CLIENT `/opdrachten/nieuw`): XSS-titel `<script>` → job aangemaakt met React-geëscapede titel (geen
+> rauwe reflectie); `rateMin=-50` → server-side Zod-weigering "Number must be greater than or equal to 1";
+> `rateMax=999999999999` → "Number must be less than or equal to 2000"; **0 malicieuze jobs gepersisteerd**.
+>
+> **DOEL 1b (next-action-engine):** `/acties` per rol laadt 200 (admin/zzp/client/franchise), geen 500,
+> geen tegenstrijdige/dubbele actie.
+>
+> **DOEL 2 (adversarieel, 60+ probes — alle correct geweigerd, 0 HTTP-500's):** privilege-escalatie
+> (ZZP/CLIENT/FRANCHISER → `/admin/verificaties|gebruikers|statistieken|disputen|audit`; niet-FRANCHISER
+> → `/franchise`) → **307 redirect naar eigen dashboard**; IDOR/cross-partij + cross-tenant (3 rollen →
+> foreign factuur SUBMITTED/DRAFT/PAID + foreign samenwerking) → **"Niet gevonden · geen toegang"-kaart,
+> body-inspectie bevestigt géén €-bedrag/naam/PII-lek**; document-privacy (`/api/documents/<Sanne VOG>`:
+> eigenaar + ADMIN → **200**, CLIENT/FRANCHISER/andere-FREELANCER → **403**, garbage → **404**); onzin-id's
+> (`/facturen|/samenwerkingen|/opdrachten|/kandidaten/nonexistent`) → soft-404/redirect, **nooit 500**;
+> path-traversal (`/facturen/..%2F..%2Fetc%2Fpasswd`) + SQL-injectie-id → geen leak/500; XSS `?q=<script>`
+> → React-geëscaped, niet rauw gereflecteerd.
+>
+> **GEVONDEN + GEFIXT — HOOG (AVG art. 17 / recht op vergetelheid; via de parallelle Opus-security-subagent,
+> diff `2eec90d..9b0747a`):** `anonymizeUser` wiste de dispuutreden op `Collaboration.disputeReason` én in de
+> `DomainEvent.payload` (PR #696 claimde precies dit gat te sluiten), maar **twee verdere verbatim kopieën
+> overleefden**: (1) `AuditLog.metadata.reason` van het eigen `DISPUTE_OPENED`-record — `scrubAuditMetadataPii`
+> redact alleen velden die exact gelijk zijn aan e-mail/naam, een vrije-tekstreden matcht daar nooit op, dus
+> alleen `ipAddress`/`userAgent` werden op die rij genuld; (2) de body van de admin-fanout-notificatie
+> (`Dispuut bij "<opdracht>": <reden>`) — notificaties werden nergens in de erasure aangeraakt. **Repro:**
+> ZZP'er opent dispuut met reden → later erasure → reden staat nog in `AuditLog.metadata` én bij élke admin
+> als notificatie-body. **Geschonden regel:** CLAUDE.md "audit alles" + AVG-vergetelheid moet ÁLLE kopieën
+> van door de betrokkene geschreven vrije-tekst-PII wissen. **Fix:** twee extra updateMany's in de
+> anonimiseringstransactie — `auditLog.updateMany` (metadata → `{reason:"[verwijderd]"}`, gescopet op
+> `actorId==userId, action=DISPUTE_OPENED`) + `notification.updateMany` (body geredact, gescopet op de
+> gedeelde admin-titel-constante `DISPUTE_ADMIN_NOTIFICATION_TITLE` + de deep-links van de eigen disputen —
+> nooit de reden-loze tegenpartij-notificatie). Bestanden: `admin/gebruikers/actions.ts`,
+> `cascade/dispute-commands.ts`, `anonymize-erasure.test.ts` (+2 tests rood→groen, 25 in dat bestand). Gate
+> groen (typecheck, lint, **3749 unit-tests**, build, prettier).
+>
+> ---
+>
 > **Datum:** 2026-07-09 (run 19) · **main-commit basis:** `2eec90d`
 > **Uitkomst:** **1 robuustheidsgat gevonden én OPGELOST** (ADMIN-verificatiequeue → HTTP 500 op
 > lege afwijzingsreden). Verse prod-build (`npm run build`), schema-push + idempotente demo-seed

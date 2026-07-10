@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep: AVG art. 17 — dispuutreden overleefde erasure in auditlog + admin-notificatie (2026-07-10)
+
+Persona-sweep run 20 (main-basis `9b0747a`). De live adversariële matrix (privilege-escalatie, IDOR/
+cross-tenant, document-privacy, malicieuze forminput, robuustheid — 60+ probes over 4 rollen) was
+**schoon** (0 HTTP-500's, alle verboden acties geweigerd, malicieuze tarieven server-side afgekeurd
+("greater than or equal to 1"/"less than or equal to 2000"), XSS-titel React-geëscaped). DOEL-1 live
+geverifieerd: ADMIN keurde een certificaat goed (Goedkeuren-knoppen 6→5). Een parallelle Opus-
+security-subagent (diff `2eec90d..9b0747a`) vond **1 echt AVG-gat**:
+
+- **GEFIXT — HOOG (AVG art. 17 / recht op vergetelheid):** `anonymizeUser` wiste de dispuutreden op
+  `Collaboration.disputeReason` én in de `DomainEvent.payload` (PR #696), maar **twee verdere verbatim
+  kopieën overleefden**: (1) `AuditLog.metadata.reason` van het eigen `DISPUTE_OPENED`-record — de
+  generieke `scrubAuditMetadataPii` redact alleen velden die exact gelijk zijn aan e-mail/naam, een
+  vrije-tekstreden matcht daar nooit op; (2) de body van de admin-fanout-notificatie
+  (`Dispuut bij "<opdracht>": <reden>`) — notificaties werden nergens in de erasure aangeraakt. Repro:
+  ZZP'er opent dispuut met reden "…", vraagt later verwijdering aan → `SELECT metadata FROM AuditLog
+WHERE action='DISPUTE_OPENED'` en de admin-notificatie tonen de reden nog. **Fix:** twee extra
+  updateMany's in de anonimiseringstransactie — `auditLog.updateMany` (metadata → `{reason:[verwijderd]}`,
+  gescopet op `actorId==userId, action=DISPUTE_OPENED`) + `notification.updateMany` (body geredact,
+  gescopet op de admin-titel-constante + de deep-links van de eigen disputen, nooit de reden-loze
+  tegenpartij-notificatie). Titel als gedeelde constante `DISPUTE_ADMIN_NOTIFICATION_TITLE` uit
+  `cascade/dispute-commands.ts` (geen brosse string-koppeling). Bestanden: `admin/gebruikers/actions.ts`,
+  `cascade/dispute-commands.ts`, `anonymize-erasure.test.ts` (+2 tests, rood→groen; 25 in dat bestand).
+  Gate groen.
+
 ## Routine: 'bewaard, nog niet gereageerd'-signaal op /opgeslagen (ZZP'er) (2026-07-10)
 
 Een ZZP'er die een opdracht bewaart en er dan niet op reageert, verliest die stilletjes. `/opgeslagen`

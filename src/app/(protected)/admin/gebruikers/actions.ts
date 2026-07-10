@@ -17,6 +17,7 @@ import {
 } from "@/lib/account-anonymization";
 import { prisma } from "@/lib/db";
 import { userStatusSchema } from "@/lib/enums";
+import { DISPUTE_ADMIN_NOTIFICATION_TITLE } from "@/lib/cascade/dispute-commands";
 
 export async function setUserStatus(userId: string, target: string): Promise<void> {
   const actor = await requireRole("ADMIN");
@@ -101,6 +102,9 @@ export async function anonymizeUser(userId: string): Promise<void> {
         select: { subjectId: true },
       })
     ).map((e) => e.subjectId);
+  // Deep-links van de admin-fanout-notificaties bij deze eigen disputen — nodig om straks exact díe
+  // notificaties (die de vrije-tekstreden in hun body dragen) terug te vinden en te redacten.
+  const ownDisputeLinks = ownDisputeCollabIds.map((id) => `/samenwerkingen/${id}`);
 
   // AVG art. 17 dekt óók de auditlog: PII van de betrokkene staat in de metadata van eerdere
   // audit-events (e-mail bij mislukte login/rate-limit/bulk-import; de volledige naam bij
@@ -284,6 +288,29 @@ export async function anonymizeUser(userId: string): Promise<void> {
     prisma.domainEvent.updateMany({
       where: { type: "DISPUTE_OPENED", actorId: userId },
       data: { payload: "{}" },
+    }),
+    // Diezelfde reden staat ook verbatim in de metadata van het eigen DISPUTE_OPENED-auditrecord
+    // (`{ reason }`, zie cascade/dispute-commands.ts). De generieke `scrubAuditMetadataPii`-pass
+    // hierboven redact alleen metadata-velden die exact gelijk zijn aan e-mail/naam — een
+    // vrije-tekstreden matcht daar nooit op en overleeft art. 17 dus. Redact 'm expliciet op de eigen
+    // dispuut-auditregels (actorId == de betrokkene); DISPUTE_OPENED-metadata draagt enkel `reason`.
+    prisma.auditLog.updateMany({
+      where: { actorId: userId, action: "DISPUTE_OPENED" },
+      data: { metadata: JSON.stringify({ reason: AUDIT_PII_REDACTED }) },
+    }),
+    // En de derde kopie: de admin-fanout-notificatie zet de reden verbatim in haar body
+    // (`Dispuut bij "<opdracht>": <reden>`). Notificaties worden nergens anders aangeraakt, dus zonder
+    // deze redactie blijft de vrije tekst herleidbaar bij élke admin. Gescopet op de admin-variant
+    // (titel-constante) + de deep-links van de eigen disputen — nooit de generieke, reden-loze
+    // tegenpartij-notificatie. (Edge: is dezelfde samenwerking ook door de tegenpartij bedisputeerd,
+    // dan valt hun admin-notificatie er ook onder — dat wist méér PII, nooit minder; veilige kant.)
+    prisma.notification.updateMany({
+      where: {
+        type: "DISPUTE_OPENED",
+        title: DISPUTE_ADMIN_NOTIFICATION_TITLE,
+        link: { in: ownDisputeLinks },
+      },
+      data: { body: "[Verwijderd op verzoek van de gebruiker]" },
     }),
     // Contactnotities die de betrokkene als FRANCHISER zelf schreef bij leads (LeadContact.body,
     // vrije tekst — bel-/gespreksnotities die de betrokkene identificeren). Gescopet op createdById.

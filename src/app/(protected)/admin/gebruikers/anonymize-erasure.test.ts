@@ -47,6 +47,7 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn(async () => []),
     },
     message: { updateMany: op("message.updateMany") },
+    notification: { updateMany: op("notification.updateMany") },
     application: { updateMany: op("application.updateMany") },
     supportMessage: { updateMany: op("supportMessage.updateMany") },
     supportTicket: { updateMany: op("supportTicket.updateMany") },
@@ -68,6 +69,7 @@ vi.mock("@/lib/db", () => ({
     auditLog: {
       create: op("auditLog.create"),
       update: op("auditLog.update"),
+      updateMany: op("auditLog.updateMany"),
       findMany: vi.fn(async () => [
         // Eigen actie van de betrokkene: IP/user-agent zijn PII en moeten mee gewist.
         {
@@ -287,6 +289,35 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(o.args.where).toEqual({ type: "DISPUTE_OPENED", actorId: "user-42" });
     // Payload volledig geleegd — de reden is het enige (PII-)veld.
     expect((o.args.data as { payload: string }).payload).toBe("{}");
+  });
+
+  it("redact de dispuutreden óók uit de DISPUTE_OPENED-auditlog-metadata (AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Derde PII-kopie: de vrije-tekstreden staat verbatim in de metadata (`{ reason }`) van het eigen
+    // DISPUTE_OPENED-auditrecord. De generieke email/naam-scrub raakt 'm niet (geen exact-match), dus
+    // zonder deze expliciete updateMany overleeft de reden art. 17 — deze assert faalt dan (rood→groen).
+    const o = find("auditLog.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    // Gescopet op de eigen dispuut-auditregels (actorId == de betrokkene), nooit die van de tegenpartij.
+    expect(o.args.where).toEqual({ actorId: "user-42", action: "DISPUTE_OPENED" });
+    const meta = JSON.parse((o.args.data as { metadata: string }).metadata);
+    expect(meta.reason).toBe("[verwijderd]");
+  });
+
+  it("redact de dispuutreden óók uit de admin-fanout-notificatie (AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Vierde PII-kopie: de admin-notificatie draagt `Dispuut bij "<opdracht>": <reden>` in haar body.
+    // Notificaties worden nergens anders geredact, dus zonder deze updateMany blijft de reden bij élke
+    // admin zichtbaar — deze assert faalt dan (rood→groen).
+    const o = find("notification.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    // Alleen de reden-dragende admin-variant, gescopet op de deep-links van de eigen disputen (col-7).
+    expect(o.args.where).toEqual({
+      type: "DISPUTE_OPENED",
+      title: "Dispuut — bemiddeling nodig",
+      link: { in: ["/samenwerkingen/col-7"] },
+    });
+    expect((o.args.data as { body: string }).body).toMatch(/verwijderd/i);
   });
 
   it("wist de privé favorieten-notitie van de CLIENT (FavoriteFreelancer.note)", async () => {
