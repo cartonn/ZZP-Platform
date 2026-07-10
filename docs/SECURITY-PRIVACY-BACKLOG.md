@@ -4,6 +4,77 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-10 (2e — basis: `main` @ 8d0a3dd)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-subagents op niet-overlappende
+oppervlakken: (1) franchise/tenant-isolatie & IDOR (incl. de nieuwe `/franchise/opdrachtgevers`- en
+`/franchise/zzpers`-aggregaties #707/#709, `tenancy.ts`, shift-overname-governance); (2) alle
+`/api/**`-routes + document-/media-/PDF-/dossier-serving, cron-auth, webhook, SSRF, upload; (3)
+privacy/AVG — volledigheid van `anonymizeUser`/`account-export`, dataminimalisatie, k-anonimiteit,
+audit-logging, PII-in-logs; (4) injectie (SQL/XSS/CSV/ICS/template), mass-assignment/Zod, open
+redirect, secrets, CSRF, `npm audit`. Kader: OWASP Top 10 (A01/A03/A07/A09) + ASVS + AVG art.
+5/9/17/30/32. **Eén bevinding volledig gefixt (rood→groen, HOOG); drie geparkeerd.** Overige
+oppervlakken bevestigd schoon: tenant-isolatie/IDOR (alle franchise-queries `tenantScopeWhere`-gescopet,
+geen client-`tenantId`), document/PDF/dossier-serving (owner/tenant-check + audit vóór bytes,
+`CSP: sandbox`, `nosniff`), cron-`timingSafeEqual`, webhook-signatuur, SSRF-push-allowlist,
+uploads (`validateUpload`+`assertContentMatchesMime`+random key), geen `$queryRawUnsafe`, alle
+CSV-exports via `escapeCsvField`/`toCsv`, ICS via `escapeIcsText`, geen `.passthrough()`, geen open
+redirect, geen secret in bundle/log, `npm audit` 0 vulnerabilities.
+
+### OPGELOST in deze ronde
+
+- **[HOOG→OPGELOST · OWASP A01/A09 · AVG art. 17 (recht op vergetelheid) — vrije-tekst-PII
+  overleefde de erasure in `Notification.body`]** `anonymizeUser`
+  (`src/app/(protected)/admin/gebruikers/actions.ts`) redact tientallen bronvelden, maar raakte de
+  `Notification`-tabel enkel voor de éne smalle DISPUTE_OPENED-admin-fanout aan. Meerdere
+  notificatietypes zetten een **verbatim vrije-tekstreden** in de body die de betrokkene zélf ontving
+  (userId == de betrokkene): `NO_SHOW_REPORTED` (de gemelde no-show-reden — mogelijk een
+  **gezondheidsgegeven, art. 9**), `PERFORMANCE_REJECTED`, `INVOICE_REJECTED`, `INVOICE_CREDITED`,
+  `COLLABORATION_STATUS` (annuleerreden), `CREDENTIAL_REJECTED` (afwijsreden + certificaattitel) en
+  `SHIFT_HANDOFF_REJECTED` (beslisnotitie). Die kopie leeft alleen op de `Notification`-rij en werd
+  door geen enkele bestaande redactie geraakt — de `user.update` cascadeert niet en berichten/support
+  worden apart geredact maar notificaties niet. Repro: ZZP'er met een `NO_SHOW_REPORTED`-notificatie
+  waarvan de body `Reden: <medische reden>` bevat → admin voert het verwijderverzoek uit → de reden
+  staat na anonimisering nog leesbaar in de notificatie-body. Gefixt: de transactie redact nu
+  `Notification.body` voor **álle eigen notificaties** (`where: { userId }`) — na anonimisering is het
+  account SUSPENDED met lege `passwordHash` en kan de feed nooit meer worden ingezien, dus de body
+  heeft geen operationeel doel meer; robuust voor toekomstige reden-dragende types. De titel blijft
+  (generiek, geen PII); de DISPUTE_OPENED-admin-fanout in ándermans feed blijft apart geredact. Test:
+  nieuwe case in `src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (rood→groen:
+  zonder de `notification.updateMany` blijft de reden in de body staan).
+  **Escalatie (MENSENWERK §5):** de `NO_SHOW_REPORTED`-reden kan bijzondere persoonsgegevens (art. 9,
+  gezondheid) bevatten — laat een FG vóór go-live de bewaargrond van de bron (`NoShowReport.reason`,
+  reeds geparkeerd) beoordelen; het notificatie-lek is nu hoe dan ook gedicht.
+
+### Geparkeerd in deze ronde
+
+- **[HOOG · AVG art. 17/5(1)(f) — document-storage-verwijdering bij erasure is best-effort zonder
+  retry/reconciliatie]** `anonymizeUser` verwijdert de `Document`-DB-rijen in de transactie, maar de
+  bijbehorende storage-objecten (echte VOG/diploma-bytes) worden dáárna best-effort verwijderd
+  (`Promise.all(...).catch(logStorageCleanupFailure)`). Faalt een `storage.delete()` (transient
+  S3-fout), dan is de enige sporing een logregel — geen retry-queue, reconciliatie-taak of
+  `HealthIncident`. Het gevoeligste PII-bestand kan zo onopgemerkt in de opslag achterblijven.
+  Aanbevolen fix: schrijf bij een `storage.delete`-fout een duurzaam remediatie-record (bv.
+  `HealthIncident` of een `orphaned-storage-key`-tabel) + een geplande taak die retryt/alarmeert tot
+  verwijdering bevestigd is. Repro: mock `storage.delete` → reject → account is DB-geanonimiseerd maar
+  het bestand staat er nog; niets buiten een logregel wijst erop.
+- **[LAAG-MIDDEL · AVG art. 17 — auteurskant van reden-notificaties (kruis-ontvanger)]** De erasure
+  redact nu de eigen ontvangen notificatie-body's (userId == betrokkene). Schreef de betrokkene een
+  reden die in de notificatie van de **tegenpartij** belandde (bv. een CLIENT die een
+  `PERFORMANCE_REJECTED`-reden schreef → notificatie bij de FREELANCER), dan blijft die kopie staan
+  (userId != betrokkene). De reden beschrijft doorgaans de ontvanger (diens werk/afwezigheid), dus de
+  sterkste art.17-claim is de ontvangerskant die nu gedicht is; de auteurskant is zwakkere PII zonder
+  auteursnaam in de body. Aanbevolen fix: spiegel het DISPUTE_OPENED-patroon (scope via
+  collaboration/job/invoice-deep-link) voor de overige reden-types, of accepteer als restrisico met
+  FG-sign-off.
+- **[MIDDEL · AVG art. 30 — geen verwerkingsregister-/bewaartermijn-entry voor no-show-melding]**
+  `src/lib/compliance/processing-register.ts` heeft geen entry voor de no-show-flow (`NoShowReport`,
+  `reportNoShow`). Deze verwerking legt vrije tekst van de ene partij over de (vermeende) reden van de
+  ander vast — mogelijk gezondheidsgerelateerd — zonder verklaarde grondslag of bewaartermijn, en
+  fan-out naar `Notification.body`. Aanbevolen fix: register-entry (grondslag: gerechtvaardigd
+  belang/uitvoering overeenkomst) + retentie-regel voor `NoShowReport`/no-show-notificaties, met een
+  art.9-vlag naast het reeds geparkeerde `NoShowReport.reason`-erasure-item.
+
 ## Ronde 2026-07-10 (basis: `main` @ 14cfb51)
 
 Audit: orchestrator (Opus 4.8) + 1 adversariële Opus-subagent op niet-overlappende oppervlakken.

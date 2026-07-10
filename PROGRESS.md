@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/privacy: vrije-tekst-PII overleefde de AVG-erasure in `Notification.body` (2026-07-10)
+
+- **Bevinding (HOOG · OWASP A01/A09 · AVG art. 17):** `anonymizeUser`
+  (`src/app/(protected)/admin/gebruikers/actions.ts`) raakte de `Notification`-tabel enkel voor de éne
+  DISPUTE_OPENED-admin-fanout aan. Meerdere notificatietypes zetten een **verbatim vrije-tekstreden** in
+  de body die de betrokkene zélf ontving (`NO_SHOW_REPORTED` — mogelijk gezondheidsgegeven, art. 9 —,
+  `PERFORMANCE_REJECTED`, `INVOICE_REJECTED`, `INVOICE_CREDITED`, `COLLABORATION_STATUS`,
+  `CREDENTIAL_REJECTED`, `SHIFT_HANDOFF_REJECTED`). Die kopie (userId == de betrokkene) werd door geen
+  enkele bestaande redactie geraakt → PII overleefde de vergetelheid.
+- **Fix:** de anonimiseringstransactie redact nu `Notification.body` voor álle eigen notificaties
+  (`where: { userId }`) — het account is na anonimisering SUSPENDED met lege `passwordHash` en kan de
+  feed nooit meer inzien; robuust voor toekomstige reden-dragende types. Titel blijft (generiek).
+- **Bestanden:** `src/app/(protected)/admin/gebruikers/actions.ts`,
+  `src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (+1 test rood→groen, dispuut-test
+  herschreven voor 2 `notification.updateMany`-ops). Gate groen: typecheck, lint, **3783 unit-tests**,
+  build, prettier. 4 parallelle audit-subagents; overige oppervlakken schoon (tenant-isolatie/IDOR,
+  document/PDF-serving, cron/webhook, SSRF, upload, injectie, `npm audit` 0). Detail + 3 geparkeerde
+  bevindingen in `docs/SECURITY-PRIVACY-BACKLOG.md`.
+
 ## Persona-sweep: ZZP'er-betaal-taak verdween stil bij OVERDUE-factuur (next-action-defect) (2026-07-10)
 
 - **Defect (DOEL 1b, MED):** `pending-tasks.ts` (freelancerTasks) haalde factuur-taken op met

@@ -308,16 +308,37 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     await anonymizeUser("user-42");
     // Vierde PII-kopie: de admin-notificatie draagt `Dispuut bij "<opdracht>": <reden>` in haar body.
     // Notificaties worden nergens anders geredact, dus zonder deze updateMany blijft de reden bij élke
-    // admin zichtbaar — deze assert faalt dan (rood→groen).
-    const o = find("notification.updateMany") as { args: { where: unknown; data: unknown } };
+    // admin zichtbaar — deze assert faalt dan (rood→groen). Er zijn twee notification.updateMany's
+    // (deze admin-fanout + de eigen-feed-redactie hieronder); pak de admin-variant op zijn where-vorm.
+    const ops = findAll("notification.updateMany") as Array<{
+      args: { where: { title?: string }; data: { body?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.title !== undefined);
     expect(o).toBeDefined();
     // Alleen de reden-dragende admin-variant, gescopet op de deep-links van de eigen disputen (col-7).
-    expect(o.args.where).toEqual({
+    expect(o!.args.where).toEqual({
       type: "DISPUTE_OPENED",
       title: "Dispuut — bemiddeling nodig",
       link: { in: ["/samenwerkingen/col-7"] },
     });
-    expect((o.args.data as { body: string }).body).toMatch(/verwijderd/i);
+    expect(o!.args.data.body).toMatch(/verwijderd/i);
+  });
+
+  it("redact de body van de eigen ontvangen notificaties — reden-dragende vrije-tekst-PII (AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Meerdere notificatietypes zetten een vrije-tekstreden verbatim in de body die de betrokkene
+    // ontving (NO_SHOW_REPORTED — mogelijk gezondheidsgegeven —, PERFORMANCE_REJECTED,
+    // INVOICE_REJECTED, INVOICE_CREDITED, COLLABORATION_STATUS, CREDENTIAL_REJECTED,
+    // SHIFT_HANDOFF_REJECTED). Die kopie leeft alleen op de Notification-rij (userId == de betrokkene)
+    // en werd door geen enkele bestaande redactie geraakt — zonder deze updateMany overleeft de PII
+    // art. 17 (rood→groen). Gescopet puur op de eigen feed, robuust voor toekomstige reden-types.
+    const ops = findAll("notification.updateMany") as Array<{
+      args: { where: { userId?: string; title?: string }; data: { body?: string } };
+    }>;
+    const own = ops.find((x) => x.args.where.userId !== undefined);
+    expect(own).toBeDefined();
+    expect(own!.args.where).toEqual({ userId: "user-42" });
+    expect(own!.args.data.body).toMatch(/verwijderd/i);
   });
 
   it("wist de privé favorieten-notitie van de CLIENT (FavoriteFreelancer.note)", async () => {

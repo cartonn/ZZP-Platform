@@ -187,6 +187,21 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { senderId: userId },
       data: { body: "[Bericht verwijderd op verzoek van de gebruiker]" },
     }),
+    // AVG art. 17: de notificaties die de betrokkene zélf ontving dragen vrije tekst met PII in hun
+    // body — afwijs-/annulerings-/no-show-/creditredenen en de zelf-getypte certificaattitel (o.a.
+    // NO_SHOW_REPORTED — mogelijk een gezondheidsgegeven, art. 9 —, PERFORMANCE_REJECTED,
+    // INVOICE_REJECTED, INVOICE_CREDITED, COLLABORATION_STATUS, CREDENTIAL_REJECTED,
+    // SHIFT_HANDOFF_REJECTED). Deze kopie leeft alleen op de `Notification`-rij (userId == de
+    // betrokkene) en werd tot nu toe nergens geraakt: de `user.update` triggert geen cascade en de
+    // enige bestaande notification-redactie hieronder is de DISPUTE_OPENED-admin-fanout in ándermans
+    // feed. Na anonimisering is het account SUSPENDED met lege passwordHash en kan het zijn feed nooit
+    // meer inzien, dus de body heeft geen operationeel doel meer → onomkeerbaar redacten voor álle
+    // eigen notificaties. Robuust: een toekomstig reden-dragend type valt hier automatisch onder. De
+    // titel blijft staan (generiek, geen PII).
+    prisma.notification.updateMany({
+      where: { userId },
+      data: { body: "[Verwijderd op verzoek van de gebruiker]" },
+    }),
     // AVG art. 17 (recht op verwijdering): álle vrije-tekstvelden die de betrokkene zélf schreef en
     // die PII kunnen bevatten worden onomkeerbaar overschreven. Een `user.update` triggert geen
     // cascade op deze kindrijen, dus ze moeten expliciet mee in de transactie — anders blijft
