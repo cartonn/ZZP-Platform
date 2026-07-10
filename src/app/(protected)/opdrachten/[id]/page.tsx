@@ -267,8 +267,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       : null;
 
   // Bezettingsrisico voor de eigenaar: nadert de startdatum terwijl er nog niemand is vastgelegd?
-  // "Vastgelegd" = een ACCEPTED reactie óf een niet-geannuleerde samenwerking. Reactie-tellingen uit
-  // één groupBy; de samenwerking-check uit één count. Alleen relevant voor een gepubliceerde opdracht.
+  // "Vastgelegd" = een ACCEPTED reactie óf een lopende/afgeronde samenwerking (ACTIVE/COMPLETED). Een
+  // PROPOSED voorstel telt bewust níét als lock-in — de ZZP'er heeft nog niet toegezegd — en valt al
+  // onder de ACCEPTED-reactie waaruit het voortkomt. Reactie-tellingen uit één groupBy; de
+  // samenwerking-check uit één count. Alleen relevant voor een gepubliceerde opdracht.
   const staffingRisk =
     isOwner && status === "PUBLISHED" && job.startDate
       ? await (async () => {
@@ -279,7 +281,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               _count: { _all: true },
             }),
             prisma.collaboration.count({
-              where: { jobId: job.id, status: { not: "CANCELLED" } },
+              where: { jobId: job.id, status: { in: ["ACTIVE", "COMPLETED"] } },
             }),
           ]);
           const countFor = (s: string) => byStatus.find((r) => r.status === s)?._count._all ?? 0;
