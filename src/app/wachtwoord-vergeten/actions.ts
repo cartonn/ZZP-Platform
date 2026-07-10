@@ -1,8 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
+import { publicOrigin } from "@/lib/public-url";
 import { createResetToken } from "@/lib/password-reset";
 import { buildResetEmail } from "@/lib/services/reset-email";
 import { getMailSender } from "@/lib/services/mail-sender";
@@ -61,11 +61,11 @@ export async function requestPasswordReset(
     try {
       const raw = await createResetToken(user.id);
 
-      // Bouw de reset-URL vanuit de inkomende request-headers.
-      const h = await headers();
-      const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-      const proto = h.get("x-forwarded-proto") ?? "http";
-      const resetUrl = `${proto}://${host}/wachtwoord-herstellen/${raw}`;
+      // Bouw de reset-URL vanuit de VERTROUWDE publieke origin (AUTH_URL), nooit uit de
+      // spoofbare Host/X-Forwarded-Host-header — anders kan een aanvaller met een vervalste host
+      // een reset aanvragen en het geldige token naar zijn eigen domein laten wijzen (reset-
+      // poisoning, CWE-640 / OWASP A01/A07). Zie src/lib/public-url.ts.
+      const resetUrl = `${await publicOrigin()}/wachtwoord-herstellen/${raw}`;
 
       const msg = buildResetEmail({ name: user.name, email: user.email, resetUrl });
       const mailer = getMailSender();

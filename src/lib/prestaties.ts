@@ -4,6 +4,7 @@
 
 import { prisma } from "@/lib/db";
 import { type OrtSegment, ortSubtotalCents, resolveOrtRates } from "@/lib/ort";
+import { toCsv } from "@/lib/csv";
 
 export interface PrestatieOverzicht {
   id: string;
@@ -132,28 +133,28 @@ export function exportPrestatiesCsv(prestaties: PrestatieOverzicht[]): string {
     "Afgekeurd op",
     "Reden afkeuring",
     "Omschrijving",
-  ].join(";");
+  ];
 
-  const rows = prestaties.map((p) =>
-    [
-      p.freelancerName,
-      p.jobTitle,
-      TYPE_LABEL[p.type] ?? p.type,
-      STATUS_LABEL[p.status] ?? p.status,
-      fmtDate(p.periodStart),
-      fmtDate(p.periodEnd),
-      p.hours != null ? p.hours.toString().replace(".", ",") : "",
-      p.hasOrt ? "Ja" : "Nee",
-      fmtEur(p.subtotalCents),
-      fmtDate(p.submittedAt),
-      fmtDate(p.approvedAt),
-      fmtDate(p.rejectedAt),
-      p.rejectionReason ?? "",
-      p.description,
-    ]
-      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-      .join(";"),
-  );
+  const rows = prestaties.map((p) => [
+    p.freelancerName,
+    p.jobTitle,
+    TYPE_LABEL[p.type] ?? p.type,
+    STATUS_LABEL[p.status] ?? p.status,
+    fmtDate(p.periodStart),
+    fmtDate(p.periodEnd),
+    p.hours != null ? p.hours.toString().replace(".", ",") : "",
+    p.hasOrt ? "Ja" : "Nee",
+    fmtEur(p.subtotalCents),
+    fmtDate(p.submittedAt),
+    fmtDate(p.approvedAt),
+    fmtDate(p.rejectedAt),
+    p.rejectionReason ?? "",
+    p.description,
+  ]);
 
-  return [header, ...rows].join("\r\n");
+  // Via de gedeelde CSV-kern (toCsv/escapeCsvField): dit levert de formule-injectie-beveiliging
+  // (CWE-1236) die de handmatige quoting hiervoor miste. Vrije tekst van de ZZP'er (naam,
+  // omschrijving, afkeurreden) belandt in de spreadsheet van de opdrachtgever; een cel die met
+  // = + - @ begint zou anders als formule worden uitgevoerd (OWASP A03).
+  return toCsv([header, ...rows]);
 }
