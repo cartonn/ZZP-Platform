@@ -44,6 +44,34 @@
   parallelle builder-swarms op niet-overlappende bestanden; orchestrator integreerde registry/host/docs.
 - **Volgende:** volgende run voegt reeks 26 (251–260) toe — nooit overschrijven, altijd doortellen.
 
+## Routine: realistische cashflow-prognose op basis van betaalgedrag (2026-07-10)
+
+- **Waarde (ZZP'er, administratie-ontzorging):** de inkomsten-tijdlijn op `/prognose` plaatste elke
+  openstaande factuur op de **contractuele vervaldag** (`dueAt`), terwijl we per factuur al een
+  **betaalgedrag-gecorrigeerde verwachte betaaldatum** berekenden (`forecastInvoicePayout` +
+  `computePaymentBehavior`, zichtbaar op het facturen-paneel). Geld van structureel-trage
+  opdrachtgevers viel daardoor te vroeg in "Deze maand" → een te optimistische cashflow. Nu volgt de
+  maand-bucket de realistische verwachting wanneer er genoeg betaalhistorie (≥3 betaalde facturen) van
+  díe opdrachtgever is. Benchmark: Moneybird/Tellow/Bendy cashflow-forecasting; ónze meerwaarde =
+  uitlegbaar ("doorgaans N dagen na de vervaldag") en server-berekend.
+- **Aanpak (additief, geen schemawijziging):** `income-forecast.ts` — optioneel `realisticDate` op
+  `ForecastItem`; `effectiveDate()` = `realisticDate ?? expectedDate` bepaalt de maand-bucket én de
+  sortering. OVERDUE-detectie blijft bewust op de contractuele vervaldag zodat een latere verwachting
+  nooit een reeds-verlopen factuur maskeert (altijd `realisticDate ≥ expectedDate`). Nieuw
+  `behaviorAdjustedCount` voedt de uitleg-notitie; CSV-export gebruikt de effectieve datum (consistent
+  met de buckets). `data/income-forecast.ts` — tweede begrensde query (`status:"PAID"`, `take:300`) →
+  betaalgedrag per Company; `realisticDate` alleen voor een APPROVED, nog niet-verlopen factuur met
+  betrouwbare historie (`forecast.confident`). `prognose-panel.tsx` — kop-notitie + per-regel
+  "Verwacht rond <datum> · doorgaans N dagen na de vervaldag".
+- **Bestanden:** `src/lib/income-forecast.ts`, `src/lib/data/income-forecast.ts`,
+  `src/components/administratie/prognose-panel.tsx`, `src/lib/income-forecast.test.ts` (+5 tests).
+  Server-side waarheid; privacy: betaalgedrag alleen uit eigen betaalde facturen. Gate groen
+  (typecheck, lint, unit-tests, build, prettier). **Vervolg-fix (agent-review blocker):**
+  `forecastInvoicePayout` clamt niet naar de vervaldag → een snel-betaler met lange termijn kon een
+  verwachting vóór de vervaldag geven; `effectiveDate()` dwingt nu de invariant af (max van
+  realisticDate/expectedDate → alleen naar LATER, nooit naar voren) en de data-laag zet `realisticDate`
+  alleen wanneer `expectedAt > dueAt` (+2 regressietests).
+
 ## Security/privacy: vrije-tekst-PII overleefde de AVG-erasure in `Notification.body` (2026-07-10)
 
 - **Bevinding (HOOG · OWASP A01/A09 · AVG art. 17):** `anonymizeUser`

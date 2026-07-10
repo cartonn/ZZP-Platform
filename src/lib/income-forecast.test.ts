@@ -556,3 +556,92 @@ describe("exportForecastCsv", () => {
     expect(cols[8]).toBe("12,10");
   });
 });
+
+// ---------------------------------------------------------------------------
+// realisticDate — betaalgedrag-gecorrigeerde bucketing
+// ---------------------------------------------------------------------------
+
+describe("buildIncomeForecast — realisticDate schuift het item naar de realistische maand", () => {
+  it("een deze-maand-vervaldag met realistische betaaldatum volgende maand valt in NEXT_MONTH", () => {
+    const forecast = buildIncomeForecast(
+      [
+        item({
+          invoiceId: "inv-r1",
+          stage: "APPROVED",
+          expectedDate: utc(2026, 6, 28), // vervaldag in juni
+          realisticDate: utc(2026, 7, 12), // realistisch pas in juli
+        }),
+      ],
+      NOW,
+    );
+    expect(forecast.buckets.map((b) => b.key)).toEqual(["NEXT_MONTH"]);
+    expect(forecast.behaviorAdjustedCount).toBe(1);
+    // Bedrag blijft onderweg (niet te laat, niet concept).
+    expect(forecast.inFlightGrossCents).toBe(1210);
+  });
+
+  it("zonder realisticDate blijft het item op de vervaldag (identiek oud gedrag)", () => {
+    const forecast = buildIncomeForecast(
+      [item({ invoiceId: "inv-r2", stage: "APPROVED", expectedDate: utc(2026, 6, 28) })],
+      NOW,
+    );
+    expect(forecast.buckets.map((b) => b.key)).toEqual(["THIS_MONTH"]);
+    expect(forecast.behaviorAdjustedCount).toBe(0);
+  });
+
+  it("een reeds verlopen vervaldag blijft OVERDUE, ook met een latere realisticDate", () => {
+    const forecast = buildIncomeForecast(
+      [
+        item({
+          invoiceId: "inv-r3",
+          stage: "APPROVED",
+          expectedDate: utc(2026, 6, 1), // vóór NOW (15 juni) → te laat
+          realisticDate: utc(2026, 6, 25), // latere verwachting mag dit niet maskeren
+        }),
+      ],
+      NOW,
+    );
+    expect(forecast.buckets.map((b) => b.key)).toEqual(["OVERDUE"]);
+    expect(forecast.overdueGrossCents).toBe(1210);
+    // realisticDate is niet later dan de vervaldag in dit scenario? Het is wél later → telt mee.
+    expect(forecast.behaviorAdjustedCount).toBe(1);
+  });
+
+  it("sorteert binnen een bucket op de realistische datum", () => {
+    const forecast = buildIncomeForecast(
+      [
+        item({
+          invoiceId: "b",
+          stage: "APPROVED",
+          expectedDate: utc(2026, 6, 20),
+          realisticDate: utc(2026, 6, 30), // realistisch later
+        }),
+        item({
+          invoiceId: "a",
+          stage: "APPROVED",
+          expectedDate: utc(2026, 6, 25),
+          realisticDate: utc(2026, 6, 26), // realistisch eerder dan "b"
+        }),
+      ],
+      NOW,
+    );
+    const thisMonth = forecast.buckets.find((x) => x.key === "THIS_MONTH")!;
+    expect(thisMonth.items.map((x) => x.invoiceId)).toEqual(["a", "b"]);
+  });
+
+  it("de CSV-export gebruikt de realistische datum in de kolom 'Verwachte datum'", () => {
+    const csv = exportForecastCsv(
+      [
+        item({
+          invoiceId: "e-r",
+          stage: "APPROVED",
+          expectedDate: utc(2026, 6, 20),
+          realisticDate: utc(2026, 7, 3),
+        }),
+      ],
+      NOW,
+    );
+    const cols = csv.split("\r\n")[1]!.split(";");
+    expect(cols[5]).toBe("2026-07-03");
+  });
+});
