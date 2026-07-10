@@ -7,6 +7,14 @@ import { type Actor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { CascadeError, assertParty } from "@/lib/cascade/commands-shared";
 
+/**
+ * Titel van de admin-fanout-notificatie bij een geopend dispuut. Alleen déze notificatie draagt de
+ * vrije-tekstreden verbatim in haar body (de tegenpartij krijgt een generieke melding zonder reden).
+ * Gedeeld als constante zodat de AVG-erasure (anonymizeUser) exact díe notificaties kan terugvinden en
+ * de reden kan redacten, zonder een brosse string-koppeling tussen de twee bestanden.
+ */
+export const DISPUTE_ADMIN_NOTIFICATION_TITLE = "Dispuut — bemiddeling nodig";
+
 // --- Zijpad — Dispuut/escalatie --------------------------------------------
 export async function openDispute(
   actor: Actor,
@@ -63,7 +71,7 @@ export async function openDispute(
         data: {
           userId: a.id,
           type: "DISPUTE_OPENED",
-          title: "Dispuut — bemiddeling nodig",
+          title: DISPUTE_ADMIN_NOTIFICATION_TITLE,
           body: `Dispuut bij "${col.job.title}": ${reason.trim()}`,
           link: `/samenwerkingen/${collaborationId}`,
         },
