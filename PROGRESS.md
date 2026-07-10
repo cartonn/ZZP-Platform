@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/privacy: host-header-poisoning, CSV-injectie & open redirect gedicht (2026-07-10)
+
+Security-/privacy-auditronde (orchestrator + 1 adversariële subagent). **Drie bevindingen gefixt
+(rood→groen): KRITIEK + HOOG + MIDDEL.**
+
+- **KRITIEK — wachtwoord-reset-poisoning (CWE-640 / OWASP A01/A07):** `requestPasswordReset` bouwde
+  de reset-URL uit de spoofbare `X-Forwarded-Host`/`Host`-header → een aanvaller kon het geldige
+  reset-token naar zijn eigen domein laten mailen (account-overname). Nu via de nieuwe gedeelde
+  `src/lib/public-url.ts` (`resolvePublicOrigin`/`publicOrigin`) die `AUTH_URL`/`NEXTAUTH_URL` als
+  waarheid neemt en de headers negeert zodra geconfigureerd (spiegelt `getPublicOrigin` in de
+  middleware).
+- **HOOG — CSV-formule-injectie (CWE-1236 / OWASP A03):** `exportPrestatiesCsv` (`src/lib/prestaties.ts`)
+  quotete handmatig zonder de formule-guard; vrije tekst van de ZZP'er belandde onbeveiligd in de
+  spreadsheet van de opdrachtgever. Nu via de gedeelde `toCsv` uit `@/lib/csv`.
+- **MIDDEL — open redirect (OWASP A01):** `changeSubscription` (`abonnement/actions.ts`) bouwde de
+  betaal-`returnUrl`/`webhookUrl` uit request-`Origin`/`Host`; nu uit `publicOrigin()`. Bijvangst:
+  `admin/import/actions.ts` (`loginUrl`) mee-gemigreerd.
+- **Bestanden:** `src/lib/public-url.ts` (+`.test.ts`), `src/app/wachtwoord-vergeten/actions.ts`
+  (+`reset-poisoning.test.ts`), `src/lib/prestaties.ts` (+test-case), `abonnement/actions.ts`,
+  `admin/import/actions.ts`, `docs/SECURITY-PRIVACY-BACKLOG.md`.
+- **Checks:** typecheck + lint groen, `npm run test` 3722/3722 groen, prettier `--write` schoon,
+  build groen. Fresh sweep bevestigde overige oppervlakken schoon (zie backlog).
+
 ## Bezettingsrisico-signaal voor de opdrachtgever op /opdrachten/[id] (2026-07-10)
 
 De opdrachtgever ziet op de eigen opdracht-detail nu een waarschuwing zodra de **startdatum nadert

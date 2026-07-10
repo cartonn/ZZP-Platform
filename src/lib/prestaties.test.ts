@@ -35,11 +35,13 @@ describe("exportPrestatiesCsv", () => {
   });
 
   it("toont ORT-indicator correct", () => {
+    // De canonieke CSV-kern quotet alleen waar nodig; "Ja"/"Nee" bevatten geen scheidingsteken en
+    // komen dus onaangehaald als los veld tussen de semikolons te staan.
     const csv = exportPrestatiesCsv([base]);
-    expect(csv).toContain('"Ja"');
+    expect(csv).toMatch(/;Ja;/);
 
     const noOrt = exportPrestatiesCsv([{ ...base, hasOrt: false }]);
-    expect(noOrt).toContain('"Nee"');
+    expect(noOrt).toMatch(/;Nee;/);
   });
 
   it("formatteert bedragen als EUR met komma", () => {
@@ -77,6 +79,24 @@ describe("exportPrestatiesCsv", () => {
     const csv = exportPrestatiesCsv([]);
     const lines = csv.split("\r\n").filter(Boolean);
     expect(lines).toHaveLength(1); // alleen koptekst
+  });
+
+  it("beveiligt tegen CSV-formule-injectie in vrije tekst van de ZZP'er (CWE-1236 / OWASP A03)", () => {
+    // Een ZZP'er zet een formule als naam/omschrijving; de opdrachtgever opent de export in Excel.
+    // Zonder de guard zou de cel als formule uitgevoerd worden. De gedeelde toCsv-kern moet een
+    // voorloopse apostrof plaatsen zodat de inhoud als tekst blijft staan.
+    const p: PrestatieOverzicht = {
+      ...base,
+      freelancerName: "=cmd|'/c calc'!A1",
+      description: "@SUM(1+1)",
+      rejectionReason: "+1234567",
+    };
+    const csv = exportPrestatiesCsv([p]);
+    // Geen enkele cel mag "kaal" met een gevaarlijk teken beginnen (altijd voorafgegaan door ').
+    expect(csv).toContain("'=cmd");
+    expect(csv).toContain("'@SUM(1+1)");
+    expect(csv).toContain("'+1234567");
+    expect(csv).not.toMatch(/(^|;|")=cmd/);
   });
 
   it("exporteert meerdere rijen in de juiste volgorde", () => {

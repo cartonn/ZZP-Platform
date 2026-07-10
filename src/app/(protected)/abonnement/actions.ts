@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { requireActor } from "@/lib/authz";
+import { publicOrigin } from "@/lib/public-url";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { planKeySchema } from "@/lib/enums";
@@ -30,8 +30,10 @@ export async function changeSubscription(planKey: string): Promise<void> {
   if (plan.priceCents === 0) {
     await activate(actor.id, plan.id, key);
   } else {
-    const hdr = await headers();
-    const origin = hdr.get("origin") ?? `https://${hdr.get("host") ?? "localhost:3000"}`;
+    // Vertrouwde publieke origin (AUTH_URL), nooit uit de request-headers — anders kan een
+    // vervalste Host/Origin de gebruiker na de betaling naar een aanvallerdomein redirecten
+    // (open redirect, OWASP A01) of de webhook-callback omleiden. Zie src/lib/public-url.ts.
+    const origin = await publicOrigin();
     const checkout = await getPaymentProvider().startCheckout({
       userId: actor.id,
       planKey: key,

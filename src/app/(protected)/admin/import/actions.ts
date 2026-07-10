@@ -30,14 +30,16 @@ export async function isEmailConfigured(): Promise<boolean> {
   return isMailDeliveryConfigured();
 }
 
-/** Bouwt de absolute inlog-URL uit de request-headers (val terug op een relatieve link). */
+/**
+ * Bouwt de absolute inlog-URL voor de welkomstmail vanuit de VERTROUWDE publieke origin (AUTH_URL),
+ * nooit uit de spoofbare Host-header — zo kan een vervalste host de inloglink in een bulk-
+ * welkomstmail niet naar een aanvallerdomein wijzen (CWE-640 / OWASP A01). Val buiten request-
+ * context terug op een relatieve link.
+ */
 async function loginUrl(): Promise<string> {
   try {
-    const { headers } = await import("next/headers");
-    const h = await headers();
-    const host = h.get("x-forwarded-host") ?? h.get("host");
-    const proto = h.get("x-forwarded-proto") ?? "https";
-    if (host) return `${proto}://${host}/login`;
+    const { publicOrigin } = await import("@/lib/public-url");
+    return `${await publicOrigin()}/login`;
   } catch {
     /* buiten request-context — val terug */
   }

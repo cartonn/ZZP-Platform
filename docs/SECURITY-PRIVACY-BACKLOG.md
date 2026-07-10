@@ -4,6 +4,49 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-10 (basis: `main` @ 14cfb51)
+
+Audit: orchestrator (Opus 4.8) + 1 adversariële Opus-subagent op niet-overlappende oppervlakken.
+Kader: OWASP Top 10 (A01/A03/A07) + AVG art. 5/32. **Drie bevindingen volledig gefixt (rood→groen):
+één KRITIEK, één HOOG, één MIDDEL** — alle drie via de nieuwe gedeelde `src/lib/public-url.ts`
+(vertrouwde publieke origin) + de gedeelde CSV-kern. Fresh sweep bevestigde schoon: mutatieketen
+(auth→rol→ownership→Zod→actie→audit) over samenwerkingen/facturen/uitgaven/profiel/berichten/
+reacties/rooster/beschikbaarheid/kandidaten; franchise/tenant-isolatie + `tenancy.ts`; overige
+CSV-exports (allen via `escapeCsvField`/`toCsv`); geen `.passthrough()`/mass-assignment; geen
+`$queryRawUnsafe`; geen `dangerouslySetInnerHTML` met user-input; admin/franchise-RBAC defense-in-depth.
+
+### OPGELOST in deze ronde
+
+- **[KRITIEK→OPGELOST · OWASP A01/A07 · CWE-640 (host-header/reset-poisoning → account-overname)]**
+  `requestPasswordReset` (`src/app/wachtwoord-vergeten/actions.ts`) bouwde de wachtwoord-reset-URL
+  uit de client-beïnvloedbare `x-forwarded-host`/`host`-header. Een aanvaller kon een reset aanvragen
+  voor een slachtoffer met `Host: attacker.example`; de (legitieme) reset-mail wees dan een GELDIG
+  token naar het aanvallerdomein → overname bij één klik. De middleware gebruikte al `AUTH_URL`, maar
+  deze action niet. Repro: `POST` reset-form met `X-Forwarded-Host: attacker.example` → mail bevatte
+  `https://attacker.example/wachtwoord-herstellen/<token>`. Gefixt: nieuwe gedeelde
+  `src/lib/public-url.ts` (`resolvePublicOrigin`/`publicOrigin`) resolvet de origin uit
+  `AUTH_URL`/`NEXTAUTH_URL` en negeert de headers zodra die geconfigureerd is (spiegelt
+  `getPublicOrigin` in de middleware). Test: `src/app/wachtwoord-vergeten/reset-poisoning.test.ts`
+  (rood→groen: vervalste host + AUTH_URL → link gebruikt AUTH_URL, bevat het aanvallerdomein niet) +
+  `src/lib/public-url.test.ts`. **Escalatie (MENSENWERK §5):** zet `AUTH_URL` in productie (staat al
+  als niet-fatale env-waarschuwing) — zonder die waarde valt de resolver in dev terug op headers.
+- **[HOOG→OPGELOST · OWASP A03 · CWE-1236 (CSV-formule-injectie in de Prestaties-export)]**
+  `exportPrestatiesCsv` (`src/lib/prestaties.ts`) was de enige export die de quoting handmatig deed
+  (`"${v.replace(/"/g,'""')}"`) i.p.v. de gedeelde `escapeCsvField`/`toCsv` — en miste dus de
+  formule-injectie-guard. Vrije tekst van de ZZP'er (`freelancerName`, `description`,
+  `rejectionReason`) belandt in de spreadsheet van de opdrachtgever; een cel die met `= + - @`
+  begint werd als formule uitgevoerd (DDE/exfiltratie). Repro: ZZP'er zet omschrijving
+  `=cmd|'/c calc'!A1` → opdrachtgever exporteert `/prestaties` → formule voert uit in Excel. Gefixt:
+  export gaat nu via `toCsv` uit `@/lib/csv` (voorloopse apostrof-guard). Test: nieuwe case in
+  `src/lib/prestaties.test.ts` (rood→groen).
+- **[MIDDEL→OPGELOST · OWASP A01 (open redirect via request-origin in de betaal-checkout)]**
+  `changeSubscription` (`src/app/(protected)/abonnement/actions.ts`) bouwde de payment-provider
+  `returnUrl`/`webhookUrl` uit de request-`Origin`/`Host`. Na een betaling kon de browser naar een
+  aanvallerdomein worden geredirect. Gefixt: `returnUrl`/`webhookUrl` uit `publicOrigin()`
+  (`AUTH_URL`), nooit uit request-headers. Bijvangst: `admin/import/actions.ts` (`loginUrl` in de
+  bulk-welkomstmail) gebruikte dezelfde spoofbare header en is mee-gemigreerd naar `publicOrigin()`.
+  (Deze bevinding stond geparkeerd in ronde 2026-07-09 en is nu opgelost.)
+
 ## Ronde 2026-07-09 (2e — basis: `main` @ 76a8ca9)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende
@@ -70,10 +113,8 @@ stacktrace-lek, admin-RBAC defense-in-depth).
   schreef (`src/lib/cascade/handlers.ts:217,372,506`) komt niet voor in `anonymizeUser` of
   `account-export`. Fix: `updateMany` gescopet op de eigen partij (spiegel `Application.note` via
   `collaboration.company.userId`), en velden toevoegen aan `buildAccountExport`.
-- **[MIDDEL · OWASP A01 / open redirect — `abonnement/actions.ts` bouwt payment-provider `returnUrl`/
-  `webhookUrl` uit request-`Origin`/`Host` i.p.v. `AUTH_URL`]** Na een echte betaling kan de browser
-  naar een aanvaller-domein worden geredirect (`${origin}/abonnement`). Fix: bouw de URLs uit
-  `AUTH_URL`/`NEXTAUTH_URL` (zoals `getPublicOrigin()` in de middleware), nooit uit request-headers.
+- **[MIDDEL · OWASP A01 / open redirect — `abonnement/actions.ts` ...] → OPGELOST in ronde 2026-07-10**
+  (via de gedeelde `src/lib/public-url.ts`; zie de OPGELOST-sectie bovenaan).
 - **[LAAG · CWE-203 — zelfde existence-oracle-melding in `admin/shift-overnames/actions.ts:35`
   (`loadDecidableHandoff`)]** Door FRANCHISER bereikbaar via de gedeelde shift-overname-forms; wél
   gevangen (geen crash), alleen melding-onderscheidbaar. Fix: unificeer de melding met "niet gevonden".
