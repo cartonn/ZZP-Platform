@@ -9,7 +9,11 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 // zonder de env-variabelen komt de URL ongewijzigd terug en gedraagt de client zich als voorheen.
 // `db push`/migraties gebruiken de rauwe env-URL uit het schema — die blijven ongemoeid.
 const rawUrl = process.env.DATABASE_URL;
-const resolvedUrl = resolveDatabaseUrl(rawUrl, process.env);
+const resolvedUrl = resolveDatabaseUrl(rawUrl, {
+  DATABASE_CONNECTION_LIMIT: process.env.DATABASE_CONNECTION_LIMIT,
+  DATABASE_POOL_TIMEOUT: process.env.DATABASE_POOL_TIMEOUT,
+  DATABASE_PGBOUNCER: process.env.DATABASE_PGBOUNCER,
+});
 
 export const prisma =
   globalForPrisma.prisma ??
