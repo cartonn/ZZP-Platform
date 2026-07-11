@@ -46,6 +46,26 @@ describe("cascadeStage — terminaal/overschrijvend", () => {
     expect(s.tone).toBe("success");
     expect(s.step).toBe(CASCADE_TOTAL_STEPS);
   });
+  it("gecrediteerd = eindtoestand, niemand aan zet (geen betaal-signaal)", () => {
+    // Regressie: een CREDITED-factuur viel eerder door naar de betaal-default en toonde ten onrechte
+    // "Markeer de betaling" / "Wacht op betalingsbevestiging". Nu een terminale, neutrale fase.
+    const fr = cascadeStage(
+      base({ latestPerformanceStatus: "APPROVED", latestInvoiceStatus: "CREDITED" }),
+    );
+    const cl = cascadeStage(
+      base({
+        viewer: "CLIENT",
+        latestPerformanceStatus: "APPROVED",
+        latestInvoiceStatus: "CREDITED",
+      }),
+    );
+    for (const s of [fr, cl]) {
+      expect(s.id).toBe("credited");
+      expect(s.youAreUp).toBe(false);
+      expect(s.step).toBe(CASCADE_TOTAL_STEPS);
+      expect(s.label).not.toMatch(/betaling/i);
+    }
+  });
 });
 
 describe("cascadeStage — keten + viewer-perspectief", () => {

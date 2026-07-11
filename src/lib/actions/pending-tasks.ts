@@ -285,9 +285,11 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   }
 
   for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));
-  // Alleen de overdue-facturen die géén eigen betaal-taak kregen (bv. op een bevroren, disputed
-  // samenwerking die buiten de collabs-query valt) verschijnen nog als generieke roll-up — anders
-  // zag de ZZP'er dezelfde factuur dubbel (specifieke betaal-taak + generieke rij).
+  // Alleen de overdue-facturen die géén eigen betaal-taak kregen (bv. op een samenwerking voorbij
+  // de `take: MAX`-grens) verschijnen nog als generieke roll-up — anders zag de ZZP'er dezelfde
+  // factuur dubbel (specifieke betaal-taak + generieke rij). Disputen tellen niet mee: ze zijn uit
+  // `overdueInvoiceCount` gefilterd (bevroren werkproces), consistent met de disputed-uitsluiting
+  // van de collabs-query hierboven.
   const residualOverdue = Math.max(0, overdue - surfacedOverdue);
   if (residualOverdue > 0) tasks.push(overdueInvoiceTask(residualOverdue, "FREELANCER"));
 

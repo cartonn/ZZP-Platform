@@ -175,13 +175,19 @@ export function countUnreadConversations(
 /**
  * Facturen die actie vragen: expliciet OVERDUE óf verzonden en over de vervaldatum.
  * Vanuit de ZZP'er (herinneren) of de opdrachtgever (betalen). Eén indexed count.
+ *
+ * Disputen zijn uitgesloten (`disputedAt: null`): een dispuut bevriest het werkproces
+ * (`cascade/stage.ts` → "Dispuut — werkproces bevroren", en `confirmPayment` weigert een betaling
+ * op een disputed samenwerking via `assertNotDisputed`). Een generieke "volg op / markeer als
+ * betaald"-roll-up voor zo'n bevroren factuur zou het samenwerkingsscherm tegenspreken en een taak
+ * tonen waarvan de knop server-side sowieso faalt — dus telt hij niet mee.
  */
 export async function overdueInvoiceCount(role: UserRole, userId: string): Promise<number> {
   if (role === "ADMIN" || role === "FRANCHISER") return 0;
   const party = role === "FREELANCER" ? { freelancer: { userId } } : { company: { userId } };
   return prisma.invoice.count({
     where: {
-      collaboration: party,
+      collaboration: { ...party, disputedAt: null },
       OR: [{ status: "OVERDUE" }, { status: "SENT", dueAt: { lt: new Date() } }],
     },
   });

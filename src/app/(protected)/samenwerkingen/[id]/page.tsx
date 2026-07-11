@@ -940,7 +940,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         </>
                       )}
                       {(isFreelancer || isClient) &&
-                        inv.lifecycleStatus === "APPROVED" &&
+                        (inv.lifecycleStatus === "APPROVED" || inv.lifecycleStatus === "OVERDUE") &&
                         !frozen && (
                           <form
                             action={confirmPaymentAction.bind(null, inv.id, col.id)}

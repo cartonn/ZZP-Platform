@@ -76,6 +76,13 @@ export function cascadeStage(input: CascadeStageInput): CascadeStage {
   if (inv === "PAID" || inv === "PROCESSED") {
     return { id: "paid", badgeLabel: "Betaald", label: "Factuur betaald", step: total, totalSteps: total, youAreUp: false, tone: "success", cta: bekijk }; // prettier-ignore
   }
+  // Gecrediteerd is een afgewikkelde eindtoestand (zie SETTLED_INVOICE_LIFECYCLE): niemand hoeft nog
+  // te betalen. Zonder deze tak viel CREDITED door naar de "betaling registreren"-default onderaan en
+  // toonde het scherm ten onrechte "Markeer de betaling" / "Wacht op betalingsbevestiging" voor een
+  // gecrediteerde (teruggedraaide) factuur — een tegenstrijdig, verkeerd next-action-signaal.
+  if (inv === "CREDITED") {
+    return { id: "credited", badgeLabel: "Gecrediteerd", label: "Factuur gecrediteerd", step: total, totalSteps: total, youAreUp: false, tone: "info", cta: bekijk }; // prettier-ignore
+  }
 
   // Stap 1 — contract ondertekenen. In productie kent het contract enkel de overgang DRAFT → SIGNED
   // (SENT wordt nergens gezet): een voorgestelde samenwerking (PROPOSED) is meteen ondertekenbaar en

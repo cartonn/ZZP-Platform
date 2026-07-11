@@ -3,6 +3,40 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Persona-sweep 2026-07-11 (run 22) — 3 cascade/next-action-defecten gevonden + gefixt
+
+- **Wat:** de dagelijkse kritische-gebruiker-sweep (4 rollen, ~53 live probes + 2 parallelle Opus-reviews)
+  vond **3 echte cascade-/next-action-defecten** — 1 BLOCKER + 2 should-fix — en repareerde alle drie.
+- **BLOCKER — OVERDUE cascade-factuur had geen werkende "markeer betaald"-knop op `/samenwerkingen/[id]`
+  (dood spoor voor de opdrachtgever).** De betaal-knop rendeerde alleen bij `lifecycleStatus==="APPROVED"`;
+  zodra de betaal-herinnering (`payment-reminders-task.ts`) een factuur op `OVERDUE` zette, verdween de knop
+  stil — terwijl de statemachine `OVERDUE→PAID` toestaat, `cascade/stage.ts` OVERDUE als betaalfase toont en
+  `/acties` er een `paymentConfirmTask` voor genereert (#710). De opdrachtgever had daarna **nergens** in het
+  product een knop om zijn OVERDUE-factuur als betaald te markeren (`/facturen/[id]` verbergt betaalacties voor
+  cascade-facturen). **Fix:** conditie verbreed naar `APPROVED || OVERDUE` (spiegelt de crediteren-knop ernaast,
+  die OVERDUE al insloot). **Live geverifieerd** op een verse build: OVERDUE-factuur → opdrachtgever ziet
+  "Markeer als betaald" (knop 0→1) → klik → factuur `OVERDUE→PAID`, `PAYMENT_CONFIRMED`-audit gelogd.
+- **SHOULD-FIX — `cascade/stage.ts` had geen terminale tak voor `CREDITED`:** een gecrediteerde (teruggedraaide)
+  factuur viel door naar de betaal-default en toonde ten onrechte "Markeer de betaling"/"Wacht op
+  betalingsbevestiging". **Fix:** terminale `credited`-fase (`tone:"info"`, `youAreUp:false`) naast de
+  PAID/PROCESSED-tak. +1 test (fr+cl).
+- **SHOULD-FIX — generieke "overdue"-roll-up lekte facturen van disputen (bevroren):** `signals.ts
+overdueInvoiceCount` telde élke OVERDUE-factuur zonder `disputedAt`-filter, terwijl de specifieke-taak-lus
+  disputen uitsluit (bevroren) én `confirmPayment` een betaling op een disputed samenwerking server-side weigert
+  (`assertNotDisputed`). De roll-up toonde dus een "volg op"/"markeer betaald"-taak waarvan de knop faalt en die
+  het "Dispuut — werkproces bevroren"-scherm tegensprak. **Fix:** `collaboration: { ...party, disputedAt: null }`.
+  +3 tests (nieuw `signals.overdue.test.ts`).
+- **Bestanden:** `src/app/(protected)/samenwerkingen/[id]/page.tsx`, `src/lib/cascade/stage.ts`,
+  `src/lib/cascade/stage.test.ts`, `src/lib/signals.ts`, `src/lib/signals.overdue.test.ts`,
+  `src/lib/actions/pending-tasks.ts` (comment). Geen schemawijziging.
+- **Sweep-uitkomst overig CLEAN:** privilege-escalatie (3 rollen → `/admin/*`, `/franchise/*`) → redirect;
+  IDOR/cross-tenant (factuur/samenwerking, 3 rollen) → soft-404, geen €/PII-lek; document-privacy
+  (eigenaar/admin 200, ander 403, junk 404); cron 503/401; junk/traversal/sqli-id → nooit 500; malicieuze
+  opdracht-input (XSS/negatief/absurd tarief) → Zod-geweigerd. DOEL 1 live: admin keurt certificaat goed (6→5),
+  ZZP'er reageert op job-10 (NEW) → trekt in (WITHDRAWN), beide DB-geverifieerd. Twee Opus-reviews (security +
+  correctness) over #710–#720: #720/#718/#715/#716/#713 geen authz-/tenant-/PII-gat.
+- **Checks:** typecheck ✓, lint ✓, **test 3866 ✓**, prettier ✓, build ✓.
+
 ## ZZP'er 2026-07-11 — opdrachtgever-reputatie (beoordelingen) zichtbaar vóór reageren
 
 - **Wat:** de ZZP'er zag op de opdracht-detailpagina (`/opdrachten/[id]`) al drie opdrachtgever-signalen
