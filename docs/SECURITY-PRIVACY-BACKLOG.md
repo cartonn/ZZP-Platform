@@ -4,7 +4,79 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
-## Ronde 2026-07-10 (2e — basis: `main` @ 8d0a3dd)
+## Ronde 2026-07-11 (basis: `main` @ 350aa49)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-subagents op niet-overlappende
+oppervlakken: (1) franchise/tenant-isolatie & IDOR (incl. de nieuwe compliance-strip #716,
+roster-capaciteit #707, klant-relatiegezondheid #709, shift-overname-governance, `tenancy.ts`);
+(2) alle `/api/**`-routes + document-/media-/PDF-/dossier-/ICS-serving, cron-auth, webhook, SSRF,
+upload; (3) privacy/AVG — volledigheid van `anonymizeUser`/`account-export`, model-voor-model-walk
+van `schema.prisma` tegen de erasure-transactie, dataminimalisatie, k-anonimiteit, PII-in-logs;
+(4) injectie (SQL/XSS/CSV/ICS/template), mass-assignment/Zod, secrets, auth/sessie, CSP,
+`npm audit`. Kader: OWASP Top 10 (A01/A03/A07/A09) + ASVS + AVG art. 5/15/17/20/30/32. Toegepast
+op de nieuwste features sinds de vorige basis (`8d0a3dd`): bulk-uitnodiging (#715, `job-invite.ts` +
+`inviteSuggestedFreelancersToJob`), cashflow-prognose (#713), db-backup-ops (#712).
+
+**Drie bevindingen volledig gefixt (rood→groen): twee HOOG (AVG art. 17) + één MIDDEL
+(cross-tenant PII, defense-in-depth).** Injectie/secrets/auth/CSP/`npm audit --production` (0 vulns)
+bevestigd schoon; alle document/PDF/dossier-serving met owner/tenant-check + audit vóór bytes;
+franchise-queries `tenantScopeWhere`-gescopet zonder client-`tenantId`; de nieuwe bulk-invite volgt
+de volledige mutatieketen (auth→rol CLIENT→ownership→server-side eligibility→rate-limit→audit);
+db-backup geeft de connectie-URL als argv-arg door (geen shell-injectie) en redigeert wachtwoorden.
+
+### OPGELOST in deze ronde
+
+- **[HOOG→OPGELOST · OWASP A01/A09 · AVG art. 17 — `FreelancerProfile.defaultMotivation` overleefde
+  de erasure]** `freelancerProfileAnonymizationData()` (`src/lib/account-anonymization.ts`) wiste
+  `headline/bio/location/languages/kvkNumber/btwNumber/hourlyRate` maar niet het later toegevoegde
+  `defaultMotivation` — de zelf-getypte quick-apply-standaardtekst (≤2000 tekens vrije tekst, kan
+  naam/telefoon/adres bevatten; spiegelbeeld van `Application.motivation` die al werd geredact) — noch
+  `monthlyIncomeGoalCents` (zelfgekozen financieel doel). Repro: ZZP'er zet `defaultMotivation = "Ik
+ben Jan Jansen, 06-…"` → verwijderverzoek → `anonymizeUser` → `User.name/email` + `bio` gewist, maar
+  `defaultMotivation` staat verbatim in de DB (en werd door `account-export` als persoonsgegeven
+  meegenomen). Gefixt: beide velden nu `null` in `freelancerProfileAnonymizationData()`. Test:
+  `src/lib/account-anonymization.test.ts` (twee nieuwe cases, rood→groen).
+- **[HOOG→OPGELOST · OWASP A01 · AVG art. 17 + art. 15/20 — `Application.availability` niet geredact
+  én niet geëxporteerd]** De erasure-`application.updateMany` (`admin/gebruikers/actions.ts`) overschreef
+  alleen `motivation`, niet het vrije-tekst-`availability`-veld (≤200 tekens, bv. "bereikbaar op 06-…,
+  kan per direct starten") dat de ZZP'er bij een reactie typte — en `account-export.ts` liet het uit de
+  applications-`select` (inzage/portabiliteit-gat). Repro: reactie met `availability = "bereikbaar op
+06-12345678"` → erasure → tekst blijft leesbaar op de Application-rij, en de ZZP'er ziet 'm niet eens
+  in zijn eigen data-export. Gefixt: `availability: null` toegevoegd aan de freelancer-gescopete
+  redactie én `availability: true` aan de export-select. Tests: nieuwe cases in
+  `anonymize-erasure.test.ts` (redactie) + `account-export.test.ts` (export), rood→groen.
+- **[MIDDEL→OPGELOST · OWASP A01 · CLAUDE.md regel 2 (tenant-isolatie, defense-in-depth) — kandidaat-
+  lookup in het shift-overname-governance-scherm zonder eigen tenant-filter]**
+  `src/components/shift-overname/governance-screen.tsx` haalde de naam + certificaatstatus (PII,
+  gezondheids-adjacent) van de voorgestelde overnemer op met `where: { id: { in: candidateIds } }` —
+  zónder tenant-scope, leunend op de invariant die `requestShiftHandoff` bij aanmaak afdwingt
+  (`candidate.tenantId == job.tenantId`). Elke andere franchise-query re-asserteert de tenant bij de
+  read; deze niet. Repro (zodra de invariant ooit breekt, bv. een admin herparenteert een profiel naar
+  een andere tenant): tenant-A-franchiser opent `/franchise/shift-overnames` → ziet de naam +
+  certificaten van een tenant-B-ZZP'er in de "Voorgestelde overnemer"-kaart. Gefixt: `...scope`
+  (= `tenantScopeWhere(actor)`; `{}` voor admin, `{ tenantId }` voor de franchiser) toegevoegd aan de
+  candidate-`where`. Test: nieuwe `governance-screen.test.tsx` (franchiser scoping + admin platform-breed),
+  rood→groen.
+
+### Geparkeerd in deze ronde
+
+- **[MIDDEL · AVG art. 5(2)/verantwoordingsplicht · CLAUDE.md regel 5 — vier self-scoped export-routes
+  loggen geen audit]** `diensten/export`, `prestaties/export`, `prognose/export` en
+  `verplichtingen/export` (`src/app/(protected)/**/export/route.ts`) dwingen auth + rol + rate-limit +
+  query-ownership correct af (geen IDOR), maar roepen — anders dan élke sibling-export (`account/export`,
+  `administratie/*`, `admin/export/invoices`, `admin/audit/export`) — nooit `audit()` aan bij een export
+  van financiële/PII-data. Geen access-control-gat, wel een volledigheidsgat in de auditdekking.
+  Aanbevolen fix: `audit({ action: "..._EXPORTED", entityType, entityId: "self", metadata: { count } })`
+  spiegelen op `api/administratie/export/route.ts`, ná het genereren van de CSV.
+- **[MIDDEL · AVG art. 17 (mogelijk art. 9) — `Performance.description` niet geredact bij erasure; DPO-
+  afweging]** De vrije-tekst-omschrijving bij een uren-/mijlpaalindiening (`Performance.description`,
+  ≤500 tekens, via `performance-form.tsx`) wordt niet geraakt door `anonymizeUser` en staat niet in
+  `account-export`. In een zorgcontext kan die tekst cliënt-/patiëntdetails bevatten. Overlapt de reeds
+  geparkeerde fiscale-retentie-afweging voor `Performance.rejectionReason`/`Invoice.rejectionReason` —
+  samen oplossen ná menselijke sign-off (rij behouden, alleen het vrije-tekstveld blancen). MENSENWERK §5.
+- **[LAAG · verantwoordingsplicht — twee admin-exports zonder auditregel]** `admin/avg/export`
+  (statisch verwerkingsregister, geen per-user-PII) en `admin/import/template` (statische CSV-template,
+  geen PII) loggen geen audit. Beide `requireRole("ADMIN")`-gated; puur cosmetisch/volledigheid.
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-subagents op niet-overlappende
 oppervlakken: (1) franchise/tenant-isolatie & IDOR (incl. de nieuwe `/franchise/opdrachtgevers`- en

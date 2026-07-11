@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security-/privacy-auditronde 2026-07-11 — 2× HOOG AVG art. 17 + 1× MIDDEL cross-tenant PII (basis `main` @ 350aa49)
+
+- **Aanpak:** orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-subagents op niet-overlappende
+  oppervlakken (franchise/tenant-isolatie & IDOR · alle `/api/**` + document/PDF/dossier-serving · privacy/AVG
+  erasure-volledigheid · injectie/secrets/auth/CSP/`npm audit`). Kader: OWASP Top 10 (A01/A03/A07/A09) +
+  ASVS + AVG art. 5/15/17/20/30/32. Focus op de nieuwste features sinds `8d0a3dd` (bulk-invite #715,
+  cashflow-prognose #713, db-backup #712, compliance-strip #716).
+- **Gefixt (rood→groen):**
+  - **HOOG (AVG art. 17):** `FreelancerProfile.defaultMotivation` (zelf-getypte quick-apply-standaardtekst,
+    ≤2000 tekens) + `monthlyIncomeGoalCents` overleefden de erasure — nu `null` in
+    `freelancerProfileAnonymizationData()` (`src/lib/account-anonymization.ts`).
+  - **HOOG (AVG art. 17 + 15/20):** `Application.availability` (vrije tekst ≤200 tekens) werd niet geredact
+    bij anonimisering én ontbrak in `account-export` — `availability: null` in de erasure-`updateMany`
+    (`admin/gebruikers/actions.ts`) + `availability: true` in de export-select (`account-export.ts`).
+  - **MIDDEL (cross-tenant PII, defense-in-depth, CLAUDE.md regel 2):** de kandidaat-lookup in
+    `src/components/shift-overname/governance-screen.tsx` haalde naam + certificaatstatus op zónder
+    tenant-scope — nu `...scope` (`tenantScopeWhere(actor)`) toegevoegd.
+- **Tests:** `account-anonymization.test.ts` (+2), `anonymize-erasure.test.ts` (+1),
+  `account-export.test.ts` (+1), nieuwe `governance-screen.test.tsx` (+2, RSC-await).
+- **Geparkeerd** (zie `docs/SECURITY-PRIVACY-BACKLOG.md` ronde 2026-07-11): 4 export-routes zonder
+  auditregel (MIDDEL), `Performance.description`-erasure (MIDDEL, DPO-afweging), 2 admin-exports zonder
+  audit (LAAG). Injectie/secrets/auth/CSP/`npm audit --production` (0 vulns) schoon.
+- **Gate lokaal groen:** typecheck ✓, lint ✓ (0 warnings), unit-tests ✓ (3836 passed), `prettier --check .` ✓,
+  `next build` ✓. E2e draait in CI.
+
 ## Compliance-strip (aflopende certificaten) voor de bemiddelaar op /franchise/zzpers (2026-07-11)
 
 - **Waarom:** het ZZP'er-roster toonde per-rij een vervalchip (`expiryAlertLabel`) en had een

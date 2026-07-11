@@ -210,7 +210,9 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // en heeft mogelijk een bewaargrond bij een arbeidsgeschil — bewust niet hier; zie backlog.)
     prisma.application.updateMany({
       where: { freelancer: { userId } },
-      data: { motivation: "[Verwijderd op verzoek van de gebruiker]" },
+      // Naast de motivatiebrief draagt ook het vrije-tekst-`availability`-veld (≤200 tekens, bv.
+      // "bereikbaar op 06-…, kan per direct starten") door de betrokkene getypte PII → mee wissen.
+      data: { motivation: "[Verwijderd op verzoek van de gebruiker]", availability: null },
     }),
     // Interne kandidaatnotitie die de betrokkene als CLIENT zelf schreef bij reacties op de eigen
     // opdrachten (Application.note, vrije tekst met mogelijk persoonlijke opmerkingen). Gescopet op de

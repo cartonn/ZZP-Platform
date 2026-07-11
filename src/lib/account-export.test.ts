@@ -233,6 +233,21 @@ describe("buildAccountExport", () => {
     expect(select.freelancerId).toBeUndefined();
   });
 
+  it("exporteert het vrije-tekst-beschikbaarheidsveld van de eigen reacties (Application.availability, AVG art. 15/20)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    // De freelancer-gescopete reactie-export (eigen sollicitaties) moet het door de betrokkene
+    // getypte `availability`-veld meenemen — anders is de inzage/portabiliteit onvolledig (rood→groen).
+    const own = calls
+      .filter((c) => c.table === "application")
+      .find((c) => (c.args.where as Record<string, unknown>).freelancer !== undefined);
+    expect(own).toBeDefined();
+    const select = own?.args.select as Record<string, unknown>;
+    expect(select.motivation).toBe(true);
+    expect(select.availability).toBe(true);
+  });
+
   it("scheidt shift-overname-tekst per zijde: eigen reason (aanvrager) en eigen decisionNote (beslisser), nooit die van de ander", async () => {
     const { db, calls } = fakeDb();
     await buildAccountExport(db, ACTOR);
