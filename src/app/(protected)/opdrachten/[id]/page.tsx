@@ -73,6 +73,8 @@ import { getPaymentBehaviorForCompany } from "@/lib/data/payment-behavior";
 import { PaymentBehaviorBlock } from "@/components/jobs/payment-behavior-block";
 import { getClientReliabilityForCompany } from "@/lib/data/client-reliability";
 import { ClientReliabilityBlock } from "@/components/jobs/client-reliability-block";
+import { getCompanyReputationForFreelancer } from "@/lib/data/company-reputation";
+import { CompanyReputationBlock } from "@/components/jobs/company-reputation-block";
 import { getClientResponsivenessForCompany } from "@/lib/data/client-responsiveness";
 import { ClientResponsivenessBlock } from "@/components/jobs/client-responsiveness-block";
 import { relatedJobsForFreelancer } from "@/lib/recommendations";
@@ -237,13 +239,15 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   // Betaalgedrag-signaal: alleen voor de ZZP'er die een beslissing neemt (niet voor de eigenaar
   // zelf; wel voor niet-eigenaar FREELANCER-rol die de opdracht bekijkt).
   const showClientSignals = !isOwner && actor.role === "FREELANCER";
-  const [paymentBehavior, clientReliability, clientResponsiveness] = showClientSignals
-    ? await Promise.all([
-        getPaymentBehaviorForCompany(job.companyId),
-        getClientReliabilityForCompany(job.companyId),
-        getClientResponsivenessForCompany(job.companyId),
-      ])
-    : [null, null, null];
+  const [paymentBehavior, clientReliability, clientResponsiveness, companyReputation] =
+    showClientSignals
+      ? await Promise.all([
+          getPaymentBehaviorForCompany(job.companyId),
+          getClientReliabilityForCompany(job.companyId),
+          getClientResponsivenessForCompany(job.companyId),
+          getCompanyReputationForFreelancer(job.companyId),
+        ])
+      : [null, null, null, null];
 
   // Spiegelbeeld voor de opdrachtgever: openbare ZZP'ers die passen en nog niet reageerden,
   // plus de geaggregeerde bereik-indicatie (hoeveel passend/beschikbaar). Parallel opgehaald.
@@ -691,6 +695,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             )}
           </section>
         )}
+
+      {companyReputation && <CompanyReputationBlock reputation={companyReputation} />}
 
       {paymentBehavior && <PaymentBehaviorBlock behavior={paymentBehavior} />}
 

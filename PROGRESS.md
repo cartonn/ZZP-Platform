@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## ZZP'er 2026-07-11 — opdrachtgever-reputatie (beoordelingen) zichtbaar vóór reageren
+
+- **Wat:** de ZZP'er zag op de opdracht-detailpagina (`/opdrachten/[id]`) al drie opdrachtgever-signalen
+  vóór het reageren (betaalgedrag, annuleringsbetrouwbaarheid, reactiesnelheid) maar níet het
+  peer-reviewcijfer — terwijl het tweezijdige beoordelingssysteem (`FREELANCER_ON_CLIENT`) al bestaat en
+  opdrachtgevers de spiegel-reputatie van ZZP'ers wél op de kandidatenkaart zien (#700). Nu een compact
+  "Reputatie"-blok met het gemiddelde cijfer + aantal beoordelingen dat andere ZZP'ers na een afgeronde
+  samenwerking achterlieten. Benchmark: Malt/Temper/Deel tonen tweezijdige ratings vóór de match.
+- **Bestanden:** `src/lib/company-reputation.ts` (pure `companyReputationFromReviews`: null-gating op
+  count 0 zodat een nieuwkomer niet zwak lijkt) + `src/lib/company-reputation.test.ts` (4 tests);
+  `src/lib/data/company-reputation.ts` (`getCompanyReputationForFreelancer`, alleen PUBLISHED
+  `FREELANCER_ON_CLIENT`, begrensde query, alleen geaggregeerd — geen individuele reviews);
+  `src/components/jobs/company-reputation-block.tsx` (hergebruikt `RatingStars`); wiring in
+  `opdrachten/[id]/page.tsx` (gated door de bestaande `showClientSignals`, parallel opgehaald).
+- **Checks:** typecheck ✓, lint ✓, test 3862 ✓, prettier ✓, build ✓. Geen schemawijziging, geen extra
+  datamodel; privacy by design (alleen gepubliceerde, geaggregeerde beoordelingen).
+
 ## Prod-rijpheid 2026-07-11 — onderhoudsmodus (maintenance mode)
 
 - **Wat:** operationele noodrem om het platform tijdens migratie/DB-herstel/incident gecontroleerd
