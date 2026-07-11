@@ -12,6 +12,12 @@ export interface ForecastItem {
   vatCents: number; // VAT
   grossCents: number; // incl. VAT (total)
   expectedDate: Date | null; // dueAt; null for DRAFT/SUBMITTED
+  // Betaalgedrag-gecorrigeerde verwachte betaaldatum voor deze factuur. Wanneer we genoeg
+  // betaalhistorie van déze opdrachtgever hebben (zie invoice-payment-forecast.ts), valt het geld
+  // realistisch later binnen dan de contractuele vervaldag. Is deze gezet, dan bepaalt hij in welke
+  // maand-bucket het item valt — zodat de cashflow-tijdlijn niet te optimistisch is. `undefined`/`null`
+  // → val terug op `expectedDate` (identiek aan het oude gedrag). Altijd ≥ `expectedDate`.
+  realisticDate?: Date | null;
   counterpartyName: string; // client name
   number: string | null; // invoice number within party sequence, or null for drafts
   jobTitle: string | null;
@@ -37,6 +43,10 @@ export interface IncomeForecast {
   unbilledGrossCents: number; // gross of DRAFT items
   inFlightGrossCents: number; // gross of items in transit: SUBMITTED + APPROVED-future (not overdue, not DRAFT)
   overdueGrossCents: number; // gross of overdue items (stage OVERDUE or expectedDate < start of today)
+  // Aantal items waarvan de verwachte betaaldatum op grond van het betaalgedrag van de opdrachtgever
+  // ná de contractuele vervaldag is verschoven (realisticDate later dan expectedDate). Voedt de
+  // uitleg-notitie in het paneel; 0 → geen correctie toegepast.
+  behaviorAdjustedCount: number;
 }
 
 // NL labels for each bucket key.
@@ -62,6 +72,24 @@ function startOfDayUTC(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
+/**
+ * De datum waarop een item in de tijdlijn wordt geplaatst: de betaalgedrag-gecorrigeerde verwachte
+ * betaaldatum als die bekend is, anders de contractuele vervaldag. OVERDUE-detectie leunt bewust
+ * NIET op deze datum (zie resolveBucketKey) maar op de contractuele vervaldag, zodat een realistisch-
+ * latere verwachting nooit een reeds-verlopen factuur maskeert.
+ */
+function effectiveDate(item: ForecastItem): Date | null {
+  const { realisticDate, expectedDate } = item;
+  if (realisticDate == null) return expectedDate;
+  if (expectedDate == null) return realisticDate;
+  // Invariant afgedwongen: de betaalgedrag-correctie schuift een item alleen naar LATER, nooit naar
+  // voren. `forecastInvoicePayout` clamt niet naar de vervaldag, dus een snel-betalende opdrachtgever
+  // met een lange betaaltermijn kan een verwachting vóór de vervaldag geven — die negeren we hier
+  // (val terug op de vervaldag), zodat de prognose nooit optimistischer wordt dan de contractuele
+  // datum en een niet-verlopen factuur niet in een verleden-maand-bucket belandt.
+  return realisticDate.getTime() > expectedDate.getTime() ? realisticDate : expectedDate;
+}
+
 /** Returns a {year, month} tuple in UTC for the given Date. */
 function utcYearMonth(d: Date): { year: number; month: number } {
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
@@ -84,7 +112,9 @@ function resolveBucketKey(
   startOfToday: Date,
   nowYM: { year: number; month: number },
 ): ForecastBucketKey {
-  // Overdue: stage OVERDUE, or has an expectedDate that is before start of today.
+  // Overdue: stage OVERDUE, or has a contractual due date that is before start of today. Bewust op de
+  // contractuele vervaldag (niet de realistische verwachting) — een latere verwachting mag een reeds
+  // verlopen factuur niet uit "Te laat" wegduwen.
   if (
     item.stage === "OVERDUE" ||
     (item.expectedDate !== null && item.expectedDate < startOfToday)
@@ -93,11 +123,12 @@ function resolveBucketKey(
   }
 
   // Items without a scheduled date.
-  if (item.expectedDate === null) {
+  const eff = effectiveDate(item);
+  if (eff === null) {
     return "UNSCHEDULED";
   }
 
-  const itemYM = utcYearMonth(item.expectedDate);
+  const itemYM = utcYearMonth(eff);
   const nextYM = nextUTCMonth(nowYM);
 
   if (itemYM.year === nowYM.year && itemYM.month === nowYM.month) {
@@ -130,8 +161,10 @@ function stageSortRank(stage: ForecastStage): number {
  *   3. invoiceId ascending (tiebreak)
  */
 function compareItems(a: ForecastItem, b: ForecastItem): number {
-  if (a.expectedDate !== null && b.expectedDate !== null) {
-    const dateDiff = a.expectedDate.getTime() - b.expectedDate.getTime();
+  const aEff = effectiveDate(a);
+  const bEff = effectiveDate(b);
+  if (aEff !== null && bEff !== null) {
+    const dateDiff = aEff.getTime() - bEff.getTime();
     if (dateDiff !== 0) return dateDiff;
     const grossDiff = b.grossCents - a.grossCents;
     if (grossDiff !== 0) return grossDiff;
@@ -198,6 +231,8 @@ export function buildIncomeForecast(items: ForecastItem[], now: Date): IncomeFor
   let overdueGrossCents = 0;
   let inFlightGrossCents = 0;
 
+  let behaviorAdjustedCount = 0;
+
   for (const item of items) {
     if (item.stage === "DRAFT") {
       unbilledGrossCents += item.grossCents;
@@ -209,6 +244,14 @@ export function buildIncomeForecast(items: ForecastItem[], now: Date): IncomeFor
     } else {
       inFlightGrossCents += item.grossCents;
     }
+
+    if (
+      item.realisticDate != null &&
+      item.expectedDate != null &&
+      item.realisticDate.getTime() > item.expectedDate.getTime()
+    ) {
+      behaviorAdjustedCount += 1;
+    }
   }
 
   return {
@@ -219,6 +262,7 @@ export function buildIncomeForecast(items: ForecastItem[], now: Date): IncomeFor
     unbilledGrossCents,
     inFlightGrossCents,
     overdueGrossCents,
+    behaviorAdjustedCount,
   };
 }
 
@@ -266,7 +310,9 @@ export function exportForecastCsv(items: ForecastItem[], now: Date): string {
         item.counterpartyName,
         item.jobTitle ?? "",
         item.number ?? "",
-        item.expectedDate ? item.expectedDate.toISOString().slice(0, 10) : "",
+        // Verwachte datum = de betaalgedrag-gecorrigeerde datum als die bekend is (consistent met de
+        // bucket-indeling), anders de contractuele vervaldag.
+        effectiveDate(item) ? effectiveDate(item)!.toISOString().slice(0, 10) : "",
         formatEuroAmount(item.netCents),
         formatEuroAmount(item.vatCents),
         formatEuroAmount(item.grossCents),

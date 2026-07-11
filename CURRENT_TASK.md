@@ -272,6 +272,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > tenant; `inviteRateLimiter` één token per uitnodiging; notificaties+audits via `createMany` in één transactie;
 > idempotent, race-veilig, geen 500). Geen schemawijziging, geen eigen datamodel. +11 tests, gate groen (3815).
 >
+> Gedaan (niet opnieuw): **Realistische cashflow-prognose op basis van betaalgedrag op /prognose (2026-07-10, PR #713)** —
+> de inkomsten-tijdlijn bucketde elke openstaande factuur op de contractuele vervaldag (`dueAt`), terwijl we per factuur
+> al een betaalgedrag-gecorrigeerde verwachte betaaldatum berekenden (`forecastInvoicePayout` + `computePaymentBehavior`,
+> zichtbaar op het facturen-paneel). Geld van structureel-trage opdrachtgevers viel te vroeg in "Deze maand" → te
+> optimistische cashflow. Nu volgt de maand-bucket de realistische verwachting wanneer er ≥3 betaalde facturen van díe
+> opdrachtgever zijn. `income-forecast.ts` (`realisticDate?` op `ForecastItem`, `effectiveDate()` stuurt bucket + sortering,
+> OVERDUE-detectie blijft op de contractuele vervaldag, `behaviorAdjustedCount`, CSV op effectieve datum) +
+> `data/income-forecast.ts` (2e begrensde `status:"PAID"`-query → betaalgedrag per Company, `realisticDate` alleen op
+> APPROVED nog-niet-verlopen met `forecast.confident`) + `prognose-panel.tsx` (kop-notitie + per-regel "Verwacht rond … ·
+> doorgaans N dagen na de vervaldag"). Additief, geen schemawijziging, privacy (alleen eigen betaalde facturen). +5 tests,
+> gate groen. Vervolg-fix (agent-review): `effectiveDate()` dwingt de invariant af (correctie alleen naar LATER, nooit
+> vóór de vervaldag — `forecastInvoicePayout` clamt niet), data-laag zet `realisticDate` alleen bij `expectedAt > dueAt`.
+>
 > Gedaan (niet opnieuw): **Klant-relatiegezondheid (churn-signaal) voor de bemiddelaar op /franchise/opdrachtgevers (2026-07-10, PR #709)** —
 > de klantenlijst toonde statische afdeling-/dienst-tellingen maar geen antwoord op de CRM-kernvraag "welke klant
 > verdient nu een belletje?": wie plaatst actief werk versus wie is stilgevallen (churn-risico; benchmark Bullhorn/

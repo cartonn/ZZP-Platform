@@ -1,4 +1,4 @@
-import { CircleAlert, TrendingUp } from "lucide-react";
+import { CircleAlert, Clock, TrendingUp } from "lucide-react";
 import { type Actor } from "@/lib/authz";
 import { getForecastItemsForFreelancer } from "@/lib/data/income-forecast";
 import { formatEuro } from "@/lib/invoices";
@@ -41,6 +41,20 @@ function formatNlDate(date: Date): string {
     month: "long",
     year: "numeric",
   });
+}
+
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Aantal hele dagen dat de betaalgedrag-gecorrigeerde verwachting ná de contractuele vervaldag valt,
+ * of `null` als er geen (latere) correctie is. Voedt de "verwacht later"-notitie per regel.
+ */
+function daysLaterThanDue(item: ForecastItem): number | null {
+  if (item.realisticDate == null || item.expectedDate == null) return null;
+  const diff = Math.round(
+    (item.realisticDate.getTime() - item.expectedDate.getTime()) / MS_PER_DAY,
+  );
+  return diff > 0 ? diff : null;
 }
 
 /**
@@ -113,6 +127,21 @@ export async function PrognosePanel({ actor, items }: { actor: Actor; items?: Fo
         </Card>
       </div>
 
+      {/* Betaalgedrag-correctie: uitleg dat een deel van de verwachtingen op historisch betaalgedrag
+          i.p.v. de vervaldag is geplaatst. */}
+      {forecast.behaviorAdjustedCount > 0 && (
+        <p className="flex items-start gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          <Clock className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>
+            {forecast.behaviorAdjustedCount === 1
+              ? "Eén verwachting is"
+              : `${forecast.behaviorAdjustedCount} verwachtingen zijn`}{" "}
+            op de tijdlijn geplaatst op basis van hoe deze opdrachtgever doorgaans betaalt — vaak
+            later dan de vervaldag. Zo blijft je cashflow realistisch.
+          </span>
+        </p>
+      )}
+
       {/* Buckets */}
       <div className="space-y-6">
         {forecast.buckets.map((bucket) => (
@@ -139,7 +168,30 @@ export async function PrognosePanel({ actor, items }: { actor: Actor; items?: Fo
                     <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                       {item.jobTitle && <span className="truncate">{item.jobTitle}</span>}
                       {item.number && <span className="font-mono">{item.number}</span>}
-                      {item.expectedDate && <span>{formatNlDate(item.expectedDate)}</span>}
+                      {(() => {
+                        const laterDays = daysLaterThanDue(item);
+                        // Toon de betaalgedrag-gecorrigeerde datum alleen als die ná de vervaldag valt
+                        // (laterDays !== null); anders de contractuele vervaldag. Zo tonen we nooit een
+                        // datum vóór de vervaldag.
+                        const shownDate =
+                          laterDays !== null ? item.realisticDate! : item.expectedDate;
+                        if (!shownDate) return null;
+                        return (
+                          <span className="inline-flex items-center gap-1">
+                            {laterDays !== null && (
+                              <Clock className="size-3 shrink-0" aria-hidden />
+                            )}
+                            {laterDays !== null ? "Verwacht rond " : ""}
+                            {formatNlDate(shownDate)}
+                            {laterDays !== null && (
+                              <span className="text-[11px]">
+                                · doorgaans {laterDays} {laterDays === 1 ? "dag" : "dagen"} na de
+                                vervaldag
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                   <span className="shrink-0 font-mono text-sm font-semibold tabular-nums">
