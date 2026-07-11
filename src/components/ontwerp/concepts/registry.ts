@@ -4391,6 +4391,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#eceef1",
     available: true,
   },
+  // ── Reeks 27 (run 11-7-2026) — nrs 261–270, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "261",
+    name: "Arcana",
+    direction: "Tarot & arcana — esoterisch-mystiek met gouden lijnwerk (dark)",
+    rationale:
+      "De verificatielaag als arcanum: diep aubergine met fijn gouden lijnwerk, celestiale motieven en kaart-frames met Romeinse-cijfer-hoeken. Opdrachten worden 'getrokken kaarten', status een insignia — mysterieus én messcherp leesbaar, want goud blijft accent en crème draagt de tekst.",
+    trends: [
+      "Esoterisch/mystiek met celestiale motieven",
+      "Gouden hairline-linework op donker",
+      "Kaart-als-arcanum, serif-displaymoment",
+    ],
+    fonts: "Cormorant + Inter",
+    accent: "#c9a24b",
+    bg: "#17121f",
+    fg: "#f0e9dc",
+    available: true,
+  },
+  {
+    id: "262",
+    name: "Reisaffiche",
+    direction: "Vintage reisposter — 1930s flat-illustratie (light)",
+    rationale:
+      "Een spoorweg-/KLM-reisposter uit de jaren '30: platte geometrische illustratie-banden, condensed display-type en een warm beperkt palet maken van elke opdracht een 'bestemming'. Nostalgisch en bold, met een streng gridsysteem eronder dat de data helder houdt.",
+    trends: [
+      "Vintage travel-poster / art-deco flat-illustratie",
+      "Condensed display + beperkt warm palet",
+      "Geometrische landschapsbanden als hero",
+    ],
+    fonts: "Anton + Inter",
+    accent: "#0e7c86",
+    bg: "#f3ead4",
+    fg: "#24201a",
+    available: true,
+  },
+  {
+    id: "263",
+    name: "Bouwpakket",
+    direction: "Exploded-view montagehandleiding — assemblage (light)",
+    rationale:
+      "De IKEA/technische-montagehandleiding als interface: exploded axonometrische energie, genummerde ballon-callouts met streeplijn-leaders en een 'stap 1/2/3'-structuur. Verificatie wordt 'onderdeel geverifieerd of ontbreekt' — speels-technisch, functie-eerst en onmiskenbaar.",
+    trends: [
+      "Exploded-view / assemblage-diagram",
+      "Genummerde ballon-callouts + leader-lijnen",
+      "Wordless-manual iconen, monospace labels",
+    ],
+    fonts: "IBM Plex Mono + Inter",
+    accent: "#2563eb",
+    bg: "#f6f7f9",
+    fg: "#14181f",
+    available: true,
+  },
+  {
+    id: "264",
+    name: "Honingraat",
+    direction: "Hexagonaal cellen-raster — honingraat-architectuur (warm light)",
+    rationale:
+      "Hexagon-tessellatie als informatie-architectuur: KPI's en modules leven in zeshoekige cellen die oplichten bij hover, met een honingraat-raster als structuur. Onderscheidend van het rechthoekige bento door echte hex-geometrie — warm amber en antraciet, tekst altijd in leesbare zones.",
+    trends: [
+      "Hexagonale tessellatie als grid",
+      "Cel-lift/hover-gloed",
+      "Warm honing-palet, geometrische structuur",
+    ],
+    fonts: "Space Grotesk + Inter",
+    accent: "#e0a020",
+    bg: "#f6efe0",
+    fg: "#2a2318",
+    available: true,
+  },
+  {
+    id: "265",
+    name: "Scheurkalender",
+    direction: "Nederlands dagblok & dagspreuk — tactiel afscheuren (light)",
+    rationale:
+      "De klassieke Nederlandse scheurkalender: een groot dagblok met datum, weekdag en dagspreuk, perforatie-rand en een licht-afgescheurde hoek. De next-best-action is het 'vandaag'-blok, opdrachten stapelen als scheurbare bladen — tactiel, herkenbaar en rustgevend.",
+    trends: [
+      "Skeuomorfe scheurkalender / dagblok",
+      "Perforatie + tear-off micro-interactie",
+      "Serif-getallen, warm papier",
+    ],
+    fonts: "Newsreader + Manrope",
+    accent: "#c02a24",
+    bg: "#f7f3ea",
+    fg: "#241f1b",
+    available: true,
+  },
+  {
+    id: "266",
+    name: "Kruiswoord",
+    direction: "Genummerd puzzelraster & aanwijzingen (light)",
+    rationale:
+      "Een kruiswoordpuzzel-layout als UI: een zwart-wit genummerd cellenraster draagt cijfers en statussen, met een 'horizontaal/verticaal'-aanwijzingenlijst als navigatie en acties. Speels-intelligent en streng — het raster is structuur, nooit ten koste van leesbaarheid.",
+    trends: [
+      "Puzzelraster als informatie-architectuur",
+      "Genummerde cellen + aanwijzingenlijst",
+      "Streng zwart-wit, één actieve-cel-accent",
+    ],
+    fonts: "Space Mono + Inter",
+    accent: "#2563eb",
+    bg: "#ffffff",
+    fg: "#0a0a0a",
+    available: true,
+  },
+  {
+    id: "267",
+    name: "Vaporwave",
+    direction: "Pastel-mall & marmeren buste — dreamy retro (dark-pastel)",
+    rationale:
+      "Vaporwave met smaak — onderscheiden van de synthwave-zonsondergang: zacht pastel cyaan/roze op donker-violet, een perspectief-rastervloer en marmeren-buste-silhouetten als decor. Dreamy retro-mall-sfeer op rustige glazige panelen, waar leesbaarheid vóór het effect gaat.",
+    trends: [
+      "Vaporwave / pastel retro-mall",
+      "Perspectief-rastervloer + marmeren-buste-decor",
+      "Pastel-gloed op donkere glazige panelen",
+    ],
+    fonts: "Space Grotesk + Geist Mono",
+    accent: "#6de3e0",
+    bg: "#1b1030",
+    fg: "#f0e9ff",
+    available: true,
+  },
+  {
+    id: "268",
+    name: "Recept",
+    direction: "Receptenkaart — ingrediënten & bereidingswijze (warm light)",
+    rationale:
+      "Het kookboek als product: warme crème receptkaarten met serif-titel, een 'ingrediënten'-kolom (vereisten) en genummerde 'bereidingswijze' (stappen), met tijd/portie-chips voor tarief en uren. Verificatie wordt een keurmerk-zegel — gastvrij, ambachtelijk en toch strak.",
+    trends: [
+      "Kookboek/receptkaart-metafoor",
+      "Ingrediënten + genummerde stappen-layout",
+      "Warm-gastvrij, serif-titel & chip-metadata",
+    ],
+    fonts: "Fraunces + Manrope",
+    accent: "#b3541e",
+    bg: "#f8f2e6",
+    fg: "#2a2018",
+    available: true,
+  },
+  {
+    id: "269",
+    name: "Nautilus",
+    direction: "Fibonacci-spiraal & phyllotaxis — gulden snede (light)",
+    rationale:
+      "Natuurlijke wiskunde als designtaal: een gouden-spiraal-motief, phyllotaxis-puntpatronen (137,5°) als datavisualisatie en φ-verhoudingen in het grid. Sereen off-white met diep inktgroen en één goud-accent — match-scores lopen als spiraal-arc. Elegant, natuurlijk en rustig.",
+    trends: [
+      "Gulden snede / φ-gridverhoudingen",
+      "Phyllotaxis-puntpatroon als dataviz",
+      "Nautilus-spiraal, natuurlijk-mathematisch",
+    ],
+    fonts: "Cormorant + Inter",
+    accent: "#b8933c",
+    bg: "#f5f4ef",
+    fg: "#1e2420",
+    available: true,
+  },
+  {
+    id: "270",
+    name: "Staalkaart",
+    direction: "Kleurstaal-waaier & verfchip-deck — systematisch (light)",
+    rationale:
+      "Een Pantone-/verfstaal-waaier als interface: elk onderdeel is een verfchip met kleurblok, code-label en naam, gestapeld in een waaier die uitwaaiert bij hover. Een systematisch palet codeert de secties; elke verificatiestatus krijgt zijn eigen staal met label + icoon. Designerly en tactiel.",
+    trends: [
+      "Verfchip/Pantone-waaier als UI",
+      "Uitwaaierende chip-stapel op hover",
+      "Systematisch kleur-coderen + mono-codes",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#16a34a",
+    bg: "#fafafa",
+    fg: "#14181f",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);
