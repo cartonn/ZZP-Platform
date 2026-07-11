@@ -13,7 +13,10 @@ import {
   summarizeExpiryAlert,
   expiryAlertLabel,
   expiryAlertTone,
+  type ExpiryWindow,
 } from "@/lib/franchise/credential-alerts";
+import { summarizeCredentialCompliance } from "@/lib/franchise/credential-compliance";
+import { CredentialComplianceStrip } from "@/components/franchise/credential-compliance-strip";
 import {
   parseRosterFilter,
   filterRoster,
@@ -71,6 +74,8 @@ interface RosterCard extends RosterZzper {
   outstandingTypes: CredentialType[];
   alertLabel: string | null;
   alertTone: ReturnType<typeof expiryAlertTone>;
+  /** Meest urgente vervalvenster — voedt het aggregate compliance-overzicht. */
+  alertWindow: ExpiryWindow | null;
 }
 
 export default async function FranchiseZzpersPage({
@@ -153,11 +158,13 @@ export default async function FranchiseZzpersPage({
       hasAlert: alertLabel != null && alertTone != null,
       alertLabel,
       alertTone,
+      alertWindow: alert.window,
       activeCollaborations: f._count.collaborations,
     };
   });
 
   const capacity = summarizeRosterCapacity(cards);
+  const compliance = summarizeCredentialCompliance(cards.map((c) => ({ window: c.alertWindow })));
   const visible = sortRoster(filterRoster(cards, filter), filter.sort);
   const filterActive = isRosterFilterActive(filter);
 
@@ -192,6 +199,10 @@ export default async function FranchiseZzpersPage({
           {/* Capaciteitsoverzicht: "wie kan ik nu aan het werk zetten?" — vrije capaciteit als
               hoofdmaat, klikbaar naar het idle-filter. */}
           <RosterCapacityStrip summary={capacity} />
+
+          {/* Compliance-overzicht: "houd ik mijn pool compliant?" — verlopen/aflopende certificaten
+              als aggregaat, klikbaar naar het alerts-filter. Rendert alleen bij een signaal. */}
+          <CredentialComplianceStrip summary={compliance} />
 
           {/* Zoeken + filteren + sorteren (GET → server-side waarheid; deelbaar/herlaadbaar). */}
           <form method="get" className="flex flex-wrap items-end gap-3">

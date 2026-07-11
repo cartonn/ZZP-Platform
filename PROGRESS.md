@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Compliance-strip (aflopende certificaten) voor de bemiddelaar op /franchise/zzpers (2026-07-11)
+
+- **Waarom:** het ZZP'er-roster toonde per-rij een vervalchip (`expiryAlertLabel`) en had een
+  `?alerts=1`-filter, maar geen **aggregaat** dat de kernvraag van een zorg-/detacheringsbureau in één
+  oogopslag beantwoordt: "houd ik mijn pool compliant?" — hoeveel vakmensen hebben een verlopen certificaat
+  (hard gat: vertrouwensniveau zakt, per-opdracht kan de compliance-gate blokkeren) of een certificaat dat
+  binnenkort verloopt (vernieuw op tijd). Benchmark Pidz/Zorgwerk: een bureau moet dit vóór zijn, niet
+  achteraf ontdekken. Spiegelt de roster-capaciteit-strip (#707) naar de compliance-kant.
+- **Hoe (additief, geen schemawijziging, geen extra query):**
+  - `src/lib/franchise/credential-compliance.ts` — pure, geteste `summarizeCredentialCompliance(items)`
+    (partitioneert elke ZZP'er op het meest urgente vervalvenster in `expired`/`expiringSoon`/`clear`;
+    `flagged = expired + expiringSoon`; sommen op tot `total`) + `credentialComplianceHeadline` (verlopen
+    weegt zwaarder dan aflopend; `null` bij leeg roster). Hergebruikt `ExpiryWindow` uit de vervalkalender —
+    geen eigen drempels.
+  - `src/components/franchise/credential-compliance-strip.tsx` — presentationele strip (3 StatCards:
+    Verlopen/Loopt binnenkort af/Op orde); rendert alleen bij een signaal (`flagged > 0`) — rust boven ruis;
+    Verlopen/Aflopend klikbaar → `?alerts=1`.
+  - `src/app/(protected)/franchise/zzpers/page.tsx` — `alertWindow` toegevoegd aan de reeds gebouwde
+    RosterCard (uit de al berekende `alert.window`, geen extra query), summary + strip onder de
+    capaciteit-strip.
+- **Gate lokaal groen:** typecheck ✓, lint ✓ (0 warnings), unit-tests ✓ (+8: `credential-compliance`),
+  `prettier --write .` ✓, `next build` ✓. E2e draait in CI.
+
 ## Bulk-uitnodiging geschikte ZZP'ers voor een opdracht (2026-07-10)
 
 - **Waarom:** de opdrachtgever kon geschikte ZZP'ers alleen **één voor één** uitnodigen (`inviteFreelancerToJob`,

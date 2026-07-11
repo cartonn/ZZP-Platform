@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Compliance-strip (aflopende certificaten) voor de bemiddelaar op /franchise/zzpers
+> (2026-07-11, PR #716)** — het ZZP'er-roster had per-rij een vervalchip + een `?alerts=1`-filter maar geen
+> aggregaat dat de kernvraag "houd ik mijn pool compliant?" in één oogopslag beantwoordt. Nu een strip bovenaan
+> `/franchise/zzpers` (naast de capaciteit-strip #707) met het aantal vakmensen met een **verlopen** (hard gat)
+> of **aflopend** certificaat, klikbaar naar het bestaande alerts-filter; rendert alleen bij een signaal. Pure
+> `src/lib/franchise/credential-compliance.ts` (`summarizeCredentialCompliance` partitioneert per meest-urgent
+> vervalvenster in expired/expiringSoon/clear, `flagged=expired+expiringSoon`, sommen tot total;
+> `credentialComplianceHeadline`, verlopen zwaarder dan aflopend; hergebruikt `ExpiryWindow` — geen eigen
+> drempels; 8 tests) + `CredentialComplianceStrip` (3 StatCards) + `alertWindow` op de reeds gebouwde RosterCard
+> (geen extra query, geen schemawijziging). Benchmark Pidz/Zorgwerk (bureau moet compliance vóór zijn). Gate groen.
+>
 > Gedaan (niet opnieuw): **Bulk-uitnodiging geschikte ZZP'ers voor een opdracht (2026-07-10, PR #715)** —
 > de opdrachtgever kon geschikte ZZP'ers alleen één voor één uitnodigen (`inviteFreelancerToJob`, #625);
 > concurrenten (PIDZ/Zorgwerk) nodigen matchende krachten "binnen uren" automatisch uit. Nu één klik
