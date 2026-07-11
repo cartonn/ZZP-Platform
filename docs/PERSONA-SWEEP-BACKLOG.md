@@ -1,5 +1,50 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-11 (run 22) · **main-commit basis:** `9efcda6`
+> **Uitkomst:** **3 cascade/next-action-defecten gevonden én OPGELOST** (1 BLOCKER + 2 should-fix). Verse
+> prod-build (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`) op ephemere SQLite
+> (`qa.db`), prod-server (`node scripts/start.mjs`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`,
+> `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte formulier (`demo1234`); Playwright met de
+> vooraf-geïnstalleerde Chromium. Twee parallelle Opus-reviews (security + next-action-correctheid) over
+> diff `666ff53..9efcda6` (#710–#720).
+>
+> **DOEL 1 (echte actie, live + DB-geverifieerd):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties`
+> → Goedkeuren-knoppen **6→5**. FREELANCER (Sanne) **reageerde** op `job-10` → nieuwe `Application` (NEW,
+> DB-bevestigd) + redirect `/reacties`; daarna **reactie ingetrokken** via de ConfirmButton-dialoog →
+> `job-10:WITHDRAWN` (DB). BLOCKER-fix **live geverifieerd**: OVERDUE-factuur → opdrachtgever ziet
+> "Markeer als betaald" (knop 0→1) → klik → `OVERDUE→PAID` + `PAYMENT_CONFIRMED`-audit.
+>
+> **DOEL 1b + 2 (adversarieel, ~53 probes — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen|audit`; niet-FRANCHISER → `/franchise`) → **redirect
+> naar eigen dashboard**; IDOR/cross-partij + cross-tenant (foreign factuur SUBMITTED/PAID/DRAFT + foreign
+> samenwerking, 3 rollen) → **soft-404, body-inspectie: geen €-bedrag/e-mail/PII-lek**; document-privacy
+> (`/api/documents/<Sanne VOG>`: eigenaar + ADMIN → **200**, CLIENT/FRANCHISER/andere-FREELANCER → **403**,
+> junk → **404**); junk-/traversal-/sqli-id (`/facturen|/samenwerkingen|/opdrachten/<junk>`,
+> `..%2F..%2Fetc%2Fpasswd`, `1' OR '1'='1`) → soft-404, **nooit 500**; `/api/tasks/run-all|expiry` zonder
+> `CRON_SECRET` → **503**; malicieuze opdracht-input (XSS-titel + `rateMin=-50` + `rateMax=1e12`) → Zod-geweigerd,
+> op-form gebleven, 0 malicieuze jobs. `/api/health` + `/api/readiness` → 200.
+>
+> **GEVONDEN + GEFIXT — BLOCKER (functioneel dood spoor, DOEL 1):** OVERDUE cascade-factuur had geen werkende
+> "markeer betaald"-knop op `/samenwerkingen/[id]` — de knop rendeerde alleen bij `APPROVED`. Zodra
+> `payment-reminders-task.ts` een factuur op `OVERDUE` zette, verdween de knop stil, terwijl de statemachine
+> `OVERDUE→PAID` toestaat, `stage.ts` OVERDUE als betaalfase toont en `pending-tasks.ts` er een `paymentConfirmTask`
+> voor genereert (#710). De **opdrachtgever** had nergens meer een knop om zijn OVERDUE-factuur als betaald te
+> markeren (`/facturen/[id]` verbergt betaalacties voor cascade-facturen → totaal dood spoor); de ZZP'er had
+> nog `/acties` maar de dashboard-CTA "Betaling markeren → /samenwerkingen/[id]" leidde naar een scherm zonder
+> de actie. **Geschonden regel:** "server-side is de waarheid" + next-action-lat (fasescherm mag `/acties` niet
+> tegenspreken). **Fix:** conditie → `APPROVED || OVERDUE` (`samenwerkingen/[id]/page.tsx:942-944`). Live
+> geverifieerd (0→1 knop, OVERDUE→PAID + audit).
+>
+> **GEVONDEN + GEFIXT — should-fix (next-action-correctheid):** (1) `cascade/stage.ts` had geen terminale tak
+> voor `CREDITED` → een gecrediteerde factuur viel door naar de betaal-default ("Markeer de betaling"). Fix:
+> terminale `credited`-fase. (2) `signals.ts overdueInvoiceCount` telde OVERDUE-facturen van **disputen**
+> (bevroren) mee, terwijl de specifieke-taak-lus disputen uitsluit én `confirmPayment` ze server-side weigert
+> (`assertNotDisputed`) — de generieke roll-up toonde een taak waarvan de knop faalt en die het
+> "Dispuut — bevroren"-scherm tegensprak. Fix: `disputedAt: null`-filter. Bestanden: `stage.ts`+`stage.test.ts`,
+> `signals.ts`+`signals.overdue.test.ts`, `pending-tasks.ts` (comment). +4 tests, gate groen (**3866 unit-tests**).
+>
+> ---
+>
 > **Datum:** 2026-07-10 (run 21) · **main-commit basis:** `666ff53`
 > **Uitkomst:** **1 next-action-defect (DOEL 1b) gevonden én OPGELOST** — de betaal-taak van de ZZP'er
 > verdween stil uit `/acties` zodra een factuur naar `OVERDUE` liep, in tegenspraak met `cascade/stage.ts`.
