@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid 2026-07-11 (2e) — connection-pool-configuratie voor productie-Postgres
+
+- **Wat:** pluggbare connection-pool-configuratie voor de Prisma-client, zodat horizontale
+  schaling (meerdere Railway-instances) het connectie-plafond van de managed Postgres niet
+  uitput. Optioneel via env: `DATABASE_CONNECTION_LIMIT` (geklemd 1–1000),
+  `DATABASE_POOL_TIMEOUT` (seconden, 0 = uit), `DATABASE_PGBOUNCER=true` (pooler-compat).
+  Inert-by-default (Prisma-defaults ongewijzigd zonder de variabelen); alleen op Postgres-URLs,
+  SQLite blijft ongemoeid; een parameter die al in `DATABASE_URL` staat wordt nooit
+  overschreven; ongeldige waarden vallen veilig terug.
+- **Bestanden:** `src/lib/db-connection.ts` (puur: `resolveDatabaseUrl`/`parsePoolConfig`, met
+  tests), gewired in `src/lib/db.ts` via Prisma `datasourceUrl`; zichtbaar op
+  `/admin/systeemstatus` ("DB-connectiepool", groep Schaalbaarheid, `src/lib/system-status.ts`);
+  productie-boot-waarschuwing bij Postgres zonder `DATABASE_CONNECTION_LIMIT` (`src/lib/env.ts`).
+- **Checks:** typecheck ✓, lint ✓, test ✓, prettier ✓, build ✓. Geen schemawijziging.
+- **Rest = mensenwerk:** niets voor de pilot (single instance draait op Prisma-defaults); bij
+  horizontale schaling `DATABASE_CONNECTION_LIMIT` (+ evt. `DATABASE_PGBOUNCER=true`) zetten.
+
 ## Security/Privacy 2026-07-11 (2e) — onderhouds-afsluiting stopt nu ook de login-DB-schrijfacties
 
 - **Wat:** security/privacy-auditronde op de delta `350aa49..af5212e` (#718–#724). Orchestrator (Opus

@@ -57,6 +57,7 @@ describe("collectSystemStatus — volledig bekabelde productie", () => {
     BIG_VERIFIER: "bigregister",
     IDENTITY_VERIFIER: "idin",
     SECURITY_CONTACT: "security@example.nl",
+    DATABASE_CONNECTION_LIMIT: "10",
   });
 
   it("markeert álles als ok en geeft geen aandacht-items", () => {
@@ -131,11 +132,39 @@ describe("collectSystemStatus — zoekmachine-indexering", () => {
       BIG_VERIFIER: "bigregister",
       IDENTITY_VERIFIER: "idin",
       SECURITY_CONTACT: "security@example.nl",
+      DATABASE_CONNECTION_LIMIT: "10",
     });
     const status = collectSystemStatus(wired);
     expect(status.counts.attention).toBe(0);
     expect(status.counts.fallback).toBe(0);
     expect(status.warnings).toEqual([]);
+  });
+});
+
+describe("collectSystemStatus — DB-connectiepool", () => {
+  it("Prisma-default op Postgres in productie = aandacht", () => {
+    const item = itemByKey(makeEnv(), "db-connection-pool");
+    expect(item.mode).toBe("Prisma-default");
+    expect(item.level).toBe("attention");
+  });
+  it("expliciete DATABASE_CONNECTION_LIMIT = ok en toont extra's", () => {
+    const item = itemByKey(
+      makeEnv({
+        DATABASE_CONNECTION_LIMIT: "8",
+        DATABASE_POOL_TIMEOUT: "20",
+        DATABASE_PGBOUNCER: "true",
+      }),
+      "db-connection-pool",
+    );
+    expect(item.level).toBe("ok");
+    expect(item.mode).toContain("limit 8");
+    expect(item.mode).toContain("pool_timeout=20");
+    expect(item.mode).toContain("pgbouncer");
+  });
+  it("op SQLite niet van toepassing (geen aandacht)", () => {
+    const item = itemByKey(makeEnv({ DATABASE_URL: "file:./dev.db" }), "db-connection-pool");
+    expect(item.mode).toBe("n.v.t.");
+    expect(item.level).toBe("fallback");
   });
 });
 

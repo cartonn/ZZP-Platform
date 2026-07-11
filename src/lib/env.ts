@@ -123,6 +123,17 @@ const schema = z
     MAINTENANCE_ALLOW_ADMIN: z.string().optional(),
     MAINTENANCE_MESSAGE: z.string().optional(),
     MAINTENANCE_RETRY_AFTER: z.string().optional(),
+
+    // Connection-pool per proces voor productie-Postgres (src/lib/db-connection.ts). Inert-by-default:
+    // zonder deze variabelen blijft de DATABASE_URL ongewijzigd (Prisma-defaults). Zet
+    // DATABASE_CONNECTION_LIMIT om de pool per instance te begrenzen (voorkomt dat horizontale
+    // schaling het connectie-plafond van de managed DB uitput); DATABASE_POOL_TIMEOUT (seconden,
+    // 0 = uit) en DATABASE_PGBOUNCER=true (pooler-compat) zijn optioneel. Alleen op Postgres-URLs;
+    // een parameter die al in de URL staat wordt nooit overschreven. Ongeldige waarden vallen veilig
+    // terug op "niet gezet".
+    DATABASE_CONNECTION_LIMIT: z.string().optional(),
+    DATABASE_POOL_TIMEOUT: z.string().optional(),
+    DATABASE_PGBOUNCER: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     const require = (cond: boolean, path: string, message: string) => {
@@ -251,6 +262,11 @@ export function envWarnings(env: Env): string[] {
   if (env.RATE_LIMIT_STORE === "memory") {
     warnings.push(
       "RATE_LIMIT_STORE=memory — rate-limits gelden per proces; bij meerdere instances zijn de limieten per instance. Zet RATE_LIMIT_STORE=upstash (met UPSTASH_REDIS_REST_URL/TOKEN) vóór horizontale schaling.",
+    );
+  }
+  if (/^postgres(ql)?:\/\//i.test(env.DATABASE_URL) && !env.DATABASE_CONNECTION_LIMIT) {
+    warnings.push(
+      "DATABASE_CONNECTION_LIMIT ontbreekt — Prisma opent per instance een eigen pool (default num_cpus*2+1); bij meerdere instances kan dat het connectie-plafond van de managed Postgres uitputten. Zet DATABASE_CONNECTION_LIMIT (bijv. 5–10 per instance) vóór horizontale schaling.",
     );
   }
   // Verificatie-vertrouwen (security-review 2026-07-07, KRITIEK). Een verifier die niet op zijn echte
