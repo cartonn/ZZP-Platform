@@ -65,6 +65,8 @@ import {
   inviteSuggestedFreelancersToJob,
 } from "../actions";
 import { parseInvitedFreelancerIds } from "@/lib/job-invite";
+import { parseInviteRecords, summarizeInviteFollowup } from "@/lib/job-invite-followup";
+import { JobInviteFollowupCard } from "@/components/jobs/job-invite-followup-card";
 import { JobStatusButton } from "./job-status-button";
 import { startConversationWithFreelancer } from "@/app/(protected)/berichten/actions";
 import { ApplicationForm } from "./application-form";
@@ -336,22 +338,46 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   })();
 
   // Directe uitnodigingen die de eigenaar al voor deze opdracht verstuurde (gezaghebbend uit de
-  // JOB_INVITED-auditrecords) → zet de knop per geschikte ZZP'er om in een "Uitgenodigd"-badge.
-  const invitedFreelancerIds =
-    isOwner && suggestions.length > 0
-      ? parseInvitedFreelancerIds(
-          await prisma.auditLog.findMany({
-            where: { entityType: "Job", entityId: job.id, action: "JOB_INVITED" },
-            select: { metadata: true },
-            take: 200,
-          }),
-        )
-      : new Set<string>();
+  // JOB_INVITED-auditrecords) → zet de knop per geschikte ZZP'er om in een "Uitgenodigd"-badge én
+  // voedt de opvolging (hoeveel uitgenodigde ZZP'ers reageerden). Voor élke eigenaar geladen (niet
+  // alleen bij levende suggesties): de opvolging blijft relevant nadat de suggestielijst leegloopt.
+  const inviteLogs = isOwner
+    ? await prisma.auditLog.findMany({
+        where: { entityType: "Job", entityId: job.id, action: "JOB_INVITED" },
+        select: { metadata: true, createdAt: true },
+        take: 200,
+      })
+    : [];
+  const invitedFreelancerIds = parseInvitedFreelancerIds(inviteLogs);
 
   // Aantal geschikte ZZP'ers dat nog niet is uitgenodigd → voedt de bulk-knop "Nodig alle uit".
   const uninvitedSuggestionCount = suggestions.filter(
     (f) => !invitedFreelancerIds.has(f.freelancerId),
   ).length;
+
+  // Opvolging: welke uitgenodigde ZZP'ers reageerden (een niet-ingetrokken reactie op deze
+  // opdracht). Eén begrensde query, alleen wanneer er daadwerkelijk uitnodigingen zijn — geaggregeerd.
+  const inviteFollowup =
+    invitedFreelancerIds.size > 0
+      ? summarizeInviteFollowup(
+          parseInviteRecords(inviteLogs),
+          new Set(
+            // unbounded-allow: begrensd door `freelancerId in invitedFreelancerIds` (≤ 200, uit de
+            // met take:200 geladen JOB_INVITED-logs) — één reactie per (opdracht, ZZP'er).
+            (
+              await prisma.application.findMany({
+                where: {
+                  jobId: job.id,
+                  freelancerId: { in: [...invitedFreelancerIds] },
+                  status: { not: "WITHDRAWN" },
+                },
+                select: { freelancerId: true },
+              })
+            ).map((a) => a.freelancerId),
+          ),
+          new Date(),
+        )
+      : null;
 
   const { t } = await getTranslator();
 
@@ -592,6 +618,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
       {isOwner && vacancyPerformance && <JobVacancyPerformanceCard summary={vacancyPerformance} />}
 
       {isOwner && reach && <JobReachCard reach={reach} />}
+
+      {isOwner && inviteFollowup && <JobInviteFollowupCard followup={inviteFollowup} />}
 
       {isOwner && suggestions.length > 0 && (
         <section className="rounded-lg border border-border bg-card">

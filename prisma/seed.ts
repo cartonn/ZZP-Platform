@@ -894,6 +894,34 @@ async function main() {
     });
   }
 
+  // --- Directe uitnodigingen (JOB_INVITED) — demonstreert de opvolging-kaart op /opdrachten/[id] ---
+  // Mark Jansen nodigde twee passende ZZP'ers uit voor job-1: Sanne reageerde daadwerkelijk
+  // (app-1), Lisa nog niet. Zo toont de opvolging-kaart 1/2 gereageerd (goede respons). Vaste id's
+  // + upsert houden de seed idempotent (audit-records hebben geen natuurlijke sleutel).
+  const jansenUserId = clientUserIdByKey["jansen"];
+  if (jansenUserId) {
+    const jobInvites: Array<{ id: string; fk: string }> = [
+      { id: "seed-invite-job1-sanne", fk: "sanne" },
+      { id: "seed-invite-job1-lisa", fk: "lisa" },
+    ];
+    for (const inv of jobInvites) {
+      const freelancerProfileId = pid[inv.fk];
+      if (!freelancerProfileId) continue;
+      await prisma.auditLog.upsert({
+        where: { id: inv.id },
+        update: {},
+        create: {
+          id: inv.id,
+          actorId: jansenUserId,
+          action: "JOB_INVITED",
+          entityType: "Job",
+          entityId: "job-1",
+          metadata: JSON.stringify({ freelancerId: freelancerProfileId }),
+        },
+      });
+    }
+  }
+
   // --- Bewaarde opdrachten (Sanne) — bookmarks om er later op terug te komen ---
   // Twee open opdrachten waar ze nog niet op reageerde + één DRAFT (job-7) zodat het
   // overzicht óók de "niet meer beschikbaar"-sectie demonstreert.

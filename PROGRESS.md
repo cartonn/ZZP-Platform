@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Opdrachtgever 2026-07-11 — uitnodiging-opvolging (invite→response) op de opdracht-detail
+
+- **Wat:** de directe uitnodiging (`inviteFreelancerToJob`, #625) en de bulk-uitnodiging (#715) waren
+  "fire-and-forget": de opdrachtgever nodigt passende ZZP'ers uit, maar zag daarna nergens of die
+  uitnodiging landde. Nu een compacte "Opvolging uitnodigingen"-kaart op `/opdrachten/[id]` (eigenaar):
+  hoeveel uitgenodigde ZZP'ers reageerden (X/N gereageerd), hoeveel nog in afwachting, de leeftijd van
+  de oudste openstaande uitnodiging, en — als niemand bijt terwijl de uitnodigingen verouderen — een
+  nudge om het bereik te verruimen. Sluit de invite→response-lus (benchmark Pidz/Zorgwerk/Bullhorn).
+- **Bestanden:** `src/lib/job-invite-followup.ts` (puur: `summarizeInviteFollowup` — dedupe op ZZP'er/
+  vroegste datum, `responseRate`, `oldestPendingDays`, toon none/good/neutral/warning met headline;
+  `parseInviteRecords` — gedeelde JOB_INVITED-audit-parse, robuust tegen malforme metadata) +
+  `src/lib/job-invite-followup.test.ts` (12 tests); `src/components/jobs/job-invite-followup-card.tsx`
+  (presentationeel, rendert alleen bij ≥1 uitnodiging); wiring in `opdrachten/[id]/page.tsx` (JOB_INVITED-
+  logs voor élke eigenaar geladen — óók nadat de suggestielijst leegloopt —, responded-set uit één
+  begrensde `application.findMany` gescoopt op `freelancerId in invited`). Seed: 2 demo-uitnodigingen op
+  job-1 (Sanne reageerde, Lisa nog niet → 1/2, "goede respons"), idempotent via vaste id's.
+- **Checks:** typecheck ✓, lint ✓, test 3878 ✓, prettier ✓, build ✓. Seed idempotent + invite→response
+  live geverifieerd tegen een ephemere SQLite-DB. Geen schemawijziging, geen nieuwe mutatie/authz-
+  oppervlak (puur lees-signaal, geaggregeerd; alleen de eigenaar ziet de kaart).
+
 ## Persona-sweep 2026-07-11 (run 22) — 3 cascade/next-action-defecten gevonden + gefixt
 
 - **Wat:** de dagelijkse kritische-gebruiker-sweep (4 rollen, ~53 live probes + 2 parallelle Opus-reviews)
