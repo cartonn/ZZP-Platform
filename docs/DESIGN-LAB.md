@@ -644,4 +644,32 @@ UI-taal = Nederlands.
   choreografie** (staggered reveals, betekenisvolle layout-transities); **warm-menselijk mens-centraal
   ontwerp**; en **data-journalistiek / verklarende infographic** — elk onderscheidend gehouden van de
   bestaande 240 en reduced-motion-bewust.
-- **Totaal nu op `/ontwerp`: 250 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220, reeks 23: 221–230, reeks 24: 231–240, reeks 25: 241–250).
+- Reeks 26 (251–260, run 11-7-2026) — tien richtingen die verschillen van de bestaande 250:
+  Lenticulair (optische lenticulaire lens: panelen met diagonale ribbel-textuur, kaarten/tegels kantelen op
+  hover/focus via parallax naar een tweede laag, opdracht-redenen "flippen" in beeld, indigo→magenta accent-
+  shift, reduced-motion-safe — niet Anaglyf/Stereoscopisch) · Nixie (gloeiende oranje cijferbuizen: KPI's,
+  tarieven en factuurbedragen als amber Nixie-cijfers met spookcijfers op warm-zwart mesh-backplate, labels
+  AA-scherp — niet Fosfor-terminal/Split-flap) · Ferrofluid (glossy zwarte magnetische-vloeistof blobs via
+  SVG goo-filter met iriserend violet/cyaan rim-light, subtiel hover-reagerend, decoratief — niet Osmose/
+  Gooey/Metaballs) · Lapidair (gegraveerde kalksteen met Trajan-Cormorant-kapitalen, geïnciseerd V-cut
+  teksteffect, Romeinse interpuncten, permanentie/vertrouwen voor certificaten — niet Copperplate/Guilloché) ·
+  Patch (modulair Eurorack-synthrek: matching als patchkabels met catenaire bezier-doorhang tussen ZZP'er-
+  module en opdracht-jacks, knoppen/LED's/silkscreen, redenen als signaalroutering — niet DAW/Retro-hifi) ·
+  Emaille (vintage geëmailleerd reclamebord, NS/Verkade-nostalgie: dubbele keyline-randen, afgeschilferde
+  hoeken, porselein-gloss, vet condensed Anton in beperkt crème/kobalt/rood-palet — niet Neon/Apotheek-label) ·
+  Reliëf (tactiel emboss + braille-stipmotieven als sectie-markers/status, maar echte AA/AAA-contrast en dikke
+  focusringen, status altijd icoon + label — reliëf in randen, niet in leesbaarheid; niet Soft-UI/Helder) ·
+  Zettel (Zettelkasten-kennisbank: notitie-kaarten met [[backlinks]] als primaire navigatie, kennisgraaf-
+  zijpaneel dat verbonden nodes oplicht bij hover, redenen als gekoppelde referenties — niet Relatiegraaf/
+  Bibliotheek) · Plotter (generatieve pen-plotter: doorlopende single-stroke lijnillustraties, hatching-vulling,
+  registratie-hoekmarkeringen, grafieken als continue plotter-lijnen op crème — niet Monoline/Constructielijnen) ·
+  Lichtbak (diapositief op verlichte lichtbak: 35mm dia-mounts/filmstrips die van achteren oplichten, amber
+  sprocket-detail, loep-vergroting op hover, marktplaats als contact-sheet grid — niet Video-editor/Cinematisch).
+- Onderzochte 2026-trends deze reeks: **lenticulaire/parallax-reveal micro-interacties**; **retro-tech
+  numerieke displays** (Nixie-glow als datataal); **ferrofluid/magnetische organisch-scherpe accentvormen**;
+  **lapidaire/geïnciseerde typografie als vertrouwenssignaal**; **modulaire/patch-routing als verklaarbare
+  matching-metafoor**; **porselein-emaille signage-revival**; **toegankelijkheid-als-esthetiek met tactiel
+  reliëf** (AA/AAA, geen low-contrast neumorfisme); **Zettelkasten/backlink-kennisgrafen** (Obsidian/Roam-
+  paradigma); **generatieve pen-plotter continulijn**; en **fotografische lichtbak/diapositief met loupe** —
+  elk onderscheidend gehouden van de bestaande 250 en reduced-motion-/AA-bewust.
+- **Totaal nu op `/ontwerp`: 260 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220, reeks 23: 221–230, reeks 24: 231–240, reeks 25: 241–250, reeks 26: 251–260).

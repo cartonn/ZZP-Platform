@@ -26,6 +26,25 @@
 - **Gate lokaal groen:** typecheck ✓, lint ✓, **3815 unit-tests** ✓ (+11: `planBulkJobInvites` 6,
   `parseInvitedFreelancerIds` 2, + bestaande), `prettier --check .` ✓, `next build` ✓. E2e draait in CI.
 
+## Ontwerp-lab: +10 concepten (reeks 26, nrs 251–260) → 260 op `/ontwerp` (2026-07-11)
+
+- **Additief, geen bestaande concepten geraakt.** Tien nieuwe, onderscheidende designrichtingen bovenop
+  de bestaande 250: **251 Lenticulair** (optische lens / parallax-reveal, redenen flippen op hover),
+  **252 Nixie** (gloeiende amber cijferbuizen op warm-zwart), **253 Ferrofluid** (glossy magnetische-vloeistof
+  blobs, SVG goo, iriserend rim-light), **254 Lapidair** (gegraveerde steen / Romeinse capitalen, vertrouwen),
+  **255 Patch** (modulair synth / patchkabel-routing als verklaarbare matching), **256 Emaille** (vintage
+  geëmailleerd reclamebord, NL-nostalgie), **257 Reliëf** (tactiel emboss + braille, echte AA/AAA-contrast),
+  **258 Zettel** (Zettelkasten backlinks & kennisgraaf), **259 Plotter** (generatieve pen-plotter continulijn),
+  **260 Lichtbak** (diapositief op verlichte lichtbak, loep + contact-sheet).
+- **Bestanden:** 10× `src/components/ontwerp/concepts/concept-25{1..9}-*.tsx` + `concept-260-lichtbak.tsx`
+  (elk zelfstandig, alle zes kernschermen, complete loading/empty/error-states, reduced-motion-/AA-bewust,
+  toegankelijk, NL). Additief gekoppeld: `registry.ts` (+10 ConceptMeta, nu 260), `[id]/concept-host.tsx`
+  (+10 lazy dynamic-imports). `docs/DESIGN-LAB.md` bijgewerkt (reeks 26 + totaal 260).
+- **Gate lokaal groen:** typecheck ✓, lint ✓ (0 warnings), `prettier --check .` ✓, `next build` ✓,
+  **3822 unit-tests** ✓. Geen "AI"-woord, geen `Math.random`/`Date` (deterministisch). Gebouwd door 4
+  parallelle builder-swarms op niet-overlappende bestanden; orchestrator integreerde registry/host/docs.
+- **Volgende:** volgende run voegt reeks 27 (261–270) toe — nooit overschrijven, altijd doortellen.
+
 ## Ontwerp-lab: +10 concepten (reeks 25, nrs 241–250) → 250 op `/ontwerp` (2026-07-10)
 
 - **Additief, geen bestaande concepten geraakt.** Tien nieuwe, onderscheidende designrichtingen bovenop
