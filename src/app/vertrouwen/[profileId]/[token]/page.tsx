@@ -7,6 +7,8 @@ import { dossierViewRateLimiter } from "@/lib/rate-limit";
 import { requestMeta } from "@/lib/request-meta";
 import { verifyDossierToken, shareTokenSecret } from "@/lib/share-token";
 import { computeTrustLevel } from "@/lib/trust";
+import { getFreelancerTrackRecord } from "@/lib/data/freelancer-track-record";
+import { trackRecordHighlights } from "@/lib/freelancer-track-record";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { audit } from "@/lib/audit";
@@ -125,6 +127,12 @@ export default async function TrustDossierPage({
     entityId: profileId,
   });
 
+  // Feitelijke staat van dienst: afgeronde samenwerkingen + gewerkte uren. Alleen binnen het
+  // geautoriseerde pad opgehaald (na de deel-poort), drempel-gegate zodat een net-gestarte ZZP'er
+  // nooit met magere "0"-cijfers pronkt (trackRecordHighlights) — dan dragen de certificaten alleen.
+  const trackRecord = await getFreelancerTrackRecord(profileId);
+  const trackHighlights = trackRecordHighlights(trackRecord);
+
   const now = Date.now();
   const activeVerified = profile.credentials.filter(
     (c) => !c.expiresAt || c.expiresAt.getTime() > now,
@@ -189,6 +197,29 @@ export default async function TrustDossierPage({
             </ul>
           )}
         </section>
+
+        {/* Staat van dienst: feitelijke, servergetelde ervaring. Alleen boven de drempel getoond
+            (>= 1 afgeronde klus / >= 8 uur) zodat magere cijfers nooit verschijnen. */}
+        {trackHighlights.length > 0 && (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold tracking-tight">Staat van dienst</h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(0,1fr))]">
+              {trackHighlights.map((h) => (
+                <div
+                  key={h.label}
+                  className="rounded-lg border border-border bg-card p-4 text-center shadow-sm"
+                >
+                  <p className="text-2xl font-semibold tabular-nums tracking-tight">{h.value}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{h.label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Feitelijke ervaring, geteld op ZZP Platform uit afgeronde samenwerkingen en
+              goedgekeurde uren.
+            </p>
+          </section>
+        )}
 
         {/* Geverifieerde certificaten (metadata, nooit bestanden) */}
         {activeVerified.length > 0 ? (

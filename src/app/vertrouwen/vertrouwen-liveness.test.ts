@@ -24,6 +24,10 @@ const store = {
 
 const auditMock = vi.hoisted(() => vi.fn(async () => {}));
 const findUniqueMock = vi.hoisted(() => vi.fn());
+// Staat-van-dienst-aggregatie (getFreelancerTrackRecord) draait alleen op het gedeelde pad; lege
+// defaults houden deze poort-test gefocust op de liveness/tenant-poort (0 hoogtepunten → geen sectie).
+const collabCountMock = vi.hoisted(() => vi.fn(async () => 0));
+const collabFindManyMock = vi.hoisted(() => vi.fn(async () => []));
 
 vi.mock("@/lib/share-token", () => ({
   shareTokenSecret: () => SECRET,
@@ -31,7 +35,10 @@ vi.mock("@/lib/share-token", () => ({
   verifyDossierToken: (_id: string, token: string) => token === "valid",
 }));
 vi.mock("@/lib/db", () => ({
-  prisma: { freelancerProfile: { findUnique: findUniqueMock } },
+  prisma: {
+    freelancerProfile: { findUnique: findUniqueMock },
+    collaboration: { count: collabCountMock, findMany: collabFindManyMock },
+  },
 }));
 vi.mock("@/lib/audit", () => ({ audit: auditMock }));
 vi.mock("@/lib/rate-limit", () => ({
