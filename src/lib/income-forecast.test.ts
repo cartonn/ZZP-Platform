@@ -607,6 +607,44 @@ describe("buildIncomeForecast — realisticDate schuift het item naar de realist
     expect(forecast.behaviorAdjustedCount).toBe(1);
   });
 
+  it("negeert een realisticDate VÓÓR de vervaldag (snel-betaler, lange termijn) → blijft op de vervaldag", () => {
+    // Regressie: forecastInvoicePayout clamt niet naar dueAt, dus een verwachting vóór de vervaldag
+    // is mogelijk. effectiveDate mag zo'n item nooit naar voren (of naar een verleden-maand) schuiven.
+    const forecast = buildIncomeForecast(
+      [
+        item({
+          invoiceId: "inv-fast",
+          stage: "APPROVED",
+          expectedDate: utc(2026, 7, 20), // vervaldag in juli
+          realisticDate: utc(2026, 6, 30), // "realistisch" eerder (in juni) — moet genegeerd worden
+        }),
+      ],
+      NOW, // 15 juni
+    );
+    // Vervaldag 20 juli → NEXT_MONTH (t.o.v. juni), NIET LATER/verleden.
+    expect(forecast.buckets.map((b) => b.key)).toEqual(["NEXT_MONTH"]);
+    // Geen correctie geteld (realisticDate niet later dan de vervaldag).
+    expect(forecast.behaviorAdjustedCount).toBe(0);
+    // Blijft "onderweg", niet te laat.
+    expect(forecast.inFlightGrossCents).toBe(1210);
+  });
+
+  it("de CSV-export valt terug op de vervaldag als realisticDate eerder is", () => {
+    const csv = exportForecastCsv(
+      [
+        item({
+          invoiceId: "e-fast",
+          stage: "APPROVED",
+          expectedDate: utc(2026, 7, 20),
+          realisticDate: utc(2026, 6, 30),
+        }),
+      ],
+      NOW,
+    );
+    const cols = csv.split("\r\n")[1]!.split(";");
+    expect(cols[5]).toBe("2026-07-20");
+  });
+
   it("sorteert binnen een bucket op de realistische datum", () => {
     const forecast = buildIncomeForecast(
       [

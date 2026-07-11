@@ -170,9 +170,11 @@ export async function PrognosePanel({ actor, items }: { actor: Actor; items?: Fo
                       {item.number && <span className="font-mono">{item.number}</span>}
                       {(() => {
                         const laterDays = daysLaterThanDue(item);
-                        // Toon de betaalgedrag-gecorrigeerde verwachte datum als die er is, anders de
-                        // contractuele vervaldag.
-                        const shownDate = item.realisticDate ?? item.expectedDate;
+                        // Toon de betaalgedrag-gecorrigeerde datum alleen als die ná de vervaldag valt
+                        // (laterDays !== null); anders de contractuele vervaldag. Zo tonen we nooit een
+                        // datum vóór de vervaldag.
+                        const shownDate =
+                          laterDays !== null ? item.realisticDate! : item.expectedDate;
                         if (!shownDate) return null;
                         return (
                           <span className="inline-flex items-center gap-1">

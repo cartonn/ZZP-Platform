@@ -79,7 +79,15 @@ function startOfDayUTC(d: Date): Date {
  * latere verwachting nooit een reeds-verlopen factuur maskeert.
  */
 function effectiveDate(item: ForecastItem): Date | null {
-  return item.realisticDate ?? item.expectedDate;
+  const { realisticDate, expectedDate } = item;
+  if (realisticDate == null) return expectedDate;
+  if (expectedDate == null) return realisticDate;
+  // Invariant afgedwongen: de betaalgedrag-correctie schuift een item alleen naar LATER, nooit naar
+  // voren. `forecastInvoicePayout` clamt niet naar de vervaldag, dus een snel-betalende opdrachtgever
+  // met een lange betaaltermijn kan een verwachting vóór de vervaldag geven — die negeren we hier
+  // (val terug op de vervaldag), zodat de prognose nooit optimistischer wordt dan de contractuele
+  // datum en een niet-verlopen factuur niet in een verleden-maand-bucket belandt.
+  return realisticDate.getTime() > expectedDate.getTime() ? realisticDate : expectedDate;
 }
 
 /** Returns a {year, month} tuple in UTC for the given Date. */

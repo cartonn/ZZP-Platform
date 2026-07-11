@@ -101,7 +101,11 @@ export async function getForecastItemsForFreelancer(
         avgDaysToPay: behavior.avgDaysToPay,
         sampleSize: behavior.sampleSize,
       });
-      if (forecast?.confident) {
+      // Alleen een correctie die het geld NÁ de vervaldag verwacht is zinvol; `forecastInvoicePayout`
+      // clamt niet naar de vervaldag, dus een snel-betalende opdrachtgever met een lange betaaltermijn
+      // kan een datum vóór de vervaldag opleveren. In dat geval geen correctie (val terug op de
+      // vervaldag) — de prognose mag nooit optimistischer worden dan de contractuele datum.
+      if (forecast?.confident && forecast.expectedAt.getTime() > inv.dueAt.getTime()) {
         realisticDate = forecast.expectedAt;
       }
     }
