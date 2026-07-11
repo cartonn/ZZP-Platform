@@ -8,6 +8,7 @@
 
 import { envWarnings, type Env } from "@/lib/env";
 import { isIndexingAllowed } from "@/lib/indexing";
+import { isMaintenanceEnabled, maintenanceAllowsAdmin } from "@/lib/maintenance";
 import { isSecurityContactConfigured } from "@/lib/security-txt";
 
 /** ok = productie-klaar; fallback = veilige, bewuste tussenstand; attention = actie vóór livegang. */
@@ -225,6 +226,7 @@ export function collectSystemStatus(env: Env): SystemStatus {
             ? "ALLOW_INDEXING=true — robots.txt staat crawlen toe, geen noindex-header (openbaar)."
             : "robots.txt disallowt alles + X-Robots-Tag noindex (besloten). Zet ALLOW_INDEXING=true bij go-live.",
         },
+        maintenanceItem(env),
         {
           key: "security-contact",
           label: "Beveiligingscontact (security.txt)",
@@ -261,6 +263,35 @@ export function collectSystemStatus(env: Env): SystemStatus {
   }
 
   return { production, groups, warnings: envWarnings(env), counts };
+}
+
+/**
+ * Status-item voor de onderhoudsmodus. Aan = het platform toont bezoekers een 503 (vraagt aandacht,
+ * ook al is het bewust), uit = normaal bereikbaar (ok). Toont of admins er tijdens onderhoud door
+ * mogen, zonder ooit de vlagwaarde zelf als geheim te behandelen (het is geen secret).
+ */
+function maintenanceItem(env: Env): StatusItem {
+  const enabled = isMaintenanceEnabled(env.MAINTENANCE_MODE);
+  if (!enabled) {
+    return {
+      key: "maintenance-mode",
+      label: "Onderhoudsmodus",
+      mode: "uit",
+      level: "ok",
+      detail:
+        "Normaal bereikbaar. Zet MAINTENANCE_MODE=true om het platform tijdelijk offline te halen.",
+    };
+  }
+  const adminBypass = maintenanceAllowsAdmin(env.MAINTENANCE_ALLOW_ADMIN);
+  return {
+    key: "maintenance-mode",
+    label: "Onderhoudsmodus",
+    mode: adminBypass ? "aan (admins erdoor)" : "aan (volledig)",
+    level: "attention",
+    detail: adminBypass
+      ? "Bezoekers krijgen een 503-onderhoudspagina; ingelogde admins mogen erdoor. Zet MAINTENANCE_MODE uit na het onderhoud."
+      : "Bezoekers én admins krijgen een 503-onderhoudspagina (MAINTENANCE_ALLOW_ADMIN=false). Zet MAINTENANCE_MODE uit na het onderhoud.",
+  };
 }
 
 /**

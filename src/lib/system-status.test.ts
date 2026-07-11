@@ -139,6 +139,31 @@ describe("collectSystemStatus — zoekmachine-indexering", () => {
   });
 });
 
+describe("collectSystemStatus — onderhoudsmodus", () => {
+  it("uit (default) = ok", () => {
+    const item = itemByKey(makeEnv(), "maintenance-mode");
+    expect(item.mode).toBe("uit");
+    expect(item.level).toBe("ok");
+  });
+  it("aan = aandacht, met admin-bypass-modus", () => {
+    const item = itemByKey(makeEnv({ MAINTENANCE_MODE: "true" }), "maintenance-mode");
+    expect(item.mode).toBe("aan (admins erdoor)");
+    expect(item.level).toBe("attention");
+  });
+  it("aan met MAINTENANCE_ALLOW_ADMIN=false = volledige afsluiting", () => {
+    const item = itemByKey(
+      makeEnv({ MAINTENANCE_MODE: "true", MAINTENANCE_ALLOW_ADMIN: "false" }),
+      "maintenance-mode",
+    );
+    expect(item.mode).toBe("aan (volledig)");
+    expect(item.level).toBe("attention");
+  });
+  it("aan in productie levert een boot-waarschuwing", () => {
+    const status = collectSystemStatus(makeEnv({ MAINTENANCE_MODE: "true" }));
+    expect(status.warnings.some((m) => /MAINTENANCE_MODE/.test(m))).toBe(true);
+  });
+});
+
 describe("collectSystemStatus — beveiligingscontact (security.txt)", () => {
   it("SECURITY_CONTACT gezet = ok", () => {
     const item = itemByKey(

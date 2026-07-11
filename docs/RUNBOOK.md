@@ -137,9 +137,31 @@ Secrets staan uitsluitend in de Railway-secrets-kluis (nooit in code/git/logs). 
   faalt de boot helder als een **ingeschakelde** integratie zijn sleutel mist — halve activering
   wordt bewust geweigerd.
 
-## 8. Handige verwijzingen
+## 9. Onderhoudsmodus (het platform tijdelijk offline halen)
+
+Een operationele noodrem voor een geplande migratie, een database-herstel (§5) of een incident (§6):
+in plaats van halfwerkende schermen of 500-fouten krijgt de bezoeker een rustige **503-onderhouds-
+pagina** ("we zijn zo terug", met een `Retry-After`-hint). De gezondheids-probes (`/api/health`,
+`/api/readiness`) blijven bereikbaar zodat de Railway-healthcheck de container **niet** herstart en
+je uptime-monitor groen blijft. Bron van waarheid: `src/lib/maintenance.ts` (puur, getest) + de
+middleware (`src/middleware.ts`, draait vóór auth/rol-guards).
+
+**Aanzetten (Railway-secrets, geen redeploy van code nodig — alleen de env-variabele):**
+
+1. Zet `MAINTENANCE_MODE=true`. Optioneel: `MAINTENANCE_MESSAGE="…"` (eigen bezoekerstekst) en
+   `MAINTENANCE_RETRY_AFTER=600` (seconden; geklemd op [30, 86400], default 300).
+2. Ingelogde **admins** mogen er standaard door om de deploy/migratie te verifiëren. Wil je een
+   **volledige** afsluiting (bv. tijdens een DB-herstel), zet dan `MAINTENANCE_ALLOW_ADMIN=false`.
+3. Verifieer: bezoekers krijgen 503, `/api/health` blijft 200. In productie logt de boot bovendien
+   een waarschuwing (`envWarnings`) en `/admin/systeemstatus` toont "Onderhoudsmodus: aan" (aandacht).
+
+**Uitzetten:** verwijder `MAINTENANCE_MODE` (of zet 'm op `false`). **Vergeet dit niet** na afloop —
+zolang hij aan staat is het platform voor bezoekers onbereikbaar.
+
+## 10. Handige verwijzingen
 
 - Go-live-mensenwerk: [`MENSENWERK.md`](../MENSENWERK.md)
 - Deploy-gating-besluit: [`docs/decisions/0001-deploy-gating.md`](./decisions/0001-deploy-gating.md)
 - Env-validatie: `src/lib/env.ts` · start-script: `scripts/start.mjs`
 - Observability: `src/lib/observability/` (logger, readiness, error-reporter)
+- Onderhoudsmodus: `src/lib/maintenance.ts` · middleware: `src/middleware.ts`
