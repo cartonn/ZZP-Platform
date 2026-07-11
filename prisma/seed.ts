@@ -922,6 +922,26 @@ async function main() {
     }
   }
 
+  // Openstaande uitnodiging voor de ZZP'er-kant: ZorgGroep nodigde Sanne uit voor de
+  // Wijkverpleegkundige-opdracht (job-8, PUBLISHED, zorg) waarop ze nog niet reageerde — zo toont de
+  // "Je bent uitgenodigd"-band op /opdrachten een echte open lead. (job-1/job-9 vallen weg: daar
+  // reageerde Sanne al op.)
+  const zorggroepUserId = clientUserIdByKey["zorggroep"];
+  if (zorggroepUserId && pid["sanne"]) {
+    await prisma.auditLog.upsert({
+      where: { id: "seed-invite-job8-sanne" },
+      update: {},
+      create: {
+        id: "seed-invite-job8-sanne",
+        actorId: zorggroepUserId,
+        action: "JOB_INVITED",
+        entityType: "Job",
+        entityId: "job-8",
+        metadata: JSON.stringify({ freelancerId: pid["sanne"] }),
+      },
+    });
+  }
+
   // --- Bewaarde opdrachten (Sanne) — bookmarks om er later op terug te komen ---
   // Twee open opdrachten waar ze nog niet op reageerde + één DRAFT (job-7) zodat het
   // overzicht óók de "niet meer beschikbaar"-sectie demonstreert.

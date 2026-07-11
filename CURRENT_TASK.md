@@ -260,6 +260,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **"Je bent uitgenodigd" — ontvangen uitnodigingen voor de ZZP'er op /opdrachten
+> (2026-07-11, PR #729)** — een directe uitnodiging (`inviteFreelancerToJob` / bulk) landde alléén als een
+> vluchtige `Notification` + een `JOB_INVITED`-auditrecord; de ZZP'er had geen blijvende plek voor "welke
+> opdrachtgevers nodigden mij uit?". Een uitnodiging is de hoogst-intente lead (een opdrachtgever koos jóu
+> specifiek; benchmark LinkedIn/Malt/Upwork "invited to apply"). Nu een prominente "Je bent uitgenodigd"-band
+> bovenaan `/opdrachten` (find-work-pagina) met open, nog-onbeantwoorde uitnodigingen + directe "Bekijk &
+> reageer". Pure `src/lib/received-invitations.ts` (`selectOpenInvitations`: dedup per opdracht (meest recente),
+> alleen nog-PUBLISHED, sluit reeds-beantwoorde uit, nieuwste eerst, cap 6; 9 tests) + data-laag
+> `data/received-invitations.ts` (`getReceivedInvitations`: eigen JOB_INVITED-audit via metadata-`contains` +
+> exacte parse, drie begrensde eigenaar-gescopete queries, geen N+1) + `ReceivedInvitationsBand` + wiring in
+> `BrowseJobs` (dezelfde parallelle batch, alleen ZZP'er, alleen bij ≥1). Read-only, geen schemawijziging, geen
+> nieuw mutatie/auth-oppervlak. Seed-demo `seed-invite-job8-sanne` (ZorgGroep → Sanne). Gate groen (3928 tests,
+> build ✓).
+>
 > Gedaan (niet opnieuw): **Staat van dienst (afgeronde klussen + uren) op het vertrouwensdossier
 > (2026-07-11, PR #723)** — het portable, deelbare vertrouwensdossier (`/vertrouwen/[profileId]/[token]`)
 > toonde geverifieerde certificaten + vertrouwensniveau maar niet de feitelijke staat van dienst

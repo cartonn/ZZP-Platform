@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-11 — "Je bent uitgenodigd": ontvangen uitnodigingen voor de ZZP'er op /opdrachten
+
+- **Wat:** een directe uitnodiging (`inviteFreelancerToJob` / bulk) landde tot nu toe alléén als een
+  vluchtige `Notification` + een gezaghebbend `JOB_INVITED`-auditrecord — de ZZP'er had geen blijvende
+  plek waar hij zag "welke opdrachtgevers nodigden mij uit?". Een uitnodiging is de hoogst-intente lead
+  op een marktplaats (een opdrachtgever koos jóu specifiek; benchmark LinkedIn/Malt/Upwork "invited to
+  apply"). Nu een prominente **"Je bent uitgenodigd"-band** bovenaan `/opdrachten` (de find-work-pagina
+  van de ZZP'er) met de open, nog-onbeantwoorde uitnodigingen + directe "Bekijk & reageer"-doorklik.
+- **Hoe:** puur `src/lib/received-invitations.ts` (`selectOpenInvitations`: ontdubbelt per opdracht —
+  meest recente moment blijft —, houdt alleen nog-`PUBLISHED`-opdrachten, sluit reeds-beantwoorde uit,
+  nieuwste eerst, cap `MAX_RECEIVED_INVITATIONS=6`; 9 tests). Data-laag `src/lib/data/received-invitations.ts`
+  (`getReceivedInvitations`: eigen `JOB_INVITED`-auditrecords via metadata-`contains` + exacte parse-
+  bevestiging, nog-gepubliceerde opdrachten, eigen niet-ingetrokken reacties — drie begrensde,
+  eigenaar-gescopete queries, geen N+1). Presentationeel `ReceivedInvitationsBand`. Wiring in
+  `BrowseJobs` (`/opdrachten`): fetch in dezelfde parallelle batch (geen extra seriële roundtrip),
+  band alleen voor de ZZP'er (`profile != null`) en alleen bij ≥1 uitnodiging. Read-only, geen
+  schemawijziging, geen nieuw mutatie-/auth-oppervlak — hergebruikt de bestaande `JOB_INVITED`-bron.
+- **Demo:** seed-uitnodiging `seed-invite-job8-sanne` (ZorgGroep → Sanne, job-8 Wijkverpleegkundige,
+  PUBLISHED, nog niet gereageerd) zodat de band live zichtbaar is.
+- **Bestanden:** `src/lib/received-invitations.ts` (+`.test.ts`), `src/lib/data/received-invitations.ts`,
+  `src/components/jobs/received-invitations-band.tsx`, `src/app/(protected)/opdrachten/(index)/page.tsx`,
+  `prisma/seed.ts`.
+- **Gate:** typecheck ✓, lint ✓ (0 warnings), **3928 unit-tests** ✓ (9 nieuw), build ✓, prettier ✓.
+  E2e draait in CI.
+
 ## Ontwerp-lab 2026-07-11 — +10 concepten (nrs 261–270), reeks 27
 
 - **Wat:** de `/ontwerp`-galerij groeit additief van 260 → **270** concepten (bestaande blijven staan).

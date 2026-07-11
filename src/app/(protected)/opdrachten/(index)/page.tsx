@@ -29,6 +29,9 @@ import { JobFilters } from "@/components/jobs/job-filters";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
 import { JobPipelineStrip } from "@/components/jobs/job-pipeline-strip";
+import { ReceivedInvitationsBand } from "@/components/jobs/received-invitations-band";
+import { getReceivedInvitations } from "@/lib/data/received-invitations";
+import { type ReceivedInvitation } from "@/lib/received-invitations";
 import { withParams } from "@/components/admin/base-path";
 import { plural } from "@/lib/plural";
 import { summarizeJobPipeline } from "@/lib/job-pipeline";
@@ -258,7 +261,7 @@ async function BrowseJobs({
     where.industryId = { in: myIndustryIds };
   }
 
-  const [total, jobs, industries, skills, savedRows] = await Promise.all([
+  const [total, jobs, industries, skills, savedRows, invitations] = await Promise.all([
     prisma.job.count({ where }),
     prisma.job.findMany({
       where,
@@ -288,6 +291,9 @@ async function BrowseJobs({
           select: { jobId: true },
         })
       : Promise.resolve<{ jobId: string }[]>([]),
+    // Ontvangen directe uitnodigingen (alleen ZZP'er): de hoogst-intente leads, afgeleid uit de
+    // JOB_INVITED-auditrecords. Draait in dezelfde parallelle batch — geen extra seriële roundtrip.
+    profile ? getReceivedInvitations(profile.id) : Promise.resolve<ReceivedInvitation[]>([]),
   ]);
 
   // Eén klok voor alle start-proximity-signalen in deze render (deterministisch, geen drift per rij).
@@ -346,6 +352,9 @@ async function BrowseJobs({
         <h1 className="text-xl font-semibold tracking-tight">{t("Opdrachten")}</h1>
         <p className="text-sm text-muted-foreground">{t("Vind opdrachten die bij je passen.")}</p>
       </header>
+
+      {/* Uitnodigingen bovenaan: een opdrachtgever koos jóu specifiek — de sterkste lead eerst. */}
+      <ReceivedInvitationsBand invitations={invitations} />
 
       <JobFilters
         industries={industries}
