@@ -50,6 +50,8 @@ import { summarizeStaffingRisk } from "@/lib/job-staffing-risk";
 import { JobStaffingRiskCard } from "@/components/jobs/job-staffing-risk-card";
 import { summarizeJobCompetition, type CompetitionSummary } from "@/lib/job-competition";
 import { JobCompetitionCard } from "@/components/jobs/job-competition-card";
+import { summarizeEffectiveRate, type EffectiveRateSummary } from "@/lib/effective-rate";
+import { EffectiveRateCard } from "@/components/jobs/effective-rate-card";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
@@ -166,6 +168,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   let myCompliance: ComplianceStatus | null = null;
   // Kans-/concurrentiesignaal: hoeveel kandidaten reageerden al + hoe de ZZP'er ervoor staat.
   let jobCompetition: CompetitionSummary | null = null;
+  // Effectief uurtarief na (onbetaalde) reistijd — beslis-signaal bij een opdracht op afstand.
+  let effectiveRate: EffectiveRateSummary | null = null;
   // Bewaard-status voor de bewaar-knop (alleen relevant voor een niet-eigenaar ZZP'er).
   let isSaved = false;
   // Opgeslagen standaard-motivatie: vult het reageerveld voor (quick-apply).
@@ -213,6 +217,13 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
             ? await estimateTravelMinutesWithRouting(profile.location, job.location)
             : null;
         const match = scoreJobForFreelancer(job, { ...profile, routedTravelMinutesToJob });
+        // Dezelfde reistijd die de proximity-factor voedt, ook naar een effectief uurtarief vertalen:
+        // wat houdt de ZZP'er per uur over als de onbetaalde reis meetelt? (Alleen zinvol op afstand.)
+        effectiveRate = summarizeEffectiveRate({
+          rateMinEuros: job.rateMin,
+          rateMaxEuros: job.rateMax,
+          oneWayTravelMinutes: routedTravelMinutesToJob,
+        });
         myFit = {
           score: match.score,
           breakdown: match.breakdown,
@@ -843,6 +854,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                 )}
               </section>
             )}
+            {effectiveRate && <EffectiveRateCard summary={effectiveRate} />}
             {jobCompetition && <JobCompetitionCard competition={jobCompetition} />}
             <ApplicationForm
               action={createApplication.bind(null, job.id)}

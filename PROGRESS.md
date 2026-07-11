@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Routine 2026-07-11 (3e) — effectief uurtarief na reistijd op de opdracht-detail (ZZP'er)
+
+- **Wat:** beslis-signaal voor de ZZP'er die een opdracht op afstand overweegt. Het gepubliceerde
+  uurtarief verzwijgt de onbetaalde woon-werk-reis die er elke werkdag omheen zit; een goedkopere
+  opdracht dichtbij levert netto vaak méér op per dag dan een duurdere ver weg. Nieuwe kaart
+  "Netto na reistijd" op `/opdrachten/[id]` toont het reistijd-gecorrigeerde effectieve uurtarief
+  (bv. €45 → ± €38, −16%) met transparante aanname (retour-reistijd uitgesmeerd over een werkdag
+  van 8 uur). Benchmark Malt/Temper (tonen dagtarief zonder de reis-drag zichtbaar te maken).
+- **Bestanden:** `src/lib/effective-rate.ts` (puur: `representativeRateEuros`/`summarizeEffectiveRate`,
+  `WORK_HOURS_PER_DAY`/`MEANINGFUL_ONE_WAY_MINUTES`; 14 tests) + `effective-rate.test.ts`;
+  `src/components/jobs/effective-rate-card.tsx` (presentationeel); gewired in
+  `src/app/(protected)/opdrachten/[id]/page.tsx` — hergebruikt de reeds-berekende
+  `routedTravelMinutesToJob` (dezelfde routing-schatting die de proximity-factor voedt), geen extra
+  query. Alleen getoond bij een niet-remote opdracht met bekende reistijd ≥10 min én een vermeld
+  tarief. Read-only, geen schemawijziging, geen nieuw mutatie-oppervlak.
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test ✓ (**3919**), prettier --check . ✓, build ✓.
+
 ## Prod-rijpheid 2026-07-11 (2e) — connection-pool-configuratie voor productie-Postgres
 
 - **Wat:** pluggbare connection-pool-configuratie voor de Prisma-client, zodat horizontale
