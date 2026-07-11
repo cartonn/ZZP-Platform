@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## ZZP'er 2026-07-11 — staat van dienst (afgeronde klussen + uren) op het vertrouwensdossier
+
+- **Wat:** het portable, deelbare vertrouwensdossier (`/vertrouwen/[profileId]/[token]`) — het
+  artefact dat de ZZP'er buiten het platform met een prospectieve opdrachtgever deelt — toonde
+  geverifieerde certificaten + vertrouwensniveau, maar niet de feitelijke staat van dienst (afgeronde
+  samenwerkingen + gewerkte uren) die de ZZP'er wél op de browse-kaart heeft. Nu een drempel-gegate
+  "Staat van dienst"-sectie op het dossier: X afgeronde klussen · Y uur gewerkt. Maakt het deelbare
+  dossier een sterker zelf-marketing-/vertrouwensartefact (benchmark Malt/LinkedIn portable profiel:
+  toon aantoonbaar geleverd werk, niet enkel papieren). Alleen boven de drempel (≥1 klus / ≥8 uur) —
+  een net-gestarte ZZP'er pronkt nooit met magere "0"-cijfers; dan dragen de certificaten alleen.
+- **Bestanden:** `src/lib/data/freelancer-track-record.ts` (`getFreelancerTrackRecord(profileId)` —
+  count COMPLETED-samenwerkingen + som van goedgekeurde HOURS-prestaties, mirror van de bewezen
+  aggregatie in `freelancer-search.ts`, cap 2000 samenwerkingen) + `.test.ts` (3 tests, prisma-mock);
+  hergebruikt de bestaande pure `trackRecordHighlights` (freelancer-track-record.ts, al getest).
+  Wiring in `src/app/vertrouwen/[profileId]/[token]/page.tsx`: fetch ná de deel-/liveness-poort
+  (binnen het geautoriseerde pad), sectie rendert alleen bij ≥1 hoogtepunt. `vertrouwen-liveness.test.ts`
+  prisma-mock uitgebreid met `collaboration.count/findMany` (lege defaults; poort-test blijft gefocust).
+- **Kenmerk:** read-only, geen schemawijziging, geen nieuwe mutatie/auth-surface, server-side waarheid.
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), **3881 unit-tests** ✓ (6 nieuw), prettier ✓, build ✓.
+  E2e draait in CI. PR #723.
+
 ## Opdrachtgever 2026-07-11 — uitnodiging-opvolging (invite→response) op de opdracht-detail
 
 - **Wat:** de directe uitnodiging (`inviteFreelancerToJob`, #625) en de bulk-uitnodiging (#715) waren

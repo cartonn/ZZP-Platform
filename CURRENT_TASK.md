@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Staat van dienst (afgeronde klussen + uren) op het vertrouwensdossier
+> (2026-07-11, PR #723)** — het portable, deelbare vertrouwensdossier (`/vertrouwen/[profileId]/[token]`)
+> toonde geverifieerde certificaten + vertrouwensniveau maar niet de feitelijke staat van dienst
+> (afgeronde samenwerkingen + gewerkte uren) die de ZZP'er wél op de browse-kaart heeft. Nu een
+> drempel-gegate "Staat van dienst"-sectie op het deelbare dossier — het sterkste zelf-marketing-
+> artefact van de ZZP'er (benchmark Malt/LinkedIn: toon aantoonbaar geleverd werk). Pure
+> `src/lib/data/freelancer-track-record.ts` (`getFreelancerTrackRecord`, mirror van de aggregatie in
+> `freelancer-search.ts`; cap 2000) + 3 tests; hergebruikt de al-geteste pure `trackRecordHighlights`
+> (≥1 klus / ≥8 uur — geen magere "0"-cijfers). Wiring in de dossier-page ná de deel-/liveness-poort;
+> `vertrouwen-liveness.test.ts`-mock uitgebreid. Read-only, geen schemawijziging, geen nieuwe
+> mutatie/auth-surface. Gate groen (3881 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — onderhoudsmodus (maintenance mode) (2026-07-11)** — een
 > operationele noodrem waarmee de beheerder het platform tijdens een geplande migratie, een database-
 > herstel of een incident gecontroleerd offline haalt: bezoekers krijgen een rustige 503-onderhoudspagina
