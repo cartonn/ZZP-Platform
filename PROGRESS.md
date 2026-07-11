@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Security/Privacy 2026-07-11 (2e) — onderhouds-afsluiting stopt nu ook de login-DB-schrijfacties
+
+- **Wat:** security/privacy-auditronde op de delta `350aa49..af5212e` (#718–#724). Orchestrator (Opus
+  4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende oppervlakken (onderhoudsmodus/
+  middleware, uitnodiging-opvolging/reputatie/signals, AVG-volledigheid van de nieuwe aggregaties).
+  **HOOG gefixt:** de nieuwe onderhoudsmodus (#719) hield bij een **volledige afsluiting**
+  (`MAINTENANCE_ALLOW_ADMIN=false`, bedoeld voor een database-herstel) de login-DB-schrijfacties niet
+  tegen — de middleware-`matcher` sluit `/api/auth/**` uit, dus `POST /api/auth/callback/credentials`
+  voerde nog `user.findUnique`/`user.update`/`audit`-schrijf uit terwijl de beheerder verwacht dat
+  álles stilligt (OWASP A05). **LAAG gefixt:** trailing-slash-normalisatie op de vrijgestelde
+  gezondheids-probes. Eén MIDDEL geparkeerd (matcher sluit élk dotted pad uit → onderhoud+CSP
+  overgeslagen; geen authz-lek, eigen PR-waardig).
+- **Bestanden:** `src/lib/maintenance.ts` (`loginBlockedByMaintenance` + trailing-slash-normalisatie),
+  `src/lib/authorize-credentials.ts` (nieuw — `authorizeCredentials` losgetrokken uit `src/auth.ts`,
+  NextAuth-vrij + direct testbaar; poort als eerste statement vóór élke Prisma-call, stil weigeren),
+  `src/auth.ts` (verwijst nu naar de losse functie). Tests: `src/lib/authorize-credentials.test.ts`
+  (rood→groen: geen DB/rate-limiter/audit bij volledige afsluiting; wél login in standaardmodus),
+  nieuwe cases in `src/lib/maintenance.test.ts`. Backlog bijgewerkt (`docs/SECURITY-PRIVACY-BACKLOG.md`).
+- **Kenmerk:** voegt enkel een blokkade toe, verzwakt geen enkele auth/rol/ownership-check;
+  server-side waarheid; geen schemawijziging.
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), **3888 unit-tests** ✓ (+7), prettier --check . ✓,
+  build ✓, `npm audit --production` 0 vulns. E2e draait in CI.
+
 ## ZZP'er 2026-07-11 — staat van dienst (afgeronde klussen + uren) op het vertrouwensdossier
 
 - **Wat:** het portable, deelbare vertrouwensdossier (`/vertrouwen/[profileId]/[token]`) — het

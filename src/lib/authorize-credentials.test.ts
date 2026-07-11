@@ -1,0 +1,99 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Integratietest voor de onderhouds-afsluitingspoort in de credentials-`authorize`
+// (security/privacy-audit 2026-07-11, HOOG). Bij een volledige afsluiting
+// (MAINTENANCE_MODE=true + MAINTENANCE_ALLOW_ADMIN=false — bedoeld voor een database-herstel/migratie)
+// mag een login de database NIET raken. De middleware kan dit niet afdwingen omdat de matcher
+// `/api/auth/**` uitsluit, dus de poort zit in `authorizeCredentials` vóór élke Prisma-call. We mocken
+// de randservices en bewijzen rood→groen dat `prisma.user.findUnique` uitblijft tijdens de afsluiting
+// en wél gebeurt bij een normale login.
+
+const { findUnique, rateCheck, rateReset, auditFn } = vi.hoisted(() => ({
+  findUnique: vi.fn(async () => ({
+    id: "user-1",
+    email: "jan@bedrijf.nl",
+    name: "Jan Jansen",
+    role: "FREELANCER",
+    status: "ACTIVE",
+    passwordHash: "hash",
+    mustChangePassword: false,
+  })),
+  rateCheck: vi.fn(async () => ({ allowed: true })),
+  rateReset: vi.fn(async () => {}),
+  auditFn: vi.fn(async () => {}),
+}));
+
+vi.mock("@/lib/db", () => ({
+  prisma: { user: { findUnique } },
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  loginRateLimiter: { check: rateCheck, reset: rateReset },
+}));
+
+vi.mock("@/lib/audit", async (orig) => {
+  const actual = await orig<typeof import("@/lib/audit")>();
+  return { ...actual, audit: auditFn };
+});
+
+vi.mock("@/lib/request-meta", () => ({
+  requestMeta: vi.fn(async () => ({ ipAddress: "1.2.3.4", userAgent: "test" })),
+}));
+
+vi.mock("bcryptjs", () => ({ default: { compare: vi.fn(async () => true) } }));
+
+import { authorizeCredentials } from "@/lib/authorize-credentials";
+
+const CREDS = { email: "jan@bedrijf.nl", password: "geheim123" };
+
+describe("authorizeCredentials — onderhouds-afsluitingspoort", () => {
+  const savedMode = process.env.MAINTENANCE_MODE;
+  const savedAllow = process.env.MAINTENANCE_ALLOW_ADMIN;
+
+  beforeEach(() => {
+    findUnique.mockClear();
+    rateCheck.mockClear();
+    rateReset.mockClear();
+    auditFn.mockClear();
+    delete process.env.MAINTENANCE_MODE;
+    delete process.env.MAINTENANCE_ALLOW_ADMIN;
+  });
+
+  afterEach(() => {
+    if (savedMode === undefined) delete process.env.MAINTENANCE_MODE;
+    else process.env.MAINTENANCE_MODE = savedMode;
+    if (savedAllow === undefined) delete process.env.MAINTENANCE_ALLOW_ADMIN;
+    else process.env.MAINTENANCE_ALLOW_ADMIN = savedAllow;
+  });
+
+  it("weigert stil en raakt de database NIET bij een volledige afsluiting", async () => {
+    process.env.MAINTENANCE_MODE = "true";
+    process.env.MAINTENANCE_ALLOW_ADMIN = "false";
+
+    const result = await authorizeCredentials(CREDS);
+
+    expect(result).toBeNull();
+    // Rood→groen: zonder de poort zou de login de DB/rate-limiter/audit raken.
+    expect(findUnique).not.toHaveBeenCalled();
+    expect(rateCheck).not.toHaveBeenCalled();
+    expect(auditFn).not.toHaveBeenCalled();
+  });
+
+  it("laat login door in de standaard-onderhoudsmodus (admin-bypass staat aan)", async () => {
+    process.env.MAINTENANCE_MODE = "true";
+    // MAINTENANCE_ALLOW_ADMIN ongezet → default true → géén volledige afsluiting.
+
+    const result = await authorizeCredentials(CREDS);
+
+    expect(result).not.toBeNull();
+    expect(findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it("laat een normale login door wanneer onderhoud uit staat", async () => {
+    const result = await authorizeCredentials(CREDS);
+
+    expect(result).toMatchObject({ id: "user-1", role: "FREELANCER", status: "ACTIVE" });
+    expect(findUnique).toHaveBeenCalledTimes(1);
+    expect(rateReset).toHaveBeenCalledTimes(1);
+  });
+});
