@@ -757,6 +757,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "250": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-250-duiding").then((m) => m.Concept250),
   ),
+  "251": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-251-lenticulair").then((m) => m.Concept251),
+  ),
+  "252": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-252-nixie").then((m) => m.Concept252),
+  ),
+  "253": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-253-ferrofluid").then((m) => m.Concept253),
+  ),
+  "254": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-254-lapidair").then((m) => m.Concept254),
+  ),
+  "255": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-255-synth").then((m) => m.Concept255),
+  ),
+  "256": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-256-emaille").then((m) => m.Concept256),
+  ),
+  "257": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-257-relief").then((m) => m.Concept257),
+  ),
+  "258": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-258-zettel").then((m) => m.Concept258),
+  ),
+  "259": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-259-plotter").then((m) => m.Concept259),
+  ),
+  "260": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-260-lichtbak").then((m) => m.Concept260),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
