@@ -1,5 +1,45 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-11 (run 23) · **main-commit basis:** `e2fd922`
+> **Uitkomst:** **Geen defecten/gaten gevonden.** Verse prod-build (`npm run build`), schema-push +
+> idempotente demo-seed (`SEED_DEMO=true`) op ephemere SQLite (`qa.db`), prod-server (`next start`,
+> poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen ingelogd via het
+> echte formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium (`chromium-1194`).
+>
+> **DOEL 1 (echte actie, live + DB-geverifieerd):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties`
+> → Goedkeuren-knoppen **6→5** én de `/acties`-teller **16→15** (de afgehandelde certificaat-actie verdween
+> correct — de next-action-keten auth→rol→ownership→transitie→audit→revalidate werkt end-to-end).
+> FREELANCER (Sanne) heeft al op `job-10` gereageerd → detail toont correct "Je hebt gereageerd" i.p.v. een
+> reageerknop. Eigen factuur-PDF (`collab-1`) → 200 `application/pdf` voor beide partijen; eigen DBA-dossier +
+> modelovereenkomst → 200 `application/pdf`.
+>
+> **DOEL 1b (next-action-correctheid):** `/acties` per rol gecontroleerd tegen de echte staat — ZZP'er (2:
+> ontbrekend verplicht document + openstaande gespreksreactie), CLIENT (2: nieuwe reactie beoordelen +
+> bedrijfsprofiel-compleetheid), ADMIN (16: certificaat-queue + supporttickets), FRANCHISER ("alles
+> afgehandeld" — klopt: `franchiserTasks` genereert alleen bijna-verlopende-cert- en verstreken-lead-taken,
+> en geen van beide staat open in de seed). Alle getoonde acties zijn logisch, in de juiste volgorde, voor de
+> juiste partij aan zet; geen dubbele, tegenstrijdige of niet-verdwijnende acties.
+>
+> **DOEL 2 (adversarieel, ~110 probes — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen|audit`; niet-FRANCHISER → `/franchise`) → **redirect
+> naar eigen dashboard**. IDOR/cross-tenant via **in-browser `fetch`** (cookie-getrouw): vreemde factuur-PDF →
+> **403**, vreemd samenwerking-`dossier`/`dba-dossier`/`modelovereenkomst` → **403** voor alle 3 niet-partij-
+> rollen, admin-CSV-export als niet-admin → **403**, eigen resources → **200**. Document-privacy
+> (`/api/documents/<id>`): eigenaar + ADMIN → **200**, andere rollen → **403**, junk → **404**. Junk-/traversal-/
+> sqli-id (`/facturen|/samenwerkingen|/opdrachten/<junk>`, `..%2F..%2Fetc%2Fpasswd`, `1' OR '1'='1`,
+> `<script>`) → soft-404/404, **nooit 500**. `/api/tasks/run-all|expiry|payment-reminders` zonder methode →
+> **405**. Brede smoke van alle hoofd-routes per rol (57 routes) → geen 500/error-boundary (5 valse "500"-
+> treffers waren geserialiseerde id's in de RSC-payload, geverifieerd geen error-boundary).
+>
+> **Server-side guards geverifieerd (lezing + live):** `changeCollaborationStatus` volgt
+> `requireActor → Zod → ownership (partyUserIds) → assertCollaborationTransition → geld-/prestatie-rem`
+> (`completionBlockReason` blokkeert COMPLETED bij open geld/onbeoordeelde prestatie; `outstandingInvoiceWhere`
+> blokkeert CANCELLED bij openstaande factuur; ACTIVE alleen via contract-ondertekening). Geen enkele
+> zwakke plek gevonden — het platform is na 22 eerdere sweeps grondig gehard. Alleen deze docs-update, geen
+> code-wijziging deze run.
+>
+> ---
+>
 > **Datum:** 2026-07-11 (run 22) · **main-commit basis:** `9efcda6`
 > **Uitkomst:** **3 cascade/next-action-defecten gevonden én OPGELOST** (1 BLOCKER + 2 should-fix). Verse
 > prod-build (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`) op ephemere SQLite
