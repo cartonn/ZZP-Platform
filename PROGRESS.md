@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Ontwerp-lab 2026-07-11 — +10 concepten (nrs 261–270), reeks 27
+
+- **Wat:** de `/ontwerp`-galerij groeit additief van 260 → **270** concepten (bestaande blijven staan).
+  Tien nieuwe, onderling én t.o.v. de bestaande 260 onderscheidende designrichtingen, elk een volledig
+  uitgewerkt high-fidelity redesign van de kernschermen (dashboard, marktplaats, opdracht-detail met
+  verklaarbare matching, verificatie-als-held, acties, facturen) met scherm-switcher, `StatusChip`
+  (label + icoon), micro-interacties en loading/empty/error-states. Puur frontend, mock-data, geen
+  wijziging aan de live-app.
+- **De 10 (261–270):** Arcana (tarot/esoterisch, dark) · Reisaffiche (vintage 1930s reisposter) ·
+  Bouwpakket (exploded-view montagehandleiding) · Honingraat (hexagonaal cellen-raster) ·
+  Scheurkalender (NL dagblok & dagspreuk) · Kruiswoord (genummerd puzzelraster) · Vaporwave
+  (pastel-mall & marmer, dark) · Recept (receptenkaart) · Nautilus (Fibonacci-spiraal & phyllotaxis) ·
+  Staalkaart (verfchip-waaier).
+- **Bestanden:** 10× `src/components/ontwerp/concepts/concept-26{1..9}-*.tsx` + `concept-270-staalkaart.tsx`
+  (nieuw); additief bijgewerkt: `registry.ts` (+10 ConceptMeta), `src/app/ontwerp/[id]/concept-host.tsx`
+  (+10 id→component), `docs/DESIGN-LAB.md` (reeks 27, totaal 270). Bestaande concepten/entries ongemoeid.
+- **Gate lokaal groen:** `typecheck` ✓ · `lint` ✓ (0 warnings) · `test` ✓ (3919) · `build` ✓ ·
+  `prettier --check .` ✓. Woord "AI" komt nergens voor; UI = Nederlands. CI-poort = leidend.
+- **Gebouwd door** 4 parallelle builder-subagents op niet-overlappende bestanden; orchestrator
+  integreerde registry + route en draaide de volledige poort.
+
 ## Routine 2026-07-11 (3e) — effectief uurtarief na reistijd op de opdracht-detail (ZZP'er)
 
 - **Wat:** beslis-signaal voor de ZZP'er die een opdracht op afstand overweegt. Het gepubliceerde

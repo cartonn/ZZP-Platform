@@ -787,6 +787,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "260": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-260-lichtbak").then((m) => m.Concept260),
   ),
+  "261": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-261-arcana").then((m) => m.Concept261),
+  ),
+  "262": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-262-reisaffiche").then((m) => m.Concept262),
+  ),
+  "263": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-263-bouwpakket").then((m) => m.Concept263),
+  ),
+  "264": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-264-honingraat").then((m) => m.Concept264),
+  ),
+  "265": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-265-scheurkalender").then((m) => m.Concept265),
+  ),
+  "266": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-266-kruiswoord").then((m) => m.Concept266),
+  ),
+  "267": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-267-vaporwave").then((m) => m.Concept267),
+  ),
+  "268": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-268-recept").then((m) => m.Concept268),
+  ),
+  "269": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-269-nautilus").then((m) => m.Concept269),
+  ),
+  "270": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-270-staalkaart").then((m) => m.Concept270),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

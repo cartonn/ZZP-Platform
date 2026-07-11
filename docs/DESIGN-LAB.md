@@ -672,4 +672,33 @@ UI-taal = Nederlands.
   reliëf** (AA/AAA, geen low-contrast neumorfisme); **Zettelkasten/backlink-kennisgrafen** (Obsidian/Roam-
   paradigma); **generatieve pen-plotter continulijn**; en **fotografische lichtbak/diapositief met loupe** —
   elk onderscheidend gehouden van de bestaande 250 en reduced-motion-/AA-bewust.
-- **Totaal nu op `/ontwerp`: 260 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220, reeks 23: 221–230, reeks 24: 231–240, reeks 25: 241–250, reeks 26: 251–260).
+- Reeks 27 (261–270, run 11-7-2026) — tien richtingen die verschillen van de bestaande 260:
+  Arcana (tarot/esoterisch-mystiek: diep aubergine met gouden hairline-linework, celestiale motieven en
+  arcana-kaart-frames met Romeinse-cijfer-hoeken, verificatie als wax-zegel/insignia, crème body voor AA —
+  niet Deco/Haute-horlogerie) · Reisaffiche (vintage 1930s reisposter: platte art-deco SVG-landschapsbanden
+  als hero, condensed Anton-display in beperkt teal/oker/crème/rood, opdrachten als "bestemmingen", streng
+  grid eronder — niet Courant/Penguin/Constructivisme) · Bouwpakket (exploded-view montagehandleiding:
+  IKEA/technische assemblage-energie, genummerde ballon-callouts met streeplijn-leaders, "stap 1/2/3"-
+  structuur, verificatie als "onderdeel geverifieerd/ontbreekt" — niet Blauwdruk/Isometrie/Maatvoering) ·
+  Honingraat (hexagonale tessellatie als informatie-architectuur: KPI's/modules in zeshoekige cellen die
+  oplichten bij hover, honingraat-backdrop, warm amber/antraciet — niet Bento/Gestapelde-blokken) ·
+  Scheurkalender (Nederlands dagblok & dagspreuk: perforatie-strip, afgescheurde hoek, page-flip hover,
+  next-action als "vandaag"-blok, serif-getallen op kalender-rood/papierwit — niet Kalender-first/Agenda) ·
+  Kruiswoord (genummerd puzzelraster als UI: zwart-wit cellen met superscript-nummers dragen cijfers/status,
+  "horizontaal/verticaal"-aanwijzingen als nav/acties, één actieve-cel-accent — niet Hollerith/Spreadsheet) ·
+  Vaporwave (pastel-mall & marmeren buste: zacht cyaan/roze op donker-violet, perspectief-rastervloer,
+  buste/zuil-silhouetten, glazige panelen — onderscheiden van Synthwave-zonsondergang: geen zon/scanlines) ·
+  Recept (kookboek/receptkaart: warme crème kaarten, "ingrediënten"-kolom naast genummerde "bereidingswijze",
+  tijd/portie-chips voor tarief/uren, verificatie als keurmerk-zegel — niet Warm-humanist/Terra) · Nautilus
+  (Fibonacci-spiraal & phyllotaxis: echte logaritmische gulden-spiraal, 137,5°-puntveld als dataviz, φ-ratio
+  grid, match als spiraal-arc, off-white/inktgroen/goud — niet Sterrenkaart/Dendrochronologie) · Staalkaart
+  (verfchip/Pantone-waaier: elk onderdeel een kleurstaal met code-label + naam, uitwaaierende chip-stapel op
+  hover, systematisch kleur-coderen van secties, elke status een eigen swatch + icoon — niet Palet/Terrazzo).
+- Onderzochte 2026-trends deze reeks: **esoterisch-mystieke gouden linework-revival**; **vintage travel-poster/
+  art-deco flat-illustratie**; **exploded-view/assemblage-diagram als interface**; **hexagonale tessellatie als
+  grid-alternatief voor bento**; **skeuomorfe scheurkalender/tear-off micro-interactie**; **puzzelraster als
+  informatie-architectuur**; **vaporwave-revival** (onderscheiden van synthwave); **kookboek/receptkaart-
+  metafoor**; **gulden snede/phyllotaxis als natuurlijk-mathematische designtaal**; en **verfchip/staalkaart-
+  waaier als systematisch kleur-coderingssysteem** — elk onderscheidend gehouden van de bestaande 260 en
+  reduced-motion-/AA-bewust.
+- **Totaal nu op `/ontwerp`: 270 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220, reeks 23: 221–230, reeks 24: 231–240, reeks 25: 241–250, reeks 26: 251–260, reeks 27: 261–270).
