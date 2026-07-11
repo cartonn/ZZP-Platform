@@ -71,7 +71,31 @@ export function maintenanceMessage(value: string | undefined): string {
 export const MAINTENANCE_EXEMPT_PATHS = ["/api/health", "/api/readiness"] as const;
 
 export function isMaintenanceExemptPath(pathname: string): boolean {
-  return (MAINTENANCE_EXEMPT_PATHS as readonly string[]).includes(pathname);
+  // Trailing slash normaliseren zodat "/api/health/" óók als gezondheids-probe telt en niet per
+  // ongeluk de 503-onderhoudspagina krijgt (dat zou een host-healthcheck met slash de container
+  // laten herstarten — precies wat de vrijstelling wil voorkomen). Faalt sowieso gesloten.
+  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return (MAINTENANCE_EXEMPT_PATHS as readonly string[]).includes(normalized);
+}
+
+/**
+ * Volledige onderhouds-afsluiting: onderhoud staat aan én admins mogen er NIET door
+ * (MAINTENANCE_ALLOW_ADMIN=false). Deze stand is bewust bedoeld voor een database-herstel/migratie
+ * waarbij élk verkeer — óók een login — de database kan beschadigen. De middleware kan dit niet
+ * afdwingen omdat de matcher `/api/auth/**` uitsluit (middleware draait daar nooit), dus zonder deze
+ * poort voert een `POST /api/auth/callback/credentials` nog steeds `user.findUnique`/`user.update`/
+ * `audit`-schrijfacties uit terwijl de beheerder juist verwacht dat álles stilligt. De
+ * credentials-`authorize` leest deze poort daarom rechtstreeks, vóór welke Prisma-call dan ook.
+ *
+ * In de standaardmodus (admins mogen erdoor) blijft login werken: de beheerder moet zichzelf kunnen
+ * inloggen om de deploy te verifiëren, en een niet-admin die inlogt loopt daarna hoe dan ook tegen de
+ * 503 aan. Alleen de expliciete volledige afsluiting stopt de login-schrijfacties.
+ */
+export function loginBlockedByMaintenance(
+  modeValue: string | undefined,
+  allowAdminValue: string | undefined,
+): boolean {
+  return isMaintenanceEnabled(modeValue) && !maintenanceAllowsAdmin(allowAdminValue);
 }
 
 export interface MaintenanceDecisionInput {

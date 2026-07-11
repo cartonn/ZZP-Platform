@@ -5,6 +5,7 @@ import {
   escapeHtml,
   isMaintenanceEnabled,
   isMaintenanceExemptPath,
+  loginBlockedByMaintenance,
   maintenanceAllowsAdmin,
   maintenanceMessage,
   maintenanceRetryAfterSeconds,
@@ -76,6 +77,32 @@ describe("isMaintenanceExemptPath", () => {
     expect(isMaintenanceExemptPath("/dashboard")).toBe(false);
     expect(isMaintenanceExemptPath("/login")).toBe(false);
     expect(isMaintenanceExemptPath("/api/health/extra")).toBe(false);
+  });
+
+  it("normaliseert een trailing slash zodat de probe vrijgesteld blijft", () => {
+    expect(isMaintenanceExemptPath("/api/health/")).toBe(true);
+    expect(isMaintenanceExemptPath("/api/readiness/")).toBe(true);
+    // Een niet-vrijgesteld pad blijft niet-vrijgesteld, ook met slash.
+    expect(isMaintenanceExemptPath("/dashboard/")).toBe(false);
+  });
+});
+
+describe("loginBlockedByMaintenance", () => {
+  it("blokkeert login alleen bij volledige afsluiting (onderhoud aan + admin-bypass uit)", () => {
+    // Volledige afsluiting: onderhoud aan én MAINTENANCE_ALLOW_ADMIN=false → login geblokkeerd.
+    expect(loginBlockedByMaintenance("true", "false")).toBe(true);
+    expect(loginBlockedByMaintenance("1", "off")).toBe(true);
+  });
+
+  it("laat login door in de standaard-onderhoudsmodus (admins mogen erdoor)", () => {
+    // Onderhoud aan, maar admin-bypass staat default AAN → login blijft werken (deploy verifiëren).
+    expect(loginBlockedByMaintenance("true", undefined)).toBe(false);
+    expect(loginBlockedByMaintenance("true", "true")).toBe(false);
+  });
+
+  it("laat login door wanneer onderhoud uit staat, ongeacht de admin-vlag", () => {
+    expect(loginBlockedByMaintenance(undefined, "false")).toBe(false);
+    expect(loginBlockedByMaintenance("false", "false")).toBe(false);
   });
 });
 

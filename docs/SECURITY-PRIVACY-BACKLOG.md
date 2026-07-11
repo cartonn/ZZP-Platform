@@ -4,6 +4,69 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-11 (2e — basis: `main` @ af5212e)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op de vérse delta sinds
+de vorige ronde (`350aa49..af5212e`, #718–#724 — onderhoudsmodus #719, opdrachtgever-reputatie voor
+de ZZP'er #720, staat-van-dienst op het vertrouwensdossier #723, uitnodiging-opvolging #722,
+persona-sweeps). Niet-overlappende oppervlakken: (1) de nieuwe onderhoudsmodus + `middleware.ts` +
+`system-status`/`env`-delta (maintenance-bypass, header/HTML-injectie, auth-verzwakking, secret-lek);
+(2) uitnodiging-opvolging + opdrachtgever-reputatie + `signals`/`stage`/`pending-tasks`-delta
+(IDOR/authz/cross-party-PII/XSS); (3) AVG-volledigheid — schema-delta model-voor-model tegen
+`anonymizeUser`/`account-export`, de nieuwe publieke aggregaties (`company-reputation`,
+`freelancer-track-record`) op k-anonimiteit/PII, PII-in-logs. Kader: OWASP Top 10 (A01/A03/A05/A07/A09)
+
+- ASVS + AVG art. 5/15/17/30/32. `npm audit --production`: **0 kwetsbaarheden**.
+
+**Eén HOOG + één LAAG volledig gefixt (rood→groen); één MIDDEL geparkeerd.** De rest bevestigd schoon:
+de schema-delta is leeg (geen nieuw PII-veld), de nieuwe aggregaties lekken uitsluitend geaggregeerde
+statistiek (geen review-auteur/rating, geen collaboratie-/klant-identiteit; `PENDING_REVEAL`-reviews
+uitgesloten), de uitnodiging-opvolging is dubbel owner-gescopet (data-fetch + render) en exposeert
+alleen tellingen, `MAINTENANCE_MESSAGE` is HTML-escaped + control-char-gestript + lengte-gecapt,
+`Retry-After` is `parseInt`+geklemd, `system-status` lekt alleen driver-modi/booleans (nooit een
+secret-waarde), de env-delta is niet-fataal (CLAUDE.md regel 8), en de onderhoudspoort verzwakt geen
+enkele auth/rol/ownership-check (voegt enkel een blokkade toe).
+
+### OPGELOST in deze ronde
+
+- **[HOOG→OPGELOST · OWASP A05 (security misconfiguration) · CLAUDE.md AUTO-MODE §2 (DB-integriteit)
+  / RUNBOOK §9 — volledige onderhouds-afsluiting (`MAINTENANCE_ALLOW_ADMIN=false`) stopte de
+  login-DB-schrijfacties niet]** De onderhoudsmodus (#719) draait in de `middleware`, maar de
+  middleware-`matcher` sluit `/api/auth/**` expliciet uit — daar draait de middleware dus nooit.
+  Gevolg: met `MAINTENANCE_MODE=true` + `MAINTENANCE_ALLOW_ADMIN=false` (de "volledige afsluiting",
+  bewust bedoeld voor een database-herstel/migratie waarbij élk verkeer schade kan doen) voerde een
+  `POST /api/auth/callback/credentials` nog stééds `user.findUnique`, rate-limiter-lees/schrijf,
+  `user.update({ lastLoginAt })` en `audit()`-inserts uit tegen de live database — precies wat de
+  beheerder verwacht dat stilligt. Alleen de vervolg-paginanavigatie kreeg de 503. Repro: zet de
+  volledige afsluiting aan tijdens een herstel → login schrijft toch naar de DB. Gefixt: nieuwe pure
+  poort `loginBlockedByMaintenance(mode, allowAdmin)` (`src/lib/maintenance.ts`) + `authorizeCredentials`
+  losgetrokken uit `src/auth.ts` naar `src/lib/authorize-credentials.ts` (NextAuth-vrij, direct
+  testbaar); de poort staat als eerste statement, vóór élke Prisma-call, en weigert stil (bewust géén
+  audit — dat zou zelf een DB-schrijf zijn). In de standaardmodus (admin-bypass AAN) blijft login
+  werken (beheerder moet de deploy kunnen verifiëren). Tests: `src/lib/authorize-credentials.test.ts`
+  (rood→groen: bij volledige afsluiting wordt `findUnique`/rate-limiter/`audit` niet aangeroepen; in de
+  standaardmodus + onderhoud-uit wél) + pure cases in `maintenance.test.ts`.
+- **[LAAG→OPGELOST · beschikbaarheid/robuustheid — `isMaintenanceExemptPath` was exact-match, geen
+  trailing-slash-normalisatie]** `/api/health/` (trailing slash) telde niet als vrijgestelde
+  gezondheids-probe en zou tijdens onderhoud de 503-pagina krijgen i.p.v. de healthcheck-respons — een
+  host-healthcheck met slash kon de container zo laten flapperen (faalt gesloten, dus geen bypass).
+  Gefixt: trailing slash genormaliseerd vóór de vergelijking. Test: nieuwe case in `maintenance.test.ts`.
+
+### Geparkeerd in deze ronde
+
+- **[MIDDEL · OWASP A05 — de middleware-`matcher` sluit élk pad met een punt uit → onderhoudsmodus
+  én CSP-header worden overgeslagen voor zulke requests]** De `matcher`-regex
+  (`/((?!api/auth|_next/static|_next/image|favicon.ico|.*\.).*)`) sluit ieder pad met een punt
+  ergens in de path uit, niet alleen bekende statische extensies. Een request als
+  `GET /opdrachten/x.y` bereikt de middleware dus nooit → geen onderhouds-503 én geen CSP-header op
+  die respons. **Geen authz-/document-lek** (geverifieerd: de pagina's dwingen zelf `requireActor`/
+  `requireRole` af met een verse DB-lookup, dus geen auth-bypass); het is een beschikbaarheids-/
+  DB-isolatie-gat in de noodrem-garantie + een CSP-dekkingsgat op dotted dynamische routes.
+  Aanbevolen fix: versmal de punt-uitsluiting tot echte statische extensies
+  (`\.(?:ico|png|jpg|jpeg|gif|svg|css|js|map|txt|xml|json|woff2?)$`) i.p.v. "bevat ergens een punt".
+  Bewust geparkeerd: het raakt de globale routing-matcher (brede blast-radius, verdient een eigen PR
+  met e2e-verificatie), niet samen te voegen met de auth-poort-fix hierboven.
+
 ## Ronde 2026-07-11 (basis: `main` @ 350aa49)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-subagents op niet-overlappende
