@@ -237,6 +237,7 @@ describe("envWarnings", () => {
       UPSTASH_REDIS_REST_TOKEN: "token",
       UPLOAD_SCANNER: "clamav",
       CLAMAV_HOST: "clamd.internal",
+      DATABASE_CONNECTION_LIMIT: "10",
       ...over,
     }) as Env;
 
@@ -263,6 +264,18 @@ describe("envWarnings", () => {
   it("waarschuwt voor de in-memory rate-limit-store in productie", () => {
     const w = envWarnings(prod({ RATE_LIMIT_STORE: "memory" }));
     expect(w.some((m) => /RATE_LIMIT_STORE=memory/.test(m))).toBe(true);
+  });
+
+  it("waarschuwt voor een ontbrekende DB-connectielimiet op Postgres in productie", () => {
+    const w = envWarnings(prod({ DATABASE_CONNECTION_LIMIT: undefined }));
+    expect(w.some((m) => /DATABASE_CONNECTION_LIMIT/.test(m))).toBe(true);
+  });
+
+  it("zwijgt over de connectielimiet op SQLite (geen gedeeld plafond)", () => {
+    const w = envWarnings(
+      prod({ DATABASE_URL: "file:./dev.db", DATABASE_CONNECTION_LIMIT: undefined }),
+    );
+    expect(w.some((m) => /DATABASE_CONNECTION_LIMIT/.test(m))).toBe(false);
   });
 
   it("waarschuwt voor de ontbrekende malware-scan in productie", () => {

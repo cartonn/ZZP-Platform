@@ -253,6 +253,7 @@ export function collectSystemStatus(env: Env): SystemStatus {
               ? "Gedeeld via Upstash Redis — limieten gelden over alle instances."
               : "Per-proces in-memory. Zet RATE_LIMIT_STORE=upstash vóór horizontale schaling.",
         },
+        dbPoolItem(env, dbKind, production),
       ],
     },
   ];
@@ -263,6 +264,50 @@ export function collectSystemStatus(env: Env): SystemStatus {
   }
 
   return { production, groups, warnings: envWarnings(env), counts };
+}
+
+/**
+ * Status-item voor de connection-pool per proces (productie-Postgres). Zonder een expliciete
+ * DATABASE_CONNECTION_LIMIT opent Prisma per instance zijn eigen pool (default num_cpus*2+1);
+ * bij horizontale schaling kan dat het connectie-plafond van de managed DB uitputten. Alleen
+ * relevant op Postgres — op SQLite is er geen gedeeld connectie-plafond.
+ */
+function dbPoolItem(
+  env: Env,
+  dbKind: ReturnType<typeof databaseKind>,
+  production: boolean,
+): StatusItem {
+  if (dbKind !== "PostgreSQL") {
+    return {
+      key: "db-connection-pool",
+      label: "DB-connectiepool",
+      mode: "n.v.t.",
+      level: "fallback",
+      detail: "Alleen van toepassing op productie-PostgreSQL.",
+    };
+  }
+  const limit = env.DATABASE_CONNECTION_LIMIT?.trim();
+  if (limit) {
+    const extras = [
+      env.DATABASE_POOL_TIMEOUT?.trim() ? `pool_timeout=${env.DATABASE_POOL_TIMEOUT.trim()}` : null,
+      env.DATABASE_PGBOUNCER?.trim().toLowerCase() === "true" ? "pgbouncer" : null,
+    ].filter(Boolean);
+    return {
+      key: "db-connection-pool",
+      label: "DB-connectiepool",
+      mode: `limit ${limit}${extras.length ? ` (${extras.join(", ")})` : ""}`,
+      level: "ok",
+      detail: "Pool per instance begrensd — veilig voor horizontale schaling.",
+    };
+  }
+  return {
+    key: "db-connection-pool",
+    label: "DB-connectiepool",
+    mode: "Prisma-default",
+    level: production ? "attention" : "fallback",
+    detail:
+      "Geen DATABASE_CONNECTION_LIMIT — Prisma opent per instance num_cpus*2+1 connecties; bij meerdere instances kan dat het DB-plafond uitputten. Zet DATABASE_CONNECTION_LIMIT vóór horizontale schaling.",
+  };
 }
 
 /**

@@ -18,7 +18,10 @@
   4. Referentie- (en met `SEED_DEMO=true` ook demo-)data **asynchroon** seeden, pas nadat
      `/api/health` lokaal 200 geeft — healthchecks wachten dus nooit op een seed.
 - **Database:** PostgreSQL in productie (managed, EU-regio), SQLite lokaal. Provider-switch is
-  automatisch op basis van `DATABASE_URL`.
+  automatisch op basis van `DATABASE_URL`. Bij horizontale schaling (meerdere instances): zet
+  `DATABASE_CONNECTION_LIMIT` (optioneel `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER=true`) om de
+  Prisma-pool per instance te begrenzen en het connectie-plafond van de managed DB te sparen
+  (`src/lib/db-connection.ts`; zichtbaar op `/admin/systeemstatus`, zie `MENSENWERK.md` §0b/§1b).
 - **Documentopslag:** privé S3-bucket bij `STORAGE_DRIVER=s3`; anders lokale map (pilot).
 - **Cron:** GitHub Actions `run-all-tasks.yml` (dagelijks 05:00 UTC) roept `/api/tasks/run-all` aan
   met `Authorization: Bearer $CRON_SECRET`. Inert zonder `RUN_ALL_TASK_URL`/`CRON_SECRET`.

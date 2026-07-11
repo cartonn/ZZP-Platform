@@ -137,6 +137,15 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   veilig terug op `mailto:security@<host>`. Zichtbaar op `/admin/systeemstatus`. Resterend mensenwerk:
   **niets voor de pilot**; zet `SECURITY_CONTACT` (komma-gescheiden mailto:/https: toegestaan) naar een
   **bewaakte mailbox** vóór de pentest zodat meldingen bij een echt persoon landen.
+- **Connection-pool-configuratie voor productie-Postgres** (laag, code-kant GEDAAN 11-7-2026):
+  Prisma opent per proces een eigen pool (default num_cpus\*2+1 connecties); bij horizontale
+  schaling (meerdere Railway-instances) kan dat het connectie-plafond van de managed Postgres
+  uitputten. Er is nu een pluggbare, inert-by-default seam (`src/lib/db-connection.ts`, gewired
+  in `src/lib/db.ts`) die de pool per instance begrenst via env, zónder `DATABASE_URL` aan te
+  passen. Zichtbaar op `/admin/systeemstatus` ("DB-connectiepool"). Resterend mensenwerk:
+  **niets voor de pilot** (single instance draait op Prisma-defaults). Bij horizontale schaling:
+  zet `DATABASE_CONNECTION_LIMIT` (bijv. 5–10 per instance) in de Railway-secrets; gebruik je een
+  PgBouncer/Supabase-pooler, zet dan ook `DATABASE_PGBOUNCER=true`.
 
 ## §1. Hosting, database, opslag, domein, geheimen
 
@@ -166,6 +175,10 @@ nodig met back-ups en beveiligde opslag.
    **Opleveren:** de verbindings-URL → in de secrets als `DATABASE_URL` (§7). Geef je ontwikkela/agent
    het seintje "Postgres staat klaar"; die zet de databaseprovider om naar PostgreSQL en draait de
    eenmalige migratie.
+   **Code-kant GEDAAN (11-7-2026) — connection-pool-configuratie:** de Prisma-client kan de
+   connectie-pool nu per instance begrenzen (`DATABASE_CONNECTION_LIMIT`, optioneel
+   `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER=true`), nodig zodra je op meerdere instances draait
+   (zie §0b). Voor de pilot (één instance) hoef je niets te zetten.
 
 ### 1c. Documentopslag (S3 of S3-compatibel)
 
@@ -449,28 +462,29 @@ Echte teksten, logo en eventuele huisstijl kun je aanleveren; de agent verwerkt 
 
 Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Zie ook `.env.example`.)
 
-| Instelling                                                           | Wat het is                                       | Waar haal je het     | Wanneer nodig                                    |
-| -------------------------------------------------------------------- | ------------------------------------------------ | -------------------- | ------------------------------------------------ |
-| `DATABASE_URL`                                                       | Verbindings-URL productie-database               | Databasedienst (§1b) | Altijd (productie)                               |
-| `AUTH_SECRET`                                                        | Geheim voor veilige inlogsessies (≥32 tekens)    | Zelf genereren (§1e) | Altijd                                           |
-| `AUTH_URL`                                                           | Je productie-webadres                            | Je domein (§1d)      | Altijd                                           |
-| `STORAGE_DRIVER=s3`                                                  | Schakelt productie-opslag in                     | —                    | Bij echte uploads                                |
-| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                            | Bucketnaam + regio                               | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                        | Opslag-toegangssleutels                          | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                     | Encryptie-at-rest (default AES256; optioneel)    | — (§1c)              | Optioneel (default aan bij s3)                   |
-| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`              | E-mail via Resend HTTP-API (Railway-proof)       | Resend (§2)          | Voor e-mail                                      |
-| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                  | E-mail via eigen SMTP-relay                      | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
-| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                         | Betalingen via Mollie                            | Mollie (§3)          | Voor betalingen (kies één provider)              |
-| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET` | Betalingen via Stripe (Checkout + webhook)       | Stripe (§3)          | Voor betalingen (kies één provider)              |
-| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                | Echte DUO-controle                               | DUO (§4a)            | Voor echte diplomacontrole                       |
-| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`            | Echte BIG-controle                               | CIBG (§4b)           | Voor echte zorgcontrole                          |
-| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`    | Echte identiteitscontrole                        | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
-| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                              | Externe error-monitoring (anders alleen logs)    | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
-| `LOG_LEVEL`                                                          | Logdrempel (debug/info/warn/error)               | —                    | Optioneel (default info)                         |
-| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`       | Gedeelde rate-limits over instances              | Upstash (§0b H-2)    | Bij horizontale schaling                         |
-| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                | Malware-scan van uploads                         | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
-| `ALLOW_INDEXING=true`                                                | Zoekmachine-indexering aanzetten (default uit)   | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
-| `SECURITY_CONTACT`                                                   | Meldpunt in /.well-known/security.txt (RFC 9116) | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
+| Instelling                                                                   | Wat het is                                       | Waar haal je het     | Wanneer nodig                                    |
+| ---------------------------------------------------------------------------- | ------------------------------------------------ | -------------------- | ------------------------------------------------ |
+| `DATABASE_URL`                                                               | Verbindings-URL productie-database               | Databasedienst (§1b) | Altijd (productie)                               |
+| `AUTH_SECRET`                                                                | Geheim voor veilige inlogsessies (≥32 tekens)    | Zelf genereren (§1e) | Altijd                                           |
+| `AUTH_URL`                                                                   | Je productie-webadres                            | Je domein (§1d)      | Altijd                                           |
+| `STORAGE_DRIVER=s3`                                                          | Schakelt productie-opslag in                     | —                    | Bij echte uploads                                |
+| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                                    | Bucketnaam + regio                               | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                                | Opslag-toegangssleutels                          | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                             | Encryptie-at-rest (default AES256; optioneel)    | — (§1c)              | Optioneel (default aan bij s3)                   |
+| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`                      | E-mail via Resend HTTP-API (Railway-proof)       | Resend (§2)          | Voor e-mail                                      |
+| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                          | E-mail via eigen SMTP-relay                      | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
+| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                                 | Betalingen via Mollie                            | Mollie (§3)          | Voor betalingen (kies één provider)              |
+| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET`         | Betalingen via Stripe (Checkout + webhook)       | Stripe (§3)          | Voor betalingen (kies één provider)              |
+| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                        | Echte DUO-controle                               | DUO (§4a)            | Voor echte diplomacontrole                       |
+| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`                    | Echte BIG-controle                               | CIBG (§4b)           | Voor echte zorgcontrole                          |
+| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`            | Echte identiteitscontrole                        | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
+| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                                      | Externe error-monitoring (anders alleen logs)    | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
+| `LOG_LEVEL`                                                                  | Logdrempel (debug/info/warn/error)               | —                    | Optioneel (default info)                         |
+| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`               | Gedeelde rate-limits over instances              | Upstash (§0b H-2)    | Bij horizontale schaling                         |
+| `DATABASE_CONNECTION_LIMIT` (+ `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER`) | Begrenst de Prisma-pool per instance             | — (§0b, §1b)         | Bij horizontale schaling                         |
+| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                        | Malware-scan van uploads                         | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
+| `ALLOW_INDEXING=true`                                                        | Zoekmachine-indexering aanzetten (default uit)   | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
+| `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116) | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).
