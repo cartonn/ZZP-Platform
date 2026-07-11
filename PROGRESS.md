@@ -3,6 +3,20 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## Prod-rijpheid 2026-07-11 — onderhoudsmodus (maintenance mode)
+
+- **Wat:** operationele noodrem om het platform tijdens migratie/DB-herstel/incident gecontroleerd
+  offline te halen — bezoekers krijgen een rustige 503-onderhoudspagina (NL, thema-bewust, geen
+  scripts) met `Retry-After`, terwijl `/api/health` + `/api/readiness` bereikbaar blijven (Railway-
+  healthcheck houdt de container in leven). Inert by default (`MAINTENANCE_MODE`), draait vóór
+  auth/rol-guards; admins standaard doorgelaten (`MAINTENANCE_ALLOW_ADMIN=false` = volledig dicht).
+- **Bestanden:** `src/lib/maintenance.ts` (puur, 8 helpers) + `src/lib/maintenance.test.ts` (25 tests);
+  wiring in `src/middleware.ts`, `src/lib/env.ts` (4 velden + prod-boot-waarschuwing), `src/lib/system-status.ts`
+  (+ test). Docs: `docs/RUNBOOK.md` §9, `MENSENWERK.md` §11, `.env.example`.
+- **Checks:** typecheck ✓, lint ✓, test 3858 ✓, prettier ✓, build ✓. Geen schemawijziging, geen dependency,
+  geen verzwakking van auth (louter een extra blokkade).
+- **Rest = mensenwerk:** niets voor de pilot; env-variabele alleen bewust zetten tijdens onderhoud.
+
 ## Security-/privacy-auditronde 2026-07-11 — 2× HOOG AVG art. 17 + 1× MIDDEL cross-tenant PII (basis `main` @ 350aa49)
 
 - **Aanpak:** orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-subagents op niet-overlappende

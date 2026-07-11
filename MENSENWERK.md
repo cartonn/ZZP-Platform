@@ -588,6 +588,19 @@ kern `src/lib/ops/db-backup.ts`): custom-format dump met retentie-snoei, weigert
 herstellen (kies een leeg doel of geef bewust `--force`). Dumps landen in `backups/` (in `.gitignore`).
 De **automatische** dagelijkse back-ups blijven verantwoordelijkheid van de databasedienst.
 
+**Code-kant GEDAAN (11-7-2026) — onderhoudsmodus (operationele noodrem):** je kunt het platform nu
+tijdens een geplande migratie, een database-herstel (RUNBOOK §5) of een incident (§6) tijdelijk
+offline halen met één env-variabele. Zet `MAINTENANCE_MODE=true` in de Railway-secrets → bezoekers
+krijgen een rustige **503-onderhoudspagina** ("we zijn zo terug", met `Retry-After`-hint), terwijl de
+gezondheids-probes (`/api/health`, `/api/readiness`) bereikbaar blijven zodat de host-healthcheck de
+container **niet** herstart en je uptime-monitor groen blijft. Ingelogde **admins** mogen er standaard
+door om de deploy te verifiëren (`MAINTENANCE_ALLOW_ADMIN=false` voor een volledige afsluiting).
+Optioneel: `MAINTENANCE_MESSAGE` (eigen tekst) + `MAINTENANCE_RETRY_AFTER` (seconden). Draait vóór
+auth/rol-guards in de middleware; puur en getest (`src/lib/maintenance.ts`). In productie logt de boot
+een waarschuwing zolang hij aan staat en toont `/admin/systeemstatus` "Onderhoudsmodus: aan"
+(aandacht). Zie RUNBOOK §9. Resterend mensenwerk: **niets voor de pilot** — zet de variabele alleen
+wanneer je bewust onderhoud doet, en vergeet niet 'm daarna weer uit te zetten.
+
 **Resterend mensenwerk (eenmalig):**
 
 1. Zet **automatische dagelijkse database-back-ups** aan bij je databasedienst (EU-regio; §1b) en

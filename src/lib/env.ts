@@ -15,6 +15,8 @@
 
 import { z } from "zod";
 
+import { isMaintenanceEnabled } from "@/lib/maintenance";
+
 const schema = z
   .object({
     DATABASE_URL: z.string().min(1, "DATABASE_URL is verplicht."),
@@ -112,6 +114,15 @@ const schema = z
     // toegestaan; een kaal e-mailadres krijgt automatisch mailto:. Ontbreekt het, dan valt de
     // security.txt terug op mailto:security@<host>. Zie src/lib/security-txt.ts.
     SECURITY_CONTACT: z.string().optional(),
+    // Onderhoudsmodus (operationele noodrem, RUNBOOK). Zet MAINTENANCE_MODE=true om het platform
+    // tijdens een migratie/herstel/incident een rustige 503-onderhoudspagina te laten tonen; de
+    // gezondheids-probes blijven bereikbaar. MAINTENANCE_ALLOW_ADMIN=false sluit óók admins buiten
+    // (default: admins mogen erdoor). MAINTENANCE_MESSAGE overschrijft de bezoekerstekst;
+    // MAINTENANCE_RETRY_AFTER stelt de Retry-After-hint in (seconden). Zie src/lib/maintenance.ts.
+    MAINTENANCE_MODE: z.string().optional(),
+    MAINTENANCE_ALLOW_ADMIN: z.string().optional(),
+    MAINTENANCE_MESSAGE: z.string().optional(),
+    MAINTENANCE_RETRY_AFTER: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     const require = (cond: boolean, path: string, message: string) => {
@@ -182,6 +193,11 @@ export type Env = z.infer<typeof schema>;
 export function envWarnings(env: Env): string[] {
   if (env.NODE_ENV !== "production") return [];
   const warnings: string[] = [];
+  if (isMaintenanceEnabled(env.MAINTENANCE_MODE)) {
+    warnings.push(
+      "MAINTENANCE_MODE staat AAN — het platform toont bezoekers een 503-onderhoudspagina (alleen de gezondheids-probes blijven bereikbaar). Zet MAINTENANCE_MODE uit zodra het onderhoud klaar is.",
+    );
+  }
   if (env.STORAGE_DRIVER === "local") {
     warnings.push(
       "STORAGE_DRIVER=local — geüploade documenten gaan naar de lokale schijf (vluchtig bij redeploy). Zet STORAGE_DRIVER=s3 voor productie.",

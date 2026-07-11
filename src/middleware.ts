@@ -2,6 +2,14 @@ import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
 import { buildCsp, generateNonce, reportingEndpointsHeader } from "@/lib/csp";
+import {
+  buildMaintenancePage,
+  isMaintenanceEnabled,
+  maintenanceAllowsAdmin,
+  maintenanceMessage,
+  maintenanceRetryAfterSeconds,
+  shouldServeMaintenance,
+} from "@/lib/maintenance";
 import { isAdminPath, isFranchisePath, isPublicPath, roleForPath } from "@/lib/route-guards";
 
 const { auth } = NextAuth(authConfig);
@@ -43,8 +51,38 @@ function getPublicOrigin(request: Request, fallbackOrigin: string) {
   return `${protocol}://${host}`;
 }
 
+/**
+ * Onderhoudsmodus: geeft — indien aan — een rustige 503-pagina i.p.v. de app. Draait vóór álle
+ * andere routering (auth, rol-guards) zodat óók publieke pagina's (login) offline gaan; alleen de
+ * gezondheids-probes blijven bereikbaar (zie MAINTENANCE_EXEMPT_PATHS) zodat de host-healthcheck de
+ * container niet neerhaalt. Ingelogde ADMINs mogen er standaard door (MAINTENANCE_ALLOW_ADMIN).
+ */
+function maintenanceResponse(pathname: string, isAdmin: boolean): NextResponse | null {
+  const enabled = isMaintenanceEnabled(process.env.MAINTENANCE_MODE);
+  if (!enabled) return null;
+  const allowAdmin = maintenanceAllowsAdmin(process.env.MAINTENANCE_ALLOW_ADMIN);
+  if (!shouldServeMaintenance({ enabled, pathname, isAdmin, allowAdmin })) return null;
+
+  const html = buildMaintenancePage({
+    message: maintenanceMessage(process.env.MAINTENANCE_MESSAGE),
+  });
+  return new NextResponse(html, {
+    status: 503,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "retry-after": String(maintenanceRetryAfterSeconds(process.env.MAINTENANCE_RETRY_AFTER)),
+      "x-robots-tag": "noindex, nofollow",
+    },
+  });
+}
+
 export default auth((request) => {
   const { pathname, search } = request.nextUrl;
+
+  const maintenance = maintenanceResponse(pathname, request.auth?.user?.role === "ADMIN");
+  if (maintenance) return maintenance;
+
   if (isPublicPath(pathname)) return nextWithCsp(request);
 
   const origin = getPublicOrigin(request, request.nextUrl.origin);

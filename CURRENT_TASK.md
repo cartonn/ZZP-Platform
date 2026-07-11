@@ -260,6 +260,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — onderhoudsmodus (maintenance mode) (2026-07-11)** — een
+> operationele noodrem waarmee de beheerder het platform tijdens een geplande migratie, een database-
+> herstel of een incident gecontroleerd offline haalt: bezoekers krijgen een rustige 503-onderhoudspagina
+> (thema-bewust, geen scripts, NL) met een `Retry-After`-hint, terwijl `/api/health` + `/api/readiness`
+> bereikbaar blijven zodat de Railway-healthcheck de container niet neerhaalt en uptime-monitors groen
+> blijven. Inert by default (`MAINTENANCE_MODE`), draait vóór auth/rol-guards in de middleware. Ingelogde
+> admins mogen er standaard door (`MAINTENANCE_ALLOW_ADMIN=false` = volledige afsluiting); eigen tekst via
+> `MAINTENANCE_MESSAGE`, hint via `MAINTENANCE_RETRY_AFTER` (geklemd [30,86400]). Pure `src/lib/maintenance.ts`
+> (`isMaintenanceEnabled`/`maintenanceAllowsAdmin`/`maintenanceRetryAfterSeconds`/`maintenanceMessage`
+> (control-tekens gestript + 300-cap)/`isMaintenanceExemptPath`/`shouldServeMaintenance`/`escapeHtml`/
+> `buildMaintenancePage`; 25 tests) + wiring in middleware, env-schema (4 velden + prod-boot-waarschuwing zolang
+> aan) en `/admin/systeemstatus` (item "Onderhoudsmodus", aan=aandacht). Geen schemawijziging, geen dependency,
+> verzwakt geen enkele auth-check (extra blokkade). RUNBOOK §9 + MENSENWERK §11 + `.env.example` bijgewerkt.
+> Gate groen (3858 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Compliance-strip (aflopende certificaten) voor de bemiddelaar op /franchise/zzpers
 > (2026-07-11, PR #716)** — het ZZP'er-roster had per-rij een vervalchip + een `?alerts=1`-filter maar geen
 > aggregaat dat de kernvraag "houd ik mijn pool compliant?" in één oogopslag beantwoordt. Nu een strip bovenaan
