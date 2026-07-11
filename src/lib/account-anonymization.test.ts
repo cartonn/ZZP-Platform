@@ -243,6 +243,16 @@ describe("freelancerProfileAnonymizationData", () => {
     expect(data.btwNumber).toBeNull();
     expect(data.hourlyRate).toBeNull();
   });
+
+  it("wist de zelf-getypte quick-apply-standaardtekst (defaultMotivation, AVG art. 17)", () => {
+    // Vrije tekst ≤2000 tekens die de betrokkene zelf schreef (spiegelbeeld van Application.motivation).
+    // Zonder dit veld overleeft die PII de anonimisering op het profiel (rood→groen).
+    expect(data.defaultMotivation).toBeNull();
+  });
+
+  it("wist het zelfgekozen financiële maanddoel (monthlyIncomeGoalCents, AVG art. 17)", () => {
+    expect(data.monthlyIncomeGoalCents).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

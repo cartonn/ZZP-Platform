@@ -151,6 +151,7 @@ export async function buildAccountExport(
         jobId: true,
         status: true,
         motivation: true,
+        availability: true,
         proposedRate: true,
         matchScore: true,
         createdAt: true,

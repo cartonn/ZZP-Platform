@@ -70,7 +70,13 @@ export async function ShiftHandoffGovernanceScreen({ actor }: { actor: Actor }) 
   const candidates =
     candidateIds.length > 0
       ? await prisma.freelancerProfile.findMany({
-          where: { id: { in: candidateIds } },
+          // Defense-in-depth (CLAUDE.md regel 2, tenant-isolatie): scope de kandidaat-lookup expliciet
+          // op de eigen tenant (`...scope` = {} voor admin, { tenantId } voor de franchiser — via het
+          // geteste `tenantScopeWhere`) i.p.v. te leunen op de invariant die `requestShiftHandoff` bij
+          // aanmaak afdwingt (candidate.tenantId == job.tenantId). Zonder deze filter zou een franchiser
+          // de naam + certificaatstatus (PII, gezondheids-adjacent) van een ZZP'er uit een ándere tenant
+          // zien zodra die invariant ooit breekt (bv. een herparentering van het profiel).
+          where: { id: { in: candidateIds }, ...scope },
           take: 100,
           select: {
             id: true,

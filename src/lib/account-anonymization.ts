@@ -137,7 +137,11 @@ export function userAnonymizationData(
 }
 
 /** Vrije-tekst- en identificerende velden op het ZZP-profiel worden gewist; het
- *  profiel wordt op privé gezet zodat het nergens meer publiek verschijnt. */
+ *  profiel wordt op privé gezet zodat het nergens meer publiek verschijnt.
+ *  `defaultMotivation` is de zelf-getypte quick-apply-standaardtekst (≤2000 tekens, vrije tekst met
+ *  mogelijk naam/telefoon/adres — spiegelbeeld van `Application.motivation` die al wordt geredact);
+ *  `monthlyIncomeGoalCents` is een zelfgekozen financieel doel — beide horen bij art. 17 mee te
+ *  worden gewist, net als `hourlyRate`. */
 export function freelancerProfileAnonymizationData(): {
   headline: null;
   bio: null;
@@ -146,6 +150,8 @@ export function freelancerProfileAnonymizationData(): {
   kvkNumber: null;
   btwNumber: null;
   hourlyRate: null;
+  monthlyIncomeGoalCents: null;
+  defaultMotivation: null;
   visibility: "PRIVATE";
 } {
   return {
@@ -156,6 +162,8 @@ export function freelancerProfileAnonymizationData(): {
     kvkNumber: null,
     btwNumber: null,
     hourlyRate: null,
+    monthlyIncomeGoalCents: null,
+    defaultMotivation: null,
     visibility: "PRIVATE",
   };
 }

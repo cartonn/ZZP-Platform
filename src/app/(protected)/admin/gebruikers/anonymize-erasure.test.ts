@@ -159,6 +159,19 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect((o.args.data as { motivation: string }).motivation).toMatch(/verwijderd/i);
   });
 
+  it("wist het vrije-tekst-beschikbaarheidsveld van de eigen reacties (Application.availability)", async () => {
+    await anonymizeUser("user-42");
+    // De freelancer-gescopete application.updateMany redact zowel de motivatiebrief als het
+    // vrije-tekst-`availability`-veld (bv. "bereikbaar op 06-…"). Zonder `availability: null` blijft
+    // die door de betrokkene getypte PII na anonimisering leesbaar op de reactie (rood→groen).
+    const ops = findAll("application.updateMany") as Array<{
+      args: { where: { freelancer?: unknown; job?: unknown }; data: { availability?: unknown } };
+    }>;
+    const motivationOp = ops.find((o) => o.args.where.freelancer !== undefined);
+    expect(motivationOp).toBeDefined();
+    expect(motivationOp!.args.data.availability).toBeNull();
+  });
+
   it("redact eigen support-berichten (SupportMessage.body)", async () => {
     await anonymizeUser("user-42");
     const o = find("supportMessage.updateMany") as { args: { where: unknown; data: unknown } };
