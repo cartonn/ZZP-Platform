@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { getStorage } from "@/lib/services/storage";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
+import { documentDownloadRateLimiter } from "@/lib/rate-limit";
+import { enforceRateLimit } from "@/lib/rate-limit-guard";
 
 // Privé document-download (CLAUDE.md regel 4): alleen eigenaar of admin. Nooit publiek pad.
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -16,6 +18,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ error: e.message }, { status: e.status });
     throw e;
   }
+
+  // Rem een scripted enumeratie-loop over `Document.id` vóór de DB-lookup/storage-read (parity met
+  // de dossier-/PDF-routes). De ownership-check hieronder blijft leidend; dit is defense-in-depth
+  // tegen resource-uitputting en ongebreidelde auditgroei op de gevoeligste route (OWASP A04).
+  const limited = await enforceRateLimit(documentDownloadRateLimiter, actor.id);
+  if (limited) return limited;
 
   const { id } = await ctx.params;
   const doc = await prisma.document.findUnique({
