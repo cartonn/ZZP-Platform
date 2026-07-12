@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Routine: reputatie + eerder-samengewerkt in de kandidaat-vergelijker (opdrachtgever)
+
+- **Wat:** de side-by-side kandidaat-vergelijker (`/kandidaten/vergelijk`) miste de twee sterkste
+  rehire-signalen die de kandidatenlijst (`/kandidaten`) al toont: **reputatie** (gemiddelde
+  opdrachtgever-beoordeling in sterren) en **"eerder samengewerkt"** (afgeronde samenwerkingen met
+  déze opdrachtgever). Bij een aannamebeslissing wegen "hoog beoordeeld" en "beviel me eerder" zwaar
+  (benchmark Malt/Upwork/LinkedIn "worked together before"). Nu twee extra rijen — Reputatie (met
+  uniek-hoogste-winnaar) en "Samenwerking · met jou" (rehire-vlag, geen winnaar) — zodat de
+  vergelijking consistent is met de lijst.
+- **Bestanden:** `src/lib/candidate-compare.ts` (`CompareCandidate.reviewRating`/`sharedHistory`,
+  nieuwe `bestRatingId`-winnaar; count 0/null telt niet mee — geen valse 0-sterren) + `.test.ts`
+  (+3 tests). `src/app/(protected)/kandidaten/vergelijk/page.tsx`: `user.id` in de select, drie
+  gebatchte loaders (`getReviewRatingsForCandidates`, `getSharedHistoryForCandidates`,
+  bestaande delivery) in één `Promise.all` (geen N+1), twee `CompareRow`s met hergebruik van
+  `RatingStars` + `CandidateHistoryBadge`.
+- **Server-side waarheid:** de reputatie- en historie-aggregaties draaien server-side, eigenaar-/
+  subject-gescoopt (nooit andermans data); alleen PUBLISHED CLIENT_ON_FREELANCER-beoordelingen en
+  COMPLETED-samenwerkingen. Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+- **Gate:** typecheck ✓, lint ✓, prettier ✓, 4002 unit-tests ✓, build ✓. E2e draait in CI.
+
 ## 2026-07-12 — Routine: eerstvolgende vrije datum kandidaat (opdrachtgever/bemiddelaar)
 
 - **Wat:** wanneer een kandidaat op de startdatum van een opdracht **niet inzetbaar** is
