@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Routine: eerstvolgende vrije datum kandidaat (opdrachtgever/bemiddelaar)
+
+- **Wat:** wanneer een kandidaat op de startdatum van een opdracht **niet inzetbaar** is
+  (`blocked`/`none`), toonde de kandidatenlijst/vergelijk enkel "Niet beschikbaar" — een dood spoor.
+  Nu berekent het platform de **eerstvolgende vrije dag** binnen 90 dagen en toont een
+  "Vrij vanaf {datum}"-chip (of "Beperkt vrij vanaf …"). Zo kan de opdrachtgever/bemiddelaar de
+  startdatum bijstellen of vooruit plannen i.p.v. een sterke match af te schrijven — een gat waar
+  Pidz/Temper/Zorgwerk hard op scoren, vertaald naar onze gedeelde beschikbaarheidsvensters.
+- **Bestanden:** `src/lib/candidate-availability.ts` (`nextFitAfterStart` — puur/deterministisch,
+  dag-scan die `availabilityOnDate` hergebruikt zodat het oordeel exact strookt met `classifyStartFit`;
+  `nextFitLabel`, `NEXT_FIT_HORIZON_DAYS=90`) + `.test.ts` (+8 tests: none-gat, sprong over
+  UNAVAILABLE, startdatum-zelf, horizon-grens, label-NL). `candidate-compare.ts` (optioneel
+  `nextFitLabel`-veld, plain string — geen Date in het vergelijk-model). Wiring op `/kandidaten`
+  (chip naast de start-fit-badge) en `/kandidaten/vergelijk` (regel onder de badge).
+- **Server-side waarheid:** de client toont alleen; de vrije-dag-berekening draait server-side op de
+  gedeelde vensters. Geen dode knoppen, geen scope-creep.
+- **DoD:** typecheck ✓, lint ✓, `npm run test` **3999 passed (360 files)** ✓, build ✓, prettier ✓.
+
 ## 2026-07-12 — Prod: documentopslag-connectiviteitszelftest (admin systeemstatus)
 
 - **Wat:** een admin-only **Opslag-zelftest** op `/admin/systeemstatus`. De pagina toonde de

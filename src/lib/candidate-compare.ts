@@ -26,6 +26,12 @@ export interface CompareCandidate {
   available: boolean;
   /** Beschikbaarheid op de startdatum van déze opdracht; `undefined` als de opdracht geen start heeft. */
   startFit?: StartFit;
+  /**
+   * Kort NL-label ("Vrij vanaf 15 jul") met de eerstvolgende inzetbare dag, alleen gezet wanneer de
+   * kandidaat op de startdatum zélf niet inzetbaar is (`blocked`/`none`) maar binnen de horizon wél;
+   * anders `undefined`. Zo blijft een niet-passende startdatum toch een plan-optie i.p.v. een dood spoor.
+   */
+  nextFitLabel?: string;
   /** Geschatte reistijd naar de opdracht, of null bij remote/onbekende plaats (geen chip). */
   proximity?: CandidateProximity | null;
 }

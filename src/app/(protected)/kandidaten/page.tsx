@@ -20,7 +20,13 @@ import { RATE_FIT_LABEL, RATE_FIT_VARIANT, classifyProposedRateFit } from "@/lib
 import { VerificationMarks } from "@/components/credentials/verification-marks";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { summarizeAvailability } from "@/lib/availability";
-import { START_FIT_LABEL, START_FIT_VARIANT, classifyStartFit } from "@/lib/candidate-availability";
+import {
+  START_FIT_LABEL,
+  START_FIT_VARIANT,
+  classifyStartFit,
+  nextFitAfterStart,
+  nextFitLabel,
+} from "@/lib/candidate-availability";
 import {
   classifyCandidateProximity,
   proximityLabel,
@@ -668,6 +674,12 @@ export default async function KandidatenPage({
                         const s = summarizeAvailability(windows);
                         const jobStart = app.job.startDate;
                         const fit = jobStart ? classifyStartFit(windows, jobStart) : "unknown";
+                        // Niet inzetbaar op de startdatum? Toon wanneer de kandidaat wél kan, zodat de
+                        // opdrachtgever de startdatum kan bijstellen i.p.v. een sterke match af te schrijven.
+                        const nextFit =
+                          fit === "blocked" || fit === "none"
+                            ? nextFitAfterStart(windows, jobStart)
+                            : null;
                         return (
                           <>
                             {s && (
@@ -681,6 +693,7 @@ export default async function KandidatenPage({
                                 <Badge variant={START_FIT_VARIANT[fit]}>
                                   {t(START_FIT_LABEL[fit])}
                                 </Badge>
+                                {nextFit && <Badge variant="muted">{nextFitLabel(nextFit)}</Badge>}
                               </span>
                             )}
                             {(() => {
