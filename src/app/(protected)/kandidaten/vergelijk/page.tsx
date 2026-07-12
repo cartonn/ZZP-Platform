@@ -12,6 +12,8 @@ import {
   START_FIT_SHORT_LABEL,
   START_FIT_VARIANT,
   classifyStartFit,
+  nextFitAfterStart,
+  nextFitLabel,
 } from "@/lib/candidate-availability";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import {
@@ -118,6 +120,7 @@ export default async function VergelijkKandidatenPage({
       ...w,
       type: w.type as AvailabilityWindowType,
     }));
+    const startFit = job.startDate ? classifyStartFit(windows, job.startDate) : undefined;
     return {
       id: app.id,
       name: app.freelancer.user.name ?? "—",
@@ -128,7 +131,15 @@ export default async function VergelijkKandidatenPage({
       firstTimeRightRate:
         delivery && delivery.tone !== "INSUFFICIENT" ? delivery.firstTimeRightRate : null,
       available: !!summarizeAvailability(windows),
-      startFit: job.startDate ? classifyStartFit(windows, job.startDate) : undefined,
+      startFit,
+      // Niet inzetbaar op de startdatum? Reken de eerstvolgende vrije dag uit als plan-optie.
+      nextFitLabel:
+        startFit === "blocked" || startFit === "none"
+          ? (() => {
+              const nf = nextFitAfterStart(windows, job.startDate);
+              return nf ? nextFitLabel(nf) : undefined;
+            })()
+          : undefined,
       // Reistijd naar de opdracht (#612). Pure schatting (geen serieel blokkerende externe call);
       // null bij remote of onbekende plaats — dan geen chip.
       proximity: classifyCandidateProximity({
@@ -240,9 +251,14 @@ export default async function VergelijkKandidatenPage({
                   winnerId={null}
                   render={(c) =>
                     c.startFit && c.startFit !== "unknown" ? (
-                      <Badge variant={START_FIT_VARIANT[c.startFit]}>
-                        {t(START_FIT_SHORT_LABEL[c.startFit])}
-                      </Badge>
+                      <span className="inline-flex flex-col items-start gap-1">
+                        <Badge variant={START_FIT_VARIANT[c.startFit]}>
+                          {t(START_FIT_SHORT_LABEL[c.startFit])}
+                        </Badge>
+                        {c.nextFitLabel && (
+                          <span className="text-xs text-muted-foreground">{c.nextFitLabel}</span>
+                        )}
+                      </span>
                     ) : (
                       // Geen "Agenda gedeeld" meer: dat is geen antwoord op de startdatum. Zonder
                       // oordeel (geen startdatum óf geen agenda) tonen we eerlijk "Onbekend".

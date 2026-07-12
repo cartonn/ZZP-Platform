@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  NEXT_FIT_HORIZON_DAYS,
   START_FIT_LABEL,
   START_FIT_SHORT_LABEL,
   START_FIT_VARIANT,
   classifyStartFit,
+  nextFitAfterStart,
+  nextFitLabel,
 } from "@/lib/candidate-availability";
 import { type WindowLike } from "@/lib/availability";
 
@@ -65,5 +68,71 @@ describe("label- en variant-maps", () => {
   it("available is groen (success), de rest niet", () => {
     expect(START_FIT_VARIANT.available).toBe("success");
     expect(START_FIT_VARIANT.blocked).toBe("danger");
+  });
+});
+
+describe("nextFitAfterStart", () => {
+  it("null zonder startdatum of agenda", () => {
+    expect(nextFitAfterStart(shared, null)).toBeNull();
+    expect(nextFitAfterStart(shared, undefined)).toBeNull();
+    expect(nextFitAfterStart([], start)).toBeNull();
+  });
+
+  it("vindt het eerstvolgende inzetbare venster na een 'none'-startdatum", () => {
+    // 15 juli valt in het gat tussen het AVAILABLE-venster (t/m 30 jun) en het LIMITED-venster
+    // (vanaf 1 aug). De eerstvolgende inzetbare dag is 1 augustus (beperkt).
+    const next = nextFitAfterStart(shared, d("2026-07-15T00:00:00Z"));
+    expect(next).not.toBeNull();
+    expect(next!.date.toISOString().slice(0, 10)).toBe("2026-08-01");
+    expect(next!.fit).toBe("limited");
+    expect(next!.daysFromStart).toBe(17);
+  });
+
+  it("springt over een blokkerend UNAVAILABLE-venster heen naar de eerste vrije dag", () => {
+    const withBlock: WindowLike[] = [
+      { startDate: d("2026-06-01"), endDate: d("2026-06-30"), type: "AVAILABLE" },
+      { startDate: d("2026-06-10"), endDate: d("2026-06-20"), type: "UNAVAILABLE" },
+    ];
+    // Startdatum 15 jun is geblokkeerd; het AVAILABLE-venster loopt door t/m 30 jun, dus de eerste
+    // vrije dag is 21 juni (de dag ná het einde van het UNAVAILABLE-venster).
+    const next = nextFitAfterStart(withBlock, start);
+    expect(next).not.toBeNull();
+    expect(next!.date.toISOString().slice(0, 10)).toBe("2026-06-21");
+    expect(next!.fit).toBe("available");
+  });
+
+  it("geeft de startdatum zelf (daysFromStart 0) als die inzetbaar is", () => {
+    const next = nextFitAfterStart(shared, start);
+    expect(next!.daysFromStart).toBe(0);
+    expect(next!.fit).toBe("available");
+  });
+
+  it("null wanneer er binnen de horizon geen inzetbare dag is", () => {
+    const farOff: WindowLike[] = [
+      { startDate: d("2027-01-01"), endDate: d("2027-02-01"), type: "AVAILABLE" },
+    ];
+    expect(nextFitAfterStart(farOff, start, 30)).toBeNull();
+    // Met een ruime horizon wordt het venster wél gevonden.
+    expect(nextFitAfterStart(farOff, start, 400)).not.toBeNull();
+  });
+
+  it("respecteert een expliciete horizon-grens", () => {
+    // Venster start precies op de horizon-grens → inclusief gevonden; één dag ervoor → null.
+    const win: WindowLike[] = [
+      { startDate: d("2026-06-25"), endDate: d("2026-06-30"), type: "AVAILABLE" },
+    ];
+    expect(nextFitAfterStart(win, start, 10)).not.toBeNull(); // 15 jun + 10 = 25 jun
+    expect(nextFitAfterStart(win, start, 9)).toBeNull();
+  });
+
+  it("nextFitLabel toont een leesbaar NL-label per inzetbaarheid", () => {
+    const avail = nextFitAfterStart(shared, start)!;
+    expect(nextFitLabel(avail)).toMatch(/^Vrij vanaf /);
+    const limited = nextFitAfterStart(shared, d("2026-07-15T00:00:00Z"))!;
+    expect(nextFitLabel(limited)).toMatch(/^Beperkt vrij vanaf /);
+  });
+
+  it("de standaard-horizon is 90 dagen", () => {
+    expect(NEXT_FIT_HORIZON_DAYS).toBe(90);
   });
 });
