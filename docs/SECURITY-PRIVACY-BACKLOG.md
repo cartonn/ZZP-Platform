@@ -4,6 +4,52 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-12 (2e — basis: `main` @ 9fbd20a)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken: (1) document-/dossier-serving + AVG-betrokkenenrechten + upload-veiligheid; (2) cross-
+tenant/franchise-IDOR over álle `franchise/**`-actions + `src/lib/franchise/**`; (3) cron/webhook/push/
+routing-SSRF + client-error/csp-report + auth-rate-limiting. Kader: OWASP Top 10 (A01/A03/A04/A05/A07) +
+ASVS + AVG art. 5/15/17/32. De verse delta sinds #730 (#731–#738) is apart nagelopen (request-id-
+sanitisatie, middleware, de nieuwe pure kans-/beschikbaarheidssignalen, de opdrachten-lijst-query) —
+schoon: aggregaat-only tellingen, eigenaar-scoped queries, CR/LF-weerbare header-sanitisatie.
+
+**Eén MIDDEL volledig gefixt (rood→groen).** Overige oppervlakken bevestigd schoon (geen KRITIEK/HOOG):
+tenant-isolatie uniform via `assertSameTenant`/`ownsViaTenant`/`tenantScopeWhere`; cron via Bearer +
+`timingSafeEqual` + 503-inert; Stripe-webhook HMAC + 300s replay-window (Mollie: server-side re-fetch);
+push-/routing-SSRF met harde host-allowlist; AVG-anonimisering wist docs/credentials + redact audit-
+metadata-PII (`scrubAuditMetadataPii`); AVG-export eigen-data-only + audited; CSV-exports met formule-
+injectie-guard (CWE-1236); document-IDOR-keten (`canAccessDocument`) audit-both-paden; upload via
+MIME-allowlist + magic-byte-sniff + random storage-key; `npm audit` prod = **0 kwetsbaarheden**.
+
+### OPGELOST in deze ronde
+
+- **[MIDDEL→OPGELOST · OWASP A04 (insecure design — unrestricted resource consumption) / API4:2023 ·
+  parity met de bestaande `documentPdfRateLimiter`-rem — `/api/documents/[id]` had géén rate-limit]**
+  De privé document-download is de énige route die de rauwe bytes van de gevoeligste bestanden
+  (VOG/diploma/ID/verzekering) serveert, maar was — anders dan álle zuster-routes (dossier, DBA-dossier,
+  modelovereenkomst, factuur-/prestatie-PDF, die de `documentPdfRateLimiter` al hadden) — niet geremd.
+  **Repro:** een geauthenticeerde FREELANCER/CLIENT hamert `GET /api/documents/<gegokte-cuid>` in een
+  ongeremde loop → per request een DB-lookup + `storage.exists`/`storage.get` (S3-read in prod) + een
+  `DOCUMENT_ACCESS_DENIED`/`DOCUMENT_ACCESSED`-auditregel, tegen nul kosten voor de aanvaller. `Document.id`
+  is een `cuid()` (niet volledig willekeurig), dus enumeratie is niet hypothetisch; de data zelf bleef
+  afgeschermd door `canAccessDocument`, maar de storage-kosten/auditgroei/DB-belasting niet. **Gefixt:**
+  nieuwe `documentDownloadRateLimiter` (default **240/uur/gebruiker**, env `DOCUMENT_DOWNLOAD_RATE_LIMIT`,
+  window 1u, prefix `docdl:` — ruimer dan de PDF-rem vanwege de legitiem frequentere inline-preview in de
+  verificatiequeue), aangeroepen via `enforceRateLimit` **direct na `requireActor()`**, dus vóór de
+  DB-lookup — de loop wordt geremd voordat hij iets kost. Tests: `src/app/api/documents/[id]/route.test.ts`
+  (nieuw, 3 cases rood→groen: rem aangeroepen met de juiste limiter+actor-key; 200 binnen de limiet met
+  bytes geserveerd; 429 kort-sluit vóór de DB-lookup — geen `storage.get`, geen `DOCUMENT_ACCESSED`-audit).
+
+### Geparkeerd
+
+- **[LAAG · dev-only dependency-DoS · js-yaml GHSA-h67p-54hq-rp68 (quadratische complexiteit bij merge-
+  keys)]** Transitieve **dev**-afhankelijkheid via `eslint → @eslint/eslintrc → js-yaml@4.1.1`; zit niet in
+  de productie-bundle en verwerkt geen gebruiker-invoer at runtime (alleen eslint-config). `npm audit`
+  (incl. dev) = 1 low + 1 moderate, beide via deze keten. **Aanbevolen fix:** `npm audit fix` of een
+  `overrides`-pin op een gepatchte js-yaml zodra eslint de transitieve dep bumpt — niet forceren zolang
+  het eslint kan breken; geen productie-impact. `npm audit --omit=dev` = 0.
+
 ## Ronde 2026-07-12 (basis: `main` @ b5c8b66)
 
 Audit: orchestrator (Opus 4.8) op de vérse delta sinds de vorige ronde (`af5212e..b5c8b66`, #725–#730 —

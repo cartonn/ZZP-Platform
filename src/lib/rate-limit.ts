@@ -376,6 +376,23 @@ export const documentPdfRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal DOCUMENT_DOWNLOAD_RATE_LIMIT (default 240) downloads van een privé-document
+ * (/api/documents/[id]) per gebruiker per uur. Dit is de énige route die de rauwe bytes van de
+ * meest gevoelige bestanden (VOG, diploma, ID, verzekering) serveert; elke hit doet een DB-lookup
+ * + storage-read + auditregel. De rem stopt een scripted enumeratie-loop over `Document.id` (een
+ * cuid, niet volledig willekeurig) en de bijbehorende storage-kosten/auditgroei, terwijl de
+ * ownership-check (`canAccessDocument`) leidend blijft. Ruimer dan de PDF-rem omdat de
+ * inline-preview in de verificatiequeue legitiem vaker downloadt (security-review: parity met de
+ * dossier-/PDF-routes die deze rem al hadden).
+ */
+export const documentDownloadRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("DOCUMENT_DOWNLOAD_RATE_LIMIT", 240),
+  60 * 60_000,
+  "docdl:",
+);
+
+/**
  * Maximaal DOSSIER_VIEW_RATE_LIMIT (default 30) weergaven van het publieke vertrouwensdossier
  * per IP per 5 minuten. De token-entropie is hoog (HMAC-SHA256), maar de route is sessieloos en
  * elke poging kost een DB-query — deze rem maakt brute-force/scraping onaantrekkelijk

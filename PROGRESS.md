@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Security/privacy-audit: rate-limit op de privé document-download (OWASP A04)
+
+- **Wat:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-
+  overlappende oppervlakken: (1) document-/dossier-serving + AVG-betrokkenenrechten (inzage/export/
+  anonimisering) + upload-veiligheid; (2) cross-tenant/franchise-IDOR over álle `franchise/**`-actions
+  - de `src/lib/franchise/**`-datalaag; (3) cron/task-API-auth + billing-webhook-signature + push-SSRF +
+    routing-SSRF + client-error/csp-report + login/register/reset-rate-limiting. Kader: OWASP Top 10
+    (A01/A03/A04/A05/A07) + ASVS + AVG art. 5/15/17/32. Verse delta sinds #730 (#731–#738) apart nagelopen:
+    request-id-sanitisatie (CR/LF-weerbaar), middleware, de nieuwe pure kans-/beschikbaarheidssignalen en
+    de opdrachten-lijst-query (aggregaat-only, eigenaar-scoped) — schoon.
+- **Bevinding & fix (MIDDEL → OPGELOST):** `/api/documents/[id]` — de énige route die de rauwe bytes van
+  de gevoeligste bestanden (VOG/diploma/ID/verzekering) serveert — had als enige document-serverende route
+  géén rate-limit, terwijl alle zuster-routes (dossier/DBA-dossier/modelovereenkomst/factuur-PDF) de
+  `documentPdfRateLimiter` al hadden. Gevolg: een geauthenticeerde enumeratie-loop over `Document.id`
+  (cuid, niet volledig willekeurig) kon ongebreideld DB-lookups + storage-reads + auditregels genereren
+  (resource-uitputting/kostenvector; de ownership-check `canAccessDocument` bleef data wel afschermen).
+  **Fix:** nieuwe `documentDownloadRateLimiter` (default 240/uur/gebruiker, `DOCUMENT_DOWNLOAD_RATE_LIMIT`,
+  ruimer dan de PDF-rem vanwege de legitieme inline-preview in de verificatiequeue), aangeroepen direct na
+  `requireActor()` — vóór de DB-lookup — zodat de loop wordt geremd voordat hij iets kost.
+- **Bestanden:** `src/lib/rate-limit.ts` (nieuwe limiter), `src/app/api/documents/[id]/route.ts` (wiring),
+  `src/app/api/documents/[id]/route.test.ts` (nieuw, rood→groen: rem aangeroepen met juiste limiter+key;
+  200 binnen de limiet; 429 kort-sluit vóór de DB-lookup — geen bytes, geen `DOCUMENT_ACCESSED`-audit).
+- **Overige oppervlakken bevestigd schoon** (geen KRITIEK/HOOG): tenant-isolatie (uniform
+  `assertSameTenant`/`ownsViaTenant`/`tenantScopeWhere`), cron (Bearer + `timingSafeEqual` + 503-inert),
+  Stripe-webhook (HMAC + 300s replay-window, Mollie: server-side re-fetch), push-/routing-SSRF (harde
+  host-allowlist), AVG-anonimisering (wist docs/credentials + redact audit-metadata-PII), CSV-exports
+  (formule-injectie-guard CWE-1236), `npm audit` prod = 0. Rest → backlog (o.a. dev-only js-yaml-DoS).
+
 ## 2026-07-12 — Persona-sweep run 25 — geen gaten gevonden (4 rollen)
 
 - **Wat:** kritische-gebruiker-sweep over alle 4 rollen (ZZP'er/opdrachtgever/bemiddelaar/admin) op
