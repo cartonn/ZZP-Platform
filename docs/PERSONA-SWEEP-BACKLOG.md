@@ -1,5 +1,50 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-12 (run 24) · **main-commit basis:** `ce740b7`
+> **Uitkomst:** **Geen defecten/gaten gevonden.** Verse prod-build (`npm run build`), schema-push +
+> idempotente demo-seed (`SEED_DEMO=true`) op ephemere SQLite (`qa.db`), prod-server (`next start`,
+> poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen ingelogd via het
+> echte formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium (`chromium-1194`).
+>
+> **DOEL 1 (echte actie, live + DB-geverifieerd):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties`
+> → Goedkeuren-knoppen **6→5** (de afgehandelde certificaat-actie verdween correct; de next-action-keten
+> auth→rol→ownership→transitie→audit→revalidate werkt end-to-end). Eigen factuur-PDF (`collab-1`) → **200
+> `application/pdf`** voor beide partijen; eigen samenwerking-`dossier`/`dba-dossier`/`modelovereenkomst` →
+> **200** voor beide partijen.
+>
+> **DOEL 1b (next-action-correctheid):** `/acties` per rol gecontroleerd tegen de echte staat — ZZP'er (2:
+> ontbrekend verplicht document _Verzekering_ + openstaande gespreksreactie _Mark Jansen_, matcht de
+> zijbalk-badge "2"), CLIENT (2), FRANCHISER (leeg — klopt: geen bijna-verlopende-cert- of verstreken-lead-
+> taken open in de seed), ADMIN (rijke queue: certificaat-verificaties + supporttickets). Alle getoonde
+> acties zijn logisch, in de juiste volgorde, voor de juiste partij aan zet; geen dubbele, tegenstrijdige of
+> niet-verdwijnende acties.
+>
+> **DOEL 2 (adversarieel, ~90 probes — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen|audit`; niet-FRANCHISER → `/franchise`) → **redirect
+> (opaqueredirect/3xx), nooit 200/500**. IDOR/cross-partij + cross-tenant via **in-browser `fetch`** (cookie-
+> getrouw, met de JUISTE routes `/api/facturen/[id]/pdf` en `/api/samenwerkingen/[id]/{dossier,dba-dossier,
+modelovereenkomst}`): vreemde factuur-PDF (Iris' DRAFT) → **403** voor alle 3 niet-partij-rollen; vreemde
+> samenwerking-docs (Iris+zorggroep, ACTIVE) → **403** voor alle 3; FRANCHISER bij `collab-1` (niet-partij,
+> andere tenant) → **403** op factuur-PDF én alle 3 doc-routes; eigen resources → **200** voor de partijen.
+> Document-privacy (`/api/documents/<Youssef VOG>`): eigenaar + ADMIN → **200**, andere rollen → **403**,
+> junk → **404**. Junk-/traversal-/sqli-/xss-id (`/facturen|/samenwerkingen|/opdrachten|/zzp/<junk>`,
+> `..%2F..%2Fetc%2Fpasswd`, `1' OR '1'='1`, `<script>…`, all-zeros-cuid) over 2 rollen → soft-404, **nooit
+> 500**. Cron-endpoints (`/api/tasks/run-all|expiry|payment-reminders`): **GET → 405**, **POST zonder
+> `CRON_SECRET` → 503**. Betaal-webhook (`/api/billing/webhook`) met ongesigneerde/vervalste payload → **200
+> maar inert**: geverifieerd in de handler dat `resolveWebhookRef` de ongesigneerde ping als `null` afwijst
+> en de status altijd gezaghebbend bij de provider wordt opgehaald (server-side waarheid, geen forgeable
+> statuswijziging). Admin-CSV-export als niet-admin → **404**. Malicieuze opdracht-input (XSS-titel
+> `<script>` + `rateMin=-50` + `rateMax=1e12` + lege verplichte omschrijving) via het echte formulier →
+> **Zod-geweigerd, op-form gebleven, validatiefout getoond, 0 malicieuze jobs** (`job.count` 20→20).
+>
+> **Server-side guards herbevestigd:** de authz-keten `requireActor → Zod → ownership → assertTransition →
+audit` weert consistent elke cross-partij/cross-tenant-toegang met **403** (niet 404-als-toevallig-verkeerde-
+> route — deze run gebruikte bewust de juiste route-paden om echte authz i.p.v. route-afwezigheid te toetsen).
+> Geen enkele zwakke plek gevonden — het platform is na 23 eerdere sweeps grondig gehard. Alleen deze
+> docs-update, geen code-wijziging deze run.
+>
+> ---
+>
 > **Datum:** 2026-07-11 (run 23) · **main-commit basis:** `e2fd922`
 > **Uitkomst:** **Geen defecten/gaten gevonden.** Verse prod-build (`npm run build`), schema-push +
 > idempotente demo-seed (`SEED_DEMO=true`) op ephemere SQLite (`qa.db`), prod-server (`next start`,
