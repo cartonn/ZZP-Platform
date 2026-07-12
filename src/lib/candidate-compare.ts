@@ -7,6 +7,7 @@ import { type ComplianceStatus } from "@/lib/matching";
 import { type TrustLevel } from "@/lib/trust";
 import { type StartFit } from "@/lib/candidate-availability";
 import { type CandidateProximity } from "@/lib/candidate-proximity";
+import { type SharedHistory } from "@/lib/candidate-history";
 
 /** Eén kandidaat zoals de opdrachtgever die vergelijkt. Velden komen uit de bestaande motoren. */
 export interface CompareCandidate {
@@ -34,6 +35,16 @@ export interface CompareCandidate {
   nextFitLabel?: string;
   /** Geschatte reistijd naar de opdracht, of null bij remote/onbekende plaats (geen chip). */
   proximity?: CandidateProximity | null;
+  /**
+   * Gemiddelde opdrachtgever-reputatie (sterren) uit gepubliceerde beoordelingen, of null bij geen
+   * enkele beoordeling — dan draagt het vertrouwensniveau het signaal (geen misleidende "0 sterren").
+   */
+  reviewRating?: { average: number; count: number } | null;
+  /**
+   * Afgeronde samenwerkingen tussen déze opdrachtgever en de kandidaat, of null als er nog nooit
+   * met deze opdrachtgever is samengewerkt. Sterk, laag-risico rehire-signaal.
+   */
+  sharedHistory?: SharedHistory | null;
 }
 
 export interface CandidateComparison {
@@ -48,6 +59,8 @@ export interface CandidateComparison {
   bestComplianceId: string | null;
   /** Id van de uniek hoogste leverbetrouwbaarheid, of null. */
   bestDeliveryId: string | null;
+  /** Id van de uniek hoogste reputatie (gemiddelde sterren), of null. */
+  bestRatingId: string | null;
 }
 
 const TRUST_RANK: Record<TrustLevel, number> = { BASIS: 0, DEELS: 1, VOLLEDIG: 2 };
@@ -98,6 +111,7 @@ export function buildCandidateComparison(candidates: CompareCandidate[]): Candid
       bestTrustId: null,
       bestComplianceId: null,
       bestDeliveryId: null,
+      bestRatingId: null,
     };
   }
   return {
@@ -112,5 +126,9 @@ export function buildCandidateComparison(candidates: CompareCandidate[]): Candid
       c.complianceStatus === null ? null : COMPLIANCE_RANK[c.complianceStatus],
     ),
     bestDeliveryId: pickUniqueBest(candidates, (c) => c.firstTimeRightRate),
+    // Alleen kandidaten mét minstens één beoordeling doen mee (count 0 → null, geen valse winnaar).
+    bestRatingId: pickUniqueBest(candidates, (c) =>
+      c.reviewRating && c.reviewRating.count > 0 ? c.reviewRating.average : null,
+    ),
   };
 }

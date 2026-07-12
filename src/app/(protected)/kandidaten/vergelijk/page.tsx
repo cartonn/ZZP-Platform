@@ -22,6 +22,8 @@ import {
   proximityLabel,
 } from "@/lib/candidate-proximity";
 import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-quality";
+import { getReviewRatingsForCandidates } from "@/lib/data/candidate-reviews";
+import { getSharedHistoryForCandidates } from "@/lib/data/candidate-history";
 import { type CompareCandidate, buildCandidateComparison } from "@/lib/candidate-compare";
 import { firstName } from "@/lib/kandidaten-triage";
 import {
@@ -35,6 +37,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ComplianceBadge } from "@/components/compliance-badge";
+import { RatingStars } from "@/components/reviews/rating-stars";
+import { CandidateHistoryBadge } from "@/components/freelancer/candidate-history-badge";
 import { ChooseCandidateButton } from "./choose-candidate-button";
 
 export const metadata: Metadata = { title: "Kandidaten vergelijken · ZZP Platform" };
@@ -83,7 +87,7 @@ export default async function VergelijkKandidatenPage({
           headline: true,
           visibility: true,
           location: true,
-          user: { select: { name: true, identityVerifiedAt: true } },
+          user: { select: { id: true, name: true, identityVerifiedAt: true } },
           availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
           credentials: { select: { type: true, status: true, expiresAt: true } },
         },
@@ -91,9 +95,16 @@ export default async function VergelijkKandidatenPage({
     },
   });
 
-  const deliveryByProfile = await getDeliveryQualityForProfiles(
-    applications.map((a) => a.freelancer.id),
-  );
+  // Drie gebatchte, eigenaar-/subject-gescoopte queries (geen N+1), spiegel van /kandidaten:
+  // leverbetrouwbaarheid, reputatie-sterren en de gedeelde historie met déze opdrachtgever.
+  const [deliveryByProfile, ratingByUser, historyByProfile] = await Promise.all([
+    getDeliveryQualityForProfiles(applications.map((a) => a.freelancer.id)),
+    getReviewRatingsForCandidates(applications.map((a) => a.freelancer.user.id)),
+    getSharedHistoryForCandidates(
+      actor.id,
+      applications.map((a) => a.freelancer.id),
+    ),
+  ]);
 
   const requiredTypes = job.credentialRequirements
     .filter((r) => r.required)
@@ -147,6 +158,12 @@ export default async function VergelijkKandidatenPage({
         jobLocation: job.location,
         candidateLocation: app.freelancer.location,
       }),
+      // Reputatie + rehire-signaal — al op /kandidaten aanwezig, nu ook naast elkaar.
+      reviewRating: (() => {
+        const r = ratingByUser.get(app.freelancer.user.id);
+        return r && r.count > 0 ? { average: r.average, count: r.count } : null;
+      })(),
+      sharedHistory: historyByProfile.get(app.freelancer.id) ?? null,
     };
   });
 
@@ -226,6 +243,23 @@ export default async function VergelijkKandidatenPage({
                   )}
                 />
                 <CompareRow
+                  label={t("Reputatie")}
+                  hint={t("beoordeling opdrachtgevers")}
+                  candidates={candidates}
+                  winnerId={comparison.bestRatingId}
+                  render={(c) =>
+                    c.reviewRating ? (
+                      <RatingStars
+                        average={c.reviewRating.average}
+                        count={c.reviewRating.count}
+                        showValue
+                      />
+                    ) : (
+                      noData
+                    )
+                  }
+                />
+                <CompareRow
                   label={t("Compliance")}
                   candidates={candidates}
                   winnerId={comparison.bestComplianceId}
@@ -278,6 +312,15 @@ export default async function VergelijkKandidatenPage({
                     ) : (
                       noData
                     )
+                  }
+                />
+                <CompareRow
+                  label={t("Samenwerking")}
+                  hint={t("met jou")}
+                  candidates={candidates}
+                  winnerId={null}
+                  render={(c) =>
+                    c.sharedHistory ? <CandidateHistoryBadge history={c.sharedHistory} /> : noData
                   }
                 />
                 <tr>

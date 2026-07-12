@@ -96,6 +96,32 @@ describe("buildCandidateComparison", () => {
     expect(result.bestDeliveryId).toBe("c");
   });
 
+  it("hoogste reputatie wint; kandidaat zonder beoordeling (count 0/null) doet niet mee", () => {
+    const result = buildCandidateComparison([
+      candidate({ id: "a", reviewRating: { average: 4.2, count: 3 } }),
+      candidate({ id: "b", reviewRating: null }),
+      candidate({ id: "c", reviewRating: { average: 4.8, count: 5 } }),
+      candidate({ id: "d", reviewRating: { average: 5, count: 0 } }),
+    ]);
+    expect(result.bestRatingId).toBe("c");
+  });
+
+  it("gelijke reputatie geeft geen winnaar", () => {
+    const tie = buildCandidateComparison([
+      candidate({ id: "a", reviewRating: { average: 4.5, count: 2 } }),
+      candidate({ id: "b", reviewRating: { average: 4.5, count: 9 } }),
+    ]);
+    expect(tie.bestRatingId).toBeNull();
+  });
+
+  it("geen enkele beoordeling → geen reputatie-winnaar", () => {
+    const none = buildCandidateComparison([
+      candidate({ id: "a" }),
+      candidate({ id: "b", reviewRating: null }),
+    ]);
+    expect(none.bestRatingId).toBeNull();
+  });
+
   it("één kandidaat → alle winnaars null (niets te vergelijken)", () => {
     const result = buildCandidateComparison([candidate({ id: "a", matchScore: 90 })]);
     expect(result.bestMatchId).toBeNull();

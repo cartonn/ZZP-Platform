@@ -260,6 +260,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Reputatie + eerder-samengewerkt in de kandidaat-vergelijker (opdrachtgever)
+> (2026-07-12)** — de side-by-side kandidaat-vergelijker (`/kandidaten/vergelijk`) toonde match, tarief,
+> vertrouwen, compliance, leverbetrouwbaarheid, beschikbaarheid en reistijd, maar niet de twee sterkste
+> rehire-signalen die de kandidatenlijst (`/kandidaten`) wél toont: **reputatie** (gemiddelde
+> opdrachtgever-beoordeling, sterren) en **"eerder samengewerkt"** (afgeronde samenwerkingen met déze
+> opdrachtgever). Bij een aannamebeslissing wegen "hoog beoordeeld" en "beviel me eerder" zwaar (benchmark
+> Malt/Upwork/LinkedIn "worked together before"); zonder die rijen was de vergelijking incompleet. Nu twee
+> nieuwe rijen: "Reputatie" (met uniek-hoogste-winnaar via nieuwe `bestRatingId`; kandidaat zonder
+> beoordeling telt niet mee — geen valse 0-sterren) en "Samenwerking · met jou" (rehire-vlag, geen winnaar).
+> Hergebruikt de bestaande, geteste data-loaders (`getReviewRatingsForCandidates`,
+> `getSharedHistoryForCandidates`) + componenten (`RatingStars`, `CandidateHistoryBadge`) uit `/kandidaten`
+> — drie gebatchte, eigenaar-/subject-gescoopte queries in één `Promise.all` (geen N+1). `CompareCandidate`
+> uitgebreid met `reviewRating`/`sharedHistory`; +3 tests op `bestRatingId`. Read-only, geen schemawijziging,
+> geen nieuw mutatie/auth-oppervlak. Gate groen (4002 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Concurrentie-chip op de opdrachtenlijst (ZZP'er) (2026-07-12)** — op `/opdrachten`
 > (de triage-lijst) ziet de ZZP'er nu per opdracht een compacte concurrentie-chip ("3 reacties" / "8 reacties ·
 > reageer snel") zodra er al ándere actieve reacties zijn — het kanssignaal dat tot nu toe alleen op de
