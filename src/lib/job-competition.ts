@@ -141,3 +141,28 @@ export function summarizeJobCompetition({
 
   return { applicantCount: count, level, chance, headline, hint, urgent };
 }
+
+export type CompetitionChipTone = "urgent" | "info";
+
+export interface CompetitionChip {
+  /** Compacte tekst voor de lijstweergave, bv. "3 reacties" of "8 reacties · reageer snel". */
+  label: string;
+  /** Toon-emfase: "urgent" (snel reageren loont aantoonbaar) | "info" (neutrale telling). */
+  tone: CompetitionChipTone;
+}
+
+/**
+ * Compacte lijst-chip afgeleid uit de volledige samenvatting. Bedoeld voor de opdrachtenlijst waar de
+ * ZZP'er triageert welke opdracht als eerste te pakken: toont uitsluitend wanneer er al ándere reacties
+ * zijn (≥1) — de beslis-relevante informatie ("anderen concurreren hier al"). Bij 0 reacties geeft dit
+ * `null` terug zodat de lijst rustig blijft (geen "wees de eerste"-ruis op elke lege opdracht; die nudge
+ * hoort op de detailpagina). Puur en deterministisch; lekt geen enkel gegeven van andere kandidaten.
+ */
+export function competitionChip(summary: CompetitionSummary): CompetitionChip | null {
+  if (summary.applicantCount < 1) return null;
+  const base = `${summary.applicantCount} ${summary.applicantCount === 1 ? "reactie" : "reacties"}`;
+  if (summary.urgent) {
+    return { label: `${base} · reageer snel`, tone: "urgent" };
+  }
+  return { label: base, tone: "info" };
+}
