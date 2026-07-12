@@ -3,6 +3,21 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Ontwerp-lab reeks 28: +10 concepten (271–280), totaal 280
+
+- **Wat:** 10 nieuwe redesign-concepten toegevoegd aan `/ontwerp` (append-only, niets van 01–270 gewijzigd):
+  271 Klavier (toetsenbord-first / commandopalet), 272 Windroos (nautische radiale wayfinding),
+  273 Dichroïsch (iriserend glas, premium-dark), 274 Getallenas (meetlat als data-ruggegraat),
+  275 Solarisatie (fotografische luminantie-inversie), 276 Sgraffito (ingekraste pleisterlagen),
+  277 Duotoon (bold Pantone-duotone poster), 278 Splitflap (Solari vertrekbord), 279 Bioluminescentie
+  (gloeiende diepzee), 280 Kalkverf (limewash matte muren). Galerij groeit van 270 → **280**.
+- **Hoe:** 4 parallelle builders op niet-overlappende `concept-27x/280-*.tsx`-bestanden; orchestrator
+  koppelde ze additief in `registry.ts` (10 ConceptMeta-entries) + `[id]/concept-host.tsx` (10 lazy
+  `dynamic()`-imports). Elk concept dekt de 6 kernschermen, status als label+icoon, loading/empty/error,
+  responsive, toegankelijk; alleen imports uit `react`/`lucide-react`/`./mock`; UI Nederlands, geen "AI".
+- **Checks:** `typecheck` ✓ · `lint` ✓ (No ESLint warnings or errors) · `test` ✓ (3975 passed) ·
+  `build` ✓ · `prettier --check .` ✓. Volgende stap: PR → CI-poort (6 checks) → auto-merge.
+
 ## 2026-07-12 — Reistijd-signaal per kandidaat bij het voordragen (bemiddelaar)
 
 - **Wat:** de bemiddelaar (FRANCHISER) die op `/franchise/diensten/[id]` een roster-ZZP'er voordraagt,

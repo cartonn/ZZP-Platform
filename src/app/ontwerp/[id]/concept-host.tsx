@@ -817,6 +817,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "270": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-270-staalkaart").then((m) => m.Concept270),
   ),
+  "271": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-271-klavier").then((m) => m.Concept271),
+  ),
+  "272": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-272-windroos").then((m) => m.Concept272),
+  ),
+  "273": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-273-dichroisch").then((m) => m.Concept273),
+  ),
+  "274": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-274-getallenas").then((m) => m.Concept274),
+  ),
+  "275": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-275-solarisatie").then((m) => m.Concept275),
+  ),
+  "276": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-276-sgraffito").then((m) => m.Concept276),
+  ),
+  "277": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-277-duotoon").then((m) => m.Concept277),
+  ),
+  "278": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-278-splitflap").then((m) => m.Concept278),
+  ),
+  "279": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-279-bioluminescentie").then((m) => m.Concept279),
+  ),
+  "280": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-280-kalkverf").then((m) => m.Concept280),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

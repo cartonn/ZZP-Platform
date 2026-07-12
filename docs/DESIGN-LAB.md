@@ -702,3 +702,45 @@ UI-taal = Nederlands.
   waaier als systematisch kleur-coderingssysteem** — elk onderscheidend gehouden van de bestaande 260 en
   reduced-motion-/AA-bewust.
 - **Totaal nu op `/ontwerp`: 270 concepten** (reeks 1: 01–10, reeks 2: 11–20, reeks 3: 21–30, reeks 4: 31–40, reeks 5: 41–50, reeks 6: 51–60, reeks 7: 61–70, reeks 8: 71–80, reeks 9: 81–90, reeks 10: 91–100, reeks 11: 101–110, reeks 12: 111–120, reeks 13: 121–130, reeks 14: 131–140, reeks 15: 141–150, reeks 16: 151–160, reeks 17: 161–170, reeks 18: 171–180, reeks 19: 181–190, reeks 20: 191–200, reeks 21: 201–210, reeks 22: 211–220, reeks 23: 221–230, reeks 24: 231–240, reeks 25: 241–250, reeks 26: 251–260, reeks 27: 261–270).
+
+## Reeks 28 (271–280) — keyboard-first, maritiem, dichroïsch, meetlat, solarisatie, sgraffito, duotone, split-flap, bioluminescent, kalkverf
+
+- **10 nieuwe richtingen toegevoegd** (append-only; niets van 01–270 gewijzigd):
+  - **271 Klavier** — toetsenbord-first: prominent ⌘K-commandopalet als centrale besturing, keycap-primitives
+    met 3D-emboss + druk-animatie, per-rij sneltoets-hints, vilt-groen op ivoor, mono-forward (niet Console/
+    Teletekst — palet-driven i.p.v. terminal).
+  - **272 Windroos** — nautische wayfinding: kompasroos als échte radiale navigatie (inline-SVG), zeekaart-
+    hairline-peilingen, match als kompaspeiling-meter, cartografische serif-cijfers, messing-op-diepteal
+    (niet Kompas/Portolaan — radiale nav + peiling-gauge).
+  - **273 Dichroïsch** — iriserend dichroïsch glas, premium-dark: spectrale gradient-hairlines die van tint
+    wisselen bij hover (background-position-transition), bijna-zwarte glasvlakken, prismatische gloed (niet
+    Glas/Vloeiglas/Parelmoer — bewegende hue-shift i.p.v. statische glasmorf).
+  - **274 Getallenas** — meetlat als data-ruggegraat: doorlopende liniaal-as met maatstreepjes plaatst match/
+    tarief/uren exact op schaal, graph-paper-raster, één rode maatlijn, tabulaire precisie (niet Meetlint/
+    Maatvoering — as als informatie-architectuur, alles op de schaal uitgelijnd).
+  - **275 Solarisatie** — fotografische solarisatie (Sabattier): donkere donkere-kamer-esthetiek met
+    omgekeerde luminantie-omslag, magenta/cyaan gloei-randen, grain via CSS + mix-blend screen, match-orb met
+    gloeiende ring (niet Noir/Zwartlicht/Fosfor — luminantie-inversie i.p.v. glow-op-zwart).
+  - **276 Sgraffito** — ingekraste pleisterlagen: warm aards pleisterpalet (terracotta/oker/olijf), gegraveerde
+    dubbele-hairline-scheidingen + carved inset-schaduwen, scratch-hatch backdrop, humanistische serif (niet
+    Fresco/Perkament/Terra — incised layering als signature).
+  - **277 Duotoon** — bold Pantone-duotone poster: twee-inkten (diep indigo + hot koraal) op warm papier,
+    oversized display-numerals, platte kleurvlakken + harde offset-schaduwen, hero wisselt de inkten bij hover
+    (niet Riso/Memphis — strakke duotone i.p.v. grain/speels).
+  - **278 Splitflap** — Solari split-flap vertrekbord: zwarte tegels met scharnierlijn, mechanische
+    flip-animatie (reduced-motion-bewust) bij screen-wissel/hover, amber-op-zwart mono, match/tarief/status als
+    flap-tegels (niet Scorebord/Nixie/Teletekst — split-flap mechaniek als signature).
+  - **279 Bioluminescentie** — gloeiende diepzee: bijna-zwart oppervlak waarin alleen wat telt oplicht in
+    bio-cyaan (bloom via box-shadow/radiale gradients), organische vormen, ademende pulse op belangrijke acties,
+    gloed volgt hover (niet Diepzee/Nebula/Lumen — bio-glow + breathing als aandachtssturing).
+  - **280 Kalkverf** — limewash matte muren: warme krijtachtige matte vlakken met wolkige kleurovergangen,
+    volledig zonder glans of schaduw, humanistische sans met veel lucht (niet Japandi/Kalk/Marmer — geschilderde
+    matte wash i.p.v. steen/textuur).
+- Onderzochte 2026-trends deze reeks: **keyboard-first / command-menu als primaire besturing**; **radiale/
+  kompas-navigatie**; **dichroïsch/iriserend glas met hue-shift-microinteractie**; **meetlat/getallenlijn als
+  informatie-architectuur**; **fotografische solarisatie (luminantie-inversie) als dark-art richting**;
+  **sgraffito/incised-plaster tactiliteit**; **bold Pantone-duotone poster-typografie**; **split-flap/Solari
+  mechanische micro-interactie**; **bioluminescente bloom + breathing motion** (reduced-motion-bewust); en
+  **limewash/matte kalkverf-oppervlakken** — elk onderscheidend gehouden van de bestaande 270 en AA-/reduced-
+  motion-bewust.
+- **Totaal nu op `/ontwerp`: 280 concepten** (reeks 28: 271–280).
