@@ -18,6 +18,11 @@ import {
   topGapReasonComplianceFirst,
 } from "@/lib/matching";
 import { computeEngageability } from "@/lib/engageability";
+import {
+  type ActivePlacement,
+  type DoubleBookingSignal,
+  detectDoubleBooking,
+} from "@/lib/franchise/roster-double-booking";
 
 /** Het voordracht-auditrecord is de gezaghebbende markering (zoals POOL_INVITED bij publicatie). */
 export const PROPOSAL_ACTION = "FRANCHISE_FREELANCER_PROPOSED";
@@ -41,6 +46,11 @@ export interface RosterCandidate {
   proposed: boolean;
   /** ZZP'er heeft zelf al gereageerd (Application, niet ingetrokken). */
   hasApplied: boolean;
+  /**
+   * Dubbele-boeking-signaal: staat deze ZZP'er al op een andere ACTIEVE samenwerking waarvan de
+   * looptijd de startdatum van deze dienst overlapt? `count > 0` ⇒ risico op een dubbele plaatsing.
+   */
+  doubleBooking: DoubleBookingSignal;
 }
 
 export type ProposeResult = { ok: true; already: boolean } | { ok: false; error: string };
@@ -85,6 +95,8 @@ export interface RosterFreelancerSource extends EngageabilitySource {
   skills: { skillId: string }[];
   industries: { industryId: string }[];
   availabilityWindows: { startDate: Date; endDate: Date; type: string }[];
+  /** ACTIEVE samenwerkingen van deze ZZP'er — voedt het dubbele-boeking-signaal. */
+  activeCollaborations: ActivePlacement[];
 }
 
 /**
@@ -99,6 +111,7 @@ export function buildRosterCandidates(
   freelancers: readonly RosterFreelancerSource[],
   proposedIds: ReadonlySet<string>,
   appliedIds: ReadonlySet<string>,
+  dienst: { jobId: string; startDate: Date | null },
   now: Date = new Date(),
 ): RosterCandidate[] {
   return freelancers
@@ -132,6 +145,11 @@ export function buildRosterCandidates(
         topGap: topGapReasonComplianceFirst(match.reasons),
         proposed: proposedIds.has(f.id),
         hasApplied: appliedIds.has(f.id),
+        doubleBooking: detectDoubleBooking({
+          dienstStart: dienst.startDate,
+          dienstJobId: dienst.jobId,
+          placements: f.activeCollaborations,
+        }),
       };
     })
     .sort((a, b) => {
@@ -169,6 +187,7 @@ export async function getRosterCandidatesForDienst(
       workMode: true,
       location: true,
       industryId: true,
+      startDate: true,
       skills: { select: { skillId: true, required: true } },
       credentialRequirements: { select: { credentialType: true, required: true } },
     },
@@ -194,6 +213,17 @@ export async function getRosterCandidatesForDienst(
         industries: { select: { industryId: true } },
         availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
         credentials: { select: { type: true, status: true, expiresAt: true } },
+        // Actieve samenwerkingen van deze ZZP'er → dubbele-boeking-signaal (datum-overlap met de dienst).
+        collaborations: {
+          where: { status: "ACTIVE" },
+          select: {
+            id: true,
+            jobId: true,
+            startDate: true,
+            endDate: true,
+            job: { select: { title: true } },
+          },
+        },
       },
     }),
     // Gezaghebbende voordracht-markering: het auditrecord per ZZP'er voor deze dienst.
@@ -220,5 +250,24 @@ export async function getRosterCandidatesForDienst(
   );
   const appliedIds = new Set(applications.map((a) => a.freelancerId));
 
-  return buildRosterCandidates(job, freelancers, proposedIds, appliedIds, now);
+  // Vorm de prisma-relatie om naar de pure ActivePlacement-shape (los van de DB-namen).
+  const sources: RosterFreelancerSource[] = freelancers.map((f) => ({
+    ...f,
+    activeCollaborations: f.collaborations.map((c) => ({
+      collaborationId: c.id,
+      jobId: c.jobId,
+      jobTitle: c.job.title,
+      startDate: c.startDate,
+      endDate: c.endDate,
+    })),
+  }));
+
+  return buildRosterCandidates(
+    job,
+    sources,
+    proposedIds,
+    appliedIds,
+    { jobId: job.id, startDate: job.startDate },
+    now,
+  );
 }

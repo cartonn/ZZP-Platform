@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { UserPlus, Check, Minus } from "lucide-react";
+import { UserPlus, Check, Minus, CalendarClock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EngageabilityBadge } from "@/components/engageability-badge";
@@ -74,6 +74,19 @@ function CandidateRow({ jobId, candidate }: { jobId: string; candidate: RosterCa
         )}
         {notEngageable && candidate.blockers.length > 0 && (
           <p className="truncate text-xs text-danger">{candidate.blockers[0]}</p>
+        )}
+        {/* Dubbele-boeking-signaal: deze ZZP'er staat al op een andere actieve samenwerking waarvan de
+            looptijd de startdatum van deze dienst overlapt. Geen harde blokkade (de bemiddelaar kan een
+            geldige reden hebben), wel een expliciete waarschuwing vóór een misplaatsing. */}
+        {candidate.doubleBooking.count > 0 && (
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-warning">
+            <CalendarClock className="size-3 shrink-0" aria-hidden />
+            <span className="truncate">
+              {candidate.doubleBooking.firstTitle
+                ? `Al ingezet — overlap met “${candidate.doubleBooking.firstTitle}”`
+                : "Al ingezet op een overlappende dienst"}
+            </span>
+          </p>
         )}
         {error && <p className="truncate text-xs text-danger">{error}</p>}
       </div>

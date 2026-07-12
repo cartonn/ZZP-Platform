@@ -45,9 +45,14 @@ function freelancer(over: Partial<RosterFreelancerSource>): RosterFreelancerSour
     industries: [{ industryId: "ind-zorg" }],
     availabilityWindows: [],
     credentials: okCredentials,
+    activeCollaborations: [],
     ...over,
   };
 }
+
+// Dienst-context zonder startdatum ⇒ geen dubbele-boeking-signaal (dat is los getest in
+// roster-double-booking.test.ts); houdt de bestaande rangschik-/markering-asserties zuiver.
+const DIENST = { jobId: "dienst-1", startDate: null };
 
 describe("buildRosterCandidates", () => {
   it("rangschikt op aflopende matchscore voor déze dienst", () => {
@@ -62,7 +67,7 @@ describe("buildRosterCandidates", () => {
       skills: [],
     });
 
-    const result = buildRosterCandidates(job, [weak, strong], new Set(), new Set(), NOW);
+    const result = buildRosterCandidates(job, [weak, strong], new Set(), new Set(), DIENST, NOW);
 
     expect(result.map((c) => c.freelancerId)).toEqual(["f-strong", "f-weak"]);
     expect(result[0]!.matchScore).toBeGreaterThan(result[1]!.matchScore);
@@ -86,6 +91,7 @@ describe("buildRosterCandidates", () => {
       [inactiefButPerfect, engageableModest],
       new Set(),
       new Set(),
+      DIENST,
       NOW,
     );
 
@@ -103,7 +109,7 @@ describe("buildRosterCandidates", () => {
       availability: "UNAVAILABLE", // levert een minpunt op
     });
 
-    const candidate = buildRosterCandidates(job, [c], new Set(), new Set(), NOW)[0]!;
+    const candidate = buildRosterCandidates(job, [c], new Set(), new Set(), DIENST, NOW)[0]!;
 
     expect(candidate.topReason).toBeTruthy();
     expect(candidate.topGap).toBeTruthy();
@@ -118,7 +124,7 @@ describe("buildRosterCandidates", () => {
       credentials: [{ type: "INSURANCE", status: "VERIFIED", expiresAt: null }], // VOG ontbreekt
     });
 
-    const candidate = buildRosterCandidates(job, [c], new Set(), new Set(), NOW)[0]!;
+    const candidate = buildRosterCandidates(job, [c], new Set(), new Set(), DIENST, NOW)[0]!;
 
     expect(candidate.topGap).toBe("Mist vereist certificaat");
   });
@@ -133,6 +139,7 @@ describe("buildRosterCandidates", () => {
       [a, b, c],
       new Set(["f-proposed"]),
       new Set(["f-applied"]),
+      DIENST,
       NOW,
     );
     const by = Object.fromEntries(result.map((r) => [r.freelancerId, r]));
@@ -156,9 +163,44 @@ describe("buildRosterCandidates", () => {
       skills: [{ skillId: "skill-verpleging" }],
     });
 
-    const result = buildRosterCandidates(job, [zoe, anna], new Set(), new Set(), NOW);
+    const result = buildRosterCandidates(job, [zoe, anna], new Set(), new Set(), DIENST, NOW);
 
     expect(result[0]!.matchScore).toBe(result[1]!.matchScore);
     expect(result.map((c) => c.name)).toEqual(["Anna", "Zoë"]);
+  });
+
+  it("markeert een dubbele-boeking wanneer een actieve samenwerking de dienst-startdatum overlapt", () => {
+    const dienst = { jobId: "dienst-1", startDate: new Date("2026-08-10T00:00:00Z") };
+    const overlapper = freelancer({
+      id: "f-overlap",
+      activeCollaborations: [
+        {
+          collaborationId: "col-1",
+          jobId: "dienst-anders",
+          jobTitle: "Nachtdienst IC",
+          startDate: new Date("2026-08-01T00:00:00Z"),
+          endDate: new Date("2026-08-31T00:00:00Z"),
+        },
+      ],
+    });
+    const vrij = freelancer({
+      id: "f-vrij",
+      user: { name: "Vrij Persoon", identityVerifiedAt: NOW, lastLoginAt: RECENT },
+      activeCollaborations: [],
+    });
+
+    const result = buildRosterCandidates(
+      job,
+      [overlapper, vrij],
+      new Set(),
+      new Set(),
+      dienst,
+      NOW,
+    );
+    const by = Object.fromEntries(result.map((r) => [r.freelancerId, r]));
+
+    expect(by["f-overlap"]!.doubleBooking.count).toBe(1);
+    expect(by["f-overlap"]!.doubleBooking.firstTitle).toBe("Nachtdienst IC");
+    expect(by["f-vrij"]!.doubleBooking.count).toBe(0);
   });
 });

@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Dubbele-boeking-signaal bij het voordragen (bemiddelaar) (2026-07-12)** — de
+> bemiddelaar zag bij het voordragen van een roster-ZZP'er op `/franchise/diensten/[id]` match/compliance/
+> inzetbaarheid, maar niet of die ZZP'er al op een andere ACTIEVE samenwerking staat waarvan de looptijd de
+> **startdatum van de dienst** overlapt (een vakmens kan niet twee diensten tegelijk draaien). Nu een
+> waarschuwingsregel ("Al ingezet — overlap met …") per kandidaat vóór de voordracht (benchmark Zorgwerk/Pidz-
+> planning). Puur `src/lib/franchise/roster-double-booking.ts` (`detectDoubleBooking`; venster
+> `[start, end ?? FAR_FUTURE]` inclusief-omsluit de dienststart; null-datum → geen vals alarm; 14 tests) +
+> wiring in `dienst-voordracht.ts` (`activeCollaborations`-select, `doubleBooking`-veld, `dienst`-context in
+> `buildRosterCandidates`) + `voordragen.tsx` (`CalendarClock`-warning). Read-only, geen schemawijziging, geen
+> nieuw mutatie/auth-oppervlak. Gate groen (3943 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **"Je bent uitgenodigd" — ontvangen uitnodigingen voor de ZZP'er op /opdrachten
 > (2026-07-11, PR #729)** — een directe uitnodiging (`inviteFreelancerToJob` / bulk) landde alléén als een
 > vluchtige `Notification` + een `JOB_INVITED`-auditrecord; de ZZP'er had geen blijvende plek voor "welke
