@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Concurrentie-chip op de opdrachtenlijst (ZZP'er) (2026-07-12)** — op `/opdrachten`
+> (de triage-lijst) ziet de ZZP'er nu per opdracht een compacte concurrentie-chip ("3 reacties" / "8 reacties ·
+> reageer snel") zodra er al ándere actieve reacties zijn — het kanssignaal dat tot nu toe alleen op de
+> detailkaart (`JobCompetitionCard`) stond. Zo triageert de ZZP'er meteen welke opdracht eerst te pakken
+> (benchmark Temper/Pidz/Zorgwerk: "binnen uren" vullen; wij maken de concurrentie vooraf verklaarbaar). Chip
+> alleen bij ≥1 reactie (geen ruis op lege opdrachten) en niet op reeds-beantwoorde opdrachten; alleen
+> geaggregeerde telling, nooit identiteit/score van anderen. Pure `competitionChip` in `job-competition.ts`
+> (hergebruikt de geteste `summarizeJobCompetition`, +5 tests) + wiring in `opdrachten/(index)/page.tsx` (twee
+> begrensde queries over de zichtbare pagina-ids: `groupBy` reactietelling + eigen reacties; `Users`-chip).
+> Read-only, geen schemawijziging, geen N+1. Gate groen (3980 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Reistijd-signaal per kandidaat bij het voordragen (bemiddelaar) (2026-07-12)** — de
 > bemiddelaar zag op `/franchise/diensten/[id]` bij het voordragen match/compliance/inzetbaarheid/dubbele-boeking,
 > maar niet **hoe ver** een roster-ZZP'er naar de dienst-locatie reist — een concrete regio-planningsfactor

@@ -9,6 +9,7 @@ import {
   Minus,
   Plus,
   SearchX,
+  Users,
 } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
@@ -35,6 +36,7 @@ import { type ReceivedInvitation } from "@/lib/received-invitations";
 import { withParams } from "@/components/admin/base-path";
 import { plural } from "@/lib/plural";
 import { summarizeJobPipeline } from "@/lib/job-pipeline";
+import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition";
 import {
   JOB_STATUS_FILTER_LABEL,
   JOB_STATUS_FILTER_ORDER,
@@ -332,6 +334,46 @@ async function BrowseJobs({
   const savedJobIds = new Set<string>();
   for (const s of savedRows) savedJobIds.add(s.jobId);
 
+  // Concurrentie-/kanssignaal per zichtbare opdracht (alleen ZZP'er): hoeveel actieve reacties heeft
+  // een opdracht al? Zo triageert de ZZP'er op de lijst welke opdracht eerst te pakken — spiegelbeeld
+  // van de detailkaart, maar compact. Twee begrensde queries over uitsluitend de zichtbare (gepagineerde)
+  // job-ids: het aantal actieve reacties per opdracht én de eigen reacties (om die opdrachten over te
+  // slaan — daar is de concurrentie moot). Alleen geaggregeerde tellingen; nooit identiteit van anderen.
+  const competitionByJob = new Map<string, ReturnType<typeof competitionChip>>();
+  const visibleJobIds = profile ? visibleJobs.map((j) => j.id) : [];
+  if (profile && visibleJobIds.length > 0) {
+    const [applicantGroups, myApplications] = await Promise.all([
+      prisma.application.groupBy({
+        by: ["jobId"],
+        where: { jobId: { in: visibleJobIds }, status: { not: "WITHDRAWN" } },
+        _count: { _all: true },
+      }),
+      // unbounded-allow: eigenaar-scoped (freelancerId) én begrensd door de zichtbare pagina-ids
+      prisma.application.findMany({
+        where: {
+          freelancerId: profile.id,
+          jobId: { in: visibleJobIds },
+          status: { not: "WITHDRAWN" },
+        },
+        select: { jobId: true },
+      }),
+    ]);
+    const countByJob = new Map<string, number>();
+    for (const g of applicantGroups) countByJob.set(g.jobId, g._count._all);
+    const appliedJobIds = new Set(myApplications.map((a) => a.jobId));
+    for (const job of visibleJobs) {
+      // Al gereageerd → geen concurrentie-chip (de ZZP'er staat al in de race).
+      if (appliedJobIds.has(job.id)) continue;
+      const chip = competitionChip(
+        summarizeJobCompetition({
+          applicantCount: countByJob.get(job.id) ?? 0,
+          myScore: matchByJob.get(job.id)?.score ?? null,
+        }),
+      );
+      if (chip) competitionByJob.set(job.id, chip);
+    }
+  }
+
   // Bij match-sortering pagineren we de in het geheugen gerangschikte (begrensde) set; anders de
   // volledige databanktelling. `total` blijft de eerlijke "gevonden"-teller in de kop.
   const paginationTotal = effectiveMatchSort ? jobs.length : total;
@@ -414,6 +456,20 @@ async function BrowseJobs({
                         return (
                           <span className="inline-flex items-center gap-1 font-medium text-warning">
                             <CalendarClock className="size-3" aria-hidden /> {label}
+                          </span>
+                        );
+                      })()}
+                      {(() => {
+                        const chip = competitionByJob.get(job.id);
+                        if (!chip) return null;
+                        return (
+                          <span
+                            className={[
+                              "inline-flex items-center gap-1",
+                              chip.tone === "urgent" ? "font-medium text-warning" : "",
+                            ].join(" ")}
+                          >
+                            <Users className="size-3" aria-hidden /> {chip.label}
                           </span>
                         );
                       })()}

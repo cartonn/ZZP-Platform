@@ -3,6 +3,7 @@ import {
   summarizeJobCompetition,
   competitionLevel,
   chanceLevel,
+  competitionChip,
   COMPETITION_MODERATE_MIN,
   COMPETITION_HIGH_MIN,
   COMPETITION_STRONG_SCORE,
@@ -111,5 +112,40 @@ describe("summarizeJobCompetition", () => {
   it("normaliseert een negatieve of fractionele telling", () => {
     expect(summarizeJobCompetition({ applicantCount: -5, myScore: 80 }).applicantCount).toBe(0);
     expect(summarizeJobCompetition({ applicantCount: 4.9, myScore: 80 }).applicantCount).toBe(4);
+  });
+});
+
+describe("competitionChip", () => {
+  it("geeft null bij 0 reacties (geen ruis op lege opdrachten)", () => {
+    expect(competitionChip(summarizeJobCompetition({ applicantCount: 0, myScore: 90 }))).toBeNull();
+  });
+
+  it("toont enkelvoud bij precies 1 reactie", () => {
+    const chip = competitionChip(summarizeJobCompetition({ applicantCount: 1, myScore: null }));
+    expect(chip).toEqual({ label: "1 reactie", tone: "info" });
+  });
+
+  it("toont meervoud met neutrale toon bij matige concurrentie", () => {
+    const chip = competitionChip(
+      summarizeJobCompetition({ applicantCount: COMPETITION_MODERATE_MIN, myScore: 80 }),
+    );
+    expect(chip).toEqual({ label: `${COMPETITION_MODERATE_MIN} reacties`, tone: "info" });
+  });
+
+  it("markeert urgent (veel reacties + niet-kansloze match) met een reageer-snel-cue", () => {
+    const chip = competitionChip(
+      summarizeJobCompetition({ applicantCount: COMPETITION_HIGH_MIN, myScore: 85 }),
+    );
+    expect(chip).toEqual({
+      label: `${COMPETITION_HIGH_MIN} reacties · reageer snel`,
+      tone: "urgent",
+    });
+  });
+
+  it("blijft neutraal bij veel reacties maar een kansloze eigen match", () => {
+    const chip = competitionChip(
+      summarizeJobCompetition({ applicantCount: COMPETITION_HIGH_MIN, myScore: 10 }),
+    );
+    expect(chip).toEqual({ label: `${COMPETITION_HIGH_MIN} reacties`, tone: "info" });
   });
 });

@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Concurrentie-chip op de opdrachtenlijst (ZZP'er)
+
+- **Wat:** op `/opdrachten` (de triage-lijst) ziet de ZZP'er nu per opdracht een compacte
+  concurrentie-chip ("3 reacties" / "8 reacties · reageer snel") zodra er al ándere actieve reacties
+  zijn — het kanssignaal dat tot nu toe alleen ná het openen van een opdracht (detailkaart
+  `JobCompetitionCard`) zichtbaar was. Zo triageert de ZZP'er meteen welke opdracht als eerste te pakken:
+  concurrenten (Temper/Pidz/Zorgwerk) vullen diensten "binnen uren", wij maken de concurrentie vooraf
+  verklaarbaar. De chip verschijnt alleen bij ≥1 reactie (0 reacties → geen ruis op lege opdrachten) en
+  niet op opdrachten waar de ZZP'er al reageerde. Toont uitsluitend de geaggregeerde telling; nooit
+  identiteit of score van andere kandidaten.
+- **Hoe:** pure `competitionChip(summary)` toegevoegd aan `src/lib/job-competition.ts` (hergebruikt de
+  bestaande, geteste `summarizeJobCompetition` — geen nieuwe rekenlogica; `null` bij 0 reacties,
+  urgent-cue "reageer snel" bij veel reacties + niet-kansloze eigen match). Wiring in
+  `opdrachten/(index)/page.tsx`: twee begrensde queries over uitsluitend de zichtbare (gepagineerde)
+  job-ids — een `groupBy` reactietelling (niet-WITHDRAWN) + de eigen reacties (om die opdrachten over te
+  slaan) — plus een `Users`-chip in de metadata-rij. Server-side waarheid, geen schemawijziging, geen N+1.
+- **Checks:** `typecheck` ✓ · `lint` ✓ (0 warnings) · `test` ✓ (3980 passed, +5 voor `competitionChip`) ·
+  `prettier --check .` ✓ · `build` ✓. Volgende stap: PR → CI-poort (6 checks) → auto-merge.
+
 ## 2026-07-12 — Ontwerp-lab reeks 28: +10 concepten (271–280), totaal 280
 
 - **Wat:** 10 nieuwe redesign-concepten toegevoegd aan `/ontwerp` (append-only, niets van 01–270 gewijzigd):
