@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EngageabilityBadge } from "@/components/engageability-badge";
 import { proposeFreelancer, type ProposeState } from "../actions";
 import { type RosterCandidate } from "@/lib/franchise/dienst-voordracht";
+import { PROXIMITY_VARIANT, proximityLabel } from "@/lib/candidate-proximity";
 
 function SubmitButton({ disabled, blocker }: { disabled: boolean; blocker: string | null }) {
   const { pending } = useFormStatus();
@@ -94,6 +95,13 @@ function CandidateRow({ jobId, candidate }: { jobId: string; candidate: RosterCa
         <Badge variant="muted" className="tabular-nums">
           Match {candidate.matchScore}
         </Badge>
+        {/* Reistijd naar de dienst-locatie — regio-planningsfactor voor de bemiddelaar (dichtbij dagt
+            betrouwbaarder op). Alleen bij een relevante, schatbare reistijd. */}
+        {candidate.proximity && (
+          <Badge variant={PROXIMITY_VARIANT[candidate.proximity.level]}>
+            {proximityLabel(candidate.proximity)}
+          </Badge>
+        )}
         <EngageabilityBadge status={candidate.engageabilityStatus} />
         {proposed ? (
           <Badge variant="accent" className="inline-flex items-center gap-1">

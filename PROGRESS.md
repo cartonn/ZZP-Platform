@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Reistijd-signaal per kandidaat bij het voordragen (bemiddelaar)
+
+- **Wat:** de bemiddelaar (FRANCHISER) die op `/franchise/diensten/[id]` een roster-ZZP'er voordraagt,
+  ziet nu per kandidaat een reistijd-/nabijheidchip naar de **dienst-locatie** ("Dichtbij · ~18 min" /
+  "Reistijd · …" / "Ver weg · …"). Voor een dienst op locatie is "hoe ver reist deze vakmens?" een
+  concrete regio-planningsfactor: dichterbij dagt betrouwbaarder op en belast minder (benchmark
+  Zorgwerk/Pidz-regioplanning: dichtstbijzijnde beschikbare eerst). Spiegelt het reistijd-signaal dat de
+  opdrachtgever al op `/kandidaten` ziet, nu naar de voordracht-flow van de bemiddelaar. Puur advies —
+  geen blokkade, geen invloed op de matchscore.
+- **Hoe:** hergebruikt de bestaande pure `classifyCandidateProximity` (`candidate-proximity.ts`, incl.
+  `PROXIMITY_VARIANT`/`proximityLabel`) — REMOTE-dienst of onbekende plaats aan één kant ⇒ `null` (geen
+  chip, geen misleidend signaal). `RosterCandidate.proximity` gevoed in `buildRosterCandidates` uit
+  `job.workMode`+`job.location`+`f.location` (alle al geladen — **nul extra query**, geen schemawijziging).
+  UI: chip in de badge-rij van `voordragen.tsx`, naast Match + inzetbaarheid. Read-only, geen nieuw
+  mutatie-/auth-oppervlak (server-side berekend uit de reeds tenant-gescopet geladen data).
+- **Bestanden:** `src/lib/franchise/dienst-voordracht.ts` (+`.test.ts`, +5 tests),
+  `src/app/(protected)/franchise/diensten/[id]/voordragen.tsx`.
+- **Gate:** typecheck ✓, lint ✓ (0 warnings), **3975 unit-tests** ✓ (+5), build ✓, prettier ✓.
+  E2e draait in CI.
+
 ## 2026-07-12 — Beschikbaarheidssignaal op de opdracht-detail (ZZP'er)
 
 - **Wat:** de ZZP'er ziet nu op de opdracht-detail, in de reageer-sectie, een rustig agenda-signaal

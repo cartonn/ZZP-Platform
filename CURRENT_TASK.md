@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Reistijd-signaal per kandidaat bij het voordragen (bemiddelaar) (2026-07-12)** — de
+> bemiddelaar zag op `/franchise/diensten/[id]` bij het voordragen match/compliance/inzetbaarheid/dubbele-boeking,
+> maar niet **hoe ver** een roster-ZZP'er naar de dienst-locatie reist — een concrete regio-planningsfactor
+> (Zorgwerk/Pidz: dichtstbijzijnde beschikbare eerst; dichterbij dagt betrouwbaarder op). Nu een reistijd-chip
+> per kandidaat, spiegel van het `/kandidaten`-proximity-signaal (opdrachtgever). Hergebruikt de pure
+> `classifyCandidateProximity` (REMOTE/onbekende plaats ⇒ geen chip); `RosterCandidate.proximity` in
+> `buildRosterCandidates` uit `job.workMode`+`job.location`+`f.location` (al geladen — nul extra query) + chip in
+> `voordragen.tsx`. Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate groen (3975 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Dubbele-boeking-signaal bij het voordragen (bemiddelaar) (2026-07-12)** — de
 > bemiddelaar zag bij het voordragen van een roster-ZZP'er op `/franchise/diensten/[id]` match/compliance/
 > inzetbaarheid, maar niet of die ZZP'er al op een andere ACTIEVE samenwerking staat waarvan de looptijd de

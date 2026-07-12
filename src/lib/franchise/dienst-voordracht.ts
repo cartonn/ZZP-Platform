@@ -23,6 +23,7 @@ import {
   type DoubleBookingSignal,
   detectDoubleBooking,
 } from "@/lib/franchise/roster-double-booking";
+import { type CandidateProximity, classifyCandidateProximity } from "@/lib/candidate-proximity";
 
 /** Het voordracht-auditrecord is de gezaghebbende markering (zoals POOL_INVITED bij publicatie). */
 export const PROPOSAL_ACTION = "FRANCHISE_FREELANCER_PROPOSED";
@@ -51,6 +52,13 @@ export interface RosterCandidate {
    * looptijd de startdatum van deze dienst overlapt? `count > 0` ⇒ risico op een dubbele plaatsing.
    */
   doubleBooking: DoubleBookingSignal;
+  /**
+   * Reistijd-/nabijheidsignaal naar de dienst-locatie (spiegel van het opdrachtgever-signaal op
+   * /kandidaten). `null` bij een volledig remote dienst of een onbekende plaats aan één van beide
+   * kanten — dan tonen we geen misleidend signaal. Voor de bemiddelaar een regio-planningsfactor:
+   * een ZZP'er dichtbij dagt betrouwbaarder op.
+   */
+  proximity: CandidateProximity | null;
 }
 
 export type ProposeResult = { ok: true; already: boolean } | { ok: false; error: string };
@@ -150,6 +158,14 @@ export function buildRosterCandidates(
           dienstJobId: dienst.jobId,
           viewerTenantId: dienst.viewerTenantId,
           placements: f.activeCollaborations,
+        }),
+        // Reistijd naar de dienst-locatie: hergebruikt exact de opdrachtgever-zijde (job.workMode +
+        // job.location + kandidaat-location zijn al geladen — geen extra query). REMOTE of onbekende
+        // plaats ⇒ null (geen chip).
+        proximity: classifyCandidateProximity({
+          jobWorkMode: job.workMode,
+          jobLocation: job.location,
+          candidateLocation: f.location,
         }),
       };
     })
