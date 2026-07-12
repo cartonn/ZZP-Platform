@@ -208,4 +208,32 @@ describe("buildRosterCandidates", () => {
     expect(by["f-overlap"]!.doubleBooking.firstTitle).toBe("Nachtdienst IC");
     expect(by["f-vrij"]!.doubleBooking.count).toBe(0);
   });
+
+  it("berekent het reistijd-signaal naar de dienst-locatie (zelfde plaats ⇒ dichtbij)", () => {
+    const c = freelancer({ id: "f-lokaal", location: "Utrecht" });
+    const candidate = buildRosterCandidates(job, [c], new Set(), new Set(), DIENST, NOW)[0]!;
+    expect(candidate.proximity).not.toBeNull();
+    expect(candidate.proximity!.level).toBe("near");
+    expect(candidate.proximity!.minutes).toBe(0);
+  });
+
+  it("markeert een ZZP'er verderop als grotere reistijd (Utrecht-dienst, kandidaat in Groningen)", () => {
+    const c = freelancer({ id: "f-ver", location: "Groningen" });
+    const candidate = buildRosterCandidates(job, [c], new Set(), new Set(), DIENST, NOW)[0]!;
+    expect(candidate.proximity!.level).toBe("far");
+    expect(candidate.proximity!.minutes).toBeGreaterThan(75);
+  });
+
+  it("toont geen reistijd-signaal bij een volledig remote dienst", () => {
+    const remoteJob: JobMatchSource = { ...job, workMode: "REMOTE" };
+    const c = freelancer({ id: "f-remote", location: "Utrecht" });
+    const candidate = buildRosterCandidates(remoteJob, [c], new Set(), new Set(), DIENST, NOW)[0]!;
+    expect(candidate.proximity).toBeNull();
+  });
+
+  it("toont geen reistijd-signaal wanneer de kandidaat-plaats onbekend is", () => {
+    const c = freelancer({ id: "f-onbekend", location: null });
+    const candidate = buildRosterCandidates(job, [c], new Set(), new Set(), DIENST, NOW)[0]!;
+    expect(candidate.proximity).toBeNull();
+  });
 });
