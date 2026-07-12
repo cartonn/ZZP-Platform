@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Prod: documentopslag-connectiviteitszelftest (admin systeemstatus)
+
+- **Wat:** een admin-only **Opslag-zelftest** op `/admin/systeemstatus`. De pagina toonde de
+  storage-driver-modus (`s3`/`local`), maar bewees niet dat de opslag echt bereikbaar/beschrijfbaar
+  is — nodig vóór go-live met echte gevoelige documenten (VOG/diploma/verzekering, MENSENWERK §1c).
+  De knop draait een echte round-trip tegen de geconfigureerde driver: schrijven → bestaan → lezen
+  (byte-vergelijk) → verwijderen → opruim-check, onder een eigen `.selftest/`-prefix (nooit botsing
+  met echte docs op `YYYY/<uuid>`), en meldt per stap OK/fout.
+- **Bestanden:** `src/lib/services/storage-selftest.ts` (pure, injecteerbare round-trip; `finally`-
+  cleanup laat nóóit een probe-object achter; secret-vrije detail = alleen error-naam, net als de
+  readiness-probe) + `.test.ts` (8 tests: happy-path, put-fout, groottemismatch, ontbrekend na
+  schrijven, byte-mismatch, delete-no-op, finally-cleanup, deterministische payload).
+  `src/app/(protected)/admin/systeemstatus/actions.ts` (server-actie: `requireRole("ADMIN")` →
+  `storageSelfTestRateLimiter` → round-trip → audit `STORAGE_SELFTEST_RUN`, geen secrets in de
+  metadata). `src/components/admin/storage-selftest.tsx` (client-UI, useTransition, loading/error/
+  empty/result-states). `src/lib/rate-limit.ts` (nieuwe `storageSelfTestRateLimiter`, default
+  6/5 min/beheerder). `systeemstatus/page.tsx` (wiring, driver-modus uit env).
+- **Server-side waarheid; authz→rol→rate-limit→actie→audit; geen dode knoppen; inert zonder S3
+  (werkt óók tegen de lokale driver).** Gate lokaal groen: typecheck ✓, lint ✓, test **3991** ✓
+  (+8), build ✓, prettier ✓. E2e draait in CI.
+- **MENSENWERK.md §1c** bijgewerkt: code-kant GEDAAN, resterend mensenwerk = niets (knop verschijnt
+  zodra `STORAGE_DRIVER=s3`).
+
 ## 2026-07-12 — Security/privacy-audit: rate-limit op de privé document-download (OWASP A04)
 
 - **Wat:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-

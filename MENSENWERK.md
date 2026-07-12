@@ -218,6 +218,15 @@ nodig met back-ups en beveiligde opslag.
    opslag die 'm niet accepteert (met een productie-waarschuwing in de env-validatie). Resterend
    mensenwerk: **niets extra** — versleuteling staat standaard aan zodra `STORAGE_DRIVER=s3`.
    Aanrader voor de bucket: zet óók **default-encryptie + "Block Public Access"** aan als tweede laag.
+   **Code-kant GEDAAN (12-7-2026) — connectiviteitszelftest:** na het plakken van de bucket/sleutels
+   kun je op `/admin/systeemstatus` (admin-only) de **Opslag-zelftest** draaien: die doet een echte
+   round-trip tegen de geconfigureerde driver (schrijven → bestaan → lezen + byte-vergelijk →
+   verwijderen → opruim-check) onder een eigen `.selftest/`-prefix en meldt per stap OK/fout
+   (`src/lib/services/storage-selftest.ts`, actie in `.../systeemstatus/actions.ts`). Zo bevestig je
+   dat de opslag écht bereikbaar en beschrijfbaar is vóór er echte documenten in gaan — i.p.v. alleen
+   de driver-modus te zien. De uitvoer bevat nooit secrets (alleen stap-uitkomsten + error-naam),
+   loopt door de authz-keten (rol → rate-limit → audit) en laat nooit een testobject achter.
+   Resterend mensenwerk: **niets** — de knop is er zodra `STORAGE_DRIVER=s3` staat.
 
 ### 1d. Domein + HTTPS
 

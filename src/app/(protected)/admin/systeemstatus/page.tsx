@@ -6,6 +6,7 @@ import { evaluateReadiness } from "@/lib/observability/readiness";
 import { collectSystemStatus } from "@/lib/system-status";
 import { PageHeader } from "@/components/ui/page-header";
 import { SystemStatusPanel } from "@/components/admin/system-status-panel";
+import { StorageSelfTest } from "@/components/admin/storage-selftest";
 
 export const metadata: Metadata = { title: "Systeemstatus · ZZP Platform" };
 
@@ -21,7 +22,8 @@ export const dynamic = "force-dynamic";
 export default async function SysteemstatusPage() {
   await requireRole("ADMIN");
 
-  const status = collectSystemStatus(readEnv());
+  const env = readEnv();
+  const status = collectSystemStatus(env);
   const readiness = await evaluateReadiness({
     dbPing: async () => {
       await prisma.$queryRaw`SELECT 1`;
@@ -36,6 +38,7 @@ export default async function SysteemstatusPage() {
         description="Productie-configuratie en integraties op één scherm. Controleer na een deploy of alles correct bekabeld is vóór livegang."
       />
       <SystemStatusPanel status={status} dbReachable={readiness.ready} />
+      <StorageSelfTest driverMode={env.STORAGE_DRIVER} />
     </div>
   );
 }

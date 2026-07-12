@@ -472,3 +472,16 @@ export const billingWebhookRateLimiter = new RateLimiter(
   60_000,
   "billingwebhook:",
 );
+
+/**
+ * Maximaal STORAGE_SELFTEST_RATE_LIMIT (default 6) opslag-zelftests per beheerder per 5 minuten. De
+ * admin-actie (/admin/systeemstatus) doet een echte round-trip tegen de storage-driver (put/get/
+ * delete) — bij S3 zijn dat betaalde API-calls tegen de bucket. De rem houdt een per ongeluk
+ * herhaalde klik of een script binnen de perken zonder de normale, incidentele controle te hinderen.
+ */
+export const storageSelfTestRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("STORAGE_SELFTEST_RATE_LIMIT", 6),
+  5 * 60_000,
+  "storageselftest:",
+);
