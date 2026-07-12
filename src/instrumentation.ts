@@ -11,10 +11,20 @@ export async function register() {
 // Next.js 15: gevangen server-fouten (RSC, route handlers, server actions) komen hier binnen.
 // We rapporteren ze via de error-reporting-grens. Houd dit robuust: nooit throwen — anders
 // maskeren we de oorspronkelijke fout met een fout uit de rapportage.
-export async function onRequestError(err: unknown, request: { path?: string }): Promise<void> {
+export async function onRequestError(
+  err: unknown,
+  request: { path?: string; headers?: Record<string, string | string[] | undefined> },
+): Promise<void> {
   try {
-    const { reportError } = await import("@/lib/observability/report");
-    await reportError(err, { source: "onRequestError", requestPath: request?.path });
+    const [{ reportError }, { sanitizeRequestId, REQUEST_ID_HEADER }] = await Promise.all([
+      import("@/lib/observability/report"),
+      import("@/lib/observability/request-id"),
+    ]);
+    // De middleware zette `x-request-id` op de forwarded request-headers; neem 'm mee zodat de
+    // fout te herleiden is naar de exacte request (en de response die de gebruiker zag).
+    const rawId = request?.headers?.[REQUEST_ID_HEADER];
+    const requestId = sanitizeRequestId(Array.isArray(rawId) ? rawId[0] : rawId) ?? undefined;
+    await reportError(err, { source: "onRequestError", requestPath: request?.path, requestId });
   } catch {
     // Rapportage mag de fout-afhandeling van Next nooit laten falen; bewust geslikt.
   }

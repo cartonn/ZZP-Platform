@@ -12,6 +12,8 @@ export interface ReportContext {
   source?: string;
   /** Verzoekpad zonder querystring/PII. */
   requestPath?: string;
+  /** Correlatie-ID (`x-request-id`) van de request, koppelt de fout aan de server-logs/response. */
+  requestId?: string;
   /** Vrije, niet-gevoelige extra context (de logger redacteert PII/secrets). */
   extra?: Record<string, unknown>;
 }
@@ -100,14 +102,19 @@ class SentryErrorReporter implements ErrorReporter {
 
     const sentry = Sentry as {
       init: (options: { dsn?: string }) => void;
-      captureException: (error: unknown, hint?: { extra?: Record<string, unknown> }) => void;
+      captureException: (
+        error: unknown,
+        hint?: { extra?: Record<string, unknown>; tags?: Record<string, string> },
+      ) => void;
     };
 
     if (!sentryInitDone) {
       sentryInitDone = true;
       sentry.init({ dsn: process.env.SENTRY_DSN });
     }
-    sentry.captureException(error, { extra: { ...context } });
+    // request-id als tag zodat je in Sentry direct op de correlatie-ID kunt filteren/zoeken.
+    const tags = context?.requestId ? { request_id: context.requestId } : undefined;
+    sentry.captureException(error, { extra: { ...context }, tags });
   }
 }
 

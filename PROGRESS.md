@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Request-correlatie-ID (`x-request-id`) voor log-/foutkoppeling (prod)
+
+- **Wat:** elke HTTP-request krijgt nu een correlatie-ID (`x-request-id`), overgenomen van een
+  upstream proxy of anders server-side gegenereerd, geëchood op de response, en meegenomen in álle
+  error-rapporten. Zo koppelt support een gebruiker-zichtbare fout aan de exacte server-log-/Sentry-
+  regels van díe request — een standaard productie-observability-voorziening die nog ontbrak
+  (er bestond alleen een domein-`correlationId` op auditgebeurtenissen, geen HTTP-niveau).
+- **Hoe:** pure `src/lib/observability/request-id.ts` (`sanitizeRequestId` weert header-/log-injectie
+  - kapt op 64 tekens; `generateRequestId` via Web Crypto met veilige fallback; `resolveRequestId`;
+    `shortRequestId`). Gewired in `src/middleware.ts` (één ID per request → forwarded request-header +
+    response-header; ook op de onderhouds-503). Error-grens: `ReportContext.requestId` in
+    `report.ts` (logveld + Sentry-**tag** `request_id`), gelezen in `instrumentation.ts`
+    (`onRequestError`) en de client-fout-ontvanger (`/api/client-error`). Inert/gratis: werkt zonder
+    enige secret; Sentry-tag alleen bij `SENTRY_DSN`.
+- **Bestanden:** `src/lib/observability/request-id.ts` (+`.test.ts`, 21 tests),
+  `src/lib/observability/report.ts` (+`.test.ts` +1), `src/middleware.ts`, `src/instrumentation.ts`,
+  `src/app/api/client-error/route.ts`; docs: MENSENWERK.md (§0b).
+- **Gate:** typecheck ✓, lint ✓ (0 warnings), **3961 unit-tests** ✓ (+22), build ✓, prettier ✓.
+  E2e draait in CI.
+
 ## 2026-07-12 — Dubbele-boeking-signaal bij het voordragen (bemiddelaar)
 
 - **Wat:** de bemiddelaar (FRANCHISER) die op `/franchise/diensten/[id]` een roster-ZZP'er wil voordragen,
