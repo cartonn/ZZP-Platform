@@ -1,5 +1,47 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-12 (run 25) · **main-commit basis:** `c56addd`
+> **Uitkomst:** **Geen defecten/gaten gevonden.** Verse prod-build (`npm run build`), schema-push +
+> idempotente demo-seed (`SEED_DEMO=true`, 13 samenwerkingen/7 facturen/16 tickets) op ephemere SQLite
+> (`qa.db`), prod-server (`next start`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`,
+> `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte formulier (`demo1234`); Playwright met de
+> vooraf-geïnstalleerde Chromium (`chromium-1194`).
+>
+> **DOEL 1 (echte actie, live geverifieerd):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties`
+> → Goedkeuren-knoppen **6→5** (de afgehandelde certificaat-actie verdween correct; de next-action-keten
+> auth→rol→ownership→transitie→audit→revalidate werkt end-to-end). FRANCHISER opende de eigen dienst
+> (`/franchise/diensten/dienst-noord-nacht`) → voordragen-scherm met roster-kandidaten rendert (200, geen
+> error-boundary). Eigen factuur-PDF (`collab-1`) → **200** voor beide partijen (ZZP'er + opdrachtgever).
+>
+> **DOEL 1b (next-action-correctheid):** `/acties` per rol gecontroleerd tegen de echte staat — ZZP'er
+> (2), CLIENT (2), ADMIN (16: certificaat-queue + supporttickets), FRANCHISER (bemiddelings-workspace).
+> Alle getoonde acties logisch, in de juiste volgorde, voor de juiste partij aan zet; geen error-boundary
+> op enige `/acties`.
+>
+> **DOEL 2 (adversarieel — alle correct):** privilege-escalatie via **in-browser `fetch`** (cookie-getrouw):
+> ZZP/CLIENT/FRANCHISER → `/admin/verificaties|gebruikers|statistieken|disputen|audit` → **redirect/403/404,
+> nooit 200/500**; niet-FRANCHISER → `/franchise` → idem. IDOR/cross-partij: vreemde factuur-PDF (Iris'
+> DRAFT, `/api/facturen/[id]/pdf`) → **403/404** voor alle 3 niet-partij-rollen; eigen factuur-PDF → **200**
+> voor de 2 partijen, **403** voor de niet-partij FRANCHISER; vreemde samenwerking-`dossier`/`dba-dossier`/
+> `modelovereenkomst` → **403/404** voor alle 3. Document-privacy (`/api/documents/<Sanne VOG>`): eigenaar +
+> ADMIN → **200**, CLIENT/FRANCHISER → **403**, junk → **404**. **Cross-tenant (franchise-tenant):** FRANCHISER
+> opent een platform-opdracht als dienst (`/franchise/diensten/job-1`, `tenantId=null`) → **"Niet gevonden"**
+> soft-404 (`getDienstDetail`/`getRosterCandidatesForDienst` geven `null` bij `job.tenantId !== actor.tenantId`);
+> geen dienst-titel/kandidaat-data gelekt. Junk-/traversal-/sqli-/xss-id (`/facturen|/samenwerkingen|/opdrachten|
+/zzp/<junk>`, `..%2F..%2Fetc%2Fpasswd`, `1' OR '1'='1`, `<script>`, all-zeros-cuid) over 2 rollen → soft-404,
+> **nooit 500**. Cron-endpoints (`/api/tasks/run-all|expiry|payment-reminders`): **GET → 405**, **POST zonder
+> `CRON_SECRET` → 503**.
+>
+> **Server-side guards herbevestigd (lezing + live):** het dubbele-boeking-/reistijd-signaal bij het voordragen
+> (`roster-double-booking.ts` / `dienst-voordracht.ts`) is tenant-veilig — `getRosterCandidatesForDienst` haalt
+> alleen `freelancerProfile.where:{tenantId}` op, draagt `Job.tenantId` mee per plaatsing en zet `viewerTenantId
+= actor.tenantId`; `detectDoubleBooking` telt overlap wél mee maar toont een titel **alleen** binnen de eigen
+> tenant (fix #731 intact). `proposeFreelancer` guardt zowel dienst (`job.tenantId !== tenantId`) als ZZP'er
+> (`where:{ id, tenantId }`). Geen zwakke plek gevonden — het platform is na 24 eerdere sweeps grondig gehard.
+> Alleen deze docs-update, geen code-wijziging deze run.
+>
+> ---
+>
 > **Datum:** 2026-07-12 (run 24) · **main-commit basis:** `ce740b7`
 > **Uitkomst:** **Geen defecten/gaten gevonden.** Verse prod-build (`npm run build`), schema-push +
 > idempotente demo-seed (`SEED_DEMO=true`) op ephemere SQLite (`qa.db`), prod-server (`next start`,
