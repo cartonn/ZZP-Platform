@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Dubbele-boeking-signaal bij het voordragen (bemiddelaar)
+
+- **Wat:** de bemiddelaar (FRANCHISER) die op `/franchise/diensten/[id]` een roster-ZZP'er wil voordragen,
+  zag match, compliance en inzetbaarheid — maar niet of die ZZP'er al op een **andere ACTIEVE samenwerking**
+  staat waarvan de looptijd de **startdatum van deze dienst** overlapt. Een vakmens kan niet twee diensten
+  tegelijk draaien; plan je iemand op twee overlappende opdrachten, dan valt er gegarandeerd één om. Nu een
+  expliciete waarschuwing ("Al ingezet — overlap met …") per kandidaat vóór de voordracht (benchmark
+  Zorgwerk/Pidz-planning: waarschuw vóór de plaatsing i.p.v. achteraf een no-show oplossen). Geen harde
+  blokkade — de bemiddelaar kan een geldige reden hebben — wel een zichtbaar signaal.
+- **Hoe:** puur `src/lib/franchise/roster-double-booking.ts` (`detectDoubleBooking`: `dienstStart == null`
+  → geen signaal; een plaatsing telt als overlap wanneer `jobId !== dienstJobId`, `startDate != null` en het
+  venster `[startDate, endDate ?? FAR_FUTURE]` de dienststart inclusief omsluit; plaatsing zonder startdatum
+  genegeerd; `firstTitle` = vroegst-startende overlap; 14 tests). Wiring in `dienst-voordracht.ts`:
+  `RosterFreelancerSource.activeCollaborations` (nieuwe select `collaborations where status ACTIVE` met
+  `job.title`), `RosterCandidate.doubleBooking`, `buildRosterCandidates(..., dienst, now)` krijgt de
+  dienst-context (`{ jobId, startDate }`); `getRosterCandidatesForDienst` selecteert `job.startDate` en
+  vormt de relatie om naar de pure `ActivePlacement`-shape. UI: `voordragen.tsx` toont een warning-regel
+  (`CalendarClock`) bij `doubleBooking.count > 0`. Read-only, geen schemawijziging, geen nieuw
+  mutatie-/auth-oppervlak (server-side berekend uit de reeds tenant-gescopet geladen data).
+- **Bestanden:** `src/lib/franchise/roster-double-booking.ts` (+`.test.ts`),
+  `src/lib/franchise/dienst-voordracht.ts` (+`.test.ts`, +1 integratietest),
+  `src/app/(protected)/franchise/diensten/[id]/voordragen.tsx`.
+- **Gate:** typecheck ✓, lint ✓ (0 warnings), **3943 unit-tests** ✓ (+15), build ✓, prettier ✓.
+  E2e draait in CI.
+
 ## 2026-07-11 — "Je bent uitgenodigd": ontvangen uitnodigingen voor de ZZP'er op /opdrachten
 
 - **Wat:** een directe uitnodiging (`inviteFreelancerToJob` / bulk) landde tot nu toe alléén als een
