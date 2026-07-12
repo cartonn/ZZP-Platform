@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Persona-sweep run 25 — geen gaten gevonden (4 rollen)
+
+- **Wat:** kritische-gebruiker-sweep over alle 4 rollen (ZZP'er/opdrachtgever/bemiddelaar/admin) op
+  een verse prod-build + idempotente demo-seed (ephemere SQLite `qa.db`). DOEL 1 (echte actie): admin
+  keurde een verificatie goed → queue 6→5, next-action-keten end-to-end groen; franchiser opende de
+  eigen dienst-voordragen; eigen factuur-PDF 200 voor beide partijen. DOEL 1b: `/acties` per rol logisch
+  en consistent. DOEL 2 (adversarieel, in-browser cookie-getrouwe `fetch`): privilege-escalatie →
+  redirect/403/404; IDOR factuur-PDF + samenwerking-docs → 403/404 voor niet-partijen, 200 voor partijen;
+  document-privacy → eigenaar/admin 200, anderen 403, junk 404; **cross-tenant** — franchiser bij een
+  platform-opdracht als dienst → soft-404 (geen dienst-/kandidaat-data gelekt; fix #731 intact); junk/
+  traversal/sqli/xss-id → soft-404 nooit 500; cron POST zonder `CRON_SECRET` → 503.
+- **Bevinding:** geen defecten/gaten. Twee eerste "treffers" bleken false positives (cron-503 = correcte
+  guard; franchise foreign-dienst = nette "Niet gevonden"-state). Het dubbele-boeking-/reistijd-signaal
+  bij het voordragen is tenant-veilig geverifieerd (lezing van `roster-double-booking.ts` /
+  `dienst-voordracht.ts`: `where:{tenantId}` + `viewerTenantId` + titel alleen binnen eigen tenant).
+- **Bestanden:** alleen `docs/PERSONA-SWEEP-BACKLOG.md` (run 25) + dit bestand. Geen code-wijziging.
+
 ## 2026-07-12 — Concurrentie-chip op de opdrachtenlijst (ZZP'er)
 
 - **Wat:** op `/opdrachten` (de triage-lijst) ziet de ZZP'er nu per opdracht een compacte
