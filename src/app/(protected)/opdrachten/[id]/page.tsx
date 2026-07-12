@@ -52,6 +52,12 @@ import { summarizeJobCompetition, type CompetitionSummary } from "@/lib/job-comp
 import { JobCompetitionCard } from "@/components/jobs/job-competition-card";
 import { summarizeEffectiveRate, type EffectiveRateSummary } from "@/lib/effective-rate";
 import { EffectiveRateCard } from "@/components/jobs/effective-rate-card";
+import {
+  assessJobStartAvailability,
+  type JobAvailabilitySignal,
+} from "@/lib/job-availability-signal";
+import { JobAvailabilitySignalCard } from "@/components/jobs/job-availability-signal-card";
+import { type AvailabilityWindowType } from "@/lib/enums";
 import { DbaRiskBadge } from "@/components/dba/dba-risk-badge";
 import { dbaAdvice, type DbaReason, type DbaRisk } from "@/lib/dba";
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
@@ -170,6 +176,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   let jobCompetition: CompetitionSummary | null = null;
   // Effectief uurtarief na (onbetaalde) reistijd — beslis-signaal bij een opdracht op afstand.
   let effectiveRate: EffectiveRateSummary | null = null;
+  // Agenda-signaal: valt de startdatum in een periode die de ZZP'er zelf op onbeschikbaar/beperkt zette?
+  let availabilitySignal: JobAvailabilitySignal | null = null;
   // Bewaard-status voor de bewaar-knop (alleen relevant voor een niet-eigenaar ZZP'er).
   let isSaved = false;
   // Opgeslagen standaard-motivatie: vult het reageerveld voor (quick-apply).
@@ -183,6 +191,9 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
         skills: { select: { skillId: true, skill: { select: { name: true } } } },
         credentials: { select: { type: true, status: true, expiresAt: true } },
         industries: { select: { industryId: true } },
+        // Eigen beschikbaarheidsvensters voeden het agenda-signaal op de reageer-sectie (voorkomt
+        // zelf-dubbelboeking). Eigenaar-scoped en inherent begrensd.
+        availabilityWindows: { select: { startDate: true, endDate: true, type: true, note: true } },
       },
     });
     if (profile) {
@@ -234,6 +245,16 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           applicantCount: await applicantCountPromise,
           myScore: match.score,
         });
+        // Botst de startdatum met de eigen agenda? Puur uit de eigen vensters berekend (geen extra query).
+        availabilitySignal = assessJobStartAvailability(
+          job.startDate,
+          profile.availabilityWindows.map((w) => ({
+            startDate: w.startDate,
+            endDate: w.endDate,
+            type: w.type as AvailabilityWindowType,
+            note: w.note,
+          })),
+        );
       }
       // Live compliance voor een reeds verstuurde reactie (i.p.v. de bevroren snapshot).
       if (myApplication) {
@@ -855,6 +876,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
               </section>
             )}
             {effectiveRate && <EffectiveRateCard summary={effectiveRate} />}
+            {availabilitySignal && <JobAvailabilitySignalCard signal={availabilitySignal} />}
             {jobCompetition && <JobCompetitionCard competition={jobCompetition} />}
             <ApplicationForm
               action={createApplication.bind(null, job.id)}

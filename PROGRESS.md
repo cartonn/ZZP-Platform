@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-12 — Beschikbaarheidssignaal op de opdracht-detail (ZZP'er)
+
+- **Wat:** de ZZP'er ziet nu op de opdracht-detail, in de reageer-sectie, een rustig agenda-signaal
+  wanneer de **startdatum van de opdracht** in een periode valt die hij zelf op **onbeschikbaar**
+  (rood) of **beperkt beschikbaar** (oranje) heeft gezet. Voorkomt zelf-dubbelboeking vóór het
+  reageren — benchmark: Temper/Zorgwerk waarschuwen bij een shift die met je agenda botst. Puur
+  advies: de ZZP'er kan nog steeds reageren; het signaal beslist niets.
+- **Hoe:** pure `src/lib/job-availability-signal.ts` (`assessJobStartAvailability` — startdatum in een
+  toekomstig UNAVAILABLE/LIMITED-venster; UNAVAILABLE wint boven LIMITED, daarbinnen vroegste start;
+  AVAILABLE- en voorbije vensters tellen niet mee). Presentationele `JobAvailabilitySignalCard` met
+  link naar `/beschikbaarheid`. Gewired in `opdrachten/[id]/page.tsx`: de eigen
+  `availabilityWindows` worden bij het profiel meegeladen (geen extra query) en alleen berekend in de
+  nog-niet-gereageerd + PUBLISHED-tak, direct boven het reageer-formulier.
+- **Bestanden:** `src/lib/job-availability-signal.ts` (+`.test.ts`, 10 tests),
+  `src/components/jobs/job-availability-signal-card.tsx`, `src/app/(protected)/opdrachten/[id]/page.tsx`.
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), **3971 unit-tests** ✓ (10 nieuw), `next build` ✓,
+  `prettier --write .` ✓. E2e draait in CI.
+
 ## 2026-07-12 — Request-correlatie-ID (`x-request-id`) voor log-/foutkoppeling (prod)
 
 - **Wat:** elke HTTP-request krijgt nu een correlatie-ID (`x-request-id`), overgenomen van een
