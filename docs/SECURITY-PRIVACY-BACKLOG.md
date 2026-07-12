@@ -4,6 +4,49 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-12 (basis: `main` @ b5c8b66)
+
+Audit: orchestrator (Opus 4.8) op de vérse delta sinds de vorige ronde (`af5212e..b5c8b66`, #725–#730 —
+onderhouds-login-DB-schrijf-fix #725, DB-connection-pool-seam #726, effectief uurtarief na reistijd #727,
++10 ontwerpconcepten #728, ontvangen uitnodigingen op /opdrachten #729, dubbele-boeking-signaal bij het
+voordragen #730). Niet-overlappende oppervlakken: (1) tenant-isolatie/IDOR op de nieuwe roster-voordracht-
+data (`dienst-voordracht.ts` + `roster-double-booking.ts`); (2) IDOR/PII op de nieuwe ontvangen-uitnodigingen
+(`data/received-invitations.ts` + `received-invitations.ts`); (3) secret-lek/config op de #726-delta
+(`system-status.ts`, `db-connection.ts`, `env.ts`, `db.ts`) + de pure `effective-rate.ts`. Kader: OWASP
+Top 10 (A01/A03/A05) + ASVS + AVG art. 5/32.
+
+**Eén HOOG volledig gefixt (rood→groen).** De rest bevestigd schoon: de ontvangen-uitnodigingen leiden de
+lijst af uit de eigen `JOB_INVITED`-auditrecords, gescopet op het uit de sessie afgeleide `freelancerProfileId`
+(geen client-input, exacte id-parse tegen substring-vals-positieven, drie begrensde eigenaar-queries, exposeert
+alleen opdracht-titel + opdrachtgever-naam van nog-`PUBLISHED` opdrachten); `getRosterCandidatesForDienst`
+her-asserteert de tenant bij de read (`job.tenantId !== tenantId → null`) en scoopt de roster-query op
+`tenantId`; `system-status` is ADMIN-only en leest uitsluitend driver-MODI/booleans (nooit een sleutelwaarde,
+de rauwe `Env` passeert de client-grens niet); `effective-rate.ts` is puur/deterministisch zonder I/O.
+
+### OPGELOST in deze ronde
+
+- **[HOOG→OPGELOST · OWASP A01 (broken access control) · CLAUDE.md regel 2 / Veiligheidsregels (tenant-
+  isolatie) — het dubbele-boeking-signaal (#730) lekte de dienst-TITEL van een andere tenant aan de
+  bemiddelaar]** Het nieuwe dubbele-boeking-signaal op `/franchise/diensten/[id]/voordragen`
+  (`getRosterCandidatesForDienst` → `detectDoubleBooking`) haalde **alle** ACTIEVE samenwerkingen van een
+  roster-ZZP'er op — met `job: { select: { title: true } }` zónder tenant-filter — en toonde de franchiser
+  `Al ingezet — overlap met "<titel>"`. Een roster-ZZP'er van tenant A kan echter óók op een **opengestelde
+  (overflow) dienst van een ándere franchise** (tenant B) of een **platform-opdracht** (`Job.tenantId = null`)
+  staan — `visibleJobsWhereForTenant` stelt tenant-ZZP'ers expliciet in staat op overflow-diensten van andere
+  franchises te werken. Gevolg: franchise A las de vertrouwelijke dienst-titel van franchise B (of een platform-
+  opdracht) uit het waarschuwingslabel — een cross-tenant-datalek. **Repro:** een roster-ZZP'er van tenant A
+  heeft een ACTIEVE samenwerking op een overflow-dienst "Geheime dienst van franchise B" (tenant B) die de
+  startdatum van de te bemensen dienst overlapt → franchiser A opent `/franchise/diensten/<id>/voordragen` →
+  ziet `Al ingezet — overlap met "Geheime dienst van franchise B"`. **Gefixt:** `ActivePlacement` draagt nu
+  `tenantId` (uit `Job.tenantId`) en `DoubleBookingInput` een `viewerTenantId` (= `actor.tenantId`);
+  `detectDoubleBooking` telt élke overlap mee (de ZZP'er is die dag hoe dan ook bezet — planwaarde behouden)
+  maar geeft `firstTitle` **alleen** prijs voor de vroegst-startende overlap **binnen de eigen tenant**; een
+  overlap op een andere tenant of platform-opdracht valt terug op het generieke, titelloze label
+  ("Al ingezet op een overlappende dienst", dat de UI al ondersteunt). De data-laag selecteert nu
+  `job.tenantId` mee en geeft `viewerTenantId: tenantId` door. Tests: `roster-double-booking.test.ts` (3 nieuwe
+  cases, rood→groen: cross-tenant/platform-titel verborgen, telling behouden, eigen-tenant-titel gekozen boven
+  een vroegere cross-tenant-overlap) + `dienst-voordracht.test.ts` bijgewerkt met tenant-velden.
+
 ## Ronde 2026-07-11 (2e — basis: `main` @ af5212e)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op de vérse delta sinds

@@ -111,7 +111,7 @@ export function buildRosterCandidates(
   freelancers: readonly RosterFreelancerSource[],
   proposedIds: ReadonlySet<string>,
   appliedIds: ReadonlySet<string>,
-  dienst: { jobId: string; startDate: Date | null },
+  dienst: { jobId: string; startDate: Date | null; viewerTenantId: string | null },
   now: Date = new Date(),
 ): RosterCandidate[] {
   return freelancers
@@ -148,6 +148,7 @@ export function buildRosterCandidates(
         doubleBooking: detectDoubleBooking({
           dienstStart: dienst.startDate,
           dienstJobId: dienst.jobId,
+          viewerTenantId: dienst.viewerTenantId,
           placements: f.activeCollaborations,
         }),
       };
@@ -221,7 +222,11 @@ export async function getRosterCandidatesForDienst(
             jobId: true,
             startDate: true,
             endDate: true,
-            job: { select: { title: true } },
+            // `tenantId` erbij: het dubbele-boeking-signaal mag de titel van een overlappende dienst
+            // alleen tonen als die binnen de eigen tenant valt (cross-tenant-isolatie). Een roster-
+            // ZZP'er kan óók op een overflow-dienst van een andere franchise of een platform-opdracht
+            // staan — die titel mag niet naar deze bemiddelaar lekken.
+            job: { select: { title: true, tenantId: true } },
           },
         },
       },
@@ -257,6 +262,7 @@ export async function getRosterCandidatesForDienst(
       collaborationId: c.id,
       jobId: c.jobId,
       jobTitle: c.job.title,
+      tenantId: c.job.tenantId,
       startDate: c.startDate,
       endDate: c.endDate,
     })),
@@ -267,7 +273,7 @@ export async function getRosterCandidatesForDienst(
     sources,
     proposedIds,
     appliedIds,
-    { jobId: job.id, startDate: job.startDate },
+    { jobId: job.id, startDate: job.startDate, viewerTenantId: tenantId },
     now,
   );
 }

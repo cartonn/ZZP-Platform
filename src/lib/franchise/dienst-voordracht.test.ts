@@ -52,7 +52,7 @@ function freelancer(over: Partial<RosterFreelancerSource>): RosterFreelancerSour
 
 // Dienst-context zonder startdatum ⇒ geen dubbele-boeking-signaal (dat is los getest in
 // roster-double-booking.test.ts); houdt de bestaande rangschik-/markering-asserties zuiver.
-const DIENST = { jobId: "dienst-1", startDate: null };
+const DIENST = { jobId: "dienst-1", startDate: null, viewerTenantId: "tenant-1" };
 
 describe("buildRosterCandidates", () => {
   it("rangschikt op aflopende matchscore voor déze dienst", () => {
@@ -170,7 +170,11 @@ describe("buildRosterCandidates", () => {
   });
 
   it("markeert een dubbele-boeking wanneer een actieve samenwerking de dienst-startdatum overlapt", () => {
-    const dienst = { jobId: "dienst-1", startDate: new Date("2026-08-10T00:00:00Z") };
+    const dienst = {
+      jobId: "dienst-1",
+      startDate: new Date("2026-08-10T00:00:00Z"),
+      viewerTenantId: "tenant-1",
+    };
     const overlapper = freelancer({
       id: "f-overlap",
       activeCollaborations: [
@@ -178,6 +182,7 @@ describe("buildRosterCandidates", () => {
           collaborationId: "col-1",
           jobId: "dienst-anders",
           jobTitle: "Nachtdienst IC",
+          tenantId: "tenant-1",
           startDate: new Date("2026-08-01T00:00:00Z"),
           endDate: new Date("2026-08-31T00:00:00Z"),
         },
