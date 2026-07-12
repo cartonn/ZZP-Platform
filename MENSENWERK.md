@@ -146,6 +146,17 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   **niets voor de pilot** (single instance draait op Prisma-defaults). Bij horizontale schaling:
   zet `DATABASE_CONNECTION_LIMIT` (bijv. 5–10 per instance) in de Railway-secrets; gebruik je een
   PgBouncer/Supabase-pooler, zet dan ook `DATABASE_PGBOUNCER=true`.
+- **Request-correlatie-ID voor log-/foutkoppeling** (laag, code-kant GEDAAN 12-7-2026): elke
+  HTTP-request draagt nu een `x-request-id`-correlatie-ID (`src/lib/observability/request-id.ts`,
+  gewired in `src/middleware.ts`) — overgenomen van een upstream proxy/load-balancer (Railway/CDN
+  zetten die vaak al) of anders server-side gegenereerd, gesaneerd tegen header-/log-injectie en
+  begrensd (64 tekens). De ID wordt **op de response geëchood** (zichtbaar in de Network-tab) én
+  meegenomen in álle error-rapporten: Next's `onRequestError`-grens, de client-fout-ontvanger
+  (`/api/client-error`) en achtergrondtaken — als logveld en, met `SENTRY_DSN`, als Sentry-**tag**
+  (`request_id`). **Waarde:** support kan een gebruiker-zichtbare fout ("het brak, referentie X")
+  koppelen aan de exacte server-log-/Sentry-regels van díe request. Resterend mensenwerk: **niets
+  voor de pilot** — werkt out-of-the-box; zet een upstream proxy desgewenst een eigen `x-request-id`
+  dan loopt de correlatie over de hops door.
 
 ## §1. Hosting, database, opslag, domein, geheimen
 

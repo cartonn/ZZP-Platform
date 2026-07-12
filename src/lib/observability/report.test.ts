@@ -70,6 +70,12 @@ describe("reportError (console-tak)", () => {
     });
   });
 
+  it("neemt de request-correlatie-ID mee in de logregel", async () => {
+    await reportError(new Error("boom"), { source: "onRequestError", requestId: "trace-42" });
+    const [, fields] = errorSpy.mock.calls[0]!;
+    expect(fields).toMatchObject({ requestId: "trace-42" });
+  });
+
   it("werpt nooit, ook niet bij een niet-Error (string)", async () => {
     await expect(reportError("kapot")).resolves.toBeUndefined();
     expect(errorSpy).toHaveBeenCalledTimes(1);

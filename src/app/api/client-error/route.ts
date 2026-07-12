@@ -12,6 +12,7 @@
 import { clientErrorRateLimiter } from "@/lib/rate-limit";
 import { parseClientError, toReportableError } from "@/lib/observability/client-error";
 import { reportError } from "@/lib/observability/report";
+import { REQUEST_ID_HEADER, sanitizeRequestId } from "@/lib/observability/request-id";
 import { clientIpFromRequest } from "@/lib/client-ip";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,7 @@ export async function POST(request: Request): Promise<Response> {
   await reportError(toReportableError(normalized), {
     source: "client-error",
     requestPath: normalized.path ?? undefined,
+    requestId: sanitizeRequestId(request.headers.get(REQUEST_ID_HEADER)) ?? undefined,
     extra: {
       componentStack: normalized.componentStack,
       digest: normalized.digest,

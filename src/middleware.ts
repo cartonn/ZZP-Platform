@@ -10,6 +10,7 @@ import {
   maintenanceRetryAfterSeconds,
   shouldServeMaintenance,
 } from "@/lib/maintenance";
+import { REQUEST_ID_HEADER, resolveRequestId } from "@/lib/observability/request-id";
 import { isAdminPath, isFranchisePath, isPublicPath, roleForPath } from "@/lib/route-guards";
 
 const { auth } = NextAuth(authConfig);
@@ -22,7 +23,7 @@ const isDev = process.env.NODE_ENV !== "production";
  * layout leest x-nonce voor het inline theme-script. Redirects hebben geen document en dus
  * geen CSP nodig.
  */
-function nextWithCsp(request: Request): NextResponse {
+function nextWithCsp(request: Request, requestId: string): NextResponse {
   const nonce = generateNonce();
   const csp = buildCsp({ nonce, isDev });
   const requestHeaders = new Headers(request.headers);
@@ -30,7 +31,12 @@ function nextWithCsp(request: Request): NextResponse {
   // Pad meegeven zodat de app-shell breedte per route kan bepalen (bv. schermvullend dashboard).
   requestHeaders.set("x-pathname", new URL(request.url).pathname);
   requestHeaders.set("content-security-policy", csp);
+  // Correlatie-ID (in de handler bepaald): op de forwarded request-headers (route handlers/
+  // instrumentation lezen 'm zo) én op de response (zichtbaar in de Network-tab, koppelbaar aan de
+  // server-logs/Sentry van díe request).
+  requestHeaders.set(REQUEST_ID_HEADER, requestId);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set(REQUEST_ID_HEADER, requestId);
   response.headers.set("Content-Security-Policy", csp);
   // Reporting API: koppelt de `report-to`-groep uit de policy aan het ontvanger-endpoint. De
   // `report-uri`-fallback in de policy werkt zonder deze header; oudere browsers gebruiken die.
@@ -57,7 +63,11 @@ function getPublicOrigin(request: Request, fallbackOrigin: string) {
  * gezondheids-probes blijven bereikbaar (zie MAINTENANCE_EXEMPT_PATHS) zodat de host-healthcheck de
  * container niet neerhaalt. Ingelogde ADMINs mogen er standaard door (MAINTENANCE_ALLOW_ADMIN).
  */
-function maintenanceResponse(pathname: string, isAdmin: boolean): NextResponse | null {
+function maintenanceResponse(
+  pathname: string,
+  isAdmin: boolean,
+  requestId: string,
+): NextResponse | null {
   const enabled = isMaintenanceEnabled(process.env.MAINTENANCE_MODE);
   if (!enabled) return null;
   const allowAdmin = maintenanceAllowsAdmin(process.env.MAINTENANCE_ALLOW_ADMIN);
@@ -73,17 +83,23 @@ function maintenanceResponse(pathname: string, isAdmin: boolean): NextResponse |
       "cache-control": "no-store",
       "retry-after": String(maintenanceRetryAfterSeconds(process.env.MAINTENANCE_RETRY_AFTER)),
       "x-robots-tag": "noindex, nofollow",
+      [REQUEST_ID_HEADER]: requestId,
     },
   });
 }
 
 export default auth((request) => {
   const { pathname, search } = request.nextUrl;
+  const requestId = resolveRequestId(request.headers.get(REQUEST_ID_HEADER));
 
-  const maintenance = maintenanceResponse(pathname, request.auth?.user?.role === "ADMIN");
+  const maintenance = maintenanceResponse(
+    pathname,
+    request.auth?.user?.role === "ADMIN",
+    requestId,
+  );
   if (maintenance) return maintenance;
 
-  if (isPublicPath(pathname)) return nextWithCsp(request);
+  if (isPublicPath(pathname)) return nextWithCsp(request, requestId);
 
   const origin = getPublicOrigin(request, request.nextUrl.origin);
   if (!request.auth?.user) {
@@ -135,7 +151,7 @@ export default auth((request) => {
     return NextResponse.redirect(new URL("/dashboard", origin));
   }
 
-  return nextWithCsp(request);
+  return nextWithCsp(request, requestId);
 });
 
 export const config = {
