@@ -10,6 +10,7 @@ const placement = (overrides: Partial<ActivePlacement> = {}): ActivePlacement =>
   collaborationId: "c1",
   jobId: "job-A",
   jobTitle: "Nachtdienst verpleegkundige",
+  tenantId: "tenant-A",
   startDate: new Date("2026-08-01T00:00:00.000Z"),
   endDate: new Date("2026-08-31T00:00:00.000Z"),
   ...overrides,
@@ -18,6 +19,7 @@ const placement = (overrides: Partial<ActivePlacement> = {}): ActivePlacement =>
 const input = (overrides: Partial<DoubleBookingInput> = {}): DoubleBookingInput => ({
   dienstStart: new Date("2026-08-15T00:00:00.000Z"),
   dienstJobId: "job-Z",
+  viewerTenantId: "tenant-A",
   placements: [],
   ...overrides,
 });
@@ -162,5 +164,68 @@ describe("detectDoubleBooking", () => {
 
   it("stelt FAR_FUTURE in op de maximaal representeerbare Date", () => {
     expect(FAR_FUTURE.getTime()).toBe(8640000000000000);
+  });
+
+  // Cross-tenant-isolatie (CLAUDE.md regel 2 / OWASP A01): een roster-ZZP'er kan óók op een
+  // opengestelde (overflow) dienst van een ándere franchise of een platform-opdracht staan. De
+  // overlap telt wél mee (die dag is de ZZP'er bezet), maar de TITEL van zo'n dienst mag nooit naar
+  // deze bemiddelaar lekken — anders ziet franchise A de dienst-titel van franchise B.
+  it("telt een overlap van een andere tenant mee maar verbergt de titel", () => {
+    const signal = detectDoubleBooking(
+      input({
+        viewerTenantId: "tenant-A",
+        placements: [
+          placement({
+            jobId: "job-B",
+            jobTitle: "Geheime dienst van franchise B",
+            tenantId: "tenant-B",
+          }),
+        ],
+      }),
+    );
+    expect(signal.count).toBe(1);
+    expect(signal.firstTitle).toBeNull();
+  });
+
+  it("verbergt de titel van een overlappende platform-opdracht (tenantId null)", () => {
+    const signal = detectDoubleBooking(
+      input({
+        viewerTenantId: "tenant-A",
+        placements: [placement({ jobId: "job-P", jobTitle: "Platform-opdracht", tenantId: null })],
+      }),
+    );
+    expect(signal.count).toBe(1);
+    expect(signal.firstTitle).toBeNull();
+  });
+
+  it("kiest de vroegst-startende overlap BINNEN de eigen tenant als firstTitle", () => {
+    const signal = detectDoubleBooking(
+      input({
+        viewerTenantId: "tenant-A",
+        dienstStart: new Date("2026-08-15T00:00:00.000Z"),
+        placements: [
+          // Vroegst-startende overlap, maar van een andere tenant → mag de titel niet leveren.
+          placement({
+            collaborationId: "c-foreign",
+            jobId: "job-B",
+            jobTitle: "Vroegste (andere tenant)",
+            tenantId: "tenant-B",
+            startDate: new Date("2026-08-01T00:00:00.000Z"),
+            endDate: null,
+          }),
+          // Later startende overlap binnen de eigen tenant → dít is de zichtbare titel.
+          placement({
+            collaborationId: "c-own",
+            jobId: "job-C",
+            jobTitle: "Eigen dienst",
+            tenantId: "tenant-A",
+            startDate: new Date("2026-08-10T00:00:00.000Z"),
+            endDate: new Date("2026-08-20T00:00:00.000Z"),
+          }),
+        ],
+      }),
+    );
+    expect(signal.count).toBe(2);
+    expect(signal.firstTitle).toBe("Eigen dienst");
   });
 });

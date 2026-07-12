@@ -19,6 +19,13 @@ export interface ActivePlacement {
   /** De dienst waarop deze samenwerking loopt. */
   jobId: string;
   jobTitle: string;
+  /**
+   * Tenant van de opdracht/dienst waarop deze samenwerking loopt (`Job.tenantId`); null = platform-
+   * opdracht. Bepaalt of de bemiddelaar de TITEL van deze plaatsing mag zien: een roster-ZZP'er kan óók
+   * op een opengestelde (overflow) dienst van een ándere franchise of een platform-opdracht staan — die
+   * titel is data van een andere tenant en mag nooit naar deze bemiddelaar lekken (tenant-isolatie).
+   */
+  tenantId: string | null;
   /** Looptijd-start van de samenwerking; null = onbekend → genegeerd (geen vals alarm). */
   startDate: Date | null;
   /** Looptijd-eind; null = open einde (loopt door). */
@@ -30,6 +37,12 @@ export interface DoubleBookingInput {
   dienstStart: Date | null;
   /** Id van de dienst zelf — een samenwerking op DEZE dienst is per definitie geen conflict. */
   dienstJobId: string;
+  /**
+   * Tenant van de bekijkende bemiddelaar (`actor.tenantId`). Alleen plaatsingen binnen déze tenant
+   * geven hun titel prijs; overlappingen op een andere tenant of een platform-opdracht tellen wél mee
+   * in de telling maar tonen nooit hun titel (cross-tenant-isolatie, CLAUDE.md regel 2).
+   */
+  viewerTenantId: string | null;
   /** ACTIEVE samenwerkingen van deze ZZP'er. */
   placements: readonly ActivePlacement[];
 }
@@ -80,14 +93,18 @@ export function detectDoubleBooking(input: DoubleBookingInput): DoubleBookingSig
       overlapsDienstStart(p, dienstStartMs),
   );
 
-  // Stabiel sorteren op looptijd-start oplopend, zodat `firstTitle` deterministisch de vroegst-
-  // startende overlap is. Kopie via slice() — de invoer wordt nooit gemuteerd.
-  const earliest = overlapping
+  // Stabiel sorteren op looptijd-start oplopend (kopie via slice() — de invoer wordt nooit gemuteerd).
+  const sorted = overlapping
     .slice()
-    .sort((a, b) => (a.startDate as Date).getTime() - (b.startDate as Date).getTime())[0];
+    .sort((a, b) => (a.startDate as Date).getTime() - (b.startDate as Date).getTime());
+
+  // `firstTitle` is de vroegst-startende overlap BINNEN de eigen tenant; een overlap op een andere
+  // tenant of een platform-opdracht telt wél mee (de ZZP'er is die dag bezet) maar geeft nooit haar
+  // titel prijs — dat zou dienst-data van een andere bemiddeling naar deze bemiddelaar lekken.
+  const earliestSameTenant = sorted.find((p) => p.tenantId === input.viewerTenantId);
 
   return {
     count: overlapping.length,
-    firstTitle: earliest ? earliest.jobTitle : null,
+    firstTitle: earliestSameTenant ? earliestSameTenant.jobTitle : null,
   };
 }
