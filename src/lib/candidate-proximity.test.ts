@@ -3,6 +3,7 @@ import {
   classifyCandidateProximity,
   proximityLabel,
   PROXIMITY_VARIANT,
+  PROXIMITY_TONE_CLASS,
   PROXIMITY_NEAR_MAX,
   PROXIMITY_MODERATE_MAX,
 } from "@/lib/candidate-proximity";
@@ -95,5 +96,11 @@ describe("proximityLabel + variant", () => {
     expect(PROXIMITY_VARIANT.near).toBe("success");
     expect(PROXIMITY_VARIANT.moderate).toBe("muted");
     expect(PROXIMITY_VARIANT.far).toBe("warning");
+  });
+
+  it("koppelt elk niveau aan een inline-tekstkleur (dichtbij=plus, ver=aandacht, ertussenin neutraal)", () => {
+    expect(PROXIMITY_TONE_CLASS.near).toBe("text-success");
+    expect(PROXIMITY_TONE_CLASS.moderate).toBe("");
+    expect(PROXIMITY_TONE_CLASS.far).toBe("text-warning");
   });
 });

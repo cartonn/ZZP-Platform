@@ -51,6 +51,15 @@ export const PROXIMITY_VARIANT: Record<ProximityLevel, "success" | "muted" | "wa
   far: "warning",
 };
 
+// Tekstkleur voor een compacte inline-chip (bv. de metadata-regel van de opdrachtenlijst), waar een
+// vol Badge te zwaar is. Spiegelt PROXIMITY_VARIANT: dichtbij is een pluspunt (success), ver weg vraagt
+// aandacht (warning), reistijd ertussenin blijft neutraal (geen extra kleur → erft muted-tekst).
+export const PROXIMITY_TONE_CLASS: Record<ProximityLevel, string> = {
+  near: "text-success",
+  moderate: "",
+  far: "text-warning",
+};
+
 /** Volledig chip-label incl. geschatte minuten, bv. "Dichtbij · ~18 min". */
 export function proximityLabel(p: CandidateProximity): string {
   return `${PROXIMITY_LABEL[p.level]} · ~${p.minutes} min`;

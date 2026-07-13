@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Routine: reistijd-chip per opdracht op de browse-lijst (ZZP'er)
+
+- **Wat:** de ZZP'er zag op de opdracht-**detailpagina** al een reistijdsignaal, en de opdrachtgever
+  ziet reistijd per kandidaat op `/kandidaten` — maar op de **browse-/triage-lijst** (`/opdrachten`)
+  ontbrak het symmetrische signaal. Nu toont elke opdracht-rij een compacte reistijd-chip ("Dichtbij ·
+  ~18 min" / "Ver weg · ~130 min") op basis van de eigen profiel-locatie versus de opdracht-locatie,
+  zodat de ZZP'er commuteerbare opdrachten in één oogopslag triageert (benchmark Indeed/LinkedIn "X min
+  away" op de vacaturekaart). REMOTE-opdrachten of een onbekende plaats aan één van beide kanten → geen
+  chip (nooit misleidend).
+- **Bestanden:** `src/lib/candidate-proximity.ts` — nieuwe `PROXIMITY_TONE_CLASS` (inline-tekstkleur
+  per niveau, spiegel van `PROXIMITY_VARIANT`: dichtbij=success, ver=warning, ertussenin neutraal) +
+  `.test.ts` (+1 test, 10 totaal). `src/app/(protected)/opdrachten/(index)/page.tsx`: `proximityByJob`-
+  map over de zichtbare pagina via de bestaande, geteste `classifyCandidateProximity` (alleen ZZP'er
+  met bekende eigen plaats) + chip in de metadata-regel.
+- **Server-side waarheid:** het reistijdsignaal wordt server-side berekend (`estimateTravelMinutes`-
+  seam); de client toont, beslist nooit. Read-only, geen schemawijziging, **geen extra query** —
+  `job.location`/`job.workMode` én de profiel-locatie waren al geladen.
+- **Gate:** typecheck ✓, lint ✓, prettier (hele repo) ✓, 4003 unit-tests ✓, build ✓. E2e draait in CI.
+
 ## 2026-07-12 — Routine: reputatie + eerder-samengewerkt in de kandidaat-vergelijker (opdrachtgever)
 
 - **Wat:** de side-by-side kandidaat-vergelijker (`/kandidaten/vergelijk`) miste de twee sterkste
