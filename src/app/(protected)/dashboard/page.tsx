@@ -4,6 +4,7 @@ import {
   Gauge,
   Handshake,
   Wallet,
+  Receipt,
   Briefcase,
   Bell,
   CheckCircle2,
@@ -22,6 +23,7 @@ import {
 } from "@/components/dashboard/workspace-dashboard";
 import { getClientStats, fillRateHint } from "@/lib/client-stats";
 import { getClientRevenueTrend, getFreelancerRevenueTrend } from "@/lib/revenue-trend";
+import { getUnbilledInvoiceSummary } from "@/lib/data/unbilled-invoices";
 import { formatDeltaPct, earningsDeltaTone } from "@/lib/revenue-delta";
 import { getTranslator } from "@/lib/i18n/server";
 import { avatarAccent } from "@/lib/avatar-accent";
@@ -771,11 +773,13 @@ export default async function DashboardPage() {
     matches,
     tasks,
     freelancerRevenueTrend,
+    unbilledInvoices,
   ] = await Promise.all([
     dashboardData(role, user.id!),
     role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
     pendingTasks(actor),
     role === "FREELANCER" ? getFreelancerRevenueTrend(user.id!) : Promise.resolve(null),
+    role === "FREELANCER" ? getUnbilledInvoiceSummary(user.id!) : Promise.resolve(null),
   ]);
   const weekStrip = week ? buildWeekStrip(week) : null;
 
@@ -809,6 +813,24 @@ export default async function DashboardPage() {
         hint: `${t("deze maand")} · ${freelancerRevenueTrend.series.at(-1)?.label ?? ""}`,
         delta: formatDeltaPct(freelancerRevenueTrend.deltaPct),
         deltaTone: earningsDeltaTone(freelancerRevenueTrend.deltaPct),
+      });
+    }
+    // Nog te factureren: geleverd/goedgekeurd werk staat als concept-factuur klaar maar het geld is
+    // nog niet in beweging (blijft liggen). Eén bedrag-op-het-startscherm — /prognose toont het passief
+    // en /acties per samenwerking, maar nergens als glance-KPI. Aging-signaal (oudste ≥ drempel) zet de
+    // toon op waarschuwing. Alleen tonen bij ≥1 concept (geen ruis).
+    if (unbilledInvoices) {
+      fKpis.push({
+        icon: Receipt,
+        label: t("Nog te factureren"),
+        value: formatEuro(unbilledInvoices.grossCents),
+        hint: `${unbilledInvoices.count} ${unbilledInvoices.count === 1 ? t("concept-factuur") : t("concept-facturen")} · ${t("dien in voor betaling")}`,
+        ...(unbilledInvoices.aging
+          ? {
+              delta: `${unbilledInvoices.oldestAgeDays} ${t("dagen oud")}`,
+              deltaTone: "warning" as const,
+            }
+          : {}),
       });
     }
     const rows = matches.map((m) => {
