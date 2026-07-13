@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Ontwerp-lab reeks 30: +10 concepten (291–300), totaal 300
+
+- **Wat:** tien nieuwe, onderling radicaal verschillende high-fidelity redesign-concepten toegevoegd aan het
+  interne ontwerp-lab (`/ontwerp`), additief bovenop de bestaande 290 — geen bestaand concept/registry-entry/
+  route-koppeling gewijzigd of verwijderd. Nieuwe richtingen: **291 Futurisme** (dynamiek/force-lines),
+  **292 Instant** (Polaroid/emulsie), **293 Aero** (Frutiger Aero glossy), **294 Zeefdruk** (CMYK-misregistratie),
+  **295 Echolood** (sonar-spectrogram, dark), **296 Windtunnel** (flow-field streamlines, dark), **297 Aquaduct**
+  (travertijn-arcades, warm), **298 Astrolabium** (messing instrument, dark), **299 Lampion** (warme gloed, dark),
+  **300 Zoötroop** (zoetrope-bewegingsstrip).
+- **Hoe:** elk concept is een zelfstandig `"use client"`-bestand in `src/components/ontwerp/concepts/`
+  (`concept-291-…` t/m `concept-300-…`) dat leest uit de gedeelde `./mock` en de 6 kernschermen dekt via de
+  `useState<ScreenKey>`-screen-switcher (dashboard/marktplaats/opdracht-detail/verificatie/acties/facturen). Alle
+  vier CredStatus-badges met label + icoon (nooit kleur-alleen), empty/error-states, `focus-visible:ring`,
+  semantische HTML + aria, responsive. Registry-entries (291–300) toegevoegd aan `registry.ts` en de id→component-
+  koppeling aan `src/app/ontwerp/[id]/concept-host.tsx` — puur append.
+- **Poort:** `npm run typecheck` (0 fouten, na fix van `noUncheckedIndexedAccess` in 296 en een ontbrekende
+  `style`-prop op `Block` in 297), `npm run lint` (schoon), `npm run test` (4045 tests groen), `npm run build`
+  (groen), `npx prettier --write .`. Woord "AI" komt nergens voor; UI-taal Nederlands.
+- **Docs:** `docs/DESIGN-LAB.md` reeks-30-sectie bijgewerkt (totaal 300 concepten).
+
 ## 2026-07-13 — "Nog te factureren" geld-glance op het ZZP-dashboard (PR #749)
 
 - **Wat (ZZP'er, administratie-ontzorging — benchmark Bendy uren-naar-factuur):** een geaggregeerde

@@ -784,3 +784,43 @@ UI-taal = Nederlands.
   **glas-in-lood/mozaïek-compositie**; **Swiss grid revival (8pt-raster, grotesk, flush-left)** — elk
   onderscheidend gehouden van de bestaande 280 en AA-/reduced-motion-bewust.
 - **Totaal nu op `/ontwerp`: 290 concepten** (reeks 29: 281–290).
+
+## Reeks 30 (291–300) — 2026-07-13
+
+- Tien nieuwe, onderling radicaal verschillende richtingen, elk onderscheidend gehouden van de bestaande 290:
+  - **291 Futurisme** — Italiaans futurisme/dynamiek (light): scherpe diagonalen, SVG force-lines, gekantelde
+    en gefragmenteerde display-type (skew), schuine badges/nav, pijl-motieven, vermiljoen op gebroken-wit
+    (niet Memphis/Deco — futuristische bewegingsenergie i.p.v. decoratieve vormen).
+  - **292 Instant** — Polaroid/instant-film (warm): witte emulsie-frames met dikke onderrand-caption, chemische
+    randgloed, gestapelde/geroteerde fotokaarten, handgeschreven bijschriften (niet Schetsboek — analoge
+    fotografie-nostalgie i.p.v. potloodschets).
+  - **293 Aero** — Frutiger Aero revival (glossy light): glazen aqua-oppervlakken met CSS-glans-highlights,
+    aqua-verlopen, hemelblauwe glow, bolle glossy pill-knoppen, natuur-tech optimisme (niet Aqua/Gel — jaren-2000
+    glossy-glas revival met bewaakt contrast).
+  - **294 Zeefdruk** — pop-art silkscreen/CMYK-misregistratie (bold light): magenta/cyaan ghost-lagen nét naast
+    de zwarte sleutellaag, grove halftoon-rasters, dikke omtrek + harde offset-schaduw (niet Riso — silkscreen-
+    misregistratie met leesbare key-layer i.p.v. duotoon-korrel).
+  - **295 Echolood** — onderzeese sonar/spectrogram-waterval (dark): spectrogram-waterval als kern-datavisualisatie,
+    peilkompas met sweep-ringen, akoestische golfvorm, diepte-peilprofiel, fosforgloed op diepzee-zwart (niet
+    Radar/Seismograaf — akoestisch spectrogram i.p.v. radar-sweep alleen).
+  - **296 Windtunnel** — aerodynamica/flow-field streamlines (dark technisch): laminaire streamline-veldlijnen als
+    achtergrond, meetraster-hairlines, velocity-gauges met drukverschil, één limoen-cyaan accent (niet Stroom/
+    Choreografie — laminaire veldlijnen i.p.v. deeltjes/motion).
+  - **297 Aquaduct** — Romeinse ingenieurskunst/travertijn-arcades (warm light): rondboog-arcades als layout-raster,
+    travertijn-korrel, gebeitelde kapitaal-type, Romeinse nummering, terracotta accent (niet Beton/Bouwplaats —
+    klassieke arcade-architectuur i.p.v. brutalistisch beton).
+  - **298 Astrolabium** — messing hemel-instrument/gegraveerd (dark brass): concentrische graadringen met tick-
+    schalen, roterende alidade als layout-motief, klassieke serif op nachtblauw (niet Observatorium/Windroos —
+    gegraveerd messing instrument i.p.v. sterrenkaart).
+  - **299 Lampion** — papieren lantaarn/warme gloed (warm dark-to-glow): zachte gloed-orbs, oplichtende ronde
+    kaarten met papier-gradient, amber-koraal gloedringen op aubergine (niet Neonbord/Haard — warme lantaarn-gloed
+    i.p.v. neon, met lichte tekst voor contrast).
+  - **300 Zoötroop** — pre-cinema bewegingsstrip/zoetrope (playful light): sequentiële frames met filmstrip-
+    perforaties, radiale zoetrope-trommel met sleuven als hoofdmotief, stroboscopisch ritme (niet Cinema/Kinetiek —
+    zoetrope-frame-sequenties als kinetisch hoofdmotief).
+- Onderzochte 2026-trends deze reeks: **futuristische dynamiek & force-lines**; **analoge instant-film-nostalgie**;
+  **Frutiger Aero glossy-glas revival**; **silkscreen/CMYK-misregistratie**; **sonar/spectrogram-waterval-dataviz**;
+  **flow-field/laminaire streamlines**; **klassieke arcade-architectuur als layout-raster**; **gegraveerde
+  instrument-UI (astrolabium)**; **warme gloed-lichtbronnen in dark themes**; **zoetrope/sequentiële-frame-kinetiek** —
+  elk AA-/contrast-bewust en onderscheidend van de bestaande 290.
+- **Totaal nu op `/ontwerp`: 300 concepten** (reeks 30: 291–300).

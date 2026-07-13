@@ -877,6 +877,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "290": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-290-zwitsers").then((m) => m.Concept290),
   ),
+  "291": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-291-futurisme").then((m) => m.Concept291),
+  ),
+  "292": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-292-instant").then((m) => m.Concept292),
+  ),
+  "293": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-293-aero").then((m) => m.Concept293),
+  ),
+  "294": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-294-zeefdruk").then((m) => m.Concept294),
+  ),
+  "295": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-295-echolood").then((m) => m.Concept295),
+  ),
+  "296": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-296-windtunnel").then((m) => m.Concept296),
+  ),
+  "297": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-297-aquaduct").then((m) => m.Concept297),
+  ),
+  "298": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-298-astrolabium").then((m) => m.Concept298),
+  ),
+  "299": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-299-lampion").then((m) => m.Concept299),
+  ),
+  "300": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-300-zootroop").then((m) => m.Concept300),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
