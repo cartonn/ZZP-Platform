@@ -1,5 +1,45 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-13 (run 27) · **main-commit basis:** `1fb87d5`
+> **Uitkomst:** **Geen defecten/gaten gevonden.** Verse prod-build (`npm run build`), schema-push +
+> idempotente demo-seed (`SEED_DEMO=true`) op ephemere SQLite (`qa.db`), prod-server (`next start`,
+> poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen ingelogd via
+> het echte formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium (`chromium-1194`).
+>
+> **DOEL 1 (echte actie, live geverifieerd):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties`
+> → Goedkeuren-knoppen **6→5** én `/acties` **16→15** (de afgehandelde certificaat-actie verdween
+> correct; de keten auth→rol→ownership→transitie→audit→revalidate werkt end-to-end).
+>
+> **DOEL 1b (next-action-correctheid):** `/acties` per rol gekruist tegen de seed-staat — ZZP'er
+> (openstaande gespreksreactie + ontbrekend document), CLIENT (2: 1 nieuwe reactie te beoordelen +
+> bedrijfsprofiel 90%), ADMIN (16 = 6 SUBMITTED-certificaten + 10 supporttickets), FRANCHISER (0 —
+> "Alles afgehandeld", klopt met de seed). Alle acties logisch, juiste volgorde/partij aan zet, geen
+> dubbele/tegenstrijdige/niet-verdwijnende actie; geen error-boundary op enige `/acties`.
+>
+> **DOEL 2 (adversarieel — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen`; niet-FRANCHISER → `/franchise`) →
+> **opaque-redirect naar login, nooit 200/500**. IDOR/cross-partij via in-browser `fetch`
+> (cookie-getrouw, met **echte vreemde id's** uit de DB): vreemde factuur-PDF (Emma), vreemde
+> samenwerking-`dossier`/`dba-dossier` (Iris), vreemd privé-document (Youssef) → **403** voor
+> ZZP + FRANCHISER; CLIENT ziet Sanne's factuur (200, tegenpartij) maar **niet** haar privé-VOG
+> (**403**). ADMIN ziet alle drie (200) — **by-design, geaudit** oversight (verificatie-/dispuut-queue),
+> geen lek. Eigen resources → 200. Junk-/traversal-/sqli-id (`/facturen|/samenwerkingen|/opdrachten|
+/zzp/<junk>`, `..%2F..%2Fetc%2Fpasswd`, `1' OR '1'='1`) → soft-404 "Niet gevonden" (200, geen
+> data gelekt), **nooit 500**. Cron (`/api/tasks/run-all`): **GET → 405**, **POST zonder secret → 503**
+> (fail-closed). Forged ongesigneerde betaal-webhook → **200 ack maar inert**.
+>
+> **Parked MED uit run 26 (PAST_DUE→ACTIVE replay) — geanalyseerd, NIET reachable:** de enige
+> PAST_DUE-schrijver is de webhook `PENDING→PAST_DUE` op `status==="failed"` (die `providerRef` geeft
+> permanent `"failed"` → herspelen is inert). Een verlopen ACTIVE-abonnement gaat via
+> `subscription-expiry-task` naar **CANCELLED** (niet PAST_DUE), en `CANCELLED→ACTIVE` is sinds run 26
+> uit de map. Er is **geen code-pad** dat een abonnement in PAST_DUE zet terwijl het een permanent-`"paid"`
+> `providerRef` vasthoudt, dus de replay is met de huidige transities niet uitvoerbaar. Herbevestigd als
+> hardening-item vóór de echte recurring-billing-koppeling (MENSENWERK §3), geen fix nodig nu.
+>
+> **Alleen deze docs-update, geen code-wijziging deze run.**
+>
+> ---
+>
 > **Datum:** 2026-07-13 (run 26) · **main-commit basis:** `6c89a68`
 > **Uitkomst:** **1 HOOG revenue-integriteitsgat gevonden én OPGELOST** (betaal-webhook: herspeelde
 > `providerRef` heractiveerde een geannuleerd/verlopen abonnement gratis). Verse prod-build

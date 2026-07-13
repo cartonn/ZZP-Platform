@@ -3,6 +3,19 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Persona-sweep run 27 (geen gaten gevonden)
+
+- **Wat:** kritische-gebruiker-sweep over alle vier rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) op de verse
+  prod-build + demo-seed. DOEL 1: ADMIN keurde live een certificaat goed → Goedkeuren 6→5 én `/acties`
+  16→15 (next-action verdwijnt correct). DOEL 1b: `/acties` per rol logisch en consistent met de seed.
+  DOEL 2 (adversarieel): escalatie→login-redirect, IDOR met **echte vreemde id's**→403 (ZZP/FRANCHISER),
+  CLIENT ziet tegenpartij-factuur maar niet het privé-document, ADMIN-oversight 200 (by-design/geaudit),
+  junk/traversal/sqli→soft-404 zonder 500, cron fail-closed, forged webhook inert.
+- **Extra:** de in run 26 geparkeerde MED (PAST_DUE→ACTIVE replay) geanalyseerd — met de huidige
+  transities **niet reachable** (geen pad naar PAST_DUE met een permanent-`"paid"` `providerRef`); blijft
+  hardening-item vóór echte recurring-billing. Geen code-wijziging; alleen docs.
+- **Bestanden:** `docs/PERSONA-SWEEP-BACKLOG.md` (run 27), `PROGRESS.md`.
+
 ## 2026-07-13 — BTW-aangifte-deadline als next-action (ZZP'er + opdrachtgever)
 
 - **Wat:** de BTW-aangifte-deadline (harde fiscale deadline; boete bij missen) leefde alleen in het
