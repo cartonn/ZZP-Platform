@@ -109,4 +109,27 @@ describe("POST /api/billing/webhook", () => {
     expect(paymentStatusMock).not.toHaveBeenCalled();
     expect(updateMock).not.toHaveBeenCalled();
   });
+
+  // CLAUDE.md regel 3: statusovergangen via de expliciete map. De webhook mag geen status schrijven
+  // die de map niet toestaat, ook niet als de rauwe provider-status daar los van "paid"/"failed" is.
+  it("activeert bij 'paid' een PAST_DUE-abonnement (geldige overgang PAST_DUE→ACTIVE)", async () => {
+    findFirstMock.mockResolvedValue({ id: "sub2", userId: "u2", status: "PAST_DUE" });
+    paymentStatusMock.mockResolvedValue("paid");
+    const res = await POST(post("{}"));
+    expect(res.status).toBe(200);
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(updateMock.mock.calls[0]![0] as Record<string, unknown>).toMatchObject({
+      data: { status: "ACTIVE" },
+    });
+  });
+
+  it("schrijft geen status via een overgang die de map niet toestaat (bv. 'failed' op een ACTIVE-abonnement)", async () => {
+    // ACTIVE is geen bron voor de PENDING→PAST_DUE-tak; de webhook mag hier niets schrijven.
+    findFirstMock.mockResolvedValue({ id: "sub3", userId: "u3", status: "ACTIVE" });
+    paymentStatusMock.mockResolvedValue("failed");
+    const res = await POST(post("{}"));
+    expect(res.status).toBe(200);
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditMock).not.toHaveBeenCalled();
+  });
 });
