@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Vacaturetempo-signaal op "Mijn opdrachten" (opdrachtgever)
+
+- **Wat:** de opdrachtgever-lijst "Mijn opdrachten" (`/opdrachten`, CLIENT-view) toonde per opdracht een
+  reactie-pijplijn (tellingen per status) maar geen tempo-oordeel — of een gepubliceerde opdracht koud
+  loopt (lang open, weinig/geen reacties) zag je alleen door élke opdracht te openen (`JobVacancyPerformanceCard`
+  op de detailpagina). Nu een compacte vacaturetempo-chip per gepubliceerde opdracht-kaart (koud/gestaag/sterk,
+  kleur volgt de server-side toon) + een "aandacht nodig"-strip bovenaan die telt hoeveel gepubliceerde
+  opdrachten bijsturen vragen. Zo triageert de opdrachtgever in één oogopslag welke posting tarief/eisen/
+  zichtbaarheid moet bijstellen (benchmark Temper/Pidz/Zorgwerk: koude vacatures snel bijsturen).
+- **Hoe:** hergebruikt de bestaande, geteste pure `summarizeVacancyPerformance` (dezelfde koud-drempels als
+  `job-engagement.ts`, geen drift met het achtergrondsignaal). Nieuwe pure `src/lib/job-vacancy-overview.ts`
+  (`summarizeVacancyPortfolio` → published/attention/strong-tellingen + `vacancyPortfolioHeadline`, null zonder
+  aandacht = geen ruis; 6 tests) + presentationele `src/components/jobs/vacancy-pace-chip.tsx` (dot+kop via de
+  gedeelde `LevelChip`). Wiring in `ClientJobs` (`opdrachten/(index)/page.tsx`): één begrensde query over de
+  actieve reacties van de eigen opdrachten (`status != WITHDRAWN`, `take 2000`, geen N+1) → tijdstempels per
+  opdracht → per PUBLISHED-opdracht een tempo-summary; chip op de kaart + strip onder de PageHeader.
+- **Regels:** read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak; toont uitsluitend
+  geaggregeerde tellingen — nooit kandidaatgegevens. `publishedAt ?? createdAt` als anker (spiegelt de detailpagina).
+- **Gate groen:** typecheck ✓, lint ✓, **4073 unit-tests** ✓, build ✓, prettier ✓.
+- **Bestanden:** `src/lib/job-vacancy-overview.ts` (+`.test.ts`), `src/components/jobs/vacancy-pace-chip.tsx`,
+  `src/app/(protected)/opdrachten/(index)/page.tsx`.
+
 ## 2026-07-13 — Prod-rijpheid: graceful shutdown draining (readiness-flip + begrensde force-kill)
 
 - **Wat:** bij een Railway-redeploy kreeg de afsluitende instance nog nieuw verkeer. `scripts/start.mjs`

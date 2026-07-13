@@ -5,6 +5,7 @@ import {
   CalendarClock,
   Check,
   ChevronRight,
+  Gauge,
   MapPin,
   Minus,
   Navigation,
@@ -38,6 +39,12 @@ import { withParams } from "@/components/admin/base-path";
 import { plural } from "@/lib/plural";
 import { summarizeJobPipeline } from "@/lib/job-pipeline";
 import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition";
+import {
+  summarizeVacancyPerformance,
+  type VacancyPerformanceSummary,
+} from "@/lib/job-vacancy-performance";
+import { summarizeVacancyPortfolio, vacancyPortfolioHeadline } from "@/lib/job-vacancy-overview";
+import { VacancyPaceChip } from "@/components/jobs/vacancy-pace-chip";
 import {
   type CandidateProximity,
   classifyCandidateProximity,
@@ -101,6 +108,37 @@ async function ClientJobs({
     statusesByJob.set(g.jobId, list);
   }
 
+  // Vacaturetempo per gepubliceerde opdracht: dezelfde server-side maat als de opdracht-detailpagina
+  // (`summarizeVacancyPerformance`), maar hier lijst-breed zodat de opdrachtgever in één oogopslag ziet
+  // welke opdracht koud loopt. Eén begrensde query over de actieve reacties van de eigen opdrachten
+  // (geen N+1); de reactie-tijdstempels sturen tempo + momentum.
+  const now = new Date();
+  const activeApplications = await prisma.application.findMany({
+    where: { job: { company: { userId } }, status: { not: "WITHDRAWN" } },
+    orderBy: { createdAt: "asc" },
+    take: 2000,
+    select: { jobId: true, createdAt: true },
+  });
+  const datesByJob = new Map<string, Date[]>();
+  for (const a of activeApplications) {
+    const list = datesByJob.get(a.jobId) ?? [];
+    list.push(a.createdAt);
+    datesByJob.set(a.jobId, list);
+  }
+  const vacancyByJob = new Map<string, VacancyPerformanceSummary>();
+  const publishedSummaries: VacancyPerformanceSummary[] = [];
+  for (const job of jobs) {
+    if (job.status !== "PUBLISHED") continue;
+    const summary = summarizeVacancyPerformance({
+      publishedAt: job.publishedAt ?? job.createdAt,
+      now,
+      applicationDates: datesByJob.get(job.id) ?? [],
+    });
+    vacancyByJob.set(job.id, summary);
+    publishedSummaries.push(summary);
+  }
+  const portfolioHeadline = vacancyPortfolioHeadline(summarizeVacancyPortfolio(publishedSummaries));
+
   // Statusfilter (Alle/Concept/Gepubliceerd/Gesloten) — tellingen over de volledige lijst voor de
   // pill-labels, de gefilterde lijst voor de weergave. Spiegelt het pill-patroon van /facturen.
   const activeFilter = parseJobStatusFilter(first(searchParams.status));
@@ -120,6 +158,13 @@ async function ClientJobs({
           </Button>
         }
       />
+
+      {portfolioHeadline && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+          <Gauge className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>{portfolioHeadline}</span>
+        </div>
+      )}
 
       {jobs.length === 0 ? (
         <Card>
@@ -186,6 +231,10 @@ async function ClientJobs({
                   <JobPipelineStrip
                     pipeline={summarizeJobPipeline(statusesByJob.get(job.id) ?? [])}
                   />
+
+                  {vacancyByJob.has(job.id) && (
+                    <VacancyPaceChip summary={vacancyByJob.get(job.id)!} />
+                  )}
 
                   <div className="mt-auto pt-1">
                     <Button asChild variant="secondary" size="sm" className="w-full">

@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Vacaturetempo-signaal op "Mijn opdrachten" (opdrachtgever) (2026-07-13, PR #755)** —
+> de CLIENT-lijst `/opdrachten` toonde per opdracht de reactie-pijplijn maar geen tempo-oordeel; of een
+> gepubliceerde opdracht koud liep zag je alleen door élke opdracht te openen (`JobVacancyPerformanceCard` op
+> de detailpagina). Nu een compacte vacaturetempo-chip per gepubliceerde kaart (koud/gestaag/sterk) + een
+> "aandacht nodig"-strip bovenaan (telt de opdrachten die bijsturen vragen), zodat de opdrachtgever in één
+> oogopslag triageert welke posting tarief/eisen/zichtbaarheid moet bijstellen. Hergebruikt de geteste pure
+> `summarizeVacancyPerformance` (zelfde koud-drempels als `job-engagement.ts`). Nieuwe pure
+> `job-vacancy-overview.ts` (`summarizeVacancyPortfolio` + `vacancyPortfolioHeadline`, null zonder aandacht;
+> 6 tests) + `vacancy-pace-chip.tsx` + wiring in `ClientJobs` (één begrensde `status != WITHDRAWN`-query over de
+> eigen reacties, geen N+1; `publishedAt ?? createdAt` als anker). Read-only, geen schemawijziging, geen nieuw
+> mutatie/auth-oppervlak, alleen geaggregeerde tellingen. Gate groen (4073 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — graceful shutdown draining (2026-07-13, PR #754)** — bij een
 > Railway-redeploy kreeg de afsluitende instance nog nieuw verkeer: `scripts/start.mjs` killde de Next-child
 > bij SIGTERM zonder venster en `/api/readiness` bleef `200` tot het proces al weg was, waardoor lopende
