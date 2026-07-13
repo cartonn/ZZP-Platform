@@ -90,3 +90,27 @@ export function summarizeVatDeadline(
     party,
   };
 }
+
+/**
+ * Kalendergrens (lokale tijd) van een kwartaal, zodat een query op `occurredAt` tot precies dat
+ * kwartaal beperkt kan worden. `end` is exclusief (de eerste dag van het volgende kwartaal). Bewust
+ * lokale tijd — spiegelt de filtering in `vatReturn`/`quarterOf` (`getFullYear`/`getMonth`), zodat
+ * een op dit venster gescopete set exact dezelfde entries bevat als de pure berekening ziet.
+ */
+export function vatQuarterRange(year: number, quarter: Quarter): { start: Date; end: Date } {
+  const firstMonth = (quarter - 1) * 3; // 0, 3, 6, 9
+  return {
+    start: new Date(year, firstMonth, 1),
+    end: new Date(year, firstMonth + 3, 1),
+  };
+}
+
+/**
+ * Verdient deze BTW-deadline een next-action? Alleen wanneer de aangifte nú aan de beurt is
+ * (binnenkort of verstreken — niet ver weg) én er daadwerkelijk een saldo te melden is (af te
+ * dragen óf terug te vorderen). Een nihil-kwartaal (saldo 0) nudgen we niet: dan is er niets
+ * eenduidigs te doen en zouden we de vraag "ben ik wel BTW-plichtig?" oproepen. Geen fiscaal advies.
+ */
+export function vatDeadlineNeedsAction(summary: VatDeadlineSummary): boolean {
+  return summary.status !== "upcoming" && summary.balanceCents !== 0;
+}

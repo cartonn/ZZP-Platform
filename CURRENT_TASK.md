@@ -260,6 +260,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **BTW-aangifte-deadline als next-action (ZZP'er + opdrachtgever) (2026-07-13, PR #751)** —
+> de harde fiscale kwartaaldeadline (boete bij missen) leefde alleen in het `/administratie`-boekhoudpaneel. Nu
+> verschijnt hij als concrete, klikbare next-action op `/acties` én in de dashboard-zone "Volgende acties" zodra
+> de deadline nadert (≤14 dagen) of verstreken is én er een saldo te melden is — de ZZP'er/opdrachtgever hoeft de
+> kwartaaldeadline niet meer zelf te bewaken (benchmark Deel/boekhoud-tools: proactieve indieningsherinnering).
+> Puur `vat-deadline.ts` +`vatQuarterRange` (query-scoping) +`vatDeadlineNeedsAction` (alleen due-soon/overdue mét
+> niet-nul saldo; een nihil-kwartaal wordt niet genudged — geen fiscaal advies) + data-loader
+> `data/vat-deadline.ts` (`getVatDeadlineForActor`: owner-/kwartaal-gescoopte `administrationEntry`-query,
+> hergebruikt de geteste `summarizeVatDeadline`; null voor rollen zonder grootboek) + `vat-deadline`-kind/
+> `vatDeadlineTask` (link-resolver → `/administratie`, "af te dragen"/"terug te vorderen", aftelling/"te laat") +
+> prioriteitsbanden `vatDeadlineOverdue`(74)/`vatDeadlineDueSoon`(58) + wiring in `pending-tasks.ts` (FREELANCER +
+> CLIENT). De link-resolver valt via de bestaande `default`-tak van `action-list.tsx` op `OpenLink` — geen
+> UI-wijziging. Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +8 tests. Gate groen (4053
+> tests, build ✓).
+>
 > Gedaan (niet opnieuw): **"Nog te factureren" geld-glance op het ZZP-dashboard (2026-07-13, PR #749)** —
 > na goedkeuring van een prestatie ontstaat automatisch een concept-factuur (`lifecycleStatus=DRAFT`) die de
 > ZZP'er nog moet indienen (event C). Dat "geld blijft liggen"-signaal stond alleen passief op `/prognose` en

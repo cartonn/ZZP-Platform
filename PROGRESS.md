@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — BTW-aangifte-deadline als next-action (ZZP'er + opdrachtgever)
+
+- **Wat:** de BTW-aangifte-deadline (harde fiscale deadline; boete bij missen) leefde alleen in het
+  `/administratie`-boekhoudpaneel. Nu verschijnt hij als concrete next-action op `/acties` én in de
+  dashboard-zone "Volgende acties" zodra de deadline nadert (≤14 dagen) of verstreken is én er een saldo te
+  melden is. Ontzorging: de ZZP'er/opdrachtgever hoeft niet meer zelf de kwartaaldeadline te bewaken.
+- **Hoe:** puur `src/lib/administration/vat-deadline.ts` uitgebreid met `vatQuarterRange` (kwartaal-scoping
+  voor de query) + `vatDeadlineNeedsAction` (alleen due-soon/overdue mét niet-nul saldo — een nihil-kwartaal
+  wordt niet genudged; geen fiscaal advies). Data-loader `src/lib/data/vat-deadline.ts`
+  (`getVatDeadlineForActor`: owner- én kwartaal-gescoopte `administrationEntry`-query, hergebruikt de geteste
+  `summarizeVatDeadline`; `null` voor rollen zonder eigen grootboek). Taakmodel: `vat-deadline`-kind +
+  `vatDeadlineTask` in `actions/tasks.ts` (link-resolver → `/administratie`, saldo "af te dragen"/"terug te
+  vorderen", aftelling/"te laat"), prioriteitsbanden `vatDeadlineOverdue`(74)/`vatDeadlineDueSoon`(58) in
+  `next-actions.ts`. Gewired in `pending-tasks.ts` voor FREELANCER én CLIENT. De `link`-resolver valt via de
+  bestaande `default`-tak van `action-list.tsx` op `OpenLink` — geen UI-wijziging nodig.
+- **Poort:** `npm run typecheck` (0), `npm run lint` (schoon), `npm run test` (4053 tests groen),
+  `npm run build` (groen), `npx prettier --write .`. Geen schemawijziging, geen nieuw mutatie/auth-oppervlak
+  (read-only afleiding), i18n-woordenboek niet aangeraakt. Woord "AI" komt nergens voor.
+- **Bestanden:** `src/lib/administration/vat-deadline.ts` (+2 fn), `src/lib/data/vat-deadline.ts` (nieuw),
+  `src/lib/actions/tasks.ts` (+kind +builder), `src/lib/next-actions.ts` (+2 banden),
+  `src/lib/actions/pending-tasks.ts` (wiring), + tests (`vat-deadline.test.ts`, `tasks.test.ts`,
+  `pending-tasks.test.ts`-mock).
+
 ## 2026-07-13 — Ontwerp-lab reeks 30: +10 concepten (291–300), totaal 300
 
 - **Wat:** tien nieuwe, onderling radicaal verschillende high-fidelity redesign-concepten toegevoegd aan het

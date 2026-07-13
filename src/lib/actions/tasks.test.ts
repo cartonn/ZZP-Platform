@@ -19,8 +19,10 @@ import {
   draftJobsTask,
   franchiseCredentialExpiryTask,
   franchiseLeadFollowupTask,
+  vatDeadlineTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
+import { summarizeVatDeadline } from "@/lib/administration/vat-deadline";
 
 describe("rankTasks", () => {
   it("sorteert op prioriteit aflopend, stabiel bij gelijke prioriteit", () => {
@@ -242,5 +244,77 @@ describe("task builders", () => {
     // Ligt onder de verificatiewachtrij (70) maar boven pending-gebruikers (60).
     expect(t.priority).toBeLessThan(adminVerifyCredentialTask("c", "t", "n").priority);
     expect(t.priority).toBeGreaterThan(60);
+  });
+});
+
+describe("vatDeadlineTask", () => {
+  it("naderende deadline: link naar de boekhouding, af te dragen saldo, aftelling", () => {
+    // 20 juli 2026 → Q2-deadline 31 juli (11 dagen, due-soon), saldo af te dragen.
+    const summary = summarizeVatDeadline(
+      [
+        {
+          party: "FREELANCER",
+          account: "BTW_AF_TE_DRAGEN",
+          debitCents: 0,
+          creditCents: 42000,
+          occurredAt: new Date("2026-06-15"),
+        },
+      ],
+      "FREELANCER",
+      new Date("2026-07-20"),
+    );
+    const t = vatDeadlineTask(summary);
+    expect(t).toMatchObject({
+      kind: "vat-deadline",
+      id: "vat-deadline:2026-Q2",
+      resolver: "link",
+      href: "/administratie",
+      tone: "attention",
+      priority: P.vatDeadlineDueSoon,
+      year: 2026,
+      quarter: 2,
+    });
+    expect(t.title).toBe("BTW-aangifte 2e kwartaal 2026");
+    expect(t.subtitle).toContain("af te dragen");
+    expect(t.subtitle).toMatch(/nog \d+ dagen/);
+  });
+
+  it("verstreken deadline: hogere prioriteitsband + 'te laat'-signaal", () => {
+    // 5 augustus 2026 → Q2-deadline was 31 juli (overdue).
+    const summary = summarizeVatDeadline(
+      [
+        {
+          party: "FREELANCER",
+          account: "BTW_AF_TE_DRAGEN",
+          debitCents: 0,
+          creditCents: 30000,
+          occurredAt: new Date("2026-06-15"),
+        },
+      ],
+      "FREELANCER",
+      new Date("2026-08-05"),
+    );
+    const t = vatDeadlineTask(summary);
+    expect(t.priority).toBe(P.vatDeadlineOverdue);
+    expect(t.priority).toBeGreaterThan(P.vatDeadlineDueSoon);
+    expect(t.subtitle).toContain("te laat");
+  });
+
+  it("negatief saldo → 'terug te vorderen' i.p.v. 'af te dragen'", () => {
+    const summary = summarizeVatDeadline(
+      [
+        {
+          party: "CLIENT",
+          account: "BTW_VOORBELASTING",
+          debitCents: 18000,
+          creditCents: 0,
+          occurredAt: new Date("2026-06-10"),
+        },
+      ],
+      "CLIENT",
+      new Date("2026-07-20"),
+    );
+    const t = vatDeadlineTask(summary);
+    expect(t.subtitle).toContain("terug te vorderen");
   });
 });

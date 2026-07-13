@@ -4,6 +4,8 @@ import {
   previousQuarter,
   vatFilingDeadline,
   summarizeVatDeadline,
+  vatQuarterRange,
+  vatDeadlineNeedsAction,
   VAT_DEADLINE_SOON_DAYS,
 } from "@/lib/administration/vat-deadline";
 
@@ -102,5 +104,38 @@ describe("summarizeVatDeadline", () => {
     const s = summarizeVatDeadline(entries, "CLIENT", new Date("2026-07-07"));
     expect(s.balanceCents).toBe(-15000);
     expect(s.party).toBe("CLIENT");
+  });
+});
+
+describe("vatQuarterRange", () => {
+  it("omsluit precies één kwartaal (start inclusief, end exclusief)", () => {
+    const { start, end } = vatQuarterRange(2026, 2);
+    expect(start).toEqual(new Date(2026, 3, 1)); // 1 april
+    expect(end).toEqual(new Date(2026, 6, 1)); // 1 juli (exclusief)
+  });
+
+  it("Q4 loopt door tot 1 januari van het volgende jaar", () => {
+    const { start, end } = vatQuarterRange(2026, 4);
+    expect(start).toEqual(new Date(2026, 9, 1)); // 1 oktober
+    expect(end).toEqual(new Date(2027, 0, 1)); // 1 januari volgend jaar
+  });
+});
+
+describe("vatDeadlineNeedsAction", () => {
+  const base = summarizeVatDeadline([], "FREELANCER", new Date("2026-08-02")); // overdue, saldo 0
+
+  it("negeert een ver-weg (upcoming) deadline", () => {
+    const upcoming = { ...base, status: "upcoming" as const, balanceCents: 20000 };
+    expect(vatDeadlineNeedsAction(upcoming)).toBe(false);
+  });
+
+  it("negeert een nihil-kwartaal (saldo 0), ook als de deadline nadert", () => {
+    const nihil = { ...base, status: "due-soon" as const, balanceCents: 0 };
+    expect(vatDeadlineNeedsAction(nihil)).toBe(false);
+  });
+
+  it("vraagt actie bij een naderende/verstreken deadline met een saldo (af te dragen én terug te vorderen)", () => {
+    expect(vatDeadlineNeedsAction({ ...base, status: "due-soon", balanceCents: 12500 })).toBe(true);
+    expect(vatDeadlineNeedsAction({ ...base, status: "overdue", balanceCents: -8000 })).toBe(true);
   });
 });

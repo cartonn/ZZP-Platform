@@ -50,8 +50,10 @@ import {
   draftJobsTask,
   franchiseCredentialExpiryTask,
   franchiseLeadFollowupTask,
+  vatDeadlineTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
+import { getVatDeadlineForActor } from "@/lib/data/vat-deadline";
 
 /** Harde bovengrens per kind (voorkomt N+1/zware lijsten op /acties); "+N meer" buiten beschouwing. */
 const MAX = 50;
@@ -315,6 +317,13 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       );
     }
   }
+
+  // BTW-aangifte-deadline: het afgesloten kwartaal moet uiterlijk op de indieningsdatum aangegeven
+  // zijn. Alleen wanneer die deadline nadert/verstreken is én er een saldo te melden is (harde
+  // fiscale deadline; anders leeft dit signaal alleen in het boekhoudpaneel).
+  const vatDeadline = await getVatDeadlineForActor(userId, "FREELANCER", now);
+  if (vatDeadline) tasks.push(vatDeadlineTask(vatDeadline));
+
   return tasks;
 }
 
@@ -381,6 +390,11 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   if (overdue > 0) tasks.push(overdueInvoiceTask(overdue, "CLIENT"));
   if (newApplications > 0) tasks.push(applicationsReviewTask(newApplications));
   if (draftJobs > 0) tasks.push(draftJobsTask(draftJobs));
+
+  // BTW-aangifte-deadline (zie freelancerTasks) — ook de opdrachtgever heeft een eigen grootboek.
+  const vatDeadline = await getVatDeadlineForActor(userId, "CLIENT");
+  if (vatDeadline) tasks.push(vatDeadlineTask(vatDeadline));
+
   return tasks;
 }
 

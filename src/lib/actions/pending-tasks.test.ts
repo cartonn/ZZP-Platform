@@ -33,6 +33,11 @@ vi.mock("@/lib/signals", () => ({
   overdueInvoiceCount: vi.fn(async () => state.overdueCount),
 }));
 
+// BTW-deadline-tak buiten deze test houden: isoleert de samenwerkings-/factuurtak.
+vi.mock("@/lib/data/vat-deadline", () => ({
+  getVatDeadlineForActor: vi.fn(async () => null),
+}));
+
 import { pendingTasks } from "@/lib/actions/pending-tasks";
 
 const ACTOR = { id: "user-zzp", role: "FREELANCER", status: "ACTIVE" } as const;
