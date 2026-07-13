@@ -15,11 +15,14 @@ import { auth } from "@/auth";
 import {
   WorkspaceDashboard,
   type WsAction,
+  type WsKpi,
   type WsWeekDay,
   type WsRow,
   type WsSealItem,
 } from "@/components/dashboard/workspace-dashboard";
 import { getClientStats, fillRateHint } from "@/lib/client-stats";
+import { getClientRevenueTrend, getFreelancerRevenueTrend } from "@/lib/revenue-trend";
+import { formatDeltaPct, earningsDeltaTone } from "@/lib/revenue-delta";
 import { getTranslator } from "@/lib/i18n/server";
 import { avatarAccent } from "@/lib/avatar-accent";
 import { formatEuro } from "@/lib/invoices";
@@ -767,17 +770,19 @@ export default async function DashboardPage() {
     },
     matches,
     tasks,
+    freelancerRevenueTrend,
   ] = await Promise.all([
     dashboardData(role, user.id!),
     role === "FREELANCER" ? recommendedJobs(user.id!) : Promise.resolve<JobMatch[]>([]),
     pendingTasks(actor),
+    role === "FREELANCER" ? getFreelancerRevenueTrend(user.id!) : Promise.resolve(null),
   ]);
   const weekStrip = week ? buildWeekStrip(week) : null;
 
   // --- ZZP'ER: #19 drie-koloms workspace met echte data ---
   if (role === "FREELANCER") {
     const fKpiIcons = [Gauge, ShieldCheck, Inbox];
-    const fKpis = stats.map((st, i) => ({
+    const fKpis: WsKpi[] = stats.map((st, i) => ({
       icon: fKpiIcons[i] ?? Gauge,
       label: t(st.label),
       value: String(st.value),
@@ -793,6 +798,19 @@ export default async function DashboardPage() {
             }
         : {}),
     }));
+    // Geldpuls: wat heb ik deze maand gefactureerd, met de maand-op-maand-delta. Leunt op de
+    // al-geteste omzet-trend (`getFreelancerRevenueTrend`); de ZZP'er had geen geld-KPI op het
+    // startscherm — dit is zijn meest-gewenste blik. €0 zonder basis toont geen delta-chip.
+    if (freelancerRevenueTrend) {
+      fKpis.push({
+        icon: Wallet,
+        label: t("Deze maand gefactureerd"),
+        value: formatEuro(freelancerRevenueTrend.currentCents),
+        hint: `${t("deze maand")} · ${freelancerRevenueTrend.series.at(-1)?.label ?? ""}`,
+        delta: formatDeltaPct(freelancerRevenueTrend.deltaPct),
+        deltaTone: earningsDeltaTone(freelancerRevenueTrend.deltaPct),
+      });
+    }
     const rows = matches.map((m) => {
       const av = AVAILABILITY_LABEL[m.availability];
       return {
@@ -870,8 +888,11 @@ export default async function DashboardPage() {
 
   // --- OPDRACHTGEVER: #19 drie-koloms workspace met echte data ---
   if (role === "CLIENT") {
-    const cs = await getClientStats(user.id!);
-    const clientKpis = cs
+    const [cs, clientRevenueTrend] = await Promise.all([
+      getClientStats(user.id!),
+      getClientRevenueTrend(user.id!),
+    ]);
+    const clientKpis: WsKpi[] = cs
       ? [
           {
             icon: Gauge,
@@ -885,7 +906,16 @@ export default async function DashboardPage() {
             value: String(cs.activeCollaborations),
           },
           { icon: Briefcase, label: t("Geplaatste opdrachten"), value: String(cs.publishedJobs) },
-          { icon: Wallet, label: t("Uitgaven"), value: formatEuro(cs.spentCents) },
+          {
+            // Geldpuls voor de opdrachtgever: uitgaven déze maand met de maand-op-maand-delta i.p.v.
+            // een levenslang cumulatief totaal (dat als context in de hint blijft staan). Bewust een
+            // neutrale delta-toon — meer uitgeven is niet "goed" of "slecht".
+            icon: Wallet,
+            label: t("Uitgaven"),
+            value: formatEuro(clientRevenueTrend.currentCents),
+            hint: `${t("deze maand")} · ${t("totaal")} ${formatEuro(cs.spentCents)}`,
+            delta: formatDeltaPct(clientRevenueTrend.deltaPct),
+          },
         ]
       : stats.map((st) => ({ icon: Briefcase, label: t(st.label), value: String(st.value) }));
     const rows = (suggestedFreelancers ?? []).map((fr) => ({

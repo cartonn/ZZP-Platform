@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Geldpuls met maandtrend op het dashboard (ZZP'er + opdrachtgever)
+
+- **Wat:** de kern-geldgetallen op het startscherm (`/dashboard`) misten tijdcontext en trend. De
+  **opdrachtgever** zag **Uitgaven** als levenslang cumulatief totaal (geen "deze maand", geen
+  maand-op-maand-delta); de **ZZP'er** had **geen enkel geld-KPI** op zijn dashboard — terwijl
+  "hoeveel heb ik deze maand gefactureerd?" zijn meest-gewenste blik is. Nu per rol een geldpuls
+  "deze maand" met een delta-chip t.o.v. vorige maand, op de hoogst-bezochte pagina (benchmark
+  Stripe/Linear: headline-getal altijd met MoM-delta).
+- **Hoe (read-only, geen schemawijziging, hergebruik):** leunt volledig op de al-geteste omzet-trend
+  (`getFreelancerRevenueTrend`/`getClientRevenueTrend` uit `revenue-trend.ts`, tot nu alleen op
+  `/inzicht`). ZZP'er: 4e KPI-tegel "Deze maand gefactureerd" (icoon `Wallet`, waarde = huidige maand,
+  hint "deze maand · <maand>", delta groen/oranje via `earningsDeltaTone`). Opdrachtgever: de Uitgaven-
+  tegel toont nu déze maand + neutrale MoM-delta, met het levenslange totaal bewaard in de hint.
+  Beide trend-fetches lopen **parallel** in de bestaande `Promise.all`-blokken (dashboard-fetchprofiel
+  intact). De workspace-KPI (`WsKpi`) ondersteunde `delta`/`deltaTone`/`hint` al.
+- **Bestanden:** `src/lib/revenue-delta.ts` (puur: `formatDeltaPct`/`earningsDeltaTone`) +
+  `src/lib/revenue-delta.test.ts` (7 tests: null-basis, plus/min-teken, vlak, tonen), wiring in
+  `src/app/(protected)/dashboard/page.tsx` (import, freelancer-trend in de top-`Promise.all`, 4e
+  freelancer-tegel, client-trend parallel met `getClientStats`, Uitgaven-tegel omgezet).
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test **4024** (7 nieuw) ✓, prettier `--check .` ✓,
+  build ✓. Geen mutatie/auth-oppervlak geraakt (alleen presentatie), privacy: elke fetcher is
+  eigenaar-/tegenpartij-gescoopt (`issuerUserId`/`counterpartyUserId`). E2e draait in CI.
+- **Volgende stap:** desgewenst dezelfde puls op de franchiser-KPI-rij (`getTenantRevenueTrend` bestaat al).
+
 ## 2026-07-13 — Prod-rijpheid: go-live preflight-CLI (`npm run preflight`)
 
 - **Wat:** een CLI go-live preflight die de al-gevalideerde runtime-env-validatie (`validateEnv`) +
