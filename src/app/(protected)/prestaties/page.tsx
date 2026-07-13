@@ -21,6 +21,8 @@ import {
   getClientDeliveryReliability,
 } from "@/lib/client-delivery-reliability";
 import { insufficientSampleNotice } from "@/lib/sample-size";
+import { groupSubmittedForBulkApproval } from "@/lib/prestaties-bulk";
+import { BulkApprovePanel } from "./bulk-approve-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -99,6 +101,14 @@ export default async function PrestatiesPage({
   const submitted = allPrestaties.filter((p) => p.status === "SUBMITTED");
   const pendingCount = submitted.length;
   const queue = summarizePerformanceApproval(submitted, now);
+  // Samenwerkingen met ≥2 ingediende urenstaten kunnen in één keer worden goedgekeurd; bij één
+  // volstaat de bestaande "Keuren →"-link. Losstaand van het statusfilter (bulk werkt altijd op de
+  // volledige ingediende set, niet op het gefilterde overzicht).
+  const bulkGroups = groupSubmittedForBulkApproval(
+    allPrestaties,
+    now,
+    PERFORMANCE_APPROVAL_STALE_DAYS,
+  );
 
   return (
     <div className="space-y-6">
@@ -130,6 +140,8 @@ export default async function PrestatiesPage({
           </Button>
         )}
       </header>
+
+      {bulkGroups.length > 0 && <BulkApprovePanel groups={bulkGroups} />}
 
       {reliability.approvedPerformances > 0 && (
         <Card className="space-y-3">

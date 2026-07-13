@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Bulk-goedkeuren van ingediende urenstaten per samenwerking (opdrachtgever)
+
+- **Wat:** de opdrachtgever kon ingediende urenstaten/opleveringen alleen één voor één goedkeuren op de
+  samenwerkingspagina (`/samenwerkingen/[id]`, per prestatie een aparte "Goedkeuren"-knop). Bij een ZZP'er
+  die een reeks diensten indient, betekende dat doorklikken per staat — en zolang de opdrachtgever niet keurt,
+  staat de factuur-cascade (event B → concept-factuur) stil en wacht de ZZP'er op zijn geld. Nu een "Snel
+  goedkeuren"-paneel bovenaan `/prestaties` (de keur-pagina van de opdrachtgever): per samenwerking met ≥2
+  ingediende urenstaten één knop **"Keur alle N goed"** met de teller + het somtotaal (en een "wacht al lang"-
+  markering) — de opdrachtgever geeft de facturatie in één klik vrij (benchmark Temper/Bendy: bulk-goedkeuren
+  van uren).
+- **Hoe:** pure `src/lib/prestaties-bulk.ts` (`groupSubmittedForBulkApproval` groepeert de SUBMITTED-prestaties
+  per samenwerking, houdt alleen groepen ≥`BULK_APPROVE_MIN`=2 over, sorteert meeste-wachtende/hoogste-bedrag
+  eerst, `hasStale`-vlag via geïnjecteerde klok; 6 tests). Server-action `approveSubmittedPerformancesAction`
+  (`prestaties/actions.ts`): rol-poort (CLIENT/ADMIN) → eigenaar-gescoopte query (`collaboration.company.userId`,
+  `take 500`) → loop door de bestaande, geteste `approvePerformance`-cascade (auth→rol→ownership→transitie→audit→
+  dedupe per prestatie). Per-item try/catch: één falende prestatie (bv. dispuut-freeze) telt apart en sleept de
+  rest niet mee; revalidate van `/prestaties`+samenwerking+facturen+acties+dashboard. Client-component
+  `bulk-approve-panel.tsx` (useTransition, toont de uitkomst; server-side blijft de waarheid).
+- **Regels:** geen schemawijziging, geen nieuw enum/statusveld; hergebruikt volledig de bestaande cascade-command
+  (geen tweede goedkeur-pad). Dubbele eigenaarscontrole (query-scoping + `approvePerformance` her-checkt per
+  prestatie). Idempotent via de bestaande `dedupeKey`. +10 tests (6 pure + 4 authz).
+- **Gate groen:** typecheck ✓, lint ✓, **4093 unit-tests** ✓, build ✓, prettier ✓.
+- **Bestanden:** `src/lib/prestaties-bulk.ts` (+`.test.ts`), `src/app/(protected)/prestaties/actions.ts`
+  (+`bulk-approve-authz.test.ts`), `src/app/(protected)/prestaties/bulk-approve-panel.tsx`,
+  `src/app/(protected)/prestaties/page.tsx` (wiring).
+
 ## 2026-07-13 — Vacaturetempo-signaal op "Mijn opdrachten" (opdrachtgever)
 
 - **Wat:** de opdrachtgever-lijst "Mijn opdrachten" (`/opdrachten`, CLIENT-view) toonde per opdracht een
