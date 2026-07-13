@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — "Nog te factureren" geld-glance op het ZZP-dashboard (PR #749)
+
+- **Wat (ZZP'er, administratie-ontzorging — benchmark Bendy uren-naar-factuur):** een geaggregeerde
+  KPI-tegel **"Nog te factureren"** op het startscherm. Na goedkeuring van een prestatie ontstaat
+  automatisch een concept-factuur (`lifecycleStatus=DRAFT`) die de ZZP'er nog moet indienen (event C).
+  Dat "geld blijft liggen"-signaal stond alleen passief op `/prognose` (tegel zonder bedrag-op-startscherm)
+  en per samenwerking op `/acties` — nergens als één blik op het dashboard ("€X wacht op facturering,
+  N concept, oudste Y dagen"). De submit-actie leeft al in de next-action-rail; deze tegel voegt de
+  ontbrekende **bedrag-glance** toe (KPI's zijn niet klikbaar, dus geen dode knop).
+- **Hoe (server-side waarheid, cascade-bewust):** pure `src/lib/unbilled-invoices.ts`
+  (`summarizeUnbilledInvoices` → count/grossCents/oldestAgeDays/aging; lidmaatschap via de al-geteste,
+  cascade-bewuste `invoiceGroup` — dezelfde bron als de /facturen-"Concept"-pill, dus nooit uit de pas;
+  `UNBILLED_AGING_DAYS=7`; null zonder concept = geen ruis). Data-loader
+  `src/lib/data/unbilled-invoices.ts` (`getUnbilledInvoiceSummary`): één owner-gescoopte query, hard
+  begrensd tot concept-kandidaten (cascade-DRAFT + losse legacy-DRAFT), sluit bevroren (disputed)
+  samenwerkingen uit. Wiring in `dashboard/page.tsx` (FREELANCER-tak van de outer `Promise.all` + KPI-push
+  ná de geldpuls; `Receipt`-icoon; aging → deltaTone `warning`). Geen schemawijziging, geen nieuwe
+  mutatie/auth-surface, geen i18n-woordenboek aangeraakt (t() valt terug op de NL-brontekst).
+- **Tests:** `src/lib/unbilled-invoices.test.ts` — 7 cases (cascade-DRAFT telt, legacy-DRAFT telt,
+  SUBMITTED/APPROVED/OVERDUE/PAID uitgesloten, oudste ouderdom + aging-drempel, klok-smear klemt op 0).
+  Gate groen: typecheck, lint, **4045 unit-tests**, build, prettier.
+
 ## 2026-07-13 — Persona-sweep run 26: HIGH revenue-integriteitsgat in de betaal-webhook gefixt
 
 - **Wat (GEVONDEN + GEFIXT, HOOG):** de abonnement-overgangsmap stond `CANCELLED → ACTIVE` toe,

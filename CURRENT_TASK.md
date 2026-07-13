@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **"Nog te factureren" geld-glance op het ZZP-dashboard (2026-07-13, PR #749)** —
+> na goedkeuring van een prestatie ontstaat automatisch een concept-factuur (`lifecycleStatus=DRAFT`) die de
+> ZZP'er nog moet indienen (event C). Dat "geld blijft liggen"-signaal stond alleen passief op `/prognose` en
+> per samenwerking op `/acties`, nergens als één bedrag-op-het-startscherm (benchmark Bendy uren-naar-factuur).
+> Nu een KPI-tegel "Nog te factureren" (bruto bedrag + aantal concept + oudste-ouderdom als aging-signaal),
+> alleen bij ≥1 concept. Pure `src/lib/unbilled-invoices.ts` (`summarizeUnbilledInvoices`, lidmaatschap via de
+> cascade-bewuste `invoiceGroup` — dezelfde bron als de /facturen-"Concept"-pill; `UNBILLED_AGING_DAYS=7`; null
+> zonder concept; 7 tests) + data-loader `src/lib/data/unbilled-invoices.ts` (`getUnbilledInvoiceSummary`: één
+> owner-gescoopte query begrensd tot concept-kandidaten, sluit bevroren samenwerkingen uit) + wiring in
+> `dashboard/page.tsx` (KPI-push ná de geldpuls, `Receipt`-icoon, aging → warning-toon). KPI's zijn niet
+> klikbaar (geen dode knop); de submit-actie leeft al in de next-action-rail. Geen schemawijziging, geen nieuw
+> mutatie/auth-oppervlak, i18n-woordenboek niet aangeraakt. Gate groen (4045 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — go-live preflight-CLI (`npm run preflight`) (2026-07-13)** —
 > de productie-configuratie-posture was alleen zichtbaar via het in-app `/admin/systeemstatus`-scherm
 > (vereist draaiende server + admin-login). Nu ook een CLI go-live preflight die dezelfde gevalideerde
