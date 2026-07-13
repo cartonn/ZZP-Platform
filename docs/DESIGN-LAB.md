@@ -743,4 +743,44 @@ UI-taal = Nederlands.
   mechanische micro-interactie**; **bioluminescente bloom + breathing motion** (reduced-motion-bewust); en
   **limewash/matte kalkverf-oppervlakken** — elk onderscheidend gehouden van de bestaande 270 en AA-/reduced-
   motion-bewust.
-- **Totaal nu op `/ontwerp`: 280 concepten** (reeks 28: 271–280).
+- **Totaal na reeks 28 op `/ontwerp`: 280 concepten** (reeks 28: 271–280).
+
+## Reeks 29 (281–290) — cartografisch, broadsheet, spectrogram, blauwdruk, manuscript, origami, amber-CRT, herbarium, glas-in-lood, Zwitsers
+
+- **10 nieuwe richtingen toegevoegd** (append-only; niets van 01–280 gewijzigd):
+  - **281 Atlas** — cartografisch/topografisch (light): hoogtelijn-textuur + graticule-grid via CSS/SVG,
+    kaart-pins met plaatsnaam en coördinaat/reistijd-gevoel, gedempt survey-palet, navigatie als legenda (niet
+    Windroos/Portolaan — contour-kaart i.p.v. kompas/peiling).
+  - **282 Courant** — krant-broadsheet, redactioneel & dicht (light): masthead met haarlijnen, meerkoloms-
+    lay-out, drop caps, kolomscheidingslijnen, inkt-op-krantenpapier met één oxbloed-accent, beurspagina-tabel
+    (niet Folio — nieuwskrant/hoge dichtheid i.p.v. modeblad-luxe).
+  - **283 Spectraal** — audio-waveform/spectrogram data-viz (dark): equalizer-balken als KPI's, match-% als
+    amplitude, spectrogram-band als divider, cyaan→violet→magenta spectrum, gloed-op-hover (niet Beurs/Nebula —
+    geluids-/waveform-metafoor als signature).
+  - **284 Blauwdruk** — architecturale blauwdruk/technische tekening (dark blue): drafting-grid, maatvoerings-
+    pijlen naar labels, leader lines, revisie-titelblok, cyaan/wit lijnwerk op #0b2540 (niet Nebula — drafting/
+    wireframe-logic i.p.v. neon-cyber).
+  - **285 Perkament** — manuscript/vellum (warm light): geïllumineerde initiaal, lakzegel als verificatie-/
+    vertrouwenssymbool ("Bezegeld"), rode rubricering, ganzenveer-serif op sepia (niet Folio/Terra — historisch
+    manuscript-autoriteit).
+  - **286 Origami** — gevouwen papier/geometrische vouwen (light pastel): kaarten met clip-path vouwhoek en
+    gefacetteerde licht/schaduw-gradients, offset-vouwschaduw, crisp geometrische hoeken (niet Klei — gevouwen
+    facet-geometrie i.p.v. zacht 3D).
+  - **287 Amber** — CRT-terminal, amber-fosfor retro-futurist (dark): scanline-textuur, knipperende cursor,
+    status-ticker, box-drawing randen, command-prompt-UI, warm amber (geen groen/neon) (niet Nebula/Console —
+    amber-fosfor CRT als signature).
+  - **288 Herbarium** — botanische illustratie/herbarium-vel (light): crème papier + fijn raster, inline-SVG
+    plant-line-art, getypte soort-/classificatie-labels, gedroogd-plant-palet, serif+sans (niet Terra —
+    botanisch/herbarium met line-art i.p.v. warm-humanist).
+  - **289 Glas-in-lood** — gebrandschilderd raam/mozaïek (juweeltinten): gekleurde glasvlakken met loodlijn-
+    scheiding, robijn/saffier/smaragd/amber op donker loodwerk, venster-compositie, statuskleuren als glas
+    (niet Terrazzo/Delft — glas-in-lood met loodlijnen).
+  - **290 Zwitsers** — International Typographic Style/Swiss grid revival (light): streng zichtbaar raster,
+    grote index-numerals, flush-left grotesk, hiërarchie via type/witruimte, monochroom + één felrood (niet
+    Puls — puur Zwitsers i.p.v. kleurblokken).
+- Onderzochte 2026-trends deze reeks: **editorial/broadsheet-split (cream+serif vs techno-futurist)**;
+  **cartografische/kaart-gestuurde interfaces**; **wireframe-logic/blueprint als eindontwerp**; **waveform/
+  spectrogram data-viz**; **retro-futurisme & CRT-amber-fosfor**; **botanische line-art & herbarium**;
+  **glas-in-lood/mozaïek-compositie**; **Swiss grid revival (8pt-raster, grotesk, flush-left)** — elk
+  onderscheidend gehouden van de bestaande 280 en AA-/reduced-motion-bewust.
+- **Totaal nu op `/ontwerp`: 290 concepten** (reeks 29: 281–290).

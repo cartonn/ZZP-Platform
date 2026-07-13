@@ -4732,6 +4732,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#2f2a26",
     available: true,
   },
+  // ── Reeks (run 13-7-2026) — nrs 281–290, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "281",
+    name: "Atlas",
+    direction: "Cartografisch — topografische kaart-UI (light)",
+    rationale:
+      "De interface als landkaart: fijne contourlijnen, een graticule-grid en kaart-pins per opdracht in een gedempt survey-palet. Navigatie leest als een legenda, afstand en plaats worden ruimtelijk voelbaar — oriëntatie zonder rommel.",
+    trends: [
+      "Cartografische / kaart-gestuurde interfaces",
+      "Contourlijnen & graticule als textuur",
+      "Ruimtelijke oriëntatie (pins, coördinaten)",
+    ],
+    fonts: "Space Grotesk + JetBrains Mono",
+    accent: "#3f7d5c",
+    bg: "#f4f1e8",
+    fg: "#22271f",
+    available: true,
+  },
+  {
+    id: "282",
+    name: "Courant",
+    direction: "Krant-broadsheet — redactioneel & dicht (light)",
+    rationale:
+      "Een Nederlandse kwaliteitskrant als software: masthead met haarlijnen, dichte meerkoloms-lay-out, drop caps en kolomregels op warm krantenpapier met één oxbloed-accent. Maximale informatiedichtheid met redactionele autoriteit en rust.",
+    trends: [
+      "Editorial broadsheet / nieuws-lay-out",
+      "Meerkoloms-raster + drop caps",
+      "Typografie-eerst, hoge dichtheid",
+    ],
+    fonts: "Newsreader + Libre Franklin",
+    accent: "#8c2a24",
+    bg: "#f7f4ec",
+    fg: "#1c1a16",
+    available: true,
+  },
+  {
+    id: "283",
+    name: "Spectraal",
+    direction: "Audio-waveform — spectrogram data-viz (dark)",
+    rationale:
+      "Een donker podium waar data als geluid verschijnt: equalizer-balken als KPI's, een spectrogram-band als scheiding en match-% als amplitude, met een spectrum-gradiënt van cyaan naar magenta. Voortgang wordt letterlijk voelbaar zonder decoratieve ruis.",
+    trends: [
+      "Waveform / spectrogram als data-viz",
+      "Spectrum-gradiënt & gloed-op-hover",
+      "Donker podium met mono-cijfers",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#38e1d0",
+    bg: "#0a0d14",
+    fg: "#e6f1f4",
+    available: true,
+  },
+  {
+    id: "284",
+    name: "Blauwdruk",
+    direction: "Architecturale blauwdruk — technische tekening (dark)",
+    rationale:
+      "Cyaan lijnwerk op diep blauwdruk-blauw: een drafting-grid, maatvoeringspijlen naar labels en een revisie-titelblok. Wireframe-logica als eindontwerp — alles oogt geconstrueerd en uitgemeten, technisch vertrouwen zonder neon-drukte.",
+    trends: [
+      "Wireframe-logic als eindontwerp",
+      "Drafting-grid & maatvoering",
+      "Technische annotatie / titelblok",
+    ],
+    fonts: "Spline Mono + Geist",
+    accent: "#5ec8ff",
+    bg: "#0b2540",
+    fg: "#dcefff",
+    available: true,
+  },
+  {
+    id: "285",
+    name: "Perkament",
+    direction: "Manuscript — vellum & lakzegel (warm light)",
+    rationale:
+      "Vertrouwen via eeuwenoude document-autoriteit: warm vellum, een geïllumineerde initiaal, rode rubricering en een lakzegel als verificatie-symbool. De verificatielaag wordt een zegel van echtheid — plechtig, leesbaar en betrouwbaar rond gevoelige documenten.",
+    trends: [
+      "Historisch manuscript / vellum-textuur",
+      "Zegel-/rubricatie-motief voor vertrouwen",
+      "Elegante serif als hoofdrolspeler",
+    ],
+    fonts: "Cormorant + Newsreader",
+    accent: "#9a2b1f",
+    bg: "#f0e6d2",
+    fg: "#2c241a",
+    available: true,
+  },
+  {
+    id: "286",
+    name: "Origami",
+    direction: "Gevouwen papier — geometrische vouwen (light pastel)",
+    rationale:
+      "Gevouwen-papier-esthetiek: kaarten met scherpe diagonale vouwlijnen, gelaagde papiervlakken en zachte facet-schaduw langs de vouwrand in een pastel-palet. Speels-tactiel maar crisp en geordend — lichtheid zonder in te leveren op structuur.",
+    trends: [
+      "Gevouwen papier / facet-geometrie",
+      "Gelaagde vlakken met offset-schaduw",
+      "Pastel + crisp geometrische hoeken",
+    ],
+    fonts: "Plus Jakarta Sans + Manrope",
+    accent: "#f0798f",
+    bg: "#f4f1f7",
+    fg: "#2b2833",
+    available: true,
+  },
+  {
+    id: "287",
+    name: "Amber",
+    direction: "CRT-terminal — amber-fosfor retro-futurist (dark)",
+    rationale:
+      "Een warme amber-fosfor terminal op void-zwart: scanline-textuur, knipperende cursor, monospace en een status-ticker met command-prompt-gevoel. Retro-futurisme dat leesbaar en toegankelijk blijft — technisch, nostalgisch en scherp.",
+    trends: [
+      "Retro-futurisme / CRT-amber-fosfor",
+      "Scanlines & command-prompt-UI",
+      "Mono-ritme met status-ticker",
+    ],
+    fonts: "IBM Plex Mono + Space Mono",
+    accent: "#ffb000",
+    bg: "#0a0806",
+    fg: "#ffcf7a",
+    available: true,
+  },
+  {
+    id: "288",
+    name: "Herbarium",
+    direction: "Botanische illustratie — herbarium-vel (light)",
+    rationale:
+      "Een herbarium-vel als interface: crème papier met fijn raster, lijngetekende plant-motieven en getypte soort-labels in een gedroogd-plant-palet. Wetenschappelijk-elegant en rustig — natuurlijk vertrouwen met classificatie-helderheid.",
+    trends: [
+      "Botanische line-art / herbarium",
+      "Getypte classificatie-labels",
+      "Natuurpalet, wetenschappelijke rust",
+    ],
+    fonts: "Newsreader + Libre Franklin",
+    accent: "#3d6b3a",
+    bg: "#f3efe2",
+    fg: "#28291f",
+    available: true,
+  },
+  {
+    id: "289",
+    name: "Glas-in-lood",
+    direction: "Gebrandschilderd raam — mozaïek (juweeltinten)",
+    rationale:
+      "Gekleurde glasvlakken gescheiden door loodlijnen: juweeltinten (robijn, saffier, smaragd, amber) op donker loodwerk, met een venster-compositie waarin statuskleuren als glas oplichten. Decoratief-elegant maar strak geordend, contrast strikt bewaakt.",
+    trends: [
+      "Glas-in-lood / mozaïek-compositie",
+      "Juweeltinten met loodlijn-scheiding",
+      "Venster-raster als layout-principe",
+    ],
+    fonts: "Cormorant + Geist",
+    accent: "#c8892a",
+    bg: "#141019",
+    fg: "#f0e9df",
+    available: true,
+  },
+  {
+    id: "290",
+    name: "Zwitsers",
+    direction: "International Typographic Style — Swiss grid (light)",
+    rationale:
+      "Puur Zwitsers: een streng zichtbaar raster, één grotesk, flush-left uitlijning en hiërarchie enkel via type-grootte, gewicht en witruimte, met één fel rood accent en grote indexnummers. Tijdloos, informatie-eerst, geen decoratie.",
+    trends: [
+      "Swiss grid revival / 8pt-raster",
+      "Grotesk + flush-left, monochroom",
+      "Hiërarchie via type & witruimte",
+    ],
+    fonts: "Geist + JetBrains Mono",
+    accent: "#e2231a",
+    bg: "#fbfbfa",
+    fg: "#121212",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);

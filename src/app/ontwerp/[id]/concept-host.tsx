@@ -847,6 +847,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "280": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-280-kalkverf").then((m) => m.Concept280),
   ),
+  "281": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-281-atlas").then((m) => m.Concept281),
+  ),
+  "282": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-282-courant").then((m) => m.Concept282),
+  ),
+  "283": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-283-spectraal").then((m) => m.Concept283),
+  ),
+  "284": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-284-blauwdruk").then((m) => m.Concept284),
+  ),
+  "285": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-285-perkament").then((m) => m.Concept285),
+  ),
+  "286": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-286-origami").then((m) => m.Concept286),
+  ),
+  "287": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-287-amber").then((m) => m.Concept287),
+  ),
+  "288": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-288-herbarium").then((m) => m.Concept288),
+  ),
+  "289": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-289-glasinlood").then((m) => m.Concept289),
+  ),
+  "290": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-290-zwitsers").then((m) => m.Concept290),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

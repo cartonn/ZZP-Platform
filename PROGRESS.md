@@ -147,6 +147,22 @@
 - **Checks:** `typecheck` ✓ · `lint` ✓ (0 warnings) · `test` ✓ (3980 passed, +5 voor `competitionChip`) ·
   `prettier --check .` ✓ · `build` ✓. Volgende stap: PR → CI-poort (6 checks) → auto-merge.
 
+## 2026-07-13 — Ontwerp-lab reeks 29: +10 concepten (281–290), totaal 290
+
+- **Wat:** 10 nieuwe redesign-concepten toegevoegd aan `/ontwerp` (append-only, niets van 01–280 gewijzigd):
+  281 Atlas (cartografisch/topografisch), 282 Courant (krant-broadsheet, redactioneel-dicht),
+  283 Spectraal (audio-waveform/spectrogram data-viz), 284 Blauwdruk (architecturale technische tekening),
+  285 Perkament (manuscript/vellum + lakzegel-verificatie), 286 Origami (gevouwen papier/facet-geometrie),
+  287 Amber (amber-fosfor CRT-terminal), 288 Herbarium (botanische line-art/herbarium-vel),
+  289 Glas-in-lood (mozaïek met loodlijnen/juweeltinten), 290 Zwitsers (International Typographic Style /
+  Swiss grid). Galerij groeit van 280 → **290**.
+- **Hoe:** 4 parallelle builders op niet-overlappende `concept-28x/290-*.tsx`-bestanden; orchestrator
+  koppelde ze additief in `registry.ts` (10 ConceptMeta-entries) + `[id]/concept-host.tsx` (10 lazy
+  `dynamic()`-imports). Elk concept dekt de 6 kernschermen, status als label+icoon, loading/empty/error,
+  responsive, toegankelijk; alleen imports uit `react`/`lucide-react`/`./mock`; UI Nederlands, geen "AI".
+- **Checks:** `typecheck` ✓ · `lint` ✓ (No ESLint warnings or errors) · `test` ✓ (4003 passed) ·
+  `build` ✓ · `prettier --check .` ✓. Volgende stap: PR → CI-poort (6 checks) → auto-merge.
+
 ## 2026-07-12 — Ontwerp-lab reeks 28: +10 concepten (271–280), totaal 280
 
 - **Wat:** 10 nieuwe redesign-concepten toegevoegd aan `/ontwerp` (append-only, niets van 01–270 gewijzigd):
