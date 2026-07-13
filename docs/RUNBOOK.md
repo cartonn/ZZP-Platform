@@ -44,6 +44,18 @@
 **Normale flow (aanbevolen):** merge een PR naar `main` na een groene CI-poort. Railway bouwt en
 deployt automatisch. Geen handmatige stap.
 
+**Vooraf (optioneel) — go-live preflight:** draai `npm run preflight` (of tegen de deploy-config
+`railway run npm run preflight`) om de configuratie-posture buiten de app te controleren zonder een
+draaiende server + admin-login. Het rapport toont per onderdeel (opslag, database, e-mail, betalingen,
+verificatie-adapters, upload-scan, rate-limit-store, error-monitoring, taak-cron, deel-token-sleutel,
+webadres, onderhoudsmodus, …) of het productie-klaar is (`[ ok ]`), op een veilige fallback draait
+(`[info]`) of aandacht vraagt vóór livegang (`[ !! ]`), plus de boot-waarschuwingen en een
+GO/NO-GO-oordeel. Exitcodes: `0` ok · `1` aandachtspunt in `--strict` · `2` ongeldige/ontbrekende
+basisconfig (dan zou de boot óók falen). Vlaggen: `--strict` (aandachtspunten/waarschuwingen laten
+de preflight falen — handig als CI-poort), `--json` (machineleesbaar). Toont **nooit** sleutelwaarden;
+hergebruikt dezelfde gevalideerde logica als de boot (`validateEnv`) en `/admin/systeemstatus`
+(`collectSystemStatus`).
+
 **Verifiëren na een deploy:**
 
 1. Wacht tot Railway "Success" toont.

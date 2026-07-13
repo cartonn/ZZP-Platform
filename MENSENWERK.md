@@ -635,6 +635,18 @@ een waarschuwing zolang hij aan staat en toont `/admin/systeemstatus` "Onderhoud
 (aandacht). Zie RUNBOOK §9. Resterend mensenwerk: **niets voor de pilot** — zet de variabele alleen
 wanneer je bewust onderhoud doet, en vergeet niet 'm daarna weer uit te zetten.
 
+**Code-kant GEDAAN (13-7-2026) — go-live preflight-CLI:** naast het in-app `/admin/systeemstatus`-scherm
+kun je de productie-configuratie-posture nu ook **buiten de app** controleren met `npm run preflight`
+(tegen de deploy-config: `railway run npm run preflight`) — zonder een draaiende server + admin-login.
+Het rapport toont per onderdeel (opslag, database, e-mail, betalingen, verificatie-adapters,
+upload-scan, rate-limit-store, error-monitoring, taak-cron, deel-token-sleutel, webadres,
+onderhoudsmodus, indexering, beveiligingscontact) of het productie-klaar is, op een veilige fallback
+draait of aandacht vraagt vóór livegang, plus de boot-waarschuwingen en een GO/NO-GO-oordeel. Draait de
+al-gevalideerde boot-logica (`validateEnv`) + posture (`collectSystemStatus`), toont **nooit**
+sleutelwaarden. Exitcodes: `0` ok · `1` aandachtspunt in `--strict` (bruikbaar als CI/go-live-poort) ·
+`2` ongeldige/ontbrekende basisconfig. `--json` geeft een machineleesbaar rapport. Zie RUNBOOK §3.
+Resterend mensenwerk: **niets** — het is een operator-hulpmiddel bij het afvinken van de stappen hieronder.
+
 **Resterend mensenwerk (eenmalig):**
 
 1. Zet **automatische dagelijkse database-back-ups** aan bij je databasedienst (EU-regio; §1b) en

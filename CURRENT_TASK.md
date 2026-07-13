@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — go-live preflight-CLI (`npm run preflight`) (2026-07-13)** —
+> de productie-configuratie-posture was alleen zichtbaar via het in-app `/admin/systeemstatus`-scherm
+> (vereist draaiende server + admin-login). Nu ook een CLI go-live preflight die dezelfde gevalideerde
+> boot-logica (`validateEnv`) + posture (`collectSystemStatus`) **buiten de app** draait, zodat de
+> operator vóór/tijdens de deploy (`railway run npm run preflight`) of in CI een duidelijk GO/NO-GO-
+> oordeel krijgt. Rapporteert per onderdeel `[ ok ]`/`[info]`/`[ !! ]` + boot-waarschuwingen; toont
+> nooit sleutelwaarden. Exit `0`/`1` (--strict poort)/`2` (ongeldige basisconfig); `--json` machineleesbaar.
+> Pure `src/lib/ops/preflight.ts` (10 tests, incl. PII-lek-guard) + `scripts/preflight.ts` (tsx) +
+> `package.json`-script; RUNBOOK §3 + MENSENWERK §11 bijgewerkt. Geen schemawijziging, geen nieuwe env-var,
+> read-only inspectie (geen productie-oppervlak/mutatie geraakt). Gate groen.
+>
 > Gedaan (niet opnieuw): **Reputatie + eerder-samengewerkt in de kandidaat-vergelijker (opdrachtgever)
 > (2026-07-12)** — de side-by-side kandidaat-vergelijker (`/kandidaten/vergelijk`) toonde match, tarief,
 > vertrouwen, compliance, leverbetrouwbaarheid, beschikbaarheid en reistijd, maar niet de twee sterkste
