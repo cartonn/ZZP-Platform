@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckChip } from "@/components/ui/check-chip";
 import { Field } from "@/components/ui/field";
@@ -18,6 +18,8 @@ import {
 import { assessRateThreshold, rechtsvermoedenHint } from "@/lib/rechtsvermoeden";
 import { groupSkillsByCategory, type SkillOption } from "@/lib/skill-categories";
 import { JobRateBandCard } from "@/components/jobs/job-rate-band-card";
+import { JobQualityMeter } from "@/components/jobs/job-quality-meter";
+import { assessJobQuality, type JobQuality } from "@/lib/job-quality";
 import { type MarketBand } from "@/lib/market-rate";
 import { type CredentialType } from "@/lib/enums";
 import { cn } from "@/lib/utils";
@@ -141,6 +143,50 @@ export function JobForm({
 
   const skillOptions: SkillOption[] = skills.map((s) => ({ value: s.id, label: s.name }));
 
+  // Live kwaliteitsmeter: herbereken de pure `assessJobQuality` uit de actuele formulierstaat
+  // (via FormData zodat óók de skill-chips en losse velden meetellen), zodat de opdrachtgever
+  // meteen ziet hoe compleet/aantrekkelijk de plaatsing is. Puur advies — geen server-effect.
+  const parseRateEuro = (raw: string): number | null =>
+    raw !== "" && Number.isFinite(Number(raw)) ? Number(raw) : null;
+
+  const [quality, setQuality] = useState<JobQuality>(() => {
+    const band = (initial.industryId && rateBands[initial.industryId]) || platformRateBand;
+    return assessJobQuality({
+      title: initial.title,
+      description: initial.description,
+      rateMinEuro: parseRateEuro(initial.rateMin),
+      industryId: initial.industryId,
+      location: initial.location,
+      workMode: initial.workMode,
+      startDate: initial.startDate,
+      requiredSkillCount: initial.requiredSkillIds.length,
+      marketMedianEuro: band.median,
+    });
+  });
+
+  const recomputeQuality = useCallback(() => {
+    const form = formRef.current;
+    if (!form) return;
+    const fd = new FormData(form);
+    const get = (key: string): string => String(fd.get(key) ?? "");
+    const industry = get("industryId");
+    const band = (industry && rateBands[industry]) || platformRateBand;
+    setQuality(
+      assessJobQuality({
+        title: get("title"),
+        description: get("description"),
+        rateMinEuro: parseRateEuro(get("rateMin")),
+        industryId: industry,
+        location: get("location"),
+        workMode: get("workMode"),
+        startDate: get("startDate"),
+        requiredSkillCount: fd.getAll("requiredSkillIds").filter((v) => String(v).trim() !== "")
+          .length,
+        marketMedianEuro: band.median,
+      }),
+    );
+  }, [rateBands, platformRateBand]);
+
   // Live rechtsvermoeden-drempelcheck op het minimumtarief (pure functie, centen).
   const rateMinCents = rateMin !== "" ? Number(rateMin) * 100 : null;
   const rateThreshold = assessRateThreshold(rateMinCents);
@@ -183,7 +229,13 @@ export function JobForm({
   });
 
   return (
-    <form ref={formRef} action={formAction} noValidate className="space-y-6">
+    <form
+      ref={formRef}
+      action={formAction}
+      onChange={recomputeQuality}
+      noValidate
+      className="space-y-6"
+    >
       {initial.id && <input type="hidden" name="jobId" value={initial.id} />}
 
       <div className="space-y-1 border-b border-border pb-2">
@@ -285,6 +337,8 @@ export function JobForm({
       </div>
 
       <JobRateBandCard band={rateBand} rateMin={rateMinEuro} />
+
+      <JobQualityMeter quality={quality} />
 
       <div className="space-y-1 border-b border-border pb-2 pt-2">
         <h2 className="text-sm font-semibold tracking-tight">Eisen aan de ZZP&apos;er</h2>
