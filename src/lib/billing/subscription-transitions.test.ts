@@ -8,11 +8,19 @@ import { canSubscriptionTransition } from "@/lib/billing/subscription-transition
 
 describe("canSubscriptionTransition", () => {
   it("staat de overgangen toe die de webhook uitvoert", () => {
-    // paid → ACTIVE vanaf elke huidige bron; failed → PAST_DUE vanaf PENDING.
+    // paid → ACTIVE vanaf een openstaande/afgekeurde betaling; failed → PAST_DUE vanaf PENDING.
     expect(canSubscriptionTransition("PENDING", "ACTIVE")).toBe(true);
     expect(canSubscriptionTransition("PAST_DUE", "ACTIVE")).toBe(true);
-    expect(canSubscriptionTransition("CANCELLED", "ACTIVE")).toBe(true);
     expect(canSubscriptionTransition("PENDING", "PAST_DUE")).toBe(true);
+  });
+
+  it("weigert CANCELLED → ACTIVE (geen gratis heractivatie via een herspeelde providerRef)", () => {
+    // De expiry-taak zet een verlopen abonnement op CANCELLED zonder de providerRef te wissen; met een
+    // ongesigneerde (Mollie-)webhook zou het herspelen van die oude, permanent-"paid" referentie het
+    // abonnement anders telkens gratis heractiveren. Heractiveren vereist een verse PENDING-checkout.
+    expect(canSubscriptionTransition("CANCELLED", "ACTIVE")).toBe(false);
+    // Her-aanmelding start altijd op PENDING (nieuwe betaling), niet direct op ACTIVE.
+    expect(canSubscriptionTransition("CANCELLED", "PENDING")).toBe(true);
   });
 
   it("is fail-closed: een onbekende/ongeldige bronstatus levert geen enkele overgang op", () => {

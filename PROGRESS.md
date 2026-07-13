@@ -3,6 +3,40 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Persona-sweep run 26: HIGH revenue-integriteitsgat in de betaal-webhook gefixt
+
+- **Wat (GEVONDEN + GEFIXT, HOOG):** de abonnement-overgangsmap stond `CANCELLED → ACTIVE` toe,
+  waardoor een **herspeelde/late betaal-webhook een geannuleerd of verlopen abonnement gratis kon
+  heractiveren** — herhaalbaar, onbeperkt. Repro: (1) betaald abonnement → `Subscription{status:ACTIVE,
+providerRef:"tr_X"}`; (2) `runSubscriptionExpiryTask` zet na afloop `status:CANCELLED,
+currentPeriodEnd:null` **zonder de `providerRef` te wissen** (`subscription-expiry-task.ts:106`);
+  (3) Mollie ondertekent zijn webhook niet (`resolveWebhookRef` haalt enkel de id uit de body), dus
+  `POST /api/billing/webhook` met de oude `tr_X` → route zoekt de sub op de `providerRef`, `paymentStatus("tr_X")`
+  geeft gezaghebbend permanent `"paid"` (een echt betaalde historische transactie kantelt nooit terug),
+  `canSubscriptionTransition("CANCELLED","ACTIVE")` was `true` → sub weer `ACTIVE` met een verse +1
+  maand-periode, **zonder nieuwe betaling**. Latent zolang de mock/Noop-provider draait, maar een
+  revenue-lek zodra een echte `MOLLIE_API_KEY` live gaat (blocker vóór echte billing, MENSENWERK §3).
+- **Geschonden regel:** CLAUDE.md architectuurregel 3 (statusovergangen via een expliciete map;
+  een ongeldige/onveilige overgang moet worden geweigerd). #745 beoogde exact deze klasse te dichten
+  maar liet de overgang in de map staan (de code-comment noemde het verwijderen ervan als openstaand).
+- **Fix (minimale, bron-van-waarheid):** `SUBSCRIPTION_TRANSITIONS.CANCELLED` van `["PENDING","ACTIVE"]`
+  → `["PENDING"]` (`src/lib/enums.ts`). Heractiveren vereist nu altijd een **verse checkout**
+  (`changeSubscription` → `PENDING` met een **nieuwe** `providerRef` → `PENDING→ACTIVE`); de gratis/mock-
+  activatie doet een directe upsert buiten de map om, dus geen legitiem pad brak. De webhook respecteert
+  dit automatisch via `canSubscriptionTransition`. Comments in `enums.ts` + `subscription-transitions.ts`
+  bijgewerkt.
+- **Tests (rood→groen):** `subscription-transitions.test.ts` — `CANCELLED→ACTIVE` nu `false`,
+  `CANCELLED→PENDING` `true`; `webhook/route.test.ts` — nieuwe regressietest: CANCELLED-sub + herspeelde
+  `"paid"`-ref → **geen** `update`/`audit`. +2 netto tests.
+- **Checks:** typecheck ✓, lint ✓ (0 warnings), test **4026** ✓, prettier `--check .` ✓, build ✓.
+- **Sweep-scope (4 rollen, live + adversarieel):** DOEL 1 admin-goedkeuring 6→5 (keten werkt); DOEL 1b
+  `/acties` per rol consistent met badges/DB; DOEL 2 privilege-escalatie/IDOR/cross-tenant/junk-id/forged-
+  webhook/cron alle correct geweigerd, 0× HTTP-500. Alleen dit ene gat gevonden. Details in
+  `docs/PERSONA-SWEEP-BACKLOG.md` (run 26).
+- **Geparkeerd — MED (backlog):** verwante replay-vector `PAST_DUE → ACTIVE` via dezelfde niet-geroteerde
+  `providerRef`; robuuste sluiting = "verbruikte providerRef"-tracking, hoort bij het recurring-billing-
+  ontwerp (MENSENWERK). Zie backlog.
+
 ## 2026-07-13 — Geldpuls met maandtrend op het dashboard (ZZP'er + opdrachtgever)
 
 - **Wat:** de kern-geldgetallen op het startscherm (`/dashboard`) misten tijdcontext en trend. De

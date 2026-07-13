@@ -8,9 +8,9 @@ import { SUBSCRIPTION_TRANSITIONS, type SubscriptionStatus } from "@/lib/enums";
 /**
  * Is `to` een toegestane vervolgstatus vanaf `from` volgens `SUBSCRIPTION_TRANSITIONS`?
  * Fail-closed: een onbekende/ongeldige bronstatus levert geen enkele geldige overgang op. Zo blijft
- * elke schrijver gebonden aan één bron van waarheid; wordt de map ooit aangescherpt (bv. CANCELLED →
- * ACTIVE verwijderd zodat een herspeelde/late 'paid'-webhook een geannuleerd abonnement niet
- * stilzwijgend heractiveert), dan respecteert een pad dat deze helper gebruikt dat automatisch.
+ * elke schrijver gebonden aan één bron van waarheid. CANCELLED → ACTIVE is uit de map verwijderd,
+ * zodat een herspeelde/late 'paid'-webhook een geannuleerd/verlopen abonnement niet stilzwijgend
+ * gratis heractiveert; de webhook respecteert dat automatisch via deze helper.
  */
 export function canSubscriptionTransition(from: string, to: SubscriptionStatus): boolean {
   return (SUBSCRIPTION_TRANSITIONS[from as SubscriptionStatus] ?? []).includes(to);
