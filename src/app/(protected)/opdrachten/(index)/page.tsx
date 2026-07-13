@@ -7,6 +7,7 @@ import {
   ChevronRight,
   MapPin,
   Minus,
+  Navigation,
   Plus,
   SearchX,
   Users,
@@ -37,6 +38,12 @@ import { withParams } from "@/components/admin/base-path";
 import { plural } from "@/lib/plural";
 import { summarizeJobPipeline } from "@/lib/job-pipeline";
 import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition";
+import {
+  type CandidateProximity,
+  classifyCandidateProximity,
+  proximityLabel,
+  PROXIMITY_TONE_CLASS,
+} from "@/lib/candidate-proximity";
 import {
   JOB_STATUS_FILTER_LABEL,
   JOB_STATUS_FILTER_ORDER,
@@ -374,6 +381,23 @@ async function BrowseJobs({
     }
   }
 
+  // Reistijdsignaal per zichtbare opdracht (alleen ZZP'er met een bekende eigen plaats): hoe ver reist
+  // de ZZP'er naar de opdracht-locatie? Spiegelbeeld van het reistijdsignaal dat de opdrachtgever al op
+  // /kandidaten ziet, nu op de eigen triage-lijst — commuteerbare opdrachten in één oogopslag. REMOTE of
+  // een onbekende plaats aan één van beide kanten → geen chip (nooit misleidend). Geen extra query:
+  // job.location/workMode én de eigen profiel-locatie zijn al geladen.
+  const proximityByJob = new Map<string, CandidateProximity>();
+  if (profile?.location) {
+    for (const job of visibleJobs) {
+      const proximity = classifyCandidateProximity({
+        jobWorkMode: job.workMode,
+        jobLocation: job.location,
+        candidateLocation: profile.location,
+      });
+      if (proximity) proximityByJob.set(job.id, proximity);
+    }
+  }
+
   // Bij match-sortering pagineren we de in het geheugen gerangschikte (begrensde) set; anders de
   // volledige databanktelling. `total` blijft de eerlijke "gevonden"-teller in de kop.
   const paginationTotal = effectiveMatchSort ? jobs.length : total;
@@ -443,6 +467,21 @@ async function BrowseJobs({
                         </span>
                       )}
                       <span>{t(WORK_MODE[job.workMode as WorkMode])}</span>
+                      {(() => {
+                        const proximity = proximityByJob.get(job.id);
+                        if (!proximity) return null;
+                        return (
+                          <span
+                            className={[
+                              "inline-flex items-center gap-1",
+                              PROXIMITY_TONE_CLASS[proximity.level],
+                            ].join(" ")}
+                          >
+                            <Navigation className="size-3" aria-hidden />{" "}
+                            {proximityLabel(proximity)}
+                          </span>
+                        );
+                      })()}
                       {job.industry && <span>{job.industry.name}</span>}
                       {(() => {
                         const start = jobStartProximity(job.startDate, now);
