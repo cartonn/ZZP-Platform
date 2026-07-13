@@ -8,6 +8,8 @@
 
 import { P, type NextActionTone } from "@/lib/next-actions";
 import { plural } from "@/lib/plural";
+import { formatEuro } from "@/lib/invoices";
+import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
 
 export type TaskTone = NextActionTone;
 
@@ -59,6 +61,7 @@ export type PendingTask =
   | (TaskBase & { kind: "admin-support-ticket"; ticketId: string })
   | (TaskBase & { kind: "no-show-warning" })
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
+  | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
   | (TaskBase & { kind: "applications-review" })
   | (TaskBase & { kind: "availability-refresh" })
   | (TaskBase & { kind: "draft-jobs" })
@@ -560,6 +563,45 @@ export function franchiseCredentialExpiryTask(
 }
 
 /** Leads waarvan de geplande opvolgdatum is verstreken (acquisitie-nudge voor de bemiddelaar). */
+const QUARTER_ORDINAL = ["1e", "2e", "3e", "4e"] as const;
+const VAT_DEADLINE_DATE = new Intl.DateTimeFormat("nl-NL", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
+
+/**
+ * BTW-aangifte-deadline als taak: het meest recent afgesloten kwartaal moet uiterlijk op de
+ * indieningsdatum aangegeven én betaald zijn. Verschijnt alleen wanneer de deadline nadert of
+ * verstreken is en er een saldo te melden is (zie `vatDeadlineNeedsAction`). Deep-link naar de
+ * boekhouding, waar het kwartaalsaldo en de aangifte-details staan. Geen fiscaal advies.
+ */
+export function vatDeadlineTask(summary: VatDeadlineSummary): PendingTask {
+  const qLabel = `${QUARTER_ORDINAL[summary.quarter - 1]} kwartaal ${summary.year}`;
+  const amount =
+    summary.balanceCents >= 0
+      ? `${formatEuro(summary.balanceCents)} af te dragen`
+      : `${formatEuro(-summary.balanceCents)} terug te vorderen`;
+  const timing =
+    summary.status === "overdue"
+      ? `${plural(Math.abs(summary.daysUntil), "dag", "dagen")} te laat`
+      : summary.daysUntil <= 0
+        ? `uiterlijk vandaag (${VAT_DEADLINE_DATE.format(summary.deadline)})`
+        : `voor ${VAT_DEADLINE_DATE.format(summary.deadline)} · nog ${plural(summary.daysUntil, "dag", "dagen")}`;
+  return {
+    kind: "vat-deadline",
+    id: `vat-deadline:${summary.year}-Q${summary.quarter}`,
+    title: `BTW-aangifte ${qLabel}`,
+    subtitle: `${timing} · ${amount}`,
+    tone: "attention",
+    priority: summary.status === "overdue" ? P.vatDeadlineOverdue : P.vatDeadlineDueSoon,
+    resolver: "link", // aangifte doe je bij de Belastingdienst; hier de boekhouding met de cijfers
+    href: "/administratie",
+    year: summary.year,
+    quarter: summary.quarter,
+  };
+}
+
 export function franchiseLeadFollowupTask(count: number): PendingTask {
   return {
     kind: "franchise-lead-followup",
