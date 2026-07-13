@@ -175,13 +175,19 @@ export const subscriptionStatusSchema = z.enum(SUBSCRIPTION_STATUSES);
 
 // Expliciete overgangsmap (CLAUDE.md regel 3). PAST_DUE → ACTIVE = betaling hersteld,
 // PAST_DUE → CANCELLED = na de herinneringsladder teruggezet naar Gratis (geen actief plan).
-// CANCELLED → PENDING/ACTIVE = her-aanmelding: een eerder geannuleerd/afgewaardeerd abonnement kan
-// opnieuw worden gestart (de activate-flow doet dit al; de map sluit nu aan op dat gewenste gedrag).
+// CANCELLED → PENDING = her-aanmelding: een eerder geannuleerd/verlopen abonnement wordt opnieuw
+// gestart via een VERSE checkout (`changeSubscription` zet PENDING met een nieuwe providerRef; de
+// gratis/mock-activatie doet een directe upsert buiten deze map om). CANCELLED → ACTIVE is BEWUST
+// verwijderd: de betaal-webhook is de enige map-gebonden schrijver naar ACTIVE, en Mollie ondertekent
+// zijn webhook niet — met CANCELLED → ACTIVE kon het herspelen van een oude, permanent-"paid"
+// providerRef een verlopen/geannuleerd abonnement telkens opnieuw gratis heractiveren (de
+// expiry-taak zet CANCELLED zonder de providerRef te wissen). Heractiveren vereist nu altijd een
+// nieuwe betaling (PENDING → ACTIVE), nooit het herspelen van een reeds verbruikte referentie.
 export const SUBSCRIPTION_TRANSITIONS: Record<SubscriptionStatus, readonly SubscriptionStatus[]> = {
   PENDING: ["ACTIVE", "PAST_DUE", "CANCELLED"],
   ACTIVE: ["PAST_DUE", "CANCELLED"],
   PAST_DUE: ["ACTIVE", "CANCELLED"],
-  CANCELLED: ["PENDING", "ACTIVE"],
+  CANCELLED: ["PENDING"],
 };
 
 // --- Tenant-billing (franchise-monetisatie, 3+1 hybride: abonnement per vestiging + transactie-fee

@@ -1,5 +1,69 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-13 (run 26) · **main-commit basis:** `6c89a68`
+> **Uitkomst:** **1 HOOG revenue-integriteitsgat gevonden én OPGELOST** (betaal-webhook: herspeelde
+> `providerRef` heractiveerde een geannuleerd/verlopen abonnement gratis). Verse prod-build
+> (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`) op ephemere SQLite
+> (`qa.db`), prod-server (`next start`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`,
+> `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte formulier (`demo1234`); Playwright met
+> de vooraf-geïnstalleerde Chromium (`chromium-1194`). Eén parallelle Opus-security-subagent over de
+> diff sinds run 25 (`c56addd..HEAD`, #738–#747).
+>
+> **DOEL 1 (echte actie, live geverifieerd):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties`
+> → Goedkeuren-knoppen **6→5** (keten auth→rol→ownership→transitie→audit→revalidate werkt). CLIENT
+> malicieuze opdracht-forminput (`<script>`-titel + lege verplichte omschrijving + `rateMin=-50` +
+> `rateMax=1e12`) via het echte formulier → **Zod-geweigerd, op-form gebleven, jobs 20→20, 0 malicieuze
+> jobs**.
+>
+> **DOEL 1b (next-action-correctheid):** `/acties` per rol gekruist tegen DB + zijbalk-badges — ZZP'er
+> (2: ontbrekend document _Verzekering_ + gespreksreactie _Mark Jansen_ = badge "2"), CLIENT (2: 1 nieuwe
+> reactie = badge "Reacties 1" + bedrijfsprofiel 90%), ADMIN (16 = 6 SUBMITTED-certificaten + 10 helpdesk,
+> matcht de badges), FRANCHISER-workspace laadt. Alle acties logisch, juiste volgorde/partij, geen
+> dubbele/tegenstrijdige/niet-verdwijnende actie; geen error-boundary op enige `/acties`.
+>
+> **DOEL 2 (adversarieel — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen`; niet-FRANCHISER → `/franchise`) → opaque
+> redirect/geweigerd, **nooit 200/500**. IDOR via in-browser `fetch` (cookie-getrouw): vreemde factuur-PDF
+>
+> - vreemd samenwerking-`dossier` → **403** voor ZZP + FRANCHISER; eigen document → **200**, vreemd
+>   document → **403**. Cross-tenant: FRANCHISER opent platform-job als dienst (`/franchise/diensten/job-1`,
+>   `tenantId=null`) → **soft-404 "niet gevonden", jobtitel NIET gelekt** (`getDienstDetail` geeft null bij
+>   tenant-mismatch → `notFound()`); eigen dienst (`dienst-noord-nacht`) laadt. Junk-/traversal-/sqli-id
+>   (`/facturen|/samenwerkingen/<junk>`, `..%2F..%2Fetc%2Fpasswd`, `1' OR '1'='1`) → soft-404, **nooit 500**.
+>   Forged ongesigneerde betaal-webhook (`sub_fake`) → **200 ack maar inert** (0 nep-subscription, geen
+>   statuswijziging). Cron (`/api/tasks/run-all`): **GET → 405**, **POST zonder secret → 503** (fail-closed).
+>   Alle franchise-subpagina's (`samenwerkingen|leads|facturatie|opdrachtgevers`) → 200, geen error-boundary.
+>
+> **GEVONDEN + GEFIXT — HOOG (revenue-integriteit; via de parallelle Opus-security-subagent, diff
+> `c56addd..HEAD`):** `SUBSCRIPTION_TRANSITIONS.CANCELLED` stond `["PENDING","ACTIVE"]` toe. De
+> betaal-webhook (`/api/billing/webhook`) is de enige map-gebonden schrijver naar `ACTIVE` en reactiveert
+> zodra `paymentStatus(ref)==="paid" && sub.status!=="ACTIVE" && canSubscriptionTransition(sub.status,"ACTIVE")`.
+> Mollie ondertekent zijn webhook niet (`resolveWebhookRef` haalt enkel de id uit de body) en de
+> expiry-taak zet een verlopen abonnement op `CANCELLED` **zonder de `providerRef` te wissen**
+> (`subscription-expiry-task.ts:106`). Repro: betaald abonnement verloopt → `CANCELLED` (oude `tr_X`
+> blijft staan) → `POST /api/billing/webhook` met `tr_X` → provider geeft gezaghebbend permanent `"paid"`
+> → `CANCELLED→ACTIVE` toegestaan → sub weer `ACTIVE` met verse +1 maand-periode, **zonder nieuwe
+> betaling**, herhaalbaar/onbeperkt. **Geschonden regel:** CLAUDE.md regel 3 (ongeldige/onveilige overgang
+> moet worden geweigerd). #745 beoogde deze klasse te dichten maar liet de overgang in de map staan (de
+> code-comment noemde het verwijderen al als openstaand). **Fix:** `CANCELLED: ["PENDING"]` (`enums.ts`) —
+> heractiveren vereist nu een verse checkout (`changeSubscription` → `PENDING` met een **nieuwe**
+> `providerRef` → `PENDING→ACTIVE`; de gratis/mock-activatie doet een directe upsert buiten de map, dus
+> geen legitiem pad brak). Tests rood→groen: `subscription-transitions.test.ts` (`CANCELLED→ACTIVE` nu
+> `false`) + `webhook/route.test.ts` (CANCELLED-sub + herspeelde `"paid"` → geen `update`/`audit`).
+> Bestanden: `enums.ts`, `billing/subscription-transitions.ts` (comment), + 2 tests. Gate groen
+> (typecheck, lint, **4026 unit-tests**, build, prettier).
+>
+> **Geparkeerd — MED (verwante replay-vector, niet gefixt deze run):** dezelfde niet-geroteerde
+> `providerRef` maakt óók `PAST_DUE → ACTIVE` herspeelbaar (een dunning-/expiry-pad kan `PAST_DUE` zetten
+> met de oude ref; herspelen van de permanent-"paid" ref reactiveert). `PAST_DUE → ACTIVE` is echter een
+> **legitieme** overgang (betaling hersteld) en robuust sluiten vergt "verbruikte providerRef"-tracking
+> (een `lastActivatedProviderRef`-kolom of eenmalige `currentPeriodEnd`-vooruitgang per ref) — dat hoort
+> bij het recurring-billing-ontwerp (MENSENWERK §3, nog niet geïmplementeerd). Repro: `PAST_DUE`-sub met
+> ongewijzigde `providerRef` → `POST /api/billing/webhook` met die ref → `PAST_DUE→ACTIVE`. Prioriteit MED:
+> pak samen met de echte billing-koppeling vóór go-live.
+>
+> ---
+>
 > **Datum:** 2026-07-12 (run 25) · **main-commit basis:** `c56addd`
 > **Uitkomst:** **Geen defecten/gaten gevonden.** Verse prod-build (`npm run build`), schema-push +
 > idempotente demo-seed (`SEED_DEMO=true`, 13 samenwerkingen/7 facturen/16 tickets) op ephemere SQLite

@@ -123,6 +123,18 @@ describe("POST /api/billing/webhook", () => {
     });
   });
 
+  it("heractiveert GEEN CANCELLED-abonnement bij een herspeelde 'paid'-referentie (revenue-integriteit)", async () => {
+    // De expiry-taak zet een verlopen abonnement op CANCELLED zonder de providerRef te wissen. Een
+    // ongesigneerde Mollie-webhook die de oude, permanent-"paid" referentie herspeelt, mag het
+    // abonnement niet gratis heractiveren: CANCELLED → ACTIVE staat niet meer in de overgangsmap.
+    findFirstMock.mockResolvedValue({ id: "sub4", userId: "u4", status: "CANCELLED" });
+    paymentStatusMock.mockResolvedValue("paid");
+    const res = await POST(post("{}"));
+    expect(res.status).toBe(200);
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditMock).not.toHaveBeenCalled();
+  });
+
   it("schrijft geen status via een overgang die de map niet toestaat (bv. 'failed' op een ACTIVE-abonnement)", async () => {
     // ACTIVE is geen bron voor de PENDING→PAST_DUE-tak; de webhook mag hier niets schrijven.
     findFirstMock.mockResolvedValue({ id: "sub3", userId: "u3", status: "ACTIVE" });
