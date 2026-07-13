@@ -19,6 +19,10 @@ const DEFAULT_LEVEL: LogLevel = "info";
 
 // Sleutels waarvan de waarde altijd wordt vervangen door "[redacted]". Match is
 // case-insensitive op substring; "auth" matcht daardoor ook "authorization".
+// `phone`/`telefoon` staan hier als substring zodat samengestelde sleutels
+// (contactPhone, telefoonnummer) óók geraakt worden. E-mail wordt NIET via de sleutel
+// geredacteerd maar via het waarde-patroon (maskEmails) gemaskeerd — zo blijft het
+// domein leesbaar voor debugging terwijl het lokale deel verdwijnt.
 const REDACT_KEY_SUBSTRINGS = [
   "password",
   "secret",
@@ -34,7 +38,28 @@ const REDACT_KEY_SUBSTRINGS = [
   "ssn",
   "creditcard",
   "cvv",
+  "phone",
+  "telefoon",
 ] as const;
+
+// Sleutels die als PII gelden maar via een SUBSTRING te veel valse treffers geven
+// ("name" zou anders ook filename/username/hostname/eventName redacten). Deze worden
+// case-insensitive op EXACTE gelijkheid getoetst, zodat alleen de PII-dragende sleutel
+// zelf ("name", "naam", "adres", …) wordt geredacteerd en debug-sleutels intact blijven.
+const REDACT_KEY_EXACT = new Set([
+  "name",
+  "naam",
+  "voornaam",
+  "achternaam",
+  "volledigenaam",
+  "fullname",
+  "displayname",
+  "contactname",
+  "contactnaam",
+  "adres",
+  "address",
+  "woonadres",
+]);
 
 // Eenvoudig e-mailpatroon. Global zodat álle voorkomens in een string worden gemaskeerd.
 const EMAIL_PATTERN = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
@@ -55,9 +80,13 @@ function thresholdLevel(): LogLevel {
   return DEFAULT_LEVEL;
 }
 
-/** True als een key (case-insensitive) een van de gevoelige substrings bevat. */
+/**
+ * True als een key gevoelig is: óf exact een PII-sleutel (name/naam/adres/…), óf een
+ * substring-match op een secret-/contact-achtige naam. Beide case-insensitive.
+ */
 function isSensitiveKey(key: string): boolean {
   const lower = key.toLowerCase();
+  if (REDACT_KEY_EXACT.has(lower)) return true;
   return REDACT_KEY_SUBSTRINGS.some((needle) => lower.includes(needle));
 }
 
@@ -122,13 +151,18 @@ export function log(level: LogLevel, message: string, fields?: LogFields): void 
   // warn én error gaan naar stderr (console.error); debug/info naar stdout.
   const sink = level === "error" || level === "warn" ? console.error : console.log;
 
+  // Ook de message zelf door de e-mailmasker halen: een call-site die per ongeluk een
+  // e-mailadres in de tekst interpoleert (`Reset mislukt voor ${email}`) lekt anders PII
+  // buiten het geredacteerde `fields`-object om (AVG art. 5(1)(f)).
+  const safeMessage = maskEmails(message);
+
   let line: string;
   try {
-    line = JSON.stringify({ level, msg: message, time, ...redact(fields ?? {}) });
+    line = JSON.stringify({ level, msg: safeMessage, time, ...redact(fields ?? {}) });
   } catch {
     // Serialisatie faalde (bv. circulaire structuur): nooit naar de caller gooien;
     // val terug op een veilige, gegarandeerd serialiseerbare regel.
-    line = JSON.stringify({ level, msg: message, time, _logError: "serialize-failed" });
+    line = JSON.stringify({ level, msg: safeMessage, time, _logError: "serialize-failed" });
   }
 
   sink(line);

@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Security/privacy-audit (2e ronde): logger-PII-hardening + AVG-register-volledigheid
+
+- **Wat:** adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-subagents op
+  niet-overlappende oppervlakken: alle 38 API-routes; franchise/tenant-isolatie; AVG-betrokkenenrechten/
+  anonymisering/logs/dashboard-loaders). Alle grote oppervlakken schoon (geen KRITIEK/HOOG-lek). Twee LAAG-
+  bevindingen volledig gefixt (rood→groen), één HOOG/art.9-bevinding geëscaleerd naar de mens.
+- **Fixes:** (1) `src/lib/observability/logger.ts` — `message`-string gaat nu óók door `maskEmails()` en
+  naam-/adres-sleutels (`name/naam/voornaam/achternaam/adres/…`, exacte match zodat `filename`/`username`/
+  `hostname` intact blijven) + `phone`/`telefoon` worden geredacteerd. Voorkomt dat een toekomstige call-site
+  PII buiten de redactie om lekt (AVG art. 5(1)(f)). (2) `src/lib/compliance/processing-register.ts` — 16e
+  verwerkingsactiviteit `belastingaangifte-gemachtigde` (`TaxFilingRequest`, IB/BTW via gemachtigde, art. 30).
+- **Geëscaleerd (mens/FG):** `NoShowReport.reason` overleeft `anonymizeUser` (derde-partij-vrije-tekst over de
+  ZZP'er, mogelijk art. 9-gezondheidsdata) — bewuste retentie-vs-vergetelheid-afweging, niet unilateraal
+  gefixt; zie `docs/SECURITY-PRIVACY-BACKLOG.md`.
+- **Poort:** typecheck (0), lint (schoon), test (4058 groen, +5), build, prettier. Geen schema-/mutatie-/
+  auth-oppervlak gewijzigd; geen auth verzwakt. Woord "AI" komt nergens voor.
+- **Bestanden:** `src/lib/observability/logger.ts` (+ test), `src/lib/compliance/processing-register.ts`
+  (+ test), `docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md`.
+
 ## 2026-07-13 — BTW-aangifte-deadline als next-action (ZZP'er + opdrachtgever)
 
 - **Wat:** de BTW-aangifte-deadline (harde fiscale deadline; boete bij missen) leefde alleen in het

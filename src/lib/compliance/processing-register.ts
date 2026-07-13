@@ -284,7 +284,39 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     ],
   },
 
-  // 11. Notificaties & e-mail
+  // 11. Belastingaangifte via gemachtigde (fiscaal dossier)
+  {
+    key: "belastingaangifte-gemachtigde",
+    name: "Belastingaangifte via gemachtigde (IB/BTW)",
+    purpose:
+      "Het namens de ZZP'er (laten) indienen van inkomsten- en omzetbelastingaangiften bij de Belastingdienst via een aangesloten belastingkantoor (gemachtigde), op basis van uitdrukkelijke, granulaire toestemming en machtiging.",
+    legalBasis: "TOESTEMMING",
+    dataSubjects: ["ZZP'ers"],
+    dataCategories: [
+      "Belastingjaar en aangiftesoort (IB/BTW)",
+      "Naam gemachtigde belastingkantoor",
+      "Machtigingsvorm (DigiD/eHerkenning)",
+      "Geaccepteerde verwerkersovereenkomst-versie",
+      "Toestemmings- en machtigingsmomenten",
+      "Concept-/aanslagbedragen en indieningsreferentie",
+    ],
+    sensitive: false,
+    recipients: [
+      "Aangesloten belastingkantoor (gemachtigde, verwerker)",
+      "Belastingdienst (via Digipoort/SBR)",
+      "Intern platformbeheer",
+    ],
+    retention: "7 jaar (fiscale bewaarplicht, art. 52 AWR)",
+    securityMeasures: [
+      "Versleutelde opslag",
+      "Toegang op rol (RBAC)",
+      "Auditlogging",
+      "Granulaire, losse toestemming (niet voorgevinkt)",
+      "Verwerkersovereenkomst met de gemachtigde",
+    ],
+  },
+
+  // 12. Notificaties & e-mail
   {
     key: "notificaties-email",
     name: "Notificaties & e-mail",

@@ -127,6 +127,18 @@ describe("PROCESSING_REGISTER", () => {
     expect(facturatie?.legalBasis).toBe("WETTELIJKE_VERPLICHTING");
   });
 
+  it("belastingaangifte via gemachtigde is geregistreerd (art. 30) op toestemming + 7 jaar", () => {
+    const aangifte = PROCESSING_REGISTER.find((a) => a.key === "belastingaangifte-gemachtigde");
+    expect(aangifte).toBeDefined();
+    expect(aangifte?.legalBasis).toBe("TOESTEMMING");
+    expect(aangifte?.retention).toContain("7 jaar");
+    // De gemachtigde (verwerker) en de Belastingdienst moeten als ontvangers vermeld staan.
+    expect(aangifte?.recipients.some((r) => r.toLowerCase().includes("gemachtigde"))).toBe(true);
+    expect(aangifte?.recipients.some((r) => r.toLowerCase().includes("belastingdienst"))).toBe(
+      true,
+    );
+  });
+
   it("de auditlog-verwerking gebruikt gerechtvaardigd belang", () => {
     const auditlog = PROCESSING_REGISTER.find(
       (a) => a.key === "beveiliging-auditlog-misbruikpreventie",

@@ -28,6 +28,43 @@ describe("redact — key-gebaseerde secrets", () => {
   });
 });
 
+describe("redact — naam-/adres-/telefoon-sleutels (PII)", () => {
+  it("redacteert een exacte naam-sleutel maar niet filename/username/hostname", () => {
+    const out = redact({
+      name: "Jan de Vries",
+      naam: "Piet Bakker",
+      filename: "2026/abc.pdf",
+      username: "jdv",
+      hostname: "app-01",
+    });
+    expect(out.name).toBe(REDACTED);
+    expect(out.naam).toBe(REDACTED);
+    // Substring "name" mag debug-sleutels NIET raken (alleen exacte gelijkheid).
+    expect(out.filename).toBe("2026/abc.pdf");
+    expect(out.username).toBe("jdv");
+    expect(out.hostname).toBe("app-01");
+  });
+
+  it("redacteert voor-/achternaam en adres-varianten (exact, case-insensitive)", () => {
+    const out = redact({
+      voornaam: "Jan",
+      Achternaam: "de Vries",
+      adres: "Kerkstraat 1",
+      contactName: "Jan",
+    });
+    expect(out.voornaam).toBe(REDACTED);
+    expect(out.Achternaam).toBe(REDACTED);
+    expect(out.adres).toBe(REDACTED);
+    expect(out.contactName).toBe(REDACTED);
+  });
+
+  it("redacteert telefoon-/phone-sleutels via substring", () => {
+    const out = redact({ telefoonnummer: "0612345678", contactPhone: "0201234567" });
+    expect(out.telefoonnummer).toBe(REDACTED);
+    expect(out.contactPhone).toBe(REDACTED);
+  });
+});
+
 describe("redact — e-mailmaskering", () => {
   it("maskeert het lokale deel van een e-mailadres", () => {
     const out = redact({ contact: "jan.jansen@firma.nl" });
@@ -154,6 +191,17 @@ describe("log — stream-keuze en payload", () => {
     expect(typeof parsed.time).toBe("string");
     expect(parsed.userEmail).toBe("j***@firma.nl");
     expect(parsed.password).toBe(REDACTED);
+  });
+
+  it("maskeert een e-mailadres dat per ongeluk in de message-tekst staat", () => {
+    process.env.LOG_LEVEL = "info";
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    log("error", "Reset mislukt voor jan@firma.nl");
+
+    const line = err.mock.calls[0]?.[0] as string;
+    const parsed = JSON.parse(line);
+    expect(parsed.msg).toBe("Reset mislukt voor j***@firma.nl");
   });
 
   it("valt veilig terug wanneer serialisatie faalt (geen throw)", () => {
