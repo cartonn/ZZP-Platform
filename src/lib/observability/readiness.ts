@@ -34,6 +34,7 @@ function safeDetail(error: unknown): string {
 export async function evaluateReadiness(probes: {
   dbPing: () => Promise<void>; // bv. SELECT 1 — werpt bij onbereikbaar
   schemaProbe: () => Promise<number>; // bv. user.count() — werpt als migratie ontbreekt
+  draining?: boolean; // true ⇒ de server sluit af: readiness 503, liveness blijft 200
 }): Promise<ReadinessReport> {
   const checks: ReadinessCheck[] = [];
 
@@ -51,6 +52,17 @@ export async function evaluateReadiness(probes: {
     checks.push({ name: "schema", ok: true });
   } catch (error) {
     checks.push({ name: "schema", ok: false, detail: safeDetail(error) });
+  }
+
+  // Check 3 (optioneel): sluit de server af? Alleen meegewogen wanneer expliciet meegegeven, zodat
+  // bestaande aanroepers (en hun tests) ongewijzigd blijven. Een afsluitende instance is bewust
+  // "not ready" zodat de load balancer er geen nieuw verkeer meer heen stuurt.
+  if (probes.draining !== undefined) {
+    checks.push(
+      probes.draining
+        ? { name: "shutdown", ok: false, detail: "draining" }
+        : { name: "shutdown", ok: true },
+    );
   }
 
   const ready = checks.every((check) => check.ok);

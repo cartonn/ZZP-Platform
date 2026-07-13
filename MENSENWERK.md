@@ -158,6 +158,16 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   voor de pilot** — werkt out-of-the-box; zet een upstream proxy desgewenst een eigen `x-request-id`
   dan loopt de correlatie over de hops door.
 
+- **Graceful shutdown / connection draining** (laag, code-kant GEDAAN 13-7-2026): bij een deploy of
+  container-stop (SIGTERM/SIGINT) zet de server nu `/api/readiness` op `503` (`"draining": true`) terwijl
+  `/api/health` bewust `200` blijft — de load balancer stopt zo met nieuw verkeer naar de afsluitende
+  instance, terwijl Next de lopende requests (uploads, cascade-mutaties, webhooks) netjes laat afronden.
+  Sluit Next niet binnen `SHUTDOWN_FORCE_KILL_MS` af (default 25000 ms, geklemd [1000,120000]), dan
+  forceert `scripts/start.mjs` een `SIGKILL` zodat een deploy nooit blijft hangen (bron:
+  `src/lib/observability/shutdown.ts`, gewired in `src/instrumentation.ts` + `src/app/api/readiness/route.ts`).
+  Resterend mensenwerk: **niets voor de pilot** — werkt out-of-the-box; optioneel `SHUTDOWN_FORCE_KILL_MS`
+  bijstellen. Zie RUNBOOK §2.
+
 ## §1. Hosting, database, opslag, domein, geheimen
 
 **Wat:** de plek waar de website draait, waar gegevens worden bewaard en waar documenten veilig

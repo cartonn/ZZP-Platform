@@ -68,6 +68,40 @@ describe("evaluateReadiness", () => {
     ).resolves.toMatchObject({ ready: false });
   });
 
+  it("negeert de draining-check wanneer die niet is meegegeven (backward compatible)", async () => {
+    const report = await evaluateReadiness({
+      dbPing: async () => {},
+      schemaProbe: async () => 1,
+    });
+    expect(report.checks).toHaveLength(2);
+    expect(report.checks.some((c) => c.name === "shutdown")).toBe(false);
+  });
+
+  it("blijft ready wanneer de server niet afsluit (draining=false)", async () => {
+    const report = await evaluateReadiness({
+      dbPing: async () => {},
+      schemaProbe: async () => 1,
+      draining: false,
+    });
+    expect(report.ready).toBe(true);
+    const shutdown = report.checks.find((c) => c.name === "shutdown");
+    expect(shutdown?.ok).toBe(true);
+  });
+
+  it("is not-ready wanneer de server afsluit (draining=true), ook al is de DB gezond", async () => {
+    const report = await evaluateReadiness({
+      dbPing: async () => {},
+      schemaProbe: async () => 1,
+      draining: true,
+    });
+    expect(report.ready).toBe(false);
+    const shutdown = report.checks.find((c) => c.name === "shutdown");
+    expect(shutdown?.ok).toBe(false);
+    expect(shutdown?.detail).toBe("draining");
+    // De DB-checks blijven ondertussen gewoon gezond gerapporteerd.
+    expect(report.checks.find((c) => c.name === "database")?.ok).toBe(true);
+  });
+
   it("gebruikt de error-naam in detail wanneer beschikbaar", async () => {
     class TimeoutError extends Error {
       constructor() {

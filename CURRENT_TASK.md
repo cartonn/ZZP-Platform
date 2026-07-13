@@ -260,6 +260,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — graceful shutdown draining (2026-07-13, PR #754)** — bij een
+> Railway-redeploy kreeg de afsluitende instance nog nieuw verkeer: `scripts/start.mjs` killde de Next-child
+> bij SIGTERM zonder venster en `/api/readiness` bleef `200` tot het proces al weg was, waardoor lopende
+> requests (uploads, cascade-mutaties, webhooks) afgekapt konden worden. Nu zet de server bij een afsluitsignaal
+> `/api/readiness` op `503` (`"draining": true`) terwijl `/api/health` bewust `200` blijft (LB stopt met nieuw
+> verkeer; host-healthcheck herstart de container niet vroegtijdig); Next rondt lopende requests af en `start.mjs`
+> forceert een `SIGKILL` na `SHUTDOWN_FORCE_KILL_MS` (default 25000 ms, geklemd [1000,120000]) zodat de deploy
+> nooit blijft hangen (tweede signaal forceert direct). Pure `src/lib/observability/shutdown.ts`
+> (`beginDraining`/`isDraining`/`drainingSinceAt`/`registerShutdownSignals`, geïnjecteerde klok+signaal-registratie,
+> idempotent; 10 tests) + optionele `draining`-check in `readiness.ts` (backward compatible; +4 tests) + wiring in
+> `api/readiness/route.ts`, `instrumentation.ts` (Node-runtime) en `scripts/start.mjs`. Geen schemawijziging, geen
+> dependency, verzwakt geen check (readiness strenger, liveness ongewijzigd). RUNBOOK §2 + MENSENWERK §0b +
+> `.env.example`. Gate groen (4067 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **BTW-aangifte-deadline als next-action (ZZP'er + opdrachtgever) (2026-07-13, PR #751)** —
 > de harde fiscale kwartaaldeadline (boete bij missen) leefde alleen in het `/administratie`-boekhoudpaneel. Nu
 > verschijnt hij als concrete, klikbare next-action op `/acties` én in de dashboard-zone "Volgende acties" zodra
