@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Bulk-goedkeuren ingediende urenstaten per samenwerking (opdrachtgever) (2026-07-13, PR #756)** —
+> de opdrachtgever kon ingediende urenstaten/opleveringen alleen los goedkeuren op `/samenwerkingen/[id]` (per prestatie
+> een aparte knop); bij een reeks diensten betekende dat doorklikken per staat, en zolang niet gekeurd is staat de
+> factuur-cascade (event B → concept-factuur) stil en wacht de ZZP'er op geld. Nu een "Snel goedkeuren"-paneel bovenaan
+> `/prestaties` met per samenwerking (≥2 ingediende urenstaten) één knop "Keur alle N goed" + teller/somtotaal + "wacht al
+> lang"-markering (benchmark Temper/Bendy bulk-goedkeuren). Pure `prestaties-bulk.ts` (`groupSubmittedForBulkApproval`,
+> groepeert SUBMITTED per samenwerking, cap ≥2, sorteert meeste-wachtende/hoogste-bedrag eerst; 6 tests) + server-action
+> `approveSubmittedPerformancesAction` (rol-poort CLIENT/ADMIN → eigenaar-gescoopte query `collaboration.company.userId`
+> `take 500` → loop door de bestaande `approvePerformance`-cascade per prestatie; per-item try/catch, één falende sleept de
+> rest niet mee; 4 authz-tests) + client-`bulk-approve-panel.tsx`. Geen schemawijziging, geen tweede goedkeur-pad, dubbele
+> eigenaarscontrole, idempotent via bestaande dedupeKey. Gate groen (4093 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Vacaturetempo-signaal op "Mijn opdrachten" (opdrachtgever) (2026-07-13, PR #755)** —
 > de CLIENT-lijst `/opdrachten` toonde per opdracht de reactie-pijplijn maar geen tempo-oordeel; of een
 > gepubliceerde opdracht koud liep zag je alleen door élke opdracht te openen (`JobVacancyPerformanceCard` op
