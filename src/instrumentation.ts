@@ -5,6 +5,12 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { validateEnv } = await import("@/lib/env");
     validateEnv();
+
+    // Graceful shutdown: flip de readiness-probe naar "draining" zodra een afsluitsignaal binnenkomt,
+    // zodat de load balancer geen nieuw verkeer meer naar deze afsluitende instance stuurt. Verandert
+    // de bestaande afsluiting niet — zet alleen de readiness-vlag.
+    const { registerShutdownSignals } = await import("@/lib/observability/shutdown");
+    registerShutdownSignals();
   }
 }
 

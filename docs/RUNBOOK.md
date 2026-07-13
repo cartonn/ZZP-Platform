@@ -28,16 +28,23 @@
 
 ## 2. Gezondheids-endpoints (monitoring)
 
-| Endpoint         | Doel                    | Gezond | Ongezond | Cache           |
-| ---------------- | ----------------------- | ------ | -------- | --------------- |
-| `/api/health`    | Liveness (DB-ping)      | `200`  | `503`    | `force-dynamic` |
-| `/api/readiness` | Readiness (DB + schema) | `200`  | `503`    | `force-dynamic` |
+| Endpoint         | Doel                              | Gezond | Ongezond | Cache           |
+| ---------------- | --------------------------------- | ------ | -------- | --------------- |
+| `/api/health`    | Liveness (DB-ping)                | `200`  | `503`    | `force-dynamic` |
+| `/api/readiness` | Readiness (DB + schema + drainen) | `200`  | `503`    | `force-dynamic` |
 
 - Beide zijn **nooit gecachet** en bevatten geen PII/secrets (alleen een korte commit-hash).
 - Hang een **uptime-monitor** (bv. de Railway-healthcheck + een externe pinger) op `/api/health`.
   Reageert hij met `503`, dan is de DB onbereikbaar → zie §6 (incident).
 - Een DB-storing op `/api/health` wordt gerapporteerd via de observability-reporter (Sentry-ready
   zodra `SENTRY_DSN` gezet is; anders gestructureerd gelogd).
+- **Graceful shutdown / drainen:** zodra de server een afsluitsignaal (SIGTERM/SIGINT — een
+  Railway-redeploy of een operator die stopt) ontvangt, zet `/api/readiness` op `503` met veld
+  `"draining": true`, terwijl `/api/health` bewust `200` blijft. Zo stopt de load balancer met nieuw
+  verkeer naar de afsluitende instance, terwijl Next de lopende requests netjes afrondt. Sluit Next
+  niet binnen `SHUTDOWN_FORCE_KILL_MS` af (default 25000 ms; geklemd [1000, 120000]), dan forceert
+  `scripts/start.mjs` een `SIGKILL` zodat de deploy nooit blijft hangen. Een tweede afsluitsignaal
+  forceert direct. Niets in te stellen voor de pilot.
 
 ## 3. Deploy
 

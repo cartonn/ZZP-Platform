@@ -75,6 +75,27 @@ const server = spawn("npx", ["next", "start", "-p", port], {
   stdio: "inherit",
 });
 
+// Graceful shutdown met vangnet: een afsluitsignaal (Railway-redeploy / operator) wordt doorgegeven
+// aan Next zodat die de HTTP-server netjes sluit (lopende requests afronden, nieuwe weigeren) — en
+// de instrumentatie zet de readiness-probe op 503. Als Next binnen het venster niet afsluit (een
+// hangende in-flight request), forceren we een SIGKILL zodat de deploy nooit blijft hangen.
+// Een tweede signaal (operator drukt nogmaals) forceert direct.
+const clampMs = (raw, def, min, max) => {
+  const n = Number.parseInt(raw ?? "", 10);
+  if (!Number.isFinite(n)) return def;
+  return Math.min(Math.max(n, min), max);
+};
+const forceKillMs = clampMs(process.env.SHUTDOWN_FORCE_KILL_MS, 25000, 1000, 120000);
+
+let forceKillTimer = null;
+let shuttingDown = false;
+const clearForceKill = () => {
+  if (forceKillTimer) {
+    clearTimeout(forceKillTimer);
+    forceKillTimer = null;
+  }
+};
+
 server.on("spawn", () => {
   void startBackgroundSeed();
 });
@@ -83,6 +104,7 @@ server.on("error", (error) => {
   process.exit(1);
 });
 server.on("exit", (code, signal) => {
+  clearForceKill();
   if (signal) {
     console.log(`[start] Next.js gestopt door signaal ${signal}`);
     process.exit(0);
@@ -93,6 +115,23 @@ server.on("exit", (code, signal) => {
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
+    if (shuttingDown) {
+      // Tweede signaal: niet langer wachten, direct forceren.
+      console.log("[start] tweede afsluitsignaal — Next.js wordt geforceerd gestopt (SIGKILL)");
+      clearForceKill();
+      server.kill("SIGKILL");
+      return;
+    }
+    shuttingDown = true;
+    console.log(`[start] ${signal} ontvangen — Next.js netjes afsluiten (readiness → draining)`);
     server.kill(signal);
+    forceKillTimer = setTimeout(() => {
+      console.error(
+        `[start] Next.js sloot niet af binnen ${forceKillMs}ms — geforceerd stoppen (SIGKILL)`,
+      );
+      server.kill("SIGKILL");
+    }, forceKillMs);
+    // De timer mag de event-loop niet levend houden als het proces verder klaar is.
+    if (typeof forceKillTimer.unref === "function") forceKillTimer.unref();
   });
 }

@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Prod-rijpheid: graceful shutdown draining (readiness-flip + begrensde force-kill)
+
+- **Wat:** bij een Railway-redeploy kreeg de afsluitende instance nog nieuw verkeer. `scripts/start.mjs`
+  killde de Next-child bij SIGTERM zonder venster, en `/api/readiness` bleef `200` tot het proces al weg
+  was — lopende requests (uploads, cascade-mutaties, webhooks) konden zo afgekapt worden en de load
+  balancer bleef routeren. Nu een nette drain: zodra een afsluitsignaal binnenkomt zet de server
+  `/api/readiness` op `503` (`"draining": true`) terwijl `/api/health` bewust `200` blijft, zodat de LB
+  stopt met nieuw verkeer én de host-healthcheck de container niet vroegtijdig herstart. Next rondt de
+  lopende requests af; hangt dat, dan forceert `start.mjs` een `SIGKILL` na `SHUTDOWN_FORCE_KILL_MS`
+  (default 25000 ms, geklemd [1000,120000]) zodat de deploy nooit blijft hangen. Tweede signaal forceert direct.
+- **Bestanden:** `src/lib/observability/shutdown.ts` (NEW, pure singleton `beginDraining`/`isDraining`/
+  `drainingSinceAt`/`registerShutdownSignals`, geïnjecteerde klok+signaal-registratie, idempotent) +
+  `shutdown.test.ts` (10 tests); `readiness.ts` (optionele `draining`-check — backward compatible, alleen
+  meegewogen indien meegegeven) + `readiness.test.ts` (+4); `api/readiness/route.ts` (geeft `isDraining()`
+  mee + veld `draining`); `instrumentation.ts` (`register()` armt de signaal-handlers, Node-runtime);
+  `scripts/start.mjs` (begrensde force-kill + drain-log + tweede-signaal-force). Docs: RUNBOOK §2,
+  `.env.example`, MENSENWERK §0b.
+- **Veiligheid:** verandert geen auth/mutatie-oppervlak; verzwakt geen check (readiness strenger, liveness
+  ongewijzigd). Geen schemawijziging, geen dependency. Signaal-handler flipt alleen de vlag — Next' eigen
+  HTTP-drain blijft ongemoeid.
+- **Poort:** typecheck (0), lint (schoon), test (+14 nieuw), build, prettier — lokaal groen; CI-poort op PR #754.
+
 ## 2026-07-13 — Security/privacy-audit (2e ronde): logger-PII-hardening + AVG-register-volledigheid
 
 - **Wat:** adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-subagents op
