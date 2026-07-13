@@ -4,7 +4,72 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
-## Ronde 2026-07-13 (basis: `main` @ a124b63)
+## Ronde 2026-07-13 (2e — basis: `main` @ 1fb87d5)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken: (1) object-/functie-niveau-autorisatie over **álle 38** `src/app/api/**/route.ts`-handlers
+(IDOR/SSRF/rate-limit/error-leak/traversal/webhook-cron-auth); (2) cross-tenant/franchise-isolatie over
+`src/app/(protected)/franchise/**` + `admin/franchises/**` + `src/lib/tenancy.ts` + `src/lib/franchise/**`
+(IDOR/mass-assignment/status-transitie); (3) AVG-betrokkenenrechten (`lib/compliance/*`, `anonymizeUser`-
+erasure-volledigheid, PII-in-logs, dataminimalisatie op de nieuwe dashboard-loaders, k-anonimiteit, export/
+retentie). Kader: OWASP Top 10 (A01/A03/A05/A07/A09/A10) + ASVS + AVG art. 5/9/15/17/30/32. De verse delta
+sinds de vorige ronde (#745–#751: betaal-webhook→overgangsmap, preflight-CLI, geldpuls/nog-te-factureren-
+loaders, opdracht-kwaliteitsmeter, +10 ontwerpconcepten) apart nagelopen — schoon: de nieuwe data-loaders
+(`data/vat-deadline.ts`, `data/unbilled-invoices.ts`) zijn owner-gescoopt, selecteren alleen bedragen/data
+(geen cross-party-PII); de preflight-CLI toont nooit sleutelwaarden (werkt op booleans/modi). Stack-CVE-check:
+Next.js **15.5.19** ≥ 15.5.18 → gepatcht tegen de mei-2026-release incl. de CSP-nonce-XSS (dit platform
+gebruikt nonces); `npm audit --omit=dev` = **0 kwetsbaarheden**.
+
+**Twee LAAG-bevindingen volledig gefixt (rood→groen); één HOOG/art.9 geëscaleerd naar de mens (juridische
+keuze).** Alle drie de grote oppervlakken bevestigd schoon (geen KRITIEK): de mutatieketen auth→rol→
+ownership/tenant→Zod→actie→audit is uniform toegepast (incl. audit van gewéigerde document-/dossier-toegang
+voor IDOR-detectie), tenant-isolatie via `assertSameTenant`/`ownsViaTenant`/`tenantScopeWhere`, geen
+mass-assignment op `tenantId`/`role`/`status`, storage met traversal-guard + magic-byte-sniff + SSE, push-SSRF
+met harde host-allowlist, wachtwoord-reset met gehashte single-use-token + trusted-origin-URL + rate-limit,
+`anonymizeUser` wist docs/credentials + redact 20+ vrije-tekstvelden incl. 4 dispuutreden-kopieën.
+
+### OPGELOST in deze ronde
+
+- **[LAAG→OPGELOST · AVG art. 5(1)(f) integriteit/vertrouwelijkheid · defense-in-depth PII-in-logs]**
+  `src/lib/observability/logger.ts` maskeerde alleen het `fields`-object, niet de `message`-string zelf:
+  een toekomstige call-site die een e-mailadres in de tekst interpoleert (`Reset mislukt voor ${email}`)
+  zou de PII buiten de redactie om lekken. Bovendien ving de sleutel-redactie geen naam-/adres-sleutels
+  (`{ name: user.name }`, `{ naam }`, `{ adres }`) en geen telefoonnummer-sleutels — alleen secret-achtige
+  substrings + het e-mail-waardepatroon. **Gefixt:** (a) `message` gaat nu óók door `maskEmails()`; (b) een
+  exacte-match-set (`name/naam/voornaam/achternaam/adres/…`) redact naam-/adres-sleutels **zonder** debug-
+  sleutels als `filename`/`username`/`hostname` te raken (substring zou dat wél doen); (c) `phone`/`telefoon`
+  als substring toegevoegd. E-mail blijft bewust waarde-gemaskeerd (domein leesbaar voor debugging), niet
+  volledig geredacteerd. Geen live-lek gevonden bij de bestaande call-sites (allemaal error-namen/niet-PII);
+  dit is structurele hardening. Tests: `logger.test.ts` (+3 cases: naam-exact vs filename/username/hostname,
+  voor-/achternaam/adres/contactName, telefoon-substring, en e-mail-in-message-masking). PR #<zie hieronder>.
+- **[LAAG→OPGELOST · AVG art. 30 register-volledigheid]** `src/lib/compliance/processing-register.ts` miste
+  een verwerkingsactiviteit voor `TaxFilingRequest` (IB/BTW-aangifte via een gemachtigd belastingkantoor met
+  DigiD/eHerkenning-machtiging, `partnerName`, `aanslagCents`, granulaire toestemmingsmomenten). Data zat wél
+  correct in de eigen-data-export en werd correct buiten `anonymizeUser` gehouden (fiscale grond), maar de
+  verwerking stond niet in het register. **Gefixt:** 16e `ProcessingActivity` `belastingaangifte-gemachtigde`
+  (grondslag TOESTEMMING, ontvangers = gemachtigde-verwerker + Belastingdienst via Digipoort/SBR, bewaartermijn
+  7 jaar art. 52 AWR). Test: `processing-register.test.ts` (+1 case pint key/grondslag/bewaartermijn/ontvangers).
+
+### Geparkeerd / geëscaleerd naar de mens (deze ronde)
+
+- **[HOOG (art.9) / geëscaleerd — `NoShowReport.reason` overleeft `anonymizeUser`]** `src/app/(protected)/
+admin/gebruikers/actions.ts` (de `anonymizeUser`-transactie, regel 174–363; bevat géén `noShowReport`-
+  bewerking). `NoShowReport.reason` (`prisma/schema.prisma:772`) is **door een derde partij geschreven vrije
+  tekst óver** de geanonimiseerde ZZP'er en kan een gezondheidsreden bevatten ("ziek gemeld…", art. 9). Na
+  anonimisering blijft die tekst verbatim staan, gekoppeld aan de (geanonimiseerde) `FreelancerProfile.id` —
+  een admin kan de betrokkene er permanent uit herleiden. De notificatie-kópie van diezelfde reden wórdt al
+  geredacteerd (regel 191–204, NO_SHOW_REPORTED expliciet genoemd); de bron-rij niet. **Repro:** anonimiseer
+  een freelancer met een `NoShowReport` tegen zich → `reason` leest onveranderd. **Geschonden:** AVG art. 17
+  (+ art. 9 bij gezondheidsreden). **Waarom niet unilateraal gefixt:** de code kiest hier bewust voor behoud
+  (comment regel 209–210: mogelijke bewaargrond bij een arbeidsgeschil) — dit is een échte retentie-vs-
+  vergetelheid-afweging met bijzondere-categorie-data en hoort per MENSENWERK §5 bij de FG/mens, niet bij een
+  agent. **Aanbevolen (voor de mens):** óf `NoShowReport.reason` op anonimisering redacten (rij behouden,
+  vrije tekst neutraliseren — spiegelt `ShiftHandoff.decisionNote`/`Application.note`), óf een expliciete
+  `NoShowReport`-retentieregel + art.9-vlag in `processing-register.ts` vastleggen zodat de uitzondering
+  gedocumenteerd is i.p.v. impliciet.
+- **[LAAG · logger-message-redactie is e-mail-only, geen naam-detectie in de message-tékst]** Na de fix gaat
+  `message` door `maskEmails()`, maar een losse naam/BSN-vormige string ín de message wordt niet gedetecteerd
+  (kan niet betrouwbaar via regex). Blijft best-practice om PII in `fields` te zetten, niet in de message.
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
 oppervlakken: (1) object-/functie-niveau-autorisatie over **álle** `src/app/api/**/route.ts`-handlers +
