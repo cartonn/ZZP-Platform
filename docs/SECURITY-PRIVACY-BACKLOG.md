@@ -4,6 +4,58 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-13 (basis: `main` @ a124b63)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken: (1) object-/functie-niveau-autorisatie over **álle** `src/app/api/**/route.ts`-handlers +
+`(protected)/**/actions.ts`-server-actions (excl. franchise) — IDOR/ontbrekende authz/mass-assignment/
+status-transitie-bypass; (2) cross-tenant/franchise-isolatie over `franchise/**` + `src/lib/franchise/**` +
+`src/lib/tenancy.ts` én de nieuwe cross-party-PII-paden (`/kandidaten`, `/kandidaten/vergelijk`,
+`candidate-*`); (3) injectie (SQLi/XSS/CSV-formule) + SSRF + secrets/logging + upload-veiligheid + CSP/
+headers + AVG-betrokkenenrechten (`lib/compliance/*`, anonymisering/export/retentie). Kader: OWASP Top 10
+(A01/A03/A05/A07/A09/A10) + ASVS + AVG art. 5/15/17/30/32. Verse delta sinds vorige ronde
+(#739–#744: document-download-rate-limit, storage-zelftest, kandidaat-vergelijker-signalen, reistijd-chip,
++10 ontwerpconcepten) apart nagelopen. `npm audit --omit=dev` = **0 kwetsbaarheden**; typecheck/build groen.
+
+**Geen nieuwe security-/privacy-gaten gevonden (geen KRITIEK/HOOG/MIDDEL).** Alle drie de oppervlakken
+bevestigd schoon: elke mutatie draagt de keten auth→rol→ownership/tenant→Zod→actie→audit; de kandidaat-
+vergelijker is dubbel eigenaar-gescoopt (`company: { userId: actor.id }` op de opdracht + de gebatchte
+reputatie-/historie-/beschikbaarheidsqueries), reputatie sluit `PENDING_REVEAL` uit, reistijd is een grove
+stad-tot-stad-schatting (geen exact woonadres); geen raw-SQL-injectie (alleen statische `SELECT 1`-pings),
+CSV-exports via de centrale formule-injectie-guard (CWE-1236), SSRF afgeschermd (vaste hosts, user-tekst
+alleen als query-param), logger redacteert PII/secrets, uploads via MIME-allowlist + magic-byte-sniff +
+random storage-key + traversal-guard, `anonymizeUser` wist docs/credentials + redact audit-metadata-PII.
+
+### OPGELOST in deze ronde
+
+- **[LAAG→OPGELOST · defense-in-depth · CLAUDE.md architectuurregel 3 (statusovergangen via expliciete map) —
+  de betaal-webhook was de énige `Subscription.status`-schrijver die de map omzeilde]** `src/app/api/billing/
+webhook/route.ts` zette de abonnementsstatus met losse inline `!==`/`===`-checks (`paid` → ACTIVE,
+  `failed` → PAST_DUE), terwijl de zustertaken (`past-due-task.ts`, `subscription-expiry-task.ts`) hun
+  overgang defensief tegen `SUBSCRIPTION_TRANSITIONS` toetsen. De uitgevoerde overgangen zijn met de
+  huidige map allemaal geldig (dus geen exploit vandaag), maar het pad was niet gebonden aan de bron van
+  waarheid: zou de map ooit worden aangescherpt (bv. `CANCELLED → ACTIVE` verwijderd zodat een **herspeelde/
+  late `paid`-webhook een geannuleerd abonnement niet stilzwijgend heractiveert**), dan bleef de webhook zijn
+  eigen logica volgen. **Gefixt:** nieuwe, geëxporteerde `canSubscriptionTransition(from, to)` die
+  fail-closed tegen `SUBSCRIPTION_TRANSITIONS` toetst (onbekende bronstatus → geen enkele overgang); beide
+  update-takken zijn er nu mee bewaakt. Behoud van gedrag onder de huidige map, maar voortaan gebonden aan
+  regel 3. Tests: `src/app/api/billing/webhook/route.test.ts` (+5 cases: PAST_DUE→ACTIVE bij `paid`, geen
+  schrijf bij `failed` op ACTIVE, en directe unit-tests van de fail-closed-invariant incl. onbekende status).
+
+### Geparkeerd (LAAG — observaties, geen blocker)
+
+- **[LAAG · CSP — `script-src` bevat naast nonce + `'strict-dynamic'` óók `'unsafe-inline' https:`]**
+  Dit is de standaard CSP3-fallback: moderne browsers negeren `'unsafe-inline'` zodra een nonce aanwezig is,
+  en `'strict-dynamic'` staat er. In code gedocumenteerd (`src/lib/csp.ts`). Geen echte verzwakking, maar een
+  menselijke sanity-check vóór go-live met echte documenten is verstandig (MENSENWERK §5). **Aanbevolen:**
+  bevestig dat er geen legacy-browser-eis meer is en overweeg de `'unsafe-inline'`-fallback te schrappen.
+- **[LAAG · AVG art. 5(1)(e) retentie — geen geautomatiseerde purge van gevoelige documenten]** Het
+  verwerkingsregister (`lib/compliance/processing-register.ts`) benoemt een bewaartermijn ("niet langer dan
+  nodig voor verificatie"), maar er is geen job die verificatiedocumenten automatisch verwijdert zodra ze niet
+  meer nodig zijn — verwijdering loopt nu alleen via de handmatige admin-`anonymizeUser`. Consistent met het
+  expliciete beleid dat AVG-verwijdering mensenwerk blijft; ter bevestiging aan een mens vóór het volume echte
+  VOG/diploma's groeit. **Aanbevolen:** een expiry-/retentie-job (opt-in, human-in-the-loop) zodra het volume dat vraagt.
+
 ## Ronde 2026-07-12 (2e — basis: `main` @ 9fbd20a)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende

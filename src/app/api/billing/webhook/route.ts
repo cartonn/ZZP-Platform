@@ -9,6 +9,7 @@ import { audit } from "@/lib/audit";
 import { getPaymentProvider } from "@/lib/billing/provider";
 import { billingWebhookRateLimiter } from "@/lib/rate-limit";
 import { clientIpFromRequest } from "@/lib/client-ip";
+import { canSubscriptionTransition } from "@/lib/billing/subscription-transitions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,11 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("ok", { status: 200 }); // provider tijdelijk onbereikbaar; geen retry-storm
   }
 
-  if (status === "paid" && sub.status !== "ACTIVE") {
+  if (
+    status === "paid" &&
+    sub.status !== "ACTIVE" &&
+    canSubscriptionTransition(sub.status, "ACTIVE")
+  ) {
     const periodEnd = new Date();
     periodEnd.setMonth(periodEnd.getMonth() + 1);
     await prisma.subscription.update({
@@ -56,7 +61,11 @@ export async function POST(request: Request): Promise<Response> {
       entityId: sub.userId,
       metadata: { paymentId },
     });
-  } else if (status === "failed" && sub.status === "PENDING") {
+  } else if (
+    status === "failed" &&
+    sub.status === "PENDING" &&
+    canSubscriptionTransition(sub.status, "PAST_DUE")
+  ) {
     await prisma.subscription.update({
       where: { id: sub.id },
       data: { status: "PAST_DUE", pastDueAt: new Date() },

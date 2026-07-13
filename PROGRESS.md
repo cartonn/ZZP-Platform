@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Security-/privacy-auditronde (basis `main` @ a124b63)
+
+- **Wat:** volledige adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-
+  security-subagents op niet-overlappende oppervlakken): (1) object-/functie-autorisatie over álle
+  `api/**/route.ts` + `(protected)/**/actions.ts` (IDOR/mass-assignment/transitie-bypass); (2) cross-
+  tenant/franchise-isolatie + cross-party-PII op de kandidaat-vergelijker; (3) injectie/SSRF/secrets/
+  upload/CSP/AVG-betrokkenenrechten. Kader OWASP Top 10 + ASVS + AVG art. 5/15/17/30/32.
+- **Uitkomst:** **geen nieuwe KRITIEK/HOOG/MIDDEL-gaten.** Eén LAAG defense-in-depth-fix uitgevoerd:
+  de betaal-webhook (`api/billing/webhook/route.ts`) was de énige `Subscription.status`-schrijver die
+  de expliciete overgangsmap omzeilde (CLAUDE.md regel 3). Nieuwe, fail-closed
+  `canSubscriptionTransition` (`src/lib/billing/subscription-transitions.ts`) toetst nu beide update-
+  takken tegen `SUBSCRIPTION_TRANSITIONS` — gedragsbehoudend onder de huidige map, maar voortaan
+  gebonden aan de bron van waarheid (een aangescherpte map, bv. geen `CANCELLED→ACTIVE` meer, wordt
+  automatisch gerespecteerd tegen een herspeelde `paid`-webhook).
+- **Bestanden:** `src/lib/billing/subscription-transitions.ts` (+ `.test.ts`, fail-closed-invariant),
+  `src/app/api/billing/webhook/route.ts` (+ `route.test.ts`: +2 route-cases), `docs/SECURITY-PRIVACY-
+BACKLOG.md` (ronde-log + 2 LAAG-observaties geparkeerd: CSP `unsafe-inline`-fallback, retentie-purge-job).
+- **Checks:** typecheck ✓, lint ✓, prettier `--check .` ✓, `npm audit --omit=dev` = 0, build ✓.
+- **Volgende stap:** de 2 geparkeerde LAAG-observaties (CSP-fallback schrappen na go-live-sanity-check;
+  geautomatiseerde retentie-purge zodra het documentvolume dat vraagt) — beide human-in-the-loop.
+
 ## 2026-07-13 — Routine: reistijd-chip per opdracht op de browse-lijst (ZZP'er)
 
 - **Wat:** de ZZP'er zag op de opdracht-**detailpagina** al een reistijdsignaal, en de opdrachtgever
