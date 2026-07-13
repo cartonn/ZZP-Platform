@@ -16,6 +16,7 @@
     "validate:ci": "node scripts/validate-workflows.mjs",
     "scan:secrets": "bash scripts/scan-secrets.sh",
     "check:env": "node scripts/check-env-docs.mjs",
+    "preflight": "tsx scripts/preflight.ts",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:backup": "tsx scripts/backup-db.ts",

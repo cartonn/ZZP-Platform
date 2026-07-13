@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-13 — Prod-rijpheid: go-live preflight-CLI (`npm run preflight`)
+
+- **Wat:** een CLI go-live preflight die de al-gevalideerde runtime-env-validatie (`validateEnv`) +
+  configuratie-posture (`collectSystemStatus`) **buiten de app** draait, zodat de operator vóór/tijdens
+  de deploy (`railway run npm run preflight`) of in CI een duidelijk GO/NO-GO-oordeel krijgt — zonder een
+  draaiende server + admin-login (het `/admin/systeemstatus`-scherm vereist beide). Toont per onderdeel
+  `[ ok ]` (productie-klaar) / `[info]` (veilige fallback) / `[ !! ]` (aandacht vóór livegang), de
+  boot-waarschuwingen en een oordeel. Hergebruikt de bestaande geteste logica (geen nieuwe bron van
+  waarheid); toont **nooit** sleutelwaarden. Exitcodes: `0` ok · `1` aandacht in `--strict` (CI/go-live-
+  poort) · `2` ongeldige/ontbrekende basisconfig. `--json` = machineleesbaar.
+- **Bestanden:** `src/lib/ops/preflight.ts` (pure renderer: `statusTag`/`decideVerdict`/
+  `buildPreflightReport`/`invalidReport`) + `src/lib/ops/preflight.test.ts` (10 tests: verdict-logica,
+  strict-poort, rustig rapport, waarschuwingen, PII-lek-guard, invalid-tak), `scripts/preflight.ts`
+  (CLI, tsx, `--strict`/`--json`), `package.json` (`preflight`-script), `docs/RUNBOOK.md` §3 +
+  `MENSENWERK.md` §11.
+- **Checks:** typecheck ✓, lint ✓, prettier `--check .` ✓, test ✓, build ✓. Handmatig 4 scenario's
+  geverifieerd (dev-GO, prod+strict→exit 1, harde fout→exit 2, `--json`). Geen schemawijziging, geen
+  nieuwe env-var, geen productie-oppervlak/mutatie geraakt (read-only inspectie).
+- **Volgende stap:** desgewenst `npm run preflight --strict` als niet-blokkerende CI-stap toevoegen.
+
 ## 2026-07-13 — Security-/privacy-auditronde (basis `main` @ a124b63)
 
 - **Wat:** volledige adversariële security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-
