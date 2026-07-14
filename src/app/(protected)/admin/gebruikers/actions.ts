@@ -18,6 +18,7 @@ import {
 import { prisma } from "@/lib/db";
 import { userStatusSchema } from "@/lib/enums";
 import { DISPUTE_ADMIN_NOTIFICATION_TITLE } from "@/lib/cascade/dispute-commands";
+import { collaborationsWithActiveDisputeOpenedBy } from "@/lib/dispute-ownership";
 
 export async function setUserStatus(userId: string, target: string): Promise<void> {
   const actor = await requireRole("ADMIN");
@@ -103,8 +104,16 @@ export async function anonymizeUser(userId: string): Promise<void> {
       })
     ).map((e) => e.subjectId);
   // Deep-links van de admin-fanout-notificaties bij deze eigen disputen — nodig om straks exact díe
-  // notificaties (die de vrije-tekstreden in hun body dragen) terug te vinden en te redacten.
+  // notificaties (die de vrije-tekstreden in hun body dragen) terug te vinden en te redacten. Bewust de
+  // BREDE set (alle-tijd eigen disputen): een admin-notificatie met de eigen reden blijft ook na
+  // oplossing bestaan en moet gewist worden.
   const ownDisputeLinks = ownDisputeCollabIds.map((id) => `/samenwerkingen/${id}`);
+  // De LIVE `Collaboration.disputeReason` is één muteerbaar veld — na oplossing kan de tegenpartij een
+  // nieuw dispuut openen op dezelfde samenwerking, waardoor het veld hún reden bevat terwijl de brede
+  // set (op oude eigen events) die samenwerking nog steeds bevat. Alleen de samenwerkingen waar de
+  // betrokkene het HUIDIGE, nog-open dispuut opende mogen we leegmaken; anders vernietigen we het
+  // lopende dispuutbewijs van de tegenpartij. Zie `dispute-ownership.ts`.
+  const activeOwnDisputeCollabIds = await collaborationsWithActiveDisputeOpenedBy(prisma, userId);
 
   // AVG art. 17 dekt óók de auditlog: PII van de betrokkene staat in de metadata van eerdere
   // audit-events (e-mail bij mislukte login/rate-limit/bulk-import; de volledige naam bij
@@ -306,10 +315,11 @@ export async function anonymizeUser(userId: string): Promise<void> {
     }),
     // Eigen dispuutreden: vrije tekst die de betrokkene schreef bij het openen van een dispuut.
     // resolveDispute wist 'm normaliter bij oplossing; staat een dispuut nog open op het moment van
-    // anonimisering, dan blijft die tekst anders herleidbaar achter. Gescopet op de eigen
-    // DISPUTE_OPENED-events (zie ownDisputeCollabIds) — nooit de reden van de tegenpartij.
+    // anonimisering, dan blijft die tekst anders herleidbaar achter. Gescopet op de samenwerkingen waar
+    // de betrokkene het HUIDIGE, nog-open dispuut opende (`activeOwnDisputeCollabIds`) — nooit de reden
+    // van de tegenpartij, die na een oplossing+heropening in ditzelfde veld kan staan.
     prisma.collaboration.updateMany({
-      where: { id: { in: ownDisputeCollabIds }, disputeReason: { not: null } },
+      where: { id: { in: activeOwnDisputeCollabIds }, disputeReason: { not: null } },
       data: { disputeReason: null },
     }),
     // Dezelfde dispuutreden staat óók verbatim in de payload van het DISPUTE_OPENED-domeinevent

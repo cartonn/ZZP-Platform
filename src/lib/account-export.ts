@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import { collaborationsWithActiveDisputeOpenedBy } from "@/lib/dispute-ownership";
 
 // AVG recht op inzage/dataportabiliteit (art. 15/20): bundelt de eigen persoonsgegevens van de
 // actor tot één JSON-export. Server-side waarheid; uitsluitend de eigen gegevens — geen
@@ -53,16 +54,12 @@ export async function buildAccountExport(
   actorId: string,
   now: Date = new Date(),
 ): Promise<AccountExportPayload> {
-  // De attributie van een dispuutreden zit niet op de Collaboration-rij maar in het
-  // DISPUTE_OPENED-domeinevent (actorId) — net als in de anonimisering (`anonymizeUser`). Verzamel
-  // de samenwerkingen waar déze betrokkene het dispuut opende, zodat de export alleen zíjn eigen
-  // vrije tekst bevat en niet die van de tegenpartij.
-  const ownDisputeCollabIds = (
-    await db.domainEvent.findMany({
-      where: { type: "DISPUTE_OPENED", actorId },
-      select: { subjectId: true },
-    })
-  ).map((e) => e.subjectId);
+  // De LIVE dispuutreden (`Collaboration.disputeReason`) is één muteerbaar veld: na oplossing kan de
+  // TEGENPARTIJ een nieuw dispuut op dezelfde samenwerking openen, waardoor het veld hún tekst bevat.
+  // Scope daarom op de samenwerkingen waar déze betrokkene het HUIDIGE, nog-open dispuut opende (niet
+  // op alle-tijd DISPUTE_OPENED-events), zodat de export alleen zíjn eigen live reden bevat en niet die
+  // van de tegenpartij. Zie `dispute-ownership.ts` voor de onderbouwing.
+  const ownDisputeCollabIds = await collaborationsWithActiveDisputeOpenedBy(db, actorId);
 
   const [
     user,

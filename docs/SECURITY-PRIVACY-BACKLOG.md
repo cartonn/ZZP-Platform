@@ -4,6 +4,76 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-14 (2e — basis: `main` @ eea7c32)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken: (1) AVG-dataminimalisatie + k-anonimiteit op de nieuwe delta (`account-export.ts`/`/api/account/
+export`, `payment-behavior.ts` + de betaal-vertrouwenschip op de browse-lijst, `compliance/*`); (2) minder-
+betreden server-actions (`academie`/`ideeen`/`beschikbaarheid`/`reacties`/`uitgaven`/`account`/`search`/
+`diensten/importeer`) + álle cron/task-routes + de publieke `.ics`-agendafeed; (3) cross-tenant/franchise-
+isolatie + upload-veiligheid + SSRF + injectie (SQLi/XSS/CSV-formule). Kader: OWASP Top 10 (A01/A03/A05/A07/
+A10) + ASVS + AVG art. 5/9/15/17/30/32. Twee oppervlakken volledig schoon bevestigd (geen KRITIEK/HOOG-
+authz-/tenant-/injectie-/upload-/SSRF-gat: mutatieketen uniform, `escapeIcsText` dekt CRLF-injectie, cron
+fail-closed timing-safe, media-`[...key]` vereist DB-match vóór storage, CSV via de centrale
+`escapeCsvField`-guard op élke export, één `dangerouslySetInnerHTML` = hardcoded theme-script met nonce).
+
+**Eén HOOG cross-party PII-lek gevonden én gefixt (rood→groen, export + erasure); één LAAG timing-side-channel
+gefixt (rood→groen); één HOOG-k-anonimiteit-inconsistentie + twee LAAG/MIDDEL geparkeerd voor de mens.**
+
+### OPGELOST in deze ronde
+
+- **[HOOG→OPGELOST · AVG art. 5(1)(f) confidentialiteit / OWASP A01]** De LIVE `Collaboration.disputeReason`
+  is één muteerbaar veld: `resolveDispute` (admin) nult het, waarna de **tegenpartij** een nieuw dispuut op
+  dezelfde samenwerking kan openen — het veld bevat dan hún tekst. Zowel de AVG-inzage-export
+  (`src/lib/account-export.ts`) als de AVG-erasure (`anonymizeUser`, `admin/gebruikers/actions.ts`) scopeten
+  op **alle-tijd** eigen `DISPUTE_OPENED`-events (`ownDisputeCollabIds`). Gevolg: (a) de export lekte de live
+  dispuutreden van de tegenpartij in het eigen-data-bestand van de betrokkene; (b) de erasure vernietigde het
+  lopende dispuutbewijs van de tegenpartij. **Repro:** F opent dispuut op C → admin lost op → X (tegenpartij)
+  opent nieuw dispuut op C → F draait `GET /api/account/export` → X's reden `R2` staat in F's export; idem
+  wist F's anonimisering X's live `disputeReason`. **Gefixt:** nieuw gedeeld helper `src/lib/dispute-ownership.ts`
+  (`collaborationsWithActiveDisputeOpenedBy`) dat het dispuut-eventlog per samenwerking herspeelt (OPENED zet de
+  huidige opener, RESOLVED wist 'm) en alleen de samenwerkingen teruggeeft waar de actor de opener van het
+  HUIDIGE, nog-open dispuut is — spiegelt exact de `disputedAt`/`disputeReason`-toestandsmachine in
+  `dispute-commands.ts`. Gebruikt in de export (live-veld-scope) én de erasure (`activeOwnDisputeCollabIds`,
+  alleen voor de live `Collaboration.disputeReason`-null; de payload-/audit-/notificatie-redactie blijft
+  correct breed op `actorId`, want dat is en blijft de eigen tekst van de betrokkene). Tests: `dispute-ownership.test.ts`
+  (6 cases incl. heropening-door-tegenpartij), `account-export.test.ts` (+1 rood→groen: export-scope = leeg na
+  heropening), `anonymize-erasure.test.ts` (+1 rood→groen: erasure raakt de heropende reden niet).
+- **[LAAG→OPGELOST · CWE-208 timing-side-channel / OWASP A07 login-enumeratie]** `src/lib/authorize-credentials.ts`
+  short-circuitte `bcrypt.compare` weg bij een onbekende e-mail / niet-ACTIVE account / lege (geanonimiseerde)
+  passwordHash → dat account reageerde meetbaar sneller dan een fout wachtwoord op een bestaand ACTIVE-account,
+  wat via de responstijd verraadt of een e-mail bestaat (het al-geparkeerde item van de vorige ronde). **Gefixt:**
+  altijd precies één `bcrypt.compare` draaien; alleen een bestaand ACTIVE-account met gezette hash vergelijkt
+  tegen zijn eigen hash, alle andere paden tegen een constante cost-10-equalizer-hash (matcht nooit). Tests:
+  `authorize-credentials.test.ts` (+4: compare draait óók bij onbekende e-mail / niet-ACTIVE / lege hash;
+  onbekende e-mail weigert zelfs als compare true zou geven).
+
+### Geparkeerd / geëscaleerd naar de mens (deze ronde)
+
+- **[HOOG (art.5(1)(a)/(d) eerlijkheid+juistheid) / geëscaleerd — betaal-vertrouwenschip k=3 vs. platform-eigen
+  k≥10]** `PAYMENT_MIN_SAMPLE_SIZE = 3` (`src/lib/payment-behavior.ts:44`) rendert een reputatielabel ("Betaalt
+  vaak laat") over een **met naam getoonde** opdrachtgever op de browse-lijst (`opdrachten/(index)/page.tsx`) op
+  basis van slechts 3 facturen — terwijl het platform voor de markttarief-aggregatie een **harde k≥10-vloer**
+  afdwingt (`market-rate.ts` + guardtest `market-rate.test.ts:89-93`, juist om deze klasse regressie te vangen).
+  Het risico is hier arguably groter: het label wordt aan **derden** getoond over een **identificeerbare** entiteit
+  (veel `Company`-records zijn eenmanszaken = natuurlijke personen), ambient op een lijst, zonder de sample-size-
+  disclosure die de detailpagina (`payment-behavior-block.tsx`) wél geeft. **Aanbevolen (voor de mens):** óf
+  `PAYMENT_MIN_SAMPLE_SIZE` optrekken naar de eigen k≥10-vloer + een guardtest spiegelen, óf expliciet documenteren/
+  goedkeuren waarom een lagere drempel hier rechtmatig is, én de sample-size in het chip-`title`/aria-label opnemen.
+  Bewust een agent níet zelf een k-drempel laten kiezen (les uit de MENSENWERK-lijn). **Geschonden:** AVG art.
+  5(1)(a)/(d) + interne k-anonimiteitsnorm.
+- **[MIDDEL · AVG art. 30 register-volledigheid]** `src/lib/compliance/processing-register.ts` heeft wél een
+  `markttarief-indicatie`-entry (incl. k≥10 als maatregel) maar géén equivalent voor het betaalgedrag/
+  betaalreputatie-signaal, dat nu platform-breed wordt getoond (browse-lijst + opdracht-detail + `/verplichtingen`).
+  **Aanbevolen:** `ProcessingActivity`-entry `betaalgedrag-reputatie` (doel, grondslag `GERECHTVAARDIGD_BELANG`,
+  betrokkenen incl. eenmanszaak-overlap, categorie = uitsluitend geaggregeerde betaaltiming, sample-size-vloer als
+  maatregel zodra k-drempel is vastgesteld, retentie = live berekend/niet opgeslagen, ontvangers = browsende ZZP'ers).
+- **[LAAG · defense-in-depth] `getPaymentBehaviorForCompanies`/`getPaymentBehaviorForCompany`**
+  (`src/lib/data/payment-behavior.ts`) accepteren een rauwe `companyId`(s) zonder interne rol-/tenant-check; vandaag
+  veilig (enige twee call-sites scopen op `visibleJobsWhere(actor)`), maar een toekomstige API-route eromheen zou
+  arbitraire-opdrachtgever-betaalreputatie kunnen blootstellen. **Aanbevolen:** docstring die de scoping-
+  verantwoordelijkheid expliciteert, of een `Actor`/voor-gevalideerde id-lijst als parameter.
+
 ## Ronde 2026-07-14 (basis: `main` @ 4da72bb)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
