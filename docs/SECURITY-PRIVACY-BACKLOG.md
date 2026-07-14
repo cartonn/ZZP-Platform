@@ -4,6 +4,79 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-14 (basis: `main` @ 4da72bb)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken: (1) object-/functie-niveau-autorisatie over **álle** `src/app/api/**/route.ts`-handlers +
+`(protected)/**/actions.ts`-server-actions (excl. franchise) — IDOR/ontbrekende authz/mass-assignment/
+status-transitie-bypass/error-leak; (2) cross-tenant/franchise-isolatie over `franchise/**` +
+`admin/franchises/**` + `src/lib/tenancy.ts` + `src/lib/franchise/**` + de cross-party-PII-paden
+(`/kandidaten`) — cross-tenant-IDOR/mass-assignment `tenantId`/`role`/dataminimalisatie/audit; (3) injectie
+(SQLi/XSS/CSV-formule) + upload-veiligheid + SSRF + secrets/logging + auth-hardening + AVG-betrokkenenrechten
+(`anonymizeUser`-erasure-volledigheid). Kader: OWASP Top 10 (A01/A03/A05/A07/A10) + ASVS + AVG art. 5/9/15/
+17/30/32. De verse delta sinds de vorige ronde (#753–#758: logger-PII-hardening, graceful-shutdown-draining,
+vacaturetempo-signaal, bulk-goedkeuren-urenstaten, urgentie-facturenlijst, +10 ontwerpconcepten) apart
+nagelopen: schoon — het nieuwe bulk-goedkeur-pad (`prestaties/actions.ts`) is dubbel eigenaar-gescoopt
+(query op `collaboration.company.userId` + `approvePerformance` her-controleert rol/ownership/transitie/audit
+per item), de readiness/shutdown-endpoints zijn PII-vrij (alleen error-namen + publieke commit-SHA), de
+facturen-urgentie-helper is pure sortering (geen export/injectie). Stack-CVE-check: Next.js **15.5.19** ≥
+15.5.18 → volledig gepatcht tegen de mei-2026-release (13 CVE's incl. CVE-2026-23870 RSC-DoS). `npm audit
+--omit=dev` = **0 kwetsbaarheden** (prod); de 2 dev-only-adviezen (esbuild-Windows-dev-server, js-yaml-DoS)
+raken de productiebundel niet.
+
+**Eén nieuwe MIDDEL/HOOG-AVG-erasure-gat gevonden én gefixt (rood→groen); één LAAG defense-in-depth-gat
+gefixt; één art.17-deelstuk + twee LAAG-observaties geparkeerd.** Alle drie de oppervlakken bevestigd
+schoon (geen KRITIEK/HOOG-authz-gat): de mutatieketen auth→rol→ownership/tenant→Zod→actie→audit is uniform
+toegepast, tenant-isolatie via `tenantScopeWhere`/`ownsViaTenant`/`assertSameTenant` met server-herleide
+`tenantId`, geen mass-assignment op `tenantId`/`role`, uploads via MIME-allowlist + magic-byte-sniff +
+random-key + traversal-guard + SSE, SSRF met harde host-allowlists (Geoapify query-only, web-push-endpoint-
+allowlist), wachtwoord-reset met gehashte single-use-token + trusted-origin + rate-limit, CSV via de centrale
+formule-injectie-guard (CWE-1236), geen open redirect (geen enkele consumer van client-`callbackUrl`).
+
+### OPGELOST in deze ronde
+
+- **[MIDDEL–HOOG→OPGELOST · AVG art. 17 recht op verwijdering]** `anonymizeUser`
+  (`src/app/(protected)/admin/gebruikers/actions.ts`) miste `Performance` volledig: `Performance.description`
+  (niet-nullable werkomschrijving die de ZZP'er zélf typt bij het indienen van uren/mijlpalen — kan
+  opdrachtgever/locatie/persoonsdetails bevatten) en `milestoneTitle` overleefden de anonimisering verbatim.
+  De `Collaboration` wordt niet verwijderd (factuur-/fiscale historie), dus de `onDelete:Cascade` op
+  `Performance` vuurt niet — precies zoals bij `Application`/`AvailabilityWindow`/`ShiftHandoff`/
+  `WorkExperience`, die wél expliciet worden geredact. Dit was een oversight, geen bewuste retentiekeuze.
+  **Gefixt:** `prisma.performance.updateMany({ where: { collaboration: { freelancer: { userId } } }, data: {
+description: "[Verwijderd op verzoek van de gebruiker]", milestoneTitle: null } })` in de anonimiserings-
+  transactie. Test: `anonymize-erasure.test.ts` (+1 case pint where-scope + redactie van beide velden;
+  rood→groen — zonder de updateMany is `find("performance.updateMany")` undefined). **Repro (was):**
+  anonimiseer een ZZP'er met ≥1 `Performance` → `description`/`milestoneTitle` lazen onveranderd.
+- **[LAAG→OPGELOST · OWASP A01 defense-in-depth]** `src/components/admin/gebruikersbeheer/bemiddelaars-panel.tsx`
+  (server-component) laadt álle tenants + de naam/e-mail van elke bemiddelaar (cross-tenant PII) zónder eigen
+  server-side rolcheck; het leunde volledig op de ADMIN-gate van zijn enige aanroeper (`/admin/franchises` +
+  middleware). Vandaag veilig (één correct-gegate call-site), maar bij hergebruik elders zou de check stil
+  wegvallen — afwijkend van het patroon dat elke andere admin-loader/-actie in deze codebase zichzelf gate.
+  **Gefixt:** `await requireRole("ADMIN")` bovenaan het paneel, vóór elke query. Test:
+  `bemiddelaars-panel.test.ts` (nieuw; rood→groen: mockt `requireRole` als throw en assert dat het paneel
+  weigert én dat `tenant.findMany` niet draaide vóór de poort).
+
+### Geparkeerd / geëscaleerd naar de mens (deze ronde)
+
+- **[HOOG (art.9-adjacent) / geëscaleerd — `Performance.rejectionReason` overleeft `anonymizeUser`]** Zelfde
+  transactie als hierboven. `Performance.rejectionReason` (`prisma/schema.prisma:867`) is **door de
+  OPDRACHTGEVER geschreven vrije tekst óver** de ZZP'er (verplichte reden bij het afkeuren van uren) en kan
+  een gezondheids-/incapaciteitsreden bevatten (art. 9). Net als het al-geparkeerde `NoShowReport.reason` is
+  dit derde-partij-tekst met een mogelijke bewaargrond bij een facturatie-/urengeschil (art. 17(3)(e)
+  rechtsvordering) — een échte retentie-vs-vergetelheid-afweging die per MENSENWERK §5 bij de FG/mens hoort,
+  niet bij een agent. De zelf-geschreven velden (`description`/`milestoneTitle`) zijn wél unilateraal gefixt
+  (geen retentiegrond). **Repro:** anonimiseer een ZZP'er met een afgekeurde `Performance` → `rejectionReason`
+  leest onveranderd. **Geschonden:** AVG art. 17 (+ art. 9 bij gezondheidsreden). **Aanbevolen (voor de mens):**
+  óf `rejectionReason` op anonimisering redacten (spiegelt de zusters), óf een expliciete `Performance`-/
+  `NoShowReport`-retentieregel + art.9-vlag in `processing-register.ts` vastleggen.
+- **[LAAG · CWE-208 timing-side-channel op login-enumeratie]** `src/lib/authorize-credentials.ts` short-circuit
+  vóór `bcrypt.compare` wanneer de gebruiker niet bestaat → een niet-bestaand account logt meetbaar sneller in
+  dan een fout wachtwoord op een bestaand account. Lage praktische severity: rate-limiting + uniforme foutmelding
+  staan al. **Aanbevolen:** altijd een dummy-`bcrypt.compare` tegen een constante hash draaien als er geen user is.
+- **[LAAG · scale, geen security-bug] `getRosterCandidatesForDienst`** (`src/lib/franchise/dienst-voordracht.ts`)
+  laadt alle tenant-freelancers via `findMany({ where: { tenantId } })` zonder `take`-cap (anders dan zusters
+  met een `// unbounded-allow:`-motivatie). Geen lek — puur een schaalnotitie voor zeer grote tenants.
+
 ## Ronde 2026-07-13 (2e — basis: `main` @ 1fb87d5)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
