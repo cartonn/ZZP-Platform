@@ -19,6 +19,7 @@ export const getCompletenessProfile = cache((userId: string) =>
       location: true,
       availability: true,
       languages: true,
+      monthlyIncomeGoalCents: true,
       skills: { select: { skillId: true } },
       industries: { select: { industryId: true } },
     },

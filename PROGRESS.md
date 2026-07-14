@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — Maanddoel-voortgang op de ZZP-dashboard geldpuls (PR #770)
+
+**Waarde (ZZP'er):** het maanddoel (`monthlyIncomeGoalCents`) + de voortgangssamenvatting leefden
+uitsluitend op `/prognose`. De ZZP'er die op zijn startscherm begint zag "Deze maand gefactureerd" wél,
+maar niet "haal ik mijn maanddoel?". Nu beantwoordt de geldpuls-KPI die vraag direct — de meest
+motiverende dagelijkse blik — zonder een extra pagina te openen.
+
+- **`src/lib/income-goal.ts`** — nieuwe pure helper `incomeGoalGlance(summary, formatEuro)`: geeft een
+  compacte `{ delta, hint, tone }` of `null` zonder ingesteld doel. `formatEuro` geïnjecteerd zodat de
+  module puur/import-vrij blijft. Statussen: `achieved` ("Maanddoel van €X gehaald", success),
+  `on_track` ("Met je openstaande concepten haal je je doel", success), `behind` ("Nog €X tot je
+  maanddoel", warning). Percentage = server-berekende `realizedPct` (geklemd 0..100).
+- **`src/lib/data/freelancer-profile.ts`** — `monthlyIncomeGoalCents` toegevoegd aan de request-gecachte
+  `getCompletenessProfile`-select (geen extra query — hergebruikt binnen dezelfde render).
+- **`src/app/(protected)/dashboard/page.tsx`** — `incomeGoalCents` door `DashboardData` (FREELANCER)
+  gethread; op de "Deze maand gefactureerd"-KPI vervangt de doel-glance de maand-op-maand-chip zodra er
+  een doel is ingesteld. Realized = `freelancerRevenueTrend.currentCents`, expected =
+  `unbilledInvoices.grossCents` (beide al op het dashboard geladen). Zonder doel: ongewijzigd gedrag.
+- **Server-side waarheid:** doel + bedragen komen uit de DB/berekende bronnen; de UI toont alleen.
+- **Tests:** `income-goal.test.ts` +1 `incomeGoalGlance`-suite (none/achieved/on_track/behind).
+  Gate groen: typecheck, lint, **4163 unit-tests**, build, prettier.
+
 ## 2026-07-14 — AVG art. 30: betaalgedrag-reputatie in het verwerkingsregister + docstring-hardening (PR #769)
 
 **Gat:** het betaalgedrag/betaalreputatie-signaal (gemiddeld aantal dagen tot betaling + on-time-%, per
