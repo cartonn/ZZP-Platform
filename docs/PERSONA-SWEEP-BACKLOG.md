@@ -1,5 +1,67 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-14 (run 27) · **main-commit basis:** `d4f1f87`
+> **Uitkomst:** **2 defecten gevonden én OPGELOST** — (1) een next-action-correctheidsdefect (DOEL 1b):
+> de `/samenwerkingen`-cascadebadge van de ZZP'er ondertelde OVER-DE-VERVALDATUM-cascadefacturen; (2) een
+> privacy-defense-in-depth-gat (DOEL 2): de gehardende Sentry-`beforeSend`-scrubber scrubde `extra`/`contexts`
+> niet. Verse prod-build (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`, 13
+> samenwerkingen/7 facturen/16 tickets) op ephemere SQLite (`qa.db`), prod-server (`next start`, poort 3100,
+> `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte formulier
+> (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium (`chromium-1194`). Twee parallelle Opus-
+> subagents (security-audit over de diff `95b317b..d4f1f87` + next-action-correctheid-audit).
+>
+> **DOEL 1 (echte actie, live geverifieerd):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties`
+> → Goedkeuren-knoppen **6→5** (de keten auth→rol→ownership→transitie→audit→revalidate werkt end-to-end;
+> de afgehandelde actie verdween). CLIENT malicieuze opdracht-forminput (`<script>`-titel + lege verplichte
+> omschrijving + `rateMin=-50` + `rateMax=1e12`) via het echte formulier → **Zod-geweigerd, op-form gebleven,
+> géén `<script>`-job in de lijst (geen XSS)**. Telemetrie-endpoints (`/api/client-error`, `/api/csp-report`)
+> met kapotte/gigantische payloads → **204, nooit 500**; `/api/push/subscribe` met foute vorm → **400 (Zod)**.
+>
+> **DOEL 1b (next-action-correctheid — 1 DEFECT gevonden + gefixt):** `/acties` per rol gekruist tegen DB +
+> zijbalk-badges — ZZP'er (2), CLIENT (2), ADMIN (16), FRANCHISER-workspace laadt; "Uren goedkeuren"-nav toont
+> **géén** badge voor de CLIENT (0 SUBMITTED-prestaties in scope — correct, badge sprak de lege lijst niet
+> tegen). **GEVONDEN + GEFIXT (zie hieronder):** de ZZP-`/samenwerkingen`-cascadebadge ondertelde OVERDUE-
+> cascadefacturen die `/acties` én de cascade-fase (`stage.ts`, "aan zet"/attention) wél tonen.
+>
+> **DOEL 2 (adversarieel — alle correct, + 1 hardening):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen|support`; niet-FRANCHISER → `/franchise`) → **opaque
+> redirect, nooit 200/500**. IDOR via in-browser `fetch` (cookie-getrouw): vreemde factuur-PDF + vreemd
+> samenwerking-`dossier` + vreemd document → **403** voor ZZP/CLIENT/FRANCHISER; eigen resources → **200** voor
+> de partijen (+ ADMIN op document). Cross-tenant: FRANCHISER opent platform-job als dienst
+> (`/franchise/diensten/job-1`, `tenantId=null`) → **soft-404, jobtitel NIET gelekt**; eigen dienst laadt.
+> Junk-/traversal-/sqli-/xss-id over `/facturen|/samenwerkingen|/opdrachten|/zzp` → **nooit 500**. Forged
+> betaal-webhook (`tr_fake_replay_123`) → **200 ack maar inert**. Cron (`/api/tasks/run-all|expiry`): **GET →
+> 405**, **POST zonder secret → 503** (fail-closed). Alle `/acties` per rol zonder error-boundary.
+>
+> **GEVONDEN + GEFIXT — MED (next-action-correctheid, DOEL 1b):** de ZZP-`/samenwerkingen`-nav-badge
+> (`countFreelancerCascadeWork` via `navBadges` in `src/lib/signals.ts`) telt de cascade-taken waar de ZZP'er
+> "aan zet" is. De onderliggende query (`signals.ts`, invoices-`where`) filterde
+> `lifecycleStatus in [DRAFT,REJECTED,APPROVED]` — **`OVERDUE` ontbrak**, terwijl `/acties`
+> (`pending-tasks.ts:246`) OVERDUE wél meeneemt en er een `paymentConfirmTask` ("betaling markeren") van maakt,
+> en `cascade/stage.ts:136` een OVERDUE-factuur als fase `payment` met `youAreUp:true`/tone `attention` toont.
+> **Repro:** ZZP'er met een ACTIVE, niet-disputed samenwerking, laatste prestatie `APPROVED`, cascadefactuur
+> `lifecycleStatus=OVERDUE` (dagelijkse `payment-reminders-task` flipt APPROVED→OVERDUE) → `/acties` en het
+> detailscherm tonen een actieve "betaling markeren"-taak/fase, maar de `/samenwerkingen`-zijbalkbadge telt
+> **0** voor die samenwerking → de badge sprak zijn eigen docstring ("mag de aan-zet-lijst niet ondertellen")
+> en de detailfase tegen. **Geschonden regel:** interne consistentie van de next-action-engine (DOEL 1b) —
+> een verdwijnende/onderteldende next-action is een defect. **Fix:** `OVERDUE` toegevoegd aan de invoices-
+> filter + het `openInvoiceStatuses`-type + de `FreelancerCascadeCollab`-docstring in `src/lib/signals.ts`;
+> `countFreelancerCascadeWork` telt een OVERDUE-factuur nu als +1 (dezelfde ZZP-actie als APPROVED). Test
+> rood→groen: `signals.test.ts` (+1 case: OVERDUE-factuur telt mee; combinatie met indien-fase = 2).
+>
+> **GEVONDEN + GEFIXT — LAAG (privacy-defense-in-depth, DOEL 2):** de gehardende Sentry-`beforeSend`-scrubber
+> (`src/lib/observability/sentry-options.ts`, uit #760) scrubde `request`/`user`/`server_name`, maar liet
+> `event.extra` en `event.contexts` ongemoeid — precies het `extra`-veld waar `report.ts` de call-site-context
+> (`ReportContext.extra`) rechtstreeks in doorgeeft aan de externe (mogelijk buiten-EER) verwerker. Huidige
+> aanroepers geven alleen pad/digest/componentStack door (geen live lek), maar het "niet-gevoelige extra"-
+> contract was niet afgedwongen: een toekomstige aanroeper die een gebruikersobject/e-mail/naam in `extra`
+> zet, zou dat ongeredacteerd versturen — wat het AVG-doel van díe commit ondermijnt. **Fix:** `extra` en
+> `contexts` gaan nu door de bestaande recursieve PII/secret-redactie van de logger (`redact`, key-allowlist +
+> e-mailmaskering uit #753) — geen duplicatie, consistent met de rest van de observability-laag. Test
+> rood→groen: `sentry-options.test.ts` (+2 cases: PII-sleutels in `extra` geredacteerd/e-mail in vrije tekst
+> gemaskeerd; e-mailwaarde in `contexts` gemaskeerd + origineel onaangetast). Gate groen (typecheck, lint,
+> **4114 unit-tests**, build, prettier).
+
 > **Datum:** 2026-07-13 (run 26) · **main-commit basis:** `6c89a68`
 > **Uitkomst:** **1 HOOG revenue-integriteitsgat gevonden én OPGELOST** (betaal-webhook: herspeelde
 > `providerRef` heractiveerde een geannuleerd/verlopen abonnement gratis). Verse prod-build
