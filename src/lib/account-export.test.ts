@@ -34,6 +34,8 @@ function fakeDb(rows: Record<string, unknown> = {}) {
     ideaComment: { findMany: make("ideaComment", "findMany") },
     indirectHoursEntry: { findMany: make("indirectHoursEntry", "findMany") },
     idea: { findMany: make("idea", "findMany") },
+    invoice: { findMany: make("invoice", "findMany") },
+    performance: { findMany: make("performance", "findMany") },
     collaboration: { findMany: make("collaboration", "findMany") },
     favoriteFreelancer: { findMany: make("favoriteFreelancer", "findMany") },
     pushSubscription: { findMany: make("pushSubscription", "findMany") },
@@ -65,6 +67,8 @@ describe("buildAccountExport", () => {
       "ideaComments",
       "indirectHours",
       "ideas",
+      "invoices",
+      "performances",
       "cancelledCollaborations",
       "favoriteNotes",
       "pushSubscriptions",
@@ -316,14 +320,61 @@ describe("buildAccountExport", () => {
     expect((dispute?.args.select as Record<string, unknown>).disputeReason).toBe(true);
   });
 
+  it("neemt de eigen facturen mee als partij, zonder tegenpartij-id of factuurregel-tekst (AVG art. 15/20)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const invoice = calls.find((c) => c.table === "invoice");
+    expect(invoice).toBeDefined();
+    // De actor is partij als uitschrijver, opdrachtgever, of via de samenwerking (legacy-facturen).
+    const or = (invoice?.args.where as Record<string, unknown>).OR as Record<string, unknown>[];
+    expect(or).toContainEqual({ issuerUserId: ACTOR });
+    expect(or).toContainEqual({ counterpartyUserId: ACTOR });
+    expect(or).toContainEqual({ collaboration: { freelancer: { userId: ACTOR } } });
+    expect(or).toContainEqual({ collaboration: { company: { userId: ACTOR } } });
+
+    const select = invoice?.args.select as Record<string, unknown>;
+    // Gestructureerde eigen transactievelden wel.
+    expect(select.number).toBe(true);
+    expect(select.totalCents).toBe(true);
+    expect(select.subtotalCents).toBe(true);
+    // Tegenpartij-id's en vrije tekst lekken niet mee.
+    expect(select.counterpartyUserId).toBeUndefined();
+    expect(select.issuerUserId).toBeUndefined();
+    expect(select.rejectionReason).toBeUndefined();
+    expect(select.lines).toBeUndefined();
+  });
+
+  it("neemt de eigen urenstaten mee, gescopet op de eigen samenwerkingen als ZZP'er, zonder afkeurnotitie van de tegenpartij (AVG art. 15/20)", async () => {
+    const { db, calls } = fakeDb();
+    await buildAccountExport(db, ACTOR);
+
+    const perf = calls.find((c) => c.table === "performance");
+    expect(perf).toBeDefined();
+    expect((perf?.args.where as Record<string, unknown>).collaboration).toEqual({
+      freelancer: { userId: ACTOR },
+    });
+    const select = perf?.args.select as Record<string, unknown>;
+    // Eigen gewerkte uren + omschrijving wel.
+    expect(select.hours).toBe(true);
+    expect(select.description).toBe(true);
+    expect(select.ortSegments).toBe(true);
+    // De afkeurreden is door de goedkeurende tegenpartij geschreven — hoort er niet in.
+    expect(select.rejectionReason).toBeUndefined();
+  });
+
   it("geeft de canned rijen door in de juiste secties", async () => {
     const { db } = fakeDb({
       taxFilingRequest: [{ taxYear: 2025, kind: "IB" }],
       indirectHoursEntry: [{ hours: 2.5, category: "ADMIN" }],
+      invoice: [{ number: "2025-001", totalCents: 12100 }],
+      performance: [{ hours: 8, description: "Nachtdienst" }],
     });
     const payload = await buildAccountExport(db, ACTOR);
 
     expect(payload.taxFilingRequests).toEqual([{ taxYear: 2025, kind: "IB" }]);
     expect(payload.indirectHours).toEqual([{ hours: 2.5, category: "ADMIN" }]);
+    expect(payload.invoices).toEqual([{ number: "2025-001", totalCents: 12100 }]);
+    expect(payload.performances).toEqual([{ hours: 8, description: "Nachtdienst" }]);
   });
 });
