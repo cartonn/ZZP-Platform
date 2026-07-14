@@ -6,6 +6,7 @@
 // Reporting mag een request NOOIT laten falen: alles wordt geslikt, niets wordt naar buiten gegooid.
 
 import { logger } from "@/lib/observability/logger";
+import { buildSentryInitOptions } from "@/lib/observability/sentry-options";
 
 export interface ReportContext {
   /** Herkomst van de fout, bv. "onRequestError", "task:expiry". */
@@ -101,7 +102,7 @@ class SentryErrorReporter implements ErrorReporter {
     }
 
     const sentry = Sentry as {
-      init: (options: { dsn?: string }) => void;
+      init: (options: ReturnType<typeof buildSentryInitOptions>) => void;
       captureException: (
         error: unknown,
         hint?: { extra?: Record<string, unknown>; tags?: Record<string, string> },
@@ -110,7 +111,10 @@ class SentryErrorReporter implements ErrorReporter {
 
     if (!sentryInitDone) {
       sentryInitDone = true;
-      sentry.init({ dsn: process.env.SENTRY_DSN });
+      // Gehardende opties (environment/release + PII-scrubbing + sendDefaultPii:false), zodat een
+      // AVG-platform met gevoelige documenten geen request-headers/cookies/IP/gebruikersdata naar
+      // de externe verwerker lekt. Zie sentry-options.ts.
+      sentry.init(buildSentryInitOptions());
     }
     // request-id als tag zodat je in Sentry direct op de correlatie-ID kunt filteren/zoeken.
     const tags = context?.requestId ? { request_id: context.requestId } : undefined;
