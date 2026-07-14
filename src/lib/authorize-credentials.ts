@@ -12,6 +12,15 @@ import { loginRateLimiter } from "@/lib/rate-limit";
 import { loginBlockedByMaintenance } from "@/lib/maintenance";
 import { type UserRole } from "@/lib/enums";
 
+// Geldige cost-10-bcrypt-hash van een constante — nooit een echt wachtwoord. Dient als vergelijkings-
+// doel wanneer er géén bruikbare gebruiker is (onbekende e-mail, niet-ACTIVE, of na anonimisering een
+// lege passwordHash), zodat élke mislukte login evenveel bcrypt-rekentijd kost als een fout wachtwoord
+// op een bestaand ACTIVE-account. Zonder dit short-circuit `bcrypt.compare` weg bij een onbekend
+// account → dat logt meetbaar sneller in en verraadt via de responstijd of een e-mail bestaat
+// (CWE-208 timing-side-channel → gebruikers-/e-mail-enumeratie, OWASP A07). Cost 10 = gelijk aan de
+// registratie-hash (`bcrypt.hash(..., 10)`), zodat de rekentijd overeenkomt.
+const TIMING_EQUALIZER_HASH = "$2a$10$WXJahW.hkelHJbQ3heO7Ve7udQ0dZ/.iVzUpX1JT7MQZIoCfWI6TC";
+
 const credentialsSchema = z.object({
   // Registratie slaat e-mail genormaliseerd (trim + lowercase) op; de login-lookup MOET hetzelfde
   // normaliseren, anders matcht 'Jan@Bedrijf.nl' het opgeslagen 'jan@bedrijf.nl' niet op een
@@ -69,7 +78,19 @@ export async function authorizeCredentials(
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || user.status !== "ACTIVE" || !(await bcrypt.compare(password, user.passwordHash))) {
+
+  // Timing-egalisatie (CWE-208): draai ALTIJD precies één bcrypt.compare, ook als de gebruiker niet
+  // bestaat, niet ACTIVE is, of (na anonimisering) een lege passwordHash heeft. Alleen een bestaand,
+  // ACTIVE-account met een gezette hash vergelijkt tegen zijn eigen hash; alle andere paden vergelijken
+  // tegen de constante equalizer-hash (matcht nooit). Zo is de responstijd van een onbekend/geblokkeerd
+  // account niet te onderscheiden van een fout wachtwoord → geen e-mail-enumeratie via timing.
+  const comparisonHash =
+    user && user.status === "ACTIVE" && user.passwordHash
+      ? user.passwordHash
+      : TIMING_EQUALIZER_HASH;
+  const passwordMatches = await bcrypt.compare(password, comparisonHash);
+
+  if (!user || user.status !== "ACTIVE" || !user.passwordHash || !passwordMatches) {
     await audit({
       action: "USER_LOGIN_FAILED",
       entityType: "User",

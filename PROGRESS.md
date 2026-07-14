@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — Security/privacy-audit (2e ronde): cross-party dispuutreden-lek + login-timing-egalisatie
+
+**HOOG cross-party PII-lek gefixt (rood→groen, export + erasure):** `Collaboration.disputeReason` is één
+muteerbaar veld — na `resolveDispute` kan de tegenpartij een nieuw dispuut openen op dezelfde samenwerking,
+waarna het veld hún tekst bevat. De AVG-inzage-export én de AVG-erasure scopeten op alle-tijd eigen
+`DISPUTE_OPENED`-events → de export lekte de live reden van de tegenpartij / de erasure vernietigde diens lopende
+bewijs. Nieuwe gedeelde helper `src/lib/dispute-ownership.ts` (`collaborationsWithActiveDisputeOpenedBy`) herspeelt
+het dispuut-eventlog en geeft alleen de samenwerkingen terug waar de actor de HUIDIGE opener is. Gebruikt in
+`account-export.ts` + `admin/gebruikers/actions.ts`.
+
+**LAAG timing-side-channel gefixt (rood→groen):** `authorize-credentials.ts` draait nu altijd precies één
+`bcrypt.compare` (constante equalizer-hash bij onbekende/niet-ACTIVE/lege-hash-account) → geen e-mail-enumeratie
+via responstijd (CWE-208).
+
+- Bestanden: `src/lib/dispute-ownership.ts` (+test), `src/lib/account-export.ts` (+test), `src/lib/authorize-credentials.ts` (+test), `src/app/(protected)/admin/gebruikers/actions.ts` (+`anonymize-erasure.test.ts`), `docs/SECURITY-PRIVACY-BACKLOG.md`.
+- Checks: typecheck ✓ · lint ✓ · test 4141 groen ✓ · prettier --check ✓ · build ✓.
+- Geparkeerd voor de mens: betaal-vertrouwenschip k=3 vs. platform-eigen k≥10 (HOOG, threshold-keuze), art.30-register-gap betaalgedrag (MIDDEL), docstring-hardening `getPaymentBehaviorForCompanies` (LAAG). Zie backlog.
+
 ## 2026-07-14 — Persona-sweep (run 28): dubbele overdue-next-action ZZP'er gefixt (DOEL 1b)
 
 **Wat:** Kritische-gebruiker-sweep over alle vier rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) op de verse

@@ -299,9 +299,10 @@ describe("buildAccountExport", () => {
     expect((lead?.args.select as Record<string, unknown>).body).toBe(true);
   });
 
-  it("scope't open dispuutredenen op de eigen DISPUTE_OPENED-events, nooit die van de tegenpartij (AVG art. 15)", async () => {
+  it("scope't open dispuutredenen op het eigen, nog-open dispuut, nooit die van de tegenpartij (AVG art. 15)", async () => {
+    // Eén nog-open dispuut door de actor zelf: het live veld is dan van de actor → wél in de export.
     const { db, calls } = fakeDb({
-      domainEvent: [{ subjectId: "collab-9" }],
+      domainEvent: [{ subjectId: "collab-9", type: "DISPUTE_OPENED", actorId: ACTOR }],
     });
     await buildAccountExport(db, ACTOR);
 
@@ -318,6 +319,29 @@ describe("buildAccountExport", () => {
     expect((where.id as Record<string, unknown>).in).toEqual(["collab-9"]);
     expect((where.disputeReason as Record<string, unknown>).not).toBeNull();
     expect((dispute?.args.select as Record<string, unknown>).disputeReason).toBe(true);
+  });
+
+  it("lekt de LIVE dispuutreden van de tegenpartij niet na een oplossing + heropening (AVG art. 5(1)(f) / A01, rood→groen)", async () => {
+    // Scenario: de actor opende een dispuut op collab-9, admin loste het op (disputeReason genulld),
+    // daarna opende de TEGENPARTIJ een nieuw dispuut op dezelfde samenwerking. `Collaboration.disputeReason`
+    // bevat nu de reden van de tegenpartij. Een naïeve scope op alle-tijd eigen DISPUTE_OPENED-events zou
+    // collab-9 nog steeds matchen en die vreemde reden in de eigen export van de actor lekken.
+    const { db, calls } = fakeDb({
+      domainEvent: [
+        { subjectId: "collab-9", type: "DISPUTE_OPENED", actorId: ACTOR },
+        { subjectId: "collab-9", type: "DISPUTE_RESOLVED", actorId: "admin-1" },
+        { subjectId: "collab-9", type: "DISPUTE_OPENED", actorId: "other-party" },
+      ],
+    });
+    await buildAccountExport(db, ACTOR);
+
+    const dispute = calls
+      .filter((c) => c.table === "collaboration")
+      .find((c) => (c.args.where as Record<string, unknown>).disputeReason !== undefined);
+    expect(dispute).toBeDefined();
+    // Groen: de huidige opener is de tegenpartij → geen enkele samenwerking-id in scope, dus de query
+    // kan de live reden van de tegenpartij nooit teruggeven. Zonder de fix zou `in` ["collab-9"] zijn.
+    expect((dispute?.args.where as { id: { in: string[] } }).id.in).toEqual([]);
   });
 
   it("neemt de eigen facturen mee als partij, zonder tegenpartij-id of factuurregel-tekst (AVG art. 15/20)", async () => {

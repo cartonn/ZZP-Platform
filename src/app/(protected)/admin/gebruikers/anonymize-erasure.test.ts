@@ -63,7 +63,12 @@ vi.mock("@/lib/db", () => ({
     collaboration: { updateMany: op("collaboration.updateMany") },
     favoriteFreelancer: { updateMany: op("favoriteFreelancer.updateMany") },
     domainEvent: {
-      findMany: vi.fn(async () => [{ subjectId: "col-7" }]),
+      // Standaard: één nog-open dispuut dat de betrokkene zelf opende (col-7). De volle event-velden
+      // (type/actorId) zijn nodig voor de replay in `collaborationsWithActiveDisputeOpenedBy`. Wordt
+      // per test in beforeEach teruggezet zodat een test 'm mag overschrijven (bv. heropening-scenario).
+      findMany: vi.fn(async () => [
+        { subjectId: "col-7", type: "DISPUTE_OPENED", actorId: "user-42" },
+      ]),
       updateMany: op("domainEvent.updateMany"),
     },
     pushSubscription: { deleteMany: op("pushSubscription.deleteMany") },
@@ -149,6 +154,13 @@ const findAll = (model: string) => tx.ops.filter((o) => o.model === model);
 
 beforeEach(() => {
   tx.ops = [];
+  // Reset naar het standaard-dispuutevent (één eigen, nog-open dispuut op col-7) zodat een test die de
+  // domainEvent-mock overschrijft niet naar de volgende lekt.
+  (
+    prisma.domainEvent.findMany as unknown as { mockImplementation: (fn: () => unknown) => void }
+  ).mockImplementation(async () => [
+    { subjectId: "col-7", type: "DISPUTE_OPENED", actorId: "user-42" },
+  ]);
 });
 
 describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () => {
@@ -302,9 +314,37 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     }>;
     const disputeOp = ops.find((o) => o.args.where.id !== undefined);
     expect(disputeOp).toBeDefined();
-    // De ids komen uit de DISPUTE_OPENED-events van de betrokkene (mock geeft col-7).
+    // De ids komen uit het huidige, nog-open eigen dispuut van de betrokkene (mock geeft col-7).
     expect(disputeOp!.args.where.id).toEqual({ in: ["col-7"] });
     expect((disputeOp!.args.data as { disputeReason: string | null }).disputeReason).toBeNull();
+  });
+
+  it("wist de LIVE dispuutreden NIET als de tegenpartij het huidige dispuut heropende (geen vernietiging van andermans lopende bewijs, rood→groen)", async () => {
+    // Scenario: de betrokkene opende ooit een dispuut op col-8, admin loste het op (reden genulld),
+    // daarna opende de TEGENPARTIJ een nieuw dispuut op dezelfde samenwerking. `disputeReason` bevat nu
+    // de reden van de tegenpartij. Een naïeve scope op alle-tijd eigen DISPUTE_OPENED-events zou col-8
+    // nog matchen en die lopende, vreemde reden bij de erasure van de betrokkene wegvagen.
+    (
+      prisma.domainEvent.findMany as unknown as { mockImplementation: (fn: () => unknown) => void }
+    ).mockImplementation(async () => [
+      { subjectId: "col-8", type: "DISPUTE_OPENED", actorId: "user-42" },
+      { subjectId: "col-8", type: "DISPUTE_RESOLVED", actorId: "admin-1" },
+      { subjectId: "col-8", type: "DISPUTE_OPENED", actorId: "other-party" },
+    ]);
+
+    await anonymizeUser("user-42");
+
+    const ops = findAll("collaboration.updateMany") as Array<{
+      args: { where: { id?: { in: string[] }; disputeReason?: unknown }; data: unknown };
+    }>;
+    const disputeOp = ops.find((o) => o.args.where.id !== undefined);
+    expect(disputeOp).toBeDefined();
+    // Groen: de huidige opener is de tegenpartij → geen samenwerking-id in scope, de live reden van de
+    // tegenpartij blijft staan. Zonder de fix zou dit ["col-8"] zijn en andermans bewijs vernietigen.
+    expect(disputeOp!.args.where.id).toEqual({ in: [] });
+    // De eigen event-payload/audit-redactie blijft wél breed (op actorId) — die raakt alleen eigen tekst.
+    const eventOp = find("domainEvent.updateMany") as { args: { where: unknown } };
+    expect(eventOp.args.where).toEqual({ type: "DISPUTE_OPENED", actorId: "user-42" });
   });
 
   it("wist de dispuutreden óók uit de DISPUTE_OPENED-domeinevent-payload (AVG art. 17, event-store)", async () => {
