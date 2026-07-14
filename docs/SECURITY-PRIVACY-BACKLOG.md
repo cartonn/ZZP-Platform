@@ -62,17 +62,22 @@ gefixt (rood→groen); één HOOG-k-anonimiteit-inconsistentie + twee LAAG/MIDDE
   goedkeuren waarom een lagere drempel hier rechtmatig is, én de sample-size in het chip-`title`/aria-label opnemen.
   Bewust een agent níet zelf een k-drempel laten kiezen (les uit de MENSENWERK-lijn). **Geschonden:** AVG art.
   5(1)(a)/(d) + interne k-anonimiteitsnorm.
-- **[MIDDEL · AVG art. 30 register-volledigheid]** `src/lib/compliance/processing-register.ts` heeft wél een
-  `markttarief-indicatie`-entry (incl. k≥10 als maatregel) maar géén equivalent voor het betaalgedrag/
-  betaalreputatie-signaal, dat nu platform-breed wordt getoond (browse-lijst + opdracht-detail + `/verplichtingen`).
-  **Aanbevolen:** `ProcessingActivity`-entry `betaalgedrag-reputatie` (doel, grondslag `GERECHTVAARDIGD_BELANG`,
-  betrokkenen incl. eenmanszaak-overlap, categorie = uitsluitend geaggregeerde betaaltiming, sample-size-vloer als
-  maatregel zodra k-drempel is vastgesteld, retentie = live berekend/niet opgeslagen, ontvangers = browsende ZZP'ers).
-- **[LAAG · defense-in-depth] `getPaymentBehaviorForCompanies`/`getPaymentBehaviorForCompany`**
+- **[MIDDEL → OPGELOST (PR #769) · AVG art. 30 register-volledigheid]** `src/lib/compliance/processing-register.ts`
+  had wél een `markttarief-indicatie`-entry (incl. k≥10 als maatregel) maar géén equivalent voor het betaalgedrag/
+  betaalreputatie-signaal, dat platform-breed wordt getoond (browse-lijst + opdracht-detail + `/verplichtingen`).
+  **Gefixt:** `ProcessingActivity`-entry `betaalgedrag-reputatie` toegevoegd (doel, grondslag
+  `GERECHTVAARDIGD_BELANG`, betrokkenen incl. eenmanszaak-overlap, categorie = uitsluitend geaggregeerde
+  betaaltiming, `PAYMENT_MIN_SAMPLE_SIZE`-steekproefvloer als maatregel, retentie = live berekend/niet opgeslagen,
+  ontvangers = browsende ZZP'ers + eigen reputatie-spiegel). Test: `processing-register.test.ts` (+1 case die de
+  grondslag/aggregatie/steekproefvloer/retentie afdwingt). _Noot: de k-drempel-hoogte zelf (`PAYMENT_MIN_SAMPLE_SIZE`
+  = 3 vs. k≥10) blijft de geëscaleerde HOOG-beslissing hierboven — het register beschrijft de bestaande verwerking,
+  het kiest de drempel niet._
+- **[LAAG → OPGELOST (PR #769) · defense-in-depth] `getPaymentBehaviorForCompanies`/`getPaymentBehaviorForCompany`**
   (`src/lib/data/payment-behavior.ts`) accepteren een rauwe `companyId`(s) zonder interne rol-/tenant-check; vandaag
   veilig (enige twee call-sites scopen op `visibleJobsWhere(actor)`), maar een toekomstige API-route eromheen zou
-  arbitraire-opdrachtgever-betaalreputatie kunnen blootstellen. **Aanbevolen:** docstring die de scoping-
-  verantwoordelijkheid expliciteert, of een `Actor`/voor-gevalideerde id-lijst als parameter.
+  arbitraire-opdrachtgever-betaalreputatie kunnen blootstellen. **Gefixt:** docstring op beide helpers die de
+  scoping-verantwoordelijkheid van de aanroeper expliciet maakt (nooit een ongevalideerde, van buitenaf aangeleverde
+  `companyId` doorgeven; scope op `visibleJobsWhere(actor)` of de eigen `Company`).
 
 ## Ronde 2026-07-14 (basis: `main` @ 4da72bb)
 

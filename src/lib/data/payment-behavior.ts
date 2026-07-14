@@ -17,6 +17,15 @@ const MAX_PAID_INVOICES = 25;
  *
  * Bronkeuze `paidAt`: `Invoice.updatedAt` bij status = "PAID". Zie `payment-behavior.ts` voor
  * de volledige onderbouwing.
+ *
+ * Scoping-verantwoordelijkheid (defense-in-depth): deze functie neemt een rauwe `companyId` zonder
+ * eigen rol-/tenant-check en berekent de betaalreputatie van díe opdrachtgever. Het signaal is een
+ * met-naam-tonbare reputatie over een derde (art. 30-verwerking `betaalgedrag-reputatie`); de aanroeper
+ * MOET de opgevraagde opdrachtgever(s) daarom eerst scopen op wat de actor mag zien
+ * (`visibleJobsWhere(actor)` voor de browse-lijst, of de eigen `Company` voor de reputatie-spiegel).
+ * Roep dit nooit aan met een ongevalideerde, van buitenaf aangeleverde `companyId` (bv. direct uit een
+ * API-parameter) — dat zou arbitraire-opdrachtgever-betaalreputatie kunnen blootstellen. Zie de
+ * AVG-privacy-backlog (LAAG defense-in-depth).
  */
 export async function getPaymentBehaviorForCompany(companyId: string): Promise<PaymentBehavior> {
   const invoices = await prisma.invoice.findMany({
@@ -50,6 +59,11 @@ export async function getPaymentBehaviorForCompany(companyId: string): Promise<P
  * queries lopen parallel. Geeft alleen geaggregeerde statistieken terug — geen individuele factuurdata
  * van anderen is zichtbaar voor de aanroeper (privacy by design). Spiegelt
  * `getClientResponsivenessForCompanies`.
+ *
+ * Scoping-verantwoordelijkheid (defense-in-depth): net als de single-variant neemt deze functie een
+ * rauwe id-lijst zonder eigen rol-/tenant-check. De aanroeper MOET de `companyIds` eerst afleiden uit
+ * wat de actor mag zien (de enige call-site scopet op `visibleJobsWhere(actor)`); geef hier nooit
+ * ongevalideerde, van buitenaf aangeleverde id's aan door. Zie de AVG-privacy-backlog (LAAG).
  */
 export async function getPaymentBehaviorForCompanies(
   companyIds: string[],

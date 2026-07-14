@@ -146,6 +146,28 @@ describe("PROCESSING_REGISTER", () => {
     expect(auditlog).toBeDefined();
     expect(auditlog?.legalBasis).toBe("GERECHTVAARDIGD_BELANG");
   });
+
+  it("betaalgedrag-reputatie is geregistreerd (art. 30) op gerechtvaardigd belang, live berekend, met steekproefvloer als waarborg", () => {
+    const betaalgedrag = PROCESSING_REGISTER.find((a) => a.key === "betaalgedrag-reputatie");
+    expect(betaalgedrag).toBeDefined();
+    expect(betaalgedrag?.legalBasis).toBe("GERECHTVAARDIGD_BELANG");
+    // Niet-gevoelig, maar wél over identificeerbare opdrachtgevers (incl. eenmanszaken).
+    expect(betaalgedrag?.sensitive).toBe(false);
+    expect(betaalgedrag?.dataSubjects.some((s) => s.toLowerCase().includes("opdrachtgever"))).toBe(
+      true,
+    );
+    // Uitsluitend geaggregeerde betaaltiming — geen individuele factuur.
+    expect(betaalgedrag?.dataCategories.length).toBe(1);
+    expect(betaalgedrag?.dataCategories[0].toLowerCase()).toContain("geaggregeerd");
+    // Live berekend, niet opgeslagen (geen aparte bewaartermijn).
+    expect(betaalgedrag?.retention.toLowerCase()).toContain("niet opgeslagen");
+    // De steekproefvloer moet als beveiligingsmaatregel benoemd zijn (spiegelt de markttarief-k-vloer).
+    expect(betaalgedrag?.securityMeasures.some((m) => m.includes("PAYMENT_MIN_SAMPLE_SIZE"))).toBe(
+      true,
+    );
+    // Beide ontvanger-kanten: browsende ZZP'ers én de opdrachtgever zelf.
+    expect(betaalgedrag?.recipients.some((r) => r.toLowerCase().includes("zzp"))).toBe(true);
+  });
 });
 
 // --- RETENTION_SCHEDULE — structuurvalidatie ---------------------------------
