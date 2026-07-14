@@ -182,6 +182,17 @@ export function countUnreadConversations(
  * op een disputed samenwerking via `assertNotDisputed`). Een generieke "volg op / markeer als
  * betaald"-roll-up voor zo'n bevroren factuur zou het samenwerkingsscherm tegenspreken en een taak
  * tonen waarvan de knop server-side sowieso faalt — dus telt hij niet mee.
+ *
+ * **Bron-van-waarheid per facturensoort (voorkomt een dubbele next-action):** cascade-facturen
+ * dragen een `lifecycleStatus`; die is voor hen de waarheid. Een cascade-factuur is pas "over de
+ * vervaldatum" als de payment-reminders-taak `lifecycleStatus→OVERDUE` heeft gezet (die koppelt in
+ * één update `status` én `lifecycleStatus`, zie `payment-reminders-task.ts`). Een APPROVED
+ * cascade-factuur telt hier daarom NIET mee via het legacy `status`-veld — anders zou dezelfde
+ * factuur zowel als specifieke betaal-taak (`pending-tasks.ts` APPROVED-tak) áls in deze generieke
+ * roll-up verschijnen, terwijl `surfacedOverdue` (dat op `lifecycleStatus === "OVERDUE"` telt) hem
+ * niet aftrekt → een dubbele next-action. Legacy-/handmatige facturen (`facturen/actions.ts`, geen
+ * cascade → `lifecycleStatus = null`) vallen terug op het legacy `status`-veld; die worden nooit als
+ * specifieke betaal-taak getoond, dus alleen deze roll-up telt ze — precies één keer.
  */
 export async function overdueInvoiceCount(role: UserRole, userId: string): Promise<number> {
   if (role === "ADMIN" || role === "FRANCHISER") return 0;
@@ -189,7 +200,13 @@ export async function overdueInvoiceCount(role: UserRole, userId: string): Promi
   return prisma.invoice.count({
     where: {
       collaboration: { ...party, disputedAt: null },
-      OR: [{ status: "OVERDUE" }, { status: "SENT", dueAt: { lt: new Date() } }],
+      OR: [
+        // Cascade-facturen: alleen de lifecycle bepaalt "over de vervaldatum" (koppelt met status).
+        { lifecycleStatus: "OVERDUE" },
+        // Legacy-/handmatige facturen (geen lifecycle): val terug op het legacy status-veld.
+        { lifecycleStatus: null, status: "OVERDUE" },
+        { lifecycleStatus: null, status: "SENT", dueAt: { lt: new Date() } },
+      ],
     },
   });
 }
