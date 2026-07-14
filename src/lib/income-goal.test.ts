@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { incomeGoalHeadline, summarizeIncomeGoal, type IncomeGoalInput } from "./income-goal";
+import {
+  incomeGoalGlance,
+  incomeGoalHeadline,
+  summarizeIncomeGoal,
+  type IncomeGoalInput,
+} from "./income-goal";
 
 describe("summarizeIncomeGoal", () => {
   it("returns status 'none' with null percentages when there is no goal", () => {
@@ -117,5 +122,49 @@ describe("incomeGoalHeadline", () => {
     expect(incomeGoalHeadline(summarizeIncomeGoal(base))).toBe(
       "Nog niet op koers voor je maanddoel.",
     );
+  });
+});
+
+describe("incomeGoalGlance", () => {
+  const base: IncomeGoalInput = {
+    goalCents: 300_000,
+    realizedCents: 0,
+    expectedCents: 0,
+  };
+  // Deterministische stub-formatter zodat de test niet op Intl-locale leunt.
+  const euro = (cents: number) => `€ ${(cents / 100).toFixed(2)}`;
+
+  it("returns null without a goal (status none)", () => {
+    expect(incomeGoalGlance(summarizeIncomeGoal({ ...base, goalCents: null }), euro)).toBeNull();
+  });
+
+  it("marks an achieved goal as success with the goal amount", () => {
+    const glance = incomeGoalGlance(summarizeIncomeGoal({ ...base, realizedCents: 300_000 }), euro);
+    expect(glance).toEqual({
+      delta: "100% doel",
+      hint: "Maanddoel van € 3000.00 gehaald",
+      tone: "success",
+    });
+  });
+
+  it("marks an on-track goal (drafts close the gap) as success", () => {
+    const glance = incomeGoalGlance(
+      summarizeIncomeGoal({ ...base, realizedCents: 200_000, expectedCents: 150_000 }),
+      euro,
+    );
+    expect(glance).toEqual({
+      delta: "67% doel",
+      hint: "Met je openstaande concepten haal je je doel",
+      tone: "success",
+    });
+  });
+
+  it("marks a behind goal as warning with the remaining amount", () => {
+    const glance = incomeGoalGlance(summarizeIncomeGoal({ ...base, realizedCents: 90_000 }), euro);
+    expect(glance).toEqual({
+      delta: "30% doel",
+      hint: "Nog € 2100.00 tot je maanddoel",
+      tone: "warning",
+    });
   });
 });

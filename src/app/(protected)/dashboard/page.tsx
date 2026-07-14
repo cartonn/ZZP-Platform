@@ -28,6 +28,7 @@ import { formatDeltaPct, earningsDeltaTone } from "@/lib/revenue-delta";
 import { getTranslator } from "@/lib/i18n/server";
 import { avatarAccent } from "@/lib/avatar-accent";
 import { formatEuro } from "@/lib/invoices";
+import { summarizeIncomeGoal, incomeGoalGlance } from "@/lib/income-goal";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { pendingTasks } from "@/lib/actions/pending-tasks";
@@ -99,6 +100,8 @@ interface DashboardData {
   complianceSnapshot?: ClientComplianceSnapshot;
   /** Inzetbaarheidsstatus van de ZZP'er zelf (alleen FREELANCER). */
   engageability?: EngageabilityResult | null;
+  /** Ingesteld maanddoel in centen (alleen FREELANCER; null zonder doel) — voedt de geldpuls-glance. */
+  incomeGoalCents?: number | null;
   /** Afgeleide inzetbaarheids-samenvatting (alleen FREELANCER): één oordeel voor tegel + zegel. */
   employability?: EmployabilitySummary | null;
   /** Voorgestelde ZZP'ers voor de opdrachtgever (alleen CLIENT). */
@@ -369,6 +372,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       activation: [],
       engageability,
       employability,
+      incomeGoalCents: profile?.monthlyIncomeGoalCents ?? null,
       identity: {
         subtitle: [profile?.headline, profile?.location].filter(Boolean).join(" · ") || null,
         meta: profile?.hourlyRate != null ? [`€ ${profile.hourlyRate}/uur`] : [],
@@ -764,6 +768,7 @@ export default async function DashboardPage() {
       activation,
       engageability,
       employability,
+      incomeGoalCents,
       complianceSnapshot,
       suggestedFreelancers,
       identity,
@@ -805,14 +810,32 @@ export default async function DashboardPage() {
     // Geldpuls: wat heb ik deze maand gefactureerd, met de maand-op-maand-delta. Leunt op de
     // al-geteste omzet-trend (`getFreelancerRevenueTrend`); de ZZP'er had geen geld-KPI op het
     // startscherm — dit is zijn meest-gewenste blik. €0 zonder basis toont geen delta-chip.
+    // Heeft de ZZP'er een maanddoel ingesteld (/prognose), dan vervangt de doel-glance de
+    // maand-op-maand-chip: "haal ik mijn doel?" is de meest motiverende dagelijkse blik. Het
+    // verwachte deel komt uit de openstaande concepten (unbilledInvoices); server-berekend.
     if (freelancerRevenueTrend) {
+      const goalGlance =
+        incomeGoalCents != null
+          ? incomeGoalGlance(
+              summarizeIncomeGoal({
+                goalCents: incomeGoalCents,
+                realizedCents: freelancerRevenueTrend.currentCents,
+                expectedCents: unbilledInvoices?.grossCents ?? 0,
+              }),
+              formatEuro,
+            )
+          : null;
       fKpis.push({
         icon: Wallet,
         label: t("Deze maand gefactureerd"),
         value: formatEuro(freelancerRevenueTrend.currentCents),
-        hint: `${t("deze maand")} · ${freelancerRevenueTrend.series.at(-1)?.label ?? ""}`,
-        delta: formatDeltaPct(freelancerRevenueTrend.deltaPct),
-        deltaTone: earningsDeltaTone(freelancerRevenueTrend.deltaPct),
+        hint: goalGlance
+          ? goalGlance.hint
+          : `${t("deze maand")} · ${freelancerRevenueTrend.series.at(-1)?.label ?? ""}`,
+        delta: goalGlance ? goalGlance.delta : formatDeltaPct(freelancerRevenueTrend.deltaPct),
+        deltaTone: goalGlance
+          ? goalGlance.tone
+          : earningsDeltaTone(freelancerRevenueTrend.deltaPct),
       });
     }
     // Nog te factureren: geleverd/goedgekeurd werk staat als concept-factuur klaar maar het geld is
