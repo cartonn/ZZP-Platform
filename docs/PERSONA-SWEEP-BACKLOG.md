@@ -1,5 +1,57 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-14 (run 28) · **main-commit basis:** `797c8a3`
+> **Uitkomst:** **1 next-action-correctheidsdefect gevonden én OPGELOST** (DOEL 1b) — de generieke
+> "factuur over de vervaldatum"-roll-up van de ZZP'er (`overdueInvoiceCount`) keyt op het legacy
+> `status`-veld, terwijl de specifieke betaal-taak én de `surfacedOverdue`-aftrek op `lifecycleStatus`
+> keyen → een cascade-factuur kon in een smal venster als **dubbele** next-action verschijnen. Verse
+> prod-build (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`, 13 samenwerkingen/
+> 7 facturen/16 tickets) op ephemere SQLite (`qa.db`), prod-server (`next start`, poort 3100,
+> `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte
+> formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium (`chromium-1194`). Eén
+> parallelle Opus-Explore-subagent (next-action-engine + authz/tenant-map over de diff `797c8a3~8..797c8a3`).
+>
+> **DOEL 1 (echte actie, live geverifieerd):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties`
+> → Goedkeuren-knoppen **6→5** én de `/acties`-nav-badge **16→15** (de keten
+> auth→rol→ownership→transitie→audit→revalidate werkt end-to-end; de afgehandelde next-action verdween).
+>
+> **DOEL 1b (next-action-correctheid — 1 DEFECT gevonden + gefixt):** `/acties` per rol gekruist tegen
+> de seed — ZZP'er (2), CLIENT (2), ADMIN (16), FRANCHISER ("Alles is afgehandeld" — 0, klopt). Alle
+> zichtbare acties logisch/juiste volgorde. **GEVONDEN + GEFIXT (zie hieronder):** het veld-mismatch-naad
+> tussen `overdueInvoiceCount` (legacy `status`) en de cascade-`surfacedOverdue`-aftrek (`lifecycleStatus`).
+>
+> **DOEL 2 (adversarieel — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen|support|no-shows|dienst-overnames|facturatie`;
+> niet-FRANCHISER → `/franchise`) → **302-redirect naar login/dashboard**, nooit 200-inhoud/500 (client →
+> `/admin/verificaties` landde geverifieerd op `/dashboard`). IDOR via in-browser `fetch` (cookie-getrouw)
+> met **echte vreemde id's** uit de DB: vreemd document (Youssef), vreemde factuur-PDF (Emma), samenwerking-
+> `dossier`/`dba-dossier` (Iris) → **403** voor ZZP/CLIENT/FRANCHISER; eigen document + eigen factuur-PDF →
+> **200**; ADMIN 200 op alle drie = by-design geaudit oversight. Junk/traversal/sqli/xss-id over
+> `/facturen|/samenwerkingen|/opdrachten|/zzp` + `/api/documents/<junk>` → **nooit 500**. Cron
+> (`/api/tasks/run-all|expiry`): **GET → 405**, **POST zonder secret → 503** (fail-closed). Forged
+> betaal-webhook (`tr_fake_replay_999`) → **200 ack maar inert**, nooit 500.
+>
+> **GEVONDEN + GEFIXT — MED (next-action-correctheid, DOEL 1b):** `overdueInvoiceCount`
+> (`src/lib/signals.ts:186`) voedt de generieke "N facturen over de vervaldatum"-roll-up van de ZZP'er via
+> de residu-aftrek in `pending-tasks.ts:298` (`residualOverdue = max(0, overdue − surfacedOverdue)`). De
+> query keyde op het **legacy `status`-veld** (`status=OVERDUE OR status=SENT && dueAt<now`), terwijl
+> `surfacedOverdue` (die de specifieke betaal-taak aftrekt) en de collabs-query op **`lifecycleStatus`**
+> keyen. Deze twee velden lopen uiteen voor een gemigreerde-en-daarna-via-cascade-goedgekeurde factuur
+> (`lifecycleStatus=APPROVED`, legacy `status=SENT`-restant, `dueAt<now`): de APPROVED-tak toont een
+> specifieke "betaling markeren"-taak **zonder** `surfacedOverdue` te verhogen, terwijl
+> `overdueInvoiceCount` diezelfde factuur via de SENT-tak telt → residu > 0 → **dezelfde factuur ook als
+> generieke roll-up = dubbele next-action** (venster < 24u, tot de dagelijkse `payment-reminders-task`
+> `lifecycleStatus` én `status` samen op OVERDUE koppelt). Cascade-facturen alleen divergeren nooit
+> (APPROVED-cascade behoudt legacy `status=DRAFT`); de naad is de gemigreerde/handmatige-legacy-route.
+> **Geschonden regel:** interne consistentie van de next-action-engine (DOEL 1b) — een dubbele next-action
+> is een defect. **Fix:** `overdueInvoiceCount` keyt cascade-facturen nu op `lifecycleStatus=OVERDUE` en
+> laat het legacy `status`-veld alléén gelden voor facturen zonder lifecycle (`lifecycleStatus=null`), zodat
+> een APPROVED cascade-/gemigreerde factuur niet dubbel telt. Gedrag blijft identiek voor alle normale
+> gevallen (cascade OVERDUE koppelt beide velden; legacy/handmatige facturen houden hun status-detectie).
+> Test rood→groen: `signals.overdue.test.ts` (bijgewerkte scoping-assert + 1 regressietest die de
+> lifecycleStatus=null-clausulering op elke legacy-tak afdwingt). Gate groen (typecheck, lint, **4129
+> unit-tests**, build, prettier).
+
 > **Datum:** 2026-07-14 (run 27) · **main-commit basis:** `d4f1f87`
 > **Uitkomst:** **2 defecten gevonden én OPGELOST** — (1) een next-action-correctheidsdefect (DOEL 1b):
 > de `/samenwerkingen`-cascadebadge van de ZZP'er ondertelde OVER-DE-VERVALDATUM-cascadefacturen; (2) een

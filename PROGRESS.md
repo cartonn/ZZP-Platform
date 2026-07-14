@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — Persona-sweep (run 28): dubbele overdue-next-action ZZP'er gefixt (DOEL 1b)
+
+**Wat:** Kritische-gebruiker-sweep over alle vier rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) op de verse
+prod-build + idempotente demo-seed. **1 next-action-correctheidsdefect gevonden én opgelost.**
+
+- **DOEL 1 (live):** ADMIN "Goedkeuren" op `/admin/verificaties` → knoppen 6→5 én `/acties`-badge 16→15
+  (keten auth→rol→ownership→transitie→audit→revalidate werkt; afgehandelde actie verdween).
+- **DOEL 2 (adversarieel, alle correct):** privilege-escalatie → 302-redirect (client→`/admin/*` landde
+  op `/dashboard`); IDOR met echte vreemde id's (document/factuur-PDF/dossier/dba-dossier) → 403 voor
+  niet-partijen, 200 voor eigenaar, ADMIN-oversight by-design; junk/traversal/sqli/xss-id → nooit 500;
+  cron GET→405 / POST-zonder-secret→503; forged webhook→200-inert.
+- **DOEL 1b (defect):** `overdueInvoiceCount` (`signals.ts`) keyde op het legacy `status`-veld terwijl de
+  cascade-`surfacedOverdue`-aftrek (`pending-tasks.ts:298`) op `lifecycleStatus` keyt → een APPROVED
+  cascade-/gemigreerde factuur met een legacy `status=SENT`-restant + `dueAt<now` verscheen in een
+  <24u-venster **dubbel** (specifieke betaal-taak + generieke roll-up). **Fix:** de query keyt cascade-
+  facturen nu op `lifecycleStatus=OVERDUE` en laat het legacy `status`-veld alléén gelden voor
+  `lifecycleStatus=null` (legacy/handmatige) facturen — gedrag identiek in alle normale gevallen.
+
+**Bestanden:** `src/lib/signals.ts` (overdueInvoiceCount-query + doc), `src/lib/signals.overdue.test.ts`
+(bijgewerkte scoping-assert + regressietest, rood→groen). **Gate:** typecheck, lint, **4129 unit-tests**,
+build, prettier — groen.
+
 ## 2026-07-14 — Betaal-vertrouwenschip op de browse-lijst (ZZP'er)
 
 - **Wat:** op `/opdrachten` (de browse-/triage-lijst van de ZZP'er) toonde elke opdracht al ZZP-zijdige

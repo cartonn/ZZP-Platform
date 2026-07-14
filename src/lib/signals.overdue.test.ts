@@ -28,10 +28,36 @@ describe("overdueInvoiceCount — scoping", () => {
       freelancer: { userId: "fr-1" },
       disputedAt: null,
     });
+    // Cascade-facturen tellen alléén via lifecycleStatus=OVERDUE mee; het legacy status-veld geldt
+    // uitsluitend voor facturen zonder lifecycle (lifecycleStatus=null). Zo kan een APPROVED
+    // cascade-factuur (die als specifieke betaal-taak verschijnt) niet ook nog eens via het legacy
+    // status-veld in de generieke overdue-roll-up belanden → geen dubbele next-action.
     expect(where.OR).toEqual([
-      { status: "OVERDUE" },
-      { status: "SENT", dueAt: { lt: expect.any(Date) } },
+      { lifecycleStatus: "OVERDUE" },
+      { lifecycleStatus: null, status: "OVERDUE" },
+      { lifecycleStatus: null, status: "SENT", dueAt: { lt: expect.any(Date) } },
     ]);
+  });
+
+  it("een APPROVED cascade-factuur met een legacy status=SENT-restant wordt NIET dubbel geteld", async () => {
+    // Regressietest voor de dubbele next-action: vóór de fix telde de OR-tak `{status:'SENT', dueAt<now}`
+    // een cascade-factuur mee die tegelijk lifecycleStatus=APPROVED had — die verschijnt al als
+    // specifieke betaal-taak (pending-tasks APPROVED-tak) zonder `surfacedOverdue` te verhogen, dus
+    // de roll-up telde 'm er nóg eens bij. De query mag zo'n factuur niet matchen: de SENT/legacy-tak
+    // is nu geclausuleerd op lifecycleStatus=null.
+    await overdueInvoiceCount("FREELANCER", "fr-1");
+    const where = countMock.mock.calls[0]![0].where;
+    for (const clause of where.OR as Array<Record<string, unknown>>) {
+      // Elke tak die op het legacy status-veld leunt, moet lifecycleStatus=null eisen.
+      if ("status" in clause) {
+        expect(clause).toMatchObject({ lifecycleStatus: null });
+      }
+    }
+    // De enige tak die cascade-facturen matcht, keyt op lifecycleStatus=OVERDUE (niet APPROVED).
+    const cascadeClauses = (where.OR as Array<Record<string, unknown>>).filter(
+      (c) => !("status" in c),
+    );
+    expect(cascadeClauses).toEqual([{ lifecycleStatus: "OVERDUE" }]);
   });
 
   it("CLIENT: gescoopt op eigen bedrijf én disputen uitgesloten", async () => {
