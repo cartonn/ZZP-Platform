@@ -57,6 +57,7 @@ export const P = {
   pendingUsers: 60, // gebruikers met PENDING-status (admin)
   credentialExpiryBatch: 58, // verlopen/verlopende certificaten — draai de expiry-check (admin)
   messagesAwaiting: 55, // berichten van de andere partij wachten op antwoord
+  staleApplications: 52, // kandidaten (VIEWED/SHORTLIST) wachten al langer dan gebruikelijk op een beslissing
   applications: 50, // nieuwe reacties
   availabilityStale: 40, // gedeelde beschikbaarheidsagenda verlopen — findability-nudge (ZZP'er)
   completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)
