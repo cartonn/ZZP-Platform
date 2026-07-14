@@ -824,3 +824,42 @@ UI-taal = Nederlands.
   instrument-UI (astrolabium)**; **warme gloed-lichtbronnen in dark themes**; **zoetrope/sequentiële-frame-kinetiek** —
   elk AA-/contrast-bewust en onderscheidend van de bestaande 290.
 - **Totaal nu op `/ontwerp`: 300 concepten** (reeks 30: 291–300).
+
+## Reeks 31 (301–310) — 2026-07-14
+
+- Tien nieuwe, onderling radicaal verschillende richtingen, elk onderscheidend gehouden van de bestaande 300:
+  - **301 Ganzenbord** — speels bordspel-parcours (light, kleurrijk): de next-action-engine als genummerd
+    tegelpad met een bonzende pion, dobbelsteen-tegels met pips, hover-lift en chunky drop-shadow-knoppen
+    (niet Speelkaart/Arcade — bordspel-parcours als voortgangs-metafoor).
+  - **302 Lopende band** — kaiten-conveyor/kinetische matchstroom (warm hout + mint): matches schuiven op een
+    auto-scrollende band met pauze-op-hover en reduced-motion-fallback naar statische strook, belt-tread-slats
+    als motief (niet Stroom/Choreografie — continue horizontale conveyor met motion-veiligheid).
+  - **303 Maquette** — isometrische schaalmaquette (museumwit): isometrische module-blokjes met zachte
+    slagschaduw, hoogte codeert match, fijne maatstreepjes, plinth-cards die zweven (niet Isometrie/Diorama —
+    architecturale schaalmaquette met maatstreep-precisie).
+  - **304 Zoutvlak** — woestijn-zoutvlakte minimalisme (warm neutraal): enorme witruimte, horizon-lijnen,
+    kalme SaltMeter, één bleek-turquoise mirage-accent (niet Japandi/Tij — luxe door leegte en horizontale rust).
+  - **305 Partituur** — muzieknotatie (ivoor + inkt + bordeaux): notenbalken als ordenend raster, match als
+    noothoogte op de balk in SVG, dynamiek-tekens als status (niet Klavier/Sequencer — notatie/partituur i.p.v.
+    toetsen/step-grid).
+  - **306 Laboratorium** — periodiek systeem/chemie-lab (koel wit + reagent-violet): credentials als element-
+    tegels (symbool + atoomnummer), match als titratie-meetschaal, laboratoriumglas-motief (niet Kliniek/
+    Histologie — element-tegels + meetschalen als exacte status-taal).
+  - **307 Veiling** — veilinghuis (perkament/antraciet + messing): opdrachten als kavels met paddle-nummers,
+    wax-zegel-match-hallmark, serif-lotnummers, hamer/afslag-motief (niet Folio/Notariaat — ceremonieel bieden
+    op kavels).
+  - **308 Magma** — premium-dark met molten energie (obsidiaan + lava): gloed uitsluitend op urgentie/energie,
+    radiale MagmaCore-gauge die gloeit bij hoge match en afkoelt bij lage, WCAG-contrast bewaakt (niet Fosfor/
+    Middernacht — gerichte lava-gloed op koel-donkere rust).
+  - **309 Zeppelin** — retro-futuristische luchtvaart (warme lucht + brass): geklonken bull-eye portholes met
+    brass sweep-arc, navigatie als reisroute met legs/stops, art-deco display-type (niet Vuurtoren/Kompas —
+    optimistisch retro-futurisme rond luchtvaart).
+  - **310 Kruidenier** — verse marktschappen (krijtwit + verse productkleuren): opdrachten/documenten als
+    producten op schappen met swing-ticket prijskaartjes, halve-cirkel weegschaal-dial, aisle-navigatie (niet
+    Recept/Etiket — retail-schap als informatie-architectuur).
+- Onderzochte 2026-trends deze reeks: **playful gamification/board-journey**; **kinetische conveyor-flow met
+  reduced-motion-veiligheid**; **ruimtelijke/isometrische informatie-architectuur**; **calm-interface luxe door
+  leegte**; **ritmische notatie-dataviz**; **periodiek-systeem-tegels als status-taal**; **ceremonieel premium-
+  editorial**; **premium dark-mode met gerichte gloed-accenten**; **retro-futurisme/art-deco**; **retail-schap als
+  layout** — elk AA-/contrast-bewust en onderscheidend van de bestaande 300.
+- **Totaal nu op `/ontwerp`: 310 concepten** (reeks 31: 301–310).

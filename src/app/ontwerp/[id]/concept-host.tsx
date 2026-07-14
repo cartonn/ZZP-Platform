@@ -907,6 +907,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "300": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-300-zootroop").then((m) => m.Concept300),
   ),
+  "301": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-301-ganzenbord").then((m) => m.Concept301),
+  ),
+  "302": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-302-lopendeband").then((m) => m.Concept302),
+  ),
+  "303": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-303-maquette").then((m) => m.Concept303),
+  ),
+  "304": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-304-zoutvlak").then((m) => m.Concept304),
+  ),
+  "305": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-305-partituur").then((m) => m.Concept305),
+  ),
+  "306": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-306-laboratorium").then((m) => m.Concept306),
+  ),
+  "307": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-307-veiling").then((m) => m.Concept307),
+  ),
+  "308": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-308-magma").then((m) => m.Concept308),
+  ),
+  "309": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-309-zeppelin").then((m) => m.Concept309),
+  ),
+  "310": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-310-kruidenier").then((m) => m.Concept310),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
