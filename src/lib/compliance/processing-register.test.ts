@@ -158,7 +158,7 @@ describe("PROCESSING_REGISTER", () => {
     );
     // Uitsluitend geaggregeerde betaaltiming — geen individuele factuur.
     expect(betaalgedrag?.dataCategories.length).toBe(1);
-    expect(betaalgedrag?.dataCategories[0].toLowerCase()).toContain("geaggregeerd");
+    expect(betaalgedrag?.dataCategories[0]?.toLowerCase()).toContain("geaggregeerd");
     // Live berekend, niet opgeslagen (geen aparte bewaartermijn).
     expect(betaalgedrag?.retention.toLowerCase()).toContain("niet opgeslagen");
     // De steekproefvloer moet als beveiligingsmaatregel benoemd zijn (spiegelt de markttarief-k-vloer).
