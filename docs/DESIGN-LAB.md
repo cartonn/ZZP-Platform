@@ -863,3 +863,43 @@ UI-taal = Nederlands.
   editorial**; **premium dark-mode met gerichte gloed-accenten**; **retro-futurisme/art-deco**; **retail-schap als
   layout** — elk AA-/contrast-bewust en onderscheidend van de bestaande 300.
 - **Totaal nu op `/ontwerp`: 310 concepten** (reeks 31: 301–310).
+
+## Reeks 32 (311–320) — 2026-07-14
+
+- Tien nieuwe, onderling radicaal verschillende richtingen, elk onderscheidend gehouden van de bestaande 310:
+  - **311 Waas** — progressive blur / scherptediepte (koel licht): diepte via gelaagde `backdrop-blur` en
+    translucente glasvlakken i.p.v. schaduw, voorgrond scherp en diepere lagen vervagen, glazen match-gauge
+    (niet Glas/Vloeiglas — scherptediepte als informatie-hiërarchie).
+  - **312 Mechaniek** — verfijnd toetsenbord-skeuomorfisme (warm-grijs chassis + oranje legende): chunky
+    keycap-oppervlakken met top-bevel en drukschaduw, echte press-travel, keyboard-first command-balk met
+    keycap-hints (niet Klavier/Sneltoets — tactiele keycaps als bedienings-metafoor).
+  - **313 Kladblok** — neo-utilitair "honest software" (bijna z/w + functioneel blauw): eerlijke 1px-borders,
+    dichte tabellen, monospace-labelwerk (`// section`, `~/path`), Linear-achtig properties-paneel, nul
+    decoratie (niet Console/Teletekst — unstyled-UI-eerlijkheid als esthetiek).
+  - **314 Lichtkrant** — LED-matrix ticker-bord (houtskool + amber/emerald): scrollende status-strip, silkscreen
+    dot-matrix koppen, oplichtende pixel-regels, tabulaire LED-cijfers (niet Neonbord/Scorebord — live
+    stations-ticker als navigatie).
+  - **315 Dauw** — kalm-fris condens & koel glas (mint/aqua): frosted glas-kaarten met fijne highlight-rand,
+    druppel-match-ringen, heel veel lucht, lage prikkeling maar verfrissend (niet Tij/Japandi — koel-fris
+    condens-motief i.p.v. warme rust).
+  - **316 Rekenkamer** — premium fintech-grootboek (diepgroen + inkt): kwitantie-rijen, hairlines, rechts-
+    uitgelijnde tabulaire bedragen, samenvattings-totalen, Mercury/Ramp-precisie (niet Grootboek/Bon —
+    premium ledger-terminal rond geld).
+  - **317 Diagonaal** — gebroken grid / kinetische diagonalen (fris licht + violet): schuine `clip-path`-hero-
+    banden, geskewde accenten en wig-matchmeter, terwijl content-blokken recht en leesbaar blijven (niet
+    Isometrie/Suprematie — broken-grid-energie met behoud van leesbaarheid).
+  - **318 Filigraan** — hairline-filigrein / juweel-precisie (warm-wit + dun goud): piepdunne SVG-hoekornamenten,
+    ruit-scheidingstekens, dun match-medaillon, ruim gespatieerde Cormorant-capitalen (niet Zilver/Draad —
+    precisie via dunne lijn en luxe-minimalisme).
+  - **319 Nachtmarkt** — feestelijk-donker met lantaarn-neon (houtskool + amber/magenta/jade): gloeiende chips,
+    lantaarn-highlights, kleurrijk-speels én premium tegelijk, WCAG-contrast bewaakt (niet Middernacht/Neonzon —
+    warme markt-sfeer in het donker).
+  - **320 Handpalm** — mobiel-first duim-zone-ontwerp (fris licht + indigo): realistisch telefoon-frame op
+    desktop, bottom-sheet-navigatie, sticky action-bar in duimbereik, swipe-kaarten met gesture-hints (niet
+    Duim/Widget — thumb-first bottom-nav als bedieningsmodel).
+- Onderzochte 2026-trends deze reeks: **progressive/gelaagde blur & scherptediepte-hiërarchie**; **verfijnd
+  skeuomorfisme / tactiele keycaps**; **honest/unstyled UI als esthetiek**; **dot-matrix/live-ticker revival**;
+  **calm-interface met koel-fris glasmorfisme**; **premium fintech-ledger-precisie**; **broken/diagonal grids**;
+  **hairline-filigrein luxe-minimalisme**; **warm premium-dark met neon-accenten**; **thumb-first/duim-zone
+  mobiel-ontwerp** — elk AA-/contrast-bewust en onderscheidend van de bestaande 310.
+- **Totaal nu op `/ontwerp`: 320 concepten** (reeks 32: 311–320).
