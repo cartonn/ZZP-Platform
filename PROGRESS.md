@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — Urgentie-sortering facturenlijst + te-laat-uitsplitsing op de Openstaand-kaart (beide rollen)
+
+- **Wat:** de facturenlijst (`/facturen`, gedeeld door ZZP'er én opdrachtgever) werd hard op `createdAt desc`
+  geladen — de nieuwste bovenaan. Daardoor kon juist de factuur die de meeste aandacht vraagt (het langst te
+  laat) onderaan belanden, terwijl de vraag "wat moet ik nu regelen?" bovenaan hoort te worden beantwoord. Nu
+  ordent de lijst op **urgentie**: te laat eerst (langst te laat bovenaan), dan wat binnenkort vervalt
+  (eerder-verschuldigd eerst), dan de rest. Daarnaast toont de **Openstaand**-totaalkaart een subregel
+  "waarvan € X te laat" — een geaggregeerd urgentiesignaal, óók voor de opdrachtgever, die op deze pagina
+  geen debiteuren-/crediteurenkaart heeft.
+- **Hoe:** pure `src/lib/invoice-urgency.ts` — `sortInvoicesByUrgency` (stabiele, niet-muterende sortering via
+  een `[bucket, within]`-sleutel: te-laat → openstaand-met-vervaldatum → openstaand-zonder-vervaldatum →
+  niet-openstaand; index-tiebreak houdt de `createdAt desc`-volgorde deterministisch los van de
+  sorteerstabiliteit van de engine) en `outstandingOverdueCents` (som van het te-late deel). Beide leunen op de
+  bestaande `isInvoiceOutstanding` + `invoiceDueStatus` (server-side waarheid; alleen tonen/ordenen, de
+  OVERDUE-overgang blijft de payment-reminders-taak). In `facturen-panel.tsx` gewired: sorteren ná
+  `filterInvoices`, subregel op de Openstaand-kaart (`text-danger`, alleen bij `overdueCents > 0`).
+- **Regels:** geen schemawijziging, geen extra query (werkt op de reeds geladen lijst), geen nieuwe status/enum.
+  Rol-symmetrisch — dezelfde ordening en uitsplitsing voor beide partijen. +7 tests (pure).
+- **Gate groen:** typecheck ✓, lint ✓, unit-tests ✓, build ✓, prettier ✓.
+- **Bestanden:** `src/lib/invoice-urgency.ts` (+`.test.ts`), `src/components/administratie/facturen-panel.tsx`.
+
 ## 2026-07-13 — Bulk-goedkeuren van ingediende urenstaten per samenwerking (opdrachtgever)
 
 - **Wat:** de opdrachtgever kon ingediende urenstaten/opleveringen alleen één voor één goedkeuren op de
