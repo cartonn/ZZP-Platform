@@ -238,6 +238,21 @@
   `src/lib/actions/pending-tasks.ts` (wiring), + tests (`vat-deadline.test.ts`, `tasks.test.ts`,
   `pending-tasks.test.ts`-mock).
 
+## 2026-07-14 — Ontwerp-lab reeks 32: +10 concepten (311–320), totaal 320
+
+- **Wat:** 10 nieuwe redesign-concepten toegevoegd aan `/ontwerp` (append-only, niets van 01–310 gewijzigd):
+  311 Waas (progressive blur / scherptediepte), 312 Mechaniek (toetsenbord-skeuomorfisme), 313 Kladblok
+  (honest/unstyled UI), 314 Lichtkrant (LED-matrix ticker), 315 Dauw (kalm-fris condens-glas), 316 Rekenkamer
+  (premium fintech-grootboek), 317 Diagonaal (broken/diagonal grid), 318 Filigraan (hairline-filigrein luxe),
+  319 Nachtmarkt (feestelijk-donker lantaarn-neon), 320 Handpalm (mobiel-first duim-zone).
+- **Hoe:** elk concept is een zelfstandig `"use client"`-bestand in `src/components/ontwerp/concepts/`
+  (concept-311..320), content uit de gedeelde `mock.ts`. Registry-entries (311–320) toegevoegd aan `registry.ts`
+  en de id→component-koppeling aan `src/app/ontwerp/[id]/concept-host.tsx` — puur append, bestaande entries
+  ongemoeid. Alle 6 kernschermen + loading/empty/error-states, semantische HTML + aria, responsive, status via
+  label + icoon. Gebouwd door 4 parallelle builder-agents op niet-overlappende bestanden; orchestrator integreerde.
+- **Gates:** typecheck ✓, lint ✓, test ✓ (4124), build ✓, prettier ✓. Woord "AI" komt nergens voor.
+- **Docs:** `docs/DESIGN-LAB.md` reeks-32-sectie bijgewerkt (totaal 320 concepten).
+
 ## 2026-07-14 — Ontwerp-lab reeks 31: +10 concepten (301–310), totaal 310
 
 - **Wat:** 10 nieuwe redesign-concepten toegevoegd aan `/ontwerp` (append-only, niets van 01–300 gewijzigd):

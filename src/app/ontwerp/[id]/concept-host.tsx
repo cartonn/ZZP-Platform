@@ -937,6 +937,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "310": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-310-kruidenier").then((m) => m.Concept310),
   ),
+  "311": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-311-waas").then((m) => m.Concept311),
+  ),
+  "312": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-312-mechaniek").then((m) => m.Concept312),
+  ),
+  "313": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-313-kladblok").then((m) => m.Concept313),
+  ),
+  "314": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-314-lichtkrant").then((m) => m.Concept314),
+  ),
+  "315": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-315-dauw").then((m) => m.Concept315),
+  ),
+  "316": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-316-rekenkamer").then((m) => m.Concept316),
+  ),
+  "317": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-317-diagonaal").then((m) => m.Concept317),
+  ),
+  "318": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-318-filigraan").then((m) => m.Concept318),
+  ),
+  "319": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-319-nachtmarkt").then((m) => m.Concept319),
+  ),
+  "320": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-320-handpalm").then((m) => m.Concept320),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
