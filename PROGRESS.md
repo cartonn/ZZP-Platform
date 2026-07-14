@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — AVG art. 30: betaalgedrag-reputatie in het verwerkingsregister + docstring-hardening (PR #769)
+
+**Gat:** het betaalgedrag/betaalreputatie-signaal (gemiddeld aantal dagen tot betaling + on-time-%, per
+opdrachtgever) wordt platform-breed getoond (browse-opdrachtenlijst, opdracht-detail, `/verplichtingen`-
+reputatie-spiegel), maar stond niet in het AVG-verwerkingsregister (art. 30) — terwijl het geaggregeerde
+markttarief-signaal er wél in stond. Twee geparkeerde privacy-backlog-items (MIDDEL + LAAG) gesloten.
+
+- **Register-entry** `betaalgedrag-reputatie` in `src/lib/compliance/processing-register.ts`: grondslag
+  `GERECHTVAARDIGD_BELANG`, betrokkenen = opdrachtgevers (incl. eenmanszaak-overlap), categorie =
+  uitsluitend geaggregeerde betaaltiming (nooit een individuele factuur/bedrag), retentie = live
+  berekend/niet opgeslagen, maatregelen = `PAYMENT_MIN_SAMPLE_SIZE`-steekproefvloer + alleen-aggregaat
+  - query begrensd op eigen betaalde facturen + RBAC/`visibleJobsWhere`. Ontvangers = browsende ZZP'ers
+  - de opdrachtgever zelf.
+- **Docstring-hardening (LAAG defense-in-depth)** op `getPaymentBehaviorForCompany`/`...ForCompanies`
+  (`src/lib/data/payment-behavior.ts`): scoping-verantwoordelijkheid van de aanroeper geëxpliciteerd —
+  nooit een ongevalideerde, van buitenaf aangeleverde `companyId` doorgeven.
+- **Noot:** de k-drempel-hóógte (`PAYMENT_MIN_SAMPLE_SIZE = 3` vs. platform-eigen k≥10) blijft de
+  geëscaleerde HOOG-beslissing voor de mens; deze PR beschrijft de bestaande verwerking, kiest de
+  drempel niet.
+- **Tests:** `processing-register.test.ts` (+1 case: grondslag/aggregatie/steekproefvloer/retentie/
+  ontvangers afgedwongen) — 45 groen. Gate: typecheck ✓ · lint ✓ · test ✓ · build ✓ · prettier ✓.
+
 ## 2026-07-14 — Prod-rijpheid: auditlog-retentie-pruning (AVG dataminimalisatie)
 
 **Gat:** het verwerkingsregister (`RETENTION_SCHEDULE`, key `auditlog-beveiligingslogboeken`)

@@ -439,6 +439,32 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
       "Definitief wis-pad incl. contactlogboek (cascade) — recht op vergetelheid",
     ],
   },
+
+  // 16. Betaalgedrag-reputatie (geaggregeerd) — betaaltiming-signaal per opdrachtgever
+  {
+    key: "betaalgedrag-reputatie",
+    name: "Betaalgedrag-reputatie (geaggregeerd)",
+    purpose:
+      "Tonen van een geaggregeerd betaalgedrag-signaal per opdrachtgever (gemiddeld aantal dagen tot betaling en het percentage op-tijd betaalde facturen) zodat een ZZP'er weet hoe snel een opdrachtgever doorgaans betaalt vóór hij een reactie plaatst, en zodat de opdrachtgever zijn eigen betaalreputatie kan spiegelen.",
+    legalBasis: "GERECHTVAARDIGD_BELANG",
+    dataSubjects: ["Opdrachtgevers (incl. eenmanszaken die natuurlijke persoon zijn)"],
+    dataCategories: [
+      "Betaaltiming — uitsluitend geaggregeerd (gemiddeld aantal dagen tot betaling, percentage op-tijd); nooit een individuele factuur of factuurbedrag",
+    ],
+    sensitive: false,
+    recipients: [
+      "ZZP'ers (geaggregeerd signaal op de browse-opdrachtenlijst en de opdracht-detailpagina)",
+      "De opdrachtgever zelf (eigen reputatie-spiegel op /verplichtingen)",
+    ],
+    retention:
+      "Niet opgeslagen — het signaal wordt live berekend uit de eigen betaalde facturen; geen aparte bewaartermijn",
+    securityMeasures: [
+      "Minimale steekproefvloer (PAYMENT_MIN_SAMPLE_SIZE) vóór weergave — onder de drempel is de toon 'onbekend'",
+      "Uitsluitend geaggregeerde statistieken verlaten de server — geen individuele factuur, bedrag of datum",
+      "Query begrensd op de eigen betaalde facturen van de opdrachtgever (geen cross-party factuurdata)",
+      "Toegang op rol (RBAC); browse-scope via visibleJobsWhere(actor)",
+    ],
+  },
 ] as const;
 
 // --- Bewaarschema ------------------------------------------------------------
