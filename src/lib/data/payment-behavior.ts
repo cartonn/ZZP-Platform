@@ -43,6 +43,25 @@ export async function getPaymentBehaviorForCompany(companyId: string): Promise<P
 }
 
 /**
+ * Variant voor meerdere opdrachtgevers ineens (bv. de browse-opdrachtenlijst van een ZZP'er, waar elke
+ * zichtbare opdracht een andere opdrachtgever kan hebben). De set is inherent klein (begrensd door de
+ * gepagineerde, zichtbare opdrachten), dus we hergebruiken de single-variant per opdrachtgever — die
+ * begrenst de fetch al met `take: MAX_PAID_INVOICES` op DB-niveau (geen onbegrensde findMany). De
+ * queries lopen parallel. Geeft alleen geaggregeerde statistieken terug — geen individuele factuurdata
+ * van anderen is zichtbaar voor de aanroeper (privacy by design). Spiegelt
+ * `getClientResponsivenessForCompanies`.
+ */
+export async function getPaymentBehaviorForCompanies(
+  companyIds: string[],
+): Promise<Map<string, PaymentBehavior>> {
+  const unique = [...new Set(companyIds)];
+  const entries = await Promise.all(
+    unique.map(async (id) => [id, await getPaymentBehaviorForCompany(id)] as const),
+  );
+  return new Map(entries);
+}
+
+/**
  * Betaalgedrag van de opdrachtgever zélf — de reputatie-spiegel die de opdrachtgever op
  * `/verplichtingen` ziet (dezelfde cijfers die ZZP'ers over hem zien op de opdracht-detailpagina).
  * Geeft `null` als de gebruiker geen bedrijfsprofiel heeft (dan is er niets te spiegelen).

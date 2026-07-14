@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Betaal-vertrouwenschip op de browse-lijst (ZZP'er) (2026-07-14, PR #765)** — op
+> `/opdrachten` (browse-/triage-lijst) toonde elke kaart al ZZP-zijdige signalen (match, reistijd, concurrentie,
+> startdatum) maar géén opdrachtgever-vertrouwenssignaal; om te zien of een opdrachtgever op tijd betaalt moest je
+> élke opdracht openen (`payment-behavior-block` op de detailpagina). "Krijg ik op tijd betaald?" is het diepste
+> beslissignaal vóór je tijd in een reactie steekt (benchmark Malt/Upwork). Nu een compacte chip per kaart —
+> **"Betaalt op tijd"** / **"Betaalt vaak laat"**, alleen bij een uitgesproken reputatie. Pure `paymentTrustChip`
+> in `payment-behavior.ts` (hergebruikt `computePaymentBehavior`; toont alleen `good`/`warning`, null bij
+> neutral/unknown zodat de lijst rustig blijft; 4 tests) + begrensde batch-loader `getPaymentBehaviorForCompanies`
+> in `data/payment-behavior.ts` (spiegelt `getClientResponsivenessForCompanies`, per opdrachtgever `take: 25`) +
+> wiring in `opdrachten/(index)/page.tsx` (alleen ZZP'er, zichtbare gepagineerde opdrachten, `BadgeEuro`-chip).
+> Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak, alleen het geaggregeerde betaaloordeel
+> (≥3 facturen) — nooit een individuele factuur/bedrag. Gate groen (4128 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **'Kandidaten wachten op je beslissing' next-action (opdrachtgever) (2026-07-14, PR #763)** —
 > de ZZP'er ziet op `/reacties` al een "je reactie ligt al lang"-signaal (`application-wait.ts`), maar de opdrachtgever
 > kreeg geen tegenhanger zodra een reeds-bekeken kandidaat (VIEWED/SHORTLIST) langer dan gebruikelijk op een beslissing

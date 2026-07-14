@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — Betaal-vertrouwenschip op de browse-lijst (ZZP'er)
+
+- **Wat:** op `/opdrachten` (de browse-/triage-lijst van de ZZP'er) toonde elke opdracht al ZZP-zijdige
+  signalen (match, reistijd, concurrentie, startdatum) maar géén enkel opdrachtgever-vertrouwenssignaal —
+  om te zien of een opdrachtgever zijn ZZP'ers op tijd betaalt, moest je élke opdracht openen (dáár staat
+  de `payment-behavior-block`). "Krijg ik op tijd betaald?" is het diepste beslis-/geruststellingssignaal
+  vóór je tijd in een reactie steekt (benchmark Malt/Upwork: betaalbetrouwbaarheid vooraf zichtbaar). Nu
+  een compacte chip per kaart: **"Betaalt op tijd"** (success) of **"Betaalt vaak laat"** (warning), alleen
+  bij een uitgesproken reputatie.
+- **Hoe:** pure `paymentTrustChip(behavior)` in `src/lib/payment-behavior.ts` — hergebruikt exact het
+  geteste `computePaymentBehavior`-oordeel; toont alleen de beslis-relevante uitersten (`good`/`warning`) en
+  geeft `null` bij `neutral`/`unknown` zodat de lijst rustig blijft (4 tests). Begrensde batch-loader
+  `getPaymentBehaviorForCompanies(companyIds)` in `src/lib/data/payment-behavior.ts` (spiegelt
+  `getClientResponsivenessForCompanies`: per unieke opdrachtgever de bestaande single-loader parallel, elk
+  DB-begrensd op `take: 25`). Wiring in `opdrachten/(index)/page.tsx` (alleen ZZP'er, over de zichtbare
+  gepagineerde opdrachten; `BadgeEuro`-chip in de metadata-rij naast de concurrentie-chip).
+- **Server-side waarheid / privacy:** read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak;
+  uitsluitend het geaggregeerde betaaloordeel per opdrachtgever — nooit een individuele factuur of bedrag
+  (zelfde geaggregeerde signaal dat al op de detailpagina staat, ≥3 betaalde facturen). i18n-woordenboek
+  niet aangeraakt.
+- **Bestanden:** `src/lib/payment-behavior.ts` (+`paymentTrustChip`/types), `src/lib/payment-behavior.test.ts`
+  (+4 tests), `src/lib/data/payment-behavior.ts` (+batch-loader), `src/app/(protected)/opdrachten/(index)/page.tsx`.
+- **Gate:** typecheck ✓, lint ✓, **4128 unit-tests** ✓, prettier ✓, build (CI-poort).
+
 ## 2026-07-14 — 'Kandidaten wachten op je beslissing' next-action (opdrachtgever)
 
 - **Wat:** de ZZP'er ziet op `/reacties` al een "je reactie ligt al lang"-signaal

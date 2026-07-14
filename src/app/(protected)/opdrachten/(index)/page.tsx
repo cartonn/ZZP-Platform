@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import {
+  BadgeEuro,
   Briefcase,
   CalendarClock,
   Check,
@@ -39,6 +40,8 @@ import { withParams } from "@/components/admin/base-path";
 import { plural } from "@/lib/plural";
 import { summarizeJobPipeline } from "@/lib/job-pipeline";
 import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition";
+import { paymentTrustChip, type PaymentTrustChip } from "@/lib/payment-behavior";
+import { getPaymentBehaviorForCompanies } from "@/lib/data/payment-behavior";
 import {
   summarizeVacancyPerformance,
   type VacancyPerformanceSummary,
@@ -447,6 +450,25 @@ async function BrowseJobs({
     }
   }
 
+  // Betaal-vertrouwenssignaal per zichtbare opdracht (alleen ZZP'er): betaalt deze opdrachtgever zijn
+  // ZZP'ers doorgaans op tijd? Het diepste "geruster"-signaal voor de ZZP'er die overweegt zijn tijd in
+  // een reactie te steken — tot nu toe alleen op de opdracht-detailpagina (`payment-behavior-block`),
+  // niet op de triage-lijst. Hergebruikt exact hetzelfde geaggregeerde betaalgedrag (`computePaymentBehavior`,
+  // via de begrensde batch-loader); toont uitsluitend de beslis-relevante uitersten (op tijd / vaak laat)
+  // en zwijgt bij een neutrale/onbekende reputatie (`paymentTrustChip` → null) zodat de lijst rustig blijft.
+  // Geen individuele factuur/bedrag lekt — alleen het geaggregeerde oordeel per opdrachtgever.
+  const paymentTrustByJob = new Map<string, PaymentTrustChip>();
+  if (profile && visibleJobs.length > 0) {
+    const behaviorByCompany = await getPaymentBehaviorForCompanies(
+      visibleJobs.map((job) => job.companyId),
+    );
+    for (const job of visibleJobs) {
+      const behavior = behaviorByCompany.get(job.companyId);
+      const chip = behavior ? paymentTrustChip(behavior) : null;
+      if (chip) paymentTrustByJob.set(job.id, chip);
+    }
+  }
+
   // Bij match-sortering pagineren we de in het geheugen gerangschikte (begrensde) set; anders de
   // volledige databanktelling. `total` blijft de eerlijke "gevonden"-teller in de kop.
   const paginationTotal = effectiveMatchSort ? jobs.length : total;
@@ -558,6 +580,20 @@ async function BrowseJobs({
                             ].join(" ")}
                           >
                             <Users className="size-3" aria-hidden /> {chip.label}
+                          </span>
+                        );
+                      })()}
+                      {(() => {
+                        const chip = paymentTrustByJob.get(job.id);
+                        if (!chip) return null;
+                        return (
+                          <span
+                            className={[
+                              "inline-flex items-center gap-1",
+                              chip.tone === "good" ? "text-success" : "font-medium text-warning",
+                            ].join(" ")}
+                          >
+                            <BadgeEuro className="size-3" aria-hidden /> {chip.label}
                           </span>
                         );
                       })()}
