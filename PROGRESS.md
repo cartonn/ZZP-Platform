@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — AVG-data-export: eigen facturen + urenstaten toegevoegd (art. 15/20)
+
+- **Wat:** de self-service data-export (`GET /api/account/export` → `buildAccountExport`) bundelde 28
+  eigen-datacategorieën (incl. `expenses`) maar miste twee kern-financiële/werk-records van de gebruiker:
+  de eigen **facturen** en **urenstaten/opleveringen** (Performance). Juist de belangrijkste inzage-/
+  portabiliteitsdata voor een ZZP'er (benchmark Deel/boekhoud: "download al je facturen/gewerkte uren").
+  Nu twee nieuwe secties, server-side gescoopt op de eigen data zonder derde-partij-PII:
+  - **`invoices`** — de actor als partij (`issuerUserId` = ZZP'er, `counterpartyUserId` = opdrachtgever, of
+    via de samenwerking voor legacy-facturen zonder die velden). Alleen gestructureerde transactievelden
+    (nummer/status/lifecycle/bedragen/BTW/datums); géén tegenpartij-id en géén factuurregel-tekst
+    (regel-omschrijvingen zouden voor de opdrachtgever de tekst van de tegenpartij zijn).
+  - **`performances`** — de eigen ingediende urenstaten (perioden/uren/tarief/ORT-segmenten/omschrijving),
+    gescoopt op `collaboration.freelancer.userId`. `rejectionReason` (geschreven door de goedkeurende
+    tegenpartij) blijft er bewust uit.
+- **Bestanden:** `src/lib/account-export.ts` (interface + 2 queries + return), `src/lib/account-export.test.ts`
+  (+3 tests: factuur-scoping/geen-tegenpartij-id, urenstaat-scoping/geen-afkeurnotitie, canned doorgifte;
+  17 tests totaal). Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+- **Volgende stap:** volgende AVG-/prod-rijpheid-item uit de backlog.
+
 ## 2026-07-14 — Prod-rijpheid: gehardende Sentry-init (environment/release + PII-scrubbing)
 
 - **Wat:** de Sentry-init (`src/lib/observability/report.ts`) gaf alleen `{ dsn }` mee. Geen

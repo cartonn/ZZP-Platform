@@ -27,6 +27,8 @@ export interface AccountExportPayload {
   ideaComments: unknown;
   indirectHours: unknown;
   ideas: unknown;
+  invoices: unknown;
+  performances: unknown;
   cancelledCollaborations: unknown;
   favoriteNotes: unknown;
   pushSubscriptions: unknown;
@@ -78,6 +80,8 @@ export async function buildAccountExport(
     ideaComments,
     indirectHours,
     ideas,
+    invoices,
+    performances,
     cancelledCollaborations,
     favoriteNotes,
     pushSubscriptions,
@@ -251,6 +255,55 @@ export async function buildAccountExport(
         createdAt: true,
       },
     }),
+    // Eigen facturen: de actor is partij (uitschrijver = ZZP'er via issuerUserId, of opdrachtgever
+    // via counterpartyUserId; legacy-facturen zonder die velden herleiden we via de samenwerking).
+    // Deze financiële transactierecords zijn eigen persoonsgegevens (art. 15/20). Bewust alleen de
+    // gestructureerde bedragen/status/nummer — géén vrije tekst (factuurregel-omschrijvingen zouden
+    // voor de opdrachtgever de tekst van de tegenpartij zijn) en géén tegenpartij-id.
+    db.invoice.findMany({
+      where: {
+        OR: [
+          { issuerUserId: actorId },
+          { counterpartyUserId: actorId },
+          { collaboration: { freelancer: { userId: actorId } } },
+          { collaboration: { company: { userId: actorId } } },
+        ],
+      },
+      select: {
+        number: true,
+        status: true,
+        lifecycleStatus: true,
+        issuedAt: true,
+        dueAt: true,
+        subtotalCents: true,
+        vatCents: true,
+        totalCents: true,
+        vatRegime: true,
+        createdAt: true,
+      },
+    }),
+    // Eigen urenstaten/opleveringen (Performance): de gewerkte uren/perioden/tarief die de ZZP'er
+    // zelf indiende — kernwerk-records die onder de inzage vallen. Gescopet op de eigen samenwerkingen
+    // als ZZP'er (freelancer.userId). description/ortSegments zijn eigen tekst; rejectionReason
+    // (geschreven door de goedkeurende tegenpartij) blijft er bewust uit.
+    db.performance.findMany({
+      where: { collaboration: { freelancer: { userId: actorId } } },
+      select: {
+        type: true,
+        status: true,
+        periodStart: true,
+        periodEnd: true,
+        hours: true,
+        rateCents: true,
+        ortSegments: true,
+        milestoneTitle: true,
+        amountCents: true,
+        description: true,
+        submittedAt: true,
+        approvedAt: true,
+        createdAt: true,
+      },
+    }),
     // Annuleerredenen die de actor zelf schreef (vrije tekst). Scoping op cancelledById == actor zodat
     // de reden van de tegenpartij niet meelekt; companyId/freelancerId blijven eruit (identiteit derde).
     db.collaboration.findMany({
@@ -375,6 +428,8 @@ export async function buildAccountExport(
     ideaComments,
     indirectHours,
     ideas,
+    invoices,
+    performances,
     cancelledCollaborations,
     favoriteNotes,
     pushSubscriptions,
