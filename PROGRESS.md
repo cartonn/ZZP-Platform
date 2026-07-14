@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — Prod-rijpheid: gehardende Sentry-init (environment/release + PII-scrubbing)
+
+- **Wat:** de Sentry-init (`src/lib/observability/report.ts`) gaf alleen `{ dsn }` mee. Geen
+  `environment`, geen `release` (deploy-correlatie), en — voor een AVG-platform met gevoelige documenten
+  dat events naar een externe (mogelijk buiten-EER) verwerker stuurt — geen PII-scrubbing of expliciet
+  `sendDefaultPii: false`. Zodra de operator `@sentry/nextjs` installeert kreeg hij Sentry's default:
+  request-headers/cookies/IP/gebruikersdata meegestuurd. Nu een pure, geteste seam
+  `src/lib/observability/sentry-options.ts` (`buildSentryInitOptions` + `scrubSentryEvent`): `beforeSend`
+  scrubt cookies, request-body, query-string, niet-veilige headers (Authorization/Cookie/X-Forwarded-For)
+  en gebruikersidentiteit; URL wordt tot enkel het pad gereduceerd; `sendDefaultPii:false`;
+  `environment` (← NODE_ENV) + `release` (← commit-SHA) + `tracesSampleRate:0`. Inert zonder DSN/pakket;
+  geen nieuwe dependency. Optioneel via `SENTRY_ENVIRONMENT`/`SENTRY_RELEASE`/`SENTRY_TRACES_SAMPLE_RATE`.
+- **Bestanden:** `src/lib/observability/sentry-options.ts` (+ `.test.ts`, 21 tests),
+  `src/lib/observability/report.ts` (wiring), `src/lib/env.ts` (3 optionele vars), `.env.example`,
+  `MENSENWERK.md` §0b. Geen schemawijziging, verzwakt geen check (reporting slikt nog steeds alles).
+- **Volgende stap:** volgende prod-rijpheid-item uit de kandidatenlijst / MENSENWERK.
+
 ## 2026-07-14 — Security/privacy-audit: AVG art. 17 erasure-gat `Performance` + defense-in-depth ADMIN-poort
 
 - **Wat:** adversariële security-/privacy-auditronde (3 parallelle Opus-subagents op niet-overlappende

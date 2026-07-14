@@ -79,7 +79,16 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   `error.tsx`/`global-error.tsx`/`(protected)/error.tsx`) wordt PII-arm naar `/api/client-error`
   gestuurd en via `reportError` gestructureerd gelogd + (bij `SENTRY_DSN`) naar Sentry geëscaleerd.
   Voorheen bleef zo'n crash onzichtbaar in de browser-console van de gebruiker. Rate-limited per IP
-  (`CLIENT_ERROR_RATE_LIMIT`, default 20/min). Resterend mensenwerk: **niets voor de pilot**.
+  (`CLIENT_ERROR_RATE_LIMIT`, default 20/min). **Sentry-init gehard (code-kant GEDAAN 14-7-2026):** de
+  init geeft niet langer een kaal `{ dsn }` mee maar gehardende opties
+  (`src/lib/observability/sentry-options.ts`): `sendDefaultPii: false` + een `beforeSend` die
+  cookies, request-body, query-string, niet-veilige headers (Authorization/Cookie/X-Forwarded-For) en
+  gebruikersidentiteit (e-mail/IP) uit elk event scrubt vóór verzending naar de externe verwerker —
+  nodig omdat Sentry (mogelijk buiten de EER) anders die PII by default meestuurt (AVG,
+  dataminimalisatie). Daarnaast `environment` (valt terug op `NODE_ENV`) en `release` (de commit-SHA)
+  voor deploy-correlatie, en `tracesSampleRate: 0` (errors-only). Optioneel bij te stellen via
+  `SENTRY_ENVIRONMENT`/`SENTRY_RELEASE`/`SENTRY_TRACES_SAMPLE_RATE`. Resterend mensenwerk: **niets voor
+  de pilot**.
 - **CSP-violatie-rapportage aanzetten/monitoren** (laag, code-kant GEDAAN 5-7-2026): de
   Content-Security-Policy stuurt nu violatie-rapporten naar een eigen endpoint (`/api/csp-report`)
   via `report-to` (moderne Reporting API + `Reporting-Endpoints`-header) én `report-uri` (fallback,

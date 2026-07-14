@@ -86,6 +86,13 @@ const schema = z
     // Foutmonitoring: optionele externe error-reporting (Sentry). Zonder DSN worden
     // server-fouten alleen gestructureerd gelogd. LOG_LEVEL stelt de logdrempel in.
     SENTRY_DSN: z.string().optional(),
+    // Sentry-hardening (alle optioneel; alleen relevant zodra SENTRY_DSN gezet + @sentry/nextjs
+    // geïnstalleerd is). SENTRY_ENVIRONMENT valt terug op NODE_ENV; SENTRY_RELEASE op de commit-SHA
+    // (RAILWAY_GIT_COMMIT_SHA/COMMIT_SHA) voor deploy-correlatie; SENTRY_TRACES_SAMPLE_RATE default 0
+    // (errors-only), geklemd [0,1]. Zie src/lib/observability/sentry-options.ts.
+    SENTRY_ENVIRONMENT: z.string().optional(),
+    SENTRY_RELEASE: z.string().optional(),
+    SENTRY_TRACES_SAMPLE_RATE: z.string().optional(),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
 
     // Externe verificatie-adapters. Elke waarde behalve de echte provider ("duo"/"bigregister"/
