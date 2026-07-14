@@ -106,7 +106,9 @@ export function resolveTracesSampleRate(raw: string | undefined): number {
  * `release` op de commit-SHA (Railway/CI), en tracing staat standaard uit. Puur t.o.v. de
  * meegegeven env-snapshot (default `process.env`).
  */
-export function buildSentryInitOptions(env: NodeJS.ProcessEnv = process.env): SentryInitOptions {
+export function buildSentryInitOptions(
+  env: Record<string, string | undefined> = process.env,
+): SentryInitOptions {
   const environment = firstNonEmpty(env.SENTRY_ENVIRONMENT, env.NODE_ENV) ?? undefined;
   const release =
     firstNonEmpty(env.SENTRY_RELEASE, env.RAILWAY_GIT_COMMIT_SHA, env.COMMIT_SHA) ?? undefined;
