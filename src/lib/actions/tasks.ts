@@ -10,6 +10,7 @@ import { P, type NextActionTone } from "@/lib/next-actions";
 import { plural } from "@/lib/plural";
 import { formatEuro } from "@/lib/invoices";
 import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
+import { type StaleApplicationsSummary } from "@/lib/stale-applications";
 
 export type TaskTone = NextActionTone;
 
@@ -63,6 +64,7 @@ export type PendingTask =
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
   | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
   | (TaskBase & { kind: "applications-review" })
+  | (TaskBase & { kind: "stale-applications" })
   | (TaskBase & { kind: "availability-refresh" })
   | (TaskBase & { kind: "draft-jobs" })
   | (TaskBase & { kind: "franchise-credential-expiry"; profileId: string })
@@ -501,6 +503,25 @@ export function applicationsReviewTask(count: number): PendingTask {
     subtitle: "Beoordeel de kandidaten",
     tone: "attention",
     priority: P.applications,
+    resolver: "link",
+    href: "/kandidaten",
+  };
+}
+
+/**
+ * De opdrachtgever laat één of meer kandidaten (VIEWED/SHORTLIST) al langer dan gebruikelijk op een
+ * beslissing wachten. Aparte taak naast "nieuwe reacties" (die alleen NEW dekt): een reeds-bekeken
+ * kandidaat die blijft liggen haakt stil af. Tone "attention" met een deep-link naar de
+ * kandidatenpagina waar de beslissing valt.
+ */
+export function staleApplicationsTask(summary: StaleApplicationsSummary): PendingTask {
+  return {
+    kind: "stale-applications",
+    id: "stale-applications",
+    title: `${plural(summary.count, "kandidaat wacht", "kandidaten wachten")} op je beslissing`,
+    subtitle: `Al ${plural(summary.oldestDays, "dag", "dagen")} onbeslist — reageer voor je ze verliest`,
+    tone: "attention",
+    priority: P.staleApplications,
     resolver: "link",
     href: "/kandidaten",
   };

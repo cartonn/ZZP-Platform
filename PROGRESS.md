@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — 'Kandidaten wachten op je beslissing' next-action (opdrachtgever)
+
+- **Wat:** de ZZP'er ziet op `/reacties` al een "je reactie ligt al lang"-signaal
+  (`application-wait.ts`), maar de opdrachtgever kreeg geen tegenhanger zodra een reeds-bekeken
+  kandidaat (VIEWED/SHORTLIST) langer dan gebruikelijk op een beslissing wacht — alleen nieuwe
+  NEW-reacties werden genudged (`applicationsReviewTask`). Neglected kandidaten haken stil af
+  (benchmark Temper/Malt/Deel: trage opdrachtgevers verliezen talent). Nu een opdrachtgever-gerichte
+  next-action "N kandidaten wachten op je beslissing" op `/acties` + de dashboard-zone "Volgende acties",
+  die de bestaande `WAIT_ATTENTION_DAYS`-drempels hergebruikt (VIEWED ≥ 14 / SHORTLIST ≥ 21 dagen).
+- **Hoe:** pure `src/lib/stale-applications.ts` (`summarizeStaleClientApplications`: leunt op de geteste
+  `summarizeApplicationWait`, telt alleen VIEWED/SHORTLIST met `attention` — NEW valt bewust buiten om
+  dubbeltelling met de "nieuwe reacties"-taak te vermijden; rapporteert `count` + `oldestDays`; null bij
+  geen aandacht; 8 tests) + taak-builder `staleApplicationsTask` (`tasks.ts`, kind `stale-applications`,
+  link-resolver → `/kandidaten`, prioriteitsband `P.staleApplications=52` — net boven `applications`=50,
+  onder `messagesAwaiting`=55; 2 tests) + wiring in `pending-tasks.ts` `clientTasks` (één begrensde
+  eigenaar-gescoopte query: VIEWED/SHORTLIST met DB-side createdAt-voorfilter op de kortste drempel,
+  `take: MAX`, `hasCollaboration` uit de collaboration-relatie). Link-taak valt via de `default`-tak van
+  `action-list.tsx` op `OpenLink` — geen UI-wijziging. Read-only, geen schemawijziging, geen nieuw
+  mutatie/auth-oppervlak, i18n-woordenboek niet aangeraakt.
+- **Bestanden:** `src/lib/stale-applications.ts` (+`.test.ts`), `src/lib/actions/tasks.ts`
+  (+`.test.ts`), `src/lib/actions/pending-tasks.ts`, `src/lib/next-actions.ts`, `PROGRESS.md`.
+  Gate groen: typecheck, lint, **4124 unit-tests**, build, prettier.
+- **Volgende stap:** volgende backlog-/prod-rijpheid-item.
+
 ## 2026-07-14 — Persona-sweep (run 27): 2 defecten gefixt (cascadebadge OVERDUE + Sentry-scrub)
 
 - **Wat:** kritische-gebruiker-sweep over alle 4 rollen (live Playwright + 2 parallelle Opus-audit-subagents).

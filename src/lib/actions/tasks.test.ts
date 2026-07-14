@@ -15,6 +15,7 @@ import {
   adminResolveDisputeTask,
   adminSupportTicketTask,
   applicationsReviewTask,
+  staleApplicationsTask,
   availabilityRefreshTask,
   draftJobsTask,
   franchiseCredentialExpiryTask,
@@ -170,6 +171,27 @@ describe("task builders", () => {
     expect(drafts.priority).toBe(P.drafts);
     // Concept-opdrachten wegen lichter dan nieuwe reacties.
     expect(drafts.priority).toBeLessThan(apps.priority);
+  });
+
+  it("wachtende kandidaten: attention-link naar /kandidaten, boven nieuwe reacties, benoemt de leeftijd", () => {
+    const task = staleApplicationsTask({ count: 2, oldestDays: 19 });
+    expect(task).toMatchObject({
+      kind: "stale-applications",
+      resolver: "link",
+      href: "/kandidaten",
+      tone: "attention",
+    });
+    expect(task.priority).toBe(P.staleApplications);
+    expect(task.title).toContain("2 kandidaten");
+    expect(task.subtitle).toContain("19 dagen");
+    // Een reeds-bekeken kandidaat die blijft liggen weegt zwaarder dan een verse nieuwe reactie.
+    expect(task.priority).toBeGreaterThan(applicationsReviewTask(1).priority);
+  });
+
+  it("wachtende kandidaten: enkelvoud netjes", () => {
+    const task = staleApplicationsTask({ count: 1, oldestDays: 1 });
+    expect(task.title).toContain("1 kandidaat wacht");
+    expect(task.subtitle).toContain("1 dag ");
   });
 
   it("verlopen beschikbaarheid is een rustige link-taak naar /beschikbaarheid", () => {

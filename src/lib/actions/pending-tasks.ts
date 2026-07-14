@@ -46,6 +46,7 @@ import {
   noShowWarningTask,
   overdueInvoiceTask,
   applicationsReviewTask,
+  staleApplicationsTask,
   availabilityRefreshTask,
   draftJobsTask,
   franchiseCredentialExpiryTask,
@@ -54,6 +55,8 @@ import {
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { getVatDeadlineForActor } from "@/lib/data/vat-deadline";
+import { summarizeStaleClientApplications } from "@/lib/stale-applications";
+import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 
 /** Harde bovengrens per kind (voorkomt N+1/zware lijsten op /acties); "+N meer" buiten beschouwing. */
 const MAX = 50;
@@ -330,16 +333,41 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
 async function clientTasks(userId: string): Promise<PendingTask[]> {
   const tasks: PendingTask[] = [];
 
-  const [company, overdue, unread, newApplications, draftJobs] = await Promise.all([
-    prisma.company.findUnique({
-      where: { userId },
-      select: { description: true, location: true, website: true, industryId: true, logoKey: true },
-    }),
-    overdueInvoiceCount("CLIENT", userId),
-    unreadConversations(userId),
-    prisma.application.count({ where: { job: { company: { userId } }, status: "NEW" } }),
-    prisma.job.count({ where: { company: { userId }, status: "DRAFT" } }),
-  ]);
+  // Reeds-bekeken kandidaten die al langer dan gebruikelijk op een beslissing wachten. DB-side
+  // voorgefilterd op de kortste drempel (VIEWED = 14 dagen) zodat alleen echt-oude reacties terugkomen;
+  // de pure `summarizeStaleClientApplications` past daarna de exacte per-fase-regel toe (VIEWED ≥ 14 /
+  // SHORTLIST ≥ 21). NEW valt hier bewust buiten — dat dekt `applicationsReviewTask` al.
+  const staleWindow = new Date(Date.now() - WAIT_ATTENTION_DAYS.VIEWED * 86_400_000);
+
+  const [company, overdue, unread, newApplications, draftJobs, staleCandidates] = await Promise.all(
+    [
+      prisma.company.findUnique({
+        where: { userId },
+        select: {
+          description: true,
+          location: true,
+          website: true,
+          industryId: true,
+          logoKey: true,
+        },
+      }),
+      overdueInvoiceCount("CLIENT", userId),
+      unreadConversations(userId),
+      prisma.application.count({ where: { job: { company: { userId } }, status: "NEW" } }),
+      prisma.job.count({ where: { company: { userId }, status: "DRAFT" } }),
+      // unbounded-allow: eigenaar-scoped (job.company.userId) + take-limiet
+      prisma.application.findMany({
+        where: {
+          job: { company: { userId } },
+          status: { in: ["VIEWED", "SHORTLIST"] },
+          createdAt: { lte: staleWindow },
+        },
+        select: { status: true, createdAt: true, collaboration: { select: { id: true } } },
+        orderBy: { createdAt: "asc" },
+        take: MAX,
+      }),
+    ],
+  );
 
   if (company) {
     const { score, missing } = computeCompanyCompleteness({
@@ -389,6 +417,14 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));
   if (overdue > 0) tasks.push(overdueInvoiceTask(overdue, "CLIENT"));
   if (newApplications > 0) tasks.push(applicationsReviewTask(newApplications));
+  const staleApplications = summarizeStaleClientApplications(
+    staleCandidates.map((a) => ({
+      status: a.status,
+      createdAt: a.createdAt,
+      hasCollaboration: a.collaboration != null,
+    })),
+  );
+  if (staleApplications) tasks.push(staleApplicationsTask(staleApplications));
   if (draftJobs > 0) tasks.push(draftJobsTask(draftJobs));
 
   // BTW-aangifte-deadline (zie freelancerTasks) — ook de opdrachtgever heeft een eigen grootboek.

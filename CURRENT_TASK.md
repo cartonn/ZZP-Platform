@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **'Kandidaten wachten op je beslissing' next-action (opdrachtgever) (2026-07-14, PR #763)** —
+> de ZZP'er ziet op `/reacties` al een "je reactie ligt al lang"-signaal (`application-wait.ts`), maar de opdrachtgever
+> kreeg geen tegenhanger zodra een reeds-bekeken kandidaat (VIEWED/SHORTLIST) langer dan gebruikelijk op een beslissing
+> wacht — alleen nieuwe NEW-reacties werden genudged (`applicationsReviewTask`). Neglected kandidaten haken stil af
+> (benchmark Temper/Malt/Deel: trage opdrachtgevers verliezen talent). Nu een next-action "N kandidaten wachten op je
+> beslissing" op `/acties` + dashboard-zone "Volgende acties", die de bestaande `WAIT_ATTENTION_DAYS`-drempels hergebruikt
+> (VIEWED ≥ 14 / SHORTLIST ≥ 21 dagen). Pure `stale-applications.ts` (`summarizeStaleClientApplications`: leunt op de
+> geteste `summarizeApplicationWait`, telt alleen VIEWED/SHORTLIST met `attention` — NEW valt buiten om dubbeltelling met
+> de "nieuwe reacties"-taak te vermijden; `count`+`oldestDays`, null bij geen aandacht; 8 tests) + `staleApplicationsTask`
+> (kind `stale-applications`, link → `/kandidaten`, band `P.staleApplications=52`; 2 tests) + wiring in `clientTasks`
+> (één begrensde eigenaar-gescoopte query met DB-side createdAt-voorfilter, `take: MAX`). Read-only, geen schemawijziging,
+> geen nieuw mutatie/auth-oppervlak. Gate groen (4124 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Bulk-goedkeuren ingediende urenstaten per samenwerking (opdrachtgever) (2026-07-13, PR #756)** —
 > de opdrachtgever kon ingediende urenstaten/opleveringen alleen los goedkeuren op `/samenwerkingen/[id]` (per prestatie
 > een aparte knop); bij een reeks diensten betekende dat doorklikken per staat, en zolang niet gekeurd is staat de
