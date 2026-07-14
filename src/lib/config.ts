@@ -178,6 +178,29 @@ export function reviewBlindDays(): number {
   return Math.floor(n);
 }
 
+// --- Auditlog-retentie (AVG dataminimalisatie, art. 5 lid 1e) ---------------
+// Het verwerkingsregister (RETENTION_SCHEDULE, key "auditlog-beveiligingslogboeken") stelt de
+// bewaartermijn voor auditlog/beveiligingslogboeken op 12 maanden: langer bewaren staat niet in
+// verhouding tot het doel (beveiliging/fraudepreventie). Auditregels bevatten IP-adres + user-agent,
+// dus onbeperkt bewaren is een dataminimalisatie-risico. Deze taak snoeit regels ouder dan het
+// venster. Wissen is ONOMKEERBAAR en staat daarom standaard UIT: alleen actief wanneer de eigenaar
+// AUDIT_LOG_RETENTION_DAYS > 0 zet. 0/leeg = uit (huidig gedrag, geen wissen).
+export const AUDIT_LOG_RETENTION_MIN_DAYS = 30;
+export function parseAuditRetentionDays(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "") return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  // Veilige minimumvloer: een te korte termijn (bv. een typefout "3" i.p.v. "365") zou vrijwel het
+  // hele beveiligingslogboek wissen. Klem naar boven zodat een misconfiguratie nooit recente
+  // security-/fraude-logs weggooit; de bovengrens laten we bewust vrij (langer = operator-keuze).
+  return Math.max(AUDIT_LOG_RETENTION_MIN_DAYS, Math.floor(n));
+}
+
+/** Geconfigureerd auditlog-retentievenster in dagen; 0 = uitgeschakeld (geen wissen). */
+export function auditLogRetentionDays(): number {
+  return parseAuditRetentionDays(process.env.AUDIT_LOG_RETENTION_DAYS);
+}
+
 // --- Annuleringstermijn (productbesluit eigenaar 12-6-2026) ----------------
 // De opdrachtgever annuleert kosteloos zolang de startdatum nog minstens dit aantal dagen weg is;
 // korter op de start (of na de start) ontstaat een betalingsverplichting. Symmetrisch geregistreerd:

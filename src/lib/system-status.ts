@@ -8,6 +8,7 @@
 
 import { envWarnings, type Env } from "@/lib/env";
 import { isIndexingAllowed } from "@/lib/indexing";
+import { parseAuditRetentionDays } from "@/lib/config";
 import { isMaintenanceEnabled, maintenanceAllowsAdmin } from "@/lib/maintenance";
 import { isSecurityContactConfigured } from "@/lib/security-txt";
 
@@ -65,6 +66,7 @@ export function collectSystemStatus(env: Env): SystemStatus {
   const fb = fallbackLevel(production);
 
   const dbKind = databaseKind(env.DATABASE_URL);
+  const auditRetentionDays = parseAuditRetentionDays(env.AUDIT_LOG_RETENTION_DAYS);
   const groups: StatusGroup[] = [
     {
       title: "Opslag & data",
@@ -214,6 +216,18 @@ export function collectSystemStatus(env: Env): SystemStatus {
           detail: env.CRON_SECRET
             ? "CRON_SECRET gezet — /api/tasks/* draaien de geplande runners."
             : "CRON_SECRET ontbreekt — de taak-endpoints zijn uitgeschakeld (geplande runners draaien niet).",
+        },
+        {
+          key: "audit-retention",
+          label: "Auditlog-retentie",
+          mode: auditRetentionDays > 0 ? `${auditRetentionDays} dagen` : "onbeperkt bewaren",
+          // Beide toestanden zijn veilig: onbeperkt bewaren is de huidige default (geen wissen),
+          // een gezet venster dwingt de gedocumenteerde AVG-bewaartermijn af. Geen "aandacht".
+          level: auditRetentionDays > 0 ? "ok" : "fallback",
+          detail:
+            auditRetentionDays > 0
+              ? `Auditregels ouder dan ${auditRetentionDays} dagen worden gesnoeid (AVG dataminimalisatie).`
+              : "Auditlog wordt onbeperkt bewaard. Zet AUDIT_LOG_RETENTION_DAYS (bv. 365) om de bewaartermijn af te dwingen.",
         },
         {
           key: "search-indexing",

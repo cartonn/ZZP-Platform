@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — Prod-rijpheid: auditlog-retentie-pruning (AVG dataminimalisatie)
+
+**Gat:** het verwerkingsregister (`RETENTION_SCHEDULE`, key `auditlog-beveiligingslogboeken`)
+documenteert een bewaartermijn van **12 maanden** voor het auditlog/beveiligingslogboek (AVG art. 5
+lid 1e), maar geen code dwong die af — auditregels mét IP-adres + user-agent bleven onbeperkt staan.
+**Opgelost:** een geplande taak `audit-retention` (gewired in `/api/tasks/run-all`) snoeit auditregels
+ouder dan het geconfigureerde venster.
+
+- **Pure kern** `src/lib/audit-retention.ts` (`auditRetentionCutoff`: now − venster, null bij uit) +
+  config-parser `parseAuditRetentionDays` in `config.ts` (opt-in: leeg/0 = uit; veilige **minimumvloer
+  30 dagen** tegen een typefout die het hele logboek zou wissen; `AUDIT_LOG_RETENTION_MIN_DAYS`).
+- **Taak** `src/lib/audit-retention-task.ts` (`runAuditRetentionTask`): gebatchte verwijdering
+  (BATCH_SIZE 500, MAX_BATCHES 200 als runaway-backstop; select-ids→deleteMany werkt op SQLite én
+  Postgres), idempotent (tweede run met dezelfde klok = 0), en één **verantwoordings-auditrecord**
+  `AUDIT_LOG_PRUNED` per snoei-actie (AVG art. 5 lid 2; geen PII, alleen aantal+cutoff+venster).
+- **Inert-by-default:** `AUDIT_LOG_RETENTION_DAYS` leeg = huidig gedrag (onbeperkt bewaren, no-op).
+- **Zichtbaar** op `/admin/systeemstatus` ("Auditlog-retentie": ok bij gezet venster, fallback bij
+  onbeperkt). Env-schema + `.env.example` + MENSENWERK §5a/§7 bijgewerkt.
+- **Tests:** `audit-retention.test.ts` (10: config-parser + cutoff) + `audit-retention-task.test.ts`
+  (7: no-op/snoei/idempotent/batches/vloer/verantwoordingsrecord) + 3 system-status-cases. Gate groen
+  (typecheck/lint/build ✓).
+- **Resterend mensenwerk:** bewaartermijnen laten vaststellen door een privacyjurist, daarna
+  `AUDIT_LOG_RETENTION_DAYS=365` zetten. Zolang leeg verandert er niets.
+
 ## 2026-07-14 — Security/privacy-audit (2e ronde): cross-party dispuutreden-lek + login-timing-egalisatie
 
 **HOOG cross-party PII-lek gefixt (rood→groen, export + erasure):** `Collaboration.disputeReason` is één

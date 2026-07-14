@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — auditlog-retentie-pruning (AVG dataminimalisatie) (2026-07-14, PR #768)** —
+> het verwerkingsregister (`RETENTION_SCHEDULE`) documenteert 12 maanden bewaartermijn voor het auditlog/
+> beveiligingslogboek (AVG art. 5 lid 1e), maar geen code dwong die af — auditregels mét IP-adres accumuleerden
+> onbeperkt. Nu een geplande taak `audit-retention` (in `/api/tasks/run-all`) die regels ouder dan het
+> geconfigureerde venster gebatcht + idempotent snoeit, met één verantwoordings-auditrecord per actie (art. 5 lid 2).
+> Pure `audit-retention.ts` (`auditRetentionCutoff`) + config-parser `parseAuditRetentionDays` (opt-in, veilige
+> minimumvloer 30 dagen) + taak + wiring + system-status-item + env-schema. Inert-by-default
+> (`AUDIT_LOG_RETENTION_DAYS` leeg = onbeperkt, huidig gedrag). Geen schemawijziging. +20 tests, gate groen.
+> Resterend mensenwerk: bewaartermijn laten vaststellen (privacyjurist), daarna `AUDIT_LOG_RETENTION_DAYS=365` zetten.
+>
 > Gedaan (niet opnieuw): **Betaal-vertrouwenschip op de browse-lijst (ZZP'er) (2026-07-14, PR #765)** — op
 > `/opdrachten` (browse-/triage-lijst) toonde elke kaart al ZZP-zijdige signalen (match, reistijd, concurrentie,
 > startdatum) maar géén opdrachtgever-vertrouwenssignaal; om te zien of een opdrachtgever op tijd betaalt moest je
