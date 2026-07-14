@@ -58,6 +58,7 @@ vi.mock("@/lib/db", () => ({
     availabilityWindow: { updateMany: op("availabilityWindow.updateMany") },
     workExperience: { deleteMany: op("workExperience.deleteMany") },
     indirectHoursEntry: { updateMany: op("indirectHoursEntry.updateMany") },
+    performance: { updateMany: op("performance.updateMany") },
     idea: { updateMany: op("idea.updateMany") },
     collaboration: { updateMany: op("collaboration.updateMany") },
     favoriteFreelancer: { updateMany: op("favoriteFreelancer.updateMany") },
@@ -250,6 +251,21 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(o).toBeDefined();
     expect(o.args.where).toEqual({ userId: "user-42" });
     expect((o.args.data as { note: string | null }).note).toBeNull();
+  });
+
+  it("redact de zelf-getypte prestatie-vrije-tekst (Performance.description + milestoneTitle) van de ZZP'er (AVG art. 17)", async () => {
+    await anonymizeUser("user-42");
+    // De ZZP'er typt bij het indienen van uren/mijlpalen een werkomschrijving (Performance.description,
+    // niet-nullable) en mijlpaltitel — die kunnen opdrachtgever/locatie/persoonsdetails bevatten. De
+    // Collaboration blijft staan als factuur-/fiscale historie, dus de onDelete:Cascade op Performance
+    // vuurt niet: zonder een expliciete updateMany overleeft deze zelf-geschreven PII art. 17
+    // (rood→groen). Gescopet op de eigen prestaties via collaboration.freelancer.userId.
+    const o = find("performance.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ collaboration: { freelancer: { userId: "user-42" } } });
+    const data = o.args.data as { description: string; milestoneTitle: string | null };
+    expect(data.description).toMatch(/verwijderd/i);
+    expect(data.milestoneTitle).toBeNull();
   });
 
   it("redact titel + omschrijving van eigen ideeën (Idea)", async () => {

@@ -273,6 +273,22 @@ export async function anonymizeUser(userId: string): Promise<void> {
       where: { userId },
       data: { note: null },
     }),
+    // Prestatie-vrije-tekst die de ZZP'er zélf schreef bij het indienen van uren/mijlpalen
+    // (Performance.description — werkomschrijving die opdrachtgever/locatie/persoonsdetails kan
+    // bevatten — en milestoneTitle). De prestatie/urenstaat blijft staan als factuur-/fiscale historie
+    // (de afgeleide Invoice draagt een bewaargrond), maar de zelf-getypte tekst moet mee: de
+    // Collaboration wordt niet verwijderd, dus de onDelete:Cascade op Performance vuurt niet →
+    // expliciet redacten. Spiegelt Application.motivation/AvailabilityWindow.note/ShiftHandoff.reason.
+    // description is niet-nullable (@default("")) → neutrale redactiestring; milestoneTitle is nullable
+    // → null. rejectionReason is door de OPDRACHTGEVER geschreven over de ZZP'er en heeft mogelijk een
+    // bewaargrond bij een facturatie-/urengeschil — bewust niet hier (zie backlog, zoals NoShowReport).
+    prisma.performance.updateMany({
+      where: { collaboration: { freelancer: { userId } } },
+      data: {
+        description: "[Verwijderd op verzoek van de gebruiker]",
+        milestoneTitle: null,
+      },
+    }),
     // Eigen ideeën: titel + omschrijving zijn door de betrokkene geschreven vrije tekst (PII-risico);
     // het idee blijft als geanonimiseerd record op het bord staan.
     prisma.idea.updateMany({

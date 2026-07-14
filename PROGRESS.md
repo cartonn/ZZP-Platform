@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — Security/privacy-audit: AVG art. 17 erasure-gat `Performance` + defense-in-depth ADMIN-poort
+
+- **Wat:** adversariële security-/privacy-auditronde (3 parallelle Opus-subagents op niet-overlappende
+  oppervlakken). **Twee gaten gefixt (rood→groen):** (1) **AVG art. 17** — `anonymizeUser` miste
+  `Performance` volledig; de zelf-getypte `description` (werkomschrijving) + `milestoneTitle` van de ZZP'er
+  overleefden anonimisering (de `Collaboration` blijft staan, dus de cascade vuurt niet). Nu expliciet
+  geredact, gescopet op `collaboration.freelancer.userId`. (2) **OWASP A01 defense-in-depth** —
+  `BemiddelaarsPanel` (laadt álle tenants + bemiddelaar-naam/e-mail) droeg geen eigen ADMIN-check; nu
+  `await requireRole("ADMIN")` vóór elke query.
+- **Bestanden:** `src/app/(protected)/admin/gebruikers/actions.ts`,
+  `src/components/admin/gebruikersbeheer/bemiddelaars-panel.tsx` (+ nieuwe test),
+  `src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (+1 case), `docs/SECURITY-PRIVACY-BACKLOG.md`.
+- **Geparkeerd (FG/mens):** `Performance.rejectionReason` (opdrachtgever-geschreven, art. 9-adjacent,
+  mogelijke geschil-bewaargrond — zoals `NoShowReport.reason`); LAAG: login-timing-side-channel, unbounded
+  roster-query. Zie backlog-ronde 2026-07-14.
+- **Checks:** typecheck + lint + test + build + prettier groen; `npm audit --omit=dev` = 0. Stack: Next.js
+  15.5.19 (gepatcht mei-2026, 13 CVE's).
+
 ## 2026-07-14 — Urgentie-sortering facturenlijst + te-laat-uitsplitsing op de Openstaand-kaart (beide rollen)
 
 - **Wat:** de facturenlijst (`/facturen`, gedeeld door ZZP'er én opdrachtgever) werd hard op `createdAt desc`

@@ -1,4 +1,5 @@
 import { Building2 } from "lucide-react";
+import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -13,6 +14,12 @@ import { FranchiseForm } from "@/app/(protected)/admin/franchises/franchise-form
  * geen eigen paginakop — die hoort bij de route (/admin/franchises) of de hub.
  */
 export async function BemiddelaarsPanel() {
+  // Defense-in-depth: dit paneel laadt álle tenants + de naam/e-mail van elke bemiddelaar
+  // (cross-tenant PII). Het leunt niet alleen op de ADMIN-gate van zijn aanroeper (/admin/franchises
+  // + middleware): een eigen server-side rolcheck sluit het gat als het paneel ooit elders wordt
+  // hergebruikt. Spiegelt het patroon van elke andere admin-actie/-loader in deze codebase.
+  await requireRole("ADMIN");
+
   const tenants = await prisma.tenant.findMany({
     orderBy: { createdAt: "desc" },
     include: {
