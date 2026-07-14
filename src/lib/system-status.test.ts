@@ -58,6 +58,7 @@ describe("collectSystemStatus — volledig bekabelde productie", () => {
     IDENTITY_VERIFIER: "idin",
     SECURITY_CONTACT: "security@example.nl",
     DATABASE_CONNECTION_LIMIT: "10",
+    AUDIT_LOG_RETENTION_DAYS: "365",
   });
 
   it("markeert álles als ok en geeft geen aandacht-items", () => {
@@ -133,6 +134,7 @@ describe("collectSystemStatus — zoekmachine-indexering", () => {
       IDENTITY_VERIFIER: "idin",
       SECURITY_CONTACT: "security@example.nl",
       DATABASE_CONNECTION_LIMIT: "10",
+      AUDIT_LOG_RETENTION_DAYS: "365",
     });
     const status = collectSystemStatus(wired);
     expect(status.counts.attention).toBe(0);
@@ -205,6 +207,24 @@ describe("collectSystemStatus — beveiligingscontact (security.txt)", () => {
   it("ontbrekend SECURITY_CONTACT = fallback (afgeleid meldpunt, geen aandacht)", () => {
     const item = itemByKey(makeEnv(), "security-contact");
     expect(item.mode).toBe("afgeleid");
+    expect(item.level).toBe("fallback");
+  });
+});
+
+describe("collectSystemStatus — auditlog-retentie", () => {
+  it("gezet venster = ok met dagen in de modus", () => {
+    const item = itemByKey(makeEnv({ AUDIT_LOG_RETENTION_DAYS: "365" }), "audit-retention");
+    expect(item.mode).toBe("365 dagen");
+    expect(item.level).toBe("ok");
+  });
+  it("te lage waarde wordt geklemd naar de vloer in de weergave", () => {
+    const item = itemByKey(makeEnv({ AUDIT_LOG_RETENTION_DAYS: "3" }), "audit-retention");
+    expect(item.mode).toBe("30 dagen");
+    expect(item.level).toBe("ok");
+  });
+  it("ontbrekend = fallback (onbeperkt bewaren, geen aandacht)", () => {
+    const item = itemByKey(makeEnv(), "audit-retention");
+    expect(item.mode).toBe("onbeperkt bewaren");
     expect(item.level).toBe("fallback");
   });
 });

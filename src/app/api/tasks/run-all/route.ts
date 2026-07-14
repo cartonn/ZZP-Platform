@@ -24,6 +24,7 @@ import { runPerformanceSubmissionReminderTask } from "@/lib/performance-submissi
 import { runNotificationDigestTask } from "@/lib/notification-digest-task";
 import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
 import { runPushDeliveryTask } from "@/lib/push-delivery-task";
+import { runAuditRetentionTask } from "@/lib/audit-retention-task";
 import { runScheduledTasks, type ScheduledTask } from "@/lib/scheduled-tasks";
 import { reportBackgroundFailure } from "@/lib/observability/report";
 
@@ -70,6 +71,7 @@ export async function POST(request: Request): Promise<Response> {
     { name: "reviews-reveal", fn: () => runReviewsRevealTask({ actorId: null }) },
     { name: "push-delivery", fn: () => runPushDeliveryTask({}) },
     { name: "notification-digest", fn: () => runNotificationDigestTask({ actorId: null }) },
+    { name: "audit-retention", fn: () => runAuditRetentionTask({ actorId: null }) },
     { name: "monitor", fn: () => runMonitorTask({}) },
   ];
 
