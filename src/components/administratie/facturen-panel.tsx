@@ -26,6 +26,7 @@ import {
   parseInvoiceFilter,
   summarizeInvoiceGroups,
 } from "@/lib/invoice-filter";
+import { sortInvoicesByUrgency, outstandingOverdueCents } from "@/lib/invoice-urgency";
 
 const CASCADE_LABEL: Record<
   InvoiceLifecycleState,
@@ -91,6 +92,9 @@ export async function FacturenPanel({
     (sum, inv) => (isInvoiceOutstanding(inv) ? sum + inv.totalCents : sum),
     0,
   );
+  // Te-late deel van het openstaande bedrag — een geaggregeerd urgentiesignaal op de Openstaand-kaart,
+  // óók voor de opdrachtgever (die op deze pagina geen debiteuren-/crediteurenkaart heeft).
+  const overdueCents = outstandingOverdueCents(invoices);
 
   // Debiteuren-overzicht (alleen ZZP'er): openstaand saldo per opdrachtgever met te-laat-signaal en
   // ouderdom. Afgeleid uit de reeds geladen factuurlijst (geen extra query) — beantwoordt "wie moet
@@ -119,7 +123,10 @@ export async function FacturenPanel({
 
   // Tellingen over de volledige lijst (voor de pill-labels); gefilterde lijst voor de weergave.
   const groupCounts = summarizeInvoiceGroups(invoices);
-  const filtered = filterInvoices(invoices, activeFilter);
+  // Filteren op de gekozen groep, daarna op urgentie ordenen: te laat bovenaan (langst te laat
+  // eerst), dan wat binnenkort vervalt. De DB levert `createdAt desc`, waardoor de meest te-late
+  // factuur anders onderaan kan belanden.
+  const filtered = sortInvoicesByUrgency(filterInvoices(invoices, activeFilter));
 
   // Verwachte-betaaldatum (alleen ZZP'er): per opdrachtgever het betaalgedrag uit de eigen
   // betaalde facturen afleiden (privacy — nooit data van andere ZZP'ers), zodat we per openstaande
@@ -171,6 +178,11 @@ export async function FacturenPanel({
             <CardContent className="space-y-1 p-4">
               <p className="text-xs text-muted-foreground">{t("Openstaand")}</p>
               <p className="text-lg font-semibold tabular-nums">{formatEuro(openCents)}</p>
+              {overdueCents > 0 && (
+                <p className="text-xs font-medium tabular-nums text-danger">
+                  {t("waarvan")} {formatEuro(overdueCents)} {t("te laat")}
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
