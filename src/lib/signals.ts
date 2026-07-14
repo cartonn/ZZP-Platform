@@ -95,12 +95,12 @@ const CASCADE_SCAN_LIMIT = 50;
 /**
  * Eén cascade-samenwerking van de ZZP'er, uitgedund tot wat de fase bepaalt: de status van de
  * samenwerking, de status van de meest recente prestatie (of `null` = nog geen prestatie) en de
- * lifecycle-status van de nog-openstaande facturen (DRAFT/REJECTED/APPROVED). Pure invoer.
+ * lifecycle-status van de nog-openstaande facturen (DRAFT/REJECTED/APPROVED/OVERDUE). Pure invoer.
  */
 export interface FreelancerCascadeCollab {
   status: "PROPOSED" | "ACTIVE";
   latestPerformanceStatus: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | null;
-  openInvoiceStatuses: readonly ("DRAFT" | "REJECTED" | "APPROVED")[];
+  openInvoiceStatuses: readonly ("DRAFT" | "REJECTED" | "APPROVED" | "OVERDUE")[];
 }
 
 /**
@@ -111,9 +111,10 @@ export interface FreelancerCascadeCollab {
  *   - ACTIVE, geen/DRAFT-prestatie → 1 (uren/oplevering indienen);
  *   - ACTIVE, REJECTED-prestatie   → 1 (corrigeren en opnieuw indienen);
  *   - ACTIVE, SUBMITTED/APPROVED-prestatie → 0 vanuit de prestatiekant (opdrachtgever is aan zet);
- *   - per openstaande factuur (DRAFT/REJECTED indienen, APPROVED betaling markeren) → +1.
- * Vóór deze fix telde de badge alléén factuur-DRAFT + -APPROVED, waardoor de indien-/corrigeer-fase
- * wegviel. Pure functie, los testbaar.
+ *   - per openstaande factuur (DRAFT/REJECTED indienen, APPROVED/OVERDUE betaling markeren) → +1.
+ * OVERDUE draagt dezelfde ZZP-actie als APPROVED (betaling markeren) en telt daarom mee — anders
+ * ondertelt de badge exact de over-de-vervaldatum-cascadefacturen die /acties (pending-tasks.ts) én
+ * de cascade-fase (stage.ts, "aan zet"/attention) wél tonen. Pure functie, los testbaar.
  */
 export function countFreelancerCascadeWork(collabs: readonly FreelancerCascadeCollab[]): number {
   let count = 0;
@@ -253,7 +254,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
               take: 1,
             },
             invoices: {
-              where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED"] } },
+              where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"] } },
               select: { lifecycleStatus: true },
               take: 5,
             },
@@ -271,7 +272,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         latestPerformanceStatus:
           (c.performances[0]?.status as FreelancerCascadeCollab["latestPerformanceStatus"]) ?? null,
         openInvoiceStatuses: c.invoices.map(
-          (i) => i.lifecycleStatus as "DRAFT" | "REJECTED" | "APPROVED",
+          (i) => i.lifecycleStatus as "DRAFT" | "REJECTED" | "APPROVED" | "OVERDUE",
         ),
       })),
     );

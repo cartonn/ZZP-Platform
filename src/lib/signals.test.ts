@@ -179,6 +179,22 @@ describe("countFreelancerCascadeWork", () => {
     ).toBe(3);
   });
 
+  it("telt een OVERDUE-factuur mee (betaling markeren) — mag niet uit de badge vallen", () => {
+    // Regressie: de badge-query filterde OVERDUE eruit terwijl /acties (pending-tasks.ts) en de
+    // cascade-fase (stage.ts) de over-de-vervaldatum-factuur wél als "betaling markeren" tonen.
+    expect(
+      countFreelancerCascadeWork([
+        collab({ latestPerformanceStatus: "APPROVED", openInvoiceStatuses: ["OVERDUE"] }),
+      ]),
+    ).toBe(1);
+    // Combinatie met een indien-fase op een andere cyclus telt op tot 2, net als APPROVED.
+    expect(
+      countFreelancerCascadeWork([
+        collab({ latestPerformanceStatus: "REJECTED", openInvoiceStatuses: ["OVERDUE"] }),
+      ]),
+    ).toBe(2);
+  });
+
   it("combineert de indien-fase met een openstaande factuur op dezelfde samenwerking", () => {
     // meerdere cycli: prestatie opnieuw in te dienen + een APPROVED-factuur te markeren
     expect(

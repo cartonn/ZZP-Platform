@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-14 — Persona-sweep (run 27): 2 defecten gefixt (cascadebadge OVERDUE + Sentry-scrub)
+
+- **Wat:** kritische-gebruiker-sweep over alle 4 rollen (live Playwright + 2 parallelle Opus-audit-subagents).
+  Twee defecten gevonden én opgelost:
+  1. **Next-action-correctheid (DOEL 1b, MED):** de ZZP-`/samenwerkingen`-cascadebadge
+     (`countFreelancerCascadeWork` via `navBadges`) ondertelde OVER-DE-VERVALDATUM-cascadefacturen. De
+     invoices-query filterde `lifecycleStatus in [DRAFT,REJECTED,APPROVED]` — `OVERDUE` ontbrak, terwijl
+     `/acties` (`pending-tasks.ts`) OVERDUE wél als "betaling markeren"-taak toont en `cascade/stage.ts` de
+     fase als `payment`/`youAreUp:true`/attention rendert. De badge sprak dus zijn eigen "mag niet
+     ondertellen"-docstring én de detailfase tegen. **Fix:** `OVERDUE` toegevoegd aan de filter + het
+     `openInvoiceStatuses`-type + docstrings in `src/lib/signals.ts`.
+  2. **Privacy-defense-in-depth (DOEL 2, LAAG):** de gehardende Sentry-`beforeSend`-scrubber
+     (`src/lib/observability/sentry-options.ts`, uit #760) scrubde `request`/`user`/`server_name` maar niet
+     `event.extra`/`event.contexts` — juist het `extra`-veld waar `report.ts` de call-site-context in
+     doorgeeft. **Fix:** `extra`/`contexts` gaan nu door de bestaande recursieve logger-`redact` (key-allowlist
+     - e-mailmaskering, #753) — geen duplicatie, consistent met de observability-laag.
+- **Bestanden:** `src/lib/signals.ts` + `src/lib/signals.test.ts` (+1 test), `src/lib/observability/sentry-options.ts`
+  - `src/lib/observability/sentry-options.test.ts` (+2 tests), `docs/PERSONA-SWEEP-BACKLOG.md` (run 27),
+    `PROGRESS.md`. Gate groen: typecheck, lint, **4114 unit-tests**, build, prettier. Rest van de adversariële
+    sweep (privilege-escalatie/IDOR/cross-tenant/junk-id/cron/webhook) opnieuw volledig correct — geen 500's,
+    geen stille toegang. `Performance.rejectionReason`-AVG-erasure-gat blijft geëscaleerd naar de FG (MENSENWERK).
+- **Volgende stap:** volgende backlog-/prod-rijpheid-item; overweeg een genest-`extra`-diepte-cap-testje als
+  Sentry live gaat.
+
 ## 2026-07-14 — AVG-data-export: eigen facturen + urenstaten toegevoegd (art. 15/20)
 
 - **Wat:** de self-service data-export (`GET /api/account/export` → `buildAccountExport`) bundelde 28

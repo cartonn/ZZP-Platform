@@ -96,6 +96,33 @@ describe("scrubSentryEvent", () => {
     expect(event.request?.cookies).toBe("s=1");
   });
 
+  it("redacteert PII-dragende velden in extra (door de call-site meegegeven context)", () => {
+    const event: SentryEvent = {
+      extra: {
+        path: "/facturen",
+        naam: "Sanne de Vries",
+        nested: { phone: "0612345678", note: "mail jan@firma.nl" },
+      },
+    };
+    const out = scrubSentryEvent(event);
+    // niet-gevoelige debug-context blijft intact
+    expect(out.extra?.path).toBe("/facturen");
+    // exacte PII-sleutel → volledig geredacteerd
+    expect(out.extra?.naam).toBe("[redacted]");
+    // secret-/contact-substring ("phone") → geredacteerd, ook genest
+    expect((out.extra?.nested as Record<string, unknown>).phone).toBe("[redacted]");
+    // vrije tekst met een e-mailadres wordt gemaskeerd (geen sleutel-treffer, wel waarde-patroon)
+    expect((out.extra?.nested as Record<string, unknown>).note).toBe("mail j***@firma.nl");
+  });
+
+  it("maskeert een e-mailwaarde in contexts en muteert het origineel niet", () => {
+    const event: SentryEvent = { contexts: { session: { email: "sanne@example.com" } } };
+    const out = scrubSentryEvent(event);
+    expect((out.contexts?.session as Record<string, unknown>).email).toBe("s***@example.com");
+    // origineel onaangetast (pure functie)
+    expect((event.contexts?.session as Record<string, unknown>).email).toBe("sanne@example.com");
+  });
+
   it("is veilig op een leeg event", () => {
     expect(scrubSentryEvent({})).toEqual({});
   });

@@ -1,6 +1,8 @@
 // Gehardende Sentry-init-opties (pure, testbaar; los van het @sentry/nextjs-pakket dat NIET
 // geïnstalleerd is). `report.ts` geeft deze opties door aan `sentry.init(...)` zodra SENTRY_DSN
 // gezet is en het pakket beschikbaar is.
+
+import { redact } from "@/lib/observability/logger";
 //
 // Waarom een eigen seam i.p.v. een kaal `{ dsn }`:
 //   1. AVG (dit platform verwerkt gevoelige documenten; Sentry is een externe — mogelijk
@@ -78,6 +80,20 @@ export function scrubSentryEvent(event: SentryEvent): SentryEvent {
       request.headers = safe;
     }
     scrubbed.request = request;
+  }
+
+  // `extra` en `contexts` dragen door de call-site meegegeven context. `report.ts` geeft
+  // `ReportContext.extra` rechtstreeks door aan Sentry's `extra`; het contract is "niet-gevoelige
+  // context", maar dat is niet afgedwongen — een toekomstige aanroeper die per ongeluk een
+  // gebruikersobject/e-mail/naam in `extra` zet, zou die ongeredacteerd naar de externe (mogelijk
+  // buiten-EER) verwerker sturen. Draai ze daarom door dezelfde recursieve PII/secret-redactie als
+  // de logger (`redact`, key-allowlist + e-mailmaskering uit commit ff230e3) — verdediging in de
+  // diepte, consistent met de rest van de observability-laag.
+  if (scrubbed.extra && typeof scrubbed.extra === "object") {
+    scrubbed.extra = redact(scrubbed.extra as Record<string, unknown>);
+  }
+  if (scrubbed.contexts && typeof scrubbed.contexts === "object") {
+    scrubbed.contexts = redact(scrubbed.contexts as Record<string, unknown>);
   }
 
   return scrubbed;
