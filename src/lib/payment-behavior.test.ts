@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computePaymentBehavior, type PaymentRow } from "./payment-behavior";
+import {
+  computePaymentBehavior,
+  paymentTrustChip,
+  type PaymentBehavior,
+  type PaymentRow,
+} from "./payment-behavior";
 
 function daysAgo(n: number): Date {
   const d = new Date("2026-06-10T12:00:00Z");
@@ -191,5 +196,31 @@ describe("computePaymentBehavior", () => {
       expect(result.avgDaysToPay).toBe(10);
       expect(result.tone).toBe("good");
     });
+  });
+});
+
+describe("paymentTrustChip", () => {
+  function behavior(tone: PaymentBehavior["tone"]): PaymentBehavior {
+    return { sampleSize: 5, avgDaysToPay: 10, onTimePct: 95, tone };
+  }
+
+  it("toont 'Betaalt op tijd' bij een goede betaalreputatie", () => {
+    const chip = paymentTrustChip(behavior("good"));
+    expect(chip).toEqual({ label: "Betaalt op tijd", tone: "good" });
+  });
+
+  it("toont 'Betaalt vaak laat' bij een waarschuwings-betaalreputatie", () => {
+    const chip = paymentTrustChip(behavior("warning"));
+    expect(chip).toEqual({ label: "Betaalt vaak laat", tone: "warning" });
+  });
+
+  it("zwijgt (null) bij een neutrale reputatie zodat de lijst rustig blijft", () => {
+    expect(paymentTrustChip(behavior("neutral"))).toBeNull();
+  });
+
+  it("zwijgt (null) bij onvoldoende historie (unknown)", () => {
+    expect(
+      paymentTrustChip({ sampleSize: 1, avgDaysToPay: null, onTimePct: null, tone: "unknown" }),
+    ).toBeNull();
   });
 });

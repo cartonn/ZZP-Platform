@@ -96,6 +96,34 @@ export function computePaymentBehavior(rows: PaymentRow[]): PaymentBehavior {
   return { sampleSize, avgDaysToPay, onTimePct, tone };
 }
 
+export type PaymentTrustChipTone = "good" | "warning";
+
+export interface PaymentTrustChip {
+  /** Compacte tekst voor de lijstweergave, bv. "Betaalt op tijd" of "Betaalt vaak laat". */
+  label: string;
+  /** Toon-emfase: "good" (betrouwbare betaler) | "warning" (betaalt structureel laat). */
+  tone: PaymentTrustChipTone;
+}
+
+/**
+ * Compacte lijst-chip afgeleid uit het betaalgedrag-signaal. Bedoeld voor de opdrachtenlijst waar de
+ * ZZP'er triageert bij welke opdrachtgever het zin heeft te reageren, zonder elke opdracht te openen:
+ * "krijg ik op tijd betaald?" is het diepste vertrouwenssignaal. Toont uitsluitend de beslis-relevante
+ * uitersten (`good`/`warning`) en geeft bij `neutral`/`unknown` `null` terug, zodat de lijst rustig
+ * blijft (geen ruis op elke opdrachtgever zonder uitgesproken betaalreputatie; de volledige cijfers
+ * staan op de detailpagina). Puur en deterministisch; toont alleen het geaggregeerde oordeel — nooit
+ * een individuele factuur of het bedrag ervan.
+ */
+export function paymentTrustChip(behavior: PaymentBehavior): PaymentTrustChip | null {
+  if (behavior.tone === "good") {
+    return { label: "Betaalt op tijd", tone: "good" };
+  }
+  if (behavior.tone === "warning") {
+    return { label: "Betaalt vaak laat", tone: "warning" };
+  }
+  return null;
+}
+
 function determineTone(avgDaysToPay: number | null, onTimePct: number | null): PaymentTone {
   // Goed: snel betaald (≤14 dagen) of bijna altijd op tijd (≥90%).
   if (
