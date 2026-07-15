@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 — Tarief-passendheid-chip op de opdrachtenlijst (ZZP'er)
+
+**Waarde:** op `/opdrachten` (de find-work/triage-lijst) toont elke kaart al ZZP-zijdige signalen
+(match, reistijd, concurrentie, betaalgedrag, startdatum-beschikbaarheid) maar géén oordeel over of
+het opdrachtbudget past bij wat de ZZP'er zélf vraagt. Om te zien of een opdracht qua geld de moeite
+waard is, moest hij het budget (`rateMin–rateMax`) mentaal tegen zijn eigen tarief afzetten. "Betaalt
+deze opdracht wat ik vraag?" is een kern-triagevraag vóór je tijd in een reactie steekt (benchmark
+Malt/Upwork: rate-fit t.o.v. jouw tarief). Nu een compacte chip per kaart — **"Onder je tarief"** /
+**"Boven je tarief"** — alleen bij een uitgesproken mismatch.
+
+- **Puur** `jobRateFitChip` in `src/lib/job-rate-fit.ts`: vergelijkt het eigen `hourlyRate` met het
+  opdrachtbudget. `null` (geen chip, lijst blijft rustig) bij onbekend/niet-positief tarief, budget
+  zonder grenzen, of een tarief binnen `[rateMin, rateMax]` (grenzen inclusief). warning "Onder je
+  tarief" als `rateMax < hourlyRate` (opdracht betaalt minder dan je vraagt); good "Boven je tarief"
+  als `rateMin > hourlyRate` (kans). Plafond gaat vóór bodem bij omgekeerde grensvolgorde. 8 tests.
+- **Wiring** in `opdrachten/(index)/page.tsx`: `rateFitByJob`-map over de zichtbare gepagineerde
+  opdrachten (alleen ZZP'er), `Wallet`-chip ná de beschikbaarheids-chip. Geen extra query — `hourlyRate`
+  is met het profiel geladen (`findUnique`/`include`), `rateMin/rateMax` staan al op de opdracht.
+- Los van `rate-fit.ts` (opdrachtgever-zijdig: proposedRate vs budget op `/kandidaten`) en de
+  matchmotor. Read-only advies-signaal, geen schemawijziging, geen nieuw mutatie/auth-oppervlak, geen N+1.
+- Gate: typecheck ✓, lint ✓, unit-tests ✓, build ✓, prettier ✓.
+
 ## 2026-07-15 — Security/privacy-audit: server-action error-leak dichtgezet (CWE-209) + delete-denial-audit
 
 **Waarde:** grondige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële

@@ -260,6 +260,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Tarief-passendheid-chip op de opdrachtenlijst (ZZP'er) (2026-07-15, PR #775)** —
+> op `/opdrachten` (find-work/triage-lijst) toonde elke kaart al ZZP-zijdige signalen (match, reistijd,
+> concurrentie, betaalgedrag, startdatum-beschikbaarheid) maar géén oordeel of het opdrachtbudget past bij
+> wat de ZZP'er zélf vraagt; hij moest het budget (`rateMin–rateMax`) mentaal tegen zijn eigen uurtarief
+> afzetten. "Betaalt deze opdracht wat ik vraag?" is een kern-triagevraag vóór je tijd in een reactie steekt
+> (benchmark Malt/Upwork rate-fit). Nu een compacte chip per kaart — **"Onder je tarief"** (budgetplafond
+> onder je tarief, warning) / **"Boven je tarief"** (budgetbodem boven je tarief, kans), alleen bij een
+> uitgesproken mismatch (tarief binnen budget of onbekend → geen chip, lijst blijft rustig). Pure
+> `jobRateFitChip` in `job-rate-fit.ts` (vergelijkt `hourlyRate` met `rateMin/rateMax`; plafond gaat vóór
+> bodem; 8 tests) + wiring in `opdrachten/(index)/page.tsx` (`rateFitByJob`-map over de zichtbare opdrachten,
+> `Wallet`-chip). Geen extra query (`hourlyRate` met profiel geladen, budget al op de opdracht). Los van
+> `rate-fit.ts` (opdrachtgever-zijdig op `/kandidaten`). Read-only, geen schemawijziging, geen nieuw
+> mutatie/auth-oppervlak, geen N+1. Gate groen (typecheck, lint, unit-tests, build ✓).
+>
 > Gedaan (niet opnieuw): **E-mail-connectiviteitszelftest voor de beheerder (2026-07-15, PR #774)** —
 > naast de bestaande Opslag-zelftest kon de beheerder de e-mailkoppeling wel als "geldig geconfigureerd"
 > zien, maar niet bevestigen dat er ook écht mail wordt afgeleverd. Nu een **E-mail-zelftest** op
