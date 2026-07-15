@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 — Ontwerp-lab: +10 concepten (nrs 321–330), reeks 33
+
+**Waarde:** de galerij op `/ontwerp` groeit van 320 → **330** onderscheidende redesign-concepten
+(additief — geen bestaand concept overschreven/verwijderd). De eigenaar bekijkt via één URL de volledige
+historie naast elkaar en kiest de richting voor de echte herontwerp.
+
+- **10 nieuwe concept-componenten** onder `src/components/ontwerp/concepts/concept-321..330-*.tsx`
+  ('use client', puur frontend, mock-data uit `mock.ts`), elk met de 6 kernschermen (dashboard,
+  marktplaats, opdracht-detail met verklaarbare matching, verificatie, acties, facturen), werkende
+  scherm-switcher, betekenisvolle interactie en loading/empty/error-states:
+  - **321 Mistral** (kinetische variabele-typografie), **322 Kwik** (spatial gelaagde translucentie),
+    **323 Beitel** (neo-brutalist-refined), **324 Zephyr** (quiet luxury), **325 Kommando** (keyboard-first
+    CLI), **326 Glans** (glossy premium-dark), **327 Kobalt** (single-hue tonal), **328 Etalage**
+    (marketplace retail-polish), **329 Aubergine** (premium pruim-palet), **330 Momentum** (performance-data).
+- **Bedrading (alleen additief):** 10 `ConceptMeta`-entries toegevoegd aan `registry.ts` en 10
+  id→component-koppelingen aan `src/app/ontwerp/[id]/concept-host.tsx`. De galerij-index mapt over
+  `CONCEPTS` en groeit vanzelf mee. Bestaande entries/koppelingen ongemoeid.
+- **Docs:** `docs/DESIGN-LAB.md` bijgewerkt (reeks 33 + onderzochte 2026-trends, totaal 330).
+- **Gates:** `tsc --noEmit` exit 0, `next lint` schoon, prettier-conform. Geen enkele wijziging aan
+  de live-app/auth/logica. Het woord "AI" komt nergens voor; UI-taal Nederlands.
+
 ## 2026-07-15 — Beschikbaarheids-conflict-chip op de opdrachtenlijst (ZZP'er) (PR #771)
 
 **Waarde (ZZP'er):** het beschikbaarheidssignaal ("valt de startdatum van deze opdracht in een periode

@@ -967,6 +967,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "320": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-320-handpalm").then((m) => m.Concept320),
   ),
+  "321": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-321-mistral").then((m) => m.Concept321),
+  ),
+  "322": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-322-kwik").then((m) => m.Concept322),
+  ),
+  "323": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-323-beitel").then((m) => m.Concept323),
+  ),
+  "324": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-324-zephyr").then((m) => m.Concept324),
+  ),
+  "325": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-325-kommando").then((m) => m.Concept325),
+  ),
+  "326": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-326-glans").then((m) => m.Concept326),
+  ),
+  "327": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-327-kobalt").then((m) => m.Concept327),
+  ),
+  "328": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-328-etalage").then((m) => m.Concept328),
+  ),
+  "329": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-329-aubergine").then((m) => m.Concept329),
+  ),
+  "330": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-330-momentum").then((m) => m.Concept330),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

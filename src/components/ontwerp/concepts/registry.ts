@@ -5413,6 +5413,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#16161d",
     available: true,
   },
+  // ── Reeks (run 15-7-2026) — nrs 321–330, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "321",
+    name: "Mistral",
+    direction: "Kinetische variabele-typografie — motion-first",
+    rationale:
+      "Typografie ís de interface: oversized display-koppen met variërend gewicht/breedte, een ticker-strip als nav en letters die soepel reageren op interactie. Beweging draagt de hiërarchie, één elektrisch accent houdt het strak.",
+    trends: [
+      "Kinetische / variabele-font typografie (2026)",
+      "Motion-first hiërarchie",
+      "Ticker-strip navigatie",
+    ],
+    fonts: "Anton + Space Grotesk + JetBrains Mono",
+    accent: "#2f5bff",
+    bg: "#f4f4f2",
+    fg: "#111114",
+    available: true,
+  },
+  {
+    id: "322",
+    name: "Kwik",
+    direction: "Spatial depth — gelaagde translucentie",
+    rationale:
+      "Ruimtelijke diepte à la 2026: meerdere translucente glas-lagen met eigen blur en parallax suggereren volume, licht valt door de lagen. Koel leisteen-palet met één helder accent — kalm, premium, tastbaar rond gevoelige documenten.",
+    trends: [
+      "Spatial UI / gelaagde translucentie",
+      "Parallax-diepte tussen lagen",
+      "Licht-door-glas highlights",
+    ],
+    fonts: "Sora + Inter",
+    accent: "#4cc6ff",
+    bg: "#0e1626",
+    fg: "#e8eef7",
+    available: true,
+  },
+  {
+    id: "323",
+    name: "Beitel",
+    direction: "Neo-brutalist-refined — editorial",
+    rationale:
+      "Ruw maar geordend: massieve borders, harde offset-schaduw zonder blur, mono-uppercase labels en primaire kleurvlakken als codering. Strak op een grid en volledig toegankelijk — brutalisme met discipline en hoog contrast.",
+    trends: [
+      "Neo-brutalisme, verfijnd",
+      "Harde offset-schaduw + massieve borders",
+      "Mono-labels + primaire kleurvlakken",
+    ],
+    fonts: "Space Grotesk + JetBrains Mono + Inter",
+    accent: "#ffd400",
+    bg: "#f5f4ef",
+    fg: "#0a0a0a",
+    available: true,
+  },
+  {
+    id: "324",
+    name: "Zephyr",
+    direction: "Quiet luxury — stille elegantie",
+    rationale:
+      "Ingetogen luxe: bijna monochroom warm taupe, hairline-scheidingen en verfijnde serif-koppen, met één diep inkt-blauw accent. Extreme spatie-discipline zonder dichtheid te verliezen — rustig, duur, betrouwbaar.",
+    trends: [
+      "Quiet luxury / stille elegantie",
+      "Hairline-discipline + serif-koppen",
+      "Eén ingehouden accent",
+    ],
+    fonts: "Newsreader + Geist",
+    accent: "#1c2b4a",
+    bg: "#f3f1ec",
+    fg: "#20201d",
+    available: true,
+  },
+  {
+    id: "325",
+    name: "Kommando",
+    direction: "Keyboard-first — CLI-workspace",
+    rationale:
+      "Voor de snelle power-user: een command-palette (⌘K) als kern, monospace-panelen, zichtbare snelkoppelingen en een statusregel onderaan. Alles binnen handbereik van het toetsenbord — een terminal-strakke werkomgeving.",
+    trends: [
+      "Command-menu / keyboard-first (⌘K)",
+      "Terminal-UI met monospace",
+      "Zichtbare snelkoppelingen + statusregel",
+    ],
+    fonts: "Geist Mono + Geist",
+    accent: "#4ade80",
+    bg: "#0b0f0d",
+    fg: "#dcefe4",
+    available: true,
+  },
+  {
+    id: "326",
+    name: "Glans",
+    direction: "Glossy premium-dark — fashion-tech",
+    rationale:
+      "Een hoogglans modeblad dat software werd: bijna-zwart met champagne spot-kleur, grote editorial serif naast strakke grotesk en subtiele sheen op randen. Donkere hoogglans onderscheidt het van elke crème-editorial.",
+    trends: [
+      "Glossy premium-dark editorial",
+      "Serif-display + spot-kleur",
+      "Sheen / hoogglans-randen",
+    ],
+    fonts: "Fraunces + Geist",
+    accent: "#d4b483",
+    bg: "#0b0a0c",
+    fg: "#f0ece6",
+    available: true,
+  },
+  {
+    id: "327",
+    name: "Kobalt",
+    direction: "Single-hue tonal — mono-kleursysteem",
+    rationale:
+      "De hele interface uit één kleurfamilie: kobaltblauw in vele tonale trappen bouwt diepte zonder schaduw, met één warm contrast-accent voor acties. Bewijs dat een mono-hue systeem rijk en helder kan zijn — bewaakt op WCAG.",
+    trends: [
+      "Tonal / single-hue designsystemen (2026)",
+      "Diepte via tonale lagen",
+      "Eén contrast-accent voor acties",
+    ],
+    fonts: "Manrope + JetBrains Mono",
+    accent: "#f0873f",
+    bg: "#eef3fb",
+    fg: "#0f1e3a",
+    available: true,
+  },
+  {
+    id: "328",
+    name: "Etalage",
+    direction: "Marketplace-forward — retail-polish",
+    rationale:
+      "De marktplaats als premium etalage: aantrekkelijke opdracht-kaarten met match-% als aanbeveling, filter- en opslaan-interacties en een productpagina-achtige opdrachtdetail. E-commerce-strak, uitnodigend en helder.",
+    trends: [
+      "Marketplace / retail-polish UX",
+      "Filter- & opslaan-interacties",
+      "Productpagina-achtige detailweergave",
+    ],
+    fonts: "Plus Jakarta Sans + Inter",
+    accent: "#16a34a",
+    bg: "#ffffff",
+    fg: "#111318",
+    available: true,
+  },
+  {
+    id: "329",
+    name: "Aubergine",
+    direction: "Premium pruim — durvend kleurverhaal",
+    rationale:
+      "Een ongewoon, verfijnd kleurverhaal: diepe aubergine als basis, zacht mauve secundair en één levendig accent. Volwassen en premium — onderscheidt zich puur door een durvend-maar-smaakvol palet, met bewaakt contrast.",
+    trends: [
+      "Onverwachte jewel-/pruimtinten",
+      "Volwassen premium-dark",
+      "Durvend maar smaakvol kleurverhaal",
+    ],
+    fonts: "Fraunces + Inter",
+    accent: "#ff9e64",
+    bg: "#241428",
+    fg: "#f3e9f2",
+    available: true,
+  },
+  {
+    id: "330",
+    name: "Momentum",
+    direction: "Performance-data — sportieve energie",
+    rationale:
+      "Een prestatie-dashboard-gevoel: grote krachtige cijfers, voortgangsringen en streak-bars maken momentum voelbaar. Matching, omzet en verificatie als 'prestaties' — motiverend en geordend, met energieke maar strakke data-viz.",
+    trends: [
+      "Performance-/momentum-dashboards",
+      "Progress-ringen & streak-bars",
+      "Atletische data-viz",
+    ],
+    fonts: "Space Grotesk + JetBrains Mono + Inter",
+    accent: "#84cc16",
+    bg: "#f7f8f5",
+    fg: "#14181c",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);

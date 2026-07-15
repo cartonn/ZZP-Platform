@@ -903,3 +903,40 @@ UI-taal = Nederlands.
   **hairline-filigrein luxe-minimalisme**; **warm premium-dark met neon-accenten**; **thumb-first/duim-zone
   mobiel-ontwerp** — elk AA-/contrast-bewust en onderscheidend van de bestaande 310.
 - **Totaal nu op `/ontwerp`: 320 concepten** (reeks 32: 311–320).
+
+### Reeks 33 (run 15-7-2026) — nrs 321–330
+
+- **321 Mistral** — kinetische variabele-typografie / motion-first (licht + elektrisch blauw): oversized
+  Anton display-koppen met variërend gewicht/breedte, een ticker/marquee-strip als nav, letters die
+  gestaffeld reageren op hover; beweging draagt de hiërarchie (niet Courant/Redactie — typografie-als-motion).
+- **322 Kwik** — spatial depth / gelaagde translucentie (diep leisteen + cyaan): meerdere translucente
+  glas-lagen met eigen blur en parallax-offset bij hover, licht-door-glas highlights, 2026 spatial-UI-energie
+  puur in CSS (niet Vloeiglas/Glas — echte laag-diepte i.p.v. één glasvlak).
+- **323 Beitel** — neo-brutalist-refined editorial (crème + geel): massieve 2px borders, harde offset-schaduw
+  zonder blur, mono-uppercase labels, primaire kleurvlakken als codering, dikke focus-ring — ruw maar geordend
+  en toegankelijk (niet Bauhaus/Memphis — gedisciplineerd brutalisme).
+- **324 Zephyr** — quiet luxury / stille elegantie (warm taupe + inkt-blauw): hairline-scheidingen, verfijnde
+  Newsreader-serif-koppen, extreme spatie-discipline zonder dichtheid te verliezen (niet Japandi/Marmer —
+  ingetogen luxe via hairline + één accent).
+- **325 Kommando** — keyboard-first CLI-workspace (terminal-donker + groen): werkend command-palette (⌘K),
+  monospace-panelen, `g`+letter-chords, kbd-chips en een pinned statusregel onderaan (niet Console/Sneltoets —
+  een volledige toetsenbord-gedreven terminal-omgeving).
+- **326 Glans** — glossy premium-dark fashion-tech (hoogglans zwart + champagne): grote editorial serif naast
+  strakke grotesk, sheen op randen, modeblad-op-zwart (niet Folio/Noir — donkere hoogglans i.p.v. crème/mat).
+- **327 Kobalt** — single-hue tonal / mono-kleursysteem (kobalt-trappen + koper): de hele UI uit één kleurfamilie
+  in ~12 tonale trappen, diepte via tonale lagen i.p.v. schaduw, één warm contrast-accent (niet Kobalt-blauw als
+  accent elders — tonaal designsysteem als geheel).
+- **328 Etalage** — marketplace-forward retail-polish (licht + violet/groen): opdracht-kaarten als premium
+  winkel-etalage, filter-/sorteer-/opslaan-interacties, productpagina-achtige opdrachtdetail (niet Vitrine/Kiosk —
+  e-commerce-conversie-UX rond matching).
+- **329 Aubergine** — premium pruim / durvend kleurverhaal (diepe aubergine + mauve + abrikoos): volwassen,
+  smaakvol jewel-palet met bewaakt contrast (niet Saffier/Amber — pruim/aubergine als hoofdkleur).
+- **330 Momentum** — performance-data / sportieve energie (fris + limoen): grote krachtige cijfers,
+  voortgangsringen en streak-bars maken momentum voelbaar, matching/omzet/verificatie als "prestaties"
+  (niet Scorebord/Parcours — motiverend performance-dashboard).
+- Onderzochte 2026-trends deze reeks: **kinetische/variabele-font typografie**; **spatial UI met gelaagde
+  translucentie & parallax-diepte**; **verfijnd neo-brutalisme**; **quiet-luxury hairline-minimalisme**;
+  **command-menu/keyboard-first workspaces**; **glossy premium-dark editorial**; **single-hue tonal
+  designsystemen**; **marketplace/retail-polish UX**; **onverwachte jewel-/pruimpaletten**;
+  **performance-/momentum-dashboards** — elk AA-/contrast-bewust en onderscheidend van de bestaande 320.
+- **Totaal nu op `/ontwerp`: 330 concepten** (reeks 33: 321–330).
