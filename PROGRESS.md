@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 — Ontwerp-lab reeks 34: +10 concepten (331–340)
+
+**Waarde:** de `/ontwerp`-galerij groeit van 330 → **340** concepten (additief, niets overschreven).
+Tien nieuwe, onderscheidende designrichtingen gebouwd door 4 parallelle workers op niet-overlappende
+bestanden; orchestrator integreerde registry + route-map + docs.
+
+- **Nieuwe richtingen:** 331 Nevel (atmosferische mesh-gradient, light), 332 Reliëf (neumorfisme /
+  living-interface mono-reliëf), 333 Sferisch (immersieve 3D-relatiegraaf, dark spatial), 334 Zine
+  (handgemaakte collage / anti-perfectie), 335 Aquarel (geschilderde wassingen), 336 Kinfolk
+  (fotografisch redactioneel magazine), 337 Riso (risograaf duotoon-fluor / halftone), 338 Grafiet
+  (handgetekend potlood-schets), 339 Kompres (database-canvas / Notion-Airtable), 340 Galerie
+  (museale white-cube curatie).
+- **Onderzochte 2026-trends:** functionele atmosferische mesh-gradients, neumorfisme/living-interfaces,
+  spatial 3D-relatievisualisatie, anti-perfectie handcraft/zine, aquarel-warmte, magazine-minimalisme,
+  riso/duotoon print-ambacht, hand-drawn schets-wireframes, database-native UI, white-cube curatie.
+- **Additief & veilig:** alleen `src/app/ontwerp` + `src/components/ontwerp` geraakt; registry.ts en
+  concept-host.tsx uitsluitend APPEND. Geen bestaand concept of live-app-gedrag gewijzigd. Het woord
+  "AI" komt nergens voor; UI = Nederlands.
+- **Bestanden:** `src/components/ontwerp/concepts/concept-331-nevel.tsx` t/m `concept-340-galerie.tsx`
+  (10 nieuw), `src/components/ontwerp/concepts/registry.ts` (+10 entries), `src/app/ontwerp/[id]/concept-host.tsx`
+  (+10 koppelingen), `docs/DESIGN-LAB.md` (reeks-34-sectie).
+- **Checks lokaal groen:** typecheck, lint, `prettier --check .`, build, test (4200/4200), `check:env`.
+
 ## 2026-07-15 — Compliance-ripple next-action voor de opdrachtgever (#777)
 
 **Waarde:** de opdrachtgever ziet nu in `/acties`, de "Volgende acties"-rail én de zijbalk-badge zijn
