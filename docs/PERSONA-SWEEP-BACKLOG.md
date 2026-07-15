@@ -1,5 +1,51 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-15 (run 30) · **main-commit basis:** `bc4fa99`
+> **Uitkomst:** **1 next-action-correctheidsdefect gevonden én OPGELOST** (DOEL 1b) — de nieuwe
+> compliance-ripple next-action van de opdrachtgever (#777) respecteerde de dispuut-bevriezing niet.
+> Verse prod-build (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`, 13
+> samenwerkingen/7 facturen/48 grootboekregels/16 tickets/14 gesprekken) op ephemere SQLite (`qa.db`),
+> prod-server (`next start`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`).
+> Vier rollen via het echte formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium.
+> Twee parallelle Opus-Explore-subagents (security-audit + next-action-correctheid over de diff sinds
+> run 29, `89132d1..bc4fa99`).
+>
+> **GEVONDEN + GEFIXT — MED (next-action-correctheid, DOEL 1b):** een open dispuut zet
+> `Collaboration.disputedAt` maar houdt `status = ACTIVE` (`cascade/dispute-commands.ts:47`); het
+> werkproces is dan **bevroren** (`cascade/stage.ts:68-69` → "Dispuut — werkproces bevroren",
+> `youAreUp:false`) en levert bij élke andere opdrachtgever-taak/-signaal géén next-action op — overal
+> filtert het platform `disputedAt: null` (`pending-tasks.ts:401`, `signals.ts` overdue-count). De
+> compliance-ripple-loader (`clientCredentialAlerts`, uit #777) deed dat als **enige** niet: de query
+> filterde alleen `status:"ACTIVE"`. **Repro (live, pre-fix):** `zorggroep@` met een ACTIVE-samenwerking
+> (Iris Hendriks, opdracht vereist VOG) in dispuut + verlopen VOG → `/acties` toont "Certificaat van Iris
+> Hendriks is verlopen (VOG) · vraag de ZZP'er om te vernieuwen" als **hoogste** opdrachtgever-actie
+> (`P.complianceRipple = 85`), en `/samenwerkingen` toont "Dispuut — werkproces bevroren · Stap 0 van 6"
+> mét de compliance-actiebadge op **dezelfde kaart** (twee tegenstrijdige signalen). Dashboard-kaart +
+> zijbalk-badge idem. **Geschonden regel:** interne consistentie van de next-action-engine (DOEL 1b) —
+> een next-action mag de echte (bevroren) status niet tegenspreken. **Fix (3 surfaces, consistent met de
+> rest):** (1) `clientCredentialAlertsFromRows` slaat een rij met `disputedAt !== null` over (pure functie
+> → testbaar zonder DB; dekt `/acties` én de dashboard-kaart, beide lopen erdoorheen); (2)
+> `clientCredentialAlerts`- + dashboard-query filteren `disputedAt: null` (conventie/efficiëntie); (3) de
+> `/samenwerkingen`-lijst berekent de compliance-melding alleen bij `c.disputedAt === null`. **Live
+> geverifieerd (fixed build):** dispuut open → phantom-taak weg van `/acties`, alleen "Dispuut — bevroren"
+> op `/samenwerkingen`; dispuut opgeheven → de compliance-taak keert correct terug. Test rood→groen:
+> `collaboration-alerts.test.ts` (+`disputedAt` op de row-helper + 2 cases). Bestanden:
+> `collaboration-alerts.ts`, `dashboard/page.tsx`, `samenwerkingen/page.tsx`, `collaboration-alerts.test.ts`.
+> Gate groen (typecheck, lint, **4213 unit-tests**, build, prettier).
+>
+> **DOEL 1 (echte actie, live):** ADMIN klikte "Goedkeuren" op `/admin/verificaties` → de keten
+> auth→rol→ownership→transitie→audit→revalidate werkt (afgehandelde next-action verdwijnt). De
+> compliance-fix zelf is end-to-end live geverifieerd (zie boven).
+>
+> **DOEL 2 (adversarieel — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen` + niet-FRANCHISER → `/franchise*`) via
+> in-browser `fetch` (cookie-getrouw) → **opaque redirect (status 0), nooit 200-inhoud/500**.
+> Junk/traversal/sqli/xss-id (`..%2F..%2Fetc%2Fpasswd`, `1' OR '1'='1`, `<script>`, all-zeros-cuid) over
+> `/samenwerkingen|/facturen|/opdrachten|/zzp` + `/api/documents/<junk>` → soft-404/404, **nooit 500**.
+> Onafhankelijke security-audit over de diff `89132d1..bc4fa99` (nieuwe roster-fill-loader
+> `getRosterFillSignals` + compliance-loader): tenant-/owner-scoping CLEAN, geen IDOR/cross-tenant, geen
+> N+1, geen nieuw mutatie-oppervlak.
+
 > **Datum:** 2026-07-15 (run 29) · **main-commit basis:** `89132d1`
 > **Uitkomst:** **GEEN gaten gevonden** — DOEL 1, 1b én 2 schoon over alle vier de rollen; twee
 > echte acties end-to-end geverifieerd + een onafhankelijke, diepe security-audit (Opus-Explore) over

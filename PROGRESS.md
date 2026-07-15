@@ -3,6 +3,41 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 — Persona-sweep run 30: compliance-ripple next-action lekte op bevroren (dispuut) samenwerking — GEFIXT
+
+**Waarde (DOEL 1b):** de nieuwe compliance-ripple next-action van de opdrachtgever (#777) respecteerde
+de dispuut-bevriezing niet. Een open dispuut zet `disputedAt` maar houdt `status = ACTIVE`
+(`cascade/dispute-commands.ts`); het werkproces is dan bevroren (`cascade/stage.ts` → "Dispuut —
+werkproces bevroren", `youAreUp:false`) en levert bij élke andere opdrachtgever-taak/-signaal géén
+next-action op (`pending-tasks.ts` en `signals.ts` filteren overal `disputedAt: null`). De
+compliance-loader deed dat als enige niet → op een bevroren samenwerking verscheen tóch de
+**hoogste** opdrachtgever-actie (`P.complianceRipple = 85`) op `/acties`, de "Volgende acties"-rail én
+de zijbalk-badge, en op de dashboard-kaart + `/samenwerkingen`-lijst stond de compliance-badge naast de
+"Dispuut — bevroren"-fase (één kaart, twee tegenstrijdige signalen).
+
+- **Live gereproduceerd (pre-fix build):** `zorggroep@` met een ACTIVE-samenwerking (Iris Hendriks,
+  vereist VOG) in dispuut + verlopen VOG → `/acties` toonde "Certificaat van Iris Hendriks is verlopen
+  (VOG) · vraag de ZZP'er om te vernieuwen" (2 acties); `/samenwerkingen` toonde "Dispuut — werkproces
+  bevroren · Stap 0 van 6" én de compliance-badge op dezelfde kaart.
+- **Fix:** dispuut-guard op alle drie de surfaces, consistent met de rest van het platform —
+  (1) `clientCredentialAlertsFromRows` slaat een rij met `disputedAt !== null` over (pure functie →
+  testbaar zonder DB; dekt zowel `/acties` als de dashboard-kaart, die er beide doorheen lopen);
+  (2) `clientCredentialAlerts`-query + de dashboard-query filteren `disputedAt: null` (conventie +
+  efficiëntie); (3) de `/samenwerkingen`-lijst berekent de compliance-melding alleen bij
+  `c.disputedAt === null`.
+- **Live geverifieerd (fixed build):** dispuut open → phantom-taak weg van `/acties`, alleen
+  "Dispuut — bevroren" op `/samenwerkingen`; dispuut opgeheven → de compliance-taak keert correct terug.
+- **Bestanden:** `src/lib/collaboration-alerts.ts` (+`disputedAt` op `CollaborationAlertRow` + guard +
+  query-filter), `src/app/(protected)/dashboard/page.tsx` (query-filter),
+  `src/app/(protected)/samenwerkingen/page.tsx` (inline-guard), `src/lib/collaboration-alerts.test.ts`
+  (+2 tests rood→groen: disputed-rij levert geen melding; opgeheven dispuut wél). Geen schemawijziging,
+  geen nieuw mutatie/auth-oppervlak. Gate groen (typecheck, lint, **4213 unit-tests**, build, prettier).
+- **DOEL 1/2 overig schoon:** ADMIN-verificatie-actie end-to-end (keten werkt); adversarieel
+  (privilege-escalatie ZZP/CLIENT/FRANCHISER → `/admin/*`,`/franchise` = opaque redirect, nooit
+  200/500; junk/traversal/sqli-id over `/samenwerkingen|/facturen|/opdrachten|/zzp|/api/documents` →
+  soft-404/404, **nooit 500**) — geen gaten. Onafhankelijke security-audit over de diff `89132d1..bc4fa99`
+  (nieuwe roster-fill-loader + compliance-loader): tenant/owner-scoping CLEAN.
+
 ## 2026-07-15 — Geschikte-vakmensen-vrij-signaal per open dienst (bemiddelaar) (#779)
 
 **Waarde:** de bemiddelaar (franchiser) ziet nu per open (gepubliceerde, ongevulde) dienst op

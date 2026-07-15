@@ -192,8 +192,10 @@ describe("clientCredentialAlertsFromRows", () => {
     name: string | null;
     required: string[];
     creds: { type: string; status: string; expiresAt: Date | null }[];
+    disputedAt?: Date | null;
   }): CollaborationAlertRow => ({
     id: o.id,
+    disputedAt: o.disputedAt ?? null,
     job: {
       id: o.jobId,
       title: o.jobTitle,
@@ -245,6 +247,41 @@ describe("clientCredentialAlertsFromRows", () => {
       }),
     ];
     expect(clientCredentialAlertsFromRows(rows, now)).toEqual([]);
+  });
+
+  it("negeert een samenwerking in dispuut (bevroren werkproces → geen compliance-taak)", () => {
+    // Een open dispuut zet disputedAt maar houdt status ACTIVE (cascade/dispute-commands.ts). Het
+    // werkproces is dan bevroren (stage.ts → youAreUp:false); een compliance-ripple-next-action zou
+    // de "Dispuut — bevroren"-fase op /samenwerkingen én het dashboard tegenspreken.
+    const rows = [
+      row({
+        id: "collab-disputed",
+        jobId: "job-1",
+        jobTitle: "Dakproject",
+        name: "Jan",
+        required: ["VOG"],
+        creds: [], // ontbrekend vereist certificaat → normaal NON_COMPLIANT-melding
+        disputedAt: new Date("2026-05-20T00:00:00Z"),
+      }),
+    ];
+    expect(clientCredentialAlertsFromRows(rows, now)).toEqual([]);
+  });
+
+  it("levert de melding wél op zodra het dispuut is opgeheven (disputedAt weer null)", () => {
+    const rows = [
+      row({
+        id: "collab-resolved",
+        jobId: "job-1",
+        jobTitle: "Dakproject",
+        name: "Jan",
+        required: ["VOG"],
+        creds: [],
+        disputedAt: null,
+      }),
+    ];
+    const alerts = clientCredentialAlertsFromRows(rows, now);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]?.alert.status).toBe("NON_COMPLIANT");
   });
 
   it("valt terug op '—' als de ZZP'er geen naam heeft", () => {

@@ -272,8 +272,12 @@ export default async function SamenwerkingenPage({
                   status: cr.status as FreelancerCredential["status"],
                   expiresAt: cr.expiresAt,
                 }));
+                // Een open dispuut bevriest het werkproces: toon dan geen compliance-actiebadge naast
+                // de "Dispuut — werkproces bevroren"-fase (dezelfde disputedAt-invariant als /acties).
                 const alert =
-                  requiredTypes.length > 0 && (status === "ACTIVE" || status === "PROPOSED")
+                  requiredTypes.length > 0 &&
+                  (status === "ACTIVE" || status === "PROPOSED") &&
+                  c.disputedAt === null
                     ? assessCollaborationCredentials(requiredTypes, credentials)
                     : null;
                 const showAlert = alert && alert.status !== "COMPLIANT";
