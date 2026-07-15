@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Clock, ArrowRight, AlertTriangle } from "lucide-react";
+import { Clock, ArrowRight, AlertTriangle, UserCheck } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
 import { buildDekkingsprognose, startOfIsoWeek } from "@/lib/franchise/dekkingsprognose";
+import { getRosterFillSignals, dienstFillChip } from "@/lib/franchise/dienst-fill-signal";
 
 export const metadata: Metadata = { title: "Diensten · Bemiddeling" };
 
@@ -43,6 +44,11 @@ export default async function FranchiseDienstenPage() {
     const openDays = published && !filled ? Math.floor((now - d.createdAt.getTime()) / DAY) : null;
     return { d, filled, published, openDays, atRisk: openDays != null && openDays >= AT_RISK_DAYS };
   });
+
+  // Vulbaar-signaal per open (gepubliceerde, ongevulde) dienst: hoeveel vrij-inzetbare roster-vakmensen
+  // matchen goed genoeg om nu voor te dragen? Eén gebundelde load (roster + dienst-matchvelden), geen N+1.
+  const openDienstIds = rows.filter((r) => r.published && !r.filled).map((r) => r.d.id);
+  const fillSignals = await getRosterFillSignals(actor, openDienstIds, new Date(now));
 
   // Dekking over de gepubliceerde diensten (concept/gesloten tellen niet mee in de vulgraad).
   const published = rows.filter((r) => r.published);
@@ -197,43 +203,54 @@ export default async function FranchiseDienstenPage() {
         </Card>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {sorted.map(({ d, filled, openDays, atRisk }) => (
-            <Link
-              key={d.id}
-              href={`/franchise/diensten/${d.id}`}
-              className="card-interactive flex items-start justify-between gap-3 p-4"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{d.title}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {d.company.name}
-                  {d.department ? ` · ${d.department.name}` : ""}
-                </p>
-                {openDays != null && (
-                  <p
-                    className={`mt-0.5 text-xs ${atRisk ? "text-warning" : "text-muted-foreground"}`}
-                  >
-                    {openDays === 0
-                      ? "Vandaag uitgezet"
-                      : `${plural(openDays, "dag", "dagen")} open`}
-                    {d._count.applications === 0 ? " · nog geen reacties" : ""}
+          {sorted.map(({ d, filled, openDays, atRisk }) => {
+            const fillChip = filled
+              ? null
+              : dienstFillChip(fillSignals.get(d.id) ?? { readyMatches: 0, idleReady: 0 });
+            return (
+              <Link
+                key={d.id}
+                href={`/franchise/diensten/${d.id}`}
+                className="card-interactive flex items-start justify-between gap-3 p-4"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{d.title}</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {d.company.name}
+                    {d.department ? ` · ${d.department.name}` : ""}
                   </p>
-                )}
-              </div>
-              <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
-                {filled ? (
-                  <Badge variant="success">Gevuld</Badge>
-                ) : (
-                  <JobStatusBadge status={d.status as JobStatus} />
-                )}
-                {d._count.applications > 0 && (
-                  <Badge variant="muted">
-                    {plural(d._count.applications, "reactie", "reacties")}
-                  </Badge>
-                )}
-              </div>
-            </Link>
-          ))}
+                  {openDays != null && (
+                    <p
+                      className={`mt-0.5 text-xs ${atRisk ? "text-warning" : "text-muted-foreground"}`}
+                    >
+                      {openDays === 0
+                        ? "Vandaag uitgezet"
+                        : `${plural(openDays, "dag", "dagen")} open`}
+                      {d._count.applications === 0 ? " · nog geen reacties" : ""}
+                    </p>
+                  )}
+                  {fillChip && (
+                    <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                      <UserCheck className="size-3" aria-hidden />
+                      {fillChip.label}
+                    </span>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
+                  {filled ? (
+                    <Badge variant="success">Gevuld</Badge>
+                  ) : (
+                    <JobStatusBadge status={d.status as JobStatus} />
+                  )}
+                  {d._count.applications > 0 && (
+                    <Badge variant="muted">
+                      {plural(d._count.applications, "reactie", "reacties")}
+                    </Badge>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

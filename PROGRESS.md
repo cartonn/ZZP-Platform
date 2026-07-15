@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 — Geschikte-vakmensen-vrij-signaal per open dienst (bemiddelaar) (#779)
+
+**Waarde:** de bemiddelaar (franchiser) ziet nu per open (gepubliceerde, ongevulde) dienst op
+`/franchise/diensten` een compacte chip **"N geschikte vakmensen vrij"** zodra er vrij-inzetbare
+roster-vakmensen zijn die goed matchen op déze dienst — de "voordragen of werven?"-triagevraag wordt
+direct beantwoord (sneller/slimmer: welke open dienst is één-klik voordraagbaar vs. welke vraagt echt
+werving). Benchmark Pidz/Zorgwerk: de dichtstbijzijnde beschikbare match eerst.
+
+- **Signaaldefinitie:** een vakmens telt mee als hij **vrij inzetbaar** is (ACTIEF + beschikbaar + geen
+  lopende opdracht — dezelfde `isIdleReady`-definitie als de roster-capaciteitstegel) **én** goed matcht
+  (server-berekende matchscore ≥ `READY_MATCH_MIN_SCORE=60`, dezelfde motor als het voordraag-scherm).
+  Chip alleen bij ≥1 ready match; anders geen chip (rustige lijst — dan tellen enkel de bestaande "X dagen
+  open"/aandacht-signalen, wat op werving wijst).
+- **Bestanden:** `src/lib/franchise/dienst-fill-signal.ts` (nieuw: pure `computeDienstFill` +
+  `dienstFillChip` + data-loader `getRosterFillSignals` — laadt roster + dienst-matchvelden gebundeld,
+  tenant-gescopet, geen N+1), `src/lib/franchise/dienst-fill-signal.test.ts` (nieuw, +11 tests),
+  `src/lib/franchise/dienst-voordracht.ts` (kleine refactor: gedeelde `rosterMatchSource`-mapping
+  geëxtraheerd, gedragsbehoudend), `src/app/(protected)/franchise/diensten/page.tsx` (chip-wiring).
+- **Read-only qua datamodel:** geen schemawijziging, geen nieuw mutatie/auth-oppervlak. De loader scopet
+  defensief op `tenantId` (isolatie). Gate groen (typecheck, lint, unit-tests, build, prettier).
+
 ## 2026-07-15 — Compliance-ripple next-action voor de opdrachtgever (#777)
 
 **Waarde:** de opdrachtgever ziet nu in `/acties`, de "Volgende acties"-rail én de zijbalk-badge zijn

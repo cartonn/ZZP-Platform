@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Geschikte-vakmensen-vrij-signaal per open dienst (bemiddelaar) (2026-07-15, PR #779)** —
+> op `/franchise/diensten` toonde de bemiddelaar per open dienst "X dagen open"/reactie-tellingen, maar geen
+> antwoord op zijn kernvraag: "kan ik dit NU vullen uit mijn eigen roster of moet ik werven?" Nu een compacte chip
+> **"N geschikte vakmensen vrij"** per open (gepubliceerde, ongevulde) dienst zodra er vrij-inzetbare
+> roster-vakmensen zijn die goed matchen op déze dienst — één-oogopslag-triage tussen voordragen en werven
+> (benchmark Pidz/Zorgwerk). Een vakmens telt mee bij vrij-inzetbaar (`isIdleReady`: ACTIEF + beschikbaar + geen
+> lopende opdracht — dezelfde bron als de roster-capaciteitstegel) én matchscore ≥ `READY_MATCH_MIN_SCORE=60`
+> (zelfde motor als het voordraag-scherm). Chip alleen bij ≥1 ready match (rustige lijst). Pure
+> `dienst-fill-signal.ts` (`computeDienstFill` + `dienstFillChip` + data-loader `getRosterFillSignals`: roster +
+> dienst-matchvelden gebundeld geladen, tenant-gescopet, geen N+1; 11 tests) + gedeelde `rosterMatchSource`-mapping
+> geëxtraheerd uit `dienst-voordracht.ts` (gedragsbehoudend) + wiring in `franchise/diensten/page.tsx`. Read-only,
+> geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate groen.
+>
 > Gedaan (niet opnieuw): **Compliance-ripple next-action voor de opdrachtgever (2026-07-15, PR #777)** — de
 > opdrachtgever-compliance-ripple (een lopende samenwerking waarvan de ZZP'er een vereist certificaat
 > mist/verlopen/binnenkort-verlopend heeft) verscheen wél op de dashboard-momentopname + `/samenwerkingen`-lijst,
