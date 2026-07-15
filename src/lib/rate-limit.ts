@@ -485,3 +485,16 @@ export const storageSelfTestRateLimiter = new RateLimiter(
   5 * 60_000,
   "storageselftest:",
 );
+
+/**
+ * Maximaal MAIL_SELFTEST_RATE_LIMIT (default 4) e-mail-zelftests per beheerder per 5 minuten. De
+ * admin-actie (/admin/systeemstatus) stuurt een echte mail via de provider (Resend/SMTP kost geld/
+ * quota, en herhaalde verzending naar hetzelfde adres oogt als spam). Strakker dan de opslag-rem
+ * omdat een verzonden mail een extern zichtbaar neveneffect heeft.
+ */
+export const mailSelfTestRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("MAIL_SELFTEST_RATE_LIMIT", 4),
+  5 * 60_000,
+  "mailselftest:",
+);

@@ -35,6 +35,31 @@ HOOG-authz-/tenant-/injectie-/upload-/SSRF-gat). Eén **MIDDEL** information-exp
 - **Gates:** typecheck exit 0, lint schoon, `npm run test` = **377 files / 4177 tests groen**, build groen,
   prettier-conform. Geen auth verzwakt, geen check verwijderd; het woord "AI" komt nergens voor.
 
+## 2026-07-15 — Prod-rijpheid: e-mail-connectiviteitszelftest (PR #774)
+
+**Waarde:** naast de bestaande **Opslag-zelftest** (§1c) kon de beheerder de e-mailkoppeling alleen
+zien staan als geldig geconfigureerd (`EMAIL_DRIVER` + sleutels), niet bevestigen dat er ook
+daadwerkelijk mail wordt afgeleverd. Nu een **E-mail-zelftest** op `/admin/systeemstatus`: een
+ontvangeradres invullen en op "Testmail versturen" klikken verstuurt één echte testmail via het
+geconfigureerde kanaal (`getMailSender()`, driver `noop`/`smtp`/`resend`) — de laatste check vóór
+go-live nadat `RESEND_API_KEY`/`EMAIL_FROM` (of de SMTP-variabelen) zijn geplakt.
+
+- **`src/lib/services/mail-selftest.ts`** (+ `.test.ts`) — pure kern die de testmail samenstelt en
+  via `getMailSender()` verzendt; meldt bij `EMAIL_DRIVER=noop` eerlijk "Geen kanaal actief — er is
+  niets verzonden" (geen vals groen vinkje).
+- **`src/components/admin/mail-selftest.tsx`** — formulier (ontvangeradres + knop) op
+  `/admin/systeemstatus`, zelfde patroon/plek als de opslag-zelftest.
+- **`runMailSelfTestAction`** in `src/app/(protected)/admin/systeemstatus/actions.ts` — volgt de
+  volledige mutatieketen: auth → rol (ADMIN) → rate-limit → actie → audit (`MAIL_SELFTEST_RUN`).
+- **`mailSelfTestRateLimiter`** in `src/lib/rate-limit.ts` — default 4 pogingen per 5 minuten per
+  beheerder, instelbaar via de nieuwe optionele `MAIL_SELFTEST_RATE_LIMIT`.
+- **Privacy:** de audit-/loguitvoer bevat nooit het ontvangeradres (persoonsgegeven) of secrets —
+  alleen de uitkomst + driver-modus.
+- **Read-only qua datamodel:** geen schemawijziging, geen nieuw persistent oppervlak, geen nieuwe
+  verplichte env-var.
+- **Tests:** `mail-selftest.test.ts` (noop-melding, verzend-uitkomst, geen PII in het resultaat).
+  Gate groen: typecheck, lint, unit-tests, build, prettier.
+
 ## 2026-07-15 — Ontwerp-lab: +10 concepten (nrs 321–330), reeks 33
 
 **Waarde:** de galerij op `/ontwerp` groeit van 320 → **330** onderscheidende redesign-concepten

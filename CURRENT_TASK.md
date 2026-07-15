@@ -260,6 +260,22 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **E-mail-connectiviteitszelftest voor de beheerder (2026-07-15, PR #774)** —
+> naast de bestaande Opslag-zelftest kon de beheerder de e-mailkoppeling wel als "geldig geconfigureerd"
+> zien, maar niet bevestigen dat er ook écht mail wordt afgeleverd. Nu een **E-mail-zelftest** op
+> `/admin/systeemstatus` (admin-only): ontvangeradres invullen, "Testmail versturen" klikken, en er
+> gaat één echte testmail uit via het geconfigureerde kanaal (`getMailSender()` — `noop`/`smtp`/
+> `resend`) — de laatste check vóór go-live ná het plakken van `RESEND_API_KEY`/`EMAIL_FROM` (of de
+> SMTP-variabelen). Bij `EMAIL_DRIVER=noop` meldt het scherm eerlijk "Geen kanaal actief — er is niets
+> verzonden" (geen vals groen vinkje). Volgt de volledige mutatieketen auth → rol (ADMIN) → rate-limit
+> (`mailSelfTestRateLimiter`, default 4/5 min, instelbaar via `MAIL_SELFTEST_RATE_LIMIT`) → actie →
+> audit (`MAIL_SELFTEST_RUN`); audit/log bevat nooit het ontvangeradres of secrets, alleen de uitkomst
+>
+> - driver-modus. Nieuwe bestanden: `mail-selftest.ts` (+test), `mail-selftest.tsx`,
+>   `runMailSelfTestAction` in `systeemstatus/actions.ts`, limiter in `rate-limit.ts`. Read-only qua
+>   datamodel: geen schemawijziging, geen nieuwe verplichte env-var. Gate groen (typecheck, lint,
+>   unit-tests, build, prettier).
+>
 > Gedaan (niet opnieuw): **Beschikbaarheids-conflict-chip op de opdrachtenlijst (ZZP'er) (2026-07-15, PR #771)** —
 > het beschikbaarheidssignaal (valt de startdatum in een periode die de ZZP'er zélf op onbeschikbaar/beperkt heeft
 > gezet?) leefde alleen op de opdracht-detailpagina (`assessJobStartAvailability` → `job-availability-signal-card`).

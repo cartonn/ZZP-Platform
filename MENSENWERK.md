@@ -291,6 +291,18 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
      in-app meldingen; niets te doen voor de pilot). Resterend mensenwerk: account aanmaken, domein
      verifiëren (DNS), en `RESEND_API_KEY` + `EMAIL_FROM` in de Railway-secrets zetten.
 
+   **Code-kant GEDAAN (2026-07-15) — e-mailconnectiviteitszelftest:** zodra je de sleutels hierboven
+   hebt geplakt, kun je op `/admin/systeemstatus` (admin-only) de nieuwe **E-mail-zelftest** draaien:
+   vul een ontvangeradres in, klik "Testmail versturen" en er gaat één echte testmail uit via het
+   geconfigureerde kanaal (`getMailSender()` — `noop`/`smtp`/`resend`) — zelfde patroon als de
+   Opslag-zelftest in §1c. Staat het kanaal nog op `noop`, dan meldt het scherm eerlijk "Geen kanaal
+   actief — er is niets verzonden" (geen vals groen vinkje). Zo bevestig je vóór go-live dat de
+   provider écht aflevert, i.p.v. alleen dat de sleutel geldig geformatteerd is. Loopt door dezelfde
+   authz-keten (rol → rate-limit, standaard 4 per 5 minuten, instelbaar via
+   `MAIL_SELFTEST_RATE_LIMIT` → audit); de audit-/loguitvoer bevat **nooit** het ontvangeradres of
+   secrets — alleen de uitkomst + driver-modus. Resterend mensenwerk: **niets extra** — de knop is er
+   zodra `EMAIL_DRIVER` op `smtp`/`resend` staat (en werkt ook op `noop`, om dat eerlijk te melden).
+
 ---
 
 ## §3. Betalingen / abonnementen
@@ -668,6 +680,13 @@ auth/rol-guards in de middleware; puur en getest (`src/lib/maintenance.ts`). In 
 een waarschuwing zolang hij aan staat en toont `/admin/systeemstatus` "Onderhoudsmodus: aan"
 (aandacht). Zie RUNBOOK §9. Resterend mensenwerk: **niets voor de pilot** — zet de variabele alleen
 wanneer je bewust onderhoud doet, en vergeet niet 'm daarna weer uit te zetten.
+
+**Code-kant GEDAAN (2026-07-15) — e-mail-zelftest naast de opslag-zelftest:** het systeemstatus-scherm
+toont naast de **Opslag-zelftest** (§1c) nu ook een **E-mail-zelftest**: de beheerder vult een
+ontvangeradres in en verstuurt één echte testmail via het geconfigureerde kanaal, zodat je ná het
+zetten van de e-mailsleutels (§2) meteen bevestigt dat er ook daadwerkelijk mail aankomt — vóór
+go-live. Zie §2 voor het volledige verhaal. Resterend mensenwerk: **niets** — de knop is er zodra
+`EMAIL_DRIVER` gezet is.
 
 **Code-kant GEDAAN (13-7-2026) — go-live preflight-CLI:** naast het in-app `/admin/systeemstatus`-scherm
 kun je de productie-configuratie-posture nu ook **buiten de app** controleren met `npm run preflight`
