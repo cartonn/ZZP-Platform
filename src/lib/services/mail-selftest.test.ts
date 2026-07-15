@@ -57,7 +57,7 @@ describe("runMailSelfTest", () => {
     expect(report.recipient).toBe("jan@voorbeeld.nl");
     expect(report.detail).toBeUndefined();
     expect(sender.sent).toHaveLength(1);
-    expect(sender.sent[0].subject).toContain("tok1");
+    expect(sender.sent[0]?.subject).toContain("tok1");
   });
 
   it("meldt bij noop dat er niets is verzonden (ok maar niet delivered)", async () => {
