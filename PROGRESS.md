@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 (2e) — Security-/privacy-audit: AVG art. 30 register-volledigheid voor drie reputatie-signalen — GEFIXT
+
+**Ronde:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken (authz/mass-assignment, cross-tenant/franchise-isolatie, AVG erasure/export/k-anonimiteit).
+Kader OWASP Top 10 (A01/A03/A05/A10) + AVG art. 5/9/15/17/30/32. `npm audit --omit=dev` = 0; Next.js 15.5.19.
+
+- **Oppervlakken authz+mass-assignment en cross-tenant bevestigd volledig schoon** (geen KRITIEK/HOOG):
+  mutatieketen auth→rol→ownership/tenant→Zod→actie→audit uniform; geen `.passthrough()`/rauwe spread;
+  `tenantId`/`role` server-herleid. Het nieuwe `dienst-fill-signal.ts` (#779) scoopt dienst- én roster-query
+  op de sessie-`tenantId` en exposeert alleen aggregaat-tellingen — geen cross-tenant titel/naam; #730/#780-
+  titel-lek blijft dicht. Mail-zelftest volgt auth ADMIN→rate-limit→audit, logt geen adres, fout = error-naam.
+- **Gefixt (MIDDEL · art. 30):** drie geaggregeerde reputatie-signalen die platform-breed over een
+  identificeerbare partij worden getoond (`client-reliability`, `client-responsiveness`,
+  `collaboration-quality`) stonden niet in het verwerkingsregister — twee nieuwe `ProcessingActivity`-entries
+  toegevoegd (`opdrachtgever-betrouwbaarheidssignalen`, `leverbetrouwbaarheid-zzp`), grondslag gerechtvaardigd
+  belang, aggregaat-only, steekproefvloer als waarborg, live berekend. Het register beschrijft de verwerking;
+  het kiest de k-drempel niet (dat blijft de mens-beslissing).
+- **Geparkeerd voor de mens:** (HOOG) de n=3-steekproefvloer van diezelfde drie signalen vs. de eigen k≥10-
+  norm (dezelfde openstaande beslissing als `PAYMENT_MIN_SAMPLE_SIZE`); (LAAG) `Job.title`/`Job.description`
+  overleeft `anonymizeUser` (retentie-vs-vergetelheid, mogelijke bedrijfsvoering-bewaargrond).
+- **Bestanden:** `src/lib/compliance/processing-register.ts` (+2 entries), `processing-register.test.ts`
+  (+2 cases, rood→groen), `docs/SECURITY-PRIVACY-BACKLOG.md` (nieuwe ronde-sectie).
+
 ## 2026-07-15 — Persona-sweep run 30: compliance-ripple next-action lekte op bevroren (dispuut) samenwerking — GEFIXT
 
 **Waarde (DOEL 1b):** de nieuwe compliance-ripple next-action van de opdrachtgever (#777) respecteerde

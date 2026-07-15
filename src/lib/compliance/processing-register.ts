@@ -465,6 +465,57 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
       "Toegang op rol (RBAC); browse-scope via visibleJobsWhere(actor)",
     ],
   },
+
+  // 17. Opdrachtgever-betrouwbaarheidssignalen (geaggregeerd) — annulerings- en reactiegedrag
+  {
+    key: "opdrachtgever-betrouwbaarheidssignalen",
+    name: "Opdrachtgever-betrouwbaarheidssignalen (geaggregeerd)",
+    purpose:
+      "Tonen van geaggregeerde betrouwbaarheidssignalen per opdrachtgever (annuleringsgedrag en reactiebereidheid) zodat een ZZP'er vóór het plaatsen van een reactie weet hoe betrouwbaar een opdrachtgever afspraken nakomt en of hij binnengekomen reacties oppakt, en zodat de opdrachtgever zijn eigen betrouwbaarheid kan spiegelen.",
+    legalBasis: "GERECHTVAARDIGD_BELANG",
+    dataSubjects: ["Opdrachtgevers (incl. eenmanszaken die natuurlijke persoon zijn)"],
+    dataCategories: [
+      "Annulerings- en reactiebereidheid — uitsluitend geaggregeerd (annuleringspercentage, last-minute-telling, percentage opgepakte reacties); nooit een individuele samenwerking of een reactie van een andere partij",
+    ],
+    sensitive: false,
+    recipients: [
+      "ZZP'ers (geaggregeerd signaal op de opdracht-detailpagina en de reactiespagina)",
+      "De opdrachtgever zelf (eigen betrouwbaarheids-spiegel)",
+    ],
+    retention:
+      "Niet opgeslagen — de signalen worden live berekend uit de eigen afgewikkelde samenwerkingen en binnengekomen reacties; geen aparte bewaartermijn",
+    securityMeasures: [
+      "Minimale steekproefvloer (MIN_SAMPLE_SIZE) vóór weergave — onder de drempel is de toon 'onbekend' en verschijnt geen signaal",
+      "Uitsluitend geaggregeerde statistieken verlaten de server — geen individuele samenwerking, reactie of tegenpartij",
+      "Alleen door de opdrachtgever zelf gestarte annuleringen tellen mee (attributie); annuleringen door de ZZP'er blijven buiten teller én noemer",
+      "Toegang op rol (RBAC)",
+    ],
+  },
+
+  // 18. Leverbetrouwbaarheid ZZP'er (geaggregeerd) — first-time-right van goedgekeurde prestaties
+  {
+    key: "leverbetrouwbaarheid-zzp",
+    name: "Leverbetrouwbaarheid ZZP'er (geaggregeerd)",
+    purpose:
+      "Tonen van een geaggregeerd leverbetrouwbaarheidssignaal per ZZP'er (percentage in één keer goedgekeurde prestaties en de gemiddelde doorlooptijd) zodat een opdrachtgever bij het beoordelen en vergelijken van kandidaten weet hoe betrouwbaar de ZZP'er oplevert, en zodat de ZZP'er zijn eigen prestatie kan spiegelen.",
+    legalBasis: "GERECHTVAARDIGD_BELANG",
+    dataSubjects: ["ZZP'ers (natuurlijke personen)"],
+    dataCategories: [
+      "Leverbetrouwbaarheid — uitsluitend geaggregeerd (percentage in één keer goedgekeurd, aantal correcties, gemiddelde doorlooptijd indienen→goedkeuren, aantal afgeronde samenwerkingen); nooit de inhoud van een individuele prestatie",
+    ],
+    sensitive: false,
+    recipients: [
+      "Opdrachtgevers (geaggregeerd signaal op de kandidaten-, vergelijk- en inzichtpagina)",
+      "De ZZP'er zelf (eigen prestatie-spiegel)",
+    ],
+    retention:
+      "Niet opgeslagen — het signaal wordt live berekend uit de goedgekeurde prestaties en afgeronde samenwerkingen; geen aparte bewaartermijn",
+    securityMeasures: [
+      "Minimale steekproefvloer (DELIVERY_MIN_SAMPLE) vóór weergave — onder de drempel toont het signaal 'te weinig gegevens' en verbergt het zich",
+      "Uitsluitend geaggregeerde statistieken verlaten de server — geen individuele prestatie-inhoud of -omschrijving",
+      "Toegang op rol (RBAC)",
+    ],
+  },
 ] as const;
 
 // --- Bewaarschema ------------------------------------------------------------
