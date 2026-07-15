@@ -51,10 +51,12 @@ import {
   draftJobsTask,
   franchiseCredentialExpiryTask,
   franchiseLeadFollowupTask,
+  clientComplianceTask,
   vatDeadlineTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { getVatDeadlineForActor } from "@/lib/data/vat-deadline";
+import { clientCredentialAlerts } from "@/lib/collaboration-alerts";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 
@@ -339,8 +341,8 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   // SHORTLIST ≥ 21). NEW valt hier bewust buiten — dat dekt `applicationsReviewTask` al.
   const staleWindow = new Date(Date.now() - WAIT_ATTENTION_DAYS.VIEWED * 86_400_000);
 
-  const [company, overdue, unread, newApplications, draftJobs, staleCandidates] = await Promise.all(
-    [
+  const [company, overdue, unread, newApplications, draftJobs, staleCandidates, complianceAlerts] =
+    await Promise.all([
       prisma.company.findUnique({
         where: { userId },
         select: {
@@ -366,8 +368,17 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
         orderBy: { createdAt: "asc" },
         take: MAX,
       }),
-    ],
-  );
+      // Compliance-ripple: lopende samenwerkingen waarvan de ZZP'er een vereist certificaat
+      // mist/verlopen/binnenkort-verlopend heeft. Hergebruikt de geteste, eigenaar-gescoopte loader
+      // (company → ACTIVE-collabs met vereiste certificaten + ZZP-certificaten, take-begrensd).
+      clientCredentialAlerts(userId),
+    ]);
+
+  // Compliance-taken bovenaan: het zwaarst-wegende opdrachtgever-signaal (lopend werk met een
+  // certificaat-gat). Eén taak per samenwerking; de rangschikking (P.complianceRipple/expiring)
+  // regelt rankTasks. Sluit gemiste/verlopen (gap) vóór binnenkort-verlopend (warning).
+  for (const a of complianceAlerts)
+    tasks.push(clientComplianceTask(a.collaborationId, a.freelancerName, a.jobTitle, a.alert));
 
   if (company) {
     const { score, missing } = computeCompanyCompleteness({

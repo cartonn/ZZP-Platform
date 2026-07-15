@@ -9,6 +9,9 @@
 import { P, type NextActionTone } from "@/lib/next-actions";
 import { plural } from "@/lib/plural";
 import { formatEuro } from "@/lib/invoices";
+import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
+import { type CredentialType } from "@/lib/enums";
+import { type CredentialAlert } from "@/lib/collaboration-alerts";
 import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
 import { type StaleApplicationsSummary } from "@/lib/stale-applications";
 
@@ -63,6 +66,7 @@ export type PendingTask =
   | (TaskBase & { kind: "no-show-warning" })
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
   | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
+  | (TaskBase & { kind: "client-compliance"; collabId: string })
   | (TaskBase & { kind: "applications-review" })
   | (TaskBase & { kind: "stale-applications" })
   | (TaskBase & { kind: "availability-refresh" })
@@ -524,6 +528,51 @@ export function staleApplicationsTask(summary: StaleApplicationsSummary): Pendin
     priority: P.staleApplications,
     resolver: "link",
     href: "/kandidaten",
+  };
+}
+
+/**
+ * De opdrachtgever werkt in een lopende samenwerking met een ZZP'er wiens vereist certificaat een
+ * gat vertoont — ontbreekt/verlopen (NON_COMPLIANT: er is NÚ een compliance-gat op lopend werk) of
+ * dreigt te vervallen (WARNING: binnenkort verlopend / in beoordeling). Dit is de zwaarst-wegende
+ * opdrachtgever-actie (P.complianceRipple, spiegelt de aggregaat-engine `clientNextActions`): hij
+ * moet de ZZP'er om vernieuwing vragen vóór het werk doorloopt — precies zoals de bemiddelaar de
+ * `franchiseCredentialExpiryTask` krijgt voor zijn roster. Eén taak per samenwerking; deep-link naar
+ * het samenwerkingsdetail waar de compliance-status en het gesprek staan. Zonder deze taak ontbrak
+ * het hoogst-geprioriteerde compliance-signaal van de opdrachtgever volledig in `/acties`, de
+ * "Volgende acties"-rail en de zijbalk-badge (die alle door de item-engine gevoed worden).
+ */
+export function clientComplianceTask(
+  collabId: string,
+  freelancerName: string,
+  jobTitle: string,
+  alert: CredentialAlert,
+): PendingTask {
+  const label = (list: readonly CredentialType[]) =>
+    list.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ");
+  const gap = alert.missing.length > 0 || alert.expired.length > 0;
+  let title: string;
+  if (alert.missing.length > 0)
+    title = `${freelancerName} mist een vereist certificaat (${label(alert.missing)})`;
+  else if (alert.expired.length > 0)
+    title = `Certificaat van ${freelancerName} is verlopen (${label(alert.expired)})`;
+  else if (alert.expiringSoon.length > 0)
+    title = `Certificaat van ${freelancerName} verloopt binnenkort (${label(alert.expiringSoon)})`;
+  else title = `Certificaat van ${freelancerName} in beoordeling (${label(alert.inReview)})`;
+  return {
+    kind: "client-compliance",
+    id: `client-compliance:${collabId}`,
+    title,
+    subtitle: gap
+      ? `${jobTitle} · vraag de ZZP'er om te vernieuwen`
+      : `${jobTitle} · handel vóór het certificaat vervalt`,
+    tone: "attention",
+    // NON_COMPLIANT = acuut gat op lopend werk (85, hoogste opdrachtgever-actie); WARNING = handel
+    // vóór het vervalt (70, gelijk aan de ZZP-zijdige "certificaat verloopt binnenkort"-band).
+    priority: gap ? P.complianceRipple : P.credentialExpiring,
+    resolver: "link",
+    href: collabHref(collabId),
+    collabId,
   };
 }
 
