@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Beschikbaarheids-conflict-chip op de opdrachtenlijst (ZZP'er) (2026-07-15, PR #771)** —
+> het beschikbaarheidssignaal (valt de startdatum in een periode die de ZZP'er zélf op onbeschikbaar/beperkt heeft
+> gezet?) leefde alleen op de opdracht-detailpagina (`assessJobStartAvailability` → `job-availability-signal-card`).
+> Op de `/opdrachten`-browse-lijst moest de ZZP'er elke opdracht openen om een agenda-conflict te ontdekken. Nu een
+> compacte chip per opdracht op de lijst zelf — hij steekt geen tijd in een reactie voor een klus die hij al
+> geblokkeerd heeft (zelfde detail→lijst-chip-patroon als concurrentie/betaal/reistijd). Pure `jobAvailabilityChip`
+> in `job-availability-signal.ts` (mapt het bestaande `JobAvailabilitySignal` naar `{label,tone}`: UNAVAILABLE →
+> "Je bent dan niet beschikbaar"/`block`, LIMITED → "Dan beperkt beschikbaar"/`limited`, geen signaal → null; +3
+> tests) + wiring in `opdrachten/(index)/page.tsx` (`availabilityWindows` in de bestaande profiel-`include` — geen
+> extra query; `availabilityByJob` per zichtbare opdracht via `assessJobStartAvailability`; `CalendarOff`-chip ná
+> de betaal-chip). Read-only advies-signaal, geen schemawijziging, geen nieuw mutatie/auth-oppervlak, geen N+1.
+> Gate groen (typecheck, lint, unit-tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — auditlog-retentie-pruning (AVG dataminimalisatie) (2026-07-14, PR #768)** —
 > het verwerkingsregister (`RETENTION_SCHEDULE`) documenteert 12 maanden bewaartermijn voor het auditlog/
 > beveiligingslogboek (AVG art. 5 lid 1e), maar geen code dwong die af — auditregels mét IP-adres accumuleerden

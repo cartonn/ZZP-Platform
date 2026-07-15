@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assessJobStartAvailability,
+  jobAvailabilityChip,
   type AvailabilityWindowInput,
 } from "@/lib/job-availability-signal";
 
@@ -116,5 +117,33 @@ describe("assessJobStartAvailability", () => {
       NOW,
     );
     expect(signal!.note).toBe("eerder");
+  });
+});
+
+describe("jobAvailabilityChip", () => {
+  it("geeft null zonder signaal", () => {
+    expect(jobAvailabilityChip(null)).toBeNull();
+  });
+
+  it("mapt UNAVAILABLE naar een blokkerende chip", () => {
+    const chip = jobAvailabilityChip(
+      assessJobStartAvailability(
+        new Date("2026-08-10"),
+        [win("2026-08-01", "2026-08-31", "UNAVAILABLE")],
+        NOW,
+      ),
+    );
+    expect(chip).toEqual({ label: "Je bent dan niet beschikbaar", tone: "block" });
+  });
+
+  it("mapt LIMITED naar een let-op-chip", () => {
+    const chip = jobAvailabilityChip(
+      assessJobStartAvailability(
+        new Date("2026-08-10"),
+        [win("2026-08-01", "2026-08-31", "LIMITED")],
+        NOW,
+      ),
+    );
+    expect(chip).toEqual({ label: "Dan beperkt beschikbaar", tone: "limited" });
   });
 });
