@@ -61,6 +61,9 @@ import {
 } from "@/lib/job-vacancy-performance";
 import { summarizeVacancyPortfolio, vacancyPortfolioHeadline } from "@/lib/job-vacancy-overview";
 import { VacancyPaceChip } from "@/components/jobs/vacancy-pace-chip";
+import { diagnoseVacancyRate, type VacancyRateDiagnosis } from "@/lib/vacancy-rate-diagnosis";
+import { VacancyRateDiagnosisNote } from "@/components/jobs/vacancy-rate-diagnosis-note";
+import { getJobRateBands } from "@/lib/data/job-rate-bands";
 import {
   type CandidateProximity,
   classifyCandidateProximity,
@@ -154,6 +157,37 @@ async function ClientJobs({
     publishedSummaries.push(summary);
   }
   const portfolioHeadline = vacancyPortfolioHeadline(summarizeVacancyPortfolio(publishedSummaries));
+
+  // Tarief-diagnose: verbind een koud lopende opdracht met de marktband, zodat de opdrachtgever de
+  // meest waarschijnlijke — en direct oplosbare — oorzaak van uitblijvende reacties ziet ("je biedt
+  // tot €X/u, markttarief ~€Y/u"). Alleen relevant voor opdrachten die bijsturen vragen (`attention`)
+  // én een begrensde bovengrens hebben; de marktband wordt maar één keer geladen (geen N+1) en alleen
+  // wanneer er zo'n kandidaat is. `diagnoseVacancyRate` bepaalt server-side of er iets te melden valt.
+  const rateDiagByJob = new Map<string, VacancyRateDiagnosis>();
+  const rateCandidates = jobs.filter((job) => {
+    const summary = vacancyByJob.get(job.id);
+    return summary?.attention === true && job.rateMax != null;
+  });
+  if (rateCandidates.length > 0) {
+    const industryIds = [
+      ...new Set(
+        rateCandidates.map((job) => job.industryId).filter((id): id is string => id != null),
+      ),
+    ];
+    const bands = await getJobRateBands(industryIds);
+    for (const job of rateCandidates) {
+      const summary = vacancyByJob.get(job.id)!;
+      const band = job.industryId ? bands.byIndustry[job.industryId] : bands.platform;
+      if (!band) continue;
+      const diagnosis = diagnoseVacancyRate({
+        attention: summary.attention,
+        scope: band.scope,
+        median: band.median,
+        rateMax: job.rateMax,
+      });
+      if (diagnosis) rateDiagByJob.set(job.id, diagnosis);
+    }
+  }
 
   // Statusfilter (Alle/Concept/Gepubliceerd/Gesloten) — tellingen over de volledige lijst voor de
   // pill-labels, de gefilterde lijst voor de weergave. Spiegelt het pill-patroon van /facturen.
@@ -250,6 +284,10 @@ async function ClientJobs({
 
                   {vacancyByJob.has(job.id) && (
                     <VacancyPaceChip summary={vacancyByJob.get(job.id)!} />
+                  )}
+
+                  {rateDiagByJob.has(job.id) && (
+                    <VacancyRateDiagnosisNote diagnosis={rateDiagByJob.get(job.id)!} />
                   )}
 
                   <div className="mt-auto pt-1">

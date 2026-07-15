@@ -260,6 +260,22 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Tarief-diagnose op een koud lopende opdracht (opdrachtgever) (2026-07-15, PR #783)** —
+> op "Mijn opdrachten" (`/opdrachten`, CLIENT-view) toonde het vacaturetempo-signaal
+> (`summarizeVacancyPerformance`) al dát een opdracht koud loopt ("Weinig respons, X dagen open"), maar gaf
+> alleen een generieke tip ("overweeg tarief/eisen/zichtbaarheid bij te stellen") — het tarief werd nooit tegen
+> de markt getoetst. De marktband-engine (`computeMarketBand`/`getJobRateBands`) bestond al, maar werd uitsluitend
+> op het opdracht-formulier getoond; de twee waren nergens gecombineerd. Nu een concrete, cijfermatige
+> tarief-diagnose per koude kaart — **"Je biedt tot € 45/u, terwijl het markttarief rond € 60/u ligt. Een hoger
+> tarief trekt doorgaans meer kandidaten."** — die "reacties blijven uit, geen idee waarom" in een meetbare knop
+> verandert (raakt de vervullingsgraad; benchmark Malt/Upwork rate-guidance). Pure `vacancy-rate-diagnosis.ts`
+> (`diagnoseVacancyRate`: fireert alleen bij `attention` én begrensde bovengrens `rateMax != null` én
+> `rateMax < markt-mediaan` — mediaan bewust als drempel; open-eind tarief → geen claim; toont uitsluitend de
+> geaggregeerde mediaan, nooit een individueel ZZP-tarief; 7 tests) + `VacancyRateDiagnosisNote` + wiring in
+> `ClientJobs` (marktband één keer geladen, alleen bij ≥1 koude kandidaat met begrensd tarief — geen N+1, geen
+> query zonder noodzaak). Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate groen
+> (typecheck, lint, unit-tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Geschikte-vakmensen-vrij-signaal per open dienst (bemiddelaar) (2026-07-15, PR #779)** —
 > op `/franchise/diensten` toonde de bemiddelaar per open dienst "X dagen open"/reactie-tellingen, maar geen
 > antwoord op zijn kernvraag: "kan ik dit NU vullen uit mijn eigen roster of moet ik werven?" Nu een compacte chip
