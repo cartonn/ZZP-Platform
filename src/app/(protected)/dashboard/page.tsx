@@ -446,7 +446,10 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       // melding als de geaggregeerde momentopname, ook buiten de top-6 zone.
       cid
         ? prisma.collaboration.findMany({
-            where: { companyId: cid, status: "ACTIVE" },
+            // disputedAt: null → een in dispuut zijnde samenwerking is bevroren en levert geen
+            // compliance-waarschuwing/next-action op (consistent met /acties + signals.ts); anders
+            // toonde dezelfde kaart tegelijk "Dispuut — bevroren" én een compliance-actiebadge.
+            where: { companyId: cid, status: "ACTIVE", disputedAt: null },
             take: 200,
             include: COLLABORATION_ALERT_INCLUDE,
           })

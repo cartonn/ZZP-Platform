@@ -151,6 +151,13 @@ export function summarizeClientCompliance(
  */
 export interface CollaborationAlertRow {
   id: string;
+  /**
+   * Een open dispuut bevriest het werkproces (cascade/stage.ts → "werkproces bevroren",
+   * `youAreUp:false`). Zolang `disputedAt` gezet is levert de samenwerking geen enkele
+   * next-action op — óók geen compliance-ripple. Zelfde `disputedAt: null`-invariant als de
+   * overige opdrachtgever-taken (pending-tasks.ts) en signalen (signals.ts).
+   */
+  disputedAt: Date | null;
   job: {
     id: string;
     title: string;
@@ -190,6 +197,10 @@ export function clientCredentialAlertsFromRows(
 ): ClientCredentialAlert[] {
   const alerts: ClientCredentialAlert[] = [];
   for (const c of collaborations) {
+    // Bevroren werkproces (open dispuut) → geen compliance-ripple-taak; het samenwerkingsscherm
+    // toont "Dispuut — werkproces bevroren" en de opdrachtgever is niet aan zet. Zonder deze guard
+    // sprak de hoogste opdrachtgever-next-action (P.complianceRipple=85) de bevroren fase tegen.
+    if (c.disputedAt !== null) continue;
     const requiredTypes = c.job.credentialRequirements.map(
       (r) => r.credentialType as CredentialType,
     );
@@ -219,7 +230,10 @@ export async function clientCredentialAlerts(userId: string): Promise<ClientCred
   if (!company) return [];
 
   const collaborations = await prisma.collaboration.findMany({
-    where: { companyId: company.id, status: "ACTIVE" },
+    // disputedAt: null → een bevroren (in dispuut zijnde) samenwerking levert geen next-action op,
+    // consistent met pending-tasks.ts en signals.ts. De pure `clientCredentialAlertsFromRows` guardt
+    // hier nogmaals op (defense-in-depth + testbaar zonder DB).
+    where: { companyId: company.id, status: "ACTIVE", disputedAt: null },
     take: 200,
     include: COLLABORATION_ALERT_INCLUDE,
   });
