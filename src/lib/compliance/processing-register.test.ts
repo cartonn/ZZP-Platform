@@ -168,6 +168,36 @@ describe("PROCESSING_REGISTER", () => {
     // Beide ontvanger-kanten: browsende ZZP'ers én de opdrachtgever zelf.
     expect(betaalgedrag?.recipients.some((r) => r.toLowerCase().includes("zzp"))).toBe(true);
   });
+
+  it("opdrachtgever-betrouwbaarheidssignalen zijn geregistreerd (art. 30) op gerechtvaardigd belang, live berekend, met steekproefvloer", () => {
+    const rep = PROCESSING_REGISTER.find((a) => a.key === "opdrachtgever-betrouwbaarheidssignalen");
+    expect(rep).toBeDefined();
+    expect(rep?.legalBasis).toBe("GERECHTVAARDIGD_BELANG");
+    // Niet-gevoelig, maar wél over identificeerbare opdrachtgevers (incl. eenmanszaken).
+    expect(rep?.sensitive).toBe(false);
+    expect(rep?.dataSubjects.some((s) => s.toLowerCase().includes("opdrachtgever"))).toBe(true);
+    // Uitsluitend geaggregeerd — geen individuele samenwerking/reactie.
+    expect(rep?.dataCategories.every((c) => c.toLowerCase().includes("geaggregeerd"))).toBe(true);
+    // Live berekend, niet opgeslagen.
+    expect(rep?.retention.toLowerCase()).toContain("niet opgeslagen");
+    // De steekproefvloer moet als waarborg benoemd zijn (spiegelt de markttarief-/betaalgedrag-vloer).
+    expect(rep?.securityMeasures.some((m) => m.includes("MIN_SAMPLE_SIZE"))).toBe(true);
+  });
+
+  it("leverbetrouwbaarheid-zzp is geregistreerd (art. 30) op gerechtvaardigd belang, live berekend, met steekproefvloer", () => {
+    const lev = PROCESSING_REGISTER.find((a) => a.key === "leverbetrouwbaarheid-zzp");
+    expect(lev).toBeDefined();
+    expect(lev?.legalBasis).toBe("GERECHTVAARDIGD_BELANG");
+    // Niet-gevoelig, maar wél over identificeerbare ZZP'ers (natuurlijke personen).
+    expect(lev?.sensitive).toBe(false);
+    expect(lev?.dataSubjects.some((s) => s.toLowerCase().includes("zzp"))).toBe(true);
+    // Uitsluitend geaggregeerd — geen individuele prestatie-inhoud.
+    expect(lev?.dataCategories.every((c) => c.toLowerCase().includes("geaggregeerd"))).toBe(true);
+    // Live berekend, niet opgeslagen.
+    expect(lev?.retention.toLowerCase()).toContain("niet opgeslagen");
+    // De steekproefvloer moet als waarborg benoemd zijn.
+    expect(lev?.securityMeasures.some((m) => m.includes("DELIVERY_MIN_SAMPLE"))).toBe(true);
+  });
 });
 
 // --- RETENTION_SCHEDULE — structuurvalidatie ---------------------------------
