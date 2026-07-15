@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { approvePerformance, CascadeError } from "@/lib/cascade/commands";
+import { approvePerformance } from "@/lib/cascade/commands";
+import { toSafeActionError } from "@/lib/safe-action-error";
 
 export interface BulkApproveResult {
   approved: number;
@@ -54,7 +55,7 @@ export async function approveSubmittedPerformancesAction(
     } catch (e) {
       failed += 1;
       if (!firstError) {
-        firstError = e instanceof CascadeError || e instanceof Error ? e.message : undefined;
+        firstError = toSafeActionError(e, "Eén of meer urenstaten konden niet worden goedgekeurd.");
       }
     }
   }

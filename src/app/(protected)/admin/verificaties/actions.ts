@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { credentialEditPath, statusForDecision, TransitionError } from "@/lib/credentials";
+import { toSafeActionError } from "@/lib/safe-action-error";
 import { runExpiryTask } from "@/lib/expiry-task";
 import { type CredentialStatus } from "@/lib/enums";
 import { type ResolveState } from "@/lib/actions/resolve-state";
@@ -136,7 +137,7 @@ export async function verifyCredentialState(
   try {
     await verifyCredential(credentialId);
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+    return { error: toSafeActionError(e) };
   }
   return { ok: true };
 }
@@ -149,7 +150,7 @@ export async function rejectCredentialState(
   try {
     await rejectCredential(credentialId, formData);
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+    return { error: toSafeActionError(e) };
   }
   return { ok: true };
 }

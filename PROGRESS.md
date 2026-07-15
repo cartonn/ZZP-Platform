@@ -3,6 +3,38 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 — Security/privacy-audit: server-action error-leak dichtgezet (CWE-209) + delete-denial-audit
+
+**Waarde:** grondige security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële
+Opus-security-subagents op niet-overlappende oppervlakken: (1) document-/PDF-/export-serving, (2) tenant-/
+franchise-isolatie + cross-party PII, (3) injectie/XSS/SSRF/secrets-logging/error-leak). Kader: OWASP Top 10
+(A01/A03/A05/A10) + ASVS + AVG art. 5/9/30/32. Twee oppervlakken bevestigd volledig schoon (geen KRITIEK/
+HOOG-authz-/tenant-/injectie-/upload-/SSRF-gat). Eén **MIDDEL** information-exposure-gat gevonden én gedicht
+(rood→groen), plus één **LAAG** audit-consistentie-gat.
+
+- **[MIDDEL→OPGELOST · CWE-209 / OWASP A05:2021]** ~16 server-actions gaven `e instanceof Error ? e.message`
+  terug aan de client. Dat forwardt de message van élke fout — ook een technische fout die interne details
+  lekt (Prisma-clientfout met kolom-/tabel-/constraint-namen; Node system-error met hostname/pad/poort).
+  Nieuw gedeeld helper `src/lib/safe-action-error.ts` (`toSafeActionError`/`isInternalError`): forwardt alleen
+  gecureerde applicatie-foutmeldingen en vervangt technische fouten (Prisma-naam-prefix / string-`code` /
+  niet-Error) door een generieke NL-boodschap, met server-side log via de redacterende logger. Bewust een
+  **denylist** op de daadwerkelijke lek-families i.p.v. een allowlist, zodat de bewust-Nederlandse curated
+  messages (`AuthorizationError`, `*TransitionError`, `CascadeError`, plain `Error`) hun tekst behouden.
+  Bedraad in: `certificaten`, `admin/verificaties`, `account`, `admin/shift-overnames`, `diensten/importeer`,
+  `samenwerkingen/[id]` (incl. de `return e.message`-paden die Next niet redacteert), `prestaties`.
+  Test: `src/lib/safe-action-error.test.ts` (9 cases: Prisma-/system-/niet-Error → generiek + gelogd;
+  curated → behouden).
+- **[LAAG→OPGELOST · CLAUDE.md regel 5 / OWASP A01 defense-in-depth]** `deleteDocument`
+  (`documenten/actions.ts`) auditte alleen succes, niet de geweigerde poging. Een IDOR-poging op andermans
+  document (bestaand id, andere eigenaar) verdween stil. Nu: `DOCUMENT_DELETE_DENIED`-audit vóór de throw,
+  identiek voor "niet gevonden" en "niet van jou" (geen bestaans-orakel). Test:
+  `documenten/delete-denied.test.ts` (2 cases; verwijdert niets bij weigering).
+- **Delta sinds vorige ronde (#768–#772) apart nagelopen: schoon.** Audit-retentie-taak fail-closed +
+  cron-gated + PII-vrij; income-goal + job-availability-signal zijn pure logica, own-profile-scoped; geen
+  nieuw authz-/injectie-oppervlak. `npm audit --omit=dev` = 0; Next.js 15.5.19 gepatcht.
+- **Gates:** typecheck exit 0, lint schoon, `npm run test` = **377 files / 4177 tests groen**, build groen,
+  prettier-conform. Geen auth verzwakt, geen check verwijderd; het woord "AI" komt nergens voor.
+
 ## 2026-07-15 — Ontwerp-lab: +10 concepten (nrs 321–330), reeks 33
 
 **Waarde:** de galerij op `/ontwerp` groeit van 320 → **330** onderscheidende redesign-concepten

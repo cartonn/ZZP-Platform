@@ -90,7 +90,18 @@ export async function deleteDocument(documentId: string): Promise<void> {
     where: { id: documentId },
     select: { ownerId: true, storageKey: true, _count: { select: { credentials: true } } },
   });
-  if (!doc || doc.ownerId !== actor.id) throw new Error("Document niet gevonden.");
+  if (!doc || doc.ownerId !== actor.id) {
+    // Audit ook de geweigerde poging (CLAUDE.md regel 5): een IDOR-poging op andermans document
+    // (bestaand id, andere eigenaar) mag niet stil verdwijnen. "Niet gevonden" en "niet van jou"
+    // zijn naar buiten toe niet te onderscheiden (geen bestaans-orakel).
+    await audit({
+      actorId: actor.id,
+      action: "DOCUMENT_DELETE_DENIED",
+      entityType: "Document",
+      entityId: documentId,
+    });
+    throw new Error("Document niet gevonden.");
+  }
   if (doc._count.credentials > 0) {
     throw new Error("Dit document hoort bij een credential; beheer het via Certificaten.");
   }

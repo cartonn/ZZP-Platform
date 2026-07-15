@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/authz";
 import { parseCsvShifts } from "@/lib/diensten";
-import { createPerformance, submitPerformance, CascadeError } from "@/lib/cascade/commands";
+import { createPerformance, submitPerformance } from "@/lib/cascade/commands";
+import { toSafeActionError } from "@/lib/safe-action-error";
 import { segmentShifts, dutchHolidays, type Shift } from "@/lib/shift";
 import { resolveOrtRates } from "@/lib/ort";
 import { prisma } from "@/lib/db";
@@ -106,7 +107,7 @@ export async function importDienstenAction(
       await submitPerformance(actor, perfId);
       imported++;
     } catch (e) {
-      const msg = e instanceof CascadeError || e instanceof Error ? e.message : "Onbekende fout.";
+      const msg = toSafeActionError(e, "Onbekende fout.");
       errors.push(`Dienst ${parsed.start.toLocaleDateString("nl-NL")}: ${msg}`);
       skipped++;
     }

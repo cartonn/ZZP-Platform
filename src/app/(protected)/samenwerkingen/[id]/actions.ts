@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/authz";
+import { toSafeActionError } from "@/lib/safe-action-error";
 import { type ResolveState } from "@/lib/actions/resolve-state";
 import {
   signContract,
@@ -186,9 +187,7 @@ export async function logAndSubmitPerformanceAction(
     const id = await createPerformance(actor, parsed.input);
     await submitPerformance(actor, id);
   } catch (e) {
-    if (e instanceof CascadeError) return e.message;
-    if (e instanceof Error) return e.message;
-    return "Er is een fout opgetreden. Probeer het opnieuw.";
+    return toSafeActionError(e);
   }
   refresh(collaborationId);
   return null;
@@ -236,9 +235,7 @@ export async function editAndResubmitPerformanceAction(
     await updatePerformance(actor, performanceId, fields);
     await submitPerformance(actor, performanceId);
   } catch (e) {
-    if (e instanceof CascadeError) return e.message;
-    if (e instanceof Error) return e.message;
-    return "Er is een fout opgetreden. Probeer het opnieuw.";
+    return toSafeActionError(e);
   }
   refresh(collaborationId);
   return null;
@@ -516,7 +513,7 @@ export async function approvePerformanceState(
   try {
     await approvePerformanceAction(performanceId, collaborationId);
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+    return { error: toSafeActionError(e) };
   }
   return { ok: true };
 }
@@ -530,7 +527,7 @@ export async function rejectPerformanceState(
   try {
     await rejectPerformanceAction(performanceId, collaborationId, formData);
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+    return { error: toSafeActionError(e) };
   }
   return { ok: true };
 }
@@ -544,7 +541,7 @@ export async function approveInvoiceState(
   try {
     await approveInvoiceAction(invoiceId, collaborationId);
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+    return { error: toSafeActionError(e) };
   }
   return { ok: true };
 }
@@ -558,7 +555,7 @@ export async function rejectInvoiceState(
   try {
     await rejectInvoiceAction(invoiceId, collaborationId, formData);
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Er is een fout opgetreden." };
+    return { error: toSafeActionError(e) };
   }
   return { ok: true };
 }
