@@ -7,6 +7,7 @@ import { collectSystemStatus } from "@/lib/system-status";
 import { PageHeader } from "@/components/ui/page-header";
 import { SystemStatusPanel } from "@/components/admin/system-status-panel";
 import { StorageSelfTest } from "@/components/admin/storage-selftest";
+import { MailSelfTest } from "@/components/admin/mail-selftest";
 
 export const metadata: Metadata = { title: "Systeemstatus · ZZP Platform" };
 
@@ -39,6 +40,7 @@ export default async function SysteemstatusPage() {
       />
       <SystemStatusPanel status={status} dbReachable={readiness.ready} />
       <StorageSelfTest driverMode={env.STORAGE_DRIVER} />
+      <MailSelfTest driverMode={env.EMAIL_DRIVER} />
     </div>
   );
 }
