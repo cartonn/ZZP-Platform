@@ -4,6 +4,7 @@ import {
   BadgeEuro,
   Briefcase,
   CalendarClock,
+  CalendarOff,
   Check,
   ChevronRight,
   Gauge,
@@ -23,7 +24,17 @@ import { scoreJobForFreelancer, topGapReason, topPositiveReason } from "@/lib/ma
 import { sortJobsByMatch } from "@/lib/job-match-sort";
 import { jobStartProximity } from "@/lib/job-start-proximity";
 import { getTranslator } from "@/lib/i18n/server";
-import { type ApplicationStatus, type JobStatus, type WorkMode } from "@/lib/enums";
+import {
+  type ApplicationStatus,
+  type AvailabilityWindowType,
+  type JobStatus,
+  type WorkMode,
+} from "@/lib/enums";
+import {
+  assessJobStartAvailability,
+  jobAvailabilityChip,
+  type JobAvailabilityChip,
+} from "@/lib/job-availability-signal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -304,6 +315,9 @@ async function BrowseJobs({
             skills: { select: { skillId: true } },
             credentials: { select: { type: true, status: true, expiresAt: true } },
             industries: { select: { industryId: true } },
+            availabilityWindows: {
+              select: { startDate: true, endDate: true, type: true, note: true },
+            },
           },
         })
       : null;
@@ -469,6 +483,25 @@ async function BrowseJobs({
     }
   }
 
+  // Beschikbaarheids-conflictsignaal per zichtbare opdracht (alleen ZZP'er met eigen agenda-vensters):
+  // valt de startdatum in een periode die de ZZP'er zélf op onbeschikbaar/beperkt heeft gezet? Zo ziet
+  // hij dat een opdracht botst met zijn agenda vóór hij zijn tijd in een reactie steekt — spiegelbeeld
+  // van het signaal dat de opdracht-detailpagina al toont, nu compact op de triage-lijst. Geen extra
+  // query: de eigen vensters zijn met het profiel meegeladen; puur en deterministisch (`now`-geïnjecteerd).
+  const availabilityByJob = new Map<string, JobAvailabilityChip>();
+  if (profile && profile.availabilityWindows.length > 0) {
+    const windows = profile.availabilityWindows.map((w) => ({
+      startDate: w.startDate,
+      endDate: w.endDate,
+      type: w.type as AvailabilityWindowType,
+      note: w.note,
+    }));
+    for (const job of visibleJobs) {
+      const chip = jobAvailabilityChip(assessJobStartAvailability(job.startDate, windows, now));
+      if (chip) availabilityByJob.set(job.id, chip);
+    }
+  }
+
   // Bij match-sortering pagineren we de in het geheugen gerangschikte (begrensde) set; anders de
   // volledige databanktelling. `total` blijft de eerlijke "gevonden"-teller in de kop.
   const paginationTotal = effectiveMatchSort ? jobs.length : total;
@@ -594,6 +627,22 @@ async function BrowseJobs({
                             ].join(" ")}
                           >
                             <BadgeEuro className="size-3" aria-hidden /> {chip.label}
+                          </span>
+                        );
+                      })()}
+                      {(() => {
+                        const chip = availabilityByJob.get(job.id);
+                        if (!chip) return null;
+                        return (
+                          <span
+                            className={[
+                              "inline-flex items-center gap-1",
+                              chip.tone === "block"
+                                ? "font-medium text-warning"
+                                : "text-muted-foreground",
+                            ].join(" ")}
+                          >
+                            <CalendarOff className="size-3" aria-hidden /> {chip.label}
                           </span>
                         );
                       })()}

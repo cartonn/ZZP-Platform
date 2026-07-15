@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 — Beschikbaarheids-conflict-chip op de opdrachtenlijst (ZZP'er) (PR #771)
+
+**Waarde (ZZP'er):** het beschikbaarheidssignaal ("valt de startdatum van deze opdracht in een periode
+die ik zélf op onbeschikbaar/beperkt heb gezet?") leefde alleen op de opdracht-detailpagina
+(`assessJobStartAvailability` → `job-availability-signal-card`). Op de `/opdrachten`-browse-lijst moest
+de ZZP'er elke opdracht openen om te ontdekken dat de start met zijn eigen agenda botst. Nu een compacte
+chip per opdracht op de lijst zelf — zodat hij niet zijn tijd in een reactie steekt voor een klus die hij
+al geblokkeerd heeft. Zelfde "detail-signaal → lijst-chip"-patroon als de concurrentie-/betaal-/reistijd-chips.
+
+- **`src/lib/job-availability-signal.ts`** — nieuwe pure helper `jobAvailabilityChip(signal)`: mapt het
+  bestaande `JobAvailabilitySignal` naar `{ label, tone }` of `null`. UNAVAILABLE → "Je bent dan niet
+  beschikbaar" (`tone:"block"`, waarschuwingskleur); LIMITED → "Dan beperkt beschikbaar"
+  (`tone:"limited"`, rustige let-op-kleur); geen signaal → null (lijst blijft rustig).
+- **`src/app/(protected)/opdrachten/(index)/page.tsx`** — `availabilityWindows` toegevoegd aan de
+  bestaande profiel-`include` (geen extra query — meegeladen in dezelfde fetch); per zichtbare opdracht
+  `availabilityByJob` via `assessJobStartAvailability` + `jobAvailabilityChip` (één render-klok, puur);
+  chip gerenderd in de metadata-rij ná de betaal-chip (`CalendarOff`-icoon). Alleen ZZP'er met vensters.
+- **Server-side waarheid:** de vensters komen uit `AvailabilityWindow` (eigen profiel); read-only
+  advies-signaal, geen schemawijziging, geen nieuw mutatie-/auth-oppervlak, geen N+1.
+- **Tests:** `job-availability-signal.test.ts` +1 `jobAvailabilityChip`-suite (null/UNAVAILABLE/LIMITED).
+  Gate groen: typecheck, lint, unit-tests, build, prettier.
+
 ## 2026-07-14 — Maanddoel-voortgang op de ZZP-dashboard geldpuls (PR #770)
 
 **Waarde (ZZP'er):** het maanddoel (`monthlyIncomeGoalCents`) + de voortgangssamenvatting leefden

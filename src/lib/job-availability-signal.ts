@@ -67,3 +67,27 @@ export function assessJobStartAvailability(
     note: best.note ?? null,
   };
 }
+
+export interface JobAvailabilityChip {
+  readonly label: string;
+  /**
+   * `block` = de ZZP'er heeft zich onbeschikbaar gemaakt (zwaarste signaal, waarschuwingskleur);
+   * `limited` = beperkt beschikbaar (rustige let-op-kleur).
+   */
+  readonly tone: "block" | "limited";
+}
+
+/**
+ * Compacte lijst-chip voor het beschikbaarheidssignaal op de browse-lijst. Vertaalt het
+ * detail-signaal (`assessJobStartAvailability`) naar één korte NL-label + toon, zodat de ZZP'er
+ * al bij het triageren ziet dat een opdracht botst met zijn eigen agenda — vóór hij zijn tijd in
+ * een reactie steekt. `null` als er geen relevant venster is (dan blijft de lijst rustig).
+ */
+export function jobAvailabilityChip(
+  signal: JobAvailabilitySignal | null,
+): JobAvailabilityChip | null {
+  if (!signal) return null;
+  return signal.windowType === "UNAVAILABLE"
+    ? { label: "Je bent dan niet beschikbaar", tone: "block" }
+    : { label: "Dan beperkt beschikbaar", tone: "limited" };
+}
