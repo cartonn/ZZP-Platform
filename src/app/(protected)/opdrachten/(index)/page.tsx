@@ -14,6 +14,7 @@ import {
   Plus,
   SearchX,
   Users,
+  Wallet,
 } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { type Actor, requireActor } from "@/lib/authz";
@@ -52,6 +53,7 @@ import { plural } from "@/lib/plural";
 import { summarizeJobPipeline } from "@/lib/job-pipeline";
 import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition";
 import { paymentTrustChip, type PaymentTrustChip } from "@/lib/payment-behavior";
+import { jobRateFitChip, type JobRateFitChip } from "@/lib/job-rate-fit";
 import { getPaymentBehaviorForCompanies } from "@/lib/data/payment-behavior";
 import {
   summarizeVacancyPerformance,
@@ -502,6 +504,20 @@ async function BrowseJobs({
     }
   }
 
+  // Tarief-passendheidssignaal per zichtbare opdracht (alleen ZZP'er met een eigen uurtarief): valt
+  // het opdrachtbudget onder ("Onder je tarief") of boven ("Boven je tarief") wat de ZZP'er zelf vraagt?
+  // Zo triageert hij op de lijst welke opdracht qua geld past vóór hij zijn tijd in een reactie steekt —
+  // de list-tegenhanger van het budget-inzicht dat tot nu toe alleen bij het reageren zichtbaar werd.
+  // Geen extra query: het eigen `hourlyRate` is met het profiel geladen en `rateMin/rateMax` staan al op
+  // de opdracht. Puur en deterministisch; zwijgt bij een passend budget zodat de lijst rustig blijft.
+  const rateFitByJob = new Map<string, JobRateFitChip>();
+  if (profile) {
+    for (const job of visibleJobs) {
+      const chip = jobRateFitChip(profile.hourlyRate, job.rateMin, job.rateMax);
+      if (chip) rateFitByJob.set(job.id, chip);
+    }
+  }
+
   // Bij match-sortering pagineren we de in het geheugen gerangschikte (begrensde) set; anders de
   // volledige databanktelling. `total` blijft de eerlijke "gevonden"-teller in de kop.
   const paginationTotal = effectiveMatchSort ? jobs.length : total;
@@ -643,6 +659,20 @@ async function BrowseJobs({
                             ].join(" ")}
                           >
                             <CalendarOff className="size-3" aria-hidden /> {chip.label}
+                          </span>
+                        );
+                      })()}
+                      {(() => {
+                        const chip = rateFitByJob.get(job.id);
+                        if (!chip) return null;
+                        return (
+                          <span
+                            className={[
+                              "inline-flex items-center gap-1",
+                              chip.tone === "good" ? "text-success" : "font-medium text-warning",
+                            ].join(" ")}
+                          >
+                            <Wallet className="size-3" aria-hidden /> {chip.label}
                           </span>
                         );
                       })()}
