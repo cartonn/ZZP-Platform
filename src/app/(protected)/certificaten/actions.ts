@@ -7,6 +7,7 @@ import { audit, auditData } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { prisma } from "@/lib/db";
 import { assertTransition, TransitionError } from "@/lib/credentials";
+import { toSafeActionError } from "@/lib/safe-action-error";
 import { documentKindForCredential } from "@/lib/documents";
 import { getDiplomaVerifier } from "@/lib/services/diploma-verifier";
 import { getBigVerifier } from "@/lib/services/big-verifier";
@@ -455,7 +456,7 @@ export async function verifyCredentialViaDuo(
       holderName: user?.name ?? "",
     });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Verificatie mislukt." };
+    return { error: toSafeActionError(e, "Verificatie mislukt.") };
   }
   if (!result.verified) return { error: result.message };
   if (mockVerificationBlocked(result.source)) return blockMockVerification(actor.id, credentialId);
@@ -505,7 +506,7 @@ export async function verifyCredentialViaBig(
   try {
     result = await getBigVerifier().verify({ bigNumber, holderName: user?.name ?? "" });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Verificatie mislukt." };
+    return { error: toSafeActionError(e, "Verificatie mislukt.") };
   }
   if (!result.verified) return { error: result.message };
   if (mockVerificationBlocked(result.source)) return blockMockVerification(actor.id, credentialId);

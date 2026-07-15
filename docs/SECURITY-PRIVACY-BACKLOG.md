@@ -4,6 +4,63 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-15 (basis: `main` @ fc5e03d)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken: (1) document-/PDF-/export-serving (`api/media/[...key]`, `api/documents/[id]`, alle
+`facturen`/`prestaties`/`admin/facturatie`-pdf's, `samenwerkingen/[id]/{dossier,dba-dossier,modelovereenkomst}`,
+`administratie/*`, `admin/export/invoices`, `documenten/actions.ts`, `storage.ts`); (2) tenant-/franchise-
+isolatie + cross-party PII (`tenancy.ts`, `franchise/**`, `admin/franchises/**`, `kandidaten/**`,
+`bemiddelaars-panel`); (3) injectie/XSS/SSRF/secrets-logging/error-leak over de hele `src/`-boom. Kader: OWASP
+Top 10 (A01/A03/A05/A10) + ASVS + AVG art. 5/9/30/32. De delta sinds de vorige ronde (#768–#772: audit-retentie-
+pruning, betaalgedrag-register-entry, maanddoel-voortgang, beschikbaarheids-conflict-chip, +10 ontwerpconcepten)
+apart nagelopen: schoon — audit-retentie-taak is fail-closed/cron-gated/PII-vrij, income-goal + job-availability-
+signal zijn pure, own-profile-scoped logica. `npm audit --omit=dev` = **0**; Next.js **15.5.19** gepatcht.
+
+**Oppervlakken (1) en (2) bevestigd volledig schoon** (geen KRITIEK/HOOG-authz-/IDOR-/tenant-/upload-/SSRF-gat):
+elke document-route re-verifieert ownership tegen de sessie-gebruiker + audit op inzage én weigering; `[...key]`-
+media resolveert path-traversal-veilig binnen `baseDir` en vereist een DB-`logoKey`-match; tenant-scoping via
+`tenantScopeWhere`/`ownsViaTenant`/`assertSameTenant` met server-herleide `tenantId` (nul mass-assignment op
+`tenantId`/`role`); cross-tenant = ononderscheidbaar van onbekend-id (geen existence-oracle). Oppervlak (3): één
+`dangerouslySetInnerHTML` (hardcoded theme-script + nonce), CSV via centrale `escapeCsvField`-guard op élke export,
+ICS via `escapeIcsText`, SSRF met harde host-allowlists (Geoapify query-only, web-push-endpoint-allowlist), logger
+redacteert PII/secrets, geen open redirect, cron `Bearer` + timing-safe.
+
+### OPGELOST in deze ronde
+
+- **[MIDDEL→OPGELOST · CWE-209 Information Exposure / OWASP A05:2021]** ~16 server-actions gaven
+  `e instanceof Error ? e.message : "..."` (of `return e.message`) terug aan de client. De gecureerde
+  applicatiefouten (`AuthorizationError`, `*TransitionError`, `CascadeError`, plain `Error` met NL-tekst) zijn
+  veilig, maar een **onverwacht** fouttype dat níet in een curated-klasse zit — een uncaught Prisma-clientfout
+  (kan kolom-/tabel-/constraint-namen echoën, bv. `Unique constraint failed on the fields: (email)`) of een Node
+  system-error (`connect ECONNREFUSED 10.0.0.5:5432` — hostname/poort) — werd verbatim doorgestuurd. Lage kans,
+  maar het gat verbreedt stil naarmate nieuwe mutaties failure-modes toevoegen die iemand vergeet in een curated
+  klasse te wikkelen. **Repro (was):** forceer een Prisma-constraint-/verbindingsfout in een van de bedrade
+  actions → de rauwe message verscheen in de fout-state naar de client. **Gefixt:** nieuw gedeeld helper
+  `src/lib/safe-action-error.ts`. `isInternalError` markeert een fout als intern-lekkend wanneer het geen `Error`
+  is, de naam met `PrismaClient` begint, óf er een niet-lege string-`code` is (Prisma `P####` + Node sys-errors);
+  `toSafeActionError` logt die server-side (redacterende logger) en geeft een generieke NL-boodschap, terwijl
+  curated messages behouden blijven. Bewust **denylist** (fail-safe op de echte lek-families) i.p.v. allowlist,
+  om de bewust-Nederlandse curated UX-teksten niet te degraderen. Bedraad in `certificaten/actions.ts`,
+  `admin/verificaties/actions.ts`, `account/actions.ts`, `admin/shift-overnames/actions.ts`,
+  `diensten/importeer/actions.ts`, `samenwerkingen/[id]/actions.ts` (incl. de twee `return e.message`-paden die
+  Next.js **niet** redacteert), `prestaties/actions.ts`. Test: `safe-action-error.test.ts` (9 cases,
+  rood→groen: Prisma-/system-/niet-Error → generiek + gelogd; `AuthorizationError`/plain-`Error` → message behouden).
+- **[LAAG→OPGELOST · CLAUDE.md regel 5 (audit alles wat telt) / OWASP A01 defense-in-depth]** `deleteDocument`
+  (`documenten/actions.ts`) auditte `DOCUMENT_DELETED` alleen bij succes; een geweigerde poging (bestaand id,
+  andere eigenaar → IDOR-poging, of onbekend id) gooide een generieke `Error` **zonder audit** — afwijkend van de
+  read-routes die elke geweigerde inzage als `*_ACCESS_DENIED` loggen. **Gefixt:** `DOCUMENT_DELETE_DENIED`-audit
+  vóór de throw, identiek voor "niet gevonden" en "niet van jou" (geen bestaans-orakel), gevolgd door dezelfde
+  generieke foutmelding; er wordt niets verwijderd. Test: `documenten/delete-denied.test.ts` (2 cases; audit
+  vuurt, `prisma.delete`/`storage.delete` niet — rood→groen).
+
+### Geen nieuwe KRITIEK/HOOG-bevindingen
+
+Geen open KRITIEK/HOOG-item toegevoegd deze ronde. De eerder geëscaleerde mens-beslissingen (o.a.
+`PAYMENT_MIN_SAMPLE_SIZE`=3 vs. k≥10; `Performance.rejectionReason`/`NoShowReport.reason` als derde-partij-tekst
+bij `anonymizeUser`) blijven staan voor de mens — deze audit heeft die niet gewijzigd (bewust: een agent kiest
+geen k-drempel/retentiegrond, les uit de MENSENWERK-lijn).
+
 ## Ronde 2026-07-14 (2e — basis: `main` @ eea7c32)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende

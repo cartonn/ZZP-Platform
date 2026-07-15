@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/authz";
+import { toSafeActionError } from "@/lib/safe-action-error";
 import { auditData } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { getIdentityVerifier } from "@/lib/services/identity-verifier";
@@ -33,7 +34,7 @@ export async function verifyIdentity(
   try {
     result = await getIdentityVerifier().verify({ accountName: user?.name ?? "", providedName });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Verificatie mislukt." };
+    return { error: toSafeActionError(e, "Verificatie mislukt.") };
   }
   if (!result.verified) return { error: result.message };
 

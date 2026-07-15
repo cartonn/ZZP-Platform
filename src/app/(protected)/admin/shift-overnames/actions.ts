@@ -10,6 +10,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole, type Actor } from "@/lib/authz";
+import { toSafeActionError } from "@/lib/safe-action-error";
 import { assertSameTenant } from "@/lib/tenancy";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
@@ -56,7 +57,7 @@ export async function approveShiftHandoff(
   try {
     handoff = await loadDecidableHandoff(handoffId, actor);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Aanvraag kon niet worden beoordeeld." };
+    return { error: toSafeActionError(err, "Aanvraag kon niet worden beoordeeld.") };
   }
 
   // Statusovergang via de expliciete map, op basis van de GEFETCHTE status (OPEN → APPROVED).
@@ -116,7 +117,7 @@ export async function rejectShiftHandoff(
   try {
     handoff = await loadDecidableHandoff(handoffId, actor);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Aanvraag kon niet worden beoordeeld." };
+    return { error: toSafeActionError(err, "Aanvraag kon niet worden beoordeeld.") };
   }
 
   // Statusovergang via de expliciete map, op basis van de GEFETCHTE status (OPEN → REJECTED).
