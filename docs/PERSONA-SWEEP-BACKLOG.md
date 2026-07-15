@@ -1,5 +1,50 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-15 (run 29) · **main-commit basis:** `89132d1`
+> **Uitkomst:** **GEEN gaten gevonden** — DOEL 1, 1b én 2 schoon over alle vier de rollen; twee
+> echte acties end-to-end geverifieerd + een onafhankelijke, diepe security-audit (Opus-Explore) over
+> alle 51 `actions.ts` + API-routes zonder bevindingen. Verse prod-build (`npm run build`, `BUILD_ID`
+> geverifieerd), schema-push + idempotente demo-seed (`SEED_DEMO=true`, 13 samenwerkingen/7 facturen/
+> 48 grootboekregels/16 tickets/14 gesprekken) op ephemere SQLite (`qa.db`), prod-server (`next start`,
+> poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen ingelogd via het
+> echte formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde Chromium (`chromium-1194`,
+> `executablePath`). Eén parallelle Opus-Explore-security-subagent (authz/IDOR/tenant-isolatie over alle
+> mutaties).
+>
+> **DOEL 1 (echte actie, live geverifieerd — 2 cascades end-to-end):**
+> (a) **CLIENT** (logiflow) klikte **"Goedkeuren"** op een SUBMITTED cascade-factuur → `/acties`
+> **3→2** (de factuur-goedkeur-taak verdween), de keten auth→rol→ownership→transitie→audit→revalidate
+> werkte, en de fase schoof door naar **betaling** met de **ZZP'er (julia) aan zet**: julia's `/acties`
+> toont nu "Markeer de betaling zodra je bent betaald" en de samenwerking een **"Betaling ontvangen"**-knop.
+> (b) **ADMIN** klikte **"Goedkeuren"** op `/admin/verificaties` → `/acties` **16→15** (de afgehandelde
+> verificatie-next-action verdween). Alle rol-schermen laadden **HTTP 200, nul 5xx**.
+>
+> **DOEL 1b (next-action-correctheid — alle correct):** `/acties` per rol gekruist tegen de seed —
+> ZZP'er (2: ontbrekend verplicht doc "Verzekering" + onbeantwoord bericht), CLIENT (2: 1 nieuwe reactie
+> beoordelen + bedrijfsprofiel 90%), FRANCHISER ("Alles is afgehandeld" — 0, klopt: een vandaag uitgezette
+> dienst zonder reacties vraagt nog geen bemiddelaar-actie; roster-compliance/leads leveren geen
+> openstaande taak), ADMIN (16 = 6 certificaat-beoordelingen + 10 supporttickets — telling exact gelijk
+> aan de getoonde items). Alle acties: juiste partij "aan zet", juiste volgorde, verdwijnen na afhandeling.
+> Bemiddelaar-dashboard "Volgende acties" is by-design een superset van `/acties` (item-taken + operationele
+> attentiepunten zoals te lang open diensten; `dashboard/page.tsx:1044-1049`) — geen tegenspraak.
+>
+> **DOEL 2 (adversarieel — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen|no-shows|facturatie|franchises`; niet-FRANCHISER →
+> `/franchise`) → **302-redirect naar `/dashboard`**, nooit 200-inhoud/500. IDOR via in-browser `fetch`
+> (cookie-getrouw) met **echte vreemde id's**: vreemd document (Youssef) → **403** voor ZZP/CLIENT/FRANCHISER;
+> eigen document → **200**; vreemde cascade-factuur-PDF (Iris) → **404**; vreemde samenwerking (Iris ACTIVE)
+> → **"Niet gevonden"** (`notFound()` op `samenwerkingen/[id]/page.tsx:167`, geen datalek — bevestigd op de
+> gerenderde inhoud). Junk/traversal/sqli/xss-id (`'; DROP TABLE`, `../../etc/passwd`, `%00`,
+> `<script>`, absurde getallen) over `/samenwerkingen|/facturen|/opdrachten|/zzp` + `/api/documents/<junk>`
+> → **nooit 500**. Onafhankelijke diepe security-audit: **CLEAN** (mutatieketen auth→rol→ownership→Zod→
+> actie→audit consistent toegepast; cascade-commands her-laden de entiteit en checken party-ownership;
+> franchise-mutaties `assertSameTenant`/`ownsViaTenant`; document/PDF/export-routes party/owner-of-admin +
+> `private, no-store` + audit; admin-acties `requireRole("ADMIN")` + expliciete transitiemaps; cron
+> `authorizeCron`).
+>
+> **Conclusie:** na 28 eerdere rondes blijft het platform dicht op authz/IDOR/tenant-isolatie én coherent
+> op de next-action-engine. Deze run levert een docs-only PR (bewijs van de sweep); geen code-fix nodig.
+
 > **Datum:** 2026-07-14 (run 28) · **main-commit basis:** `797c8a3`
 > **Uitkomst:** **1 next-action-correctheidsdefect gevonden én OPGELOST** (DOEL 1b) — de generieke
 > "factuur over de vervaldatum"-roll-up van de ZZP'er (`overdueInvoiceCount`) keyt op het legacy
