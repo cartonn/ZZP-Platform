@@ -108,6 +108,27 @@ export interface RosterFreelancerSource extends EngageabilitySource {
 }
 
 /**
+ * Vormt een roster-profiel om naar de `FreelancerMatchSource` die de matchmotor verwacht. Eén bron van
+ * waarheid voor elk scherm dat roster-ZZP'ers tegen een dienst scoort (voordragen én het
+ * vulbaar-signaal op de diensten-lijst), zodat de scoring nooit uiteenloopt.
+ */
+export function rosterMatchSource(f: RosterFreelancerSource): FreelancerMatchSource {
+  return {
+    skills: f.skills,
+    credentials: f.credentials,
+    hourlyRate: f.hourlyRate,
+    workMode: f.workMode,
+    location: f.location,
+    maxTravelMinutes: f.maxTravelMinutes,
+    headline: f.headline,
+    bio: f.bio,
+    availability: f.availability,
+    availabilityWindows: f.availabilityWindows,
+    industries: f.industries,
+  };
+}
+
+/**
  * Pure kern: rangschik de roster-ZZP'ers op matchkwaliteit voor déze dienst. Elke ZZP'er krijgt zijn
  * inzetbaarheid (`computeEngageability`) én zijn server-berekende matchscore + troef/minpunt
  * (`scoreJobForFreelancer`, dezelfde motor als de Reacties-lijst en `/kandidaten`). Sortering: eerst
@@ -125,19 +146,7 @@ export function buildRosterCandidates(
   return freelancers
     .map((f): RosterCandidate => {
       const eng = candidateEngageability(f, now);
-      const source: FreelancerMatchSource = {
-        skills: f.skills,
-        credentials: f.credentials,
-        hourlyRate: f.hourlyRate,
-        workMode: f.workMode,
-        location: f.location,
-        maxTravelMinutes: f.maxTravelMinutes,
-        headline: f.headline,
-        bio: f.bio,
-        availability: f.availability,
-        availabilityWindows: f.availabilityWindows,
-        industries: f.industries,
-      };
+      const source = rosterMatchSource(f);
       const match = scoreJobForFreelancer(job, source, now);
       return {
         freelancerId: f.id,
