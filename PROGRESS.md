@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 — Persona-sweep run 29: geen gaten (DOEL 1/1b/2 schoon, 4 rollen)
+
+**Waarde:** kritische-gebruiker-sweep over alle vier de rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) tegen een
+verse prod-build + demo-seed op ephemere SQLite. **Geen defecten of beveiligingsgaten gevonden.**
+
+- **DOEL 1 (echte acties, live):** CLIENT keurde een SUBMITTED cascade-factuur goed → `/acties` 3→2, fase
+  schoof correct door naar betaling met de ZZP'er (julia) aan zet ("Markeer de betaling" + "Betaling
+  ontvangen"-knop). ADMIN keurde een certificaat goed → `/acties` 16→15. Alle rol-schermen HTTP 200, nul 5xx.
+- **DOEL 1b (next-action-correctheid):** `/acties`-tellingen exact gelijk aan de getoonde items per rol
+  (ZZP 2, CLIENT 2, FRANCHISER 0, ADMIN 16 = 6 certificaten + 10 tickets); juiste partij aan zet, juiste
+  volgorde, verdwijnen na afhandeling. Bemiddelaar-dashboard "Volgende acties" = by-design superset van
+  `/acties` (geen tegenspraak).
+- **DOEL 2 (adversarieel):** privilege-escalatie → 302 naar `/dashboard`; IDOR vreemd document → 403, eigen
+  → 200, vreemde factuur-PDF → 404, vreemde samenwerking → `notFound()` (geen datalek); junk/traversal/
+  sqli/xss-id's → nooit 500. Onafhankelijke diepe Opus-security-audit over alle 51 `actions.ts` + API-routes:
+  **CLEAN**.
+- Details + repro in `docs/PERSONA-SWEEP-BACKLOG.md` (run 29). Docs-only PR; geen code-fix nodig.
+
 ## 2026-07-15 — Tarief-passendheid-chip op de opdrachtenlijst (ZZP'er)
 
 **Waarde:** op `/opdrachten` (de find-work/triage-lijst) toont elke kaart al ZZP-zijdige signalen
