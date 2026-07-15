@@ -260,6 +260,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Compliance-ripple next-action voor de opdrachtgever (2026-07-15, PR #777)** — de
+> opdrachtgever-compliance-ripple (een lopende samenwerking waarvan de ZZP'er een vereist certificaat
+> mist/verlopen/binnenkort-verlopend heeft) verscheen wél op de dashboard-momentopname + `/samenwerkingen`-lijst,
+> maar ontbrak als item-taak in `/acties`, de "Volgende acties"-rail en de zijbalk-badge — die surfaces gebruiken
+> sinds de migratie uitsluitend de item-engine (`pending-tasks.ts`), terwijl de dode aggregaat-engine
+> (`clientNextActions`) het als hoogste opdrachtgever-actie (`P.complianceRipple=85`) had. Twee next-action-surfaces
+> spraken elkaar tegen. Nu een nieuwe pure builder `clientComplianceTask` (`tasks.ts`): NON_COMPLIANT
+> (ontbrekend/verlopen = acuut gat) → `P.complianceRipple` (85, attention); WARNING (binnenkort-verlopend/in
+> beoordeling) → `P.credentialExpiring` (70). Eén taak per samenwerking, deep-link naar het samenwerkingsdetail;
+> `kind: "client-compliance"` valt via de `default`-tak van `action-list.tsx` op de link-resolver (geen UI-wiring).
+> Wiring in `clientTasks` via de bestaande, geteste `clientCredentialAlerts(userId)` (eigenaar-gescoopt,
+> take-begrensd) in de `Promise.all`. Spiegelt de bemiddelaar-`franchiseCredentialExpiryTask`. Read-only qua
+> datamodel, geen nieuw mutatie/auth-oppervlak, geen N+1. +8 tests. Gate groen (4200 tests, build ✓).
+>
 > Gedaan (niet opnieuw): **Tarief-passendheid-chip op de opdrachtenlijst (ZZP'er) (2026-07-15, PR #775)** —
 > op `/opdrachten` (find-work/triage-lijst) toonde elke kaart al ZZP-zijdige signalen (match, reistijd,
 > concurrentie, betaalgedrag, startdatum-beschikbaarheid) maar géén oordeel of het opdrachtbudget past bij

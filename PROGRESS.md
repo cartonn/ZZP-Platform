@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 — Compliance-ripple next-action voor de opdrachtgever (#777)
+
+**Waarde:** de opdrachtgever ziet nu in `/acties`, de "Volgende acties"-rail én de zijbalk-badge zijn
+zwaarst-wegende compliance-signaal: een lopende samenwerking waarvan de ZZP'er een vereist certificaat
+mist/verlopen/binnenkort-verlopend heeft ("geruster" — compliance-risico op lopend werk wordt actionabel).
+
+- **Naad gedicht:** dit signaal leefde in de aggregaat-engine (`clientNextActions`, `P.complianceRipple=85`,
+  hoogste opdrachtgever-actie) — maar die engine is **dode code** sinds alles via de item-engine
+  (`pending-tasks.ts`) loopt (die `/acties`, dashboard-rail, notificaties én de zijbalk-badge voedt). De
+  compliance-ripple ontbrak daar volledig; hij stond alleen op de dashboard-momentopname + `/samenwerkingen`-
+  lijst. Twee next-action-surfaces spraken elkaar tegen.
+- **Fix:** nieuwe pure builder `clientComplianceTask` (`tasks.ts`) — NON_COMPLIANT (ontbrekend/verlopen =
+  acuut gat) → `P.complianceRipple` (85, tone attention); WARNING (binnenkort-verlopend/in beoordeling) →
+  `P.credentialExpiring` (70). Eén taak per samenwerking, deep-link naar het samenwerkingsdetail. Wiring in
+  `clientTasks` via de bestaande, geteste `clientCredentialAlerts(userId)` (eigenaar-gescoopt, take-begrensd)
+  toegevoegd aan de `Promise.all`. Nieuwe `kind: "client-compliance"` valt via de `default`-tak van
+  `action-list.tsx` op de link-resolver — geen UI-wiring nodig. Spiegelt de bemiddelaar-`franchiseCredentialExpiryTask`.
+- **Read-only qua datamodel:** geen schemawijziging, geen nieuw mutatie/auth-oppervlak, geen N+1.
+- **Bestanden:** `src/lib/actions/tasks.ts`, `src/lib/actions/pending-tasks.ts`,
+  `src/lib/actions/tasks.test.ts` (+5 builder-tests), `src/lib/actions/pending-tasks-client-compliance.test.ts`
+  (nieuw, +3 wiring-tests). Gate groen (typecheck, lint, **4200 unit-tests**, build, prettier).
+
 ## 2026-07-15 — Persona-sweep run 29: geen gaten (DOEL 1/1b/2 schoon, 4 rollen)
 
 **Waarde:** kritische-gebruiker-sweep over alle vier de rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) tegen een

@@ -20,9 +20,11 @@ import {
   draftJobsTask,
   franchiseCredentialExpiryTask,
   franchiseLeadFollowupTask,
+  clientComplianceTask,
   vatDeadlineTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
+import { type CredentialAlert } from "@/lib/collaboration-alerts";
 import { summarizeVatDeadline } from "@/lib/administration/vat-deadline";
 
 describe("rankTasks", () => {
@@ -338,5 +340,81 @@ describe("vatDeadlineTask", () => {
     );
     const t = vatDeadlineTask(summary);
     expect(t.subtitle).toContain("terug te vorderen");
+  });
+});
+
+describe("clientComplianceTask", () => {
+  const emptyAlert: CredentialAlert = {
+    status: "COMPLIANT",
+    missing: [],
+    expired: [],
+    expiringSoon: [],
+    inReview: [],
+  };
+
+  it("ontbrekend certificaat = acuut gat: attention + complianceRipple-band", () => {
+    const t = clientComplianceTask("collab-1", "Sanne", "Verpleegkundige", {
+      ...emptyAlert,
+      status: "NON_COMPLIANT",
+      missing: ["VOG"],
+    });
+    expect(t.kind).toBe("client-compliance");
+    expect(t.id).toBe("client-compliance:collab-1");
+    expect(t.href).toBe("/samenwerkingen/collab-1");
+    expect(t.title).toBe("Sanne mist een vereist certificaat (VOG)");
+    expect(t.subtitle).toContain("Verpleegkundige");
+    expect(t.subtitle).toContain("vernieuwen");
+    expect(t.tone).toBe("attention");
+    expect(t.priority).toBe(P.complianceRipple);
+  });
+
+  it("verlopen certificaat = acuut gat: complianceRipple-band", () => {
+    const t = clientComplianceTask("c2", "Bram", "Nachtdienst", {
+      ...emptyAlert,
+      status: "NON_COMPLIANT",
+      expired: ["INSURANCE"],
+    });
+    expect(t.title).toBe("Certificaat van Bram is verlopen (Verzekering)");
+    expect(t.priority).toBe(P.complianceRipple);
+  });
+
+  it("binnenkort verlopend = waarschuwing: lagere expiring-band, handel-vóór-vervalt-subtitle", () => {
+    const t = clientComplianceTask("c3", "Iris", "Dagdienst", {
+      ...emptyAlert,
+      status: "WARNING",
+      expiringSoon: ["DIPLOMA"],
+    });
+    expect(t.title).toBe("Certificaat van Iris verloopt binnenkort (Diploma)");
+    expect(t.subtitle).toContain("vóór het certificaat vervalt");
+    expect(t.priority).toBe(P.credentialExpiring);
+    expect(t.priority).toBeLessThan(P.complianceRipple);
+  });
+
+  it("in beoordeling = waarschuwing: expiring-band", () => {
+    const t = clientComplianceTask("c4", "Youssef", "Weekenddienst", {
+      ...emptyAlert,
+      status: "WARNING",
+      inReview: ["CERTIFICATE"],
+    });
+    expect(t.title).toBe("Certificaat van Youssef in beoordeling (Certificaat)");
+    expect(t.priority).toBe(P.credentialExpiring);
+  });
+
+  it("gap (ontbrekend) rangschikt vóór warning (verlopend) via rankTasks", () => {
+    const warning = clientComplianceTask("c-warn", "A", "Job A", {
+      ...emptyAlert,
+      status: "WARNING",
+      expiringSoon: ["VOG"],
+    });
+    const gap = clientComplianceTask("c-gap", "B", "Job B", {
+      ...emptyAlert,
+      status: "NON_COMPLIANT",
+      missing: ["VOG"],
+    });
+    const ranked = rankTasks([warning, gap]);
+    expect(ranked.map((t) => t.id)).toEqual([
+      "client-compliance:c-gap",
+      "client-compliance:c-warn",
+    ]);
   });
 });
