@@ -63,6 +63,18 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   SDK-dependency (praat via fetch met de REST-API). Resterend mensenwerk: alleen een (gratis)
   Upstash-Redis-database in een EU-regio aanmaken, de REST-URL + token in de Railway-secrets zetten
   en `RATE_LIMIT_STORE=upstash` zetten — daarna gelden de limieten over alle instances samen.
+  **Code-kant GEDAAN (2026-07-15) — connectiviteitszelftest:** omdat de Upstash-store bewust
+  **fail-open** is (een Redis-storing mag login/registratie niet platleggen), zou een verkeerd
+  geplakte REST-URL/token **stil** falen — de limieten gelden dan in werkelijkheid niet gedeeld,
+  terwijl niets dat toont. Op `/admin/systeemstatus` (admin-only) kun je nu de **Rate-limit-zelftest**
+  draaien: die doet een echte round-trip tegen de geconfigureerde store (INCR → PEXPIRE/PTTL → DEL →
+  EXISTS) onder een eigen `rl:selftest:`-key en **surfacet fouten** (geen fail-open) zodat een kapotte
+  configuratie meteen zichtbaar is (`src/lib/services/ratelimit-selftest.ts`, actie in
+  `.../systeemstatus/actions.ts`). Staat de store nog op `memory`, dan meldt het scherm eerlijk "geen
+  gedeelde store actief — er is niets getest" (geen vals groen). De uitvoer bevat nooit secrets (alleen
+  stap-uitkomsten + store-modus), loopt door de authz-keten (rol → rate-limit → audit) en laat nooit
+  een probe-key achter. Resterend mensenwerk: **niets extra** — de knop is er zodra
+  `RATE_LIMIT_STORE=upstash` staat.
 - **Externe error-monitoring (Sentry) aanzetten** (laag, code-kant GEDAAN 24-6-2026): server-fouten
   worden nu gestructureerd en PII-veilig gelogd (`src/lib/observability/`), met een readiness-endpoint
   (`/api/readiness`, los van `/api/health`) en een error-reporting-grens die Next.js-server-fouten

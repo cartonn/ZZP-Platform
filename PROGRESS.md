@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 (3e) — Prod: rate-limit-store (Upstash) connectiviteitszelftest op /admin/systeemstatus
+
+**Ronde:** orchestrator (Opus 4.8), één klein productie-rijpheid-increment. Sluit het laatste gat in de
+zelftest-reeks: opslag (§1c) en e-mail (§2) hadden al een connectiviteitszelftest, de gedeelde
+rate-limit-store (Upstash, MENSENWERK §0b H-2) nog niet.
+
+- **Waarom dit telt:** de Upstash-store is bewust **fail-open** (`UpstashRateLimitStore.consume` — een
+  Redis-storing mag login/registratie niet platleggen). Een verkeerd geplakte REST-URL/token faalt
+  daardoor **stil**: de limieten gelden dan niet gedeeld over de instances, terwijl niets dat toont. De
+  beheerder had geen manier om vóór horizontale schaling te bevestigen dat Upstash écht bekabeld is.
+- **Gebouwd:** pure kern `src/lib/services/ratelimit-selftest.ts` doet een echte round-trip (INCR →
+  PEXPIRE/PTTL → DEL → EXISTS) via een geïnjecteerde Upstash-pipeline en **surfacet fouten** (geen
+  fail-open); nieuwe publieke `UpstashRateLimitStore.runProbeCommands` als seam; server-actie
+  `runRateLimitSelfTestAction` (auth ADMIN → rate-limit → actie → audit `RATELIMIT_SELFTEST_RUN`);
+  client-component `RateLimitSelfTest` gewired op `/admin/systeemstatus`. Op `RATE_LIMIT_STORE=memory`
+  meldt het scherm eerlijk "geen gedeelde store actief — er is niets getest" (geen vals groen). Geen
+  secrets in uitvoer (alleen stap-uitkomsten + store-modus, fouten = error-naam), nooit een probe-key
+  achtergelaten (finally-cleanup).
+- **Eigen rate-limiter draait op de in-memory store** zodat de zelftest-rem blijft werken terwijl je
+  juist de Upstash-verbinding test (`RATELIMIT_SELFTEST_RATE_LIMIT`, default 6/5 min).
+- **Bestanden:** `src/lib/services/ratelimit-selftest.ts` (+test, 6 cases), `src/lib/rate-limit.ts`
+  (+`runProbeCommands` + `rateLimitSelfTestRateLimiter`), `src/app/(protected)/admin/systeemstatus/`
+  (`actions.ts` + `page.tsx`), `src/components/admin/ratelimit-selftest.tsx`, MENSENWERK.md §0b.
+- **Volgende stap:** menselijke reststap ongewijzigd — Upstash-DB (EU-regio) + secrets +
+  `RATE_LIMIT_STORE=upstash`; daarna bevestigt de knop de bekabeling.
+
 ## 2026-07-15 (2e) — Security-/privacy-audit: AVG art. 30 register-volledigheid voor drie reputatie-signalen — GEFIXT
 
 **Ronde:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende

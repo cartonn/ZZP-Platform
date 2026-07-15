@@ -212,6 +212,16 @@ export class UpstashRateLimitStore implements RateLimitStore {
       });
     }
   }
+
+  /**
+   * Voert een rauwe pipeline uit voor de admin-connectiviteitszelftest (/admin/systeemstatus).
+   * Anders dan `consume`/`reset` **surfacet** dit fouten (geen fail-open): de zelftest wil een
+   * kapotte Upstash-configuratie juist zien, niet stil doorlaten. De caller geeft de volledige
+   * (al genamespacete) key mee; deze methode raakt géén echte rate-limit-tellers.
+   */
+  async runProbeCommands(commands: (string | number)[][]): Promise<unknown[]> {
+    return this.pipeline(commands);
+  }
 }
 
 /**
@@ -497,4 +507,20 @@ export const mailSelfTestRateLimiter = new RateLimiter(
   limitFromEnv("MAIL_SELFTEST_RATE_LIMIT", 4),
   5 * 60_000,
   "mailselftest:",
+);
+
+/**
+ * Maximaal RATELIMIT_SELFTEST_RATE_LIMIT (default 6) rate-limit-store-zelftests per beheerder per 5
+ * minuten. De admin-actie (/admin/systeemstatus) doet een echte round-trip (INCR/PEXPIRE/PTTL/DEL/
+ * EXISTS) tegen de geconfigureerde Upstash-store. De rem houdt een per ongeluk herhaalde klik of een
+ * script binnen de perken zonder de normale, incidentele controle te hinderen (parity met de
+ * opslag-zelftest). Deze limiter draait bewust op de in-memory store (`MemoryRateLimitStore`) zodat
+ * hij ook werkt terwijl de Upstash-verbinding juist wordt getest — anders zou een kapotte Upstash de
+ * eigen zelftest-rem fail-openen of laten hangen.
+ */
+export const rateLimitSelfTestRateLimiter = new RateLimiter(
+  new MemoryRateLimitStore(),
+  limitFromEnv("RATELIMIT_SELFTEST_RATE_LIMIT", 6),
+  5 * 60_000,
+  "ratelimitselftest:",
 );
