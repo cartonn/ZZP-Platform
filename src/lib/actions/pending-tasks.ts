@@ -35,6 +35,7 @@ import {
   identityVerifyTask,
   companyCompletenessTask,
   credentialFixTask,
+  credentialCollabExpiryTask,
   mandatoryDocumentTask,
   adminVerifyCredentialTask,
   adminActivateUserTask,
@@ -57,6 +58,10 @@ import {
 } from "@/lib/actions/tasks";
 import { getVatDeadlineForActor } from "@/lib/data/vat-deadline";
 import { clientCredentialAlerts } from "@/lib/collaboration-alerts";
+import {
+  collaborationCredentialExpiryConcerns,
+  type CollabCredentialInput,
+} from "@/lib/collaboration-credential-expiry";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 
@@ -143,6 +148,11 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   const tasks: PendingTask[] = [];
   const now = new Date();
   const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
+  // Alle certificaten (voor de samenwerking-gebonden verval-check verderop) + de generieke
+  // verlopende certificaten (uitgesteld: pas emitten zodra we weten welke door een samenwerking
+  // worden gedekt, zodat hetzelfde certificaat niet dubbel verschijnt).
+  let allCreds: CollabCredentialInput[] = [];
+  const expiringCreds: { id: string; title: string }[] = [];
 
   const [profile, account, overdue, unread] = await Promise.all([
     // Gedeelde, request-gecachte profiel-load (zie getCompletenessProfile): op het dashboard
@@ -182,6 +192,13 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       select: { id: true, title: true, type: true, status: true, expiresAt: true },
       take: MAX,
     });
+    allCreds = creds.map((c) => ({
+      id: c.id,
+      title: c.title,
+      type: c.type as CollabCredentialInput["type"],
+      status: c.status as CollabCredentialInput["status"],
+      expiresAt: c.expiresAt,
+    }));
     for (const c of creds) {
       if (c.status === "REJECTED") tasks.push(credentialFixTask(c.id, c.title, "rejected"));
       else if (
@@ -190,7 +207,8 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         c.expiresAt > now &&
         c.expiresAt <= soon
       )
-        tasks.push(credentialFixTask(c.id, c.title, "expiring"));
+        // Uitgesteld: kan een samenwerking-gebonden verval-taak worden (dedup verderop).
+        expiringCreds.push({ id: c.id, title: c.title });
     }
     // Ontbrekend/verlopen verplicht document = taak (blokkeert inzetbaarheid). In beoordeling
     // = geen taak: daar is de admin aan zet, niet de ZZP'er.
@@ -238,7 +256,12 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     select: {
       id: true,
       status: true,
-      job: { select: { title: true } },
+      job: {
+        select: {
+          title: true,
+          credentialRequirements: { where: { required: true }, select: { credentialType: true } },
+        },
+      },
       company: { select: { name: true } },
       // Meest recente prestatie eerst: die bepaalt de fase (spiegelt cascade/stage.ts). We halen
       // de status op (niet alleen de REJECTED-rijen) zodat we óók "nog geen prestatie" kunnen zien.
@@ -289,6 +312,45 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
         );
       }
     }
+  }
+
+  // Vereist certificaat van een lopende/voorgestelde samenwerking dat binnenkort verloopt: één
+  // gerichte, samenwerking-gebonden taak per certificaat (urgenter dan de generieke verval-taak).
+  // De gedekte certificaten worden hieronder van de generieke lijst afgetrokken → geen dubbele taak.
+  const coveredExpiringCredIds = new Set<string>();
+  const collabConcerns = collaborationCredentialExpiryConcerns({
+    collaborations: collabs.map((c) => ({
+      collaborationId: c.id,
+      companyName: c.company.name,
+      jobTitle: c.job.title,
+      requiredTypes: c.job.credentialRequirements.map(
+        (r) => r.credentialType as CollabCredentialInput["type"],
+      ),
+    })),
+    credentials: allCreds,
+    now,
+  });
+  for (const concern of collabConcerns) {
+    coveredExpiringCredIds.add(concern.credentialId);
+    const [primary, ...rest] = concern.collaborations;
+    if (!primary) continue; // collaborations is altijd ≥ 1 (invariant), maar houdt de types nauw
+    tasks.push(
+      credentialCollabExpiryTask({
+        credId: concern.credentialId,
+        credentialTitle: concern.credentialTitle,
+        daysUntilExpiry: concern.daysUntilExpiry,
+        collabId: primary.collaborationId,
+        companyName: primary.companyName,
+        jobTitle: primary.jobTitle,
+        extraCollabCount: rest.length,
+      }),
+    );
+  }
+  // Generieke "certificaat verloopt binnenkort"-taken voor de certificaten die géén lopende
+  // samenwerking dekt (anders zou hetzelfde certificaat dubbel verschijnen).
+  for (const ec of expiringCreds) {
+    if (coveredExpiringCredIds.has(ec.id)) continue;
+    tasks.push(credentialFixTask(ec.id, ec.title, "expiring"));
   }
 
   for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));

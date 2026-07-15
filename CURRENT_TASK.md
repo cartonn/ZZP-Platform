@@ -260,6 +260,22 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Proactieve certificaat-verval-waarschuwing per lopende samenwerking (ZZP'er) (2026-07-15, PR #784)** —
+> de ZZP'er kreeg alleen een **generieke** "certificaat verloopt binnenkort"-taak (`credentialFixTask(..., "expiring")`),
+> die op elk verlopend geverifieerd certificaat vuurt ongeacht of er een opdracht op leunt en geen samenwerking noemt.
+> De opdrachtgever zag de andere kant al gericht (kandidaten-scherm: verval-tijdens-opdracht via
+> `summarizeCandidateCredentialExpiry`), maar de ZZP'er werd nooit gewaarschuwd dat het verval een concrete
+> samenwerking dreigt te blokkeren. Nu een gerichte, samenwerking-gebonden next-action — **"VOG verloopt tijdens je
+> opdracht · Verloopt over 8 dagen · vernieuw het voor je opdracht bij Zorggroep Noord (Wijkverpleegkundige)"** —
+> geruster + slimmer: oplossen vóór het een blokkade wordt (benchmark Pidz/Zorgwerk compliance-bewaking). Pure
+> `collaboration-credential-expiry.ts` (`collaborationCredentialExpiryConcerns`: laatst-vervallend geldig
+> VERIFIED-certificaat per type × vereiste certificaten van lopende/voorgestelde samenwerkingen, binnen 30-daags
+> venster, gegroepeerd per certificaat, gesorteerd op vroegste verval; 10 tests) + builder `credentialCollabExpiryTask`
+> (nieuwe kind, `P.credentialExpiringForCollab = 75` — boven generiek 70, onder afgewezen 80; 4 tests). Wiring in
+> `freelancerTasks`: generieke verval-taken **uitgesteld** en alleen geëmit voor niet-gedekte certificaten → geen
+> dubbele taak. Reeds-verlopen/ontbrekend vereist certificaat blijft elders (verplicht-document/compliance-ripple).
+> Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate groen (typecheck, lint, 4242 unit-tests, build).
+>
 > Gedaan (niet opnieuw): **Tarief-diagnose op een koud lopende opdracht (opdrachtgever) (2026-07-15, PR #783)** —
 > op "Mijn opdrachten" (`/opdrachten`, CLIENT-view) toonde het vacaturetempo-signaal
 > (`summarizeVacancyPerformance`) al dát een opdracht koud loopt ("Weinig respons, X dagen open"), maar gaf
