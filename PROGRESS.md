@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 (5e) — Routine: proactieve certificaat-verval-waarschuwing per lopende samenwerking (ZZP'er)
+
+**Ronde:** orchestrator (Opus 4.8), één klein next-action-increment voor de ZZP'er (PR #784).
+
+- **Waarom dit telt:** de ZZP'er kreeg tot nu toe alleen een **generieke** "certificaat verloopt
+  binnenkort"-taak (`credentialFixTask(..., "expiring")`) — die vuurt op elk verlopend geverifieerd
+  certificaat, ongeacht of er een lopende opdracht op leunt, en noemt geen enkele samenwerking. De
+  opdrachtgever zag de andere kant al wél gericht (kandidaten-scherm: "verval-tijdens-opdracht" via
+  `summarizeCandidateCredentialExpiry`), maar de ZZP'er werd nooit gewaarschuwd dat het verval een
+  **concrete** samenwerking dreigt te blokkeren. Nu een gerichte, samenwerking-gebonden next-action:
+  **"VOG verloopt tijdens je opdracht · Verloopt over 8 dagen · vernieuw het voor je opdracht bij
+  Zorggroep Noord (Wijkverpleegkundige)"** — geruster + slimmer: los het op vóór het een blokkade
+  wordt. Benchmark Pidz/Zorgwerk compliance-bewaking.
+- **Gebouwd:** pure `src/lib/collaboration-credential-expiry.ts`
+  (`collaborationCredentialExpiryConcerns`: koppelt per type het laatst-vervallende, nu-geldige
+  VERIFIED-certificaat aan de VEREISTE certificaten van lopende/voorgestelde samenwerkingen; alleen
+  binnen het 30-daags venster; groepeert samenwerkingen per certificaat; sorteert op vroegste verval;
+  11 tests) + nieuwe builder `credentialCollabExpiryTask` (nieuwe kind `credential-collab-expiry`,
+  `resolver: "link"` → `/certificaten/[id]/bewerken`, nieuwe prioriteit `P.credentialExpiringForCollab
+= 75`, urgenter dan generiek verlopend (70) maar onder afgewezen (80); 4 tests). Wiring in
+  `freelancerTasks` (`pending-tasks.ts`): de generieke verval-taken worden **uitgesteld** en alleen
+  geëmit voor certificaten die géén samenwerking dekt → **geen dubbele taak**. Collabs-query breidt uit
+  met `job.credentialRequirements` (alleen `required`).
+- **Reeds verlopen/ontbrekend** vereist certificaat = acuut compliance-gat, elders afgehandeld
+  (verplicht-document-taak / compliance-ripple) — bewust buiten dit vooruitkijkende signaal.
+- **Gate:** typecheck ✓, lint ✓, prettier ✓, **4242 unit-tests** ✓, build (CI-poort verifieert e2e).
+  Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
 ## 2026-07-15 (4e) — Routine: tarief-diagnose op een koud lopende opdracht (opdrachtgever)
 
 **Ronde:** orchestrator (Opus 4.8), één klein UX/data-increment voor de opdrachtgever. Verbindt twee
