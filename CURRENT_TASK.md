@@ -270,7 +270,7 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 > geruster + slimmer: oplossen vóór het een blokkade wordt (benchmark Pidz/Zorgwerk compliance-bewaking). Pure
 > `collaboration-credential-expiry.ts` (`collaborationCredentialExpiryConcerns`: laatst-vervallend geldig
 > VERIFIED-certificaat per type × vereiste certificaten van lopende/voorgestelde samenwerkingen, binnen 30-daags
-> venster, gegroepeerd per certificaat, gesorteerd op vroegste verval; 11 tests) + builder `credentialCollabExpiryTask`
+> venster, gegroepeerd per certificaat, gesorteerd op vroegste verval; 10 tests) + builder `credentialCollabExpiryTask`
 > (nieuwe kind, `P.credentialExpiringForCollab = 75` — boven generiek 70, onder afgewezen 80; 4 tests). Wiring in
 > `freelancerTasks`: generieke verval-taken **uitgesteld** en alleen geëmit voor niet-gedekte certificaten → geen
 > dubbele taak. Reeds-verlopen/ontbrekend vereist certificaat blijft elders (verplicht-document/compliance-ripple).

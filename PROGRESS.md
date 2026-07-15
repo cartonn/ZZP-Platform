@@ -20,7 +20,7 @@
   (`collaborationCredentialExpiryConcerns`: koppelt per type het laatst-vervallende, nu-geldige
   VERIFIED-certificaat aan de VEREISTE certificaten van lopende/voorgestelde samenwerkingen; alleen
   binnen het 30-daags venster; groepeert samenwerkingen per certificaat; sorteert op vroegste verval;
-  11 tests) + nieuwe builder `credentialCollabExpiryTask` (nieuwe kind `credential-collab-expiry`,
+  10 tests) + nieuwe builder `credentialCollabExpiryTask` (nieuwe kind `credential-collab-expiry`,
   `resolver: "link"` → `/certificaten/[id]/bewerken`, nieuwe prioriteit `P.credentialExpiringForCollab
 = 75`, urgenter dan generiek verlopend (70) maar onder afgewezen (80); 4 tests). Wiring in
   `freelancerTasks` (`pending-tasks.ts`): de generieke verval-taken worden **uitgesteld** en alleen

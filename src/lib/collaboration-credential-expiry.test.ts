@@ -39,9 +39,9 @@ describe("collaborationCredentialExpiryConcerns", () => {
       now: NOW,
     });
     expect(result).toHaveLength(1);
-    expect(result[0].credentialId).toBe("cred-vog");
-    expect(result[0].daysUntilExpiry).toBe(10);
-    expect(result[0].collaborations).toEqual([
+    expect(result[0]!.credentialId).toBe("cred-vog");
+    expect(result[0]!.daysUntilExpiry).toBe(10);
+    expect(result[0]!.collaborations).toEqual([
       {
         collaborationId: "collab-1",
         companyName: "Zorggroep Noord",
@@ -96,7 +96,7 @@ describe("collaborationCredentialExpiryConcerns", () => {
       now: NOW,
     });
     expect(result).toHaveLength(1);
-    expect(result[0].collaborations.map((c) => c.collaborationId)).toEqual([
+    expect(result[0]!.collaborations.map((c) => c.collaborationId)).toEqual([
       "collab-1",
       "collab-2",
     ]);
@@ -134,7 +134,7 @@ describe("collaborationCredentialExpiryConcerns", () => {
       now: NOW,
     });
     expect(result).toHaveLength(1);
-    expect(result[0].collaborations).toHaveLength(1);
+    expect(result[0]!.collaborations).toHaveLength(1);
   });
 
   it("klemt daysUntilExpiry op 0 bij verval binnen 24 uur", () => {
@@ -143,6 +143,6 @@ describe("collaborationCredentialExpiryConcerns", () => {
       credentials: [cred({ expiresAt: new Date(NOW.getTime() + 6 * 60 * 60 * 1000) })],
       now: NOW,
     });
-    expect(result[0].daysUntilExpiry).toBe(0);
+    expect(result[0]!.daysUntilExpiry).toBe(0);
   });
 });
