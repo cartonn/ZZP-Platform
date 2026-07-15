@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-15 (4e) — Routine: tarief-diagnose op een koud lopende opdracht (opdrachtgever)
+
+**Ronde:** orchestrator (Opus 4.8), één klein UX/data-increment voor de opdrachtgever. Verbindt twee
+al bestaande, geteste bouwstenen die nog nergens gecombineerd waren.
+
+- **Waarom dit telt:** het vacaturetempo-signaal (`summarizeVacancyPerformance`) toont op "Mijn
+  opdrachten" al dát een opdracht koud loopt ("Weinig respons, X dagen open"), maar geeft alleen een
+  generieke tip ("overweeg tarief/eisen/zichtbaarheid bij te stellen") — het controleert het tarief
+  nooit tegen de markt. De marktband-engine (`computeMarketBand`/`getJobRateBands`) bestond al, maar
+  werd uitsluitend op het opdracht-formulier getoond. Nu ziet de opdrachtgever bij een koude opdracht
+  de meest waarschijnlijke — en direct oplosbare — oorzaak, cijfermatig: **"Je biedt tot € 45/u,
+  terwijl het markttarief rond € 60/u ligt. Een hoger tarief trekt doorgaans meer kandidaten."**
+  Verandert "reacties blijven uit, geen idee waarom" in een meetbare knop; raakt de kernmetric
+  (vervullingsgraad). Benchmark Malt/Upwork rate-guidance.
+- **Gebouwd:** pure `src/lib/vacancy-rate-diagnosis.ts` (`diagnoseVacancyRate`): fireert **alleen** bij
+  `attention` (koud/stil-met-weinig-reacties) **én** een begrensde bovengrens (`rateMax != null`)
+  **én** `rateMax < markt-mediaan` — anders `null` (kaart blijft rustig). Bewust de mediaan als drempel
+  (niet p25): pas wanneer méér dan de helft van de markt boven je bovengrens verdient, is "tarief" de
+  aannemelijke oorzaak. Open-eind tarief ("€X+/uur", `rateMax null`) → geen "te laag"-claim. Toont
+  uitsluitend de geaggregeerde mediaan, nooit een individueel ZZP-tarief (k-anonimiteit zit al in
+  `computeMarketBand`). Presentationele `VacancyRateDiagnosisNote` + wiring in `ClientJobs`
+  (`opdrachten/(index)/page.tsx`): de marktband wordt maar één keer geladen en alleen wanneer er een
+  koude kandidaat-opdracht met begrensd tarief is (geen N+1, geen query zonder noodzaak).
+- **Bestanden:** `src/lib/vacancy-rate-diagnosis.ts` (+test, 7 cases), `src/components/jobs/
+vacancy-rate-diagnosis-note.tsx`, `src/app/(protected)/opdrachten/(index)/page.tsx` (wiring).
+  Read-only qua datamodel: geen schemawijziging, geen nieuw mutatie/auth-oppervlak, i18n-woordenboek
+  niet aangeraakt.
+- **Volgende stap:** volgende backlog-item; deze diagnose kan later ook op de opdracht-detailpagina
+  (`opdrachten/[id]`) landen als de opdrachtgever daar dieper inzoomt.
+
 ## 2026-07-15 (3e) — Prod: rate-limit-store (Upstash) connectiviteitszelftest op /admin/systeemstatus
 
 **Ronde:** orchestrator (Opus 4.8), één klein productie-rijpheid-increment. Sluit het laatste gat in de
