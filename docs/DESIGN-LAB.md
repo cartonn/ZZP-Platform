@@ -941,6 +941,41 @@ UI-taal = Nederlands.
   **performance-/momentum-dashboards** — elk AA-/contrast-bewust en onderscheidend van de bestaande 320.
 - **Totaal nu op `/ontwerp`: 330 concepten** (reeks 33: 321–330).
 
+## Reeks 34 — 331–340 (atmosfeer, ambacht & ruimtelijke data)
+
+- **331 Nevel** — atmosferische mesh-gradient / sfeer als hiërarchie (light, indigo→cyaan→roze):
+  zachte functionele mesh-gradients (Stripe/Apple-Music-evolutie 2026) als kleurige waas achter
+  bijna-witte glaskaarten; de gradient stuurt focus (niet Aurora/Progressive-blur — licht & diffuus
+  met gradient als hiërarchie).
+- **332 Reliëf** — neumorfisme / levend tactiel mono-reliëf (soft grijs): alles uit één geëmboss
+  materiaal, opstaande knoppen & ingedrukte velden met dubbele schaduw, maar contrast-bewust en
+  status altijd label+icoon (niet Klei/Emaille — monochroom soft-UI i.p.v. kleurige klei).
+- **333 Sferisch** — immersieve 3D-relatiegraaf / ruimtelijke matching (dark): matching als
+  gloeiende relatie-graaf (ZZP'er↔opdracht↔certificaat) in gelaagde translucente panelen met echte
+  z-diepte (niet Spatial-depth/Knooppunt — spatial-data-viz van de match zelf).
+- **334 Zine** — handgemaakte collage & fotokopie-textuur (anti-perfectie, warm papier): knip-plak
+  collage, halftone-korrel, plakband-hoekjes en marker-onderstreping, tóch leesbaar (de 2026
+  anti-perfectie/handcraft-rebellie).
+- **335 Aquarel** — geschilderde wassingen / zachte pigmentwarmte (light): bloedende waterverf-vlekken
+  als accenten, geschilderde statuskleuren, serif-elegantie — menselijke warmte tegen steriele perfectie.
+- **336 Kinfolk** — fotografisch redactioneel / warm magazine (warm light): grote redactionele koppen,
+  royale marges, full-bleed duotoon-beeldvlakken en bijschrift-typografie (magazine-rust, niet Folio/Verhaal).
+- **337 Riso** — risograaf duotoon-fluor / halftone-grain (bold): twee fluor spot-inkten die overprinten
+  met halftone-punten en mis-registratie-offset op ongebleekt papier (niet Silkscreen/Pop-art — riso-print-ambacht).
+- **338 Grafiet** — handgetekend potlood-schets / technisch-editorial (mono + potlood-blauw): schets-wireframe-
+  lijnen, grid-papier en handgeschreven annotaties naast strakke technische data (niet Blauwdruk — potlood i.p.v. cyanotype).
+- **339 Kompres** — database-canvas / Notion-Airtable-velden (light + violet): kleur-getagde select-velden,
+  inline-bewerkbare cellen, type-iconen en een record-zijpaneel (spreadsheet-native productiviteit, niet Beurs/Grootboek).
+- **340 Galerie** — museumzaal / white-cube curatie (light): elk datapunt hangt als een werk met klein
+  expositielabel en dunne passe-partout in overvloedige witruimte (curatie & rust, niet Veilinghuis/Etalage).
+- Onderzochte 2026-trends deze reeks: **functionele atmosferische mesh-gradients**; **neumorfisme /
+  living-interfaces tactiel**; **spatial UI & 3D-relatie-/netwerkvisualisatie**; **anti-perfectie
+  handcraft/zine-esthetiek**; **geschilderde aquarel-warmte tegen steriele perfectie**; **redactioneel
+  magazine-minimalisme**; **risograaf/duotoon print-ambacht**; **hand-drawn schets-wireframes**;
+  **database-/spreadsheet-native UI (Notion/Airtable)**; **white-cube museale curatie** — elk
+  contrast-bewust en onderscheidend van de bestaande 330.
+- **Totaal nu op `/ontwerp`: 340 concepten** (reeks 34: 331–340).
+
 ## Reeks 35 (341–350)
 
 > Reeks 34 (331–340) landt via PR #778 (Nevel, Reliëf, Sferisch, Zine, Aquarel, Kinfolk, Riso, Grafiet,

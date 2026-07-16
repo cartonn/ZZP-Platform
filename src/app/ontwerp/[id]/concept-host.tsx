@@ -997,6 +997,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "330": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-330-momentum").then((m) => m.Concept330),
   ),
+  "331": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-331-nevel").then((m) => m.Concept331),
+  ),
+  "332": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-332-relief").then((m) => m.Concept332),
+  ),
+  "333": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-333-sferisch").then((m) => m.Concept333),
+  ),
+  "334": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-334-zine").then((m) => m.Concept334),
+  ),
+  "335": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-335-aquarel").then((m) => m.Concept335),
+  ),
+  "336": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-336-kinfolk").then((m) => m.Concept336),
+  ),
+  "337": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-337-riso").then((m) => m.Concept337),
+  ),
+  "338": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-338-grafiet").then((m) => m.Concept338),
+  ),
+  "339": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-339-kompres").then((m) => m.Concept339),
+  ),
+  "340": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-340-galerie").then((m) => m.Concept340),
+  ),
   "341": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-341-meridiaan").then((m) => m.Concept341),
   ),
