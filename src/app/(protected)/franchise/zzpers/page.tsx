@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Users, MapPin, Euro, Calendar, Search, Briefcase } from "lucide-react";
+import { Users, MapPin, Euro, Calendar, CalendarClock, Search, Briefcase } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
@@ -36,6 +36,12 @@ import {
   placeableChipLabel,
   placeableHeadline,
 } from "@/lib/franchise/roster-placement";
+import {
+  freeDateFromActiveCollaborations,
+  forecastChipLabel,
+  summarizeRosterForecast,
+  rosterForecastHeadline,
+} from "@/lib/franchise/roster-availability-forecast";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { avatarAccent } from "@/lib/avatar-accent";
 import { PageHeader } from "@/components/ui/page-header";
@@ -88,6 +94,9 @@ interface RosterCard extends RosterZzper {
   /** Aantal open tenant-diensten waarop deze (vrij-inzetbare) ZZP'er plaatsbaar is; 0 voor wie al
    *  is ingezet of (nog) niet inzetbaar — daar heeft een plaatsingssuggestie geen zin. */
   placeableDiensten: number;
+  /** Vrijkomdatum (laatste ACTIVE-samenwerking-einde) voor de vooruitblik; null als onbekend/niet
+   *  ingezet of open einde. */
+  freeDate: Date | null;
 }
 
 export default async function FranchiseZzpersPage({
@@ -112,6 +121,9 @@ export default async function FranchiseZzpersPage({
         // ZZP'er) — de scalaire profielvelden (tarief/werkmodus/locatie/…) komen al mee via include.
         industries: { select: { industryId: true } },
         availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
+        // Einddata van lopende samenwerkingen — voedt de vooruitblik "wie komt binnenkort vrij?".
+        // Tenant-gescopet via de freelancer zelf; per ZZP'er een klein aantal (geen N+1).
+        collaborations: { where: { status: "ACTIVE" }, select: { endDate: true } },
         _count: {
           select: {
             credentials: true,
@@ -242,10 +254,17 @@ export default async function FranchiseZzpersPage({
       alertWindow: alert.window,
       activeCollaborations: f._count.collaborations,
       placeableDiensten,
+      freeDate: freeDateFromActiveCollaborations(f.collaborations.map((c) => c.endDate)),
     };
   });
 
   const capacity = summarizeRosterCapacity(cards);
+  // Vooruitblik: welke nu-ingezette vakmensen komen binnenkort weer vrij (herplaatsing plannen).
+  const forecast = summarizeRosterForecast(
+    cards.map((c) => ({ freeDate: c.freeDate })),
+    now,
+  );
+  const forecastHeadlineText = rosterForecastHeadline(forecast);
   const compliance = summarizeCredentialCompliance(cards.map((c) => ({ window: c.alertWindow })));
   // Kop over de hele roster (niet het filter): hoeveel vrije vakmensen zijn nu direct plaatsbaar.
   const placeableHeadlineText = placeableHeadline(
@@ -296,6 +315,16 @@ export default async function FranchiseZzpersPage({
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Briefcase className="size-4 shrink-0 text-success" aria-hidden />
               {placeableHeadlineText}
+            </p>
+          )}
+
+          {/* Vooruitblik: "wie komt binnenkort vrij?" — nu-ingezette vakmensen wier opdracht
+              afloopt, zodat de bemiddelaar herplaatsing vooruit plant. Rendert alleen bij aankomende
+              vrijval. */}
+          {forecastHeadlineText && (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CalendarClock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              {forecastHeadlineText}
             </p>
           )}
 
@@ -473,6 +502,15 @@ export default async function FranchiseZzpersPage({
                           {placeableChipLabel(f.placeableDiensten)}
                         </Badge>
                       </Link>
+                    )}
+
+                    {/* Vooruitblik: nu-ingezette vakmens die binnenkort vrij komt — plan
+                        herplaatsing vast in. Read-only signaal (geen actie op de kaart zelf). */}
+                    {forecastChipLabel(f.freeDate, now) && (
+                      <Badge variant="muted" className="gap-1 self-start">
+                        <CalendarClock className="size-3 shrink-0" aria-hidden />
+                        {forecastChipLabel(f.freeDate, now)}
+                      </Badge>
                     )}
 
                     {/* Certificaat-waarschuwing + blokkade */}

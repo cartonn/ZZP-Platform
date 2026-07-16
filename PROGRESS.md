@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Vooruitblik-bench: "wie komt binnenkort vrij?" op het roster (bemiddelaar)
+
+**Increment (bemiddelaar-UX, forward planning):** het roster-capaciteitsoverzicht op `/franchise/zzpers`
+beantwoordde alleen "wie kan ik NU inzetten?" (`roster-capacity.ts` idle-ready). De planvraag ernaast —
+"wie komt BINNENKORT vrij?" — ontbrak volledig: de bemiddelaar zag pas dat een ingezette vakmens vrijviel
+als het al gebeurd was, en kon herplaatsing niet vooruit plannen (benchmark: staffing-planning Pidz/Zorgwerk).
+Nu een **vooruitblik-strip** ("N vakmensen komen binnen 30 dagen vrij — 2 deze week. Plan herplaatsing vast
+vooruit.") + een **"Komt vrij over 5 dagen" / "Komt vrij op 20 jul"-chip** per nu-ingezette kaart.
+
+**Wat + bestanden:** pure `src/lib/franchise/roster-availability-forecast.ts` — `freeDateFromActiveCollaborations`
+(láátste ACTIVE-einddatum = vrijkomdatum; `null` bij open einde/niet ingezet), `daysUntilFree`,
+`forecastChipLabel` (weekgrens → resterende looptijd, verder → exacte datum; horizon 30d), `summarizeRosterForecast`
+
+- `rosterForecastHeadline` (kop en chip delen dezelfde grenzen → geen drift; 12 tests). Wiring in
+  `franchise/zzpers/page.tsx`: `collaborations { where ACTIVE, select endDate }` aan de bestaande tenant-gescopete
+  include toegevoegd (geen N+1), `freeDate` per kaart, strip + kaart-chip. Read-only, geen schemawijziging, geen
+  nieuw mutatie/auth-oppervlak. Gate: typecheck, lint, 4319 unit-tests, build, prettier groen.
+
 ## 2026-07-16 — Prod: betaalprovider-connectiviteitszelftest (Stripe/Mollie)
 
 **Increment (prod-rijpheid):** de connectiviteits-zelftestsuite op `/admin/systeemstatus` was compleet voor
