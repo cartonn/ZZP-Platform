@@ -14,6 +14,10 @@ import { type CredentialType } from "@/lib/enums";
 import { type CredentialAlert } from "@/lib/collaboration-alerts";
 import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
 import { type StaleApplicationsSummary } from "@/lib/stale-applications";
+import {
+  acuteFillabilityHeadline,
+  type AcuteFillabilitySummary,
+} from "@/lib/franchise/acute-fillability";
 
 export type TaskTone = NextActionTone;
 
@@ -73,6 +77,7 @@ export type PendingTask =
   | (TaskBase & { kind: "availability-refresh" })
   | (TaskBase & { kind: "draft-jobs" })
   | (TaskBase & { kind: "franchise-credential-expiry"; profileId: string })
+  | (TaskBase & { kind: "franchise-open-dienst-acute" })
   | (TaskBase & { kind: "franchise-lead-followup" });
 
 export type TaskKind = PendingTask["kind"];
@@ -707,6 +712,28 @@ export function vatDeadlineTask(summary: VatDeadlineSummary): PendingTask {
     href: "/administratie",
     year: summary.year,
     quarter: summary.quarter,
+  };
+}
+
+/**
+ * Aggregaat-taak: N open diensten dreigen NU onbezet (start deze week/verstreken/geen startdatum). Dit
+ * is het operationeel-urgentste item van de bemiddelaar — een dienst die dreigt leeg te vallen laat een
+ * opdrachtgever zonder bezetting. Eén taak (geen rij-per-dienst, rustige lijst); de subtitel splitst
+ * direct-vulbaar-uit-je-roster vs. werving nodig zodat de eerstvolgende stap meteen duidelijk is. Tone
+ * `attention` zodra minstens één dienst werving vraagt (geen druk-op-de-knop-oplossing), anders `info`
+ * (alles is met een voordracht te vullen). Deep-link naar de diensten-pagina met de "dreigt onbezet"-kaart.
+ */
+export function franchiseAcuteDienstTask(summary: AcuteFillabilitySummary): PendingTask {
+  const { total, needsRecruiting } = summary;
+  return {
+    kind: "franchise-open-dienst-acute",
+    id: "franchise-open-dienst-acute",
+    title: `${plural(total, "dienst dreigt", "diensten dreigen")} onbezet`,
+    subtitle: acuteFillabilityHeadline(summary) ?? undefined,
+    tone: needsRecruiting > 0 ? "attention" : "info",
+    priority: P.franchiserServiceAcute,
+    resolver: "link",
+    href: "/franchise/diensten",
   };
 }
 

@@ -110,8 +110,20 @@ export async function getRosterFillSignals(
   jobIds: readonly string[],
   now: Date = new Date(),
 ): Promise<Map<string, DienstFillSignal>> {
+  return getRosterFillSignalsForTenant(actor.tenantId ?? null, jobIds, now);
+}
+
+/**
+ * Zelfde loader, maar rechtstreeks op een tenant-id — voor aanroepers die alleen de tenant kennen (bv.
+ * de next-action-enumerator, die per rol met een userId werkt). De Actor-variant hierboven delegeert
+ * hiernaartoe zodat de tenant-scoping op één plek leeft.
+ */
+export async function getRosterFillSignalsForTenant(
+  tenantId: string | null,
+  jobIds: readonly string[],
+  now: Date = new Date(),
+): Promise<Map<string, DienstFillSignal>> {
   const result = new Map<string, DienstFillSignal>();
-  const tenantId = actor.tenantId;
   if (!tenantId || jobIds.length === 0) return result;
 
   const [jobs, roster] = await Promise.all([

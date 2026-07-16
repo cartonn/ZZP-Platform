@@ -260,6 +260,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Acute-onbezet dienst als next-action — bemiddelaar (2026-07-16, PR #789)** — de bemiddelaar zag
+> op `/franchise/diensten` al **welke** open diensten NU dreigen onbezet (start deze week/verstreken/geen startdatum) mét de
+> vulbaar/werving-triage (#785/#779), maar dat operationeel-urgentste item ontbrak volledig in zijn actiecentrum: de item-engine
+> (`pending-tasks.ts`) had géén enkele dienst-taak voor de FRANCHISER, dus `/acties`, de dashboard-rail "Volgende acties" én de
+> zijbalk-badge zwegen erover — een dienst die dreigt leeg te vallen laat een opdrachtgever zonder bezetting. Nu één aggregaat-
+> next-action **"N diensten dreigen onbezet"** met "X direct vulbaar uit je roster · Y vragen werving" als subtitel. Pure
+> `acute-open-diensten.ts` (`isStartAcute` = één bron van waarheid voor "acuut", ook de diensten-kaart erop overgezet → geen
+> drift; `summarizeAcuteOpenDiensten` leunt op de geteste `summarizeAcuteFillability`; 8 tests) + builder `franchiseAcuteDienstTask`
+> (kind `franchise-open-dienst-acute`, link → `/franchise/diensten`, band `P.franchiserServiceAcute=78` boven roster-compliance/
+> stale-service; tone attention bij ≥1 werving, anders info; valt op `default`-tak van `action-list.tsx` → geen UI-wiring) +
+> wiring in `franchiserTasks` (één extra tenant-gescopete `job.findMany` in de bestaande `Promise.all`; vulbaar-signaal alleen
+> voor open diensten via de nieuwe tenant-variant `getRosterFillSignalsForTenant`, geen N+1). Read-only, geen schemawijziging,
+> geen nieuw mutatie/auth-oppervlak. Gate: typecheck, lint, 4273 unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — verificatie-adapter connectiviteitszelftest (DUO/BIG/iDIN) (2026-07-16, PR #788)** —
 > de externe verificatie-adapters misten als enige integratie een connectiviteitszelftest (opslag/e-mail/rate-limit hadden
 > die al). Zodra de mens een echte adapter aanzet (`DIPLOMA_VERIFIER=duo`/`BIG_VERIFIER=bigregister`/`IDENTITY_VERIFIER=idin`)
