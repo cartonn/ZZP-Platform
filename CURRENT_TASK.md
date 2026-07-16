@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Vooruitblik-bench "wie komt binnenkort vrij?" op het roster (bemiddelaar) (2026-07-16, PR #797)** —
+> het roster-capaciteitsoverzicht op `/franchise/zzpers` beantwoordde alleen "wie kan ik NU inzetten?"
+> (`roster-capacity.ts` idle-ready). De planvraag ernaast — "wie komt BINNENKORT vrij?" — ontbrak: de bemiddelaar zag
+> pas dat een ingezette vakmens vrijviel als het al gebeurd was en kon herplaatsing niet vooruit plannen (benchmark:
+> staffing-planning Pidz/Zorgwerk). Nu een vooruitblik-strip ("N vakmensen komen binnen 30 dagen vrij — 2 deze week.
+> Plan herplaatsing vast vooruit.") + een "Komt vrij over 5 dagen"/"Komt vrij op 20 jul"-chip per nu-ingezette kaart.
+> Pure `roster-availability-forecast.ts` (`freeDateFromActiveCollaborations` = láátste ACTIVE-einddatum, `null` bij
+> open einde/niet ingezet; `forecastChipLabel` weekgrens→looptijd, verder→datum, horizon 30d; `summarizeRosterForecast`
+>
+> - `rosterForecastHeadline` delen dezelfde grenzen als de chip → geen drift; 12 tests) + wiring in `franchise/zzpers/page.tsx`
+>   (`collaborations { where ACTIVE, select endDate }` aan de bestaande tenant-gescopete include — geen N+1). Read-only,
+>   geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate: typecheck, lint, 4319 unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Plaatsbaarheids-signaal per vrije ZZP'er op het roster (bemiddelaar) (2026-07-16, PR #793)** —
 > op `/franchise/zzpers` toonde het capaciteitsoverzicht al **wie** vrij inzetbaar is (de bench), maar niet **waar** de
 > bemiddelaar die persoon vandaag op kan zetten; daarvoor moest hij elk profiel openen (waar `dienst-suggesties` de
