@@ -5752,6 +5752,9 @@ export const CONCEPTS: ConceptMeta[] = [
     accent: "#1a1a1a",
     bg: "#fcfcfa",
     fg: "#111111",
+    available: true,
+  },
+  {
     id: "341",
     name: "Meridiaan",
     direction: "Nautische zeekaart — wayfinding-navigatie",
