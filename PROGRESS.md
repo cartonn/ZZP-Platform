@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Routine: acute-dienst vulbaarheidssplitsing (voordragen vs. werven) — bemiddelaar
+
+**Ronde:** orchestrator (Opus 4.8), één klein triage-increment voor de bemiddelaar (PR #785).
+Combineert twee al bestaande, geteste engines die nog nergens gecombineerd waren.
+
+- **Waarom dit telt:** de "Wat dreigt onbezet"-triagekaart op `/franchise/diensten` vertelde de
+  bemiddelaar al **welke** open diensten acuut zijn (deze week / verstreken start / geen startdatum),
+  maar niet **of** hij ze uit zijn eigen roster kan oplossen of extern moet werven — precies de
+  eerstvolgende beslissing. Het vulbaar-signaal (`readyMatches` uit `dienst-fill-signal.ts`) was al op
+  de pagina geladen, maar leefde alleen als chip per lijst-rij verderop, níet in de acute-triage.
+  Nu splitst de acute-lijst per dienst in **"N matches vrij"** (direct voordraagbaar, success) vs.
+  **"Werven"** (geen geschikte vrije match, warning) + één samenvattende regel eronder:
+  **"2 direct vulbaar uit je roster · 1 dienst vraagt werving."** — één oogopslag: wat kan ik nu zelf
+  oplossen, waar moet ik naar buiten. Benchmark Pidz/Zorgwerk: dichtstbijzijnde beschikbare match eerst.
+- **Gebouwd:** pure `src/lib/franchise/acute-fillability.ts` (`summarizeAcuteFillability`:
+  splitst acute diensten op `readyMatches > 0`; `acuteFillabilityHeadline`: drie eerlijke uitkomsten —
+  alles vulbaar / niets vulbaar / gemengd, met correcte NL-pluralisering; 12 tests) + wiring in
+  `franchise/diensten/page.tsx` (leunt op het al-geladen `fillSignals`, geen extra query, geen N+1).
+- **Gate:** typecheck ✓, lint ✓, prettier ✓, unit-tests ✓, build ✓ (CI-poort verifieert e2e).
+  Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak, geen nieuwe rekenlogica/drempel.
+
 ## 2026-07-15 (5e) — Routine: proactieve certificaat-verval-waarschuwing per lopende samenwerking (ZZP'er)
 
 **Ronde:** orchestrator (Opus 4.8), één klein next-action-increment voor de ZZP'er (PR #784).

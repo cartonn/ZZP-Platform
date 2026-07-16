@@ -14,6 +14,10 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
 import { buildDekkingsprognose, startOfIsoWeek } from "@/lib/franchise/dekkingsprognose";
 import { getRosterFillSignals, dienstFillChip } from "@/lib/franchise/dienst-fill-signal";
+import {
+  summarizeAcuteFillability,
+  acuteFillabilityHeadline,
+} from "@/lib/franchise/acute-fillability";
 
 export const metadata: Metadata = { title: "Diensten · Bemiddeling" };
 
@@ -79,6 +83,15 @@ export default async function FranchiseDienstenPage() {
     })
     .filter((x) => x.acute)
     .sort((a, b) => (b.r.openDays ?? 0) - (a.r.openDays ?? 0));
+
+  // Triage-splitsing van de acute diensten: welke zijn direct vulbaar uit het eigen roster (≥1
+  // geschikte vrije match uit het al-geladen fillSignals) en welke vragen werving? Geeft de
+  // bemiddelaar naast "wat is urgent" ook "wat kan ik nu zelf oplossen".
+  const acuteFillItems = attentionNow.map(({ r }) => ({
+    readyMatches: fillSignals.get(r.d.id)?.readyMatches ?? 0,
+  }));
+  const acuteFillability = summarizeAcuteFillability(acuteFillItems);
+  const acuteFillHeadline = acuteFillabilityHeadline(acuteFillability);
 
   // Aandacht eerst: open diensten met de langste looptijd bovenaan, dan de rest op aanmaakdatum.
   const sorted = [...rows].sort((a, b) => {
@@ -147,25 +160,47 @@ export default async function FranchiseDienstenPage() {
             {prognose.needsAttentionNow > 0 ? (
               // Eén regel per acute dienst: titel + "X dagen open" + bucket-label. Geen kaal cijfer
               // meer dat een "geen startdatum"-dienst tegenspreekt.
-              <ul className="space-y-1.5">
-                {attentionNow.map(({ r, bucketLabel }) => (
-                  <li key={r.d.id} className="flex items-baseline justify-between gap-3 text-sm">
-                    <Link
-                      href={`/franchise/diensten/${r.d.id}`}
-                      className="truncate font-medium text-foreground hover:underline"
-                    >
-                      {r.d.title}
-                    </Link>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {r.openDays === 0
-                        ? "vandaag uitgezet"
-                        : `${plural(r.openDays ?? 0, "dag", "dagen")} open`}
-                      {" · "}
-                      {bucketLabel}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="space-y-1.5">
+                  {attentionNow.map(({ r, bucketLabel }) => {
+                    const readyMatches = fillSignals.get(r.d.id)?.readyMatches ?? 0;
+                    return (
+                      <li
+                        key={r.d.id}
+                        className="flex items-baseline justify-between gap-3 text-sm"
+                      >
+                        <span className="flex min-w-0 items-baseline gap-2">
+                          <Link
+                            href={`/franchise/diensten/${r.d.id}`}
+                            className="truncate font-medium text-foreground hover:underline"
+                          >
+                            {r.d.title}
+                          </Link>
+                          {readyMatches > 0 ? (
+                            <span className="shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                              {plural(readyMatches, "match vrij", "matches vrij")}
+                            </span>
+                          ) : (
+                            <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                              Werven
+                            </span>
+                          )}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {r.openDays === 0
+                            ? "vandaag uitgezet"
+                            : `${plural(r.openDays ?? 0, "dag", "dagen")} open`}
+                          {" · "}
+                          {bucketLabel}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {acuteFillHeadline && (
+                  <p className="text-xs text-muted-foreground">{acuteFillHeadline}</p>
+                )}
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">
                 {plural(prognose.totalOpen, "open dienst", "open diensten")} in de planning,
