@@ -12,12 +12,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
-import { buildDekkingsprognose, startOfIsoWeek } from "@/lib/franchise/dekkingsprognose";
+import { buildDekkingsprognose } from "@/lib/franchise/dekkingsprognose";
 import { getRosterFillSignals, dienstFillChip } from "@/lib/franchise/dienst-fill-signal";
 import {
   summarizeAcuteFillability,
   acuteFillabilityHeadline,
 } from "@/lib/franchise/acute-fillability";
+import { isStartAcute } from "@/lib/franchise/acute-open-diensten";
 
 export const metadata: Metadata = { title: "Diensten · Bemiddeling" };
 
@@ -70,14 +71,14 @@ export default async function FranchiseDienstenPage() {
 
   // Eén eenduidige regel per ongedekte dienst die NU aandacht vraagt (deze week, verstreken start, of
   // geen startdatum) — met "X dagen open" én een bucket-label, zodat de kaart nooit "alles gedekt"
-  // naast een acute dienst zet. Zelfde weekgrenzen als de prognose (maandag-start).
-  const thisWeekStart = startOfIsoWeek(new Date(now)).getTime();
-  const nextWeekStart = thisWeekStart + 7 * DAY;
+  // naast een acute dienst zet. `isStartAcute` is dezelfde bron als de acute-onbezet-next-action, zodat
+  // deze kaart en `/acties` nooit driften over wat "acuut" is.
+  const nowDate = new Date(now);
   const attentionNow = published
     .filter((r) => !r.filled)
     .map((r) => {
       const sd = r.d.startDate;
-      const acute = sd == null || sd.getTime() < nextWeekStart; // geen datum of deze week / verleden
+      const acute = isStartAcute(sd, nowDate);
       const bucketLabel = sd == null ? "Geen startdatum" : "Deze week";
       return { r, acute, bucketLabel };
     })

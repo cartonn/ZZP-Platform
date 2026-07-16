@@ -72,6 +72,7 @@ export const P = {
   franchiserClientsWithoutService: 40, // opdrachtgever(s) zonder diensten (doorlopende nudge)
   // Franchiser-operationeel: doorlopende tenant-taken zodra de franchise draait (item-niveau).
   franchiserRosterNotEngageable: 84, // roster-ZZP'er niet inzetbaar (ontbrekend doc/verificatie) — blokkeert plaatsing
+  franchiserServiceAcute: 78, // open dienst dreigt onbezet (start deze week/verstreken/geen datum) — vullen kan niet wachten
   franchiserCredentialExpiring: 70, // roster-certificaat van een tenant-ZZP'er verloopt binnenkort
   franchiserServiceStale: 65, // gepubliceerde dienst staat lang open zonder plaatsing
   franchiserLeadFollowup: 50, // lead met verstreken geplande opvolgdatum

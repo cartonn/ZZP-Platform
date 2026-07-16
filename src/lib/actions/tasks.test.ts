@@ -20,6 +20,7 @@ import {
   availabilityRefreshTask,
   draftJobsTask,
   franchiseCredentialExpiryTask,
+  franchiseAcuteDienstTask,
   franchiseLeadFollowupTask,
   clientComplianceTask,
   vatDeadlineTask,
@@ -250,6 +251,28 @@ describe("task builders", () => {
     expect(many.title).toContain("wachten");
     // Roster-compliance weegt zwaarder dan lead-opvolging.
     expect(franchiseCredentialExpiryTask("p", "x", 1).priority).toBeGreaterThan(many.priority);
+  });
+
+  it("bemiddelaar: acute-onbezet is een aggregaat link-taak naar /franchise/diensten", () => {
+    const mixed = franchiseAcuteDienstTask({ total: 3, fillableNow: 2, needsRecruiting: 1 });
+    expect(mixed).toMatchObject({
+      kind: "franchise-open-dienst-acute",
+      id: "franchise-open-dienst-acute",
+      resolver: "link",
+      href: "/franchise/diensten",
+      tone: "attention", // ≥1 dienst vraagt werving
+    });
+    expect(mixed.priority).toBe(P.franchiserServiceAcute);
+    expect(mixed.title).toContain("3");
+    expect(mixed.title).toContain("onbezet");
+    expect(mixed.subtitle).toContain("werving");
+
+    const one = franchiseAcuteDienstTask({ total: 1, fillableNow: 1, needsRecruiting: 0 });
+    expect(one.title).toContain("dienst dreigt");
+    expect(one.tone).toBe("info"); // alles vulbaar uit het roster → geen alarm
+    // Acuut-onbezet weegt zwaarder dan roster-compliance én lead-opvolging.
+    expect(one.priority).toBeGreaterThan(franchiseCredentialExpiryTask("p", "x", 1).priority);
+    expect(one.priority).toBeGreaterThan(franchiseLeadFollowupTask(1).priority);
   });
 
   it("admin-support-ticket: link-taak naar de helpdesk met support-prioriteit (66)", () => {

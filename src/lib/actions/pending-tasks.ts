@@ -51,6 +51,7 @@ import {
   availabilityRefreshTask,
   draftJobsTask,
   franchiseCredentialExpiryTask,
+  franchiseAcuteDienstTask,
   franchiseLeadFollowupTask,
   clientComplianceTask,
   vatDeadlineTask,
@@ -64,6 +65,8 @@ import {
 } from "@/lib/collaboration-credential-expiry";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
+import { getRosterFillSignalsForTenant } from "@/lib/franchise/dienst-fill-signal";
+import { summarizeAcuteOpenDiensten } from "@/lib/franchise/acute-open-diensten";
 
 /** Harde bovengrens per kind (voorkomt N+1/zware lijsten op /acties); "+N meer" buiten beschouwing. */
 const MAX = 50;
@@ -516,7 +519,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
   const now = new Date();
   const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
 
-  const [expiringCreds, dueLeads] = await Promise.all([
+  const [expiringCreds, dueLeads, openDiensten] = await Promise.all([
     // Geverifieerde, nog-geldige certificaten van tenant-ZZP'ers die binnenkort verlopen — zelfde
     // venster als de roster-compliance-zegel op het bemiddelaar-dashboard (gte now, lte soon).
     prisma.credential.findMany({
@@ -540,6 +543,17 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
         nextFollowUp: { not: null, lte: now },
       },
     }),
+    // Gepubliceerde tenant-diensten + hun vulgraad (actieve samenwerking = gevuld) + startdatum, voor de
+    // acute-onbezet-taak. Zelfde bron/definitie als de "Wat dreigt onbezet"-kaart op /franchise/diensten.
+    prisma.job.findMany({
+      where: { tenantId, status: "PUBLISHED" },
+      select: {
+        id: true,
+        startDate: true,
+        _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
+      },
+      take: MAX,
+    }),
   ]);
 
   // Aggregeer per ZZP'er: één taak per professional met het aantal (bijna-)verlopende certificaten.
@@ -556,6 +570,23 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     tasks.push(franchiseCredentialExpiryTask(profileId, e.name, e.count));
 
   if (dueLeads > 0) tasks.push(franchiseLeadFollowupTask(dueLeads));
+
+  // Acute-onbezet: open diensten die deze week/verstreken starten of geen startdatum hebben. Laadt het
+  // vulbaar-signaal alleen voor de open (ongevulde) diensten (één gebundelde load, geen N+1) en bouwt
+  // één aggregaat-taak met de vulbaar/werving-splitsing. Geen open dienst → geen extra roster-load.
+  const openDienstIds = openDiensten.filter((d) => d._count.collaborations === 0).map((d) => d.id);
+  const fillSignals = await getRosterFillSignalsForTenant(tenantId, openDienstIds, now);
+  const acuteSummary = summarizeAcuteOpenDiensten(
+    openDiensten.map((d) => ({
+      published: true,
+      filled: d._count.collaborations > 0,
+      startDate: d.startDate,
+      readyMatches: fillSignals.get(d.id)?.readyMatches ?? 0,
+    })),
+    now,
+  );
+  if (acuteSummary) tasks.push(franchiseAcuteDienstTask(acuteSummary));
+
   return tasks;
 }
 

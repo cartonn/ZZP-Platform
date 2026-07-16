@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Bemiddelaar: acute-onbezet dienst als next-action (`/acties` + rail + badge)
+
+**Increment (PR #789):** de bemiddelaar zag op `/franchise/diensten` al **welke** open diensten NU dreigen
+onbezet (start deze week/verstreken/geen startdatum) mét de vulbaar/werving-triage, maar dat operationeel-
+urgentste item ontbrak volledig in zijn actiecentrum: de item-engine (`pending-tasks.ts`) had géén enkele
+dienst-taak voor de FRANCHISER, dus `/acties`, de dashboard-rail "Volgende acties" én de zijbalk-badge
+zwegen erover. Een dienst die dreigt leeg te vallen laat een opdrachtgever zonder bezetting — precies wat
+de next-action-engine hoort te tonen. Nu één aggregaat-next-action **"N diensten dreigen onbezet"** met de
+splitsing "X direct vulbaar uit je roster · Y vragen werving" als subtitel.
+
+- **Pure kern** `src/lib/franchise/acute-open-diensten.ts` (`isStartAcute` + `acuteWindowStart` +
+  `summarizeAcuteOpenDiensten`; 8 tests): `isStartAcute` is nu de **één bron van waarheid** voor "acuut"
+  (geen datum, of vóór begin volgende ISO-week) — de diensten-kaart is erop overgezet zodat kaart en
+  `/acties` nooit driften. `summarizeAcuteOpenDiensten` leunt op de geteste `summarizeAcuteFillability`
+  voor de vulbaar/werving-splitsing (geen nieuwe rekenlogica).
+- **Builder** `franchiseAcuteDienstTask` (`tasks.ts`; kind `franchise-open-dienst-acute`, link-resolver →
+  `/franchise/diensten`, band `P.franchiserServiceAcute=78` — boven roster-compliance (70) en stale-service
+  (65); tone `attention` zodra ≥1 dienst werving vraagt, anders `info`). Valt via de `default`-tak van
+  `action-list.tsx` op de link-resolver + generieke `tasksToActions` — geen UI-wiring.
+- **Wiring** in `franchiserTasks`: één extra tenant-gescopete `job.findMany` (published + vulgraad +
+  startdatum) in de bestaande `Promise.all`; vulbaar-signaal alleen voor de open diensten via
+  `getRosterFillSignalsForTenant` (nieuwe tenant-variant van `getRosterFillSignals`; geen N+1).
+- **Read-only:** geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate: typecheck ✓, lint ✓,
+  4273 unit-tests ✓, build ✓, prettier ✓.
+
 ## 2026-07-16 — Prod-rijpheid: verificatie-adapter connectiviteitszelftest (DUO/BIG/iDIN)
 
 **Increment (PR #788):** de externe verificatie-adapters (DUO/BIG/iDIN) misten — als enige integratie —
