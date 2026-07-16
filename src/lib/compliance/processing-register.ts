@@ -391,7 +391,7 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     key: "markttarief-indicatie",
     name: "Markttarief-indicatie (geanonimiseerd)",
     purpose:
-      "Tonen van een geanonimiseerde markttariefband (mediaan en 25e/75e percentiel) ter ondersteuning van eerlijke, marktconforme tariefstelling — aan opdrachtgevers op het opdracht-formulier en aan ZZP'ers op het eigen profiel.",
+      "Tonen van een geanonimiseerde markttariefband (mediaan en 25e/75e percentiel) ter ondersteuning van eerlijke, marktconforme tariefstelling — aan opdrachtgevers op het opdracht-formulier én als tarief-diagnose op de eigen opdrachtenlijst (de geaggregeerde mediaan bij een koud lopende opdracht die onder de markt biedt), en aan ZZP'ers op het eigen profiel.",
     legalBasis: "GERECHTVAARDIGD_BELANG",
     dataSubjects: ["ZZP'ers"],
     dataCategories: [
@@ -401,6 +401,7 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     sensitive: false,
     recipients: [
       "Opdrachtgevers (geaggregeerde band op het opdracht-formulier)",
+      "Opdrachtgevers (geaggregeerde mediaan als tarief-diagnose op de eigen opdrachtenlijst bij een koud lopende opdracht)",
       "ZZP'ers (eigen marktpositie op het profiel)",
     ],
     retention:
