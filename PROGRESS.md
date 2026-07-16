@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Bemiddelaar: plaatsbaarheids-signaal per vrije ZZP'er op het roster
+
+**Increment (PR #793):** op `/franchise/zzpers` zag de bemiddelaar dankzij het capaciteitsoverzicht al
+**wie** vrij inzetbaar is (de bench), maar niet **waar** hij die persoon vandaag op kan zetten — daarvoor
+moest hij elk profiel openen (waar de suggestie-kaart `dienst-suggesties` de passende diensten toont). Nu
+een compacte **"N passende diensten"**-chip per vrij-inzetbare ZZP'er op de lijst zelf, plus een kop
+**"X vrije vakmensen zijn direct plaatsbaar op een open dienst"** boven het roster. De chip klikt door naar
+het profiel waar de bestaande suggestie-kaart de diensten toont mét voordracht-actie — geen dood signaal.
+Turnt "wie is vrij?" in "wie is vrij én direct plaatsbaar?" (bench-management, benchmark Pidz/Zorgwerk).
+
+- **Pure kern** `src/lib/franchise/roster-placement.ts` (`countPlaceableDiensten` + `placeableChipLabel` +
+  `placeableHeadline`; 10 tests): telt de open tenant-diensten met matchscore ≥ de **gedeelde**
+  `DIENST_SUGGESTIE_MIN_SCORE`-drempel van de detail-suggestiekaart (`dienst-suggesties.ts`) via exact
+  dezelfde `scoreJobForFreelancer`-motor → een "3 passende diensten"-chip komt exact overeen met de drie
+  rijen op het detail (lijst en detail spreken elkaar nooit tegen). Chip/kop `null` bij nul → lijst blijft rustig.
+- **Wiring** in `franchise/zzpers/page.tsx`: de open (PUBLISHED) tenant-diensten worden **één keer**
+  geladen (`take: 100`, tenant-gescopet) en naar `JobMatchSource` gemapt; de matchbron-relaties
+  (`industries`, `availabilityWindows`) zijn aan de bestaande freelancers-`include` toegevoegd (scalars
+  kwamen al mee). Alleen **vrij-inzetbare** ZZP'ers (`isIdleReady`, zelfde definitie als de
+  capaciteitstegel) scoren tegen de diensten — wie werkt of nog niet inzetbaar is krijgt geen chip; geen N+1.
+- **Read-only:** geen schemawijziging, geen nieuw mutatie/auth-oppervlak (de chip deep-linkt naar het
+  bestaande, tenant-gescopete detail met de al bestaande voordracht-actie). Gate: typecheck ✓, lint ✓,
+  4294 unit-tests ✓, build ✓, prettier ✓.
+
 ## 2026-07-16 — Ontwerp-lab: +10 concepten (reeks 36, nrs 351–360)
 
 **Increment:** het publieke design-lab `/ontwerp` groeit additief van 350 → **360 concepten**. Tien
