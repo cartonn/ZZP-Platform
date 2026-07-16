@@ -1057,6 +1057,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "350": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-350-loden").then((m) => m.Concept350),
   ),
+  "351": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-351-baken").then((m) => m.Concept351),
+  ),
+  "352": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-352-diepzee").then((m) => m.Concept352),
+  ),
+  "353": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-353-atelier").then((m) => m.Concept353),
+  ),
+  "354": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-354-kwarts").then((m) => m.Concept354),
+  ),
+  "355": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-355-meridiaan").then((m) => m.Concept355),
+  ),
+  "356": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-356-halogeen").then((m) => m.Concept356),
+  ),
+  "357": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-357-prisma").then((m) => m.Concept357),
+  ),
+  "358": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-358-sediment").then((m) => m.Concept358),
+  ),
+  "359": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-359-zonnewijzer").then((m) => m.Concept359),
+  ),
+  "360": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-360-notenbalk").then((m) => m.Concept360),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

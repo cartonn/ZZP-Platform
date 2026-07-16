@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Ontwerp-lab: +10 concepten (reeks 36, nrs 351–360)
+
+**Increment:** het publieke design-lab `/ontwerp` groeit additief van 350 → **360 concepten**. Tien
+nieuwe, onderscheidende richtingen toegevoegd (geen bestaand concept overschreven of verwijderd): **351
+Baken** (split-flap vertrektijdenbord), **352 Diepzee** (bioluminescent deep-dark), **353 Atelier**
+(architecten-blauwdruk op perkament), **354 Kwarts** (iriserend/holografisch), **355 Meridiaan**
+(cartografisch/wayfinding), **356 Halogeen** (warm nacht-dashboard), **357 Prisma** (kleurgecodeerd
+speels), **358 Sediment** (geologische stratigrafie), **359 Zonnewijzer** (solarpunk/natuurlijk),
+**360 Notenbalk** (ritmisch muzikaal baseline-grid).
+
+- **Bestanden:** `src/components/ontwerp/concepts/concept-351-baken.tsx` … `concept-360-notenbalk.tsx`
+  (10 zelfstandige `"use client"`-componenten, elk alle 6 kernschermen via een `useState<ScreenKey>`-
+  switcher, mock-data uit `./mock`, alleen bestaande `--font-lab-*`-fonts, focus-states, `aria-current`,
+  status met label + icoon, motion-reduce, echte empty-states, NL-UI, geen "AI").
+- **Wiring (additief):** 10 nieuwe `ConceptMeta`-entries **toegevoegd** aan `registry.ts` en 10 lazy
+  id→component-koppelingen **toegevoegd** aan `src/app/ontwerp/[id]/concept-host.tsx`. Bestaande entries
+  ongemoeid. Galerij-index mapt over `CONCEPTS` en groeit vanzelf mee.
+- **Poort lokaal groen:** `typecheck` ✓, `lint` ✓, `prettier --check .` ✓, `build` ✓, `test` ✓
+  (4281 tests). Gebouwd door 4 parallelle builders op niet-overlappende bestanden; orchestrator
+  integreerde registry/route en verifieerde de gate.
+
 ## 2026-07-16 — ZZP'er: afwijzingspatroon-inzicht op /reacties
 
 **Increment (PR #791):** de ZZP'er zag afwijzingsredenen alleen **per reactie** (`rejectionReasonFeedback`
