@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Security-/privacy-audit (2e ronde): delta `a8d0139..3d441cd` bevestigd schoon
+
+**Increment (security/privacy-routine):** adversariële audit op de delta sinds de vorige ronde (PR's #787–
+#794). Kader: OWASP Top 10 (A01/A03/A05/A07/A10) + ASVS + AVG art. 5/9/15/30/32. **Geen nieuwe KRITIEK/HOOG/
+MIDDEL-bevindingen; geen nieuwe geparkeerde items.** Oppervlakken:
+
+- **Externe verificatie-adapters DUO/BIG/iDIN (#788)** + zelftest: endpoint-host uitsluitend uit env (geen
+  user-gestuurd SSRF-pad), sleutel alleen in `Authorization`-header (nooit in log/UI/audit), fouten tot
+  naam+status gereduceerd, Zod-contractvalidatie. Zelftest-actie: auth ADMIN→rate-limit→synthetische probe→
+  audit (logt alleen `{key,active,ok}`).
+- **Franchise/tenant-signalen (#789/#793/#794):** `tenantId` server-side afgeleid, dienst- én roster-query
+  defensief op `tenantId` gescopet, alleen aggregaat-tellingen geëxposeerd — geen cross-tenant lek.
+- **Afwijzingspatroon-inzicht ZZP'er (#791):** strikt self-view (eigen applications), geen cross-party-PII.
+- **Broad sweep:** geen `dangerouslySetInnerHTML`-misbruik, geen raw-SQL-injectie, geen `.passthrough()`,
+  geen `NEXT_PUBLIC`-secret, geen PII in logs, geen env/uploads in git. `npm audit --omit=dev` = 0; Next 15.5.19.
+- **Docs:** `docs/SECURITY-PRIVACY-BACKLOG.md` bijgewerkt (ronde 2026-07-16 2e, dekking + bevinding per oppervlak).
+
 ## 2026-07-16 — Persona-sweep run 32: plaatsbaarheids-chip vs. detail consistent gemaakt
 
 **Increment (persona-sweep):** kritische-gebruiker-sweep over alle vier rollen op de verse prod-build +
