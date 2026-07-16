@@ -4,6 +4,62 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-16 (basis: `main` @ a8d0139)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op de **delta sinds de
+vorige ronde** (`cb76ca2..a8d0139` — PR's #777, #779–#786), op niet-overlappende oppervlakken: (1) cross-
+tenant/franchise-isolatie op de nieuwe acute-dienst-vulbaarheidssplitsing (`franchise/diensten/page.tsx`,
+`acute-fillability.ts`, `dienst-fill-signal.ts`); (2) AVG/PII op de nieuwe aggregatie-/reputatie-signalen
+(`vacancy-rate-diagnosis.ts` + caller, `collaboration-credential-expiry.ts` + `pending-tasks.ts`/`tasks.ts`,
+`processing-register.ts`) — k-anonimiteit, PII-over-fetch, cross-party-lek, art. 30-dekking; (3) authz/secrets/
+SSRF/DoS + dependency-CVE's op de rate-limit-store-zelftest (`systeemstatus/actions.ts`, `ratelimit-selftest.ts`
+
+- `.tsx`, `rate-limit.ts`) en `npm audit`. Kader: OWASP Top 10 (A01/A03/A05/A10) + ASVS + AVG art. 5/9/15/17/30/32.
+  De 10 nieuwe `concept-3xx.tsx`-designbestanden zijn puur decoratieve UI (geen data-/authz-oppervlak) — niet in scope.
+
+**Alle drie de oppervlakken bevestigd schoon op authz/tenant/injectie/secrets/SSRF** (geen KRITIEK/HOOG):
+
+- **Franchise/tenant:** `franchise/diensten/page.tsx:33` scoopt de `Job`-query op `tenantScopeWhere(actor)`
+  (fail-closed 403 zonder tenant); `getRosterFillSignals` (`dienst-fill-signal.ts:121,136`) her-scoopt **defensief**
+  zowel de dienst- als de roster-query op `tenantId` (AND met de id-lijst), zodat een geïnjecteerde vreemde id
+  wordt weggefilterd; `acute-fillability.ts` draagt per item **alleen** `readyMatches: number` — géén titel/naam/id,
+  het #730/#780-titel-lek blijft dicht per constructie. Read-only pagina, geen mutatie.
+- **Rate-limit-zelftest (#782):** auth ADMIN op drie lagen (`middleware.ts:136` + page `requireRole("ADMIN")` +
+  action `requireRole("ADMIN")`) → rate-limit (6/5min per admin, eigen memory-limiter zodat een kapotte Upstash
+  de test niet blokkeert) → actie → audit (`RATELIMIT_SELFTEST_RUN`, logt alleen `{key, ok}` per stap, nooit
+  `detail`/URL/token). `safeDetail` reduceert elke fout tot `error.name` — geen secret/endpoint in UI/audit/console.
+  SSRF: host uitsluitend uit `UPSTASH_REDIS_REST_URL`, probe-commando's hardcoded, `probeKey` server-side UUID.
+  `npm audit --omit=dev` = **0**; Next.js **15.5.19** (voorbij CVE-2025-29927 middleware-bypass).
+- **Aggregatie/PII:** `diagnoseVacancyRate` hergebruikt de al-gepoortte marktband-engine (`MARKET_RATE_MIN_SAMPLE=10`,
+  `scope:"none"`/`median:null` onder de vloer) en vergelijkt alleen het **eigen** `rateMax` van de opdrachtgever
+  met de geaggregeerde mediaan — geen individueel ZZP-tarief, k≥10 end-to-end. `collaborationCredentialExpiryConcerns`
+  wordt alleen vanuit `freelancerTasks(userId)` bereikt (eigen certificaten/samenwerkingen, self-view) — geen cross-
+  party-lek; deep-link `/certificaten/[id]/bewerken` her-verifieert ownership → geen IDOR. Geen `$queryRaw`/
+  `dangerouslySetInnerHTML`; `hint` is server-side numerieke interpolatie, auto-escaped.
+
+### OPGELOST in deze ronde
+
+- **[MIDDEL→OPGELOST · AVG art. 30 ontvanger-volledigheid / verantwoordingsplicht art. 5(2)]** De verwerking
+  `markttarief-indicatie` (`src/lib/compliance/processing-register.ts`) beschreef de opdrachtgever-weergave als
+  **uitsluitend** "op het opdracht-formulier", terwijl de tarief-diagnose (#783, `vacancy-rate-diagnosis.ts`) dezelfde
+  geanonimiseerde mediaan nu óók toont aan opdrachtgevers op de **eigen opdrachtenlijst** (`/opdrachten`, via
+  `VacancyRateDiagnosisNote`, bij een koud lopende opdracht die onder de markt biedt). Art. 30 vereist dat het
+  register de werkelijke verwerking/ontvangers dekt; de tweede weergave-surface ontbrak → register-drift (zelfde
+  klasse als de #781-register-volledigheidsfix). **Geen nieuwe grondslag/gegevenscategorie/risico** — dezelfde k≥10-
+  vloer, dezelfde geaggregeerde output. **Repro (was):** `PROCESSING_REGISTER.find(a => a.key==="markttarief-indicatie")`
+  → `purpose`/`recipients` noemden alleen "opdracht-formulier", nooit de opdrachtenlijst/tarief-diagnose. **Gefixt:**
+  `purpose` + een extra `recipients`-regel dekken nu expliciet de tarief-diagnose-weergave op de opdrachtenlijst.
+  Test: `processing-register.test.ts` (+1 case die beide weergaven + de k-vloer pint; rood→groen — zonder de fix
+  vindt de assertie de opdrachtenlijst-/tarief-diagnose-ontvanger niet). **Geschonden:** AVG art. 30(1) + art. 5(2)
+  - CLAUDE.md regel 5 (register beschrijft de werkelijke verwerking).
+
+### Geen nieuwe KRITIEK/HOOG-bevindingen; geen nieuwe geparkeerde items
+
+De eerder geëscaleerde mens-beslissingen blijven staan (steekproefvloer n=3 vs. eigen k≥10 voor de reputatie-/
+betaal-/betrouwbaarheidssignalen; `Job.title`/`description` + `Performance.*`/`NoShowReport.reason` bij erasure).
+Deze ronde voegde daar niets aan toe: de nieuwe aggregaties hergebruiken bestaande, al-gepoortte engines i.p.v.
+een nieuw ongepoort aggregatiepad te introduceren.
+
 ## Ronde 2026-07-15 (2e — basis: `main` @ cb76ca2)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende

@@ -184,6 +184,23 @@ describe("PROCESSING_REGISTER", () => {
     expect(rep?.securityMeasures.some((m) => m.includes("MIN_SAMPLE_SIZE"))).toBe(true);
   });
 
+  it("markttarief-indicatie vermeldt beide opdrachtgever-weergaven (opdracht-formulier én de tarief-diagnose op de opdrachtenlijst) — art. 30 ontvanger-volledigheid", () => {
+    const markt = PROCESSING_REGISTER.find((a) => a.key === "markttarief-indicatie");
+    expect(markt).toBeDefined();
+    // Bestaande weergave: de band op het opdracht-formulier.
+    expect(markt?.recipients.some((r) => r.toLowerCase().includes("opdracht-formulier"))).toBe(
+      true,
+    );
+    // Nieuwe weergave (#783): de mediaan als tarief-diagnose op de eigen opdrachtenlijst bij een
+    // koud lopende opdracht. Zonder deze regel is het register onvolledig voor deze ontvanger-surface.
+    const noemtDiagnose = (s: string) =>
+      s.toLowerCase().includes("opdrachtenlijst") || s.toLowerCase().includes("tarief-diagnose");
+    expect(markt?.recipients.some(noemtDiagnose)).toBe(true);
+    expect(noemtDiagnose(markt!.purpose)).toBe(true);
+    // De k-anonimiteitswaarborg (≥ 10 profielen) blijft dezelfde over beide weergaven.
+    expect(markt?.securityMeasures.some((m) => m.includes("MARKET_RATE_MIN_SAMPLE"))).toBe(true);
+  });
+
   it("leverbetrouwbaarheid-zzp is geregistreerd (art. 30) op gerechtvaardigd belang, live berekend, met steekproefvloer", () => {
     const lev = PROCESSING_REGISTER.find((a) => a.key === "leverbetrouwbaarheid-zzp");
     expect(lev).toBeDefined();

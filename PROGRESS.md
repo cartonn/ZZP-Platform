@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Security/privacy-audit: AVG art. 30 register-volledigheid tarief-diagnose
+
+**Ronde:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op de **delta**
+`cb76ca2..a8d0139` (#777, #779–#786), niet-overlappende oppervlakken. Kader: OWASP Top 10 + ASVS + AVG art. 5/9/15/17/30/32.
+
+- **Gevonden & gefixt (MIDDEL, AVG art. 30 ontvanger-volledigheid):** de verwerking `markttarief-indicatie`
+  in `src/lib/compliance/processing-register.ts` noemde de opdrachtgever-weergave alleen "op het opdracht-
+  formulier", terwijl de tarief-diagnose (#783) dezelfde geanonimiseerde mediaan nu óók toont op de eigen
+  opdrachtenlijst (`/opdrachten`, `VacancyRateDiagnosisNote`, bij een koud lopende opdracht). Register-drift,
+  zelfde klasse als de #781-volledigheidsfix. **Fix:** `purpose` + extra `recipients`-regel dekken nu de
+  opdrachtenlijst-weergave. Geen nieuwe grondslag/gegevenscategorie/risico (zelfde k≥10-vloer, zelfde aggregaat).
+  Test: `processing-register.test.ts` +1 case (rood→groen).
+- **Bevestigd schoon (geen KRITIEK/HOOG):** franchise/tenant-isolatie op de acute-vulbaarheidssplitsing
+  (`tenantScopeWhere` + defensieve her-scope in `dienst-fill-signal.ts`; `acute-fillability.ts` draagt alleen
+  tellingen, geen titel/naam/id); rate-limit-zelftest (#782) auth ADMIN op 3 lagen → rate-limit → audit, geen
+  secret/endpoint in UI/audit/console (`safeDetail` = `error.name`), geen SSRF (host uit env), `npm audit` = 0,
+  Next.js 15.5.19; aggregatie/PII (`vacancy-rate-diagnosis` hergebruikt de k≥10-gepoortte marktband,
+  `collaboration-credential-expiry` self-view only, geen cross-party-lek/IDOR).
+- **Backlog:** `docs/SECURITY-PRIVACY-BACKLOG.md` — ronde 2026-07-16 toegevoegd (OPGELOST + dekking).
+- **Gate:** typecheck ✓, test ✓ (48 in register-suite), lint/prettier/build in de PR-poort.
+
 ## 2026-07-15 — Ontwerp-lab reeks 34: +10 concepten (331–340)
 
 **Waarde:** de `/ontwerp`-galerij groeit van 330 → **340** concepten (additief, niets overschreven).
