@@ -4,6 +4,56 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-16 (2e — basis: `main` @ 3d441cd)
+
+Audit: orchestrator (Opus 4.8) op de **delta sinds de vorige ronde** (`a8d0139..3d441cd` — PR's #787–#794),
+op de security-/privacy-relevante oppervlakken (de 20 nieuwe `concept-3xx.tsx`-designbestanden zijn puur
+decoratieve UI, geen data-/authz-oppervlak — niet in scope). Kader: OWASP Top 10 (A01 broken access control,
+A03 injection, A05 misconfig, A07 auth, A10 SSRF) + ASVS + AVG art. 5/9/15/30/32.
+
+Nieuwe oppervlakken en de bevinding per oppervlak — **alle bevestigd schoon** (geen KRITIEK/HOOG/MIDDEL):
+
+- **Externe verificatie-adapters DUO/BIG/iDIN (#788)** — `big-verifier.ts`, `diploma-verifier.ts`,
+  `identity-verifier.ts`, `http-verify.ts`, `verify-selftest.ts`. **SSRF (A10):** endpoint-host uitsluitend
+  uit env (`*_API_BASE`), nooit user-gestuurd → geen SSRF-oppervlak; `verifyViaHttp` hardcodeert methode/
+  headers/pad, 8s-timeout via `AbortController`. **Secrets (A05):** `*_API_KEY` gaat alleen in de
+  `Authorization: Bearer`-header, nooit in log/UI/audit/error. **Foutafhandeling (A09):** `VerifierRequestError`
+  reduceert elke fout tot naam+status (`"BIG: koppeling gaf status 502."`), `safeVerifierDetail` reduceert
+  onbekende fouten tot de error-NAAM — geen endpoint/sleutel/stacktrace naar de gebruiker. **Contract:**
+  antwoord door `verifyResponseSchema` (Zod) gevalideerd; mock-fallback verzint nooit een `verified:true`.
+- **Verifier-zelftest-actie** — `/admin/systeemstatus` `runVerifierSelfTestAction`. Keten auth→rol→rate-limit→
+  actie→audit: `requireRole("ADMIN")` → `verifierSelfTestRateLimiter` (6/5min per admin, eigen store) → echte
+  round-trip met **synthetische** probe-invoer (`"DUO-0000-0000"`, `"00000000000"`, `PROBE_HOLDER`) → audit
+  `VERIFIER_SELFTEST_RUN` logt alleen `{key, active, ok}` + de driver-modus, nooit `detail`/URL/sleutel. Een
+  `verified:false` op een verzonnen probe is een gezonde uitkomst (geen misleidend "geverifieerd"-signaal).
+- **Franchise/tenant-signalen (#789, #793, #794)** — `roster-placement.ts`, `acute-open-diensten.ts`,
+  `dienst-fill-signal.ts` + wiring in `pending-tasks.ts`. **Cross-tenant (A01):** `franchiserTasks` leidt
+  `tenantId` server-side af uit de sessie-`userId` (fail-closed `return []` zonder tenant);
+  `getRosterFillSignalsForTenant` scoopt **defensief** zowel de dienst- als de roster-query op `tenantId`
+  (AND met de id-lijst), zodat een geïnjecteerde vreemde dienst-id wordt weggefilterd; de `/franchise/zzpers`-
+  en `/franchise/diensten`-pagina's scopen via `tenantScopeWhere(actor)`. De signalen dragen **alleen
+  aggregaat-tellingen** (`readyMatches`/`idleReady`/`countPlaceableDiensten`) — geen cross-tenant titel/naam/id.
+  Read-only, geen mutatie/nieuw auth-oppervlak.
+- **Afwijzingspatroon-inzicht ZZP'er (#791)** — `rejection-pattern.ts` op `/reacties`. **PII/AVG:** puur
+  **self-view** — `requireRole("FREELANCER")` → applications `where: { freelancerId: profile.id }` (eigen
+  profiel, afgeleid uit `userId: actor.id`). Aggregeert uitsluitend de eigen gestructureerde afwijzingscodes;
+  geen cross-party-PII, geen individueel tarief van een derde. Geen k-anonimiteitsvraag (geen platform-brede
+  aggregatie over identificeerbare derden).
+
+Broad static sweep over de hele repo (niet alleen de delta): `dangerouslySetInnerHTML` = alleen het genonce'd
+theme-script; raw SQL = alleen `SELECT 1`-health-checks (tagged template, geen injectie); geen `.passthrough()`
+in Zod (geen overposting); geen `NEXT_PUBLIC_*`-secret; geen PII/secret in `console.*`; geen `.env`/uploads/`.db`
+in git (alleen `.env.example`). `npm audit --omit=dev` = **0**; Next.js **15.5.19** (voorbij CVE-2025-29927
+middleware-bypass); `package.json`/`package-lock.json` ongewijzigd in de delta.
+
+### Geen nieuwe KRITIEK/HOOG/MIDDEL-bevindingen; geen nieuwe geparkeerde items
+
+De nieuwe externe-verificatie-adapters introduceren geen user-gestuurd SSRF-pad en lekken geen sleutels; de
+franchise-signalen hergebruiken de bestaande, al-gepoortte tenant-scoping i.p.v. een nieuw ongescopet pad; het
+afwijzingspatroon blijft strikt self-view. De eerder geëscaleerde mens-beslissingen (steekproefvloer n=3 vs.
+eigen k≥10 voor de reputatie-/betaalsignalen; `Job.title`/`description` + `Performance.*`/`NoShowReport.reason`
+bij erasure) blijven staan — deze ronde voegde daar niets aan toe.
+
 ## Ronde 2026-07-16 (basis: `main` @ a8d0139)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op de **delta sinds de
