@@ -5638,7 +5638,7 @@ export const CONCEPTS: ConceptMeta[] = [
   {
     id: "334",
     name: "Zine",
-    direction: "Handgemaakte collage & fotokopie-textuur (anti-AI, warm)",
+    direction: "Handgemaakte collage & fotokopie-textuur (anti-perfectie, warm)",
     rationale:
       "De anti-perfectie-rebellie van 2026: knip-en-plak collage, fotokopie-korrel, plakband-hoekjes en marker-onderstreping — maar leesbaar en functioneel. Menselijk gemaakt, warm papier, zwarte marker plus één spot-kleur.",
     trends: [
