@@ -1,11 +1,15 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Users, MapPin, Euro, Calendar, Search } from "lucide-react";
+import { Users, MapPin, Euro, Calendar, Search, Briefcase } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
 import { type Availability, type CredentialType } from "@/lib/enums";
-import { type FreelancerCredential } from "@/lib/matching";
+import {
+  type FreelancerCredential,
+  type JobMatchSource,
+  type FreelancerMatchSource,
+} from "@/lib/matching";
 import { computeEngageability } from "@/lib/engageability";
 import { outstandingMandatoryTypes } from "@/lib/franchise/credential-reminder";
 import { FranchiseCredentialReminderButton } from "@/components/franchise/credential-reminder-button";
@@ -25,8 +29,13 @@ import {
   type RosterZzper,
   type RosterSortKey,
 } from "@/lib/franchise/zzper-roster-filter";
-import { summarizeRosterCapacity } from "@/lib/franchise/roster-capacity";
+import { summarizeRosterCapacity, isIdleReady } from "@/lib/franchise/roster-capacity";
 import { RosterCapacityStrip } from "@/components/franchise/roster-capacity-strip";
+import {
+  countPlaceableDiensten,
+  placeableChipLabel,
+  placeableHeadline,
+} from "@/lib/franchise/roster-placement";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { avatarAccent } from "@/lib/avatar-accent";
 import { PageHeader } from "@/components/ui/page-header";
@@ -76,6 +85,9 @@ interface RosterCard extends RosterZzper {
   alertTone: ReturnType<typeof expiryAlertTone>;
   /** Meest urgente vervalvenster — voedt het aggregate compliance-overzicht. */
   alertWindow: ExpiryWindow | null;
+  /** Aantal open tenant-diensten waarop deze (vrij-inzetbare) ZZP'er plaatsbaar is; 0 voor wie al
+   *  is ingezet of (nog) niet inzetbaar — daar heeft een plaatsingssuggestie geen zin. */
+  placeableDiensten: number;
 }
 
 export default async function FranchiseZzpersPage({
@@ -87,7 +99,7 @@ export default async function FranchiseZzpersPage({
   const sp = await searchParams;
   const filter = parseRosterFilter(sp);
   const now = new Date();
-  const [freelancers, skills] = await Promise.all([
+  const [freelancers, skills, openDiensten] = await Promise.all([
     // unbounded-allow: franchise-tenant-scoped freelancers; beheerbaar volume
     prisma.freelancerProfile.findMany({
       where: tenantScopeWhere(actor),
@@ -96,6 +108,10 @@ export default async function FranchiseZzpersPage({
         user: { select: { name: true, email: true, identityVerifiedAt: true, lastLoginAt: true } },
         credentials: { select: { type: true, status: true, expiresAt: true } },
         skills: { include: { skill: { select: { name: true } } } },
+        // Matchbron-relaties voor het plaatsbaarheids-signaal (welke open diensten passen bij deze
+        // ZZP'er) — de scalaire profielvelden (tarief/werkmodus/locatie/…) komen al mee via include.
+        industries: { select: { industryId: true } },
+        availabilityWindows: { select: { startDate: true, endDate: true, type: true } },
         _count: {
           select: {
             credentials: true,
@@ -108,7 +124,37 @@ export default async function FranchiseZzpersPage({
     }),
     // unbounded-allow: skills-referentielijst voor formulier
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // Open (gepubliceerde) diensten binnen dezelfde tenant — de plaatsbare set voor het roster;
+    // tenant-gescopet + take-begrensd (zelfde bron als de detail-suggestiekaart).
+    prisma.job.findMany({
+      where: { status: "PUBLISHED", ...tenantScopeWhere(actor) },
+      take: 100,
+      select: {
+        title: true,
+        description: true,
+        rateMin: true,
+        rateMax: true,
+        workMode: true,
+        location: true,
+        industryId: true,
+        skills: { select: { skillId: true, required: true } },
+        credentialRequirements: { select: { credentialType: true, required: true } },
+      },
+    }),
   ]);
+
+  // Één keer naar de matchbron-vorm mappen; elke vrij-inzetbare ZZP'er scoort hiertegen (geen N+1).
+  const dienstSources: JobMatchSource[] = openDiensten.map((j) => ({
+    title: j.title,
+    description: j.description,
+    rateMin: j.rateMin,
+    rateMax: j.rateMax,
+    workMode: j.workMode,
+    location: j.location,
+    industryId: j.industryId,
+    skills: j.skills,
+    credentialRequirements: j.credentialRequirements,
+  }));
 
   const cards: RosterCard[] = freelancers.map((f) => {
     const credentials = f.credentials.map(
@@ -140,6 +186,38 @@ export default async function FranchiseZzpersPage({
     );
     const alertLabel = expiryAlertLabel(alert);
     const alertTone = expiryAlertTone(alert);
+    // Alleen vrij-inzetbare ZZP'ers scoren tegen de open diensten: wie werkt of nog niet inzetbaar is,
+    // hoeft niet geplaatst te worden. Zelfde `isIdleReady`-definitie als het capaciteitsoverzicht →
+    // de chip verschijnt precies bij de bench die de tegel telt.
+    const idleReady = isIdleReady({
+      engageabilityStatus: eng.status,
+      availability: f.availability as Availability,
+      activeCollaborations: f._count.collaborations,
+    });
+    const placeableDiensten =
+      idleReady && dienstSources.length > 0
+        ? countPlaceableDiensten(
+            {
+              skills: f.skills.map((s) => ({ skillId: s.skillId })),
+              credentials: f.credentials.map((c) => ({
+                type: c.type,
+                status: c.status,
+                expiresAt: c.expiresAt,
+              })),
+              hourlyRate: f.hourlyRate,
+              workMode: f.workMode,
+              location: f.location,
+              maxTravelMinutes: f.maxTravelMinutes,
+              headline: f.headline,
+              bio: f.bio,
+              availability: f.availability,
+              availabilityWindows: f.availabilityWindows,
+              industries: f.industries,
+            } satisfies FreelancerMatchSource,
+            dienstSources,
+            now,
+          )
+        : 0;
     return {
       id: f.id,
       name: f.user.name ?? "—",
@@ -160,11 +238,16 @@ export default async function FranchiseZzpersPage({
       alertTone,
       alertWindow: alert.window,
       activeCollaborations: f._count.collaborations,
+      placeableDiensten,
     };
   });
 
   const capacity = summarizeRosterCapacity(cards);
   const compliance = summarizeCredentialCompliance(cards.map((c) => ({ window: c.alertWindow })));
+  // Kop over de hele roster (niet het filter): hoeveel vrije vakmensen zijn nu direct plaatsbaar.
+  const placeableHeadlineText = placeableHeadline(
+    cards.filter((c) => c.placeableDiensten > 0).length,
+  );
   const visible = sortRoster(filterRoster(cards, filter), filter.sort);
   const filterActive = isRosterFilterActive(filter);
 
@@ -203,6 +286,15 @@ export default async function FranchiseZzpersPage({
           {/* Compliance-overzicht: "houd ik mijn pool compliant?" — verlopen/aflopende certificaten
               als aggregaat, klikbaar naar het alerts-filter. Rendert alleen bij een signaal. */}
           <CredentialComplianceStrip summary={compliance} />
+
+          {/* Plaatsbaarheid: "wie van mijn bench kan ik nú op een open dienst zetten?" — telt de vrije
+              vakmensen met minstens één passende open dienst. Rendert alleen bij een plaatsingskans. */}
+          {placeableHeadlineText && (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Briefcase className="size-4 shrink-0 text-success" aria-hidden />
+              {placeableHeadlineText}
+            </p>
+          )}
 
           {/* Zoeken + filteren + sorteren (GET → server-side waarheid; deelbaar/herlaadbaar). */}
           <form method="get" className="flex flex-wrap items-end gap-3">
@@ -364,6 +456,21 @@ export default async function FranchiseZzpersPage({
                         </span>
                       )}
                     </div>
+
+                    {/* Plaatsbaarheid: hoeveel open diensten passen bij deze vrije vakmens. Klikt door
+                        naar het profiel waar de suggestie-kaart de diensten toont mét voordracht-actie
+                        — geen dood signaal, direct handelingsperspectief. */}
+                    {placeableChipLabel(f.placeableDiensten) && (
+                      <Link
+                        href={`/franchise/zzpers/${f.id}`}
+                        className="self-start rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <Badge variant="success" className="gap-1">
+                          <Briefcase className="size-3 shrink-0" aria-hidden />
+                          {placeableChipLabel(f.placeableDiensten)}
+                        </Badge>
+                      </Link>
+                    )}
 
                     {/* Certificaat-waarschuwing + blokkade */}
                     {f.alertLabel && f.alertTone && (

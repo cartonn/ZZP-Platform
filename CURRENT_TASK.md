@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Plaatsbaarheids-signaal per vrije ZZP'er op het roster (bemiddelaar) (2026-07-16, PR #793)** —
+> op `/franchise/zzpers` toonde het capaciteitsoverzicht al **wie** vrij inzetbaar is (de bench), maar niet **waar** de
+> bemiddelaar die persoon vandaag op kan zetten; daarvoor moest hij elk profiel openen (waar `dienst-suggesties` de
+> passende diensten toont). Nu een compacte **"N passende diensten"**-chip per vrij-inzetbare ZZP'er op de lijst + een kop
+> "X vrije vakmensen zijn direct plaatsbaar op een open dienst"; de chip deep-linkt naar het profiel met de bestaande
+> voordracht-actie (geen dood signaal). Pure `roster-placement.ts` (`countPlaceableDiensten` telt open tenant-diensten met
+> matchscore ≥ de **gedeelde** `DIENST_SUGGESTIE_MIN_SCORE` via dezelfde `scoreJobForFreelancer`-motor → chip == detail;
+> `placeableChipLabel`/`placeableHeadline` null bij nul; 10 tests) + wiring in `franchise/zzpers/page.tsx` (open diensten
+> één keer geladen `take:100` tenant-gescopet; alleen `isIdleReady`-ZZP'ers scoren; `industries`/`availabilityWindows` aan
+> de bestaande include toegevoegd; geen N+1). Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate:
+> typecheck, lint, 4294 unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Afwijzingspatroon-inzicht op /reacties (ZZP'er) (2026-07-16, PR #791)** — de ZZP'er zag
 > afwijzingsredenen alleen **per reactie** (`rejectionReasonFeedback` op elke afgewezen kaart), maar nergens het **patroon**
 > over al zijn afwijzingen heen; drie keer "Tarief boven budget" moest hij zelf uit de losse kaarten optellen. Nu één
