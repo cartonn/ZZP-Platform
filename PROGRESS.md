@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — ZZP'er: afwijzingspatroon-inzicht op /reacties
+
+**Increment (PR #791):** de ZZP'er zag afwijzingsredenen alleen **per reactie** (`rejectionReasonFeedback`
+op elke afgewezen kaart), maar nergens het **patroon** over al zijn afwijzingen heen. Wie drie keer
+op "Tarief boven budget" wordt afgewezen, moest dat zelf uit de losse kaarten optellen. Nu één
+actiegericht patroon-inzicht bovenaan `/reacties` — **"Terugkerende reden bij je afwijzingen: Tarief
+boven budget (3× genoemd)"** + een concrete, respectvolle volgende stap ("overweeg een scherper tarief
+of richt je op opdrachten met meer ruimte"). Tilt de losse terugkoppeling naar een leerbaar signaal dat
+de slaagkans verbetert (benchmark Malt/Upwork freelancer-coaching); "maak het slimmer" voor de ZZP'er.
+
+- **Pure kern** `src/lib/rejection-pattern.ts` (`summarizeRejectionPattern` + `REJECTION_PATTERN_ADVICE`;
+  8 tests): telt alleen REJECTED-reacties mét een gestructureerde, actiegerichte reden (OTHER/onbekend/
+  leeg tellen niet mee — geen bruikbaar patroon); toont pas iets vanaf `REJECTION_PATTERN_MIN_COUNT=2`
+  voor de dominante reden (één afwijzing is toeval, niet ontmoedigen). Coachingszin bewust anders dan de
+  per-reactie-feedback (die relativeert). Null zonder betekenisvol patroon → scherm blijft rustig.
+- **Component** `src/components/applications/rejection-pattern-note.tsx` (server-gerenderd, `t`-terugval);
+  rendert niets bij `pattern === null`. Toont uitsluitend het geaggregeerde eigen oordeel — nooit een
+  individuele opdrachtgever.
+- **Wiring** in `reacties/page.tsx`: berekend uit de **al opgehaalde** reacties (`app.rejectionReason`
+  stond al in de query voor de per-rij-feedback) — **geen extra query**, geen N+1. Geplaatst onder
+  `OutcomesSummary`.
+- **Read-only:** geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate: typecheck ✓, lint ✓,
+  4281 unit-tests ✓, build ✓, prettier ✓.
+
 ## 2026-07-16 — Persona-sweep run 31: GEEN gaten (4 rollen, DOEL 1/1b/2)
 
 **Kritische-gebruiker-sweep** over alle vier rollen op de verse prod-build + idempotente demo-seed
