@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Prod: betaalprovider-connectiviteitszelftest (Stripe/Mollie)
+
+**Increment (prod-rijpheid):** de connectiviteits-zelftestsuite op `/admin/systeemstatus` was compleet voor
+opslag/e-mail/rate-limit/verificatie, maar niet voor de **betaalprovider**. Toegevoegd: een admin-only
+**Betaalprovider-zelftest** die een **read-only** round-trip doet tegen de geconfigureerde provider
+(Stripe `GET /v1/balance`, Mollie `GET /v2/methods`) en bereikbaarheid + geldige sleutel bevestigt **zonder**
+een betaling/checkout aan te maken (geen geldverplaatsing). `BILLING_PROVIDER=noop` → eerlijk "niets getest"
+(geen vals groen). Volgt de mutatieketen auth ADMIN → rate-limit (`BILLING_SELFTEST_RATE_LIMIT`, default 6/5min)
+→ actie → audit (`BILLING_SELFTEST_RUN`, logt alleen `{ok,active}` + driver-modus, nooit secrets).
+
+- **Bestanden:** `src/lib/billing/provider.ts` (+`BillingConnectivityError`, `checkConnectivity()` op de
+  interface + Noop/Mollie/Stripe), `src/lib/services/billing-selftest.ts` (pure kern) +
+  `.test.ts`, `src/lib/rate-limit.ts` (`billingSelfTestRateLimiter`), `src/app/(protected)/admin/
+systeemstatus/actions.ts` (+`runBillingSelfTestAction`) + `page.tsx`, `src/components/admin/
+billing-selftest.tsx`, `src/lib/billing/provider.test.ts` (checkConnectivity-tests).
+- **Tests:** unit voor de pure kern (noop/actief/fout/veilig-bericht/geen-probe) + provider-round-trips
+  (read-only GET, `BillingConnectivityError` met alleen status). Volledige suite groen (4313).
+- **Docs:** MENSENWERK §3 (code-kant GEDAAN), PROGRESS + CURRENT_TASK.
+- **Menselijke reststap:** geen extra — de knop verschijnt zodra `BILLING_PROVIDER=stripe`/`mollie` + sleutels
+  gezet zijn (MENSENWERK §3).
+
 ## 2026-07-16 — Security-/privacy-audit (2e ronde): delta `a8d0139..3d441cd` bevestigd schoon
 
 **Increment (security/privacy-routine):** adversariële audit op de delta sinds de vorige ronde (PR's #787–

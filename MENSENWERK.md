@@ -344,6 +344,21 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    `STRIPE_API_KEY` + `STRIPE_WEBHOOK_SECRET` + `BILLING_PROVIDER=stripe` in de secrets (§7). Net
    als bij Mollie wordt er zonder key niets geïncasseerd.
 
+   **Code-kant GEDAAN (2026-07-16) — betaalprovider-connectiviteitszelftest:** zodra je de
+   API-sleutels hierboven hebt geplakt, kun je op `/admin/systeemstatus` (admin-only) de nieuwe
+   **Betaalprovider-zelftest** draaien — zelfde patroon als de Opslag-/E-mail-/Rate-limit-/
+   Verificatie-zelftest. Die doet een **read-only** round-trip tegen de geconfigureerde provider
+   (Stripe `GET /v1/balance`, Mollie `GET /v2/methods`) en bevestigt dat de koppeling **bereikbaar**
+   is en de **sleutel geldig** — **zonder** een betaling/checkout aan te maken (geen geldverplaatsing).
+   Zo weet je vóór go-live dat er straks écht geïncasseerd kan worden, i.p.v. alleen dat de sleutel
+   geldig geformatteerd is. Staat de betaalflow nog op de demo (`BILLING_PROVIDER=noop`), dan meldt
+   het scherm eerlijk "Geen provider actief — er is niets getest" (geen vals groen). Loopt door de
+   authz-keten (rol → rate-limit, standaard 6 per 5 minuten, instelbaar via
+   `BILLING_SELFTEST_RATE_LIMIT` → audit); de uitvoer bevat **nooit** secrets — alleen de uitkomst +
+   driver-modus (`src/lib/services/billing-selftest.ts`, `checkConnectivity()` op de provider, actie
+   in `.../systeemstatus/actions.ts`). Resterend mensenwerk: **niets extra** — de knop is er zodra
+   `BILLING_PROVIDER` op `stripe`/`mollie` staat.
+
    **Code-kant GEDAAN (4-7-2026): volledige abonnementsperiode-levensloop.** De Mollie-koppeling
    (`BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`) bestond al: checkout-redirect + webhook →
    `currentPeriodEnd = nu + 1 maand`. Nieuw is dat een betaalde periode nu ook echt **verloopt**:

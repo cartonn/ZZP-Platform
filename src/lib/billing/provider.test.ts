@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import {
+  BillingConnectivityError,
   NoopPaymentProvider,
   MolliePaymentProvider,
   StripePaymentProvider,
@@ -51,6 +52,11 @@ describe("NoopPaymentProvider", () => {
     expect(r.redirectUrl).toBeNull();
     expect(await p.paymentStatus()).toBe("paid");
     expect(await p.resolveWebhookRef()).toBeNull();
+  });
+
+  it("checkConnectivity is een no-op (niets extern te testen)", async () => {
+    const p = new NoopPaymentProvider();
+    await expect(p.checkConnectivity()).resolves.toBeUndefined();
   });
 });
 
@@ -119,6 +125,24 @@ describe("MolliePaymentProvider", () => {
   it("paymentStatus werpt HttpTimeoutError bij een hangende fetch", async () => {
     const p = new MolliePaymentProvider("k", hangingFetch(), 20);
     await expect(p.paymentStatus("tr_123")).rejects.toBeInstanceOf(HttpTimeoutError);
+  });
+
+  it("checkConnectivity doet een read-only GET /methods en slaagt bij 200", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ _embedded: { methods: [] } }));
+    const p = new MolliePaymentProvider("k", fetchImpl as unknown as typeof fetch);
+    await expect(p.checkConnectivity()).resolves.toBeUndefined();
+    const [url, init] = fetchImpl.mock.calls[0]!;
+    expect(String(url)).toContain("/v2/methods");
+    expect(init?.method ?? "GET").toBe("GET"); // geen betaling aangemaakt
+  });
+
+  it("checkConnectivity werpt BillingConnectivityError met alleen een status bij een niet-ok antwoord", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({}, 401));
+    const p = new MolliePaymentProvider("k", fetchImpl as unknown as typeof fetch);
+    await expect(p.checkConnectivity()).rejects.toBeInstanceOf(BillingConnectivityError);
+    await p.checkConnectivity().catch((e: unknown) => {
+      expect((e as Error).message).toBe("Mollie: connectiviteitscontrole mislukte (status 401).");
+    });
   });
 });
 
@@ -213,5 +237,20 @@ describe("StripePaymentProvider", () => {
   it("werpt HttpTimeoutError als de fetch blijft hangen", async () => {
     const p = new StripePaymentProvider("sk", "whsec_test", hangingFetch(), now, 20);
     await expect(p.startCheckout(checkout)).rejects.toBeInstanceOf(HttpTimeoutError);
+  });
+
+  it("checkConnectivity doet een read-only GET /balance en slaagt bij 200", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ object: "balance", available: [] }));
+    const p = new StripePaymentProvider("sk", "whsec_test", fetchImpl as unknown as typeof fetch);
+    await expect(p.checkConnectivity()).resolves.toBeUndefined();
+    const [url, init] = fetchImpl.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/balance");
+    expect(init?.method ?? "GET").toBe("GET"); // geen Checkout Session aangemaakt
+  });
+
+  it("checkConnectivity werpt BillingConnectivityError met alleen een status bij een niet-ok antwoord", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({}, 401));
+    const p = new StripePaymentProvider("sk", "whsec_test", fetchImpl as unknown as typeof fetch);
+    await expect(p.checkConnectivity()).rejects.toBeInstanceOf(BillingConnectivityError);
   });
 });

@@ -27,6 +27,19 @@ export interface CheckoutResult {
 /** Genormaliseerde uitkomst van een statuscontrole/webhook. */
 export type PaymentStatus = "paid" | "open" | "failed";
 
+/**
+ * Fout uit een connectiviteitszelftest (checkConnectivity). Draagt een bewust veilig opgesteld
+ * bericht — alleen provider-naam + HTTP-status/contract, nooit een sleutel/endpoint — zodat de
+ * admin-zelftest het rechtstreeks mag tonen (parity met VerifierRequestError). Onbekende fouten
+ * (netwerk/abort) worden door de zelftest tot hun error-NAAM teruggebracht, niet hun bericht.
+ */
+export class BillingConnectivityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BillingConnectivityError";
+  }
+}
+
 export interface PaymentProvider {
   readonly name: string;
   /** Start een betaling; null redirect = direct geactiveerd (geen externe stap). */
@@ -41,6 +54,14 @@ export interface PaymentProvider {
    * invoer — een aanvaller mag geen 500 kunnen forceren.
    */
   resolveWebhookRef(rawBody: string, headers: Headers): Promise<string | null>;
+  /**
+   * Connectiviteitszelftest (admin-only, /admin/systeemstatus). Doet een **read-only**,
+   * geauthenticeerde round-trip tegen de provider — bewijst bereikbaarheid + geldige sleutel
+   * **zonder** een betaling/checkout aan te maken (geen geldverplaatsing). Resolvet bij succes,
+   * werpt een `BillingConnectivityError` (veilig bericht) bij een HTTP-/contractfout of een andere
+   * fout bij netwerkproblemen. De no-op-provider heeft niets te testen (resolvet meteen).
+   */
+  checkConnectivity(): Promise<void>;
 }
 
 /** Leest het Mollie-`id`-veld uit een webhook-body (x-www-form-urlencoded of JSON). */
@@ -74,6 +95,9 @@ export class NoopPaymentProvider implements PaymentProvider {
   }
   async resolveWebhookRef(): Promise<string | null> {
     return null; // geen externe webhook bij de no-op provider
+  }
+  async checkConnectivity(): Promise<void> {
+    // Geen externe provider: niets te testen. De zelftest meldt dit eerlijk als "niets getest".
   }
 }
 
@@ -141,6 +165,22 @@ export class MolliePaymentProvider implements PaymentProvider {
   // status gezaghebbend op bij Mollie. We lezen dus alleen het id uit de body.
   async resolveWebhookRef(rawBody: string): Promise<string | null> {
     return readMollieWebhookId(rawBody);
+  }
+
+  // Read-only connectiviteitscontrole: GET /v2/methods lijst de beschikbare betaalmethoden — een
+  // idempotente call die de API-sleutel valideert zonder een betaling aan te maken. Een netwerk-/
+  // abort-fout propageert onaangeraakt (de zelftest toont dan de error-naam, nooit het bericht).
+  async checkConnectivity(): Promise<void> {
+    const res = await fetchWithTimeout(
+      `${this.base}/methods`,
+      { headers: this.auth() },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Mollie" },
+    );
+    if (!res.ok) {
+      throw new BillingConnectivityError(
+        `Mollie: connectiviteitscontrole mislukte (status ${res.status}).`,
+      );
+    }
   }
 }
 
@@ -231,6 +271,22 @@ export class StripePaymentProvider implements PaymentProvider {
     if (typeof event.type !== "string" || !event.type.startsWith("checkout.session.")) return null;
     const id = event.data?.object?.id;
     return typeof id === "string" && id ? id : null;
+  }
+
+  // Read-only connectiviteitscontrole: GET /v1/balance haalt het accountsaldo op — een idempotente
+  // call die de secret key valideert zonder een Checkout Session of betaling aan te maken. Een
+  // netwerk-/abort-fout propageert onaangeraakt (de zelftest toont dan de error-naam).
+  async checkConnectivity(): Promise<void> {
+    const res = await fetchWithTimeout(
+      `${this.base}/balance`,
+      { headers: this.auth() },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Stripe" },
+    );
+    if (!res.ok) {
+      throw new BillingConnectivityError(
+        `Stripe: connectiviteitscontrole mislukte (status ${res.status}).`,
+      );
+    }
   }
 }
 
