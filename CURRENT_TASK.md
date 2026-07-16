@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Acute-dienst vulbaarheidssplitsing (voordragen vs. werven) — bemiddelaar (2026-07-16, PR #785)** —
+> de "Wat dreigt onbezet"-triagekaart op `/franchise/diensten` toonde al **welke** open diensten acuut zijn (deze week /
+> verstreken start / geen startdatum) maar niet **of** de bemiddelaar ze uit zijn eigen roster kan oplossen of extern moet
+> werven — de eerstvolgende beslissing. Het vulbaar-signaal (`readyMatches` uit `dienst-fill-signal.ts`) was al op de pagina
+> geladen maar leefde alleen als chip per lijst-rij verderop, niet in de acute-triage. Nu per acute dienst **"N matches vrij"**
+> (direct voordraagbaar) vs. **"Werven"** + een samenvattende regel ("2 direct vulbaar uit je roster · 1 dienst vraagt werving").
+> Pure `acute-fillability.ts` (`summarizeAcuteFillability` + `acuteFillabilityHeadline`; 12 tests) + wiring in
+> `franchise/diensten/page.tsx` (leunt op het al-geladen `fillSignals`, geen extra query/N+1). Read-only, geen schemawijziging,
+> geen nieuw mutatie/auth-oppervlak, geen nieuwe rekenlogica/drempel. Gate groen.
+>
 > Gedaan (niet opnieuw): **Proactieve certificaat-verval-waarschuwing per lopende samenwerking (ZZP'er) (2026-07-15, PR #784)** —
 > de ZZP'er kreeg alleen een **generieke** "certificaat verloopt binnenkort"-taak (`credentialFixTask(..., "expiring")`),
 > die op elk verlopend geverifieerd certificaat vuurt ongeacht of er een opdracht op leunt en geen samenwerking noemt.
