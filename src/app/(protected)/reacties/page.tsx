@@ -30,6 +30,8 @@ import {
 } from "@/lib/application-filter";
 import { canWithdrawApplication } from "@/lib/applications";
 import { rejectionReasonFeedback } from "@/lib/rejection-reason";
+import { summarizeRejectionPattern } from "@/lib/rejection-pattern";
+import { RejectionPatternNote } from "@/components/applications/rejection-pattern-note";
 import { type ApplicationStatus, type CredentialType, type CredentialStatus } from "@/lib/enums";
 import { getTranslator } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
@@ -139,6 +141,13 @@ export default async function ReactiesPage({
   const groupSummary = summarizeApplicationGroups(typed);
   const visible = filterApplications(typed, filter);
 
+  // Terugkerend patroon in de afwijzingsredenen: welke reden noemden opdrachtgevers het vaakst?
+  // Server-berekend uit de al opgehaalde reacties (geen extra query); null zonder betekenisvol
+  // patroon zodat het scherm rustig blijft.
+  const rejectionPattern = summarizeRejectionPattern(
+    typed.map((app) => ({ status: app.status, rejectionReason: app.rejectionReason })),
+  );
+
   // Hoeveel eigen reacties liggen langer dan gebruikelijk onbeslist? Server-berekend uit de
   // onveranderlijke createdAt + status (geen extra query); stuurt de strip boven de lijst.
   const awaitingAttention = countApplicationsAwaitingAttention(
@@ -167,6 +176,8 @@ export default async function ReactiesPage({
       />
 
       <OutcomesSummary outcomes={outcomes} />
+
+      <RejectionPatternNote pattern={rejectionPattern} t={t} />
 
       {awaitingAttention > 0 && (
         <p className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">

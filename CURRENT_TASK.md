@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Afwijzingspatroon-inzicht op /reacties (ZZP'er) (2026-07-16, PR #791)** — de ZZP'er zag
+> afwijzingsredenen alleen **per reactie** (`rejectionReasonFeedback` op elke afgewezen kaart), maar nergens het **patroon**
+> over al zijn afwijzingen heen; drie keer "Tarief boven budget" moest hij zelf uit de losse kaarten optellen. Nu één
+> actiegericht patroon-inzicht bovenaan `/reacties` — **"Terugkerende reden bij je afwijzingen: Tarief boven budget
+> (3× genoemd)"** + een concrete, respectvolle volgende stap. Pure `rejection-pattern.ts` (`summarizeRejectionPattern` +
+> `REJECTION_PATTERN_ADVICE`; alleen REJECTED mét actiegerichte reden, OTHER/onbekend/leeg tellen niet, drempel
+> `MIN_COUNT=2`, null zonder patroon; 8 tests) + `RejectionPatternNote` (rendert niets bij null) + wiring in
+> `reacties/page.tsx` (leunt op de al-geladen `app.rejectionReason` — geen extra query/N+1). Read-only, geen
+> schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate: typecheck, lint, 4281 unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Acute-onbezet dienst als next-action — bemiddelaar (2026-07-16, PR #789)** — de bemiddelaar zag
 > op `/franchise/diensten` al **welke** open diensten NU dreigen onbezet (start deze week/verstreken/geen startdatum) mét de
 > vulbaar/werving-triage (#785/#779), maar dat operationeel-urgentste item ontbrak volledig in zijn actiecentrum: de item-engine
