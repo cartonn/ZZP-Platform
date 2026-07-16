@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import {
+  billingSelfTestRateLimiter,
   createRateLimitStore,
   mailSelfTestRateLimiter,
   rateLimitSelfTestRateLimiter,
@@ -12,6 +13,12 @@ import {
   UpstashRateLimitStore,
   verifierSelfTestRateLimiter,
 } from "@/lib/rate-limit";
+import { getPaymentProvider } from "@/lib/billing/provider";
+import {
+  runBillingSelfTest,
+  type BillingDriverMode,
+  type BillingSelfTestReport,
+} from "@/lib/services/billing-selftest";
 import { bigEndpointConfig } from "@/lib/services/big-verifier";
 import { duoEndpointConfig } from "@/lib/services/diploma-verifier";
 import { idinEndpointConfig } from "@/lib/services/identity-verifier";
@@ -262,6 +269,49 @@ export async function runRateLimitSelfTestAction(): Promise<RateLimitSelfTestSta
       active: report.active,
       steps: report.steps.map((s) => ({ key: s.key, ok: s.ok })),
     },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
+export type BillingSelfTestState =
+  | { ok: true; report: BillingSelfTestReport }
+  | { ok: false; error: string };
+
+/**
+ * Draait een connectiviteitszelftest tegen de geconfigureerde betaalprovider (admin-only). Volgt de
+ * mutatieketen (auth → rol → rate-limit → actie → audit). Staat de betaalflow op de demo
+ * (BILLING_PROVIDER=noop), dan is er niets externs om te testen en meldt de zelftest dat eerlijk
+ * (geen vals groen). Op Stripe/Mollie doet hij een READ-ONLY round-trip (Stripe /balance, Mollie
+ * /methods) die bereikbaarheid + geldige sleutel bevestigt ZONDER een betaling/checkout aan te
+ * maken (MENSENWERK §3). De uitvoer bevat nooit secrets — alleen de uitkomst en de driver-modus.
+ */
+export async function runBillingSelfTestAction(): Promise<BillingSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await billingSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const providerMode = process.env.BILLING_PROVIDER;
+  const active = providerMode === "stripe" || providerMode === "mollie";
+  const driverMode: BillingDriverMode = active ? providerMode : "noop";
+
+  const report = await runBillingSelfTest({
+    active,
+    driverMode,
+    run: active ? () => getPaymentProvider().checkConnectivity() : undefined,
+  });
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "BILLING_SELFTEST_RUN",
+    entityType: "Billing",
+    entityId: driverMode,
+    metadata: { ok: report.ok, active: report.active },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });

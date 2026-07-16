@@ -537,3 +537,16 @@ export const verifierSelfTestRateLimiter = new RateLimiter(
   5 * 60_000,
   "verifierselftest:",
 );
+
+/**
+ * Maximaal BILLING_SELFTEST_RATE_LIMIT (default 6) betaalprovider-zelftests per beheerder per 5
+ * minuten. De admin-actie (/admin/systeemstatus) doet een read-only round-trip (Stripe /balance,
+ * Mollie /methods) tegen de geconfigureerde provider — geen geldverplaatsing. De rem houdt een per
+ * ongeluk herhaalde klik of een script binnen de perken (parity met de andere zelftests).
+ */
+export const billingSelfTestRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("BILLING_SELFTEST_RATE_LIMIT", 6),
+  5 * 60_000,
+  "billingselftest:",
+);
