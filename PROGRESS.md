@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Ontwerp-lab: +10 concepten (reeks 35, nrs 341–350)
+
+**Ronde:** orchestrator (Opus 4.8), 4 parallelle Opus-builders op niet-overlappende bestanden; integratie zelf.
+
+- **Wat:** tien nieuwe, onderscheidende redesign-richtingen toegevoegd aan `/ontwerp` — strikt **additief**
+  (geen bestaand concept, registry-entry of route-koppeling overschreven). De galerij groeit **340 → 350**.
+- **De 10 (341–350):** Meridiaan (nautische zeekaart/wayfinding), Terracotta (mediterraan aardewerk),
+  Kobaltglas (premium-dark glasmorphism), Passer (technisch drafting), Schaduwspel (high-contrast licht/schaduw),
+  Vlonder (warm hout/geaard), Ivoor (ultra-minimaal monochroom), Kwintet (muzikaal partituur-ritme),
+  Vensterbank (huiselijk daglicht), Loden (industrieel gunmetal).
+- **Nieuwe bestanden:** `src/components/ontwerp/concepts/concept-341-meridiaan.tsx` … `concept-350-loden.tsx`
+  (elk `"use client"`, named export `Concept3NN`, alle 6 kernschermen via screen-switcher, loading/empty/error,
+  statuschips label+icoon, responsive, toegankelijk, deterministisch, geen externe assets).
+- **Alleen APPEND:** `registry.ts` (+10 entries), `[id]/concept-host.tsx` (+10 lazy-koppelingen),
+  `docs/DESIGN-LAB.md` (reeks 35). Bestaande entries/koppelingen ongemoeid; geen live-app/auth/schema geraakt.
+- **Reeks 34 (331–340, PR #778):** die stond geblokkeerd op agent-review door één UI-string met het woord
+  "AI" (`anti-AI`); die blocker is gefixt naar `anti-perfectie` en auto-merge (squash) staat aan, zodat 331–340
+  eveneens landt. Deze reeks 35 gebruikt bewust de vrije nrs 341–350 om niet te botsen.
+- **Gate:** typecheck ✓, lint ✓ (No ESLint warnings or errors), prettier ✓. Het woord "AI" komt nergens voor.
+
 ## 2026-07-16 — Routine: acute-dienst vulbaarheidssplitsing (voordragen vs. werven) — bemiddelaar
 
 **Ronde:** orchestrator (Opus 4.8), één klein triage-increment voor de bemiddelaar (PR #785).
