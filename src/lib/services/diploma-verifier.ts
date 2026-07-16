@@ -1,4 +1,4 @@
-import { verifyViaHttp } from "@/lib/services/http-verify";
+import { verifyViaHttp, type VerifyEndpointConfig } from "@/lib/services/http-verify";
 
 // Diploma-/certificaatverificatie achter een schone service-grens.
 //
@@ -44,6 +44,20 @@ export class MockDiplomaVerifier implements DiplomaVerifier {
 }
 
 /**
+ * Endpoint-config van de DUO-koppeling (basis-URL + sleutel + pad). Eén bron van waarheid, gedeeld
+ * door de verifier én de connectiviteitszelftest (`verify-selftest.ts`) zodat die niet uiteenlopen.
+ */
+export function duoEndpointConfig(fetchImpl?: typeof fetch): VerifyEndpointConfig {
+  return {
+    name: "DUO",
+    baseUrl: process.env.DUO_API_BASE,
+    apiKey: process.env.DUO_API_KEY,
+    path: "/diploma/verify",
+    fetchImpl,
+  };
+}
+
+/**
  * Echte DUO-koppeling: controleert de verificatiecode tegen het geconfigureerde endpoint
  * (DIPLOMA_API_BASE + DIPLOMA_API_KEY) via de gedeelde HTTP-helper. Productie-onboarding bij DUO
  * (contract/certificaten/endpoint) is mensenwerk; zonder config faalt 'ie helder.
@@ -52,16 +66,10 @@ export class DuoDiplomaVerifier implements DiplomaVerifier {
   constructor(private readonly fetchImpl?: typeof fetch) {}
 
   async verify(input: DiplomaVerificationInput): Promise<DiplomaVerificationResult> {
-    const raw = await verifyViaHttp(
-      {
-        name: "DUO",
-        baseUrl: process.env.DUO_API_BASE,
-        apiKey: process.env.DUO_API_KEY,
-        path: "/diploma/verify",
-        fetchImpl: this.fetchImpl,
-      },
-      { verificationCode: input.verificationCode.trim(), holderName: input.holderName.trim() },
-    );
+    const raw = await verifyViaHttp(duoEndpointConfig(this.fetchImpl), {
+      verificationCode: input.verificationCode.trim(),
+      holderName: input.holderName.trim(),
+    });
     return {
       verified: raw.verified,
       source: "DUO",

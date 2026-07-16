@@ -1,4 +1,4 @@
-import { verifyViaHttp } from "@/lib/services/http-verify";
+import { verifyViaHttp, type VerifyEndpointConfig } from "@/lib/services/http-verify";
 
 // BIG-registerverificatie (beroepsregistratie zorg) achter een schone service-grens.
 //
@@ -44,6 +44,20 @@ export class MockBigVerifier implements BigVerifier {
 }
 
 /**
+ * Endpoint-config van de BIG-koppeling (basis-URL + sleutel + pad). Eén bron van waarheid, gedeeld
+ * door de verifier én de connectiviteitszelftest (`verify-selftest.ts`) zodat die niet uiteenlopen.
+ */
+export function bigEndpointConfig(fetchImpl?: typeof fetch): VerifyEndpointConfig {
+  return {
+    name: "BIG",
+    baseUrl: process.env.BIG_API_BASE,
+    apiKey: process.env.BIG_API_KEY,
+    path: "/big/verify",
+    fetchImpl,
+  };
+}
+
+/**
  * Echte BIG-registerkoppeling: controleert BIG-nummer + naam tegen het geconfigureerde endpoint
  * (BIG_API_BASE + BIG_API_KEY) via de gedeelde HTTP-helper. Productie-onboarding is mensenwerk;
  * zonder config faalt 'ie helder.
@@ -52,16 +66,10 @@ export class BigRegisterVerifier implements BigVerifier {
   constructor(private readonly fetchImpl?: typeof fetch) {}
 
   async verify(input: BigVerificationInput): Promise<BigVerificationResult> {
-    const raw = await verifyViaHttp(
-      {
-        name: "BIG",
-        baseUrl: process.env.BIG_API_BASE,
-        apiKey: process.env.BIG_API_KEY,
-        path: "/big/verify",
-        fetchImpl: this.fetchImpl,
-      },
-      { bigNumber: input.bigNumber.trim(), holderName: input.holderName.trim() },
-    );
+    const raw = await verifyViaHttp(bigEndpointConfig(this.fetchImpl), {
+      bigNumber: input.bigNumber.trim(),
+      holderName: input.holderName.trim(),
+    });
     return {
       verified: raw.verified,
       source: "BIG",

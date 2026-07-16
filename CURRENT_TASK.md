@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — verificatie-adapter connectiviteitszelftest (DUO/BIG/iDIN) (2026-07-16, PR #788)** —
+> de externe verificatie-adapters misten als enige integratie een connectiviteitszelftest (opslag/e-mail/rate-limit hadden
+> die al). Zodra de mens een echte adapter aanzet (`DIPLOMA_VERIFIER=duo`/`BIG_VERIFIER=bigregister`/`IDENTITY_VERIFIER=idin`)
+>
+> - endpoints/sleutels plakt, was er geen manier om vóór echte diploma-/zorg-/identiteitscontrole te bevestigen dat de
+>   koppeling het endpoint écht bereikt. Nu een admin-only **Verificatie-zelftest** op `/admin/systeemstatus`: per aangezette
+>   adapter een echte round-trip met een **synthetische** probe die ALLEEN bereikbaarheid + auth + contract-vorm toetst
+>   (nooit `verified===true` — een `verified:false` op een verzonnen code is een gezonde uitkomst); demo-verifier (`mock`) →
+>   eerlijk "niets getest". Pure `verify-selftest.ts` (`runVerifierSelfTest`+`safeVerifierDetail`, 12 tests) + gedragsbehoudende
+>   `*EndpointConfig()`-extractie uit de 3 verifiers + server-actie (auth ADMIN → rate-limit → probe → audit, geen secrets in
+>   uitvoer/metadata) + client-card + page-wiring. Geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate: typecheck,
+>   lint, targeted tests groen.
+>
 > Gedaan (niet opnieuw): **Acute-dienst vulbaarheidssplitsing (voordragen vs. werven) — bemiddelaar (2026-07-16, PR #785)** —
 > de "Wat dreigt onbezet"-triagekaart op `/franchise/diensten` toonde al **welke** open diensten acuut zijn (deze week /
 > verstreken start / geen startdatum) maar niet **of** de bemiddelaar ze uit zijn eigen roster kan oplossen of extern moet

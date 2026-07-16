@@ -398,6 +398,21 @@ beveiligde sleutels. Een agent kan dat contact en die afspraken niet namens jou 
 > Algemene werkwijze per bron: (1) jij regelt toegang + krijgt sleutels/endpoint, (2) je zet die in
 > de secrets, (3) je ontwikkelaar/agent vult die ene koppeling in en zet de bijbehorende schakelaar
 > om (`...=duo` / `...=bigregister` / `...=idin`). De rest van het platform verandert niet.
+>
+> **Code-kant GEDAAN (2026-07-16) — connectiviteitszelftest:** zodra je een echte adapter aanzet
+> (`DIPLOMA_VERIFIER=duo` / `BIG_VERIFIER=bigregister` / `IDENTITY_VERIFIER=idin`) + de endpoints/
+> sleutels plakt, kun je op `/admin/systeemstatus` (admin-only) de **Verificatie-zelftest** draaien:
+> die doet per aangezette adapter een echte round-trip met een **synthetische** probe-invoer tegen
+> het endpoint en bevestigt dat het **bereikbaar** is, de **auth** klopt en het antwoord het
+> **contract** volgt — zonder een echt "geverifieerd"-signaal te genereren (een `verified:false` op
+> een verzonnen code is juist een gezonde uitkomst). Zo bevestig je vóór echte diploma-/zorg-/
+> identiteitscontrole dat de koppeling het écht doet, i.p.v. alleen de driver-modus te zien
+> (`src/lib/services/verify-selftest.ts`, actie in `.../systeemstatus/actions.ts`, zelfde patroon als
+> de Opslag-/E-mail-/Rate-limit-zelftest). Adapters die nog op de demo-verifier (`mock`) draaien
+> worden eerlijk als "niets getest" gemeld (geen vals groen). De uitvoer bevat nooit secrets (alleen
+> stap-uitkomsten + driver-modus), loopt door de authz-keten (rol → rate-limit → audit) en toont
+> alleen bereikbaarheid. Resterend mensenwerk: **niets extra** — de knop is er zodra een echte adapter
+> aanstaat.
 
 ### 4a. DUO — diploma's
 
