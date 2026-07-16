@@ -260,6 +260,61 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Acute-dienst vulbaarheidssplitsing (voordragen vs. werven) — bemiddelaar (2026-07-16, PR #785)** —
+> de "Wat dreigt onbezet"-triagekaart op `/franchise/diensten` toonde al **welke** open diensten acuut zijn (deze week /
+> verstreken start / geen startdatum) maar niet **of** de bemiddelaar ze uit zijn eigen roster kan oplossen of extern moet
+> werven — de eerstvolgende beslissing. Het vulbaar-signaal (`readyMatches` uit `dienst-fill-signal.ts`) was al op de pagina
+> geladen maar leefde alleen als chip per lijst-rij verderop, niet in de acute-triage. Nu per acute dienst **"N matches vrij"**
+> (direct voordraagbaar) vs. **"Werven"** + een samenvattende regel ("2 direct vulbaar uit je roster · 1 dienst vraagt werving").
+> Pure `acute-fillability.ts` (`summarizeAcuteFillability` + `acuteFillabilityHeadline`; 12 tests) + wiring in
+> `franchise/diensten/page.tsx` (leunt op het al-geladen `fillSignals`, geen extra query/N+1). Read-only, geen schemawijziging,
+> geen nieuw mutatie/auth-oppervlak, geen nieuwe rekenlogica/drempel. Gate groen.
+>
+> Gedaan (niet opnieuw): **Proactieve certificaat-verval-waarschuwing per lopende samenwerking (ZZP'er) (2026-07-15, PR #784)** —
+> de ZZP'er kreeg alleen een **generieke** "certificaat verloopt binnenkort"-taak (`credentialFixTask(..., "expiring")`),
+> die op elk verlopend geverifieerd certificaat vuurt ongeacht of er een opdracht op leunt en geen samenwerking noemt.
+> De opdrachtgever zag de andere kant al gericht (kandidaten-scherm: verval-tijdens-opdracht via
+> `summarizeCandidateCredentialExpiry`), maar de ZZP'er werd nooit gewaarschuwd dat het verval een concrete
+> samenwerking dreigt te blokkeren. Nu een gerichte, samenwerking-gebonden next-action — **"VOG verloopt tijdens je
+> opdracht · Verloopt over 8 dagen · vernieuw het voor je opdracht bij Zorggroep Noord (Wijkverpleegkundige)"** —
+> geruster + slimmer: oplossen vóór het een blokkade wordt (benchmark Pidz/Zorgwerk compliance-bewaking). Pure
+> `collaboration-credential-expiry.ts` (`collaborationCredentialExpiryConcerns`: laatst-vervallend geldig
+> VERIFIED-certificaat per type × vereiste certificaten van lopende/voorgestelde samenwerkingen, binnen 30-daags
+> venster, gegroepeerd per certificaat, gesorteerd op vroegste verval; 10 tests) + builder `credentialCollabExpiryTask`
+> (nieuwe kind, `P.credentialExpiringForCollab = 75` — boven generiek 70, onder afgewezen 80; 4 tests). Wiring in
+> `freelancerTasks`: generieke verval-taken **uitgesteld** en alleen geëmit voor niet-gedekte certificaten → geen
+> dubbele taak. Reeds-verlopen/ontbrekend vereist certificaat blijft elders (verplicht-document/compliance-ripple).
+> Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate groen (typecheck, lint, 4242 unit-tests, build).
+>
+> Gedaan (niet opnieuw): **Tarief-diagnose op een koud lopende opdracht (opdrachtgever) (2026-07-15, PR #783)** —
+> op "Mijn opdrachten" (`/opdrachten`, CLIENT-view) toonde het vacaturetempo-signaal
+> (`summarizeVacancyPerformance`) al dát een opdracht koud loopt ("Weinig respons, X dagen open"), maar gaf
+> alleen een generieke tip ("overweeg tarief/eisen/zichtbaarheid bij te stellen") — het tarief werd nooit tegen
+> de markt getoetst. De marktband-engine (`computeMarketBand`/`getJobRateBands`) bestond al, maar werd uitsluitend
+> op het opdracht-formulier getoond; de twee waren nergens gecombineerd. Nu een concrete, cijfermatige
+> tarief-diagnose per koude kaart — **"Je biedt tot € 45/u, terwijl het markttarief rond € 60/u ligt. Een hoger
+> tarief trekt doorgaans meer kandidaten."** — die "reacties blijven uit, geen idee waarom" in een meetbare knop
+> verandert (raakt de vervullingsgraad; benchmark Malt/Upwork rate-guidance). Pure `vacancy-rate-diagnosis.ts`
+> (`diagnoseVacancyRate`: fireert alleen bij `attention` én begrensde bovengrens `rateMax != null` én
+> `rateMax < markt-mediaan` — mediaan bewust als drempel; open-eind tarief → geen claim; toont uitsluitend de
+> geaggregeerde mediaan, nooit een individueel ZZP-tarief; 7 tests) + `VacancyRateDiagnosisNote` + wiring in
+> `ClientJobs` (marktband één keer geladen, alleen bij ≥1 koude kandidaat met begrensd tarief — geen N+1, geen
+> query zonder noodzaak). Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate groen
+> (typecheck, lint, unit-tests, build ✓).
+>
+> Gedaan (niet opnieuw): **Geschikte-vakmensen-vrij-signaal per open dienst (bemiddelaar) (2026-07-15, PR #779)** —
+> op `/franchise/diensten` toonde de bemiddelaar per open dienst "X dagen open"/reactie-tellingen, maar geen
+> antwoord op zijn kernvraag: "kan ik dit NU vullen uit mijn eigen roster of moet ik werven?" Nu een compacte chip
+> **"N geschikte vakmensen vrij"** per open (gepubliceerde, ongevulde) dienst zodra er vrij-inzetbare
+> roster-vakmensen zijn die goed matchen op déze dienst — één-oogopslag-triage tussen voordragen en werven
+> (benchmark Pidz/Zorgwerk). Een vakmens telt mee bij vrij-inzetbaar (`isIdleReady`: ACTIEF + beschikbaar + geen
+> lopende opdracht — dezelfde bron als de roster-capaciteitstegel) én matchscore ≥ `READY_MATCH_MIN_SCORE=60`
+> (zelfde motor als het voordraag-scherm). Chip alleen bij ≥1 ready match (rustige lijst). Pure
+> `dienst-fill-signal.ts` (`computeDienstFill` + `dienstFillChip` + data-loader `getRosterFillSignals`: roster +
+> dienst-matchvelden gebundeld geladen, tenant-gescopet, geen N+1; 11 tests) + gedeelde `rosterMatchSource`-mapping
+> geëxtraheerd uit `dienst-voordracht.ts` (gedragsbehoudend) + wiring in `franchise/diensten/page.tsx`. Read-only,
+> geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate groen.
+>
 > Gedaan (niet opnieuw): **Compliance-ripple next-action voor de opdrachtgever (2026-07-15, PR #777)** — de
 > opdrachtgever-compliance-ripple (een lopende samenwerking waarvan de ZZP'er een vereist certificaat
 > mist/verlopen/binnenkort-verlopend heeft) verscheen wél op de dashboard-momentopname + `/samenwerkingen`-lijst,

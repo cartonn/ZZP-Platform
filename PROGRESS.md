@@ -26,6 +26,210 @@ bestanden; orchestrator integreerde registry + route-map + docs.
   (+10 koppelingen), `docs/DESIGN-LAB.md` (reeks-34-sectie).
 - **Checks lokaal groen:** typecheck, lint, `prettier --check .`, build, test (4200/4200), `check:env`.
 
+## 2026-07-16 — Ontwerp-lab: +10 concepten (reeks 35, nrs 341–350)
+
+**Ronde:** orchestrator (Opus 4.8), 4 parallelle Opus-builders op niet-overlappende bestanden; integratie zelf.
+
+- **Wat:** tien nieuwe, onderscheidende redesign-richtingen toegevoegd aan `/ontwerp` — strikt **additief**
+  (geen bestaand concept, registry-entry of route-koppeling overschreven). De galerij groeit **340 → 350**.
+- **De 10 (341–350):** Meridiaan (nautische zeekaart/wayfinding), Terracotta (mediterraan aardewerk),
+  Kobaltglas (premium-dark glasmorphism), Passer (technisch drafting), Schaduwspel (high-contrast licht/schaduw),
+  Vlonder (warm hout/geaard), Ivoor (ultra-minimaal monochroom), Kwintet (muzikaal partituur-ritme),
+  Vensterbank (huiselijk daglicht), Loden (industrieel gunmetal).
+- **Nieuwe bestanden:** `src/components/ontwerp/concepts/concept-341-meridiaan.tsx` … `concept-350-loden.tsx`
+  (elk `"use client"`, named export `Concept3NN`, alle 6 kernschermen via screen-switcher, loading/empty/error,
+  statuschips label+icoon, responsive, toegankelijk, deterministisch, geen externe assets).
+- **Alleen APPEND:** `registry.ts` (+10 entries), `[id]/concept-host.tsx` (+10 lazy-koppelingen),
+  `docs/DESIGN-LAB.md` (reeks 35). Bestaande entries/koppelingen ongemoeid; geen live-app/auth/schema geraakt.
+- **Reeks 34 (331–340, PR #778):** die stond geblokkeerd op agent-review door één UI-string met het woord
+  "AI" (`anti-AI`); die blocker is gefixt naar `anti-perfectie` en auto-merge (squash) staat aan, zodat 331–340
+  eveneens landt. Deze reeks 35 gebruikt bewust de vrije nrs 341–350 om niet te botsen.
+- **Gate:** typecheck ✓, lint ✓ (No ESLint warnings or errors), prettier ✓. Het woord "AI" komt nergens voor.
+
+## 2026-07-16 — Routine: acute-dienst vulbaarheidssplitsing (voordragen vs. werven) — bemiddelaar
+
+**Ronde:** orchestrator (Opus 4.8), één klein triage-increment voor de bemiddelaar (PR #785).
+Combineert twee al bestaande, geteste engines die nog nergens gecombineerd waren.
+
+- **Waarom dit telt:** de "Wat dreigt onbezet"-triagekaart op `/franchise/diensten` vertelde de
+  bemiddelaar al **welke** open diensten acuut zijn (deze week / verstreken start / geen startdatum),
+  maar niet **of** hij ze uit zijn eigen roster kan oplossen of extern moet werven — precies de
+  eerstvolgende beslissing. Het vulbaar-signaal (`readyMatches` uit `dienst-fill-signal.ts`) was al op
+  de pagina geladen, maar leefde alleen als chip per lijst-rij verderop, níet in de acute-triage.
+  Nu splitst de acute-lijst per dienst in **"N matches vrij"** (direct voordraagbaar, success) vs.
+  **"Werven"** (geen geschikte vrije match, warning) + één samenvattende regel eronder:
+  **"2 direct vulbaar uit je roster · 1 dienst vraagt werving."** — één oogopslag: wat kan ik nu zelf
+  oplossen, waar moet ik naar buiten. Benchmark Pidz/Zorgwerk: dichtstbijzijnde beschikbare match eerst.
+- **Gebouwd:** pure `src/lib/franchise/acute-fillability.ts` (`summarizeAcuteFillability`:
+  splitst acute diensten op `readyMatches > 0`; `acuteFillabilityHeadline`: drie eerlijke uitkomsten —
+  alles vulbaar / niets vulbaar / gemengd, met correcte NL-pluralisering; 12 tests) + wiring in
+  `franchise/diensten/page.tsx` (leunt op het al-geladen `fillSignals`, geen extra query, geen N+1).
+- **Gate:** typecheck ✓, lint ✓, prettier ✓, unit-tests ✓, build ✓ (CI-poort verifieert e2e).
+  Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak, geen nieuwe rekenlogica/drempel.
+
+## 2026-07-15 (5e) — Routine: proactieve certificaat-verval-waarschuwing per lopende samenwerking (ZZP'er)
+
+**Ronde:** orchestrator (Opus 4.8), één klein next-action-increment voor de ZZP'er (PR #784).
+
+- **Waarom dit telt:** de ZZP'er kreeg tot nu toe alleen een **generieke** "certificaat verloopt
+  binnenkort"-taak (`credentialFixTask(..., "expiring")`) — die vuurt op elk verlopend geverifieerd
+  certificaat, ongeacht of er een lopende opdracht op leunt, en noemt geen enkele samenwerking. De
+  opdrachtgever zag de andere kant al wél gericht (kandidaten-scherm: "verval-tijdens-opdracht" via
+  `summarizeCandidateCredentialExpiry`), maar de ZZP'er werd nooit gewaarschuwd dat het verval een
+  **concrete** samenwerking dreigt te blokkeren. Nu een gerichte, samenwerking-gebonden next-action:
+  **"VOG verloopt tijdens je opdracht · Verloopt over 8 dagen · vernieuw het voor je opdracht bij
+  Zorggroep Noord (Wijkverpleegkundige)"** — geruster + slimmer: los het op vóór het een blokkade
+  wordt. Benchmark Pidz/Zorgwerk compliance-bewaking.
+- **Gebouwd:** pure `src/lib/collaboration-credential-expiry.ts`
+  (`collaborationCredentialExpiryConcerns`: koppelt per type het laatst-vervallende, nu-geldige
+  VERIFIED-certificaat aan de VEREISTE certificaten van lopende/voorgestelde samenwerkingen; alleen
+  binnen het 30-daags venster; groepeert samenwerkingen per certificaat; sorteert op vroegste verval;
+  10 tests) + nieuwe builder `credentialCollabExpiryTask` (nieuwe kind `credential-collab-expiry`,
+  `resolver: "link"` → `/certificaten/[id]/bewerken`, nieuwe prioriteit `P.credentialExpiringForCollab
+= 75`, urgenter dan generiek verlopend (70) maar onder afgewezen (80); 4 tests). Wiring in
+  `freelancerTasks` (`pending-tasks.ts`): de generieke verval-taken worden **uitgesteld** en alleen
+  geëmit voor certificaten die géén samenwerking dekt → **geen dubbele taak**. Collabs-query breidt uit
+  met `job.credentialRequirements` (alleen `required`).
+- **Reeds verlopen/ontbrekend** vereist certificaat = acuut compliance-gat, elders afgehandeld
+  (verplicht-document-taak / compliance-ripple) — bewust buiten dit vooruitkijkende signaal.
+- **Gate:** typecheck ✓, lint ✓, prettier ✓, **4242 unit-tests** ✓, build (CI-poort verifieert e2e).
+  Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+## 2026-07-15 (4e) — Routine: tarief-diagnose op een koud lopende opdracht (opdrachtgever)
+
+**Ronde:** orchestrator (Opus 4.8), één klein UX/data-increment voor de opdrachtgever. Verbindt twee
+al bestaande, geteste bouwstenen die nog nergens gecombineerd waren.
+
+- **Waarom dit telt:** het vacaturetempo-signaal (`summarizeVacancyPerformance`) toont op "Mijn
+  opdrachten" al dát een opdracht koud loopt ("Weinig respons, X dagen open"), maar geeft alleen een
+  generieke tip ("overweeg tarief/eisen/zichtbaarheid bij te stellen") — het controleert het tarief
+  nooit tegen de markt. De marktband-engine (`computeMarketBand`/`getJobRateBands`) bestond al, maar
+  werd uitsluitend op het opdracht-formulier getoond. Nu ziet de opdrachtgever bij een koude opdracht
+  de meest waarschijnlijke — en direct oplosbare — oorzaak, cijfermatig: **"Je biedt tot € 45/u,
+  terwijl het markttarief rond € 60/u ligt. Een hoger tarief trekt doorgaans meer kandidaten."**
+  Verandert "reacties blijven uit, geen idee waarom" in een meetbare knop; raakt de kernmetric
+  (vervullingsgraad). Benchmark Malt/Upwork rate-guidance.
+- **Gebouwd:** pure `src/lib/vacancy-rate-diagnosis.ts` (`diagnoseVacancyRate`): fireert **alleen** bij
+  `attention` (koud/stil-met-weinig-reacties) **én** een begrensde bovengrens (`rateMax != null`)
+  **én** `rateMax < markt-mediaan` — anders `null` (kaart blijft rustig). Bewust de mediaan als drempel
+  (niet p25): pas wanneer méér dan de helft van de markt boven je bovengrens verdient, is "tarief" de
+  aannemelijke oorzaak. Open-eind tarief ("€X+/uur", `rateMax null`) → geen "te laag"-claim. Toont
+  uitsluitend de geaggregeerde mediaan, nooit een individueel ZZP-tarief (k-anonimiteit zit al in
+  `computeMarketBand`). Presentationele `VacancyRateDiagnosisNote` + wiring in `ClientJobs`
+  (`opdrachten/(index)/page.tsx`): de marktband wordt maar één keer geladen en alleen wanneer er een
+  koude kandidaat-opdracht met begrensd tarief is (geen N+1, geen query zonder noodzaak).
+- **Bestanden:** `src/lib/vacancy-rate-diagnosis.ts` (+test, 7 cases), `src/components/jobs/
+vacancy-rate-diagnosis-note.tsx`, `src/app/(protected)/opdrachten/(index)/page.tsx` (wiring).
+  Read-only qua datamodel: geen schemawijziging, geen nieuw mutatie/auth-oppervlak, i18n-woordenboek
+  niet aangeraakt.
+- **Volgende stap:** volgende backlog-item; deze diagnose kan later ook op de opdracht-detailpagina
+  (`opdrachten/[id]`) landen als de opdrachtgever daar dieper inzoomt.
+
+## 2026-07-15 (3e) — Prod: rate-limit-store (Upstash) connectiviteitszelftest op /admin/systeemstatus
+
+**Ronde:** orchestrator (Opus 4.8), één klein productie-rijpheid-increment. Sluit het laatste gat in de
+zelftest-reeks: opslag (§1c) en e-mail (§2) hadden al een connectiviteitszelftest, de gedeelde
+rate-limit-store (Upstash, MENSENWERK §0b H-2) nog niet.
+
+- **Waarom dit telt:** de Upstash-store is bewust **fail-open** (`UpstashRateLimitStore.consume` — een
+  Redis-storing mag login/registratie niet platleggen). Een verkeerd geplakte REST-URL/token faalt
+  daardoor **stil**: de limieten gelden dan niet gedeeld over de instances, terwijl niets dat toont. De
+  beheerder had geen manier om vóór horizontale schaling te bevestigen dat Upstash écht bekabeld is.
+- **Gebouwd:** pure kern `src/lib/services/ratelimit-selftest.ts` doet een echte round-trip (INCR →
+  PEXPIRE/PTTL → DEL → EXISTS) via een geïnjecteerde Upstash-pipeline en **surfacet fouten** (geen
+  fail-open); nieuwe publieke `UpstashRateLimitStore.runProbeCommands` als seam; server-actie
+  `runRateLimitSelfTestAction` (auth ADMIN → rate-limit → actie → audit `RATELIMIT_SELFTEST_RUN`);
+  client-component `RateLimitSelfTest` gewired op `/admin/systeemstatus`. Op `RATE_LIMIT_STORE=memory`
+  meldt het scherm eerlijk "geen gedeelde store actief — er is niets getest" (geen vals groen). Geen
+  secrets in uitvoer (alleen stap-uitkomsten + store-modus, fouten = error-naam), nooit een probe-key
+  achtergelaten (finally-cleanup).
+- **Eigen rate-limiter draait op de in-memory store** zodat de zelftest-rem blijft werken terwijl je
+  juist de Upstash-verbinding test (`RATELIMIT_SELFTEST_RATE_LIMIT`, default 6/5 min).
+- **Bestanden:** `src/lib/services/ratelimit-selftest.ts` (+test, 6 cases), `src/lib/rate-limit.ts`
+  (+`runProbeCommands` + `rateLimitSelfTestRateLimiter`), `src/app/(protected)/admin/systeemstatus/`
+  (`actions.ts` + `page.tsx`), `src/components/admin/ratelimit-selftest.tsx`, MENSENWERK.md §0b.
+- **Volgende stap:** menselijke reststap ongewijzigd — Upstash-DB (EU-regio) + secrets +
+  `RATE_LIMIT_STORE=upstash`; daarna bevestigt de knop de bekabeling.
+
+## 2026-07-15 (2e) — Security-/privacy-audit: AVG art. 30 register-volledigheid voor drie reputatie-signalen — GEFIXT
+
+**Ronde:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken (authz/mass-assignment, cross-tenant/franchise-isolatie, AVG erasure/export/k-anonimiteit).
+Kader OWASP Top 10 (A01/A03/A05/A10) + AVG art. 5/9/15/17/30/32. `npm audit --omit=dev` = 0; Next.js 15.5.19.
+
+- **Oppervlakken authz+mass-assignment en cross-tenant bevestigd volledig schoon** (geen KRITIEK/HOOG):
+  mutatieketen auth→rol→ownership/tenant→Zod→actie→audit uniform; geen `.passthrough()`/rauwe spread;
+  `tenantId`/`role` server-herleid. Het nieuwe `dienst-fill-signal.ts` (#779) scoopt dienst- én roster-query
+  op de sessie-`tenantId` en exposeert alleen aggregaat-tellingen — geen cross-tenant titel/naam; #730/#780-
+  titel-lek blijft dicht. Mail-zelftest volgt auth ADMIN→rate-limit→audit, logt geen adres, fout = error-naam.
+- **Gefixt (MIDDEL · art. 30):** drie geaggregeerde reputatie-signalen die platform-breed over een
+  identificeerbare partij worden getoond (`client-reliability`, `client-responsiveness`,
+  `collaboration-quality`) stonden niet in het verwerkingsregister — twee nieuwe `ProcessingActivity`-entries
+  toegevoegd (`opdrachtgever-betrouwbaarheidssignalen`, `leverbetrouwbaarheid-zzp`), grondslag gerechtvaardigd
+  belang, aggregaat-only, steekproefvloer als waarborg, live berekend. Het register beschrijft de verwerking;
+  het kiest de k-drempel niet (dat blijft de mens-beslissing).
+- **Geparkeerd voor de mens:** (HOOG) de n=3-steekproefvloer van diezelfde drie signalen vs. de eigen k≥10-
+  norm (dezelfde openstaande beslissing als `PAYMENT_MIN_SAMPLE_SIZE`); (LAAG) `Job.title`/`Job.description`
+  overleeft `anonymizeUser` (retentie-vs-vergetelheid, mogelijke bedrijfsvoering-bewaargrond).
+- **Bestanden:** `src/lib/compliance/processing-register.ts` (+2 entries), `processing-register.test.ts`
+  (+2 cases, rood→groen), `docs/SECURITY-PRIVACY-BACKLOG.md` (nieuwe ronde-sectie).
+
+## 2026-07-15 — Persona-sweep run 30: compliance-ripple next-action lekte op bevroren (dispuut) samenwerking — GEFIXT
+
+**Waarde (DOEL 1b):** de nieuwe compliance-ripple next-action van de opdrachtgever (#777) respecteerde
+de dispuut-bevriezing niet. Een open dispuut zet `disputedAt` maar houdt `status = ACTIVE`
+(`cascade/dispute-commands.ts`); het werkproces is dan bevroren (`cascade/stage.ts` → "Dispuut —
+werkproces bevroren", `youAreUp:false`) en levert bij élke andere opdrachtgever-taak/-signaal géén
+next-action op (`pending-tasks.ts` en `signals.ts` filteren overal `disputedAt: null`). De
+compliance-loader deed dat als enige niet → op een bevroren samenwerking verscheen tóch de
+**hoogste** opdrachtgever-actie (`P.complianceRipple = 85`) op `/acties`, de "Volgende acties"-rail én
+de zijbalk-badge, en op de dashboard-kaart + `/samenwerkingen`-lijst stond de compliance-badge naast de
+"Dispuut — bevroren"-fase (één kaart, twee tegenstrijdige signalen).
+
+- **Live gereproduceerd (pre-fix build):** `zorggroep@` met een ACTIVE-samenwerking (Iris Hendriks,
+  vereist VOG) in dispuut + verlopen VOG → `/acties` toonde "Certificaat van Iris Hendriks is verlopen
+  (VOG) · vraag de ZZP'er om te vernieuwen" (2 acties); `/samenwerkingen` toonde "Dispuut — werkproces
+  bevroren · Stap 0 van 6" én de compliance-badge op dezelfde kaart.
+- **Fix:** dispuut-guard op alle drie de surfaces, consistent met de rest van het platform —
+  (1) `clientCredentialAlertsFromRows` slaat een rij met `disputedAt !== null` over (pure functie →
+  testbaar zonder DB; dekt zowel `/acties` als de dashboard-kaart, die er beide doorheen lopen);
+  (2) `clientCredentialAlerts`-query + de dashboard-query filteren `disputedAt: null` (conventie +
+  efficiëntie); (3) de `/samenwerkingen`-lijst berekent de compliance-melding alleen bij
+  `c.disputedAt === null`.
+- **Live geverifieerd (fixed build):** dispuut open → phantom-taak weg van `/acties`, alleen
+  "Dispuut — bevroren" op `/samenwerkingen`; dispuut opgeheven → de compliance-taak keert correct terug.
+- **Bestanden:** `src/lib/collaboration-alerts.ts` (+`disputedAt` op `CollaborationAlertRow` + guard +
+  query-filter), `src/app/(protected)/dashboard/page.tsx` (query-filter),
+  `src/app/(protected)/samenwerkingen/page.tsx` (inline-guard), `src/lib/collaboration-alerts.test.ts`
+  (+2 tests rood→groen: disputed-rij levert geen melding; opgeheven dispuut wél). Geen schemawijziging,
+  geen nieuw mutatie/auth-oppervlak. Gate groen (typecheck, lint, **4213 unit-tests**, build, prettier).
+- **DOEL 1/2 overig schoon:** ADMIN-verificatie-actie end-to-end (keten werkt); adversarieel
+  (privilege-escalatie ZZP/CLIENT/FRANCHISER → `/admin/*`,`/franchise` = opaque redirect, nooit
+  200/500; junk/traversal/sqli-id over `/samenwerkingen|/facturen|/opdrachten|/zzp|/api/documents` →
+  soft-404/404, **nooit 500**) — geen gaten. Onafhankelijke security-audit over de diff `89132d1..bc4fa99`
+  (nieuwe roster-fill-loader + compliance-loader): tenant/owner-scoping CLEAN.
+
+## 2026-07-15 — Geschikte-vakmensen-vrij-signaal per open dienst (bemiddelaar) (#779)
+
+**Waarde:** de bemiddelaar (franchiser) ziet nu per open (gepubliceerde, ongevulde) dienst op
+`/franchise/diensten` een compacte chip **"N geschikte vakmensen vrij"** zodra er vrij-inzetbare
+roster-vakmensen zijn die goed matchen op déze dienst — de "voordragen of werven?"-triagevraag wordt
+direct beantwoord (sneller/slimmer: welke open dienst is één-klik voordraagbaar vs. welke vraagt echt
+werving). Benchmark Pidz/Zorgwerk: de dichtstbijzijnde beschikbare match eerst.
+
+- **Signaaldefinitie:** een vakmens telt mee als hij **vrij inzetbaar** is (ACTIEF + beschikbaar + geen
+  lopende opdracht — dezelfde `isIdleReady`-definitie als de roster-capaciteitstegel) **én** goed matcht
+  (server-berekende matchscore ≥ `READY_MATCH_MIN_SCORE=60`, dezelfde motor als het voordraag-scherm).
+  Chip alleen bij ≥1 ready match; anders geen chip (rustige lijst — dan tellen enkel de bestaande "X dagen
+  open"/aandacht-signalen, wat op werving wijst).
+- **Bestanden:** `src/lib/franchise/dienst-fill-signal.ts` (nieuw: pure `computeDienstFill` +
+  `dienstFillChip` + data-loader `getRosterFillSignals` — laadt roster + dienst-matchvelden gebundeld,
+  tenant-gescopet, geen N+1), `src/lib/franchise/dienst-fill-signal.test.ts` (nieuw, +11 tests),
+  `src/lib/franchise/dienst-voordracht.ts` (kleine refactor: gedeelde `rosterMatchSource`-mapping
+  geëxtraheerd, gedragsbehoudend), `src/app/(protected)/franchise/diensten/page.tsx` (chip-wiring).
+- **Read-only qua datamodel:** geen schemawijziging, geen nieuw mutatie/auth-oppervlak. De loader scopet
+  defensief op `tenantId` (isolatie). Gate groen (typecheck, lint, unit-tests, build, prettier).
+
 ## 2026-07-15 — Compliance-ripple next-action voor de opdrachtgever (#777)
 
 **Waarde:** de opdrachtgever ziet nu in `/acties`, de "Volgende acties"-rail én de zijbalk-badge zijn

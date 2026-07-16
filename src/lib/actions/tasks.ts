@@ -55,6 +55,7 @@ export type PendingTask =
     })
   | (TaskBase & { kind: "company-complete"; missing?: string[] })
   | (TaskBase & { kind: "credential-fix"; credId: string; cause: "rejected" | "expiring" })
+  | (TaskBase & { kind: "credential-collab-expiry"; credId: string; collabId: string })
   | (TaskBase & { kind: "mandatory-document"; docType: string; cause: "missing" | "expired" })
   | (TaskBase & { kind: "admin-verify-credential"; credId: string })
   | (TaskBase & { kind: "admin-activate-user"; userId: string })
@@ -321,6 +322,43 @@ export function credentialFixTask(
     href: `/certificaten/${credId}/bewerken`,
     credId,
     cause,
+  };
+}
+
+/**
+ * Vooruitkijkende waarschuwing: een door een lopende/voorgestelde samenwerking VEREIST certificaat
+ * verloopt binnenkort. Urgenter dan de generieke "certificaat verloopt binnenkort"-taak — er leunt
+ * een concrete opdracht op — dus hoger geprioriteerd, en het noemt de samenwerking(en) op naam.
+ * Deep-link naar het vernieuw-formulier van het certificaat (dezelfde actie als credentialFixTask).
+ */
+export function credentialCollabExpiryTask(input: {
+  credId: string;
+  credentialTitle: string;
+  daysUntilExpiry: number;
+  collabId: string;
+  companyName: string;
+  jobTitle: string;
+  extraCollabCount: number;
+}): PendingTask {
+  const { daysUntilExpiry, companyName, jobTitle, extraCollabCount } = input;
+  const when =
+    daysUntilExpiry <= 0
+      ? "Verloopt vandaag"
+      : daysUntilExpiry === 1
+        ? "Verloopt morgen"
+        : `Verloopt over ${daysUntilExpiry} dagen`;
+  const extra = extraCollabCount > 0 ? ` (+${extraCollabCount} andere)` : "";
+  return {
+    kind: "credential-collab-expiry",
+    id: `credential-collab-expiry:${input.credId}`,
+    title: `${input.credentialTitle} verloopt tijdens je opdracht`,
+    subtitle: `${when} · vernieuw het voor je opdracht bij ${companyName} (${jobTitle})${extra}`,
+    tone: "attention",
+    priority: P.credentialExpiringForCollab,
+    resolver: "link",
+    href: `/certificaten/${input.credId}/bewerken`,
+    credId: input.credId,
+    collabId: input.collabId,
   };
 }
 

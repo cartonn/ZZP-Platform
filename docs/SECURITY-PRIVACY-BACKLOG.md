@@ -4,6 +4,76 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-15 (2e — basis: `main` @ cb76ca2)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken: (1) object-/functie-niveau-autorisatie + mass-assignment/overposting over **álle**
+`src/app/(protected)/**/actions.ts` + `src/lib/actions/**` + `src/app/api/**/route.ts`; (2) cross-tenant/
+franchise-isolatie (`tenancy.ts`, `franchise/**`, `admin/franchises/**`) incl. het nieuwe geschikte-
+vakmensen-vrij-signaal (`dienst-fill-signal.ts`, #779); (3) AVG — erasure-/export-volledigheid model-voor-
+model tegen `anonymizeUser`/`account-anonymization.ts`/`account-export.ts`, k-anonimiteit, PII-in-logs.
+Kader: OWASP Top 10 (A01/A03/A05/A10) + ASVS + AVG art. 5/9/15/17/30/32. De delta sinds de vorige ronde
+(#773–#780: safe-action-error, delete-weigering-audit, mail-zelftest, tarief-passendheid-chip, dienst-fill-
+signal, compliance-ripple-taak + de bevroren-dispuut-guard) apart nagelopen. `npm audit --omit=dev` = **0**;
+Next.js **15.5.19** gepatcht.
+
+**Oppervlakken (1) en (2) bevestigd volledig schoon** (geen KRITIEK/HOOG-authz-/IDOR-/mass-assignment-/
+tenant-gat): elke mutatie draagt de keten auth→rol→ownership/tenant→Zod→actie→audit; geen `.passthrough()`,
+geen rauwe `...body`/`...input`-spread in prisma `create`/`update`; `tenantId`/`role`/`priceCents` altijd
+server-herleid. Het nieuwe `dienst-fill-signal.ts` scoopt zowel de dienst- als de roster-query op de sessie-
+`tenantId` en exposeert **alleen aggregaat-tellingen** (`readyMatches`/`idleReady`) — geen cross-tenant titel/
+naam/id; het #730/#780-titel-lek blijft dicht (`firstTitle` alleen binnen de eigen tenant). De nieuwe mail-
+zelftest (`mail-selftest.ts` + `systeemstatus/actions.ts`) volgt auth ADMIN→rate-limit→actie→audit, valideert
+de ontvanger in de pure kern, logt het adres nooit, en brengt een fout terug tot de error-NAAM (geen secret/
+endpoint). SSRF: push-endpoint-allowlist (https-only, officiële push-hosts), Geoapify/Resend hardcoded hosts.
+XSS/SQLi: één genonce'd theme-script, alleen `SELECT 1` raw. Export lekt geen derde-partij-PII.
+
+### OPGELOST in deze ronde
+
+- **[MIDDEL→OPGELOST · AVG art. 30 register-volledigheid]** Drie geaggregeerde reputatie-/betrouwbaarheids-
+  signalen die platform-breed over een **identificeerbare** partij worden getoond stonden **niet** in het
+  verwerkingsregister (`src/lib/compliance/processing-register.ts`), terwijl de zuster-signalen markttarief
+  (#14, k≥10) en betaalgedrag (#16, PAYMENT*MIN_SAMPLE_SIZE, #769) er wél in staan: (a) annulerings-
+  betrouwbaarheid per opdrachtgever (`client-reliability.ts`, getoond aan ZZP'ers op de opdracht-detail);
+  (b) reactiebereidheid per opdrachtgever (`client-responsiveness.ts`, opdracht-detail + reacties); (c)
+  leverbetrouwbaarheid per ZZP'er (`collaboration-quality.ts`, getoond aan opdrachtgevers op kandidaten/
+  vergelijk/inzicht). **Repro (was):** `PROCESSING_REGISTER.find(a => a.key === "…")` gaf `undefined` voor
+  alle drie de verwerkingen. **Gefixt:** twee nieuwe `ProcessingActivity`-entries — `opdrachtgever-
+betrouwbaarheidssignalen` (dekt (a)+(b), spiegelbeeld-signalen, zelfde weergavepagina) en
+  `leverbetrouwbaarheid-zzp` (dekt (c)) — beide grondslag `GERECHTVAARDIGD_BELANG`, uitsluitend geaggregeerde
+  categorie, steekproefvloer (`MIN_SAMPLE_SIZE`/`DELIVERY_MIN_SAMPLE`) als waarborg, retentie = live berekend/
+  niet opgeslagen, betrokkenen incl. eenmanszaak-/natuurlijke-persoon-overlap. Test: `processing-register.test.ts`
+  (+2 cases die grondslag/aggregatie/steekproefvloer/retentie pinnen; rood→groen — zonder de entries is
+  `find(...)` undefined). \_Noot: het register **beschrijft** de bestaande verwerking; het kiest de k-drempel
+  niet — die drempelkeuze blijft de geëscaleerde HOOG-beslissing hieronder.*
+
+### Geparkeerd / geëscaleerd naar de mens (deze ronde)
+
+- **[HOOG (art. 5(1)(a)/(d) eerlijkheid+juistheid) / geëscaleerd — steekproefvloer n=3 vs. platform-eigen
+  k≥10, nu drie extra signalen]** Naast het al-geparkeerde `PAYMENT_MIN_SAMPLE_SIZE = 3` renderen óók
+  `MIN_SAMPLE_SIZE = 3` in `src/lib/client-reliability.ts:41` (annuleringsbetrouwbaarheid per opdrachtgever),
+  `MIN_SAMPLE_SIZE = 3` in `src/lib/client-responsiveness.ts:43` (reactiebereidheid per opdrachtgever) en
+  `DELIVERY_MIN_SAMPLE = 3` in `src/lib/collaboration-quality.ts:7` (leverbetrouwbaarheid per ZZP'er) een
+  reputatielabel over een **met naam getoonde, identificeerbare** partij (veel `Company`-records + elke ZZP'er
+  zijn natuurlijke personen) — ver onder de eigen `MARKET_RATE_MIN_SAMPLE = 10`-vloer (`src/lib/config.ts:232`)
+  die het platform juist voor de markttarief-aggregatie afdwingt. Mitigerend (anders dan de destijds
+  bekritiseerde ambient betaal-chip): alle drie tonen de steekproefgrootte in de zichtbare tekst en het
+  leverbetrouwbaarheid-signaal verbergt zich volledig onder `INSUFFICIENT`. Maar het is dezelfde n=3-vs-k≥10-
+  drempelkeuze die het project bewust bij een mens heeft gelegd (les MENSENWERK: een agent kiest geen
+  k-drempel). **Aanbevolen (voor de mens):** dezelfde beslissing die al voor `PAYMENT_MIN_SAMPLE_SIZE` openstaat
+  in één keer laten gelden voor deze drie — óf optrekken naar k≥10 + guardtest spiegelen, óf expliciet
+  onderbouwd goedkeuren. **Geschonden:** AVG art. 5(1)(a)/(d) + interne k-anonimiteitsnorm.
+- **[LAAG · AVG art. 17 recht op verwijdering — `Job.title`/`Job.description` overleeft `anonymizeUser`]**
+  `Job.title`/`Job.description` (`prisma/schema.prisma`) is door de CLIENT zelf geschreven vrije tekst;
+  `anonymizeUser` (`admin/gebruikers/actions.ts`) redact `Company.description/website/location` maar raakt
+  `Job` nergens aan (geen `job.updateMany`, en — anders dan bij vrijwel elk ander veld — géén begeleidend
+  commentaar dat dit een bewuste keuze is). Lager risico dan `bio`/`motivation` (een vacaturetekst is doorgaans
+  zakelijk), maar kan incidenteel contactgegevens bevatten ("Bel Jan op 06-…"). **Repro:** anonimiseer een
+  opdrachtgever met ≥1 `Job` → `title`/`description` lezen onveranderd. **Aanbevolen (voor de mens):** beoordeel
+  of `Job`-content een retentiegrond heeft (marktplaats-/matching-historie, vergelijkbaar met `Invoice`) en
+  documenteer dat, óf redact het zoals de overige CLIENT-geschreven velden. Bewust niet unilateraal gewijzigd:
+  retentie-vs-vergetelheid met een mogelijke bedrijfsvoering-bewaargrond is een mens-afweging (MENSENWERK §5).
+
 ## Ronde 2026-07-15 (basis: `main` @ fc5e03d)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende

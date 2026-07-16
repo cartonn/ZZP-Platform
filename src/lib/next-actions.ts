@@ -48,6 +48,7 @@ export const P = {
   credentialRejected: 80, // afgewezen certificaat — opnieuw indienen
   disputeOpen: 76, // open dispuut — werkproces bevroren (admin)
   contractSign: 72, // contract ter ondertekening — deblokkeert de samenwerking
+  credentialExpiringForCollab: 75, // vereist certificaat van een lopende samenwerking verloopt binnenkort — urgenter dan een los verlopend certificaat
   credentialExpiring: 70, // certificaat verloopt binnenkort
   verificationQueue: 70, // wacht op verificatie (admin)
   supportOpen: 66, // openstaande supporttickets — onbeantwoord/nieuw (admin)

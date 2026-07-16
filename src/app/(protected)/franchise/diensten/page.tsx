@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import Link from "next/link";
-import { Clock, ArrowRight, AlertTriangle } from "lucide-react";
+import { Clock, ArrowRight, AlertTriangle, UserCheck } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { tenantScopeWhere } from "@/lib/tenancy";
@@ -13,6 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
 import { buildDekkingsprognose, startOfIsoWeek } from "@/lib/franchise/dekkingsprognose";
+import { getRosterFillSignals, dienstFillChip } from "@/lib/franchise/dienst-fill-signal";
+import {
+  summarizeAcuteFillability,
+  acuteFillabilityHeadline,
+} from "@/lib/franchise/acute-fillability";
 
 export const metadata: Metadata = { title: "Diensten · Bemiddeling" };
 
@@ -44,6 +49,11 @@ export default async function FranchiseDienstenPage() {
     return { d, filled, published, openDays, atRisk: openDays != null && openDays >= AT_RISK_DAYS };
   });
 
+  // Vulbaar-signaal per open (gepubliceerde, ongevulde) dienst: hoeveel vrij-inzetbare roster-vakmensen
+  // matchen goed genoeg om nu voor te dragen? Eén gebundelde load (roster + dienst-matchvelden), geen N+1.
+  const openDienstIds = rows.filter((r) => r.published && !r.filled).map((r) => r.d.id);
+  const fillSignals = await getRosterFillSignals(actor, openDienstIds, new Date(now));
+
   // Dekking over de gepubliceerde diensten (concept/gesloten tellen niet mee in de vulgraad).
   const published = rows.filter((r) => r.published);
   const filledCount = published.filter((r) => r.filled).length;
@@ -73,6 +83,15 @@ export default async function FranchiseDienstenPage() {
     })
     .filter((x) => x.acute)
     .sort((a, b) => (b.r.openDays ?? 0) - (a.r.openDays ?? 0));
+
+  // Triage-splitsing van de acute diensten: welke zijn direct vulbaar uit het eigen roster (≥1
+  // geschikte vrije match uit het al-geladen fillSignals) en welke vragen werving? Geeft de
+  // bemiddelaar naast "wat is urgent" ook "wat kan ik nu zelf oplossen".
+  const acuteFillItems = attentionNow.map(({ r }) => ({
+    readyMatches: fillSignals.get(r.d.id)?.readyMatches ?? 0,
+  }));
+  const acuteFillability = summarizeAcuteFillability(acuteFillItems);
+  const acuteFillHeadline = acuteFillabilityHeadline(acuteFillability);
 
   // Aandacht eerst: open diensten met de langste looptijd bovenaan, dan de rest op aanmaakdatum.
   const sorted = [...rows].sort((a, b) => {
@@ -141,25 +160,47 @@ export default async function FranchiseDienstenPage() {
             {prognose.needsAttentionNow > 0 ? (
               // Eén regel per acute dienst: titel + "X dagen open" + bucket-label. Geen kaal cijfer
               // meer dat een "geen startdatum"-dienst tegenspreekt.
-              <ul className="space-y-1.5">
-                {attentionNow.map(({ r, bucketLabel }) => (
-                  <li key={r.d.id} className="flex items-baseline justify-between gap-3 text-sm">
-                    <Link
-                      href={`/franchise/diensten/${r.d.id}`}
-                      className="truncate font-medium text-foreground hover:underline"
-                    >
-                      {r.d.title}
-                    </Link>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {r.openDays === 0
-                        ? "vandaag uitgezet"
-                        : `${plural(r.openDays ?? 0, "dag", "dagen")} open`}
-                      {" · "}
-                      {bucketLabel}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="space-y-1.5">
+                  {attentionNow.map(({ r, bucketLabel }) => {
+                    const readyMatches = fillSignals.get(r.d.id)?.readyMatches ?? 0;
+                    return (
+                      <li
+                        key={r.d.id}
+                        className="flex items-baseline justify-between gap-3 text-sm"
+                      >
+                        <span className="flex min-w-0 items-baseline gap-2">
+                          <Link
+                            href={`/franchise/diensten/${r.d.id}`}
+                            className="truncate font-medium text-foreground hover:underline"
+                          >
+                            {r.d.title}
+                          </Link>
+                          {readyMatches > 0 ? (
+                            <span className="shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                              {plural(readyMatches, "match vrij", "matches vrij")}
+                            </span>
+                          ) : (
+                            <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                              Werven
+                            </span>
+                          )}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {r.openDays === 0
+                            ? "vandaag uitgezet"
+                            : `${plural(r.openDays ?? 0, "dag", "dagen")} open`}
+                          {" · "}
+                          {bucketLabel}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {acuteFillHeadline && (
+                  <p className="text-xs text-muted-foreground">{acuteFillHeadline}</p>
+                )}
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">
                 {plural(prognose.totalOpen, "open dienst", "open diensten")} in de planning,
@@ -197,43 +238,54 @@ export default async function FranchiseDienstenPage() {
         </Card>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {sorted.map(({ d, filled, openDays, atRisk }) => (
-            <Link
-              key={d.id}
-              href={`/franchise/diensten/${d.id}`}
-              className="card-interactive flex items-start justify-between gap-3 p-4"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{d.title}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {d.company.name}
-                  {d.department ? ` · ${d.department.name}` : ""}
-                </p>
-                {openDays != null && (
-                  <p
-                    className={`mt-0.5 text-xs ${atRisk ? "text-warning" : "text-muted-foreground"}`}
-                  >
-                    {openDays === 0
-                      ? "Vandaag uitgezet"
-                      : `${plural(openDays, "dag", "dagen")} open`}
-                    {d._count.applications === 0 ? " · nog geen reacties" : ""}
+          {sorted.map(({ d, filled, openDays, atRisk }) => {
+            const fillChip = filled
+              ? null
+              : dienstFillChip(fillSignals.get(d.id) ?? { readyMatches: 0, idleReady: 0 });
+            return (
+              <Link
+                key={d.id}
+                href={`/franchise/diensten/${d.id}`}
+                className="card-interactive flex items-start justify-between gap-3 p-4"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{d.title}</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {d.company.name}
+                    {d.department ? ` · ${d.department.name}` : ""}
                   </p>
-                )}
-              </div>
-              <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
-                {filled ? (
-                  <Badge variant="success">Gevuld</Badge>
-                ) : (
-                  <JobStatusBadge status={d.status as JobStatus} />
-                )}
-                {d._count.applications > 0 && (
-                  <Badge variant="muted">
-                    {plural(d._count.applications, "reactie", "reacties")}
-                  </Badge>
-                )}
-              </div>
-            </Link>
-          ))}
+                  {openDays != null && (
+                    <p
+                      className={`mt-0.5 text-xs ${atRisk ? "text-warning" : "text-muted-foreground"}`}
+                    >
+                      {openDays === 0
+                        ? "Vandaag uitgezet"
+                        : `${plural(openDays, "dag", "dagen")} open`}
+                      {d._count.applications === 0 ? " · nog geen reacties" : ""}
+                    </p>
+                  )}
+                  {fillChip && (
+                    <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                      <UserCheck className="size-3" aria-hidden />
+                      {fillChip.label}
+                    </span>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
+                  {filled ? (
+                    <Badge variant="success">Gevuld</Badge>
+                  ) : (
+                    <JobStatusBadge status={d.status as JobStatus} />
+                  )}
+                  {d._count.applications > 0 && (
+                    <Badge variant="muted">
+                      {plural(d._count.applications, "reactie", "reacties")}
+                    </Badge>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

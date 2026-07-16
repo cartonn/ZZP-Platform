@@ -46,7 +46,7 @@ function collab(id: string, invoices: { id: string; lifecycleStatus: string }[])
   return {
     id,
     status: "ACTIVE",
-    job: { title: "Verpleegkundige" },
+    job: { title: "Verpleegkundige", credentialRequirements: [] },
     company: { name: "Zorgcentrum" },
     performances: [{ id: "perf-1", status: "APPROVED" }],
     invoices,

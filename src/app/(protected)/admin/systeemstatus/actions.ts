@@ -4,9 +4,20 @@ import { randomUUID } from "node:crypto";
 import { requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
-import { mailSelfTestRateLimiter, storageSelfTestRateLimiter } from "@/lib/rate-limit";
+import {
+  createRateLimitStore,
+  mailSelfTestRateLimiter,
+  rateLimitSelfTestRateLimiter,
+  storageSelfTestRateLimiter,
+  UpstashRateLimitStore,
+} from "@/lib/rate-limit";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { runMailSelfTest, type MailSelfTestReport } from "@/lib/services/mail-selftest";
+import {
+  inactiveRateLimitReport,
+  runRateLimitSelfTest,
+  type RateLimitSelfTestReport,
+} from "@/lib/services/ratelimit-selftest";
 import { getStorage } from "@/lib/services/storage";
 import {
   runStorageSelfTest,
@@ -92,6 +103,60 @@ export async function runMailSelfTestAction(recipient: string): Promise<MailSelf
     entityId: driverMode,
     // Geen ontvangeradres: e-mailadressen zijn persoonsgegevens en horen niet in het auditlog.
     metadata: { ok: report.ok, delivered: report.delivered },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
+export type RateLimitSelfTestState =
+  | { ok: true; report: RateLimitSelfTestReport }
+  | { ok: false; error: string };
+
+/**
+ * Draait een connectiviteitszelftest tegen de gedeelde rate-limit-store (admin-only). Volgt de
+ * mutatieketen (auth → rol → rate-limit → actie → audit). Draait de store op de veilige in-memory
+ * default (RATE_LIMIT_STORE=memory), dan is er niets gedeelds om te testen en meldt de zelftest dat
+ * eerlijk (geen vals groen). Op Upstash doet hij een echte round-trip (INCR → PEXPIRE/PTTL → DEL →
+ * EXISTS) die fouten juist zichtbaar maakt — nodig omdat de store fail-open is (MENSENWERK §0b H-2).
+ * De uitvoer bevat nooit secrets — alleen stap-uitkomsten en een store-modus.
+ */
+export async function runRateLimitSelfTestAction(): Promise<RateLimitSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await rateLimitSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const storeMode = process.env.RATE_LIMIT_STORE ?? "memory";
+  const store = createRateLimitStore();
+
+  let report: RateLimitSelfTestReport;
+  if (store instanceof UpstashRateLimitStore) {
+    // Eigen, duidelijk gemarkeerde probe-key onder het `rl:`-namespace; raakt geen echte tellers.
+    const probeKey = `rl:selftest:${randomUUID()}`;
+    report = await runRateLimitSelfTest({
+      exec: (commands) => store.runProbeCommands(commands),
+      storeMode,
+      probeKey,
+    });
+  } else {
+    // Geen gedeelde store actief (memory, of upstash zonder secrets → defensieve fallback).
+    report = inactiveRateLimitReport(storeMode);
+  }
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "RATELIMIT_SELFTEST_RUN",
+    entityType: "RateLimitStore",
+    entityId: storeMode,
+    metadata: {
+      ok: report.ok,
+      active: report.active,
+      steps: report.steps.map((s) => ({ key: s.key, ok: s.ok })),
+    },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });

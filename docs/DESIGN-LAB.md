@@ -975,3 +975,42 @@ UI-taal = Nederlands.
   **database-/spreadsheet-native UI (Notion/Airtable)**; **white-cube museale curatie** — elk
   contrast-bewust en onderscheidend van de bestaande 330.
 - **Totaal nu op `/ontwerp`: 340 concepten** (reeks 34: 331–340).
+
+## Reeks 35 (341–350)
+
+> Reeks 34 (331–340) landt via PR #778 (Nevel, Reliëf, Sferisch, Zine, Aquarel, Kinfolk, Riso, Grafiet,
+> Kompres, Galerie). Deze reeks 35 (341–350) voegt tien opnieuw onderscheidende richtingen toe.
+
+- **341 Meridiaan** — nautische zeekaart / wayfinding-navigatie (koper op kaart-crème + marineblauw):
+  latitude/longitude-hairlines, kompasroos, next-actions als "koers uitzetten", matching als "peiling" met
+  bearing-chips (niet Kompas/Portolaan — een volledige zeekaart-wayfinding-taal met peiling-metafoor).
+- **342 Terracotta** — mediterraan aardewerk / warm-menselijk (terracotta + olijf + zand): vlak-editorial
+  warmte, ronde vormen, gastvrije toon rond een streng verificatieproces (niet Klei/Karton — warme
+  aarde-editorial, geen 3D/textuur).
+- **343 Kobaltglas** — premium-dark glasmorphism / diepte & lichtbreking (diep kobalt + ijsblauw): gelaagde
+  translucente panelen met glans-randen, één accent, contrast-bewust op elke glaslaag (niet Glas/Vloeiglas —
+  diep-kobalt spatial depth i.p.v. licht glas).
+- **344 Passer** — technisch drafting / precisie-instrument (wit + cyaan): constructielijnen, cirkelbogen,
+  meetwaarden met pijltjes, matching als gemeten tolerantie (niet Blauwdruk — wit-technisch drafting i.p.v.
+  donkere cyanotype).
+- **345 Schaduwspel** — high-contrast licht & schaduw / sculpturaal (monochroom + amber): dramatische harde
+  slagschaduwen en spotlight-vlakken, diepte uit schaduw i.p.v. kleur (niet Noir/Schijnwerper — sculpturale
+  offset-schaduw als hoofdmiddel).
+- **346 Vlonder** — warm natuurlijk hout / geaard (hout + mos + hemel): horizontale plank-ritmes, groei-ringen,
+  heuvel-grafieken, verificatie als "vaste grond" (niet Textiel/Serre — geaarde hout/steiger-natuur).
+- **347 Ivoor** — ultra-minimaal monochroom / luxe van weglaten (ivoor + hairlines): extreme typografische
+  rust, kleur alleen voor status, data-dichtheid zonder rommel (niet Marmer/Japandi — monochroom ivoor met
+  redactioneel zetsel-ritme).
+- **348 Kwintet** — muzikaal ritme / partituur-cadans (aubergine + goud + ivoor): vijf-lijns notenbalk als
+  layout, maatstrepen als scheiding, staccato-hiërarchie (niet Partituur — lichter, warmer, kwintet-ritme).
+- **349 Vensterbank** — huiselijk daglicht / gastvrij (daglicht-wit + hout + plant + perzik): ochtendlicht-gloed,
+  zachte licht-schaduw, low-stimulation en verzorgd (niet Tij/Haard — huiselijk raamlicht met biophilic warmte).
+- **350 Loden** — loodgrijs industrieel / machine-precisie (gunmetal + fel signaal-accent): geborsteld-metaal
+  hints, tabulaire cijfers, compacte pro-dichtheid voor de bemiddelaar (niet Grafiet/Beton — industrieel
+  gunmetal met één signaal-accent).
+- Onderzochte 2026-trends deze reeks: **cartografische wayfinding-UI**; **warme aarde-paletten (terracotta/olijf)**;
+  **spatial glasmorphism met lichtbreking**; **technisch drafting / meetwaarden-UI**; **dramatische harde
+  slagschaduwen**; **biophilic natuurtinten & plank-ritme**; **quiet-luxury monochroom minimalisme**; **ritmische
+  partituur-layout**; **calm / low-stimulation daglicht-UI**; **industrieel gunmetal pro-dichtheid** — elk
+  AA-/contrast-bewust, deterministisch en onderscheidend van de bestaande 340.
+- **Totaal nu op `/ontwerp`: 350 concepten** (reeks 35: 341–350; reeks 34 331–340 via PR #778).

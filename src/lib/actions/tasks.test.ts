@@ -3,6 +3,7 @@ import { P } from "@/lib/next-actions";
 import {
   rankTasks,
   contractSignTask,
+  credentialCollabExpiryTask,
   performanceSubmitTask,
   performanceApproveTask,
   invoiceSubmitTask,
@@ -416,5 +417,50 @@ describe("clientComplianceTask", () => {
       "client-compliance:c-gap",
       "client-compliance:c-warn",
     ]);
+  });
+});
+
+describe("credentialCollabExpiryTask", () => {
+  const base = {
+    credId: "cred-1",
+    credentialTitle: "VOG",
+    collabId: "collab-1",
+    companyName: "Zorggroep Noord",
+    jobTitle: "Wijkverpleegkundige",
+    extraCollabCount: 0,
+  };
+
+  it("noemt de samenwerking en linkt naar het vernieuw-formulier", () => {
+    const t = credentialCollabExpiryTask({ ...base, daysUntilExpiry: 12 });
+    expect(t.kind).toBe("credential-collab-expiry");
+    expect(t.id).toBe("credential-collab-expiry:cred-1");
+    expect(t.title).toBe("VOG verloopt tijdens je opdracht");
+    expect(t.subtitle).toBe(
+      "Verloopt over 12 dagen · vernieuw het voor je opdracht bij Zorggroep Noord (Wijkverpleegkundige)",
+    );
+    expect(t.href).toBe("/certificaten/cred-1/bewerken");
+    expect(t.resolver).toBe("link");
+    expect(t.tone).toBe("attention");
+  });
+
+  it("staat urgenter dan de generieke verval-taak maar onder afgewezen", () => {
+    const t = credentialCollabExpiryTask({ ...base, daysUntilExpiry: 5 });
+    expect(t.priority).toBe(P.credentialExpiringForCollab);
+    expect(t.priority).toBeGreaterThan(P.credentialExpiring);
+    expect(t.priority).toBeLessThan(P.credentialRejected);
+  });
+
+  it("gebruikt vandaag/morgen bij 0 en 1 dag", () => {
+    expect(credentialCollabExpiryTask({ ...base, daysUntilExpiry: 0 }).subtitle).toContain(
+      "Verloopt vandaag",
+    );
+    expect(credentialCollabExpiryTask({ ...base, daysUntilExpiry: 1 }).subtitle).toContain(
+      "Verloopt morgen",
+    );
+  });
+
+  it("toont het aantal extra samenwerkingen", () => {
+    const t = credentialCollabExpiryTask({ ...base, daysUntilExpiry: 7, extraCollabCount: 2 });
+    expect(t.subtitle).toContain("(+2 andere)");
   });
 });

@@ -1027,6 +1027,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "340": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-340-galerie").then((m) => m.Concept340),
   ),
+  "341": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-341-meridiaan").then((m) => m.Concept341),
+  ),
+  "342": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-342-terracotta").then((m) => m.Concept342),
+  ),
+  "343": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-343-kobaltglas").then((m) => m.Concept343),
+  ),
+  "344": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-344-passer").then((m) => m.Concept344),
+  ),
+  "345": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-345-schaduwspel").then((m) => m.Concept345),
+  ),
+  "346": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-346-vlonder").then((m) => m.Concept346),
+  ),
+  "347": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-347-ivoor").then((m) => m.Concept347),
+  ),
+  "348": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-348-kwintet").then((m) => m.Concept348),
+  ),
+  "349": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-349-vensterbank").then((m) => m.Concept349),
+  ),
+  "350": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-350-loden").then((m) => m.Concept350),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
