@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trophy, Users } from "lucide-react";
+import { ArrowLeft, Award, Trophy, Users } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
@@ -25,6 +25,7 @@ import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-qu
 import { getReviewRatingsForCandidates } from "@/lib/data/candidate-reviews";
 import { getSharedHistoryForCandidates } from "@/lib/data/candidate-history";
 import { type CompareCandidate, buildCandidateComparison } from "@/lib/candidate-compare";
+import { rankCandidates } from "@/lib/candidate-ranking";
 import { firstName } from "@/lib/kandidaten-triage";
 import {
   type AvailabilityWindowType,
@@ -168,6 +169,7 @@ export default async function VergelijkKandidatenPage({
   });
 
   const comparison = buildCandidateComparison(candidates);
+  const ranking = rankCandidates(candidates);
 
   // Lege cel: geen kille "—" maar een leesbaar, gedempt signaal dat er (nog) geen gegeven is.
   const noData = <span className="text-muted-foreground">{t("Nog geen gegevens")}</span>;
@@ -198,157 +200,193 @@ export default async function VergelijkKandidatenPage({
           />
         </Card>
       ) : (
-        <Card>
-          <CardContent className="overflow-x-auto p-0">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    {t("Onderdeel")}
-                  </th>
-                  {candidates.map((c) => (
-                    <th key={c.id} scope="col" className="px-4 py-3 font-semibold text-foreground">
-                      {c.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                <CompareRow
-                  label={t("Match")}
-                  candidates={candidates}
-                  winnerId={comparison.bestMatchId}
-                  render={(c) => (c.matchScore != null ? `${c.matchScore}%` : noData)}
-                />
-                <CompareRow
-                  label={t("Tariefvoorstel")}
-                  hint={t("scherpste")}
-                  candidates={candidates}
-                  winnerId={comparison.bestRateId}
-                  render={(c) =>
-                    c.proposedRate != null ? `€ ${c.proposedRate}${t("/uur")}` : noData
-                  }
-                />
-                <CompareRow
-                  label={t("Vertrouwen")}
-                  candidates={candidates}
-                  winnerId={comparison.bestTrustId}
-                  render={(c) => (
-                    <span
-                      className="cursor-help underline decoration-dotted underline-offset-4"
-                      title={t(TRUST_LEVEL_EXPLANATION[c.trustLevel])}
-                    >
-                      {t(TRUST_LABEL[c.trustLevel])}
+        <div className="space-y-4">
+          {ranking.recommendedId && ranking.recommendedName && (
+            <div className="flex items-start gap-3 rounded-lg border border-accent bg-accent/40 p-4">
+              <Award className="mt-0.5 size-5 shrink-0 text-accent-foreground" aria-hidden />
+              <div className="text-sm">
+                <p className="font-medium text-foreground">
+                  {t("Aanbevolen keuze")}: {ranking.recommendedName}
+                  {ranking.reasons.length > 0 && (
+                    <span className="font-normal text-muted-foreground">
+                      {" — "}
+                      {ranking.reasons.join(", ")}
                     </span>
                   )}
-                />
-                <CompareRow
-                  label={t("Reputatie")}
-                  hint={t("beoordeling opdrachtgevers")}
-                  candidates={candidates}
-                  winnerId={comparison.bestRatingId}
-                  render={(c) =>
-                    c.reviewRating ? (
-                      <RatingStars
-                        average={c.reviewRating.average}
-                        count={c.reviewRating.count}
-                        showValue
-                      />
-                    ) : (
-                      noData
-                    )
-                  }
-                />
-                <CompareRow
-                  label={t("Compliance")}
-                  candidates={candidates}
-                  winnerId={comparison.bestComplianceId}
-                  render={(c) =>
-                    c.complianceStatus ? <ComplianceBadge status={c.complianceStatus} /> : noData
-                  }
-                />
-                <CompareRow
-                  label={t("Leverbetrouwbaarheid")}
-                  hint={t("in één keer akkoord")}
-                  candidates={candidates}
-                  winnerId={comparison.bestDeliveryId}
-                  render={(c) =>
-                    c.firstTimeRightRate != null ? `${c.firstTimeRightRate}%` : noData
-                  }
-                />
-                <CompareRow
-                  label={t("Beschikbaarheid")}
-                  hint={
-                    job.startDate ? `${t("op")} ${formatDateShortNl(job.startDate)}` : undefined
-                  }
-                  candidates={candidates}
-                  winnerId={null}
-                  render={(c) =>
-                    c.startFit && c.startFit !== "unknown" ? (
-                      <span className="inline-flex flex-col items-start gap-1">
-                        <Badge variant={START_FIT_VARIANT[c.startFit]}>
-                          {t(START_FIT_SHORT_LABEL[c.startFit])}
-                        </Badge>
-                        {c.nextFitLabel && (
-                          <span className="text-xs text-muted-foreground">{c.nextFitLabel}</span>
-                        )}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t(
+                    "Op basis van het totaalprofiel (match, compliance, vertrouwen en meer). Jij beslist.",
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+          <Card>
+            <CardContent className="overflow-x-auto p-0">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      {t("Onderdeel")}
+                    </th>
+                    {candidates.map((c) => (
+                      <th
+                        key={c.id}
+                        scope="col"
+                        className="px-4 py-3 font-semibold text-foreground"
+                      >
+                        {c.name}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  <CompareRow
+                    label={t("Totaalprofiel")}
+                    hint={t("gewogen totaal")}
+                    candidates={candidates}
+                    winnerId={ranking.recommendedId}
+                    render={(c) => (
+                      <span className="font-mono font-semibold">{ranking.scoreById[c.id]}</span>
+                    )}
+                  />
+                  <CompareRow
+                    label={t("Match")}
+                    candidates={candidates}
+                    winnerId={comparison.bestMatchId}
+                    render={(c) => (c.matchScore != null ? `${c.matchScore}%` : noData)}
+                  />
+                  <CompareRow
+                    label={t("Tariefvoorstel")}
+                    hint={t("scherpste")}
+                    candidates={candidates}
+                    winnerId={comparison.bestRateId}
+                    render={(c) =>
+                      c.proposedRate != null ? `€ ${c.proposedRate}${t("/uur")}` : noData
+                    }
+                  />
+                  <CompareRow
+                    label={t("Vertrouwen")}
+                    candidates={candidates}
+                    winnerId={comparison.bestTrustId}
+                    render={(c) => (
+                      <span
+                        className="cursor-help underline decoration-dotted underline-offset-4"
+                        title={t(TRUST_LEVEL_EXPLANATION[c.trustLevel])}
+                      >
+                        {t(TRUST_LABEL[c.trustLevel])}
                       </span>
-                    ) : (
-                      // Geen "Agenda gedeeld" meer: dat is geen antwoord op de startdatum. Zonder
-                      // oordeel (geen startdatum óf geen agenda) tonen we eerlijk "Onbekend".
-                      <span className="text-muted-foreground">{t("Onbekend")}</span>
-                    )
-                  }
-                />
-                <CompareRow
-                  label={t("Reistijd")}
-                  candidates={candidates}
-                  winnerId={null}
-                  render={(c) =>
-                    c.proximity ? (
-                      <Badge variant={PROXIMITY_VARIANT[c.proximity.level]}>
-                        {proximityLabel(c.proximity)}
-                      </Badge>
-                    ) : (
-                      noData
-                    )
-                  }
-                />
-                <CompareRow
-                  label={t("Samenwerking")}
-                  hint={t("met jou")}
-                  candidates={candidates}
-                  winnerId={null}
-                  render={(c) =>
-                    c.sharedHistory ? <CandidateHistoryBadge history={c.sharedHistory} /> : noData
-                  }
-                />
-                <tr>
-                  <th scope="row" className="px-4 py-3 text-left align-top">
-                    <span className="sr-only">{t("Keuze")}</span>
-                  </th>
-                  {candidates.map((c) => (
-                    <td key={c.id} className="px-4 py-3 align-top">
-                      <div className="flex flex-col items-start gap-1.5">
-                        <ChooseCandidateButton
-                          href={`/kandidaten?open=${c.id}#app-${c.id}`}
-                          label={`${t("Kies")} ${firstName(c.name)}`}
-                          nonCompliant={c.complianceStatus === "NON_COMPLIANT"}
+                    )}
+                  />
+                  <CompareRow
+                    label={t("Reputatie")}
+                    hint={t("beoordeling opdrachtgevers")}
+                    candidates={candidates}
+                    winnerId={comparison.bestRatingId}
+                    render={(c) =>
+                      c.reviewRating ? (
+                        <RatingStars
+                          average={c.reviewRating.average}
+                          count={c.reviewRating.count}
+                          showValue
                         />
-                        <Link
-                          href={`/kandidaten?open=${c.id}#app-${c.id}`}
-                          className="focus-ring text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                        >
-                          {t("Bericht")}
-                        </Link>
-                      </div>
-                    </td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                      ) : (
+                        noData
+                      )
+                    }
+                  />
+                  <CompareRow
+                    label={t("Compliance")}
+                    candidates={candidates}
+                    winnerId={comparison.bestComplianceId}
+                    render={(c) =>
+                      c.complianceStatus ? <ComplianceBadge status={c.complianceStatus} /> : noData
+                    }
+                  />
+                  <CompareRow
+                    label={t("Leverbetrouwbaarheid")}
+                    hint={t("in één keer akkoord")}
+                    candidates={candidates}
+                    winnerId={comparison.bestDeliveryId}
+                    render={(c) =>
+                      c.firstTimeRightRate != null ? `${c.firstTimeRightRate}%` : noData
+                    }
+                  />
+                  <CompareRow
+                    label={t("Beschikbaarheid")}
+                    hint={
+                      job.startDate ? `${t("op")} ${formatDateShortNl(job.startDate)}` : undefined
+                    }
+                    candidates={candidates}
+                    winnerId={null}
+                    render={(c) =>
+                      c.startFit && c.startFit !== "unknown" ? (
+                        <span className="inline-flex flex-col items-start gap-1">
+                          <Badge variant={START_FIT_VARIANT[c.startFit]}>
+                            {t(START_FIT_SHORT_LABEL[c.startFit])}
+                          </Badge>
+                          {c.nextFitLabel && (
+                            <span className="text-xs text-muted-foreground">{c.nextFitLabel}</span>
+                          )}
+                        </span>
+                      ) : (
+                        // Geen "Agenda gedeeld" meer: dat is geen antwoord op de startdatum. Zonder
+                        // oordeel (geen startdatum óf geen agenda) tonen we eerlijk "Onbekend".
+                        <span className="text-muted-foreground">{t("Onbekend")}</span>
+                      )
+                    }
+                  />
+                  <CompareRow
+                    label={t("Reistijd")}
+                    candidates={candidates}
+                    winnerId={null}
+                    render={(c) =>
+                      c.proximity ? (
+                        <Badge variant={PROXIMITY_VARIANT[c.proximity.level]}>
+                          {proximityLabel(c.proximity)}
+                        </Badge>
+                      ) : (
+                        noData
+                      )
+                    }
+                  />
+                  <CompareRow
+                    label={t("Samenwerking")}
+                    hint={t("met jou")}
+                    candidates={candidates}
+                    winnerId={null}
+                    render={(c) =>
+                      c.sharedHistory ? <CandidateHistoryBadge history={c.sharedHistory} /> : noData
+                    }
+                  />
+                  <tr>
+                    <th scope="row" className="px-4 py-3 text-left align-top">
+                      <span className="sr-only">{t("Keuze")}</span>
+                    </th>
+                    {candidates.map((c) => (
+                      <td key={c.id} className="px-4 py-3 align-top">
+                        <div className="flex flex-col items-start gap-1.5">
+                          <ChooseCandidateButton
+                            href={`/kandidaten?open=${c.id}#app-${c.id}`}
+                            label={`${t("Kies")} ${firstName(c.name)}`}
+                            nonCompliant={c.complianceStatus === "NON_COMPLIANT"}
+                          />
+                          <Link
+                            href={`/kandidaten?open=${c.id}#app-${c.id}`}
+                            className="focus-ring text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                          >
+                            {t("Bericht")}
+                          </Link>
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

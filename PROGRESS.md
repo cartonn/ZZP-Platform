@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — "Aanbevolen keuze": gewogen totaalranglijst in de vergelijk-view (opdrachtgever)
+
+**Increment (opdrachtgever-UX, beslishulp):** de kandidaten-vergelijk-view (`/kandidaten/vergelijk`) zette
+reacties al per onderdeel naast elkaar (`buildCandidateComparison` → 9 losse trofeeën: match, tarief,
+vertrouwen, reputatie, compliance, leverbetrouwbaarheid, ...), maar berekende **bewust géén** cross-dimensie
+totaal — de opdrachtgever moest die negen signalen zelf wegen. Nu een transparante, gewogen **totaalscore
+(0–100)** per kandidaat + een voorzichtige **"Aanbevolen keuze"**-banner met korte onderbouwing
+(benchmark: Malt/Temper kandidaat-ranking). Beslis-hulp, geen beslisser: de banner zegt expliciet "jij beslist".
+
+**Wat + bestanden:** pure `src/lib/candidate-ranking.ts` — `overallCandidateScore` (gewogen gemiddelde over
+de dimensies waar de kandidaat data voor heeft; ontbrekende dimensie krimpt de noemer i.p.v. te straffen;
+gewichten som = 1, match/compliance zwaarst) + `rankCandidates` (aflopende ranglijst met deterministische
+tiebreak match→naam; beveelt alléén een koploper aan bij voorsprong ≥ `RECOMMENDATION_MARGIN` (4) **én** niet
+NON_COMPLIANT — een kandidaat die niet aan de harde eisen voldoet wordt nooit gekroond; onderbouwing via
+dezelfde `pickUniqueBest` als de tabel zodat de reden de trofeeën nooit tegenspreekt). Wiring in
+`kandidaten/vergelijk/page.tsx`: aanbevelingsbanner + "Totaalprofiel"-rij (trofee op de aanbevolen kandidaat).
+Read-only, geen schemawijziging, geen nieuwe query (leunt op de al-opgehaalde `CompareCandidate[]`), geen
+nieuw mutatie/auth-oppervlak. **9 tests** (`candidate-ranking.test.ts`). Gate: typecheck, lint, 4328
+unit-tests, build, prettier `--check` groen.
+
 ## 2026-07-16 — Vooruitblik-bench: "wie komt binnenkort vrij?" op het roster (bemiddelaar)
 
 **Increment (bemiddelaar-UX, forward planning):** het roster-capaciteitsoverzicht op `/franchise/zzpers`
