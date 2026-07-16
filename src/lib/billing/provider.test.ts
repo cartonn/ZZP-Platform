@@ -128,7 +128,9 @@ describe("MolliePaymentProvider", () => {
   });
 
   it("checkConnectivity doet een read-only GET /methods en slaagt bij 200", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ _embedded: { methods: [] } }));
+    const fetchImpl = vi.fn((_url: string | URL | Request, _init?: RequestInit) =>
+      Promise.resolve(jsonResponse({ _embedded: { methods: [] } })),
+    );
     const p = new MolliePaymentProvider("k", fetchImpl as unknown as typeof fetch);
     await expect(p.checkConnectivity()).resolves.toBeUndefined();
     const [url, init] = fetchImpl.mock.calls[0]!;
@@ -240,7 +242,9 @@ describe("StripePaymentProvider", () => {
   });
 
   it("checkConnectivity doet een read-only GET /balance en slaagt bij 200", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ object: "balance", available: [] }));
+    const fetchImpl = vi.fn((_url: string | URL | Request, _init?: RequestInit) =>
+      Promise.resolve(jsonResponse({ object: "balance", available: [] })),
+    );
     const p = new StripePaymentProvider("sk", "whsec_test", fetchImpl as unknown as typeof fetch);
     await expect(p.checkConnectivity()).resolves.toBeUndefined();
     const [url, init] = fetchImpl.mock.calls[0]!;
