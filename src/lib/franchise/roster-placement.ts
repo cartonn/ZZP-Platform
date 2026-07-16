@@ -15,12 +15,16 @@ import {
   type FreelancerMatchSource,
   scoreJobForFreelancer,
 } from "@/lib/matching";
-import { DIENST_SUGGESTIE_MIN_SCORE } from "@/lib/franchise/dienst-suggesties";
+import {
+  DIENST_SUGGESTIE_LIMIT,
+  DIENST_SUGGESTIE_MIN_SCORE,
+} from "@/lib/franchise/dienst-suggesties";
 
 /**
  * Aantal open diensten waarop deze ZZP'er plaatsbaar is: diensten met een matchscore ≥ de drempel.
- * Dezelfde drempel en scoring als de detail-suggestiekaart. Bewust de rúwe telling (niet begrensd tot
- * de kaart-limiet), zodat de chip het echte aantal plaatsingskansen toont.
+ * Dezelfde drempel en scoring als de detail-suggestiekaart. Rúwe telling (niet begrensd) — de
+ * headline gebruikt alleen `> 0` en de chip-label begrenst zelf tot de kaart-limiet, zodat de chip
+ * nooit méér claimt dan de bemiddelaar op het detail ziet.
  */
 export function countPlaceableDiensten(
   freelancer: FreelancerMatchSource,
@@ -37,11 +41,16 @@ export function countPlaceableDiensten(
 
 /**
  * Chip-label per roster-kaart: "N passende diensten". Null bij nul, zodat een vrije vakmens zónder
- * passende open dienst geen loze chip krijgt en de lijst rustig blijft.
+ * passende open dienst geen loze chip krijgt en de lijst rustig blijft. De detail-suggestiekaart
+ * toont maximaal `DIENST_SUGGESTIE_LIMIT` rijen; de chip mag daarom nooit een hoger exact getal
+ * claimen dan de bemiddelaar op het detail terugziet — boven de limiet toont hij "N+", zodat lijst
+ * en detail elkaar nooit tegenspreken (DOEL 1b: interne consistentie van het next-action-signaal).
  */
 export function placeableChipLabel(count: number): string | null {
   if (count <= 0) return null;
-  return count === 1 ? "1 passende dienst" : `${count} passende diensten`;
+  if (count === 1) return "1 passende dienst";
+  if (count > DIENST_SUGGESTIE_LIMIT) return `${DIENST_SUGGESTIE_LIMIT}+ passende diensten`;
+  return `${count} passende diensten`;
 }
 
 /**

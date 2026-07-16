@@ -1,5 +1,63 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-16 (run 32) · **main-commit basis:** `b31717a`
+> **Uitkomst:** **1 next-action-correctheidsdefect gevonden én OPGELOST** (DOEL 1b) — de nieuwe
+> plaatsbaarheids-chip op het roster (#793) sprak zichzelf tegen met het detail. Verse prod-build
+> (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`; 13 samenwerkingen/7
+> facturen/48 grootboekregels/16 tickets/14 gesprekken) op ephemere SQLite (`qa.db`), prod-server
+> (`next start`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier
+> rollen ingelogd via het echte formulier (`demo1234`); Playwright met de vooraf-geïnstalleerde
+> Chromium + cookie-getrouwe `curl`. Twee parallelle Opus-audits over de diff sinds run 31
+> (`363aefe..b31717a`: roster-placement + rejection-pattern).
+>
+> **DOEL 1 (echte actie, live geverifieerd):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties`
+> → Goedkeuren-knoppen **6→5**; de afgehandelde next-action verdween, de keten
+> auth→rol→ownership→transitie→audit→revalidate werkt end-to-end.
+>
+> **DOEL 1b (next-action-correctheid):** `/acties` per rol gekruist tegen de seed — ZZP'er (2:
+> ontbrekend verplicht "Verzekering" + onbeantwoord bericht Mark Jansen), CLIENT (2: 1 nieuwe reactie
+>
+> - bedrijfsprofiel 90% → logo), FRANCHISER (1: "1 dienst dreigt onbezet · direct vulbaar uit je
+>   roster"), ADMIN (16: 6 certificaat-beoordelingen + 10 supporttickets). Juiste partij aan zet,
+>   juiste volgorde, verdwijnt na afhandeling.
+>
+> **GEVONDEN + GEFIXT — MED (next-action-consistentie, DOEL 1b):** de plaatsbaarheids-chip
+> "N passende diensten" op `/franchise/zzpers` (uit #793) telde de **rúwe** match-telling
+> (`roster-placement.ts:countPlaceableDiensten`), terwijl de detail-suggestiekaart waarheen de chip
+> deep-linkt maar **`DIENST_SUGGESTIE_LIMIT` (6)** rijen toont (`dienst-suggesties.ts:87`
+> `.slice(0, limit)`). Een vrije ZZP'er die 8 open diensten matcht kreeg dus de chip "8 passende
+> diensten", maar het detail toonde er 6 — een directe tegenspraak, terwijl de module-doc net belóóft
+> dat de chip "exact overeenkomt met de rijen die de bemiddelaar op het detail ziet". **Repro
+> (pre-fix):** geef een idle-ready ZZP'er ≥7 PUBLISHED tenant-diensten met matchscore ≥55 →
+> `/franchise/zzpers` chip claimt het volledige getal; open het profiel → suggestie-kaart toont 6. Niet
+> in de demo getriggerd (de franchise-tenant heeft 1 PUBLISHED dienst), wél triviaal reachable.
+> **Geschonden regel:** interne consistentie van de next-action-engine (DOEL 1b) — lijst mag detail
+> niet tegenspreken. **Fix:** `placeableChipLabel` begrenst boven de kaart-limiet tot "N+ passende
+> diensten" (chip claimt nooit méér dan het detail toont; ≤ limiet blijft exact); daarnaast kreeg de
+> open-diensten-query in `franchise/zzpers/page.tsx` `orderBy: { publishedAt: "desc" }` zodat lijst en
+> detail bij >100 diensten hetzelfde deterministische nieuwste-100-venster pakken (was: geen
+> `orderBy`, niet-deterministische subset). Rood→groen unit-tests toegevoegd
+> (`roster-placement.test.ts`: exact tot de limiet, "6+" erboven).
+>
+> **DOEL 2 (adversarieel — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen|no-shows|facturatie`; niet-FRANCHISER →
+> `/franchise`) → **307-redirect**, nooit 200-inhoud/500. IDOR/cross-partij + **cross-tenant** met
+> een **echt vreemde** samenwerking/factuur (Emma de Boer / ZorgGroep Midden B.V. — niet de demo-
+> partijen) via `/samenwerkingen/<id>` + `/facturen/<id>` → **soft-404 "Niet gevonden"** (status 200,
+> not-found-kaart gerenderd; **nul** vreemde inhoud — de counterparty-namen kwamen **0×** in de body
+> voor over alle drie de niet-gerechtigde rollen). Privé-document van een ander via
+> `/api/documents/<id>` → **403**. Junk/traversal/sqli/xss-id (`1' OR '1'='1`, `..%2F..%2Fetc%2Fpasswd`,
+> `<script>`, all-zeros-cuid, `job-999999`) over `/api/documents/<junk>` → **404**; over de RSC-pagina's
+> → not-found-kaart, **nooit 500**.
+>
+> **GEPARKEERD — LOW (design-spanning, DOEL 1b-nuance):** de plaatsbaarheids-**chip** is idle-gated
+> (`page.tsx:197-198`: alleen vrij-inzetbare ZZP'ers), maar de **detail**-suggestiekaart is dat niet
+> (`zzpers/[id]/page.tsx` → `getDienstSuggestiesForFreelancer` zonder idle-filter). Een ZZP'er met een
+> ACTIVE-samenwerking of status LIMITED/UNAVAILABLE toont dus wél suggestie-rijen op het detail maar
+> géén chip op de lijst. Dit is **afwezigheid** van een chip (geen fout getal), verdedigbaar als
+> bewuste bench-scoping — geen harde tegenspraak, daarom LOW. Product-beslissing (chip ook tonen voor
+> niet-idle, of detail-kaart óók idle-scopen) vóór een eventuele fix.
+
 > **Datum:** 2026-07-16 (run 31) · **main-commit basis:** `363aefe`
 > **Uitkomst:** **GEEN gaten gevonden** — DOEL 1, 1b én 2 schoon over alle vier de rollen. Eén
 > onafhankelijke, diepe Opus-audit over de volledige diff sinds run 30 (`bc4fa99..363aefe`: vier

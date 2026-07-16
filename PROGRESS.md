@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Persona-sweep run 32: plaatsbaarheids-chip vs. detail consistent gemaakt
+
+**Increment (persona-sweep):** kritische-gebruiker-sweep over alle vier rollen op de verse prod-build +
+idempotente demo-seed. **1 next-action-consistentiedefect (MED, DOEL 1b) gevonden én opgelost.** De
+plaatsbaarheids-chip "N passende diensten" op `/franchise/zzpers` (uit #793) telde de rúwe match-telling,
+terwijl de detail-suggestiekaart waarheen de chip deep-linkt maar `DIENST_SUGGESTIE_LIMIT` (6) rijen toont
+— een idle-ready ZZP'er met 8 matches kreeg de chip "8" maar zag op het detail 6 rijen (tegenspraak,
+terwijl de module-doc net "exact overeenkomt met de rijen op het detail" belooft).
+
+- **Fix** `src/lib/franchise/roster-placement.ts`: `placeableChipLabel` begrenst boven de kaart-limiet tot
+  **"N+ passende diensten"** (claimt nooit méér dan het detail toont; ≤ limiet blijft exact). Plus
+  `orderBy: { publishedAt: "desc" }` op de open-diensten-query in `franchise/zzpers/page.tsx`, zodat lijst
+  en detail bij >100 diensten hetzelfde deterministische nieuwste-100-venster pakken (was: geen `orderBy`).
+- **Tests** `roster-placement.test.ts`: rood→groen — exact tot de limiet, "6+" erboven (12 tests groen).
+- **DOEL 1 live:** ADMIN "Goedkeuren" op `/admin/verificaties` → wachtrij 6→5 (mutatieketen end-to-end).
+  **DOEL 2:** privilege-escalatie → 307; IDOR/cross-tenant met echte vreemde samenwerking/factuur →
+  soft-404, 0× vreemde inhoud; privé-doc → 403; junk-id → 404, nooit 500. Rejection-pattern-note (#791)
+  audit: schoon (ownership/privacy/XSS/edge-cases). Geparkeerd LOW: chip idle-gated vs. detail-kaart niet.
+- **Gate:** typecheck ✓, lint ✓, 4293 unit-tests ✓, build ✓, prettier ✓ (hele repo).
+
 ## 2026-07-16 — Bemiddelaar: plaatsbaarheids-signaal per vrije ZZP'er op het roster
 
 **Increment (PR #793):** op `/franchise/zzpers` zag de bemiddelaar dankzij het capaciteitsoverzicht al

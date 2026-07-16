@@ -125,9 +125,12 @@ export default async function FranchiseZzpersPage({
     // unbounded-allow: skills-referentielijst voor formulier
     prisma.skill.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     // Open (gepubliceerde) diensten binnen dezelfde tenant — de plaatsbare set voor het roster;
-    // tenant-gescopet + take-begrensd (zelfde bron als de detail-suggestiekaart).
+    // tenant-gescopet + take-begrensd. Zelfde bron én zelfde deterministische venster als de
+    // detail-suggestiekaart (`orderBy: publishedAt desc, take: 100`): boven de 100 diensten pakken
+    // beide surfaces zo dezelfde nieuwste-100, zodat de chip-telling niet afwijkt van het detail.
     prisma.job.findMany({
       where: { status: "PUBLISHED", ...tenantScopeWhere(actor) },
+      orderBy: { publishedAt: "desc" },
       take: 100,
       select: {
         title: true,
