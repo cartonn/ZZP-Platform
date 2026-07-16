@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Persona-sweep run 31: GEEN gaten (4 rollen, DOEL 1/1b/2)
+
+**Kritische-gebruiker-sweep** over alle vier rollen op de verse prod-build + idempotente demo-seed
+(`SEED_DEMO=true`, ephemere SQLite `qa.db`, `next start` poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`,
+`STORAGE_DRIVER=local`). Vier rollen via het echte formulier (`demo1234`); Playwright (`chromium-1194`,
+`executablePath`) + cookie-getrouwe `fetch`/`curl`. **Uitkomst: geen defecten/gaten.** Alleen docs-update.
+
+- **DOEL 1 (echte actie, live):** ADMIN "Goedkeuren" op `/admin/verificaties` → knoppen **6→5**, next-action
+  verdween; keten auth→rol→ownership→transitie→audit→revalidate werkt.
+- **DOEL 1b (next-actions correct):** ZZP (2), CLIENT (2), FRANCHISER (1: "dienst dreigt onbezet" — live
+  correct, de acute dienst heeft nul samenwerkingen), ADMIN (16). Juiste partij/volgorde, verdwijnen na afhandeling.
+- **DOEL 2 (adversarieel, alle correct):** privilege-escalatie → opaque redirect; IDOR vreemde documenten
+  → 403 (ADMIN 200 by-design); vreemde samenwerking/factuur → soft-404 zonder lek; junk/traversal/sqli/xss-id
+  → 404, nooit 500. `/rooster`-CLIENT-200 weerlegd als false-positive (meta-refresh-redirect vuurt, nul lek).
+- **Onafhankelijke Opus-audit** over `bc4fa99..363aefe` (4 nieuwe next-action-loaders + verifier-/rate-limit-
+  zelftesten + admin-mutatieketen): **geen HIGH/MED**; één LOW product-oordeel (PROPOSED telt als onbezet)
+  geparkeerd in `docs/PERSONA-SWEEP-BACKLOG.md`.
+- **Bestanden:** `docs/PERSONA-SWEEP-BACKLOG.md` (run-31-entry + L1), `PROGRESS.md`.
+
 ## 2026-07-16 — Bemiddelaar: acute-onbezet dienst als next-action (`/acties` + rail + badge)
 
 **Increment (PR #789):** de bemiddelaar zag op `/franchise/diensten` al **welke** open diensten NU dreigen
