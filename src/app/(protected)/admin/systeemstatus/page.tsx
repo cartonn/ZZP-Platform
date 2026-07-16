@@ -9,6 +9,7 @@ import { SystemStatusPanel } from "@/components/admin/system-status-panel";
 import { StorageSelfTest } from "@/components/admin/storage-selftest";
 import { MailSelfTest } from "@/components/admin/mail-selftest";
 import { RateLimitSelfTest } from "@/components/admin/ratelimit-selftest";
+import { VerifierSelfTest } from "@/components/admin/verifier-selftest";
 
 export const metadata: Metadata = { title: "Systeemstatus · ZZP Platform" };
 
@@ -43,6 +44,7 @@ export default async function SysteemstatusPage() {
       <StorageSelfTest driverMode={env.STORAGE_DRIVER} />
       <MailSelfTest driverMode={env.EMAIL_DRIVER} />
       <RateLimitSelfTest storeMode={env.RATE_LIMIT_STORE} />
+      <VerifierSelfTest />
     </div>
   );
 }

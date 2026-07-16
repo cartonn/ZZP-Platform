@@ -1,4 +1,4 @@
-import { verifyViaHttp } from "@/lib/services/http-verify";
+import { verifyViaHttp, type VerifyEndpointConfig } from "@/lib/services/http-verify";
 
 // Identiteitsverificatie achter een schone service-grens.
 //
@@ -45,6 +45,20 @@ export class MockIdentityVerifier implements IdentityVerifier {
 }
 
 /**
+ * Endpoint-config van de iDIN-koppeling (basis-URL + sleutel + pad). Eén bron van waarheid, gedeeld
+ * door de verifier én de connectiviteitszelftest (`verify-selftest.ts`) zodat die niet uiteenlopen.
+ */
+export function idinEndpointConfig(fetchImpl?: typeof fetch): VerifyEndpointConfig {
+  return {
+    name: "iDIN",
+    baseUrl: process.env.IDENTITY_API_BASE,
+    apiKey: process.env.IDENTITY_API_KEY,
+    path: "/identity/verify",
+    fetchImpl,
+  };
+}
+
+/**
  * Echte iDIN/eIDAS-koppeling: bevestigt de identiteit tegen het geconfigureerde endpoint
  * (IDENTITY_API_BASE + IDENTITY_API_KEY) via de gedeelde HTTP-helper. De redirect-/handtekeningflow-
  * onboarding is mensenwerk; zonder config faalt 'ie helder.
@@ -53,16 +67,10 @@ export class IdinIdentityVerifier implements IdentityVerifier {
   constructor(private readonly fetchImpl?: typeof fetch) {}
 
   async verify(input: IdentityVerificationInput): Promise<IdentityVerificationResult> {
-    const raw = await verifyViaHttp(
-      {
-        name: "iDIN",
-        baseUrl: process.env.IDENTITY_API_BASE,
-        apiKey: process.env.IDENTITY_API_KEY,
-        path: "/identity/verify",
-        fetchImpl: this.fetchImpl,
-      },
-      { accountName: input.accountName.trim(), providedName: input.providedName.trim() },
-    );
+    const raw = await verifyViaHttp(idinEndpointConfig(this.fetchImpl), {
+      accountName: input.accountName.trim(),
+      providedName: input.providedName.trim(),
+    });
     return {
       verified: raw.verified,
       verifiedName: raw.verifiedName ?? (raw.verified ? input.providedName.trim() : null),

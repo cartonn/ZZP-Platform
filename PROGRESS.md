@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-16 — Prod-rijpheid: verificatie-adapter connectiviteitszelftest (DUO/BIG/iDIN)
+
+**Increment (PR #788):** de externe verificatie-adapters (DUO/BIG/iDIN) misten — als enige integratie —
+een connectiviteitszelftest, terwijl opslag, e-mail én de rate-limit-store die al hebben. Zodra de mens
+een echte adapter aanzet (`DIPLOMA_VERIFIER=duo` / `BIG_VERIFIER=bigregister` / `IDENTITY_VERIFIER=idin`)
+
+- de endpoints/sleutels plakt, was er geen manier om vóór echte diploma-/zorg-/identiteitscontrole te
+  bevestigen dat de koppeling het endpoint écht bereikt — een verkeerd endpoint/verlopen sleutel zou pas
+  bij een echte verificatie opvallen. Nu een admin-only **Verificatie-zelftest** op `/admin/systeemstatus`.
+
+* **Pure kern** `src/lib/services/verify-selftest.ts` (`runVerifierSelfTest` + `safeVerifierDetail`; 12 tests):
+  per aangezette adapter een echte round-trip met een **synthetische** probe; toetst ALLEEN bereikbaarheid +
+  auth + contract-vorm, nooit `verified===true` (een `verified:false` op een verzonnen code = gezonde uitkomst).
+  Adapters op de demo-verifier (`mock`) → eerlijk "niets getest" (geen vals groen). Geen secrets in de uitvoer:
+  veilige verifier-berichten of error-naam-only.
+* **Refactor (gedragsbehoudend):** `*EndpointConfig()`-builders geëxtraheerd uit de drie verifiers
+  (`diploma`/`big`/`identity-verifier.ts`) → één bron van waarheid, gedeeld door verifier + zelftest.
+* **Wiring:** server-actie `runVerifierSelfTestAction` (auth ADMIN → `verifierSelfTestRateLimiter` (6/5min) →
+  synthetische probes via `verifyViaHttp` → audit `VERIFIER_SELFTEST_RUN`, geen secrets in metadata) +
+  client-card `verifier-selftest.tsx` + page-wiring. Geen schemawijziging, geen nieuw mutatie-oppervlak.
+* **Gate:** typecheck ✓, lint ✓, targeted tests 23 ✓. Docs: MENSENWERK §4, PROGRESS, CURRENT_TASK.
+  Resterend mensenwerk: onveranderd (adapter-toegang/contract bij DUO/CIBG/PSP regelen).
+
 ## 2026-07-16 — Security/privacy-audit: AVG art. 30 register-volledigheid tarief-diagnose
 
 **Ronde:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op de **delta**

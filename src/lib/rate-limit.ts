@@ -524,3 +524,16 @@ export const rateLimitSelfTestRateLimiter = new RateLimiter(
   5 * 60_000,
   "ratelimitselftest:",
 );
+
+/**
+ * Maximaal VERIFIER_SELFTEST_RATE_LIMIT (default 6) verificatie-adapter-zelftests per beheerder per 5
+ * minuten. De admin-actie (/admin/systeemstatus) doet een echte round-trip (synthetische probe) tegen
+ * de geconfigureerde DUO/BIG/iDIN-endpoints. De rem houdt een per ongeluk herhaalde klik of een script
+ * binnen de perken zonder de normale, incidentele controle te hinderen (parity met de opslag-zelftest).
+ */
+export const verifierSelfTestRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("VERIFIER_SELFTEST_RATE_LIMIT", 6),
+  5 * 60_000,
+  "verifierselftest:",
+);

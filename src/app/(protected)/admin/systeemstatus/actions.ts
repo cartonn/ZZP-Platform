@@ -10,7 +10,17 @@ import {
   rateLimitSelfTestRateLimiter,
   storageSelfTestRateLimiter,
   UpstashRateLimitStore,
+  verifierSelfTestRateLimiter,
 } from "@/lib/rate-limit";
+import { bigEndpointConfig } from "@/lib/services/big-verifier";
+import { duoEndpointConfig } from "@/lib/services/diploma-verifier";
+import { idinEndpointConfig } from "@/lib/services/identity-verifier";
+import { verifyViaHttp } from "@/lib/services/http-verify";
+import {
+  runVerifierSelfTest,
+  type VerifierProbeSpec,
+  type VerifierSelfTestReport,
+} from "@/lib/services/verify-selftest";
 import { getMailSender } from "@/lib/services/mail-sender";
 import { runMailSelfTest, type MailSelfTestReport } from "@/lib/services/mail-selftest";
 import {
@@ -103,6 +113,101 @@ export async function runMailSelfTestAction(recipient: string): Promise<MailSelf
     entityId: driverMode,
     // Geen ontvangeradres: e-mailadressen zijn persoonsgegevens en horen niet in het auditlog.
     metadata: { ok: report.ok, delivered: report.delivered },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
+export type VerifierSelfTestState =
+  | { ok: true; report: VerifierSelfTestReport }
+  | { ok: false; error: string };
+
+// Synthetische probe-invoer per adapter: goed-geformatteerd maar duidelijk niet-echt. Bereikt het
+// endpoint en levert normaal een `verified:false` op (onbekende code/nummer) — een gezonde
+// contract-uitkomst die bereikbaarheid + auth bewijst zonder een echt "geverifieerd"-signaal.
+const PROBE_HOLDER = "Zelftest Connectiviteit";
+
+/**
+ * Draait een connectiviteitszelftest tegen de geconfigureerde externe verificatie-adapters
+ * (DUO/BIG/iDIN) (admin-only). Volgt de mutatieketen (auth → rol → rate-limit → actie → audit).
+ * Per adapter die op de echte waarde staat (`DIPLOMA_VERIFIER=duo` enz.) doet hij een echte
+ * round-trip met een synthetische probe; adapters op de demo-verifier (`mock`) worden eerlijk als
+ * "niets getest" gemeld (geen vals groen). De zelftest toetst alleen bereikbaarheid + auth +
+ * contract-vorm, nooit of de probe "geverifieerd" is. De uitvoer bevat nooit secrets — alleen
+ * stap-uitkomsten, veilige verifier-berichten en de driver-modus.
+ */
+export async function runVerifierSelfTestAction(): Promise<VerifierSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await verifierSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const diplomaActive = process.env.DIPLOMA_VERIFIER === "duo";
+  const bigActive = process.env.BIG_VERIFIER === "bigregister";
+  const identityActive = process.env.IDENTITY_VERIFIER === "idin";
+
+  const specs: VerifierProbeSpec[] = [
+    {
+      key: "diploma",
+      label: "DUO — diploma's",
+      active: diplomaActive,
+      driverMode: diplomaActive ? "duo" : "mock",
+      run: diplomaActive
+        ? () =>
+            verifyViaHttp(duoEndpointConfig(), {
+              verificationCode: "DUO-0000-0000",
+              holderName: PROBE_HOLDER,
+            })
+        : undefined,
+    },
+    {
+      key: "big",
+      label: "BIG-register — zorgberoepen",
+      active: bigActive,
+      driverMode: bigActive ? "bigregister" : "mock",
+      run: bigActive
+        ? () =>
+            verifyViaHttp(bigEndpointConfig(), {
+              bigNumber: "00000000000",
+              holderName: PROBE_HOLDER,
+            })
+        : undefined,
+    },
+    {
+      key: "identity",
+      label: "iDIN — identiteit",
+      active: identityActive,
+      driverMode: identityActive ? "idin" : "mock",
+      run: identityActive
+        ? () =>
+            verifyViaHttp(idinEndpointConfig(), {
+              accountName: PROBE_HOLDER,
+              providedName: PROBE_HOLDER,
+            })
+        : undefined,
+    },
+  ];
+
+  const report = await runVerifierSelfTest(specs);
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "VERIFIER_SELFTEST_RUN",
+    entityType: "Verifier",
+    entityId: [
+      specs.find((s) => s.key === "diploma")?.driverMode,
+      specs.find((s) => s.key === "big")?.driverMode,
+      specs.find((s) => s.key === "identity")?.driverMode,
+    ].join(","),
+    metadata: {
+      ok: report.ok,
+      anyActive: report.anyActive,
+      results: report.results.map((r) => ({ key: r.key, active: r.active, ok: r.ok })),
+    },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });
