@@ -4,7 +4,10 @@ import {
   placeableChipLabel,
   placeableHeadline,
 } from "@/lib/franchise/roster-placement";
-import { DIENST_SUGGESTIE_MIN_SCORE } from "@/lib/franchise/dienst-suggesties";
+import {
+  DIENST_SUGGESTIE_LIMIT,
+  DIENST_SUGGESTIE_MIN_SCORE,
+} from "@/lib/franchise/dienst-suggesties";
 import { type FreelancerMatchSource, type JobMatchSource } from "@/lib/matching";
 
 const NOW = new Date("2026-07-16T12:00:00Z");
@@ -90,6 +93,22 @@ describe("placeableChipLabel", () => {
 
   it("meervoud bij >1", () => {
     expect(placeableChipLabel(3)).toBe("3 passende diensten");
+  });
+
+  it("toont het exacte getal tot en met de kaart-limiet", () => {
+    // De detail-suggestiekaart toont exact zoveel rijen → chip mag het exacte getal claimen.
+    expect(placeableChipLabel(DIENST_SUGGESTIE_LIMIT)).toBe(
+      `${DIENST_SUGGESTIE_LIMIT} passende diensten`,
+    );
+  });
+
+  it("begrenst tot 'N+' boven de kaart-limiet zodat lijst en detail elkaar niet tegenspreken", () => {
+    // Zonder begrenzing zou de chip "8 passende diensten" claimen terwijl de detail-suggestiekaart
+    // maar DIENST_SUGGESTIE_LIMIT (6) rijen toont — een DOEL 1b-tegenspraak. De chip toont "6+".
+    expect(placeableChipLabel(DIENST_SUGGESTIE_LIMIT + 2)).toBe(
+      `${DIENST_SUGGESTIE_LIMIT}+ passende diensten`,
+    );
+    expect(placeableChipLabel(50)).toBe(`${DIENST_SUGGESTIE_LIMIT}+ passende diensten`);
   });
 
   it("null bij 0 of negatief", () => {
