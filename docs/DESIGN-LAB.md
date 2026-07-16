@@ -1014,3 +1014,37 @@ UI-taal = Nederlands.
   partituur-layout**; **calm / low-stimulation daglicht-UI**; **industrieel gunmetal pro-dichtheid** — elk
   AA-/contrast-bewust, deterministisch en onderscheidend van de bestaande 340.
 - **Totaal nu op `/ontwerp`: 350 concepten** (reeks 35: 341–350; reeks 34 331–340 via PR #778).
+
+## Reeks 36 — concepten 351–360
+
+Tien nieuwe, onderscheidende richtingen, elk met eigen bestand en alle 6 kernschermen (dashboard,
+marktplaats, opdracht, verificatie, acties, facturen). Additief toegevoegd bovenop 350 — niets
+overschreven.
+
+- **351 Baken** — vertrektijdenbord / split-flap dot-matrix (amber op antraciet): mechanische flip/tick,
+  tabulaire mono-cijfers als bestemmingsborden, elke status leest als een aankondiging.
+- **352 Diepzee** — bioluminescent deep-dark (marineblauw + cyaan gloed): diepte via gelaagde gloed en
+  blur, aandacht licht op waar het telt, rustig en premium maar contrast-bewust leesbaar.
+- **353 Atelier** — architecten-blauwdruk op warm perkament (blauwdruk-blauw): titelblok-koppen,
+  leader-lines en maatlijnen met schaalstreepjes, ingenieurs-precisie met ambachtelijke warmte.
+- **354 Kwarts** — iriserend/holografisch op ijswit (laag-verzadigd spectrum): frosted-glas panelen,
+  kristallijne facetten, high-key licht met donkere inkt voor scherp, toegankelijk contrast.
+- **355 Meridiaan** — cartografisch / wayfinding (aardse inkt op perkament): zelf getekende hoogtelijnen,
+  coördinaat-labels en kompasroos, oriëntatie op de volgende beste route.
+- **356 Halogeen** — warm nacht-dashboard (amber gloeilamplicht op houtskool): gloed rond focus,
+  kaarslicht-vignet, behaaglijk maar data-scherp voor de avond-/nachtdienstplanner.
+- **357 Prisma** — kleurrijk-speels spectrum (kleurgecodeerd, 8pt-grid): elk domein een eigen heldere
+  kleur, speels én professioneel (Family/Superlist-energie) zonder losse pixel.
+- **358 Sediment** — geologische lagen / stratigrafie (aardetinten): navigatie als boorkern, koppen met
+  diepte-labels, informatie als afzettingslagen — warm, tactiel, rustgevend.
+- **359 Zonnewijzer** — solarpunk / natuurlijk-warm (terracotta + zand + mos): organische zachte vormen,
+  terugkerend zonnewijzer-motief dat voortgang aftast, optimistisch en menselijk.
+- **360 Notenbalk** — ritmisch baseline-grid / muzikaal (monochroom + rood accent): hairline notenlijnen,
+  maatstrepen en maat-genummerde secties, dichtheid als cadans.
+- Onderzochte 2026-trends deze reeks: **kinetische / split-flap typografie**; **bioluminescent deep-dark
+  met gelaagde gloed**; **technische blueprint-annotatie & maatvoering**; **holografische/iriserende
+  sheen op high-key licht**; **cartografische wayfinding-UI**; **cozy-dark warm ambient light**;
+  **kleurgecodeerde speels-professionele systemen**; **stratigrafische gelaagde informatie-architectuur**;
+  **solarpunk / biophilic natuurtinten**; **ritmisch muzikaal baseline-grid** — elk AA-/contrast-bewust,
+  deterministisch, en onderscheidend van de bestaande 350.
+- **Totaal nu op `/ontwerp`: 360 concepten** (reeks 36: 351–360).
