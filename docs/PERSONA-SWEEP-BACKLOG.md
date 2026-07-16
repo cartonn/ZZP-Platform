@@ -1,5 +1,56 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-16 (run 31) · **main-commit basis:** `363aefe`
+> **Uitkomst:** **GEEN gaten gevonden** — DOEL 1, 1b én 2 schoon over alle vier de rollen. Eén
+> onafhankelijke, diepe Opus-audit over de volledige diff sinds run 30 (`bc4fa99..363aefe`: vier
+> nieuwe next-action-loaders + de verifier-/rate-limit-zelftesten + de admin-mutatieketen) leverde
+> **geen HIGH/MED-defect** op — alleen één LOW product-oordeel (L1, hieronder geparkeerd). Verse
+> prod-build (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`, 13
+> samenwerkingen/7 facturen/48 grootboekregels/16 tickets/14 gesprekken) op ephemere SQLite
+> (`qa.db`), prod-server (`next start`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`,
+> `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte formulier (`demo1234`); Playwright met
+> de vooraf-geïnstalleerde Chromium (`chromium-1194`, `executablePath`) + cookie-getrouwe `fetch`/`curl`.
+>
+> **DOEL 1 (echte actie, live geverifieerd):** ADMIN klikte **"Goedkeuren"** op `/admin/verificaties`
+> → Goedkeuren-knoppen **6→5**; de afgehandelde next-action verdween, de keten
+> auth→rol→ownership→transitie→audit→revalidate werkt end-to-end.
+>
+> **DOEL 1b (next-action-correctheid — alle correct):** `/acties` per rol gekruist tegen de seed —
+> ZZP'er (2: ontbrekend verplicht document "Verzekering" + onbeantwoord bericht van Mark Jansen),
+> CLIENT (2: 1 nieuwe reactie beoordelen + bedrijfsprofiel 90% → logo toevoegen), FRANCHISER
+> (1: "1 dienst dreigt onbezet · direct vulbaar uit je roster — voordragen kan nu" — de nieuwe
+> acute-onbezet-loader uit #789/#785; live geverifieerd correct: de enige PUBLISHED-dienst van tenant
+> `zorgbemiddeling-noord` ("Nachtdienst verpleegkundige — Geriatrie") heeft `startDate = null`
+> (acuut/GEEN_DATUM) en **nul** samenwerkingen → geen PROPOSED-uitzondering actief, dus geen phantom),
+> ADMIN (16: certificaat-beoordelingen + supporttickets). Juiste partij "aan zet", juiste volgorde,
+> verdwijnt na afhandeling; geen dubbele/tegenstrijdige/niet-verdwijnende actie.
+>
+> **DOEL 2 (adversarieel — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/verificaties|gebruikers|statistieken|disputen|no-shows|facturatie`; niet-FRANCHISER →
+> `/franchise`) via cookie-getrouwe `fetch` → **opaque redirect (status 0)**, nooit 200-inhoud/500.
+> IDOR/cross-partij met **echte vreemde id's** (documenten van Youssef/Lisa) → **403** voor
+> ZZP/CLIENT/FRANCHISER; ADMIN 200 = by-design geaudit oversight, geen lek. Vreemde
+> samenwerking/factuur (`/samenwerkingen/<id>`, `/facturen/<id>`) → **soft-404 "Niet gevonden"**
+> (status 200, `NEXT_REDIRECT`-marker, **nul** gelekte inhoud — geen Urenstaat/Factuurregel/BTW/€/
+> Contract/grootboek in de body). Junk/traversal/sqli/xss-id (`..%2F..%2Fetc%2Fpasswd`, `1' OR '1'='1`,
+> `<script>`, all-zeros-cuid) over `/api/documents/<junk>` + `/samenwerkingen|/facturen|/zzp/<junk>`
+> → **404**, nooit 500.
+> **False-positive weerlegd:** `/rooster` gaf CLIENT een 200 i.p.v. een 3xx — maar de `redirect("/opdrachten")`
+> voor CLIENT vuurt wél, via Next's streaming-fallback (`<meta http-equiv="refresh">` + `NEXT_REDIRECT`);
+> de body bevat **nul** roster-inhoud (geen Claim/Beschikbare/Sterke-match-markers). Geen lek, geen defect.
+>
+> **GEPARKEERD — LOW (product-oordeel, DOEL 1b-nuance):** `acute-open-diensten.ts:55` +
+> `pending-tasks.ts:553` definiëren `filled` strikt als "heeft een `ACTIVE` samenwerking". Een dienst
+> met een reeds **PROPOSED** (contract verstuurd, wacht op handtekening ZZP'er) samenwerking telt
+> daardoor als onbezet en kan — bij een acute startdatum — de "dienst dreigt onbezet"-next-action voeden,
+> terwijl die dienst feitelijk al _bezig is_ met vullen. **Geen defect deze run:** (a) niet getriggerd in
+> de demo (de acute dienst heeft nul samenwerkingen); (b) de diensten-pagina-kaart gebruikt exact dezelfde
+> `ACTIVE`-only-definitie → geen tegenspraak tussen surfaces (dus geen DOEL 1b-schending); (c) een
+> voorstel is geen gegarandeerde vulling (de ZZP'er kan weigeren). Product-beslissing (voorgesteld=bezig?
+> of pas ACTIVE=bezig?) vóór een fix. Repro als het wél triggert: geef een acute PUBLISHED-tenantdienst
+> zonder ACTIVE-samenwerking maar mét een PROPOSED-samenwerking → `/acties` (franchiser) toont "dreigt
+> onbezet". Prioriteit: LOW.
+
 > **Datum:** 2026-07-15 (run 30) · **main-commit basis:** `bc4fa99`
 > **Uitkomst:** **1 next-action-correctheidsdefect gevonden én OPGELOST** (DOEL 1b) — de nieuwe
 > compliance-ripple next-action van de opdrachtgever (#777) respecteerde de dispuut-bevriezing niet.
