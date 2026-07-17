@@ -4,6 +4,53 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-17 (2e — basis: `main` @ 5b27a92)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken: (1) cross-tenant/franchise-IDOR, (2) AVG-anonimisering/betrokkenenrechten/PII-minimalisatie,
+(3) API-route-IDOR/cron-webhook-auth/injectie/push/error-ingest. Runtime-basis geseed (`SEED_DEMO=true`,
+qa.db). Kader: OWASP Top 10 (A01/A03/A04/A05/A07/A10) + ASVS + AVG art. 5/9/15/17/30/32. Stack: Next.js
+**15.5.19** (voorbij CVE-2025-29927), `npm audit --omit=dev` = **0**.
+
+**Franchise/multi-tenant (agent 1): bevestigd schoon.** Elke mutatie volgt auth→rol→tenant-ownership→Zod→
+actie→audit; elke id-gebaseerde read/mutatie her-scoopt op `tenantId` (`assertSameTenant`/`ownsViaTenant`/
+`findFirst({id, tenantId})`). Geen IDOR, geen cross-tenant PII-lek, geen `tenantId`-mass-assignment,
+`openOverflow` verruimt alleen read-zichtbaarheid (nooit write). Roster-double-booking stript zelfs de
+titel van een cross-tenant plaatsing (alleen de telling lekt).
+
+**AVG-anonimisering (agent 2): uitzonderlijk grondig.** `anonymizeUser` scrubt User/Profile/Company-PII,
+verwijdert Credential/Document-DB-rijen én de storage-objecten (best-effort, gelogd), cascadeert
+CredentialVerification/VerificationRequest, redacteert berichten/notificaties/reviews/dispute-reason
+(drievoudig) én **audit-log-PII** (`scrubAuditMetadataPii`). Export (`/api/account/export`) is self-scoped.
+k-anonimiteit markttarief = 10. Geen nieuwe blockers.
+
+### Opgelost deze ronde (PR volgt onderaan)
+
+- **[MIDDEL · A05/CWE-400 DoS · OPGELOST]** `src/app/api/billing/webhook/route.ts` — de publieke,
+  ongeauthenticeerde webhook las `request.text()` **zonder byte-grens** (alleen per-IP count-rate-limit).
+  Een aanvaller kon binnen de count-limit arbitrair grote bodies sturen die eerst volledig in het geheugen
+  worden gebufferd (Stripe-handtekening vereist de rauwe body) → geheugen-/CPU-druk. **Fix:** `MAX_BODY_BYTES`
+  = 64 KB, geweigerd via de `Content-Length`-header (vóór inlezen) én een lengtecheck ná inlezen — parity met
+  `/api/csp-report` (16 KB) + `/api/client-error` (32 KB). Test: `route.test.ts` (3 nieuwe cases).
+- **[LAAG · AVG art. 5(2) verantwoordingsplicht / CLAUDE.md regel 5 · OPGELOST]** de vier CSV-exportroutes
+  `diensten|verplichtingen|prognose|prestaties/export` schreven — anders dan de administratie-/audit-exports —
+  **geen auditregel** bij export van financiële PII (tarieven, tegenpartij, bedragen). **Fix:** elke route
+  schrijft nu `{DIENSTEN,OBLIGATIONS,FORECAST,PRESTATIES}_EXPORTED` via `auditData` + `prisma.auditLog.create`.
+  Test: `export-audit.test.ts` (4 cases).
+- **[LAAG · DOEL 2 robuustheid / A04 · OPGELOST]** `src/app/(protected)/franchise/diensten/actions.ts`
+  `setDienstStatus` gebruikte een throwing `jobStatusSchema.parse(target)` op de vóór de `try/catch` — een
+  geknutselde POST met een `target` buiten de enum gaf een ongevangen `ZodError` → generieke 500. **Fix:**
+  `safeParse` + nette "Ongeldige doelstatus."-afwijzing vóór elke DB-I/O. Test: `set-dienst-status.test.ts`.
+
+### Geparkeerd deze ronde
+
+- **[LAAG · AVG art. 5 dataminimalisatie]** `src/app/(protected)/berichten/nieuw/page.tsx:70-71` — de
+  contactpicker toont het rauwe e-mailadres van de ZZP'er als naam-/subtitle-fallback wanneer
+  `name`/`headline`/`location` leeg zijn. Correct tenant-gescoopt (FRANCHISER, eigen roster) → geen
+  cross-party-lek, maar een niet-PII-fallback (rol/status of "Naam onbekend") volstaat. Repro: FRANCHISER met
+  een roster-ZZP'er zonder naam/headline/location → e-mail zichtbaar in de picker. Aanbevolen fix: vervang de
+  `?? f.user.email`-fallbacks door een niet-PII-tekst. Niet-blokkerend; meenemen bij de volgende touch.
+
 ## Ronde 2026-07-17 (basis: `main` @ f32b9c7)
 
 Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-security-subagents op de **delta sinds de

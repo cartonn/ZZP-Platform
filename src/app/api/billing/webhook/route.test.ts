@@ -89,6 +89,29 @@ describe("POST /api/billing/webhook", () => {
     expect(resolveWebhookRefMock).toHaveBeenCalledTimes(1);
   });
 
+  // OWASP A05 / CWE-400: het endpoint is publiek + ongeauthenticeerd. Een overmaatse body wordt
+  // geweigerd vóór de (geheugen-bufferende) handtekeningverificatie, ook al is de count-rate-limit
+  // nog niet geraakt. Zonder de byte-grens zou resolveWebhookRef op de volledige body worden aangeroepen.
+  it("weigert een body boven de byte-grens via de Content-Length-header zonder provider-werk", async () => {
+    const res = await POST(post("{}", { "content-length": String(64 * 1024 + 1) }));
+    expect(res.status).toBe(200); // bewust 200, consistent met de rest van de route
+    expect(resolveWebhookRefMock).not.toHaveBeenCalled();
+  });
+
+  it("weigert een te grote werkelijke body (defense-in-depth naast de header-check)", async () => {
+    const huge = "x".repeat(64 * 1024 + 1);
+    const res = await POST(post(huge));
+    expect(res.status).toBe(200);
+    expect(resolveWebhookRefMock).not.toHaveBeenCalled();
+  });
+
+  it("laat een payload precies op de grens gewoon door", async () => {
+    const atLimit = "y".repeat(64 * 1024);
+    const res = await POST(post(atLimit));
+    expect(res.status).toBe(200);
+    expect(resolveWebhookRefMock).toHaveBeenCalledTimes(1);
+  });
+
   it("activeert een PENDING-abonnement bij status 'paid' (audit + update)", async () => {
     findFirstMock.mockResolvedValue({ id: "sub1", userId: "u1", status: "PENDING" });
     paymentStatusMock.mockResolvedValue("paid");

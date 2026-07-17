@@ -13,6 +13,13 @@ import { canSubscriptionTransition } from "@/lib/billing/subscription-transition
 
 export const dynamic = "force-dynamic";
 
+// Body-limiet: een Stripe/Mollie-webhook-payload is klein (ruim onder 64 KB). Het endpoint is
+// publiek en ongeauthenticeerd; zonder byte-grens kan een aanvaller — binnen de per-IP
+// count-rate-limit — alsnog arbitrair grote bodies sturen die eerst volledig in het geheugen
+// worden gebufferd (Stripe-handtekeningverificatie vereist de exacte rauwe body) vóór er iets
+// wordt afgewezen. Cap parity met /api/csp-report + /api/client-error (OWASP A05, CWE-400 DoS).
+const MAX_BODY_BYTES = 64 * 1024;
+
 export async function POST(request: Request): Promise<Response> {
   // Rate-limit vóór álle werk (body-read, provider-call, DB-lookup): een ongeauthenticeerde flood
   // mag geen uitgaande provider-calls of DB-I/O veroorzaken. Bij overschrijding bewust 200 (geen
@@ -21,12 +28,21 @@ export async function POST(request: Request): Promise<Response> {
   const rl = await billingWebhookRateLimiter.check(clientIpFromRequest(request));
   if (!rl.allowed) return new Response("ok", { status: 200 });
 
+  // Byte-grens vóór het bufferen van de body. De Content-Length-header (indien aanwezig) laat een
+  // overmaatse body afwijzen zónder hem in te lezen; de lengtecheck na het lezen vangt een
+  // ontbrekende/onjuiste header af. Bewust 200 (geen 413), consistent met de rest van deze route.
+  const declaredLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    return new Response("ok", { status: 200 });
+  }
+
   const provider = getPaymentProvider();
 
   // De rauwe body één keer lezen (Stripe-handtekeningverificatie vereist de exacte, ongeparste body).
   let paymentId: string | null;
   try {
     const raw = await request.text();
+    if (raw.length > MAX_BODY_BYTES) return new Response("ok", { status: 200 });
     paymentId = await provider.resolveWebhookRef(raw, request.headers);
   } catch {
     return new Response("ok", { status: 200 }); // niets te doen / ongeldige of niet-geverifieerde ping
