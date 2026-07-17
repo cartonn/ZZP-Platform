@@ -18,7 +18,12 @@ import { z } from "zod";
  */
 export async function setDienstStatus(jobId: string, target: string): Promise<void> {
   const actor = await requireRole("FRANCHISER");
-  const targetStatus = jobStatusSchema.parse(target);
+  // safeParse (geen throwing .parse): een geknutselde POST met een `target` buiten de enum mag geen
+  // ongevangen ZodError → generieke 500 opleveren, maar een nette afwijzing (DOEL 2 robuustheid,
+  // consistent met leads/zzpers die formulierinvoer ook zo afhandelen). Server-side waarheid.
+  const parsedTarget = jobStatusSchema.safeParse(target);
+  if (!parsedTarget.success) throw new Error("Ongeldige doelstatus.");
+  const targetStatus = parsedTarget.data;
 
   const job = await prisma.job.findUnique({
     where: { id: jobId },

@@ -25,6 +25,29 @@ unit-test toegevoegd in `src/lib/signals.overdue.test.ts` (CLIENT-`OR` bevat gee
 (privilege-escalatie 307, IDOR 403, junk-id 404) + twee code-audits (authz-keten, malicieuze invoer)
 opnieuw schoon bevonden.
 
+## 2026-07-17 — Security/privacy-auditronde (2e): webhook-DoS-cap + export-auditplicht + status-robuustheid
+
+**Audit:** orchestrator (Opus 4.8) + 3 parallelle Opus-security-subagents op niet-overlappende oppervlakken
+(cross-tenant/franchise-IDOR · AVG-anonimisering/betrokkenenrechten/PII · API-route-IDOR/cron-webhook-auth/
+injectie/push). Franchise-tenancy én AVG-anonimisering bevestigd **schoon** (geen KRITIEK/HOOG). Stack:
+Next.js 15.5.19 (voorbij CVE-2025-29927), `npm audit --omit=dev` = 0. Detail: `docs/SECURITY-PRIVACY-BACKLOG.md`.
+
+**Gefixt (3 bevindingen, rood→groen getest):**
+
+1. **MIDDEL — A05/CWE-400 DoS:** `api/billing/webhook/route.ts` las de body ongeauthenticeerd zonder
+   byte-grens. Nu `MAX_BODY_BYTES` = 64 KB (Content-Length-check vóór inlezen + lengtecheck erna), parity
+   met csp-report/client-error. +3 tests.
+2. **LAAG — AVG art. 5(2):** de vier CSV-exportroutes (`diensten|verplichtingen|prognose|prestaties/export`)
+   logden geen auditregel bij export van financiële PII. Nu `*_EXPORTED` via `auditData` + `auditLog.create`,
+   parity met de administratie-/audit-exports. +4 tests (`export-audit.test.ts`).
+3. **LAAG — DOEL 2 robuustheid/A04:** `franchise/diensten/actions.ts` `setDienstStatus` gebruikte throwing
+   `.parse` op client-invoer → ongevangen 500. Nu `safeParse` + nette afwijzing. +2 tests.
+
+**Bestanden:** `api/billing/webhook/route.ts` (+test), `{diensten,verplichtingen,prognose,prestaties}/export/
+route.ts`, `franchise/diensten/actions.ts`, nieuwe tests `export-audit.test.ts` + `set-dienst-status.test.ts`.
+**Geparkeerd (LAAG):** e-mail als contactpicker-fallback in `berichten/nieuw/page.tsx` (dataminimalisatie).
+Gate: typecheck, lint, unit-tests, build, prettier groen.
+
 ## 2026-07-17 — Reactiebereidheid-chip op de opdrachtenlijst (ZZP'er)
 
 **Increment (UX/triage, ZZP'er):** op `/opdrachten` (browse-/triage-lijst) toonde elke kaart al
