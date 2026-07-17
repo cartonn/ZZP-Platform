@@ -1,5 +1,46 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-17 (run 33) · **main-commit basis:** `ab78f40`
+> **Uitkomst:** **1 robuustheidsgat (HOOG) gevonden én OPGELOST** (DOEL 2) — een niet-eindig getal
+> (`NaN`) in de prestatie-invoer (urenstaat/oplevering) glipte door álle bovengrens-validatie.
+> Verse prod-build (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`; 13
+> samenwerkingen/7 facturen/48 grootboekregels/16 tickets/14 gesprekken) op ephemere SQLite (`qa.db`),
+> prod-server (`next start`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`).
+> Vier rollen ingelogd via het echte credentials-endpoint (`demo1234`); cookie-getrouwe `curl`-sweep.
+>
+> **DOEL 1 (werkt het, live):** smoke over alle kernschermen per rol — ZZP'er
+> (`/dashboard /acties /opdrachten /facturen /samenwerkingen /documenten /profiel /berichten`), CLIENT
+> (`/dashboard /acties /opdrachten /kandidaten /samenwerkingen /facturen /bedrijf`), FRANCHISER
+> (`/franchise/zzpers /diensten /samenwerkingen /facturatie /opdrachtgevers /leads /shift-overnames`),
+> ADMIN (`/admin/verificaties /gebruikers /statistieken /disputen /no-shows /facturatie /systeemstatus
+/franchises`) → **alle 200, nul 5xx**.
+>
+> **DOEL 2 (adversarieel, live — alle correct):** privilege-escalatie (ZZP/CLIENT/FRANCHISER →
+> `/admin/*`; niet-FRANCHISER → `/franchise/*`) → **307-redirect**, nooit 200-inhoud/500. Junk/sqli/
+> traversal-id (`1' OR '1'='1`, all-zeros-cuid, `job-999999`) → **soft-404 "bestaat niet"** (status
+> 200, not-found-kaart, geen datalek); `/api/documents/..%2F..%2Fetc%2Fpasswd` → **404**.
+>
+> **GEVONDEN + GEFIXT — HOOG (robuustheid, DOEL 2 — malicieuze/absurde invoer):** de
+> prestatie-invoer (`validatePerformanceForm` in `src/lib/validation.ts`) begrensde uren/bedrag met
+> `<= 0` (ondergrens) en `> MAX` (bovengrens), maar **`NaN` is noch `<= 0` noch `> MAX`** (beide
+> vergelijkingen zijn `false`). Een geknutselde POST naar de urenstaat-/oplevering-server-action met
+> `hours=abc` (of `amount=abc`) levert `Number("abc") = NaN` — de manuele parser in
+> `samenwerkingen/[id]/actions.ts` gebruikt géén Zod/coerce. `NaN` glipte door de validatie, zou als
+> `Float` persisteren en bij factuurafleiding (`hourlySubtotalCents = Math.round(hours × rateCents)` →
+> `Int`-kolom `totalCents`) een `NaN` opleveren → **Prisma-conversiefout → 500** i.p.v. een nette
+> weigering — precies de faalmodus die de bestaande `MAX`-grens blijkens de code-commentaar juist wilde
+> voorkomen. **Repro (pre-fix):** log in als ZZP'er met een ACTIVE-samenwerking → POST de urenstaat met
+> `hours=abc` (browser-`type=number` omzeild) → prestatie met `hours=NaN` persisteert; bij
+> goedkeuring/factuur volgt een 500. **Geschonden regel:** CLAUDE.md regel 1 (server-side waarheid;
+> een geknutselde POST omzeilt het formulier) + DOEL 2 (malicieuze invoer → nette weigering, nooit
+> 500). **Fix:** `!Number.isFinite(...)`-guard vóór de grensvergelijkingen in `validatePerformanceForm`
+> (uren, ORT-totaal én milestone-bedrag) — dezelfde idiome die de codebase al bij een
+> percentageveld (`actions.ts:275`) hanteert — plus defense-in-depth in
+> `assertPerformanceWithinLimits` (`cascade/performance-commands.ts`, dekt óók het CSV-import- en
+> admin-pad). Rood→groen unit-tests toegevoegd (`validation.test.ts`: `hours`/`ortTotal`/`amount` = NaN
+> geweigerd; `Infinity` was al gedekt door `> MAX`). `Infinity`/`-Infinity` bleven correct (resp. door
+> `> MAX` en `<= 0` gevangen); alleen `NaN` was het gat.
+
 > **Datum:** 2026-07-16 (run 32) · **main-commit basis:** `b31717a`
 > **Uitkomst:** **1 next-action-correctheidsdefect gevonden én OPGELOST** (DOEL 1b) — de nieuwe
 > plaatsbaarheids-chip op het roster (#793) sprak zichzelf tegen met het detail. Verse prod-build
