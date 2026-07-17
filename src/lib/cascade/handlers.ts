@@ -22,6 +22,7 @@ import { computeVat, hourlySubtotalCents } from "@/lib/administration/vat";
 import { ortSubtotalCents, type OrtSegment } from "@/lib/ort";
 import { PLATFORM_FEE, type VatRegime, type OrtCategory } from "@/lib/config";
 import { type CascadeEffects, emptyEffects } from "@/lib/cascade/types";
+import { boundReason } from "@/lib/text-bounds";
 
 // --- Event A — Contract getekend -------------------------------------------
 export interface ContractSignedCtx {
@@ -205,7 +206,10 @@ export interface PerformanceRejectedCtx {
 }
 
 export function planPerformanceRejected(ctx: PerformanceRejectedCtx): CascadeEffects {
-  if (!ctx.reason?.trim()) throw new Error("Een afkeuring vereist een reden.");
+  // Defense-in-depth: trim + kap de vrije-tekstreden hier (de pure funnel die de opgeslagen reden,
+  // de notificatiebody én de audit-metadata voedt) — los van de boundary-normalisatie in de action.
+  const reason = boundReason(ctx.reason);
+  if (!reason) throw new Error("Een afkeuring vereist een reden.");
   performanceMachine.assert(ctx.status, "REJECTED");
   const fx = emptyEffects();
   fx.statusChanges.push({
@@ -214,13 +218,13 @@ export function planPerformanceRejected(ctx: PerformanceRejectedCtx): CascadeEff
     field: "status",
     from: ctx.status,
     to: "REJECTED",
-    set: { rejectionReason: ctx.reason.trim(), rejectedAt: ctx.now },
+    set: { rejectionReason: reason, rejectedAt: ctx.now },
   });
   fx.notifications.push({
     userId: ctx.freelancerUserId,
     type: "PERFORMANCE_REJECTED",
     title: "Uren/oplevering afgekeurd",
-    body: `Reden: ${ctx.reason.trim()}. Pas het aan en dien opnieuw in.`,
+    body: `Reden: ${reason}. Pas het aan en dien opnieuw in.`,
     link: "/samenwerkingen",
   });
   fx.audits.push({
@@ -228,7 +232,7 @@ export function planPerformanceRejected(ctx: PerformanceRejectedCtx): CascadeEff
     action: "PERFORMANCE_REJECTED",
     entityType: "Performance",
     entityId: ctx.performanceId,
-    metadata: { reason: ctx.reason.trim() },
+    metadata: { reason },
   });
   return fx;
 }
@@ -360,7 +364,10 @@ export interface InvoiceRejectedCtx {
 }
 
 export function planInvoiceRejectedEvent(ctx: InvoiceRejectedCtx): CascadeEffects {
-  if (!ctx.reason?.trim()) throw new Error("Een afkeuring vereist een reden.");
+  // Defense-in-depth: trim + kap de vrije-tekstreden hier (pure funnel voor opgeslagen reden,
+  // notificatiebody én audit-metadata) — los van de boundary-normalisatie in de action.
+  const reason = boundReason(ctx.reason);
+  if (!reason) throw new Error("Een afkeuring vereist een reden.");
   invoiceLifecycleMachine.assert(ctx.lifecycleStatus, "REJECTED");
   const fx = emptyEffects();
   fx.statusChanges.push({
@@ -369,13 +376,13 @@ export function planInvoiceRejectedEvent(ctx: InvoiceRejectedCtx): CascadeEffect
     field: "lifecycleStatus",
     from: ctx.lifecycleStatus,
     to: "REJECTED",
-    set: { rejectionReason: ctx.reason.trim() },
+    set: { rejectionReason: reason },
   });
   fx.notifications.push({
     userId: ctx.freelancerUserId,
     type: "INVOICE_REJECTED",
     title: "Factuur afgekeurd",
-    body: `Reden: ${ctx.reason.trim()}. Corrigeer de factuur en dien hem opnieuw in.`,
+    body: `Reden: ${reason}. Corrigeer de factuur en dien hem opnieuw in.`,
     link: "/facturen",
   });
   fx.audits.push({
@@ -383,7 +390,7 @@ export function planInvoiceRejectedEvent(ctx: InvoiceRejectedCtx): CascadeEffect
     action: "INVOICE_REJECTED",
     entityType: "Invoice",
     entityId: ctx.invoiceId,
-    metadata: { reason: ctx.reason.trim() },
+    metadata: { reason },
   });
   return fx;
 }
@@ -494,7 +501,10 @@ export interface InvoiceCreditedCtx {
 
 /** ZZP'er crediteert een factuur: tegenboeking bij beide partijen, BTW gecorrigeerd. */
 export function planInvoiceCreditedEvent(ctx: InvoiceCreditedCtx): CascadeEffects {
-  if (!ctx.reason?.trim()) throw new Error("Een creditfactuur vereist een reden.");
+  // Defense-in-depth: trim + kap de vrije-tekstreden hier (pure funnel voor opgeslagen reden,
+  // beide notificatiebodies én audit-metadata) — los van de boundary-normalisatie in de action.
+  const reason = boundReason(ctx.reason);
+  if (!reason) throw new Error("Een creditfactuur vereist een reden.");
   invoiceLifecycleMachine.assert(ctx.invoice.lifecycleStatus, "CREDITED");
   const fx = emptyEffects();
   fx.statusChanges.push({
@@ -503,7 +513,7 @@ export function planInvoiceCreditedEvent(ctx: InvoiceCreditedCtx): CascadeEffect
     field: "lifecycleStatus",
     from: ctx.invoice.lifecycleStatus,
     to: "CREDITED",
-    set: { status: "CANCELLED", rejectionReason: ctx.reason.trim() },
+    set: { status: "CANCELLED", rejectionReason: reason },
   });
   // Een al betaalde factuur (PAID/PROCESSED) heeft betaal-tegenboekingen; crediteren draait die terug.
   const reversePayment =
@@ -526,14 +536,14 @@ export function planInvoiceCreditedEvent(ctx: InvoiceCreditedCtx): CascadeEffect
       userId: ctx.freelancerUserId,
       type: "INVOICE_CREDITED",
       title: "Factuur gecrediteerd",
-      body: `Factuur ${num} is gecrediteerd. Reden: ${ctx.reason.trim()}.`,
+      body: `Factuur ${num} is gecrediteerd. Reden: ${reason}.`,
       link: "/facturen",
     },
     {
       userId: ctx.clientUserId,
       type: "INVOICE_CREDITED",
       title: "Factuur gecrediteerd",
-      body: `Factuur ${num} is gecrediteerd door de ZZP'er. Reden: ${ctx.reason.trim()}.`,
+      body: `Factuur ${num} is gecrediteerd door de ZZP'er. Reden: ${reason}.`,
       link: "/facturen",
     },
   );
@@ -542,7 +552,7 @@ export function planInvoiceCreditedEvent(ctx: InvoiceCreditedCtx): CascadeEffect
     action: "INVOICE_CREDITED",
     entityType: "Invoice",
     entityId: ctx.invoice.id,
-    metadata: { reason: ctx.reason.trim() },
+    metadata: { reason },
   });
   return fx;
 }

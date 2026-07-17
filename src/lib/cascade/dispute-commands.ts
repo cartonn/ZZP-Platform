@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { CascadeError, assertParty } from "@/lib/cascade/commands-shared";
+import { boundReason } from "@/lib/text-bounds";
 
 /**
  * Titel van de admin-fanout-notificatie bij een geopend dispuut. Alleen déze notificatie draagt de
@@ -21,7 +22,11 @@ export async function openDispute(
   collaborationId: string,
   reason: string,
 ): Promise<void> {
-  if (!reason?.trim()) throw new CascadeError("Een dispuut vereist een toelichting.");
+  // Defense-in-depth: kap onbegrensde vrije tekst óók hier, los van de boundary-normalisatie in de
+  // server-action — de reden belandt in de collaboration-rij, een domein-event, notificatiebodies én
+  // audit-metadata.
+  reason = boundReason(reason);
+  if (!reason) throw new CascadeError("Een dispuut vereist een toelichting.");
   const col = await prisma.collaboration.findUnique({
     where: { id: collaborationId },
     include: {

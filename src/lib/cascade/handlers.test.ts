@@ -244,6 +244,57 @@ describe("zijpaden B2' en D' vereisen een reden", () => {
   });
 });
 
+describe("zijpaden begrenzen de vrije-tekstreden (defense-in-depth, A04)", () => {
+  const longReason = "x".repeat(5000);
+
+  it("planPerformanceRejected kapt de reden in reden, notificatie én audit", () => {
+    const fx = planPerformanceRejected({
+      performanceId: "p1",
+      status: "SUBMITTED",
+      freelancerUserId: "f1",
+      reason: longReason,
+      now,
+      actorId: "c1",
+    });
+    expect((fx.statusChanges[0]?.set?.rejectionReason as string).length).toBe(2000);
+    expect(fx.notifications[0]?.body.length).toBeLessThanOrEqual(2000 + 64);
+    expect((fx.audits[0]?.metadata?.reason as string).length).toBe(2000);
+  });
+
+  it("planInvoiceRejectedEvent kapt de reden op 2000 tekens", () => {
+    const fx = planInvoiceRejectedEvent({
+      invoiceId: "i1",
+      lifecycleStatus: "SUBMITTED",
+      freelancerUserId: "f1",
+      reason: longReason,
+      actorId: "c1",
+    });
+    expect((fx.statusChanges[0]?.set?.rejectionReason as string).length).toBe(2000);
+    expect((fx.audits[0]?.metadata?.reason as string).length).toBe(2000);
+  });
+
+  it("planInvoiceCreditedEvent kapt de reden op 2000 tekens in beide notificaties", () => {
+    const fx = planInvoiceCreditedEvent({
+      invoice: {
+        id: "i1",
+        lifecycleStatus: "APPROVED",
+        subtotalCents: 10000,
+        vatCents: 2100,
+        totalCents: 12100,
+        partyInvoiceNumber: "2026-001",
+      },
+      freelancerUserId: "f1",
+      clientUserId: "c1",
+      reason: longReason,
+      actorId: "f1",
+    });
+    expect((fx.statusChanges[0]?.set?.rejectionReason as string).length).toBe(2000);
+    expect((fx.audits[0]?.metadata?.reason as string).length).toBe(2000);
+    // Beide notificaties dragen de gekapte reden (nooit de volledige 5000 tekens).
+    for (const n of fx.notifications) expect(n.body.length).toBeLessThan(5000);
+  });
+});
+
 describe("Event C — planInvoiceSubmittedEvent", () => {
   it("kent het partij-nummer toe en boekt de debiteurenpost", () => {
     const fx = planInvoiceSubmittedEvent({

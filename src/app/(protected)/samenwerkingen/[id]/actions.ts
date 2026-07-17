@@ -33,6 +33,7 @@ import {
   MAX_ORT_CUSTOM_BPS,
 } from "@/lib/config";
 import { validatePerformanceForm, type PerformanceFormData } from "@/lib/validation";
+import { boundReason, boundText, MAX_TITLE_LEN, MAX_DESCRIPTION_LEN } from "@/lib/text-bounds";
 import { weekdaySchema, type Weekday } from "@/lib/enums";
 import { serializeWeekdays } from "@/lib/weekdays";
 import { MODEL_AGREEMENT_TYPES, type ModelAgreementType } from "@/lib/model-agreement";
@@ -76,7 +77,7 @@ async function parsePerformanceInput(
   formData: FormData,
 ): Promise<{ error: string } | { input: CreatePerformanceInput }> {
   const type = formData.get("type") === "MILESTONE" ? "MILESTONE" : "HOURS";
-  const description = String(formData.get("description") ?? "").slice(0, 500);
+  const description = boundText(formData.get("description"), MAX_DESCRIPTION_LEN);
 
   const periodStartRaw = type === "HOURS" ? String(formData.get("periodStart") ?? "").trim() : "";
   const periodEndRaw = type === "HOURS" ? String(formData.get("periodEnd") ?? "").trim() : "";
@@ -143,7 +144,7 @@ async function parsePerformanceInput(
         : Number(formData.get("hours") ?? 0)
       : 0;
   const amount = Number(formData.get("amount") ?? 0);
-  const milestoneTitle = String(formData.get("milestoneTitle") ?? "");
+  const milestoneTitle = boundText(formData.get("milestoneTitle"), MAX_TITLE_LEN);
 
   const validationError = validatePerformanceForm({
     type,
@@ -453,7 +454,7 @@ export async function rejectPerformanceAction(
 ): Promise<void> {
   const actor = await requireActor();
   try {
-    await rejectPerformance(actor, performanceId, String(formData.get("reason") ?? ""));
+    await rejectPerformance(actor, performanceId, boundReason(formData.get("reason")));
   } catch (e) {
     toMessage(e);
   }
@@ -493,7 +494,7 @@ export async function rejectInvoiceAction(
 ): Promise<void> {
   const actor = await requireActor();
   try {
-    await rejectInvoice(actor, invoiceId, String(formData.get("reason") ?? ""));
+    await rejectInvoice(actor, invoiceId, boundReason(formData.get("reason")));
   } catch (e) {
     toMessage(e);
   }
@@ -580,7 +581,7 @@ export async function creditInvoiceAction(
 ): Promise<void> {
   const actor = await requireActor();
   try {
-    await creditInvoice(actor, invoiceId, String(formData.get("reason") ?? ""));
+    await creditInvoice(actor, invoiceId, boundReason(formData.get("reason")));
   } catch (e) {
     toMessage(e);
   }
@@ -593,7 +594,7 @@ export async function openDisputeAction(
 ): Promise<void> {
   const actor = await requireActor();
   try {
-    await openDispute(actor, collaborationId, String(formData.get("reason") ?? ""));
+    await openDispute(actor, collaborationId, boundReason(formData.get("reason")));
   } catch (e) {
     toMessage(e);
   }

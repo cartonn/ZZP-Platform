@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-17 — Hardening: begrens vrije-tekst-redenen aan mutatie-grenzen (A04, PR #803)
+
+**Increment (security/hardening):** geparkeerd MIDDEL-item uit `docs/SECURITY-PRIVACY-BACKLOG.md` (terugkerend
+thema A04 — onbegrensde vrije-tekst-invoer buiten Zod) opgelost. Diverse mutatie-grenzen lazen vrije tekst via
+`String(formData.get(...))` zonder lengtebegrenzing; onbegrensde payload belandde in PII-tabellen, notificatiebodies
+én audit-metadata (bloat + defense-in-depth-gat). Niet injecteerbaar (Prisma parametriseert, JSX escapet) —
+availability/robuustheid.
+
+- **Nieuw:** `src/lib/text-bounds.ts` — pure `boundText(input, max)` (trim + kap; niet-string → leeg; leeg blijft
+  leeg zodat de bestaande "reden verplicht"-checks werken) + `boundReason` + constanten `MAX_REASON_LEN` (2000),
+  `MAX_TITLE_LEN` (200), `MAX_DESCRIPTION_LEN` (500). 11 tests (`text-bounds.test.ts`).
+- **Boundary (server-actions):** `rejectCredential.reason` (`admin/verificaties/actions.ts`),
+  `rejectPerformance`/`rejectInvoice`/`creditInvoice`/`openDispute` `.reason` + `milestoneTitle` + `description`
+  (`samenwerkingen/[id]/actions.ts`), en `saveApplicationNote.note` (`kandidaten/actions.ts`, verving de handmatige
+  `.slice(0,2000)`) — alle via `boundReason`/`boundText`.
+- **Defense-in-depth (cascade):** de pure handlers `planPerformanceRejected`/`planInvoiceRejectedEvent`/
+  `planInvoiceCreditedEvent` (`handlers.ts`) kappen de reden nu zelf (de funnel voor opgeslagen reden + notificatie +
+  audit); `openDispute` (`dispute-commands.ts`, schrijft direct) + het best-effort e-mail-pad in
+  `rejectInvoice`/`creditInvoice`/`rejectPerformance` (`invoice-`/`performance-commands.ts`) bounden aan de command-entry.
+- 3 rood→groen handler-tests (5000-teken-reden → 2000 in reden/notificatie/audit). Gate: typecheck, lint,
+  **4353 unit-tests**, build, prettier groen.
+
 ## 2026-07-17 — Security-/privacy-auditronde delta `3d441cd..f32b9c7` (PR's #796–#800) — bevestigd schoon
 
 **Increment (security/privacy):** adversariële audit van de delta sinds de vorige ronde (orchestrator Opus 4.8 +

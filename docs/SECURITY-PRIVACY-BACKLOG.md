@@ -1786,9 +1786,9 @@ openstaand}`, `diensten|prestaties|prognose|verplichtingen/export`, `admin/{audi
   `samenwerkingen/[id]/{dossier,dba-dossier}`) op een nieuwe `documentPdfRateLimiter` (60/uur, env
   `DOCUMENT_PDF_RATE_LIMIT`). Check zit ná auth, vóór DB/generatie; `account/export` hergebruikt nu
   dezelfde helper. Tests: `rate-limit-guard.test.ts` + `admin/export/invoices/route.test.ts`. PR #586.
-- **[LAAG · CLAUDE.md regel 6 — Zod-grens]** `saveApplicationNote` (`kandidaten/actions.ts`) begrenst
-  `note` met een handmatige `.slice(0, 2000)` i.p.v. een Zod-`trimmed(2000)` (conventie in de rest van
-  de codebase). Niet exploiteerbaar; consistentie. (Terugkerend thema, zie eerdere rondes.)
+- **[OPGELOST 2026-07-17 · LAAG · CLAUDE.md regel 6 — Zod-grens]** `saveApplicationNote`
+  (`kandidaten/actions.ts`) begrensde `note` met een handmatige `.slice(0, 2000)`. Nu via de gedeelde
+  `boundReason` (`src/lib/text-bounds.ts`) — consistent met de A04-hardening (PR #803).
 
 ## Ronde 2026-06-25b (basis: `main` @ d1116a1)
 
@@ -1854,14 +1854,19 @@ Cascade` op de kindtabel `AvailabilityWindow` vuurt niet → de vrije-tekst `not
 
 ### GEPARKEERD — security / hardening (ronde 2026-06-25b)
 
-- **[MIDDEL · A04 — onbegrensde vrije-tekst-invoer buiten Zod (terugkerend thema)]** Diverse mutatie-
-  grenzen lezen vrije tekst via `String(formData.get(...))` zonder Zod-`max()`: `rejectCredential.reason`
-  (`admin/verificaties/actions.ts:80`), `rejectPerformance`/`rejectInvoice`/`creditInvoice`/`openDispute`
-  `.reason` (`samenwerkingen/[id]/actions.ts`), en `parsePerformanceInput` `description`/`milestoneTitle`
-  (idem). Niet injecteerbaar (Prisma parametriseert, JSX escapet), maar onbegrensde payload belandt in
-  PII-tabellen, notificaties én audit-metadata (bloat). Past in het reeds geparkeerde
-  `saveApplicationNote`-patroon. Fix: per veld `z.string().trim().max(N)` aan de grens + defense-in-depth
-  in de cascade-handlers.
+- **[OPGELOST 2026-07-17 · MIDDEL · A04 — onbegrensde vrije-tekst-invoer buiten Zod (terugkerend thema)]**
+  Diverse mutatie-grenzen lazen vrije tekst via `String(formData.get(...))` zonder lengtebegrenzing:
+  `rejectCredential.reason` (`admin/verificaties/actions.ts`), `rejectPerformance`/`rejectInvoice`/
+  `creditInvoice`/`openDispute` `.reason` + `parsePerformanceInput` `description`/`milestoneTitle`
+  (`samenwerkingen/[id]/actions.ts`), en de LAAG-geparkeerde `saveApplicationNote.note` (handmatige
+  `.slice(0,2000)`). Niet injecteerbaar (Prisma parametriseert, JSX escapet), maar onbegrensde payload
+  belandde in PII-tabellen, notificaties én audit-metadata (bloat, defense-in-depth). Gefixt via de gedeelde
+  pure `boundText`/`boundReason` (`src/lib/text-bounds.ts`, trim + kap; leeg blijft leeg → verplicht-checks
+  intact): (1) boundary-normalisatie in de server-actions, (2) defense-in-depth in de pure cascade-handlers
+  (`planPerformanceRejected`/`planInvoiceRejectedEvent`/`planInvoiceCreditedEvent`) plus `openDispute` en het
+  best-effort e-mail-pad in de reject/credit-commands. `saveApplicationNote` gebruikt nu ook `boundReason`
+  (sluit de eerder geparkeerde LAAG-`saveApplicationNote`-consistentie). Tests: `text-bounds.test.ts` (11) +
+  3 rood→groen handler-cases. PR #803.
 - **[MIDDEL · A01 / A05 / AVG art. 5 lid 1c — over-fetch via `include` zonder top-level `select`]**
   `administratie/openstaand/route.ts`, `admin/export/invoices/route.ts` en
   `samenwerkingen/[id]/dossier/route.ts` doen `findMany/findUnique` met `include` zonder top-level

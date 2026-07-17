@@ -9,6 +9,7 @@ import { toSafeActionError } from "@/lib/safe-action-error";
 import { runExpiryTask } from "@/lib/expiry-task";
 import { type CredentialStatus } from "@/lib/enums";
 import { type ResolveState } from "@/lib/actions/resolve-state";
+import { boundReason } from "@/lib/text-bounds";
 
 async function loadCredentialForDecision(credentialId: string) {
   const credential = await prisma.credential.findUnique({
@@ -78,7 +79,7 @@ export async function rejectCredential(credentialId: string, formData: FormData)
   const actor = await requireRole("ADMIN");
   const credential = await loadCredentialForDecision(credentialId);
   const from = credential.status as CredentialStatus;
-  const reason = String(formData.get("reason") ?? "").trim();
+  const reason = boundReason(formData.get("reason"));
 
   let next: CredentialStatus;
   try {

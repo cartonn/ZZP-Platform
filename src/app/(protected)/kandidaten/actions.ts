@@ -15,6 +15,7 @@ import {
   buildRejectionNotificationBody,
   optionalRejectionReasonSchema,
 } from "@/lib/rejection-reason";
+import { boundReason } from "@/lib/text-bounds";
 
 async function loadOwnedApplication(actor: Actor, appId: string) {
   const app = await prisma.application.findUnique({
@@ -125,9 +126,7 @@ export async function saveApplicationNote(
   const actor = await requireRole("CLIENT");
   await loadOwnedApplication(actor, appId);
 
-  const note = String(formData.get("note") ?? "")
-    .trim()
-    .slice(0, 2000);
+  const note = boundReason(formData.get("note"));
   await prisma.application.update({ where: { id: appId }, data: { note: note || null } });
   await audit({
     actorId: actor.id,
