@@ -680,6 +680,20 @@ de runners blijven idempotent. Alternatief blijft een Railway Cron Service of ex
 hetzelfde endpoint aanroept. Zolang de twee secrets ontbreken, draaien de overige taakrunners
 **alleen bij handmatige aanroep**.
 
+**Code-kant GEDAAN (2026-07-17) — cron-heartbeat / dead-man's-switch:** een stil gestopte cron
+(workflow uit, secret geroteerd, `RUN_ALL_TASK_URL` fout, host-storing) zou de geplande runners
+onopgemerkt stilleggen — verloopdetectie blijft dan uit (een certificaat blijft VERIFIED),
+abonnement-verval loopt niet (entitlement blijft hangen), auditlog-retentie snoeit niet (AVG). Nu
+registreert elke afronding van `/api/tasks/run-all` een **heartbeat** (`CronHeartbeat`-singleton,
+géén persoonsgegevens — alleen tijdstip + of de run zonder taakfouten verliep). Op
+`/admin/systeemstatus` toont de kaart **"Geplande-taken-cron"** of de cron recent genoeg draaide:
+_actueel_ (binnen het venster, geen fouten), _aandacht_ als 'ie langer dan het venster stilstaat
+("stale"), als een taak tijdens de laatste run faalde, of als de cron nog nooit draaide. Het venster
+is `CRON_MAX_AGE_HOURS` (default **36 uur** — één gemiste dagelijkse run + speling; geklemd 1–720).
+De heartbeat faalt nooit naar buiten (mag de cron-respons niet omverhalen). Resterend mensenwerk:
+**niets extra** — de kaart vult zichzelf zodra de cron één keer draait; hang desgewenst een
+uptime-monitor op de cron-workflow zelf voor externe alarmering.
+
 ---
 
 ## §11. Operationeel draaiboek (RUNBOOK)

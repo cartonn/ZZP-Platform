@@ -4,8 +4,10 @@ import { prisma } from "@/lib/db";
 import { readEnv } from "@/lib/env";
 import { evaluateReadiness } from "@/lib/observability/readiness";
 import { collectSystemStatus } from "@/lib/system-status";
+import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
 import { PageHeader } from "@/components/ui/page-header";
 import { SystemStatusPanel } from "@/components/admin/system-status-panel";
+import { CronHeartbeatCard } from "@/components/admin/cron-heartbeat-card";
 import { StorageSelfTest } from "@/components/admin/storage-selftest";
 import { MailSelfTest } from "@/components/admin/mail-selftest";
 import { RateLimitSelfTest } from "@/components/admin/ratelimit-selftest";
@@ -34,6 +36,7 @@ export default async function SysteemstatusPage() {
     },
     schemaProbe: () => prisma.user.count(),
   });
+  const cronFreshness = await getCronFreshness();
 
   return (
     <div className="space-y-6">
@@ -42,6 +45,7 @@ export default async function SysteemstatusPage() {
         description="Productie-configuratie en integraties op één scherm. Controleer na een deploy of alles correct bekabeld is vóór livegang."
       />
       <SystemStatusPanel status={status} dbReachable={readiness.ready} />
+      <CronHeartbeatCard freshness={cronFreshness} />
       <StorageSelfTest driverMode={env.STORAGE_DRIVER} />
       <MailSelfTest driverMode={env.EMAIL_DRIVER} />
       <RateLimitSelfTest storeMode={env.RATE_LIMIT_STORE} />

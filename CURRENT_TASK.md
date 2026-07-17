@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — cron-heartbeat / dead-man's-switch voor geplande taken (2026-07-17, PR #810)** —
+> `/admin/systeemstatus` toonde bij de cron alleen of `CRON_SECRET` gezet was, niet of de dagelijkse
+> `/api/tasks/run-all`-cron nog drááit. Stopt die stil (workflow uit, secret geroteerd, `RUN_ALL_TASK_URL` fout,
+> host-storing), dan stoppen verloopdetectie, abonnement-verval, auditlog-retentie (AVG) en herinneringen zonder
+> dat iemand het ziet. Nu registreert elke afronding van `run-all` een heartbeat (`CronHeartbeat`-singleton, géén
+> PII — tijdstip + `lastOk`) en een admin-kaart **"Geplande-taken-cron"** toont de freshness: actueel / stale
+> (> venster) / laatste-run-faalde / nooit-gedraaid. Venster `CRON_MAX_AGE_HOURS` (default 36, geklemd 1–720).
+> Pure oordeel in `cron-freshness.ts` (17 tests) + fail-safe DB-laag `cron-heartbeat.ts` + `parseCronMaxAgeHours`
+> in `config.ts` (4 tests). Heartbeat/read falen nooit naar buiten. Read-only qua bestaand auth-oppervlak, geen
+> nieuwe mutatie. Gate: typecheck, lint, 21 nieuwe unit-tests, build, prettier groen. MENSENWERK §10 bijgewerkt.
+>
 > Gedaan (niet opnieuw): **Reactiebereidheid-chip op de opdrachtenlijst (ZZP'er) (2026-07-17, PR #807)** —
 > op `/opdrachten` (browse-/triage-lijst) toonde elke kaart al ZZP-zijdige signalen (match, reistijd, concurrentie,
 > betaalgedrag, startdatum, tarief-fit, beschikbaarheid) maar niet of de opdrachtgever binnengekomen reacties
