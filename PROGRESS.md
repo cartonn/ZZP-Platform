@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-17 — Persona-sweep run 34: opdrachtgever kreeg dode "Markeer als betaald" voor cascade-factuur
+
+**Bevinding (DOEL 1b, next-action-correctheid — MED, OPGELOST):** de generieke overdue-roll-up telde
+voor de **opdrachtgever** óók cascade-facturen (`lifecycleStatus="OVERDUE"`) mee, wat een
+`overdueInvoiceTask(count,"CLIENT")` met subtitel "Markeer als betaald" (tone `attention`) opleverde.
+In de cascade registreert de **ZZP'er** de betaling (`cascade/stage.ts` stap 6, `youAreUp:isFreelancer`);
+de opdrachtgever staat op "Wacht op betalingsbevestiging" en heeft voor een cascade-factuur nergens een
+mark-paid-knop (`facturen/[id]/page.tsx` `canPay = !cascade`). De next-action was dus een dode,
+niet-verdwijnende nudge die de cascade-fase tegensprak. Live gereproduceerd als de opdrachtgever van een
+APPROVED cascade-factuur die op OVERDUE werd gezet: `/acties` + `/dashboard` toonden "Markeer als betaald".
+
+**Fix:** de cascade-tak `{ lifecycleStatus: "OVERDUE" }` in `overdueInvoiceCount` (`src/lib/signals.ts`)
+geldt nu alléén voor FREELANCER (de ZZP-kant ontdubbelt al met `surfacedOverdue`); de opdrachtgever telt
+uitsluitend legacy-/handmatige facturen (`lifecycleStatus=null`), waar hij wél kan afrekenen. Rood→groen
+unit-test toegevoegd in `src/lib/signals.overdue.test.ts` (CLIENT-`OR` bevat geen cascade-tak meer).
+
+**Bestanden:** `src/lib/signals.ts`, `src/lib/signals.overdue.test.ts`, `docs/PERSONA-SWEEP-BACKLOG.md`.
+**Geparkeerd (LAAG, latent):** twee ongewirede next-action-aggregators (`next-actions.ts`,
+`cascade/next-actions.ts`) met onvolledige logica — zie backlog run 34. Adversariële DOEL 2-poort
+(privilege-escalatie 307, IDOR 403, junk-id 404) + twee code-audits (authz-keten, malicieuze invoer)
+opnieuw schoon bevonden.
+
 ## 2026-07-17 — Reactiebereidheid-chip op de opdrachtenlijst (ZZP'er)
 
 **Increment (UX/triage, ZZP'er):** op `/opdrachten` (browse-/triage-lijst) toonde elke kaart al
