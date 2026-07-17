@@ -24,8 +24,8 @@ defense-in-depth in `assertPerformanceWithinLimits` (`src/lib/cascade/performanc
 óók CSV-import/admin-pad). Rood→groen unit-tests in `src/lib/validation.test.ts` (NaN in
 hours/ortTotal/amount geweigerd; Infinity was al door `> MAX` gedekt).
 
-Gate: typecheck, lint, unit-tests, build, prettier groen. Docs: `docs/PERSONA-SWEEP-BACKLOG.md` (run 33)
-+ PROGRESS.
+Gate: typecheck, lint, unit-tests, build, prettier groen. Docs: `docs/PERSONA-SWEEP-BACKLOG.md`
+(run 33) + PROGRESS.
 
 ## 2026-07-17 — Hardening: begrens vrije-tekst-redenen aan mutatie-grenzen (A04, PR #803)
 
