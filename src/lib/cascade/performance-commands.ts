@@ -70,15 +70,26 @@ function assertPerformanceWithinLimits(input: {
   amountCents?: number | null;
 }): void {
   if (input.type === "HOURS") {
+    // Defense-in-depth (dekt élk pad: formulier, CSV-import, admin): een niet-eindig getal (NaN uit
+    // een geknutselde/corrupte invoer) is noch `> MAX` noch onder de grens en zou anders als Float
+    // persisteren en bij factuurafleiding een NaN-`totalCents` (Int) opleveren → 500 i.p.v. weigering.
+    if (input.hours != null && !Number.isFinite(input.hours)) {
+      throw new CascadeError("Het aantal uren is ongeldig.");
+    }
     if ((input.hours ?? 0) > MAX_PERFORMANCE_HOURS) {
       throw new CascadeError(
         `Het aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`,
       );
     }
-  } else if ((input.amountCents ?? 0) > MAX_MILESTONE_CENTS) {
-    throw new CascadeError(
-      "Het bedrag is onrealistisch hoog (maximaal € 1.000.000 per oplevering).",
-    );
+  } else {
+    if (input.amountCents != null && !Number.isFinite(input.amountCents)) {
+      throw new CascadeError("Het bedrag is ongeldig.");
+    }
+    if ((input.amountCents ?? 0) > MAX_MILESTONE_CENTS) {
+      throw new CascadeError(
+        "Het bedrag is onrealistisch hoog (maximaal € 1.000.000 per oplevering).",
+      );
+    }
   }
 }
 

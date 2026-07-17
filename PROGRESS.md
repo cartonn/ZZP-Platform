@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-17 — Persona-sweep run 33: NaN-robuustheidsgat in prestatie-invoer gefixt (DOEL 2)
+
+**Increment (robuustheid/security, DOEL 2 — malicieuze/absurde invoer):** kritische-gebruiker-sweep over
+alle vier rollen op de verse prod-build + idempotente demo-seed (`SEED_DEMO=true`, ephemere SQLite,
+`next start` poort 3100). Live smoke (alle kernschermen per rol → 200, nul 5xx) + adversariële checks
+(escalatie → 307; junk/sqli/traversal-id → soft-404/404, nooit 500).
+
+**Gevonden + gefixt — HOOG:** `validatePerformanceForm` begrensde uren/bedrag met `<= 0` én `> MAX`,
+maar **`NaN` is noch `<= 0` noch `> MAX`** (beide `false`). Een geknutselde POST naar de urenstaat-/
+oplevering-server-action met `hours=abc`/`amount=abc` → `Number(...) = NaN` (manuele parser, géén
+Zod/coerce) glipte door de validatie, zou als `Float` persisteren en bij factuurafleiding
+(`hourlySubtotalCents = Math.round(hours × rate)` → `Int totalCents`) een NaN opleveren →
+Prisma-conversiefout → **500 i.p.v. een nette weigering** — precies de faalmodus die de bestaande
+`MAX`-grens wilde voorkomen. Schendt CLAUDE.md regel 1 (server-side waarheid) + DOEL 2.
+
+**Wat + bestanden:** `!Number.isFinite(...)`-guard vóór de grensvergelijkingen in
+`src/lib/validation.ts` (uren, ORT-totaal, milestone-bedrag; zelfde idiome als `actions.ts:275`) +
+defense-in-depth in `assertPerformanceWithinLimits` (`src/lib/cascade/performance-commands.ts`, dekt
+óók CSV-import/admin-pad). Rood→groen unit-tests in `src/lib/validation.test.ts` (NaN in
+hours/ortTotal/amount geweigerd; Infinity was al door `> MAX` gedekt).
+
+Gate: typecheck, lint, unit-tests, build, prettier groen. Docs: `docs/PERSONA-SWEEP-BACKLOG.md`
+(run 33) + PROGRESS.
+
 ## 2026-07-17 — Hardening: begrens vrije-tekst-redenen aan mutatie-grenzen (A04, PR #803)
 
 **Increment (security/hardening):** geparkeerd MIDDEL-item uit `docs/SECURITY-PRIVACY-BACKLOG.md` (terugkerend

@@ -338,11 +338,16 @@ export function validatePerformanceForm(data: PerformanceFormData): string | nul
     if (data.rateCents == null)
       return "Er is geen uurtarief ingesteld voor deze samenwerking. Neem contact op met de opdrachtgever.";
     if (data.hasOrt) {
-      if (data.ortTotal <= 0) return "Vul minstens één uur in bij de ORT-categorieën.";
+      // `!isFinite` vóór de grensvergelijkingen: NaN (bv. `Number("abc")` uit een geknutselde POST)
+      // is noch `<= 0` noch `> MAX` en zou anders als Float persisteren en bij factuurafleiding een
+      // NaN-`totalCents` (Int) opleveren → 500. Server-side waarheid (regel 1); DOEL 2 robuustheid.
+      if (!Number.isFinite(data.ortTotal) || data.ortTotal <= 0)
+        return "Vul minstens één uur in bij de ORT-categorieën.";
       if (data.ortTotal > MAX_PERFORMANCE_HOURS)
         return `Het totaal aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`;
     } else {
-      if (data.hours <= 0) return "Vul het aantal uren in (minimaal 0,25 uur).";
+      if (!Number.isFinite(data.hours) || data.hours <= 0)
+        return "Vul het aantal uren in (minimaal 0,25 uur).";
       if (data.hours > MAX_PERFORMANCE_HOURS)
         return `Het aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`;
     }
@@ -354,7 +359,8 @@ export function validatePerformanceForm(data: PerformanceFormData): string | nul
       }
     }
   } else {
-    if (data.amount <= 0) return "Voer een bedrag in van minimaal €0,01.";
+    if (!Number.isFinite(data.amount) || data.amount <= 0)
+      return "Voer een bedrag in van minimaal €0,01.";
     if (data.amount * 100 > MAX_MILESTONE_CENTS)
       return "Het bedrag is onrealistisch hoog (maximaal € 1.000.000 per oplevering).";
     if (!data.milestoneTitle.trim()) return "Geef de oplevering een titel.";

@@ -409,4 +409,30 @@ describe("validatePerformanceForm", () => {
       validatePerformanceForm({ ...hoursBase, periodStartRaw: "2026-05-01", periodEndRaw: "" }),
     ).toBeNull();
   });
+
+  // NaN/Infinity glippen anders door `<= 0` én `> MAX` (beide vergelijkingen zijn false voor NaN):
+  // een geknutselde POST met `hours=abc` levert `Number("abc") = NaN`, dat als Float persisteert en
+  // bij factuurafleiding (uren × tarief → Int `totalCents`) een NaN oplevert → Prisma-conversiefout
+  // → 500 i.p.v. een nette weigering. Server-side waarheid (CLAUDE.md regel 1); DOEL 2 robuustheid.
+  it("HOURS: hours=NaN wordt geweigerd (niet-eindig getal glipt niet door de grenzen)", () => {
+    const result = validatePerformanceForm({ ...hoursBase, hours: NaN });
+    expect(result).not.toBeNull();
+    expect(result).toContain("uren");
+  });
+
+  it("HOURS: hours=Infinity wordt geweigerd", () => {
+    const result = validatePerformanceForm({ ...hoursBase, hours: Infinity });
+    expect(result).not.toBeNull();
+  });
+
+  it("HOURS ORT: ortTotal=NaN wordt geweigerd", () => {
+    const result = validatePerformanceForm({ ...hoursBase, hasOrt: true, ortTotal: NaN });
+    expect(result).not.toBeNull();
+  });
+
+  it("MILESTONE: amount=NaN wordt geweigerd", () => {
+    const result = validatePerformanceForm({ ...milestoneBase, amount: NaN });
+    expect(result).not.toBeNull();
+    expect(result).toContain("bedrag");
+  });
 });
