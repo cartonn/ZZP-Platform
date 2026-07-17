@@ -23,6 +23,7 @@ import {
   franchiseAcuteDienstTask,
   franchiseLeadFollowupTask,
   clientComplianceTask,
+  reviewLeaveTask,
   vatDeadlineTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
@@ -196,6 +197,36 @@ describe("task builders", () => {
     const task = staleApplicationsTask({ count: 1, oldestDays: 1 });
     expect(task.title).toContain("1 kandidaat wacht");
     expect(task.subtitle).toContain("1 dag ");
+  });
+
+  it("beoordelings-nudge: rustige link-taak naar de samenwerking, benoemt tegenpartij en venster", () => {
+    const task = reviewLeaveTask("collab-9", "Nachtdienst verpleegkundige", "Zorggroep Noord", 10);
+    expect(task).toMatchObject({
+      kind: "review-leave",
+      id: "review-leave:collab-9",
+      resolver: "link",
+      href: "/samenwerkingen/collab-9",
+      tone: "info",
+    });
+    expect(task.priority).toBe(P.reviewPrompt);
+    expect(task.title).toBe("Beoordeel Zorggroep Noord");
+    expect(task.subtitle).toContain("Nachtdienst verpleegkundige");
+    expect(task.subtitle).toContain("10 dagen");
+    // Rustige nudge: onder de cosmetische profiel-completeness maar boven concept-opdrachten.
+    expect(task.priority).toBeLessThan(P.completeness);
+    expect(task.priority).toBeGreaterThan(P.drafts);
+  });
+
+  it("beoordelings-nudge: bijna gesloten venster (≤3 dagen) wordt attention", () => {
+    const task = reviewLeaveTask("collab-9", "Klus", "Julia", 2);
+    expect(task.tone).toBe("attention");
+    expect(task.subtitle).toContain("2 dagen");
+  });
+
+  it("beoordelings-nudge: laatste dag toont 'venster sluit vandaag'", () => {
+    const task = reviewLeaveTask("collab-9", "Klus", "Julia", 0);
+    expect(task.tone).toBe("attention");
+    expect(task.subtitle).toContain("venster sluit vandaag");
   });
 
   it("verlopen beschikbaarheid is een rustige link-taak naar /beschikbaarheid", () => {

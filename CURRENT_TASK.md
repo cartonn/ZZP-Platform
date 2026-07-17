@@ -260,6 +260,21 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Beoordelings-nudge als next-action na een afgeronde samenwerking (ZZP'er + opdrachtgever) (2026-07-17, PR #799)** —
+> het tweezijdige beoordelingssysteem (double-blind reveal, `Review`-model + `createReviewAction` + `ReviewForm` op
+> `/samenwerkingen/[id]`) bestond al, maar niets nudgede een partij ná afronding om écht te beoordelen — de sectie stond
+> stil op het detail en het blinde venster (14 dagen) sloot vaak eenzijdig/ongebruikt. De item-engine (`pending-tasks.ts`)
+> had géén review-taak, dus `/acties`, de "Volgende acties"-rail én de zijbalk-badge zwegen. Reviews voeden reputatie →
+> matching/vertrouwen (benchmark Malt/Temper/Deel). Nu een next-action **"Beoordeel {tegenpartij}"** voor élke afgeronde
+> samenwerking die de actor nog kan beoordelen (venster open, nog niet zelf beoordeeld), voor beide rollen; deep-link naar
+> het bestaande formulier. Pure `collaboration-review-prompt.ts` (`reviewPromptForCollaboration` → `{daysLeft}`|null,
+> hergebruikt exact `canLeaveReview` + venster-helpers → geen tegenspraak met detail; 6 tests) + builder `reviewLeaveTask`
+> (kind `review-leave`, band `P.reviewPrompt=24` tussen completeness(30)/drafts(20); tone info→attention bij ≤3 dagen;
+> `resolver:"link"` → `default`-tak van `action-list.tsx`, geen UI-wiring; 3 tests) + `reviewLeaveTasks`-enumerator in
+> `pending-tasks.ts` (één COMPLETED-query per rol, DB-voorgefilterd op open venster + `take:MAX` + `reviews where authorId`,
+> N+1-veilig) gewired in `freelancerTasks` + `clientTasks`. Read-only, geen schemawijziging, geen nieuw mutatie/auth-
+> oppervlak. 11 nieuwe tests (+2 integratie). Gate: typecheck, lint, 4339 unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **"Aanbevolen keuze": gewogen totaalranglijst in de vergelijk-view (opdrachtgever) (2026-07-16, PR #798)** —
 > de kandidaten-vergelijk-view (`/kandidaten/vergelijk`) zette reacties al per onderdeel naast elkaar
 > (`buildCandidateComparison` → 9 losse per-dimensie-trofeeën) maar berekende bewust géén cross-dimensie totaal; de
