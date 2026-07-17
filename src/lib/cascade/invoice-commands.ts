@@ -22,6 +22,7 @@ import {
   loadCollabMeta,
   collabLink,
 } from "@/lib/cascade/commands-shared";
+import { boundReason } from "@/lib/text-bounds";
 
 // --- Event C — Factuur indienen --------------------------------------------
 export async function submitInvoice(actor: Actor, invoiceId: string): Promise<void> {
@@ -155,6 +156,7 @@ export async function rejectInvoice(
   invoiceId: string,
   reason: string,
 ): Promise<void> {
+  reason = boundReason(reason); // defense-in-depth: kap onbegrensde vrije tekst (PII/audit/notificatie)
   const inv = await loadCascadeInvoice(invoiceId);
   if (actor.role !== "ADMIN" && actor.id !== inv.counterpartyUserId) {
     throw new CascadeError("Alleen de opdrachtgever kan de factuur afkeuren.");
@@ -210,6 +212,7 @@ export async function creditInvoice(
   invoiceId: string,
   reason: string,
 ): Promise<void> {
+  reason = boundReason(reason); // defense-in-depth: kap onbegrensde vrije tekst (PII/audit/notificatie)
   const inv = await loadCascadeInvoice(invoiceId);
   if (actor.role !== "ADMIN" && actor.id !== inv.issuerUserId) {
     throw new CascadeError("Alleen de uitschrijver kan een creditfactuur maken.");

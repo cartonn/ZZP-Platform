@@ -24,6 +24,7 @@ import {
   loadCollabMeta,
   collabLink,
 } from "@/lib/cascade/commands-shared";
+import { boundReason } from "@/lib/text-bounds";
 
 // --- Urenstaat/oplevering aanmaken (concept) -------------------------------
 export interface CreatePerformanceInput {
@@ -368,6 +369,7 @@ export async function rejectPerformance(
   performanceId: string,
   reason: string,
 ): Promise<void> {
+  reason = boundReason(reason); // defense-in-depth: kap onbegrensde vrije tekst (PII/audit/notificatie)
   const perf = await loadPerformance(performanceId);
   if (actor.role !== "ADMIN" && actor.id !== perf.clientUserId) {
     throw new CascadeError("Alleen de opdrachtgever kan de prestatie afkeuren.");
