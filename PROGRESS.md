@@ -212,6 +212,29 @@ Turnt "wie is vrij?" in "wie is vrij én direct plaatsbaar?" (bench-management, 
   bestaande, tenant-gescopete detail met de al bestaande voordracht-actie). Gate: typecheck ✓, lint ✓,
   4294 unit-tests ✓, build ✓, prettier ✓.
 
+## 2026-07-17 — Ontwerp-lab: +10 concepten (reeks 38, nrs 371–380)
+
+**Increment:** het publieke design-lab `/ontwerp` groeit additief van 370 → **380 concepten**. Tien
+nieuwe, vooraf tegen de registry gecontroleerde (geen herhaling) redesign-richtingen, elk met eigen
+bestand en alle 6 kernschermen (dashboard, marktplaats, opdracht-detail met verklaarbare matching,
+verificatie met status label+icoon, acties, facturen), realistische Nederlandse mock-content en
+interactie (tab-state, hover, focus-visible, aria). Strikt **additief** — geen bestaand concept,
+registry-entry of route-koppeling aangeraakt.
+
+- **Richtingen:** 371 Deco (art-deco goud & symmetrie), 372 Marqueterie (houtinlegwerk/fineer),
+  373 Gebrand (glas-in-lood juweeltinten), 374 Anaglyph (rood-cyaan stereo-3D), 375 Guilloché
+  (securité-graveerwerk/waarmerk), 376 Warmtekaart (thermografie/magma-heatmap), 377 Oscilloscoop
+  (fosfor-golfvorm/meetlab), 378 Seismograaf (analoge registratiestrook), 379 Batik (wax-resist
+  textiel), 380 Scherenschnitt (papierknipsel-silhouet).
+- **Nieuwe bestanden:** `src/components/ontwerp/concepts/concept-371-deco.tsx` …
+  `concept-380-scherenschnitt.tsx` (10 nieuw). `registry.ts` (+10 ConceptMeta-entries, append) en
+  `src/app/ontwerp/[id]/concept-host.tsx` (+10 id→component-koppelingen, append) — bestaande entries
+  ongewijzigd. Docs: `docs/DESIGN-LAB.md` (reeks 38 sectie), dit bestand.
+- **Onderzoek/borging:** 8 initieel gekozen richtingen bleken al in de registry aanwezig (Bauhaus,
+  Kintsugi, Terrazzo, Herbarium, PCB, Metro, Sterrenkaart, Broadsheet) en zijn vóór het bouwen vervangen
+  door verse richtingen na een `direction`-scan over alle 370 bestaande concepten. Gebouwd door 4
+  parallelle workers op niet-overlappende bestanden; orchestrator integreerde registry + route.
+
 ## 2026-07-17 — Ontwerp-lab: +10 concepten (reeks 37, nrs 361–370)
 
 **Increment:** het publieke design-lab `/ontwerp` groeit additief van 360 → **370 concepten**. Tien

@@ -1117,6 +1117,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "370": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-370-sextant").then((m) => m.Concept370),
   ),
+  "371": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-371-deco").then((m) => m.Concept371),
+  ),
+  "372": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-372-marqueterie").then((m) => m.Concept372),
+  ),
+  "373": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-373-gebrand").then((m) => m.Concept373),
+  ),
+  "374": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-374-anaglyph").then((m) => m.Concept374),
+  ),
+  "375": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-375-guilloche").then((m) => m.Concept375),
+  ),
+  "376": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-376-warmtekaart").then((m) => m.Concept376),
+  ),
+  "377": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-377-oscilloscoop").then((m) => m.Concept377),
+  ),
+  "378": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-378-seismograaf").then((m) => m.Concept378),
+  ),
+  "379": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-379-batik").then((m) => m.Concept379),
+  ),
+  "380": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-380-scherenschnitt").then((m) => m.Concept380),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
