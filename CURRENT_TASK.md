@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Cashflow-vooruitblik "verwacht binnen 30 dagen" op /facturen (ZZP'er) (2026-07-17, PR #811)** —
+> `/facturen` toonde per openstaande factuur al de verwachte betaaldatum (`forecastInvoicePayout` → "Verwacht rond …"),
+> maar nergens het geaggregeerde antwoord op de #1 cashflow-vraag van de ZZP'er: "hoeveel geld komt er de komende 30 dagen
+> realistisch binnen?" De summary-kaarten toonden alleen Betaald (cumulatief), Openstaand en het te-late deel — geen
+> tijdsdimensie op het openstaande bedrag (benchmark: cashflow-vooruitblik Moneybird/e-Boekhouden). Nu een compacte regel
+> onder de Openstaand-kaart — **"≈ € X verwacht binnen 30 dagen"** — die de openstaande factuurbedragen optelt naar wanneer
+> betaling realistisch binnenkomt. Pure `summarizeCashflowForecast` in `cashflow-forecast.ts` telt alleen facturen met een
+> op betaalhistorie gebaseerde (`confident`) projectie (een enkel-vervaldatum-anker is te onzeker voor een cashflow-belofte);
+> een reeds verstreken verwachte datum telt als "binnen 30 dagen" (geld wordt nú verwacht); alleen getoond bij `next30Cents > 0`.
+> Hergebruikt exact `behaviorByCompany` + `forecastInvoicePayout` (dezelfde motor als de per-rij "Verwacht rond"-regel) —
+> geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +8 unit-tests. Gate: typecheck, lint, unit-tests,
+> build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — cron-heartbeat / dead-man's-switch voor geplande taken (2026-07-17, PR #810)** —
 > `/admin/systeemstatus` toonde bij de cron alleen of `CRON_SECRET` gezet was, niet of de dagelijkse
 > `/api/tasks/run-all`-cron nog drááit. Stopt die stil (workflow uit, secret geroteerd, `RUN_ALL_TASK_URL` fout,

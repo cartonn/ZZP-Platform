@@ -10,6 +10,7 @@ import { DebtorSummaryCard } from "@/components/administratie/debtor-summary-car
 import { invoiceDueStatus } from "@/lib/invoice-due";
 import { computePaymentBehavior, type PaymentBehavior } from "@/lib/payment-behavior";
 import { forecastInvoicePayout } from "@/lib/invoice-payment-forecast";
+import { summarizeCashflowForecast, CASHFLOW_HORIZON_DAYS } from "@/lib/cashflow-forecast";
 import { formatDateShortNl } from "@/lib/format-date";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
@@ -154,6 +155,30 @@ export async function FacturenPanel({
     }
   }
 
+  // Cashflow-vooruitblik (alleen ZZP'er): tel de openstaande factuurbedragen op naar wanneer betaling
+  // realistisch binnenkomt — het geaggregeerde antwoord op "hoeveel komt er de komende 30 dagen
+  // binnen?" bovenop de losse per-factuur-projectie. Hergebruikt exact `behaviorByCompany` +
+  // `forecastInvoicePayout` (dezelfde motor als de per-rij "Verwacht rond"-regel), geen extra query.
+  const cashflow = isFreelancer
+    ? summarizeCashflowForecast(
+        invoices.map((inv) => {
+          const companyId = inv.collaboration?.company.id;
+          const behavior = companyId ? behaviorByCompany.get(companyId) : null;
+          const forecast =
+            isInvoiceOutstanding(inv) && behavior
+              ? forecastInvoicePayout({
+                  issuedAt: inv.issuedAt,
+                  dueAt: inv.dueAt,
+                  avgDaysToPay: behavior.avgDaysToPay,
+                  sampleSize: behavior.sampleSize,
+                })
+              : null;
+          return { totalCents: inv.totalCents, forecast };
+        }),
+        Date.now(),
+      )
+    : null;
+
   return (
     <div className="space-y-6">
       {canInvoice && (
@@ -181,6 +206,12 @@ export async function FacturenPanel({
               {overdueCents > 0 && (
                 <p className="text-xs font-medium tabular-nums text-danger">
                   {t("waarvan")} {formatEuro(overdueCents)} {t("te laat")}
+                </p>
+              )}
+              {cashflow && cashflow.next30Cents > 0 && (
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  ≈ {formatEuro(cashflow.next30Cents)} {t("verwacht binnen")}{" "}
+                  {CASHFLOW_HORIZON_DAYS} {t("dagen")}
                 </p>
               )}
             </CardContent>
