@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-17 — Cashflow-vooruitblik "verwacht binnen 30 dagen" op /facturen (ZZP'er) (PR #811)
+
+**Gat:** `/facturen` toonde per openstaande factuur al de verwachte betaaldatum (`forecastInvoicePayout`
+→ "Verwacht rond …"), maar nergens het **geaggregeerde** antwoord op de #1 cashflow-vraag van een
+ZZP'er: "hoeveel geld komt er de komende 30 dagen realistisch binnen?" De summary-kaarten toonden alleen
+Betaald (cumulatief), Openstaand en het te-late deel — geen tijdsdimensie op het openstaande bedrag
+(benchmark: cashflow-vooruitblik in Moneybird/e-Boekhouden).
+
+**Fix:** een compacte regel onder de Openstaand-kaart — **"≈ € X verwacht binnen 30 dagen"** — die de
+openstaande factuurbedragen optelt naar wanneer betaling realistisch binnenkomt. Puur `summarizeCashflowForecast`
+in `src/lib/cashflow-forecast.ts` telt alleen facturen met een **op betaalhistorie gebaseerde
+(`confident`) projectie** (een enkel-vervaldatum-anker is te onzeker voor een cashflow-belofte); een
+reeds verstreken verwachte datum telt als "binnen 30 dagen" (geld wordt nú verwacht). Alleen getoond bij
+`next30Cents > 0` (rustige lijst). Hergebruikt exact `behaviorByCompany` + `forecastInvoicePayout` (dezelfde
+motor als de per-rij "Verwacht rond"-regel) — geen extra query, geen schemawijziging.
+
+**Bestanden:** `src/lib/cashflow-forecast.ts` (+ 8 unit-tests), `src/components/administratie/facturen-panel.tsx`
+(aggregaat + sub-regel). Read-only, ZZP-only (leunt op de freelancer-only `behaviorByCompany`), geen nieuw
+mutatie/auth-oppervlak, geen N+1. Gate: typecheck, lint, unit-tests, build, prettier groen.
+
 ## 2026-07-17 — Prod-rijpheid: cron-heartbeat / dead-man's-switch voor geplande taken (PR #810)
 
 **Gat:** `/admin/systeemstatus` toonde bij "Taak-endpoints (cron)" alleen of `CRON_SECRET` gezet was —
