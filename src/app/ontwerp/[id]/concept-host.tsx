@@ -1087,6 +1087,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "360": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-360-notenbalk").then((m) => m.Concept360),
   ),
+  "361": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-361-zetsel").then((m) => m.Concept361),
+  ),
+  "362": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-362-lagen").then((m) => m.Concept362),
+  ),
+  "363": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-363-boarding").then((m) => m.Concept363),
+  ),
+  "364": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-364-golfslag").then((m) => m.Concept364),
+  ),
+  "365": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-365-kwartet").then((m) => m.Concept365),
+  ),
+  "366": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-366-ledger").then((m) => m.Concept366),
+  ),
+  "367": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-367-blauwuur").then((m) => m.Concept367),
+  ),
+  "368": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-368-draaiboek").then((m) => m.Concept368),
+  ),
+  "369": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-369-passe-partout").then((m) => m.Concept369),
+  ),
+  "370": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-370-sextant").then((m) => m.Concept370),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

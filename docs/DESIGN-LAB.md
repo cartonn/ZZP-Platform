@@ -1015,6 +1015,41 @@ UI-taal = Nederlands.
   AA-/contrast-bewust, deterministisch en onderscheidend van de bestaande 340.
 - **Totaal nu op `/ontwerp`: 350 concepten** (reeks 35: 341–350; reeks 34 331–340 via PR #778).
 
+## Reeks 37 — concepten 361–370 — 2026-07-17
+
+Tien nieuwe, onderscheidende richtingen, elk met eigen bestand en alle 6 kernschermen (dashboard,
+marktplaats, opdracht, verificatie, acties, facturen). Additief toegevoegd bovenop 360 — niets
+overschreven.
+
+- **361 Zetsel** — Zwitserse typografische rasterposter / International Typographic Style (inkt op
+  papier + rood accent): zichtbaar modulair raster, oversized grotesk-numerieken en geroteerde
+  kantlijn-labels — dichtheid wordt ritme, niets staat toevallig.
+- **362 Lagen** — spatiale diepte / visionOS-glas (licht lucht-verloop, violet): doorschijnende
+  frosted-glass panelen op echte z-diepte met vibrancy en gestapelde schaduw, hiërarchie via diepte.
+- **363 Boarding** — instapkaart-utility / ticket & perforatie (papierwit + blauw): geperforeerde
+  scheur-randen, monospace ticket-codes en stub-secties maken opdracht-metadata direct scanbaar.
+- **364 Golfslag** — kinetisch motion-forward / vloeiende golven (aqua + teal): organische SVG-golven
+  als voortgang en deining, reduced-motion-bewust — voortgang wordt letterlijk voelbaar.
+- **365 Kwartet** — speelkaart / kwartet-metafoor (kaartkarton + suit-accenten): hoek-indices,
+  suit-gecodeerde categorieën en 4-up kwartet-grids; matching-score als kaartwaarde.
+- **366 Ledger** — grootboek / analoog dubbel-boekhouden (greenbar-papier + grootboek-groen):
+  debet/credit-kolommen, tabulaire cijfers, dubbele onderstreping en stempel-status — warm en analoog.
+- **367 Blauwuur** — schemer premium-dark / cinematisch blauw uur (indigo→pruim + gedempt goud):
+  zachte gloed rond focus, glas-panelen, serif-displaymoment — filmisch kalm, contrast-bewust.
+- **368 Draaiboek** — productie-callsheet / storyboard (productie-papier + regie-geel): scène-genummerde
+  secties, cue-lijst met tijdkolommen en regie-notities — ideaal voor de next-action-engine als cues.
+- **369 Passe-partout** — museale omlijsting / galerie & provenance (kalk + oker): royale mat-marges,
+  museum-labels en dubbele kaderlijn; verificatie wordt authenticatie met provenance.
+- **370 Sextant** — nautisch instrument / cartografie (zeekaart-crème + messing): kompasroos-motief,
+  gegraveerde schaalverdeling en coördinaat-uitlezingen — navigeren als metafoor voor matching & peiling.
+- Onderzochte 2026-trends deze reeks: **International Typographic Style / oversized numerieke display**;
+  **spatial UI / visionOS-vibrancy met gelaagde glas-diepte**; **skeuomorfe ticket/pass-metafoor**;
+  **motion-first kinetische interfaces met reduced-motion-respect**; **playful collectible-card-codering**;
+  **analoge greenbar-ledger-esthetiek**; **atmosferische dark-mode zonder neon**; **callsheet/storyboard-
+  structuur voor actie-hiërarchie**; **museale mat/omlijsting & provenance-typografie**; **cartografisch
+  nautisch-instrument** — elk contrast-bewust, deterministisch en onderscheidend van de bestaande 360.
+- **Totaal nu op `/ontwerp`: 370 concepten** (reeks 37: 361–370).
+
 ## Reeks 36 — concepten 351–360
 
 Tien nieuwe, onderscheidende richtingen, elk met eigen bestand en alle 6 kernschermen (dashboard,

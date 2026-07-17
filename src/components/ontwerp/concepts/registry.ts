@@ -6066,6 +6066,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#1a1a1a",
     available: true,
   },
+  // ── Reeks 37 (run 17-7-2026) — nrs 361–370, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "361",
+    name: "Zetsel",
+    direction: "Zwitserse typografische rasterposter — internationale stijl",
+    rationale:
+      "Müller-Brockmann-rigor als interface: een streng modulair raster met zichtbare hairline-lijnen, oversized grotesk-numerieken en geroteerde kantlijn-labels. Monochrome inkt op papier met één rood accent — dichtheid wordt ritme, niets staat toevallig.",
+    trends: [
+      "International Typographic Style / grid-poster",
+      "Oversized numerieke display-typografie",
+      "Zichtbaar modulair raster als structuur",
+    ],
+    fonts: "Space Grotesk + Anton + Geist Mono",
+    accent: "#e4322b",
+    bg: "#f4f2ec",
+    fg: "#111111",
+    available: true,
+  },
+  {
+    id: "362",
+    name: "Lagen",
+    direction: "Spatiale diepte — visionOS-glas",
+    rationale:
+      "Spatial computing vertaald naar 2D: doorschijnende frosted-glass panelen zweven op echte z-diepte boven een zacht lucht-verloop, met vibrancy, witte binnenranden en gestapelde diffuse schaduw. Hiërarchie via diepte, niet via lijnen — kalm en ruimtelijk premium.",
+    trends: [
+      "Spatial UI / visionOS-vibrancy",
+      "Gelaagde frosted-glass diepte",
+      "Diepte-hiërarchie i.p.v. randen",
+    ],
+    fonts: "Geist + Inter",
+    accent: "#7c6cff",
+    bg: "#eef0fb",
+    fg: "#1b1d2b",
+    available: true,
+  },
+  {
+    id: "363",
+    name: "Boarding",
+    direction: "Instapkaart-utility — ticket & perforatie",
+    rationale:
+      "Informatie als instapkaarten: geperforeerde scheur-randen, monospace ticket-codes en stub-secties maken opdracht-metadata (plaats, tarief, start) meteen scanbaar. Speels-functioneel en strak — reizen door je opdrachten als door een luchthaven.",
+    trends: [
+      "Skeuomorfe ticket/pass-metafoor",
+      "Perforatie & stub als informatie-eenheid",
+      "Monospace codes + boarding-hiërarchie",
+    ],
+    fonts: "IBM Plex Mono + Geist",
+    accent: "#2563eb",
+    bg: "#f5f6f8",
+    fg: "#15181d",
+    available: true,
+  },
+  {
+    id: "364",
+    name: "Golfslag",
+    direction: "Kinetisch motion-forward — vloeiende golven",
+    rationale:
+      "Beweging als differentiator: organische SVG-golven keren terug als voortgang, sparklines als deining en zachte golf-dividers tussen secties. Kinetisch maar rustig, met respect voor prefers-reduced-motion — voortgang wordt letterlijk voelbaar.",
+    trends: [
+      "Motion-first / kinetische interfaces",
+      "Organische fluid-shapes als data",
+      "Reduced-motion-bewuste micro-animatie",
+    ],
+    fonts: "Sora + Geist",
+    accent: "#0ea5a4",
+    bg: "#f0f7fa",
+    fg: "#0d2b2b",
+    available: true,
+  },
+  {
+    id: "365",
+    name: "Kwartet",
+    direction: "Speelkaart — kwartet & verzamelkaarten",
+    rationale:
+      "Opdrachten en credentials als verzamelkaarten: hoek-indices, suit-gecodeerde categorieën en een 4-up kwartet-grid maken matching tactiel. Matching-score als kaartwaarde — verzamelbaar en zakelijk tegelijk, op warm kaartkarton.",
+    trends: [
+      "Playful skeuomorfe kaart-metafoor",
+      "Categorie-codering via suits",
+      "Tactiele collectible-card-hiërarchie",
+    ],
+    fonts: "Fraunces + Geist Mono",
+    accent: "#b3271e",
+    bg: "#f6f1e4",
+    fg: "#1c1a17",
+    available: true,
+  },
+  {
+    id: "366",
+    name: "Ledger",
+    direction: "Grootboek — analoog dubbel-boekhouden",
+    rationale:
+      "Verfijnd boekhoudpapier: greenbar-rijarcering, debet/credit-kolommen, tabulaire cijfers en dubbele onderstreping bij totalen, met stempel-status. Warm en analoog — geen neon-terminal maar papieren financiële waarheid, met de facturen als held.",
+    trends: [
+      "Analoge greenbar-ledger-esthetiek",
+      "Debet/credit-kolomdiscipline",
+      "Tabulaire cijfers + stempel-status",
+    ],
+    fonts: "Newsreader + JetBrains Mono",
+    accent: "#2f6b4f",
+    bg: "#f7f5ed",
+    fg: "#1b1a15",
+    available: true,
+  },
+  {
+    id: "367",
+    name: "Blauwuur",
+    direction: "Schemer premium-dark — cinematisch blauw uur",
+    rationale:
+      "Het blauwe uur als donkere modus: een diep indigo-naar-pruim schemer-verloop, zachte gloed rond actieve elementen en gedempt goud/violet-accent. Filmisch kalm en luxe, met bewaakt contrast — vertrouwenwekkend rond gevoelige documenten, zonder neon.",
+    trends: [
+      "Atmosferische dark-mode (geen neon)",
+      "Zachte glow + glas-panelen",
+      "Serif-displaymoment in donker",
+    ],
+    fonts: "Geist + Instrument Serif",
+    accent: "#e8b478",
+    bg: "#0b1020",
+    fg: "#e7ecfb",
+    available: true,
+  },
+  {
+    id: "368",
+    name: "Draaiboek",
+    direction: "Productie-callsheet — storyboard & cues",
+    rationale:
+      "Een strak draaiboek: scène-genummerde secties, een cue-lijst met tijdkolommen en regie-notities in de kantlijn, met storyboard-frames als filmkaders. Volgorde en planning zijn de metafoor — ideaal voor de next-action-engine als cue-lijst.",
+    trends: [
+      "Callsheet / storyboard-structuur",
+      "Cue-lijst als actie-hiërarchie",
+      "Filmframe-crop-markeringen",
+    ],
+    fonts: "Bricolage Grotesque + Space Mono",
+    accent: "#f5c518",
+    bg: "#f4f4f2",
+    fg: "#1a1a1c",
+    available: true,
+  },
+  {
+    id: "369",
+    name: "Passe-partout",
+    direction: "Museale omlijsting — galerie & provenance",
+    rationale:
+      "Elk scherm als ingelijst werk: royale passe-partout-marges, museum-label-bijschriften en fijne dubbele kaderlijnen in gedempte galerie-neutralen. Verificatie wordt authenticatie met provenance — rust en hiërarchie via omlijsting, stil en premium.",
+    trends: [
+      "Museale mat/omlijsting als layout",
+      "Label- & provenance-typografie",
+      "Ingetogen galerie-neutralen",
+    ],
+    fonts: "Cormorant + Geist Mono",
+    accent: "#9a7b3f",
+    bg: "#f3f1ec",
+    fg: "#26241f",
+    available: true,
+  },
+  {
+    id: "370",
+    name: "Sextant",
+    direction: "Nautisch instrument — cartografie & messing",
+    rationale:
+      "Precisie-instrument-esthetiek: messing-gegraveerde schaalverdelingen op zeekaart-crème, een kompasroos-motief en coördinaat-uitlezingen bij metadata. Navigeren als metafoor — de marktplaats is een zeekaart, matching een peiling, verificatie een authenticatie.",
+    trends: [
+      "Cartografisch / nautisch-instrument",
+      "Gegraveerde schaal & kompasroos",
+      "Coördinaat-uitlezingen als metadata",
+    ],
+    fonts: "Fraunces + Spline Sans Mono",
+    accent: "#a9803f",
+    bg: "#efe7d5",
+    fg: "#1c2a33",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);

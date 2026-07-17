@@ -145,6 +145,28 @@ Turnt "wie is vrij?" in "wie is vrij én direct plaatsbaar?" (bench-management, 
   bestaande, tenant-gescopete detail met de al bestaande voordracht-actie). Gate: typecheck ✓, lint ✓,
   4294 unit-tests ✓, build ✓, prettier ✓.
 
+## 2026-07-17 — Ontwerp-lab: +10 concepten (reeks 37, nrs 361–370)
+
+**Increment:** het publieke design-lab `/ontwerp` groeit additief van 360 → **370 concepten**. Tien
+nieuwe, radicaal onderscheidende redesign-richtingen, elk met eigen bestand en alle 6 kernschermen
+(dashboard, marktplaats, opdracht-detail, verificatie, acties, facturen), realistische Nederlandse
+mock-content en interactie. Strikt **additief** — geen bestaand concept, registry-entry of route-koppeling
+aangeraakt.
+
+- **Richtingen:** 361 Zetsel (Zwitsers typografisch raster), 362 Lagen (spatiale visionOS-glasdiepte),
+  363 Boarding (instapkaart/ticket-utility), 364 Golfslag (kinetische golf-motion), 365 Kwartet
+  (speelkaart-metafoor), 366 Ledger (analoog grootboek), 367 Blauwuur (schemer premium-dark),
+  368 Draaiboek (productie-callsheet/storyboard), 369 Passe-partout (museale omlijsting/provenance),
+  370 Sextant (nautisch instrument/cartografie).
+- **Nieuwe bestanden:** `src/components/ontwerp/concepts/concept-361-zetsel.tsx` …
+  `concept-370-sextant.tsx` (10 nieuw). `registry.ts` (+10 ConceptMeta-entries, append) en
+  `src/app/ontwerp/[id]/concept-host.tsx` (+10 id→component-koppelingen, append) — bestaande entries
+  ongemoeid. Gebouwd door 4 parallelle workers op niet-overlappende bestanden; orchestrator integreerde
+  registry + route.
+- **Poort groen:** `typecheck` ✓ (13 strict-index-fouten in 5 concepten centraal gefixt met veilige
+  fallbacks), `lint` ✓, 4339 unit-tests ✓, `build` ✓, `prettier --check .` ✓, `check:env` ✓.
+- **DESIGN-LAB.md** bijgewerkt (reeks 37 + onderzochte 2026-trends). Woord "AI" komt nergens voor.
+
 ## 2026-07-16 — Ontwerp-lab: +10 concepten (reeks 36, nrs 351–360)
 
 **Increment:** het publieke design-lab `/ontwerp` groeit additief van 350 → **360 concepten**. Tien
