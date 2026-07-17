@@ -1015,6 +1015,40 @@ UI-taal = Nederlands.
   AA-/contrast-bewust, deterministisch en onderscheidend van de bestaande 340.
 - **Totaal nu op `/ontwerp`: 350 concepten** (reeks 35: 341–350; reeks 34 331–340 via PR #778).
 
+## Reeks 38 — concepten 371–380 — 2026-07-17
+
+Tien nieuwe, onderscheidende richtingen, elk met eigen bestand en alle 6 kernschermen (dashboard,
+marktplaats, opdracht, verificatie, acties, facturen). Additief toegevoegd bovenop 370 — niets
+overschreven. Elke richting is vooraf tegen de registry gecontroleerd om herhaling te vermijden.
+
+- **371 Deco** — Art Deco / geometrisch goud (onyx/smaragd + champagne-goud): symmetrische waaiers,
+  chevrons en fijne dubbele goudlijnen — statige, tijdloze luxe.
+- **372 Marqueterie** — houtinlegwerk / fineer & intarsia (warme fineerkleuren): geometrische parket-
+  panelen met contrasterende inleg-randen en boomnerf — ambachtelijke, tactiele precisie.
+- **373 Gebrand** — glas-in-lood / kathedraal juweeltinten (kobalt/robijn/smaragd): panelen met zwarte
+  lood-scheidslijnen en zachte binnengloed — diep, kleurrijk en sacraal-premium.
+- **374 Anaglyph** — stereo-3D / rood-cyaan reliëf (donkere basis): chromatische kanaal-offsets en
+  dubbele randcontouren die diepte suggereren — speels-technisch en onderscheidend.
+- **375 Guilloché** — securité-graveerlijnen / waarmerk (securité-groen op ivoor + goud): ineengevlochten
+  gegraveerde curven, rozet-medaillons en microtekst — verificatie als echtheidszegel.
+- **376 Warmtekaart** — thermografie / warmte als intensiteit (magma-verloop op diepzwart): warmte gelijk
+  aan activiteit en match-intensiteit, met meetuitlezingen — analytisch en data-dicht.
+- **377 Oscilloscoop** — fosfor-golfvorm / meetlab-signaal (fosforgroen op division-raster): live
+  golfvormen, V/div-uitlezingen en signaal-vergrendeling als verificatie — technisch-precies.
+- **378 Seismograaf** — registratiestrook / analoge inktlijn (roodbruine inkt op crème strook): amplitude
+  als activiteit, pieken als gebeurtenissen — een warme, wetenschappelijke tijd-registratie.
+- **379 Batik** — wax-resist textiel / indigo & soga (crème-resist + accent-oranje): parang/kawung-patronen
+  met craquelé-adertjes — gelaagde, warme textielrijkdom, strak toegepast.
+- **380 Scherenschnitt** — papierknipsel / symmetrisch silhouet (knip-zwart op ivoor + rood zegel):
+  gespiegelde geknipte ornamenten en filigrein-kaders — elegant, hoog-contrast en ambachtelijk.
+- Onderzochte 2026-trends deze reeks: **art-deco geometrie & goud-linework**; **marqueterie/craft-fineer
+  als materiaal-UI**; **stained-glass juweel-panelen met lichtdiepte**; **anaglyph/stereo-diepte als
+  hiërarchie**; **guilloché securité-graveerwerk (waarmerk/echtheid)**; **thermografische magma-heatmap
+  data-viz**; **oscilloscoop-golfvorm-instrumentatie**; **analoge strip-chart/seismogram-registratie**;
+  **batik wax-resist textielpatronen**; **scherenschnitt papier-silhouet & filigrein** — elk contrast-
+  bewust, deterministisch en onderscheidend van de bestaande 370.
+- **Totaal nu op `/ontwerp`: 380 concepten** (reeks 38: 371–380).
+
 ## Reeks 37 — concepten 361–370 — 2026-07-17
 
 Tien nieuwe, onderscheidende richtingen, elk met eigen bestand en alle 6 kernschermen (dashboard,
