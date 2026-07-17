@@ -1117,3 +1117,38 @@ overschreven.
   **solarpunk / biophilic natuurtinten**; **ritmisch muzikaal baseline-grid** — elk AA-/contrast-bewust,
   deterministisch, en onderscheidend van de bestaande 350.
 - **Totaal nu op `/ontwerp`: 360 concepten** (reeks 36: 351–360).
+
+## Reeks 39 — concepten 381–390 (17-07-2026)
+
+Tien nieuwe, additief toegevoegde richtingen bovenop 380 — niets overschreven. Elk concept dekt de
+zes kernschermen (dashboard, marktplaats, opdracht, verificatie, acties, facturen) met de gedeelde
+Nederlandse mock-data, werkende zoek/sorteer/filter + empty-state, `statusMeta` (label + icoon, nooit
+kleur alleen), focus-visible ringen en `motion-reduce`-respect.
+
+- **381 Dampkring** — premium-dark met atmosferische glas-diepte (inkt-blauw + cyaan/violet gloed):
+  gelaagde verlopen, luminescente glas-panelen met lichtrand, rustig-ruimtelijk maar contrast-bewust.
+- **382 Maalstroom** — kleurrijk-kinetisch, radiale energie (crème + koraal/indigo/citroen): conische
+  verlopen en draaikolk-motief, speels maar strak, beweging zonder rommel.
+- **383 Leporello** — redactioneel concertina/vouwblad (warm papier + bordeaux): horizontale gevouwen
+  panelen met zichtbare vouwlijnen, oversized serif-koppen, strak kolomraster.
+- **384 Majolica** — warm-menselijk geglazuurd aardewerk (crème + terracotta/kobalt): keramiek-tegels
+  met glazuur-glans en subtiel patroon, ring-match-meters, tactiel en betrouwbaar.
+- **385 Kwartslag** — verfijnd neo-brutalisme (lichtgrijs + elektrisch geel op inkt): dikke randen,
+  harde offset-slagschaduw, Anton-display, 90°-kwartslag-vormen, monospace-labels.
+- **386 Telegraaf** — data-dicht telex-terminal (papier + amber): monospace overal, tickerband-koppen,
+  glyph-statusregels (`[OK]`/`[!!]`), compacte registertabellen, twee-koloms lijst+detail.
+- **387 Zoutkristal** — toegankelijk hoog-contrast, kristallijn (wit/bijna-zwart + diepblauw ≥7:1):
+  facet-geometrie, dikke focusringen, grote raakvlakken, status met label + icoon + facet-patroon.
+- **388 Lichtorgel** — bento-grid met luminescent equalizer-motief (donkere basis + spectrum): lichtbalken
+  vertalen voortgang/match/activiteit naar een cyaan→violet→magenta-spectrum, elk datapunt eigen gewicht.
+- **389 Schaduwdoos** — verfijnd soft-depth/neumorfisme (warm off-white + gedempt indigo): gelaagde dozen
+  met echte diepte-hiërarchie, dubbele schaduw, mollig-strak met bewaakt contrast.
+- **390 Windvaan** — mobiel-first wayfinding (fris licht + marine/oranje): telefoon-frame met bottom-tab-bar
+  op mobiel, kompas-rail op desktop, windroos wijst de volgende beste actie als richtingwijzer.
+- Onderzochte 2026-trends deze reeks: **premium-dark atmosferische glas-diepte**; **kinetische radiale/
+  conische kleur**; **redactionele concertina-vouwlayouts**; **ceramische/materiële warmte**; **verfijnd
+  neo-brutalisme met harde offset-schaduw**; **data-dichte wire-/telex-terminals**; **accessibility-as-
+  aesthetic (WCAG-AAA, ≥7:1) met kristallijne geometrie**; **bento-grids met eigen lichttaal (equalizer)**;
+  **soft-depth/neumorfisme met bewaakt contrast**; **mobiel-first thumb-zone wayfinding** — elk
+  deterministisch, toegankelijk en onderscheidend van de bestaande 380.
+- **Totaal nu op `/ontwerp`: 390 concepten** (reeks 39: 381–390).

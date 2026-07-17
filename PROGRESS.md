@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-17 — Ontwerp-lab: +10 concepten (reeks 39, nrs 381–390)
+
+**Wat:** de galerij op `/ontwerp` groeit van 380 → **390 concepten** (additief; niets overschreven).
+Tien nieuwe, echt onderscheidende designrichtingen, elk een zelfstandig high-fidelity redesign van de
+zes kernschermen met gedeelde NL-mock-data:
+
+- **381 Dampkring** (premium-dark glas-diepte) · **382 Maalstroom** (kleurrijk-kinetisch radiaal) ·
+  **383 Leporello** (redactioneel concertina-vouwblad) · **384 Majolica** (warm geglazuurd aardewerk) ·
+  **385 Kwartslag** (verfijnd neo-brutalisme) · **386 Telegraaf** (data-dicht telex-terminal) ·
+  **387 Zoutkristal** (toegankelijk hoog-contrast, kristallijn, WCAG-AAA) · **388 Lichtorgel** (bento-grid
+  met equalizer-lichtbalken) · **389 Schaduwdoos** (verfijnd soft-depth) · **390 Windvaan** (mobiel-first
+  wayfinding/kompas).
+
+**Bestanden:** 10 × `src/components/ontwerp/concepts/concept-38{1..9}-*.tsx` + `concept-390-windvaan.tsx`
+(nieuw); `registry.ts` + `src/app/ontwerp/[id]/concept-host.tsx` (alleen toegevoegd, bestaande entries
+ongemoeid); `docs/DESIGN-LAB.md` (reeks 39-blok). Gebouwd door 4 parallelle workers op niet-overlappende
+bestanden; orchestrator integreerde registry/host + gate.
+
+**Gate lokaal groen:** `typecheck` ✓, `lint` ✓, `prettier --check .` ✓, `test` (4397) ✓, `build` ✓,
+geen los woord "AI". CI-poort geverifieerd op de PR.
+
 ## 2026-07-17 — Cashflow-vooruitblik "verwacht binnen 30 dagen" op /facturen (ZZP'er) (PR #811)
 
 **Gat:** `/facturen` toonde per openstaande factuur al de verwachte betaaldatum (`forecastInvoicePayout`
