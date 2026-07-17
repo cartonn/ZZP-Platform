@@ -257,7 +257,7 @@ describe("zijpaden begrenzen de vrije-tekstreden (defense-in-depth, A04)", () =>
       actorId: "c1",
     });
     expect((fx.statusChanges[0]?.set?.rejectionReason as string).length).toBe(2000);
-    expect(fx.notifications[0]?.body.length).toBeLessThanOrEqual(2000 + 64);
+    expect((fx.notifications[0]?.body ?? "").length).toBeLessThanOrEqual(2000 + 64);
     expect((fx.audits[0]?.metadata?.reason as string).length).toBe(2000);
   });
 
@@ -291,7 +291,7 @@ describe("zijpaden begrenzen de vrije-tekstreden (defense-in-depth, A04)", () =>
     expect((fx.statusChanges[0]?.set?.rejectionReason as string).length).toBe(2000);
     expect((fx.audits[0]?.metadata?.reason as string).length).toBe(2000);
     // Beide notificaties dragen de gekapte reden (nooit de volledige 5000 tekens).
-    for (const n of fx.notifications) expect(n.body.length).toBeLessThan(5000);
+    for (const n of fx.notifications) expect((n.body ?? "").length).toBeLessThan(5000);
   });
 });
 
