@@ -1147,6 +1147,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "380": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-380-scherenschnitt").then((m) => m.Concept380),
   ),
+  "381": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-381-dampkring").then((m) => m.Concept381),
+  ),
+  "382": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-382-maalstroom").then((m) => m.Concept382),
+  ),
+  "383": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-383-leporello").then((m) => m.Concept383),
+  ),
+  "384": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-384-majolica").then((m) => m.Concept384),
+  ),
+  "385": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-385-kwartslag").then((m) => m.Concept385),
+  ),
+  "386": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-386-telegraaf").then((m) => m.Concept386),
+  ),
+  "387": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-387-zoutkristal").then((m) => m.Concept387),
+  ),
+  "388": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-388-lichtorgel").then((m) => m.Concept388),
+  ),
+  "389": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-389-schaduwdoos").then((m) => m.Concept389),
+  ),
+  "390": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-390-windvaan").then((m) => m.Concept390),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
