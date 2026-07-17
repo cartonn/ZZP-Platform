@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   computeClientResponsiveness,
   describeApplicantResponsiveness,
+  responsivenessChip,
   type ResponseRow,
 } from "@/lib/client-responsiveness";
 
@@ -173,5 +174,45 @@ describe("describeApplicantResponsiveness", () => {
     const responsiveness = computeClientResponsiveness([row("VIEWED"), row("NEW")], NOW);
     expect(responsiveness.tone).toBe("unknown");
     expect(describeApplicantResponsiveness(responsiveness)).toBeNull();
+  });
+});
+
+describe("responsivenessChip", () => {
+  it("toont een good-chip bij een goede oppak-graad", () => {
+    // ≥ 80% opgepakt én niets stale → good.
+    const rows = [row("VIEWED"), row("SHORTLIST"), row("ACCEPTED"), row("REJECTED")];
+    const responsiveness = computeClientResponsiveness(rows, NOW);
+    expect(responsiveness.tone).toBe("good");
+    const chip = responsivenessChip(responsiveness);
+    expect(chip).toEqual({ tone: "good", label: "Pakt reacties op" });
+  });
+
+  it("toont een warning-chip bij een lage oppak-graad", () => {
+    // 3 open, 1 opgepakt → 25% → warning.
+    const rows = [row("NEW"), row("NEW"), row("NEW"), row("VIEWED")];
+    const responsiveness = computeClientResponsiveness(rows, NOW);
+    expect(responsiveness.tone).toBe("warning");
+    const chip = responsivenessChip(responsiveness);
+    expect(chip).toEqual({ tone: "warning", label: "Laat reacties liggen" });
+  });
+
+  it("toont een warning-chip ook bij een reactie die te lang blijft liggen (stale)", () => {
+    const rows = [row("VIEWED"), row("SHORTLIST"), row("ACCEPTED"), row("NEW", 20)];
+    const responsiveness = computeClientResponsiveness(rows, NOW);
+    expect(responsiveness.tone).toBe("warning");
+    expect(responsivenessChip(responsiveness)?.tone).toBe("warning");
+  });
+
+  it("zwijgt (null) bij een neutraal signaal", () => {
+    const rows = [row("VIEWED"), row("SHORTLIST"), row("NEW"), row("NEW")];
+    const responsiveness = computeClientResponsiveness(rows, NOW);
+    expect(responsiveness.tone).toBe("neutral");
+    expect(responsivenessChip(responsiveness)).toBeNull();
+  });
+
+  it("zwijgt (null) bij te weinig historie (unknown)", () => {
+    const responsiveness = computeClientResponsiveness([row("VIEWED"), row("NEW")], NOW);
+    expect(responsiveness.tone).toBe("unknown");
+    expect(responsivenessChip(responsiveness)).toBeNull();
   });
 });

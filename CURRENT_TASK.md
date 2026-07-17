@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Reactiebereidheid-chip op de opdrachtenlijst (ZZP'er) (2026-07-17, PR #807)** —
+> op `/opdrachten` (browse-/triage-lijst) toonde elke kaart al ZZP-zijdige signalen (match, reistijd, concurrentie,
+> betaalgedrag, startdatum, tarief-fit, beschikbaarheid) maar niet of de opdrachtgever binnengekomen reacties
+> überhaupt oppakt — dat signaal (`computeClientResponsiveness`) leefde alleen op de opdracht-detailpagina
+> (`ClientResponsivenessBlock`). "Pakt deze opdrachtgever reacties op of laat hij ze liggen?" is een kern-triagevraag
+> vóór je je tijd in een reactie steekt (benchmark Malt/Temper). Nu een compacte chip per kaart — **"Pakt reacties op"**
+> (good) / **"Laat reacties liggen"** (warning), alleen bij een uitgesproken reputatie (neutral/unknown → geen chip).
+> Pure `responsivenessChip` in `client-responsiveness.ts` (mapt het bestaande signaal → `{label,tone}`, module-taal
+> "oppakken"/"laten liggen" → geen tegenspraak met detail; +6 tests) + wiring in `opdrachten/(index)/page.tsx`
+> (`responsivenessByJob`-map via de begrensde batch-loader `getClientResponsivenessForCompanies`, `MessageSquareReply`-chip
+> ná tarief-fit). Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak; alleen het geaggregeerde oordeel
+> (≥3 reacties) — nooit een individuele reactie van een andere ZZP'er. Gate: typecheck, lint, unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Beoordelings-nudge als next-action na een afgeronde samenwerking (ZZP'er + opdrachtgever) (2026-07-17, PR #799)** —
 > het tweezijdige beoordelingssysteem (double-blind reveal, `Review`-model + `createReviewAction` + `ReviewForm` op
 > `/samenwerkingen/[id]`) bestond al, maar niets nudgede een partij ná afronding om écht te beoordelen — de sectie stond
