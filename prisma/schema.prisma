@@ -1421,3 +1421,14 @@ model LessonCompletion {
   @@id([lessonId, userId])
   @@index([userId])
 }
+
+// Cron-heartbeat / dead-man's-switch: één singleton-rij per cron (name = PK). Wordt bij elke
+// afronding van /api/tasks/run-all bijgewerkt zodat /admin/systeemstatus kan tonen of de geplande
+// taken nog draaien (zie src/lib/observability/cron-heartbeat.ts + cron-freshness.ts). Bevat geen
+// persoonsgegevens — alleen het tijdstip en of de run zonder taakfouten verliep.
+model CronHeartbeat {
+  name      String   @id // bv. "run-all"
+  lastRunAt DateTime
+  lastOk    Boolean
+  updatedAt DateTime @updatedAt
+}

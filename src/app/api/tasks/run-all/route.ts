@@ -27,6 +27,7 @@ import { runPushDeliveryTask } from "@/lib/push-delivery-task";
 import { runAuditRetentionTask } from "@/lib/audit-retention-task";
 import { runScheduledTasks, type ScheduledTask } from "@/lib/scheduled-tasks";
 import { reportBackgroundFailure } from "@/lib/observability/report";
+import { recordCronHeartbeat, RUN_ALL_HEARTBEAT } from "@/lib/observability/cron-heartbeat";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,10 @@ export async function POST(request: Request): Promise<Response> {
   const { ok, results, errors } = await runScheduledTasks(tasks, (name, e) => {
     void reportBackgroundFailure("cron:run-all", e, { task: name });
   });
+
+  // Heartbeat: registreer dat de cron draaide (dead-man's-switch op /admin/systeemstatus). Slikt
+  // eigen fouten — mag de cron-respons nooit omverhalen.
+  await recordCronHeartbeat(RUN_ALL_HEARTBEAT, ok);
 
   const hasErrors = Object.keys(errors).length > 0;
   return NextResponse.json({ ok, results, ...(hasErrors ? { errors } : {}) });

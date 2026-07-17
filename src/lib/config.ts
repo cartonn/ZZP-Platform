@@ -201,6 +201,27 @@ export function auditLogRetentionDays(): number {
   return parseAuditRetentionDays(process.env.AUDIT_LOG_RETENTION_DAYS);
 }
 
+// --- Cron-heartbeat venster (observability, dead-man's-switch) --------------
+// Maximale leeftijd (in uren) van de laatste geplande-taken-cron-run vóór 'ie als "stale" geldt op
+// /admin/systeemstatus. De cron draait standaard dagelijks (run-all-tasks.yml, 05:00 UTC); de
+// default van 36 uur laat één gemiste run + wat speling toe zonder direct alarm.
+export const CRON_MAX_AGE_HOURS_DEFAULT = 36;
+export const CRON_MAX_AGE_HOURS_MIN = 1;
+export const CRON_MAX_AGE_HOURS_MAX = 24 * 30; // 30 dagen bovengrens; ruim genoeg voor elke cadans.
+export function parseCronMaxAgeHours(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "") return CRON_MAX_AGE_HOURS_DEFAULT;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return CRON_MAX_AGE_HOURS_DEFAULT;
+  // Klem naar een verstandige bandbreedte: een typefout mag de dead-man's-switch niet nutteloos
+  // maken (te klein → altijd alarm) of uitschakelen (absurd groot → nooit alarm).
+  return Math.min(CRON_MAX_AGE_HOURS_MAX, Math.max(CRON_MAX_AGE_HOURS_MIN, Math.floor(n)));
+}
+
+/** Geconfigureerd cron-heartbeat-venster in uren (default 36). */
+export function cronMaxAgeHours(): number {
+  return parseCronMaxAgeHours(process.env.CRON_MAX_AGE_HOURS);
+}
+
 // --- Annuleringstermijn (productbesluit eigenaar 12-6-2026) ----------------
 // De opdrachtgever annuleert kosteloos zolang de startdatum nog minstens dit aantal dagen weg is;
 // korter op de start (of na de start) ontstaat een betalingsverplichting. Symmetrisch geregistreerd:

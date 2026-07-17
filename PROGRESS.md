@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-17 — Prod-rijpheid: cron-heartbeat / dead-man's-switch voor geplande taken (PR #810)
+
+**Gat:** `/admin/systeemstatus` toonde bij "Taak-endpoints (cron)" alleen of `CRON_SECRET` gezet was —
+niet of de dagelijkse `/api/tasks/run-all`-cron ook daadwerkelijk nog draaide. Een stil gestopte cron
+(workflow uit, secret geroteerd, `RUN_ALL_TASK_URL` fout, host-storing) legt de runners onopgemerkt stil:
+verloopdetectie (certificaat blijft VERIFIED), abonnement-verval (entitlement blijft), auditlog-retentie
+(AVG-snoei stopt), betaal-/DBA-/factuur-herinneringen.
+
+**Fix:** elke afronding van `run-all` registreert een **heartbeat** (`CronHeartbeat`-singleton, `name` PK;
+géén persoonsgegevens — alleen tijdstip + `lastOk`). Een admin-kaart **"Geplande-taken-cron"** op
+`/admin/systeemstatus` toont de freshness: _actueel_ (binnen venster, geen fouten), _aandacht_ bij stale
+(> venster), bij een gefaalde taak in de laatste run, of "nooit gedraaid". Venster `CRON_MAX_AGE_HOURS`
+(default 36, geklemd 1–720). Heartbeat + freshness-read falen nooit naar buiten (mogen cron-respons /
+admin-scherm niet omverhalen).
+
+**Bestanden:** `src/lib/observability/cron-freshness.ts` (pure oordeel + StatusItem-mapper, 17 tests),
+`src/lib/observability/cron-heartbeat.ts` (DB record/read, fail-safe), `src/lib/config.ts`
+(`parseCronMaxAgeHours`, 4 tests), `src/lib/env.ts` (`CRON_MAX_AGE_HOURS`), `prisma/schema.prisma`
+(`CronHeartbeat`), `src/app/api/tasks/run-all/route.ts` (wiring), `src/components/admin/cron-heartbeat-card.tsx`,
+`src/app/(protected)/admin/systeemstatus/page.tsx` (wiring). Read-only qua bestaand auth-oppervlak, geen
+nieuwe mutatie. Gate: typecheck, lint, 21 nieuwe unit-tests, build, prettier groen. MENSENWERK §10 bijgewerkt.
+
 ## 2026-07-17 — Persona-sweep run 34: opdrachtgever kreeg dode "Markeer als betaald" voor cascade-factuur
 
 **Bevinding (DOEL 1b, next-action-correctheid — MED, OPGELOST):** de generieke overdue-roll-up telde
