@@ -4,6 +4,78 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-17 (basis: `main` @ f32b9c7)
+
+Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-security-subagents op de **delta sinds de
+vorige ronde** (`3d441cd..f32b9c7` — PR's #796–#800), op de niet-overlappende security-/privacy-relevante
+oppervlakken. De 10 nieuwe `concept-3xx.tsx`-designbestanden (#800) zijn puur decoratieve UI (geen data-/
+authz-oppervlak) — niet in scope. Kader: OWASP Top 10 (A01 broken access control, A03 injection, A05 misconfig,
+A07 auth, A09 logging, A10 SSRF) + ASVS + AVG art. 5/9/15/30/32. Stack-CVE-check: Next.js **15.5.19** (voorbij
+CVE-2025-29927 middleware-bypass), `npm audit --omit=dev` = **0**.
+
+**Alle nieuwe oppervlakken bevestigd schoon op authz/tenant/injectie/secrets/SSRF/PII** (geen KRITIEK/HOOG/MIDDEL):
+
+- **Betaalprovider-connectiviteitszelftest (#796)** — `billing-selftest.ts`, `billing/provider.ts` (`checkConnectivity`),
+  `admin/systeemstatus/actions.ts` (`runBillingSelfTestAction`), `rate-limit.ts` (`billingSelfTestRateLimiter`),
+  `components/admin/billing-selftest.tsx`. **SSRF (A10):** de provider-base-URL's zijn **hardcoded**
+  (`https://api.stripe.com/v1`, `https://api.mollie.com/v2`) — geen enkel user-gestuurd URL-veld → geen
+  SSRF-oppervlak; `checkConnectivity` doet uitsluitend een READ-ONLY round-trip (Stripe `GET /v1/balance`,
+  Mollie `GET /v2/methods`) met vaste methode/pad, `fetchWithTimeout` (`BILLING_HTTP_TIMEOUT_MS`, `AbortController`).
+  **Secrets (A05):** `STRIPE_API_KEY`/`MOLLIE_API_KEY` gaan alleen in de `Authorization: Bearer`-header, nooit in
+  log/UI/audit/error. **Foutafhandeling (A09):** `BillingConnectivityError` reduceert een HTTP-fout tot provider+
+  status; `safeBillingDetail` reduceert elke andere fout tot de error-**naam** — geen endpoint/sleutel/stacktrace.
+  **Auth-keten:** `requireRole("ADMIN")` → `billingSelfTestRateLimiter` (6/5min per admin) → actie → audit
+  `BILLING_SELFTEST_RUN` logt alleen `{ok, active}` + driver-modus, nooit `detail`/URL/sleutel. Op `noop`
+  (demo) is er niets externs — eerlijk als "niets getest" gemeld (geen vals groen). **Geen geldverplaatsing**:
+  de zelftest maakt nooit een betaling/checkout aan.
+- **Bench-vooruitblik bemiddelaar (#797)** — `franchise/roster-availability-forecast.ts` + wiring in
+  `franchise/zzpers/page.tsx`. **Cross-tenant (A01):** beide Prisma-queries scopen op `tenantScopeWhere(actor)`
+  (fail-closed 403 zonder tenant); de nieuwe geneste `collaborations`-select hangt aan het al-tenant-gescopete
+  `freelancerProfile` en accepteert geen enkele client-id (geen IDOR-oppervlak). De forecast-module is **puur**
+  (geen I/O) en draagt alleen aggregaat (`{soon, thisWeek, earliestDays}`) + de eigen `freeDate` — nooit een
+  cross-tenant naam/titel/id.
+- **Beoordeling-next-action na samenwerking (#799)** — `collaboration-review-prompt.ts` (puur, geen I/O) +
+  `pending-tasks.ts`/`tasks.ts`. Alle in-scope paden zijn **read-only** (geen mutatie → geen nieuwe auth-keten
+  nodig); `reviewLeaveTasks(userId, role)` scoopt ownership via `{freelancer:{userId}}`/`{company:{userId}}` en
+  `userId`/`role` komen altijd uit `requireActor()`/`requireRole()`, nooit uit een request-parameter. PII-select
+  minimaal (`job.title`, `company.name`, `freelancer.user.name` + eigen review-existence op `authorId:userId`).
+- **Kandidaat-ranking / vergelijk (#798, gemergd onder de titel "cashflow"; zie LAAG-nota)** —
+  `candidate-ranking.ts` (puur, geen I/O, geen Prisma) + `kandidaten/vergelijk/page.tsx`. **IDOR (A01):** de
+  pagina accepteert **alleen** `?job=<id>`; de kandidatenset komt server-side uit
+  `application.findMany({where:{jobId: job.id}})` ná een ownership-gate `job.findFirst({where:{id, company:{userId:actor.id}}})`
+  → een opdrachtgever kán geen willekeurige freelancer-id's meegeven om vreemde kandidaten te vergelijken (het
+  invoerveld bestaat niet). Downstream-lookups her-scopen defensief (`company:{userId}`, `status:"PUBLISHED"`).
+  **PII (AVG art. 5):** select bevat geen e-mail/telefoon/adres/BSN/IBAN; `location` gaat alleen via
+  `classifyCandidateProximity` (grove bucket, nooit het rauwe adres); reputatie/kwaliteit pre-geaggregeerd. Geen
+  `dangerouslySetInnerHTML`, geen Zod-mutatieschema (read-only).
+
+Broad static sweep over de hele repo: `dangerouslySetInnerHTML` = alleen het genonce'd theme-script; raw SQL =
+alleen `SELECT 1`-health-checks (tagged template); geen `.passthrough()` in Zod; geen `NEXT_PUBLIC_*`-secret; geen
+`console.*` in de delta; geen `.env`/uploads/`.db` in git.
+
+### Geparkeerd deze ronde
+
+- **[LAAG · traceability / verantwoordingsplicht AVG art. 5(2)]** PR #798 is **gemergd onder de commit-titel**
+  "routine: cashflow-samenvatting 'openstaand & onderweg' op /facturen (ZZP'er)", maar de daadwerkelijke squash-diff
+  raakt uitsluitend `candidate-ranking.ts` + `kandidaten/vergelijk/page.tsx` — de kandidaat-ranking-feature, niet
+  cashflow. De cashflow-/openstaand-panels op `/facturen` (`openstaand-panel.tsx`, `debtor-summary-card.tsx`,
+  `prognose-panel.tsx`) bestáán al en dateren van vóór #798; er is niets verdwenen. Het is een **titel-mismatch**
+  door parallelle agents die hun WIP samen squashten, geen code-vuln en geen datalek. **Aanbevolen:** bij het
+  afronden van de cashflow-backlog-item de PROGRESS.md-regel voor #798 corrigeren zodat de projectadministratie
+  klopt (commit-titels zijn geen betrouwbare grondwaarheid voor wat er shipte). Geen fix in deze ronde — puur een
+  administratie-nota.
+- **[LAAG · dataminimalisatie AVG art. 5(1)(c)]** `kandidaten/vergelijk/page.tsx` selecteert `headline` uit Prisma
+  maar rendert/mapt het nergens (dode over-select — bereikt de client niet, dus geen lek). Opruimen bij de volgende
+  aanraking van dat bestand.
+
+### Geen nieuwe KRITIEK/HOOG/MIDDEL-bevindingen; geen nieuwe geparkeerde items
+
+De betaalprovider-zelftest hergebruikt het bestaande, al-gepoortte zelftest-patroon (hardcoded base-URL, geen
+user-URL, sleutel alleen in de auth-header, veilige error-reductie) i.p.v. een nieuw SSRF-/secret-pad; de
+franchise-/beoordeling-/kandidaat-oppervlakken zijn read-only en hergebruiken de bestaande tenant-/ownership-scoping.
+De eerder geëscaleerde mens-beslissingen blijven staan (steekproefvloer n=3 vs. eigen k≥10 voor de reputatie-/
+betaalsignalen; `Job.title`/`description` + `Performance.*`/`NoShowReport.reason` bij erasure).
+
 ## Ronde 2026-07-16 (2e — basis: `main` @ 3d441cd)
 
 Audit: orchestrator (Opus 4.8) op de **delta sinds de vorige ronde** (`a8d0139..3d441cd` — PR's #787–#794),

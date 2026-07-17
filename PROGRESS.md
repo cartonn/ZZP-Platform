@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-17 — Security-/privacy-auditronde delta `3d441cd..f32b9c7` (PR's #796–#800) — bevestigd schoon
+
+**Increment (security/privacy):** adversariële audit van de delta sinds de vorige ronde (orchestrator Opus 4.8 +
+2 parallelle Opus-security-subagents op niet-overlappende oppervlakken). Kader: OWASP Top 10 (A01/A03/A05/A07/A09/A10)
+
+- ASVS + AVG art. 5/9/15/30/32. **Geen nieuwe KRITIEK/HOOG/MIDDEL-bevindingen.**
+
+* **Betaalprovider-connectiviteitszelftest (#796)** — hardcoded provider-base-URL's (geen SSRF), sleutel alleen in
+  `Authorization: Bearer` (nooit in log/UI/audit/error), `BillingConnectivityError`/`safeBillingDetail` reduceren
+  fouten tot provider+status/error-naam, volledige keten `requireRole("ADMIN")` → rate-limit → actie → audit
+  (metadata alleen `{ok, active}`), READ-ONLY round-trip (Stripe `/balance`, Mollie `/methods`) — geen geldverplaatsing.
+* **Bench-vooruitblik (#797)** — beide queries `tenantScopeWhere(actor)` (fail-closed), forecast puur + aggregaat-only,
+  geen cross-tenant naam/id, geen IDOR.
+* **Beoordeling-nudge (#799)** + **kandidaat-ranking/vergelijk (#798)** — read-only, ownership-gescoped
+  (`company:{userId}`/`{freelancer:{userId}}`), IDOR onbereikbaar (geen client-id-invoer), PII-select minimaal.
+* **Stack:** Next.js 15.5.19 (voorbij CVE-2025-29927), `npm audit --omit=dev` = 0.
+* **Geparkeerd (LAAG):** #798-commit-titel-mismatch ("cashflow" ↔ kandidaat-ranking, administratie-nota, geen vuln);
+  dode `headline`-over-select in `kandidaten/vergelijk/page.tsx`. Zie `docs/SECURITY-PRIVACY-BACKLOG.md`.
+
+Gate: typecheck, lint, **4339 unit-tests**, build, prettier groen. Alleen `docs/`-updates (backlog + PROGRESS).
+
 ## 2026-07-17 — Beoordelings-nudge als next-action na een afgeronde samenwerking (ZZP'er + opdrachtgever)
 
 **Increment (reputatie/vertrouwen, beide zijden):** het tweezijdige beoordelingssysteem (double-blind reveal,
