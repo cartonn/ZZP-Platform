@@ -62,6 +62,7 @@ export const P = {
   applications: 50, // nieuwe reacties
   availabilityStale: 40, // gedeelde beschikbaarheidsagenda verlopen — findability-nudge (ZZP'er)
   completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)
+  reviewPrompt: 24, // afgeronde samenwerking nog te beoordelen (blind venster open) — reputatie-nudge
   drafts: 20, // concept-opdrachten
   // Franchiser-activatie: geleide opzet van een nieuwe tenant (begeleidend, niet alarmerend).
   // De banden zijn rol-geïsoleerd (alleen franchiser-acties), dus overlap met bovenstaande

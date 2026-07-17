@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-17 — Beoordelings-nudge als next-action na een afgeronde samenwerking (ZZP'er + opdrachtgever)
+
+**Increment (reputatie/vertrouwen, beide zijden):** het tweezijdige beoordelingssysteem (double-blind reveal,
+`Review`-model + `createReviewAction` + `ReviewForm` op het samenwerkingsdetail) bestond al, maar niets
+herinnerde een partij eraan om ná afronding daadwerkelijk te beoordelen — de "Beoordeling"-sectie stond stil
+op het detail en het blinde venster sloot vaak eenzijdig/ongebruikt. De item-engine (`pending-tasks.ts`) had
+géén enkele review-taak, dus `/acties`, de "Volgende acties"-rail én de zijbalk-badge zwegen erover. Reviews
+voeden reputatie → matching/vertrouwen; benchmark Malt/Temper/Deel vragen actief om een beoordeling na een
+klus. Nu een next-action **"Beoordeel {tegenpartij}"** voor élke afgeronde samenwerking die de actor nog kan
+beoordelen (venster open, nog niet zelf beoordeeld), voor beide rollen; deep-link naar het bestaande formulier.
+
+**Wat + bestanden:** pure `src/lib/collaboration-review-prompt.ts` (`reviewPromptForCollaboration` → `{daysLeft}`
+of `null`, hergebruikt exact `canLeaveReview` + `reviewWindowCloses`/`reviewWindowOpen` zodat de takenlijst het
+formulier op detail nooit tegenspreekt; 6 tests) + builder `reviewLeaveTask` (nieuwe kind `review-leave`, band
+`P.reviewPrompt=24` tussen `completeness`(30) en `drafts`(20); tone info, attention zodra ≤3 dagen/sluit vandaag;
+`resolver:"link"` → valt op de `default`-tak van `action-list.tsx`, geen UI-wiring; 3 tests) + `reviewLeaveTasks`-
+enumerator in `pending-tasks.ts` (één COMPLETED-query per rol, DB-voorgefilterd op het open venster
+`completedAt ≥ now-blindDays` OR null, `take:MAX`, `reviews where authorId` voor de al-beoordeeld-check — N+1-veilig)
+gewired in `freelancerTasks` (tegenpartij = opdrachtgever) én `clientTasks` (tegenpartij = ZZP'er). Read-only,
+**geen schemawijziging**, geen nieuw mutatie/auth-oppervlak. **11 nieuwe tests** (+2 integratie in
+`pending-tasks.test.ts`). Gate: typecheck, lint, **4339 unit-tests**, build, prettier `--check` groen.
+
 ## 2026-07-16 — "Aanbevolen keuze": gewogen totaalranglijst in de vergelijk-view (opdrachtgever)
 
 **Increment (opdrachtgever-UX, beslishulp):** de kandidaten-vergelijk-view (`/kandidaten/vergelijk`) zette

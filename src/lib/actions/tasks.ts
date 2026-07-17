@@ -72,6 +72,7 @@ export type PendingTask =
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
   | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
   | (TaskBase & { kind: "client-compliance"; collabId: string })
+  | (TaskBase & { kind: "review-leave"; collabId: string })
   | (TaskBase & { kind: "applications-review" })
   | (TaskBase & { kind: "stale-applications" })
   | (TaskBase & { kind: "availability-refresh" })
@@ -614,6 +615,38 @@ export function clientComplianceTask(
     // vóór het vervalt (70, gelijk aan de ZZP-zijdige "certificaat verloopt binnenkort"-band).
     priority: gap ? P.complianceRipple : P.credentialExpiring,
     resolver: "link",
+    href: collabHref(collabId),
+    collabId,
+  };
+}
+
+/**
+ * Nodig een partij (ZZP'er óf opdrachtgever) uit om een afgeronde samenwerking te beoordelen zolang
+ * het blinde venster nog open is. Vult het tweezijdige reputatiesysteem: zonder deze nudge bleef de
+ * beoordeling stil op het samenwerkingsdetail staan en sloot het venster vaak ongebruikt. Zachte
+ * reputatie-nudge (tone "info"); pas als het venster bijna sluit (≤ 3 dagen) attention, want daarna
+ * kan niemand meer beoordelen (anti-vergeldingsslot). Deep-link naar het samenwerkingsdetail waar het
+ * beoordelingsformulier onder exact dezelfde conditie (`canLeaveReview`) staat — geen nieuwe UI nodig.
+ */
+export function reviewLeaveTask(
+  collabId: string,
+  jobTitle: string,
+  counterparty: string,
+  daysLeft: number,
+): PendingTask {
+  const closingSoon = daysLeft <= 3;
+  const window =
+    daysLeft <= 0
+      ? "venster sluit vandaag"
+      : `nog ${plural(daysLeft, "dag", "dagen")} om te beoordelen`;
+  return {
+    kind: "review-leave",
+    id: `review-leave:${collabId}`,
+    title: `Beoordeel ${counterparty}`,
+    subtitle: `${jobTitle} · ${window}`,
+    tone: closingSoon ? "attention" : "info",
+    priority: P.reviewPrompt,
+    resolver: "link", // meerstaps formulier (score + toelichting) → naar de samenwerking
     href: collabHref(collabId),
     collabId,
   };

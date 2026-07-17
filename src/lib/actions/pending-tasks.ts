@@ -54,9 +54,12 @@ import {
   franchiseAcuteDienstTask,
   franchiseLeadFollowupTask,
   clientComplianceTask,
+  reviewLeaveTask,
   vatDeadlineTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
+import { reviewPromptForCollaboration } from "@/lib/collaboration-review-prompt";
+import { reviewBlindDays } from "@/lib/config";
 import { getVatDeadlineForActor } from "@/lib/data/vat-deadline";
 import { clientCredentialAlerts } from "@/lib/collaboration-alerts";
 import {
@@ -125,6 +128,64 @@ async function unreadConversations(userId: string): Promise<UnreadConversation[]
       subject: c?.job?.title ?? null,
     };
   });
+}
+
+/**
+ * Beoordelings-nudges: afgeronde samenwerkingen die de actor nog kan beoordelen (blind venster open,
+ * nog niet zelf beoordeeld). Eén query per rol, DB-voorgefilterd op het open venster (completedAt ná
+ * de vensterstart, óf legacy-rijen zonder completedAt) + take-limiet — N+1-veilig. De pure
+ * `reviewPromptForCollaboration` past exact dezelfde eligibiliteit toe als de detailpagina, zodat de
+ * takenlijst het beoordelingsformulier daar nooit tegenspreekt. `role` bepaalt de partij-scoping en
+ * wie de tegenpartij (de beoordeelde) is.
+ */
+async function reviewLeaveTasks(
+  userId: string,
+  role: "FREELANCER" | "CLIENT",
+  now: Date,
+): Promise<PendingTask[]> {
+  const blindDays = reviewBlindDays();
+  // Venster kan alleen nog open zijn als het anker (afronding) ná dit moment ligt. completedAt=null
+  // (legacy) valt op createdAt terug — die rijen laten we door de pure guard filteren.
+  const windowStart = new Date(now.getTime() - blindDays * 86_400_000);
+  const partyWhere = role === "FREELANCER" ? { freelancer: { userId } } : { company: { userId } };
+
+  const collabs = await prisma.collaboration.findMany({
+    where: {
+      ...partyWhere,
+      status: "COMPLETED",
+      OR: [{ completedAt: { gte: windowStart } }, { completedAt: null }],
+    },
+    select: {
+      id: true,
+      completedAt: true,
+      createdAt: true,
+      job: { select: { title: true } },
+      company: { select: { name: true } },
+      freelancer: { select: { user: { select: { name: true } } } },
+      // Heeft de actor deze samenwerking al beoordeeld? @@unique([collaborationId, authorId]).
+      reviews: { where: { authorId: userId }, select: { id: true }, take: 1 },
+    },
+    orderBy: { completedAt: "desc" },
+    take: MAX,
+  });
+
+  const tasks: PendingTask[] = [];
+  for (const c of collabs) {
+    const prompt = reviewPromptForCollaboration({
+      collaborationStatus: "COMPLETED",
+      completionAnchor: c.completedAt ?? c.createdAt,
+      alreadyReviewedByActor: c.reviews.length > 0,
+      blindDays,
+      now,
+    });
+    if (!prompt) continue;
+    const counterparty =
+      role === "FREELANCER"
+        ? (c.company.name ?? "de opdrachtgever")
+        : (c.freelancer.user.name ?? "de ZZP'er");
+    tasks.push(reviewLeaveTask(c.id, c.job.title, counterparty, prompt.daysLeft));
+  }
+  return tasks;
 }
 
 // Request-gecachet (React.cache): de layout (sidebar-badge) en de pagina (dashboard/acties)
@@ -394,6 +455,9 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   const vatDeadline = await getVatDeadlineForActor(userId, "FREELANCER", now);
   if (vatDeadline) tasks.push(vatDeadlineTask(vatDeadline));
 
+  // Afgeronde samenwerkingen die nog beoordeeld kunnen worden (blind venster open) — reputatie-nudge.
+  tasks.push(...(await reviewLeaveTasks(userId, "FREELANCER", now)));
+
   return tasks;
 }
 
@@ -506,6 +570,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   // BTW-aangifte-deadline (zie freelancerTasks) — ook de opdrachtgever heeft een eigen grootboek.
   const vatDeadline = await getVatDeadlineForActor(userId, "CLIENT");
   if (vatDeadline) tasks.push(vatDeadlineTask(vatDeadline));
+
+  // Afgeronde samenwerkingen die nog beoordeeld kunnen worden (blind venster open) — reputatie-nudge.
+  tasks.push(...(await reviewLeaveTasks(userId, "CLIENT", new Date())));
 
   return tasks;
 }

@@ -9,13 +9,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const state = vi.hoisted(() => ({
   collabs: [] as unknown[],
+  completedCollabs: [] as unknown[],
   overdueCount: 0,
 }));
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn(async () => ({ identityVerifiedAt: new Date() })) },
-    collaboration: { findMany: vi.fn(async () => state.collabs) },
+    // De review-nudge-query (status COMPLETED) is een aparte findMany met eigen state; de
+    // lopende (ACTIVE/PROPOSED) tak leest state.collabs. Zo isoleert elke test wat hij toetst.
+    collaboration: {
+      findMany: vi.fn(async (args?: { where?: { status?: unknown } }) =>
+        args?.where?.status === "COMPLETED" ? state.completedCollabs : state.collabs,
+      ),
+    },
     conversationParticipant: { findMany: vi.fn(async () => []) },
     message: { groupBy: vi.fn(async () => []) },
     conversation: { findMany: vi.fn(async () => []) },
@@ -55,8 +62,22 @@ function collab(id: string, invoices: { id: string; lifecycleStatus: string }[])
 
 beforeEach(() => {
   state.collabs = [];
+  state.completedCollabs = [];
   state.overdueCount = 0;
 });
+
+// Afgeronde samenwerking zoals de review-nudge-query (status COMPLETED) hem oplevert.
+function completedCollab(id: string, opts: { completedAt: Date | null; reviewedByActor: boolean }) {
+  return {
+    id,
+    completedAt: opts.completedAt,
+    createdAt: opts.completedAt ?? new Date(),
+    job: { title: "Verpleegkundige" },
+    company: { name: "Zorgcentrum Noord" },
+    freelancer: { user: { name: "Sanne de Vries" } },
+    reviews: opts.reviewedByActor ? [{ id: "rev-1" }] : [],
+  };
+}
 
 describe("freelancerTasks — betaal-/overdue-tak", () => {
   it("toont een specifieke betaal-taak (attention) voor een OVERDUE-factuur — verdwijnt niet meer", async () => {
@@ -95,5 +116,30 @@ describe("freelancerTasks — betaal-/overdue-tak", () => {
     const generic = tasks.find((t) => t.kind === "overdue-invoice");
     expect(generic).toBeDefined();
     expect(generic?.title).toContain("1");
+  });
+});
+
+describe("freelancerTasks — beoordelings-nudge na afronding", () => {
+  it("toont een review-taak voor een afgeronde, nog-niet-beoordeelde samenwerking (venster open)", async () => {
+    state.completedCollabs = [
+      completedCollab("done-1", { completedAt: new Date(), reviewedByActor: false }),
+    ];
+
+    const tasks = await pendingTasks(ACTOR);
+    const review = tasks.find((t) => t.id === "review-leave:done-1");
+    expect(review).toBeDefined();
+    expect(review?.kind).toBe("review-leave");
+    expect(review?.href).toBe("/samenwerkingen/done-1");
+    // De ZZP'er beoordeelt de opdrachtgever (tegenpartij = company).
+    expect(review?.title).toContain("Zorgcentrum Noord");
+  });
+
+  it("geen review-taak zodra de actor al beoordeeld heeft", async () => {
+    state.completedCollabs = [
+      completedCollab("done-2", { completedAt: new Date(), reviewedByActor: true }),
+    ];
+
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.id === "review-leave:done-2")).toBe(false);
   });
 });
