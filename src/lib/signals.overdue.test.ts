@@ -68,4 +68,24 @@ describe("overdueInvoiceCount — scoping", () => {
       disputedAt: null,
     });
   });
+
+  it("CLIENT: cascade-facturen (lifecycleStatus=OVERDUE) tellen NIET mee — geen dode 'Markeer als betaald'", async () => {
+    // Regressietest: in de cascade registreert de ZZP'er de betaling (stage.ts stap 6,
+    // `youAreUp:isFreelancer`); de opdrachtgever staat op "Wacht op betalingsbevestiging"
+    // (`youAreUp:false`) en heeft nergens een "Markeer als betaald"-knop (`canPay = !cascade`).
+    // Vóór de fix telde de CLIENT-roll-up de `{ lifecycleStatus: "OVERDUE" }`-tak wél mee → de
+    // opdrachtgever kreeg een niet-verdwijnende "Markeer als betaald"-next-action die de cascade-fase
+    // tegensprak en naar een knop wees die voor cascade-facturen niet bestaat.
+    await overdueInvoiceCount("CLIENT", "cl-1");
+    const where = countMock.mock.calls[0]![0].where;
+    // De opdrachtgever telt uitsluitend legacy-/handmatige facturen (lifecycleStatus=null), waar hij
+    // wél kan afrekenen. Geen enkele tak mag een cascade-factuur (lifecycleStatus=OVERDUE) matchen.
+    expect(where.OR).toEqual([
+      { lifecycleStatus: null, status: "OVERDUE" },
+      { lifecycleStatus: null, status: "SENT", dueAt: { lt: expect.any(Date) } },
+    ]);
+    for (const clause of where.OR as Array<Record<string, unknown>>) {
+      expect(clause).toMatchObject({ lifecycleStatus: null });
+    }
+  });
 });

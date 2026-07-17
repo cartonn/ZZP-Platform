@@ -1,5 +1,59 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-17 (run 34) · **main-commit basis:** `5b27a92`
+> **Uitkomst:** **1 next-action-correctheidsdefect (DOEL 1b) gevonden én OPGELOST** — de
+> opdrachtgever kreeg voor een **cascade-factuur die OVER DE VERVALDATUM** raakte een
+> "Markeer als betaald"-next-action, terwijl hij die actie in de cascade helemaal niet uitvoert.
+> Verse prod-build (`npm run build`), schema-push + idempotente demo-seed (`SEED_DEMO=true`; 13
+> samenwerkingen/7 facturen/48 grootboekregels) op ephemere SQLite (`prisma/qa.db`), prod-server
+> (`next start`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`, `STORAGE_DRIVER=local`). Vier rollen
+> ingelogd via het echte credentials-endpoint (`demo1234`); cookie-getrouwe `curl`-sweep + drie
+> parallelle Opus-code-audits (IDOR/authz-keten, malicieuze invoer, next-action-correctheid).
+>
+> **DOEL 1 (werkt het, live):** privilege-escalatie-poort en soft-404-robuustheid opnieuw bevestigd
+> (zie DOEL 2). **DOEL 2 (adversarieel, live — alle correct):** privilege-escalatie (ZZP/CLIENT/
+> FRANCHISER → `/admin/*`; niet-FRANCHISER → `/franchise/*`) → **307-redirect**, nooit 200/500.
+> IDOR met **echte vreemde id's** uit de DB (vreemde factuur-PDF, samenwerking-`dossier`, privé-
+> `document`) → **403** voor ZZP + FRANCHISER; eigen resource → 200. Junk/sqli/traversal-id
+> (`000…0`-cuid, `1' OR '1'='1`, `..%2F..%2Fetc%2Fpasswd`, `/api/media/..`) → **404**, nooit 500.
+> De twee code-audits over de authz-keten (auth→rol→ownership→Zod→actie→audit) en malicieuze
+> numerieke/CSV/upload-invoer kwamen **schoon** terug — geen uitvoerbaar gat (ownership altijd vóór de
+> mutatie, `Number.isFinite`-guards + int4-clamps overal, CSV-formule-guard + upload-magic-byte-check).
+>
+> **GEVONDEN + GEFIXT — MED (next-action-correctheid, DOEL 1b — verkeerde partij aan zet):** de
+> generieke overdue-roll-up telde voor de **opdrachtgever** óók **cascade-facturen**
+> (`lifecycleStatus="OVERDUE"`) mee (`overdueInvoiceCount("CLIENT")` in `src/lib/signals.ts`), wat een
+> `overdueInvoiceTask(count,"CLIENT")` met subtitel **"Markeer als betaald"** (tone `attention`, link
+> `/facturen`) opleverde. In de cascade registreert de **ZZP'er** de betaling (`cascade/stage.ts` stap
+> 6: `youAreUp:isFreelancer`, "Markeer de betaling zodra je bent betaald"); de opdrachtgever staat op
+> **"Wacht op betalingsbevestiging"** (`youAreUp:false`) en heeft voor een cascade-factuur **nergens**
+> een "Markeer als betaald"-knop (`facturen/[id]/page.tsx` `canPay = !cascade`). De next-action was dus
+> een **dode, niet-verdwijnende nudge** die de cascade-fase tegensprak en naar een niet-bestaande knop
+> wees. **Repro (pre-fix):** log in als de opdrachtgever van een ACTIVE-samenwerking met een APPROVED
+> cascade-factuur → zet die factuur op `lifecycleStatus=OVERDUE` (dueAt in het verleden) → `/acties` en
+> `/dashboard` tonen "X facturen over de vervaldatum · Markeer als betaald" terwijl de opdrachtgever
+> daar niets kan afrekenen. **Geschonden regel:** server-side waarheid / next-action-correctheid
+> (DOEL 1b) — de getoonde actie hoort bij de andere partij en verdwijnt nooit vanuit de opdrachtgever.
+> **Fix:** de cascade-tak `{ lifecycleStatus: "OVERDUE" }` in `overdueInvoiceCount` geldt nu **alleen
+> voor FREELANCER** (de ZZP-kant ontdubbelt al met `surfacedOverdue` in `pending-tasks.ts`); de
+> opdrachtgever telt uitsluitend **legacy-/handmatige** facturen (`lifecycleStatus=null`), waar hij wél
+> een mark-paid-knop heeft. Rood→groen unit-test in `signals.overdue.test.ts` (CLIENT-`OR` bevat geen
+> cascade-tak meer; elke tak eist `lifecycleStatus=null`).
+>
+> **GEPARKEERD — LAAG (dode code, DOEL 1b, latent):** twee ongewirede next-action-aggregators bevatten
+> onvolledige/asymmetrische logica die zou bijten zodra iemand ze rendert. (1) `freelancerNextActions`/
+> `clientNextActions` in `src/lib/next-actions.ts` (regels 97-177/194-266) missen de midden-cascade-
+> acties (uren indienen, factuur indienen, betaling markeren, corrigeren; opdrachtgever mist "uren
+> goedkeuren"/"factuur goedkeuren"). (2) `cascadeFreelancerActions` in `src/lib/cascade/next-actions.ts`
+> (15-65) mist de ZZP-instapactie "dien je uren in" (Event B1), terwijl `cascadeClientActions` beide
+> client-stappen wél dekt. Beide paden hebben **geen niet-test-caller** (alleen `franchiserNextActions`
+> is gewired via `dashboard/page.tsx`); de gerenderde `pendingTasks()`+`cascadeStage`-motor is wél
+> consistent met de state-machine. `prompts/WORKSPACE_OVERHAUL.md:32` ("al gewired in dashboardData")
+> is **verouderd/onjuist**. **Prioriteit LAAG** (latent). Aanbeveling: verwijder de dode aggregators óf
+> vul ze aan vóór hergebruik, en corrigeer de stale doc-claim.
+
+---
+
 > **Datum:** 2026-07-17 (run 33) · **main-commit basis:** `ab78f40`
 > **Uitkomst:** **1 robuustheidsgat (HOOG) gevonden én OPGELOST** (DOEL 2) — een niet-eindig getal
 > (`NaN`) in de prestatie-invoer (urenstaat/oplevering) glipte door álle bovengrens-validatie.

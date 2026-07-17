@@ -3,6 +3,8 @@
 // dat-ie het dashboard hoeft te openen. Server-side is de waarheid (deterministisch,
 // zelfde drempels als het dashboard). De UI toont alleen wat hier wordt geteld.
 
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
 import { SUPPORT_OPEN_STATUSES } from "@/lib/support/labels";
@@ -197,17 +199,22 @@ export function countUnreadConversations(
 export async function overdueInvoiceCount(role: UserRole, userId: string): Promise<number> {
   if (role === "ADMIN" || role === "FRANCHISER") return 0;
   const party = role === "FREELANCER" ? { freelancer: { userId } } : { company: { userId } };
+  const or: Prisma.InvoiceWhereInput[] = [
+    // Legacy-/handmatige facturen (geen lifecycle): val terug op het legacy status-veld. Hier ís de
+    // opdrachtgever aan zet ("Markeer als betaald" bestaat alléén voor een !cascade-factuur — zie
+    // `facturen/[id]/page.tsx` canPay), dus deze takken gelden voor beide partijen.
+    { lifecycleStatus: null, status: "OVERDUE" },
+    { lifecycleStatus: null, status: "SENT", dueAt: { lt: new Date() } },
+  ];
+  // Cascade-facturen (lifecycleStatus=OVERDUE) horen ALLEEN in de roll-up van de ZZP'er: in de
+  // cascade registreert de ZZP'er de betaling (`stage.ts` stap 6, `youAreUp:isFreelancer`), terwijl de
+  // opdrachtgever op "Wacht op betalingsbevestiging" staat (`youAreUp:false`) en nergens een
+  // "Markeer als betaald"-knop heeft (`canPay = !cascade`). Zou de opdrachtgever ze wél tellen, dan
+  // toont de generieke roll-up hem een dode, niet-verdwijnende "Markeer als betaald"-actie die de
+  // cascade-fase tegenspreekt. De ZZP-kant ontdubbelt met `surfacedOverdue` (zie pending-tasks.ts).
+  if (role === "FREELANCER") or.unshift({ lifecycleStatus: "OVERDUE" });
   return prisma.invoice.count({
-    where: {
-      collaboration: { ...party, disputedAt: null },
-      OR: [
-        // Cascade-facturen: alleen de lifecycle bepaalt "over de vervaldatum" (koppelt met status).
-        { lifecycleStatus: "OVERDUE" },
-        // Legacy-/handmatige facturen (geen lifecycle): val terug op het legacy status-veld.
-        { lifecycleStatus: null, status: "OVERDUE" },
-        { lifecycleStatus: null, status: "SENT", dueAt: { lt: new Date() } },
-      ],
-    },
+    where: { collaboration: { ...party, disputedAt: null }, OR: or },
   });
 }
 
