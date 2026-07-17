@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-17 — Reactiebereidheid-chip op de opdrachtenlijst (ZZP'er)
+
+**Increment (UX/triage, ZZP'er):** op `/opdrachten` (browse-/triage-lijst) toonde elke kaart al
+ZZP-zijdige signalen (match, reistijd, concurrentie, betaalgedrag, startdatum, tarief-fit,
+beschikbaarheid) maar niet of de opdrachtgever binnengekomen reacties überhaupt oppakt — dat signaal
+(`computeClientResponsiveness`) leefde alleen op de opdracht-detailpagina (`ClientResponsivenessBlock`).
+"Pakt deze opdrachtgever reacties op of laat hij ze liggen?" is een kern-triagevraag vóór je je tijd in
+een reactie steekt (benchmark Malt/Temper). Nu een compacte chip per kaart — **"Pakt reacties op"**
+(good) / **"Laat reacties liggen"** (warning), alleen bij een uitgesproken reputatie (neutral/unknown →
+geen chip, lijst blijft rustig).
+
+**Wat + bestanden:** pure `responsivenessChip` in `src/lib/client-responsiveness.ts` (mapt het bestaande
+`ClientResponsiveness`-signaal naar `{label,tone}`, alleen good/warning, module-taal "oppakken"/"laten
+liggen" → geen tegenspraak met het detailblok; +6 tests) + wiring in `opdrachten/(index)/page.tsx`
+(`responsivenessByJob`-map via de begrensde batch-loader `getClientResponsivenessForCompanies`, alleen
+ZZP'er, zichtbare gepagineerde opdrachten, `MessageSquareReply`-chip ná de tarief-fit-chip). Read-only,
+geen schemawijziging, geen nieuw mutatie/auth-oppervlak; toont uitsluitend het geaggregeerde oordeel per
+opdrachtgever (≥3 reacties) — nooit een individuele reactie van een andere ZZP'er (privacy by design).
+Gate: typecheck, lint, unit-tests (responsiveness 22/22), build, prettier groen.
+
 ## 2026-07-17 — Persona-sweep run 33: NaN-robuustheidsgat in prestatie-invoer gefixt (DOEL 2)
 
 **Increment (robuustheid/security, DOEL 2 — malicieuze/absurde invoer):** kritische-gebruiker-sweep over

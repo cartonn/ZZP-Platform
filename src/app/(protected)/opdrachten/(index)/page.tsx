@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Gauge,
   MapPin,
+  MessageSquareReply,
   Minus,
   Navigation,
   Plus,
@@ -55,6 +56,8 @@ import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition"
 import { paymentTrustChip, type PaymentTrustChip } from "@/lib/payment-behavior";
 import { jobRateFitChip, type JobRateFitChip } from "@/lib/job-rate-fit";
 import { getPaymentBehaviorForCompanies } from "@/lib/data/payment-behavior";
+import { responsivenessChip } from "@/lib/client-responsiveness";
+import { getClientResponsivenessForCompanies } from "@/lib/data/client-responsiveness";
 import {
   summarizeVacancyPerformance,
   type VacancyPerformanceSummary,
@@ -556,6 +559,25 @@ async function BrowseJobs({
     }
   }
 
+  // Reactiebereidheid-signaal per zichtbare opdracht (alleen ZZP'er): pakt deze opdrachtgever binnengekomen
+  // reacties doorgaans op, of laat hij ze liggen? Het "geruster"-tegenhanger van het betaalsignaal — tot nu
+  // toe alleen op de opdracht-detailpagina (`ClientResponsivenessBlock`), niet op de triage-lijst. Hergebruikt
+  // exact hetzelfde geaggregeerde signaal (`computeClientResponsiveness`, via de begrensde batch-loader); toont
+  // uitsluitend de beslis-relevante uitersten (oppakt / laat liggen) en zwijgt bij een neutrale/onbekende
+  // reputatie (`responsivenessChip` → null) zodat de lijst rustig blijft. Geen individuele reactie van een
+  // andere ZZP'er lekt — alleen het geaggregeerde oordeel per opdrachtgever.
+  const responsivenessByJob = new Map<string, ReturnType<typeof responsivenessChip>>();
+  if (profile && visibleJobs.length > 0) {
+    const responsivenessByCompany = await getClientResponsivenessForCompanies(
+      visibleJobs.map((job) => job.companyId),
+    );
+    for (const job of visibleJobs) {
+      const signal = responsivenessByCompany.get(job.companyId);
+      const chip = signal ? responsivenessChip(signal) : null;
+      if (chip) responsivenessByJob.set(job.id, chip);
+    }
+  }
+
   // Bij match-sortering pagineren we de in het geheugen gerangschikte (begrensde) set; anders de
   // volledige databanktelling. `total` blijft de eerlijke "gevonden"-teller in de kop.
   const paginationTotal = effectiveMatchSort ? jobs.length : total;
@@ -711,6 +733,20 @@ async function BrowseJobs({
                             ].join(" ")}
                           >
                             <Wallet className="size-3" aria-hidden /> {chip.label}
+                          </span>
+                        );
+                      })()}
+                      {(() => {
+                        const chip = responsivenessByJob.get(job.id);
+                        if (!chip) return null;
+                        return (
+                          <span
+                            className={[
+                              "inline-flex items-center gap-1",
+                              chip.tone === "good" ? "text-success" : "font-medium text-warning",
+                            ].join(" ")}
+                          >
+                            <MessageSquareReply className="size-3" aria-hidden /> {chip.label}
                           </span>
                         );
                       })()}

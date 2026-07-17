@@ -127,6 +127,27 @@ export function describeApplicantResponsiveness(
   return null;
 }
 
+/**
+ * Compacte chip-variant van het reactiebereidheid-signaal voor de browse-/triage-lijst (`/opdrachten`):
+ * pakt deze opdrachtgever binnengekomen reacties doorgaans op, of laat hij ze liggen? De list-tegenhanger
+ * van het `ClientResponsivenessBlock` dat al op de opdracht-detailpagina staat — zodat de ZZP'er dit ziet
+ * vóór hij zijn tijd in een reactie steekt. Toont uitsluitend de beslis-relevante uitersten (`good`/
+ * `warning`) en geeft `null` bij `neutral`/`unknown`, zodat de lijst rustig blijft. Puur en deterministisch;
+ * uitsluitend geaggregeerde tellingen — nooit een reactie van een andere ZZP'er. De labels volgen de
+ * module-taal ("oppakken" / "laten liggen") en spreken het detailblok dus niet tegen.
+ */
+export function responsivenessChip(
+  responsiveness: ClientResponsiveness,
+): { tone: "good" | "warning"; label: string } | null {
+  if (responsiveness.tone === "good") {
+    return { tone: "good", label: "Pakt reacties op" };
+  }
+  if (responsiveness.tone === "warning") {
+    return { tone: "warning", label: "Laat reacties liggen" };
+  }
+  return null;
+}
+
 function determineTone(handledPct: number, stalePending: number): ResponsivenessTone {
   // Goed: bijna alles opgepakt én niets te lang laten liggen.
   if (handledPct >= GOOD_MIN_HANDLED_PCT && stalePending === 0) return "good";
