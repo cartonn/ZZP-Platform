@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — Persona-sweep run 36: throwing `.parse` → `safeParse` op vijandige enum-invoer (6 server-acties)
+
+**Gat (geparkeerde LOW, persona-sweep run 35 — uitgebreid):** zes server-acties parsten een door de
+client aangeleverde enum-waarde met de **throwing `.parse`** i.p.v. de repo-conventie `safeParse` +
+nette domeinfout (`franchise/diensten/actions.ts`). Een geknutselde POST met een waarde buiten de enum
+gaf een **onafgevangen ZodError → generieke 500** i.p.v. een nette domeinafwijzing (DOEL 2 —
+robuustheid). Bij `changeJobStatus` was het extra inconsistent: die actie retourneert overal een
+fout-object (`JobStatusState`) maar throwde een rauwe ZodError op een vijandige `target`.
+
+**Fix:** alle zes gehard met `safeParse` (afwijzing vóór elke DB-I/O):
+
+- `admin/no-shows/actions.ts` (`judgeNoShowReport`) → "Ongeldig oordeel."
+- `admin/gebruikers/actions.ts` (`setUserStatus`) → "Ongeldige accountstatus."
+- `abonnement/actions.ts` (`changeSubscription`) → "Ongeldig abonnement."
+- `samenwerkingen/actions.ts` (`changeCollaborationStatus`) → "Ongeldige doelstatus."
+- `kandidaten/actions.ts` (`changeApplicationStatus`) → "Ongeldige doelstatus."
+- `opdrachten/actions.ts` (`changeJobStatus`) → **retourneert** `{ error: "Ongeldige doelstatus." }`
+  (past bij zijn `JobStatusState`-retourtype i.p.v. te throwen).
+
+**Tests (rood→groen):** zes nieuwe test-bestanden naast de acties bewijzen dat een enum-vreemde waarde
+netjes wordt geweigerd **vóór** elke prisma-call, en dat een geldige waarde de poort passeert en de
+volgende stap bereikt.
+
+**Checks:** `npm run typecheck` · `npm run lint` · `npm run test` · `npm run build` · `prettier --write`.
+
+---
+
 ## 2026-07-18 — Race-safe auto-afronding bij betaling (Event E) (PR #821)
 
 **Gat (geparkeerde MED, persona-sweep run 26/35):** `confirmPayment` (Event E) bepaalt of de betaling

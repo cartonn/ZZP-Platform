@@ -1,5 +1,53 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-18 (run 36) · **main-commit basis:** `dd47c9f`
+> **Uitkomst:** **1 HIGH (DOEL 2, verboden statusovergang / geld-correctheid) + 1 LAAG (DOEL 2,
+> robuustheid) gevonden én OPGELOST.** Parallelle Opus security-audit op de ~15 recent gewijzigde
+> bestanden + cascade/authz-motor + tenant-isolatie.
+>
+> **GEVONDEN + GEFIXT — HIGH (DOEL 2, verboden statusovergang — cascade loopt door ná annulering):**
+> de annuleer-rem in `applyCollaborationStatusChange` (`samenwerkingen/actions.ts`) checkte alléén
+> "openstaande" facturen via `outstandingInvoiceWhere` (lifecycleStatus SUBMITTED/APPROVED/OVERDUE) —
+> **NIET** een DRAFT-cascadefactuur en **helemaal geen** ingediende (SUBMITTED) prestatie. Asymmetrisch
+> met de afronden-rem (`completionBlockReason`, die DRAFT-facturen én SUBMITTED-prestaties telt).
+> **Repro:** FREELANCER dient een prestatie in op een ACTIVE samenwerking (→ SUBMITTED); CLIENT
+> annuleert de samenwerking (**slaagde** — de rem zag de prestatie niet); CLIENT keurt de nu-verweesde
+> prestatie alsnog goed → DRAFT-factuur → indienen → goedkeuren → "markeer betaald" → **volledige
+> facturatiecascade op een geannuleerde deal** (de downstream cascade-commando's — `approvePerformance`/
+> `submitInvoice`/`approveInvoice`/`confirmPayment` — checken de collaboration-status niet; alleen
+> `submitPerformance` blokkeert nieuw werk ná annulering via `status !== "ACTIVE"`). **Geschonden regel:**
+> "afronden/annuleren met open geld/onbeoordeelde prestatie moet onmogelijk zijn" (CLAUDE.md) +
+> server-side waarheid. **Fix:** de annuleer-rem is nu **symmetrisch** met de afronden-rem — nieuwe pure
+> helper `cancellationBlockReason` (spiegelt `completionBlockReason`, annuleer-bewoording) telt élke
+> niet-afgewikkelde factuur (óók DRAFT) én elke SUBMITTED-prestatie, toegepast in **zowel de pre-check
+> als de in-transactie her-verificatie** (TOCTOU-dicht, spiegelt de afrond-rem). Zo is het venster aan
+> de voorkant gesloten: annuleren kan niet meer met werk-in-uitvoering, en `submitPerformance` blokkeert
+> al nieuw werk erna → de verweesde-cascade is onbereikbaar. Rood→groen: `completion.test.ts`
+> (`cancellationBlockReason`, 6 tests) + `samenwerkingen/completion-race.test.ts` (annuleer-rem: prestatie/
+> DRAFT-factuur/TOCTOU-race/schone-annulering/PAID-geen-vals-positief, 5 tests).
+>
+> **GEPARKEERD — MED (DOEL 2, defense-in-depth — cascade-commando's checken terminale collab-status
+> niet):** `approvePerformance`/`submitInvoice`/`approveInvoice`/`confirmPayment` (`src/lib/cascade/
+{performance,invoice,payment}-commands.ts`) gebruiken alleen `assertNotDisputed` en checken niet of
+> de samenwerking al CANCELLED/COMPLETED (terminaal) is — anders dan `submitPerformance`, dat wél
+> `status !== "ACTIVE"` weigert. De HIGH-fix hierboven sluit de bekende bereikbare route (annuleren met
+> open werk is nu onmogelijk), maar een systemische **terminale-status-rem** op alle forward-cascade-
+> mutaties (spiegelt `assertNotDisputed`) is robuuster tegen een toekomstig nieuw pad naar een terminale
+> status. Eigen increment (cascade-motor, ruimere blast-radius op bestaande tests). **Prioriteit MED.**
+>
+> **GEPARKEERD — LAAG (UX, geen beveiligingsgat — `frozen` dekt CANCELLED niet):** de
+> samenwerking-detailpagina (`samenwerkingen/[id]/page.tsx`) leidt `frozen` alleen af uit `disputedAt`,
+> niet uit `status === "CANCELLED"`. Server-side is de waarheid nu dichtgezet (mutaties op een
+> geannuleerde deal worden geweigerd), dus dit is puur cosmetisch — knoppen zonder actionabele lading.
+> Netter: `frozen` ook op CANCELLED/COMPLETED zetten zodat de UI de bevroren staat toont. **LAAG.**
+>
+> **Robuustheid-LOW (uit run 35, nu OPGELOST):** throwing `.parse` op vijandige enum → gehard met
+> `safeParse` in **alle zes** server-acties (`admin/no-shows`, `admin/gebruikers`, `abonnement`,
+> `samenwerkingen`, `kandidaten`, `opdrachten`). Zes rood→groen-tests. Zie de OPGELOST-regel in de
+> run-35-sectie hieronder.
+
+---
+
 > **Datum:** 2026-07-18 (run 35) · **main-commit basis:** `3a4a4ae`
 > **Uitkomst:** **2 integriteitsdefecten gevonden én OPGELOST** (1 MED + 1 LAAG, beide DOEL 2 —
 > server-side-waarheid / verboden statusovergang). Verse prod-build (`npm run build`), schema-push +
@@ -67,13 +115,12 @@
 > behouden throw bij niet-optional (`apply.test.ts`), planner-emit (`handlers.test.ts`). Bestaande
 > status-changes zonder `guard`/`optional` blijven identiek (additief).
 >
-> **GEPARKEERD — LAAG (DOEL 2, robuustheid — throwing `.parse` op vijandige enum):**
-> `admin/no-shows/actions.ts:17` (`noShowVerdictSchema.parse`) en `admin/gebruikers/actions.ts:25`
-> (`userStatusSchema.parse`) gebruiken de throwing `.parse` op een door de client aangeleverde waarde;
-> een geknutselde admin-POST met een waarde buiten de enum geeft een **onafgevangen 500** i.p.v. een
-> nette domeinfout. Admin-gated (lage impact), maar inconsistent met de eigen safeParse-hardening
-> elders (`franchise/diensten/actions.ts`). **Fix (park):** `safeParse` + nette retour. **Prioriteit
-> LAAG.**
+> **~~GEPARKEERD~~ OPGELOST — LAAG (DOEL 2, robuustheid — throwing `.parse` op vijandige enum)
+> (2026-07-18, run 36):** `admin/no-shows/actions.ts` + `admin/gebruikers/actions.ts` gebruikten de
+> throwing `.parse` op een client-waarde → onafgevangen ZodError/500 i.p.v. nette domeinfout. **Gefixt
+> én uitgebreid** naar alle zes acties met dezelfde klasse (`abonnement`, `samenwerkingen`,
+> `kandidaten`, `opdrachten`): elke actie hardt nu met `safeParse` vóór DB-I/O; `changeJobStatus`
+> retourneert `{ error }` passend bij `JobStatusState`. Zes rood→groen-tests toegevoegd.
 
 ---
 

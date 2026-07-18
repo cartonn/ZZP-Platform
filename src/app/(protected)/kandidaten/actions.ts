@@ -37,7 +37,11 @@ export async function changeApplicationStatus(
   formData?: FormData,
 ): Promise<void> {
   const actor = await requireRole("CLIENT");
-  const targetStatus = applicationStatusSchema.parse(target);
+  // safeParse (geen throwing .parse): een geknutselde POST met een `target` buiten de enum mag geen
+  // onafgevangen ZodError/500 geven, maar een nette domeinfout — spiegelt franchise/diensten.
+  const parsedTarget = applicationStatusSchema.safeParse(target);
+  if (!parsedTarget.success) throw new Error("Ongeldige doelstatus.");
+  const targetStatus = parsedTarget.data;
   const app = await loadOwnedApplication(actor, appId);
 
   // Zodra er een samenwerking uit deze reactie is voortgekomen, is de reactie gebonden aan het
