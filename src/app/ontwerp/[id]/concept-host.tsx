@@ -1177,6 +1177,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "390": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-390-windvaan").then((m) => m.Concept390),
   ),
+  "391": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-391-risograaf").then((m) => m.Concept391),
+  ),
+  "392": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-392-eink").then((m) => m.Concept392),
+  ),
+  "393": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-393-synthwave").then((m) => m.Concept393),
+  ),
+  "394": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-394-origami").then((m) => m.Concept394),
+  ),
+  "395": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-395-terrazzo").then((m) => m.Concept395),
+  ),
+  "396": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-396-borduurwerk").then((m) => m.Concept396),
+  ),
+  "397": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-397-metrokaart").then((m) => m.Concept397),
+  ),
+  "398": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-398-herbarium").then((m) => m.Concept398),
+  ),
+  "399": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-399-printplaat").then((m) => m.Concept399),
+  ),
+  "400": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-400-almanak").then((m) => m.Concept400),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
