@@ -6743,6 +6743,177 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#ece6d3",
     available: true,
   },
+  // ── Reeks 41 (run 18-7-2026) — nrs 401–410, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "401",
+    name: "Meniscus",
+    direction: "Liquid Glass — dynamische specular refractie (licht)",
+    rationale:
+      "Apple's Liquid-Glass-taal van 2026, smaakvol getemperd: heldere glaspanelen met een specular highlight-rand, zachte lensbreking en licht-op-licht diepte. Leesbaarheid gaat altijd vóór het effect — content rust op solide leesvlakken.",
+    trends: [
+      "Liquid Glass / specular refractie (2026)",
+      "Backdrop-blur + highlight-randen",
+      "Contrast-first op glas",
+    ],
+    fonts: "Geist + Geist Mono",
+    accent: "#3b82f6",
+    bg: "#eef2f8",
+    fg: "#0f1a2e",
+    available: true,
+  },
+  {
+    id: "402",
+    name: "Schuinte",
+    direction: "Anti-grid — gebroken diagonaal editorial",
+    rationale:
+      "Een bewust gebroken raster: diagonale scheidingslijnen, licht gekantelde overlappende blokken en oversized koppen die de kolomlijn doorbreken — terwijl de content zelf recht en messcherp leesbaar blijft. Redactioneel-bold, nooit rommelig.",
+    trends: [
+      "Anti-grid / broken-grid editorial",
+      "Diagonale scheiding + skew-blokken",
+      "Oversized koppen, hairline-structuur",
+    ],
+    fonts: "Bricolage Grotesque + Space Grotesk",
+    accent: "#ff4d2e",
+    bg: "#f5f3ee",
+    fg: "#14110d",
+    available: true,
+  },
+  {
+    id: "403",
+    name: "Zandsteen",
+    direction: "Stille luxe — mineraal steen-palet (quiet luxury)",
+    rationale:
+      "Ingetogen premium: gelaagde zandsteen-, taupe- en kalktinten, dunne serif-koppen, hairline-scheidingen en minimale kleuraccenten. Rust en vertrouwen rond gevoelige documenten via koel-ingetogen luxe, geen decoratie te veel.",
+    trends: [
+      "Quiet luxury / stille luxe",
+      "Mineraal steen-palet + hairlines",
+      "Dunne serif, hoogwaardige typografie",
+    ],
+    fonts: "Newsreader + Manrope",
+    accent: "#9a8873",
+    bg: "#ece7de",
+    fg: "#2b2620",
+    available: true,
+  },
+  {
+    id: "404",
+    name: "Regelkamer",
+    direction: "Mission-control — ops-dashboard (licht, hoge dichtheid)",
+    rationale:
+      "Een lichte operations-/controlekamer voor de bemiddelaar: compacte modules, live-status-tegels, tabulaire cijfers overal en dichte tabellen met statusstrips. Alles in één oogopslag, kalm licht in plaats van donkere terminal.",
+    trends: [
+      "Mission-control / ops-dashboard",
+      "Statusstrips + live-tegels",
+      "Tabulaire dichtheid, licht i.p.v. dark",
+    ],
+    fonts: "Inter + JetBrains Mono",
+    accent: "#0ea5e9",
+    bg: "#f4f6f9",
+    fg: "#0f172a",
+    available: true,
+  },
+  {
+    id: "405",
+    name: "Speelgoed",
+    direction: "Soft-3D speels — consumer-dopamine",
+    rationale:
+      "Vrolijk maar strak: mollige zacht-3D vormen, speelse ronde kaarten met zachte kleurschaduwen, dikke afgeronde knoppen en subtiele spring-hover in een levendig maar gebalanceerd palet. Toegankelijk en professioneel, nooit kinderachtig.",
+    trends: [
+      "Soft-3D / consumer-dopamine",
+      "Mollige vormen + kleurschaduw",
+      "Speelse spring-micro-interacties",
+    ],
+    fonts: "Plus Jakarta Sans + Space Grotesk",
+    accent: "#ff5da2",
+    bg: "#f6f1fb",
+    fg: "#241a2e",
+    available: true,
+  },
+  {
+    id: "406",
+    name: "Jaarverslag",
+    direction: "Corporate annual-report editorial (licht)",
+    rationale:
+      "Een premium jaarverslag: serif-koppen, reuze tabulaire cijfers als held, financiële tabellen met hairline-regels en ingetogen groen accent. De facturen- en omzetschermen schitteren — zakelijk, cijfer-gedreven, gedrukte rust.",
+    trends: [
+      "Annual-report / corporate editorial",
+      "Cijfer-als-held + hairline-tabellen",
+      "Serif-koppen op warm papier",
+    ],
+    fonts: "Fraunces + Inter",
+    accent: "#0b5d3b",
+    bg: "#fbfaf7",
+    fg: "#14181a",
+    available: true,
+  },
+  {
+    id: "407",
+    name: "Vectorveld",
+    direction: "Neon wireframe — vector line-art (donker)",
+    rationale:
+      "Technisch-elegant: een bijna-zwart canvas met dunne gloeiende vectorlijnen, wireframe-kaders en SVG line-art (assen, plots, gloeiende nodes voor matching). Data als lichtgevende lijntekening, met leesbaarheid vóór glow.",
+    trends: [
+      "Vector line-art / plotter-glow",
+      "Wireframe-kaders + gloeiende nodes",
+      "Monospace labels, contrast-first",
+    ],
+    fonts: "Geist Mono + Geist",
+    accent: "#a3e635",
+    bg: "#070b10",
+    fg: "#d6f5e0",
+    available: true,
+  },
+  {
+    id: "408",
+    name: "Duinpan",
+    direction: "Nederlands kust/duin — kalm coastal natuurpalet",
+    rationale:
+      "Rustig en organisch, geïnspireerd op de Nederlandse kust: zandtinten, helmgras-groen en zeeblauw-grijs met zachte golvende scheidingslijnen en veel lucht. Laag-prikkelend en vertrouwd rond gevoelige documenten — koel-coastal, duin en zee.",
+    trends: [
+      "Coastal / natuurpalet (kalm)",
+      "Golfcontouren als zachte structuur",
+      "Laag-prikkelend, veel witruimte",
+    ],
+    fonts: "Sora + Inter",
+    accent: "#3f7d84",
+    bg: "#f2efe6",
+    fg: "#23302f",
+    available: true,
+  },
+  {
+    id: "409",
+    name: "Marktkraam",
+    direction: "Streekmarkt & luifel — ambachtelijk-warm handel",
+    rationale:
+      "De opdrachtenmarktplaats als levendige streekmarkt: gestreepte luifel-koppen als spaarzaam accent, krijtbord-prijskaartjes en ambachtelijke warme kleuren. Handels-energie maar strak en leesbaar — matching als de beste kraam kiezen.",
+    trends: [
+      "Markt/handel-metafoor (speels)",
+      "Luifel-strepen als spaarzaam accent",
+      "Krijtbord-kaartjes, warm-ambachtelijk",
+    ],
+    fonts: "Bricolage Grotesque + Space Grotesk",
+    accent: "#d1462f",
+    bg: "#f7f1e4",
+    fg: "#221a12",
+    available: true,
+  },
+  {
+    id: "410",
+    name: "Nachtwacht",
+    direction: "Gouden-eeuw chiaroscuro — donker museaal barok",
+    rationale:
+      "Rembrandt-licht: een warm-zwart canvas met dramatische lichtval waarin goud/oker-accenten als schijnwerper op de kern-content vallen, diepe schaduwen en één serif-displaymoment. Museaal en premium — de verificatielaag als belicht meesterwerk.",
+    trends: [
+      "Chiaroscuro / barok schilderlicht",
+      "Warm-zwart met goud-schijnwerper",
+      "Serif-displaymoment, museale rust",
+    ],
+    fonts: "Instrument Serif + Manrope",
+    accent: "#c9a24a",
+    bg: "#12100c",
+    fg: "#efe6d2",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);

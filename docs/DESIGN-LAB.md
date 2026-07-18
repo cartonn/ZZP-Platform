@@ -1182,3 +1182,33 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   **data-dichte editorial-tabellen met astronomische motieven** — elk deterministisch, toegankelijk en
   onderscheidend van de bestaande 390.
 - **Totaal nu op `/ontwerp`: 400 concepten** (reeks 40: 391–400).
+
+## Reeks 41 (401–410)
+
+- **401 Meniscus** — Liquid Glass, dynamische specular refractie (licht, #eef2f8 + #3b82f6): heldere
+  glaspanelen met highlight-randen en lensbreking, content op solide leesvlakken — contrast vóór effect.
+- **402 Schuinte** — anti-grid, gebroken diagonaal editorial (#f5f3ee + vermiljoen #ff4d2e): diagonale
+  scheidingen en licht gekantelde blokken, oversized koppen die de kolomlijn doorbreken, content recht.
+- **403 Zandsteen** — stille luxe, mineraal steen-palet (#ece7de + taupe #9a8873): zandsteen/kalktinten,
+  dunne serif-koppen en hairlines, minimale accenten — koel-ingetogen quiet luxury, rust en vertrouwen.
+- **404 Regelkamer** — mission-control ops-dashboard (licht #f4f6f9 + ops-blauw #0ea5e9): live-tegels,
+  statusstrips, tabulaire cijfers en dichte tabellen — alles in één oogopslag voor de bemiddelaar.
+- **405 Speelgoed** — soft-3D consumer-dopamine (#f6f1fb + magenta #ff5da2): mollige zacht-3D vormen,
+  ronde kaarten met kleurschaduw en spring-hover — vrolijk en toegankelijk, nooit kinderachtig.
+- **406 Jaarverslag** — corporate annual-report editorial (licht #fbfaf7 + bosgroen #0b5d3b): serif-koppen,
+  reuze tabulaire cijfers als held en hairline-financiële tabellen — de facturen/omzet-schermen schitteren.
+- **407 Vectorveld** — neon wireframe vector line-art (donker #070b10 + lime #a3e635): gloeiende
+  vectorlijnen, wireframe-kaders en SVG line-art nodes voor matching — data als lichtgevende lijntekening.
+- **408 Duinpan** — Nederlands kust/duin, kalm coastal (#f2efe6 + zeeblauwgroen #3f7d84): zandtinten,
+  helmgras-groen en golfcontouren met veel lucht — laag-prikkelend en vertrouwd rond gevoelige documenten.
+- **409 Marktkraam** — streekmarkt & luifel, ambachtelijk-warm (#f7f1e4 + marktrood #d1462f): luifel-strepen
+  als spaarzaam accent en krijtbord-kaartjes — de marktplaats als levendige markt, strak en leesbaar.
+- **410 Nachtwacht** — gouden-eeuw chiaroscuro, donker museaal (#12100c + goud #c9a24a): Rembrandt-licht
+  met goud-schijnwerper op de kern-content en één serif-displaymoment — de verificatielaag als meesterwerk.
+- Onderzochte 2026-trends deze reeks: **Apple Liquid Glass / specular refractie**; **anti-grid /
+  broken-grid editorial**; **quiet luxury met mineraal steen-palet**; **mission-control ops-dashboards
+  in licht**; **soft-3D consumer-dopamine (Family/Arc)**; **corporate annual-report editorial met
+  cijfer-als-held**; **vector line-art / plotter-glow**; **kalm coastal natuurpalet**; **markt-/handel-
+  metafoor**; **barok chiaroscuro museaal-donker** — elk deterministisch, toegankelijk en onderscheidend
+  van de bestaande 400.
+- **Totaal nu op `/ontwerp`: 410 concepten** (reeks 41: 401–410).

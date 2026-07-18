@@ -1207,6 +1207,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "400": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-400-almanak").then((m) => m.Concept400),
   ),
+  "401": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-401-meniscus").then((m) => m.Concept401),
+  ),
+  "402": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-402-schuinte").then((m) => m.Concept402),
+  ),
+  "403": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-403-zandsteen").then((m) => m.Concept403),
+  ),
+  "404": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-404-regelkamer").then((m) => m.Concept404),
+  ),
+  "405": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-405-speelgoed").then((m) => m.Concept405),
+  ),
+  "406": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-406-jaarverslag").then((m) => m.Concept406),
+  ),
+  "407": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-407-vectorveld").then((m) => m.Concept407),
+  ),
+  "408": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-408-duinpan").then((m) => m.Concept408),
+  ),
+  "409": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-409-marktkraam").then((m) => m.Concept409),
+  ),
+  "410": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-410-nachtwacht").then((m) => m.Concept410),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
