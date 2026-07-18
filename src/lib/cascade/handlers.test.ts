@@ -405,7 +405,15 @@ describe("Event E — planPaymentConfirmedEvent", () => {
       actorId: "f1",
     });
     expect(fx.statusChanges.find((s) => s.entity === "Invoice")?.to).toBe("PAID");
-    expect(fx.statusChanges.find((s) => s.entity === "Collaboration")?.to).toBe("COMPLETED");
+    const completion = fx.statusChanges.find((s) => s.entity === "Collaboration");
+    expect(completion?.to).toBe("COMPLETED");
+    // Race-backstop: de afrond-statuswijziging is optioneel + draagt een write-time guard die de
+    // huidige factuur uitsluit en op ander open werk toetst.
+    expect(completion?.optional).toBe(true);
+    expect(completion?.guard).toMatchObject({
+      performances: { none: { status: "SUBMITTED" } },
+      invoices: { none: { id: { not: "i1" } } },
+    });
     expect(fx.notifications.map((n) => n.userId).sort()).toEqual(["c1", "f1"]);
     // Default: fee UIT → geen vervolg-events.
     expect(fx.followups).toHaveLength(0);

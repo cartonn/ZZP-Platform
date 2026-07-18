@@ -39,6 +39,9 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
 
   // Bepaal of deze betaling het laatste openstaande werk afsluit. Andere niet-afgewikkelde
   // facturen of nog onbeoordeelde prestaties houden de samenwerking ACTIEF (geld-correctheid).
+  // Dit is de pre-transactionele lees; de write-time backstop tegen een race (nieuw open werk
+  // tussen deze lees en de write) zit in de relationele guard op de afrond-statuswijziging
+  // (planPaymentConfirmedEvent → collaborationCompletableGuard, `optional`-skip in apply.ts).
   const [otherInvoices, submittedPerformances] = await Promise.all([
     prisma.invoice.findMany({
       where: { collaborationId: inv.collaborationId, id: { not: invoiceId } },

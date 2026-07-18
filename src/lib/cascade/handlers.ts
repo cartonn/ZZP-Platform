@@ -22,6 +22,7 @@ import { computeVat, hourlySubtotalCents } from "@/lib/administration/vat";
 import { ortSubtotalCents, type OrtSegment } from "@/lib/ort";
 import { PLATFORM_FEE, type VatRegime, type OrtCategory } from "@/lib/config";
 import { type CascadeEffects, emptyEffects } from "@/lib/cascade/types";
+import { collaborationCompletableGuard } from "@/lib/cascade/completion";
 import { boundReason } from "@/lib/text-bounds";
 
 // --- Event A — Contract getekend -------------------------------------------
@@ -433,6 +434,12 @@ export function planPaymentConfirmedEvent(ctx: PaymentConfirmedCtx): CascadeEffe
       field: "status",
       from: "ACTIVE",
       to: "COMPLETED",
+      // Race-backstop: `hasOtherOpenWork` is vóór de transactie gelezen. De relationele guard
+      // toetst binnen de transactie opnieuw dat er géén open werk is; verscheen er intussen een
+      // ingediende prestatie of een andere openstaande factuur, dan matcht de rij niet meer en
+      // valt alléén de afronding weg (`optional`) — de betaling boekt gewoon door.
+      optional: true,
+      guard: collaborationCompletableGuard(ctx.invoice.id),
     });
   }
   fx.postings.push(

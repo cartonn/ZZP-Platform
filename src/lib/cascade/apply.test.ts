@@ -221,4 +221,91 @@ describe("applyCascadeEffects", () => {
     expect(first.occurredAt.getTime()).toBeGreaterThanOrEqual(before);
     expect(first.ownerUserId).toBe("user-klant");
   });
+
+  it("neemt de relationele guard mee in de where van de optimistische update", async () => {
+    const { tx, calls } = fakeTx();
+    const guard = { performances: { none: { status: "SUBMITTED" } } };
+    const effects: CascadeEffects = {
+      ...emptyEffects(),
+      statusChanges: [
+        {
+          entity: "Collaboration",
+          id: "col-1",
+          field: "status",
+          from: "ACTIVE",
+          to: "COMPLETED",
+          guard,
+        },
+      ],
+    };
+    await applyCascadeEffects(tx, effects, REFS);
+    const col = calls.find((c) => c.table === "collaboration" && c.method === "updateMany");
+    expect(col?.args).toMatchObject({
+      where: { id: "col-1", status: "ACTIVE", performances: { none: { status: "SUBMITTED" } } },
+    });
+  });
+
+  it("slaat een OPTIONAL statuswijziging over bij count 0 zonder terug te rollen", async () => {
+    // Simuleert de Event-E-race: de afrond-guard matcht niet meer (nieuw open werk), maar de
+    // betaling (postings/notificaties) moet doorlopen — de afronding valt weg, niet de transactie.
+    const { tx, calls } = fakeTx({ updateManyCount: 0 });
+    const effects: CascadeEffects = {
+      ...emptyEffects(),
+      statusChanges: [
+        {
+          entity: "Collaboration",
+          id: "col-1",
+          field: "status",
+          from: "ACTIVE",
+          to: "COMPLETED",
+          optional: true,
+          guard: { performances: { none: { status: "SUBMITTED" } } },
+        },
+      ],
+      notifications: [
+        { userId: "user-zzp", type: "PAYMENT_CONFIRMED", title: "Betaling ontvangen" },
+      ],
+      audits: [
+        { actorId: "a", action: "PAYMENT_CONFIRMED", entityType: "Invoice", entityId: "inv-1" },
+      ],
+    };
+    await expect(applyCascadeEffects(tx, effects, REFS)).resolves.toEqual({});
+    // De afronding is overgeslagen, maar de gevolgen ná de statuswijziging draaien wél door.
+    expect(calls.some((c) => c.table === "notification")).toBe(true);
+    expect(calls.some((c) => c.table === "auditLog")).toBe(true);
+  });
+
+  it("werpt nog steeds bij count 0 als de statuswijziging NIET optional is", async () => {
+    const { tx } = fakeTx({ updateManyCount: 0 });
+    const effects: CascadeEffects = {
+      ...emptyEffects(),
+      statusChanges: [
+        { entity: "Collaboration", id: "col-1", field: "status", from: "ACTIVE", to: "COMPLETED" },
+      ],
+    };
+    await expect(applyCascadeEffects(tx, effects, REFS)).rejects.toThrow(/intussen gewijzigd/);
+  });
+
+  it("past een OPTIONAL statuswijziging gewoon toe bij count 1", async () => {
+    const { tx, calls } = fakeTx();
+    const effects: CascadeEffects = {
+      ...emptyEffects(),
+      statusChanges: [
+        {
+          entity: "Collaboration",
+          id: "col-1",
+          field: "status",
+          from: "ACTIVE",
+          to: "COMPLETED",
+          optional: true,
+        },
+      ],
+    };
+    await applyCascadeEffects(tx, effects, REFS);
+    const col = calls.find((c) => c.table === "collaboration" && c.method === "updateMany");
+    expect((col?.args as { data: { status: string; completedAt?: Date } }).data.status).toBe(
+      "COMPLETED",
+    );
+    expect((col?.args as { data: { completedAt?: Date } }).data.completedAt).toBeInstanceOf(Date);
+  });
 });

@@ -44,6 +44,37 @@ export function hasOpenCollaborationWork(snapshot: OpenWorkSnapshot): boolean {
 }
 
 /**
+ * Relationele eligibility-guard (Prisma-where-vorm) voor het automatisch afronden van een
+ * samenwerking bij betaling (Event E). Náást de `from: "ACTIVE"`-match dwingt deze guard bij het
+ * wegschrijven — binnen de transactie — af dat er géén ander openstaand werk meer is:
+ *  - geen ingediende (SUBMITTED) prestatie die nog op goedkeuring wacht, én
+ *  - geen andere niet-afgewikkelde factuur (de zojuist betaalde factuur uitgesloten via `id != …`;
+ *    die staat op dat moment al op PAID binnen dezelfde transactie).
+ *
+ * Zo wordt de race gedicht waarbij `hasOpenCollaborationWork` vóór de transactie `false` teruggaf
+ * maar er tussen die lees en de write alsnog een prestatie werd ingediend of een factuur verscheen:
+ * de rij matcht dan niet meer (count 0) en de afronding valt weg (`optional`), zónder de betaling
+ * zelf terug te draaien. Één bron van waarheid met `isInvoiceSettled` (dezelfde afgewikkeld-sets).
+ * Plain object (geen Prisma-import) — puur en unit-testbaar.
+ */
+export function collaborationCompletableGuard(currentInvoiceId: string): Record<string, unknown> {
+  return {
+    performances: { none: { status: "SUBMITTED" } },
+    invoices: {
+      none: {
+        id: { not: currentInvoiceId },
+        OR: [
+          // Cascade-factuur (lifecycleStatus gezet) die nog niet is afgewikkeld.
+          { lifecycleStatus: { notIn: [...SETTLED_INVOICE_LIFECYCLE] } },
+          // Legacy-factuur (geen lifecycleStatus) die nog niet betaald/geannuleerd is.
+          { lifecycleStatus: null, status: { notIn: [...SETTLED_INVOICE_LEGACY_STATUS] } },
+        ],
+      },
+    },
+  };
+}
+
+/**
  * NL-reden waarom een samenwerking nog niet afgerond mag worden, of `null` als het mag.
  * Tegenhanger van `hasOpenCollaborationWork` voor het handmatige afrondpad én de knopweergave:
  * geld weegt het zwaarst (een niet-afgewikkelde factuur blokkeert vóór een onbeoordeelde

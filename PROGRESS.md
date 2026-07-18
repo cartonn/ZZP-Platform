@@ -3,6 +3,38 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — Race-safe auto-afronding bij betaling (Event E) (PR #821)
+
+**Gat (geparkeerde MED, persona-sweep run 26/35):** `confirmPayment` (Event E) bepaalt of de betaling
+het laatste open werk afsluit met een **niet-transactionele** lees (`hasOtherOpenWork`) vóór de write.
+De completion-write in `apply.ts` was optimistic op `status=ACTIVE`, maar een gelijktijdig ingediende
+prestatie verandert de collaboration-status niet — dus tussen de lees en de write kon een nieuwe
+SUBMITTED-prestatie (of een nieuwe openstaande factuur) verschijnen en de samenwerking toch op
+COMPLETED springen met nog open werk. Dat werk/geld raakt dan los van zijn context (cascade ziet
+COMPLETED als terminaal). Verboden statusovergang + server-side-waarheid.
+
+**Fix (opt-in, generiek in de motor — additief):** `StatusChange` kreeg twee optionele velden —
+`guard` (extra relationele where-condities die náást de `from`-match binnen de transactie opnieuw
+worden getoetst) en `optional` (een `count === 0` telt dan als "voorwaarde verviel intussen, sla over"
+i.p.v. een harde rollback). `planPaymentConfirmedEvent` zet de afrond-statuswijziging op
+`optional: true` + `collaborationCompletableGuard(invoiceId)` (geen SUBMITTED-prestatie én geen andere
+niet-afgewikkelde factuur, de zojuist betaalde uitgesloten — dezelfde afgewikkeld-sets als
+`isInvoiceSettled`, één bron van waarheid). Verscheen er intussen open werk, dan matcht de rij niet
+meer en valt **alléén de afronding** weg; de betaling (invoice PAID + postings + notificaties) boekt
+gewoon door. Bestaande status-changes zonder `guard`/`optional` gedragen zich identiek.
+
+**Bestanden:** `src/lib/cascade/types.ts` (velden), `src/lib/cascade/completion.ts`
+(`collaborationCompletableGuard` + `SETTLED_*`-export), `src/lib/cascade/apply.ts` (guard-merge +
+optional-skip), `src/lib/cascade/handlers.ts` (`planPaymentConfirmedEvent`),
+`src/lib/cascade/payment-commands.ts` (comment), tests: `completion.test.ts` (guard-shape),
+`apply.test.ts` (guard-merge, optional-skip, behouden throw), `handlers.test.ts` (planner-emit),
+`docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`.
+
+**Checks:** `npm run typecheck` ✓ · `npm run lint` ✓ · `npm run test` (cascade-suites 64/64; volledige
+suite via CI-poort) · `npm run build` · `prettier --write` op de gewijzigde bestanden ✓.
+
+---
+
 ## 2026-07-18 — Ontwerp-lab reeks 41: +10 concepten (401–410)
 
 **Wat:** de `/ontwerp`-galerij groeit van 400 → **410** concepten (additief, niets overschreven). Tien

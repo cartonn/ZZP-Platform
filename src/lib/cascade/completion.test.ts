@@ -3,6 +3,9 @@ import {
   isInvoiceSettled,
   hasOpenCollaborationWork,
   completionBlockReason,
+  collaborationCompletableGuard,
+  SETTLED_INVOICE_LIFECYCLE,
+  SETTLED_INVOICE_LEGACY_STATUS,
   type InvoiceStateSnapshot,
   type OpenWorkSnapshot,
 } from "@/lib/cascade/completion";
@@ -176,5 +179,32 @@ describe("completionBlockReason", () => {
     expect(completionBlockReason(snapshot({ submittedPerformances: 3 }))).toBe(
       "Er wachten nog 3 ingediende urenstaten of opleveringen op goedkeuring. Beoordeel die eerst voordat je de samenwerking afrondt.",
     );
+  });
+});
+
+// ─── collaborationCompletableGuard ────────────────────────────────────────────
+
+describe("collaborationCompletableGuard — write-time eligibility guard (Event E race)", () => {
+  it("weigert afronding zolang er een SUBMITTED-prestatie is (relationele none)", () => {
+    const guard = collaborationCompletableGuard("inv-huidig");
+    expect(guard.performances).toEqual({ none: { status: "SUBMITTED" } });
+  });
+
+  it("sluit de zojuist betaalde factuur uit én toetst op niet-afgewikkelde andere facturen", () => {
+    const guard = collaborationCompletableGuard("inv-huidig") as {
+      invoices: { none: { id: { not: string }; OR: unknown[] } };
+    };
+    expect(guard.invoices.none.id).toEqual({ not: "inv-huidig" });
+    expect(guard.invoices.none.OR).toEqual([
+      { lifecycleStatus: { notIn: [...SETTLED_INVOICE_LIFECYCLE] } },
+      { lifecycleStatus: null, status: { notIn: [...SETTLED_INVOICE_LEGACY_STATUS] } },
+    ]);
+  });
+
+  it("gebruikt dezelfde afgewikkeld-sets als isInvoiceSettled (één bron van waarheid)", () => {
+    // De guard mag alleen niet-afgewikkelde facturen als 'open' tellen; de sets komen 1:1 uit
+    // completion.ts, zodat guard en isInvoiceSettled nooit uit elkaar lopen.
+    expect(SETTLED_INVOICE_LIFECYCLE).toEqual(["PAID", "PROCESSED", "CREDITED"]);
+    expect(SETTLED_INVOICE_LEGACY_STATUS).toEqual(["PAID", "CANCELLED"]);
   });
 });
