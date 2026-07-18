@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — "Opdracht gesloten/vervuld"-signaal op /reacties (ZZP'er)
+
+**Wat:** een openstaande reactie (NEW/VIEWED/SHORTLIST, nog geen eigen samenwerking) bleef op
+`/reacties` hoopvol tonen ("De opdrachtgever heeft je reactie nog niet bekeken") ook als de
+onderliggende opdracht **CLOSED** was of al door iemand anders vervuld. De ZZP'er wachtte dan op iets
+dat niet meer kon komen. Nu leidt de server `job.status` + het aantal ACTIEVE samenwerkingen op de
+opdracht af tot één signaal: gesloten → "Opdracht gesloten", of nog PUBLISHED maar met een actieve
+samenwerking → "Vermoedelijk vervuld". Dat vervangt de hoopvolle status-hint, dooft het
+wacht-/reactiebereidheid-signaal (wachten is dan tegenstrijdig) en toont een rustige chip met een
+verwijzing naar `/opdrachten`. Read-only, geen schema-wijziging.
+
+**Bestanden:** `src/lib/application-job-availability.ts` (pure helper + `JOB_AVAILABILITY_MESSAGE`),
+`src/lib/application-job-availability.test.ts` (9 tests), `src/app/(protected)/reacties/page.tsx`
+(query: `status` + `_count.collaborations{status:ACTIVE}`; hint-override + chip + wacht-signaal
+gedoofd), `PROGRESS.md`.
+
+**Checks:** `npm run typecheck` ✓ · `npm run lint` ✓ · `npm run test` (nieuwe suite 9/9) ✓ ·
+`npm run build` (loopt) · `prettier --check .` schoon over de hele repo ✓.
+
+---
+
 ## 2026-07-18 — Persona-sweep run 35: TOCTOU-race bij afronden + negatief-bedrag-poort gedicht
 
 **Wat:** kritische-gebruiker-sweep over de vier rollen (ZZP/CLIENT/FRANCHISER/ADMIN) op een verse

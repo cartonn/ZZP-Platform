@@ -32,7 +32,16 @@ import { canWithdrawApplication } from "@/lib/applications";
 import { rejectionReasonFeedback } from "@/lib/rejection-reason";
 import { summarizeRejectionPattern } from "@/lib/rejection-pattern";
 import { RejectionPatternNote } from "@/components/applications/rejection-pattern-note";
-import { type ApplicationStatus, type CredentialType, type CredentialStatus } from "@/lib/enums";
+import {
+  applicationJobAvailability,
+  JOB_AVAILABILITY_MESSAGE,
+} from "@/lib/application-job-availability";
+import {
+  type ApplicationStatus,
+  type CredentialType,
+  type CredentialStatus,
+  type JobStatus,
+} from "@/lib/enums";
 import { getTranslator } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
@@ -120,8 +129,12 @@ export default async function ReactiesPage({
             select: {
               id: true,
               title: true,
+              status: true,
               company: { select: { id: true, name: true } },
               credentialRequirements: { select: { credentialType: true, required: true } },
+              // Actieve samenwerkingen op de opdracht (met wie dan ook) — zodat een nog-openstaande
+              // reactie op een reeds vervulde opdracht niet hoopvol blijft tonen.
+              _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
             },
           },
           collaboration: { select: { id: true, status: true } },
@@ -229,21 +242,35 @@ export default async function ReactiesPage({
                   .map((r) => r.credentialType as CredentialType);
                 const compliance =
                   requiredTypes.length > 0 ? computeCompliance(requiredTypes, myCredentials) : null;
+                // Effectief-dood-signaal: kan deze nog-openstaande reactie überhaupt nog tot een
+                // plaatsing leiden? Bij een gesloten of vermoedelijk-vervulde opdracht vervangt dit
+                // de hoopvolle status-hint door een feitelijke melding (en dooft het wacht-signaal).
+                const availability = applicationJobAvailability({
+                  applicationStatus: app.status,
+                  hasCollaboration: app.collaboration != null,
+                  jobStatus: app.job.status as JobStatus,
+                  activeCollaborations: app.job._count.collaborations,
+                });
                 // Zodra er een samenwerking uit de reactie is voortgekomen, wijst de kaart naar het
                 // werkproces (de logische volgende stap) i.p.v. terug naar de opdracht.
                 const hint = app.collaboration
                   ? (COLLAB_HINT[app.collaboration.status] ??
                     "Samenwerking gestart — bekijk de samenwerking.")
-                  : STATUS_HINT[app.status];
+                  : availability
+                    ? JOB_AVAILABILITY_MESSAGE[availability]
+                    : STATUS_HINT[app.status];
                 // De ZZP'er kan zijn reactie intrekken zolang de opdrachtgever nog geen beslissing nam en
                 // er geen samenwerking uit voortkwam. Server-side blijft dit de waarheid (zie actions.ts).
                 const canWithdraw = !app.collaboration && canWithdrawApplication(app.status);
-                // Wachttijd-signaal: ligt deze reactie langer dan gebruikelijk onbeslist?
-                const wait = summarizeApplicationWait({
-                  status: app.status,
-                  createdAt: app.createdAt,
-                  hasCollaboration: app.collaboration != null,
-                });
+                // Wachttijd-signaal: ligt deze reactie langer dan gebruikelijk onbeslist? Doof het
+                // wanneer de opdracht dicht/vervuld is — dan is "blijf wachten" tegenstrijdig.
+                const wait = availability
+                  ? null
+                  : summarizeApplicationWait({
+                      status: app.status,
+                      createdAt: app.createdAt,
+                      hasCollaboration: app.collaboration != null,
+                    });
                 // Alleen bij een nog-openstaande reactie (wait != null) is de reactiebereidheid van
                 // de opdrachtgever relevant voor de wacht-beslissing.
                 const responsiveness = wait
@@ -323,6 +350,21 @@ export default async function ReactiesPage({
                     {wait && <WaitSignal wait={wait} t={t} />}
                     {responsiveness && (
                       <ApplicantResponsivenessNote responsiveness={responsiveness} />
+                    )}
+                    {availability && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border pt-2">
+                        <Badge variant="muted">
+                          {availability === "CLOSED"
+                            ? t("Opdracht gesloten")
+                            : t("Vermoedelijk vervuld")}
+                        </Badge>
+                        <Link
+                          href="/opdrachten"
+                          className="focus-ring rounded-sm text-xs font-medium text-foreground underline-offset-2 hover:underline"
+                        >
+                          {t("Bekijk andere opdrachten")}
+                        </Link>
+                      </div>
                     )}
                     {canWithdraw && (
                       <div className="mt-3 flex justify-end border-t border-border pt-3">
