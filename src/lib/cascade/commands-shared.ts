@@ -37,6 +37,15 @@ export async function persistEventAndEffects(
     invoiceId?: string | null;
     performanceId?: string | null;
     correlationId?: string | null;
+    /**
+     * Wanneer gezet: her-verifieer BINNEN de effect-transactie dat de samenwerking niet net in
+     * dispuut is geraakt. Dit dicht het TOCTOU-venster tussen de pre-transactionele
+     * `assertNotDisputed`-lees en deze write — tussen beide zit planning-/laadwerk (en soms extra
+     * queries), dus een dispuut dat in dat venster wordt geopend bevroor de cascade tot nu toe niet.
+     * Nu rolt de effect-transactie terug (geld-/statuseffect wordt niet weggeschreven). Spiegelt de
+     * in-transactie-herverificatie in samenwerkingen/actions.ts ("TOCTOU-dicht").
+     */
+    disputeGuardCollaborationId?: string | null;
   },
   opts?: { allocate?: { issuerKey: string; year: number; invoiceId: string } },
 ): Promise<PersistResult> {
@@ -78,10 +87,27 @@ async function persistInTransaction(
     invoiceId?: string | null;
     performanceId?: string | null;
     correlationId?: string | null;
+    disputeGuardCollaborationId?: string | null;
   },
   opts?: { allocate?: { issuerKey: string; year: number; invoiceId: string } },
 ): Promise<PersistResult> {
   return prisma.$transaction(async (tx) => {
+    // TOCTOU-grendel: her-verifieer de dispuut-vrijheid binnen de transactie, vóór er iets wordt
+    // weggeschreven. Een dispuut dat na de pre-check (`assertNotDisputed`) maar vóór deze commit
+    // werd geopend bevriest de cascade alsnog — de hele transactie rolt terug, dus er ontstaat
+    // geen betaling/afronding/factuur-effect op een samenwerking die intussen in dispuut ging.
+    if (refs.disputeGuardCollaborationId) {
+      const col = await tx.collaboration.findUnique({
+        where: { id: refs.disputeGuardCollaborationId },
+        select: { disputedAt: true },
+      });
+      if (col?.disputedAt) {
+        throw new CascadeError(
+          "De samenwerking is bevroren wegens een open dispuut. Los het dispuut eerst op.",
+        );
+      }
+    }
+
     const event = await tx.domainEvent.create({
       data: {
         type: eventInput.type,

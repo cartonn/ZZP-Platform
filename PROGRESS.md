@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — Security-audit: dispuut-bevriezing TOCTOU-dicht over alle cascade-geld-commands
+
+**Gat (MIDDEL · OWASP A04 Insecure Design):** `assertNotDisputed(collaborationId)` was een pre-transactionele
+lees; de effect-write gebeurde daarná in een aparte `prisma.$transaction` zonder her-toets van `disputedAt`
+binnen die transactie. Een dispuut dat na de pre-check maar vóór de commit werd geopend, kon de cascade-
+bevriezing omzeilen — een betaling/afronding/factuur-effect schreef nog weg op een samenwerking die net in
+dispuut ging (geld-/statusinconsistentie). Gold voor 9 command-paden (`confirmPayment`, alle prestatie- en
+factuur-commands).
+
+**Fix:** optionele `disputeGuardCollaborationId` op `persistEventAndEffects`; wanneer gezet her-verifieert de
+effect-transactie **binnen** `prisma.$transaction`, vóór enige write, dat `disputedAt` nog null is — anders
+`CascadeError` + volledige rollback. Alle 9 call-sites geven de guard-id mee. Spiegelt de bestaande in-transactie-
+herverificatie in `samenwerkingen/actions.ts`.
+
+**Bestanden:** `src/lib/cascade/commands-shared.ts` (guard in `persistInTransaction`),
+`payment-commands.ts`/`performance-commands.ts`/`invoice-commands.ts` (call-sites),
+`src/lib/cascade/dispute-freeze-race.test.ts` (nieuw, rood→groen, 3 tests). Backlog:
+`docs/SECURITY-PRIVACY-BACKLOG.md` — ronde 2026-07-18 (2e) met 4 geparkeerde LAAG-items (dispute-commands
+statusguard, `providerRef` @unique, callbackUrl-UX, js-yaml dev-dep).
+
+**Checks:** `npm run typecheck` ✓, `npm run lint` ✓ (0), `npx prettier --write .` ✓, `npm run test` ✓
+413 files / **4480** tests. Build lokaal geblokkeerd op font-fetch via de proxy (omgevingslimiet) — CI draait
+de echte build + e2e.
+
 ## 2026-07-18 — Persona-sweep run 36: throwing `.parse` → `safeParse` op vijandige enum-invoer (6 server-acties)
 
 **Gat (geparkeerde LOW, persona-sweep run 35 — uitgebreid):** zes server-acties parsten een door de

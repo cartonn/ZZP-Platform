@@ -4,6 +4,86 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-18 (2e — basis: `main` @ d93d4f3)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken, met focus op de delta sinds de vorige ronde (`fd1ac99..d93d4f3`, PR's #815–#822): (1)
+geld-/cascade-/betaal-flow — `api/billing/webhook`, `lib/billing/*`, `lib/cascade/*`, `lib/cancellation.ts`,
+`lib/replacement.ts`; (2) object-/functie-authz + IDOR + cross-tenant op ALLE server actions/route-handlers
+(behalve billing/cascade); (3) AVG — anonimisering-volledigheid, dataminimalisatie, PII-in-logs, CSV-injectie,
+k-anonimiteit, plus de nieuwe `message-reply-latency.ts`/`application-job-availability.ts`. Kader: OWASP Top 10
+(A01/A04/A08) + ASVS + AVG art. 5/9/15/17/30/32. Stack: Next.js 15.5.19 (voorbij CVE-2025-29927), Auth.js v5,
+Prisma. `npm audit --omit=dev` = **0** kwetsbaarheden.
+
+### OPGELOST deze ronde
+
+- **[MIDDEL · OWASP A04 Insecure Design · geld-/statuscorrectheid]** `src/lib/cascade/commands-shared.ts`
+  — **dispuut-bevriezing was TOCTOU-lek over ALLE cascade-geld-commands.** `assertNotDisputed(collaborationId)`
+  is een pre-transactionele lees; de effect-write gebeurt daarná in een aparte `prisma.$transaction`, en noch
+  `persistInTransaction` noch `applyCascadeEffects` her-toetste `collaboration.disputedAt` binnen die transactie.
+  **Repro:** partij A roept `confirmPayment(invoiceId)` aan → `assertNotDisputed` leest `disputedAt: null` en
+  keert terug; concurrent opent partij B `openDispute(collaborationId)` dat éérst commit (`disputedAt` gezet);
+  A's effect-transactie commit alsnog → factuur PAID en/of samenwerking auto-afgerond terwijl er nu een open
+  dispuut is. De cascade-bevriezing ("de cascade bevriest zolang er een open dispuut is") werd zo omzeild —
+  een geld-/statusinconsistentie, geen UX-ordening. Gold voor `confirmPayment`, `submit/approve/autoApprove/
+reject`-prestatie en `submit/approve/reject/credit`-factuur (9 command-paden). **Fix (`fd1ac99..HEAD`):** een
+  optionele `disputeGuardCollaborationId` op `persistEventAndEffects`; wanneer gezet her-verifieert de effect-
+  transactie **binnen** `prisma.$transaction`, vóór er iets wordt weggeschreven, dat `disputedAt` nog null is —
+  anders `CascadeError` en de hele transactie rolt terug (geen effect). Spiegelt de in-transactie-herverificatie
+  in `samenwerkingen/actions.ts`. Rood→groen: `src/lib/cascade/dispute-freeze-race.test.ts` (3 tests: bevriest
+  binnen de tx, laat door zonder dispuut, achterwaarts compatibel zonder guard). Alle 9 command-call-sites geven
+  nu de guard-id mee.
+
+### Geparkeerd deze ronde (repro + severity + aanbevolen fix)
+
+- **[LAAG · OWASP A04]** `src/lib/cascade/dispute-commands.ts:30-95,98-151` — `openDispute`/`resolveDispute`
+  lezen-dan-schrijven zonder statusguard: de `collaboration.update` binnen de transactie is onvoorwaardelijk
+  (geen `where: { disputedAt: null }`). Twee gelijktijdige `openDispute`-calls van beide partijen kunnen beide
+  door de pre-check en beide committen → dubbele `DomainEvent`/audit/admin-notificatie (spam), **geen** geldimpact
+  (`disputedAt` convergeert naar "gezet"). Fix: hergebruik het `updateMany`-met-guard-patroon uit `apply.ts`.
+- **[LAAG · defense-in-depth]** `prisma/schema.prisma` `Subscription.providerRef` heeft geen `@unique`;
+  `api/billing/webhook/route.ts` gebruikt `findFirst({ where: { providerRef } })`. Nu niet exploiteerbaar
+  (providerRef alleen door de provider gezet, 1 rij per user), maar een toekomstig pad kan stil een collision
+  maken. Fix: `@@unique([providerRef])` (nullable-safe) of minimaal `@@index([providerRef])`.
+- **[LAAG · UX, geen security]** `src/middleware.ts` bouwt een `callbackUrl` die `login/actions.ts` nooit leest
+  (hardcoded `redirectTo: "/dashboard"`). Geen open-redirect (waarde wordt nooit als redirect-target gebruikt),
+  wél een verloren post-login-bestemming. Fix bij de volgende auth-touch: valideer callbackUrl als **relatief
+  pad** (begint met `/`, geen `//` of schema) en gebruik 'm anders `/dashboard`.
+- **[LAAG · dev-only DoS]** `npm audit` meldt 2 kwetsbaarheden (js-yaml quadratic-complexity DoS via merge-keys),
+  uitsluitend in **dev-dependencies** (`npm audit --omit=dev` = 0). Geen productie-oppervlak. Fix bij een dev-
+  toolchain-update: `npm audit fix`.
+
+### Herbevestigd schoon (geen nieuwe gaten)
+
+- **Betaal-webhook (#816):** Stripe-signatuur timing-safe + fail-closed met replay-tolerantievenster;
+  idempotentie-grendel via DB-unieke `(provider, eventKey)`-ledgerrij atomair met de statusmutatie; status-writes
+  via de expliciete `SUBSCRIPTION_TRANSITIONS`-map (`CANCELLED→ACTIVE` uitgesloten → geen replay-resurrectie);
+  bedrag komt server-side uit `Plan.priceCents`. Nooit een Prisma-fout/stacktrace naar de externe caller.
+- **Cascade race-safety (#818/#821):** money-relevante status-writes zijn `updateMany` op de verwachte
+  `from`-status + optionele relationele `guard`, `count === 1`-check — double-application/verweesde-factuur
+  uitgesloten. Elke command her-verifieert actor-ownership vóór mutatie; bedrag hard-bounded server-side
+  (`assertPerformanceWithinLimits`: geen negatief/overflow).
+- **Nieuwe read-only signalen (#817/#819):** `message-reply-latency.ts`/`application-job-availability.ts` zijn
+  pure functies over al-geautoriseerde, deelnemer-/eigenaar-gescoopte data; geen nieuwe query, geen cross-party-
+  PII, alleen geaggregeerde tellingen. Geen mutatie-oppervlak.
+- **Authz/IDOR/tenant:** `currentActor()` leest rol/status live uit de DB per request; `/admin`+`/franchise` in
+  drie lagen bewaakt; `tenancy.ts` faalt closed; document-serving = owner-of-admin + magic-byte-sniffing +
+  fail-closed malware-scan + geaudit; `registerSchema` beperkt self-register-rol tot FREELANCER/CLIENT.
+- **AVG:** `anonymizeUser` scrubt User/Profile/Company + ~18 vrije-tekst-tabellen + audit-metadata/IP/UA +
+  DomainEvent-payloads en verwijdert Credential/Document-rijen én storage-objecten; CSV via één
+  `escapeCsvField`-kern (`= + @ - \t \r` geneutraliseerd); logger redacteert PII-keys + e-mail recursief;
+  k-anonimiteit markttarief = 10 (getest, `>= 10`).
+
+### Pre-existing, al-getrackte items (onveranderd — wachten op mens/FG)
+
+- **[LAAG · AVG art. 5]** `berichten/nieuw/page.tsx:70-71` — rauw e-mailadres als naam-fallback in de contactpicker.
+- **[HOOG · geëscaleerd naar mens]** `PAYMENT_MIN_SAMPLE_SIZE = 3` (+ gespiegeld in `client-reliability.ts`/
+  `client-responsiveness.ts`/`collaboration-quality.ts`) onder de eigen k≥10-markttarief-vloer — business/juridische
+  afweging.
+- **[HOOG · art. 9-adjacent · geëscaleerd]** `Performance.rejectionReason` (mogelijk gezondheidsgerelateerd)
+  overleeft bewust `anonymizeUser` — wacht op menselijke retentie-vs-wissing-beslissing.
+- **[LAAG · art. 17]** `Job.title`/`Job.description` overleven `anonymizeUser` — wacht op bewaargrond-beslissing.
+
 ## Ronde 2026-07-18 (basis: `main` @ fd1ac99)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende

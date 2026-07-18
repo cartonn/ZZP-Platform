@@ -212,6 +212,7 @@ export async function submitPerformance(actor: Actor, performanceId: string): Pr
       owners: { FREELANCER: perf.freelancerUserId, CLIENT: perf.clientUserId },
       correlationId: perf.collaborationId,
       performanceId,
+      disputeGuardCollaborationId: perf.collaborationId,
     },
   );
 
@@ -277,6 +278,7 @@ export async function approvePerformance(actor: Actor, performanceId: string): P
       owners: { FREELANCER: perf.freelancerUserId, CLIENT: perf.clientUserId },
       correlationId: perf.collaborationId,
       performanceId,
+      disputeGuardCollaborationId: perf.collaborationId,
     },
   );
 
@@ -345,6 +347,7 @@ export async function autoApprovePerformance(performanceId: string): Promise<voi
       owners: { FREELANCER: perf.freelancerUserId, CLIENT: perf.clientUserId },
       correlationId: perf.collaborationId,
       performanceId,
+      disputeGuardCollaborationId: perf.collaborationId,
     },
   );
 
@@ -420,6 +423,7 @@ export async function rejectPerformance(
       owners: { FREELANCER: perf.freelancerUserId, CLIENT: perf.clientUserId },
       correlationId: perf.collaborationId,
       performanceId,
+      disputeGuardCollaborationId: perf.collaborationId,
     },
   );
 
