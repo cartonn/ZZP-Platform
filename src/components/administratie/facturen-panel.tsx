@@ -11,6 +11,7 @@ import { invoiceDueStatus } from "@/lib/invoice-due";
 import { computePaymentBehavior, type PaymentBehavior } from "@/lib/payment-behavior";
 import { forecastInvoicePayout } from "@/lib/invoice-payment-forecast";
 import { summarizeCashflowForecast, CASHFLOW_HORIZON_DAYS } from "@/lib/cashflow-forecast";
+import { summarizePayablesForecast, PAYABLES_HORIZON_DAYS } from "@/lib/payables-forecast";
 import { formatDateShortNl } from "@/lib/format-date";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
@@ -179,6 +180,21 @@ export async function FacturenPanel({
       )
     : null;
 
+  // Uitgaven-vooruitblik (alleen opdrachtgever): tel de openstaande factuurbedragen op naar hun
+  // vervaldatum — het geaggregeerde antwoord op "hoeveel moet ik de komende 30 dagen betalen?"
+  // zodat de payer liquiditeit kan plannen en op tijd betaalt. Geen extra query: de factuurlijst is
+  // al geladen. Anker is `dueAt` (payer weet wanneer hij MOET betalen), niet een historie-projectie.
+  const payables = !isFreelancer
+    ? summarizePayablesForecast(
+        invoices.map((inv) => ({
+          totalCents: inv.totalCents,
+          dueAt: inv.dueAt,
+          outstanding: isInvoiceOutstanding(inv),
+        })),
+        Date.now(),
+      )
+    : null;
+
   return (
     <div className="space-y-6">
       {canInvoice && (
@@ -212,6 +228,12 @@ export async function FacturenPanel({
                 <p className="text-xs tabular-nums text-muted-foreground">
                   ≈ {formatEuro(cashflow.next30Cents)} {t("verwacht binnen")}{" "}
                   {CASHFLOW_HORIZON_DAYS} {t("dagen")}
+                </p>
+              )}
+              {payables && payables.next30Cents > 0 && (
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  ≈ {formatEuro(payables.next30Cents)} {t("te betalen binnen")}{" "}
+                  {PAYABLES_HORIZON_DAYS} {t("dagen")}
                 </p>
               )}
             </CardContent>

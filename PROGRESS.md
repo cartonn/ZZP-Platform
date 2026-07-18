@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — Uitgaven-vooruitblik "te betalen binnen 30 dagen" op /facturen (opdrachtgever) (PR #813)
+
+**Gat:** de ZZP'er zag op `/facturen` al de cashflow-vooruitblik ("≈ € X verwacht binnen 30 dagen",
+#811), maar de opdrachtgever (payer) zag op dezelfde pagina alleen "Openstaand" + het te-late deel —
+geen tijdlijn van wat er de komende 30 dagen te betalen valt. De payer kon zijn liquiditeit niet
+plannen en zag niet aankomen dat een betaling te laat dreigt te worden (te laat betalen schaadt de
+voor ZZP'ers zichtbare betaalreputatie, `client-payment-reputation.ts`).
+
+**Wat:** een compacte regel onder de Openstaand-kaart (alleen opdrachtgever) — **"≈ € X te betalen
+binnen 30 dagen"** — die de openstaande factuurbedragen optelt naar hun vervaldatum. Symmetrisch met
+de ZZP-cashflow-vooruitblik, maar geankerd op `dueAt` (de payer weet wanneer hij MOET betalen, niet
+wanneer hij gemiddeld betaalt): reeds verstreken vervaldata tellen als "binnen 30 dagen" (nú
+verschuldigd); een factuur zonder vervaldatum blijft buiten de telling.
+
+**Bestanden:** `src/lib/payables-forecast.ts` (pure `summarizePayablesForecast` + 8 unit-tests) +
+wiring in `src/components/administratie/facturen-panel.tsx` (leunt op de al-geladen factuurlijst —
+geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak).
+
+**Gate lokaal groen:** `typecheck` ✓, `lint` ✓, `prettier --write .` ✓, unit-tests ✓, `build` ✓.
+CI-poort geverifieerd op de PR.
+
 ## 2026-07-17 — Ontwerp-lab: +10 concepten (reeks 39, nrs 381–390)
 
 **Wat:** de galerij op `/ontwerp` groeit van 380 → **390 concepten** (additief; niets overschreven).

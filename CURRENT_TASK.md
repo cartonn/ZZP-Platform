@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Uitgaven-vooruitblik "te betalen binnen 30 dagen" op /facturen (opdrachtgever) (2026-07-18, PR #813)** —
+> de ZZP'er zag op `/facturen` al de cashflow-vooruitblik ("≈ € X verwacht binnen 30 dagen", #811), maar de opdrachtgever (payer)
+> zag op dezelfde pagina alleen "Openstaand" + het te-late deel — geen tijdlijn van wat er de komende 30 dagen te betalen valt.
+> Nu een compacte regel onder de Openstaand-kaart (alleen opdrachtgever) — **"≈ € X te betalen binnen 30 dagen"** — die de
+> openstaande factuurbedragen optelt naar hun vervaldatum, zodat de payer liquiditeit kan plannen en op tijd betaalt
+> (te laat betalen schaadt de zichtbare betaalreputatie). Symmetrisch met de ZZP-cashflow-vooruitblik, maar geankerd op `dueAt`
+> (de payer weet wanneer hij MOET betalen): reeds verstreken vervaldata tellen als "binnen 30 dagen" (nú verschuldigd); een factuur
+> zonder vervaldatum blijft buiten de telling. Pure `summarizePayablesForecast` in `payables-forecast.ts` (+8 unit-tests) + wiring
+> in `facturen-panel.tsx` (leunt op de al-geladen factuurlijst — geen extra query, geen schemawijziging, geen nieuw mutatie/auth-
+> oppervlak). Gate: typecheck, lint, unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Cashflow-vooruitblik "verwacht binnen 30 dagen" op /facturen (ZZP'er) (2026-07-17, PR #811)** —
 > `/facturen` toonde per openstaande factuur al de verwachte betaaldatum (`forecastInvoicePayout` → "Verwacht rond …"),
 > maar nergens het geaggregeerde antwoord op de #1 cashflow-vraag van de ZZP'er: "hoeveel geld komt er de komende 30 dagen
