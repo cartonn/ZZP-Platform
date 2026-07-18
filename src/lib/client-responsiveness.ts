@@ -40,7 +40,10 @@ export interface ClientResponsiveness {
 const GOOD_MIN_HANDLED_PCT = 80; // ≥ 80% opgepakt én niets te lang open = goed
 const WARNING_MAX_HANDLED_PCT = 50; // < 50% opgepakt = let op
 const STALE_DAYS = 14; // een reactie die > 14 dagen op NEW staat = laat liggen
-const MIN_SAMPLE_SIZE = 3;
+/** Minimum aantal reacties voor een betrouwbaar reactiebereidheid-signaal. Onder deze grens is
+ * de toon `unknown` (geen cijfers tonen). Geëxporteerd voor de reputatie-spiegel (min-n-notice). */
+export const RESPONSIVENESS_MIN_SAMPLE_SIZE = 3;
+const MIN_SAMPLE_SIZE = RESPONSIVENESS_MIN_SAMPLE_SIZE;
 
 const MS_PER_DAY = 86_400_000;
 

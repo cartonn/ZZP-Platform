@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — Reactiereputatie-spiegel voor de opdrachtgever op /kandidaten (PR #826)
+
+**Waarde (opdrachtgever geruster/slimmer → ZZP'er sneller antwoord):** de opdrachtgever zag op
+`/verplichtingen` al een **betaalreputatie-spiegel** (`PaymentReputationCard`) — dezelfde betaalgedrag-
+cijfers die ZZP'ers over hem zien, terug als zelfverbeter-nudge. Het **reactiebereidheid-signaal**
+(`computeClientResponsiveness` — "Pakt reacties op" / "Laat reacties liggen", zichtbaar voor ZZP'ers op
+`/opdrachten` en de opdracht-detail) had géén tegenhangende zelf-spiegel. Een opdrachtgever die reacties
+laat liggen is onzichtbaar voor zichzelf en verliest sterke kandidaten.
+
+**Gebouwd:** symmetrische **reactiereputatie-spiegel** bovenaan `/kandidaten` (waar de opdrachtgever
+reacties trieert). Toont de opgepakt-graad, het aantal te lang openstaande reacties en een sturende tip
+("Reacties die blijven liggen kosten je sterke kandidaten"). Onder de minimum-steekproef (3) geen cijfers,
+wél een eerlijke "nog X reacties nodig"-regel (zelfde `insufficientSampleNotice`-idioom als de betaalkaart).
+
+**Bestanden:** `src/lib/client-responsiveness-reputation.ts` (pure `summarizeResponsivenessReputation`,
++4 tests) · `src/components/administratie/responsiveness-reputation-card.tsx` · wiring in
+`src/app/(protected)/kandidaten/page.tsx` (afgeleid uit de reeds geladen reacties — geen extra query,
+geen schemawijziging, geen nieuw mutatie/auth-oppervlak) · `RESPONSIVENESS_MIN_SAMPLE_SIZE` geëxporteerd
+uit `client-responsiveness.ts`. Privacy: alleen geaggregeerde tellingen — nooit een reactie van een
+andere ZZP'er. Gate: typecheck, lint, 4510 unit-tests, build, prettier groen.
+
 ## 2026-07-18 — Security/robuustheid: terminale-status-rem op de forward-cascade-commands (PR #825)
 
 **Gat (geparkeerde MED, persona-sweep run 36 — DOEL 2, defense-in-depth):** de forward-cascade-money-

@@ -12,6 +12,8 @@ import {
   normalizeKandidatenFilter,
 } from "@/lib/kandidaten-filter";
 import { computeCompliance, scoreJobForFreelancer, topPositiveReason } from "@/lib/matching";
+import { computeClientResponsiveness } from "@/lib/client-responsiveness";
+import { ResponsivenessReputationCard } from "@/components/administratie/responsiveness-reputation-card";
 import {
   summarizeCandidateDecision,
   summarizeCandidatesAwaitingDecision,
@@ -271,6 +273,14 @@ export default async function KandidatenPage({
     }),
   );
 
+  // Reactiereputatie-spiegel: hetzelfde reactiebereidheid-signaal dat ZZP'ers over deze opdrachtgever
+  // zien ("Pakt reacties op" / "Laat reacties liggen"), terug naar hemzelf als zelfverbeter-nudge.
+  // Afgeleid uit de reeds opgehaalde reacties (geen extra query); dezelfde `now` als de overige signalen.
+  const responsivenessReputation = computeClientResponsiveness(
+    applications.map((a) => ({ status: a.status, createdAt: a.createdAt })),
+    now,
+  );
+
   const decisionSummary = summarizeCandidatesAwaitingDecision(
     applications.map((a) => ({
       status: a.status,
@@ -299,6 +309,8 @@ export default async function KandidatenPage({
         </Card>
       ) : (
         <div className="space-y-4">
+          <ResponsivenessReputationCard responsiveness={responsivenessReputation} />
+
           {/* Statusfilter */}
           <nav className="flex flex-wrap gap-2 text-sm" aria-label={t("Filter op status")}>
             {Object.entries(KANDIDATEN_FILTER_LABELS).map(([val, label]) => {
