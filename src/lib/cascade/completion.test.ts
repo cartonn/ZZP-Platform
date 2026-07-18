@@ -3,6 +3,7 @@ import {
   isInvoiceSettled,
   hasOpenCollaborationWork,
   completionBlockReason,
+  cancellationBlockReason,
   collaborationCompletableGuard,
   SETTLED_INVOICE_LIFECYCLE,
   SETTLED_INVOICE_LEGACY_STATUS,
@@ -178,6 +179,44 @@ describe("completionBlockReason", () => {
   it("meerdere ingediende prestaties zonder open factuur → meervoud-reden", () => {
     expect(completionBlockReason(snapshot({ submittedPerformances: 3 }))).toBe(
       "Er wachten nog 3 ingediende urenstaten of opleveringen op goedkeuring. Beoordeel die eerst voordat je de samenwerking afrondt.",
+    );
+  });
+});
+
+// ─── cancellationBlockReason ─────────────────────────────────────────────────
+
+describe("cancellationBlockReason — symmetrisch met afronden (annuleren mag niet met open werk)", () => {
+  it("geen open werk → null (annuleren mag)", () => {
+    expect(cancellationBlockReason(snapshot())).toBeNull();
+  });
+
+  it("alleen afgewikkelde (PAID) facturen → null", () => {
+    expect(cancellationBlockReason(snapshot({ otherInvoices: [inv("DRAFT", "PAID")] }))).toBeNull();
+  });
+
+  it("een DRAFT-cascadefactuur (niet afgewikkeld) blokkeert annuleren — het gat dat de oude, enge check miste", () => {
+    expect(cancellationBlockReason(snapshot({ otherInvoices: [inv("DRAFT", "DRAFT")] }))).toBe(
+      "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst.",
+    );
+  });
+
+  it("geld weegt zwaarder dan een prestatie", () => {
+    expect(
+      cancellationBlockReason(
+        snapshot({ otherInvoices: [inv("APPROVED", "APPROVED")], submittedPerformances: 2 }),
+      ),
+    ).toContain("factuur open");
+  });
+
+  it("één ingediende prestatie zonder open factuur → annuleer-specifieke reden", () => {
+    expect(cancellationBlockReason(snapshot({ submittedPerformances: 1 }))).toBe(
+      "Er wacht nog 1 ingediende urenstaat of oplevering op goedkeuring. Beoordeel of wijs die eerst af voordat je de samenwerking annuleert.",
+    );
+  });
+
+  it("meerdere ingediende prestaties → meervoud, annuleer-bewoording", () => {
+    expect(cancellationBlockReason(snapshot({ submittedPerformances: 3 }))).toBe(
+      "Er wachten nog 3 ingediende urenstaten of opleveringen op goedkeuring. Beoordeel of wijs die eerst af voordat je de samenwerking annuleert.",
     );
   });
 });

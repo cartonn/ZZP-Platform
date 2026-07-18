@@ -8,8 +8,7 @@ import { prisma } from "@/lib/db";
 import { assertCollaborationTransition, CollaborationTransitionError } from "@/lib/collaborations";
 import { assertJobTransition } from "@/lib/jobs";
 import { planReplacement } from "@/lib/replacement";
-import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
-import { completionBlockReason } from "@/lib/cascade/completion";
+import { cancellationBlockReason, completionBlockReason } from "@/lib/cascade/completion";
 import { signContract, CascadeError } from "@/lib/cascade/commands";
 import { assessCancellation } from "@/lib/cancellation";
 import {
@@ -156,7 +155,11 @@ export async function changeCollaborationStatus(
   target: string,
 ): Promise<void> {
   const actor = await requireActor();
-  const targetStatus = collaborationStatusSchema.parse(target);
+  // safeParse (geen throwing .parse): een geknutselde POST met een `target` buiten de enum mag geen
+  // onafgevangen ZodError/500 geven, maar een nette domeinfout — spiegelt franchise/diensten.
+  const parsedTarget = collaborationStatusSchema.safeParse(target);
+  if (!parsedTarget.success) throw new Error("Ongeldige doelstatus.");
+  const targetStatus = parsedTarget.data;
   // Annuleren loopt uitsluitend via cancelCollaboration (reden verplicht + kostensnapshot).
   if (targetStatus === "CANCELLED")
     throw new Error("Annuleren vereist een reden — gebruik de annuleerknop.");
@@ -197,18 +200,23 @@ async function applyCollaborationStatusChange(
     throw new Error("Onderteken eerst het contract om de samenwerking te activeren.");
   }
 
-  // Veiligheidsrem: annuleer geen samenwerking met een nog openstaande factuur — de
-  // betaalverplichting zou anders haar context verliezen. Voldoe of crediteer de factuur eerst.
+  // Veiligheidsrem (geld-correctheid): annuleer geen samenwerking zolang er nog open geld is (een
+  // niet-afgewikkelde factuur, óók een DRAFT-cascadefactuur) óf een ingediende prestatie die nog op
+  // goedkeuring wacht. Symmetrisch met de afronden-rem hieronder: anders raakt dat werk/geld ná de
+  // annulering los van zijn context en kan het tóch de cascade in glippen (approve-prestatie →
+  // factuur → betaling op een geannuleerde deal). Beoordeel/wijs de prestatie eerst af of markeer/
+  // crediteer de factuur. `submitPerformance` blokkeert al nieuw werk ná annulering.
   if (targetStatus === "CANCELLED") {
-    const open = await prisma.invoice.findFirst({
-      where: { collaborationId, ...outstandingInvoiceWhere },
-      select: { id: true },
-    });
-    if (open) {
-      throw new Error(
-        "Er staat nog een openstaande factuur voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst.",
-      );
-    }
+    const [otherInvoices, submittedPerformances] = await Promise.all([
+      // unbounded-allow: factuurstatus van één samenwerking voor de annuleer-rem; per-collab begrensd
+      prisma.invoice.findMany({
+        where: { collaborationId },
+        select: { lifecycleStatus: true, status: true },
+      }),
+      prisma.performance.count({ where: { collaborationId, status: "SUBMITTED" } }),
+    ]);
+    const reason = cancellationBlockReason({ otherInvoices, submittedPerformances });
+    if (reason) throw new Error(reason);
   }
 
   // Afronden-rem (geld-correctheid): rond geen samenwerking af zolang er nog open geld is (een
@@ -279,17 +287,19 @@ async function applyCollaborationStatusChange(
       const reason = completionBlockReason({ otherInvoices, submittedPerformances });
       if (reason) throw new Error(reason);
     }
-    // Her-verificatie van de annuleer-rem: geen annulering terwijl er (net) een factuur openstaat.
+    // Her-verificatie van de annuleer-rem (TOCTOU-dicht): geen annulering terwijl er ná de pre-check
+    // (net) een prestatie werd ingediend of een openstaande factuur verscheen.
     if (targetStatus === "CANCELLED") {
-      const open = await tx.invoice.findFirst({
-        where: { collaborationId, ...outstandingInvoiceWhere },
-        select: { id: true },
-      });
-      if (open) {
-        throw new Error(
-          "Er staat nog een openstaande factuur voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst.",
-        );
-      }
+      const [otherInvoices, submittedPerformances] = await Promise.all([
+        // unbounded-allow: factuurstatus van één samenwerking voor de annuleer-rem; per-collab begrensd
+        tx.invoice.findMany({
+          where: { collaborationId },
+          select: { lifecycleStatus: true, status: true },
+        }),
+        tx.performance.count({ where: { collaborationId, status: "SUBMITTED" } }),
+      ]);
+      const reason = cancellationBlockReason({ otherInvoices, submittedPerformances });
+      if (reason) throw new Error(reason);
     }
 
     // Voorwaardelijke statuswrite: alleen als de samenwerking nog in de verwachte `from`-status staat.

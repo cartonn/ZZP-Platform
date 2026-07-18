@@ -68,7 +68,13 @@ vi.mock("@/lib/db", () => {
 });
 
 // Import ná de mocks.
-const { changeCollaborationStatus } = await import("./actions");
+const { changeCollaborationStatus, cancelCollaboration } = await import("./actions");
+
+function cancelForm(reason = "Opdracht vervalt volledig") {
+  const fd = new FormData();
+  fd.set("reason", reason);
+  return fd;
+}
 
 function activeCollaboration() {
   return {
@@ -133,5 +139,68 @@ describe("changeCollaborationStatus — TOCTOU-hardening bij afronden", () => {
     expect(args.where).toMatchObject({ id: "collab-1", status: "ACTIVE" });
     expect(args.data.status).toBe("COMPLETED");
     expect(args.data.completedAt).toBeInstanceOf(Date);
+  });
+});
+
+// Regressietest voor de annuleer-rem (persona-sweep 2026-07-18, run 36).
+//
+// Defect (HIGH, DOEL 2 — verboden statusovergang / geld-correctheid): de annuleer-rem checkte alléén
+// "openstaande" facturen (lifecycleStatus SUBMITTED/APPROVED/OVERDUE) — NIET een DRAFT-cascadefactuur
+// en HELEMAAL geen ingediende (SUBMITTED) prestatie. Asymmetrisch met de afronden-rem. Zo kon een
+// opdrachtgever een samenwerking annuleren terwijl er een ingediende prestatie in de wacht stond,
+// die daarna alsnog goedgekeurd → gefactureerd → betaald kon worden (de downstream cascade-commando's
+// checken de collaboration-status niet) — een volledige facturatiecascade op een geannuleerde deal.
+//
+// Fix: de annuleer-rem is nu symmetrisch met de afronden-rem (`cancellationBlockReason`): annuleren
+// wordt geblokkeerd zolang er een niet-afgewikkelde factuur (óók DRAFT) of een SUBMITTED-prestatie is.
+describe("cancelCollaboration — annuleer-rem symmetrisch met afronden (open werk blokkeert)", () => {
+  it("weigert annuleren als er een ingediende prestatie op goedkeuring wacht", async () => {
+    state.preCheckSubmitted = 1;
+
+    const result = await cancelCollaboration("collab-1", undefined, cancelForm());
+    expect(result?.error).toMatch(/beoordeel|goedkeuring/i);
+  });
+
+  it("weigert annuleren bij een niet-afgewikkelde DRAFT-cascadefactuur (open geld)", async () => {
+    // Een DRAFT-cascadefactuur (lifecycleStatus DRAFT) is NIET afgewikkeld → moet blokkeren. De oude,
+    // enge check (outstandingInvoiceWhere) miste deze status volledig.
+    state.preCheckInvoices = [{ lifecycleStatus: "DRAFT", status: "DRAFT" }];
+
+    const result = await cancelCollaboration("collab-1", undefined, cancelForm());
+    expect(result?.error).toMatch(/factuur.*open|open.*factuur/i);
+  });
+
+  it("weigert annuleren als er BINNEN de transactie alsnog een prestatie opduikt (TOCTOU-race)", async () => {
+    state.preCheckSubmitted = 0;
+    state.txSubmitted = 1;
+
+    const result = await cancelCollaboration("collab-1", undefined, cancelForm());
+    expect(result?.error).toMatch(/beoordeel|goedkeuring/i);
+  });
+
+  it("annuleert als er geen open werk is (voorwaardelijke write op status ACTIVE → CANCELLED)", async () => {
+    state.preCheckInvoices = [];
+    state.preCheckSubmitted = 0;
+    state.updateManyCount = 1;
+
+    const result = await cancelCollaboration("collab-1", undefined, cancelForm());
+    expect(result).toBeUndefined();
+
+    const args = state.updateManyArgs as {
+      where: { id: string; status: string };
+      data: { status: string; cancellationReason?: string };
+    };
+    expect(args.where).toMatchObject({ id: "collab-1", status: "ACTIVE" });
+    expect(args.data.status).toBe("CANCELLED");
+    expect(args.data.cancellationReason).toBe("Opdracht vervalt volledig");
+  });
+
+  it("laat een reeds AFGEWIKKELDE (PAID) factuur annuleren toe (geen vals-positief)", async () => {
+    // Een PAID-cascadefactuur is afgewikkeld → mag annuleren niet blokkeren.
+    state.preCheckInvoices = [{ lifecycleStatus: "PAID", status: "DRAFT" }];
+    state.preCheckSubmitted = 0;
+
+    const result = await cancelCollaboration("collab-1", undefined, cancelForm());
+    expect(result).toBeUndefined();
   });
 });

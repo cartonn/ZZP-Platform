@@ -94,3 +94,27 @@ export function completionBlockReason(snapshot: OpenWorkSnapshot): string | null
   }
   return null;
 }
+
+/**
+ * NL-reden waarom een samenwerking nog niet geANNULEERD mag worden, of `null` als het mag.
+ * Symmetrisch met `completionBlockReason`: annuleren mag niet zolang er nog open geld (een
+ * niet-afgewikkelde factuur, óók een DRAFT-cascadefactuur) óf onbeoordeeld werk (een ingediende
+ * prestatie) is. Anders zou dat werk/geld ná de annulering losraken van zijn context en tóch de
+ * cascade in kunnen glippen (approve-prestatie → factuur → betaling op een geannuleerde deal).
+ * `submitPerformance` blokkeert al nieuw werk ná annulering; deze rem sluit het venster aan de
+ * voorkant. Beoordeel/wijs de prestatie eerst af, of markeer/crediteer de factuur — dan mag annuleren.
+ */
+export function cancellationBlockReason(snapshot: OpenWorkSnapshot): string | null {
+  const openInvoices = snapshot.otherInvoices.filter((inv) => !isInvoiceSettled(inv)).length;
+  if (openInvoices > 0) {
+    return openInvoices === 1
+      ? "Er staat nog 1 factuur open voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst."
+      : `Er staan nog ${openInvoices} facturen open voor deze samenwerking. Markeer die als betaald of crediteer ze eerst.`;
+  }
+  if (snapshot.submittedPerformances > 0) {
+    return snapshot.submittedPerformances === 1
+      ? "Er wacht nog 1 ingediende urenstaat of oplevering op goedkeuring. Beoordeel of wijs die eerst af voordat je de samenwerking annuleert."
+      : `Er wachten nog ${snapshot.submittedPerformances} ingediende urenstaten of opleveringen op goedkeuring. Beoordeel of wijs die eerst af voordat je de samenwerking annuleert.`;
+  }
+  return null;
+}

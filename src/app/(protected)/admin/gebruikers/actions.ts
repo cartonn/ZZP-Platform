@@ -22,7 +22,12 @@ import { collaborationsWithActiveDisputeOpenedBy } from "@/lib/dispute-ownership
 
 export async function setUserStatus(userId: string, target: string): Promise<void> {
   const actor = await requireRole("ADMIN");
-  const status = userStatusSchema.parse(target);
+  // safeParse (geen throwing .parse): een geknutselde admin-POST met een `target` buiten de enum
+  // mag geen onafgevangen ZodError/500 geven, maar een nette domeinfout — spiegelt de hardening
+  // in franchise/diensten/actions.ts.
+  const parsedStatus = userStatusSchema.safeParse(target);
+  if (!parsedStatus.success) throw new Error("Ongeldige accountstatus.");
+  const status = parsedStatus.data;
 
   if (!canModerateUser(actor.id, userId)) {
     throw new Error("Je kunt je eigen account niet wijzigen.");

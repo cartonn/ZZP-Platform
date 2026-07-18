@@ -14,7 +14,12 @@ import { noShowVerdictSchema } from "@/lib/enums";
 
 export async function judgeNoShowReport(reportId: string, verdictRaw: string): Promise<void> {
   const actor = await requireRole("ADMIN");
-  const verdict = noShowVerdictSchema.parse(verdictRaw);
+  // safeParse (geen throwing .parse): een geknutselde admin-POST met een `verdict` buiten de enum
+  // mag geen onafgevangen ZodError/500 geven, maar een nette domeinfout — spiegelt de hardening
+  // in franchise/diensten/actions.ts.
+  const parsedVerdict = noShowVerdictSchema.safeParse(verdictRaw);
+  if (!parsedVerdict.success) throw new Error("Ongeldig oordeel.");
+  const verdict = parsedVerdict.data;
   if (verdict === "PENDING") throw new Error("Kies gegrond of ongegrond.");
 
   const report = await prisma.noShowReport.findUnique({

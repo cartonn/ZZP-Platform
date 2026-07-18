@@ -18,7 +18,11 @@ import { getPaymentProvider } from "@/lib/billing/provider";
  */
 export async function changeSubscription(planKey: string): Promise<void> {
   const actor = await requireActor();
-  const key = planKeySchema.parse(planKey);
+  // safeParse (geen throwing .parse): een geknutselde POST met een `planKey` buiten de enum mag
+  // geen onafgevangen ZodError/500 geven, maar een nette domeinfout — spiegelt franchise/diensten.
+  const parsedKey = planKeySchema.safeParse(planKey);
+  if (!parsedKey.success) throw new Error("Ongeldig abonnement.");
+  const key = parsedKey.data;
   const plan = await prisma.plan.findUnique({
     where: { key },
     select: { id: true, name: true, priceCents: true },

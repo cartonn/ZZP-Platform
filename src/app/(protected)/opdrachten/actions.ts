@@ -197,7 +197,12 @@ export async function changeJobStatus(
   _formData?: FormData,
 ): Promise<JobStatusState> {
   const actor = await requireRole("CLIENT");
-  const targetStatus = jobStatusSchema.parse(target);
+  // safeParse (geen throwing .parse): een geknutselde POST met een `target` buiten de enum mag geen
+  // onafgevangen ZodError/500 geven. Deze actie retourneert een fout-object (JobStatusState), dus
+  // geef dezelfde nette vorm terug als de overige faalpaden i.p.v. te throwen.
+  const parsedTarget = jobStatusSchema.safeParse(target);
+  if (!parsedTarget.success) return { error: "Ongeldige doelstatus." };
+  const targetStatus = parsedTarget.data;
 
   const job = await prisma.job.findUnique({
     where: { id: jobId },
