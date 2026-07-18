@@ -17,6 +17,7 @@ import { DEFAULT_PAYMENT_TERM_DAYS } from "@/lib/config";
 import {
   CascadeError,
   assertNotDisputed,
+  assertCollaborationNotTerminal,
   persistEventAndEffects,
   loadCascadeInvoice,
   loadCollabMeta,
@@ -30,7 +31,10 @@ export async function submitInvoice(actor: Actor, invoiceId: string): Promise<vo
   if (actor.role !== "ADMIN" && actor.id !== inv.issuerUserId) {
     throw new CascadeError("Alleen de uitschrijver kan de factuur indienen.");
   }
-  if (inv.collaborationId) await assertNotDisputed(inv.collaborationId);
+  if (inv.collaborationId) {
+    await assertNotDisputed(inv.collaborationId);
+    await assertCollaborationNotTerminal(inv.collaborationId);
+  }
   // Heraanbieding na afkeuring: een factuur die al een partyInvoiceNumber draagt is eerder ingediend.
   // Dan het bestaande nummer behouden (geen nieuwe allocatie → geen gat in de gatenvrije reeks) en
   // niet opnieuw boeken (omzet/BTW al erkend bij de eerste indiening).
@@ -65,6 +69,7 @@ export async function submitInvoice(actor: Actor, invoiceId: string): Promise<vo
       correlationId: inv.correlationId,
       invoiceId,
       disputeGuardCollaborationId: inv.collaborationId,
+      terminalGuard: true,
     },
     // Alleen bij de eerste indiening een nummer alloceren; heraanbieding hergebruikt het bestaande.
     isResubmit
@@ -97,7 +102,10 @@ export async function approveInvoice(actor: Actor, invoiceId: string): Promise<v
   if (actor.role !== "ADMIN" && actor.id !== inv.counterpartyUserId) {
     throw new CascadeError("Alleen de opdrachtgever kan de factuur goedkeuren.");
   }
-  if (inv.collaborationId) await assertNotDisputed(inv.collaborationId);
+  if (inv.collaborationId) {
+    await assertNotDisputed(inv.collaborationId);
+    await assertCollaborationNotTerminal(inv.collaborationId);
+  }
   const effects = planInvoiceApprovedEvent({
     invoice: {
       id: invoiceId,
@@ -128,6 +136,7 @@ export async function approveInvoice(actor: Actor, invoiceId: string): Promise<v
       correlationId: inv.correlationId,
       invoiceId,
       disputeGuardCollaborationId: inv.collaborationId,
+      terminalGuard: true,
     },
   );
 

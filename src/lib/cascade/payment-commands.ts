@@ -11,6 +11,7 @@ import { recordTenantFeeForCollaboration } from "@/lib/tenant-billing/record-fee
 import {
   CascadeError,
   assertNotDisputed,
+  terminalCollaborationError,
   persistEventAndEffects,
   loadCascadeInvoice,
   loadCollabMeta,
@@ -36,6 +37,13 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
     select: { id: true, status: true },
   });
   if (!col) throw new CascadeError("Samenwerking niet gevonden.");
+  // Terminale-status-rem: een betaling op een GEANNULEERDE samenwerking is nooit geldig. COMPLETED is
+  // hier wél toegestaan — `confirmPayment` produceert de afronding zélf als effect (de collab is bij
+  // het laden nog ACTIVE) en een herhaalde betaling is al idempotent via de dedupeKey + factuur-lifecycle.
+  {
+    const err = terminalCollaborationError(col.status, { allowCompleted: true });
+    if (err) throw err;
+  }
 
   // Bepaal of deze betaling het laatste openstaande werk afsluit. Andere niet-afgewikkelde
   // facturen of nog onbeoordeelde prestaties houden de samenwerking ACTIEF (geld-correctheid).
@@ -84,6 +92,8 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
       correlationId: inv.correlationId,
       invoiceId,
       disputeGuardCollaborationId: inv.collaborationId,
+      terminalGuard: true,
+      terminalGuardAllowCompleted: true,
     },
   );
 
