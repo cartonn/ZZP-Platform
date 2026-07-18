@@ -1,10 +1,11 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { ArrowLeft, Clock, MessageSquare } from "lucide-react";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { isParticipant } from "@/lib/messaging";
+import { summarizeReplyLatency } from "@/lib/message-reply-latency";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MessageComposer } from "./message-composer";
@@ -40,6 +41,16 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
 
   const other = conversation.participants.find((p) => p.user.id !== actor.id);
 
+  // Reactietijd-gewoonte van de gesprekspartner ("reageert meestal binnen ~X"): afgeleid uit de al-
+  // geladen, onveranderlijke berichttijdstippen — geen extra query, geen schemawijziging. Zet
+  // verwachtingen en neemt "heb ik geghost?"-onzekerheid weg. Null (geen regel) onder de steekproefgrens.
+  const replyLatency = other
+    ? summarizeReplyLatency(
+        conversation.messages.map((m) => ({ senderId: m.senderId, createdAt: m.createdAt })),
+        other.user.id,
+      )
+    : null;
+
   return (
     <div className="flex h-full flex-col gap-4">
       <MarkRead conversationId={conversation.id} />
@@ -54,6 +65,12 @@ export default async function GesprekPage({ params }: { params: Promise<{ id: st
         <h1 className="mt-2 text-lg font-semibold tracking-tight">
           {other?.user.name ?? "Gesprek"}
         </h1>
+        {replyLatency && (
+          <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="size-3.5 shrink-0" aria-hidden />
+            Reageert meestal {replyLatency.label}
+          </p>
+        )}
         {conversation.job && (
           <p className="text-sm text-muted-foreground">
             Over:{" "}
