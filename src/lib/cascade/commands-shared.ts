@@ -46,6 +46,18 @@ export async function persistEventAndEffects(
      * in-transactie-herverificatie in samenwerkingen/actions.ts ("TOCTOU-dicht").
      */
     disputeGuardCollaborationId?: string | null;
+    /**
+     * Wanneer `true` (naast een gezette `disputeGuardCollaborationId`): her-verifieer BINNEN dezelfde
+     * transactie-lees dat de samenwerking niet net terminaal (geannuleerd/afgerond) werd. Dicht het
+     * TOCTOU-venster tussen de pre-transactionele `assertCollaborationNotTerminal`-lees en deze write —
+     * bv. een DRAFT-prestatie die ná een annulering alsnog wordt ingediend. Rolt de effect-transactie
+     * terug (geen forward-cascade-effect op een dode deal). Hergebruikt de dispuut-guard-lees (geen
+     * extra query); de collab-id is per constructie dezelfde als `disputeGuardCollaborationId`.
+     */
+    terminalGuard?: boolean;
+    /** Sta een AFGERONDE (COMPLETED) samenwerking toe (voor `confirmPayment`, dat afronding zélf als
+     * effect produceert). CANCELLED blijft altijd geweigerd. */
+    terminalGuardAllowCompleted?: boolean;
   },
   opts?: { allocate?: { issuerKey: string; year: number; invoiceId: string } },
 ): Promise<PersistResult> {
@@ -88,23 +100,32 @@ async function persistInTransaction(
     performanceId?: string | null;
     correlationId?: string | null;
     disputeGuardCollaborationId?: string | null;
+    terminalGuard?: boolean;
+    terminalGuardAllowCompleted?: boolean;
   },
   opts?: { allocate?: { issuerKey: string; year: number; invoiceId: string } },
 ): Promise<PersistResult> {
   return prisma.$transaction(async (tx) => {
-    // TOCTOU-grendel: her-verifieer de dispuut-vrijheid binnen de transactie, vóór er iets wordt
-    // weggeschreven. Een dispuut dat na de pre-check (`assertNotDisputed`) maar vóór deze commit
-    // werd geopend bevriest de cascade alsnog — de hele transactie rolt terug, dus er ontstaat
-    // geen betaling/afronding/factuur-effect op een samenwerking die intussen in dispuut ging.
+    // TOCTOU-grendel: her-verifieer binnen de transactie, vóór er iets wordt weggeschreven, dat de
+    // samenwerking niet net (a) in dispuut ging of (b) terminaal (geannuleerd/afgerond) werd. Een
+    // overgang die na de pre-check maar vóór deze commit gebeurde bevriest/blokkeert de cascade
+    // alsnog — de hele transactie rolt terug, dus er ontstaat geen betaling/afronding/factuur-effect
+    // op een samenwerking die intussen in dispuut ging of dood is. Eén lees dekt beide guards.
     if (refs.disputeGuardCollaborationId) {
       const col = await tx.collaboration.findUnique({
         where: { id: refs.disputeGuardCollaborationId },
-        select: { disputedAt: true },
+        select: { disputedAt: true, status: true },
       });
       if (col?.disputedAt) {
         throw new CascadeError(
           "De samenwerking is bevroren wegens een open dispuut. Los het dispuut eerst op.",
         );
+      }
+      if (refs.terminalGuard && col) {
+        const err = terminalCollaborationError(col.status, {
+          allowCompleted: refs.terminalGuardAllowCompleted,
+        });
+        if (err) throw err;
       }
     }
 
@@ -172,6 +193,46 @@ export async function assertNotDisputed(collaborationId: string): Promise<void> 
       "De samenwerking is bevroren wegens een open dispuut. Los het dispuut eerst op.",
     );
   }
+}
+
+/**
+ * Pure bron van waarheid voor de terminale-status-rem: geeft de te werpen fout terug (of null) op
+ * basis van de samenwerkingsstatus. Gedeeld door de pre-check (`assertCollaborationNotTerminal`) én
+ * de in-transactie-grendel (`persistEventAndEffects` → `terminalGuard`) zodat bewoording en logica
+ * niet driften. CANCELLED is altijd terminaal; COMPLETED alleen wanneer de caller het niet toestaat.
+ */
+export function terminalCollaborationError(
+  status: string,
+  opts?: { allowCompleted?: boolean },
+): CascadeError | null {
+  if (status === "CANCELLED") {
+    return new CascadeError("De samenwerking is geannuleerd; deze actie is niet meer mogelijk.");
+  }
+  if (status === "COMPLETED" && !opts?.allowCompleted) {
+    return new CascadeError("De samenwerking is afgerond; deze actie is niet meer mogelijk.");
+  }
+  return null;
+}
+
+/**
+ * Weigert een forward-cascade-mutatie op een terminale (geannuleerde/afgeronde) samenwerking —
+ * defense-in-depth, spiegelt `assertNotDisputed` als pre-transactionele lees. De annuleer-/afrond-rem
+ * (symmetrisch, TOCTOU-dicht) sluit de bekende bereikbare route al af, maar deze systemische rem
+ * beschermt tegen een (toekomstig) pad dat verweesd werk — een SUBMITTED-prestatie of open factuur —
+ * op een dode deal achterlaat: goedkeuren/indienen/betalen mag de facturatiecascade dan niet alsnog
+ * voortzetten. Een ontbrekende samenwerking valt op de bestaande "niet gevonden"-paden van de callers.
+ */
+export async function assertCollaborationNotTerminal(
+  collaborationId: string,
+  opts?: { allowCompleted?: boolean },
+): Promise<void> {
+  const col = await prisma.collaboration.findUnique({
+    where: { id: collaborationId },
+    select: { status: true },
+  });
+  if (!col) return;
+  const err = terminalCollaborationError(col.status, opts);
+  if (err) throw err;
 }
 
 // --- Loaders ---------------------------------------------------------------

@@ -3,6 +3,39 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — Security/robuustheid: terminale-status-rem op de forward-cascade-commands (PR #825)
+
+**Gat (geparkeerde MED, persona-sweep run 36 — DOEL 2, defense-in-depth):** de forward-cascade-money-
+commands checkten wél `assertNotDisputed`, maar niet of de samenwerking al terminaal (CANCELLED/
+COMPLETED) was. Erger: **`submitPerformance` checkte de collab-status helemaal niet** — `createPerformance`
+eist ACTIVE, maar een DRAFT-prestatie die vóór annulering is aangemaakt kon ná annulering alsnog worden
+ingediend (de annuleer-rem telt alleen SUBMITTED-prestaties, niet DRAFT). Dat is een **reachable weespad**:
+DRAFT aanmaken op ACTIVE → collab annuleren (DRAFT blokkeert niet) → alsnog indienen → goedkeuren →
+factuur → volledige facturatiecascade op een geannuleerde deal.
+
+**Fix:** systemische terminale-status-rem die de dispuut-bevriezing spiegelt (pre-check + in-transactie
+TOCTOU-grendel):
+
+- `terminalCollaborationError(status, {allowCompleted})` — pure bron van waarheid voor bewoording/logica.
+- `assertCollaborationNotTerminal(collaborationId, {allowCompleted})` — pre-transactionele lees.
+- `terminalGuard` + `terminalGuardAllowCompleted` op `persistEventAndEffects` — her-verifieert de status
+  BINNEN de effect-transactie (hergebruikt de bestaande dispuut-guard-lees, één query, geen extra I/O).
+
+Toegepast op `submitPerformance`/`approvePerformance`/`autoApprovePerformance`/`submitInvoice`/
+`approveInvoice` (CANCELLED + COMPLETED geweigerd) en `confirmPayment` (alléén CANCELLED — die command
+produceert de afronding zélf als effect; COMPLETED is idempotent via dedupeKey + factuur-lifecycle).
+Correctie-/afkeur-paden (`rejectPerformance`/`rejectInvoice`/`creditInvoice`) blijven ongemoeid — die
+mogen post-terminaal legitiem draaien.
+
+**Bestanden:** `src/lib/cascade/commands-shared.ts` (helpers + in-transactie-guard),
+`performance-commands.ts` / `invoice-commands.ts` / `payment-commands.ts` (call-sites),
+`src/lib/cascade/terminal-status-guard.test.ts` (nieuw, 13 tests). `docs/PERSONA-SWEEP-BACKLOG.md`:
+MED-item GEDAAN.
+
+**Checks:** `npm run typecheck` ✓, `npm run lint` ✓ (0), `npx prettier --write .` ✓, `npm run test` ✓
+416 files / **4506** tests, build draait. CI-poort (check, e2e, audit, secret-scan, CodeQL, agent-review)
+op de PR.
+
 ## 2026-07-18 — Prod-rijpheid: retentie-snoei van de webhook-event-ledger (`webhook-event-retention`)
 
 **Wat:** de idempotentie-ledger `ProcessedWebhookEvent` (borgt exact-één-keer-verwerking van betaal-webhooks,

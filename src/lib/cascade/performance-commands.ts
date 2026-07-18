@@ -19,6 +19,7 @@ import { MAX_PERFORMANCE_HOURS, MAX_MILESTONE_CENTS } from "@/lib/validation";
 import {
   CascadeError,
   assertNotDisputed,
+  assertCollaborationNotTerminal,
   persistEventAndEffects,
   loadPerformance,
   loadCollabMeta,
@@ -189,6 +190,10 @@ export async function submitPerformance(actor: Actor, performanceId: string): Pr
     throw new CascadeError("Alleen de ZZP'er kan de prestatie indienen.");
   }
   await assertNotDisputed(perf.collaborationId);
+  // Terminale-status-rem: een DRAFT-prestatie die vóór annulering is aangemaakt mag ná annulering
+  // niet alsnog worden ingediend (weespad — `createPerformance` eist ACTIVE, `submitPerformance` deed
+  // dat niet). Ook een afgeronde deal krijgt geen nieuw ingediend werk meer.
+  await assertCollaborationNotTerminal(perf.collaborationId);
   const effects = planPerformanceSubmitted({
     performanceId,
     status: perf.status,
@@ -213,6 +218,7 @@ export async function submitPerformance(actor: Actor, performanceId: string): Pr
       correlationId: perf.collaborationId,
       performanceId,
       disputeGuardCollaborationId: perf.collaborationId,
+      terminalGuard: true,
     },
   );
 
@@ -239,6 +245,7 @@ export async function approvePerformance(actor: Actor, performanceId: string): P
     throw new CascadeError("Alleen de opdrachtgever kan de prestatie goedkeuren.");
   }
   await assertNotDisputed(perf.collaborationId);
+  await assertCollaborationNotTerminal(perf.collaborationId);
   const effects = planPerformanceApproved({
     performance: {
       id: performanceId,
@@ -279,6 +286,7 @@ export async function approvePerformance(actor: Actor, performanceId: string): P
       correlationId: perf.collaborationId,
       performanceId,
       disputeGuardCollaborationId: perf.collaborationId,
+      terminalGuard: true,
     },
   );
 
@@ -308,6 +316,7 @@ export async function autoApprovePerformance(performanceId: string): Promise<voi
   const perf = await loadPerformance(performanceId);
   if (perf.status !== "SUBMITTED") return; // alleen ingediende prestaties; idempotent
   await assertNotDisputed(perf.collaborationId);
+  await assertCollaborationNotTerminal(perf.collaborationId);
   const effects = planPerformanceApproved({
     performance: {
       id: performanceId,
@@ -348,6 +357,7 @@ export async function autoApprovePerformance(performanceId: string): Promise<voi
       correlationId: perf.collaborationId,
       performanceId,
       disputeGuardCollaborationId: perf.collaborationId,
+      terminalGuard: true,
     },
   );
 

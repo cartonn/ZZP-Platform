@@ -26,14 +26,20 @@
 > (`cancellationBlockReason`, 6 tests) + `samenwerkingen/completion-race.test.ts` (annuleer-rem: prestatie/
 > DRAFT-factuur/TOCTOU-race/schone-annulering/PAID-geen-vals-positief, 5 tests).
 >
-> **GEPARKEERD — MED (DOEL 2, defense-in-depth — cascade-commando's checken terminale collab-status
-> niet):** `approvePerformance`/`submitInvoice`/`approveInvoice`/`confirmPayment` (`src/lib/cascade/
-{performance,invoice,payment}-commands.ts`) gebruiken alleen `assertNotDisputed` en checken niet of
-> de samenwerking al CANCELLED/COMPLETED (terminaal) is — anders dan `submitPerformance`, dat wél
-> `status !== "ACTIVE"` weigert. De HIGH-fix hierboven sluit de bekende bereikbare route (annuleren met
-> open werk is nu onmogelijk), maar een systemische **terminale-status-rem** op alle forward-cascade-
-> mutaties (spiegelt `assertNotDisputed`) is robuuster tegen een toekomstig nieuw pad naar een terminale
-> status. Eigen increment (cascade-motor, ruimere blast-radius op bestaande tests). **Prioriteit MED.**
+> **~~GEPARKEERD~~ GEDAAN — MED (DOEL 2, defense-in-depth — cascade-commando's checken terminale
+> collab-status niet) (2026-07-18, PR #825):** `approvePerformance`/`submitInvoice`/`approveInvoice`/
+> `confirmPayment` (`src/lib/cascade/{performance,invoice,payment}-commands.ts`) gebruikten alleen
+> `assertNotDisputed` en checkten niet of de samenwerking al CANCELLED/COMPLETED (terminaal) is. Erger:
+> **ook `submitPerformance` deed dat niet** — `createPerformance` eist ACTIVE, maar een DRAFT-prestatie
+> die vóór annulering is aangemaakt kon ná annulering alsnog worden ingediend (de annuleer-rem telt
+> alleen SUBMITTED-prestaties, niet DRAFT) → een reachable weespad naar de facturatiecascade op een
+> geannuleerde deal. **Fix:** systemische terminale-status-rem die `assertNotDisputed` spiegelt —
+> een pure `terminalCollaborationError` (bron van waarheid voor bewoording/logica), een
+> pre-transactionele `assertCollaborationNotTerminal` én een in-transactie TOCTOU-grendel (`terminalGuard`
+> op `persistEventAndEffects`, hergebruikt de dispuut-guard-lees, geen extra query). Toegepast op
+> `submitPerformance`/`approvePerformance`/`autoApprovePerformance`/`submitInvoice`/`approveInvoice`
+> (CANCELLED + COMPLETED geweigerd) en `confirmPayment` (alleen CANCELLED — die command produceert de
+> afronding zélf, COMPLETED toegestaan). Rood→groen: `terminal-status-guard.test.ts` (13 tests).
 >
 > **GEPARKEERD — LAAG (UX, geen beveiligingsgat — `frozen` dekt CANCELLED niet):** de
 > samenwerking-detailpagina (`samenwerkingen/[id]/page.tsx`) leidt `frozen` alleen af uit `disputedAt`,
