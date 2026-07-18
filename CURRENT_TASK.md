@@ -260,6 +260,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **"Reageert meestal binnen ~X" reactietijd-signaal in het gesprek (2026-07-18, PR #817)** —
+> het gespreksdetail (`/berichten/[id]`) toonde wie er "aan zet" is en of een reactie te lang ligt (op de berichtenlijst),
+> maar nergens hóe snel de gesprekspartner doorgaans antwoordt — een wachtende ZZP'er/opdrachtgever/bemiddelaar kon niet
+> inschatten of stilte normaal is. Benchmark: Intercom/WhatsApp/Malt tonen "reageert doorgaans binnen X". Nu een subtiele
+> regel onder de naam in de gesprekskop — **"Reageert meestal binnen een dag"** — uit de mediane reactietijd van de partner.
+> Pure `summarizeReplyLatency` leest de al-geladen, **onveranderlijke** `Message.createdAt` + `senderId` (anders dan bij
+> `Application` géén driftgevoelig `updatedAt` — een bericht wordt nooit bijgewerkt → eerlijk/reproduceerbaar). Beurt = partner
+> antwoordt nádat de andere kant stuurde, gemeten vanaf het eerste onbeantwoorde inkomende bericht (opeenvolgende
+> partner-berichten = één antwoord); mediaan in grove uitlegbare buckets (uur/enkele uren/dag/enkele dagen/week-of-langer) —
+> **geen schijnprecisie**. Sample-gated (≥2 beurten) → geen regel bij te weinig historie (rustige kop); symmetrisch voor alle
+> drie de rollen. `message-reply-latency.ts` (+9 tests) + wiring in de kop (geen extra query — berichten al geladen). Geen
+> schemawijziging, geen nieuw mutatie/auth-oppervlak; alleen berichten van dít gesprek (beide deelnemers zien die al) →
+> privacy by design. Gate: typecheck, lint, 4423 unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — betaal-webhook idempotentie-grendel (exact-één-keer per event) (2026-07-18, PR #816)** —
 > de betaal-webhook (`/api/billing/webhook`) leunde voor replay-veiligheid volledig op de overgangsmap; de persona-sweep (run 26/27)
 > flagde dit als het resterende billing-hardening-item vóór recurring billing. Nu een provider-agnostische idempotentie-ledger

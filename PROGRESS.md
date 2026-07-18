@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — "Reageert meestal binnen ~X" reactietijd-signaal in het gesprek (PR #817)
+
+**Gat:** het gespreksdetail (`/berichten/[id]`) toont wie er "aan zet" is en of een reactie te lang
+ligt (op de berichtenlijst), maar nergens hóe snel de gesprekspartner doorgaans antwoordt. Een ZZP'er,
+opdrachtgever of bemiddelaar die op antwoord wacht kon niet inschatten of stilte "normaal" is of dat de
+partner reacties laat liggen. Benchmark: Intercom/WhatsApp/Malt tonen "reageert doorgaans binnen X" om
+verwachtingen te zetten en de "heb ik geghost?"-onzekerheid weg te nemen.
+
+**Wat:** een subtiele regel onder de naam in de gesprekskop — **"Reageert meestal binnen een dag"** —
+afgeleid uit de mediane reactietijd van de gesprekspartner. Pure `summarizeReplyLatency` leest de
+al-geladen, **onveranderlijke** `Message.createdAt` + `senderId` (anders dan bij `Application` is er
+hier géén driftgevoelig `updatedAt` — een bericht wordt nooit bijgewerkt → exact reproduceerbaar,
+eerlijk). Een "beurt" = de partner antwoordt nádat de andere kant iets stuurde; gemeten vanaf het
+_eerste onbeantwoorde_ inkomende bericht (opeenvolgende partner-berichten tellen als één antwoord). De
+mediaan (robuust tegen één uitschieter) valt in grove, uitlegbare buckets (binnen een uur / enkele uren
+/ een dag / enkele dagen / na een week of langer) — **geen schijnprecisie**, nooit een exact getal.
+Sample-gated (≥2 beantwoorde beurten) zodat één toevallige reactie geen "gewoonte" wordt; onder de grens
+verschijnt geen regel (rustige kop). Symmetrisch voor alle drie de rollen.
+
+**Bestanden:** `src/lib/message-reply-latency.ts` (pure helper, +9 tests),
+`src/app/(protected)/berichten/[id]/page.tsx` (wiring in de kop; geen extra query — de berichten zijn
+al geladen). Geen schemawijziging, geen nieuw mutatie/auth-oppervlak; uitsluitend berichten van dít
+gesprek (die beide deelnemers al zien) → privacy by design.
+
+**Checks:** typecheck, lint, `npm run test` (4423 passed / 403 files), build, prettier groen.
+
 ## 2026-07-18 — Prod-rijpheid: betaal-webhook idempotentie-grendel (exact-één-keer per event) (PR #816)
 
 **Gat:** de betaal-webhook (`/api/billing/webhook`) leunde voor replay-veiligheid **volledig** op de
