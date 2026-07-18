@@ -62,9 +62,12 @@ export async function applyCascadeEffects(
   }
 
   // 2. Statuswijzigingen (al gevalideerd tegen de state machine in de planner). De write is
-  //    voorwaardelijk op de verwachte `from`-status (updateMany met status-match): een gelijktijdige
-  //    andere transitie overschrijft zo niet stilzwijgend en laat geen verweesde factuur achter —
-  //    bij een botsing (count !== 1) rolt de hele transactie terug.
+  //    voorwaardelijk op de verwachte `from`-status (updateMany met status-match), plus een optionele
+  //    relationele `guard` die pas hier — binnen de transactie — opnieuw wordt getoetst: een
+  //    gelijktijdige andere transitie overschrijft zo niet stilzwijgend en laat geen verweesde
+  //    factuur achter. Bij een botsing (count !== 1) rolt de hele transactie terug — tenzij de
+  //    wijziging als `optional` is gemarkeerd, dan telt count 0 als "niet meer geldig, sla over"
+  //    (de eligibility-voorwaarde verviel intussen) zonder de rest terug te draaien.
   for (const sc of effects.statusChanges) {
     const data = { [sc.field]: sc.to, ...(sc.set ?? {}) };
     // Stempel het afrondingsmoment bij de overgang naar COMPLETED — dit ankert het blinde
@@ -72,7 +75,7 @@ export async function applyCascadeEffects(
     if (sc.entity === "Collaboration" && sc.field === "status" && sc.to === "COMPLETED") {
       (data as { completedAt?: Date }).completedAt = refs.occurredAt ?? new Date();
     }
-    const where = { id: sc.id, [sc.field]: sc.from };
+    const where = { id: sc.id, [sc.field]: sc.from, ...(sc.guard ?? {}) };
     let count: number;
     if (sc.entity === "Collaboration") {
       ({ count } = await tx.collaboration.updateMany({
@@ -91,6 +94,9 @@ export async function applyCascadeEffects(
       }));
     }
     if (count !== 1) {
+      // Optionele, afgeleide overgang waarvan de voorwaarde intussen verviel (bv. auto-afronding
+      // bij betaling terwijl er nieuw open werk verscheen): overslaan i.p.v. de betaling terugdraaien.
+      if (sc.optional && count === 0) continue;
       throw new Error(
         "De status is intussen gewijzigd door een andere actie. Probeer het opnieuw.",
       );

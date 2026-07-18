@@ -52,14 +52,20 @@
 > afwijzing toegevoegd voor beide takken (HOURS/MILESTONE), null-pad ("nog niet ingevuld") behouden.
 > Rood→groen: `performance-commands.test.ts` (10 tests).
 >
-> **GEPARKEERD — MED (DOEL 2, confirmPayment-tak van dezelfde race, latent):** de automatische
-> afronding-bij-betaling (`confirmPayment` in `src/lib/cascade/payment-commands.ts:42-51`) leest
-> `hasOtherOpenWork` óók vóór de transactie; de completion-write in `apply.ts` is wél optimistic op
-> `status=ACTIVE`, maar dat sluit de _open-werk_-race niet (een gelijktijdig ingediende prestatie
-> verandert de collaboration-status niet). Zelfde klasse als de MED-fix hierboven, maar de fix zit in
-> gedeelde cascade-infra (`persistEventAndEffects`/`apply.ts`) → aparte, zorgvuldige PR. **Repro:**
-> bevestig een betaling terwijl de tegenpartij gelijktijdig een nieuwe prestatie indient → collab kan
-> COMPLETED worden met een SUBMITTED-prestatie. **Prioriteit MED** (nauw racevenster).
+> **~~GEPARKEERD~~ GEDAAN — MED (DOEL 2, confirmPayment-tak van dezelfde race) (2026-07-18, PR #821):**
+> de automatische afronding-bij-betaling (`confirmPayment`) las `hasOtherOpenWork` vóór de transactie;
+> de completion-write in `apply.ts` was wél optimistic op `status=ACTIVE`, maar dat sloot de
+> _open-werk_-race niet (een gelijktijdig ingediende prestatie verandert de collaboration-status niet)
+> → collab kon COMPLETED worden met een SUBMITTED-prestatie. **Fix (opt-in, generiek in de motor):**
+> `StatusChange` kreeg twee optionele velden — `guard` (extra relationele where-condities die náást de
+> `from`-match binnen de transactie opnieuw worden getoetst) en `optional` (een `count === 0` telt dan
+> als "voorwaarde verviel, sla over" i.p.v. een harde rollback). `planPaymentConfirmedEvent` zet de
+> afrond-statuswijziging op `optional: true` + `collaborationCompletableGuard(invoiceId)` (geen SUBMITTED-
+> prestatie én geen andere niet-afgewikkelde factuur, de huidige uitgesloten — dezelfde afgewikkeld-sets
+> als `isInvoiceSettled`). Verscheen er intussen open werk, dan valt alléén de afronding weg; de betaling
+> boekt door. Rood→groen: guard-shape (`completion.test.ts`), applier guard-merge + optional-skip +
+> behouden throw bij niet-optional (`apply.test.ts`), planner-emit (`handlers.test.ts`). Bestaande
+> status-changes zonder `guard`/`optional` blijven identiek (additief).
 >
 > **GEPARKEERD — LAAG (DOEL 2, robuustheid — throwing `.parse` op vijandige enum):**
 > `admin/no-shows/actions.ts:17` (`noShowVerdictSchema.parse`) en `admin/gebruikers/actions.ts:25`

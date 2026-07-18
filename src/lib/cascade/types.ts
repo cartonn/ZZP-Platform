@@ -17,6 +17,21 @@ export interface StatusChange {
   to: string;
   /** Extra velden die in dezelfde update meegaan (bv. submittedAt, dueAt, rejectionReason). */
   set?: Record<string, unknown>;
+  /**
+   * Extra where-condities die náást de `from`-statusmatch bij de optimistische update gelden — bv.
+   * relationele eligibility-guards die pas bij het wegschrijven (binnen de transactie) opnieuw
+   * worden getoetst. Zo wordt een raceconditie tussen een pre-transactionele lees en de write
+   * hard afgevangen (de rij matcht niet meer → count 0).
+   */
+  guard?: Record<string, unknown>;
+  /**
+   * Als `true`: een `count === 0` (de voorwaarde/`from`+`guard` matcht niet meer) telt als
+   * "sla deze wijziging over", niet als botsing die de hele transactie terugdraait. Voor
+   * afgeleide, voorwaardelijke overgangen die mogen wegvallen zonder de rest terug te draaien
+   * (bv. auto-afronding bij betaling: de betaling boekt altijd, de afronding valt weg als er
+   * intussen open werk verscheen). Zonder `optional` blijft `count !== 1` een harde fout.
+   */
+  optional?: boolean;
 }
 
 /** Een in-app notificatie/taak voor een rol. */
