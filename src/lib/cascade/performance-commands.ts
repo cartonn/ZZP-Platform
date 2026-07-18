@@ -64,7 +64,7 @@ function serializeShifts(shifts: { start: Date; end: Date }[] | null | undefined
  * CSV-diensten-import). Zonder deze grens overschrijdt het bij goedkeuring afgeleide factuurbedrag de
  * `Int`-kolom `totalCents` (int4) → Prisma-conversiefout → 500 i.p.v. een nette weigering.
  */
-function assertPerformanceWithinLimits(input: {
+export function assertPerformanceWithinLimits(input: {
   type: "HOURS" | "MILESTONE";
   hours?: number | null;
   amountCents?: number | null;
@@ -76,6 +76,12 @@ function assertPerformanceWithinLimits(input: {
     if (input.hours != null && !Number.isFinite(input.hours)) {
       throw new CascadeError("Het aantal uren is ongeldig.");
     }
+    // Ondergrens: een negatief/nul aantal uren zou via performanceSubtotalCents een negatieve
+    // factuur opleveren. Server-side waarheid (regel 1) — niet afhankelijk van de Zod-formuliercheck.
+    // De `!= null`-guard bewaart het "niet ingevuld"-pad (null = concept zonder uren).
+    if (input.hours != null && input.hours <= 0) {
+      throw new CascadeError("Het aantal uren moet groter dan 0 zijn.");
+    }
     if ((input.hours ?? 0) > MAX_PERFORMANCE_HOURS) {
       throw new CascadeError(
         `Het aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`,
@@ -84,6 +90,11 @@ function assertPerformanceWithinLimits(input: {
   } else {
     if (input.amountCents != null && !Number.isFinite(input.amountCents)) {
       throw new CascadeError("Het bedrag is ongeldig.");
+    }
+    // Ondergrens: een negatief/nul bedrag zou een negatieve factuur opleveren. Server-side waarheid
+    // (regel 1) — niet afhankelijk van de Zod-formuliercheck. `!= null` bewaart het concept-pad.
+    if (input.amountCents != null && input.amountCents <= 0) {
+      throw new CascadeError("Het bedrag moet groter dan 0 zijn.");
     }
     if ((input.amountCents ?? 0) > MAX_MILESTONE_CENTS) {
       throw new CascadeError(
