@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — Ontwerp-lab reeks 41: +10 concepten (401–410)
+
+**Wat:** de `/ontwerp`-galerij groeit van 400 → **410** concepten (additief, niets overschreven). Tien
+nieuwe, onderling onderscheidende 2026-designrichtingen: **401 Meniscus** (Liquid Glass / specular
+refractie), **402 Schuinte** (anti-grid gebroken diagonaal editorial), **403 Zandsteen** (quiet luxury,
+mineraal steen-palet), **404 Regelkamer** (mission-control ops-dashboard, licht), **405 Speelgoed**
+(soft-3D consumer-dopamine), **406 Jaarverslag** (corporate annual-report editorial), **407 Vectorveld**
+(neon wireframe vector line-art), **408 Duinpan** (kalm coastal natuurpalet), **409 Marktkraam**
+(streekmarkt & luifel), **410 Nachtwacht** (gouden-eeuw chiaroscuro, donker museaal). Elk dekt de zes
+kernschermen met de gedeelde NL mock-content, is toegankelijk (focus-states, status label+icoon) en
+volledig responsive. Zuiver additief — geen bestaande live-app, route of concept aangeraakt.
+
+**Bestanden:** `src/components/ontwerp/concepts/concept-401-meniscus.tsx` t/m `concept-410-nachtwacht.tsx`
+(10 nieuwe), `src/components/ontwerp/concepts/registry.ts` (10 meta-entries toegevoegd),
+`src/app/ontwerp/[id]/concept-host.tsx` (10 id→component-koppelingen toegevoegd), `docs/DESIGN-LAB.md`
+(reeks 41), `PROGRESS.md`.
+
+**Checks:** `npm run typecheck` · `npm run lint` · `npm run test` · `npm run build` ·
+`prettier --check .` — resultaat via de CI-poort (`gh pr checks`).
+
+---
+
 ## 2026-07-18 — "Opdracht gesloten/vervuld"-signaal op /reacties (ZZP'er)
 
 **Wat:** een openstaande reactie (NEW/VIEWED/SHORTLIST, nog geen eigen samenwerking) bleef op
