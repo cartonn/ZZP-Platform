@@ -5,11 +5,12 @@
 // herproberen op een verwerkte/onbekende ping. Elke activatie wordt geaudit.
 
 import { prisma } from "@/lib/db";
-import { audit } from "@/lib/audit";
+import { auditData } from "@/lib/audit";
 import { getPaymentProvider } from "@/lib/billing/provider";
 import { billingWebhookRateLimiter } from "@/lib/rate-limit";
 import { clientIpFromRequest } from "@/lib/client-ip";
 import { canSubscriptionTransition } from "@/lib/billing/subscription-transitions";
+import { webhookEventKey, isUniqueConstraintError } from "@/lib/billing/webhook-idempotency";
 
 export const dynamic = "force-dynamic";
 
@@ -59,40 +60,64 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("ok", { status: 200 }); // provider tijdelijk onbereikbaar; geen retry-storm
   }
 
-  if (
-    status === "paid" &&
-    sub.status !== "ACTIVE" &&
-    canSubscriptionTransition(sub.status, "ACTIVE")
-  ) {
-    const periodEnd = new Date();
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
-    await prisma.subscription.update({
-      where: { id: sub.id },
-      data: { status: "ACTIVE", currentPeriodEnd: periodEnd, pastDueAt: null },
+  // Idempotentie-grendel: elk (provider, paymentRef, status)-event wordt exact één keer verwerkt.
+  // De ledger-rij wordt atomair mét de statusmutatie + audit geschreven — schendt het event de unieke
+  // constraint (herspeeld/dubbel afgeleverd), dan rolt de transactie terug en slaan we inert over.
+  // Zo hangt de replay-veiligheid niet langer alléén van de overgangsmap af: ook als een toekomstige
+  // recurring-koppeling herhaalde 'paid'-events op een ACTIVE-abonnement toestaat, kan één event de
+  // periode niet twee keer verlengen. Provider-agnostisch (Mollie ondertekent niet; de status wordt
+  // altijd gezaghebbend opgehaald vóór dit punt).
+  const eventKey = webhookEventKey(paymentId, status);
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.processedWebhookEvent.create({ data: { provider: provider.name, eventKey } });
+
+      if (
+        status === "paid" &&
+        sub.status !== "ACTIVE" &&
+        canSubscriptionTransition(sub.status, "ACTIVE")
+      ) {
+        const periodEnd = new Date();
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+        await tx.subscription.update({
+          where: { id: sub.id },
+          data: { status: "ACTIVE", currentPeriodEnd: periodEnd, pastDueAt: null },
+        });
+        await tx.auditLog.create({
+          data: auditData({
+            actorId: null,
+            action: "SUBSCRIPTION_ACTIVATED",
+            entityType: "Subscription",
+            entityId: sub.userId,
+            metadata: { paymentId },
+          }),
+        });
+      } else if (
+        status === "failed" &&
+        sub.status === "PENDING" &&
+        canSubscriptionTransition(sub.status, "PAST_DUE")
+      ) {
+        await tx.subscription.update({
+          where: { id: sub.id },
+          data: { status: "PAST_DUE", pastDueAt: new Date() },
+        });
+        await tx.auditLog.create({
+          data: auditData({
+            actorId: null,
+            action: "SUBSCRIPTION_PAYMENT_FAILED",
+            entityType: "Subscription",
+            entityId: sub.userId,
+            metadata: { paymentId },
+          }),
+        });
+      }
     });
-    await audit({
-      actorId: null,
-      action: "SUBSCRIPTION_ACTIVATED",
-      entityType: "Subscription",
-      entityId: sub.userId,
-      metadata: { paymentId },
-    });
-  } else if (
-    status === "failed" &&
-    sub.status === "PENDING" &&
-    canSubscriptionTransition(sub.status, "PAST_DUE")
-  ) {
-    await prisma.subscription.update({
-      where: { id: sub.id },
-      data: { status: "PAST_DUE", pastDueAt: new Date() },
-    });
-    await audit({
-      actorId: null,
-      action: "SUBSCRIPTION_PAYMENT_FAILED",
-      entityType: "Subscription",
-      entityId: sub.userId,
-      metadata: { paymentId },
-    });
+  } catch (err) {
+    // Al verwerkt (unieke-constraint) → inert 200 (geen retry-storm, geen dubbele mutatie).
+    if (isUniqueConstraintError(err)) return new Response("ok", { status: 200 });
+    // Een echte (transiënte) DB-fout: laat de provider het opnieuw proberen. De transactie rolde
+    // terug, dus de ledger-rij bestaat nog niet en de retry verwerkt het event alsnog schoon.
+    throw err;
   }
 
   return new Response("ok", { status: 200 });

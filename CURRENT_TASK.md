@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — betaal-webhook idempotentie-grendel (exact-één-keer per event) (2026-07-18, PR #816)** —
+> de betaal-webhook (`/api/billing/webhook`) leunde voor replay-veiligheid volledig op de overgangsmap; de persona-sweep (run 26/27)
+> flagde dit als het resterende billing-hardening-item vóór recurring billing. Nu een provider-agnostische idempotentie-ledger
+> (`ProcessedWebhookEvent`, uniek op `(provider, "<paymentRef>:<status>")`), atomair met de statusmutatie + audit in één transactie:
+> een herspeeld/dubbel event schendt de constraint → rollback → inert 200; een echte DB-fout propageert → provider levert opnieuw af.
+> De status zit in de sleutel (open→paid blijft twee events; replay met zelfde ref+status wordt genegeerd) en wordt altijd
+> gezaghebbend opgehaald vóór de sleutel (ongesigneerde Mollie-body kan 'm niet vervalsen). Transitiemap-poort ongewijzigd
+> (defense-in-depth). Geen secret/flag, altijd aan; ledger bevat geen PII. `webhook-idempotency.ts` (pure helpers, +7 tests) +
+> route-transactie + 3 idempotentie-route-tests. Onafhankelijke security-review PASS. Gate: typecheck, lint, 4414 tests, build,
+> prettier groen. **Backlog (niet-blokkerend):** retentie-snoei-taak voor oude ledger-rijen zodra recurring billing het volume opvoert.
+>
 > Gedaan (niet opnieuw): **Uitgaven-vooruitblik "te betalen binnen 30 dagen" op /facturen (opdrachtgever) (2026-07-18, PR #813)** —
 > de ZZP'er zag op `/facturen` al de cashflow-vooruitblik ("≈ € X verwacht binnen 30 dagen", #811), maar de opdrachtgever (payer)
 > zag op dezelfde pagina alleen "Openstaand" + het te-late deel — geen tijdlijn van wat er de komende 30 dagen te betalen valt.
