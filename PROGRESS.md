@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — Prod-rijpheid: betaal-webhook idempotentie-grendel (exact-één-keer per event) (PR #816)
+
+**Gat:** de betaal-webhook (`/api/billing/webhook`) leunde voor replay-veiligheid **volledig** op de
+overgangsmap (`canSubscriptionTransition`). De persona-sweep (run 26/27) flagde dit expliciet als het
+resterende billing-hardening-item vóór de echte recurring-billing-koppeling: zodra een ACTIVE-
+abonnement legitiem herhaalde `paid`-events mag ontvangen, beschermt de map alleen niet meer tegen een
+herspeeld/dubbel-afgeleverd event dat de periode een tweede keer verlengt.
+
+**Wat:** een provider-agnostische idempotentie-grendel (standaard Stripe-praktijk: verwerk elk event
+exact één keer). Een nieuwe `ProcessedWebhookEvent`-ledger (uniek op `(provider, "<paymentRef>:<status>")`)
+wordt **atomair** met de statusmutatie + audit in één `prisma.$transaction` geschreven. Herspeeld/dubbel
+event → unieke-constraint (P2002) → transactie rolt terug → inert 200. Echte (transiënte) DB-fout →
+propageert → provider levert netjes opnieuw af (ledger nog schoon). De status zit in de sleutel zodat een
+legitieme progressie (open→paid) niet als duplicaat wegvalt, terwijl een replay (zelfde ref+status) wél
+wordt genegeerd. De status wordt altijd gezaghebbend opgehaald (`paymentStatus`) vóór de sleutel — een
+ongesigneerde Mollie-body kan de status niet vervalsen. Transitiemap-poort ongewijzigd (defense-in-depth,
+geen vervanging). Geen secret, geen flag — altijd aan. Ledger bevat geen PII (opaque ref + status).
+
+**Bestanden:** `prisma/schema.prisma` (model `ProcessedWebhookEvent`, uniek `(provider, eventKey)` +
+`@@index([createdAt])`), `src/lib/billing/webhook-idempotency.ts` (pure `webhookEventKey` +
+`isUniqueConstraintError`, +7 tests), `src/app/api/billing/webhook/route.ts` (transactie-wrap),
+`src/app/api/billing/webhook/route.test.ts` (mocks + 3 nieuwe idempotentie-tests), MENSENWERK.md §3.
+
+**Checks:** typecheck, lint, `npm run test` (4414 passed / 402 files), build, prettier groen.
+Onafhankelijke adversariële security-review: **PASS, geen blockers**. **Volgende stap (backlog,
+niet-blokkerend):** een retentie-snoei-taak voor oude ledger-rijen zodra recurring billing het volume
+opvoert — het `createdAt`-index staat er al klaar voor.
+
 ## 2026-07-18 — Uitgaven-vooruitblik "te betalen binnen 30 dagen" op /facturen (opdrachtgever) (PR #813)
 
 **Gat:** de ZZP'er zag op `/facturen` al de cashflow-vooruitblik ("≈ € X verwacht binnen 30 dagen",

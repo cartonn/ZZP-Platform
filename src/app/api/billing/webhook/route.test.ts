@@ -1,7 +1,7 @@
-// Route-tests voor de betaal-webhook. Focus: de rate-limit vóór álle werk (geen provider-call/DB
-// bij een flood), keyed op IP, met bewust 200 (geen 429) bij overschrijding zodat de provider niet
-// gaat hameren. De activatie-/faal-paden worden door provider.test.ts + de handler-logica gedekt;
-// hier verifiëren we dat de rate-limit-poort correct vóór de gezaghebbende status-call zit.
+// Route-tests voor de betaal-webhook. Focus: (1) de rate-limit vóór álle werk (geen provider-call/DB
+// bij een flood), keyed op IP, met bewust 200 (geen 429); (2) de overgangsmap-poort op status-
+// schrijvers; (3) de idempotentie-grendel (exact-één-keer per event via de ProcessedWebhookEvent-
+// ledger, atomair met de mutatie). De activatie-/faal-paden worden mede door provider.test.ts gedekt.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -18,17 +18,36 @@ const findFirstMock = vi.hoisted(() =>
 const updateMock = vi.hoisted(() =>
   vi.fn(async (_args: unknown): Promise<Record<string, unknown>> => ({})),
 );
-const auditMock = vi.hoisted(() => vi.fn(async () => {}));
+const auditCreateMock = vi.hoisted(() =>
+  vi.fn(async (_args: unknown): Promise<Record<string, unknown>> => ({})),
+);
+// De ledger-insert. Standaard succes; een test laat 'm een P2002 (duplicaat) gooien.
+const ledgerCreateMock = vi.hoisted(() =>
+  vi.fn(async (_args: unknown): Promise<Record<string, unknown>> => ({})),
+);
+// $transaction(fn) roept de callback met een tx-client die dezelfde mocks deelt, en laat een fout
+// (bv. de P2002 uit ledgerCreateMock) propageren zoals Prisma dat ook doet.
+const transactionMock = vi.hoisted(() =>
+  vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+    fn({
+      processedWebhookEvent: { create: ledgerCreateMock },
+      subscription: { update: updateMock },
+      auditLog: { create: auditCreateMock },
+    }),
+  ),
+);
 
 vi.mock("@/lib/rate-limit", () => ({ billingWebhookRateLimiter: { check: checkMock } }));
-vi.mock("@/lib/audit", () => ({ audit: auditMock }));
+vi.mock("@/lib/audit", () => ({ auditData: (entry: unknown) => entry }));
 vi.mock("@/lib/db", () => ({
   prisma: {
     subscription: { findFirst: findFirstMock, update: updateMock },
+    $transaction: transactionMock,
   },
 }));
 vi.mock("@/lib/billing/provider", () => ({
   getPaymentProvider: () => ({
+    name: "stripe",
     resolveWebhookRef: resolveWebhookRefMock,
     paymentStatus: paymentStatusMock,
   }),
@@ -54,7 +73,10 @@ beforeEach(() => {
   findFirstMock.mockReset();
   findFirstMock.mockResolvedValue(null);
   updateMock.mockClear();
-  auditMock.mockClear();
+  auditCreateMock.mockClear();
+  ledgerCreateMock.mockReset();
+  ledgerCreateMock.mockResolvedValue({});
+  transactionMock.mockClear();
 });
 
 describe("POST /api/billing/webhook", () => {
@@ -112,17 +134,22 @@ describe("POST /api/billing/webhook", () => {
     expect(resolveWebhookRefMock).toHaveBeenCalledTimes(1);
   });
 
-  it("activeert een PENDING-abonnement bij status 'paid' (audit + update)", async () => {
+  it("activeert een PENDING-abonnement bij status 'paid' (audit + update, atomair)", async () => {
     findFirstMock.mockResolvedValue({ id: "sub1", userId: "u1", status: "PENDING" });
     paymentStatusMock.mockResolvedValue("paid");
     const res = await POST(post("{}"));
     expect(res.status).toBe(200);
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(ledgerCreateMock).toHaveBeenCalledTimes(1);
+    expect(ledgerCreateMock.mock.calls[0]![0] as Record<string, unknown>).toMatchObject({
+      data: { provider: "stripe", eventKey: "tr_123:paid" },
+    });
     expect(updateMock).toHaveBeenCalledTimes(1);
     expect(updateMock.mock.calls[0]![0] as Record<string, unknown>).toMatchObject({
       where: { id: "sub1" },
       data: { status: "ACTIVE" },
     });
-    expect(auditMock).toHaveBeenCalledTimes(1);
+    expect(auditCreateMock).toHaveBeenCalledTimes(1);
   });
 
   it("doet geen provider-call wanneer geen abonnement bij de referentie hoort", async () => {
@@ -130,6 +157,7 @@ describe("POST /api/billing/webhook", () => {
     const res = await POST(post("{}"));
     expect(res.status).toBe(200);
     expect(paymentStatusMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(updateMock).not.toHaveBeenCalled();
   });
 
@@ -155,7 +183,7 @@ describe("POST /api/billing/webhook", () => {
     const res = await POST(post("{}"));
     expect(res.status).toBe(200);
     expect(updateMock).not.toHaveBeenCalled();
-    expect(auditMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
   });
 
   it("schrijft geen status via een overgang die de map niet toestaat (bv. 'failed' op een ACTIVE-abonnement)", async () => {
@@ -165,6 +193,38 @@ describe("POST /api/billing/webhook", () => {
     const res = await POST(post("{}"));
     expect(res.status).toBe(200);
     expect(updateMock).not.toHaveBeenCalled();
-    expect(auditMock).not.toHaveBeenCalled();
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  // Idempotentie-grendel: een herspeeld/dubbel-afgeleverd event schendt de unieke constraint op de
+  // ledger; de transactie rolt terug en de webhook slaat inert over — geen tweede mutatie/audit.
+  it("slaat een reeds verwerkt event inert over (P2002 op de ledger, geen dubbele mutatie)", async () => {
+    findFirstMock.mockResolvedValue({ id: "sub1", userId: "u1", status: "PENDING" });
+    paymentStatusMock.mockResolvedValue("paid");
+    ledgerCreateMock.mockRejectedValue(Object.assign(new Error("dup"), { code: "P2002" }));
+    const res = await POST(post("{}"));
+    expect(res.status).toBe(200);
+    expect(updateMock).not.toHaveBeenCalled(); // rollback: geen tweede activatie
+    expect(auditCreateMock).not.toHaveBeenCalled();
+  });
+
+  // Een echte (transiënte) DB-fout mag NIET als verwerkt gelden: de webhook laat 'm propageren zodat
+  // de provider het event opnieuw aflevert (de transactie rolde terug, de ledger is nog schoon).
+  it("laat een niet-P2002 DB-fout propageren (provider mag opnieuw proberen)", async () => {
+    findFirstMock.mockResolvedValue({ id: "sub1", userId: "u1", status: "PENDING" });
+    paymentStatusMock.mockResolvedValue("paid");
+    ledgerCreateMock.mockRejectedValue(Object.assign(new Error("db down"), { code: "P1001" }));
+    await expect(POST(post("{}"))).rejects.toThrow("db down");
+  });
+
+  it("legt ook een 'no-op'-event vast (paid op een reeds ACTIVE-abonnement) zodat replay inert blijft", async () => {
+    // Geen statusmutatie nodig, maar het event wordt wél als verwerkt vastgelegd — een tweede
+    // aflevering van hetzelfde event vindt de ledger-rij en doet niets.
+    findFirstMock.mockResolvedValue({ id: "sub5", userId: "u5", status: "ACTIVE" });
+    paymentStatusMock.mockResolvedValue("paid");
+    const res = await POST(post("{}"));
+    expect(res.status).toBe(200);
+    expect(ledgerCreateMock).toHaveBeenCalledTimes(1);
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });

@@ -1432,3 +1432,19 @@ model CronHeartbeat {
   lastOk    Boolean
   updatedAt DateTime @updatedAt
 }
+
+// Idempotentie-grendel voor de betaal-webhook (/api/billing/webhook). Elke verwerkte
+// provider-ping wordt hier exact één keer vastgelegd op (provider, eventKey), waarbij
+// eventKey = "<paymentRef>:<status>". Een herspeeld of dubbel-afgeleverd event schendt de
+// unieke constraint en wordt inert overgeslagen — replay-veiligheid die niet langer alléén
+// van de overgangsmap afhangt (standaard Stripe-praktijk: verwerk elk event exact één keer).
+// Bevat geen persoonsgegevens — alleen een opaque provider-referentie + genormaliseerde status.
+model ProcessedWebhookEvent {
+  id        String   @id @default(cuid())
+  provider  String // "mollie" | "stripe" | ... (PaymentProvider.name)
+  eventKey  String // "<paymentRef>:<status>"
+  createdAt DateTime @default(now())
+
+  @@unique([provider, eventKey])
+  @@index([createdAt]) // retentie-snoei / opruimen van oude ledger-rijen
+}

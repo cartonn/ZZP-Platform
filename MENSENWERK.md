@@ -344,6 +344,19 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    `STRIPE_API_KEY` + `STRIPE_WEBHOOK_SECRET` + `BILLING_PROVIDER=stripe` in de secrets (§7). Net
    als bij Mollie wordt er zonder key niets geïncasseerd.
 
+   **Code-kant GEDAAN (2026-07-18) — webhook-idempotentie (exact-één-keer):** de betaal-webhook
+   (`/api/billing/webhook`) verwerkt nu elk provider-event **exact één keer** via een idempotentie-
+   ledger (`ProcessedWebhookEvent`, uniek op `(provider, "<paymentRef>:<status>")`), atomair
+   geschreven met de statusmutatie + audit in één transactie (`src/lib/billing/webhook-idempotency.ts`).
+   Een herspeeld of dubbel-afgeleverd event schendt de unieke constraint → de transactie rolt terug en
+   de webhook slaat inert over; een echte (transiënte) DB-fout propageert zodat de provider netjes
+   opnieuw aflevert. **Waarde:** de replay-veiligheid hangt niet langer alléén van de overgangsmap af —
+   ook zodra een toekomstige recurring-koppeling herhaalde `paid`-events op een ACTIVE-abonnement
+   toestaat, kan één event de periode niet twee keer verlengen (standaard Stripe-praktijk). Geen secret,
+   geen flag — altijd aan. De ledger bevat geen persoonsgegevens (alleen een opaque provider-referentie
+   - genormaliseerde status). Resterend mensenwerk: **niets** (optioneel later: een retentie-snoei-taak
+     voor oude ledger-rijen zodra recurring billing het volume opvoert — het `createdAt`-index staat er al).
+
    **Code-kant GEDAAN (2026-07-16) — betaalprovider-connectiviteitszelftest:** zodra je de
    API-sleutels hierboven hebt geplakt, kun je op `/admin/systeemstatus` (admin-only) de nieuwe
    **Betaalprovider-zelftest** draaien — zelfde patroon als de Opslag-/E-mail-/Rate-limit-/
