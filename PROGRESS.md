@@ -24,6 +24,24 @@ geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak).
 **Gate lokaal groen:** `typecheck` ✓, `lint` ✓, `prettier --write .` ✓, unit-tests ✓, `build` ✓.
 CI-poort geverifieerd op de PR.
 
+## 2026-07-18 — Ontwerp-lab: +10 concepten (reeks 40, nrs 391–400)
+
+**Wat:** de galerij op `/ontwerp` groeit van 390 → **400 concepten** (additief; niets overschreven).
+Tien nieuwe, echt onderscheidende designrichtingen, elk een zelfstandig high-fidelity redesign van de
+zes kernschermen met gedeelde NL-mock-data:
+
+- **391 Risograaf** (riso duotone overprint & korrel) · **392 E-ink** (e-paper leesrust, geditherd
+  monochroom) · **393 Synthwave** (retro-neon arcade & CRT-grid) · **394 Origami** (gevouwen papier &
+  facetten) · **395 Terrazzo** (gespikkeld steen & pastel-confetti) · **396 Borduurwerk** (kruissteek op
+  aida-raster) · **397 Metrokaart** (transit-schema wayfinding) · **398 Herbarium** (geperste botanie &
+  archieflabels) · **399 Printplaat** (PCB-traces & vias) · **400 Almanak** (astronomische efemeride &
+  sterrenkaart).
+
+**Bestanden:** 10 × `src/components/ontwerp/concepts/concept-{391..400}-*.tsx` (nieuw); `registry.ts`
+
+- `src/app/ontwerp/[id]/concept-host.tsx` (alleen toegevoegd, bestaande entries ongemoeid);
+  `docs/DESIGN-LAB.md` (reeks 40-blok). Gebouwd door 4 parallelle workers op niet-overlappende bestanden.
+
 ## 2026-07-17 — Ontwerp-lab: +10 concepten (reeks 39, nrs 381–390)
 
 **Wat:** de galerij op `/ontwerp` groeit van 380 → **390 concepten** (additief; niets overschreven).

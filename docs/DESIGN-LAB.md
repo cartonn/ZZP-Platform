@@ -1151,4 +1151,34 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   aesthetic (WCAG-AAA, ≥7:1) met kristallijne geometrie**; **bento-grids met eigen lichttaal (equalizer)**;
   **soft-depth/neumorfisme met bewaakt contrast**; **mobiel-first thumb-zone wayfinding** — elk
   deterministisch, toegankelijk en onderscheidend van de bestaande 380.
-- **Totaal nu op `/ontwerp`: 390 concepten** (reeks 39: 381–390).
+- **Totaal na reeks 39 op `/ontwerp`: 390 concepten** (reeks 39: 381–390).
+
+## Reeks 40 (391–400)
+
+- **391 Risograaf** — riso-print duotone (fluor-roze + federal-blue op papier-wit): twee spotkleuren
+  die overlappen tot een derde tint, halftone-korrel en bewuste 1-2px mis-registratie als accent.
+- **392 E-ink** — e-paper leesrust (grijswaarden + diepe inkt-accent): geditherd monochroom, scherpe
+  hairlines, tabulaire cijfers — lage prikkel, maximale leesrust rond gevoelige documenten.
+- **393 Synthwave** — retro-neon arcade (diep indigo + magenta/cyaan): perspectief-grid-horizon,
+  subtiele scanlines en glow-accenten in premium-dark, functioneel en leesbaar gehouden.
+- **394 Origami** — gevouwen papier & facetten (papier-wit + inkt-blauw): lichtgradiënt-facetten die
+  vouwlijnen suggereren, scherpe creases en zachte vouw-schaduw — 3D-diepte puur via licht.
+- **395 Terrazzo** — gespikkeld steen (room + pastel-confetti): verspreide steen-chips, zachte
+  salie/terracotta/oker-accenten en luchtige afgeronde vormen — warm-speels en premium.
+- **396 Borduurwerk** — kruissteek op aida-raster (linnen + indigo/framboos/mosgroen): fijn stramien,
+  kruissteek-motieven, draad-kleuren en gestikte dashed randen als steken — tactiel maar ordelijk.
+- **397 Metrokaart** — transit-schema wayfinding (wit + verzadigde OV-lijnkleuren): gekleurde lijnen
+  verbinden stappen, ronde stations markeren mijlpalen — verificatie/next-action als een reisroute.
+- **398 Herbarium** — geperste botanie & archieflabels (vergeeld papier + botanisch groen/zegel-rood):
+  archieflabel-kaartjes met veldjes en subtiele botanische lijn-accenten — curatorieel en betrouwbaar.
+- **399 Printplaat** — PCB-traces & vias (donkergroen soldeermasker + koper/goud): traces verbinden
+  componenten, ronde vias als knopen, zeefdruk-witte mono-labels — matching als signaal-routing.
+- **400 Almanak** — astronomische efemeride (nacht-inkt + perkament + messing): data-dichte tabellen
+  met tabulaire cijfers en gravure-hairlines, constellatie-motieven — facturen/verificatie als almanak.
+- Onderzochte 2026-trends deze reeks: **riso/print-revival met duotone & korrel**; **e-ink/calm
+  low-stimulation leesinterfaces**; **retro-neon/vaporwave in premium-dark**; **papier-craft met
+  facet-diepte**; **terrazzo & organische speelsheid**; **textiel/craft-esthetiek**; **transit-diagram
+  wayfinding**; **curatoriële archief-esthetiek met botanische accenten**; **PCB/circuit-schematiek**;
+  **data-dichte editorial-tabellen met astronomische motieven** — elk deterministisch, toegankelijk en
+  onderscheidend van de bestaande 390.
+- **Totaal nu op `/ontwerp`: 400 concepten** (reeks 40: 391–400).
