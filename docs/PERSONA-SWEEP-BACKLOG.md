@@ -1,5 +1,76 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-18 (run 35) · **main-commit basis:** `3a4a4ae`
+> **Uitkomst:** **2 integriteitsdefecten gevonden én OPGELOST** (1 MED + 1 LAAG, beide DOEL 2 —
+> server-side-waarheid / verboden statusovergang). Verse prod-build (`npm run build`), schema-push +
+> idempotente demo-seed (`SEED_DEMO=true`; 13 samenwerkingen / 7 facturen / 48 grootboekregels) op
+> ephemere SQLite (`qa.db`), prod-server (`next start`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`,
+> `STORAGE_DRIVER=local`). Vier rollen ingelogd via het echte credentials-endpoint (`demo1234`);
+> cookie-getrouwe `curl`-sweep + live Playwright-doorklik + drie parallelle Opus-code-audits (cascade-
+> authz/state-machine, franchise/admin-tenant-isolatie, next-action-correctheid + malicieuze invoer).
+>
+> **DOEL 1 (werkt het, live):** alle kernschermen per rol → 200, nul 5xx. ADMIN klikte live
+> "Goedkeuren" op `/admin/verificaties` → knoppen **6→5** én de afgehandelde next-action verdween;
+> keten auth→rol→ownership→transitie→audit→revalidate end-to-end correct. Geen pageerror/500 over de
+> vier rollen (Playwright).
+>
+> **DOEL 1b (next-action-correctheid):** de live motor (`pending-tasks.ts` + `cascadeStage`) is 1:1
+> consistent met de state-machine (`cascade/stage.ts`) voor alle vier rollen — geen verkeerde/dubbele/
+> niet-verdwijnende/ontbrekende actie. De parked dode aggregators (`freelancerNextActions`/
+> `clientNextActions`/`cascadeFreelancerActions`) zijn **nog steeds dood** (geen niet-test-caller);
+> blijft LAAG/latent.
+>
+> **DOEL 2 (adversarieel, live):** privilege-escalatie (ZZP/CLIENT/FRANCHISER → `/admin/*`;
+> niet-FRANCHISER → `/franchise/*`) → **307**. IDOR met echte vreemde id's (vreemd document / factuur-
+> PDF / samenwerking-dossier) → **403** voor ZZP + FRANCHISER; eigen resource → 200. Junk/sqli/
+> traversal-id (`00…0`-cuid, `1' OR '1'='1`, `..%2F..%2Fetc%2Fpasswd`) → **soft-404 "bestaat niet"**,
+> nooit 500 en geen datalek. CSV-export draagt de formule-injectie-guard (`escapeCsvField` →
+> `'`-prefix). Franchise/admin-audit: **geen** cross-tenant-IDOR / admin-bypass / reason-bypass.
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 2, verboden statusovergang — TOCTOU-race bij afronden):** de
+> handmatige samenwerking-afronding (`applyCollaborationStatusChange` in
+> `src/app/(protected)/samenwerkingen/actions.ts`) berekende de afronden-/annuleer-rem (open geld /
+> onbeoordeelde prestatie) met een **losse, niet-transactionele** lees vóór een **ONVOORWAARDELIJKE**
+> `collaboration.update`. Een parallelle actie tussen die pre-check en de write (de tegenpartij dient
+> een prestatie in, of er verschijnt een nieuwe factuur) kon de samenwerking op **COMPLETED** zetten
+> terwijl er nog open geld of een onbeoordeelde prestatie was — waarna `cascadeStage()` COMPLETED als
+> terminaal ziet en die prestatie/factuur nooit meer opduikt. **Geschonden regel:** "afronden met
+> open geld/onbeoordeelde prestatie moet onmogelijk zijn" (CLAUDE.md) + server-side waarheid.
+> **Fix:** de hele wegschrijving loopt nu in één interactieve `$transaction`; de rem wordt **binnen**
+> de transactie her-geverifieerd en de statuswrite is **voorwaardelijk** op de verwachte `from`-status
+> (`updateMany where status=from`, `count !== 1` → rollback), spiegelt de optimistic-concurrency van
+> `apply.ts`. Rood→groen: `samenwerkingen/completion-race.test.ts` (4 tests: race-prestatie, race-
+> factuur, gelijktijdige transitie count 0, en schone happy-path met `completedAt`-stempel).
+>
+> **GEVONDEN + GEFIXT — LAAG (DOEL 2, server-side waarheid — latente negatief-bedrag-poort):**
+> `assertPerformanceWithinLimits` (`src/lib/cascade/performance-commands.ts`) claimt dé server-side
+> bron van waarheid te zijn "voor élk pad" naar `createPerformance`/`updatePerformance`, maar dwong
+> alleen een **bovengrens + `Number.isFinite`** af — géén afwijzing van **negatieve/nul** uren of
+> bedragen. Vandaag niet uitvoerbaar via de gewire paden (de UI-Zod `validatePerformanceForm` vangt
+> het), maar een toekomstige/admin-caller die die check overslaat kon een negatieve-uren-prestatie
+> persisteren → `performanceSubtotalCents` maakt daar een negatieve factuur van. **Fix:** `<= 0`-
+> afwijzing toegevoegd voor beide takken (HOURS/MILESTONE), null-pad ("nog niet ingevuld") behouden.
+> Rood→groen: `performance-commands.test.ts` (10 tests).
+>
+> **GEPARKEERD — MED (DOEL 2, confirmPayment-tak van dezelfde race, latent):** de automatische
+> afronding-bij-betaling (`confirmPayment` in `src/lib/cascade/payment-commands.ts:42-51`) leest
+> `hasOtherOpenWork` óók vóór de transactie; de completion-write in `apply.ts` is wél optimistic op
+> `status=ACTIVE`, maar dat sluit de _open-werk_-race niet (een gelijktijdig ingediende prestatie
+> verandert de collaboration-status niet). Zelfde klasse als de MED-fix hierboven, maar de fix zit in
+> gedeelde cascade-infra (`persistEventAndEffects`/`apply.ts`) → aparte, zorgvuldige PR. **Repro:**
+> bevestig een betaling terwijl de tegenpartij gelijktijdig een nieuwe prestatie indient → collab kan
+> COMPLETED worden met een SUBMITTED-prestatie. **Prioriteit MED** (nauw racevenster).
+>
+> **GEPARKEERD — LAAG (DOEL 2, robuustheid — throwing `.parse` op vijandige enum):**
+> `admin/no-shows/actions.ts:17` (`noShowVerdictSchema.parse`) en `admin/gebruikers/actions.ts:25`
+> (`userStatusSchema.parse`) gebruiken de throwing `.parse` op een door de client aangeleverde waarde;
+> een geknutselde admin-POST met een waarde buiten de enum geeft een **onafgevangen 500** i.p.v. een
+> nette domeinfout. Admin-gated (lage impact), maar inconsistent met de eigen safeParse-hardening
+> elders (`franchise/diensten/actions.ts`). **Fix (park):** `safeParse` + nette retour. **Prioriteit
+> LAAG.**
+
+---
+
 > **Datum:** 2026-07-17 (run 34) · **main-commit basis:** `5b27a92`
 > **Uitkomst:** **1 next-action-correctheidsdefect (DOEL 1b) gevonden én OPGELOST** — de
 > opdrachtgever kreeg voor een **cascade-factuur die OVER DE VERVALDATUM** raakte een

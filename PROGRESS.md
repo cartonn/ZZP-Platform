@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — Persona-sweep run 35: TOCTOU-race bij afronden + negatief-bedrag-poort gedicht
+
+**Wat:** kritische-gebruiker-sweep over de vier rollen (ZZP/CLIENT/FRANCHISER/ADMIN) op een verse
+prod-build + demo-seed; live `curl`/Playwright-doorklik + drie parallelle Opus-code-audits. **2
+integriteitsdefecten gevonden én gefixt.**
+
+- **MED (verboden statusovergang — TOCTOU):** `applyCollaborationStatusChange`
+  (`src/app/(protected)/samenwerkingen/actions.ts`) checkte de afronden-/annuleer-rem (open geld /
+  onbeoordeelde prestatie) niet-transactioneel vóór een onvoorwaardelijke `collaboration.update` — een
+  parallelle prestatie-/factuur-actie kon een samenwerking op COMPLETED zetten met nog open werk. Fix:
+  interactieve `$transaction` met her-verificatie **binnen** de transactie + **voorwaardelijke**
+  statuswrite (`updateMany where status=from`, `count!==1` → rollback), spiegelt `apply.ts`.
+- **LAAG (server-side waarheid):** `assertPerformanceWithinLimits`
+  (`src/lib/cascade/performance-commands.ts`) wees negatieve/nul uren/bedragen niet af (alleen
+  bovengrens + finiteness). Fix: `<= 0`-afwijzing voor beide takken; null-pad behouden.
+
+**Bestanden:** `src/app/(protected)/samenwerkingen/actions.ts` (+ `completion-race.test.ts`, 4 tests),
+`src/lib/cascade/performance-commands.ts` (+ `performance-commands.test.ts`, 10 tests),
+`docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`.
+
+**Checks:** `npm run typecheck` ✓ · `npm run lint` ✓ · `npm run test` **4437 passed (405 files)** ✓ ·
+`npm run build` ✓ · `prettier --check` op de gewijzigde bestanden ✓. **Geparkeerd** (zie backlog):
+confirmPayment-tak van dezelfde race (gedeelde cascade-infra, MED) + throwing `.parse` op vijandige
+enum in twee admin-acties (LAAG).
+
 ## 2026-07-18 — "Reageert meestal binnen ~X" reactietijd-signaal in het gesprek (PR #817)
 
 **Gat:** het gespreksdetail (`/berichten/[id]`) toont wie er "aan zet" is en of een reactie te lang

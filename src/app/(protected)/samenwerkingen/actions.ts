@@ -258,9 +258,45 @@ async function applyCollaborationStatusChange(
     : null;
 
   const otherUserId = partyUserIds.find((id) => id !== actor.id)!;
-  const ops: Prisma.PrismaPromise<unknown>[] = [
-    prisma.collaboration.update({
-      where: { id: collaborationId },
+
+  // Alles atomair binnen één interactieve transactie. De money-/beoordelingsremmen worden BINNEN de
+  // transactie her-geverifieerd (TOCTOU-dicht) en de statuswrite is voorwaardelijk op de verwachte
+  // `from`-status (optimistic concurrency, spiegelt applyCascadeEffects): een parallelle actie tussen
+  // de pre-check en de write (bv. de tegenpartij dient een prestatie in, of een nieuwe factuur
+  // verschijnt) kan zo nooit door het venster glippen — server-side blijft de waarheid.
+  await prisma.$transaction(async (tx) => {
+    // Her-verificatie van de afronden-rem: rond nooit af met open geld of een onbeoordeelde prestatie
+    // die ná de pre-check hierboven binnenkwam.
+    if (targetStatus === "COMPLETED") {
+      const [otherInvoices, submittedPerformances] = await Promise.all([
+        // unbounded-allow: factuurstatus van één samenwerking voor de afronden-rem; per-collab begrensd
+        tx.invoice.findMany({
+          where: { collaborationId },
+          select: { lifecycleStatus: true, status: true },
+        }),
+        tx.performance.count({ where: { collaborationId, status: "SUBMITTED" } }),
+      ]);
+      const reason = completionBlockReason({ otherInvoices, submittedPerformances });
+      if (reason) throw new Error(reason);
+    }
+    // Her-verificatie van de annuleer-rem: geen annulering terwijl er (net) een factuur openstaat.
+    if (targetStatus === "CANCELLED") {
+      const open = await tx.invoice.findFirst({
+        where: { collaborationId, ...outstandingInvoiceWhere },
+        select: { id: true },
+      });
+      if (open) {
+        throw new Error(
+          "Er staat nog een openstaande factuur voor deze samenwerking. Markeer die als betaald of crediteer 'm eerst.",
+        );
+      }
+    }
+
+    // Voorwaardelijke statuswrite: alleen als de samenwerking nog in de verwachte `from`-status staat.
+    // Botst een parallelle transitie (count !== 1) → gooi, zodat de hele transactie terugrolt i.p.v.
+    // een tegenstrijdige status of een verweesde factuur/prestatie achter te laten.
+    const { count } = await tx.collaboration.updateMany({
+      where: { id: collaborationId, status: from },
       // Stempel het afrondingsmoment bij de handmatige afronding — net als de cascade-applier dat doet
       // bij de betalings-cascade (één semantiek, twee paden). Ankert het blinde beoordelingsvenster.
       data: {
@@ -268,8 +304,14 @@ async function applyCollaborationStatusChange(
         ...(targetStatus === "COMPLETED" ? { completedAt: now } : {}),
         ...(cancellationData ?? {}),
       },
-    }),
-    prisma.notification.create({
+    });
+    if (count !== 1) {
+      throw new Error(
+        "De status is intussen gewijzigd door een andere actie. Probeer het opnieuw.",
+      );
+    }
+
+    await tx.notification.create({
       data: {
         userId: otherUserId,
         type: "COLLABORATION_STATUS",
@@ -283,8 +325,8 @@ async function applyCollaborationStatusChange(
           : `Status: ${targetStatus}.`,
         link: "/samenwerkingen",
       },
-    }),
-    prisma.auditLog.create({
+    });
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "COLLABORATION_STATUS_CHANGED",
@@ -301,16 +343,14 @@ async function applyCollaborationStatusChange(
             : {}),
         },
       }),
-    }),
-  ];
+    });
 
-  if (replacement.reopenJob && replacement.targetJobStatus) {
-    ops.push(
-      prisma.job.update({
+    if (replacement.reopenJob && replacement.targetJobStatus) {
+      await tx.job.update({
         where: { id: collaboration.job.id },
         data: { status: replacement.targetJobStatus },
-      }),
-      prisma.auditLog.create({
+      });
+      await tx.auditLog.create({
         data: auditData({
           actorId: actor.id,
           action: "JOB_REOPENED_FOR_REPLACEMENT",
@@ -318,13 +358,11 @@ async function applyCollaborationStatusChange(
           entityId: collaboration.job.id,
           metadata: { from: collaboration.job.status, to: replacement.targetJobStatus },
         }),
-      }),
-    );
-  }
+      });
+    }
 
-  if (replacement.signal) {
-    ops.push(
-      prisma.notification.create({
+    if (replacement.signal) {
+      await tx.notification.create({
         data: {
           userId: collaboration.company.userId,
           type: "COLLABORATION_REPLACEMENT",
@@ -332,8 +370,8 @@ async function applyCollaborationStatusChange(
           body: `De inzet voor "${collaboration.job.title}" is geannuleerd. Bekijk wie je direct kunt herplaatsen.`,
           link: `/samenwerkingen/${collaborationId}`,
         },
-      }),
-      prisma.auditLog.create({
+      });
+      await tx.auditLog.create({
         data: auditData({
           actorId: actor.id,
           action: "COLLABORATION_REPLACEMENT_OPENED",
@@ -341,11 +379,9 @@ async function applyCollaborationStatusChange(
           entityId: collaborationId,
           metadata: { jobId: collaboration.job.id, reopened: replacement.reopenJob },
         }),
-      }),
-    );
-  }
-
-  await prisma.$transaction(ops);
+      });
+    }
+  });
 
   revalidatePath("/samenwerkingen");
   revalidatePath(`/samenwerkingen/${collaborationId}`);
