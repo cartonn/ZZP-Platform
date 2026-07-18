@@ -354,8 +354,18 @@ betalen). Voor echt geld innen heb je een betaalprovider nodig.
    ook zodra een toekomstige recurring-koppeling herhaalde `paid`-events op een ACTIVE-abonnement
    toestaat, kan één event de periode niet twee keer verlengen (standaard Stripe-praktijk). Geen secret,
    geen flag — altijd aan. De ledger bevat geen persoonsgegevens (alleen een opaque provider-referentie
-   - genormaliseerde status). Resterend mensenwerk: **niets** (optioneel later: een retentie-snoei-taak
-     voor oude ledger-rijen zodra recurring billing het volume opvoert — het `createdAt`-index staat er al).
+   - genormaliseerde status). Resterend mensenwerk: **niets**.
+
+   **Code-kant GEDAAN (2026-07-18) — retentie-snoei van de webhook-event-ledger:** de idempotentie-
+   ledger (`ProcessedWebhookEvent`) groeit monotoon zodra recurring billing het eventvolume opvoert. Er
+   is nu een geplande taak **`webhook-event-retention`** (in `/api/tasks/run-all`, pure kern
+   `src/lib/webhook-event-retention.ts` + `src/lib/webhook-event-retention-task.ts`) die ledgerrijen
+   ouder dan het geconfigureerde venster gebatcht en idempotent snoeit, met één snoei-auditrecord per
+   actie (geen PII — aantal + cutoff + venster). Staat standaard **UIT**
+   (`WEBHOOK_EVENT_RETENTION_DAYS` leeg/0 = onbeperkt bewaren, huidig gedrag). Een te lage waarde wordt
+   veilig geklemd naar **minstens 30 dagen** zodat het venster boven het provider-retry-/resend-venster
+   blijft (anders zou de replay-bescherming heropenen). Resterend mensenwerk: **niets** — optioneel
+   `WEBHOOK_EVENT_RETENTION_DAYS` (bv. `90`) zetten zodra recurring billing het volume opvoert.
 
    **Code-kant GEDAAN (2026-07-16) — betaalprovider-connectiviteitszelftest:** zodra je de
    API-sleutels hierboven hebt geplakt, kun je op `/admin/systeemstatus` (admin-only) de nieuwe
@@ -582,30 +592,31 @@ Echte teksten, logo en eventuele huisstijl kun je aanleveren; de agent verwerkt 
 
 Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Zie ook `.env.example`.)
 
-| Instelling                                                                   | Wat het is                                           | Waar haal je het     | Wanneer nodig                                    |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------- | ------------------------------------------------ |
-| `DATABASE_URL`                                                               | Verbindings-URL productie-database                   | Databasedienst (§1b) | Altijd (productie)                               |
-| `AUTH_SECRET`                                                                | Geheim voor veilige inlogsessies (≥32 tekens)        | Zelf genereren (§1e) | Altijd                                           |
-| `AUTH_URL`                                                                   | Je productie-webadres                                | Je domein (§1d)      | Altijd                                           |
-| `STORAGE_DRIVER=s3`                                                          | Schakelt productie-opslag in                         | —                    | Bij echte uploads                                |
-| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                                    | Bucketnaam + regio                                   | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                                | Opslag-toegangssleutels                              | Opslagdienst (§1c)   | Bij echte uploads                                |
-| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                             | Encryptie-at-rest (default AES256; optioneel)        | — (§1c)              | Optioneel (default aan bij s3)                   |
-| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`                      | E-mail via Resend HTTP-API (Railway-proof)           | Resend (§2)          | Voor e-mail                                      |
-| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                          | E-mail via eigen SMTP-relay                          | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
-| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                                 | Betalingen via Mollie                                | Mollie (§3)          | Voor betalingen (kies één provider)              |
-| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET`         | Betalingen via Stripe (Checkout + webhook)           | Stripe (§3)          | Voor betalingen (kies één provider)              |
-| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                        | Echte DUO-controle                                   | DUO (§4a)            | Voor echte diplomacontrole                       |
-| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`                    | Echte BIG-controle                                   | CIBG (§4b)           | Voor echte zorgcontrole                          |
-| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`            | Echte identiteitscontrole                            | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
-| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                                      | Externe error-monitoring (anders alleen logs)        | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
-| `LOG_LEVEL`                                                                  | Logdrempel (debug/info/warn/error)                   | —                    | Optioneel (default info)                         |
-| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`               | Gedeelde rate-limits over instances                  | Upstash (§0b H-2)    | Bij horizontale schaling                         |
-| `DATABASE_CONNECTION_LIMIT` (+ `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER`) | Begrenst de Prisma-pool per instance                 | — (§0b, §1b)         | Bij horizontale schaling                         |
-| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                        | Malware-scan van uploads                             | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
-| `ALLOW_INDEXING=true`                                                        | Zoekmachine-indexering aanzetten (default uit)       | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
-| `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116)     | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
-| `AUDIT_LOG_RETENTION_DAYS`                                                   | Bewaartermijn auditlog in dagen (default: onbeperkt) | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
+| Instelling                                                                   | Wat het is                                             | Waar haal je het     | Wanneer nodig                                    |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------- | ------------------------------------------------ |
+| `DATABASE_URL`                                                               | Verbindings-URL productie-database                     | Databasedienst (§1b) | Altijd (productie)                               |
+| `AUTH_SECRET`                                                                | Geheim voor veilige inlogsessies (≥32 tekens)          | Zelf genereren (§1e) | Altijd                                           |
+| `AUTH_URL`                                                                   | Je productie-webadres                                  | Je domein (§1d)      | Altijd                                           |
+| `STORAGE_DRIVER=s3`                                                          | Schakelt productie-opslag in                           | —                    | Bij echte uploads                                |
+| `STORAGE_S3_BUCKET` / `STORAGE_S3_REGION`                                    | Bucketnaam + regio                                     | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                                | Opslag-toegangssleutels                                | Opslagdienst (§1c)   | Bij echte uploads                                |
+| `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                             | Encryptie-at-rest (default AES256; optioneel)          | — (§1c)              | Optioneel (default aan bij s3)                   |
+| `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`                      | E-mail via Resend HTTP-API (Railway-proof)             | Resend (§2)          | Voor e-mail                                      |
+| `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                          | E-mail via eigen SMTP-relay                            | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
+| `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                                 | Betalingen via Mollie                                  | Mollie (§3)          | Voor betalingen (kies één provider)              |
+| `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET`         | Betalingen via Stripe (Checkout + webhook)             | Stripe (§3)          | Voor betalingen (kies één provider)              |
+| `DIPLOMA_VERIFIER=duo` + `DUO_API_BASE`/`DUO_API_KEY`                        | Echte DUO-controle                                     | DUO (§4a)            | Voor echte diplomacontrole                       |
+| `BIG_VERIFIER=bigregister` + `BIG_API_BASE`/`BIG_API_KEY`                    | Echte BIG-controle                                     | CIBG (§4b)           | Voor echte zorgcontrole                          |
+| `IDENTITY_VERIFIER=idin` + `IDENTITY_API_BASE`/`IDENTITY_API_KEY`            | Echte identiteitscontrole                              | PSP/iDIN (§4c)       | Voor echte identiteitscontrole                   |
+| `SENTRY_DSN` (+ `npm i @sentry/nextjs`)                                      | Externe error-monitoring (anders alleen logs)          | Sentry (§0b)         | Optioneel (aanbevolen prod)                      |
+| `LOG_LEVEL`                                                                  | Logdrempel (debug/info/warn/error)                     | —                    | Optioneel (default info)                         |
+| `RATE_LIMIT_STORE=upstash` + `UPSTASH_REDIS_REST_URL`/`_TOKEN`               | Gedeelde rate-limits over instances                    | Upstash (§0b H-2)    | Bij horizontale schaling                         |
+| `DATABASE_CONNECTION_LIMIT` (+ `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER`) | Begrenst de Prisma-pool per instance                   | — (§0b, §1b)         | Bij horizontale schaling                         |
+| `UPLOAD_SCANNER=clamav` + `CLAMAV_HOST`/`CLAMAV_PORT`                        | Malware-scan van uploads                               | Eigen clamd-daemon   | Optioneel (aanbevolen prod met echte documenten) |
+| `ALLOW_INDEXING=true`                                                        | Zoekmachine-indexering aanzetten (default uit)         | — (§0b)              | Optioneel bij go-live (pilot blijft privé)       |
+| `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116)       | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
+| `AUDIT_LOG_RETENTION_DAYS`                                                   | Bewaartermijn auditlog in dagen (default: onbeperkt)   | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
+| `WEBHOOK_EVENT_RETENTION_DAYS`                                               | Snoeivenster webhook-ledger in dagen (default: onbep.) | — (§3)               | Optioneel (bij recurring billing; bv. 90)        |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).

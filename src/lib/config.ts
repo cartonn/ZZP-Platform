@@ -201,6 +201,29 @@ export function auditLogRetentionDays(): number {
   return parseAuditRetentionDays(process.env.AUDIT_LOG_RETENTION_DAYS);
 }
 
+// --- Webhook-event-ledger-retentie (opslag-hygiëne) -------------------------
+// De betaal-webhook (`/api/billing/webhook`) legt elk verwerkt provider-event vast in
+// ProcessedWebhookEvent (uniek op provider+eventKey) voor exact-één-keer-verwerking. Die ledger groeit
+// monotoon zodra recurring billing het eventvolume opvoert. Deze taak snoeit rijen ouder dan het
+// venster. De rijen bevatten GEEN persoonsgegevens (alleen een opaque providerreferentie + status), dus
+// dit is opslag-hygiëne, niet AVG-minimalisatie. Standaard UIT (leeg/0 = onbeperkt bewaren, huidig
+// gedrag) zodat de replay-beschermingsledger nooit ongewild krimpt. Veilige minimumvloer beschermt tegen
+// een typefout: het venster moet comfortabel boven het retry-/resend-venster van de provider blijven
+// (Stripe/Mollie leveren een event tot enkele dagen opnieuw af) — anders zou een te lage waarde de
+// replay-bescherming heropenen.
+export const WEBHOOK_EVENT_RETENTION_MIN_DAYS = 30;
+export function parseWebhookEventRetentionDays(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "") return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.max(WEBHOOK_EVENT_RETENTION_MIN_DAYS, Math.floor(n));
+}
+
+/** Geconfigureerd webhook-ledger-retentievenster in dagen; 0 = uitgeschakeld (onbeperkt bewaren). */
+export function webhookEventRetentionDays(): number {
+  return parseWebhookEventRetentionDays(process.env.WEBHOOK_EVENT_RETENTION_DAYS);
+}
+
 // --- Cron-heartbeat venster (observability, dead-man's-switch) --------------
 // Maximale leeftijd (in uren) van de laatste geplande-taken-cron-run vóór 'ie als "stale" geldt op
 // /admin/systeemstatus. De cron draait standaard dagelijks (run-all-tasks.yml, 05:00 UTC); de

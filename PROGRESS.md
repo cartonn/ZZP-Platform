@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-18 — Prod-rijpheid: retentie-snoei van de webhook-event-ledger (`webhook-event-retention`)
+
+**Wat:** de idempotentie-ledger `ProcessedWebhookEvent` (borgt exact-één-keer-verwerking van betaal-webhooks,
+#816) groeit monotoon zodra recurring billing het eventvolume opvoert; er was geen opruiming (backlog-item,
+het `@@index([createdAt])` stond er al voor klaar). Nu een geplande taak `webhook-event-retention` (in
+`/api/tasks/run-all`) die ledgerrijen ouder dan het venster gebatcht (500/batch, max 200 batches) en idempotent
+snoeit, met één snoei-auditrecord per actie (geen PII — aantal + cutoff + venster). Spiegelt exact het bewezen
+`audit-retention`-patroon.
+
+**Veiligheid:** standaard UIT (`WEBHOOK_EVENT_RETENTION_DAYS` leeg/0 = onbeperkt bewaren, huidig gedrag). Een
+te lage waarde wordt geklemd naar **minstens 30 dagen** zodat het venster boven het provider-retry-/resend-
+venster blijft (anders zou de replay-bescherming heropenen). Geen nieuw mutatie-/auth-oppervlak; de ledger
+bevat geen persoonsgegevens.
+
+**Bestanden:** `src/lib/webhook-event-retention.ts` (pure cutoff) + `src/lib/webhook-event-retention-task.ts`
+(gebatchte taak) + `src/lib/config.ts` (`parseWebhookEventRetentionDays`/`webhookEventRetentionDays`) + wiring in
+`src/app/api/tasks/run-all/route.ts` + `.env.example`. Tests: `webhook-event-retention.test.ts` (7) +
+`webhook-event-retention-task.test.ts` (7). MENSENWERK §3/§7 bijgewerkt.
+
+**Checks:** `npm run typecheck` ✓, `npm run lint` ✓ (0), `npx prettier --write .` ✓, nieuwe unit-tests groen
+(14). Volledige `npm run test` + build draaien; CI-poort (check, e2e, audit, secret-scan, CodeQL, agent-review)
+op de PR.
+
 ## 2026-07-18 — Security-audit: dispuut-bevriezing TOCTOU-dicht over alle cascade-geld-commands
 
 **Gat (MIDDEL · OWASP A04 Insecure Design):** `assertNotDisputed(collaborationId)` was een pre-transactionele
