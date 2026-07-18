@@ -4,6 +4,78 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-18 (basis: `main` @ fd1ac99)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken: (1) object-/functie-niveau-authz + IDOR op ALLE server actions/route-handlers (samenwerking/
+factuur/profiel/document/dossier/bericht/sollicitatie), mass-assignment, status-transitie-omzeiling, CSRF/
+open-redirect; (2) AVG — anonimisering-volledigheid, dataminimalisatie/over-fetching, PII-in-logs, CSV-/
+formule-injectie in exports, k-anonimiteit, audit-logging van gevoelige acties, derde-partij-PII; (3) upload-
+veiligheid (path-traversal/type/grootte/magic-bytes/malware-scan/serving-route), cross-tenant/franchise-
+isolatie, SSRF, security-headers/CSP/nonce, auth/sessie (login-timing, reset-token, account-status), foutafhandeling,
+`npm audit`. Runtime-basis geseed (`SEED_DEMO=true`, qa.db). Kader: OWASP Top 10 (A01/A02/A03/A04/A05/A07/A09/
+A10) + ASVS + AVG art. 5/9/15/17/30/32. Stack: Next.js **15.5.19** (voorbij CVE-2025-29927), Auth.js v5, Prisma;
+`npm audit --omit=dev` = **0** kwetsbaarheden over 134 prod-dependencies.
+
+**Delta sinds de vorige ronde (`5b27a92..fd1ac99`, PR's #808–#814):** de nieuwe oppervlakken zijn de cron-
+heartbeat/dead-man's-switch (#810), de cashflow-/uitgaven-vooruitblik op `/facturen` (#811/#813) en decoratieve
+designconcepten (#812/#814, geen data-/authz-oppervlak). Alle drie afzonderlijk nagelopen:
+
+- **Cron-heartbeat (#810) — schoon.** `POST /api/tasks/run-all` blijft achter `authorizeCron` (timing-safe
+  Bearer-vergelijking, `src/lib/cron-auth.ts`; geen `?token=`-queryparam), `recordCronHeartbeat`
+  (`src/lib/observability/cron-heartbeat.ts`) schrijft een PII-loze singleton (`name/lastRunAt/lastOk`) en slikt
+  eigen fouten — kan de cron-respons nooit omverhalen. Geen nieuw authz-/PII-oppervlak.
+- **Cashflow-/uitgaven-vooruitblik (#811/#813) — schoon.** `summarizeCashflowForecast`/`summarizePayablesForecast`
+  zijn pure, deterministische functies over de al-geladen (al-geautoriseerde) factuurlijst; geen extra query, geen
+  schemawijziging, geen cross-rol/-tenant-data. Server-side waarheid: tonen, nooit beslissen.
+
+### Resultaat: **geen nieuwe security- of privacy-gaten.**
+
+Alle drie de subagents bevestigen de "volwassen, meerdere audit-rondes gehard"-premisse voor hun oppervlak:
+
+- **Authz/IDOR (agent 1):** elke getraceerde mutatie volgt auth→rol→ownership→Zod→actie→audit via
+  `requireActor`/`requireRole`/`assertOwnership`; id-gebaseerde reads/mutaties her-scopen op eigenaar/tenant
+  (o.a. `/api/documents/[id]` `canAccessDocument`, `/api/facturen/[id]/pdf`, `/api/samenwerkingen/[id]/dossier`,
+  de financiële cascade `src/lib/cascade/*`). Verificatiebesluiten via `$transaction`-statusguard
+  (`updateMany` op de `from`-status) — race-proof. Enige `dangerouslySetInnerHTML` = het nonce-gepoorte
+  thema-script in `layout.tsx` (geen user-input). Geen `$queryRawUnsafe`; geen gecommitte secrets. `callbackUrl`
+  wordt genegeerd (hardcoded `redirectTo: "/dashboard"`) — geen open redirect.
+- **AVG/privacy (agent 2):** alle 9 CSV-producenten funnelen door de ene `escapeCsvField`/`toCsv`-kern
+  (`src/lib/csv.ts`) die `= + @ - \t \r` neutraliseert — geen formule-injectie. `anonymizeUser` scrubt
+  User/Profile/Company + ~18 vrije-tekst-tabellen + audit-metadata/IP/UA + DomainEvent-payloads, verwijdert
+  Credential/Document-rijen én storage-objecten (28 assertions in `anonymize-erasure.test.ts`). k-anonimiteit
+  markttarief = 10, server-afgedwongen. Logger redacteert PII-vormige keys + e-mailadressen recursief. Geen
+  over-fetching van PII over rolgrenzen.
+- **Upload/SSRF/tenant/headers/auth (agent 3):** `LocalStorageDriver.resolve` weert path-traversal
+  (`path.resolve` + prefix, repro `../../etc/passwd` → throw); `generateStorageKey` = UUID + gesanitiseerde
+  extensie (nooit client-filename); magic-byte-sniffing + fail-closed malware-scan op alle 3 upload-sites.
+  Privé-document-serving = auth→rate-limit→`canAccessDocument`→audit, met `CSP: sandbox`. Tenant-helpers
+  (`src/lib/tenancy.ts`) falen closed en lekken geen bestaans-oracle. Geen server-side `fetch()` op user-
+  gestuurde URL (DUO/BIG-verify zetten user-input alleen in de POST-body, host uit env). CSP nonce-gebaseerd,
+  `frame-ancestors 'none'`. Login timing-safe + reset-token 32-byte CSPRNG/SHA-256/1u/single-use;
+  account-status live uit de DB per request. Foutafhandeling striped Prisma-codes/stacktraces. `npm audit` = 0.
+
+### Pre-existing, al-getrackte items (niet nieuw — onafhankelijk herbevestigd deze ronde, wachten op mens/FG)
+
+Deze staan al in eerdere rondes en zijn bewust geparkeerd voor een menselijke beslissing (MENSENWERK §5);
+geen agent heeft ze deze ronde unilateraal aangeraakt:
+
+- **[LAAG · AVG art. 5 dataminimalisatie]** `berichten/nieuw/page.tsx:70-71` — rauw e-mailadres als naam-
+  fallback in de contactpicker (tenant-gescoopt, geen cross-party-lek). Vervang door niet-PII-placeholder bij
+  de volgende touch.
+- **[HOOG · geëscaleerd naar mens]** `PAYMENT_MIN_SAMPLE_SIZE = 3` (`payment-behavior.ts:44`) + gespiegelde
+  `MIN_SAMPLE_SIZE = 3` in `client-reliability.ts`/`client-responsiveness.ts` — benoemde-partij-reputatiesignalen
+  onder de eigen `MARKET_RATE_MIN_SAMPLE = 10`-vloer. Server-afgedwongen, niet te omzeilen; de k=3-vs-k≥10-keuze
+  is een business/juridische afweging die op een expliciete menselijke sign-off wacht.
+- **[HOOG · art. 9-adjacent · geëscaleerd naar mens]** `Performance.rejectionReason` (client-geschreven,
+  mogelijk gezondheidsgerelateerd) overleeft bewust `anonymizeUser` — wacht op menselijke retentie-vs-wissing-
+  beslissing (zelfde behandeling als `NoShowReport.reason`).
+- **[LAAG · art. 17]** `Job.title`/`Job.description` (client-vrije-tekst) overleeft `anonymizeUser`; geparkeerd
+  voor een menselijke bewaargrond-beslissing.
+
+Geen PR met codewijziging deze ronde — de audit vond niets te fixen. Deze docs-update legt de dekking en het
+"geen nieuwe gaten"-resultaat vast (AVG art. 5(2) verantwoordingsplicht).
+
 ## Ronde 2026-07-17 (2e — basis: `main` @ 5b27a92)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
