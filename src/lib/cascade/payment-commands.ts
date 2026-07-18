@@ -83,6 +83,7 @@ export async function confirmPayment(actor: Actor, invoiceId: string): Promise<v
       owners: { FREELANCER: inv.issuerUserId, CLIENT: inv.counterpartyUserId },
       correlationId: inv.correlationId,
       invoiceId,
+      disputeGuardCollaborationId: inv.collaborationId,
     },
   );
 

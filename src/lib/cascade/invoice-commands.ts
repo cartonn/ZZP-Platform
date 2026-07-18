@@ -64,6 +64,7 @@ export async function submitInvoice(actor: Actor, invoiceId: string): Promise<vo
       owners: { FREELANCER: inv.issuerUserId, CLIENT: inv.counterpartyUserId },
       correlationId: inv.correlationId,
       invoiceId,
+      disputeGuardCollaborationId: inv.collaborationId,
     },
     // Alleen bij de eerste indiening een nummer alloceren; heraanbieding hergebruikt het bestaande.
     isResubmit
@@ -126,6 +127,7 @@ export async function approveInvoice(actor: Actor, invoiceId: string): Promise<v
       owners: { FREELANCER: inv.issuerUserId, CLIENT: inv.counterpartyUserId },
       correlationId: inv.correlationId,
       invoiceId,
+      disputeGuardCollaborationId: inv.collaborationId,
     },
   );
 
@@ -184,6 +186,7 @@ export async function rejectInvoice(
       owners: { FREELANCER: inv.issuerUserId, CLIENT: inv.counterpartyUserId },
       correlationId: inv.correlationId,
       invoiceId,
+      disputeGuardCollaborationId: inv.collaborationId,
     },
     // Note: no allocate here — invoice rejected, number already assigned from submitInvoice
   );
@@ -249,6 +252,7 @@ export async function creditInvoice(
       owners: { FREELANCER: inv.issuerUserId, CLIENT: inv.counterpartyUserId },
       correlationId: inv.correlationId,
       invoiceId,
+      disputeGuardCollaborationId: inv.collaborationId,
     },
   );
 }
