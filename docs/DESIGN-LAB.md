@@ -1252,3 +1252,43 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   **neon-industrieel energie-UI**; **calm interface/low-stimulation natuurpalet** — elk deterministisch,
   toegankelijk en onderscheidend van de bestaande 410.
 - **Totaal nu op `/ontwerp`: 420 concepten** (reeks 42: 411–420).
+
+## Reeks 43 — 421–430 (2026-07-19)
+
+- **421 Nevelmesh** — grainy gradient-mesh, licht (#f4f3fb + violet #6d5efc): wazige violet→cyaan
+  kleurwolken met fijne film-grain als sfeer, waarboven heldere frosted kaarten zweven — de
+  mesh-gradient-trend van 2026 verfijnd, luchtig en modern zonder de leesbaarheid te storen.
+- **422 Plakblok** — post-it kanban, warm-speels (#f7f4ec + marker-oranje #e8590c): next-actions en
+  matches als geroteerde plaknotities in geel/perzik/mint op een warm linnen/kurk-oppervlak met
+  punaises en tape, terwijl facturen/verificatie strakke witte index-kaarten blijven.
+- **423 Sonar** — radar-/sonar-scope ops, donker (#0a1014 + fosfor-groen #35f0a0): een scope-hero met
+  concentrische bereikringen en een trage roterende conic-sweep (gestopt bij motion-reduce),
+  opdrachten als blips, mono-cijfers en dunne groene hairlines — technisch en high-contrast.
+- **424 Vlakverdeling** — De Stijl neo-plasticisme, hoog-contrast (#f4f2ea + rood #d7263d): asymmetrisch
+  raster met dikke zwarte lijnen en spaarzame primaire vlakken (rood/blauw/geel) waarin kleur betekenis
+  draagt — kunstzinnig, hoog-contrast en bruikbaar, tekst altijd op licht vlak.
+- **425 Lakmoes** — pH-indicator lab, wetenschappelijk (#faf9f6 + magenta #c026d3): status en voortgang
+  als een indicator-kleurschaal, match-% als titratie-meter en credentials als reagens-monsters, met
+  meetstreepjes en mono-cijfers — kleur altijd met label (WCAG).
+- **426 Broeikas** — botanische kas, kalm-organisch (#eef3ec + bladgroen #2f8f5b): een fijn glas-raster
+  van kas-sponningen, zacht gefilterd daglicht en gedempt groen met veel lucht — laag-prikkelend en
+  geruststellend rond gevoelige documenten.
+- **427 Cortenstaal** — corten-staal & beton, industrieel-warm donker (#1a1613 + roest #b5551d):
+  verweerde staalplaten met zichtbare naden tegen ruw beton, zware geankerde panelen — robuust en warm
+  zonder glans, high-contrast op de donkere basis.
+- **428 Isohypse** — topografische hoogtelijnen, cartografisch (#f3efe6 + contour-bruin #a15c2b): geneste
+  isohypsen als achtergrond- én datamotief (match-% als hoogte, drukte als dichtere contouren), dunne
+  contour-inkt met kaartlabels — elegant en niet druk.
+- **429 Dijkgraaf** — waterschap/polder-infographic, NL-civiel (#eef2f1 + water-blauw #1f6f8b): waterpeil-
+  meetlatten, dijkdoorsnede-diagrammen en een polder-raster als layout-grid; data leest als peil
+  (match-% als waterhoogte, factuur-status als sluis) — helder en geruststellend voor compliance.
+- **430 Barnsteen** — barnsteen/hars, warm premium (#faf4e8 + amber #c8811e): warme doorschijnende
+  goud-honingtinten met een zachte binnen-gloed en credentials als "insluitsels" die veilig bewaard
+  blijven — een tijdloze metafoor voor veilig documentbeheer, zonder glans-kitsch.
+- Onderzochte 2026-trends deze reeks: **grainy mesh-gradient met film-grain**; **tactiele skeuomorfe
+  plaknotities**; **ops-/monitoring-scopes met motion-reduce-veilige sweeps**; **De Stijl / neo-plasticisme
+  kleur-als-betekenis**; **wetenschappelijke lab-/indicator-datavisualisatie**; **calm interface / glas &
+  gefilterd daglicht**; **material-honest industrieel (verweerd staal + beton)**; **cartografische contour-
+  datavisualisatie**; **civiel-technische peil-/polder-infographic**; **warm premium translucent glow** —
+  elk deterministisch, toegankelijk en onderscheidend van de bestaande 420.
+- **Totaal nu op `/ontwerp`: 430 concepten** (reeks 43: 421–430).

@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Ontwerp-lab reeks 43: +10 concepten (421–430)
+
+**Waarde:** de galerij op `/ontwerp` groeit van 420 → **430** concepten (additief, niets overschreven).
+Tien nieuwe, echt onderscheidende designrichtingen, elk het volledige scherm-contract (dashboard,
+marktplaats, opdracht-detail met verklaarbare matching, verificatie, acties, facturen) met loading/
+empty-states, motion-reduce-respect, aria/focus-states en Nederlandse demo-content:
+
+- **421 Nevelmesh** (grainy gradient-mesh, licht) · **422 Plakblok** (post-it kanban, warm-speels) ·
+  **423 Sonar** (radar-/sonar-scope ops, donker) · **424 Vlakverdeling** (De Stijl neo-plasticisme) ·
+  **425 Lakmoes** (pH-indicator lab) · **426 Broeikas** (botanische kas, kalm-organisch) ·
+  **427 Cortenstaal** (verweerd staal & beton, industrieel-warm donker) · **428 Isohypse** (topografische
+  hoogtelijnen) · **429 Dijkgraaf** (waterschap/polder-infographic, NL-civiel) · **430 Barnsteen**
+  (barnsteen/hars, warm premium).
+
+**Bestanden:** 10× `src/components/ontwerp/concepts/concept-42{1..9}-*.tsx` + `concept-430-barnsteen.tsx`
+(nieuw); `registry.ts` (+10 entries, append) en `src/app/ontwerp/[id]/concept-host.tsx` (+10 lazy-koppelingen,
+append) — bestaande concepten onaangeroerd. Gebouwd door 4 parallelle workers op niet-overlappende bestanden.
+Gate: typecheck, lint, test, build, prettier groen. Zie `docs/DESIGN-LAB.md` reeks 43.
+
 ## 2026-07-19 — Geen dode werkproces-knoppen op een terminale samenwerking (PR #833)
 
 **Waarde (geen dode knoppen — hard CLAUDE.md-regel):** op een **CANCELLED/COMPLETED** samenwerking
