@@ -56,7 +56,7 @@ vi.mock("@/lib/signals", () => ({
 }));
 
 vi.mock("@/lib/data/vat-deadline", () => ({
-  getVatDeadlineForActor: vi.fn(async () => null),
+  getVatDeadlinesForActor: vi.fn(async () => []),
 }));
 
 import { pendingTasks } from "@/lib/actions/pending-tasks";

@@ -49,10 +49,14 @@
 >   `assertCollaborationNotTerminal` + `terminalGuard` toegevoegd aan alle vier (met `allowCompleted`/
 >   `terminalGuardAllowCompleted` voor `creditInvoice` — post-completion creditnota blijft legitiem),
 >   symmetrisch met de forward-siblings (#825). +6 command-level tests. Rood→groen; gate groen.
-> - **MED-HIGH (DOEL 1b):** de BTW-deadline-taak (`data/vat-deadline.ts` + `administration/vat-
+> - ~~**MED-HIGH (DOEL 1b):** de BTW-deadline-taak (`data/vat-deadline.ts` + `administration/vat-
 deadline.ts:previousQuarter`) checkt uitsluitend het net-afgesloten kwartaal; een overgeslagen,
->   nooit-ingediend kwartaalsaldo verdwijnt stil bij kwartaal-rollover (geen "afgehandeld"-vlag).
->   Scan alle onafgewikkelde kwartalen sinds de oudste activiteit i.p.v. alleen `previousQuarter(now)`.
+>   nooit-ingediend kwartaalsaldo verdwijnt stil bij kwartaal-rollover (geen "afgehandeld"-vlag).~~
+>   **GEDAAN (2026-07-19, PR #840):** nieuwe pure `summarizeVatDeadlines` scant alle onafgewikkelde
+>   kwartalen binnen een begrensd venster (`VAT_DEADLINE_LOOKBACK_QUARTERS = 8`, 2 jaar) vanaf
+>   `previousQuarter(now)` terug, oudste-eerst; data-loader `getVatDeadlinesForActor` (plural) +
+>   pending-tasks-wiring emit één taak per onafgewikkeld kwartaal. Een overgeslagen kwartaal verdwijnt
+>   niet meer stil bij de rollover. +11 tests. Gate groen.
 > - **MED (DOEL 1b):** een échte-verlopen (`EXPIRED`) NIET-verplicht certificaat (DIPLOMA/CERTIFICATE/
 >   LICENSE/OTHER) geeft de ZZP'er na de expiry-notificatie géén blijvende vernieuw-next-action
 >   (`pending-tasks.ts:269-279` matcht alleen REJECTED/expiring-VERIFIED, niet `EXPIRED`; mandatory

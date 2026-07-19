@@ -43,7 +43,7 @@ vi.mock("@/lib/signals", () => ({
 
 // BTW-deadline-tak buiten deze test houden: isoleert de samenwerkings-/factuurtak.
 vi.mock("@/lib/data/vat-deadline", () => ({
-  getVatDeadlineForActor: vi.fn(async () => null),
+  getVatDeadlinesForActor: vi.fn(async () => []),
 }));
 
 import { pendingTasks } from "@/lib/actions/pending-tasks";
