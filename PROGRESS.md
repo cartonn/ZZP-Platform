@@ -3,6 +3,23 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Persona-sweep run 37: dubbele next-action bij afgewezen verplicht document gefixt
+
+**Waarde (geen zichzelf-tegensprekend scherm):** een FREELANCER met een **afgewezen** verplicht
+certificaat (VOG/verzekering) zag op `/acties` twee rijen voor hetzelfde document — de correcte
+"Afgewezen certificaat opnieuw indienen" (→ bewerk-pagina) én een foutieve "Verplicht document
+ontbreekt" (→ `/certificaten/nieuw`, wat een tweede document zou aanmaken i.p.v. het afgewezene
+te herstellen). Een REJECTED-certificaat valt in de `missing`-emmer van `computeCompliance`, waardoor
+de verplichte-documenten-tak het als "ontbreekt" behandelde.
+
+**Gebouwd:** chirurgische guard in `src/lib/actions/pending-tasks.ts` — de "missing"-mandatory-taak
+wordt onderdrukt voor een type dat al een REJECTED-certificaat heeft (de `credentialFixTask` dekt het
+al, met de juiste bewerk-link); de "expired"-tak (echt verlopen certificaat, correcte vernieuw-link)
+blijft ongemoeid. Read-only afleiding, geen schema-/mutatie-/authz-wijziging. Rood→groen:
+`pending-tasks-rejected-mandatory.test.ts` (4 tests). Gate: typecheck, lint, **4557** unit-tests,
+build, prettier groen. Rest van de sweep: geen gaten (RBAC/IDOR/tenant/cascade-authz uniform gehard —
+zie `docs/PERSONA-SWEEP-BACKLOG.md` run 37 voor de volledige adversariële uitkomst).
+
 ## 2026-07-19 — "Stuur een samenwerkingsvoorstel" next-action voor geaccepteerde kandidaat (PR #831)
 
 **Waarde (niets valt tussen wal en schip):** wanneer de opdrachtgever een reactie **accepteert**
