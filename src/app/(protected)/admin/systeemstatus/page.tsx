@@ -15,6 +15,7 @@ import { MailSelfTest } from "@/components/admin/mail-selftest";
 import { RateLimitSelfTest } from "@/components/admin/ratelimit-selftest";
 import { VerifierSelfTest } from "@/components/admin/verifier-selftest";
 import { BillingSelfTest } from "@/components/admin/billing-selftest";
+import { UploadScannerSelfTest } from "@/components/admin/upload-scanner-selftest";
 
 export const metadata: Metadata = { title: "Systeemstatus · ZZP Platform" };
 
@@ -55,6 +56,7 @@ export default async function SysteemstatusPage() {
       <RateLimitSelfTest storeMode={env.RATE_LIMIT_STORE} />
       <VerifierSelfTest />
       <BillingSelfTest providerMode={env.BILLING_PROVIDER} />
+      <UploadScannerSelfTest driverMode={env.UPLOAD_SCANNER} />
     </div>
   );
 }

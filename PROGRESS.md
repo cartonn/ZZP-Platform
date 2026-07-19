@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Prod-rijpheid: upload-scanner (ClamAV) connectiviteitszelftest (PR #838)
+
+**Waarde (go-live-posture):** sluit het laatste connectiviteitszelftest-gat. Elke integratie
+(opslag, e-mail, rate-limit, verificatie-adapters, betaalprovider) had al een admin-zelftest op
+`/admin/systeemstatus`; de **ClamAV upload-scanner** als enige niet. Die is fail-closed → een
+verkeerd geplakte `CLAMAV_HOST`/`CLAMAV_PORT` blokkeert **stil álle uploads** tot een admin een echt
+document probeert te uploaden. Nu een admin-only **Upload-scanner-zelftest** die de standaard
+**EICAR-testprobe** naar clamd stuurt en bevestigt dat de scanner bereikbaar is én daadwerkelijk
+detecteert (een clamd met lege/kapotte virusdefinities geeft anders stil "clean" → die stille storing
+vangt de zelftest expliciet af). Geen echt bestand opgeslagen; op `noop` eerlijk "niets getest".
+
+**Patroon (parity met de andere zelftests):** pure, injecteerbare kern
+`src/lib/services/upload-scanner-selftest.ts` (`runUploadScannerSelfTest` + `eicarProbeBuffer` +
+`safeUploadScannerDetail`, EICAR uit fragmenten samengesteld zodat de bronfile niet door on-host AV
+wordt geflagd) + `upload-scanner-selftest.test.ts`. Server-actie `runUploadScannerSelfTestAction`
+(auth ADMIN → `uploadScannerSelfTestRateLimiter` (default 6/5min) → probe via `getUploadScanner().scan`
+→ audit `UPLOAD_SCANNER_SELFTEST_RUN`; nooit secrets in de uitvoer). Client-card
+`components/admin/upload-scanner-selftest.tsx` + wiring in `systeemstatus/page.tsx`. Geen
+schemawijziging, geen nieuw mutatie/auth-oppervlak. `.env.example` + `MENSENWERK.md` §0b bijgewerkt.
+Vervangt de verlaten claim-PR #802.
+
 ## 2026-07-19 — Security-/privacy-auditronde 2 (basis `main` @ fb4d4f2e): geen nieuwe gaten
 
 **Waarde (vertrouwen + AVG-verantwoording):** volledige adversariële her-audit van het platform met
