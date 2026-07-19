@@ -36,12 +36,19 @@ export async function judgeNoShowReport(reportId: string, verdictRaw: string): P
   if (!report) throw new Error("Melding niet gevonden.");
   if (report.verdict !== "PENDING") throw new Error("Deze melding is al beoordeeld.");
 
-  await prisma.$transaction([
-    prisma.noShowReport.update({
-      where: { id: reportId },
+  await prisma.$transaction(async (tx) => {
+    // Compound-guard `verdict: "PENDING"` binnen de transactie: het "al beoordeeld?"-oordeel werd
+    // tegen de vóór-lees gedaan; twee gelijktijdige admin-oordelen (mogelijk zelfs verschillend,
+    // JUSTIFIED vs UNJUSTIFIED) passeren beide die lees. Een kaal `update({ where: { id } })` zou
+    // het tweede oordeel er overheen schrijven én een dubbele auditregel + notificatie geven.
+    // updateMany met de statusguard laat alleen de eerste committen; de tweede matcht niet meer
+    // (count 0) → nette domeinfout, transactie rolt terug (spiegelt de guard in de cascade-laag).
+    const res = await tx.noShowReport.updateMany({
+      where: { id: reportId, verdict: "PENDING" },
       data: { verdict, verdictById: actor.id, verdictAt: new Date() },
-    }),
-    prisma.auditLog.create({
+    });
+    if (res.count === 0) throw new Error("Deze melding is al beoordeeld.");
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "NO_SHOW_JUDGED",
@@ -49,8 +56,8 @@ export async function judgeNoShowReport(reportId: string, verdictRaw: string): P
         entityId: reportId,
         metadata: { verdict, freelancerProfileId: report.freelancerProfileId },
       }),
-    }),
-  ]);
+    });
+  });
 
   // Oordeel + stand richting de grens naar de ZZP'er — server-side geteld ná de update.
   const unjustified = await prisma.noShowReport.count({
