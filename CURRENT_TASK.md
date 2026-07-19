@@ -260,6 +260,20 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Tarief-rekenhulp — netto-inkomensdoel → benodigd uurtarief (ZZP'er) (2026-07-19, PR #835)** —
+> de ZZP'er zette zijn uurtarief handmatig met alleen een passieve marktband (`market-rate.ts`) als hint; de omgekeerde,
+> praktische vraag "wat moet ik per uur vragen om netto € X per maand over te houden?" werd nergens beantwoord (bevestigd:
+> `income-goal.ts` = omzetdoel afgezet tegen facturen, `effective-rate.ts` = reistijd-correctie per opdracht — geen voorwaartse
+> tariefberekening). Benchmark: elke ZZP-boekhouder (Moneybird/Tellow) heeft zo'n rekenhulp. Nu een interactieve kaart **naast de
+> marktband** op `/profiel/bewerken`: netto-doel/maand + declarabele uren/week (+ optionele kosten, startersaftrek) → benodigd
+> uurtarief + benodigde omzet + geschatte IB/Zvw + netto/jaar + vergelijking met het huidige tarief. Pure `requiredHourlyRate`
+> (`rate-calculator.ts`) inverteert `net(winst)=winst−heffing(winst)` met bisectie op hele centen en **hergebruikt exact
+> `tax/income-tax.ts`** (`estimateIncomeTax`) — dezelfde IB/Zvw-motor als de ontzorg-schermen, dus consistent, geen tweede bron
+> van waarheid. Client-component `RateCalculatorCard` doet de week→jaar-schaling (46 werkweken) en rekent live; efemere invoer,
+> **geen server-mutatie, geen schemawijziging, geen nieuw auth-oppervlak**. Indicatief met de gedeelde `TAX_DISCLAIMER`;
+> urencriterium afgeleid uit de declarabele uren (met toelichting). +9 tests. Gate: typecheck, lint, 4572 unit-tests, build,
+> prettier groen.
+>
 > Gedaan (niet opnieuw): **"Stuur een samenwerkingsvoorstel" next-action voor geaccepteerde kandidaat
 > (2026-07-19, PR #831)** — wanneer de opdrachtgever een reactie **accepteert** (`ACCEPTED`) moet hij
 > daarna nog handmatig `proposeCollaboration` doen (ACCEPTED → `PROPOSED`-collaboration, `applicationId`
