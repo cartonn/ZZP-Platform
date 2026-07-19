@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Ontwerp-lab: +10 concepten (reeks 42, nrs 411–420)
+
+**Waarde (additieve design-galerij):** de galerij op `/ontwerp` groeit met 10 nieuwe, onderscheidende
+top-1% redesign-concepten (411–420), bovenop de bestaande 410 — de eigenaar bekijkt de volledige
+historie via één URL en kiest daaruit de echte herontwerp. Puur additief: geen bestaand concept,
+registry-entry of route-koppeling aangeraakt; live-app-gedrag ongewijzigd.
+
+**De 10 richtingen:** 411 **Ravijn** (cinematisch donker-editorial, lichtschacht) · 412 **Salon**
+(warm boutique-hospitality/concierge) · 413 **Kadans** (kinetisch ritme, motion-first) · 414
+**Veerpont** (wayfinding/transit-signage NS/ANWB) · 415 **Kwast** (gouache-atelier/schilderkunst) ·
+416 **Muntslag** (numismatiek/guilloché fintech-trust) · 417 **Kelder** (archief-kluis, warm-donker
+eiken) · 418 **Contactvel** (fotografie/donkere kamer) · 419 **Volt** (high-voltage neon-industrieel) ·
+420 **Wad** (Waddenzee/getijden-minimalisme, kalm). Elk concept dekt de zes kernschermen (dashboard,
+marktplaats, opdracht, verificatie, acties, facturen) met Nederlandse mock-content, loading/empty-states,
+toegankelijke focus-states + status via label & icoon, en `motion-reduce`-respect.
+
+**Bestanden:** `src/components/ontwerp/concepts/concept-411-ravijn.tsx` t/m `concept-420-wad.tsx`
+(10 nieuwe bestanden) · append aan `src/components/ontwerp/concepts/registry.ts` (10 ConceptMeta) ·
+append aan `src/app/ontwerp/[id]/concept-host.tsx` (10 id→component-koppelingen) · `docs/DESIGN-LAB.md`
+(reeks 42). Gebouwd door 4 parallelle builders op niet-overlappende bestanden; orchestrator integreerde
+registry/host. Het woord "AI" komt nergens voor. Gate: typecheck, lint, unit-tests (4519), prettier,
+build groen. **Totaal nu op `/ontwerp`: 420 concepten.**
+
 ## 2026-07-19 — Pre-due betaal-nudge voor de opdrachtgever (factuur vervalt binnenkort) (PR #827)
 
 **Waarde (opdrachtgever geruster/slimmer → ZZP'er sneller betaald):** de opdrachtgever kreeg als

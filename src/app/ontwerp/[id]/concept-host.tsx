@@ -1237,6 +1237,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "410": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-410-nachtwacht").then((m) => m.Concept410),
   ),
+  "411": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-411-ravijn").then((m) => m.Concept411),
+  ),
+  "412": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-412-salon").then((m) => m.Concept412),
+  ),
+  "413": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-413-kadans").then((m) => m.Concept413),
+  ),
+  "414": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-414-veerpont").then((m) => m.Concept414),
+  ),
+  "415": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-415-kwast").then((m) => m.Concept415),
+  ),
+  "416": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-416-muntslag").then((m) => m.Concept416),
+  ),
+  "417": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-417-kelder").then((m) => m.Concept417),
+  ),
+  "418": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-418-contactvel").then((m) => m.Concept418),
+  ),
+  "419": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-419-volt").then((m) => m.Concept419),
+  ),
+  "420": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-420-wad").then((m) => m.Concept420),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
