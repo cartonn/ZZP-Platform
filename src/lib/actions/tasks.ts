@@ -70,6 +70,7 @@ export type PendingTask =
   | (TaskBase & { kind: "admin-support-ticket"; ticketId: string })
   | (TaskBase & { kind: "no-show-warning" })
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
+  | (TaskBase & { kind: "payment-due-soon" })
   | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
   | (TaskBase & { kind: "client-compliance"; collabId: string })
   | (TaskBase & { kind: "review-leave"; collabId: string })
@@ -540,6 +541,26 @@ export function overdueInvoiceTask(count: number, role: "FREELANCER" | "CLIENT")
     resolver: "link",
     href: "/facturen",
     role,
+  };
+}
+
+/**
+ * Pre-due betaal-nudge voor de opdrachtgever: N facturen vervallen binnenkort (nog niet te laat).
+ * Zachtere tegenhanger van `overdueInvoiceTask` (tone "info", lagere band) — op tijd betalen houdt
+ * de zichtbare betaalreputatie sterk (`client-payment-reputation.ts`). Alleen legacy/handmatige
+ * facturen (waar de opdrachtgever echt een "Markeer als betaald"-knop heeft); zie
+ * `paymentDueSoonWhere` voor de scoping.
+ */
+export function paymentDueSoonTask(count: number): PendingTask {
+  return {
+    kind: "payment-due-soon",
+    id: "payment-due-soon:CLIENT",
+    title: `${plural(count, "factuur vervalt", "facturen vervallen")} binnenkort`,
+    subtitle: "Betaal op tijd — dat houdt je betaalreputatie sterk",
+    tone: "info",
+    priority: P.paymentDueSoon,
+    resolver: "link",
+    href: "/facturen",
   };
 }
 

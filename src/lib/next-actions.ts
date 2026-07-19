@@ -54,6 +54,7 @@ export const P = {
   supportOpen: 66, // openstaande supporttickets — onbeantwoord/nieuw (admin)
   vatDeadlineOverdue: 74, // BTW-aangifte over de uiterste indieningsdatum (fiscale boete-risico)
   overdueInvoice: 60, // factuur over de vervaldatum
+  paymentDueSoon: 56, // factuur vervalt binnenkort — betaal op tijd (opdrachtgever, pre-due; onder de al-verstreken roll-up)
   vatDeadlineDueSoon: 58, // BTW-aangifte-deadline nadert (binnen 14 dagen)
   pendingUsers: 60, // gebruikers met PENDING-status (admin)
   credentialExpiryBatch: 58, // verlopen/verlopende certificaten — draai de expiry-check (admin)

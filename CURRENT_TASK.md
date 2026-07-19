@@ -260,6 +260,22 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Pre-due betaal-nudge voor de opdrachtgever (factuur vervalt binnenkort) (2026-07-19, PR #827)** —
+> de opdrachtgever kreeg als next-action alléén een **post-due** roll-up ("N facturen over de vervaldatum · Markeer als
+> betaald", `overdueInvoiceTask("CLIENT")`) plus een aggregate payables-card op `/facturen`. Er was **niets pre-due**: geen
+> actie die vóór de vervaldatum zegt "je factuur vervalt binnenkort — betaal op tijd". Op tijd betalen beschermt de zichtbare
+> betaalreputatie (`client-payment-reputation.ts`) → de ZZP'er wordt sneller betaald (benchmark Deel/Stripe betaal-reminders).
+> Nu een pre-due next-action **"N facturen vervallen binnenkort · Betaal op tijd — dat houdt je betaalreputatie sterk"** (tone
+> `info`, band `P.paymentDueSoon=56`, onder de post-due `overdueInvoice=60`). Pure `paymentDueSoonWhere(userId, now, windowDays=7)`
+> (`payment-due-soon.ts`) als één bron van waarheid voor de scoping — **alleen legacy/handmatige facturen** (`lifecycleStatus:
+null, status:"SENT"`, waar de payer écht een "Markeer als betaald"-knop heeft; cascade-facturen betaal-markeert de ZZP'er —
+> les van #808), **nog niet te laat** (`dueAt >= now` → raakt de post-due roll-up niet, geen dubbele next-action), **binnen 7
+> dagen**, **niet in dispuut**. Count `paymentDueSoonCount` (signals.ts) + task-builder `paymentDueSoonTask` (kind
+> `payment-due-soon`, resolver `link` → default-tak `action-list.tsx`, geen UI-wiring) + wiring in `clientTasks` (één extra
+> indexed count in de bestaande `Promise.all`). Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +9 tests
+> (`payment-due-soon.test.ts` 5, `signals.due-soon.test.ts` 1, `tasks.test.ts` 3). Gate: typecheck, lint, unit-tests, build,
+> prettier groen.
+>
 > Gedaan (niet opnieuw): **"Reageert meestal binnen ~X" reactietijd-signaal in het gesprek (2026-07-18, PR #817)** —
 > het gespreksdetail (`/berichten/[id]`) toonde wie er "aan zet" is en of een reactie te lang ligt (op de berichtenlijst),
 > maar nergens hóe snel de gesprekspartner doorgaans antwoordt — een wachtende ZZP'er/opdrachtgever/bemiddelaar kon niet

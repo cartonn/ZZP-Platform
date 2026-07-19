@@ -13,7 +13,7 @@ import { type FreelancerCredential } from "@/lib/matching";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
-import { overdueInvoiceCount } from "@/lib/signals";
+import { overdueInvoiceCount, paymentDueSoonCount } from "@/lib/signals";
 import { summarizeAvailabilityFreshness } from "@/lib/availability";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
@@ -46,6 +46,7 @@ import {
   adminSupportTicketTask,
   noShowWarningTask,
   overdueInvoiceTask,
+  paymentDueSoonTask,
   applicationsReviewTask,
   staleApplicationsTask,
   availabilityRefreshTask,
@@ -470,38 +471,47 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   // SHORTLIST ≥ 21). NEW valt hier bewust buiten — dat dekt `applicationsReviewTask` al.
   const staleWindow = new Date(Date.now() - WAIT_ATTENTION_DAYS.VIEWED * 86_400_000);
 
-  const [company, overdue, unread, newApplications, draftJobs, staleCandidates, complianceAlerts] =
-    await Promise.all([
-      prisma.company.findUnique({
-        where: { userId },
-        select: {
-          description: true,
-          location: true,
-          website: true,
-          industryId: true,
-          logoKey: true,
-        },
-      }),
-      overdueInvoiceCount("CLIENT", userId),
-      unreadConversations(userId),
-      prisma.application.count({ where: { job: { company: { userId } }, status: "NEW" } }),
-      prisma.job.count({ where: { company: { userId }, status: "DRAFT" } }),
-      // unbounded-allow: eigenaar-scoped (job.company.userId) + take-limiet
-      prisma.application.findMany({
-        where: {
-          job: { company: { userId } },
-          status: { in: ["VIEWED", "SHORTLIST"] },
-          createdAt: { lte: staleWindow },
-        },
-        select: { status: true, createdAt: true, collaboration: { select: { id: true } } },
-        orderBy: { createdAt: "asc" },
-        take: MAX,
-      }),
-      // Compliance-ripple: lopende samenwerkingen waarvan de ZZP'er een vereist certificaat
-      // mist/verlopen/binnenkort-verlopend heeft. Hergebruikt de geteste, eigenaar-gescoopte loader
-      // (company → ACTIVE-collabs met vereiste certificaten + ZZP-certificaten, take-begrensd).
-      clientCredentialAlerts(userId),
-    ]);
+  const [
+    company,
+    overdue,
+    dueSoon,
+    unread,
+    newApplications,
+    draftJobs,
+    staleCandidates,
+    complianceAlerts,
+  ] = await Promise.all([
+    prisma.company.findUnique({
+      where: { userId },
+      select: {
+        description: true,
+        location: true,
+        website: true,
+        industryId: true,
+        logoKey: true,
+      },
+    }),
+    overdueInvoiceCount("CLIENT", userId),
+    paymentDueSoonCount(userId),
+    unreadConversations(userId),
+    prisma.application.count({ where: { job: { company: { userId } }, status: "NEW" } }),
+    prisma.job.count({ where: { company: { userId }, status: "DRAFT" } }),
+    // unbounded-allow: eigenaar-scoped (job.company.userId) + take-limiet
+    prisma.application.findMany({
+      where: {
+        job: { company: { userId } },
+        status: { in: ["VIEWED", "SHORTLIST"] },
+        createdAt: { lte: staleWindow },
+      },
+      select: { status: true, createdAt: true, collaboration: { select: { id: true } } },
+      orderBy: { createdAt: "asc" },
+      take: MAX,
+    }),
+    // Compliance-ripple: lopende samenwerkingen waarvan de ZZP'er een vereist certificaat
+    // mist/verlopen/binnenkort-verlopend heeft. Hergebruikt de geteste, eigenaar-gescoopte loader
+    // (company → ACTIVE-collabs met vereiste certificaten + ZZP-certificaten, take-begrensd).
+    clientCredentialAlerts(userId),
+  ]);
 
   // Compliance-taken bovenaan: het zwaarst-wegende opdrachtgever-signaal (lopend werk met een
   // certificaat-gat). Eén taak per samenwerking; de rangschikking (P.complianceRipple/expiring)
@@ -556,6 +566,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
 
   for (const u of unread) tasks.push(messageReplyTask(u.id, u.withWhom, u.subject));
   if (overdue > 0) tasks.push(overdueInvoiceTask(overdue, "CLIENT"));
+  // Pre-due: facturen die binnenkort vervallen (nog niet te laat) — betaal op tijd. Vensters van
+  // overdue (< now) en due-soon (>= now) raken elkaar niet, dus geen dubbele next-action.
+  if (dueSoon > 0) tasks.push(paymentDueSoonTask(dueSoon));
   if (newApplications > 0) tasks.push(applicationsReviewTask(newApplications));
   const staleApplications = summarizeStaleClientApplications(
     staleCandidates.map((a) => ({

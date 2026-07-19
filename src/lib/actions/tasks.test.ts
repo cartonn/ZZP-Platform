@@ -25,6 +25,7 @@ import {
   clientComplianceTask,
   reviewLeaveTask,
   vatDeadlineTask,
+  paymentDueSoonTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { type CredentialAlert } from "@/lib/collaboration-alerts";
@@ -471,6 +472,29 @@ describe("clientComplianceTask", () => {
       "client-compliance:c-gap",
       "client-compliance:c-warn",
     ]);
+  });
+});
+
+describe("paymentDueSoonTask", () => {
+  it("pre-due nudge: info-toon, betaalreputatie-framing, link naar /facturen", () => {
+    const t = paymentDueSoonTask(2);
+    expect(t.kind).toBe("payment-due-soon");
+    expect(t.id).toBe("payment-due-soon:CLIENT");
+    expect(t.title).toBe("2 facturen vervallen binnenkort");
+    expect(t.subtitle).toContain("Betaal op tijd");
+    expect(t.subtitle).toContain("betaalreputatie");
+    expect(t.tone).toBe("info");
+    expect(t.priority).toBe(P.paymentDueSoon);
+    expect(t.resolver).toBe("link");
+    expect(t.href).toBe("/facturen");
+  });
+
+  it("enkelvoud vervoegt correct", () => {
+    expect(paymentDueSoonTask(1).title).toBe("1 factuur vervalt binnenkort");
+  });
+
+  it("rangschikt onder de post-due roll-up (zachter dan te laat)", () => {
+    expect(P.paymentDueSoon).toBeLessThan(P.overdueInvoice);
   });
 });
 
