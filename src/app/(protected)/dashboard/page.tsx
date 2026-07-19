@@ -141,9 +141,6 @@ const AVAILABILITY_LABEL: Record<string, { label: string; cls: string }> = {
 // Badge-klasse voor een niet-inzetbare roster-ZZP'er op het bemiddelaar-dashboard (warning gaat vóór
 // de kale beschikbaarheid — anders spreekt de lijst de rosterpagina tegen).
 const ENGAGEABILITY_WARNING_CLS = "bg-warning/10 text-warning";
-// Gepubliceerde dienst die zo lang ongedekt open staat vraagt aandacht (zelfde drempel als
-// /franchise/diensten AT_RISK_DAYS). Server-side; de franchiser kan dan bijsturen.
-const STALE_DIENST_DAYS = 7;
 
 const ACTION_ICON = { attention: AlertTriangle, info: Bell, success: CheckCircle2 } as const;
 const ACTION_TONE = { attention: "primary", info: "primary", success: "success" } as const;
@@ -560,21 +557,6 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           },
         })
       : [];
-    // Ongedekte diensten die te lang open staan: gepubliceerd, zonder actieve samenwerking, ≥ de drempel
-    // dagen sinds aanmaak. Oudste eerst zodat de dringendste bovenaan komt (zelfde drempel als /franchise/diensten).
-    const staleDienstenRaw = tenantId
-      ? await prisma.job.findMany({
-          where: {
-            tenantId,
-            status: "PUBLISHED",
-            collaborations: { none: { status: "ACTIVE" } },
-            createdAt: { lte: new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000) },
-          },
-          orderBy: { createdAt: "asc" },
-          take: RUNNING_ZONE_LIMIT,
-          select: { id: true, title: true, createdAt: true },
-        })
-      : [];
     // Inzetbaarheid per roster-ZZP'er — zelfde helper/bron als /franchise/zzpers, zodat de
     // dashboard-lijst en de rosterpagina nooit tegenspreken.
     const rosterEng = rosterRaw.map((f) => {
@@ -654,26 +636,15 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       runningOverflow: 0,
       week: null,
       isNewAccount: companies === 0 && freelancers === 0,
-      // Geleide opzet + operationele attentiepunten: geleide stappen zolang de franchise nog niet
-      // volledig staat; zodra hij draait komen niet-inzetbare roster-ZZP'ers en te lang ongedekte
-      // diensten erbij, zodat "Volgende acties" nooit ten onrechte "niets te doen" toont.
+      // Geleide opzet: de guided-setup-stappen zolang de franchise nog niet volledig staat. De
+      // operationele attentiepunten (niet-inzetbare roster-ZZP'ers, te lang ongedekte diensten) komen
+      // via de item-engine (pendingTasks → `tasks`), zodat /acties, de zijbalk-badge én deze rail
+      // exact dezelfde acties tonen (voorheen waren die operationele items dashboard-only).
       activation: franchiserNextActions({
         companies,
         publishedDiensten: openDiensten,
         rosterFreelancers: freelancers,
         companiesWithoutDiensten,
-        notEngageable: rosterEng
-          .filter(({ eng }) => eng.status === "INACTIEF")
-          .map(({ f, eng }) => ({
-            id: f.id,
-            name: f.user.name ?? "ZZP'er",
-            blockers: eng.blockers,
-          })),
-        staleDiensten: staleDienstenRaw.map((d) => ({
-          id: d.id,
-          title: d.title,
-          openDays: Math.floor((now.getTime() - d.createdAt.getTime()) / 86_400_000),
-        })),
       }),
       professionals,
       seal,

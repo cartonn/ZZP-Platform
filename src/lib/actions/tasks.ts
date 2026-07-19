@@ -81,7 +81,9 @@ export type PendingTask =
   | (TaskBase & { kind: "draft-jobs" })
   | (TaskBase & { kind: "franchise-credential-expiry"; profileId: string })
   | (TaskBase & { kind: "franchise-open-dienst-acute" })
-  | (TaskBase & { kind: "franchise-lead-followup" });
+  | (TaskBase & { kind: "franchise-lead-followup" })
+  | (TaskBase & { kind: "franchise-not-engageable"; profileId: string })
+  | (TaskBase & { kind: "franchise-stale-service"; jobId: string });
 
 export type TaskKind = PendingTask["kind"];
 
@@ -830,5 +832,53 @@ export function franchiseLeadFollowupTask(count: number): PendingTask {
     priority: P.franchiserLeadFollowup,
     resolver: "link",
     href: "/franchise/leads",
+  };
+}
+
+/**
+ * Roster-ZZP'er die (nog) niet inzetbaar is — een verplicht document ontbreekt/verlopen of de
+ * verificatie is niet compleet, wat plaatsing blokkeert. Operationeel attentiepunt voor de
+ * bemiddelaar; deep-link naar het roster-profiel waar de ontbrekende stukken aangevuld worden.
+ * Zelfde tone/prioriteit/tekst als de dashboard-rail, zodat /acties, de zijbalk-badge en het
+ * dashboard één bron delen (voorheen alleen op het dashboard zichtbaar).
+ */
+export function franchiseNotEngageableTask(
+  profileId: string,
+  name: string,
+  reason: string,
+): PendingTask {
+  return {
+    kind: "franchise-not-engageable",
+    id: `franchise-not-engageable:${profileId}`,
+    title: `${name} is nog niet inzetbaar — ${reason}`,
+    subtitle: "Blokkeert plaatsing — vul de ontbrekende verificatie aan",
+    tone: "attention",
+    priority: P.franchiserRosterNotEngageable,
+    resolver: "link",
+    href: `/franchise/zzpers/${profileId}`,
+    profileId,
+  };
+}
+
+/**
+ * Gepubliceerde dienst die te lang open staat zonder plaatsing (geen actieve samenwerking).
+ * Operationeel attentiepunt; deep-link naar de dienst zodat de bemiddelaar een ZZP'er kan voordragen
+ * of werven. Als item-taak telt hij nu óók mee op /acties en in de badge (voorheen dashboard-only).
+ */
+export function franchiseStaleDienstTask(
+  jobId: string,
+  title: string,
+  openDays: number,
+): PendingTask {
+  return {
+    kind: "franchise-stale-service",
+    id: `franchise-stale-service:${jobId}`,
+    title: `Dienst ${title} staat ${plural(openDays, "dag", "dagen")} open zonder plaatsing`,
+    subtitle: "Nog geen plaatsing — draag een ZZP'er voor of werf",
+    tone: "attention",
+    priority: P.franchiserServiceStale,
+    resolver: "link",
+    href: `/franchise/diensten/${jobId}`,
+    jobId,
   };
 }
