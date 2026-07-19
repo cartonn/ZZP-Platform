@@ -28,6 +28,7 @@ import { ORT_SECTORS, ORT_SECTOR_LABEL, reviewBlindDays } from "@/lib/config";
 import { buildChainSteps } from "@/lib/cascade/chain-steps";
 import { collaborationStatusLine } from "@/lib/collaboration-status-line";
 import { summarizeCollaborationRenewal } from "@/lib/collaboration-renewal";
+import { collaborationLockReason, terminalLockNotice } from "@/lib/collaboration-lock";
 import { RenewalNudge } from "@/components/collaborations/renewal-nudge";
 import { isPerformanceNewerThanInvoice } from "@/lib/cascade/stage";
 import { CascadeStepper } from "@/components/ui/cascade-stepper";
@@ -168,6 +169,15 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
   // Dispuut-freeze (§4): de server weigert elke cascade-actie tijdens een dispuut; de UI hoort
   // die acties dan ook niet aan te bieden (anders klikt men tegen een kale foutpagina aan).
   const frozen = Boolean(col.disputedAt);
+  // Werkproces-slot: naast het dispuut weigert de server sinds #825 óók élke cascade-actie op een
+  // terminale samenwerking (`assertCollaborationNotTerminal`). Bied die knoppen dan niet aan —
+  // dezelfde "geen dode knoppen"-redenering, nu gegeneraliseerd naar CANCELLED/COMPLETED.
+  const lockReason = collaborationLockReason({
+    status: col.status as CollaborationStatus,
+    disputedAt: col.disputedAt,
+  });
+  const actionsLocked = lockReason !== null;
+  const terminalNotice = terminalLockNotice(lockReason);
 
   // Herplaatsing bij uitval: de opdrachtgever ziet bij een geannuleerde inzet direct passende,
   // beschikbare ZZP'ers (leeg zodra de dienst niet meer open staat — geen dode lijst).
@@ -759,6 +769,12 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
           </h2>
         </div>
 
+        {terminalNotice && (
+          <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            {terminalNotice}
+          </p>
+        )}
+
         {active && isFreelancer && !frozen && (
           <PerformanceForm
             collaborationId={col.id}
@@ -819,7 +835,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                           })()}
                       </div>
                     </div>
-                    {isFreelancer && p.status === "REJECTED" && !frozen && (
+                    {isFreelancer && p.status === "REJECTED" && !actionsLocked && (
                       <details className="border-t border-border pt-2">
                         <summary className="focus-ring cursor-pointer text-sm font-medium text-foreground hover:text-foreground">
                           Corrigeer en dien opnieuw in
@@ -837,7 +853,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                         </div>
                       </details>
                     )}
-                    {isClient && p.status === "SUBMITTED" && !frozen && (
+                    {isClient && p.status === "SUBMITTED" && !actionsLocked && (
                       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
                         <form action={approvePerformanceAction.bind(null, p.id, col.id)}>
                           <PendingSubmitButton size="sm">Goedkeuren</PendingSubmitButton>
@@ -908,7 +924,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                     </div>
                     <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
                       {isFreelancer &&
-                        !frozen &&
+                        !actionsLocked &&
                         (inv.lifecycleStatus === "DRAFT" || inv.lifecycleStatus === "REJECTED") && (
                           <form action={submitInvoiceAction.bind(null, inv.id, col.id)}>
                             <PendingSubmitButton size="sm">
@@ -918,7 +934,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                             </PendingSubmitButton>
                           </form>
                         )}
-                      {isClient && inv.lifecycleStatus === "SUBMITTED" && !frozen && (
+                      {isClient && inv.lifecycleStatus === "SUBMITTED" && !actionsLocked && (
                         <>
                           <form action={approveInvoiceAction.bind(null, inv.id, col.id)}>
                             <PendingSubmitButton size="sm">Goedkeuren</PendingSubmitButton>
@@ -941,7 +957,7 @@ export default async function WerkprocesPage({ params }: { params: Promise<{ id:
                       )}
                       {(isFreelancer || isClient) &&
                         (inv.lifecycleStatus === "APPROVED" || inv.lifecycleStatus === "OVERDUE") &&
-                        !frozen && (
+                        !actionsLocked && (
                           <form
                             action={confirmPaymentAction.bind(null, inv.id, col.id)}
                             className="flex items-center gap-2"
