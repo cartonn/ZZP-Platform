@@ -15,6 +15,14 @@ import {
 /** Kwartaal wordt "binnenkort" zodra de deadline binnen dit aantal dagen valt. */
 export const VAT_DEADLINE_SOON_DAYS = 14;
 
+/**
+ * Hoeveel kwartalen terug de openstaande-aangifte-scan kijkt (8 = 2 jaar). Een aangifte ouder dan dit
+ * venster valt buiten de actieve herinnering: een >2 jaar verstreken aangifte is geen dashboard-nudge
+ * meer, en het venster houdt zowel de query als de actie-rail begrensd. Alle realistische
+ * niet-afgehandelde kwartalen vallen ruim binnen dit venster.
+ */
+export const VAT_DEADLINE_LOOKBACK_QUARTERS = 8;
+
 export type VatDeadlineStatus = "upcoming" | "due-soon" | "overdue";
 
 export interface VatDeadlineSummary {
@@ -36,6 +44,15 @@ export function previousQuarter(d: Date): { year: number; quarter: Quarter } {
   const q = quarterOf(d);
   if (q === 1) return { year: d.getFullYear() - 1, quarter: 4 };
   return { year: d.getFullYear(), quarter: (q - 1) as Quarter };
+}
+
+/** Het kalenderkwartaal direct vóór (year, quarter) — rolt in Q1 terug naar Q4 van het vorige jaar. */
+export function precedingQuarter(
+  year: number,
+  quarter: Quarter,
+): { year: number; quarter: Quarter } {
+  if (quarter === 1) return { year: year - 1, quarter: 4 };
+  return { year, quarter: (quarter - 1) as Quarter };
 }
 
 /**
@@ -67,16 +84,14 @@ function statusForDays(daysUntil: number): VatDeadlineStatus {
   return "upcoming";
 }
 
-/**
- * Vat het openstaande BTW-aangiftevenster samen: het meest recent afgesloten kwartaal, de uiterste
- * indieningsdatum, de aftelling en het saldo voor dat kwartaal. Puur — `now` wordt geïnjecteerd.
- */
-export function summarizeVatDeadline(
+/** Vat één specifiek BTW-aangiftevenster (year, quarter) samen t.o.v. `now`. Puur. */
+function summarizeVatDeadlineFor(
   entries: readonly LedgerEntry[],
   party: LedgerParty,
+  year: number,
+  quarter: Quarter,
   now: Date,
 ): VatDeadlineSummary {
-  const { year, quarter } = previousQuarter(now);
   const deadline = vatFilingDeadline(year, quarter);
   const daysUntil = wholeDaysUntil(now, deadline);
   const { balanceCents } = vatReturn(entries, party, year, quarter);
@@ -89,6 +104,45 @@ export function summarizeVatDeadline(
     balanceCents,
     party,
   };
+}
+
+/**
+ * Vat het openstaande BTW-aangiftevenster samen: het meest recent afgesloten kwartaal, de uiterste
+ * indieningsdatum, de aftelling en het saldo voor dat kwartaal. Puur — `now` wordt geïnjecteerd.
+ */
+export function summarizeVatDeadline(
+  entries: readonly LedgerEntry[],
+  party: LedgerParty,
+  now: Date,
+): VatDeadlineSummary {
+  const { year, quarter } = previousQuarter(now);
+  return summarizeVatDeadlineFor(entries, party, year, quarter, now);
+}
+
+/**
+ * Alle openstaande BTW-aangiftevensters die nú actie verdienen — niet alleen het meest recent
+ * afgesloten kwartaal. Scant vanaf `previousQuarter(now)` een begrensd aantal kwartalen terug
+ * (`VAT_DEADLINE_LOOKBACK_QUARTERS`), zodat een overgeslagen, nooit-afgehandeld kwartaal niet stil
+ * verdwijnt zodra de kalender in het volgende kwartaal rolt (er is geen "afgehandeld"-vlag: het
+ * grootboek kent alleen het openstaande saldo). Een nihil-/upcoming-kwartaal levert niets op (zie
+ * `vatDeadlineNeedsAction`), dus lege of afgeronde kwartalen vallen vanzelf weg. Oudste-eerst, zodat
+ * de meest verstreken aangifte bovenaan de actie-rail komt. Puur — `now` wordt geïnjecteerd.
+ */
+export function summarizeVatDeadlines(
+  entries: readonly LedgerEntry[],
+  party: LedgerParty,
+  now: Date,
+  maxLookbackQuarters: number = VAT_DEADLINE_LOOKBACK_QUARTERS,
+): VatDeadlineSummary[] {
+  const steps = Math.max(1, Math.floor(maxLookbackQuarters));
+  const out: VatDeadlineSummary[] = [];
+  let cursor = previousQuarter(now); // nieuw → oud
+  for (let i = 0; i < steps; i++) {
+    const summary = summarizeVatDeadlineFor(entries, party, cursor.year, cursor.quarter, now);
+    if (vatDeadlineNeedsAction(summary)) out.push(summary);
+    cursor = precedingQuarter(cursor.year, cursor.quarter);
+  }
+  return out.reverse(); // oudste-eerst
 }
 
 /**

@@ -66,7 +66,7 @@ import {
 } from "@/lib/actions/tasks";
 import { reviewPromptForCollaboration } from "@/lib/collaboration-review-prompt";
 import { reviewBlindDays } from "@/lib/config";
-import { getVatDeadlineForActor } from "@/lib/data/vat-deadline";
+import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
 import { clientCredentialAlerts } from "@/lib/collaboration-alerts";
 import {
   collaborationCredentialExpiryConcerns,
@@ -468,11 +468,13 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     }
   }
 
-  // BTW-aangifte-deadline: het afgesloten kwartaal moet uiterlijk op de indieningsdatum aangegeven
+  // BTW-aangifte-deadline: elk onafgewikkeld kwartaal moet uiterlijk op de indieningsdatum aangegeven
   // zijn. Alleen wanneer die deadline nadert/verstreken is én er een saldo te melden is (harde
-  // fiscale deadline; anders leeft dit signaal alleen in het boekhoudpaneel).
-  const vatDeadline = await getVatDeadlineForActor(userId, "FREELANCER", now);
-  if (vatDeadline) tasks.push(vatDeadlineTask(vatDeadline));
+  // fiscale deadline; anders leeft dit signaal alleen in het boekhoudpaneel). Scant meerdere kwartalen
+  // terug zodat een overgeslagen kwartaal niet stil verdwijnt bij de rollover (één taak per kwartaal).
+  for (const vatDeadline of await getVatDeadlinesForActor(userId, "FREELANCER", now)) {
+    tasks.push(vatDeadlineTask(vatDeadline));
+  }
 
   // Afgeronde samenwerkingen die nog beoordeeld kunnen worden (blind venster open) — reputatie-nudge.
   tasks.push(...(await reviewLeaveTasks(userId, "FREELANCER", now)));
@@ -626,8 +628,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   if (draftJobs > 0) tasks.push(draftJobsTask(draftJobs));
 
   // BTW-aangifte-deadline (zie freelancerTasks) — ook de opdrachtgever heeft een eigen grootboek.
-  const vatDeadline = await getVatDeadlineForActor(userId, "CLIENT");
-  if (vatDeadline) tasks.push(vatDeadlineTask(vatDeadline));
+  for (const vatDeadline of await getVatDeadlinesForActor(userId, "CLIENT")) {
+    tasks.push(vatDeadlineTask(vatDeadline));
+  }
 
   // Afgeronde samenwerkingen die nog beoordeeld kunnen worden (blind venster open) — reputatie-nudge.
   tasks.push(...(await reviewLeaveTasks(userId, "CLIENT", new Date())));

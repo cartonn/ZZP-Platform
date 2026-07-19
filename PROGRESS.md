@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Administratie-ontzorging: BTW-deadline scant alle onafgewikkelde kwartalen (PR #840)
+
+**Waarde (ZZP'er/opdrachtgever, next-action-correctheid — DOEL 1b):** sluit het geparkeerde MED-HIGH-gat
+uit de persona-sweep (run 38). De BTW-aangifte-next-action keek uitsluitend naar `previousQuarter(now)`;
+een overgeslagen, nooit-ingediend kwartaalsaldo verdween **stil** zodra de kalender in het volgende
+kwartaal rolde (er is geen "afgehandeld"-vlag — het grootboek kent alleen het openstaande saldo). Repro:
+op 1 jul (begin Q3) is Q2 nog "upcoming" (deadline 31 jul) terwijl een vergeten Q1 (deadline 30 apr,
+overdue met saldo) op dat moment volledig uit `/acties` + dashboard + badge verdween. Een harde fiscale
+deadline die stil wegvalt = precies het tegenovergestelde van administratie-ontzorging.
+
+**Wat:** de next-action scant nu **alle onafgewikkelde kwartalen** binnen een begrensd venster
+(`VAT_DEADLINE_LOOKBACK_QUARTERS = 8`, 2 jaar) i.p.v. alleen het vorige. Pure `summarizeVatDeadlines`
+(`administration/vat-deadline.ts`) loopt van `previousQuarter(now)` terug, houdt per kwartaal alleen de
+vensters die actie verdienen (`vatDeadlineNeedsAction`: niet-nul saldo én due-soon/overdue) en levert ze
+**oudste-eerst** (meest verstreken bovenaan de rail). Nieuwe helpers: `precedingQuarter(year, quarter)`
+en de refactor `summarizeVatDeadlineFor` (één-kwartaal-kern, `summarizeVatDeadline` blijft de thin wrapper
+voor het vorige kwartaal). Data-loader `getVatDeadlinesForActor` (was singular) query't het owner-gescoopte
+venster (t/m het vorige kwartaal, `VAT_DEADLINE_LOOKBACK_QUARTERS` diep) en geeft de lijst. Wiring in
+`pending-tasks.ts` (freelancer + client): één `vatDeadlineTask` per kwartaal (id `vat-deadline:{jaar}-Q{n}`
+is al uniek → geen dedup-collisie).
+
+**Bestanden:** `src/lib/administration/vat-deadline.ts`, `src/lib/data/vat-deadline.ts`,
+`src/lib/actions/pending-tasks.ts` (+ 3 mock-updates in de pending-tasks-tests).
+**Grens/scope:** read-only afleiding, geen schemawijziging, geen nieuw mutatie/auth-oppervlak; venster
+houdt query + rail begrensd (een >2 jaar verstreken aangifte valt bewust buiten de actieve herinnering).
+**Tests:** +11 (`vat-deadline.test.ts`: `precedingQuarter`, rollover-vanish-regressie, meerdere kwartalen
+oudste-eerst, nihil/leeg overslaan, lookback-venster-grens, lege lijst). Gate: typecheck, lint,
+4601 unit-tests, build, prettier groen.
+
 ## 2026-07-19 — Robuustheid: terminale-status-grendel op reject/credit/update-cascade (PR #839)
 
 **Waarde (server-side waarheid / geld-integriteit):** sluit het geparkeerde defense-in-depth-gat uit

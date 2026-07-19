@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { type LedgerEntry } from "@/lib/administration/overview";
 import {
+  precedingQuarter,
   previousQuarter,
   vatFilingDeadline,
   summarizeVatDeadline,
+  summarizeVatDeadlines,
   vatQuarterRange,
   vatDeadlineNeedsAction,
+  VAT_DEADLINE_LOOKBACK_QUARTERS,
   VAT_DEADLINE_SOON_DAYS,
 } from "@/lib/administration/vat-deadline";
 
@@ -118,6 +121,75 @@ describe("vatQuarterRange", () => {
     const { start, end } = vatQuarterRange(2026, 4);
     expect(start).toEqual(new Date(2026, 9, 1)); // 1 oktober
     expect(end).toEqual(new Date(2027, 0, 1)); // 1 januari volgend jaar
+  });
+});
+
+describe("precedingQuarter", () => {
+  it("stapt één kwartaal terug binnen hetzelfde jaar", () => {
+    expect(precedingQuarter(2026, 3)).toEqual({ year: 2026, quarter: 2 });
+    expect(precedingQuarter(2026, 2)).toEqual({ year: 2026, quarter: 1 });
+  });
+
+  it("rolt vanuit Q1 terug naar Q4 van het vorige jaar", () => {
+    expect(precedingQuarter(2026, 1)).toEqual({ year: 2025, quarter: 4 });
+  });
+});
+
+describe("summarizeVatDeadlines", () => {
+  it("levert het vorige kwartaal wanneer dat als enige actie verdient", () => {
+    // 2 aug 2026 → previousQuarter = Q2 (deadline 31 jul, overdue), saldo in Q2.
+    const list = summarizeVatDeadlines([entry("2026-05-10")], "FREELANCER", new Date("2026-08-02"));
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ year: 2026, quarter: 2, status: "overdue" });
+  });
+
+  it("surfacet een overgeslagen ouder kwartaal dat anders bij de rollover stil zou verdwijnen", () => {
+    // 1 jul 2026 = begin Q3. previousQuarter = Q2 (deadline 31 jul → upcoming, telt niet).
+    // Q1 (deadline 30 apr) is overdue met een saldo → mag NIET verdwijnen.
+    const list = summarizeVatDeadlines(
+      [entry("2026-02-10"), entry("2026-05-10")],
+      "FREELANCER",
+      new Date("2026-07-01"),
+    );
+    // Alleen Q1 verdient actie (Q2 is nog upcoming).
+    expect(list.map((s) => s.quarter)).toEqual([1]);
+    expect(list[0]).toMatchObject({ year: 2026, status: "overdue" });
+  });
+
+  it("levert meerdere onafgewikkelde kwartalen oudste-eerst", () => {
+    // 2 aug 2026: Q1 (deadline 30 apr) en Q2 (deadline 31 jul) beide overdue met saldo.
+    const list = summarizeVatDeadlines(
+      [entry("2026-02-10"), entry("2026-05-10")],
+      "FREELANCER",
+      new Date("2026-08-02"),
+    );
+    expect(list.map((s) => `${s.year}-Q${s.quarter}`)).toEqual(["2026-Q1", "2026-Q2"]);
+    expect(list.every((s) => s.status === "overdue")).toBe(true);
+  });
+
+  it("slaat nihil- en lege kwartalen over", () => {
+    // Q2 heeft saldo, Q1 niet (geen entries) → alleen Q2.
+    const list = summarizeVatDeadlines([entry("2026-05-10")], "FREELANCER", new Date("2026-08-02"));
+    expect(list.map((s) => s.quarter)).toEqual([2]);
+  });
+
+  it("respecteert het lookback-venster: een kwartaal buiten het venster valt weg", () => {
+    // Venster van 1 kwartaal → alleen het vorige kwartaal (Q2) wordt bekeken; Q1 valt buiten.
+    const list = summarizeVatDeadlines(
+      [entry("2026-02-10"), entry("2026-05-10")],
+      "FREELANCER",
+      new Date("2026-08-02"),
+      1,
+    );
+    expect(list.map((s) => s.quarter)).toEqual([2]);
+  });
+
+  it("het standaard-lookbackvenster beslaat twee jaar", () => {
+    expect(VAT_DEADLINE_LOOKBACK_QUARTERS).toBe(8);
+  });
+
+  it("levert een lege lijst wanneer er niets openstaat", () => {
+    expect(summarizeVatDeadlines([], "FREELANCER", new Date("2026-08-02"))).toEqual([]);
   });
 });
 
