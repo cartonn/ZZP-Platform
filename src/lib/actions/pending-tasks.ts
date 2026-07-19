@@ -289,7 +289,17 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       ),
       now,
     );
+    // Een AFGEWEZEN verplicht document (VOG/verzekering) valt in de "missing"-emmer van
+    // computeCompliance (het is niet VERIFIED/SUBMITTED/EXPIRED). Het krijgt hierboven al de
+    // credentialFixTask ("Afgewezen certificaat opnieuw indienen" → /certificaten/{id}/bewerken).
+    // Zonder deze uitzondering zou hetzelfde document een tweede, tegenstrijdige rij opleveren die
+    // naar /certificaten/nieuw wijst (een NIEUW document aanmaken i.p.v. het afgewezene herstellen) —
+    // een dubbele, foutieve next-action. We onderdrukken daarom de "missing"-mandatory-taak voor een
+    // type dat al een afgewezen certificaat heeft; de "expired"-tak (echt verlopen certificaat van dat
+    // type, correcte vernieuw-link) blijft ongemoeid.
+    const rejectedTypes = new Set(creds.filter((c) => c.status === "REJECTED").map((c) => c.type));
     for (const doc of mandatory.items) {
+      if (doc.state === "missing" && rejectedTypes.has(doc.type)) continue;
       if (doc.state === "missing" || doc.state === "expired")
         tasks.push(
           mandatoryDocumentTask(

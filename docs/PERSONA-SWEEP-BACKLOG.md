@@ -1,5 +1,68 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-19 (run 37) · **main-commit basis:** `dc488530`
+> **Uitkomst:** **1 MED (DOEL 1b, dubbele/tegenstrijdige next-action) gevonden én OPGELOST.** Verse
+> prod-build + idempotente demo-seed (`SEED_DEMO=true`; 13 samenwerkingen / 7 facturen / 48
+> grootboekregels) op ephemere SQLite (`qa.db`), prod-server (`next start`, poort 3100,
+> `LOGIN_/REGISTER_RATE_LIMIT=100000`). Vier rollen ingelogd via het echte credentials-endpoint
+> (`demo1234`); cookie-getrouwe curl-sweep + live Playwright-doorklik (Chromium) + twee parallelle
+> Opus code-audits (next-action-correctheid; cascade-authz/state-machine/IDOR/tenant-isolatie).
+>
+> **DOEL 1 (werkt het, live):** alle kernschermen per rol → 200, nul 5xx (server-log schoon). ADMIN
+> klikte live "Goedkeuren" op `/admin/verificaties` → knoppen **6→5** én de afgehandelde next-action
+> verdween; keten auth→rol→ownership→transitie→audit end-to-end correct. Geen pageerror/500 over de
+> vier rollen (Playwright).
+>
+> **DOEL 1b (next-action-correctheid):** de live motor (`pending-tasks.ts`) is consistent met de
+> data (0 pending propose-collaboration → 0 getoond, klopt). Eén dubbele/tegenstrijdige next-action
+> gevonden (zie hieronder). De nieuwe `proposeCollaborationTask`/`pendingCollaborationProposals`
+> (accepted-proposal.ts) is correct: vuurt alleen voor ACCEPTED-zonder-collaboration, verdwijnt na
+> het voorstel, dubbelt niet met `contractSign`, ownership-gescoopt.
+>
+> **DOEL 2 (adversarieel, live):** privilege-escalatie (ZZP/CLIENT/FRANCHISER → `/admin/*`;
+> niet-FRANCHISER → `/franchise/*`; CLIENT/FRANCHISER → `/certificaten`/`/documenten`) → **307**.
+> IDOR met echte vreemde id's: vreemd document / factuur-PDF / samenwerking-dossier / dba-dossier /
+> modelovereenkomst → **403**; eigen resource → 200. Detailpagina's van een vreemde resource →
+> **soft-404** ("bestaat niet / geen toegang", geen data-leak). Cross-tenant: FRANCHISER →
+> main-tenant zzper/opdrachtgever/samenwerking → **soft-404** (eigen-tenant zzper rendert wél).
+> Cron-endpoints (`/api/tasks/*`) zonder secret → **503** (fail-closed). `billing/webhook` unsigned
+> `{}` → 200 no-op (geen mutatie zonder provider-geverifieerde ref, by design). Admin-export/PDF als
+> ZZP → **403**. Media path-traversal (`..%2F..%2Fetc%2Fpasswd`) → **404**. Junk/sqli/XSS in
+> query-params (`' OR 1=1`, `<script>`, negatieve page/min) → **200 zonder 500**, XSS ge-escaped
+> (geen live `<script>`). De cascade-authz-audit vond **geen** reachable authz/transitie/IDOR/
+> tenant/audit/numeriek-bound-gat (mutatie-oppervlak uniform gehard langs auth→rol→ownership→Zod→
+> actie→audit).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, dubbele + tegenstrijdige next-action bij afgewezen verplicht
+> document):** een FREELANCER met een **REJECTED** verplicht certificaat (VOG/verzekering) kreeg op
+> `/acties` **twee** rijen voor hetzelfde fysieke document: (1) `credentialFixTask` ("Afgewezen
+> certificaat opnieuw indienen" → `/certificaten/{id}/bewerken`, correct) én (2) `mandatoryDocumentTask`
+> ("Verplicht document ontbreekt: VOG" → `/certificaten/nieuw`, **fout**). Oorzaak: een REJECTED-
+> certificaat valt in de `missing`-emmer van `computeCompliance` (`matching.ts:105-113` — niet
+> VERIFIED/SUBMITTED/EXPIRED), waardoor de mandatory-tak het als "ontbreekt" behandelde. De tweede rij
+> wees naar het **aanmaken van een nieuw** document i.p.v. het **herstellen** van het afgewezene —
+> een foutieve remediatie, en de rijen hadden verschillende id's (`credential-fix:{id}` vs
+> `mandatory-document:VOG`) zodat `rankTasks` ze nooit dedupte (beide telden ook mee in de sidebar-
+> badge). **Geschonden regel:** next-action moet de juiste eerstvolgende stap vragen, niet dubbelen of
+> zichzelf tegenspreken (DOEL 1b) + server-side waarheid. **Fix:** in `pending-tasks.ts` de
+> "missing"-mandatory-taak onderdrukken voor een type dat al een REJECTED-certificaat heeft (de
+> fix-taak dekt het al, met de juiste bewerk-link); de "expired"-tak (echt verlopen certificaat,
+> correcte vernieuw-link) blijft ongemoeid. Chirurgische guard: `if (doc.state === "missing" &&
+rejectedTypes.has(doc.type)) continue;`. Rood→groen: `pending-tasks-rejected-mandatory.test.ts`
+> (4 tests: REJECTED-VOG → alleen fix-taak; echt-ontbrekend → mandatory blijft; EXPIRED → mandatory
+> blijft; REJECTED-VOG onderdrukt alleen VOG, niet een ontbrekende INSURANCE).
+>
+> **GEPARKEERD — LAAG (product-flow-gat, geen fout in de motor):** wanneer een CLIENT een reactie
+> accepteert (application ACCEPTED) → een voorstel stuurt (PROPOSED-collaboration) → die collaboration
+> **CANCELLED** wordt (geldige overgang), blijft de application op ACCEPTED staan met een
+> (geannuleerde) collaboration-rij eraan. `pendingCollaborationProposals` onderdrukt de propose-taak
+> (er ís een collaboration), de collabs-query sluit CANCELLED uit (geen contract-taak) → de ACCEPTED-
+> reactie nudged niemand. `proposeCollaboration` blokkeert her-voorstellen hard (`applicationId
+@unique`), dus er ís geen next-action die de motor kán tonen — het is een flow-gat (moet annuleren
+> de reactie heropenen?), geen onjuiste next-action. **LAAG.**
+
+---
+
 > **Datum:** 2026-07-18 (run 36) · **main-commit basis:** `dd47c9f`
 > **Uitkomst:** **1 HIGH (DOEL 2, verboden statusovergang / geld-correctheid) + 1 LAAG (DOEL 2,
 > robuustheid) gevonden én OPGELOST.** Parallelle Opus security-audit op de ~15 recent gewijzigde
