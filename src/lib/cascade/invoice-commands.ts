@@ -173,7 +173,12 @@ export async function rejectInvoice(
     throw new CascadeError("Alleen de opdrachtgever kan de factuur afkeuren.");
   }
   // Tijdens een dispuut bevriest de cascade — ook afkeuren is een transitie (§4 zijpad).
-  if (inv.collaborationId) await assertNotDisputed(inv.collaborationId);
+  if (inv.collaborationId) {
+    await assertNotDisputed(inv.collaborationId);
+    // Terminale-status-rem (symmetrisch met de forward-siblings, #825): afkeuren op een geannuleerde/
+    // afgeronde samenwerking is een cascade-transitie op een dode deal en mag niet.
+    await assertCollaborationNotTerminal(inv.collaborationId);
+  }
   const effects = planInvoiceRejectedEvent({
     invoiceId,
     lifecycleStatus: inv.lifecycleStatus,
@@ -196,6 +201,7 @@ export async function rejectInvoice(
       correlationId: inv.correlationId,
       invoiceId,
       disputeGuardCollaborationId: inv.collaborationId,
+      terminalGuard: true,
     },
     // Note: no allocate here — invoice rejected, number already assigned from submitInvoice
   );
@@ -230,7 +236,12 @@ export async function creditInvoice(
     throw new CascadeError("Alleen de uitschrijver kan een creditfactuur maken.");
   }
   // Tijdens een dispuut bevriest de cascade — ook crediteren is een transitie (§4 zijpad).
-  if (inv.collaborationId) await assertNotDisputed(inv.collaborationId);
+  if (inv.collaborationId) {
+    await assertNotDisputed(inv.collaborationId);
+    // Terminale-status-rem: crediteren op een GEANNULEERDE samenwerking mag niet. Een creditnota ná
+    // AFRONDING (COMPLETED) is wél legitiem (correctie op een reeds-afgeronde deal) → allowCompleted.
+    await assertCollaborationNotTerminal(inv.collaborationId, { allowCompleted: true });
+  }
   const effects = planInvoiceCreditedEvent({
     invoice: {
       id: invoiceId,
@@ -262,6 +273,8 @@ export async function creditInvoice(
       correlationId: inv.correlationId,
       invoiceId,
       disputeGuardCollaborationId: inv.collaborationId,
+      terminalGuard: true,
+      terminalGuardAllowCompleted: true,
     },
   );
 }

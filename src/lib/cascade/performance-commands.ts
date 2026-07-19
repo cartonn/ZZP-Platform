@@ -163,6 +163,11 @@ export async function updatePerformance(
     throw new CascadeError("Alleen een concept of afgekeurde prestatie kan worden aangepast.");
   }
   await assertNotDisputed(perf.collaborationId);
+  // Terminale-status-rem (symmetrisch met de forward-siblings, #825): een concept/afgekeurde prestatie
+  // op een geannuleerde of afgeronde deal mag niet meer worden bijgewerkt — anders leeft er een
+  // aanpasbaar weespad naar (her)indiening op een dode samenwerking. Geen event/effect hier, dus enkel
+  // de pre-transactionele lees; de daaropvolgende submitPerformance draagt de volledige TOCTOU-grendel.
+  await assertCollaborationNotTerminal(perf.collaborationId);
   await prisma.performance.update({
     where: { id: performanceId },
     data: {
@@ -411,6 +416,9 @@ export async function rejectPerformance(
   }
   // Tijdens een dispuut bevriest de cascade — ook afkeuren is een transitie (§4 zijpad).
   await assertNotDisputed(perf.collaborationId);
+  // Terminale-status-rem (symmetrisch met de forward-siblings, #825): afkeuren op een geannuleerde/
+  // afgeronde samenwerking is een cascade-transitie op een dode deal en mag niet.
+  await assertCollaborationNotTerminal(perf.collaborationId);
   const effects = planPerformanceRejected({
     performanceId,
     status: perf.status,
@@ -434,6 +442,7 @@ export async function rejectPerformance(
       correlationId: perf.collaborationId,
       performanceId,
       disputeGuardCollaborationId: perf.collaborationId,
+      terminalGuard: true,
     },
   );
 

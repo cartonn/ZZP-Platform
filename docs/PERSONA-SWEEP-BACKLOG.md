@@ -43,10 +43,12 @@
 >
 > **GEPARKEERD uit deze run (repro + prioriteit, voor een volgende increment):**
 >
-> - **MED (DOEL 2, defense-in-depth):** terminale-status-grendel ontbreekt op `rejectPerformance`
+> - ~~**MED (DOEL 2, defense-in-depth):** terminale-status-grendel ontbreekt op `rejectPerformance`
 >   (`cascade/performance-commands.ts:402`), `rejectInvoice`/`creditInvoice` (`invoice-commands.ts:165,
-222`) en `updatePerformance` (`performance-commands.ts:152`) — voeg `assertCollaborationNotTerminal`
->   - `terminalGuard` toe (met `allowCompleted` voor `creditInvoice`), symmetrisch met de siblings.
+222`) en `updatePerformance` (`performance-commands.ts:152`)~~ **GEDAAN (2026-07-19, PR #839):**
+>   `assertCollaborationNotTerminal` + `terminalGuard` toegevoegd aan alle vier (met `allowCompleted`/
+>   `terminalGuardAllowCompleted` voor `creditInvoice` — post-completion creditnota blijft legitiem),
+>   symmetrisch met de forward-siblings (#825). +6 command-level tests. Rood→groen; gate groen.
 > - **MED-HIGH (DOEL 1b):** de BTW-deadline-taak (`data/vat-deadline.ts` + `administration/vat-
 deadline.ts:previousQuarter`) checkt uitsluitend het net-afgesloten kwartaal; een overgeslagen,
 >   nooit-ingediend kwartaalsaldo verdwijnt stil bij kwartaal-rollover (geen "afgehandeld"-vlag).
