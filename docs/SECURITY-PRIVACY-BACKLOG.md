@@ -4,6 +4,57 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-19b (basis: `main` @ fb4d4f2e)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken — (1) cross-tenant/multi-tenant-isolatie voor de FRANCHISER-rol (`franchise/**`, `lib/tenancy.ts`
+
+- alle call-sites); (2) alle HTTP route-handlers `src/app/api/**` (auth/IDOR/upload/SSRF/injectie/foutlek);
+  (3) object-/functie-authz + IDOR + mass-assignment op alle non-admin/non-franchise server actions + de
+  cascade-laag; (4) AVG — anonimisering-volledigheid, dataminimalisatie, PII-in-logs, CSV-injectie,
+  k-anonimiteit, retentie. Delta-focus sinds de vorige ronde (`a501cbc9..fb4d4f2e`, PR's #829–#835:
+  TOCTOU-statusguard, backup-heartbeat dead-man's-switch, tarief-rekenhulp, reactiereputatie-spiegel,
+  propose-collaboration-taak, terminale-status-UI-rem). Kader: OWASP Top 10 (A01 Broken Access Control,
+  A03 Injection, A04 Insecure Design, A08, A10 SSRF) + ASVS + AVG art. 5/9/15/17/30/32. Stack: Next.js
+  15.5.19 (voorbij CVE-2025-29927), Auth.js v5-beta.31, Prisma 6.2.1.
+
+**Uitkomst: geen nieuwe KRITIEK/HOOG/MIDDEL/LAAG in code-fixbaar gebied.** Elk van de vier oppervlakken is
+door directe code-lezing (niet door de doc te vertrouwen) van-nul-af her-geverifieerd; alle vier convergeren
+op "schoon", consistent met de vorige ronde. Aanvullend door de orchestrator geverifieerd:
+
+- **Injectie (A03):** geen `$queryRawUnsafe`/string-geconcateneerd SQL; enkel getagde `SELECT 1`-templates in
+  `health`/`readiness`. Enige `dangerouslySetInnerHTML` is het nonce-gated theme-script (`layout.tsx:64`,
+  statische inhoud, geen user-input).
+- **SSRF (A10):** geen server-side fetch met user-gestuurde URL; push-endpoint gaat via `isAllowedPushEndpoint`-
+  allowlist; observability post naar een vaste `ENDPOINT`.
+- **Bestandsroutes (crown jewels VOG/diploma/BIG):** `documents/[id]`, `media/[...key]`, factuur-/prestatie-/
+  dossier-PDF's — ownership-check + audit op zowel toegestane áls geweigerde toegang, rate-limiting,
+  `Content-Security-Policy: sandbox; default-src 'none'` op de document-download, filename-sanitisatie,
+  path-traversal geweigerd door `LocalStorageDriver.resolve()`. Nooit een publiek pad (regel 4).
+- **Cron-auth:** `authorizeCron` is fail-closed (503 zonder `CRON_SECRET`), timing-safe (`timingSafeEqual`),
+  alleen `Authorization: Bearer` (geen `?token=`-query in access-logs). Nieuwe `backups/heartbeat`-route erft
+  ditzelfde patroon; schrijft alleen een PII-vrije `{lastRunAt, lastOk}`-singleton.
+- **Dependencies:** `npm audit --omit=dev` → 0 kwetsbaarheden (prod). 2 dev-only (js-yaml DoS, transitief) —
+  geen productie-oppervlak.
+- **Auth/rate-limiting:** login/register/wachtwoord-reset achter `RateLimiter` (Memory- of durable
+  Upstash-store); account-status live uit de DB (`currentActor` — geschorst/geanonimiseerd verliest direct
+  toegang, ook met geldige JWT).
+- **Security headers/CSP (A05):** volledige suite in `next.config.mjs` (HSTS 2j + `includeSubDomains` +
+  `preload`, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`); CSP met
+  per-request nonce + `strict-dynamic`, `object-src 'none'`, `frame-ancestors 'none'`, `base-uri 'self'`,
+  `form-action 'self'`, violatie-rapportage via `report-to`/`report-uri`.
+- **Nieuwe reputatie-features (#826):** `client-responsiveness-reputation.ts` is pure zelf-gerichte
+  aggregatie — geen individuele reactie van een derde ZZP'er lekt; spiegelt `client-payment-reputation`.
+  De `*_MIN_SAMPLE_SIZE = 3`-vloeren (payment/responsiveness/reliability) zijn **statistische
+  betrouwbaarheidsdrempels voor het eigen gedrag van één subject (de opdrachtgever)**, geen
+  derde-partij-k-anonimiteit — het verwerkingsregister onderscheidt ze expliciet van `MARKET_RATE_MIN_SAMPLE
+= 10` (dat wél k-anonimiteit op een pool van ZZP'ers is). Ze verhogen naar 10 zou een legitieme feature
+  schaden zonder privacywinst; correct als niet-bevinding.
+
+De pre-existing MENSENWERK-items (`NoShowReport.reason`/`Performance.rejectionReason` overleven erasure —
+juridische retentie-vs-vergetelheid-afweging; Message/Application- en Lead-retentie) blijven open en vereisen
+FG/juridische sign-off — niet unilateraal door een agent te wijzigen. Zie hieronder.
+
 ## Ronde 2026-07-19 (basis: `main` @ a501cbc9)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende

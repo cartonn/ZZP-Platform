@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Security-/privacy-auditronde 2 (basis `main` @ fb4d4f2e): geen nieuwe gaten
+
+**Waarde (vertrouwen + AVG-verantwoording):** volledige adversariële her-audit van het platform met
+gevoelige documenten (VOG/diploma/BIG/verzekering/KvK/iDIN). Orchestrator (Opus 4.8) + 4 parallelle
+Opus-security-subagents op niet-overlappende oppervlakken: (1) cross-tenant/FRANCHISER-isolatie
+(`franchise/**`, `lib/tenancy.ts`); (2) alle 39 route-handlers `src/app/api/**`; (3) object-authz/IDOR/
+mass-assignment op alle non-admin server actions + cascade-laag; (4) AVG (anonimisering, minimalisatie,
+PII-in-logs, CSV-injectie, k-anonimiteit, retentie). Kader: OWASP Top 10 (A01/A03/A04/A05/A08/A10) + ASVS
+
+- AVG art. 5/9/15/17/30/32.
+
+**Uitkomst: geen nieuwe KRITIEK/HOOG/MIDDEL/LAAG in code-fixbaar gebied.** Elk oppervlak van-nul-af
+her-geverifieerd door directe code-lezing. Aanvullend geverifieerd door de orchestrator: injectie (alleen
+getagde `SELECT 1`, geen `$queryRawUnsafe`); SSRF (allowlisted push-endpoint, geen user-URL-fetch);
+bestandsroutes (ownership + audit op toegestaan én geweigerd, CSP-sandbox, path-traversal geweigerd);
+cron-auth (timing-safe, fail-closed); `npm audit --omit=dev` = 0 (2 dev-only js-yaml, geen prod-oppervlak);
+auth-rate-limiting gewired; volledige security-header-suite (HSTS/preload, X-Frame DENY, CSP nonce +
+`strict-dynamic`, `object-src 'none'`, `frame-ancestors 'none'`). De `*_MIN_SAMPLE_SIZE = 3`-vloeren zijn
+betrouwbaarheidsdrempels voor het eigen gedrag van één subject, geen derde-partij-k-anonimiteit (correct
+onderscheiden van `MARKET_RATE_MIN_SAMPLE = 10`).
+
+**Geschonden regels:** geen. **Bestanden:** `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-07-19b + dekking),
+`PROGRESS.md`. Docs-only, geen code-/schemawijziging. Pre-existing MENSENWERK-items (erasure-retentie) blijven
+open (FG/juridisch). Checks: typecheck + lint + test + build + prettier groen; CI-poort verifiëren.
+
+**Volgende stap:** volgend backlog-/persona-item; her-audit bij de volgende security-relevante delta.
+
 ## 2026-07-19 — Persona-sweep (run 38): bemiddelaar-next-actions één bron voor /acties, badge én rail
 
 **Waarde (bemiddelaar mist niets meer):** de operationele bemiddelaar-attentiepunten — een roster-ZZP'er
