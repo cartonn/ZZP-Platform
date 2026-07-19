@@ -25,7 +25,10 @@ vi.mock("@/lib/db", () => ({
 }));
 
 // Isoleer de compliance-tak: overige opdrachtgever-signalen uitgeschakeld.
-vi.mock("@/lib/signals", () => ({ overdueInvoiceCount: vi.fn(async () => 0) }));
+vi.mock("@/lib/signals", () => ({
+  overdueInvoiceCount: vi.fn(async () => 0),
+  paymentDueSoonCount: vi.fn(async () => 0),
+}));
 vi.mock("@/lib/data/vat-deadline", () => ({ getVatDeadlineForActor: vi.fn(async () => null) }));
 vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/collaboration-alerts")>();

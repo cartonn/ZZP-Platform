@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Pre-due betaal-nudge voor de opdrachtgever (factuur vervalt binnenkort) (PR #827)
+
+**Waarde (opdrachtgever geruster/slimmer → ZZP'er sneller betaald):** de opdrachtgever kreeg als
+next-action alléén een **post-due** roll-up ("N facturen over de vervaldatum · Markeer als betaald")
+plus een aggregate payables-card op `/facturen`. Er was **niets pre-due**: geen actie die vóór de
+vervaldatum zegt "je factuur vervalt binnenkort — betaal op tijd". Op tijd betalen beschermt de
+zichtbare betaalreputatie (`client-payment-reputation.ts`) → de ZZP'er wordt sneller betaald.
+Symmetrisch met de bestaande betaalreputatie-spiegel; het gat was bevestigd door een
+signaal-/next-action-surface-mapping (geen bestaande pre-due nudge).
+
+**Gebouwd:** een pure `paymentDueSoonWhere(userId, now, windowDays=7)` (`src/lib/payment-due-soon.ts`)
+als één bron van waarheid voor de scoping — **alleen legacy/handmatige facturen** (`lifecycleStatus:
+null, status: "SENT"`, waar de opdrachtgever écht een "Markeer als betaald"-knop heeft; cascade-
+facturen betaal-markeert de ZZP'er), **nog niet te laat** (`dueAt >= now`, raakt de post-due roll-up
+niet → geen dubbele next-action), **binnen 7 dagen**, **niet in dispuut**. Count `paymentDueSoonCount`
+in `signals.ts`; pure task-builder `paymentDueSoonTask` (kind `payment-due-soon`, tone `info`, band
+`P.paymentDueSoon=56` — onder de post-due `overdueInvoice=60`, resolver `link` → valt op de default-tak
+van `action-list.tsx`, geen UI-wiring) in `actions/tasks.ts`; wiring in `clientTasks` (`pending-tasks.ts`,
+één extra indexed count in de bestaande `Promise.all`).
+
+**Bestanden:** `src/lib/payment-due-soon.ts` (+`payment-due-soon.test.ts`, 5 tests) ·
+`src/lib/signals.ts` + `signals.due-soon.test.ts` (1 test) · `src/lib/next-actions.ts` (P-band) ·
+`src/lib/actions/tasks.ts` (+3 tests in `tasks.test.ts`) · `src/lib/actions/pending-tasks.ts` (wiring).
+Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate: typecheck, lint, unit-tests,
+build, prettier groen.
+
 ## 2026-07-18 — Reactiereputatie-spiegel voor de opdrachtgever op /kandidaten (PR #826)
 
 **Waarde (opdrachtgever geruster/slimmer → ZZP'er sneller antwoord):** de opdrachtgever zag op

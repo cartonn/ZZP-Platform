@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
+import { paymentDueSoonWhere } from "@/lib/payment-due-soon";
 import { SUPPORT_OPEN_STATUSES } from "@/lib/support/labels";
 
 export type BadgeTone = "attention" | "info";
@@ -216,6 +217,17 @@ export async function overdueInvoiceCount(role: UserRole, userId: string): Promi
   return prisma.invoice.count({
     where: { collaboration: { ...party, disputedAt: null }, OR: or },
   });
+}
+
+/**
+ * Facturen die de opdrachtgever BINNENKORT (nog niet te laat) moet betalen — voedt de pre-due
+ * betaal-nudge. Tegenhanger van `overdueInvoiceCount` (post-due); de vensters raken elkaar niet
+ * (`dueAt >= now` vs. `< now`), dus één factuur voedt nooit beide. Scoping in `paymentDueSoonWhere`
+ * (één bron van waarheid): alleen legacy/handmatige facturen waar de payer echt aan zet is, niet in
+ * dispuut. Eén indexed count.
+ */
+export async function paymentDueSoonCount(userId: string, now: Date = new Date()): Promise<number> {
+  return prisma.invoice.count({ where: paymentDueSoonWhere(userId, now) });
 }
 
 /** Twee begrensde queries (geen N+1): deelnemerschap + laatste vreemde bericht per gesprek. */

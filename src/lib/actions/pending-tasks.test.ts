@@ -38,6 +38,7 @@ vi.mock("@/lib/data/freelancer-profile", () => ({
 
 vi.mock("@/lib/signals", () => ({
   overdueInvoiceCount: vi.fn(async () => state.overdueCount),
+  paymentDueSoonCount: vi.fn(async () => 0),
 }));
 
 // BTW-deadline-tak buiten deze test houden: isoleert de samenwerkings-/factuurtak.
