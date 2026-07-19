@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Prod-rijpheid: back-up-heartbeat / dead-man's-switch voor database-back-ups (PR #830)
+
+**Waarde (zichtbaarheid op een stil gestopt back-up-schema):** de automatische dagelijkse
+database-back-up draait bij de databasedienst, buiten het zicht van het platform — een opgezegde
+snapshot-policy, mislukte dump of verlopen databasedienst-abonnement was tot nu toe onzichtbaar.
+Spiegelt exact het patroon van de cron-heartbeat (#810): elke geslaagde externe back-up kan nu een
+heartbeat registreren, en de beheerder ziet freshness op één scherm i.p.v. te vertrouwen dat het
+schema nog draait.
+
+**Gebouwd:** nieuw Prisma-model `BackupHeartbeat` (singleton per naam; `name` PK, `lastRunAt`,
+`lastOk`, `updatedAt`; geen persoonsgegevens). Nieuw endpoint **`POST /api/backups/heartbeat`**
+beveiligd met `Authorization: Bearer $CRON_SECRET` (fail-closed: geen `CRON_SECRET` → 503, verkeerd
+token → 401); optionele body `{ "ok": boolean }` (default `true` bij een kale ping). Op
+`/admin/systeemstatus` een nieuwe kaart **"Database-back-up"** die de freshness toont: actueel /
+aandacht (mislukt of nog nooit gemeld) / stale (schema lijkt gestopt). Venster
+`BACKUP_MAX_AGE_HOURS` (default 48 uur, geklemd 1–720). Inert zonder config; de heartbeat-schrijf/
+-lees faalt nooit naar buiten.
+
+**Bestanden:** `src/lib/observability/backup-heartbeat.ts`, `.../backup-freshness.ts`,
+`src/app/api/backups/heartbeat/route.ts`, `src/components/admin/backup-heartbeat-card.tsx`,
+`src/lib/config.ts` (`parseBackupMaxAgeHours`), `prisma/schema.prisma` (`BackupHeartbeat`).
+`MENSENWERK.md` §7/§11, `docs/RUNBOOK.md` §5 en `.env.example` bijgewerkt met het resterende
+mensenwerk (back-up-job laten pingen). Gate: typecheck, lint, tests, build, prettier groen.
+
 ## 2026-07-19 — Security-/privacy-audit: TOCTOU-hardening legacy status-writes (factuur + no-show)
 
 **Waarde (state-integriteit + auditcorrectheid):** een security-/privacy-auditronde (orchestrator Opus 4.8

@@ -260,6 +260,23 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — back-up-heartbeat / dead-man's-switch voor database-back-ups
+> (2026-07-19, PR #830)** — de automatische dagelijkse database-back-up draait bij de databasedienst,
+> buiten het zicht van het platform; een stil gestopt back-up-schema (opgezegde snapshot-policy,
+> mislukte dump, verlopen databasedienst-abonnement) was tot nu toe onzichtbaar — spiegelt exact het
+> patroon van de cron-heartbeat (#810). Nu een nieuw Prisma-model `BackupHeartbeat` (singleton, géén
+> PII — alleen tijdstip + of de laatste back-up slaagde) en `POST /api/backups/heartbeat`
+> (`Authorization: Bearer $CRON_SECRET`, fail-closed: geen secret → 503, verkeerd token → 401;
+> optionele body `{ "ok": boolean }`, default `true`). Op `/admin/systeemstatus` een nieuwe kaart
+> **"Database-back-up"**: actueel / aandacht (mislukt of nog nooit gemeld) / stale (schema lijkt
+> gestopt). Venster `BACKUP_MAX_AGE_HOURS` (default 48 uur, geklemd 1–720). Inert zonder config; de
+> heartbeat-schrijf/-lees faalt nooit naar buiten. Bestanden:
+> `src/lib/observability/backup-heartbeat.ts`, `.../backup-freshness.ts`,
+> `src/app/api/backups/heartbeat/route.ts`, `src/components/admin/backup-heartbeat-card.tsx`,
+> `src/lib/config.ts` (`parseBackupMaxAgeHours`), `prisma/schema.prisma`. `MENSENWERK.md` §7/§11 +
+> `docs/RUNBOOK.md` §5 + `.env.example` bijgewerkt (resterend mensenwerk: back-up-job laten pingen).
+> Gate: typecheck, lint, tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Pre-due betaal-nudge voor de opdrachtgever (factuur vervalt binnenkort) (2026-07-19, PR #827)** —
 > de opdrachtgever kreeg als next-action alléén een **post-due** roll-up ("N facturen over de vervaldatum · Markeer als
 > betaald", `overdueInvoiceTask("CLIENT")`) plus een aggregate payables-card op `/facturen`. Er was **niets pre-due**: geen

@@ -5,9 +5,11 @@ import { readEnv } from "@/lib/env";
 import { evaluateReadiness } from "@/lib/observability/readiness";
 import { collectSystemStatus } from "@/lib/system-status";
 import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
+import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
 import { PageHeader } from "@/components/ui/page-header";
 import { SystemStatusPanel } from "@/components/admin/system-status-panel";
 import { CronHeartbeatCard } from "@/components/admin/cron-heartbeat-card";
+import { BackupHeartbeatCard } from "@/components/admin/backup-heartbeat-card";
 import { StorageSelfTest } from "@/components/admin/storage-selftest";
 import { MailSelfTest } from "@/components/admin/mail-selftest";
 import { RateLimitSelfTest } from "@/components/admin/ratelimit-selftest";
@@ -37,6 +39,7 @@ export default async function SysteemstatusPage() {
     schemaProbe: () => prisma.user.count(),
   });
   const cronFreshness = await getCronFreshness();
+  const backupFreshness = await getBackupFreshness();
 
   return (
     <div className="space-y-6">
@@ -46,6 +49,7 @@ export default async function SysteemstatusPage() {
       />
       <SystemStatusPanel status={status} dbReachable={readiness.ready} />
       <CronHeartbeatCard freshness={cronFreshness} />
+      <BackupHeartbeatCard freshness={backupFreshness} />
       <StorageSelfTest driverMode={env.STORAGE_DRIVER} />
       <MailSelfTest driverMode={env.EMAIL_DRIVER} />
       <RateLimitSelfTest storeMode={env.RATE_LIMIT_STORE} />

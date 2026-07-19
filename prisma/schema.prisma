@@ -1433,6 +1433,19 @@ model CronHeartbeat {
   updatedAt DateTime @updatedAt
 }
 
+// Back-up-heartbeat / dead-man's-switch: één singleton-rij per back-up-schema (name = PK). De
+// operator laat z'n externe back-up-job (pg_dump / databasedienst) na een geslaagde dump POST
+// /api/backups/heartbeat pingen, zodat /admin/systeemstatus kan tonen of de back-ups nog draaien
+// (zie src/lib/observability/backup-heartbeat.ts + backup-freshness.ts). Een stil gestopt
+// back-up-schema is de gevaarlijkste prod-verrassing: niemand merkt het tot een herstel nodig is.
+// Bevat geen persoonsgegevens — alleen het tijdstip en of de laatste back-up slaagde.
+model BackupHeartbeat {
+  name      String   @id // bv. "db-backup"
+  lastRunAt DateTime
+  lastOk    Boolean
+  updatedAt DateTime @updatedAt
+}
+
 // Idempotentie-grendel voor de betaal-webhook (/api/billing/webhook). Elke verwerkte
 // provider-ping wordt hier exact één keer vastgelegd op (provider, eventKey), waarbij
 // eventKey = "<paymentRef>:<status>". Een herspeeld of dubbel-afgeleverd event schendt de
