@@ -16,6 +16,7 @@ import {
   adminResolveDisputeTask,
   adminSupportTicketTask,
   applicationsReviewTask,
+  proposeCollaborationTask,
   staleApplicationsTask,
   availabilityRefreshTask,
   draftJobsTask,
@@ -198,6 +199,28 @@ describe("task builders", () => {
     const task = staleApplicationsTask({ count: 1, oldestDays: 1 });
     expect(task.title).toContain("1 kandidaat wacht");
     expect(task.subtitle).toContain("1 dag ");
+  });
+
+  it("voorstel-nudge: link-taak naar de rij, benoemt kandidaat + opdracht, ná-accept-band", () => {
+    const task = proposeCollaborationTask("app-7", "Wijkverpleegkundige", "Sanne de Vries");
+    expect(task).toMatchObject({
+      kind: "propose-collaboration",
+      id: "propose-collaboration:app-7",
+      resolver: "link",
+      href: "/kandidaten?open=app-7",
+      tone: "attention",
+      applicationId: "app-7",
+    });
+    expect(task.priority).toBe(P.proposeCollaboration);
+    expect(task.title).toBe("Stuur Sanne de Vries een samenwerkingsvoorstel");
+    expect(task.subtitle).toContain("Wijkverpleegkundige");
+    // Een genomen hire-beslissing weegt zwaarder dan nieuwe reacties beoordelen, lager dan een
+    // al-voorgesteld contract dat op een handtekening wacht.
+    expect(task.priority).toBeGreaterThan(applicationsReviewTask(1).priority);
+    expect(task.priority).toBeGreaterThan(
+      staleApplicationsTask({ count: 1, oldestDays: 5 }).priority,
+    );
+    expect(task.priority).toBeLessThan(P.contractSign);
   });
 
   it("beoordelings-nudge: rustige link-taak naar de samenwerking, benoemt tegenpartij en venster", () => {

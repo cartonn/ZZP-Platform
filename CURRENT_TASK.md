@@ -260,6 +260,23 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **"Stuur een samenwerkingsvoorstel" next-action voor geaccepteerde kandidaat
+> (2026-07-19, PR #831)** — wanneer de opdrachtgever een reactie **accepteert** (`ACCEPTED`) moet hij
+> daarna nog handmatig `proposeCollaboration` doen (ACCEPTED → `PROPOSED`-collaboration, `applicationId`
+> @unique). Tot dan heeft de reactie géén collaboration en nudged **niets** in de next-action-engine die
+> afrondstap: `applicationsReviewTask` dekt alleen `NEW`, `staleApplicationsTask` alleen `VIEWED`/
+> `SHORTLIST`, `contractSignTask` pas ná het voorstel. De ZZP'er ziet "Geaccepteerd! Wacht op een
+> samenwerkingsvoorstel" en wacht; de opdrachtgever vergeet → een gemaakte hire in limbo. Nu een
+> next-action **"Stuur {kandidaat} een samenwerkingsvoorstel"** per geaccepteerde-maar-onvoorgestelde
+> reactie (tone `attention`, band `P.proposeCollaboration=68` net onder `contractSign` 72, boven
+> `staleApplications`/`applications`), deep-link `/kandidaten?open=<applicationId>` (opent direct de rij
+> met het voorstelformulier). Pure `pendingCollaborationProposals` (`accepted-proposal.ts`, enige bron van
+> waarheid; filtert defensief reeds-voorgestelde) + builder `proposeCollaborationTask`
+> (`resolver:"link"` → `default`-tak, geen UI-wiring) + wiring in `clientTasks` (één extra eigenaar-
+> gescoopte, `take`-begrensde ACCEPTED-query in de bestaande `Promise.all`, oudst-eerst). Read-only, geen
+> schemawijziging, geen nieuw mutatie/auth-oppervlak. +8 tests. Gate: typecheck, lint, 4553 unit-tests,
+> build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — back-up-heartbeat / dead-man's-switch voor database-back-ups
 > (2026-07-19, PR #830)** — de automatische dagelijkse database-back-up draait bij de databasedienst,
 > buiten het zicht van het platform; een stil gestopt back-up-schema (opgezegde snapshot-policy,
