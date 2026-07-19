@@ -75,6 +75,7 @@ export type PendingTask =
   | (TaskBase & { kind: "client-compliance"; collabId: string })
   | (TaskBase & { kind: "review-leave"; collabId: string })
   | (TaskBase & { kind: "applications-review" })
+  | (TaskBase & { kind: "propose-collaboration"; applicationId: string })
   | (TaskBase & { kind: "stale-applications" })
   | (TaskBase & { kind: "availability-refresh" })
   | (TaskBase & { kind: "draft-jobs" })
@@ -574,6 +575,34 @@ export function applicationsReviewTask(count: number): PendingTask {
     priority: P.applications,
     resolver: "link",
     href: "/kandidaten",
+  };
+}
+
+/**
+ * De opdrachtgever heeft een reactie geaccepteerd maar er nog géén samenwerkingsvoorstel op gestuurd
+ * (`proposeCollaboration`, ACCEPTED → PROPOSED-collaboration). Tot dat gebeurt bestaat er geen
+ * collaboration en wacht de ZZP'er ("Geaccepteerd! Wacht op een samenwerkingsvoorstel") — een gemaakte
+ * keuze blijft in limbo. Deze taak rondt de hire af: één taak per geaccepteerde-maar-onvoorgestelde
+ * reactie, deep-link naar `/kandidaten?open=<applicationId>` (opent direct de rij met het
+ * voorstelformulier). Priority net onder `contractSign` (het ná-voorstel-stap): een reeds-genomen
+ * hire-beslissing weegt zwaarder dan nieuwe/oude reacties beoordelen, lager dan een al-voorgesteld
+ * contract dat op een handtekening wacht.
+ */
+export function proposeCollaborationTask(
+  applicationId: string,
+  jobTitle: string,
+  freelancerName: string,
+): PendingTask {
+  return {
+    kind: "propose-collaboration",
+    id: `propose-collaboration:${applicationId}`,
+    title: `Stuur ${freelancerName} een samenwerkingsvoorstel`,
+    subtitle: `Je accepteerde de reactie op ${jobTitle} — rond de samenwerking af`,
+    tone: "attention",
+    priority: P.proposeCollaboration,
+    resolver: "link",
+    href: `/kandidaten?open=${applicationId}`,
+    applicationId,
   };
 }
 

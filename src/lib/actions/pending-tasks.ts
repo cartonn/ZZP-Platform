@@ -48,6 +48,7 @@ import {
   overdueInvoiceTask,
   paymentDueSoonTask,
   applicationsReviewTask,
+  proposeCollaborationTask,
   staleApplicationsTask,
   availabilityRefreshTask,
   draftJobsTask,
@@ -68,6 +69,7 @@ import {
   type CollabCredentialInput,
 } from "@/lib/collaboration-credential-expiry";
 import { summarizeStaleClientApplications } from "@/lib/stale-applications";
+import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { getRosterFillSignalsForTenant } from "@/lib/franchise/dienst-fill-signal";
 import { summarizeAcuteOpenDiensten } from "@/lib/franchise/acute-open-diensten";
@@ -479,6 +481,7 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
     newApplications,
     draftJobs,
     staleCandidates,
+    acceptedCandidates,
     complianceAlerts,
   ] = await Promise.all([
     prisma.company.findUnique({
@@ -505,6 +508,22 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
       },
       select: { status: true, createdAt: true, collaboration: { select: { id: true } } },
       orderBy: { createdAt: "asc" },
+      take: MAX,
+    }),
+    // Geaccepteerde reacties die nog op een samenwerkingsvoorstel wachten. De opdrachtgever accepteert
+    // (ACCEPTED) maar moet daarna nog `proposeCollaboration` doen; tot dan is er geen collaboration en
+    // wacht de ZZP'er. Oudst-eerst zodat de langst-wachtende kandidaat bovenaan de taken komt; de pure
+    // `pendingCollaborationProposals` filtert defensief de reeds-voorgestelde eruit.
+    // unbounded-allow: eigenaar-scoped (job.company.userId) + take-limiet
+    prisma.application.findMany({
+      where: { job: { company: { userId } }, status: "ACCEPTED" },
+      select: {
+        id: true,
+        collaboration: { select: { id: true } },
+        job: { select: { title: true } },
+        freelancer: { select: { user: { select: { name: true } } } },
+      },
+      orderBy: { updatedAt: "asc" },
       take: MAX,
     }),
     // Compliance-ripple: lopende samenwerkingen waarvan de ZZP'er een vereist certificaat
@@ -570,6 +589,16 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   // overdue (< now) en due-soon (>= now) raken elkaar niet, dus geen dubbele next-action.
   if (dueSoon > 0) tasks.push(paymentDueSoonTask(dueSoon));
   if (newApplications > 0) tasks.push(applicationsReviewTask(newApplications));
+  // Geaccepteerd-maar-nog-niet-voorgesteld: rond de hire af met een samenwerkingsvoorstel.
+  for (const p of pendingCollaborationProposals(
+    acceptedCandidates.map((a) => ({
+      applicationId: a.id,
+      freelancerName: a.freelancer.user.name ?? "ZZP'er",
+      jobTitle: a.job.title,
+      hasCollaboration: a.collaboration != null,
+    })),
+  ))
+    tasks.push(proposeCollaborationTask(p.applicationId, p.jobTitle, p.freelancerName));
   const staleApplications = summarizeStaleClientApplications(
     staleCandidates.map((a) => ({
       status: a.status,

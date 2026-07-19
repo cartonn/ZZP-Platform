@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — "Stuur een samenwerkingsvoorstel" next-action voor geaccepteerde kandidaat (PR #831)
+
+**Waarde (niets valt tussen wal en schip):** wanneer de opdrachtgever een reactie **accepteert**
+(status `ACCEPTED`) moet hij daarna nog handmatig een samenwerkingsvoorstel sturen
+(`proposeCollaboration`, ACCEPTED → een `PROPOSED`-collaboration met `applicationId` @unique). Tot dat
+moment heeft de geaccepteerde reactie **géén** collaboration en nudged **niets** in de next-action-engine
+de opdrachtgever om die stap af te ronden — `applicationsReviewTask` dekt alleen `NEW`,
+`staleApplicationsTask` alleen `VIEWED`/`SHORTLIST`, en `contractSignTask` pas ná het voorstel
+(`PROPOSED`). De ZZP'er ziet ondertussen "Geaccepteerd! Wacht op een samenwerkingsvoorstel" en wacht; de
+opdrachtgever vergeet. Een gemaakte hire-beslissing bleef zo in limbo.
+
+**Gebouwd:** een next-action **"Stuur {kandidaat} een samenwerkingsvoorstel"** (subtitel "Je accepteerde
+de reactie op {opdracht} — rond de samenwerking af") per geaccepteerde-maar-nog-niet-voorgestelde reactie,
+tone `attention`, band `P.proposeCollaboration = 68` (net onder `contractSign` 72, boven
+`staleApplications` 52 / `applications` 50), deep-link `/kandidaten?open=<applicationId>` (opent direct de
+rij met het voorstelformulier — geen dode knop). Pure `pendingCollaborationProposals` in
+`accepted-proposal.ts` als enige bron van waarheid ("een ACCEPTED-reactie is pas af zodra er een
+collaboration op zit"; filtert defensief de reeds-voorgestelde eruit) + builder `proposeCollaborationTask`
+(`resolver:"link"` → `default`-tak van `action-list.tsx`, geen UI-wiring). Wiring in `clientTasks`: één
+extra eigenaar-gescoopte, `take`-begrensde `application.findMany` (status ACCEPTED, oudst-eerst) in de
+bestaande `Promise.all`. Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +8 tests
+(`accepted-proposal.test.ts` 4, `tasks.test.ts` +1 builder-test met bandvolgorde-asserts, prettier-collapse
+raakte de rest). Gate: typecheck, lint, 4553 unit-tests, build, prettier groen.
+
 ## 2026-07-19 — Prod-rijpheid: back-up-heartbeat / dead-man's-switch voor database-back-ups (PR #830)
 
 **Waarde (zichtbaarheid op een stil gestopt back-up-schema):** de automatische dagelijkse
