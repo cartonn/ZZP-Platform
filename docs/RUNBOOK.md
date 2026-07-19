@@ -131,6 +131,12 @@ Beide vereisen de PostgreSQL-client (`pg_dump`/`pg_restore`) op het systeem.
 zet `DATABASE_URL` daarheen in een staging-omgeving, en verifieer met `/api/readiness` +
 een steekproef. Een onbeproefde back-up is geen back-up.
 
+**Back-up-heartbeat / dead-man's-switch:** laat de externe back-up-job (pg_dump/databasedienst) na
+elke geslaagde dump pingen naar `POST /api/backups/heartbeat` met
+`Authorization: Bearer $CRON_SECRET` (optioneel `{ "ok": false }` bij een mislukte run). Zo toont
+`/admin/systeemstatus` (kaart "Database-back-up") of het back-up-schema nog draait — venster
+instelbaar via `BACKUP_MAX_AGE_HOURS` (default 48 uur; zie `MENSENWERK.md` §11).
+
 ## 6. Incident-respons (beknopt)
 
 1. **Vaststellen:** `/api/health` en `/api/readiness` checken; Railway-logs en (indien actief)

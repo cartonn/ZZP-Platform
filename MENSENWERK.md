@@ -617,6 +617,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `SECURITY_CONTACT`                                                           | Meldpunt in /.well-known/security.txt (RFC 9116)       | — (§0b)              | Optioneel (aanbevolen vóór pentest)              |
 | `AUDIT_LOG_RETENTION_DAYS`                                                   | Bewaartermijn auditlog in dagen (default: onbeperkt)   | — (§5a)              | Optioneel (aanbevolen prod; bv. 365)             |
 | `WEBHOOK_EVENT_RETENTION_DAYS`                                               | Snoeivenster webhook-ledger in dagen (default: onbep.) | — (§3)               | Optioneel (bij recurring billing; bv. 90)        |
+| `BACKUP_MAX_AGE_HOURS`                                                       | Venster back-up-heartbeat in uren (default 48)         | —                    | Optioneel (aanbevolen prod)                      |
 
 > Zolang een verificatie-schakelaar **niet** op de echte waarde staat, draait de bijbehorende
 > demo-verifier veilig door (handig voor de pilot).
@@ -780,11 +781,31 @@ sleutelwaarden. Exitcodes: `0` ok · `1` aandachtspunt in `--strict` (bruikbaar 
 `2` ongeldige/ontbrekende basisconfig. `--json` geeft een machineleesbaar rapport. Zie RUNBOOK §3.
 Resterend mensenwerk: **niets** — het is een operator-hulpmiddel bij het afvinken van de stappen hieronder.
 
+**Code-kant GEDAAN (2026-07-19) — back-up-heartbeat / dead-man's-switch:** de automatische
+dagelijkse database-back-up (hierboven, §11.1) draait bij de databasedienst, buiten het zicht van
+het platform — een stil gestopt back-up-schema (opgezegde snapshot-policy, mislukte dump, verlopen
+databasedienst-abonnement) was tot nu toe onzichtbaar, precies zoals de cron vóór 2026-07-17 (zie
+hierboven). Zelfde patroon: elke geslaagde externe back-up kan nu een **heartbeat** registreren via
+**`POST /api/backups/heartbeat`** (`Authorization: Bearer $CRON_SECRET`, fail-closed: geen
+`CRON_SECRET` → 503, verkeerd token → 401; optionele body `{ "ok": boolean }`, default `true` bij een
+kale ping). Op `/admin/systeemstatus` toont de nieuwe kaart **"Database-back-up"** de freshness:
+_actueel_ (binnen het venster, laatste melding geslaagd), _aandacht_ (laatste melding mislukt of nog
+nooit gemeld) of _stale_ (schema lijkt gestopt). Venster `BACKUP_MAX_AGE_HOURS` (default **48 uur**,
+geklemd 1–720). Singleton-model `BackupHeartbeat` (géén persoonsgegevens — alleen tijdstip + of de
+laatste back-up slaagde); de heartbeat-schrijf/-lees faalt nooit naar buiten. Inert zonder config.
+Resterend mensenwerk: **de back-up-job zelf laten pingen** — zie punt 1b hieronder.
+
 **Resterend mensenwerk (eenmalig):**
 
 1. Zet **automatische dagelijkse database-back-ups** aan bij je databasedienst (EU-regio; §1b) en
    doe éénmaal een **herstel-oefening** naar een wegwerp-database vóór go-live (zie RUNBOOK §5; de
    `npm run db:backup`/`db:restore`-helper maakt de oefening reproduceerbaar).
+   1b. **Laat de back-up-job zijn succes melden:** voeg aan de back-up-job (pg_dump/databasedienst)
+   een stap toe die na een geslaagde dump pingt naar `https://<host>/api/backups/heartbeat` met
+   header `Authorization: Bearer $CRON_SECRET` — bijvoorbeeld een `curl -X POST` direct na de
+   dump, of een monitoring-hook bij de databasedienst. Zonder deze stap toont
+   `/admin/systeemstatus` het back-up-schema eerlijk als "nog nooit gemeld" (geen vals groen),
+   maar mist de dead-man's-switch zijn waarde.
 2. Hang een **uptime-monitor** op `https://<host>/api/health` (naast de Railway-healthcheck).
 3. Optioneel: zet `SENTRY_DSN` (+ `npm i @sentry/nextjs`) zodat DB-storingen en onverwachte fouten
    ook extern zichtbaar worden (§0b) i.p.v. alleen in de logs.

@@ -245,6 +245,28 @@ export function cronMaxAgeHours(): number {
   return parseCronMaxAgeHours(process.env.CRON_MAX_AGE_HOURS);
 }
 
+// --- Back-up-heartbeat venster (observability, dead-man's-switch) -----------
+// Maximale leeftijd (in uren) van de laatste geslaagde database-back-up vóór 'ie als "stale" geldt op
+// /admin/systeemstatus. Back-ups draaien doorgaans dagelijks; de default van 48 uur laat één gemiste
+// dagcyclus + speling toe zonder direct alarm (iets ruimer dan de cron: back-up-schema's zijn vaker
+// dagelijks en de dump zelf kan een uur lopen).
+export const BACKUP_MAX_AGE_HOURS_DEFAULT = 48;
+export const BACKUP_MAX_AGE_HOURS_MIN = 1;
+export const BACKUP_MAX_AGE_HOURS_MAX = 24 * 30; // 30 dagen bovengrens; ruim genoeg voor elke cadans.
+export function parseBackupMaxAgeHours(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "") return BACKUP_MAX_AGE_HOURS_DEFAULT;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return BACKUP_MAX_AGE_HOURS_DEFAULT;
+  // Klem naar een verstandige bandbreedte: een typefout mag de dead-man's-switch niet nutteloos
+  // maken (te klein → altijd alarm) of uitschakelen (absurd groot → nooit alarm).
+  return Math.min(BACKUP_MAX_AGE_HOURS_MAX, Math.max(BACKUP_MAX_AGE_HOURS_MIN, Math.floor(n)));
+}
+
+/** Geconfigureerd back-up-heartbeat-venster in uren (default 48). */
+export function backupMaxAgeHours(): number {
+  return parseBackupMaxAgeHours(process.env.BACKUP_MAX_AGE_HOURS);
+}
+
 // --- Annuleringstermijn (productbesluit eigenaar 12-6-2026) ----------------
 // De opdrachtgever annuleert kosteloos zolang de startdatum nog minstens dit aantal dagen weg is;
 // korter op de start (of na de start) ontstaat een betalingsverplichting. Symmetrisch geregistreerd:
