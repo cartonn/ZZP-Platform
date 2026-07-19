@@ -1267,6 +1267,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "420": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-420-wad").then((m) => m.Concept420),
   ),
+  "421": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-421-nevelmesh").then((m) => m.Concept421),
+  ),
+  "422": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-422-plakblok").then((m) => m.Concept422),
+  ),
+  "423": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-423-sonar").then((m) => m.Concept423),
+  ),
+  "424": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-424-vlakverdeling").then((m) => m.Concept424),
+  ),
+  "425": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-425-lakmoes").then((m) => m.Concept425),
+  ),
+  "426": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-426-broeikas").then((m) => m.Concept426),
+  ),
+  "427": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-427-cortenstaal").then((m) => m.Concept427),
+  ),
+  "428": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-428-isohypse").then((m) => m.Concept428),
+  ),
+  "429": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-429-dijkgraaf").then((m) => m.Concept429),
+  ),
+  "430": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-430-barnsteen").then((m) => m.Concept430),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
