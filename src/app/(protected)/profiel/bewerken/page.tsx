@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { MarketRateCard } from "@/components/profile/market-rate-card";
+import { RateCalculatorCard } from "@/components/profile/rate-calculator-card";
 import { SkillDemandCard } from "@/components/profile/skill-demand-card";
 import { computeSkillDemand } from "@/lib/skill-demand";
 import { getSkillDemandRequirements } from "@/lib/data/freelancer-skill-demand";
@@ -170,6 +171,8 @@ export default async function ProfielPage() {
       <FindabilityCard findability={findability} />
 
       <MarketRateCard insight={marketRate} />
+
+      <RateCalculatorCard currentRateEuros={profile.hourlyRate ?? null} />
 
       <SkillDemandCard demand={skillDemand} />
 

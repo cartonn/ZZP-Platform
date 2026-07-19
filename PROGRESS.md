@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Tarief-rekenhulp: netto-inkomensdoel → benodigd uurtarief (ZZP'er, PR #835)
+
+**Waarde (ZZP'er sneller/geruster):** de ZZP'er zette zijn uurtarief tot nu toe handmatig met
+alleen een passieve marktband als hint. De omgekeerde, praktische vraag — **"wat moet ik per uur
+vragen om netto € X per maand over te houden?"** — werd nergens beantwoord (bevestigd: `income-goal.ts`
+= omzetdoel, `effective-rate.ts` = reistijd-correctie, `market-rate.ts` = peer-band; geen voorwaartse
+tariefberekening). Nu een interactieve rekenhulp **naast** de marktband op `/profiel/bewerken`:
+netto-doel/maand + declarabele uren/week (+ optionele kosten, startersaftrek) → **benodigd uurtarief**
+
+- benodigde omzet + geschatte IB/Zvw + netto/jaar, plus een vergelijking met het huidige tarief.
+
+**Hoe:** pure `requiredHourlyRate` (`rate-calculator.ts`) inverteert `net(winst)=winst−heffing(winst)`
+met bisectie op hele centen en **hergebruikt exact `tax/income-tax.ts`** (`estimateIncomeTax`) — dezelfde
+IB/Zvw-motor als de ontzorg-schermen, dus consistent. Client-component `RateCalculatorCard` doet de
+week→jaar-schaling (46 werkweken) en rendert live; efemere invoer, **geen server-mutatie, geen
+schemawijziging, geen nieuw auth-oppervlak**. Indicatief met de gedeelde `TAX_DISCLAIMER`. Urencriterium
+wordt afgeleid uit de declarabele uren (met toelichting). Het woord "AI" komt nergens voor.
+
+**Bestanden:** `src/lib/rate-calculator.ts` (+ `rate-calculator.test.ts`, 9 tests),
+`src/components/profile/rate-calculator-card.tsx` (nieuw), `src/app/(protected)/profiel/bewerken/page.tsx`
+(mount na `MarketRateCard`). Gate: typecheck, lint, **4572 unit-tests**, build, prettier groen.
+
 ## 2026-07-19 — Ontwerp-lab reeks 43: +10 concepten (421–430)
 
 **Waarde:** de galerij op `/ontwerp` groeit van 420 → **430** concepten (additief, niets overschreven).
