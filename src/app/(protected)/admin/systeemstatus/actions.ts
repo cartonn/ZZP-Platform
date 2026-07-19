@@ -10,6 +10,7 @@ import {
   mailSelfTestRateLimiter,
   rateLimitSelfTestRateLimiter,
   storageSelfTestRateLimiter,
+  uploadScannerSelfTestRateLimiter,
   UpstashRateLimitStore,
   verifierSelfTestRateLimiter,
 } from "@/lib/rate-limit";
@@ -41,6 +42,13 @@ import {
   SELFTEST_PREFIX,
   type StorageSelfTestReport,
 } from "@/lib/services/storage-selftest";
+import { getUploadScanner, uploadScanFailOpen } from "@/lib/services/upload-scanner";
+import {
+  eicarProbeBuffer,
+  runUploadScannerSelfTest,
+  type UploadScannerDriverMode,
+  type UploadScannerSelfTestReport,
+} from "@/lib/services/upload-scanner-selftest";
 
 export type StorageSelfTestState =
   | { ok: true; report: StorageSelfTestReport }
@@ -310,6 +318,49 @@ export async function runBillingSelfTestAction(): Promise<BillingSelfTestState> 
     actorId: actor.id,
     action: "BILLING_SELFTEST_RUN",
     entityType: "Billing",
+    entityId: driverMode,
+    metadata: { ok: report.ok, active: report.active },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
+export type UploadScannerSelfTestState =
+  | { ok: true; report: UploadScannerSelfTestReport }
+  | { ok: false; error: string };
+
+/**
+ * Draait een connectiviteitszelftest tegen de geconfigureerde upload-scanner (admin-only). Volgt de
+ * mutatieketen (auth → rol → rate-limit → actie → audit): één round-trip tegen de ClamAV-daemon met
+ * de EICAR-testprobe bewijst dat de scanner bereikbaar is én daadwerkelijk detecteert — zonder een
+ * echt bestand op te slaan. Draait de scan op de default (`noop`), dan is er niets externs om te
+ * testen en wordt dat eerlijk gemeld (geen vals groen). De uitvoer bevat nooit secrets — alleen
+ * stap-uitkomsten en de driver-modus.
+ */
+export async function runUploadScannerSelfTestAction(): Promise<UploadScannerSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await uploadScannerSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const active = process.env.UPLOAD_SCANNER === "clamav";
+  const driverMode: UploadScannerDriverMode = active ? "clamav" : "noop";
+
+  const report = await runUploadScannerSelfTest({
+    active,
+    driverMode,
+    failOpen: uploadScanFailOpen(),
+    run: active ? () => getUploadScanner().scan(eicarProbeBuffer()) : undefined,
+  });
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "UPLOAD_SCANNER_SELFTEST_RUN",
+    entityType: "UploadScanner",
     entityId: driverMode,
     metadata: { ok: report.ok, active: report.active },
     ipAddress: meta.ipAddress,

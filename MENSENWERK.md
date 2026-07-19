@@ -125,6 +125,19 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   tijdens een storing. Resterend mensenwerk: een ClamAV clamd-daemon draaien (bijv. als sidecar/
   losse service in een EU-regio), en `CLAMAV_HOST` (+ evt. `CLAMAV_PORT`) + `UPLOAD_SCANNER=clamav`
   in de Railway-secrets zetten. Zolang dat ontbreekt draait alles veilig door zonder scan.
+  **Code-kant GEDAAN (2026-07-19) — connectiviteitszelftest:** omdat de scanner **fail-closed** is,
+  zou een verkeerd geplakte `CLAMAV_HOST`/`CLAMAV_PORT` stil **álle** uploads blokkeren tot een admin
+  een echt document probeert te uploaden. Op `/admin/systeemstatus` (admin-only) kun je nu de
+  **Upload-scanner-zelftest** draaien: die stuurt de standaard **EICAR-testprobe** naar de
+  geconfigureerde clamd-daemon en bevestigt dat de scanner **bereikbaar** is én het testvirus
+  **daadwerkelijk detecteert** (een clamd met lege/kapotte virusdefinities geeft anders stil "clean"
+  terug — die stille storing vangt de zelftest expliciet af). Er wordt géén echt bestand opgeslagen.
+  Staat de scan nog op `noop`, dan meldt het scherm eerlijk "Geen scanner actief — er is niets getest"
+  (geen vals groen). De uitvoer bevat nooit secrets (alleen stap-uitkomst + driver-modus), loopt door
+  de authz-keten (rol → rate-limit → audit) en toont alleen bereikbaarheid/detectie
+  (`src/lib/services/upload-scanner-selftest.ts`, actie in `.../systeemstatus/actions.ts`, zelfde
+  patroon als de Opslag-/E-mail-/Rate-limit-/Verificatie-/Betaalprovider-zelftest). Resterend
+  mensenwerk: **niets extra** — de knop is er zodra `UPLOAD_SCANNER=clamav` staat.
 - **Dependency graph + Dependabot aanzetten** (laag, web-toggle): de `dependency-review`-poort
   vereist GitHub's Dependency graph. Zet die (en Dependabot security updates) aan op
   github.com/cartonn/ZZP-Platform/settings/security_analysis. De supply-chain-CVE-check draait

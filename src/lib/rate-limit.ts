@@ -550,3 +550,16 @@ export const billingSelfTestRateLimiter = new RateLimiter(
   5 * 60_000,
   "billingselftest:",
 );
+
+/**
+ * Maximaal UPLOAD_SCANNER_SELFTEST_RATE_LIMIT (default 6) upload-scanner-zelftests per beheerder per 5
+ * minuten. De admin-actie (/admin/systeemstatus) doet één round-trip tegen de geconfigureerde ClamAV-
+ * daemon met de EICAR-testprobe — geen echte upload/opslag. De rem houdt een per ongeluk herhaalde
+ * klik of een script binnen de perken (parity met de andere zelftests).
+ */
+export const uploadScannerSelfTestRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("UPLOAD_SCANNER_SELFTEST_RATE_LIMIT", 6),
+  5 * 60_000,
+  "uploadscannerselftest:",
+);

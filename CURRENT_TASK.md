@@ -260,6 +260,18 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — upload-scanner (ClamAV) connectiviteitszelftest (2026-07-19, PR #838)** —
+> sloot het laatste connectiviteitszelftest-gat in de go-live-posture: opslag/e-mail/rate-limit/verificatie/betaalprovider
+> hadden al een admin-zelftest op `/admin/systeemstatus`, de ClamAV upload-scanner als enige niet. Die is **fail-closed** →
+> een verkeerd geplakte `CLAMAV_HOST` blokkeert stil álle uploads tot een admin een echt document uploadt. Nu een admin-only
+> **Upload-scanner-zelftest** die de standaard **EICAR-testprobe** naar clamd stuurt: bevestigt bereikbaarheid + daadwerkelijke
+> detectie (een clamd met lege virusdefinities geeft anders stil "clean" — die stille storing vangt de zelftest expliciet af);
+> géén echt bestand opgeslagen; op `noop` eerlijk "niets getest" (geen vals groen). Pure kern `upload-scanner-selftest.ts`
+> (`runUploadScannerSelfTest` + `eicarProbeBuffer` uit fragmenten + `safeUploadScannerDetail`) + server-actie (auth ADMIN →
+> `uploadScannerSelfTestRateLimiter` 6/5min → probe → audit `UPLOAD_SCANNER_SELFTEST_RUN`, nooit secrets) + client-card + page-wiring.
+> Geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Vervangt de verlaten claim-PR #802. Gate: typecheck, lint, unit-tests,
+> build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Tarief-rekenhulp — netto-inkomensdoel → benodigd uurtarief (ZZP'er) (2026-07-19, PR #835)** —
 > de ZZP'er zette zijn uurtarief handmatig met alleen een passieve marktband (`market-rate.ts`) als hint; de omgekeerde,
 > praktische vraag "wat moet ik per uur vragen om netto € X per maand over te houden?" werd nergens beantwoord (bevestigd:
