@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Robuustheid: terminale-status-grendel op reject/credit/update-cascade (PR #839)
+
+**Waarde (server-side waarheid / geld-integriteit):** sluit het geparkeerde defense-in-depth-gat uit
+de persona-sweep (run 38, MED). #825 bracht de **forward**-cascade-commando's (`submitPerformance`/
+`approvePerformance`/`submitInvoice`/`approveInvoice`/`confirmPayment`) al onder de terminale-status-rem
+(een geannuleerde/afgeronde samenwerking mag de facturatiecascade niet meer voortzetten), maar de
+**achterwaartse/zijpad**-siblings misten die grendel nog: `rejectPerformance`, `updatePerformance`,
+`rejectInvoice` en `creditInvoice`. Vandaag onbereikbaar (de symmetrische annuleer-/afrond-rem sluit de
+bekende route al af), maar een landmijn zodra een nieuw pad verweesd werk op een dode deal achterlaat.
+
+**Wat:** `assertCollaborationNotTerminal` (pre-transactionele lees) toegevoegd aan alle vier, plus
+`terminalGuard: true` op de `persistEventAndEffects`-refs van `rejectPerformance`/`rejectInvoice`/
+`creditInvoice` (in-transactie TOCTOU-grendel). `creditInvoice` krijgt `allowCompleted` /
+`terminalGuardAllowCompleted` — een creditnota ná AFRONDING (COMPLETED) is legitiem; alleen CANCELLED
+wordt geweigerd. `updatePerformance` emit geen event → enkel de pre-check (de daaropvolgende
+`submitPerformance` draagt de volledige grendel al). Hergebruikt de bestaande, geteste helpers
+(`terminalCollaborationError`/`assertCollaborationNotTerminal`/`terminalGuard`) — geen nieuwe
+guard-mechaniek, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+
+**Bestanden:** `src/lib/cascade/performance-commands.ts`, `src/lib/cascade/invoice-commands.ts`,
+`src/lib/cascade/terminal-status-backward-commands.test.ts` (nieuw, +6 command-level tests:
+rejectPerformance CANCELLED/COMPLETED geweigerd, updatePerformance CANCELLED geweigerd, rejectInvoice
+CANCELLED geweigerd, creditInvoice CANCELLED geweigerd, creditInvoice COMPLETED toegestaan).
+**Gate:** typecheck, lint, 4592 unit-tests, build, prettier groen.
+
 ## 2026-07-19 — Prod-rijpheid: upload-scanner (ClamAV) connectiviteitszelftest (PR #838)
 
 **Waarde (go-live-posture):** sluit het laatste connectiviteitszelftest-gat. Elke integratie
