@@ -1212,3 +1212,43 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   metafoor**; **barok chiaroscuro museaal-donker** — elk deterministisch, toegankelijk en onderscheidend
   van de bestaande 400.
 - **Totaal nu op `/ontwerp`: 410 concepten** (reeks 41: 401–410).
+
+## Reeks 42 (411–420)
+
+- **411 Ravijn** — cinematisch donker-editorial "canyon" (#0b0c0e + amber #e8a33d): bijna-zwart canvas
+  met één verticale lichtschacht langs de content-kolom, horizontale sediment-lagen en ultra-grote
+  condensed display-type — rustig-dramatisch, premium, licht dat op de kern-content valt.
+- **412 Salon** — warm boutique-hospitality/concierge (#f4ede2 + terracotta #b9603f): taupe/zand met
+  messing-hairlines, genereuze humanistische serif en warme afgeronde editorial-kaarten — gastvrij,
+  menselijk en premium-warm rond gevoelige documenten.
+- **413 Kadans** — kinetisch ritme, motion-first (#fafafa + indigo-violet #5b3df5): gestaffelde reveals,
+  metronoom-motief in voortgangsbalken, cadans-maatstrepen en voelbare tab-/hover-interacties — energiek
+  maar rustig, volledig `motion-reduce`-respecterend.
+- **414 Veerpont** — wayfinding/transit-signage NS/ANWB (wit + signage-geel #f2c200 op signaalblauw
+  #1a3a6b): dikke richtingpijlen en route-lijn-connectoren die credential-statussen als "haltes"
+  verbinden — voortgang wordt een route van A naar B, helder en functioneel.
+- **415 Kwast** — schilderkunst/gouache-atelier (#f6f1e7 + terracotta #c25c3e): geschilderde
+  penseelvlakken en een spaarzaam kunstenaarspalet, karaktervolle serif-koppen boven nette grotesk en
+  een penseel-onderstreping onder de actieve tab — tactiel en artistiek, tóch strakke hiërarchie.
+- **416 Muntslag** — numismatiek/guilloché fintech-trust (#0e2b22 + goud #c9a86a): gegraveerde
+  goud-linework als security-print, reliëf-randen en één gegraveerde serif-kop; certificaten als
+  gestempelde zegels — premium, veilig, waardevast, tabulaire cijfers overal.
+- **417 Kelder** — archief-kluis, warm-donker eiken (#1c140e + cognac #c8842e): gewelfde wijnkelder/
+  archief met houtnerf-hairlines, boog-nissen en bordeaux-alarm — documenten als dossiers in een nis,
+  warm, betrouwbaar en tijdloos-premium.
+- **418 Contactvel** — fotografie/donkere kamer (#111214 + safelight-rood #e5484d): layout als een
+  fotografisch contactvel met kaderframes, mono-metadata, filmstrip-navigatie met perforatie-deco —
+  documenten als belichte negatieven op de lichttafel, rood altijd naast label + icoon.
+- **419 Volt** — high-voltage electric/neon-industrieel (#111318 + acid-lime #c6f24e): schakelbord-
+  energie met circuit-verbindingslijnen, laad-/vermogensmeters als voortgang en subtiele spannings-glow
+  (motion-reduce respect) — scherp, technisch, high-contrast.
+- **420 Wad** — Waddenzee/getijden-minimalisme (#eef0ec + getij-blauw #5b7d86): ultra-kalme natuur-
+  interface in zand-grijs en mist-blauwgrijs, horizontale getijden-stroken met veel horizon-lucht en
+  eb-en-vloed-ribbels — laag-prikkelend en sereen rond gevoelige documenten.
+- Onderzochte 2026-trends deze reeks: **cinematic dark editorial met condensed display-type**;
+  **warm hospitality/concierge-UI**; **motion-first kinetic systems & gestaffelde reveal-choreografie**;
+  **wayfinding/transit-signage als interface**; **painterly/gouache-textuur**; **security-print/guilloché
+  vertrouwen-motieven**; **warm-dark archive/vault**; **analoge darkroom/contactvel-esthetiek**;
+  **neon-industrieel energie-UI**; **calm interface/low-stimulation natuurpalet** — elk deterministisch,
+  toegankelijk en onderscheidend van de bestaande 410.
+- **Totaal nu op `/ontwerp`: 420 concepten** (reeks 42: 411–420).

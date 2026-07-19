@@ -6914,6 +6914,173 @@ export const CONCEPTS: ConceptMeta[] = [
     fg: "#efe6d2",
     available: true,
   },
+  // ── Reeks (run 19-7-2026) — nrs 411–420, toegevoegd bovenop de bestaande set. ──────────────
+  {
+    id: "411",
+    name: "Ravijn",
+    direction: "Cinematisch donker-editorial — canyon & lichtschacht",
+    rationale:
+      "Bijna-zwart canvas met één dramatische verticale lichtschacht langs de content-kolom; horizontale sediment-lagen en ultra-grote condensed display-type. Eén warm amber-accent valt als licht op de kern — cinematisch, rustig-dramatisch en premium.",
+    trends: [
+      "Cinematic dark editorial",
+      "Condensed oversized display-type",
+      "Gelaagde sediment-secties + lichtschacht",
+    ],
+    fonts: "Archivo Narrow + Inter",
+    accent: "#e8a33d",
+    bg: "#0b0c0e",
+    fg: "#eceef1",
+    available: true,
+  },
+  {
+    id: "412",
+    name: "Salon",
+    direction: "Warm boutique-hospitality — concierge",
+    rationale:
+      "Een boetiekhotel dat toevallig software maakte: taupe/zand met terracotta en messing-hairlines, genereuze humanistische serif en warme afgeronde editorial-kaarten. Gastvrij, menselijk en premium-warm rond gevoelige documenten.",
+    trends: [
+      "Warm hospitality / concierge-UI",
+      "Humanistische serif + messing-hairlines",
+      "Genereuze editorial-kaarten",
+    ],
+    fonts: "Fraunces + Plus Jakarta Sans",
+    accent: "#b9603f",
+    bg: "#f4ede2",
+    fg: "#2a2019",
+    available: true,
+  },
+  {
+    id: "413",
+    name: "Kadans",
+    direction: "Kinetisch ritme — motion-first",
+    rationale:
+      "Ritme en beweging als held: gestaffelde reveals, een metronoom-motief in voortgangsbalken en cadans-maatstrepen, met voelbare micro-interacties op tab-wissel en hover. Strak en energiek-maar-rustig, met volledige motion-reduce-respect.",
+    trends: [
+      "Motion-first / kinetic systems",
+      "Gestaffelde reveal-choreografie",
+      "Beat-based ritme & cadans",
+    ],
+    fonts: "Space Grotesk + Inter",
+    accent: "#5b3df5",
+    bg: "#fafafa",
+    fg: "#101114",
+    available: true,
+  },
+  {
+    id: "414",
+    name: "Veerpont",
+    direction: "Wayfinding / transit-signage — NS/ANWB",
+    rationale:
+      "Nederlandse bewegwijzering als interface: dikke richtingpijlen, route-lijn-connectoren die statussen als haltes verbinden, signage-geel op diep signaalblauw en zeer leesbare brede sans. Voortgang wordt een route van A naar B — helder en functioneel.",
+    trends: [
+      "Wayfinding / transit-signage",
+      "Route-lijn statusovergangen",
+      "Hoog-leesbare signage-typografie",
+    ],
+    fonts: "Inter + Inter",
+    accent: "#f2c200",
+    bg: "#ffffff",
+    fg: "#1a3a6b",
+    available: true,
+  },
+  {
+    id: "415",
+    name: "Kwast",
+    direction: "Schilderkunst — gouache-atelier",
+    rationale:
+      "Handgeschilderd-maar-gestructureerd: warm papierwit met geschilderde gouache-penseelvlakken als accenten en een kunstenaarspalet spaarzaam ingezet. Karaktervolle serif-koppen boven een nette grotesk — tactiel en artistiek, tóch strakke hiërarchie.",
+    trends: [
+      "Painterly / gouache-textuur",
+      "Kunstenaarspalet, spaarzaam",
+      "Serif-karakter + grotesk-body",
+    ],
+    fonts: "Fraunces + Inter",
+    accent: "#c25c3e",
+    bg: "#f6f1e7",
+    fg: "#2b241c",
+    available: true,
+  },
+  {
+    id: "416",
+    name: "Muntslag",
+    direction: "Numismatiek — guilloché fintech-trust",
+    rationale:
+      "De vertrouwenslaag in de taal van waardepapier: diep flessengroen met gegraveerde goud-guilloché als security-print, reliëf-randen en één gegraveerde serif-kop. Certificaten als gestempelde zegels — premium, veilig en waardevast, tabulaire cijfers overal.",
+    trends: [
+      "Security-print / guilloché",
+      "Vertrouwen-/zegel-motieven",
+      "Gegraveerd serif-displaymoment",
+    ],
+    fonts: "Instrument Serif + Inter",
+    accent: "#c9a86a",
+    bg: "#0e2b22",
+    fg: "#e7ecdf",
+    available: true,
+  },
+  {
+    id: "417",
+    name: "Kelder",
+    direction: "Archief-kluis — warm-donker eiken & cognac",
+    rationale:
+      "Een gewelfde archief-/wijnkelder als canvas: diep espresso-bruin met cognac-accent en bordeaux-alarm, houtnerf-hairlines en boog-motieven waarin documenten als dossiers in een nis liggen. Warm, betrouwbaar en tijdloos-premium.",
+    trends: ["Warm-dark archive/vault", "Boog- & nis-motieven", "Cognac/bordeaux op eiken"],
+    fonts: "Newsreader + Manrope",
+    accent: "#c8842e",
+    bg: "#1c140e",
+    fg: "#eee3d0",
+    available: true,
+  },
+  {
+    id: "418",
+    name: "Contactvel",
+    direction: "Fotografie — donkere kamer & contactvel",
+    rationale:
+      "Layout als een fotografisch contactvel: een raster van kaderframes met mono-metadata, filmstrip-navigatie met perforatie-deco en een safelight-rood accent. Documenten als belichte negatieven op de lichttafel — analoog-technisch en donker-premium.",
+    trends: [
+      "Analoog / darkroom-esthetiek",
+      "Contactvel-raster + filmstrip",
+      "Mono-metadata + safelight-accent",
+    ],
+    fonts: "JetBrains Mono + Inter",
+    accent: "#e5484d",
+    bg: "#111214",
+    fg: "#ececed",
+    available: true,
+  },
+  {
+    id: "419",
+    name: "Volt",
+    direction: "High-voltage electric — neon-industrieel",
+    rationale:
+      "Een schakelbord-energie: donker antraciet met acid-lime accent, dunne circuit-verbindingslijnen tussen componenten en laad-/energiemeters als voortgang met een subtiele spannings-glow. Scherp, technisch en high-contrast, met motion-reduce-respect.",
+    trends: [
+      "Neon-industrieel / energie-UI",
+      "Circuit-verbindingslijnen",
+      "Laadmeter-voortgang + glow",
+    ],
+    fonts: "Space Grotesk + JetBrains Mono",
+    accent: "#c6f24e",
+    bg: "#111318",
+    fg: "#e8ece6",
+    available: true,
+  },
+  {
+    id: "420",
+    name: "Wad",
+    direction: "Waddenzee — getijden-minimalisme (kalm)",
+    rationale:
+      "Ultra-kalme natuur-interface: zacht zand-grijs en mist-blauwgrijs, horizontale getijden-stroken met veel horizon-lucht en eb-en-vloed-ribbels als lijnen. Laag-prikkelend en sereen rond gevoelige documenten, met trage subtiele micro-interacties.",
+    trends: [
+      "Calm interface / low-stimulation",
+      "Horizontale getijden-lay-out",
+      "Laag-verzadigd natuurpalet",
+    ],
+    fonts: "Sora + Inter",
+    accent: "#5b7d86",
+    bg: "#eef0ec",
+    fg: "#2b332f",
+    available: true,
+  },
 ];
 
 export const BUILT = CONCEPTS.filter((c) => c.available);
