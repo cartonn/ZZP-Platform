@@ -184,12 +184,18 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
   }
 
   const dueAt = invoice.dueAt ?? new Date(Date.now() + 14 * 86400_000); // standaard 14 dagen
-  await prisma.$transaction([
-    prisma.invoice.update({
-      where: { id: invoiceId },
+  await prisma.$transaction(async (tx) => {
+    // Compound-guard `status: from` binnen de transactie (spiegelt de updateMany-guard in de
+    // cascade-laag, commands-shared.ts). De transitie werd gevalideerd tegen de vóór-lees; een
+    // gelijktijdige tweede submit (dubbelklik) leest dezelfde `from`, passeert de check en zou
+    // met een kaal `update({ where: { id } })` een tweede notificatie + auditregel schrijven.
+    // Matcht de status niet meer → count 0 → geen dubbel effect (idempotent, race-proof).
+    const res = await tx.invoice.updateMany({
+      where: { id: invoiceId, status: from },
       data: { status: "SENT", issuedAt: new Date(), dueAt },
-    }),
-    prisma.notification.create({
+    });
+    if (res.count === 0) return;
+    await tx.notification.create({
       data: {
         userId: invoice.collaboration!.company.userId,
         type: "INVOICE_SENT",
@@ -197,16 +203,16 @@ export async function sendInvoice(invoiceId: string): Promise<void> {
         body: `Factuur ${invoice.number}.`,
         link: "/facturen",
       },
-    }),
-    prisma.auditLog.create({
+    });
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "INVOICE_SENT",
         entityType: "Invoice",
         entityId: invoiceId,
       }),
-    }),
-  ]);
+    });
+  });
   revalidatePath("/facturen");
   revalidatePath(`/facturen/${invoiceId}`);
 }
@@ -226,9 +232,16 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
     throw e;
   }
 
-  await prisma.$transaction([
-    prisma.invoice.update({ where: { id: invoiceId }, data: { status: "PAID" } }),
-    prisma.notification.create({
+  await prisma.$transaction(async (tx) => {
+    // Compound-guard `status: from` (zie sendInvoice): een gelijktijdige tweede "markeer betaald"
+    // mag geen dubbele INVOICE_PAID-notificatie/auditregel opleveren. Matcht de status niet meer
+    // (bv. al PAID door de eerste submit) → count 0 → idempotent, geen dubbel effect.
+    const res = await tx.invoice.updateMany({
+      where: { id: invoiceId, status: from },
+      data: { status: "PAID" },
+    });
+    if (res.count === 0) return;
+    await tx.notification.create({
       data: {
         userId: invoice.collaboration!.freelancer.userId,
         type: "INVOICE_PAID",
@@ -236,16 +249,16 @@ export async function markInvoicePaid(invoiceId: string): Promise<void> {
         body: `Factuur ${invoice.number} is als betaald gemarkeerd.`,
         link: "/facturen",
       },
-    }),
-    prisma.auditLog.create({
+    });
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "INVOICE_PAID",
         entityType: "Invoice",
         entityId: invoiceId,
       }),
-    }),
-  ]);
+    });
+  });
   revalidatePath("/facturen");
   revalidatePath(`/facturen/${invoiceId}`);
 }
@@ -344,17 +357,24 @@ export async function cancelInvoice(invoiceId: string): Promise<void> {
     throw e;
   }
 
-  await prisma.$transaction([
-    prisma.invoice.update({ where: { id: invoiceId }, data: { status: "CANCELLED" } }),
-    prisma.auditLog.create({
+  await prisma.$transaction(async (tx) => {
+    // Compound-guard `status: from` (zie sendInvoice): een gelijktijdige tweede annulering mag
+    // geen dubbele INVOICE_CANCELLED-auditregel schrijven. Matcht de status niet meer → count 0
+    // → idempotent, geen dubbel effect.
+    const res = await tx.invoice.updateMany({
+      where: { id: invoiceId, status: from },
+      data: { status: "CANCELLED" },
+    });
+    if (res.count === 0) return;
+    await tx.auditLog.create({
       data: auditData({
         actorId: actor.id,
         action: "INVOICE_CANCELLED",
         entityType: "Invoice",
         entityId: invoiceId,
       }),
-    }),
-  ]);
+    });
+  });
   revalidatePath("/facturen");
   revalidatePath(`/facturen/${invoiceId}`);
 }

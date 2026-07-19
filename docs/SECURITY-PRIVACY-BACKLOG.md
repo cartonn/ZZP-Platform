@@ -4,6 +4,95 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-19 (basis: `main` @ a501cbc9)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken — (1) alle route-handlers `src/app/api/**`; (2) object-/functie-authz + IDOR + cross-tenant
+op ALLE server actions + de cascade-/delta-libs; (3) AVG — anonimisering-volledigheid, dataminimalisatie,
+PII-in-logs, CSV-injectie, k-anonimiteit, retentie. Delta-focus sinds de vorige ronde (`d93d4f3..a501cbc9`,
+PR's #823–#828). Kader: OWASP Top 10 (A01 Broken Access Control, A04 Insecure Design, A08) + ASVS + AVG art.
+5/9/15/17/30/32. Stack: Next.js 15.5.19 (voorbij CVE-2025-29927), Auth.js v5, Prisma.
+
+**Uitkomst:** geen KRITIEK/HOOG in code-fixbaar gebied. De authz-keten (auth→rol→ownership→Zod→actie→audit)
+is uniform toegepast; IDOR/cross-tenant/injectie/secrets-oppervlak schoon; anonimisering uitzonderlijk
+grondig; k-anonimiteit (≥10) server-side afgedwongen; CSV-formule-injectie overal geneutraliseerd via
+`escapeCsvField`. De privacy-HOOG/MIDDEL-bevindingen (#1–#3 hieronder) zijn **mensenwerk** (juridische
+retentie-vs-erasure-afweging + retentie-termijnbeslissingen) en horaal geparkeerd, niet unilateraal door
+een agent op te lossen.
+
+### OPGELOST deze ronde
+
+- **[LAAG · OWASP A04 Insecure Design · state-integriteit/defense-in-depth]** `src/app/(protected)/facturen/actions.ts`
+  (`sendInvoice`, `markInvoicePaid`, `cancelInvoice`) + `src/app/(protected)/admin/no-shows/actions.ts`
+  (`judgeNoShowReport`) — **TOCTOU op de legacy status-writes: lezen-transitiecheck-schrijven zonder
+  compound statusguard.** De transitie werd gevalideerd tegen de vóór-lees; de write gebeurde met een kaal
+  `prisma.<model>.update({ where: { id } })`. **Repro:** de eigenaar (of twee admins bij de no-show) dient
+  dezelfde actie tweemaal gelijktijdig in (dubbelklik/parallelle tab); beide reads zien `status: SENT`
+  resp. `verdict: PENDING`, beide passeren `assertInvoiceTransition`/de "al beoordeeld?"-check, beide
+  writes committen → **dubbele INVOICE_SENT/PAID/CANCELLED-notificatie + auditregel**, en bij de no-show kon
+  een tweede, afwijkend oordeel (JUSTIFIED vs UNJUSTIFIED) het eerste overschrijven mét dubbele audit +
+  notificatie. Geen cross-user-impact (ownership/rol eerst gecheckt), geen geldcorruptie, maar wél een
+  audit-/notificatie-integriteitslek dat de cascade-laag (`commands-shared.ts`) al lang met een
+  `updateMany`-statusguard afdekt; de legacy-paden waren de inconsistentie. **Geschonden regel:** CLAUDE.md
+  architectuurregel 3 (statusovergangen deterministisch/atomair) + regel 5 (auditcorrectheid). **Fix
+  (`d93d4f3..HEAD`):** alle vier de writes omgezet naar een interactieve `prisma.$transaction(async (tx) =>
+…)` met `tx.<model>.updateMany({ where: { id, status: <from> } | { id, verdict: "PENDING" }, data })`;
+  bij `count === 0` (status matchte niet meer → race verloren) blijven de neveneffecten uit — idempotent
+  voor de factuurpaden, nette domeinfout ("Deze melding is al beoordeeld.") + rollback voor de no-show.
+  Spiegelt de in-transactie-guard van de cascade-laag. Rood→groen:
+  `src/app/(protected)/facturen/actions.test.ts` (5 tests) + `src/app/(protected)/admin/no-shows/actions.test.ts`
+  (2 tests): guard-`where` bevat de from-status; count 1 → precies één notificatie/auditregel; count 0 →
+  geen dubbel effect.
+
+### Geparkeerd deze ronde — MENSENWERK (juridische/ops-beslissing vereist, niet unilateraal door een agent)
+
+- **[HOOG · AVG art. 17 (recht op vergetelheid) + art. 9 (bijzondere categorie)]** `src/app/(protected)/admin/gebruikers/actions.ts`
+  (`anonymizeUser`) — de anonimisering is uitzonderlijk grondig (User/Profile/Company/Documents+bestanden/
+  Credentials/Messages/Notifications/Applications/Reviews/DomainEvent-payloads/AuditLog-metadata, incl. drie
+  kopieën van een dispuutreden), maar laat bewust **twee categorieën door-een-derde-geschreven PII óver de
+  betrokkene** staan: `NoShowReport.reason` (`prisma/schema.prisma:772`) en `Performance.rejectionReason`.
+  `NoShowReport.reason` kan een **gezondheids-/arbeidsongeschiktheidsdetail** bevatten (art. 9). **Repro:**
+  anonimiseer een ZZP'er met een ongegronde no-show-melding of een afgewezen prestatie → de vrije tekst die
+  de tegenpartij over hem schreef blijft leesbaar in de DB. **Spanning:** art. 17-erasure vs. legitiem
+  bewaarbelang (dispuut-/geschilbewijs). **Aanbevolen fix (na FG/juridische sign-off):** óf redact deze twee
+  velden bij erasure van de betrokken ZZP'er (spiegel het bestaande patroon), óf leg een expliciete,
+  gedocumenteerde retentie-uitzondering met art. 9-vlag vast in `lib/compliance/processing-register.ts`.
+  **Een agent mag door-derden-geschreven bewijstekst niet stilzwijgend redacten zonder juridisch besluit.**
+- **[MIDDEL · AVG art. 5(1)(e) opslagbeperking]** `src/lib/compliance/processing-register.ts` vs.
+  `src/app/api/tasks/run-all/route.ts` — het verwerkingsregister claimt bewaartermijnen (Berichten = 12 mnd
+  na samenwerking-einde; Reacties/sollicitaties = 4 wkn na selectie), maar er draaien **alleen**
+  `audit-retention` + `webhook-event-retention` als retentie-taken; **geen** snoei-/anonimiseer-taak voor oude
+  `Message`/`Application`-rijen. Bovendien is `audit-retention` **default UIT** (`AUDIT_LOG_RETENTION_DAYS`
+  unset/0 = no-op; `src/lib/audit-retention-task.ts`), dus auditlogs (met IP/user-agent) worden onbeperkt
+  bewaard tenzij een mens 'm inschakelt (wel zichtbaar op `/admin/systeemstatus`). Register = juist als
+  _beleid_, niet als _implementatie_ — een toezichthouder zou het mismatch-en. **Aanbevolen fix:** bouw de
+  ontbrekende message/application-retentie-taken + registreer ze in `run-all`, óf pas de geclaimde termijnen
+  aan tot ze bestaan; en zet `AUDIT_LOG_RETENTION_DAYS` in productie (retentie-lengte = mensenwerk).
+- **[MIDDEL · AVG art. 5/17]** `prisma/schema.prisma:217-251` (`Lead.contactName/email/phone`,
+  `LeadContact.body`) — derde-partij-PII van **prospects zonder platform-account** heeft alleen een handmatig
+  `deleteLead`-pad, geen geautomatiseerde 12-maands-purge (register `processing-register.ts:434-435` erkent dit
+  al als geaccepteerde beperking). Deze betrokkenen hebben geen self-service inzage/erasure-route. **Aanbevolen
+  fix:** geautomatiseerde lead-retentie-purge; pré-golive herbevestigen met echte prospect-data.
+
+### Herbevestigd schoon deze ronde (geen nieuwe gaten)
+
+- **API-routes (`src/app/api/**`):** elke gevoelige route volgt auth→rol→ownership→audit; IDOR op factuur-/
+prestatie-/dossier-/document-PDF's afgedekt (ownership tegen issuer/counterparty/company/freelancer of
+ADMIN, deny+success beide ge-audit); alle 18 `tasks/\*\*`-cron-routes achter `CRON_SECRET`(timing-safe,
+503 zonder secret);`media/[...key]`alleen bekende`Company.logoKey` + path-traversal-guard in storage;
+  push/subscribe SSRF-allowlist; geen stacktrace/Prisma-fout naar de client; rate-limiting op elke
+  PDF/document/export/webhook/feed-route.
+- **Server actions + cascade:** geen ontbrekende authz-schakel, geen cross-tenant escalatie (tenancy-helpers
+  uniform toegepast, 404-parity tegen existence-oracle), geen mass-assignment (role/status/tenantId/verifiedAt
+  altijd server-berekend), verboden transities geweigerd via expliciete maps, cascade-geld/status her-toetst
+  dispuut/terminale staat _binnen_ de transactie.
+- **Privacy:** k-anonimiteit `MARKET_RATE_MIN_SAMPLE=10` server-side afgedwongen + getest; account-export art.
+  15/20 met smalle `select`s; CSV-formule-injectie geneutraliseerd (`=`,`+`,`-`,`@`,tab,CR); geen PII in logs
+  (noop-mailer + `logStorageCleanupFailure`/`logMailFailure`); enige `dangerouslySetInnerHTML` = nonce-gated
+  statisch theme-script; kandidaten-view lekt geen e-mail/telefoon vóór match; publieke vertrouwens-share
+  token-gated + PUBLIC/VERIFIED-only + liveness/anonymisatie/tenant-check + ge-audit.
+- `npm audit --omit=dev` = **0** productie-kwetsbaarheden (2 dev-only js-yaml DoS resteren, geen prod-oppervlak).
+
 ## Ronde 2026-07-18 (2e — basis: `main` @ d93d4f3)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende

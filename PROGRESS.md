@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Security-/privacy-audit: TOCTOU-hardening legacy status-writes (factuur + no-show)
+
+**Waarde (state-integriteit + auditcorrectheid):** een security-/privacy-auditronde (orchestrator Opus 4.8
+
+- 3 parallelle adversariële Opus-subagents op niet-overlappende oppervlakken: alle `api/**`-routes;
+  authz/IDOR/cross-tenant op alle server actions + cascade; AVG-anonimisering/dataminimalisatie/retentie/
+  k-anonimiteit) vond **geen KRITIEK/HOOG in code-fixbaar gebied** — de authz-keten, IDOR-/cross-tenant-/
+  injectie-/secrets-oppervlakken zijn schoon en de anonimisering is uitzonderlijk grondig. De enige
+  concrete, veilig-te-fixen bevinding: **vier legacy status-writes deden lezen→transitiecheck→schrijven met
+  een kaal `update({ where: { id } })`** — een gelijktijdige dubbele submit (dubbelklik / twee admins) kon
+  een **dubbele notificatie + auditregel** schrijven (en bij de no-show een afwijkend tweede oordeel eroverheen),
+  terwijl de cascade-laag dit al met een `updateMany`-statusguard afdekt.
+
+**Gefixt:** `sendInvoice`/`markInvoicePaid`/`cancelInvoice` (`src/app/(protected)/facturen/actions.ts`) +
+`judgeNoShowReport` (`src/app/(protected)/admin/no-shows/actions.ts`) omgezet naar een interactieve
+`$transaction` met `updateMany({ where: { id, status: <from> } | { id, verdict: "PENDING" } })`; bij
+`count === 0` blijven de neveneffecten uit (idempotent voor factuur, nette domeinfout + rollback voor
+no-show). Rood→groen: `facturen/actions.test.ts` (5) + `admin/no-shows/actions.test.ts` (2). CLAUDE.md
+regel 3 (deterministische/atomaire statusovergangen) + regel 5 (auditcorrectheid). OWASP A04 Insecure Design.
+
+**Geparkeerd (mensenwerk, in `docs/SECURITY-PRIVACY-BACKLOG.md`):** [HOOG art.17/art.9] anonimisering laat
+door-derden-geschreven `NoShowReport.reason`/`Performance.rejectionReason` staan (juridische retentie-vs-
+erasure-afweging — FG-besluit); [MIDDEL art.5(1)(e)] bewaartermijnen in het verwerkingsregister niet
+technisch afgedwongen (geen message/application/lead-retentie-taak; `AUDIT_LOG_RETENTION_DAYS` default uit);
+[MIDDEL] lead-prospect-PII zonder geautomatiseerde purge. Gate: typecheck, lint, unit (4526), prettier,
+build groen. `npm audit --omit=dev` = 0.
+
 ## 2026-07-19 — Ontwerp-lab: +10 concepten (reeks 42, nrs 411–420)
 
 **Waarde (additieve design-galerij):** de galerij op `/ontwerp` groeit met 10 nieuwe, onderscheidende
