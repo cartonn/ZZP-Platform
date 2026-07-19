@@ -77,11 +77,13 @@ describe("bemiddelaar next-actions — niet-inzetbare ZZP'er telt op /acties + b
     const tasks = await pendingTasks(ACTOR);
     const notEng = tasks.filter((t) => t.kind === "franchise-not-engageable");
     expect(notEng).toHaveLength(1);
-    expect(notEng[0].id).toBe("franchise-not-engageable:prof-inactief");
-    expect(notEng[0].tone).toBe("attention");
-    expect(notEng[0].href).toBe("/franchise/zzpers/prof-inactief");
-    expect(notEng[0].title).toContain("Niet-inzetbare ZZP'er");
-    expect(notEng[0].title).toContain("nog niet inzetbaar");
+    const task = notEng[0];
+    expect(task).toBeDefined();
+    expect(task?.id).toBe("franchise-not-engageable:prof-inactief");
+    expect(task?.tone).toBe("attention");
+    expect(task?.href).toBe("/franchise/zzpers/prof-inactief");
+    expect(task?.title).toContain("Niet-inzetbare ZZP'er");
+    expect(task?.title).toContain("nog niet inzetbaar");
   });
 
   it("verdwijnt zodra het roster volledig inzetbaar is", async () => {
@@ -98,11 +100,13 @@ describe("bemiddelaar next-actions — te lang open dienst telt op /acties + bad
     const tasks = await pendingTasks(ACTOR);
     const stale = tasks.filter((t) => t.kind === "franchise-stale-service");
     expect(stale).toHaveLength(1);
-    expect(stale[0].id).toBe("franchise-stale-service:dienst-1");
-    expect(stale[0].href).toBe("/franchise/diensten/dienst-1");
-    expect(stale[0].tone).toBe("attention");
-    expect(stale[0].title).toContain("Nachtdienst IC");
-    expect(stale[0].title).toMatch(/10 dagen/);
+    const task = stale[0];
+    expect(task).toBeDefined();
+    expect(task?.id).toBe("franchise-stale-service:dienst-1");
+    expect(task?.href).toBe("/franchise/diensten/dienst-1");
+    expect(task?.tone).toBe("attention");
+    expect(task?.title).toContain("Nachtdienst IC");
+    expect(task?.title).toMatch(/10 dagen/);
   });
 
   it("toont geen stale-taak wanneer er geen te lang open dienst is", async () => {
