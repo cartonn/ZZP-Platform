@@ -9,6 +9,8 @@ import { type Actor } from "@/lib/authz";
 import { type Availability } from "@/lib/enums";
 import { computeFreelancerCompleteness, computeCompanyCompleteness } from "@/lib/profile";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
+import { computeEngageability } from "@/lib/engageability";
+import { formatMissing } from "@/lib/next-actions";
 import { type FreelancerCredential } from "@/lib/matching";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
@@ -55,6 +57,8 @@ import {
   franchiseCredentialExpiryTask,
   franchiseAcuteDienstTask,
   franchiseLeadFollowupTask,
+  franchiseNotEngageableTask,
+  franchiseStaleDienstTask,
   clientComplianceTask,
   reviewLeaveTask,
   vatDeadlineTask,
@@ -77,6 +81,8 @@ import { summarizeAcuteOpenDiensten } from "@/lib/franchise/acute-open-diensten"
 /** Harde bovengrens per kind (voorkomt N+1/zware lijsten op /acties); "+N meer" buiten beschouwing. */
 const MAX = 50;
 const EXPIRY_WINDOW_MS = 30 * 86_400_000;
+/** Drempel (dagen) waarna een ongedekte, gepubliceerde dienst als "te lang open" telt (zelfde als het dashboard). */
+const STALE_DIENST_DAYS = 7;
 
 /** Gesprekken met een onbeantwoord bericht van de andere partij (zelfde logica als signals). */
 interface UnreadConversation {
@@ -638,7 +644,9 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
   const now = new Date();
   const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
 
-  const [expiringCreds, dueLeads, openDiensten] = await Promise.all([
+  const staleThreshold = new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000);
+
+  const [expiringCreds, dueLeads, openDiensten, roster, staleDiensten] = await Promise.all([
     // Geverifieerde, nog-geldige certificaten van tenant-ZZP'ers die binnenkort verlopen — zelfde
     // venster als de roster-compliance-zegel op het bemiddelaar-dashboard (gte now, lte soon).
     prisma.credential.findMany({
@@ -673,6 +681,33 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
       },
       take: MAX,
     }),
+    // Roster-inzetbaarheid: alle tenant-ZZP'ers met de signalen die computeEngageability nodig heeft,
+    // zodat een niet-inzetbare (plaatsing-blokkerende) ZZP'er óók op /acties en in de zijbalk-badge
+    // telt — voorheen alleen op de dashboard-rail. Zelfde helper/bron als /franchise/zzpers.
+    prisma.freelancerProfile.findMany({
+      where: { tenantId },
+      select: {
+        id: true,
+        completeness: true,
+        availability: true,
+        user: { select: { name: true, identityVerifiedAt: true, lastLoginAt: true } },
+        credentials: { select: { type: true, status: true, expiresAt: true } },
+      },
+      take: MAX,
+    }),
+    // Ongedekte diensten die te lang open staan (gepubliceerd, geen actieve samenwerking, ouder dan de
+    // drempel). Oudste eerst — zelfde definitie/drempel als de dashboard-rail.
+    prisma.job.findMany({
+      where: {
+        tenantId,
+        status: "PUBLISHED",
+        collaborations: { none: { status: "ACTIVE" } },
+        createdAt: { lte: staleThreshold },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, title: true, createdAt: true },
+      take: MAX,
+    }),
   ]);
 
   // Aggregeer per ZZP'er: één taak per professional met het aantal (bijna-)verlopende certificaten.
@@ -705,6 +740,38 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     now,
   );
   if (acuteSummary) tasks.push(franchiseAcuteDienstTask(acuteSummary));
+
+  // Niet-inzetbare roster-ZZP'ers (verplicht document ontbreekt/verlopen of verificatie incompleet) —
+  // blokkeert plaatsing. Zelfde helper/bron (computeEngageability) als /franchise/zzpers en het
+  // dashboard, zodat de oppervlakken elkaar nooit tegenspreken.
+  for (const f of roster) {
+    const eng = computeEngageability(
+      {
+        credentials: f.credentials.map((c) => ({
+          type: c.type as FreelancerCredential["type"],
+          status: c.status as FreelancerCredential["status"],
+          expiresAt: c.expiresAt,
+        })),
+        completeness: f.completeness,
+        availability: f.availability as Availability,
+        identityVerified: f.user.identityVerifiedAt != null,
+        lastActiveAt: f.user.lastLoginAt ?? null,
+      },
+      now,
+    );
+    if (eng.status !== "INACTIEF") continue;
+    const reason = eng.blockers.length
+      ? formatMissing(eng.blockers)
+      : "verificatie nog niet compleet";
+    tasks.push(franchiseNotEngageableTask(f.id, f.user.name ?? "ZZP'er", reason));
+  }
+
+  // Ongedekte diensten die te lang open staan — oudste eerst, max 3 (rustige lijst; de volledige lijst
+  // staat op /franchise/diensten). Spiegelt de dashboard-rail zodat /acties en de badge overeenkomen.
+  for (const d of staleDiensten.slice(0, 3)) {
+    const openDays = Math.floor((now.getTime() - d.createdAt.getTime()) / 86_400_000);
+    tasks.push(franchiseStaleDienstTask(d.id, d.title, openDays));
+  }
 
   return tasks;
 }

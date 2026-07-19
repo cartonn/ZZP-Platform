@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Persona-sweep (run 38): bemiddelaar-next-actions één bron voor /acties, badge én rail
+
+**Waarde (bemiddelaar mist niets meer):** de operationele bemiddelaar-attentiepunten — een roster-ZZP'er
+die niet inzetbaar is (blokkeert plaatsing) en een dienst die te lang open staat zonder plaatsing — stonden
+alléén op de dashboard-"Volgende acties"-rail, maar ontbraken op `/acties` en werden niet in de zijbalk-
+badge geteld. Een bemiddelaar die aantoonbaar "aan zet" was, zag op twee van de drie oppervlakken minder of
+niets — een ontbrekende/inconsistente next-action (DOEL 1b), tegen de eigen invariant "één bron voor /acties,
+rail én badge".
+
+**Hoe:** de twee generatoren geport naar de item-engine — `franchiseNotEngageableTask` /
+`franchiseStaleDienstTask` (`src/lib/actions/tasks.ts`) berekend in `franchiserTasks`
+(`src/lib/actions/pending-tasks.ts`) via dezelfde `computeEngageability`-helper + stale-dienst-drempel als
+het dashboard. De dashboard-rail levert die items nu via `tasks` i.p.v. `activation` (guided-setup blijft in
+`activation`), dus geen dubbeltelling en exact dezelfde acties op alle drie de oppervlakken. Read-only
+afleiding, geen schema-/mutatie-/authz-wijziging.
+
+**Bestanden:** `src/lib/actions/tasks.ts` (+2 kinds/builders), `src/lib/actions/pending-tasks.ts`
+(franchiserTasks: roster-inzetbaarheid + stale-diensten-query), `src/app/(protected)/dashboard/page.tsx`
+(activation afgeslankt, dode stale-query + const verwijderd), `src/lib/actions/pending-tasks-franchiser.test.ts`
+(nieuw, 4 tests). Gate: typecheck, lint, **4576 unit-tests**, build, prettier groen. Adversariële audit vond
+géén reachable authz/IDOR/tenant/transitie/numeriek-gat; defense-in-depth + product-parkeeritems in
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 38). Het woord "AI" komt nergens voor.
+
 ## 2026-07-19 — Tarief-rekenhulp: netto-inkomensdoel → benodigd uurtarief (ZZP'er, PR #835)
 
 **Waarde (ZZP'er sneller/geruster):** de ZZP'er zette zijn uurtarief tot nu toe handmatig met

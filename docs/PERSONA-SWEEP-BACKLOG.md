@@ -1,5 +1,65 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-19 (run 38) · **main-commit basis:** `fb4d4f2e`
+> **Uitkomst:** **1 HIGH (DOEL 1b, cross-surface-inconsistentie / ontbrekende next-action voor de
+> bemiddelaar) gevonden én OPGELOST.** Verse prod-build (`npm run build`, exit 0) + drie parallelle
+> Opus-audits: (1) franchise-tenant-isolatie + dossier-routes, (2) cascade/collaboration-authz +
+> state-machine + numerieke grenzen, (3) next-action-correctheid (`pending-tasks.ts` vs dashboard/
+> `next-actions.ts`/`stage.ts`) over alle vier rollen.
+>
+> **DOEL 2 (adversarieel):** géén reachable authz/IDOR/tenant/transitie/numeriek-bound-gat gevonden.
+> Alle franchise-server-acties volgen auth→rol→tenant(`ownsViaTenant`/`assertSameTenant`)→`safeParse`→
+> transitie→audit; onbekende/cross-tenant-id's collapsen naar een silent no-op (geen existence-oracle).
+> Dossier-routes (`dossier`/`dba-dossier`/`modelovereenkomst`) weigeren een FRANCHISER (403 + audit) —
+> stricter dan nodig, geen lek. De cascade-mutatie-oppervlakte is uniform gehard (compound-`where`-
+> writes + in-transactie TOCTOU-herverificatie); numerieke grenzen (`assertPerformanceWithinLimits`,
+> int4-factuur-clamp, ORT-rates) weren negatief/absurd. **Geparkeerd (defense-in-depth, niet reachable):**
+> `rejectPerformance`/`rejectInvoice`/`creditInvoice`/`updatePerformance` missen de terminale-status-
+> grendel (`assertCollaborationNotTerminal`/`terminalGuard`) die hun forward-cascade-siblings wél
+> hebben — vandaag onbereikbaar via `cancellation/completionBlockReason`, maar een landmijn (MED).
+> Admin-bulk-approve (`prestaties/actions.ts`) filtert op `company.userId = actor.id` óók voor ADMIN →
+> dode knop voor admin (LOW, faalt veilig/leeg).
+>
+> **GEVONDEN + GEFIXT — HIGH (DOEL 1b, FRANCHISER: `/acties` + zijbalk-badge misten een hele klasse
+> next-actions):** het bemiddelaar-dashboard toont zijn "Volgende acties"-rail als `[...tasks,
+...activation]` — waarbij `activation` (`franchiserNextActions`) óók de **operationele**
+> attentiepunten `franchiser-not-engageable-{id}` (roster-ZZP'er blokkeert plaatsing: verplicht
+> document ontbreekt/verlopen of verificatie incompleet) en `franchiser-stale-service-{id}` (dienst te
+> lang open zonder plaatsing) bevat. Maar `/acties` (`pendingTasks`) en de zijbalk-badge
+> (`pendingTaskCount` → `computeTasks`) worden **alleen** door de item-engine (`franchiserTasks`)
+> gevoed, die die twee klassen niet emitteerde. Gevolg: een bemiddelaar die aantoonbaar "aan zet" was
+> (een niet-inzetbare roster-ZZP'er, een verweesde open dienst) zag dat op het dashboard, maar **niet**
+> op `/acties` en het werd **niet** in de badge geteld — een MISSING/ontbrekende next-action op twee
+> van de drie oppervlakken, tegen de eigen invariant "één bron voor /acties, rail én badge".
+> **Geschonden regel:** next-action moet de juiste eerstvolgende stap vragen op elk oppervlak, niet
+> ontbreken (DOEL 1b) + server-side waarheid. **Fix:** de twee operationele generatoren geport naar de
+> item-engine (`franchiseNotEngageableTask`/`franchiseStaleDienstTask` in `tasks.ts`; berekend in
+> `franchiserTasks` via dezelfde `computeEngageability`-helper + stale-dienst-drempel als het
+> dashboard), en de dashboard-rail levert die items nu via `tasks` i.p.v. `activation` (geen
+> dubbeltelling; guided-setup blijft in `activation`). Zo tonen `/acties`, de badge én de rail exact
+> dezelfde acties. Rood→groen: `pending-tasks-franchiser.test.ts` (4 tests: INACTIEF roster-lid →
+> not-engageable-taak met juiste id/tone/deep-link; verdwijnt bij volledig inzetbaar roster;
+> stale-dienst-taak met dagentelling + deep-link; geen stale-taak zonder te lang open dienst).
+>
+> **GEPARKEERD uit deze run (repro + prioriteit, voor een volgende increment):**
+>
+> - **MED (DOEL 2, defense-in-depth):** terminale-status-grendel ontbreekt op `rejectPerformance`
+>   (`cascade/performance-commands.ts:402`), `rejectInvoice`/`creditInvoice` (`invoice-commands.ts:165,
+222`) en `updatePerformance` (`performance-commands.ts:152`) — voeg `assertCollaborationNotTerminal`
+>   - `terminalGuard` toe (met `allowCompleted` voor `creditInvoice`), symmetrisch met de siblings.
+> - **MED-HIGH (DOEL 1b):** de BTW-deadline-taak (`data/vat-deadline.ts` + `administration/vat-
+deadline.ts:previousQuarter`) checkt uitsluitend het net-afgesloten kwartaal; een overgeslagen,
+>   nooit-ingediend kwartaalsaldo verdwijnt stil bij kwartaal-rollover (geen "afgehandeld"-vlag).
+>   Scan alle onafgewikkelde kwartalen sinds de oudste activiteit i.p.v. alleen `previousQuarter(now)`.
+> - **MED (DOEL 1b):** een échte-verlopen (`EXPIRED`) NIET-verplicht certificaat (DIPLOMA/CERTIFICATE/
+>   LICENSE/OTHER) geeft de ZZP'er na de expiry-notificatie géén blijvende vernieuw-next-action
+>   (`pending-tasks.ts:269-279` matcht alleen REJECTED/expiring-VERIFIED, niet `EXPIRED`; mandatory
+>   dekt alleen VOG/INSURANCE). Voeg een `"expired"`-cause toe aan `credentialFixTask` voor alle types.
+> - **LOW (DOEL 2):** admin-bulk-approve (`prestaties/actions.ts:31-36`) is een dode knop voor ADMIN
+>   (query filtert `company.userId = actor.id`, geen ADMIN-special-case zoals `approvePerformance`).
+>
+> ---
+
 > **Datum:** 2026-07-19 (run 37) · **main-commit basis:** `dc488530`
 > **Uitkomst:** **1 MED (DOEL 1b, dubbele/tegenstrijdige next-action) gevonden én OPGELOST.** Verse
 > prod-build + idempotente demo-seed (`SEED_DEMO=true`; 13 samenwerkingen / 7 facturen / 48
