@@ -104,11 +104,15 @@ rejectedTypes.has(doc.type)) continue;`. Rood→groen: `pending-tasks-rejected-m
 > (CANCELLED + COMPLETED geweigerd) en `confirmPayment` (alleen CANCELLED — die command produceert de
 > afronding zélf, COMPLETED toegestaan). Rood→groen: `terminal-status-guard.test.ts` (13 tests).
 >
-> **GEPARKEERD — LAAG (UX, geen beveiligingsgat — `frozen` dekt CANCELLED niet):** de
-> samenwerking-detailpagina (`samenwerkingen/[id]/page.tsx`) leidt `frozen` alleen af uit `disputedAt`,
-> niet uit `status === "CANCELLED"`. Server-side is de waarheid nu dichtgezet (mutaties op een
-> geannuleerde deal worden geweigerd), dus dit is puur cosmetisch — knoppen zonder actionabele lading.
-> Netter: `frozen` ook op CANCELLED/COMPLETED zetten zodat de UI de bevroren staat toont. **LAAG.**
+> **~~GEPARKEERD~~ GEDAAN — LAAG (UX, geen dode knoppen — `frozen` dekt CANCELLED niet) (2026-07-19,
+> PR #833):** de samenwerking-detailpagina (`samenwerkingen/[id]/page.tsx`) leidde `frozen` alleen af uit
+> `disputedAt`, niet uit `status === "CANCELLED"`/`"COMPLETED"`. Reachable dode knop: een FREELANCER met
+> een afgekeurde prestatie op een terminale inzet zag "Corrigeer en dien opnieuw in" → server weigert
+> (`assertCollaborationNotTerminal`, #825). **Fix:** pure `collaboration-lock.ts`
+> (`collaborationLockReason`/`collaborationActionsLocked`/`terminalLockNotice`, dispuut > terminaal) +
+> de forward-cascade-actieformulieren achter `!actionsLocked` (dispuut of terminaal) i.p.v. `!frozen`;
+> terminale toelichtingsregel. Dispuut-bewoording (`disputed: frozen`) + legitieme post-completion
+> creditering ongemoeid. +6 tests. Read-only afleiding, geen schema-/mutatie-/authz-wijziging.
 >
 > **Robuustheid-LOW (uit run 35, nu OPGELOST):** throwing `.parse` op vijandige enum → gehard met
 > `safeParse` in **alle zes** server-acties (`admin/no-shows`, `admin/gebruikers`, `abonnement`,

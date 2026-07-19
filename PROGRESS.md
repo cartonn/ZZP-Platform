@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-19 — Geen dode werkproces-knoppen op een terminale samenwerking (PR #833)
+
+**Waarde (geen dode knoppen — hard CLAUDE.md-regel):** op een **CANCELLED/COMPLETED** samenwerking
+bood het werkproces-detail (`/samenwerkingen/[id]`) nog cascade-actieknoppen aan. Reachable geval: een
+FREELANCER met een **afgekeurde** prestatie op een geannuleerde/afgeronde inzet zag "Corrigeer en dien
+opnieuw in", vulde het formulier en kreeg een kale foutmelding — de server weigert die actie sinds #825
+hard (`editAndResubmit → submitPerformance → assertCollaborationNotTerminal`). Dit was de geparkeerde
+LOW uit persona-sweep run 36 ("`frozen` dekt CANCELLED niet").
+
+**Gebouwd:** de bestaande dispuut-freeze-redenering (§4: "bied geen actie aan die de server weigert")
+gegeneraliseerd naar terminale samenwerkingen. Nieuwe pure helper `src/lib/collaboration-lock.ts`
+(`collaborationLockReason` → `dispute`/`cancelled`/`completed`/null, dispuut heeft voorrang;
+`collaborationActionsLocked`; `terminalLockNotice`) + wiring in de pagina: de forward-cascade-
+actieformulieren (prestatie corrigeren/goedkeuren/afkeuren, factuur indienen/goedkeuren/afkeuren,
+betaling markeren) staan nu achter `!actionsLocked` (dispuut **of** terminaal) i.p.v. alleen `!frozen`;
+een rustige toelichtingsregel verschijnt bij een terminale samenwerking. De dispuut-bewoording in de
+statusregel/renewal (`disputed: frozen`) en het legitieme "Factuur crediteren" op een afgeronde inzet
+(PAID/PROCESSED-correctie) blijven ongemoeid. Read-only afleiding, geen schema-/mutatie-/authz-
+wijziging. +6 tests (`collaboration-lock.test.ts`). Gate: typecheck, lint, **4563** unit-tests, build,
+prettier groen.
+
 ## 2026-07-19 — Persona-sweep run 37: dubbele next-action bij afgewezen verplicht document gefixt
 
 **Waarde (geen zichzelf-tegensprekend scherm):** een FREELANCER met een **afgewezen** verplicht
