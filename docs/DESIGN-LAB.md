@@ -1292,3 +1292,43 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   datavisualisatie**; **civiel-technische peil-/polder-infographic**; **warm premium translucent glow** —
   elk deterministisch, toegankelijk en onderscheidend van de bestaande 420.
 - **Totaal nu op `/ontwerp`: 430 concepten** (reeks 43: 421–430).
+
+## Reeks 44 (concepten 431–440) — toegevoegd 20-7-2026
+
+- **431 Meander** — vloeiende verbindingslijnen / spatial flow (#f4f6f4 + teal #0d9488): organische
+  hairline-draden leiden het oog langs een meanderende route tussen gerelateerde modules, met
+  physics-achtige gestagede entree — ruimtelijk en kalm.
+- **432 Tektoniek** — gelaagde geologische diepte / z-stacking (#ece7e1 + koper #b45309): gestapelde
+  leigrijze platen met offset-schaduwen, laag-labels en subtiele parallax brengen achtergrond, content
+  en acties op eigen z-niveaus — dimensioneel zonder ruis.
+- **433 Passaat** — luchtige passaatwind / richtingsbeweging (#f2f7fb + hemelblauw #0284c7): een
+  richtings-gradient die van links naar rechts 'waait', veren-lichte kaarten en zachte drift-motion —
+  fris, kalm en geruststellend.
+- **434 Fluweel** — premium-dark, mat fluweel + juweel (#17141c + goud #d4af6a): fluwelen sheen en
+  translucente glas-lagen geven diepte zonder ruis, goud- en aubergine-juweeltinten op hoog-contrast
+  tekst — luxueus en rustig rond gevoelige documenten.
+- **435 Craquelé** — craquelé-glazuur / haarscheur-textuur (#f3efe7 + terracotta #b5654a): verouderd
+  porselein met een fijn netwerk van haarscheuren als tactiele achtergrondtextuur — de anti-polish
+  craft-esthetiek van 2026, ambachtelijk en met de hand gemaakt.
+- **436 Salie** — salie-groen, kruidig-kalm / calm interface (#f2f4ee + salie #5f7a5a): gedempt
+  saliegroen met botanische rust, veel lucht en zachte radii — cognitieve helderheid boven sensorische
+  drukte.
+- **437 Amplitude** — golfvorm-dataritme / waveform (#faf9fb + magenta #db2777): monospace-ritme, grids
+  als voorgrond en amplitude-balken als vormtaal — KPI's en voortgang lezen als een golfvorm, strak en
+  technisch.
+- **438 Aquarium** — zwevend glas in water-licht / spatial depth (#eef6f8 + aqua #0891b2): lichte panelen
+  zweven als glas in helder water met zachte diepte-lagen en subtiele stroming — ruimtelijk en fris,
+  diepte zonder donkerte.
+- **439 Gouache** — matte gouache-verf kleurvlakken / painterly craft (#f7f2ea + vermiljoen #e2513a):
+  opaque matte verfvlakken met licht onregelmatige randen dragen de secties als warme kleurblokken —
+  schilderkunstige craft-warmte, nooit glossy.
+- **440 Linnen** — natuurlijk linnen, warm ambachtelijk / textielrust (#f1ece1 + linnen-taupe #8a6d3b):
+  geweven linnen-textuur en natuurlijke neutrale tinten geven een aardse, ambachtelijke rust — tactiele
+  materialiteit, warm en kwaliteitsvol.
+- Onderzochte 2026-trends deze reeks: **spatial / connective UI met physics-based entrance choreography**;
+  **depth als hiërarchie (z-stacking, parallax, layered translucent planes)**; **calm interfaces / cognitieve
+  helderheid**; **premium dark met dark-glassmorphism**; **texture-warmth & tactile craft (anti-polish,
+  hand-made)**; **data-logica / grids-als-voorgrond met waveform-datavisualisatie**; **light glassmorphism**;
+  **painterly craft-kleurvlakken**; **geweven tactiele materialiteit** — elk deterministisch, toegankelijk
+  (WCAG focus-states, status label+icoon, motion-reduce) en onderscheidend van de bestaande 430.
+- **Totaal nu op `/ontwerp`: 440 concepten** (reeks 44: 431–440).
