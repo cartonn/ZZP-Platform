@@ -13,6 +13,8 @@ import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { plural } from "@/lib/plural";
+import { clientReengagement } from "@/lib/franchise/client-reengagement";
+import { ClientReengagementCard } from "@/components/franchise/client-reengagement-card";
 import { DepartmentForm } from "./department-form";
 import { DienstInlineForm } from "./dienst-inline-form";
 import { removeDepartment } from "../actions";
@@ -60,6 +62,39 @@ export default async function OpdrachtgeverDetailPage({
   ]);
   if (!company) notFound();
 
+  // Relatiegezondheid + re-engagement-hint: exact dezelfde activiteitsinvoer als de klantenlijst
+  // (`summarizeClientHealth`), zodat lijst en detail nooit een andere status tonen. Drie kleine,
+  // geïndexeerde aggregaten (geen N+1) op de reeds tenant-geverifieerde klant.
+  const [publishedAgg, activeCollabCount, lastCollabAgg] = await Promise.all([
+    prisma.job.aggregate({
+      where: { companyId: company.id, status: "PUBLISHED" },
+      _count: { _all: true },
+      _max: { createdAt: true },
+    }),
+    prisma.collaboration.count({ where: { companyId: company.id, status: "ACTIVE" } }),
+    prisma.collaboration.aggregate({
+      where: { companyId: company.id },
+      _max: { updatedAt: true },
+    }),
+  ]);
+  const lastJobAt = publishedAgg._max.createdAt;
+  const lastCollabAt = lastCollabAgg._max.updatedAt;
+  const lastActivityAt =
+    lastJobAt && lastCollabAt
+      ? lastJobAt > lastCollabAt
+        ? lastJobAt
+        : lastCollabAt
+      : (lastJobAt ?? lastCollabAt);
+  const reengagement = clientReengagement(
+    {
+      createdAt: company.createdAt,
+      publishedJobCount: publishedAgg._count._all,
+      activeCollaborationCount: activeCollabCount,
+      lastActivityAt,
+    },
+    new Date(),
+  );
+
   // Onboarding "afmaken"-balk zolang er nog geen afdeling óf nog geen dienst is — zelfde regel als
   // de wizard (getOnboardingState). Linkt terug naar de juiste wizard-stap.
   const totalDiensten = company.departments.reduce((sum, d) => sum + d.jobs.length, 0);
@@ -96,6 +131,10 @@ export default async function OpdrachtgeverDetailPage({
             </Link>
           </Button>
         </div>
+      )}
+
+      {!onboardingIncomplete && (
+        <ClientReengagementCard reengagement={reengagement} companyId={company.id} />
       )}
 
       <Card>

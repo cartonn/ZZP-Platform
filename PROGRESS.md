@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Relatiegezondheid + re-engagement-hint op de franchise klantdetail (bemiddelaar)
+
+**Waarde (CRM/churn-preventie — bemiddelaar):** de relatiegezondheid (`classifyClientHealth`:
+plaatst-nu / stilgevallen / rustig) stond wél op de klantenlijst (`/franchise/opdrachtgevers`) maar
+verdween zodra de bemiddelaar op één klant doorklikte — precies het scherm waar hij besluit wat hij
+met die relatie doet. Benchmark Bullhorn/PIDZ-regiokantoor: een stilgevallen klant (churn-risico) hoort
+zichtbaar met een concrete volgende stap. Nu een compacte kaart op de detailpagina met status-badge,
+verklarende regel (bij stilgevallen: dagentelling sinds laatste opdracht/plaatsing) en — alleen bij
+`attention` — een levende CTA "Nieuwe dienst voorstellen" (bestaande onboarding-flow, geen dode knop).
+
+- **`src/lib/franchise/client-reengagement.ts`** (nieuw) — pure `clientReengagement(input, now)` bouwt
+  status/toon/headline/suggestion uit dezelfde `ClientActivityInput` + `classifyClientHealth` als de
+  lijst → lijst en detail tonen nooit een andere status. +6 tests.
+- **`src/lib/franchise/client-health.ts`** — `wholeDaysBetween` geëxporteerd (gedeeld, geen duplicatie).
+- **`src/components/franchise/client-reengagement-card.tsx`** (nieuw) — presentationele kaart.
+- **`src/app/(protected)/franchise/opdrachtgevers/[id]/page.tsx`** — drie kleine geïndexeerde
+  aggregaten (PUBLISHED-jobs count+max, ACTIVE-collab count, laatste collab-update; geen N+1) op de
+  reeds tenant-geverifieerde klant; kaart getoond zodra onboarding compleet is (anders wint de
+  onboarding-balk). Read-only, geen schema-/mutatie-/auth-wijziging.
+- **Checks:** `npm run typecheck` · `npm run lint` · `npm run test` · `npm run build` ·
+  `npx prettier --write .` — groen.
+
 ## 2026-07-20 — Persona-sweep run 39: dispuut-vries op `createPerformance` (DOEL 2, defense-in-depth)
 
 **Wat (robuustheid/consistentie):** kritische-gebruiker-sweep over alle vier rollen op de verse
