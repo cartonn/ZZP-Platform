@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Vervolgsignaal (naderende einddatum samenwerking) als next-action — ZZP'er + opdrachtgever (2026-07-20, PR #848)** —
+> het vervolgsignaal (`summarizeCollaborationRenewal`: een ACTIVE samenwerking die haar einddatum nadert/passeerde) leefde
+> alléén op het samenwerkingsdetail (`RenewalNudge`); wie dat ene scherm niet opende, miste het vervolgvenster → de inzet
+> valt stil (opdrachtgever raakt een goede ZZP'er kwijt; ZZP'er lijnt de volgende opdracht te laat op). Exact het run-38-gap-
+> patroon (signaal op detail, afwezig op /acties + badge + dashboard-rail). Benchmark Temper/Pidz "verleng je serie". Nu een
+> next-action **"Plan een vervolg met {tegenpartij}"** op alle drie de oppervlakken, voor beide rollen — gevoed door dezelfde
+> pure summarizer als het detail (nooit divergerend). `P.collaborationRenewal=46` + builder `collaborationRenewalTask`
+> (overdue→attention, ending_soon→info; deep-link naar het detail waar de rol-passende vervolgactie al staat) + enumerator
+> `renewalTasks` (één DB-voorgefilterde query per rol: `status:"ACTIVE"`, `disputedAt:null`, `endDate:{lte:venster}`, take-
+> begrensd; gewired in freelancerTasks+clientTasks). Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+> Resolver `link` → default-tak `action-list.tsx` (geen UI-wijziging). +11 tests. Gate: typecheck, lint, 4636 unit-tests,
+> build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — upload-scanner (ClamAV) connectiviteitszelftest (2026-07-19, PR #838)** —
 > sloot het laatste connectiviteitszelftest-gat in de go-live-posture: opslag/e-mail/rate-limit/verificatie/betaalprovider
 > hadden al een admin-zelftest op `/admin/systeemstatus`, de ClamAV upload-scanner als enige niet. Die is **fail-closed** →
