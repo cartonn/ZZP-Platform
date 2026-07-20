@@ -56,13 +56,16 @@
 >   dashboard-rail bron is nu puur `tasks` (`activation`-veld volledig verwijderd). `/acties`, de
 >   badge én de rail delen zo exact één bron — spiegelt de run-38-fix voor de operationele items.
 >   +3 tests. Gate: typecheck, lint, unit-tests, build, prettier groen.
-> - **MED (verkeerde partij "aan zet" + tegenstrijdige subtitel):** `clientComplianceTask`
->   (`tasks.ts:643-675`, uit `pending-tasks.ts:622-623`) toont de **opdrachtgever** een
->   attention-taak "Certificaat van X in beoordeling — handel vóór het certificaat vervalt" wanneer
->   een vereist certificaat enkel een **SUBMITTED** (verse indiening, `inReview`, `gap=false`) cert
->   heeft. De **admin** is aan zet (verifiëren), niet de client; en de subtitel (vervalwaarschuwing)
->   klopt niet voor een verse indiening. Fix: geen client-actie (of passieve info) bij `inReview`
->   zonder gap.
+> - ~~**MED (verkeerde partij "aan zet" + tegenstrijdige subtitel):** `clientComplianceTask` toont de
+>   **opdrachtgever** een attention-taak "Certificaat van X in beoordeling — handel vóór het certificaat
+>   vervalt" wanneer een vereist certificaat enkel een **SUBMITTED** (verse indiening, `inReview`,
+>   `gap=false`) cert heeft.~~ **GEDAAN (2026-07-20, PR #853):** nieuwe pure predicate
+>   `clientHasComplianceAction(alert)` (`collaboration-alerts.ts`) — gap (ontbrekend/verlopen) of
+>   binnenkort-verlopend → client is aan zet; **alleen `inReview` → nee** (admin verifieert). Gate in
+>   `pending-tasks.ts` (`clientTasks`) emit de client-compliance-taak alleen bij een échte client-actie;
+>   een inReview-only-melding blijft wél zichtbaar als informatieve telling in de dashboard-momentopname
+>   (`summarizeClientCompliance`), maar niet als openstaande next-action. Voedt `/acties`, rail én badge
+>   (één bron). +7 tests. Gate: typecheck, lint, unit-tests, build, prettier groen.
 > - **LOW (niet-verdwijnende taak):** `noShowWarningTask` (`tasks.ts:525-536`, uit
 >   `pending-tasks.ts:514-532`) staat permanent in `/acties` + badge voor elke ZZP'er met ≥1
 >   `UNJUSTIFIED` no-show — er is geen afhandel-pad (verdicts zijn blijvende historie). Botst met de

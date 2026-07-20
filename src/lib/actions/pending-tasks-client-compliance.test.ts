@@ -112,4 +112,47 @@ describe("clientTasks — compliance-ripple", () => {
       "client-compliance:c-warn",
     ]);
   });
+
+  it("alleen in-beoordeling (verse indiening) → géén client-compliance-taak (admin is aan zet)", async () => {
+    state.alerts = [
+      {
+        collaborationId: "c-review",
+        jobId: "j4",
+        jobTitle: "Weekenddienst",
+        freelancerName: "Youssef",
+        alert: {
+          status: "WARNING",
+          missing: [],
+          expired: [],
+          expiringSoon: [],
+          inReview: ["CERTIFICATE"],
+        },
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.find((t) => t.kind === "client-compliance")).toBeUndefined();
+  });
+
+  it("in-beoordeling náást een gat → taak blijft (het gat is de client-actie)", async () => {
+    state.alerts = [
+      {
+        collaborationId: "c-mixed",
+        jobId: "j5",
+        jobTitle: "Avonddienst",
+        freelancerName: "Nadia",
+        alert: {
+          status: "NON_COMPLIANT",
+          missing: ["VOG"],
+          expired: [],
+          expiringSoon: [],
+          inReview: ["CERTIFICATE"],
+        },
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const t = tasks.find((x) => x.kind === "client-compliance");
+    expect(t).toBeDefined();
+    expect(t!.title).toContain("mist een vereist certificaat");
+    expect(t!.priority).toBe(P.complianceRipple);
+  });
 });

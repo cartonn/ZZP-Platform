@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Opdrachtgever: client-compliance next-action alleen bij een échte client-actie
+
+**Waarde (next-action-correctheid, DOEL 1b):** persona-sweep run 40 flagde een MED — `clientComplianceTask`
+gaf de opdrachtgever een **attention**-taak "Certificaat van X in beoordeling — handel vóór het certificaat
+vervalt" wanneer een vereist certificaat enkel een **verse SUBMITTED** (`inReview`, geen gap, geen
+binnenkort-verlopend) cert had. Fout op twee vlakken: (1) de **admin** is aan zet (verifiëren), niet de
+opdrachtgever — hij kan niets doen en de taak verdween nooit (niet-afhandelbare badge-inflatie), en (2) de
+subtitel (vervalwaarschuwing) klopt niet voor een verse indiening. Nu onderdrukt de item-engine de
+client-compliance next-action bij een `inReview`-only-melding; een gat (ontbrekend/verlopen) of een
+binnenkort-verlopend certificaat blijft wél een taak (dáár is de opdrachtgever aan zet).
+
+- Nieuwe pure predicate `clientHasComplianceAction(alert)` in `src/lib/collaboration-alerts.ts` (enige bron:
+  gap of expiringSoon → client is aan zet; alleen inReview → nee, admin verifieert). +5 tests.
+- Gate in `src/lib/actions/pending-tasks.ts` (`clientTasks`): emit `clientComplianceTask` alleen als
+  `clientHasComplianceAction(a.alert)`. Voedt `/acties`, de dashboard-rail én de zijbalk-badge (één bron).
+- De dashboard-momentopname (`summarizeClientCompliance`) blijft de inReview-telling tonen — dat is
+  informatieve context, geen openstaande actie. Geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+- +2 regressietests in `pending-tasks-client-compliance.test.ts` (inReview-only → géén taak; inReview náást
+  een gat → taak blijft).
+- Gates groen: `typecheck` · `lint` · `test` · `build` · `prettier --write .`.
+
 ## 2026-07-20 — Bemiddelaar: geleide opzet als item-taak (single-source /acties + badge + rail)
 
 **Waarde (next-action-consistentie, DOEL 1b):** persona-sweep run 40 flagde de enige rol waar de

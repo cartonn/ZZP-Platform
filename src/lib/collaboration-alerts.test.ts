@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   assessCollaborationCredentials,
   clientCredentialAlertsFromRows,
+  clientHasComplianceAction,
   describeCredentialAlert,
   summarizeClientCompliance,
+  type CredentialAlert,
   type ClientCredentialAlert,
   type CollaborationAlertRow,
 } from "./collaboration-alerts";
@@ -61,6 +63,47 @@ describe("assessCollaborationCredentials", () => {
     const r = assessCollaborationCredentials(["VOG"], creds, now);
     expect(r.status).toBe("WARNING");
     expect(r.inReview).toEqual(["VOG"]);
+  });
+});
+
+describe("clientHasComplianceAction", () => {
+  const base: CredentialAlert = {
+    status: "WARNING",
+    missing: [],
+    expired: [],
+    expiringSoon: [],
+    inReview: [],
+  };
+
+  it("ja bij een ontbrekend certificaat (gap)", () => {
+    expect(clientHasComplianceAction({ ...base, status: "NON_COMPLIANT", missing: ["VOG"] })).toBe(
+      true,
+    );
+  });
+
+  it("ja bij een verlopen certificaat (gap)", () => {
+    expect(
+      clientHasComplianceAction({ ...base, status: "NON_COMPLIANT", expired: ["INSURANCE"] }),
+    ).toBe(true);
+  });
+
+  it("ja bij een binnenkort verlopend certificaat", () => {
+    expect(clientHasComplianceAction({ ...base, expiringSoon: ["DIPLOMA"] })).toBe(true);
+  });
+
+  it("nee bij alleen in-beoordeling (verse indiening → admin is aan zet)", () => {
+    expect(clientHasComplianceAction({ ...base, inReview: ["CERTIFICATE"] })).toBe(false);
+  });
+
+  it("ja als in-beoordeling samenvalt met een gat (het gat is de client-actie)", () => {
+    expect(
+      clientHasComplianceAction({
+        ...base,
+        status: "NON_COMPLIANT",
+        missing: ["VOG"],
+        inReview: ["CERTIFICATE"],
+      }),
+    ).toBe(true);
   });
 });
 
