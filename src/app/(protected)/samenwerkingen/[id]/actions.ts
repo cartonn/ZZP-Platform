@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/authz";
-import { toSafeActionError } from "@/lib/safe-action-error";
+import { toSafeActionError, throwSafeActionError } from "@/lib/safe-action-error";
 import { type ResolveState } from "@/lib/actions/resolve-state";
 import {
   signContract,
@@ -18,7 +18,6 @@ import {
   creditInvoice,
   openDispute,
   resolveDispute,
-  CascadeError,
   type CreatePerformanceInput,
 } from "@/lib/cascade/commands";
 import { prisma } from "@/lib/db";
@@ -39,11 +38,16 @@ import { serializeWeekdays } from "@/lib/weekdays";
 import { MODEL_AGREEMENT_TYPES, type ModelAgreementType } from "@/lib/model-agreement";
 import { audit } from "@/lib/audit";
 
-/** Vertaalt een CascadeError/transitiefout naar een leesbare melding; hergooit de rest. */
+/**
+ * Vertaalt een gevangen cascade-fout naar een VEILIGE, opborrelende melding voor deze plain
+ * (niet-`useActionState`) geld-/dispuut-acties. Gecureerde fouten (CascadeError, transitiefouten) en
+ * hun Nederlandse message passeren; een onverwachte Prisma-/systeemfout wordt server-side gelogd en
+ * generiek gemaakt i.p.v. rauw doorgegeven — dezelfde CWE-209/OWASP A05-garantie die `toSafeActionError`
+ * al voor de `useActionState`-siblings in dit bestand levert (voorheen lekte deze helper elke
+ * `Error.message` woordelijk).
+ */
 function toMessage(e: unknown): never {
-  if (e instanceof CascadeError) throw new Error(e.message);
-  if (e instanceof Error) throw new Error(e.message);
-  throw e;
+  throwSafeActionError(e);
 }
 
 function refresh(collaborationId: string) {

@@ -49,3 +49,14 @@ export function toSafeActionError(e: unknown, fallback: string = GENERIC_ACTION_
   }
   return (e as Error).message;
 }
+
+/**
+ * Hergooit een gevangen fout als een `Error` met een VEILIGE message — voor plain server-actions die
+ * geen state-object teruggeven maar de fout laten opborrelen (`throw`). Gecureerde applicatiefouten
+ * behouden hun (Nederlandse) message; een technische fout (Prisma/system/niet-Error) wordt server-side
+ * gelogd en vervangen door `fallback`, zodat interne details nooit via de opgeborrelde fout lekken.
+ * Zelfde CWE-209/OWASP A05-garantie als `toSafeActionError`, maar in throw-vorm.
+ */
+export function throwSafeActionError(e: unknown, fallback: string = GENERIC_ACTION_ERROR): never {
+  throw new Error(toSafeActionError(e, fallback));
+}
