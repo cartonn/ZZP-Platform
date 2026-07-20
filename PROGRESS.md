@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — "Eerder samengewerkt met deze opdrachtgever"-vertrouwenssignaal voor de ZZP'er
+
+**Waarde (vertrouwen/beslissnelheid — ZZP'er):** de opdrachtgever zag op `/kandidaten` al of hij een
+reagerende ZZP'er kende ("eerder samengewerkt", `candidate-history.ts`), maar het **symmetrische**
+signaal ontbrak: een ZZP'er die een opdracht bekeek zag nergens dat hij al eerder voor déze
+opdrachtgever had gewerkt. Dat is een sterk, laag-risico vertrouwenssignaal bij de reageer-beslissing
+(benchmark Malt/Upwork: "worked together before" bidirectioneel). Nu een compact blok op de
+opdracht-detailpagina (alleen niet-eigenaar FREELANCER) — **"Eerder samengewerkt"** / "N× eerder
+samengewerkt" met "Je hebt al eerder voor {bedrijf} gewerkt · laatst afgerond in {maand jaar}".
+
+- **`src/lib/freelancer-client-history.ts`** (+`.test.ts`, 6 tests) — pure `summarizeFreelancerClient
+History` (telt afgeronde samenwerkingen, meest recente `completedAt ?? createdAt` wint, null zonder
+  historie) + `freelancerClientHistoryLabel`.
+- **`src/lib/data/freelancer-client-history.ts`** — fetcher `getFreelancerClientHistory(userId,
+companyId)`: één gescoopte COMPLETED-query op het (ZZP'er, opdrachtgever)-paar, cap 500.
+- **`src/components/jobs/client-history-block.tsx`** — blok, spiegelt de stijl van de andere
+  client-signaal-blokken; alleen geaggregeerd (telling + datum), nooit tarief/andere partij-data.
+- **`src/app/(protected)/opdrachten/[id]/page.tsx`** — fetch in de bestaande `showClientSignals`-
+  `Promise.all`, render vóór de reputatie-blokken.
+
+Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak, geen woordenboek-wijziging.
+Gate: typecheck, lint, unit-tests, build, prettier groen.
+
 ## 2026-07-20 — Prod: error-monitoring (Sentry) connectiviteitszelftest (#844)
 
 **Waarde (productie-rijpheid / observability):** zevende connectiviteitszelftest op
