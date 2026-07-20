@@ -16,6 +16,7 @@ import { RateLimitSelfTest } from "@/components/admin/ratelimit-selftest";
 import { VerifierSelfTest } from "@/components/admin/verifier-selftest";
 import { BillingSelfTest } from "@/components/admin/billing-selftest";
 import { UploadScannerSelfTest } from "@/components/admin/upload-scanner-selftest";
+import { ErrorMonitoringSelfTest } from "@/components/admin/error-monitoring-selftest";
 
 export const metadata: Metadata = { title: "Systeemstatus · ZZP Platform" };
 
@@ -57,6 +58,7 @@ export default async function SysteemstatusPage() {
       <VerifierSelfTest />
       <BillingSelfTest providerMode={env.BILLING_PROVIDER} />
       <UploadScannerSelfTest driverMode={env.UPLOAD_SCANNER} />
+      <ErrorMonitoringSelfTest configured={Boolean(env.SENTRY_DSN)} />
     </div>
   );
 }

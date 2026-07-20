@@ -7,6 +7,7 @@ import { requestMeta } from "@/lib/request-meta";
 import {
   billingSelfTestRateLimiter,
   createRateLimitStore,
+  errorMonitoringSelfTestRateLimiter,
   mailSelfTestRateLimiter,
   rateLimitSelfTestRateLimiter,
   storageSelfTestRateLimiter,
@@ -14,6 +15,11 @@ import {
   UpstashRateLimitStore,
   verifierSelfTestRateLimiter,
 } from "@/lib/rate-limit";
+import { probeErrorMonitoring } from "@/lib/observability/report";
+import {
+  runErrorMonitoringSelfTest,
+  type ErrorMonitoringSelfTestReport,
+} from "@/lib/services/error-monitoring-selftest";
 import { getPaymentProvider } from "@/lib/billing/provider";
 import {
   runBillingSelfTest,
@@ -363,6 +369,51 @@ export async function runUploadScannerSelfTestAction(): Promise<UploadScannerSel
     entityType: "UploadScanner",
     entityId: driverMode,
     metadata: { ok: report.ok, active: report.active },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
+export type ErrorMonitoringSelfTestState =
+  | { ok: true; report: ErrorMonitoringSelfTestReport }
+  | { ok: false; error: string };
+
+/**
+ * Draait een connectiviteitszelftest tegen de externe error-monitoring (admin-only). Volgt de
+ * mutatieketen (auth → rol → rate-limit → actie → audit). Is er geen monitoring geconfigureerd
+ * (SENTRY_DSN ontbreekt), dan is er niets externs te testen en meldt de zelftest dat eerlijk (geen
+ * vals groen). Anders stuurt hij één synthetische testgebeurtenis en wacht op flush — dat maakt de
+ * grootste stille faalmodus zichtbaar: een gezette DSN terwijl @sentry/nextjs niet geïnstalleerd is
+ * (reporter valt dan geruisloos terug op console-loggen). De uitvoer bevat nooit de DSN of secrets —
+ * alleen de uitkomst (pakket geïnstalleerd / afgeleverd) en een korte, veilige toelichting.
+ */
+export async function runErrorMonitoringSelfTestAction(): Promise<ErrorMonitoringSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await errorMonitoringSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const active = Boolean(process.env.SENTRY_DSN);
+  const report = await runErrorMonitoringSelfTest({
+    active,
+    run: active ? () => probeErrorMonitoring(randomUUID().slice(0, 8)) : undefined,
+  });
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "ERROR_MONITORING_SELFTEST_RUN",
+    entityType: "ErrorMonitoring",
+    entityId: active ? "sentry" : "console",
+    metadata: {
+      ok: report.ok,
+      active: report.active,
+      packageInstalled: report.packageInstalled,
+      delivered: report.delivered,
+    },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });

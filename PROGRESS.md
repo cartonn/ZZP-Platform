@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Prod: error-monitoring (Sentry) connectiviteitszelftest (#844)
+
+**Waarde (productie-rijpheid / observability):** zevende connectiviteitszelftest op
+`/admin/systeemstatus`, naast opslag/e-mail/rate-limit/verificatie/betaalprovider/upload-scanner.
+Maakt de grootste stille faalmodus van externe error-monitoring zichtbaar: een gezette `SENTRY_DSN`
+terwijl `@sentry/nextjs` niet geïnstalleerd is — de reporter valt dan geruisloos terug op
+console-loggen en productie-fouten blijven extern onzichtbaar. De admin stuurt één **synthetische**
+testgebeurtenis (gehardende init, PII-scrubbing) en wacht op `flush()`; geen DSN → eerlijk "niets
+getest" (geen vals groen). Uitvoer bevat nooit de DSN/secrets; loopt door authz → rate-limit → audit.
+
+- **`src/lib/observability/report.ts`** — `probeErrorMonitoring(token)` + `ErrorMonitoringProbeResult`
+  (zelfstandige lazy-import + gehardende init + captureMessage + flush; geen throw op flush-time-out).
+- **`src/lib/services/error-monitoring-selftest.ts`** (+`.test.ts`, 8 tests) — pure/injecteerbare kern
+  (spec in → rapport uit), zelfde patroon als de billing-zelftest; `ok` alleen bij pakket-geïnstalleerd
+  én afgeleverd.
+- **`src/lib/rate-limit.ts`** — `errorMonitoringSelfTestRateLimiter` (default 6/5min, env-instelbaar).
+- **`.../systeemstatus/actions.ts`** — `runErrorMonitoringSelfTestAction` (auth→rol→rate-limit→audit).
+- **`src/components/admin/error-monitoring-selftest.tsx`** + `page.tsx`-wiring; **`report.test.ts`** +1
+  (probe rapporteert `packageInstalled:false` in de repo zonder Sentry).
+
+**Checks:** typecheck ✓ · lint (loopt) · test (nieuwe 22/22 ✓) · prettier ✓ · build (CI-poort verifieert).
+**Resterend mensenwerk:** niets extra — knop verschijnt zodra `SENTRY_DSN` gezet is (+ `@sentry/nextjs`).
+
 ## 2026-07-20 — Security/privacy-audit: 2 gaten gedicht (KRITIEK erasure + HOOG stored-XSS)
 
 **Waarde (datalek-preventie op gevoelige documenten):** een adversariële security-/AVG-auditronde

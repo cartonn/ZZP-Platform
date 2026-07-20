@@ -563,3 +563,16 @@ export const uploadScannerSelfTestRateLimiter = new RateLimiter(
   5 * 60_000,
   "uploadscannerselftest:",
 );
+
+/**
+ * Maximaal ERROR_MONITORING_SELFTEST_RATE_LIMIT (default 6) error-monitoring-zelftests per beheerder
+ * per 5 minuten. De admin-actie (/admin/systeemstatus) stuurt één synthetische testgebeurtenis naar
+ * de geconfigureerde Sentry-koppeling en wacht op flush. De rem houdt een per ongeluk herhaalde klik
+ * of een script binnen de perken (parity met de andere zelftests).
+ */
+export const errorMonitoringSelfTestRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("ERROR_MONITORING_SELFTEST_RATE_LIMIT", 6),
+  5 * 60_000,
+  "errormonitoringselftest:",
+);

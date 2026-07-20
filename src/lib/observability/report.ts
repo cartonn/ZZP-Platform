@@ -139,6 +139,66 @@ export function __resetReporterForTests(): void {
   sentryWarned = false;
 }
 
+/** Maximale tijd (ms) dat de zelftest wacht tot Sentry zijn verzendbuffer heeft geleegd (flush). */
+export const ERROR_MONITORING_SELFTEST_FLUSH_TIMEOUT_MS = 5000;
+
+/** Uitkomst van een probe tegen de externe error-monitoring (Sentry). Bevat nooit secrets/DSN. */
+export interface ErrorMonitoringProbeResult {
+  /** Is @sentry/nextjs daadwerkelijk geïnstalleerd? Zo niet, valt de reporter stil terug op console. */
+  packageInstalled: boolean;
+  /** Legde Sentry de verzendbuffer tijdig (flush → true)? Bewijst dat het transport de gebeurtenis accepteerde. */
+  delivered: boolean;
+  /** Korte, niet-gevoelige toelichting (nooit de DSN of een rauw provider-bericht). */
+  detail: string;
+}
+
+/**
+ * Actieve probe tegen de externe error-monitoring, voor de admin-zelftest (/admin/systeemstatus).
+ * De reporter valt bij een niet-geïnstalleerd @sentry/nextjs STIL terug op console — een gezette
+ * SENTRY_DSN wekt dan de illusie van externe monitoring terwijl productie-fouten onzichtbaar blijven.
+ * Deze probe maakt dat expliciet: hij laadt het pakket via dezelfde variabele-module-specifier als de
+ * reporter (bundler resolvet het niet statisch), initialiseert met dezelfde gehardende opties
+ * (PII-scrubbing), stuurt één synthetische testgebeurtenis en wacht op `flush()` als bewijs dat het
+ * transport de gebeurtenis accepteerde en doorstuurde.
+ *
+ * Zelfstandig van de reporter-singleton (eigen import + init): een zeldzame, admin-getriggerde
+ * her-init met dezelfde opties is onschadelijk en vermijdt koppeling met de gecachete reporter-staat.
+ * Werpt niet voor een flush-time-out (gevangen → delivered:false); andere fouten laat hij door zodat
+ * de aanroeper ze als veilige `detail` (error-NAAM) kan tonen.
+ */
+export async function probeErrorMonitoring(token: string): Promise<ErrorMonitoringProbeResult> {
+  const moduleId = "@sentry/nextjs";
+  const Sentry = await import(/* webpackIgnore: true */ moduleId).catch(() => null);
+
+  if (!Sentry) {
+    return {
+      packageInstalled: false,
+      delivered: false,
+      detail:
+        "Pakket @sentry/nextjs is niet geïnstalleerd — SENTRY_DSN is gezet maar fouten worden alleen gestructureerd gelogd (geen externe monitoring). Installeer het pakket (npm i @sentry/nextjs) en deploy opnieuw.",
+    };
+  }
+
+  const sentry = Sentry as {
+    init: (options: ReturnType<typeof buildSentryInitOptions>) => void;
+    captureMessage: (message: string, level?: string) => void;
+    flush: (timeout?: number) => Promise<boolean>;
+  };
+
+  sentry.init(buildSentryInitOptions());
+  sentry.captureMessage(`ZZP Platform — error-monitoring zelftest (${token})`, "info");
+  const flushed = await sentry.flush(ERROR_MONITORING_SELFTEST_FLUSH_TIMEOUT_MS).catch(() => false);
+
+  return {
+    packageInstalled: true,
+    delivered: flushed === true,
+    detail:
+      flushed === true
+        ? "Testgebeurtenis verzonden en de verzendbuffer is tijdig geleegd (flush geslaagd) — het transport accepteerde de gebeurtenis."
+        : "Testgebeurtenis in de wachtrij gezet, maar de verzendbuffer werd niet tijdig geleegd (flush-time-out). Controleer de DSN en de uitgaande netwerktoegang naar Sentry.",
+  };
+}
+
 /**
  * Rapporteert een fout via de actieve reporter. Slikt ALLES: reporting mag de request nooit laten
  * falen. Geeft nooit een rejection naar buiten.
