@@ -101,6 +101,22 @@ Doe het in deze volgorde; elk blok verwijst naar het detail eronder.
   voor deploy-correlatie, en `tracesSampleRate: 0` (errors-only). Optioneel bij te stellen via
   `SENTRY_ENVIRONMENT`/`SENTRY_RELEASE`/`SENTRY_TRACES_SAMPLE_RATE`. Resterend mensenwerk: **niets voor
   de pilot**.
+  **Code-kant GEDAAN (2026-07-20) — error-monitoring-connectiviteitszelftest:** omdat de reporter bij
+  een **niet-geïnstalleerd** `@sentry/nextjs` **stil** terugvalt op console-loggen, zou een gezette
+  `SENTRY_DSN` de illusie van externe monitoring wekken terwijl productie-fouten onzichtbaar blijven —
+  precies de stille faalmodus die de andere zelftests ook afvangen. Op `/admin/systeemstatus`
+  (admin-only) kun je nu de **Error-monitoring-zelftest** draaien: die stuurt één **synthetische**
+  testgebeurtenis via de gehardende Sentry-init (PII-scrubbing) en wacht op `flush()` als bewijs dat
+  het transport de gebeurtenis accepteerde. Ontbreekt het pakket bij een gezette DSN, dan meldt het
+  scherm dat expliciet als **aandacht** ("installeer `@sentry/nextjs`"); staat er geen DSN, dan meldt
+  het eerlijk "geen monitoring geconfigureerd — er is niets getest" (geen vals groen). De uitvoer bevat
+  nooit de DSN of secrets (alleen pakket-geïnstalleerd/afgeleverd + een veilige toelichting), loopt door
+  de authz-keten (rol → rate-limit → audit) en escaleert geen echte fout
+  (`src/lib/services/error-monitoring-selftest.ts` + `probeErrorMonitoring` in
+  `src/lib/observability/report.ts`, actie in `.../systeemstatus/actions.ts`, zelfde patroon als de
+  Opslag-/E-mail-/Rate-limit-/Verificatie-/Betaalprovider-/Upload-scanner-zelftest). Resterend
+  mensenwerk: **niets extra** — de knop is er zodra `SENTRY_DSN` gezet is (en `@sentry/nextjs`
+  geïnstalleerd).
 - **CSP-violatie-rapportage aanzetten/monitoren** (laag, code-kant GEDAAN 5-7-2026): de
   Content-Security-Policy stuurt nu violatie-rapporten naar een eigen endpoint (`/api/csp-report`)
   via `report-to` (moderne Reporting API + `Reporting-Endpoints`-header) én `report-uri` (fallback,

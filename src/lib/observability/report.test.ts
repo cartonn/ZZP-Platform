@@ -15,6 +15,7 @@ import { logger } from "@/lib/observability/logger";
 import {
   __resetReporterForTests,
   getErrorReporter,
+  probeErrorMonitoring,
   reportBackgroundFailure,
   reportError,
 } from "@/lib/observability/report";
@@ -157,5 +158,15 @@ describe("reportBackgroundFailure", () => {
     expect(fallbackLines).toHaveLength(1);
     const sentryWarnings = warnSpy.mock.calls.filter((c) => c[0] === "sentry-unavailable");
     expect(sentryWarnings).toHaveLength(1);
+  });
+});
+
+describe("probeErrorMonitoring (pakket niet geïnstalleerd)", () => {
+  it("rapporteert packageInstalled:false met een uitleg — @sentry/nextjs ontbreekt in de repo", async () => {
+    const result = await probeErrorMonitoring("abc123");
+    expect(result.packageInstalled).toBe(false);
+    expect(result.delivered).toBe(false);
+    expect(result.detail).toContain("@sentry/nextjs");
+    expect(result.detail).not.toContain("abc123"); // geen token/secret-echo in het detail
   });
 });
