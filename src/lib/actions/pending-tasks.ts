@@ -59,6 +59,7 @@ import {
   franchiseLeadFollowupTask,
   franchiseNotEngageableTask,
   franchiseStaleDienstTask,
+  franchiseGuidedSetupTasks,
   clientComplianceTask,
   reviewLeaveTask,
   collaborationRenewalTask,
@@ -718,7 +719,17 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
 
   const staleThreshold = new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000);
 
-  const [expiringCreds, dueLeads, openDiensten, roster, staleDiensten] = await Promise.all([
+  const [
+    expiringCreds,
+    dueLeads,
+    openDiensten,
+    roster,
+    staleDiensten,
+    companies,
+    freelancers,
+    publishedDiensten,
+    companiesWithoutDiensten,
+  ] = await Promise.all([
     // Geverifieerde, nog-geldige certificaten van tenant-ZZP'ers die binnenkort verlopen — zelfde
     // venster als de roster-compliance-zegel op het bemiddelaar-dashboard (gte now, lte soon).
     prisma.credential.findMany({
@@ -780,7 +791,25 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
       select: { id: true, title: true, createdAt: true },
       take: MAX,
     }),
+    // Geleide-opzet-tellingen (opdrachtgever → dienst → roster). Zelfde bron/definitie als het
+    // bemiddelaar-dashboard, zodat de geleide stappen op /acties + badge exact de rail spiegelen.
+    prisma.company.count({ where: { tenantId } }),
+    prisma.freelancerProfile.count({ where: { tenantId } }),
+    prisma.job.count({ where: { tenantId, status: "PUBLISHED" } }),
+    prisma.company.count({ where: { tenantId, jobs: { none: { status: "PUBLISHED" } } } }),
   ]);
+
+  // Geleide opzet: de eerstvolgende concrete opzet-stap(pen) zolang de franchise nog niet volledig
+  // staat. Via de item-engine (voorheen dashboard-rail-only via `activation`) → één bron voor
+  // /acties, de zijbalk-badge én de dashboard-rail.
+  tasks.push(
+    ...franchiseGuidedSetupTasks({
+      companies,
+      publishedDiensten,
+      rosterFreelancers: freelancers,
+      companiesWithoutDiensten,
+    }),
+  );
 
   // Aggregeer per ZZP'er: één taak per professional met het aantal (bijna-)verlopende certificaten.
   const expiringByProfile = new Map<string, { name: string; count: number }>();

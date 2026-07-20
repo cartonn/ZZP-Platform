@@ -52,7 +52,7 @@ import {
 } from "@/lib/collaboration-alerts";
 import { computeFreelancerCompleteness } from "@/lib/profile";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
-import { franchiserNextActions, type NextAction, type NextActionTone } from "@/lib/next-actions";
+import { type NextActionTone } from "@/lib/next-actions";
 import {
   cascadeStage,
   isPerformanceNewerThanInvoice,
@@ -94,8 +94,6 @@ interface DashboardData {
   runningOverflow: number;
   week: WeekOverview | null;
   isNewAccount: boolean;
-  /** Geleide activatie-stappen (alleen franchiser); leeg zodra de franchise volledig staat. */
-  activation: NextAction[];
   /** Geaggregeerde certificaat-compliance van lopende samenwerkingen (alleen CLIENT). */
   complianceSnapshot?: ClientComplianceSnapshot;
   /** Inzetbaarheidsstatus van de ZZP'er zelf (alleen FREELANCER). */
@@ -366,7 +364,6 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       runningOverflow: zone.overflow,
       week,
       isNewAccount: applications === 0 && runningTotal === 0,
-      activation: [],
       engageability,
       employability,
       incomeGoalCents: profile?.monthlyIncomeGoalCents ?? null,
@@ -489,7 +486,6 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       runningOverflow: runningZonePlan(runningTotal).overflow,
       week: null,
       isNewAccount: openJobs === 0 && drafts === 0 && activeCollabs === 0,
-      activation: [],
       complianceSnapshot,
       suggestedFreelancers,
       identity: {
@@ -511,7 +507,6 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       freelancers,
       openDiensten,
       activeCollabs,
-      companiesWithoutDiensten,
       openLeads,
       verifiedFreelancers,
       expiringSoon,
@@ -521,7 +516,6 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
           prisma.freelancerProfile.count({ where: { tenantId } }),
           prisma.job.count({ where: { tenantId, status: "PUBLISHED" } }),
           prisma.collaboration.count({ where: { job: { tenantId }, status: "ACTIVE" } }),
-          prisma.company.count({ where: { tenantId, jobs: { none: { status: "PUBLISHED" } } } }),
           // Lopende acquisitie: leads die nog niet klant of afgevallen zijn.
           prisma.lead.count({ where: { tenantId, status: { in: ["KOUD", "WARM"] } } }),
           // Compliance-zegel: identiteit geverifieerd + bewijsstukken die binnenkort verlopen.
@@ -536,7 +530,7 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
             },
           }),
         ])
-      : [0, 0, 0, 0, 0, 0, 0, 0];
+      : [0, 0, 0, 0, 0, 0, 0];
     // Roster-selectie voor de #19-lijst (meest recent bewogen bovenaan, begrensd tot de zone).
     const rosterRaw = tenantId
       ? await prisma.freelancerProfile.findMany({
@@ -636,16 +630,6 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
       runningOverflow: 0,
       week: null,
       isNewAccount: companies === 0 && freelancers === 0,
-      // Geleide opzet: de guided-setup-stappen zolang de franchise nog niet volledig staat. De
-      // operationele attentiepunten (niet-inzetbare roster-ZZP'ers, te lang ongedekte diensten) komen
-      // via de item-engine (pendingTasks → `tasks`), zodat /acties, de zijbalk-badge én deze rail
-      // exact dezelfde acties tonen (voorheen waren die operationele items dashboard-only).
-      activation: franchiserNextActions({
-        companies,
-        publishedDiensten: openDiensten,
-        rosterFreelancers: freelancers,
-        companiesWithoutDiensten,
-      }),
       professionals,
       seal,
     };
@@ -716,7 +700,6 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
     runningOverflow: runningZonePlan(runningTotal).overflow,
     week: null,
     isNewAccount: false,
-    activation: [],
   };
 }
 
@@ -744,7 +727,6 @@ export default async function DashboardPage() {
       stats,
       running,
       week,
-      activation,
       engageability,
       employability,
       incomeGoalCents,
@@ -1020,12 +1002,11 @@ export default async function DashboardPage() {
     }));
     const openD = Number(stats.find((s) => s.label === "Open diensten")?.value ?? 0);
     const wk = buildCurrentWeek(new Date(), `${openD} ${openD === 1 ? "dienst" : "diensten"}`);
-    // Volgende acties: de item-niveau taken (roster-compliance, leads) én de aggregaat-acties
-    // (geleide opzet + operationele attentiepunten zoals niet-inzetbare ZZP'ers en te lang open
-    // diensten) samen, gerangschikt op dezelfde prioriteitsbanden (stabiel). Zo verdwijnt een open
-    // dienst niet zodra er toevallig één andere taak is — beide oppervlakken vullen elkaar aan.
-    const fActionSource = [...tasks, ...activation].sort((a, b) => b.priority - a.priority);
-    const fActions = tasksToActions(fActionSource);
+    // Volgende acties uit één bron: de item-engine (`tasks`) levert de geleide opzet, roster-
+    // compliance, leads én de operationele attentiepunten (niet-inzetbare ZZP'ers, te lang open
+    // diensten) — al gerangschikt op de prioriteitsbanden. `/acties`, de badge en deze rail tonen
+    // exact hetzelfde.
+    const fActions = tasksToActions(tasks);
     return (
       <WorkspaceDashboard
         header={{ title: user.name ?? "Werkruimte", subtitle: "Bemiddeling" }}

@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Bemiddelaar: geleide opzet als item-taak (single-source /acties + badge + rail)
+
+**Waarde (next-action-consistentie, DOEL 1b):** persona-sweep run 40 flagde de enige rol waar de
+single-source-invariant brak — de bemiddelaar-dashboardrail toonde geleide-opzet-stappen
+(`franchiserNextActions`: eerste opdrachtgever/dienst/roster) die `/acties` én de zijbalk-badge
+(item-engine `franchiserTasks`) niet emitteerden. Een nieuwe tenant zag 2 next-actions op de rail
+maar "Niets te doen" op `/acties` en badge = 0. De geleide opzet leeft nu volledig in de item-engine,
+zodat de drie oppervlakken exact één bron delen — spiegelt de run-38-fix voor de operationele items
+(niet-inzetbare roster-ZZP'er, te lang open dienst).
+
+- Nieuw `franchiseGuidedSetupTasks` (`src/lib/actions/tasks.ts`) wraps de guided-tak van
+  `franchiserNextActions` als **enige** bron van waarheid (tekst/href/tone/prioriteit) en levert
+  `PendingTask[]` (kind `franchise-guided-setup`, resolver `link` → `default`-tak van de
+  resolver-registry, geen UI-wiring nodig).
+- Gewired in `franchiserTasks` (`src/lib/actions/pending-tasks.ts`): 4 extra tenant-gescopete counts
+  (companies / freelancers / gepubliceerde diensten / opdrachtgevers-zonder-dienst) in de bestaande
+  `Promise.all`, zelfde definitie als het dashboard.
+- `src/app/(protected)/dashboard/page.tsx`: de franchiser-rail bron is nu puur `tasks`
+  (`tasksToActions(tasks)`); het dode `activation`-veld volledig verwijderd (type + alle sets +
+  destructure + de `franchiserNextActions`/`NextAction`-imports).
+- Read-only afleiding, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +3 tests in
+  `pending-tasks-franchiser.test.ts` (lege tenant → first-client+roster; draaiende franchise →
+  clients-without-service; volledig opgezet → geen opzet-taak).
+- Gates groen: `typecheck` · `lint` · `test` · `build` · `prettier --write .`.
+
 ## 2026-07-20 — Prod: database-connectiviteits-/schema-zelftest op /admin/systeemstatus
 
 **Waarde (go-live-verificatie):** de database is de enige kritieke productie-afhankelijkheid die

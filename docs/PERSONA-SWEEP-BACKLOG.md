@@ -45,12 +45,17 @@
 >
 > **GEPARKEERD uit deze run (DOEL 1b, next-action-audit — repro + prioriteit, voor een volgende increment):**
 >
-> - **MED (single-source-schending):** de **franchiser**-dashboardrail wijkt af van `/acties` + de
+> - ~~**MED (single-source-schending):** de **franchiser**-dashboardrail wijkt af van `/acties` + de
 >   badge. `dashboard/page.tsx:643` bouwt `franchiserNextActions(...)` en voegt die bij
 >   `fActionSource` (`:1022`), terwijl `franchiserTasks` (`pending-tasks.ts:710-849`) géén
->   guided-setup-items levert. Nieuwe tenant (`companies=0, freelancers=0`): rail toont 2
->   next-actions, `/acties` toont "Niets te doen", badge = 0. Enige rol waar de single-source-invariant
->   breekt. Fix: guided-setup via `computeTasks` voeden (of expliciet uit de rail halen).
+>   guided-setup-items levert.~~ **GEDAAN (2026-07-20, PR #852):** geleide opzet naar de item-engine
+>   geport — nieuwe `franchiseGuidedSetupTasks` (`actions/tasks.ts`) wraps de guided-tak van
+>   `franchiserNextActions` als ENIGE bron van waarheid (tekst/href/tone/prioriteit) en levert
+>   `PendingTask[]` (kind `franchise-guided-setup`, resolver `link` → `default`-tak, geen UI-wiring);
+>   gewired in `franchiserTasks` (4 extra tenant-gescopete counts in de bestaande `Promise.all`). De
+>   dashboard-rail bron is nu puur `tasks` (`activation`-veld volledig verwijderd). `/acties`, de
+>   badge én de rail delen zo exact één bron — spiegelt de run-38-fix voor de operationele items.
+>   +3 tests. Gate: typecheck, lint, unit-tests, build, prettier groen.
 > - **MED (verkeerde partij "aan zet" + tegenstrijdige subtitel):** `clientComplianceTask`
 >   (`tasks.ts:643-675`, uit `pending-tasks.ts:622-623`) toont de **opdrachtgever** een
 >   attention-taak "Certificaat van X in beoordeling — handel vóór het certificaat vervalt" wanneer

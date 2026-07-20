@@ -6,7 +6,7 @@
 // concreet ding-om-te-doen wordt één taak, zodat je op de actie kunt klikken en daar het werk doet.
 // Dezelfde prioriteitsbanden (P) worden hergebruikt zodat de rangschikking nooit afwijkt.
 
-import { P, type NextActionTone } from "@/lib/next-actions";
+import { P, franchiserNextActions, type NextActionTone } from "@/lib/next-actions";
 import { plural } from "@/lib/plural";
 import { formatEuro } from "@/lib/invoices";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
@@ -85,7 +85,8 @@ export type PendingTask =
   | (TaskBase & { kind: "franchise-open-dienst-acute" })
   | (TaskBase & { kind: "franchise-lead-followup" })
   | (TaskBase & { kind: "franchise-not-engageable"; profileId: string })
-  | (TaskBase & { kind: "franchise-stale-service"; jobId: string });
+  | (TaskBase & { kind: "franchise-stale-service"; jobId: string })
+  | (TaskBase & { kind: "franchise-guided-setup"; step: string });
 
 export type TaskKind = PendingTask["kind"];
 
@@ -921,4 +922,30 @@ export function franchiseStaleDienstTask(
     href: `/franchise/diensten/${jobId}`,
     jobId,
   };
+}
+
+/**
+ * Geleide-opzet-stappen (opdrachtgever → dienst → roster) als item-taken. Hergebruikt de guided-tak
+ * van `franchiserNextActions` als ENIGE bron van waarheid voor tekst/href/tone/prioriteit; alleen de
+ * guided inputs worden meegegeven (geen operationele items — die emit `franchiserTasks` al apart).
+ * Zo tonen `/acties`, de zijbalk-badge én de dashboard-rail exact dezelfde geleide stappen (voorheen
+ * leefden die alleen op de rail via `activation`, waardoor de single-source-invariant brak). De
+ * resolver is een deep-link (`link` → `default`-tak van de resolver-registry, geen UI-wiring nodig).
+ */
+export function franchiseGuidedSetupTasks(input: {
+  companies: number;
+  publishedDiensten: number;
+  rosterFreelancers: number;
+  companiesWithoutDiensten: number;
+}): PendingTask[] {
+  return franchiserNextActions(input).map((na) => ({
+    kind: "franchise-guided-setup",
+    id: `franchise-guided-setup:${na.id}`,
+    step: na.id,
+    title: na.title,
+    tone: na.tone,
+    priority: na.priority,
+    resolver: "link",
+    href: na.href,
+  }));
 }
