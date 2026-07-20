@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Security/privacy-audit: 2 gaten gedicht (KRITIEK erasure + HOOG stored-XSS)
+
+**Waarde (datalek-preventie op gevoelige documenten):** een adversariële security-/AVG-auditronde
+(orchestrator Opus 4.8 + 4 parallelle security-subagents op niet-overlappende oppervlakken) vond en dichtte
+twee echte gaten; de rest van het oppervlak herbevestigd schoon.
+
+- **KRITIEK (AVG art. 17):** `CREDENTIAL_REJECTED`-auditmetadata (de door de admin getypte afwijsreden van een
+  VOG/diploma — mogelijk naam/art. 9-inhoud) overleefde de account-erasure omdat de audit-scrub die rij
+  (`actorId` = admin, `entityType: "Credential"`) niet selecteerde, terwijl de credential zelf hard werd
+  verwijderd. Fix: `admin/gebruikers/actions.ts` verzamelt de credential-id's vóór verwijdering en redact hun
+  auditmetadata (`→ null`) in dezelfde transactie. Zelfde patroon als de al-gedekte `DISPUTE_OPENED`-reden.
+- **HOOG (OWASP A03/CWE-79):** `company.website` accepteerde via `z.string().url()` een `javascript:`/`data:`-
+  URI die als rauwe `href` werd gerenderd (stored XSS). Fix: nieuwe `httpUrl()`-helper in `validation.ts`
+  staat alleen `http(s)` toe (server-side gate, los van CSP).
+
+**Bestanden:** `src/lib/validation.ts` (+`httpUrl`), `src/lib/validation.test.ts` (+2),
+`src/app/(protected)/admin/gebruikers/actions.ts` (credential-audit-redactie),
+`src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (+1, KRITIEK), `docs/SECURITY-PRIVACY-BACKLOG.md`.
+**Checks:** typecheck ✓ · lint ✓ · test 4606/… ✓ · prettier ✓ · build (CI-poort verifieert). **Geparkeerd**
+(FG/juridisch): auditmetadata-mirror van `Performance/NoShowReport.rejectionReason`; `Review.comment` subject-kant;
+`toMessage`-foutredactie-consistentie; niet-Zod-validatie in 3 samenwerking-mutaties. Zie backlog.
+
 ## 2026-07-20 — Ontwerp-lab: +10 concepten (431–440, reeks 44)
 
 **Waarde (additieve design-galerij):** de galerij op `/ontwerp` groeit van 430 → **440** concepten.
