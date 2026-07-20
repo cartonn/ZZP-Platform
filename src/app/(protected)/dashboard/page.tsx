@@ -732,8 +732,13 @@ const STAGE_STATUS_CLASS: Record<NextActionTone, string> = {
 export default async function DashboardPage() {
   const session = await auth();
   const user = session!.user;
-  const role = user.role as UserRole;
   const [actor, { t }] = await Promise.all([requireActor(), getTranslator()]);
+  // Server-side waarheid (CLAUDE.md regel 1): vertak op de LIVE DB-rol uit requireActor(), niet op
+  // de mogelijk verouderde rol in de JWT. De sessie is een stateless JWT (max. 8u geldig, geen
+  // server-side revocatie); een rolwijziging in de DB — de enige weg waarop een ADMIN/FRANCHISER-rol
+  // verandert — mag een nog-geldige oude sessie niet het platformbrede admin-dashboard (kruis-tenant
+  // gebruikers-/opdracht-tellingen + namen van andere partijen) laten tonen. OWASP A01 / CWE-613.
+  const role = actor.role;
   const [
     {
       stats,

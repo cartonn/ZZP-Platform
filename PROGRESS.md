@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Security/privacy-audit (ronde 20b): live DB-rol op dashboard + veilige fout-hergooi
+
+**Waarde (geen datalek, geen kruis-tenant-blootstelling):** orchestrator (Opus 4.8) + 4 parallelle
+adversariële security-subagents op niet-overlappende oppervlakken (server actions/`api/**`/cascade;
+AVG/privacy; cross-tenant/injectie/SSRF/upload; auth/secrets/headers/`npm audit`), delta-focus op
+PR's #844–#849. Twee bevindingen gevonden en gedicht (rood→groen); rest herbevestigd schoon.
+
+- **HOOG (OWASP A01 / CWE-613)** — `src/app/(protected)/dashboard/page.tsx` vertakte op de stale
+  **JWT-rol** (`session.user.role`) i.p.v. de live DB-rol (`actor.role` uit `requireActor()`). Een
+  in de DB gedegradeerde ADMIN/FRANCHISER bleef tot 8u (JWT-`maxAge`) het platformbrede admin-dashboard
+  zien — kruis-tenant gebruikers-/opdracht-tellingen + namen van andere partijen. Fix: `const role =
+actor.role`. +2 tests (`dashboard/live-role.test.tsx`, rood→groen).
+- **MIDDEL (OWASP A05 / CWE-209)** — `toMessage` in `samenwerkingen/[id]/actions.ts` gooide rauwe
+  `Error.message` woordelijk terug op 10 geld-/dispuut-cascade-acties (Prisma/system-fout kon interne
+  details echoën, geen server-side log). Fix: nieuwe geëxporteerde `throwSafeActionError` in
+  `src/lib/safe-action-error.ts`; `toMessage` delegeert er nu naar. +4 tests, rood→groen.
+- Gates groen: `typecheck` · `lint` · `test` (**440 files / 4648 tests**) · `build` · `prettier --check .`.
+- Backlog bijgewerkt (`docs/SECURITY-PRIVACY-BACKLOG.md`, ronde 2026-07-20b): 2× OPGELOST, 3 items
+  bevestigd geparkeerd (HealthIncident-IP-retentie AVG art. 30; door-tegenpartij-geschreven vrije-tekst-
+  reden erasure AVG art. 17; handmatige Zod-validatie LOW).
+
 ## 2026-07-20 — Persona-sweep run 40: dispuut-vries op de resterende statusmutatie-paden (DOEL 2)
 
 **Waarde (integriteit governance-hold):** een open dispuut hoort de héle samenwerking te bevriezen

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { toSafeActionError, isInternalError, GENERIC_ACTION_ERROR } from "@/lib/safe-action-error";
+import {
+  toSafeActionError,
+  throwSafeActionError,
+  isInternalError,
+  GENERIC_ACTION_ERROR,
+} from "@/lib/safe-action-error";
 import { AuthorizationError } from "@/lib/authz";
 import { logger } from "@/lib/observability/logger";
 
@@ -88,5 +93,42 @@ describe("toSafeActionError", () => {
 
   it("gebruikt de fallback bij een niet-Error waarde", () => {
     expect(toSafeActionError("kapot", "Onbekende fout.")).toBe("Onbekende fout.");
+  });
+});
+
+describe("throwSafeActionError", () => {
+  it("hergooit een technische Prisma-fout als een generieke, GELOGDE Error (geen leak)", () => {
+    const leaky = new FakePrismaError("Unique constraint failed on the fields: (`email`)");
+    expect(() => throwSafeActionError(leaky)).toThrow(GENERIC_ACTION_ERROR);
+    try {
+      throwSafeActionError(leaky);
+    } catch (e) {
+      expect((e as Error).message).not.toContain("constraint");
+      expect((e as Error).message).not.toContain("email");
+    }
+    // 2× aangeroepen hierboven → 2× gelogd server-side.
+    expect(logger.error).toHaveBeenCalledTimes(2);
+  });
+
+  it("hergooit een system-error zonder hostname/poort te lekken", () => {
+    expect(() =>
+      throwSafeActionError(new FakeSystemError("connect ECONNREFUSED 10.0.0.5:5432")),
+    ).toThrow(GENERIC_ACTION_ERROR);
+    try {
+      throwSafeActionError(new FakeSystemError("connect ECONNREFUSED 10.0.0.5:5432"));
+    } catch (e) {
+      expect((e as Error).message).not.toContain("10.0.0.5");
+    }
+  });
+
+  it("behoudt de gecureerde message van een applicatiefout", () => {
+    expect(() =>
+      throwSafeActionError(new AuthorizationError("Geen toegang tot deze resource.")),
+    ).toThrow("Geen toegang tot deze resource.");
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("hergooit een gegooide niet-Error waarde als een generieke Error (geen rauwe doorgifte)", () => {
+    expect(() => throwSafeActionError("kapot", "Onbekende fout.")).toThrow("Onbekende fout.");
   });
 });

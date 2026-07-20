@@ -4,6 +4,79 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-20b (basis: `main` @ aa79fcdc)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken, delta-focus op de nieuwste code sinds `d11f7f5e` (PR's #844–#849: Sentry error-monitoring +
+zelftest, upload-scanner-zelftest, dispuut-vries op `createPerformance`/contract/collab-statuswijziging,
+franchise re-engagement, "eerder samengewerkt"-signaal) — (1) alle server actions + `api/**` route-handlers +
+cascade-command-laag (IDOR/authz/mass-assignment/statusovergang/foutlek); (2) AVG — dataminimalisatie,
+erasure-volledigheid, PII-in-logs, CSV-injectie, k-anonimiteit, derden; (3) cross-tenant-isolatie FRANCHISER +
+injectie (XSS/SQL) + SSRF + upload + open redirect; (4) auth/sessie/secrets/headers/CSP + `npm audit` +
+CVE-2025-29927. Kader: OWASP Top 10 (A01/A03/A05/A10) + ASVS + AVG art. 5/9/17/30/32. Stack: Next.js 15.5.19
+(voorbij CVE-2025-29927), Auth.js v5-beta.31, Prisma 6.19.3. Orchestrator verifieerde: `npm audit --omit=dev`
+→ 0 kwetsbaarheden; enige `dangerouslySetInnerHTML` = nonce-gated theme-script; geen
+`$queryRawUnsafe`/user-URL-SSRF; storage path-traversal-guard + magic-byte-sniffing intact.
+
+**Twee bevindingen gevonden en OPGELOST (rood→groen):**
+
+### OPGELOST — HOOG: dashboard vertakte op de stale JWT-rol i.p.v. de live DB-rol (OWASP A01 / CWE-613, PR volgt)
+
+- **Repro:** `src/app/(protected)/dashboard/page.tsx` berekende `const role = user.role as UserRole` uit de
+  **JWT** (`session.user.role`) en voedde die aan `dashboardData(role, …)`, terwijl de vers-uit-de-DB gelezen
+  `actor` (via `requireActor()`) op de volgende regel wél beschikbaar was maar zijn `.role` nooit werd gebruikt.
+  De sessie is een stateless JWT (`maxAge` 8u, geen server-side revocatie; de `jwt`-callback herleest de rol niet
+  per request). `dashboardData` valt voor élke niet-FREELANCER/CLIENT/FRANCHISER-rol door naar de **platformbrede
+  ADMIN-tak** (`prisma.user.count()`, `prisma.job.count()`, kruis-tenant lopende samenwerkingen mét de échte namen
+  van ZZP'ers én opdrachtgevers over het hele platform). Wordt een ADMIN/FRANCHISER in de DB gedegradeerd (de enige
+  weg: directe DB-edit — self-service/import staat alleen FREELANCER/CLIENT toe), dan blijft `/dashboard` tot 8u
+  het platformbrede admin-overzicht tonen aan iemand wiens live rol dat niet meer is. Elk ander authz-oppervlak in
+  de codebase leest de rol wél live via `requireActor`/`requireRole`; dit dashboard was de enige uitzondering.
+- **Geschonden regel:** CLAUDE.md regel 1 (server-side is de waarheid; client mag tonen, nooit beslissen); OWASP
+  A01 Broken Access Control / CWE-613 Insufficient Session Expiration (kruis-tenant PII-blootstelling).
+- **Fix:** `const role = actor.role` (live DB-rol uit `requireActor()`), met toelichtende comment. Test:
+  `dashboard/live-role.test.tsx` (+2, HOOG, rood→groen): een live FREELANCER met een stale ADMIN-JWT triggert
+  de platformbrede `prisma.user.count()` NIET; een live ADMIN met een stale FREELANCER-JWT krijgt WEL de admin-tak
+  (en niet de FREELANCER-only aanbevelingen).
+
+### OPGELOST — MIDDEL: `toMessage` lekte rauwe fout-messages op geld-/dispuut-acties (OWASP A05 / CWE-209, PR volgt)
+
+- **Repro:** `src/app/(protected)/samenwerkingen/[id]/actions.ts` — de lokale `toMessage`-helper (`if (e instanceof
+Error) throw new Error(e.message)`) gooit de message van élke `Error` woordelijk terug voor 10 plain
+  (niet-`useActionState`) geld-/status-cascade-acties (`signContractAction`, `approve/rejectPerformanceAction`,
+  `submit/approve/rejectInvoiceAction`, `confirmPaymentAction`, `creditInvoiceAction`, `open/resolveDisputeAction`).
+  Anders dan `toSafeActionError` (elders in ditzelfde bestand wél gebruikt) filtert het geen Prisma-/systeemfout:
+  een onverwachte `PrismaClientKnownRequestError`/`ECONNREFUSED` kan kolom-/constraint-namen of hostnames/paden
+  echoën, en de fout wordt niet server-side gelogd. Next.js' productie-redactie mitigeert vandaag het meeste, maar
+  dit was de enige plek in het herziene oppervlak die afweek van de eigen CWE-209-controle.
+- **Geschonden regel:** OWASP A05:2021 / CWE-209 Information Exposure Through an Error Message.
+- **Fix:** nieuwe geëxporteerde `throwSafeActionError(e, fallback?)` in `src/lib/safe-action-error.ts` (throw-vorm
+  van `toSafeActionError`: gecureerde Nederlandse messages passeren, Prisma/system/niet-Error → server-side gelogd
+  - generiek). `toMessage` delegeert er nu naar; ongebruikte `CascadeError`-import verwijderd. Test:
+    `safe-action-error.test.ts` (+4, MIDDEL, rood→groen).
+
+**Herbevestigd schoon (van-nul-af her-geverifieerd, niet op docs vertrouwd):** franchiser cross-tenant-isolatie
+airtight (elke franchise-query bakt `tenantId` uit `actor.tenantId` in of volgt `assertSameTenant`/`ownsViaTenant`;
+de nieuwe `opdrachtgevers/[id]`-aggregaten draaien op een reeds tenant-geverifieerde `company.id`); dispuut-vries
+(`assertNotDisputed` + TOCTOU-herlezing binnen de effect-transactie) consistent over contract/performance/invoice/
+payment; alle zeven admin-zelftests auth→rol→rate-limit→actie→audit, nooit DSN/secret in output; Sentry
+`sendDefaultPii:false` + PII-scrubbing; `market-rate` k-anon-vloer (≥10) test-locked; erasure-dekking
+model-voor-model volledig; geen user-URL-SSRF; storage path-traversal + magic-byte-guard; CSP nonce+strict-dynamic;
+`npm audit --omit=dev` 0; wachtwoord-reset/share-tokens crypto-sterk + timing-safe + single-use.
+
+**Geparkeerd (deze ronde bevestigd, niet nieuw — vereist FG/juridische sign-off of laag-risico consistentie):**
+
+- **MIDDEL (AVG art. 30):** `HealthIncident.evidence`/`summary` (`src/lib/monitoring/detectors.ts`) slaat rauwe
+  IP-adressen op (`LOGIN_BURST`/`PASSWORD_RESET_FLOOD`) zonder retentie/purge-taak en zonder
+  `processing-register.ts`-entry. Legitiem belang (beveiliging) waarschijnlijk rechtmatig, maar bewaartermijn +
+  register-grondslag ontbreken. Aanbevolen: purge-taak (bv. 90d) + registeritem.
+- **MIDDEL/HOOG (AVG art. 17):** `Performance.rejectionReason` / `NoShowReport.reason`+`verdictNote` /
+  `Review.comment` (subject-zijde) — door de tegenpartij geschreven vrije tekst die de erasure niet raakt.
+  Bewuste retentie vs. redactie is een FG/juridische afweging (MENSENWERK §5). Bijbehorende auditlog-metadata
+  (`PERFORMANCE_REJECTED`/`INVOICE_REJECTED`/`NO_SHOW_JUDGED`) moet dezelfde beslissing volgen.
+- **LAAG (architectuurdrift):** `setOrtProfileAction`/`setWeekdaysAction`/`setAgreementTypeAction` valideren
+  handmatig i.p.v. via Zod (correct/niet-exploiteerbaar; consistentie-fix).
+
 ## Ronde 2026-07-20 (basis: `main` @ d11f7f5e)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-security-subagents op niet-overlappende
