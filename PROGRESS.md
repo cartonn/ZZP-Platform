@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Persona-sweep run 39: dispuut-vries op `createPerformance` (DOEL 2, defense-in-depth)
+
+**Wat (robuustheid/consistentie):** kritische-gebruiker-sweep over alle vier rollen op de verse
+prod-build + idempotente demo-seed (ephemere SQLite `qa.db`, `node scripts/start.mjs` poort 3100).
+Drie parallelle Opus-audits (cascade/invoice-authz + numerieke grenzen; next-action-correctheid;
+tenant-isolatie + route-handlers). Live: alle rollen `/dashboard`+`/acties` → 200, nul 5xx;
+privilege-escalatie (niet-admin → `/admin/*`; admin → `/franchise`) → 307; junk-id → soft-404, nooit 500. Eén MED gevonden + gefixt; drie LOW geparkeerd (zie `docs/PERSONA-SWEEP-BACKLOG.md` run 39).
+
+- **`src/lib/cascade/performance-commands.ts`** — `createPerformance` was de enige prestatie-command
+  zonder `assertNotDisputed`-vries (álle siblings hebben 'm). Een open dispuut bevriest de cascade,
+  maar een ZZP'er kon tóch een nieuwe concept-prestatie op de bevroren deal vastleggen. Fix: expliciete
+  `assertNotDisputed(input.collaborationId)` ná de ACTIVE-check, symmetrisch met de siblings. Geen
+  reachable geld-/statuslek vandaag (DRAFT is inert tot indienen), maar sluit de invariant "dispuut
+  bevriest de cascade" volledig.
+- **`src/lib/cascade/create-performance-dispute-freeze.test.ts`** (+2 tests) — rood→groen: weigert
+  concept-prestatie bij open dispuut; staat toe zonder dispuut.
+- **Checks:** `npm run typecheck` · `npm run lint` · `npm run test` (**4621 passed**) · `npm run build`
+  (exit 0) · `npx prettier --write .` — allemaal groen.
+
 ## 2026-07-20 — "Eerder samengewerkt met deze opdrachtgever"-vertrouwenssignaal voor de ZZP'er
 
 **Waarde (vertrouwen/beslissnelheid — ZZP'er):** de opdrachtgever zag op `/kandidaten` al of hij een

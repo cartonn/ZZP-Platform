@@ -1,5 +1,56 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-20 (run 39) · **main-commit basis:** `dd6e2159`
+> **Uitkomst:** **1 MED (DOEL 2, defense-in-depth — ontbrekende dispuut-vries op `createPerformance`)
+> gevonden én OPGELOST.** Verse prod-build (`npm run build`, exit 0) + idempotente demo-seed
+> (`SEED_DEMO=true`; 13 samenwerkingen / 7 facturen / 48 grootboekregels) op ephemere SQLite
+> (`qa.db`), prod-server (`node scripts/start.mjs`, poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`).
+> Vier rollen ingelogd via het echte credentials-endpoint (`demo1234`). Drie parallelle Opus-audits:
+> (1) cascade/invoice-authz + numerieke grenzen, (2) next-action-correctheid over alle vier rollen,
+> (3) tenant-isolatie + route-handlers/document-privacy.
+>
+> **DOEL 1 (werkt het, live):** alle kernschermen per rol → 200, nul 5xx (server-log schoon). Elke rol
+> `/dashboard` + `/acties` → 200.
+>
+> **DOEL 1b (next-action-correctheid):** géén wrong/missing/duplicate/niet-verdwijnende next-action
+> gevonden. Één bron (`computeTasks`) voedt `/acties`, de badge én de dashboard-rail; stage-vs-item
+> in overeenstemming; disputed-samenwerkingen consistent uitgesloten voor beide partijen (alleen ADMIN
+> "aan zet"); dedup-logica (rejected-vs-missing-mandatory, collab-gated-vs-generiek-expiring,
+> overdue-rollup-vs-per-collab) correct. (Geparkeerde MED "verlopen niet-verplicht certificaat" wordt
+> al gedekt door open PR #841 — niet gedupliceerd.)
+>
+> **DOEL 2 (adversarieel):** privilege-escalatie (ZZP/CLIENT/FRANCHISER → `/admin/*`; admin →
+> `/franchise`) → **307-redirect**, nooit 200/500. Junk/traversal-id → soft-404 (nooit 500);
+> `/api/documents/<junk>` → 404. Document-download/PDF/dossier-routes volgen consistent
+> auth→ownership→404-vs-403 + audit (geen existence-oracle); cron/webhook fail-closed. Franchise-
+> tenant-isolatie (`ownsViaTenant`/`assertSameTenant`) sluitend; geen cross-tenant-lek.
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 2, defense-in-depth — dispuut bevriest de cascade niet volledig):**
+> `createPerformance` (`cascade/performance-commands.ts:109`) was de **enige** prestatie-command die
+> **geen** `assertNotDisputed` aanriep — álle siblings (`updatePerformance`/`submitPerformance`/
+> `approvePerformance`/`autoApprovePerformance`/`rejectPerformance`) doen dat wél. Gevolg: een open
+> dispuut bevriest de cascade (`disputedAt` gezet, `status` blijft ACTIVE), maar een ZZP'er kon tóch
+> nog een nieuwe **concept**-prestatie (DRAFT) vastleggen op een bevroren deal. Vandaag geen
+> geld-/statuslek (een DRAFT is inert tot `submitPerformance`, dat de vries wél afdwingt), maar een
+> landmijn tegen de invariant "dispuut bevriest de cascade" (CLAUDE.md) — een bevroren deal mag geen
+> nieuw werk accumuleren. **Geschonden regel:** statusovergang/dispuut-vries + consistentie met de
+> sibling-familie. **Fix:** `await assertNotDisputed(input.collaborationId)` toegevoegd ná de
+> ACTIVE-check, symmetrisch met de siblings. Rood→groen: `create-performance-dispute-freeze.test.ts`
+> (2 tests: weigert concept-prestatie bij open dispuut; staat toe zonder dispuut).
+>
+> **GEPARKEERD uit deze run (repro + prioriteit, voor een volgende increment):**
+>
+> - **LOW (DOEL 2, robuustheid/consistentie):** `updatePerformance` heeft alleen een
+>   pre-transactionele terminale-status-rem (bij-design, geen event/effect); de enige caller pairt het
+>   altijd met `submitPerformance` (dat de volledige TOCTOU-grendel draagt). Geen geld-/statuslek —
+>   park.
+> - **LOW (DOEL 1b, dode metadata):** `PendingTask.resolver` (`actions/tasks.ts:32`) wordt nooit door
+>   de UI gelezen (`action-list.tsx` schakelt op `task.kind` met een eigen map). Gedrag is correct,
+>   maar het veld kan stil driften. Overweeg wiren-op-`resolver` of het veld droppen.
+> - **LOW (DOEL 2):** admin-bulk-approve (`(protected)/prestaties/actions.ts:31-36`) is een dode knop
+>   voor ADMIN (query filtert `company.userId = actor.id`, geen ADMIN-special-case). Admin routeert
+>   niet naar `/prestaties`; faalt veilig/leeg.
+
 > **Datum:** 2026-07-19 (run 38) · **main-commit basis:** `fb4d4f2e`
 > **Uitkomst:** **1 HIGH (DOEL 1b, cross-surface-inconsistentie / ontbrekende next-action voor de
 > bemiddelaar) gevonden én OPGELOST.** Verse prod-build (`npm run build`, exit 0) + drie parallelle

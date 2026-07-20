@@ -120,6 +120,11 @@ export async function createPerformance(
     throw new CascadeError("Alleen de ZZP'er kan een prestatie vastleggen.");
   }
   if (col.status !== "ACTIVE") throw new CascadeError("De samenwerking is niet actief.");
+  // Dispuut-vries (symmetrisch met álle prestatie-siblings: update/submit/approve/autoApprove/reject).
+  // Een open dispuut bevriest de cascade — dan mag er ook geen nieuwe concept-prestatie bijkomen die op
+  // een bevroren deal naar (her)indiening leeft. De ACTIVE-check dekt terminale status, maar niet de
+  // dispuut-vries (`disputedAt` gezet terwijl `status` ACTIVE blijft); vandaar de expliciete lees.
+  await assertNotDisputed(input.collaborationId);
 
   const perf = await prisma.performance.create({
     data: {
