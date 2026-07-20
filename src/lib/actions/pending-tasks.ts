@@ -70,7 +70,7 @@ import { reviewPromptForCollaboration } from "@/lib/collaboration-review-prompt"
 import { summarizeCollaborationRenewal, RENEWAL_WINDOW_DAYS } from "@/lib/collaboration-renewal";
 import { reviewBlindDays } from "@/lib/config";
 import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
-import { clientCredentialAlerts } from "@/lib/collaboration-alerts";
+import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import {
   collaborationCredentialExpiryConcerns,
   type CollabCredentialInput,
@@ -620,8 +620,12 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
   // Compliance-taken bovenaan: het zwaarst-wegende opdrachtgever-signaal (lopend werk met een
   // certificaat-gat). Eén taak per samenwerking; de rangschikking (P.complianceRipple/expiring)
   // regelt rankTasks. Sluit gemiste/verlopen (gap) vóór binnenkort-verlopend (warning).
+  // `clientHasComplianceAction`-gate: een melding die enkel `inReview` (verse SUBMITTED-indiening)
+  // is, geeft de opdrachtgever géén taak — de ADMIN verifieert, de opdrachtgever kan niets doen en
+  // de taak zou nooit verdwijnen (niet-afhandelbare badge-inflatie + tegenstrijdige vervalsubtitel).
   for (const a of complianceAlerts)
-    tasks.push(clientComplianceTask(a.collaborationId, a.freelancerName, a.jobTitle, a.alert));
+    if (clientHasComplianceAction(a.alert))
+      tasks.push(clientComplianceTask(a.collaborationId, a.freelancerName, a.jobTitle, a.alert));
 
   if (company) {
     const { score, missing } = computeCompanyCompleteness({

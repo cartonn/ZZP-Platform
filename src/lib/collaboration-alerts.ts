@@ -57,6 +57,24 @@ export function assessCollaborationCredentials(
   };
 }
 
+/**
+ * Is de OPDRACHTGEVER de partij die aan zet is bij deze certificaat-melding?
+ *
+ * - `missing`/`expired` (gap) of `expiringSoon` → **ja**: er is een geldig certificaat dat een gat
+ *   vertoont of dreigt te vervallen; de opdrachtgever moet de ZZP'er om vernieuwing/aanlevering vragen.
+ * - **alleen `inReview`** (een verse SUBMITTED-indiening die nog niet geverifieerd is) → **nee**: de
+ *   ADMIN is aan zet (verifiëren), niet de opdrachtgever. Hij kan niets doen en de melding verdwijnt
+ *   pas als de admin verifieert — een `inReview`-only-melding hoort dus niet als openstaande
+ *   next-action in `/acties`, de "Volgende acties"-rail of de zijbalk-badge (dan zou een niet-
+ *   afhandelbare taak de badge blijvend opblazen). Het blijft wél informatief in de dashboard-
+ *   momentopname (`summarizeClientCompliance`), maar dat is context, geen actie.
+ *
+ * Pure functie (geen I/O); één bron voor de emissie-gate in de item-engine.
+ */
+export function clientHasComplianceAction(alert: CredentialAlert): boolean {
+  return alert.missing.length > 0 || alert.expired.length > 0 || alert.expiringSoon.length > 0;
+}
+
 /** Zeer korte melding zonder naam/opdracht — voor compacte plekken (bv. een samenwerkingskaart). */
 export function shortCredentialAlert(alert: CredentialAlert): string {
   const types = (list: CredentialType[]) => list.map((t) => CREDENTIAL_TYPE_LABEL[t]).join(", ");
