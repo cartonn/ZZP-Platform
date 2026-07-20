@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { readEnv } from "@/lib/env";
+import { detectDbProvider } from "@/lib/services/db-selftest";
 import { evaluateReadiness } from "@/lib/observability/readiness";
 import { collectSystemStatus } from "@/lib/system-status";
 import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
@@ -10,6 +11,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SystemStatusPanel } from "@/components/admin/system-status-panel";
 import { CronHeartbeatCard } from "@/components/admin/cron-heartbeat-card";
 import { BackupHeartbeatCard } from "@/components/admin/backup-heartbeat-card";
+import { DbSelfTest } from "@/components/admin/db-selftest";
 import { StorageSelfTest } from "@/components/admin/storage-selftest";
 import { MailSelfTest } from "@/components/admin/mail-selftest";
 import { RateLimitSelfTest } from "@/components/admin/ratelimit-selftest";
@@ -52,6 +54,7 @@ export default async function SysteemstatusPage() {
       <SystemStatusPanel status={status} dbReachable={readiness.ready} />
       <CronHeartbeatCard freshness={cronFreshness} />
       <BackupHeartbeatCard freshness={backupFreshness} />
+      <DbSelfTest provider={detectDbProvider(process.env.DATABASE_URL)} />
       <StorageSelfTest driverMode={env.STORAGE_DRIVER} />
       <MailSelfTest driverMode={env.EMAIL_DRIVER} />
       <RateLimitSelfTest storeMode={env.RATE_LIMIT_STORE} />

@@ -3,10 +3,13 @@
 import { randomUUID } from "node:crypto";
 import { requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
+import { prisma } from "@/lib/db";
+import { parsePoolConfig } from "@/lib/db-connection";
 import { requestMeta } from "@/lib/request-meta";
 import {
   billingSelfTestRateLimiter,
   createRateLimitStore,
+  dbSelfTestRateLimiter,
   errorMonitoringSelfTestRateLimiter,
   mailSelfTestRateLimiter,
   rateLimitSelfTestRateLimiter,
@@ -15,6 +18,7 @@ import {
   UpstashRateLimitStore,
   verifierSelfTestRateLimiter,
 } from "@/lib/rate-limit";
+import { detectDbProvider, runDbSelfTest, type DbSelfTestReport } from "@/lib/services/db-selftest";
 import { probeErrorMonitoring } from "@/lib/observability/report";
 import {
   runErrorMonitoringSelfTest,
@@ -413,6 +417,64 @@ export async function runErrorMonitoringSelfTestAction(): Promise<ErrorMonitorin
       active: report.active,
       packageInstalled: report.packageInstalled,
       delivered: report.delivered,
+    },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
+export type DbSelfTestState = { ok: true; report: DbSelfTestReport } | { ok: false; error: string };
+
+/**
+ * Draait een connectiviteits-/schema-zelftest tegen de databank (admin-only). Volgt de mutatieketen
+ * (auth → rol → rate-limit → actie → audit). De probes zijn **read-only** (SELECT 1 + bestaanscheck
+ * op kern-tabellen) — geen mutatie, niets op te ruimen — en bewijzen dat de databank bereikbaar is,
+ * op de verwachte provider draait en dat het schema/de migratie daadwerkelijk is toegepast (een
+ * half-mislukte `prisma db push` op boot zou anders stil een verouderd schema achterlaten). De
+ * uitvoer bevat nooit de DATABASE_URL of secrets — alleen de afgeleide provider, latency, een
+ * samenvatting van de pool-config en per-stap-uitkomsten.
+ */
+export async function runDbSelfTestAction(): Promise<DbSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await dbSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const provider = detectDbProvider(process.env.DATABASE_URL);
+  const report = await runDbSelfTest({
+    provider,
+    pool: parsePoolConfig({
+      DATABASE_CONNECTION_LIMIT: process.env.DATABASE_CONNECTION_LIMIT,
+      DATABASE_POOL_TIMEOUT: process.env.DATABASE_POOL_TIMEOUT,
+      DATABASE_PGBOUNCER: process.env.DATABASE_PGBOUNCER,
+    }),
+    now: () => Date.now(),
+    probe: {
+      ping: () => prisma.$queryRaw`SELECT 1`,
+      // Read-only bestaanscheck op enkele kern-tabellen (LIMIT 1); werpt wanneer het schema
+      // ontbreekt (bv. "relation does not exist" / "no such table").
+      checkSchema: () =>
+        Promise.all([
+          prisma.user.findFirst({ select: { id: true } }),
+          prisma.auditLog.findFirst({ select: { id: true } }),
+          prisma.credential.findFirst({ select: { id: true } }),
+        ]),
+    },
+  });
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "DB_SELFTEST_RUN",
+    entityType: "Database",
+    entityId: provider,
+    metadata: {
+      ok: report.ok,
+      provider: report.provider,
+      steps: report.steps.map((s) => ({ key: s.key, ok: s.ok })),
     },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
