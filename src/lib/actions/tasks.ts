@@ -58,7 +58,11 @@ export type PendingTask =
       missing?: string[];
     })
   | (TaskBase & { kind: "company-complete"; missing?: string[] })
-  | (TaskBase & { kind: "credential-fix"; credId: string; cause: "rejected" | "expiring" })
+  | (TaskBase & {
+      kind: "credential-fix";
+      credId: string;
+      cause: "rejected" | "expiring" | "expired";
+    })
   | (TaskBase & { kind: "credential-collab-expiry"; credId: string; collabId: string })
   | (TaskBase & { kind: "mandatory-document"; docType: string; cause: "missing" | "expired" })
   | (TaskBase & { kind: "admin-verify-credential"; credId: string })
@@ -311,23 +315,33 @@ export function companyCompletenessTask(score: number, missing: string[]): Pendi
   };
 }
 
+const CREDENTIAL_FIX_TITLE: Record<"rejected" | "expiring" | "expired", string> = {
+  rejected: "Afgewezen certificaat opnieuw indienen",
+  // Een certificaat vernieuwt zichzelf niet — het verloopt; consistent met de notificatie
+  // ("Certificaat verloopt binnenkort") en de next-action-engine.
+  expiring: "Certificaat verloopt binnenkort",
+  // Al verlopen (niet-verplicht): vernieuwen herstelt het vertrouwensdossier.
+  expired: "Verlopen certificaat vernieuwen",
+};
+
+const CREDENTIAL_FIX_PRIORITY: Record<"rejected" | "expiring" | "expired", number> = {
+  rejected: P.credentialRejected,
+  expiring: P.credentialExpiring,
+  expired: P.credentialExpired,
+};
+
 export function credentialFixTask(
   credId: string,
   title: string,
-  cause: "rejected" | "expiring",
+  cause: "rejected" | "expiring" | "expired",
 ): PendingTask {
   return {
     kind: "credential-fix",
     id: `credential-fix:${credId}`,
-    title:
-      cause === "rejected"
-        ? "Afgewezen certificaat opnieuw indienen"
-        : // Een certificaat vernieuwt zichzelf niet — het verloopt; consistent met de notificatie
-          // ("Certificaat verloopt binnenkort") en de next-action-engine.
-          "Certificaat verloopt binnenkort",
+    title: CREDENTIAL_FIX_TITLE[cause],
     subtitle: title,
     tone: "attention",
-    priority: cause === "rejected" ? P.credentialRejected : P.credentialExpiring,
+    priority: CREDENTIAL_FIX_PRIORITY[cause],
     resolver: "drawer",
     href: `/certificaten/${credId}/bewerken`,
     credId,

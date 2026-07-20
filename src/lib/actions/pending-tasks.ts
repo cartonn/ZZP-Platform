@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
 import { type Actor } from "@/lib/authz";
 import { type Availability } from "@/lib/enums";
 import { computeFreelancerCompleteness, computeCompanyCompleteness } from "@/lib/profile";
-import { mandatoryDocuments } from "@/lib/mandatory-documents";
+import { mandatoryDocuments, MANDATORY_CREDENTIAL_TYPES } from "@/lib/mandatory-documents";
 import { computeEngageability } from "@/lib/engageability";
 import { formatMissing } from "@/lib/next-actions";
 import { type FreelancerCredential } from "@/lib/matching";
@@ -282,6 +282,15 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
       )
         // Uitgesteld: kan een samenwerking-gebonden verval-taak worden (dedup verderop).
         expiringCreds.push({ id: c.id, title: c.title });
+      else if (
+        c.status === "EXPIRED" &&
+        !MANDATORY_CREDENTIAL_TYPES.includes(c.type as (typeof MANDATORY_CREDENTIAL_TYPES)[number])
+      )
+        // Een écht verlopen NIET-verplicht certificaat (diploma/certificaat/licentie/overig) krijgt
+        // een blijvende vernieuw-taak. Verplichte types (VOG/verzekering) worden hieronder al door de
+        // mandatoryDocumentTask("expired") gedekt (hogere band, blokkeert inzetbaarheid) — daar geen
+        // dubbele rij.
+        tasks.push(credentialFixTask(c.id, c.title, "expired"));
     }
     // Ontbrekend/verlopen verplicht document = taak (blokkeert inzetbaarheid). In beoordeling
     // = geen taak: daar is de admin aan zet, niet de ZZP'er.

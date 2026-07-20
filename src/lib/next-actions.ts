@@ -51,6 +51,7 @@ export const P = {
   proposeCollaboration: 68, // geaccepteerde kandidaat wacht nog op een samenwerkingsvoorstel — rond de hire af
   credentialExpiringForCollab: 75, // vereist certificaat van een lopende samenwerking verloopt binnenkort — urgenter dan een los verlopend certificaat
   credentialExpiring: 70, // certificaat verloopt binnenkort
+  credentialExpired: 69, // niet-verplicht certificaat is verlopen — vernieuwen (onder "verloopt binnenkort": daar is de vervaldatum nog te redden)
   verificationQueue: 70, // wacht op verificatie (admin)
   supportOpen: 66, // openstaande supporttickets — onbeantwoord/nieuw (admin)
   vatDeadlineOverdue: 74, // BTW-aangifte over de uiterste indieningsdatum (fiscale boete-risico)

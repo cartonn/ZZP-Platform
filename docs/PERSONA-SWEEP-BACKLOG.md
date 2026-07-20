@@ -57,10 +57,13 @@ deadline.ts:previousQuarter`) checkt uitsluitend het net-afgesloten kwartaal; ee
 >   `previousQuarter(now)` terug, oudste-eerst; data-loader `getVatDeadlinesForActor` (plural) +
 >   pending-tasks-wiring emit één taak per onafgewikkeld kwartaal. Een overgeslagen kwartaal verdwijnt
 >   niet meer stil bij de rollover. +11 tests. Gate groen.
-> - **MED (DOEL 1b):** een échte-verlopen (`EXPIRED`) NIET-verplicht certificaat (DIPLOMA/CERTIFICATE/
+> - ~~**MED (DOEL 1b):** een échte-verlopen (`EXPIRED`) NIET-verplicht certificaat (DIPLOMA/CERTIFICATE/
 >   LICENSE/OTHER) geeft de ZZP'er na de expiry-notificatie géén blijvende vernieuw-next-action
 >   (`pending-tasks.ts:269-279` matcht alleen REJECTED/expiring-VERIFIED, niet `EXPIRED`; mandatory
->   dekt alleen VOG/INSURANCE). Voeg een `"expired"`-cause toe aan `credentialFixTask` voor alle types.
+>   dekt alleen VOG/INSURANCE).~~ **GEDAAN (2026-07-20, PR #841):** `"expired"`-cause toegevoegd aan
+>   `credentialFixTask` (band `P.credentialExpired = 69`); `pending-tasks.ts` emit die voor een EXPIRED
+>   certificaat van een NIET-verplicht type (verplichte types blijven bij `mandatoryDocumentTask("expired")`
+>   → geen dubbele rij). +3 tests. Gate groen.
 > - **LOW (DOEL 2):** admin-bulk-approve (`prestaties/actions.ts:31-36`) is een dode knop voor ADMIN
 >   (query filtert `company.userId = actor.id`, geen ADMIN-special-case zoals `approvePerformance`).
 >
