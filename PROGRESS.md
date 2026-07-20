@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Persona-sweep run 40: dispuut-vries op de resterende statusmutatie-paden (DOEL 2)
+
+**Waarde (integriteit governance-hold):** een open dispuut hoort de héle samenwerking te bevriezen
+tot de admin het oplost (`resolveDispute`, ADMIN-only). De cascade-command-familie deed dat al
+(`assertNotDisputed` / in-tx `disputeGuardCollaborationId`), maar twee statusmutatie-paden ontbraken —
+waardoor een partij een bevroren deal alsnog kon finaliseren of activeren.
+
+- **`src/app/(protected)/samenwerkingen/actions.ts`** (MED) — `applyCollaborationStatusChange` las
+  `disputedAt` niet. Een partij kon een bevroren (disputed) samenwerking unilateraal op **COMPLETED**
+  (of CANCELLED) zetten; `cascadeStage` evalueert COMPLETED vóór `disputed`, dus de fase-badge
+  maskeerde het open dispuut. Fix: pre-transactionele + in-transactie (TOCTOU-dichte) dispuut-vries.
+  +4 tests (`dispute-freeze-status.test.ts`).
+- **`src/lib/cascade/contract-commands.ts`** (LOW, defense-in-depth) — `signContract` bevroor niet:
+  geen pre-check en geen `disputeGuardCollaborationId`. Een op een PROPOSED-deal geopend dispuut kon zo
+  via ondertekening naar ACTIVE. Fix: pre-check + in-tx grendel, symmetrisch met de familie. +2 tests
+  (`contract-dispute-freeze.test.ts`). Twee bestaande happy-path-tests kregen de nieuwe in-tx
+  `collaboration.findUnique` in hun tx-mock.
+- Read/authz-oppervlak live geverifieerd: privilege-escalatie → 307, cross-party read → soft-403 zonder
+  datalek, documenten/PDF's → 403/404 met audit, cron fail-closed 503. 4 next-action-bevindingen
+  (2 MED + 2 LOW) geparkeerd in `docs/PERSONA-SWEEP-BACKLOG.md` (repro + prioriteit).
+- **Checks:** `npm run typecheck` · `npm run lint` · `npm run test` (**4642 passed**) · `npm run build` ·
+  `npx prettier --check .` — allemaal groen.
+
 ## 2026-07-20 — Vervolgsignaal (naderende einddatum samenwerking) als next-action (ZZP'er + opdrachtgever)
 
 **Waarde (continuïteit/churn-preventie — beide partijen):** het vervolgsignaal

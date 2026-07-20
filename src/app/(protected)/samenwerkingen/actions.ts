@@ -28,6 +28,11 @@ import {
 } from "@/lib/collaboration-reminder";
 import { z } from "zod";
 
+// Eén bewoording voor de dispuut-vries, woordelijk gelijk aan de cascade-command-familie
+// (`assertNotDisputed` / `persistEventAndEffects`) zodat de UI-melding niet driftet tussen paden.
+const DISPUTE_FROZEN_MESSAGE =
+  "De samenwerking is bevroren wegens een open dispuut. Los het dispuut eerst op.";
+
 export type ProposalState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
 /** CLIENT stelt een samenwerking voor op basis van een geaccepteerde reactie. */
@@ -185,6 +190,14 @@ async function applyCollaborationStatusChange(
   const partyUserIds = [collaboration.company.userId, collaboration.freelancer.userId];
   if (!partyUserIds.includes(actor.id)) throw new Error("Geen toegang tot deze samenwerking.");
 
+  // Dispuut-vries (CLAUDE.md: "dispuut bevriest de cascade"): zolang er een open dispuut is, mag géén
+  // van beide partijen de samenwerking afronden of annuleren — alleen de admin heft het dispuut op
+  // (`resolveDispute`), daarna hervat de cascade. Symmetrisch met de hele cascade-command-familie
+  // (`assertNotDisputed` in performance-/invoice-/payment-commands). Zonder deze rem kon een partij
+  // een bevroren deal unilateraal op COMPLETED zetten, wat het open dispuut in de fase-badge
+  // (`cascadeStage` evalueert COMPLETED vóór disputed) maskeerde tijdens een admin-only governance-hold.
+  if (collaboration.disputedAt) throw new Error(DISPUTE_FROZEN_MESSAGE);
+
   const from = collaboration.status as CollaborationStatus;
   try {
     assertCollaborationTransition(from, targetStatus);
@@ -273,6 +286,15 @@ async function applyCollaborationStatusChange(
   // de pre-check en de write (bv. de tegenpartij dient een prestatie in, of een nieuwe factuur
   // verschijnt) kan zo nooit door het venster glippen — server-side blijft de waarheid.
   await prisma.$transaction(async (tx) => {
+    // Her-verificatie van de dispuut-vries BINNEN de transactie (TOCTOU-dicht): een dispuut dat ná de
+    // pre-check maar vóór deze write werd geopend, bevriest de afronding/annulering alsnog — de hele
+    // transactie rolt terug. Spiegelt de in-transactie-grendel in `persistEventAndEffects`.
+    const freshCollab = await tx.collaboration.findUnique({
+      where: { id: collaborationId },
+      select: { disputedAt: true },
+    });
+    if (freshCollab?.disputedAt) throw new Error(DISPUTE_FROZEN_MESSAGE);
+
     // Her-verificatie van de afronden-rem: rond nooit af met open geld of een onbeoordeelde prestatie
     // die ná de pre-check hierboven binnenkwam.
     if (targetStatus === "COMPLETED") {

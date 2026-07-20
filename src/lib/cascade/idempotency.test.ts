@@ -121,6 +121,11 @@ describe("signContract — DB-niveau idempotentie via dedupeKey", () => {
           ),
         },
         eventHandlerRun: { create: vi.fn().mockResolvedValue({}) },
+        // In-transactie dispuut-grendel (persona-sweep run 40): signContract geeft nu
+        // disputeGuardCollaborationId mee → persistInTransaction leest disputedAt binnen de tx.
+        collaboration: {
+          findUnique: vi.fn().mockResolvedValue({ disputedAt: null, status: "PROPOSED" }),
+        },
         // applyCascadeEffects is gemockt; de fakeTx hoeft het niet te bevatten.
       };
       return fn(fakeTx);

@@ -47,6 +47,8 @@ vi.mock("@/lib/db", () => {
     },
     performance: { count: vi.fn(async () => state.txSubmitted) },
     collaboration: {
+      // In-transactie dispuut-vries-herlees (persona-sweep run 40): geen open dispuut in deze races.
+      findUnique: vi.fn(async () => ({ disputedAt: null })),
       updateMany: vi.fn(async (args: unknown) => {
         state.updateManyArgs = args;
         return { count: state.updateManyCount };
