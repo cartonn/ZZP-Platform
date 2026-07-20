@@ -576,3 +576,16 @@ export const errorMonitoringSelfTestRateLimiter = new RateLimiter(
   5 * 60_000,
   "errormonitoringselftest:",
 );
+
+/**
+ * Maximaal DB_SELFTEST_RATE_LIMIT (default 6) database-zelftests per beheerder per 5 minuten. De
+ * admin-actie (/admin/systeemstatus) doet een lichte read-only round-trip (SELECT 1 + bestaanscheck
+ * op kern-tabellen) tegen de databank. De rem houdt een per ongeluk herhaalde klik of een script
+ * binnen de perken zonder de normale, incidentele controle te hinderen.
+ */
+export const dbSelfTestRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("DB_SELFTEST_RATE_LIMIT", 6),
+  5 * 60_000,
+  "dbselftest:",
+);

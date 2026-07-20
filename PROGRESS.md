@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Prod: database-connectiviteits-/schema-zelftest op /admin/systeemstatus
+
+**Waarde (go-live-verificatie):** de database is de enige kritieke productie-afhankelijkheid die
+nog géén on-demand admin-zelftest had — opslag/mail/rate-limit/verificatie/betaling/upload-scanner/
+error-monitoring hadden er al één. Nieuw: een **Database-zelftest** die (a) connectiviteit + latency
+meet via een lichte round-trip (`SELECT 1`), (b) de afgeleide provider (PostgreSQL/SQLite) + de
+actieve pool-samenvatting toont, en (c) via een read-only bestaanscheck op kern-tabellen bevestigt
+dat het schema/de migratie écht is toegepast (een half-mislukte `prisma db push` op boot zou anders
+stil een verouderd schema achterlaten). Read-only (geen mutatie); de uitvoer bevat nooit de
+`DATABASE_URL`/secrets — alleen provider, latency, pool-samenvatting + per-stap-uitkomst. Loopt door
+de authz-keten (rol → rate-limit → audit), zelfde patroon als de andere zeven zelftests.
+
+- Pure kern `src/lib/services/db-selftest.ts` (`runDbSelfTest` + `detectDbProvider`), injecteerbare
+  probes + klok → deterministisch testbaar. +7 tests `db-selftest.test.ts` (incl. secret-lek-vrije
+  error-details, schema-faal = mislukte db push, latency-clamping).
+- `dbSelfTestRateLimiter` (`DB_SELFTEST_RATE_LIMIT`, default 6/5min) in `rate-limit.ts`;
+  server-actie `runDbSelfTestAction` in `.../systeemstatus/actions.ts` (audit `DB_SELFTEST_RUN`);
+  component `src/components/admin/db-selftest.tsx`, gewired in de systeemstatus-pagina.
+- Gates groen: `typecheck` · `lint` · `test` (**441 files / 4655 tests**) · `build` · `prettier --check .`.
+- MENSENWERK §1b bijgewerkt (code-kant GEDAAN; resterend mensenwerk: niets extra).
+
 ## 2026-07-20 — Security/privacy-audit (ronde 20b): live DB-rol op dashboard + veilige fout-hergooi
 
 **Waarde (geen datalek, geen kruis-tenant-blootstelling):** orchestrator (Opus 4.8) + 4 parallelle

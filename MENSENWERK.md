@@ -250,6 +250,21 @@ nodig met back-ups en beveiligde opslag.
    connectie-pool nu per instance begrenzen (`DATABASE_CONNECTION_LIMIT`, optioneel
    `DATABASE_POOL_TIMEOUT`/`DATABASE_PGBOUNCER=true`), nodig zodra je op meerdere instances draait
    (zie §0b). Voor de pilot (één instance) hoef je niets te zetten.
+   **Code-kant GEDAAN (2026-07-20) — connectiviteits-/schema-zelftest:** na het omzetten naar
+   productie-Postgres kun je op `/admin/systeemstatus` (admin-only) de **Database-zelftest** draaien
+   — zelfde patroon als de Opslag-/E-mail-/Rate-limit-/Verificatie-/Betaalprovider-/Upload-scanner-/
+   Error-monitoring-zelftest. Die doet een **read-only** round-trip tegen de databank (SELECT 1 +
+   bestaanscheck op kern-tabellen) en bevestigt drie dingen: (a) de verbinding werkt en hoe snel de
+   round-trip is (latency), (b) je draait op de **verwachte provider** (PostgreSQL i.p.v. de lokale
+   SQLite) mét de actieve pool-samenvatting, en (c) het **schema/de migratie is écht toegepast** —
+   `scripts/start.mjs` doet bij elke boot een `prisma db push`, maar een half-mislukte push zou stil
+   een verouderd schema achterlaten; die stille faalmodus vangt de zelftest expliciet af. Er wordt
+   niets geschreven (geen mutatie, niets op te ruimen). De uitvoer bevat **nooit** de `DATABASE_URL`
+   of secrets (alleen de afgeleide provider, latency, pool-samenvatting + per-stap-uitkomst), loopt
+   door de authz-keten (rol → rate-limit → audit) en toont alleen bereikbaarheid/schema
+   (`src/lib/services/db-selftest.ts`, actie in `.../systeemstatus/actions.ts`). Resterend
+   mensenwerk: **niets extra** — de knop is er standaard (en meldt eerlijk de lokale SQLite-provider
+   tot `DATABASE_URL` op Postgres staat).
 
 ### 1c. Documentopslag (S3 of S3-compatibel)
 
