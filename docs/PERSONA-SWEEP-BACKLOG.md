@@ -1,5 +1,74 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-20 (run 40) · **main-commit basis:** `e7c947aa`
+> **Uitkomst:** **2 bevindingen (1 MED + 1 LOW, DOEL 2 — dispuut-vries niet volledig over de
+> statusmutatie-familie) gevonden én OPGELOST**; 4 DOEL-1b-bevindingen (2 MED + 2 LOW) uit de
+> next-action-audit geparkeerd met repro. Verse prod-build (`npm run build`, exit 0) + idempotente
+> demo-seed (`SEED_DEMO=true`) op ephemere SQLite (`qa.db`), prod-server (`node scripts/start.mjs`,
+> poort 3100, `LOGIN_/REGISTER_RATE_LIMIT=100000`). Vier rollen ingelogd via het echte
+> credentials-endpoint (`demo1234`). Live adversariële HTTP-probes + drie parallelle Opus-audits
+> (next-action-correctheid, cascade/invoice-authz + numerieke grenzen, tenant-isolatie/doc-privacy).
+>
+> **DOEL 1 (werkt het, live):** privilege-escalatie (ZZP/CLIENT/FRANCHISER → `/admin/*`; admin →
+> `/franchise`) → **307-redirect**, nooit 200/500. Cross-party read (andermans samenwerking/factuur
+> via echt id) → soft-403-paneel (HTTP 200, "geen toegang", **géén datalek**). Document-download
+> (`/api/documents/<id>`) cross-party → **403**; cross-party factuur/prestatie-PDF (`/api/facturen/…/pdf`,
+> `/api/prestaties/…/pdf`) → **403/404** met audit; eigen PDF → 200 `application/pdf`. Junk/traversal-id
+> → soft-404. CRON (`/api/tasks/*`) fail-closed **503** zonder `CRON_SECRET`; billing-webhook zonder
+> handtekening → altijd 200 (provider verifieert, geen retry-storm, default-provider inert).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 2 — dispuut bevriest de statuswijziging niet):** `applyCollaborationStatusChange`
+> (`src/app/(protected)/samenwerkingen/actions.ts`, via `changeCollaborationStatus`/`cancelCollaboration`)
+> was de **enige** statusmutatie op een samenwerking die `disputedAt` **niet** las. De hele
+> cascade-command-familie bevriest bij een open dispuut (`assertNotDisputed` / in-tx
+> `disputeGuardCollaborationId`). Gevolg: een partij kon een **bevroren** (`disputedAt` gezet) deal
+> unilateraal op **COMPLETED** zetten; `cascadeStage` evalueert COMPLETED (stage.ts:65) vóór
+> `disputed` (stage.ts:68), dus de fase-badge flipte van "Dispuut — bevroren" naar "Afgerond ✓" en
+> **maskeerde het open dispuut** tijdens een admin-only governance-hold (`resolveDispute` is
+> ADMIN-only). **Geschonden regel:** statusovergang/dispuut-vries + consistentie met de
+> command-familie (CLAUDE.md "dispuut bevriest de cascade"). **Fix:** pre-transactionele **én**
+> in-transactie (TOCTOU-dichte) dispuut-vries op COMPLETED/CANCELLED. Rood→groen:
+> `dispute-freeze-status.test.ts` (4 tests).
+>
+> **GEVONDEN + GEFIXT — LOW (DOEL 2, defense-in-depth — signContract bevriest niet):** `signContract`
+> (`src/lib/cascade/contract-commands.ts`, event A) las `disputedAt` niet en gaf géén
+> `disputeGuardCollaborationId` mee. Omdat `openDispute` een dispuut op een PROPOSED samenwerking
+> toestaat (geen status-check), kon: dispuut openen → `signContract` → PROPOSED→ACTIVE op een bevroren
+> deal (downstream cascade bevriest daarna wél, dus impact bleef bij die ene contractstap). **Fix:**
+> pre-check + `disputeGuardCollaborationId: collaborationId` (in-tx grendel), symmetrisch met de
+> familie. Rood→groen: `contract-dispute-freeze.test.ts` (2 tests). (Twee bestaande happy-path tests —
+> `completion-race.test.ts`, `idempotency.test.ts` — kregen de nieuwe in-tx `collaboration.findUnique`
+> in hun tx-mock.)
+>
+> **Checks:** `npm run typecheck` · `npm run lint` · `npm run test` (**4642 passed**, +6) ·
+> `npm run build` (exit 0) · `npx prettier --check .` — allemaal groen.
+>
+> **GEPARKEERD uit deze run (DOEL 1b, next-action-audit — repro + prioriteit, voor een volgende increment):**
+>
+> - **MED (single-source-schending):** de **franchiser**-dashboardrail wijkt af van `/acties` + de
+>   badge. `dashboard/page.tsx:643` bouwt `franchiserNextActions(...)` en voegt die bij
+>   `fActionSource` (`:1022`), terwijl `franchiserTasks` (`pending-tasks.ts:710-849`) géén
+>   guided-setup-items levert. Nieuwe tenant (`companies=0, freelancers=0`): rail toont 2
+>   next-actions, `/acties` toont "Niets te doen", badge = 0. Enige rol waar de single-source-invariant
+>   breekt. Fix: guided-setup via `computeTasks` voeden (of expliciet uit de rail halen).
+> - **MED (verkeerde partij "aan zet" + tegenstrijdige subtitel):** `clientComplianceTask`
+>   (`tasks.ts:643-675`, uit `pending-tasks.ts:622-623`) toont de **opdrachtgever** een
+>   attention-taak "Certificaat van X in beoordeling — handel vóór het certificaat vervalt" wanneer
+>   een vereist certificaat enkel een **SUBMITTED** (verse indiening, `inReview`, `gap=false`) cert
+>   heeft. De **admin** is aan zet (verifiëren), niet de client; en de subtitel (vervalwaarschuwing)
+>   klopt niet voor een verse indiening. Fix: geen client-actie (of passieve info) bij `inReview`
+>   zonder gap.
+> - **LOW (niet-verdwijnende taak):** `noShowWarningTask` (`tasks.ts:525-536`, uit
+>   `pending-tasks.ts:514-532`) staat permanent in `/acties` + badge voor elke ZZP'er met ≥1
+>   `UNJUSTIFIED` no-show — er is geen afhandel-pad (verdicts zijn blijvende historie). Botst met de
+>   `/acties`-belofte "afgehandelde acties verdwijnen vanzelf". Fix: naar een passief historie-signaal
+>   i.p.v. een openstaande taak.
+> - **LOW (dubbele taak + verkeerde deep-link):** een verplicht certificaat-type met een `REJECTED`
+>   **én** een VERIFIED-maar-verlopen cert levert twee taken (`credential-fix` →
+>   `/certificaten/{id}/bewerken` én `mandatory-document` → `/certificaten/nieuw?type=…`); de
+>   rejected-vs-missing-dedup (`pending-tasks.ts:369-372`) slaat alleen `state==="missing"` over, niet
+>   `"expired"`. Ook wijst de verlopen-deeplink naar "nieuw aanmaken" i.p.v. verlengen.
+
 > **Datum:** 2026-07-20 (run 39) · **main-commit basis:** `dd6e2159`
 > **Uitkomst:** **1 MED (DOEL 2, defense-in-depth — ontbrekende dispuut-vries op `createPerformance`)
 > gevonden én OPGELOST.** Verse prod-build (`npm run build`, exit 0) + idempotente demo-seed

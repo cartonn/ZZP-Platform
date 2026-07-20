@@ -40,6 +40,15 @@ export async function signContract(actor: Actor, collaborationId: string): Promi
   if (!col) throw new CascadeError("Samenwerking niet gevonden.");
   assertParty(actor, col.freelancer.userId, col.company.userId);
 
+  // Dispuut-vries (CLAUDE.md: "dispuut bevriest de cascade"): een bevroren samenwerking mag haar
+  // contractstatus niet vooruitbewegen (PROPOSED → ACTIVE). Symmetrisch met de rest van de
+  // command-familie; de in-transactie-grendel wordt hieronder via `disputeGuardCollaborationId`
+  // bedraad (TOCTOU-dicht tegen een dispuut dat ná deze lees maar vóór de commit wordt geopend).
+  if (col.disputedAt)
+    throw new CascadeError(
+      "De samenwerking is bevroren wegens een open dispuut. Los het dispuut eerst op.",
+    );
+
   // Inzetbaarheid-gate (ADR-0006, C-hybride): een samenwerking kan niet starten zonder dat de ZZP'er
   // aan de harde certificaateisen voldoet. Server-side waarheid (CLAUDE.md regel 1) — de UI verbergt de
   // teken-knop al, dit is de defense-in-depth. WARNING (in beoordeling/bijna verlopen) blokkeert niet.
@@ -88,6 +97,9 @@ export async function signContract(actor: Actor, collaborationId: string): Promi
     {
       owners: { FREELANCER: col.freelancer.userId, CLIENT: col.company.userId },
       correlationId: collaborationId,
+      // In-transactie dispuut-grendel: rolt de contract-ondertekening terug als er ná de pre-check
+      // (net) een dispuut werd geopend — de deal blijft bevroren tot de admin het oplost.
+      disputeGuardCollaborationId: collaborationId,
     },
   );
 
