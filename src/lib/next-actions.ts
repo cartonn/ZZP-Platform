@@ -62,6 +62,7 @@ export const P = {
   messagesAwaiting: 55, // berichten van de andere partij wachten op antwoord
   staleApplications: 52, // kandidaten (VIEWED/SHORTLIST) wachten al langer dan gebruikelijk op een beslissing
   applications: 50, // nieuwe reacties
+  collaborationRenewal: 46, // lopende samenwerking nadert/passeert haar einddatum — plan tijdig een vervolg (beide partijen)
   availabilityStale: 40, // gedeelde beschikbaarheidsagenda verlopen — findability-nudge (ZZP'er)
   completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)
   reviewPrompt: 24, // afgeronde samenwerking nog te beoordelen (blind venster open) — reputatie-nudge

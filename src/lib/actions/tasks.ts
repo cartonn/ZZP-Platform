@@ -12,6 +12,7 @@ import { formatEuro } from "@/lib/invoices";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
 import { type CredentialAlert } from "@/lib/collaboration-alerts";
+import { type CollaborationRenewalPhase } from "@/lib/collaboration-renewal";
 import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
 import { type StaleApplicationsSummary } from "@/lib/stale-applications";
 import {
@@ -74,6 +75,7 @@ export type PendingTask =
   | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
   | (TaskBase & { kind: "client-compliance"; collabId: string })
   | (TaskBase & { kind: "review-leave"; collabId: string })
+  | (TaskBase & { kind: "collaboration-renewal"; collabId: string; role: "FREELANCER" | "CLIENT" })
   | (TaskBase & { kind: "applications-review" })
   | (TaskBase & { kind: "propose-collaboration"; applicationId: string })
   | (TaskBase & { kind: "stale-applications" })
@@ -701,6 +703,44 @@ export function reviewLeaveTask(
     resolver: "link", // meerstaps formulier (score + toelichting) → naar de samenwerking
     href: collabHref(collabId),
     collabId,
+  };
+}
+
+/**
+ * Een lopende (ACTIVE) samenwerking nadert (`ending_soon`) of passeerde (`overdue`) haar einddatum:
+ * plan tijdig een vervolg zodat de inzet niet stilvalt (opdrachtgever raakt een goede ZZP'er niet
+ * kwijt; de ZZP'er lijnt de volgende opdracht op tijd op — benchmark Temper/Pidz "verleng je serie").
+ * Symmetrisch voor beide partijen. Zonder deze taak leefde het vervolgsignaal alléén op het
+ * samenwerkingsdetail (`RenewalNudge`) en ontbrak het in `/acties`, de zijbalk-badge én de dashboard-
+ * rail (alle door de item-engine gevoed). Deep-link naar het samenwerkingsdetail, waar de volledige
+ * nudge met de rol-passende vervolgactie (vervolgopdracht plaatsen / beschikbaarheid bijwerken) staat —
+ * geen dubbele UI. Advies, geen blokkade: `overdue` → attention, `ending_soon` → info.
+ */
+export function collaborationRenewalTask(
+  collabId: string,
+  role: "FREELANCER" | "CLIENT",
+  counterparty: string,
+  jobTitle: string,
+  phase: CollaborationRenewalPhase,
+  daysRemaining: number | null,
+): PendingTask {
+  const overdue = phase === "overdue";
+  let window: string;
+  if (overdue) window = "einddatum verstreken";
+  else if (daysRemaining === 0) window = "loopt vandaag af";
+  else if (daysRemaining === 1) window = "loopt morgen af";
+  else window = `loopt over ${plural(daysRemaining ?? 0, "dag", "dagen")} af`;
+  return {
+    kind: "collaboration-renewal",
+    id: `collaboration-renewal:${collabId}`,
+    title: `Plan een vervolg met ${counterparty}`,
+    subtitle: `${jobTitle} · ${window}`,
+    tone: overdue ? "attention" : "info",
+    priority: P.collaborationRenewal,
+    resolver: "link", // rol-passende vervolgactie staat op het samenwerkingsdetail
+    href: collabHref(collabId),
+    collabId,
+    role,
   };
 }
 

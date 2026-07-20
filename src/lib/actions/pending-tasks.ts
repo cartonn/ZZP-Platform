@@ -61,10 +61,12 @@ import {
   franchiseStaleDienstTask,
   clientComplianceTask,
   reviewLeaveTask,
+  collaborationRenewalTask,
   vatDeadlineTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { reviewPromptForCollaboration } from "@/lib/collaboration-review-prompt";
+import { summarizeCollaborationRenewal, RENEWAL_WINDOW_DAYS } from "@/lib/collaboration-renewal";
 import { reviewBlindDays } from "@/lib/config";
 import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
 import { clientCredentialAlerts } from "@/lib/collaboration-alerts";
@@ -193,6 +195,67 @@ async function reviewLeaveTasks(
         ? (c.company.name ?? "de opdrachtgever")
         : (c.freelancer.user.name ?? "de ZZP'er");
     tasks.push(reviewLeaveTask(c.id, c.job.title, counterparty, prompt.daysLeft));
+  }
+  return tasks;
+}
+
+/**
+ * Vervolgsignaal als next-action: een ACTIVE, niet-bevroren samenwerking waarvan de einddatum binnen
+ * het vervolgvenster valt of al verstreken is. Eén taak per samenwerking, voor beide partijen — deep-
+ * link naar het detail waar de volledige nudge staat. De pure `summarizeCollaborationRenewal` is de
+ * enige bron voor fase/dagen (lijst en detail kunnen nooit divergeren); de query pre-filtert al op
+ * `endDate <= venstergrens` (verleden inbegrepen; null valt buiten `lte`) en `disputedAt: null`, dus
+ * elke rij komt als `ending_soon` of `overdue` terug.
+ */
+async function renewalTasks(
+  userId: string,
+  role: "FREELANCER" | "CLIENT",
+  now: Date,
+): Promise<PendingTask[]> {
+  const windowEnd = new Date(now.getTime() + RENEWAL_WINDOW_DAYS * 86_400_000);
+  const partyWhere = role === "FREELANCER" ? { freelancer: { userId } } : { company: { userId } };
+
+  const collabs = await prisma.collaboration.findMany({
+    where: {
+      ...partyWhere,
+      status: "ACTIVE",
+      disputedAt: null,
+      endDate: { lte: windowEnd },
+    },
+    select: {
+      id: true,
+      endDate: true,
+      job: { select: { title: true } },
+      company: { select: { name: true } },
+      freelancer: { select: { user: { select: { name: true } } } },
+    },
+    orderBy: { endDate: "asc" },
+    take: MAX,
+  });
+
+  const tasks: PendingTask[] = [];
+  for (const c of collabs) {
+    const renewal = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: c.endDate,
+      disputed: false,
+      now,
+    });
+    if (!renewal.attention) continue;
+    const counterparty =
+      role === "FREELANCER"
+        ? (c.company.name ?? "de opdrachtgever")
+        : (c.freelancer.user.name ?? "de ZZP'er");
+    tasks.push(
+      collaborationRenewalTask(
+        c.id,
+        role,
+        counterparty,
+        c.job.title,
+        renewal.phase,
+        renewal.daysRemaining,
+      ),
+    );
   }
   return tasks;
 }
@@ -479,6 +542,9 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // Afgeronde samenwerkingen die nog beoordeeld kunnen worden (blind venster open) — reputatie-nudge.
   tasks.push(...(await reviewLeaveTasks(userId, "FREELANCER", now)));
 
+  // Lopende samenwerkingen die hun einddatum naderen/passeerden — plan tijdig een vervolg.
+  tasks.push(...(await renewalTasks(userId, "FREELANCER", now)));
+
   return tasks;
 }
 
@@ -634,6 +700,9 @@ async function clientTasks(userId: string): Promise<PendingTask[]> {
 
   // Afgeronde samenwerkingen die nog beoordeeld kunnen worden (blind venster open) — reputatie-nudge.
   tasks.push(...(await reviewLeaveTasks(userId, "CLIENT", new Date())));
+
+  // Lopende samenwerkingen die hun einddatum naderen/passeerden — plan tijdig een vervolg.
+  tasks.push(...(await renewalTasks(userId, "CLIENT", new Date())));
 
   return tasks;
 }

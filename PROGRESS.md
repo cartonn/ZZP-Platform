@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Vervolgsignaal (naderende einddatum samenwerking) als next-action (ZZP'er + opdrachtgever)
+
+**Waarde (continuïteit/churn-preventie — beide partijen):** het vervolgsignaal
+(`summarizeCollaborationRenewal`: een ACTIVE samenwerking die haar einddatum nadert of passeerde) leefde
+alléén op het samenwerkingsdetail (`RenewalNudge`). Een opdrachtgever/ZZP'er die dat ene scherm niet
+opende, miste het vervolgvenster → de inzet valt stil (opdrachtgever raakt een goede ZZP'er kwijt; de
+ZZP'er lijnt de volgende opdracht te laat op). Exact het run-38-gap-patroon (signaal op detail, afwezig
+op de actie-oppervlakken). Benchmark Temper/Pidz "verleng je serie". Nu een next-action **"Plan een
+vervolg met {tegenpartij}"** op `/acties`, de zijbalk-badge én de dashboard-rail, voor beide rollen —
+gevoed door dezelfde pure summarizer als het detail (lijst en detail kunnen nooit divergeren).
+
+- **`src/lib/next-actions.ts`** — nieuwe band `P.collaborationRenewal = 46` (planning-nudge: onder
+  `staleApplications`/`applications`, boven `availabilityStale`/`completeness`).
+- **`src/lib/actions/tasks.ts`** — union-lid + builder `collaborationRenewalTask(collabId, role,
+counterparty, jobTitle, phase, daysRemaining)`: `overdue` → attention, `ending_soon` → info; deep-link
+  naar het detail waar de rol-passende vervolgactie (`RenewalNudge`) al staat (geen dubbele UI). +5 tests
+  (`collaboration-renewal-task.test.ts`).
+- **`src/lib/actions/pending-tasks.ts`** — enumerator `renewalTasks(userId, role, now)`: één
+  DB-voorgefilterde query (`status: "ACTIVE"`, `disputedAt: null`, `endDate: { lte: venstergrens }`,
+  `take: MAX`, N+1-veilig) per rol; `summarizeCollaborationRenewal` als enige bron voor fase/dagen;
+  gewired in `freelancerTasks` + `clientTasks`. +6 tests (`pending-tasks-renewal.test.ts`).
+- Read-only afleiding, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Resolver `link` valt op
+  de default-tak van `action-list.tsx` (geen UI-wijziging).
+- **Checks:** `npm run typecheck` · `npm run lint` · `npm run test` (**4636 passed**) · `npm run build` ·
+  `npx prettier --write .` — allemaal groen.
+
 ## 2026-07-20 — Relatiegezondheid + re-engagement-hint op de franchise klantdetail (bemiddelaar)
 
 **Waarde (CRM/churn-preventie — bemiddelaar):** de relatiegezondheid (`classifyClientHealth`:
