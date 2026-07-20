@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-20 — Ontwerp-lab: +10 concepten (431–440, reeks 44)
+
+**Waarde (additieve design-galerij):** de galerij op `/ontwerp` groeit van 430 → **440** concepten.
+Puur additief: geen bestaand concept, registry-entry of route-koppeling overschreven — alleen
+toegevoegd. Tien nieuwe, onderscheidende richtingen (elk alle 6 kernschermen, Nederlandse mock-content,
+volledig toegankelijk, motion-reduce-veilig, woord "AI" nergens): **431 Meander** (spatial/connective
+flow), **432 Tektoniek** (gelaagde diepte/z-stacking), **433 Passaat** (luchtige richtingsbeweging),
+**434 Fluweel** (premium-dark + dark-glassmorphism), **435 Craquelé** (haarscheur-craft-textuur),
+**436 Salie** (calm interface), **437 Amplitude** (waveform-datavisualisatie), **438 Aquarium** (light
+glassmorphism/spatial depth), **439 Gouache** (painterly craft-kleurvlakken), **440 Linnen** (geweven
+tactiele materialiteit).
+
+**Bestanden:** 10× nieuw `src/components/ontwerp/concepts/concept-43{1..9}-*.tsx` + `concept-440-linnen.tsx`;
+`registry.ts` (+10 entries, append), `src/app/ontwerp/[id]/concept-host.tsx` (+10 lazy-koppelingen, append),
+`docs/DESIGN-LAB.md` (reeks 44 + totaal). Geen live-app-gedrag gewijzigd.
+
+**Gate (lokaal groen):** typecheck ✓ · lint ✓ · prettier --check ✓ · test 4601 ✓ · build ✓.
+
 ## 2026-07-19 — Administratie-ontzorging: BTW-deadline scant alle onafgewikkelde kwartalen (PR #840)
 
 **Waarde (ZZP'er/opdrachtgever, next-action-correctheid — DOEL 1b):** sluit het geparkeerde MED-HIGH-gat

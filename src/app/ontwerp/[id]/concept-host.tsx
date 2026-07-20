@@ -1297,6 +1297,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "430": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-430-barnsteen").then((m) => m.Concept430),
   ),
+  "431": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-431-meander").then((m) => m.Concept431),
+  ),
+  "432": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-432-tektoniek").then((m) => m.Concept432),
+  ),
+  "433": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-433-passaat").then((m) => m.Concept433),
+  ),
+  "434": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-434-fluweel").then((m) => m.Concept434),
+  ),
+  "435": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-435-craquele").then((m) => m.Concept435),
+  ),
+  "436": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-436-salie").then((m) => m.Concept436),
+  ),
+  "437": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-437-amplitude").then((m) => m.Concept437),
+  ),
+  "438": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-438-aquarium").then((m) => m.Concept438),
+  ),
+  "439": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-439-gouache").then((m) => m.Concept439),
+  ),
+  "440": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-440-linnen").then((m) => m.Concept440),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
