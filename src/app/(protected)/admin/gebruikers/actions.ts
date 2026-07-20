@@ -183,10 +183,36 @@ export async function anonymizeUser(userId: string): Promise<void> {
     return [prisma.auditLog.update({ where: { id: row.id }, data })];
   });
 
+  // AVG art. 17: de credential-rijen worden hard verwijderd (regel 4: de gevoeligste PII), maar hun
+  // auditregels overleven dat. De `CREDENTIAL_REJECTED`-regel draagt in `metadata.reason` de door de
+  // beheerder getypte, vrije-tekst afwijsreden — die kan de naam of de (mogelijk art. 9-)inhoud van een
+  // VOG/diploma noemen. Die regel wordt door de PII-scrub hierboven NIET geraakt: `actorId` is de
+  // beheerder (niet de betrokkene) en `entityType` is "Credential" (niet "User"), en de value-scrub
+  // matcht alleen op exact e-mail/naam, nooit op een vrije zin. Zelfde patroon als de DISPUTE_OPENED-
+  // reden (die via `actorId === userId` wél al werd gedekt). Verzamel daarom de credential-id's vóór de
+  // verwijdering en redact de metadata van élke auditregel over die (aan deze betrokkene toebehorende,
+  // dus uniek herleidbare) credentials binnen dezelfde transactie. De regel zelf (actor/actie/tijd)
+  // blijft als verantwoordingsspoor staan; alleen de PII-dragende metadata verdwijnt.
+  // unbounded-allow: AVG art. 17: alle credential-id's van één betrokkene (inherent klein, owner-gescoopt) om hun auditregels te redacten; een take zou stilletjes PII kunnen laten staan
+  const ownCredentialIds = (
+    await prisma.credential.findMany({
+      where: { freelancerProfile: { userId } },
+      select: { id: true },
+    })
+  ).map((c) => c.id);
+
   const now = new Date();
   const meta = await requestMeta();
   await prisma.$transaction([
     ...auditScrubOps,
+    ...(ownCredentialIds.length
+      ? [
+          prisma.auditLog.updateMany({
+            where: { entityType: "Credential", entityId: { in: ownCredentialIds } },
+            data: { metadata: null },
+          }),
+        ]
+      : []),
     prisma.user.update({ where: { id: userId }, data: userAnonymizationData(userId, now) }),
     prisma.freelancerProfile.updateMany({
       where: { userId },

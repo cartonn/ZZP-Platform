@@ -41,7 +41,12 @@ vi.mock("@/lib/db", () => ({
     },
     freelancerProfile: { updateMany: op("freelancerProfile.updateMany") },
     company: { updateMany: op("company.updateMany") },
-    credential: { deleteMany: op("credential.deleteMany") },
+    credential: {
+      // Twee credentials van de betrokkene — hun auditregels (o.a. de CREDENTIAL_REJECTED-reden)
+      // moeten mee-geredact worden vóór de rijen zelf worden verwijderd.
+      findMany: vi.fn(async () => [{ id: "cred-1" }, { id: "cred-2" }]),
+      deleteMany: op("credential.deleteMany"),
+    },
     document: {
       deleteMany: op("document.deleteMany"),
       findMany: vi.fn(async () => []),
@@ -365,12 +370,35 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     // Derde PII-kopie: de vrije-tekstreden staat verbatim in de metadata (`{ reason }`) van het eigen
     // DISPUTE_OPENED-auditrecord. De generieke email/naam-scrub raakt 'm niet (geen exact-match), dus
     // zonder deze expliciete updateMany overleeft de reden art. 17 — deze assert faalt dan (rood→groen).
-    const o = find("auditLog.updateMany") as { args: { where: unknown; data: unknown } };
+    // Er zijn twee auditLog.updateMany's (de credential-metadata-redactie + deze DISPUTE-variant);
+    // pak de dispuut-variant op zijn where-vorm.
+    const ops = findAll("auditLog.updateMany") as Array<{
+      args: { where: { action?: string }; data: { metadata?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.action === "DISPUTE_OPENED");
     expect(o).toBeDefined();
     // Gescopet op de eigen dispuut-auditregels (actorId == de betrokkene), nooit die van de tegenpartij.
-    expect(o.args.where).toEqual({ actorId: "user-42", action: "DISPUTE_OPENED" });
-    const meta = JSON.parse((o.args.data as { metadata: string }).metadata);
+    expect(o!.args.where).toEqual({ actorId: "user-42", action: "DISPUTE_OPENED" });
+    const meta = JSON.parse(o!.args.data.metadata as string);
     expect(meta.reason).toBe("[verwijderd]");
+  });
+
+  it("redact de metadata van de credential-auditregels (o.a. CREDENTIAL_REJECTED-reden, AVG art. 17, KRITIEK)", async () => {
+    await anonymizeUser("user-42");
+    // De credential-rijen worden hard verwijderd, maar hun auditregels overleven. De CREDENTIAL_REJECTED-
+    // regel draagt de door de beheerder getypte afwijsreden (vrije tekst, mogelijk de naam of art. 9-
+    // inhoud van een VOG/diploma) in `metadata`. Die regel heeft `actorId` = beheerder en
+    // `entityType` = "Credential", dus de eigen-actor/entity-scrub raakt 'm nooit — zonder deze
+    // expliciete updateMany overleeft de reden art. 17 (rood→groen).
+    const ops = findAll("auditLog.updateMany") as Array<{
+      args: { where: { entityType?: string; entityId?: unknown }; data: { metadata?: unknown } };
+    }>;
+    const o = ops.find((x) => x.args.where.entityType === "Credential");
+    expect(o).toBeDefined();
+    // Gescopet op de (uniek aan de betrokkene toebehorende) credential-id's, vóór hun verwijdering verzameld.
+    expect(o!.args.where.entityId).toEqual({ in: ["cred-1", "cred-2"] });
+    // Metadata volledig geleegd — verwijdert de reden en elk ander PII-veld.
+    expect(o!.args.data.metadata).toBeNull();
   });
 
   it("redact de dispuutreden óók uit de admin-fanout-notificatie (AVG art. 17, HOOG)", async () => {

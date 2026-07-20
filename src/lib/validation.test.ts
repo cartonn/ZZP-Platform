@@ -143,6 +143,28 @@ describe("companyProfileSchema", () => {
     );
     expect(companyProfileSchema.safeParse({ name: "A" }).success).toBe(false);
   });
+
+  it("weigert een niet-http(s)-schema in de website (stored-XSS-vector, OWASP A03)", () => {
+    // `z.string().url()` keurde deze schema's ten onrechte goed; als raw href gerenderd is dat
+    // stored XSS. De schema-restrictie is de server-side bron van waarheid (regel 2), los van CSP.
+    for (const website of [
+      "javascript:alert(document.cookie)",
+      "JavaScript:alert(1)",
+      "data:text/html,<script>alert(1)</script>",
+      "vbscript:msgbox(1)",
+      "  javascript:alert(1)  ",
+    ]) {
+      expect(companyProfileSchema.safeParse({ name: "Acme BV", website }).success).toBe(false);
+    }
+  });
+
+  it("accepteert een geldige http(s)-website", () => {
+    for (const website of ["https://acme.nl", "http://acme.nl/pad?q=1"]) {
+      const r = companyProfileSchema.safeParse({ name: "Acme BV", website });
+      expect(r.success).toBe(true);
+      if (r.success) expect(r.data.website).toBe(website.trim());
+    }
+  });
 });
 
 describe("jobSchema", () => {

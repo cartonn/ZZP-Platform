@@ -15,6 +15,27 @@ import { MODEL_AGREEMENT_TYPES } from "./model-agreement";
 import { isValidBtwId, isValidKvk, normalizeBtwId, normalizeKvk } from "@/lib/fiscal";
 import { MAX_INVOICE_CENTS } from "@/lib/invoices";
 
+/**
+ * URL-veld dat uitsluitend het http(s)-schema toestaat. `z.string().url()` keurt óók
+ * `javascript:`- en `data:`-URI's goed; wordt zo'n waarde later als rauwe `href` gerenderd, dan is
+ * dat stored XSS (OWASP A03 / CWE-79). Deze refine is de server-side bron van waarheid (regel 2) en
+ * blokkeert het schema onafhankelijk van de CSP — defense-in-depth, ook voor oudere browsers.
+ */
+export function httpUrl(message = "Ongeldige URL.") {
+  return z
+    .string()
+    .trim()
+    .refine((v) => {
+      let parsed: URL;
+      try {
+        parsed = new URL(v);
+      } catch {
+        return false;
+      }
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    }, message);
+}
+
 // --- Academie -------------------------------------------------------------
 const optionalLevel = z.preprocess(
   (v) => (v === "" || v == null ? undefined : v),
@@ -137,7 +158,7 @@ export const companyProfileSchema = z.object({
   name: trimmed(160).min(2, "Bedrijfsnaam is te kort."),
   description: optionalText(2000),
   website: z
-    .union([z.string().trim().url("Ongeldige URL."), z.literal("")])
+    .union([httpUrl("Ongeldige URL."), z.literal("")])
     .optional()
     .transform((v) => (v ? v : undefined)),
   location: optionalText(120),
