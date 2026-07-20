@@ -15,7 +15,7 @@ export const CLIENT_IDLE_DAYS = 30;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Hele kalenderdagen tussen twee momenten (UTC-dag, TZ-robuust). */
-function wholeDaysBetween(from: Date, to: Date): number {
+export function wholeDaysBetween(from: Date, to: Date): number {
   return Math.round((startOfUtcDay(to).getTime() - startOfUtcDay(from).getTime()) / MS_PER_DAY);
 }
 
