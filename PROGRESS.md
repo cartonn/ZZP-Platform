@@ -6138,6 +6138,35 @@ tactiele materialiteit).
 
 **Gate (lokaal groen):** typecheck ✓ · lint ✓ · prettier --check ✓ · test 4601 ✓ · build ✓.
 
+---
+
+## 2026-07-20 — Vertrouwensdossier: vernieuw-next-action voor verlopen niet-verplicht certificaat (PR #841)
+
+**Waarde (ZZP'er, next-action-correctheid — DOEL 1b):** sluit het geparkeerde MED-gat uit de
+persona-sweep (run 38). Een écht-verlopen (`EXPIRED`) **niet-verplicht** certificaat
+(DIPLOMA/CERTIFICATE/LICENSE/OTHER) gaf de ZZP'er ná de eenmalige expiry-notificatie géén blijvende
+vernieuw-next-action: `pending-tasks.ts` matchte alleen REJECTED en expiring-VERIFIED; de mandatory-tak
+dekt uitsluitend VOG/verzekering. Gevolg: een verlopen diploma/BHV-certificaat zakte stil weg uit
+`/acties`, dashboard-rail én zijbalk-badge, terwijl het het vertrouwensdossier verzwakt (verlopen
+troefsignaal → lagere match/vertrouwen).
+
+**Wat:** een `"expired"`-cause toegevoegd aan `credentialFixTask` (titel "Verlopen certificaat
+vernieuwen", band `P.credentialExpired = 69`, net onder `credentialExpiring = 70` — een nog-geldig-maar-
+verlopend certificaat is nog te redden vóór de vervaldatum, dus iets urgenter). In `pending-tasks.ts`
+emit de loop die taak nu voor een EXPIRED certificaat waarvan het type **niet** verplicht is
+(`!MANDATORY_CREDENTIAL_TYPES.includes(type)`) — verplichte types (VOG/verzekering) worden al door
+`mandatoryDocumentTask("expired")` gedekt (hogere band, blokkeert inzetbaarheid), dus geen dubbele rij.
+Deep-link naar `/certificaten/{id}/bewerken` (vernieuwen van het bestaande, niet een nieuw aanmaken).
+De resolver-registry keyt op `kind`, niet op `cause` → geen UI-wijziging nodig.
+
+**Bestanden:** `src/lib/next-actions.ts` (band), `src/lib/actions/tasks.ts` (cause-union + titel/
+prioriteit via lookup-maps), `src/lib/actions/pending-tasks.ts` (emit + import), +
+`src/lib/actions/pending-tasks-expired-credential.test.ts` (3 tests).
+**Grens/scope:** read-only afleiding, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate:
+typecheck, lint, 4604 unit-tests, build, prettier groen.
+
+---
+
 ## 2026-07-19 — Administratie-ontzorging: BTW-deadline scant alle onafgewikkelde kwartalen (PR #840)
 
 **Waarde (ZZP'er/opdrachtgever, next-action-correctheid — DOEL 1b):** sluit het geparkeerde MED-HIGH-gat

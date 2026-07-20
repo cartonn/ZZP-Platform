@@ -59,6 +59,7 @@ export const P = {
   credentialMissingForCollab: 81, // vereist (niet-verplicht) certificaat van een lopende samenwerking ONTBREEKT volledig (nooit aangeleverd/alleen concept) — acuut compliance-gat, freelancer-spiegel van complianceRipple "missing"; net onder REEDS-verlopen (dat leunde al op een bestaand exemplaar), boven afgewezen
   credentialExpiringForCollab: 73, // vereist certificaat van een lopende samenwerking verloopt binnenkort (nog geldig, pre-due; COLLAB_CREDENTIAL_EXPIRY_WINDOW_DAYS) — urgenter dan een los verlopend certificaat (credentialExpiring 70) en boven contractSign (72), maar ONDER een reeds-verstreken BTW-aangifte (vatDeadlineOverdue 74): post-due, boete-dragende schuld weegt zwaarder dan een naderende (nog-niet-verstreken) certificaat-verval. Zelfde post-due>pre-due-principe als clientCascadeOverduePayment (59) > vatDeadlineDueSoon (58)
   credentialExpiring: 70, // certificaat verloopt binnenkort
+  credentialExpired: 69, // niet-verplicht certificaat is verlopen — vernieuwen (onder "verloopt binnenkort": daar is de vervaldatum nog te redden)
   verificationQueue: 70, // wacht op verificatie (admin)
   supportOpen: 66, // openstaande supporttickets — onbeantwoord/nieuw (admin)
   vatDeadlineOverdue: 74, // BTW-aangifte over de uiterste indieningsdatum (fiscale boete-risico)
