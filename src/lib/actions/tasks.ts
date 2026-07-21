@@ -383,6 +383,12 @@ export function mandatoryDocumentTask(
   docType: string,
   label: string,
   cause: "missing" | "expired",
+  /**
+   * Id van het bestaande (verlopen) certificaat. Alleen zinvol bij cause "expired": dan deep-linkt
+   * de taak naar het VERLENGEN van dat document (bewerk-pagina) i.p.v. een nieuw aanmaken. Ontbreekt
+   * het (of cause "missing"), dan valt de link terug op het aanmaak-formulier met vooringevuld type.
+   */
+  renewCredId?: string,
 ): PendingTask {
   return {
     kind: "mandatory-document",
@@ -391,11 +397,17 @@ export function mandatoryDocumentTask(
       cause === "missing"
         ? `Verplicht document ontbreekt: ${label}`
         : `Verplicht document verlopen: ${label}`,
-    subtitle: "Zonder dit document ben je niet inzetbaar — upload het bewijsstuk",
+    subtitle:
+      cause === "missing"
+        ? "Zonder dit document ben je niet inzetbaar — upload het bewijsstuk"
+        : "Zonder dit document ben je niet inzetbaar — vernieuw het bewijsstuk",
     tone: "attention",
     priority: P.mandatoryDoc,
     resolver: "link",
-    href: `/certificaten/nieuw?type=${docType}`,
+    href:
+      cause === "expired" && renewCredId
+        ? `/certificaten/${renewCredId}/bewerken`
+        : `/certificaten/nieuw?type=${docType}`,
     docType,
     cause,
   };

@@ -360,21 +360,43 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     );
     // Een AFGEWEZEN verplicht document (VOG/verzekering) valt in de "missing"-emmer van
     // computeCompliance (het is niet VERIFIED/SUBMITTED/EXPIRED). Het krijgt hierboven al de
-    // credentialFixTask ("Afgewezen certificaat opnieuw indienen" → /certificaten/{id}/bewerken).
-    // Zonder deze uitzondering zou hetzelfde document een tweede, tegenstrijdige rij opleveren die
-    // naar /certificaten/nieuw wijst (een NIEUW document aanmaken i.p.v. het afgewezene herstellen) —
-    // een dubbele, foutieve next-action. We onderdrukken daarom de "missing"-mandatory-taak voor een
-    // type dat al een afgewezen certificaat heeft; de "expired"-tak (echt verlopen certificaat van dat
-    // type, correcte vernieuw-link) blijft ongemoeid.
+    // credentialFixTask ("Afgewezen certificaat opnieuw indienen" → /certificaten/{id}/bewerken) —
+    // de enige canonieke actie voor dat type. Zonder onderdrukking zou hetzelfde type een tweede,
+    // tegenstrijdige rij opleveren (mandatory-taak → /certificaten/nieuw). Dat geldt niet alleen als
+    // het type verder ontbreekt ("missing"), maar óók als er dáárnaast een VERIFIED-maar-verlopen cert
+    // van dat type bestaat: dan classificeert computeCompliance het type als "expired" en verscheen de
+    // mandatory-taak tóch naast de fix-taak. We onderdrukken de mandatory-taak daarom voor élke
+    // niet-satisfied staat (missing én expired) zodra een afgewezen cert van dat type bestaat.
     const rejectedTypes = new Set(creds.filter((c) => c.status === "REJECTED").map((c) => c.type));
+    // Voor een verlopen verplicht document deep-linken we naar het VERLENGEN van het bestaande
+    // certificaat (bewerk-pagina) i.p.v. een nieuw aanmaken. Kies bij meerdere verlopen exemplaren van
+    // een type het meest recent verlopen exemplaar (de logische verleng-kandidaat).
+    const expiredCredIdByType = new Map<string, string>();
+    for (const c of creds) {
+      const expiredNow =
+        c.status === "EXPIRED" ||
+        (c.status === "VERIFIED" && c.expiresAt !== null && c.expiresAt <= now);
+      if (!expiredNow) continue;
+      const prevId = expiredCredIdByType.get(c.type);
+      if (prevId === undefined) {
+        expiredCredIdByType.set(c.type, c.id);
+      } else {
+        const prev = creds.find((x) => x.id === prevId);
+        const prevExp = prev?.expiresAt?.getTime() ?? -Infinity;
+        const curExp = c.expiresAt?.getTime() ?? -Infinity;
+        if (curExp > prevExp) expiredCredIdByType.set(c.type, c.id);
+      }
+    }
     for (const doc of mandatory.items) {
-      if (doc.state === "missing" && rejectedTypes.has(doc.type)) continue;
+      if ((doc.state === "missing" || doc.state === "expired") && rejectedTypes.has(doc.type))
+        continue;
       if (doc.state === "missing" || doc.state === "expired")
         tasks.push(
           mandatoryDocumentTask(
             doc.type,
             CREDENTIAL_TYPE_LABEL[doc.type as CredentialType],
             doc.state,
+            doc.state === "expired" ? expiredCredIdByType.get(doc.type) : undefined,
           ),
         );
     }
