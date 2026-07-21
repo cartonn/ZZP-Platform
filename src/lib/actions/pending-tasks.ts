@@ -11,6 +11,7 @@ import { computeFreelancerCompleteness, computeCompanyCompleteness } from "@/lib
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { computeEngageability } from "@/lib/engageability";
 import { formatMissing } from "@/lib/next-actions";
+import { startOfUtcDay } from "@/lib/signals";
 import { type FreelancerCredential } from "@/lib/matching";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
@@ -762,11 +763,15 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
       take: MAX,
     }),
     // Leads met een verstreken geplande opvolgdatum (alleen lopende acquisitie: KOUD/WARM).
+    // Dagniveau-grens (`< startOfUtcDay`) — identiek aan de nav-badge (`overdueLeads`, signals.ts)
+    // en aan de "— te laat"-markering op /franchise/leads. Een timestamp-grens (`lte: now`) telde
+    // een lead die eerder vandaag verviel al als taak in /acties, terwijl de badge én de leadpagina
+    // 'm pas ná middernacht "te laat" noemen — één bron van waarheid (DOEL 1b, drie surfaces gelijk).
     prisma.lead.count({
       where: {
         tenantId,
         status: { in: ["KOUD", "WARM"] },
-        nextFollowUp: { not: null, lte: now },
+        nextFollowUp: { not: null, lt: startOfUtcDay(now) },
       },
     }),
     // Gepubliceerde tenant-diensten + hun vulgraad (actieve samenwerking = gevuld) + startdatum, voor de

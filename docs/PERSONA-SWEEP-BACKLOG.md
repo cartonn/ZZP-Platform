@@ -1,5 +1,57 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-21 (run 42) · **main-commit basis:** `ae64d9f7`
+> **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** — 1 MED (DOEL 2, malicieuze invoer: ongeldige
+> prestatie-periode-datum viel door naar Prisma) én 1 MED (DOEL 1b, cross-surface-inconsistentie:
+> lead-opvolgtaak op /acties gebruikte een andere overdue-grens dan de badge + leadpagina). Drie
+> parallelle Opus-audits (authz/IDOR/cross-tenant/document-privacy; malicieuze invoer + verboden
+> statusovergangen; next-action-correctheid over alle vier rollen). De authz/IDOR/tenant-audit kwam
+> **schoon** terug (alle document-/PDF-/dossier-routes checken ownership ná de DB-lookup + audit;
+> franchise-acties her-checken `assertSameTenant`/`ownsViaTenant` vóór elke write; cross-tenant vs
+> onbekend-id geven identieke responses — geen existence-oracle).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 2, malicieuze invoer: ongeldige periode-datum → generieke catch-all):**
+> `parsePerformanceInput` (`samenwerkingen/[id]/actions.ts:94-95`) bouwde `periodStart`/`periodEnd` met
+> bare `new Date(raw)` zonder `isNaN`-check, en `validatePerformanceForm` (`validation.ts:375`) toetste
+> de periode **alléén** als bíede ruwe waarden truthy waren én controleerde enkel `s > e` (NaN-datums
+> werden overgeslagen). Een geknutselde form-POST naar `logAndSubmitPerformanceAction`/
+> `editAndResubmitPerformanceAction` met `type=HOURS`, `periodStart=onzin` (of één losse garbage-datum)
+> passeerde zo de validatie en stroomde als `Invalid Date` door naar `prisma.performance.create` →
+> `PrismaClientValidationError` → gevangen door `toSafeActionError` → **generieke** "Er is een fout
+> opgetreden"-melding i.p.v. een leesbare veldfout (geen 500/lek, maar een gat tegen "Zod-validatie op
+> elke mutatie" + herhaalbare interne-error-logruis). **Geschonden regel:** CLAUDE.md regel 2 (validatie
+> vóór actie) + DOEL 2 (malicieuze invoer → nette weigering). **Fix (twee lagen):** (1) `isNaN`-weigering
+> in `parsePerformanceInput` vóór de DB-lookup; (2) `validatePerformanceForm` weigert nu élke losse
+> ongeldige datum ("Vul een geldige periode in") — de pure validator is op zichzelf correct én
+> unit-getest. Rood→groen: 2 tests in `validation.test.ts` (garbage periodStart; losse garbage periodEnd).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, cross-surface-inconsistentie op de lead-overdue-grens):**
+> de bemiddelaar-taak "lead wacht op opvolging" op /acties (`pending-tasks.ts:769`, feed van
+> `franchiseLeadFollowupTask`) telde met een **timestamp**-grens (`nextFollowUp: { lte: now }`), terwijl
+> de nav-badge (`overdueLeads`, `signals.ts:378`) én de "— te laat"-markering op `/franchise/leads`
+> (`page.tsx:93-96`) een **dagniveau**-grens (`< startOfUtcDay`) gebruiken. Gevolg: een lead die eerder
+> vandaag verviel (bv. 09:00, bekeken om 15:00) verscheen wél als taak op /acties én verhoogde de
+> algemene /acties-teller, maar de `/franchise/leads`-badge bleef 0 en de lead was op zijn eigen pagina
+> niet "te laat" — tot ~24u lang, elke dag. Precies het anti-patroon "drie surfaces spreken elkaar
+> tegen". **Geschonden regel:** DOEL 1b (één bron van waarheid; /acties, badge en lijst gelijk) +
+> server-side waarheid. **Fix:** `pending-tasks.ts` gebruikt nu dezelfde `lt: startOfUtcDay(now)`-grens
+> (import van `startOfUtcDay` uit `signals.ts`, geen circulaire import). Rood→groen: 2 tests in
+> `pending-tasks-franchiser.test.ts` (lead die eerder-vandaag verviel telt NIET; lead van gisteren telt WÉL).
+>
+> **GEPARKEERD uit deze run (repro + prioriteit, voor een volgende increment):**
+>
+> - **NIT (code-health / herhaal-defect-risico):** twee volledige parallelle "next-action"-aggregaat-
+>   engines zijn dode code, niet gekoppeld aan enige UI: `freelancerNextActions`/`clientNextActions`/
+>   `adminNextActions` in `src/lib/next-actions.ts` (alleen `franchiserNextActions` is echt gewired via
+>   `franchiseGuidedSetupTasks`) en `cascadeFreelancerActions`/`cascadeClientActions` in
+>   `src/lib/cascade/next-actions.ts` — buiten hun eigen testbestanden nul productie-callers. Dit is een
+>   bewezen defect-vector: `pending-tasks-client-compliance.test.ts` documenteert dat een compliance-
+>   ripple-signaal ooit alléén in de dode `clientNextActions` leefde en apart naar de item-engine moest
+>   worden geport. `cascade/next-actions.ts` is al verder gedrift (`P.payment=58` maakt geen onderscheid
+>   OVERDUE vs APPROVED, anders dan de live `paymentConfirmTask`). Aanbeveling: beide dode modules
+>   verwijderen (of wiren en de duplicaat item-engine-logica schrappen). Prioriteit: LOW. Aparte PR
+>   (raakt veel testbestanden; geen gebruikersimpact — puur drift-preventie).
+
 > **Datum:** 2026-07-21 (run 41) · **main-commit basis:** `567322d2`
 > **Uitkomst:** **1 HIGH (DOEL 2, robuustheid — onbegrensde dienst-doorloop-lus → event-loop-DoS)
 > én 1 MED (DOEL 1b, contradictoire/dode CLIENT-cascadebadge op een bevroren deal) gevonden én

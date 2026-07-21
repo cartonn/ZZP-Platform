@@ -93,6 +93,14 @@ async function parsePerformanceInput(
   const periodEndRaw = type === "HOURS" ? String(formData.get("periodEnd") ?? "").trim() : "";
   const periodStart = periodStartRaw ? new Date(periodStartRaw) : null;
   const periodEnd = periodEndRaw ? new Date(periodEndRaw) : null;
+  // Weiger een ongeldige datum netjes vóór persistentie. De HTML `<input type=date>` levert altijd
+  // een geldige waarde, maar een geknutselde form-POST (`periodStart=onzin`) niet: zonder deze check
+  // stroomt een `Invalid Date` door naar `prisma.performance.create` → PrismaClientValidationError →
+  // generieke catch-all i.p.v. een leesbare veldfout. Dit gate't vóór de DB-lookup; `validatePerformanceForm`
+  // weigert dezelfde ongeldige datum ook (defense-in-depth, en de pure validator is op zichzelf correct).
+  if ((periodStart && isNaN(periodStart.getTime())) || (periodEnd && isNaN(periodEnd.getTime()))) {
+    return { error: "Vul een geldige periode in (begin- en einddatum)." };
+  }
 
   // Snapshot het uurtarief én het ORT-profiel uit de samenwerking (server-side waarheid).
   const col = await prisma.collaboration.findUnique({
