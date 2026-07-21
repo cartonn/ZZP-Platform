@@ -155,6 +155,19 @@ describe("task builders", () => {
     expect(t.title).toBe("Verplicht document verlopen: VOG");
     expect(t.id).toBe("mandatory-document:VOG");
     expect(t.priority).toBe(P.mandatoryDoc);
+    // Zonder credId valt de link terug op het aanmaak-formulier (geen bestaand document bekend).
+    expect(t.href).toBe("/certificaten/nieuw?type=VOG");
+  });
+
+  it("verplicht document verlopen mét credId: deep-link naar VERLENGEN i.p.v. nieuw aanmaken", () => {
+    const t = mandatoryDocumentTask("VOG", "VOG", "expired", "cred-vog-1");
+    expect(t.href).toBe("/certificaten/cred-vog-1/bewerken");
+    expect(t.subtitle).toContain("vernieuw");
+  });
+
+  it("verplicht document ontbreekt negeert een meegegeven credId (altijd nieuw aanmaken)", () => {
+    const t = mandatoryDocumentTask("VOG", "VOG", "missing", "cred-vog-1");
+    expect(t.href).toBe("/certificaten/nieuw?type=VOG");
   });
 
   it("AVG-verwijderverzoek blijft een link (onomkeerbaar, geen één-klik)", () => {

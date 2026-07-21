@@ -112,6 +112,66 @@ describe("verplicht document — afgewezen certificaat geen dubbele taak", () =>
     expect(ids).not.toContain("credential-fix:cred-vog");
   });
 
+  it("REJECTED + VERIFIED-verlopen van hetzelfde type geeft één taak (de fix-taak), niet ook 'verlopen'", async () => {
+    // Realistisch: een oude VOG is verlopen én een nieuwe indiening is afgewezen. computeCompliance
+    // classificeert VOG dan als "expired" (verlopen VERIFIED-cert), waardoor de mandatory-taak vroeger
+    // tóch náást de credentialFixTask verscheen — een dubbele, tegenstrijdige next-action.
+    state.creds = [
+      { id: "cred-vog-rej", title: "VOG", type: "VOG", status: "REJECTED", expiresAt: null },
+      {
+        id: "cred-vog-old",
+        title: "VOG",
+        type: "VOG",
+        status: "VERIFIED",
+        expiresAt: new Date("2020-01-01"),
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const ids = tasks.map((t) => t.id);
+    // Exact één rij voor VOG: herstel het afgewezen certificaat.
+    expect(ids).toContain("credential-fix:cred-vog-rej");
+    expect(ids).not.toContain("mandatory-document:VOG");
+  });
+
+  it("EXPIRED verplicht document (geen rejected) deep-linkt naar VERLENGEN van dat certificaat", async () => {
+    state.creds = [
+      {
+        id: "cred-vog-old",
+        title: "VOG",
+        type: "VOG",
+        status: "VERIFIED",
+        expiresAt: new Date("2020-01-01"),
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const vog = tasks.find((t) => t.id === "mandatory-document:VOG");
+    expect(vog).toBeDefined();
+    // Verlengen van het bestaande document, niet een nieuw aanmaken.
+    expect(vog?.href).toBe("/certificaten/cred-vog-old/bewerken");
+  });
+
+  it("bij meerdere verlopen exemplaren van een type wint het meest recent verlopen exemplaar", async () => {
+    state.creds = [
+      {
+        id: "cred-vog-2019",
+        title: "VOG",
+        type: "VOG",
+        status: "VERIFIED",
+        expiresAt: new Date("2019-01-01"),
+      },
+      {
+        id: "cred-vog-2022",
+        title: "VOG",
+        type: "VOG",
+        status: "EXPIRED",
+        expiresAt: new Date("2022-06-01"),
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    const vog = tasks.find((t) => t.id === "mandatory-document:VOG");
+    expect(vog?.href).toBe("/certificaten/cred-vog-2022/bewerken");
+  });
+
   it("REJECTED VOG onderdrukt alleen VOG; een ontbrekende INSURANCE blijft nudgen", async () => {
     state.creds = [
       { id: "cred-vog", title: "VOG", type: "VOG", status: "REJECTED", expiresAt: null },

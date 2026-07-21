@@ -75,11 +75,19 @@
 >   recentste melding. Het no-show-taakblok is uit `freelancerTasks` verwijderd (`noShowWarningTask` + de
 >   `no-show-warning` kind weg; viel op de default link-resolver → geen registry-wijziging). +8 tests.
 >   Gate: typecheck, lint, 4671 unit-tests, build, prettier groen.
-> - **LOW (dubbele taak + verkeerde deep-link):** een verplicht certificaat-type met een `REJECTED`
+> - ~~**LOW (dubbele taak + verkeerde deep-link):** een verplicht certificaat-type met een `REJECTED`
 >   **én** een VERIFIED-maar-verlopen cert levert twee taken (`credential-fix` →
 >   `/certificaten/{id}/bewerken` én `mandatory-document` → `/certificaten/nieuw?type=…`); de
 >   rejected-vs-missing-dedup (`pending-tasks.ts:369-372`) slaat alleen `state==="missing"` over, niet
->   `"expired"`. Ook wijst de verlopen-deeplink naar "nieuw aanmaken" i.p.v. verlengen.
+>   `"expired"`. Ook wijst de verlopen-deeplink naar "nieuw aanmaken" i.p.v. verlengen.~~ **GEDAAN
+>   (2026-07-21, PR #856):** de rejected-vs-mandatory-onderdrukking dekt nu élke niet-satisfied staat
+>   (`missing` én `expired`) — een afgewezen cert onderdrukt óók de mandatory-taak wanneer dat type
+>   dáárnaast een VERIFIED-maar-verlopen cert heeft (dat het als `expired` classificeert); de
+>   `credentialFixTask` blijft de enige canonieke rij. De `expired`-mandatory-taak deep-linkt nu naar
+>   het VERLENGEN van het bestaande certificaat (`/certificaten/{credId}/bewerken`, meest recent
+>   verlopen exemplaar bij meerdere) i.p.v. een nieuw aanmaken; `mandatoryDocumentTask` kreeg een
+>   optionele `renewCredId` + "vernieuw"-subtitel. Bestanden: `src/lib/actions/tasks.ts`,
+>   `src/lib/actions/pending-tasks.ts`. +6 tests. Gate: typecheck, lint, unit-tests, build, prettier groen.
 
 > **Datum:** 2026-07-20 (run 39) · **main-commit basis:** `dd6e2159`
 > **Uitkomst:** **1 MED (DOEL 2, defense-in-depth — ontbrekende dispuut-vries op `createPerformance`)

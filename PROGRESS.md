@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — routine: verplicht document — geen dubbele next-action bij rejected+expired + verleng-deeplink (ZZP'er)
+
+**Bevinding (geparkeerd LOW, persona-sweep run 40):** een verplicht certificaat-type (VOG/verzekering) met
+zowel een `REJECTED` cert **als** een VERIFIED-maar-verlopen cert leverde de ZZP'er twee tegenstrijdige
+next-actions op: de `credentialFixTask` (herstel afgewezen → `/certificaten/{id}/bewerken`) **én** de
+mandatory-taak (`/certificaten/nieuw?type=…`). `computeCompliance` classificeert het type als `expired`
+(vanwege de verlopen VERIFIED-cert), en de rejected-vs-mandatory-dedup onderdrukte alleen `missing`, niet
+`expired`. Bovendien wees de verlopen-mandatory-deeplink naar "nieuw aanmaken" i.p.v. het bestaande
+document verlengen.
+
+- `src/lib/actions/pending-tasks.ts`: de onderdrukking dekt nu élke niet-satisfied staat (`missing` én
+  `expired`) zodra een afgewezen cert van dat type bestaat → één canonieke rij (de fix-taak). Nieuwe
+  `expiredCredIdByType`-map bepaalt per type het meest recent verlopen exemplaar; die id voedt de
+  verleng-deeplink.
+- `src/lib/actions/tasks.ts`: `mandatoryDocumentTask` kreeg een optionele `renewCredId` — bij `expired`
+  deep-linkt de taak naar `/certificaten/{credId}/bewerken` (verlengen) i.p.v. het aanmaak-formulier, met
+  een "vernieuw het bewijsstuk"-subtitel.
+- Tests: `pending-tasks-rejected-mandatory.test.ts` (+3: rejected+expired-dedup, verleng-deeplink, meest
+  recent verlopen wint) en `tasks.test.ts` (+3: renew-href, fallback-href, missing negeert credId).
+- Geen schema-/mutatie-/auth-oppervlak geraakt; read-only afleiding, één bron (`computeTasks`) voor
+  `/acties`, badge én dashboard-rail. Complementair aan open PR #841 (verlopen niet-verplicht cert).
+- Gate: `npm run typecheck` · `npm run lint` · `npm run test` · `npm run build` · `npx prettier --check .`
+  groen. PR #856 (→ CI-poort).
+
 ## 2026-07-21 — security/privacy: zelf-geschreven creditreden overleefde de erasure (AVG art. 17, HOOG)
 
 **Bevinding (erasure-volledigheid, AVG art. 17):** de security-/privacy-auditronde (orchestrator Opus 4.8 +
