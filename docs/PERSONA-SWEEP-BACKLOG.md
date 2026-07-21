@@ -133,10 +133,14 @@ performanceNewerThanInvoice` → `priorCycleFreelancerPhase`). Een openstaande v
 >   `RENEWAL_OVERDUE_GRACE_DAYS = 30` in het pure `summarizeCollaborationRenewal` (nieuwe fase `"lapsed"`,
 >   `attention: false` voorbij grace) → /acties, badge, dashboard-rail én detail-nudge convergeren via de
 >   ene bron; `renewalTasks`-query kreeg een `gte`-grace-vloer. Tests +6.
-> - **LOW (DOEL 1b, dubbeltelling):** een understaffte PUBLISHED-dienst (≥7 dagen open, geen ACTIVE
+> - ~~**LOW (DOEL 1b, dubbeltelling):** een understaffte PUBLISHED-dienst (≥7 dagen open, geen ACTIVE
 >   collab, start deze week/verleden) wordt zowel in `franchiseAcuteDienstTask` (aggregate) als als
 >   specifieke `franchiseStaleDienstTask` geteld (`pending-tasks.ts:840-851` + `:880-883`) → dezelfde
->   dienst telt twee keer in de badge.
+>   dienst telt twee keer in de badge.~~ **GEDAAN (2026-07-21, PR #865):** de stale-lijst filtert nu de
+>   diensten weg die al in het acute-aggregaat zitten (`acuteDienstIds`-set, zelfde `isStartAcute`-
+>   definitie als het aggregaat). De acute-tak is het urgentere, gebundelde signaal en wint; de
+>   stale-lijst toont alleen de resterende, niet-acute lang-open diensten (starten later) → elke dienst
+>   telt precies één keer op /acties + in de badge. +2 tests in `pending-tasks-franchiser.test.ts`.
 > - **LOW (defense-in-depth, latent):** de middleware-matcher (`src/middleware.ts:158`) sluit elk pad
 >   mét een punt uit van de middleware (incl. de rol-redirects); vandaag veilig omdat elke admin-/
 >   franchise-pagina zelf `requireRole` doet. Overweeg een lint/test die afdwingt dat elke admin-/

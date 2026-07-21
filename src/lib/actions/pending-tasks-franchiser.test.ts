@@ -17,6 +17,8 @@ const state = vi.hoisted(() => ({
     credentials: { type: string; status: string; expiresAt: Date | null }[];
   }[],
   stale: [] as { id: string; title: string; createdAt: Date }[],
+  // Open (gepubliceerde) diensten voor de acute-aggregaattaak: id + startdatum + actieve-collab-telling.
+  open: [] as { id: string; startDate: Date | null; _count: { collaborations: number } }[],
   // Fixture-leads (KOUD/WARM) met een geplande opvolgdatum; de lead.count-mock past het echte
   // `where.nextFollowUp`-filter erop toe zodat de dagniveau-grens getest kan worden.
   leads: [] as { nextFollowUp: Date }[],
@@ -56,12 +58,11 @@ vi.mock("@/lib/db", () => ({
       count: vi.fn(async () => state.counts.freelancers),
     },
     // job.findMany wordt twee keer aangeroepen: open-diensten (voor de acute-taak) en de stale-lijst.
-    // De stale-query is te herkennen aan het collaborations-none-filter; open-diensten geven we leeg
-    // terug zodat de acute-tak (fill-signals/summarize) inert blijft en de test de twee nieuwe taken
-    // isoleert. job.count telt de gepubliceerde diensten voor de geleide opzet.
+    // De stale-query is te herkennen aan het collaborations-none-filter; open-diensten (default leeg)
+    // voeden de acute-aggregaattaak. job.count telt de gepubliceerde diensten voor de geleide opzet.
     job: {
       findMany: vi.fn(async (args: { where?: { collaborations?: unknown } }) =>
-        args?.where?.collaborations ? state.stale : [],
+        args?.where?.collaborations ? state.stale : state.open,
       ),
       count: vi.fn(async () => state.counts.publishedDiensten),
     },
@@ -100,6 +101,7 @@ const notEngaged = {
 beforeEach(() => {
   state.roster = [];
   state.stale = [];
+  state.open = [];
   state.leads = [];
   state.counts = {
     companies: 1,
@@ -151,6 +153,36 @@ describe("bemiddelaar next-actions — te lang open dienst telt op /acties + bad
     state.stale = [];
     const tasks = await pendingTasks(ACTOR);
     expect(tasks.some((t) => t.kind === "franchise-stale-service")).toBe(false);
+  });
+});
+
+// Dedup-invariant (persona-sweep, geparkeerd LOW → DOEL 1b): een ongevulde PUBLISHED-dienst die zowel
+// acuut (start deze week/verleden) als te-lang-open (≥7 dagen) is, telde twee keer op /acties + in de
+// badge — één keer in de acute-aggregaattaak én één keer als specifieke stale-taak. De acute-tak is het
+// urgentere, gebundelde signaal en wint; de stale-lijst toont alleen de resterende, niet-acute diensten.
+describe("bemiddelaar next-actions — acute + stale dienst telt niet dubbel", () => {
+  it("laat een acuut-én-stale dienst alleen in het acute-aggregaat, niet ook als stale-taak", async () => {
+    const created = new Date(now.getTime() - 12 * 86_400_000);
+    // Zelfde dienst is ongevuld en start vandaag (acuut) én staat 12 dagen open (stale).
+    state.open = [{ id: "dienst-overlap", startDate: now, _count: { collaborations: 0 } }];
+    state.stale = [{ id: "dienst-overlap", title: "Weekenddienst", createdAt: created }];
+    const tasks = await pendingTasks(ACTOR);
+    // Acute-aggregaat telt 'm mee (één dreigt onbezet), maar geen aparte stale-rij → geen dubbeltelling.
+    expect(tasks.some((t) => t.kind === "franchise-open-dienst-acute")).toBe(true);
+    expect(tasks.some((t) => t.kind === "franchise-stale-service")).toBe(false);
+  });
+
+  it("behoudt de stale-taak voor een lang-open dienst die (nog) niet acuut is (start later)", async () => {
+    const created = new Date(now.getTime() - 12 * 86_400_000);
+    const laterStart = new Date(now.getTime() + 60 * 86_400_000);
+    // Ongevuld en 12 dagen open, maar de start ligt ver in de toekomst → niet acuut → stale blijft.
+    state.open = [{ id: "dienst-later", startDate: laterStart, _count: { collaborations: 0 } }];
+    state.stale = [{ id: "dienst-later", title: "Zomerdienst", createdAt: created }];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-open-dienst-acute")).toBe(false);
+    const stale = tasks.filter((t) => t.kind === "franchise-stale-service");
+    expect(stale).toHaveLength(1);
+    expect(stale[0]?.id).toBe("franchise-stale-service:dienst-later");
   });
 });
 
