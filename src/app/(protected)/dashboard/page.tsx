@@ -20,7 +20,9 @@ import {
   type WsWeekDay,
   type WsRow,
   type WsSealItem,
+  type WsNotice,
 } from "@/components/dashboard/workspace-dashboard";
+import { noShowStandingNotice } from "@/lib/no-show";
 import { getClientStats, fillRateHint } from "@/lib/client-stats";
 import { getClientRevenueTrend, getFreelancerRevenueTrend } from "@/lib/revenue-trend";
 import { getUnbilledInvoiceSummary } from "@/lib/data/unbilled-invoices";
@@ -110,6 +112,8 @@ interface DashboardData {
   professionals?: WsRow[];
   /** Compliance-zegel voor de rail (alleen FRANCHISER; andere rollen bouwen 'm in de render). */
   seal?: { title: string; subtitle: string; items: WsSealItem[]; reportHref?: string };
+  /** Passief rail-signaal (alleen FREELANCER): no-show-stand — historie, geen openstaande actie. */
+  notice?: WsNotice | null;
 }
 
 /** Kopkaart in de stijl van het publieke profiel: subtitel, kerncijfers, zegel, publieke link. */
@@ -216,57 +220,75 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         })
       : { score: 0, missing: [] };
     const now = new Date();
-    const [applications, creds, runningRows, me, runningTotal] = await Promise.all([
-      pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
-      // Eén query voor alle certificaten van de ZZP'er; de telling leiden we in-memory af.
-      pid
-        ? // unbounded-allow: dashboard-widget aggregatie; eigenaar-scoped, inherent begrensd
-          prisma.credential.findMany({
-            where: { freelancerProfileId: pid },
-            select: { type: true, status: true, expiresAt: true },
-          })
-        : Promise.resolve<{ type: string; status: string; expiresAt: Date | null }[]>([]),
-      // Lopende samenwerkingen (niet-terminaal) met de gegevens om de cascade-fase af te leiden.
-      // Bewust begrensd tot de zone-grens, meest recent bewogen bovenaan (audit T3) —
-      // de volledige gepagineerde lijst staat op /samenwerkingen.
-      prisma.collaboration.findMany({
-        where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
-        take: RUNNING_ZONE_LIMIT,
-        select: {
-          id: true,
-          status: true,
-          contractStatus: true,
-          disputedAt: true,
-          startDate: true,
-          endDate: true,
-          rate: true,
-          weekdays: true,
-          company: { select: { id: true, name: true } },
-          job: { select: { title: true } },
-          performances: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: { status: true, createdAt: true },
+    const [applications, creds, runningRows, me, runningTotal, noShowUnjustified, latestNoShow] =
+      await Promise.all([
+        pid ? prisma.application.count({ where: { freelancerId: pid } }) : Promise.resolve(0),
+        // Eén query voor alle certificaten van de ZZP'er; de telling leiden we in-memory af.
+        pid
+          ? // unbounded-allow: dashboard-widget aggregatie; eigenaar-scoped, inherent begrensd
+            prisma.credential.findMany({
+              where: { freelancerProfileId: pid },
+              select: { type: true, status: true, expiresAt: true },
+            })
+          : Promise.resolve<{ type: string; status: string; expiresAt: Date | null }[]>([]),
+        // Lopende samenwerkingen (niet-terminaal) met de gegevens om de cascade-fase af te leiden.
+        // Bewust begrensd tot de zone-grens, meest recent bewogen bovenaan (audit T3) —
+        // de volledige gepagineerde lijst staat op /samenwerkingen.
+        prisma.collaboration.findMany({
+          where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
+          take: RUNNING_ZONE_LIMIT,
+          select: {
+            id: true,
+            status: true,
+            contractStatus: true,
+            disputedAt: true,
+            startDate: true,
+            endDate: true,
+            rate: true,
+            weekdays: true,
+            company: { select: { id: true, name: true } },
+            job: { select: { title: true } },
+            performances: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { status: true, createdAt: true },
+            },
+            invoices: {
+              where: { lifecycleStatus: { not: null } },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { lifecycleStatus: true, createdAt: true },
+            },
           },
-          invoices: {
-            where: { lifecycleStatus: { not: null } },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: { lifecycleStatus: true, createdAt: true },
-          },
-        },
-        orderBy: { updatedAt: "desc" },
-      }),
-      // Identiteit + recency voor de inzetbaarheidsstatus (lichte select, geen extra joins).
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: { identityVerifiedAt: true, lastLoginAt: true },
-      }),
-      // Totaal lopende samenwerkingen, voor de eerlijke overloop-telling in de zone.
-      prisma.collaboration.count({
-        where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
-      }),
-    ]);
+          orderBy: { updatedAt: "desc" },
+        }),
+        // Identiteit + recency voor de inzetbaarheidsstatus (lichte select, geen extra joins).
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: { identityVerifiedAt: true, lastLoginAt: true },
+        }),
+        // Totaal lopende samenwerkingen, voor de eerlijke overloop-telling in de zone.
+        prisma.collaboration.count({
+          where: { freelancer: { userId }, status: { in: ["PROPOSED", "ACTIVE"] } },
+        }),
+        // No-show-stand: aantal ONGEGRONDE no-shows (blijvende historie). Passief signaal op het
+        // dashboard i.p.v. een openstaande next-action — er is geen ZZP-actie die dit "afhandelt"
+        // (uitschrijving is een adminbeslissing), dus het hoort niet in de /acties-inbox.
+        pid
+          ? prisma.noShowReport.count({
+              where: { freelancerProfileId: pid, verdict: "UNJUSTIFIED" },
+            })
+          : Promise.resolve(0),
+        // Meest recente ongegronde melding — deep-link zodat de reden + het oordeel terug te lezen zijn.
+        pid
+          ? prisma.noShowReport.findFirst({
+              where: { freelancerProfileId: pid, verdict: "UNJUSTIFIED" },
+              orderBy: { createdAt: "desc" },
+              select: { collaborationId: true },
+            })
+          : Promise.resolve(null),
+      ]);
+    const noShowNotice = noShowStandingNotice(noShowUnjustified);
 
     // Geverifieerde certificaten voor de statistiek-tegel: VERIFIED én niet verlopen — consistent met
     // /certificaten, het publieke profiel en het vertrouwensniveau (een verlopen bewijs telt niet mee).
@@ -373,6 +395,19 @@ async function dashboardData(role: UserRole, userId: string): Promise<DashboardD
         trustLevel: trust.level,
         editHref: "/profiel/bewerken",
       },
+      notice: noShowNotice
+        ? {
+            tone: noShowNotice.tone,
+            title: noShowNotice.title,
+            detail: noShowNotice.detail,
+            ...(latestNoShow
+              ? {
+                  href: `/samenwerkingen/${latestNoShow.collaborationId}`,
+                  hrefLabel: "Bekijk de melding",
+                }
+              : {}),
+          }
+        : null,
     };
   }
 
@@ -735,6 +770,7 @@ export default async function DashboardPage() {
       identity,
       professionals,
       seal: franchiserSeal,
+      notice,
     },
     matches,
     tasks,
@@ -888,6 +924,7 @@ export default async function DashboardPage() {
         nextActions={tasksToActions(tasks)}
         week={wk}
         seal={seal}
+        notice={notice}
       />
     );
   }

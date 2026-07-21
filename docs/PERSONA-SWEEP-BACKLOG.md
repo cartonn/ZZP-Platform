@@ -66,11 +66,15 @@
 >   een inReview-only-melding blijft wél zichtbaar als informatieve telling in de dashboard-momentopname
 >   (`summarizeClientCompliance`), maar niet als openstaande next-action. Voedt `/acties`, rail én badge
 >   (één bron). +7 tests. Gate: typecheck, lint, unit-tests, build, prettier groen.
-> - **LOW (niet-verdwijnende taak):** `noShowWarningTask` (`tasks.ts:525-536`, uit
->   `pending-tasks.ts:514-532`) staat permanent in `/acties` + badge voor elke ZZP'er met ≥1
->   `UNJUSTIFIED` no-show — er is geen afhandel-pad (verdicts zijn blijvende historie). Botst met de
->   `/acties`-belofte "afgehandelde acties verdwijnen vanzelf". Fix: naar een passief historie-signaal
->   i.p.v. een openstaande taak.
+> - ~~**LOW (niet-verdwijnende taak):** `noShowWarningTask` staat permanent in `/acties` + badge voor elke
+>   ZZP'er met ≥1 `UNJUSTIFIED` no-show — er is geen afhandel-pad (verdicts zijn blijvende historie). Botst
+>   met de `/acties`-belofte "afgehandelde acties verdwijnen vanzelf".~~ **GEDAAN (2026-07-21, PR #854):**
+>   verplaatst naar een passief historie-signaal op het ZZP-dashboard. Nieuwe pure `noShowStandingNotice`
+>   (`no-show.ts`, enige bron) + passief `WsNotice`/`notice`-slot op `WorkspaceDashboard` (warning onder de
+>   grens, danger op de grens); de FREELANCER-dashboardtak telt de ongegronde no-shows + deep-link naar de
+>   recentste melding. Het no-show-taakblok is uit `freelancerTasks` verwijderd (`noShowWarningTask` + de
+>   `no-show-warning` kind weg; viel op de default link-resolver → geen registry-wijziging). +8 tests.
+>   Gate: typecheck, lint, 4671 unit-tests, build, prettier groen.
 > - **LOW (dubbele taak + verkeerde deep-link):** een verplicht certificaat-type met een `REJECTED`
 >   **én** een VERIFIED-maar-verlopen cert levert twee taken (`credential-fix` →
 >   `/certificaten/{id}/bewerken` én `mandatory-document` → `/certificaten/nieuw?type=…`); de

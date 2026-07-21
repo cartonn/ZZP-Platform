@@ -46,7 +46,6 @@ import {
   adminJudgeNoShowTask,
   adminSuspendNoShowTask,
   adminSupportTicketTask,
-  noShowWarningTask,
   overdueInvoiceTask,
   paymentDueSoonTask,
   applicationsReviewTask,
@@ -509,28 +508,11 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   const residualOverdue = Math.max(0, overdue - surfacedOverdue);
   if (residualOverdue > 0) tasks.push(overdueInvoiceTask(residualOverdue, "FREELANCER"));
 
-  // No-show-stand (productbesluit 12-6-2026): de ZZP'er ziet ongegronde registraties als
-  // waarschuwing — bij de grens volgt uitschrijving (adminbeslissing). Link naar de meest
-  // recente registratie zodat de reden + het oordeel direct terug te lezen zijn.
-  if (profile) {
-    const latestUnjustified = await prisma.noShowReport.findFirst({
-      where: { freelancerProfileId: profile.id, verdict: "UNJUSTIFIED" },
-      orderBy: { createdAt: "desc" },
-      select: { collaborationId: true },
-    });
-    if (latestUnjustified) {
-      const unjustified = await prisma.noShowReport.count({
-        where: { freelancerProfileId: profile.id, verdict: "UNJUSTIFIED" },
-      });
-      tasks.push(
-        noShowWarningTask(
-          unjustified,
-          NO_SHOW_LIMIT,
-          `/samenwerkingen/${latestUnjustified.collaborationId}`,
-        ),
-      );
-    }
-  }
+  // No-show-stand (productbesluit 12-6-2026): ongegronde no-shows zijn blijvende historie (het
+  // oordeel is een adminbeslissing) — er is geen ZZP-actie die dit "afhandelt". Daarom géén
+  // openstaande next-action hier (die zou nooit verdwijnen en botst met "afgehandelde acties
+  // verdwijnen vanzelf"); het dashboard toont de stand als passief historie-signaal
+  // (`noShowStandingNotice`).
 
   // BTW-aangifte-deadline: elk onafgewikkeld kwartaal moet uiterlijk op de indieningsdatum aangegeven
   // zijn. Alleen wanneer die deadline nadert/verstreken is én er een saldo te melden is (harde

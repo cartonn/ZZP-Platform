@@ -4,6 +4,8 @@
 // uitschrijf-taak in de admin-wachtrij — uitschrijving is altijd een handmatige adminbeslissing
 // (User.status → SUSPENDED), nooit automatisch.
 
+import { plural } from "@/lib/plural";
+
 export const NO_SHOW_LIMIT = 3;
 
 export interface NoShowStanding {
@@ -24,5 +26,43 @@ export function noShowStanding(
     unjustified,
     remaining: Math.max(0, limit - unjustified),
     atLimit: unjustified >= limit,
+  };
+}
+
+export type NoShowNoticeTone = "warning" | "danger";
+
+export interface NoShowNotice extends NoShowStanding {
+  /** "warning" onder de grens (nog te herstellen), "danger" bij de grens (uitschrijving in beraad). */
+  tone: NoShowNoticeTone;
+  title: string;
+  detail: string;
+}
+
+/**
+ * Passief historie-signaal voor de ZZP'er: ongegronde no-shows zijn blijvende historie (het
+ * oordeel is een adminbeslissing) — er is geen ZZP-actie die dit "afhandelt". Daarom hoort dit
+ * NIET thuis als openstaande next-action (die zou nooit verdwijnen en botst met de belofte
+ * "afgehandelde acties verdwijnen vanzelf"), maar als passieve melding op het dashboard.
+ * Retourneert `null` wanneer er niets te melden is (geen ongegronde no-shows).
+ */
+export function noShowStandingNotice(
+  unjustifiedCount: number,
+  limit: number = NO_SHOW_LIMIT,
+): NoShowNotice | null {
+  const standing = noShowStanding(unjustifiedCount, limit);
+  if (standing.unjustified <= 0) return null;
+  if (standing.atLimit) {
+    return {
+      ...standing,
+      tone: "danger",
+      title: "Grens ongegronde no-shows bereikt",
+      detail: "Een beheerder beoordeelt of je account wordt uitgeschreven van het platform.",
+    };
+  }
+  return {
+    ...standing,
+    tone: "warning",
+    title: `${plural(standing.unjustified, "ongegronde no-show", "ongegronde no-shows")} geregistreerd`,
+    detail: `Nog ${plural(standing.remaining, "melding", "meldingen")} vóór uitschrijving van het platform.`,
   };
 }
