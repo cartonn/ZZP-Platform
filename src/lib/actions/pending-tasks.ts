@@ -66,7 +66,11 @@ import {
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { reviewPromptForCollaboration } from "@/lib/collaboration-review-prompt";
-import { summarizeCollaborationRenewal, RENEWAL_WINDOW_DAYS } from "@/lib/collaboration-renewal";
+import {
+  summarizeCollaborationRenewal,
+  RENEWAL_WINDOW_DAYS,
+  RENEWAL_OVERDUE_GRACE_DAYS,
+} from "@/lib/collaboration-renewal";
 import { reviewBlindDays } from "@/lib/config";
 import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
@@ -203,9 +207,11 @@ async function reviewLeaveTasks(
  * Vervolgsignaal als next-action: een ACTIVE, niet-bevroren samenwerking waarvan de einddatum binnen
  * het vervolgvenster valt of al verstreken is. Eén taak per samenwerking, voor beide partijen — deep-
  * link naar het detail waar de volledige nudge staat. De pure `summarizeCollaborationRenewal` is de
- * enige bron voor fase/dagen (lijst en detail kunnen nooit divergeren); de query pre-filtert al op
- * `endDate <= venstergrens` (verleden inbegrepen; null valt buiten `lte`) en `disputedAt: null`, dus
- * elke rij komt als `ending_soon` of `overdue` terug.
+ * enige bron voor fase/dagen (lijst en detail kunnen nooit divergeren); de query pre-filtert op
+ * `endDate ∈ [grace-vloer, venstergrens]` (recent verstreken inbegrepen; null valt buiten de range)
+ * en `disputedAt: null`. De grace-vloer staat één dag losser dan `summarizeCollaborationRenewal`
+ * dempt, zodat de pure functie de definitieve `lapsed`-grens bepaalt (geen off-by-one op de UTC-dag)
+ * en elke doorgelaten rij als `ending_soon` of `overdue` (aandacht) terugkomt.
  */
 async function renewalTasks(
   userId: string,
@@ -213,6 +219,8 @@ async function renewalTasks(
   now: Date,
 ): Promise<PendingTask[]> {
   const windowEnd = new Date(now.getTime() + RENEWAL_WINDOW_DAYS * 86_400_000);
+  // Verstreken vóór deze vloer → voorbij de grace → gedempt (`lapsed`); niet meer ophalen.
+  const overdueFloor = new Date(now.getTime() - (RENEWAL_OVERDUE_GRACE_DAYS + 1) * 86_400_000);
   const partyWhere = role === "FREELANCER" ? { freelancer: { userId } } : { company: { userId } };
 
   const collabs = await prisma.collaboration.findMany({
@@ -220,7 +228,7 @@ async function renewalTasks(
       ...partyWhere,
       status: "ACTIVE",
       disputedAt: null,
-      endDate: { lte: windowEnd },
+      endDate: { gte: overdueFloor, lte: windowEnd },
     },
     select: {
       id: true,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   RENEWAL_WINDOW_DAYS,
+  RENEWAL_OVERDUE_GRACE_DAYS,
   renewalHeadline,
   summarizeCollaborationRenewal,
 } from "./collaboration-renewal";
@@ -73,6 +74,39 @@ describe("summarizeCollaborationRenewal", () => {
     expect(r.phase).toBe("overdue");
     expect(r.attention).toBe(true);
     expect(r.daysRemaining).toBe(-3);
+  });
+
+  it("binnen het grace-venster ná de einddatum blijft het overdue met aandacht", () => {
+    const r = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: endInDays(-RENEWAL_OVERDUE_GRACE_DAYS),
+      now: NOW,
+    });
+    expect(r.phase).toBe("overdue");
+    expect(r.attention).toBe(true);
+    expect(r.daysRemaining).toBe(-RENEWAL_OVERDUE_GRACE_DAYS);
+  });
+
+  it("voorbij het grace-venster dempt de onafhandelbare nudge naar lapsed (geen aandacht)", () => {
+    const r = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: endInDays(-(RENEWAL_OVERDUE_GRACE_DAYS + 1)),
+      now: NOW,
+    });
+    expect(r.phase).toBe("lapsed");
+    expect(r.attention).toBe(false);
+    expect(r.daysRemaining).toBe(-(RENEWAL_OVERDUE_GRACE_DAYS + 1));
+  });
+
+  it("respecteert een eigen grace-venster", () => {
+    const short = summarizeCollaborationRenewal({
+      status: "ACTIVE",
+      endDate: endInDays(-4),
+      overdueGraceDays: 3,
+      now: NOW,
+    });
+    expect(short.phase).toBe("lapsed");
+    expect(short.attention).toBe(false);
   });
 
   it("respecteert een eigen venster", () => {

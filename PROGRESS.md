@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — routine: begrens de perpetuele vervolg-next-action (overdue-grace) — ZZP'er + opdrachtgever
+
+**Bevinding (geparkeerd MED-LOW, persona-sweep run 41):** `collaborationRenewalTask` vuurde voor een
+over-de-einddatum ACTIVE-samenwerking (`overdue`) **onbeperkt** een vervolg-next-action in `/acties`, de
+zijbalk-badge én het collab-detail (`RenewalNudge`). De "vervolg"-CTA (opdrachtgever: vervolgopdracht;
+ZZP'er: beschikbaarheid) verandert de `status`/`endDate` van díe samenwerking niet → de taak was nergens
+afhandelbaar en verdween nooit — exact het anti-patroon dat de codebase voor no-shows bewust vermeed
+(`no-show.ts`, PR #854) en dat botst met de `/acties`-belofte "afgehandelde acties verdwijnen vanzelf".
+
+- `src/lib/collaboration-renewal.ts`: nieuwe fase `"lapsed"` + `RENEWAL_OVERDUE_GRACE_DAYS = 30`. Een
+  verstreken inzet vraagt nog binnen 30 dagen aandacht (`overdue`), daarna dempt het pure
+  `summarizeCollaborationRenewal` naar `lapsed` (`attention: false`) — één bron, dus /acties, badge,
+  dashboard-rail én de detail-nudge convergeren automatisch. Optionele `overdueGraceDays`-override.
+- `src/lib/actions/pending-tasks.ts`: `renewalTasks`-query kreeg een grace-vloer
+  (`endDate: { gte: now-(grace+1)d, lte: venstergrens }`) zodat ver-verstreken inzet niet meer wordt
+  opgehaald; de pure functie bepaalt de definitieve `lapsed`-grens (geen off-by-one op de UTC-dag).
+- De inzet blijft gewoon zichtbaar in `/samenwerkingen`; alleen de onafhandelbare aandacht-nudge stopt.
+- Tests: `collaboration-renewal.test.ts` (+4: grace-grens, lapsed-demping, eigen grace-venster),
+  `pending-tasks-renewal.test.ts` (+2: `gte`-vloer op de query, lapsed → geen taak). Geen schema-/
+  mutatie-/auth-oppervlak geraakt; read-only afleiding.
+- Gate: `npm run typecheck` · `npm run lint` · `npm run test` · `npm run build` · `npx prettier --check .`.
+  PR #858 (→ CI-poort).
+
 ## 2026-07-21 — persona-sweep run 41: onbegrensde dienst-lus (DoS-hardening) + dode CLIENT-cascadebadge op bevroren deal
 
 **Twee bevindingen gevonden én opgelost** (parallelle Opus-audits: next-action / authz-IDOR-tenant / malicieuze invoer).
