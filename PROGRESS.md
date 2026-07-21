@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — ZZP'er: no-show-stand als passief dashboardsignaal i.p.v. permanente next-action
+
+**Waarde (next-action-correctheid, DOEL 1b):** persona-sweep run 40 flagde een LOW — `noShowWarningTask`
+stond permanent als openstaande **attention**-next-action in `/acties` + zijbalk-badge + dashboard-rail voor
+elke ZZP'er met ≥1 ONGEGRONDE no-show. Ongegronde no-shows zijn blijvende historie (het oordeel is een
+adminbeslissing, uitschrijving is handmatig) → er is geen ZZP-actie die dit "afhandelt", dus de taak verdween
+nooit en botste met de belofte "afgehandelde acties verdwijnen vanzelf" (niet-afhandelbare badge-inflatie).
+Nu verplaatst naar een **passief historie-signaal** op het ZZP-dashboard, weg uit de /acties-inbox.
+
+- Nieuwe pure `noShowStandingNotice(unjustified, limit?)` in `src/lib/no-show.ts` (enige bron voor de
+  passieve melding; `null` zonder ongegronde no-shows; onder de grens → tone `warning` + "nog N vóór
+  uitschrijving", op/boven de grens → tone `danger` + "een beheerder beoordeelt uitschrijving"). +8 tests.
+- Nieuw passief rail-slot `WsNotice` + `notice`-prop op `WorkspaceDashboard`
+  (`src/components/dashboard/workspace-dashboard.tsx`) — presentationeel, géén knop/actie, subtiele
+  warning/danger-banner boven het zegel.
+- `src/app/(protected)/dashboard/page.tsx` (FREELANCER-tak): telt de ONGEGRONDE no-shows + de meest recente
+  melding (deep-link) in de bestaande `Promise.all`, bouwt de notice via de pure summarizer, geeft 'm door.
+- `src/lib/actions/pending-tasks.ts`: het no-show-warning-taakblok uit `freelancerTasks` verwijderd;
+  `noShowWarningTask`-import weg (`NO_SHOW_LIMIT` blijft — nog gebruikt door de admin-suspend-tak).
+- `src/lib/actions/tasks.ts`: `noShowWarningTask` + de `no-show-warning` kind-variant verwijderd (viel op de
+  default `link`-resolver → geen resolver-registry-wijziging in `action-list.tsx`).
+- Read-only afleiding, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.
+- Gates groen: `typecheck` · `lint` · `test` (4671 passed) · `build` · `prettier --check .`.
+
 ## 2026-07-20 — Opdrachtgever: client-compliance next-action alleen bij een échte client-actie
 
 **Waarde (next-action-correctheid, DOEL 1b):** persona-sweep run 40 flagde een MED — `clientComplianceTask`

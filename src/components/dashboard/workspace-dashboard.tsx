@@ -64,6 +64,19 @@ export interface WsSealItem {
   ok: boolean;
 }
 
+/**
+ * Passieve rail-melding (geen openstaande actie, geen knop): een historie-/statussignaal dat de
+ * gebruiker moet zien maar niet kan "afhandelen" (bv. de no-show-stand). Bewust géén next-action,
+ * zodat het de /acties-inbox niet permanent vult.
+ */
+export interface WsNotice {
+  tone: "warning" | "danger";
+  title: string;
+  detail: string;
+  href?: string;
+  hrefLabel?: string;
+}
+
 export interface WorkspaceDashboardProps {
   header: { title: string; subtitle?: string };
   kpis: WsKpi[];
@@ -71,6 +84,7 @@ export interface WorkspaceDashboardProps {
   nextActions: WsAction[];
   week?: { title: string; count: string; days: WsWeekDay[] };
   seal?: { title: string; subtitle: string; items: WsSealItem[]; reportHref?: string };
+  notice?: WsNotice | null;
 }
 
 const TONE_TEXT: Record<ActionTone, string> = {
@@ -91,6 +105,7 @@ export async function WorkspaceDashboard({
   nextActions,
   week,
   seal,
+  notice,
 }: WorkspaceDashboardProps) {
   const { t } = await getTranslator();
   return (
@@ -304,6 +319,37 @@ export async function WorkspaceDashboard({
                     </span>
                   </div>
                 ))}
+              </div>
+            </section>
+          )}
+
+          {/* Passieve melding (historie-/statussignaal, geen actie) */}
+          {notice && (
+            <section
+              className={`rounded-xl border p-4 shadow-sm ${
+                notice.tone === "danger"
+                  ? "border-danger/30 bg-danger/5 ring-1 ring-danger/15"
+                  : "border-warning/30 bg-warning/5 ring-1 ring-warning/15"
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle
+                  className={`mt-0.5 h-4 w-4 shrink-0 ${notice.tone === "danger" ? "text-danger" : "text-warning"}`}
+                  aria-hidden
+                />
+                <div className="min-w-0">
+                  <p className="font-display text-sm font-semibold">{notice.title}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{notice.detail}</p>
+                  {notice.href && (
+                    <Link
+                      href={notice.href}
+                      className="focus-ring mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    >
+                      {notice.hrefLabel ?? t("Bekijken")}
+                      <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                    </Link>
+                  )}
+                </div>
               </div>
             </section>
           )}

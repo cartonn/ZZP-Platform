@@ -69,7 +69,6 @@ export type PendingTask =
   | (TaskBase & { kind: "admin-judge-no-show"; reportId: string })
   | (TaskBase & { kind: "admin-suspend-no-show"; userId: string })
   | (TaskBase & { kind: "admin-support-ticket"; ticketId: string })
-  | (TaskBase & { kind: "no-show-warning" })
   | (TaskBase & { kind: "overdue-invoice"; role: "FREELANCER" | "CLIENT" })
   | (TaskBase & { kind: "payment-due-soon" })
   | (TaskBase & { kind: "vat-deadline"; year: number; quarter: number })
@@ -519,20 +518,6 @@ export function adminSupportTicketTask(
     resolver: "link",
     href: "/admin/support",
     ticketId,
-  };
-}
-
-/** Waarschuwing voor de ZZP'er: ongegronde no-shows geregistreerd; bij de grens volgt uitschrijving. */
-export function noShowWarningTask(unjustified: number, limit: number, href: string): PendingTask {
-  return {
-    kind: "no-show-warning",
-    id: "no-show-warning",
-    title: `Let op: ${plural(unjustified, "ongegronde no-show", "ongegronde no-shows")} geregistreerd`,
-    subtitle: `Bij ${limit} ongegronde no-shows volgt uitschrijving van het platform.`,
-    tone: "attention",
-    priority: P.complianceRipple,
-    resolver: "link",
-    href,
   };
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NO_SHOW_LIMIT, noShowStanding } from "@/lib/no-show";
+import { NO_SHOW_LIMIT, noShowStanding, noShowStandingNotice } from "@/lib/no-show";
 
 describe("noShowStanding", () => {
   it("zonder ongegronde no-shows is er niets aan de hand", () => {
@@ -29,5 +29,47 @@ describe("noShowStanding", () => {
 
   it("eigen grens overschrijft de default", () => {
     expect(noShowStanding(2, 2)).toEqual({ unjustified: 2, remaining: 0, atLimit: true });
+  });
+});
+
+describe("noShowStandingNotice", () => {
+  it("geeft niets terug zonder ongegronde no-shows (geen passief signaal)", () => {
+    expect(noShowStandingNotice(0)).toBeNull();
+    expect(noShowStandingNotice(-1)).toBeNull();
+  });
+
+  it("onder de grens: waarschuwing met resterend aantal tot uitschrijving", () => {
+    const notice = noShowStandingNotice(1);
+    expect(notice).not.toBeNull();
+    expect(notice!.tone).toBe("warning");
+    expect(notice!.atLimit).toBe(false);
+    expect(notice!.remaining).toBe(2);
+    expect(notice!.title).toContain("1 ongegronde no-show");
+    expect(notice!.detail).toContain("Nog 2 meldingen");
+  });
+
+  it("enkelvoud-pluralisatie klopt bij nog één melding te gaan (2 van 3)", () => {
+    const notice = noShowStandingNotice(2);
+    expect(notice!.tone).toBe("warning");
+    expect(notice!.title).toContain("2 ongegronde no-shows");
+    expect(notice!.detail).toContain("Nog 1 melding vóór");
+    expect(notice!.detail).not.toContain("1 meldingen");
+  });
+
+  it("op de grens: danger-toon, uitschrijving in beraad door een beheerder", () => {
+    const notice = noShowStandingNotice(NO_SHOW_LIMIT);
+    expect(notice!.tone).toBe("danger");
+    expect(notice!.atLimit).toBe(true);
+    expect(notice!.title).toBe("Grens ongegronde no-shows bereikt");
+    expect(notice!.detail).toContain("beheerder");
+  });
+
+  it("boven de grens blijft danger (blijvende historie)", () => {
+    expect(noShowStandingNotice(5)!.tone).toBe("danger");
+  });
+
+  it("respecteert een eigen grens", () => {
+    expect(noShowStandingNotice(2, 2)!.tone).toBe("danger");
+    expect(noShowStandingNotice(1, 2)!.tone).toBe("warning");
   });
 });
