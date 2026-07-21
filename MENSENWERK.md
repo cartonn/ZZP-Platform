@@ -813,6 +813,19 @@ zetten van de e-mailsleutels (§2) meteen bevestigt dat er ook daadwerkelijk mai
 go-live. Zie §2 voor het volledige verhaal. Resterend mensenwerk: **niets** — de knop is er zodra
 `EMAIL_DRIVER` gezet is.
 
+**Code-kant GEDAAN (2026-07-21) — go-live zelftest-sweep (alle zelftests in één klik):** op
+`/admin/systeemstatus` staat nu bovenaan de zelftest-lijst één knop **"Alle zelftests draaien"** die
+álle actieve, bijwerkingsveilige connectiviteitszelftests (opslag, database, rate-limit, verificatie,
+betaalprovider, upload-scanner, error-monitoring) in één keer draait en een geconsolideerd **GO/NO-GO**
+teruggeeft. Zo bevestig je vóór go-live in één handeling dat élke geconfigureerde integratie écht
+live-bereikbaar is, i.p.v. de losse knoppen één voor één te klikken. Integraties die nog op een veilige
+fallback/demo draaien worden eerlijk als **overgeslagen** getoond (geen vals groen). De uitvoer bevat
+nooit secrets (alleen pass/fail/overgeslagen + driver-modus), loopt door de authz-keten (rol →
+rate-limit → audit) en heeft geen bijwerkingen die opgeruimd moeten worden. **Mail zit bewust niet in
+de sweep** (vereist een ontvangeradres + verstuurt echte mail) — gebruik daar de losse E-mail-zelftest
+(§2). De statische `npm run preflight` (config-posture, hieronder) blijft de tegenhanger buiten de app.
+Resterend mensenwerk: **niets extra** — de knop is er standaard.
+
 **Code-kant GEDAAN (13-7-2026) — go-live preflight-CLI:** naast het in-app `/admin/systeemstatus`-scherm
 kun je de productie-configuratie-posture nu ook **buiten de app** controleren met `npm run preflight`
 (tegen de deploy-config: `railway run npm run preflight`) — zonder een draaiende server + admin-login.
