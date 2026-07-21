@@ -2,6 +2,8 @@ import { AuthorizationError, requireActor } from "@/lib/authz";
 import { buildIcsCalendar } from "@/lib/calendar/ics";
 import { collaborationScheduleEvents } from "@/lib/calendar/schedule";
 import { loadUserScheduleCollaborations } from "@/lib/calendar/user-schedule";
+import { administrativeDeadlineEvents } from "@/lib/calendar/deadlines";
+import { loadUserAdministrativeDeadlines } from "@/lib/calendar/user-deadlines";
 
 // Agenda-export (.ics) van het eigen werkrooster: de actieve samenwerkingen van de ingelogde
 // gebruiker worden server-side opgehaald en als RFC 5545-kalender teruggegeven. Alleen de eigen
@@ -19,12 +21,18 @@ export async function GET() {
     throw e;
   }
 
-  const mapped = await loadUserScheduleCollaborations(actor.id);
+  const [mapped, deadlines] = await Promise.all([
+    loadUserScheduleCollaborations(actor.id),
+    loadUserAdministrativeDeadlines(actor.id, actor.role),
+  ]);
 
-  const ics = buildIcsCalendar(collaborationScheduleEvents(mapped), {
-    prodId: "-//ZZP Platform//Rooster//NL",
-    calendarName: "ZZP Platform — Rooster",
-  });
+  const ics = buildIcsCalendar(
+    [...collaborationScheduleEvents(mapped), ...administrativeDeadlineEvents(deadlines)],
+    {
+      prodId: "-//ZZP Platform//Rooster//NL",
+      calendarName: "ZZP Platform — Rooster",
+    },
+  );
 
   return new Response(ics, {
     status: 200,

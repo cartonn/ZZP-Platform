@@ -2,6 +2,9 @@ import { type NextRequest } from "next/server";
 import { buildIcsCalendar } from "@/lib/calendar/ics";
 import { collaborationScheduleEvents } from "@/lib/calendar/schedule";
 import { loadUserScheduleCollaborations } from "@/lib/calendar/user-schedule";
+import { administrativeDeadlineEvents } from "@/lib/calendar/deadlines";
+import { loadUserAdministrativeDeadlines } from "@/lib/calendar/user-deadlines";
+import { type UserRole } from "@/lib/enums";
 import { verifyAgendaFeedToken } from "@/lib/calendar/feed-token";
 import { shareTokenSecret } from "@/lib/share-token";
 import { agendaFeedRateLimiter } from "@/lib/rate-limit";
@@ -52,18 +55,24 @@ export async function GET(request: NextRequest) {
   // de status van het account prijsgeeft. Vóór elke DB-I/O van het rooster.
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { status: true, anonymizedAt: true },
+    select: { status: true, anonymizedAt: true, role: true },
   });
   if (!user || user.anonymizedAt || user.status !== "ACTIVE") {
     return new Response("Niet gevonden", { status: 404 });
   }
 
-  const mapped = await loadUserScheduleCollaborations(userId);
+  const [mapped, deadlines] = await Promise.all([
+    loadUserScheduleCollaborations(userId),
+    loadUserAdministrativeDeadlines(userId, user.role as UserRole),
+  ]);
 
-  const ics = buildIcsCalendar(collaborationScheduleEvents(mapped), {
-    prodId: "-//ZZP Platform//Rooster//NL",
-    calendarName: "ZZP Platform — Rooster",
-  });
+  const ics = buildIcsCalendar(
+    [...collaborationScheduleEvents(mapped), ...administrativeDeadlineEvents(deadlines)],
+    {
+      prodId: "-//ZZP Platform//Rooster//NL",
+      calendarName: "ZZP Platform — Rooster",
+    },
+  );
 
   return new Response(ics, {
     status: 200,
