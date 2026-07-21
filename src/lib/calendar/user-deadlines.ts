@@ -20,6 +20,12 @@ import { type AdministrativeDeadlines } from "@/lib/calendar/deadlines";
  * - Facturen: openstaand (canonieke where) waarin de gebruiker uitschrijver (ZZP'er) óf tegenpartij
  *   (opdrachtgever) is, met een gezette `dueAt`.
  * - BTW: gedelegeerd aan de bestaande deadline-engine (leeg voor rollen zonder eigen grootboek).
+ *
+ * BTW-reikwijdte (bewust smaller dan certificaten/facturen): `getVatDeadlinesForActor` levert alleen
+ * kwartalen die nú actie verdienen — deadline binnen ~14 dagen óf verstreken, én een niet-nul saldo.
+ * Voor een agenda is dat precies het bruikbare venster: een nihil-kwartaal hoeft geen herinnering en
+ * een deadline drie maanden vooruit is nog geen actie. Certificaten/facturen tonen wél de volle
+ * horizon omdat hun verloop-/vervaldatum op zichzelf al de te agenderen datum ís.
  */
 export async function loadUserAdministrativeDeadlines(
   userId: string,

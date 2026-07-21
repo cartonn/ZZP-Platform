@@ -19,10 +19,13 @@ administratie-ontzorging zonder nieuwe rekenlogica (hergebruikt de bestaande eng
 - **Loader** `src/lib/calendar/user-deadlines.ts`: server-side gescoopt — certificaten alleen voor
   ZZP'ers (VERIFIED + verloopdatum), facturen via de canonieke `outstandingInvoiceWhere` (uitschrijver
   óf tegenpartij, met `dueAt`), BTW via de bestaande `getVatDeadlinesForActor`. Puur read-only.
+  **BTW-reikwijdte bewust smaller** (het actie-venster: ~14 dagen vóór de deadline t/m verstreken,
+  niet-nul saldo); certificaten/facturen tonen de volle horizon omdat hun datum zélf de te agenderen
+  datum is. Toegelicht in de loader-docstring.
 - **Wiring:** beide routes voegen `...administrativeDeadlineEvents(deadlines)` toe naast het rooster;
   de publieke feed leest nu ook `role` (naast de bestaande liveness-poort) om de scoping te bepalen.
-- **Tests:** `deadlines.test.ts` (6, mapper: categorieën, payable-tekst, geen euro-teken, volgorde) +
-  `user-deadlines.test.ts` (6, loader-scoping: rol-gate, partij-OR, BTW-delegatie). Bestaande
+- **Tests:** `deadlines.test.ts` (5, mapper: categorieën, payable-tekst, geen euro-teken, volgorde) +
+  `user-deadlines.test.ts` (5, loader-scoping: rol-gate, partij-OR, BTW-delegatie). Bestaande
   agenda-route-tests uitgebreid met de deadline-loader-mock + `role`.
 
 **Bestanden:** `src/lib/calendar/deadlines.ts` (+`.test.ts`), `src/lib/calendar/user-deadlines.ts`
