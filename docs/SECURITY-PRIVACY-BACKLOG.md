@@ -4,6 +4,72 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-21 (basis: `main` @ e72af9fa)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken — (1) AVG art. 17 erasure-volledigheid: veld-voor-veld-diff van élk PII-dragend
+schema-model tegen wat `anonymizeUser` scrubt/verwijdert (nadruk op modellen die sinds de vorige
+verificatie zijn toegevoegd); (2) cross-tenant/multi-tenant-isolatie FRANCHISER (`lib/tenancy.ts` +
+alle `franchise/**`-call-sites + de nieuwe `franchiseGuidedSetupTasks`); (3) object-/functie-authz +
+IDOR + mass-assignment + foutlek op alle server actions + `api/**`-route-handlers, delta-focus op
+PR's #850–#854 (db-zelftest, live-DB-rol-dashboard, veilige fout-hergooi, franchiser geleide-opzet,
+client-compliance-gate, no-show passief signaal). Kader: OWASP Top 10 (A01/A03/A05) + ASVS + AVG art.
+5/9/17/30/32. Stack: Next.js 15.5.19 (voorbij CVE-2025-29927), Auth.js v5-beta.31, Prisma 6.19.3.
+Orchestrator verifieerde onafhankelijk: enige `dangerouslySetInnerHTML` = nonce-gated theme-script;
+geen `$queryRawUnsafe`/`eval`; de nieuwe `db-selftest` reduceert elke fout tot `error.name` (geen
+connection-string/tabelnaam-lek, CWE-209); `.env`/`*.db`/`*.pem` niet gecommit.
+
+**Eén bevinding gevonden en OPGELOST (rood→groen); één bevinding geparkeerd (product-/FG-oordeel):**
+
+### OPGELOST — HOOG: zelf-geschreven creditreden (`Invoice.rejectionReason`) overleefde de erasure (AVG art. 17, PR volgt)
+
+- **Repro:** een ZZP'er crediteert een eigen factuur via `creditInvoice` (`src/lib/cascade/invoice-commands.ts`,
+  guard: alleen de issuer of admin) → `planInvoiceCreditedEvent` (`src/lib/cascade/handlers.ts`) schrijft de
+  door de ZZP'er zélf getypte vrije-tekstreden in DRIE kopieën: (1) `Invoice.rejectionReason`
+  (`lifecycleStatus: "CREDITED"`), (2) de `INVOICE_CREDITED`-auditmetadata (`{ reason }`), (3) de
+  notificatiebody van BEIDE partijen (`Factuur … is gecrediteerd door de ZZP'er. Reden: …`).
+  `anonymizeUser` (`src/app/(protected)/admin/gebruikers/actions.ts`) raakte de `Invoice` nergens aan en zijn
+  brede notification-redactie (`where: { userId }`) dekt alleen de door de betrokkene ONTVANGEN kopie — niet de
+  bij de opdrachtgever afgeleverde kopie. Zo bleef de zelf-geschreven reden onbeperkt leesbaar na erasure.
+  Dit is de spiegel van de al-gedekte eigen dispuutreden/annuleerreden; en te onderscheiden van de AFKEUR-reden
+  (`REJECTED`, zelfde kolom maar door de OPDRACHTGEVER over de ZZP'er geschreven — bewust geparkeerd), zodat de
+  fix strikt op `lifecycleStatus: "CREDITED"` + `issuerUserId` scoopt.
+- **Geschonden regel:** AVG art. 17 (recht op vergetelheid); CLAUDE.md architectuurregel 4/5 + de eigen
+  erasure-intent (zelf-geschreven vrije tekst moet worden gewist).
+- **Fix:** binnen de `anonymizeUser`-transactie: (1) `Invoice.rejectionReason` → null voor de eigen
+  credit-facturen (`issuerUserId`, `CREDITED`); (2) de `INVOICE_CREDITED`-auditmetadata → `{ reason:
+"[verwijderd]" }` gescopet op die factuur-id's (raakt nooit een `INVOICE_REJECTED`-regel van de tegenpartij);
+  (3) de tegenpartij-notificatie geredact via exacte, deterministisch reconstrueerbare body (factuurnummer +
+  reden) op de feed van `counterpartyUserId` (die notificatie heeft geen deep-link). Test:
+  `anonymize-erasure.test.ts` (+3, HOOG, rood→groen; 30→33 tests).
+
+### Geparkeerd — HOOG (product-/FG-oordeel, niet unilateraal): FRANCHISER-erasure laat de eigen `Tenant`-identiteit staan (AVG art. 17)
+
+- **Repro:** `canAnonymizeUser` blokkeert alleen ADMIN/self/al-geanonimiseerd; een FRANCHISER kan zelf een
+  verwijderverzoek indienen en worden geanonimiseerd. `anonymizeUser` raakt `prisma.tenant` nergens aan, dus
+  `Tenant.name`/`slug`/`brandColor` (de door de bemiddelaar gekozen bedrijfsidentiteit — mogelijk een
+  persoons-/familienaam bij een solo-bemiddelaar) blijven platformbreed zichtbaar voor élk tenant-lid, terwijl
+  `User.name`/`email` wél worden overschreven. Structureel identiek aan `Company.name` (dat voor een CLIENT wél
+  wordt gewist via `companyAnonymizationData`).
+- **Geschonden regel:** AVG art. 17; consistentie met de bestaande `Company`-erasure.
+- **Waarom geparkeerd:** de keuze is een echte tweesprong — óf (a) `Tenant.name`/`brandColor` scrubben
+  (spiegel `Company`), maar `slug` wordt voor routing gebruikt en een tenant met actieve leden/opdrachtgevers
+  wordt dan een verweesde franchise; óf (b) anonimisering blokkeren zolang de FRANCHISER een actieve tenant
+  bezit (eerst overdracht van eigenaarschap eisen). Dat is een product-/bedrijfs-/FG-besluit (MENSENWERK §5),
+  niet unilateraal door een agent te kiezen. **Aanbevolen fix (na sign-off):** `tenantAnonymizationData()`
+  spiegel van `companyAnonymizationData()` + `prisma.tenant.updateMany({ where: { ownerUserId } })`, óf een
+  guard in `canAnonymizeUser` die overdracht afdwingt.
+
+**Herbevestigd schoon (van-nul-af her-geverifieerd, niet op docs vertrouwd):** franchiser cross-tenant-isolatie
+airtight (elke franchise-query bakt `tenantId` uit `actor.tenantId` in of volgt `assertSameTenant`/`ownsViaTenant`;
+geen `tenantId`-mass-assignment; existence-oracle-pariteit); alle `api/**`-crown-jewel-routes (documenten/media/
+dossier/factuur-PDF) ownership-checked + audit op toegestaan én geweigerd; de PR-#850–#854-delta volgt de volledige
+auth→rol→ownership→Zod→actie→audit-keten (db-zelftest read-only + rate-limited + audit, geen secret/PII-lek);
+alle overige zelf-geschreven vrije-tekstvelden (motivatie/support/idee/beoordeling/prestatie/dispuut/annulering/
+lead-contact/favoriet-notitie) correct gedekt; de al-geparkeerde tegenpartij-velden (`NoShowReport.reason`,
+`Performance.rejectionReason`, `Invoice.rejectionReason` REJECTED-tak, `Review.comment` subject-zijde,
+`Expense.description`, `TaxFilingRequest` fiscale retentie, Lead-PII) blijven bewust geparkeerd (FG/juridisch).
+
 ## Ronde 2026-07-20b (basis: `main` @ aa79fcdc)
 
 Audit: orchestrator (Opus 4.8) + 4 parallelle adversariële Opus-security-subagents op niet-overlappende

@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — security/privacy: zelf-geschreven creditreden overleefde de erasure (AVG art. 17, HOOG)
+
+**Bevinding (erasure-volledigheid, AVG art. 17):** de security-/privacy-auditronde (orchestrator Opus 4.8 +
+3 parallelle adversariële subagents op erasure / franchise-tenant / IDOR-authz) vond dat een door de ZZP'er
+ZÉLF getypte creditreden `anonymizeUser` overleefde. `creditInvoice` (cascade) schrijft die vrije tekst in
+drie kopieën — `Invoice.rejectionReason` (CREDITED), de `INVOICE_CREDITED`-auditmetadata én de
+notificatiebody van beide partijen — en geen daarvan werd bij anonimisering geraakt (de brede
+notification-redactie dekt alleen de ONTVANGEN kopie, niet de bij de opdrachtgever afgeleverde). Spiegel van
+de al-gedekte eigen dispuut-/annuleerreden; te onderscheiden van de AFKEUR-reden (REJECTED, tegenpartij,
+geparkeerd).
+
+- `src/app/(protected)/admin/gebruikers/actions.ts`: binnen de erasure-transactie de drie kopieën gescrubt —
+  (1) `Invoice.rejectionReason` → null (`issuerUserId` + `lifecycleStatus "CREDITED"`), (2)
+  `INVOICE_CREDITED`-auditmetadata → `{ reason: "[verwijderd]" }` (gescopet op de eigen factuur-id's, raakt
+  nooit een REJECTED-regel), (3) de tegenpartij-notificatie via exacte reconstrueerbare body op
+  `counterpartyUserId`.
+- `src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts`: +3 tests (rood→groen), 30→33.
+- Geparkeerd (product-/FG-oordeel): FRANCHISER-erasure laat `Tenant.name`/`slug`/`brandColor` staan — zie
+  `docs/SECURITY-PRIVACY-BACKLOG.md` (Ronde 2026-07-21).
+- Twee andere subagent-oppervlakken (franchise cross-tenant, IDOR/authz + PR-#850–#854-delta) van-nul-af
+  her-geverifieerd → schoon.
+- Gates groen: `typecheck` · `lint` · `test` · `build` · `prettier --check .`.
+
 ## 2026-07-21 — ZZP'er: no-show-stand als passief dashboardsignaal i.p.v. permanente next-action
 
 **Waarde (next-action-correctheid, DOEL 1b):** persona-sweep run 40 flagde een LOW — `noShowWarningTask`
