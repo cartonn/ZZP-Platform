@@ -52,6 +52,23 @@ function classify(
   return cats.reduce((best, c) => (rates[c] > rates[best] ? c : best));
 }
 
+/**
+ * Bovengrens op de duur van één dienst (in uren). `segmentShift` loopt de dienst in vaste stappen
+ * door, dus de kosten zijn O(duur): een gemanipuleerde POST met een absurde eindtijd (bv. jaar 9999)
+ * zou zonder deze grens ~10⁸–10¹⁰ iteraties synchroon draaien en de event-loop blokkeren (DoS). Eén
+ * aaneengesloten dienst langer dan dit is bovendien onrealistisch — het totaal per urenstaat is al op
+ * MAX_PERFORMANCE_HOURS begrensd. We spiegelen die grens hier als harde bovengrens per dienst.
+ */
+export const MAX_SHIFT_HOURS = 1000;
+
+/**
+ * Bovengrens op het aantal diensten in één urenstaat/indiening. Segmentatie is O(duur) per dienst,
+ * dus een gemanipuleerde POST met duizenden dienstrijen kon de server-actie synchroon laten dweilen.
+ * Een echte periode-urenstaat bevat hooguit enkele tientallen diensten; 100 is ruim en veilig
+ * (gelijk aan de CSV-import-grens).
+ */
+export const MAX_SHIFTS_PER_PERFORMANCE = 100;
+
 export interface SegmentShiftOptions {
   /** Toeslagprofiel dat de precedentie bepaalt (hoogste toeslag wint). Default = standaardtarieven. */
   rates?: Record<OrtCategory, number>;
@@ -77,6 +94,12 @@ export function segmentShift(start: Date, end: Date, opts: SegmentShiftOptions =
   }
   if (end.getTime() <= start.getTime()) {
     throw new Error("Het einde van de dienst moet na het begin liggen.");
+  }
+  // Harde bovengrens op de duur zodat de doorloop-lus altijd begrensd is (zie MAX_SHIFT_HOURS).
+  // Dit is de laatste verdedigingslinie tegen een absurde eindtijd; de input-lagen weigern dit al
+  // netjes vóór segmentatie, maar de pure motor mag nooit een onbegrensde lus kunnen draaien.
+  if (end.getTime() - start.getTime() > MAX_SHIFT_HOURS * 3_600_000) {
+    throw new Error(`Een dienst mag niet langer dan ${MAX_SHIFT_HOURS} uur duren.`);
   }
   const rates = opts.rates ?? DEFAULT_ORT_RATES_BPS;
   const holidays = opts.holidays ?? new Set<string>();

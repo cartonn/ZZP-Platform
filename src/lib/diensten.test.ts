@@ -99,6 +99,15 @@ describe("parseCsvShifts", () => {
     const { shifts } = parseCsvShifts(`2024-01-15T08:00;2024-01-15T16:00;${longDesc}`);
     expect(shifts[0]!.description.length).toBe(500);
   });
+
+  it("weigert een dienst met een absurde duur i.p.v. de import te laten blokkeren", () => {
+    // Zonder duurgrens zou segmentatie hierop ~10⁸+ iteraties draaien. Nu een nette regelfout.
+    const before = Date.now();
+    const { shifts, errors } = parseCsvShifts("2000-01-01T00:00;9999-12-31T23:59;Absurd");
+    expect(shifts).toHaveLength(0);
+    expect(errors[0]!.message).toContain("langer dan");
+    expect(Date.now() - before).toBeLessThan(1000);
+  });
 });
 
 describe("MAX_CSV_IMPORT_SIZE", () => {

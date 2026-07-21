@@ -23,7 +23,13 @@ import {
 import { prisma } from "@/lib/db";
 import { eurosToCents } from "@/lib/invoices";
 import { type OrtSegment, resolveOrtRates } from "@/lib/ort";
-import { segmentShifts, dutchHolidays, type Shift } from "@/lib/shift";
+import {
+  segmentShifts,
+  dutchHolidays,
+  MAX_SHIFT_HOURS,
+  MAX_SHIFTS_PER_PERFORMANCE,
+  type Shift,
+} from "@/lib/shift";
 import {
   type OrtCategory,
   ORT_SECTORS,
@@ -103,7 +109,13 @@ async function parsePerformanceInput(
     type === "HOURS" ? formData.getAll("shiftEnd").map((v) => String(v).trim()) : [];
   const shifts: Shift[] = [];
   const holidayYears = new Set<number>();
-  for (let i = 0; i < Math.max(shiftStartsRaw.length, shiftEndsRaw.length); i++) {
+  const rowCount = Math.max(shiftStartsRaw.length, shiftEndsRaw.length);
+  // Begrens het aantal dienstrijen: segmentatie is O(duur) per dienst, dus zonder deze grens kon een
+  // gemanipuleerde POST met duizenden rijen de server-actie synchroon laten dweilen (DoS).
+  if (rowCount > MAX_SHIFTS_PER_PERFORMANCE) {
+    return { error: `Je kunt maximaal ${MAX_SHIFTS_PER_PERFORMANCE} diensten tegelijk indienen.` };
+  }
+  for (let i = 0; i < rowCount; i++) {
     const s = shiftStartsRaw[i] ?? "";
     const e = shiftEndsRaw[i] ?? "";
     if (!s && !e) continue; // lege rij overslaan
@@ -113,6 +125,11 @@ async function parsePerformanceInput(
     if (isNaN(start.getTime()) || isNaN(end.getTime())) return { error: "Ongeldige diensttijden." };
     if (end.getTime() <= start.getTime())
       return { error: "Het einde van de dienst moet na het begin liggen." };
+    // Weiger een absurde duur netjes vóór segmentatie (server-side waarheid; de datetime-local `max`
+    // in het formulier is niet af te dwingen). segmentShift draagt dezelfde grens als vangnet.
+    if (end.getTime() - start.getTime() > MAX_SHIFT_HOURS * 3_600_000) {
+      return { error: `Een dienst mag niet langer dan ${MAX_SHIFT_HOURS} uur duren.` };
+    }
     shifts.push({ start, end });
     holidayYears.add(start.getFullYear());
     holidayYears.add(end.getFullYear());
