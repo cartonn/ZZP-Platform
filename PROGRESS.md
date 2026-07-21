@@ -3,6 +3,22 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — routine: dedup dubbeltelling acute+stale dienst in bemiddelaar-badge
+
+**Wat:** het geparkeerde LOW-gat (persona-sweep, DOEL 1b) gedicht — een ongevulde PUBLISHED-dienst
+die zowel **acuut** (start deze week/verleden) als **te-lang-open** (≥7 dagen) was, telde twee keer
+op `/acties` en in de zijbalk-badge van de bemiddelaar: één keer in de acute-aggregaattaak
+(`franchiseAcuteDienstTask`) én één keer als specifieke stale-taak (`franchiseStaleDienstTask`).
+
+- **Fix:** `pending-tasks.ts` bouwt nu een `acuteDienstIds`-set (ongevuld + `isStartAcute`, exact de
+  aggregaat-definitie) en filtert die diensten uit de stale-lijst. De acute-tak is het urgentere,
+  gebundelde signaal en wint; de stale-lijst toont alleen de resterende, niet-acute lang-open diensten
+  (starten later) → elke dienst telt precies één keer. Read-only afleiding, geen schema-/mutatie-/
+  auth-oppervlak geraakt.
+- **Bestanden:** `src/lib/actions/pending-tasks.ts` (import `isStartAcute`, `acuteDienstIds`-set +
+  filter), `src/lib/actions/pending-tasks-franchiser.test.ts` (+2 tests + `state.open`-mock).
+- **Gate:** typecheck + lint (0 warnings) + test (**4727 passed**, +4) + build + prettier groen; CI-poort via PR #865.
+
 ## 2026-07-21 — ontwerp-lab reeks 45: +10 concepten (441–450)
 
 **Wat:** het interne ontwerp-lab op `/ontwerp` uitgebreid met 10 nieuwe, onderscheidende

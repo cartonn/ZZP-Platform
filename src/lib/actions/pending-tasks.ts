@@ -83,7 +83,7 @@ import { summarizeStaleClientApplications } from "@/lib/stale-applications";
 import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { getRosterFillSignalsForTenant } from "@/lib/franchise/dienst-fill-signal";
-import { summarizeAcuteOpenDiensten } from "@/lib/franchise/acute-open-diensten";
+import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
 
 /** Harde bovengrens per kind (voorkomt N+1/zware lijsten op /acties); "+N meer" buiten beschouwing. */
 const MAX = 50;
@@ -863,6 +863,18 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
   );
   if (acuteSummary) tasks.push(franchiseAcuteDienstTask(acuteSummary));
 
+  // Diensten die al in de acute-aggregaattaak zitten (ongevuld + start deze week/verleden): die zijn
+  // hieronder ook stale (te lang open) als ze de drempel halen. Zonder deze set telt zo'n dienst twee
+  // keer op /acties + in de badge — één keer in het acute-aggregaat én één keer als specifieke
+  // stale-taak. De acute-tak is het urgentere, gebundelde signaal en wint; de stale-lijst toont alleen
+  // de resterende lang-open diensten die (nog) niet acuut zijn (starten later). Zelfde acuut-definitie
+  // (`isStartAcute`) als het aggregaat, zodat de twee oppervlakken niet driften.
+  const acuteDienstIds = new Set(
+    openDiensten
+      .filter((d) => d._count.collaborations === 0 && isStartAcute(d.startDate, now))
+      .map((d) => d.id),
+  );
+
   // Niet-inzetbare roster-ZZP'ers (verplicht document ontbreekt/verlopen of verificatie incompleet) —
   // blokkeert plaatsing. Zelfde helper/bron (computeEngageability) als /franchise/zzpers en het
   // dashboard, zodat de oppervlakken elkaar nooit tegenspreken.
@@ -890,7 +902,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
 
   // Ongedekte diensten die te lang open staan — oudste eerst, max 3 (rustige lijst; de volledige lijst
   // staat op /franchise/diensten). Spiegelt de dashboard-rail zodat /acties en de badge overeenkomen.
-  for (const d of staleDiensten.slice(0, 3)) {
+  for (const d of staleDiensten.filter((d) => !acuteDienstIds.has(d.id)).slice(0, 3)) {
     const openDays = Math.floor((now.getTime() - d.createdAt.getTime()) / 86_400_000);
     tasks.push(franchiseStaleDienstTask(d.id, d.title, openDays));
   }
