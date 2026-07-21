@@ -1332,3 +1332,34 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   **painterly craft-kleurvlakken**; **geweven tactiele materialiteit** — elk deterministisch, toegankelijk
   (WCAG focus-states, status label+icoon, motion-reduce) en onderscheidend van de bestaande 430.
 - **Totaal nu op `/ontwerp`: 440 concepten** (reeks 44: 431–440).
+
+## Reeks 45 — concepten 441–450 (2026-07-21)
+
+- **441 Kelp** — onderwater-kelpbos / organische diepte (#07211f + amber #f5b342): verticaal ritme met
+  amberen lichtschachten die van boven vallen, zachte sway (motion-reduce), premium-dark in het groen —
+  sereen en natuurlijk rond gevoelige documenten.
+- **442 Prairie** — weids grasland / horizontale weidsheid (#f4eede + hemelsblauw #3b7bb5): warme
+  drooggras-neutralen met windlijnen als hairline-ritme en veel horizontale lucht — aards, licht en rustig.
+- **443 Barcode** — streepjescode-minimalisme / data als code (#ffffff + elektrisch #ff3b00): alle structuur
+  in dunne verticale balken, tabulaire cijfers, één accent voor actie/alarm — monochroom en ultra-strak.
+- **444 Basalt** — vulkanische zeshoekige zuilen / tektonisch grid (#1a1917 + magma #ff6a2b): donker
+  graniet in een hexagon-modulariteit met gloeiend magma-accent — zwaar, stoer, geologisch-premium.
+- **445 Gletsjer** — gelaagd gletsjerijs / kristalheldere strata (#eef5f8 + cyaan #3aa7d4): koele blauw-witte
+  lagen met gebarsten-ijs hairlines en glasachtige helderheid — fris, koud en helder-licht.
+- **446 Macramé** — geknoopt touwwerk / ambachtelijk textiel (#f2e9db + touw #a9744f): warme jute-neutralen
+  met gevlochten koord-dividers en knopen als scheidingen — tactiele craft-warmte, handgemaakt.
+- **447 Houtskool** — houtskooltekening / expressief handgetekend (#211f1d + krijt #e8e2d6): gesmoezelde
+  grafiet-strepen op warm donker papier met korrel- en smudge-textuur — donker maar warm en artistiek.
+- **448 Eclips** — totale zonsverduistering / single-focus dark (#0a0a14 + corona #bcd4ff): diep indigo-zwart
+  met één gloeiende corona-ring als hero-focus — dramatische focus-reductie, één ding tegelijk belicht.
+- **449 Papierrol** — paper-quilling / gerolde papierlinten (#fbf6ef + roze #e08aa8): zachte pastel-craft met
+  gekrulde papierstrook-vormen als accenten en dividers — luchtig, speels-elegant en handgemaakt.
+- **450 Mokume** — mokume-gane metaallagen / luxe craft (#1c1815 + koper #b87333): warme metallic strata die
+  als houtnerf golven in koper, brons en staal — rijk, ambachtelijk, donker-warm premium.
+- Onderzochte 2026-trends deze reeks: **organic depth & natuurlijke diepte (kelpbos, lichtschachten)**;
+  **horizontale weidsheid als kalmerend principe**; **radicaal monochroom minimalisme (data-als-code)**;
+  **tektonisch/geologisch modulair grid (hexagon)**; **gelaagde strata & glasachtige helderheid**;
+  **tactiele craft-warmte (geknoopt textiel, houtskool, quilling, mokume-metaal)**; **single-focus /
+  spotlight-hiërarchie in premium-dark met radial glow** — elk deterministisch, toegankelijk (WCAG
+  focus-states, status label+icoon, motion-reduce) en onderscheidend van de bestaande 440.
+- **Totaal nu op `/ontwerp`: 450 concepten** (reeks 45: 441–450).
