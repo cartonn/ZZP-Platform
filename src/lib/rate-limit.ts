@@ -589,3 +589,16 @@ export const dbSelfTestRateLimiter = new RateLimiter(
   5 * 60_000,
   "dbselftest:",
 );
+
+/**
+ * Maximaal SELFTEST_SWEEP_RATE_LIMIT (default 3) go-live-sweeps per beheerder per 5 minuten. Eén sweep
+ * draait álle actieve zelftests tegelijk (opslag, database, rate-limit, verificatie, betaalprovider,
+ * upload-scanner, error-monitoring) — dus strakker dan de losse zelftests, zodat een herhaalde klik
+ * niet elke geconfigureerde integratie tegelijk belast.
+ */
+export const selfTestSweepRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("SELFTEST_SWEEP_RATE_LIMIT", 3),
+  5 * 60_000,
+  "selftestsweep:",
+);

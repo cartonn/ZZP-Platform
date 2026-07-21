@@ -13,11 +13,17 @@ import {
   errorMonitoringSelfTestRateLimiter,
   mailSelfTestRateLimiter,
   rateLimitSelfTestRateLimiter,
+  selfTestSweepRateLimiter,
   storageSelfTestRateLimiter,
   uploadScannerSelfTestRateLimiter,
   UpstashRateLimitStore,
   verifierSelfTestRateLimiter,
 } from "@/lib/rate-limit";
+import {
+  runSelfTestSweep,
+  type SweepReport,
+  type SweepRunResult,
+} from "@/lib/services/selftest-sweep";
 import { detectDbProvider, runDbSelfTest, type DbSelfTestReport } from "@/lib/services/db-selftest";
 import { probeErrorMonitoring } from "@/lib/observability/report";
 import {
@@ -155,26 +161,17 @@ export type VerifierSelfTestState =
 const PROBE_HOLDER = "Zelftest Connectiviteit";
 
 /**
- * Draait een connectiviteitszelftest tegen de geconfigureerde externe verificatie-adapters
- * (DUO/BIG/iDIN) (admin-only). Volgt de mutatieketen (auth → rol → rate-limit → actie → audit).
- * Per adapter die op de echte waarde staat (`DIPLOMA_VERIFIER=duo` enz.) doet hij een echte
- * round-trip met een synthetische probe; adapters op de demo-verifier (`mock`) worden eerlijk als
- * "niets getest" gemeld (geen vals groen). De zelftest toetst alleen bereikbaarheid + auth +
- * contract-vorm, nooit of de probe "geverifieerd" is. De uitvoer bevat nooit secrets — alleen
- * stap-uitkomsten, veilige verifier-berichten en de driver-modus.
+ * Bouwt de verificatie-probe-specs uit de omgeving (DUO/BIG/iDIN). Gedeeld door de losse
+ * verificatie-zelftest én de go-live-sweep, zodat de synthetische probe-invoer en de actief-detectie
+ * op één plek staan. Adapters op de demo-verifier (`mock`) krijgen geen `run` — die worden als
+ * "niets getest" gerapporteerd.
  */
-export async function runVerifierSelfTestAction(): Promise<VerifierSelfTestState> {
-  const actor = await requireRole("ADMIN");
-
-  if (!(await verifierSelfTestRateLimiter.check(actor.id)).allowed) {
-    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
-  }
-
+function buildVerifierProbeSpecs(): VerifierProbeSpec[] {
   const diplomaActive = process.env.DIPLOMA_VERIFIER === "duo";
   const bigActive = process.env.BIG_VERIFIER === "bigregister";
   const identityActive = process.env.IDENTITY_VERIFIER === "idin";
 
-  const specs: VerifierProbeSpec[] = [
+  return [
     {
       key: "diploma",
       label: "DUO — diploma's",
@@ -215,6 +212,25 @@ export async function runVerifierSelfTestAction(): Promise<VerifierSelfTestState
         : undefined,
     },
   ];
+}
+
+/**
+ * Draait een connectiviteitszelftest tegen de geconfigureerde externe verificatie-adapters
+ * (DUO/BIG/iDIN) (admin-only). Volgt de mutatieketen (auth → rol → rate-limit → actie → audit).
+ * Per adapter die op de echte waarde staat (`DIPLOMA_VERIFIER=duo` enz.) doet hij een echte
+ * round-trip met een synthetische probe; adapters op de demo-verifier (`mock`) worden eerlijk als
+ * "niets getest" gemeld (geen vals groen). De zelftest toetst alleen bereikbaarheid + auth +
+ * contract-vorm, nooit of de probe "geverifieerd" is. De uitvoer bevat nooit secrets — alleen
+ * stap-uitkomsten, veilige verifier-berichten en de driver-modus.
+ */
+export async function runVerifierSelfTestAction(): Promise<VerifierSelfTestState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await verifierSelfTestRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const specs = buildVerifierProbeSpecs();
 
   const report = await runVerifierSelfTest(specs);
 
@@ -475,6 +491,201 @@ export async function runDbSelfTestAction(): Promise<DbSelfTestState> {
       ok: report.ok,
       provider: report.provider,
       steps: report.steps.map((s) => ({ key: s.key, ok: s.ok })),
+    },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { ok: true, report };
+}
+
+export type SelfTestSweepState = { ok: true; report: SweepReport } | { ok: false; error: string };
+
+/**
+ * Go-live-sweep: draait álle actieve, bijwerkingsveilige connectiviteitszelftests (opslag, database,
+ * rate-limit, verificatie, betaalprovider, upload-scanner, error-monitoring) in één klik en geeft een
+ * geconsolideerd GO/NO-GO terug (admin-only). Volgt de mutatieketen (auth → rol → rate-limit → actie
+ * → audit). Elke deelzelftest hergebruikt zijn eigen pure kern; een integratie die op een veilige
+ * fallback/demo draait wordt eerlijk als "overgeslagen" gerapporteerd (geen vals groen).
+ *
+ * Mail zit BEWUST niet in de sweep: die vereist een ontvangeradres en verstuurt echte mail naar een
+ * persoon — dat blijft een losse, bewuste handeling. De uitvoer bevat nooit secrets — alleen
+ * pass/fail/skipped per integratie, een driver-modus en een korte, veilige toelichting.
+ */
+export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
+  const actor = await requireRole("ADMIN");
+
+  if (!(await selfTestSweepRateLimiter.check(actor.id)).allowed) {
+    return { ok: false, error: "Te veel zelftests achter elkaar. Wacht even en probeer opnieuw." };
+  }
+
+  const report = await runSelfTestSweep([
+    {
+      key: "storage",
+      label: "Documentopslag",
+      run: async (): Promise<SweepRunResult> => {
+        const driverMode = process.env.STORAGE_DRIVER ?? "local";
+        const result = await runStorageSelfTest({
+          driver: getStorage(),
+          driverMode,
+          probeKey: `${SELFTEST_PREFIX}${randomUUID()}.txt`,
+        });
+        return {
+          status: result.ok ? "pass" : "fail",
+          mode: driverMode,
+          detail: result.ok
+            ? "Bereikbaar en beschrijfbaar."
+            : (result.steps.find((s) => !s.ok)?.detail ?? "Round-trip faalde."),
+        };
+      },
+    },
+    {
+      key: "database",
+      label: "Database",
+      run: async (): Promise<SweepRunResult> => {
+        const provider = detectDbProvider(process.env.DATABASE_URL);
+        const result = await runDbSelfTest({
+          provider,
+          pool: parsePoolConfig({
+            DATABASE_CONNECTION_LIMIT: process.env.DATABASE_CONNECTION_LIMIT,
+            DATABASE_POOL_TIMEOUT: process.env.DATABASE_POOL_TIMEOUT,
+            DATABASE_PGBOUNCER: process.env.DATABASE_PGBOUNCER,
+          }),
+          now: () => Date.now(),
+          probe: {
+            ping: () => prisma.$queryRaw`SELECT 1`,
+            checkSchema: () =>
+              Promise.all([
+                prisma.user.findFirst({ select: { id: true } }),
+                prisma.auditLog.findFirst({ select: { id: true } }),
+                prisma.credential.findFirst({ select: { id: true } }),
+              ]),
+          },
+        });
+        return {
+          status: result.ok ? "pass" : "fail",
+          mode: result.provider,
+          detail: result.ok
+            ? `Bereikbaar (${result.latencyMs ?? "?"} ms), schema toegepast.`
+            : (result.steps.find((s) => !s.ok)?.detail ?? "Round-trip faalde."),
+        };
+      },
+    },
+    {
+      key: "ratelimit",
+      label: "Rate-limit-store",
+      run: async (): Promise<SweepRunResult> => {
+        const storeMode = process.env.RATE_LIMIT_STORE ?? "memory";
+        const store = createRateLimitStore();
+        const result =
+          store instanceof UpstashRateLimitStore
+            ? await runRateLimitSelfTest({
+                exec: (commands) => store.runProbeCommands(commands),
+                storeMode,
+                probeKey: `rl:selftest:${randomUUID()}`,
+              })
+            : inactiveRateLimitReport(storeMode);
+        return {
+          status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
+          mode: storeMode,
+          detail: !result.active
+            ? "Geen gedeelde store actief — niets getest."
+            : result.ok
+              ? "Gedeelde store bereikbaar."
+              : (result.steps.find((s) => !s.ok)?.detail ?? "Round-trip faalde."),
+        };
+      },
+    },
+    {
+      key: "verifier",
+      label: "Verificatie-adapters",
+      run: async (): Promise<SweepRunResult> => {
+        const specs = buildVerifierProbeSpecs();
+        const result = await runVerifierSelfTest(specs);
+        const mode =
+          specs
+            .filter((s) => s.active)
+            .map((s) => s.driverMode)
+            .join(", ") || "mock";
+        return {
+          status: !result.anyActive ? "skipped" : result.ok ? "pass" : "fail",
+          mode,
+          detail: !result.anyActive
+            ? "Alle adapters op de demo-verifier — niets getest."
+            : result.ok
+              ? "Actieve adapters bereikbaar."
+              : (result.results.find((r) => r.active && !r.ok)?.detail ?? "Round-trip faalde."),
+        };
+      },
+    },
+    {
+      key: "billing",
+      label: "Betaalprovider",
+      run: async (): Promise<SweepRunResult> => {
+        const providerMode = process.env.BILLING_PROVIDER;
+        const active = providerMode === "stripe" || providerMode === "mollie";
+        const driverMode: BillingDriverMode = active ? providerMode : "noop";
+        const result = await runBillingSelfTest({
+          active,
+          driverMode,
+          run: active ? () => getPaymentProvider().checkConnectivity() : undefined,
+        });
+        return {
+          status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
+          mode: driverMode,
+          detail: result.detail ?? (result.ok ? "Bereikbaar." : "Koppeling faalt."),
+        };
+      },
+    },
+    {
+      key: "upload-scanner",
+      label: "Upload-scanner",
+      run: async (): Promise<SweepRunResult> => {
+        const active = process.env.UPLOAD_SCANNER === "clamav";
+        const driverMode: UploadScannerDriverMode = active ? "clamav" : "noop";
+        const result = await runUploadScannerSelfTest({
+          active,
+          driverMode,
+          failOpen: uploadScanFailOpen(),
+          run: active ? () => getUploadScanner().scan(eicarProbeBuffer()) : undefined,
+        });
+        return {
+          status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
+          mode: driverMode,
+          detail: result.detail ?? (result.ok ? "Bereikbaar en detecteert." : "Scanner faalt."),
+        };
+      },
+    },
+    {
+      key: "error-monitoring",
+      label: "Error-monitoring",
+      run: async (): Promise<SweepRunResult> => {
+        const active = Boolean(process.env.SENTRY_DSN);
+        const result = await runErrorMonitoringSelfTest({
+          active,
+          run: active ? () => probeErrorMonitoring(randomUUID().slice(0, 8)) : undefined,
+        });
+        return {
+          status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
+          mode: active ? "sentry" : "console",
+          detail:
+            result.detail ?? (result.ok ? "Testgebeurtenis afgeleverd." : "Aflevering faalt."),
+        };
+      },
+    },
+  ]);
+
+  const meta = await requestMeta();
+  await audit({
+    actorId: actor.id,
+    action: "SELFTEST_SWEEP_RUN",
+    entityType: "SystemStatus",
+    entityId: report.verdict,
+    metadata: {
+      verdict: report.verdict,
+      counts: report.counts,
+      testedCount: report.testedCount,
+      entries: report.entries.map((e) => ({ key: e.key, status: e.status })),
     },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,

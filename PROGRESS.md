@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — prod: go-live zelftest-sweep (alle connectiviteitszelftests in één klik)
+
+**Wat:** één admin-actie op `/admin/systeemstatus` die álle actieve, bijwerkingsveilige
+connectiviteitszelftests (opslag, database, rate-limit, verificatie, betaalprovider, upload-scanner,
+error-monitoring) in één klik draait en een geconsolideerd **GO/NO-GO** teruggeeft. Vult het gat
+tussen de statische `preflight`-CLI (config-posture) en de 8 losse zelftest-knoppen: vóór go-live
+bevestig je in één handeling dat élke geconfigureerde integratie écht live-bereikbaar is. Integraties
+op een veilige fallback/demo worden eerlijk als **overgeslagen** gerapporteerd (geen vals groen).
+
+- **Pure kern** `src/lib/services/selftest-sweep.ts`: `summarizeSweep` (telt pass/fail/skipped +
+  verdict `no-go` zodra één actieve zelftest faalt) en `runSelfTestSweep` (draait de runners parallel;
+  elke runner heeft een eigen vangnet → een throw wordt een veilige `fail`-entry met alleen de
+  error-NAAM, nooit een rauw bericht). Injecteerbaar, geen I/O-globals/klok.
+- **Server-actie** `runSelfTestSweepAction` (`.../systeemstatus/actions.ts`): authz → rol → rate-limit
+  (`selfTestSweepRateLimiter`, default 3/5 min) → actie → één audit `SELFTEST_SWEEP_RUN`. Hergebruikt
+  per integratie de bestaande pure zelftest-kern; verificatie-specs geëxtraheerd naar
+  `buildVerifierProbeSpecs()` (gedeeld met de losse verificatie-zelftest, dedup). **Mail zit bewust
+  niet in de sweep** (vereist ontvangeradres + verstuurt echte mail — blijft een losse handeling).
+- **UI** `src/components/admin/selftest-sweep.tsx` bovenaan de zelftest-lijst: GO/NO-GO-badge +
+  tellingen + per-integratie pass/fail/overgeslagen. Toont nooit secrets — alleen driver-modi.
+- **Tests:** `selftest-sweep.test.ts` (10) — verdict-logica, volgorde-behoud, lege lijst, throwende/
+  afgewezen runner → veilige fail, geen secret in de detail.
+
+**Bestanden:** `src/lib/services/selftest-sweep.ts` (+`.test.ts`),
+`src/components/admin/selftest-sweep.tsx`, `.../admin/systeemstatus/{actions,page}.tsx`,
+`src/lib/rate-limit.ts`. **Gate:** typecheck + lint + unit groen; build/e2e via CI.
+**Resterend mensenwerk:** niets extra — de knop is er standaard; hij meldt eerlijk welke integraties
+nog op een fallback draaien.
+
 ## 2026-07-21 — security/privacy-audit: foutlek `cancelCollaboration` (CWE-209) + cross-tenant oracle `createFranchiseDienst` (CWE-203)
 
 **Twee bevindingen gevonden + gefixt** (rood→groen; 3 parallelle adversariële Opus-audits: authz/IDOR,
