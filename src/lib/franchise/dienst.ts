@@ -10,8 +10,8 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { type Actor, AuthorizationError } from "@/lib/authz";
-import { assertSameTenant } from "@/lib/tenancy";
+import { type Actor } from "@/lib/authz";
+import { ownsViaTenant } from "@/lib/tenancy";
 import { audit } from "@/lib/audit";
 import { credentialTypeSchema, type JobStatus } from "@/lib/enums";
 
@@ -51,19 +51,16 @@ export async function createFranchiseDienst(opts: {
   const { actor, departmentId, formData } = opts;
   const status: JobStatus = opts.status ?? "PUBLISHED";
 
-  // De afdeling (en daarmee de opdrachtgever) moet in de eigen tenant zitten.
+  // De afdeling (en daarmee de opdrachtgever) moet in de eigen tenant zitten. Onbekend id én een
+  // afdeling van een ándere tenant geven exact dezelfde melding: zo lekt het verschil "bestaat niet"
+  // vs. "bestaat, andere bemiddeling" niet (geen existence-oracle, CWE-203). Spiegelt
+  // `addAfdelingStep`/`removeAfdelingStep` in ../../app/(protected)/franchise/opdrachtgevers/nieuw/actions.ts.
   const dept = await prisma.department.findUnique({
     where: { id: departmentId },
     select: { companyId: true, company: { select: { tenantId: true } } },
   });
-  if (!dept) {
+  if (!dept || !ownsViaTenant(actor, dept.company.tenantId)) {
     return { error: "Afdeling niet gevonden.", fieldErrors: { departmentId: "Onbekend." } };
-  }
-  try {
-    assertSameTenant(actor, dept.company.tenantId);
-  } catch (e) {
-    if (e instanceof AuthorizationError) return { error: e.message };
-    throw e;
   }
 
   const rawMin = formData.get("rateMin");

@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — security/privacy-audit: foutlek `cancelCollaboration` (CWE-209) + cross-tenant oracle `createFranchiseDienst` (CWE-203)
+
+**Twee bevindingen gevonden + gefixt** (rood→groen; 3 parallelle adversariële Opus-audits: authz/IDOR,
+AVG-erasure/minimalisatie, tenant/injectie/upload). Basis `main` @ 4580c25a.
+
+1. **HOOG (OWASP A05 / CWE-209):** `cancelCollaboration` (`src/app/(protected)/samenwerkingen/actions.ts`)
+   ving `if (e instanceof Error) return { error: e.message }` en lekte de rauwe message van élke fout
+   (Prisma-kolom-/constraint-namen, systeempaden) naar de client — de al-gefixte `toMessage`-hardening uit
+   het zusterbestand was hier nooit toegepast. Fix: `return { error: toSafeActionError(e) }` (gecureerde
+   domeinfouten passeren; technische fout → server-side gelogd + generieke boodschap). +2 tests in
+   `samenwerkingen/cancel-error-leak.test.ts`.
+2. **MIDDEL (OWASP A01 / CWE-203):** `createFranchiseDienst` (`src/lib/franchise/dienst.ts`) gaf een
+   onderscheidbare `assertSameTenant`-melding voor een cross-tenant afdeling-id vs. "niet gevonden" →
+   cross-tenant existence-oracle voor een franchiser. Fix: fail-closed `!dept || !ownsViaTenant(...)` met
+   identieke melding (spiegel `addAfdelingStep`/`addDepartment`). +2 tests in
+   `lib/franchise/dienst-oracle.test.ts`.
+
+Geparkeerd (backlog): shift-overnames-oracle (LAAG), profile-screen over-fetch (LAAG, geen live lek),
+`Expense.description`-erasure (LAAG, FG-oordeel). Gate: typecheck + lint + 4705 unit-tests + build +
+`prettier --check .` groen.
+
 ## 2026-07-21 — persona-sweep run 42: ongeldige prestatie-periode-datum + lead-overdue-grens (cross-surface)
 
 **Twee bevindingen gevonden + gefixt** (drie parallelle Opus-audits; authz/IDOR/tenant kwam schoon terug).
