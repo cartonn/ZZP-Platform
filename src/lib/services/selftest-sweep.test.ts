@@ -7,7 +7,7 @@ import {
   type SweepRunner,
 } from "@/lib/services/selftest-sweep";
 
-function entry(status: SweepEntry["status"], key = status): SweepEntry {
+function entry(status: SweepEntry["status"], key: string = status): SweepEntry {
   return { key, label: key, status, mode: "x" };
 }
 
