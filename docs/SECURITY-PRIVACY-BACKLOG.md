@@ -4,6 +4,92 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-21b (basis: `main` @ 4580c25a)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken — (1) object-/functie-authz + IDOR + mass-assignment + foutlek op álle server actions +
+`api/**`-route-handlers (delta-focus PR's #856–#860: cascade-fasering, pending-tasks, tasks,
+collaboration-renewal, signals, urenstaat-DoS-grenzen); (2) AVG erasure-volledigheid (veld-voor-veld
+per PII-dragend model), dataminimalisatie server→client, PII-in-logs, CSV-injectie, k-anonimiteit,
+audit-logging; (3) cross-tenant-isolatie FRANCHISER (`lib/tenancy.ts` + alle `franchise/**`-call-sites +
+`lib/franchise/*`), injectie (SQL/XSS/template), SSRF, upload, open redirect, headers/CSP, `npm audit`.
+Kader: OWASP Top 10 (A01/A03/A05) + ASVS + AVG art. 5/9/17/30/32. Stack: Next.js 15.5.19 (voorbij
+CVE-2025-29927), Auth.js v5-beta.31, Prisma 6.19.3. Orchestrator verifieerde onafhankelijk: `npm audit
+--omit=dev` → 0 kwetsbaarheden; enige `dangerouslySetInnerHTML` = nonce-gated theme-script; enige raw
+SQL = statische `SELECT 1`-healthchecks; storage path-traversal-guard + magic-byte-sniffing intact.
+
+**Twee bevindingen gevonden en OPGELOST (rood→groen); drie geparkeerd (product-/FG-oordeel of LAAG):**
+
+### OPGELOST — HOOG: `cancelCollaboration` lekte rauwe fout-messages naar de client (OWASP A05 / CWE-209, PR volgt)
+
+- **Repro:** `src/app/(protected)/samenwerkingen/actions.ts` — `cancelCollaboration` (bereikbaar door élke
+  FREELANCER/CLIENT-partij van een samenwerking) ving in de catch `if (e instanceof Error) return { error:
+e.message }` en stuurde de message van élke `Error` woordelijk terug. Gooide de transactie in
+  `applyCollaborationStatusChange` een onverwachte `PrismaClientKnownRequestError`/systeemfout, dan echode
+  die kolom-/constraint-namen of hostnames/paden naar de UI (én werd niet server-side gelogd). Dit is de
+  spiegel van de al-gefixte `toMessage`-helper in het zusterbestand `samenwerkingen/[id]/actions.ts`
+  (PR #850); die CWE-209-fix was nooit toegepast op `cancelCollaboration`.
+- **Geschonden regel:** OWASP A05:2021 / CWE-209 Information Exposure Through an Error Message.
+- **Fix:** catch → `return { error: toSafeActionError(e) }`: gecureerde domeinfouten
+  (AuthorizationError/\*TransitionError/CascadeError + Nederlandse plain-Error) passeren; een
+  Prisma-/systeemfout wordt server-side gelogd en vervangen door de generieke boodschap. Test:
+  `samenwerkingen/cancel-error-leak.test.ts` (+2, HOOG, rood→groen).
+
+### OPGELOST — MIDDEL: cross-tenant existence-oracle in `createFranchiseDienst` (OWASP A01 / CWE-203, PR volgt)
+
+- **Repro:** `src/lib/franchise/dienst.ts` (aangeroepen vanuit `franchise/opdrachtgevers/actions.ts` én
+  `franchise/opdrachtgevers/nieuw/actions.ts`) deed `findUnique` op de `departmentId` en liet daarna een
+  throwing `assertSameTenant` de melding "Geen toegang tot deze bemiddeling-resource." teruggeven — te
+  onderscheiden van "Afdeling niet gevonden." bij een onbekend id. Een franchiser kon zo aflezen of een
+  gegokt afdeling-id bij een ándere tenant hoorde (cross-tenant existence-oracle). Exact het patroon dat de
+  codebase elders al fail-closed dichtte (`addAfdelingStep`/`removeAfdelingStep`, `addDepartment`/
+  `removeDepartment`); deze gedeelde helper was in die pass gemist (`wizard-oracle.test.ts` mockt
+  `createFranchiseDienst` volledig weg, dus de eigen oracle was ongetest).
+- **Geschonden regel:** OWASP A01 Broken Access Control / CWE-203 Observable Discrepancy; CLAUDE.md regel 2.
+- **Fix:** fail-closed `if (!dept || !ownsViaTenant(actor, dept.company.tenantId)) return { error: "Afdeling
+niet gevonden.", fieldErrors: { departmentId: "Onbekend." } }` — identieke melding voor onbekend én
+  cross-tenant. Test: `lib/franchise/dienst-oracle.test.ts` (+2, MIDDEL, rood→groen). Geen data/mutatie
+  lekte ooit (alleen bestaan-signaal), vandaar MIDDEL.
+
+### Geparkeerd — LAAG (CWE-203, triviale fix): existence-oracle in `admin/shift-overnames/actions.ts`
+
+- **Repro:** `loadDecidableHandoff` gooit een plain `Error("Overname-aanvraag niet gevonden.")` bij een
+  ontbrekende handoff, maar laat de `AuthorizationError("Geen toegang tot deze bemiddeling-resource.")` van
+  `assertSameTenant` door `toSafeActionError` woordelijk passeren — onderscheidbaar van "niet gevonden".
+- **Geschonden regel:** CWE-203 Observable Discrepancy. **Waarom geparkeerd:** admin-only oppervlak (lage
+  impact) + reeds eerder genoteerd; volgende run oppakken. **Aanbevolen fix:** unificeer op `ownsViaTenant`
+  met de "niet gevonden"-melding (spiegel finding 2).
+
+### Geparkeerd — LAAG (dataminimalisatie, geen live lek): `profile-screen.tsx` over-fetcht privé-financieelvelden
+
+- **Repro:** `src/components/profile/profile-screen.tsx` doet `freelancerProfile.findUnique` met alleen
+  `include` (geen top-level `select`) op de publieke, niet-geauthenticeerde route `/zzp/[id]`, waardoor
+  `monthlyIncomeGoalCents`, `defaultMotivation`, `btwNumber` in servergeheugen worden geladen. Geverifieerd:
+  géén van die velden wordt gerenderd of naar een client-component doorgegeven → **geen live lek vandaag**.
+- **Geschonden regel:** AVG art. 5 (dataminimalisatie) / CLAUDE.md regel (defense-in-depth). **Waarom
+  geparkeerd:** puur hardening (geen actueel lek); scheiden van de authz-fixes houdt de PR gefocust.
+  **Aanbevolen fix:** expliciete `select` zodat een toekomstige render-regel geen privé-veld stil kan
+  blootstellen.
+
+### Geparkeerd — LAAG (FG-oordeel): `Expense.description` overleeft de erasure
+
+- **Repro:** `anonymizeUser` raakt `Expense` nergens aan; `Expense.description` (zelf-geschreven vrije tekst)
+  blijft na erasure staan. Nuance (nieuw): `uitgaven/actions.ts` `deleteExpense` laat een FREELANCER zijn
+  uitgaven vrij zelf verwijderen zonder fiscale-jaar-/aangifte-grendel — dat ondergraaft de "fiscale
+  retentie spiegelt Invoice"-onderbouwing (Invoice heeft géén delete-pad).
+- **Geschonden regel:** AVG art. 17 vs. fiscale retentie (art. 5 lid 1e). **Waarom geparkeerd:** echte
+  FG/juridische tweesprong (MENSENWERK §5) — óf `Expense.description` redigeren bij erasure, óf de
+  retentiegrondslag expliciet in het verwerkingsregister vastleggen mét een consistente self-service-grendel
+  op reeds-aangegeven jaren. Niet unilateraal door een agent te kiezen.
+
+**Herbevestigd schoon (van-nul-af her-geverifieerd):** cascade-command-laag (auth→ownership→terminal/dispuut-
+guard→effect→DomainEvent+AuditLog, geen mass-assignment); alle `api/**`-crown-jewel-routes (documenten/media)
+ownership-checked + audit op toegestaan én geweigerd; franchise cross-tenant-isolatie verder airtight
+(`tenantId` altijd uit `actor.tenantId`, nooit uit body); erasure dekt élk overig zelf-geschreven vrije-tekstveld
+incl. secundaire kopieën in `AuditLog.metadata`/`DomainEvent.payload`/`Notification.body`; `escapeCsvField` dekt
+`=`/`+`/`-`/`@`/tab/CR op alle export-call-sites; k-anonimiteit markttarief `MIN_SAMPLE=10`; logger redigeert
+PII/secrets + e-mailmaskering; geen SSRF/open-redirect/raw-SQL-interpolatie/mass-assignment-spread.
+
 ## Ronde 2026-07-21 (basis: `main` @ e72af9fa)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende

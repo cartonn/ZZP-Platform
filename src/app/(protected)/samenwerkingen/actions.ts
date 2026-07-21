@@ -19,6 +19,7 @@ import {
   credentialTypeSchema,
 } from "@/lib/enums";
 import { collaborationProposalSchema, collaborationCancellationSchema } from "@/lib/validation";
+import { toSafeActionError } from "@/lib/safe-action-error";
 import { assessCollaborationCredentials } from "@/lib/collaboration-alerts";
 import { type FreelancerCredential } from "@/lib/matching";
 import {
@@ -149,8 +150,10 @@ export async function cancelCollaboration(
       reason: parsed.data.reason,
     });
   } catch (e) {
-    if (e instanceof Error) return { error: e.message };
-    throw e;
+    // Gecureerde domeinfouten (AuthorizationError/*TransitionError/CascadeError) passeren met hun
+    // eigen Nederlandse message; een onverwachte Prisma-/systeemfout wordt server-side gelogd en
+    // vervangen door een generieke boodschap i.p.v. rauwe interne details te lekken (CWE-209 / A05).
+    return { error: toSafeActionError(e) };
   }
   return undefined;
 }
