@@ -24,7 +24,7 @@ const USER_ID = "user-1";
 const VALID_TOKEN = agendaFeedToken(USER_ID, SECRET);
 
 const store = {
-  user: null as { status: string; anonymizedAt: Date | null } | null,
+  user: null as { status: string; anonymizedAt: Date | null; role: string } | null,
 };
 
 const findUniqueMock = vi.hoisted(() => vi.fn());
@@ -36,6 +36,11 @@ vi.mock("@/lib/db", () => ({
     user: { findUnique: findUniqueMock },
     collaboration: { findMany: findManyMock },
   },
+}));
+// De administratieve-deadline-loader wordt gemockt: deze test bewaakt uitsluitend de liveness-poort
+// (dat het rooster wél/niet wordt geladen). De deadline-inhoud is elders getest.
+vi.mock("@/lib/calendar/user-deadlines", () => ({
+  loadUserAdministrativeDeadlines: vi.fn(async () => ({ credentials: [], invoices: [], vat: [] })),
 }));
 
 import { GET } from "./feed.ics/route";
@@ -52,7 +57,7 @@ function request(u: string | null, t: string | null): Request {
 
 describe("GET /api/agenda/feed.ics — liveness-poort", () => {
   beforeEach(() => {
-    store.user = { status: "ACTIVE", anonymizedAt: null };
+    store.user = { status: "ACTIVE", anonymizedAt: null, role: "FREELANCER" };
     findUniqueMock.mockReset();
     findUniqueMock.mockImplementation(async () => store.user);
     findManyMock.mockClear();
@@ -66,7 +71,7 @@ describe("GET /api/agenda/feed.ics — liveness-poort", () => {
   });
 
   it("geschorste gebruiker + geldig token → 404 en géén rooster geladen", async () => {
-    store.user = { status: "SUSPENDED", anonymizedAt: null };
+    store.user = { status: "SUSPENDED", anonymizedAt: null, role: "FREELANCER" };
     const res = await GET(request(USER_ID, VALID_TOKEN) as never);
     expect(res.status).toBe(404);
     expect(findManyMock).not.toHaveBeenCalled();
@@ -75,7 +80,11 @@ describe("GET /api/agenda/feed.ics — liveness-poort", () => {
   it("geanonimiseerde gebruiker (anonymizedAt gezet) + geldig token → 404 en géén rooster", async () => {
     // anonymizeUser zet status=SUSPENDED én anonymizedAt; ook een ACTIVE-status met anonymizedAt
     // moet worden geweigerd (spiegelt currentActor()).
-    store.user = { status: "ACTIVE", anonymizedAt: new Date("2026-01-01T00:00:00Z") };
+    store.user = {
+      status: "ACTIVE",
+      anonymizedAt: new Date("2026-01-01T00:00:00Z"),
+      role: "FREELANCER",
+    };
     const res = await GET(request(USER_ID, VALID_TOKEN) as never);
     expect(res.status).toBe(404);
     expect(findManyMock).not.toHaveBeenCalled();

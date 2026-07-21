@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 
 const verifyTokenMock = vi.hoisted(() => vi.fn(() => true));
 const userFindUniqueMock = vi.hoisted(() =>
-  vi.fn(async () => ({ status: "ACTIVE", anonymizedAt: null })),
+  vi.fn(async () => ({ status: "ACTIVE", anonymizedAt: null, role: "FREELANCER" })),
 );
 const enforceMock = vi.hoisted(() =>
   vi.fn(async (_limiter: unknown, _key: string) => null as NextResponse | null),
@@ -29,6 +29,9 @@ vi.mock("@/lib/db", () => ({
 }));
 vi.mock("@/lib/calendar/user-schedule", () => ({
   loadUserScheduleCollaborations: vi.fn(async () => []),
+}));
+vi.mock("@/lib/calendar/user-deadlines", () => ({
+  loadUserAdministrativeDeadlines: vi.fn(async () => ({ credentials: [], invoices: [], vat: [] })),
 }));
 vi.mock("@/lib/calendar/schedule", () => ({ collaborationScheduleEvents: vi.fn(() => []) }));
 vi.mock("@/lib/calendar/ics", () => ({ buildIcsCalendar: vi.fn(() => "BEGIN:VCALENDAR") }));
@@ -50,7 +53,11 @@ beforeEach(() => {
   verifyTokenMock.mockClear();
   verifyTokenMock.mockReturnValue(true);
   userFindUniqueMock.mockClear();
-  userFindUniqueMock.mockResolvedValue({ status: "ACTIVE", anonymizedAt: null });
+  userFindUniqueMock.mockResolvedValue({
+    status: "ACTIVE",
+    anonymizedAt: null,
+    role: "FREELANCER",
+  });
 });
 
 describe("agenda-feed is rate-limited (security-review M-4, parity met dossierViewRateLimiter)", () => {

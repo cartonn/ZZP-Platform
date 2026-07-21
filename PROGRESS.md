@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — routine: administratieve deadlines in de persoonlijke agenda-feed
+
+**Wat:** de bestaande agenda-feed (`/api/agenda` download + `/api/agenda/feed.ics` webcal-abonnement)
+toonde alleen het weekrooster. Nu bevat dezelfde feed óók de **administratieve deadlines** van de
+gebruiker als losse gehele-dag-events: **certificaat-verloopdata** (ZZP'er), **factuur-vervaldatums**
+(betalen vs. vervallen, afhankelijk van de rol) en **BTW-aangifte-deadlines**. Zo ziet een ZZP'er/
+opdrachtgever in de eigen agenda-app automatisch wanneer iets afloopt of betaald moet worden —
+administratie-ontzorging zonder nieuwe rekenlogica (hergebruikt de bestaande engines).
+
+- **Pure mapper** `src/lib/calendar/deadlines.ts`: `administrativeDeadlineEvents` → IcsEvents met
+  stabiele UID's, geen herhaling. **Privacy:** bewust géén bedragen/BTW-saldi in de tekst — de feed is
+  een publieke bearer-URL, dus een reminder zegt alleen WÁT en WANNEER (parity met het rooster dat
+  enkel jobtitel + tegenpartij toont).
+- **Loader** `src/lib/calendar/user-deadlines.ts`: server-side gescoopt — certificaten alleen voor
+  ZZP'ers (VERIFIED + verloopdatum), facturen via de canonieke `outstandingInvoiceWhere` (uitschrijver
+  óf tegenpartij, met `dueAt`), BTW via de bestaande `getVatDeadlinesForActor`. Puur read-only.
+- **Wiring:** beide routes voegen `...administrativeDeadlineEvents(deadlines)` toe naast het rooster;
+  de publieke feed leest nu ook `role` (naast de bestaande liveness-poort) om de scoping te bepalen.
+- **Tests:** `deadlines.test.ts` (6, mapper: categorieën, payable-tekst, geen euro-teken, volgorde) +
+  `user-deadlines.test.ts` (6, loader-scoping: rol-gate, partij-OR, BTW-delegatie). Bestaande
+  agenda-route-tests uitgebreid met de deadline-loader-mock + `role`.
+
+**Bestanden:** `src/lib/calendar/deadlines.ts` (+`.test.ts`), `src/lib/calendar/user-deadlines.ts`
+(+`.test.ts`), `src/app/api/agenda/route.ts`, `src/app/api/agenda/feed.ics/route.ts`,
+`src/app/api/agenda/{feed-liveness,feed.ics/route}.test.ts`. Gate: typecheck + lint + prettier +
+test (4725) + build groen.
+
 ## 2026-07-21 — prod: go-live zelftest-sweep (alle connectiviteitszelftests in één klik)
 
 **Wat:** één admin-actie op `/admin/systeemstatus` die álle actieve, bijwerkingsveilige

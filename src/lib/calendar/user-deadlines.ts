@@ -1,0 +1,76 @@
+// Server-side loader: verzamelt de administratieve deadlines van één gebruiker (certificaat-verloop,
+// factuur-vervaldatum, BTW-aangifte) en mapt ze naar de pure AdministrativeDeadlines-projectie die de
+// .ics-serialisatie voedt. Gedeeld door de sessie-export (/api/agenda) én de publieke abonneer-feed
+// (/api/agenda/feed.ics), zodat beide exact dezelfde deadlines en scoping gebruiken — alleen de eigen
+// data van de gebruiker, nooit die van een ander.
+//
+// Hergebruikt bestaande engines/regels (geen nieuwe rekenlogica): de canonieke "openstaand"-where
+// (administration/outstanding.ts) en de BTW-deadline-engine (data/vat-deadline.ts).
+
+import { prisma } from "@/lib/db";
+import { outstandingInvoiceWhere } from "@/lib/administration/outstanding";
+import { getVatDeadlinesForActor } from "@/lib/data/vat-deadline";
+import { type UserRole } from "@/lib/enums";
+import { type AdministrativeDeadlines } from "@/lib/calendar/deadlines";
+
+/**
+ * Laadt de administratieve deadlines van `userId` (met rol `role`). Puur read-only; geen mutatie.
+ *
+ * - Certificaten: alleen ZZP'ers hebben een eigen dossier — VERIFIED credentials met een verloopdatum.
+ * - Facturen: openstaand (canonieke where) waarin de gebruiker uitschrijver (ZZP'er) óf tegenpartij
+ *   (opdrachtgever) is, met een gezette `dueAt`.
+ * - BTW: gedelegeerd aan de bestaande deadline-engine (leeg voor rollen zonder eigen grootboek).
+ */
+export async function loadUserAdministrativeDeadlines(
+  userId: string,
+  role: UserRole,
+  now: Date = new Date(),
+): Promise<AdministrativeDeadlines> {
+  const [credentialRows, invoiceRows, vatSummaries] = await Promise.all([
+    role === "FREELANCER"
+      ? prisma.credential.findMany({
+          where: {
+            status: "VERIFIED",
+            expiresAt: { not: null },
+            freelancerProfile: { userId },
+          },
+          orderBy: { expiresAt: "asc" },
+          select: { id: true, title: true, expiresAt: true },
+        })
+      : Promise.resolve([]),
+    prisma.invoice.findMany({
+      where: {
+        dueAt: { not: null },
+        AND: [
+          outstandingInvoiceWhere,
+          { OR: [{ issuerUserId: userId }, { counterpartyUserId: userId }] },
+        ],
+      },
+      orderBy: { dueAt: "asc" },
+      select: { id: true, number: true, dueAt: true, counterpartyUserId: true },
+    }),
+    getVatDeadlinesForActor(userId, role, now),
+  ]);
+
+  return {
+    // expiresAt/dueAt zijn door de where-clausules gegarandeerd non-null; de `== null`-guard in de
+    // flatMap maakt dat typebreed expliciet (narrowing) zonder een non-null-assertion.
+    credentials: credentialRows.flatMap((c) =>
+      c.expiresAt == null ? [] : [{ id: c.id, title: c.title, expiresAt: c.expiresAt }],
+    ),
+    invoices: invoiceRows.flatMap((i) =>
+      i.dueAt == null
+        ? []
+        : [
+            {
+              id: i.id,
+              number: i.number,
+              dueAt: i.dueAt,
+              // De opdrachtgever (tegenpartij) betaalt; de uitschrijver (ZZP'er) ontvangt.
+              payable: i.counterpartyUserId === userId,
+            },
+          ],
+    ),
+    vat: vatSummaries.map((v) => ({ year: v.year, quarter: v.quarter, deadline: v.deadline })),
+  };
+}
