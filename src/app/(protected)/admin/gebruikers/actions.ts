@@ -201,6 +201,28 @@ export async function anonymizeUser(userId: string): Promise<void> {
     })
   ).map((c) => c.id);
 
+  // AVG art. 17: de door de ZZP'er ZÉLF getypte creditreden. Wanneer de betrokkene een eigen factuur
+  // crediteert (`creditInvoice`, cascade → `planInvoiceCreditedEvent`) schrijft de handler die vrije
+  // tekst in DRIE kopieën: `Invoice.rejectionReason` (lifecycleStatus "CREDITED"), de
+  // `INVOICE_CREDITED`-auditmetadata (`{ reason }`) én de notificatiebody van BEIDE partijen. De
+  // overschrijving van User/profiel raakt geen daarvan. Anders dan de AFKEUR-reden (REJECTED, door de
+  // OPDRACHTGEVER over de ZZP'er geschreven — bewust geparkeerd, zelfde kolom) is de credit-reden
+  // zelf-geschreven en hoort dus gewist; spiegelt exact de drie-kopie-behandeling van de eigen
+  // dispuutreden. Gescopet op de eigen credit-facturen (issuerUserId == de betrokkene, lifecycleStatus
+  // "CREDITED"); counterpartyUserId + partyInvoiceNumber reconstrueren straks de exacte
+  // tegenpartij-notificatie-body (die notificatie heeft geen deep-link om op te scopen).
+  // unbounded-allow: AVG art. 17: alle eigen credit-facturen met reden van één betrokkene; een take zou stilletjes PII laten staan
+  const ownCreditedInvoices = await prisma.invoice.findMany({
+    where: { issuerUserId: userId, lifecycleStatus: "CREDITED", rejectionReason: { not: null } },
+    select: {
+      id: true,
+      rejectionReason: true,
+      partyInvoiceNumber: true,
+      counterpartyUserId: true,
+    },
+  });
+  const ownCreditedInvoiceIds = ownCreditedInvoices.map((i) => i.id);
+
   const now = new Date();
   const meta = await requestMeta();
   await prisma.$transaction([
@@ -407,6 +429,44 @@ export async function anonymizeUser(userId: string): Promise<void> {
     // Push-abonnementen: het endpoint is een persistente toestel-/browser-identifier (en userAgent
     // aanvullende PII). Een `user.update` triggert geen cascade-delete → expliciet verwijderen.
     prisma.pushSubscription.deleteMany({ where: { userId } }),
+    // AVG art. 17 (zie de `ownCreditedInvoices`-toelichting hierboven): de zelf-geschreven creditreden
+    // in zijn drie kopieën. (1) De reden op de eigen credit-facturen wissen.
+    ...(ownCreditedInvoiceIds.length
+      ? [
+          prisma.invoice.updateMany({
+            where: { id: { in: ownCreditedInvoiceIds } },
+            data: { rejectionReason: null },
+          }),
+          // (2) De reden in de `INVOICE_CREDITED`-auditmetadata van die facturen redacten (de metadata
+          // draagt enkel `{ reason }`); actor/actie/tijd blijven als verantwoordingsspoor. Scope op de
+          // credit-actie + de eigen factuur-id's raakt nooit een `INVOICE_REJECTED`-regel (tegenpartij).
+          prisma.auditLog.updateMany({
+            where: {
+              action: "INVOICE_CREDITED",
+              entityType: "Invoice",
+              entityId: { in: ownCreditedInvoiceIds },
+            },
+            data: { metadata: JSON.stringify({ reason: AUDIT_PII_REDACTED }) },
+          }),
+        ]
+      : []),
+    // (3) De tegenpartij (opdrachtgever) ontving een `INVOICE_CREDITED`-notificatie met de reden
+    // verbatim in de body. Die notificatie heeft geen deep-link (link = "/facturen"), dus scope op de
+    // exacte, deterministisch reconstrueerbare body per credit-factuur (factuurnummer + reden) op de
+    // eigen feed van de tegenpartij — zo raken we nooit de credit van een ándere ZZP'er. De eigen kopie
+    // van de betrokkene (userId == de betrokkene) is al gedekt door de brede notification.updateMany.
+    ...ownCreditedInvoices
+      .filter((i) => i.counterpartyUserId)
+      .map((i) =>
+        prisma.notification.updateMany({
+          where: {
+            userId: i.counterpartyUserId as string,
+            type: "INVOICE_CREDITED",
+            body: `Factuur ${i.partyInvoiceNumber ?? "concept"} is gecrediteerd door de ZZP'er. Reden: ${i.rejectionReason}.`,
+          },
+          data: { body: "[Verwijderd op verzoek van de gebruiker]" },
+        }),
+      ),
     prisma.auditLog.create({
       data: auditData({
         actorId: actor.id,

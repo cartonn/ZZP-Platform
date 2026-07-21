@@ -53,6 +53,19 @@ vi.mock("@/lib/db", () => ({
     },
     message: { updateMany: op("message.updateMany") },
     notification: { updateMany: op("notification.updateMany") },
+    invoice: {
+      // Eén door de betrokkene ZÉLF gecrediteerde factuur (lifecycleStatus CREDITED): de reden is
+      // zelf-geschreven vrije tekst en moet — anders dan een REJECTED-reden (tegenpartij) — mee gewist.
+      findMany: vi.fn(async () => [
+        {
+          id: "inv-credit-1",
+          rejectionReason: "Verkeerd uurtarief gefactureerd, correctie",
+          partyInvoiceNumber: "2026-014",
+          counterpartyUserId: "client-77",
+        },
+      ]),
+      updateMany: op("invoice.updateMany"),
+    },
     application: { updateMany: op("application.updateMany") },
     supportMessage: { updateMany: op("supportMessage.updateMany") },
     supportTicket: { updateMany: op("supportTicket.updateMany") },
@@ -533,5 +546,58 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(meta.name).toBe("[verwijderd]");
     expect(meta.tenantId).toBe("t-1");
     expect(franchise!.args.data.metadata).not.toContain("Jan de Vries");
+  });
+
+  it("wist de zelf-geschreven creditreden op de eigen credit-facturen (Invoice.rejectionReason, AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // `creditInvoice` (cascade) zet de door de ZZP'er zélf getypte creditreden op
+    // `Invoice.rejectionReason` (lifecycleStatus CREDITED). `anonymizeUser` raakte de Invoice nergens
+    // aan — zonder deze updateMany overleeft de zelf-geschreven reden art. 17 (rood→groen). Gescopet op
+    // de eigen credit-facturen (issuerUserId == de betrokkene, CREDITED) zodat een REJECTED-reden
+    // (door de OPDRACHTGEVER geschreven, geparkeerd) niet wordt geraakt.
+    const o = find("invoice.updateMany") as { args: { where: unknown; data: unknown } };
+    expect(o).toBeDefined();
+    expect(o.args.where).toEqual({ id: { in: ["inv-credit-1"] } });
+    expect((o.args.data as { rejectionReason: string | null }).rejectionReason).toBeNull();
+  });
+
+  it("redact de creditreden óók uit de INVOICE_CREDITED-auditmetadata van de eigen facturen (AVG art. 17)", async () => {
+    await anonymizeUser("user-42");
+    // Tweede kopie: de reden staat in de `{ reason }`-metadata van het `INVOICE_CREDITED`-auditrecord.
+    // De generieke email/naam-scrub raakt vrije tekst niet — zonder deze expliciete updateMany overleeft
+    // de reden art. 17 (rood→groen). Gescopet op de credit-actie + de eigen factuur-id's (raakt nooit een
+    // `INVOICE_REJECTED`-regel van de tegenpartij).
+    const ops = findAll("auditLog.updateMany") as Array<{
+      args: { where: { action?: string; entityId?: unknown }; data: { metadata?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.action === "INVOICE_CREDITED");
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({
+      action: "INVOICE_CREDITED",
+      entityType: "Invoice",
+      entityId: { in: ["inv-credit-1"] },
+    });
+    const meta = JSON.parse(o!.args.data.metadata as string);
+    expect(meta.reason).toBe("[verwijderd]");
+  });
+
+  it("redact de creditreden óók uit de tegenpartij-notificatie (INVOICE_CREDITED body, AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Derde kopie: de opdrachtgever ontving een `INVOICE_CREDITED`-notificatie met de reden verbatim in
+    // de body. Die notificatie heeft geen deep-link (link = "/facturen"), dus wordt gescopet op de
+    // exacte, deterministisch reconstrueerbare body (factuurnummer + reden) op de eigen feed van de
+    // tegenpartij (client-77) — nooit de credit van een ándere ZZP'er. Zonder deze updateMany blijft de
+    // zelf-geschreven reden bij de opdrachtgever zichtbaar (rood→groen).
+    const ops = findAll("notification.updateMany") as Array<{
+      args: { where: { userId?: string; type?: string; body?: string }; data: { body?: string } };
+    }>;
+    const o = ops.find((x) => x.args.where.type === "INVOICE_CREDITED");
+    expect(o).toBeDefined();
+    expect(o!.args.where).toEqual({
+      userId: "client-77",
+      type: "INVOICE_CREDITED",
+      body: "Factuur 2026-014 is gecrediteerd door de ZZP'er. Reden: Verkeerd uurtarief gefactureerd, correctie.",
+    });
+    expect(o!.args.data.body).toMatch(/verwijderd/i);
   });
 });
