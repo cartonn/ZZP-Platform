@@ -15,7 +15,7 @@
 // Pasen 2025 (idem): 20 april 2025.
 
 import { describe, expect, it } from "vitest";
-import { segmentShift, segmentShifts, dutchHolidays } from "@/lib/shift";
+import { segmentShift, segmentShifts, dutchHolidays, MAX_SHIFT_HOURS } from "@/lib/shift";
 import { DEFAULT_ORT_RATES_BPS, ORT_SECTOR_PROFILES } from "@/lib/config";
 
 // ---------------------------------------------------------------------------
@@ -489,5 +489,41 @@ describe("segmentShifts — meerdere diensten aggregeren", () => {
     ];
     const segs = segmentShifts(shifts);
     expect(totalHours(segs)).toBeCloseTo(10, 2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Duurgrens — bescherming tegen onbegrensde doorloop-lus (DoS-hardening)
+// ---------------------------------------------------------------------------
+
+describe("segmentShift — harde duurgrens (MAX_SHIFT_HOURS)", () => {
+  it("weigert een dienst met een absurde eindtijd i.p.v. de event-loop te blokkeren", () => {
+    // Zonder de grens zou dit ~10⁸+ iteraties draaien. Met de grens keert het meteen terug via throw.
+    const start = new Date("2000-01-01T00:00:00");
+    const end = new Date("9999-12-31T23:59:00");
+    const before = Date.now();
+    expect(() => segmentShift(start, end)).toThrow(/langer dan/i);
+    // Moet vrijwel onmiddellijk falen (geen O(duur)-lus): ruime marge tegen flakiness.
+    expect(Date.now() - before).toBeLessThan(1000);
+  });
+
+  it("weigert een dienst net boven MAX_SHIFT_HOURS", () => {
+    const start = new Date("2026-01-01T00:00:00");
+    const end = new Date(start.getTime() + (MAX_SHIFT_HOURS + 1) * 3_600_000);
+    expect(() => segmentShift(start, end)).toThrow(/langer dan/i);
+  });
+
+  it("staat een dienst precies op MAX_SHIFT_HOURS toe", () => {
+    const start = new Date("2026-01-01T00:00:00");
+    const end = new Date(start.getTime() + MAX_SHIFT_HOURS * 3_600_000);
+    const segs = segmentShift(start, end);
+    expect(totalHours(segs)).toBeCloseTo(MAX_SHIFT_HOURS, 0);
+  });
+
+  it("segmentShifts propageert de duurgrens per dienst", () => {
+    const shifts = [
+      { start: new Date("2026-01-01T09:00:00"), end: new Date("9999-01-01T00:00:00") },
+    ];
+    expect(() => segmentShifts(shifts)).toThrow(/langer dan/i);
   });
 });

@@ -330,13 +330,23 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
         unreadConversationCount(userId),
         overdueInvoiceCount("CLIENT", userId),
-        // cascade: prestaties goedkeuren (telt ook mee in pendingPerformances voor /prestaties-badge)
+        // cascade: prestaties goedkeuren (telt ook mee in pendingPerformances voor /prestaties-badge).
+        // Bevroren (dispuut) samenwerkingen uitsluiten — symmetrisch met de FREELANCER-tak
+        // (disputedAt: null hierboven) en met /acties (pending-tasks.ts): approvePerformance weigert
+        // een bevroren deal (assertNotDisputed), dus die telt niet als werk "aan zet".
         prisma.performance.count({
-          where: { status: "SUBMITTED", collaboration: { company: { userId } } },
+          where: {
+            status: "SUBMITTED",
+            collaboration: { company: { userId }, disputedAt: null },
+          },
         }),
-        // cascade: facturen goedkeuren
+        // cascade: facturen goedkeuren — idem bevroren deals uitsluiten (approveInvoice weigert ze).
         prisma.invoice.count({
-          where: { counterpartyUserId: userId, lifecycleStatus: "SUBMITTED" },
+          where: {
+            counterpartyUserId: userId,
+            lifecycleStatus: "SUBMITTED",
+            collaboration: { disputedAt: null },
+          },
         }),
       ]);
     const cascadeWork = cascadePerf + cascadeInv;

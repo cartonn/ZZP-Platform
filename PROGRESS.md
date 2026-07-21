@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — persona-sweep run 41: onbegrensde dienst-lus (DoS-hardening) + dode CLIENT-cascadebadge op bevroren deal
+
+**Twee bevindingen gevonden én opgelost** (parallelle Opus-audits: next-action / authz-IDOR-tenant / malicieuze invoer).
+
+**HIGH (DOEL 2, robuustheid — event-loop-DoS):** `segmentShift` (`src/lib/shift.ts`) doorloopt een dienst
+`[start,end)` in 15-min-stappen om ORT-categorieën af te leiden — O(duur) **zonder bovengrens**. Reachable
+via `logAndSubmitPerformanceAction` (`samenwerkingen/[id]/actions.ts`) → `parsePerformanceInput` →
+`segmentShifts`, dat draait **vóór** de ownership/ACTIVE/dispuut-checks en de shift-validatie toetste alleen
+`isNaN`/`end<=start`. Een POST met `shiftEnd=9999-12-31` → ~10⁸–10¹⁰ synchrone iteraties → event-loop-
+blokkade (DoS). Ook via CSV-import (`parseCsvShifts`). **Fix (3 lagen):** harde `MAX_SHIFT_HOURS=1000`-grens
+in de pure motor (throw) + nette input-weigering vóór segmentatie (duur + `MAX_SHIFTS_PER_PERFORMANCE=100`
+rijen) in de form-actie én de CSV-parser.
+
+- `src/lib/shift.ts`: `MAX_SHIFT_HOURS` + `MAX_SHIFTS_PER_PERFORMANCE` + duurgrens in `segmentShift`.
+- `src/app/(protected)/samenwerkingen/[id]/actions.ts`: rij-count- + duur-weigering in `parsePerformanceInput`.
+- `src/lib/diensten.ts`: per-dienst duur-regelfout in `parseCsvShifts`.
+- Tests: `shift.test.ts` (+4, incl. hang-assert <1000ms), `diensten.test.ts` (+1).
+
+**MED (DOEL 1b, contradictoire/dode badge):** de CLIENT-navbadges `cascadeWork`+`pendingPerformances`
+(`src/lib/signals.ts` `navBadges`) telden een SUBMITTED-prestatie/-factuur op een **bevroren (dispuut)**
+samenwerking mee; de FREELANCER-tak had de `disputedAt:null`-grens, de CLIENT-tak niet. `/acties` +
+cascade-fase sluiten een bevroren deal juist uit en de goedkeur-knop weigert server-side
+(`assertNotDisputed`) → dode teller. **Fix:** `collaboration: { …, disputedAt: null }` op beide CLIENT-
+query's. Test: `signals.cascade-dispute.test.ts` (+2).
+
+**Gate:** typecheck ✓ · lint ✓ (0 warnings) · test ✓ (4686 passed) · build ✓ · prettier ✓.
+**Geparkeerd** (in `docs/PERSONA-SWEEP-BACKLOG.md` run 41): multi-cycle prior-cycle-rescue-gat (MED),
+niet-verdwijnende renewal-taak (MED-LOW), franchise stale-dienst-dubbeltelling (LOW), middleware-dot-matcher (LOW).
+
 ## 2026-07-21 — routine: verplicht document — geen dubbele next-action bij rejected+expired + verleng-deeplink (ZZP'er)
 
 **Bevinding (geparkeerd LOW, persona-sweep run 40):** een verplicht certificaat-type (VOG/verzekering) met

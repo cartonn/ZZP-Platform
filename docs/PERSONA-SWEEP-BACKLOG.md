@@ -1,5 +1,85 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-21 (run 41) · **main-commit basis:** `567322d2`
+> **Uitkomst:** **1 HIGH (DOEL 2, robuustheid — onbegrensde dienst-doorloop-lus → event-loop-DoS)
+> én 1 MED (DOEL 1b, contradictoire/dode CLIENT-cascadebadge op een bevroren deal) gevonden én
+> OPGELOST.** Verse prod-build (`npm run build`, exit 0) + drie parallelle Opus-audits (next-action-
+> correctheid over alle vier rollen; authz/IDOR/cross-tenant/document-privacy; malicieuze invoer +
+> verboden statusovergangen). Vier rollen via het echte credentials-endpoint (`demo1234`).
+>
+> **GEVONDEN + GEFIXT — HIGH (DOEL 2, robuustheid — onbegrensde O(duur)-lus blokkeert de event-loop):**
+> `segmentShift` (`src/lib/shift.ts:87`) loopt een dienst `[start, end)` in vaste stappen van 15 min
+> door om ORT-categorieën af te leiden; de kosten zijn O(duur) **zonder bovengrens**. Reachable via
+> `logAndSubmitPerformanceAction` (`samenwerkingen/[id]/actions.ts:189` → `parsePerformanceInput` →
+> `segmentShifts`, regel 128) — dat draait **vóór** `createPerformance`'s ownership/ACTIVE/dispuut-
+> checks en de shift-validatie (`:111-115`) toetste alleen `isNaN` + `end<=start`, **geen maximale
+> duur**. Een geknutselde POST als élke geauthenticeerde gebruiker (elke rol, willekeurige/afwezige
+> `collaborationId`) met `shiftStart=2000-01-01T00:00`, `shiftEnd=9999-12-31T23:59` → `new Date(...)`
+> is een geldige eindige tijd → passeert de checks → `segmentShift` draait ~2.8×10⁸ iteraties
+> (uitrekbaar tot ~10¹⁰ via jaar 275760) **synchroon op de request-thread** → event-loop-blokkade voor
+> het hele proces (effectieve DoS/request-timeout). De bestaande `MAX_PERFORMANCE_HOURS`-grens vuurt pas
+> **ná** de lus. Tweede pad: CSV-import (`diensten.ts:parseCsvShifts` → `importDienstenAction`) — één
+> CSV-rij `2000-01-01T00:00;9999-12-31T23:59` triggert dezelfde lus vóór `assertPerformanceWithinLimits`.
+> **Geschonden regel:** server-side waarheid (CLAUDE.md regel 1 — de `datetime-local max` is niet
+> af te dwingen) + DOEL 2 (malicieuze invoer → nette weigering, nooit een hang). **Fix (defense-in-
+> depth, drie lagen):** (1) harde duurgrens `MAX_SHIFT_HOURS = 1000` in de pure motor `segmentShift`
+> (throw bij `end-start > MAX·uur` — de lus kan nooit meer onbegrensd draaien, ongeacht caller);
+> (2) nette input-weigering vóór segmentatie in `parsePerformanceInput` (duur én
+> `MAX_SHIFTS_PER_PERFORMANCE = 100` dienstrijen — begrenst óók de rij-amplificatie) én in
+> `parseCsvShifts` (regelfout per dienst). Rood→groen: `shift.test.ts` (4 duurgrens-tests, incl. een
+> `< 1000ms`-hang-assert op jaar 9999) + `diensten.test.ts` (1 CSV-duurtest). De grens (1000 u ≈ 42
+> dagen) is ruim boven elke echte aaneengesloten dienst en spiegelt de bestaande `MAX_PERFORMANCE_HOURS`.
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, contradictoire/dode CLIENT-cascadebadge op een bevroren deal):**
+> de CLIENT-navbadges `cascadeWork` + `pendingPerformances` (`src/lib/signals.ts:334-340`, in
+> `navBadges`) telden een **SUBMITTED-prestatie** en een **SUBMITTED-cascadefactuur** op een
+> **BEVROREN (dispuut)** samenwerking mee — de FREELANCER-tak (`:279-284`) had de `disputedAt: null`-
+> grens wél, de CLIENT-tak niet. Gevolg: bij een open dispuut (`disputedAt` gezet, status blijft
+> ACTIVE, prestatie blijft SUBMITTED) toont het collab-detail "Dispuut — werkproces bevroren"
+> (`cascade/stage.ts:68`, youAreUp false) en `/acties` géén goedkeur-taak (`pending-tasks.ts:652`
+> filtert `disputedAt:null`), maar de `/samenwerkingen`- én `/prestaties`-zijbalkbadges telden het nog
+> als werk "aan zet". Klikt de opdrachtgever door, dan weigert `approvePerformance`/`approveInvoice`
+> server-side (`assertNotDisputed`) → een dode, tegenstrijdige teller. **Geschonden regel:** DOEL 1b
+> (next-action/badge mag de cascade-fase niet tegenspreken; één bron voor /acties, rail én badge) +
+> server-side waarheid. **Fix:** `collaboration: { …, disputedAt: null }` toegevoegd aan beide CLIENT-
+> cascadequery's — symmetrisch met de FREELANCER-tak en met `/acties`. Rood→groen:
+> `signals.cascade-dispute.test.ts` (2 tests: prestatie- én factuurtelling scopen op een
+> niet-bevroren samenwerking).
+>
+> **DOEL 1 (werkt het, live):** verse prod-build (exit 0), vier rollen ingelogd. Authz/IDOR/tenant-
+> audit kwam **schoon** terug: alle document-/PDF-/dossier-routes gaten ownership ná de DB-lookup +
+> audit (403/404, nooit 200-met-data); franchise-acties her-checken `ownsViaTenant`/`assertSameTenant`
+> vóór de write; cross-tenant vs onbekend-id geven identieke responses (geen existence-oracle); de
+> nieuwe `db-selftest` is ADMIN-only + rate-limited + strikt read-only (geen data-/`DATABASE_URL`-lek).
+>
+> **Checks:** `npm run typecheck` · `npm run lint` (✔ 0 warnings) · `npm run test`
+> (**4686 passed**, +7) · `npm run build` (exit 0) · `npx prettier --write .` — allemaal groen.
+>
+> **GEPARKEERD uit deze run (repro + prioriteit, voor een volgende increment):**
+>
+> - **MED (DOEL 1b, contradictoir op het collab-detail — multi-cycle):** `cascadeStage` (`stage.ts:100-104`
+>   & `:117-120`) roept de prior-cycle-rescue `priorCycleFreelancerPhase` **alleen** aan onder
+>   `perf === "SUBMITTED"`; bij `perf === "REJECTED"` of `null/"DRAFT"` valt een nog-open cycle-1-factuur
+>   (DRAFT/REJECTED/APPROVED/OVERDUE) stil weg (`stage.ts:75` nult de factuur voor álle takken). De
+>   item-engine (`pending-tasks.ts:463-482`) toont wél beide taken. **Repro:** FREELANCER, ACTIVE collab,
+>   cycle-1-factuur APPROVED niet betaald, dan cycle-2-uren DRAFT of REJECTED → `/acties` toont "markeer
+>   betaling" + "corrigeer uren", maar het collab-detail/dashboard "Wat loopt er nu" verbergt de betaal-
+>   actie. Narrow (multi-cycle) maar reachable.
+> - **MED-LOW (DOEL 1b, niet-verdwijnende next-action):** `collaborationRenewalTask` (`tasks.ts:717-743`,
+>   gated `collaboration-renewal.ts:57`) vuurt attention voor een over-de-einddatum ACTIVE-samenwerking
+>   (`overdue`) onbeperkt; de "vervolg"-actie verandert `status`/`endDate` van díe samenwerking niet, dus
+>   de taak is nergens afhandelbaar — exact het anti-patroon dat de codebase voor no-shows bewust vermeed
+>   (`no-show.ts:41-46`). Overweeg 'm (net als no-show) naar een passief dashboardsignaal te verplaatsen,
+>   of de over-de-einddatum-tak te dempen na N dagen.
+> - **LOW (DOEL 1b, dubbeltelling):** een understaffte PUBLISHED-dienst (≥7 dagen open, geen ACTIVE
+>   collab, start deze week/verleden) wordt zowel in `franchiseAcuteDienstTask` (aggregate) als als
+>   specifieke `franchiseStaleDienstTask` geteld (`pending-tasks.ts:840-851` + `:880-883`) → dezelfde
+>   dienst telt twee keer in de badge.
+> - **LOW (defense-in-depth, latent):** de middleware-matcher (`src/middleware.ts:158`) sluit elk pad
+>   mét een punt uit van de middleware (incl. de rol-redirects); vandaag veilig omdat elke admin-/
+>   franchise-pagina zelf `requireRole` doet. Overweeg een lint/test die afdwingt dat elke admin-/
+>   franchise-paginamodule `requireRole` aanroept, zodat de middleware nooit de enige laag wordt.
+
 > **Datum:** 2026-07-20 (run 40) · **main-commit basis:** `e7c947aa`
 > **Uitkomst:** **2 bevindingen (1 MED + 1 LOW, DOEL 2 — dispuut-vries niet volledig over de
 > statusmutatie-familie) gevonden én OPGELOST**; 4 DOEL-1b-bevindingen (2 MED + 2 LOW) uit de

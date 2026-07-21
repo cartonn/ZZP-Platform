@@ -4,6 +4,7 @@
 import { prisma } from "@/lib/db";
 import { type OrtSegment, ortSubtotalCents, resolveOrtRates } from "@/lib/ort";
 import { parseCsvRecords, escapeCsvField } from "@/lib/csv";
+import { MAX_SHIFT_HOURS } from "@/lib/shift";
 
 export interface DienstSummary {
   id: string;
@@ -228,6 +229,15 @@ export function parseCsvShifts(text: string): CsvParseResult {
     }
     if (end.getTime() <= start.getTime()) {
       errors.push({ line: lineNum, message: "Eindtijd moet na begintijd liggen." });
+      continue;
+    }
+    // Weiger een absurde dienstduur netjes (server-side waarheid): segmentatie is O(duur), dus een
+    // eindtijd ver in de toekomst (bv. jaar 9999) zou de import synchroon laten blokkeren.
+    if (end.getTime() - start.getTime() > MAX_SHIFT_HOURS * 3_600_000) {
+      errors.push({
+        line: lineNum,
+        message: `Een dienst mag niet langer dan ${MAX_SHIFT_HOURS} uur duren.`,
+      });
       continue;
     }
 
