@@ -1327,6 +1327,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "440": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-440-linnen").then((m) => m.Concept440),
   ),
+  "441": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-441-kelp").then((m) => m.Concept441),
+  ),
+  "442": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-442-prairie").then((m) => m.Concept442),
+  ),
+  "443": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-443-barcode").then((m) => m.Concept443),
+  ),
+  "444": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-444-basalt").then((m) => m.Concept444),
+  ),
+  "445": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-445-gletsjer").then((m) => m.Concept445),
+  ),
+  "446": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-446-macrame").then((m) => m.Concept446),
+  ),
+  "447": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-447-houtskool").then((m) => m.Concept447),
+  ),
+  "448": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-448-eclips").then((m) => m.Concept448),
+  ),
+  "449": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-449-papierrol").then((m) => m.Concept449),
+  ),
+  "450": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-450-mokume").then((m) => m.Concept450),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

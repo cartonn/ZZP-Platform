@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — ontwerp-lab reeks 45: +10 concepten (441–450)
+
+**Wat:** het interne ontwerp-lab op `/ontwerp` uitgebreid met 10 nieuwe, onderscheidende
+redesign-concepten (441–450), additief bovenop de bestaande 440. Elk concept toont de 6 kernschermen
+(dashboard, marktplaats, opdracht, verificatie, acties, facturen) in een eigen designtaal met de
+gedeelde NL mock-content, volledig responsive, toegankelijk (focus-states, status label+icoon,
+motion-reduce) en zonder het woord "AI".
+
+- **Nieuwe concepten:** 441 Kelp (onderwater-diepte), 442 Prairie (weids grasland), 443 Barcode
+  (streepjescode-minimalisme), 444 Basalt (hexagon-zuilen), 445 Gletsjer (ijs-strata), 446 Macramé
+  (geknoopt touwwerk), 447 Houtskool (charcoal-tekening), 448 Eclips (single-focus dark), 449 Papierrol
+  (paper-quilling), 450 Mokume (metaallagen).
+- **Bestanden:** `src/components/ontwerp/concepts/concept-44{1..9}-*.tsx` + `concept-450-mokume.tsx`
+  (10 nieuwe, elk zelf-bevattend). Additief gekoppeld in `registry.ts` (10 nieuwe ConceptMeta) en
+  `src/app/ontwerp/[id]/concept-host.tsx` (10 nieuwe lazy-imports). Geen bestaand concept aangeraakt.
+- **Docs:** `docs/DESIGN-LAB.md` reeks 45 toegevoegd. **Totaal nu op `/ontwerp`: 450 concepten.**
+- **Gate:** typecheck + lint + test + build + prettier groen; CI-poort via PR.
+
 ## 2026-07-21 — routine: administratieve deadlines in de persoonlijke agenda-feed
 
 **Wat:** de bestaande agenda-feed (`/api/agenda` download + `/api/agenda/feed.ics` webcal-abonnement)
