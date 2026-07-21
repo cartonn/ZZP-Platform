@@ -65,12 +65,15 @@
 >   cycle-1-factuur APPROVED niet betaald, dan cycle-2-uren DRAFT of REJECTED → `/acties` toont "markeer
 >   betaling" + "corrigeer uren", maar het collab-detail/dashboard "Wat loopt er nu" verbergt de betaal-
 >   actie. Narrow (multi-cycle) maar reachable.
-> - **MED-LOW (DOEL 1b, niet-verdwijnende next-action):** `collaborationRenewalTask` (`tasks.ts:717-743`,
+> - ~~**MED-LOW (DOEL 1b, niet-verdwijnende next-action):** `collaborationRenewalTask` (`tasks.ts:717-743`,
 >   gated `collaboration-renewal.ts:57`) vuurt attention voor een over-de-einddatum ACTIVE-samenwerking
 >   (`overdue`) onbeperkt; de "vervolg"-actie verandert `status`/`endDate` van díe samenwerking niet, dus
 >   de taak is nergens afhandelbaar — exact het anti-patroon dat de codebase voor no-shows bewust vermeed
 >   (`no-show.ts:41-46`). Overweeg 'm (net als no-show) naar een passief dashboardsignaal te verplaatsen,
->   of de over-de-einddatum-tak te dempen na N dagen.
+>   of de over-de-einddatum-tak te dempen na N dagen.~~ **GEDAAN (2026-07-21, PR #858):** grace-venster
+>   `RENEWAL_OVERDUE_GRACE_DAYS = 30` in het pure `summarizeCollaborationRenewal` (nieuwe fase `"lapsed"`,
+>   `attention: false` voorbij grace) → /acties, badge, dashboard-rail én detail-nudge convergeren via de
+>   ene bron; `renewalTasks`-query kreeg een `gte`-grace-vloer. Tests +6.
 > - **LOW (DOEL 1b, dubbeltelling):** een understaffte PUBLISHED-dienst (≥7 dagen open, geen ACTIVE
 >   collab, start deze week/verleden) wordt zowel in `franchiseAcuteDienstTask` (aggregate) als als
 >   specifieke `franchiseStaleDienstTask` geteld (`pending-tasks.ts:840-851` + `:880-883`) → dezelfde

@@ -4,7 +4,7 @@
 // op tijd op). Puur en deterministisch; de server bepaalt de fase, de UI toont alleen.
 import { startOfUtcDay } from "./signals";
 
-export type CollaborationRenewalPhase = "none" | "on_track" | "ending_soon" | "overdue";
+export type CollaborationRenewalPhase = "none" | "on_track" | "ending_soon" | "overdue" | "lapsed";
 
 export interface CollaborationRenewalInput {
   /** CollaborationStatus — alleen een ACTIVE inzet vraagt om vervolgplanning. */
@@ -16,6 +16,8 @@ export interface CollaborationRenewalInput {
   now?: Date;
   /** Aantal dagen vóór de einddatum waarbinnen we waarschuwen (default 21). */
   windowDays?: number;
+  /** Hoeveel dagen ná de einddatum de overdue-nudge nog aandacht vraagt (default 30). */
+  overdueGraceDays?: number;
 }
 
 export interface CollaborationRenewalSummary {
@@ -28,6 +30,16 @@ export interface CollaborationRenewalSummary {
 
 /** Standaard-venster: binnen drie weken vóór het einde gaan we plannen. */
 export const RENEWAL_WINDOW_DAYS = 21;
+
+/**
+ * Grace ná de einddatum: een over-de-einddatum ACTIVE-inzet vraagt nog een maand lang aandacht
+ * ("plan alsnog een vervolg"), daarna dempt het signaal (`phase: "lapsed"`, geen aandacht meer).
+ * Zonder deze grens blijft de overdue-nudge oneindig staan als next-action/badge terwijl geen enkele
+ * actie op díe samenwerking hem afhandelt (de vervolg-CTA raakt status/einddatum niet) — exact het
+ * anti-patroon dat de codebase voor no-shows bewust vermeed (`no-show.ts`, PR #854). De inzet blijft
+ * gewoon zichtbaar in de lijst; alleen de onafhandelbare aandacht-nudge stopt.
+ */
+export const RENEWAL_OVERDUE_GRACE_DAYS = 30;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -42,6 +54,7 @@ export function summarizeCollaborationRenewal(
   const { status, endDate, disputed = false } = input;
   const now = input.now ?? new Date();
   const windowDays = input.windowDays ?? RENEWAL_WINDOW_DAYS;
+  const overdueGraceDays = input.overdueGraceDays ?? RENEWAL_OVERDUE_GRACE_DAYS;
 
   const none: CollaborationRenewalSummary = {
     phase: "none",
@@ -54,7 +67,13 @@ export function summarizeCollaborationRenewal(
 
   const daysRemaining = wholeDaysBetween(now, endDate);
 
-  if (daysRemaining < 0) return { phase: "overdue", daysRemaining, attention: true };
+  if (daysRemaining < 0) {
+    // Voorbij de einddatum: vraag nog binnen het grace-venster aandacht, daarna dempen ("lapsed")
+    // zodat de onafhandelbare nudge niet oneindig als next-action/badge blijft staan.
+    if (-daysRemaining > overdueGraceDays)
+      return { phase: "lapsed", daysRemaining, attention: false };
+    return { phase: "overdue", daysRemaining, attention: true };
+  }
   if (daysRemaining <= windowDays) return { phase: "ending_soon", daysRemaining, attention: true };
   return { phase: "on_track", daysRemaining, attention: false };
 }

@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { P } from "@/lib/next-actions";
-import { RENEWAL_WINDOW_DAYS } from "@/lib/collaboration-renewal";
+import { RENEWAL_WINDOW_DAYS, RENEWAL_OVERDUE_GRACE_DAYS } from "@/lib/collaboration-renewal";
 
 type RenewalRow = {
   id: string;
@@ -84,6 +84,8 @@ describe("clientTasks — vervolgsignaal (collaboration-renewal)", () => {
     expect(where.status).toBe("ACTIVE");
     expect(where.disputedAt).toBeNull();
     expect(where.endDate).toHaveProperty("lte");
+    // Grace-vloer: ver-verstreken (voorbij grace) inzet wordt niet meer opgehaald.
+    expect(where.endDate).toHaveProperty("gte");
     expect(where.company).toEqual({ userId: "user-client" });
   });
 
@@ -120,6 +122,20 @@ describe("clientTasks — vervolgsignaal (collaboration-renewal)", () => {
     const tasks = await pendingTasks(ACTOR);
     const t = tasks.find((x) => x.kind === "collaboration-renewal");
     expect(t!.tone).toBe("attention");
+  });
+
+  it("voorbij het grace-venster verstreken → gedempt (lapsed), geen taak", async () => {
+    state.renewalRows = [
+      {
+        id: "collab-lapsed",
+        endDate: new Date(Date.now() - (RENEWAL_OVERDUE_GRACE_DAYS + 5) * DAY),
+        job: { title: "Oud project" },
+        company: { name: "ZorgGroep" },
+        freelancer: { user: { name: "Noor" } },
+      },
+    ];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.find((t) => t.kind === "collaboration-renewal")).toBeUndefined();
   });
 
   it("open einde (endDate null) of ruim vóór het venster → geen attentie, geen taak", async () => {
