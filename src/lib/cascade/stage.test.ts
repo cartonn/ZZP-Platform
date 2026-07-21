@@ -291,6 +291,102 @@ describe("cascadeStage — keten + viewer-perspectief", () => {
       expect(fr.youAreUp).toBe(false);
     });
 
+    // Regressie (PERSONA-SWEEP run 41 MED): de rescue vuurde eerder alléén in de SUBMITTED-tak.
+    // Bij een verse cyclus-2-prestatie die de ZZP'er nog moet indienen (null/DRAFT), corrigeren
+    // (REJECTED) of waarvan hij de factuur nog moet opstellen (APPROVED), viel de openstaande
+    // vorige-cyclus-betaal-/factuuractie stil weg uit het detail/dashboard terwijl /acties 'm toonde.
+    // De rescue toont nu de verder-in-de-keten staande vorige-cyclus-actie in álle freelancer-fasen.
+    it("APPROVED-factuur + nieuwere DRAFT-prestatie: ZZP'er blijft aan zet voor de betaling", () => {
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "DRAFT",
+          latestInvoiceStatus: "APPROVED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("payment");
+      expect(fr.youAreUp).toBe(true);
+    });
+
+    it("OVERDUE-factuur + geen nieuwe prestatie (null) + nieuwere-vlag: ZZP'er aan zet, attention", () => {
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: null,
+          latestInvoiceStatus: "OVERDUE",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("payment");
+      expect(fr.youAreUp).toBe(true);
+      expect(fr.tone).toBe("attention");
+    });
+
+    it("APPROVED-factuur + nieuwere REJECTED-prestatie: betaling (verder in de keten) wint", () => {
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "REJECTED",
+          latestInvoiceStatus: "APPROVED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("payment");
+      expect(fr.youAreUp).toBe(true);
+    });
+
+    it("DRAFT-factuur + nieuwere REJECTED-prestatie: vorige factuur eerst indienen", () => {
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "REJECTED",
+          latestInvoiceStatus: "DRAFT",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("invoice-submit");
+      expect(fr.youAreUp).toBe(true);
+    });
+
+    it("SUBMITTED-factuur (wacht op opdrachtgever) + nieuwere DRAFT-prestatie: verse indien-fase", () => {
+      // Vorige factuur SUBMITTED = geen ZZP-actie → rescue geeft null → de reguliere fase (verse
+      // uren indienen) neemt over. Geen valse betaal-/factuuractie.
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "DRAFT",
+          latestInvoiceStatus: "SUBMITTED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("performance-submit");
+      expect(fr.youAreUp).toBe(true);
+    });
+
+    it("opdrachtgever krijgt nooit de vorige-cyclus-ZZP-actie (alleen zijn eigen fase)", () => {
+      // CLIENT met een verse REJECTED-prestatie + open vorige-cyclus-factuur: de rescue is
+      // freelancer-only, dus de opdrachtgever ziet ongewijzigd de afgekeurde-prestatie-fase.
+      const cl = cascadeStage(
+        base({
+          viewer: "CLIENT",
+          latestPerformanceStatus: "REJECTED",
+          latestInvoiceStatus: "APPROVED",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(cl.id).toBe("performance-rejected");
+      expect(cl.youAreUp).toBe(false);
+    });
+
+    it("PAID-factuur + nieuwere DRAFT-prestatie: geen valse rescue (verse uren indienen)", () => {
+      // Terminale vorige factuur (PAID) → rescue geeft null → verse cyclus-2-uren indienen.
+      const fr = cascadeStage(
+        base({
+          latestPerformanceStatus: "DRAFT",
+          latestInvoiceStatus: "PAID",
+          performanceNewerThanInvoice: true,
+        }),
+      );
+      expect(fr.id).toBe("performance-submit");
+      expect(fr.youAreUp).toBe(true);
+    });
+
     it("isPerformanceNewerThanInvoice: strikt nieuwer, ontbrekende datum → false", () => {
       const oud = new Date("2026-01-01T00:00:00Z");
       const nieuw = new Date("2026-02-01T00:00:00Z");
