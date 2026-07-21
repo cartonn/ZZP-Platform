@@ -378,6 +378,28 @@ describe("validatePerformanceForm", () => {
     ).toBeNull();
   });
 
+  it("HOURS: ongeldige periodStart (geknutselde POST) geeft een fout, niet null", () => {
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      periodStartRaw: "not-a-date",
+      periodEndRaw: "2026-05-31",
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("geldige periode");
+  });
+
+  it("HOURS: ongeldige periodEnd alléén (periodStart leeg) geeft een fout", () => {
+    // Regressie: de oude cross-veld-check draaide alleen als BEIDE ruwe waarden aanwezig waren,
+    // dus één losse ongeldige datum viel door naar Prisma (Invalid Date → generieke catch-all).
+    const result = validatePerformanceForm({
+      ...hoursBase,
+      periodStartRaw: "",
+      periodEndRaw: "junk",
+    });
+    expect(result).not.toBeNull();
+    expect(result).toContain("geldige periode");
+  });
+
   it("MILESTONE: amount=0 geeft een fout", () => {
     const result = validatePerformanceForm({ ...milestoneBase, amount: 0 });
     expect(result).not.toBeNull();

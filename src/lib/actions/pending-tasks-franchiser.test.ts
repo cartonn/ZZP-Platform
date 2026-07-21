@@ -17,6 +17,9 @@ const state = vi.hoisted(() => ({
     credentials: { type: string; status: string; expiresAt: Date | null }[];
   }[],
   stale: [] as { id: string; title: string; createdAt: Date }[],
+  // Fixture-leads (KOUD/WARM) met een geplande opvolgdatum; de lead.count-mock past het echte
+  // `where.nextFollowUp`-filter erop toe zodat de dagniveau-grens getest kan worden.
+  leads: [] as { nextFollowUp: Date }[],
   // Geleide-opzet-tellingen — default een volledig opgezette franchise, zodat de opzet-taken
   // standaard NIET verschijnen en de operationele-taak-tests geïsoleerd blijven.
   counts: { companies: 1, freelancers: 1, publishedDiensten: 1, companiesWithoutDiensten: 0 },
@@ -26,7 +29,20 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn(async () => ({ tenantId: "tenant-1" })) },
     credential: { findMany: vi.fn(async () => []) },
-    lead: { count: vi.fn(async () => 0) },
+    // Past het echte nextFollowUp-filter toe op de fixture-leads. De productiecode gebruikt de
+    // dagniveau-grens `lt: startOfUtcDay(now)` (gelijk aan de nav-badge en de leadpagina); de mock
+    // ondersteunt ook `lte` zodat een teruggedraaide fix meteen rood wordt.
+    lead: {
+      count: vi.fn(async (args: { where?: { nextFollowUp?: { lt?: Date; lte?: Date } } }) => {
+        const f = args?.where?.nextFollowUp;
+        if (!f) return state.leads.length;
+        return state.leads.filter((l) => {
+          if (f.lt) return l.nextFollowUp.getTime() < f.lt.getTime();
+          if (f.lte) return l.nextFollowUp.getTime() <= f.lte.getTime();
+          return true;
+        }).length;
+      }),
+    },
     // company.count wordt twee keer aangeroepen: alle opdrachtgevers (`{tenantId}`) en
     // opdrachtgevers-zonder-gepubliceerde-dienst (`jobs: { none: … }`). De tweede is te herkennen
     // aan het jobs-filter.
@@ -84,6 +100,7 @@ const notEngaged = {
 beforeEach(() => {
   state.roster = [];
   state.stale = [];
+  state.leads = [];
   state.counts = {
     companies: 1,
     freelancers: 1,
@@ -134,6 +151,34 @@ describe("bemiddelaar next-actions — te lang open dienst telt op /acties + bad
     state.stale = [];
     const tasks = await pendingTasks(ACTOR);
     expect(tasks.some((t) => t.kind === "franchise-stale-service")).toBe(false);
+  });
+});
+
+// Cross-surface-consistentie (persona-sweep run 42, DOEL 1b): de lead-opvolgtaak op /acties gebruikte
+// een timestamp-grens (`lte: now`), terwijl de nav-badge (`overdueLeads`, signals.ts) én de
+// "— te laat"-markering op /franchise/leads een dagniveau-grens (`< startOfUtcDay`) hanteren. Een lead
+// die eerder vandaag verviel dook zo op in /acties zonder overeenkomstige badge/markering (~24u lang).
+// Deze test borgt dat de item-engine dezelfde dagniveau-grens gebruikt.
+describe("bemiddelaar next-actions — lead-opvolging deelt de dagniveau-grens met badge + leadpagina", () => {
+  it("telt een lead die eerder VANDAAG verviel NIET als opvolgtaak (net als de badge)", async () => {
+    const now = new Date();
+    const startOfToday = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    // Opvolgdatum vandaag om 00:00 UTC → vóór "nu" maar niet vóór start-van-vandaag.
+    state.leads = [{ nextFollowUp: startOfToday }];
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.some((t) => t.kind === "franchise-lead-followup")).toBe(false);
+  });
+
+  it("telt een lead die GISTEREN verviel wél als opvolgtaak", async () => {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 26 * 3_600_000);
+    state.leads = [{ nextFollowUp: yesterday }];
+    const tasks = await pendingTasks(ACTOR);
+    const lead = tasks.filter((t) => t.kind === "franchise-lead-followup");
+    expect(lead).toHaveLength(1);
+    expect(lead[0]?.id).toBe("franchise-lead-followup");
   });
 });
 

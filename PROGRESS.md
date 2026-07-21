@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — persona-sweep run 42: ongeldige prestatie-periode-datum + lead-overdue-grens (cross-surface)
+
+**Twee bevindingen gevonden + gefixt** (drie parallelle Opus-audits; authz/IDOR/tenant kwam schoon terug).
+
+1. **MED (DOEL 2, malicieuze invoer):** `parsePerformanceInput` (`src/app/(protected)/samenwerkingen/[id]/actions.ts`)
+   bouwde `periodStart`/`periodEnd` met bare `new Date(raw)` zonder `isNaN`, en `validatePerformanceForm`
+   (`src/lib/validation.ts`) toetste de periode alléén als beide ruwe waarden truthy waren (+ enkel `s>e`).
+   Een geknutselde POST met `periodStart=onzin` stroomde als `Invalid Date` door naar
+   `prisma.performance.create` → generieke catch-all i.p.v. een leesbare veldfout. Fix: `isNaN`-weigering
+   in de actie én in de pure validator ("Vul een geldige periode in"). +2 tests in `validation.test.ts`.
+2. **MED (DOEL 1b, cross-surface-inconsistentie):** de lead-opvolgtaak op /acties (`src/lib/actions/pending-tasks.ts`)
+   gebruikte `nextFollowUp: { lte: now }` (timestamp), terwijl de nav-badge (`signals.ts` `overdueLeads`) én de
+   "— te laat"-markering op `/franchise/leads` een dagniveau-grens (`< startOfUtcDay`) hanteren. Een lead die
+   eerder vandaag verviel dook op in /acties zonder badge/markering (~24u). Fix: `pending-tasks.ts` gebruikt nu
+   dezelfde `lt: startOfUtcDay(now)`. +2 tests in `pending-tasks-franchiser.test.ts`.
+
+Geparkeerd (LOW, aparte PR): twee dode next-action-aggregaat-engines (`next-actions.ts`,
+`cascade/next-actions.ts`) — herhaal-defect-vector. Zie `docs/PERSONA-SWEEP-BACKLOG.md` (run 42).
+
 ## 2026-07-21 — routine: multi-cyclus prior-cycle-rescue over alle cascade-fasen (ZZP'er betaal-actie)
 
 **Bevinding (geparkeerd MED, persona-sweep run 41, DOEL 1b):** `cascadeStage` (`src/lib/cascade/stage.ts`)

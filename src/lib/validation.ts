@@ -372,12 +372,17 @@ export function validatePerformanceForm(data: PerformanceFormData): string | nul
       if (data.hours > MAX_PERFORMANCE_HOURS)
         return `Het aantal uren is onrealistisch hoog (maximaal ${MAX_PERFORMANCE_HOURS} uur per urenstaat).`;
     }
-    if (data.periodStartRaw && data.periodEndRaw) {
-      const s = new Date(data.periodStartRaw);
-      const e = new Date(data.periodEndRaw);
-      if (!isNaN(s.getTime()) && !isNaN(e.getTime()) && s > e) {
-        return "De begindatum van de periode mag niet na de einddatum liggen.";
-      }
+    // Een losse ongeldige datum (bv. `periodStart=onzin` uit een geknutselde POST) moet netjes
+    // worden geweigerd vóór persistentie — anders stroomt een `Invalid Date` door naar Prisma en
+    // valt de mutatie in een generieke catch-all i.p.v. een leesbare veldfout. De HTML-date-input
+    // levert altijd geldige waarden; deze check dekt het scripted-POST-pad (DOEL 2 malicieuze invoer).
+    const s = data.periodStartRaw ? new Date(data.periodStartRaw) : null;
+    const e = data.periodEndRaw ? new Date(data.periodEndRaw) : null;
+    if ((s && isNaN(s.getTime())) || (e && isNaN(e.getTime()))) {
+      return "Vul een geldige periode in (begin- en einddatum).";
+    }
+    if (s && e && s > e) {
+      return "De begindatum van de periode mag niet na de einddatum liggen.";
     }
   } else {
     if (!Number.isFinite(data.amount) || data.amount <= 0)
