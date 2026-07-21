@@ -57,14 +57,21 @@
 >
 > **GEPARKEERD uit deze run (repro + prioriteit, voor een volgende increment):**
 >
-> - **MED (DOEL 1b, contradictoir op het collab-detail — multi-cycle):** `cascadeStage` (`stage.ts:100-104`
+> - ~~**MED (DOEL 1b, contradictoir op het collab-detail — multi-cycle):** `cascadeStage` (`stage.ts:100-104`
 >   & `:117-120`) roept de prior-cycle-rescue `priorCycleFreelancerPhase` **alleen** aan onder
 >   `perf === "SUBMITTED"`; bij `perf === "REJECTED"` of `null/"DRAFT"` valt een nog-open cycle-1-factuur
 >   (DRAFT/REJECTED/APPROVED/OVERDUE) stil weg (`stage.ts:75` nult de factuur voor álle takken). De
 >   item-engine (`pending-tasks.ts:463-482`) toont wél beide taken. **Repro:** FREELANCER, ACTIVE collab,
 >   cycle-1-factuur APPROVED niet betaald, dan cycle-2-uren DRAFT of REJECTED → `/acties` toont "markeer
 >   betaling" + "corrigeer uren", maar het collab-detail/dashboard "Wat loopt er nu" verbergt de betaal-
->   actie. Narrow (multi-cycle) maar reachable.
+>   actie. Narrow (multi-cycle) maar reachable.~~ **GEDAAN (2026-07-21, PR #859):** de multi-cyclus-rescue
+>   is uit de SUBMITTED-tak gehaald en vóór álle prestatie-fasen geplaatst (`isFreelancer &&
+performanceNewerThanInvoice` → `priorCycleFreelancerPhase`). Een openstaande vorige-cyclus-factuur
+>   staat verder in de keten dan een verse cyclus-2-prestatie en wint dus als primaire fase, ongeacht of
+>   die nieuwe prestatie null/DRAFT/REJECTED/SUBMITTED/APPROVED is; `priorCycleFreelancerPhase` geeft
+>   `null` zodra de vorige factuur niets meer van de ZZP'er vraagt (SUBMITTED/PAID/…) → de reguliere fase
+>   neemt dan over. Freelancer-only (de opdrachtgever ziet ongewijzigd zijn eigen fase). Detail, dashboard
+>   én /acties tonen nu dezelfde betaal-/factuuractie. +7 tests in `stage.test.ts`.
 > - ~~**MED-LOW (DOEL 1b, niet-verdwijnende next-action):** `collaborationRenewalTask` (`tasks.ts:717-743`,
 >   gated `collaboration-renewal.ts:57`) vuurt attention voor een over-de-einddatum ACTIVE-samenwerking
 >   (`overdue`) onbeperkt; de "vervolg"-actie verandert `status`/`endDate` van díe samenwerking niet, dus

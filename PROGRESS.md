@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-21 — routine: multi-cyclus prior-cycle-rescue over alle cascade-fasen (ZZP'er betaal-actie)
+
+**Bevinding (geparkeerd MED, persona-sweep run 41, DOEL 1b):** `cascadeStage` (`src/lib/cascade/stage.ts`)
+riep de prior-cycle-rescue `priorCycleFreelancerPhase` **alleen** aan in de `perf === "SUBMITTED"`-tak.
+Op één ACTIVE-samenwerking kan de ZZP'er ná een eerdere cyclus nieuwe uren indienen (multi-cyclus);
+`performanceNewerThanInvoice` nult dan de vorige-cyclus-factuur uit `inv`. Was de verse cyclus-2-prestatie
+`null`/`DRAFT`/`REJECTED`, dan viel een nog-open vorige-cyclus-factuur (DRAFT/REJECTED/APPROVED/OVERDUE)
+stil weg uit het collab-detail (status-regel) én het dashboard "Wat loopt er nu" (running-zone) — terwijl
+`/acties` (`pending-tasks.ts`) diezelfde betaal-/factuur-taak wél toonde. Een zichzelf tegensprekend scherm
+waarop de ZZP'er stil zijn geld misloopt.
+
+- `src/lib/cascade/stage.ts`: de rescue staat nu vóór de prestatie-fasen (`isFreelancer &&
+performanceNewerThanInvoice` → `priorCycleFreelancerPhase`). Een openstaande vorige-cyclus-factuur staat
+  verder in de keten dan een verse cyclus-2-prestatie en wint dus als primaire fase; `priorCycleFreelancerPhase`
+  geeft `null` zodra de vorige factuur niets meer van de ZZP'er vraagt (SUBMITTED = wacht op opdrachtgever;
+  PAID/PROCESSED/CREDITED/geen), waarna de reguliere fase-afleiding overneemt. De inline SUBMITTED-tak-rescue
+  is verwijderd (nu redundant); gedrag voor de bestaande SUBMITTED-cases ongewijzigd. Freelancer-only — de
+  opdrachtgever ziet ongewijzigd zijn eigen fase.
+- Detail, dashboard-rail én /acties tonen nu dezelfde betaal-/factuuractie (één bron, geen tegenspraak).
+- Tests: `stage.test.ts` (+7: DRAFT/null/REJECTED-prestatie + open vorige-cyclus-factuur → betaal-/indien-
+  fase; SUBMITTED-vorige-factuur geeft geen valse actie; PAID-vorige-factuur → verse uren; opdrachtgever
+  krijgt nooit de ZZP-actie). Geen schema-/mutatie-/auth-oppervlak geraakt; pure, read-only afleiding.
+- Gate: `npm run typecheck` · `npm run lint` (0 warnings) · `npm run test` · `npm run build` ·
+  `npx prettier --check .`. PR #859 (→ CI-poort).
+
 ## 2026-07-21 — routine: begrens de perpetuele vervolg-next-action (overdue-grace) — ZZP'er + opdrachtgever
 
 **Bevinding (geparkeerd MED-LOW, persona-sweep run 41):** `collaborationRenewalTask` vuurde voor een
