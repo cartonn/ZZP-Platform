@@ -9,6 +9,7 @@ import { summarizeDebtors, shouldShowDebtorSummary } from "@/lib/debtor-summary"
 import { DebtorSummaryCard } from "@/components/administratie/debtor-summary-card";
 import { invoiceDueStatus } from "@/lib/invoice-due";
 import { computePaymentBehavior, type PaymentBehavior } from "@/lib/payment-behavior";
+import { summarizeOwnPaymentTiming } from "@/lib/own-payment-timing";
 import { forecastInvoicePayout } from "@/lib/invoice-payment-forecast";
 import { summarizeCashflowForecast, CASHFLOW_HORIZON_DAYS } from "@/lib/cashflow-forecast";
 import { summarizePayablesForecast, PAYABLES_HORIZON_DAYS } from "@/lib/payables-forecast";
@@ -156,6 +157,20 @@ export async function FacturenPanel({
     }
   }
 
+  // Betaaltermijn-KPI (alleen ZZP'er): de portefeuille-brede DSO uit de eigen betaalde facturen —
+  // "hoe snel word ik gemiddeld betaald, over alle opdrachtgevers heen?" Het retrospectieve
+  // tegenhanger van de cashflow-vooruitblik; hergebruikt exact `computePaymentBehavior` (dezelfde
+  // rekenkern als de per-opdrachtgever-kaart), geen extra query — de factuurlijst is al geladen.
+  const ownTiming = isFreelancer
+    ? summarizeOwnPaymentTiming(
+        invoices.map((inv) => ({
+          issuedAt: inv.issuedAt,
+          dueAt: inv.dueAt,
+          paidAt: inv.status === "PAID" ? inv.updatedAt : null,
+        })),
+      )
+    : null;
+
   // Cashflow-vooruitblik (alleen ZZP'er): tel de openstaande factuurbedragen op naar wanneer betaling
   // realistisch binnenkomt — het geaggregeerde antwoord op "hoeveel komt er de komende 30 dagen
   // binnen?" bovenop de losse per-factuur-projectie. Hergebruikt exact `behaviorByCompany` +
@@ -213,6 +228,18 @@ export async function FacturenPanel({
             <CardContent className="space-y-1 p-4">
               <p className="text-xs text-muted-foreground">{t("Betaald")}</p>
               <p className="text-lg font-semibold tabular-nums">{formatEuro(paidCents)}</p>
+              {ownTiming && (
+                <p
+                  className={[
+                    "text-xs tabular-nums",
+                    ownTiming.tone === "warning" ? "text-danger" : "text-muted-foreground",
+                  ].join(" ")}
+                >
+                  {t("Gemiddeld na")} {ownTiming.avgDaysToPay}{" "}
+                  {ownTiming.avgDaysToPay === 1 ? t("dag betaald") : t("dagen betaald")}
+                  {ownTiming.onTimePct != null ? ` · ${ownTiming.onTimePct}% ${t("op tijd")}` : ""}
+                </p>
+              )}
             </CardContent>
           </Card>
           <Card className="flex-1">
