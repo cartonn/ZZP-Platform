@@ -171,7 +171,12 @@ export async function ProfileScreen({
         orderBy: { title: "asc" },
       },
       availabilityWindows: {
-        select: { startDate: true, endDate: true, type: true, hoursPerWeek: true, note: true },
+        // Dataminimalisatie (AVG art. 5(1)(c)): `note` is vrije tekst die de ZZP'er over een
+        // afwezigheidsvenster schrijft en kan bijzondere (art. 9) gegevens bevatten (bv. een
+        // ziekte-/incapaciteitsreden). Dit scherm (deels-publieke, cross-party /zzp/[id]-route)
+        // rendert `note` nergens — dus nooit in servergeheugen laden. Owner-only surfaces met een
+        // eigen component (bv. /beschikbaarheid) selecteren het waar nodig zelf.
+        select: { startDate: true, endDate: true, type: true, hoursPerWeek: true },
         orderBy: { startDate: "asc" },
       },
       workExperiences: {

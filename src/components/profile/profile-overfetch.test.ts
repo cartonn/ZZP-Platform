@@ -51,4 +51,20 @@ describe("ProfileScreen — dataminimalisatie op de freelancerProfile-query", ()
       expect(select).toHaveProperty(field, true);
     }
   });
+
+  it("laadt AvailabilityWindow.note niet (mogelijk art. 9-vrije tekst; nergens gerenderd)", async () => {
+    // Rood→groen: vóór de fix bevatte de geneste availabilityWindows-select `note: true`, waardoor
+    // de zelf-getypte afwezigheidsreden (kan een medische/incapaciteitsreden zijn — AVG art. 9) op
+    // de deels-publieke /zzp/[id]-route in servergeheugen kwam terwijl het scherm het nooit rendert.
+    await expect(ProfileScreen({ profileId: "p-1", basePath: "/zzp" })).rejects.toThrow(SENTINEL);
+
+    const select = captured.arg?.select as Record<string, unknown> | undefined;
+    const windows = select?.availabilityWindows as { select?: Record<string, unknown> } | undefined;
+    expect(windows?.select).toBeTruthy();
+    expect(windows?.select).not.toHaveProperty("note");
+    // De velden die het venster wél toont, blijven aanwezig.
+    for (const field of ["startDate", "endDate", "type", "hoursPerWeek"]) {
+      expect(windows?.select).toHaveProperty(field, true);
+    }
+  });
 });

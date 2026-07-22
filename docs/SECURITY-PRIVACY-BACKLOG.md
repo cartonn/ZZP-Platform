@@ -4,6 +4,113 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-22b (basis: `main` @ 78838f25)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende
+oppervlakken — (1) object-/functie-authz + IDOR + cross-tenant + mass-assignment + injectie over álle
+server actions (~65 bestanden, ~140 acties); (2) API-route-handlers + upload/storage + SSRF + webhook +
+middleware/auth; (3) AVG erasure-volledigheid (veld-voor-veld per PII-model), dataminimalisatie
+server→client, k-anonimiteit, PII-in-logs, verwerkingsregister, cross-border. Kader: OWASP Top 10
+(A01/A03/A05) + ASVS + AVG art. 5/9/17/30/32. Stack geverifieerd voorbij bekende CVE's: Next.js 15.5.19
+(voorbij CVE-2025-29927 middleware-bypass), Auth.js v5-beta.31, Prisma 6.19.3; `npm audit` = 0
+kwetsbaarheden. Server-action-keten (auth→rol→ownership→Zod→actie→audit) en API-authz onafhankelijk
+schoon bevonden — geen nieuwe reachable IDOR/cross-tenant/mass-assignment/injectie. CSV-exports gaan
+allemaal door de canonieke `toCsv` (formule-injectie-guard) — geverifieerd op alle 8 export-routes.
+
+**Twee bevindingen gevonden en OPGELOST (rood→groen); overige geparkeerd (incl. een KRITIEK
+FG-escalatie).**
+
+### OPGELOST — HOOG: `profile-screen.tsx` over-fetchte `AvailabilityWindow.note` op de deels-publieke `/zzp/[id]` (AVG art. 5(1)(c) + mogelijk art. 9)
+
+- **Repro:** `ProfileScreen` (rendert `/zzp/[id]` — deels-publiek/cross-party — én `/profiel`) selecteerde
+  `availabilityWindows: { select: { …, note: true } }`. `note` is vrije tekst die de ZZP'er over een
+  afwezigheidsvenster schrijft en kan een gezondheids-/incapaciteitsreden bevatten (bijzondere gegevens
+  art. 9 — de erasure-code merkt dit veld zelf als potentieel medisch aan). Het scherm rendert `note`
+  nergens (noch de beschikbaarheids-tab, noch `summarizeAvailability`/`summarizeAway`), dus het kwam
+  puur onnodig in servergeheugen op een cross-party route. Dit was op **2026-06-25b** al als MIDDEL
+  geparkeerd met exact deze fix; de sibling `freelancer-search.ts` wérd vorige ronde gedicht, maar
+  `profile-screen.tsx` bleef ~4 weken staan.
+- **Geschonden regel:** AVG art. 5(1)(c) dataminimalisatie / CLAUDE.md regel 1 (server-side) + defense-in-depth.
+- **Fix:** `note: true` verwijderd uit de geneste `availabilityWindows.select` (geldt voor beide call-sites
+  van het gedeelde component). Owner-only surfaces met een eigen component (bv. `/beschikbaarheid`)
+  selecteren `note` waar nodig zelf. Test: `profile-overfetch.test.ts` (+1, rood→groen): de geneste
+  select bevat `note` niet en behoudt de wél-getoonde velden.
+
+### OPGELOST — HOOG: no-show-governanceflow (`NoShowReport`) ontbrak in het art. 30-verwerkingsregister (AVG art. 30)
+
+- **Repro:** De `NoShowReport`-flow (opdrachtgever/bemiddelaar meldt een gemiste dienst met een
+  vrije-tekst-`reason`; admin velt een oordeel op `/admin/no-shows`) had geen `ProcessingActivity` in
+  `src/lib/compliance/processing-register.ts` en geen `RETENTION_SCHEDULE`-regel — terwijl `reason`
+  onbedoeld een gezondheids-/incapaciteitsreden (art. 9) kan bevatten. Elke andere gevoelige flow
+  (verificatie, belastingdelegatie) staat wél geregistreerd. Art. 30-registerlacune.
+- **Geschonden regel:** AVG art. 30 (verwerkingsregister) / art. 5(2) verantwoordingsplicht.
+- **Fix:** register-entry `no-show-melding-governance` toegevoegd (`sensitive: true`, grondslag
+  `GERECHTVAARDIGD_BELANG`, betrokkenen + categorieën + bewaartermijn) + `RETENTION_SCHEDULE`-regel
+  `no-show-meldingen`. Test: `processing-register.test.ts` (+1): entry bestaat, is `sensitive`, en de
+  retentieregel is aanwezig.
+
+### Geparkeerd — KRITIEK (FG-/juridische beslissing, MENSENWERK §5 — NIET unilateraal gefixt): door-derden-geschreven PII over de gewiste persoon overleeft `anonymizeUser` (AVG art. 17, mogelijk art. 9)
+
+- **Repro:** `anonymizeUser` (`admin/gebruikers/actions.ts`) redacteert zeer grondig de zélf-geschreven
+  vrije tekst van de gewiste ZZP'er, maar laat vrije tekst die een **andere partij** over hem schreef
+  bewust staan: `NoShowReport.reason` (melder beschrijft de gemiste dienst — kan "ziek gemeld" = art. 9
+  bevatten; blijft zichtbaar op `/admin/no-shows`), `Review.comment` waar `subjectId == userId`,
+  `Performance.rejectionReason` / `Invoice.rejectionReason` (REJECTED-tak, door de tegenpartij
+  geschreven). De inline-comments erkennen dit als een bewuste carve-out "in afwachting van
+  FG/juridische sign-off"; het gat staat al ≥15 auditronden open.
+- **Geschonden regel:** AVG art. 17 (recht op vergetelheid) — het recht geldt óók voor door-derden
+  geschreven persoonsgegevens over de betrokkene — mogelijk art. 9.
+- **Waarom geparkeerd:** twee-richtingsdeur. Redacteren van de tegenpartij-vrijetekst raakt hun
+  gerechtvaardigde geschil-/dossierbelang; het is een echte juridische afweging (redacteren-en-rij-behouden
+  vs. bewaargrond documenteren). Per CLAUDE.md/MENSENWERK escaleren, niet unilateraal de erasure-semantiek
+  wijzigen. **Aanbeveling (forceer de beslissing nu, vóór echte VOG-/diploma-data live gaat):** (a) vrije
+  tekst nullen bij erasure (rij behouden voor het legitieme dossier), óf (b) een expliciete bewaargrond
+  vastleggen. Met de nieuwe register-entry (deze ronde) is de `NoShowReport`-verwerking nu tenminste
+  gedocumenteerd; de erasure-beslissing zelf blijft mensenwerk.
+
+### Geparkeerd — MIDDEL: `/api/media/[...key]` valt buiten de middleware-matcher (OWASP A05 — defense-in-depth)
+
+- **Repro:** `matcher: ["/((?!api/auth|…|.*\\.).*)"]` sluit élk pad met een punt uit (bedoeld voor
+  `feed.ics`), waardoor ook `/api/media/…​.png` de middleware niet doorloopt: geen CSP-header, geen
+  maintenance-mode-poort, geen `mustChangePassword`-redirect. **Geen authz-bypass** — de route doet zelf
+  `requireActor()` met live DB-statuscheck, en media serveert alleen expliciet niet-gevoelige logo's.
+- **Geschonden regel:** OWASP A05 (Security Misconfiguration) / defense-in-depth.
+- **Aanbevolen fix (zorgvuldig — brede blast radius):** niet de dot-uitsluiting versmallen (dan lopen
+  `/public`-assets zoals `robots.txt`/`sitemap.xml`/`manifest.webmanifest` ook door de middleware en
+  riskeren een login-redirect). Beter: `/api/media` expliciet als positief matcher-patroon toevoegen, óf
+  CSP-/maintenance-afhandeling in de media-route zelf. Volgende run oppakken.
+
+### Geparkeerd — LAAG: `/api/media/[...key]` leidt Content-Type af uit de bestandsextensie i.p.v. de gevalideerde opgeslagen MIME
+
+- **Repro:** `route.ts` bepaalt Content-Type via `key.split(".").pop()`, in tegenstelling tot
+  `/api/documents/[id]` (serveert de bij upload gevalideerde DB-`mimeType`) en de storage-abstractie
+  (`sniffMimeType`/magic-bytes). Nu laag risico (`ALLOWED_MIME_TYPES` beperkt tot pdf/png/jpeg/webp,
+  `X-Content-Type-Options: nosniff` gezet, geen SVG/HTML), maar inconsistent met het striktere patroon.
+- **Aanbevolen fix:** Content-Type uit een gevalideerd `Company.logoMimeType`-veld halen i.p.v. de
+  key-extensie te vertrouwen.
+
+### Geparkeerd — MIDDEL: `Lead`/`LeadContact`-retentie technisch niet afgedwongen (AVG art. 5(1)(e))
+
+- **Repro:** het register (`processing-register.ts:434`) belooft leads "tot conversie/afvallen + 12
+  maanden", maar geen scheduled task purget `Lead`/`LeadContact` na dat venster (alle cron-entrypoints
+  gecontroleerd — geen enkele noemt `Lead`); het enige wispad is het handmatige `deleteLead`.
+- **Aanbevolen fix:** scheduled sweep (`run-all`) die `Lead`+`LeadContact` hard verwijdert voorbij het
+  beleidsvenster, óf de registertekst downgraden naar "handmatig".
+
+### Geparkeerd — MIDDEL (FG-oordeel): `Expense.description` overleeft de erasure inconsistent met `Performance.description`
+
+- **Repro:** `anonymizeUser` redacteert `Performance.description` (vrije tekst onder een fiscale
+  bewaarplicht-rij) maar niet `Expense.description` (idem model-rationale, zelfde `userId`-eigenaar).
+  Al meerdere ronden geparkeerd als "FG-oordeel". Als het Performance-precedent het beleid ís, hoort
+  Expense hetzelfde patroon te volgen (description nullen, `netCents`/`vatCents`/`occurredAt` behouden
+  voor het fiscale grootboek).
+
+### Geparkeerd — LAAG (observatie): Geoapify (routing) niet in het verwerkingsregister
+
+- Locatie-querystrings verlaten de server naar een derde (Geoapify). `location` is door de gebruiker
+  ingevoerde vrije tekst (stad vs. volledig adres — granulariteit onbekend). Een mens bevestigt de
+  bedoelde granulariteit vóór te beslissen of een register-entry/DPA nodig is.
+
 ## Ronde 2026-07-22 (basis: `main` @ 9605ec96)
 
 Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-security-subagents op niet-overlappende

@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — security/privacy-audit (ronde 22b): note-over-fetch op /zzp/[id] + NoShowReport in verwerkingsregister
+
+**Wat:** security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-subagents op niet-overlappende
+oppervlakken: server actions / API-routes+upload+SSRF+webhook / AVG-erasure+minimalisatie+register).
+Server-action-keten (auth→rol→ownership→Zod→actie→audit), API-authz, upload/storage, webhook-signing,
+SSRF en CSV-formule-injectie onafhankelijk schoon bevonden; `npm audit` = 0. **2 bevindingen gefixt
+(rood→groen):**
+
+- **AVG art. 5(1)(c)/9 (HOOG):** `profile-screen.tsx` over-fetchte `AvailabilityWindow.note` (mogelijk
+  medische vrije tekst) op de deels-publieke `/zzp/[id]`-route terwijl het scherm het nergens rendert →
+  `note: true` uit de geneste select verwijderd. +1 test (`profile-overfetch.test.ts`).
+- **AVG art. 30 (HOOG):** de `NoShowReport`-governanceflow (vrije-tekstreden, potentieel art. 9) ontbrak
+  in het verwerkingsregister → `ProcessingActivity` `no-show-melding-governance` (`sensitive: true`) +
+  `RETENTION_SCHEDULE`-regel toegevoegd. +1 test (`processing-register.test.ts`).
+
+**Geëscaleerd (MENSENWERK §5, niet unilateraal gefixt):** KRITIEK — door-derden-geschreven PII over de
+gewiste persoon (`NoShowReport.reason`, `Review.comment` over subject, `*.rejectionReason`) overleeft
+`anonymizeUser` (AVG art. 17); twee-richtingsdeur (tegenpartij-dossierbelang). Overige geparkeerd in
+`docs/SECURITY-PRIVACY-BACKLOG.md`: media-middleware-matcher (MIDDEL), Lead-retentie (MIDDEL),
+Expense.description-erasure (MIDDEL), media-Content-Type (LAAG), Geoapify-register (LAAG-observatie).
+
+**Checks:** typecheck ✓ · lint ✓ · test **4783 passed (453 files)** ✓ · prettier ✓ · build ✓.
+**Bestanden:** `src/components/profile/profile-screen.tsx`, `src/components/profile/profile-overfetch.test.ts`,
+`src/lib/compliance/processing-register.ts`, `src/lib/compliance/processing-register.test.ts`,
+`docs/SECURITY-PRIVACY-BACKLOG.md`.
+
 ## 2026-07-22 — persona-sweep (run 44): dienst-startDate 500 + OPEN dienst-overname cross-surface + setDienstStatus oracle
 
 **Wat:** kritische-gebruiker-sweep over alle vier rollen (live Playwright-doorklik + 3 parallelle Opus-audits).
