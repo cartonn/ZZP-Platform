@@ -11,6 +11,7 @@ import { buildDbaAuditData } from "@/lib/dba-audit";
 import { buildDbaAuditPdf } from "@/lib/dba-audit-pdf";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
+import { privateFileHeaders } from "@/lib/security/resource-headers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -144,12 +145,8 @@ export async function GET(
     ...meta,
   });
 
+  // Gedeelde bron van waarheid: privé-bestand-headers incl. CORP same-origin (zie resource-headers.ts).
   return new NextResponse(new Uint8Array(pdfBytes), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="dba-dossier-${id}.pdf"`,
-      "Cache-Control": "private, no-store",
-      "X-Content-Type-Options": "nosniff",
-    },
+    headers: privateFileHeaders("application/pdf", `dba-dossier-${id}.pdf`),
   });
 }

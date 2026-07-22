@@ -609,10 +609,24 @@ VOG-eisen) en leg dat vast.
 2. Bespreek met de tester de bekende, bewust gemaakte keuzes (staan in `PROGRESS.md`), o.a.:
    - het inlogsysteem onthoudt rol/status tot de sessie ververst (schorsing werkt na verversen) —
      beoordeel of directe uitsluiting nodig is;
-   - de beveiligingsheaders staan aan, maar een strenger script-beleid (nonce) kan overwogen worden;
-   - rate-limiting op inloggen/acties is nog niet ingebouwd.
+   - de beveiligingsheaders staan aan; de CSP draait per request met een **nonce** (`'unsafe-inline'`
+     voor scripts vervalt in productie, met een gedocumenteerde fallback voor oude browsers) — beoordeel
+     of de fallback op basis van de `csp-violation`-logs verder verstrakt kan worden;
+   - rate-limiting op inloggen/acties **is** ingebouwd (per-proces in-memory; gedeeld via Upstash bij
+     horizontale schaling, zie §0b).
      **Opleveren:** rapport + akkoord om live te gaan ("GO"), of een lijst met te fixen punten (die de
      agent dan oppakt).
+
+**Code-kant GEDAAN (2026-07-22) — cross-origin-isolatie + Permissions-Policy-hardening:** naast de al
+sterke statische headers (HSTS+preload, `X-Frame-Options: DENY`, nosniff, `Referrer-Policy`) en de
+per-request CSP-nonce staan nu ook **`Cross-Origin-Opener-Policy: same-origin`** (severt de opener-relatie
+met cross-origin vensters — cross-window-lek/reverse-tabnabbing), **`Cross-Origin-Resource-Policy:
+same-origin`** (geen cross-origin embedding van onze resources — extra laag voor documentprivacy: een
+gelekte URL kan een gevoelig bestand niet cross-origin inladen; ook expliciet op elke privé-bestand-route
+via de geteste `src/lib/security/resource-headers.ts`) en een **uitgebreide `Permissions-Policy`** die elke
+krachtige browserfunctie ontzegt die het platform niet gebruikt (camera/microfoon/geolocatie/betaling/
+usb/serial/…) plus FLoC/Topics-opt-out. Resterend mensenwerk: **niets** — de headers staan out-of-the-box
+aan; de pentest valideert ze.
 
 ---
 

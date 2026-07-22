@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { AuthorizationError, requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
+import { privateFileHeaders } from "@/lib/security/resource-headers";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
@@ -113,12 +114,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   });
 
   const safeNumber = (inv.partyInvoiceNumber ?? inv.number).replace(/[^\w.\-]+/g, "_");
+  // Gedeelde bron van waarheid (src/lib/security/resource-headers.ts): privé-bestand-headers incl.
+  // Cross-Origin-Resource-Policy same-origin (geen cross-origin embedding van deze factuur-PDF).
   return new NextResponse(new Uint8Array(bytes), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="factuur-${safeNumber}.pdf"`,
-      "Cache-Control": "private, no-store",
-      "X-Content-Type-Options": "nosniff",
-    },
+    headers: privateFileHeaders("application/pdf", `factuur-${safeNumber}.pdf`),
   });
 }

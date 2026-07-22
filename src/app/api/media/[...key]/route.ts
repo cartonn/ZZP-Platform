@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireActor, AuthorizationError } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { getStorage } from "@/lib/services/storage";
+import { CROSS_ORIGIN_RESOURCE_POLICY } from "@/lib/security/resource-headers";
 
 // Serveert opgeslagen media via de storage-abstractie. Storage is privé (CLAUDE.md
 // regel 4): er wordt nooit een publiek pad blootgesteld.
@@ -60,6 +61,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string[] 
       "Content-Type": type,
       "Cache-Control": "private, max-age=60",
       "X-Content-Type-Options": "nosniff",
+      // Geen cross-origin embedding van onze media, ook niet via een gelekte key (defense-in-depth).
+      "Cross-Origin-Resource-Policy": CROSS_ORIGIN_RESOURCE_POLICY,
     },
   });
 }

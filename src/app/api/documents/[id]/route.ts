@@ -3,6 +3,7 @@ import { AuthorizationError, requireActor } from "@/lib/authz";
 import { canAccessDocument } from "@/lib/documents";
 import { prisma } from "@/lib/db";
 import { getStorage } from "@/lib/services/storage";
+import { sandboxedDocumentHeaders } from "@/lib/security/resource-headers";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { documentDownloadRateLimiter } from "@/lib/rate-limit";
@@ -57,7 +58,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Bestand ontbreekt." }, { status: 404 });
   }
   const data = await storage.get(doc.storageKey);
-  const safeName = doc.filename.replace(/[^\w.\-]+/g, "_");
 
   // AVG/compliance (CLAUDE.md regel 5): wie-zag-welk-gevoelig-document-wanneer vastleggen.
   const meta = await requestMeta();
@@ -70,15 +70,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     ...meta,
   });
 
+  // Gedeelde bron van waarheid (src/lib/security/resource-headers.ts): privé-bestand-headers +
+  // sandbox-CSP (geen scriptuitvoering bij inline openen) + Cross-Origin-Resource-Policy same-origin
+  // (geen cross-origin embedding van dit gevoelige document, ook niet via een gelekte URL).
   return new NextResponse(new Uint8Array(data), {
-    headers: {
-      "Content-Type": doc.mimeType,
-      "Content-Disposition": `inline; filename="${safeName}"`,
-      "Cache-Control": "private, no-store",
-      "X-Content-Type-Options": "nosniff",
-      // Sandbox het document: zelfs als een verkeerd getypt bestand inline wordt geopend,
-      // mag het geen scripts/embeds uitvoeren (defense-in-depth bovenop magic-byte-validatie).
-      "Content-Security-Policy": "sandbox; default-src 'none'",
-    },
+    headers: sandboxedDocumentHeaders(doc.mimeType, doc.filename),
   });
 }

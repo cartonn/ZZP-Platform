@@ -260,6 +260,19 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — cross-origin-isolatie (COOP/CORP) + Permissions-Policy-hardening (2026-07-22, PR #875)** —
+> security-headers-hardening voor de pre-livegang-pentest (MENSENWERK §5d). De statische headers stonden al sterk
+> (HSTS+preload, X-Frame-Options DENY, nosniff) en de CSP draait per request met nonce, maar drie moderne isolatie-lagen
+> ontbraken: **`Cross-Origin-Opener-Policy: same-origin`** (severt de opener-relatie met cross-origin vensters — cross-window-lek/
+> reverse-tabnabbing; betaalproviders gebruiken full-page redirects → geen flow breekt), **`Cross-Origin-Resource-Policy:
+same-origin`** (geen cross-origin embedding van onze resources — kernwaarde voor documentprivacy: een gelekte document-URL
+> kan een gevoelig bestand niet cross-origin inladen) en een **uitgebreide `Permissions-Policy`** (deny-list voor camera/microfoon/
+> geolocatie/betaling/usb/serial/… + FLoC/Topics-opt-out; alleen fullscreen/clipboard-write op self). Nieuwe pure module
+> `src/lib/security/resource-headers.ts` (`privateFileHeaders`/`sandboxedDocumentHeaders` + bestandsnaam-sanitizer) als bron van
+> waarheid tegen drift, gewired in álle 7 privé-bestand-routes (geüploade documenten, media, factuur-PDF's ×2, prestatie-PDF,
+> DBA-dossier, modelovereenkomst). Alleen response-headers — geen auth-/mutatie-/schemawijziging. +13 tests incl. een regressiepoort
+> die next.config.mjs importeert. Gate: typecheck, lint, 4796 unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Aanmaningsniveau (dunning-stap) per debiteur op /facturen (2026-07-22, PR #872)** —
 > het debiteuren-overzicht (`DebtorSummaryCard`, ZZP'er) toonde per opdrachtgever openstaand/te-laat-bedrag + ouderdom,
 > maar niet hóe ver een te late factuur op de aanmaningsladder staat (Betalingsherinnering → Eerste/Tweede/Laatste
