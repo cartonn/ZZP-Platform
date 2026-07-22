@@ -101,3 +101,35 @@ describe("/api/documents/[id]: rate-limit-rem tegen enumeratie/resource-uitputti
     );
   });
 });
+
+describe("/api/documents/[id]: geen existence-oracle (CWE-203)", () => {
+  it("onbekend id → 404 'Niet gevonden.'", async () => {
+    store.document = null;
+    const res = await GET(req, ctx("onbekend"));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Niet gevonden." });
+    expect(storageGet).not.toHaveBeenCalled();
+  });
+
+  it("geldig id van een ander → identiek 404 'Niet gevonden.' (niet 403), maar wél DENIED-audit", async () => {
+    // Regressie: een 403 op andermans (bestaand) VOG/diploma-document verraadde het bestaan ervan —
+    // ononderscheidbaar maken van een onbekend id sluit de oracle. De DENIED-audit blijft bestaan.
+    store.document = {
+      ownerId: "iemand-anders",
+      storageKey: "docs/geheim.pdf",
+      mimeType: "application/pdf",
+      filename: "vog.pdf",
+    };
+    const res = await GET(req, ctx("doc-van-ander"));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Niet gevonden." });
+    // Geen bytes geserveerd, geen toegang-audit; wél een geweigerd-toegang-audit voor het spoor.
+    expect(storageGet).not.toHaveBeenCalled();
+    expect(auditMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "DOCUMENT_ACCESSED" }),
+    );
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "DOCUMENT_ACCESS_DENIED", entityId: "doc-van-ander" }),
+    );
+  });
+});

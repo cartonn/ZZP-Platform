@@ -76,7 +76,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       metadata: { viewerRole: actor.role },
       ...meta,
     });
-    return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+    // Ononderscheidbaar van een onbekend id (CWE-203): een 403 op een vreemde-maar-geldige
+    // samenwerking verraadt het bestaan ervan. De DENIED-audit hierboven blijft.
+    return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
 
   // AVG/compliance (CLAUDE.md regel 5): de modelovereenkomst is een juridisch document (Wet DBA)

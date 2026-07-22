@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — persona-sweep (run 43): CLIENT contract-badge + document existence-oracle + acute-dienst-order
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) op de verse
+prod-build + idempotente demo-seed. Drie parallelle Opus-audits (authz/IDOR/cross-tenant/document-
+privacy; malicieuze invoer + verboden statusovergangen; next-action-correctheid). Malicieuze-invoer-
+audit kwam schoon terug. **3 bevindingen gevonden + gefixt.**
+
+- **HIGH (DOEL 1b, cross-surface):** de CLIENT-nav-badge `cascadeWork` (`signals.ts`) telde alléén
+  SUBMITTED-prestaties + SUBMITTED-facturen en negeerde de **contract-onderteken-taak** (PROPOSED
+  samenwerking), terwijl `/acties` (`contractSignTask`) én de cascade-fase (`stage.ts` `youAreUp`) 'm
+  wél tonen. Een opdrachtgever met alléén een nog-te-tekenen contract zag de `/samenwerkingen`-badge
+  op 0 terwijl /acties en de detailpagina "Contract ondertekenen" toonden — badge sprak de andere twee
+  surfaces tegen. **Fix:** nieuwe PROPOSED-telling (dispuut-gescopet, `disputedAt: null`) + pure helper
+  `countClientCascadeWork`. Rood→groen: 4 tests (`signals.test.ts` + `signals.cascade-dispute.test.ts`).
+- **Security/AVG (CWE-203, existence-oracle):** de zes document/PDF/dossier-routes (`/api/documents/[id]`,
+  factuur-/prestatie-PDF, dossier/dba-dossier/modelovereenkomst) gaven **404** voor een onbekend id maar
+  **403** voor een geldig-maar-vreemd id → verraadde het bestaan van een gevoelig VOG/diploma/BIG-document.
+  Inconsistent met de eigen anti-oracle-standaard (`assertSameTenant`/`ownsViaTenant`). **Fix:** cross-party
+  geeft nu dezelfde 404 "Niet gevonden." (DENIED-audit blijft). Rood→groen: 2 nieuwe + 5 bijgewerkte route-tests.
+- **MED (DOEL 1b, determinisme):** de `openDiensten`-query in `pending-tasks.ts` (bemiddelaar acute-dienst-
+  taak) had geen `orderBy` bij een `take: 50`-cap → welke 50 diensten terugkwamen was niet-deterministisch,
+  waardoor een acute dienst buiten de slice kon vallen en verkeerd gebucket werd. **Fix:** `orderBy`
+  `[{ startDate: asc, nulls: first }, { createdAt: asc }]` (acuut-eerst, consistent met de onbegrensde pagina).
+
+**Checks:** typecheck + lint + test (4761 passed) + build + prettier groen.
+
 ## 2026-07-22 — routine: uitnodiging-respons als next-action voor de ZZP'er (PR #869)
 
 **Wat:** een directe uitnodiging (`JOB_INVITED` via `inviteFreelancerToJob`/bulk) is de hoogst-intente

@@ -809,6 +809,12 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
         startDate: true,
         _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
       },
+      // Deterministische, acuut-eerst geordende slice: `isStartAcute` (acute-open-diensten.ts) telt een
+      // dienst als acuut wanneer startDate ontbreekt óf vóór het acute-venster valt, dus zetten we
+      // null-start en de vroegst-startende diensten voorop. Zonder orderBy was welke MAX-rijen de query
+      // teruggaf niet-deterministisch → een acute dienst kon buiten de slice vallen en verkeerd
+      // gebucket worden (undercount t.o.v. de onbegrensde /franchise/diensten-pagina).
+      orderBy: [{ startDate: { sort: "asc", nulls: "first" } }, { createdAt: "asc" }],
       take: MAX,
     }),
     // Roster-inzetbaarheid: alle tenant-ZZP'ers met de signalen die computeEngageability nodig heeft,

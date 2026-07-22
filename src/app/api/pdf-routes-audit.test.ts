@@ -3,8 +3,9 @@
 // fix logden deze routes géén toegang (in tegenstelling tot de dossier-routes en /api/documents/[id]).
 // De test faalt zonder de audit()-aanroep in elke route en bewaakt dat:
 //   1. een geautoriseerde inzage een audit-regel met de juiste actie schrijft, en
-//   2. een geweigerde inzage (geen partij) een 403 geeft, niets serveert én een
-//      …_ACCESS_DENIED-auditregel schrijft (IDOR-enumeratie zichtbaar in het auditspoor).
+//   2. een geweigerde inzage (geen partij) een 404 geeft (ononderscheidbaar van een onbekend id —
+//      geen existence-oracle, CWE-203), niets serveert én een …_ACCESS_DENIED-auditregel schrijft
+//      (IDOR-enumeratie zichtbaar in het auditspoor).
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { type Actor } from "@/lib/authz";
@@ -138,12 +139,13 @@ describe("PDF-routes auditen documenttoegang (AVG, CLAUDE.md regel 5)", () => {
     );
   });
 
-  it("factuur-PDF: niet-partij krijgt 403 én een ACCESS_DENIED-auditregel", async () => {
-    // Parity met de dossier-/modelovereenkomst-routes: geweigerde inzage hoort in het
-    // auditspoor (maakt IDOR-enumeratie op factuur-id's zichtbaar).
+  it("factuur-PDF: niet-partij krijgt 404 (geen existence-oracle) én een ACCESS_DENIED-auditregel", async () => {
+    // Geweigerde inzage geeft exact dezelfde 404 als een onbekend id (CWE-203): een 403 op een
+    // vreemd-maar-geldig factuur-id zou het bestaan ervan verraden. De DENIED-audit blijft — die
+    // maakt IDOR-enumeratie op factuur-id's zichtbaar in het auditspoor.
     actor = { id: "outsider", role: "FREELANCER", status: "ACTIVE", tenantId: null };
     const res = await invoicePdf(req, ctx("inv-1"));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -167,10 +169,10 @@ describe("PDF-routes auditen documenttoegang (AVG, CLAUDE.md regel 5)", () => {
     );
   });
 
-  it("urenstaat-PDF: niet-partij krijgt 403 én een ACCESS_DENIED-auditregel", async () => {
+  it("urenstaat-PDF: niet-partij krijgt 404 (geen existence-oracle) én een ACCESS_DENIED-auditregel", async () => {
     actor = { id: "outsider", role: "FREELANCER", status: "ACTIVE", tenantId: null };
     const res = await performancePdf(req, ctx("perf-1"));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -194,12 +196,12 @@ describe("PDF-routes auditen documenttoegang (AVG, CLAUDE.md regel 5)", () => {
     );
   });
 
-  it("modelovereenkomst-PDF: niet-partij krijgt 403 én een ACCESS_DENIED-auditregel", async () => {
-    // Parity met de dba-dossier/dossier-routes: geweigerde inzage van dit juridische document
-    // hoort in het auditspoor (maakt IDOR-enumeratie op collaboration-id's zichtbaar).
+  it("modelovereenkomst-PDF: niet-partij krijgt 404 (geen existence-oracle) én een ACCESS_DENIED-auditregel", async () => {
+    // Geweigerde inzage van dit juridische document geeft dezelfde 404 als een onbekend id (CWE-203);
+    // de DENIED-audit blijft en maakt IDOR-enumeratie op collaboration-id's zichtbaar.
     actor = { id: "outsider", role: "FREELANCER", status: "ACTIVE", tenantId: null };
     const res = await modelAgreementPdf(req, ctx("col-1"));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({

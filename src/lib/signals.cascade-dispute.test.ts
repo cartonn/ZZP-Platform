@@ -11,6 +11,7 @@ type CountArgs = { where: Record<string, unknown> };
 
 const performanceCount = vi.fn((_a: CountArgs): Promise<number> => Promise.resolve(0));
 const invoiceCount = vi.fn((_a: CountArgs): Promise<number> => Promise.resolve(0));
+const collaborationCount = vi.fn((_a: CountArgs): Promise<number> => Promise.resolve(0));
 const applicationCount = vi.fn((): Promise<number> => Promise.resolve(0));
 const jobCount = vi.fn((): Promise<number> => Promise.resolve(0));
 
@@ -26,6 +27,7 @@ vi.mock("@/lib/db", () => ({
     message: { groupBy: vi.fn(() => Promise.resolve([])) },
     performance: { count: (a: CountArgs) => performanceCount(a) },
     invoice: { count: (a: CountArgs) => invoiceCount(a) },
+    collaboration: { count: (a: CountArgs) => collaborationCount(a) },
   },
 }));
 
@@ -35,6 +37,20 @@ describe("navBadges CLIENT — bevroren (dispuut) cascadewerk uitgesloten", () =
   beforeEach(() => {
     performanceCount.mockClear();
     invoiceCount.mockClear();
+    collaborationCount.mockClear();
+  });
+
+  it("contract-ondertekentelling (PROPOSED) scopt op een niet-bevroren samenwerking", async () => {
+    await navBadges("CLIENT", "cl-1");
+    const proposedCall = collaborationCount.mock.calls.find(
+      (c) => (c[0].where as { status?: string }).status === "PROPOSED",
+    );
+    expect(proposedCall).toBeTruthy();
+    expect(proposedCall![0].where).toMatchObject({
+      company: { userId: "cl-1" },
+      status: "PROPOSED",
+      disputedAt: null,
+    });
   });
 
   it("prestatie-goedkeurtelling scopt op een niet-bevroren samenwerking", async () => {

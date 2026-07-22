@@ -134,6 +134,23 @@ export function countFreelancerCascadeWork(collabs: readonly FreelancerCascadeCo
   return count;
 }
 
+/**
+ * CLIENT-tegenhanger van {@link countFreelancerCascadeWork}: de opdrachtgever is "aan zet" op
+ * (a) elke PROPOSED samenwerking waar het contract nog ondertekend moet worden, (b) elke SUBMITTED
+ * prestatie die goedgekeurd moet worden, en (c) elke SUBMITTED factuur die goedgekeurd moet worden.
+ * Symmetrisch met de FREELANCER-tak: de contract-onderteken-taak (PROPOSED) telde eerder NIET mee in
+ * de /samenwerkingen-badge, terwijl /acties (pending-tasks.ts `contractSignTask`) én de cascade-fase
+ * (stage.ts `youAreUp` op een niet-getekend contract) 'm wél tonen — dat liet de badge de andere
+ * twee surfaces tegenspreken. Pure functie, los testbaar.
+ */
+export function countClientCascadeWork(input: {
+  proposedCollaborations: number;
+  submittedPerformances: number;
+  submittedInvoices: number;
+}): number {
+  return input.proposedCollaborations + input.submittedPerformances + input.submittedInvoices;
+}
+
 /** Pure mapping van ruwe tellingen → badges (filtert 0 weg). Testbaar zonder DB. */
 export function buildBadges(counts: SignalCounts): NavBadges {
   const out: NavBadges = {};
@@ -324,32 +341,50 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
   if (role === "CLIENT") {
     const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
     if (!company) return {};
-    const [newApplications, draftJobs, unreadMessages, overdueInvoices, cascadePerf, cascadeInv] =
-      await Promise.all([
-        prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
-        prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
-        unreadConversationCount(userId),
-        overdueInvoiceCount("CLIENT", userId),
-        // cascade: prestaties goedkeuren (telt ook mee in pendingPerformances voor /prestaties-badge).
-        // Bevroren (dispuut) samenwerkingen uitsluiten — symmetrisch met de FREELANCER-tak
-        // (disputedAt: null hierboven) en met /acties (pending-tasks.ts): approvePerformance weigert
-        // een bevroren deal (assertNotDisputed), dus die telt niet als werk "aan zet".
-        prisma.performance.count({
-          where: {
-            status: "SUBMITTED",
-            collaboration: { company: { userId }, disputedAt: null },
-          },
-        }),
-        // cascade: facturen goedkeuren — idem bevroren deals uitsluiten (approveInvoice weigert ze).
-        prisma.invoice.count({
-          where: {
-            counterpartyUserId: userId,
-            lifecycleStatus: "SUBMITTED",
-            collaboration: { disputedAt: null },
-          },
-        }),
-      ]);
-    const cascadeWork = cascadePerf + cascadeInv;
+    const [
+      newApplications,
+      draftJobs,
+      unreadMessages,
+      overdueInvoices,
+      cascadeProposed,
+      cascadePerf,
+      cascadeInv,
+    ] = await Promise.all([
+      prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
+      prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
+      unreadConversationCount(userId),
+      overdueInvoiceCount("CLIENT", userId),
+      // cascade: contract ondertekenen — elke PROPOSED (niet-bevroren) samenwerking van deze
+      // opdrachtgever. Symmetrisch met de FREELANCER-tak (PROPOSED → +1) en met /acties
+      // (pending-tasks.ts `contractSignTask`); zonder deze telling sprak de /samenwerkingen-badge
+      // /acties + de cascade-fase tegen op een deal die nog op ondertekening wacht.
+      prisma.collaboration.count({
+        where: { company: { userId }, status: "PROPOSED", disputedAt: null },
+      }),
+      // cascade: prestaties goedkeuren (telt ook mee in pendingPerformances voor /prestaties-badge).
+      // Bevroren (dispuut) samenwerkingen uitsluiten — symmetrisch met de FREELANCER-tak
+      // (disputedAt: null hierboven) en met /acties (pending-tasks.ts): approvePerformance weigert
+      // een bevroren deal (assertNotDisputed), dus die telt niet als werk "aan zet".
+      prisma.performance.count({
+        where: {
+          status: "SUBMITTED",
+          collaboration: { company: { userId }, disputedAt: null },
+        },
+      }),
+      // cascade: facturen goedkeuren — idem bevroren deals uitsluiten (approveInvoice weigert ze).
+      prisma.invoice.count({
+        where: {
+          counterpartyUserId: userId,
+          lifecycleStatus: "SUBMITTED",
+          collaboration: { disputedAt: null },
+        },
+      }),
+    ]);
+    const cascadeWork = countClientCascadeWork({
+      proposedCollaborations: cascadeProposed,
+      submittedPerformances: cascadePerf,
+      submittedInvoices: cascadeInv,
+    });
     return buildBadges({
       newApplications,
       draftJobs,

@@ -4,8 +4,8 @@
 // inzage — anders dan /api/documents/[id] (DOCUMENT_ACCESS_DENIED). Daardoor was IDOR-enumeratie
 // op collaboration-id's onzichtbaar in het auditspoor. De test bewaakt dat:
 //   1. een geautoriseerde export een audit-regel met de juiste *_EXPORTED-actie schrijft, en
-//   2. een geweigerde inzage (geen partij) een 403 geeft, niets serveert, én een
-//      *_ACCESS_DENIED-auditregel schrijft.
+//   2. een geweigerde inzage (geen partij) een 404 geeft (ononderscheidbaar van een onbekend id —
+//      geen existence-oracle, CWE-203), niets serveert, én een *_ACCESS_DENIED-auditregel schrijft.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { type Actor } from "@/lib/authz";
@@ -124,10 +124,11 @@ describe("dossier-routes: auditplicht bij export én geweigerde inzage", () => {
     );
   });
 
-  it("compliance-dossier: niet-partij krijgt 403 + DOSSIER_ACCESS_DENIED, geen serve", async () => {
+  it("compliance-dossier: niet-partij krijgt 404 (geen existence-oracle) + DOSSIER_ACCESS_DENIED, geen serve", async () => {
+    // 404 ononderscheidbaar van een onbekend id (CWE-203); DENIED-audit blijft.
     actor = { id: "outsider", role: "FREELANCER", status: "ACTIVE", tenantId: null };
     const res = await dossier(req, ctx("col-1"));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -157,10 +158,11 @@ describe("dossier-routes: auditplicht bij export én geweigerde inzage", () => {
     );
   });
 
-  it("DBA-dossier: niet-partij krijgt 403 + DBA_DOSSIER_ACCESS_DENIED, geen serve", async () => {
+  it("DBA-dossier: niet-partij krijgt 404 (geen existence-oracle) + DBA_DOSSIER_ACCESS_DENIED, geen serve", async () => {
+    // 404 ononderscheidbaar van een onbekend id (CWE-203); DENIED-audit blijft.
     actor = { id: "outsider", role: "CLIENT", status: "ACTIVE", tenantId: null };
     const res = await dbaDossier(req, ctx("col-1"));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({
