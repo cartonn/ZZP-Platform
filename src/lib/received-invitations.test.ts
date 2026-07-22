@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   selectOpenInvitations,
   MAX_RECEIVED_INVITATIONS,
+  INVITATION_AGING_DAYS,
+  invitationAgeDays,
+  invitationAgeLabel,
   type InvitationJobRef,
   type RawInvitation,
 } from "@/lib/received-invitations";
@@ -108,5 +111,28 @@ describe("selectOpenInvitations", () => {
     const refs = invites.map((inv) => ref(inv.jobId));
     const result = selectOpenInvitations(invites, jobs(...refs), new Set());
     expect(result).toHaveLength(MAX_RECEIVED_INVITATIONS);
+  });
+});
+
+describe("invitationAgeDays", () => {
+  it("telt hele dagen sinds de uitnodiging (naar beneden afgerond)", () => {
+    const now = new Date("2026-07-22T12:00:00Z");
+    expect(invitationAgeDays(new Date("2026-07-22T09:00:00Z"), now)).toBe(0); // vandaag
+    expect(invitationAgeDays(new Date("2026-07-21T09:00:00Z"), now)).toBe(1); // ~1,1 dag → 1
+    expect(invitationAgeDays(new Date("2026-07-15T12:00:00Z"), now)).toBe(7);
+  });
+
+  it("klemt een uitnodiging 'uit de toekomst' (klok-scheefstand) op 0", () => {
+    const now = new Date("2026-07-22T12:00:00Z");
+    expect(invitationAgeDays(new Date("2026-07-23T12:00:00Z"), now)).toBe(0);
+  });
+});
+
+describe("invitationAgeLabel", () => {
+  it("gebruikt grove, menselijke buckets zonder schijnprecisie", () => {
+    expect(invitationAgeLabel(0)).toBe("vandaag uitgenodigd");
+    expect(invitationAgeLabel(1)).toBe("gisteren uitgenodigd");
+    expect(invitationAgeLabel(4)).toBe("4 dagen geleden uitgenodigd");
+    expect(invitationAgeLabel(INVITATION_AGING_DAYS)).toBe("5 dagen geleden uitgenodigd");
   });
 });

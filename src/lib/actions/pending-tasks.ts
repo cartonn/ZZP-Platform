@@ -63,9 +63,12 @@ import {
   clientComplianceTask,
   reviewLeaveTask,
   collaborationRenewalTask,
+  respondInvitationTask,
   vatDeadlineTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
+import { getReceivedInvitations } from "@/lib/data/received-invitations";
+import { invitationAgeDays } from "@/lib/received-invitations";
 import { reviewPromptForCollaboration } from "@/lib/collaboration-review-prompt";
 import {
   summarizeCollaborationRenewal,
@@ -559,7 +562,30 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // Lopende samenwerkingen die hun einddatum naderen/passeerden — plan tijdig een vervolg.
   tasks.push(...(await renewalTasks(userId, "FREELANCER", now)));
 
+  // Directe uitnodigingen die nog op een reactie wachten — de hoogst-intente inbound lead.
+  if (profile) tasks.push(...(await invitationTasks(profile.id, now)));
+
   return tasks;
+}
+
+/**
+ * Directe uitnodigingen (`JOB_INVITED`) waarop de ZZP'er nog niet reageerde, als next-action. Leunt op
+ * de bestaande, begrensde en eigenaar-gescopete `getReceivedInvitations`-datalaag (dezelfde bron als de
+ * "Uitgenodigd"-band op `/opdrachten`) — één plek die bepaalt wat een open uitnodiging is (gepubliceerd,
+ * niet-beantwoord, gededupt, ≤ MAX_RECEIVED_INVITATIONS). Zonder deze taak leefde de uitnodiging alléén
+ * op de find-work-pagina; nu ook op /acties, de zijbalk-badge en de dashboard-rail. Deep-link naar de
+ * opdracht waar de reactie-flow staat — geen dubbele UI.
+ */
+async function invitationTasks(freelancerProfileId: string, now: Date): Promise<PendingTask[]> {
+  const invitations = await getReceivedInvitations(freelancerProfileId, now);
+  return invitations.map((inv) =>
+    respondInvitationTask(
+      inv.jobId,
+      inv.jobTitle,
+      inv.companyName,
+      invitationAgeDays(inv.invitedAt, now),
+    ),
+  );
 }
 
 async function clientTasks(userId: string): Promise<PendingTask[]> {

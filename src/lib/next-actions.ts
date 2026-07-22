@@ -60,6 +60,7 @@ export const P = {
   pendingUsers: 60, // gebruikers met PENDING-status (admin)
   credentialExpiryBatch: 58, // verlopen/verlopende certificaten — draai de expiry-check (admin)
   messagesAwaiting: 55, // berichten van de andere partij wachten op antwoord
+  respondInvitation: 54, // directe uitnodiging van een opdrachtgever wacht op reactie (ZZP'er) — hoogst-intente inbound lead, net onder een lopend gesprek
   staleApplications: 52, // kandidaten (VIEWED/SHORTLIST) wachten al langer dan gebruikelijk op een beslissing
   applications: 50, // nieuwe reacties
   collaborationRenewal: 46, // lopende samenwerking nadert/passeert haar einddatum — plan tijdig een vervolg (beide partijen)

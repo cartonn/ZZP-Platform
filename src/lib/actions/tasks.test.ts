@@ -25,6 +25,7 @@ import {
   franchiseLeadFollowupTask,
   clientComplianceTask,
   reviewLeaveTask,
+  respondInvitationTask,
   vatDeadlineTask,
   paymentDueSoonTask,
   type PendingTask,
@@ -264,6 +265,41 @@ describe("task builders", () => {
     const task = reviewLeaveTask("collab-9", "Klus", "Julia", 0);
     expect(task.tone).toBe("attention");
     expect(task.subtitle).toContain("venster sluit vandaag");
+  });
+
+  it("uitnodiging-respons: link-taak naar de opdracht, benoemt opdrachtgever + leeftijd", () => {
+    const task = respondInvitationTask(
+      "job-7",
+      "Nachtdienst verpleegkundige",
+      "Zorggroep Noord",
+      1,
+    );
+    expect(task).toMatchObject({
+      kind: "respond-invitation",
+      id: "respond-invitation:job-7",
+      resolver: "link",
+      href: "/opdrachten/job-7",
+      tone: "info",
+    });
+    expect(task.priority).toBe(P.respondInvitation);
+    expect(task.title).toBe("Reageer op de uitnodiging van Zorggroep Noord");
+    expect(task.subtitle).toContain("Nachtdienst verpleegkundige");
+    expect(task.subtitle).toContain("gisteren uitgenodigd");
+    // Onder een lopend gesprek (messagesAwaiting), boven een client-side reactie-band.
+    expect(task.priority).toBeLessThan(P.messagesAwaiting);
+    expect(task.priority).toBeGreaterThan(P.staleApplications);
+  });
+
+  it("uitnodiging-respons: verse uitnodiging (vandaag) is rustig (info)", () => {
+    const task = respondInvitationTask("job-7", "Klus", "Bakkerij Jansen", 0);
+    expect(task.tone).toBe("info");
+    expect(task.subtitle).toContain("vandaag uitgenodigd");
+  });
+
+  it("uitnodiging-respons: langer stil (≥5 dagen) wordt attention", () => {
+    const task = respondInvitationTask("job-7", "Klus", "Bakkerij Jansen", 5);
+    expect(task.tone).toBe("attention");
+    expect(task.subtitle).toContain("5 dagen geleden uitgenodigd");
   });
 
   it("verlopen beschikbaarheid is een rustige link-taak naar /beschikbaarheid", () => {
