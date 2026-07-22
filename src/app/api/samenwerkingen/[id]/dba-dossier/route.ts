@@ -97,7 +97,9 @@ export async function GET(
       metadata: { viewerRole: actor.role },
       ...meta,
     });
-    return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+    // Ononderscheidbaar van een onbekend id (CWE-203): een 403 op een vreemde-maar-geldige
+    // samenwerking verraadt het bestaan ervan. De DENIED-audit hierboven blijft.
+    return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
 
   const now = new Date();

@@ -45,7 +45,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       metadata: { viewerRole: actor.role, ownerId: doc.ownerId },
       ...meta,
     });
-    return NextResponse.json({ error: "Geen toegang." }, { status: 403 });
+    // Geef exact dezelfde respons als een onbekend id (CWE-203, existence-oracle): een 403 op een
+    // geldig-maar-vreemd id verraadt dat er een gevoelig document (VOG/diploma/BIG) bestaat. Parity
+    // met het anti-oracle-standpunt elders in de codebase (assertSameTenant/ownsViaTenant). De DENIED-
+    // audit hierboven blijft — alleen de externe respons wordt ononderscheidbaar gemaakt.
+    return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
 
   const storage = getStorage();

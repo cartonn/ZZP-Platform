@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBadges,
+  countClientCascadeWork,
   countFreelancerCascadeWork,
   countUnreadConversations,
   startOfUtcDay,
@@ -212,6 +213,41 @@ describe("countFreelancerCascadeWork", () => {
         collab({ latestPerformanceStatus: "SUBMITTED", openInvoiceStatuses: ["DRAFT"] }),
       ]),
     ).toBe(3);
+  });
+});
+
+describe("countClientCascadeWork", () => {
+  it("telt een PROPOSED samenwerking (contract ondertekenen) mee — mag niet uit de badge vallen", () => {
+    // Regressie: de CLIENT-badge (cascadeWork) telde alléén SUBMITTED-prestaties + SUBMITTED-facturen
+    // en negeerde de contract-onderteken-taak, terwijl /acties (contractSignTask) én de cascade-fase
+    // (stage.ts youAreUp) 'm wél tonen — de sidebar sprak de andere twee surfaces tegen.
+    expect(
+      countClientCascadeWork({
+        proposedCollaborations: 1,
+        submittedPerformances: 0,
+        submittedInvoices: 0,
+      }),
+    ).toBe(1);
+  });
+
+  it("sommeert contract-onderteken, prestatie-goedkeuren en factuur-goedkeuren", () => {
+    expect(
+      countClientCascadeWork({
+        proposedCollaborations: 2,
+        submittedPerformances: 3,
+        submittedInvoices: 1,
+      }),
+    ).toBe(6);
+  });
+
+  it("is 0 wanneer de opdrachtgever nergens aan zet is", () => {
+    expect(
+      countClientCascadeWork({
+        proposedCollaborations: 0,
+        submittedPerformances: 0,
+        submittedInvoices: 0,
+      }),
+    ).toBe(0);
   });
 });
 

@@ -1,5 +1,51 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-22 (run 43) · **main-commit basis:** `c0cd40bc`
+> **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT.** Drie parallelle Opus-audits (authz/IDOR/cross-
+> tenant/document-privacy; malicieuze invoer + verboden statusovergangen; next-action-correctheid over
+> alle vier rollen). De malicieuze-invoer/status-audit kwam **schoon** terug (elke mutatie:
+> auth→rol→ownership→Zod/bounds→state-machine-assert→transactie→audit, met TOCTOU-herchecks binnen de
+> transactie; datum/uren/bedrag-parsing double-guarded met `isNaN`/`Number.isFinite` vóór de DB; shift-
+> DoS begrensd via `MAX_SHIFT_HOURS`/`MAX_SHIFTS_PER_PERFORMANCE`; cascade-transities via `assert`).
+>
+> **GEVONDEN + GEFIXT — HIGH (DOEL 1b, cross-surface: CLIENT contract-onderteken-badge ontbrak):**
+> de CLIENT-nav-badge `cascadeWork` (`signals.ts` navBadges CLIENT-tak) berekende `cascadePerf +
+cascadeInv` — alléén SUBMITTED-prestaties + SUBMITTED-facturen — en telde de **PROPOSED-samenwerking**
+> (contract nog te ondertekenen) NIET, terwijl de FREELANCER-tak (`countFreelancerCascadeWork`, PROPOSED
+> → +1), `/acties` (`pending-tasks.ts` `contractSignTask`, prio `P.contractSign=72`) én de cascade-fase
+> (`stage.ts` `youAreUp: true` voor béíde partijen op een niet-getekend contract) 'm wél tonen. Gevolg:
+> een opdrachtgever met alléén een nog-te-tekenen contract als open cascade-item zag de `/samenwerkingen`-
+> zijbalk-badge op 0 terwijl /acties + de samenwerking-detail "Contract ondertekenen" toonden — de badge
+> sprak twee andere surfaces tegen (het "signaal op één oppervlak"-anti-patroon, hier omgekeerd: signaal
+> mist op de badge). **Geschonden regel:** DOEL 1b (één bron van waarheid; badge/acties/detail gelijk) +
+> server-side waarheid. **Fix:** nieuwe dispuut-gescopete PROPOSED-telling
+> (`collaboration.count({ company:{userId}, status:"PROPOSED", disputedAt:null })`) opgeteld via de nieuwe
+> pure helper `countClientCascadeWork` (symmetrisch met `countFreelancerCascadeWork`, los testbaar).
+> Rood→groen: 4 tests (`signals.test.ts` 3× helper; `signals.cascade-dispute.test.ts` 1× dispuut-scope).
+>
+> **GEVONDEN + GEFIXT — MED/security (DOEL 2, CWE-203 existence-oracle op de gevoeligste routes):**
+> de zes on-demand document/PDF/dossier-`api`-routes (`/api/documents/[id]`, `facturen/[id]/pdf`,
+> `prestaties/[id]/pdf`, `samenwerkingen/[id]/{dossier,dba-dossier,modelovereenkomst}`) gaven **404 "Niet
+> gevonden."** voor een onbekend id maar een onderscheidbare **403 "Geen toegang."** voor een geldig-maar-
+> vreemd id — direct waarneembaar via HTTP-status + body. Op VOG/diploma/BIG-document-id's verraadt dat
+> het bestaan van andermans gevoelige document (ja/nee-oracle), inconsistent met het anti-oracle-standpunt
+> dat de rest van de codebase zelf hanteert (`assertSameTenant`/`ownsViaTenant`, identieke respons voor
+> onbekend vs cross-tenant). **Geschonden regel:** documenten privé (CLAUDE.md regel 4) + DOEL 2 (nette,
+> ononderscheidbare weigering). **Fix:** cross-party geeft nu exact dezelfde 404 "Niet gevonden." als een
+> onbekend id; de `*_ACCESS_DENIED`-audit blijft (IDOR-enumeratie zichtbaar in het spoor). Rood→groen:
+> 2 nieuwe tests (`documents/[id]/route.test.ts`) + 5 bijgewerkte assertions (`pdf-routes-audit.test.ts`,
+> `dossier-routes-audit.test.ts`).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, niet-deterministische acute-dienst-slice):** de `openDiensten`-query
+> in `franchiserTasks` (`pending-tasks.ts`) had `take: MAX (50)` **zonder `orderBy`** — welke 50 van een
+> tenant met >50 gepubliceerde diensten terugkwamen was niet-deterministisch. Die query voedt zowel de
+> `franchiseAcuteDienstTask`-aggregaat als de `acuteDienstIds`-dedup-set; een genuine-acute dienst (start
+> deze week / geen startdatum) buiten de arbitraire slice werd onderteld t.o.v. de onbegrensde
+> `/franchise/diensten`-pagina én kon als minder-urgente `franchise-stale-service` opduiken i.p.v. de
+> acute bucket. **Fix:** `orderBy: [{ startDate: { sort:"asc", nulls:"first" } }, { createdAt:"asc" }]`
+> — acuut-eerst (`isStartAcute` telt null-start + vroeg-start als acuut), deterministisch en consistent
+> met de acute-definitie op de pagina.
+
 > **Datum:** 2026-07-21 (run 42) · **main-commit basis:** `ae64d9f7`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** — 1 MED (DOEL 2, malicieuze invoer: ongeldige
 > prestatie-periode-datum viel door naar Prisma) én 1 MED (DOEL 1b, cross-surface-inconsistentie:
