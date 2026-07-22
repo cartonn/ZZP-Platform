@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — routine: betaaltermijn-KPI (DSO) voor de ZZP'er op /facturen
+
+**Wat:** de ZZP'er zag op `/facturen` al de per-opdrachtgever betaalreputatie, de cashflow-vooruitblik
+("≈ € X binnen 30 dagen"), het debiteuren-overzicht en de per-factuur "Verwacht rond"-projectie — maar
+nergens het portefeuille-brede, retrospectieve kerngetal: **"hoe snel word ik gemiddeld betaald, over
+álle opdrachtgevers heen?"** (DSO). Dat is de administratie-vraag die elke ZZP-boekhouder (Moneybird/
+e-Boekhouden) prominent beantwoordt. Nu een compacte regel onder de **Betaald**-kaart — **"Gemiddeld na
+X dagen betaald · Y% op tijd"** — met warning-emfase bij structureel traag betaald.
+
+- **Pure kern** `src/lib/own-payment-timing.ts` (`summarizeOwnPaymentTiming`): hergebruikt exact
+  `computePaymentBehavior` (dezelfde rekenkern als de per-opdrachtgever-kaart — één bron van waarheid),
+  toegepast op de eigen betaalde facturen; voegt alleen de eigen-perspectief-framing toe (vergelijking
+  met de standaard 30-dagen-termijn: `faster`/`around`/`slower`, marge 3 dagen). Geeft `null` onder de
+  steekproefdrempel (`PAYMENT_MIN_SAMPLE_SIZE = 3`) → geen misleidend getal uit één factuur.
+- **Wiring** `src/components/administratie/facturen-panel.tsx`: `ownTiming` (alleen ZZP'er) uit de
+  al-geladen factuurlijst — **geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak**.
+- Read-only afleiding; toont alleen het eigen geaggregeerde getal (geen data van anderen). +7 tests
+  (`own-payment-timing.test.ts`). Gate: typecheck, lint, **4768 unit-tests**, build, prettier groen.
+
 ## 2026-07-22 — persona-sweep (run 43): CLIENT contract-badge + document existence-oracle + acute-dienst-order
 
 **Wat:** kritische-gebruiker-sweep over alle vier rollen (ZZP'er/CLIENT/FRANCHISER/ADMIN) op de verse

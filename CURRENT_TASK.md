@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Betaaltermijn-KPI (DSO) voor de ZZP'er op /facturen (2026-07-22, PR #871)** —
+> `/facturen` toonde de ZZP'er al per-opdrachtgever betaalreputatie, cashflow-vooruitblik, debiteuren-overzicht en
+> per-factuur "Verwacht rond"-projectie, maar nergens het portefeuille-brede retrospectieve kerngetal "hoe snel word ik
+> gemiddeld betaald, over álle opdrachtgevers heen?" (DSO — Moneybird/e-Boekhouden tonen dit prominent). Nu een compacte
+> regel onder de Betaald-kaart — **"Gemiddeld na X dagen betaald · Y% op tijd"** — warning bij structureel traag betaald.
+> Pure `summarizeOwnPaymentTiming` (`own-payment-timing.ts`) hergebruikt exact `computePaymentBehavior` (één rekenkern,
+> gedeeld met de per-opdrachtgever-kaart) op de eigen betaalde facturen + standaard-30-dagen-vergelijking (faster/around/
+> slower, marge 3d); `null` onder de steekproefdrempel (3) → nooit een getal uit één factuur. Wiring in `facturen-panel.tsx`
+> leunt op de al-geladen factuurlijst — geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +7 tests.
+> Gate: typecheck, lint, 4768 unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Vervolgsignaal (naderende einddatum samenwerking) als next-action — ZZP'er + opdrachtgever (2026-07-20, PR #848)** —
 > het vervolgsignaal (`summarizeCollaborationRenewal`: een ACTIVE samenwerking die haar einddatum nadert/passeerde) leefde
 > alléén op het samenwerkingsdetail (`RenewalNudge`); wie dat ene scherm niet opende, miste het vervolgvenster → de inzet
