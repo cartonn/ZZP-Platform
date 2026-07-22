@@ -134,6 +134,131 @@ describe("runStorageSelfTest", () => {
     expect(driver.store.size).toBe(0);
   });
 
+  it("slaat de encryptie-stap over bij lokale opslag (geen describeEncryption)", async () => {
+    // Ook mét een verwachte SSE-modus: een driver zonder describeEncryption (lokaal) kan het niet
+    // verifiëren, dus de stap verschijnt niet en de round-trip blijft groen.
+    const driver = memoryDriver();
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "local",
+      probeKey: KEY,
+      expectedSse: "AES256",
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.steps.map((s) => s.key)).toEqual([
+      "write",
+      "exists",
+      "read",
+      "delete",
+      "cleanup",
+    ]);
+  });
+
+  it("slaat de encryptie-stap over wanneer geen SSE verwacht wordt (none)", async () => {
+    const driver = memoryDriver();
+    driver.describeEncryption = vi.fn(async () => ({ serverSideEncryption: null }));
+
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "s3",
+      probeKey: KEY,
+      expectedSse: "none",
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.steps.map((s) => s.key)).not.toContain("encrypt");
+    expect(driver.describeEncryption).not.toHaveBeenCalled();
+  });
+
+  it("bevestigt encryptie-at-rest wanneer het algoritme aanwezig is", async () => {
+    const driver = memoryDriver();
+    driver.describeEncryption = vi.fn(async () => ({ serverSideEncryption: "AES256" }));
+
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "s3",
+      probeKey: KEY,
+      expectedSse: "AES256",
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.steps.map((s) => s.key)).toEqual([
+      "write",
+      "exists",
+      "read",
+      "encrypt",
+      "delete",
+      "cleanup",
+    ]);
+    const encrypt = report.steps.find((s) => s.key === "encrypt");
+    expect(encrypt).toMatchObject({ ok: true });
+    expect(encrypt?.detail).toContain("AES256");
+    expect(driver.store.size).toBe(0);
+  });
+
+  it("faalt (AVG) wanneer het object onversleuteld terugkomt en ruimt op", async () => {
+    const driver = memoryDriver();
+    driver.describeEncryption = vi.fn(async () => ({ serverSideEncryption: null }));
+
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "s3",
+      probeKey: KEY,
+      expectedSse: "AES256",
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.steps.map((s) => s.key)).toEqual(["write", "exists", "read", "encrypt"]);
+    expect(report.steps.at(-1)).toMatchObject({ key: "encrypt", ok: false });
+    expect(report.steps.at(-1)?.detail).toContain("ONVERSLEUTELD");
+    // De verval-stappen draaien niet meer, maar het vangnet ruimt het probe-object op.
+    expect(driver.store.size).toBe(0);
+  });
+
+  it("blijft groen bij een algoritme-mismatch maar noemt beide", async () => {
+    const driver = memoryDriver();
+    driver.describeEncryption = vi.fn(async () => ({ serverSideEncryption: "AES256" }));
+
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "s3",
+      probeKey: KEY,
+      expectedSse: "aws:kms",
+    });
+
+    expect(report.ok).toBe(true);
+    const encrypt = report.steps.find((s) => s.key === "encrypt");
+    expect(encrypt?.ok).toBe(true);
+    expect(encrypt?.detail).toContain("AES256");
+    expect(encrypt?.detail).toContain("aws:kms");
+  });
+
+  it("faalt secret-vrij wanneer describeEncryption werpt en ruimt op", async () => {
+    const driver = memoryDriver();
+    driver.describeEncryption = vi.fn(async () => {
+      throw Object.assign(new Error("HeadObject 403 for bucket https://minio.internal"), {
+        name: "AccessDenied",
+      });
+    });
+
+    const report = await runStorageSelfTest({
+      driver,
+      driverMode: "s3",
+      probeKey: KEY,
+      expectedSse: "AES256",
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.steps.at(-1)).toMatchObject({
+      key: "encrypt",
+      ok: false,
+      detail: "AccessDenied",
+    });
+    expect(report.steps.at(-1)?.detail).not.toContain("minio.internal");
+    expect(driver.store.size).toBe(0);
+  });
+
   it("probePayload is deterministisch en gebonden aan de key", () => {
     expect(probePayload(KEY).equals(probePayload(KEY))).toBe(true);
     expect(probePayload(KEY).equals(probePayload(`${SELFTEST_PREFIX}other.txt`))).toBe(false);

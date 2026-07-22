@@ -182,6 +182,27 @@ export function resolveSseParams(): {
   return { ServerSideEncryption: "AES256" };
 }
 
+/** De server-side-encryptie-modus die we verwachten terug te zien op een opgeslagen object. */
+export type ExpectedSse = "AES256" | "aws:kms" | "none";
+
+/**
+ * Leidt uit de env af welke SSE-modus we op een object *verwachten* (voor de zelftest-verificatie).
+ * `none` betekent dat encryptie-at-rest bewust niet expliciet wordt afgedwongen (dan valt er niets
+ * te verifiëren). Puur/testbaar — deelt de bron van waarheid met `resolveSseParams`.
+ */
+export function resolveExpectedSse(): ExpectedSse {
+  return resolveSseParams().ServerSideEncryption ?? "none";
+}
+
+/** Rapport over de server-side-encryptie-status van één object (voor de zelftest). */
+export interface StorageEncryptionInfo {
+  /**
+   * Het door de opslag gerapporteerde SSE-algoritme (bv. "AES256" / "aws:kms"), of `null` wanneer het
+   * object **onversleuteld** terugkwam — dan negeerde de opslag de ingestelde encryptie (AVG-risico).
+   */
+  serverSideEncryption: string | null;
+}
+
 export interface StorageDriver {
   put(key: string, data: Buffer, mimeType: string): Promise<StoredObject>;
   get(key: string): Promise<Buffer>;
@@ -194,6 +215,13 @@ export interface StorageDriver {
    * dan terug op het streamen van de bytes via de server. Authz/audit blijven altijd server-side.
    */
   getSignedDownloadUrl(key: string, opts?: SignedUrlOptions): Promise<string | null>;
+  /**
+   * Optioneel: rapporteert de server-side-encryptie-status van een opgeslagen object. Alleen zinvol
+   * voor object-opslag (S3) die dit terugmeldt; lokale opslag ondersteunt dit niet (methode ontbreekt).
+   * Wordt gebruikt door de opslag-zelftest om te bevestigen dat gevoelige documenten écht versleuteld
+   * op schijf staan i.p.v. te vertrouwen dat de opslag de SSE-instelling honoreert.
+   */
+  describeEncryption?(key: string): Promise<StorageEncryptionInfo>;
 }
 
 class LocalStorageDriver implements StorageDriver {
@@ -305,6 +333,14 @@ class S3StorageDriver implements StorageDriver {
       if (err?.name === "NotFound" || err?.$metadata?.httpStatusCode === 404) return false;
       throw e;
     }
+  }
+
+  async describeEncryption(key: string): Promise<StorageEncryptionInfo> {
+    const { client, bucket, lib } = await this.svc();
+    const res = await client.send(new lib.HeadObjectCommand({ Bucket: bucket, Key: key }));
+    // S3 (en compatibele stores die SSE honoreren) echoot het toegepaste algoritme in deze header.
+    // Ontbreekt hij, dan staat het object onversleuteld op schijf — de zelftest markeert dat.
+    return { serverSideEncryption: res.ServerSideEncryption ?? null };
   }
 
   async getSignedDownloadUrl(key: string, opts?: SignedUrlOptions): Promise<string | null> {

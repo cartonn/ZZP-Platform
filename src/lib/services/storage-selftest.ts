@@ -6,18 +6,19 @@
 // bucket/sleutels: doet een verkeerd geconfigureerde bucket het écht?
 //
 // Deze module draait een volledige round-trip tegen een geïnjecteerde driver — put → exists →
-// get (byte-vergelijk) → delete → opruim-check — onder een eigen `.selftest/`-prefix, zodat de
+// get (byte-vergelijk) → [encryptie-at-rest bevestigen] → delete → opruim-check — onder een eigen
+// `.selftest/`-prefix, zodat de
 // probe nóóit botst met echte documenten (die op `YYYY/<uuid>` leven). Puur en injecteerbaar
 // (geen I/O-globals, geen klok) zodat het deterministisch te testen is. Geen secrets in de
 // uitvoer: een fout wordt teruggebracht tot de error-NAAM (nooit het bericht — dat kan een
 // endpoint/connection-string bevatten), net als de readiness-probe.
 
-import type { StorageDriver } from "@/lib/services/storage";
+import type { ExpectedSse, StorageDriver } from "@/lib/services/storage";
 
 /** Eén stap in de round-trip. `ok:false` + `detail` bij een fout of een niet-gehaalde verwachting. */
 export interface SelfTestStep {
   /** Stabiele sleutel (voor keys/tests/UI). */
-  key: "write" | "exists" | "read" | "delete" | "cleanup";
+  key: "write" | "exists" | "read" | "encrypt" | "delete" | "cleanup";
   /** Nederlandse omschrijving van de stap. */
   label: string;
   ok: boolean;
@@ -35,7 +36,10 @@ export interface StorageSelfTestReport {
 }
 
 /** De opslag-operaties die de zelftest nodig heeft (subset van `StorageDriver`, injecteerbaar). */
-export type SelfTestDriver = Pick<StorageDriver, "put" | "exists" | "get" | "delete">;
+export type SelfTestDriver = Pick<
+  StorageDriver,
+  "put" | "exists" | "get" | "delete" | "describeEncryption"
+>;
 
 /** Prefix waaronder alle probe-objecten leven; scheidt ze van echte documenten (`YYYY/<uuid>`). */
 export const SELFTEST_PREFIX = ".selftest/";
@@ -44,6 +48,7 @@ const STEP_LABELS: Record<SelfTestStep["key"], string> = {
   write: "Schrijven",
   exists: "Bestaan bevestigen",
   read: "Lezen + byte-vergelijk",
+  encrypt: "Encryptie-at-rest bevestigen",
   delete: "Verwijderen",
   cleanup: "Opruimen bevestigen",
 };
@@ -72,8 +77,15 @@ export async function runStorageSelfTest(opts: {
   driver: SelfTestDriver;
   driverMode: string;
   probeKey: string;
+  /**
+   * Verwachte server-side-encryptie-modus (uit `resolveExpectedSse`). Alleen wanneer dit een échte
+   * modus is (`AES256`/`aws:kms`) én de driver `describeEncryption` ondersteunt, draait de extra
+   * encryptie-verificatiestap. `"none"`/`undefined` (of lokale opslag zonder `describeEncryption`)
+   * slaat die stap over — er valt dan niets te verifiëren.
+   */
+  expectedSse?: ExpectedSse;
 }): Promise<StorageSelfTestReport> {
-  const { driver, driverMode, probeKey } = opts;
+  const { driver, driverMode, probeKey, expectedSse } = opts;
   const steps: SelfTestStep[] = [];
   const payload = probePayload(probeKey);
   let wrote = false;
@@ -124,7 +136,39 @@ export async function runStorageSelfTest(opts: {
       return { ok: false, driverMode, probeKey, steps };
     }
 
-    // 4. Verwijderen.
+    // 4. Encryptie-at-rest bevestigen (alleen bij object-opslag die het terugmeldt én een verwachte
+    //    SSE-modus). We zetten SSE expliciet op elke upload, maar een S3-compatibele/verkeerd
+    //    geconfigureerde store kan die instelling stil negeren en gevoelige documenten onversleuteld
+    //    opslaan — die stille faalmodus vangen we hier af (AVG-beveiliging/dataminimalisatie).
+    if (driver.describeEncryption && expectedSse && expectedSse !== "none") {
+      try {
+        const info = await driver.describeEncryption(probeKey);
+        if (!info.serverSideEncryption) {
+          record(
+            "encrypt",
+            false,
+            "Object kwam ONVERSLEUTELD terug — de opslag negeert de ingestelde server-side-encryptie (AVG-risico).",
+          );
+          return { ok: false, driverMode, probeKey, steps };
+        }
+        // Aanwezigheid van een SSE-algoritme is de beveiligingseigenschap die telt. Wijkt het
+        // gerapporteerde algoritme af van de verwachting, dan blijft de stap groen maar noemen we
+        // beide zodat een beheerder een onbedoelde KMS/AES-mismatch ziet.
+        const reported = info.serverSideEncryption;
+        record(
+          "encrypt",
+          true,
+          reported === expectedSse
+            ? `Versleuteld op schijf (${reported}).`
+            : `Versleuteld op schijf (${reported}); verwacht ${expectedSse}.`,
+        );
+      } catch (error) {
+        record("encrypt", false, safeDetail(error));
+        return { ok: false, driverMode, probeKey, steps };
+      }
+    }
+
+    // 5. Verwijderen.
     try {
       await driver.delete(probeKey);
       wrote = false; // opgeruimd; de finally hoeft niet nog eens te verwijderen.
@@ -134,7 +178,7 @@ export async function runStorageSelfTest(opts: {
       return { ok: false, driverMode, probeKey, steps };
     }
 
-    // 5. Opruimen bevestigen.
+    // 6. Opruimen bevestigen.
     try {
       const stillThere = await driver.exists(probeKey);
       if (stillThere) {

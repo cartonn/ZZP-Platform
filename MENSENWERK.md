@@ -302,6 +302,17 @@ nodig met back-ups en beveiligde opslag.
    de driver-modus te zien. De uitvoer bevat nooit secrets (alleen stap-uitkomsten + error-naam),
    loopt door de authz-keten (rol → rate-limit → audit) en laat nooit een testobject achter.
    Resterend mensenwerk: **niets** — de knop is er zodra `STORAGE_DRIVER=s3` staat.
+   **Code-kant GEDAAN (2026-07-22) — encryptie-at-rest-verificatie in de zelftest:** de driver zet
+   SSE al expliciet op elke upload (hierboven), maar een S3-compatibele store (MinIO/andere provider)
+   of een verkeerd geconfigureerde bucket kan die instelling **stil negeren** en gevoelige documenten
+   (VOG, diploma's, ID) **onversleuteld op schijf** zetten — precies de stille faalmodus die de andere
+   zelftests ook afvangen. De opslag-zelftest doet nu na het schrijven een `HeadObject` en bevestigt dat
+   het object daadwerkelijk versleuteld terugkomt (`ServerSideEncryption` aanwezig); komt het
+   onversleuteld terug, dan **faalt** de zelftest expliciet (AVG-risico), i.p.v. vals groen. Deze stap
+   loopt óók mee in de go-live-sweep (§11). Bij `STORAGE_S3_SSE=none` (bewust uit) of lokale opslag
+   wordt de stap eerlijk overgeslagen (`describeEncryption` in `src/lib/services/storage.ts`,
+   `resolveExpectedSse` + de `encrypt`-stap in `src/lib/services/storage-selftest.ts`). Resterend
+   mensenwerk: **niets extra**.
 
 ### 1d. Domein + HTTPS
 

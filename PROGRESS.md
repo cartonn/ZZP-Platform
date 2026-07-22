@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — prod: verifieer encryptie-at-rest in de opslag-zelftest (AVG)
+
+**Wat:** de S3-driver zet server-side-encryptie al expliciet op elke `put` (`resolveSseParams`), maar
+niets **verifieerde** dat het object versleuteld terugkomt. Een S3-compatibele store (MinIO/andere
+provider) of een verkeerd geconfigureerde bucket kan de SSE-instelling stil negeren en gevoelige
+documenten (VOG, diploma's, ID) onversleuteld op schijf zetten — de stille faalmodus die de andere
+connectiviteitszelftests afvangen. De opslag-zelftest doet nu na het schrijven een `HeadObject` en
+faalt expliciet (AVG-risico) als `ServerSideEncryption` ontbreekt; groen als het versleuteld terugkomt.
+
+- **`src/lib/services/storage.ts`** — `StorageEncryptionInfo` + optionele `describeEncryption(key)` op
+  `StorageDriver` (S3: HeadObject → `ServerSideEncryption`; lokaal: niet ondersteund) + `ExpectedSse`/
+  `resolveExpectedSse()` (bron van waarheid gedeeld met `resolveSseParams`).
+- **`src/lib/services/storage-selftest.ts`** — nieuwe `encrypt`-stap (na read, vóór delete); draait
+  alleen bij een echte verwachte SSE-modus én een driver die het terugmeldt. `none`/lokaal → overgeslagen.
+- **`.../systeemstatus/actions.ts`** — beide call-sites (losse zelftest + go-live-sweep) geven
+  `expectedSse: resolveExpectedSse()` mee. UI-kaart-tekst bijgewerkt (`storage-selftest.tsx`).
+- **Tests:** `storage-selftest.test.ts` (+6: bevestigd/onversleuteld-faalt/mismatch-groen/throw-secret-vrij/
+  none-skip/lokaal-skip), `storage.test.ts` (+1: `resolveExpectedSse`). Gate lokaal groen.
+
 ## 2026-07-22 — security/privacy: cross-tenant oracle shift-overnames + 2× dataminimalisatie over-fetch
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 2 adversariële subagents). Delta-focus op

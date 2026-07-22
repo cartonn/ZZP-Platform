@@ -39,7 +39,8 @@ export function StorageSelfTest({ driverMode }: { driverMode: string }) {
           <p className="mt-1 text-sm text-muted-foreground">
             Schrijft, leest en verwijdert een testobject om te bevestigen dat de documentopslag
             (driver <span className="font-mono text-xs">{driverMode}</span>) echt bereikbaar en
-            beschrijfbaar is. Voer dit uit na het instellen van de bucket/sleutels.
+            beschrijfbaar is, en bevestigt bij S3 dat het object versleuteld op schijf staat
+            (encryptie-at-rest). Voer dit uit na het instellen van de bucket/sleutels.
           </p>
         </div>
         <Button variant="secondary" size="sm" onClick={run} disabled={pending}>
