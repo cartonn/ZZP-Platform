@@ -28,6 +28,10 @@ vi.mock("@/lib/db", () => ({
     message: { groupBy: vi.fn(async () => []) },
     conversation: { findMany: vi.fn(async () => []) },
     noShowReport: { findFirst: vi.fn(async () => null), count: vi.fn(async () => 0) },
+    // Geen openstaande uitnodigingen → invitationTasks levert niets (isoleert de documenten-tak).
+    auditLog: { findMany: vi.fn(async () => []) },
+    job: { findMany: vi.fn(async () => []) },
+    application: { findMany: vi.fn(async () => []) },
   },
 }));
 

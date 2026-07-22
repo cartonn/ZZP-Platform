@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — routine: uitnodiging-respons als next-action voor de ZZP'er (PR #869)
+
+**Wat:** een directe uitnodiging (`JOB_INVITED` via `inviteFreelancerToJob`/bulk) is de hoogst-intente
+inbound lead op een marktplaats — een opdrachtgever koos jóu specifiek (benchmark LinkedIn/Malt/Upwork
+"invited to apply"). Die uitnodiging leefde alleen als band op `/opdrachten` (find-work, via
+`getReceivedInvitations`); wie die pagina niet opende, miste 'm → de gerichte invite verliep stil.
+Exact het "signaal op één oppervlak"-anti-patroon (afwezig op /acties + zijbalk-badge + dashboard-rail,
+alle door de item-engine gevoed). Nu een next-action **"Reageer op de uitnodiging van {opdrachtgever}"**
+per open, nog-onbeantwoorde uitnodiging, met deep-link naar de opdracht waar de reactie-flow staat.
+
+- **`src/lib/received-invitations.ts`** — pure `invitationAgeDays(invitedAt, now)` (hele dagen, klemt
+  klok-scheefstand op 0) + `invitationAgeLabel` (grove buckets, geen schijnprecisie) + `INVITATION_AGING_DAYS=5`.
+- **`src/lib/next-actions.ts`** — nieuwe band `P.respondInvitation=54` (net onder een lopend gesprek
+  `messagesAwaiting=55`, boven `staleApplications=52`).
+- **`src/lib/actions/tasks.ts`** — kind `respond-invitation` + builder `respondInvitationTask`
+  (resolver `link` → default-tak van `action-list.tsx`, geen UI-wiring; tone `info`, `attention` zodra
+  ≥5 dagen stil).
+- **`src/lib/actions/pending-tasks.ts`** — enumerator `invitationTasks(profileId, now)` leunt op de
+  bestaande, begrensde en eigenaar-gescopete `getReceivedInvitations`-datalaag (één bron van waarheid;
+  gededupt, alleen gepubliceerd, niet-beantwoord, ≤6) → gewired in `freelancerTasks`. Read-only, geen
+  schemawijziging, geen nieuw mutatie/auth-oppervlak.
+- **Tests:** `received-invitations.test.ts` (+2 blokken: age/label), `tasks.test.ts` (+3:
+  shape/tone/priority), `pending-tasks-invitations.test.ts` (nieuw, wiring: leeg/positief/attention),
+  `pending-tasks-rejected-mandatory.test.ts` (auditLog-mock-stub). Gate: typecheck, lint, 4755 unit-tests,
+  build, prettier groen.
+
 ## 2026-07-22 — prod: verifieer encryptie-at-rest in de opslag-zelftest (AVG)
 
 **Wat:** de S3-driver zet server-side-encryptie al expliciet op elke `put` (`resolveSseParams`), maar

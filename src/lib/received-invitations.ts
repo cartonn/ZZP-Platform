@@ -80,3 +80,33 @@ export function selectOpenInvitations(
   );
   return out.slice(0, cap);
 }
+
+/**
+ * Vanaf hoeveel dagen zonder reactie een openstaande uitnodiging urgenter wordt getoond: de
+ * opdrachtgever koos deze ZZP'er specifiek en wacht; hoe langer die stil blijft, hoe groter de kans
+ * dat de opdracht intussen aan een ander gaat. Bewust ruim (een uitnodiging is een kans, geen
+ * verplichting) — pas na enkele dagen stilte verschuift de toon van "info" naar "attention".
+ */
+export const INVITATION_AGING_DAYS = 5;
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/**
+ * Aantal hele dagen dat een uitnodiging al openstaat (`now − invitedAt`, naar beneden afgerond,
+ * ondergrens 0). Deterministisch en zonder I/O — voedt de toon en het leeftijdslabel van de
+ * next-action, los getest.
+ */
+export function invitationAgeDays(invitedAt: Date, now: Date): number {
+  return Math.max(0, Math.floor((now.getTime() - invitedAt.getTime()) / MS_PER_DAY));
+}
+
+/**
+ * Menselijk leeftijdslabel voor een openstaande uitnodiging ("vandaag uitgenodigd" / "gisteren
+ * uitgenodigd" / "N dagen geleden uitgenodigd"). Grove buckets — geen schijnprecisie.
+ */
+export function invitationAgeLabel(ageDays: number): string {
+  const days = Math.max(0, Math.floor(ageDays));
+  if (days === 0) return "vandaag uitgenodigd";
+  if (days === 1) return "gisteren uitgenodigd";
+  return `${days} dagen geleden uitgenodigd`;
+}

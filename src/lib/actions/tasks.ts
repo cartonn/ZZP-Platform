@@ -15,6 +15,7 @@ import { type CredentialAlert } from "@/lib/collaboration-alerts";
 import { type CollaborationRenewalPhase } from "@/lib/collaboration-renewal";
 import { type VatDeadlineSummary } from "@/lib/administration/vat-deadline";
 import { type StaleApplicationsSummary } from "@/lib/stale-applications";
+import { INVITATION_AGING_DAYS, invitationAgeLabel } from "@/lib/received-invitations";
 import {
   acuteFillabilityHeadline,
   type AcuteFillabilitySummary,
@@ -75,6 +76,7 @@ export type PendingTask =
   | (TaskBase & { kind: "client-compliance"; collabId: string })
   | (TaskBase & { kind: "review-leave"; collabId: string })
   | (TaskBase & { kind: "collaboration-renewal"; collabId: string; role: "FREELANCER" | "CLIENT" })
+  | (TaskBase & { kind: "respond-invitation"; jobId: string })
   | (TaskBase & { kind: "applications-review" })
   | (TaskBase & { kind: "propose-collaboration"; applicationId: string })
   | (TaskBase & { kind: "stale-applications" })
@@ -739,6 +741,36 @@ export function collaborationRenewalTask(
     href: collabHref(collabId),
     collabId,
     role,
+  };
+}
+
+/**
+ * Een opdrachtgever heeft de ZZP'er dírect uitgenodigd voor een opdracht (`JOB_INVITED`) en hij heeft
+ * er nog niet op gereageerd. Dat is de hoogst-intente inbound lead op een marktplaats (benchmark
+ * LinkedIn/Malt/Upwork "invited to apply"): iemand koos jóu specifiek. Tot nu leefde die uitnodiging
+ * alleen als band op `/opdrachten` (find-work) — wie die pagina niet opende, miste 'm en de gerichte
+ * invite verliep stil. Deze taak brengt 'm naar /acties, de zijbalk-badge én de dashboard-rail (alle
+ * door de item-engine gevoed), met een deep-link naar de opdracht waar de ZZP'er reageert. Advies,
+ * geen blokkade: `info`, maar `attention` zodra de uitnodiging ≥ `INVITATION_AGING_DAYS` dagen stil
+ * blijft (de kans dat de opdracht aan een ander gaat groeit).
+ */
+export function respondInvitationTask(
+  jobId: string,
+  jobTitle: string,
+  companyName: string,
+  ageDays: number,
+): PendingTask {
+  const aging = ageDays >= INVITATION_AGING_DAYS;
+  return {
+    kind: "respond-invitation",
+    id: `respond-invitation:${jobId}`,
+    title: `Reageer op de uitnodiging van ${companyName}`,
+    subtitle: `${jobTitle} · ${invitationAgeLabel(ageDays)}`,
+    tone: aging ? "attention" : "info",
+    priority: P.respondInvitation,
+    resolver: "link", // meerstaps (motivatie schrijven → reageren) → naar de opdracht
+    href: `/opdrachten/${jobId}`,
+    jobId,
   };
 }
 
