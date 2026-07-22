@@ -159,7 +159,15 @@ export async function getAllPublicFreelancers(
       user: { select: { id: true, name: true, identityVerifiedAt: true } },
       skills: { include: { skill: { select: { id: true, name: true } } } },
       credentials: { select: { type: true, status: true, expiresAt: true } },
-      availabilityWindows: { orderBy: { startDate: "asc" } },
+      // Expliciete select (dataminimalisatie, AVG art. 5(1)(c) + defense-in-depth). Dit is de
+      // CLIENT-facing, cross-party discovery-browse (vóór een match): het zelf-getypte `note`-veld van
+      // een AvailabilityWindow kan een reden of (medische) details bevatten en hoort hier nooit in
+      // servergeheugen. Alleen de velden die de samenvatting nodig heeft worden geladen; de summary die
+      // de client bereikt bevat sowieso geen `note`.
+      availabilityWindows: {
+        select: { startDate: true, endDate: true, type: true },
+        orderBy: { startDate: "asc" },
+      },
     },
   });
 

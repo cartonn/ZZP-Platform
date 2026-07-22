@@ -4,6 +4,70 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-22 (basis: `main` @ 9605ec96)
+
+Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken — (1) object-/functie-authz + IDOR + cross-tenant + mass-assignment + injectie (SQL/XSS/CSV/
+open-redirect) op álle server actions + `api/**`-route-handlers; (2) AVG erasure-volledigheid (veld-voor-veld
+per PII-dragend model), dataminimalisatie server→client, PII-in-logs, k-anonimiteit, cross-partij-PII —
+delta-focus op PR's #861–#866 (foutlek/oracle-fix, go-live zelftest-sweep, agenda-deadline-feed, "Afwezig
+t/m X"-beschikbaarheid, badge-dedup). Kader: OWASP Top 10 (A01/A03/A05) + ASVS + AVG art. 5/9/17/30/32.
+Stack: Next.js 15.5.19 (voorbij CVE-2025-29927), Auth.js v5-beta.31, Prisma 6.19.3. Orchestrator verifieerde
+onafhankelijk: de nieuwe agenda-`.ics`-feed (`api/agenda/feed.ics`) is HMAC-token-gated + rate-limited +
+liveness-poort (geschorst/geanonimiseerd → 404) + serveert alleen het eigen rooster/deadlines van de
+token-houder (geen bedragen/BTW-saldi in de events, geen `note`); de zelftest-sweep is PII-/secret-vrij
+(audit slaat alleen `key`+`status` op); de nieuwe availability-helpers lezen het (mogelijk medische)
+`AvailabilityWindow.note`-veld nooit uit.
+
+**Drie bevindingen gevonden en OPGELOST (rood→groen) — alle LAAG (defense-in-depth / geen live lek), maar
+concreet en getest:**
+
+### OPGELOST — LAAG: cross-tenant existence-oracle in `admin/shift-overnames/actions.ts` (OWASP A01 / CWE-203)
+
+- **Repro:** `loadDecidableHandoff` gooide een plain `Error("Overname-aanvraag niet gevonden.")` bij een
+  ontbrekende handoff, maar liet de `AuthorizationError("Geen toegang tot deze bemiddeling-resource.")` van
+  `assertSameTenant` door `toSafeActionError` woordelijk passeren — onderscheidbaar van "niet gevonden". Een
+  FRANCHISER kon zo via een gegokt handoff-id aflezen of het bij een ándere tenant hoorde (cross-tenant
+  existence-oracle). Was in de vorige ronde als LAAG geparkeerd ("volgende run oppakken"); exact het patroon
+  dat `createFranchiseDienst`/`addAfdelingStep` al fail-closed dichtten.
+- **Geschonden regel:** OWASP A01 Broken Access Control / CWE-203 Observable Discrepancy; CLAUDE.md regel 2.
+- **Fix:** fail-closed `if (!handoff || !ownsViaTenant(actor, handoff.collaboration.job.tenantId)) throw new
+Error("Overname-aanvraag niet gevonden.")` — identieke melding voor onbekend én cross-tenant; de
+  statuscheck ("al beoordeeld") blijft ná de tenant-poort zodat een cross-tenant-status nooit lekt. Test:
+  `admin/shift-overnames/oracle.test.ts` (+4, LAAG, rood→groen).
+
+### OPGELOST — LAAG: `profile-screen.tsx` over-fetchte privé-financiële velden (AVG art. 5(1)(c), dataminimalisatie)
+
+- **Repro:** `ProfileScreen` (`/zzp/[id]`, deels publiek/niet-geauthenticeerd) deed `freelancerProfile.findUnique`
+  met een kale `include` (geen top-level `select`), waardoor `monthlyIncomeGoalCents`, `defaultMotivation` en
+  `btwNumber` in servergeheugen werden geladen. Geen live lek (geen van die velden werd gerenderd), maar een
+  toekomstige render-regel kon er stil één blootstellen. Vorige ronde als LAAG geparkeerd.
+- **Geschonden regel:** AVG art. 5(1)(c) dataminimalisatie / CLAUDE.md defense-in-depth.
+- **Fix:** kale `include` → expliciete `select` met alleen de gebruikte scalar-velden (privé-financiële velden
+  vallen weg). Test: `profile-overfetch.test.ts` (+1, LAAG, rood→groen): de query heeft `select` (geen
+  `include`) en bevat de drie privé-velden niet.
+
+### OPGELOST — LAAG: `freelancer-search.ts` over-fetchte `AvailabilityWindow.note` op de CLIENT-facing discovery-browse (AVG art. 5(1)(c))
+
+- **Repro:** `getAllPublicFreelancers` (voedt de opdrachtgever-facing `/freelancers`-browse, cross-party
+  vóór een match) haalde `availabilityWindows` op zónder `select` → de volledige rij incl. het zelf-getypte
+  `note`-veld (kan een reden of medische details bevatten, per de erasure-comments) in servergeheugen. Geen
+  live lek (alleen voorgeformatteerde samenvattingen bereiken de client), maar een aparte query-site die de
+  `profile-screen`-fix niet dekt. Gevonden door de AVG-subagent deze ronde.
+- **Geschonden regel:** AVG art. 5(1)(c) dataminimalisatie / CLAUDE.md defense-in-depth.
+- **Fix:** `availabilityWindows: { select: { startDate, endDate, type }, orderBy }` — identiek patroon als
+  `kandidaten/page.tsx`/`dienst-fill-signal.ts`. Test: `freelancer-search-overfetch.test.ts` (+1, LAAG,
+  rood→groen): de nested select bevat `note` niet.
+
+**Herbevestigd schoon (van-nul-af her-geverifieerd door 2 subagents):** de volledige mutatieketen
+(auth→rol→ownership→Zod→actie→audit) op alle server actions + `api/**`-routes, incl. audit van geweigerde
+IDOR-pogingen; `/admin` drievoudig gegated (middleware + page + action); geen mass-assignment (role-velden
+Zod-beperkt tot FREELANCER/CLIENT); CSV-export overal via `escapeCsvField`; geen `$queryRawUnsafe`/user-URL-
+SSRF/open-redirect; enige `dangerouslySetInnerHTML` = nonce-gated theme-script; `anonymizeUser`-erasure dekt
+élk zelf-geschreven vrije-tekstveld incl. secundaire kopieën (AuditLog.metadata/DomainEvent.payload/
+Notification.body); agenda-`.ics`-feed token-gated + liveness + eigen-data-only; k-anonimiteit markttarief
+`MIN_SAMPLE=10`. Overige geparkeerde items (FG/juridisch) ongewijzigd.
+
 ## Ronde 2026-07-21b (basis: `main` @ 4580c25a)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-security-subagents op niet-overlappende

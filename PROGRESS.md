@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — security/privacy: cross-tenant oracle shift-overnames + 2× dataminimalisatie over-fetch
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 2 adversariële subagents). Delta-focus op
+PR's #861–#866. Drie LAAG-bevindingen (defense-in-depth / geen live lek) gevonden en OPGELOST (rood→groen);
+de rest van het oppervlak van-nul-af herbevestigd schoon. Twee subagent-hunters (authz/IDOR en AVG) vonden
+geen nieuwe KRITIEK/HOOG/MIDDEL.
+
+- **`admin/shift-overnames/actions.ts`** (OWASP A01 / CWE-203): `loadDecidableHandoff` gaf voor een
+  cross-tenant handoff een onderscheidbare "Geen toegang"-melding i.p.v. "niet gevonden" → existence-oracle
+  voor een FRANCHISER. Fail-closed unificatie op `ownsViaTenant` + één "niet gevonden"-melding (spiegelt
+  `createFranchiseDienst`). Test: `oracle.test.ts` (+4).
+- **`profile-screen.tsx`** (AVG art. 5(1)(c)): kale `include` → expliciete `select`; privé-financiële velden
+  (`monthlyIncomeGoalCents`/`defaultMotivation`/`btwNumber`) worden niet meer geladen op de deels-publieke
+  `/zzp/[id]`. Test: `profile-overfetch.test.ts` (+1).
+- **`freelancer-search.ts`** (AVG art. 5(1)(c)): `getAllPublicFreelancers` haalde `availabilityWindows`
+  zonder `select` op → het (mogelijk medische) `note`-veld in servergeheugen op de CLIENT-facing
+  discovery-browse. Expliciete `select` zonder `note`. Test: `freelancer-search-overfetch.test.ts` (+1).
+
+Details + herbevestigd-schoon-lijst in `docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-07-22).
+
 ## 2026-07-22 — routine: "Afwezig t/m X" beschikbaarheid zichtbaar voor opdrachtgevers
 
 **Wat:** een ZZP'er die zich expliciet "niet beschikbaar / met vakantie t/m X" zet (een UNAVAILABLE-
