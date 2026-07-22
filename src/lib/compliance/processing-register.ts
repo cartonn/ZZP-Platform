@@ -517,6 +517,34 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
       "Toegang op rol (RBAC)",
     ],
   },
+
+  // 19. No-show-melding & governance (opdrachtgever/bemiddelaar meldt een gemiste dienst)
+  {
+    key: "no-show-melding-governance",
+    name: "No-show-melding & governance",
+    purpose:
+      "Vastleggen en beoordelen van meldingen dat een ZZP'er een geboekte dienst heeft gemist, zodat een beheerder een oordeel kan vellen (gerechtvaardigd/ongerechtvaardigd) en de betrouwbaarheid binnen het platform kan worden geborgd en geschillen kunnen worden beslecht.",
+    legalBasis: "GERECHTVAARDIGD_BELANG",
+    dataSubjects: ["ZZP'ers (natuurlijke personen)", "Melders (opdrachtgever of bemiddelaar)"],
+    dataCategories: [
+      "Reden van de melding — vrije tekst zoals opgegeven door de melder; kan onbedoeld een gezondheids-/incapaciteitsreden bevatten (bijzondere gegevens art. 9 AVG)",
+      "Datum van de gemiste dienst",
+      "Oordeel van de beheerder en toelichting",
+      "Identiteit van melder en beoordelend beheerder",
+    ],
+    sensitive: true,
+    recipients: [
+      "Bevoegde beheerders (no-show-queue en oordeel)",
+      "De melder (eigen melding en de uitkomst)",
+    ],
+    retention:
+      "Gekoppeld aan de samenwerking; niet langer dan noodzakelijk voor governance en geschillenbeslechting, daarna verwijderen/anonimiseren",
+    securityMeasures: [
+      "Toegang op rol (RBAC) — melden beperkt tot de betrokken opdrachtgever/bemiddelaar, oordeel tot bevoegde beheerders",
+      "Auditlogging van melding en oordeel",
+      "Expliciete statusovergangen (PENDING → JUSTIFIED/UNJUSTIFIED)",
+    ],
+  },
 ] as const;
 
 // --- Bewaarschema ------------------------------------------------------------
@@ -587,6 +615,14 @@ export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
       "Tot conversie naar klant of afvallen + max. 12 maanden; eerder wisbaar op verzoek van de betrokkene",
     rationale:
       "Gerechtvaardigd belang (acquisitie); na afronding van het verkoopproces vervalt de grondslag. Recht op wissen (art. 17) technisch afgedwongen via een handmatig wis-pad (deleteLead)",
+  },
+  {
+    key: "no-show-meldingen",
+    category: "No-show-meldingen & governance (reden, oordeel)",
+    period:
+      "Gekoppeld aan de samenwerking; niet langer dan noodzakelijk voor governance en geschillenbeslechting",
+    rationale:
+      "Gerechtvaardigd belang (betrouwbaarheidsgovernance en geschillenbeslechting). De vrije-tekstreden kan bijzondere gegevens (art. 9) bevatten en vereist daarom extra terughoudendheid en tijdige verwijdering/anonimisering",
   },
 ] as const;
 

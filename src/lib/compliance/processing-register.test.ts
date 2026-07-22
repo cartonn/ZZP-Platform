@@ -118,6 +118,16 @@ describe("PROCESSING_REGISTER", () => {
     expect(certActivity?.sensitive).toBe(true);
   });
 
+  it("no-show-melding & governance staat geregistreerd en is gevoelig (art. 9 AVG — vrije-tekstreden)", () => {
+    // De no-show-governanceflow (NoShowReport) verwerkt een vrije-tekstreden die onbedoeld een
+    // gezondheids-/incapaciteitsreden kan bevatten; die verwerking hoort in het art. 30-register te
+    // staan met `sensitive: true`, net als de verificatieflow.
+    const noShow = PROCESSING_REGISTER.find((a) => a.key === "no-show-melding-governance");
+    expect(noShow).toBeDefined();
+    expect(noShow?.sensitive).toBe(true);
+    expect(RETENTION_SCHEDULE.some((r) => r.key === "no-show-meldingen")).toBe(true);
+  });
+
   it("facturatie heeft bewaartermijn van 7 jaar (fiscale bewaarplicht)", () => {
     const facturatie = PROCESSING_REGISTER.find(
       (a) => a.key === "facturatie-financiele-administratie",
