@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Benodigd wekelijks tempo tot het urencriterium (ZZP'er, /inzicht) (2026-07-22, PR #877)** —
+> de Urencriterium-kaart op `/inzicht` (1.225 uur → zelfstandigenaftrek) toonde bij achterstand alleen "nog X uur" +
+> een indirecte-uren-tip, geen concreet haalbaarheids-antwoord. Nu een **benodigd-weektempo** ("houd ≈ Y uur/week aan tot
+> eind jaar") + **haalbaarheidsoordeel** (Nog haalbaar ≤25 u/wk / Ambitieus tempo ≤40 u/wk / Dit jaar niet meer) als
+> glanceable Badge naast het percentage + verrijkte uitlegzin. Pure motor-uitbreiding: `hoursCriterion` (`hours-criterion.ts`)
+> kreeg `weeksRemaining` + `hoursPerWeekNeeded` (deelt op de exacte resterende weken → geen onderschatting aan het jaareinde;
+> guard tegen deling door ~0); `hoursPaceFeasibility` (`hours-criterion-summary.ts`) classificeert op het benodigde tempo.
+> Read-only afleiding op de reeds-getelde uren — geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak;
+> indicatief (urencriterium blijft mensenwerk). +9 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — cross-origin-isolatie (COOP/CORP) + Permissions-Policy-hardening (2026-07-22, PR #875)** —
 > security-headers-hardening voor de pre-livegang-pentest (MENSENWERK §5d). De statische headers stonden al sterk
 > (HSTS+preload, X-Frame-Options DENY, nosniff) en de CSP draait per request met nonce, maar drie moderne isolatie-lagen
