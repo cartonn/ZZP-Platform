@@ -11,12 +11,44 @@ import { URENCRITERIUM_HOURS } from "@/lib/tax/config";
 
 export { URENCRITERIUM_HOURS };
 
+/**
+ * Haalbaarheid van het criterium op het benodigde resttempo:
+ * - `gehaald` — de grens is al bereikt;
+ * - `op-koers` — de lineaire prognose haalt de grens (huidig tempo volstaat);
+ * - `haalbaar` — achter, maar met een rustig weektempo nog in te lopen;
+ * - `ambitieus` — achter; vergt een fors weektempo;
+ * - `onhaalbaar` — dit jaar realistisch niet meer te halen (geen weken meer of >40 u/week nodig).
+ */
+export type HoursPaceFeasibility = "gehaald" | "op-koers" | "haalbaar" | "ambitieus" | "onhaalbaar";
+
 export interface HoursCriterionSummary extends HoursCriterion {
   year: number;
   /** true = de ZZP'er heeft dit jaar nog geen enkel uur geboekt (directe + indirecte = 0). */
   noActivity: boolean;
-  /** Eén uitlegzin, afhankelijk van de stand (gehaald / op koers / achter). */
+  /** Haalbaarheidsoordeel op basis van het benodigde resttempo. */
+  feasibility: HoursPaceFeasibility;
+  /** Eén uitlegzin, afhankelijk van de stand (gehaald / op koers / achter + tempo). */
   hint: string;
+}
+
+/** Bovengrenzen (uur/week) voor de haalbaarheidsclassificatie bij achterstand. */
+const HOURS_PER_WEEK_COMFORTABLE = 25;
+const HOURS_PER_WEEK_MAX = 40;
+
+/**
+ * Vertaalt de urencriterium-stand naar een haalbaarheidsoordeel op het benodigde weektempo.
+ * Pure functie — los testbaar. Een al-gehaald criterium is `gehaald`, een prognose die de grens
+ * haalt `op-koers`; anders bepaalt `hoursPerWeekNeeded` (t.o.v. de resterende weken) of het nog
+ * rustig (`haalbaar`), fors (`ambitieus`) of dit jaar niet meer (`onhaalbaar`) is.
+ */
+export function hoursPaceFeasibility(criterion: HoursCriterion): HoursPaceFeasibility {
+  if (criterion.met) return "gehaald";
+  if (criterion.projectedMet) return "op-koers";
+  if (criterion.weeksRemaining <= 0 || criterion.hoursPerWeekNeeded > HOURS_PER_WEEK_MAX) {
+    return "onhaalbaar";
+  }
+  if (criterion.hoursPerWeekNeeded > HOURS_PER_WEEK_COMFORTABLE) return "ambitieus";
+  return "haalbaar";
 }
 
 /**
@@ -38,7 +70,11 @@ export function hoursCriterionHint(criterion: HoursCriterion): string {
   if (criterion.projectedMet) {
     return `Op je huidige koers haal je de grens ruim (prognose ${criterion.projectedTotal} uur). Nog ${criterion.remainingHours} uur te gaan.`;
   }
-  return `Nog ${criterion.remainingHours} uur tot de zelfstandigenaftrek. Registreer je indirecte uren (acquisitie, administratie, scholing, reistijd) om je aftrek veilig te stellen.`;
+  const pace = `≈ ${criterion.hoursPerWeekNeeded} uur/week`;
+  if (hoursPaceFeasibility(criterion) === "onhaalbaar") {
+    return `Nog ${criterion.remainingHours} uur tot de zelfstandigenaftrek — op de resterende weken (${pace}) is dat dit jaar realistisch niet meer te halen. Registreer je indirecte uren (acquisitie, administratie, scholing, reistijd) om zo dicht mogelijk bij de grens te komen.`;
+  }
+  return `Nog ${criterion.remainingHours} uur tot de zelfstandigenaftrek — houd ${pace} aan tot het eind van het jaar. Registreer ook je indirecte uren (acquisitie, administratie, scholing, reistijd) om je aftrek veilig te stellen.`;
 }
 
 /**
@@ -80,6 +116,7 @@ export async function getHoursCriterionSummary(
     ...criterion,
     year,
     noActivity: directHours + indirectHours === 0,
+    feasibility: hoursPaceFeasibility(criterion),
     hint: hoursCriterionHint(criterion),
   };
 }

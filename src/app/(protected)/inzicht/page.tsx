@@ -42,7 +42,9 @@ import {
   getHoursCriterionSummary,
   hoursProgressPercent,
   type HoursCriterionSummary,
+  type HoursPaceFeasibility,
 } from "@/lib/tax/hours-criterion-summary";
+import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = { title: "Inzicht · ZZP Platform" };
 
@@ -121,6 +123,19 @@ function StatusDonutWidget({
  * Urencriterium-kaart (1.225 uur → zelfstandigenaftrek): voortgangsbalk + één uitlegzin.
  * De stand komt server-side uit `getHoursCriterionSummary` (hergebruikt de bestaande telling).
  */
+/**
+ * Haalbaarheids-pill: alleen bij achterstand (niet gehaald én prognose haalt de grens niet). Vertaalt
+ * het benodigde weektempo naar een glanceable oordeel. `gehaald`/`op-koers` tonen geen pill — die
+ * standen spreken al positief uit de uitlegzin.
+ */
+const FEASIBILITY_PILL: Partial<
+  Record<HoursPaceFeasibility, { label: string; variant: "accent" | "warning" | "danger" }>
+> = {
+  haalbaar: { label: "Nog haalbaar", variant: "accent" },
+  ambitieus: { label: "Ambitieus tempo", variant: "warning" },
+  onhaalbaar: { label: "Dit jaar niet meer", variant: "danger" },
+};
+
 function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
   const pct = hoursProgressPercent(summary);
   const tone = summary.met
@@ -128,6 +143,7 @@ function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
     : summary.projectedMet
       ? "bg-primary"
       : "bg-muted-foreground";
+  const pill = summary.noActivity ? undefined : FEASIBILITY_PILL[summary.feasibility];
   return (
     <BiWidget
       title="Urencriterium"
@@ -152,8 +168,13 @@ function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
               van {summary.targetHours.toLocaleString("nl-NL")} uur geboekt in {summary.year}
             </span>
           </p>
-          <span className="shrink-0 font-mono text-sm tabular-nums text-muted-foreground">
-            {pct}%
+          <span className="flex shrink-0 items-center gap-2">
+            {pill && (
+              <Badge variant={pill.variant} className="whitespace-nowrap">
+                {pill.label}
+              </Badge>
+            )}
+            <span className="font-mono text-sm tabular-nums text-muted-foreground">{pct}%</span>
           </span>
         </div>
         <div

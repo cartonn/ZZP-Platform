@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — ontzorging: benodigd wekelijks tempo tot het urencriterium (ZZP'er, /inzicht)
+
+**Wat:** de Urencriterium-kaart op `/inzicht` (1.225 uur → zelfstandigenaftrek) toonde bij achterstand
+alleen "nog X uur" + een indirecte-uren-tip — geen concreet, actiegericht antwoord op "haal ik het nog,
+en wat kost dat me per week?". Toegevoegd: een **benodigd-weektempo** ("houd ≈ Y uur/week aan tot het
+eind van het jaar") met een **haalbaarheidsoordeel** (Nog haalbaar / Ambitieus tempo / Dit jaar niet
+meer), zodat de ZZP'er kan sturen i.p.v. schrikken. Benchmark: urenregistratie in Jortt/Moneybird toont
+pace-to-target.
+
+- **`src/lib/tax/hours-criterion.ts`** — pure motor uitgebreid met `weeksRemaining` (hele weken tot
+  31 dec) + `hoursPerWeekNeeded` (resterende uren / exacte resterende weken, naar boven afgerond;
+  0 zodra gehaald). Deelt op de exacte weken (echte pace), niet op hele weken — voorkomt onderschatting
+  aan het jaareinde. Deelt nooit door ~0 (guard bij <1 dag resterend).
+- **`src/lib/tax/hours-criterion-summary.ts`** — nieuwe pure `hoursPaceFeasibility` (gehaald / op-koers /
+  haalbaar ≤25 u/wk / ambitieus ≤40 u/wk / onhaalbaar) + `feasibility`-veld op de summary; de achterstand-
+  hint noemt nu het benodigde weektempo en bij onhaalbaar dat het dit jaar realistisch niet meer lukt.
+- **`src/app/(protected)/inzicht/page.tsx`** — glanceable haalbaarheids-`Badge` naast het percentage
+  (alleen bij achterstand; op-koers/gehaald spreken al positief uit de bestaande uitlegzin).
+- **Grens/scope:** puur, deterministisch, read-only afleiding op de reeds-getelde uren. Geen extra query,
+  geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Indicatief (urencriterium blijft mensenwerk).
+- **Tests:** +4 in `hours-criterion.test.ts` (weken/tempo bij achterstand; gehaald → 0; jaareinde →
+  0 weken + >40 u/wk), +5 in `hours-criterion-summary.test.ts` (feasibility gehaald/op-koers/haalbaar/
+  ambitieus + hint-tempo + onhaalbaar-tekst). Gate: typecheck ✓ · lint ✓ (0 warnings) · test ✓ · build ✓ ·
+  prettier ✓.
+
 ## 2026-07-22 — administratie-ontzorging: per-relatie (debiteur/crediteur) rollup op /openstaand
 
 **Wat:** de openstaande-posten-pagina (`/openstaand`) toonde alleen een platte, op-ouderdom-gesorteerde

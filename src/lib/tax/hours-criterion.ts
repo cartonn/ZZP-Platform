@@ -26,6 +26,8 @@ export interface HoursCriterion {
   projectedTotal: number; //     prognose totaal eind jaar (lineair geëxtrapoleerd)
   projectedMet: boolean; //      gaat het op deze koers gehaald worden?
   progressBps: number; //        voortgang 0–10000 (gecapt op 10000)
+  weeksRemaining: number; //     hele weken tot 31 december (afgerond, min 0)
+  hoursPerWeekNeeded: number; // benodigd tempo/week om het criterium nog te halen (0 als gehaald)
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -49,15 +51,33 @@ export function hoursCriterion(input: HoursInput): HoursCriterion {
   const projectedTotal = Math.round((totalHours / elapsed) * totalDays);
   const progressBps = Math.min(10000, Math.round((totalHours / targetHours) * 10000));
 
+  const remainingHours = Math.max(0, targetHours - totalHours);
+  const met = totalHours >= targetHours;
+
+  // Resterend tempo: hoeveel uur per week nog nodig is om vóór het jaareinde de grens te halen.
+  // We delen op de exacte resterende weken (echte pace, niet afgerond op hele weken — dat zou de
+  // benodigde inzet aan het jaareinde onderschatten). `weeksRemaining` is de afgeronde weergave.
+  const daysRemaining = Math.max(0, (yearEnd.getTime() - input.now.getTime()) / MS_PER_DAY);
+  const weeksRemainingExact = daysRemaining / 7;
+  const weeksRemaining = Math.max(0, Math.round(weeksRemainingExact));
+  const hoursPerWeekNeeded =
+    met || remainingHours === 0
+      ? 0
+      : weeksRemainingExact >= 1 / 7 // nog minstens ~1 dag te gaan
+        ? Math.ceil(remainingHours / weeksRemainingExact)
+        : remainingHours; // minder dan een dag → de hele rest zou "deze week" moeten
+
   return {
     directHours,
     indirectHours,
     totalHours,
     targetHours,
-    remainingHours: Math.max(0, targetHours - totalHours),
-    met: totalHours >= targetHours,
+    remainingHours,
+    met,
     projectedTotal,
     projectedMet: projectedTotal >= targetHours,
     progressBps,
+    weeksRemaining,
+    hoursPerWeekNeeded,
   };
 }

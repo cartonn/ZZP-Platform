@@ -53,4 +53,39 @@ describe("hoursCriterion", () => {
     });
     expect(r.totalHours).toBe(0);
   });
+
+  it("berekent resterende weken en benodigd weektempo bij achterstand", () => {
+    // Begin juli, 600 uur → 625 uur te gaan, ~26 weken tot 31 dec.
+    const r = hoursCriterion({
+      directHours: 600,
+      indirectHours: 0,
+      now: new Date("2026-07-02T12:00:00Z"),
+    });
+    expect(r.weeksRemaining).toBeGreaterThanOrEqual(25);
+    expect(r.weeksRemaining).toBeLessThanOrEqual(27);
+    // Benodigd tempo = resterende uren / exacte resterende weken, naar boven afgerond.
+    expect(r.hoursPerWeekNeeded).toBeGreaterThan(0);
+    expect(r.hoursPerWeekNeeded).toBeGreaterThanOrEqual(Math.ceil(625 / 27));
+    expect(r.hoursPerWeekNeeded).toBeLessThanOrEqual(Math.ceil(625 / 25));
+  });
+
+  it("gehaald criterium: geen benodigd weektempo meer", () => {
+    const r = hoursCriterion({
+      directHours: 1300,
+      indirectHours: 0,
+      now: new Date("2026-07-02T12:00:00Z"),
+    });
+    expect(r.met).toBe(true);
+    expect(r.hoursPerWeekNeeded).toBe(0);
+  });
+
+  it("vlak voor het jaareinde met grote achterstand: onhaalbaar hoog tempo, 0 hele weken", () => {
+    const r = hoursCriterion({
+      directHours: 200,
+      indirectHours: 0,
+      now: new Date("2026-12-28T12:00:00Z"),
+    });
+    expect(r.weeksRemaining).toBe(0);
+    expect(r.hoursPerWeekNeeded).toBeGreaterThan(40);
+  });
 });
