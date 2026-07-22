@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — routine: "Afwezig t/m X" beschikbaarheid zichtbaar voor opdrachtgevers
+
+**Wat:** een ZZP'er die zich expliciet "niet beschikbaar / met vakantie t/m X" zet (een UNAVAILABLE-
+venster dat nu dekt, zonder later inzetbaar venster) verdween stil van de opdrachtgever-schermen:
+`summarizeAvailability` gaf `null` → de freelancer-discovery-kaart en het profiel toonden niets,
+ononderscheidbaar van "geen agenda gedeeld". Erger: de scalar-fallback (`FreelancerProfile.availability`)
+kon zelfs een misleidend groen "Direct beschikbaar" tonen tijdens de vakantie. Malt ("away"), Temper en
+Pidz tonen dit wél. Nu is de afwezigheid expliciet zichtbaar als muted **"Afwezig t/m X"** — de
+opdrachtgever verspilt geen tijd op iemand die pas over weken terug is; de ZZP'er ziet dat zijn
+afwezigheid daadwerkelijk gecommuniceerd wordt.
+
+- **Pure kern** `src/lib/availability.ts`: `awayUntil(windows, now)` → inclusieve einddatum van het
+  UNAVAILABLE-venster dat `now` dekt (láátste einddatum wint bij overlap), `null` als niet nu afwezig;
+  `summarizeAway` → "Afwezig t/m 15 aug 2026". Tegenhanger van `summarizeAvailability`; een afwezige
+  ZZP'er is géén "beschikbaar"-signaal (kleuren/velden gescheiden).
+- **Discovery** `src/lib/freelancer-search.ts`: `FreelancerCard.awaySummary` (server-side
+  voorgeformatteerd, geen Date over de client-grens). De **misleidende scalar-fallback wordt
+  onderdrukt** tijdens een afwezigheidsvenster; `availabilitySummary` blijft puur het groene signaal,
+  dus de `availableOnly`-filter + `available`-sortering sluiten een afwezige ZZP'er correct uit.
+  Render in `freelancer-browse.tsx` als muted `text-warning` regel met `CalendarOff`-icoon.
+- **Profiel** `src/components/profile/profile-screen.tsx`: "Afwezig t/m X"-chip in de header (náást de
+  beschikbaarheidsbadge — voorkomt dat een oud groen "Beschikbaar" een vakantie maskeert) + regel in
+  de beschikbaarheid-tab.
+- **Gate-unblocker (security):** main's `audit`-poort was rood door net-gepubliceerde high-severity
+  libvips-CVE's in `sharp` < 0.35.0 (transitief via `next@15.5.19`, sharp 0.34.5). `overrides.sharp:
+^0.35.3` → prod-audit (`npm audit --audit-level=high --omit=dev`) weer 0 vulnerabilities. Nodig omdat
+  de PR-branch anders zijn eigen audit-check niet haalt.
+- **Tests:** `availability.test.ts` (+6: `awayUntil`/`summarizeAway`) + `freelancer-search.test.ts`
+  (fixtures met `awaySummary`, afwezige ZZP'er valt uit `availableOnly`). Gate: typecheck, lint
+  (0 warnings), test (**4733 passed**, +7), build, prettier groen; CI-poort via PR #866.
+
 ## 2026-07-21 — routine: dedup dubbeltelling acute+stale dienst in bemiddelaar-badge
 
 **Wat:** het geparkeerde LOW-gat (persona-sweep, DOEL 1b) gedicht — een ongevulde PUBLISHED-dienst

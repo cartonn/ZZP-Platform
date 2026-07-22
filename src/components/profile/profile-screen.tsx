@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, Calendar, MapPin } from "lucide-react";
+import { AlertTriangle, Calendar, CalendarOff, MapPin } from "lucide-react";
 import { currentActor } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
 import { profileVisibleTo, computeFreelancerCompleteness } from "@/lib/profile";
 import { tenantEntityVisibleTo } from "@/lib/tenancy";
-import { summarizeAvailability } from "@/lib/availability";
+import { summarizeAvailability, summarizeAway } from "@/lib/availability";
 import { computeTrustLevel } from "@/lib/trust";
 import { mandatoryDocuments, MANDATORY_CREDENTIAL_TYPES } from "@/lib/mandatory-documents";
 import { computeEngageability } from "@/lib/engageability";
@@ -264,9 +264,14 @@ export async function ProfileScreen({
 
   const availability = AVAILABILITY[profile.availability as Availability];
   const languages = parseLanguages(profile.languages);
-  const availabilitySummary = summarizeAvailability(
-    profile.availabilityWindows.map((w) => ({ ...w, type: w.type as AvailabilityWindowType })),
-  );
+  const availabilityWindows = profile.availabilityWindows.map((w) => ({
+    ...w,
+    type: w.type as AvailabilityWindowType,
+  }));
+  const availabilitySummary = summarizeAvailability(availabilityWindows);
+  // Expliciete afwezigheid ("Afwezig t/m X") — alleen als er nu geen inzetbaar venster is, zodat het
+  // niet vermengt met een groen "beschikbaar"-signaal. Maakt een vakantie zichtbaar i.p.v. stil weg.
+  const awaySummary = availabilitySummary ? null : summarizeAway(availabilityWindows);
   const now = Date.now();
   const DAY = 86_400_000;
   // Geldige (niet-verlopen) geverifieerde certificaten. Het vertrouwensniveau telt ze ALLE — het is
@@ -364,6 +369,12 @@ export async function ProfileScreen({
                 <Badge variant={availability.variant} className="border-transparent bg-white">
                   {t(availability.label)}
                 </Badge>
+                {awaySummary && (
+                  <span className="inline-flex items-center gap-1 rounded-full border-transparent bg-white px-2.5 py-0.5 text-xs font-medium text-warning">
+                    <CalendarOff className="size-3.5" aria-hidden />
+                    {awaySummary}
+                  </span>
+                )}
                 <TrustBadge level={trust.level} className="border-transparent bg-white" />
                 {/* Blokkerende inzetbaarheidsstatus — alleen voor de eigenaar, met doorklik naar de
                     ontbrekende stap. Voorkomt dat "Beschikbaar" + "Profiel compleet" een niet-inzetbaar
@@ -762,6 +773,12 @@ export async function ProfileScreen({
               <Badge variant={availability.variant}>{t(availability.label)}</Badge>
             </div>
             {availabilitySummary && <p className="mt-2 text-sm">{availabilitySummary}</p>}
+            {awaySummary && (
+              <p className="mt-2 flex items-center gap-1.5 text-sm text-warning">
+                <CalendarOff className="size-3.5 shrink-0" aria-hidden />
+                {awaySummary}
+              </p>
+            )}
             {profile.availabilityWindows.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">
                 {t("Geen beschikbaarheidsvensters gedeeld.")}

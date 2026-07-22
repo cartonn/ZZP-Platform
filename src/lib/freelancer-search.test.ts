@@ -16,6 +16,7 @@ const sanne: FreelancerCard = {
   skillLabels: ["React", "TypeScript"],
   trustLevel: "DEELS",
   availabilitySummary: "Beschikbaar t/m 2026-06-30",
+  awaySummary: null,
   hourlyRate: 85,
   completeness: 80,
   trackRecord: { completedCollaborations: 3, approvedHours: 120 },
@@ -32,6 +33,7 @@ const jan: FreelancerCard = {
   skillLabels: ["Node.js"],
   trustLevel: "BASIS",
   availabilitySummary: null,
+  awaySummary: "Afwezig t/m 20 jun 2026",
   hourlyRate: 75,
   completeness: 40,
   trackRecord: { completedCollaborations: 0, approvedHours: 0 },
@@ -127,6 +129,7 @@ describe("sortFreelancers", () => {
     name: "Piet Klaassen",
     trustLevel: "VOLLEDIG",
     availabilitySummary: "Direct beschikbaar",
+    awaySummary: null,
     hourlyRate: 100,
     trackRecord: { completedCollaborations: 5, approvedHours: 200 },
   };

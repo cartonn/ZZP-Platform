@@ -84,6 +84,38 @@ export function summarizeAvailability(
     : `${label} vanaf ${formatDateShortNl(w.startDate)}`;
 }
 
+/**
+ * De inclusieve einddatum van de afwezigheid wanneer `now` in een UNAVAILABLE-venster valt —
+ * het venster met de láátste einddatum wint (aaneengesloten of overlappende vakantieperiodes tellen
+ * als één afwezigheid t/m de verste datum). `null` als de ZZP'er nu niet expliciet onbeschikbaar is.
+ *
+ * Dit is de tegenhanger van `summarizeAvailability` voor het gat dat die openlaat: zit iemand nu in
+ * een "niet beschikbaar"-periode zónder later inzetbaar venster, dan geeft `summarizeAvailability`
+ * `null` en verdween de vakantie stil van de opdrachtgever-schermen. `awayUntil` maakt die afwezigheid
+ * expliciet zichtbaar ("Afwezig t/m X") i.p.v. ononderscheidbaar van "geen agenda gedeeld".
+ */
+export function awayUntil(windows: readonly WindowLike[], now: Date = new Date()): Date | null {
+  const nowMs = now.getTime();
+  const covering = windows.filter((w) => w.type === "UNAVAILABLE" && covers(w, nowMs));
+  if (covering.length === 0) return null;
+  return covering.reduce((latest, w) =>
+    w.endDate.getTime() > latest.endDate.getTime() ? w : latest,
+  ).endDate;
+}
+
+/**
+ * Korte NL-samenvatting van de afwezigheid ("Afwezig t/m 15 aug 2026"), of `null` als de ZZP'er nu
+ * niet expliciet onbeschikbaar is. Bedoeld als muted signaal náást (niet vermengd met) de groene
+ * `summarizeAvailability`: een afwezige ZZP'er is géén "beschikbaar"-signaal.
+ */
+export function summarizeAway(
+  windows: readonly WindowLike[],
+  now: Date = new Date(),
+): string | null {
+  const until = awayUntil(windows, now);
+  return until ? `Afwezig t/m ${formatDateShortNl(until)}` : null;
+}
+
 /** Versheid van de gedeelde beschikbaarheidsagenda. */
 export type AvailabilityFreshnessStatus = "fresh" | "expired" | "empty";
 
