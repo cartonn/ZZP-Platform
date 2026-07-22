@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { MapPin, Search, Calendar, Euro, CircleCheck, Clock } from "lucide-react";
+import { MapPin, Search, Calendar, CalendarOff, Euro, CircleCheck, Clock } from "lucide-react";
 import {
   applyFreelancerFilters,
   sortFreelancers,
@@ -194,11 +194,18 @@ function FreelancerCardItem({ card: f }: { card: FreelancerCard }) {
             <Euro className="h-3 w-3 shrink-0" aria-hidden />€ {f.hourlyRate} / uur
           </span>
         )}
-        {f.availabilitySummary && (
+        {f.availabilitySummary ? (
           <span className="flex items-center gap-1 text-success">
             <Calendar className="h-3 w-3 shrink-0" aria-hidden />
             {f.availabilitySummary}
           </span>
+        ) : (
+          f.awaySummary && (
+            <span className="flex items-center gap-1 text-warning">
+              <CalendarOff className="h-3 w-3 shrink-0" aria-hidden />
+              {f.awaySummary}
+            </span>
+          )
         )}
       </div>
 

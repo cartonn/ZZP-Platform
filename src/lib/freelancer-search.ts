@@ -3,7 +3,7 @@
 
 import { prisma } from "@/lib/db";
 import { discoverableFreelancerWhere } from "@/lib/freelancer-visibility";
-import { summarizeAvailability } from "@/lib/availability";
+import { summarizeAvailability, summarizeAway } from "@/lib/availability";
 import { computeTrustLevel, type TrustLevel } from "@/lib/trust";
 import { mandatoryDocuments } from "@/lib/mandatory-documents";
 import { type Availability, type CredentialType, type CredentialStatus } from "@/lib/enums";
@@ -27,6 +27,13 @@ export interface FreelancerCard {
   skillLabels: string[];
   trustLevel: TrustLevel;
   availabilitySummary: string | null;
+  /**
+   * Afwezigheidssignaal ("Afwezig t/m X"), of `null`. Staat los van `availabilitySummary` (dat blijft
+   * het groene "beschikbaar"-signaal): een afwezige ZZP'er telt niet als beschikbaar, maar de vakantie
+   * moet wél zichtbaar zijn i.p.v. stil te verdwijnen. Server-side voorgeformatteerd (net als
+   * `availabilitySummary`) → geen Date over de server/client-grens.
+   */
+  awaySummary: string | null;
   hourlyRate: number | null;
   completeness: number;
   trackRecord: FreelancerTrackRecord;
@@ -211,17 +218,19 @@ export async function getAllPublicFreelancers(
     // ZZP'er die "Direct beschikbaar" koos maar (nog) geen venster invulde ten onrechte onzichtbaar
     // bij "Alleen beschikbaar" en zonder badge, terwijl de matching-engine hem wél als beschikbaar
     // telt. Spiegelt de scalar-fallback in matching.ts.
+    const windows = p.availabilityWindows as {
+      startDate: Date;
+      endDate: Date;
+      type: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
+    }[];
+    const windowSummary = summarizeAvailability(windows, now);
+    // Zit de ZZP'er nu in een expliciet "niet beschikbaar"-venster (en dekt er geen inzetbaar venster
+    // nu/straks)? Dan is de vakantie het waarheidssignaal. Onderdruk in dat geval de scalar-terugval —
+    // anders maskeert een oud "Direct beschikbaar"-veld de afwezigheid met een misleidend groen label.
+    const awaySummary = windowSummary ? null : summarizeAway(windows, now);
     const availability =
-      summarizeAvailability(
-        p.availabilityWindows as {
-          startDate: Date;
-          endDate: Date;
-          type: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
-        }[],
-        now,
-      ) ??
-      SCALAR_AVAILABILITY_SUMMARY[p.availability as Availability] ??
-      null;
+      windowSummary ??
+      (awaySummary ? null : (SCALAR_AVAILABILITY_SUMMARY[p.availability as Availability] ?? null));
 
     const trackRecord: FreelancerTrackRecord = {
       completedCollaborations: completedMap.get(p.id) ?? 0,
@@ -239,6 +248,7 @@ export async function getAllPublicFreelancers(
       skillLabels: p.skills.map((s) => s.skill.name),
       trustLevel: trust.level,
       availabilitySummary: availability,
+      awaySummary,
       hourlyRate: p.hourlyRate,
       completeness: p.completeness,
       trackRecord,

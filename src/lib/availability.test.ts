@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   availabilityOnDate,
+  awayUntil,
   currentOrNextAvailable,
   summarizeAvailability,
   summarizeAvailabilityFreshness,
+  summarizeAway,
   upcomingWindows,
   type WindowLike,
 } from "@/lib/availability";
@@ -105,6 +107,45 @@ describe("summarizeAvailability", () => {
   });
   it("null als er niets inzetbaars is", () => {
     expect(summarizeAvailability([], now)).toBeNull();
+  });
+});
+
+describe("awayUntil", () => {
+  it("geeft de einddatum als een UNAVAILABLE-venster nu dekt", () => {
+    const away: WindowLike[] = [
+      { startDate: d("2026-06-10"), endDate: d("2026-06-20"), type: "UNAVAILABLE" },
+    ];
+    expect(awayUntil(away, now)).toEqual(d("2026-06-20"));
+  });
+  it("null als er geen UNAVAILABLE-venster nu dekt", () => {
+    expect(awayUntil(windows, now)).toBeNull(); // dekkende venster is AVAILABLE
+    expect(awayUntil([], now)).toBeNull();
+  });
+  it("een toekomstig UNAVAILABLE-venster telt niet als 'nu afwezig'", () => {
+    const future: WindowLike[] = [
+      { startDate: d("2026-08-01"), endDate: d("2026-09-01"), type: "UNAVAILABLE" },
+    ];
+    expect(awayUntil(future, now)).toBeNull();
+  });
+  it("kiest de láátste einddatum bij overlappende afwezigheidsperiodes", () => {
+    const overlap: WindowLike[] = [
+      { startDate: d("2026-06-01"), endDate: d("2026-06-18"), type: "UNAVAILABLE" },
+      { startDate: d("2026-06-10"), endDate: d("2026-06-30"), type: "UNAVAILABLE" },
+    ];
+    expect(awayUntil(overlap, now)).toEqual(d("2026-06-30"));
+  });
+});
+
+describe("summarizeAway", () => {
+  it("'Afwezig t/m' als de ZZP'er nu onbeschikbaar is", () => {
+    const away: WindowLike[] = [
+      { startDate: d("2026-06-10"), endDate: d("2026-06-20"), type: "UNAVAILABLE" },
+    ];
+    expect(summarizeAway(away, now)).toBe("Afwezig t/m 20 jun 2026");
+  });
+  it("null als de ZZP'er nu niet expliciet onbeschikbaar is", () => {
+    expect(summarizeAway(windows, now)).toBeNull();
+    expect(summarizeAway([], now)).toBeNull();
   });
 });
 
