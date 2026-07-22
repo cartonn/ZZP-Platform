@@ -52,7 +52,7 @@ import {
   runRateLimitSelfTest,
   type RateLimitSelfTestReport,
 } from "@/lib/services/ratelimit-selftest";
-import { getStorage } from "@/lib/services/storage";
+import { getStorage, resolveExpectedSse } from "@/lib/services/storage";
 import {
   runStorageSelfTest,
   SELFTEST_PREFIX,
@@ -90,6 +90,7 @@ export async function runStorageSelfTestAction(): Promise<StorageSelfTestState> 
     driver: getStorage(),
     driverMode,
     probeKey,
+    expectedSse: resolveExpectedSse(),
   });
 
   const meta = await requestMeta();
@@ -529,6 +530,7 @@ export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
           driver: getStorage(),
           driverMode,
           probeKey: `${SELFTEST_PREFIX}${randomUUID()}.txt`,
+          expectedSse: resolveExpectedSse(),
         });
         return {
           status: result.ok ? "pass" : "fail",

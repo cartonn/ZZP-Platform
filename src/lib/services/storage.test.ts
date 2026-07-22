@@ -8,6 +8,7 @@ import {
   generateStorageKey,
   getStorage,
   MAX_UPLOAD_BYTES,
+  resolveExpectedSse,
   resolveSignedUrlTtl,
   resolveSseParams,
   SIGNED_URL_TTL_DEFAULT,
@@ -204,5 +205,14 @@ describe("resolveSseParams (S3 encryption-at-rest)", () => {
   it("laat de SSE-header bewust weg bij 'none' (S3-compatibele opslag zonder SSE)", () => {
     process.env.STORAGE_S3_SSE = "none";
     expect(resolveSseParams()).toEqual({});
+  });
+
+  it("resolveExpectedSse leidt de verwachte modus af voor de zelftest-verificatie", () => {
+    delete process.env.STORAGE_S3_SSE;
+    expect(resolveExpectedSse()).toBe("AES256");
+    process.env.STORAGE_S3_SSE = "aws:kms";
+    expect(resolveExpectedSse()).toBe("aws:kms");
+    process.env.STORAGE_S3_SSE = "none";
+    expect(resolveExpectedSse()).toBe("none");
   });
 });
