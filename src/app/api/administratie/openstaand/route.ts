@@ -22,8 +22,8 @@ async function fetchOpenInvoices(actorId: string, isFreelancer: boolean): Promis
       collaboration: {
         select: {
           job: { select: { title: true } },
-          company: { select: { name: true } },
-          freelancer: { select: { user: { select: { name: true } } } },
+          company: { select: { id: true, name: true } },
+          freelancer: { select: { id: true, user: { select: { name: true } } } },
         },
       },
     },
@@ -43,10 +43,14 @@ async function fetchOpenInvoices(actorId: string, isFreelancer: boolean): Promis
       const counterpartyName = isFreelancer
         ? (inv.collaboration?.company.name ?? "—")
         : (inv.collaboration?.freelancer.user.name ?? "—");
+      const counterpartyId = isFreelancer
+        ? (inv.collaboration?.company.id ?? null)
+        : (inv.collaboration?.freelancer.id ?? null);
       return {
         id: inv.id,
         number,
         counterpartyName,
+        counterpartyId,
         jobTitle: inv.collaboration?.job.title ?? null,
         dueAt: inv.dueAt,
         amountCents: inv.totalCents,

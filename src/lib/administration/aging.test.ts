@@ -285,3 +285,87 @@ describe("agingCsv", () => {
     expect(dataLines[1]!.split(";")[0]).toBe(report.rows[1]!.number);
   });
 });
+
+// ---------------------------------------------------------------------------
+// relations rollup (per debiteur/crediteur)
+// ---------------------------------------------------------------------------
+
+describe("buildAgingReport — relations", () => {
+  it("groepeert facturen per tegenpartij-id en telt bedragen op", () => {
+    const invoices: OpenInvoice[] = [
+      makeInvoice({
+        id: "a1",
+        amountCents: 100_00,
+        counterpartyId: "c-a",
+        counterpartyName: "Alfa BV",
+        dueAt: daysFromNow(5),
+      }),
+      makeInvoice({
+        id: "a2",
+        amountCents: 250_00,
+        counterpartyId: "c-a",
+        counterpartyName: "Alfa BV",
+        dueAt: daysAgo(40),
+      }),
+      makeInvoice({
+        id: "b1",
+        amountCents: 300_00,
+        counterpartyId: "c-b",
+        counterpartyName: "Beta NV",
+        dueAt: daysFromNow(2),
+      }),
+    ];
+    const report = buildAgingReport(invoices, NOW);
+
+    expect(report.relations).toHaveLength(2);
+    const alfa = report.relations.find((r) => r.counterpartyId === "c-a")!;
+    expect(alfa.count).toBe(2);
+    expect(alfa.totalOpenCents).toBe(350_00);
+    expect(alfa.overdueCents).toBe(250_00); // alleen a2 is te laat
+    expect(alfa.overdueCount).toBe(1);
+    expect(alfa.maxDaysOverdue).toBe(40);
+    expect(alfa.worstBucket).toBe("d31_60");
+  });
+
+  it("sorteert relaties op te-laat-bedrag aflopend, dan openstaand bedrag", () => {
+    const invoices: OpenInvoice[] = [
+      // Groot openstaand maar niets te laat.
+      makeInvoice({
+        id: "big",
+        amountCents: 900_00,
+        counterpartyId: "c-big",
+        counterpartyName: "Groot BV",
+        dueAt: daysFromNow(10),
+      }),
+      // Kleiner openstaand maar wél te laat → moet eerst staan.
+      makeInvoice({
+        id: "late",
+        amountCents: 100_00,
+        counterpartyId: "c-late",
+        counterpartyName: "Traag BV",
+        dueAt: daysAgo(20),
+      }),
+    ];
+    const report = buildAgingReport(invoices, NOW);
+    expect(report.relations.map((r) => r.counterpartyId)).toEqual(["c-late", "c-big"]);
+  });
+
+  it("groepeert op naam als er geen id is en houdt relaties met verschillende naam gescheiden", () => {
+    const invoices: OpenInvoice[] = [
+      makeInvoice({ id: "n1", amountCents: 100_00, counterpartyName: "Zonder Id A" }),
+      makeInvoice({ id: "n2", amountCents: 150_00, counterpartyName: "Zonder Id A" }),
+      makeInvoice({ id: "n3", amountCents: 200_00, counterpartyName: "Zonder Id B" }),
+    ];
+    const report = buildAgingReport(invoices, NOW);
+    expect(report.relations).toHaveLength(2);
+    const a = report.relations.find((r) => r.counterpartyName === "Zonder Id A")!;
+    expect(a.counterpartyId).toBeNull();
+    expect(a.count).toBe(2);
+    expect(a.totalOpenCents).toBe(250_00);
+  });
+
+  it("lege report → geen relaties", () => {
+    const report = buildAgingReport([], NOW);
+    expect(report.relations).toEqual([]);
+  });
+});

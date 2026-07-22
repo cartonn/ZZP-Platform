@@ -19,6 +19,7 @@ export interface OpenInvoice {
   id: string;
   number: string; // weergavenummer
   counterpartyName: string; // tegenpartij (debiteur of crediteur)
+  counterpartyId?: string | null; // stabiele id van de tegenpartij (Company/Freelancer) — groepeer-sleutel
   jobTitle: string | null;
   dueAt: Date | null;
   amountCents: number;
@@ -55,13 +56,35 @@ export interface AgingBucketTotal {
   count: number;
 }
 
+/** Openstaand samengevat per tegenpartij (debiteur/crediteur) — relatiegericht overzicht. */
+export interface RelationSummary {
+  counterpartyId: string | null; // stabiele id indien bekend, anders null (op naam gegroepeerd)
+  counterpartyName: string;
+  totalOpenCents: number; // som van alle openstaande facturen van deze relatie
+  overdueCents: number; // waarvan te laat (bucket !== "notDue")
+  count: number; // aantal openstaande facturen
+  overdueCount: number; // aantal te late facturen
+  maxDaysOverdue: number; // langst openstaande factuur van deze relatie (0 = niets te laat)
+  worstBucket: AgingBucketKey; // zwaarste bucket die deze relatie raakt
+}
+
 export interface AgingReport {
   rows: AgingRow[]; // gesorteerd op daysOverdue aflopend (meest te laat eerst), dan amountCents aflopend
   buckets: AgingBucketTotal[]; // altijd alle 5 in AGING_BUCKETS-volgorde
+  relations: RelationSummary[]; // per tegenpartij, gesorteerd op te-laat-bedrag dan openstaand bedrag (aflopend)
   totalOpenCents: number; // som van alle amountCents
   overdueCents: number; // som van amountCents waar bucket !== "notDue"
   overdueCount: number; // aantal rijen waar bucket !== "notDue"
 }
+
+// Rang van een bucket voor "zwaarste bucket" (hoger = erger).
+const BUCKET_RANK: Record<AgingBucketKey, number> = {
+  notDue: 0,
+  d0_30: 1,
+  d31_60: 2,
+  d61_90: 3,
+  d90plus: 4,
+};
 
 /** Bouwt een ouderdomsanalyse over een lijst openstaande facturen. */
 export function buildAgingReport(invoices: readonly OpenInvoice[], now: Date): AgingReport {
@@ -94,7 +117,45 @@ export function buildAgingReport(invoices: readonly OpenInvoice[], now: Date): A
   const overdueCents = overdueRows.reduce((sum, r) => sum + r.amountCents, 0);
   const overdueCount = overdueRows.length;
 
-  return { rows, buckets, totalOpenCents, overdueCents, overdueCount };
+  // Per-relatie-rollup: groepeer op stabiele id indien bekend, anders op naam (voorkomt dat twee
+  // relaties met dezelfde naam samenvallen). De naam is puur weergave; de sleutel bepaalt de groep.
+  const relationMap = new Map<string, RelationSummary>();
+  for (const row of rows) {
+    const key = row.counterpartyId ? `id:${row.counterpartyId}` : `name:${row.counterpartyName}`;
+    const isOverdue = row.bucket !== "notDue";
+    let relation = relationMap.get(key);
+    if (!relation) {
+      relation = {
+        counterpartyId: row.counterpartyId ?? null,
+        counterpartyName: row.counterpartyName,
+        totalOpenCents: 0,
+        overdueCents: 0,
+        count: 0,
+        overdueCount: 0,
+        maxDaysOverdue: 0,
+        worstBucket: "notDue",
+      };
+      relationMap.set(key, relation);
+    }
+    relation.totalOpenCents += row.amountCents;
+    relation.count += 1;
+    if (isOverdue) {
+      relation.overdueCents += row.amountCents;
+      relation.overdueCount += 1;
+    }
+    if (row.daysOverdue > relation.maxDaysOverdue) relation.maxDaysOverdue = row.daysOverdue;
+    if (BUCKET_RANK[row.bucket] > BUCKET_RANK[relation.worstBucket]) {
+      relation.worstBucket = row.bucket;
+    }
+  }
+  // Meest te laat eerst, dan grootste openstaande bedrag, dan naam (stabiel/deterministisch).
+  const relations = [...relationMap.values()].sort((a, b) => {
+    if (b.overdueCents !== a.overdueCents) return b.overdueCents - a.overdueCents;
+    if (b.totalOpenCents !== a.totalOpenCents) return b.totalOpenCents - a.totalOpenCents;
+    return a.counterpartyName.localeCompare(b.counterpartyName, "nl");
+  });
+
+  return { rows, buckets, relations, totalOpenCents, overdueCents, overdueCount };
 }
 
 /** CSV-export van de openstaande posten. Kop: nummer;tegenpartij;opdracht;vervaldatum;dagen_te_laat;bucket;bedrag */
