@@ -138,6 +138,55 @@ describe("summarizeDebtors", () => {
   });
 });
 
+describe("summarizeDebtors — aanmaningsniveau per debiteur", () => {
+  it("houdt dunningLevel/label op null zonder te late factuur", () => {
+    const summary = summarizeDebtors([inv({ dueAt: new Date("2026-08-01T00:00:00Z") })], NOW);
+    const d = summary.debtors[0]!;
+    expect(d.dunningLevel).toBeNull();
+    expect(d.dunningLabel).toBeNull();
+    expect(d.worstOverdueDays).toBeNull();
+  });
+
+  it("classificeert een net-te-late factuur als Betalingsherinnering", () => {
+    // 2 dagen te laat (dueAt 2 juli 12:00, now 4 juli 12:00) → drempel REMINDER (0), < 14.
+    const summary = summarizeDebtors([inv({ dueAt: new Date("2026-07-02T12:00:00Z") })], NOW);
+    const d = summary.debtors[0]!;
+    expect(d.dunningLevel).toBe("REMINDER");
+    expect(d.dunningLabel).toBe("Betalingsherinnering");
+    expect(d.worstOverdueDays).toBe(2);
+  });
+
+  it("classificeert 20 dagen te laat als Eerste aanmaning", () => {
+    const summary = summarizeDebtors([inv({ dueAt: new Date("2026-06-14T12:00:00Z") })], NOW);
+    expect(summary.debtors[0]!.dunningLabel).toBe("Eerste aanmaning");
+  });
+
+  it("neemt het meest-geëscaleerde niveau over de te late facturen van dezelfde debiteur", () => {
+    const summary = summarizeDebtors(
+      [
+        inv({ companyId: "c1", dueAt: new Date("2026-07-02T12:00:00Z") }), // 2d → REMINDER
+        inv({ companyId: "c1", dueAt: new Date("2026-05-15T12:00:00Z") }), // 50d → FINAL_NOTICE
+      ],
+      NOW,
+    );
+    const d = summary.debtors[0]!;
+    expect(d.dunningLevel).toBe("FINAL_NOTICE");
+    expect(d.dunningLabel).toBe("Laatste aanmaning");
+    expect(d.worstOverdueDays).toBe(50);
+  });
+
+  it("laat een op-tijd factuur het niveau van een te late factuur bij dezelfde debiteur niet verlagen", () => {
+    const summary = summarizeDebtors(
+      [
+        inv({ companyId: "c1", dueAt: new Date("2026-06-14T12:00:00Z") }), // 20d → FIRST_NOTICE
+        inv({ companyId: "c1", dueAt: new Date("2026-08-01T00:00:00Z") }), // op tijd
+      ],
+      NOW,
+    );
+    expect(summary.debtors[0]!.dunningLevel).toBe("FIRST_NOTICE");
+  });
+});
+
 describe("shouldShowDebtorSummary", () => {
   it("toont bij meerdere debiteuren", () => {
     const summary = summarizeDebtors(

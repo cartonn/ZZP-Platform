@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Aanmaningsniveau (dunning-stap) per debiteur op /facturen (2026-07-22, PR #872)** —
+> het debiteuren-overzicht (`DebtorSummaryCard`, ZZP'er) toonde per opdrachtgever openstaand/te-laat-bedrag + ouderdom,
+> maar niet hóe ver een te late factuur op de aanmaningsladder staat (Betalingsherinnering → Eerste/Tweede/Laatste
+> aanmaning) — die stap leefde alleen op het factuurdetail. Nu een compacte niveau-regel per debiteur (meest-geëscaleerd
+> over zijn te late facturen), zodat de ZZP'er prioriteert wie hij het hardst moet nabellen. Pure `debtor-summary.ts`
+> (`DebtorRow.dunningLevel/dunningLabel/worstOverdueDays`) hergebruikt exact `currentDunningStage` (`payment-reminders.ts`,
+> zelfde bron als het detail → geen drift); label = config-data (`DUNNING_STAGES`), geen i18n. Wiring in
+> `debtor-summary-card.tsx` leunt op de al-geladen factuurlijst — geen extra query, geen schemawijziging, geen nieuw
+> mutatie/auth-oppervlak. +5 tests. Gate: typecheck, lint, unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Betaaltermijn-KPI (DSO) voor de ZZP'er op /facturen (2026-07-22, PR #871)** —
 > `/facturen` toonde de ZZP'er al per-opdrachtgever betaalreputatie, cashflow-vooruitblik, debiteuren-overzicht en
 > per-factuur "Verwacht rond"-projectie, maar nergens het portefeuille-brede retrospectieve kerngetal "hoe snel word ik
