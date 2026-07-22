@@ -134,7 +134,26 @@ export async function ProfileScreen({
 
   const profile = await prisma.freelancerProfile.findUnique({
     where: { id },
-    include: {
+    // Expliciete `select` (geen kale `include`) — dataminimalisatie (AVG art. 5(1)(c) +
+    // defense-in-depth). Dit is een deels PUBLIEKE, niet-geauthenticeerde route (/zzp/[id]); een kale
+    // `include` laadt ook privé-financiële velden (monthlyIncomeGoalCents, defaultMotivation,
+    // btwNumber) in servergeheugen, waarvan een toekomstige render-regel er stil één zou kunnen
+    // blootstellen. Alleen de velden die dit scherm werkelijk gebruikt worden geladen.
+    select: {
+      id: true,
+      userId: true,
+      headline: true,
+      bio: true,
+      hourlyRate: true,
+      availability: true,
+      location: true,
+      workMode: true,
+      maxTravelMinutes: true,
+      languages: true,
+      kvkNumber: true,
+      visibility: true,
+      createdAt: true,
+      tenantId: true,
       user: { select: { name: true, identityVerifiedAt: true, status: true } },
       skills: { include: { skill: { select: { name: true } } } },
       industries: { include: { industry: { select: { name: true } } } },

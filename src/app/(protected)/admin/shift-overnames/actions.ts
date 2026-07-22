@@ -11,7 +11,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole, type Actor } from "@/lib/authz";
 import { toSafeActionError } from "@/lib/safe-action-error";
-import { assertSameTenant } from "@/lib/tenancy";
+import { ownsViaTenant } from "@/lib/tenancy";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { assertHandoffTransition } from "@/lib/shift-handoff";
@@ -33,9 +33,15 @@ async function loadDecidableHandoff(handoffId: string, actor: Actor) {
       },
     },
   });
-  if (!handoff) throw new Error("Overname-aanvraag niet gevonden.");
-  // Tenant-isolatie: een franchiser beslist alleen binnen de eigen tenant; ADMIN mag alles.
-  assertSameTenant(actor, handoff.collaboration.job.tenantId);
+  // Tenant-isolatie fail-closed: een onbekende én een cross-tenant handoff geven IDENTIEK "niet
+  // gevonden" (CWE-203 / OWASP A01) — anders kan een franchiser via een onderscheidbare
+  // "Geen toegang"-melding aflezen dat een gegokt id bij een ándere bemiddeling hoort
+  // (existence-oracle). Spiegelt de fail-closed pariteit van createFranchiseDienst/addAfdelingStep.
+  // ADMIN mag alles. De statuscheck ("al beoordeeld") komt ná de tenant-poort, zodat een
+  // cross-tenant-status nooit lekt.
+  if (!handoff || !ownsViaTenant(actor, handoff.collaboration.job.tenantId)) {
+    throw new Error("Overname-aanvraag niet gevonden.");
+  }
   if (handoff.status !== "OPEN") throw new Error("Dit verzoek is al beoordeeld.");
   return handoff;
 }
