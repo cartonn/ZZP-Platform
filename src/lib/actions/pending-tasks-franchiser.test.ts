@@ -66,6 +66,9 @@ vi.mock("@/lib/db", () => ({
       ),
       count: vi.fn(async () => state.counts.publishedDiensten),
     },
+    // Open dienst-overnames (aparte tak) — hier leeg, zodat deze tests op de andere tenant-taken
+    // gefocust blijven. De dedicated regressietest staat in pending-tasks.shift-handoff.test.ts.
+    shiftHandoff: { findMany: vi.fn(async () => []) },
   },
 }));
 

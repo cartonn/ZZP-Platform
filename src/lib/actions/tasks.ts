@@ -87,7 +87,12 @@ export type PendingTask =
   | (TaskBase & { kind: "franchise-lead-followup" })
   | (TaskBase & { kind: "franchise-not-engageable"; profileId: string })
   | (TaskBase & { kind: "franchise-stale-service"; jobId: string })
-  | (TaskBase & { kind: "franchise-guided-setup"; step: string });
+  | (TaskBase & { kind: "franchise-guided-setup"; step: string })
+  | (TaskBase & {
+      kind: "shift-handoff-decide";
+      handoffId: string;
+      audience: "FRANCHISER" | "ADMIN";
+    });
 
 export type TaskKind = PendingTask["kind"];
 
@@ -977,4 +982,35 @@ export function franchiseGuidedSetupTasks(input: {
     resolver: "link",
     href: na.href,
   }));
+}
+
+/**
+ * Een ZZP'er kan een actieve inzet niet voortzetten en heeft die ter overname aangeboden (OPEN
+ * dienst-overname). De governance-partij is nu aan zet om de aanvraag te beoordelen: de bemiddelaar
+ * (tenant-eigenaar) óf een admin keurt goed/af (zie shift-handoff.ts). Zonder deze taak telde de
+ * nav-badge (`openHandoffs`/`openAdminHandoffs`, signals.ts) de aanvraag wél, maar zweeg het
+ * actiecentrum (/acties, dashboard-rail, badge-telling) erover — één-oppervlak-signaal (DOEL 1b).
+ * `audience` bepaalt de deep-link naar het beoordelingsscherm (bemiddelaar vs. admin), exact de
+ * href die de nav-badge gebruikt. Prioriteit gelijk aan een open dispuut: een governance-beslissing
+ * waar de tegenpartij op wacht. Resolver `link` — inspecteer-dan-beslis (afwijzen vereist een reden)
+ * gebeurt op het gedeelde governance-scherm, niet in één klik.
+ */
+export function shiftHandoffTask(
+  handoffId: string,
+  audience: "FRANCHISER" | "ADMIN",
+  jobTitle: string,
+  freelancerName: string,
+): PendingTask {
+  return {
+    kind: "shift-handoff-decide",
+    id: `shift-handoff-decide:${handoffId}`,
+    title: "Beoordeel de dienst-overname",
+    subtitle: `${jobTitle} · ${freelancerName} kan de inzet niet voortzetten`,
+    tone: "attention",
+    priority: P.disputeOpen, // governance-beslissing waar de ZZP'er op wacht (gelijk aan een open dispuut)
+    resolver: "link",
+    href: audience === "ADMIN" ? "/admin/shift-overnames" : "/franchise/shift-overnames",
+    handoffId,
+    audience,
+  };
 }

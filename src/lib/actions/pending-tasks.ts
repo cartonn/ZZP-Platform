@@ -60,6 +60,7 @@ import {
   franchiseNotEngageableTask,
   franchiseStaleDienstTask,
   franchiseGuidedSetupTasks,
+  shiftHandoffTask,
   clientComplianceTask,
   reviewLeaveTask,
   collaborationRenewalTask,
@@ -772,6 +773,7 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     freelancers,
     publishedDiensten,
     companiesWithoutDiensten,
+    openHandoffs,
   ] = await Promise.all([
     // Geverifieerde, nog-geldige certificaten van tenant-ZZP'ers die binnenkort verlopen — zelfde
     // venster als de roster-compliance-zegel op het bemiddelaar-dashboard (gte now, lte soon).
@@ -850,6 +852,23 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     prisma.freelancerProfile.count({ where: { tenantId } }),
     prisma.job.count({ where: { tenantId, status: "PUBLISHED" } }),
     prisma.company.count({ where: { tenantId, jobs: { none: { status: "PUBLISHED" } } } }),
+    // Open dienst-overname-aanvragen binnen de eigen tenant — exact dezelfde scoping als de
+    // nav-badge (`openHandoffs`, signals.ts): via de opdracht van de samenwerking. De bemiddelaar
+    // (tenant-eigenaar) is aan zet om te beoordelen (goedkeuren/afwijzen).
+    prisma.shiftHandoff.findMany({
+      where: { status: "OPEN", collaboration: { job: { tenantId } } },
+      select: {
+        id: true,
+        collaboration: {
+          select: {
+            job: { select: { title: true } },
+            freelancer: { select: { user: { select: { name: true } } } },
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+      take: MAX,
+    }),
   ]);
 
   // Geleide opzet: de eerstvolgende concrete opzet-stap(pen) zolang de franchise nog niet volledig
@@ -939,64 +958,100 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     tasks.push(franchiseStaleDienstTask(d.id, d.title, openDays));
   }
 
+  // Open dienst-overname-aanvragen binnen de tenant — de bemiddelaar beslist (goedkeuren/afwijzen).
+  // Eén taak per aanvraag; deep-link naar het gedeelde beoordelingsscherm (dezelfde href als de badge).
+  for (const h of openHandoffs)
+    tasks.push(
+      shiftHandoffTask(
+        h.id,
+        "FRANCHISER",
+        h.collaboration.job.title,
+        h.collaboration.freelancer.user.name ?? "ZZP'er",
+      ),
+    );
+
   return tasks;
 }
 
 async function adminTasks(): Promise<PendingTask[]> {
   const tasks: PendingTask[] = [];
-  const [creds, pendingUsers, disputes, deletions, noShowReports, noShowAtLimit, supportTickets] =
-    await Promise.all([
-      prisma.credential.findMany({
-        where: { status: "SUBMITTED" },
-        select: {
-          id: true,
-          title: true,
-          freelancerProfile: { select: { user: { select: { name: true } } } },
+  const [
+    creds,
+    pendingUsers,
+    disputes,
+    deletions,
+    noShowReports,
+    noShowAtLimit,
+    supportTickets,
+    openHandoffs,
+  ] = await Promise.all([
+    prisma.credential.findMany({
+      where: { status: "SUBMITTED" },
+      select: {
+        id: true,
+        title: true,
+        freelancerProfile: { select: { user: { select: { name: true } } } },
+      },
+      take: MAX,
+    }),
+    prisma.user.findMany({
+      where: { status: "PENDING" },
+      select: { id: true, name: true },
+      take: MAX,
+    }),
+    prisma.collaboration.findMany({
+      where: { disputedAt: { not: null } },
+      select: { id: true, job: { select: { title: true } } },
+      take: MAX,
+    }),
+    prisma.user.findMany({
+      where: { deletionRequestedAt: { not: null }, anonymizedAt: null, role: { not: "ADMIN" } },
+      select: { id: true, name: true },
+      take: MAX,
+    }),
+    // No-show-meldingen die op een oordeel wachten (gegrond/ongegrond).
+    prisma.noShowReport.findMany({
+      where: { verdict: "PENDING" },
+      select: {
+        id: true,
+        freelancer: { select: { user: { select: { name: true } } } },
+        collaboration: { select: { job: { select: { title: true } } } },
+      },
+      orderBy: { createdAt: "asc" },
+      take: MAX,
+    }),
+    // ZZP'ers op/over de grens van ongegronde no-shows → uitschrijf-taak (handmatig besluit).
+    prisma.noShowReport.groupBy({
+      by: ["freelancerProfileId"],
+      where: { verdict: "UNJUSTIFIED" },
+      _count: { _all: true },
+      having: { freelancerProfileId: { _count: { gte: NO_SHOW_LIMIT } } },
+    }),
+    // Openstaande supporttickets waar de helpdesk aan zet is (nieuw/onbeantwoord/geëscaleerd/
+    // heropend). Oudst-bijgewerkt eerst zodat het langst stille ticket bovenaan komt.
+    prisma.supportTicket.findMany({
+      where: { status: { in: [...SUPPORT_OPEN_STATUSES] } },
+      select: { id: true, subject: true, status: true },
+      orderBy: { updatedAt: "asc" },
+      take: MAX,
+    }),
+    // Open dienst-overname-aanvragen, platform-breed — exact dezelfde scoping als de nav-badge
+    // (`openAdminHandoffs`, signals.ts). De admin beoordeelt ze allemaal (goedkeuren/afwijzen).
+    prisma.shiftHandoff.findMany({
+      where: { status: "OPEN" },
+      select: {
+        id: true,
+        collaboration: {
+          select: {
+            job: { select: { title: true } },
+            freelancer: { select: { user: { select: { name: true } } } },
+          },
         },
-        take: MAX,
-      }),
-      prisma.user.findMany({
-        where: { status: "PENDING" },
-        select: { id: true, name: true },
-        take: MAX,
-      }),
-      prisma.collaboration.findMany({
-        where: { disputedAt: { not: null } },
-        select: { id: true, job: { select: { title: true } } },
-        take: MAX,
-      }),
-      prisma.user.findMany({
-        where: { deletionRequestedAt: { not: null }, anonymizedAt: null, role: { not: "ADMIN" } },
-        select: { id: true, name: true },
-        take: MAX,
-      }),
-      // No-show-meldingen die op een oordeel wachten (gegrond/ongegrond).
-      prisma.noShowReport.findMany({
-        where: { verdict: "PENDING" },
-        select: {
-          id: true,
-          freelancer: { select: { user: { select: { name: true } } } },
-          collaboration: { select: { job: { select: { title: true } } } },
-        },
-        orderBy: { createdAt: "asc" },
-        take: MAX,
-      }),
-      // ZZP'ers op/over de grens van ongegronde no-shows → uitschrijf-taak (handmatig besluit).
-      prisma.noShowReport.groupBy({
-        by: ["freelancerProfileId"],
-        where: { verdict: "UNJUSTIFIED" },
-        _count: { _all: true },
-        having: { freelancerProfileId: { _count: { gte: NO_SHOW_LIMIT } } },
-      }),
-      // Openstaande supporttickets waar de helpdesk aan zet is (nieuw/onbeantwoord/geëscaleerd/
-      // heropend). Oudst-bijgewerkt eerst zodat het langst stille ticket bovenaan komt.
-      prisma.supportTicket.findMany({
-        where: { status: { in: [...SUPPORT_OPEN_STATUSES] } },
-        select: { id: true, subject: true, status: true },
-        orderBy: { updatedAt: "asc" },
-        take: MAX,
-      }),
-    ]);
+      },
+      orderBy: { createdAt: "asc" },
+      take: MAX,
+    }),
+  ]);
   for (const c of creds)
     tasks.push(
       adminVerifyCredentialTask(c.id, c.title, c.freelancerProfile.user.name ?? "Onbekend"),
@@ -1014,6 +1069,17 @@ async function adminTasks(): Promise<PendingTask[]> {
         t.id,
         t.subject,
         SUPPORT_STATUS_LABEL[t.status as SupportTicketStatus],
+      ),
+    );
+  // Open dienst-overname-aanvragen (platform-breed) — de admin beslist. Eén taak per aanvraag;
+  // deep-link naar het admin-beoordelingsscherm (dezelfde href als de nav-badge).
+  for (const h of openHandoffs)
+    tasks.push(
+      shiftHandoffTask(
+        h.id,
+        "ADMIN",
+        h.collaboration.job.title,
+        h.collaboration.freelancer.user.name ?? "ZZP'er",
       ),
     );
   if (noShowAtLimit.length > 0) {

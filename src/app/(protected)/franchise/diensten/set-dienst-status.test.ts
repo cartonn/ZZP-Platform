@@ -54,4 +54,19 @@ describe("setDienstStatus — doelstatus-validatie", () => {
     await expect(setDienstStatus("job-1", "CLOSED")).rejects.toThrow("Dienst niet gevonden.");
     expect(findUniqueMock).toHaveBeenCalledTimes(1);
   });
+
+  it("geeft een cross-tenant dienst exact dezelfde melding als een onbekend id (geen existence-oracle, CWE-203)", async () => {
+    // Regressie: voorheen wees `assertSameTenant` een dienst van een ándere tenant af met een
+    // onderscheidbare 403-melding ("Geen toegang tot deze bemiddeling-resource."), terwijl een
+    // onbekend id "Dienst niet gevonden." gaf — waarneembaar verschil dat het bestaan van andermans
+    // dienst verraadt. Nu geven beide gevallen exact dezelfde melding en raken de DB niet met een update.
+    findUniqueMock.mockResolvedValue({
+      tenantId: "tenant-2",
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+    });
+    await expect(setDienstStatus("job-x", "CLOSED")).rejects.toThrow("Dienst niet gevonden.");
+    expect(updateMock).not.toHaveBeenCalled();
+    expect(auditMock).not.toHaveBeenCalled();
+  });
 });
