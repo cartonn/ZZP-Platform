@@ -8,6 +8,7 @@ import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
 import { enforceRateLimit } from "@/lib/rate-limit-guard";
+import { privateFileHeaders } from "@/lib/security/resource-headers";
 
 export const runtime = "nodejs";
 
@@ -149,12 +150,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     generatedAtLabel: dLong(new Date()) ?? "",
   });
 
+  // Gedeelde bron van waarheid: privé-bestand-headers incl. CORP same-origin (zie resource-headers.ts).
   return new NextResponse(new Uint8Array(bytes), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="modelovereenkomst-${id}.pdf"`,
-      "Cache-Control": "private, no-store",
-      "X-Content-Type-Options": "nosniff",
-    },
+    headers: privateFileHeaders("application/pdf", `modelovereenkomst-${id}.pdf`),
   });
 }

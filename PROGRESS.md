@@ -3,6 +3,42 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — prod-rijpheid: cross-origin-isolatie (COOP/CORP) + Permissions-Policy-hardening
+
+**Wat:** security-headers-hardening voor de pre-livegang-pentest (MENSENWERK §5d). De statische
+headers stonden al sterk (HSTS+preload, X-Frame-Options DENY, nosniff, minimale Permissions-Policy) en
+de per-request CSP draait met nonce, maar drie moderne isolatie-lagen ontbraken. Toegevoegd:
+
+- **`Cross-Origin-Opener-Policy: same-origin`** (globaal, next.config): severt de opener-relatie met
+  cross-origin vensters (bescherming tegen cross-window-lekken / reverse-tabnabbing). Betaalproviders
+  (Mollie/Stripe) gebruiken full-page redirects — geen popup-handle — dus geen flow breekt.
+- **`Cross-Origin-Resource-Policy: same-origin`** (globaal + expliciet op elke privé-bestand-route):
+  verhindert dat een andere origin onze resources no-cors inlaadt. Kernwaarde voor documentprivacy
+  (CLAUDE.md regel 4): zelfs een gelekte document-URL kan een gevoelig bestand (VOG/diploma/verzekering)
+  niet cross-origin embedden.
+- **Uitgebreide `Permissions-Policy`**: expliciete deny-list voor elke krachtige browserfunctie die het
+  platform niet gebruikt (accelerometer, camera, geolocation, payment, usb, serial, midi, …) +
+  FLoC/Topics-opt-out (`interest-cohort=()`, `browsing-topics=()`); alleen `fullscreen`/`clipboard-write`
+  op `(self)` voor legitieme UX.
+
+**Bron van waarheid tegen drift:** nieuwe pure module `src/lib/security/resource-headers.ts`
+(`privateFileHeaders` / `sandboxedDocumentHeaders` + bestandsnaam-sanitizer), gewired in álle 7
+privé-bestand-routes (geüploade documenten, media, factuur-PDF's ×2, prestatie-PDF, DBA-dossier,
+modelovereenkomst) — elk had zijn eigen header-blok dat nu uit één geteste helper komt.
+
+**Grens/scope:** alleen response-headers; geen auth-/mutatie-/schemawijziging. Server-side waarheid
+ongemoeid. +13 tests (`resource-headers.test.ts`, `next-config-headers.test.ts` — een regressiepoort
+die next.config.mjs importeert en de kritieke header-set assert).
+
+**Checks:** typecheck ✓ · lint ✓ · test (security-suite 13 nieuw groen; volledige suite draait in CI) ✓ ·
+prettier ✓ · build ✓. **Bestanden:** `next.config.mjs`, `src/lib/security/resource-headers.ts`(+test),
+`src/lib/security/next-config-headers.test.ts`, `src/app/api/documents/[id]/route.ts`,
+`src/app/api/media/[...key]/route.ts`, `src/app/api/facturen/[id]/pdf/route.ts`,
+`src/app/api/admin/facturatie/[id]/pdf/route.ts`, `src/app/api/prestaties/[id]/pdf/route.ts`,
+`src/app/api/samenwerkingen/[id]/dba-dossier/route.ts`,
+`src/app/api/samenwerkingen/[id]/modelovereenkomst/route.ts`, `MENSENWERK.md`, `CURRENT_TASK.md`.
+**Resterend mensenwerk:** niets — de headers staan out-of-the-box aan; de pentest (§5d) valideert ze.
+
 ## 2026-07-22 — security/privacy-audit (ronde 22b): note-over-fetch op /zzp/[id] + NoShowReport in verwerkingsregister
 
 **Wat:** security-/privacy-audit (orchestrator Opus 4.8 + 3 parallelle Opus-subagents op niet-overlappende

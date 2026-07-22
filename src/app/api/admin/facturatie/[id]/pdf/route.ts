@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { AuthorizationError, requireRole } from "@/lib/authz";
 import { getPlatformBillingInvoiceDetail } from "@/lib/platform-billing/billing-data";
 import { buildPlatformBillingPdf } from "@/lib/platform-billing/billing-pdf";
+import { privateFileHeaders } from "@/lib/security/resource-headers";
 import { audit } from "@/lib/audit";
 import { requestMeta } from "@/lib/request-meta";
 import { documentPdfRateLimiter } from "@/lib/rate-limit";
@@ -42,13 +43,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   });
 
   const bytes = await buildPlatformBillingPdf(detail);
-  const safe = detail.number.replace(/[^\w.\-]+/g, "_");
+  // Gedeelde bron van waarheid: privé-bestand-headers incl. CORP same-origin (zie resource-headers.ts).
   return new NextResponse(new Uint8Array(bytes), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${safe}.pdf"`,
-      "Cache-Control": "private, no-store",
-      "X-Content-Type-Options": "nosniff",
-    },
+    headers: privateFileHeaders("application/pdf", `${detail.number}.pdf`),
   });
 }
