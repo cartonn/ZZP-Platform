@@ -50,6 +50,12 @@ export async function DebtorSummaryCard({ summary }: { summary: DebtorSummary })
                     {d.overdueCount === 1 ? t("factuur te laat") : t("facturen te laat")}
                   </Badge>
                 )}
+                {/* Aanmaningsniveau (config-label, geen los te vertalen UI-string): toont hoe ver de
+                    langst-te-late factuur op de aanmaningsladder staat, zodat de ZZP'er kan
+                    prioriteren wie hij het hardst moet nabellen. */}
+                {d.dunningLabel && (
+                  <span className="text-xs text-muted-foreground">{d.dunningLabel}</span>
+                )}
               </div>
             </li>
           ))}

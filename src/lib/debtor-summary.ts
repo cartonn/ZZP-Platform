@@ -5,6 +5,8 @@
 
 import { isInvoiceOutstanding } from "@/lib/administration/outstanding";
 import { daysSince, isPastDue, startOfDayUTC } from "@/lib/date-boundary";
+import { currentDunningStage } from "@/lib/payment-reminders";
+import { type DunningLevel } from "@/lib/config";
 
 /** Minimale factuurvorm die de aggregator nodig heeft (subset van Prisma.Invoice + company). */
 export interface DebtorInvoiceInput {
@@ -33,6 +35,17 @@ export interface DebtorRow {
   oldestIssuedAt: Date | null;
   /** Hele dagen sinds de langst openstaande factuur is uitgereikt (>= 0), null zonder issuedAt. */
   oldestDaysOutstanding: number | null;
+  /**
+   * Het meest-geëscaleerde aanmaningsniveau over de te late facturen van deze debiteur
+   * (Betalingsherinnering → Eerste/Tweede/Laatste aanmaning), of null als niets te laat is.
+   * Zelfde bron als het factuurdetail (`currentDunningStage`), zodat lijst en detail nooit
+   * uiteenlopen. De stap is monotoon in dagen-te-laat → de factuur met de meeste dagen bepaalt hem.
+   */
+  dunningLevel: DunningLevel | null;
+  /** Nederlands label van `dunningLevel` (config-data, geen los te vertalen UI-string). */
+  dunningLabel: string | null;
+  /** Dagen-te-laat van de factuur die het niveau bepaalt (voor secundaire tekst/sortering). */
+  worstOverdueDays: number | null;
 }
 
 export interface DebtorSummary {
@@ -74,6 +87,9 @@ export function summarizeDebtors(
       overdueCount: 0,
       oldestIssuedAt: null,
       oldestDaysOutstanding: null,
+      dunningLevel: null,
+      dunningLabel: null,
+      worstOverdueDays: null,
     };
 
     row.outstandingCents += inv.totalCents;
@@ -83,6 +99,15 @@ export function summarizeDebtors(
     if (isOverdue) {
       row.overdueCents += inv.totalCents;
       row.overdueCount += 1;
+
+      // Aanmaningsniveau van deze factuur (zelfde pure logica als het factuurdetail). Voor een
+      // isPastDue-factuur is de vervaldag altijd vóór nu → `currentDunningStage` is nooit null.
+      const stage = currentDunningStage(inv.dueAt, new Date(nowMs));
+      if (stage && (row.worstOverdueDays == null || stage.daysOverdue > row.worstOverdueDays)) {
+        row.dunningLevel = stage.level;
+        row.dunningLabel = stage.label;
+        row.worstOverdueDays = stage.daysOverdue;
+      }
     }
 
     if (inv.issuedAt != null) {

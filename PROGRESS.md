@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — routine: aanmaningsniveau (dunning-stap) per debiteur op /facturen
+
+**Wat:** het debiteuren-overzicht op `/facturen` (`DebtorSummaryCard`, ZZP'er) toonde per opdrachtgever
+al openstaand/te-laat-bedrag, aantallen en ouderdom ("langst open N dagen"), maar niet **hoe ver een te
+late factuur al op de aanmaningsladder staat** (Betalingsherinnering → Eerste/Tweede/Laatste aanmaning).
+Die escalatie-stap leefde alleen op het factuurdetail (`AanmaningSection`). Gevolg: de ZZP'er zag wél het
+te-late bedrag, maar niet de urgentie — een klant 2 dagen te laat las hetzelfde als een klant 50 dagen te
+laat. Nu een compacte niveau-regel per debiteur (het meest-geëscaleerde niveau over zijn te late
+facturen), zodat de ZZP'er kan prioriteren wie hij het hardst moet nabellen (benchmark: aanmaningsniveaus
+in Moneybird/e-Boekhouden).
+
+- **Pure kern** `src/lib/debtor-summary.ts`: `DebtorRow` kreeg `dunningLevel`/`dunningLabel`/
+  `worstOverdueDays`. Hergebruikt exact `currentDunningStage` (`payment-reminders.ts`, dezelfde bron als
+  het factuurdetail → lijst en detail lopen nooit uiteen); het niveau is monotoon in dagen-te-laat, dus
+  de factuur met de meeste dagen bepaalt de stap. Label is config-data (`DUNNING_STAGES`), geen los te
+  vertalen UI-string.
+- **Wiring** `src/components/administratie/debtor-summary-card.tsx`: subtiele muted-regel met het
+  niveau-label onder de "N facturen te laat"-badge. Leunt op de al-geladen factuurlijst — **geen extra
+  query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.**
+- Read-only afleiding; toont alleen het eigen geaggregeerde oordeel. +5 tests (`debtor-summary.test.ts`,
+  19 totaal). Gate: typecheck, lint, unit-tests, build, prettier groen.
+
 ## 2026-07-22 — routine: betaaltermijn-KPI (DSO) voor de ZZP'er op /facturen
 
 **Wat:** de ZZP'er zag op `/facturen` al de per-opdrachtgever betaalreputatie, de cashflow-vooruitblik
