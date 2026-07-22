@@ -32,8 +32,8 @@ async function fetchOpenInvoices(actorId: string, isFreelancer: boolean): Promis
       collaboration: {
         select: {
           job: { select: { title: true } },
-          company: { select: { name: true } },
-          freelancer: { select: { user: { select: { name: true } } } },
+          company: { select: { id: true, name: true } },
+          freelancer: { select: { id: true, user: { select: { name: true } } } },
         },
       },
     },
@@ -53,10 +53,14 @@ async function fetchOpenInvoices(actorId: string, isFreelancer: boolean): Promis
       const counterpartyName = isFreelancer
         ? (inv.collaboration?.company.name ?? "—")
         : (inv.collaboration?.freelancer.user.name ?? "—");
+      const counterpartyId = isFreelancer
+        ? (inv.collaboration?.company.id ?? null)
+        : (inv.collaboration?.freelancer.id ?? null);
       return {
         id: inv.id,
         number,
         counterpartyName,
+        counterpartyId,
         jobTitle: inv.collaboration?.job.title ?? null,
         dueAt: inv.dueAt,
         amountCents: inv.totalCents,
@@ -178,6 +182,42 @@ export async function OpenstaandPanel({ actor }: { actor: Actor }) {
               </tbody>
             </table>
           </div>
+
+          {report.relations.length > 1 && (
+            <section className="space-y-2">
+              <h2 className="text-sm font-medium text-muted-foreground">
+                {isFreelancer ? "Per opdrachtgever" : "Per ZZP'er"}
+              </h2>
+              <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+                {report.relations.map((relation) => (
+                  <div
+                    key={relation.counterpartyId ?? relation.counterpartyName}
+                    className="flex items-center justify-between gap-4 px-4 py-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-medium">{relation.counterpartyName}</p>
+                        {relation.overdueCount > 0 && (
+                          <Badge variant={bucketVariant(relation.worstBucket)}>
+                            {plural(relation.overdueCount, "te late post", "te late posten")}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {plural(relation.count, "openstaande post", "openstaande posten")}
+                        {relation.overdueCents > 0
+                          ? ` · waarvan ${formatEuro(relation.overdueCents)} te laat`
+                          : ""}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatEuro(relation.totalOpenCents)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </>
       )}
 

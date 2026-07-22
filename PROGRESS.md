@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — administratie-ontzorging: per-relatie (debiteur/crediteur) rollup op /openstaand
+
+**Wat:** de openstaande-posten-pagina (`/openstaand`) toonde alleen een platte, op-ouderdom-gesorteerde
+factuurlijst + aging-buckets. Voor een opdrachtgever met meerdere ZZP'ers of een ZZP'er met meerdere
+opdrachtgevers ontbrak het antwoord op "hoeveel staat er per relatie open, en waarvan te laat?" —
+precies wat debiteuren-/crediteurenbeheer in boekhoudtools (Moneybird/Stripe) standaard toont.
+Toegevoegd: een **"Per opdrachtgever"/"Per ZZP'er"-rollup** tussen de aging-tabel en de factuurlijst,
+per tegenpartij: totaal openstaand, waarvan te laat (bedrag + aantal), zwaarste aging-bucket als badge.
+
+- **`src/lib/administration/aging.ts`** — `RelationSummary`-type + `relations`-veld op `AgingReport`.
+  Pure aggregatie in `buildAgingReport`: groepeert op stabiele `counterpartyId` (Company/Freelancer),
+  valt terug op naam als er geen id is (voorkomt dat twee relaties met dezelfde naam samenvallen).
+  Gesorteerd op te-laat-bedrag aflopend, dan openstaand bedrag, dan naam (deterministisch). Integer-centen.
+- **`OpenInvoice`** kreeg een optionele `counterpartyId`; beide fetch-sites (`openstaand-panel.tsx` +
+  `api/administratie/openstaand/route.ts`) selecteren nu `company.id`/`freelancer.id` mee.
+- **`openstaand-panel.tsx`** — rollup-sectie (alleen bij >1 relatie; anders redundant met de totalen),
+  rol-bewuste kop, badge-variant per zwaarste bucket. Server-side waarheid, geen nieuw mutatie/auth-oppervlak.
+- **Tests:** +4 in `aging.test.ts` (groeperen per id + optellen; sortering te-laat vóór groot-maar-op-tijd;
+  naam-fallback zonder id; lege report). `npm run test` administration-suite 111 groen; typecheck/lint/build groen.
+
 ## 2026-07-22 — prod-rijpheid: cross-origin-isolatie (COOP/CORP) + Permissions-Policy-hardening
 
 **Wat:** security-headers-hardening voor de pre-livegang-pentest (MENSENWERK §5d). De statische
