@@ -22,7 +22,13 @@ export const dienstSchema = z
     description: z.string().trim().min(10, "Geef een korte omschrijving.").max(5000),
     location: z.string().trim().max(120).optional(),
     workMode: z.enum(["REMOTE", "ONSITE", "HYBRID"]).default("ONSITE"),
-    startDate: z.string().trim().optional(),
+    // Datum robuust valideren (spiegelt jobSchema.startDate): een lege waarde → geen startdatum,
+    // een ongeldige/onzin-string wordt door Zod geweigerd i.p.v. als `Invalid Date` door te
+    // stromen naar `prisma.job.create` (DateTime-kolom) → PrismaClientValidationError → 500.
+    startDate: z
+      .union([z.literal(""), z.coerce.date()])
+      .optional()
+      .transform((v) => (v === "" || v === undefined ? undefined : (v as Date))),
     // Tarief optioneel, maar indien ingevuld minstens €1/uur (geen "€ 0/uur"-dienst).
     rateMin: z.coerce.number().int().min(1).max(100000).optional(),
     rateMax: z.coerce.number().int().min(1).max(100000).optional(),
@@ -113,7 +119,7 @@ export async function createFranchiseDienst(opts: {
       publishedAt: status === "PUBLISHED" ? new Date() : null,
       workMode,
       location: location ?? null,
-      startDate: startDate ? new Date(startDate) : null,
+      startDate: startDate ?? null,
       rateMin: rateMin ?? null,
       rateMax: rateMax ?? null,
       skills: skillIds.length ? { create: skillIds.map((id) => ({ skillId: id })) } : undefined,

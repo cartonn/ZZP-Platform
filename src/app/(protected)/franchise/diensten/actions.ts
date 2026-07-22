@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { assertSameTenant } from "@/lib/tenancy";
+import { ownsViaTenant } from "@/lib/tenancy";
 import { assertJobTransition, JobTransitionError } from "@/lib/jobs";
 import { type JobStatus, jobStatusSchema } from "@/lib/enums";
 import { candidateEngageability, PROPOSAL_ACTION } from "@/lib/franchise/dienst-voordracht";
@@ -25,12 +25,15 @@ export async function setDienstStatus(jobId: string, target: string): Promise<vo
   if (!parsedTarget.success) throw new Error("Ongeldige doelstatus.");
   const targetStatus = parsedTarget.data;
 
+  // Onbekend id én een dienst van een ándere tenant geven exact dezelfde melding: zo lekt het
+  // verschil "bestaat niet" vs. "bestaat, andere bemiddeling" niet (geen existence-oracle, CWE-203).
+  // Spiegelt `proposeFreelancer` hieronder en `createFranchiseDienst`; voorheen wees `assertSameTenant`
+  // een cross-tenant id met een onderscheidbare 403-melding af (waarneembaar verschil met "niet gevonden").
   const job = await prisma.job.findUnique({
     where: { id: jobId },
     select: { tenantId: true, status: true, publishedAt: true },
   });
-  if (!job) throw new Error("Dienst niet gevonden.");
-  assertSameTenant(actor, job.tenantId);
+  if (!job || !ownsViaTenant(actor, job.tenantId)) throw new Error("Dienst niet gevonden.");
 
   const from = job.status as JobStatus;
   try {

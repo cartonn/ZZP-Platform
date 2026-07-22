@@ -1,5 +1,51 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-22 (run 44) · **main-commit basis:** `40eb1485`
+> **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT.** Live doorklik-sweep (Playwright/Chromium, alle vier
+> rollen) + drie parallelle Opus-audits (authz/IDOR/cross-tenant/document-privacy; malicieuze invoer +
+> verboden statusovergangen; next-action-correctheid). Live geverifieerd **schoon**: privilege-escalatie
+> (elke niet-admin-rol → redirect `/dashboard`), IDOR/cross-tenant op échte id's (collab/factuur/document/
+> PDF/dossier → anti-oracle 404 "Niet gevonden."), onzin-id's (nette not-found, geen 500), en DOEL 1b
+> end-to-end op het nieuwste oppervlak (uitnodiging-respons: actie uitgevoerd → verdween correct 4→3).
+>
+> **GEVONDEN + GEFIXT — MED/robuustheid (DOEL 2, malicieuze invoer → 500):** `createFranchiseDienst`
+> (`src/lib/franchise/dienst.ts:25` schema + `:116` gebruik) had `startDate: z.string().trim().optional()`
+> — élke string passeerde — en bouwde daarna `new Date(startDate)` **zonder isNaN-guard**, dat als
+> `Invalid Date` doorstroomde naar `prisma.job.create` (DateTime-kolom) → `PrismaClientValidationError`.
+> `publishDienst`/de wizard vangen alleen `AuthorizationError`, dus de throw werd een ongevangen
+> server-action-fout → **500 / generieke error-boundary** i.p.v. een nette veldfout. Een franchiser die
+> een dienst publiceert met een geknutselde `startDate=onzin` triggerde dit. **Geschonden regel:**
+> CLAUDE.md regel 2 (Zod-validatie vóór actie) + DOEL 2 (malicieuze invoer → nette weigering, geen 500).
+> Enige uitzondering: elk zibling-datumpad guardt al correct (`jobSchema.startDate` = `z.coerce.date()`,
+> performance/uitgaven met isNaN). **Fix:** `dienstSchema.startDate` spiegelt nu `jobSchema`
+> (`z.union([z.literal(""), z.coerce.date()]).optional().transform(...)`) — leeg → geen startdatum,
+> onzin → Zod-veldfout. Rood→groen: 3 tests (`dienst.test.ts`: geldige datum → Date; leeg → undefined;
+> onzin → geweigerd).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, cross-surface: OPEN dienst-overname mist op /acties):** een OPEN
+> `ShiftHandoff` werd door de nav-badge geteld (franchiser tenant-scoped `openHandoffs`; admin
+> platform-breed `openAdminHandoffs`, beide `attention`) maar ontbrak volledig op `/acties`, de
+> dashboard-"Volgende acties"-zone én de `/acties`-teller (`pendingTaskCount`) — `franchiserTasks`/
+> `adminTasks` (`pending-tasks.ts`) bouwden geen overname-taak. De nav-badge riep dus "actie vereist"
+> terwijl het actiecentrum zweeg over dezelfde verplichting (het "signaal op één oppervlak"-anti-patroon).
+> Op een OPEN overname is de franchiser/admin genuine "aan zet" (`shift-handoff.ts`: franchiser óf admin
+> beslist). **Geschonden regel:** DOEL 1b (één bron van waarheid; badge/acties/detail gelijk). **Fix:**
+> nieuwe pure builder `shiftHandoffTask` (`tasks.ts`, prio `P.disputeOpen`=76, tone `attention`, href
+> `/franchise/shift-overnames` resp. `/admin/shift-overnames` — exact de badge-hrefs uit `signals.ts`);
+> geëmit uit `franchiserTasks` (tenant-scoped) + `adminTasks` (platform-breed) met dezelfde `status:"OPEN"`-
+> query als de badge → verdwijnt zodra APPROVED/REJECTED/CANCELLED. Rood→groen: 4 tests
+> (`pending-tasks.shift-handoff.test.ts`: franchiser 1×, admin 1×, andere tenant 0×, APPROVED 0×).
+>
+> **GEVONDEN + GEFIXT — LOW/security (DOEL 2, CWE-203 cross-tenant existence-oracle):** `setDienstStatus`
+> (`src/app/(protected)/franchise/diensten/actions.ts:32-33`) gebruikte `assertSameTenant` (gooit
+> onderscheidbare `AuthorizationError("Geen toegang tot deze bemiddeling-resource.", 403)`) i.p.v. de
+> geünificeerde `ownsViaTenant`-melding — een onbekend id gaf "Dienst niet gevonden.", een dienst van een
+> ándere tenant een andere 403, waarmee een franchiser het bestaan van andermans dienst kon aftasten.
+> Zelfde bugklasse die het team al fixte in `admin/shift-overnames` (`ee458d26`); `proposeFreelancer` in
+> hetzelfde bestand deed het al goed. **Fix:** `if (!job || !ownsViaTenant(actor, job.tenantId)) throw
+new Error("Dienst niet gevonden.")` — onbekend én cross-tenant geven nu exact dezelfde melding, geen
+> update/audit. Rood→groen: 1 test (`set-dienst-status.test.ts`: cross-tenant = zelfde melding, DB niet geraakt).
+
 > **Datum:** 2026-07-22 (run 43) · **main-commit basis:** `c0cd40bc`
 > **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT.** Drie parallelle Opus-audits (authz/IDOR/cross-
 > tenant/document-privacy; malicieuze invoer + verboden statusovergangen; next-action-correctheid over

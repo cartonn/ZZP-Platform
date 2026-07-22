@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-22 — persona-sweep (run 44): dienst-startDate 500 + OPEN dienst-overname cross-surface + setDienstStatus oracle
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen (live Playwright-doorklik + 3 parallelle Opus-audits).
+Live schoon bevonden: privilege-escalatie (redirect `/dashboard`), IDOR/cross-tenant op échte id's
+(anti-oracle 404), onzin-id's (nette not-found, geen 500), DOEL 1b end-to-end (uitnodiging-respons verdween
+4→3). **3 bevindingen gefixt:**
+
+- **DOEL 2 / robuustheid (MED):** `createFranchiseDienst` (`src/lib/franchise/dienst.ts`) accepteerde een
+  onzin-`startDate` als vrije string en bouwde `new Date(...)` zonder isNaN-guard → `Invalid Date` →
+  `prisma.job.create` → `PrismaClientValidationError` → **500** (publishDienst vangt alleen
+  `AuthorizationError`). Fix: `startDate` spiegelt nu `jobSchema` (`z.union([z.literal(""),
+z.coerce.date()])…`). +3 tests (`dienst.test.ts`).
+- **DOEL 1b / cross-surface (MED):** OPEN `ShiftHandoff` werd door de nav-badge geteld (franchiser + admin)
+  maar ontbrak op `/acties`, dashboard-"Volgende acties" en de `/acties`-teller. Fix: nieuwe pure builder
+  `shiftHandoffTask` (`src/lib/actions/tasks.ts`, prio 76, hrefs `/franchise/shift-overnames` resp.
+  `/admin/shift-overnames` = de badge-hrefs), geëmit uit `franchiserTasks`/`adminTasks`
+  (`src/lib/actions/pending-tasks.ts`) met dezelfde `status:"OPEN"`-query → alle vier oppervlakken gelijk,
+  verdwijnt bij APPROVED/REJECTED/CANCELLED. +4 tests (`pending-tasks.shift-handoff.test.ts`).
+- **DOEL 2 / security (LOW, CWE-203):** `setDienstStatus`
+  (`src/app/(protected)/franchise/diensten/actions.ts`) gebruikte `assertSameTenant` (onderscheidbare 403)
+  i.p.v. geünificeerde `ownsViaTenant` → cross-tenant existence-oracle. Fix: onbekend + cross-tenant geven
+  nu exact dezelfde "Dienst niet gevonden."-melding. +1 test (`set-dienst-status.test.ts`).
+
+Gate: typecheck, lint, 4781 unit-tests, build, prettier — groen. Details in
+`docs/PERSONA-SWEEP-BACKLOG.md` (run 44).
+
 ## 2026-07-22 — routine: aanmaningsniveau (dunning-stap) per debiteur op /facturen
 
 **Wat:** het debiteuren-overzicht op `/facturen` (`DebtorSummaryCard`, ZZP'er) toonde per opdrachtgever

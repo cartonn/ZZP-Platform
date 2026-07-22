@@ -39,4 +39,23 @@ describe("dienstSchema", () => {
     const r = dienstSchema.safeParse({ ...base, rateMin: 45 });
     expect(r.success).toBe(true);
   });
+
+  it("accepteert een geldige startdatum en levert een Date", () => {
+    const r = dienstSchema.safeParse({ ...base, startDate: "2026-08-01" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.startDate).toBeInstanceOf(Date);
+  });
+
+  it("behandelt een lege startdatum als geen startdatum (undefined)", () => {
+    const r = dienstSchema.safeParse({ ...base, startDate: "" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.startDate).toBeUndefined();
+  });
+
+  it("weigert een onzin-startdatum i.p.v. door te laten als Invalid Date (DOEL 2: geen 500 op de DB)", () => {
+    // Regressie: voorheen was startDate `z.string().trim().optional()` → een onzin-string viel als
+    // `new Date("onzin")` = Invalid Date door naar prisma.job.create (DateTime) → PrismaClientValidationError → 500.
+    const r = dienstSchema.safeParse({ ...base, startDate: "onzin" });
+    expect(r.success).toBe(false);
+  });
 });
