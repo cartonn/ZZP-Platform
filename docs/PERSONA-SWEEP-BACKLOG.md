@@ -1,5 +1,76 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-23 (run 45) · **main-commit basis:** `4992ff6b`
+> **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT** (1 MED/security + 2 DOEL-1b cross-surface) + 2
+> geparkeerd met repro. Verse prod-build (exit 0) + drie parallelle Opus-audits (authz/IDOR/cross-
+> tenant/document-privacy; malicieuze invoer + verboden statusovergangen; next-action-correctheid over
+> alle vier rollen). De malicieuze-invoer/status-audit kwam **schoon** terug op de kernketen (cascade-
+> command-familie symmetrisch `assertNotDisputed`/terminal-guard; elke datum/getal-parse `isNaN`/
+> `Number.isFinite`-gerguard vóór Prisma; CSV-injectie afgevangen).
+>
+> **GEVONDEN + GEFIXT — MED/security (DOEL 2, CWE-203 cross-tenant existence-oracle op de shift-overname-
+> aanvraag):** `requestShiftHandoff` (`src/app/(protected)/samenwerkingen/shift-handoff-actions.ts:71-83`)
+> gaf voor een voorgestelde overnemer (`candidateFreelancerId`, een `FreelancerProfile.id`) **drie
+> onderscheidbare** meldingen: onbekend id ("Voorgestelde overnemer niet gevonden."), bestaand-maar-
+> andere-tenant ("De voorgestelde overnemer valt buiten deze bemiddeling.") en succes. Het veld staat
+> niet in het formulier, maar de server-action is direct aanroepbaar; élke ZZP'er met één ACTIEVE
+> samenwerking (de enige poort, `canRequestHandoff`) kon zo, ongelimiteerd (de check draait vóór de
+> transactie, geen side-effect), het bestaan + tenant-lidmaatschap van een willekeurig profiel aftasten —
+> exact wat `tenantEntityVisibleTo` op `/zzp/[id]` en `loadDecidableHandoff` (fix #867) bewust indistinct
+> houden. Zelfde bugklasse die #867 in de sibling admin-functie fixte; deze functie in hetzelfde
+> feature-bestand werd gemist. **Geschonden regel:** tenant-isolatie / anti-oracle (CLAUDE.md
+> server-side waarheid + documenten/entiteiten privé). **Fix:** onbekend id en cross-tenant geven nu
+> exact dezelfde melding ("Ongeldige voorgestelde overnemer."); zelf-voorstellen houdt een eigen melding
+> (lekt niets). **Companion (LOW, zelfde bestand):** `cancelShiftHandoff` onderscheidde "niet gevonden"
+> van "niet van jou" → gelijkgetrokken naar één melding + de geweigerde IDOR-poging op een bestaand-maar-
+> vreemd id wordt nu geaudit (`SHIFT_HANDOFF_CANCEL_DENIED`, spiegelt `DOCUMENT_DELETE_DENIED`).
+> Rood→groen: 7 tests (`shift-handoff-oracle.test.ts`).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, "signaal op één oppervlak": ADMIN no-show-uitschrijfbadge stil):**
+> de `/admin/no-shows`-nav-badge (`openNoShows`, `signals.ts`) telde **alleen** `verdict:"PENDING"`-
+> meldingen, terwijl `/acties` (`adminSuspendNoShowTask`, `pending-tasks.ts`) én de pagina zelf ("Grens
+> bereikt — beoordeel uitschrijving") óók een besluit tonen voor een ZZP'er op/over de grens ongegronde
+> no-shows (nog ACTIEF). Gevolg: een admin met een échte uitschrijf-beslissing in de wachtrij (en 0
+> PENDING-meldingen) zag een schone nav — actie op /acties + pagina, stil op de badge. **Fix:** dezelfde
+> `groupBy(UNJUSTIFIED, having ≥ NO_SHOW_LIMIT)` + ACTIVE-filter als `/acties` opgeteld bij `openNoShows`
+> → de badge dekt beide wachtrijen op die pagina, gelijk aan het aantal no-show-taken op /acties.
+> Rood→groen: 3 tests (`signals.badge-gaps.test.ts`).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, "signaal op één oppervlak": FREELANCER verplicht-document-badge
+> stil):** de `/certificaten`-nav-badge (`credentialAlerts = rejected + expiring`, `signals.ts`) telde
+> alleen REJECTED + binnenkort-verlopende VERIFIED certificaten en negeerde een **ontbrekend/verlopen
+> verplicht document** (VOG/verzekering), terwijl `/acties` + de dashboard-rail daar wél een
+> `mandatoryDocumentTask` tonen. Een verse ZZP'er (100% profiel, identiteit geverifieerd, nul
+> certificaten → VOG+verzekering beide "missing", blokkeert inzetbaarheid) zag twee acties op /acties
+> maar een stille `/certificaten`-nav — precies de pagina die de remediatie bevat. **Fix:** nieuwe pure
+> helper `mandatoryDocumentAlertCount` (`mandatory-documents.ts`) — exact de emissieconditie van
+> `mandatoryDocumentTask` (missing/expired, ontdubbeld tegen REJECTED-types die al in `rejected` zitten;
+> `inReview` telt niet, daar is de admin aan zet) — opgeteld bij `credentialAlerts`. Eén bron van
+> waarheid, geen dubbeltelling. Rood→groen: 5 tests (`mandatory-documents.test.ts`).
+>
+> **GEPARKEERD uit deze run (repro + prioriteit, voor een volgende increment):**
+>
+> - **MED (DOEL 2, robuustheid/abuse — geen rate-limit/dedup op `reportNoShow`):**
+>   `reportNoShow` (`src/app/(protected)/samenwerkingen/no-show-actions.ts:18-65`) is aanroepbaar door
+>   elke CLIENT/FRANCHISER die partij is bij een ACTIVE/CANCELLED samenwerking en heeft — anders dan
+>   élke sibling-UGC-mutatie (`sendMessage`→`messageRateLimiter`, `inviteFreelancerToJob`→
+>   `inviteRateLimiter`, uploads→`uploadRateLimiter`) — **geen rate-limiter** (`rate-limit.ts` heeft geen
+>   `noShow*RateLimiter`) én **geen idempotentie/uniekheid** (geen `@@unique(collaborationId, occurredOn)`,
+>   geen dedup vóór `noShowReport.create`). Repro: een kwaadwillende/gecompromitteerde CLIENT scriptt
+>   herhaalde POST's → per call een permanente `NoShowReport` + een `Notification` met attacker-vrije-tekst
+>   `reason` naar de ZZP'er (harassment) + een AuditLog, ongelimiteerd. Impact: notificatie-/DB-/audit-DoS,
+>   harassment, én flooding van de `/admin/no-shows`-moderatiewachtrij (drukt op de uitschrijf-drempel, al
+>   blijft een mensbeoordeling de grens gaten). **Fix-richting:** `noShowReportRateLimiter` (per `actor.id`,
+>   venster à la `inviteRateLimiter`) vóór de create + same-day-dedup of DB-`@@unique`. Prioriteit: MED.
+>   Aparte PR (raakt `no-show-actions.ts` + `rate-limit.ts` (+ evt. schema)).
+> - **LOW (defense-in-depth, vangrail-dekkingsgat):** de "elke `findMany()` heeft `take:` of een
+>   `unbounded-allow`-marker"-vangrail (`src/lib/unbounded-queries.test.ts:52-53`, `walkAppDir`) scant
+>   alleen `src/app`, nooit `src/lib` — er staan ongemarkeerde onbegrensde `findMany()`'s onder `src/lib`
+>   (o.a. `account-export.ts`, `actions/drawer-data.ts`, `franchise/dienst-voordracht.ts:224`). Geen daarvan
+>   is nu attacker-inflatable (cron/eigen-data/eigen-tenant), maar een tóekomstige `src/lib`-toevoeging met
+>   een echt door onbevoegden opblaasbare tabel glipt er stil doorheen. **Fix-richting:** `walkAppDir()` óók
+>   `src/lib` laten lopen (of een parallelle `src/lib`-vangrail). Prioriteit: LOW.
+
 > **Datum:** 2026-07-22 (run 44) · **main-commit basis:** `40eb1485`
 > **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT.** Live doorklik-sweep (Playwright/Chromium, alle vier
 > rollen) + drie parallelle Opus-audits (authz/IDOR/cross-tenant/document-privacy; malicieuze invoer +

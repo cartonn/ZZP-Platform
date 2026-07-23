@@ -68,17 +68,24 @@ export async function requestShiftHandoff(
   // Een voorgestelde overnemer moet binnen dezelfde tenant vallen (tenant-isolatie) en niet de
   // huidige ZZP'er zelf zijn. Bij een platform-inzet (tenantId null) moet de kandidaat ook tenantloos
   // zijn. Een ongeldige kandidaat wordt geweigerd i.p.v. stil genegeerd.
+  //
+  // Anti-oracle (CWE-203 / OWASP A01): een ONBEKEND kandidaat-id en een BESTAAND kandidaat-id buiten
+  // deze tenant geven exact dezelfde melding. Anders kan een ZZP'er via geknutselde POST's (het
+  // `candidateFreelancerId`-veld staat niet in het formulier, maar de server-action is direct
+  // aanroepbaar) het bestaan + tenant-lidmaatschap van een willekeurig FreelancerProfile aftasten —
+  // precies wat `tenantEntityVisibleTo` op `/zzp/[id]` en `loadDecidableHandoff` bewust indistinct
+  // houden. Zelf-voorstellen mag wél een eigen melding hebben: dat lekt niets (de actor kent zijn
+  // eigen id en tenant).
   let candidateFreelancerId: string | undefined;
   if (parsed.data.candidateFreelancerId) {
     const candidate = await prisma.freelancerProfile.findUnique({
       where: { id: parsed.data.candidateFreelancerId },
       select: { id: true, userId: true, tenantId: true },
     });
-    if (!candidate) return { error: "Voorgestelde overnemer niet gevonden." };
-    if (candidate.userId === actor.id)
+    if (candidate && candidate.userId === actor.id)
       return { error: "Je kunt jezelf niet als overnemer voorstellen." };
-    if ((candidate.tenantId ?? null) !== (collaboration.job.tenantId ?? null))
-      return { error: "De voorgestelde overnemer valt buiten deze bemiddeling." };
+    if (!candidate || (candidate.tenantId ?? null) !== (collaboration.job.tenantId ?? null))
+      return { error: "Ongeldige voorgestelde overnemer." };
     candidateFreelancerId = candidate.id;
   }
 
@@ -180,10 +187,23 @@ export async function cancelShiftHandoff(
     where: { id: handoffId },
     select: { id: true, status: true, requestedByUserId: true, collaborationId: true },
   });
-  if (!handoff) return { error: "Overname-aanvraag niet gevonden." };
-  // ownership: alleen de ZZP'er die de aanvraag opende mag ze intrekken.
-  if (handoff.requestedByUserId !== actor.id) {
-    return { error: "Alleen de aanvrager kan deze overname-aanvraag intrekken." };
+  // ownership: alleen de ZZP'er die de aanvraag opende mag ze intrekken. Anti-oracle (CWE-203):
+  // een ONBEKEND id en een BESTAAND id van iemand anders geven exact dezelfde melding — anders
+  // kan een ZZP'er via gegokte id's het bestaan van andermans overname-aanvraag aftasten (spiegelt
+  // deleteDocument). De geweigerde IDOR-poging op een bestaand-maar-vreemd id wordt geaudit
+  // (CLAUDE.md regel 5) zodat ze niet stil verdwijnt.
+  if (!handoff || handoff.requestedByUserId !== actor.id) {
+    if (handoff) {
+      await prisma.auditLog.create({
+        data: auditData({
+          actorId: actor.id,
+          action: "SHIFT_HANDOFF_CANCEL_DENIED",
+          entityType: "ShiftHandoff",
+          entityId: handoffId,
+        }),
+      });
+    }
+    return { error: "Overname-aanvraag niet gevonden." };
   }
 
   // Transitie via de expliciete map (OPEN → CANCELLED), op basis van de gefetchte status.

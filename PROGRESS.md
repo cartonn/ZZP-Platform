@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — persona-sweep run 45: shift-overname existence-oracle (security) + 2 stille nav-badges (DOEL 1b)
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen. Drie parallelle Opus-audits (authz/IDOR/cross-
+tenant/document-privacy; malicieuze invoer + statusovergangen; next-action-correctheid). **3 bevindingen
+gevonden + gefixt**, 2 geparkeerd met repro (zie `docs/PERSONA-SWEEP-BACKLOG.md` run 45).
+
+1. **MED/security (CWE-203 cross-tenant existence-oracle):** `requestShiftHandoff`
+   (`src/app/(protected)/samenwerkingen/shift-handoff-actions.ts`) gaf 3 onderscheidbare meldingen voor
+   `candidateFreelancerId` (onbekend / andere-tenant / ok) → een ZZP'er kon het bestaan + tenant-
+   lidmaatschap van een willekeurig profiel aftasten via een direct aangeroepen server-action. Zelfde
+   bugklasse als #867 (sibling admin-functie), hier gemist. Fix: onbekend id en cross-tenant geven nu
+   identieke melding; companion `cancelShiftHandoff` idem gelijkgetrokken + `SHIFT_HANDOFF_CANCEL_DENIED`-
+   audit op de geweigerde IDOR-poging. +7 tests (`shift-handoff-oracle.test.ts`).
+2. **MED (DOEL 1b, ADMIN no-show-uitschrijfbadge stil):** `openNoShows` (`signals.ts`) telde alleen
+   PENDING-meldingen; de uitschrijf-beslissing (grens ongegronde no-shows, `adminSuspendNoShowTask` op
+   /acties + de pagina) ontbrak op de nav-badge. Fix: dezelfde `groupBy`+ACTIVE-filter opgeteld. +3 tests.
+3. **MED (DOEL 1b, FREELANCER verplicht-document-badge stil):** `credentialAlerts` (`signals.ts`) telde
+   alleen REJECTED + expiring; een ontbrekend/verlopen verplicht document (VOG/verzekering) — wél een
+   `mandatoryDocumentTask` op /acties + rail — ontbrak op de badge. Fix: nieuwe pure helper
+   `mandatoryDocumentAlertCount` (`mandatory-documents.ts`, exact de emissieconditie, ontdubbeld tegen
+   REJECTED) opgeteld bij `credentialAlerts`. +5 tests.
+
+**Bestanden:** `src/app/(protected)/samenwerkingen/shift-handoff-actions.ts` (+ `shift-handoff-oracle.test.ts`),
+`src/lib/signals.ts` (+ `signals.badge-gaps.test.ts`), `src/lib/mandatory-documents.ts` (+ test),
+`docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`. **Gate:** typecheck · lint (0 warnings) · test
+(**4866 passed**, +15) · build · prettier — allemaal groen. **Geparkeerd:** `reportNoShow` rate-limit/
+dedup (MED, abuse) + `unbounded-queries.test.ts` scant `src/lib` niet (LOW).
+
 ## 2026-07-23 — inzicht: tijd tot plaatsing (time-to-fill) KPI voor de bemiddelaar (/inzicht) (PR #881)
 
 **Wat:** de bemiddelaar zag op `/inzicht` de **Vulgraad** (% diensten vervuld — de uitkomst) maar niet

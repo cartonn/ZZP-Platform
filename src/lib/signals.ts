@@ -7,6 +7,9 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
+import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/mandatory-documents";
+import { type FreelancerCredential } from "@/lib/matching";
+import { NO_SHOW_LIMIT } from "@/lib/no-show";
 import { paymentDueSoonWhere } from "@/lib/payment-due-soon";
 import { SUPPORT_OPEN_STATUSES } from "@/lib/support/labels";
 
@@ -278,47 +281,65 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     if (!profile) return {};
     const now = new Date();
     const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
-    const [rejected, expiring, unreadMessages, overdueInvoices, cascadeCollabs, savedJobs] =
-      await Promise.all([
-        prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
-        prisma.credential.count({
-          where: {
-            freelancerProfileId: profile.id,
-            status: "VERIFIED",
-            expiresAt: { gt: now, lte: soon },
+    const [
+      rejected,
+      expiring,
+      mandatoryCreds,
+      unreadMessages,
+      overdueInvoices,
+      cascadeCollabs,
+      savedJobs,
+    ] = await Promise.all([
+      prisma.credential.count({ where: { freelancerProfileId: profile.id, status: "REJECTED" } }),
+      prisma.credential.count({
+        where: {
+          freelancerProfileId: profile.id,
+          status: "VERIFIED",
+          expiresAt: { gt: now, lte: soon },
+        },
+      }),
+      // Verplichte-document-rijen (VOG/verzekering) om ontbrekend/verlopen te classificeren. Zonder
+      // deze telling was de /certificaten-badge stil terwijl /acties + de dashboard-rail wél een
+      // "Verplicht document ontbreekt"-taak toonden (bv. een verse ZZP'er zonder certificaten) —
+      // het "signaal op één oppervlak"-anti-patroon. Zelfde bron als pending-tasks.ts.
+      prisma.credential.findMany({
+        where: {
+          freelancerProfileId: profile.id,
+          type: { in: [...MANDATORY_CREDENTIAL_TYPES] },
+        },
+        select: { type: true, status: true, expiresAt: true },
+      }),
+      unreadConversationCount(userId),
+      overdueInvoiceCount("FREELANCER", userId),
+      // Cascade-werkproces: dezelfde scope als het actiecentrum (pending-tasks.ts) — lopende/
+      // voorgestelde, niet-bevroren samenwerkingen. De meest recente prestatie + openstaande
+      // facturen bepalen wie aan zet is; countFreelancerCascadeWork telt de ZZP'er-taken.
+      prisma.collaboration.findMany({
+        where: {
+          freelancer: { userId },
+          status: { in: ["PROPOSED", "ACTIVE"] },
+          disputedAt: null,
+        },
+        select: {
+          status: true,
+          performances: {
+            select: { status: true },
+            orderBy: { createdAt: "desc" },
+            take: 1,
           },
-        }),
-        unreadConversationCount(userId),
-        overdueInvoiceCount("FREELANCER", userId),
-        // Cascade-werkproces: dezelfde scope als het actiecentrum (pending-tasks.ts) — lopende/
-        // voorgestelde, niet-bevroren samenwerkingen. De meest recente prestatie + openstaande
-        // facturen bepalen wie aan zet is; countFreelancerCascadeWork telt de ZZP'er-taken.
-        prisma.collaboration.findMany({
-          where: {
-            freelancer: { userId },
-            status: { in: ["PROPOSED", "ACTIVE"] },
-            disputedAt: null,
+          invoices: {
+            where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"] } },
+            select: { lifecycleStatus: true },
+            take: 5,
           },
-          select: {
-            status: true,
-            performances: {
-              select: { status: true },
-              orderBy: { createdAt: "desc" },
-              take: 1,
-            },
-            invoices: {
-              where: { lifecycleStatus: { in: ["DRAFT", "REJECTED", "APPROVED", "OVERDUE"] } },
-              select: { lifecycleStatus: true },
-              take: 5,
-            },
-          },
-          take: CASCADE_SCAN_LIMIT,
-        }),
-        // bewaarde opdrachten die nog open staan (PUBLISHED) — gelijk aan de "open"-partitie op /opgeslagen
-        prisma.savedJob.count({
-          where: { freelancerProfileId: profile.id, job: { status: "PUBLISHED" } },
-        }),
-      ]);
+        },
+        take: CASCADE_SCAN_LIMIT,
+      }),
+      // bewaarde opdrachten die nog open staan (PUBLISHED) — gelijk aan de "open"-partitie op /opgeslagen
+      prisma.savedJob.count({
+        where: { freelancerProfileId: profile.id, job: { status: "PUBLISHED" } },
+      }),
+    ]);
     const cascadeWork = countFreelancerCascadeWork(
       cascadeCollabs.map((c) => ({
         status: c.status as FreelancerCascadeCollab["status"],
@@ -329,8 +350,21 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
         ),
       })),
     );
+    // Ontbrekende/verlopen verplichte documenten tellen óók mee in de /certificaten-badge, zodat de
+    // badge niet stiller is dan /acties + de dashboard-rail (die de mandatoryDocumentTask tonen). De
+    // pure helper dedupt tegen REJECTED-types (die al in `rejected` zitten) → geen dubbeltelling.
+    const mandatoryAlerts = mandatoryDocumentAlertCount(
+      mandatoryCreds.map(
+        (c): FreelancerCredential => ({
+          type: c.type as FreelancerCredential["type"],
+          status: c.status as FreelancerCredential["status"],
+          expiresAt: c.expiresAt,
+        }),
+      ),
+      now,
+    );
     return buildBadges({
-      credentialAlerts: rejected + expiring,
+      credentialAlerts: rejected + expiring + mandatoryAlerts,
       unreadMessages,
       overdueInvoices,
       cascadeWork,
@@ -421,22 +455,51 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     return buildBadges({ overdueLeads, openHandoffs });
   }
 
-  const [pendingVerifications, openDisputes, openSupportTickets, openNoShows, openAdminHandoffs] =
-    await Promise.all([
-      prisma.credential.count({ where: { status: "SUBMITTED" } }),
-      prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
-      // Helpdesk-tickets die de medewerker aan zet houden (zelfde bron als /acties).
-      prisma.supportTicket.count({ where: { status: { in: [...SUPPORT_OPEN_STATUSES] } } }),
-      // No-show-meldingen die op een oordeel wachten (te beoordelen).
-      prisma.noShowReport.count({ where: { verdict: "PENDING" } }),
-      // Open dienst-overname-aanvragen, platform-breed (admin ziet ze allemaal).
-      prisma.shiftHandoff.count({ where: { status: "OPEN" } }),
-    ]);
+  const [
+    pendingVerifications,
+    openDisputes,
+    openSupportTickets,
+    pendingNoShowVerdicts,
+    noShowAtLimit,
+    openAdminHandoffs,
+  ] = await Promise.all([
+    prisma.credential.count({ where: { status: "SUBMITTED" } }),
+    prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
+    // Helpdesk-tickets die de medewerker aan zet houden (zelfde bron als /acties).
+    prisma.supportTicket.count({ where: { status: { in: [...SUPPORT_OPEN_STATUSES] } } }),
+    // No-show-meldingen die op een oordeel wachten (te beoordelen).
+    prisma.noShowReport.count({ where: { verdict: "PENDING" } }),
+    // ZZP'ers op/over de grens van ongegronde no-shows → een uitschrijf-besluit wacht. Exact dezelfde
+    // groupBy als /acties (pending-tasks.ts adminSuspendNoShowTask); zonder deze telling toonde de
+    // /admin/no-shows-badge 0 terwijl /acties + de pagina "Grens bereikt — beoordeel uitschrijving"
+    // wél een actie toonden (het "signaal op één oppervlak"-anti-patroon).
+    prisma.noShowReport.groupBy({
+      by: ["freelancerProfileId"],
+      where: { verdict: "UNJUSTIFIED" },
+      _count: { _all: true },
+      having: { freelancerProfileId: { _count: { gte: NO_SHOW_LIMIT } } },
+    }),
+    // Open dienst-overname-aanvragen, platform-breed (admin ziet ze allemaal).
+    prisma.shiftHandoff.count({ where: { status: "OPEN" } }),
+  ]);
+  // Alleen nog-ACTIEVE accounts leveren een uitschrijf-besluit op (een al geschorste ZZP'er niet) —
+  // symmetrisch met de ACTIVE-filter in pending-tasks.ts, zodat badge en /acties gelijk tellen.
+  const atLimitToSuspend =
+    noShowAtLimit.length > 0
+      ? await prisma.freelancerProfile.count({
+          where: {
+            id: { in: noShowAtLimit.map((r) => r.freelancerProfileId) },
+            user: { status: "ACTIVE" },
+          },
+        })
+      : 0;
   return buildBadges({
     pendingVerifications,
     openDisputes,
     openSupportTickets,
-    openNoShows,
+    // De /admin/no-shows-nav dekt beide wachtrijen op die pagina: te-beoordelen meldingen én
+    // te-nemen uitschrijf-besluiten — samen gelijk aan het aantal no-show-taken op /acties.
+    openNoShows: pendingNoShowVerdicts + atLimitToSuspend,
     openAdminHandoffs,
   });
 }
