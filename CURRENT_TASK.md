@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Tijd tot plaatsing (time-to-fill) KPI op /inzicht (opdrachtgever) (2026-07-23, PR #878)** —
+> `/inzicht` toonde de opdrachtgever de vervullingsgraad (% opdrachten met plaatsing — de uitkomst) maar niet de snelheid:
+> hoe lang duurt het gemiddeld van publicatie tot de eerste échte plaatsing? Dat is de klassieke ATS-metriek **time-to-fill**
+> (benchmark Temper/Malt). Nu een compacte KPI **"Gem. tijd tot plaatsing · X dagen"** (met "snelste Y") naast de
+> vervullingsgraad-gauge. Pure `summarizeTimeToFill` (`time-to-fill.ts`) berekent de mediane doorlooptijd (robuuster dan
+> gemiddelde) + snelste, in hele dagen; negeert defensief negatieve doorlooptijden, `null` onder `TIME_TO_FILL_MIN_SAMPLE=2`.
+> Data-loader `getClientTimeToFill` doet één begrensde query (company-scoped opdrachten met ≥1 ACTIVE/COMPLETED-samenwerking →
+> vroegste plaatsing; `publishedAt`→`createdAt`-fallback). Onderscheiden van `job-vacancy-performance.ts` (reactietempo per
+> losse opdracht) en `fillRate` (percentage). Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak; alleen een
+> geaggregeerd portefeuillegetal. +7 tests. Gate: typecheck, lint, unit-tests, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Benodigd wekelijks tempo tot het urencriterium (ZZP'er, /inzicht) (2026-07-22, PR #877)** —
 > de Urencriterium-kaart op `/inzicht` (1.225 uur → zelfstandigenaftrek) toonde bij achterstand alleen "nog X uur" +
 > een indirecte-uren-tip, geen concreet haalbaarheids-antwoord. Nu een **benodigd-weektempo** ("houd ≈ Y uur/week aan tot
