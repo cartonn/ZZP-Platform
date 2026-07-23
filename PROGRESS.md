@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — abuse-hardening: rate-limit + same-day dedup op reportNoShow (persona-sweep run 45 parked MED)
+
+**Wat:** `reportNoShow` (`src/app/(protected)/samenwerkingen/no-show-actions.ts`) was de **enige** UGC-mutatie
+zonder rate-limiter én zonder dedup (persona-sweep run 45, geparkeerde MED, DOEL 2). Elke CLIENT/FRANCHISER-
+partij bij een ACTIVE/CANCELLED samenwerking kon herhaalde POST's scripten → per call een permanente
+`NoShowReport` + een `Notification` met vrije-tekst-reden naar de ZZP'er (harassment) + een AuditLog,
+ongelimiteerd; en flooding van de `/admin/no-shows`-moderatiewachtrij (drukt op de uitschrijf-drempel).
+
+**Fix (twee lagen, geen schemawijziging → geen `db push`-risico):**
+
+1. **Volume-rem:** `noShowReportRateLimiter` (`rate-limit.ts`, default `NO_SHOW_REPORT_RATE_LIMIT=10`/melder/uur,
+   parity met invite/message/application) vóór de reads/writes. Bij overschrijding een nette veldfout, geen throw.
+2. **Same-day-dedup:** vóór de create een `findFirst` op `collaborationId` + het UTC-dagvenster van `occurredOn`
+   (nieuwe pure helper `noShowOccurredOnDayRange` in `no-show.ts`) → dezelfde gemiste dienst is per dag maar één
+   keer meldbaar, ook bij een geknutselde POST met tijdcomponent (de melding is dag-granulair). Nette melding
+   i.p.v. een dubbele rij.
+
+Ownership-/rol-/statuspoort blijft ongewijzigd de bron van toegang; dit is defense-in-depth. Geen nieuw
+mutatie/auth-oppervlak. **Bestanden:** `src/lib/rate-limit.ts` (+ `rate-limit.test.ts`), `src/lib/no-show.ts`
+(+ `no-show.test.ts`), `src/app/(protected)/samenwerkingen/no-show-actions.ts`, `docs/PERSONA-SWEEP-BACKLOG.md`,
+`PROGRESS.md`. **+5 tests** (1 limiter-venster, 4 dagvenster). **Gate:** typecheck · lint (0 warnings) ·
+test (**4871 passed**) · build (exit 0) · prettier — allemaal groen.
+
 ## 2026-07-23 — persona-sweep run 45: shift-overname existence-oracle (security) + 2 stille nav-badges (DOEL 1b)
 
 **Wat:** kritische-gebruiker-sweep over alle vier rollen. Drie parallelle Opus-audits (authz/IDOR/cross-

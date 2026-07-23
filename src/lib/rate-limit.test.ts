@@ -5,6 +5,7 @@ import {
   exportRateLimiter,
   MemoryRateLimitStore,
   messageRateLimiter,
+  noShowReportRateLimiter,
   RateLimiter,
   resetRateLimiter,
   uploadRateLimiter,
@@ -380,5 +381,14 @@ describe("mutatie-limiters (berichten/reacties/uploads/export)", () => {
     }
     expect((await exportRateLimiter.check(key, BASE_NOW + 5)).allowed).toBe(false);
     expect((await exportRateLimiter.check(key, BASE_NOW + 60 * 60_000)).allowed).toBe(true);
+  });
+
+  it("noShowReportRateLimiter: 10 meldingen toegestaan, 11e geweigerd, nieuw venster na een uur", async () => {
+    const key = `noshow-test-${BASE_NOW}`;
+    for (let i = 0; i < 10; i++) {
+      expect((await noShowReportRateLimiter.check(key, BASE_NOW + i)).allowed).toBe(true);
+    }
+    expect((await noShowReportRateLimiter.check(key, BASE_NOW + 10)).allowed).toBe(false);
+    expect((await noShowReportRateLimiter.check(key, BASE_NOW + 60 * 60_000)).allowed).toBe(true);
   });
 });

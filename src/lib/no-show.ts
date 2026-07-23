@@ -29,6 +29,21 @@ export function noShowStanding(
   };
 }
 
+/**
+ * UTC-dagvenster `[gte, lt)` voor de dag waarop `occurredOn` valt. Gebruikt door de
+ * same-day-dedup in `reportNoShow`: één missie kan op één dag maar één keer worden gemeld,
+ * ongeacht of de melder een kale datum (`yyyy-mm-dd` → middernacht UTC) of een geknutselde
+ * POST met tijdcomponent stuurt. Puur en tijdzone-deterministisch (UTC), los testbaar.
+ */
+export function noShowOccurredOnDayRange(occurredOn: Date): { gte: Date; lt: Date } {
+  const gte = new Date(
+    Date.UTC(occurredOn.getUTCFullYear(), occurredOn.getUTCMonth(), occurredOn.getUTCDate()),
+  );
+  const lt = new Date(gte);
+  lt.setUTCDate(lt.getUTCDate() + 1);
+  return { gte, lt };
+}
+
 export type NoShowNoticeTone = "warning" | "danger";
 
 export interface NoShowNotice extends NoShowStanding {
