@@ -13,6 +13,7 @@ import { summarizeOwnPaymentTiming } from "@/lib/own-payment-timing";
 import { forecastInvoicePayout } from "@/lib/invoice-payment-forecast";
 import { summarizeCashflowForecast, CASHFLOW_HORIZON_DAYS } from "@/lib/cashflow-forecast";
 import { summarizePayablesForecast, PAYABLES_HORIZON_DAYS } from "@/lib/payables-forecast";
+import { summarizeCommittedCost } from "@/lib/committed-cost";
 import { formatDateShortNl } from "@/lib/format-date";
 import { type InvoiceStatus } from "@/lib/enums";
 import { type InvoiceLifecycleState } from "@/lib/lifecycles";
@@ -80,6 +81,7 @@ export async function FacturenPanel({
           job: { select: { title: true } },
           company: { select: { id: true, name: true } },
           freelancer: { select: { user: { select: { name: true } } } },
+          disputedAt: true,
         },
       },
     },
@@ -210,6 +212,22 @@ export async function FacturenPanel({
       )
     : null;
 
+  // Aankomend (alleen opdrachtgever): goedgekeurd werk dat nog niet als factuur is uitgestuurd
+  // (cascade-concept, `lifecycleStatus="DRAFT"`) — bijna-zekere kost die de payables-vooruitblik
+  // (uitgestuurde/openstaande facturen) nog niet dekt. De payer-tegenhanger van de ZZP-"Nog te
+  // factureren"-blik. Geen extra query: de factuurlijst is al geladen; bevroren (disputed) concepten
+  // tellen niet mee (onzeker). Geen dubbeltelling met payables (die telt uitsluitend openstaand).
+  const committedCost = !isFreelancer
+    ? summarizeCommittedCost(
+        invoices.map((inv) => ({
+          lifecycleStatus: inv.lifecycleStatus,
+          status: inv.status,
+          totalCents: inv.totalCents,
+          disputed: inv.collaboration?.disputedAt != null,
+        })),
+      )
+    : null;
+
   return (
     <div className="space-y-6">
       {canInvoice && (
@@ -223,7 +241,7 @@ export async function FacturenPanel({
       )}
 
       {invoices.length > 0 && (
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Card className="flex-1">
             <CardContent className="space-y-1 p-4">
               <p className="text-xs text-muted-foreground">{t("Betaald")}</p>
@@ -265,6 +283,19 @@ export async function FacturenPanel({
               )}
             </CardContent>
           </Card>
+          {committedCost && (
+            <Card className="flex-1">
+              <CardContent className="space-y-1 p-4">
+                <p className="text-xs text-muted-foreground">{t("Aankomend")}</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {formatEuro(committedCost.grossCents)}
+                </p>
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  {t("goedgekeurd werk, nog te factureren")}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
