@@ -370,6 +370,15 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
    secrets — alleen de uitkomst + driver-modus. Resterend mensenwerk: **niets extra** — de knop is er
    zodra `EMAIL_DRIVER` op `smtp`/`resend` staat (en werkt ook op `noop`, om dat eerlijk te melden).
 
+   **Code-kant GEDAAN (2026-07-23) — read-only connectiviteitscheck (mail draait mee in de go-live-sweep):**
+   naast die deliverability-zelftest (verstuurt een echte mail) heeft het kanaal nu ook een **read-only**
+   connectiviteitscontrole (`MailSender.checkConnectivity()` — Resend: authenticated `GET /domains`; SMTP:
+   `transporter.verify()`) die bereikbaarheid + geldige credentials bewijst **zonder een mail te
+   versturen**. Daardoor draait mail nu mee in de één-klik **go-live GO/NO-GO-sweep** (§11) — voorheen was
+   mail als enige integratie uitgesloten omdat de deliverability-check een ontvanger + echte mail vereist.
+   Beide bestaan naast elkaar: de sweep gebruikt de bulk-veilige read-only variant; de losse "Testmail
+   versturen"-knop bevestigt de daadwerkelijke aflevering. Resterend mensenwerk: **niets extra**.
+
 ---
 
 ## §3. Betalingen / abonnementen
@@ -841,14 +850,19 @@ go-live. Zie §2 voor het volledige verhaal. Resterend mensenwerk: **niets** —
 **Code-kant GEDAAN (2026-07-21) — go-live zelftest-sweep (alle zelftests in één klik):** op
 `/admin/systeemstatus` staat nu bovenaan de zelftest-lijst één knop **"Alle zelftests draaien"** die
 álle actieve, bijwerkingsveilige connectiviteitszelftests (opslag, database, rate-limit, verificatie,
-betaalprovider, upload-scanner, error-monitoring) in één keer draait en een geconsolideerd **GO/NO-GO**
-teruggeeft. Zo bevestig je vóór go-live in één handeling dat élke geconfigureerde integratie écht
-live-bereikbaar is, i.p.v. de losse knoppen één voor één te klikken. Integraties die nog op een veilige
-fallback/demo draaien worden eerlijk als **overgeslagen** getoond (geen vals groen). De uitvoer bevat
-nooit secrets (alleen pass/fail/overgeslagen + driver-modus), loopt door de authz-keten (rol →
-rate-limit → audit) en heeft geen bijwerkingen die opgeruimd moeten worden. **Mail zit bewust niet in
-de sweep** (vereist een ontvangeradres + verstuurt echte mail) — gebruik daar de losse E-mail-zelftest
-(§2). De statische `npm run preflight` (config-posture, hieronder) blijft de tegenhanger buiten de app.
+betaalprovider, upload-scanner, error-monitoring, **e-mail**) in één keer draait en een geconsolideerd
+**GO/NO-GO** teruggeeft. Zo bevestig je vóór go-live in één handeling dat élke geconfigureerde integratie
+écht live-bereikbaar is, i.p.v. de losse knoppen één voor één te klikken. Integraties die nog op een
+veilige fallback/demo draaien worden eerlijk als **overgeslagen** getoond (geen vals groen). De uitvoer
+bevat nooit secrets (alleen pass/fail/overgeslagen + driver-modus), loopt door de authz-keten (rol →
+rate-limit → audit) en heeft geen bijwerkingen die opgeruimd moeten worden.
+**Code-kant GEDAAN (2026-07-23) — mail draait mee in de sweep via een read-only connectiviteitscheck:**
+de `MailSender`-abstractie heeft nu een `checkConnectivity()` (Resend: authenticated `GET /domains`;
+SMTP: `transporter.verify()` — connect + EHLO + AUTH, **géén mail verzonden**), zodat het e-mailkanaal
+— net als opslag/database/betaalprovider — mee kan in de één-klik GO/NO-GO. **De losse E-mail-zelftest
+die een échte testmail naar een ontvanger stuurt (deliverability-bevestiging, §2) blijft bewust apart**
+— dat hoort een bewuste handeling te blijven; de sweep gebruikt de bulk-veilige read-only variant.
+De statische `npm run preflight` (config-posture, hieronder) blijft de tegenhanger buiten de app.
 Resterend mensenwerk: **niets extra** — de knop is er standaard.
 
 **Code-kant GEDAAN (13-7-2026) — go-live preflight-CLI:** naast het in-app `/admin/systeemstatus`-scherm

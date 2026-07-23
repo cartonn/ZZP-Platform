@@ -9,12 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SweepEntry, SweepReport } from "@/lib/services/selftest-sweep";
 
 // Admin-only go-live-sweep: draait op verzoek álle actieve, bijwerkingsveilige connectiviteitszelftests
-// (opslag, database, rate-limit, verificatie, betaalprovider, upload-scanner, error-monitoring) in één
-// klik en toont een geconsolideerd GO/NO-GO plus het resultaat per integratie. Server-side waarheid: de
-// knop triggert alleen de server-actie, die de authz-keten + rate-limit + audit afhandelt. Integraties
-// op een veilige fallback/demo worden eerlijk als "overgeslagen" gemeld (geen vals groen). Mail zit
-// bewust niet in de sweep (vereist een ontvangeradres + verstuurt echte mail) — gebruik daar de losse
-// E-mail-zelftest.
+// (opslag, database, rate-limit, verificatie, betaalprovider, upload-scanner, error-monitoring, e-mail)
+// in één klik en toont een geconsolideerd GO/NO-GO plus het resultaat per integratie. Server-side
+// waarheid: de knop triggert alleen de server-actie, die de authz-keten + rate-limit + audit afhandelt.
+// Integraties op een veilige fallback/demo worden eerlijk als "overgeslagen" gemeld (geen vals groen).
+// Mail draait mee via de READ-ONLY connectiviteitscheck (verstuurt geen mail); de losse E-mail-zelftest
+// die een échte testmail naar een ontvanger stuurt (deliverability) blijft apart.
 
 function EntryIcon({ status }: { status: SweepEntry["status"] }) {
   if (status === "pass")
@@ -55,9 +55,10 @@ export function SelfTestSweep() {
           <CardTitle>Go-live-sweep — alle zelftests</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
             Draait in één klik álle actieve connectiviteitszelftests (opslag, database, rate-limit,
-            verificatie, betaalprovider, upload-scanner, error-monitoring) en geeft een
+            verificatie, betaalprovider, upload-scanner, error-monitoring, e-mail) en geeft een
             geconsolideerd GO/NO-GO. Integraties op een veilige fallback worden overgeslagen (niets
-            getest). De E-mail-zelftest staat apart (vereist een ontvangeradres).
+            getest). De losse E-mail-zelftest (echte testmail) blijft apart (vereist een
+            ontvangeradres).
           </p>
         </div>
         <Button variant="secondary" size="sm" onClick={run} disabled={pending}>

@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   getMailSender,
   isMailDeliveryConfigured,
+  MailConnectivityError,
   _resetMailSender,
   ResendMailSender,
   type MailMessage,
@@ -199,6 +200,80 @@ describe("getMailSender", () => {
 
     const sender = new ResendMailSender(hangingFetch, 20);
     await expect(sender.send(msg)).rejects.toBeInstanceOf(HttpTimeoutError);
+  });
+
+  it("NoopMailSender.checkConnectivity() resolvet (niets te controleren)", async () => {
+    const sender = getMailSender();
+    await expect(sender.checkConnectivity()).resolves.toBeUndefined();
+  });
+
+  it("SmtpMailSender.checkConnectivity() roept transporter.verify() aan zonder mail te sturen", async () => {
+    const verify = vi.fn().mockResolvedValue(true);
+    const sendMail = vi.fn().mockResolvedValue({});
+    const createTransport = vi.fn().mockReturnValue({ sendMail, verify });
+    vi.doMock("nodemailer", () => ({ default: { createTransport }, createTransport }));
+
+    process.env.EMAIL_DRIVER = "smtp";
+    process.env.EMAIL_SMTP_HOST = "smtp.test";
+    process.env.EMAIL_SMTP_PORT = "587";
+    process.env.EMAIL_SMTP_USER = "user";
+    process.env.EMAIL_SMTP_PASS = "pass";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    _resetMailSender();
+    const { getMailSender: freshGet } = await import("./mail-sender");
+    await freshGet().checkConnectivity();
+
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(sendMail).not.toHaveBeenCalled();
+  });
+
+  it("SmtpMailSender.checkConnectivity() werpt als SMTP-variabelen ontbreken", async () => {
+    process.env.EMAIL_DRIVER = "smtp";
+    await expect(getMailSender().checkConnectivity()).rejects.toThrow(
+      "SMTP-mailkanaal is niet geconfigureerd",
+    );
+  });
+
+  it("ResendMailSender.checkConnectivity() doet een read-only GET /domains met Bearer-auth", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+
+    process.env.EMAIL_DRIVER = "resend";
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await getMailSender().checkConnectivity();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://api.resend.com/domains");
+    expect(init?.method).toBe("GET");
+    expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer re_test_key");
+  });
+
+  it("ResendMailSender.checkConnectivity() werpt MailConnectivityError met alleen de status bij een non-2xx", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("invalid api key details", { status: 401 }),
+    );
+
+    process.env.EMAIL_DRIVER = "resend";
+    process.env.RESEND_API_KEY = "re_bad";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    const err = await getMailSender()
+      .checkConnectivity()
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(MailConnectivityError);
+    expect((err as Error).message).toContain("status 401");
+    // De responsbody (kan accountdetails bevatten) mag niet lekken.
+    expect((err as Error).message).not.toContain("invalid api key details");
+  });
+
+  it("ResendMailSender.checkConnectivity() werpt MailConnectivityError als de sleutel ontbreekt", async () => {
+    process.env.EMAIL_DRIVER = "resend";
+    await expect(getMailSender().checkConnectivity()).rejects.toBeInstanceOf(MailConnectivityError);
   });
 
   it("isMailDeliveryConfigured is true voor smtp en resend, false voor noop", () => {

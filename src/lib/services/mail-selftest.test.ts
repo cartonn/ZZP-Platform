@@ -14,6 +14,9 @@ class RecordingSender implements MailSender {
     if (this.failWith) throw this.failWith;
     this.sent.push(message);
   }
+  async checkConnectivity(): Promise<void> {
+    if (this.failWith) throw this.failWith;
+  }
 }
 
 describe("isValidRecipient", () => {
