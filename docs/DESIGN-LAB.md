@@ -1333,6 +1333,41 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   (WCAG focus-states, status label+icoon, motion-reduce) en onderscheidend van de bestaande 430.
 - **Totaal nu op `/ontwerp`: 440 concepten** (reeks 44: 431–440).
 
+## Reeks 46 — concepten 461–470 (2026-07-23)
+
+> Nummering slaat 451–460 over: die reeks is al in-flight in open PR #884 (aparte richtingen). Deze
+> run bouwt daarom additief door vanaf 461, zodat er geen bestands-/registry-botsing ontstaat.
+
+- **461 Bakeliet** — retro-industrieel art-deco bakeliet (#241612 + amber #e0a54b): diep karamel met
+  gemarmerde glansstrepen, gepolijste chroom-/amberknoppen met reflectie en tactiele inset-diepte,
+  deco-hoofdletters — warm, materieel en zelfverzekerd premium.
+- **462 Wisselspoor** — spoorwegemplacement (#14181d + sein-groen #37b24d): navigatie als rails/wissels,
+  perron-seinbord-signage (mono, hoofdletters), opdrachtenlijst als spoor met bakennodes — industrieel-
+  functioneel en glashelder over wie aan zet is.
+- **463 Veenweide** — Hollands veenweidelandschap (#f2f3ec + sage #6f8f5f): luchtig cream-naar-sage
+  verloop met gelaagde horizon-banden, serif-koppen en veel witruimte — laag-prikkelend en menselijk.
+- **464 Colofon** — drukkers-colofon (#f4f1ea + vermiljoen #c8402f): registratiekruisjes, fijne
+  filet-kaders, kleine-caps en foliëring — editorial maar technisch-precies, het vak van de drukker.
+- **465 Sneeuwvlok** — kristallijne zesvoudige symmetrie (#eef4f9 + cyaan #14b3d6): zesvoudig-symmetrische
+  vlok-motieven als dividers/hero, hexagonale match-badges en facet-glaspanelen — fris, precies, clean.
+- **466 Draaischijf** — kiesschijf/draaitafel (#e8e4dd + amber #d17b34): een echte arc-dial met ticks en
+  naaf voor match-scores en vertrouwen, roterend radiaal command-element — rond, mechanisch-warm.
+- **467 Waterpas** — precisie-meetinstrument (#f5f6f3 + groen #2f9e63): meetkundig raster, hairlines,
+  registratie-kruisjes en maatstreepjes; libel-bel + doosniveau als match-/vertrouwensmeter — ingenieurs-esthetiek.
+- **468 Glasblazer** — glasblazen (#161110 + ember #ff7a2e): donker-warme oven-grond met radiale
+  smelt-gloed, translucente glaspanelen met refractie en een gloeiende smelt-orb als meter — premium warm-dark craft.
+- **469 Vlechtwerk** — gevlochten mandenmaken (#f4ece0 + rieten #c99a5b): over-onder-weefstructuur als
+  dividers en basket-bottom-motief voor logo/match-badges — tactiel, handgemaakt en menselijk.
+- **470 Vuurwerk** — vuurwerk tegen de nachthemel (#070a18 + goud #ffb020): diep nachtblauw-zwart met
+  radiale kleur-bursts als accenten en explosie-motief voor match-ringen — premium-dark en energiek-vrolijk.
+- Onderzochte 2026-trends deze reeks: **materiële luxe & gepolijst skeuomorfisme (bakeliet, glas, dial,
+  vlechtwerk)**; **industriële signage & flow-as-rails**; **calm / low-stimulation landschap**; **editorial
+  print-productie-precisie (colofon, registratiemarkeringen)**; **geometrische radiale symmetrie (vlok,
+  radiale dial)**; **precisie-instrument/kalibratie-UI (libel-meter)**; **premium-dark met radiale gloed &
+  micro-sparkle-motion** — elk deterministisch, toegankelijk (WCAG focus-states, status label+icoon,
+  motion-reduce) en onderscheidend van de bestaande set.
+- **Totaal nu op `/ontwerp`: 460 concepten** (reeks 46: 461–470; slots 451–460 gereserveerd door in-flight PR #884).
+
 ## Reeks 45 — concepten 441–450 (2026-07-21)
 
 - **441 Kelp** — onderwater-kelpbos / organische diepte (#07211f + amber #f5b342): verticaal ritme met

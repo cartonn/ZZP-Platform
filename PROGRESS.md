@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — ontwerp-lab: +10 concepten (reeks 46, nrs 461–470)
+
+**Wat:** orchestrator (Opus 4.8) + 4 parallelle Opus-builders op niet-overlappende bestanden bouwden
+10 nieuwe, onderscheidende redesign-concepten voor `/ontwerp` (additief — bestaande concepten ongemoeid).
+Slots 451–460 waren al in-flight in open PR #884, dus deze reeks bouwt door vanaf **461** om botsing te
+vermijden. Nieuw: **461 Bakeliet** (art-deco bakeliet), **462 Wisselspoor** (spoor-signage),
+**463 Veenweide** (sereen landschap), **464 Colofon** (drukkers-precisie), **465 Sneeuwvlok** (zesvoudige
+symmetrie), **466 Draaischijf** (radiale dial), **467 Waterpas** (libel-precisie-instrument),
+**468 Glasblazer** (gloeiend warm-dark glas), **469 Vlechtwerk** (gevlochten craft), **470 Vuurwerk**
+(feestelijk premium-dark). Elk toont de 6 kernschermen via `SCREENS`-tabs met verklaarbare
+matching-redenen, status-badges (label+icoon), loading-skeleton + empty-state, focus-states, aria,
+responsive en `prefers-reduced-motion`. Het woord "AI" komt nergens voor; UI = Nederlands.
+
+**Bestanden:** `src/components/ontwerp/concepts/concept-461..470-*.tsx` (10 nieuw); append aan
+`registry.ts` (+10 ConceptMeta) en `src/app/ontwerp/[id]/concept-host.tsx` (+10 dynamic-imports);
+`docs/DESIGN-LAB.md` (reeks 46). Geen live-app/gedrag/auth geraakt.
+
+**Checks (lokaal groen):** `typecheck` ✅ · `lint` ✅ (0 warnings) · `prettier --check .` ✅ ·
+`test` ✅ 4910 passed (468 files) · `build` ✅.
+
 ## 2026-07-23 — security/privacy-audit: bron-IP op beveiligingsincidenten geredigeerd na venster (HOOG, AVG)
 
 **Wat:** orchestrator (Opus 4.8) + 3 parallelle Opus-audits op niet-overlappende oppervlakken —
