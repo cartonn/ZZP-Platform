@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — opdrachtgever: "Aankomend" (committed cost) forward-blik op /facturen
+
+**Wat:** de opdrachtgever zag op `/facturen` wél de openstaande (uitgestuurde) facturen — via de payables-
+vooruitblik — maar goedgekeurd werk dat nog niet als factuur is uitgestuurd (cascade-concept,
+`lifecycleStatus="DRAFT"`) was onzichtbaar: bijna-zekere kost die niet te begroten viel. Toegevoegd: de
+symmetrische tegenhanger van de ZZP-"Nog te factureren"-blik — een **Aankomend**-KPI met het brutobedrag
+aan goedgekeurd-maar-nog-niet-uitgestuurd werk (benchmark: forward-cost-zicht bij Deel/Stripe-billing).
+
+**Hoe:** nieuwe pure `summarizeCommittedCost` (`src/lib/committed-cost.ts`) telt uitsluitend de concept-groep
+(`invoiceGroup === "concept"`, cascade-DRAFT + losse legacy-DRAFT — dezelfde bron als de "Concept"-pill),
+sluit bevroren (disputed) concepten uit (onzeker), en geeft `null` bij niets aankomend (geen ruis). **Geen
+dubbeltelling met payables** (die ankert op uitgestuurde/openstaande facturen). Read-only afleiding uit de
+reeds geladen factuurlijst — **geen extra query** (alleen `disputedAt` toegevoegd aan de collaboration-select).
+Server-side waarheid; de client toont het getal, berekent het nooit. UI-string via `t()` → NL-brontekst,
+geen i18n-woordenboekwijziging.
+
+**Bestanden:** `src/lib/committed-cost.ts` (+ `committed-cost.test.ts`, **+5 tests**),
+`src/components/administratie/facturen-panel.tsx` (client-branch KPI-kaart + `disputedAt` in de select).
+**Gate:** typecheck · lint (0 warnings) · test (**4876 passed**, 463 files) · prettier — groen; build draait.
+
 ## 2026-07-23 — abuse-hardening: rate-limit + same-day dedup op reportNoShow (persona-sweep run 45 parked MED)
 
 **Wat:** `reportNoShow` (`src/app/(protected)/samenwerkingen/no-show-actions.ts`) was de **enige** UGC-mutatie
