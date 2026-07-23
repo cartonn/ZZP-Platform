@@ -354,15 +354,18 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
       "Tijdstempel van handelingen",
       "Inlogpogingen (succesvol/mislukt)",
       "Auditgebeurtenissen (wie, wat, wanneer)",
+      "Beveiligingsincidenten (afgeleide signalen, bv. inlog-burst/reset-flood, incl. bron-IP)",
     ],
     sensitive: false,
     recipients: ["Intern platformbeheer (beveiligingsteam)"],
-    retention: "12 maanden",
+    retention:
+      "Auditlogboek: 12 maanden. Beveiligingsincidenten: het incident blijft als signaal bewaard, maar het bron-IP wordt na 90 dagen automatisch geredigeerd (dataminimalisatie)",
     securityMeasures: [
       "Auditlogging",
       "Toegang op rol (RBAC)",
       "Versleutelde opslag",
       "Beperkte bewaartermijn",
+      "Automatische IP-redactie op oude beveiligingsincidenten (run-all → health-incident-retention)",
     ],
   },
 
@@ -585,9 +588,10 @@ export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
   {
     key: "auditlog-beveiligingslogboeken",
     category: "Auditlog & beveiligingslogboeken",
-    period: "12 maanden",
+    period:
+      "Auditlog: 12 maanden. Beveiligingsincidenten: bron-IP automatisch geredigeerd na 90 dagen (het incidentsignaal zelf blijft)",
     rationale:
-      "Gerechtvaardigd belang (beveiliging en fraudepreventie); langer bewaren staat niet in verhouding tot het doel",
+      "Gerechtvaardigd belang (beveiliging en fraudepreventie); langer bewaren staat niet in verhouding tot het doel. Het IP-adres op een beveiligingsincident (persoonsgegeven) wordt na het onderzoeksvenster automatisch geredigeerd door een geplande sweep (run-all → health-incident-retention; art. 5(1)(c)/(e))",
   },
   {
     key: "berichten",

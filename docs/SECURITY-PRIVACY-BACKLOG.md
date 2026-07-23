@@ -4,6 +4,77 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-23b (basis: `main` @ 7d285a56)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende
+oppervlakken — (1) delta-authz/IDOR/injectie/k-anonimiteit over álle sinds `62c035a6` gewijzigde
+KPI-/routine-oppervlakken (time-to-fill, aging/committed-cost, signals-badges, no-show, urencriterium,
+mandatory-documents, lead-retention) + hun consumers; (2) álle `/api/**`-route-handlers + upload/storage
+
+- SSRF + webhook + cron + middleware; (3) AVG betrokkenen-rechten (erasure veld-voor-veld per PII-model),
+  dataminimalisatie, retentie, PII-in-logs, verwerkingsregister, cross-border. Kader: OWASP Top 10
+  (A01/A03/A05/A10) + ASVS + AVG art. 5/9/17/30/32. Stack voorbij bekende CVE's (Next.js 15.5.19 voorbij
+  CVE-2025-29927, Auth.js v5-beta.31, Prisma 6.19.3). `npm audit --production` = 0; drie dev-only
+  DoS-advisories (brace-expansion/esbuild-Windows/js-yaml) niet productie-reachable.
+
+**Oppervlakken (1) en (2) onafhankelijk schoon** — elke by-`[id]`/`[...key]`-route dekt
+auth→rol→ownership/tenant→audit met existence-oracle-veilige 404; media/`[...key]` dubbel-guarded
+(logoKey-match + `resolve()` traversal-reject); uploads magic-byte-gesnift; documenten sandboxed
+(`CSP: sandbox; default-src 'none'`); cron fail-closed (503/401, POST-only, timing-safe Bearer); push-SSRF
+allowlisted; webhook HMAC + idempotent; alle 11 CSV-exports via de canonieke `toCsv` formule-injectie-guard;
+KPI's eigenaar-/company-/tenant-gescoped en geaggregeerd. **Eén concrete AVG-gap gevonden én OPGELOST
+(rood→groen); overige privacy-items zijn FG-mensenwerk (twee-wegdeur) en her-geëscaleerd.**
+
+### OPGELOST — HOOG: bron-IP op beveiligingsincidenten (`HealthIncident`) nu automatisch geredigeerd na venster (AVG art. 5(1)(c)/(e))
+
+- **Repro (was):** de anomaliedetector (`src/lib/monitoring/detectors.ts:71-101`) legt bij een
+  LOGIN_BURST/PASSWORD_RESET_FLOOD het bron-IP vast in `HealthIncident.evidence` (JSON `{ip,...}`) én
+  verweeft het in de mensleesbare `summary`. Een IP-adres is een persoonsgegeven; er was géén sweep die
+  dat IP ooit opruimde (alleen `audit-retention`/`webhook-event-retention`/`lead-retention` bestonden) en
+  het verwerkingsregister had geen entry voor deze afgeleide incidentstore → IP's bleven onbeperkt staan.
+- **Geschonden regel:** AVG art. 5(1)(c) dataminimalisatie + 5(1)(e) opslagbeperking; art. 30 (register
+  onvolledig).
+- **Fix:** niet-destructieve **redactie** i.p.v. wissen — het incident (type/ernst/aantal/venster) blijft
+  als beveiligingssignaal bewaard, alléén het IP wordt na het venster vervangen door de bestaande
+  redactie-sentinel `[verwijderd]` (in evidence én summary). `src/lib/health-incident-retention.ts` (pure
+  `healthIncidentIpRetentionCutoff` + `redactIncidentIp` — letterlijke split/join tegen regex-injectie via
+  een client-nabij X-Forwarded-For-IP; slaat `onbekend`/reeds-geredigeerd over → idempotent),
+  `src/lib/health-incident-retention-task.ts` (gebatchte, idempotente update via een portabele
+  `contains`/`NOT`-query op de tekstkolom; `HEALTH_INCIDENT_IPS_REDACTED`-auditrecord zonder PII), gewired
+  in `run-all`. Config `HEALTH_INCIDENT_IP_RETENTION_DAYS` staat — net als lead-retentie en anders dan de
+  onomkeerbare auditlog-sweep — standaard AAN (default 90 dagen onderzoeksvenster; min-vloer 30; expliciete
+  `0`=uit) omdat onbeperkte IP-retentie de overtreding ís en redactie de beveiligingswaarde niet aantast.
+  Register (#12) + retentieschema (`auditlog-beveiligingslogboeken`) bijgewerkt naar de afgedwongen
+  redactie. Tests: `health-incident-retention.test.ts` (+9) en `health-incident-retention-task.test.ts`
+  (+8, rood→groen: o.a. "redigeert IP uit oude incidenten", "laat verse incidenten ongemoeid", "raakt
+  onbekend/niet-IP-incidenten niet aan", idempotentie, batching >BATCH_SIZE, audit alleen bij redactie,
+  expliciete-0-override).
+
+### GEPARKEERD — MIDDEL: admin-notificatie kopieert incident-`summary` (incl. IP) — dezelfde PII, ander pad
+
+- **Repro:** `src/lib/monitoring/monitor-task.ts:103-108` schrijft bij elk incident een admin-notificatie
+  met `body: f.summary` — dat is dezelfde IP-bevattende samenvatting. De nieuwe HealthIncident-redactie
+  raakt die notificatie-kopie (nog) niet; er is geen FK van `Notification` naar `HealthIncident`.
+- **Geschonden regel:** AVG art. 5(1)(c)/(e) (consistente minimalisatie over kopieën).
+- **Aanbevolen fix:** breid de retentie-sweep uit met een redactie van beveiligings-alert-notificaties
+  (match op ongelezen/oude admin-notificaties met een IP in de body ouder dan het venster), óf laat
+  `monitor-task` de IP al bij creatie uit de notificatie-body weglaten (het incident houdt de details).
+  Klein, engineer-fixbaar — kandidaat voor de volgende ronde.
+
+### Her-geëscaleerd (FG-mensenwerk, twee-wegdeur — ONVERANDERD open, zie eerdere rondes)
+
+- **KRITIEK** — door-derden-geschreven vrije tekst óver de betrokkene overleeft `anonymizeUser`
+  (`NoShowReport.reason`, `Performance.rejectionReason`, `Invoice.rejectionReason` REJECTED-tak,
+  `Review.comment` waar `subjectId==userId`) — kan art. 9-gegevens bevatten. Beslissing (nullen vs.
+  gedocumenteerde retentiegrond) is expliciet FG/juridisch, vóór echte VOG/diploma-data live gaat.
+- **MIDDEL** — `AUDIT_LOG_RETENTION_DAYS` is opt-in/onbeperkt terwijl register "12 maanden" +
+  "Beperkte bewaartermijn" als geïmplementeerd claimt (art. 5(2) verantwoordingsplicht). Bevestig dat
+  Railway-prod het zet, óf default AAN zoals lead-/incident-retentie.
+- **MIDDEL** — `Expense.description` overleeft erasure terwijl `Performance.description` (structureel
+  gelijk) wél wordt geredigeerd; inconsistente fiscale-retentie-afweging.
+- **LAAG** — Geoapify (routing/geocoding-derde) ontbreekt in het verwerkingsregister; hangt op de
+  werkelijke granulariteit van de doorgegeven locatie (stad vs. adres).
+
 ## Ronde 2026-07-23 (basis: `main` @ b8f0a6e3)
 
 Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-security-subagents op niet-overlappende

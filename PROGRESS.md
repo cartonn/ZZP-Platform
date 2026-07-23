@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — security/privacy-audit: bron-IP op beveiligingsincidenten geredigeerd na venster (HOOG, AVG)
+
+**Wat:** orchestrator (Opus 4.8) + 3 parallelle Opus-audits op niet-overlappende oppervlakken —
+(1) KPI-/routine-delta (time-to-fill, aging, committed-cost, signals, no-show, urencriterium,
+mandatory-documents, lead-retention) + consumers; (2) álle `/api/**`-handlers + upload/storage + SSRF +
+webhook + cron + middleware; (3) AVG betrokkenen-rechten/erasure/retentie/register/PII-in-logs.
+Oppervlakken (1) en (2) **onafhankelijk schoon** (existence-oracle-veilige 404, tenant-scoping, magic-byte
+upload-sniff, sandboxed documenten, fail-closed cron, allowlisted push-SSRF, HMAC+idempotente webhook, alle
+11 CSV-exports via `toCsv` formule-guard). `npm audit --production` = 0.
+
+**GEVONDEN + GEFIXT — HOOG/AVG art. 5(1)(c)/(e) + art. 30:** de anomaliedetector legt het bron-IP van een
+inlog-burst/reset-flood vast op `HealthIncident` (evidence + summary); er was géén sweep die dat IP
+(persoonsgegeven) ooit opruimde en het verwerkingsregister had geen entry voor deze afgeleide store → IP's
+bleven onbeperkt staan. **Fix:** niet-destructieve **redactie** i.p.v. wissen — incidentsignaal blijft,
+alleen het IP wordt na het venster vervangen door `[verwijderd]`. `src/lib/health-incident-retention.ts`
+(pure cutoff + `redactIncidentIp`), `src/lib/health-incident-retention-task.ts` (gebatchte, idempotente
+update + audit `HEALTH_INCIDENT_IPS_REDACTED`), gewired in `run-all`, config
+`HEALTH_INCIDENT_IP_RETENTION_DAYS` (standaard AAN, default 90d, min-vloer 30, expliciete 0=uit),
+register+retentieschema bijgewerkt. **Tests:** +17 (rood→groen), volledige suite groen, typecheck/lint/
+prettier/check:env groen.
+
+**Volgende stap (geparkeerd, backlog 2026-07-23b):** MIDDEL — admin-notificatie kopieert de IP-bevattende
+incident-`summary` (`monitor-task.ts:103-108`); engineer-fixbaar in de volgende ronde. FG-mensenwerk (open):
+KRITIEK door-derden-PII overleeft `anonymizeUser`, MIDDEL audit-retentie opt-in vs. register-belofte,
+MIDDEL `Expense.description`-erasure, LAAG Geoapify-registerentry.
+
 ## 2026-07-23 — persona-sweep run 46: existence-oracle in samenwerkingen-module (HIGH) + 2 nav-badge-gaten
 
 **Wat:** kritische-gebruiker-sweep (verse prod-build + 3 parallelle Opus-audits: authz/IDOR/cross-tenant;
