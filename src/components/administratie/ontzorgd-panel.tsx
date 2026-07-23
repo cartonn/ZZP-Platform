@@ -143,6 +143,11 @@ export async function OntzorgdPanel({ actor }: { actor: Actor }) {
               BTW {formatEuro(o.reservation.vatReserveCents)} + IB/Zvw{" "}
               {formatEuro(o.reservation.incomeReserveCents)}
             </p>
+            {o.marginalReserveBps > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Van elke volgende € 1.000 winst: ~{formatEuro(o.marginalReserveBps * 10)} IB/Zvw
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>

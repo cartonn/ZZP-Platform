@@ -41,6 +41,15 @@ describe("buildOntzorgOverview", () => {
     expect(o.hours.totalHours).toBe(550);
   });
 
+  it("berekent een marginale IB/Zvw-voet bij winst boven de aftrek", () => {
+    // €30.000 winst (credit OMZET), urencriterium gehaald → marginaal ~35,9%.
+    const entries: LedgerEntry[] = [entry("OMZET", 0, 3000000, "2026-04-10T10:00:00Z")];
+    const o = buildOntzorgOverview({ entries, directHours: 1300, indirectHours: 0, now });
+    expect(o.hours.met).toBe(true);
+    expect(o.marginalReserveBps).toBeGreaterThan(3400);
+    expect(o.marginalReserveBps).toBeLessThan(3700);
+  });
+
   it("genereert een BTW-indien-actie met deadline", () => {
     const entries: LedgerEntry[] = [entry("BTW_AF_TE_DRAGEN", 0, 50000, "2026-04-01T10:00:00Z")];
     const o = buildOntzorgOverview({ entries, directHours: 0, indirectHours: 0, now });

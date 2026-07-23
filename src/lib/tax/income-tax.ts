@@ -84,6 +84,32 @@ export interface IncomeTaxEstimate extends TaxableProfit {
   effectiveRateBps: number; //  totale heffing als % van de winst vóór aftrek
 }
 
+/** Standaard-probe voor de marginale voet: een extra winstschijf van € 1.000. */
+export const MARGINAL_PROBE_CENTS = 100000;
+
+/**
+ * Marginale IB+Zvw-voet op de vólgende winst, in basispunten. Onder een progressief stelsel
+ * (schijven + 12,7% MKB-vrijstelling + vaste ondernemersaftrek) zegt de gemiddelde effectieve
+ * voet weinig over wat je op extra winst kwijt bent: de vaste aftrek drukt het gemiddelde,
+ * maar geldt niet marginaal. Deze voet meet de heffing over een kleine extra winstschijf op het
+ * huidige niveau — het vuistregel-percentage dat je op elke volgende euro winst opzij houdt.
+ *
+ * Pure afleiding uit `estimateIncomeTax` (heffing bij `profit` vs. `profit + delta`); geen eigen
+ * schijvenlogica → één bron van waarheid, kan niet driften. Winst onder de zelfstandigenaftrek
+ * geeft terecht ~0% (de volgende euro valt nog binnen de aftrek). Nooit negatief.
+ */
+export function marginalIncomeTaxRateBps(
+  input: ProfitInput,
+  deltaCents: number = MARGINAL_PROBE_CENTS,
+): number {
+  const delta = Math.max(1, Math.round(deltaCents));
+  const base = Math.max(0, input.profitCents);
+  const lowerCents = estimateIncomeTax({ ...input, profitCents: base }).totalCents;
+  const upperCents = estimateIncomeTax({ ...input, profitCents: base + delta }).totalCents;
+  const marginalCents = Math.max(0, upperCents - lowerCents);
+  return Math.round((marginalCents / delta) * 10000);
+}
+
 /** Indicatieve IB+Zvw-schatting over de winst uit onderneming. */
 export function estimateIncomeTax(input: ProfitInput): IncomeTaxEstimate {
   const tp = taxableProfit(input);
