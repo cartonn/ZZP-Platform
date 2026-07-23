@@ -190,8 +190,12 @@ async function applyCollaborationStatusChange(
   });
   if (!collaboration) throw new Error("Samenwerking niet gevonden.");
 
+  // Anti-oracle (CWE-203): een niet-partij mag "bestaat niet" niet kunnen onderscheiden van "bestaat,
+  // geen toegang" — beide geven exact het onbekend-id-antwoord. Deze melding wordt via
+  // toSafeActionError verbatim naar de client geforward (cancelCollaboration), dus het verschil was
+  // een echte existence-oracle op een gegokt id. Consistent met shift-handoff/setDienstStatus.
   const partyUserIds = [collaboration.company.userId, collaboration.freelancer.userId];
-  if (!partyUserIds.includes(actor.id)) throw new Error("Geen toegang tot deze samenwerking.");
+  if (!partyUserIds.includes(actor.id)) throw new Error("Samenwerking niet gevonden.");
 
   // Dispuut-vries (CLAUDE.md: "dispuut bevriest de cascade"): zolang er een open dispuut is, mag géén
   // van beide partijen de samenwerking afronden of annuleren — alleen de admin heft het dispuut op
@@ -490,9 +494,10 @@ export async function sendCredentialReminder(
     },
   });
   if (!collaboration) return { error: "Samenwerking niet gevonden." };
-  // Ownership: alleen de betrokken opdrachtgever mag herinneren.
-  if (collaboration.company.userId !== actor.id)
-    return { error: "Geen toegang tot deze samenwerking." };
+  // Ownership + anti-oracle (CWE-203): alleen de betrokken opdrachtgever mag herinneren; een niet-
+  // betrokken CLIENT mag "bestaat niet" niet kunnen onderscheiden van "bestaat, geen toegang" → zelfde
+  // onbekend-id-antwoord (voorheen kon een CLIENT zo andermans samenwerking-id's aftasten).
+  if (collaboration.company.userId !== actor.id) return { error: "Samenwerking niet gevonden." };
   if (collaboration.status !== "ACTIVE" && collaboration.status !== "PROPOSED")
     return { error: "Herinneren kan alleen bij een lopende samenwerking." };
 

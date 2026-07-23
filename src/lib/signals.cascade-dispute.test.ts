@@ -31,6 +31,13 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
+// De compliance-ripple-loader (eigen DB-query) is niet het onderwerp van deze test; stub 'm leeg
+// zodat alleen de dispuut-scoping van de cascadetellingen wordt geasserteerd.
+vi.mock("@/lib/collaboration-alerts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./collaboration-alerts")>();
+  return { ...actual, clientCredentialAlerts: () => Promise.resolve([]) };
+});
+
 import { navBadges } from "./signals";
 
 describe("navBadges CLIENT — bevroren (dispuut) cascadewerk uitgesloten", () => {

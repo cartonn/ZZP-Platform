@@ -43,6 +43,7 @@ vi.mock("@/lib/db", () => ({
     supportTicket: { count: vi.fn(() => Promise.resolve(0)) },
     noShowReport: { count: () => noShowReportCount(), groupBy: () => noShowReportGroupBy() },
     shiftHandoff: { count: vi.fn(() => Promise.resolve(0)) },
+    user: { count: vi.fn(() => Promise.resolve(0)) },
   },
 }));
 
