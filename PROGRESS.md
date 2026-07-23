@@ -26,7 +26,13 @@ alleen naar het percentage te kijken.
   geen snelheid).
 - **Tests:** `src/lib/time-to-fill.test.ts` — 7 tests (mediaan oneven/even, min-steekproefpoort,
   negatieve-doorlooptijd-filter, floor naar hele dagen, custom minSample).
-- **Gate:** typecheck, lint, unit-tests, build, prettier — groen.
+- **Security-patch (meegenomen, nodig om te mergen):** `next` 15.5.19 → **15.5.21** — een net
+  gepubliceerde high-severity advisory (o.a. DoS in App Router Server Actions, SSRF, GHSA-955p-x3mx-jcvp)
+  dekt `next ≤ 15.5.20` en maakte de CI-`audit`-poort (`npm audit --audit-level=high --omit=dev`) rood op
+  élke open PR. Patch binnen dezelfde major (zelfde veilige patroon als QW1 #300). Productie-audit nu
+  **0 vulnerabilities**; resterende highs zitten uitsluitend in dev-tooling (`esbuild`/`js-yaml`/
+  `brace-expansion`, buiten `--omit=dev`).
+- **Gate:** typecheck, lint, unit-tests, build (next 15.5.21), prettier — groen.
 
 ## 2026-07-22 — ontzorging: benodigd wekelijks tempo tot het urencriterium (ZZP'er, /inzicht)
 

@@ -43,8 +43,10 @@ export interface TimeToFillSummary {
 /** Mediaan van een oplopend-gesorteerde, niet-lege lijst gehele getallen (even lengte → afgerond gemiddelde). */
 function medianOfSorted(sorted: number[]): number {
   const mid = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 1) return sorted[mid];
-  return Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+  const hi = sorted[mid] ?? 0;
+  if (sorted.length % 2 === 1) return hi;
+  const lo = sorted[mid - 1] ?? 0;
+  return Math.round((lo + hi) / 2);
 }
 
 /**
@@ -60,11 +62,12 @@ export function summarizeTimeToFill(
     .map((r) => Math.floor((r.placedAt.getTime() - r.openedAt.getTime()) / MS_PER_DAY))
     .filter((d) => Number.isFinite(d) && d >= 0)
     .sort((a, b) => a - b);
-  if (days.length < minSample) return null;
+  // Nooit een gemiddelde uit een lege lijst (guard óók tegen minSample ≤ 0).
+  if (days.length < Math.max(1, minSample)) return null;
   return {
     medianDays: medianOfSorted(days),
     sampleSize: days.length,
-    fastestDays: days[0],
+    fastestDays: days[0] ?? 0,
   };
 }
 
