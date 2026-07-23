@@ -12,6 +12,7 @@
 // geaggregeerd portefeuillegetal — nooit identiteit van kandidaten of individuele opdrachtdetails.
 
 import { prisma } from "@/lib/db";
+import type { Actor } from "@/lib/authz";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -86,6 +87,46 @@ export async function getClientTimeToFill(userId: string): Promise<TimeToFillSum
   const jobs = await prisma.job.findMany({
     where: {
       companyId: company.id,
+      status: { in: ["PUBLISHED", "CLOSED"] },
+      collaborations: { some: { status: { in: ["ACTIVE", "COMPLETED"] } } },
+    },
+    select: {
+      createdAt: true,
+      publishedAt: true,
+      collaborations: {
+        where: { status: { in: ["ACTIVE", "COMPLETED"] } },
+        select: { createdAt: true },
+        orderBy: { createdAt: "asc" },
+        take: 1,
+      },
+    },
+    take: TIME_TO_FILL_MAX_JOBS,
+  });
+
+  const rows: FilledJobTiming[] = jobs.flatMap((job) => {
+    const placedAt = job.collaborations[0]?.createdAt;
+    if (!placedAt) return [];
+    return [{ openedAt: job.publishedAt ?? job.createdAt, placedAt }];
+  });
+
+  return summarizeTimeToFill(rows);
+}
+
+/**
+ * Laadt de time-to-fill voor de bemiddelaar (tenant-breed), of `null` zonder tenant of bij te weinig
+ * vervulde diensten. Waar `getClientTimeToFill` op de eigen company scoopt, scoopt dit op alle
+ * diensten binnen de tenant (`Job.tenantId`) — het portefeuillegetal van de hele bemiddeling. De
+ * vulgraad-gauge toont wélk deel vervuld raakt; dit toont hoe snel. Eén begrensde query, per dienst
+ * de vroegste ACTIVE/COMPLETED-samenwerking als plaatsingsmoment. Server-side waarheid; alleen een
+ * geaggregeerd getal (geen kandidaat-/opdrachtgever-identiteit).
+ */
+export async function getTenantTimeToFill(actor: Actor): Promise<TimeToFillSummary | null> {
+  const tenantId = actor.tenantId;
+  if (!tenantId) return null;
+
+  const jobs = await prisma.job.findMany({
+    where: {
+      tenantId,
       status: { in: ["PUBLISHED", "CLOSED"] },
       collaborations: { some: { status: { in: ["ACTIVE", "COMPLETED"] } } },
     },

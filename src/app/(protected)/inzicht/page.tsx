@@ -19,7 +19,7 @@ import { getFreelancerStats } from "@/lib/freelancer-stats";
 import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-quality";
 import { getClientStats } from "@/lib/client-stats";
-import { getClientTimeToFill } from "@/lib/time-to-fill";
+import { getClientTimeToFill, getTenantTimeToFill } from "@/lib/time-to-fill";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
 import {
   getFreelancerRevenueTrend,
@@ -457,7 +457,7 @@ async function ClientInzicht({ userId }: { userId: string }) {
 }
 
 async function FranchiserInzicht({ actor }: { actor: Actor }) {
-  const [s, byCompany, trend, tenant] = await Promise.all([
+  const [s, byCompany, trend, tenant, timeToFill] = await Promise.all([
     getTenantStats(actor),
     getTenantCompanyBreakdown(actor),
     getTenantRevenueTrend(actor),
@@ -467,6 +467,7 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
           select: { feePercent: true },
         })
       : Promise.resolve(null),
+    getTenantTimeToFill(actor),
   ]);
   if (!s) {
     return (
@@ -554,6 +555,15 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
                   href: "/franchise/diensten",
                   tone: s.openJobs > 0 ? "warning" : "default",
                 },
+                ...(timeToFill
+                  ? [
+                      {
+                        label: "Gem. tijd tot plaatsing",
+                        value: plural(timeToFill.medianDays, "dag", "dagen"),
+                        sub: `snelste ${plural(timeToFill.fastestDays, "dag", "dagen")}`,
+                      },
+                    ]
+                  : []),
                 {
                   label: "Lopende samenwerkingen",
                   value: s.activeCollaborations,
