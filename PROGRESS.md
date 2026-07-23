@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — inzicht: tijd tot plaatsing (time-to-fill) KPI voor de bemiddelaar (/inzicht) (PR #881)
+
+**Wat:** de bemiddelaar zag op `/inzicht` de **Vulgraad** (% diensten vervuld — de uitkomst) maar niet
+de **snelheid**: hoe lang duurt het gemiddeld van publicatie tot de eerste plaatsing? Dat is de kern-KPI
+van een bemiddelaar (benchmark Temper/recruitmentdashboards). Toegevoegd: een compacte regel **"Gem. tijd
+tot plaatsing · X dagen"** (met "snelste Y") in de Vulgraad-widget — symmetrisch met de opdrachtgever-KPI
+(#878), maar tenant-breed gescoped voor de hele bemiddeling.
+
+- **`src/lib/time-to-fill.ts`** — nieuwe loader `getTenantTimeToFill(actor)`: scoopt op `Job.tenantId`
+  (i.p.v. de eigen company) — alle diensten binnen de tenant. Hergebruikt exact de bestaande pure
+  `summarizeTimeToFill` (mediaan + snelste, `null` onder `TIME_TO_FILL_MIN_SAMPLE=2`, negatieve
+  doorlooptijd defensief genegeerd) en dezelfde begrensde query-vorm (`TIME_TO_FILL_MAX_JOBS=500`, per
+  dienst de vroegste ACTIVE/COMPLETED-samenwerking als plaatsingsmoment; `publishedAt`→`createdAt`-
+  fallback). `null` zonder tenant — raakt de DB dan niet. Read-only, geen schemawijziging, geen nieuw
+  mutatie/auth-oppervlak; alleen een geaggregeerd portefeuillegetal (geen kandidaat-identiteit).
+- **`src/app/(protected)/inzicht/page.tsx`** — `getTenantTimeToFill(actor)` in de `FranchiserInzicht`-
+  `Promise.all`; een extra `BiStatList`-regel in de "Vulgraad"-widget (alleen bij een summary).
+- **Tests:** `src/lib/tenant-time-to-fill.test.ts` — 6 tests (null zonder tenant + geen DB-call; tenant-/
+  status-/collab-scoping van de query; mediaan over tenant-diensten; createdAt-fallback; min-steekproef;
+  diensten zonder plaatsing genegeerd).
+- **Gate:** typecheck ✓ · lint ✓ (0 warnings) · vitest 460 files / 4849 tests ✓ · build ✓ · prettier ✓.
+
+**Volgende stap:** volgende hoogste-hefboom persona-sweep-backlog- of prod-rijpheid-item.
+
 ## 2026-07-23 — prod-rijpheid: mail read-only connectiviteitscheck → mail in go-live-sweep (PR #880)
 
 **Wat:** mail was de enige productie-integratie zonder read-only connectiviteitscheck. De bestaande

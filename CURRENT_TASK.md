@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Tijd tot plaatsing (time-to-fill) KPI op /inzicht (bemiddelaar) (2026-07-23, PR #881)** —
+> de bemiddelaar zag op `/inzicht` de vervullingsgraad (Vulgraad, % diensten vervuld) maar niet de snelheid van plaatsen.
+> Nu een compacte regel **"Gem. tijd tot plaatsing · X dagen"** (met "snelste Y") in de Vulgraad-widget — tenant-breed
+> gescoped, symmetrisch met de opdrachtgever-KPI (#878). Nieuwe loader `getTenantTimeToFill(actor)` (`time-to-fill.ts`)
+> scoopt op `Job.tenantId` en hergebruikt exact de pure `summarizeTimeToFill` + dezelfde begrensde query-vorm
+> (`TIME_TO_FILL_MAX_JOBS=500`, vroegste ACTIVE/COMPLETED-samenwerking als plaatsingsmoment, `publishedAt`→`createdAt`-
+> fallback, `null` zonder tenant/onder de steekproefdrempel). Read-only, geen schemawijziging, geen nieuw mutatie/auth-
+> oppervlak; alleen een geaggregeerd portefeuillegetal. +6 tests (`tenant-time-to-fill.test.ts`). Gate: typecheck, lint,
+> unit-tests (4849), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Tijd tot plaatsing (time-to-fill) KPI op /inzicht (opdrachtgever) (2026-07-23, PR #878)** —
 > `/inzicht` toonde de opdrachtgever de vervullingsgraad (% opdrachten met plaatsing — de uitkomst) maar niet de snelheid:
 > hoe lang duurt het gemiddeld van publicatie tot de eerste échte plaatsing? Dat is de klassieke ATS-metriek **time-to-fill**
