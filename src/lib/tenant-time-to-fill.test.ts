@@ -5,12 +5,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Actor } from "@/lib/authz";
 
 const DAY = 24 * 60 * 60 * 1000;
-const findMany = vi.fn();
+const findMany = vi.fn<(args: { where: Record<string, unknown> }) => Promise<unknown[]>>();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     job: {
-      findMany: (args: unknown) => findMany(args),
+      findMany: (args: { where: Record<string, unknown> }) => findMany(args),
     },
   },
 }));
@@ -44,7 +44,9 @@ describe("getTenantTimeToFill", () => {
     findMany.mockResolvedValueOnce([job(4), job(8)]);
     await getTenantTimeToFill(actor("t1"));
     expect(findMany).toHaveBeenCalledTimes(1);
-    const where = findMany.mock.calls[0][0].where;
+    const firstCall = findMany.mock.calls[0];
+    if (!firstCall) throw new Error("findMany werd niet aangeroepen");
+    const where = firstCall[0].where;
     expect(where.tenantId).toBe("t1");
     expect(where.status).toEqual({ in: ["PUBLISHED", "CLOSED"] });
     expect(where.collaborations).toEqual({ some: { status: { in: ["ACTIVE", "COMPLETED"] } } });
