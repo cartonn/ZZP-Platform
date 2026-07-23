@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { NO_SHOW_LIMIT, noShowStanding, noShowStandingNotice } from "@/lib/no-show";
+import {
+  NO_SHOW_LIMIT,
+  noShowOccurredOnDayRange,
+  noShowStanding,
+  noShowStandingNotice,
+} from "@/lib/no-show";
 
 describe("noShowStanding", () => {
   it("zonder ongegronde no-shows is er niets aan de hand", () => {
@@ -71,5 +76,33 @@ describe("noShowStandingNotice", () => {
   it("respecteert een eigen grens", () => {
     expect(noShowStandingNotice(2, 2)!.tone).toBe("danger");
     expect(noShowStandingNotice(1, 2)!.tone).toBe("warning");
+  });
+});
+
+describe("noShowOccurredOnDayRange", () => {
+  it("kale datum (middernacht UTC): venster is die dag [00:00, +1 dag 00:00)", () => {
+    const { gte, lt } = noShowOccurredOnDayRange(new Date("2026-03-15T00:00:00.000Z"));
+    expect(gte.toISOString()).toBe("2026-03-15T00:00:00.000Z");
+    expect(lt.toISOString()).toBe("2026-03-16T00:00:00.000Z");
+  });
+
+  it("datum mét tijdcomponent valt in hetzelfde dagvenster (dedup dekt geknutselde POST)", () => {
+    const { gte, lt } = noShowOccurredOnDayRange(new Date("2026-03-15T13:37:42.500Z"));
+    expect(gte.toISOString()).toBe("2026-03-15T00:00:00.000Z");
+    expect(lt.toISOString()).toBe("2026-03-16T00:00:00.000Z");
+  });
+
+  it("laatste milliseconde van de dag valt nog in het venster, middernacht erna niet", () => {
+    const { gte, lt } = noShowOccurredOnDayRange(new Date("2026-03-15T23:59:59.999Z"));
+    const dayEndMs = new Date("2026-03-15T23:59:59.999Z").getTime();
+    expect(dayEndMs).toBeGreaterThanOrEqual(gte.getTime());
+    expect(dayEndMs).toBeLessThan(lt.getTime());
+    expect(lt.getTime()).toBe(new Date("2026-03-16T00:00:00.000Z").getTime());
+  });
+
+  it("maandgrens rolt correct door naar de volgende maand", () => {
+    const { gte, lt } = noShowOccurredOnDayRange(new Date("2026-01-31T08:00:00.000Z"));
+    expect(gte.toISOString()).toBe("2026-01-31T00:00:00.000Z");
+    expect(lt.toISOString()).toBe("2026-02-01T00:00:00.000Z");
   });
 });

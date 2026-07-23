@@ -442,6 +442,22 @@ export const inviteRateLimiter = new RateLimiter(
 );
 
 /**
+ * Maximaal NO_SHOW_REPORT_RATE_LIMIT (default 10) no-show-registraties per melder (opdrachtgever/
+ * bemiddelaar) per uur. Een no-show-melding is een moderatie-gevoelige mutatie: ze schrijft een
+ * permanente `NoShowReport`, stuurt de ZZP'er een notificatie met vrije-tekst-reden en voedt de
+ * uitschrijf-wachtrij op /admin/no-shows. Zonder rem kan een kwaadwillende/gecompromitteerde melder
+ * herhaalde POST's scripten → notificatie-/DB-/audit-flood + harassment + druk op de moderatiewachtrij.
+ * Ruim boven normaal gebruik (een melder registreert hooguit een handvol no-shows per dag), maar stopt
+ * een geautomatiseerde flood. Parity met de andere UGC-mutatie-remmen (invite/message/application).
+ */
+export const noShowReportRateLimiter = new RateLimiter(
+  createRateLimitStore(),
+  limitFromEnv("NO_SHOW_REPORT_RATE_LIMIT", 10),
+  60 * 60_000,
+  "noshowreport:",
+);
+
+/**
  * Maximaal CSP_REPORT_RATE_LIMIT (default 30) CSP-violatie-rapporten per IP per minuut. De
  * rapport-route (/api/csp-report) is publiek en ongeauthenticeerd (de browser stuurt de ping);
  * een defecte pagina of een kwaadwillende kan er anders een log-/CPU-flood mee veroorzaken. Ruim

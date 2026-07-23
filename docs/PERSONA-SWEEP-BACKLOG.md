@@ -50,19 +50,19 @@
 >
 > **GEPARKEERD uit deze run (repro + prioriteit, voor een volgende increment):**
 >
-> - **MED (DOEL 2, robuustheid/abuse — geen rate-limit/dedup op `reportNoShow`):**
+> - ~~**MED (DOEL 2, robuustheid/abuse — geen rate-limit/dedup op `reportNoShow`):**
 >   `reportNoShow` (`src/app/(protected)/samenwerkingen/no-show-actions.ts:18-65`) is aanroepbaar door
 >   elke CLIENT/FRANCHISER die partij is bij een ACTIVE/CANCELLED samenwerking en heeft — anders dan
 >   élke sibling-UGC-mutatie (`sendMessage`→`messageRateLimiter`, `inviteFreelancerToJob`→
->   `inviteRateLimiter`, uploads→`uploadRateLimiter`) — **geen rate-limiter** (`rate-limit.ts` heeft geen
->   `noShow*RateLimiter`) én **geen idempotentie/uniekheid** (geen `@@unique(collaborationId, occurredOn)`,
->   geen dedup vóór `noShowReport.create`). Repro: een kwaadwillende/gecompromitteerde CLIENT scriptt
->   herhaalde POST's → per call een permanente `NoShowReport` + een `Notification` met attacker-vrije-tekst
->   `reason` naar de ZZP'er (harassment) + een AuditLog, ongelimiteerd. Impact: notificatie-/DB-/audit-DoS,
->   harassment, én flooding van de `/admin/no-shows`-moderatiewachtrij (drukt op de uitschrijf-drempel, al
->   blijft een mensbeoordeling de grens gaten). **Fix-richting:** `noShowReportRateLimiter` (per `actor.id`,
->   venster à la `inviteRateLimiter`) vóór de create + same-day-dedup of DB-`@@unique`. Prioriteit: MED.
->   Aparte PR (raakt `no-show-actions.ts` + `rate-limit.ts` (+ evt. schema)).
+>   `inviteRateLimiter`, uploads→`uploadRateLimiter`) — **geen rate-limiter** noch **dedup**.~~
+>   **GEDAAN (2026-07-23, PR #883):** twee lagen, geen schemawijziging (dus geen `db push`-risico op
+>   bestaande data). (1) `noShowReportRateLimiter` (`rate-limit.ts`, default `NO_SHOW_REPORT_RATE_LIMIT=10`/
+>   melder/uur, parity met invite/message/application) vóór de reads/writes → nette veldfout bij
+>   overschrijding, geen throw. (2) Same-day-dedup: `findFirst` op `collaborationId` + het UTC-dagvenster
+>   van `occurredOn` (nieuwe pure `noShowOccurredOnDayRange` in `no-show.ts`) vóór de create → dezelfde
+>   gemiste dienst per dag maar één keer meldbaar, ook bij een geknutselde POST met tijdcomponent. De
+>   ownership-/rol-/statuspoort blijft ongewijzigd de bron van toegang (defense-in-depth). +5 tests
+>   (1 limiter-venster in `rate-limit.test.ts`, 4 dagvenster in `no-show.test.ts`).
 > - **LOW (defense-in-depth, vangrail-dekkingsgat):** de "elke `findMany()` heeft `take:` of een
 >   `unbounded-allow`-marker"-vangrail (`src/lib/unbounded-queries.test.ts:52-53`, `walkAppDir`) scant
 >   alleen `src/app`, nooit `src/lib` — er staan ongemarkeerde onbegrensde `findMany()`'s onder `src/lib`

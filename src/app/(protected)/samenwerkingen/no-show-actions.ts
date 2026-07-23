@@ -9,7 +9,8 @@ import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { NO_SHOW_LIMIT } from "@/lib/no-show";
+import { NO_SHOW_LIMIT, noShowOccurredOnDayRange } from "@/lib/no-show";
+import { noShowReportRateLimiter } from "@/lib/rate-limit";
 import { noShowReportSchema } from "@/lib/validation";
 import { formatDateShortNl } from "@/lib/format-date";
 
@@ -21,6 +22,16 @@ export async function reportNoShow(
   formData: FormData,
 ): Promise<NoShowReportState> {
   const actor = await requireActor();
+
+  // Volume-rem (parity met invite/message/application): een no-show-melding schrijft een permanente
+  // NoShowReport + notificatie + auditregel en voedt de admin-uitschrijfwachtrij; zonder bovengrens
+  // kan een gecompromitteerde/kwaadwillende melder herhaalde POST's scripten (notificatie-/audit-DoS,
+  // harassment). De ownership-/statuspoort hieronder blijft de bron van toegang; dit is een extra rem.
+  if (!(await noShowReportRateLimiter.check(actor.id)).allowed)
+    return {
+      error:
+        "Je hebt het maximum aantal no-show-meldingen per uur bereikt. Probeer het later opnieuw.",
+    };
 
   const parsed = noShowReportSchema.safeParse({
     reason: formData.get("reason") ?? "",
@@ -53,6 +64,18 @@ export async function reportNoShow(
   // Alleen op een lopende of (recent) geannuleerde inzet — een no-show leidt vaak tot annulering.
   if (collaboration.status !== "ACTIVE" && collaboration.status !== "CANCELLED")
     return { error: "No-show melden kan alleen op een actieve of geannuleerde samenwerking." };
+
+  // Same-day-dedup: dezelfde gemiste dienst hoort maar één keer geregistreerd te worden. Zonder deze
+  // check stapelt een (per ongeluk dubbel ingediend of gescript) melding meerdere permanente rijen +
+  // notificaties voor dezelfde dag. Dagvenster i.p.v. exacte gelijkheid, zodat ook een geknutselde
+  // POST met tijdcomponent binnen dezelfde UTC-dag wordt afgevangen (de melding zelf is dag-granulair).
+  const { gte, lt } = noShowOccurredOnDayRange(parsed.data.occurredOn);
+  const existing = await prisma.noShowReport.findFirst({
+    where: { collaborationId, occurredOn: { gte, lt } },
+    select: { id: true },
+  });
+  if (existing)
+    return { error: "Voor deze dag is al een no-show geregistreerd voor deze samenwerking." };
 
   const report = await prisma.noShowReport.create({
     data: {
