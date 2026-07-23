@@ -432,12 +432,13 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     sensitive: false,
     recipients: ["Betreffende bemiddelaar/franchise (tenant-geïsoleerd)", "Intern platformbeheer"],
     retention:
-      "Tot de lead klant wordt (dan geldt accountbeheer) of afvalt + 12 maanden; op verzoek eerder gewist (art. 17). Handmatig wisbaar via de bemiddelaar (deleteLead).",
+      "Tot de lead klant wordt (dan geldt accountbeheer) of afvalt (KLANT/NO_DEAL) + 12 maanden; daarna automatisch gewist. Op verzoek eerder gewist (art. 17). Ook handmatig wisbaar via de bemiddelaar (deleteLead).",
     securityMeasures: [
       "Strikte tenant-isolatie (assertSameTenant) — geen cross-tenant inzage",
       "Toegang op rol (RBAC): alleen de eigen FRANCHISER",
-      "Auditlogging (LEAD_CREATED / LEAD_STATUS_SET / LEAD_DELETED)",
+      "Auditlogging (LEAD_CREATED / LEAD_STATUS_SET / LEAD_DELETED / LEADS_PRUNED)",
       "Definitief wis-pad incl. contactlogboek (cascade) — recht op vergetelheid",
+      "Automatische retentie-sweep (run-all → lead-retention) — dwingt het 12-maandenvenster af (art. 5(1)(e))",
     ],
   },
 
@@ -614,7 +615,7 @@ export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
     period:
       "Tot conversie naar klant of afvallen + max. 12 maanden; eerder wisbaar op verzoek van de betrokkene",
     rationale:
-      "Gerechtvaardigd belang (acquisitie); na afronding van het verkoopproces vervalt de grondslag. Recht op wissen (art. 17) technisch afgedwongen via een handmatig wis-pad (deleteLead)",
+      "Gerechtvaardigd belang (acquisitie); na afronding van het verkoopproces vervalt de grondslag. Het 12-maandenvenster (art. 5(1)(e)) wordt automatisch afgedwongen door een geplande retentie-sweep (run-all → lead-retention) die beslíste leads (KLANT/NO_DEAL) mét contactlogboek wist; recht op wissen (art. 17) daarnaast direct via het handmatige wis-pad (deleteLead)",
   },
   {
     key: "no-show-meldingen",

@@ -224,6 +224,31 @@ export function webhookEventRetentionDays(): number {
   return parseWebhookEventRetentionDays(process.env.WEBHOOK_EVENT_RETENTION_DAYS);
 }
 
+// --- Acquisitie-lead-retentie (AVG art. 5(1)(e) opslagbeperking) ------------
+// Het verwerkingsregister ("lead-acquisitie-bemiddelaar" / RETENTION_SCHEDULE "acquisitie-leads")
+// belooft dat een BESLISTE lead (KLANT of NO_DEAL) na afronding van het verkoopproces + 12 maanden
+// wordt gewist, inclusief zijn contactlogboek (prospect-PII: organisatie, contactnaam, e-mail,
+// telefoon, notities). Anders dan de webhook-ledger (opslag-hygiëne, standaard UIT) is dít een
+// AVG-verplichting: prospect-PII onbeperkt bewaren ís de overtreding. Daarom staat de sweep
+// standaard AAN op het beloofde venster (LEAD_RETENTION_DEFAULT_DAYS) wanneer de env leeg is; een
+// operator kan tunen of via een expliciete 0/negatieve waarde uitzetten. De minimumvloer voorkomt
+// dat een typefout nog-recente acquisitiehistorie te agressief wist.
+export const LEAD_RETENTION_MIN_DAYS = 90;
+export const LEAD_RETENTION_DEFAULT_DAYS = 365; // 12 maanden — het in het register beloofde venster.
+export function parseLeadRetentionDays(raw: string | undefined): number {
+  // Leeg/ongeconfigureerd → dwing het beloofde venster af (fail-safe naar wissen, niet naar bewaren).
+  if (raw === undefined || raw.trim() === "") return LEAD_RETENTION_DEFAULT_DAYS;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return LEAD_RETENTION_DEFAULT_DAYS;
+  if (n <= 0) return 0; // expliciete operator-override: retentie uit.
+  return Math.max(LEAD_RETENTION_MIN_DAYS, Math.floor(n));
+}
+
+/** Geconfigureerd lead-retentievenster in dagen; 0 = uitgeschakeld (expliciete override). */
+export function leadRetentionDays(): number {
+  return parseLeadRetentionDays(process.env.LEAD_RETENTION_DAYS);
+}
+
 // --- Cron-heartbeat venster (observability, dead-man's-switch) --------------
 // Maximale leeftijd (in uren) van de laatste geplande-taken-cron-run vóór 'ie als "stale" geldt op
 // /admin/systeemstatus. De cron draait standaard dagelijks (run-all-tasks.yml, 05:00 UTC); de

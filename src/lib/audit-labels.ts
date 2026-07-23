@@ -127,6 +127,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   LEAD_CREATED: "Lead aangemaakt",
   LEAD_CONTACT_ADDED: "Contactnotitie toegevoegd",
   LEAD_STATUS_SET: "Leadstatus gewijzigd",
+  LEADS_PRUNED: "Acquisitie-leads gesnoeid (retentie)",
 
   // Franchise
   FRANCHISE_CREATED: "Bemiddeling aangemaakt",
