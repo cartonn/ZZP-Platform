@@ -905,3 +905,16 @@ Resterend mensenwerk: **de back-up-job zelf laten pingen** — zie punt 1b hiero
 2. Hang een **uptime-monitor** op `https://<host>/api/health` (naast de Railway-healthcheck).
 3. Optioneel: zet `SENTRY_DSN` (+ `npm i @sentry/nextjs`) zodat DB-storingen en onverwachte fouten
    ook extern zichtbaar worden (§0b) i.p.v. alleen in de logs.
+
+**Code-kant GEDAAN (2026-07-23) — machine-leesbaar metrics-endpoint (`/api/metrics`):** naast de
+liveness-probe (`/api/health`) en het admin-UI-scherm (`/admin/systeemstatus`, vereist een mens die
+inlogt) is er nu een **operationeel-monitoring-endpoint** dat de dead-man's-switch-signalen
+machine-leesbaar uitleest **zonder login**, zodat een externe monitor (Prometheus-scraper of
+uptime-dienst met body-check) er zelf op kan **alarmeren**. `GET /api/metrics` geeft de
+Prometheus-tekstexpositie (of JSON via `?format=json`) met o.a. `zzp_up`, `zzp_db_reachable`,
+`zzp_cron_heartbeat_age_seconds`/`_ok`/`_stale`, `zzp_backup_heartbeat_age_seconds`/`_ok`/`_stale`
+en `zzp_verification_queue` (wachtrijdiepte). Beveiligd met **dezelfde Bearer `CRON_SECRET`** als de
+taak-/heartbeat-routes (**fail-closed**: geen `CRON_SECRET` → 503, verkeerd token → 401), nooit
+gecachet, en de uitvoer bevat **nooit** persoonsgegevens of secrets — alleen geaggregeerde gauges
+(`src/lib/observability/metrics.ts` (puur) + `src/app/api/metrics/route.ts`). Resterend mensenwerk:
+**niets extra** — richt desgewenst een scraper/monitor op het endpoint met de `CRON_SECRET` als Bearer.
