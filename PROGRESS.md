@@ -3,6 +3,37 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — inzicht: tijd tot plaatsing (time-to-fill) KPI voor de opdrachtgever (/inzicht)
+
+**Wat:** `/inzicht` toonde de opdrachtgever de **vervullingsgraad** (% opdrachten met plaatsing — de
+uitkomst) maar niet de **snelheid**: hoe lang duurt het gemiddeld van publicatie tot de eerste échte
+plaatsing? Dat is de klassieke ATS-metriek **time-to-fill** (benchmark Temper/Malt/recruitment-
+dashboards). Toegevoegd: een compacte KPI **"Gem. tijd tot plaatsing · X dagen"** (met "snelste Y")
+naast de vervullingsgraad-gauge, zodat de opdrachtgever ziet of hij tarief/eisen moet bijsturen i.p.v.
+alleen naar het percentage te kijken.
+
+- **`src/lib/time-to-fill.ts`** (nieuw) — pure `summarizeTimeToFill(rows, minSample?)`: mediane
+  doorlooptijd (robuuster dan gemiddelde) + steekproef + snelste, in hele dagen; negeert defensief
+  negatieve doorlooptijden (plaatsing vóór publicatie), `null` onder `TIME_TO_FILL_MIN_SAMPLE=2` (geen
+  gemiddelde uit één datapunt). Data-loader `getClientTimeToFill(userId)`: één begrensde query
+  (`TIME_TO_FILL_MAX_JOBS=500`) — per opdracht (company-scoped, PUBLISHED/CLOSED, ≥1 ACTIVE/COMPLETED-
+  samenwerking) de vroegste ACTIVE/COMPLETED-samenwerking als plaatsingsmoment; `publishedAt` valt terug
+  op `createdAt`. Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak; alleen een
+  geaggregeerd portefeuillegetal (geen kandidaat-identiteit).
+- **`src/app/(protected)/inzicht/page.tsx`** — `getClientTimeToFill` in de `ClientInzicht`-`Promise.all`;
+  een extra `BiStatList`-regel in de "Opdrachten"-widget (alleen bij een summary). Onderscheiden van
+  `job-vacancy-performance.ts` (reactietempo per losse opdracht) en `client-stats.fillRate` (percentage,
+  geen snelheid).
+- **Tests:** `src/lib/time-to-fill.test.ts` — 7 tests (mediaan oneven/even, min-steekproefpoort,
+  negatieve-doorlooptijd-filter, floor naar hele dagen, custom minSample).
+- **Security-patch (meegenomen, nodig om te mergen):** `next` 15.5.19 → **15.5.21** — een net
+  gepubliceerde high-severity advisory (o.a. DoS in App Router Server Actions, SSRF, GHSA-955p-x3mx-jcvp)
+  dekt `next ≤ 15.5.20` en maakte de CI-`audit`-poort (`npm audit --audit-level=high --omit=dev`) rood op
+  élke open PR. Patch binnen dezelfde major (zelfde veilige patroon als QW1 #300). Productie-audit nu
+  **0 vulnerabilities**; resterende highs zitten uitsluitend in dev-tooling (`esbuild`/`js-yaml`/
+  `brace-expansion`, buiten `--omit=dev`).
+- **Gate:** typecheck, lint, unit-tests, build (next 15.5.21), prettier — groen.
+
 ## 2026-07-22 — ontzorging: benodigd wekelijks tempo tot het urencriterium (ZZP'er, /inzicht)
 
 **Wat:** de Urencriterium-kaart op `/inzicht` (1.225 uur → zelfstandigenaftrek) toonde bij achterstand

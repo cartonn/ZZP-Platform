@@ -19,6 +19,7 @@ import { getFreelancerStats } from "@/lib/freelancer-stats";
 import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-quality";
 import { getClientStats } from "@/lib/client-stats";
+import { getClientTimeToFill } from "@/lib/time-to-fill";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
 import {
   getFreelancerRevenueTrend,
@@ -367,7 +368,11 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
 }
 
 async function ClientInzicht({ userId }: { userId: string }) {
-  const [s, trend] = await Promise.all([getClientStats(userId), getClientRevenueTrend(userId)]);
+  const [s, trend, timeToFill] = await Promise.all([
+    getClientStats(userId),
+    getClientRevenueTrend(userId),
+    getClientTimeToFill(userId),
+  ]);
   if (!s) {
     return (
       <Card>
@@ -416,6 +421,15 @@ async function ClientInzicht({ userId }: { userId: string }) {
                 items={[
                   { label: "Geplaatst", value: s.publishedJobs, href: "/opdrachten" },
                   { label: "Vervuld", value: `${s.filledJobs}/${s.publishedJobs}` },
+                  ...(timeToFill
+                    ? [
+                        {
+                          label: "Gem. tijd tot plaatsing",
+                          value: plural(timeToFill.medianDays, "dag", "dagen"),
+                          sub: `snelste ${plural(timeToFill.fastestDays, "dag", "dagen")}`,
+                        },
+                      ]
+                    : []),
                   {
                     label: "Lopende samenwerkingen",
                     value: s.activeCollaborations,
