@@ -249,6 +249,33 @@ export function leadRetentionDays(): number {
   return parseLeadRetentionDays(process.env.LEAD_RETENTION_DAYS);
 }
 
+// --- Beveiligingsincident-IP-retentie (AVG art. 5(1)(c)/(e)) ----------------
+// De anomaliedetector (monitoring/detectors.ts) legt bij een inlog-burst/reset-flood het bron-IP vast
+// in HealthIncident.evidence én in de summary. Een IP-adres is een persoonsgegeven; een incident
+// onbeperkt bewaren mét dat IP overtreedt de opslagbeperking/dataminimalisatie. Deze sweep redact het
+// IP ná het venster — het incident zelf (type/ernst/aantal) blijft als beveiligingssignaal bewaard,
+// alléén de PII verdwijnt. Omdat redactie NIET-destructief is voor de beveiligingswaarde (anders dan
+// het onomkeerbaar wissen van hele auditregels) staat deze sweep — net als lead-retentie — standaard
+// AAN op een verstandig venster: onbeperkte IP-retentie ís hier de overtreding. Het venster laat het
+// IP lang genoeg staan voor incidentonderzoek (default 90 dagen = één kwartaal). Leeg/ongeldig → 90;
+// een te lage waarde wordt geklemd naar minstens 30 dagen; een expliciete 0 (of negatief) zet de
+// redactie UIT.
+export const HEALTH_INCIDENT_IP_RETENTION_MIN_DAYS = 30;
+export const HEALTH_INCIDENT_IP_RETENTION_DEFAULT_DAYS = 90;
+export function parseHealthIncidentIpRetentionDays(raw: string | undefined): number {
+  // Leeg/ongeconfigureerd → dwing het default-venster af (fail-safe naar redigeren, niet naar bewaren).
+  if (raw === undefined || raw.trim() === "") return HEALTH_INCIDENT_IP_RETENTION_DEFAULT_DAYS;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return HEALTH_INCIDENT_IP_RETENTION_DEFAULT_DAYS;
+  if (n <= 0) return 0; // expliciete operator-override: redactie uit.
+  return Math.max(HEALTH_INCIDENT_IP_RETENTION_MIN_DAYS, Math.floor(n));
+}
+
+/** Geconfigureerd incident-IP-retentievenster in dagen; 0 = uitgeschakeld (expliciete override). */
+export function healthIncidentIpRetentionDays(): number {
+  return parseHealthIncidentIpRetentionDays(process.env.HEALTH_INCIDENT_IP_RETENTION_DAYS);
+}
+
 // --- Cron-heartbeat venster (observability, dead-man's-switch) --------------
 // Maximale leeftijd (in uren) van de laatste geplande-taken-cron-run vóór 'ie als "stale" geldt op
 // /admin/systeemstatus. De cron draait standaard dagelijks (run-all-tasks.yml, 05:00 UTC); de
