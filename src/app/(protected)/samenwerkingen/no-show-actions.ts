@@ -58,8 +58,10 @@ export async function reportNoShow(
     actor.role === "FRANCHISER" &&
     actor.tenantId != null &&
     actor.tenantId === collaboration.job.tenantId;
-  if (!isClient && !isTenantFranchiser)
-    return { error: "Alleen de opdrachtgever of de bemiddelaar kan een no-show melden." };
+  // Anti-oracle (CWE-203): een actor die geen melder-partij is (incl. de ZZP'er zelf en elke buiten-
+  // staander) mag "bestaat niet" niet kunnen onderscheiden van "bestaat, maar jij mag niet melden".
+  // Identiek aan het onbekend-id-antwoord — sluit de directe-aanroep-aftast-poort op een gegokt id.
+  if (!isClient && !isTenantFranchiser) return { error: "Samenwerking niet gevonden." };
 
   // Alleen op een lopende of (recent) geannuleerde inzet — een no-show leidt vaak tot annulering.
   if (collaboration.status !== "ACTIVE" && collaboration.status !== "CANCELLED")

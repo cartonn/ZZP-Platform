@@ -226,18 +226,33 @@ describe("countClientCascadeWork", () => {
         proposedCollaborations: 1,
         submittedPerformances: 0,
         submittedInvoices: 0,
+        complianceActions: 0,
       }),
     ).toBe(1);
   });
 
-  it("sommeert contract-onderteken, prestatie-goedkeuren en factuur-goedkeuren", () => {
+  it("sommeert contract-onderteken, prestatie-goedkeuren, factuur-goedkeuren en compliance-acties", () => {
     expect(
       countClientCascadeWork({
         proposedCollaborations: 2,
         submittedPerformances: 3,
         submittedInvoices: 1,
+        complianceActions: 2,
       }),
-    ).toBe(6);
+    ).toBe(8);
+  });
+
+  it("telt een compliance-ripple-actie mee — mag niet uit de badge vallen", () => {
+    // Regressie: de CLIENT-badge negeerde de compliance-taak (clientComplianceTask, href
+    // /samenwerkingen/{id}), terwijl /acties + de dashboard-rail 'm wél tonen.
+    expect(
+      countClientCascadeWork({
+        proposedCollaborations: 0,
+        submittedPerformances: 0,
+        submittedInvoices: 0,
+        complianceActions: 1,
+      }),
+    ).toBe(1);
   });
 
   it("is 0 wanneer de opdrachtgever nergens aan zet is", () => {
@@ -246,6 +261,7 @@ describe("countClientCascadeWork", () => {
         proposedCollaborations: 0,
         submittedPerformances: 0,
         submittedInvoices: 0,
+        complianceActions: 0,
       }),
     ).toBe(0);
   });

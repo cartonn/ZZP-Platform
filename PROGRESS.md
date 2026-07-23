@@ -3,6 +3,43 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — persona-sweep run 46: existence-oracle in samenwerkingen-module (HIGH) + 2 nav-badge-gaten
+
+**Wat:** kritische-gebruiker-sweep (verse prod-build + 3 parallelle Opus-audits: authz/IDOR/cross-tenant;
+malicieuze invoer/statusovergangen; next-action-correctheid). De malicieuze-invoer/status-audit kwam
+**schoon** terug op de kernketen (isNaN/Number.isFinite-guards, assertTransition/terminal-guards, int4-klem).
+Drie bevindingen gefixt:
+
+**GEVONDEN + GEFIXT — HIGH/security (DOEL 2, CWE-203 existence-oracle, terugkerende bugklasse):** acht
+mutaties in de samenwerkingen-module scheidden na een geslaagde `findUnique` een "niet gevonden"-tak van een
+"geen toegang / geen partij"-tak met **onderscheidbare** meldingen — waarmee een ingelogde actor (buiten-
+staander, de ZZP'er zelf, of een niet-betrokken CLIENT) het **bestaan** van een willekeurige samenwerking kon
+aftasten via een gegokt id. Bevestigd client-lekkend (return-state, verbatim gerenderd): `createReviewAction`
+(`[id]/review-actions.ts`), `reportNoShow` (`no-show-actions.ts`), `sendCredentialReminder` (`actions.ts`),
+`cancelCollaboration`→`applyCollaborationStatusChange` (`actions.ts`, via `toSafeActionError`). Plus vier
+throw-varianten in `[id]/actions.ts` (`setOrtProfileAction`, `setWeekdaysAction`, `setAgreementTypeAction`,
+`signModelAgreementAction`) — defense-in-depth/beleidsconsistentie. **Fix:** onbekend id én geen-partij geven
+nu EXACT dezelfde melding ("Samenwerking niet gevonden."), spiegelt de al-gefixte siblings (#867 shift-handoff,
+setDienstStatus). **Geschonden regel:** anti-oracle / server-side waarheid (CLAUDE.md). Rood→groen: 8 tests
+(`review-oracle.test.ts`, `no-show-oracle.test.ts`, aangescherpte `credential-reminder.test.ts`).
+
+**GEVONDEN + GEFIXT — MED (DOEL 1b, "signaal op één oppervlak"): ADMIN Gebruikers-nav stil bij hoogste-prio-taak.**
+De ADMIN-nav-badge queryde nooit `User.status="PENDING"` of `deletionRequestedAt`, terwijl `/acties` er
+`adminActivateUserTask` (prio 60) én `adminDeletionRequestTask` (prio 100, het blokkerende AVG-verwijderverzoek
+— de hoogste in de engine) voor toont. Een admin met 0 andere signalen maar 1 verwijderverzoek zag een schone
+Gebruikers-nav. **Fix:** twee `user.count` (exact de `adminTasks`-predicaten) → badge op het echte nav-href
+`/admin/gebruikersbeheer`, dynamische toon (attention bij verwijderverzoek, anders info).
+
+**GEVONDEN + GEFIXT — MED (DOEL 1b): CLIENT compliance-ripple-taak onzichtbaar op /samenwerkingen-badge.**
+`clientComplianceTask` (prio 85, hoogste CLIENT-prio: vereist certificaat ontbrekend/verlopen) verscheen op
+/acties + dashboard-rail maar niet in de `cascadeWork`-badge. **Fix:** `clientCredentialAlerts` gefilterd op
+`clientHasComplianceAction` meegeteld in `countClientCascadeWork` (geen dedup — telt losse acties gelijk aan
+/acties). Rood→groen: 6 tests (`signals.badge-gaps-run46.test.ts`).
+
+**Bestanden:** `src/app/(protected)/samenwerkingen/{[id]/review-actions,[id]/actions,actions,no-show-actions}.ts`,
+`src/lib/signals.ts` + 3 testbestanden. **Gate:** typecheck · lint (0 warnings) · test (**4889 passed**, 466 files)
+· prettier — groen; build draait. Geparkeerd (LOW): unbounded-queries-vangrail scant alleen `src/app`, niet `src/lib`.
+
 ## 2026-07-23 — opdrachtgever: "Aankomend" (committed cost) forward-blik op /facturen
 
 **Wat:** de opdrachtgever zag op `/facturen` wél de openstaande (uitgestuurde) facturen — via de payables-

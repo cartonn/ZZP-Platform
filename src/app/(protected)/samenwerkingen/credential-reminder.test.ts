@@ -74,10 +74,18 @@ describe("sendCredentialReminder", () => {
     expect(collaborationFindUnique).not.toHaveBeenCalled();
   });
 
-  it("weigert een opdrachtgever die niet de eigenaar is (ownership)", async () => {
+  it("weigert een opdrachtgever die niet de eigenaar is — anti-oracle (CWE-203): identiek aan onbekend id", async () => {
+    // Onbekend id → "Samenwerking niet gevonden."
+    collaborationFindUnique.mockResolvedValue(null);
+    const unknown = await sendCredentialReminder("col-x", "VOG", undefined, new FormData());
+    expect(unknown?.error).toBe("Samenwerking niet gevonden.");
+
+    // Bestaand-maar-van-een-andere-opdrachtgever moet EXACT dezelfde melding geven (geen existence-
+    // oracle): een niet-betrokken CLIENT mag andermans samenwerking-id niet kunnen aftasten.
     collaborationFindUnique.mockResolvedValue(collabWithMissingVog("iemand-anders"));
-    const result = await sendCredentialReminder("col-1", "VOG", undefined, new FormData());
-    expect(result?.error).toMatch(/geen toegang/i);
+    const foreign = await sendCredentialReminder("col-1", "VOG", undefined, new FormData());
+    expect(foreign?.error).toBe("Samenwerking niet gevonden.");
+    expect(foreign?.error).toBe(unknown?.error);
     expect(runTransaction).not.toHaveBeenCalled();
   });
 

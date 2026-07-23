@@ -5,6 +5,7 @@
 
 import { Prisma } from "@prisma/client";
 
+import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
 import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/mandatory-documents";
@@ -140,18 +141,34 @@ export function countFreelancerCascadeWork(collabs: readonly FreelancerCascadeCo
 /**
  * CLIENT-tegenhanger van {@link countFreelancerCascadeWork}: de opdrachtgever is "aan zet" op
  * (a) elke PROPOSED samenwerking waar het contract nog ondertekend moet worden, (b) elke SUBMITTED
- * prestatie die goedgekeurd moet worden, en (c) elke SUBMITTED factuur die goedgekeurd moet worden.
+ * prestatie die goedgekeurd moet worden, (c) elke SUBMITTED factuur die goedgekeurd moet worden, en
+ * (d) elke lopende samenwerking met een compliance-ripple-actie (vereist certificaat ontbrekend/
+ * verlopen/binnenkort-verlopend van de ZZP'er — de hoogst-wegende opdrachtgever-taak).
  * Symmetrisch met de FREELANCER-tak: de contract-onderteken-taak (PROPOSED) telde eerder NIET mee in
  * de /samenwerkingen-badge, terwijl /acties (pending-tasks.ts `contractSignTask`) én de cascade-fase
  * (stage.ts `youAreUp` op een niet-getekend contract) 'm wél tonen — dat liet de badge de andere
- * twee surfaces tegenspreken. Pure functie, los testbaar.
+ * twee surfaces tegenspreken. Idem `complianceActions`: de compliance-taak (`clientComplianceTask`,
+ * href `/samenwerkingen/{id}`) verscheen wél op /acties + de dashboard-rail maar ontbrak in de badge.
+ *
+ * Geen dedup op samenwerking: dit telt losse acties (net als de FREELANCER-tak meerdere facturen per
+ * samenwerking telt), exact gelijk aan /acties dat per samenwerking zowel een prestatie-/factuur-taak
+ * ÁLS een aparte compliance-taak toont. Deduppen zou de badge juist ónder /acties laten tellen — het
+ * anti-patroon dat deze telling repareert. Wel telt `complianceActions` één actie per samenwerking
+ * (niet per ontbrekend certificaat-type), gelijk aan de één-taak-per-samenwerking-emissie in de
+ * item-engine. Pure functie, los testbaar.
  */
 export function countClientCascadeWork(input: {
   proposedCollaborations: number;
   submittedPerformances: number;
   submittedInvoices: number;
+  complianceActions: number;
 }): number {
-  return input.proposedCollaborations + input.submittedPerformances + input.submittedInvoices;
+  return (
+    input.proposedCollaborations +
+    input.submittedPerformances +
+    input.submittedInvoices +
+    input.complianceActions
+  );
 }
 
 /** Pure mapping van ruwe tellingen → badges (filtert 0 weg). Testbaar zonder DB. */
@@ -383,6 +400,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       cascadeProposed,
       cascadePerf,
       cascadeInv,
+      complianceAlerts,
     ] = await Promise.all([
       prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
       prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
@@ -413,11 +431,25 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
           collaboration: { disputedAt: null },
         },
       }),
+      // cascade: compliance-ripple — lopende (ACTIVE, niet-bevroren) samenwerkingen waarvan de ZZP'er
+      // een vereist certificaat mist/verlopen/binnenkort-verlopend heeft. Zelfde eigenaar-gescoopte
+      // loader als /acties (pending-tasks.ts `clientCredentialAlerts`); zonder deze telling was de
+      // /samenwerkingen-badge stiller dan /acties + de dashboard-rail (die de hoogst-geprioriteerde
+      // `clientComplianceTask` tonen) — het "signaal op één oppervlak"-anti-patroon.
+      clientCredentialAlerts(userId),
     ]);
+    // Eén actie per samenwerking (niet per ontbrekend certificaat-type): exact gelijk aan de
+    // één-taak-per-samenwerking-emissie in de item-engine. De `clientHasComplianceAction`-gate sluit
+    // enkel-`inReview`-meldingen uit — die geven de opdrachtgever geen actie (de ADMIN verifieert),
+    // net als in pending-tasks.ts, zodat de badge geen niet-afhandelbare taak toont.
+    const complianceActions = complianceAlerts.filter((a) =>
+      clientHasComplianceAction(a.alert),
+    ).length;
     const cascadeWork = countClientCascadeWork({
       proposedCollaborations: cascadeProposed,
       submittedPerformances: cascadePerf,
       submittedInvoices: cascadeInv,
+      complianceActions,
     });
     return buildBadges({
       newApplications,
@@ -462,6 +494,8 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     pendingNoShowVerdicts,
     noShowAtLimit,
     openAdminHandoffs,
+    pendingUsers,
+    deletionRequests,
   ] = await Promise.all([
     prisma.credential.count({ where: { status: "SUBMITTED" } }),
     prisma.collaboration.count({ where: { disputedAt: { not: null } } }),
@@ -481,6 +515,14 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     }),
     // Open dienst-overname-aanvragen, platform-breed (admin ziet ze allemaal).
     prisma.shiftHandoff.count({ where: { status: "OPEN" } }),
+    // Gebruikers-wachtrij (nav /admin/gebruikersbeheer). Exact dezelfde predicaten als /acties
+    // (pending-tasks.ts adminTasks): (1) accounts die op goedkeuring wachten, (2) openstaande
+    // AVG-verwijderverzoeken. Zonder deze tellingen was de Gebruikers-nav stil terwijl /acties + de
+    // dashboard-rail de goedkeur- én de (hoogst-geprioriteerde) verwijderverzoek-taak wél tonen.
+    prisma.user.count({ where: { status: "PENDING" } }),
+    prisma.user.count({
+      where: { deletionRequestedAt: { not: null }, anonymizedAt: null, role: { not: "ADMIN" } },
+    }),
   ]);
   // Alleen nog-ACTIEVE accounts leveren een uitschrijf-besluit op (een al geschorste ZZP'er niet) —
   // symmetrisch met de ACTIVE-filter in pending-tasks.ts, zodat badge en /acties gelijk tellen.
@@ -493,7 +535,7 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
           },
         })
       : 0;
-  return buildBadges({
+  const badges = buildBadges({
     pendingVerifications,
     openDisputes,
     openSupportTickets,
@@ -502,4 +544,18 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     openNoShows: pendingNoShowVerdicts + atLimitToSuspend,
     openAdminHandoffs,
   });
+  // Gebruikers-nav-badge (/admin/gebruikersbeheer, het echte nav-item): goedkeur-wachtrij +
+  // verwijderverzoeken samen, gelijk aan het aantal gebruikers-taken op /acties. Dynamische toon:
+  // een AVG-verwijderverzoek is het blokkerende, hoogst-geprioriteerde signaal (attention); alleen
+  // te-activeren accounts is een rustige wachtrij (info, gelijk aan de `adminActivateUserTask`-toon).
+  // Verdwijnt vanzelf zodra beide 0 zijn. Dynamische toon kan niet via de statische SIGNAL_TONE-map,
+  // dus hier direct gezet (zelfde na-bewerkingspatroon als `withActionCenterBadge`).
+  const userQueue = pendingUsers + deletionRequests;
+  if (userQueue > 0) {
+    badges["/admin/gebruikersbeheer"] = {
+      count: userQueue,
+      tone: deletionRequests > 0 ? "attention" : "info",
+    };
+  }
+  return badges;
 }

@@ -292,9 +292,12 @@ export async function setOrtProfileAction(
     where: { id: collaborationId },
     select: { company: { select: { userId: true } } },
   });
-  if (!col) throw new Error("Samenwerking niet gevonden.");
-  if (actor.role !== "ADMIN" && actor.id !== col.company.userId) {
-    throw new Error("Alleen de opdrachtgever kan het ORT-profiel instellen.");
+  // Anti-oracle (CWE-203): een niet-opdrachtgever (buitenstaander of de ZZP'er-partij via directe
+  // aanroep — de ORT-control wordt in de UI alleen aan de opdrachtgever getoond) mag "bestaat niet"
+  // niet kunnen onderscheiden van "geen toegang". Identiek onbekend-id-antwoord; consistent met
+  // shift-handoff/setDienstStatus.
+  if (!col || (actor.role !== "ADMIN" && actor.id !== col.company.userId)) {
+    throw new Error("Samenwerking niet gevonden.");
   }
 
   let customRates: string | null = null;
@@ -347,11 +350,12 @@ export async function setWeekdaysAction(
     where: { id: collaborationId },
     select: { company: { select: { userId: true } }, freelancer: { select: { userId: true } } },
   });
-  if (!col) throw new Error("Samenwerking niet gevonden.");
-  const isClient = actor.id === col.company.userId;
-  const isFreelancer = actor.id === col.freelancer.userId;
-  if (!isClient && !isFreelancer && actor.role !== "ADMIN") {
-    throw new Error("Alleen de betrokken partijen kunnen het weekrooster vastleggen.");
+  const isClient = actor.id === col?.company.userId;
+  const isFreelancer = actor.id === col?.freelancer.userId;
+  // Anti-oracle (CWE-203): een niet-partij mag "bestaat niet" niet kunnen onderscheiden van "geen
+  // toegang" → identiek onbekend-id-antwoord.
+  if (!col || (!isClient && !isFreelancer && actor.role !== "ADMIN")) {
+    throw new Error("Samenwerking niet gevonden.");
   }
 
   // Alleen geldige weekdag-codes; ontdubbeld + canoniek geordend door serializeWeekdays.
@@ -395,9 +399,10 @@ export async function setAgreementTypeAction(
       agreementClientSignedAt: true,
     },
   });
-  if (!col) throw new Error("Samenwerking niet gevonden.");
-  if (actor.role !== "ADMIN" && actor.id !== col.company.userId) {
-    throw new Error("Alleen de opdrachtgever kan de overeenkomstvorm kiezen.");
+  // Anti-oracle (CWE-203): niet-opdrachtgever krijgt het onbekend-id-antwoord (de keuze-control staat
+  // in de UI alleen bij de opdrachtgever) → geen onderscheid bestaat/geen-toegang.
+  if (!col || (actor.role !== "ADMIN" && actor.id !== col.company.userId)) {
+    throw new Error("Samenwerking niet gevonden.");
   }
   if (col.agreementFreelancerSignedAt || col.agreementClientSignedAt) {
     throw new Error("De overeenkomst is al ondertekend; de vorm kan niet meer worden gewijzigd.");
@@ -433,12 +438,12 @@ export async function signModelAgreementAction(collaborationId: string): Promise
       agreementClientSignedAt: true,
     },
   });
-  if (!col) throw new Error("Samenwerking niet gevonden.");
-
-  const isClient = actor.id === col.company.userId;
-  const isFreelancer = actor.id === col.freelancer.userId;
-  if (!isClient && !isFreelancer) {
-    throw new Error("Alleen de betrokken partijen kunnen de overeenkomst ondertekenen.");
+  const isClient = actor.id === col?.company.userId;
+  const isFreelancer = actor.id === col?.freelancer.userId;
+  // Anti-oracle (CWE-203): een niet-partij mag "bestaat niet" niet kunnen onderscheiden van "geen
+  // toegang" → identiek onbekend-id-antwoord.
+  if (!col || (!isClient && !isFreelancer)) {
+    throw new Error("Samenwerking niet gevonden.");
   }
 
   const already = isFreelancer ? col.agreementFreelancerSignedAt : col.agreementClientSignedAt;

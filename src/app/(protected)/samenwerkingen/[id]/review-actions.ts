@@ -47,8 +47,12 @@ export async function createReviewAction(
 
   const isClient = actor.id === col.company.userId;
   const isFreelancer = actor.id === col.freelancer.userId;
+  // Anti-oracle (CWE-203): een niet-betrokken actor mag geen onderscheid kunnen maken tussen "bestaat
+  // niet" en "bestaat, maar jij bent geen partij" — beide geven exact dezelfde melding als een onbekend
+  // id. De beoordelingsknop wordt sowieso alleen aan een partij getoond; dit sluit de directe-aanroep-
+  // aftast-poort. Consistent met shift-handoff/setDienstStatus.
   if (!isClient && !isFreelancer) {
-    return { error: "Alleen de betrokken partijen kunnen een beoordeling geven." };
+    return { error: "Samenwerking niet gevonden." };
   }
   if (col.status !== "COMPLETED") {
     return { error: "Je kunt pas beoordelen nadat de samenwerking is afgerond." };

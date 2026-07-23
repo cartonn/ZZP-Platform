@@ -1,5 +1,56 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-23 (run 46) · **main-commit basis:** `6c09e1a6`
+> **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT** (1 HIGH/security + 2 DOEL-1b nav-badge). Verse prod-build
+> (exit 0) + drie parallelle Opus-audits (authz/IDOR/cross-tenant/document-privacy; malicieuze invoer +
+> verboden statusovergangen; next-action-correctheid). De malicieuze-invoer/status-audit kwam **schoon** terug
+> op de kernketen (elke datum/getal-parse `isNaN`/`Number.isFinite`-gerguard vóór Prisma; `assertTransition`/
+> terminal-guards symmetrisch; int4-overflow-klem op factuurbedragen).
+>
+> **GEVONDEN + GEFIXT — HIGH/security (DOEL 2, CWE-203 existence-oracle, terugkerende bugklasse):** acht
+> mutaties in de samenwerkingen-module scheidden na een geslaagde `findUnique` een "niet gevonden"-tak van een
+> "geen toegang/geen partij"-tak met **onderscheidbare** meldingen — een ingelogde actor (buitenstaander, de
+> ZZP'er zelf, of een niet-betrokken CLIENT) kon zo via een gegokt id het **bestaan** van een willekeurige
+> samenwerking aftasten (exact wat de anti-oracle-fixes #867/shift-handoff/setDienstStatus elders bewust dicht
+> houden). Bevestigd client-lekkend (return-state, verbatim gerenderd): `createReviewAction`
+> (`src/app/(protected)/samenwerkingen/[id]/review-actions.ts:50`), `reportNoShow`
+> (`no-show-actions.ts:61`), `sendCredentialReminder` (`actions.ts:494`),
+> `applyCollaborationStatusChange` (`actions.ts:194`, geforward via `toSafeActionError` in `cancelCollaboration`).
+> Plus vier throw-varianten in `[id]/actions.ts` (`setOrtProfileAction:297`, `setWeekdaysAction:354`,
+> `setAgreementTypeAction:400`, `signModelAgreementAction:441`) — defense-in-depth + beleidsconsistentie.
+> **Geschonden regel:** anti-oracle / server-side waarheid (CLAUDE.md). **Fix:** onbekend id én geen-partij
+> geven nu EXACT dezelfde melding ("Samenwerking niet gevonden."). Rood→groen: 8 tests (`review-oracle.test.ts`,
+> `no-show-oracle.test.ts`, aangescherpte `credential-reminder.test.ts`).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, "signaal op één oppervlak"): ADMIN Gebruikers-nav stil bij hoogste-prio-taak.**
+> De ADMIN-nav-badge (`signals.ts` navBadges) queryde nooit `User.status="PENDING"` of `deletionRequestedAt`,
+> terwijl `/acties` (`pending-tasks.ts adminTasks`) er `adminActivateUserTask` (prio 60) én `adminDeletionRequestTask`
+> (prio 100 — het blokkerende AVG-verwijderverzoek, hoogste in de engine) voor toont. Admin met 0 andere signalen
+>
+> - 1 verwijderverzoek zag een schone Gebruikers-nav. **Fix:** twee `user.count` (exact de `adminTasks`-predicaten)
+>   → badge op het echte nav-href `/admin/gebruikersbeheer`, dynamische toon (attention bij verwijderverzoek, anders
+>   info). Rood→groen in `signals.badge-gaps-run46.test.ts`.
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b): CLIENT compliance-ripple-taak onzichtbaar op /samenwerkingen-badge.**
+> `clientComplianceTask` (`tasks.ts`, prio 85, hoogste CLIENT-prio: vereist certificaat ontbrekend/verlopen op een
+> ACTIVE niet-disputed samenwerking) verscheen op /acties + dashboard-rail maar niet in de `cascadeWork`-badge
+> (`countClientCascadeWork` telde alleen proposed/submitted). **Fix:** `clientCredentialAlerts(userId)` gefilterd op
+> `clientHasComplianceAction` meegeteld in `countClientCascadeWork` (geen dedup — losse acties, gelijk aan /acties).
+> Rood→groen in `signals.badge-gaps-run46.test.ts` (6 tests totaal met GAT 1).
+>
+> **GEPARKEERD uit deze run (repro + prioriteit):**
+>
+> - **LOW (defense-in-depth, vangrail-dekkingsgat):** de "elke `findMany()` heeft `take:` of een
+>   `unbounded-allow`-marker"-vangrail (`src/lib/unbounded-queries.test.ts`, `walkAppDir`) scant alleen `src/app`,
+>   nooit `src/lib` — ongemarkeerde onbegrensde `findMany()`'s onder `src/lib` (o.a. `account-export.ts`,
+>   `actions/drawer-data.ts`, `franchise/dienst-voordracht.ts`) glippen erdoor. Geen daarvan is nu
+>   attacker-inflatable; een toekomstige `src/lib`-toevoeging met een opblaasbare tabel wel. **Fix-richting:**
+>   `walkAppDir()` óók `src/lib` laten scannen (markers toevoegen aan de bestaande hits). Prioriteit: LOW.
+> - **LOW (dode code):** `src/lib/next-actions.ts` (`freelancerNextActions`/`clientNextActions`/`adminNextActions`)
+>   heeft nul productie-callers (alleen `franchiserNextActions` is gewired). Twee parallelle next-action-aggregaten
+>   kunnen stil driften t.o.v. de echte engine (`pending-tasks.ts`/`tasks.ts`). **Fix-richting:** verwijderen of
+>   wiren in een aparte pass. Prioriteit: LOW.
+
 > **Datum:** 2026-07-23 (run 45) · **main-commit basis:** `4992ff6b`
 > **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT** (1 MED/security + 2 DOEL-1b cross-surface) + 2
 > geparkeerd met repro. Verse prod-build (exit 0) + drie parallelle Opus-audits (authz/IDOR/cross-
