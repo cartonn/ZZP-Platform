@@ -51,3 +51,24 @@ export function mandatoryDocuments(
   const openCount = items.filter((i) => i.state !== "satisfied").length;
   return { items, openCount, allSatisfied: openCount === 0 };
 }
+
+/**
+ * Aantal verplichte documenten dat een *openstaande next-action* voor de ZZP'er oplevert: ontbrekend
+ * of verlopen, maar NIET van een type dat al een REJECTED-certificaat heeft (die krijgt de
+ * `credentialFixTask` als enige canonieke rij). Dit is exact de emissieconditie van
+ * `mandatoryDocumentTask` in `pending-tasks.ts` — dezelfde bron van waarheid zodat de nav-badge
+ * (`credentialAlerts`), `/acties` en de dashboard-rail niet driften (DOEL 1b: één signaal, alle
+ * oppervlakken gelijk). `inReview` telt niet mee: daar is de admin aan zet, niet de ZZP'er.
+ */
+export function mandatoryDocumentAlertCount(
+  credentials: readonly FreelancerCredential[],
+  now: Date = new Date(),
+): number {
+  const { items } = mandatoryDocuments(credentials, now);
+  const rejectedTypes = new Set(
+    credentials.filter((c) => c.status === "REJECTED").map((c) => c.type),
+  );
+  return items.filter(
+    (i) => (i.state === "missing" || i.state === "expired") && !rejectedTypes.has(i.type),
+  ).length;
+}
