@@ -3,6 +3,19 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — bemiddelaar: omzetconcentratie per opdrachtgever op /inzicht (concentratierisico)
+
+**Wat:** de bemiddelaar zag op `/inzicht` per opdrachtgever omzet + vulgraad, maar niet hóe afhankelijk de
+bemiddeling is van één opdrachtgever — een reëel bedrijfsrisico (valt de grootste klant weg, dan valt een
+groot deel van de fee-omzet weg). Staffing-/marketplace-dashboards tonen deze portefeuille-concentratie
+standaard. Nu een compact **Omzetconcentratie**-blok bovenaan "Per opdrachtgever": grootste opdrachtgever +
+aandeel% van het doorgezette volume, "N opdrachtgevers samen = 80%", met glanceable toon-badge (Hoge
+afhankelijkheid ≥60% / Let op spreiding ≥40% / Goed gespreid). Pure `summarizeRevenueConcentration`
+(`tenant-concentration.ts`) leunt op de al-geladen `getTenantCompanyBreakdown`-data — **geen extra query,
+geen schemawijziging, geen mutatie/auth-oppervlak**; `null` onder 2 betalende opdrachtgevers (concentratie
+is pas zinvol bij ≥2 klanten). +8 tests. Gate: typecheck, lint, unit-tests, build, prettier groen.
+**Bestanden:** `src/lib/tenant-concentration.ts`(+test), `src/app/(protected)/inzicht/page.tsx`.
+
 ## 2026-07-23 — security/privacy-audit: bron-IP op beveiligingsincidenten geredigeerd na venster (HOOG, AVG)
 
 **Wat:** orchestrator (Opus 4.8) + 3 parallelle Opus-audits op niet-overlappende oppervlakken —

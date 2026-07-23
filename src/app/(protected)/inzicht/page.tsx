@@ -22,6 +22,10 @@ import { getClientStats } from "@/lib/client-stats";
 import { getClientTimeToFill, getTenantTimeToFill } from "@/lib/time-to-fill";
 import { getTenantStats, getTenantCompanyBreakdown } from "@/lib/tenant-stats";
 import {
+  summarizeRevenueConcentration,
+  type RevenueConcentration,
+} from "@/lib/tenant-concentration";
+import {
   getFreelancerRevenueTrend,
   getClientRevenueTrend,
   getTenantRevenueTrend,
@@ -456,6 +460,40 @@ async function ClientInzicht({ userId }: { userId: string }) {
   );
 }
 
+const CONCENTRATION_LABEL: Record<RevenueConcentration["tone"], string> = {
+  danger: "Hoge afhankelijkheid",
+  warning: "Let op spreiding",
+  default: "Goed gespreid",
+};
+
+const CONCENTRATION_BADGE: Record<RevenueConcentration["tone"], "danger" | "warning" | "success"> =
+  {
+    danger: "danger",
+    warning: "warning",
+    default: "success",
+  };
+
+function ConcentrationLead({ c }: { c: RevenueConcentration }) {
+  const topShare = Math.round(c.topShareBps / 100);
+  return (
+    <div className="mb-3 rounded-lg border border-border bg-muted/40 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-muted-foreground">Omzetconcentratie</p>
+        <Badge variant={CONCENTRATION_BADGE[c.tone]}>{CONCENTRATION_LABEL[c.tone]}</Badge>
+      </div>
+      <p className="mt-1.5 text-sm">
+        <span className="font-medium">{c.topName}</span> is goed voor{" "}
+        <span className="font-mono tabular-nums">{topShare}%</span> van je doorgezette volume.
+      </p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        {c.clientsForMajority === 1
+          ? "Eén opdrachtgever vormt al 80% van je volume."
+          : `${plural(c.clientsForMajority, "opdrachtgever", "opdrachtgevers")} samen zijn goed voor 80% van je volume.`}
+      </p>
+    </div>
+  );
+}
+
 async function FranchiserInzicht({ actor }: { actor: Actor }) {
   const [s, byCompany, trend, tenant, timeToFill] = await Promise.all([
     getTenantStats(actor),
@@ -481,6 +519,7 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
     );
   }
   const withActivity = byCompany.filter((r) => r.totalJobs > 0 || r.revenuePaidCents > 0);
+  const concentration = summarizeRevenueConcentration(byCompany);
   const feePercent = tenant?.feePercent ?? 0;
   const feeSet = feePercent > 0;
   const feeCents = computeTenantFee(s.revenuePaidCents, feePercent);
@@ -601,6 +640,7 @@ async function FranchiserInzicht({ actor }: { actor: Actor }) {
           />
         ) : (
           <div className="space-y-3">
+            {concentration && <ConcentrationLead c={concentration} />}
             {withActivity.map((r) => (
               <div key={r.companyId} className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
