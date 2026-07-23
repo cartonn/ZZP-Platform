@@ -41,24 +41,40 @@ function isRedactableIp(ip: unknown): ip is string {
 }
 
 export interface RedactableIncident {
+  /** Rij-id (cuid) — gebruikt om de geredigeerde `dedupeKey` uniek te houden (@unique-constraint). */
+  id: string;
   /** JSON-string uit HealthIncident.evidence (of null). */
   evidence: string | null;
   /** Mensleesbare samenvatting die het IP kan bevatten. */
   summary: string;
+  /** Idempotentie-/groepeersleutel; bevat bij een burst het bron-IP verbatim. */
+  dedupeKey: string;
+}
+
+export interface RedactedIncident {
+  evidence: string;
+  summary: string;
+  dedupeKey: string;
+  /** Het originele (nog IP-bevattende) IP; nodig om afgeleide kopieën (auditlog/notificatie) te matchen. */
+  originalIp: string;
 }
 
 /**
- * Redact het bron-IP uit één incident: vervangt `evidence.ip` door de redactie-sentinel én knipt
- * elke letterlijke voorkomen van dat IP uit de summary (het IP is er ongewijzigd in geïnterpoleerd,
- * dus een letterlijke vervanging is deterministisch en betrouwbaar).
+ * Redact het bron-IP uit ELKE kolom van één incident die het kan bevatten: `evidence.ip`, de vrije
+ * `summary`, én de machine-`dedupeKey` (`auth-login-burst-<ip>-<venster>`). Het IP is overal
+ * ongewijzigd geïnterpoleerd, dus een letterlijke split/join is deterministisch en betrouwbaar
+ * (en veilig tegen regex-metatekens in een client-nabij X-Forwarded-For-IP).
  *
- * @returns de geredigeerde `{ evidence, summary }`, of `null` wanneer er niets te redigeren valt
+ * De `dedupeKey` staat onder een `@unique`-constraint: twee incidenten met verschillende IP's in
+ * hetzelfde venster zouden na naïeve redactie botsen. We hangen daarom het rij-id (cuid, globaal
+ * uniek) achteraan. Dat is veilig: de idempotentie-rol van `dedupeKey` geldt alleen binnen het
+ * rollende scanvenster (laatste uur), en deze rijen zijn per definitie ouder dan het retentievenster.
+ *
+ * @returns de geredigeerde velden + het originele IP, of `null` wanneer er niets te redigeren valt
  *   (geen/ongeldige evidence, geen `ip`-veld, of het IP is al geredigeerd/onbekend). `null` betekent
- *   dus "sla deze rij over" — dat houdt de taak idempotent.
+ *   "sla deze rij over" — dat houdt de taak idempotent.
  */
-export function redactIncidentIp(
-  incident: RedactableIncident,
-): { evidence: string; summary: string } | null {
+export function redactIncidentIp(incident: RedactableIncident): RedactedIncident | null {
   if (!incident.evidence) return null;
 
   let parsed: unknown;
@@ -77,6 +93,15 @@ export function redactIncidentIp(
   // split/join i.p.v. replace met regex: het IP is gebruikersinvoer-nabij (X-Forwarded-For) en kan
   // regex-metatekens bevatten; een letterlijke split/join vermijdt injectie in het redactiepatroon.
   const nextSummary = incident.summary.split(ip).join(AUDIT_PII_REDACTED);
+  // Redact ook de dedupeKey; borg uniciteit met het rij-id als suffix wanneer het IP erin zat.
+  const nextDedupeKey = incident.dedupeKey.includes(ip)
+    ? `${incident.dedupeKey.split(ip).join(AUDIT_PII_REDACTED)}-${incident.id}`
+    : incident.dedupeKey;
 
-  return { evidence: JSON.stringify(nextEvidence), summary: nextSummary };
+  return {
+    evidence: JSON.stringify(nextEvidence),
+    summary: nextSummary,
+    dedupeKey: nextDedupeKey,
+    originalIp: ip,
+  };
 }

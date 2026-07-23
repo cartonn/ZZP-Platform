@@ -17,16 +17,19 @@ upload-sniff, sandboxed documenten, fail-closed cron, allowlisted push-SSRF, HMA
 inlog-burst/reset-flood vast op `HealthIncident` (evidence + summary); er was géén sweep die dat IP
 (persoonsgegeven) ooit opruimde en het verwerkingsregister had geen entry voor deze afgeleide store → IP's
 bleven onbeperkt staan. **Fix:** niet-destructieve **redactie** i.p.v. wissen — incidentsignaal blijft,
-alleen het IP wordt na het venster vervangen door `[verwijderd]`. `src/lib/health-incident-retention.ts`
-(pure cutoff + `redactIncidentIp`), `src/lib/health-incident-retention-task.ts` (gebatchte, idempotente
-update + audit `HEALTH_INCIDENT_IPS_REDACTED`), gewired in `run-all`, config
+alleen het IP wordt na het venster vervangen door `[verwijderd]` in **álle kolommen** (evidence, summary én
+de machine-`dedupeKey`) én in de afgeleide kopieën (`HEALTH_INCIDENT_OPENED`-auditregel-entityId +
+admin-notificatie-body). `src/lib/health-incident-retention.ts` (pure cutoff + `redactIncidentIp`, dedupeKey
+met rij-id-suffix voor `@unique`), `src/lib/health-incident-retention-task.ts` (gebatchte, idempotente
+update + `updateMany` op de kopieën + audit `HEALTH_INCIDENT_IPS_REDACTED`), gewired in `run-all`, config
 `HEALTH_INCIDENT_IP_RETENTION_DAYS` (standaard AAN, default 90d, min-vloer 30, expliciete 0=uit),
-register+retentieschema bijgewerkt. **Tests:** +17 (rood→groen), volledige suite groen, typecheck/lint/
-prettier/check:env groen.
+register+retentieschema bijgewerkt. **Tests:** +22 (rood→groen, incl. "geen enkele kolom behoudt het IP" +
+afgeleide-kopie-redactie ná de agent-review-blocker), volledige suite groen (4910),
+typecheck/lint/prettier/check:env/build groen. De MIDDEL notificatie/auditregel-kopie is in dezelfde fix
+meegenomen (OPGELOST).
 
-**Volgende stap (geparkeerd, backlog 2026-07-23b):** MIDDEL — admin-notificatie kopieert de IP-bevattende
-incident-`summary` (`monitor-task.ts:103-108`); engineer-fixbaar in de volgende ronde. FG-mensenwerk (open):
-KRITIEK door-derden-PII overleeft `anonymizeUser`, MIDDEL audit-retentie opt-in vs. register-belofte,
+**Volgende stap (FG-mensenwerk, backlog 2026-07-23b):** KRITIEK door-derden-PII overleeft `anonymizeUser`
+(twee-wegdeur, vóór echte VOG/diploma-data live), MIDDEL audit-retentie opt-in vs. register-belofte,
 MIDDEL `Expense.description`-erasure, LAAG Geoapify-registerentry.
 
 ## 2026-07-23 — persona-sweep run 46: existence-oracle in samenwerkingen-module (HIGH) + 2 nav-badge-gaten

@@ -60,19 +60,36 @@ export async function runHealthIncidentRetentionTask(opts: {
           { NOT: { evidence: { contains: AUDIT_PII_REDACTED } } },
         ],
       },
-      select: { id: true, evidence: true, summary: true },
+      select: { id: true, evidence: true, summary: true, dedupeKey: true },
       take: BATCH_SIZE,
     });
     if (stale.length === 0) break;
 
     let redactedInBatch = 0;
     for (const row of stale) {
-      const next = redactIncidentIp({ evidence: row.evidence, summary: row.summary });
+      const next = redactIncidentIp(row);
       if (!next) continue; // defensief: query filtert dit al weg.
+      // Redact ELKE kolom van de rij die het IP droeg (evidence, summary én de machine-dedupeKey).
       await prisma.healthIncident.update({
         where: { id: row.id },
-        data: { evidence: next.evidence, summary: next.summary },
+        data: { evidence: next.evidence, summary: next.summary, dedupeKey: next.dedupeKey },
       });
+      // Afgeleide kopieën die hetzelfde IP droegen mee-redigeren, zodat de opslagbeperking over álle
+      // stores geldt (het IP is triviaal terug te halen uit één ongeredigeerde kopie):
+      //  1) de auditregel HEALTH_INCIDENT_OPENED bewaart het (oude) dedupeKey als entityId;
+      //  2) de admin-notificatie (bij CRITICAL) kopieert de summary in de body.
+      if (next.dedupeKey !== row.dedupeKey) {
+        await prisma.auditLog.updateMany({
+          where: { action: "HEALTH_INCIDENT_OPENED", entityId: row.dedupeKey },
+          data: { entityId: next.dedupeKey },
+        });
+      }
+      if (next.summary !== row.summary) {
+        await prisma.notification.updateMany({
+          where: { type: "HEALTH_INCIDENT", body: row.summary },
+          data: { body: next.summary },
+        });
+      }
       redactedInBatch += 1;
     }
     redacted += redactedInBatch;

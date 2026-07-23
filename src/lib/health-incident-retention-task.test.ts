@@ -11,6 +11,7 @@ interface IncidentRow {
   createdAt: Date;
   evidence: string | null;
   summary: string;
+  dedupeKey: string;
 }
 
 interface AuditRow {
@@ -21,7 +22,17 @@ interface AuditRow {
   createdAt: Date;
 }
 
-const store = { incidents: [] as IncidentRow[], auditLogs: [] as AuditRow[] };
+interface NotificationRow {
+  id: string;
+  type: string;
+  body: string;
+}
+
+const store = {
+  incidents: [] as IncidentRow[],
+  auditLogs: [] as AuditRow[],
+  notifications: [] as NotificationRow[],
+};
 let idSeq = 0;
 
 // Vorm van het subset van Prisma-filters dat de taak gebruikt.
@@ -56,14 +67,23 @@ vi.mock("@/lib/db", () => ({
         store.incidents
           .filter((r) => matches(r, args.where))
           .slice(0, args.take)
-          .map((r) => ({ id: r.id, evidence: r.evidence, summary: r.summary })),
+          .map((r) => ({
+            id: r.id,
+            evidence: r.evidence,
+            summary: r.summary,
+            dedupeKey: r.dedupeKey,
+          })),
       ),
       update: vi.fn(
-        async (args: { where: { id: string }; data: { evidence: string; summary: string } }) => {
+        async (args: {
+          where: { id: string };
+          data: { evidence: string; summary: string; dedupeKey: string };
+        }) => {
           const row = store.incidents.find((r) => r.id === args.where.id);
           if (row) {
             row.evidence = args.data.evidence;
             row.summary = args.data.summary;
+            row.dedupeKey = args.data.dedupeKey;
           }
           return row;
         },
@@ -75,6 +95,35 @@ vi.mock("@/lib/db", () => ({
         store.auditLogs.push(row);
         return row;
       }),
+      updateMany: vi.fn(
+        async (args: {
+          where: { action: string; entityId: string };
+          data: { entityId: string };
+        }) => {
+          let count = 0;
+          for (const r of store.auditLogs) {
+            if (r.action === args.where.action && r.entityId === args.where.entityId) {
+              r.entityId = args.data.entityId;
+              count++;
+            }
+          }
+          return { count };
+        },
+      ),
+    },
+    notification: {
+      updateMany: vi.fn(
+        async (args: { where: { type: string; body: string }; data: { body: string } }) => {
+          let count = 0;
+          for (const r of store.notifications) {
+            if (r.type === args.where.type && r.body === args.where.body) {
+              r.body = args.data.body;
+              count++;
+            }
+          }
+          return { count };
+        },
+      ),
     },
   },
 }));
@@ -84,18 +133,41 @@ import { runHealthIncidentRetentionTask } from "@/lib/health-incident-retention-
 const NOW = new Date("2026-07-23T12:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
 
+function summaryFor(ip: string): string {
+  return `12 mislukte inlogpogingen vanaf IP ${ip} in het laatste uur.`;
+}
+function dedupeKeyFor(ip: string): string {
+  return `auth-login-burst-${ip}-w`;
+}
+
 function ipIncident(id: string, ip: string, ageDays: number): void {
   store.incidents.push({
     id,
     createdAt: new Date(NOW.getTime() - ageDays * DAY),
     evidence: JSON.stringify({ ip, count: 12, window: "w" }),
-    summary: `12 mislukte inlogpogingen vanaf IP ${ip} in het laatste uur.`,
+    summary: summaryFor(ip),
+    dedupeKey: dedupeKeyFor(ip),
   });
+}
+
+// Seedt een incident mét zijn afgeleide kopieën: de HEALTH_INCIDENT_OPENED-auditregel (entityId ==
+// dedupeKey) en een admin-notificatie (body == summary) — beide dragen dus óók het IP.
+function ipIncidentWithDerived(id: string, ip: string, ageDays: number): void {
+  ipIncident(id, ip, ageDays);
+  store.auditLogs.push({
+    id: `audit-open-${id}`,
+    action: "HEALTH_INCIDENT_OPENED",
+    entityType: "HealthIncident",
+    entityId: dedupeKeyFor(ip),
+    createdAt: new Date(NOW.getTime() - ageDays * DAY),
+  });
+  store.notifications.push({ id: `notif-${id}`, type: "HEALTH_INCIDENT", body: summaryFor(ip) });
 }
 
 beforeEach(() => {
   store.incidents = [];
   store.auditLogs = [];
+  store.notifications = [];
   idSeq = 0;
   delete process.env.HEALTH_INCIDENT_IP_RETENTION_DAYS;
 });
@@ -118,6 +190,28 @@ describe("runHealthIncidentRetentionTask", () => {
     expect(row.summary).not.toContain("203.0.113.7");
     expect(row.summary).toContain(AUDIT_PII_REDACTED);
     expect(JSON.parse(row.evidence!).ip).toBe(AUDIT_PII_REDACTED);
+    // Ook de dedupeKey mag het IP niet meer bevatten (de agent-review-blocker).
+    expect(row.dedupeKey).not.toContain("203.0.113.7");
+  });
+
+  it("laat NA de sweep GEEN enkele kolom van de rij het IP behouden (blocker-regressie)", async () => {
+    ipIncident("old", "203.0.113.7", 120);
+    await runHealthIncidentRetentionTask({ now: NOW });
+
+    const row = store.incidents.find((r) => r.id === "old")!;
+    const allColumns = `${row.evidence}\n${row.summary}\n${row.dedupeKey}`;
+    expect(allColumns).not.toContain("203.0.113.7");
+  });
+
+  it("redigeert óók de afgeleide kopieën (auditregel-entityId + notificatie-body)", async () => {
+    ipIncidentWithDerived("old", "203.0.113.7", 120);
+    await runHealthIncidentRetentionTask({ now: NOW });
+
+    const openAudit = store.auditLogs.find((r) => r.id === "audit-open-old")!;
+    expect(openAudit.entityId).not.toContain("203.0.113.7");
+    const notif = store.notifications.find((r) => r.id === "notif-old")!;
+    expect(notif.body).not.toContain("203.0.113.7");
+    expect(notif.body).toContain(AUDIT_PII_REDACTED);
   });
 
   it("laat verse incidenten (binnen het venster) ongemoeid — IP blijft voor onderzoek", async () => {
@@ -134,12 +228,14 @@ describe("runHealthIncidentRetentionTask", () => {
       createdAt: new Date(NOW.getTime() - 200 * DAY),
       evidence: JSON.stringify({ count: 6, window: "w" }),
       summary: "6 rolwijzigingen in het laatste uur.",
+      dedupeKey: "auth-role-burst-w",
     });
     store.incidents.push({
       id: "unknown",
       createdAt: new Date(NOW.getTime() - 200 * DAY),
       evidence: JSON.stringify({ ip: "onbekend", count: 4, window: "w" }),
       summary: "4 mislukte inlogpogingen vanaf IP onbekend in het laatste uur.",
+      dedupeKey: "auth-login-burst-onbekend-w",
     });
     const result = await runHealthIncidentRetentionTask({ now: NOW });
 

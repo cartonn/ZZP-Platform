@@ -359,13 +359,13 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     sensitive: false,
     recipients: ["Intern platformbeheer (beveiligingsteam)"],
     retention:
-      "Auditlogboek: 12 maanden. Beveiligingsincidenten: het incident blijft als signaal bewaard, maar het bron-IP wordt na 90 dagen automatisch geredigeerd (dataminimalisatie)",
+      "Auditlogboek: 12 maanden. Beveiligingsincidenten: het incident blijft als signaal bewaard, maar het bron-IP wordt na 90 dagen automatisch geredigeerd uit álle kolommen (evidence, samenvatting én de dedupe-sleutel) en uit de afgeleide kopieën (auditregel-entityId, admin-notificatie)",
     securityMeasures: [
       "Auditlogging",
       "Toegang op rol (RBAC)",
       "Versleutelde opslag",
       "Beperkte bewaartermijn",
-      "Automatische IP-redactie op oude beveiligingsincidenten (run-all → health-incident-retention)",
+      "Automatische IP-redactie op oude beveiligingsincidenten incl. afgeleide kopieën (run-all → health-incident-retention)",
     ],
   },
 
@@ -591,7 +591,7 @@ export const RETENTION_SCHEDULE: readonly RetentionRule[] = [
     period:
       "Auditlog: 12 maanden. Beveiligingsincidenten: bron-IP automatisch geredigeerd na 90 dagen (het incidentsignaal zelf blijft)",
     rationale:
-      "Gerechtvaardigd belang (beveiliging en fraudepreventie); langer bewaren staat niet in verhouding tot het doel. Het IP-adres op een beveiligingsincident (persoonsgegeven) wordt na het onderzoeksvenster automatisch geredigeerd door een geplande sweep (run-all → health-incident-retention; art. 5(1)(c)/(e))",
+      "Gerechtvaardigd belang (beveiliging en fraudepreventie); langer bewaren staat niet in verhouding tot het doel. Het IP-adres op een beveiligingsincident (persoonsgegeven) wordt na het onderzoeksvenster automatisch geredigeerd uit álle kolommen (incl. de dedupe-sleutel) én de afgeleide auditregel/notificatie door een geplande sweep (run-all → health-incident-retention; art. 5(1)(c)/(e))",
   },
   {
     key: "berichten",

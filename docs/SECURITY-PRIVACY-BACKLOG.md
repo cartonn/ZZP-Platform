@@ -36,30 +36,35 @@ KPI's eigenaar-/company-/tenant-gescoped en geaggregeerd. **Eén concrete AVG-ga
   onvolledig).
 - **Fix:** niet-destructieve **redactie** i.p.v. wissen — het incident (type/ernst/aantal/venster) blijft
   als beveiligingssignaal bewaard, alléén het IP wordt na het venster vervangen door de bestaande
-  redactie-sentinel `[verwijderd]` (in evidence én summary). `src/lib/health-incident-retention.ts` (pure
-  `healthIncidentIpRetentionCutoff` + `redactIncidentIp` — letterlijke split/join tegen regex-injectie via
-  een client-nabij X-Forwarded-For-IP; slaat `onbekend`/reeds-geredigeerd over → idempotent),
+  redactie-sentinel `[verwijderd]` in **álle kolommen** die het droegen: `evidence.ip`, de vrije `summary`
+  én de machine-`dedupeKey` (`auth-login-burst-<ip>-<venster>`), plus de **afgeleide kopieën** — de
+  `HEALTH_INCIDENT_OPENED`-auditregel (entityId == dedupeKey) en de admin-notificatie (body == summary).
+  `src/lib/health-incident-retention.ts` (pure `healthIncidentIpRetentionCutoff` + `redactIncidentIp` —
+  letterlijke split/join tegen regex-injectie via een client-nabij X-Forwarded-For-IP; dedupeKey krijgt het
+  rij-id als suffix voor de `@unique`-constraint; slaat `onbekend`/reeds-geredigeerd over → idempotent),
   `src/lib/health-incident-retention-task.ts` (gebatchte, idempotente update via een portabele
-  `contains`/`NOT`-query op de tekstkolom; `HEALTH_INCIDENT_IPS_REDACTED`-auditrecord zonder PII), gewired
-  in `run-all`. Config `HEALTH_INCIDENT_IP_RETENTION_DAYS` staat — net als lead-retentie en anders dan de
-  onomkeerbare auditlog-sweep — standaard AAN (default 90 dagen onderzoeksvenster; min-vloer 30; expliciete
-  `0`=uit) omdat onbeperkte IP-retentie de overtreding ís en redactie de beveiligingswaarde niet aantast.
-  Register (#12) + retentieschema (`auditlog-beveiligingslogboeken`) bijgewerkt naar de afgedwongen
-  redactie. Tests: `health-incident-retention.test.ts` (+9) en `health-incident-retention-task.test.ts`
-  (+8, rood→groen: o.a. "redigeert IP uit oude incidenten", "laat verse incidenten ongemoeid", "raakt
-  onbekend/niet-IP-incidenten niet aan", idempotentie, batching >BATCH_SIZE, audit alleen bij redactie,
-  expliciete-0-override).
+  `contains`/`NOT`-query op de tekstkolom + `updateMany` op de afgeleide auditregel/notificatie;
+  `HEALTH_INCIDENT_IPS_REDACTED`-auditrecord zonder PII), gewired in `run-all`. Config
+  `HEALTH_INCIDENT_IP_RETENTION_DAYS` staat — net als lead-retentie en anders dan de onomkeerbare
+  auditlog-sweep — standaard AAN (default 90 dagen onderzoeksvenster; min-vloer 30; expliciete `0`=uit)
+  omdat onbeperkte IP-retentie de overtreding ís en redactie de beveiligingswaarde niet aantast. Register
+  (#12) + retentieschema (`auditlog-beveiligingslogboeken`) bijgewerkt naar de afgedwongen redactie over
+  alle kolommen + kopieën. Tests: `health-incident-retention.test.ts` (+12) en
+  `health-incident-retention-task.test.ts` (+10, rood→groen: o.a. "redigeert IP uit evidence/summary/
+  dedupeKey", "GEEN enkele kolom behoudt het IP" (blocker-regressie), "afgeleide auditregel+notificatie
+  mee-geredigeerd", "laat verse incidenten ongemoeid", "raakt onbekend/niet-IP niet aan", idempotentie,
+  batching >BATCH_SIZE, audit alleen bij redactie, expliciete-0-override).
 
-### GEPARKEERD — MIDDEL: admin-notificatie kopieert incident-`summary` (incl. IP) — dezelfde PII, ander pad
+### OPGELOST — MIDDEL: admin-notificatie + auditregel-entityId kopieerden het IP (dezelfde PII, ander pad)
 
-- **Repro:** `src/lib/monitoring/monitor-task.ts:103-108` schrijft bij elk incident een admin-notificatie
-  met `body: f.summary` — dat is dezelfde IP-bevattende samenvatting. De nieuwe HealthIncident-redactie
-  raakt die notificatie-kopie (nog) niet; er is geen FK van `Notification` naar `HealthIncident`.
-- **Geschonden regel:** AVG art. 5(1)(c)/(e) (consistente minimalisatie over kopieën).
-- **Aanbevolen fix:** breid de retentie-sweep uit met een redactie van beveiligings-alert-notificaties
-  (match op ongelezen/oude admin-notificaties met een IP in de body ouder dan het venster), óf laat
-  `monitor-task` de IP al bij creatie uit de notificatie-body weglaten (het incident houdt de details).
-  Klein, engineer-fixbaar — kandidaat voor de volgende ronde.
+- **Repro (was):** `src/lib/monitoring/monitor-task.ts` schreef bij elk incident een admin-notificatie
+  (`body: f.summary`, incl. IP) én een `HEALTH_INCIDENT_OPENED`-auditregel (`entityId: f.dedupeKey`, incl.
+  IP). De eerste versie van de HealthIncident-redactie raakte die kopieën niet → het IP was triviaal
+  terug te halen uit een ongeredigeerde kopie (agent-review-blocker op #887).
+- **Geschonden regel:** AVG art. 5(1)(c)/(e) (consistente minimalisatie over álle kopieën).
+- **Fix:** de retentie-sweep redigeert de afgeleide kopieën nu mee (`auditLog.updateMany` op
+  `entityId == oude dedupeKey`; `notification.updateMany` op `body == oude summary`), in dezelfde run per
+  incident. Meegenomen in de OPGELOST-HOOG-fix hierboven; tests dekken beide kopieën af.
 
 ### Her-geëscaleerd (FG-mensenwerk, twee-wegdeur — ONVERANDERD open, zie eerdere rondes)
 
