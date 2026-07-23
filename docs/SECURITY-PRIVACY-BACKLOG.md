@@ -4,6 +4,45 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-23 (basis: `main` @ b8f0a6e3)
+
+Audit: orchestrator (Opus 4.8) + 2 parallelle adversariële Opus-security-subagents op niet-overlappende
+oppervlakken — (1) delta-authz/IDOR/injectie over álle sinds `78838f25` gewijzigde bestanden, met focus op
+de cross-origin-isolatie/`resource-headers`-refactor (7 document-/PDF-/media-routes) en de nieuwe
+KPI-oppervlakken (time-to-fill, aging/openstaand, urencriterium-tempo, `/inzicht`); (2) cross-tenant-isolatie
+FRANCHISER (`tenancy.ts` + alle `franchise/**` + `admin/**` server actions) + AVG betrokkenen-rechten
+(`anonymizeUser`, account-export/-anonymization). Kader: OWASP Top 10 (A01/A03/A05) + ASVS + AVG art.
+5/9/17/30/32. Stack ongewijzigd voorbij bekende CVE's (Next.js 15.5.19 voorbij CVE-2025-29927, Auth.js
+v5-beta.31, Prisma 6.19.3).
+
+**Bevinding:** de header-refactor bleek een zuivere centralisatie (elke `requireActor`/ownership/tenant/audit-
+keten intact, geverifieerd tegen `git show 78838f25:<path>`; `sanitizeAttachmentFilename` strip CR/LF/`"` →
+geen header-injectie) met netto-hardening (COOP/CORP/Permissions-Policy). De nieuwe KPI's zijn allemaal
+eigenaar-/company-gescoped, geaggregeerd (time-to-fill `MIN_SAMPLE=2`), en CSV gaat door `toCsv`
+(formule-injectie-guard). Cross-tenant-isolatie fail-closed over de hele franchise-/admin-boom (geen
+CWE-203-oracle); erasure ongewoon grondig. **Eén concrete AVG-gap gevonden én OPGELOST (rood→groen); de
+KRITIEK-geparkeerde art. 17-derden-PII-afweging blijft FG-mensenwerk.**
+
+### OPGELOST — MIDDEL: `Lead`/`LeadContact`-retentie nu technisch afgedwongen (AVG art. 5(1)(e), PR volgt)
+
+- **Repro (was):** het verwerkingsregister beloofde leads "tot conversie/afvallen + 12 maanden", maar geen
+  scheduled task purgde `Lead`/`LeadContact` na dat venster — beslíste leads (KLANT/NO_DEAL) mét prospect-PII
+  (organisatie, contactnaam, e-mail, telefoon, vrije notities + contactlogboek) bleven onbeperkt staan. Het
+  enige wispad was het handmatige `deleteLead`. De `acquisitie-leads`-`RETENTION_SCHEDULE`-regel claimde zelfs
+  "technisch afgedwongen" terwijl dat alleen het handmatige pad was. Deze prospect-PII valt buiten
+  `anonymizeUser` (de prospect heeft geen `User`-account) — retentie is dus de enige afdwingbare grond.
+- **Geschonden regel:** AVG art. 5(1)(e) opslagbeperking / art. 5(2) verantwoordingsplicht.
+- **Fix:** nieuwe geplande retentie-sweep, gemodelleerd naar `audit-retention`/`webhook-event-retention`:
+  `src/lib/lead-retention.ts` (pure `leadRetentionCutoff` + `isLeadRetentionEligible` — alleen
+  KLANT/NO_DEAL snoeibaar, KOUD/WARM nooit), `src/lib/lead-retention-task.ts` (gebatchte, idempotente
+  `deleteMany` — `LeadContact` cascadeert mee — + `LEADS_PRUNED`-auditrecord zonder PII), gewired in
+  `run-all`. Config `LEAD_RETENTION_DAYS` staat — anders dan de opslag-hygiëne-ledgers — standaard AAN op het
+  belóófde venster (365 dagen; leeg/ongeldig → 365, expliciete `0` → uit, min-vloer 90) omdat prospect-PII
+  onbeperkt bewaren juist de overtreding ís. Register + retentieregel-tekst bijgewerkt naar "automatisch
+  afgedwongen". Tests: `lead-retention.test.ts` (+5) en `lead-retention-task.test.ts` (+8, rood→groen: o.a.
+  "snoeit NOOIT actieve prospects KOUD/WARM", "dwingt standaard 365-dagen af zonder env", batching,
+  idempotentie, min-vloer, audit alleen bij daadwerkelijk snoeien).
+
 ## Ronde 2026-07-22b (basis: `main` @ 78838f25)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende
@@ -89,13 +128,13 @@ FG-escalatie).**
 - **Aanbevolen fix:** Content-Type uit een gevalideerd `Company.logoMimeType`-veld halen i.p.v. de
   key-extensie te vertrouwen.
 
-### Geparkeerd — MIDDEL: `Lead`/`LeadContact`-retentie technisch niet afgedwongen (AVG art. 5(1)(e))
+### OPGELOST (ronde 2026-07-23) — MIDDEL: `Lead`/`LeadContact`-retentie technisch niet afgedwongen (AVG art. 5(1)(e))
 
-- **Repro:** het register (`processing-register.ts:434`) belooft leads "tot conversie/afvallen + 12
-  maanden", maar geen scheduled task purget `Lead`/`LeadContact` na dat venster (alle cron-entrypoints
-  gecontroleerd — geen enkele noemt `Lead`); het enige wispad is het handmatige `deleteLead`.
-- **Aanbevolen fix:** scheduled sweep (`run-all`) die `Lead`+`LeadContact` hard verwijdert voorbij het
-  beleidsvenster, óf de registertekst downgraden naar "handmatig".
+- **Repro (was):** het register (`processing-register.ts:434`) belooft leads "tot conversie/afvallen + 12
+  maanden", maar geen scheduled task purgde `Lead`/`LeadContact` na dat venster (alle cron-entrypoints
+  gecontroleerd — geen enkele noemde `Lead`); het enige wispad was het handmatige `deleteLead`.
+- **Fix:** geplande retentie-sweep `lead-retention` (zie ronde 2026-07-23 bovenaan) — `Lead`+`LeadContact`
+  (cascade) hard verwijderd voorbij het 12-maandenvenster, standaard AAN, getest rood→groen.
 
 ### Geparkeerd — MIDDEL (FG-oordeel): `Expense.description` overleeft de erasure inconsistent met `Performance.description`
 

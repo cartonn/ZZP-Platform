@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — security/privacy: automatische retentie-sweep voor acquisitie-leads (AVG art. 5(1)(e))
+
+**Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 2 parallelle adversariële subagents op
+delta-authz/routes én cross-tenant/AVG-rechten). Delta sinds `78838f25` schoon bevonden: de
+cross-origin-isolatie/`resource-headers`-refactor is een zuivere, geteste centralisatie met elke
+auth/ownership/tenant/audit-keten intact (geverifieerd tegen `git show`); de nieuwe KPI's (time-to-fill,
+aging/openstaand, urencriterium-tempo) zijn eigenaar-gescoped, geaggregeerd, CSV via `toCsv`. Cross-tenant
+fail-closed over de hele franchise-/admin-boom; erasure grondig. **Eén concrete AVG-gap gedicht:**
+`Lead`/`LeadContact`-retentie was beloofd (register: "afvallen + 12 maanden") maar niet technisch
+afgedwongen — beslíste leads (KLANT/NO_DEAL) mét prospect-PII (organisatie, contactnaam, e-mail, telefoon,
+notities + contactlogboek) bleven onbeperkt staan. Deze PII valt buiten `anonymizeUser` (prospect heeft geen
+account), dus retentie is de enige afdwingbare grond.
+
+- **`src/lib/lead-retention.ts`** (nieuw) — pure `leadRetentionCutoff(retentionDays, now)` + `isLeadRetentionEligible(status)` (alleen KLANT/NO_DEAL snoeibaar, KOUD/WARM nooit; deelt de bron van waarheid met `isActiveLeadStatus`).
+- **`src/lib/lead-retention-task.ts`** (nieuw) — `runLeadRetentionTask`: gebatchte, idempotente `deleteMany` (LeadContact cascadeert mee) + `LEADS_PRUNED`-auditrecord (zonder PII), gemodelleerd naar `audit-retention`/`webhook-event-retention`. Gewired in `run-all`.
+- **`src/lib/config.ts`** — `LEAD_RETENTION_DAYS` (leadRetentionDays): standaard **AAN** op het beloofde venster (365 dagen; leeg/ongeldig → 365, expliciete `0` → uit, min-vloer 90) — anders dan de opslag-hygiëne-ledgers, want prospect-PII onbeperkt bewaren ís de overtreding.
+- **`processing-register.ts` + `audit-labels.ts`** — register-/retentieregel-tekst bijgewerkt naar "automatisch afgedwongen"; `LEADS_PRUNED`-label toegevoegd.
+- **Tests:** `lead-retention.test.ts` (+5) en `lead-retention-task.test.ts` (+8, rood→groen: snoeit NOOIT KOUD/WARM, dwingt standaard 365d af zonder env, batching >500, idempotentie, min-vloer, audit alleen bij daadwerkelijk snoeien).
+- **Gate:** typecheck ✓ · lint ✓ · vitest 458 files / 4828 tests ✓ · prettier ✓ · build (zie PR-CI).
+- **Geparkeerd (ongewijzigd):** KRITIEK art. 17 derden-vrijetekst-PII over gewiste persoon (FG/juridisch,
+  MENSENWERK §5); `Expense.description`-erasure (FG-oordeel); media-middleware-matcher (MIDDEL,
+  defense-in-depth). Zie `docs/SECURITY-PRIVACY-BACKLOG.md` ronde 2026-07-23.
+
 ## 2026-07-23 — inzicht: tijd tot plaatsing (time-to-fill) KPI voor de opdrachtgever (/inzicht)
 
 **Wat:** `/inzicht` toonde de opdrachtgever de **vervullingsgraad** (% opdrachten met plaatsing — de

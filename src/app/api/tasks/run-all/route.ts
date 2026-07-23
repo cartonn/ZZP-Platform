@@ -26,6 +26,7 @@ import { runReviewsRevealTask } from "@/lib/reviews-reveal-task";
 import { runPushDeliveryTask } from "@/lib/push-delivery-task";
 import { runAuditRetentionTask } from "@/lib/audit-retention-task";
 import { runWebhookEventRetentionTask } from "@/lib/webhook-event-retention-task";
+import { runLeadRetentionTask } from "@/lib/lead-retention-task";
 import { runScheduledTasks, type ScheduledTask } from "@/lib/scheduled-tasks";
 import { reportBackgroundFailure } from "@/lib/observability/report";
 import { recordCronHeartbeat, RUN_ALL_HEARTBEAT } from "@/lib/observability/cron-heartbeat";
@@ -78,6 +79,7 @@ export async function POST(request: Request): Promise<Response> {
       name: "webhook-event-retention",
       fn: () => runWebhookEventRetentionTask({ actorId: null }),
     },
+    { name: "lead-retention", fn: () => runLeadRetentionTask({ actorId: null }) },
     { name: "monitor", fn: () => runMonitorTask({}) },
   ];
 
