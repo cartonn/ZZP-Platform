@@ -1363,3 +1363,34 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   spotlight-hiërarchie in premium-dark met radial glow** — elk deterministisch, toegankelijk (WCAG
   focus-states, status label+icoon, motion-reduce) en onderscheidend van de bestaande 440.
 - **Totaal nu op `/ontwerp`: 450 concepten** (reeks 45: 441–450).
+
+## Reeks 46 — concepten 451–460 (2026-07-23)
+
+- **451 Vergezicht** — ruimtelijke diepte / spatial computing (#eef1f7 + koelblauw #4f7cff): gelaagde
+  doorschijnende dieptevlakken met echte z-hiërarchie, parallax en diepte-schaduw — wat telt ligt vooraan.
+- **452 Brief** — briefing-first prioritering (#f6f1e6 + inkt #1f3a5f): één dominant "nu belangrijk"-hero
+  boven een stille index, groot serif-display met ledger-cijfers — sterke typografische hiërarchie.
+- **453 Luik** — progressive disclosure / inklapbare rust (#f4f2ee + groen #3f7a5f): alles ingeklapt tot
+  één regel, vouwt open op verzoek — een kalme stapel ledger-rijen die complexiteit verbergen.
+- **454 Chroma** — wide-gamut kleurveld / kleur-als-data (#ffffff + violet #6d28d9): verzadigde P3/OKLCH
+  tint-families coderen match, urgentie en status — levendig maar gedisciplineerd.
+- **455 Sereen** — quiet luxury / near-monochroom (#f3f1ec + terra #9c8b7a): warm-grijs monochroom met één
+  gedempt accent, enorme witruimte en ultradunne hairlines — stille luxe, low-stimulation.
+- **456 Aventurijn** — mineraal-luxe / groen-goud edelsteen (#12211a + goud #c8a24a): diep smaragd aventurien
+  met goud-speckle-glans — rijke materialiteit, ambachtelijk en kostbaar maar strak leesbaar.
+- **457 Contrapunt** — editorial split-screen / twee stemmen (#f4efe3 + rood #c2412c): twee gesynchroniseerde
+  kolommen om een sterke as (ZZP'er vs opdrachtgever) — contrastrijk, redactioneel, mobiel gestapeld.
+- **458 Boog** — architecturale bogen / warm classicisme (#f3ead9 + brons #b5623a): kaarten met boog-
+  bovenkanten in arcade-ritme, travertijn-tinten en klassieke symmetrie — monumentaal maar licht.
+- **459 Fond** — matte precisie-dark / fintech-trust (#0c0e0f + teal #2dd4bf): glansloze diepte met haarscherpe
+  hairlines, compacte data-dichtheid en tabulaire cijfers — vertrouwen via functionele donkerte.
+- **460 Gips** — sculpturaal reliëf / museum-wit (#f2f0ea + steen #8a8578): albast met emboss/deboss reliëf via
+  dubbele licht/donker-schaduw — sculpturale typografie, tijdloos en tactiel.
+- Onderzochte 2026-trends deze reeks: **spatial computing & depth-planes (z-hiërarchie, parallax)**;
+  **summarize/briefing-first prioritering met serif-display + ledger-cijfers**; **progressive disclosure &
+  calm/low-stimulation interfaces**; **wide-gamut P3/OKLCH kleur-als-data**; **quiet luxury near-monochroom**;
+  **materiële luxe (mineraal-speckle)**; **editorial split-screen counterpoint**; **architecturaal arcade-
+  ritme**; **dark-mode-first fintech-precisie-tooling**; **sculpturaal emboss/deboss reliëf** — elk
+  deterministisch, toegankelijk (WCAG focus-states, status label+icoon, prefers-reduced-motion) en
+  onderscheidend van de bestaande 450.
+- **Totaal nu op `/ontwerp`: 460 concepten** (reeks 46: 451–460).

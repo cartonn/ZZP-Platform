@@ -3,6 +3,21 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — ontwerp-lab reeks 46: +10 concepten (451–460), totaal 460
+
+**Wat:** 10 nieuwe, high-fidelity redesign-concepten additief toegevoegd aan `/ontwerp` (accumuleren, nooit
+vervangen). Bestaande 450 concepten ongemoeid. Nieuwe richtingen (elk onderscheidend, 2026-trend-geworteld):
+**451 Vergezicht** (spatial computing / depth-planes), **452 Brief** (briefing-first prioritering),
+**453 Luik** (progressive disclosure), **454 Chroma** (wide-gamut P3/OKLCH kleur-als-data),
+**455 Sereen** (quiet luxury near-monochroom), **456 Aventurijn** (mineraal-luxe groen-goud),
+**457 Contrapunt** (editorial split-screen), **458 Boog** (architecturale bogen/classicisme),
+**459 Fond** (matte fintech-dark precisie-tooling), **460 Gips** (sculpturaal emboss/deboss reliëf).
+
+**Bestanden:** 10× `src/components/ontwerp/concepts/concept-45[1-9]-*.tsx` + `concept-460-gips.tsx` (nieuw);
+append aan `registry.ts` (CONCEPTS) en `[id]/concept-host.tsx` (lazy id→component-map); docs bijgewerkt
+(`docs/DESIGN-LAB.md` reeks 46). Gebouwd door 4 parallelle workers op niet-overlappende bestanden, zelf
+geïntegreerd. Puur frontend/mock-data, geen live-app/auth/logica geraakt. Het woord "AI" komt nergens voor.
+
 ## 2026-07-23 — abuse-hardening: rate-limit + same-day dedup op reportNoShow (persona-sweep run 45 parked MED)
 
 **Wat:** `reportNoShow` (`src/app/(protected)/samenwerkingen/no-show-actions.ts`) was de **enige** UGC-mutatie

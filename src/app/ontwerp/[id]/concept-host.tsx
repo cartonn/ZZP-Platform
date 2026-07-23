@@ -1357,6 +1357,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "450": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-450-mokume").then((m) => m.Concept450),
   ),
+  "451": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-451-vergezicht").then((m) => m.Concept451),
+  ),
+  "452": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-452-brief").then((m) => m.Concept452),
+  ),
+  "453": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-453-luik").then((m) => m.Concept453),
+  ),
+  "454": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-454-chroma").then((m) => m.Concept454),
+  ),
+  "455": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-455-sereen").then((m) => m.Concept455),
+  ),
+  "456": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-456-aventurijn").then((m) => m.Concept456),
+  ),
+  "457": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-457-contrapunt").then((m) => m.Concept457),
+  ),
+  "458": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-458-boog").then((m) => m.Concept458),
+  ),
+  "459": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-459-fond").then((m) => m.Concept459),
+  ),
+  "460": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-460-gips").then((m) => m.Concept460),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
