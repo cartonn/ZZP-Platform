@@ -22,6 +22,27 @@ export interface MailMessage {
 
 export interface MailSender {
   send(message: MailMessage): Promise<void>;
+  /**
+   * READ-ONLY connectiviteitscontrole: bewijst dat het kanaal bereikbaar is en de credentials geldig
+   * zijn ZONDER een e-mail te versturen (Resend: authenticated GET /domains; SMTP: transporter.verify()).
+   * Resolvet bij bereikbaar + geldige auth, werpt bij een HTTP-/netwerk-/auth-fout (bij Resend een
+   * `MailConnectivityError` met een bewust veilig bericht: provider + HTTP-status, nooit de sleutel).
+   * Hierdoor kan mail meedraaien in de go-live-sweep (§11) — anders dan de losse `send`-zelftest die
+   * een echte mail naar een persoon stuurt. De `noop`-standaard heeft niets te controleren en resolvet.
+   */
+  checkConnectivity(): Promise<void>;
+}
+
+/**
+ * Fout uit een mail-connectiviteitscontrole (`checkConnectivity`). Draagt een bewust veilig opgesteld
+ * bericht (provider-naam + HTTP-status) dat we mogen tonen — nooit een rauw bericht dat een
+ * endpoint/API-sleutel zou kunnen bevatten. Parity met `BillingConnectivityError`.
+ */
+export class MailConnectivityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MailConnectivityError";
+  }
 }
 
 /** Doet niets (standaard in dev/test). Logt alleen naar de console buiten testomgevingen. */
@@ -37,6 +58,11 @@ class NoopMailSender implements MailSender {
       return;
     }
     console.log(`[mail:noop] To: ${message.to} | Subject: ${message.subject}`);
+  }
+
+  async checkConnectivity(): Promise<void> {
+    // Geen kanaal geconfigureerd — niets externs om te controleren. De zelftest roept dit niet aan
+    // wanneer de driver op `noop` staat (dan: "niets getest"); we resolven veilig voor volledigheid.
   }
 }
 
@@ -95,6 +121,13 @@ class SmtpMailSender implements MailSender {
       html: message.html,
     });
   }
+
+  async checkConnectivity(): Promise<void> {
+    // `verify()` opent de verbinding, doet EHLO en AUTH (met de opgegeven credentials) en sluit weer —
+    // zonder een bericht te versturen. Bewijst dus bereikbaarheid + geldige inloggegevens read-only.
+    const transporter = await this.ensureTransporter();
+    await transporter.verify();
+  }
 }
 
 /** De Resend-variabelen die voor verzending aanwezig moeten zijn. */
@@ -107,6 +140,9 @@ const RESEND_REQUIRED = ["RESEND_API_KEY", "EMAIL_FROM"] as const;
  */
 export class ResendMailSender implements MailSender {
   private readonly endpoint = "https://api.resend.com/emails";
+  // Read-only endpoint voor de connectiviteitscontrole: authenticated GET dat de sleutel valideert
+  // zonder iets te versturen of te muteren.
+  private readonly connectivityEndpoint = "https://api.resend.com/domains";
 
   constructor(
     private readonly fetchImpl: typeof fetch = fetch,
@@ -154,6 +190,32 @@ export class ResendMailSender implements MailSender {
       }
       throw new Error(
         `Resend: e-mail versturen mislukte (status ${res.status})${detail ? ` — ${detail}` : ""}.`,
+      );
+    }
+  }
+
+  async checkConnectivity(): Promise<void> {
+    // Alleen de sleutel is nodig voor een auth-controle; EMAIL_FROM (domeinverificatie) is pas bij het
+    // daadwerkelijk versturen relevant. Ontbreekt de sleutel, dan is er niets te controleren.
+    if (!process.env.RESEND_API_KEY) {
+      throw new MailConnectivityError(
+        "Resend: geen API-sleutel geconfigureerd (RESEND_API_KEY ontbreekt).",
+      );
+    }
+
+    const res = await fetchWithTimeout(
+      this.connectivityEndpoint,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+      },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Resend" },
+    );
+
+    if (!res.ok) {
+      // Alleen de HTTP-status tonen — nooit de responsbody (kan endpoint-/accountdetails bevatten).
+      throw new MailConnectivityError(
+        `Resend: connectiviteitscontrole faalde (status ${res.status}).`,
       );
     }
   }

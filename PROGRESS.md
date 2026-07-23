@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-23 — prod-rijpheid: mail read-only connectiviteitscheck → mail in go-live-sweep (PR #880)
+
+**Wat:** mail was de enige productie-integratie zonder read-only connectiviteitscheck. De bestaande
+mail-zelftest (`mail-selftest.ts`) verstuurt een **echte** testmail (vereist een ontvanger) — daarom
+viel mail bewust buiten de één-klik go-live GO/NO-GO-sweep (`selftest-sweep.ts`), terwijl opslag/
+database/rate-limit/verificatie/betaalprovider/upload-scanner/error-monitoring er wél in zaten. Gevolg:
+een beheerder kon vóór go-live niet in één handeling bevestigen dat óók het e-mailkanaal live-bereikbaar
+is.
+
+**Fix:** `MailSender` kreeg een `checkConnectivity()` (interface + 3 impls): **Resend** doet een
+authenticated `GET https://api.resend.com/domains` (valideert de sleutel, verstuurt/muteert niets);
+**SMTP** doet `transporter.verify()` (connect + EHLO + AUTH, géén bericht); **noop** resolvet (niets te
+testen). Nieuwe `MailConnectivityError` (parity met `BillingConnectivityError`) draagt een veilig bericht
+(provider + HTTP-status), nooit de responsbody/sleutel. Nieuwe pure module
+`mail-connectivity-selftest.ts` (tegenhanger van `billing-selftest.ts`, injecteerbaar) + wiring als
+`key:"mail"`-runner in de go-live-sweep (read-only → bulk-veilig). De losse "Testmail versturen"-knop
+(deliverability) blijft bewust apart. Sweep-entries renderen dynamisch → geen extra UI-plumbing; alleen
+de beschrijvende teksten in `selftest-sweep.tsx` bijgewerkt.
+
+**Bestanden:** `src/lib/services/mail-sender.ts` (+`checkConnectivity`/`MailConnectivityError`),
+`src/lib/services/mail-connectivity-selftest.ts` (nieuw), `src/app/(protected)/admin/systeemstatus/actions.ts`
+(sweep-runner + doc), `src/components/admin/selftest-sweep.tsx` (teksten). Tests: `mail-sender.test.ts`
+(+6 connectiviteit), `mail-connectivity-selftest.test.ts` (nieuw, 10), `mail-selftest.test.ts` (double
+uitgebreid). Geen schemawijziging, geen nieuw mutatie/auth-oppervlak; alleen response-/read-only calls.
+MENSENWERK §2 + §11 bijgewerkt. Gate: typecheck ✓, lint ✓, unit-tests ✓ (volledige suite groen), build,
+prettier ✓.
+
+**Volgende stap:** volgende hoogste-hefboom prod-rijpheid-item of persona-sweep-backlog.
+
 ## 2026-07-23 — security/privacy: automatische retentie-sweep voor acquisitie-leads (AVG art. 5(1)(e))
 
 **Wat:** security-/privacy-auditronde (orchestrator Opus 4.8 + 2 parallelle adversariële subagents op

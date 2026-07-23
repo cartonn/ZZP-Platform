@@ -48,6 +48,10 @@ import {
 import { getMailSender } from "@/lib/services/mail-sender";
 import { runMailSelfTest, type MailSelfTestReport } from "@/lib/services/mail-selftest";
 import {
+  runMailConnectivitySelfTest,
+  type MailDriverMode,
+} from "@/lib/services/mail-connectivity-selftest";
+import {
   inactiveRateLimitReport,
   runRateLimitSelfTest,
   type RateLimitSelfTestReport,
@@ -504,13 +508,15 @@ export type SelfTestSweepState = { ok: true; report: SweepReport } | { ok: false
 
 /**
  * Go-live-sweep: draait álle actieve, bijwerkingsveilige connectiviteitszelftests (opslag, database,
- * rate-limit, verificatie, betaalprovider, upload-scanner, error-monitoring) in één klik en geeft een
- * geconsolideerd GO/NO-GO terug (admin-only). Volgt de mutatieketen (auth → rol → rate-limit → actie
- * → audit). Elke deelzelftest hergebruikt zijn eigen pure kern; een integratie die op een veilige
- * fallback/demo draait wordt eerlijk als "overgeslagen" gerapporteerd (geen vals groen).
+ * rate-limit, verificatie, betaalprovider, upload-scanner, error-monitoring, e-mail) in één klik en
+ * geeft een geconsolideerd GO/NO-GO terug (admin-only). Volgt de mutatieketen (auth → rol →
+ * rate-limit → actie → audit). Elke deelzelftest hergebruikt zijn eigen pure kern; een integratie die
+ * op een veilige fallback/demo draait wordt eerlijk als "overgeslagen" gerapporteerd (geen vals groen).
  *
- * Mail zit BEWUST niet in de sweep: die vereist een ontvangeradres en verstuurt echte mail naar een
- * persoon — dat blijft een losse, bewuste handeling. De uitvoer bevat nooit secrets — alleen
+ * Mail draait mee via de READ-ONLY connectiviteitscheck (`checkConnectivity` — Resend GET /domains,
+ * SMTP verify()), die géén mail verstuurt en dus bulk-veilig is. De losse mail-zelftest die een
+ * ECHTE testmail naar een ontvanger stuurt (deliverability-bevestiging) blijft bewust buiten de sweep
+ * — dat hoort een aparte, bewuste handeling te zijn. De uitvoer bevat nooit secrets — alleen
  * pass/fail/skipped per integratie, een driver-modus en een korte, veilige toelichting.
  */
 export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
@@ -672,6 +678,27 @@ export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
           mode: active ? "sentry" : "console",
           detail:
             result.detail ?? (result.ok ? "Testgebeurtenis afgeleverd." : "Aflevering faalt."),
+        };
+      },
+    },
+    {
+      key: "mail",
+      label: "E-mail",
+      run: async (): Promise<SweepRunResult> => {
+        // READ-ONLY connectiviteitscheck (checkConnectivity) — verstuurt géén mail, dus bulk-veilig.
+        // De losse deliverability-zelftest (echte testmail) blijft buiten de sweep.
+        const rawDriver = process.env.EMAIL_DRIVER ?? "noop";
+        const active = rawDriver === "smtp" || rawDriver === "resend";
+        const driverMode: MailDriverMode = active ? rawDriver : "noop";
+        const result = await runMailConnectivitySelfTest({
+          active,
+          driverMode,
+          run: active ? () => getMailSender().checkConnectivity() : undefined,
+        });
+        return {
+          status: !result.active ? "skipped" : result.ok ? "pass" : "fail",
+          mode: driverMode,
+          detail: result.detail ?? (result.ok ? "Bereikbaar." : "Kanaal faalt."),
         };
       },
     },
