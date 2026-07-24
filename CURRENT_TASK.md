@@ -260,6 +260,14 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **"Deze week"-samenvatting bovenaan /rooster (ZZP'er) (2026-07-24, PR #898)** —
+> de rooster-agenda opende zonder overzicht direct in de per-dag-secties. Nu een compacte **"Deze week"-strip**
+> (geplande diensten · opdrachtgevers · open kansen in de huidige ISO-week) bovenaan de agenda, glanceable naar
+> concurrent-benchmark (Temper/Pidz "je week in één oogopslag"). Pure `summarizeRosterWeek(agenda.days, now)`
+> (`roster-market.ts`) leunt op de reeds-gebouwde `buildAgenda`-output (geen extra query/schemawijziging/
+> mutatie-oppervlak), hergebruikt `startOfIsoWeek` → geen drift; meerdaagse dienst ontdubbeld op collaborationId,
+> opdrachtgevers op naam, open kansen op jobId. +5 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Tijd tot plaatsing (time-to-fill) KPI op /inzicht (bemiddelaar) (2026-07-23, PR #881)** —
 > de bemiddelaar zag op `/inzicht` de vervullingsgraad (Vulgraad, % diensten vervuld) maar niet de snelheid van plaatsen.
 > Nu een compacte regel **"Gem. tijd tot plaatsing · X dagen"** (met "snelste Y") in de Vulgraad-widget — tenant-breed

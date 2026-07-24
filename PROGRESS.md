@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — routine: "deze week"-samenvatting bovenaan /rooster (ZZP'er)
+
+**Wat:** de rooster-agenda (`/rooster`) sprong van de kop/filter-tabs direct in de per-dag-secties,
+zónder overzicht. Elke concurrent waar een ZZP'er zich mee vergelijkt (Temper/Pidz) opent het rooster
+met een "je week in één oogopslag"-regel. Nu een compacte **"Deze week"-samenvattingsstrip** bovenaan
+de agenda: **geplande diensten · opdrachtgevers · open kansen** in de huidige ISO-week — glanceable,
+zodat de ZZP'er meteen weet wat zijn week inhoudt vóór hij door de dagen scrollt.
+
+**Grens/architectuur:** pure `summarizeRosterWeek(agenda.days, now)` (`src/lib/roster-market.ts`)
+leunt op de **reeds-gebouwde** `buildAgenda`-output — geen extra query, geen schemawijziging, geen
+mutatie/auth-oppervlak. Hergebruikt `startOfIsoWeek` (`week-overview.ts`) zodat de weekgrens niet kan
+driften. Een meerdaagse geplande dienst telt **één keer** (ontdubbeld op `collaborationId`);
+opdrachtgevers ontdubbeld op naam, open kansen op `jobId`; alleen dagen binnen [ma, zo] tellen mee.
+Strip verschijnt alleen wanneer er deze week iets gepland/open staat. UI-taal Nederlands, cijfers in
+`tabular-nums`, kleur nooit als enige signaal (label + icoon).
+
+**Tests:** +5 (`roster-market.test.ts`): lege agenda → nul-samenvatting met juiste ISO-weekgrenzen;
+meerdaagse dienst ontdubbeld; verschillende/gelijke opdrachtgevers; open kansen deze week ontdubbeld;
+dagen buiten de week genegeerd.
+
+**Bestanden:** `src/lib/roster-market.ts` (+ test), `src/app/(protected)/rooster/page.tsx`,
+`PROGRESS.md`, `CURRENT_TASK.md`.
+
 ## 2026-07-24 — security: patch 3 Auth.js-advisories (2× critical) + repareer flaky e2e-merge-poort
 
 **Wat:** security-/privacy-auditronde (orchestrator, Opus 4.8). `main` draaide **kwetsbaar**:
