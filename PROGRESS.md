@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — prod-rijpheid: server-action body-limiet gelijktrekken met de upload-ceiling (documentupload > 1 MB)
+
+Kernbug voor livegang met echte gevoelige documenten. Uploads (documenten/certificaten/bedrijfslogo)
+lopen via **server actions** (`"use server"` + `formData`; `documenten/`, `certificaten/`, `bedrijf/`
+actions). `validateUpload` staat tot **10 MB** toe (`MAX_UPLOAD_BYTES`), maar Next.js kapt de
+server-action-request-body **standaard op 1 MB** af — een reëel gescande VOG-/diploma-PDF (2–5 MB) werd
+dus stil geweigerd **vóór** `validateUpload` draaide, met een generieke "Body exceeded 1 MB limit" i.p.v.
+onze nette `UploadValidationError`. De kernfunctie (veilige documentupload) brak op echte bestanden.
+
+- **Fix:** `experimental.serverActions.bodySizeLimit = "12mb"` in `next.config.mjs` — de upload-ceiling
+  (10 MB) + ruime headroom voor multipart-boundaries en meegestuurde form-velden. Bron van waarheid voor
+  de ceiling blijft `MAX_UPLOAD_BYTES`.
+- **Drift-poort:** `src/lib/services/upload-body-limit.test.ts` importeert `next.config.mjs` +
+  `MAX_UPLOAD_BYTES` en faalt zodra de limiet onder de ceiling zakt (of de override verdwijnt). +4 tests.
+- Cross-referentie-comment op `MAX_UPLOAD_BYTES` (`storage.ts`) + de config.
+
+**Checks:** typecheck ✓ · lint ✓ · test ✓ (4917 passed) · build ✓ (config-schema gevalideerd) · prettier ✓.
+Geen schemawijziging, geen auth/mutatie-oppervlak. Resterend mensenwerk: **niets**.
+
 ## 2026-07-24 — security/privacy-audit: fail-closed op franchiser-erasure met levende eigen tenant (AVG art. 17)
 
 Security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits op niet-overlappende

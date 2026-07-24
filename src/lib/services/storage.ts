@@ -6,6 +6,10 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+// Upload-ceiling. Bron van waarheid voor zowel validateUpload als de server-action-body-limiet in
+// next.config.mjs (experimental.serverActions.bodySizeLimit). Blijven die twee uit de pas lopen —
+// bodySizeLimit lager dan deze waarde — dan weigert Next.js een grote upload stil vóór validateUpload
+// draait. upload-body-limit.test.ts bewaakt die drift.
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export const ALLOWED_MIME_TYPES = [

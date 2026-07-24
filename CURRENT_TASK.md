@@ -260,6 +260,15 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — server-action body-limiet gelijkgetrokken met de upload-ceiling (2026-07-24, PR #905)** —
+> uploads (documenten/certificaten/bedrijfslogo) lopen via Next.js **server actions**; `validateUpload` staat tot **10 MB** toe
+> (`MAX_UPLOAD_BYTES`), maar Next kapt de server-action-request-body **standaard op 1 MB** af → een reëel gescande VOG-/diploma-PDF
+> (2–5 MB) werd stil geweigerd **vóór** de validatie draaide (generieke "Body exceeded 1 MB" i.p.v. `UploadValidationError`). De
+> kernfunctie (veilige documentupload) brak op echte bestanden. Fix: `experimental.serverActions.bodySizeLimit = "12mb"` in
+> `next.config.mjs` (10 MB-ceiling + headroom voor multipart-boundaries/form-velden); bron van waarheid blijft `MAX_UPLOAD_BYTES`.
+> Drift-poort `src/lib/services/upload-body-limit.test.ts` (importeert config + ceiling, faalt zodra ze uit de pas lopen), +4 tests.
+> Geen schemawijziging, geen auth/mutatie-oppervlak. Gate: typecheck, lint, test (4917), build (config-schema gevalideerd), prettier groen.
+>
 > Gedaan (niet opnieuw): **"Deze week"-samenvatting bovenaan /rooster (ZZP'er) (2026-07-24, PR #898)** —
 > de rooster-agenda opende zonder overzicht direct in de per-dag-secties. Nu een compacte **"Deze week"-strip**
 > (geplande diensten · opdrachtgevers · open kansen in de huidige ISO-week) bovenaan de agenda, glanceable naar

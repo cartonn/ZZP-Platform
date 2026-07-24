@@ -313,6 +313,15 @@ nodig met back-ups en beveiligde opslag.
    wordt de stap eerlijk overgeslagen (`describeEncryption` in `src/lib/services/storage.ts`,
    `resolveExpectedSse` + de `encrypt`-stap in `src/lib/services/storage-selftest.ts`). Resterend
    mensenwerk: **niets extra**.
+   **Code-kant GEDAAN (2026-07-24) — server-action body-limiet gelijkgetrokken met de upload-ceiling:**
+   uploads (documenten/certificaten/bedrijfslogo) lopen via Next.js server actions, die de request-body
+   **standaard op 1 MB** afkappen — kleiner dan onze 10 MB-ceiling (`MAX_UPLOAD_BYTES`). Een reëel
+   gescande VOG-/diploma-PDF (2–5 MB) werd daardoor **stil geweigerd vóór** de validatie draaide
+   (generieke "Body exceeded 1 MB"-fout i.p.v. een nette melding). Opgelost met
+   `experimental.serverActions.bodySizeLimit` in `next.config.mjs` (10 MB + headroom voor
+   multipart-boundaries), met een drift-poort-test tegen `MAX_UPLOAD_BYTES`
+   (`src/lib/services/upload-body-limit.test.ts`). Resterend mensenwerk: **niets** — echte documenten
+   tot 10 MB komen nu binnen.
 
 ### 1d. Domein + HTTPS
 
