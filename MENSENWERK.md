@@ -660,6 +660,18 @@ incidenten (er ligt een incident-logsjabloon klaar als startpunt).
 2. Zorg dat de productie-database **geen demo-/testgegevens** bevat bij livegang.
    **Opleveren:** geef je ontwikkelaar/agent het seintje "productie schoon + echte admin staat klaar".
 
+   **Code-kant GEDAAN (2026-07-24) — SEED_DEMO-productiewaarschuwing zichtbaar gemaakt:** de demo-dataset
+   (vaste accounts, waaronder de beheerder `admin@zzp-platform.local` met het publiek bekende wachtwoord
+   `demo1234`) draait al alleen achter `SEED_DEMO=true`, en de eerste échte beheerder komt via
+   `BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PASSWORD` (afgedwongen wachtwoordwijziging). Nieuw is dat
+   `SEED_DEMO=true` **in productie** niet langer stil passeert: het zou anders een beheerder met een
+   bekend wachtwoord planten én de verificatie-waarschuwingen onderdrukken. De env-validatie geeft nu bij
+   boot een **luide waarschuwing** (`envWarnings`, `src/lib/env.ts`) en `/admin/systeemstatus` toont een
+   eigen posture-rij **"Demo-dataset (SEED_DEMO)"** die in productie op **aandacht** springt zolang de
+   demo-dataset aanstaat (loopt mee in de go-live GO/NO-GO-sweep en `npm run preflight`). Resterend
+   mensenwerk: bij livegang met echte gegevens **`SEED_DEMO` uitzetten**, de productie-database schoonmaken
+   en de eerste beheerder via `BOOTSTRAP_ADMIN_*` zetten — de test-/demo-URL mag er bewust op blijven draaien.
+
 ### 6d. Inhoud & huisstijl (optioneel)
 
 Echte teksten, logo en eventuele huisstijl kun je aanleveren; de agent verwerkt ze.

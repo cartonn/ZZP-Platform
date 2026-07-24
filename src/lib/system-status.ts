@@ -181,6 +181,19 @@ export function collectSystemStatus(env: Env): SystemStatus {
       title: "Beveiliging & observability",
       items: [
         {
+          key: "demo-data",
+          label: "Demo-dataset (SEED_DEMO)",
+          mode: env.SEED_DEMO === "true" ? "aan" : "uit",
+          // In productie is een actieve demo-dataset kritiek: het plant vaste accounts (waaronder
+          // admin@zzp-platform.local met het bekende wachtwoord demo1234) en onderdrukt de
+          // verificatie-waarschuwingen. Buiten productie (of uit) is er niets aan de hand.
+          level: production && env.SEED_DEMO === "true" ? "attention" : "ok",
+          detail:
+            env.SEED_DEMO === "true"
+              ? "SEED_DEMO=true — vaste demo-accounts (waaronder admin@zzp-platform.local met het bekende wachtwoord demo1234) worden geseed en de verificatie-waarschuwingen zijn onderdrukt. Alleen voor een demo-/test-URL; zet SEED_DEMO uit + maak de database schoon en zet de eerste beheerder via BOOTSTRAP_ADMIN_* vóór livegang met echte gegevens."
+              : "Geen demo-dataset — alleen referentiedata wordt geseed. De eerste beheerder komt via BOOTSTRAP_ADMIN_EMAIL/PASSWORD.",
+        },
+        {
           key: "share-token-secret",
           label: "Deel-token-sleutel",
           mode: env.SHARE_TOKEN_SECRET ? "eigen sleutel" : "fallback (AUTH_SECRET)",

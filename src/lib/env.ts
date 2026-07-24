@@ -228,6 +228,16 @@ export function envWarnings(env: Env): string[] {
       "MAINTENANCE_MODE staat AAN — het platform toont bezoekers een 503-onderhoudspagina (alleen de gezondheids-probes blijven bereikbaar). Zet MAINTENANCE_MODE uit zodra het onderhoud klaar is.",
     );
   }
+  if (env.SEED_DEMO === "true") {
+    // Kritiek vóór livegang: de demo-dataset plant vaste accounts met een publiek bekend wachtwoord
+    // (waaronder de beheerder admin@zzp-platform.local / demo1234) én onderdrukt de
+    // verificatie-waarschuwingen hieronder. In productie is dit vrijwel zeker een ongelukje — maak het
+    // zichtbaar i.p.v. het stil te laten passeren. Geen harde boot-fout (de demo-/test-URL draait er
+    // bewust op).
+    warnings.push(
+      "SEED_DEMO=true in productie — de demo-dataset wordt geseed met vaste accounts, waaronder de beheerder admin@zzp-platform.local met het publiek bekende wachtwoord demo1234, en de verificatie-waarschuwingen worden onderdrukt. Alleen bedoeld voor een demo-/test-URL. Zet SEED_DEMO uit, maak de productie-database schoon en zet de eerste beheerder via BOOTSTRAP_ADMIN_EMAIL/PASSWORD vóór livegang met echte gegevens.",
+    );
+  }
   if (env.STORAGE_DRIVER === "local") {
     warnings.push(
       "STORAGE_DRIVER=local — geüploade documenten gaan naar de lokale schijf (vluchtig bij redeploy). Zet STORAGE_DRIVER=s3 voor productie.",
