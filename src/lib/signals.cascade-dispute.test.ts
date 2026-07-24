@@ -20,7 +20,7 @@ vi.mock("@/lib/db", () => ({
     company: {
       findUnique: vi.fn(() => Promise.resolve({ id: "co-1" })),
     },
-    application: { count: () => applicationCount() },
+    application: { count: () => applicationCount(), findMany: () => Promise.resolve([]) },
     job: { count: () => jobCount() },
     // unreadConversationCount: geen deelnames → 0, geen message.groupBy nodig.
     conversationParticipant: { findMany: vi.fn(() => Promise.resolve([])) },
