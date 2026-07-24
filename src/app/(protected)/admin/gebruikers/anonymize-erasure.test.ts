@@ -36,6 +36,10 @@ vi.mock("@/lib/db", () => ({
         email: "jan@bedrijf.nl",
         deletionRequestedAt: new Date("2026-05-01"),
         anonymizedAt: null,
+        // Deze betrokkene bezit geen vestiging → de fail-closed tenant-guard mag de erasure niet
+        // blokkeren (een franchiser met een levende eigen tenant wordt apart getest in
+        // account-anonymization.test.ts).
+        ownedTenant: null,
       })),
       update: op("user.update"),
     },

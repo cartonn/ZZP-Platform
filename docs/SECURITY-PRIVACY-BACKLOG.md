@@ -4,6 +4,57 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-24b (basis: `main` @ f6ec7c72)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) álle server actions + `/api/**`-route-handlers: auth→rol→ownership→Zod→actie→audit-keten, IDOR,
+mass-assignment/overposting, BFLA, open redirect/CSRF; (2) cross-tenant-isolatie (`tenancy.ts`, franchise/
+tenant-billing) + document/storage-privacy + upload-veiligheid + SSRF; (3) AVG betrokkenen-rechten
+(erasure veld-voor-veld per PII-model), dataminimalisatie/over-fetch, k-anonimiteit, audit-logging van
+gevoelige toegang, log-leaks. Oppervlakken (1) en (2) **schoon** — de authz-keten, tenant-scoping,
+storage-abstractie (path-traversal-guard, magic-byte + malware-scan, server-side type/grootte), SSRF-
+allowlists en document-ownership-poorten (CWE-203-404-pariteit) zijn intact en dekken de bekende klassen.
+
+### OPGELOST — MIDDEL (privacy/AVG art. 17): franchiser-`anonymizeUser` liet de eigen `Tenant` (naam/slug + owner) staan → half-voltooide verwijdering
+
+- **Repro (was):** een FRANCHISER met een openstaand verwijderverzoek → admin voert `anonymizeUser` uit.
+  De transactie overschrijft User/profiel/bedrijf, maar raakt de door de betrokkene bezeten `Tenant`
+  **niet**. `Tenant.name`/`slug` zijn self-gekozen bij aanmaak (`admin/franchises/actions.ts`,
+  vrije-tekst `tenantName`) en kunnen de achternaam bevatten (bv. "Bemiddeling Jansen"); die naam wordt
+  getoond in de white-label-header/`/inzicht` en bleef na "verwijdering" leesbaar. Bovendien bleef
+  `Tenant.ownerUserId` naar het nu-geanonimiseerde account wijzen. `canAnonymizeUser`
+  (`account-anonymization.ts`) blokkeerde alleen ADMIN/self/al-geanonimiseerd/geen-verzoek — niets over
+  een levende eigen tenant.
+- **Geschonden regel:** AVG art. 17 (recht op vergetelheid) + art. 5(1)(c) minimalisatie; CLAUDE.md
+  "documenten/PII standaard privé, erasure moet volledig zijn". OWASP A01 (broken access control, data-
+  eigenaarschap na erasure).
+- **Waarom geen naam-blanking:** een tenant is een **doordraaiende** entiteit met andere leden, bedrijven
+  en freelancers eronder; de naam blanken zou hun branding breken. De juiste AVG-houding is **fail-closed**:
+  een verwijdering die de betrokkene nog als enige eigenaar van een operationele entiteit laat staan, kan
+  niet volledig zijn — beheer moet de vestiging eerst overdragen of sluiten. Dit is een echte juridische/
+  data-eigenaarschaps-tweesprong (MENSENWERK.md §5), nu in code afgedwongen i.p.v. stil half-voltooid.
+- **Fix:** optionele `ownsTenant`-flag op `AnonymizationTarget`; `canAnonymizeUser` weigert wanneer gezet,
+  met melding "Draag de vestiging eerst over aan een andere beheerder of sluit haar". Call-site
+  (`admin/gebruikers/actions.ts`) laadt `ownedTenant: { select: { id: true } }` en zet
+  `ownsTenant: user.ownedTenant !== null`. +2 unit-tests (`account-anonymization.test.ts`), rood→groen
+  geverifieerd (zonder de guard faalt de nieuwe test). Geen schemawijziging, geen nieuw mutatie/auth-
+  oppervlak.
+- **Restrisico (geparkeerd):** de `Lead`/`LeadContact`-PII onder de tenant is **de data van de
+  organisatie** (aparte verwerkingsgrondslag), niet de PII van de vertrekkende persoon — die blijft
+  terecht staan; de eigen `LeadContact.body` van de betrokkene wordt al geredact. De remediatie-flow
+  (tenant overdragen/sluiten) is mensenwerk; er is nog geen self-service tenant-overdrachtsflow.
+
+### GEPARKEERD — LAAG (FG-afweging): `kvkNumber` op een publiek, niet-ingelogd ZZP-profiel
+
+- **Repro:** een PUBLIC ZZP-profiel (`/zzp/[id]`, `profile-screen.tsx:153/539`) toont `kvkNumber` aan
+  niet-ingelogde bezoekers. Het KvK-nummer is via het Handelsregister koppelbaar aan het vestigings-/
+  thuisadres → scraping-baar identiteitsanker. E-mail wordt al níet publiek getoond; kvk wel.
+- **Severity:** LAAG. Waarschijnlijk een bewuste ontwerpkeuze (comment bij de select), maar de combinatie
+  "publiek + geen login + scraping" verdient een expliciete FG-afweging. **Geschonden beginsel (mogelijk):**
+  AVG art. 5(1)(c) dataminimalisatie.
+- **Aanbevolen fix:** toon `kvkNumber` alleen aan ingelogde CLIENT/na match (zoals e-mail), of achter een
+  bewuste "toon zakelijke gegevens"-actie. Tweesprong voor de eigenaar/FG (zichtbaarheid ↔ vindbaarheid).
+
 ## Ronde 2026-07-24 (basis: `main` @ 93a53a7f)
 
 Audit: orchestrator (Opus 4.8). Focus: actuele dependency-CVE's van de stack (OWASP A06 —

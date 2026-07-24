@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — security/privacy-audit: fail-closed op franchiser-erasure met levende eigen tenant (AVG art. 17)
+
+Security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle Opus-audits op niet-overlappende
+oppervlakken: server-action/route-authz+IDOR+mass-assignment; cross-tenant-isolatie+storage/upload+SSRF;
+AVG erasure-volledigheid+minimalisatie+k-anonimiteit+log-leaks). Twee oppervlakken **schoon** (bevestigt
+de vele eerdere rondes). **1 nieuwe leemte gefixt, 1 geparkeerd:**
+
+- **MIDDEL/privacy (AVG art. 17 — onvolledige verwijdering):** `anonymizeUser`
+  (`src/app/(protected)/admin/gebruikers/actions.ts`) schoont de door een FRANCHISER bezeten
+  `Tenant` niet op — `Tenant.name`/`slug` (self-gekozen, kan de achternaam bevatten, bv. "Bemiddeling
+  Jansen") én `Tenant.ownerUserId` bleven na anonimisering staan op een doordraaiende vestiging →
+  half-voltooide verwijdering. `canAnonymizeUser` (`src/lib/account-anonymization.ts`) weigert nu
+  **fail-closed** zolang de betrokkene nog een tenant bezit (`ownsTenant`), met een duidelijke melding
+  dat beheer de vestiging eerst moet overdragen/sluiten. Nieuwe optionele `ownsTenant`-flag op
+  `AnonymizationTarget`; call-site laadt `ownedTenant`. +2 tests (rood→groen geverifieerd).
+- **Geparkeerd (LAAG, FG-afweging):** `kvkNumber` op een publiek (niet-ingelogd) ZZP-profiel — zie
+  `docs/SECURITY-PRIVACY-BACKLOG.md`.
+
+**Checks:** typecheck ✓ · lint ✓ · test ✓ · build ✓ · prettier ✓.
+
 ## 2026-07-24 — persona-sweep (run 48): existence-oracle in diensten-import (MED/security) + next-action-prioriteit + dode-code
 
 Kritische-gebruiker-sweep over alle vier rollen (DOEL 1/1b/2) met drie parallelle Opus-audits

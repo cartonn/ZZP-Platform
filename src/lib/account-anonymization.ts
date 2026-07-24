@@ -75,6 +75,14 @@ export interface AnonymizationTarget {
   role: string;
   deletionRequestedAt: Date | null;
   anonymizedAt: Date | null;
+  /** True wanneer de betrokkene nog eigenaar (`Tenant.ownerUserId`) is van een vestiging/tenant.
+   *  Een franchise draagt zijn eigen naam (`Tenant.name`/`slug`, vaak persoonsafgeleid, bv.
+   *  "Bemiddeling Jansen") én blijft na anonimisering doordraaien met andere leden, bedrijven en
+   *  freelancers eronder. De anonimiseringstransactie raakt de tenant niet, dus zowel de
+   *  (mogelijk persoons-)naam als de `ownerUserId`-verwijzing naar het nu-geanonimiseerde account
+   *  zouden blijven bestaan — een half-voltooide AVG-verwijdering. Optioneel zodat bestaande
+   *  aanroepers/tests niet breken; `undefined` telt als "bezit geen tenant". */
+  ownsTenant?: boolean;
 }
 
 export type AnonymizationCheck = { ok: true } | { ok: false; reason: string };
@@ -101,6 +109,17 @@ export function canAnonymizeUser(
   }
   if (!target.deletionRequestedAt) {
     return { ok: false, reason: "Er is geen openstaand verwijderverzoek voor dit account." };
+  }
+  if (target.ownsTenant) {
+    // Fail-closed: de anonimiseringstransactie schoont de eigen tenant niet op. Zou anders de
+    // (mogelijk persoonsafgeleide) tenant-naam én de `ownerUserId`-verwijzing achterblijven op een
+    // doordraaiende vestiging → half-voltooide verwijdering (AVG art. 17). Beheer moet de vestiging
+    // eerst overdragen aan een andere beheerder of sluiten vóór het account kan worden verwijderd.
+    return {
+      ok: false,
+      reason:
+        "Deze bemiddelaar beheert nog een vestiging. Draag de vestiging eerst over aan een andere beheerder of sluit haar, vóór het account wordt verwijderd.",
+    };
   }
   return { ok: true };
 }
