@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — prod/security: postcss ≥8.5.18 tegen path-traversal (GHSA-r28c-9q8g-f849) — deblokkeert de audit-poort
+
+Een vers-gepubliceerde **high**-advisory (GHSA-r28c-9q8g-f849 — PostCSS path-traversal in de
+source-map auto-loader → willekeurige `.map`-bestandsonthulling) trof `postcss <=8.5.17`. Het
+platform pinde de directe `postcss`-dep op `^8.4.49` (opgelost naar 8.5.15), dus `main` werd
+**rood op de verplichte `audit`-poort** (`npm audit --audit-level=high --omit=dev`, exit 1) — wat
+**elke openstaande PR blokkeerde** (o.a. #889/#892/#894/#895/#907), niet alleen deze. Dit is
+exact hetzelfde base-branch-faalpatroon als de Auth.js-CVE's van 23-7.
+
+- Directe dep `postcss: "^8.4.49"` → `"^8.5.18"`. De bestaande override `"postcss": "$postcss"`
+  propageert de bump naar álle transitieve consumenten (next/tailwind/autoprefixer/vite) — nu
+  opgelost naar **8.5.23**. Geen andere dep-wijziging, geen code-wijziging.
+- Blokkerende poort `npm audit --audit-level=high --omit=dev` → **exit 0** (groen). De informatieve
+  volledige audit (incl. dev-deps, `|| true` in `security.yml`) blijft niet-blokkerend.
+
+**Bestanden:** `package.json` (postcss-bump), `package-lock.json` (lockfile-refresh), `PROGRESS.md`.
+Puur dependency-hardening; geen schema-/auth-/mutatie-oppervlak geraakt.
+
+**Checks:** `npm audit --audit-level=high --omit=dev` exit 0 · build groen. Deblokkeert de merge-poort
+voor de hele repo.
+
 ## 2026-07-24 — reactieveld in één oogopslag: poolsamenvatting voor de opdrachtgever (/kandidaten/vergelijk)
 
 De vergelijk-pagina (`/kandidaten/vergelijk?job=<id>`) toonde de opdrachtgever per kandidaat de
