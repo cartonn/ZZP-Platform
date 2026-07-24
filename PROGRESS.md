@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — robuustheid: Zod-grensvalidatie op setBillingStatusAction (admin-facturatie)
+
+Sluit het geparkeerde run-48-persona-sweep-item. `setBillingStatusAction`
+(`src/app/(protected)/admin/facturatie/actions.ts`) nam `id`/`to` als **rauwe** TS-parameters aan de
+server-action-grens zonder `safeParse` — anders dan de zusters (`changeCollaborationStatus`/
+`judgeNoShowReport`/`setDienstStatus`, die wél Zod-validaten). De action is direct aanroepbaar (via
+`.bind` in de UI, maar ook los door elke ADMIN met geknutselde args); een niet-enum `to` werd tot nu
+toe pas laat, indirect via `assertPlatformBillingTransition().includes()` geweigerd (nette melding,
+maar één stap van de projectconventie af — architectuurregel #2: auth→rol→ownership→**Zod**→actie→audit).
+
+- Nieuw `setBillingStatusInput = z.object({ id: z.string().trim().min(1), to: platformBillingStatusSchema })`
+  (hergebruikt het reeds bestaande `platformBillingStatusSchema` uit `enums.ts` — geen tweede bron).
+  `safeParse` **vóór** de DB-lookup; ongeldig → nette `throw new Error("Ongeldige invoer.")`, geen DB-I/O.
+- De rest van de functie gebruikt de gevalideerde `invoiceId`/`nextStatus` (i.p.v. de rauwe args) →
+  overgangs-assert, concurrency-guarded `updateMany` en audit ongewijzigd van gedrag.
+- Read-only op de grens: **geen schemawijziging, geen nieuw mutatie/auth-oppervlak.**
+
+**Bestanden:** `src/app/(protected)/admin/facturatie/actions.ts` (+ nieuw `actions.test.ts`, 4 tests:
+niet-enum `to` → weigering zónder DB-I/O; leeg `id` → weigering; geldige (id,to) → door tot de lookup;
+geldige DRAFT→SENT → update+audit met de gevalideerde waarden). UI Nederlands, het woord "AI" komt
+nergens voor.
+
+**Checks:** typecheck · lint · test · build · prettier — allemaal groen; `npm audit` (na rebase op #908) groen.
+
 ## 2026-07-24 — prod/security: postcss ≥8.5.18 tegen path-traversal (GHSA-r28c-9q8g-f849) — deblokkeert de audit-poort
 
 Een vers-gepubliceerde **high**-advisory (GHSA-r28c-9q8g-f849 — PostCSS path-traversal in de
