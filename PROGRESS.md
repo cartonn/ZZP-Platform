@@ -671,6 +671,26 @@ op `/acties` en in de zijbalk-badge van de bemiddelaar: één keer in de acute-a
   filter), `src/lib/actions/pending-tasks-franchiser.test.ts` (+2 tests + `state.open`-mock).
 - **Gate:** typecheck + lint (0 warnings) + test (**4727 passed**, +4) + build + prettier groen; CI-poort via PR #865.
 
+## 2026-07-24 — ontwerp-lab reeks 46: +10 concepten (451–460)
+
+**Wat:** het interne ontwerp-lab op `/ontwerp` uitgebreid met 10 nieuwe, onderscheidende
+redesign-concepten (451–460), additief bovenop de bestaande 450. Elk concept toont de 6 kernschermen
+(dashboard, marktplaats, opdracht, verificatie, acties, facturen) in een eigen designtaal met de
+gedeelde NL mock-content, volledig responsive, toegankelijk (focus-states, status label+icoon,
+motion-reduce) en zonder het woord "AI".
+
+- **Nieuwe concepten:** 451 Origami (gevouwen papier/facet-diepte), 452 Balpen (biro-annotatie),
+  453 Aquarel (waterverf-wassingen), 454 Apotheek (receptuur & amberglas), 455 Sterrenkaart
+  (hemelatlas-constellaties, dark), 456 Mycelium (vertakkend sporen-netwerk), 457 Glasvezel
+  (fiber-optic lichtdraden, dark), 458 Craquelé (porselein-glazuur), 459 Risograaf (overprint spot-inkt
+  & halftone), 460 Grootboek (dubbel-boekhouden ledger, data-dicht).
+- **Bestanden:** `src/components/ontwerp/concepts/concept-45{1..9}-*.tsx` + `concept-460-grootboek.tsx`
+  (10 nieuwe, elk zelf-bevattend). Additief gekoppeld in `registry.ts` (10 nieuwe ConceptMeta) en
+  `src/app/ontwerp/[id]/concept-host.tsx` (10 nieuwe lazy-imports). Geen bestaand concept aangeraakt.
+- **Checks:** typecheck ✓, lint ✓, prettier ✓, test (4945 groen) ✓, build ✓. Gebouwd door 4 parallelle
+  workers op niet-overlappende bestanden; orchestrator integreerde registry + route-koppeling.
+- **Docs:** `docs/DESIGN-LAB.md` reeks 46 toegevoegd. **Totaal nu op `/ontwerp`: 460 concepten.**
+
 ## 2026-07-21 — ontwerp-lab reeks 45: +10 concepten (441–450)
 
 **Wat:** het interne ontwerp-lab op `/ontwerp` uitgebreid met 10 nieuwe, onderscheidende

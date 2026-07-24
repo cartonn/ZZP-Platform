@@ -1357,6 +1357,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "450": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-450-mokume").then((m) => m.Concept450),
   ),
+  "451": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-451-origami").then((m) => m.Concept451),
+  ),
+  "452": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-452-balpen").then((m) => m.Concept452),
+  ),
+  "453": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-453-aquarel").then((m) => m.Concept453),
+  ),
+  "454": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-454-apotheek").then((m) => m.Concept454),
+  ),
+  "455": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-455-sterrenkaart").then((m) => m.Concept455),
+  ),
+  "456": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-456-mycelium").then((m) => m.Concept456),
+  ),
+  "457": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-457-glasvezel").then((m) => m.Concept457),
+  ),
+  "458": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-458-craquele").then((m) => m.Concept458),
+  ),
+  "459": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-459-risograaf").then((m) => m.Concept459),
+  ),
+  "460": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-460-grootboek").then((m) => m.Concept460),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
