@@ -158,7 +158,7 @@ export function performanceApproveTask(
     title: "Keur de ingediende uren/oplevering",
     subtitle: `${jobTitle} · ${freelancerName}`,
     tone: "attention",
-    priority: P.complianceRipple - 20, // = approve-band (65), conform cascade/next-actions.ts
+    priority: P.complianceRipple - 20, // = approve-band (65): goedkeuring vragen is urgenter dan eigen indienen
     resolver: "drawer", // inspecteer-dan-beslis: details inzien, dan goedkeuren/afwijzen
     href: collabHref(collabId),
     perfId,
