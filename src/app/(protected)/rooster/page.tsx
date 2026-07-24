@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   BriefcaseBusiness,
+  Building2,
   CalendarDays,
   Check,
   ChevronRight,
@@ -21,10 +22,11 @@ import {
   buildRosterCalendar,
   filterRosterByMinMatch,
   ROSTER_STRONG_MATCH_MIN,
+  summarizeRosterWeek,
   type BookedCollaborationInput,
 } from "@/lib/roster-market";
 import { formatDateShortNl } from "@/lib/format-date";
-import { plural } from "@/lib/plural";
+import { plural, pluralWord } from "@/lib/plural";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -189,6 +191,10 @@ export default async function RoosterPage({
   // toepassing; geboekte diensten worden altijd getoond.
   const agenda = buildAgenda(calendar, bookedInputs, now);
 
+  // Beknopte "deze week"-samenvatting: geplande diensten + opdrachtgevers + open kansen in de
+  // huidige ISO-week, afgeleid uit de reeds-gebouwde agenda (kan niet driften van wat eronder staat).
+  const weekSummary = summarizeRosterWeek(agenda.days, now);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -248,6 +254,37 @@ export default async function RoosterPage({
         </Card>
       ) : (
         <div className="space-y-8">
+          {(weekSummary.plannedCount > 0 || weekSummary.openCount > 0) && (
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border bg-card px-5 py-3 text-sm shadow-sm">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Deze week
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <BriefcaseBusiness className="size-4 shrink-0 text-success" aria-hidden />
+                <span className="font-medium tabular-nums">{weekSummary.plannedCount}</span>
+                <span className="text-muted-foreground">
+                  {pluralWord(weekSummary.plannedCount, "geplande dienst", "geplande diensten")}
+                </span>
+              </span>
+              {weekSummary.clientCount > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Building2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="font-medium tabular-nums">{weekSummary.clientCount}</span>
+                  <span className="text-muted-foreground">
+                    {pluralWord(weekSummary.clientCount, "opdrachtgever", "opdrachtgevers")}
+                  </span>
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="font-medium tabular-nums">{weekSummary.openCount}</span>
+                <span className="text-muted-foreground">
+                  {pluralWord(weekSummary.openCount, "open kans", "open kansen")}
+                </span>
+              </span>
+            </div>
+          )}
+
           {agenda.days.map((day) => (
             <section key={day.date.toISOString()} aria-label={WEEKDAY_LABEL[day.weekday]}>
               {/* Dag-kop */}

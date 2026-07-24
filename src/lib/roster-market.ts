@@ -3,6 +3,7 @@
 // Server-side waarheid (CLAUDE.md regel 1); mutaties lopen via bestaande opdracht-detail/reageer-flow.
 
 import { type Weekday, WEEKDAYS } from "@/lib/enums";
+import { startOfIsoWeek } from "@/lib/week-overview";
 
 export interface RosterShiftInput {
   jobId: string;
@@ -257,6 +258,64 @@ export function buildAgenda(
     openTotal: open.total,
     bookedTotal,
     beyondHorizon: open.beyondHorizon,
+  };
+}
+
+/** Beknopte "deze week"-samenvatting bovenaan de rooster-agenda. */
+export interface RosterWeekSummary {
+  /** Maandag 00:00:00.000 UTC van de ISO-week rond de referentiedatum. */
+  weekStart: Date;
+  /** Zondag 23:59:59.999 UTC van diezelfde ISO-week. */
+  weekEnd: Date;
+  /** Verschillende geplande diensten (samenwerkingen) die deze week op de agenda staan. */
+  plannedCount: number;
+  /** Verschillende opdrachtgevers waar deze week een dienst voor gepland staat. */
+  clientCount: number;
+  /** Open kansen (diensten met startdatum) die deze week beginnen. */
+  openCount: number;
+}
+
+/**
+ * Vat de rooster-agenda samen voor de ISO-week rond `now`: hoeveel geplande diensten en bij hoeveel
+ * verschillende opdrachtgevers de ZZP'er deze week staat, plus het aantal open kansen dat deze week
+ * begint. Pure afleiding over de reeds-gebouwde agenda (geen I/O), zodat het strip-getal nooit kan
+ * driften t.o.v. wat er per dag onder staat.
+ *
+ * - Een geplande dienst (samenwerking) die meerdere dagen deze week loopt, telt **één keer**
+ *   (ontdubbeld op `collaborationId`) — geen opgeblazen dag-telling.
+ * - Opdrachtgevers ontdubbeld op naam; open kansen ontdubbeld op `jobId`.
+ * - Alleen dagen waarvan de UTC-middernacht binnen [weekStart, weekEnd] valt tellen mee.
+ * - Muteert de invoer niet.
+ */
+export function summarizeRosterWeek(
+  days: readonly AgendaDay[],
+  now: Date = new Date(),
+): RosterWeekSummary {
+  const weekStart = startOfIsoWeek(now);
+  const weekEnd = new Date(weekStart.getTime() + 7 * 86_400_000 - 1);
+
+  const plannedCollaborations = new Set<string>();
+  const clients = new Set<string>();
+  const openJobs = new Set<string>();
+
+  for (const day of days) {
+    const at = day.date.getTime();
+    if (at < weekStart.getTime() || at > weekEnd.getTime()) continue;
+    for (const entry of day.booked) {
+      plannedCollaborations.add(entry.collaborationId);
+      clients.add(entry.clientName);
+    }
+    for (const shift of day.open) {
+      openJobs.add(shift.jobId);
+    }
+  }
+
+  return {
+    weekStart,
+    weekEnd,
+    plannedCount: plannedCollaborations.size,
+    clientCount: clients.size,
+    openCount: openJobs.size,
   };
 }
 

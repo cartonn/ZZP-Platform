@@ -7,6 +7,7 @@ import {
   buildRosterCalendar,
   filterRosterByMinMatch,
   ROSTER_STRONG_MATCH_MIN,
+  summarizeRosterWeek,
   type BookedCollaborationInput,
   type RosterCalendar,
   type RosterShiftInput,
@@ -510,5 +511,87 @@ describe("buildAgenda", () => {
     // open overgenomen, niet hersorteerd (volgorde gelijk aan de bron-kalender).
     expect(day.open.map((s) => s.jobId)).toEqual(openCalendar.days[0]!.shifts.map((s) => s.jobId));
     expect(bookedByDay(agenda)).toEqual([{ ms: openDate.getTime(), ids: [] }]);
+  });
+});
+
+describe("summarizeRosterWeek", () => {
+  const EMPTY_CALENDAR: RosterCalendar = { days: [], total: 0, beyondHorizon: 0 };
+  // NOW = wo 2026-06-10 → ISO-week: ma 2026-06-08 t/m zo 2026-06-14.
+  const WEEK_START = Date.UTC(2026, 5, 8);
+  const WEEK_END = Date.UTC(2026, 5, 14, 23, 59, 59, 999);
+
+  function makeCollab(
+    overrides: Partial<BookedCollaborationInput> & { collaborationId: string },
+  ): BookedCollaborationInput {
+    return {
+      jobTitle: "Verpleging",
+      clientName: "Zorg BV",
+      rate: 45,
+      startDate: null,
+      endDate: null,
+      ...overrides,
+    };
+  }
+
+  it("lege agenda geeft nul-samenvatting met de juiste ISO-weekgrenzen", () => {
+    const summary = summarizeRosterWeek([], NOW);
+    expect(summary.weekStart.getTime()).toBe(WEEK_START);
+    expect(summary.weekEnd.getTime()).toBe(WEEK_END);
+    expect(summary).toMatchObject({ plannedCount: 0, clientCount: 0, openCount: 0 });
+  });
+
+  it("telt een meerdaagse geplande dienst één keer (ontdubbeld op collaborationId)", () => {
+    // Open venster (loopt al t/m horizon), geen weekdays → elke dag deze week geprojecteerd.
+    const agenda = buildAgenda(EMPTY_CALENDAR, [makeCollab({ collaborationId: "c1" })], NOW);
+    const summary = summarizeRosterWeek(agenda.days, NOW);
+    expect(summary.plannedCount).toBe(1);
+    expect(summary.clientCount).toBe(1);
+    expect(summary.openCount).toBe(0);
+  });
+
+  it("telt verschillende opdrachtgevers apart maar dedupliceert dezelfde naam", () => {
+    const agenda = buildAgenda(
+      EMPTY_CALENDAR,
+      [
+        // NOW = wo 06-10; de agenda projecteert alleen vandaag-of-later, dus kies wo/do/vr.
+        makeCollab({ collaborationId: "c1", clientName: "Zorg BV", weekdays: ["WED"] }),
+        makeCollab({ collaborationId: "c2", clientName: "Thuiszorg NL", weekdays: ["THU"] }),
+        makeCollab({ collaborationId: "c3", clientName: "Zorg BV", weekdays: ["FRI"] }),
+      ],
+      NOW,
+    );
+    const summary = summarizeRosterWeek(agenda.days, NOW);
+    expect(summary.plannedCount).toBe(3);
+    expect(summary.clientCount).toBe(2);
+  });
+
+  it("telt open kansen die deze week beginnen (ontdubbeld op jobId)", () => {
+    const openCalendar = buildRosterCalendar(
+      [
+        makeShift({ startDate: new Date(Date.UTC(2026, 5, 11)), jobId: "o1" }), // do, deze week
+        makeShift({ startDate: new Date(Date.UTC(2026, 5, 12)), jobId: "o2" }), // vr, deze week
+      ],
+      NOW,
+    );
+    const agenda = buildAgenda(openCalendar, [makeCollab({ collaborationId: "c1" })], NOW);
+    const summary = summarizeRosterWeek(agenda.days, NOW);
+    expect(summary.openCount).toBe(2);
+    expect(summary.plannedCount).toBe(1);
+  });
+
+  it("negeert dagen buiten de huidige ISO-week", () => {
+    // Dienst begint volgende week (di 2026-06-16) → buiten [ma 08, zo 14].
+    const openCalendar = buildRosterCalendar(
+      [makeShift({ startDate: new Date(Date.UTC(2026, 5, 16)), jobId: "next" })],
+      NOW,
+    );
+    // Samenwerking die pas volgende week start telt ook niet mee.
+    const agenda = buildAgenda(
+      openCalendar,
+      [makeCollab({ collaborationId: "c1", startDate: new Date(Date.UTC(2026, 5, 16)) })],
+      NOW,
+    );
+    const summary = summarizeRosterWeek(agenda.days, NOW);
+    expect(summary).toMatchObject({ plannedCount: 0, clientCount: 0, openCount: 0 });
   });
 });
