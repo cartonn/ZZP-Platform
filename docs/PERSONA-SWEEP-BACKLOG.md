@@ -46,12 +46,18 @@
 >   geaccepteerd-zonder-voorstel) via de bestaande pure helpers (`summarizeStaleClientApplications`,
 >   `pendingCollaborationProposals`) — badge = som van de losse `/acties`-taken. +5 tests
 >   (`signals.badge-gaps-run47.test.ts`).
-> - **HOOG-maar-dode-code (drift-hazard):** `freelancerNextActions`/`clientNextActions`/`adminNextActions`
+> - ~~**HOOG-maar-dode-code (drift-hazard):** `freelancerNextActions`/`clientNextActions`/`adminNextActions`
 >   (`src/lib/next-actions.ts:101/198/284`) hebben **nul productie-callers** (alleen `franchiserNextActions` is gewired)
 >   en zijn materieel gedivergeerd van de levende engine (`adminNextActions` bevat zelfs een fantoom-actie
 >   `admin-expiring-credentials` die `adminTasks` niet emit). `PROGRESS.md` documenteert dat een dood next-action-codepad
->   ooit een echte bug gaf. **Fix-richting:** verwijderen of als single-source wiren in een aparte pass. Prio: MED
->   (nu inert; regressie-risico bij hergebruik).
+>   ooit een echte bug gaf.~~ **GEDAAN 2026-07-24 (PR volgt):** de drie dode aggregators + hun input-interfaces
+>   verwijderd uit `next-actions.ts`, én het volledig-dode zusje `src/lib/cascade/next-actions.ts`
+>   (`cascadeFreelancerActions`/`cascadeClientActions` — óók nul productie-callers, comment "al gewired in
+>   dashboardData" was stale) mét testbestand verwijderd. Behouden: `franchiserNextActions` (gewired via
+>   `franchiseGuidedSetupTasks`), `P`-banden, `rankNextActions`, `formatMissing` — de enige levende exports.
+>   De item-engine (`actions/tasks.ts` + `pending-tasks.ts`) is nu de énige next-action-bron → geen parallel
+>   codepad dat stil kan driften. `next-actions.test.ts` gesnoeid tot de behouden exports; stale comment in
+>   `tasks.ts` bijgewerkt.
 > - **LOW (DOEL 1b, bewust zachter):** `paymentDueSoonTask` (`/acties`, pre-due nudge) heeft geen teller in de
 >   `/financien`-CLIENT-badge (`signals.ts:392-461`, telt alleen post-due `overdueInvoices`). Zelfde asymmetrie-klasse,
 >   maar bewuste "info"-toon; grensgeval. Prio: LOW.

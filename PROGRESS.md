@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — routine: verwijder de dode parallelle next-action-engines (drift-hazard)
+
+**Wat:** de next-action-engine had twee parallelle, dode aggregaat-modules naast de levende
+item-engine (`actions/tasks.ts` + `pending-tasks.ts`). Ze hadden **nul productie-callers** (alleen
+in hun eigen testbestanden) en waren materieel gedrift t.o.v. de levende engine — een bewezen
+bug-vector (`PROGRESS.md` + de persona-sweep documenteren dat een compliance-ripple-signaal ooit
+alléén in de dode `clientNextActions` leefde, en dat `adminNextActions` een fantoom-actie
+`admin-expiring-credentials` bevat die `adminTasks` niet emit). Top-geparkeerd item uit de
+persona-sweep (runs 42/46/47, MED drift-hazard).
+
+**Fix (pure verwijdering, geen gedragswijziging):**
+
+- `src/lib/next-actions.ts` — `freelancerNextActions`/`clientNextActions`/`adminNextActions` + hun
+  input-interfaces (`FreelancerActionInput`/`ClientActionInput`/`AdminActionInput`) verwijderd.
+  **Behouden** (de enige levende exports): `franchiserNextActions` (gewired via
+  `franchiseGuidedSetupTasks`), de gedeelde `P`-prioriteitsbanden, `rankNextActions`, `formatMissing`,
+  `NextAction`/`NextActionTone`.
+- `src/lib/cascade/next-actions.ts` + `.test.ts` — volledig verwijderd (`cascadeFreelancerActions`/
+  `cascadeClientActions`, óók nul productie-callers; de comment "al gewired in dashboardData" was stale).
+- `src/lib/next-actions.test.ts` — gesnoeid tot de behouden exports (rankNextActions/franchiser/formatMissing).
+- `src/lib/actions/tasks.ts` — stale comment die naar het verwijderde `cascade/next-actions.ts` verwees bijgewerkt.
+
+**Grens/scope:** puur dode-code-verwijdering. Geen UI-, gedrag-, schema-, mutatie- of auth-wijziging.
+De item-engine (`actions/tasks.ts` + `pending-tasks.ts`) is nu de énige next-action-bron — geen
+parallel codepad dat stil kan driften. Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-24 — routine: /kandidaten-nav-badge telt nu alle kandidaat-acties (DOEL 1b, opdrachtgever)
 
 **Wat:** de opdrachtgever-nav-badge op `/kandidaten` telde alleen NEW-reacties
