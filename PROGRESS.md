@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — security: patch 3 Auth.js-advisories (2× critical) + repareer flaky e2e-merge-poort
+
+**Wat:** security-/privacy-auditronde (orchestrator, Opus 4.8). `main` draaide **kwetsbaar**:
+`npm audit --audit-level=high --omit=dev` was rood door 3 advisories in `@auth/core` ≤ 0.41.2
+(binnengehaald via `next-auth@5.0.0-beta.31`) — GHSA-x445-f3h2-j279 (critical, OAuth-cookie-binding),
+GHSA-7rqj-j65f-68wh (critical, homoglief-`@`-bypass), GHSA-xmf8-cvqr-rfgj (high, getToken-DoS). OWASP
+A06 (raakt A07/identiteit). **Fix:** bump `next-auth` → `^5.0.0-beta.32` (`@auth/core@0.41.3`) — alleen
+`package.json`/lockfile, geen code. Ná bump: `npm audit --omit=dev` = **0 vulnerabilities**.
+
+**Tweede bevinding (HOOG, operationeel):** de bestaande CVE-fix-PR **#890 stond ~10 u vast** op
+groen-behalve-`e2e`: `e2e` had `timeout-minutes: 15`, CI draait op `push` **én** `pull_request` (twee
+parallelle runs), en één run overschreed op een trage runner de 15-min-limiet → conclusie `cancelled`.
+Omdat `e2e` een **verplichte** poort is (`enforce_admins` AAN), blokkeerde die geannuleerde run de PR
+permanent — en daarmee de hele pijplijn (#892/#894/#895 wachtten op `audit`-groen dat #890 moest
+leveren). **Fix:** `e2e` `timeout-minutes` 15 → 25 (`.github/workflows/ci.yml`). Deze PR koppelt bump +
+poort-reparatie zodat de kritieke fix zichzelf betrouwbaar door de gate trekt.
+
+**Checks (lokaal groen):** typecheck ✅ · lint ✅ (0 warnings) · prettier `--check .` ✅ · test ✅
+**4910 passed (468 files)** · build ✅ · `npm audit --audit-level=high --omit=dev` ✅ 0.
+
+**Bestanden:** `package.json`, `package-lock.json`, `.github/workflows/ci.yml`,
+`docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md`. **Vervolg:** #890/#891 (duplicaat-bumps) sluiten als
+gesuperseerd; geparkeerd LAAG — `on.push.branches` beperken tot `main` om de dubbele CI-run te elimineren.
+
 ## 2026-07-23 — security/privacy-audit: bron-IP op beveiligingsincidenten geredigeerd na venster (HOOG, AVG)
 
 **Wat:** orchestrator (Opus 4.8) + 3 parallelle Opus-audits op niet-overlappende oppervlakken —
