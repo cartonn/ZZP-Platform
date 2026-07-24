@@ -3,6 +3,21 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — routine: /kandidaten-nav-badge telt nu alle kandidaat-acties (DOEL 1b, opdrachtgever)
+
+**Wat:** de opdrachtgever-nav-badge op `/kandidaten` telde alleen NEW-reacties
+(`application.count status:"NEW"`), terwijl twee taken die naar `/kandidaten` deep-linken óók op
+`/acties` + de dashboard-rail verschijnen: `proposeCollaborationTask` (geaccepteerde reactie zonder
+samenwerkingsvoorstel) en `staleApplicationsTask` (VIEWED/SHORTLIST te lang onbeslist). Een
+opdrachtgever met 0 NEW maar een geaccepteerde-kandidaat-in-limbo (of stale kandidaat) zag een
+schone nav — stiller dan de item-engine ("signaal op één oppervlak"-anti-patroon, zie run 46/47).
+
+**Fix:** `navBadges` CLIENT-tak telt nu de drie niet-overlappende predicaten (statussen NEW /
+VIEWED+SHORTLIST / ACCEPTED) via de bestaande pure helpers (`summarizeStaleClientApplications`,
+`pendingCollaborationProposals`) — exact de predicaten uit `pending-tasks.ts`, dus badge = som van de
+losse taken op `/acties`. Geen dubbeltelling (disjuncte statussen). **Bestanden:** `src/lib/signals.ts`.
+**Tests:** +5 (`src/lib/signals.badge-gaps-run47.test.ts`). Backlog-item (run 47, geparkeerd MED) → GEDAAN.
+
 ## 2026-07-24 — persona-sweep (run 47): dicht 4 existence-oracles (CWE-203) + 1 next-action-tegenspraak
 
 **Wat:** kritische-gebruiker-sweep over alle vier rollen (orchestrator Opus 4.8 + 3 parallelle Opus-audits op

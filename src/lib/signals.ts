@@ -5,6 +5,8 @@
 
 import { Prisma } from "@prisma/client";
 
+import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
+import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import { prisma } from "@/lib/db";
 import { type UserRole } from "@/lib/enums";
@@ -12,6 +14,7 @@ import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/m
 import { type FreelancerCredential } from "@/lib/matching";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
 import { paymentDueSoonWhere } from "@/lib/payment-due-soon";
+import { summarizeStaleClientApplications } from "@/lib/stale-applications";
 import { SUPPORT_OPEN_STATUSES } from "@/lib/support/labels";
 
 export type BadgeTone = "attention" | "info";
@@ -28,7 +31,7 @@ export type NavBadges = Record<string, NavBadge>;
 /** Ruwe tellingen die de server ophaalt; key bepaalt href + toon. */
 interface SignalCounts {
   credentialAlerts?: number; // FREELANCER: afgewezen + verloopt binnenkort
-  newApplications?: number; // CLIENT: nieuwe reacties
+  newApplications?: number; // CLIENT: /kandidaten-acties (nieuwe reacties + stale + geaccepteerd-zonder-voorstel)
   draftJobs?: number; // CLIENT: concept-opdrachten
   pendingVerifications?: number; // ADMIN: wacht op verificatie
   unreadMessages?: number; // FREELANCER + CLIENT: gesprekken met ongelezen berichten
@@ -392,6 +395,14 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
   if (role === "CLIENT") {
     const company = await prisma.company.findUnique({ where: { userId }, select: { id: true } });
     if (!company) return {};
+    // De /kandidaten-nav telt niet alleen NEW: `proposeCollaborationTask` (geaccepteerd, nog geen
+    // voorstel) en `staleApplicationsTask` (VIEWED/SHORTLIST te lang onbeslist) verschijnen óók op
+    // /acties + de dashboard-rail met href /kandidaten. Zonder ze mee te tellen was de nav-badge
+    // stiller dan de item-engine — het "signaal op één oppervlak"-anti-patroon (zie run 46/47).
+    // DB-side voorgefilterd op de kortste stale-drempel (VIEWED = 14 dagen); de pure
+    // `summarizeStaleClientApplications` past daarna de exacte per-fase-regel toe (VIEWED ≥ 14 /
+    // SHORTLIST ≥ 21). NEW valt hier bewust buiten — dat dekt de `newApplications`-telling al.
+    const staleWindow = new Date(Date.now() - WAIT_ATTENTION_DAYS.VIEWED * 86_400_000);
     const [
       newApplications,
       draftJobs,
@@ -401,6 +412,8 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       cascadePerf,
       cascadeInv,
       complianceAlerts,
+      staleCandidates,
+      acceptedCandidates,
     ] = await Promise.all([
       prisma.application.count({ where: { job: { companyId: company.id }, status: "NEW" } }),
       prisma.job.count({ where: { companyId: company.id, status: "DRAFT" } }),
@@ -437,6 +450,24 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       // /samenwerkingen-badge stiller dan /acties + de dashboard-rail (die de hoogst-geprioriteerde
       // `clientComplianceTask` tonen) — het "signaal op één oppervlak"-anti-patroon.
       clientCredentialAlerts(userId),
+      // stale kandidaten (VIEWED/SHORTLIST te lang onbeslist) — exact het predicaat uit
+      // pending-tasks.ts (`staleApplicationsTask`). Eigenaar-gescoopt + take-begrensd.
+      prisma.application.findMany({
+        where: {
+          job: { companyId: company.id },
+          status: { in: ["VIEWED", "SHORTLIST"] },
+          createdAt: { lte: staleWindow },
+        },
+        select: { status: true, createdAt: true, collaboration: { select: { id: true } } },
+        take: CASCADE_SCAN_LIMIT,
+      }),
+      // geaccepteerde reacties die nog een samenwerkingsvoorstel missen — exact het predicaat uit
+      // pending-tasks.ts (`proposeCollaborationTask`). Reeds-voorgestelde (met collaboration) vallen af.
+      prisma.application.findMany({
+        where: { job: { companyId: company.id }, status: "ACCEPTED" },
+        select: { id: true, collaboration: { select: { id: true } } },
+        take: CASCADE_SCAN_LIMIT,
+      }),
     ]);
     // Eén actie per samenwerking (niet per ontbrekend certificaat-type): exact gelijk aan de
     // één-taak-per-samenwerking-emissie in de item-engine. De `clientHasComplianceAction`-gate sluit
@@ -451,8 +482,27 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
       submittedInvoices: cascadeInv,
       complianceActions,
     });
+    // /kandidaten-badge = alle acties op dat oppervlak (item-engine-pariteit). De drie predicaten
+    // zijn niet-overlappend (statussen NEW / VIEWED+SHORTLIST / ACCEPTED), dus een simpele som is
+    // geen dubbeltelling — gelijk aan de losse taken op /acties.
+    const staleActions =
+      summarizeStaleClientApplications(
+        staleCandidates.map((a) => ({
+          status: a.status,
+          createdAt: a.createdAt,
+          hasCollaboration: a.collaboration != null,
+        })),
+      )?.count ?? 0;
+    const proposalActions = pendingCollaborationProposals(
+      acceptedCandidates.map((a) => ({
+        applicationId: a.id,
+        freelancerName: "",
+        jobTitle: "",
+        hasCollaboration: a.collaboration != null,
+      })),
+    ).length;
     return buildBadges({
-      newApplications,
+      newApplications: newApplications + staleActions + proposalActions,
       draftJobs,
       unreadMessages,
       overdueInvoices,
