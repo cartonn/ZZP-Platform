@@ -9,8 +9,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const findUniqueMock = vi.hoisted(() =>
   vi.fn(async (): Promise<Record<string, unknown> | null> => null),
 );
-const updateManyMock = vi.hoisted(() => vi.fn(async () => ({ count: 1 })));
-const auditMock = vi.hoisted(() => vi.fn(async () => {}));
+// Expliciete `_args`-parameter zodat `mock.calls[0]` een niet-lege tuple is (tsc --noEmit anders:
+// TS2493 op de argument-index) en we het doorgegeven object kunnen inspecteren.
+const updateManyMock = vi.hoisted(() =>
+  vi.fn(async (_args: unknown): Promise<{ count: number }> => ({ count: 1 })),
+);
+const auditMock = vi.hoisted(() => vi.fn(async (_args: unknown): Promise<void> => {}));
 
 vi.mock("@/lib/authz", () => ({
   requireRole: vi.fn(async () => ({ id: "admin-1", role: "ADMIN", status: "ACTIVE" })),
