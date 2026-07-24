@@ -25,7 +25,13 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Een normale e2e-run duurt ~6 min, maar op een trage runner (npm ci + playwright
+    # install --with-deps + next build) kan hij tegen de oude 15-min-limiet aanlopen. Een
+    # getimede job krijgt de conclusie "cancelled" — en omdat `e2e` een VERPLICHTE
+    # statuscheck is (harde merge-poort) blokkeert dat de PR permanent, ook al slaagde de
+    # test op een parallelle push/pull_request-run. Ruimere marge voorkomt dat een
+    # incidentele trage runner de merge-poort (en daarmee o.a. security-fixes) laat vastlopen.
+    timeout-minutes: 25
     continue-on-error: true
     env:
       DATABASE_URL: "file:./ci.db"

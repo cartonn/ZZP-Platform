@@ -4,6 +4,52 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-24 (basis: `main` @ 93a53a7f)
+
+Audit: orchestrator (Opus 4.8). Focus: actuele dependency-CVE's van de stack (OWASP A06 —
+kwetsbare/verouderde componenten) + de merge-poort-betrouwbaarheid die security-fixes naar
+`main` moet dragen. Bevinding: `main` draait **kwetsbaar** en de fix-PR zat **vast op een
+flaky merge-poort**.
+
+### OPGELOST — KRITIEK: `main` kwetsbaar voor 3 Auth.js-advisories (2× critical) via `@auth/core` ≤ 0.41.2
+
+- **Repro (was):** `npm audit --audit-level=high --omit=dev` op `main` (`next-auth@5.0.0-beta.31`)
+  → **rood**: 2 kritieke + 1 hoge advisory in de productie-auth-dependency `@auth/core` ≤ 0.41.2:
+  - [GHSA-x445-f3h2-j279](https://github.com/advisories/GHSA-x445-f3h2-j279) — **critical**: OAuth
+    `state`/`nonce`/PKCE-check-cookies niet gebonden aan de provider die ze aanmaakte.
+  - [GHSA-7rqj-j65f-68wh](https://github.com/advisories/GHSA-7rqj-j65f-68wh) — **critical**:
+    e-mailnormalizer valideert vóór Unicode-normalisatie → homoglief-`@`-bypass (identiteit).
+  - [GHSA-xmf8-cvqr-rfgj](https://github.com/advisories/GHSA-xmf8-cvqr-rfgj) — **high**: `getToken()`
+    gooit een ongevangen exception op een misvormde Bearer-`authorization`-header (DoS).
+- **Geschonden regel:** OWASP A06 (kwetsbare/verouderde componenten); raakt A07 (auth/identiteit).
+- **Fix:** gerichte bump `next-auth` `^5.0.0-beta.31` → `^5.0.0-beta.32` → trekt `@auth/core@0.41.3`
+  (voorbij de kwetsbare range). Alleen `package.json` + `package-lock.json`; geen code/config.
+  Ná de bump: `npm audit --audit-level=high --omit=dev` = **0 vulnerabilities**. Volledige poort
+  lokaal groen (typecheck/lint/prettier/test 4910/build).
+- **Waarom niet #890/#891 (bestaande bump-PR's):** die zaten vast (zie hieronder) én verhingen elk
+  álle andere PR's op de rode `audit`-poort. Deze PR koppelt de bump aan de poort-reparatie zodat
+  hij zichzelf betrouwbaar door de gate trekt.
+
+### OPGELOST — HOOG (operationeel security): flaky `e2e`-timeout jamde de verplichte merge-poort
+
+- **Repro (was):** `e2e` had `timeout-minutes: 15`. CI draait op `push` (`branches: ["**"]`) **én**
+  `pull_request`, dus elke branch met een PR start twee parallelle `e2e`-runs. Op een trage runner
+  (npm ci + `playwright install --with-deps` + `next build`) overschreed één run de 15-min-limiet →
+  jobconclusie **`cancelled`**. Omdat `e2e` een **VERPLICHTE** statuscheck is (harde poort,
+  `enforce_admins` AAN), blokkeerde die geannuleerde run de PR permanent — óók al slaagde de
+  parallelle run. Concreet gevolg: **#890 (de kritieke CVE-fix) stond ~10 u vast op groen-behalve-`e2e`**
+  en blokkeerde daarmee de hele merge-pijplijn (#892/#894/#895 wachtten op `audit`-groen dat #890 moest
+  leveren).
+- **Geschonden regel:** operationele beschikbaarheid van de security-merge-poort (fixes moeten
+  betrouwbaar naar `main` kunnen). Niet direct een OWASP-item, maar het maakte een KRITIEK-fix
+  onlandbaar.
+- **Fix:** `e2e` `timeout-minutes` 15 → **25** (normale run ~6 min; ruime marge tegen een incidentele
+  trage runner). `.github/workflows/ci.yml`.
+- **Restrisico (geparkeerd, LAAG):** de dubbele `push`+`pull_request`-run blijft bestaan (verspilling +
+  twee `e2e`-checkruns op dezelfde SHA). Aanbevolen vervolg: `on.push.branches` beperken tot `main`
+  zodat feature-branches CI exact één keer via `pull_request` draaien. Bewust buiten deze PR gehouden
+  (bredere CI-triggerwijziging, aparte review).
+
 ## Ronde 2026-07-23b (basis: `main` @ 7d285a56)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-subagents op niet-overlappende
