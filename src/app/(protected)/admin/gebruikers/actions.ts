@@ -82,11 +82,16 @@ export async function anonymizeUser(userId: string): Promise<void> {
       email: true,
       deletionRequestedAt: true,
       anonymizedAt: true,
+      // Bezit de betrokkene nog een vestiging (Tenant.ownerUserId)? De anonimiseringstransactie
+      // raakt de tenant niet; anonimiseren met een levende eigen tenant zou de (mogelijk
+      // persoonsafgeleide) tenant-naam + owner-verwijzing laten staan (AVG art. 17). De guard
+      // weigert dan fail-closed tot de vestiging is overgedragen/gesloten.
+      ownedTenant: { select: { id: true } },
     },
   });
   if (!user) throw new Error("Gebruiker niet gevonden.");
 
-  const check = canAnonymizeUser(actor, user);
+  const check = canAnonymizeUser(actor, { ...user, ownsTenant: user.ownedTenant !== null });
   if (!check.ok) throw new Error(check.reason);
 
   // Storage-sleutels vóór de transactie ophalen voor best-effort opruimen ná het wegschrijven.

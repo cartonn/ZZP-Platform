@@ -179,6 +179,21 @@ describe("canAnonymizeUser — afwijzingen", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason.length).toBeGreaterThan(0);
   });
+
+  it("weigert wanneer de betrokkene nog een vestiging bezit (ownsTenant) — anders blijft de tenant-PII/owner staan", () => {
+    const result = canAnonymizeUser(
+      adminActor,
+      validTarget({ role: "FRANCHISER", ownsTenant: true }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/vestiging/i);
+  });
+
+  it("staat wél toe wanneer de vestiging is overgedragen/gesloten (ownsTenant false)", () => {
+    expect(
+      canAnonymizeUser(adminActor, validTarget({ role: "FRANCHISER", ownsTenant: false })),
+    ).toEqual({ ok: true });
+  });
 });
 
 // ---------------------------------------------------------------------------
