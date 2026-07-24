@@ -45,9 +45,11 @@ export async function importDienstenAction(
       company: { select: { userId: true } },
     },
   });
-  if (!col) return { imported: 0, skipped: 0, errors: ["Samenwerking niet gevonden."] };
-  if (col.freelancer.userId !== actor.id) {
-    return { imported: 0, skipped: 0, errors: ["Je hebt geen toegang tot deze samenwerking."] };
+  // Onbekend id én andermans samenwerking geven exact dezelfde afhandeling: een geknutseld/gegokt
+  // `collaborationId` van een ander mag niet via een afwijkende melding het bestaan van die
+  // samenwerking prijsgeven (CWE-203 existence-oracle). Fail-closed, ononderscheidbaar.
+  if (!col || col.freelancer.userId !== actor.id) {
+    return { imported: 0, skipped: 0, errors: ["Samenwerking niet gevonden."] };
   }
   if (col.status !== "ACTIVE") {
     return {

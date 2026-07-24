@@ -704,7 +704,11 @@ export function reviewLeaveTask(
     title: `Beoordeel ${counterparty}`,
     subtitle: `${jobTitle} · ${window}`,
     tone: closingSoon ? "attention" : "info",
-    priority: P.reviewPrompt,
+    // Als het venster bijna sluit escaleert niet alleen de toon maar óók de prioriteit: een blind
+    // beoordelingsvenster dat straks dicht is, kan daarna nóóit meer worden ingevuld — het mag dus
+    // niet onder cosmetische info-nudges (completeness/beschikbaarheid) van de 6-item dashboardrail
+    // vallen. Buiten dat venster blijft het een rustige reputatie-nudge onderaan.
+    priority: closingSoon ? P.reviewPromptClosing : P.reviewPrompt,
     resolver: "link", // meerstaps formulier (score + toelichting) → naar de samenwerking
     href: collabHref(collabId),
     collabId,

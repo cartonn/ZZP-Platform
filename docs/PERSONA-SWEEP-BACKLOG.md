@@ -1,5 +1,60 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-24 (run 48) · **main-commit basis:** `8ccc9c78`
+> **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT** (1 security/existence-oracle HOOG-prio + 1 DOEL-1b
+> next-action-prioriteit + 1 dode-code-drift-hazard) + 2 geparkeerd met repro. Verse prod-build (exit 0)
+>
+> - drie parallelle Opus-audits (authz/IDOR/cross-tenant/existence-oracle/document-privacy; malicieuze invoer +
+>   verboden statusovergangen; next-action-correctheid over alle vier rollen). De authz-audit vond de document-/
+>   PDF-dossier-routes, de AVG-wisflow, de agenda-ICS-feed en de admin-rolpoorten **schoon** (identieke 404 op
+>   niet-gevonden én niet-van-jou, DENIED-audit bewaard). De malicieuze-invoer/status-audit vond de kern-cascade
+>   **symmetrisch clean** (`assertNotDisputed`/terminal-guards op elk command-pad incl. CSV-import; `rateCents`
+>   altijd server-side herlezen en `0..2000`-geklemd; `computeVat` throwt op negatief; CSV-injectie via `escapeCsvField`).
+>
+> **GEVONDEN + GEFIXT — MED/security (DOEL 2, CWE-203 existence-oracle):** `importDienstenAction`
+> (`src/app/(protected)/diensten/importeer/actions.ts:48-51`) scheidde na een `findUnique` de "Samenwerking niet
+> gevonden."-tak van een "Je hebt geen toegang tot deze samenwerking."-tak — beide als **teruggegeven** `errors[]`
+> (geen throw → nooit door Next.js geredigeerd, altijd client-zichtbaar). Een ingelogde ZZP'er kon zo met een gegokt
+> `collaborationId` het **bestaan** van andermans samenwerking aftasten (gevoelige relatie-metadata). Ditzelfde pad
+> viel buiten de eerdere anti-oracle-sweeps (#899/#902) in `samenwerkingen/`/`opdrachten/`/`uitgaven/`. **Geschonden
+> regel:** CLAUDE.md regel 2 (ownership binnen dezelfde afgevangen keten, ononderscheidbaar van "niet gevonden").
+> **Fix:** onbekend id én andermans samenwerking → exact dezelfde melding (`if (!col || col.freelancer.userId !== actor.id)`).
+> Rood→groen: nieuw testbestand `diensten/importeer/actions.test.ts` (identieke-melding-assert + rolpoort).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, next-action-prioriteit — urgente actie valt van de rail):** `reviewLeaveTask`
+> (`src/lib/actions/tasks.ts`) liet de **toon** naar "attention" escaleren zodra het beoordelingsvenster ≤3 dagen
+> open stond, maar hield de **prioriteit** op `P.reviewPrompt` (24, één-na-laagste band). De dashboard-rail slicet
+> hard op de top-6 (`DashboardActions`), dus een bijna-gesloten, daarna **onherstelbaar** blind beoordelingsvenster
+> (anti-vergeldingsslot) kon onder cosmetische info-nudges (`completeness` 30, `availabilityStale` 40) van de rail
+> vallen terwijl het z'n eigen "attention"-styling tegensprak. **Fix:** nieuwe band `P.reviewPromptClosing` (48, boven
+> completeness/beschikbaarheid); `reviewLeaveTask` bumpt de prioriteit mee met de toon zodra `closingSoon`. Rood→groen:
+> 2 tests aangescherpt in `tasks.test.ts`.
+>
+> **GEVONDEN + GEFIXT — LOW (drift-hazard, dode code — zelfde klasse als #902):** `franchiserNextActions`
+> (`src/lib/next-actions.ts`) had nog twee operationele takken (`notEngageable`/`staleDiensten` + hun
+> `FranchiserStaleDienst`/`FranchiserNotEngageable`-interfaces) die **geen enkele productie-caller** raakte — de enige
+> caller `franchiseGuidedSetupTasks` geeft alleen de guided-setup-inputs mee. De echte operationele taken worden al
+> apart en correct geëmit door `franchiserTasks` in `pending-tasks.ts` (`franchiserNotEngageableTask`/
+> `franchiserStaleDienstTask`). Dit is exact de drift-hazard die #902 elders net wegnam. **Fix:** de dode takken +
+> interfaces verwijderd uit `franchiserNextActions`/`FranchiserActionInput` (guided-setup-tak behouden, gewired via
+> `franchiseGuidedSetupTasks`); `next-actions.test.ts` gesnoeid tot de guided-setup-cases. De `P.franchiserServiceStale`/
+> `P.franchiserRosterNotEngageable`-banden blijven (nog gewired door de levende item-taken).
+>
+> **GEPARKEERD uit deze run (repro + prioriteit):**
+>
+> - **LOW (DOEL 2, robuustheid/consistentie):** `setBillingStatusAction` (`src/app/(protected)/admin/facturatie/actions.ts:41`)
+>   neemt `to: PlatformBillingStatus` als rauwe TS-parameter zonder `safeParse` aan de server-action-grens, anders dan
+>   de zusjes `changeCollaborationStatus`/`judgeNoShowReport` (die wél Zod-validaten). Een non-enum-`to` wordt vandaag
+>   nog veilig geweigerd (`.includes()===false` → `PlatformBillingTransitionError`), maar als een **onafgevangen** throw
+>   i.p.v. een nette melding — één stap van de projectconventie af. ADMIN-gated + gebonden args → lage exploiteerbaarheid.
+>   **Fix-richting:** `platformBillingStatusSchema.safeParse(to)` vóór `assertPlatformBillingTransition`. Prio: LOW.
+> - **NIT (duplicatie, DOEL 1b-nuance):** `PendingTask.resolver` (`src/lib/actions/tasks.ts:34`) is decoratieve
+>   metadata die de render-laag (`action-list.tsx` switcht op `task.kind`, `drawer-resolver.tsx` op `data.kind`)
+>   nooit leest, en de union-waarde `"approveReject"` wordt door geen enkele task-builder gezet (approve/reject-taken
+>   gebruiken `resolver: "drawer"`). Geen bug vandaag (alle kinds correct gewired), maar duplicatie die stil kan driften.
+>   **Fix-richting:** óf `task.resolver` daadwerkelijk in de switch wiren als bron van waarheid, óf het veld + de
+>   ongebruikte enum-waarde schrappen. Prio: NIT.
+
 > **Datum:** 2026-07-24 (run 47) · **main-commit basis:** `7ec1ba7c`
 > **Uitkomst:** **5 bevindingen GEVONDEN + GEFIXT** (4 security/existence-oracle + 1 DOEL-1b tegenspraak) + 3
 > geparkeerd met repro. Verse prod-build (exit 0) + drie parallelle Opus-audits (authz/IDOR/cross-tenant/
