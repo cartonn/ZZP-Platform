@@ -7,6 +7,11 @@
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
 // CRON_SECRET → 503, verkeerd token → 401. De uitvoer bevat NOOIT persoonsgegevens of secrets, alleen
 // geaggregeerde gauges (tellingen, leeftijden, gezondheidsvlaggen). Nooit gecachet.
+//
+// LET OP: dit pad staat in de publieke-route-allowlist (`isPublicPath` in src/lib/route-guards.ts,
+// naast /api/health, /api/readiness en /api/tasks/) — een sessieloze scraper moet de handler bereiken
+// zodat de CRON_SECRET-guard hieronder draait; zonder die allowlist-entry redirect de middleware het
+// verzoek naar /login en is het endpoint functioneel dood.
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";

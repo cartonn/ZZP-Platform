@@ -18,6 +18,7 @@ export function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/wachtwoord-herstellen/") ||
     pathname === "/api/health" ||
     pathname === "/api/readiness" ||
+    pathname === "/api/metrics" || // operationeel-monitoring-endpoint: eigen CRON_SECRET-guard, geen sessie
     pathname.startsWith("/zzp/") ||
     pathname.startsWith("/vertrouwen/") || // publiek vertrouwensdossier (token-beveiligd, geen sessie)
     // /ontwerp en /ontwerp-lab zijn NIET publiek: het is een intern design-lab (inloggen vereist).
