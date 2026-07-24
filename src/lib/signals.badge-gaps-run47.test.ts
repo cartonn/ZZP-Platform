@@ -52,7 +52,7 @@ vi.mock("@/lib/db", () => ({
     user: { count: vi.fn(() => Promise.resolve(0)) },
     company: { findUnique: vi.fn(() => Promise.resolve({ id: "c-1" })) },
     application: {
-      count: (a: Where) => applicationCount(a),
+      count: () => applicationCount(),
       findMany: (a: Where) => applicationFindMany(a),
     },
     job: { count: vi.fn(() => Promise.resolve(0)) },
