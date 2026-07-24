@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — reactieveld in één oogopslag: poolsamenvatting voor de opdrachtgever (/kandidaten/vergelijk)
+
+De vergelijk-pagina (`/kandidaten/vergelijk?job=<id>`) toonde de opdrachtgever per kandidaat de
+uitspringer (match/tarief/compliance/vertrouwen/…), maar nergens **de vorm van het veld in één
+oogopslag** — de aggregaatvraag die vóór het inzoomen telt: hoeveel reacties, waar ligt het matchniveau
+(mediaan + spreiding), hoeveel voldoen aan de eisen, hoeveel kunnen op de startdatum starten. Staffing-
+dashboards (Temper/Pidz) tonen die veldvorm standaard zodat je snel weet of een pool diep genoeg is.
+
+- Nieuwe compacte kaart **"Reactieveld in één oogopslag"** bovenaan de vergelijking: reacties,
+  mediane match + spreiding, `X/Y` volledig compliant, `X/Y` beschikbaar op de startdatum.
+- Pure `summarizeApplicantField` (`src/lib/applicant-field.ts`) aggregeert over exact de al-geladen
+  kandidaten (de `CompareCandidate[]` die de tabel voedt) — **geen extra query, geen schemawijziging,
+  geen nieuw mutatie/auth-oppervlak**. Elke deelmaat heeft z'n eigen noemer (een kandidaat zonder
+  score telt niet in de spreiding; zonder compliance-oordeel niet in de compliant-teller) → "3 van 5
+  volledig compliant" is altijd eerlijk. Een maat zonder gegevens (geen certificaateis) valt weg i.p.v.
+  een misleidende "0 van 0". `null` bij < 2 kandidaten (pagina toont dan al een lege staat).
+- Beschikbaar-op-start telt alleen `startFit === "available"` (limited/blocked/none/unknown niet) —
+  hergebruikt de bestaande `classifyStartFit` als bron van waarheid.
+
+**Bestanden:** `src/lib/applicant-field.ts` (+ `applicant-field.test.ts`, 11 tests),
+`src/app/(protected)/kandidaten/vergelijk/page.tsx` (import + kaart). UI Nederlands, het woord "AI"
+komt nergens voor.
+
+**Checks:** typecheck · lint · test · build · prettier — allemaal groen.
+
 ## 2026-07-24 — prod-rijpheid: server-action body-limiet gelijktrekken met de upload-ceiling (documentupload > 1 MB)
 
 Kernbug voor livegang met echte gevoelige documenten. Uploads (documenten/certificaten/bedrijfslogo)
