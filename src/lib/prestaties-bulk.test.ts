@@ -23,6 +23,7 @@ function perf(overrides: Partial<PrestatieOverzicht> = {}): PrestatieOverzicht {
     approvedAt: null,
     rejectedAt: null,
     rejectionReason: null,
+    disputed: false,
     ...overrides,
   };
 }

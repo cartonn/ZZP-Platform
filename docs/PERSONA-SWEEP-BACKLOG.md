@@ -1,5 +1,58 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-24 (run 47) · **main-commit basis:** `7ec1ba7c`
+> **Uitkomst:** **5 bevindingen GEVONDEN + GEFIXT** (4 security/existence-oracle + 1 DOEL-1b tegenspraak) + 3
+> geparkeerd met repro. Verse prod-build (exit 0) + drie parallelle Opus-audits (authz/IDOR/cross-tenant/
+> existence-oracle; malicieuze invoer + verboden statusovergangen; next-action-correctheid over alle vier rollen).
+> De malicieuze-invoer/status-audit kwam **schoon** terug op de kernketen (cascade-commands symmetrisch
+> `assertNotDisputed`/terminal-guard; elke getal/datum-parse `Number.isFinite`/`isNaN`-gerguard vóór Prisma;
+> `assertPerformanceWithinLimits` centraal ook op het CSV-importpad; CSV-injectie via `escapeCsvField` afgevangen).
+>
+> **GEVONDEN + GEFIXT — BLOCKER/security (DOEL 2, CWE-203 existence-oracle via throw-vs-resolve):** `inviteFreelancerToJob`
+> en `inviteSuggestedFreelancersToJob` (`src/app/(protected)/opdrachten/actions.ts:525`, `:620`) deden `if (!job) return;`
+> (stil succes) gevolgd door `assertOwnership(...)` dat voor een niet-eigen opdracht een **onafgevangen**
+> `AuthorizationError` throwde. Deze `void`-server-actions zijn direct aanroepbaar: een onbekend `jobId` resolvete stil,
+> een bestaand-maar-vreemd id (incl. ongepubliceerde **CONCEPT**-opdracht van een concurrent) rejecte — een observeerbaar
+> throw-vs-resolve-verschil (onafhankelijk van Next.js' prod-message-redactie) waarmee een CLIENT andermans opdracht-id's
+> kon enumereren. **Geschonden regel:** CLAUDE.md regel 2 (ownership binnen dezelfde afgevangen keten) + anti-oracle.
+> **Fix:** onbekend én niet-eigen → exact dezelfde stille afhandeling (`if (!job || !owns(actor, job.company.userId)) return;`).
+> Rood→groen: +1 test (`opdrachten/actions.test.ts`).
+>
+> **GEVONDEN + GEFIXT — MED/security (zelfde klasse):** (a) `saveJob`-edit (`opdrachten/actions.ts:141`) gaf voor een
+> geknutseld `jobId` van een ander bedrijf een onafgevangen throw i.p.v. de nette `{ error: "Opdracht niet gevonden." }`
+> die een onbekend id gaf → gelijkgetrokken. (b) `deleteExpense` (`uitgaven/actions.ts:134`) scheidde onbekend-id
+> (`{ error }`) van andermans-uitgave (throw) — de projecttest asserteerde dat verschil zelfs → nu `findFirst({ id, userId })`
+> zodat beide per constructie identiek zijn (financieel record, AVG-adjacent). (c) `editAndResubmitPerformanceAction`
+> (`samenwerkingen/[id]/actions.ts:253`) gaf "Je hebt geen toegang tot deze prestatie." vs "Prestatie niet gevonden."
+> (tekst-divergentie) → één melding. Rood→groen: `uitgaven/actions.test.ts`, `edit-resubmit-authz.test.ts` aangescherpt
+> naar identieke-melding-asserts.
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, "signaal op één oppervlak" — tegenspraak):** `/prestaties` (`src/lib/prestaties.ts`
+> `getPrestatiesForClient` + `prestaties/page.tsx`) telde een **SUBMITTED-prestatie van een BEVROREN (disputed)
+> samenwerking** als "wacht op jouw goedkeuring" mét een "Keuren →"-actie en in de bulk-groepen — terwijl de nav-badge
+> (`pendingPerformances`), `/acties` (`performanceApproveTask`) én de cascade-fase disputed al uitsluiten en
+> `approvePerformance` server-side weigert (`assertNotDisputed`). Een niet-verdwijnende, server-side falende actie die
+> alle andere oppervlakken tegenspreekt. **Fix:** `disputed`-vlag op elke rij (`collaboration.disputedAt != null`); nieuwe
+> pure `approvablePerformances()` voedt de pending-telling én de bulk-selectie (disputed uitgesloten); de rij toont nu
+> "In dispuut → Dispuut behandelen" i.p.v. "Keuren →". Rood→groen: +3 tests (`prestaties.test.ts`).
+>
+> **GEPARKEERD uit deze run (repro + prioriteit):**
+>
+> - **MED (DOEL 1b, badge-gat):** de `/kandidaten`-nav-badge telt alleen `newApplications` (`status:"NEW"`,
+>   `signals.ts:405`), maar `proposeCollaborationTask` (href `/kandidaten?open=…`) en `staleApplicationsTask`
+>   (href `/kandidaten`) verschijnen wél op `/acties`+rail+`/acties`-badge (`pending-tasks.ts:720-738`). Een opdrachtgever
+>   met 0 NEW maar een geaccepteerde-kandidaat-in-limbo ziet géén badge op `/kandidaten`. **Fix-richting:** tel de twee
+>   `/kandidaten`-taakpredicaten mee in de badge (zoals run 46 voor client-compliance/no-show deed). Prio: MED.
+> - **HOOG-maar-dode-code (drift-hazard):** `freelancerNextActions`/`clientNextActions`/`adminNextActions`
+>   (`src/lib/next-actions.ts:101/198/284`) hebben **nul productie-callers** (alleen `franchiserNextActions` is gewired)
+>   en zijn materieel gedivergeerd van de levende engine (`adminNextActions` bevat zelfs een fantoom-actie
+>   `admin-expiring-credentials` die `adminTasks` niet emit). `PROGRESS.md` documenteert dat een dood next-action-codepad
+>   ooit een echte bug gaf. **Fix-richting:** verwijderen of als single-source wiren in een aparte pass. Prio: MED
+>   (nu inert; regressie-risico bij hergebruik).
+> - **LOW (DOEL 1b, bewust zachter):** `paymentDueSoonTask` (`/acties`, pre-due nudge) heeft geen teller in de
+>   `/financien`-CLIENT-badge (`signals.ts:392-461`, telt alleen post-due `overdueInvoices`). Zelfde asymmetrie-klasse,
+>   maar bewuste "info"-toon; grensgeval. Prio: LOW.
+
 > **Datum:** 2026-07-23 (run 46) · **main-commit basis:** `6c09e1a6`
 > **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT** (1 HIGH/security + 2 DOEL-1b nav-badge). Verse prod-build
 > (exit 0) + drie parallelle Opus-audits (authz/IDOR/cross-tenant/document-privacy; malicieuze invoer +

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole, assertOwnership, AuthorizationError } from "@/lib/authz";
+import { requireRole, AuthorizationError } from "@/lib/authz";
 import { auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { expenseSchema, planExpensePostings, parseEurosToCents } from "@/lib/expense";
@@ -131,12 +131,16 @@ export async function deleteExpense(
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return { error: "Geen uitgave opgegeven." };
 
-  const expense = await prisma.expense.findUnique({
-    where: { id },
-    select: { id: true, userId: true },
+  // Scope de lookup direct op de eigenaar: een onbekend id én andermans uitgave leveren zo per
+  // constructie exact dezelfde `{ error }`-state. Voorheen gaf een onbekend id een nette fout-state,
+  // maar andermans (bestaand) id een onafgevangen AuthorizationError-throw — een throw-vs-return-
+  // oracle waarmee een ZZP'er het bestaan van andermans financiële uitgave-record kon aftasten
+  // (CWE-203). Spiegelt het loadOwnedCredential/deleteDocument-patroon.
+  const expense = await prisma.expense.findFirst({
+    where: { id, userId: actor.id },
+    select: { id: true },
   });
   if (!expense) return { error: "Uitgave niet gevonden." };
-  assertOwnership(actor, expense.userId);
 
   await prisma.$transaction(async (tx) => {
     await tx.administrationEntry.deleteMany({ where: { expenseId: expense.id } });

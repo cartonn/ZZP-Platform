@@ -3,6 +3,36 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — persona-sweep (run 47): dicht 4 existence-oracles (CWE-203) + 1 next-action-tegenspraak
+
+**Wat:** kritische-gebruiker-sweep over alle vier rollen (orchestrator Opus 4.8 + 3 parallelle Opus-audits op
+niet-overlappende assen: authz/IDOR/existence-oracle · malicieuze invoer/verboden statusovergangen ·
+next-action-correctheid). Verse prod-build (exit 0). Malicieuze-invoer/status-audit kwam **schoon** terug op de
+kernketen. **5 bevindingen gefixt, 3 geparkeerd** (zie `docs/PERSONA-SWEEP-BACKLOG.md` run 47).
+
+**GEFIXT — security (existence-oracle-klasse, terugkerende bug):**
+
+- **BLOCKER:** `inviteFreelancerToJob`/`inviteSuggestedFreelancersToJob` (`opdrachten/actions.ts`) — onbekend id
+  resolvete stil, niet-eigen id throwde onafgevangen → observeerbaar throw-vs-resolve waarmee een CLIENT andermans
+  opdracht-id's (incl. CONCEPT) kon aftasten. Gefold naar één stille afhandeling (`!job || !owns(...)`).
+- **MED:** `saveJob`-edit (idem, → identieke `{ error }`); `deleteExpense` (`uitgaven/actions.ts`, → `findFirst({id,userId})`
+  i.p.v. throw op andermans financiële record); `editAndResubmitPerformanceAction` (`samenwerkingen/[id]/actions.ts`,
+  tekst-divergentie → één melding).
+
+**GEFIXT — DOEL 1b (tegenspraak):** `/prestaties` toonde een SUBMITTED-prestatie van een BEVROREN (disputed)
+samenwerking als niet-verdwijnende, server-side falende "Keuren →"-actie terwijl badge/`/acties`/cascade disputed al
+uitsluiten. Nieuwe `disputed`-vlag + pure `approvablePerformances()` voeden pending-telling + bulk; rij toont nu
+"In dispuut → Dispuut behandelen".
+
+**Tests:** rood→groen, +7 (invite anti-oracle; identieke-melding-asserts voor uitgave & prestatie; `approvablePerformances`
+disputed/status-filtering). Volledige poort lokaal groen: typecheck · lint · **4940 tests (470 files)** · build (exit 0) ·
+prettier.
+
+**Bestanden:** `src/app/(protected)/opdrachten/actions.ts` (+ test), `src/app/(protected)/uitgaven/actions.ts` (+ test),
+`src/app/(protected)/samenwerkingen/[id]/actions.ts`, `src/app/(protected)/samenwerkingen/[id]/edit-resubmit-authz.test.ts`,
+`src/lib/prestaties.ts` (+ test), `src/lib/prestaties-bulk.test.ts`, `src/app/(protected)/prestaties/page.tsx`,
+`docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`.
+
 ## 2026-07-24 — routine: "deze week"-samenvatting bovenaan /rooster (ZZP'er)
 
 **Wat:** de rooster-agenda (`/rooster`) sprong van de kop/filter-tabs direct in de per-dag-secties,

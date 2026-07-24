@@ -92,6 +92,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { changeJobStatus, inviteFreelancerToJob } from "./actions";
+import { owns } from "@/lib/authz";
 
 function draftJob(overrides: Record<string, unknown> = {}) {
   return {
@@ -286,6 +287,18 @@ describe("inviteFreelancerToJob — directe uitnodiging", () => {
   it("is een stille no-op als de opdracht niet bestaat", async () => {
     store.job = null;
     await inviteFreelancerToJob("job-x", "fp-1");
+    expect(store.notifications).toHaveLength(0);
+    expect(auditMock).not.toHaveBeenCalled();
+  });
+
+  it("op andermans opdracht: stille no-op, identiek aan niet-bestaand (geen throw-oracle, CWE-203)", async () => {
+    // Regressie: voorheen resolvete een onbekend id stil, maar een bestaand-maar-vreemd id rejecte
+    // (onafgevangen AuthorizationError uit assertOwnership) — een observeerbaar throw-vs-resolve-verschil
+    // waarmee een opdrachtgever het bestaan (incl. CONCEPT) van andermans opdracht kon aftasten.
+    store.job = publishedJobForInvite();
+    vi.mocked(owns).mockReturnValueOnce(false);
+    // Mag NIET throwen en moet exact als "niet gevonden" ogen: geen notificatie, geen audit.
+    await expect(inviteFreelancerToJob("job-1", "fp-1")).resolves.toBeUndefined();
     expect(store.notifications).toHaveLength(0);
     expect(auditMock).not.toHaveBeenCalled();
   });

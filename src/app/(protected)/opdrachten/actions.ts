@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { assertOwnership, AuthorizationError, requireRole } from "@/lib/authz";
+import { assertOwnership, AuthorizationError, owns, requireRole } from "@/lib/authz";
 import { audit, auditData } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { canApply } from "@/lib/applications";
@@ -138,8 +138,13 @@ export async function saveJob(_prev: JobFormState, formData: FormData): Promise<
       where: { id: jobId },
       include: { company: { select: { userId: true } } },
     });
-    if (!existing) return { error: "Opdracht niet gevonden." };
-    assertOwnership(actor, existing.company.userId);
+    // Onbekende én niet-eigen opdracht geven exact dezelfde fout-state. `assertOwnership` throwde een
+    // onafgevangen AuthorizationError bij een geknutseld `jobId` van een ánder bedrijf, terwijl een
+    // onbekend id een nette `{ error }` gaf — een throw-vs-return-oracle waarmee een opdrachtgever het
+    // bestaan van andermans opdracht kon aftasten (CWE-203). Nu ononderscheidbaar.
+    if (!existing || !owns(actor, existing.company.userId)) {
+      return { error: "Opdracht niet gevonden." };
+    }
 
     await prisma.$transaction([
       prisma.job.update({ where: { id: jobId }, data: fields }),
@@ -522,8 +527,12 @@ export async function inviteFreelancerToJob(
       company: { select: { userId: true, name: true } },
     },
   });
-  if (!job) return; // opdracht bestaat niet (meer) — geen lek, geen 500.
-  assertOwnership(actor, job.company.userId); // 403 als het niet zijn opdracht is.
+  // Onbekende én niet-eigen opdracht: exact dezelfde stille afhandeling. `assertOwnership` throwt een
+  // AuthorizationError die deze void-actie niet afving — een onbekend id resolvete stil, een bestaand-
+  // maar-vreemd id rejecte: een observeerbaar throw-vs-resolve-verschil waarmee een opdrachtgever het
+  // bestaan (incl. ongepubliceerde CONCEPT-opdracht) van andermans opdracht kon aftasten (CWE-203
+  // existence-oracle). Nu ononderscheidbaar: geen lek, geen 500. Spiegelt de gefolde checks elders.
+  if (!job || !owns(actor, job.company.userId)) return;
 
   // De ZZP'er moet openbaar vindbaar zijn (PUBLIC + ACTIVE) — precies de pool die de suggesties
   // voedt. `findFirst` mét de discoverable-where scoped de zichtbaarheid server-side af. Cruciaal:
@@ -617,8 +626,9 @@ export async function inviteSuggestedFreelancersToJob(jobId: string): Promise<vo
       company: { select: { userId: true, name: true } },
     },
   });
-  if (!job) return; // opdracht bestaat niet (meer) — geen lek, geen 500.
-  assertOwnership(actor, job.company.userId); // 403 als het niet zijn opdracht is.
+  // Onbekende én niet-eigen opdracht ononderscheidbaar (zie inviteFreelancerToJob): geen throw-vs-
+  // resolve-oracle op andermans (concept-)opdracht. Geen lek, geen 500.
+  if (!job || !owns(actor, job.company.userId)) return;
 
   if ((job.status as JobStatus) !== "PUBLISHED") {
     revalidatePath(`/opdrachten/${jobId}`);

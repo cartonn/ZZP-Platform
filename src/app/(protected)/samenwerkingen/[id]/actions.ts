@@ -250,9 +250,11 @@ export async function editAndResubmitPerformanceAction(
       collaboration: { select: { freelancer: { select: { userId: true } } } },
     },
   });
-  if (!perf) return "Prestatie niet gevonden.";
-  if (actor.role !== "ADMIN" && actor.id !== perf.collaboration.freelancer.userId) {
-    return "Je hebt geen toegang tot deze prestatie.";
+  // Onbekende én niet-eigen prestatie geven exact dezelfde melding: een afwijkende tekst
+  // ("geen toegang" vs "niet gevonden") liet een ZZP'er via een gegokt id onderscheiden of een
+  // prestatie bestaat maar bij een andere samenwerking hoort (CWE-203 existence-oracle). Gelijkgetrokken.
+  if (!perf || (actor.role !== "ADMIN" && actor.id !== perf.collaboration.freelancer.userId)) {
+    return "Prestatie niet gevonden.";
   }
   if (perf.collaborationId !== collaborationId) {
     return "De samenwerking komt niet overeen met de prestatie.";

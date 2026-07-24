@@ -2,7 +2,7 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { ClipboardList, Download } from "lucide-react";
 import { requireActor } from "@/lib/authz";
-import { getPrestatiesForClient } from "@/lib/prestaties";
+import { approvablePerformances, getPrestatiesForClient } from "@/lib/prestaties";
 import { formatEuro } from "@/lib/invoices";
 import { formatDateShortNl, formatDateRangeNl } from "@/lib/format-date";
 import {
@@ -98,14 +98,18 @@ export default async function PrestatiesPage({
   );
 
   const now = Date.now();
-  const submitted = allPrestaties.filter((p) => p.status === "SUBMITTED");
+  // Een prestatie van een BEVROREN (disputed) samenwerking is niet goed te keuren: `approvePerformance`
+  // weigert server-side (`assertNotDisputed`), en de nav-badge/`/acties`/cascade sluiten disputed al uit.
+  // Tel 'm daarom óók hier niet als "wacht op goedkeuring" en houd 'm buiten de bulk-groepen — anders
+  // toont dit scherm als enige oppervlak een niet-verdwijnende, niet-uitvoerbare actie (DOEL-1b-tegenspraak).
+  const submitted = approvablePerformances(allPrestaties);
   const pendingCount = submitted.length;
   const queue = summarizePerformanceApproval(submitted, now);
   // Samenwerkingen met ≥2 ingediende urenstaten kunnen in één keer worden goedgekeurd; bij één
   // volstaat de bestaande "Keuren →"-link. Losstaand van het statusfilter (bulk werkt altijd op de
-  // volledige ingediende set, niet op het gefilterde overzicht).
+  // volledige ingediende set, niet op het gefilterde overzicht). Disputed prestaties uitgesloten.
   const bulkGroups = groupSubmittedForBulkApproval(
-    allPrestaties,
+    allPrestaties.filter((p) => !p.disputed),
     now,
     PERFORMANCE_APPROVAL_STALE_DAYS,
   );
@@ -279,16 +283,24 @@ export default async function PrestatiesPage({
                   )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                  <Badge variant={p.disputed ? "danger" : statusInfo.variant}>
+                    {p.disputed ? "In dispuut" : statusInfo.label}
+                  </Badge>
+                  {/* Een bevroren (disputed) prestatie biedt geen "Keuren →": goedkeuren faalt server-side
+                      tot het dispuut is opgelost. Wijs naar de samenwerking om het dispuut te behandelen. */}
                   <Link
                     href={`/samenwerkingen/${p.collaborationId}`}
                     className={
-                      p.status === "SUBMITTED"
+                      p.status === "SUBMITTED" && !p.disputed
                         ? "text-[11px] font-medium text-primary underline-offset-2 hover:underline"
                         : "text-[11px] text-muted-foreground underline-offset-2 hover:underline"
                     }
                   >
-                    {p.status === "SUBMITTED" ? "Keuren →" : "Naar samenwerking →"}
+                    {p.disputed
+                      ? "Dispuut behandelen →"
+                      : p.status === "SUBMITTED"
+                        ? "Keuren →"
+                        : "Naar samenwerking →"}
                   </Link>
                 </div>
               </div>
