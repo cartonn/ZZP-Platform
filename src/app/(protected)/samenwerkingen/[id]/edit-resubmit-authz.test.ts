@@ -83,20 +83,31 @@ describe("editAndResubmitPerformanceAction — tarief-bron gebonden aan de eigen
     expect(submitPerformance).not.toHaveBeenCalled();
   });
 
-  it("weigert een prestatie die niet van de actor is", async () => {
+  it("weigert andermans prestatie met exact dezelfde melding als een onbekend id (anti-oracle)", async () => {
+    // Een prestatie van een andere samenwerking en een onbekend id geven exact dezelfde melding:
+    // een afwijkende tekst ("geen toegang" vs "niet gevonden") verried anders of het id bestaat maar
+    // bij een andere samenwerking hoort (CWE-203 existence-oracle).
     performanceFindUnique.mockResolvedValue({
       collaborationId: "col-eigen",
       collaboration: { freelancer: { userId: "iemand-anders" } },
     });
-
-    const result = await editAndResubmitPerformanceAction(
+    const notOwned = await editAndResubmitPerformanceAction(
       "perf-1",
       "col-eigen",
       null,
       milestoneForm(),
     );
 
-    expect(result).toMatch(/geen toegang/i);
+    performanceFindUnique.mockResolvedValue(null);
+    const unknown = await editAndResubmitPerformanceAction(
+      "perf-1",
+      "col-eigen",
+      null,
+      milestoneForm(),
+    );
+
+    expect(notOwned).toBe(unknown);
+    expect(notOwned).toBe("Prestatie niet gevonden.");
     expect(updatePerformance).not.toHaveBeenCalled();
   });
 

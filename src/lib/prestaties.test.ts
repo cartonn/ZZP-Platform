@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { exportPrestatiesCsv, type PrestatieOverzicht } from "./prestaties";
+import { approvablePerformances, exportPrestatiesCsv, type PrestatieOverzicht } from "./prestaties";
 
 const base: PrestatieOverzicht = {
   id: "p1",
@@ -18,6 +18,7 @@ const base: PrestatieOverzicht = {
   approvedAt: new Date("2026-02-02"),
   rejectedAt: null,
   rejectionReason: null,
+  disputed: false,
 };
 
 describe("exportPrestatiesCsv", () => {
@@ -111,5 +112,30 @@ describe("exportPrestatiesCsv", () => {
     expect(lines).toHaveLength(3); // header + 2 rijen
     expect(lines[1]).toContain("Fatima Ouahabi");
     expect(lines[2]).toContain("Jan de Vries");
+  });
+});
+
+describe("approvablePerformances — wat de opdrachtgever écht kan keuren", () => {
+  const submitted: PrestatieOverzicht = { ...base, id: "s1", status: "SUBMITTED" };
+
+  it("neemt een ingediende, niet-disputed prestatie mee", () => {
+    expect(approvablePerformances([submitted]).map((p) => p.id)).toEqual(["s1"]);
+  });
+
+  it("sluit een ingediende prestatie van een BEVROREN (disputed) samenwerking uit", () => {
+    // Kernregressie (DOEL-1b): approvePerformance weigert server-side op een disputed samenwerking,
+    // dus dit scherm mag 'm niet als goed te keuren tellen — anders een niet-verdwijnende, falende actie
+    // die badge/`/acties`/cascade tegenspreekt.
+    const frozen: PrestatieOverzicht = { ...submitted, id: "s2", disputed: true };
+    expect(approvablePerformances([submitted, frozen]).map((p) => p.id)).toEqual(["s1"]);
+  });
+
+  it("sluit niet-ingediende statussen uit (concept/goedgekeurd/afgekeurd)", () => {
+    const draft: PrestatieOverzicht = { ...base, id: "d1", status: "DRAFT" };
+    const approved: PrestatieOverzicht = { ...base, id: "a1", status: "APPROVED" };
+    const rejected: PrestatieOverzicht = { ...base, id: "r1", status: "REJECTED" };
+    expect(approvablePerformances([draft, approved, rejected, submitted]).map((p) => p.id)).toEqual(
+      ["s1"],
+    );
   });
 });

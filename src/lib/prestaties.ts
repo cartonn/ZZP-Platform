@@ -23,6 +23,15 @@ export interface PrestatieOverzicht {
   approvedAt: Date | null;
   rejectedAt: Date | null;
   rejectionReason: string | null;
+  /**
+   * De samenwerking staat in dispuut (bevroren). Elke andere goedkeur-oppervlak — de nav-badge
+   * (`pendingPerformances`), `/acties` (`performanceApproveTask`) en de cascade-fase — sluit een
+   * disputed samenwerking uit, en `approvePerformance` weigert server-side (`assertNotDisputed`).
+   * Zonder deze vlag toonde `/prestaties` een SUBMITTED-prestatie van een bevroren deal alsnog als
+   * "wacht op goedkeuring" met een "Keuren →"-actie die nooit verdween en server-side faalde — een
+   * DOEL-1b-tegenspraak. De actionable-tellingen filteren hierop.
+   */
+  disputed: boolean;
 }
 
 /** Haalt alle prestaties op van ZZP'ers over alle samenwerkingen van de opdrachtgever. */
@@ -39,6 +48,7 @@ export async function getPrestatiesForClient(userId: string): Promise<PrestatieO
           id: true,
           ortProfile: true,
           ortCustomRates: true,
+          disputedAt: true,
           job: { select: { title: true } },
           freelancer: { select: { user: { select: { name: true } } } },
         },
@@ -86,8 +96,19 @@ export async function getPrestatiesForClient(userId: string): Promise<PrestatieO
       approvedAt: p.approvedAt,
       rejectedAt: p.rejectedAt,
       rejectionReason: p.rejectionReason,
+      disputed: col.disputedAt != null,
     };
   });
+}
+
+/**
+ * De prestaties die de opdrachtgever daadwerkelijk kan goedkeuren: ingediend (`SUBMITTED`) én niet
+ * bevroren door een dispuut. Eén bron voor zowel de "wacht op goedkeuring"-telling als de bulk-selectie,
+ * zodat `/prestaties` niet als enig oppervlak een bevroren, server-side falende "Keuren →"-actie toont
+ * (badge/`/acties`/cascade sluiten disputed al uit; `approvePerformance` weigert via `assertNotDisputed`).
+ */
+export function approvablePerformances(rows: PrestatieOverzicht[]): PrestatieOverzicht[] {
+  return rows.filter((p) => p.status === "SUBMITTED" && !p.disputed);
 }
 
 // ---------------------------------------------------------------------------

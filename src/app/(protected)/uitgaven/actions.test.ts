@@ -43,7 +43,13 @@ vi.mock("@/lib/db", () => ({
       }),
     ),
     expense: {
-      findUnique: vi.fn(async () => expenseState.found),
+      // findFirst scoopt op { id, userId }: geeft de rij alleen terug als hij van de actor is —
+      // andermans uitgave "bestaat" per constructie niet voor deze query (anti-oracle).
+      findFirst: vi.fn(async (args: { where: { id: string; userId: string } }) =>
+        expenseState.found && expenseState.found.userId === args.where.userId
+          ? expenseState.found
+          : null,
+      ),
     },
   },
 }));
@@ -161,11 +167,17 @@ describe("deleteExpense", () => {
     expect(tx.expenseDelete).not.toHaveBeenCalled();
   });
 
-  it("weigert het verwijderen van andermans uitgave", async () => {
+  it("weigert andermans uitgave met exact dezelfde melding als een onbekend id (anti-oracle)", async () => {
+    // Andermans (bestaand) id en een onbekend id geven per constructie dezelfde fout-state:
+    // geen throw-vs-return-verschil waarmee het bestaan van andermans uitgave af te tasten is (CWE-203).
     expenseState.found = { id: "exp-1", userId: "someone-else" };
-    await expect(deleteExpense(undefined, form({ id: "exp-1" }))).rejects.toBeInstanceOf(
-      FakeAuthError,
-    );
+    const notOwned = await deleteExpense(undefined, form({ id: "exp-1" }));
+
+    expenseState.found = null;
+    const unknown = await deleteExpense(undefined, form({ id: "exp-1" }));
+
+    expect(notOwned).toEqual(unknown);
+    expect(notOwned?.error).toBe("Uitgave niet gevonden.");
     expect(tx.expenseDelete).not.toHaveBeenCalled();
   });
 });
