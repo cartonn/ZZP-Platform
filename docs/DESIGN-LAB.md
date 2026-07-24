@@ -1333,6 +1333,36 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   (WCAG focus-states, status label+icoon, motion-reduce) en onderscheidend van de bestaande 430.
 - **Totaal nu op `/ontwerp`: 440 concepten** (reeks 44: 431–440).
 
+## Reeks 46 — concepten 451–460 (2026-07-24)
+
+- **451 Origami** — gevouwen papier / facet-diepte (#f7f5f0 + indigo #4457d6): facet-vlakken met
+  lichtval, scherpe vouwlijn-dividers en geknikte hoeken via clip-path — elegant-craft en licht.
+- **452 Balpen** — handgetekende biro-annotatie (#fbfaf6 + inkt #1e3a8a): ruitjespapier met
+  omcirkelde cijfers, pijl-annotaties en schets-onderstrepingen bovenop een nette, leesbare UI.
+- **453 Aquarel** — natte-in-natte waterverf (#fbf9f5 + turquoise #3aa6b9): organische wassingen met
+  zachte bleed-randen en pigment-vlekken achter de data — kalm, luchtig en licht.
+- **454 Apotheek** — receptuur-etiketten & amberglas (#f5ece0 + apotheker-groen #1f6b4f): kraft-etiketten,
+  gestempelde geverifieerd-zegels en amberglas — verificatie als verzegelde potjes, klassiek-betrouwbaar.
+- **455 Sterrenkaart** — hemelatlas / sterrenbeeld-lijnen (#0b1533 + goud #d9b25a): gouden constellatie-lijnen
+  verbinden datapunten, KPI's als magnitude-sterren, ecliptica-boog — premium-dark en contemplatief.
+- **456 Mycelium** — vertakkend sporen-netwerk (#211d16 + mos #7fae5a): organische draden verbinden nodes en
+  matching vertakt naar opdrachten — biofiel, aards-donker en connectief.
+- **457 Glasvezel** — lichtdraden door donker / fiber-optic (#0a0e17 + cyaan #35e0d8): glow-strengen in
+  cyaan-naar-magenta met bloomende lichtpunt-uiteinden — premium-dark tech, matching als lichtpad.
+- **458 Craquelé** — porselein-craquelé (#f4efe6 + celadon #2f4f4a): warm ivoor-glazuur met haarfijne
+  craquelé-netwerken als subtiele textuur — museaal, premium-licht craft.
+- **459 Risograaf** — overdruk spot-inkt & halftone (#f3efe4 + fluor-roze #ff4f79): twee fluor-inkten die
+  overdrukken met halftone-korrel en speelse mis-registratie op mat papier — bold, energiek print-craft.
+- **460 Grootboek** — dubbel-boekhouden ledger (#f6f3e9 + ledger-rood #b02a2a): groen-gelinieerd kolompapier
+  met rode kantlijn, tabulaire cijfers en debet/credit-kolommen — data-dicht, boekhoudkundig.
+- Onderzochte 2026-trends deze reeks: **papieren facet-diepte & vouw-structuur (origami)**; **hand-drawn
+  annotatie als menselijke laag op strakke UI (balpen)**; **organische waterverf-wassingen (calm interface)**;
+  **craft-als-vertrouwenstaal (apotheek-receptuur, porselein-craquelé)**; **celestiale/biofiele connective UI
+  (sterrenkaart-constellaties, mycelium-netwerken)**; **fiber-optic lichtdraden in premium-dark**; **risograph
+  overprint & halftone print-craft**; **ledger-data-dichtheid met tabulaire cijfers** — elk deterministisch,
+  toegankelijk (WCAG focus-states, status label+icoon, motion-reduce) en onderscheidend van de bestaande 450.
+- **Totaal nu op `/ontwerp`: 460 concepten** (reeks 46: 451–460).
+
 ## Reeks 45 — concepten 441–450 (2026-07-21)
 
 - **441 Kelp** — onderwater-kelpbos / organische diepte (#07211f + amber #f5b342): verticaal ritme met
