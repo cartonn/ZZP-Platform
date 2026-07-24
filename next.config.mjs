@@ -58,9 +58,26 @@ const noindexHeaders =
     ? []
     : [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
 
+// Server-action body-limiet. Uploads (documenten/certificaten/bedrijfslogo) lopen via server
+// actions ("use server" + formData, zie src/app/(protected)/{documenten,certificaten,bedrijf}/
+// actions.ts). Next.js kapt de request-body van een server action standaard op 1 MB af — kleiner
+// dan onze upload-ceiling (MAX_UPLOAD_BYTES = 10 MB in src/lib/services/storage.ts). Zonder deze
+// override wordt een reëel gescande VOG-/diploma-PDF (2–5 MB) stil geweigerd vóór validateUpload
+// draait: de kernfunctie (veilige documentupload) breekt op echte bestanden, met een generieke
+// "Body exceeded 1 MB limit"-fout i.p.v. onze nette UploadValidationError.
+// We tillen de limiet naar de upload-ceiling (10 MB) + ruime headroom voor multipart-boundaries en
+// meegestuurde form-velden. Bron van waarheid voor de ceiling blijft MAX_UPLOAD_BYTES;
+// src/lib/services/upload-body-limit.test.ts bewaakt de drift tussen beide.
+const SERVER_ACTION_BODY_SIZE_LIMIT = "12mb";
+
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: SERVER_ACTION_BODY_SIZE_LIMIT,
+    },
+  },
   async headers() {
     return [
       { source: "/:path*", headers: [...securityHeaders, ...noindexHeaders] },
