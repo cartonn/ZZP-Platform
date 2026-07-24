@@ -38,11 +38,14 @@
 >
 > **GEPARKEERD uit deze run (repro + prioriteit):**
 >
-> - **MED (DOEL 1b, badge-gat):** de `/kandidaten`-nav-badge telt alleen `newApplications` (`status:"NEW"`,
->   `signals.ts:405`), maar `proposeCollaborationTask` (href `/kandidaten?open=…`) en `staleApplicationsTask`
->   (href `/kandidaten`) verschijnen wél op `/acties`+rail+`/acties`-badge (`pending-tasks.ts:720-738`). Een opdrachtgever
->   met 0 NEW maar een geaccepteerde-kandidaat-in-limbo ziet géén badge op `/kandidaten`. **Fix-richting:** tel de twee
->   `/kandidaten`-taakpredicaten mee in de badge (zoals run 46 voor client-compliance/no-show deed). Prio: MED.
+> - ~~**MED (DOEL 1b, badge-gat):** de `/kandidaten`-nav-badge telt alleen `newApplications` (`status:"NEW"`),
+>   maar `proposeCollaborationTask` (geaccepteerd-zonder-voorstel) en `staleApplicationsTask` (VIEWED/SHORTLIST
+>   te lang onbeslist) verschijnen wél op `/acties`+rail. Een opdrachtgever met 0 NEW maar een
+>   geaccepteerde-kandidaat-in-limbo zag géén badge op `/kandidaten`.~~ **GEDAAN 2026-07-24 (PR volgt):**
+>   `navBadges` CLIENT-tak telt nu de drie niet-overlappende predicaten (NEW + stale VIEWED/SHORTLIST +
+>   geaccepteerd-zonder-voorstel) via de bestaande pure helpers (`summarizeStaleClientApplications`,
+>   `pendingCollaborationProposals`) — badge = som van de losse `/acties`-taken. +5 tests
+>   (`signals.badge-gaps-run47.test.ts`).
 > - **HOOG-maar-dode-code (drift-hazard):** `freelancerNextActions`/`clientNextActions`/`adminNextActions`
 >   (`src/lib/next-actions.ts:101/198/284`) hebben **nul productie-callers** (alleen `franchiserNextActions` is gewired)
 >   en zijn materieel gedivergeerd van de levende engine (`adminNextActions` bevat zelfs een fantoom-actie

@@ -60,7 +60,10 @@ vi.mock("@/lib/db", () => ({
     shiftHandoff: { count: vi.fn(() => Promise.resolve(0)) },
     user: { count: (a: Where) => userCount(a) },
     company: { findUnique: vi.fn(() => Promise.resolve({ id: "c-1" })) },
-    application: { count: vi.fn(() => Promise.resolve(0)) },
+    application: {
+      count: vi.fn(() => Promise.resolve(0)),
+      findMany: vi.fn(() => Promise.resolve([])),
+    },
     job: { count: vi.fn(() => Promise.resolve(0)) },
     performance: { count: vi.fn(() => Promise.resolve(0)) },
   },
