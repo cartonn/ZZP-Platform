@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — persona-sweep (run 48): existence-oracle in diensten-import (MED/security) + next-action-prioriteit + dode-code
+
+Kritische-gebruiker-sweep over alle vier rollen (DOEL 1/1b/2) met drie parallelle Opus-audits
+(authz/IDOR/cross-tenant/document-privacy; malicieuze invoer + statusovergangen; next-action-correctheid).
+**3 bevindingen gefixt, 2 geparkeerd** (zie `docs/PERSONA-SWEEP-BACKLOG.md` run 48):
+
+- **MED/security (CWE-203 existence-oracle):** `importDienstenAction`
+  (`src/app/(protected)/diensten/importeer/actions.ts`) gaf onbekend-id vs andermans-samenwerking
+  onderscheidbare, teruggegeven `errors[]` → een ZZP'er kon andermans samenwerking aftasten. Nu één
+  ononderscheidbare melding (`if (!col || !owner)`). Nieuw testbestand `actions.test.ts`.
+- **MED (DOEL 1b):** `reviewLeaveTask` (`src/lib/actions/tasks.ts`) escaleerde bij een bijna-gesloten
+  (onherstelbaar) beoordelingsvenster wél de toon maar niet de prioriteit (bleef 24) → kon van de 6-item
+  dashboard-rail vallen onder cosmetische nudges. Nieuwe band `P.reviewPromptClosing` (48); prioriteit
+  bumpt mee met de toon. +2 tests (`tasks.test.ts`).
+- **LOW (drift-hazard, zelfde klasse als #902):** twee dode operationele takken + interfaces uit
+  `franchiserNextActions` (`src/lib/next-actions.ts`) verwijderd (geen productie-caller; de echte
+  operationele taken emit `franchiserTasks` al apart). `next-actions.test.ts` gesnoeid.
+
+**Checks:** typecheck ✓ · lint ✓ · test 4911/4911 ✓ · build ✓ · prettier ✓.
+
 ## 2026-07-24 — routine: verwijder de dode parallelle next-action-engines (drift-hazard)
 
 **Wat:** de next-action-engine had twee parallelle, dode aggregaat-modules naast de levende

@@ -70,6 +70,7 @@ export const P = {
   applications: 50, // nieuwe reacties
   collaborationRenewal: 46, // lopende samenwerking nadert/passeert haar einddatum — plan tijdig een vervolg (beide partijen)
   availabilityStale: 40, // gedeelde beschikbaarheidsagenda verlopen — findability-nudge (ZZP'er)
+  reviewPromptClosing: 48, // beoordelingsvenster sluit bijna (≤3 dagen) — daarna nooit meer te doen (anti-vergeldingsslot), dus urgenter dan cosmetische nudges
   completeness: 30, // profiel/bedrijf onvolledig (cosmetisch)
   reviewPrompt: 24, // afgeronde samenwerking nog te beoordelen (blind venster open) — reputatie-nudge
   drafts: 20, // concept-opdrachten
@@ -97,39 +98,14 @@ export interface FranchiserActionInput {
   rosterFreelancers: number;
   /** Opdrachtgevers zonder ook maar één gepubliceerde dienst. */
   companiesWithoutDiensten: number;
-  /**
-   * Gepubliceerde, ongedekte diensten die ≥ de drempel dagen open staan zonder plaatsing —
-   * oudste eerst (de aanroeper sorteert). Elk item wordt één concrete actie.
-   */
-  staleDiensten?: readonly FranchiserStaleDienst[];
-  /**
-   * Roster-ZZP'ers die (nog) niet inzetbaar zijn — een ontbrekend/verlopen verplicht document of
-   * niet-geverifieerde identiteit blokkeert plaatsing. Zelfde inzetbaarheid-helper als /franchise/zzpers.
-   */
-  notEngageable?: readonly FranchiserNotEngageable[];
-}
-
-/** Eén gepubliceerde dienst die te lang ongedekt open staat. */
-export interface FranchiserStaleDienst {
-  id: string;
-  title: string;
-  /** Kalenderdagen dat de dienst open staat (server berekent). */
-  openDays: number;
-}
-
-/** Eén roster-ZZP'er die (nog) niet inzetbaar is, met de blokkerende reden(en). */
-export interface FranchiserNotEngageable {
-  id: string;
-  name: string;
-  /** Blokkerende redenen (bv. "VOG ontbreekt"); leeg → generieke "verificatie nog niet compleet". */
-  blockers: readonly string[];
 }
 
 /**
  * Geleide opzet van een franchise: toont de eerstvolgende, concrete stap(pen) om de tenant
- * werkend te krijgen — opdrachtgever → dienst → roster. Begeleidend (tone "info"), niet
- * alarmerend. Zodra de franchise draait komen de operationele attentiepunten erbij: roster-ZZP'ers
- * die niet inzetbaar zijn en gepubliceerde diensten die te lang ongedekt open staan (tone "attention").
+ * werkend te krijgen — opdrachtgever → dienst → roster. Begeleidend (tone "info"), niet alarmerend.
+ * De operationele attentiepunten (roster-ZZP'ers die niet inzetbaar zijn, diensten die te lang open
+ * staan) leven op item-niveau in `pending-tasks.ts` (`franchiserTasks`) — niet hier: deze aggregator
+ * is alleen gewired voor de guided-setup-tak (`franchiseGuidedSetupTasks`).
  */
 export function franchiserNextActions(input: FranchiserActionInput): NextAction[] {
   const actions: NextAction[] = [];
@@ -170,30 +146,6 @@ export function franchiserNextActions(input: FranchiserActionInput): NextAction[
       href: "/franchise/zzpers",
       tone: "info",
       priority: P.franchiserRoster,
-    });
-  }
-
-  // Operationeel — draait de franchise, dan blijven dit de dingen die aandacht vragen. Roster-ZZP'ers
-  // die niet inzetbaar zijn (blokkeert plaatsing) wegen zwaarder dan een ongedekte dienst.
-  for (const z of input.notEngageable ?? []) {
-    const reason = z.blockers.length ? formatMissing(z.blockers) : "verificatie nog niet compleet";
-    actions.push({
-      id: `franchiser-not-engageable-${z.id}`,
-      title: `${z.name} is nog niet inzetbaar — ${reason}`,
-      href: `/franchise/zzpers/${z.id}`,
-      tone: "attention",
-      priority: P.franchiserRosterNotEngageable,
-    });
-  }
-  // Ongedekte diensten die te lang open staan — oudste eerst (aanroeper sorteert), max 3 zodat de
-  // lijst rustig blijft; de volledige lijst staat op /franchise/diensten.
-  for (const d of (input.staleDiensten ?? []).slice(0, 3)) {
-    actions.push({
-      id: `franchiser-stale-service-${d.id}`,
-      title: `Dienst ${d.title} staat ${plural(d.openDays, "dag", "dagen")} open zonder plaatsing`,
-      href: `/franchise/diensten/${d.id}`,
-      tone: "attention",
-      priority: P.franchiserServiceStale,
     });
   }
 

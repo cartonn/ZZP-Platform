@@ -255,16 +255,22 @@ describe("task builders", () => {
     expect(task.priority).toBeGreaterThan(P.drafts);
   });
 
-  it("beoordelings-nudge: bijna gesloten venster (≤3 dagen) wordt attention", () => {
+  it("beoordelings-nudge: bijna gesloten venster (≤3 dagen) wordt attention én escaleert de prioriteit", () => {
     const task = reviewLeaveTask("collab-9", "Klus", "Julia", 2);
     expect(task.tone).toBe("attention");
     expect(task.subtitle).toContain("2 dagen");
+    // Prioriteit escaleert mee met de toon: een bijna-gesloten (onherstelbaar) venster mag niet
+    // onder cosmetische info-nudges van de dashboardrail vallen.
+    expect(task.priority).toBe(P.reviewPromptClosing);
+    expect(task.priority).toBeGreaterThan(P.completeness);
+    expect(task.priority).toBeGreaterThan(P.availabilityStale);
   });
 
-  it("beoordelings-nudge: laatste dag toont 'venster sluit vandaag'", () => {
+  it("beoordelings-nudge: laatste dag toont 'venster sluit vandaag' met geëscaleerde prioriteit", () => {
     const task = reviewLeaveTask("collab-9", "Klus", "Julia", 0);
     expect(task.tone).toBe("attention");
     expect(task.subtitle).toContain("venster sluit vandaag");
+    expect(task.priority).toBe(P.reviewPromptClosing);
   });
 
   it("uitnodiging-respons: link-taak naar de opdracht, benoemt opdrachtgever + leeftijd", () => {
