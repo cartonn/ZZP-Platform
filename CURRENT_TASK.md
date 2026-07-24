@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Opdrachtgever-spreiding (omzetconcentratie / DBA-afhankelijkheidssignaal) voor de ZZP'er op /inzicht (2026-07-24, PR #895)** —
+> de ZZP'er zag op `/inzicht` geen signaal over afhankelijkheid van één opdrachtgever (bedrijfsrisico én Wet-DBA-schijnzelfstandigheid).
+> De DBA-monitor berekende die concentratie al (`revenueConcentrationPct`, drempel 80%) maar vuurde alleen reactief per-samenwerking naar
+> admin/partijen. Nu een proactieve **Opdrachtgever-spreiding**-widget (alleen ZZP'er): grootste opdrachtgever + aandeel%, top-4 met
+> aandeelbalken, toon-badge Goed gespreid / Let op spreiding (≥50%) / Sterke afhankelijkheid (≥ DBA-drempel), met verplichte
+> `DBA_DISCLAIMER`. Pure `summarizeClientConcentration` + loader `getFreelancerClientConcentration` hergebruiken **exact dezelfde
+> OMZET-basis, afronding én DBA-drempel** als de admin DBA-monitor → geen drift/tegenspraak. `null` zonder omzet; één klant = 100% =
+> sterkste signaal. Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. +9 tests. Gate: typecheck, lint, unit-tests,
+> build, prettier groen. **Bestanden:** `src/lib/freelancer-client-concentration.ts` (+ test), `src/app/(protected)/inzicht/page.tsx`.
+>
 > Gedaan (niet opnieuw): **Tijd tot plaatsing (time-to-fill) KPI op /inzicht (bemiddelaar) (2026-07-23, PR #881)** —
 > de bemiddelaar zag op `/inzicht` de vervullingsgraad (Vulgraad, % diensten vervuld) maar niet de snelheid van plaatsen.
 > Nu een compacte regel **"Gem. tijd tot plaatsing · X dagen"** (met "snelste Y") in de Vulgraad-widget — tenant-breed

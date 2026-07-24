@@ -10,6 +10,7 @@ import {
   Target,
   Building2,
   Timer,
+  Users,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireActor, type Actor } from "@/lib/authz";
@@ -17,6 +18,11 @@ import { type UserRole } from "@/lib/enums";
 import { computeTenantFee } from "@/lib/tenant-fee";
 import { getFreelancerStats } from "@/lib/freelancer-stats";
 import { getFreelancerMembership } from "@/lib/freelancer-membership";
+import {
+  getFreelancerClientConcentration,
+  type ClientConcentration,
+} from "@/lib/freelancer-client-concentration";
+import { DBA_DISCLAIMER } from "@/lib/config";
 import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-quality";
 import { getClientStats } from "@/lib/client-stats";
 import { getClientTimeToFill, getTenantTimeToFill } from "@/lib/time-to-fill";
@@ -201,13 +207,84 @@ function UrencriteriumCard({ summary }: { summary: HoursCriterionSummary }) {
   );
 }
 
+const CONCENTRATION_BADGE: Record<
+  ClientConcentration["tone"],
+  { label: string; variant: "success" | "warning" | "danger" }
+> = {
+  good: { label: "Goed gespreid", variant: "success" },
+  watch: { label: "Let op spreiding", variant: "warning" },
+  concentrated: { label: "Sterke afhankelijkheid", variant: "danger" },
+};
+
+function ClientConcentrationWidget({ concentration }: { concentration: ClientConcentration }) {
+  const badge = CONCENTRATION_BADGE[concentration.tone];
+  const barTone =
+    concentration.tone === "concentrated"
+      ? "bg-danger"
+      : concentration.tone === "watch"
+        ? "bg-warning"
+        : "bg-success";
+  const caption =
+    concentration.tone === "concentrated"
+      ? `${concentration.top.sharePct}% van je omzet komt van ${concentration.top.clientName}. Sterke afhankelijkheid van één opdrachtgever is een bedrijfsrisico en kan een aandachtspunt zijn voor de Wet DBA (schijnzelfstandigheid). Meer opdrachtgevers spreiden dat risico.`
+      : concentration.tone === "watch"
+        ? `${concentration.top.sharePct}% van je omzet komt van ${concentration.top.clientName}. Nog gezond, maar houd de spreiding in de gaten — meer opdrachtgevers maken je minder afhankelijk.`
+        : `Je omzet is over ${plural(concentration.clientCount, "opdrachtgever", "opdrachtgevers")} verdeeld. Een gezonde spreiding maakt je minder afhankelijk van één klant.`;
+  return (
+    <BiWidget title="Opdrachtgever-spreiding">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Users className="size-4 shrink-0" aria-hidden />
+            <span>
+              Grootste opdrachtgever:{" "}
+              <span className="font-medium text-foreground">{concentration.top.clientName}</span>
+            </span>
+          </p>
+          <Badge variant={badge.variant} className="whitespace-nowrap">
+            {badge.label}
+          </Badge>
+        </div>
+        <ul className="space-y-2.5">
+          {concentration.shares.map((share, i) => (
+            <li key={share.clientUserId} className="space-y-1">
+              <div className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="min-w-0 truncate">{share.clientName}</span>
+                <span className="shrink-0 font-mono tabular-nums text-muted-foreground">
+                  {formatEuro(share.cents)} · {share.sharePct}%
+                </span>
+              </div>
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-valuenow={share.sharePct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`Aandeel ${share.clientName}`}
+              >
+                <div
+                  className={`h-full rounded-full ${i === 0 ? barTone : "bg-muted-foreground/50"}`}
+                  style={{ width: `${Math.max(share.sharePct > 0 ? 2 : 0, share.sharePct)}%` }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="text-sm text-muted-foreground">{caption}</p>
+        <p className="text-xs text-muted-foreground">{DBA_DISCLAIMER}</p>
+      </div>
+    </BiWidget>
+  );
+}
+
 async function FreelancerInzicht({ userId }: { userId: string }) {
-  const [s, membership, trend, quality, hoursCriterion] = await Promise.all([
+  const [s, membership, trend, quality, hoursCriterion, concentration] = await Promise.all([
     getFreelancerStats(userId),
     getFreelancerMembership(userId),
     getFreelancerRevenueTrend(userId),
     getDeliveryQuality(userId),
     getHoursCriterionSummary(userId),
+    getFreelancerClientConcentration(userId),
   ]);
   if (!s) {
     return (
@@ -238,6 +315,8 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
       />
 
       {hoursCriterion && <UrencriteriumCard summary={hoursCriterion} />}
+
+      {concentration && <ClientConcentrationWidget concentration={concentration} />}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <StatusDonutWidget

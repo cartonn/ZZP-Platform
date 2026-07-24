@@ -3,6 +3,35 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-24 — opdrachtgever-spreiding (omzetconcentratie / DBA-afhankelijkheidssignaal) voor de ZZP'er op /inzicht
+
+**Wat:** de ZZP'er zag op `/inzicht` betaalde omzet, urencriterium, win-rate, match-score en
+leverbetrouwbaarheid, maar nergens hóe afhankelijk hij is van één opdrachtgever. Dat is dubbel relevant:
+een bedrijfsrisico (valt de grootste klant weg, dan valt een groot deel van de omzet weg) én een Wet-DBA-
+risicosignaal (schijnzelfstandigheid — een dominante opdrachtgever is een rode vlag). De DBA-monitor
+berekende die concentratie al (`revenueConcentrationPct`, drempel default 80%) maar vuurde alleen
+**reactief per samenwerking** een notificatie naar admin/partijen zodra de drempel gepasseerd was; de
+ZZP'er had geen **proactief, portefeuille-breed** overzicht om te spreiden vóór het een probleem wordt.
+
+Nu een **Opdrachtgever-spreiding**-widget op `/inzicht` (alleen ZZP'er): grootste opdrachtgever + aandeel%,
+top-4 opdrachtgevers met aandeelbalken, en een glanceable toon-badge — Goed gespreid / Let op spreiding
+(≥50%) / Sterke afhankelijkheid (≥ DBA-drempel). Draagt de verplichte `DBA_DISCLAIMER` (Besluit 2 — geen
+juridisch advies).
+
+**Grens/architectuur:** pure `summarizeClientConcentration` (`src/lib/freelancer-client-concentration.ts`)
+
+- loader `getFreelancerClientConcentration` hergebruiken **exact dezelfde OMZET-grootboekbasis, afronding
+  én DBA-drempel** als de admin DBA-monitor (`dba-monitor.ts`) → de ZZP-badge kan nooit driften of het
+  admin-signaal tegenspreken. `null` zonder omzet; één betalende opdrachtgever (100%) geeft bewust wél het
+  sterkste signaal. Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak; scoping op
+  `ownerUserId` (eigen omzet). Het woord "AI" komt nergens voor. +9 tests
+  (`freelancer-client-concentration.test.ts`). Gate: typecheck, lint, unit-tests, build, prettier groen.
+  **Bestanden:** `src/lib/freelancer-client-concentration.ts` (+ test), `src/app/(protected)/inzicht/page.tsx`.
+
+> **Poort-noot:** de `audit`-check is momenteel **rood op `main`** door twee kritieke Auth.js-CVE's (fix
+> in-flight: PR #890). Pre-existing base-branch-failure, niet door deze (puur additieve) diff veroorzaakt;
+> wordt groen zodra #890 gemerged is en deze branch daarop rebaset.
+
 ## 2026-07-23 — security/privacy-audit: bron-IP op beveiligingsincidenten geredigeerd na venster (HOOG, AVG)
 
 **Wat:** orchestrator (Opus 4.8) + 3 parallelle Opus-audits op niet-overlappende oppervlakken —
