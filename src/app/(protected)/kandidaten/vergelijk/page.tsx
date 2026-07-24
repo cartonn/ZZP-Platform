@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Award, Trophy, Users } from "lucide-react";
+import { ArrowLeft, Award, CalendarCheck, Gauge, ShieldCheck, Trophy, Users } from "lucide-react";
 import { requireRole } from "@/lib/authz";
 import { getTranslator } from "@/lib/i18n/server";
 import { prisma } from "@/lib/db";
@@ -25,6 +25,7 @@ import { getDeliveryQualityForProfiles } from "@/lib/data/freelancer-delivery-qu
 import { getReviewRatingsForCandidates } from "@/lib/data/candidate-reviews";
 import { getSharedHistoryForCandidates } from "@/lib/data/candidate-history";
 import { type CompareCandidate, buildCandidateComparison } from "@/lib/candidate-compare";
+import { type ApplicantFieldSummary, summarizeApplicantField } from "@/lib/applicant-field";
 import { rankCandidates } from "@/lib/candidate-ranking";
 import { firstName } from "@/lib/kandidaten-triage";
 import {
@@ -170,6 +171,9 @@ export default async function VergelijkKandidatenPage({
 
   const comparison = buildCandidateComparison(candidates);
   const ranking = rankCandidates(candidates);
+  // Poolsamenvatting: de "vorm van het veld" over exact de kandidaten die naast elkaar staan
+  // (matchspreiding, compliant-deel, beschikbaar op de startdatum). Pure afleiding, geen extra query.
+  const field = summarizeApplicantField(candidates);
 
   // Lege cel: geen kille "—" maar een leesbaar, gedempt signaal dat er (nog) geen gegeven is.
   const noData = <span className="text-muted-foreground">{t("Nog geen gegevens")}</span>;
@@ -201,6 +205,7 @@ export default async function VergelijkKandidatenPage({
         </Card>
       ) : (
         <div className="space-y-4">
+          {field && <ApplicantFieldSummaryCard field={field} startDate={job.startDate} t={t} />}
           {ranking.recommendedId && ranking.recommendedName && (
             <div className="flex items-start gap-3 rounded-lg border border-accent bg-accent/40 p-4">
               <Award className="mt-0.5 size-5 shrink-0 text-accent-foreground" aria-hidden />
@@ -389,6 +394,78 @@ export default async function VergelijkKandidatenPage({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Compacte poolsamenvatting bovenaan de vergelijking: het reactieveld in één oogopslag. Toont alleen
+ * de maten die zin hebben (matchspreiding, compliant-deel, beschikbaar op de startdatum) — een maat
+ * zonder gegevens (bv. geen certificaateis) valt weg i.p.v. een misleidende "0 van 0".
+ */
+function ApplicantFieldSummaryCard({
+  field,
+  startDate,
+  t,
+}: {
+  field: ApplicantFieldSummary;
+  startDate: Date | null;
+  t: (key: string) => string;
+}) {
+  const tiles: { icon: typeof Users; label: string; value: string; hint?: string }[] = [
+    {
+      icon: Users,
+      label: t("Reacties"),
+      value: String(field.total),
+      hint: t("naast elkaar"),
+    },
+  ];
+  if (field.match) {
+    tiles.push({
+      icon: Gauge,
+      label: t("Mediane match"),
+      value: `${field.match.median}%`,
+      hint: `${t("spreiding")} ${field.match.min}–${field.match.max}%`,
+    });
+  }
+  if (field.compliant) {
+    tiles.push({
+      icon: ShieldCheck,
+      label: t("Volledig compliant"),
+      value: `${field.compliant.count}/${field.compliant.known}`,
+      hint: t("voldoen aan de eisen"),
+    });
+  }
+  if (field.availableOnStart) {
+    tiles.push({
+      icon: CalendarCheck,
+      label: t("Beschikbaar op start"),
+      value: `${field.availableOnStart.count}/${field.availableOnStart.known}`,
+      hint: startDate ? formatDateShortNl(startDate) : undefined,
+    });
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t("Reactieveld in één oogopslag")}
+        </h2>
+        <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {tiles.map((tile) => (
+            <div key={tile.label} className="flex items-start gap-2.5">
+              <tile.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <div className="min-w-0">
+                <dd className="font-mono text-lg font-semibold tabular-nums text-foreground">
+                  {tile.value}
+                </dd>
+                <dt className="text-xs text-muted-foreground">{tile.label}</dt>
+                {tile.hint && <p className="text-[11px] text-muted-foreground/80">{tile.hint}</p>}
+              </div>
+            </div>
+          ))}
+        </dl>
+      </CardContent>
+    </Card>
   );
 }
 
