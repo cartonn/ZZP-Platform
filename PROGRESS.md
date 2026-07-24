@@ -56,6 +56,26 @@ meegenomen (OPGELOST).
 (twee-wegdeur, vóór echte VOG/diploma-data live), MIDDEL audit-retentie opt-in vs. register-belofte,
 MIDDEL `Expense.description`-erasure, LAAG Geoapify-registerentry.
 
+## 2026-07-23 — prod: machine-leesbaar operationeel-monitoring-endpoint (`/api/metrics`)
+
+**Wat:** het gat tussen `/api/health` (alleen liveness) en `/admin/systeemstatus` (admin-UI, vereist login)
+gedicht: er is nu een **machine-leesbaar metrics-endpoint** zodat een externe monitor (Prometheus-scraper of
+uptime-dienst met body-check) de dead-man's-switch-signalen kan uitlezen en er zelf op kan **alarmeren** —
+zonder dat een mens hoeft in te loggen. `GET /api/metrics` geeft de Prometheus-tekstexpositie (v0.0.4), of JSON
+via `?format=json`, met gauges: `zzp_up`, `zzp_db_reachable`, `zzp_cron_heartbeat_age_seconds`/`_ok`/`_stale`,
+`zzp_backup_heartbeat_age_seconds`/`_ok`/`_stale`, `zzp_verification_queue` (SUBMITTED-wachtrijdiepte).
+
+**Beveiliging/privacy:** dezelfde Bearer `CRON_SECRET` als de taak-/heartbeat-routes, **fail-closed** (geen
+`CRON_SECRET` → 503, verkeerd token → 401 via `authorizeCron` timing-safe), nooit gecachet (`no-store`). De
+uitvoer bevat **nooit** persoonsgegevens of secrets — alleen geaggregeerde gauges. Elke bron faalt veilig: een
+DB-ping-fout geeft `zzp_db_reachable 0` i.p.v. een 500, en de wachtrij wordt dan niet geteld. Hergebruikt de
+bestaande `getCronFreshness`/`getBackupFreshness`-lezers; de shaping/rendering is een **pure** module.
+
+**Bestanden:** `src/lib/observability/metrics.ts` (puur: `buildMetrics`/`renderPrometheus`/`metricsToJson`) +
+`src/app/api/metrics/route.ts` + 2 testbestanden (`metrics.test.ts` 10, `route.test.ts` 8 = **+15 tests**).
+`MENSENWERK.md` §11 + `PROGRESS.md` bijgewerkt (geen nieuw secret — hergebruikt `CRON_SECRET`).
+**Gate:** typecheck · lint · test · build · prettier — lokaal groen. **Volgende:** CI-poort (6 checks) → self-merge.
+
 ## 2026-07-23 — persona-sweep run 46: existence-oracle in samenwerkingen-module (HIGH) + 2 nav-badge-gaten
 
 **Wat:** kritische-gebruiker-sweep (verse prod-build + 3 parallelle Opus-audits: authz/IDOR/cross-tenant;

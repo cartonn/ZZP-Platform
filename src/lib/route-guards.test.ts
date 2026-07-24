@@ -7,6 +7,12 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/readiness")).toBe(true);
   });
 
+  it("staat het metrics-endpoint inlogvrij toe (scraper heeft geen sessie, alleen CRON_SECRET-guard)", () => {
+    // Regressie: zonder deze allowlist-entry redirect de middleware een sessieloze Prometheus-/
+    // uptime-scraper naar /login vóór de CRON_SECRET-guard draait → het endpoint is functioneel dood.
+    expect(isPublicPath("/api/metrics")).toBe(true);
+  });
+
   it("staat de betaal-webhook inlogvrij toe (provider pingt zonder sessie; verifieert zelf via provider)", () => {
     // Regressie: stond achter de inlogmuur → een live Mollie-ping werd naar /login geredirect,
     // waardoor een betaald abonnement nooit activeerde (SUBSCRIPTION_ACTIVATED bleef uit).
@@ -35,6 +41,8 @@ describe("isPublicPath", () => {
       "/api/csp-report/extra",
       // Idem voor de client-fout-ontvanger: alleen de exacte route is publiek.
       "/api/client-error/extra",
+      // Alleen de exacte metrics-route is publiek, geen subpaden.
+      "/api/metrics/extra",
       // Het ontwerp-lab is INTERN (inloggen vereist) — niet langer publiek.
       "/ontwerp",
       "/ontwerp/01",
