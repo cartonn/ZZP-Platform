@@ -266,6 +266,17 @@ describe("envWarnings", () => {
     expect(w.some((m) => /RATE_LIMIT_STORE=memory/.test(m))).toBe(true);
   });
 
+  it("waarschuwt voor SEED_DEMO=true in productie (demo-accounts + onderdrukte verifier-waarschuwingen)", () => {
+    const w = envWarnings(prod({ SEED_DEMO: "true" }));
+    expect(w.some((m) => /SEED_DEMO=true/.test(m) && /demo1234/.test(m))).toBe(true);
+  });
+
+  it("zwijgt over SEED_DEMO wanneer het niet op true staat", () => {
+    expect(envWarnings(prod({ SEED_DEMO: undefined })).some((m) => /SEED_DEMO/.test(m))).toBe(
+      false,
+    );
+  });
+
   it("waarschuwt voor een ontbrekende DB-connectielimiet op Postgres in productie", () => {
     const w = envWarnings(prod({ DATABASE_CONNECTION_LIMIT: undefined }));
     expect(w.some((m) => /DATABASE_CONNECTION_LIMIT/.test(m))).toBe(true);

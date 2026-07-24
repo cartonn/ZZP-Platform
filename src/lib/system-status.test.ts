@@ -252,6 +252,24 @@ describe("collectSystemStatus — demo-dataset staat mock-verifiers toe", () => 
   });
 });
 
+describe("collectSystemStatus — demo-dataset-posture (SEED_DEMO)", () => {
+  it("SEED_DEMO=true in productie = aandacht met bekende-wachtwoord-toelichting", () => {
+    const item = itemByKey(makeEnv({ SEED_DEMO: "true" }), "demo-data");
+    expect(item.level).toBe("attention");
+    expect(item.mode).toBe("aan");
+    expect(item.detail).toMatch(/demo1234/);
+  });
+  it("geen SEED_DEMO in productie = ok", () => {
+    const item = itemByKey(makeEnv(), "demo-data");
+    expect(item.level).toBe("ok");
+    expect(item.mode).toBe("uit");
+  });
+  it("SEED_DEMO=true buiten productie = ok (demo is daar de bedoeling)", () => {
+    const item = itemByKey(makeEnv({ NODE_ENV: "development", SEED_DEMO: "true" }), "demo-data");
+    expect(item.level).toBe("ok");
+  });
+});
+
 describe("collectSystemStatus — S3 zonder expliciete SSE", () => {
   it("STORAGE_S3_SSE=none in productie = aandacht", () => {
     const env = makeEnv({ STORAGE_DRIVER: "s3", STORAGE_S3_SSE: "none" });
