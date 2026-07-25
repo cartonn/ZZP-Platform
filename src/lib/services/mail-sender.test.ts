@@ -5,6 +5,7 @@ import {
   MailConnectivityError,
   _resetMailSender,
   ResendMailSender,
+  PostmarkMailSender,
   type MailMessage,
 } from "./mail-sender";
 import { HttpTimeoutError } from "./fetch-timeout";
@@ -21,6 +22,8 @@ afterEach(() => {
   _resetMailSender();
   delete process.env.EMAIL_DRIVER;
   delete process.env.RESEND_API_KEY;
+  delete process.env.POSTMARK_SERVER_TOKEN;
+  delete process.env.POSTMARK_MESSAGE_STREAM;
   for (const v of SMTP_VARS) delete process.env[v];
   vi.restoreAllMocks();
   vi.resetModules();
@@ -276,14 +279,150 @@ describe("getMailSender", () => {
     await expect(getMailSender().checkConnectivity()).rejects.toBeInstanceOf(MailConnectivityError);
   });
 
-  it("isMailDeliveryConfigured is true voor smtp en resend, false voor noop", () => {
+  it("isMailDeliveryConfigured is true voor smtp, resend en postmark, false voor noop", () => {
     expect(isMailDeliveryConfigured()).toBe(false);
     process.env.EMAIL_DRIVER = "smtp";
     expect(isMailDeliveryConfigured()).toBe(true);
     process.env.EMAIL_DRIVER = "resend";
     expect(isMailDeliveryConfigured()).toBe(true);
+    process.env.EMAIL_DRIVER = "postmark";
+    expect(isMailDeliveryConfigured()).toBe(true);
     process.env.EMAIL_DRIVER = "noop";
     expect(isMailDeliveryConfigured()).toBe(false);
+  });
+
+  it("geeft een PostmarkMailSender terug als EMAIL_DRIVER=postmark", () => {
+    process.env.EMAIL_DRIVER = "postmark";
+    expect(getMailSender()).toBeInstanceOf(PostmarkMailSender);
+  });
+
+  it("PostmarkMailSender.send() gooit een fout als POSTMARK_SERVER_TOKEN/EMAIL_FROM ontbreken", async () => {
+    process.env.EMAIL_DRIVER = "postmark";
+    const sender = getMailSender();
+    await expect(sender.send(msg)).rejects.toThrow("Postmark-mailkanaal is niet geconfigureerd");
+  });
+
+  it("PostmarkMailSender noemt de ontbrekende variabelen in de foutmelding", async () => {
+    process.env.EMAIL_DRIVER = "postmark";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+    const sender = getMailSender();
+    await expect(sender.send(msg)).rejects.toThrow("POSTMARK_SERVER_TOKEN");
+  });
+
+  it("PostmarkMailSender POST't naar de Postmark-API met server-token-header en de e-mailvelden", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ MessageID: "abc" }), { status: 200 }));
+
+    process.env.EMAIL_DRIVER = "postmark";
+    process.env.POSTMARK_SERVER_TOKEN = "pm_test_token";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    const sender = getMailSender();
+    await sender.send({ to: "jan@test.nl", subject: "Hoi", text: "Tekst", html: "<b>Tekst</b>" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://api.postmarkapp.com/email");
+    expect(init?.method).toBe("POST");
+    expect((init?.headers as Record<string, string>)["X-Postmark-Server-Token"]).toBe(
+      "pm_test_token",
+    );
+    const body = JSON.parse(init?.body as string);
+    expect(body).toMatchObject({
+      From: "ZZP <noreply@test.nl>",
+      To: "jan@test.nl",
+      Subject: "Hoi",
+      TextBody: "Tekst",
+      HtmlBody: "<b>Tekst</b>",
+      MessageStream: "outbound",
+    });
+  });
+
+  it("PostmarkMailSender laat HtmlBody weg als er geen html is meegegeven en respecteert POSTMARK_MESSAGE_STREAM", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+
+    process.env.EMAIL_DRIVER = "postmark";
+    process.env.POSTMARK_SERVER_TOKEN = "pm_test_token";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+    process.env.POSTMARK_MESSAGE_STREAM = "broadcasts";
+
+    await getMailSender().send({ to: "jan@test.nl", subject: "Hoi", text: "Alleen tekst" });
+
+    const body = JSON.parse(fetchMock.mock.calls[0]![1]?.body as string);
+    expect(body).not.toHaveProperty("HtmlBody");
+    expect(body.MessageStream).toBe("broadcasts");
+  });
+
+  it("PostmarkMailSender gooit een fout bij een non-2xx-respons van de API", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("invalid token", { status: 422 }));
+
+    process.env.EMAIL_DRIVER = "postmark";
+    process.env.POSTMARK_SERVER_TOKEN = "pm_bad";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await expect(getMailSender().send(msg)).rejects.toThrow("status 422");
+  });
+
+  it("PostmarkMailSender gooit HttpTimeoutError als de fetch blijft hangen", async () => {
+    process.env.POSTMARK_SERVER_TOKEN = "pm_test_token";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    const hangingFetch = ((_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          const err = new Error("The operation was aborted.");
+          err.name = "AbortError";
+          reject(err);
+        });
+      })) as unknown as typeof fetch;
+
+    const sender = new PostmarkMailSender(hangingFetch, 20);
+    await expect(sender.send(msg)).rejects.toBeInstanceOf(HttpTimeoutError);
+  });
+
+  it("PostmarkMailSender.checkConnectivity() doet een read-only GET /server met server-token-header", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ ID: 1 }), { status: 200 }));
+
+    process.env.EMAIL_DRIVER = "postmark";
+    process.env.POSTMARK_SERVER_TOKEN = "pm_test_token";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await getMailSender().checkConnectivity();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://api.postmarkapp.com/server");
+    expect(init?.method).toBe("GET");
+    expect((init?.headers as Record<string, string>)["X-Postmark-Server-Token"]).toBe(
+      "pm_test_token",
+    );
+  });
+
+  it("PostmarkMailSender.checkConnectivity() werpt MailConnectivityError met alleen de status bij een non-2xx", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("account details leak", { status: 401 }),
+    );
+
+    process.env.EMAIL_DRIVER = "postmark";
+    process.env.POSTMARK_SERVER_TOKEN = "pm_bad";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    const err = await getMailSender()
+      .checkConnectivity()
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(MailConnectivityError);
+    expect((err as Error).message).toContain("status 401");
+    expect((err as Error).message).not.toContain("account details leak");
+  });
+
+  it("PostmarkMailSender.checkConnectivity() werpt MailConnectivityError als het token ontbreekt", async () => {
+    process.env.EMAIL_DRIVER = "postmark";
+    await expect(getMailSender().checkConnectivity()).rejects.toBeInstanceOf(MailConnectivityError);
   });
 
   it("NoopMailSender logt buiten testomgeving (NODE_ENV=development)", async () => {

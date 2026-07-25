@@ -358,14 +358,22 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
    de mailverzending (in-app meldingen bestaan al) koppelt vanzelf.
    **Let op:** gebruik **geen** privé-e-mailadres in code/instellingen; gebruik een zakelijk adres.
 
-   **Code-kant GEDAAN (3-7-2026): twee productie-drivers, kies er één via `EMAIL_DRIVER`.**
+   **Code-kant GEDAAN (3-7-2026, uitgebreid 25-7-2026): drie productie-drivers, kies er één via `EMAIL_DRIVER`.**
    - `EMAIL_DRIVER=smtp` — eigen SMTP-relay (`EMAIL_SMTP_HOST/PORT/USER/PASS` + `EMAIL_FROM`).
    - `EMAIL_DRIVER=resend` — **Resend HTTP-API** (`RESEND_API_KEY` + `EMAIL_FROM`), praat via HTTPS
      met `api.resend.com` (geen extra SDK-dependency). **Kies dit op Railway** (en andere PaaS-hosts):
      die **blokkeren uitgaande SMTP-poorten** (25/465/587), waardoor `smtp` daar niets aflevert — een
-     HTTP-API is dan de enige werkende route. Zonder `EMAIL_DRIVER` blijft het kanaal `noop` (alleen
-     in-app meldingen; niets te doen voor de pilot). Resterend mensenwerk: account aanmaken, domein
-     verifiëren (DNS), en `RESEND_API_KEY` + `EMAIL_FROM` in de Railway-secrets zetten.
+     HTTP-API is dan de enige werkende route.
+   - `EMAIL_DRIVER=postmark` — **Postmark HTTP-API** (`POSTMARK_SERVER_TOKEN` + `EMAIL_FROM`,
+     optioneel `POSTMARK_MESSAGE_STREAM`, default `outbound`), praat via HTTPS met
+     `api.postmarkapp.com` (geen extra SDK-dependency, zelfde seam als Resend). **Tweede
+     Railway-proof HTTP-keuze** naast Resend — kies wat het beste past bij je domein/DPA/
+     deliverability. Authenticatie via de `X-Postmark-Server-Token`-header (het **server**-token,
+     niet de account-token). Draait mee in de mail-zelftest, de read-only connectiviteitscheck én de
+     go-live-sweep (§11).
+     Zonder `EMAIL_DRIVER` blijft het kanaal `noop` (alleen in-app meldingen; niets te doen voor de
+     pilot). Resterend mensenwerk: account aanmaken, domein/afzender verifiëren (DNS), en de sleutel
+     (`RESEND_API_KEY` óf `POSTMARK_SERVER_TOKEN`) + `EMAIL_FROM` in de Railway-secrets zetten.
 
    **Code-kant GEDAAN (2026-07-15) — e-mailconnectiviteitszelftest:** zodra je de sleutels hierboven
    hebt geplakt, kun je op `/admin/systeemstatus` (admin-only) de nieuwe **E-mail-zelftest** draaien:
@@ -701,6 +709,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`                                | Opslag-toegangssleutels                                | Opslagdienst (§1c)   | Bij echte uploads                                |
 | `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                             | Encryptie-at-rest (default AES256; optioneel)          | — (§1c)              | Optioneel (default aan bij s3)                   |
 | `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`                      | E-mail via Resend HTTP-API (Railway-proof)             | Resend (§2)          | Voor e-mail                                      |
+| `EMAIL_DRIVER=postmark` + `POSTMARK_SERVER_TOKEN` + `EMAIL_FROM`             | E-mail via Postmark HTTP-API (Railway-proof)           | Postmark (§2)        | Voor e-mail (alternatief voor Resend)            |
 | `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                          | E-mail via eigen SMTP-relay                            | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
 | `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                                 | Betalingen via Mollie                                  | Mollie (§3)          | Voor betalingen (kies één provider)              |
 | `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET`         | Betalingen via Stripe (Checkout + webhook)             | Stripe (§3)          | Voor betalingen (kies één provider)              |

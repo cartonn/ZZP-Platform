@@ -688,7 +688,7 @@ export async function runSelfTestSweepAction(): Promise<SelfTestSweepState> {
         // READ-ONLY connectiviteitscheck (checkConnectivity) — verstuurt géén mail, dus bulk-veilig.
         // De losse deliverability-zelftest (echte testmail) blijft buiten de sweep.
         const rawDriver = process.env.EMAIL_DRIVER ?? "noop";
-        const active = rawDriver === "smtp" || rawDriver === "resend";
+        const active = rawDriver === "smtp" || rawDriver === "resend" || rawDriver === "postmark";
         const driverMode: MailDriverMode = active ? rawDriver : "noop";
         const result = await runMailConnectivitySelfTest({
           active,
