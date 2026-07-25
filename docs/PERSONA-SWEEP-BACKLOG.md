@@ -1,5 +1,66 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-25 (run 49) · **main-commit basis:** `1cd87a97`
+> **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 HOOG functioneel/robuustheid: CSV-diensten-import
+> creëerde onafhandelbare urenstaten; 1 MED security/existence-oracle CWE-203 in de cascade goedkeur/
+> afkeur-commando's) + LOW's geparkeerd. Verse prod-build (exit 0) + live persona-smoke over alle vier
+> rollen (login OK; DOEL 1: ADMIN goedkeur-actie liet de verificatiewachtrij 6→5 én `/acties` 16→15
+> zakken; DOEL 2: privilege-escalatie → opaque-redirect, junk/traversal document-id → 404 (geen 500),
+> cron GET → 405 / POST zonder secret → 503 fail-closed) + drie parallelle Opus-audits (authz/IDOR/
+> cross-tenant/document-privacy; malicieuze invoer + verboden statusovergangen; next-action-correctheid).
+> De next-action-audit kwam **schoon** terug (geen HIGH/MED — de historisch buggy naden dispuut-vries/
+> terminal-masking/overdue-dubbeltelling/rejected-vs-mandatory/renewal-never-disappears zijn elk gegrendeld
+> en getest). De document-/PDF-/dossier-privacy, AVG-wisflow en admin-rolpoorten kwamen schoon terug.
+>
+> **GEVONDEN + GEFIXT — HOOG (DOEL 1/2, robuustheid — onafhandelbare cascade-staat):** `importDienstenAction`
+> (`src/app/(protected)/diensten/importeer/actions.ts`) maakte + diende per CSV-regel een HOURS-prestatie
+> in **zonder te controleren of de samenwerking een uurtarief heeft**. `Collaboration.rate` is `Int?` en
+> optioneel bij het voorstel (`rate: optionalInt` in `validation.ts`), dus een ACTIEVE samenwerking zónder
+> tarief is bereikbaar. De **handmatige** urenstaat weigert dit netjes vóór persistentie (`validatePerformanceForm`
+> → "Er is geen uurtarief ingesteld…"), maar de import riep die validator niet aan en gaf `rateCents = null`
+> rechtstreeks door. Resultaat: N **SUBMITTED**-urenstaten met `rateCents = null` die de opdrachtgever **niet
+> kan goedkeuren** (`performanceSubtotalCents` gooit "Urenstaat mist een uurtarief.") én die de ZZP'er **niet
+> kan corrigeren** (er is geen tarief-veld in de UI en `editAndResubmit` recomputet hetzelfde ontbrekende
+> tarief) — een permanent vastgelopen samenwerking. **Geschonden regel:** CLAUDE.md regel 1 (server-side
+> waarheid, symmetrisch over álle paden) — de import-grens miste de rate-presence-poort die het handmatige
+> pad wél afdwingt. **Fix:** vóór de rij-loop `rateCents == null` → één heldere melding (`imported: 0`),
+> exact zoals `validatePerformanceForm`. Rood→groen: +1 test in `diensten/importeer/actions.test.ts`.
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 2, CWE-203 existence-oracle in de cascade-commandolaag):** `approvePerformance`/
+> `rejectPerformance` (`performance-commands.ts`) en `approveInvoice`/`rejectInvoice` (`invoice-commands.ts`)
+> gooiden ná de `loadPerformance`/`loadCascadeInvoice`-existence-check een **rolmelding** ("Alleen de
+> opdrachtgever kan …") die verschilde van de "… niet gevonden."-melding bij een onbekend id — óók voor een
+> actor die **helemaal geen partij** is bij de resource. Deze meldingen worden door de useActionState-drawers
+> (`approve/rejectPerformanceState`, `approve/rejectInvoiceState`) als **returnwaarde** aan de client getoond
+> — en returnwaarden worden **niet** door Next.js geredigeerd (anders dan een gegooide server-action-fout).
+> Dus een ingelogde niet-partij kon met een gegokt id het **bestaan** van andermans prestatie/factuur aftasten
+> ("niet gevonden" vs "alleen de opdrachtgever kan…"). **Geschonden regel:** CLAUDE.md regel 2 (ownership binnen
+> dezelfde afgevangen keten) + anti-oracle. **Fix:** vóór de rolcheck een niet-partij-check die exact dezelfde
+> "… niet gevonden."-melding gooit; een echte partij aan de verkeerde kant (bv. de ZZP'er die zijn eigen
+> prestatie wil goedkeuren) houdt wél de behulpzame rolmelding. Rood→groen: +6 tests (`anti-oracle-party.test.ts`).
+>
+> **GEPARKEERD uit deze run (repro + prioriteit):**
+>
+> - **LOW (defense-in-depth, DOEL 2):** dezelfde not-found-vs-rolmelding-divergentie bestaat nog in de
+>   **void**-cascade-commando's (`submitPerformance`/`submitInvoice`/`creditInvoice`/`confirmPayment`/
+>   `signContract`/`openDispute`), maar die lopen via `toMessage`→`throwSafeActionError` (een **gegooide**
+>   server-action-fout) en worden door Next.js in productie geredigeerd tot een generieke digest → **niet
+>   productie-observeerbaar**. Alsnog wenselijk gelijk te trekken (zelfde niet-partij→"niet gevonden"-fold)
+>   zodat een toekomstige refactor die deze naar een return-wrapper verplaatst het gat niet heropent. Prio: LOW.
+> - **LOW (DOEL 1b, misleidende subtitel):** `overdueInvoiceTask(residualOverdue, "FREELANCER")`
+>   (`pending-tasks.ts`) toont subtitel "Volg op bij de opdrachtgever", maar de residual-roll-up kan bij een
+>   ZZP'er met >50 niet-disputed samenwerkingen (de `take: MAX`-slice) een cascade-OVERDUE-factuur bevatten
+>   waar de echte actie "markeer de betaling zodra je bent betaald" is. Geen dode actie (href `/facturen`),
+>   alleen misleidende instructie. Fix-richting: residual splitsen in legacy vs cascade, of generieke subtitel.
+> - **LOW (DOEL 1b, rail-floor):** `reviewPromptClosing` (48) en `staleApplications`/client-stale (52) kunnen
+>   onder de harde top-6-slice van de dashboard-rail zakken terwijl een sluitend blind-beoordelingsvenster
+>   **onherstelbaar** is na sluiting. Bewuste band-keuze; overweeg een floor/gereserveerde slot voor
+>   "onomkeerbaar-met-deadline"-taken. Prio: LOW.
+> - **NIT (dode constante):** `P.credentialExpiryBatch` (58) heeft geen enkele builder-caller → veilig te
+>   verwijderen (suggereert een admin-"draai de expiry-check"-actie die niet meer bestaat).
+> - **LOW (uit run 48, blijft staan):** `setBillingStatusAction` neemt `to` als rauwe TS-parameter zonder
+>   `safeParse` — inmiddels afgedekt door #907 (Zod-grensvalidatie); verifiëren en anders sluiten.
+
 > **Datum:** 2026-07-24 (run 48) · **main-commit basis:** `8ccc9c78`
 > **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT** (1 security/existence-oracle HOOG-prio + 1 DOEL-1b
 > next-action-prioriteit + 1 dode-code-drift-hazard) + 2 geparkeerd met repro. Verse prod-build (exit 0)

@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — persona-sweep (run 49): CSV-import rate-poort (HOOG) + cascade existence-oracle (MED)
+
+Kritische-gebruiker-sweep over alle vier rollen op de verse prod-build + demo-seed. Live persona-smoke:
+alle vier rollen loggen in; DOEL 1 ADMIN-goedkeur liet de verificatiewachtrij 6→5 én `/acties` 16→15 zakken;
+DOEL 2 privilege-escalatie → opaque-redirect, junk/traversal document-id → 404, cron GET → 405 / POST zonder
+secret → 503. Drie parallelle Opus-audits; **2 bevindingen gefixt**:
+
+- **HOOG (robuustheid):** `importDienstenAction` (`diensten/importeer/actions.ts`) creëerde+diende HOURS-
+  urenstaten in met `rateCents = null` wanneer de samenwerking geen uurtarief had (`Collaboration.rate` is
+  optioneel). Die urenstaten waren **onafhandelbaar** (goedkeuring gooit "Urenstaat mist een uurtarief.") én
+  **oncorrigeerbaar** via de UI → permanent vastgelopen samenwerking. Fix: rate-presence-poort vóór de rij-loop,
+  exact zoals het handmatige pad (`validatePerformanceForm`). +1 test.
+- **MED (security, CWE-203 existence-oracle):** `approve/rejectPerformance` + `approve/rejectInvoice` gaven een
+  niet-partij een afwijkende rolmelding i.p.v. de "… niet gevonden."-melding — productie-observeerbaar via de
+  useActionState-drawers (`*State` retourneren de melding; returnwaarden worden niet door Next.js geredigeerd).
+  Fix: niet-partij → identieke "niet gevonden"; partij-verkeerde-kant houdt de rolmelding. +6 tests
+  (`anti-oracle-party.test.ts`).
+
+Gate groen: typecheck, lint, **test 4974 passed (477 files)**, build (exit 0), `prettier --check .` schoon.
+Bestanden: `diensten/importeer/actions.ts` (+test), `cascade/performance-commands.ts`, `cascade/invoice-commands.ts`,
+`cascade/anti-oracle-party.test.ts` (nieuw), `docs/PERSONA-SWEEP-BACKLOG.md` (run 49), `PROGRESS.md`. LOW's geparkeerd.
+
 ## 2026-07-25 — routine: voordraag-overzicht (vulbaarheid uit roster) op dienst-detail (bemiddelaar)
 
 De bemiddelaar (FRANCHISER) zag het "N geschikte vakmensen vrij"-signaal alléén op de diensten-**lijst**

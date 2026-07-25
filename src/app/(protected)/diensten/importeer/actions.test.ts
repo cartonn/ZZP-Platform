@@ -74,4 +74,24 @@ describe("importDienstenAction — anti-oracle ownership", () => {
     expect(res.errors[0]).toContain("Alleen ZZP'ers");
     expect(res.imported).toBe(0);
   });
+
+  it("samenwerking zonder uurtarief → geweigerd vóór de rij-loop (geen onafhandelbare SUBMITTED-prestatie)", async () => {
+    // `Collaboration.rate` is optioneel (Int?); een ACTIEVE samenwerking zonder tarief is bereikbaar.
+    // Zonder deze poort zou de import HOURS-prestaties met rateCents=null aanmaken die niet goed te
+    // keuren én niet te corrigeren zijn — de handmatige urenstaat weigert dit ook (validatePerformanceForm).
+    colState.found = {
+      status: "ACTIVE",
+      rate: null,
+      ortProfile: null,
+      ortCustomRates: null,
+      freelancer: { userId: "user-1" },
+      company: { userId: "client-9" },
+    };
+    const res = await importDienstenAction(
+      null,
+      form({ collaborationId: "col-x", csv: "2024-01-15T22:00;2024-01-16T06:00\n" }),
+    );
+    expect(res.imported).toBe(0);
+    expect(res.errors.some((e) => e.includes("geen uurtarief"))).toBe(true);
+  });
 });
