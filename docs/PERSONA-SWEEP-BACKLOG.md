@@ -48,11 +48,13 @@
 >   `P.franchiserServiceStale`) — spiegelt `franchiseAcuteDienstTask`. Zo tellen `/acties` + de badge
 >   (`pendingTaskCount`) het residu ook mee (+1) i.p.v. het stil te laten wegvallen; de rail bundelt al via
 >   z'n top-N-overloop. Read-only, geen schemawijziging. +3 tests (`pending-tasks-franchiser.test.ts`).
-> - **LOW (DOEL 1b, rail-floor — herbevestigd):** `reviewPromptClosing` (48) kan op de sluitingsdag onder de harde
+> - ~~**LOW (DOEL 1b, rail-floor — herbevestigd):** `reviewPromptClosing` (48) kan op de sluitingsdag onder de harde
 >   top-6-dashboardrail-slice zakken achter gewone niet-verlopende attentie-taken (mandatoryDoc 84 … messagesAwaiting 55),
->   terwijl het blind-beoordelingsvenster daarna **onherstelbaar** dicht is. Bewuste band-keuze uit run 49; overweeg een
->   gereserveerde slot/floor voor "onomkeerbaar-met-deadline"-taken óf til `P.reviewPromptClosing` boven de persistente
->   attentie-band. Prio: LOW. (Zelfde item als run 49-parkeerpost.)
+>   terwijl het blind-beoordelingsvenster daarna **onherstelbaar** dicht is.~~ **GEDAAN (2026-07-25, PR #921):** gekozen
+>   voor de **gereserveerde floor-slot** (niet de band ophogen — dat zou de rank-ordening op `/acties` + badges
+>   misrepresenteren). Nieuw `deadlineFloor?: boolean` op `TaskBase` (gezet op `reviewLeaveTask` bij `closingSoon`) +
+>   pure `selectDashboardTasks(tasks, max)` die garandeert dat elke floor-taak (tot `max`) in de gesneden dashboard-rail
+>   zit, met behoud van rank-volgorde; gewired in `DashboardActions`. +9 tests. Rank-ordening buiten de rail ongewijzigd.
 
 > **Datum:** 2026-07-25 (run 49) · **main-commit basis:** `1cd87a97`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 HOOG functioneel/robuustheid: CSV-diensten-import
@@ -107,10 +109,11 @@
 >   bevatten waar de echte actie "markeer de betaling zodra je bent betaald" is. **Fix:** residu gesplitst in
 >   legacy (opdrachtgever aan zet → "volg op") vs cascade (ZZP'er markeert → "markeer de betaling") via
 >   `overdueInvoiceBreakdown` + een `chase`/`confirm`-variant op `overdueInvoiceTask` (eigen id per variant).
-> - **LOW (DOEL 1b, rail-floor):** `reviewPromptClosing` (48) en `staleApplications`/client-stale (52) kunnen
+> - ~~**LOW (DOEL 1b, rail-floor):** `reviewPromptClosing` (48) en `staleApplications`/client-stale (52) kunnen
 >   onder de harde top-6-slice van de dashboard-rail zakken terwijl een sluitend blind-beoordelingsvenster
->   **onherstelbaar** is na sluiting. Bewuste band-keuze; overweeg een floor/gereserveerde slot voor
->   "onomkeerbaar-met-deadline"-taken. Prio: LOW.
+>   **onherstelbaar** is na sluiting.~~ **GEDAAN (2026-07-25, PR #921):** gereserveerde floor-slot via
+>   `deadlineFloor` + `selectDashboardTasks` (zie run 50-entry). Alleen `reviewLeaveTask`/`closingSoon` is
+>   onomkeerbaar-met-deadline → floor; `staleApplications` blijft bewust rank-only (herstelbaar signaal).
 > - **NIT (dode constante):** `P.credentialExpiryBatch` (58) heeft geen enkele builder-caller → veilig te
 >   verwijderen (suggereert een admin-"draai de expiry-check"-actie die niet meer bestaat).
 > - **LOW (uit run 48, blijft staan):** `setBillingStatusAction` neemt `to` als rauwe TS-parameter zonder
