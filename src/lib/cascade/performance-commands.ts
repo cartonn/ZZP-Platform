@@ -69,6 +69,7 @@ export function assertPerformanceWithinLimits(input: {
   type: "HOURS" | "MILESTONE";
   hours?: number | null;
   amountCents?: number | null;
+  rateCents?: number | null;
 }): void {
   if (input.type === "HOURS") {
     // Defense-in-depth (dekt élk pad: formulier, CSV-import, admin): een niet-eindig getal (NaN uit
@@ -76,6 +77,14 @@ export function assertPerformanceWithinLimits(input: {
     // persisteren en bij factuurafleiding een NaN-`totalCents` (Int) opleveren → 500 i.p.v. weigering.
     if (input.hours != null && !Number.isFinite(input.hours)) {
       throw new CascadeError("Het aantal uren is ongeldig.");
+    }
+    // Ondergrens op het uurtarief: een 0/negatief tarief (bv. een bindende samenwerking met
+    // `Collaboration.rate = 0`) zou via performanceSubtotalCents een €0-factuur voor écht gewerkte
+    // uren opleveren. Server-side waarheid (regel 1) — onafhankelijk van de Zod-formuliercheck, zodat
+    // ook de CSV-import en toekomstige ingangen gedekt zijn. `!= null` bewaart het concept-pad (nog
+    // geen tarief); een reeds-null tarief wordt vóór indienen al door validatePerformanceForm geweigerd.
+    if (input.rateCents != null && input.rateCents <= 0) {
+      throw new CascadeError("Het uurtarief moet groter dan 0 zijn.");
     }
     // Ondergrens: een negatief/nul aantal uren zou via performanceSubtotalCents een negatieve
     // factuur opleveren. Server-side waarheid (regel 1) — niet afhankelijk van de Zod-formuliercheck.

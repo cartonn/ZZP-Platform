@@ -1,5 +1,61 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-25 (run 50) · **main-commit basis:** `61135b18`
+> **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT — beide HOOG** (1 authz/tenant/privacy: flexpool-favoriet
+> omzeilde de zichtbaarheids-/tenant-poort; 1 financiële integriteit: bindend €0/uur-tarief → €0-facturen
+> voor echte uren) + 2 LOW/should-fix geparkeerd. Verse prod-build (exit 0). Drie parallelle Opus-audits
+> (authz/IDOR/cross-tenant/document-privacy; malicieuze invoer + verboden statusovergangen; next-action-
+> correctheid). De document-/PDF-/dossier-routes, AVG-erasure, cron en admin-rolpoorten kwamen (opnieuw)
+> schoon terug; de kern-cascade bleef symmetrisch gehard.
+>
+> **GEVONDEN + GEFIXT — HOOG (DOEL 2, authz/tenant-isolatie + privacy):** `addFavorite`/`saveFavoriteNote`/
+> `removeFavorite` (`src/app/(protected)/favorieten/actions.ts`) laadden het doel-ZZP-profiel via een
+> **ongescoopte `findUnique` (alleen bestaanscheck)** — de zichtbaarheids-/tenant-poort ontbrak volledig.
+> Elk ander opdrachtgever-gericht vind-oppervlak (`/zzp/[id]` via `profileVisibleTo` + `tenantEntityVisibleTo`;
+> `toggleSavedJob`; `startConversationWithFreelancer` + `inviteFreelancerToJob` via `discoverableFreelancerWhere`
+>
+> - `visibleFreelancersWhere`) dwingt die grens wél af. **Repro:** een ingelogde CLIENT roept `addFavorite(id)`
+>   aan met het id van een **PRIVATE** of **cross-tenant** `FreelancerProfile` (id te gokken/uit een ander oppervlak);
+>   de UI zou op `/zzp/[id]` 404'en, maar de actie sloeg de favoriet op + schreef een `FAVORITE_ADDED`-audit → het
+>   profiel verschijnt daarna op `/favorieten` (`FlexpoolPanel`, gefilterd op enkel `user.status = ACTIVE`, **niet**
+>   op zichtbaarheid/tenant) met **naam, headline, locatie, uurtarief en beschikbaarheid** — PII/relatie-data die de
+>   CLIENT nooit mocht zien. **Geschonden regel:** CLAUDE.md regel 1 & 2 (server-side waarheid + ownership-keten) +
+>   tenant-isolatie. **Fix:** `loadCompanyAndProfile` scoopt het profiel bij TOEVOEGEN via `findFirst` met
+>   `discoverableFreelancerWhere` + `visibleFreelancersWhere(actor)` → een niet-zichtbaar/cross-tenant profiel is
+>   onvindbaar en geeft dezelfde "ZZP'er niet gevonden." als een onbestaand id (anti-oracle). Verwijderen/notitie op
+>   een reeds-eigen (companyId-gescoopte) favoriet houdt de poort bewust UIT (opruimen mag nooit vastlopen als een
+>   profiel later privé/geschorst raakt). Rood→groen: `favorieten/actions.test.ts` (+4).
+>
+> **GEVONDEN + GEFIXT — HOOG (DOEL 2, financiële integriteit — €0-loonroof-vector):** `collaborationProposalSchema.rate`
+> (`src/lib/validation.ts`) gebruikte `optionalInt(2000)` → **min 0**, terwijl de zuster-opdracht-rate (`rateMin`/
+> `rateMax`) al `optionalInt(2000, 1)` (**min €1**) is met exact deze reden ("anders '€ 0/uur'… oogt als bug"). Een
+> CLIENT kon zo een **bindend €0/uur-tarief** vastleggen op `Collaboration.rate`; de ZZP'er tekent, dient een normale
+> urenstaat in en de cascade leidt er **stilzwijgend €0-facturen** voor écht gewerkte uren uit af — de hele keten
+> (`assertPerformanceWithinLimits` valideerde alleen `hours`/`amountCents`, niet `rateCents`; `computeVat`/`ort`
+> weigeren enkel < 0, niet = 0) liet het door tot een auto-afgeronde €0-samenwerking. **Geschonden regel:** CLAUDE.md
+> regel 1 ("geen absurde bedragen persisteren", symmetrisch over álle paden). **Fix:** (a) `rate: optionalInt(2000, 1)`
+> (leeg = geen tarief blijft toegestaan; ingevuld = min €1); (b) formulier `min={1}`
+> (`propose-collaboration.tsx`); (c) defense-in-depth `rateCents <= 0`-poort in `assertPerformanceWithinLimits`
+> (HOURS-tak) zodat ook CSV-import + toekomstige ingangen gedekt zijn. Rood→groen: `validation.test.ts` (+3),
+> `performance-commands.test.ts` (+5).
+>
+> **GEPARKEERD uit deze run (repro + prioriteit):**
+>
+> - **SHOULD-FIX (DOEL 1b, franchiser next-action undercount):** `pending-tasks.ts:962-967` capt de "stale dienst"-
+>   taken op `.slice(0, 3)` **zonder rollup/"+N meer"** — anders dan elk ander aggregaat in dat bestand (dat óf per
+>   item emit, óf één telling-taak bundelt). Bij ≥4 lang-openstaande, niet-acute diensten verschijnen #4+ **nergens**
+>   in `/acties`, de dashboard-rail of de zijbalk-badge (`pendingTaskCount = tasks.length` telt dan óók te laag),
+>   terwijl `/franchise/diensten` ze wél toont. **Repro:** tenant met 5 gepubliceerde, onvervulde, >7 dagen oude,
+>   niet-acute diensten → `/acties` toont exact 3 `franchise-stale-service`-taken. **Fix:** bundel het residu in een
+>   kleine rollup-taak (spiegel `franchiseAcuteDienstTask`) óf laat de `slice(0,3)` vallen en vertrouw op de rail-top-N.
+>   Prio: MED (undercount van échte, verouderende voorraad). Niet in deze run gefixt om buiten de hot `pending-tasks.ts`
+>   (recent geraakt door #914/#916) te blijven — losse PR.
+> - **LOW (DOEL 1b, rail-floor — herbevestigd):** `reviewPromptClosing` (48) kan op de sluitingsdag onder de harde
+>   top-6-dashboardrail-slice zakken achter gewone niet-verlopende attentie-taken (mandatoryDoc 84 … messagesAwaiting 55),
+>   terwijl het blind-beoordelingsvenster daarna **onherstelbaar** dicht is. Bewuste band-keuze uit run 49; overweeg een
+>   gereserveerde slot/floor voor "onomkeerbaar-met-deadline"-taken óf til `P.reviewPromptClosing` boven de persistente
+>   attentie-band. Prio: LOW. (Zelfde item als run 49-parkeerpost.)
+
 > **Datum:** 2026-07-25 (run 49) · **main-commit basis:** `1cd87a97`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 HOOG functioneel/robuustheid: CSV-diensten-import
 > creëerde onafhandelbare urenstaten; 1 MED security/existence-oracle CWE-203 in de cascade goedkeur/

@@ -34,7 +34,7 @@ export function ProposeCollaboration({
         <Input
           name="rate"
           type="number"
-          min={0}
+          min={1}
           max={2000}
           placeholder={labels.ratePlaceholder}
           aria-label={labels.rate}

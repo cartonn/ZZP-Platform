@@ -263,7 +263,12 @@ export type MessageInput = z.infer<typeof messageSchema>;
 // --- Samenwerking voorstellen ---
 export const collaborationProposalSchema = z
   .object({
-    rate: optionalInt(2000),
+    // Een tarief is optioneel (leeg = "geen tarief"), maar als het is ingevuld minstens €1/uur —
+    // identiek aan de opdracht-rate (`rateMin`/`rateMax`). Zonder deze ondergrens kon een
+    // opdrachtgever een bindend €0/uur-tarief vastleggen: de ZZP'er tekent, dient uren in en de
+    // cascade leidt er stilzwijgend €0-facturen voor écht gewerkte uren uit af (loonroof-vector,
+    // strijdig met "geen absurde bedragen persisteren" — CLAUDE.md regel 1).
+    rate: optionalInt(2000, 1),
     startDate: optionalDate,
     endDate: optionalDate,
   })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applicationSchema,
+  collaborationProposalSchema,
   companyProfileSchema,
   credentialSchema,
   freelancerProfileSchema,
@@ -201,6 +202,26 @@ describe("jobSchema", () => {
       expect(r.data.rateMin).toBeUndefined();
       expect(r.data.startDate).toBeInstanceOf(Date);
     }
+  });
+});
+
+describe("collaborationProposalSchema", () => {
+  it("weigert een bindend €0/uur-tarief (voorkomt €0-facturen voor echte uren)", () => {
+    const r = collaborationProposalSchema.safeParse({ rate: "0" });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.path).toContain("rate");
+  });
+
+  it("staat een leeg tarief toe (geen tarief) → undefined", () => {
+    const r = collaborationProposalSchema.safeParse({ rate: "" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.rate).toBeUndefined();
+  });
+
+  it("staat een normaal positief tarief toe", () => {
+    const r = collaborationProposalSchema.safeParse({ rate: "75" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.rate).toBe(75);
   });
 });
 

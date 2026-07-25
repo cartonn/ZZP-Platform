@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — persona-sweep (run 50): flexpool-favoriet zichtbaarheidspoort (HOOG) + €0-tarief-floor (HOOG)
+
+Kritische-gebruiker-sweep over alle vier rollen op de verse prod-build (exit 0) + demo-seed. Drie parallelle
+Opus-audits (authz/IDOR/cross-tenant/document-privacy; malicieuze invoer + verboden statusovergangen;
+next-action-correctheid). **2 HOOG-bevindingen gevonden + gefixt:**
+
+- **HOOG (authz/tenant/privacy):** `addFavorite`/`saveFavoriteNote`/`removeFavorite`
+  (`src/app/(protected)/favorieten/actions.ts`) laadden het doel-ZZP-profiel via een **ongescoopte
+  `findUnique`** — de zichtbaarheids-/tenant-poort die elk ander opdrachtgever-vind-oppervlak wél afdwingt,
+  ontbrak. Een CLIENT kon zo via een gegokt id een **PRIVATE of cross-tenant** profiel favorieten en zijn
+  naam/tarief/locatie/beschikbaarheid op `/favorieten` (`FlexpoolPanel`) inzien. **Fix:** `loadCompanyAndProfile`
+  scoopt bij TOEVOEGEN via `findFirst` + `discoverableFreelancerWhere` + `visibleFreelancersWhere(actor)` (zelfde
+  patroon als `startConversationWithFreelancer`/`inviteFreelancerToJob`); niet-zichtbaar → "ZZP'er niet gevonden."
+  (anti-oracle). Opruimen (remove/notitie) houdt de poort bewust UIT. +4 tests (`favorieten/actions.test.ts`).
+- **HOOG (financiële integriteit):** `collaborationProposalSchema.rate` = `optionalInt(2000)` (**min 0**) liet een
+  bindend **€0/uur-tarief** toe → de cascade leidde er stilzwijgend **€0-facturen voor écht gewerkte uren** uit af
+  (loonroof-vector); de zuster-opdracht-rate was al `optionalInt(2000, 1)`. **Fix:** `rate: optionalInt(2000, 1)` +
+  formulier `min={1}` (`propose-collaboration.tsx`) + defense-in-depth `rateCents <= 0`-poort in
+  `assertPerformanceWithinLimits` (dekt óók CSV-import). +8 tests (`validation.test.ts`, `performance-commands.test.ts`).
+
+Gate lokaal groen: typecheck (exit 0), lint (0 warnings), **test 4993 passed (478 files)**, build (exit 0),
+`prettier --write` schoon. Geen schemawijziging; geen nieuw mutatie-/auth-oppervlak (poorten toegevoegd, geen
+verwijderd). Geparkeerd: franchiser stale-dienst next-action-undercount (MED, losse PR) + rail-floor-LOW.
+Bestanden: `favorieten/actions.ts` (+test), `validation.ts` (+test), `propose-collaboration.tsx`,
+`cascade/performance-commands.ts` (+test), `PROGRESS.md`, `docs/PERSONA-SWEEP-BACKLOG.md`.
+
 ## 2026-07-25 — routine: correcte instructie op ZZP overdue-factuur-rollup (cascade vs legacy)
 
 De generieke "N facturen over de vervaldatum"-rij van de ZZP'er (`overdueInvoiceTask(residualOverdue,

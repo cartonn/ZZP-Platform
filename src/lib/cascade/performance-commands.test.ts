@@ -82,3 +82,39 @@ describe("assertPerformanceWithinLimits — ondergrens bedrag (MILESTONE)", () =
     );
   });
 });
+
+describe("assertPerformanceWithinLimits — ondergrens uurtarief (HOURS)", () => {
+  it("weigert een nul uurtarief bij gewerkte uren (voorkomt €0-factuur voor echte uren)", () => {
+    expect(() => assertPerformanceWithinLimits({ type: "HOURS", hours: 8, rateCents: 0 })).toThrow(
+      CascadeError,
+    );
+    expect(() => assertPerformanceWithinLimits({ type: "HOURS", hours: 8, rateCents: 0 })).toThrow(
+      "Het uurtarief moet groter dan 0 zijn.",
+    );
+  });
+
+  it("weigert een negatief uurtarief", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({ type: "HOURS", hours: 8, rateCents: -100 }),
+    ).toThrow("Het uurtarief moet groter dan 0 zijn.");
+  });
+
+  it("staat een normaal positief uurtarief toe", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({ type: "HOURS", hours: 8, rateCents: 7500 }),
+    ).not.toThrow();
+  });
+
+  it("behoudt het null-pad (concept zonder tarief) — gooit niet", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({ type: "HOURS", hours: 8, rateCents: null }),
+    ).not.toThrow();
+    expect(() => assertPerformanceWithinLimits({ type: "HOURS", hours: 8 })).not.toThrow();
+  });
+
+  it("negeert het uurtarief op het MILESTONE-pad (tarief is daar niet van toepassing)", () => {
+    expect(() =>
+      assertPerformanceWithinLimits({ type: "MILESTONE", amountCents: 50_000, rateCents: 0 }),
+    ).not.toThrow();
+  });
+});
