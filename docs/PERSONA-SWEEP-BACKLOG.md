@@ -41,15 +41,13 @@
 >
 > **GEPARKEERD uit deze run (repro + prioriteit):**
 >
-> - **SHOULD-FIX (DOEL 1b, franchiser next-action undercount):** `pending-tasks.ts:962-967` capt de "stale dienst"-
->   taken op `.slice(0, 3)` **zonder rollup/"+N meer"** — anders dan elk ander aggregaat in dat bestand (dat óf per
->   item emit, óf één telling-taak bundelt). Bij ≥4 lang-openstaande, niet-acute diensten verschijnen #4+ **nergens**
->   in `/acties`, de dashboard-rail of de zijbalk-badge (`pendingTaskCount = tasks.length` telt dan óók te laag),
->   terwijl `/franchise/diensten` ze wél toont. **Repro:** tenant met 5 gepubliceerde, onvervulde, >7 dagen oude,
->   niet-acute diensten → `/acties` toont exact 3 `franchise-stale-service`-taken. **Fix:** bundel het residu in een
->   kleine rollup-taak (spiegel `franchiseAcuteDienstTask`) óf laat de `slice(0,3)` vallen en vertrouw op de rail-top-N.
->   Prio: MED (undercount van échte, verouderende voorraad). Niet in deze run gefixt om buiten de hot `pending-tasks.ts`
->   (recent geraakt door #914/#916) te blijven — losse PR.
+> - ~~**SHOULD-FIX (DOEL 1b, franchiser next-action undercount):** `pending-tasks.ts:962-967` capt de "stale dienst"-
+>   taken op `.slice(0, 3)` **zonder rollup/"+N meer"**~~ **GEDAAN (2026-07-25, PR #920):** de residu-diensten (#4+, na
+>   uitsluiting van de acute-dedup-set) worden nu gebundeld in één rollup-taak `franchiseStaleDienstRollupTask(count)`
+>   (`tasks.ts`, kind `franchise-stale-service-rollup`, `resolver:"link"` → `/franchise/diensten`, band
+>   `P.franchiserServiceStale`) — spiegelt `franchiseAcuteDienstTask`. Zo tellen `/acties` + de badge
+>   (`pendingTaskCount`) het residu ook mee (+1) i.p.v. het stil te laten wegvallen; de rail bundelt al via
+>   z'n top-N-overloop. Read-only, geen schemawijziging. +3 tests (`pending-tasks-franchiser.test.ts`).
 > - **LOW (DOEL 1b, rail-floor — herbevestigd):** `reviewPromptClosing` (48) kan op de sluitingsdag onder de harde
 >   top-6-dashboardrail-slice zakken achter gewone niet-verlopende attentie-taken (mandatoryDoc 84 … messagesAwaiting 55),
 >   terwijl het blind-beoordelingsvenster daarna **onherstelbaar** dicht is. Bewuste band-keuze uit run 49; overweeg een

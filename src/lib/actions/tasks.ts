@@ -87,6 +87,7 @@ export type PendingTask =
   | (TaskBase & { kind: "franchise-lead-followup" })
   | (TaskBase & { kind: "franchise-not-engageable"; profileId: string })
   | (TaskBase & { kind: "franchise-stale-service"; jobId: string })
+  | (TaskBase & { kind: "franchise-stale-service-rollup" })
   | (TaskBase & { kind: "franchise-guided-setup"; step: string })
   | (TaskBase & {
       kind: "shift-handoff-decide";
@@ -975,6 +976,27 @@ export function franchiseStaleDienstTask(
     resolver: "link",
     href: `/franchise/diensten/${jobId}`,
     jobId,
+  };
+}
+
+/**
+ * Rollup voor de resterende lang-open diensten voorbij de per-dienst-slice: de item-lijst toont de
+ * oudste (max 3) diensten als aparte rij, maar zonder deze rollup verdwenen #4+ volledig van /acties,
+ * de zijbalk-badge (`pendingTaskCount`) én de dashboard-rail — een undercount van échte, verouderende
+ * voorraad (de onbegrensde `/franchise/diensten`-pagina toonde ze wél). Spiegelt de bundeling van
+ * `franchiseAcuteDienstTask`: één aggregaat-taak met de restant-telling, deep-link naar de volledige
+ * lijst. Lagere prioriteit dan de per-dienst-taak zodat de specifieke, oudste diensten voorop blijven.
+ */
+export function franchiseStaleDienstRollupTask(count: number): PendingTask {
+  return {
+    kind: "franchise-stale-service-rollup",
+    id: "franchise-stale-service-rollup",
+    title: `Nog ${plural(count, "dienst staat", "diensten staan")} lang open zonder plaatsing`,
+    subtitle: "Bekijk de volledige lijst — draag ZZP'ers voor of werf",
+    tone: "attention",
+    priority: P.franchiserServiceStale,
+    resolver: "link",
+    href: "/franchise/diensten",
   };
 }
 
