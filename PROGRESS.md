@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — routine: floor-slot wiren in de LIVE dashboard-rail (follow-up op #921)
+
+De onafhankelijke agent-review op #921 flagde (PASS + nit) dat `DashboardActions` **nergens gewired** is
+(ook niet op `main`) — de dashboard-"Volgende acties"-rail wordt in werkelijkheid gerenderd door de lokale
+`tasksToActions(tasks)` in `src/app/(protected)/dashboard/page.tsx`, die hard op `tasks.slice(0, 6)` capte.
+De floor-slot uit #921 (`selectDashboardTasks` + `deadlineFloor`) zat dus in een **dode** component en had
+geen productie-effect. Deze follow-up wiret de reeds-gemergde, gedekte helper in op het échte slice-punt.
+
+- **Fix:** `tasksToActions` neemt nu `PendingTask[]` (i.p.v. de genarrowde `{title,subtitle?,tone,href}[]`)
+  en gebruikt `selectDashboardTasks(tasks, 6)` i.p.v. `tasks.slice(0, 6)`. Alle vier de call-sites gaven al
+  de volledige `pendingTasks(actor)`-lijst (`PendingTask[]`) door, dus puur een type-verbreding + de
+  slice-vervanging. `t.tone` blijft `TaskTone = NextActionTone` → `ACTION_ICON`/`ACTION_TONE`-lookups
+  ongewijzigd. Nu valt een sluitend beoordelingsvenster nooit meer stil van de zichtbare rail.
+- Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. De helper + tests zitten al op
+  `main` (#921); dit is puur de wiring. Het woord "AI" komt nergens voor.
+
+**Bestanden:** `src/app/(protected)/dashboard/page.tsx`, `PROGRESS.md`, `docs/PERSONA-SWEEP-BACKLOG.md`.
+
 ## 2026-07-25 — routine: dashboard-rail floor-slot voor onomkeerbaar-met-deadline-taken
 
 Sluit het herhaald geparkeerde LOW-item uit persona-sweep **run 49 + 50** (DOEL 1b): een sluitend blind

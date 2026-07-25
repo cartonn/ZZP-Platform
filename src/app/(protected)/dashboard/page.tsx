@@ -34,6 +34,7 @@ import { summarizeIncomeGoal, incomeGoalGlance } from "@/lib/income-goal";
 import { requireActor } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { pendingTasks } from "@/lib/actions/pending-tasks";
+import { selectDashboardTasks, type PendingTask } from "@/lib/actions/tasks";
 import {
   type UserRole,
   type CollaborationStatus,
@@ -186,10 +187,11 @@ function buildCurrentWeek(
 }
 
 /** Open taken -> #19 "Volgende acties"-items voor de rechterrail. */
-function tasksToActions(
-  tasks: { title: string; subtitle?: string; tone: NextActionTone; href: string }[],
-): WsAction[] {
-  return tasks.slice(0, 6).map((t, i) => ({
+function tasksToActions(tasks: PendingTask[]): WsAction[] {
+  // Harde top-6-rail, maar met een gereserveerde floor-slot voor onomkeerbaar-met-deadline-taken
+  // (bv. een sluitend beoordelingsvenster) zodat die niet stil achter persistente attentie-taken
+  // van de rail vallen. Buiten de rail (/acties, badges) blijft de rank-ordening ongewijzigd.
+  return selectDashboardTasks(tasks, 6).map((t, i) => ({
     id: `${i}-${t.href}`,
     icon: ACTION_ICON[t.tone],
     title: t.title,
