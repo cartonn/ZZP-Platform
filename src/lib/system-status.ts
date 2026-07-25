@@ -124,12 +124,14 @@ export function collectSystemStatus(env: Env): SystemStatus {
           level: env.EMAIL_DRIVER === "noop" ? fb : "ok",
           detail:
             env.EMAIL_DRIVER === "noop"
-              ? "Geen e-mailaflevering (alleen in-app meldingen). Zet EMAIL_DRIVER=resend of postmark (Railway) of smtp."
+              ? "Geen e-mailaflevering (alleen in-app meldingen). Zet EMAIL_DRIVER=resend, postmark of ses (Railway) of smtp."
               : env.EMAIL_DRIVER === "resend"
                 ? "Resend HTTP-API — werkt op hosts die uitgaande SMTP blokkeren."
                 : env.EMAIL_DRIVER === "postmark"
                   ? "Postmark HTTP-API — werkt op hosts die uitgaande SMTP blokkeren."
-                  : "Eigen SMTP-relay.",
+                  : env.EMAIL_DRIVER === "ses"
+                    ? "Amazon SES v2 HTTP-API — EU-regio (AVG-vriendelijk), werkt op hosts die uitgaande SMTP blokkeren."
+                    : "Eigen SMTP-relay.",
         },
         {
           key: "billing",

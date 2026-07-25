@@ -18,12 +18,12 @@
 
 import { MailConnectivityError } from "@/lib/services/mail-sender";
 
-/** Actieve e-mail-modus. `smtp`/`resend`/`postmark` doen een echte round-trip; `noop` = niets te testen. */
-export type MailDriverMode = "noop" | "smtp" | "resend" | "postmark";
+/** Actieve e-mail-modus. `smtp`/`resend`/`postmark`/`ses` doen een echte round-trip; `noop` = niets te testen. */
+export type MailDriverMode = "noop" | "smtp" | "resend" | "postmark" | "ses";
 
 /** Te testen e-mailkanaal. `run` wordt alleen aangeroepen wanneer `active`. */
 export interface MailConnectivityProbeSpec {
-  /** Staat een echt kanaal aan (EMAIL_DRIVER=smtp|resend)? */
+  /** Staat een echt kanaal aan (EMAIL_DRIVER=smtp|resend|postmark|ses)? */
   active: boolean;
   /** Actieve modus (bv. "resend", "noop"). Geen sleutelwaarden. */
   driverMode: MailDriverMode;

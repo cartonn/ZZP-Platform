@@ -328,8 +328,9 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     sensitive: false,
     recipients: [
       "E-maildienstverlener (verwerker) — bij EMAIL_DRIVER=resend: Resend (HTTP-API), of " +
-        "EMAIL_DRIVER=postmark: Postmark (HTTP-API), mogelijk buiten de EER; doorgifte alleen met " +
-        "verwerkersovereenkomst + passende waarborgen (SCC's)",
+        "EMAIL_DRIVER=postmark: Postmark (HTTP-API), mogelijk buiten de EER; of EMAIL_DRIVER=ses: " +
+        "Amazon SES (HTTP-API, EU-datalocatie bij een EU-regio zoals eu-west-1/eu-central-1); " +
+        "doorgifte buiten de EER alleen met verwerkersovereenkomst + passende waarborgen (SCC's)",
     ],
     retention:
       "Notificatiehistorie max. 6 maanden; e-mailadressen bewaard zolang het account actief is",

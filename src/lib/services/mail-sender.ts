@@ -1,6 +1,6 @@
 // E-mailkanaal-abstractie (PLATFORM_OVERHAUL.md §3 punt 5). Dezelfde service-grens als
 // StorageDriver (lokaal/S3), DiplomaVerifier (mock/duo), BigVerifier (mock/bigregister):
-// een interface + een noop-implementatie als veilige standaard + drie echte drivers:
+// een interface + een noop-implementatie als veilige standaard + vier echte drivers:
 //   - smtp     → nodemailer (lazy geladen, zoals de S3-driver @aws-sdk), voor eigen SMTP-relays.
 //   - resend   → HTTP-API (Resend) via fetch, géén SDK-dependency. Nodig omdat veel PaaS-hosts
 //                (o.a. Railway) uitgaande SMTP-poorten (25/465/587) blokkeren; een HTTP-API is dan
@@ -8,9 +8,13 @@
 //   - postmark → HTTP-API (Postmark) via fetch, géén SDK-dependency. Tweede Railway-proof
 //                HTTP-keuze naast Resend; sommige domeinen/DPA's/deliverability-profielen passen
 //                beter bij Postmark. Zelfde seam, zelfde fail-open-vrije foutafhandeling.
+//   - ses      → Amazon SES v2 HTTP-API via fetch + eigen SigV4-ondertekening (aws-sigv4.ts), géén
+//                @aws-sdk-dependency. Railway-proof (HTTPS) en met een EU-regio (eu-west-1/eu-central-1)
+//                AVG-vriendelijker dan Resend/Postmark (VS) — de natuurlijke keuze voor dit platform.
 // EMAIL_DRIVER bepaalt welke wordt geladen. De credentials + productie-onboarding (DNS/SPF/DKIM)
 // blijven mensenwerk — de code is hierop voorbereid.
 
+import { signAwsV4 } from "@/lib/services/aws-sigv4";
 import { fetchWithTimeout, resolveHttpTimeoutMs } from "@/lib/services/fetch-timeout";
 
 export interface MailMessage {
@@ -322,14 +326,158 @@ export class PostmarkMailSender implements MailSender {
   }
 }
 
+/** De SES-variabelen die voor verzending aanwezig moeten zijn (naast de credentials, zie hieronder). */
+const SES_REQUIRED = ["SES_REGION", "EMAIL_FROM"] as const;
+
 /**
- * Of er een kanaal is dat e-mail daadwerkelijk aflevert (EMAIL_DRIVER=smtp, resend of postmark). Taken waarvan
- * e-mail het enige effect is (zoals de notificatie-digest) horen zonder echt kanaal over te
- * slaan, zodat hun voortgangsmarkering niet wordt gezet terwijl er niets is verzonden.
+ * Lost de AWS-credentials voor SES op: bij voorkeur de SES-specifieke sleutels (least privilege — een
+ * eigen IAM-gebruiker met alléén `ses:SendEmail`/`ses:GetAccount`), met een veilige terugval op de
+ * generieke `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (dezelfde die de S3-opslag gebruikt) voor
+ * setups met één AWS-account. Geeft `null` als een van beide ontbreekt.
+ */
+function resolveSesCredentials(): { accessKeyId: string; secretAccessKey: string } | null {
+  const accessKeyId = process.env.SES_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.SES_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+  if (!accessKeyId || !secretAccessKey) return null;
+  return { accessKeyId, secretAccessKey };
+}
+
+/**
+ * Echte verzending via de Amazon SES v2 HTTP-API (POST /v2/email/outbound-emails). Praat via `fetch`
+ * met de REST-API + eigen SigV4-ondertekening (`aws-sigv4.ts`) — géén `@aws-sdk`-dependency, net als de
+ * Resend/Postmark-adapters. Activeer met EMAIL_DRIVER=ses + SES_REGION (EU-regio, bv. eu-west-1) +
+ * credentials + EMAIL_FROM. Werkt op hosts die uitgaande SMTP blokkeren (Railway) en is voor een
+ * Nederlands platform met gevoelige gegevens AVG-vriendelijker dan Resend/Postmark (EU-datalocatie).
+ */
+export class SesMailSender implements MailSender {
+  constructor(
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs: number = resolveHttpTimeoutMs(process.env.EMAIL_HTTP_TIMEOUT_MS),
+  ) {}
+
+  private endpoint(region: string): string {
+    return `https://email.${region}.amazonaws.com/v2/email/outbound-emails`;
+  }
+
+  private host(region: string): string {
+    return `email.${region}.amazonaws.com`;
+  }
+
+  async send(message: MailMessage): Promise<void> {
+    const missing = SES_REQUIRED.filter((k) => !process.env[k]);
+    if (missing.length > 0) {
+      throw new Error(
+        `SES-mailkanaal is niet geconfigureerd. Ontbrekende omgevingsvariabelen: ${missing.join(", ")}. ` +
+          "Zie .env.example voor instructies. Productie-onboarding (domeinverificatie) = mensenwerk.",
+      );
+    }
+    const creds = resolveSesCredentials();
+    if (!creds) {
+      throw new Error(
+        "SES-mailkanaal is niet geconfigureerd. Ontbrekende credentials: SES_ACCESS_KEY_ID/" +
+          "SES_SECRET_ACCESS_KEY (of AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY).",
+      );
+    }
+
+    const region = process.env.SES_REGION!;
+    const bodyContent: Record<string, unknown> = {
+      Subject: { Data: message.subject, Charset: "UTF-8" },
+      Body: { Text: { Data: message.text, Charset: "UTF-8" } },
+    };
+    if (message.html) {
+      (bodyContent.Body as Record<string, unknown>).Html = { Data: message.html, Charset: "UTF-8" };
+    }
+    const payload = JSON.stringify({
+      FromEmailAddress: process.env.EMAIL_FROM,
+      Destination: { ToAddresses: [message.to] },
+      Content: { Simple: bodyContent },
+    });
+
+    const signed = signAwsV4({
+      method: "POST",
+      host: this.host(region),
+      path: "/v2/email/outbound-emails",
+      body: payload,
+      region,
+      service: "ses",
+      accessKeyId: creds.accessKeyId,
+      secretAccessKey: creds.secretAccessKey,
+      sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+      date: new Date(),
+      extraHeaders: { "Content-Type": "application/json" },
+    });
+
+    const res = await fetchWithTimeout(
+      this.endpoint(region),
+      { method: "POST", headers: signed.headers, body: payload },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "SES" },
+    );
+
+    if (!res.ok) {
+      // De responsbody kan een leesbare SES-fout bevatten; nooit het adres/onderwerp loggen (PII).
+      let detail = "";
+      try {
+        detail = (await res.text()).slice(0, 300);
+      } catch {
+        // negeer: de status alleen is voldoende signaal
+      }
+      throw new Error(
+        `SES: e-mail versturen mislukte (status ${res.status})${detail ? ` — ${detail}` : ""}.`,
+      );
+    }
+  }
+
+  async checkConnectivity(): Promise<void> {
+    // Read-only round-trip: authenticated GET /v2/email/account bewijst bereikbaarheid + geldige
+    // credentials zonder een mail te versturen. EMAIL_FROM (domeinverificatie) is pas bij het
+    // daadwerkelijk versturen relevant.
+    const region = process.env.SES_REGION;
+    if (!region) {
+      throw new MailConnectivityError("SES: geen regio geconfigureerd (SES_REGION ontbreekt).");
+    }
+    const creds = resolveSesCredentials();
+    if (!creds) {
+      throw new MailConnectivityError(
+        "SES: geen credentials geconfigureerd (SES_ACCESS_KEY_ID/SES_SECRET_ACCESS_KEY of AWS_*).",
+      );
+    }
+
+    const signed = signAwsV4({
+      method: "GET",
+      host: this.host(region),
+      path: "/v2/email/account",
+      body: "",
+      region,
+      service: "ses",
+      accessKeyId: creds.accessKeyId,
+      secretAccessKey: creds.secretAccessKey,
+      sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+      date: new Date(),
+    });
+
+    const res = await fetchWithTimeout(
+      `https://${this.host(region)}/v2/email/account`,
+      { method: "GET", headers: signed.headers },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "SES" },
+    );
+
+    if (!res.ok) {
+      // Alleen de HTTP-status tonen — nooit de responsbody (kan endpoint-/accountdetails bevatten).
+      throw new MailConnectivityError(
+        `SES: connectiviteitscontrole faalde (status ${res.status}).`,
+      );
+    }
+  }
+}
+
+/**
+ * Of er een kanaal is dat e-mail daadwerkelijk aflevert (EMAIL_DRIVER=smtp, resend, postmark of ses).
+ * Taken waarvan e-mail het enige effect is (zoals de notificatie-digest) horen zonder echt kanaal over
+ * te slaan, zodat hun voortgangsmarkering niet wordt gezet terwijl er niets is verzonden.
  */
 export function isMailDeliveryConfigured(): boolean {
   const driver = process.env.EMAIL_DRIVER ?? "noop";
-  return driver === "smtp" || driver === "resend" || driver === "postmark";
+  return driver === "smtp" || driver === "resend" || driver === "postmark" || driver === "ses";
 }
 
 let cached: MailSender | null = null;
@@ -341,6 +489,7 @@ export function getMailSender(): MailSender {
   if (driver === "smtp") cached = new SmtpMailSender();
   else if (driver === "resend") cached = new ResendMailSender();
   else if (driver === "postmark") cached = new PostmarkMailSender();
+  else if (driver === "ses") cached = new SesMailSender();
   else cached = new NoopMailSender();
   return cached;
 }

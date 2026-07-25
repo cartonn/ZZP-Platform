@@ -69,7 +69,7 @@ const schema = z
 
     // E-mailkanaal: noop (default, in-app meldingen blijven werken), echte SMTP-verzending, of de
     // Resend HTTP-API (nodig op hosts die uitgaande SMTP blokkeren, zoals Railway).
-    EMAIL_DRIVER: z.enum(["noop", "smtp", "resend", "postmark"]).default("noop"),
+    EMAIL_DRIVER: z.enum(["noop", "smtp", "resend", "postmark", "ses"]).default("noop"),
     EMAIL_SMTP_HOST: z.string().optional(),
     EMAIL_SMTP_PORT: z.string().optional(),
     EMAIL_SMTP_USER: z.string().optional(),
@@ -78,6 +78,14 @@ const schema = z
     RESEND_API_KEY: z.string().optional(),
     POSTMARK_SERVER_TOKEN: z.string().optional(),
     POSTMARK_MESSAGE_STREAM: z.string().optional(),
+    // Amazon SES v2 (HTTP-API, SigV4). Kies een EU-regio (AVG). Credentials bij voorkeur via een
+    // eigen least-privilege IAM-gebruiker (SES_ACCESS_KEY_ID/SES_SECRET_ACCESS_KEY); anders valt het
+    // terug op de bestaande AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY (S3). AWS_SESSION_TOKEN alleen
+    // bij tijdelijke STS-credentials.
+    SES_REGION: z.string().optional(),
+    SES_ACCESS_KEY_ID: z.string().optional(),
+    SES_SECRET_ACCESS_KEY: z.string().optional(),
+    AWS_SESSION_TOKEN: z.string().optional(),
 
     // Betaalprovider: noop (default, demo-abonnementsflow), Mollie of Stripe.
     BILLING_PROVIDER: z.enum(["noop", "mollie", "stripe"]).default("noop"),
@@ -185,6 +193,16 @@ const schema = z
     if (v.EMAIL_DRIVER === "postmark") {
       require(!!v.POSTMARK_SERVER_TOKEN, "POSTMARK_SERVER_TOKEN", "Verplicht bij EMAIL_DRIVER=postmark.");
       require(!!v.EMAIL_FROM, "EMAIL_FROM", "Verplicht bij EMAIL_DRIVER=postmark.");
+    }
+    if (v.EMAIL_DRIVER === "ses") {
+      require(!!v.SES_REGION, "SES_REGION", "Verplicht bij EMAIL_DRIVER=ses.");
+      require(!!v.EMAIL_FROM, "EMAIL_FROM", "Verplicht bij EMAIL_DRIVER=ses.");
+      require(!!(
+        v.SES_ACCESS_KEY_ID || v.AWS_ACCESS_KEY_ID
+      ), "SES_ACCESS_KEY_ID", "Verplicht bij EMAIL_DRIVER=ses (of gebruik AWS_ACCESS_KEY_ID).");
+      require(!!(
+        v.SES_SECRET_ACCESS_KEY || v.AWS_SECRET_ACCESS_KEY
+      ), "SES_SECRET_ACCESS_KEY", "Verplicht bij EMAIL_DRIVER=ses (of gebruik AWS_SECRET_ACCESS_KEY).");
     }
     if (v.BILLING_PROVIDER === "mollie") {
       require(!!v.MOLLIE_API_KEY, "MOLLIE_API_KEY", "Verplicht bij BILLING_PROVIDER=mollie.");

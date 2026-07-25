@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — prod: AWS SES e-mail-driver (EMAIL_DRIVER=ses) via SES v2 + SigV4
+
+Vierde productie-mail-driver naast smtp/resend/postmark: **Amazon SES v2 HTTP-API**, ondertekend met
+een eigen, pure **SigV4**-implementatie (`src/lib/services/aws-sigv4.ts`) — géén `@aws-sdk`-dependency,
+zelfde filosofie als de Resend/Postmark/Upstash-adapters. Railway-proof (HTTPS) en met een **EU-regio**
+(`eu-west-1`/`eu-central-1`) AVG-vriendelijker dan Resend/Postmark (VS). Inert zonder sleutels.
+
+- **SigV4-signer** (`aws-sigv4.ts`, pure functie, deterministisch — `date` als parameter) geverifieerd
+  tegen **AWS' officiële testvector** (GET iam ListUsers → bekende signature). Ondersteunt STS-sessietoken.
+- **`SesMailSender`** (`mail-sender.ts`): `send()` → `POST /v2/email/outbound-emails` (Simple content,
+  Text + optioneel Html); `checkConnectivity()` → read-only `GET /v2/email/account` (geen mail verstuurd,
+  draait mee in de go-live-sweep). Credentials: least-privilege `SES_ACCESS_KEY_ID/SECRET` met terugval
+  op de generieke `AWS_ACCESS_KEY_ID/SECRET` (S3-account); optioneel `AWS_SESSION_TOKEN`. Non-2xx en
+  time-out geven een veilige fout zonder PII/secrets.
+- **Wiring:** `EMAIL_DRIVER` enum + coherente env-validatie (`env.ts`), systeemstatus-detail, mail-zelftest
+  `DELIVERING_DRIVERS` + connectiviteit-`MailDriverMode`, sweep-actie (`systeemstatus/actions.ts`),
+  AVG-verwerkingsregister (`processing-register.ts`, SES/EU-datalocatie), `.env.example` (check:env groen).
+- **Tests:** +4 SigV4 (incl. AWS-vector), +9 SES-driver (send/fallback/no-config/non-2xx/timeout/
+  connectivity/geen-secret-in-headers), +4 env-validatie (require regio+creds, accept SES- én AWS-terugval),
+  +1 `isMailDeliveryConfigured`. Gate lokaal groen: typecheck · lint · **test 5015** · prettier · check:env · build.
+
+Bestanden: `src/lib/services/aws-sigv4.ts` (+test), `src/lib/services/mail-sender.ts` (+test), `src/lib/env.ts`
+(+test), `src/lib/system-status.ts`, `src/lib/services/mail-selftest.ts`, `src/lib/services/mail-connectivity-selftest.ts`,
+`src/app/(protected)/admin/systeemstatus/actions.ts`, `src/lib/compliance/processing-register.ts`, `.env.example`,
+`MENSENWERK.md` (§2 + §7). Resterend mensenwerk: AWS-account + geverifieerd afzenderdomein (DNS) + SES uit de
+sandbox halen; `SES_REGION` (EU) + credentials + `EMAIL_FROM` + `EMAIL_DRIVER=ses` in de Railway-secrets.
+
 ## 2026-07-25 — security/privacy-audit: sessie-invalidatie bij wachtwoordwijziging (HOOG, OWASP A07)
 
 Security-/privacy-auditronde (basis `main` @ 7a6957cc): orchestrator (Opus 4.8) + 3 parallelle adversariële

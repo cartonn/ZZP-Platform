@@ -19,6 +19,10 @@ const INTEGRATION_VARS = [
   "RESEND_API_KEY",
   "POSTMARK_SERVER_TOKEN",
   "POSTMARK_MESSAGE_STREAM",
+  "SES_REGION",
+  "SES_ACCESS_KEY_ID",
+  "SES_SECRET_ACCESS_KEY",
+  "AWS_SESSION_TOKEN",
   "MOLLIE_API_KEY",
   "STRIPE_API_KEY",
   "STRIPE_WEBHOOK_SECRET",
@@ -122,6 +126,40 @@ describe("validateEnv", () => {
     process.env.EMAIL_DRIVER = "postmark";
     process.env.POSTMARK_SERVER_TOKEN = "pm_test_token";
     process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("vereist SES_REGION en EMAIL_FROM bij EMAIL_DRIVER=ses", () => {
+    baseValid();
+    process.env.EMAIL_DRIVER = "ses";
+    expect(() => validateEnv()).toThrow(/SES_REGION/);
+  });
+
+  it("vereist credentials bij EMAIL_DRIVER=ses (zonder SES_/AWS-sleutels)", () => {
+    baseValid();
+    process.env.EMAIL_DRIVER = "ses";
+    process.env.SES_REGION = "eu-west-1";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+    expect(() => validateEnv()).toThrow(/SES_ACCESS_KEY_ID/);
+  });
+
+  it("accepteert EMAIL_DRIVER=ses met regio, afzender en SES-specifieke sleutels", () => {
+    baseValid();
+    process.env.EMAIL_DRIVER = "ses";
+    process.env.SES_REGION = "eu-west-1";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+    process.env.SES_ACCESS_KEY_ID = "AKIA_TEST";
+    process.env.SES_SECRET_ACCESS_KEY = "secret";
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("accepteert EMAIL_DRIVER=ses met terugval op de generieke AWS-sleutels", () => {
+    baseValid();
+    process.env.EMAIL_DRIVER = "ses";
+    process.env.SES_REGION = "eu-central-1";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+    process.env.AWS_ACCESS_KEY_ID = "AKIA_AWS";
+    process.env.AWS_SECRET_ACCESS_KEY = "aws-secret";
     expect(() => validateEnv()).not.toThrow();
   });
 
