@@ -54,7 +54,10 @@
 >   voor de **gereserveerde floor-slot** (niet de band ophogen — dat zou de rank-ordening op `/acties` + badges
 >   misrepresenteren). Nieuw `deadlineFloor?: boolean` op `TaskBase` (gezet op `reviewLeaveTask` bij `closingSoon`) +
 >   pure `selectDashboardTasks(tasks, max)` die garandeert dat elke floor-taak (tot `max`) in de gesneden dashboard-rail
->   zit, met behoud van rank-volgorde; gewired in `DashboardActions`. +9 tests. Rank-ordening buiten de rail ongewijzigd.
+>   zit, met behoud van rank-volgorde; +9 tests. Rank-ordening buiten de rail ongewijzigd. **Follow-up (2026-07-25):**
+>   de agent-review op #921 flagde dat `DashboardActions` dood is; de live rail zit in `dashboard/page.tsx`
+>   (`tasksToActions` → `tasks.slice(0, 6)`). De helper is daar alsnog ingewired (`selectDashboardTasks(tasks, 6)`)
+>   zodat de floor-slot productie-effect heeft.
 
 > **Datum:** 2026-07-25 (run 49) · **main-commit basis:** `1cd87a97`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 HOOG functioneel/robuustheid: CSV-diensten-import
