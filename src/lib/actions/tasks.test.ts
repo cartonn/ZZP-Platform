@@ -28,6 +28,7 @@ import {
   respondInvitationTask,
   vatDeadlineTask,
   paymentDueSoonTask,
+  overdueInvoiceTask,
   type PendingTask,
 } from "@/lib/actions/tasks";
 import { type CredentialAlert } from "@/lib/collaboration-alerts";
@@ -618,5 +619,29 @@ describe("credentialCollabExpiryTask", () => {
   it("toont het aantal extra samenwerkingen", () => {
     const t = credentialCollabExpiryTask({ ...base, daysUntilExpiry: 7, extraCollabCount: 2 });
     expect(t.subtitle).toContain("(+2 andere)");
+  });
+});
+
+describe("overdueInvoiceTask", () => {
+  it("ZZP'er zonder variant (chase/legacy): volgt op bij de opdrachtgever", () => {
+    const t = overdueInvoiceTask(2, "FREELANCER");
+    expect(t.id).toBe("overdue-invoice:FREELANCER");
+    expect(t.subtitle).toBe("Volg op bij de opdrachtgever");
+    expect(t.title).toContain("2");
+    expect(t.priority).toBe(P.overdueInvoice);
+  });
+
+  it("ZZP'er cascade-variant (confirm): markeert zelf de betaling — eigen id", () => {
+    const t = overdueInvoiceTask(1, "FREELANCER", "confirm");
+    expect(t.id).toBe("overdue-invoice:FREELANCER:cascade");
+    expect(t.subtitle).toBe("Markeer de betaling zodra je bent betaald");
+    // Distinct id t.o.v. de chase-variant zodat beide rollups naast elkaar kunnen bestaan.
+    expect(t.id).not.toBe(overdueInvoiceTask(1, "FREELANCER").id);
+  });
+
+  it("opdrachtgever: markeer als betaald (alleen legacy-facturen)", () => {
+    const t = overdueInvoiceTask(3, "CLIENT");
+    expect(t.id).toBe("overdue-invoice:CLIENT");
+    expect(t.subtitle).toBe("Markeer als betaald");
   });
 });

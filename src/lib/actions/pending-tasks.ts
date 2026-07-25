@@ -16,7 +16,7 @@ import { type FreelancerCredential } from "@/lib/matching";
 import { CREDENTIAL_TYPE_LABEL } from "@/lib/credentials";
 import { type CredentialType } from "@/lib/enums";
 import { getCompletenessProfile } from "@/lib/data/freelancer-profile";
-import { overdueInvoiceCount, paymentDueSoonCount } from "@/lib/signals";
+import { overdueInvoiceBreakdown, overdueInvoiceCount, paymentDueSoonCount } from "@/lib/signals";
 import { summarizeAvailabilityFreshness } from "@/lib/availability";
 import { type AvailabilityWindowType } from "@/lib/enums";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
@@ -308,7 +308,7 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
     // deelt deze query één render met dashboardData i.p.v. het profiel tweemaal op te halen.
     getCompletenessProfile(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { identityVerifiedAt: true } }),
-    overdueInvoiceCount("FREELANCER", userId),
+    overdueInvoiceBreakdown(userId),
     unreadConversations(userId),
   ]);
 
@@ -540,8 +540,16 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
   // factuur dubbel (specifieke betaal-taak + generieke rij). Disputen tellen niet mee: ze zijn uit
   // `overdueInvoiceCount` gefilterd (bevroren werkproces), consistent met de disputed-uitsluiting
   // van de collabs-query hierboven.
-  const residualOverdue = Math.max(0, overdue - surfacedOverdue);
-  if (residualOverdue > 0) tasks.push(overdueInvoiceTask(residualOverdue, "FREELANCER"));
+  // Splits het residu op actie: cascade-facturen (waar de ZZP'er zélf de betaling markeert) krijgen de
+  // "markeer de betaling"-instructie, legacy-facturen (waar de opdrachtgever aan zet is) de "volg op"-
+  // instructie. Zonder deze splitsing kreeg een residu van cascade-facturen ten onrechte de "volg op bij
+  // de opdrachtgever"-subtitel — een misleidende instructie (de opdrachtgever betaalt daar rechtstreeks
+  // en heeft geen betaalknop). Alleen cascade-facturen worden hierboven met een eigen taak "surfaced";
+  // legacy-facturen komen nooit uit de collabs-loop, dus die vallen volledig in het residu.
+  const residualCascadeOverdue = Math.max(0, overdue.cascade - surfacedOverdue);
+  if (residualCascadeOverdue > 0)
+    tasks.push(overdueInvoiceTask(residualCascadeOverdue, "FREELANCER", "confirm"));
+  if (overdue.legacy > 0) tasks.push(overdueInvoiceTask(overdue.legacy, "FREELANCER", "chase"));
 
   // No-show-stand (productbesluit 12-6-2026): ongegronde no-shows zijn blijvende historie (het
   // oordeel is een adminbeslissing) — er is geen ZZP-actie die dit "afhandelt". Daarom géén

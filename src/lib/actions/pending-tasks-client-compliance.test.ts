@@ -27,6 +27,7 @@ vi.mock("@/lib/db", () => ({
 // Isoleer de compliance-tak: overige opdrachtgever-signalen uitgeschakeld.
 vi.mock("@/lib/signals", () => ({
   overdueInvoiceCount: vi.fn(async () => 0),
+  overdueInvoiceBreakdown: vi.fn(async () => ({ legacy: 0, cascade: 0 })),
   paymentDueSoonCount: vi.fn(async () => 0),
 }));
 vi.mock("@/lib/data/vat-deadline", () => ({ getVatDeadlinesForActor: vi.fn(async () => []) }));

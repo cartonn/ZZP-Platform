@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — routine: correcte instructie op ZZP overdue-factuur-rollup (cascade vs legacy)
+
+De generieke "N facturen over de vervaldatum"-rij van de ZZP'er (`overdueInvoiceTask(residualOverdue,
+"FREELANCER")`) toonde altijd de subtitel **"Volg op bij de opdrachtgever"** — óók voor cascade-facturen
+waar de opdrachtgever rechtstreeks betaalt en géén betaalknop heeft (`canPay = !cascade`), en waar de
+échte ZZP-actie **"Markeer de betaling zodra je bent betaald"** is. Een misleidende instructie op een
+geparkeerde LOW uit persona-sweep run 49. Nu gesplitst op actie:
+
+- **`overdueInvoiceBreakdown(userId)`** (`src/lib/signals.ts`, nieuw) splitst de overdue-facturen van de
+  ZZP'er in `{ legacy, cascade }` via twee gescoopte count-queries (zelfde partij-/disputed-scope als
+  `overdueInvoiceCount`, som blijft gelijk → de nav-badge kan niet driften). Gedeelde where-fragmenten
+  (`legacyOverdueOr` / `CASCADE_OVERDUE_OR`) = één bron van waarheid.
+- **`overdueInvoiceTask(count, role, variant)`** krijgt een `"chase" | "confirm"`-variant met een eigen
+  `id` (`overdue-invoice:FREELANCER` vs `:cascade`), zodat beide rollups naast elkaar kunnen bestaan.
+- **`pending-tasks.ts`** splitst het residu: `residualCascadeOverdue = max(0, cascade - surfacedOverdue)`
+  → "markeer de betaling"; `legacy` (nooit surfaced uit de collabs-loop) → "volg op bij de opdrachtgever".
+
+Read-only afleiding, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Gate lokaal groen:
+typecheck (exit 0), lint (0 warnings), **test 4981 passed (477 files)**, build, `prettier` schoon.
+Bestanden: `src/lib/signals.ts` (+`signals.overdue.test.ts` +3), `src/lib/actions/tasks.ts`
+(+`tasks.test.ts` +3), `src/lib/actions/pending-tasks.ts` (+`pending-tasks.test.ts` +2, +4 signals-mocks
+bijgewerkt), `PROGRESS.md`, `docs/PERSONA-SWEEP-BACKLOG.md`.
+
 ## 2026-07-25 — persona-sweep (run 49): CSV-import rate-poort (HOOG) + cascade existence-oracle (MED)
 
 Kritische-gebruiker-sweep over alle vier rollen op de verse prod-build + demo-seed. Live persona-smoke:
