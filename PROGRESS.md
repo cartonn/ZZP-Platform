@@ -3,6 +3,31 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — routine: franchiser stale-dienst residu-rollup (undercount van lang-open voorraad)
+
+Dicht de geparkeerde SHOULD-FIX uit persona-sweep **run 50** (DOEL 1b): `franchiserTasks`
+(`src/lib/actions/pending-tasks.ts`) toonde de lang-open (te lang zonder plaatsing) diensten als aparte
+rij maar capte hard op `.slice(0, 3)` **zonder rollup** — anders dan elk ander aggregaat in dat bestand
+(dat óf per item emit, óf één telling-taak bundelt). Bij ≥4 lang-open, niet-acute diensten verscheen #4+
+**nergens** op `/acties`, in de dashboard-rail of de zijbalk-badge (`pendingTaskCount = tasks.length` telde
+dan óók te laag), terwijl `/franchise/diensten` (onbegrensd) ze wél toonde — een undercount van échte,
+verouderende voorraad die de bemiddelaar juist moet zien.
+
+- **Fix:** de residu-diensten (#4+, na uitsluiting van de acute-dedup-set) worden gebundeld in één
+  nieuwe rollup-taak `franchiseStaleDienstRollupTask(count)` (`src/lib/actions/tasks.ts`) — spiegelt de
+  bundeling van `franchiseAcuteDienstTask`. Kind `franchise-stale-service-rollup`, `resolver:"link"` →
+  default-tak van de resolver-registry (deep-link `/franchise/diensten`, geen UI-wiring), band
+  `P.franchiserServiceStale` (net onder de per-dienst-taken zodat de oudste diensten voorop blijven).
+  De rail bundelt residu al via zijn top-N-overloop; nu tellen /acties + badge het residu ook (+1).
+- Read-only afleiding op de reeds-geladen (MAX-begrensde) stale-lijst — **geen extra query, geen
+  schemawijziging, geen nieuw mutatie/auth-oppervlak**. Het woord "AI" komt nergens voor.
+- **Test:** +3 in `pending-tasks-franchiser.test.ts` (5 stale → 3 rijen + rollup van 2 met juiste
+  href/tone/telling; ≤3 → geen rollup; exact 1 residu → enkelvoud). Gate: typecheck, lint, test (5018),
+  build, prettier groen.
+
+**Bestanden:** `src/lib/actions/tasks.ts`, `src/lib/actions/pending-tasks.ts`,
+`src/lib/actions/pending-tasks-franchiser.test.ts`, `docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`.
+
 ## 2026-07-25 — prod: AWS SES e-mail-driver (EMAIL_DRIVER=ses) via SES v2 + SigV4
 
 Vierde productie-mail-driver naast smtp/resend/postmark: **Amazon SES v2 HTTP-API**, ondertekend met

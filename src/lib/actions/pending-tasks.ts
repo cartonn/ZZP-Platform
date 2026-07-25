@@ -59,6 +59,7 @@ import {
   franchiseLeadFollowupTask,
   franchiseNotEngageableTask,
   franchiseStaleDienstTask,
+  franchiseStaleDienstRollupTask,
   franchiseGuidedSetupTasks,
   shiftHandoffTask,
   clientComplianceTask,
@@ -959,12 +960,18 @@ async function franchiserTasks(userId: string): Promise<PendingTask[]> {
     tasks.push(franchiseNotEngageableTask(f.id, f.user.name ?? "ZZP'er", reason));
   }
 
-  // Ongedekte diensten die te lang open staan — oudste eerst, max 3 (rustige lijst; de volledige lijst
-  // staat op /franchise/diensten). Spiegelt de dashboard-rail zodat /acties en de badge overeenkomen.
-  for (const d of staleDiensten.filter((d) => !acuteDienstIds.has(d.id)).slice(0, 3)) {
+  // Ongedekte diensten die te lang open staan — oudste eerst, max 3 als aparte rij (rustige lijst; de
+  // volledige lijst staat op /franchise/diensten). Het residu (#4+) wordt gebundeld in één rollup-taak
+  // (spiegelt franchiseAcuteDienstTask) zodat lang-open voorraad níét stil van /acties, de badge
+  // (`pendingTaskCount`) en de rail valt — voorheen viel #4+ volledig weg (undercount).
+  const staleTasks = staleDiensten.filter((d) => !acuteDienstIds.has(d.id));
+  const STALE_DIENST_SHOWN = 3;
+  for (const d of staleTasks.slice(0, STALE_DIENST_SHOWN)) {
     const openDays = Math.floor((now.getTime() - d.createdAt.getTime()) / 86_400_000);
     tasks.push(franchiseStaleDienstTask(d.id, d.title, openDays));
   }
+  const staleResidue = staleTasks.length - STALE_DIENST_SHOWN;
+  if (staleResidue > 0) tasks.push(franchiseStaleDienstRollupTask(staleResidue));
 
   // Open dienst-overname-aanvragen binnen de tenant — de bemiddelaar beslist (goedkeuren/afwijzen).
   // Eén taak per aanvraag; deep-link naar het gedeelde beoordelingsscherm (dezelfde href als de badge).

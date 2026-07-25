@@ -157,6 +157,51 @@ describe("bemiddelaar next-actions — te lang open dienst telt op /acties + bad
     const tasks = await pendingTasks(ACTOR);
     expect(tasks.some((t) => t.kind === "franchise-stale-service")).toBe(false);
   });
+
+  // Residu-rollup (persona-sweep run 50, geparkeerde SHOULD-FIX): voorbij de per-dienst-slice van 3
+  // moeten #4+ diensten niet stil van /acties + de badge (`pendingTaskCount`) + de rail vallen. Ze
+  // worden gebundeld in één rollup-taak met de restant-telling (spiegelt franchiseAcuteDienstTask).
+  it("bundelt het residu voorbij de eerste 3 in één rollup-taak met de juiste telling", async () => {
+    const created = new Date(now.getTime() - 10 * 86_400_000);
+    state.stale = Array.from({ length: 5 }, (_, i) => ({
+      id: `dienst-${i}`,
+      title: `Dienst ${i}`,
+      createdAt: created,
+    }));
+    const tasks = await pendingTasks(ACTOR);
+    // De 3 oudste als aparte rij + één rollup voor de resterende 2.
+    expect(tasks.filter((t) => t.kind === "franchise-stale-service")).toHaveLength(3);
+    const rollup = tasks.filter((t) => t.kind === "franchise-stale-service-rollup");
+    expect(rollup).toHaveLength(1);
+    expect(rollup[0]?.id).toBe("franchise-stale-service-rollup");
+    expect(rollup[0]?.href).toBe("/franchise/diensten");
+    expect(rollup[0]?.tone).toBe("attention");
+    expect(rollup[0]?.title).toMatch(/Nog 2 diensten/);
+  });
+
+  it("toont geen rollup bij precies 3 of minder lang-open diensten", async () => {
+    const created = new Date(now.getTime() - 10 * 86_400_000);
+    state.stale = Array.from({ length: 3 }, (_, i) => ({
+      id: `dienst-${i}`,
+      title: `Dienst ${i}`,
+      createdAt: created,
+    }));
+    const tasks = await pendingTasks(ACTOR);
+    expect(tasks.filter((t) => t.kind === "franchise-stale-service")).toHaveLength(3);
+    expect(tasks.some((t) => t.kind === "franchise-stale-service-rollup")).toBe(false);
+  });
+
+  it("gebruikt enkelvoud in de rollup bij exact één residu-dienst", async () => {
+    const created = new Date(now.getTime() - 10 * 86_400_000);
+    state.stale = Array.from({ length: 4 }, (_, i) => ({
+      id: `dienst-${i}`,
+      title: `Dienst ${i}`,
+      createdAt: created,
+    }));
+    const tasks = await pendingTasks(ACTOR);
+    const rollup = tasks.find((t) => t.kind === "franchise-stale-service-rollup");
+    expect(rollup?.title).toMatch(/Nog 1 dienst staat/);
+  });
 });
 
 // Dedup-invariant (persona-sweep, geparkeerd LOW → DOEL 1b): een ongevulde PUBLISHED-dienst die zowel
