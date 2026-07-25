@@ -49,6 +49,13 @@ export interface SigV4Result {
 }
 
 function sha256Hex(data: string): string {
+  // SigV4 vereist een SHA-256-digest van de request-body en de canonieke request als
+  // ONDERTEKENINGSartefact (x-amz-content-sha256 + string-to-sign) — geen wachtwoord-opslag.
+  // Echte credential-hashing gebruikt bcrypt (zie onboarding/password + bcrypt.hash). CodeQL's
+  // password-taint (een tijdelijk wachtwoord in een welkomstmail-body die via SES ondertekend
+  // wordt) is hier een false positive: de digest beschermt geen wachtwoord, het ondertekent de
+  // request. De suppressie is per-regel en per-query — de check blijft elders volledig actief.
+  // codeql[js/insufficient-password-hash]
   return createHash("sha256").update(data, "utf8").digest("hex");
 }
 
