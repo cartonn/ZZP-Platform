@@ -327,8 +327,9 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
     dataCategories: ["E-mailadres", "Naam", "Notificatietype en -inhoud"],
     sensitive: false,
     recipients: [
-      "E-maildienstverlener (verwerker) — bij EMAIL_DRIVER=resend: Resend (HTTP-API), " +
-        "mogelijk buiten de EER; doorgifte alleen met verwerkersovereenkomst + passende waarborgen (SCC's)",
+      "E-maildienstverlener (verwerker) — bij EMAIL_DRIVER=resend: Resend (HTTP-API), of " +
+        "EMAIL_DRIVER=postmark: Postmark (HTTP-API), mogelijk buiten de EER; doorgifte alleen met " +
+        "verwerkersovereenkomst + passende waarborgen (SCC's)",
     ],
     retention:
       "Notificatiehistorie max. 6 maanden; e-mailadressen bewaard zolang het account actief is",

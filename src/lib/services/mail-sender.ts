@@ -1,10 +1,13 @@
 // E-mailkanaal-abstractie (PLATFORM_OVERHAUL.md §3 punt 5). Dezelfde service-grens als
 // StorageDriver (lokaal/S3), DiplomaVerifier (mock/duo), BigVerifier (mock/bigregister):
-// een interface + een noop-implementatie als veilige standaard + twee echte drivers:
-//   - smtp   → nodemailer (lazy geladen, zoals de S3-driver @aws-sdk), voor eigen SMTP-relays.
-//   - resend → HTTP-API (Resend) via fetch, géén SDK-dependency. Nodig omdat veel PaaS-hosts
-//              (o.a. Railway) uitgaande SMTP-poorten (25/465/587) blokkeren; een HTTP-API is dan
-//              de enige route die e-mail daadwerkelijk aflevert.
+// een interface + een noop-implementatie als veilige standaard + drie echte drivers:
+//   - smtp     → nodemailer (lazy geladen, zoals de S3-driver @aws-sdk), voor eigen SMTP-relays.
+//   - resend   → HTTP-API (Resend) via fetch, géén SDK-dependency. Nodig omdat veel PaaS-hosts
+//                (o.a. Railway) uitgaande SMTP-poorten (25/465/587) blokkeren; een HTTP-API is dan
+//                de enige route die e-mail daadwerkelijk aflevert.
+//   - postmark → HTTP-API (Postmark) via fetch, géén SDK-dependency. Tweede Railway-proof
+//                HTTP-keuze naast Resend; sommige domeinen/DPA's/deliverability-profielen passen
+//                beter bij Postmark. Zelfde seam, zelfde fail-open-vrije foutafhandeling.
 // EMAIL_DRIVER bepaalt welke wordt geladen. De credentials + productie-onboarding (DNS/SPF/DKIM)
 // blijven mensenwerk — de code is hierop voorbereid.
 
@@ -221,14 +224,112 @@ export class ResendMailSender implements MailSender {
   }
 }
 
+/** De Postmark-variabelen die voor verzending aanwezig moeten zijn. */
+const POSTMARK_REQUIRED = ["POSTMARK_SERVER_TOKEN", "EMAIL_FROM"] as const;
+
 /**
- * Of er een kanaal is dat e-mail daadwerkelijk aflevert (EMAIL_DRIVER=smtp of resend). Taken waarvan
+ * Echte verzending via de Postmark HTTP-API (POST https://api.postmarkapp.com/email). Praat via
+ * `fetch` met de REST-API — géén SDK-dependency, net als de Resend-adapter. Activeer met
+ * EMAIL_DRIVER=postmark + POSTMARK_SERVER_TOKEN + EMAIL_FROM. Werkt op hosts die uitgaande SMTP
+ * blokkeren (Railway). Authenticatie via de `X-Postmark-Server-Token`-header (server-token, niet de
+ * account-token). Optioneel `POSTMARK_MESSAGE_STREAM` (default "outbound").
+ */
+export class PostmarkMailSender implements MailSender {
+  private readonly endpoint = "https://api.postmarkapp.com/email";
+  // Read-only endpoint voor de connectiviteitscontrole: authenticated GET dat het server-token
+  // valideert zonder iets te versturen of te muteren.
+  private readonly connectivityEndpoint = "https://api.postmarkapp.com/server";
+
+  constructor(
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs: number = resolveHttpTimeoutMs(process.env.EMAIL_HTTP_TIMEOUT_MS),
+  ) {}
+
+  async send(message: MailMessage): Promise<void> {
+    const missing = POSTMARK_REQUIRED.filter((k) => !process.env[k]);
+    if (missing.length > 0) {
+      throw new Error(
+        `Postmark-mailkanaal is niet geconfigureerd. Ontbrekende omgevingsvariabelen: ${missing.join(", ")}. ` +
+          "Zie .env.example voor instructies. Productie-onboarding (domeinverificatie) = mensenwerk.",
+      );
+    }
+
+    // Postmark eist ten minste één van HtmlBody/TextBody; `text` is in ons contract verplicht.
+    const body: Record<string, unknown> = {
+      From: process.env.EMAIL_FROM,
+      To: message.to,
+      Subject: message.subject,
+      TextBody: message.text,
+      MessageStream: process.env.POSTMARK_MESSAGE_STREAM || "outbound",
+    };
+    if (message.html) body.HtmlBody = message.html;
+
+    const res = await fetchWithTimeout(
+      this.endpoint,
+      {
+        method: "POST",
+        headers: {
+          "X-Postmark-Server-Token": process.env.POSTMARK_SERVER_TOKEN!,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Postmark" },
+    );
+
+    if (!res.ok) {
+      // De responsbody kan een leesbare Postmark-fout bevatten; nooit het adres/onderwerp loggen (PII).
+      let detail = "";
+      try {
+        detail = (await res.text()).slice(0, 300);
+      } catch {
+        // negeer: de status alleen is voldoende signaal
+      }
+      throw new Error(
+        `Postmark: e-mail versturen mislukte (status ${res.status})${detail ? ` — ${detail}` : ""}.`,
+      );
+    }
+  }
+
+  async checkConnectivity(): Promise<void> {
+    // Alleen het server-token is nodig voor een auth-controle; EMAIL_FROM (domeinverificatie) is pas
+    // bij het daadwerkelijk versturen relevant. Ontbreekt het token, dan is er niets te controleren.
+    if (!process.env.POSTMARK_SERVER_TOKEN) {
+      throw new MailConnectivityError(
+        "Postmark: geen server-token geconfigureerd (POSTMARK_SERVER_TOKEN ontbreekt).",
+      );
+    }
+
+    const res = await fetchWithTimeout(
+      this.connectivityEndpoint,
+      {
+        method: "GET",
+        headers: {
+          "X-Postmark-Server-Token": process.env.POSTMARK_SERVER_TOKEN,
+          Accept: "application/json",
+        },
+      },
+      { fetchImpl: this.fetchImpl, timeoutMs: this.timeoutMs, label: "Postmark" },
+    );
+
+    if (!res.ok) {
+      // Alleen de HTTP-status tonen — nooit de responsbody (kan endpoint-/accountdetails bevatten).
+      throw new MailConnectivityError(
+        `Postmark: connectiviteitscontrole faalde (status ${res.status}).`,
+      );
+    }
+  }
+}
+
+/**
+ * Of er een kanaal is dat e-mail daadwerkelijk aflevert (EMAIL_DRIVER=smtp, resend of postmark). Taken waarvan
  * e-mail het enige effect is (zoals de notificatie-digest) horen zonder echt kanaal over te
  * slaan, zodat hun voortgangsmarkering niet wordt gezet terwijl er niets is verzonden.
  */
 export function isMailDeliveryConfigured(): boolean {
   const driver = process.env.EMAIL_DRIVER ?? "noop";
-  return driver === "smtp" || driver === "resend";
+  return driver === "smtp" || driver === "resend" || driver === "postmark";
 }
 
 let cached: MailSender | null = null;
@@ -239,6 +340,7 @@ export function getMailSender(): MailSender {
   const driver = process.env.EMAIL_DRIVER ?? "noop";
   if (driver === "smtp") cached = new SmtpMailSender();
   else if (driver === "resend") cached = new ResendMailSender();
+  else if (driver === "postmark") cached = new PostmarkMailSender();
   else cached = new NoopMailSender();
   return cached;
 }

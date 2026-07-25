@@ -69,13 +69,15 @@ const schema = z
 
     // E-mailkanaal: noop (default, in-app meldingen blijven werken), echte SMTP-verzending, of de
     // Resend HTTP-API (nodig op hosts die uitgaande SMTP blokkeren, zoals Railway).
-    EMAIL_DRIVER: z.enum(["noop", "smtp", "resend"]).default("noop"),
+    EMAIL_DRIVER: z.enum(["noop", "smtp", "resend", "postmark"]).default("noop"),
     EMAIL_SMTP_HOST: z.string().optional(),
     EMAIL_SMTP_PORT: z.string().optional(),
     EMAIL_SMTP_USER: z.string().optional(),
     EMAIL_SMTP_PASS: z.string().optional(),
     EMAIL_FROM: z.string().optional(),
     RESEND_API_KEY: z.string().optional(),
+    POSTMARK_SERVER_TOKEN: z.string().optional(),
+    POSTMARK_MESSAGE_STREAM: z.string().optional(),
 
     // Betaalprovider: noop (default, demo-abonnementsflow), Mollie of Stripe.
     BILLING_PROVIDER: z.enum(["noop", "mollie", "stripe"]).default("noop"),
@@ -180,6 +182,10 @@ const schema = z
       require(!!v.RESEND_API_KEY, "RESEND_API_KEY", "Verplicht bij EMAIL_DRIVER=resend.");
       require(!!v.EMAIL_FROM, "EMAIL_FROM", "Verplicht bij EMAIL_DRIVER=resend.");
     }
+    if (v.EMAIL_DRIVER === "postmark") {
+      require(!!v.POSTMARK_SERVER_TOKEN, "POSTMARK_SERVER_TOKEN", "Verplicht bij EMAIL_DRIVER=postmark.");
+      require(!!v.EMAIL_FROM, "EMAIL_FROM", "Verplicht bij EMAIL_DRIVER=postmark.");
+    }
     if (v.BILLING_PROVIDER === "mollie") {
       require(!!v.MOLLIE_API_KEY, "MOLLIE_API_KEY", "Verplicht bij BILLING_PROVIDER=mollie.");
     }
@@ -250,7 +256,7 @@ export function envWarnings(env: Env): string[] {
   }
   if (env.EMAIL_DRIVER === "noop") {
     warnings.push(
-      "EMAIL_DRIVER=noop — er wordt geen e-mail afgeleverd (alleen in-app meldingen). Configureer EMAIL_DRIVER=smtp voor e-mailmeldingen.",
+      "EMAIL_DRIVER=noop — er wordt geen e-mail afgeleverd (alleen in-app meldingen). Configureer EMAIL_DRIVER=resend/postmark (HTTP, Railway-proof) of smtp voor e-mailmeldingen.",
     );
   }
   if (!env.CRON_SECRET) {

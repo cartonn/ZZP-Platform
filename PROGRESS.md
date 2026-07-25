@@ -3,6 +3,40 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — prod: Postmark e-mail-driver (EMAIL_DRIVER=postmark)
+
+Derde e-mailprovider naast `smtp` en `resend`, achter dezelfde `MailSender`-seam. **Postmark HTTP-API**
+(`api.postmarkapp.com`) via `fetch` — géén nieuwe SDK-dependency (zelfde patroon als de Resend- en
+Upstash-adapters). Tweede **Railway-proof** HTTP-keuze (Railway blokkeert uitgaande SMTP-poorten); de
+operator kiest wat het beste past bij domein/DPA/deliverability. Inert zonder secret — zonder
+`POSTMARK_SERVER_TOKEN` blijft de app draaien (env-validatie faalt alleen als de driver op `postmark`
+staat en het token/`EMAIL_FROM` mist — geen halve activering).
+
+- **`PostmarkMailSender`** (`src/lib/services/mail-sender.ts`): `send()` POST't naar `/email` met de
+  `X-Postmark-Server-Token`-header (server-token) + Postmark-veldnamen (`From/To/Subject/TextBody/
+HtmlBody/MessageStream`), harde time-out via `fetchWithTimeout`, non-2xx → duidelijke fout (nooit
+  adres/onderwerp in de log — PII). `checkConnectivity()` doet een **read-only** `GET /server`
+  (bewijst bereikbaarheid + geldig token zonder een mail te sturen) → `MailConnectivityError` met
+  alléén de HTTP-status (geen responsbody-lek). Optioneel `POSTMARK_MESSAGE_STREAM` (default
+  `outbound`). Gewired in `getMailSender` + `isMailDeliveryConfigured`.
+- **Meegetrokken:** env-schema + validatie (`env.ts`), mail-zelftest (`DELIVERING_DRIVERS`),
+  read-only connectiviteits-zelftest + go-live-sweep (`MailDriverMode`, `systeemstatus/actions.ts`),
+  systeemstatus-detail (`system-status.ts`), AVG-verwerkingsregister (Postmark als verwerker naast
+  Resend), `.env.example`, MENSENWERK §2 + §7.
+- **Tests:** +11 in `mail-sender.test.ts` (driver-selectie, ontbrekende config, POST-vorm + header +
+  message-stream, html-weglating, non-2xx, time-out, read-only connectiviteit + status-only-lek-guard,
+  token-ontbreekt) en +2 in `env.test.ts` (postmark vereist token+from / accepteert met beide).
+
+**Bestanden:** `src/lib/services/mail-sender.ts` (+ test), `src/lib/env.ts` (+ test),
+`src/lib/services/mail-selftest.ts`, `src/lib/services/mail-connectivity-selftest.ts`,
+`src/app/(protected)/admin/systeemstatus/actions.ts`, `src/lib/system-status.ts`,
+`src/lib/compliance/processing-register.ts`, `.env.example`, `MENSENWERK.md`, `PROGRESS.md`.
+
+**Resterend mensenwerk:** Postmark-account + afzender/domein verifiëren (DNS), en
+`POSTMARK_SERVER_TOKEN` + `EMAIL_FROM` + `EMAIL_DRIVER=postmark` in de Railway-secrets zetten.
+
+**Checks:** typecheck · lint · test (mail+env groen) · prettier — groen. Build/e2e draaien in CI.
+
 ## 2026-07-25 — security/privacy: bedrijfslogo-blob mee wissen bij AVG-erasure (art. 17)
 
 Security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op niet-

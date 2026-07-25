@@ -34,7 +34,7 @@ export interface MailSelfTestReport {
 }
 
 /** De e-maildrivers die daadwerkelijk afleveren (i.t.t. de stille `noop`-standaard). */
-const DELIVERING_DRIVERS = new Set(["smtp", "resend"]);
+const DELIVERING_DRIVERS = new Set(["smtp", "resend", "postmark"]);
 
 /**
  * Basale RFC-achtige validatie: één `@`, niet-lege lokale + domeindeel, een punt in het domein, geen

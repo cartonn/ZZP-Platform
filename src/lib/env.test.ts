@@ -17,6 +17,8 @@ const INTEGRATION_VARS = [
   "EMAIL_SMTP_PASS",
   "EMAIL_FROM",
   "RESEND_API_KEY",
+  "POSTMARK_SERVER_TOKEN",
+  "POSTMARK_MESSAGE_STREAM",
   "MOLLIE_API_KEY",
   "STRIPE_API_KEY",
   "STRIPE_WEBHOOK_SECRET",
@@ -105,6 +107,20 @@ describe("validateEnv", () => {
     baseValid();
     process.env.EMAIL_DRIVER = "resend";
     process.env.RESEND_API_KEY = "re_test_key";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it("vereist POSTMARK_SERVER_TOKEN en EMAIL_FROM bij EMAIL_DRIVER=postmark", () => {
+    baseValid();
+    process.env.EMAIL_DRIVER = "postmark";
+    expect(() => validateEnv()).toThrow(/POSTMARK_SERVER_TOKEN/);
+  });
+
+  it("accepteert EMAIL_DRIVER=postmark met token en afzender", () => {
+    baseValid();
+    process.env.EMAIL_DRIVER = "postmark";
+    process.env.POSTMARK_SERVER_TOKEN = "pm_test_token";
     process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
     expect(() => validateEnv()).not.toThrow();
   });
