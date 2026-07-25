@@ -60,6 +60,20 @@ export async function importDienstenAction(
   }
 
   const rateCents = col.rate != null ? col.rate * 100 : null;
+  // Weiger een import zonder uurtarief netjes vóór de rij-loop — exact zoals de handmatige urenstaat
+  // (`validatePerformanceForm`) dat doet. Zonder deze check zou elke geïmporteerde HOURS-prestatie als
+  // SUBMITTED met `rateCents = null` landen: onafhandelbaar (goedkeuring gooit "Urenstaat mist een
+  // uurtarief.") en niet te corrigeren via de UI. De cascade-guard (`assertPerformanceWithinLimits`)
+  // vangt dit óók af, maar hier geven we één heldere melding i.p.v. N identieke rij-fouten.
+  if (rateCents == null) {
+    return {
+      imported: 0,
+      skipped: 0,
+      errors: [
+        "Er is geen uurtarief ingesteld voor deze samenwerking. Neem contact op met de opdrachtgever.",
+      ],
+    };
+  }
   const rates = resolveOrtRates({ ortProfile: col.ortProfile, ortCustomRates: col.ortCustomRates });
 
   const { shifts: parsedShifts, errors: parseErrors } = parseCsvShifts(csvText);

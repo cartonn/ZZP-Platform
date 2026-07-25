@@ -99,6 +99,17 @@ export async function submitInvoice(actor: Actor, invoiceId: string): Promise<vo
 // --- Event D — Factuur goedkeuren ------------------------------------------
 export async function approveInvoice(actor: Actor, invoiceId: string): Promise<void> {
   const inv = await loadCascadeInvoice(invoiceId);
+  // Anti-oracle (CWE-203): een actor die geen partij is bij deze factuur (noch uitschrijver, noch
+  // opdrachtgever) krijgt exact dezelfde melding als een onbekend id. Deze melding wordt door de
+  // useActionState-drawer (`approveInvoiceState`) als returnwaarde aan de client getoond (niet door
+  // Next.js geredigeerd) → productie-observeerbaar. Partij-verkeerde-kant → behulpzame rolmelding.
+  if (
+    actor.role !== "ADMIN" &&
+    actor.id !== inv.issuerUserId &&
+    actor.id !== inv.counterpartyUserId
+  ) {
+    throw new CascadeError("Factuur niet gevonden.");
+  }
   if (actor.role !== "ADMIN" && actor.id !== inv.counterpartyUserId) {
     throw new CascadeError("Alleen de opdrachtgever kan de factuur goedkeuren.");
   }
@@ -169,6 +180,15 @@ export async function rejectInvoice(
 ): Promise<void> {
   reason = boundReason(reason); // defense-in-depth: kap onbegrensde vrije tekst (PII/audit/notificatie)
   const inv = await loadCascadeInvoice(invoiceId);
+  // Anti-oracle (CWE-203): niet-partij → identieke "niet gevonden"-melding (zie approveInvoice);
+  // productie-observeerbaar via `rejectInvoiceState`. Partij-verkeerde-kant → rolmelding.
+  if (
+    actor.role !== "ADMIN" &&
+    actor.id !== inv.issuerUserId &&
+    actor.id !== inv.counterpartyUserId
+  ) {
+    throw new CascadeError("Factuur niet gevonden.");
+  }
   if (actor.role !== "ADMIN" && actor.id !== inv.counterpartyUserId) {
     throw new CascadeError("Alleen de opdrachtgever kan de factuur afkeuren.");
   }

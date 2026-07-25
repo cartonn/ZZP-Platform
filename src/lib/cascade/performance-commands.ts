@@ -251,6 +251,19 @@ export async function submitPerformance(actor: Actor, performanceId: string): Pr
 // --- Event B2 — Prestatie goedkeuren -> concept-factuur --------------------
 export async function approvePerformance(actor: Actor, performanceId: string): Promise<void> {
   const perf = await loadPerformance(performanceId);
+  // Anti-oracle (CWE-203): een actor die geen partij is bij deze prestatie (noch ZZP'er, noch
+  // opdrachtgever) mag niet via een afwijkende "wie mag dit"-melding het bestaan aftasten — geef
+  // exact dezelfde melding als een onbekend id. Deze melding wordt door de useActionState-drawer
+  // (`approvePerformanceState`) als returnwaarde aan de client getoond (niet door Next.js geredigeerd),
+  // dus het verschil is productie-observeerbaar. Een echte partij (verkeerde kant) krijgt wél de
+  // behulpzame rolmelding.
+  if (
+    actor.role !== "ADMIN" &&
+    actor.id !== perf.freelancerUserId &&
+    actor.id !== perf.clientUserId
+  ) {
+    throw new CascadeError("Prestatie niet gevonden.");
+  }
   if (actor.role !== "ADMIN" && actor.id !== perf.clientUserId) {
     throw new CascadeError("Alleen de opdrachtgever kan de prestatie goedkeuren.");
   }
@@ -416,6 +429,15 @@ export async function rejectPerformance(
 ): Promise<void> {
   reason = boundReason(reason); // defense-in-depth: kap onbegrensde vrije tekst (PII/audit/notificatie)
   const perf = await loadPerformance(performanceId);
+  // Anti-oracle (CWE-203): niet-partij → identieke "niet gevonden"-melding (zie approvePerformance);
+  // productie-observeerbaar via `rejectPerformanceState`. Partij-verkeerde-kant → rolmelding.
+  if (
+    actor.role !== "ADMIN" &&
+    actor.id !== perf.freelancerUserId &&
+    actor.id !== perf.clientUserId
+  ) {
+    throw new CascadeError("Prestatie niet gevonden.");
+  }
   if (actor.role !== "ADMIN" && actor.id !== perf.clientUserId) {
     throw new CascadeError("Alleen de opdrachtgever kan de prestatie afkeuren.");
   }
