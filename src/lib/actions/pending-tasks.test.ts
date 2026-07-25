@@ -10,7 +10,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const state = vi.hoisted(() => ({
   collabs: [] as unknown[],
   completedCollabs: [] as unknown[],
-  overdueCount: 0,
+  overdueLegacy: 0,
+  overdueCascade: 0,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -37,7 +38,11 @@ vi.mock("@/lib/data/freelancer-profile", () => ({
 }));
 
 vi.mock("@/lib/signals", () => ({
-  overdueInvoiceCount: vi.fn(async () => state.overdueCount),
+  overdueInvoiceCount: vi.fn(async () => state.overdueLegacy + state.overdueCascade),
+  overdueInvoiceBreakdown: vi.fn(async () => ({
+    legacy: state.overdueLegacy,
+    cascade: state.overdueCascade,
+  })),
   paymentDueSoonCount: vi.fn(async () => 0),
 }));
 
@@ -64,7 +69,8 @@ function collab(id: string, invoices: { id: string; lifecycleStatus: string }[])
 beforeEach(() => {
   state.collabs = [];
   state.completedCollabs = [];
-  state.overdueCount = 0;
+  state.overdueLegacy = 0;
+  state.overdueCascade = 0;
 });
 
 // Afgeronde samenwerking zoals de review-nudge-query (status COMPLETED) hem oplevert.
@@ -83,7 +89,7 @@ function completedCollab(id: string, opts: { completedAt: Date | null; reviewedB
 describe("freelancerTasks — betaal-/overdue-tak", () => {
   it("toont een specifieke betaal-taak (attention) voor een OVERDUE-factuur — verdwijnt niet meer", async () => {
     state.collabs = [collab("c1", [{ id: "inv-overdue", lifecycleStatus: "OVERDUE" }])];
-    state.overdueCount = 1; // dezelfde factuur telt mee in de generieke overdue-teller
+    state.overdueCascade = 1; // dezelfde cascade-factuur telt mee in de generieke overdue-teller
 
     const tasks = await pendingTasks(ACTOR);
     const pay = tasks.find((t) => t.id === "payment-confirm:inv-overdue");
@@ -98,7 +104,6 @@ describe("freelancerTasks — betaal-/overdue-tak", () => {
 
   it("houdt de toon 'info' voor een APPROVED-factuur (nog niet verlopen)", async () => {
     state.collabs = [collab("c2", [{ id: "inv-approved", lifecycleStatus: "APPROVED" }])];
-    state.overdueCount = 0;
 
     const tasks = await pendingTasks(ACTOR);
     const pay = tasks.find((t) => t.id === "payment-confirm:inv-approved");
@@ -106,17 +111,50 @@ describe("freelancerTasks — betaal-/overdue-tak", () => {
     expect(pay?.tone).toBe("info");
   });
 
-  it("toont de generieke overdue-rij alleen voor het residu (bv. een bevroren disputed-factuur)", async () => {
-    // Eén overdue-factuur op een lopende samenwerking (krijgt een eigen taak) + een tweede overdue-
-    // factuur die buiten de collabs-query valt (disputed): overdueCount=2, surfaced=1 → residu 1.
+  it("toont de generieke cascade-overdue-rij alleen voor het residu, met de 'markeer'-instructie", async () => {
+    // Eén cascade-overdue-factuur op een lopende samenwerking (krijgt een eigen taak) + een tweede
+    // cascade-overdue-factuur buiten de collabs-slice: cascade=2, surfaced=1 → residu 1. De residu-rij
+    // is een cascade-factuur waar de ZZP'er zélf de betaling markeert — niet "volg op bij de opdrachtgever".
     state.collabs = [collab("c3", [{ id: "inv-overdue-active", lifecycleStatus: "OVERDUE" }])];
-    state.overdueCount = 2;
+    state.overdueCascade = 2;
 
     const tasks = await pendingTasks(ACTOR);
     expect(tasks.some((t) => t.id === "payment-confirm:inv-overdue-active")).toBe(true);
     const generic = tasks.find((t) => t.kind === "overdue-invoice");
     expect(generic).toBeDefined();
+    expect(generic?.id).toBe("overdue-invoice:FREELANCER:cascade");
     expect(generic?.title).toContain("1");
+    expect(generic?.subtitle).toBe("Markeer de betaling zodra je bent betaald");
+  });
+
+  it("toont de legacy-overdue-rij met de 'volg op bij de opdrachtgever'-instructie", async () => {
+    // Een legacy/handmatige overdue-factuur (geen cascade-lifecycle) komt nooit uit de collabs-loop en
+    // valt volledig in het residu: hier is de opdrachtgever aan zet, dus de ZZP'er volgt op.
+    state.overdueLegacy = 2;
+
+    const tasks = await pendingTasks(ACTOR);
+    const generic = tasks.find((t) => t.kind === "overdue-invoice");
+    expect(generic).toBeDefined();
+    expect(generic?.id).toBe("overdue-invoice:FREELANCER");
+    expect(generic?.subtitle).toBe("Volg op bij de opdrachtgever");
+    expect(generic?.title).toContain("2");
+  });
+
+  it("splitst legacy en cascade in twee aparte rijen met elk hun eigen instructie", async () => {
+    // Een portefeuille met zowel een legacy-overdue-factuur (opdrachtgever aan zet) als een niet-surfaced
+    // cascade-overdue-factuur (ZZP'er aan zet) toont beide rollups naast elkaar zonder key-botsing.
+    state.overdueLegacy = 1;
+    state.overdueCascade = 1;
+
+    const tasks = await pendingTasks(ACTOR);
+    const rows = tasks.filter((t) => t.kind === "overdue-invoice");
+    expect(rows).toHaveLength(2);
+    expect(rows.find((t) => t.id === "overdue-invoice:FREELANCER")?.subtitle).toBe(
+      "Volg op bij de opdrachtgever",
+    );
+    expect(rows.find((t) => t.id === "overdue-invoice:FREELANCER:cascade")?.subtitle).toBe(
+      "Markeer de betaling zodra je bent betaald",
+    );
   });
 });
 

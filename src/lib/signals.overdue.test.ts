@@ -8,7 +8,7 @@ vi.mock("@/lib/db", () => ({
   prisma: { invoice: { count: (args: CountArgs) => countMock(args) } },
 }));
 
-import { overdueInvoiceCount } from "./signals";
+import { overdueInvoiceBreakdown, overdueInvoiceCount } from "./signals";
 
 describe("overdueInvoiceCount — scoping", () => {
   beforeEach(() => countMock.mockClear());
@@ -87,5 +87,38 @@ describe("overdueInvoiceCount — scoping", () => {
     for (const clause of where.OR as Array<Record<string, unknown>>) {
       expect(clause).toMatchObject({ lifecycleStatus: null });
     }
+  });
+});
+
+describe("overdueInvoiceBreakdown — legacy vs cascade splitsing (ZZP'er)", () => {
+  beforeEach(() => countMock.mockReset());
+
+  it("splitst in twee gescoopte count-queries en retourneert {legacy, cascade}", async () => {
+    // De queries lopen via Promise.all in vaste volgorde [legacy, cascade]; de resultaatvolgorde blijft
+    // behouden ongeacht welke count eerder resolvet.
+    countMock.mockResolvedValueOnce(3).mockResolvedValueOnce(7);
+
+    const result = await overdueInvoiceBreakdown("fr-1");
+    expect(result).toEqual({ legacy: 3, cascade: 7 });
+    expect(countMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("beide takken zijn gescoopt op eigen samenwerkingen én disputen uitgesloten", async () => {
+    await overdueInvoiceBreakdown("fr-1");
+    for (const call of countMock.mock.calls) {
+      expect(call[0].where.collaboration).toMatchObject({
+        freelancer: { userId: "fr-1" },
+        disputedAt: null,
+      });
+    }
+    // Precies één legacy-tak (OR met alleen lifecycleStatus=null) en één cascade-tak (lifecycleStatus=OVERDUE).
+    const legacy = countMock.mock.calls.find((c) => Array.isArray(c[0].where.OR))![0].where;
+    expect(legacy.OR).toEqual([
+      { lifecycleStatus: null, status: "OVERDUE" },
+      { lifecycleStatus: null, status: "SENT", dueAt: { lt: expect.any(Date) } },
+    ]);
+    const cascade = countMock.mock.calls.find((c) => !Array.isArray(c[0].where.OR))![0]
+      .where as Record<string, unknown>;
+    expect(cascade.lifecycleStatus).toBe("OVERDUE");
   });
 });

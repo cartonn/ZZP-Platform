@@ -47,11 +47,12 @@
 >   server-action-fout) en worden door Next.js in productie geredigeerd tot een generieke digest → **niet
 >   productie-observeerbaar**. Alsnog wenselijk gelijk te trekken (zelfde niet-partij→"niet gevonden"-fold)
 >   zodat een toekomstige refactor die deze naar een return-wrapper verplaatst het gat niet heropent. Prio: LOW.
-> - **LOW (DOEL 1b, misleidende subtitel):** `overdueInvoiceTask(residualOverdue, "FREELANCER")`
->   (`pending-tasks.ts`) toont subtitel "Volg op bij de opdrachtgever", maar de residual-roll-up kan bij een
->   ZZP'er met >50 niet-disputed samenwerkingen (de `take: MAX`-slice) een cascade-OVERDUE-factuur bevatten
->   waar de echte actie "markeer de betaling zodra je bent betaald" is. Geen dode actie (href `/facturen`),
->   alleen misleidende instructie. Fix-richting: residual splitsen in legacy vs cascade, of generieke subtitel.
+> - **LOW (DOEL 1b, misleidende subtitel) — GEDAAN (2026-07-25, PR #914):** `overdueInvoiceTask(residualOverdue,
+"FREELANCER")` (`pending-tasks.ts`) toonde subtitel "Volg op bij de opdrachtgever", maar de residual-roll-up
+>   kon bij een ZZP'er met >50 niet-disputed samenwerkingen (de `take: MAX`-slice) een cascade-OVERDUE-factuur
+>   bevatten waar de echte actie "markeer de betaling zodra je bent betaald" is. **Fix:** residu gesplitst in
+>   legacy (opdrachtgever aan zet → "volg op") vs cascade (ZZP'er markeert → "markeer de betaling") via
+>   `overdueInvoiceBreakdown` + een `chase`/`confirm`-variant op `overdueInvoiceTask` (eigen id per variant).
 > - **LOW (DOEL 1b, rail-floor):** `reviewPromptClosing` (48) en `staleApplications`/client-stale (52) kunnen
 >   onder de harde top-6-slice van de dashboard-rail zakken terwijl een sluitend blind-beoordelingsvenster
 >   **onherstelbaar** is na sluiting. Bewuste band-keuze; overweeg een floor/gereserveerde slot voor

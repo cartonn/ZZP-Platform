@@ -540,12 +540,28 @@ export function adminSupportTicketTask(
   };
 }
 
-export function overdueInvoiceTask(count: number, role: "FREELANCER" | "CLIENT"): PendingTask {
+export function overdueInvoiceTask(
+  count: number,
+  role: "FREELANCER" | "CLIENT",
+  variant: "chase" | "confirm" = "chase",
+): PendingTask {
+  // Twee ZZP-varianten met een verschillende actie (zie overdueInvoiceBreakdown):
+  // - "confirm" (cascade-facturen): de ZZP'er registreert zélf de betaling zodra die binnen is — de
+  //   opdrachtgever betaalt rechtstreeks en heeft geen "Markeer als betaald"-knop (canPay = !cascade).
+  // - "chase" (legacy/handmatig): de opdrachtgever is aan zet, de ZZP'er volgt op.
+  // De opdrachtgever ziet alleen legacy-facturen ("Markeer als betaald"). Distinct id per variant zodat
+  // beide rollups naast elkaar kunnen bestaan zonder te dedupen op key.
+  const confirm = variant === "confirm";
+  const subtitle = confirm
+    ? "Markeer de betaling zodra je bent betaald"
+    : role === "FREELANCER"
+      ? "Volg op bij de opdrachtgever"
+      : "Markeer als betaald";
   return {
     kind: "overdue-invoice",
-    id: `overdue-invoice:${role}`,
+    id: `overdue-invoice:${role}${confirm ? ":cascade" : ""}`,
     title: `${plural(count, "factuur", "facturen")} over de vervaldatum`,
-    subtitle: role === "FREELANCER" ? "Volg op bij de opdrachtgever" : "Markeer als betaald",
+    subtitle,
     tone: "attention",
     priority: P.overdueInvoice,
     resolver: "link",

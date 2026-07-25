@@ -53,6 +53,7 @@ vi.mock("@/lib/signals", async (importOriginal) => {
   return {
     ...actual,
     overdueInvoiceCount: vi.fn(async () => 0),
+    overdueInvoiceBreakdown: vi.fn(async () => ({ legacy: 0, cascade: 0 })),
     paymentDueSoonCount: vi.fn(async () => 0),
   };
 });

@@ -50,6 +50,7 @@ vi.mock("@/lib/data/freelancer-profile", () => ({
 
 vi.mock("@/lib/signals", () => ({
   overdueInvoiceCount: vi.fn(async () => 0),
+  overdueInvoiceBreakdown: vi.fn(async () => ({ legacy: 0, cascade: 0 })),
   paymentDueSoonCount: vi.fn(async () => 0),
   startOfUtcDay: (d: Date) =>
     new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())),

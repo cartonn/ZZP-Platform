@@ -237,26 +237,55 @@ export function countUnreadConversations(
  * cascade → `lifecycleStatus = null`) vallen terug op het legacy `status`-veld; die worden nooit als
  * specifieke betaal-taak getoond, dus alleen deze roll-up telt ze — precies één keer.
  */
+// Legacy-/handmatige overdue-facturen (geen cascade-lifecycle): val terug op het legacy status-veld.
+// Hier ís de opdrachtgever aan zet ("Markeer als betaald" bestaat alléén voor een !cascade-factuur —
+// zie `facturen/[id]/page.tsx` canPay), dus deze takken gelden voor beide partijen. De ZZP'er kan hier
+// niets doen behalve opvolgen bij de opdrachtgever.
+function legacyOverdueOr(now: Date): Prisma.InvoiceWhereInput[] {
+  return [
+    { lifecycleStatus: null, status: "OVERDUE" },
+    { lifecycleStatus: null, status: "SENT", dueAt: { lt: now } },
+  ];
+}
+
+// Cascade-facturen (lifecycleStatus=OVERDUE) horen ALLEEN in de roll-up van de ZZP'er: in de cascade
+// registreert de ZZP'er de betaling (`stage.ts` stap 6, `youAreUp:isFreelancer`), terwijl de
+// opdrachtgever op "Wacht op betalingsbevestiging" staat (`youAreUp:false`) en nergens een "Markeer als
+// betaald"-knop heeft (`canPay = !cascade`). Zou de opdrachtgever ze wél tellen, dan toont de generieke
+// roll-up hem een dode, niet-verdwijnende "Markeer als betaald"-actie die de cascade-fase tegenspreekt.
+// De ZZP-kant ontdubbelt met `surfacedOverdue` (zie pending-tasks.ts).
+const CASCADE_OVERDUE_OR: Prisma.InvoiceWhereInput = { lifecycleStatus: "OVERDUE" };
+
 export async function overdueInvoiceCount(role: UserRole, userId: string): Promise<number> {
   if (role === "ADMIN" || role === "FRANCHISER") return 0;
   const party = role === "FREELANCER" ? { freelancer: { userId } } : { company: { userId } };
-  const or: Prisma.InvoiceWhereInput[] = [
-    // Legacy-/handmatige facturen (geen lifecycle): val terug op het legacy status-veld. Hier ís de
-    // opdrachtgever aan zet ("Markeer als betaald" bestaat alléén voor een !cascade-factuur — zie
-    // `facturen/[id]/page.tsx` canPay), dus deze takken gelden voor beide partijen.
-    { lifecycleStatus: null, status: "OVERDUE" },
-    { lifecycleStatus: null, status: "SENT", dueAt: { lt: new Date() } },
-  ];
-  // Cascade-facturen (lifecycleStatus=OVERDUE) horen ALLEEN in de roll-up van de ZZP'er: in de
-  // cascade registreert de ZZP'er de betaling (`stage.ts` stap 6, `youAreUp:isFreelancer`), terwijl de
-  // opdrachtgever op "Wacht op betalingsbevestiging" staat (`youAreUp:false`) en nergens een
-  // "Markeer als betaald"-knop heeft (`canPay = !cascade`). Zou de opdrachtgever ze wél tellen, dan
-  // toont de generieke roll-up hem een dode, niet-verdwijnende "Markeer als betaald"-actie die de
-  // cascade-fase tegenspreekt. De ZZP-kant ontdubbelt met `surfacedOverdue` (zie pending-tasks.ts).
-  if (role === "FREELANCER") or.unshift({ lifecycleStatus: "OVERDUE" });
+  const or = legacyOverdueOr(new Date());
+  if (role === "FREELANCER") or.unshift(CASCADE_OVERDUE_OR);
   return prisma.invoice.count({
     where: { collaboration: { ...party, disputedAt: null }, OR: or },
   });
+}
+
+/**
+ * Splitst de overdue-facturen van de ZZP'er in twee categorieën met een verschillende actie, zodat de
+ * generieke roll-up in het actiecentrum de juiste instructie kan tonen:
+ * - `legacy` — handmatige/legacy-facturen waar de **opdrachtgever** aan zet is → "Volg op bij de
+ *   opdrachtgever";
+ * - `cascade` — cascade-facturen (lifecycleStatus=OVERDUE) waar de **ZZP'er zélf** de betaling
+ *   registreert → "Markeer de betaling zodra je bent betaald".
+ * Zonder deze splitsing kreeg een cascade-overdue-factuur ten onrechte de "volg op"-subtitel (de
+ * opdrachtgever betaalt daar rechtstreeks en heeft geen betaalknop). Spiegelt exact de scope van
+ * `overdueInvoiceCount("FREELANCER", …)` (som van beide) zodat de teller en de splitsing nooit driften.
+ */
+export async function overdueInvoiceBreakdown(
+  userId: string,
+): Promise<{ legacy: number; cascade: number }> {
+  const collaboration = { freelancer: { userId }, disputedAt: null };
+  const [legacy, cascade] = await Promise.all([
+    prisma.invoice.count({ where: { collaboration, OR: legacyOverdueOr(new Date()) } }),
+    prisma.invoice.count({ where: { collaboration, ...CASCADE_OVERDUE_OR } }),
+  ]);
+  return { legacy, cascade };
 }
 
 /**
