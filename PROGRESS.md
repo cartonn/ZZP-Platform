@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — routine: reactie-funnel (bekeken-/acceptatiequote) op /inzicht (ZZP'er)
+
+De ZZP'er zag op `/inzicht` bij "Activiteit" alleen de rauwe win-rate (`winRate` = geaccepteerd/**totaal**,
+incl. nog-openstaande reacties → structureel onderschat zolang reacties lopen) plus de gemiddelde match-score.
+De eerlijke funnel-quotes die `summarizeApplicationOutcomes` al berekent — **bekeken-quote** (% van je
+reacties dat een opdrachtgever überhaupt bekeek) en **acceptatiequote** (% geaccepteerd van de **beoordeelde**
+reacties) — leefden alléén op `/reacties`, niet op de BI-pagina. Benchmark: Malt/Temper tonen zowel "hoe vaak
+word je bekeken" als je conversie. Nu een compacte funnelregel in de Activiteit-widget (bekeken- +
+acceptatiequote), read-only.
+
+- **`summarizeApplicationFunnel(byStatus, minSample)`** (`src/lib/application-outcomes.ts`, nieuw): leidt de
+  twee quotes af uit een **telling-per-status** — precies wat `getFreelancerStats` al aggregeert
+  (`applicationsByStatus`) — met exact dezelfde semantiek als `summarizeApplicationOutcomes` (WITHDRAWN telt
+  nergens mee; bekeken = status ≠ NEW; beoordeeld = geaccepteerd + afgewezen) en dezelfde steekproefdrempel
+  (`APPLICATION_OUTCOME_MIN_SAMPLE = 4`) → geen misleidende quote uit weinig reacties, kan niet driften.
+- Wiring in `FreelancerInzicht` (`inzicht/page.tsx`): `summarizeApplicationFunnel(s.applicationsByStatus)` →
+  een `BiStatList` onder de gauges (alleen de rijen met een niet-null quote; sparse scherm voor een verse
+  ZZP'er). **Geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.** Het woord "AI" komt
+  nergens voor.
+
+Gate lokaal: typecheck, lint, test (+5, `application-outcomes.test.ts`), build, `prettier --write`.
+Bestanden: `src/lib/application-outcomes.ts` (+test), `src/app/(protected)/inzicht/page.tsx`, `PROGRESS.md`.
+
 ## 2026-07-25 — routine: correcte instructie op ZZP overdue-factuur-rollup (cascade vs legacy)
 
 De generieke "N facturen over de vervaldatum"-rij van de ZZP'er (`overdueInvoiceTask(residualOverdue,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   APPLICATION_OUTCOME_MIN_SAMPLE,
+  summarizeApplicationFunnel,
   summarizeApplicationOutcomes,
   type ApplicationOutcomeInput,
 } from "@/lib/application-outcomes";
@@ -174,5 +175,77 @@ describe("summarizeApplicationOutcomes — WITHDRAWN", () => {
     expect(out.total).toBe(0);
     expect(out.responseRate).toBeNull();
     expect(out.acceptanceRate).toBeNull();
+  });
+});
+
+describe("summarizeApplicationFunnel", () => {
+  it("berekent bekeken- en acceptatiequote uit een telling-per-status", () => {
+    // 6 reacties: 1 NEW (niet bekeken), 1 VIEWED, 1 SHORTLIST, 1 ACCEPTED, 3 REJECTED.
+    const out = summarizeApplicationFunnel({
+      NEW: 1,
+      VIEWED: 1,
+      SHORTLIST: 1,
+      ACCEPTED: 1,
+      REJECTED: 3,
+    });
+    expect(out.total).toBe(7);
+    expect(out.seen).toBe(6); // alles behalve de NEW-reactie
+    expect(out.decided).toBe(4); // accepted + rejected (≥ drempel)
+    expect(out.accepted).toBe(1);
+    expect(out.responseRate).toBe(86); // 6/7, afgerond
+    expect(out.acceptanceRate).toBe(25); // 1/4
+  });
+
+  it("negeert ingetrokken reacties in beide noemers (identiek aan summarizeApplicationOutcomes)", () => {
+    const byStatus = { VIEWED: 1, SHORTLIST: 1, ACCEPTED: 1, REJECTED: 1, WITHDRAWN: 9 };
+    const funnel = summarizeApplicationFunnel(byStatus);
+    // Zelfde bron van waarheid: de array-variant op dezelfde verdeling geeft dezelfde quotes.
+    const outcomes = summarizeApplicationOutcomes([
+      app("VIEWED"),
+      app("SHORTLIST"),
+      app("ACCEPTED"),
+      app("REJECTED"),
+      app("WITHDRAWN"),
+      app("WITHDRAWN"),
+      app("WITHDRAWN"),
+      app("WITHDRAWN"),
+      app("WITHDRAWN"),
+      app("WITHDRAWN"),
+      app("WITHDRAWN"),
+      app("WITHDRAWN"),
+      app("WITHDRAWN"),
+    ]);
+    expect(funnel.total).toBe(4);
+    expect(funnel.responseRate).toBe(outcomes.responseRate);
+    expect(funnel.acceptanceRate).toBe(outcomes.acceptanceRate);
+  });
+
+  it("geeft null-quotes onder de steekproefdrempel (geen misleidende 100% uit weinig reacties)", () => {
+    const out = summarizeApplicationFunnel({ VIEWED: 1, ACCEPTED: 1 });
+    expect(out.total).toBe(2);
+    expect(out.responseRate).toBeNull(); // 2 < minSample
+    expect(out.acceptanceRate).toBeNull(); // decided = 1 < minSample
+  });
+
+  it("respecteert een aangepaste steekproefdrempel en een lege telling", () => {
+    expect(summarizeApplicationFunnel({}).total).toBe(0);
+    expect(summarizeApplicationFunnel({}).responseRate).toBeNull();
+    // Met minSample 1 mag een enkele beoordeelde reactie wél een quote geven.
+    const out = summarizeApplicationFunnel({ ACCEPTED: 1 }, 1);
+    expect(out.responseRate).toBe(100); // 1/1 bekeken
+    expect(out.acceptanceRate).toBe(100); // 1/1 geaccepteerd
+  });
+
+  it("gebruikt dezelfde drempelconstante als de uitkomsten-samenvatting", () => {
+    // Precies op de drempel telt wél mee: 4 reacties, 3 bekeken → responseRate gevuld.
+    const out = summarizeApplicationFunnel({
+      NEW: 1,
+      VIEWED: 1,
+      SHORTLIST: 1,
+      REJECTED: 1,
+    });
+    expect(APPLICATION_OUTCOME_MIN_SAMPLE).toBe(4);
+    expect(out.total).toBe(4);
+    expect(out.responseRate).toBe(75); // 3/4
   });
 });

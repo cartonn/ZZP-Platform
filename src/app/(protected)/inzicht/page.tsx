@@ -16,6 +16,7 @@ import { requireActor, type Actor } from "@/lib/authz";
 import { type UserRole } from "@/lib/enums";
 import { computeTenantFee } from "@/lib/tenant-fee";
 import { getFreelancerStats } from "@/lib/freelancer-stats";
+import { summarizeApplicationFunnel } from "@/lib/application-outcomes";
 import { getFreelancerMembership } from "@/lib/freelancer-membership";
 import { getDeliveryQuality, DELIVERY_TONE_LABEL } from "@/lib/collaboration-quality";
 import { getClientStats } from "@/lib/client-stats";
@@ -221,6 +222,35 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
     );
   }
   const hasQuality = quality !== null && quality.tone !== "INSUFFICIENT";
+  // Eerlijke funnel-quotes (bekeken- en acceptatiequote), afgeleid uit de al-getelde reactiestatussen
+  // — dezelfde cijfers als op /reacties, maar hier in het BI-overzicht. De rauwe "Gewonnen"-gauge
+  // (geaccepteerd/totaal) onderschat zolang reacties nog openstaan; de acceptatiequote (van de
+  // beoordeelde reacties) zet dat in perspectief, en de bekeken-quote laat zien of je opvalt.
+  const funnel = summarizeApplicationFunnel(s.applicationsByStatus);
+  const funnelItems: { label: string; value: string; sub: string; tone?: "success" | "warning" }[] =
+    [];
+  if (funnel.responseRate != null) {
+    funnelItems.push({
+      label: "Bekeken",
+      value: `${funnel.responseRate}%`,
+      sub: `${funnel.seen} van ${funnel.total} reacties bekeken`,
+      tone:
+        funnel.responseRate >= 50 ? "success" : funnel.responseRate >= 25 ? "warning" : undefined,
+    });
+  }
+  if (funnel.acceptanceRate != null) {
+    funnelItems.push({
+      label: "Geaccepteerd van beoordeeld",
+      value: `${funnel.acceptanceRate}%`,
+      sub: `${funnel.accepted} van ${funnel.decided} beoordeelde reacties`,
+      tone:
+        funnel.acceptanceRate >= 50
+          ? "success"
+          : funnel.acceptanceRate >= 25
+            ? "warning"
+            : undefined,
+    });
+  }
   return (
     <div className="space-y-4">
       <RevenueHero
@@ -247,29 +277,36 @@ async function FreelancerInzicht({ userId }: { userId: string }) {
           emptyText="Zodra je op opdrachten reageert, zie je hier de verdeling per status."
         />
         <BiWidget title="Activiteit">
-          <div className="grid grid-cols-2 gap-4">
-            <GaugeRing
-              bare
-              size={108}
-              value={s.winRate}
-              label="Gewonnen"
-              sub="van je reacties"
-              tone={rateTone(s.winRate, 50, 25)}
-            />
-            {s.avgMatchScore != null ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <GaugeRing
                 bare
                 size={108}
-                value={s.avgMatchScore}
-                label="Match-score"
-                sub="gemiddeld"
-                tone="accent"
+                value={s.winRate}
+                label="Gewonnen"
+                sub="van je reacties"
+                tone={rateTone(s.winRate, 50, 25)}
               />
-            ) : (
-              <div className="flex flex-col items-center justify-center gap-1 text-center">
-                <Target className="size-5 text-muted-foreground" aria-hidden />
-                <p className="font-mono text-2xl font-semibold">—</p>
-                <p className="text-sm font-medium">Match-score</p>
+              {s.avgMatchScore != null ? (
+                <GaugeRing
+                  bare
+                  size={108}
+                  value={s.avgMatchScore}
+                  label="Match-score"
+                  sub="gemiddeld"
+                  tone="accent"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-1 text-center">
+                  <Target className="size-5 text-muted-foreground" aria-hidden />
+                  <p className="font-mono text-2xl font-semibold">—</p>
+                  <p className="text-sm font-medium">Match-score</p>
+                </div>
+              )}
+            </div>
+            {funnelItems.length > 0 && (
+              <div className="border-t border-border pt-1">
+                <BiStatList items={funnelItems} />
               </div>
             )}
           </div>

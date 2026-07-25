@@ -90,3 +90,47 @@ export function summarizeApplicationOutcomes(
     acceptanceRate: decided >= minSample ? pct(accepted, decided) : null,
   };
 }
+
+/**
+ * Alleen de funnel-quotes (bekeken- en acceptatiequote) afgeleid uit een tellling-per-status —
+ * zoals `getFreelancerStats` die al aggregeert. Zo kan de BI-pagina (`/inzicht`) dezelfde eerlijke
+ * cijfers als `/reacties` tonen zonder de losse reacties opnieuw op te halen. Dezelfde semantiek als
+ * `summarizeApplicationOutcomes`: ingetrokken (WITHDRAWN) reacties tellen nergens mee, de bekeken-
+ * quote deelt door álle reacties en de acceptatiequote door de **beoordeelde** reacties.
+ */
+export interface ApplicationFunnelRates {
+  /** Aantal reacties (excl. ingetrokken). */
+  total: number;
+  /** Door de opdrachtgever minstens bekeken (status ≠ NEW). */
+  seen: number;
+  /** Beoordeeld: geaccepteerd + afgewezen. */
+  decided: number;
+  accepted: number;
+  /** % van álle reacties dat minstens bekeken werd; `null` onder de steekproefdrempel. */
+  responseRate: number | null;
+  /** % geaccepteerd van de beoordeelde reacties; `null` onder de steekproefdrempel. */
+  acceptanceRate: number | null;
+}
+
+export function summarizeApplicationFunnel(
+  byStatus: Readonly<Record<string, number>>,
+  minSample: number = APPLICATION_OUTCOME_MIN_SAMPLE,
+): ApplicationFunnelRates {
+  const count = (status: ApplicationStatus): number => byStatus[status] ?? 0;
+
+  // Ingetrokken reacties blijven volledig buiten de noemers (zoals summarizeApplicationOutcomes).
+  const total =
+    count("NEW") + count("VIEWED") + count("SHORTLIST") + count("ACCEPTED") + count("REJECTED");
+  const seen = total - count("NEW");
+  const accepted = count("ACCEPTED");
+  const decided = accepted + count("REJECTED");
+
+  return {
+    total,
+    seen,
+    decided,
+    accepted,
+    responseRate: total >= minSample ? pct(seen, total) : null,
+    acceptanceRate: decided >= minSample ? pct(accepted, decided) : null,
+  };
+}
