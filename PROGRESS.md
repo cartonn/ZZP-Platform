@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — routine: voordraag-overzicht (vulbaarheid uit roster) op dienst-detail (bemiddelaar)
+
+De bemiddelaar (FRANCHISER) zag het "N geschikte vakmensen vrij"-signaal alléén op de diensten-**lijst**
+(`dienst-fill-signal`). Op de dienst-**detailpagina** — waar de vulbeslissing valt — moest hij de hele
+voordraag-lijst afscannen om te weten "kan ik deze dienst NU uit mijn roster vullen, of moet ik werven?".
+Nu een compact **voordraag-overzicht** bovenaan de "Voordragen uit je roster"-sectie: hoofdmaat **direct
+voordraagbaar** + pooldiepte (**geschikte matches**) + het hele roster, met een verklarende kopregel
+(success/neutraal/werving-nodig) en een context-regel voor wat tussen "geschikt" en "nu voordraagbaar"
+zit (al benaderd · dubbele-boeking-risico · niet inzetbaar).
+
+- **Pure kern** `summarizeVoordraagOverview` + `voordraagVerdict` + `voordraagContextParts`
+  (`src/lib/franchise/dienst-voordraag-overzicht.ts`): decomposeert de reeds-geladen `RosterCandidate[]`
+  in disjuncte bakken — `strongMatches` splitst exact op in `readyToPropose + alreadyEngaged +
+doubleBookingRisk`. Hergebruikt **dezelfde** `READY_MATCH_MIN_SCORE` (≥60) als de lijst-chip → detail
+  en lijst leggen nooit een andere "geschikt"-lat. **Geen extra query, geen schemawijziging, geen
+  mutatie/auth-oppervlak** — server-side berekende inzetbaarheid/matchscore, hier alleen geteld.
+- **UI** `DienstVoordraagOverzicht` (`src/components/franchise/dienst-voordraag-overzicht.tsx`, `StatCard`-
+  grid), gewired in `franchise/diensten/[id]/page.tsx` boven `VoordragenSection` (alleen bij ≥1 kandidaat).
+- **Test:** +14 unit-tests (`dienst-voordraag-overzicht.test.ts`) — lege lijst, drempel, INACTIEF,
+  al-benaderd/gereageerd, dubbele-boeking, disjuncte-bak-invariant over een gemengde lijst, verdict-tonen,
+  enkelvoud/meervoud, context-delen. `typecheck`/`lint`/`test`/`build` groen, `prettier --write` gedraaid.
+
 ## 2026-07-25 — prod: Postmark e-mail-driver (EMAIL_DRIVER=postmark)
 
 Derde e-mailprovider naast `smtp` en `resend`, achter dezelfde `MailSender`-seam. **Postmark HTTP-API**

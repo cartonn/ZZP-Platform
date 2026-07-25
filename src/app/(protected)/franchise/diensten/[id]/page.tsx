@@ -21,6 +21,8 @@ import { ApplicationStatusBadge } from "@/components/applications/application-st
 import { ComplianceBadge } from "@/components/compliance-badge";
 import { RATE_FIT_LABEL, RATE_FIT_VARIANT } from "@/lib/rate-fit";
 import { plural } from "@/lib/plural";
+import { summarizeVoordraagOverview } from "@/lib/franchise/dienst-voordraag-overzicht";
+import { DienstVoordraagOverzicht } from "@/components/franchise/dienst-voordraag-overzicht";
 import { setDienstStatus } from "../actions";
 import { VoordragenSection } from "./voordragen";
 
@@ -162,11 +164,14 @@ export default async function FranchiseDienstDetailPage({
               />
             </Card>
           ) : (
-            <Card>
-              <CardContent className="p-0">
-                <VoordragenSection jobId={id} candidates={rosterCandidates} />
-              </CardContent>
-            </Card>
+            <div className="space-y-3">
+              <DienstVoordraagOverzicht overview={summarizeVoordraagOverview(rosterCandidates)} />
+              <Card>
+                <CardContent className="p-0">
+                  <VoordragenSection jobId={id} candidates={rosterCandidates} />
+                </CardContent>
+              </Card>
+            </div>
           )}
         </section>
       )}
