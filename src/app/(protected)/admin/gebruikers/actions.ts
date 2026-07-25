@@ -101,6 +101,19 @@ export async function anonymizeUser(userId: string): Promise<void> {
     select: { storageKey: true },
   });
 
+  // Ook het bedrijfslogo staat als losse blob in de opslag (Company.logoKey, geüpload via
+  // bedrijf/actions.ts — géén Document-rij, dus een tweede, onafhankelijk storage.put-callsite). De
+  // anonimiseringstransactie zet `logoKey` op null (companyAnonymizationData) maar raakt het bestand
+  // zélf niet; zonder deze fetch+delete blijft de afbeelding — voor een eenmanszaak mogelijk een
+  // persoonlijke (pas)foto — als weesblob voor altijd in de opslag staan. Erger nog: zodra `logoKey`
+  // genulld is verwijst niets in de DB er meer naar, dus geen enkele latere opruim-sweep kan hem nog
+  // vinden → een stil half-voltooide AVG-verwijdering (art. 17). Vóór de transactie ophalen, ná het
+  // wegschrijven best-effort wissen (spiegelt de document-opruiming hieronder).
+  const companyLogo = await prisma.company.findUnique({
+    where: { userId },
+    select: { logoKey: true },
+  });
+
   // De attributie van een dispuutreden zit niet op de Collaboration-rij maar in het
   // DISPUTE_OPENED-domeinevent (actorId) — net zoals cancellationReason via cancelledById wordt
   // gescopet. Verzamel de samenwerkingen waar déze betrokkene het dispuut opende, zodat we straks
@@ -484,15 +497,21 @@ export async function anonymizeUser(userId: string): Promise<void> {
     }),
   ]);
 
-  // Bestanden in de opslag opruimen — best-effort, faalt de transactie niet.
-  if (documents.length > 0) {
+  // Bestanden in de opslag opruimen — best-effort, faalt de transactie niet. Naast de gevoelige
+  // documenten óók het losse bedrijfslogo (Company.logoKey): dat heeft geen Document-rij en zou
+  // anders als weesblob achterblijven (AVG art. 17, zie de fetch hierboven).
+  const storageKeysToDelete = [
+    ...documents.map((d) => d.storageKey),
+    ...(companyLogo?.logoKey ? [companyLogo.logoKey] : []),
+  ];
+  if (storageKeysToDelete.length > 0) {
     const storage = getStorage();
     await Promise.all(
-      documents.map((d) =>
-        storage.delete(d.storageKey).catch((err) =>
+      storageKeysToDelete.map((key) =>
+        storage.delete(key).catch((err) =>
           // Opslag-opruiming is best-effort; de DB-anonimisering is al definitief. Wél loggen,
           // want dit is het AVG-vergetelheidspad — een achtergebleven bestand moet zichtbaar zijn.
-          logStorageCleanupFailure("[gebruikers] AVG", d.storageKey, err),
+          logStorageCleanupFailure("[gebruikers] AVG", key, err),
         ),
       ),
     );

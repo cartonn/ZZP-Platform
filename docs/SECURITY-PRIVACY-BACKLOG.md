@@ -4,6 +4,61 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-25 (basis: `main` @ d2fe963a)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) álle 52 server actions: auth→rol→ownership→Zod→actie→audit-keten, IDOR/BOLA, mass-assignment/
+overposting, status-transitie-bypass, open redirect, ontbrekende audit; (2) álle 41 `/api/**`-route-handlers:
+CSV-/formule-injectie in exports, cron/CRON_SECRET-auth, IDOR op PDF-/dossier-routes, SSRF, open redirect,
+info-leak/existence-oracle, webhook-signature/replay; (3) AVG betrokkenen-rechten (erasure veld-voor-veld
+per PII-model), dataminimalisatie/over-fetch, k-anonimiteit (markttarief ≥10), audit-logging van gevoelige
+toegang, log-leaks, cross-partij PII. Oppervlakken (1) en (2) **schoon** — de authz-keten, CSV-escape
+(`escapeCsvField`/`needsFormulaGuard`), timing-safe cron-auth, anti-oracle 404-pariteit, SSRF-host-allowlists
+en timing-safe webhook-signature + atomische replay-guard (`ProcessedWebhookEvent`) dekken de bekende klassen.
+Ook onafhankelijk geverifieerd: CSP (nonce + `strict-dynamic`, `object-src 'none'`), share-/agenda-feed-token
+(HMAC-SHA256, timing-safe, length-checked, namespaced), PII-veilige logger (key+value-redactie, e-mailmasker),
+geen `dangerouslySetInnerHTML` op user-content, `npm audit --omit=dev` = 0.
+
+### OPGELOST — HOOG (privacy/AVG art. 17): bedrijfslogo-blob overleefde `anonymizeUser` → weesblob, half-voltooide verwijdering
+
+- **Repro (was):** een CLIENT uploadt een bedrijfslogo via `updateCompanyProfile`
+  (`bedrijf/actions.ts:79-80`, `getStorage().put(key, buffer, logo.type)` → `Company.logoKey = key`). Dit is
+  een **tweede, onafhankelijke** storage-blob-callsite — géén `Document`-rij (bevestigd: slechts 3 `storage.put`-
+  callsites: documenten/certificaten/bedrijf). Voert beheer later `anonymizeUser` uit, dan haalt de code alléén
+  `Document`-rijen op voor opslag-opruiming (`ownerId: userId`) en zet `companyAnonymizationData()` `logoKey: null`
+  op de `Company`-rij — maar roept **nooit** `storage.delete(company.logoKey)` aan. De afbeelding (voor een
+  eenmanszaak mogelijk een persoonlijke (pas)foto) blijft voor altijd in de opslag; erger: zodra `logoKey` genulld
+  is verwijst niets in de DB er meer naar → een **wees**blob die ook geen latere sweep meer kan vinden.
+- **Geschonden regel:** AVG art. 17 (recht op vergetelheid) — de blob ≠ de DB-pointer. CLAUDE.md regel 4
+  ("documenten/PII standaard privé, erasure moet volledig zijn"). OWASP A01 (data-eigenaarschap na erasure).
+- **Fix (PR #—):** `anonymizeUser` haalt vóór de transactie `Company.logoKey` op (`findUnique`, `userId` is
+  `@unique`) naast de bestaande `Document.findMany`, en wist ná de transactie de logo-blob best-effort mee via
+  dezelfde `storage.delete` + `logStorageCleanupFailure`-opruimlus (null-guard: geen bedrijf/logo → geen delete).
+  +2 unit-tests (`anonymize-erasure.test.ts`): logo-blob wél gewist (rood→groen: zonder fix faalt de assert) +
+  null-guard (geen logo → geen lege-key-delete). Gedeelde hoisted delete-spy zodat de test op de exacte key assert.
+
+### GEPARKEERD — KRITIEK (FG-/juridische beslissing, MENSENWERK §5): door-derden-geschreven PII over de betrokkene overleeft `anonymizeUser`
+
+- **Repro:** `NoShowReport.reason`/`verdictNote` (`schema.prisma:772-786`, comment: "kan onbedoeld een
+  gezondheids-/incapaciteitsreden bevatten" → art. 9 bijzondere categorie), `Review.comment` waar
+  `subjectId == userId` (ontvangen beoordelingen), `Performance.rejectionReason` / `Invoice.rejectionReason`
+  (REJECTED-tak, door de tegenpartij geschreven). `anonymizeUser` redact alléén **zelf**-geschreven vrije tekst;
+  deze door-derden-geschreven-PII-óver-de-betrokkene blijft na "verwijdering" leesbaar (bv. op `/admin/no-shows`),
+  herleidbaar via de nog-levende `NoShowReport.freelancerProfileId`.
+- **Severity:** KRITIEK. **Geschonden beginsel:** AVG art. 17 dekt PII **over** de betrokkene, óók door een derde
+  geschreven. **Waarom geparkeerd:** dit is een echte juridische tweesprong (redact-en-behoud-rij vs. documenteer
+  een bewaargrond bij arbeids-/facturatiegeschil) — MENSENWERK §5 markeert dit als off-limits voor autonome
+  agent-actie; een FG moet beslissen vóór echte VOG/diploma-/no-show-data live gaat. Al ≥15 rondes bekend; deze
+  ronde opnieuw geëscaleerd, niet unilateraal gewijzigd.
+- **Aanbevolen fix (na FG-besluit):** ofwel redact deze velden mee in de `anonymizeUser`-transactie (gescopet op
+  de betrokkene als subject), ofwel leg per veld een expliciete bewaargrond + bewaartermijn vast.
+
+### GEPARKEERD — LAAG (product/FG-afweging): `kvkNumber` op een publiek, niet-ingelogd ZZP-profiel
+
+- Ongewijzigd t.o.v. ronde 2026-07-24b (zie hieronder). Deze ronde herbevestigd: `profile-screen.tsx:539`
+  toont `kvkNumber` aan anonieme bezoekers; voor een eenmanszaak via het Handelsregister koppelbaar aan het
+  thuisadres (re-identificatie/doxxing-vector). AVG art. 5(1)(c). Tweesprong voor de eigenaar/FG.
+
 ## Ronde 2026-07-24b (basis: `main` @ f6ec7c72)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —

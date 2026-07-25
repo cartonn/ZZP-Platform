@@ -3,6 +3,33 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — security/privacy: bedrijfslogo-blob mee wissen bij AVG-erasure (art. 17)
+
+Security-/privacy-auditronde (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op niet-
+overlappende oppervlakken: 52 server actions, 41 `/api/**`-routes, AVG betrokkenen-rechten). Oppervlakken 1
+en 2 schoon; onafhankelijk herbevestigd: authz-keten, CSV-escape, cron-auth, webhook-signature/replay, CSP,
+share-/feed-tokens, PII-logger, geen user-XSS, `npm audit --omit=dev` = 0. Eén nieuwe **HOOG**-bevinding
+gedicht.
+
+- **Gat (was):** `anonymizeUser` (AVG art. 17) wiste de gevoelige `Document`-blobs uit de opslag maar
+  **niet** het bedrijfslogo. Het logo is een aparte storage-blob (`Company.logoKey`, geüpload via
+  `bedrijf/actions.ts` — géén `Document`-rij); de transactie zette `logoKey: null` maar liet het bestand
+  staan → een **wees**blob (voor een eenmanszaak mogelijk een persoonlijke foto) die na de null-zetting ook
+  geen latere sweep meer kan vinden. Half-voltooide verwijdering.
+- **Fix:** vóór de transactie `Company.logoKey` ophalen (`findUnique`, `userId` is `@unique`), ná de
+  transactie de logo-blob best-effort mee wissen via dezelfde `storage.delete`-opruimlus (null-guard). +2
+  unit-tests (rood→groen geverifieerd: zonder de fix faalt de logo-delete-assert).
+
+**Bestanden:** `src/app/(protected)/admin/gebruikers/actions.ts`,
+`src/app/(protected)/admin/gebruikers/anonymize-erasure.test.ts` (35 tests, was 33), `docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md`.
+
+**Geparkeerd (FG/MENSENWERK §5):** door-derden-geschreven PII over de betrokkene (`NoShowReport.reason`,
+ontvangen `Review.comment`, `Performance`/`Invoice.rejectionReason`) overleeft erasure — KRITIEK, juridische
+tweesprong, opnieuw geëscaleerd i.p.v. autonoom gewijzigd. Zie backlog.
+
+**Checks:** typecheck · lint · test · prettier — groen. Build draait in CI (lokaal geblokkeerd op
+next/font-fetch in de netwerk-restricted omgeving).
+
 ## 2026-07-25 — impact-signaal (open-opdrachtvraag) op de admin-verificatiewachtrij
 
 De verificatiewachtrij (`/admin/verificaties`) is oudste-eerst (FIFO) — een eerlijkheidsgarantie die

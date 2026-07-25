@@ -21,8 +21,11 @@ vi.mock("@/lib/authz", () => ({
 vi.mock("@/lib/request-meta", () => ({
   requestMeta: vi.fn(async () => ({ ipAddress: null, userAgent: null })),
 }));
+// Gedeelde delete-spy (hoisted) zodat de tests kunnen asserten met WELKE storage-keys de opslag-
+// opruiming wordt aangeroepen — nodig om te bewijzen dat het bedrijfslogo écht mee gewist wordt.
+const storageMock = vi.hoisted(() => ({ del: vi.fn(async () => {}) }));
 vi.mock("@/lib/services/storage", () => ({
-  getStorage: () => ({ delete: vi.fn(async () => {}) }),
+  getStorage: () => ({ delete: storageMock.del }),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
@@ -44,7 +47,12 @@ vi.mock("@/lib/db", () => ({
       update: op("user.update"),
     },
     freelancerProfile: { updateMany: op("freelancerProfile.updateMany") },
-    company: { updateMany: op("company.updateMany") },
+    company: {
+      updateMany: op("company.updateMany"),
+      // De betrokkene heeft een bedrijfslogo als losse storage-blob (Company.logoKey, géén Document-
+      // rij). De anonimisering moet die blob mee wissen — anders blijft hij als wees achter (art. 17).
+      findUnique: vi.fn(async () => ({ logoKey: "2026/company-logo-abc.png" })),
+    },
     credential: {
       // Twee credentials van de betrokkene — hun auditregels (o.a. de CREDENTIAL_REJECTED-reden)
       // moeten mee-geredact worden vóór de rijen zelf worden verwijderd.
@@ -176,6 +184,7 @@ const findAll = (model: string) => tx.ops.filter((o) => o.model === model);
 
 beforeEach(() => {
   tx.ops = [];
+  storageMock.del.mockClear();
   // Reset naar het standaard-dispuutevent (één eigen, nog-open dispuut op col-7) zodat een test die de
   // domainEvent-mock overschrijft niet naar de volgende lekt.
   (
@@ -469,6 +478,27 @@ describe("anonymizeUser — AVG recht op verwijdering dekt vrije-tekst-PII", () 
     expect(o).toBeDefined();
     // Gescopet op het eigen profiel (freelancerProfile.userId), nooit dat van een ander.
     expect(o.args.where).toEqual({ freelancerProfile: { userId: "user-42" } });
+  });
+
+  it("verwijdert de bedrijfslogo-blob uit de opslag (Company.logoKey — losse blob, géén Document-rij, AVG art. 17, HOOG)", async () => {
+    await anonymizeUser("user-42");
+    // Het logo wordt via bedrijf/actions.ts als losse storage-blob geüpload (Company.logoKey), niet als
+    // Document-rij. De transactie zet logoKey op null maar raakt het bestand niet; zonder de expliciete
+    // storage.delete blijft het (voor een eenmanszaak mogelijk een persoonlijke foto) als weesblob voor
+    // altijd staan — een half-voltooide verwijdering. Deze assert faalt zonder de fix (rood→groen).
+    expect(storageMock.del).toHaveBeenCalledWith("2026/company-logo-abc.png");
+  });
+
+  it("wist geen logo-blob als de betrokkene geen bedrijf/logo heeft (null-guard, geen lege-key-delete)", async () => {
+    (
+      prisma.company.findUnique as unknown as {
+        mockImplementationOnce: (fn: () => unknown) => void;
+      }
+    ).mockImplementationOnce(async () => null);
+    await anonymizeUser("user-42");
+    // Geen bedrijf (of geen logo) → de opslag-opruiming mag niet met een lege/undefined key worden
+    // aangeroepen (documents is in deze mock ook leeg, dus storage.delete hoort helemaal niet te vuren).
+    expect(storageMock.del).not.toHaveBeenCalled();
   });
 
   it("verwijdert push-abonnementen (PushSubscription — toestel-identifier)", async () => {
