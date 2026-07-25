@@ -1393,3 +1393,35 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   spotlight-hiërarchie in premium-dark met radial glow** — elk deterministisch, toegankelijk (WCAG
   focus-states, status label+icoon, motion-reduce) en onderscheidend van de bestaande 440.
 - **Totaal nu op `/ontwerp`: 450 concepten** (reeks 45: 441–450).
+
+## Reeks 47 — concepten 461–470 (25 juli 2026)
+
+- **461 Sluimer** — progressive disclosure / calm interface (#f5f6f5 + teal #0f766e): bijna-monochroom en
+  rustig tot iets actie vraagt; één signaalkleur bloeit alleen op onder focus of bij de eerstvolgende actie.
+- **462 Schuifpui** — liquid glass / spatial depth (#eef3f8 + hemelblauw #38bdf8): gestapelde translucente
+  glaspanelen met backdrop-blur, specular-randen en verschuivende diepte over een zacht verloop (visionOS-2026).
+- **463 Gloeidraad** — warm tungsten dark (#0e0d0b + amber #f0a860): premium bijna-zwart met één warme
+  gloeidraad-accent met subtiele glow op actieve elementen, strikt contrast en tabulaire cijfers.
+- **464 Peilstok** — nautische meetinstrumenten / data-dicht (#f4f2ec + marine #17395c): verticale peil-gauges
+  met schaalstreepjes voor KPI's en match-scores, meetstreep-hairlines en koper-accent — instrumentachtig, precies.
+- **465 Fluistering** — ultra-quiet minimalism (#ffffff + indigo #4f46e5): bijna geen chrome, alleen hairlines
+  en ruimte, type-geleide hiërarchie en één ingetogen inkt-accent — vertrouwen via extreme rust.
+- **466 Draaischijf** — radiaal / rotary (#12141a + koraal #f97316): cirkelvormige voortgangsringen voor match%
+  en KPI's, dial-navigatie en ronde segmenten met motion in de arcs — onderscheidend door de radiale layout.
+- **467 Windkracht** — kinetisch gradient-mesh / motion (#eef4fb + violet #7c3aed): stromende verloop-vlakken
+  als levend decor onder heldere kaarten, match-scores op een Beaufort-schaal, motion-reduce-vriendelijk.
+- **468 Etsplaat** — intaglio / guilloché security-print (#f3eee2 + koper #7a4a24): fijn-lijn gravure met
+  guilloché-krullen en waarmerk-badges in koper-inkt op ivoor — vertrouwen & verificatie als gewaarmerkt document.
+- **469 Vensterluik** — tactiel louvre-bento / film-grain (#e9e2d5 + terracotta #b45309): bento van panelen met
+  louvre-lijnen, fijne film-grain overlay en inset-schaduwen die op hover openklappen — mat en tactiel, geordend.
+- **470 Dagraad** — dageraad-warmte / warm-menselijk (#fbeee9 + perzik #e8746b): zacht verloop van perzik naar
+  lavendel, ruime radii, humanist-koppen en gastvrije microcopy — warm, optimistisch en premium.
+- Onderzochte 2026-trends deze reeks: **progressive disclosure & calm interfaces** (signaalbloei on-demand);
+  **liquid glass / spatial depth** (translucente gelaagde materialen, visionOS-invloed); **dark mode als
+  primaire surface met warme gloed** i.p.v. koel neon; **data-dichtheid via meet-instrumenten** (peil-gauges);
+  **quiet UI — confidence over feature breadth** (type-geleid, hairline-only); **radiale/rotary datavisualisatie**;
+  **fluid gradient-mesh & motion-first** (prefers-reduced-motion); **intaglio/guilloché security-print** voor
+  vertrouwen; **tactile maximalism** (CSS film-grain & louvre-textuur, physical depth); **warm-menselijke
+  dageraad-interfaces** — elk deterministisch, toegankelijk (WCAG focus-states, status label+icoon, motion-reduce)
+  en onderscheidend van de bestaande 460.
+- **Totaal nu op `/ontwerp`: 470 concepten** (reeks 47: 461–470).

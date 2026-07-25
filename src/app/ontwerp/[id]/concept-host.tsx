@@ -1387,6 +1387,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "460": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-460-grootboek").then((m) => m.Concept460),
   ),
+  "461": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-461-sluimer").then((m) => m.Concept461),
+  ),
+  "462": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-462-schuifpui").then((m) => m.Concept462),
+  ),
+  "463": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-463-gloeidraad").then((m) => m.Concept463),
+  ),
+  "464": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-464-peilstok").then((m) => m.Concept464),
+  ),
+  "465": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-465-fluistering").then((m) => m.Concept465),
+  ),
+  "466": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-466-draaischijf").then((m) => m.Concept466),
+  ),
+  "467": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-467-windkracht").then((m) => m.Concept467),
+  ),
+  "468": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-468-etsplaat").then((m) => m.Concept468),
+  ),
+  "469": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-469-vensterluik").then((m) => m.Concept469),
+  ),
+  "470": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-470-dagraad").then((m) => m.Concept470),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al

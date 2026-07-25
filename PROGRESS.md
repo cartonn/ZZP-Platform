@@ -10223,3 +10223,24 @@ Eigenaar koos de lichte richting met pastel achtergrond; Vakwerk is nu het stand
   alleen nog bij een afwijking.
 
 <!-- Kopieer dit blok voor elke nieuwe sessie -->
+
+## Sessie — Ontwerp-lab reeks 47 (461–470) — 2026-07-25
+
+Design-lab uitgebreid met 10 nieuwe, onderscheidende redesign-concepten (additief; niets overschreven).
+Totaal nu **470 concepten** op `/ontwerp`. Nieuwe richtingen, elk gegrond in 2026-trends:
+
+- **461 Sluimer** (progressive disclosure / calm — signaalbloei on-demand)
+- **462 Schuifpui** (liquid glass / spatial depth, visionOS-2026)
+- **463 Gloeidraad** (warm tungsten dark met gloed)
+- **464 Peilstok** (nautische meet-gauges / data-dicht)
+- **465 Fluistering** (ultra-quiet, type-geleid)
+- **466 Draaischijf** (radiaal / rotary dials)
+- **467 Windkracht** (kinetisch gradient-mesh / motion)
+- **468 Etsplaat** (intaglio / guilloché security-print — vertrouwen/verificatie)
+- **469 Vensterluik** (tactiel louvre-bento / film-grain)
+- **470 Dagraad** (dageraad-warmte / warm-menselijk)
+
+Additief: alleen nieuwe bestanden onder `src/components/ontwerp/concepts/` + toegevoegde entries in
+`registry.ts`, `concept-host.tsx` en `docs/DESIGN-LAB.md`. Geen bestaande concepten/logica/auth geraakt.
+Elk concept: 6 kernschermen, mock-data, volledige interactie, responsive, WCAG focus-states, status
+label+icoon, motion-reduce. Zie `docs/DESIGN-LAB.md` (reeks 47) voor de volledige lijst.
