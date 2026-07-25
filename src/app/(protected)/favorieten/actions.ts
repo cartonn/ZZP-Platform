@@ -5,17 +5,37 @@ import { requireRole, type Actor } from "@/lib/authz";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { favoriteNoteSchema } from "@/lib/favorites";
+import { discoverableFreelancerWhere } from "@/lib/freelancer-visibility";
+import { visibleFreelancersWhere } from "@/lib/tenancy";
 
 /**
- * Laadt het bedrijf van de actor (ownership-anker) plus het doel-ZZP-profiel. Werpt als een van
- * beide ontbreekt, zodat een opdrachtgever zonder bedrijf of een onbestaand profiel nooit een
- * favoriet kan schrijven.
+ * Laadt het bedrijf van de actor (ownership-anker) plus het doel-ZZP-profiel.
+ *
+ * `requireVisible` (default) dwingt bij het TOEVOEGEN van een favoriet exact dezelfde
+ * zichtbaarheids-/tenant-grens af als elk ander opdrachtgever-gericht vind-oppervlak
+ * (`discoverableFreelancerWhere` + `visibleFreelancersWhere` — spiegelt `startConversationWith-
+ * Freelancer` en `inviteFreelancerToJob`): een PRIVATE profiel of een ZZP'er uit een andere
+ * franchise-tenant is server-side onvindbaar → dezelfde "ZZP'er niet gevonden." als een onbestaand
+ * id (anti-oracle CWE-203). Zonder deze poort kon een opdrachtgever via een gegokt id een
+ * niet-zichtbaar/cross-tenant profiel favorieten en zo zijn naam, tarief, locatie en beschikbaarheid
+ * op /favorieten inzien — de privacy-opt-out en tenant-isolatie die overal elders geldt, omzeild
+ * (CLAUDE.md regel 1 & 2). Voor VERWIJDEREN/notitie op een reeds-eigen favoriet staat `requireVisible`
+ * uit: dat verleent geen nieuwe toegang (companyId-gescoopt) en mag nooit vastlopen als het profiel
+ * later privé/geschorst raakt (opruimen moet altijd kunnen).
  */
-async function loadCompanyAndProfile(actor: Actor, freelancerProfileId: string) {
+async function loadCompanyAndProfile(
+  actor: Actor,
+  freelancerProfileId: string,
+  requireVisible = true,
+) {
   const [company, profile] = await Promise.all([
     prisma.company.findUnique({ where: { userId: actor.id }, select: { id: true } }),
-    prisma.freelancerProfile.findUnique({
-      where: { id: freelancerProfileId },
+    prisma.freelancerProfile.findFirst({
+      where: {
+        id: freelancerProfileId,
+        ...(requireVisible ? discoverableFreelancerWhere : {}),
+        ...(requireVisible ? visibleFreelancersWhere(actor) : {}),
+      },
       select: { id: true },
     }),
   ]);
@@ -55,7 +75,7 @@ export async function addFavorite(freelancerProfileId: string): Promise<void> {
 
 export async function removeFavorite(freelancerProfileId: string): Promise<void> {
   const actor = await requireRole("CLIENT");
-  const { companyId } = await loadCompanyAndProfile(actor, freelancerProfileId);
+  const { companyId } = await loadCompanyAndProfile(actor, freelancerProfileId, false);
 
   const { count } = await prisma.favoriteFreelancer.deleteMany({
     where: { companyId, freelancerProfileId },
@@ -79,7 +99,7 @@ export async function saveFavoriteNote(
   formData: FormData,
 ): Promise<FavoriteNoteState> {
   const actor = await requireRole("CLIENT");
-  const { companyId } = await loadCompanyAndProfile(actor, freelancerProfileId);
+  const { companyId } = await loadCompanyAndProfile(actor, freelancerProfileId, false);
 
   const parsed = favoriteNoteSchema.safeParse(String(formData.get("note") ?? ""));
   if (!parsed.success) {
