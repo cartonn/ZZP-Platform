@@ -16,6 +16,7 @@ interface FakeUser {
   status: string;
   passwordHash: string;
   mustChangePassword: boolean;
+  passwordChangedAt: Date;
 }
 
 const { findUnique, rateCheck, rateReset, auditFn } = vi.hoisted(() => ({
@@ -28,6 +29,7 @@ const { findUnique, rateCheck, rateReset, auditFn } = vi.hoisted(() => ({
       status: "ACTIVE",
       passwordHash: "hash",
       mustChangePassword: false,
+      passwordChangedAt: new Date("2026-01-01T00:00:00Z"),
     }),
   ),
   rateCheck: vi.fn(async () => ({ allowed: true })),
@@ -78,6 +80,7 @@ describe("authorizeCredentials — onderhouds-afsluitingspoort", () => {
       status: "ACTIVE",
       passwordHash: "hash",
       mustChangePassword: false,
+      passwordChangedAt: new Date("2026-01-01T00:00:00Z"),
     }));
     delete process.env.MAINTENANCE_MODE;
     delete process.env.MAINTENANCE_ALLOW_ADMIN;
@@ -157,6 +160,7 @@ describe("authorizeCredentials — timing-egalisatie tegen e-mail-enumeratie", (
       status: "SUSPENDED",
       passwordHash: "hash",
       mustChangePassword: false,
+      passwordChangedAt: new Date("2026-01-01T00:00:00Z"),
     }));
 
     const result = await authorizeCredentials(CREDS);
@@ -174,6 +178,7 @@ describe("authorizeCredentials — timing-egalisatie tegen e-mail-enumeratie", (
       status: "ACTIVE",
       passwordHash: "",
       mustChangePassword: false,
+      passwordChangedAt: new Date("2026-01-01T00:00:00Z"),
     }));
 
     const result = await authorizeCredentials(CREDS);

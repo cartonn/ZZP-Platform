@@ -28,6 +28,7 @@ model User {
   role                String    @default("FREELANCER") // UserRole: FREELANCER | CLIENT | ADMIN
   status              String    @default("ACTIVE") //       UserStatus: ACTIVE | SUSPENDED | PENDING
   mustChangePassword  Boolean   @default(false) //      true = geforceerde wachtwoordwijziging (bv. na bulk-import)
+  passwordChangedAt   DateTime  @default(now()) //     generatie-stempel: elke wachtwoordwijziging/-reset zet dit → sessies van vóór dit moment vervallen live (OWASP A07)
   emailVerified       DateTime?
   deletionRequestedAt DateTime? //                   AVG: door gebruiker aangevraagde verwijdering
   anonymizedAt        DateTime? //                   AVG: door beheer uitgevoerde anonimisering (recht op verwijdering)

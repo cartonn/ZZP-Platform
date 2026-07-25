@@ -4,6 +4,52 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-25b (basis: `main` @ 7a6957cc)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) auth/sessie/account-lifecycle: `auth.ts`/`auth.config.ts`/`middleware.ts`, login/register/reset-flows,
+JWT-sessiecallbacks, account-status-enforcement (SUSPENDED/anon), wachtwoord-reset-token, rate-limiting;
+(2) álle `/api/**`-route-handlers: IDOR/BOLA + existence-oracle (CWE-203) op PDF/dossier/document/media,
+cross-tenant, SSRF, CSV-/formule-injectie in exports, cron-auth, webhook-signature/replay; (3) AVG
+betrokkenen-rechten (over-fetch naar client, audit-logging van gevoelige toegang, PII-in-logs, minimalisatie
+naar derden, `anonymizeUser`-volledigheid voor zelf-geschreven PII). Focus op de sinds `d2fe963a` verse
+oppervlakken (Postmark-mail-driver #911, franchise-voordraag-overzicht, cascade-anti-oracle-commands).
+Oppervlakken (2) en (3) **schoon** — de authz-keten + existence-oracle-404-pariteit, `toCsv`/`escapeCsvField`,
+timing-safe cron-auth, Stripe-webhook-HMAC+replay, tenant-scoping, over-fetch-regressietests
+(`profile-overfetch.test.ts`), PII-veilige logger, minimalisatie naar Geoapify/mailprovider en de
+uitzonderlijk uitputtende `anonymizeUser` dekken de bekende klassen. Ook geverifieerd: Postmark-driver spiegelt
+de Resend-seam (JSON-body → geen SMTP-header-injectie; token nooit gelogd), e-mailtemplates escapen alle
+user-content via `esc()`/`htmlEscape`, `npm audit --omit=dev` = 0, geen `dangerouslySetInnerHTML` op
+user-content. **Eén concrete auth-gap gevonden én OPGELOST (rood→groen).**
+
+### OPGELOST — HOOG (OWASP A07): wachtwoord-reset/-wijziging trok bestaande (stateless) JWT-sessies op andere apparaten niet in
+
+- **Repro (was):** de sessie is stateless JWT (`auth.config.ts`, `strategy:"jwt"`, `maxAge` 8u, `updateAge` 1u);
+  er is geen `adapter` → de `Session`-tabel is dode schema, geen server-side sessiestore om in te trekken.
+  `currentActor()` (`authz.ts:104`) hertoetst wél live rol/status/`anonymizedAt` uit de DB (schorsing/anonimisering
+  werken direct), maar **niets over het wachtwoord/de credential** — er bestond geen `passwordChangedAt`/
+  `tokenVersion`. Gevolg: een aanvaller met een gestolen sessiecookie (gedeeld/openbaar apparaat, via XSS
+  geëxfiltreerd cookie, gelekt log) behoudt volledige toegang (VOG/diploma/ID-documenten downloaden, profiel
+  wijzigen) óók nádat het slachtoffer via "Wachtwoord vergeten" het wachtwoord roteert — de reset raakte
+  `status`/`role`/`anonymizedAt` niet, dus de oude JWT bleef geldig tot `maxAge` (8u), en effectief onbeperkt
+  zolang de aanvaller de sessie binnen elk `updateAge`-venster (1u) levend houdt (schuivende her-uitgifte). De
+  in-app `changePassword` riep wél `signOut()` aan, maar dat wist alléén het cookie van het **eigen** apparaat.
+- **Geschonden regel:** OWASP A07 (Identification & Authentication Failures — geen session-invalidatie bij
+  credentialwijziging). CLAUDE.md regel 1 (server-side is de waarheid: een credentialwijziging hoort élke
+  bestaande sessie live ongeldig te maken).
+- **Fix (PR #—):** wachtwoord-generatie-stempel `User.passwordChangedAt DateTime @default(now())`
+  (`schema.prisma`). Bevroren in de JWT op **inlogmoment** (`auth.config.ts` `jwt()`-callback, alléén in het
+  `if (user)`-blok → niet herzet bij `updateAge`-rotatie) en doorgegeven aan de sessie (`session()`-callback +
+  `next-auth.d.ts`-typen). `authorizeCredentials` levert `passwordChangedAt` (epoch-millis) mee. `loadFreshUser`
+  selecteert het veld nu; `currentActor()` wijst de sessie af (→ uitgelogd, fail-closed, zelfde patroon als
+  status/anon) zodra de live DB-stempel voorbij de bevroren JWT-stempel ligt, via de pure, geteste helper
+  `sessionPredatesPasswordChange` (fail-**open** alléén bij een pre-feature token zonder stempel — cyclet binnen
+  8u vanzelf om, zodat de deploy niet iedereen uitlogt). `resetPassword` én `changePassword` zetten
+  `passwordChangedAt: new Date()` mee (creates erven `@default(now())`). +4 unit-tests
+  (`authz.test.ts`, rood→groen: pre-fix always-allow → `expect(...).toBe(true)` faalt), mock-user in
+  `authorize-credentials.test.ts` bijgewerkt. Sluit zowel de e-mail-reset- als de in-app-wijziging-flow op álle
+  apparaten, zonder een echte sessiestore.
+
 ## Ronde 2026-07-25 (basis: `main` @ d2fe963a)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
