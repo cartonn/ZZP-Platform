@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — impact-signaal (open-opdrachtvraag) op de admin-verificatiewachtrij
+
+De verificatiewachtrij (`/admin/verificaties`) is oudste-eerst (FIFO) — een eerlijkheidsgarantie die
+we niet aantasten — maar miste een tweede dimensie voor de admin: welk ingediend certificaattype
+ontsluit, éénmaal goedgekeurd, de meeste **openstaande vraag**? Een SUBMITTED VOG terwijl meerdere
+open opdrachten een VOG eisen is aantoonbaar waardevoller om snel te beoordelen (de ZZP'er wordt sneller
+inzetbaar voor in-demand werk) dan een type dat nergens gevraagd wordt. Spiegelbeeld van het ZZP'er-
+signaal `credential-demand.ts` ("gevraagde certificaten die je nog mist"), nu vanuit de admin-bril.
+
+- Nieuwe compacte badge per pending certificaat — **"Gevraagd · N open opdrachten"** (accent bij hoge
+  vraag ≥3, anders gedempt; alleen getoond bij ≥1). Puur additief náást de bestaande wachttijd-badge;
+  de FIFO-volgorde blijft ongewijzigd.
+- Pure leaf `src/lib/verification-impact.ts` (`credentialTypeDemand` — distinct opdrachten per
+  vereist certificaattype; `demandLevel`) + data-loader `src/lib/data/verification-impact.ts`
+  (`getOpenJobCredentialRequirements`: platform-brede, begrensde scan (SCAN_LIMIT 200) van
+  PUBLISHED-opdrachten met verplichte certificaateisen — spiegelt `freelancer-credential-demand.ts`).
+- **Read-only, geen schemawijziging, geen nieuw mutatie/auth-oppervlak.** Alleen een geaggregeerde
+  telling; nooit scores/identiteit van andere kandidaten. UI Nederlands, het woord "AI" komt nergens voor.
+
+**Bestanden:** `src/lib/verification-impact.ts` (+ test, 7 tests), `src/lib/data/verification-impact.ts`,
+`src/app/(protected)/admin/verificaties/page.tsx`, `PROGRESS.md`.
+
+**Checks:** typecheck · lint · test · build · prettier — allemaal groen.
+
 ## 2026-07-24 — robuustheid: Zod-grensvalidatie op setBillingStatusAction (admin-facturatie)
 
 Sluit het geparkeerde run-48-persona-sweep-item. `setBillingStatusAction`
