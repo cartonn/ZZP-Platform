@@ -32,6 +32,8 @@ import {
   parseVerificationFilter,
   type FilterableCredential,
 } from "@/lib/verification-filter";
+import { credentialTypeDemand, demandLevel } from "@/lib/verification-impact";
+import { getOpenJobCredentialRequirements } from "@/lib/data/verification-impact";
 
 export const metadata: Metadata = { title: "Verificaties · ZZP Platform" };
 
@@ -59,6 +61,11 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
   const now = Date.now();
   // De wachtrij-gezondheid telt altijd de volledige backlog (niet de gefilterde weergave).
   const health = summarizeVerificationQueue(queue, now);
+
+  // Impact-signaal: hoeveel open opdrachten vragen (verplicht) elk certificaattype? Zo kan de admin,
+  // binnen de FIFO-volgorde, zien welke beoordeling de meeste downstream-inzetbaarheid ontsluit.
+  const demand =
+    queue.length > 0 ? credentialTypeDemand(await getOpenJobCredentialRequirements()) : {};
 
   const filter = parseVerificationFilter(sp);
   const typeCounts = countByType(
@@ -158,6 +165,18 @@ export default async function VerificatiesPage({ searchParams }: { searchParams:
                           return (
                             <Badge variant={days >= VERIFICATION_STALE_DAYS ? "warning" : "muted"}>
                               {waitingLabel(days)}
+                            </Badge>
+                          );
+                        })()}
+                        {(() => {
+                          const count = demand[c.type as CredentialType] ?? 0;
+                          if (count === 0) return null;
+                          return (
+                            <Badge
+                              variant={demandLevel(count) === "high" ? "accent" : "muted"}
+                              title="Aantal open opdrachten dat dit certificaattype (verplicht) vereist"
+                            >
+                              Gevraagd · {plural(count, "open opdracht", "open opdrachten")}
                             </Badge>
                           );
                         })()}
