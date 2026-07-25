@@ -6,6 +6,8 @@ declare module "next-auth" {
     role: UserRole;
     status: string;
     mustChangePassword?: boolean;
+    /** Wachtwoord-generatie-stempel (epoch-millis) op inlogmoment; zie AuthorizedUser. */
+    passwordChangedAt?: number;
   }
 
   interface Session {
@@ -14,6 +16,8 @@ declare module "next-auth" {
       role: UserRole;
       status: string;
       mustChangePassword: boolean;
+      /** Bevroren wachtwoord-generatie-stempel (epoch-millis) uit de JWT; `currentActor()` toetst dit live. */
+      passwordChangedAt?: number;
     } & DefaultSession["user"];
   }
 }
@@ -24,5 +28,7 @@ declare module "next-auth/jwt" {
     role: UserRole;
     status: string;
     mustChangePassword: boolean;
+    /** Bevroren op inlogmoment (niet ververst bij updateAge-rotatie); zie auth.config.ts. */
+    passwordChangedAt?: number;
   }
 }

@@ -89,9 +89,31 @@ const loadFreshUser = cache(async (userId: string) => {
       mustChangePassword: true,
       anonymizedAt: true,
       tenantId: true,
+      passwordChangedAt: true,
     },
   });
 });
+
+/**
+ * True als de sessie is aangemaakt vóór de laatste wachtwoordwijziging van dit account. De JWT is
+ * stateless (geen server-side sessiestore), dus een wachtwoord-reset/-wijziging op één apparaat kan
+ * een gestolen/oude sessie op een ánder apparaat niet intrekken — tenzij we de generatie-stempel
+ * live toetsen. `currentActor()` behandelt een sessie die dit predicaat matcht als uitgelogd
+ * (fail-closed), net als voor status/anonimisering. OWASP A07 (Identification & Authentication
+ * Failures — session-invalidatie bij credentialwijziging).
+ *
+ * `sessionStamp` is de bevroren epoch-millis uit de JWT (op inlogmoment); `freshChangedAt` de live
+ * DB-waarde. **Fail-open alléén** wanneer de sessie geen stempel draagt (pre-feature token dat nog
+ * niet opnieuw is gemunt): binnen de 8u-`maxAge` cyclet zo'n token vanzelf naar een gestempelde
+ * versie, dus het venster is begrensd en we loggen niet elke bestaande sessie uit bij de deploy.
+ */
+export function sessionPredatesPasswordChange(
+  sessionStamp: number | null | undefined,
+  freshChangedAt: Date | null | undefined,
+): boolean {
+  if (sessionStamp == null || freshChangedAt == null) return false;
+  return freshChangedAt.getTime() > sessionStamp;
+}
 
 /**
  * Huidige actor of `null`. Gebruik in read-paden waar anoniem toegestaan is.
@@ -112,6 +134,10 @@ export async function currentActor(): Promise<Actor | null> {
   // account verliest zo live de toegang; read-paden die op currentActor() leunen (bv. zoeken)
   // behandelen het als uitgelogd, ook met een nog geldige JWT.
   if (!fresh || fresh.anonymizedAt || fresh.status !== "ACTIVE") return null;
+
+  // Sessie van vóór de laatste wachtwoordwijziging → uitgelogd. Zo maakt een reset/wijziging op één
+  // apparaat élke bestaande (stateless) JWT op andere apparaten live ongeldig i.p.v. pas bij expiry.
+  if (sessionPredatesPasswordChange(user.passwordChangedAt, fresh.passwordChangedAt)) return null;
 
   return {
     id: user.id,

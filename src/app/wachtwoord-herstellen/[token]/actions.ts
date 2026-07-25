@@ -66,7 +66,9 @@ export async function resetPassword(
 
   await prisma.user.update({
     where: { id: record.userId },
-    data: { passwordHash, mustChangePassword: false },
+    // passwordChangedAt vooruit → elke bestaande (stateless) JWT van vóór dit moment vervalt live in
+    // currentActor(); een reset op één apparaat trekt zo gestolen/oude sessies elders in. OWASP A07.
+    data: { passwordHash, mustChangePassword: false, passwordChangedAt: new Date() },
   });
 
   const meta = await requestMeta();

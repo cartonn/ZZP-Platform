@@ -7,6 +7,7 @@ import {
   hasRole,
   isAdmin,
   owns,
+  sessionPredatesPasswordChange,
   type Actor,
 } from "@/lib/authz";
 
@@ -97,5 +98,34 @@ describe("assertOwnership", () => {
     } catch (e) {
       expect((e as AuthorizationError).status).toBe(403);
     }
+  });
+});
+
+describe("sessionPredatesPasswordChange (sessie-invalidatie bij wachtwoordwijziging, OWASP A07)", () => {
+  const login = new Date("2026-07-25T10:00:00Z").getTime();
+
+  it("wijst een sessie af die is aangemaakt vóór de laatste wachtwoordwijziging", () => {
+    // Kern van de fix: de aanvaller logde in op t=10:00; het slachtoffer reset om 11:00 → de DB-stempel
+    // schuift voorbij de bevroren JWT-stempel → de oude sessie moet vervallen (true = uitloggen).
+    const afterReset = new Date("2026-07-25T11:00:00Z");
+    expect(sessionPredatesPasswordChange(login, afterReset)).toBe(true);
+  });
+
+  it("laat een sessie toe die ná of exact op de wachtwoordwijziging is gemunt", () => {
+    // Bij inloggen is de JWT-stempel gelijk aan de DB-waarde → geldig; een latere login idem.
+    expect(sessionPredatesPasswordChange(login, new Date(login))).toBe(false);
+    const beforeLogin = new Date("2026-07-25T09:00:00Z");
+    expect(sessionPredatesPasswordChange(login, beforeLogin)).toBe(false);
+  });
+
+  it("faalt open (geldig) wanneer de sessie geen stempel draagt (pre-feature token)", () => {
+    // Oude tokens van vóór deze feature dragen geen stempel; die cyclen binnen maxAge (8u) vanzelf om.
+    expect(sessionPredatesPasswordChange(undefined, new Date())).toBe(false);
+    expect(sessionPredatesPasswordChange(null, new Date())).toBe(false);
+  });
+
+  it("faalt open wanneer de DB-waarde ontbreekt", () => {
+    expect(sessionPredatesPasswordChange(login, null)).toBe(false);
+    expect(sessionPredatesPasswordChange(login, undefined)).toBe(false);
   });
 });

@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — security/privacy-audit: sessie-invalidatie bij wachtwoordwijziging (HOOG, OWASP A07)
+
+Security-/privacy-auditronde (basis `main` @ 7a6957cc): orchestrator (Opus 4.8) + 3 parallelle adversariële
+Opus-audits op niet-overlappende oppervlakken (auth/sessie/lifecycle; `/api/**`-IDOR/SSRF/CSV/webhook/cron;
+AVG betrokkenen-rechten/over-fetch/logs/erasure), met focus op de sinds `d2fe963a` verse oppervlakken
+(Postmark-mail-driver #911, franchise-voordraag-overzicht, cascade-anti-oracle-commands). API- en
+privacy-oppervlak **schoon**; **1 HOOG-bevinding gevonden + gefixt (rood→groen):**
+
+- **HOOG (OWASP A07):** wachtwoord-reset/-wijziging trok bestaande **stateless JWT**-sessies op andere
+  apparaten niet in. Geen sessiestore, geen credential-generatie-marker → een gestolen sessiecookie overleefde
+  de "Wachtwoord vergeten"-reset van het slachtoffer (tot 8u, effectief onbeperkt via `updateAge`-rotatie);
+  toegang tot VOG/diploma/ID-documenten. **Fix:** `User.passwordChangedAt` (schema), bevroren in de JWT op
+  inlogmoment en live getoetst in `currentActor()` via de pure geteste helper `sessionPredatesPasswordChange`
+  (fail-closed; fail-open alléén voor pre-feature tokens). `resetPassword` + `changePassword` zetten de stempel
+  vooruit → élke oude sessie op álle apparaten vervalt direct. Bestanden: `prisma/schema.prisma`,
+  `src/auth.config.ts`, `src/types/next-auth.d.ts`, `src/lib/authorize-credentials.ts`, `src/lib/authz.ts`,
+  `src/app/wachtwoord-herstellen/[token]/actions.ts`, `src/app/(protected)/account/wachtwoord/actions.ts`.
+  +4 tests (`authz.test.ts`), mock bijgewerkt (`authorize-credentials.test.ts`). Zie
+  `docs/SECURITY-PRIVACY-BACKLOG.md` ronde 2026-07-25b. Gate: typecheck/lint/prettier/test 4997 groen.
+
 ## 2026-07-25 — persona-sweep (run 50): flexpool-favoriet zichtbaarheidspoort (HOOG) + €0-tarief-floor (HOOG)
 
 Kritische-gebruiker-sweep over alle vier rollen op de verse prod-build (exit 0) + demo-seed. Drie parallelle

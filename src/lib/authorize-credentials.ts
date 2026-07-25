@@ -36,6 +36,12 @@ export interface AuthorizedUser {
   role: UserRole;
   status: string;
   mustChangePassword: boolean;
+  /**
+   * Wachtwoord-generatie-stempel op het moment van inloggen. Wordt in de JWT bevroren zodat
+   * `currentActor()` een sessie kan afwijzen die is aangemaakt vóór een latere wachtwoordwijziging
+   * (session-invalidatie-bij-credentialwijziging, OWASP A07). Epoch-millis; JWT-serialiseerbaar.
+   */
+  passwordChangedAt: number;
 }
 
 /**
@@ -112,5 +118,6 @@ export async function authorizeCredentials(
     role: user.role as UserRole,
     status: user.status,
     mustChangePassword: user.mustChangePassword,
+    passwordChangedAt: user.passwordChangedAt.getTime(),
   };
 }

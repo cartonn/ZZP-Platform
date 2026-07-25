@@ -18,6 +18,11 @@ export const authConfig = {
         token.role = user.role;
         token.status = user.status;
         token.mustChangePassword = user.mustChangePassword ?? false;
+        // Bevries de wachtwoord-generatie-stempel op INLOGMOMENT. Wordt NIET herzet bij de
+        // updateAge-rotatie (die draait deze callback zonder `user`), zodat de vergelijking in
+        // currentActor() blijft kloppen: een reset ná login zet de DB-waarde vooruit → de sessie
+        // (met de oude stempel) vervalt. OWASP A07 (session-invalidatie bij credentialwijziging).
+        token.passwordChangedAt = user.passwordChangedAt;
       }
       // Na een geslaagde wachtwoordwijziging vraagt de client een session-update aan; dan vervalt
       // de geforceerde wijziging (anders blijft de JWT stale tot de volgende login).
@@ -35,6 +40,7 @@ export const authConfig = {
         session.user.role = token.role as UserRole;
         session.user.status = token.status as string;
         session.user.mustChangePassword = (token.mustChangePassword as boolean) ?? false;
+        session.user.passwordChangedAt = token.passwordChangedAt as number | undefined;
       }
       return session;
     },

@@ -62,7 +62,9 @@ export async function changePassword(
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
   await prisma.user.update({
     where: { id: actor.id },
-    data: { passwordHash, mustChangePassword: false },
+    // Naast de signOut hieronder (die alléén dit apparaat uitlogt): zet passwordChangedAt vooruit zodat
+    // óók sessies op andere apparaten live vervallen in currentActor(). OWASP A07.
+    data: { passwordHash, mustChangePassword: false, passwordChangedAt: new Date() },
   });
 
   const meta = await requestMeta();
