@@ -7,7 +7,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { TaskHero, TaskRows } from "@/components/actions/action-list";
-import { type PendingTask } from "@/lib/actions/tasks";
+import { selectDashboardTasks, type PendingTask } from "@/lib/actions/tasks";
 import { type DrawerData } from "@/lib/actions/drawer-data";
 
 export function DashboardActions({
@@ -21,7 +21,9 @@ export function DashboardActions({
   title: string;
   max?: number;
 }) {
-  const shown = tasks.slice(0, max);
+  // top-`max`, maar met een gereserveerde floor-slot voor onomkeerbaar-met-deadline-taken
+  // (bv. een sluitend beoordelingsvenster) zodat die niet stil van de rail vallen.
+  const shown = selectDashboardTasks(tasks, max);
   const rest = tasks.length - shown.length;
 
   return (

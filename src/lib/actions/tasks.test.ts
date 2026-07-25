@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { P } from "@/lib/next-actions";
 import {
   rankTasks,
+  selectDashboardTasks,
   contractSignTask,
   credentialCollabExpiryTask,
   performanceSubmitTask,
@@ -59,6 +60,87 @@ describe("rankTasks", () => {
     const snapshot = input.map((t) => t.id);
     rankTasks(input);
     expect(input.map((t) => t.id)).toEqual(snapshot);
+  });
+});
+
+describe("selectDashboardTasks", () => {
+  // Zeven gerankte niet-floor attentie-taken die de top-6-rail vullen, plus een sluitend
+  // beoordelingsvenster onderaan (floor-taak) — precies het run-49/50-scenario.
+  const nonFloor = (): PendingTask[] =>
+    rankTasks([
+      mandatoryDocumentTask("VOG", "VOG-verklaring", "missing"), // 84
+      contractSignTask("c1", "J", "A"), // 72
+      performanceApproveTask("p1", "c1", "J", "S"), // 65
+      overdueInvoiceTask(2, "FREELANCER"), // 60
+      messageReplyTask("m1", "Julia", "Klus"), // 55
+      staleApplicationsTask({ count: 3, oldestDays: 6 }), // 52
+      applicationsReviewTask(4), // 50
+    ]);
+
+  it("zonder floor-taak: gewoon de top-`max` in rank-volgorde", () => {
+    const ranked = nonFloor();
+    const shown = selectDashboardTasks(ranked, 6);
+    expect(shown).toHaveLength(6);
+    expect(shown).toEqual(ranked.slice(0, 6));
+    // De laagst-gerankte taak (applications, 50) valt buiten de slice.
+    expect(shown.map((t) => t.kind)).not.toContain("applications-review");
+  });
+
+  it("floor-taak buiten de top-`max` wordt gegarandeerd getoond, laagst-gerankte niet-floor wijkt", () => {
+    const closingReview = reviewLeaveTask("c9", "Klus", "Julia", 1); // deadlineFloor, prio 48
+    const ranked = rankTasks([...nonFloor(), closingReview]);
+    // In pure rank-volgorde zou de floor-taak (48) op plek 8 staan → buiten de top-6.
+    expect(ranked.slice(0, 6)).not.toContainEqual(closingReview);
+
+    const shown = selectDashboardTasks(ranked, 6);
+    expect(shown).toHaveLength(6);
+    // De floor-taak zit er nu wél in...
+    expect(shown).toContainEqual(closingReview);
+    // ...ten koste van de laagst-gerankte niet-floor-taak (applications, 50).
+    expect(shown.map((t) => t.kind)).not.toContain("applications-review");
+    // De hoogst-gerankte taak (mandatoryDoc, 84) blijft de held; volgorde blijft rank-volgorde.
+    expect(shown[0]?.kind).toBe("mandatory-document");
+    expect(shown).toEqual(ranked.filter((t) => shown.includes(t)));
+  });
+
+  it("floor-taak binnen de top-`max`: identiek aan een gewone slice (geen dubbele reservering)", () => {
+    const closingReview = reviewLeaveTask("c9", "Klus", "Julia", 1);
+    const ranked = rankTasks([
+      contractSignTask("c1", "J", "A"),
+      messageReplyTask("m1", "Julia", "Klus"),
+      closingReview,
+    ]);
+    // 3 taken ≤ max → alles zichtbaar, ongewijzigd.
+    expect(selectDashboardTasks(ranked, 6)).toEqual(ranked);
+  });
+
+  it("meerdere floor-taken verdringen samen evenveel niet-floor-taken", () => {
+    const r1 = reviewLeaveTask("c8", "Klus", "Ana", 0);
+    const r2 = reviewLeaveTask("c9", "Klus", "Bo", 2);
+    const ranked = rankTasks([...nonFloor(), r1, r2]);
+    const shown = selectDashboardTasks(ranked, 6);
+    expect(shown).toHaveLength(6);
+    expect(shown).toContainEqual(r1);
+    expect(shown).toContainEqual(r2);
+    // De twee laagst-gerankte niet-floor-taken (applications 50, staleApplications 52) wijken.
+    expect(shown.map((t) => t.kind)).not.toContain("applications-review");
+    expect(shown.map((t) => t.kind)).not.toContain("stale-applications");
+  });
+
+  it("meer floor-taken dan `max`: alleen de hoogst-gerankte floor-taken, geklemd op `max`", () => {
+    const floors = rankTasks([
+      reviewLeaveTask("c1", "K", "A", 0),
+      reviewLeaveTask("c2", "K", "B", 1),
+      reviewLeaveTask("c3", "K", "C", 2),
+    ]);
+    const shown = selectDashboardTasks(floors, 2);
+    expect(shown).toHaveLength(2);
+    expect(shown).toEqual(floors.slice(0, 2));
+  });
+
+  it("randgevallen: lege lijst en max ≤ 0", () => {
+    expect(selectDashboardTasks([], 6)).toEqual([]);
+    expect(selectDashboardTasks(nonFloor(), 0)).toEqual([]);
   });
 });
 
@@ -254,6 +336,8 @@ describe("task builders", () => {
     // Rustige nudge: onder de cosmetische profiel-completeness maar boven concept-opdrachten.
     expect(task.priority).toBeLessThan(P.completeness);
     expect(task.priority).toBeGreaterThan(P.drafts);
+    // Ruim venster: geen floor-slot nodig (geen naderende deadline).
+    expect(task.deadlineFloor).toBeUndefined();
   });
 
   it("beoordelings-nudge: bijna gesloten venster (≤3 dagen) wordt attention én escaleert de prioriteit", () => {
@@ -265,6 +349,8 @@ describe("task builders", () => {
     expect(task.priority).toBe(P.reviewPromptClosing);
     expect(task.priority).toBeGreaterThan(P.completeness);
     expect(task.priority).toBeGreaterThan(P.availabilityStale);
+    // Onomkeerbaar-met-deadline → floor-slot op de dashboard-rail.
+    expect(task.deadlineFloor).toBe(true);
   });
 
   it("beoordelings-nudge: laatste dag toont 'venster sluit vandaag' met geëscaleerde prioriteit", () => {
@@ -272,6 +358,7 @@ describe("task builders", () => {
     expect(task.tone).toBe("attention");
     expect(task.subtitle).toContain("venster sluit vandaag");
     expect(task.priority).toBe(P.reviewPromptClosing);
+    expect(task.deadlineFloor).toBe(true);
   });
 
   it("uitnodiging-respons: link-taak naar de opdracht, benoemt opdrachtgever + leeftijd", () => {

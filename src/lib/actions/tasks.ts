@@ -43,6 +43,14 @@ interface TaskBase {
   resolver: TaskResolver;
   /** Altijd een werkbare deep-link, ook als de resolver inline is (fallback / "open op pagina"). */
   href: string;
+  /**
+   * Onomkeerbaar-met-deadline: een taak die na een naderende deadline **nooit meer** te doen is
+   * (bv. een sluitend blind beoordelingsvenster). De prioriteitsband houdt zo'n taak bewust laag
+   * (het is geen blokkerende compliance-taak), maar op de harde top-N dashboard-rail-slice mag hij
+   * daardoor niet stil wegvallen — `selectDashboardTasks` reserveert er een floor-slot voor. Buiten
+   * de rank-ordening (/acties, badges) verandert dit niets.
+   */
+  deadlineFloor?: boolean;
 }
 
 export type PendingTask =
@@ -106,6 +114,34 @@ export function rankTasks(tasks: PendingTask[]): PendingTask[] {
     .map((task, index) => ({ task, index }))
     .sort((a, b) => b.task.priority - a.task.priority || a.index - b.index)
     .map(({ task }) => task);
+}
+
+/**
+ * Kies de taken voor de gesneden dashboard-rail (top-`max`), met een gereserveerde floor-slot voor
+ * onomkeerbaar-met-deadline-taken (`deadlineFloor`). Zo'n taak (bv. een sluitend blind
+ * beoordelingsvenster) heeft bewust een lage prioriteitsband — het is geen blokkerende compliance-
+ * taak — maar mag na de deadline nooit meer worden ingevuld. Op de harde slice zou hij daardoor
+ * achter persistente attentie-taken kunnen wegvallen; deze functie garandeert dat elke floor-taak
+ * (tot `max`) in de getoonde set zit en verdringt daarvoor de laagst-gerankte niet-floor-taken.
+ * De binnenkomende rank-volgorde blijft behouden (`tasks` wordt al door `rankTasks` gesorteerd);
+ * buiten de rail (/acties, badges) verandert er niets.
+ */
+export function selectDashboardTasks(tasks: PendingTask[], max: number): PendingTask[] {
+  if (max <= 0) return [];
+  if (tasks.length <= max) return tasks;
+
+  const chosen = new Set<PendingTask>();
+  // Eerst de floor-taken (in rank-volgorde, want `tasks` is al gerankt), dan de rest opvullen.
+  for (const task of tasks) {
+    if (chosen.size >= max) break;
+    if (task.deadlineFloor) chosen.add(task);
+  }
+  for (const task of tasks) {
+    if (chosen.size >= max) break;
+    if (!task.deadlineFloor) chosen.add(task);
+  }
+  // Filter over de reeds-gerankte invoer → de getoonde volgorde blijft de rank-volgorde.
+  return tasks.filter((task) => chosen.has(task));
 }
 
 // --- Pure builders: ruwe primitieven → PendingTask. Los testbaar; gebruikt door de enumerator. ---
@@ -726,6 +762,9 @@ export function reviewLeaveTask(
     // niet onder cosmetische info-nudges (completeness/beschikbaarheid) van de 6-item dashboardrail
     // vallen. Buiten dat venster blijft het een rustige reputatie-nudge onderaan.
     priority: closingSoon ? P.reviewPromptClosing : P.reviewPrompt,
+    // Bijna-gesloten venster = onomkeerbaar-met-deadline: reserveer een floor-slot op de dashboard-
+    // rail zodat het niet achter persistente attentie-taken (mandatoryDoc … applications) wegvalt.
+    ...(closingSoon ? { deadlineFloor: true } : {}),
     resolver: "link", // meerstaps formulier (score + toelichting) → naar de samenwerking
     href: collabHref(collabId),
     collabId,

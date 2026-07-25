@@ -3,6 +3,32 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-25 — routine: dashboard-rail floor-slot voor onomkeerbaar-met-deadline-taken
+
+Sluit het herhaald geparkeerde LOW-item uit persona-sweep **run 49 + 50** (DOEL 1b): een sluitend blind
+beoordelingsvenster (`reviewLeaveTask` met `closingSoon`, prio `P.reviewPromptClosing` = 48) kon onder de
+**harde top-6-slice** van de dashboard-rail (`DashboardActions`) zakken achter gewone niet-verlopende
+attentie-taken (mandatoryDoc 84 … applications 50), terwijl het venster daarna **onomkeerbaar** dicht is —
+de tegenpartij verliest het reputatiesignaal permanent. De prioriteitsband bewust laag houden was juist
+(het is geen blokkerende compliance-taak), dus de band ophogen zou de rank-ordening op `/acties` + de
+badges misrepresenteren; de sweep-noot adviseerde daarom een **gereserveerde floor-slot** op de rail.
+
+- **Fix:** nieuw optioneel veld `deadlineFloor?: boolean` op `TaskBase` (gezet op `reviewLeaveTask` zodra
+  `closingSoon`) + pure `selectDashboardTasks(tasks, max)` (`src/lib/actions/tasks.ts`) die de top-`max`
+  neemt maar garandeert dat elke floor-taak (tot `max`) in de getoonde set zit — verdringt daarvoor de
+  laagst-gerankte niet-floor-taken, met behoud van de binnenkomende rank-volgorde. Gewired in
+  `DashboardActions` (`src/components/actions/dashboard-actions.tsx`, `slice(0, max)` → `selectDashboardTasks`).
+- Rank-ordening buiten de rail (`/acties`, nav-badges via `rankTasks`) blijft **exact gelijk** — de floor
+  raakt alleen de gesneden rail. Read-only afleiding, **geen schemawijziging, geen nieuw mutatie/auth-
+  oppervlak**. Het woord "AI" komt nergens voor.
+- **Test:** +9 in `tasks.test.ts` (`selectDashboardTasks`: zonder floor = gewone slice; floor buiten de
+  slice wordt gegarandeerd getoond en verdringt de laagst-gerankte niet-floor; floor binnen de slice =
+  ongewijzigd; meerdere floor-taken; meer floors dan `max`; lege lijst / max ≤ 0) + `deadlineFloor`-
+  asserts op de bestaande review-nudge-tests. Gate: typecheck, lint, test, build, prettier groen.
+
+**Bestanden:** `src/lib/actions/tasks.ts`, `src/lib/actions/tasks.test.ts`,
+`src/components/actions/dashboard-actions.tsx`, `docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`.
+
 ## 2026-07-25 — routine: franchiser stale-dienst residu-rollup (undercount van lang-open voorraad)
 
 Dicht de geparkeerde SHOULD-FIX uit persona-sweep **run 50** (DOEL 1b): `franchiserTasks`
