@@ -393,7 +393,7 @@ export class SesMailSender implements MailSender {
       Content: { Simple: bodyContent },
     });
 
-    const signed = signAwsV4({
+    const signed = await signAwsV4({
       method: "POST",
       host: this.host(region),
       path: "/v2/email/outbound-emails",
@@ -442,7 +442,7 @@ export class SesMailSender implements MailSender {
       );
     }
 
-    const signed = signAwsV4({
+    const signed = await signAwsV4({
       method: "GET",
       host: this.host(region),
       path: "/v2/email/account",

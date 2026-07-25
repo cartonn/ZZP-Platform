@@ -15,8 +15,8 @@ const AWS_EXAMPLE = {
 };
 
 describe("signAwsV4", () => {
-  it("reproduceert AWS' officiële testvector (GET iam ListUsers)", () => {
-    const result = signAwsV4({
+  it("reproduceert AWS' officiële testvector (GET iam ListUsers)", async () => {
+    const result = await signAwsV4({
       method: "GET",
       host: "iam.amazonaws.com",
       path: "/",
@@ -34,8 +34,8 @@ describe("signAwsV4", () => {
     );
   });
 
-  it("zet host + x-amz-date + Authorization op de headers en echoot geen secret", () => {
-    const result = signAwsV4({
+  it("zet host + x-amz-date + Authorization op de headers en echoot geen secret", async () => {
+    const result = await signAwsV4({
       method: "POST",
       host: "email.eu-west-1.amazonaws.com",
       path: "/v2/email/outbound-emails",
@@ -56,8 +56,8 @@ describe("signAwsV4", () => {
     expect(JSON.stringify(result)).not.toContain("super-secret-value");
   });
 
-  it("neemt een STS-sessietoken mee in de ondertekende headers", () => {
-    const result = signAwsV4({
+  it("neemt een STS-sessietoken mee in de ondertekende headers", async () => {
+    const result = await signAwsV4({
       method: "POST",
       host: "email.eu-central-1.amazonaws.com",
       path: "/v2/email/outbound-emails",
@@ -77,7 +77,7 @@ describe("signAwsV4", () => {
     );
   });
 
-  it("is deterministisch voor dezelfde invoer", () => {
+  it("is deterministisch voor dezelfde invoer", async () => {
     const input = {
       method: "POST" as const,
       host: "email.eu-west-1.amazonaws.com",
@@ -90,6 +90,6 @@ describe("signAwsV4", () => {
       date: new Date("2026-07-25T09:00:00Z"),
       extraHeaders: { "Content-Type": "application/json" },
     };
-    expect(signAwsV4(input).authorization).toBe(signAwsV4(input).authorization);
+    expect((await signAwsV4(input)).authorization).toBe((await signAwsV4(input)).authorization);
   });
 });

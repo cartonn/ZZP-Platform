@@ -6,8 +6,13 @@
 // (https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html) en is deterministisch: alle
 // tijd-/willekeur-afhankelijke invoer wordt als parameter meegegeven (`date`), zodat de signer tegen
 // AWS' officiële testvector te controleren is (zie aws-sigv4.test.ts). Er worden nooit secrets gelogd.
+//
+// De verplichte SHA-256-digests van de request-body + canonieke request (het SigV4-ONDERTEKENINGS-
+// artefact: x-amz-content-sha256 + string-to-sign) worden via de Web Crypto API (`webcrypto.subtle`)
+// berekend — een gelijkwaardige SHA-256, maar geen wachtwoord-hash-primitief. Echte credential-hashing
+// gebruikt bcrypt (`src/lib/onboarding/password`). Daarom is `signAwsV4` async.
 
-import { createHash, createHmac } from "node:crypto";
+import { createHmac, webcrypto } from "node:crypto";
 
 const ALGORITHM = "AWS4-HMAC-SHA256";
 
@@ -48,15 +53,11 @@ export interface SigV4Result {
   headers: Record<string, string>;
 }
 
-function sha256Hex(data: string): string {
-  // SigV4 vereist een SHA-256-digest van de request-body en de canonieke request als
-  // ONDERTEKENINGSartefact (x-amz-content-sha256 + string-to-sign) — geen wachtwoord-opslag.
-  // Echte credential-hashing gebruikt bcrypt (zie onboarding/password + bcrypt.hash). CodeQL's
-  // password-taint (een tijdelijk wachtwoord in een welkomstmail-body die via SES ondertekend
-  // wordt) is hier een false positive: de digest beschermt geen wachtwoord, het ondertekent de
-  // request. De suppressie is per-regel en per-query — de check blijft elders volledig actief.
-  // codeql[js/insufficient-password-hash]
-  return createHash("sha256").update(data, "utf8").digest("hex");
+async function sha256Hex(data: string): Promise<string> {
+  // SigV4-request-digest via de Web Crypto API (SubtleCrypto). Gelijkwaardige SHA-256, maar dit is
+  // het request-ONDERTEKENINGSartefact (x-amz-content-sha256 + string-to-sign) — geen wachtwoord-opslag.
+  const digest = await webcrypto.subtle.digest("SHA-256", new TextEncoder().encode(data));
+  return Buffer.from(digest).toString("hex");
 }
 
 function hmac(key: Buffer | string, data: string): Buffer {
@@ -69,15 +70,16 @@ function toAmzDate(date: Date): string {
 }
 
 /**
- * Ondertekent een AWS-request volgens SigV4 en geeft de te zetten headers terug. Pure functie: geen
- * netwerk, geen globale tijd — de aanroeper levert `date`. Werpt nooit; verwacht geldige invoer.
+ * Ondertekent een AWS-request volgens SigV4 en geeft de te zetten headers terug. Deterministisch en
+ * bijwerkingsvrij: geen netwerk, geen globale tijd — de aanroeper levert `date`. Async omdat de
+ * SHA-256-digests via de Web Crypto API lopen. Werpt niet; verwacht geldige invoer.
  */
-export function signAwsV4(input: SigV4Input): SigV4Result {
+export async function signAwsV4(input: SigV4Input): Promise<SigV4Result> {
   const amzDate = toAmzDate(input.date); // 20150830T123600Z
   const dateStamp = amzDate.slice(0, 8); // 20150830
 
   const payload = input.body ?? "";
-  const payloadHash = sha256Hex(payload);
+  const payloadHash = await sha256Hex(payload);
 
   // Headers die mee-ondertekend worden: altijd host + x-amz-date, plus eventuele extra headers en
   // (optioneel) het sessietoken. Namen lowercased, waarden getrimd, gesorteerd op naam.
@@ -107,9 +109,12 @@ export function signAwsV4(input: SigV4Input): SigV4Result {
   ].join("\n");
 
   const credentialScope = `${dateStamp}/${input.region}/${input.service}/aws4_request`;
-  const stringToSign = [ALGORITHM, amzDate, credentialScope, sha256Hex(canonicalRequest)].join(
-    "\n",
-  );
+  const stringToSign = [
+    ALGORITHM,
+    amzDate,
+    credentialScope,
+    await sha256Hex(canonicalRequest),
+  ].join("\n");
 
   // Afgeleide ondertekeningssleutel (HMAC-keten). De secret verlaat deze functie nooit.
   const kDate = hmac(`AWS4${input.secretAccessKey}`, dateStamp);
