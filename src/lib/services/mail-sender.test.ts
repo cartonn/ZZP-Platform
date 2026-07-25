@@ -6,6 +6,7 @@ import {
   _resetMailSender,
   ResendMailSender,
   PostmarkMailSender,
+  SesMailSender,
   type MailMessage,
 } from "./mail-sender";
 import { HttpTimeoutError } from "./fetch-timeout";
@@ -24,6 +25,12 @@ afterEach(() => {
   delete process.env.RESEND_API_KEY;
   delete process.env.POSTMARK_SERVER_TOKEN;
   delete process.env.POSTMARK_MESSAGE_STREAM;
+  delete process.env.SES_REGION;
+  delete process.env.SES_ACCESS_KEY_ID;
+  delete process.env.SES_SECRET_ACCESS_KEY;
+  delete process.env.AWS_ACCESS_KEY_ID;
+  delete process.env.AWS_SECRET_ACCESS_KEY;
+  delete process.env.AWS_SESSION_TOKEN;
   for (const v of SMTP_VARS) delete process.env[v];
   vi.restoreAllMocks();
   vi.resetModules();
@@ -279,13 +286,15 @@ describe("getMailSender", () => {
     await expect(getMailSender().checkConnectivity()).rejects.toBeInstanceOf(MailConnectivityError);
   });
 
-  it("isMailDeliveryConfigured is true voor smtp, resend en postmark, false voor noop", () => {
+  it("isMailDeliveryConfigured is true voor smtp, resend, postmark en ses, false voor noop", () => {
     expect(isMailDeliveryConfigured()).toBe(false);
     process.env.EMAIL_DRIVER = "smtp";
     expect(isMailDeliveryConfigured()).toBe(true);
     process.env.EMAIL_DRIVER = "resend";
     expect(isMailDeliveryConfigured()).toBe(true);
     process.env.EMAIL_DRIVER = "postmark";
+    expect(isMailDeliveryConfigured()).toBe(true);
+    process.env.EMAIL_DRIVER = "ses";
     expect(isMailDeliveryConfigured()).toBe(true);
     process.env.EMAIL_DRIVER = "noop";
     expect(isMailDeliveryConfigured()).toBe(false);
@@ -422,6 +431,167 @@ describe("getMailSender", () => {
 
   it("PostmarkMailSender.checkConnectivity() werpt MailConnectivityError als het token ontbreekt", async () => {
     process.env.EMAIL_DRIVER = "postmark";
+    await expect(getMailSender().checkConnectivity()).rejects.toBeInstanceOf(MailConnectivityError);
+  });
+
+  it("geeft een SesMailSender terug als EMAIL_DRIVER=ses", () => {
+    process.env.EMAIL_DRIVER = "ses";
+    expect(getMailSender()).toBeInstanceOf(SesMailSender);
+  });
+
+  it("SesMailSender.send() gooit een fout als SES_REGION/EMAIL_FROM ontbreken", async () => {
+    process.env.EMAIL_DRIVER = "ses";
+    await expect(getMailSender().send(msg)).rejects.toThrow(
+      "SES-mailkanaal is niet geconfigureerd",
+    );
+  });
+
+  it("SesMailSender.send() gooit een fout als de credentials ontbreken", async () => {
+    process.env.EMAIL_DRIVER = "ses";
+    process.env.SES_REGION = "eu-west-1";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+    await expect(getMailSender().send(msg)).rejects.toThrow("Ontbrekende credentials");
+  });
+
+  it("SesMailSender POST't SigV4-ondertekend naar de SES v2-API met de e-mailvelden", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ MessageId: "abc" }), { status: 200 }));
+
+    process.env.EMAIL_DRIVER = "ses";
+    process.env.SES_REGION = "eu-west-1";
+    process.env.SES_ACCESS_KEY_ID = "AKIA_TEST";
+    process.env.SES_SECRET_ACCESS_KEY = "secret";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await getMailSender().send({
+      to: "jan@test.nl",
+      subject: "Hoi",
+      text: "Tekst",
+      html: "<b>Tekst</b>",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://email.eu-west-1.amazonaws.com/v2/email/outbound-emails");
+    expect(init?.method).toBe("POST");
+    const headers = init?.headers as Record<string, string>;
+    // SigV4-ondertekend: Authorization + x-amz-date aanwezig, en geen secret in de headers.
+    expect(headers.Authorization).toMatch(/^AWS4-HMAC-SHA256 Credential=AKIA_TEST\//);
+    expect(headers["x-amz-date"]).toMatch(/^\d{8}T\d{6}Z$/);
+    expect(JSON.stringify(headers)).not.toContain("secret");
+    const body = JSON.parse(init?.body as string);
+    expect(body).toMatchObject({
+      FromEmailAddress: "ZZP <noreply@test.nl>",
+      Destination: { ToAddresses: ["jan@test.nl"] },
+      Content: {
+        Simple: {
+          Subject: { Data: "Hoi" },
+          Body: { Text: { Data: "Tekst" }, Html: { Data: "<b>Tekst</b>" } },
+        },
+      },
+    });
+  });
+
+  it("SesMailSender valt terug op AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY en laat Html weg zonder html", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+
+    process.env.EMAIL_DRIVER = "ses";
+    process.env.SES_REGION = "eu-central-1";
+    process.env.AWS_ACCESS_KEY_ID = "AKIA_AWS_FALLBACK";
+    process.env.AWS_SECRET_ACCESS_KEY = "aws-secret";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await getMailSender().send({ to: "jan@test.nl", subject: "Hoi", text: "Alleen tekst" });
+
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://email.eu-central-1.amazonaws.com/v2/email/outbound-emails");
+    expect((init?.headers as Record<string, string>).Authorization).toContain("AKIA_AWS_FALLBACK");
+    const body = JSON.parse(init?.body as string);
+    expect(body.Content.Simple.Body).not.toHaveProperty("Html");
+  });
+
+  it("SesMailSender gooit een fout bij een non-2xx-respons van de API", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("MessageRejected", { status: 400 }),
+    );
+
+    process.env.EMAIL_DRIVER = "ses";
+    process.env.SES_REGION = "eu-west-1";
+    process.env.SES_ACCESS_KEY_ID = "AKIA_TEST";
+    process.env.SES_SECRET_ACCESS_KEY = "secret";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await expect(getMailSender().send(msg)).rejects.toThrow("status 400");
+  });
+
+  it("SesMailSender gooit HttpTimeoutError als de fetch blijft hangen", async () => {
+    process.env.SES_REGION = "eu-west-1";
+    process.env.SES_ACCESS_KEY_ID = "AKIA_TEST";
+    process.env.SES_SECRET_ACCESS_KEY = "secret";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    const hangingFetch = ((_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          const err = new Error("The operation was aborted.");
+          err.name = "AbortError";
+          reject(err);
+        });
+      })) as unknown as typeof fetch;
+
+    const sender = new SesMailSender(hangingFetch, 20);
+    await expect(sender.send(msg)).rejects.toBeInstanceOf(HttpTimeoutError);
+  });
+
+  it("SesMailSender.checkConnectivity() doet een read-only SigV4-ondertekende GET /v2/email/account", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ SendingEnabled: true }), { status: 200 }));
+
+    process.env.EMAIL_DRIVER = "ses";
+    process.env.SES_REGION = "eu-west-1";
+    process.env.SES_ACCESS_KEY_ID = "AKIA_TEST";
+    process.env.SES_SECRET_ACCESS_KEY = "secret";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    await getMailSender().checkConnectivity();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://email.eu-west-1.amazonaws.com/v2/email/account");
+    expect(init?.method).toBe("GET");
+    expect((init?.headers as Record<string, string>).Authorization).toMatch(/^AWS4-HMAC-SHA256 /);
+  });
+
+  it("SesMailSender.checkConnectivity() werpt MailConnectivityError met alleen de status bij een non-2xx", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("account details leak", { status: 403 }),
+    );
+
+    process.env.EMAIL_DRIVER = "ses";
+    process.env.SES_REGION = "eu-west-1";
+    process.env.SES_ACCESS_KEY_ID = "AKIA_TEST";
+    process.env.SES_SECRET_ACCESS_KEY = "secret";
+    process.env.EMAIL_FROM = "ZZP <noreply@test.nl>";
+
+    const err = await getMailSender()
+      .checkConnectivity()
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(MailConnectivityError);
+    expect((err as Error).message).toContain("status 403");
+    expect((err as Error).message).not.toContain("account details leak");
+  });
+
+  it("SesMailSender.checkConnectivity() werpt MailConnectivityError als regio of credentials ontbreken", async () => {
+    process.env.EMAIL_DRIVER = "ses";
+    // Geen SES_REGION → connectiviteitsfout
+    await expect(getMailSender().checkConnectivity()).rejects.toBeInstanceOf(MailConnectivityError);
+    _resetMailSender();
+    process.env.SES_REGION = "eu-west-1";
+    // Regio maar geen credentials → connectiviteitsfout
     await expect(getMailSender().checkConnectivity()).rejects.toBeInstanceOf(MailConnectivityError);
   });
 

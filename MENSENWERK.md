@@ -358,7 +358,7 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
    de mailverzending (in-app meldingen bestaan al) koppelt vanzelf.
    **Let op:** gebruik **geen** privé-e-mailadres in code/instellingen; gebruik een zakelijk adres.
 
-   **Code-kant GEDAAN (3-7-2026, uitgebreid 25-7-2026): drie productie-drivers, kies er één via `EMAIL_DRIVER`.**
+   **Code-kant GEDAAN (3-7-2026, uitgebreid 25-7-2026): vier productie-drivers, kies er één via `EMAIL_DRIVER`.**
    - `EMAIL_DRIVER=smtp` — eigen SMTP-relay (`EMAIL_SMTP_HOST/PORT/USER/PASS` + `EMAIL_FROM`).
    - `EMAIL_DRIVER=resend` — **Resend HTTP-API** (`RESEND_API_KEY` + `EMAIL_FROM`), praat via HTTPS
      met `api.resend.com` (geen extra SDK-dependency). **Kies dit op Railway** (en andere PaaS-hosts):
@@ -369,11 +369,23 @@ goedgekeurd", wachtwoord/uitnodiging) heb je een mailprovider nodig.
      `api.postmarkapp.com` (geen extra SDK-dependency, zelfde seam als Resend). **Tweede
      Railway-proof HTTP-keuze** naast Resend — kies wat het beste past bij je domein/DPA/
      deliverability. Authenticatie via de `X-Postmark-Server-Token`-header (het **server**-token,
-     niet de account-token). Draait mee in de mail-zelftest, de read-only connectiviteitscheck én de
-     go-live-sweep (§11).
-     Zonder `EMAIL_DRIVER` blijft het kanaal `noop` (alleen in-app meldingen; niets te doen voor de
-     pilot). Resterend mensenwerk: account aanmaken, domein/afzender verifiëren (DNS), en de sleutel
-     (`RESEND_API_KEY` óf `POSTMARK_SERVER_TOKEN`) + `EMAIL_FROM` in de Railway-secrets zetten.
+     niet de account-token).
+   - `EMAIL_DRIVER=ses` — **Amazon SES v2 HTTP-API** (`SES_REGION` + credentials + `EMAIL_FROM`),
+     praat via HTTPS met `email.<regio>.amazonaws.com` en ondertekent zelf met **SigV4**
+     (`src/lib/services/aws-sigv4.ts`, geverifieerd tegen AWS' officiële testvector) — géén extra
+     `@aws-sdk`-dependency. **Derde Railway-proof HTTP-keuze**, en voor een Nederlands platform met
+     gevoelige gegevens **AVG-vriendelijker**: kies een **EU-regio** (`eu-west-1`/`eu-central-1`) en de
+     e-maildata blijft in de EER — anders dan Resend/Postmark (VS, doorgifte-afweging §5a). Credentials:
+     bij voorkeur een eigen **least-privilege** IAM-gebruiker (`ses:SendEmail` + `ses:GetAccount`) via
+     `SES_ACCESS_KEY_ID`/`SES_SECRET_ACCESS_KEY`; valt terug op de generieke
+     `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (dezelfde die S3 gebruikt) als je één AWS-account hebt.
+     Optioneel `AWS_SESSION_TOKEN` voor tijdelijke STS-credentials.
+
+     Alle vier de drivers draaien mee in de mail-zelftest, de read-only connectiviteitscheck én de
+     go-live-sweep (§11). Zonder `EMAIL_DRIVER` blijft het kanaal `noop` (alleen in-app meldingen; niets
+     te doen voor de pilot). Resterend mensenwerk: account aanmaken, domein/afzender verifiëren (DNS), en
+     de sleutel (`RESEND_API_KEY` / `POSTMARK_SERVER_TOKEN` / SES-credentials + `SES_REGION`) +
+     `EMAIL_FROM` in de Railway-secrets zetten.
 
    **Code-kant GEDAAN (2026-07-15) — e-mailconnectiviteitszelftest:** zodra je de sleutels hierboven
    hebt geplakt, kun je op `/admin/systeemstatus` (admin-only) de nieuwe **E-mail-zelftest** draaien:
@@ -710,6 +722,7 @@ Zet deze in de omgevingsvariabelen van je host — **nooit** in code of chat. (Z
 | `STORAGE_S3_SSE` (+ `STORAGE_S3_SSE_KMS_KEY_ID`)                             | Encryptie-at-rest (default AES256; optioneel)          | — (§1c)              | Optioneel (default aan bij s3)                   |
 | `EMAIL_DRIVER=resend` + `RESEND_API_KEY` + `EMAIL_FROM`                      | E-mail via Resend HTTP-API (Railway-proof)             | Resend (§2)          | Voor e-mail                                      |
 | `EMAIL_DRIVER=postmark` + `POSTMARK_SERVER_TOKEN` + `EMAIL_FROM`             | E-mail via Postmark HTTP-API (Railway-proof)           | Postmark (§2)        | Voor e-mail (alternatief voor Resend)            |
+| `EMAIL_DRIVER=ses` + `SES_REGION` + `EMAIL_FROM` (+ SES/AWS-sleutels)        | E-mail via Amazon SES v2 (EU-regio, AVG-vriendelijk)   | AWS SES (§2)         | Voor e-mail (Railway-proof; kies EU-regio)       |
 | `EMAIL_DRIVER=smtp` + `EMAIL_SMTP_*` + `EMAIL_FROM`                          | E-mail via eigen SMTP-relay                            | Mailprovider (§2)    | Voor e-mail (niet op Railway)                    |
 | `BILLING_PROVIDER=mollie` + `MOLLIE_API_KEY`                                 | Betalingen via Mollie                                  | Mollie (§3)          | Voor betalingen (kies één provider)              |
 | `BILLING_PROVIDER=stripe` + `STRIPE_API_KEY`/`STRIPE_WEBHOOK_SECRET`         | Betalingen via Stripe (Checkout + webhook)             | Stripe (§3)          | Voor betalingen (kies één provider)              |

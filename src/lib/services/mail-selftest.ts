@@ -19,7 +19,7 @@ import type { MailMessage, MailSender } from "@/lib/services/mail-sender";
 export interface MailSelfTestReport {
   /** De verzendpoging wierp geen fout (bij `noop` betekent dit alleen "geen kanaal", zie delivered). */
   ok: boolean;
-  /** Actieve driver-modus ("noop"/"smtp"/"resend"). Geen sleutelwaarden. */
+  /** Actieve driver-modus ("noop"/"smtp"/"resend"/"postmark"/"ses"). Geen sleutelwaarden. */
   driverMode: string;
   /** Het ontvangeradres dat de beheerder invulde — teruggetoond in dezelfde sessie (geen secret). */
   recipient: string;
@@ -34,7 +34,7 @@ export interface MailSelfTestReport {
 }
 
 /** De e-maildrivers die daadwerkelijk afleveren (i.t.t. de stille `noop`-standaard). */
-const DELIVERING_DRIVERS = new Set(["smtp", "resend", "postmark"]);
+const DELIVERING_DRIVERS = new Set(["smtp", "resend", "postmark", "ses"]);
 
 /**
  * Basale RFC-achtige validatie: één `@`, niet-lege lokale + domeindeel, een punt in het domein, geen
