@@ -74,6 +74,37 @@ async function loadOwnedCollaboration(actorId: string, collaborationId: string) 
   return collaboration;
 }
 
+/** Foutmelding van de dubbele-facturatie-gate — één bron, gedeeld door de pre-transactionele lees én
+ *  de in-transactie-herverificatie, zodat de bewoording niet drift. */
+const CASCADE_FLOW_MESSAGE =
+  "Deze samenwerking factureert via de uren- en prestatieflow. Maak de factuur daar aan, niet los.";
+
+/** Sentinel: binnen de create-transactie is alsnog een cascade-flow gedetecteerd (TOCTOU verloren). */
+class CascadeFlowRaceError extends Error {}
+
+/**
+ * True als deze samenwerking (al) via de uren-/prestatie-cascade factureert — dan mag er geen losse
+ * factuur bij. `client` is de prisma-client óf een transactie-client, zodat exact dezelfde telling
+ * zowel pre-transactioneel (fast-fail) als bínnen de create-transactie (TOCTOU-grendel) draait.
+ */
+async function usesCascadeFlow(
+  client: {
+    performance: { count: (a: { where: { collaborationId: string } }) => Promise<number> };
+    invoice: {
+      count: (a: {
+        where: { collaborationId: string; lifecycleStatus: { not: null } };
+      }) => Promise<number>;
+    };
+  },
+  collaborationId: string,
+): Promise<boolean> {
+  const [performanceCount, cascadeInvoiceCount] = await Promise.all([
+    client.performance.count({ where: { collaborationId } }),
+    client.invoice.count({ where: { collaborationId, lifecycleStatus: { not: null } } }),
+  ]);
+  return performanceCount > 0 || cascadeInvoiceCount > 0;
+}
+
 export async function createInvoice(
   collaborationId: string,
   _prev: InvoiceState,
@@ -92,15 +123,10 @@ export async function createInvoice(
 
   // Dubbele-facturatie-gate (server-side waarheid): als deze samenwerking de uren-/prestatie-cascade
   // gebruikt (een prestatie of een cascade-factuur), mag er geen losse factuur bij — die loopt daar.
-  const [performanceCount, cascadeInvoiceCount] = await Promise.all([
-    prisma.performance.count({ where: { collaborationId } }),
-    prisma.invoice.count({ where: { collaborationId, lifecycleStatus: { not: null } } }),
-  ]);
-  if (performanceCount > 0 || cascadeInvoiceCount > 0) {
-    return {
-      error:
-        "Deze samenwerking factureert via de uren- en prestatieflow. Maak de factuur daar aan, niet los.",
-    };
+  // Dit is de pre-transactionele fast-fail; de in-transactie-herverificatie hieronder sluit het
+  // TOCTOU-venster (zie daar).
+  if (await usesCascadeFlow(prisma, collaborationId)) {
+    return { error: CASCADE_FLOW_MESSAGE };
   }
 
   const { lines, error } = parseLines(formData);
@@ -122,27 +148,46 @@ export async function createInvoice(
 
   // Factuurnummer is @unique; bij gelijktijdig aanmaken kan het botsen -> retry met hertelling.
   let invoice: { id: string; number: string } | null = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const seq = (await prisma.invoice.count({ where: { number: { startsWith: `${year}-` } } })) + 1;
-    const number = formatInvoiceNumber(year, seq);
-    try {
-      invoice = await prisma.invoice.create({
-        data: {
-          collaborationId,
-          number,
-          status: "DRAFT",
-          dueAt,
-          totalCents,
-          lines: { create: lineData },
-        },
-        select: { id: true, number: true },
-      });
-      break;
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && attempt < 4)
-        continue;
-      throw e;
+  try {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const seq =
+        (await prisma.invoice.count({ where: { number: { startsWith: `${year}-` } } })) + 1;
+      const number = formatInvoiceNumber(year, seq);
+      try {
+        invoice = await prisma.$transaction(async (tx) => {
+          // TOCTOU-grendel (anti-dubbelfacturatie): her-verifieer BÍNNEN de create-transactie dat er
+          // sinds de pre-transactionele lees geen cascade-flow is ontstaan. Tussen de fast-fail-check
+          // hierboven en deze write zit parse-/validatiewerk; in dat venster kan een (bijna-)gelijktijdige
+          // `createPerformance`/cascade-factuur op dezelfde samenwerking committen — beide requests zagen
+          // in de pre-check nog "geen cascade" en zouden anders zowel een losse factuur als de cascade-flow
+          // laten bestaan (dubbele facturatie van dezelfde opdrachtgever). Zelfde telling (gedeelde
+          // `usesCascadeFlow`) → geen drift; bij overlap rolt de transactie terug. Spiegelt de in-transactie
+          // overlap-guard van de cascade-laag (commands-shared.ts).
+          if (await usesCascadeFlow(tx, collaborationId)) throw new CascadeFlowRaceError();
+          return tx.invoice.create({
+            data: {
+              collaborationId,
+              number,
+              status: "DRAFT",
+              dueAt,
+              totalCents,
+              lines: { create: lineData },
+            },
+            select: { id: true, number: true },
+          });
+        });
+        break;
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && attempt < 4)
+          continue;
+        throw e;
+      }
     }
+  } catch (e) {
+    // De in-transactie-grendel sloeg aan: een cascade-flow is intussen ontstaan. Geef exact dezelfde
+    // gebruikersmelding als de pre-transactionele gate (geen 500, geen id-lek).
+    if (e instanceof CascadeFlowRaceError) return { error: CASCADE_FLOW_MESSAGE };
+    throw e;
   }
   if (!invoice) return { error: "Kon geen factuurnummer toewijzen. Probeer het opnieuw." };
 
