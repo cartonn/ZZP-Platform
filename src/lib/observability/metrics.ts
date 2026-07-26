@@ -47,6 +47,15 @@ export interface MetricsInput {
   backupStale: boolean;
   /** Aantal openstaande (SUBMITTED) verificatie-inzendingen — wachtrijdiepte voor de admin-queue. */
   verificationQueue: number;
+  /** Staat de app in onderhoudsmodus (MAINTENANCE_MODE)? Zodat een monitor niet paget om de 503's. */
+  maintenanceMode: boolean;
+  /**
+   * Aantal VERIFIED-credentials wier vervaldatum in het verleden ligt maar die nog niet naar EXPIRED
+   * zijn omgezet — werk dat de expiry-cron had moeten doen. Een stille-faal-detector: de
+   * cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie zijn werk deed. Blijft dit getal
+   * hoog/oplopend terwijl de heartbeat "vers" is, dan verwerkt de expiry-pijplijn niets meer.
+   */
+  overdueExpiryCredentials: number;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -120,6 +129,18 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal openstaande (SUBMITTED) verificatie-inzendingen in de admin-wachtrij.",
       type: "gauge",
       value: Math.max(0, Math.floor(input.verificationQueue)),
+    },
+    {
+      name: "zzp_maintenance_mode",
+      help: "1 als de app in onderhoudsmodus staat (MAINTENANCE_MODE) en bezoekers een 503 krijgen, anders 0.",
+      type: "gauge",
+      value: input.maintenanceMode ? 1 : 0,
+    },
+    {
+      name: "zzp_credentials_overdue_expiry",
+      help: "Aantal VERIFIED-credentials met een vervaldatum in het verleden die de expiry-cron nog niet op EXPIRED zette (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen expiry-pijplijn).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.overdueExpiryCredentials)),
     },
   ];
 }

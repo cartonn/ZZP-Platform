@@ -20,6 +20,8 @@ const HEALTHY: MetricsInput = {
   backupOk: true,
   backupStale: false,
   verificationQueue: 4,
+  maintenanceMode: false,
+  overdueExpiryCredentials: 0,
 };
 
 function valueOf(input: MetricsInput, name: string): number {
@@ -39,6 +41,27 @@ describe("buildMetrics", () => {
     expect(valueOf(HEALTHY, "zzp_backup_heartbeat_ok")).toBe(1);
     expect(valueOf(HEALTHY, "zzp_backup_heartbeat_stale")).toBe(0);
     expect(valueOf(HEALTHY, "zzp_verification_queue")).toBe(4);
+    expect(valueOf(HEALTHY, "zzp_maintenance_mode")).toBe(0);
+    expect(valueOf(HEALTHY, "zzp_credentials_overdue_expiry")).toBe(0);
+  });
+
+  it("mapt onderhoudsmodus naar 1", () => {
+    expect(valueOf({ ...HEALTHY, maintenanceMode: true }, "zzp_maintenance_mode")).toBe(1);
+  });
+
+  it("mapt de expiry-backlog (VERIFIED maar verlopen) door als gauge", () => {
+    expect(
+      valueOf({ ...HEALTHY, overdueExpiryCredentials: 7 }, "zzp_credentials_overdue_expiry"),
+    ).toBe(7);
+  });
+
+  it("klemt een negatieve/gebroken expiry-backlog veilig op een niet-negatief geheel getal", () => {
+    expect(
+      valueOf({ ...HEALTHY, overdueExpiryCredentials: -3 }, "zzp_credentials_overdue_expiry"),
+    ).toBe(0);
+    expect(
+      valueOf({ ...HEALTHY, overdueExpiryCredentials: 2.9 }, "zzp_credentials_overdue_expiry"),
+    ).toBe(2);
   });
 
   it("gebruikt de AGE_NEVER-sentinel wanneer een heartbeat nog nooit draaide", () => {
@@ -57,8 +80,12 @@ describe("buildMetrics", () => {
       backupOk: null,
       backupStale: true,
       verificationQueue: 0,
+      maintenanceMode: true,
+      overdueExpiryCredentials: 12,
     };
     expect(valueOf(input, "zzp_db_reachable")).toBe(0);
+    expect(valueOf(input, "zzp_maintenance_mode")).toBe(1);
+    expect(valueOf(input, "zzp_credentials_overdue_expiry")).toBe(12);
     expect(valueOf(input, "zzp_cron_heartbeat_ok")).toBe(0);
     expect(valueOf(input, "zzp_cron_heartbeat_stale")).toBe(1);
     expect(valueOf(input, "zzp_backup_heartbeat_ok")).toBe(0);
@@ -83,6 +110,8 @@ describe("buildMetrics", () => {
       "zzp_backup_heartbeat_ok",
       "zzp_backup_heartbeat_stale",
       "zzp_verification_queue",
+      "zzp_maintenance_mode",
+      "zzp_credentials_overdue_expiry",
     ]);
   });
 });

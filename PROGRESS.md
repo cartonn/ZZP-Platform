@@ -3,6 +3,25 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — prod/observability: /api/metrics onderhoudsmodus + expiry-backlog gauges (stille-faal-detectie)
+
+**Wat:** twee gauges toegevoegd aan het operationeel-monitoring-endpoint `/api/metrics` zodat een externe monitor
+(Prometheus/uptime) twee tot nu toe onzichtbare toestanden zonder login kan uitlezen — het gat tussen `/api/health`
+(liveness) en `/admin/systeemstatus` (admin-UI). `zzp_maintenance_mode` (1 als `MAINTENANCE_MODE` aanstaat → monitor
+paget niet om de bewuste 503's; per ongeluk aan-gelaten onderhoud extern zichtbaar) en `zzp_credentials_overdue_expiry`
+(VERIFIED-credentials wier `expiresAt` voorbij is maar die de expiry-cron nog niet op EXPIRED zette). Die laatste is een
+**stille-faal-detector die de cron-heartbeat niet vangt**: de heartbeat bewijst alleen dát de run afrondde, niet dát 'ie
+zijn werk deed (geverifieerd: credential-expiry loopt uitsluitend via de geplande taak, niet lazy).
+
+**Grens:** pure shaping (`buildMetrics`, geklemd niet-negatief); route vult env-only maintenance + een eigen
+`try/catch`-count voor overdue (faalt veilig → 0, nooit een 500) naast de bestaande wachtrijtelling. Geen nieuw
+auth-oppervlak (bestaande fail-closed CRON_SECRET-guard), geen PII/secrets, nooit gecachet, read-only.
+
+**Bestanden:** `src/lib/observability/metrics.ts` (+ test), `src/app/api/metrics/route.ts` (+ test), `MENSENWERK.md`,
+`PROGRESS.md`. **Checks:** `npm run typecheck`/`lint`/`test` (5034 passed, 479 files) /`build` + `prettier --check .`
+groen. +7 tests. PR #925 (auto-merge squash aan). Menselijke reststap: geen — richt desgewenst een scraper op het
+endpoint met de `CRON_SECRET` als Bearer en alarmeer op aanhoudende groei van de overdue-gauge.
+
 ## 2026-07-26 — security/privacy-audit: verlopen Geoapify-routingcache (locatie-PII) fysiek verwijderd + register (AVG art. 5(1)(e)/30)
 
 **Wat:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —

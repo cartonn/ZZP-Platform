@@ -52,6 +52,7 @@ describe("GET /api/metrics", () => {
     cronMock.mockClear();
     backupMock.mockClear();
     process.env.CRON_SECRET = SECRET;
+    delete process.env.MAINTENANCE_MODE;
   });
 
   it("geeft 503 zonder CRON_SECRET", async () => {
@@ -79,7 +80,35 @@ describe("GET /api/metrics", () => {
     expect(body).toContain("zzp_up 1");
     expect(body).toContain("zzp_db_reachable 1");
     expect(body).toContain("zzp_verification_queue 4");
+    expect(body).toContain("zzp_maintenance_mode 0");
     expect(body).toContain("# TYPE zzp_cron_heartbeat_age_seconds gauge");
+  });
+
+  it("telt de verificatie-wachtrij en de expiry-backlog als aparte queries", async () => {
+    // Eerste count = verificatie-wachtrij (SUBMITTED), tweede count = overdue-expiry (VERIFIED, verlopen).
+    countMock.mockResolvedValueOnce(4).mockResolvedValueOnce(9);
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    const body = await res.text();
+    expect(body).toContain("zzp_verification_queue 4");
+    expect(body).toContain("zzp_credentials_overdue_expiry 9");
+    expect(countMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("meldt zzp_maintenance_mode 1 als MAINTENANCE_MODE aanstaat", async () => {
+    process.env.MAINTENANCE_MODE = "true";
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    const body = await res.text();
+    expect(body).toContain("zzp_maintenance_mode 1");
+  });
+
+  it("laat een falende expiry-backlog-telling de respons niet omverhalen (geen 500)", async () => {
+    // Verificatie-wachtrij lukt (4), de tweede telling (overdue-expiry) faalt → 0, respons blijft 200.
+    countMock.mockResolvedValueOnce(4).mockRejectedValueOnce(new Error("count kapot"));
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain("zzp_verification_queue 4");
+    expect(body).toContain("zzp_credentials_overdue_expiry 0");
   });
 
   it("geeft JSON bij ?format=json", async () => {
