@@ -260,6 +260,16 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Inzetbaarheids-/compliance-chip op de opdrachtenlijst (ZZP'er) (2026-07-26, PR #933)** —
+> `/opdrachten` toonde per rij triage-chips (tarief, reistijd, betaalreputatie, agenda, concurrentie, reactiebereidheid) maar geen
+> **inzetbaarheids-/compliance-signaal** — de hardste gatingfactor in de zorg: mis ik een vereist certificaat (VOG/diploma/BIG) voor
+> deze dienst? (benchmark Pidz/Zorgwerk "diensten waarvoor je inzetbaar bent"). De compliance werd al per opdracht berekend via
+> `scoreJobForFreelancer(job, profile).compliance` maar op de lijst weggegooid. Nu een gating-chip op de metadata-rij:
+> "Mist een vereist certificaat" / "Vereist certificaat verlopen" (warning) of "Certificaat in beoordeling" (muted). Pure
+> `jobComplianceChip(compliance, requiredCredentialCount)` (`src/lib/jobs/compliance-chip.ts`) **zwijgt** bij COMPLIANT én bij een
+> opdracht zonder harde eisen (geen chip op elke rij; spiegelt de calm-chip-conventie). Geen extra query/schemawijziging/mutatie-
+> oppervlak. +6 tests. Gate: typecheck, lint, test, build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — `/api/metrics` subscription-expiry backlog gauge (2026-07-26, PR #932)** —
 > derde stille-faal-detector-gauge op het machine-leesbare monitoring-endpoint: **`zzp_subscriptions_overdue_expiry`** telt de
 > betaalde ACTIVE-abonnementen wier `currentPeriodEnd` voorbij is maar die de `subscription-expiry`-cron nog niet op CANCELLED
