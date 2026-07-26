@@ -14,6 +14,7 @@ import {
   Navigation,
   Plus,
   SearchX,
+  Send,
   Users,
   Wallet,
 } from "lucide-react";
@@ -55,6 +56,7 @@ import { summarizeJobPipeline } from "@/lib/job-pipeline";
 import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition";
 import { paymentTrustChip, type PaymentTrustChip } from "@/lib/payment-behavior";
 import { jobRateFitChip, type JobRateFitChip } from "@/lib/job-rate-fit";
+import { appliedJobChipFor, type AppliedJobChip } from "@/lib/job-applied-chip";
 import { getPaymentBehaviorForCompanies } from "@/lib/data/payment-behavior";
 import { responsivenessChip } from "@/lib/client-responsiveness";
 import { getClientResponsivenessForCompanies } from "@/lib/data/client-responsiveness";
@@ -89,6 +91,14 @@ const WORK_MODE: Record<WorkMode, string> = {
   REMOTE: "Remote",
   ONSITE: "Op locatie",
   HYBRID: "Hybride",
+};
+
+// Toon-klassen voor de "gereageerd + status"-chip op de opdrachtenlijst (ZZP'er).
+const APPLIED_CHIP_TONE_CLASS: Record<AppliedJobChip["tone"], string> = {
+  info: "text-muted-foreground",
+  positive: "text-primary",
+  success: "text-success",
+  muted: "text-muted-foreground",
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -456,6 +466,11 @@ async function BrowseJobs({
   // job-ids: het aantal actieve reacties per opdracht én de eigen reacties (om die opdrachten over te
   // slaan — daar is de concurrentie moot). Alleen geaggregeerde tellingen; nooit identiteit van anderen.
   const competitionByJob = new Map<string, ReturnType<typeof competitionChip>>();
+  // Eigen-reactie-status per opdracht (alleen ZZP'er): heeft hij al gereageerd, en waar staat die
+  // reactie? Zo ziet hij op de lijst welke opdrachten hij al heeft opgepakt (en de stand ervan) zonder
+  // elke opdracht te openen — spiegelt de "Applied"-status van Temper/Malt/LinkedIn. De eigen reacties
+  // worden hier tóch al opgehaald (om de concurrentie-chip te onderdrukken); we hergebruiken die query.
+  const appliedChipByJob = new Map<string, AppliedJobChip>();
   const visibleJobIds = profile ? visibleJobs.map((j) => j.id) : [];
   if (profile && visibleJobIds.length > 0) {
     const [applicantGroups, myApplications] = await Promise.all([
@@ -471,15 +486,26 @@ async function BrowseJobs({
           jobId: { in: visibleJobIds },
           status: { not: "WITHDRAWN" },
         },
-        select: { jobId: true },
+        select: { jobId: true, status: true },
       }),
     ]);
     const countByJob = new Map<string, number>();
     for (const g of applicantGroups) countByJob.set(g.jobId, g._count._all);
-    const appliedJobIds = new Set(myApplications.map((a) => a.jobId));
+    const myStatusesByJob = new Map<string, ApplicationStatus[]>();
+    for (const a of myApplications) {
+      const list = myStatusesByJob.get(a.jobId) ?? [];
+      list.push(a.status as ApplicationStatus);
+      myStatusesByJob.set(a.jobId, list);
+    }
     for (const job of visibleJobs) {
-      // Al gereageerd → geen concurrentie-chip (de ZZP'er staat al in de race).
-      if (appliedJobIds.has(job.id)) continue;
+      const myStatuses = myStatusesByJob.get(job.id);
+      if (myStatuses) {
+        // Al gereageerd → toon de eigen reactiestatus i.p.v. de concurrentie-chip (de ZZP'er staat al
+        // in de race; de concurrentie is dan moot). Eén van beide chips per opdracht, nooit allebei.
+        const chip = appliedJobChipFor(myStatuses);
+        if (chip) appliedChipByJob.set(job.id, chip);
+        continue;
+      }
       const chip = competitionChip(
         summarizeJobCompetition({
           applicantCount: countByJob.get(job.id) ?? 0,
@@ -675,6 +701,20 @@ async function BrowseJobs({
                         return (
                           <span className="inline-flex items-center gap-1 font-medium text-warning">
                             <CalendarClock className="size-3" aria-hidden /> {label}
+                          </span>
+                        );
+                      })()}
+                      {(() => {
+                        const chip = appliedChipByJob.get(job.id);
+                        if (!chip) return null;
+                        return (
+                          <span
+                            className={[
+                              "inline-flex items-center gap-1 font-medium",
+                              APPLIED_CHIP_TONE_CLASS[chip.tone],
+                            ].join(" ")}
+                          >
+                            <Send className="size-3" aria-hidden /> {chip.label}
                           </span>
                         );
                       })()}

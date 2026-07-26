@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — "Gereageerd + status"-chip op de opdrachtenlijst (ZZP'er) (PR #929)
+
+**Wat:** de `/opdrachten`-lijst (ZZP'er) toonde al veel triage-chips (reistijd, startnabijheid, concurrentie,
+betaalgedrag, tariefpassendheid, reactiebereidheid) maar géén indicatie of de ZZP'er **al op een opdracht
+had gereageerd** en waar die reactie stond. De eigen reacties werden al opgehaald (om de concurrentie-chip te
+onderdrukken) maar verder weggegooid. Nu een compacte **"Gereageerd · <status>"-chip** per opdracht:
+Gereageerd (NEW) / Gereageerd · bekeken (VIEWED) / Op shortlist (SHORTLIST) / Geaccepteerd (ACCEPTED) /
+Afgewezen (REJECTED). Benchmark: Temper/Malt/LinkedIn tonen "Applied" + stand op hun listings. Zo ziet de
+ZZP'er in één oogopslag welke open opdrachten hij al heeft opgepakt zonder elke opdracht te openen.
+
+**Grens:** pure `job-applied-chip.ts` (`pickApplicationStatus` kiest bij meerdere reacties de verst
+gevorderde/positieve status — een levende SHORTLIST wint van een oude afwijzing; WITHDRAWN telt nooit mee;
+`appliedJobChip`/`appliedJobChipFor`). Wiring in `opdrachten/(index)/page.tsx` hergebruikt de al-bestaande
+`myApplications`-query (alleen `status` toegevoegd aan de select) → **geen extra query, geen schemawijziging,
+geen nieuw mutatie/auth-oppervlak**. Eén chip per opdracht: al-gereageerd toont de eigen status i.p.v. de
+concurrentie-chip (die is dan moot). Read-only, scoping blijft `freelancerId` + zichtbare pagina-ids. Het
+woord "AI" komt nergens voor.
+
+**Bestanden:** `src/lib/job-applied-chip.ts` (+ `job-applied-chip.test.ts`, +9 tests),
+`src/app/(protected)/opdrachten/(index)/page.tsx`, `PROGRESS.md`.
+**Gate:** typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-26 — Existence-oracle consistentie in de void-cascade commando's (PR #928)
 
 **Wat:** het meermaals geparkeerde LOW/defense-in-depth-gat (persona-sweep run 49/51) gesloten. De zeven
