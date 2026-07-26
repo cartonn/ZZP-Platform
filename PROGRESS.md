@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — Ontwerp-lab: +10 concepten (reeks 48, nrs 471–480)
+
+**Wat:** additief 10 nieuwe design-lab-concepten toegevoegd aan `/ontwerp` (accumuleren, nooit vervangen —
+de bestaande 470 blijven ongemoeid). Reeks 48, nrs **471–480**. Gebouwd door 4 parallelle Opus-workers op
+niet-overlappende bestanden; registry + route-koppeling zelf geïntegreerd zonder bestaande entries te raken.
+
+**De 10 richtingen (elk sterk onderscheidend, 2026-trend-geworteld):** 471 Nimbus (premium-dark glow-hiërarchie),
+472 Meterkast (radiale gauge data-viz), 473 Vraagbaak (conversationeel/vraag-eerst + progressive disclosure),
+474 Ringband (tactiel tab-register), 475 Spectrogram (frequentie-spectrum data-viz), 476 Zwerm (organische
+murmuration-motion), 477 Kadaster (kadastrale perceelkaart), 478 Klinker (refined neo-brutalisme),
+479 Zakformaat (mobiel-first telefoon-frame), 480 Speelkwartier (kleurrijk-speels verfijnd).
+
+**Grens/scope:** alleen `src/components/ontwerp/concepts/concept-47[1-9]-*.tsx` + `concept-480-*.tsx` (10 nieuw) +
+append aan `registry.ts` (+10 ConceptMeta) en `src/app/ontwerp/[id]/concept-host.tsx` (+10 dynamic-imports) +
+`docs/DESIGN-LAB.md` + `PROGRESS.md`. Geen bestaande pagina's/logica/auth/gedrag geraakt. Puur frontend/mock-data;
+alle 6 kernschermen per concept, verklaarbare match-redenen, loading/empty/error-states, responsive, toegankelijk.
+Het woord "AI" komt nergens voor. **Totaal nu op `/ontwerp`: 480 concepten.**
+
 ## 2026-07-26 — Inzetbaarheids-/compliance-chip op de opdrachtenlijst (ZZP'er)
 
 **Wat:** de opdrachtenlijst (`/opdrachten`) toont de ZZP'er per rij triage-chips (tarief, reistijd,

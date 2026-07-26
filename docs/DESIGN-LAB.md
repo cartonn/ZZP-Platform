@@ -1425,3 +1425,35 @@ kleur alleen), focus-visible ringen en `motion-reduce`-respect.
   dageraad-interfaces** — elk deterministisch, toegankelijk (WCAG focus-states, status label+icoon, motion-reduce)
   en onderscheidend van de bestaande 460.
 - **Totaal nu op `/ontwerp`: 470 concepten** (reeks 47: 461–470).
+
+## Reeks 48 — concepten 471–480 (26 juli 2026)
+
+- **471 Nimbus** — premium-dark / glow-hiërarchie (#0a0a0f + cyaan #22d3ee): belang wordt gestuurd door licht —
+  het element dat aandacht vraagt gloeit met een radiale spotlight-halo, focus krijgt een neon-rand; hiërarchie
+  via luminositeit i.p.v. kleurblokken. Filmisch, rustig, premium.
+- **472 Meterkast** — radiale gauges / afleesbare data-viz (#0f1a14 + groen #16a34a): élke KPI een zelfgetekende
+  SVG-wijzerplaat (270°-boog, schaalstreepjes, wijzer), match-scores als dials — industrieel-afleesbaar zonder rommel.
+- **473 Vraagbaak** — conversationeel / vraag-eerst (#fbfbfd + indigo #4338ca): één prominente commandobalk stuurt
+  de hele UI (screen + filter + zoekterm), suggestie-chips en antwoord-kaarten met progressive disclosure.
+- **474 Ringband** — tactiel tab-register (#f4efe4 + roestbruin #9a3412): nav als gekleurde register-tab-tongen,
+  elk scherm een manila-blad met CSS-papiertextuur, gestanste ringgaten en omslagschaduw — vertrouwd en tactiel.
+- **475 Spectrogram** — frequentie-spectrum data-viz (#0e0b1a + violet #a855f7): KPI's en scores als kleurige
+  frequentiebanden die van koel naar warm verlopen, activiteit als spectrum-strook — levendig maar leesbaar.
+- **476 Zwerm** — organische motion / murmuration (#0b1220 + turquoise #2dd4bf): een zachte zwerm driftende stippen
+  verbeeldt matching als aantrekking; kaarten zweven licht; CSS-only motion die `prefers-reduced-motion` respecteert.
+- **477 Kadaster** — cartografisch / kadastrale perceelkaart (#f5f5f0 + rood #dc2626): perceelgrenzen, meetlijnen met
+  maatvoering, sectienummers en topografisch raster; opdrachten/credentials als 'percelen' — technisch-precies, Nederlands.
+- **478 Klinker** — refined neo-brutalisme (#fefce8 + blauw #2563eb): dikke zwarte randen, harde offset-schaduwen die
+  op active verspringen (fysiek klikbaar), gedurfde koppen op een strak raster — hoog contrast en toegankelijk.
+- **479 Zakformaat** — mobiel-first / native-app (#f4f4f7 + indigo #6366f1): het platform in een gecentreerd
+  telefoon-frame met bottom-tab-bar en bottom-sheets voor detail; grote tap-targets, duimvriendelijk en vloeiend.
+- **480 Speelkwartier** — kleurrijk-speels / verfijnd (#fffdf9 + koraal #ff6b6b): vrolijke kleurblokken, ronde vormen,
+  zachte 3D-knoppen en blije microcopy — met de informatiedichtheid en rust van premium SaaS (Duolingo × Linear).
+- Onderzochte 2026-trends deze reeks: **glow-/spotlight-effecten** met luminositeit als hiërarchie; **advanced data-viz**
+  (radiale gauge-dials, spectrum/equalizer-taal); **conversational / query-first interfaces** met **progressive
+  disclosure** als kernpatroon; **tactile / skeuomorf-refined materialen** (papiertextuur, tab-register); **organische
+  particle-flow / murmuration** met `prefers-reduced-motion`; **cartografische/technische informatie-esthetiek**;
+  **neo-brutalism refined** met offset-shadow tactiliteit; **mobile-first / native-app patronen** (bottom-sheets,
+  tab-bar); en **kleurrijk-speelse mensgerichte interfaces** — elk deterministisch, toegankelijk (WCAG focus-states,
+  status label+icoon, motion-reduce) en onderscheidend van de bestaande 470.
+- **Totaal nu op `/ontwerp`: 480 concepten** (reeks 48: 471–480).
