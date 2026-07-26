@@ -15,6 +15,8 @@ import {
   Plus,
   SearchX,
   Send,
+  ShieldAlert,
+  ShieldQuestion,
   Users,
   Wallet,
 } from "lucide-react";
@@ -56,6 +58,7 @@ import { summarizeJobPipeline } from "@/lib/job-pipeline";
 import { competitionChip, summarizeJobCompetition } from "@/lib/job-competition";
 import { paymentTrustChip, type PaymentTrustChip } from "@/lib/payment-behavior";
 import { jobRateFitChip, type JobRateFitChip } from "@/lib/job-rate-fit";
+import { jobComplianceChip, type JobComplianceChip } from "@/lib/jobs/compliance-chip";
 import { appliedJobChipFor, type AppliedJobChip } from "@/lib/job-applied-chip";
 import { getPaymentBehaviorForCompanies } from "@/lib/data/payment-behavior";
 import { responsivenessChip } from "@/lib/client-responsiveness";
@@ -430,15 +433,25 @@ async function BrowseJobs({
 
   // Persoonlijke match per opdracht: score plus de zwaarst wegende troef én het zwaarst wegende
   // minpunt — uitlegbaarheid. De ZZP'er ziet niet alleen *of* het matcht, maar *waarom* (en wat niet).
-  type JobMatch = { score: number; reason: string | null; gap: string | null };
+  type JobMatch = {
+    score: number;
+    reason: string | null;
+    gap: string | null;
+    // Inzetbaarheids-gating: mist de ZZP'er een vereist certificaat voor deze dienst? De hardste
+    // beslisfactor in de zorg, tot nu toe weggegooid op de lijst (`scoreJobForFreelancer` berekent
+    // 'm al). `null` bij COMPLIANT of geen harde eisen → geen chip (rustige lijst).
+    complianceChip: JobComplianceChip | null;
+  };
   const matchByJob = new Map<string, JobMatch>();
   if (profile) {
     for (const job of jobs) {
       const result = scoreJobForFreelancer(job, profile, now);
+      const requiredCredCount = job.credentialRequirements.filter((c) => c.required).length;
       matchByJob.set(job.id, {
         score: result.score,
         reason: topPositiveReason(result.reasons),
         gap: topGapReason(result.reasons),
+        complianceChip: jobComplianceChip(result.compliance, requiredCredCount),
       });
     }
   }
@@ -787,6 +800,23 @@ async function BrowseJobs({
                             ].join(" ")}
                           >
                             <MessageSquareReply className="size-3" aria-hidden /> {chip.label}
+                          </span>
+                        );
+                      })()}
+                      {(() => {
+                        const chip = match?.complianceChip;
+                        if (!chip) return null;
+                        const Icon = chip.tone === "warning" ? ShieldAlert : ShieldQuestion;
+                        return (
+                          <span
+                            className={[
+                              "inline-flex items-center gap-1",
+                              chip.tone === "warning"
+                                ? "font-medium text-warning"
+                                : "text-muted-foreground",
+                            ].join(" ")}
+                          >
+                            <Icon className="size-3" aria-hidden /> {t(chip.label)}
                           </span>
                         );
                       })()}

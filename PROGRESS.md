@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — Inzetbaarheids-/compliance-chip op de opdrachtenlijst (ZZP'er)
+
+**Wat:** de opdrachtenlijst (`/opdrachten`) toont de ZZP'er per rij triage-chips (tarief, reistijd,
+betaalreputatie, agenda, concurrentie, reactiebereidheid), maar geen **inzetbaarheids-/compliance-signaal** —
+de hárde gatingfactor in de zorg: mis ik een vereist certificaat (VOG/diploma/BIG) voor deze dienst?
+(benchmark Pidz/Zorgwerk: "diensten waarvoor je inzetbaar bent"). De compliance werd al per opdracht
+berekend via `scoreJobForFreelancer(job, profile).compliance`, maar op de lijst **weggegooid** (alleen score/
+reason/gap bewaard). Nu een gating-chip op de metadata-rij: **"Mist een vereist certificaat"** /
+**"Vereist certificaat verlopen"** (warning) of **"Certificaat in beoordeling"** (muted).
+
+**Grens/architectuur:** pure `jobComplianceChip(compliance, requiredCredentialCount)`
+(`src/lib/jobs/compliance-chip.ts`) — **zwijgt** bij COMPLIANT én bij een opdracht zonder harde
+certificaateisen (geen chip op elke rij; toont alleen wat actie vraagt, spiegelt de andere lijst-chips die
+alleen de beslis-relevante uitersten tonen). `NON_COMPLIANT` → "mist" weegt boven "verlopen" als beide
+spelen. **Geen extra query, geen schemawijziging, geen nieuw mutatie/auth-oppervlak** — `credentialRequirements`
+en de compliance zijn al geladen/berekend; puur read-only afgeleid. Het woord "AI" komt nergens voor.
+
+**Bestanden:** `src/lib/jobs/compliance-chip.ts` (+ test, 6 tests),
+`src/app/(protected)/opdrachten/(index)/page.tsx` (JobMatch + metadata-rij-chip), `PROGRESS.md`,
+`CURRENT_TASK.md`. Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-26 — Prod-rijpheid: `/api/metrics` — subscription-expiry backlog gauge (stille-faal-detectie)
 
 **Wat:** derde stille-faal-detector-gauge op het machine-leesbare monitoring-endpoint `/api/metrics`
