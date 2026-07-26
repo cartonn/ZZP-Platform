@@ -961,3 +961,13 @@ taak-/heartbeat-routes (**fail-closed**: geen `CRON_SECRET` → 503, verkeerd to
 gecachet, en de uitvoer bevat **nooit** persoonsgegevens of secrets — alleen geaggregeerde gauges
 (`src/lib/observability/metrics.ts` (puur) + `src/app/api/metrics/route.ts`). Resterend mensenwerk:
 **niets extra** — richt desgewenst een scraper/monitor op het endpoint met de `CRON_SECRET` als Bearer.
+**Code-kant GEDAAN (2026-07-26) — twee gauges erbij:** `zzp_maintenance_mode` (1 als
+`MAINTENANCE_MODE` aanstaat — zodat een monitor niet paget om de bewuste 503's tijdens onderhoud, en
+een per ongeluk aan-gelaten onderhoudsmodus extern zichtbaar is) en `zzp_credentials_overdue_expiry`
+(aantal VERIFIED-credentials wier vervaldatum voorbij is maar die de expiry-cron nog niet op EXPIRED
+zette). Die laatste is een **stille-faal-detector** die de cron-heartbeat niet vangt: de heartbeat
+bewijst alleen dát de run afrondde, niet dát 'ie zijn werk deed — blijft dit getal hoog/oplopend
+terwijl de heartbeat "vers" is, dan verwerkt de expiry-pijplijn niets meer. Een klein, tijdelijk
+aantal (tot één cron-interval lag tussen verval en de 05:00-run) is normaal; alarmeer op aanhoudende
+groei (Prometheus `for:`-duur). Beide gauges falen veilig (nooit een 500) en bevatten geen PII.
+Resterend mensenwerk: **niets extra**.

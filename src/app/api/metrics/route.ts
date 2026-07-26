@@ -4,6 +4,11 @@
 // mens op /admin/systeemstatus hoeft in te loggen. Vult het gat tussen /api/health (alleen liveness)
 // en het admin-UI-scherm.
 //
+// Gauges: zzp_up, zzp_db_reachable, zzp_cron_heartbeat_* / zzp_backup_heartbeat_* (dead-man's-switch),
+// zzp_verification_queue (wachtrijdiepte), zzp_maintenance_mode (onderhoudsmodus aan → 1) en
+// zzp_credentials_overdue_expiry (VERIFIED-credentials wier vervaldatum voorbij is maar die de
+// expiry-cron nog niet omzette — een stille-faal-detector die de heartbeat niet vangt).
+//
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
 // CRON_SECRET → 503, verkeerd token → 401. De uitvoer bevat NOOIT persoonsgegevens of secrets, alleen
 // geaggregeerde gauges (tellingen, leeftijden, gezondheidsvlaggen). Nooit gecachet.
@@ -18,6 +23,7 @@ import { prisma } from "@/lib/db";
 import { authorizeCron } from "@/lib/cron-auth";
 import { getCronFreshness } from "@/lib/observability/cron-heartbeat";
 import { getBackupFreshness } from "@/lib/observability/backup-heartbeat";
+import { isMaintenanceEnabled } from "@/lib/maintenance";
 import { reportError } from "@/lib/observability/report";
 import type { CronFreshness } from "@/lib/observability/cron-freshness";
 import {
@@ -47,9 +53,20 @@ async function collectInput(now: Date): Promise<MetricsInput> {
   }
 
   let verificationQueue = 0;
+  let overdueExpiryCredentials = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
+    try {
+      // VERIFIED-credentials wier vervaldatum al voorbij is: werk dat de expiry-cron had moeten doen
+      // (VERIFIED → EXPIRED). Alleen een VERIFIED-credential kan verlopen; een expiresAt in het
+      // verleden dat nog niet is omgezet is precies de stille faalmodus die de cron-heartbeat mist.
+      overdueExpiryCredentials = await prisma.credential.count({
+        where: { status: "VERIFIED", expiresAt: { lt: now } },
+      });
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
     }
@@ -70,6 +87,8 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     backupOk: backup.lastOk,
     backupStale: backup.status === "stale",
     verificationQueue,
+    maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),
+    overdueExpiryCredentials,
   };
 }
 
