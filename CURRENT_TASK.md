@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Kandidaten-/reactie-trechter op /inzicht (opdrachtgever) (2026-07-26, PR #935)** —
+> `/inzicht` toonde de opdrachtgever samenwerkingen-per-status, vervullingsgraad (time-to-fill) en compliance, maar **geen
+> kandidaat-/reactie-trechter** — terwijl de ZZP'er wél een "Status van je reacties"-donut heeft (spiegelbeeld ontbrak). Nu een
+> nieuwe rij: een "Kandidaten per status"-donut (hergebruikt `APPLICATION_SEGMENTS`) naast een "Reactie-trechter"-widget
+> (wachten-op-eerste-blik → shortlist → geaccepteerd + aannamekans), benchmark ATS/Temper/Malt hiring-funnel. Pure
+> `summarizeClientApplications(byStatus)` (`src/lib/client-application-funnel.ts`): aannamekans = geaccepteerd van de **besliste**
+> reacties (ACCEPTED+REJECTED; NEW/WITHDRAWN geen beslissing), `null` onder `CLIENT_FUNNEL_MIN_DECIDED=3` → geen schijnprecisie.
+> `getClientStats` telt met **één gescoopte `application.groupBy`** (`where: { job: { companyId } }`) → alleen reacties op de eigen
+> opdrachten; donut + trechter voeden op dezelfde telling (één bron, geen drift). Read-only BI, geen schemawijziging, geen nieuw
+> mutatie/auth-oppervlak. +7 tests. Gate: typecheck, lint, test (5125), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Inzetbaarheids-/compliance-chip op de opdrachtenlijst (ZZP'er) (2026-07-26, PR #933)** —
 > `/opdrachten` toonde per rij triage-chips (tarief, reistijd, betaalreputatie, agenda, concurrentie, reactiebereidheid) maar geen
 > **inzetbaarheids-/compliance-signaal** — de hardste gatingfactor in de zorg: mis ik een vereist certificaat (VOG/diploma/BIG) voor

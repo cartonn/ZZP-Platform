@@ -10,6 +10,7 @@ import {
   Target,
   Building2,
   Timer,
+  Users,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireActor, type Actor } from "@/lib/authz";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/revenue-trend";
 import { formatEuro } from "@/lib/invoices";
 import { plural } from "@/lib/plural";
+import { summarizeClientApplications } from "@/lib/client-application-funnel";
 import {
   toDonutData,
   type DonutDatum,
@@ -452,7 +454,78 @@ async function ClientInzicht({ userId }: { userId: string }) {
           />
         </BiWidget>
       </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <StatusDonutWidget
+          title="Kandidaten per status"
+          data={toDonutData(s.applicationsByStatus, APPLICATION_SEGMENTS)}
+          centerLabel="reacties"
+          emptyText="Zodra er op je opdrachten wordt gereageerd, zie je hier de verdeling per status."
+        />
+        <ClientFunnelWidget funnel={summarizeClientApplications(s.applicationsByStatus)} />
+      </div>
     </div>
+  );
+}
+
+/**
+ * Reactie-trechter voor de opdrachtgever: wachten-op-eerste-blik → shortlist → geaccepteerd, plus de
+ * aannamekans over de besliste reacties. Voedt op dezelfde telling als de donut ernaast (één bron).
+ */
+function ClientFunnelWidget({
+  funnel,
+}: {
+  funnel: ReturnType<typeof summarizeClientApplications>;
+}) {
+  return (
+    <BiWidget
+      title="Reactie-trechter"
+      className="lg:col-span-2"
+      action={
+        <Link
+          href="/kandidaten"
+          className="focus-ring inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:underline"
+        >
+          Bekijk kandidaten
+          <ArrowRight className="size-3.5" aria-hidden />
+        </Link>
+      }
+    >
+      {funnel.total === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="Nog geen reacties"
+          description="Zodra ZZP'ers op je opdrachten reageren, zie je hier je kandidaattrechter."
+        />
+      ) : (
+        <BiStatList
+          items={[
+            {
+              label: "Wachten op een eerste blik",
+              value: funnel.awaitingFirstLook,
+              sub: "nog niet bekeken",
+              tone: funnel.awaitingFirstLook > 0 ? "warning" : "default",
+              href: "/kandidaten",
+            },
+            { label: "Op shortlist", value: funnel.shortlisted },
+            {
+              label: "Geaccepteerd",
+              value: funnel.accepted,
+              tone: funnel.accepted > 0 ? "success" : "default",
+            },
+            ...(funnel.acceptanceRate != null
+              ? [
+                  {
+                    label: "Aannamekans",
+                    value: formatPercent(funnel.acceptanceRate),
+                    sub: "van de beoordeelde reacties",
+                  },
+                ]
+              : []),
+          ]}
+        />
+      )}
+    </BiWidget>
   );
 }
 
