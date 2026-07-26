@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — Security/privacy-auditronde 2026-07-26b: losse-factuur TOCTOU (dubbelfacturatie) gedicht
+
+**Wat:** volledige security/privacy-audit (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
+niet-overlappende oppervlakken: authz/tenant, injectie/upload/secrets, AVG betrokkenen-rechten) over de sinds
+`faaefb42` verse oppervlakken (#924–#930) + brede statische sweeps. **Alle drie oppervlakken onafhankelijk
+schoon** — geen nieuw KRITIEK/HOOG/MIDDEL security-/privacy-gat; de recente hardening (#928 anti-oracle CWE-203,
+#930 cascade-TOCTOU, #924 PII-cache-retentie) geverifieerd sluitend. **Eén concrete financiële-integriteit-TOCTOU
+gevonden + gefixt (rood→groen):** `createInvoice` (`src/app/(protected)/facturen/actions.ts`) las de dubbele-
+facturatie-gate (prestatie-/cascade-factuur-telling) buiten elke transactie en creëerde daarna de losse factuur
+zonder herverificatie → race-venster waarin zowel een losse als de cascade-flow voor dezelfde samenwerking kon
+landen (dubbelfacturatie; symmetrisch met het cascade-zijdige #930-gat, same-owner). Fix: gedeelde
+`usesCascadeFlow(client, …)` (prisma-óf-tx) + in-transactie herverificatie in `prisma.$transaction`
+(sentinel `CascadeFlowRaceError` → identieke gebruikersmelding, geen 500/id-lek), spiegelt de cascade-laag-guard.
+
+**Bestanden:** `src/app/(protected)/facturen/actions.ts` (+3 tests in `actions.test.ts`, rood→groen geverifieerd),
+`docs/SECURITY-PRIVACY-BACKLOG.md` (ronde 2026-07-26b + 2 LAAG-notities geparkeerd: dossier-`.txt`-formule-escape,
+`createPerformance` DRAFT-audit). **Tests:** full gate — typecheck, lint, prettier, volledige unit-suite, build groen.
+**Volgende stap:** de geparkeerde LAAG-notities + de HOOG-retentie-taak (bewaartermijnen technisch afdwingen) blijven
+open in de backlog; de KRITIEK door-derden-vrije-tekst-PII-erasure wacht op menselijke FG-sign-off (MENSENWERK §5).
+
 ## 2026-07-26 — Persona-sweep run 52: anti-dubbelfacturatie-race + FRANCHISER nav-badge-gat
 
 **Wat:** twee MED-bevindingen gevonden + gefixt. (1) **TOCTOU-race op de anti-dubbelfacturatie-guard**

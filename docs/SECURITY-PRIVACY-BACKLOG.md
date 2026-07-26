@@ -4,6 +4,63 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-26b (basis: `main` @ 42650618)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) object-/functie-niveau-autorisatie & tenant-isolatie op de sinds `faaefb42` verse oppervlakken
+(#924–#930): invoice-actions (`facturen/actions.ts`, anti-dubbelfacturatie #927/#930), de cascade-command-laag
+(`commands-shared.ts`/`invoice-/performance-/contract-/dispute-/payment-commands.ts`, existence-oracle #928),
+`pending-tasks.ts`, `received-invitations.ts`, `signals.ts` (FRANCHISER nav-badge #930), op IDOR/BOLA/TOCTOU
+en cross-tenant-lek; (2) injectie/upload/SSRF/secrets/XSS/CSV-formule/foutlek/open-redirect (statisch grep +
+lees over `src/**`); (3) AVG betrokkenen-rechten (over-fetch naar client, audit-logging, `anonymizeUser`-
+volledigheid tegen het schema, k-anonimiteit, PII-in-logs, doorgifte-register art. 30, retentie).
+
+Alle drie oppervlakken **onafhankelijk schoon** — geen nieuw KRITIEK/HOOG/MIDDEL security- of privacy-gat.
+Geverifieerd: de in-transactie TOCTOU-guard van #930 (`overlapGuardPerformanceId`) sluit het dubbele-urenstaat-
+venster écht (in-tx her-lees op `tx`, niet slechts gedocumenteerd); de anti-oracle-consistentie (#928) geeft
+niet-partij een identieke "niet gevonden" als een onbekend id op álle 11 muterende cascade-commando's
+(CWE-203); de FRANCHISER nav-badge-queries in `signals.ts`/`pending-tasks.ts` zijn `tenantId`-gescoopt op de
+eigen tenant van de caller (geen client-input, geen cross-tenant-lek); geen `select:{user:true}`/hele-relatie-
+`include` toegevoegd (0 over-fetch naar client); geen raw-SQL-interpolatie, één nonce-gated
+`dangerouslySetInnerHTML` (statische themescript), CSV-formule-guard (`escapeCsvField` `=+-@\t\r`) op álle
+12 exports, `/api/metrics` Bearer-`CRON_SECRET`-gated met alleen PII-vrije gauges, Geoapify-host vast uit env
+(geen SSRF), geen open-redirect met user-URL, geen secret in client-bundle of log, `.env`/`*.db`/`/storage/`
+niet in git. `schema.prisma` ongewijzigd sinds `faaefb42` → geen nieuw PII-veld dat `anonymizeUser` mist.
+`npm run typecheck`/`lint`/`prettier --check`/`test`/`build` groen. **Eén concrete financiële-integriteit-
+TOCTOU (dubbelfacturatie) gevonden én OPGELOST (rood→groen).**
+
+### OPGELOST — MIDDEL (CLAUDE.md regel 1, server-side waarheid — financiële integriteit): losse-factuur-gate had een TOCTOU-venster t.o.v. de uren-/prestatie-cascade (dubbelfacturatie)
+
+- **Repro (was):** `createInvoice` (`src/app/(protected)/facturen/actions.ts`) leest de dubbele-facturatie-gate
+  (`performance.count` + cascade-`invoice.count`) **buiten elke transactie**, en creëert dáárna de losse factuur
+  zonder herverificatie. Tussen die lees en de write zit parse-/validatiewerk. In dat venster kan een
+  (bijna-)gelijktijdige `createPerformance`/cascade-factuur op **dezelfde samenwerking** committen; beide
+  requests zagen in de pre-check nog "geen cascade" → er landt zowel een **losse** factuur als de **cascade**-
+  flow voor één samenwerking = dubbele facturatie van dezelfde opdrachtgever. Symmetrisch met het cascade-zijdige
+  TOCTOU dat #930 net dichtte, maar op de losse-factuur-zijde nog open. (Same-owner: de ZZP'er racet tegen
+  zichzelf — geen cross-tenant/IDOR, wél een integriteits-/server-side-waarheid-gat.)
+- **Geschonden regel:** CLAUDE.md regel 1 (server-side is de waarheid: geen kritieke integriteits-invariant
+  client-/race-afhankelijk). Past in de #927/#930 anti-dubbelfacturatie-lijn.
+- **Fix (PR #—):** gedeelde `usesCascadeFlow(client, collaborationId)` (draait op de prisma- óf tx-client, één
+  telling → geen drift) + gedeelde `CASCADE_FLOW_MESSAGE`. De pre-transactionele fast-fail blijft; de losse-
+  factuur-`create` draait nu bínnen `prisma.$transaction` met een **in-transactie herverificatie** die de
+  transactie terugrolt (sentinel `CascadeFlowRaceError` → exact dezelfde gebruikersmelding, geen 500/id-lek)
+  zodra er alsnog een cascade-flow blijkt. Spiegelt de in-transactie overlap-guard van de cascade-laag
+  (`commands-shared.ts`). +3 unit-tests (rood→groen: pre-fix creëerde de losse factuur alsnog bij prestatie- én
+  bij cascade-factuur-race; plus regressie tegen over-blokkeren) in `facturen/actions.test.ts`.
+
+### Geparkeerd — LAAG (defense-in-depth, uit deze ronde)
+
+- **Dossier-export bouwt `text/plain` zonder formule-escape.** `src/app/api/samenwerkingen/[id]/dossier/route.ts`
+  (~r113-141) bouwt de dossiertekst via `lines.join("\n")` zónder `escapeCsvField`. Nu **laag risico** omdat het
+  als `text/plain` met een `.txt`-bestandsnaam wordt geserveerd (geen spreadsheet-formulecontext). **Aanbevolen:**
+  zodra dit ooit `.csv`/`text/csv` wordt, user-content door `escapeCsvField` halen (CWE-1236). Geen actie nu.
+- **`createPerformance`/`updatePerformance` schrijven geen `AuditLog`.** `src/lib/cascade/performance-commands.ts`
+  (~r119-214) muteert een DRAFT/REJECTED-prestatie direct via `prisma.performance.create/update` zonder auditregel
+  (anders dan de DomainEvent-gedekte `submit/approve/reject`). DRAFT heeft geen extern effect tot `submitPerformance`
+  (wél geaudit via DomainEvent), dus laag. **Aanbevolen:** een lichte `PERFORMANCE_DRAFT_SAVED`-audit voor volledige
+  regel-5-dekking ("audit alles wat telt"), als apart klein increment. Pre-existing, geen regressie.
+
 ## Ronde 2026-07-26 (basis: `main` @ faaefb42)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
