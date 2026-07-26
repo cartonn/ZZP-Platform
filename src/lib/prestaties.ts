@@ -111,6 +111,42 @@ export function approvablePerformances(rows: PrestatieOverzicht[]): PrestatieOve
   return rows.filter((p) => p.status === "SUBMITTED" && !p.disputed);
 }
 
+export interface PendingApprovalValue {
+  /** Aantal goed te keuren urenstaten/opleveringen (SUBMITTED, niet bevroren). */
+  count: number;
+  /** Somtotaal van de bekende subtotalen (netto, excl. BTW) van die prestaties. */
+  totalCents: number;
+  /** Hoeveel van die prestaties (nog) geen berekenbaar subtotaal hebben (bv. ontbrekend uurtarief). */
+  withoutAmount: number;
+}
+
+/**
+ * Vat de **financiële committed cost** samen van het werk dat op de goedkeuring van de opdrachtgever
+ * wacht: de som van de reeds-berekende `subtotalCents` over de goed te keuren prestaties. Goedkeuren
+ * geeft dit bedrag vrij in de facturatiecascade (concept-factuur → openstaand), dus de payer wil in
+ * één oogopslag weten hoeveel er "aan zet" staat — niet alleen hoevéél urenstaten.
+ *
+ * Pure afleiding op de reeds-goedgekeurde (`approvablePerformances`) set — geen extra query, één bron
+ * van waarheid met de "wacht op goedkeuring"-telling en de bulk-selectie. Onderscheiden van de
+ * committed-cost-vooruitblik (`committed-cost.ts`): die telt de ná-goedkeuring concept-facturen, deze
+ * telt het ervóór wachtende, nog niet goedgekeurde werk. Een prestatie zonder berekenbaar subtotaal
+ * (bv. een urenstaat met ontbrekend uurtarief) telt niet mee in het bedrag maar wél in `withoutAmount`,
+ * zodat het bedrag nooit een deel van de wachtrij stilzwijgend onderschat.
+ */
+export function summarizePendingApprovalValue(rows: PrestatieOverzicht[]): PendingApprovalValue {
+  const approvable = approvablePerformances(rows);
+  let totalCents = 0;
+  let withoutAmount = 0;
+  for (const p of approvable) {
+    if (p.subtotalCents != null) {
+      totalCents += p.subtotalCents;
+    } else {
+      withoutAmount += 1;
+    }
+  }
+  return { count: approvable.length, totalCents, withoutAmount };
+}
+
 // ---------------------------------------------------------------------------
 // CSV-export
 // ---------------------------------------------------------------------------
