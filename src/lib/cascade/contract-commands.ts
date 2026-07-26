@@ -38,7 +38,8 @@ export async function signContract(actor: Actor, collaborationId: string): Promi
     },
   });
   if (!col) throw new CascadeError("Samenwerking niet gevonden.");
-  assertParty(actor, col.freelancer.userId, col.company.userId);
+  // Niet-partij krijgt exact dezelfde "… niet gevonden."-melding als een onbekend id (anti-oracle).
+  assertParty(actor, col.freelancer.userId, col.company.userId, "Samenwerking niet gevonden.");
 
   // Dispuut-vries (CLAUDE.md: "dispuut bevriest de cascade"): een bevroren samenwerking mag haar
   // contractstatus niet vooruitbewegen (PROPOSED → ACTIVE). Symmetrisch met de rest van de

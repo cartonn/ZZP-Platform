@@ -170,6 +170,16 @@ export async function updatePerformance(
 ): Promise<void> {
   assertPerformanceWithinLimits(input);
   const perf = await loadPerformance(performanceId);
+  // Anti-oracle (CWE-203): een actor die geen partij is bij deze prestatie krijgt exact dezelfde
+  // "… niet gevonden."-melding als een onbekend id; alleen een echte partij aan de verkeerde kant
+  // (de opdrachtgever) houdt de behulpzame rolmelding. Symmetrisch met approvePerformance (#903).
+  if (
+    actor.role !== "ADMIN" &&
+    actor.id !== perf.freelancerUserId &&
+    actor.id !== perf.clientUserId
+  ) {
+    throw new CascadeError("Prestatie niet gevonden.");
+  }
   if (actor.role !== "ADMIN" && actor.id !== perf.freelancerUserId) {
     throw new CascadeError("Alleen de ZZP'er kan de prestatie aanpassen.");
   }
@@ -242,6 +252,15 @@ async function assertNoOverlappingHoursPerformance(performanceId: string): Promi
 // --- Event B1 — Prestatie indienen -----------------------------------------
 export async function submitPerformance(actor: Actor, performanceId: string): Promise<void> {
   const perf = await loadPerformance(performanceId);
+  // Anti-oracle (CWE-203): niet-partij → "… niet gevonden."; alleen de opdrachtgever (verkeerde kant)
+  // houdt de rolmelding. Symmetrisch met approvePerformance (#903).
+  if (
+    actor.role !== "ADMIN" &&
+    actor.id !== perf.freelancerUserId &&
+    actor.id !== perf.clientUserId
+  ) {
+    throw new CascadeError("Prestatie niet gevonden.");
+  }
   if (actor.role !== "ADMIN" && actor.id !== perf.freelancerUserId) {
     throw new CascadeError("Alleen de ZZP'er kan de prestatie indienen.");
   }

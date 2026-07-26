@@ -3,6 +3,27 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — Existence-oracle consistentie in de void-cascade commando's (PR #928)
+
+**Wat:** het meermaals geparkeerde LOW/defense-in-depth-gat (persona-sweep run 49/51) gesloten. De zeven
+"void" cascade-commando's — `submitPerformance`/`updatePerformance` (`performance-commands.ts`),
+`submitInvoice`/`creditInvoice` (`invoice-commands.ts`), `confirmPayment` (`payment-commands.ts`),
+`signContract` (`contract-commands.ts`) en `openDispute` (`dispute-commands.ts`) — gaven een actor die
+**geen partij** is bij de resource een onderscheidbare "geen toegang/verkeerde rol"-melding t.o.v. de
+"… niet gevonden."-melding bij een onbekend id (CWE-203 existence-oracle). Nu folden ze een niet-partij naar
+exact de resource-eigen "… niet gevonden."-melding; een **echte partij aan de verkeerde kant** houdt de
+behulpzame rolmelding. Symmetrisch met de al-gefixte return-based approve/reject-commando's (#903).
+
+**Grens:** `assertParty` (`commands-shared.ts`) kreeg een optionele `notFoundMessage`-param (default
+ongewijzigd); de twee call-sites (sign/dispute) geven "Samenwerking niet gevonden." mee. De overige vijf
+kregen een expliciete niet-partij-check vóór de rolmelding. Puur foutmeldings-gedrag — geen schema-,
+mutatie- of auth-oppervlakwijziging. Deze commando's gooien (in prod door Next.js geredigeerd), dus vandaag
+niet productie-observeerbaar — defense-in-depth zodat een refactor naar return-based state het gat niet heropent.
+
+**Bestanden:** `src/lib/cascade/{commands-shared,performance-commands,invoice-commands,payment-commands,contract-commands,dispute-commands}.ts`,
+`src/lib/cascade/anti-oracle-party.test.ts` (+11 tests), `docs/PERSONA-SWEEP-BACKLOG.md`, `PROGRESS.md`.
+**Gate:** typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-26 — Persona-sweep run 51: dubbelfacturatie-rem + €0-factuur/tarief-hardening
 
 **Wat:** kritische-gebruiker-sweep over de vier rollen (drie parallelle Opus-audits + drie fix-workers).
