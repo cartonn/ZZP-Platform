@@ -1417,6 +1417,36 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "470": dynamic(() =>
     import("@/components/ontwerp/concepts/concept-470-dagraad").then((m) => m.Concept470),
   ),
+  "471": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-471-nimbus").then((m) => m.Concept471),
+  ),
+  "472": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-472-meterkast").then((m) => m.Concept472),
+  ),
+  "473": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-473-vraagbaak").then((m) => m.Concept473),
+  ),
+  "474": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-474-ringband").then((m) => m.Concept474),
+  ),
+  "475": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-475-spectrogram").then((m) => m.Concept475),
+  ),
+  "476": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-476-zwerm").then((m) => m.Concept476),
+  ),
+  "477": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-477-kadaster").then((m) => m.Concept477),
+  ),
+  "478": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-478-klinker").then((m) => m.Concept478),
+  ),
+  "479": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-479-zakformaat").then((m) => m.Concept479),
+  ),
+  "480": dynamic(() =>
+    import("@/components/ontwerp/concepts/concept-480-speelkwartier").then((m) => m.Concept480),
+  ),
 };
 
 /** Rendert het gekozen concept lazy; onbekende id's leveren null (de server-route heeft dan al
