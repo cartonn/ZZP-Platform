@@ -1,5 +1,57 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-26 (run 52) · **main-commit basis:** `929fb2b5`
+> **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT** (1 MED financiële integriteit: TOCTOU-race omzeilt de
+> run-51 anti-dubbelfacturatie-guard; 1 MED DOEL-1b cross-surface: FRANCHISER nav-badge ontbreekt op
+> `/franchise/zzpers` + `/franchise/diensten`). Verse prod-build (exit 0) + live persona-smoke over alle vier
+> rollen (Playwright/Chromium, 19/19: login OK; `/acties` laadt; DOEL 2: privilege-escalatie → redirect
+> `/dashboard`; junk-id → geen 500; nul 5xx) + drie parallelle Opus-audits (authz/IDOR/cross-tenant/document-
+> privacy; malicieuze invoer + verboden statusovergangen; next-action-correctheid). De authz/IDOR/cross-tenant-
+> en document-/PDF-/dossier-privacy-audit kwam **schoon** terug (de diff sinds run 51 = alleen de al-gedocumenteerde
+> #927/#928/#929-fixes; brede steekproef op ontzorgd/ideeën/academie/support/berichten/documenten zonder gat).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 2, financiële integriteit — TOCTOU-race op de anti-dubbelfacturatie-guard):**
+> `assertNoOverlappingHoursPerformance` (`src/lib/cascade/performance-commands.ts`, run-51-fix #927) was een
+> **pre-transactionele** `findFirst` vóór `persistEventAndEffects`. Bij twee (bijna-)gelijktijdige
+> `submitPerformance`-aanroepen voor twee DRAFT-urenstaten met overlappende periode op dezelfde samenwerking
+> zagen beide requests elkaar in de pre-check nog als DRAFT (nog geen SUBMITTED), passeerden beide de guard en
+> committen elk hun eigen SUBMITTED-write (verschillende rijen → geen CAS-conflict) → **twee urenstaten voor
+> dezelfde periode → dubbel uitbetaald** via twee onafhankelijke goedkeur→factuur→betaal-cascades. Precies het
+> scenario dat #927 sequentieel dichtte, nu via concurrency (reëel op Postgres READ COMMITTED; op SQLite
+> serialiseren writes globaal). De dispuut-/terminale-siblings in dezelfde file hadden deze in-transactie-
+> herverificatie wél (`disputeGuardCollaborationId`/`terminalGuard`). **Geschonden regel:** CLAUDE.md regel 1
+> (server-side waarheid, geen dubbele persistentie — symmetrisch over álle paden incl. het concurrente).
+> **Fix:** nieuwe `overlapGuardPerformanceId`-ref op `persistEventAndEffects` → `persistInTransaction`
+> her-verifieert de overlap-query BINNEN de `prisma.$transaction` (op `tx`), vóór er iets wordt weggeschreven;
+> bij overlap rolt de hele transactie terug. Zelfde querylogica + gedeelde melding-constante
+> (`OVERLAPPING_PERFORMANCE_MESSAGE`, geen id-lek) als de pre-check (die blijft voor snelle fail). Sluit het
+> interleaved-venster (perfB commit ná perfA's pre-check maar vóór perfA's write). Rood→groen:
+> `performance-commands.test.ts` (+3 cases: in-tx-guard, doorgegeven ref-semantiek, MILESTONE-skip).
+> _Residu (LOW, geparkeerd):_ de truly-simultane race (beide lezen vóór beide schrijven) sluit alleen een
+> DB-niveau exclusion/partial-unique-constraint op `(collaborationId, periodStart, periodEnd)` volledig af —
+> niet declaratief in Prisma-`db push` over SQLite+Postgres; de in-tx-guard dekt het realistische vector
+> (CSV-dubbelimport, dubbelklik, interleaved submit).
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 1b, cross-surface "signaal op één oppervlak" — FRANCHISER nav-badge stil):**
+> `navBadges()` (`src/lib/signals.ts`, FRANCHISER-tak) berekende alleen `overdueLeads` (→ `/franchise/leads`) en
+> `openHandoffs` (→ `/franchise/shift-overnames`), terwijl `franchiserTasks()` (`pending-tasks.ts`) attention-tone
+> item-taken emit die naar twee ándere nav-items wijzen die nooit een badge kregen: `/franchise/zzpers`
+> (`franchiseNotEngageableTask` prio 84 + `franchiseCredentialExpiryTask` prio 70) en `/franchise/diensten`
+> (`franchiseAcuteDienstTask` prio 78 + `franchiseStaleDienstTask`/rollup prio 65). Een bemiddelaar die via de
+> sidebar (niet het dashboard) navigeert had nul signaal dat die pagina's aandacht vereisen — exact het
+> anti-patroon dat het project al voor CLIENT (`/kandidaten` run 46/47, `/samenwerkingen` run 46) en ADMIN
+> (`/admin/gebruikersbeheer` run 46) dichtte, maar nooit voor de FRANCHISER's eigen operationele pagina's.
+> **Geschonden regel:** DOEL 1b (één bron van waarheid; badge/acties/detail gelijk). **Fix:** twee nieuwe
+> `SignalCounts`-keys `rosterAlerts` (→ `/franchise/zzpers`) en `openDienstAlerts` (→ `/franchise/diensten`),
+> beide `attention`, geteld met EXACT de predicaten van `franchiserTasks` — hergebruik van de pure helpers
+> `computeEngageability`, `summarizeAcuteOpenDiensten`, `isStartAcute` (geen circular import naar pending-tasks;
+> geen logica-duplicatie) + pure `countFranchiseDienstAlerts` (acuut-aggregaat max 1 + getoonde stale-rijen max 3
+>
+> - rollup bij residu, acute/stale-overlap ontdubbeld). Alle queries tenant-gescoped + `take`-begrensd. De
+>   bestaande leads/handoff-badges + andere rollen onveranderd. Rood→groen: `signals.badge-gaps-run52.test.ts`
+>   (+ cross-tenant-isolatie, dedup, verdwijnt-na-oplossing, helper-unit-tests). Full gate: typecheck, lint,
+>   **5106 tests**, build, prettier groen.
+
 > **Datum:** 2026-07-26 (run 51) · **main-commit basis:** `3fea61da`
 > **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT** (1 MED financiële integriteit: dubbelfacturatie
 > via overlappende urenstaat-perioden; 2 LOW financiële-integriteit-consistentie: €0-losse-factuur +

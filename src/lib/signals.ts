@@ -9,7 +9,9 @@ import { pendingCollaborationProposals } from "@/lib/accepted-proposal";
 import { WAIT_ATTENTION_DAYS } from "@/lib/application-wait";
 import { clientCredentialAlerts, clientHasComplianceAction } from "@/lib/collaboration-alerts";
 import { prisma } from "@/lib/db";
-import { type UserRole } from "@/lib/enums";
+import { type Availability, type UserRole } from "@/lib/enums";
+import { computeEngageability } from "@/lib/engageability";
+import { summarizeAcuteOpenDiensten, isStartAcute } from "@/lib/franchise/acute-open-diensten";
 import { MANDATORY_CREDENTIAL_TYPES, mandatoryDocumentAlertCount } from "@/lib/mandatory-documents";
 import { type FreelancerCredential } from "@/lib/matching";
 import { NO_SHOW_LIMIT } from "@/lib/no-show";
@@ -42,6 +44,8 @@ interface SignalCounts {
   savedJobs?: number; // FREELANCER: bewaarde opdrachten die nog open staan (PUBLISHED)
   overdueLeads?: number; // FRANCHISER: actieve leads met een verstreken opvolgdatum
   openHandoffs?: number; // FRANCHISER: open shift-overname-aanvragen binnen de tenant
+  rosterAlerts?: number; // FRANCHISER: niet-inzetbare roster-ZZP'ers + (bijna-)verlopende certificaten
+  openDienstAlerts?: number; // FRANCHISER: acute + te-lang-open (stale) tenant-diensten
   openSupportTickets?: number; // ADMIN: helpdesk-tickets die de helpdesk moet oppakken
   openNoShows?: number; // ADMIN: no-show-meldingen die op een oordeel wachten
   openAdminHandoffs?: number; // ADMIN: open shift-overname-aanvragen platform-breed
@@ -62,6 +66,8 @@ const SIGNAL_HREF: Record<keyof SignalCounts, string> = {
   savedJobs: "/opgeslagen",
   overdueLeads: "/franchise/leads",
   openHandoffs: "/franchise/shift-overnames",
+  rosterAlerts: "/franchise/zzpers",
+  openDienstAlerts: "/franchise/diensten",
   openSupportTickets: "/admin/support",
   openNoShows: "/admin/no-shows",
   openAdminHandoffs: "/admin/shift-overnames",
@@ -82,6 +88,9 @@ const SIGNAL_TONE: Record<keyof SignalCounts, BadgeTone> = {
   // Verstreken opvolg en open overname-aanvragen vragen actie van de franchiser.
   overdueLeads: "attention",
   openHandoffs: "attention",
+  // Niet-inzetbaar roster (plaatsing-blokkerend) en acute/te-lang-open diensten vragen actie.
+  rosterAlerts: "attention",
+  openDienstAlerts: "attention",
   // Admin-wachtrijen die actie vragen (helpdesk, no-shows, dienst-overnames).
   openSupportTickets: "attention",
   openNoShows: "attention",
@@ -99,8 +108,31 @@ export function startOfUtcDay(now: Date): Date {
 
 const EXPIRY_WINDOW_MS = 30 * 86_400_000; // 30 dagen, gelijk aan het dashboard
 
+/** Drempel (dagen) waarna een ongedekte, gepubliceerde dienst als "te lang open" (stale) telt — gelijk aan `STALE_DIENST_DAYS` in pending-tasks.ts. */
+const STALE_DIENST_DAYS = 7;
+
+/** Max aparte stale-dienst-rijen op /acties; het residu (#4+) wordt gebundeld in één rollup-taak — gelijk aan `STALE_DIENST_SHOWN` in pending-tasks.ts. */
+const STALE_DIENST_SHOWN = 3;
+
 /** Harde bovengrens per lijst — gelijk aan de `MAX` in pending-tasks.ts (voorkomt zware queries). */
 const CASCADE_SCAN_LIMIT = 50;
+
+/**
+ * /franchise/diensten-badge = exact het aantal losse diensten-taken dat het actiecentrum (`/acties`,
+ * pending-tasks.ts `franchiserTasks`) toont: het acute-onbezet-aggregaat (max 1, `franchiseAcuteDienstTask`)
+ * + de getoonde stale-rijen (max `STALE_DIENST_SHOWN`, `franchiseStaleDienstTask`) + één rollup-taak
+ * zodra er stale-residu (#4+) is (`franchiseStaleDienstRollupTask`). `staleTaskCount` is het aantal
+ * stale-diensten ná het verwijderen van de acute overlap (die diensten zitten al in het acute-aggregaat),
+ * zodat de badge niet dubbeltelt. Pure functie, los testbaar.
+ */
+export function countFranchiseDienstAlerts(input: {
+  hasAcute: boolean;
+  staleTaskCount: number;
+}): number {
+  const shown = Math.min(input.staleTaskCount, STALE_DIENST_SHOWN);
+  const residue = input.staleTaskCount - STALE_DIENST_SHOWN > 0 ? 1 : 0;
+  return (input.hasAcute ? 1 : 0) + shown + residue;
+}
 
 /**
  * Eén cascade-samenwerking van de ZZP'er, uitgedund tot wat de fase bepaalt: de status van de
@@ -549,21 +581,131 @@ export async function navBadges(role: UserRole, userId: string): Promise<NavBadg
     });
     if (!user?.tenantId) return {};
     const tenantId = user.tenantId;
-    const [overdueLeads, openHandoffs] = await Promise.all([
-      // Actieve leads (KOUD/WARM — KLANT/NO_DEAL zijn afgerond) met een opvolgdatum vóór vandaag.
-      prisma.lead.count({
-        where: {
-          tenantId,
-          status: { in: ["KOUD", "WARM"] },
-          nextFollowUp: { lt: startOfUtcDay(new Date()) },
+    const now = new Date();
+    const soon = new Date(now.getTime() + EXPIRY_WINDOW_MS);
+    const staleThreshold = new Date(now.getTime() - STALE_DIENST_DAYS * 86_400_000);
+    const [overdueLeads, openHandoffs, expiringCreds, roster, openDiensten, staleDiensten] =
+      await Promise.all([
+        // Actieve leads (KOUD/WARM — KLANT/NO_DEAL zijn afgerond) met een opvolgdatum vóór vandaag.
+        prisma.lead.count({
+          where: {
+            tenantId,
+            status: { in: ["KOUD", "WARM"] },
+            nextFollowUp: { lt: startOfUtcDay(now) },
+          },
+        }),
+        // Open shift-overname-aanvragen binnen de eigen tenant (via de opdracht van de samenwerking).
+        prisma.shiftHandoff.count({
+          where: { status: "OPEN", collaboration: { job: { tenantId } } },
+        }),
+        // /franchise/zzpers — (bijna-)verlopende geverifieerde certificaten van tenant-ZZP'ers: exact het
+        // predicaat van `franchiseCredentialExpiryTask` (pending-tasks.ts, gte now / lte soon). Aggregatie
+        // is per profiel (één taak per ZZP'er), dus alleen `freelancerProfileId` is nodig om de distinct
+        // profielen te tellen.
+        prisma.credential.findMany({
+          where: {
+            freelancerProfile: { tenantId },
+            status: "VERIFIED",
+            expiresAt: { gte: now, lte: soon },
+          },
+          select: { freelancerProfileId: true },
+          take: CASCADE_SCAN_LIMIT,
+        }),
+        // /franchise/zzpers — roster-inzetbaarheid: exact de bron/velden die `franchiseNotEngageableTask`
+        // (pending-tasks.ts) via `computeEngageability` gebruikt om een plaatsing-blokkerende (INACTIEF)
+        // ZZP'er te herkennen. Zelfde helper als /franchise/zzpers, zodat de oppervlakken niet driften.
+        prisma.freelancerProfile.findMany({
+          where: { tenantId },
+          select: {
+            id: true,
+            completeness: true,
+            availability: true,
+            user: { select: { identityVerifiedAt: true, lastLoginAt: true } },
+            credentials: { select: { type: true, status: true, expiresAt: true } },
+          },
+          take: CASCADE_SCAN_LIMIT,
+        }),
+        // /franchise/diensten — gepubliceerde tenant-diensten + vulgraad (actieve samenwerking = gevuld) +
+        // startdatum, voor het acute-onbezet-aggregaat (`franchiseAcuteDienstTask`). Zelfde definitie én
+        // deterministische, acuut-eerst geordende slice als pending-tasks.ts (null-start + vroegst-startend
+        // voorop), zodat een acute dienst niet buiten de slice valt.
+        prisma.job.findMany({
+          where: { tenantId, status: "PUBLISHED" },
+          select: {
+            id: true,
+            startDate: true,
+            _count: { select: { collaborations: { where: { status: "ACTIVE" } } } },
+          },
+          orderBy: [{ startDate: { sort: "asc", nulls: "first" } }, { createdAt: "asc" }],
+          take: CASCADE_SCAN_LIMIT,
+        }),
+        // /franchise/diensten — ongedekte, gepubliceerde diensten die te lang open staan (stale): exact het
+        // predicaat van `franchiseStaleDienstTask`/rollup (geen actieve samenwerking, ouder dan de drempel).
+        // Alleen `id` is nodig om de acute overlap eruit te filteren en de rijen te tellen.
+        prisma.job.findMany({
+          where: {
+            tenantId,
+            status: "PUBLISHED",
+            collaborations: { none: { status: "ACTIVE" } },
+            createdAt: { lte: staleThreshold },
+          },
+          orderBy: { createdAt: "asc" },
+          select: { id: true },
+          take: CASCADE_SCAN_LIMIT,
+        }),
+      ]);
+
+    // /franchise/zzpers-badge = distinct profielen met (bijna-)verlopende certificaten + niet-inzetbare
+    // roster-ZZP'ers, exact de som van de losse item-taken. Géén dedup op profiel: één ZZP'er kan zowel
+    // een verloop-taak (VERIFIED, verloopt binnenkort) ÁLS een niet-inzetbaar-taak (verplicht document
+    // ontbreekt/verlopen) tonen — precies zoals `franchiserTasks` beide pusht.
+    const expiringProfiles = new Set(expiringCreds.map((c) => c.freelancerProfileId)).size;
+    let notEngageable = 0;
+    for (const f of roster) {
+      const eng = computeEngageability(
+        {
+          credentials: f.credentials.map((c) => ({
+            type: c.type as FreelancerCredential["type"],
+            status: c.status as FreelancerCredential["status"],
+            expiresAt: c.expiresAt,
+          })),
+          completeness: f.completeness,
+          availability: f.availability as Availability,
+          identityVerified: f.user.identityVerifiedAt != null,
+          lastActiveAt: f.user.lastLoginAt ?? null,
         },
-      }),
-      // Open shift-overname-aanvragen binnen de eigen tenant (via de opdracht van de samenwerking).
-      prisma.shiftHandoff.count({
-        where: { status: "OPEN", collaboration: { job: { tenantId } } },
-      }),
-    ]);
-    return buildBadges({ overdueLeads, openHandoffs });
+        now,
+      );
+      if (eng.status === "INACTIEF") notEngageable += 1;
+    }
+    const rosterAlerts = expiringProfiles + notEngageable;
+
+    // /franchise/diensten-badge = acuut-onbezet-aggregaat (max 1) + getoonde stale-rijen + rollup. De acute
+    // diensten worden uit de stale-lijst gefilterd (ze zitten al in het aggregaat) — exact dezelfde
+    // overlap-verwijdering als `franchiserTasks`, zodat de badge niet dubbeltelt. `readyMatches` beïnvloedt
+    // alleen de vulbaar/werving-splitsing binnen het aggregaat, niet OF het aggregaat verschijnt, dus 0 is
+    // hier voldoende voor de telling.
+    const acuteSummary = summarizeAcuteOpenDiensten(
+      openDiensten.map((d) => ({
+        published: true,
+        filled: d._count.collaborations > 0,
+        startDate: d.startDate,
+        readyMatches: 0,
+      })),
+      now,
+    );
+    const acuteDienstIds = new Set(
+      openDiensten
+        .filter((d) => d._count.collaborations === 0 && isStartAcute(d.startDate, now))
+        .map((d) => d.id),
+    );
+    const staleTaskCount = staleDiensten.filter((d) => !acuteDienstIds.has(d.id)).length;
+    const openDienstAlerts = countFranchiseDienstAlerts({
+      hasAcute: acuteSummary != null,
+      staleTaskCount,
+    });
+
+    return buildBadges({ overdueLeads, openHandoffs, rosterAlerts, openDienstAlerts });
   }
 
   const [

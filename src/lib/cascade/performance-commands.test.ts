@@ -137,10 +137,21 @@ interface Row {
 }
 
 // vi.hoisted zodat de mock-referenties beschikbaar zijn wanneer de gehoisteerde vi.mock-factory draait.
-const { applyMock, performanceFindUnique, performanceFindFirst } = vi.hoisted(() => ({
+// De pre-transactionele lees (`performanceFindFirst`, op `prisma`) en de in-transactie-herverificatie
+// (`txPerformanceFindFirst`, op `tx`) zijn aparte mocks: zo kunnen tests het TOCTOU-interleaving
+// modelleren waarbij de pre-check nog niets ziet maar de transactie-lees inmiddels een overlap vindt.
+const {
+  applyMock,
+  performanceFindUnique,
+  performanceFindFirst,
+  txPerformanceFindUnique,
+  txPerformanceFindFirst,
+} = vi.hoisted(() => ({
   applyMock: vi.fn().mockResolvedValue({}),
   performanceFindUnique: vi.fn(),
   performanceFindFirst: vi.fn(),
+  txPerformanceFindUnique: vi.fn(),
+  txPerformanceFindFirst: vi.fn(),
 }));
 
 vi.mock("@/lib/cascade/apply", () => ({ applyCascadeEffects: applyMock }));
@@ -157,6 +168,11 @@ vi.mock("@/lib/db", () => ({
       fn({
         collaboration: {
           findUnique: vi.fn().mockResolvedValue({ disputedAt: null, status: "ACTIVE" }),
+        },
+        // De in-transactie-overlap-guard leest de guard-prestatie + zoekt een levende botsing via `tx`.
+        performance: {
+          findUnique: txPerformanceFindUnique,
+          findFirst: txPerformanceFindFirst,
         },
         domainEvent: { create: vi.fn().mockResolvedValue({ id: "event-1" }) },
         eventHandlerRun: { create: vi.fn().mockResolvedValue({}) },
@@ -218,6 +234,20 @@ describe("submitPerformance — anti-dubbelfacturatie (overlap-guard)", () => {
     applyMock.mockClear();
     performanceFindUnique.mockReset().mockImplementation(async () => subject);
     performanceFindFirst
+      .mockReset()
+      .mockImplementation(async (args: { where: Record<string, unknown> }) => {
+        const hit = table.find((row) => matchesWhere(row, args.where));
+        return hit ? { id: hit.id } : null;
+      });
+    // Default: de in-transactie-lees deelt dezelfde in-memory tabel als de pre-check (geen interleaving) —
+    // de guard-prestatie is de subject, de overlap-zoektocht evalueert dezelfde where-semantiek.
+    txPerformanceFindUnique.mockReset().mockImplementation(async () => ({
+      type: subject.type,
+      periodStart: subject.periodStart,
+      periodEnd: subject.periodEnd,
+      collaborationId: subject.collaborationId,
+    }));
+    txPerformanceFindFirst
       .mockReset()
       .mockImplementation(async (args: { where: Record<string, unknown> }) => {
         const hit = table.find((row) => matchesWhere(row, args.where));
@@ -345,5 +375,63 @@ describe("submitPerformance — anti-dubbelfacturatie (overlap-guard)", () => {
     subject = makeSubject({ periodEnd: null });
     await expect(submitPerformance(FREELANCER, "perf-subject")).resolves.toBeUndefined();
     expect(performanceFindFirst).not.toHaveBeenCalled();
+  });
+
+  // De echte parallelle race is op SQLite niet te reproduceren (writes serialiseren, geen twee gelijktijdige
+  // transacties op één connectie). Daarom modelleren we het TOCTOU-interleaving deterministisch: de
+  // pre-transactionele lees ziet nog geen overlap (de concurrente urenstaat was op dat moment nog DRAFT),
+  // maar tegen de tijd dat de effect-transactie draait is die concurrente urenstaat al SUBMITTED. De
+  // in-transactie-herverificatie op `tx` moet dan alsnog weigeren en de transactie terugrollen — dat is de
+  // defense-in-depth die op Postgres (READ COMMITTED) de dubbele urenstaat/uitbetaling voorkomt.
+  it("(g) in-transactie-guard: pre-check schoon, maar tx ziet een overlap → weiger + rollback", async () => {
+    // Pre-check: geen levende overlap zichtbaar (concurrente submit was nog DRAFT).
+    performanceFindFirst.mockResolvedValue(null);
+    // Binnen de transactie is de concurrente urenstaat inmiddels SUBMITTED → de her-lees vindt een botsing.
+    txPerformanceFindFirst.mockResolvedValue({ id: "perf-concurrent" });
+
+    const { submitPerformance } = await import("@/lib/cascade/performance-commands");
+    await expect(submitPerformance(FREELANCER, "perf-subject")).rejects.toThrow(
+      "Er bestaat al een ingediende urenstaat voor deze periode.",
+    );
+    // De pre-check liet door; de in-transactie-guard blokkeerde. Geen enkel effect weggeschreven (rollback).
+    expect(performanceFindFirst).toHaveBeenCalledTimes(1);
+    expect(txPerformanceFindFirst).toHaveBeenCalledTimes(1);
+    expect(applyMock).not.toHaveBeenCalled();
+  });
+
+  it("(h) geeft overlapGuardPerformanceId door aan de in-transactie-guard met de juiste where-semantiek", async () => {
+    performanceFindFirst.mockResolvedValue(null);
+    txPerformanceFindFirst.mockResolvedValue({ id: "perf-concurrent" });
+
+    const { submitPerformance } = await import("@/lib/cascade/performance-commands");
+    await expect(submitPerformance(FREELANCER, "perf-subject")).rejects.toThrow(CascadeError);
+
+    // De guard leest de in te dienen prestatie zelf (guard-id) en zoekt daarna een levende botsing die
+    // de prestatie zelf uitsluit en alleen SUBMITTED/APPROVED (niet REJECTED/DRAFT) telt.
+    expect(txPerformanceFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "perf-subject" } }),
+    );
+    const txCall = txPerformanceFindFirst.mock.calls[0] as
+      | [{ where: Record<string, unknown> }]
+      | undefined;
+    const where = txCall?.[0].where ?? {};
+    expect(where.collaborationId).toBe("col-1");
+    expect(where.id).toEqual({ not: "perf-subject" });
+    expect(where.type).toBe("HOURS");
+    expect((where.status as { notIn: string[] }).notIn).toEqual(
+      expect.arrayContaining(["REJECTED", "DRAFT"]),
+    );
+  });
+
+  it("(i) MILESTONE slaat óók de in-transactie-guard over (geen tx-overlap-query)", async () => {
+    // Zelfs met een gemockte overlap-hit mag een MILESTONE nooit blokkeren: de guard leest guardPerf.type.
+    txPerformanceFindFirst.mockResolvedValue({ id: "perf-concurrent" });
+    subject = makeSubject({ type: "MILESTONE", periodStart: null, periodEnd: null });
+
+    const { submitPerformance } = await import("@/lib/cascade/performance-commands");
+    await expect(submitPerformance(FREELANCER, "perf-subject")).resolves.toBeUndefined();
+    // guardPerf.type !== "HOURS" → de findFirst wordt nooit bereikt.
+    expect(txPerformanceFindFirst).not.toHaveBeenCalled();
+    expect(applyMock).toHaveBeenCalledTimes(1);
   });
 });

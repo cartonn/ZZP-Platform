@@ -20,6 +20,14 @@ export class CascadeError extends Error {
   }
 }
 
+/**
+ * Eén bron voor de anti-dubbelfacturatie-melding: gedeeld door de pre-transactionele
+ * `assertNoOverlappingHoursPerformance`-lees én de in-transactie-herverificatie in
+ * `persistInTransaction`, zodat de bewoording niet drift. Lekt geen ids — enkel dat de periode al bezet is.
+ */
+export const OVERLAPPING_PERFORMANCE_MESSAGE =
+  "Er bestaat al een ingediende urenstaat voor deze periode.";
+
 export interface PersistResult {
   createdInvoiceId?: string;
 }
@@ -58,6 +66,16 @@ export async function persistEventAndEffects(
     /** Sta een AFGERONDE (COMPLETED) samenwerking toe (voor `confirmPayment`, dat afronding zélf als
      * effect produceert). CANCELLED blijft altijd geweigerd. */
     terminalGuardAllowCompleted?: boolean;
+    /**
+     * Wanneer gezet (de in te dienen HOURS-prestatie-id): her-verifieer BINNEN de effect-transactie dat er
+     * geen overlappende levende (SUBMITTED/APPROVED) HOURS-urenstaat op dezelfde samenwerking bestaat. Dicht
+     * het TOCTOU-venster tussen de pre-transactionele `assertNoOverlappingHoursPerformance`-lees en deze
+     * write: bij twee (bijna-)gelijktijdige `submitPerformance`-aanroepen voor twee DRAFT-urenstaten met
+     * overlappende periode zien beide elkaar in de pre-check nog als DRAFT en committen elk hun eigen
+     * SUBMITTED → dubbele urenstaat/dubbele uitbetaling. De in-transactie-lees rolt de tweede terug.
+     * Spiegelt de dispuut-/terminale-guards. Alleen HOURS met een volledige periode blokkeert.
+     */
+    overlapGuardPerformanceId?: string | null;
   },
   opts?: { allocate?: { issuerKey: string; year: number; invoiceId: string } },
 ): Promise<PersistResult> {
@@ -102,6 +120,7 @@ async function persistInTransaction(
     disputeGuardCollaborationId?: string | null;
     terminalGuard?: boolean;
     terminalGuardAllowCompleted?: boolean;
+    overlapGuardPerformanceId?: string | null;
   },
   opts?: { allocate?: { issuerKey: string; year: number; invoiceId: string } },
 ): Promise<PersistResult> {
@@ -126,6 +145,41 @@ async function persistInTransaction(
           allowCompleted: refs.terminalGuardAllowCompleted,
         });
         if (err) throw err;
+      }
+    }
+
+    // TOCTOU-grendel (anti-dubbelfacturatie): her-verifieer binnen de transactie, vóór er iets wordt
+    // weggeschreven, dat er geen overlappende levende HOURS-urenstaat is. Tussen de pre-transactionele
+    // `assertNoOverlappingHoursPerformance`-lees en deze write zit planning-/laadwerk; in dat venster kan
+    // een tweede (bijna-)gelijktijdige submit voor een overlappende periode zijn eigen SUBMITTED committen —
+    // beide requests zagen elkaar in de pre-check nog als DRAFT en zouden anders dubbel factureren/uitbetalen.
+    // Deze her-lees op `tx` sluit dat venster: bij overlap rolt de hele transactie terug. Zelfde querylogica
+    // en melding als de pre-check (geen id-lek). Duplicatie van de findFirst is bewust — leesbaarder dan een
+    // gedeelde helper met tx-of-prisma-client-typing; de melding is via de gedeelde constante één bron.
+    if (refs.overlapGuardPerformanceId) {
+      const guardPerf = await tx.performance.findUnique({
+        where: { id: refs.overlapGuardPerformanceId },
+        select: { type: true, periodStart: true, periodEnd: true, collaborationId: true },
+      });
+      // Alleen HOURS met een volledige periode (begin én eind) kan overlappen; anders niet blokkeren.
+      if (
+        guardPerf &&
+        guardPerf.type === "HOURS" &&
+        guardPerf.periodStart != null &&
+        guardPerf.periodEnd != null
+      ) {
+        const overlap = await tx.performance.findFirst({
+          where: {
+            collaborationId: guardPerf.collaborationId,
+            id: { not: refs.overlapGuardPerformanceId }, // zelf-uitsluiting: opnieuw indienen mag
+            type: "HOURS",
+            status: { notIn: ["REJECTED", "DRAFT"] }, // levend in de cascade: SUBMITTED/APPROVED
+            periodStart: { lt: guardPerf.periodEnd },
+            periodEnd: { gt: guardPerf.periodStart },
+          },
+          select: { id: true },
+        });
+        if (overlap) throw new CascadeError(OVERLAPPING_PERFORMANCE_MESSAGE);
       }
     }
 
