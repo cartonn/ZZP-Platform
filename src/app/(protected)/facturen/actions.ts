@@ -49,9 +49,15 @@ function parseLines(formData: FormData): { lines: ParsedLine[]; error?: string }
     lines.push({ ...parsed.data, amountCents: parsed.data.quantity * parsed.data.unitCents });
   }
   if (lines.length === 0) return { lines: [], error: "Voeg minstens één factuurregel toe." };
+  const total = invoiceTotalCents(lines);
+  // Een factuur met een totaal van €0 (alle regels op €0) heeft geen betekenis en mag niet
+  // persisteren — server-side waarheid: weiger ≤0 waar een echt bedrag vereist is (zelfde regel
+  // als de loonroof-hardening). `unitCents` mag per regel 0 zijn (korting/gratis regel), maar het
+  // factuurtotaal moet positief zijn.
+  if (total <= 0) return { lines: [], error: "Het factuurbedrag moet groter dan € 0 zijn." };
   // De losse regels blijven binnen int4 (invoiceLineSchema), maar hun som kan het plafond alsnog
   // overschrijden → klem het factuurtotaal vóór de DB-write (server-side waarheid).
-  if (!invoiceCentsWithinInt4(invoiceTotalCents(lines)))
+  if (!invoiceCentsWithinInt4(total))
     return {
       lines: [],
       error: "Het totaalbedrag van de factuur is te hoog (maximaal € 21.474.836).",

@@ -20,6 +20,17 @@ const invoiceState = vi.hoisted(() => ({
   updateCount: 1,
 }));
 
+// Aparte state voor de createInvoice-tests (losse factuur): eigenaarschap + de tellingen die de
+// dubbele-facturatie-gate leest, plus de aan te maken factuur.
+const createState = vi.hoisted(() => ({
+  collaboration: { freelancer: { userId: "user-1" }, company: { userId: "user-2" } } as null | {
+    freelancer: { userId: string };
+    company: { userId: string };
+  },
+  performanceCount: 0,
+  invoiceCount: 0,
+}));
+
 const { FakeAuthError } = vi.hoisted(() => ({ FakeAuthError: class extends Error {} }));
 
 vi.mock("@/lib/authz", () => ({
@@ -41,6 +52,14 @@ const tx = vi.hoisted(() => ({
   auditCreate: vi.fn(async () => ({})),
 }));
 
+const db = vi.hoisted(() => ({
+  invoiceCreate: vi.fn(async (_args: { data: { totalCents: number } }) => ({
+    id: "inv-new",
+    number: "2026-0002",
+  })),
+  auditCreate: vi.fn(async () => ({})),
+}));
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     $transaction: vi.fn(async (cb: (client: unknown) => Promise<unknown>) =>
@@ -50,13 +69,22 @@ vi.mock("@/lib/db", () => ({
         auditLog: { create: tx.auditCreate },
       }),
     ),
+    collaboration: {
+      findUnique: vi.fn(async () => createState.collaboration),
+    },
+    performance: {
+      count: vi.fn(async () => createState.performanceCount),
+    },
     invoice: {
       findUnique: vi.fn(async () => invoiceState.found),
+      count: vi.fn(async () => createState.invoiceCount),
+      create: db.invoiceCreate,
     },
+    auditLog: { create: db.auditCreate },
   },
 }));
 
-import { sendInvoice, markInvoicePaid, cancelInvoice } from "./actions";
+import { sendInvoice, markInvoicePaid, cancelInvoice, createInvoice } from "./actions";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -69,6 +97,44 @@ beforeEach(() => {
     dueAt: new Date("2026-08-01T00:00:00Z"),
     collaboration: { freelancer: { userId: "user-1" }, company: { userId: "user-1" } },
   };
+  createState.collaboration = {
+    freelancer: { userId: "user-1" },
+    company: { userId: "user-2" },
+  };
+  createState.performanceCount = 0;
+  createState.invoiceCount = 0;
+});
+
+// Bouwt de FormData zoals het factuurformulier die post (parallelle regelvelden).
+function invoiceFormData(
+  lines: Array<{ description: string; quantity: string; unit: string }>,
+): FormData {
+  const fd = new FormData();
+  for (const l of lines) {
+    fd.append("lineDescription", l.description);
+    fd.append("lineQuantity", l.quantity);
+    fd.append("lineUnit", l.unit);
+  }
+  return fd;
+}
+
+describe("createInvoice — losse factuur moet een positief totaal hebben", () => {
+  it("weigert een factuur waarvan alle regels €0 zijn (totaal €0)", async () => {
+    const fd = invoiceFormData([{ description: "Gratis advies", quantity: "2", unit: "0" }]);
+    const res = await createInvoice("collab-1", undefined, fd);
+    expect(res).toEqual({ error: "Het factuurbedrag moet groter dan € 0 zijn." });
+    expect(db.invoiceCreate).not.toHaveBeenCalled();
+  });
+
+  it("maakt een factuur met een positief totaal wel aan", async () => {
+    const fd = invoiceFormData([{ description: "Advies", quantity: "2", unit: "95" }]);
+    const res = await createInvoice("collab-1", undefined, fd);
+    // Geldig pad eindigt in een redirect (gemockt) → geen foutobject terug.
+    expect(res).toBeUndefined();
+    expect(db.invoiceCreate).toHaveBeenCalledTimes(1);
+    const arg = db.invoiceCreate.mock.calls[0]![0] as { data: { totalCents: number } };
+    expect(arg.data.totalCents).toBe(19000); // 2 × €95,00
+  });
 });
 
 describe("markInvoicePaid — compound-guard tegen dubbele-submit-race", () => {

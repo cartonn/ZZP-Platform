@@ -238,6 +238,30 @@ describe("applicationSchema", () => {
   it("weigert een te korte motivatie", () => {
     expect(applicationSchema.safeParse({ motivation: "kort" }).success).toBe(false);
   });
+
+  it("accepteert een weggelaten proposedRate (optioneel)", () => {
+    const r = applicationSchema.safeParse({ motivation: "Ik pas hier goed bij omdat..." });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.proposedRate).toBeUndefined();
+  });
+
+  it("weigert een expliciet proposedRate van 0 (geen €0/uur, consistent met rate-velden)", () => {
+    expect(
+      applicationSchema.safeParse({
+        motivation: "Ik pas hier goed bij omdat...",
+        proposedRate: "0",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepteert een proposedRate van minstens €1", () => {
+    const r = applicationSchema.safeParse({
+      motivation: "Ik pas hier goed bij omdat...",
+      proposedRate: "1",
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.proposedRate).toBe(1);
+  });
 });
 
 describe("noShowReportSchema", () => {

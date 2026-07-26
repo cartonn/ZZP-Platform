@@ -3,6 +3,24 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — Persona-sweep run 51: dubbelfacturatie-rem + €0-factuur/tarief-hardening
+
+**Wat:** kritische-gebruiker-sweep over de vier rollen (drie parallelle Opus-audits + drie fix-workers).
+**3 bevindingen gefixt.** (1) **MED — dubbelfacturatie:** `submitPerformance` had geen rem tegen een tweede
+HOURS-urenstaat met een overlappende periode op dezelfde samenwerking → een ZZP'er kon (handmatig of via CSV-
+import) tweemaal voor dezelfde gewerkte periode uitbetaald krijgen. Nieuwe pre-transactionele
+`assertNoOverlappingHoursPerformance` (symmetrisch met de dispuut-/terminale-siblings). (2) **LOW —** losse
+factuur met €0-totaal geweigerd (`facturen/actions.ts`). (3) **LOW —** `applicationSchema.proposedRate` naar
+`optionalInt(2000, 1)` (consistent met de andere tariefvelden; €0 geweigerd, leeg blijft toegestaan).
+
+**Bestanden:** `src/lib/cascade/performance-commands.ts`, `src/app/(protected)/facturen/actions.ts`,
+`src/lib/validation.ts`, `src/lib/data/received-invitations.ts`, `src/lib/actions/pending-tasks.ts` (+ tests).
+Ook meegnomen: **next-action-undercount** — de "reageer op uitnodiging"-taken werden stil op 6 afgekapt
+(UI-band-cap `MAX_RECEIVED_INVITATIONS`) i.p.v. de engine-brede `MAX=50`; nu geen stille afkap meer op /acties
+
+- badge. **Tests:** volledige suite groen (481 files, 5067 tests). Details + geparkeerde LOW's:
+  `docs/PERSONA-SWEEP-BACKLOG.md` (run 51).
+
 ## 2026-07-26 — UX/ZZP'er: tarief-passendheid t.o.v. je richttarief op opdracht-detail (beslismoment)
 
 **Wat:** de find-work-lijst (`/opdrachten`) toont per opdracht al een "boven/onder je tarief"-chip (`jobRateFitChip`),

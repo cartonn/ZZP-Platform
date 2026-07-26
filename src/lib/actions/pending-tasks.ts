@@ -582,12 +582,15 @@ async function freelancerTasks(userId: string): Promise<PendingTask[]> {
  * Directe uitnodigingen (`JOB_INVITED`) waarop de ZZP'er nog niet reageerde, als next-action. Leunt op
  * de bestaande, begrensde en eigenaar-gescopete `getReceivedInvitations`-datalaag (dezelfde bron als de
  * "Uitgenodigd"-band op `/opdrachten`) — één plek die bepaalt wat een open uitnodiging is (gepubliceerd,
- * niet-beantwoord, gededupt, ≤ MAX_RECEIVED_INVITATIONS). Zonder deze taak leefde de uitnodiging alléén
- * op de find-work-pagina; nu ook op /acties, de zijbalk-badge en de dashboard-rail. Deep-link naar de
+ * niet-beantwoord, gededupt). De strakke `MAX_RECEIVED_INVITATIONS`-band-cap (=6) is puur UI om de
+ * find-work-pagina rustig te houden; de action-engine mag níét stil op 6 afkappen (dan zou een ZZP'er
+ * met 7+ open uitnodigingen een te lage badge-telling zien). Daarom geven we — net als elke andere
+ * begrensde bron hier — de harde bovengrens `MAX` mee. Zonder deze taak leefde de uitnodiging alléén op
+ * de find-work-pagina; nu ook op /acties, de zijbalk-badge en de dashboard-rail. Deep-link naar de
  * opdracht waar de reactie-flow staat — geen dubbele UI.
  */
 async function invitationTasks(freelancerProfileId: string, now: Date): Promise<PendingTask[]> {
-  const invitations = await getReceivedInvitations(freelancerProfileId, now);
+  const invitations = await getReceivedInvitations(freelancerProfileId, now, MAX);
   return invitations.map((inv) =>
     respondInvitationTask(
       inv.jobId,

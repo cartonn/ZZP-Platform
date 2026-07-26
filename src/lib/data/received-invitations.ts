@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/db";
 import { JOB_INVITED_AUDIT_ACTION, parseInvitedFreelancerIds } from "@/lib/job-invite";
 import {
+  MAX_RECEIVED_INVITATIONS,
   selectOpenInvitations,
   type InvitationJobRef,
   type RawInvitation,
@@ -24,11 +25,17 @@ const MAX_JOBS = 200;
  *  1. de eigen `JOB_INVITED`-auditrecords (metadata bevat het eigen profiel-id);
  *  2. de betrokken opdrachten die nog `PUBLISHED` zijn (+ opdrachtgever-naam);
  *  3. de eigen niet-ingetrokken reacties op die opdrachten (om al-gereageerd uit te sluiten).
- * De pure `selectOpenInvitations` ontdubbelt/sorteert/begrenst. Lege lijst als er niets te tonen is.
+ * De pure `selectOpenInvitations` ontdubbelt/sorteert/begrenst tot `cap`. Lege lijst als er niets te
+ * tonen is.
+ *
+ * `cap` staat standaard op `MAX_RECEIVED_INVITATIONS` (=6, de rustige band op `/opdrachten`). De
+ * next-action-engine (`pending-tasks.ts`) geeft bewust een ruimere bovengrens mee zodat een ZZP'er met
+ * 7+ open uitnodigingen niet stil op 6 next-actions wordt afgekapt.
  */
 export async function getReceivedInvitations(
   freelancerProfileId: string,
   now: Date = new Date(),
+  cap: number = MAX_RECEIVED_INVITATIONS,
 ): Promise<ReceivedInvitation[]> {
   // 1. Eigen uitnodiging-auditrecords. De metadata-`contains` matcht het eigen profiel-id; de
   //    daaropvolgende parse bevestigt dat exact (nooit een substring-vals-positief tussen id's).
@@ -75,5 +82,5 @@ export async function getReceivedInvitations(
   // `now` is (nog) niet nodig voor de selectie zelf, maar wordt doorgegeven zodat een toekomstige
   // vervaldatum-afkap deterministisch en testbaar blijft.
   void now;
-  return selectOpenInvitations(invites, jobs, reactedJobIds);
+  return selectOpenInvitations(invites, jobs, reactedJobIds, cap);
 }

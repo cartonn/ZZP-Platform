@@ -1,5 +1,51 @@
 # Persona-sweep — gaten-backlog
 
+> **Datum:** 2026-07-26 (run 51) · **main-commit basis:** `3fea61da`
+> **Uitkomst:** **3 bevindingen GEVONDEN + GEFIXT** (1 MED financiële integriteit: dubbelfacturatie
+> via overlappende urenstaat-perioden; 2 LOW financiële-integriteit-consistentie: €0-losse-factuur +
+> `proposedRate` min 0). Verse prod-build (exit 0). Drie parallelle Opus-audits (authz/IDOR/cross-tenant/
+> document-privacy; malicieuze invoer + verboden statusovergangen; next-action-correctheid) + drie
+> parallelle Opus-fix-workers op niet-overlappende bestanden. De authz/IDOR/cross-tenant-, document-/PDF-/
+> dossier-privacy-, AVG-erasure-, cron- en admin-rolpoorten kwamen (opnieuw) **schoon** terug; de #917-
+> favorieten-fix en de #918-sessie-invalidatie zijn geverifieerd intact.
+>
+> **GEVONDEN + GEFIXT — MED (DOEL 2, financiële integriteit — dubbelfacturatie-vector):** `submitPerformance`
+> (`src/lib/cascade/performance-commands.ts`) had **geen** rem tegen het indienen van een tweede HOURS-urenstaat
+> waarvan de periode overlapt met een reeds in de cascade levende urenstaat op dezelfde samenwerking. Een ZZP'er
+> kon zo — handmatig óf via de CSV-diensten-import (die per regel `createPerformance`→`submitPerformance` draait) —
+> **twee prestaties voor exact dezelfde gewerkte periode** indienen; elke draait haar eigen goedkeur→factuur→
+> betaling-cascade → dubbel uitbetaald. Geen enkele bestaande guard (`assertNotDisputed`,
+> `assertCollaborationNotTerminal`, `assertPerformanceWithinLimits`) dekte duplicatie. **Repro:** FREELANCER,
+> ACTIVE-samenwerking, `createPerformance`+`submitPerformance` tweemaal met dezelfde `periodStart`/`periodEnd`.
+> **Geschonden regel:** CLAUDE.md regel 1 (server-side waarheid, geen dubbele/absurde persistentie). **Fix:**
+> nieuwe pre-transactionele `assertNoOverlappingHoursPerformance` in `submitPerformance` (symmetrisch met de
+> dispuut-/terminale-siblings): weigert een HOURS-indiening met een volledige periode als er een niet-REJECTED/
+> niet-DRAFT (SUBMITTED/APPROVED) HOURS-prestatie op dezelfde samenwerking overlapt (`start < nieuw.eind AND
+eind > nieuw.start`), met zelf-uitsluiting (opnieuw indienen na afkeuren mag) en skip bij MILESTONE/null-periode.
+> Geen id-lek ("Er bestaat al een ingediende urenstaat voor deze periode."). Rood→groen: `performance-commands.test.ts`
+> (+6 cases, red→green geverifieerd door de guard-call te verwijderen).
+>
+> **GEVONDEN + GEFIXT — LOW (DOEL 2, financiële-integriteit-consistentie):** (a) de losse-factuur-flow
+> (`src/app/(protected)/facturen/actions.ts` `parseLines`) liet een **€0-totaal** persisteren (`invoiceLineSchema`
+> stond `unitCents: 0` toe en er was geen totaal-check) → nu `total <= 0` geweigerd ("Het factuurbedrag moet groter
+> dan € 0 zijn."; per-regel €0 blijft toegestaan voor korting/gratis regel). (b) `applicationSchema.proposedRate`
+> (`src/lib/validation.ts`) stond min 0 toe, inconsistent met de zuster-tariefvelden (`rateMin/rateMax`,
+> `collaborationProposalSchema.rate`, alle `optionalInt(2000, 1)` sinds de #917/`7a6957cc`-loonroof-hardening) →
+> `optionalInt(2000, 1)` (leeg blijft toegestaan; expliciet €0 geweigerd). Display-only, geen bindend tarief.
+> Rood→groen: `facturen/actions.test.ts` + `validation.test.ts`.
+>
+> **GEPARKEERD uit deze run (repro + prioriteit):**
+>
+> - **LOW (DOEL 1b, franchiser dedup-edge >50 diensten):** `pending-tasks.ts` `openDiensten`/`staleDiensten` zijn
+>   twee onafhankelijke `take: 50`-queries met verschillende ordering; de acute-vs-stale-dedup (filter tegen
+>   `acuteDienstIds`) kan bij **>50 gelijktijdig gepubliceerde diensten binnen één tenant** een dienst dubbel
+>   tellen (acute-aggregaat + stale-rollup). Alleen op grote-franchise-schaal; geen impact vandaag. Prioriteit LOW.
+> - **LOW (DOEL 2, CWE-203 existence-oracle — herbevestigd, nog steeds bewust geparkeerd):** de void-cascade-
+>   commando's (`submitInvoice`/`creditInvoice`/`updatePerformance`/`submitPerformance`/`confirmPayment`) geven een
+>   onderscheidbare "niet jouw partij"- vs "niet gevonden"-melding. Gaat via `throwSafeActionError()` (in productie
+>   geredigeerd tot een generieke digest), dus niet productie-observeerbaar vandaag — latent risico bij een refactor
+>   naar return-based `useActionState`. Zie run 49-notitie. Prioriteit LOW.
+
 > **Datum:** 2026-07-25 (run 50) · **main-commit basis:** `61135b18`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT — beide HOOG** (1 authz/tenant/privacy: flexpool-favoriet
 > omzeilde de zichtbaarheids-/tenant-poort; 1 financiële integriteit: bindend €0/uur-tarief → €0-facturen
