@@ -425,3 +425,24 @@ describe("PROCESSING_REGISTER_DISCLAIMER", () => {
     expect(PROCESSING_REGISTER_DISCLAIMER.toLowerCase()).toContain("verwerkingsverantwoordelijke");
   });
 });
+
+describe("reistijd-routing (Geoapify) — art. 30 doorgifte naar derde", () => {
+  const entry = PROCESSING_REGISTER.find((a) => a.key === "reistijd-routing");
+
+  it("bestaat als verwerkingsactiviteit in het register", () => {
+    expect(entry).toBeDefined();
+  });
+
+  it("benoemt Geoapify als externe ontvanger/verwerker", () => {
+    expect(entry?.recipients.some((r) => r.includes("Geoapify"))).toBe(true);
+  });
+
+  it("documenteert de bewaartermijn via de cache-TTL én de retentie-sweep", () => {
+    expect(entry?.retention).toContain("180");
+    expect(entry?.retention).toContain("routing-cache-retention");
+  });
+
+  it("noemt de fysieke verwijdering van verlopen cacherijen als beveiligingsmaatregel", () => {
+    expect(entry?.securityMeasures.some((m) => m.includes("routing-cache-retention"))).toBe(true);
+  });
+});
