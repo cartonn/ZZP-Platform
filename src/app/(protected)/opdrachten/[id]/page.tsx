@@ -52,6 +52,8 @@ import { summarizeJobCompetition, type CompetitionSummary } from "@/lib/job-comp
 import { JobCompetitionCard } from "@/components/jobs/job-competition-card";
 import { summarizeEffectiveRate, type EffectiveRateSummary } from "@/lib/effective-rate";
 import { EffectiveRateCard } from "@/components/jobs/effective-rate-card";
+import { assessJobRateFit, type JobRateFitAssessment } from "@/lib/job-rate-fit-detail";
+import { JobRateFitCard } from "@/components/jobs/job-rate-fit-card";
 import {
   assessJobStartAvailability,
   type JobAvailabilitySignal,
@@ -178,6 +180,8 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
   let jobCompetition: CompetitionSummary | null = null;
   // Effectief uurtarief na (onbetaalde) reistijd — beslis-signaal bij een opdracht op afstand.
   let effectiveRate: EffectiveRateSummary | null = null;
+  // Tarief-passendheid t.o.v. het eigen richttarief (los van reistijd): betaalt deze opdracht wat ik vraag?
+  let rateFit: JobRateFitAssessment | null = null;
   // Agenda-signaal: valt de startdatum in een periode die de ZZP'er zelf op onbeschikbaar/beperkt zette?
   let availabilitySignal: JobAvailabilitySignal | null = null;
   // Bewaard-status voor de bewaar-knop (alleen relevant voor een niet-eigenaar ZZP'er).
@@ -237,6 +241,10 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
           rateMaxEuros: job.rateMax,
           oneWayTravelMinutes: routedTravelMinutesToJob,
         });
+        // Betaalt het budget wat de ZZP'er vraagt? Puur uit het eigen richttarief en het gepubliceerde
+        // budget — geen extra query, altijd zichtbaar (i.t.t. de effectief-na-reistijd-kaart die alleen
+        // bij routebare reis verschijnt).
+        rateFit = assessJobRateFit(profile.hourlyRate, job.rateMin, job.rateMax);
         myFit = {
           score: match.score,
           breakdown: match.breakdown,
@@ -889,6 +897,7 @@ export default async function OpdrachtDetailPage({ params }: { params: Promise<{
                 )}
               </section>
             )}
+            {rateFit && <JobRateFitCard assessment={rateFit} />}
             {effectiveRate && <EffectiveRateCard summary={effectiveRate} />}
             {availabilitySignal && <JobAvailabilitySignalCard signal={availabilitySignal} />}
             {jobCompetition && <JobCompetitionCard competition={jobCompetition} />}

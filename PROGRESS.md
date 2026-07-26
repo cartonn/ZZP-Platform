@@ -3,6 +3,29 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — UX/ZZP'er: tarief-passendheid t.o.v. je richttarief op opdracht-detail (beslismoment)
+
+**Wat:** de find-work-lijst (`/opdrachten`) toont per opdracht al een "boven/onder je tarief"-chip (`jobRateFitChip`),
+maar op het **beslismoment** — de opdracht-detailpagina, vlak vóór reageren — verdween dat signaal. De enige geld-kaart
+daar (`EffectiveRateCard`, netto-na-reistijd) gaat over reis-drag en verschijnt alléén bij routebare reis (niet-remote +
+`maxTravelMinutes`), dus voor veel opdrachten (remote/zonder reisconfig) zag de ZZP'er géén directe "betaalt dit wat ik
+vraag?"-indicatie. Nu een compacte **Tarief-passendheid**-kaart die het gepubliceerde budget (`rateMin..rateMax`) tegen
+het eigen richttarief (`FreelancerProfile.hourlyRate`) zet met drie richtingen — **Onder / Boven / Past bij je richttarief**
+— plus het concrete verschil (`±€ X/uur`). I.t.t. de lijst-chip (die bewust stil blijft binnen de band om de lijst rustig
+te houden) geeft de kaart óók de geruststellende "past bij je tarief"-bevestiging: op het beslispunt is dat signaal, geen
+ruis. Benchmark: Malt/Temper houden "betaalt boven/onder je tarief" zichtbaar op het punt waar je solliciteert.
+
+**Grens:** pure, deterministische `assessJobRateFit(hourlyRate, rateMin, rateMax)` (`job-rate-fit-detail.ts`) — geen I/O,
+geen tijd, retourneert `null` zonder (positief) richttarief of zonder enige budgetgrens. Plafond gaat vóór bodem
+(omgekeerde grensvolgorde → veiligste "onder"-signaal); grenswaarden inclusief (op `rateMax` = binnen). Gewired in de
+FREELANCER-tak van de detailpagina (alleen pre-reactie, PUBLISHED) op het reeds-geladen profiel — **geen extra query,
+geen schemawijziging, geen nieuw mutatie/auth-oppervlak**. Read-only; scoping blijft op `userId`. Het woord "AI" komt
+nergens voor.
+
+**Bestanden:** `src/lib/job-rate-fit-detail.ts` (+ test, +10), `src/components/jobs/job-rate-fit-card.tsx`,
+`src/app/(protected)/opdrachten/[id]/page.tsx`, `PROGRESS.md`. **Checks:** `npm run typecheck`/`lint`/`test`
+(5055 passed, 481 files) /`build` + `prettier --check .` groen. PR #926 (auto-merge squash aan).
+
 ## 2026-07-26 — prod/observability: /api/metrics onderhoudsmodus + expiry-backlog gauges (stille-faal-detectie)
 
 **Wat:** twee gauges toegevoegd aan het operationeel-monitoring-endpoint `/api/metrics` zodat een externe monitor
