@@ -175,10 +175,19 @@ async function persistInTransaction(
 }
 
 /** Beide partij-userIds van een samenwerking; werpt als de actor er geen partij van is. */
-export function assertParty(actor: Actor, freelancerUserId: string, clientUserId: string): void {
+export function assertParty(
+  actor: Actor,
+  freelancerUserId: string,
+  clientUserId: string,
+  // Anti-oracle (CWE-203): standaard onderscheidt deze melding "geen partij" van "niet gevonden",
+  // maar op de gevoeligste (existentie-lekkende) paden geef je de resource-eigen "… niet gevonden."
+  // mee, zodat een niet-partij het bestaan van andermans samenwerking niet kan aftasten. Symmetrisch
+  // met de al-geünificeerde return-based approve/reject-commando's (#903).
+  notFoundMessage = "Geen toegang tot deze samenwerking.",
+): void {
   if (actor.role === "ADMIN") return;
   if (actor.id !== freelancerUserId && actor.id !== clientUserId) {
-    throw new CascadeError("Geen toegang tot deze samenwerking.");
+    throw new CascadeError(notFoundMessage);
   }
 }
 

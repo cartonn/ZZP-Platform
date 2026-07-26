@@ -22,12 +22,14 @@ import {
 export async function confirmPayment(actor: Actor, invoiceId: string): Promise<void> {
   const inv = await loadCascadeInvoice(invoiceId);
   // Default (config): de ZZP'er bevestigt ontvangst. Opdrachtgever en admin mogen ook markeren.
+  // Niet-partij krijgt exact dezelfde "Factuur niet gevonden."-melding als een onbekend id
+  // (anti-oracle, CWE-203). Beide partijen mogen markeren, dus geen "verkeerde kant"-rolmelding.
   if (
     actor.role !== "ADMIN" &&
     actor.id !== inv.issuerUserId &&
     actor.id !== inv.counterpartyUserId
   ) {
-    throw new CascadeError("Geen toegang tot deze factuur.");
+    throw new CascadeError("Factuur niet gevonden.");
   }
   if (!inv.collaborationId)
     throw new CascadeError("Factuur is niet aan een samenwerking gekoppeld.");

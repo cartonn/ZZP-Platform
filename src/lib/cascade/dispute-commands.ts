@@ -36,7 +36,8 @@ export async function openDispute(
     },
   });
   if (!col) throw new CascadeError("Samenwerking niet gevonden.");
-  assertParty(actor, col.freelancer.userId, col.company.userId);
+  // Niet-partij krijgt exact dezelfde "… niet gevonden."-melding als een onbekend id (anti-oracle).
+  assertParty(actor, col.freelancer.userId, col.company.userId, "Samenwerking niet gevonden.");
   if (col.disputedAt) throw new CascadeError("Er is al een open dispuut.");
 
   const otherUserId =

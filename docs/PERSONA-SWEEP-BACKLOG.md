@@ -40,11 +40,14 @@ eind > nieuw.start`), met zelf-uitsluiting (opnieuw indienen na afkeuren mag) en
 >   twee onafhankelijke `take: 50`-queries met verschillende ordering; de acute-vs-stale-dedup (filter tegen
 >   `acuteDienstIds`) kan bij **>50 gelijktijdig gepubliceerde diensten binnen één tenant** een dienst dubbel
 >   tellen (acute-aggregaat + stale-rollup). Alleen op grote-franchise-schaal; geen impact vandaag. Prioriteit LOW.
-> - **LOW (DOEL 2, CWE-203 existence-oracle — herbevestigd, nog steeds bewust geparkeerd):** de void-cascade-
+> - ~~**LOW (DOEL 2, CWE-203 existence-oracle — herbevestigd, nog steeds bewust geparkeerd):** de void-cascade-
 >   commando's (`submitInvoice`/`creditInvoice`/`updatePerformance`/`submitPerformance`/`confirmPayment`) geven een
->   onderscheidbare "niet jouw partij"- vs "niet gevonden"-melding. Gaat via `throwSafeActionError()` (in productie
->   geredigeerd tot een generieke digest), dus niet productie-observeerbaar vandaag — latent risico bij een refactor
->   naar return-based `useActionState`. Zie run 49-notitie. Prioriteit LOW.
+>   onderscheidbare "niet jouw partij"- vs "niet gevonden"-melding.~~ **GEDAAN (2026-07-26, PR #928):** alle zeven
+>   void-commando's (bovenstaande + `signContract`/`openDispute`) folden nu een niet-partij naar exact de resource-eigen
+>   "… niet gevonden."-melding (via een `notFoundMessage`-param op `assertParty` en een expliciete niet-partij-check
+>   vóór de rolmelding); een echte partij aan de verkeerde kant houdt de behulpzame rolmelding. Symmetrisch met de
+>   al-gefixte return-based approve/reject-commando's (#903). Defense-in-depth (throw blijft in prod geredigeerd),
+>   maar een refactor naar return-based state kan het gat niet meer heropenen. +11 tests (`anti-oracle-party.test.ts`).
 
 > **Datum:** 2026-07-25 (run 50) · **main-commit basis:** `61135b18`
 > **Uitkomst:** **2 bevindingen GEVONDEN + GEFIXT — beide HOOG** (1 authz/tenant/privacy: flexpool-favoriet
@@ -146,12 +149,10 @@ eind > nieuw.start`), met zelf-uitsluiting (opnieuw indienen na afkeuren mag) en
 >
 > **GEPARKEERD uit deze run (repro + prioriteit):**
 >
-> - **LOW (defense-in-depth, DOEL 2):** dezelfde not-found-vs-rolmelding-divergentie bestaat nog in de
+> - ~~**LOW (defense-in-depth, DOEL 2):** dezelfde not-found-vs-rolmelding-divergentie bestaat nog in de
 >   **void**-cascade-commando's (`submitPerformance`/`submitInvoice`/`creditInvoice`/`confirmPayment`/
->   `signContract`/`openDispute`), maar die lopen via `toMessage`→`throwSafeActionError` (een **gegooide**
->   server-action-fout) en worden door Next.js in productie geredigeerd tot een generieke digest → **niet
->   productie-observeerbaar**. Alsnog wenselijk gelijk te trekken (zelfde niet-partij→"niet gevonden"-fold)
->   zodat een toekomstige refactor die deze naar een return-wrapper verplaatst het gat niet heropent. Prio: LOW.
+>   `signContract`/`openDispute`).~~ **GEDAAN (2026-07-26, PR #928):** de niet-partij→"… niet gevonden."-fold is
+>   nu op alle void-commando's toegepast (zie run 51-entry). Latent gat gesloten; +11 tests.
 > - **LOW (DOEL 1b, misleidende subtitel) — GEDAAN (2026-07-25, PR #914):** `overdueInvoiceTask(residualOverdue,
 "FREELANCER")` (`pending-tasks.ts`) toonde subtitel "Volg op bij de opdrachtgever", maar de residual-roll-up
 >   kon bij een ZZP'er met >50 niet-disputed samenwerkingen (de `take: MAX`-slice) een cascade-OVERDUE-factuur

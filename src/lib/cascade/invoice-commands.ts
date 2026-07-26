@@ -28,6 +28,15 @@ import { boundReason } from "@/lib/text-bounds";
 // --- Event C — Factuur indienen --------------------------------------------
 export async function submitInvoice(actor: Actor, invoiceId: string): Promise<void> {
   const inv = await loadCascadeInvoice(invoiceId);
+  // Anti-oracle (CWE-203): niet-partij → "Factuur niet gevonden."; alleen de tegenpartij (verkeerde
+  // kant) houdt de rolmelding. Symmetrisch met approveInvoice (#903).
+  if (
+    actor.role !== "ADMIN" &&
+    actor.id !== inv.issuerUserId &&
+    actor.id !== inv.counterpartyUserId
+  ) {
+    throw new CascadeError("Factuur niet gevonden.");
+  }
   if (actor.role !== "ADMIN" && actor.id !== inv.issuerUserId) {
     throw new CascadeError("Alleen de uitschrijver kan de factuur indienen.");
   }
@@ -252,6 +261,15 @@ export async function creditInvoice(
 ): Promise<void> {
   reason = boundReason(reason); // defense-in-depth: kap onbegrensde vrije tekst (PII/audit/notificatie)
   const inv = await loadCascadeInvoice(invoiceId);
+  // Anti-oracle (CWE-203): niet-partij → "Factuur niet gevonden."; alleen de tegenpartij (verkeerde
+  // kant) houdt de rolmelding. Symmetrisch met approveInvoice (#903).
+  if (
+    actor.role !== "ADMIN" &&
+    actor.id !== inv.issuerUserId &&
+    actor.id !== inv.counterpartyUserId
+  ) {
+    throw new CascadeError("Factuur niet gevonden.");
+  }
   if (actor.role !== "ADMIN" && actor.id !== inv.issuerUserId) {
     throw new CascadeError("Alleen de uitschrijver kan een creditfactuur maken.");
   }
