@@ -260,6 +260,17 @@ franchise-robuustheidstest die lokaal serieel wél slaagt). **Eén test in quara
 
 **Geprioriteerde backlog (bovenste eerst; pak er één, lever DoD-groen, push):**
 
+> Gedaan (niet opnieuw): **Prod-rijpheid — `/api/metrics` subscription-expiry backlog gauge (2026-07-26, PR #932)** —
+> derde stille-faal-detector-gauge op het machine-leesbare monitoring-endpoint: **`zzp_subscriptions_overdue_expiry`** telt de
+> betaalde ACTIVE-abonnementen wier `currentPeriodEnd` voorbij is maar die de `subscription-expiry`-cron nog niet op CANCELLED
+> (→ Gratis) zette. Zelfde klasse als `zzp_credentials_overdue_expiry` (#925): de cron-heartbeat bewijst alleen dát de run afrondde,
+> niet dát 'ie de verval-/renewal-pijplijn verwerkte. Entitlement-guard behandelt zo'n verlopen periode al als Gratis (geen
+> toegangslek), maar een oplopende DB-backlog terwijl de heartbeat "vers" is betekent dat de verval-cyclus stilligt → extern
+> alarmeerbaar. Gauge-count gebruikt exact de where-vorm van `runSubscriptionExpiryTask` (`ACTIVE` + `currentPeriodEnd<nu` +
+> `plan.priceCents>0`) → geen drift; read-only `count`, faalt veilig (0, nooit 500), geen schemawijziging, geen PII. `metrics.ts`
+>
+> - `route.ts` (+6 tests). Gate: typecheck, lint, test (5112), build, prettier groen.
+>
 > Gedaan (niet opnieuw): **Prod-rijpheid — server-action body-limiet gelijkgetrokken met de upload-ceiling (2026-07-24, PR #905)** —
 > uploads (documenten/certificaten/bedrijfslogo) lopen via Next.js **server actions**; `validateUpload` staat tot **10 MB** toe
 > (`MAX_UPLOAD_BYTES`), maar Next kapt de server-action-request-body **standaard op 1 MB** af → een reëel gescande VOG-/diploma-PDF

@@ -971,3 +971,12 @@ terwijl de heartbeat "vers" is, dan verwerkt de expiry-pijplijn niets meer. Een 
 aantal (tot één cron-interval lag tussen verval en de 05:00-run) is normaal; alarmeer op aanhoudende
 groei (Prometheus `for:`-duur). Beide gauges falen veilig (nooit een 500) en bevatten geen PII.
 Resterend mensenwerk: **niets extra**.
+**Code-kant GEDAAN (2026-07-26) — derde stille-faal-gauge:** `zzp_subscriptions_overdue_expiry`
+(aantal betaalde ACTIVE-abonnementen wier `currentPeriodEnd` voorbij is maar die de
+`subscription-expiry`-cron nog niet op CANCELLED → Gratis zette). Exact dezelfde stille-faal-klasse als
+de credential-gauge en met dezelfde where-vorm als `runSubscriptionExpiryTask` (`ACTIVE` +
+`currentPeriodEnd < nu` + `plan.priceCents > 0`), zodat de gauge de echte cron-backlog telt. De
+server-side entitlement-guard behandelt zo'n verlopen periode al als Gratis (geen toegangslek), maar een
+oplopende DB-backlog terwijl de cron-heartbeat "vers" is betekent dat de verval-/renewal-cyclus
+(notificaties, ledger) stilligt. Een klein, tijdelijk aantal (tot één cron-interval) is normaal; alarmeer
+op aanhoudende groei. Faalt veilig (nooit een 500), bevat geen PII. Resterend mensenwerk: **niets extra**.
