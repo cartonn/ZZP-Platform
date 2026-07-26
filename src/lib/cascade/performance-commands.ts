@@ -18,6 +18,7 @@ import { DEFAULT_VAT_REGIME } from "@/lib/config";
 import { MAX_PERFORMANCE_HOURS, MAX_MILESTONE_CENTS } from "@/lib/validation";
 import {
   CascadeError,
+  OVERLAPPING_PERFORMANCE_MESSAGE,
   assertNotDisputed,
   assertCollaborationNotTerminal,
   persistEventAndEffects,
@@ -244,8 +245,8 @@ async function assertNoOverlappingHoursPerformance(performanceId: string): Promi
     select: { id: true },
   });
   if (overlap) {
-    // Geen ids lekken — enkel dat de periode al bezet is.
-    throw new CascadeError("Er bestaat al een ingediende urenstaat voor deze periode.");
+    // Geen ids lekken — enkel dat de periode al bezet is (gedeelde constante, identiek aan de in-tx-guard).
+    throw new CascadeError(OVERLAPPING_PERFORMANCE_MESSAGE);
   }
 }
 
@@ -297,6 +298,9 @@ export async function submitPerformance(actor: Actor, performanceId: string): Pr
       performanceId,
       disputeGuardCollaborationId: perf.collaborationId,
       terminalGuard: true,
+      // In-transactie-herverificatie van de overlap-guard (TOCTOU-dicht): sluit het venster tussen de
+      // pre-check hierboven en de SUBMITTED-write bij twee gelijktijdige submits op overlappende periodes.
+      overlapGuardPerformanceId: performanceId,
     },
   );
 

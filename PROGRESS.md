@@ -3,6 +3,26 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — Persona-sweep run 52: anti-dubbelfacturatie-race + FRANCHISER nav-badge-gat
+
+**Wat:** twee MED-bevindingen gevonden + gefixt. (1) **TOCTOU-race op de anti-dubbelfacturatie-guard**
+(`src/lib/cascade/performance-commands.ts` + `commands-shared.ts`): de run-51-guard was pre-transactioneel,
+twee gelijktijdige `submitPerformance`-aanroepen voor overlappende DRAFT-urenstaten konden beide passeren →
+dubbel uitbetaald (reëel op Postgres). Fix: nieuwe `overlapGuardPerformanceId`-ref her-verifieert de overlap
+BINNEN de `prisma.$transaction` (symmetrisch met de dispuut-/terminale-guards), rolt de tweede terug. Gedeelde
+`OVERLAPPING_PERFORMANCE_MESSAGE`-constante. (2) **FRANCHISER "signaal op één oppervlak"**
+(`src/lib/signals.ts`): `navBadges` toonde geen badge op `/franchise/zzpers` + `/franchise/diensten` terwijl
+`/acties` + de dashboard-rail daar wél attention-taken toonden. Fix: twee nieuwe badge-tellingen die exact de
+`franchiserTasks`-predicaten spiegelen via de bestaande pure helpers (`computeEngageability`,
+`summarizeAcuteOpenDiensten`, `isStartAcute`) + pure `countFranchiseDienstAlerts` — spiegelt de CLIENT/ADMIN-
+badge-fixes uit run 46/47.
+
+**Bestanden:** `src/lib/cascade/commands-shared.ts`, `src/lib/cascade/performance-commands.ts` (+test),
+`src/lib/signals.ts`, `src/lib/signals.badge-gaps-run52.test.ts` (nieuw). **Tests:** full gate — typecheck,
+lint, **5106 unit-tests**, build, prettier groen. Live persona-smoke (Playwright/Chromium, 4 rollen) 19/19.
+**Volgende stap:** persona-sweep-backlog run 52 boven in `docs/PERSONA-SWEEP-BACKLOG.md`; residu-LOW
+(DB-exclusion-constraint voor de truly-simultane overlap-race) geparkeerd.
+
 ## 2026-07-26 — "Gereageerd + status"-chip op de opdrachtenlijst (ZZP'er) (PR #929)
 
 **Wat:** de `/opdrachten`-lijst (ZZP'er) toonde al veel triage-chips (reistijd, startnabijheid, concurrentie,
