@@ -213,7 +213,10 @@ export type JobInput = z.infer<typeof jobSchema>;
 // --- Reactie op een opdracht ---
 export const applicationSchema = z.object({
   motivation: trimmed(2000).min(10, "Geef een korte motivatie (min. 10 tekens)."),
-  proposedRate: optionalInt(2000),
+  // Leeg = "geen voorgesteld tarief"; is het ingevuld dan minstens €1/uur — consistent met
+  // `jobSchema.rateMin/rateMax` en `collaborationProposalSchema.rate` (een €0/uur-tarief oogt als
+  // een bug/loonroof-vector). Enkel display; wordt nooit als bindend tarief overgenomen.
+  proposedRate: optionalInt(2000, 1),
   availability: optionalText(200),
 });
 export type ApplicationInput = z.infer<typeof applicationSchema>;

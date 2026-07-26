@@ -202,6 +202,43 @@ export async function updatePerformance(
   });
 }
 
+/**
+ * Server-side backstop tegen dubbele facturatie (regel 1): weiger het indienen van een urenstaat waarvan
+ * de periode overlapt met een reeds in de cascade levende urenstaat op dezelfde samenwerking. Zonder deze
+ * rem kon een ZZP'er twee prestaties voor exact dezelfde gewerkte periode indienen — handmatig óf via de
+ * CSV-diensten-import (die per regel createPerformance→submitPerformance draait) — en tweemaal uitbetaald
+ * krijgen: elke prestatie draait haar eigen goedkeur→factuur→betaling-cascade. Alleen HOURS met een
+ * volledige periode (begin én eind); zonder één van beide is overlap niet te bepalen → niet blokkeren.
+ * Levend in de cascade = elke prestatie die concept (DRAFT) voorbij is en niet is afgekeurd (REJECTED),
+ * dus SUBMITTED/APPROVED. De prestatie zelf wordt uitgesloten zodat opnieuw indienen na afkeuren mag.
+ */
+async function assertNoOverlappingHoursPerformance(performanceId: string): Promise<void> {
+  const perf = await prisma.performance.findUnique({
+    where: { id: performanceId },
+    select: { type: true, periodStart: true, periodEnd: true, collaborationId: true },
+  });
+  if (!perf || perf.type !== "HOURS") return;
+  // Zonder begin- én eindtijd is overlap niet te bepalen — dan niet blokkeren (bewaart legitieme paden).
+  if (perf.periodStart == null || perf.periodEnd == null) return;
+  const overlap = await prisma.performance.findFirst({
+    where: {
+      collaborationId: perf.collaborationId,
+      id: { not: performanceId }, // zelf-uitsluiting: dezelfde (afgekeurde) prestatie opnieuw indienen mag
+      type: "HOURS",
+      status: { notIn: ["REJECTED", "DRAFT"] }, // levend in de cascade: SUBMITTED/APPROVED
+      // Overlap: bestaand.start < nieuw.eind EN bestaand.eind > nieuw.start (beide niet-null; een
+      // bestaande prestatie zonder volledige periode valt buiten deze vergelijkingen en telt niet mee).
+      periodStart: { lt: perf.periodEnd },
+      periodEnd: { gt: perf.periodStart },
+    },
+    select: { id: true },
+  });
+  if (overlap) {
+    // Geen ids lekken — enkel dat de periode al bezet is.
+    throw new CascadeError("Er bestaat al een ingediende urenstaat voor deze periode.");
+  }
+}
+
 // --- Event B1 — Prestatie indienen -----------------------------------------
 export async function submitPerformance(actor: Actor, performanceId: string): Promise<void> {
   const perf = await loadPerformance(performanceId);
@@ -213,6 +250,9 @@ export async function submitPerformance(actor: Actor, performanceId: string): Pr
   // niet alsnog worden ingediend (weespad — `createPerformance` eist ACTIVE, `submitPerformance` deed
   // dat niet). Ook een afgeronde deal krijgt geen nieuw ingediend werk meer.
   await assertCollaborationNotTerminal(perf.collaborationId);
+  // Anti-dubbelfacturatie: geen tweede urenstaat voor een reeds ingediende/goedgekeurde periode op deze
+  // samenwerking. Pre-transactionele lees, symmetrisch met de dispuut-/terminale-siblings hierboven.
+  await assertNoOverlappingHoursPerformance(performanceId);
   const effects = planPerformanceSubmitted({
     performanceId,
     status: perf.status,

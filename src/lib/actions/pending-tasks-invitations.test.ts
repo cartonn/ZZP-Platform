@@ -65,6 +65,8 @@ vi.mock("@/lib/data/received-invitations", () => ({
 }));
 
 import { pendingTasks } from "@/lib/actions/pending-tasks";
+import { getReceivedInvitations } from "@/lib/data/received-invitations";
+import { MAX_RECEIVED_INVITATIONS } from "@/lib/received-invitations";
 
 const ACTOR = { id: "user-zzp", role: "FREELANCER", status: "ACTIVE" } as const;
 
@@ -97,6 +99,27 @@ describe("uitnodiging-respons als next-action (wiring)", () => {
       tone: "info",
     });
     expect(invite?.title).toBe("Reageer op de uitnodiging van Zorggroep Noord");
+  });
+
+  it("meer dan MAX_RECEIVED_INVITATIONS open uitnodigingen → geen stille afkap op 6", async () => {
+    // De band op /opdrachten toont er hooguit MAX_RECEIVED_INVITATIONS (=6); de action-engine mag
+    // níét op datzelfde getal afkappen (anders is de zijbalk-badge lager dan de echte telling).
+    const count = MAX_RECEIVED_INVITATIONS + 2; // 8
+    state.invitations = Array.from({ length: count }, (_, i) => ({
+      jobId: `job-${i}`,
+      jobTitle: `Opdracht ${i}`,
+      companyName: `Zorggroep ${i}`,
+      invitedAt: new Date(Date.now() - 2 * 86_400_000),
+    }));
+
+    const tasks = await pendingTasks(ACTOR);
+    const invites = tasks.filter((t) => t.kind === "respond-invitation");
+    expect(invites).toHaveLength(count);
+
+    // De datalaag krijgt een ruimere bovengrens mee dan de band-cap — niet 6.
+    const capArg = vi.mocked(getReceivedInvitations).mock.calls.at(-1)?.[2];
+    expect(typeof capArg).toBe("number");
+    expect(capArg).toBeGreaterThan(MAX_RECEIVED_INVITATIONS);
   });
 
   it("een lang stille uitnodiging (≥5 dagen) wordt attention", async () => {
