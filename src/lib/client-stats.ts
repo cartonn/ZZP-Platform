@@ -35,6 +35,8 @@ export interface ClientStats {
   compliantPlacements: number;
   /** Compliance-graad over de actieve inzetten (100 bij geen actieve inzetten). */
   complianceRate: number;
+  /** Reacties op de eigen opdrachten per status (ApplicationStatus → aantal), voor de reactie-trechter. */
+  applicationsByStatus: Record<string, number>;
 }
 
 /**
@@ -48,7 +50,7 @@ export async function getClientStats(userId: string): Promise<ClientStats | null
   });
   if (!company) return null;
 
-  const [paid, open, publishedJobs, filledJobs, collabRows, alerts, activeCount] =
+  const [paid, open, publishedJobs, filledJobs, collabRows, alerts, activeCount, appRows] =
     await Promise.all([
       prisma.invoice.aggregate({
         where: { counterpartyUserId: userId, status: "PAID" },
@@ -77,9 +79,16 @@ export async function getClientStats(userId: string): Promise<ClientStats | null
       }),
       clientCredentialAlerts(userId),
       prisma.collaboration.count({ where: { companyId: company.id, status: "ACTIVE" } }),
+      // Reacties op de eigen opdrachten, per status — voor de kandidaat-/reactie-trechter op /inzicht.
+      prisma.application.groupBy({
+        by: ["status"],
+        where: { job: { companyId: company.id } },
+        _count: { _all: true },
+      }),
     ]);
 
   const collabByStatus = new Map(collabRows.map((r) => [r.status, r._count._all]));
+  const appByStatus = new Map(appRows.map((r) => [r.status, r._count._all]));
   const compliantPlacements = Math.max(0, activeCount - alerts.length);
 
   return {
@@ -93,5 +102,6 @@ export async function getClientStats(userId: string): Promise<ClientStats | null
     collaborationsByStatus: Object.fromEntries(collabByStatus),
     compliantPlacements,
     complianceRate: activeCount === 0 ? 100 : ratePercent(compliantPlacements, activeCount),
+    applicationsByStatus: Object.fromEntries(appByStatus),
   };
 }

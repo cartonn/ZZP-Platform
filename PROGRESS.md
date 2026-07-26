@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — Kandidaten-/reactie-trechter op /inzicht (opdrachtgever)
+
+**Wat:** de opdrachtgever zag op `/inzicht` samenwerkingen-per-status, vervullingsgraad (time-to-fill)
+en compliance, maar **geen kandidaat-/reactie-trechter** — terwijl de ZZP'er wél een "Status van je
+reacties"-donut heeft. Voor de opdrachtgever ontbrak het spiegelbeeld: hoeveel reacties wachten op een
+eerste blik, staan op de shortlist, zijn geaccepteerd, en wat is de aannamekans? (benchmark ATS/Temper/
+Malt hiring-funnel). Nu een nieuwe rij op de opdrachtgever-`/inzicht`: een **"Kandidaten per status"**-
+donut (hergebruikt `APPLICATION_SEGMENTS`) naast een **"Reactie-trechter"**-widget met wachten-op-
+eerste-blik (warning bij >0, deep-link `/kandidaten`) / op shortlist / geaccepteerd / aannamekans.
+
+**Grens/architectuur:** pure `summarizeClientApplications(byStatus)` (`src/lib/client-application-funnel.ts`)
+leidt de trechter af uit een **ApplicationStatus→aantal-telling**; aannamekans = geaccepteerd van de
+**besliste** reacties (ACCEPTED + REJECTED, NEW/WITHDRAWN tellen niet als beslissing), `null` onder de
+steekproefdrempel (`CLIENT_FUNNEL_MIN_DECIDED=3`) → geen schijnprecisie. `getClientStats` aggregeert de
+telling met **één gescoopte `application.groupBy`** (`where: { job: { companyId } }`) → de opdrachtgever
+ziet uitsluitend reacties op de **eigen** opdrachten. Donut + trechter voeden op **dezelfde telling**
+(één bron, kan niet driften). Read-only BI, geen schemawijziging, geen nieuw mutatie/auth-oppervlak. Het
+woord "AI" komt nergens voor.
+
+**Bestanden:** `src/lib/client-application-funnel.ts` (+ test, 7 tests), `src/lib/client-stats.ts`
+(`applicationsByStatus` + groupBy), `src/app/(protected)/inzicht/page.tsx` (ClientInzicht-rij +
+`ClientFunnelWidget`), `PROGRESS.md`, `CURRENT_TASK.md`. Gate: typecheck, lint, test (5125), build,
+prettier groen.
+
 ## 2026-07-26 — Ontwerp-lab: +10 concepten (reeks 48, nrs 471–480)
 
 **Wat:** additief 10 nieuwe design-lab-concepten toegevoegd aan `/ontwerp` (accumuleren, nooit vervangen —
