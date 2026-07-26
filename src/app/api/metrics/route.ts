@@ -7,7 +7,9 @@
 // Gauges: zzp_up, zzp_db_reachable, zzp_cron_heartbeat_* / zzp_backup_heartbeat_* (dead-man's-switch),
 // zzp_verification_queue (wachtrijdiepte), zzp_maintenance_mode (onderhoudsmodus aan → 1) en
 // zzp_credentials_overdue_expiry (VERIFIED-credentials wier vervaldatum voorbij is maar die de
-// expiry-cron nog niet omzette — een stille-faal-detector die de heartbeat niet vangt).
+// expiry-cron nog niet omzette) en zzp_subscriptions_overdue_expiry (betaalde ACTIVE-abonnementen wier
+// periode voorbij is maar die de subscription-expiry-cron nog niet op CANCELLED zette) — twee
+// stille-faal-detectors die de heartbeat niet vangt.
 //
 // Beveiliging: dezelfde Bearer CRON_SECRET als de taak-/heartbeat-routes, fail-closed — geen
 // CRON_SECRET → 503, verkeerd token → 401. De uitvoer bevat NOOIT persoonsgegevens of secrets, alleen
@@ -54,6 +56,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
 
   let verificationQueue = 0;
   let overdueExpiryCredentials = 0;
+  let overdueExpirySubscriptions = 0;
   if (dbReachable) {
     try {
       verificationQueue = await prisma.credential.count({ where: { status: "SUBMITTED" } });
@@ -66,6 +69,21 @@ async function collectInput(now: Date): Promise<MetricsInput> {
       // verleden dat nog niet is omgezet is precies de stille faalmodus die de cron-heartbeat mist.
       overdueExpiryCredentials = await prisma.credential.count({
         where: { status: "VERIFIED", expiresAt: { lt: now } },
+      });
+    } catch (error) {
+      await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
+    }
+    try {
+      // Betaalde ACTIVE-abonnementen wier periode voorbij is: werk dat de subscription-expiry-cron had
+      // moeten doen (ACTIVE → CANCELLED → Gratis). Exact dezelfde where-vorm als runSubscriptionExpiryTask
+      // (ACTIVE + currentPeriodEnd < nu + plan.priceCents > 0) zodat de gauge de echte cron-backlog telt.
+      // Gratis/demo-perpetuele abonnementen (currentPeriodEnd = null) vallen hier automatisch buiten.
+      overdueExpirySubscriptions = await prisma.subscription.count({
+        where: {
+          status: "ACTIVE",
+          currentPeriodEnd: { lt: now },
+          plan: { priceCents: { gt: 0 } },
+        },
       });
     } catch (error) {
       await reportError(error, { source: "metrics", requestPath: "/api/metrics" });
@@ -89,6 +107,7 @@ async function collectInput(now: Date): Promise<MetricsInput> {
     verificationQueue,
     maintenanceMode: isMaintenanceEnabled(process.env.MAINTENANCE_MODE),
     overdueExpiryCredentials,
+    overdueExpirySubscriptions,
   };
 }
 

@@ -56,6 +56,15 @@ export interface MetricsInput {
    * hoog/oplopend terwijl de heartbeat "vers" is, dan verwerkt de expiry-pijplijn niets meer.
    */
   overdueExpiryCredentials: number;
+  /**
+   * Aantal betaalde (priceCents > 0) ACTIVE-abonnementen wier `currentPeriodEnd` in het verleden ligt
+   * maar die de `subscription-expiry`-cron nog niet op CANCELLED (→ Gratis) zette — werk dat die cron
+   * had moeten doen. Dezelfde stille-faal-detector-klasse als `overdueExpiryCredentials`: de
+   * cron-heartbeat bewijst alleen dát de run afrondde, niet dát 'ie de verval-pijplijn verwerkte. De
+   * server-side entitlement-guard behandelt zo'n verlopen periode al als Gratis (geen toegangslek),
+   * maar een oplopende DB-backlog betekent dat de verval-/renewal-cyclus (notificaties, ledger) stilligt.
+   */
+  overdueExpirySubscriptions: number;
 }
 
 /** boolean → 1/0; null → 0 (afwezigheid telt als "niet ok" voor een alarmeerbare gauge). */
@@ -141,6 +150,12 @@ export function buildMetrics(input: MetricsInput): Metric[] {
       help: "Aantal VERIFIED-credentials met een vervaldatum in het verleden die de expiry-cron nog niet op EXPIRED zette (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen expiry-pijplijn).",
       type: "gauge",
       value: Math.max(0, Math.floor(input.overdueExpiryCredentials)),
+    },
+    {
+      name: "zzp_subscriptions_overdue_expiry",
+      help: "Aantal betaalde ACTIVE-abonnementen met een verstreken periode-einde die de subscription-expiry-cron nog niet op CANCELLED (→ Gratis) zette (een klein, tijdelijk aantal — tot één cron-interval — is normaal; aanhoudend/oplopend duidt op een vastgelopen verval-/renewal-pijplijn).",
+      type: "gauge",
+      value: Math.max(0, Math.floor(input.overdueExpirySubscriptions)),
     },
   ];
 }

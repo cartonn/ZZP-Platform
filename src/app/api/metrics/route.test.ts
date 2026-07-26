@@ -7,8 +7,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const queryRawMock = vi.hoisted(() => vi.fn(async () => [{ "1": 1 }]));
 const countMock = vi.hoisted(() => vi.fn(async () => 4));
+const subscriptionCountMock = vi.hoisted(() => vi.fn(async () => 0));
 vi.mock("@/lib/db", () => ({
-  prisma: { $queryRaw: queryRawMock, credential: { count: countMock } },
+  prisma: {
+    $queryRaw: queryRawMock,
+    credential: { count: countMock },
+    subscription: { count: subscriptionCountMock },
+  },
 }));
 
 const cronMock = vi.hoisted(() =>
@@ -49,6 +54,8 @@ describe("GET /api/metrics", () => {
     queryRawMock.mockResolvedValue([{ "1": 1 }]);
     countMock.mockClear();
     countMock.mockResolvedValue(4);
+    subscriptionCountMock.mockClear();
+    subscriptionCountMock.mockResolvedValue(0);
     cronMock.mockClear();
     backupMock.mockClear();
     process.env.CRON_SECRET = SECRET;
@@ -87,11 +94,24 @@ describe("GET /api/metrics", () => {
   it("telt de verificatie-wachtrij en de expiry-backlog als aparte queries", async () => {
     // Eerste count = verificatie-wachtrij (SUBMITTED), tweede count = overdue-expiry (VERIFIED, verlopen).
     countMock.mockResolvedValueOnce(4).mockResolvedValueOnce(9);
+    subscriptionCountMock.mockResolvedValueOnce(3);
     const res = await GET(req({ auth: `Bearer ${SECRET}` }));
     const body = await res.text();
     expect(body).toContain("zzp_verification_queue 4");
     expect(body).toContain("zzp_credentials_overdue_expiry 9");
+    expect(body).toContain("zzp_subscriptions_overdue_expiry 3");
     expect(countMock).toHaveBeenCalledTimes(2);
+    expect(subscriptionCountMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("laat een falende abonnements-verval-telling de respons niet omverhalen (geen 500)", async () => {
+    // De abonnements-telling (derde query) faalt → 0, de credential-tellingen + respons blijven intact.
+    subscriptionCountMock.mockRejectedValueOnce(new Error("subscription count kapot"));
+    const res = await GET(req({ auth: `Bearer ${SECRET}` }));
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain("zzp_verification_queue 4");
+    expect(body).toContain("zzp_subscriptions_overdue_expiry 0");
   });
 
   it("meldt zzp_maintenance_mode 1 als MAINTENANCE_MODE aanstaat", async () => {
@@ -128,6 +148,7 @@ describe("GET /api/metrics", () => {
     const body = await res.text();
     expect(body).toContain("zzp_db_reachable 0");
     expect(countMock).not.toHaveBeenCalled();
+    expect(subscriptionCountMock).not.toHaveBeenCalled();
   });
 
   it("markeert een stale cron-heartbeat als stale=1", async () => {

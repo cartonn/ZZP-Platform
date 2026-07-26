@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — Prod-rijpheid: `/api/metrics` — subscription-expiry backlog gauge (stille-faal-detectie)
+
+**Wat:** derde stille-faal-detector-gauge op het machine-leesbare monitoring-endpoint `/api/metrics`
+(naast `zzp_credentials_overdue_expiry`, #925): **`zzp_subscriptions_overdue_expiry`** telt de betaalde
+ACTIVE-abonnementen wier `currentPeriodEnd` voorbij is maar die de `subscription-expiry`-cron nog niet op
+CANCELLED (→ Gratis) zette. Zelfde klasse als de credential-gauge: de cron-heartbeat bewijst alleen dát de
+run afrondde, niet dát 'ie de verval-/renewal-pijplijn verwerkte. De server-side entitlement-guard
+behandelt zo'n verlopen periode al als Gratis (geen toegangslek — defense in depth), maar een oplopende
+DB-backlog terwijl de heartbeat "vers" is betekent dat de verval-cyclus (notificaties, ledger) stilligt →
+extern alarmeerbaar zonder admin-login.
+
+**Grens/architectuur:** de gauge-count gebruikt **exact dezelfde where-vorm** als `runSubscriptionExpiryTask`
+(`status:"ACTIVE"` + `currentPeriodEnd:{lt:now}` + `plan.priceCents>0`) → telt de echte cron-backlog, kan niet
+driften; gratis/demo-perpetuele abonnementen (`currentPeriodEnd=null`) vallen automatisch buiten. Pure shaping
+in `metrics.ts` (`overdueExpirySubscriptions` → `Math.max(0, Math.floor(...))`, nooit negatief); de telling in
+de route faalt veilig (eigen try/catch → 0, nooit een 500). Read-only `count`, geen schemawijziging, geen nieuw
+mutatie/auth-oppervlak; endpoint blijft fail-closed achter Bearer `CRON_SECRET`; uitvoer bevat geen PII/secrets.
+
+**Bestanden:** `src/lib/observability/metrics.ts` (+ `metrics.test.ts` +4 tests),
+`src/app/api/metrics/route.ts` (+ `route.test.ts` +2 tests, incl. fail-safe telling), `MENSENWERK.md` §11,
+`PROGRESS.md`, `CURRENT_TASK.md`. Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-26 — Security/privacy-auditronde 2026-07-26b: losse-factuur TOCTOU (dubbelfacturatie) gedicht
 
 **Wat:** volledige security/privacy-audit (orchestrator Opus 4.8 + 3 parallelle adversariële Opus-audits op
