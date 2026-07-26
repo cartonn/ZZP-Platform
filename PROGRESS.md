@@ -3,6 +3,34 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — security/privacy-audit: verlopen Geoapify-routingcache (locatie-PII) fysiek verwijderd + register (AVG art. 5(1)(e)/30)
+
+**Wat:** orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) object-/functie-autorisatie (authz/tenancy/middleware + álle server actions + `/api/**` + cascade), IDOR/BOLA +
+cross-tenant; (2) injectie/upload/SSRF/secrets/XSS/foutlek; (3) AVG betrokkenen-rechten/erasure/retentie/register/
+PII-in-logs. Oppervlakken **(1) en (2) onafhankelijk schoon** (auth→rol→ownership/tenant→Zod→actie→audit-keten,
+existence-oracle-404-pariteit, formule-guard op alle 12 CSV-exports, magic-byte upload-sniff, geen user-gestuurde
+`fetch`-host, verse SES/SigV4-maildriver correct: JSON-body/geen header-injectie/secret nooit gelogd). Vindwaardige
+gaten alleen in (3).
+
+**GEVONDEN + GEFIXT — AVG art. 5(1)(e) + art. 30:** `GeocodeCache`/`TravelRouteCache` bewaren platte-tekst
+locatie-PII die naar Geoapify gaat; verlopen rijen werden alléén lazy genegeerd bij lezen, nooit fysiek verwijderd →
+onbeperkte opslag voorbij de eigen TTL. En de doorgifte-naar-derde ontbrak in het art. 30-register. **Fix:** nieuwe
+geplande sweep `runRoutingCacheRetentionTask` (batched/idempotent, hard-delete `expiresAt < now` uit beide tabellen,
+PII-vrij auditrecord `ROUTING_CACHE_PRUNED`), gewired in `run-all`; register-entry #20 `reistijd-routing` (Geoapify-
+verwerker, TTL-bewaartermijn, SCC-caveat).
+
+**Bewust NIET geraakt:** de KRITIEK-geparkeerde door-derden-PII-erasure (o.a. `Review.comment` `subjectId==userId`) —
+FG-/juridische twee-richtingsdeur, per MENSENWERK §5 mensenwerk, herbevestigd in de backlog. **Geparkeerd (HOOG):**
+gedocumenteerde bewaartermijnen voor Document/Credential/Message/Application/Notification nog niet technisch afgedwongen
+(eigen, groter increment — raakt hard-delete van gevoelige documenten).
+
+**Bestanden:** `src/lib/routing-cache-retention-task.ts` (+ test), `src/app/api/tasks/run-all/route.ts`,
+`src/lib/compliance/processing-register.ts` (+ test), `docs/SECURITY-PRIVACY-BACKLOG.md`, `PROGRESS.md`.
+**Checks:** `npm run typecheck`/`lint`/`test` (4925 passed) /`build` + `prettier --check .` groen. +11 tests.
+**Noot:** deze run startte per ongeluk op een 28 commits stale sessie-base (resume-state, CLAUDE.md §3a); herstart
+gedwongen vanaf verse `origin/main` @ faaefb42 vóór commit — geen origin/main-werk geclobberd.
+
 ## 2026-07-26 — routine: €-waarde "wacht op goedkeuring" op /prestaties (opdrachtgever) (#923)
 
 `/prestaties` toonde de opdrachtgever het **aantal** urenstaten dat op zijn goedkeuring wacht, plus het

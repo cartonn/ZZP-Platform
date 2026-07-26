@@ -4,6 +4,69 @@
 > geparkeerd met repro, severity (KRITIEK/HOOG/MIDDEL/LAAG), geschonden regel en aanbevolen fix.
 > Pak per run de 1–3 belangrijkste; werk dit bestand bij.
 
+## Ronde 2026-07-26 (basis: `main` @ faaefb42)
+
+Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —
+(1) object-/functie-niveau-autorisatie: `authz.ts`/`tenancy.ts`/`auth(.config).ts`/`middleware.ts` + **álle**
+server actions (~45 `actions.ts`) én route handlers (~35 `/api/**`) + de cascade-command-laag, op IDOR/BOLA
+en cross-tenant-lek; (2) injectie/upload/SSRF/secrets/XSS/foutlek: `$queryRaw(Unsafe)`, `dangerouslySetInnerHTML`,
+CSV-/formule-injectie (alle 12 exports), upload-validatie/path-traversal/magic-byte, secrets in log/client-bundle,
+server-side `fetch` met user-URL, open redirect; (3) AVG betrokkenen-rechten: `anonymizeUser`-volledigheid
+veld-voor-veld tegen het volledige schema, over-fetch naar de client, audit-logging van gevoelige toegang,
+k-anonimiteit (≥10), PII-in-logs, retentie, doorgifte naar derden. Focus op de sinds `7a6957cc` verse
+oppervlakken (SES/SigV4-maildriver #919, `/api/metrics` #888, wachtwoord-/reset-flows, systeemstatus-zelftests).
+
+Oppervlakken **(1) en (2) onafhankelijk schoon** — de auth→rol→ownership/tenant→Zod→actie→audit-keten,
+existence-oracle-404-pariteit (CWE-203) op álle document/PDF/dossier-routes, tenant-scoping, `toCsv`/`escapeCsvField`
+formule-guard op elke export, magic-byte upload-sniff + path-traversal-guard in de storage-abstractie, e-mailtemplates
+die alle user-content via `esc()` escapen, timing-safe cron-auth, geen user-gestuurde `fetch`-host (Geoapify/DUO/BIG/
+iDIN/SES gebruiken een vaste env-host; user-input alleen in query/body), geen secret in client-bundle of log, geen
+stacktrace/Prisma-fout naar de gebruiker. De verse SES-maildriver (`aws-sigv4.ts`/`mail-sender.ts`) is correct: JSON-body
+(geen SMTP-header-injectie), secret verlaat de signer nooit, region uit env, foutdetail zonder adres/onderwerp (PII).
+`npm run typecheck`/`lint`/`test` (4918+) /`build` groen. **2 concrete AVG-gaten gevonden én OPGELOST (rood→groen).**
+
+### OPGELOST — LAAG→MIDDEL (AVG art. 5(1)(e) + art. 30): verlopen routing-cache (Geoapify locatie-PII) werd nooit fysiek verwijderd + ontbrak in het verwerkingsregister
+
+- **Repro (was):** `GeocodeCache`/`TravelRouteCache` (schema.prisma) bewaren **platte-tekst locatiegegevens**
+  (`query`, `fromQuery`, `toQuery` — herleidbare adres-/plaatsindicaties van ZZP'ers en opdrachten) die naar de
+  externe verwerker Geoapify gaan. Elke rij heeft een `expiresAt`, maar de leeslaag (`routing.ts:55,90`) negeerde
+  verlopen rijen alléén **lazy** bij lezen — er was **geen enkele `deleteMany`** voor deze twee modellen (geverifieerd
+  via grep), dus platte-tekst-locatie-PII stapelde zich **voorbij de eigen TTL eindeloos** op in de DB. Bovendien had
+  het art. 30-`PROCESSING_REGISTER` **geen entry** voor deze concrete doorgifte-naar-derde (locatie → Geoapify),
+  anders dan bv. de `notificaties-email`-entry die zijn verwerker wél documenteert.
+- **Geschonden regel:** AVG art. 5(1)(e) (opslagbeperking — niet langer bewaren dan noodzakelijk) + art. 30
+  (verwerkingsregister-volledigheid voor een doorgifte naar een derde).
+- **Fix (PR #—):** nieuwe geplande sweep `runRoutingCacheRetentionTask` (`src/lib/routing-cache-retention-task.ts`,
+  spiegelt `lead-retention-task.ts`: gebatchte id-select + `deleteMany`, BATCH_SIZE 500 / MAX_BATCHES 200, SQLite+Postgres,
+  idempotent) die rijen met `expiresAt < now` uit **beide** tabellen hard verwijdert en één PII-vrij auditrecord
+  (`ROUTING_CACHE_PRUNED`, metadata `{geocodePruned, routePruned, cutoff}`) schrijft, gewired in `run-all` naast de andere
+  `*-retention`-taken. Plus register-entry #20 `reistijd-routing` (Geoapify als verwerker, TTL-bewaartermijn, SCC-caveat
+  buiten EER). +7 unit-tests (rood→groen: verlopen rijen bleven staan zonder sweep; strict `<`-grens; multi-batch;
+  audit-alleen-bij-snoei; idempotentie) + 4 register-tests.
+
+### Geparkeerd — HOOG (AVG art. 5(1)(e)/17): gedocumenteerde bewaartermijnen voor de gevoeligste data zijn niet technisch afgedwongen
+
+- **Repro:** het verwerkingsregister/`RETENTION_SCHEDULE` documenteert concrete bewaarvensters — Documenten/Credentials
+  (VOG/diploma, art. 9/10) "niet langer dan noodzakelijk voor het verificatiedoel", Berichten "max. 12 maanden na
+  beëindiging", Reacties "4 weken na afronding", Notificatiehistorie "max. 6 maanden" — maar er is voor géén van deze een
+  geplande taak. `run-all` wired alleen `audit-/webhook-event-/lead-/health-incident-retention` (en nu routing-cache);
+  `expiry-task.ts` flipt alleen `Credential.status` VERIFIED→EXPIRED en verwijdert het onderliggende `Document`/de blob
+  nooit. Afgekeurde credential-scans en oude berichten/reacties/notificaties stapelen zich onbeperkt op, in tegenspraak
+  met het eigen gepubliceerde opslagbeperkingsbeleid voor juist de gevoeligste datacategorie.
+- **Geschonden regel:** AVG art. 5(1)(e) (opslagbeperking) / art. 17.
+- **Aanbevolen fix (eigen increment — groter, zorgvuldig, raakt hard-delete van gevoelige documenten):** geplande
+  sweeps (spiegel `lead-retention-task`/`health-incident-retention-task`) die na een respijtvenster (a) `Document`+blob
+  van EXPIRED/REJECTED credentials, (b) `Message`-inhoud >12 mnd na samenwerkingseinde, (c) stale `Application` >4 wk,
+  (d) `Notification` >6 mnd purgen/anonimiseren; wire in `run-all`. Per sub-model één klein, apart, getest increment.
+
+### Onveranderd geparkeerd — KRITIEK (FG-/juridische beslissing, MENSENWERK §5 — NIET unilateraal gefixt)
+
+Door-derden-geschreven vrije-tekst-PII over de gewiste persoon (o.a. `Review.comment` waar `subjectId == userId`,
+`NoShowReport.reason`, `Performance/Invoice.rejectionReason`) overleeft `anonymizeUser` (AVG art. 17, mogelijk art. 9) —
+zie de eerdere ronde-2026-07-23b-entry. **Deze audit heeft dit expliciet herbevestigd maar bewust NIET geraakt:** het is
+een twee-richtingsdeur (erasure vs. het geschil-/dossierbelang + de uitingsvrijheid van de tegenpartij) die per
+CLAUDE.md/MENSENWERK §5 een menselijke FG-/juridische sign-off vereist, geen agent-beslissing. Blijft open voor de mens.
+
 ## Ronde 2026-07-25b (basis: `main` @ 7a6957cc)
 
 Audit: orchestrator (Opus 4.8) + 3 parallelle adversariële Opus-audits op niet-overlappende oppervlakken —

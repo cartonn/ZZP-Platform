@@ -28,6 +28,7 @@ import { runAuditRetentionTask } from "@/lib/audit-retention-task";
 import { runWebhookEventRetentionTask } from "@/lib/webhook-event-retention-task";
 import { runLeadRetentionTask } from "@/lib/lead-retention-task";
 import { runHealthIncidentRetentionTask } from "@/lib/health-incident-retention-task";
+import { runRoutingCacheRetentionTask } from "@/lib/routing-cache-retention-task";
 import { runScheduledTasks, type ScheduledTask } from "@/lib/scheduled-tasks";
 import { reportBackgroundFailure } from "@/lib/observability/report";
 import { recordCronHeartbeat, RUN_ALL_HEARTBEAT } from "@/lib/observability/cron-heartbeat";
@@ -85,6 +86,7 @@ export async function POST(request: Request): Promise<Response> {
       name: "health-incident-retention",
       fn: () => runHealthIncidentRetentionTask({ actorId: null }),
     },
+    { name: "routing-cache-retention", fn: () => runRoutingCacheRetentionTask({ actorId: null }) },
     { name: "monitor", fn: () => runMonitorTask({}) },
   ];
 

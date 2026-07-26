@@ -551,6 +551,35 @@ export const PROCESSING_REGISTER: readonly ProcessingActivity[] = [
       "Expliciete statusovergangen (PENDING → JUSTIFIED/UNJUSTIFIED)",
     ],
   },
+
+  // 20. Reistijd-routing & geocoding (externe verwerker Geoapify) — locatie-PII naar derde
+  {
+    key: "reistijd-routing",
+    name: "Reistijd-routing & geocoding (Geoapify)",
+    purpose:
+      "Berekenen van de reële reistijd/afstand tussen de locatie van een ZZP'er en die van een opdracht, ter ondersteuning van locatiegebaseerde matching. De locatie-omschrijvingen worden naar de externe provider Geoapify gestuurd (geocoding + routing) en het resultaat wordt met een korte TTL gecachet zodat matching niet onnodig API-credits verbruikt.",
+    legalBasis: "GERECHTVAARDIGD_BELANG",
+    dataSubjects: ["ZZP'ers", "Opdrachtgevers"],
+    dataCategories: [
+      "Locatie-omschrijving/plaatsnaam (ZZP'er en opdracht) — als platte-tekst zoekterm naar de provider gestuurd en gecachet",
+      "Afgeleide geocoördinaten (lat/lon)",
+      "Berekende reistijd en -afstand",
+    ],
+    sensitive: false,
+    recipients: [
+      "Geoapify (verwerker, routing/geocoding) — HTTP-API, mogelijk buiten de EER; doorgifte alleen met verwerkersovereenkomst + passende waarborgen (SCC's)",
+      "Intern platformbeheer",
+    ],
+    retention:
+      "Cache met korte TTL: geocode max. 180 dagen, route max. 30 dagen. Verlopen rijen worden fysiek verwijderd door een geplande retentie-sweep (run-all → routing-cache-retention) die de opslagbeperking (art. 5(1)(e)) afdwingt; staat standaard inert zonder provider/API-key.",
+    securityMeasures: [
+      "Provider standaard UIT (offline-fallback zonder API-key); geen locatie verlaat de server zonder expliciete configuratie",
+      "Versleutelde verbinding (TLS) naar de provider",
+      "Bij doorgifte buiten de EER: modelcontractbepalingen (SCC's)",
+      "Korte TTL + automatische fysieke verwijdering van verlopen cacherijen (run-all → routing-cache-retention)",
+      "Auditlogging van de retentie-sweep (ROUTING_CACHE_PRUNED) zonder PII",
+    ],
+  },
 ] as const;
 
 // --- Bewaarschema ------------------------------------------------------------
