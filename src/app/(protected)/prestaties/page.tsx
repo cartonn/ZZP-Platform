@@ -2,7 +2,11 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { ClipboardList, Download } from "lucide-react";
 import { requireActor } from "@/lib/authz";
-import { approvablePerformances, getPrestatiesForClient } from "@/lib/prestaties";
+import {
+  approvablePerformances,
+  getPrestatiesForClient,
+  summarizePendingApprovalValue,
+} from "@/lib/prestaties";
 import { formatEuro } from "@/lib/invoices";
 import { formatDateShortNl, formatDateRangeNl } from "@/lib/format-date";
 import {
@@ -104,6 +108,7 @@ export default async function PrestatiesPage({
   // toont dit scherm als enige oppervlak een niet-verdwijnende, niet-uitvoerbare actie (DOEL-1b-tegenspraak).
   const submitted = approvablePerformances(allPrestaties);
   const pendingCount = submitted.length;
+  const pendingValue = summarizePendingApprovalValue(allPrestaties);
   const queue = summarizePerformanceApproval(submitted, now);
   // Samenwerkingen met ≥2 ingediende urenstaten kunnen in één keer worden goedgekeurd; bij één
   // volstaat de bestaande "Keuren →"-link. Losstaand van het statusfilter (bulk werkt altijd op de
@@ -127,6 +132,17 @@ export default async function PrestatiesPage({
               </span>
             )}
           </p>
+          {pendingValue.totalCents > 0 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              ≈{" "}
+              <span className="font-medium text-foreground">
+                {formatEuro(pendingValue.totalCents)}
+              </span>{" "}
+              aan uren wacht op goedkeuring — goedkeuren geeft dit vrij voor facturatie.
+              {pendingValue.withoutAmount > 0 &&
+                ` (${pendingValue.withoutAmount} zonder tarief nog niet meegerekend)`}
+            </p>
+          )}
           {queue.staleCount > 0 && (
             <p className="mt-1 text-xs font-medium text-warning">
               {queue.staleCount} {queue.staleCount === 1 ? "urenstaat wacht" : "urenstaten wachten"}{" "}

@@ -3,6 +3,30 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-26 — routine: €-waarde "wacht op goedkeuring" op /prestaties (opdrachtgever) (#923)
+
+`/prestaties` toonde de opdrachtgever het **aantal** urenstaten dat op zijn goedkeuring wacht, plus het
+aantal dat al te lang blijft liggen — maar nergens de **€-waarde** ervan. Dat is de committed cost die
+goedkeuren vrijgeeft in de facturatiecascade (goedgekeurde prestatie → concept-factuur → openstaand),
+dus de payer wil in één oogopslag zien hoevéél er "aan zet" staat, niet alleen hoevéél urenstaten
+(benchmark Deel/staffing-portefeuilles: committed pending cost). Nu een compacte regel onder de kop —
+**"≈ € X aan uren wacht op goedkeuring — goedkeuren geeft dit vrij voor facturatie"** — met een nette
+noot als een deel nog geen tarief heeft.
+
+- Pure `summarizePendingApprovalValue(rows)` (`src/lib/prestaties.ts`, +`PendingApprovalValue`) somt de
+  reeds-berekende `subtotalCents` over de goed te keuren set (`approvablePerformances` → SUBMITTED, niet
+  disputed) — **één bron van waarheid** met de "wacht op goedkeuring"-telling en de bulk-selectie, kan
+  niet driften. Een prestatie zonder berekenbaar subtotaal (ontbrekend uurtarief) telt niet mee in het
+  bedrag maar wél in `withoutAmount`, zodat de payer weet dat er nog werk buiten het getal valt.
+- Onderscheiden van `committed-cost.ts` (#885): die telt de **ná**-goedkeuring concept-facturen; deze telt
+  het **ervóór** wachtende, nog niet goedgekeurde werk. Geen dubbeltelling.
+- Read-only afleiding op de al-geladen prestatielijst — **geen extra query, geen schemawijziging, geen
+  nieuw mutatie/auth-oppervlak**. Wiring in `prestaties/page.tsx` (regel onder de kop, alleen bij
+  `totalCents > 0`). Het woord "AI" komt nergens voor.
+- +4 unit-tests (`prestaties.test.ts`): sommatie, scoping op de goed te keuren set (APPROVED/disputed
+  uitgesloten — één bron met de telling), null-subtotaal → withoutAmount, lege lijst. Gate: typecheck,
+  lint, test, build, prettier groen.
+
 ## 2026-07-25 — routine: floor-slot wiren in de LIVE dashboard-rail (follow-up op #921)
 
 De onafhankelijke agent-review op #921 flagde (PASS + nit) dat `DashboardActions` **nergens gewired** is

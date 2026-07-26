@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { approvablePerformances, exportPrestatiesCsv, type PrestatieOverzicht } from "./prestaties";
+import {
+  approvablePerformances,
+  exportPrestatiesCsv,
+  summarizePendingApprovalValue,
+  type PrestatieOverzicht,
+} from "./prestaties";
 
 const base: PrestatieOverzicht = {
   id: "p1",
@@ -137,5 +142,49 @@ describe("approvablePerformances — wat de opdrachtgever écht kan keuren", () 
     expect(approvablePerformances([draft, approved, rejected, submitted]).map((p) => p.id)).toEqual(
       ["s1"],
     );
+  });
+});
+
+describe("summarizePendingApprovalValue — €-committed cost wacht op goedkeuring", () => {
+  const submitted: PrestatieOverzicht = { ...base, id: "s1", status: "SUBMITTED" };
+
+  it("telt de subtotalen van goed te keuren prestaties op", () => {
+    const a: PrestatieOverzicht = { ...submitted, id: "a", subtotalCents: 10000_00 };
+    const b: PrestatieOverzicht = { ...submitted, id: "b", subtotalCents: 5000_00 };
+    const res = summarizePendingApprovalValue([a, b]);
+    expect(res).toEqual({ count: 2, totalCents: 15000_00, withoutAmount: 0 });
+  });
+
+  it("telt uitsluitend de goed te keuren set (SUBMITTED, niet disputed) — één bron met de telling", () => {
+    const pending: PrestatieOverzicht = { ...submitted, id: "p", subtotalCents: 8000_00 };
+    const approved: PrestatieOverzicht = {
+      ...base,
+      id: "ap",
+      status: "APPROVED",
+      subtotalCents: 99999_00,
+    };
+    const frozen: PrestatieOverzicht = {
+      ...submitted,
+      id: "fr",
+      disputed: true,
+      subtotalCents: 4000_00,
+    };
+    const res = summarizePendingApprovalValue([pending, approved, frozen]);
+    expect(res).toEqual({ count: 1, totalCents: 8000_00, withoutAmount: 0 });
+  });
+
+  it("negeert een prestatie zonder berekenbaar subtotaal in het bedrag maar telt 'm in withoutAmount", () => {
+    const withAmount: PrestatieOverzicht = { ...submitted, id: "w", subtotalCents: 6000_00 };
+    const noRate: PrestatieOverzicht = { ...submitted, id: "n", subtotalCents: null };
+    const res = summarizePendingApprovalValue([withAmount, noRate]);
+    expect(res).toEqual({ count: 2, totalCents: 6000_00, withoutAmount: 1 });
+  });
+
+  it("geeft nul-waarden op een lege lijst", () => {
+    expect(summarizePendingApprovalValue([])).toEqual({
+      count: 0,
+      totalCents: 0,
+      withoutAmount: 0,
+    });
   });
 });
