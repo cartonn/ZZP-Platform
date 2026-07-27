@@ -3,6 +3,28 @@
 > Bijwerken aan het eind van elke sessie. Houd het kort en feitelijk:
 > wat is af, welke bestanden, welke tests, wat is de volgende stap.
 
+## 2026-07-27 — Opdrachtgever: acuut-onbezet-signaal op de eigen opdrachtkaart (start nadert, nog niet vervuld)
+
+**Wat:** de opdrachtgever zag op "Mijn opdrachten" (`/opdrachten`, CLIENT-grid) per opdracht het
+vacaturetempo (`VacancyPaceChip`, respons-momentum) + tarief-diagnose, maar geen signaal dat een
+**gepubliceerde opdracht waarvan de startdatum nadert of al verstreken is nog niet vervuld** is. Dat is een
+distinct, urgenter risico: een opdracht kan prima reacties krijgen (goed tempo) en tóch morgen ongevuld
+starten. Spiegelt de bemiddelaar-acute-onbezet-taak (`franchise/acute-open-diensten.ts`), maar dan voor de
+directe opdrachtgever op zijn eigen opdrachtkaart (benchmark Temper/Pidz "shift starts soon, still open").
+Nu een compacte **"Start … · nog niet vervuld"**-badge op de kaart (acuut = warning bij start deze
+week/verstreken, gedempt "soon" tot 21 dagen vooruit).
+
+**Architectuur/grens:** pure `jobFillUrgency` (`src/lib/jobs/fill-urgency.ts`) classificeert op
+gepubliceerd + niet-vervuld + startdatum-proximity (UTC-dagen; verstreken → acuut, ≤7d → acuut, ≤21d →
+soon, anders geen chip); zwijgt bij vervuld/concept/gesloten/zonder-startdatum → rustige kaart. "Vervuld" =
+er loopt een niet-geannuleerde samenwerking (PROPOSED/ACTIVE/COMPLETED), bepaald met één begrensde
+`collaboration.groupBy` over de eigen opdrachten (geen N+1). Read-only, geen schemawijziging, geen nieuw
+mutatie/auth-oppervlak. Het woord "AI" komt nergens voor.
+
+**Bestanden:** `src/lib/jobs/fill-urgency.ts` (+ `fill-urgency.test.ts`, +8 tests),
+`src/components/jobs/job-fill-urgency-badge.tsx`, `src/app/(protected)/opdrachten/(index)/page.tsx`,
+`PROGRESS.md`. Gate: typecheck, lint, test, build, prettier groen.
+
 ## 2026-07-27 — Prod-rijpheid: /api/metrics verificatie-wachtrij-leeftijd gauge (SLA/stuck-queue-detector)
 
 **Wat:** `/api/metrics` exposeerde `zzp_verification_queue` (wachtrij**diepte**) maar niet de **leeftijd van
